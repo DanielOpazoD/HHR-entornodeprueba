@@ -13,6 +13,7 @@ import type jsPDF from 'jspdf';
 import type { ShiftType } from '@/types/domain/shift';
 import type { DeviceDetails } from '@/types/domain/devices';
 import { BEDS } from '@/constants/beds';
+import { DEFAULT_SHIFT_SCHEDULE } from '@/utils/clinicalDayUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import type { DailyRecordHandoffPdfState as HandoffPdfRecord } from '@/types/domain/dailyRecordSlices';
 import { pdfContentBuilderLogger } from '@/services/backup/backupLoggers';
@@ -121,8 +122,8 @@ export const buildHandoffPdfContent = async (
   const shiftLabel = shiftType === 'day' ? 'TURNO LARGO' : 'TURNO NOCHE';
   const shiftHours =
     shiftType === 'day'
-      ? `(${schedule?.dayStart || '08:00'} - ${schedule?.dayEnd || '20:00'})`
-      : `(${schedule?.nightStart || '20:00'} - ${schedule?.nightEnd || '08:00'})`;
+      ? `(${schedule?.dayStart || DEFAULT_SHIFT_SCHEDULE.dayStart} - ${schedule?.dayEnd || DEFAULT_SHIFT_SCHEDULE.dayEnd})`
+      : `(${schedule?.nightStart || DEFAULT_SHIFT_SCHEDULE.nightStart} - ${schedule?.nightEnd || DEFAULT_SHIFT_SCHEDULE.nightEnd})`;
 
   doc.text(`${shiftLabel} ${shiftHours}`, pageWidth - margin, margin + 9, { align: 'right' });
 

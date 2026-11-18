@@ -1,9 +1,11 @@
 import { normalizeDateOnly } from './clinicalDateUtils';
 import {
   getPreviousDay,
+  NIGHT_SHIFT_START_MINUTES,
   parseTimeMinutes,
   resolveClinicalDayBounds,
 } from './clinicalDayScheduleUtils';
+import type { ShiftType } from '@/types/domain/shift';
 
 import { calendarStampInClinicalTimeZone } from './clinicalTimeZone';
 
@@ -11,6 +13,18 @@ import { calendarStampInClinicalTimeZone } from './clinicalTimeZone';
 export const resolveCurrentClinicalDay = (now: Date = new Date()): string => {
   const { iso, hhmm } = calendarStampInClinicalTimeZone(now);
   return resolveClinicalDayForDateTime(iso, hhmm) ?? iso;
+};
+
+/**
+ * The shift running at an instant on the hospital wall clock (Rapa Nui), whatever the device
+ * zone: day from that day's day-shift start (08:00 business day, 09:00 weekend or holiday) until
+ * 20:00, night otherwise.
+ */
+export const getCurrentShift = (now: Date = new Date()): ShiftType => {
+  const { iso, hhmm } = calendarStampInClinicalTimeZone(now);
+  const minutes = parseTimeMinutes(hhmm) ?? 0;
+  const { dayStartMinutes } = resolveClinicalDayBounds(iso);
+  return minutes >= dayStartMinutes && minutes < NIGHT_SHIFT_START_MINUTES ? 'day' : 'night';
 };
 
 export const resolveClinicalDayForDateTime = (
@@ -73,13 +87,12 @@ export const isAdmittedDuringShift = (
   if (normalizedAdmissionDate < normalizedRecordDate) return true;
 
   const admissionTimeMinutes = parseTimeMinutes(admissionTime);
-  const dayEndMinutes = 20 * 60;
   const { nextDay, nightEndMinutes } = resolveClinicalDayBounds(normalizedRecordDate);
 
   if (shift === 'day') {
     if (normalizedAdmissionDate === normalizedRecordDate) {
       if (admissionTimeMinutes === null) return true;
-      return admissionTimeMinutes < dayEndMinutes;
+      return admissionTimeMinutes < NIGHT_SHIFT_START_MINUTES;
     }
     return false;
   }

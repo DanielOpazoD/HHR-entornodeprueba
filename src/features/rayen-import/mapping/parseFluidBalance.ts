@@ -3,6 +3,15 @@ import { addCalendarDays, calendarDayAtUtcNoon } from '@/utils/clinicalDateUtils
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import { removeAccents } from '@/utils/stringUtils';
 
+/*
+ * Eloísa's balance periods, fixed whatever the day: 08:00–19:59 and 20:00–07:59 (docs/DOMAIN_RULES.md,
+ * fluid balance). They are not the handoff shift, which starts at 09:00 on weekends and holidays.
+ */
+// clinical-clock-allow shift-start-literal: Eloísa's balance day starts at 08:00 every day, unlike the handoff shift.
+const FLUID_BALANCE_DAY_START = '08:00';
+// clinical-clock-allow shift-start-literal: Eloísa's balance night starts at 20:00 every day.
+const FLUID_BALANCE_NIGHT_START = '20:00';
+
 const emptyPeriod = (): FluidBalancePeriod => ({ intakeMl: 0, urineOutputMl: 0, records: 0 });
 const invalid = (): never => {
   throw new Error('El balance de Eloísa contiene registros no verificables.');
@@ -44,11 +53,11 @@ export const parseFluidBalance = (entries: unknown[], censusDate: string): Patie
     if (!Number.isFinite(date.getTime())) return invalid();
     const { iso, hhmm } = calendarStampInClinicalTimeZone(date);
     const shift =
-      iso === censusDate && hhmm >= '08:00'
-        ? hhmm < '20:00'
+      iso === censusDate && hhmm >= FLUID_BALANCE_DAY_START
+        ? hhmm < FLUID_BALANCE_NIGHT_START
           ? 'day'
           : 'night'
-        : iso === nextDay && hhmm < '08:00'
+        : iso === nextDay && hhmm < FLUID_BALANCE_DAY_START
           ? 'night'
           : undefined;
     if (!shift) continue;

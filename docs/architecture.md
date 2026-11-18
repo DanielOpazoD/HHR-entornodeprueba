@@ -18,42 +18,60 @@ vigente.
 
 ## Capas y dirección
 
-**Objetivo** (la forma decidida): las capas van de abajo arriba y se depende solo hacia
-abajo. Las carpetas ya existen; lo que hoy impone un control se dice después de la tabla.
+**Hoy:** las capas van de abajo arriba y un módulo depende solo de su capa o de las de abajo.
+La fuente es [`scripts/folder-dependency-matrix.json`](../scripts/folder-dependency-matrix.json)
+(`layers`); esta tabla la repite y `checkFolderDependencies.test.ts` comprueba que coincidan.
 
-| #   | Capa                                                                         | Carpetas de `src/`                                      | Puede importar                                                                  |
-| --- | ---------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| 0   | Núcleo puro: sin I/O ni React                                                | `types/`, `domain/`, `utils/`, `constants/`, `schemas/` | solo núcleo                                                                     |
-| 1   | Servicios: Firestore, IndexedDB, cola, sesión, auth, telemetría, exportación | `services/`                                             | núcleo                                                                          |
-| 2   | Casos de uso compartidos y puertos                                           | `application/`                                          | servicios y núcleo                                                              |
-| 3   | Estado React compartido                                                      | `hooks/`, `context/`                                    | capas 0 a 2                                                                     |
-| 4   | UI compartida                                                                | `components/`                                           | capas 0 a 3; la UI no lee datos por repositorios                                |
-| 5   | Áreas del producto                                                           | `features/<área>/`                                      | capas 0 a 4; otra área solo por su superficie pública y si la matriz lo permite |
-| 6   | Composición: arranque, rutas, vistas perezosas                               | `app-shell/`, `views/`, `App.tsx`, `index.tsx`          | todo                                                                            |
+| #   | Capa                                                                         | Carpetas de `src/`                                           | Puede importar                                                                  |
+| --- | ---------------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| 0   | Núcleo (objetivo: sin I/O ni React)                                          | `types`, `domain`, `utils`, `constants`, `schemas`, `shared` | solo núcleo                                                                     |
+| 1   | Servicios: Firestore, IndexedDB, cola, sesión, auth, telemetría, exportación | `services`, `config`                                         | núcleo                                                                          |
+| 2   | Casos de uso compartidos y puertos                                           | `application`                                                | servicios y núcleo                                                              |
+| 3   | Estado React compartido                                                      | `hooks`, `context`                                           | capas 0 a 2                                                                     |
+| 4   | UI compartida                                                                | `components`                                                 | capas 0 a 3, sin servicios que abran datos                                      |
+| 5   | Áreas del producto                                                           | `features`                                                   | capas 0 a 4; otra área solo por su superficie pública y si la matriz lo permite |
+| 6   | Composición: arranque, rutas, vistas perezosas                               | `app-shell`, `views`, `(raíz)`                               | todo                                                                            |
 
-`shared/` y `config/` son transversales: `shared/contracts` guarda contratos puros (como
-`ApplicationOutcome` y los contratos HTTP con Netlify en `shared/contracts/serverless.ts`),
-`shared/runtime` los adaptadores del navegador y `shared/access` los permisos. **Objetivo:**
-repartir `shared/` en núcleo, servicios y UI, y llevar `views/` y `config/` a `app-shell/`.
+`(raíz)` son los archivos que están directo en `src/`, como `App.tsx` e `index.tsx`.
 
-Qué de la tabla impone hoy un control:
+Qué impone hoy un control y qué queda como objetivo:
 
-- **Hoy:** [`scripts/folder-dependency-matrix.json`](../scripts/folder-dependency-matrix.json)
-  (`npm run check:folder-dependencies`) da reglas a `features`, `components`, `hooks`,
-  `context`, `services` y `domain`. No tiene lista de excepciones. Las demás carpetas, incluida
-  `application/`, no tienen regla: su dirección es **criterio**.
-- **Hoy:** `hooks/`, `components/`, `services/`, `context/` y `domain/` no importan un área
-  por el alias `@/features/…` (ESLint `hhr/public-import-boundaries`). Sí la alcanzan a través
-  de `application/census/public.ts`, la única puerta registrada hacia el interior del censo
-  (`GOVERNED_APPLICATION_PUBLIC_IMPORTS` en `scripts/lib/publicImportBoundaryRule.mjs`).
-  Hay dependencias hacia arriba que ningún control detecta todavía, por ejemplo de
-  `services/` y `schemas/` hacia `application/` y `services/`.
+- **Hoy:** `npm run check:folder-dependencies` es la única regla de dirección entre carpetas y
+  cubre todas. Obliga a las referencias que ejecutan código: imports de valor, reexportaciones y
+  cargas diferidas (`import()`, workers con `new URL(…, import.meta.url)` o `?worker`). Cuenta
+  cualquier grafía que Vite compila: alias `@/`, relativa, con extensión, `/src/…`, y `.js`,
+  `.mjs` o `.cjs` que Vite sirve como `.ts`, `.mts` o `.cts`. Los imports de solo tipos cruzan
+  libres. `?raw` y `?url` traen texto o una URL, no código, y no son dependencias; el control
+  tampoco sigue `?inline`, aunque para un módulo `.ts` Vite sí compila su código: es
+  **criterio** no usarlo para código (hoy no hay ninguno).
+- **Hoy:** la capa 0 se define por carpeta, no por contenido: que no haga I/O ni use React es
+  **objetivo** (por ejemplo `shared/ui` todavía tiene hooks de React con almacenamiento).
+- **Hoy:** las relaciones que ya subían están en el libro de la matriz (`exceptions`), una por
+  relación de archivo a archivo, con su motivo. El libro solo baja: falla una relación nueva,
+  falla una entrada que el código ya no tiene, y falla una entrada que no está en el libro de la
+  base de la PR (`FOLDER_BOOK_BASE` en CI, `git merge-base HEAD origin/main` en local; sin base,
+  el control solo avisa). Agregar una entrada es decisión del responsable.
+- **Hoy:** la UI compartida no abre datos (`dataAccess` en la matriz). `components/` no carga
+  un módulo de `services/` que use un paquete de datos (Firestore, Storage, Dexie), el global
+  `indexedDB` o un lector declarado en `dataAccess.modules` (el lector REST de Firestore y el
+  respaldo local del registro diario), directamente o a través de otros servicios. Las lecturas
+  que ya existían están en `dataAccess.exceptions`, con su motivo.
+- **Hoy, criterio:** el control es una guía y no ve todos los caminos a los datos. No ve una
+  llamada a Functions (`firebase/functions`), un `fetch` propio, Cache Storage ni
+  `localStorage`. Tampoco ve un worker de un área que entra al interior de otra, y cuenta como
+  valor un import que solo se usa como tipo si no lleva `import type`. Esos casos los decide
+  quien revisa.
+- **Hoy:** entre áreas mandan ESLint `hhr/feature-boundaries` y `hhr/public-import-boundaries`
+  (regla 1). `application/census/public.ts` todavía reexporta controladores internos del censo
+  (`GOVERNED_APPLICATION_PUBLIC_IMPORTS` en `scripts/lib/publicImportBoundaryRule.mjs`); esas
+  relaciones están en el libro.
 - **Hoy:** no hay ciclos de imports en ejecución (`npm run check:import-cycles`).
-- **Objetivo:** una sola regla de carpetas que imponga la dirección de esta tabla a todas las
-  carpetas, distinga dependencias de tipos, de valor y de carga diferida, y registre cada
-  excepción como una relación concreta en un libro que solo baja. Esa regla reemplazará la
-  clasificación de `eslint-plugin-boundaries` de `eslint.config.js` cuando demuestre que cubre
-  lo que esta cubre.
+- **Hoy:** `eslint-plugin-boundaries` está retirado: solo veía imports relativos con `.ts`
+  explícito, y lo que prohibía con razón lo cubre `check:folder-dependencies`.
+- **Objetivo:** vaciar el libro (políticas puras de `application/` a `domain/`, correo del
+  censo y fachada del censo a su área, `shared/` repartido en núcleo, servicios y UI, `views/` y
+  `config/` a `app-shell/`), y que ningún módulo de las capas 0 a 4 alcance un área en
+  ejecución.
 
 ## Reglas
 
@@ -65,13 +83,16 @@ Qué de la tabla impone hoy un control:
    `@/features/<área>` queda para quien está fuera.
 2. **Lo que usa una sola área vive en ella** (pantallas, hooks, controladores, casos de uso y
    servicios propios) y pasa a una capa compartida con el segundo consumidor real. **Hoy:**
-   criterio; hay módulos compartidos con un solo consumidor que todavía no se movieron.
-   **Objetivo:** un informe de pertenencia que abre una revisión del dueño; no ordena mover.
+   criterio, con un informe que no falla:
+   `node scripts/check-folder-dependencies.mjs --ownership` lista los módulos compartidos que
+   alcanza una sola área (contando navegador, workers, Netlify Functions y lo que Functions
+   compila desde `src/`). Cada uno abre una revisión del dueño; no ordena mover.
 3. **La UI no lee ni escribe datos por repositorios ni infraestructura:** entra por un caso de
    uso o un puerto de `application/`, y los resultados llegan tipados (`ApplicationOutcome`).
-   **Hoy:** ESLint `no-restricted-imports` en `components/layout`, `features/cudyr` y
-   `features/handoff`; `hhr/feature-boundaries` exige el puerto para
-   `ClinicalDocumentRepository` y `censusEmailService`. En el resto, criterio.
+   **Hoy:** `npm run check:folder-dependencies` (`dataAccess`) para todo `components/`; ESLint
+   `no-restricted-imports` en `components/layout`, `features/cudyr` y `features/handoff`;
+   `hhr/feature-boundaries` exige el puerto para `ClinicalDocumentRepository` y
+   `censusEmailService`. En el resto, criterio.
 4. **Un concepto, un dueño y una puerta** (tabla de abajo). Fuera del dueño no se repite la
    decisión. **Hoy:** impuesto para RUT y pasaporte, clave de episodio, mensaje de sesión,
    firmas de los registradores de auditoría (ESLint `no-restricted-syntax`), reloj clínico

@@ -86,10 +86,18 @@ describe('public imports in ESLint', () => {
           }
         }
       });
-      it(`keeps shared-layer alias restrictions (${extension}, form ${index})`, async () => {
+      // Whether a shared layer may depend on a feature is check:folder-dependencies' rule
+      // (checkFolderDependencies.test.ts); this rule only asks for the public surface.
+      it(`leaves the direction of shared layers to the folder rule (${extension}, form ${index})`, async () => {
         for (const layer of ['components', 'hooks', 'services', 'context', 'domain']) {
           expect(
             await errors(`src/${layer}/Probe.${extension}`, code('@/features/census/public'))
+          ).toEqual([]);
+          expect(
+            await errors(
+              `src/${layer}/Probe.${extension}`,
+              code('@/features/census/controllers/bedManagerModalController')
+            )
           ).toHaveLength(1);
         }
       });
@@ -166,13 +174,15 @@ describe('public imports in ESLint', () => {
     const file = 'src/hooks/controllers/bedManagerModalController.ts';
     expect(await errors(file, `export * from '${target}';`)).toHaveLength(1);
     expect(await errors(file, `import('${target}');`)).toHaveLength(1);
+    // The overlay import is a public surface; the folder rule rejects it from components
+    // (sharedLayerFeatureImports.test.ts).
     for (const code of forms)
       expect(
         await errors(
           'src/components/layout/app-content/AppContentOverlays.tsx',
           code('@/features/census/public-components')
         )
-      ).toHaveLength(1);
+      ).toEqual([]);
   });
   it.each([
     'src/views/Probe.test.ts',
@@ -183,10 +193,10 @@ describe('public imports in ESLint', () => {
   ])('preserves generic exclusions %s', async file => {
     expect(await errors(file, forms[0]('@/features/laboratory/hooks/useSyslabAccess'))).toEqual([]);
   });
-  it('keeps shared tests in scope and relative public spelling restricted by the generic policy', async () => {
+  it('leaves shared tests out and keeps relative public spelling restricted by the generic policy', async () => {
     expect(
-      await errors('src/hooks/tests/Probe.ts', forms[0]('@/features/census/public'))
-    ).toHaveLength(1);
+      await errors('src/hooks/tests/Probe.ts', forms[0]('@/features/census/controllers/x'))
+    ).toEqual([]);
     expect(await errors('src/hooks/Probe.ts', forms[0]('../features/census/public'))).toHaveLength(
       1
     );

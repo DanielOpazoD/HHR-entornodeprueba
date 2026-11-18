@@ -1,67 +1,649 @@
 {
-  "zones": {
-    "features": {
-      "responsibility": "Feature modules and flow orchestration.",
-      "allowedDependencies": [
-        "components",
-        "hooks",
-        "context",
-        "services",
-        "domain",
-        "types",
-        "constants",
-        "utils",
-        "shared",
-        "schemas",
-        "config"
-      ]
+  "rule": "Un módulo depende solo de su capa o de las de abajo, en valor y en carga diferida; los tipos (import type) pueden cruzar en cualquier dirección. Lo aplica scripts/check-folder-dependencies.mjs.",
+  "layers": [
+    {
+      "layer": 0,
+      "name": "núcleo puro",
+      "folders": ["types", "domain", "utils", "constants", "schemas", "shared"],
+      "responsibility": "Tipos, reglas y contratos puros, sin I/O ni React."
     },
-    "components": {
-      "responsibility": "Reusable UI composition and presentation.",
-      "allowedDependencies": [
-        "hooks",
-        "context",
-        "services",
-        "types",
-        "constants",
-        "utils",
-        "shared",
-        "schemas"
-      ]
+    {
+      "layer": 1,
+      "name": "servicios",
+      "folders": ["services", "config"],
+      "responsibility": "Firestore, IndexedDB, cola, sesión, auth, telemetría, exportación y su configuración."
     },
-    "hooks": {
-      "responsibility": "Reusable behavior and UI orchestration hooks.",
-      "allowedDependencies": [
-        "domain",
-        "services",
-        "context",
-        "types",
-        "constants",
-        "utils",
-        "shared",
-        "schemas",
-        "config"
-      ]
+    {
+      "layer": 2,
+      "name": "casos de uso compartidos",
+      "folders": ["application"],
+      "responsibility": "Casos de uso que combinan dos o más áreas, y sus puertos."
     },
-    "context": {
-      "responsibility": "Global state providers and contracts.",
-      "allowedDependencies": ["hooks", "services", "types", "constants", "utils", "shared"]
+    {
+      "layer": 3,
+      "name": "estado React compartido",
+      "folders": ["hooks", "context"],
+      "responsibility": "Registro diario, auth y estado de interfaz que usan varias áreas."
     },
-    "services": {
-      "responsibility": "Business operations, I/O and integrations.",
-      "allowedDependencies": [
-        "domain",
-        "types",
-        "constants",
-        "utils",
-        "schemas",
-        "shared",
-        "config"
-      ]
+    {
+      "layer": 4,
+      "name": "interfaz compartida",
+      "folders": ["components"],
+      "responsibility": "Componentes visuales reutilizados."
     },
-    "domain": {
-      "responsibility": "Pure domain rules and value logic.",
-      "allowedDependencies": ["types", "constants", "utils"]
+    {
+      "layer": 5,
+      "name": "áreas",
+      "folders": ["features"],
+      "responsibility": "Cada área con sus pantallas, hooks, controladores y servicios propios; entre áreas manda scripts/feature-dependency-matrix.json."
+    },
+    {
+      "layer": 6,
+      "name": "composición",
+      "folders": ["app-shell", "views", "(raíz)"],
+      "responsibility": "Arranque, rutas y vistas perezosas; (raíz) son los archivos directos de src/."
     }
-  }
+  ],
+  "dataAccess": {
+    "rule": "La interfaz compartida no abre datos: components/ no carga, en valor ni en diferido, un módulo de services/ que importe uno de estos paquetes, use uno de estos globales o figure en modules (archivo, o carpeta terminada en /), directamente o a través de otros módulos de services/. Los tipos sí pueden cruzar.",
+    "from": ["components"],
+    "packages": ["firebase/firestore", "firebase/storage", "dexie"],
+    "globals": ["indexedDB"],
+    "modules": [
+      "src/services/storage/firestore/firestoreServerDocumentRead.ts",
+      "src/services/storage/localpersistence/"
+    ],
+    "exceptions": [
+      {
+        "from": "src/components/bookmarks/BookmarkBar.tsx",
+        "to": "src/services/bookmarks/bookmarkService.ts",
+        "kind": "value",
+        "reason": "Los marcadores leen y guardan en Firestore desde sus componentes; la lectura sube a un hook de marcadores."
+      },
+      {
+        "from": "src/components/bookmarks/BookmarkManagerModal.tsx",
+        "to": "src/services/bookmarks/bookmarkService.ts",
+        "kind": "value",
+        "reason": "Los marcadores leen y guardan en Firestore desde sus componentes; la lectura sube a un hook de marcadores."
+      },
+      {
+        "from": "src/components/bookmarks/hooks/useBookmarkBarPreferences.ts",
+        "to": "src/services/bookmarks/bookmarkService.ts",
+        "kind": "value",
+        "reason": "Los marcadores leen y guardan en Firestore desde sus componentes; la lectura sube a un hook de marcadores."
+      },
+      {
+        "from": "src/components/bookmarks/hooks/useBookmarkImport.ts",
+        "to": "src/services/bookmarks/bookmarkService.ts",
+        "kind": "value",
+        "reason": "Los marcadores leen y guardan en Firestore desde sus componentes; la lectura sube a un hook de marcadores."
+      },
+      {
+        "from": "src/components/layout/app-content/useAppContentRuntime.ts",
+        "to": "src/services/exporters/censusMasterExport.ts",
+        "kind": "deferred",
+        "reason": "El shell carga la exportación maestra del censo, que lee la base local; la acción sube al arranque o a la feature del censo."
+      },
+      {
+        "from": "src/components/layout/StorageStatusBadge.tsx",
+        "to": "src/services/storage/indexeddb/indexedDbMaintenanceService.ts",
+        "kind": "value",
+        "reason": "La insignia ofrece limpiar la base local; la acción sube a un hook."
+      },
+      {
+        "from": "src/components/layout/UserSignatureDialog.tsx",
+        "to": "src/services/user-profile/userSignatureService.ts",
+        "kind": "value",
+        "reason": "El diálogo sube la firma a Storage; la acción sube a un hook del perfil."
+      },
+      {
+        "from": "src/components/modals/actions/MoveCopyModal.tsx",
+        "to": "src/services/RepositoryContext.tsx",
+        "kind": "value",
+        "reason": "El modal toma los repositorios de RepositoryContext; la acción sube a un hook."
+      },
+      {
+        "from": "src/components/modals/actions/TransferModal.tsx",
+        "to": "src/services/transfers/transferService.ts",
+        "kind": "value",
+        "reason": "El modal guarda traslados en Firestore; la acción sube a un hook o a la feature."
+      },
+      {
+        "from": "src/components/modals/PatientHistoryModal.tsx",
+        "to": "src/services/patient/patientHistoryService.ts",
+        "kind": "value",
+        "reason": "El modal lee el historial del paciente de la base local; la lectura sube a un hook."
+      },
+      {
+        "from": "src/components/modals/RecoverCensusStaffButton.tsx",
+        "to": "src/services/staff/recoverCensusStaff.ts",
+        "kind": "deferred",
+        "reason": "El botón recupera el personal del censo en Firestore; la acción sube a la feature del censo."
+      },
+      {
+        "from": "src/components/shared/GlobalErrorBoundary.tsx",
+        "to": "src/services/utils/errorService.ts",
+        "kind": "value",
+        "reason": "El límite de errores registra el error con errorService, que persiste en la base local; queda hasta separar el registro de la pantalla."
+      }
+    ]
+  },
+  "exceptions": [
+    {
+      "from": "src/application/census-email/censusRecipientListUseCases.ts",
+      "to": "src/hooks/controllers/censusEmailRecipientListController.ts",
+      "kind": "value",
+      "reason": "Correo del censo repartido entre application/ y hooks/; ARCH-6 lo reúne en features/census/email."
+    },
+    {
+      "from": "src/application/census-email/censusRecipientListUseCases.ts",
+      "to": "src/hooks/controllers/censusEmailRecipientRuntimeController.ts",
+      "kind": "value",
+      "reason": "Correo del censo repartido entre application/ y hooks/; ARCH-6 lo reúne en features/census/email."
+    },
+    {
+      "from": "src/application/census-email/censusRecipientListUseCases.ts",
+      "to": "src/hooks/controllers/censusEmailRecipientsBootstrapController.ts",
+      "kind": "value",
+      "reason": "Correo del censo repartido entre application/ y hooks/; ARCH-6 lo reúne en features/census/email."
+    },
+    {
+      "from": "src/application/census-email/censusRecipientListUseCases.ts",
+      "to": "src/hooks/controllers/censusEmailRecipientSelectionController.ts",
+      "kind": "value",
+      "reason": "Correo del censo repartido entre application/ y hooks/; ARCH-6 lo reúne en features/census/email."
+    },
+    {
+      "from": "src/application/census-email/censusRecipientListUseCases.ts",
+      "to": "src/hooks/controllers/censusEmailRecipientSyncController.ts",
+      "kind": "value",
+      "reason": "Correo del censo repartido entre application/ y hooks/; ARCH-6 lo reúne en features/census/email."
+    },
+    {
+      "from": "src/application/census-email/sendCensusEmailUseCases.ts",
+      "to": "src/features/census/index.ts",
+      "kind": "value",
+      "reason": "Correo del censo repartido fuera de su feature; ARCH-6 lo reúne en features/census/email."
+    },
+    {
+      "from": "src/application/census-email/sendCensusEmailUseCases.ts",
+      "to": "src/hooks/controllers/censusEmailSendController.ts",
+      "kind": "value",
+      "reason": "Correo del censo repartido entre application/ y hooks/; ARCH-6 lo reúne en features/census/email."
+    },
+    {
+      "from": "src/application/census-email/sendCensusEmailUseCases.ts",
+      "to": "src/hooks/controllers/censusExcelSheetController.ts",
+      "kind": "value",
+      "reason": "Correo del censo repartido entre application/ y hooks/; ARCH-6 lo reúne en features/census/email."
+    },
+    {
+      "from": "src/application/census/censusStaffHeaderReadModel.ts",
+      "to": "src/features/census/index.ts",
+      "kind": "value",
+      "reason": "Modelo de lectura del encabezado del censo que solo usa el censo; candidato a features/census."
+    },
+    {
+      "from": "src/application/census/eloisaAdmissionInput.ts",
+      "to": "src/features/rayen-import/census-status.ts",
+      "kind": "value",
+      "reason": "Admisión desde Eloísa que combina censo e importación; su dueño se decide al retirar la fachada (ARCH-10)."
+    },
+    {
+      "from": "src/application/census/eloisaAdmissionInput.ts",
+      "to": "src/features/rayen-manual-import/index.ts",
+      "kind": "value",
+      "reason": "Admisión desde Eloísa que combina censo e importación; su dueño se decide al retirar la fachada (ARCH-10)."
+    },
+    {
+      "from": "src/application/census/public.ts",
+      "to": "src/features/census/controllers/bedManagerGridItemsController.ts",
+      "kind": "value",
+      "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
+    },
+    {
+      "from": "src/application/census/public.ts",
+      "to": "src/features/census/controllers/bedManagerModalController.ts",
+      "kind": "value",
+      "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
+    },
+    {
+      "from": "src/application/census/public.ts",
+      "to": "src/features/census/controllers/censusEmailRecipientsController.ts",
+      "kind": "value",
+      "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
+    },
+    {
+      "from": "src/application/census/public.ts",
+      "to": "src/features/census/controllers/clinicalShiftCalendarController.ts",
+      "kind": "value",
+      "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
+    },
+    {
+      "from": "src/application/census/public.ts",
+      "to": "src/features/census/controllers/dischargeModalController.ts",
+      "kind": "value",
+      "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
+    },
+    {
+      "from": "src/application/census/public.ts",
+      "to": "src/features/census/controllers/modalFormController.ts",
+      "kind": "value",
+      "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
+    },
+    {
+      "from": "src/application/census/public.ts",
+      "to": "src/features/census/controllers/patientMovementCreationController.ts",
+      "kind": "value",
+      "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
+    },
+    {
+      "from": "src/application/census/public.ts",
+      "to": "src/features/census/controllers/patientMovementCreationErrorPresentation.ts",
+      "kind": "value",
+      "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
+    },
+    {
+      "from": "src/application/census/public.ts",
+      "to": "src/features/census/controllers/patientMovementCreationInputController.ts",
+      "kind": "value",
+      "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
+    },
+    {
+      "from": "src/application/census/public.ts",
+      "to": "src/features/census/controllers/patientMovementMutationController.ts",
+      "kind": "value",
+      "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
+    },
+    {
+      "from": "src/application/census/public.ts",
+      "to": "src/features/census/controllers/patientMovementRuntimeController.ts",
+      "kind": "value",
+      "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
+    },
+    {
+      "from": "src/application/census/public.ts",
+      "to": "src/features/census/controllers/patientMovementSelectionController.ts",
+      "kind": "value",
+      "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
+    },
+    {
+      "from": "src/application/census/public.ts",
+      "to": "src/features/census/controllers/patientMovementUndoController.ts",
+      "kind": "value",
+      "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
+    },
+    {
+      "from": "src/application/census/public.ts",
+      "to": "src/features/census/controllers/patientMovementUndoErrorPresentation.ts",
+      "kind": "value",
+      "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
+    },
+    {
+      "from": "src/application/census/public.ts",
+      "to": "src/features/census/controllers/patientMovementUndoMutationController.ts",
+      "kind": "value",
+      "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
+    },
+    {
+      "from": "src/application/census/public.ts",
+      "to": "src/features/census/controllers/transferModalController.ts",
+      "kind": "value",
+      "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
+    },
+    {
+      "from": "src/application/census/public.ts",
+      "to": "src/features/census/types/censusAccessProfile.ts",
+      "kind": "value",
+      "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
+    },
+    {
+      "from": "src/application/clinical-documents/clinicalAttachmentUseCases.ts",
+      "to": "src/features/clinical-documents/internal.ts",
+      "kind": "value",
+      "reason": "Casos de uso de documentos clínicos que leen su feature por internal.ts; dueño por revisar."
+    },
+    {
+      "from": "src/application/clinical-documents/clinicalDocumentEditorUseCases.ts",
+      "to": "src/features/clinical-documents/internal.ts",
+      "kind": "value",
+      "reason": "Casos de uso de documentos clínicos que leen su feature por internal.ts; dueño por revisar."
+    },
+    {
+      "from": "src/application/clinical-documents/clinicalDocumentJsonUseCases.ts",
+      "to": "src/features/clinical-documents/internal.ts",
+      "kind": "value",
+      "reason": "Casos de uso de documentos clínicos que leen su feature por internal.ts; dueño por revisar."
+    },
+    {
+      "from": "src/application/clinical-documents/clinicalDocumentPrintOpenUseCase.ts",
+      "to": "src/features/clinical-documents/internal.ts",
+      "kind": "value",
+      "reason": "Casos de uso de documentos clínicos que leen su feature por internal.ts; dueño por revisar."
+    },
+    {
+      "from": "src/components/app-router/appRouterController.tsx",
+      "to": "src/views/LazyViews.ts",
+      "kind": "value",
+      "reason": "Las vistas perezosas viven en views/; ARCH-15 las lleva a app-shell junto a la composición."
+    },
+    {
+      "from": "src/components/layout/app-content/AppContentOverlays.tsx",
+      "to": "src/views/LazyViews.ts",
+      "kind": "value",
+      "reason": "Las vistas perezosas viven en views/; ARCH-15 las lleva a app-shell junto a la composición."
+    },
+    {
+      "from": "src/constants/firestorePaths.ts",
+      "to": "src/services/config/HospitalConfigService.ts",
+      "kind": "value",
+      "reason": "Constante que lee la configuración del hospital; ARCH-15 separa el valor fijo de la lectura."
+    },
+    {
+      "from": "src/features/auth/components/useLoginPageController.ts",
+      "to": "src/app-shell/bootstrap/authenticatedRoutePreloadController.ts",
+      "kind": "value",
+      "reason": "Llama al arranque desde una capa inferior; ARCH-15 separa composición y arranque."
+    },
+    {
+      "from": "src/hooks/useVersionCheck.ts",
+      "to": "src/app-shell/bootstrap/bootstrapAppRuntime.ts",
+      "kind": "value",
+      "reason": "Llama al arranque desde una capa inferior; ARCH-15 separa composición y arranque."
+    },
+    {
+      "from": "src/schemas/zod/clinicalDerived.ts",
+      "to": "src/services/storage/clinicalDerivedConstants.ts",
+      "kind": "value",
+      "reason": "Esquema zod que usa un servicio (telemetría o personal); ARCH-15 separa el efecto del contrato puro."
+    },
+    {
+      "from": "src/schemas/zod/dailyRecord.ts",
+      "to": "src/services/staff/dailyRecordStaffing.ts",
+      "kind": "value",
+      "reason": "Esquema zod que usa un servicio (telemetría o personal); ARCH-15 separa el efecto del contrato puro."
+    },
+    {
+      "from": "src/schemas/zodFallbackBuilders.ts",
+      "to": "src/services/factories/patientFactory.ts",
+      "kind": "value",
+      "reason": "Esquema zod que usa un servicio (telemetría o personal); ARCH-15 separa el efecto del contrato puro."
+    },
+    {
+      "from": "src/schemas/zodSafeParsers.ts",
+      "to": "src/services/observability/operationalTelemetryRecorder.ts",
+      "kind": "value",
+      "reason": "Esquema zod que usa un servicio (telemetría o personal); ARCH-15 separa el efecto del contrato puro."
+    },
+    {
+      "from": "src/schemas/zodSafeParsers.ts",
+      "to": "src/services/staff/dailyRecordStaffing.ts",
+      "kind": "value",
+      "reason": "Esquema zod que usa un servicio (telemetría o personal); ARCH-15 separa el efecto del contrato puro."
+    },
+    {
+      "from": "src/schemas/zodSafeParsers.ts",
+      "to": "src/services/storage/clinicalDerivedWriteHygiene.ts",
+      "kind": "value",
+      "reason": "Esquema zod que usa un servicio (telemetría o personal); ARCH-15 separa el efecto del contrato puro."
+    },
+    {
+      "from": "src/services/admin/admissionDateBackfillPlanner.ts",
+      "to": "src/application/patient-flow/admissionDatePolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/calculations/minsal/calculator.ts",
+      "to": "src/application/census/movementTombstonePolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/calculations/minsal/cmaStats.ts",
+      "to": "src/application/census/movementTombstonePolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/calculations/minsal/snapshot.ts",
+      "to": "src/application/census/movementTombstonePolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/calculations/minsal/traceability.ts",
+      "to": "src/application/census/movementTombstonePolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/daily-record/dailyRecordAdmitPatientPort.ts",
+      "to": "src/application/patient-flow/clinicalEpisodeIdPolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/exporters/excel/censusHiddenSheetsAggregation.ts",
+      "to": "src/application/census/movementTombstonePolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/exporters/excel/censusWorkbookDaySheetBuilder.ts",
+      "to": "src/application/census/movementTombstonePolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/exporters/excel/sections/summarySection.ts",
+      "to": "src/application/census/movementTombstonePolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/exporters/exportCsvSerialization.ts",
+      "to": "src/application/census/movementTombstonePolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/firebase-runtime/firebaseConfigRuntimeAdapter.ts",
+      "to": "src/firebaseConfig.ts",
+      "kind": "value",
+      "reason": "firebaseConfig.ts vive en la raíz de src/; ARCH-15 lo lleva a services/firebase-runtime."
+    },
+    {
+      "from": "src/services/patient/patientHistoryService.ts",
+      "to": "src/application/census/movementTombstonePolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/patient/patientUpcHistoryService.ts",
+      "to": "src/application/census/movementTombstonePolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/pdf/handoffPdfMovementsSummarySection.ts",
+      "to": "src/application/census/movementTombstonePolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/repositories/ClinicalDocumentRepository.ts",
+      "to": "src/application/ports/clinicalDocumentCompatibilityPort.ts",
+      "kind": "value",
+      "reason": "Puerto que implementa un servicio; ARCH-4 lo lleva a la capa de servicios."
+    },
+    {
+      "from": "src/services/repositories/clinicalMovementBedConsistencyPolicy.ts",
+      "to": "src/application/census/movementTombstonePolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/repositories/dailyRecordAdmissionDateWritePolicy.ts",
+      "to": "src/application/patient-flow/admissionDatePolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/repositories/dailyRecordAdmissionDateWritePolicy.ts",
+      "to": "src/application/patient-flow/patientEpisodeIdentityPolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/repositories/dailyRecordAggregate.ts",
+      "to": "src/application/census/movementTombstonePolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/repositories/dailyRecordBackgroundMasterSyncController.ts",
+      "to": "src/application/census/movementTombstonePolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/repositories/dailyRecordClinicalAuthorityPolicy.ts",
+      "to": "src/application/census/movementTombstonePolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/repositories/dailyRecordClinicalAuthorityPolicy.ts",
+      "to": "src/application/patient-flow/clinicalEpisode.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/repositories/dailyRecordConflictPostMergeInvariantChecker.ts",
+      "to": "src/application/census/movementReclassificationConcurrencyPolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/repositories/dailyRecordPatchPersistenceController.ts",
+      "to": "src/application/patient-flow/clinicalEpisodeIdPolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/repositories/dailyRecordPendingWriteRebase.ts",
+      "to": "src/application/patient-flow/patientEpisodeIdentityPolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/repositories/dailyRecordPersistencePreparation.ts",
+      "to": "src/application/patient-flow/clinicalEpisodeIdPolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/repositories/dailyRecordRepositoryWriteService.ts",
+      "to": "src/application/census/movementReclassificationConcurrencyPolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/repositories/dailyRecordRepositoryWriteService.ts",
+      "to": "src/application/patient-flow/admissionDatePolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/repositories/patientEpisodeNarrativePolicy.ts",
+      "to": "src/application/patient-flow/clinicalEpisode.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/repositories/patientEpisodeNarrativePolicy.ts",
+      "to": "src/application/patient-flow/clinicalEpisodeIdPolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/repositories/ports/repositoryAuditPort.ts",
+      "to": "src/application/audit/writeAuditEventUseCaseLoader.ts",
+      "kind": "value",
+      "reason": "El puerto de auditoría del repositorio carga el caso de uso; ARCH-4 lo ubica con los puertos."
+    },
+    {
+      "from": "src/services/RepositoryContext.tsx",
+      "to": "src/application/ports/dailyRecordPort.ts",
+      "kind": "value",
+      "reason": "Puerto que implementa un servicio; ARCH-4 lo lleva a la capa de servicios."
+    },
+    {
+      "from": "src/services/storage/clinicalDerivedWriteHygiene.ts",
+      "to": "src/application/patient-flow/clinicalEpisodeIdPolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/storage/firestore/specialistMedicalHandoffIdentity.ts",
+      "to": "src/application/patient-flow/clinicalEpisodeIdPolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/storage/sync/bedOccupantIdentity.ts",
+      "to": "src/application/patient-flow/patientEpisodeIdentityPolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/services/storage/sync/syncTaskContractPolicy.ts",
+      "to": "src/application/patient-flow/clinicalEpisode.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/shared/access/operationalAccessPolicy.ts",
+      "to": "src/application/clinical-documents/clinicalDocumentAccessPolicy.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/shared/contracts/medicalIndications.ts",
+      "to": "src/application/patient-flow/clinicalEpisode.ts",
+      "kind": "value",
+      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
+    },
+    {
+      "from": "src/shared/document-intake/qrDocumentAccessService.ts",
+      "to": "src/services/firebase-runtime/functionsRuntime.ts",
+      "kind": "value",
+      "reason": "shared/ mezcla contratos puros y código con I/O; ARCH-15 lleva este a services/."
+    },
+    {
+      "from": "src/shared/images/heicConverterLoader.ts",
+      "to": "src/services/runtime/createCachedRuntimeLoader.ts",
+      "kind": "value",
+      "reason": "shared/ mezcla contratos puros y código con I/O; ARCH-15 lleva este a services/."
+    },
+    {
+      "from": "src/utils/lazyWithRetry.ts",
+      "to": "src/services/observability/operationalTelemetryRecorder.ts",
+      "kind": "value",
+      "reason": "Utilidad del núcleo que usa un servicio; ARCH-15 separa el efecto."
+    },
+    {
+      "from": "src/utils/networkUtils.ts",
+      "to": "src/services/utils/loggerScope.ts",
+      "kind": "value",
+      "reason": "Utilidad del núcleo que usa un servicio; ARCH-15 separa el efecto."
+    },
+    {
+      "from": "src/utils/recordInvariants.ts",
+      "to": "src/services/factories/patientFactory.ts",
+      "kind": "value",
+      "reason": "Utilidad del núcleo que usa un servicio; ARCH-15 separa el efecto."
+    }
+  ]
 }

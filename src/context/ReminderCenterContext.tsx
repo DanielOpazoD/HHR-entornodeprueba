@@ -12,7 +12,7 @@ import {
   hasUrgentVisibleReminders,
   sortRemindersByPriority,
 } from '@/shared/reminders/reminderVisibility';
-import { getCurrentShift } from '@/services/admin/attributionService';
+import { getCurrentShift } from '@/utils/clinicalDayUtils';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import type { Reminder } from '@/types/reminders';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';

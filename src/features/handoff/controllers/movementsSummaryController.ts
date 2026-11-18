@@ -1,6 +1,6 @@
 import type { CMAData, DischargeData, TransferData } from '@/types/domain/movements';
 import type { ShiftType } from '@/types/domain/shift';
-import { isWithinDayShift } from '@/utils/shiftTimeUtils';
+import { isWithinDayShift } from '@/utils/clinicalDayUtils';
 import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import {
   getActiveCma,
