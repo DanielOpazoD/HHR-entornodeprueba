@@ -30,11 +30,17 @@ export const RayenSyncQueueDetails: React.FC<{
   const [reviewingCensus, setReviewingCensus] = React.useState<number | null>(null);
   const [showBackups, setShowBackups] = React.useState(false);
   const policyBlocked = operations.some(isPolicyBlockedCudyrArchive);
-  // Their edits left the stored day: they cannot be resent, only reviewed and entered again.
-  const releasedIds = new Set(operations.filter(op => op.projectionReleased).map(op => op.id));
   const blocked = listQuarantinedOperations(
     operations.filter(op => !isPolicyBlockedCudyrArchive(op)),
     { isAdmin }
+  );
+  // Their edits left the stored day: they cannot be resent, only reviewed and entered again. A
+  // closed editing window, which also releases them, gives its own reason.
+  const releasedIds = new Set(
+    blocked
+      .filter(view => view.recovery !== 'editing_window_closed')
+      .filter(view => operations.some(op => op.id === view.id && op.projectionReleased))
+      .map(view => view.id)
   );
   // Retrying tasks are already included in pending. Stopped sends do not go out by themselves:
   // they are counted apart, for review, never as about to be sent.

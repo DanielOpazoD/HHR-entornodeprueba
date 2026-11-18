@@ -1,5 +1,5 @@
 import { cudyrReportIsVerified } from '@/services/cudyr/cudyrReportCache';
-import { monthlyRecoveryWindow } from '@/services/cudyr/cudyrMonthlyRecoveryPlan';
+import { monthlyRecoveryWindow } from '@/features/cudyr/recovery/cudyrMonthlyRecoveryPlan';
 import { CudyrNightStaff } from './CudyrNightStaff';
 import { CudyrExclusionSummary } from './CudyrExclusionSummary';
 import { cudyrCensusAccepted } from '@/services/cudyr/cudyrCensusApproval';
@@ -115,7 +115,8 @@ export const CudyrView = ({
     setExporting(true);
     setExportError('');
     try {
-      const { downloadCudyrEssential } = await import('@/services/cudyr/cudyrEssentialWorkbook');
+      const { downloadCudyrEssential } =
+        await import('@/features/cudyr/export/cudyrEssentialWorkbook');
       await downloadCudyrEssential(data);
     } catch (caught) {
       setExportError(caught instanceof Error ? caught.message : 'No se pudo generar el Excel.');

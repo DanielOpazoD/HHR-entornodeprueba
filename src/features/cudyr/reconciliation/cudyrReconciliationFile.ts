@@ -1,5 +1,5 @@
 import type { CudyrReconciliationFile } from '@/types/domain/cudyrReconciliation';
-import { readInCudyrWorker } from './cudyrWorkerRead';
+import { readInCudyrWorker } from '@/services/cudyr/cudyrWorkerRead';
 
 /** Local preview only: no upload, storage, source lookup or clinical mutation. */
 export const readCudyrReconciliationFile = async (

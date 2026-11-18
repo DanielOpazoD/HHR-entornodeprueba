@@ -198,11 +198,6 @@ describe('a census send refused after its editing window closed', () => {
       { categoryLabel: 'Sesión no validada', recovery: 'review_authorization' },
     ],
     [
-      'a send without its local copy',
-      { projectionReleased: true },
-      { categoryLabel: 'Revisar antes de reenviar', recovery: 'review_base' },
-    ],
-    [
       'a refused field outside the census day',
       { key: 'daily:2026-11-01:detached:30:[]' },
       { categoryLabel: 'Sin permisos', recovery: 'review_authorization', canRetire: false },
@@ -216,5 +211,19 @@ describe('a census send refused after its editing window closed', () => {
     const operation = refused(overrides);
     expect(view(operation, closesAt + 60_000)).toEqual(view(operation, closesAt - 60_000));
     expect(view(operation, closesAt + 60_000)).toMatchObject(expected);
+  });
+
+  // W14-H1B: the queue releases the day of this refusal, so its copy left the stored day for the
+  // closed window, and that stays its reason, also after a later logout. Inside the window a
+  // released send (a logout) keeps its review.
+  it('names the closed window for a released send too', () => {
+    expect(view(refused({ projectionReleased: true }), closesAt + 60_000)).toMatchObject({
+      categoryLabel: 'Plazo de edición cerrado',
+      recovery: 'editing_window_closed',
+    });
+    expect(view(refused({ projectionReleased: true }), closesAt - 60_000)).toMatchObject({
+      categoryLabel: 'Revisar antes de reenviar',
+      recovery: 'review_base',
+    });
   });
 });

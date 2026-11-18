@@ -1,8 +1,8 @@
-import { validateCudyrWorkbookTotals } from '@/services/cudyr/cudyrWorkbookValidation';
+import { validateCudyrWorkbookTotals } from '@/features/cudyr/export/cudyrWorkbookValidation';
 import { confirmedReportInput } from './reportFixtures';
 import { describe, expect, it } from 'vitest';
 import { buildCudyrReport, cudyrReportTotals } from '@/services/cudyr/cudyrReportModel';
-import { buildCudyrEssentialWorkbook } from '@/services/cudyr/cudyrEssentialWorkbook';
+import { buildCudyrEssentialWorkbook } from '@/features/cudyr/export/cudyrEssentialWorkbook';
 import { reportInput, reportPatient, reportRecord } from './reportFixtures';
 import type { CudyrDailyExclusion } from '@/types/domain/cudyrExclusion';
 const exclusion: CudyrDailyExclusion = {

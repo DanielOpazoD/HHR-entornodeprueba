@@ -1,4 +1,4 @@
-import { recordCudyrOperation } from '@/services/cudyr/cudyrOperationTelemetry';
+import { recordCudyrOperation } from '@/features/cudyr/report/cudyrOperationTelemetry';
 import { useEffect, useRef, useState } from 'react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import {
@@ -6,7 +6,7 @@ import {
   recoverCudyrMonthlyReports,
   type MonthlyRecoveryProgress,
   type MonthlyRecoveryResult,
-} from '@/services/cudyr/cudyrMonthlyRecovery';
+} from '@/features/cudyr/recovery/cudyrMonthlyRecovery';
 
 /** Complementary source recovery; it never changes eligibility or clinical observations. */
 export const CudyrMonthlyRecovery = ({

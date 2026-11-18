@@ -1,6 +1,6 @@
 import { getNextDay } from '@/utils/clinicalDayUtils';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
-import { cudyrArchiveCoverage } from './cudyrArchiveCoverage';
+import { cudyrArchiveCoverage } from '@/services/cudyr/cudyrArchiveCoverage';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 
 export const monthlyRecoveryPeriod = (month: string) => {

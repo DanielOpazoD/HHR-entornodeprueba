@@ -1,6 +1,6 @@
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
-import { CUDYR_STATUS_LABELS } from './cudyrReportPresentation';
+import { CUDYR_STATUS_LABELS } from '@/services/cudyr/cudyrReportPresentation';
 
 export const cudyrEligibilityOrigin = (row: CudyrReportRow): string => {
   if (row.exclusion?.reason) return 'Decisión manual';

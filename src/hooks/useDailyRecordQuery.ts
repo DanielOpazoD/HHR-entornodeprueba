@@ -33,6 +33,10 @@ import {
   type SaveDailyRecordMutationInput,
 } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import { useDailyRecordFreshnessRecovery } from '@/hooks/useDailyRecordFreshnessRecovery';
+import {
+  DAILY_RECORD_STORE_CHANGED_EVENT,
+  type DailyRecordStoreChangedEventDetail,
+} from '@/services/storage/indexeddb/indexedDbRecordEvents';
 export { usePatchDailyRecordMutation } from '@/hooks/usePatchDailyRecordMutation';
 
 /**
@@ -109,6 +113,19 @@ export const useDailyRecordQuery = (
 
     void query.refetch();
   }, [date, query, shouldSyncFromRemote, hasConfirmedRemoteRead]);
+
+  const { refetch } = query;
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // A stopped send released after the nurse window gave its fields back to this computer's copy
+    // of the day (SAVE-04): the census reads the day again, from the server or that copy.
+    const handleStoreChanged = (event: Event) => {
+      const detail = (event as CustomEvent<DailyRecordStoreChangedEventDetail>).detail;
+      if (detail?.operation === 'release' && detail.dates?.includes(date)) void refetch();
+    };
+    window.addEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, handleStoreChanged);
+    return () => window.removeEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, handleStoreChanged);
+  }, [date, refetch]);
 
   useEffect(() => {
     if (!shouldSubscribeFromRemote) return;

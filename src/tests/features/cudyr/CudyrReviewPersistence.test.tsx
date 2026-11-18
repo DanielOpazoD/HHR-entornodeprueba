@@ -7,7 +7,7 @@ import type { CudyrComparisonItem } from '@/types/domain/cudyrReconciliation';
 import type { CudyrReviewSource, SavedCudyrReview } from '@/types/domain/cudyrReview';
 import { reportInput } from '../../services/cudyr/reportFixtures';
 const api = vi.hoisted(() => ({ load: vi.fn(), save: vi.fn() }));
-vi.mock('@/services/cudyr/cudyrReviewService', () => ({
+vi.mock('@/features/cudyr/reconciliation/cudyrReviewService', () => ({
   loadCudyrReviews: api.load,
   saveCudyrReview: api.save,
 }));

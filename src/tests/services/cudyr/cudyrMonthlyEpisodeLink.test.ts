@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { resolveRepeatedMonthlyEpisodes } from '@/services/cudyr/cudyrMonthlyEpisodeLink';
 import { applyCudyrMonthlySources } from '@/services/cudyr/cudyrMonthlyProjection';
-import { verifyCudyrMonthlySources } from '@/services/cudyr/cudyrMonthlyVerification';
+import { verifyCudyrMonthlySources } from '@/features/cudyr/recovery/cudyrMonthlyVerification';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { confirmedReportInput, reportRecord, reportPatient } from './reportFixtures';
 import { supplementRequest } from '@/tests/fixtures/cudyrSupplementFixture';

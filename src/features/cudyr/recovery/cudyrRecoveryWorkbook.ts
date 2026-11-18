@@ -1,6 +1,6 @@
 import { createWorkbook } from '@/services/exporters/excelUtils';
 import { saveAs } from 'file-saver';
-import { addCudyrDataSheet } from './cudyrDataSheet';
+import { addCudyrDataSheet } from '@/services/cudyr/cudyrDataSheet';
 import {
   CUDYR_RECOVERY_LABELS,
   cudyrRecoveryGuidance,
@@ -10,7 +10,7 @@ import {
   CUDYR_GROUP_LABELS,
   CUDYR_MODALITY_LABELS,
   CUDYR_ELIGIBILITY_LABELS,
-} from './cudyrReportPresentation';
+} from '@/services/cudyr/cudyrReportPresentation';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 
 export const buildCudyrRecoveryWorkbook = async (

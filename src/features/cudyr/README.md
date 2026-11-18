@@ -4,6 +4,19 @@
 
 Feature de categorización CUDYR para enfermería, con vista web, exportación y soporte de impresión/PDF para entrega de turno nocturno.
 
+## Carpetas
+
+- `components/`, `hooks/`, `controllers/`: pantallas, estado React y decisiones de la vista.
+- `report/`: lectura del período, control diario, exclusiones, diagnóstico y corrección del administrador.
+- `export/`: Excel esencial que se descarga desde la vista CUDYR, con las hojas de la fuente Eloísa.
+- `indicator/`: indicador compacto del censo y su acumulado anual.
+- `recovery/`: recuperación mensual y su planilla.
+- `reconciliation/`: conciliación histórica y revisión de vínculos.
+
+Lo que también usan otras áreas o el servidor se queda en `src/services/cudyr`: el parser que
+compila Functions (`cudyrSourceServerEntry.ts` y lo que importa), el Excel del explorador con su
+cargador y su modelo (los usa también el respaldo mensual), la cola del archivo (Eloísa) y el resumen de la entrega.
+
 ## Contratos relevantes
 
 - `cudyrUpdatedAt`

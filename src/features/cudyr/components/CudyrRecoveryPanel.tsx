@@ -5,7 +5,7 @@ import {
   CUDYR_RECOVERY_LABELS,
   cudyrRecoveryGuidance,
   type CudyrRecoveryCase,
-} from '@/services/cudyr/cudyrRecoveryPlan';
+} from '@/features/cudyr/recovery/cudyrRecoveryPlan';
 
 export const CudyrRecoveryPanel = ({
   data,
@@ -38,7 +38,8 @@ export const CudyrRecoveryPanel = ({
     setBusy(true);
     setMessage('');
     try {
-      const { downloadCudyrRecoveryPlan } = await import('@/services/cudyr/cudyrRecoveryWorkbook');
+      const { downloadCudyrRecoveryPlan } =
+        await import('@/features/cudyr/recovery/cudyrRecoveryWorkbook');
       if (!active.current) return;
       await downloadCudyrRecoveryPlan(
         data,

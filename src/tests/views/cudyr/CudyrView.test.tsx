@@ -11,10 +11,10 @@ const mocks = vi.hoisted(() => ({
   recover: vi.fn(),
   recoveryWindow: vi.fn(),
 }));
-vi.mock('@/services/cudyr/cudyrMonthlyRecoveryPlan', () => ({
+vi.mock('@/features/cudyr/recovery/cudyrMonthlyRecoveryPlan', () => ({
   monthlyRecoveryWindow: (...args: unknown[]) => mocks.recoveryWindow(...args),
 }));
-vi.mock('@/services/cudyr/cudyrMonthlyRecovery', () => ({
+vi.mock('@/features/cudyr/recovery/cudyrMonthlyRecovery', () => ({
   monthlyRecoveryWindow: () => ({ last: '2026-10-16' }),
   recoverCudyrMonthlyReports: (...args: unknown[]) => mocks.recover(...args),
 }));

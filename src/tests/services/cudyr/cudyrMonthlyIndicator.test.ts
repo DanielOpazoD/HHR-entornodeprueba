@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCudyrMonthlyIndicator,
   cudyrMonthlyIndicatorRange,
-} from '@/services/cudyr/cudyrMonthlyIndicator';
+} from '@/features/cudyr/indicator/cudyrMonthlyIndicator';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { confirmedReportInput } from './reportFixtures';
 

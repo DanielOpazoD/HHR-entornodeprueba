@@ -3,7 +3,7 @@ import {
   cudyrIndicatorAnnual,
   cudyrIndicatorMonths,
   type CudyrIndicatorRead,
-} from '@/services/cudyr/cudyrIndicatorHistory';
+} from '@/features/cudyr/indicator/cudyrIndicatorHistory';
 const read = (
   categorized: number,
   eligible: number,

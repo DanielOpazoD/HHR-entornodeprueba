@@ -267,6 +267,33 @@ export const createSyncQueueEngine = ({
 
   const isFenced = () => runtime.isFenced?.();
 
+  /**
+   * SAVE-04: a census day this person may no longer edit shows the server's version. Only a role
+   * with a nurse window has one to close; the administrator keeps the permission recovery. The task
+   * does not keep its writer's role, so the session's role decides, and only for tasks of the
+   * session that this document admitted, its authenticated account and the task all agree on: any
+   * divergence (another tab admitted someone else on the shared key) leaves everything as it is.
+   */
+  const releaseClosedWindowRefusals = async (owner: string | null, stopped: () => boolean) => {
+    if (!owner || !store.releaseClosedWindowRefusals || stopped()) return;
+    const sameSession = () =>
+      !stopped() &&
+      owner === runtime.getOwnerKey() &&
+      owner === runtime.getAdmittedOwnerKey?.() &&
+      owner === runtime.getActorKey?.();
+    try {
+      await store.releaseClosedWindowRefusals(
+        owner,
+        Date.now(),
+        async () =>
+          sameSession() && (await runtime.getWriterRole?.()) === 'nurse_hospital' && sameSession()
+      );
+    } catch (error) {
+      // The tasks stay as they were; the next pass tries again.
+      logError('Closed-window release failed', error instanceof Error ? error : undefined);
+    }
+  };
+
   const processQueue = async (options: ProcessSyncQueueOptions = {}): Promise<void> => {
     if (isProcessing || isFenced()) return;
     isProcessing = true;
@@ -381,6 +408,8 @@ export const createSyncQueueEngine = ({
         },
         { thresholdMs: 250, context: `batch=${batchSize}` }
       );
+      // Also after a pass with nothing to send: a clock corrected since a refusal releases it now.
+      await releaseClosedWindowRefusals(owner, stopped);
     } finally {
       isProcessing = false;
     }

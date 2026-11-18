@@ -1,6 +1,6 @@
 import { gzipSync } from 'node:zlib';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { readCudyrReadView, saveCudyrReadView } from '@/services/cudyr/cudyrReadView';
+import { readCudyrReadView, saveCudyrReadView } from '@/features/cudyr/report/cudyrReadView';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { reportInput } from './reportFixtures';
 const state = vi.hoisted(() => ({ owner: 'a', generation: '1', reply: {}, call: vi.fn() }));

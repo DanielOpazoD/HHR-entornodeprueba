@@ -5,6 +5,8 @@ const {
   RAYEN_BATCH_ONLY_CLINICAL_FIELDS,
   RAYEN_CLINICAL_FIELDS,
 } = require('./dailyRecordAuthorityContract');
+const { FORBIDDEN_PATCH_PATH_SEGMENTS } = require('./dailyRecordWriteRequest');
+const { setValueAtPath } = require('./dailyRecordWriteRecordState');
 
 const isPlainObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 
@@ -55,11 +57,49 @@ const preservePatientClinicalFields = (incomingPatient, remotePatients, clinical
   return nextPatient;
 };
 
+const MANUAL_DEVICE_FIELDS = new Set(RAYEN_MANUALLY_MANAGED_DEVICE_FIELDS);
+
+// The value at a dot path, through own properties only: a segment never reaches a prototype.
+const ownValueAtPath = (record, parts) =>
+  parts.reduce(
+    (node, key) =>
+      isPlainObject(node) && Object.prototype.hasOwnProperty.call(node, key)
+        ? node[key]
+        : undefined,
+    record
+  );
+
+// A device path the save names (`beds.<bed>.<device field>[...]`, also under `clinicalCrib`)
+// writes the incoming value at exactly that path, with the setter the patch callable applies its
+// paths with: sibling entries the path does not name keep the stored value. It never creates a bed
+// or crib, and a path with a forbidden segment has no effect.
+const applyNamedDevicePath = (nextRecord, incomingRecord, path) => {
+  const parts = String(path)
+    .split('.')
+    .map(part => part.trim())
+    .filter(Boolean);
+  if (parts[0] !== 'beds' || !parts[1]) return;
+  if (parts.some(part => FORBIDDEN_PATCH_PATH_SEGMENTS.has(part))) return;
+  const fieldIndex = parts[2] === 'clinicalCrib' ? 3 : 2;
+  if (!MANUAL_DEVICE_FIELDS.has(parts[fieldIndex])) return;
+  if (!isPlainObject(ownValueAtPath(nextRecord, parts.slice(0, fieldIndex)))) return;
+  setValueAtPath(nextRecord, parts.join('.'), ownValueAtPath(incomingRecord, parts));
+};
+
 /**
  * Full-record saves remain responsible for census structure, but never for fields owned by the
  * authoritative Rayen clinical batch. Matching by episode (not bed) preserves data across moves.
+ * Devices are the one exception nurses also manage by hand: each device path a save names as its
+ * own change (`editedPaths`, from its sync contract) takes the incoming value at exactly that path,
+ * as the patch callable writes it online. The queue publishes an offline edit as a full save, so
+ * without this the edit was replaced by the stored devices and acknowledged as saved (SAVE-01).
  */
-const preserveRayenClinicalFields = ({ remoteRecord, incomingRecord, fields }) => {
+const preserveRayenClinicalFields = ({
+  remoteRecord,
+  incomingRecord,
+  fields,
+  editedPaths = [],
+}) => {
   const preservedFields = Array.isArray(fields) && fields.length ? fields : RAYEN_CLINICAL_FIELDS;
   const nextRecord = clonePlainValue(incomingRecord);
   const remotePatients = new Map([
@@ -83,6 +123,7 @@ const preserveRayenClinicalFields = ({ remoteRecord, incomingRecord, fields }) =
   });
 
   nextRecord.beds = incomingBeds;
+  editedPaths.forEach(path => applyNamedDevicePath(nextRecord, incomingRecord, path));
   return nextRecord;
 };
 

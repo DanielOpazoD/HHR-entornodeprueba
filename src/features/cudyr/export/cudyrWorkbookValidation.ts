@@ -1,8 +1,8 @@
 import type { Workbook, Worksheet } from 'exceljs';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
-import { cudyrReportTotals } from './cudyrReportModel';
+import { cudyrReportTotals } from '@/services/cudyr/cudyrReportModel';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
-import { CATEGORIES } from './cudyrWorkbookSections';
+import { CATEGORIES } from '@/services/cudyr/cudyrWorkbookSections';
 
 /** Verify exported totals against HHR and reconcile monthly counts with the daily sheets. */
 export const validateCudyrWorkbookTotals = (

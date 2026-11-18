@@ -90,7 +90,8 @@ const resolveSubscriptionResult = async (
       date,
       outcome: 'clean',
       record: admission.record,
-      serverConfirmed: true,
+      // A day kept under pending writes is confirmed only as the server's day with them (SAVE-01).
+      serverConfirmed: admission.status !== 'retained_pending' || admission.serverComposed,
       sourceOfTruth: retained ? 'local' : 'remote',
       consistencyState: retained ? 'local_kept' : 'remote_applied',
       retryability: 'not_applicable',
