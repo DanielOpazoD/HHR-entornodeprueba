@@ -28,6 +28,7 @@ import {
   matchesOwner,
   requeueQuarantinedTask,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
+import { releaseClosedWindowRefusals } from '@/services/storage/sync/closedWindowDayRelease';
 
 export const loadDailyRecordOutbox = createRecoverableRuntimeLoader(
   'save-outbox',
@@ -48,36 +49,6 @@ const retainForAuthor = async (task: SyncTask, { ownerKey }: AuthoringSession) =
     projectionReleased: true,
   });
   return 'retained_for_owner' as const;
-};
-
-/**
- * Releases a claimed day write as logout does: the task keeps its payload for its author, and the
- * stored day, unless another write still holds it, is dropped in the same transaction, so the
- * census reads the server's day again and takes other computers' changes.
- */
-const releaseClaimedDayWrite = async (
-  taskId: number,
-  patch: Partial<SyncTask>,
-  claim: SyncQueueLeaseClaim
-): Promise<boolean> => {
-  const released = await hospitalDB.transaction(
-    'rw',
-    hospitalDB.dailyRecords,
-    hospitalDB.syncQueue,
-    async () => {
-      const task = await hospitalDB.syncQueue.get(taskId);
-      if (!matchesTaskClaim(task, claim)) return null;
-      await hospitalDB.syncQueue.update(taskId, patch);
-      const date = (task.payload as { date?: unknown } | null | undefined)?.date;
-      if (typeof date !== 'string' || (await listDailyRecordProjectionHolders(date)).length)
-        return { dropped: null };
-      await hospitalDB.dailyRecords.delete(date);
-      return { dropped: date };
-    }
-  );
-  if (released?.dropped)
-    dispatchDailyRecordStoreChanged({ operation: 'delete', dates: [released.dropped] });
-  return released !== null;
 };
 
 const LIVE_STATUSES = Object.keys({
@@ -379,25 +350,24 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     ),
   requeueQuarantinedTask,
   discardQuarantinedTask,
+  releaseClosedWindowRefusals,
   async update(taskId, patch) {
     await hospitalDB.syncQueue.update(taskId, patch);
   },
   async renewClaim(taskId, leaseUntil, claim) {
     return hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {
       const task = await hospitalDB.syncQueue.get(taskId);
-      if (!matchesTaskClaim(task, claim)) return null;
+      if (!task || !matchesTaskClaim(task, claim)) return null;
       await hospitalDB.syncQueue.update(taskId, { leaseUntil });
       return { ...task, leaseUntil };
     });
   },
   updateClaimed: (taskId, patch, claim) =>
-    patch.projectionReleased
-      ? releaseClaimedDayWrite(taskId, patch, claim)
-      : hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {
-          if (!matchesTaskClaim(await hospitalDB.syncQueue.get(taskId), claim)) return false;
-          await hospitalDB.syncQueue.update(taskId, patch);
-          return true;
-        }),
+    hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {
+      if (!matchesTaskClaim(await hospitalDB.syncQueue.get(taskId), claim)) return false;
+      await hospitalDB.syncQueue.update(taskId, patch);
+      return true;
+    }),
   async delete(taskId) {
     await hospitalDB.syncQueue.delete(taskId);
   },

@@ -113,6 +113,12 @@ export interface SyncQueueStorePort {
   requeueQuarantinedTask?(taskId: number, ownerKey?: string | null): Promise<boolean>;
   /** Elimina una tarea FAILED/CONFLICT; nunca toca tareas activas (acción explícita del usuario). */
   discardQuarantinedTask?(taskId: number, ownerKey?: string | null): Promise<boolean>;
+  /** Releases this owner's day sends refused after the nurse window closed; returns their days. */
+  releaseClosedWindowRefusals?(
+    ownerKey: string,
+    now: number,
+    mayRelease: () => Promise<boolean>
+  ): Promise<string[]>;
   /** Renews a claim and returns the task as stored now, or null when the claim was lost. */
   renewClaim?(
     taskId: number,
@@ -153,6 +159,8 @@ export interface SyncRuntimePort {
   getActorKey?(): string | null;
   /** A logout cleanup failed here, or awaits admission: queue work neither starts nor confirms. */
   isFenced?(): boolean;
+  /** The role the server reads for this session's writes (its token claim); null when unknown. */
+  getWriterRole?(): Promise<string | null>;
 }
 
 export interface SyncTransportPort {

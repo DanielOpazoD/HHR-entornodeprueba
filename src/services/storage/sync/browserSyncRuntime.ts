@@ -35,5 +35,14 @@ export const createBrowserSyncRuntime = (): SyncRuntimePort => {
     // already admitted must not stall on one left by another tab that was closed mid-logout.
     isFenced: () =>
       hasSessionCleanupFailed() || (!getSessionGeneration() && isSessionCleanupPending()),
+    getWriterRole: async () => {
+      try {
+        const role = (await defaultAuthRuntime.getCurrentUser()?.getIdTokenResult())?.claims.role;
+        return typeof role === 'string' ? role : null;
+      } catch {
+        // Unknown is not a role: the caller keeps today's recovery.
+        return null;
+      }
+    },
   };
 };

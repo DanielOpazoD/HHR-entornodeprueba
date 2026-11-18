@@ -43,7 +43,6 @@ import {
 import { replacePendingDailyRecordTask } from '@/services/storage/sync/syncQueuePendingDailyRecordReplacement';
 import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/pendingDailyRecordSyncTask';
 import { hasPendingNursingHandoff } from './nursingHandoffTasks';
-import { isClosedNurseWindowRefusal } from './dailyRecordBaseReview';
 import { buildSyncQueueFailureContext } from './syncQueueFailureContext';
 
 export interface ProcessSyncQueueOptions {
@@ -100,10 +99,7 @@ export const createSyncQueueEngine = ({
       maxRetryDelayMs,
     });
 
-    const stopped = { ...task, status: decision.status, lastErrorCode: decision.lastErrorCode };
     await updateClaimedTaskState(task, {
-      // Past the nurse window the day goes back to the server's version, as after logout (SAVE-04).
-      ...(isClosedNurseWindowRefusal(stopped, Date.now()) ? { projectionReleased: true } : {}),
       status: decision.status,
       retryCount: decision.retryCount,
       nextAttemptAt: decision.nextAttemptAt,
@@ -271,6 +267,27 @@ export const createSyncQueueEngine = ({
 
   const isFenced = () => runtime.isFenced?.();
 
+  /**
+   * SAVE-04: a census day this person may no longer edit shows the server's version. Only a role
+   * with a nurse window has one to close; the administrator keeps the permission recovery. The
+   * task does not keep its writer's role, so the session's role decides: the queue sends and
+   * releases only its own owner's tasks.
+   */
+  const releaseClosedWindowRefusals = async (owner: string | null, stopped: () => boolean) => {
+    if (!owner || !store.releaseClosedWindowRefusals || stopped()) return;
+    try {
+      await store.releaseClosedWindowRefusals(
+        owner,
+        Date.now(),
+        async () =>
+          !stopped() && (await runtime.getWriterRole?.()) === 'nurse_hospital' && !stopped()
+      );
+    } catch (error) {
+      // The tasks stay as they were; the next pass tries again.
+      logError('Closed-window release failed', error instanceof Error ? error : undefined);
+    }
+  };
+
   const processQueue = async (options: ProcessSyncQueueOptions = {}): Promise<void> => {
     if (isProcessing || isFenced()) return;
     isProcessing = true;
@@ -385,6 +402,8 @@ export const createSyncQueueEngine = ({
         },
         { thresholdMs: 250, context: `batch=${batchSize}` }
       );
+      // Also after a pass with nothing to send: a clock corrected since a refusal releases it now.
+      await releaseClosedWindowRefusals(owner, stopped);
     } finally {
       isProcessing = false;
     }

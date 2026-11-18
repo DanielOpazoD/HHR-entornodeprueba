@@ -7,7 +7,8 @@ const TAB_ID: string =
 
 export interface SyncDailyRecordStoreChangedDetail {
   dates?: string[];
-  operation: 'save' | 'delete' | 'clear';
+  operation: 'save' | 'delete' | 'clear' | 'release';
+  paths?: string[];
 }
 
 export type SyncBroadcastMessage = {
@@ -21,14 +22,18 @@ let channel: BroadcastChannel | null = null;
 const isStoreChangedOperation = (
   operation: unknown
 ): operation is SyncDailyRecordStoreChangedDetail['operation'] =>
-  operation === 'save' || operation === 'delete' || operation === 'clear';
+  operation === 'save' ||
+  operation === 'delete' ||
+  operation === 'clear' ||
+  operation === 'release';
 
 const isStoreChangedDetail = (detail: unknown): detail is SyncDailyRecordStoreChangedDetail => {
   if (!detail || typeof detail !== 'object') return false;
   const candidate = detail as Partial<SyncDailyRecordStoreChangedDetail>;
   if (!isStoreChangedOperation(candidate.operation)) return false;
-  if (candidate.dates === undefined) return true;
-  return Array.isArray(candidate.dates) && candidate.dates.every(date => typeof date === 'string');
+  const isTextList = (list: unknown) =>
+    list === undefined || (Array.isArray(list) && list.every(item => typeof item === 'string'));
+  return isTextList(candidate.dates) && isTextList(candidate.paths);
 };
 
 const isSyncBroadcastMessage = (message: unknown): message is SyncBroadcastMessage => {

@@ -116,16 +116,16 @@ export const useDailyRecordQuery = (
 
   const { refetch } = query;
   useEffect(() => {
-    if (!shouldSyncFromRemote || typeof window === 'undefined') return;
-    // This computer dropped its copy of the day to read it again (a stopped send released after
-    // the editing window, a refresh after a deploy): the census shows the server's day, not its own.
+    if (typeof window === 'undefined') return;
+    // A stopped send released after the nurse window gave its fields back to this computer's copy
+    // of the day (SAVE-04): the census reads the day again, from the server or that copy.
     const handleStoreChanged = (event: Event) => {
       const detail = (event as CustomEvent<DailyRecordStoreChangedEventDetail>).detail;
-      if (detail?.operation === 'delete' && detail.dates?.includes(date)) void refetch();
+      if (detail?.operation === 'release' && detail.dates?.includes(date)) void refetch();
     };
     window.addEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, handleStoreChanged);
     return () => window.removeEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, handleStoreChanged);
-  }, [date, refetch, shouldSyncFromRemote]);
+  }, [date, refetch]);
 
   useEffect(() => {
     if (!shouldSubscribeFromRemote) return;
