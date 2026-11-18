@@ -144,6 +144,56 @@ export const hasRemoteAppliedMutation = (
   return Boolean(remoteMutationId && localMutationId && remoteMutationId === localMutationId);
 };
 
+/** A stored stamp as one comparable value: a Firestore timestamp to the nanosecond, or its text. */
+const stampOf = (value: unknown): string | undefined => {
+  if (typeof value === 'string') return value;
+  const { seconds, nanoseconds } = (value ?? {}) as { seconds?: unknown; nanoseconds?: unknown };
+  return typeof seconds === 'number' && typeof nanoseconds === 'number'
+    ? `${seconds}.${nanoseconds}`
+    : undefined;
+};
+
+/**
+ * The task with the stored values as its base at the fields that an earlier edit folded into it
+ * wrote, when the stored day is exactly the version that edit produced: its answer was lost and a
+ * correction joined the task meanwhile. Credited by that edit's own mutation id (one of this task's
+ * earlier ids), by the version it produced (every server write stamps `meta.updatedAt` with the
+ * day's `lastUpdated`, so any later write, even one that keeps the meta, breaks the match) and by
+ * the fields it changed. The correction then rebases on that first save under the replay's version
+ * checks. Otherwise the task as it is: an equal text from another computer is not this task's.
+ */
+export const withOwnEarlierWriteAsBase = (
+  task: SyncTask,
+  remoteData: Record<string, unknown>
+): SyncTask => {
+  const meta = remoteData.meta as Record<string, unknown> | undefined;
+  const contract = task.syncContract;
+  const base = task.patchBaseValues;
+  const earlierId = meta?.lastMutationId;
+  const stamp = stampOf(remoteData.lastUpdated);
+  if (
+    !base ||
+    typeof earlierId !== 'string' ||
+    earlierId === contract?.mutationId ||
+    !contract?.mutationIds?.includes(earlierId) ||
+    !stamp ||
+    stamp !== stampOf(meta?.updatedAt)
+  )
+    return task;
+  const changedPaths = normalizeChangedPaths(contract.changedPaths);
+  const written = normalizeChangedPaths(meta?.lastChangedPaths).filter(
+    path => changedPaths.includes(path) && Object.hasOwn(base, path)
+  );
+  if (!written.length) return task;
+  return {
+    ...task,
+    patchBaseValues: {
+      ...base,
+      ...Object.fromEntries(written.map(path => [path, getValueAtPath(remoteData, path)])),
+    },
+  };
+};
+
 export const assertNoSamePathRemoteMutation = (
   task: SyncTask,
   remoteData: Record<string, unknown>,
