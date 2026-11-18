@@ -18,6 +18,11 @@ const STAGES = [
   'persistence',
   'currentClinicalPersistence',
   'historicalCudyrPersistence',
+  'closeWait',
+  'staffRegistration',
+  'cudyrArchive',
+  'cudyrArchivePlacementReads',
+  'cudyrArchiveWrites',
 ] as const satisfies readonly (keyof RayenSyncPerformance['stagesMs'])[];
 const COUNTERS = ['requests', 'cacheHits', 'patches', 'retries', 'timeouts'] as const;
 const TRACE = ['callableAttempts', 'clientRetries', 'transactionRetries'] as const;

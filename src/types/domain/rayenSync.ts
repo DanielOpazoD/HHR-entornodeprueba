@@ -335,6 +335,14 @@ export interface RayenSyncPerformance {
     persistence: number;
     currentClinicalPersistence: number;
     historicalCudyrPersistence: number;
+    /** After the clinical save: the wait until the run can close (staff registry, CUDYR archive). */
+    closeWait: number;
+    staffRegistration: number;
+    /** Permanent CUDYR archive, wall time; it starts with the reads and runs beside the save. */
+    cudyrArchive: number;
+    /** Summed over the archive's parallel lanes. */
+    cudyrArchivePlacementReads: number;
+    cudyrArchiveWrites: number;
   }>;
   counters: {
     requests: number;

@@ -23,6 +23,22 @@ export const createClinicalFillSummary = (total: number): ClinicalFillSummary =>
   },
 });
 
+/**
+ * What the run does after the clinical save and before it closes. `cudyrArchive`, `staffRegistration`
+ * and `closeWait` are wall time; the two archive parts are summed over its parallel lanes.
+ */
+export type ClinicalFillCloseStage =
+  | 'closeWait'
+  | 'cudyrArchive'
+  | 'cudyrArchivePlacementReads'
+  | 'cudyrArchiveWrites'
+  | 'staffRegistration';
+
+export type ClinicalFillStageTimer = <T>(
+  stage: ClinicalFillCloseStage,
+  operation: () => Promise<T>
+) => Promise<T>;
+
 /** Request-scoped aggregate collector. Its API accepts no patient or clinical values. */
 export const createClinicalFillPerformance = (now: () => number = Date.now) => {
   let firstReadAt: number | null = null;
@@ -39,6 +55,17 @@ export const createClinicalFillPerformance = (now: () => number = Date.now) => {
   let administrativeOverridesPreserved = 0;
   let retries = 0;
   let timeouts = 0;
+  // Only stages that ran get a key: an absent stage is unmeasured, never zero.
+  const closeStagesMs: Partial<Record<ClinicalFillCloseStage, number>> = {};
+
+  const timeStage: ClinicalFillStageTimer = async (stage, operation) => {
+    const startedAt = now();
+    try {
+      return await operation();
+    } finally {
+      closeStagesMs[stage] = (closeStagesMs[stage] ?? 0) + elapsedMilliseconds(startedAt, now());
+    }
+  };
 
   const recordTimeout = (value: unknown): void => {
     if (isRayenTimeoutMessage(value)) timeouts += 1;
@@ -110,6 +137,7 @@ export const createClinicalFillPerformance = (now: () => number = Date.now) => {
       ...(historicalCudyrPersistenceObserved
         ? { historicalCudyrPersistence: historicalCudyrPersistenceMs }
         : {}),
+      ...closeStagesMs,
     };
     return {
       stagesMs,
@@ -133,6 +161,7 @@ export const createClinicalFillPerformance = (now: () => number = Date.now) => {
     recordAdministrativeOverridePreserved,
     recordRetries,
     recordPersistenceEvidence,
+    timeStage,
     finish,
   };
 };
