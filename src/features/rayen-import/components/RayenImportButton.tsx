@@ -180,7 +180,8 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
     async (options?: RayenImportCaptureOptions): Promise<RayenImportTriggerOutcome> => {
       if (!policyReady || syncPreflightInFlightRef.current) return 'blocked';
       syncPreflightInFlightRef.current = true;
-      // The clinical save comes at the end of the run; its server instance boots meanwhile.
+      // The clinical save comes at the end of the run; its server instance boots and opens its
+      // database connection meanwhile.
       void import('../bridge/rayenClinicalEnrichmentBatchClient').then(
         ({ warmRayenClinicalEnrichmentBatch }) => warmRayenClinicalEnrichmentBatch(),
         () => undefined

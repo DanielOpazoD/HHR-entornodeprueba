@@ -100,23 +100,23 @@ export const callRayenClinicalEnrichmentBatch = async (
 };
 
 /**
- * Starts the callable's server instance when a synchronization begins, so the clinical save at its
- * end does not wait for a cold start. Production, 08–15 Nov: the first call of a run took ~3.7 s
- * more than a second call of the same run. The function is called a few times a day, so it is
- * almost always cold.
+ * Starts the callable's server instance and opens its Firestore connection when a synchronization
+ * begins, so the clinical save at its end pays neither. Production: the first call of a run took
+ * ~3.7 s more than a later one (W12-PERF3); a bare preflight removed the instance start but left
+ * ~1.1 s of connection start in the save's first authorization (W17-PERF4).
  *
- * Only a CORS preflight reaches the server: the function answers it without running its handler,
- * so nothing is read, written or logged, and no credential or patient data is sent. The browser then
- * refuses the OPTIONS request itself; that refusal is the expected outcome and is ignored. A failed
- * warm-up costs only the cold start the save already pays today.
+ * The warm-up is the callable itself with `{ warmup: true }`: the server only authorizes the
+ * signed-in caller (the role read opens the connection) and answers. No patient data is sent, read
+ * or written. A failed warm-up costs only the start the save already pays, so it is ignored.
  */
 export const warmRayenClinicalEnrichmentBatch = async (): Promise<void> => {
   try {
     const functions = await defaultFunctionsRuntime.getRegionalFunctions(CALLABLE_REGION);
-    // The SDK's own resolver, so the emulator and the deployed region use the same address.
-    const url = (functions as Partial<{ _url: (name: string) => string }>)._url?.(CALLABLE_NAME);
-    if (url) await fetch(url, { method: 'OPTIONS' });
+    const { httpsCallable } = await import('firebase/functions');
+    await httpsCallable<{ warmup: true }, unknown>(functions, CALLABLE_NAME, {
+      timeout: RAYEN_CLINICAL_ENRICHMENT_TIMEOUT_MS,
+    })({ warmup: true });
   } catch {
-    // Expected: the browser rejects the OPTIONS request after the preflight booted the instance.
+    // Expected when signed out, offline or on a server without the warm-up; the save is unaffected.
   }
 };
