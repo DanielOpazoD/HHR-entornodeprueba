@@ -272,6 +272,9 @@
     };
 
     const renderLabCenter = (root, encId) => {
+      globalThis.HhrRequestDrafts?.checkpoint(root);
+      root.dataset.selectedEncounterId = String(encId || '');
+      root.dataset.labFlow = 'results';
       const main = root.querySelector('.hhr-center-main');
       if (!labHelper) {
         main.innerHTML = '<div class="hhr-rx-error">El visor de laboratorio no quedó cargado. Recarga la extensión y la pestaña de Eloísa.</div>';
@@ -296,7 +299,7 @@
               <strong>Inicio de sesión requerido</strong>
               <span class="hhr-syslab-access-message">Ingresa tus credenciales de Syslab. No se guardan.</span>
             </div>
-            <form class="hhr-syslab-access-form"><input name="username" type="text" autocomplete="username" placeholder="Usuario" aria-label="Usuario Syslab" maxlength="120" required><input name="password" type="password" autocomplete="current-password" placeholder="Contraseña" aria-label="Contraseña Syslab" maxlength="256" required><button class="hhr-center-action hhr-center-action-primary" type="submit">Conectar</button></form>
+            <form class="hhr-syslab-access-form"><input name="username" type="text" autocomplete="username" placeholder="Usuario" aria-label="Usuario Syslab" maxlength="120" required><input name="password" type="password" autocomplete="current-password" placeholder="Contraseña" aria-label="Contraseña Syslab" maxlength="256" required><button class="hhr-center-action hhr-center-action-primary" type="submit">Reconectar y continuar</button></form>
           </div>
           <div class="hhr-lab-selection" role="status" aria-live="polite">Buscando exámenes en Syslab…</div>
           <div class="hhr-lab-exam-list"></div>
@@ -327,6 +330,9 @@
       let activeTab = 'comparison';
       let requestGeneration = 0;
       let isAnalyzing = false;
+      let afterLogin = null;
+      const viewCurrent = () => refresh.isConnected && root.dataset.activeModule === 'lab' &&
+        (root.dataset.selectedEncounterId || root.dataset.encounterId) === String(encId);
 
       const setSyslabAccess = (connected, message = '') => {
         syslabAccess.hidden = connected;
@@ -354,10 +360,14 @@
         } finally {
           syslabPassword.value = ''; syslabSubmit.disabled = false;
         }
+        if (!viewCurrent()) return;
         const connected = Boolean(response && !response.error && response.connected);
         if (connected) syslabUsername.value = '';
         setSyslabAccess(connected, connected ? 'Syslab conectado.' : String(response && response.error || 'Syslab no confirmó el acceso.'));
-        if (connected) void load();
+        if (connected) {
+          const resume = afterLogin; afterLogin = null;
+          if (resume) resume(); else void load();
+        }
         else syslabPassword.focus();
       });
 
@@ -428,9 +438,18 @@
             event.preventDefault();
             event.stopPropagation();
             pdf.disabled = true;
-            const response = await sendMessage({ type: runtimeMessages.LAB_PDF_OPEN_REQUEST, batchId, examId: exam.id });
+            const generation = requestGeneration, requestBatchId = batchId;
+            const response = await sendMessage({ type: runtimeMessages.LAB_PDF_OPEN_REQUEST, batchId: requestBatchId, examId: exam.id });
+            const stillCurrent = () => pdf.isConnected && viewCurrent() && generation === requestGeneration && requestBatchId === batchId;
+            if (!stillCurrent()) return;
             pdf.disabled = false;
-            if (!response || response.error) status.textContent = (response && response.error) || 'No se pudo abrir el PDF.';
+            if (!response || response.error) {
+              status.textContent = (response && response.error) || 'No se pudo abrir el PDF.';
+              if (globalThis.HhrReadRecovery?.isSessionFailure(response) && /syslab/i.test(response.error || '')) {
+                setSyslabAccess(false, response.error);
+                afterLogin = () => { if (stillCurrent()) pdf.click(); };
+              }
+            }
           });
           row.append(checkbox, copy, pdf);
           list.appendChild(row);
@@ -445,6 +464,7 @@
         });
       };
       const load = async () => {
+        afterLogin = null;
         const generation = ++requestGeneration;
         isAnalyzing = false;
         batchId = '';
@@ -461,7 +481,9 @@
           selectAll.disabled = true;
           return;
         }
-        if (!await checkSyslabAccess()) {
+        const connected = await checkSyslabAccess();
+        if (!viewCurrent() || generation !== requestGeneration) return;
+        if (!connected) {
           status.textContent = 'Inicio de sesión requerido';
           list.innerHTML = '<div class="hhr-center-empty">Conecta Syslab para consultar los exámenes de este paciente.</div>';
           results.innerHTML = '';
@@ -489,6 +511,10 @@
           error.className = 'hhr-rx-error';
           error.textContent = (response && response.error) || 'No se pudo consultar laboratorio.';
           list.appendChild(error);
+          if (globalThis.HhrReadRecovery?.isSessionFailure(response) && /syslab/i.test(response.error || '')) {
+            setSyslabAccess(false, response.error); afterLogin = () => { if (viewCurrent() && generation === requestGeneration) void load(); };
+          } else globalThis.HhrReadRecovery?.attach({ root, host: error, response,
+            isCurrent: () => viewCurrent() && generation === requestGeneration, retry: load, sendMessage, runtimeMessages });
           return;
         }
         batchId = response.batchId;
@@ -547,6 +573,11 @@
           renderList();
           status.textContent = (response && response.error) || 'No se pudieron analizar los informes.';
           analyze.textContent = `Reintentar ${selected.size}`;
+          if (globalThis.HhrReadRecovery?.isSessionFailure(response) && /syslab/i.test(response.error || '')) {
+            setSyslabAccess(false, response.error);
+            afterLogin = () => { if (viewCurrent() && generation === requestGeneration) analyze.click(); };
+          } else globalThis.HhrReadRecovery?.attach({ root, host: status, response,
+            isCurrent: () => viewCurrent() && generation === requestGeneration, retry: () => analyze.click(), sendMessage, runtimeMessages });
           return;
         }
         analysis = response.analysis;
@@ -559,6 +590,9 @@
       load();
     };
     const renderLabRequestView = (root, encId) => {
+      globalThis.HhrRequestDrafts?.checkpoint(root);
+      root.dataset.selectedEncounterId = String(encId || '');
+      root.dataset.labFlow = 'request';
       const main = root.querySelector('.hhr-center-main');
       if (!requestForms) return;
       const categories = requestForms.EXAM_CATEGORIES;
@@ -569,8 +603,10 @@
             <button class="hhr-rx-tab" type="button" role="tab" data-flow="results" aria-selected="false">Ver resultados</button>
             <button class="hhr-rx-tab" type="button" role="tab" data-flow="request" aria-selected="true">Solicitar exámenes</button>
           </div>
-          <span class="hhr-labreq-count">0 exámenes seleccionados</span>
-          <button class="hhr-center-action hhr-center-action-primary hhr-labreq-print" type="button" disabled>Imprimir solicitud</button>
+          <div class="hhr-center-toolbar-actions">
+            <span class="hhr-labreq-count">0 exámenes seleccionados</span>
+            <button class="hhr-center-action hhr-center-action-primary hhr-labreq-print" type="button" disabled>Vista previa de solicitud</button>
+          </div>
         </div>
         <div class="hhr-center-content hhr-labreq-content">
           ${labRequestPatient.sectionHtml(encId)}
@@ -629,10 +665,54 @@
       });
       const printablePatient = () => patientSection.printablePatient();
       const updateCount = () => {
+        const manual = patientSection.usesManualPatient();
+        globalThis.HhrCenterPatientContext?.set(root, {
+          encId: manual ? '' : encId,
+          patient: manual ? { ...printablePatient(), name: printablePatient()?.name || 'Paciente nuevo' } : episodePatient?.patient,
+        });
+        globalThis.HhrCenterPatientContext?.refreshRoute(root,
+          globalThis.HhrPrescriptionPrint?.resolveEncounterId(window.location.href) || '');
         const count = selectedKeys().length + (othersInput.value.trim() ? 1 : 0);
         counter.textContent = count === 1 ? '1 examen seleccionado' : count + ' exámenes seleccionados';
         printButton.disabled = !printablePatient();
       };
+      const manualKeys = ['name', 'run', 'birthDate', 'ficha', 'diagnosis'];
+      const draft = globalThis.HhrRequestDrafts?.attach({ root, main, kind: 'lab', encId,
+        isManual: state => state.source === 'manual',
+        fieldForEvent: event => {
+          const input = event.target;
+          if (input.matches('.hhr-labreq-exam input')) return ['selected', input.dataset.key];
+          if (input.dataset.manual) return ['manual', input.dataset.manual];
+          if (input === othersInput) return 'others';
+          if (input.matches('.hhr-labreq-medico')) return 'physician';
+          if (input.matches('.hhr-labreq-prais')) return 'prais';
+          return { 'hhr-labreq-patient-source': 'source', 'hhr-labreq-procedencia': 'procedencia', 'hhr-labreq-fonasa': 'fonasa' }[input.name] || null;
+        },
+        capture: () => ({ selected: Object.fromEntries(Array.from(main.querySelectorAll('.hhr-labreq-exam input')).map(input => [input.dataset.key, input.checked])), others: othersInput.value,
+          physician: main.querySelector('.hhr-labreq-medico').value,
+          source: main.querySelector('[name="hhr-labreq-patient-source"]:checked')?.value,
+          manual: Object.fromEntries(manualKeys.map(key => [key, main.querySelector('[data-manual="' + key + '"]').value])),
+          procedencia: main.querySelector('[name="hhr-labreq-procedencia"]:checked')?.value,
+          fonasa: main.querySelector('[name="hhr-labreq-fonasa"]:checked')?.value,
+          prais: main.querySelector('.hhr-labreq-prais').checked }),
+        restore: state => {
+          main.querySelectorAll('.hhr-labreq-exam input').forEach(input => { input.checked = Boolean(state.selected[input.dataset.key]); });
+          othersInput.value = state.others; main.querySelector('.hhr-labreq-medico').value = state.physician;
+          manualKeys.forEach(key => { main.querySelector('[data-manual="' + key + '"]').value = state.manual[key] || ''; });
+          [['hhr-labreq-patient-source', state.source], ['hhr-labreq-procedencia', state.procedencia], ['hhr-labreq-fonasa', state.fonasa]].forEach(([name, value]) => {
+            main.querySelectorAll('[name="' + name + '"]').forEach(input => { input.checked = input.value === value; });
+          });
+          main.querySelector('.hhr-labreq-prais').checked = state.prais;
+          patientSection.refresh(); main.querySelector('.hhr-labreq-grid').dispatchEvent(new Event('change', { bubbles: true })); updateCount();
+        } });
+      globalThis.HhrLabSelectionRuntime?.attach(main, changedKeys => {
+        changedKeys?.forEach(key => draft?.markEdited(['selected', key])); updateCount();
+      });
+      main.querySelectorAll('[name="hhr-labreq-patient-source"]').forEach(input => input.addEventListener('change', () => {
+        if (patientSection.usesManualPatient()) draft?.confirmManual();
+        else if (episodePatient) draft?.confirm(episodePatient.patient.patientId, episodePatient.actorId);
+        else if (/^\d+$/.test(String(encId || ''))) void loadPatient();
+      }));
       main.querySelector('.hhr-center-content').addEventListener('change', updateCount);
       main.querySelector('.hhr-center-content').addEventListener('input', updateCount);
       printButton.addEventListener('click', () => {
@@ -654,6 +734,11 @@
           medico: main.querySelector('.hhr-labreq-medico').value.trim(),
           logoUrl,
         });
+        if (globalThis.HhrDocumentPreviewRuntime) {
+          globalThis.HhrDocumentPreviewRuntime.open({ root, title: 'Solicitud de laboratorio',
+            load: async () => ({ html }), sendMessage, runtimeMessages });
+          return;
+        }
         const printWindow = window.open('', '_blank');
         if (!printWindow) {
           setLiveRegion(feedback, 'El navegador bloqueó la pestaña de impresión. Permite ventanas emergentes.', 'error');
@@ -676,19 +761,29 @@
         setLiveRegion(feedback, 'Se abrió la solicitud con el diálogo de impresión.');
       });
       if (!/^\d+$/.test(String(encId || ''))) {
+        draft?.confirmManual(); updateCount();
         setLiveRegion(feedback, 'Paciente nuevo: completa el nombre y registra sólo los datos disponibles.');
         return;
       }
-      fetchPatientHeaderView(encId).then(result => {
-        if (!root.isConnected) return;
+      const loadPatient = async () => {
+        setLiveRegion(feedback, '');
+        const result = await fetchPatientHeaderView(encId);
+        if (!printButton.isConnected || root.dataset.selectedEncounterId !== String(encId)) return;
         if (result.error) {
+          if (patientSection.usesManualPatient()) { draft?.confirmManual(); updateCount(); return; }
           setLiveRegion(feedback, result.error, 'error');
+          globalThis.HhrReadRecovery?.attach({ root, host: feedback, response: result,
+            isCurrent: () => printButton.isConnected && root.dataset.selectedEncounterId === String(encId),
+            retry: loadPatient, sendMessage, runtimeMessages });
           return;
         }
-        episodePatient = { patient: result.patient, view: result.view };
+        episodePatient = { patient: result.patient, view: result.view, actorId: result.actorId };
         patientSection.refresh();
+        if (patientSection.usesManualPatient()) draft?.confirmManual();
+        else draft?.confirm(result.patient.patientId, result.actorId);
         updateCount();
-      });
+      };
+      void loadPatient();
       updateCount();
     };
     return Object.freeze({ renderLabCenter, renderLabRequestView });

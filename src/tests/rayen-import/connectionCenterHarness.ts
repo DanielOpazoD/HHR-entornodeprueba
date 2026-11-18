@@ -77,7 +77,6 @@ export const makeBar = () => {
     <button class="hhr-ops-session is-degraded">
       <span class="hhr-ops-avatar">HHR</span>
       <span class="session-name">Conexiones</span>
-      <span class="session-state">Comprobando…</span>
     </button>
   `;
   document.body.appendChild(bar);

@@ -423,7 +423,7 @@ try {
   assert.deepEqual(initialRuntime, {
     extensionVersion: manifest.version,
     operationBars: 1,
-    prescriptionButtons: 1,
+    prescriptionButtons: 0,
     encounterId: '141121',
     expectedModulesReady: true,
     retiredModulesAbsent: true,
@@ -435,7 +435,7 @@ try {
     await home
       .locator('.hhr-center-nav-button')
       .evaluateAll(buttons => buttons.map(button => button.dataset.module)),
-    ['home', 'recipes', 'lab', 'imaging', 'connection']
+    ['home', 'recipes', 'lab', 'imaging', 'settings', 'connection']
   );
   assert.equal(await home.locator('.hhr-home-card').count(), 3);
   assert.doesNotMatch(await home.innerText(), /Entrega de turno|Signos vitales|Scores|BRADEN/i);
@@ -463,7 +463,7 @@ try {
   });
   await page.waitForTimeout(250);
   assert.equal(await page.locator('#hhr-clinical-operations-bar').count(), 1);
-  assert.equal(await page.locator('#hhr-prescription-print-button').count(), 1);
+  assert.equal(await page.locator('#hhr-prescription-print-button').count(), 0);
 
   await page.evaluate(() => {
     const bar = document.querySelector('#hhr-clinical-operations-bar');

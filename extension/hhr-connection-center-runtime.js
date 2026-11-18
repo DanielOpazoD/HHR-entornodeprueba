@@ -184,6 +184,9 @@
           <button class="hhr-center-action hhr-connection-refresh" type="button">Actualizar estado</button>
         </div>
         <div class="hhr-center-content">
+          <section class="hhr-connection-capabilities" aria-label="Herramientas y conexiones">
+            <strong>Comprobando qué herramientas están conectadas…</strong><p></p>
+          </section>
           <div class="hhr-connection-grid">
             <section class="hhr-connection-card hhr-connection-extension">
               <div class="hhr-connection-card-header"><span class="hhr-connection-icon">EXT</span><div><h3>Extensión</h3><span class="hhr-connection-status">Comprobando…</span></div></div>
@@ -254,6 +257,8 @@
           extensionCard, fichaCard, camasCard, hhrCard, connect, repair, forget, transportFailed,
         });
         latestReport = null;
+        main.querySelector('.hhr-connection-capabilities strong').textContent = 'No se pudo comprobar la conexión';
+        main.querySelector('.hhr-connection-capabilities p').textContent = 'Actualiza el estado para ver las herramientas disponibles.';
       };
       const load = async options => {
         const epoch = controller.epoch;
@@ -278,13 +283,16 @@
         const camas = report.gestionCamas || {};
         const hhr = report.hhr || {};
         latestReport = report;
+        const capability = presentation.capabilities(report);
+        main.querySelector('.hhr-connection-capabilities strong').textContent = capability.summary;
+        main.querySelector('.hhr-connection-capabilities p').textContent = capability.details.join(' ');
         renderSource(extensionCard, {
           status: 'ready',
           reason: 'connected',
           message: 'Generación ' + repairControls.shortGeneration(report.runtimeGeneration),
         }, 'Versión ' + String(report.version || 'desconocida'));
         extensionCard.querySelector('.hhr-connection-detail').textContent =
-          'Generación ' + repairControls.shortGeneration(report.runtimeGeneration);
+          'Extensión disponible en este navegador.';
         const fichaName = ficha.identity && ficha.identity.fullName || 'Sesión de Ficha Médico';
         renderSource(fichaCard, ficha, fichaName);
         renderSource(camasCard, camas, 'Cuenta autenticada en Gestión de Camas');

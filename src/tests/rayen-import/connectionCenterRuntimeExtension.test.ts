@@ -108,8 +108,8 @@ describe('Centro HHR connection runtime', () => {
     );
 
     await expect(runtime.refreshOperationsConnectionBadge(bar, true)).resolves.toBeNull();
-    expect(bar.shadowRoot?.querySelector('.session-state')?.textContent).toBe(
-      'Extensión sin respuesta'
+    expect(bar.shadowRoot?.querySelector('.hhr-ops-session')?.getAttribute('aria-label')).toBe(
+      'Extensión sin respuesta. Comprueba la extensión en Chrome y reintenta.'
     );
     expect(
       bar.shadowRoot?.querySelector('.hhr-ops-session')?.classList.contains('is-offline')
@@ -333,9 +333,9 @@ describe('Centro HHR connection runtime', () => {
     expect(firstBar.shadowRoot?.querySelector('.session-name')?.textContent).toBe(
       'Estado conocido'
     );
-    expect(firstBar.shadowRoot?.querySelector('.session-state')?.textContent).toBe(
-      'Conexión parcial'
-    );
+    expect(
+      firstBar.shadowRoot?.querySelector('.hhr-ops-session')?.classList.contains('is-degraded')
+    ).toBe(true);
 
     oldBadge.resolve(report('ready', 'ready', 'Estado obsoleto'));
     await flush();

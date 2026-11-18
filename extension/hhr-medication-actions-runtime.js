@@ -148,13 +148,13 @@
       }
     };
 
-    const createFavoritesDialog = () => {
+    const createFavoritesDialog = (existingRoot = null, onBack) => {
       const focusReturnTarget = documentRef.activeElement;
-      if (!closeModal()) return;
+      if (!existingRoot && !closeModal()) return;
       ensureStyles();
-      const root = documentRef.createElement('div');
-      root.id = modalId;
-      root.innerHTML = `
+      const root = existingRoot || documentRef.createElement('div');
+      if (!existingRoot) root.id = modalId;
+      const markup = `
         <div class="hhr-rx-backdrop" aria-hidden="true"></div>
         <section class="hhr-rx-dialog hhr-rx-dialog-compact" role="dialog" aria-modal="true" aria-labelledby="hhr-rx-title">
           <button class="hhr-rx-close" type="button" aria-label="Cerrar">&times;</button>
@@ -177,13 +177,23 @@
           </footer>
         </section>
       `;
-      root.dataset.routeIndependent = 'true';
-      documentRef.body.appendChild(root);
-      const list = root.querySelector('.hhr-fav-list');
-      const nameInput = root.querySelector('.hhr-fav-name');
-      const urlInput = root.querySelector('.hhr-fav-url');
-      const feedback = root.querySelector('.hhr-fav-feedback');
-      const addButton = root.querySelector('.hhr-fav-add');
+      let view;
+      if (existingRoot) {
+        globalThis.HhrRequestDrafts?.checkpoint(root);
+        const parsed = documentRef.createElement('div'); parsed.innerHTML = markup;
+        view = parsed.querySelector('.hhr-rx-body'); view.classList.add('hhr-center-content');
+        const main = root.querySelector('.hhr-center-main');
+        main.innerHTML = '<div class="hhr-center-toolbar"><h2 class="hhr-center-heading">Favoritos</h2><button class="hhr-center-action hhr-fav-back" type="button">Volver a ajustes</button></div>';
+        main.append(view); main.querySelector('.hhr-fav-back').addEventListener('click', () => onBack?.());
+      } else {
+        root.innerHTML = markup; root.dataset.routeIndependent = 'true'; documentRef.body.appendChild(root); view = root;
+      }
+      const list = view.querySelector('.hhr-fav-list');
+      const nameInput = view.querySelector('.hhr-fav-name');
+      const urlInput = view.querySelector('.hhr-fav-url');
+      const feedback = view.querySelector('.hhr-fav-feedback');
+      const addButton = view.querySelector('.hhr-fav-add');
+      if (!existingRoot) {
       const dismiss = modalDismissWithFocusRestore(root, focusReturnTarget);
       root.__hhrDismiss = dismiss;
       root.querySelector('.hhr-rx-cancel').addEventListener('click', dismiss);
@@ -197,13 +207,14 @@
         }
         trapModalFocus(root, event);
       });
+      }
 
       let favorites = [];
       let favoritesMutationPending = false;
       const setFavoritesMutationPending = pending => {
         favoritesMutationPending = pending;
         addButton.disabled = pending;
-        root.querySelectorAll('.hhr-fav-remove').forEach(button => {
+        view.querySelectorAll('.hhr-fav-remove').forEach(button => {
           button.disabled = pending;
         });
       };
@@ -238,7 +249,7 @@
             setFavoritesMutationPending(true);
             const nextFavorites = favorites.filter((_item, itemIndex) => itemIndex !== index);
             const saved = await writeFavorites(nextFavorites);
-            if (!root.isConnected) return;
+            if (!view.isConnected) return;
             setFavoritesMutationPending(false);
             if (!saved) {
               setLiveRegion(feedback, 'No se pudo eliminar el favorito.', 'error');
@@ -265,7 +276,7 @@
           url,
         }];
         const saved = await writeFavorites(nextFavorites);
-        if (!root.isConnected) return;
+        if (!view.isConnected) return;
         setFavoritesMutationPending(false);
         if (!saved) {
           setLiveRegion(feedback, 'No se pudo guardar el favorito.', 'error');
@@ -279,9 +290,9 @@
         nameInput.focus();
       });
 
-      root.querySelector('.hhr-rx-close').focus();
+      if (!existingRoot) root.querySelector('.hhr-rx-close').focus();
       readFavorites().then(async stored => {
-        if (!root.isConnected) return;
+        if (!view.isConnected) return;
         if (stored === undefined) {
           setLiveRegion(feedback, 'No se pudieron leer los favoritos guardados.', 'error');
           renderList();
@@ -296,7 +307,7 @@
           { name: 'HHR · Sistema Estadístico', url: 'https://testinghhr.netlify.app/' },
         ];
         const saved = await writeFavorites(defaults);
-        if (!root.isConnected) return;
+        if (!view.isConnected) return;
         if (!saved) {
           setLiveRegion(feedback, 'No se pudieron inicializar los favoritos.', 'error');
           renderList();

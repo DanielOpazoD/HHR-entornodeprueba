@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "minimum_chrome_version": "118",
   "name": "Rayen → HHR · Puente de censo",
-  "version": "0.48.93",
+  "version": "0.48.108",
   "description": "Conecta Eloísa con HHR y ofrece herramientas de recetas y exámenes.",
   "permissions": [
     "tabs",
@@ -82,7 +82,6 @@
       "resources": [
         "hhr-logo.svg",
         "message-contract.js",
-        "fichamedico-manual-patient-copy.js",
         "syslab-login.html",
         "syslab-login.js",
         "forms/consentimiento.pdf",
@@ -103,7 +102,8 @@
         "pdf.worker.min.mjs"
       ],
       "matches": [
-        "http://10.4.69.90/*"
+        "http://10.4.69.90/*",
+        "https://fichamedico.rayensalud.cl/*"
       ]
     },
     {
@@ -167,6 +167,9 @@
         "https://fichamedico.rayensalud.cl/*"
       ],
       "js": [
+        "hhr-worklist-print-column.js",
+        "hhr-nursing-worklist.js",
+        "hhr-continuous-worklist-main.js",
         "fichamedico-isolation-normalization.js",
         "fichamedico-treating-physician-dom.js",
         "fichamedico-treating-physician-sources.js",
@@ -190,9 +193,7 @@
       "js": [
         "message-contract.js",
         "bridge-generation.js",
-        "content-fichamedico.js",
-        "runtime-message-client.js",
-        "fichamedico-manual-patient-copy.js"
+        "content-fichamedico.js"
       ],
       "run_at": "document_start"
     },
@@ -206,11 +207,20 @@
         "hhr-ui.js",
         "hhr-lab-request-styles.js",
         "hhr-center-styles.js",
+        "hhr-center-preferences.js",
+        "hhr-center-panel-runtime.js",
+        "hhr-center-workspace-styles.js",
+        "hhr-center-patient-context.js",
+        "hhr-request-drafts.js",
+        "hhr-read-recovery.js",
+        "hhr-center-settings.js",
         "hhr-center-shell-runtime.js",
+        "hhr-document-preview-runtime.js",
         "hhr-prescription-center.js",
         "hhr-hospitalized-documents-center.js",
         "hhr-clinical-write-client-runtime.js",
         "hhr-lab-request-patient.js",
+        "hhr-lab-selection-runtime.js",
         "hhr-lab-center.js",
         "hhr-request-forms.js",
         "hhr-imaging-center.js",
@@ -227,6 +237,9 @@
         "content-exam-request-print.js",
         "hhr-prescription-content-runtime.js",
         "hhr-prescription-ui-lifecycle.js",
+        "hhr-history-date-navigation.js",
+        "hhr-native-ficha-presentation.js",
+        "hhr-native-worklist-presentation.js",
         "content-prescription-print.js"
       ],
       "run_at": "document_idle"
@@ -256,7 +269,8 @@
         "hhr-connection-presentation.js",
         "gestion-camas-connection-indicator.js",
         "gestion-camas-connection-indicator-bootstrap.js",
-        "content-gestioncamas.js"
+        "content-gestioncamas.js",
+        "content-worklist-editor-destination.js"
       ],
       "run_at": "document_start"
     },
