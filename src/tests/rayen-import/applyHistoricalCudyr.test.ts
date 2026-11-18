@@ -1,4 +1,4 @@
-import { canWritePreviousDay } from '@/features/rayen-import/domain/previousDayCorrections';
+import { canWriteCensusDay } from '@/shared/access/censusDayWriteAccessPolicy';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { applyHistoricalCudyrBatchAuthoritatively } from '@/features/rayen-import/hooks/applyHistoricalCudyr';
@@ -62,10 +62,10 @@ describe('applyHistoricalCudyr', () => {
         // Rapa Nui midnight in winter time (UTC-6), whatever the device's own midnight is.
         const midnight = Date.parse('2026-07-29T06:00:00.000Z');
         vi.setSystemTime(midnight + 172_800_000 - 1);
-        expect(canWritePreviousDay(day, false)).toBe(true);
+        expect(canWriteCensusDay(day, false)).toBe(true);
         vi.setSystemTime(midnight + 172_800_000);
-        expect(canWritePreviousDay(day, false)).toBe(false);
-        expect(canWritePreviousDay(day, true)).toBe(true);
+        expect(canWriteCensusDay(day, false)).toBe(false);
+        expect(canWriteCensusDay(day, true)).toBe(true);
       } finally {
         vi.useRealTimers();
         if (originalTimezone === undefined) delete process.env.TZ;

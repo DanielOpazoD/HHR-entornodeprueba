@@ -1,6 +1,6 @@
 import type { DailyRecordDateRef } from '@/types/domain/dailyRecordSlices';
 import { resolveCurrentClinicalDay } from '@/utils/clinicalDayUtils';
-import { isWithinNurseEditingWindow } from '@/utils/clinicalWallClock';
+import { canWriteCensusDay } from '@/shared/access/censusDayWriteAccessPolicy';
 
 export interface StabilityRules {
   isDateLocked: boolean;
@@ -60,8 +60,7 @@ export const buildStabilityRules = (
 
   // A past day closes for nurses with the server's window, on the hospital clock (SAVE-04).
   const isHistorical = record.date < todayISO;
-  const isDateLocked =
-    isHistorical && !isAdmin && !isWithinNurseEditingWindow(record.date, now.getTime());
+  const isDateLocked = isHistorical && !canWriteCensusDay(record.date, isAdmin, now.getTime());
 
   // Manual shift locks are currently disabled at product level.
   const isDayShiftLocked = false;

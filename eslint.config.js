@@ -509,6 +509,14 @@ const ROLE_LIST_RESTRICTION = {
   message: ROLE_DECISION_MESSAGE,
 };
 const ROLE_RESTRICTIONS = [ROLE_LITERAL_RESTRICTION, ROLE_LIST_RESTRICTION];
+// «¿Puede escribir este día?» is one predicate per operation (W17-D1): the census and Rayen
+// corrections free the administrator, the invalid-episode cleanup binds every role. The window
+// itself is computed once, and only those predicates read it.
+const DAY_WINDOW_RESTRICTION = {
+  selector: "ImportSpecifier[imported.name='isWithinNurseEditingWindow']",
+  message:
+    'No uses la ventana de 48 h directamente: elige el predicado de la operación en src/shared/access/censusDayWriteAccessPolicy.ts (canWriteCensusDay, canCleanInvalidEpisodeDay, canApplyPreviousDayCudyr…) o agrega uno ahí; la limpieza de episodio inválido respeta las 48 h también para el administrador (SAVE-04).',
+};
 const SOURCE_SYNTAX_RESTRICTIONS = [
   ...GLOSSARY_SYNTAX_RESTRICTIONS,
   SESSION_MESSAGE_RESTRICTION,
@@ -519,6 +527,7 @@ const SOURCE_SYNTAX_RESTRICTIONS = [
   AUDIT_CONTRACT_RESTRICTION,
   ADMIN_TABS_FRAME_RESTRICTION,
   ...ROLE_RESTRICTIONS,
+  DAY_WINDOW_RESTRICTION,
 ];
 // One rule option per file: a later config replaces the whole list, so homes omit only their own.
 const syntaxRestrictions = ({ omit = [], add = [] } = {}) => [
@@ -723,24 +732,20 @@ export default tseslint.config(
     },
   },
   {
-    // The owner of role decisions, the role type and the reminder role values (a list of values,
-    // not a decision).
+    // The owner of role decisions and of «¿puede escribir este día?».
+    files: ['src/shared/access/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': syntaxRestrictions({
+        omit: [...ROLE_RESTRICTIONS, DAY_WINDOW_RESTRICTION],
+      }),
+    },
+  },
+  {
+    // The role type and the reminder role values (a list of values, not a decision).
     files: [
-      'src/shared/access/**/*.ts',
       'src/types/authRoleTypes.ts',
       'src/schemas/reminderSchemas.ts',
       'src/shared/reminders/reminderUiOptions.ts',
-    ],
-    rules: { 'no-restricted-syntax': syntaxRestrictions({ omit: ROLE_RESTRICTIONS }) },
-  },
-  {
-    // «¿Puede escribir este día?» mixes role and date; its own PR (W17-D1) moves these four into
-    // src/shared/access and removes this entry.
-    files: [
-      'src/features/rayen-import/hooks/applyHistoricalCudyr.ts',
-      'src/features/rayen-import/hooks/useRayenImport.ts',
-      'src/hooks/useStabilityRules.ts',
-      'src/services/storage/sync/syncQueueEngine.ts',
     ],
     rules: { 'no-restricted-syntax': syntaxRestrictions({ omit: ROLE_RESTRICTIONS }) },
   },
@@ -756,6 +761,7 @@ export default tseslint.config(
           EPISODE_KEY_PARSE_RESTRICTION,
           LEGACY_DOCUMENT_HYDRATION_RESTRICTION,
           ...ROLE_RESTRICTIONS,
+          DAY_WINDOW_RESTRICTION,
         ],
       }),
     },

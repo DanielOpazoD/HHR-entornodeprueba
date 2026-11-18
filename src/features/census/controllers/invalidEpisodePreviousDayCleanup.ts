@@ -13,7 +13,7 @@ import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intention
 import { assertDailyRecordWriteAccepted } from '@/hooks/controllers/dailyRecordWriteOutcomeGuard';
 import { getPreviousDay, resolveCurrentClinicalDay } from '@/utils/clinicalDayUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
-import { isWithinNurseEditingWindow } from '@/utils/clinicalWallClock';
+import { canCleanInvalidEpisodeDay } from '@/shared/access/censusDayWriteAccessPolicy';
 
 export type PreviousDayCleanupOutcome =
   /** Nothing to do: a past census day, or the previous day never held the episode. */
@@ -58,7 +58,7 @@ export const cleanInvalidEpisodeFromPreviousDay = async ({
   const day = getPreviousDay(censusDate);
   // Before the morning handoff today's census is still yesterday's, so its previous day is already
   // past its 48 h. Checked here for every role: the server does not limit admin writes.
-  if (!isWithinNurseEditingWindow(day, now.getTime())) return { status: 'not_applicable' };
+  if (!canCleanInvalidEpisodeDay(day, now.getTime())) return { status: 'not_applicable' };
   try {
     let record: DailyRecord | null = await repository.getAuthoritativeForDate(day);
     if (!record) return { status: 'not_applicable' };
