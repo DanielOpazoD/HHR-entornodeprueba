@@ -1,10 +1,10 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useCensusEmailDeliveryActions } from '@/hooks/useCensusEmailDeliveryActions';
+import { useCensusEmailDeliveryActions } from '@/features/census/email/hooks/useCensusEmailDeliveryActions';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 const execute = vi.hoisted(() => vi.fn());
-vi.mock('@/application/census-email/sendCensusEmailUseCases', () => ({
+vi.mock('@/features/census/email/use-cases/sendCensusEmailUseCases', () => ({
   buildSendCensusConfirmationMessage: () => 'Confirmar envío de prueba',
   executeSendCensusEmail: execute,
 }));

@@ -207,10 +207,11 @@ describe('chunkingPolicy', () => {
     },
     {
       label: 'census email delivery runtime',
-      sourcePath: 'src/hooks/useCensusEmailDeliveryActions.ts',
+      sourcePath: 'src/features/census/email/hooks/useCensusEmailDeliveryActions.ts',
       forbiddenStaticImport:
-        /from ['"]@\/(?:application\/census-email\/sendCensusEmailUseCases|hooks\/controllers\/censusEmailDeliveryRuntime)['"]/,
-      requiredDynamicImport: "import('@/hooks/controllers/censusEmailDeliveryRuntime')",
+        /from ['"]@\/features\/census\/email\/(?:use-cases\/sendCensusEmailUseCases|controllers\/censusEmailDeliveryRuntime)['"]/,
+      requiredDynamicImport:
+        "import('@/features/census/email/controllers/censusEmailDeliveryRuntime')",
     },
     {
       label: 'DateStrip SaveDropdown',

@@ -5,9 +5,12 @@ import { calculateStats } from '@/services/calculations/statsCalculator';
 import { addHeaderSection } from '@/services/exporters/excel/sections/headerSection';
 import { addSummarySection } from '@/services/exporters/excel/sections/summarySection';
 import { addCensusTable } from '@/services/exporters/excel/sections/censusTable';
-import { addDischargesTable } from '@/services/exporters/excel/sections/dischargesTable';
-import { addTransfersTable } from '@/services/exporters/excel/sections/transfersTable';
-import { addCMATable } from '@/services/exporters/excel/sections/cmaTable';
+import {
+  addMovementTable,
+  CMA_TABLE,
+  DISCHARGES_TABLE,
+  TRANSFERS_TABLE,
+} from '@/services/exporters/excel/sections/movementTables';
 import { applyCensusDaySheetColumnLayout } from '@/services/exporters/excel/censusWorkbookColumnLayout';
 import {
   getActiveCma,
@@ -36,12 +39,22 @@ export const createCensusWorkbookDaySheet = (
   currentRow = addCensusTable(sheet, record, currentRow);
   currentRow++;
 
-  currentRow = addDischargesTable(sheet, getActiveDischarges(record.discharges), currentRow);
+  currentRow = addMovementTable(
+    sheet,
+    DISCHARGES_TABLE,
+    getActiveDischarges(record.discharges),
+    currentRow
+  );
   currentRow++;
 
-  currentRow = addTransfersTable(sheet, getActiveTransfers(record.transfers), currentRow);
+  currentRow = addMovementTable(
+    sheet,
+    TRANSFERS_TABLE,
+    getActiveTransfers(record.transfers),
+    currentRow
+  );
   currentRow++;
 
-  addCMATable(sheet, getActiveCma(record.cma), currentRow);
+  addMovementTable(sheet, CMA_TABLE, getActiveCma(record.cma), currentRow);
   applyCensusDaySheetColumnLayout(sheet);
 };

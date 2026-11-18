@@ -1,5 +1,5 @@
 import type { GlobalEmailRecipientList } from '@/services/email/emailRecipientListService';
-import { upsertRecipientListState } from '@/hooks/controllers/censusEmailRecipientListStateController';
+import { upsertRecipientListState } from '@/features/census/email/controllers/censusEmailRecipientListStateController';
 
 export const resolveRecipientListForSelection = (
   recipientLists: GlobalEmailRecipientList[],

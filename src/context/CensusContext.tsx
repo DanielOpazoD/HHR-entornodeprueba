@@ -1,8 +1,49 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
 import { UseDateNavigationReturn } from '@/hooks/useDateNavigation';
-import { UseCensusEmailReturn } from '@/hooks/useCensusEmail';
 import { UseFileOperationsReturn } from '@/hooks/useFileOperations';
+import type { GlobalEmailRecipientList } from '@/services/email/emailRecipientListService';
+
+/** What the census email flow gives the app shell and the layout; built by the census feature. */
+export interface UseCensusEmailReturn {
+  // Config modal state
+  showEmailConfig: boolean;
+  setShowEmailConfig: (show: boolean) => void;
+
+  // Recipients
+  recipients: string[];
+  setRecipients: (recipients: string[]) => void;
+  recipientLists: GlobalEmailRecipientList[];
+  activeRecipientListId: string;
+  setActiveRecipientListId: (listId: string) => void;
+  createRecipientList: (name: string) => Promise<void>;
+  renameActiveRecipientList: (name: string) => Promise<void>;
+  deleteRecipientList: (listId: string) => Promise<void>;
+  recipientsSource: 'firebase' | 'local' | 'default';
+  isRecipientsSyncing: boolean;
+  recipientsSyncError: string | null;
+
+  // Message
+  message: string;
+  onMessageChange: (value: string) => void;
+  onResetMessage: () => void;
+
+  // Send state
+  status: 'idle' | 'loading' | 'success' | 'error';
+  error: string | null;
+  emailBlockedReason?: string | null;
+
+  // Actions
+  resetStatus: () => void;
+  sendEmail: () => Promise<void>;
+
+  // Test mode
+  testModeEnabled: boolean;
+  setTestModeEnabled: (value: boolean) => void;
+  testRecipient: string;
+  setTestRecipient: (value: string) => void;
+  isAdminUser: boolean;
+}
 
 // 1. Define the Context State Interface
 export interface CensusContextType {

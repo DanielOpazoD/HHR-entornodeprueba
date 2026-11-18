@@ -7,7 +7,7 @@ import {
   resolveRecipientListsAfterDelete,
   resolveRecipientListsAfterRename,
   resolveRecipientSelectionAfterDelete,
-} from '@/hooks/controllers/censusEmailRecipientMutationController';
+} from '@/features/census/email/controllers/censusEmailRecipientMutationController';
 
 describe('censusEmailRecipientMutationController', () => {
   const lists: GlobalEmailRecipientList[] = [

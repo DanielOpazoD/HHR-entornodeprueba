@@ -1,16 +1,16 @@
 import { useState, useCallback } from 'react';
 import { useConfirmDialog } from '@/context/UIContext';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { defaultCensusEmailBrowserRuntime } from '@/hooks/controllers/censusEmailBrowserRuntimeController';
-import type { GlobalEmailRecipientList } from '@/services/email/emailRecipientListService';
+import { defaultCensusEmailBrowserRuntime } from '@/features/census/email/controllers/censusEmailBrowserRuntimeController';
+import type { UseCensusEmailReturn } from '@/context/CensusContext';
 import {
   canManageGlobalCensusEmailRecipients,
   canUseAdminMaintenanceActions,
 } from '@/shared/access/operationalAccessPolicy';
-import { useCensusEmailDeliveryActions } from '@/hooks/useCensusEmailDeliveryActions';
-import { useCensusEmailRecipientLists } from '@/hooks/useCensusEmailRecipientLists';
-import { useCensusEmailMessageState } from '@/hooks/useCensusEmailMessageState';
-import { useCensusEmailSendState } from '@/hooks/useCensusEmailSendState';
+import { useCensusEmailDeliveryActions } from '@/features/census/email/hooks/useCensusEmailDeliveryActions';
+import { useCensusEmailRecipientLists } from '@/features/census/email/hooks/useCensusEmailRecipientLists';
+import { useCensusEmailMessageState } from '@/features/census/email/hooks/useCensusEmailMessageState';
+import { useCensusEmailSendState } from '@/features/census/email/hooks/useCensusEmailSendState';
 import { resolveUpcEmailBlockReason } from '@/shared/census/upcEvaluationPolicy';
 
 interface UseCensusEmailParams {
@@ -23,46 +23,6 @@ interface UseCensusEmailParams {
   user: { uid?: string; email?: string | null; role?: string } | null;
   role: string;
   enabled?: boolean;
-}
-
-export interface UseCensusEmailReturn {
-  // Config modal state
-  showEmailConfig: boolean;
-  setShowEmailConfig: (show: boolean) => void;
-
-  // Recipients
-  recipients: string[];
-  setRecipients: (recipients: string[]) => void;
-  recipientLists: GlobalEmailRecipientList[];
-  activeRecipientListId: string;
-  setActiveRecipientListId: (listId: string) => void;
-  createRecipientList: (name: string) => Promise<void>;
-  renameActiveRecipientList: (name: string) => Promise<void>;
-  deleteRecipientList: (listId: string) => Promise<void>;
-  recipientsSource: 'firebase' | 'local' | 'default';
-  isRecipientsSyncing: boolean;
-  recipientsSyncError: string | null;
-
-  // Message
-  message: string;
-  onMessageChange: (value: string) => void;
-  onResetMessage: () => void;
-
-  // Send state
-  status: 'idle' | 'loading' | 'success' | 'error';
-  error: string | null;
-  emailBlockedReason?: string | null;
-
-  // Actions
-  resetStatus: () => void;
-  sendEmail: () => Promise<void>;
-
-  // Test mode
-  testModeEnabled: boolean;
-  setTestModeEnabled: (value: boolean) => void;
-  testRecipient: string;
-  setTestRecipient: (value: string) => void;
-  isAdminUser: boolean;
 }
 
 const resolveCensusEmailAccess = (

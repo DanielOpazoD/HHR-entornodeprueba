@@ -6,11 +6,11 @@ import {
   executeLoadCensusRecipientRuntimeState,
   executeRenameCensusRecipientList,
   executeSyncCensusRecipientList,
-} from '@/application/census-email/censusRecipientListUseCases';
+} from '@/features/census/email/use-cases/censusRecipientListUseCases';
 import * as emailRecipientListService from '@/services/email/emailRecipientListService';
 import * as indexedDbSettingsService from '@/services/storage/indexeddb/indexedDbSettingsService';
-import * as bootstrapController from '@/hooks/controllers/censusEmailRecipientsBootstrapController';
-import type { CensusEmailBrowserRuntime } from '@/hooks/controllers/censusEmailBrowserRuntimeController';
+import * as bootstrapController from '@/features/census/email/controllers/censusEmailRecipientsBootstrapController';
+import type { CensusEmailBrowserRuntime } from '@/features/census/email/controllers/censusEmailBrowserRuntimeController';
 
 vi.mock('@/services/email/emailRecipientListService', () => ({
   CENSUS_GLOBAL_EMAIL_RECIPIENT_LIST: {
@@ -34,7 +34,7 @@ vi.mock('@/services/email/emailRecipientListService', () => ({
   }),
 }));
 
-vi.mock('@/hooks/controllers/censusEmailRecipientsBootstrapController', () => ({
+vi.mock('@/features/census/email/controllers/censusEmailRecipientsBootstrapController', () => ({
   resolveCensusRecipientsBootstrap: vi.fn(),
 }));
 

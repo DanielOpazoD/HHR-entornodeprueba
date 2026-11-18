@@ -1,12 +1,12 @@
 import { formatDateDDMMYYYY as formatDate } from '@/utils/dateDisplayUtils';
 import { resolveSendingRecipients } from '@/features/census';
-import { buildCensusWorkbookPlan } from '@/hooks/controllers/censusExcelSheetController';
+import { buildCensusWorkbookPlan } from '@/features/census/email/controllers/censusExcelSheetController';
 import {
   buildCensusEmailConfirmationText,
   buildMonthIntegrityDates,
   resolveFinalCensusEmailMessage,
   resolveMonthRecordsForDelivery,
-} from '@/hooks/controllers/censusEmailSendController';
+} from '@/features/census/email/controllers/censusEmailSendController';
 import {
   createApplicationFailed,
   createApplicationPartial,

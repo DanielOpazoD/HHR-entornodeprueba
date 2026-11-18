@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAppState } from '@/hooks/useAppState';
-import { useCensusEmail } from '@/hooks/useCensusEmail';
+import { useCensusEmail } from '@/features/census/email/hooks/useCensusEmail';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { useStaleDayEditGuard } from '@/hooks/useStaleDayEditGuard';
 import { useDailyRecord } from '@/hooks/useDailyRecord';
@@ -8,7 +8,7 @@ import { useExistingDaysQuery } from '@/hooks/useExistingDaysQuery';
 import { useFileOperations } from '@/hooks/useFileOperations';
 import { resolveCensusDateSelection } from '@/components/layout/app-content/appContentCensusDateController';
 import type { UseAppStateReturn } from '@/hooks/useAppState';
-import type { UseCensusEmailReturn } from '@/hooks/useCensusEmail';
+import type { UseCensusEmailReturn } from '@/context/CensusContext';
 import type { UseFileOperationsReturn } from '@/hooks/useFileOperations';
 import type { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
 import { resolveShiftNurseSignature } from '@/services/staff/dailyRecordStaffing';

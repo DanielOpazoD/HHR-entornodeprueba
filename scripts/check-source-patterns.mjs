@@ -115,7 +115,7 @@ const RULES = [
     files: file =>
       !isTestNamed(file) &&
       !under('src/shared/runtime/')(file) &&
-      file !== 'src/hooks/controllers/censusEmailBrowserRuntimeController.ts',
+      file !== 'src/features/census/email/controllers/censusEmailBrowserRuntimeController.ts',
     patterns: [
       /\bwindow\.alert\(/g,
       /\bwindow\.confirm\(/g,

@@ -1,12 +1,12 @@
 import {
   resolveRecipientMutationFailureMessage,
   type RecipientRuntimeState,
-} from '@/hooks/controllers/censusEmailRecipientRuntimeController';
+} from '@/features/census/email/controllers/censusEmailRecipientRuntimeController';
 import {
   withRecipientListUseCases,
   type RecipientUseCaseResult,
-} from '@/hooks/controllers/censusEmailRecipientUseCaseLoader';
-import type { RecipientRuntimeMutationSpec } from '@/hooks/controllers/censusEmailRecipientMutationActionController';
+} from '@/features/census/email/controllers/censusEmailRecipientUseCaseLoader';
+import type { RecipientRuntimeMutationSpec } from '@/features/census/email/controllers/censusEmailRecipientMutationActionController';
 
 interface RecipientMutationRunnerState<TData> {
   applyRuntimeState: (state: RecipientRuntimeState) => void;
