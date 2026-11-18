@@ -63,3 +63,7 @@ export const hasNurseEditingWindowClosed = (day: string, now: number = Date.now(
   const bounds = nurseEditingWindow(day);
   return !!bounds && now >= bounds.closesAt;
 };
+
+/** The first instant outside the nurse editing window of `day`, or null for a malformed day. */
+export const nurseEditingWindowClosesAt = (day: string): number | null =>
+  nurseEditingWindow(day)?.closesAt ?? null;

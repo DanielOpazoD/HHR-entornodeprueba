@@ -84,7 +84,7 @@ export const buildStabilityRules = (
 
   let lockReason: string | undefined;
   if (isDateLocked) {
-    lockReason = 'Este es un registro histórico (>24h). Solo administradores pueden editar.';
+    lockReason = 'Este es un registro histórico (>48h). Solo administradores pueden editar.';
   } else if (isDayShiftLocked || isNightShiftLocked) {
     lockReason = 'Este turno ha sido cerrado manualmente.';
   }
