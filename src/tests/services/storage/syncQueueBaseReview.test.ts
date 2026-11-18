@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { Firestore } from 'firebase/firestore';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -211,6 +211,12 @@ describe('opaque daily-record base review', () => {
       'review_authorization',
     ],
   ])('keeps existing recovery for %s', async (_label, changedPaths, code, message, action) => {
+    // Inside the nurse window, as the panel reads it below: past it a refusal releases the day.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(`${date}T15:00:00Z`));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     mocks.mode = 'enforced';
     mocks.invoke.mockRejectedValue({ code, message });
     const input = task({ changedPaths });

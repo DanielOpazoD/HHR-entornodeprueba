@@ -47,7 +47,9 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
  * bloquear la adopción autoritativa), y (2) el usuario puede reintentarla o
  * descartarla explícitamente desde el indicador de la barra.
  */
-// Control Date only; preserve native timers and asynchronous I/O.
+// Control Date only; preserve native timers and asynchronous I/O. The refused census days below are
+// inside the nurse window: past it, a refusal releases the day (W14-H1B) and is neither reused nor
+// retried.
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-09-30T12:00:00.000Z'));
@@ -90,13 +92,13 @@ describe('storage/sync cuarentena y recuperación', () => {
   });
 
   it('una edición fresca supersede la tarea FAILED en vez de duplicarla', async () => {
-    await quarantineDailyRecordTask('2025-02-01', {
+    await quarantineDailyRecordTask('2026-09-29', {
       code: 'permission-denied',
       message: 'Missing or insufficient permissions',
     });
     expect((await hospitalDB.syncQueue.toArray())[0].status).toBe('FAILED');
 
-    await queueSyncTask('UPDATE_DAILY_RECORD', makeRecord('2025-02-01', 'v2'));
+    await queueSyncTask('UPDATE_DAILY_RECORD', makeRecord('2026-09-29', 'v2'));
 
     const tasks = await hospitalDB.syncQueue.toArray();
     expect(tasks).toHaveLength(1);
@@ -121,15 +123,15 @@ describe('storage/sync cuarentena y recuperación', () => {
   });
 
   it('el guardado transaccional (registro + tarea) reutiliza la tarea en cuarentena', async () => {
-    await quarantineDailyRecordTask('2025-02-03', {
+    await quarantineDailyRecordTask('2026-09-30', {
       code: 'permission-denied',
       message: 'Missing or insufficient permissions',
     });
     // The quarantined write still holds the stored day, as it does in use.
-    await hospitalDB.dailyRecords.put(makeRecord('2025-02-03', 'v1'));
+    await hospitalDB.dailyRecords.put(makeRecord('2026-09-30', 'v1'));
 
     const result = await queueDailyRecordSyncTaskWithLocalRecord(
-      makeRecord('2025-02-03', 'v2'),
+      makeRecord('2026-09-30', 'v2'),
       undefined,
       { authoringSession: captureAuthoringSession() }
     );
@@ -142,7 +144,7 @@ describe('storage/sync cuarentena y recuperación', () => {
   });
 
   it('retryQuarantinedSyncTask revive la tarea limpia; sobre una PENDING no hace nada', async () => {
-    await quarantineDailyRecordTask('2025-02-04', {
+    await quarantineDailyRecordTask('2026-10-01', {
       code: 'permission-denied',
       message: 'Missing or insufficient permissions',
     });

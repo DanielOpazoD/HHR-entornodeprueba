@@ -43,6 +43,7 @@ import {
 import { replacePendingDailyRecordTask } from '@/services/storage/sync/syncQueuePendingDailyRecordReplacement';
 import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/pendingDailyRecordSyncTask';
 import { hasPendingNursingHandoff } from './nursingHandoffTasks';
+import { isClosedNurseWindowRefusal } from './dailyRecordBaseReview';
 import { buildSyncQueueFailureContext } from './syncQueueFailureContext';
 
 export interface ProcessSyncQueueOptions {
@@ -99,7 +100,10 @@ export const createSyncQueueEngine = ({
       maxRetryDelayMs,
     });
 
+    const stopped = { ...task, status: decision.status, lastErrorCode: decision.lastErrorCode };
     await updateClaimedTaskState(task, {
+      // Past the nurse window the day goes back to the server's version, as after logout (SAVE-04).
+      ...(isClosedNurseWindowRefusal(stopped, Date.now()) ? { projectionReleased: true } : {}),
       status: decision.status,
       retryCount: decision.retryCount,
       nextAttemptAt: decision.nextAttemptAt,
