@@ -259,6 +259,24 @@ it('says the editing window closed, offers only the discard with its copy, and n
   expect(screen.queryByText(/por enviar/)).not.toBeInTheDocument();
 });
 
+// W14-H1B: the queue released this send's day; the closed window, not a lost copy, is its reason.
+it('names the closed window, not a lost copy, for a send released by it', () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-10-24T05:01:00Z'));
+  renderStopped({ ...closedWindowSend, projectionReleased: true });
+  fireEvent.click(screen.getByText('Guardado local · 1 por revisar'));
+  const [blocked] = screen.getAllByRole('listitem');
+  expect(within(blocked).getByText('Plazo de edición cerrado')).toBeVisible();
+  expect(within(blocked).getByText(/Quedó solo en este equipo y no se enviará/)).toBeVisible();
+  expect(within(blocked).queryByText('Sin copia local')).not.toBeInTheDocument();
+  expect(within(blocked).queryByText(/perdió su copia local/)).not.toBeInTheDocument();
+  expect(
+    within(blocked)
+      .getAllByRole('button')
+      .map(button => button.textContent)
+  ).toEqual(['Descartar envío']);
+});
+
 it('keeps «Sin permisos» one minute before the window closes', () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-24T04:59:00Z'));

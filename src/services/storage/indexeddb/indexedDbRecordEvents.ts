@@ -7,7 +7,9 @@ export const DAILY_RECORD_STORE_CHANGED_EVENT = 'daily-record-store-changed';
 
 export interface DailyRecordStoreChangedEventDetail {
   dates?: string[];
-  operation: 'save' | 'delete' | 'clear';
+  /** `release`: a stopped day write gave back its fields (`paths`); the day is read again. */
+  operation: 'save' | 'delete' | 'clear' | 'release';
+  paths?: string[];
 }
 
 const buildMonthPrefix = (year: number, monthOneBased: number): string =>

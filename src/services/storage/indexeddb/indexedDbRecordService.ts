@@ -5,6 +5,10 @@ import { recordOperationalErrorTelemetry } from '@/services/observability/operat
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dexieSyncQueueQuarantine';
+import {
+  composeServerDayWithPending,
+  type PendingPathsOverRemote,
+} from '@/services/storage/sync/pendingDayComposition';
 import { ensureDbReady, hospitalDB as db, isDatabaseInFallbackMode } from './indexedDbCore';
 import { dispatchDailyRecordStoreChanged } from './indexedDbRecordEvents';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
@@ -276,12 +280,16 @@ export type LocalRecordAdmissionCandidate = {
   remoteRecord?: DailyRecord | null;
   serverConfirmed?: boolean;
   isCurrent?: () => boolean;
+  /** How a confirmed server day takes the paths of the writes still holding it (SAVE-04). */
+  composeOverRemote?: PendingPathsOverRemote;
 };
 
 export type LocalRecordAdmissionResult = {
   date: string;
 } & (
-  | { status: 'admitted' | 'retained_pending'; record: DailyRecord }
+  | { status: 'admitted'; record: DailyRecord }
+  /** `serverComposed`: the server's day with the pending paths on top; otherwise the stored copy. */
+  | { status: 'retained_pending'; record: DailyRecord; serverComposed: boolean }
   | { status: 'superseded'; record: DailyRecord | null }
 );
 export const admitLocalRecords = async (
@@ -315,7 +323,8 @@ export const admitLocalRecords = async (
         );
         const decisions: LocalRecordAdmissionResult[] = [];
         const writable: DailyRecord[] = [];
-        for (const { record, expectedBase, remoteRecord, isCurrent, serverConfirmed } of unique) {
+        for (const candidate of unique) {
+          const { record, expectedBase, remoteRecord, isCurrent, serverConfirmed } = candidate;
           const stored = (await db.dailyRecords.get(record.date)) ?? null;
           if (
             owner !== getStoredSessionOwnerKey() ||
@@ -348,10 +357,27 @@ export const admitLocalRecords = async (
             }
             decisions.push({ date: record.date, status: 'admitted', record: selected });
           } else if (admission.status === 'retained_pending') {
+            // A confirmed server day shows under the writes still pending on it (SAVE-01).
+            const composition =
+              remoteRecord && serverConfirmed !== false && candidate.composeOverRemote
+                ? await composeServerDayWithPending(
+                    record.date,
+                    record,
+                    admission.record,
+                    candidate.composeOverRemote
+                  )
+                : undefined;
+            const composed =
+              composition && 'record' in composition ? composition.record : undefined;
+            if (composed && !arePatchValuesDeepEqual(admission.record, composed)) {
+              writable.push(composed);
+              changed.push(record.date);
+            }
             decisions.push({
               date: record.date,
               status: admission.status,
-              record: admission.record,
+              record: composed ?? admission.record,
+              serverComposed: Boolean(composed),
             });
           } else {
             decisions.push({

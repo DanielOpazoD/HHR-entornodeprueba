@@ -28,6 +28,7 @@ import {
   matchesOwner,
   requeueQuarantinedTask,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
+import { releaseClosedWindowRefusals } from '@/services/storage/sync/closedWindowDayRelease';
 
 export const loadDailyRecordOutbox = createRecoverableRuntimeLoader(
   'save-outbox',
@@ -349,6 +350,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     ),
   requeueQuarantinedTask,
   discardQuarantinedTask,
+  releaseClosedWindowRefusals,
   async update(taskId, patch) {
     await hospitalDB.syncQueue.update(taskId, patch);
   },
