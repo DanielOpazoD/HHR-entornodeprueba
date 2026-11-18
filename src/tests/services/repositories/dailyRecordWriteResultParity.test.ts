@@ -337,11 +337,15 @@ export const DIRECT_SEND_CASES: Record<string, ParityCase> = {
     },
   },
   // Disagree: the result says «not accepted» while the queue keeps a task for its author.
+  // The view is left as it was: an edit whose session ended no longer writes the census cache
+  // (W14-H3). This harness changes the session without what clears that cache in the app:
+  // the logout, or the admission of a different account (useAuthState).
+  // dailyRecordWriteRejectionAsSeen.test.tsx measures what the next session sees.
   'la sesión terminó antes de guardar: la cola lo guarda solo para su autor': {
     from: 'dailyRecordRemotePersistenceController.ts:382-393 (retained_for_owner)',
     beforeWrite: endSession,
     expected: {
-      vista: 'vuelve al valor anterior',
+      vista: 'conserva la edición',
       cuadro: 'error',
       aviso: 'sin aviso',
       flujo:
