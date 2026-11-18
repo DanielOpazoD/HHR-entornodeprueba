@@ -10,13 +10,11 @@ export const createCudyrArchiveQueue =
       type: 'ARCHIVE_CUDYR',
       payload: CudyrArchiveOutboxPayload,
       meta: { contexts: ['clinical'] },
-      options: Omit<SyncQueueEnqueueOptions, 'authoringSession'>
+      options: SyncQueueEnqueueOptions
     ) => Promise<SyncQueueEnqueueResult>
   ) =>
-  async (
-    payload: CudyrArchiveOutboxPayload,
-    options: Omit<SyncQueueEnqueueOptions, 'authoringSession'>
-  ) => {
+  /** `options.authoringSession` is the run's: the archive is queued only in its owner's name. */
+  async (payload: CudyrArchiveOutboxPayload, options: SyncQueueEnqueueOptions) => {
     await ensureDbReady();
     return enqueue('ARCHIVE_CUDYR', payload, { contexts: ['clinical'] }, options);
   };

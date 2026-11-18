@@ -276,11 +276,17 @@ decisión rechazada ni inventa ausencia local.
 - La guarda se impone en la salida. Lo que A inició no sale ni se reactiva después de que el
   navegador admite a B o empieza el cierre de A: todo envío CUDYR a Functions pasa por
   `callCudyrFunction()` (`src/services/cudyr/cudyrFunctionsCall.ts`) con el guard que la
-  operación capturó al empezar, y lo consulta justo antes de enviar; `requeueQuarantinedTask()`
-  reactiva una tarea solo a nombre del propietario admitido ahora, y las recuperaciones de la cola
-  reciben la sesión capturada al iniciar la corrida, nunca el propietario leído después. Lo que no
-  sale queda tal cual (la tarea sigue en la cola con su dueño) y la operación de A termina en
-  silencio.
+  operación capturó al empezar, y lo consulta justo antes de enviar.
+- La cola tiene una sola regla para todas sus salidas (encolar, procesar, reintentar, descartar,
+  liberar y mostrar en el panel): solo trabajo de la persona que **esta pestaña** admitió, mientras
+  el navegador la siga teniendo (`getTabOwnerKey()` e `isAdmittedOwner()` en
+  `authoringSession.ts`; la cola la lee como `getOwnerKey()` de su runtime). Una pestaña que sigue
+  admitida como A después de que otra admitió a B no actúa por nadie. Una tarea se encola a nombre
+  de la sesión capturada al iniciar la operación; si esa sesión cambió, no se encola a nombre de
+  nadie más (la corrida interrumpida exige una captura nueva). Reintentar y descartar vuelven a
+  preguntar después de leer la fila y nunca valen durante un cierre. Las recuperaciones reciben la
+  sesión capturada al iniciar la corrida. Nada se borra: lo de otro dueño queda intacto y su dueño
+  lo envía al volver.
 - La edición local en vuelo conserva propietario, base y contexto en reposo, aunque la cola activa
   siguiente esté llena; revierte la vista sin avisar a la sesión siguiente.
 - El cambio de sesión de Eloísa se observa solo con `onSessionChange` o `useSessionEpoch`

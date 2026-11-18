@@ -1,5 +1,9 @@
 import { afterEach, expect, it, vi } from 'vitest';
-const state = vi.hoisted(() => ({ owner: 'user', generation: null as string | null }));
+const state = vi.hoisted(() => ({
+  owner: 'user',
+  generation: null as string | null,
+  admitted: null as string | null,
+}));
 vi.mock('@/services/storage/sessionOwnerKey', () => ({
   getStoredSessionOwnerKey: () => state.owner,
   hasSessionCleanupFailed: vi.fn(() => false),
@@ -7,6 +11,7 @@ vi.mock('@/services/storage/sessionOwnerKey', () => ({
 }));
 vi.mock('@/services/storage/sessionStorageTransition', () => ({
   getSessionGeneration: () => state.generation,
+  getSessionOwner: () => state.admitted,
 }));
 const h = vi.hoisted(() => ({
   wake: undefined as (() => void) | undefined,
@@ -27,6 +32,7 @@ afterEach(() => {
   vi.clearAllMocks();
   state.owner = 'user';
   state.generation = null;
+  state.admitted = null;
 });
 it('does not dispatch during bootstrap even if storage remembers the owner', () => {
   vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
@@ -48,4 +54,17 @@ it('does not dispatch while offline or without an owner', () => {
   online.mockReturnValue(true);
   state.owner = '';
   expect(h.allowed!()).toBe(false);
+});
+it('does not wake nor act for anyone once another tab admitted someone else', () => {
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+  const runtime = createBrowserSyncRuntime();
+  runtime.onOnline(vi.fn());
+  state.generation = 'admitted';
+  state.admitted = 'user';
+  expect(h.allowed!()).toBe(true);
+  expect(runtime.getOwnerKey()).toBe('user');
+  // Another tab admits a different person on the shared key; this tab still holds `user`.
+  state.owner = 'other';
+  expect(h.allowed!()).toBe(false);
+  expect(runtime.getOwnerKey()).toBeNull();
 });

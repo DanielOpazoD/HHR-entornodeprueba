@@ -9,7 +9,7 @@ const LEDGER: { owners: Record<string, string>; pending: Record<string, string> 
 );
 // The ledger only goes down. This is its exact size: migrating a file means removing its row
 // (ESLint asks for it) and lowering this number in the same change, so a new row always fails.
-const LEDGER_SIZE = 29;
+const LEDGER_SIZE = 28;
 
 const eslint = new ESLint({ cwd: process.cwd() });
 const messages = async (code: string, filePath: string) =>

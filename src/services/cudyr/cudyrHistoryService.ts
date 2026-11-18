@@ -1,4 +1,7 @@
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import {
+  guardAuthoringSession,
+  type AuthoringSessionGuard,
+} from '@/services/storage/authoringSession';
 import { callCudyrFunction, type CudyrFunctionEndpoint } from './cudyrFunctionsCall';
 import { normalizeDailyRecordAuthorityError } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import type {
@@ -13,18 +16,24 @@ import type {
   ReadCudyrEpisodeCapturesRequest,
 } from '@/types/domain/cudyrCapture';
 
-/** Each call is its own operation (the queue checks its task's owner just before): guard taken here. */
-const callHistory = <Request, Response>(name: CudyrFunctionEndpoint, payload: Request) =>
-  callCudyrFunction<Response, Request>(name, payload, guardAuthoringSession()).catch(
-    (error: unknown) => {
-      throw normalizeDailyRecordAuthorityError(error);
-    }
-  );
+/** A read is its own operation, begun here; an archive carries the guard of whoever queued it. */
+const callHistory = <Request, Response>(
+  name: CudyrFunctionEndpoint,
+  payload: Request,
+  guard: AuthoringSessionGuard = guardAuthoringSession()
+) =>
+  callCudyrFunction<Response, Request>(name, payload, guard).catch((error: unknown) => {
+    throw normalizeDailyRecordAuthorityError(error);
+  });
 
-export const archiveCudyrHistory = (payload: ArchiveCudyrHistoryRequest) =>
+export const archiveCudyrHistory = (
+  payload: ArchiveCudyrHistoryRequest,
+  guard: AuthoringSessionGuard
+) =>
   callHistory<ArchiveCudyrHistoryRequest, ArchiveCudyrHistoryResult>(
     'archiveCudyrHistory',
-    payload
+    payload,
+    guard
   );
 
 /** One bounded page. Callers must exhaust nextCursor before claiming period coverage. */

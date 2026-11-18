@@ -1,4 +1,4 @@
-import { getSessionGeneration } from './sessionStorageTransition';
+import { getSessionGeneration, getSessionOwner } from './sessionStorageTransition';
 import { getStoredSessionOwnerKey, isSessionCleanupPending } from './sessionOwnerKey';
 
 /** The person and session that began a write: whose intent it carries, whatever happens later. */
@@ -13,19 +13,35 @@ export const captureAuthoringSession = (): AuthoringSession => ({
 });
 
 /**
- * Whether the session that began a write still holds this browser's days and queue. A logout in
- * progress (in this tab or another) already counts as a change: its cleanup may have cleared the
- * days the write would land on.
+ * The person this tab may act for: the one it admitted, while the browser still holds them. Null
+ * once another tab admitted someone else on the shared key: this tab then sends, revives, discards
+ * and enqueues nobody's work, and everyone's stays as it is. A document that has admitted nobody
+ * (start-up, or a logged-out tab) follows the browser's owner, as before admission.
+ */
+export const getTabOwnerKey = (): string | null => {
+  const browserOwner = getStoredSessionOwnerKey();
+  const admitted = getSessionOwner();
+  return admitted === null || admitted === browserOwner ? browserOwner : null;
+};
+
+/**
+ * Whether `ownerKey` is the person this tab may act for (getTabOwnerKey), with no logout cleanup
+ * in progress. Every exit of the queue and every write asks this: work kept in someone's name is
+ * enqueued, sent, revived or discarded only for them, in a tab that admitted them.
+ */
+export const isAdmittedOwner = (ownerKey: string | null | undefined): boolean =>
+  !isSessionCleanupPending() &&
+  (ownerKey ?? null) === getTabOwnerKey() &&
+  // A tab that no longer acts for anyone acts for no unowned work either.
+  (ownerKey != null || getStoredSessionOwnerKey() === null);
+
+/**
+ * Whether the session that began a write still holds this tab, this browser's days and queue. A
+ * logout in progress (in this tab or another) already counts as a change: its cleanup may have
+ * cleared the days the write would land on.
  */
 export const isAuthoringSessionCurrent = (session: AuthoringSession): boolean =>
   isAdmittedOwner(session.ownerKey) && session.generation === getSessionGeneration();
-
-/**
- * Whether `ownerKey` is the person this browser holds now, with no logout cleanup in progress.
- * Work kept in someone's name without a generation (a queued task) is revived only for them.
- */
-export const isAdmittedOwner = (ownerKey: string | null | undefined): boolean =>
-  !isSessionCleanupPending() && (ownerKey ?? null) === getStoredSessionOwnerKey();
 
 /** One asynchronous operation's view of the session it began in. */
 export interface AuthoringSessionGuard {

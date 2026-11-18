@@ -35,7 +35,6 @@
     "src/services/storage/firestore/firestoreServerDocumentRead.ts": "S2: guarda de sesión (lectura del servidor)",
     "src/services/storage/indexeddb/indexedDbErrorLogService.ts": "S2: guarda de sesión (diagnóstico local)",
     "src/services/storage/indexeddb/indexedDbRecordService.ts": "S2: guarda de sesión (guardado)",
-    "src/services/storage/sync/cudyrArchiveTransport.ts": "cola: titularidad de la tarea y generación (SAVE-03)",
     "src/services/storage/sync/cudyrPendingRead.ts": "cola: titularidad de la tarea (SAVE-03)",
     "src/services/storage/sync/dailyRecordTaskRetirement.ts": "cola: exige también la generación durable (SAVE-03)",
     "src/services/storage/sync/nursingHandoffSession.ts": "cola: exige también la generación durable (SAVE-03)",

@@ -32,6 +32,7 @@ import { persistCudyrArchivePart } from '@/services/cudyr/cudyrArchiveQueue';
 import { processSyncQueue } from '@/services/storage/sync/publicSyncQueue';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { enqueueStandaloneSyncTask } from '@/services/storage/sync/enqueueStandaloneSyncTask';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 
 const request: ArchiveCudyrHistoryRequest = {
   schemaVersion: 1,
@@ -81,7 +82,10 @@ describe('CUDYR archive real IndexedDB outbox', () => {
         'ARCHIVE_CUDYR',
         { id, request },
         { contexts: ['clinical'] },
-        { deferProcessing: true }
+        {
+          deferProcessing: true,
+          authoringSession: { ownerKey: 'user:synthetic', generation: 'session-test' },
+        }
       );
     const existingId = '00000000-0000-4000-8000-000000000001';
     expect((await enqueue(existingId)).accepted).toBe(true);
@@ -100,7 +104,9 @@ describe('CUDYR archive real IndexedDB outbox', () => {
   });
   it('survives a database reopen and replays the exact captured history after the connection returns', async () => {
     h.archive.mockRejectedValueOnce(new Error('offline'));
-    expect(await persistCudyrArchivePart(request)).toBe('queued');
+    expect(await persistCudyrArchivePart(request, undefined, guardAuthoringSession())).toBe(
+      'queued'
+    );
     hospitalDB.close();
     await hospitalDB.open();
     const pending = await hospitalDB.syncQueue.toArray();
@@ -121,6 +127,9 @@ describe('CUDYR archive real IndexedDB outbox', () => {
     await vi.waitFor(async () => {
       expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
     });
-    expect(h.archive).toHaveBeenLastCalledWith({ ...request, runId: 'verified-new-run' });
+    expect(h.archive).toHaveBeenLastCalledWith(
+      { ...request, runId: 'verified-new-run' },
+      expect.objectContaining({ check: expect.any(Function) })
+    );
   });
 });

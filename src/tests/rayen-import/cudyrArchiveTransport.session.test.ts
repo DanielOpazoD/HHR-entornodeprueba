@@ -2,6 +2,7 @@ import { patchDailyRecordWithClinicalAuthorityCallable } from '@/services/storag
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { archiveCudyrHistory } from '@/services/cudyr/cudyrHistoryService';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 const h = vi.hoisted(() => ({ runtime: vi.fn(), invoke: vi.fn(), callable: vi.fn() }));
 vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
   defaultFunctionsRuntime: { getRegionalFunctions: h.runtime },
@@ -26,7 +27,9 @@ describe('CUDYR archive transport session ownership', () => {
       setSessionGeneration('session-b');
       return {};
     });
-    await expect(archiveCudyrHistory(request)).rejects.toThrow('La sesión cambió.');
+    await expect(archiveCudyrHistory(request, guardAuthoringSession())).rejects.toThrow(
+      'La sesión cambió.'
+    );
     expect(h.invoke).not.toHaveBeenCalled();
   });
   it('does not return a late archive response to B', async () => {
@@ -34,7 +37,9 @@ describe('CUDYR archive transport session ownership', () => {
       setSessionGeneration('session-b');
       return { data: { persisted: true } };
     });
-    await expect(archiveCudyrHistory(request)).rejects.toThrow('La sesión cambió.');
+    await expect(archiveCudyrHistory(request, guardAuthoringSession())).rejects.toThrow(
+      'La sesión cambió.'
+    );
     expect(h.invoke).toHaveBeenCalledOnce();
   });
   it('does not send an audit metadata patch when transport initialization crosses into B', async () => {

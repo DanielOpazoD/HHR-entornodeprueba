@@ -3,10 +3,10 @@ import { startBrowserSyncWakeup } from './browserSyncWakeup';
 import type { SyncRuntimePort } from '@/services/storage/sync/syncQueuePorts';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import {
-  getStoredSessionOwnerKey,
   hasSessionCleanupFailed,
   isSessionCleanupPending,
 } from '@/services/storage/sessionOwnerKey';
+import { getTabOwnerKey } from '@/services/storage/authoringSession';
 
 export const createBrowserSyncRuntime = (): SyncRuntimePort => {
   let onlineListenerRegistered = false;
@@ -19,13 +19,14 @@ export const createBrowserSyncRuntime = (): SyncRuntimePort => {
 
       const stop = startBrowserSyncWakeup(
         callback,
-        () =>
-          navigator.onLine && Boolean(getStoredSessionOwnerKey()) && Boolean(getSessionGeneration())
+        () => navigator.onLine && Boolean(getTabOwnerKey()) && Boolean(getSessionGeneration())
       );
       import.meta.hot?.dispose(stop);
       onlineListenerRegistered = true;
     },
-    getOwnerKey: () => getStoredSessionOwnerKey(),
+    // Every queue exit (enqueue, send, revive, discard, release, the panel) acts only for the
+    // person this tab admitted: another person's tasks stay as they are.
+    getOwnerKey: getTabOwnerKey,
     getSessionGeneration,
     getAdmittedOwnerKey: () => getSessionOwner(),
     getActorKey: () => {

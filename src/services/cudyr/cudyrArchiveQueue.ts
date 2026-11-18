@@ -7,17 +7,20 @@ import {
 } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { queueCudyrArchiveTask, processSyncQueue } from '@/services/storage/sync/publicSyncQueue';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import type { AuthoringSessionGuard } from '@/services/storage/authoringSession';
 
 export type CudyrArchiveDisposition = 'persisted' | 'queued' | 'failed';
 
-/** Save before sending. An ambiguous response keeps the exact source snapshot for replay. */
+/**
+ * Save before sending. An ambiguous response keeps the exact source snapshot for replay. `guard` is
+ * the sync run's, captured when it began: the archive is queued and sent only in its owner's name.
+ */
 export const persistCudyrArchivePart = async (
   request: ArchiveCudyrHistoryRequest,
-  signal?: AbortSignal,
-  checkSession: () => void = () => undefined
+  signal: AbortSignal | undefined,
+  guard: AuthoringSessionGuard
 ): Promise<CudyrArchiveDisposition> => {
-  const { session, isCurrent: sameSession } = guardAuthoringSession();
+  const { session, isCurrent: sameSession, check: checkSession } = guard;
   const { ownerKey: owner, generation } = session;
   checkSession();
   await ensureDbReady();
@@ -29,6 +32,7 @@ export const persistCudyrArchivePart = async (
   const queued = await queueCudyrArchiveTask(
     { id, request },
     {
+      authoringSession: session,
       deferProcessing: true,
       holdForMs: 30_000,
       preOutboxHoldOwner: id,
@@ -47,7 +51,7 @@ export const persistCudyrArchivePart = async (
         signal?.addEventListener('abort', onAbort, { once: true });
         // Both handlers stay attached after cancellation: a late response cannot acknowledge
         // or delete the durable item; the background protocol will reconcile it idempotently.
-        archiveCudyrHistory(request).then(resolve, reject);
+        archiveCudyrHistory(request, guard).then(resolve, reject);
       }
     );
     checkSession();

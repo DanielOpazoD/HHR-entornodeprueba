@@ -145,8 +145,8 @@ export const createSyncQueueEngine = ({
   const queueTask = async (
     type: SyncTask['type'],
     payload: unknown,
-    meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
-    options: Omit<SyncQueueEnqueueOptions, 'authoringSession'> = {}
+    meta: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'> | undefined,
+    options: SyncQueueEnqueueOptions
   ): Promise<SyncQueueEnqueueResult> => {
     const { enqueueStandaloneSyncTask } = await import('./enqueueStandaloneSyncTask');
     return enqueueStandaloneSyncTask(
