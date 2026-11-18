@@ -24,7 +24,10 @@ import {
   recordCensusRemoteEnabled,
   recordCensusSubscriptionStart,
 } from '@/shared/runtime/censusStartupPerf';
-import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
+import {
+  isDailyRecordWriteRejectedResult,
+  resolveDailyRecordWriteStatus,
+} from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { RemoteSyncRuntimeStatus } from '@/services/repositories/repositoryConfig';
 import {
@@ -239,7 +242,8 @@ export const useSaveDailyRecordMutation = () => {
         setDailyRecordQueryData(queryClient, payload.record.date, context?.previousRecord ?? null);
         return;
       }
-      if (!payload.result?.savedRemotely) return;
+      if (!payload.result || resolveDailyRecordWriteStatus(payload.result).state !== 'confirmed')
+        return;
       if (payload.result.confirmedRecord) {
         const published = await setAcknowledgedDailyRecordQueryData(
           queryClient,

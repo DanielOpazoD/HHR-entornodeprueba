@@ -15,6 +15,8 @@ import {
 } from './dailyRecordWriteResultParity.test-support';
 import { server, type ServerAnswer } from './dailyRecordWriteResultParityServer.test-support';
 import { observePatchCase, type ParityCase } from './dailyRecordWriteResultParityView.test-support';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 
 vi.mock('@/services/repositories/repositoryConfig', async () =>
   (await import('./dailyRecordWriteResultParityServer.test-support')).scriptedRepositoryConfig()
@@ -70,6 +72,19 @@ vi.mock('@/services/firebase-runtime/authRuntime', () => ({
  * rayen: the structural guard; cola / notaGuardada: what this computer keeps (Dexie).
  */
 const refuses = (error: () => unknown): ServerAnswer => ({ kind: 'refuses', error });
+/** A clinical event: the census shows it only when the mutation publishes the write's record. */
+const EVENT_PATCH = {
+  'beds.R1.clinicalEvents': [
+    {
+      id: 'evento-sintetico-paridad',
+      name: 'PROCEDIMIENTO SINTETICO',
+      date: '2026-11-17',
+      createdAt: '2026-11-17T09:00:00.000Z',
+    },
+  ],
+} as unknown as DailyRecordPatch;
+const shownEvents = (record: DailyRecord | null | undefined) =>
+  JSON.stringify(record?.beds?.R1?.clinicalEvents ?? []);
 const versionConflict = () =>
   new ConcurrencyError('synthetic version conflict', 'version_mismatch');
 
@@ -391,6 +406,75 @@ export const DIRECT_SEND_CASES: Record<string, ParityCase> = {
         'PENDING de quien editó': 1,
       },
       notaGuardada: 'NOTA SINTETICA A',
+    },
+  },
+  // Disagree: the box says «saved», yet the census shows the event only after its next read:
+  // a server answer without its version leaves the mutation no record to publish.
+  'un evento clínico confirmado por el servidor': {
+    from: 'usePatchDailyRecordMutation.ts onSuccess (confirmado)',
+    patch: EVENT_PATCH,
+    read: shownEvents,
+    expected: {
+      vista: 'vuelve al valor anterior',
+      cuadro: 'saved',
+      aviso: 'Cambio guardado: La actualización quedó confirmada en el servidor.',
+      flujo: 'sigue',
+      repositorio: 'sigue',
+      ingreso: 'sigue',
+      confirmado: { cuadroYAviso: true, especialidad: 'confirmada' },
+      historico: 'confirmed',
+      rayen: 'sigue',
+      cola: {},
+      notaGuardada: 'NOCHE BASE',
+    },
+  },
+  // The queued event becomes the base of this tab's next edit, so the census shows it.
+  'un evento clínico sin red: queda en la cola': {
+    from: 'usePatchDailyRecordMutation.ts onSuccess (evento clínico encolado)',
+    patch: EVENT_PATCH,
+    read: shownEvents,
+    answer: refuses(() => firestoreError('unavailable')),
+    expected: {
+      vista: 'conserva la edición',
+      cuadro: 'local',
+      aviso:
+        'Cambio pendiente de sincronización: La actualización quedó guardada localmente y se reintentará la sincronización.',
+      flujo: 'sigue',
+      repositorio: 'sigue',
+      ingreso: 'sigue',
+      confirmado: {
+        cuadroYAviso: false,
+        especialidad: 'lanza Error: No se confirmó la especialidad en el censo remoto.',
+      },
+      historico: 'confirmed',
+      rayen:
+        'lanza Error: Los cambios se guardaron localmente y quedaron pendientes de sincronización.',
+      cola: { 'PENDING de quien editó': 1 },
+      notaGuardada: 'NOCHE BASE',
+    },
+  },
+  // Disagree: kept on this computer and in its queue, yet the census shows it only after a read.
+  'un evento clínico sin servidor configurado: solo en este equipo': {
+    from: 'usePatchDailyRecordMutation.ts onSuccess (solo local)',
+    patch: EVENT_PATCH,
+    read: shownEvents,
+    arrange: () => (server.enabled = false),
+    expected: {
+      vista: 'vuelve al valor anterior',
+      cuadro: 'local',
+      aviso:
+        'Cambio sólo local: La actualización quedó guardada en este dispositivo, sin confirmación del servidor.',
+      flujo: 'sigue',
+      repositorio: 'sigue',
+      ingreso: 'sigue',
+      confirmado: {
+        cuadroYAviso: false,
+        especialidad: 'lanza Error: No se confirmó la especialidad en el censo remoto.',
+      },
+      historico: 'confirmed',
+      rayen: 'sigue',
+      cola: { 'PENDING de quien editó': 1 },
+      notaGuardada: 'NOCHE BASE',
     },
   },
 };
