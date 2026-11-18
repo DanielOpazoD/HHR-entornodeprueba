@@ -1,12 +1,6 @@
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { dispatchDailyRecordStoreChanged } from '@/services/storage/indexeddb/indexedDbRecordEvents';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { isClosedNurseWindowRefusal } from './dailyRecordBaseReview';
-import { holdsDailyRecordProjection } from './dexieSyncQueueQuarantine';
-
-/** Puts the paths of the writes still holding a day on top of the server's version of it. */
-export type PendingPathsOverRemote = (remote: DailyRecord, holders: SyncTask[]) => DailyRecord;
 
 /**
  * SAVE-04 after the window: this person's census day sends the server refused once the nurse window
@@ -14,8 +8,9 @@ export type PendingPathsOverRemote = (remote: DailyRecord, holders: SyncTask[]) 
  * (`projectionReleased`, already read by every version) and nothing else changes: the task keeps
  * its payload, for its author to download and discard, and the stored day is not written here.
  * The `release` notice drops the send's unconfirmed overlay and has the census read the day again;
- * that read decides what is shown (`composeOverReleasedDay`). Run after every queue pass, so a
- * refusal judged while this computer's clock was behind is released once the clock is right.
+ * that read decides what is shown (`composeServerDayWithPending`), where a released send adds
+ * nothing. Run after every queue pass, so a refusal judged while this computer's clock was behind
+ * is released once the clock is right.
  * `mayRelease` checks the session and its role only when there is something to release.
  */
 export const releaseClosedWindowRefusals = async (
@@ -52,32 +47,4 @@ export const releaseClosedWindowRefusals = async (
     });
   }
   return released;
-};
-
-/**
- * The day a successful server read shows while other writes still hold it and a released one may
- * have left its values in the stored copy: the server's version with the paths of the writes that
- * still hold it, never those of a released one. Read in the caller's `rw` transaction. The stored
- * copy stays as it is (`kept`) when no released write exists for the day, or when the holders
- * cannot be put on top (a write without its paths, or a bed that changed patient). A composed day
- * keeps the stored copy's version, the one its holders were written against.
- */
-export const composeOverReleasedDay = async (
-  date: string,
-  remote: DailyRecord,
-  stored: DailyRecord,
-  compose: PendingPathsOverRemote
-): Promise<{ record: DailyRecord } | { kept: 'no_released_send' | 'not_composable' }> => {
-  const tasks = await hospitalDB.syncQueue.where('key').equals(`daily:${date}`).toArray();
-  if (!tasks.some(task => task.projectionReleased && task.status !== 'RETIRED'))
-    return { kept: 'no_released_send' };
-  const holders = tasks
-    .filter(task => holdsDailyRecordProjection(task, date))
-    .sort((left, right) => (left.id ?? 0) - (right.id ?? 0));
-  try {
-    return { record: { ...compose(remote, holders), lastUpdated: stored.lastUpdated } };
-  } catch {
-    // The holders' paths cannot be placed on the server's day: they keep the stored copy.
-    return { kept: 'not_composable' };
-  }
 };

@@ -6,9 +6,9 @@ import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 import {
-  composeOverReleasedDay,
+  composeServerDayWithPending,
   type PendingPathsOverRemote,
-} from '@/services/storage/sync/closedWindowDayRelease';
+} from '@/services/storage/sync/pendingDayComposition';
 import { ensureDbReady, hospitalDB as db, isDatabaseInFallbackMode } from './indexedDbCore';
 import { dispatchDailyRecordStoreChanged } from './indexedDbRecordEvents';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
@@ -287,7 +287,9 @@ export type LocalRecordAdmissionCandidate = {
 export type LocalRecordAdmissionResult = {
   date: string;
 } & (
-  | { status: 'admitted' | 'retained_pending'; record: DailyRecord }
+  | { status: 'admitted'; record: DailyRecord }
+  /** `serverComposed`: the server's day with the pending paths on top; otherwise the stored copy. */
+  | { status: 'retained_pending'; record: DailyRecord; serverComposed: boolean }
   | { status: 'superseded'; record: DailyRecord | null }
 );
 export const admitLocalRecords = async (
@@ -355,10 +357,10 @@ export const admitLocalRecords = async (
             }
             decisions.push({ date: record.date, status: 'admitted', record: selected });
           } else if (admission.status === 'retained_pending') {
-            // A released write's values never stay on a day the server just confirmed.
+            // A confirmed server day shows under the writes still pending on it (SAVE-01).
             const composition =
               remoteRecord && serverConfirmed !== false && candidate.composeOverRemote
-                ? await composeOverReleasedDay(
+                ? await composeServerDayWithPending(
                     record.date,
                     record,
                     admission.record,
@@ -375,6 +377,7 @@ export const admitLocalRecords = async (
               date: record.date,
               status: admission.status,
               record: composed ?? admission.record,
+              serverComposed: Boolean(composed),
             });
           } else {
             decisions.push({

@@ -28,6 +28,12 @@ import { setSessionGeneration } from '@/services/storage/sessionStorageTransitio
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
 import { saveDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
+import { syncWithFirestoreDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
+import * as rebase from '@/services/repositories/dailyRecordPendingWriteRebase';
+import {
+  retireReviewedDailyRecordTask,
+  reviewBlockedDailyRecordTask,
+} from '@/services/storage/sync/dailyRecordTaskRetirement';
 import { applyPatches } from '@/utils/patchUtils';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
@@ -562,4 +568,217 @@ it('shows the server for a released whole-day send once the read works, unconfir
   const warm = await getForDateWithMeta(closedDay);
   expect(warm.record?.[night]).toBe('NOCHE BASE');
   expect(warm.serverConfirmed).toBe(true);
+}, 60_000);
+
+// Recheck 2: one rule for any day pending writes hold. A confirmed read shows the server's day
+// with the pending paths on top, with or without a released send (after «Descartar envío» too,
+// and for a second correction); when they cannot be put on top (a whole-day write, a replaced or
+// moved patient, another newborn or mother) the stored copy stays and is never confirmed.
+it.each([
+  'discard',
+  'later-correction',
+  'star',
+  'replace',
+  'move',
+  'crib',
+  'mother',
+  'ordinary',
+  'foreign',
+] as const)(
+  'independent online publication and next read, %s',
+  async kind => {
+    const day = base(closedDay);
+    const rnX = {
+      ...day.beds.R1,
+      patientName: 'RN X',
+      rut: '11111111-1',
+      clinicalEpisodeId: 'RN-X',
+      pathology: 'TEXTO IGUAL',
+    };
+    day.beds.R1.clinicalCrib = rnX;
+    const remote = structuredClone(day);
+    const newPatient = {
+      ...day.beds.R1,
+      patientName: 'MADRE Y',
+      clinicalEpisodeId: 'M-Y',
+      rut: '14000000-K',
+      pathology: 'TEXTO IGUAL',
+    };
+    if (kind === 'replace' || kind === 'move' || kind === 'mother') remote.beds.R1 = newPatient;
+    if (kind === 'move') remote.beds.R2 = { ...day.beds.R1, bedId: 'R2' };
+    if (kind === 'crib')
+      remote.beds.R1.clinicalCrib = {
+        ...rnX,
+        patientName: 'RN Y',
+        clinicalEpisodeId: 'RN-Y',
+        rut: '10000013-K',
+      };
+    remote.handoffNovedadesNightShift = CORRECTION;
+    // Independent reference read of the same remote bytes before creating either task.
+    await admin.doc(dayPath).set(remote);
+    const reference = (await getForDateWithMeta(closedDay)).record!;
+    expect(reference[night]).toBe(CORRECTION);
+    const a = await refusedBeforeThisBuild(day, { [night]: NOTE });
+    const local = (await stored())!;
+    // Keep separate opIds, as when B was authored while the original request for A was in flight.
+    await hospitalDB.syncQueue.update(a.id!, {
+      status: 'PROCESSING',
+      attemptId: 'review-A',
+      leaseOwner: 'fixture',
+      leaseUntil: Date.now() + 60000,
+    });
+    const path =
+      kind === 'crib' || kind === 'mother'
+        ? 'beds.R1.clinicalCrib.pathology'
+        : kind === 'replace' || kind === 'move'
+          ? 'beds.R1.pathology'
+          : 'handoffNovedadesDayShift';
+    const patch = { [path]: 'EDICION PENDIENTE B' } as DailyRecordPatch;
+    const payload = applyPatches(local, patch);
+    if (kind === 'star') {
+      offline();
+      await saveDetailed(payload, local.lastUpdated, {
+        baseRecord: local,
+        authoringSession: captureAuthoringSession(),
+      });
+      setFirestoreEnabled(true);
+    } else {
+      expect(
+        await queueDailyRecordSyncTaskWithLocalRecord(
+          payload,
+          { syncContract: { changedPaths: [path], expectedVersion: local.lastUpdated } },
+          {
+            deferProcessing: true,
+            authoringSession: captureAuthoringSession(),
+            patchWrite: { patch, baseRecord: local, prepare: applyPatches },
+          }
+        )
+      ).toMatchObject({ accepted: true });
+    }
+    const b = (await tasks()).find(t => t.id !== a.id)!;
+    expect(b.status).toBe('PENDING');
+    if (kind === 'star') expect(b.syncContract?.changedPaths).toEqual(['*']);
+    await hospitalDB.syncQueue.update(b.id!, {
+      nextAttemptAt: Date.now() + 86400000,
+      ...(kind === 'foreign' ? { ownerKey: ADMIN } : {}),
+    });
+    await hospitalDB.syncQueue.put(a);
+    await admin.doc(dayPath).set(remote);
+    const row = await stored();
+    await drain();
+    expect(await hospitalDB.syncQueue.get(a.id!)).toEqual({ ...a, projectionReleased: true });
+    expect(await stored()).toEqual(row);
+    if (kind === 'later-correction') {
+      const initial = await getForDateWithMeta(closedDay);
+      expect(initial.record?.[night]).toBe(CORRECTION);
+      expect(initial.record?.handoffNovedadesDayShift).toBe('EDICION PENDIENTE B');
+    }
+    if (kind === 'discard' || kind === 'later-correction') {
+      const review = await reviewBlockedDailyRecordTask(a.id!);
+      expect(await retireReviewedDailyRecordTask(review!)).toBe(true);
+    }
+    if (kind === 'later-correction') {
+      await admin
+        .doc(dayPath)
+        .update({ [night]: 'SEGUNDA CORRECCION', lastUpdated: Timestamp.now() });
+    }
+    const attempts = vi.spyOn(rebase, 'rebasePendingDailyRecordWrite');
+    const first = await getForDateWithMeta(closedDay);
+    const second = await syncWithFirestoreDetailed(closedDay);
+    const count = attempts.mock.calls.length;
+    const repeated = await getForDateWithMeta(closedDay);
+    const triedAgain = attempts.mock.calls.length > count;
+    attempts.mockRestore();
+    client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>
+        <DefaultRepositoryProvider>{children}</DefaultRepositoryProvider>
+      </QueryClientProvider>
+    );
+    const q = renderHook(() => useDailyRecordQuery(closedDay, false, 'ready'), { wrapper });
+    await waitFor(() => expect(q.result.current.data).toBeTruthy(), { timeout: 12000 });
+    await settled();
+    const ui = {
+      value: q.result.current.data?.[night],
+      confirmed: q.result.current.runtime?.serverConfirmed,
+    };
+    q.unmount();
+    const possible =
+      kind === 'later-correction' ||
+      kind === 'discard' ||
+      kind === 'ordinary' ||
+      kind === 'foreign';
+    expect(triedAgain).toBe(true);
+    expect((await tasks()).find(t => t.id === b.id)).toMatchObject({
+      status: 'PENDING',
+      payload: b.payload,
+    });
+    if (possible) {
+      const expectedNote = kind === 'later-correction' ? 'SEGUNDA CORRECCION' : CORRECTION;
+      expect(first.record?.[night]).toBe(expectedNote);
+      expect(first.record).toEqual({
+        ...applyPatches(reference, patch),
+        [night]: expectedNote,
+        lastUpdated: row!.lastUpdated,
+      });
+      expect(first.serverConfirmed).toBe(true);
+      expect(ui).toEqual({ value: expectedNote, confirmed: true });
+      return;
+    }
+    expect(first.record).toEqual(row);
+    expect(await stored()).toEqual(row);
+    if (kind !== 'star') {
+      // A subsequent correction makes the same holder composable. Nothing in the queue changes.
+      await admin.doc(dayPath).set({ ...day, [night]: CORRECTION });
+      const next = await getForDateWithMeta(closedDay);
+      expect(next.record?.[night]).toBe(CORRECTION);
+      expect(next.serverConfirmed).toBe(true);
+    }
+    expect({
+      point: first.serverConfirmed,
+      sync: second?.serverConfirmed,
+      again: repeated.serverConfirmed,
+      ui: ui.confirmed,
+    }).toEqual({ point: false, sync: false, again: false, ui: false });
+  },
+  60000
+);
+
+// The same rule with no refusal at all: on today's census another person corrects a field while
+// this computer still has an unsent edit of another field of the same day.
+it('shows another person’s correction with this computer’s pending edit, confirmed, with no refusal', async () => {
+  const day = base(today);
+  const todayPath = `hospitals/hanga_roa/dailyRecords/${today}`;
+  await admin.doc(todayPath).set(day);
+  await hospitalDB.dailyRecords.put(day);
+  offline();
+  const patch = { [night]: NOTE } as DailyRecordPatch;
+  expect(
+    await queueDailyRecordSyncTaskWithLocalRecord(
+      applyPatches(day, patch),
+      { syncContract: { changedPaths: [night], expectedVersion: day.lastUpdated } },
+      {
+        deferProcessing: true,
+        authoringSession: captureAuthoringSession(),
+        patchWrite: { patch, baseRecord: day, prepare: applyPatches },
+      }
+    )
+  ).toMatchObject({ accepted: true });
+  setFirestoreEnabled(true);
+  await admin
+    .doc(todayPath)
+    .update({ handoffNovedadesDayShift: CORRECTION, lastUpdated: Timestamp.now() });
+
+  const read = await getForDateWithMeta(today);
+  const synced = await syncWithFirestoreDetailed(today);
+
+  expect(read.record?.handoffNovedadesDayShift).toBe(CORRECTION);
+  expect(read.record?.[night]).toBe(NOTE);
+  expect(read.serverConfirmed).toBe(true);
+  expect(synced?.record?.handoffNovedadesDayShift).toBe(CORRECTION);
+  expect(synced?.serverConfirmed).toBe(true);
+  const [pending] = await tasks();
+  expect(pending).toMatchObject({ status: 'PENDING' });
+  expect((pending.payload as DailyRecord)[night]).toBe(NOTE);
+  expect((await admin.doc(todayPath).get()).data()?.[night]).toBe('NOCHE BASE');
 }, 60_000);

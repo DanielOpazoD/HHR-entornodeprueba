@@ -4,7 +4,7 @@ import {
   type LocalRecordAdmissionResult,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { PendingPathsOverRemote } from '@/services/storage/sync/closedWindowDayRelease';
+import type { PendingPathsOverRemote } from '@/services/storage/sync/pendingDayComposition';
 import { rebasePendingDailyRecordWrite } from '@/services/repositories/dailyRecordPendingWriteRebase';
 
 export type RemoteDailyRecordCandidate = LocalRecordAdmissionCandidate & {
@@ -16,11 +16,11 @@ export type RemoteDailyRecordAdmission = LocalRecordAdmissionResult & {
 };
 
 /**
- * The server's day with each holding write's own paths on top, in order, as a confirmed command
+ * The server's day with each pending write's own paths on top, in order, as a confirmed command
  * adopts it (`rebasePendingDailyRecordWrite`); the tasks are not changed.
  */
-const pendingPathsOverRemote: PendingPathsOverRemote = (remote, holders) =>
-  holders.reduce(
+const pendingPathsOverRemote: PendingPathsOverRemote = (remote, pending) =>
+  pending.reduce(
     (day, holder) =>
       rebasePendingDailyRecordWrite({
         authoritativeRecord: day,

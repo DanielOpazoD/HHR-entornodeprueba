@@ -133,14 +133,14 @@ describe('releasing a send refused after the nurse window closed', () => {
   });
 });
 
-describe('a confirmed server read of a day with a released send', () => {
+describe('a confirmed server read of a day that pending writes hold', () => {
   it('shows the server’s version with the pending note, never the refused diagnosis', async () => {
     await hospitalDB.dailyRecords.put(local);
     await hospitalDB.syncQueue.bulkAdd([refused({ projectionReleased: true }), pending()]);
 
     const read = await confirmedRead();
 
-    expect(read.status).toBe('retained_pending');
+    expect(read).toMatchObject({ status: 'retained_pending', serverComposed: true });
     expect(read.record?.beds.R1.pathology).toBe('CORRECCION DE OTRO EQUIPO');
     expect(read.record?.[night]).toBe('NOTA PENDIENTE');
     // The stored copy is that same day, under the version its pending write was written on.
@@ -155,14 +155,37 @@ describe('a confirmed server read of a day with a released send', () => {
     ]);
   });
 
-  it('keeps the stored copy, as today, without a released send', async () => {
-    await hospitalDB.dailyRecords.put(local);
-    await hospitalDB.syncQueue.add(pending());
+  it('shows another computer’s correction with this computer’s pending edit, with no refusal at all', async () => {
+    const edited = day({ [night]: 'NOTA PENDIENTE' }, 'DX BASE', '2026-11-15T13:00:00.000Z');
+    await hospitalDB.dailyRecords.put(edited);
+    await hospitalDB.syncQueue.add(pending({ payload: edited }));
 
     const read = await confirmedRead();
 
-    expect(read.record).toEqual(local);
-    expect(await hospitalDB.dailyRecords.get(date)).toEqual(local);
+    expect(read).toMatchObject({ status: 'retained_pending', serverComposed: true });
+    expect(read.record?.beds.R1.pathology).toBe('CORRECCION DE OTRO EQUIPO');
+    expect(read.record?.[night]).toBe('NOTA PENDIENTE');
+  });
+
+  it('adds nothing from a retired send (its edits were discarded with a backup)', async () => {
+    await hospitalDB.dailyRecords.put(local);
+    await hospitalDB.syncQueue.bulkAdd([
+      refused({
+        status: 'RETIRED',
+        retirement: {
+          reason: 'empty_capture_without_census_context',
+          retiredAt: 'x',
+          authorityDate: date,
+          verifiedRunId: 'r',
+        },
+      }),
+      pending(),
+    ]);
+
+    const read = await confirmedRead();
+
+    expect(read).toMatchObject({ status: 'retained_pending', serverComposed: true });
+    expect(read.record?.beds.R1.pathology).toBe('CORRECCION DE OTRO EQUIPO');
   });
 
   it.each([
@@ -171,7 +194,7 @@ describe('a confirmed server read of a day with a released send', () => {
       'a pending write whose bed now holds another patient (ID-01)',
       pending({ syncContract: { changedPaths: ['beds.R1.diagnosisComments'] } }),
     ],
-  ])('keeps the stored copy for %s', async (_case, holder) => {
+  ])('keeps the stored copy, unconfirmed, for %s', async (_case, holder) => {
     await hospitalDB.dailyRecords.put(local);
     await hospitalDB.syncQueue.bulkAdd([refused({ projectionReleased: true }), holder]);
     const otherPatient = day({}, 'DX OTRO');
@@ -185,6 +208,7 @@ describe('a confirmed server read of a day with a released send', () => {
 
     const read = await confirmedRead(remote);
 
+    expect(read).toMatchObject({ status: 'retained_pending', serverComposed: false });
     expect(read.record).toEqual(local);
     expect(await hospitalDB.dailyRecords.get(date)).toEqual(local);
   });
