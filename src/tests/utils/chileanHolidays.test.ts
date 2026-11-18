@@ -18,9 +18,23 @@ const WINTER_SOLSTICE_DAY: Readonly<Record<number, string>> = {
   2027: '06-21',
   2028: '06-20',
 };
+/*
+ * Election days are a holiday by Ley 18.700, art. 180 («El día que se fije para la realización de
+ * las elecciones y plebiscitos será feriado legal»). Only elections whose territory includes Isla de
+ * Pascua (comuna of Isla de Pascua, Región de Valparaíso) count: the Dirección del Trabajo limits a
+ * primary's holiday to the comunas and regions that vote (ORD. 348, 2024), so the 9 June 2024
+ * primaries, where the island did not vote, are not a holiday here.
+ */
 const ELECTION_DAYS: ReadonlySet<string> = new Set([
-  '2024-06-09', // primaries: Ley 20.640 art. 6 with Ley 18.700 art. 180.
-  '2024-10-27', // municipal and regional elections: only the Sunday is a holiday (Ley 21.693).
+  // Municipal and regional, held 26–27 Oct; only the Sunday is a holiday (Ley 21.693, transitory art. 4).
+  '2024-10-27',
+  // Governor run-off in 11 regions, Valparaíso among them (Dirección del Trabajo, Nov 2024).
+  '2024-11-24',
+  // Presidential and parliamentary elections, and the presidential run-off (gob.cl, 2025 calendar).
+  '2025-11-16',
+  '2025-12-14',
+  // Ordinary municipal election: «el último domingo del mes de octubre» (Ley 18.695, art. 106).
+  '2028-10-29',
 ]);
 
 const weekday = (date: string): number => new Date(`${date}T12:00:00Z`).getUTCDay();
@@ -92,7 +106,8 @@ describe('Chilean holiday calendar', () => {
 
   it.each(listedYears)('lists exactly the legal holidays of %i', year => {
     const listed = CHILEAN_HOLIDAYS.filter(date => date.startsWith(`${year}-`));
-    expect(listed.filter(date => !ELECTION_DAYS.has(date))).toEqual(legalHolidays(year));
+    const elections = [...ELECTION_DAYS].filter(date => date.startsWith(`${year}-`));
+    expect(listed).toEqual([...new Set([...legalHolidays(year), ...elections])].sort());
   });
 });
 

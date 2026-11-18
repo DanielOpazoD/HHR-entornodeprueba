@@ -11,7 +11,8 @@
  * - 17 Sep: Friday when 18 and 19 Sep fall on the weekend, and Monday 2 Jan when 1 Jan is a
  *   Sunday (Ley 20.983); Monday 17 or Friday 20 Sep when 18 and 19 Sep fall Tuesday–Wednesday or
  *   Wednesday–Thursday (Código del Trabajo, art. 35 ter);
- * - election days (Ley 18.700, art. 180).
+ * - election days that include Isla de Pascua (Ley 18.700, art. 180), listed with their source in the
+ *   test below.
  * `src/tests/utils/chileanHolidays.test.ts` derives each year from these rules; add a new year
  * there too.
  */
@@ -22,7 +23,6 @@ export const CHILEAN_HOLIDAYS = [
   '2024-03-30',
   '2024-05-01',
   '2024-05-21',
-  '2024-06-09',
   '2024-06-20',
   '2024-06-29',
   '2024-07-16',
@@ -34,6 +34,7 @@ export const CHILEAN_HOLIDAYS = [
   '2024-10-27',
   '2024-10-31',
   '2024-11-01',
+  '2024-11-24',
   '2024-12-08',
   '2024-12-25',
 
@@ -52,7 +53,9 @@ export const CHILEAN_HOLIDAYS = [
   '2025-10-12',
   '2025-10-31',
   '2025-11-01',
+  '2025-11-16',
   '2025-12-08',
+  '2025-12-14',
   '2025-12-25',
 
   // 2026
@@ -106,6 +109,7 @@ export const CHILEAN_HOLIDAYS = [
   '2028-09-19',
   '2028-10-09',
   '2028-10-27',
+  '2028-10-29',
   '2028-11-01',
   '2028-12-08',
   '2028-12-25',
