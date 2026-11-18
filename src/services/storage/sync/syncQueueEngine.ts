@@ -269,18 +269,24 @@ export const createSyncQueueEngine = ({
 
   /**
    * SAVE-04: a census day this person may no longer edit shows the server's version. Only a role
-   * with a nurse window has one to close; the administrator keeps the permission recovery. The
-   * task does not keep its writer's role, so the session's role decides: the queue sends and
-   * releases only its own owner's tasks.
+   * with a nurse window has one to close; the administrator keeps the permission recovery. The task
+   * does not keep its writer's role, so the session's role decides, and only for tasks of the
+   * session that this document admitted, its authenticated account and the task all agree on: any
+   * divergence (another tab admitted someone else on the shared key) leaves everything as it is.
    */
   const releaseClosedWindowRefusals = async (owner: string | null, stopped: () => boolean) => {
     if (!owner || !store.releaseClosedWindowRefusals || stopped()) return;
+    const sameSession = () =>
+      !stopped() &&
+      owner === runtime.getOwnerKey() &&
+      owner === runtime.getAdmittedOwnerKey?.() &&
+      owner === runtime.getActorKey?.();
     try {
       await store.releaseClosedWindowRefusals(
         owner,
         Date.now(),
         async () =>
-          !stopped() && (await runtime.getWriterRole?.()) === 'nurse_hospital' && !stopped()
+          sameSession() && (await runtime.getWriterRole?.()) === 'nurse_hospital' && sameSession()
       );
     } catch (error) {
       // The tasks stay as they were; the next pass tries again.

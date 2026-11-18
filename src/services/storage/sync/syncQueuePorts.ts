@@ -159,6 +159,8 @@ export interface SyncRuntimePort {
   getActorKey?(): string | null;
   /** A logout cleanup failed here, or awaits admission: queue work neither starts nor confirms. */
   isFenced?(): boolean;
+  /** The owner this document admitted, held in memory: never the key another tab can replace. */
+  getAdmittedOwnerKey?(): string | null;
   /** The role the server reads for this session's writes (its token claim); null without one. */
   getWriterRole?(): Promise<string | null>;
 }

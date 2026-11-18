@@ -1,4 +1,4 @@
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { getSessionGeneration, getSessionOwner } from '@/services/storage/sessionStorageTransition';
 import { startBrowserSyncWakeup } from './browserSyncWakeup';
 import type { SyncRuntimePort } from '@/services/storage/sync/syncQueuePorts';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
@@ -27,6 +27,7 @@ export const createBrowserSyncRuntime = (): SyncRuntimePort => {
     },
     getOwnerKey: () => getStoredSessionOwnerKey(),
     getSessionGeneration,
+    getAdmittedOwnerKey: getSessionOwner,
     getActorKey: () => {
       const uid = defaultAuthRuntime.getCurrentUser()?.uid;
       return uid ? `user:${uid}` : null;

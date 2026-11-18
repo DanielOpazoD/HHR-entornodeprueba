@@ -5,6 +5,10 @@ import { recordOperationalErrorTelemetry } from '@/services/observability/operat
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dexieSyncQueueQuarantine';
+import {
+  composeOverReleasedDay,
+  type PendingPathsOverRemote,
+} from '@/services/storage/sync/closedWindowDayRelease';
 import { ensureDbReady, hospitalDB as db, isDatabaseInFallbackMode } from './indexedDbCore';
 import { dispatchDailyRecordStoreChanged } from './indexedDbRecordEvents';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
@@ -276,6 +280,8 @@ export type LocalRecordAdmissionCandidate = {
   remoteRecord?: DailyRecord | null;
   serverConfirmed?: boolean;
   isCurrent?: () => boolean;
+  /** How a confirmed server day takes the paths of the writes still holding it (SAVE-04). */
+  composeOverRemote?: PendingPathsOverRemote;
 };
 
 export type LocalRecordAdmissionResult = {
@@ -315,7 +321,8 @@ export const admitLocalRecords = async (
         );
         const decisions: LocalRecordAdmissionResult[] = [];
         const writable: DailyRecord[] = [];
-        for (const { record, expectedBase, remoteRecord, isCurrent, serverConfirmed } of unique) {
+        for (const candidate of unique) {
+          const { record, expectedBase, remoteRecord, isCurrent, serverConfirmed } = candidate;
           const stored = (await db.dailyRecords.get(record.date)) ?? null;
           if (
             owner !== getStoredSessionOwnerKey() ||
@@ -348,10 +355,26 @@ export const admitLocalRecords = async (
             }
             decisions.push({ date: record.date, status: 'admitted', record: selected });
           } else if (admission.status === 'retained_pending') {
+            // A released write's values never stay on a day the server just confirmed.
+            const composition =
+              remoteRecord && serverConfirmed !== false && candidate.composeOverRemote
+                ? await composeOverReleasedDay(
+                    record.date,
+                    record,
+                    admission.record,
+                    candidate.composeOverRemote
+                  )
+                : undefined;
+            const composed =
+              composition && 'record' in composition ? composition.record : undefined;
+            if (composed && !arePatchValuesDeepEqual(admission.record, composed)) {
+              writable.push(composed);
+              changed.push(record.date);
+            }
             decisions.push({
               date: record.date,
               status: admission.status,
-              record: admission.record,
+              record: composed ?? admission.record,
             });
           } else {
             decisions.push({

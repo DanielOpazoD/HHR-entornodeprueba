@@ -484,13 +484,16 @@ it('shows the current day once the clock is right, on the next queue pass', asyn
   expect((await getForDateWithMeta(closedDay)).record?.[night]).toBe('NOCHE BASE');
 }, 60_000);
 
-// Review finding 5: the read right after the release fails.
+// Review finding 5 and recheck finding 3: the read right after the release fails. Nothing is
+// written on the day at the release, so this computer keeps its copy as it is, possibly with the
+// refused text, and never presents it as confirmed (SAVE-01); the next good read shows the server.
 it.each(['denied', 'offline'] as const)(
-  'keeps the day without the refused note when the read after the release is %s',
+  'keeps this computer’s copy unconfirmed when the read after the release is %s',
   async mode => {
     const c = await census();
     offline();
     await c.edit('note');
+    const authorized = h.db;
     const broken =
       mode === 'offline'
         ? env.authenticatedContext('offline-client', { role: 'nurse_hospital' }).firestore()
@@ -508,20 +511,28 @@ it.each(['denied', 'offline'] as const)(
       await sendLater();
       await settled();
       expect(released).toBe(true);
-      // The census on screen and this computer's copy have the day without the refused note.
-      await waitFor(() => expect(shown()?.[night]).toBe('NOCHE BASE'));
-      expect((await stored())?.[night]).toBe('NOCHE BASE');
-      // The failed read is not a confirmed one (SAVE-01).
+      expect((await tasks())[0]).toMatchObject({ status: 'FAILED', projectionReleased: true });
+      // The day is still there, whole; what it shows is not confirmed by the server.
       const read = await getForDateWithMeta(closedDay);
-      expect(read.record?.[night]).toBe('NOCHE BASE');
+      expect(read.record?.handoffNovedadesDayShift).toBe('DIA BASE');
       expect(read.serverConfirmed).toBe(false);
+      await waitFor(() =>
+        expect(
+          client.getQueryData<DailyRecordQueryResult>(getDailyRecordQueryKey(closedDay))?.runtime
+            .serverConfirmed
+        ).toBe(false)
+      );
       c.hook.unmount();
       offline();
       const reopened = await getForDateWithMeta(closedDay, false);
-      expect(reopened.record?.[night]).toBe('NOCHE BASE');
       expect(reopened.record?.handoffNovedadesDayShift).toBe('DIA BASE');
       expect(reopened.serverConfirmed).toBe(false);
-      expect((await tasks())[0]).toMatchObject({ status: 'FAILED', projectionReleased: true });
+      // Back with a working read: the server's day, confirmed.
+      h.db = authorized;
+      setFirestoreEnabled(true);
+      const recovered = await getForDateWithMeta(closedDay);
+      expect(recovered.record?.[night]).toBe('NOCHE BASE');
+      expect(recovered.serverConfirmed).toBe(true);
     } finally {
       window.removeEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, cut, true);
     }
@@ -559,7 +570,13 @@ it('commits the release whole or not at all, as another connection sees it', asy
     if ((event as CustomEvent).detail.operation === 'release') notices++;
   };
   window.addEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, count);
-  const put = vi.spyOn(hospitalDB.dailyRecords, 'put').mockRejectedValueOnce(new Error('abort'));
+  const update = hospitalDB.syncQueue.update.bind(hospitalDB.syncQueue);
+  const put = vi
+    .spyOn(hospitalDB.syncQueue, 'update')
+    .mockImplementation(((key: number, changes: object) =>
+      'projectionReleased' in changes
+        ? Promise.reject(new Error('abort'))
+        : update(key, changes)) as unknown as typeof hospitalDB.syncQueue.update);
   try {
     await sendLater();
     put.mockRestore();
@@ -570,11 +587,14 @@ it('commits the release whole or not at all, as another connection sees it', asy
     expect(notices).toBe(0);
 
     await drain();
+    await settled();
     const [released] = await other.syncQueue.toArray();
     expect(holdsDailyRecordProjection(released, closedDay)).toBe(false);
     expect((released.payload as DailyRecord)[night]).toBe(NOTE);
-    expect((await other.dailyRecords.get(closedDay))?.[night]).toBe('NOCHE BASE');
     expect(notices).toBe(1);
+    await waitFor(async () =>
+      expect((await other.dailyRecords.get(closedDay))?.[night]).toBe('NOCHE BASE')
+    );
   } finally {
     put.mockRestore();
     other.close();

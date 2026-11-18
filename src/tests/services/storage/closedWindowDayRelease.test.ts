@@ -6,8 +6,10 @@ vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
 }));
 import { releaseClosedWindowRefusals } from '@/services/storage/sync/closedWindowDayRelease';
 import { isClosedNurseWindowRefusal } from '@/services/storage/sync/dailyRecordBaseReview';
+import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLocalCachePersistence';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
+import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { clinicalWallClockToDate } from '@/utils/clinicalWallClock';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -19,9 +21,14 @@ const closesAt = clinicalWallClockToDate(date, '00:00').getTime() + 48 * 3_600_0
 const after = closesAt + 60_000;
 const night = 'handoffNovedadesNightShift';
 const dx = 'beds.R1.pathology';
-const day = (overrides: Partial<DailyRecord> = {}, pathology = 'DX BASE'): DailyRecord =>
+const day = (
+  overrides: Partial<DailyRecord> = {},
+  pathology = 'DX BASE',
+  lastUpdated = '2026-11-15T12:00:00.000Z'
+): DailyRecord =>
   ({
     ...DataFactory.createMockDailyRecord(date, {
+      lastUpdated,
       handoffNovedadesDayShift: 'DIA BASE',
       handoffNovedadesNightShift: 'NOCHE BASE',
       beds: {
@@ -35,148 +42,151 @@ const day = (overrides: Partial<DailyRecord> = {}, pathology = 'DX BASE'): Daily
     }),
     ...overrides,
   }) as DailyRecord;
-/** A note and a diagnosis this computer wrote over the base and the server refused. */
-const edited = day({ [night]: 'NOTA RECHAZADA' }, 'DX RECHAZADO');
+/** This computer's copy: a diagnosis the server refused (A) and a note still pending (B). */
+const local = day({ [night]: 'NOTA PENDIENTE' }, 'DX RECHAZADO', '2026-11-15T13:00:00.000Z');
 const refused = (overrides: Partial<SyncTask> = {}): SyncTask => ({
   opId: 'synthetic-refused',
   ownerKey: owner,
   type: 'UPDATE_DAILY_RECORD',
   key: `daily:${date}`,
-  payload: edited,
+  payload: day({}, 'DX RECHAZADO', '2026-11-15T12:30:00.000Z'),
   timestamp: 1,
   retryCount: 0,
   status: 'FAILED',
   lastErrorCode: 'permission-denied',
-  syncContract: { changedPaths: [night, dx] },
-  patchBaseValues: { [night]: 'NOCHE BASE', [dx]: 'DX BASE' },
+  syncContract: { changedPaths: [dx] },
+  patchBaseValues: { [dx]: 'DX BASE' },
   ...overrides,
 });
+const pending = (overrides: Partial<SyncTask> = {}): SyncTask =>
+  refused({
+    opId: 'synthetic-pending',
+    status: 'PENDING',
+    lastErrorCode: undefined,
+    payload: local,
+    syncContract: { changedPaths: [night] },
+    patchBaseValues: { [night]: 'NOCHE BASE' },
+    ...overrides,
+  });
+/** The server already has another computer's correction of the refused diagnosis. */
+const server = day({}, 'CORRECCION DE OTRO EQUIPO', '2026-11-15T14:00:00.000Z');
 const release = (mayRelease = vi.fn(async () => true), now = after) =>
   releaseClosedWindowRefusals(owner, now, mayRelease);
+const confirmedRead = async (record: DailyRecord = server) =>
+  (await admitRemoteDailyRecords([{ record, remoteRecord: record, serverConfirmed: true }]))[0];
 
 let notices: unknown[] = [];
 const onStoreChanged = (event: Event) => notices.push((event as CustomEvent).detail);
 beforeEach(async () => {
   notices = [];
+  localStorage.setItem(SESSION_OWNER_KEY, owner);
   window.addEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, onStoreChanged);
   await hospitalDB.dailyRecords.clear();
   await hospitalDB.syncQueue.clear();
 });
 afterEach(() => {
   window.removeEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, onStoreChanged);
+  localStorage.clear();
   vi.restoreAllMocks();
 });
 
-describe('a send refused after the nurse window closed', () => {
-  it('gives its fields back to the stored day and keeps the task, its payload and the rest of the day', async () => {
-    await hospitalDB.dailyRecords.put({ ...edited, handoffNovedadesDayShift: 'OTRO EQUIPO' });
+describe('releasing a send refused after the nurse window closed', () => {
+  it('only marks the task, writes nothing on the stored day, and asks for the day to be read', async () => {
+    await hospitalDB.dailyRecords.put(local);
     const id = (await hospitalDB.syncQueue.add(refused())) as number;
 
     expect(await release()).toEqual([date]);
 
-    const stored = await hospitalDB.dailyRecords.get(date);
-    expect(stored?.[night]).toBe('NOCHE BASE');
-    expect(stored?.beds.R1.pathology).toBe('DX BASE');
-    expect(stored?.handoffNovedadesDayShift).toBe('OTRO EQUIPO');
-    expect(stored?.lastUpdated).toBe(edited.lastUpdated);
     expect(await hospitalDB.syncQueue.get(id)).toEqual({
       ...refused(),
       id,
       projectionReleased: true,
     });
-    expect(notices).toEqual([{ operation: 'release', dates: [date], paths: [night, dx] }]);
-  });
-
-  it('leaves a field another pending write also changed, and gives back the others', async () => {
-    await hospitalDB.dailyRecords.put(edited);
-    await hospitalDB.syncQueue.add(refused());
-    await hospitalDB.syncQueue.add(
-      refused({
-        opId: 'synthetic-pending',
-        ownerKey: 'user:synthetic-other',
-        status: 'PENDING',
-        lastErrorCode: undefined,
-        syncContract: { changedPaths: [dx] },
-      })
-    );
-
-    await release();
-
-    const stored = await hospitalDB.dailyRecords.get(date);
-    expect(stored?.[night]).toBe('NOCHE BASE');
-    expect(stored?.beds.R1.pathology).toBe('DX RECHAZADO');
-    expect(notices).toEqual([{ operation: 'release', dates: [date], paths: [night] }]);
-  });
-
-  it('keeps a stored day that never showed its values (a send queued without writing the day)', async () => {
-    const server = day({ [night]: 'NOCHE DEL SERVIDOR' });
-    await hospitalDB.dailyRecords.put(server);
-    await hospitalDB.syncQueue.add(refused());
-
-    await release();
-
-    expect(await hospitalDB.dailyRecords.get(date)).toEqual(server);
-  });
-
-  it('keeps a field whose base it did not keep, and a bed that now holds another episode (ID-01)', async () => {
-    const otherEpisode = {
-      ...edited,
-      beds: {
-        R1: {
-          ...edited.beds.R1,
-          patientName: 'BETO SINTETICO',
-          rut: '11.111.111-1',
-          clinicalEpisodeId: 'synthetic-episode-other',
-        },
-      },
-    };
-    await hospitalDB.dailyRecords.put(otherEpisode);
-    await hospitalDB.syncQueue.add(refused({ patchBaseValues: { [dx]: 'DX BASE' } }));
-
-    await release();
-
-    expect(await hospitalDB.dailyRecords.get(date)).toEqual(otherEpisode);
+    expect(await hospitalDB.dailyRecords.get(date)).toEqual(local);
+    expect(notices).toEqual([{ operation: 'release', dates: [date], paths: [dx] }]);
   });
 
   it('changes nothing, and asks for no role, when no send of this owner is refused past its window', async () => {
-    await hospitalDB.dailyRecords.put(edited);
     await hospitalDB.syncQueue.bulkAdd([
       refused({ ownerKey: 'user:synthetic-other' }),
       refused({ opId: 'synthetic-open', lastErrorCode: 'failed-precondition' }),
       refused({ opId: 'synthetic-released', projectionReleased: true }),
     ]);
+    const before = await hospitalDB.syncQueue.toArray();
     const mayRelease = vi.fn(async () => true);
 
     expect(await release(mayRelease)).toEqual([]);
     expect(await release(mayRelease, closesAt - 1)).toEqual([]);
 
     expect(mayRelease).not.toHaveBeenCalled();
-    expect(await hospitalDB.dailyRecords.get(date)).toEqual(edited);
+    expect(await hospitalDB.syncQueue.toArray()).toEqual(before);
     expect(notices).toEqual([]);
   });
 
-  it('changes nothing for a role without a window (the administrator) or an unknown one', async () => {
-    await hospitalDB.dailyRecords.put(edited);
+  it('changes nothing when the session may not release (a role without a window, another tab)', async () => {
     const id = (await hospitalDB.syncQueue.add(refused())) as number;
 
     expect(await release(vi.fn(async () => false))).toEqual([]);
 
     expect((await hospitalDB.syncQueue.get(id))?.projectionReleased).toBeUndefined();
-    expect(await hospitalDB.dailyRecords.get(date)).toEqual(edited);
+    expect(notices).toEqual([]);
+  });
+});
+
+describe('a confirmed server read of a day with a released send', () => {
+  it('shows the server’s version with the pending note, never the refused diagnosis', async () => {
+    await hospitalDB.dailyRecords.put(local);
+    await hospitalDB.syncQueue.bulkAdd([refused({ projectionReleased: true }), pending()]);
+
+    const read = await confirmedRead();
+
+    expect(read.status).toBe('retained_pending');
+    expect(read.record?.beds.R1.pathology).toBe('CORRECCION DE OTRO EQUIPO');
+    expect(read.record?.[night]).toBe('NOTA PENDIENTE');
+    // The stored copy is that same day, under the version its pending write was written on.
+    const stored = await hospitalDB.dailyRecords.get(date);
+    expect(stored?.beds.R1.pathology).toBe('CORRECCION DE OTRO EQUIPO');
+    expect(stored?.[night]).toBe('NOTA PENDIENTE');
+    expect(stored?.lastUpdated).toBe(local.lastUpdated);
+    // No task changed.
+    expect((await hospitalDB.syncQueue.toArray()).map(task => task.payload)).toEqual([
+      refused().payload,
+      local,
+    ]);
   });
 
-  it('keeps both stores as they were when the release cannot commit, and releases on the next pass', async () => {
-    await hospitalDB.dailyRecords.put(edited);
-    const id = (await hospitalDB.syncQueue.add(refused())) as number;
-    vi.spyOn(hospitalDB.dailyRecords, 'put').mockRejectedValueOnce(new Error('synthetic abort'));
+  it('keeps the stored copy, as today, without a released send', async () => {
+    await hospitalDB.dailyRecords.put(local);
+    await hospitalDB.syncQueue.add(pending());
 
-    await expect(release()).rejects.toThrow('synthetic abort');
-    expect((await hospitalDB.syncQueue.get(id))?.projectionReleased).toBeUndefined();
-    expect(await hospitalDB.dailyRecords.get(date)).toEqual(edited);
-    expect(notices).toEqual([]);
+    const read = await confirmedRead();
 
-    expect(await release()).toEqual([date]);
-    expect((await hospitalDB.dailyRecords.get(date))?.[night]).toBe('NOCHE BASE');
+    expect(read.record).toEqual(local);
+    expect(await hospitalDB.dailyRecords.get(date)).toEqual(local);
+  });
+
+  it.each([
+    ['a pending write without its paths', pending({ syncContract: { changedPaths: ['*'] } })],
+    [
+      'a pending write whose bed now holds another patient (ID-01)',
+      pending({ syncContract: { changedPaths: ['beds.R1.diagnosisComments'] } }),
+    ],
+  ])('keeps the stored copy for %s', async (_case, holder) => {
+    await hospitalDB.dailyRecords.put(local);
+    await hospitalDB.syncQueue.bulkAdd([refused({ projectionReleased: true }), holder]);
+    const otherPatient = day({}, 'DX OTRO');
+    otherPatient.beds.R1 = {
+      ...otherPatient.beds.R1,
+      patientName: 'BETO SINTETICO',
+      rut: '11.111.111-1',
+      clinicalEpisodeId: 'synthetic-episode-other',
+    };
+    const remote = holder.syncContract?.changedPaths?.includes('*') ? server : otherPatient;
+
+    const read = await confirmedRead(remote);
+
+    expect(read.record).toEqual(local);
+    expect(await hospitalDB.dailyRecords.get(date)).toEqual(local);
   });
 });
 
@@ -201,6 +211,11 @@ describe('which stopped sends the closed window releases', () => {
   it.each([
     ['inside the window (a role change)', task, closesAt - 1],
     ['another stop reason', { ...task, lastErrorCode: 'failed-precondition' }, closesAt],
+    [
+      'the day-handover base review',
+      { ...task, lastErrorCode: 'sync_daily_record_base_review' },
+      closesAt,
+    ],
     ['a send that may still retry', { ...task, status: 'PENDING' as const }, closesAt],
     ['a detached part of the day', { ...task, key: `daily:${date}:detached:R1` }, closesAt],
     ['a future day', { ...task, key: 'daily:2026-11-30' }, closesAt],
