@@ -29,7 +29,7 @@ describe('dailyRecordWriteRecoveryResultController', () => {
 
     expect(result.status).toBe('throw');
     expect(result.error).toBe(error);
-    expect(result.decision.blockingReason).toBe('version_mismatch');
+    expect(result.decision.consistencyState).toBe('blocked_version_mismatch');
   });
 
   it('builds auto-merge, queued retry, and unrecoverable recovery results', () => {

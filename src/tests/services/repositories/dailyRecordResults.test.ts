@@ -18,17 +18,24 @@ describe('dailyRecordResults contracts', () => {
     expect(result.queuedForRetry).toBe(true);
   });
 
-  it('rejects invalid updatePartial patchedFields values', () => {
-    expect(() =>
-      createUpdatePartialDailyRecordResult({
-        date: '2026-02-19',
-        outcome: 'blocked',
-        savedLocally: true,
-        updatedRemotely: false,
-        queuedForRetry: true,
-        autoMerged: false,
-        patchedFields: 0,
-      })
-    ).toThrow(/patchedFields >= 1/);
+  it('derives the same default state for a full save and a partial update', () => {
+    const base = {
+      date: '2026-02-19',
+      savedLocally: true,
+      queuedForRetry: false,
+      autoMerged: false,
+    };
+    expect(
+      createSaveDailyRecordResult({ ...base, outcome: 'clean', savedRemotely: true })
+        .consistencyState
+    ).toBe('persisted_and_synced');
+    expect(
+      createUpdatePartialDailyRecordResult({ ...base, outcome: 'clean', updatedRemotely: true })
+        .consistencyState
+    ).toBe('persisted_and_synced');
+    expect(
+      createUpdatePartialDailyRecordResult({ ...base, outcome: 'clean', updatedRemotely: false })
+        .consistencyState
+    ).toBe('persisted_local_only');
   });
 });

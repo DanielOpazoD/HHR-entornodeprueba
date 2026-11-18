@@ -34,7 +34,6 @@ const { mockDailyRecordPorts } = vi.hoisted(() => ({
       updatedRemotely: true,
       queuedForRetry: false,
       autoMerged: false,
-      patchedFields: 1,
     }),
     initializeDay: vi.fn().mockResolvedValue(null),
     deleteDay: vi.fn().mockResolvedValue(undefined),
@@ -168,7 +167,6 @@ describe('useDailyRecord validation guards', () => {
         updatedRemotely: true,
         queuedForRetry: false,
         autoMerged: false,
-        patchedFields: Object.keys(partial).length,
       });
     });
 

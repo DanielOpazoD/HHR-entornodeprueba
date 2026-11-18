@@ -36,7 +36,6 @@ it('reoffers diagnosis after a queued admission reaches the server, without over
       updatedRemotely: true,
       queuedForRetry: false,
       autoMerged: false,
-      patchedFields: 1,
     });
   });
   // The durable structural task has completed, but its diagnosis was never written.
@@ -82,7 +81,6 @@ it('copies diagnosis through a separate clinical patch after confirming the hist
         updatedRemotely: true,
         queuedForRetry: false,
         autoMerged: false,
-        patchedFields: Object.keys(patch).length,
       });
     }
   );
@@ -132,7 +130,6 @@ it('persists a server-missing admission even when the local merged read already 
         updatedRemotely: true,
         queuedForRetry: false,
         autoMerged: false,
-        patchedFields: 1,
       });
     }
   );
@@ -248,7 +245,6 @@ it.each([false, true])(
         updatedRemotely: true,
         queuedForRetry: false,
         autoMerged: false,
-        patchedFields: 1,
       });
     });
     const plan = await computePreviousDayEdits(repository, diff, '2026-07-26', false);

@@ -94,7 +94,6 @@ describe('daily record remote freshness gate', () => {
         updatedRemotely: true,
         queuedForRetry: false,
         autoMerged: false,
-        patchedFields: 1,
       })
     );
     queryClient.setQueryData(
@@ -206,7 +205,6 @@ describe('daily record remote freshness gate', () => {
         updatedRemotely: true,
         queuedForRetry: false,
         autoMerged: false,
-        patchedFields: 1,
       })
     );
 
@@ -277,7 +275,6 @@ describe('daily record remote freshness gate', () => {
         updatedRemotely: true,
         queuedForRetry: false,
         autoMerged: false,
-        patchedFields: 1,
       })
     );
     queryClient.setQueryData(

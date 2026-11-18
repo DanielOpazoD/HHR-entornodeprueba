@@ -138,7 +138,6 @@ it.each([false, true])(
           updatedRemotely: true,
           queuedForRetry: false,
           autoMerged: false,
-          patchedFields: Object.keys(wirePatch).length,
         });
       }
     );

@@ -85,7 +85,6 @@ const answerOf = (answer: Answer): UpdatePartialDailyRecordResult => {
         updatedRemotely: false,
         queuedForRetry: false,
         autoMerged: false,
-        patchedFields: 1,
       })
     : createUpdatePartialDailyRecordResult({
         date,
@@ -94,7 +93,6 @@ const answerOf = (answer: Answer): UpdatePartialDailyRecordResult => {
         updatedRemotely: true,
         queuedForRetry: false,
         autoMerged: false,
-        patchedFields: 1,
         confirmedRecord: recordWith(EDIT),
       });
 };

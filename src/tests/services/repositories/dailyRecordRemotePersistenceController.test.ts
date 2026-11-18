@@ -119,7 +119,6 @@ describe('dailyRecordRemotePersistenceController', () => {
     expect(state.savedLocally).toBe(true);
     expect(state.consistencyState).toBe('persisted_and_synced');
     expect(state.savedLocally).toBe(true);
-    expect(state.recoveryAction).toBe('none');
     expect(state.observabilityTags).toEqual(['daily_record', 'write', 'persisted_and_synced']);
   });
 
@@ -361,8 +360,6 @@ describe('dailyRecordRemotePersistenceController', () => {
         autoMerged: true,
         decision: {
           consistencyState: 'auto_merged',
-          retryability: 'automatic_retry',
-          recoveryAction: 'auto_merge_and_queue',
           observabilityTags: ['field_changed_elsewhere'],
           userSafeMessage: 'El campo cambió en otro equipo.',
         },
@@ -442,8 +439,6 @@ describe('dailyRecordRemotePersistenceController', () => {
       error: blockingError,
       decision: {
         consistencyState: 'unrecoverable',
-        retryability: 'manual_review',
-        recoveryAction: 'block_and_surface',
         conflictSummary: {
           kind: 'remote_unavailable',
           sourceOfTruth: 'none',
@@ -488,8 +483,6 @@ describe('dailyRecordRemotePersistenceController', () => {
       error: new Error('reload required'),
       decision: {
         consistencyState: 'unrecoverable',
-        retryability: 'manual_review',
-        recoveryAction: 'block_and_surface',
         observabilityTags: ['reclassification_conflict'],
         userSafeMessage: 'Recarga el censo.',
       },
@@ -549,7 +542,6 @@ describe('dailyRecordRemotePersistenceController', () => {
     expect(result).toBe('return');
     expect(remoteWrite).not.toHaveBeenCalled();
     expect(state.consistencyState).toBe('unrecoverable');
-    expect(state.recoveryAction).toBe('block_and_surface');
     expect(state.blockingError).toBe(localError);
     expect(state.conflictSummary).toMatchObject({
       kind: 'local_persistence_failed',

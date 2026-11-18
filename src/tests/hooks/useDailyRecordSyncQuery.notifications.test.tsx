@@ -195,7 +195,6 @@ describe('useDailyRecordSyncQuery notification ownership', () => {
         savedRemotely: false,
         queuedForRetry: false,
         autoMerged: false,
-        blockingReason: 'validation',
       })
     );
     const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {

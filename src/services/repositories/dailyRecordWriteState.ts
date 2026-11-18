@@ -1,11 +1,9 @@
-import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { DataRegressionError, VersionMismatchError } from '@/utils/integrityGuard';
 import {
   createSaveDailyRecordResult,
   createUpdatePartialDailyRecordResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
-import type { DailyRecordRecoveryDecision } from '@/services/repositories/dailyRecordRecoveryPolicy';
-import type { DailyRecordRetryability } from '@/services/repositories/contracts/dailyRecordConsistency';
+import type { DailyRecordRecoveryDecision } from '@/services/repositories/contracts/dailyRecordWriteRecoveryResult';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 export interface RemoteWriteState {
@@ -22,17 +20,9 @@ export interface RemoteWriteState {
     | 'blocked_version_mismatch'
     | 'blocked_validation'
     | 'unrecoverable';
-  retryability: DailyRecordRetryability;
-  recoveryAction:
-    | 'none'
-    | 'defer_remote_sync'
-    | 'queue_retry'
-    | 'auto_merge_and_queue'
-    | 'block_and_surface';
   conflictSummary: DailyRecordRecoveryDecision['conflictSummary'];
   observabilityTags: string[];
   userSafeMessage?: string;
-  blockingReason?: 'regression' | 'version_mismatch' | 'validation';
   blockingError?: Error;
   confirmedRecord?: DailyRecord;
   localProjectionRecord?: DailyRecord;
@@ -44,8 +34,6 @@ export const createRemoteWriteState = (): RemoteWriteState => ({
   queuedForRetry: false,
   autoMerged: false,
   consistencyState: 'persisted_local_only',
-  retryability: 'not_applicable',
-  recoveryAction: isFirestoreEnabled() ? 'defer_remote_sync' : 'none',
   conflictSummary: null,
   observabilityTags: ['daily_record', 'write', 'local_only'],
 });
@@ -77,12 +65,9 @@ export const applyRecoveryDecisionToState = (
   blockingError?: Error
 ): void => {
   state.consistencyState = decision.consistencyState;
-  state.retryability = decision.retryability;
-  state.recoveryAction = decision.recoveryAction;
   state.conflictSummary = decision.conflictSummary;
   state.observabilityTags = decision.observabilityTags;
   state.userSafeMessage = decision.userSafeMessage;
-  state.blockingReason = decision.blockingReason;
   state.blockingError = blockingError;
 };
 
@@ -95,24 +80,15 @@ export const buildSaveResult = (date: string, state: RemoteWriteState) =>
     queuedForRetry: state.queuedForRetry,
     autoMerged: state.autoMerged,
     consistencyState: state.consistencyState,
-    sourceOfTruth: state.savedRemotely ? 'remote' : state.savedLocally ? 'local' : 'none',
-    retryability: state.retryability,
-    recoveryAction: state.recoveryAction,
     conflictSummary: state.conflictSummary,
     observabilityTags: state.observabilityTags,
     userSafeMessage: state.userSafeMessage,
-    blockingReason: state.blockingReason,
-    repairApplied: false,
     blockingError: state.blockingError,
     confirmedRecord: state.confirmedRecord,
     localProjectionRecord: state.localProjectionRecord,
   });
 
-export const buildPartialUpdateResult = (
-  date: string,
-  state: RemoteWriteState,
-  patchedFields: number
-) =>
+export const buildPartialUpdateResult = (date: string, state: RemoteWriteState) =>
   createUpdatePartialDailyRecordResult({
     date,
     outcome: resolveCompatibilityOutcome(state),
@@ -120,16 +96,10 @@ export const buildPartialUpdateResult = (
     updatedRemotely: state.savedRemotely,
     queuedForRetry: state.queuedForRetry,
     autoMerged: state.autoMerged,
-    patchedFields,
     consistencyState: state.consistencyState,
-    sourceOfTruth: state.savedRemotely ? 'remote' : state.savedLocally ? 'local' : 'none',
-    retryability: state.retryability,
-    recoveryAction: state.recoveryAction,
     conflictSummary: state.conflictSummary,
     observabilityTags: state.observabilityTags,
     userSafeMessage: state.userSafeMessage,
-    blockingReason: state.blockingReason,
-    repairApplied: false,
     blockingError: state.blockingError,
     confirmedRecord: state.confirmedRecord,
     localProjectionRecord: state.localProjectionRecord,
@@ -144,22 +114,13 @@ export const buildBlockedSaveResult = (date: string, state: RemoteWriteState) =>
     queuedForRetry: false,
     autoMerged: false,
     consistencyState: state.consistencyState,
-    sourceOfTruth: 'none',
-    retryability: state.retryability,
-    recoveryAction: state.recoveryAction,
     conflictSummary: state.conflictSummary,
     observabilityTags: state.observabilityTags,
     userSafeMessage: state.userSafeMessage,
-    blockingReason: state.blockingReason,
-    repairApplied: false,
     blockingError: state.blockingError,
   });
 
-export const buildBlockedPartialUpdateResult = (
-  date: string,
-  state: RemoteWriteState,
-  patchedFields: number
-) =>
+export const buildBlockedPartialUpdateResult = (date: string, state: RemoteWriteState) =>
   createUpdatePartialDailyRecordResult({
     date,
     outcome: 'blocked',
@@ -167,16 +128,10 @@ export const buildBlockedPartialUpdateResult = (
     updatedRemotely: false,
     queuedForRetry: false,
     autoMerged: false,
-    patchedFields,
     consistencyState: state.consistencyState,
-    sourceOfTruth: 'none',
-    retryability: state.retryability,
-    recoveryAction: state.recoveryAction,
     conflictSummary: state.conflictSummary,
     observabilityTags: state.observabilityTags,
     userSafeMessage: state.userSafeMessage,
-    blockingReason: state.blockingReason,
-    repairApplied: false,
     blockingError: state.blockingError,
   });
 
@@ -200,9 +155,6 @@ export const applyBlockedSaveRecoveryToState = (state: RemoteWriteState, err: Er
           : blockedKind === 'version_mismatch'
             ? 'blocked_version_mismatch'
             : 'blocked_validation',
-      retryability: 'blocked',
-      recoveryAction: 'block_and_surface',
-      blockingReason: blockedKind,
       conflictSummary: {
         kind:
           blockedKind === 'regression'

@@ -243,7 +243,6 @@ describe('dailyRecordRepositoryWriteService explicit census patch auto-merge', (
       outcome: 'auto_merged',
       autoMerged: true,
       queuedForRetry: true,
-      patchedFields: 6,
       conflictSummary: expect.objectContaining({
         changedPaths: Object.keys(patch),
       }),

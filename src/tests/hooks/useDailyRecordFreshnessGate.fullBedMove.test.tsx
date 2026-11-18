@@ -86,7 +86,6 @@ describe('daily record freshness gate full-bed move patches', () => {
         updatedRemotely: true,
         queuedForRetry: false,
         autoMerged: false,
-        patchedFields: 2,
       })
     );
     queryClient.setQueryData(

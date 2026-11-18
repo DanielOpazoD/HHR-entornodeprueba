@@ -9,7 +9,6 @@ import { DataRegressionError } from '@/utils/integrityGuard';
 interface MissingBasePartialUpdateInput {
   date: string;
   state: RemoteWriteState;
-  patchedFields: number;
 }
 
 interface ValidationBlockedPartialUpdateInput {
@@ -17,14 +16,12 @@ interface ValidationBlockedPartialUpdateInput {
   state: RemoteWriteState;
   changedPaths: string[];
   error: Error;
-  patchedFields: number;
 }
 
 interface FieldShrinkageBlockedPartialUpdateInput {
   date: string;
   state: RemoteWriteState;
   shrinkages: FieldShrinkage[];
-  patchedFields: number;
 }
 
 const MISSING_BASE_MESSAGE = 'No se encontró un registro local válido para aplicar el cambio.';
@@ -32,12 +29,9 @@ const MISSING_BASE_MESSAGE = 'No se encontró un registro local válido para apl
 export const buildMissingBasePartialUpdateResult = ({
   date,
   state,
-  patchedFields,
 }: MissingBasePartialUpdateInput) => {
   applyRecoveryDecisionToState(state, {
     consistencyState: 'unrecoverable',
-    retryability: 'manual_review',
-    recoveryAction: 'block_and_surface',
     conflictSummary: {
       kind: 'remote_missing',
       sourceOfTruth: 'none',
@@ -47,7 +41,7 @@ export const buildMissingBasePartialUpdateResult = ({
     userSafeMessage: MISSING_BASE_MESSAGE,
   });
 
-  return buildBlockedPartialUpdateResult(date, state, patchedFields);
+  return buildBlockedPartialUpdateResult(date, state);
 };
 
 export const buildValidationBlockedPartialUpdateResult = ({
@@ -55,15 +49,11 @@ export const buildValidationBlockedPartialUpdateResult = ({
   state,
   changedPaths,
   error,
-  patchedFields,
 }: ValidationBlockedPartialUpdateInput) => {
   applyRecoveryDecisionToState(
     state,
     {
       consistencyState: 'blocked_validation',
-      retryability: 'blocked',
-      recoveryAction: 'block_and_surface',
-      blockingReason: 'validation',
       conflictSummary: {
         kind: 'validation_blocked',
         sourceOfTruth: 'none',
@@ -76,14 +66,13 @@ export const buildValidationBlockedPartialUpdateResult = ({
     error
   );
 
-  return buildBlockedPartialUpdateResult(date, state, patchedFields);
+  return buildBlockedPartialUpdateResult(date, state);
 };
 
 export const buildFieldShrinkageBlockedPartialUpdateResult = ({
   date,
   state,
   shrinkages,
-  patchedFields,
 }: FieldShrinkageBlockedPartialUpdateInput) => {
   const firstShrinkage = shrinkages[0];
   const error = new DataRegressionError(
@@ -96,9 +85,6 @@ export const buildFieldShrinkageBlockedPartialUpdateResult = ({
     state,
     {
       consistencyState: 'blocked_regression',
-      retryability: 'blocked',
-      recoveryAction: 'block_and_surface',
-      blockingReason: 'regression',
       conflictSummary: {
         kind: 'regression_blocked',
         sourceOfTruth: 'none',
@@ -111,5 +97,5 @@ export const buildFieldShrinkageBlockedPartialUpdateResult = ({
     error
   );
 
-  return buildBlockedPartialUpdateResult(date, state, patchedFields);
+  return buildBlockedPartialUpdateResult(date, state);
 };

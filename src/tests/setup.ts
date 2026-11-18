@@ -330,7 +330,6 @@ const globalDailyRecordRepositoryPortMock = {
     updatedRemotely: true,
     queuedForRetry: false,
     autoMerged: false,
-    patchedFields: 1,
   }),
   syncWithFirestoreDetailed: vi.fn().mockResolvedValue({
     date: '2026-01-01',

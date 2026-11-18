@@ -9,8 +9,6 @@ import {
 export const markRemoteWriteSucceeded = (state: RemoteWriteState): void => {
   state.savedRemotely = true;
   state.consistencyState = 'persisted_and_synced';
-  state.recoveryAction = 'none';
-  state.retryability = 'not_applicable';
   state.observabilityTags = ['daily_record', 'write', 'persisted_and_synced'];
 };
 
@@ -38,8 +36,6 @@ export const applyLocalPersistenceFailure = (
     state,
     {
       consistencyState: 'unrecoverable',
-      retryability: 'manual_review',
-      recoveryAction: 'block_and_surface',
       conflictSummary: {
         kind: 'local_persistence_failed',
         sourceOfTruth: remoteCommitted ? 'remote' : 'none',

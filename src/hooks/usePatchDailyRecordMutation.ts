@@ -176,7 +176,6 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
           updatedRemotely: true,
           queuedForRetry: false,
           autoMerged: false,
-          patchedFields: Math.max(1, Object.keys(partial).length),
           confirmedRecord: record,
           localProjectionRecord: adoptedRecord,
           observabilityTags: ['daily_record', 'write', 'persisted_and_synced', 'already_applied'],

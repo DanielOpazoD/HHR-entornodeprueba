@@ -31,7 +31,6 @@ const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
       updatedRemotely: true,
       queuedForRetry: false,
       autoMerged: false,
-      patchedFields: 1,
     }),
     syncWithFirestoreDetailed: vi.fn().mockResolvedValue({
       date: '2025-12-27',
@@ -251,7 +250,6 @@ describe('definitive bed clear confirmation', () => {
         updatedRemotely: true,
         queuedForRetry: false,
         autoMerged: false,
-        patchedFields: 1,
         confirmedRecord: clearedRecord,
       })
     );

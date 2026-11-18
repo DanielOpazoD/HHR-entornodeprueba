@@ -214,7 +214,6 @@ const setupRecordStore = (record: DailyRecord) => {
       updatedRemotely: true,
       queuedForRetry: false,
       autoMerged: false,
-      patchedFields: Object.keys(patch).length,
     });
   });
   mockDailyRecordPorts.saveDetailed.mockImplementation(async recordToSave => {

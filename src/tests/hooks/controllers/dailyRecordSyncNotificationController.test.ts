@@ -42,7 +42,6 @@ describe('dailyRecordSyncNotificationController', () => {
           updatedRemotely: true,
           queuedForRetry: false,
           autoMerged: false,
-          patchedFields: 1,
         })
       )
     ).toMatchObject({
@@ -102,7 +101,6 @@ describe('dailyRecordSyncNotificationController', () => {
       updatedRemotely: false,
       queuedForRetry: true,
       autoMerged: true,
-      patchedFields: 1,
     } as const;
     const conflict = resolvePatchOutcomeFeedback(
       createUpdatePartialDailyRecordResult({
@@ -134,7 +132,6 @@ describe('dailyRecordSyncNotificationController', () => {
       updatedRemotely: false,
       queuedForRetry: true,
       autoMerged: false,
-      patchedFields: 2,
     } as const;
 
     expect(
@@ -161,7 +158,6 @@ describe('dailyRecordSyncNotificationController', () => {
           updatedRemotely: false,
           queuedForRetry: false,
           autoMerged: false,
-          patchedFields: 1,
           consistencyState: 'unrecoverable',
           userSafeMessage: 'No se encontró un registro local válido para aplicar el cambio.',
         })
@@ -186,9 +182,7 @@ describe('dailyRecordSyncNotificationController', () => {
           updatedRemotely: false,
           queuedForRetry: false,
           autoMerged: false,
-          patchedFields: 1,
           consistencyState: 'blocked_regression',
-          blockingReason: 'regression',
           userSafeMessage:
             'Se bloqueó una reducción sospechosa de texto clínico. Recarga antes de reintentar.',
         })
@@ -212,7 +206,6 @@ describe('dailyRecordSyncNotificationController', () => {
         updatedRemotely: false,
         queuedForRetry: false,
         autoMerged: false,
-        patchedFields: 1,
         userSafeMessage: 'Los cambios se guardaron localmente.',
       })
     );
@@ -275,7 +268,6 @@ describe('dailyRecordSyncNotificationController', () => {
         updatedRemotely: false,
         queuedForRetry: false,
         autoMerged: false,
-        patchedFields: 1,
       })
     );
 
@@ -358,7 +350,6 @@ describe('dailyRecordSyncNotificationController', () => {
           updatedRemotely: true,
           queuedForRetry: false,
           autoMerged: false,
-          patchedFields: 1,
           consistencyState: 'unrecoverable',
           userSafeMessage: 'El servidor guardó el cambio; la copia local necesita revisión.',
         })
@@ -389,7 +380,6 @@ describe('dailyRecordSyncNotificationController', () => {
           updatedRemotely: false,
           queuedForRetry: false,
           autoMerged: true,
-          patchedFields: 1,
         })
       ),
       resolvePatchOutcomeFeedback(
@@ -400,7 +390,6 @@ describe('dailyRecordSyncNotificationController', () => {
           updatedRemotely: false,
           queuedForRetry: false,
           autoMerged: false,
-          patchedFields: 1,
           consistencyState: 'unrecoverable',
         })
       ),

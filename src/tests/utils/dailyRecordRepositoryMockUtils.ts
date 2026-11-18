@@ -97,7 +97,6 @@ export const wireStatefulDailyRecordRepoMock = (
               updatedRemotely: true,
               queuedForRetry: false,
               autoMerged: false,
-              patchedFields: Object.keys(partial).length,
               confirmedRecord: cloneRecord(nextRecord),
             })
           : null;

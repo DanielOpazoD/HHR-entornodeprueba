@@ -155,7 +155,6 @@ describe('definitive bed clear conflict retry', () => {
           updatedRemotely: true,
           queuedForRetry: false,
           autoMerged: false,
-          patchedFields: 1,
           confirmedRecord: clearedRecord,
         });
       });
