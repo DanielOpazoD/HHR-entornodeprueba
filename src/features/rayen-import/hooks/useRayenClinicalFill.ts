@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalFillSummary } from '../clinicalFillRunner';
 import type {
@@ -100,13 +99,9 @@ export const useRayenClinicalFill = ({
 }: UseRayenClinicalFillInput) =>
   useCallback(
     async (request: ClinicalFillRequest): Promise<ClinicalStageResult> => {
-      const owner = getStoredSessionOwnerKey(),
-        generation = getSessionGeneration();
-      const sessionChanged = () =>
-        owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration();
-      const check = () => {
-        if (sessionChanged()) throw new Error('La sesión cambió.');
-      };
+      const session = guardAuthoringSession();
+      const sessionChanged = () => !session.isCurrent();
+      const { check } = session;
       let activeAttemptId: number | undefined;
       const retryRequest = isClinicalRetryToken(request) ? request : null;
       const source: DailyRecord | ConfirmedRayenCensusHandoff = isClinicalRetryToken(request)

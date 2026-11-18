@@ -1,4 +1,4 @@
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { authoringSessionScope, guardAuthoringSession } from '@/services/storage/authoringSession';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
@@ -39,7 +39,7 @@ export const useRayenStaffingProposalReview = ({
   const activeReviewRef = useRef<{
     controller: AbortController;
     date: string;
-    generation: string | null;
+    sessionScope: string;
   } | null>(null);
 
   if (useChangedOnRender([currentRecord?.date])) {
@@ -60,17 +60,18 @@ export const useRayenStaffingProposalReview = ({
     if (!mountedRef.current) return null;
     const base = currentRecordRef.current ?? currentRecord;
     if (!base) return null;
-    const generation = getSessionGeneration();
+    const session = guardAuthoringSession();
+    const sessionScope = authoringSessionScope(session.session);
     const previous = activeReviewRef.current;
-    if (previous?.date === base.date && previous.generation === generation) return null;
+    if (previous?.date === base.date && previous.sessionScope === sessionScope) return null;
     previous?.controller.abort();
-    const attempt = { controller: new AbortController(), date: base.date, generation };
+    const attempt = { controller: new AbortController(), date: base.date, sessionScope };
     activeReviewRef.current = attempt;
     const isCurrent = () =>
       mountedRef.current &&
       activeReviewRef.current === attempt &&
       !attempt.controller.signal.aborted &&
-      getSessionGeneration() === generation &&
+      session.isCurrent() &&
       currentRecordRef.current?.date === base.date;
     const assertCurrent = () => {
       if (!isCurrent()) throw new DOMException('Staffing review superseded', 'AbortError');

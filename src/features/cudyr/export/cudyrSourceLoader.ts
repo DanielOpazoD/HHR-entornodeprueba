@@ -1,8 +1,7 @@
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import type { CudyrSourceSheet } from './cudyrSourceTypes';
 import { getNextDay } from '@/utils/clinicalDayUtils';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import {
   callCudyrArchive,
   loadCudyrSupplements,
@@ -58,13 +57,7 @@ const readSourceMatrix = (
   );
 
 export const loadCudyrSourceSheets = async (data: CudyrReportDataset, signal: AbortSignal) => {
-  const generation = getSessionGeneration(),
-    owner = getStoredSessionOwnerKey();
-  const check = () => {
-    signal.throwIfAborted();
-    if (generation !== getSessionGeneration() || owner !== getStoredSessionOwnerKey())
-      throw new Error('La sesión cambió.');
-  };
+  const { check } = guardAuthoringSession({ signal });
   check();
   const reports = await loadCudyrSupplements(data.from, getNextDay(data.to), signal);
   check();

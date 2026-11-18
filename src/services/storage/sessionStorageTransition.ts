@@ -22,6 +22,15 @@ let sessionEpoch = 0;
 export const getSessionEpoch = (): number => sessionEpoch;
 
 /**
+ * Whether this tab still shows the person it showed when the guard was taken: for a result that is
+ * only displayed here. Anything written or stored uses guardAuthoringSession() instead.
+ */
+export const sessionEpochGuard = (): (() => boolean) => {
+  const epoch = sessionEpoch;
+  return () => sessionEpoch === epoch;
+};
+
+/**
  * The one place to learn that the Eloísa session changed. Listeners run synchronously, before the
  * window message the extension bridge reads, so nothing remembered for the previous person
  * outlives the change by even a tick. Nobody else listens to that message.

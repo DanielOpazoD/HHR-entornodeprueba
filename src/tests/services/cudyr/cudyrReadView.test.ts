@@ -1,27 +1,26 @@
 import { gzipSync } from 'node:zlib';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { readCudyrReadView, saveCudyrReadView } from '@/features/cudyr/report/cudyrReadView';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { reportInput } from './reportFixtures';
-const state = vi.hoisted(() => ({ owner: 'a', generation: '1', reply: {}, call: vi.fn() }));
-vi.mock('@/services/storage/sessionScopedStorageService', () => ({
-  getStoredSessionOwnerKey: () => state.owner,
-}));
-vi.mock('@/services/storage/sessionStorageTransition', () => ({
-  getSessionGeneration: () => state.generation,
-}));
+import {
+  admitSyntheticSession,
+  clearSyntheticSession,
+  replaceStoredSessionOwner,
+} from '@/tests/utils/syntheticSession';
+const state = vi.hoisted(() => ({ reply: {}, call: vi.fn() }));
 vi.mock('@/services/cudyr/cudyrSupplementService', () => ({
   callCudyrArchive: (...args: unknown[]) => state.call(...args),
 }));
 beforeEach(() => {
-  state.owner = 'a';
-  state.generation = '1';
+  admitSyntheticSession('a', '1');
   state.call.mockReset();
   state.call.mockImplementation(async (_endpoint, _request, check) => {
     check();
     return state.reply;
   });
 });
+afterEach(clearSyntheticSession);
 const fixture = () => ({ ...buildCudyrReport(reportInput()), readIncomplete: false });
 it('loads a display-only copy and rejects a different period', async () => {
   const report = fixture();
@@ -43,7 +42,7 @@ it('never republishes official, incomplete or provisional view data', () => {
 });
 it('checks the owner again after runtime setup and before dispatch', async () => {
   state.call.mockImplementation(async (_endpoint, _request, check) => {
-    state.owner = 'other';
+    replaceStoredSessionOwner('other');
     check();
   });
   await expect(saveCudyrReadView(fixture())).rejects.toThrow(/sesión cambió/);

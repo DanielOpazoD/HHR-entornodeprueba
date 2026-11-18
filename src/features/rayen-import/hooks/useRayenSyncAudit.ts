@@ -1,5 +1,4 @@
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import { useCallback, useRef, type MutableRefObject } from 'react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
@@ -109,12 +108,7 @@ export const useRayenSyncAudit = ({
       fallbackRecord: DailyRecord,
       build: (freshRecord: DailyRecord) => { patch: DailyRecordPatch | null; value: T }
     ): Promise<T> => {
-      const owner = getStoredSessionOwnerKey(),
-        generation = getSessionGeneration();
-      const check = () => {
-        if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
-          throw new Error('La sesión cambió.');
-      };
+      const { check } = guardAuthoringSession();
       let base = fallbackRecord;
       let lastError: unknown;
       for (let attempt = 0; attempt <= MAX_METADATA_WRITE_RETRIES; attempt += 1) {
@@ -239,13 +233,11 @@ export const useRayenSyncAudit = ({
       requestedRunId?: string,
       options?: CompleteRayenSyncRunOptions
     ): Promise<void> => {
-      const owner = getStoredSessionOwnerKey(),
-        generation = getSessionGeneration();
-      const sessionChanged = () =>
-        owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration();
+      const session = guardAuthoringSession();
+      const sessionChanged = () => !session.isCurrent();
       const check = () => {
         options?.checkSession?.();
-        if (sessionChanged()) throw new Error('La sesión cambió.');
+        session.check();
       };
       check();
       // Use the applied run id even when a newer manual attempt has started.

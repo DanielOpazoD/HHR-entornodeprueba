@@ -1,6 +1,5 @@
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import type {
   CudyrReviewDecision,
   CudyrReviewEvidence,
@@ -8,13 +7,10 @@ import type {
 } from '@/types/domain/cudyrReview';
 
 const call = async <T>(endpoint: string, request: unknown, signal: AbortSignal): Promise<T> => {
-  const generation = getSessionGeneration(),
-    owner = getStoredSessionOwnerKey();
-  const check = () => {
-    signal.throwIfAborted();
-    if (generation !== getSessionGeneration() || owner !== getStoredSessionOwnerKey())
-      throw new Error('La sesión cambió. Vuelva a consultar.');
-  };
+  const { check } = guardAuthoringSession({
+    signal,
+    message: 'La sesión cambió. Vuelva a consultar.',
+  });
   check();
   const runtime = await defaultFunctionsRuntime.getRegionalFunctions('southamerica-east1');
   check();
@@ -24,15 +20,12 @@ const call = async <T>(endpoint: string, request: unknown, signal: AbortSignal):
   return result.data;
 };
 export const loadCudyrReviews = async (month: string, signal: AbortSignal, reviewId?: string) => {
-  const generation = getSessionGeneration(),
-    owner = getStoredSessionOwnerKey();
+  const { check } = guardAuthoringSession({ signal });
   const reviews: SavedCudyrReview[] = [],
     seen = new Set<string>();
   let cursor: string | null = null;
   do {
-    signal.throwIfAborted();
-    if (generation !== getSessionGeneration() || owner !== getStoredSessionOwnerKey())
-      throw new Error('La sesión cambió.');
+    check();
     const page: { reviews: SavedCudyrReview[]; nextCursor: string | null } = await call(
       'readCudyrHistory',
       {

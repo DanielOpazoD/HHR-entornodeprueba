@@ -272,6 +272,52 @@ const QUEUE_REMOVAL_RULE = {
   },
 };
 
+// One session gate: an operation that waits asks guardAuthoringSession() whether the person who
+// started it is still signed in, instead of comparing the owner and generation by hand (the same
+// block was copied ~30 times, W17-S1). Owners and the ledger of files still to migrate live in
+// one JSON; a ledger row goes once its file no longer imports a raw reader.
+const SESSION_RAW_READ_LEDGER_PATH = 'scripts/config/session-raw-read-ledger.json';
+const SESSION_RAW_READ_LEDGER = readJson(`./${SESSION_RAW_READ_LEDGER_PATH}`);
+const SESSION_RAW_READERS = new Set([
+  'getStoredSessionOwnerKey',
+  'getSessionGeneration',
+  'getSessionEpoch',
+]);
+const isSessionOwner = file =>
+  Object.keys(SESSION_RAW_READ_LEDGER.owners).some(owner =>
+    owner.endsWith('/') ? file.startsWith(owner) : file === owner
+  );
+const SESSION_RAW_READ_RULE = {
+  meta: {
+    type: 'problem',
+    schema: [],
+    messages: {
+      raw: 'No compares la sesión a mano con {{name}}(): usa guardAuthoringSession() (src/services/storage/authoringSession.ts) si la operación escribe, guarda o lee datos compartidos después de una espera, y authoringSessionScope() como clave de lo guardado por persona; sessionEpochGuard() si el resultado solo se muestra en esta pestaña; useSessionEpoch() como clave de React (AGENTS.md, sesión).',
+      stale:
+        'Este archivo ya no importa lectores crudos de sesión: quita su fila de «pending» en ' +
+        SESSION_RAW_READ_LEDGER_PATH +
+        '.',
+    },
+  },
+  create(context) {
+    const file = path.relative(FEATURE_ROOT, context.filename).split(path.sep).join('/');
+    if (isSessionOwner(file)) return {};
+    const pending = Object.hasOwn(SESSION_RAW_READ_LEDGER.pending, file);
+    let rawImports = 0;
+    return {
+      ImportSpecifier(node) {
+        const name = node.imported.name ?? node.imported.value;
+        if (!SESSION_RAW_READERS.has(name)) return;
+        rawImports += 1;
+        if (!pending) context.report({ node, messageId: 'raw', data: { name } });
+      },
+      'Program:exit'(program) {
+        if (pending && rawImports === 0) context.report({ node: program, messageId: 'stale' });
+      },
+    };
+  },
+};
+
 // `x as unknown as T` converts anything into anything, like an explicit `any`. Each production
 // file keeps at most the count it had; the ceilings only go down.
 const UNKNOWN_CAST_CEILINGS_PATH = 'scripts/config/unknown-cast-ceilings.json';
@@ -740,10 +786,14 @@ export default tseslint.config(
     // Production source: the former source scanner's scope, with syntax-aware errors.
     files: ['src/**/*.{ts,tsx}'],
     ignores: ['**/*.d.ts', '**/tests/**', '**/*.test.*', '**/*.spec.*'],
-    plugins: { types: { rules: { 'unknown-cast-ceiling': UNKNOWN_CAST_RULE } } },
+    plugins: {
+      types: { rules: { 'unknown-cast-ceiling': UNKNOWN_CAST_RULE } },
+      session: { rules: { 'raw-read': SESSION_RAW_READ_RULE } },
+    },
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
       'types/unknown-cast-ceiling': 'error',
+      'session/raw-read': 'error',
     },
   },
   {

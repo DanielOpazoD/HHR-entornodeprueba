@@ -9,8 +9,7 @@ import {
 } from '@/features/cudyr/indicator/cudyrIndicatorHistory';
 import { useCudyrIndicatorRead } from '../hooks/useCudyrIndicatorRead';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 
 const monthLabel = (month: string) =>
   calendarDayAtUtcNoon(`${month}-01`).toLocaleDateString('es-CL', {
@@ -38,14 +37,19 @@ export const CudyrMonthlyIndicator = ({ date }: { date: string }) => {
   }, []);
   const months = cudyrIndicatorMonths(now);
   const initial = months.includes(date.slice(0, 7)) ? date.slice(0, 7) : months.at(-1);
-  const scope = `${getStoredSessionOwnerKey()}:${getSessionGeneration()}`;
+  const sessionEpoch = useSessionEpoch();
   return (
     <section
       aria-label="Cumplimiento CUDYR mensual"
       className="census-toolbar-card min-h-20 rounded-xl border border-slate-200/80 bg-white px-3 py-1.5 pr-10"
     >
       {initial ? (
-        <History key={`${scope}:${date.slice(0, 7)}`} initial={initial} months={months} now={now} />
+        <History
+          key={`${sessionEpoch}:${date.slice(0, 7)}`}
+          initial={initial}
+          months={months}
+          now={now}
+        />
       ) : (
         <p className="text-xs text-slate-500">Historial desde agosto de 2026</p>
       )}

@@ -5,8 +5,7 @@ import {
   getRayenImportErrorMessage,
   type RayenImportState,
 } from './rayenImportState';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import { logError } from '@/services/utils/errorService';
 import { defaultMonotonicNow, elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 import { useTreatingPhysicianCatalogSync } from './useTreatingPhysicianCatalogSync';
@@ -121,13 +120,10 @@ export const useRayenSnapshotPreview = ({
         selectedDate: preparedContext.selectedDate,
       };
       if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
-      const sessionOwner = getStoredSessionOwnerKey();
-      const sessionGeneration = getSessionGeneration();
+      const session = guardAuthoringSession();
       // A failure that arrives after the session or the execution changed belongs to no one.
       const ownsPlanning = () =>
-        isRayenSyncExecutionCurrent(executionRef.current, executionIdentity) &&
-        sessionOwner === getStoredSessionOwnerKey() &&
-        sessionGeneration === getSessionGeneration();
+        isRayenSyncExecutionCurrent(executionRef.current, executionIdentity) && session.isCurrent();
       const execution = createRayenSnapshotExecutionReporter(dispatchExecution, executionIdentity);
       const returnReplanToReview = (error: unknown) =>
         returnRayenReplanToReview({

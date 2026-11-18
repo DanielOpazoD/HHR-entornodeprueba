@@ -22,6 +22,45 @@ export const isAuthoringSessionCurrent = (session: AuthoringSession): boolean =>
   session.ownerKey === getStoredSessionOwnerKey() &&
   session.generation === getSessionGeneration();
 
+/** One asynchronous operation's view of the session it began in. */
+export interface AuthoringSessionGuard {
+  /** Captured once, before the first wait; a write carries it and a cache is keyed by it. */
+  readonly session: AuthoringSession;
+  /** False once the signal aborts or the session changes. */
+  isCurrent: () => boolean;
+  /** Throws the signal's abort, or `message` when the session changed. */
+  check: () => void;
+}
+
+/**
+ * The one way an asynchronous operation asks whether the person who started it is still the one
+ * signed in: capture here, then call check() (or isCurrent()) after every wait. Use it whenever the
+ * result is written or left stored (IndexedDB, queue, server, browser storage), and for a late read
+ * of shared data. A result that is only shown in this tab can use sessionEpochGuard() instead.
+ */
+export const guardAuthoringSession = ({
+  signal,
+  message = 'La sesión cambió.',
+}: { signal?: AbortSignal; message?: string } = {}): AuthoringSessionGuard => {
+  const session = captureAuthoringSession();
+  return {
+    session,
+    isCurrent: () => !signal?.aborted && isAuthoringSessionCurrent(session),
+    check: () => {
+      signal?.throwIfAborted();
+      if (!isAuthoringSessionCurrent(session)) throw new Error(message);
+    },
+  };
+};
+
+/**
+ * Key of what is remembered for one person and session, or '' when nobody is admitted. Caches kept
+ * in browser storage use it rather than the session epoch, which restarts at every page load.
+ */
+export const authoringSessionScope = (
+  { ownerKey, generation }: AuthoringSession = captureAuthoringSession()
+): string => (ownerKey && generation ? `${ownerKey}:${generation}` : '');
+
 /** A write's send checks this before each wait and inside its transaction; a throw stops it. */
 export const assertAuthoringSessionCurrent = (session: AuthoringSession): void => {
   if (!isAuthoringSessionCurrent(session))

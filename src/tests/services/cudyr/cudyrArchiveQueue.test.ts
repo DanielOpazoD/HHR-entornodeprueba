@@ -1,4 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  admitSyntheticSession,
+  clearSyntheticSession,
+  replaceStoredSessionOwner,
+} from '@/tests/utils/syntheticSession';
 
 const h = vi.hoisted(() => ({
   ready: vi.fn(),
@@ -7,8 +12,6 @@ const h = vi.hoisted(() => ({
   process: vi.fn(),
   remove: vi.fn(),
   release: vi.fn(),
-  owner: 'user:synthetic',
-  generation: 'session-test',
   fallback: false,
 }));
 vi.mock('@/services/cudyr/cudyrHistoryService', () => ({ archiveCudyrHistory: h.archive }));
@@ -25,12 +28,6 @@ vi.mock('@/services/storage/sync/dexieSyncQueueStore', () => ({
 vi.mock('@/services/storage/sync/publicSyncQueue', () => ({
   queueCudyrArchiveTask: h.queue,
   processSyncQueue: h.process,
-}));
-vi.mock('@/services/storage/sessionScopedStorageService', () => ({
-  getStoredSessionOwnerKey: () => h.owner,
-}));
-vi.mock('@/services/storage/sessionStorageTransition', () => ({
-  getSessionGeneration: () => h.generation,
 }));
 
 import { persistCudyrArchivePart } from '@/services/cudyr/cudyrArchiveQueue';
@@ -55,8 +52,7 @@ const request: ArchiveCudyrHistoryRequest = {
 };
 beforeEach(() => {
   vi.clearAllMocks();
-  h.owner = 'user:synthetic';
-  h.generation = 'session-test';
+  admitSyntheticSession('user:synthetic', 'session-test');
   h.fallback = false;
   h.ready.mockResolvedValue(undefined);
   h.queue.mockResolvedValue({ accepted: true });
@@ -70,12 +66,12 @@ beforeEach(() => {
   h.release.mockResolvedValue(true);
   h.process.mockResolvedValue(undefined);
 });
+afterEach(clearSyntheticSession);
 
 describe('durable CUDYR archive handoff', () => {
   it('does not enqueue or dispatch A capture when storage readiness crosses into B', async () => {
     h.ready.mockImplementation(async () => {
-      h.owner = 'user:synthetic-b';
-      h.generation = 'synthetic-generation-b';
+      admitSyntheticSession('user:synthetic-b', 'synthetic-generation-b');
     });
     expect(await persistCudyrArchivePart(request)).toBe('failed');
     expect(h.queue).not.toHaveBeenCalled();
@@ -160,7 +156,7 @@ describe('durable CUDYR archive handoff', () => {
   });
   it('stops dispatch when the user session changes while enqueuing', async () => {
     h.queue.mockImplementation(async () => {
-      h.owner = 'user:other';
+      replaceStoredSessionOwner('user:other');
       return { accepted: true };
     });
     expect(await persistCudyrArchivePart(request)).toBe('failed');
@@ -169,7 +165,7 @@ describe('durable CUDYR archive handoff', () => {
   });
   it('retains a late remote ACK without adopting or replaying it in B', async () => {
     h.archive.mockImplementation(async () => {
-      h.generation = 'synthetic-session-b';
+      admitSyntheticSession('user:synthetic', 'synthetic-session-b');
       return { success: true, persisted: true, results: [], captureReceiptId: 'receipt' };
     });
     expect(await persistCudyrArchivePart(request)).toBe('queued');
@@ -181,7 +177,7 @@ describe('durable CUDYR archive handoff', () => {
   it('does not restart queue processing when releasing a hold crosses the session boundary', async () => {
     h.archive.mockRejectedValue(new Error('offline'));
     h.release.mockImplementation(async () => {
-      h.generation = 'synthetic-session-b';
+      admitSyntheticSession('user:synthetic', 'synthetic-session-b');
       return true;
     });
     expect(await persistCudyrArchivePart(request)).toBe('queued');

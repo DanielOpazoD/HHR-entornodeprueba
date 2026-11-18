@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { loadCudyrReport, cudyrReportLoaderPorts } from '@/services/cudyr/cudyrReportLoader';
 import { cudyrReportCache } from '@/services/cudyr/cudyrReportCache';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
@@ -9,10 +9,7 @@ vi.mock('@/services/cudyr/cudyrOfficialReport', () => ({
   decodeOfficialCudyrReport: mocks.decode,
   saveOfficialCudyrReport: mocks.save,
 }));
-vi.mock('@/services/storage/sessionScopedStorageService', () => ({
-  getStoredSessionOwnerKey: () => 'synthetic-owner',
-}));
-vi.mock('@/services/storage/sessionStorageTransition', () => ({ getSessionGeneration: () => 3 }));
+import { admitSyntheticSession, clearSyntheticSession } from '@/tests/utils/syntheticSession';
 const report = () => {
   const data = buildCudyrReport(confirmedReportInput());
   data.from = '2026-08-01';
@@ -32,6 +29,7 @@ const report = () => {
   return data;
 };
 beforeEach(() => {
+  admitSyntheticSession('synthetic-owner', '3');
   vi.restoreAllMocks();
   vi.clearAllMocks();
   cudyrReportCache(loadCudyrReport, 'synthetic-owner:3', true).clear();
@@ -45,6 +43,7 @@ beforeEach(() => {
   mocks.probe.mockResolvedValue({ state: 'ready', sourceVersion: 'source' });
   mocks.decode.mockResolvedValue(report());
 });
+afterEach(clearSyntheticSession);
 it('serves a saved official month and a day prefix without reconstructing the census', async () => {
   const result = await loadCudyrReport('2026-08-01', '2026-08-02');
   expect(result.to).toBe('2026-08-02');

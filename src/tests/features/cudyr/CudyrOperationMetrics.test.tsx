@@ -1,15 +1,15 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCudyrReport } from '@/features/cudyr/hooks/useCudyrReport';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { reportInput } from '@/tests/services/cudyr/reportFixtures';
+import {
+  admitSyntheticSession,
+  clearSyntheticSession,
+  replaceStoredSessionOwner,
+} from '@/tests/utils/syntheticSession';
 
-const session = vi.hoisted(() => ({ owner: 'metrics' }));
-vi.mock('@/services/storage/sessionScopedStorageService', () => ({
-  getStoredSessionOwnerKey: () => session.owner,
-}));
-vi.mock('@/services/storage/sessionStorageTransition', () => ({ getSessionGeneration: () => '1' }));
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
 }));
@@ -20,9 +20,11 @@ vi.mock('@/features/cudyr/report/cudyrReadView', () => ({
 vi.mock('@/services/cudyr/cudyrReportLoader', () => ({ loadCudyrReport: vi.fn() }));
 const dataset = () => buildCudyrReport(reportInput({ from: '2026-10-01', to: '2026-10-02' }));
 beforeEach(() => {
-  session.owner = 'metrics';
+  admitSyntheticSession('metrics', '1');
   vi.mocked(recordOperationalTelemetry).mockClear();
 });
+
+afterEach(clearSyntheticSession);
 
 describe('CUDYR report operation measurements', () => {
   it('distinguishes a real read, cache reuse and failed refresh without clinical context', async () => {
@@ -59,7 +61,7 @@ describe('CUDYR report operation measurements', () => {
     );
     const view = renderHook(() => useCudyrReport('2026-10-02', loader));
     if (mode === 'unmount') view.unmount();
-    else session.owner = 'other';
+    else replaceStoredSessionOwner('other');
     await act(async () => finish(dataset()));
     expect(recordOperationalTelemetry).not.toHaveBeenCalled();
   });

@@ -2,8 +2,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useEffect, useRef, useState } from 'react';
 import { readCudyrSupplementFile } from '@/services/cudyr/cudyrSupplementFile';
 import { importCudyrSupplement, supplementMonths } from '@/services/cudyr/cudyrSupplementService';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { useSessionEpoch } from '@/hooks/useSessionEpoch';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 
 type Preview = Awaited<ReturnType<typeof readCudyrSupplementFile>>;
 const CudyrSupplementImportSession = ({
@@ -22,10 +22,8 @@ const CudyrSupplementImportSession = ({
     [confirmed, setConfirmed] = useState(false);
   const active = useRef<AbortController | null>(null);
   const locked = useRef(false);
-  const owner = useRef({ key: getStoredSessionOwnerKey(), generation: getSessionGeneration() });
-  const current = () =>
-    owner.current.key === getStoredSessionOwnerKey() &&
-    owner.current.generation === getSessionGeneration();
+  const session = useRef(guardAuthoringSession());
+  const current = () => session.current.isCurrent();
   useEffect(() => () => active.current?.abort(), []);
   const select = async (file: File) => {
     if (locked.current) return;
@@ -154,8 +152,6 @@ const CudyrSupplementImportSession = ({
 /** A new authorized session gets a fresh preview; old in-flight operations retain their guard. */
 export const CudyrSupplementImport = (props: { from: string; to: string; onSaved: () => void }) => {
   const { currentUser, role } = useAuth();
-  const key = [currentUser?.uid, role, getStoredSessionOwnerKey(), getSessionGeneration()].join(
-    ':'
-  );
+  const key = [currentUser?.uid, role, useSessionEpoch()].join(':');
   return <CudyrSupplementImportSession key={key} {...props} />;
 };
