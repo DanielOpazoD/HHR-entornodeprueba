@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { applyCudyrMonthlyAbsenceLinks } from '@/services/cudyr/cudyrMonthlyAbsenceLinks';
 import { applyCudyrMonthlySources } from '@/services/cudyr/cudyrMonthlyProjection';
-import { verifyCudyrMonthlySources } from '@/services/cudyr/cudyrMonthlyVerification';
+import { verifyCudyrMonthlySources } from '@/features/cudyr/recovery/cudyrMonthlyVerification';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { cudyrArchiveCoverage } from '@/services/cudyr/cudyrArchiveCoverage';
 import { confirmedReportInput, reportRecord, reportPatient } from './reportFixtures';

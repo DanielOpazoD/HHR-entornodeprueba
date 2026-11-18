@@ -2,9 +2,9 @@ import { cudyrMomentLabel } from '@/services/cudyr/cudyrReportPresentation';
 import { useEffect } from 'react';
 import { CudyrReviewHistory } from './CudyrReviewHistory';
 import type { CudyrReviewController } from '../hooks/useCudyrReviews';
-import type { CudyrLinkDraft } from '@/services/cudyr/cudyrLinkReview';
-import { CUDYR_LINK_LABELS } from '@/services/cudyr/cudyrLinkReview';
-import { isCurrentCudyrReview } from '@/services/cudyr/cudyrReviewEvidence';
+import type { CudyrLinkDraft } from '@/features/cudyr/reconciliation/cudyrLinkReview';
+import { CUDYR_LINK_LABELS } from '@/features/cudyr/reconciliation/cudyrLinkReview';
+import { isCurrentCudyrReview } from '@/features/cudyr/reconciliation/cudyrReviewEvidence';
 
 export const CudyrSavedReview = ({
   review,

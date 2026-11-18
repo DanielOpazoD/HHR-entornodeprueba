@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   monthlyRecoveryWindow,
   recoverCudyrMonthlyReports,
-} from '@/services/cudyr/cudyrMonthlyRecovery';
+} from '@/features/cudyr/recovery/cudyrMonthlyRecovery';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { confirmedReportInput, reportRecord, reportPatient } from './reportFixtures';
 

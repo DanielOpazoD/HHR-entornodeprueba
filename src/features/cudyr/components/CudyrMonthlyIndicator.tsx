@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { calendarDayAtUtcNoon } from '@/utils/clinicalDateUtils';
 import { ChartNoAxesCombined } from 'lucide-react';
-import { cudyrMonthlyIndicatorRange } from '@/services/cudyr/cudyrMonthlyIndicator';
+import { cudyrMonthlyIndicatorRange } from '@/features/cudyr/indicator/cudyrMonthlyIndicator';
 import {
   cudyrIndicatorAnnual,
   cudyrIndicatorMonths,
   type CudyrIndicatorRead,
-} from '@/services/cudyr/cudyrIndicatorHistory';
+} from '@/features/cudyr/indicator/cudyrIndicatorHistory';
 import { useCudyrIndicatorRead } from '../hooks/useCudyrIndicatorRead';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';

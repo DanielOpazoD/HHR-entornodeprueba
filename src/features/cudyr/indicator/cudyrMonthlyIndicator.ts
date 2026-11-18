@@ -2,9 +2,9 @@ import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { getPreviousDay } from '@/utils/clinicalDayUtils';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
-import { cudyrReportTotals } from './cudyrReportModel';
-import { cudyrArchiveCoverage } from './cudyrArchiveCoverage';
-import { cudyrCensusAccepted } from './cudyrCensusApproval';
+import { cudyrReportTotals } from '@/services/cudyr/cudyrReportModel';
+import { cudyrArchiveCoverage } from '@/services/cudyr/cudyrArchiveCoverage';
+import { cudyrCensusAccepted } from '@/services/cudyr/cudyrCensusApproval';
 
 /** Calendar month selected in HHR; today and future nights never contribute. */
 export const cudyrMonthlyIndicatorRange = (date: string, now = new Date()) => {

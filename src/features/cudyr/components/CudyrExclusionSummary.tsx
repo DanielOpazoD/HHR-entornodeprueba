@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { CudyrExcludedCasesDialog } from './CudyrExcludedCasesDialog';
 import { CircleMinus } from 'lucide-react';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
-import { cudyrExclusionSummary } from '@/services/cudyr/cudyrExclusionSummary';
+import { cudyrExclusionSummary } from '@/features/cudyr/report/cudyrExclusionSummary';
 
 export const CudyrExclusionSummary = ({ data }: { data: CudyrReportDataset }) => {
   const [selection, setSelection] = useState<{ key: string; withCudyr: boolean } | null>(null);

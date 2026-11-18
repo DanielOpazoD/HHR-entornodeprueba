@@ -1,20 +1,26 @@
-import { captureCudyrMonthlyReport, cudyrMonthlyReportPorts } from './cudyrMonthlyReportCapture';
-import { cudyrReportCache } from './cudyrReportCache';
+import {
+  captureCudyrMonthlyReport,
+  cudyrMonthlyReportPorts,
+} from '@/services/cudyr/cudyrMonthlyReportCapture';
+import { cudyrReportCache } from '@/services/cudyr/cudyrReportCache';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
-import { loadCudyrReport } from './cudyrReportLoader';
+import { loadCudyrReport } from '@/services/cudyr/cudyrReportLoader';
 import { verifyCudyrMonthlySources } from './cudyrMonthlyVerification';
 import {
   loadCudyrCensusSources,
   saveCudyrCensusSource,
   readCudyrCensusFile,
-} from './cudyrCensusSourceService';
+} from '@/services/cudyr/cudyrCensusSourceService';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import { loadCudyrSupplements, type ArchivedCudyrSupplement } from './cudyrSupplementService';
+import {
+  loadCudyrSupplements,
+  type ArchivedCudyrSupplement,
+} from '@/services/cudyr/cudyrSupplementService';
 
 import { monthlyRecoveryWindow, pendingCudyrRecoveryPlan } from './cudyrMonthlyRecoveryPlan';
-import { cudyrArchiveCoverage } from './cudyrArchiveCoverage';
+import { cudyrArchiveCoverage } from '@/services/cudyr/cudyrArchiveCoverage';
 export { monthlyRecoveryPeriod, monthlyRecoveryWindow } from './cudyrMonthlyRecoveryPlan';
 
 export interface MonthlyRecoveryProgress {

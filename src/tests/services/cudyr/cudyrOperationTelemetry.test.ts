@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { recordCudyrOperation } from '@/services/cudyr/cudyrOperationTelemetry';
+import { recordCudyrOperation } from '@/features/cudyr/report/cudyrOperationTelemetry';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
 

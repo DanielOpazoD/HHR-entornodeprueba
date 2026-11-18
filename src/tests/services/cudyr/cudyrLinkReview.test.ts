@@ -1,6 +1,9 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { cudyrLinkCandidates, validateCudyrLinkDraft } from '@/services/cudyr/cudyrLinkReview';
+import {
+  cudyrLinkCandidates,
+  validateCudyrLinkDraft,
+} from '@/features/cudyr/reconciliation/cudyrLinkReview';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import type { CudyrComparisonItem } from '@/types/domain/cudyrReconciliation';
 import { reportInput } from './reportFixtures';

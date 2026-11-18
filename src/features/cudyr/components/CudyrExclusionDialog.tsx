@@ -8,7 +8,7 @@ import {
   type CudyrExclusionTarget,
 } from '@/types/domain/cudyrExclusion';
 import { saveCudyrExclusion } from '@/services/cudyr/cudyrExclusionService';
-import { cudyrEligibilityOrigin } from '@/services/cudyr/cudyrDailyControl';
+import { cudyrEligibilityOrigin } from '@/features/cudyr/report/cudyrDailyControl';
 import { cudyrEpisodelessDischargeId } from '@/services/cudyr/cudyrReportFacts';
 import { Info } from 'lucide-react';
 import { CudyrCaseInfo } from './CudyrCaseInfo';

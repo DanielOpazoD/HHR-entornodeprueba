@@ -1,5 +1,8 @@
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
-import { cudyrControlStatus, cudyrEligibilityOrigin } from '@/services/cudyr/cudyrDailyControl';
+import {
+  cudyrControlStatus,
+  cudyrEligibilityOrigin,
+} from '@/features/cudyr/report/cudyrDailyControl';
 import { cudyrMomentLabel, cudyrResultOrigin } from '@/services/cudyr/cudyrReportPresentation';
 
 export const CudyrCaseInfo = ({ row }: { row: CudyrReportRow }) => (

@@ -1,4 +1,4 @@
-import type { ArchivedCudyrSupplement } from './cudyrSupplementService';
+import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
 /** Same-person candidates only. Never an episode link or a statistical day assignment. */
 export const supplementDocumentKey = (value: string) => {
   const trimmed = value.trim().toUpperCase();

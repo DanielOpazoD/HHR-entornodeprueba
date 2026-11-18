@@ -1,4 +1,4 @@
-import { cudyrEligibilityOrigin } from '@/services/cudyr/cudyrDailyControl';
+import { cudyrEligibilityOrigin } from '@/features/cudyr/report/cudyrDailyControl';
 import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
 import { CudyrSupplementDetail } from './CudyrSupplementDetail';
 import { BaseModal } from '@/components/shared/BaseModal';

@@ -1,5 +1,5 @@
-import { recordCudyrOperation } from '@/services/cudyr/cudyrOperationTelemetry';
-import { readCudyrReadView, saveCudyrReadView } from '@/services/cudyr/cudyrReadView';
+import { recordCudyrOperation } from '@/features/cudyr/report/cudyrOperationTelemetry';
+import { readCudyrReadView, saveCudyrReadView } from '@/features/cudyr/report/cudyrReadView';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';

@@ -4,7 +4,7 @@ import { buildCudyrReport, cudyrReportTotals } from '@/services/cudyr/cudyrRepor
 import { confirmedReportInput, reportRecord, reportPatient } from './reportFixtures';
 import { supplementRequest } from '@/tests/fixtures/cudyrSupplementFixture';
 import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
-import { cudyrControlStatus } from '@/services/cudyr/cudyrDailyControl';
+import { cudyrControlStatus } from '@/features/cudyr/report/cudyrDailyControl';
 const make = () => {
   const data = buildCudyrReport(
     confirmedReportInput({ records: [reportRecord('2026-10-02', { R1: reportPatient() })] })

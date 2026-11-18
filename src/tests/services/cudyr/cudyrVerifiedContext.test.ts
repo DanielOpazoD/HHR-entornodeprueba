@@ -1,4 +1,4 @@
-import { cudyrEligibilityOrigin } from '@/services/cudyr/cudyrDailyControl';
+import { cudyrEligibilityOrigin } from '@/features/cudyr/report/cudyrDailyControl';
 import { describe, expect, it } from 'vitest';
 import {
   applyCudyrVerifiedContexts,

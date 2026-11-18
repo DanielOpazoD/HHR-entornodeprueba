@@ -76,7 +76,10 @@ export const resolveRemoteGoldenPathReadResult = async ({
       { ...createLocalRuntimeReadCandidate(date, record), record },
       'indexeddb',
       {
-        serverConfirmed: remote.serverConfirmed,
+        // A day kept under pending writes is confirmed only when it is the server's day with them.
+        serverConfirmed:
+          remote.serverConfirmed &&
+          (!retained || decision?.status !== 'retained_pending' || decision.serverComposed),
         consistencyState: 'local_authoritative',
         retryability: 'automatic_retry',
         recoveryAction: 'defer_remote_sync',

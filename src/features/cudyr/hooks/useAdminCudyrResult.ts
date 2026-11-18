@@ -6,7 +6,7 @@ import type {
 } from '@/domain/cudyr/adminCudyrResult';
 import { useAuth } from '@/context/AuthContext';
 import { useNotification } from '@/context/UIContext';
-import { setAdminCudyrResult } from '@/services/cudyr/adminCudyrResultService';
+import { setAdminCudyrResult } from '@/features/cudyr/report/adminCudyrResultService';
 
 interface UseAdminCudyrResultInput {
   record: DailyRecord | null;

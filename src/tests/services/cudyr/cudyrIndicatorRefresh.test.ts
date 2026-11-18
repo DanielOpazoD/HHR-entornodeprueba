@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { cudyrIndicatorFirstSync } from '@/services/cudyr/cudyrIndicatorRefresh';
+import { cudyrIndicatorFirstSync } from '@/features/cudyr/indicator/cudyrIndicatorRefresh';
 
 describe('first clinical sync marker for the compact indicator', () => {
   it('retains the same-month marker when record metadata disappears or a later sync finishes', () => {

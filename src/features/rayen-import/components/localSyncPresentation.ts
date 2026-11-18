@@ -1,9 +1,11 @@
 import { isPolicyBlockedCudyrArchive } from '@/services/storage/sync/cudyrPolicyBlockedRecovery';
-import { requiresDailyRecordBaseReview } from '@/services/storage/sync/dailyRecordBaseReview';
+import {
+  isClosedNurseWindowRefusal,
+  requiresDailyRecordBaseReview,
+} from '@/services/storage/sync/dailyRecordBaseReview';
 import type { SyncQueueOperation, SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
 import type { SyncToneLevel } from './syncTone';
 import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
-import { hasNurseEditingWindowClosed } from '@/utils/clinicalWallClock';
 
 /**
  * Evita parpadeos durante guardados normales. El aviso del cuadro Eloísa aparece
@@ -80,28 +82,6 @@ export const targetLabelFromKey = (
 const DAILY_RECORD_KEY = /^daily:(\d{4}-\d{2}-\d{2})$/;
 
 /**
- * A nurse's census send refused after its day's editing window passed (SAVE-04): the account keeps
- * its permissions, the window does not reopen, so a retry can never succeed. The rules path gives
- * no message of its own, so the day decides, not the error text. A missing, malformed or future day
- * proves no closure and keeps the permission review. The administrator has no window.
- */
-const isClosedWindowRefusal = (
-  operation: SyncQueueOperation,
-  isAdmin: boolean,
-  now: number
-): boolean => {
-  const day = operation.key?.match(DAILY_RECORD_KEY)?.[1];
-  return (
-    !isAdmin &&
-    operation.type === 'UPDATE_DAILY_RECORD' &&
-    operation.status === 'FAILED' &&
-    !!day &&
-    /(?:^|\/)permission-denied$/.test(operation.lastErrorCode ?? '') &&
-    hasNurseEditingWindowClosed(day, now)
-  );
-};
-
-/**
  * Edits detached from a patient who left the bed can never be sent as they are: a retry always
  * fails, so the panel offers a confirmed discard instead.
  */
@@ -110,11 +90,12 @@ const resolveQuarantineRecovery = (
   isAdmin: boolean,
   now: number
 ): QuarantinedOperationView['recovery'] => {
+  // The closed window explains the stop first: its edits left the stored day for the same reason.
+  if (!isAdmin && isClosedNurseWindowRefusal(operation, now)) return 'editing_window_closed';
   // A closed session cleared the day these edits were made on: like a write without a known base,
   // they cannot be resent as they are, only reviewed and retired with a backup.
   if (operation.projectionReleased || requiresDailyRecordBaseReview(operation))
     return 'review_base';
-  if (isClosedWindowRefusal(operation, isAdmin, now)) return 'editing_window_closed';
   if (operation.status === 'FAILED' && operation.lastErrorCategory === 'authorization')
     return 'review_authorization';
   if (operation.status !== 'CONFLICT') return 'retry';

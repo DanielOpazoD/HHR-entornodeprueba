@@ -1,10 +1,10 @@
 import { cudyrExcelDateText } from './cudyrExcelDates';
 import { CUDYR_EXCLUSION_LABELS } from '@/types/domain/cudyrExclusion';
 import { getPreviousDay } from '@/utils/clinicalDayUtils';
-import { cudyrExclusionSummary } from './cudyrExclusionSummary';
+import { cudyrExclusionSummary } from '../report/cudyrExclusionSummary';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
 import type { CudyrSourceSheet } from './cudyrSourceTypes';
-import { parseCudyrSupplementMatrix } from './cudyrSupplementParser';
+import { parseCudyrSupplementMatrix } from '@/services/cudyr/cudyrSupplementParser';
 
 /** Parser joins Jasper page continuations; patient episodes are never deduplicated. */
 export const prepareCudyrSourceTable = (

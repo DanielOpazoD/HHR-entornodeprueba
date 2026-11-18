@@ -5,7 +5,7 @@ import { History, CircleMinus, FileSpreadsheet, SlidersHorizontal } from 'lucide
 import { CudyrMovementsDialog } from './CudyrMovementsDialog';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
 import { CUDYR_GROUP_LABELS } from '@/services/cudyr/cudyrReportPresentation';
-import { cudyrControlStatus, cudyrCompactMoment } from '@/services/cudyr/cudyrDailyControl';
+import { cudyrControlStatus, cudyrCompactMoment } from '@/features/cudyr/report/cudyrDailyControl';
 
 export const CudyrDailyTable = ({
   rows,

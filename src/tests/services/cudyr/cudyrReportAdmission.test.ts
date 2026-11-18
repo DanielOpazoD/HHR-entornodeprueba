@@ -11,7 +11,8 @@ describe('CUDYR admission evidence', () => {
     expect(data.rows[0].hospitalAdmissionAt).toBe('');
     expect(data.rows[0].eligibility).toBe('por_revisar');
     expect(cudyrReportTotals(data.rows)).toMatchObject({ eligible: 0, categorized: 0, review: 1 });
-    const { buildCudyrEssentialWorkbook } = await import('@/services/cudyr/cudyrEssentialWorkbook');
+    const { buildCudyrEssentialWorkbook } =
+      await import('@/features/cudyr/export/cudyrEssentialWorkbook');
     const { workbook } = await buildCudyrEssentialWorkbook(data);
     expect(workbook.getWorksheet('02-10-2026')!.getCell('I25').value).toBe('Por revisar');
   });
