@@ -154,6 +154,18 @@ describe('a census send refused after its editing window closed', () => {
     }
   );
 
+  it.each([
+    ['a future day whose window has not opened', 'daily:2026-11-20'],
+    ['a day that does not exist', 'daily:2026-02-30'],
+    ['an unreadable day', 'daily:invalid'],
+    ['no day at all', undefined],
+  ])('keeps «Sin permisos» and its retry for %s: no closure is proven', (_label, key) => {
+    expect(view(refused({ key }), Date.parse('2026-11-17T15:00:00Z'))).toMatchObject({
+      categoryLabel: 'Sin permisos',
+      recovery: 'review_authorization',
+    });
+  });
+
   it('keeps «Sin permisos» while the window is open and for the administrator', () => {
     expect(view(refused(), closesAt - 60_000)).toMatchObject({
       categoryLabel: 'Sin permisos',

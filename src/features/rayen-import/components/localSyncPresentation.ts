@@ -3,7 +3,7 @@ import { requiresDailyRecordBaseReview } from '@/services/storage/sync/dailyReco
 import type { SyncQueueOperation, SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
 import type { SyncToneLevel } from './syncTone';
 import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
-import { isWithinNurseEditingWindow } from '@/utils/clinicalWallClock';
+import { hasNurseEditingWindowClosed } from '@/utils/clinicalWallClock';
 
 /**
  * Evita parpadeos durante guardados normales. El aviso del cuadro Eloísa aparece
@@ -80,9 +80,10 @@ export const targetLabelFromKey = (
 const DAILY_RECORD_KEY = /^daily:(\d{4}-\d{2}-\d{2})$/;
 
 /**
- * A nurse's census send refused after its day left the editing window (SAVE-04): the account keeps
+ * A nurse's census send refused after its day's editing window passed (SAVE-04): the account keeps
  * its permissions, the window does not reopen, so a retry can never succeed. The rules path gives
- * no message of its own, so the day decides, not the error text. The administrator has no window.
+ * no message of its own, so the day decides, not the error text. A missing, malformed or future day
+ * proves no closure and keeps the permission review. The administrator has no window.
  */
 const isClosedWindowRefusal = (
   operation: SyncQueueOperation,
@@ -96,7 +97,7 @@ const isClosedWindowRefusal = (
     operation.status === 'FAILED' &&
     !!day &&
     /(?:^|\/)permission-denied$/.test(operation.lastErrorCode ?? '') &&
-    !isWithinNurseEditingWindow(day, now)
+    hasNurseEditingWindowClosed(day, now)
   );
 };
 

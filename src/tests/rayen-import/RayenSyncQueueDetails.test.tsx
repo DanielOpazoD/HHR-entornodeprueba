@@ -268,6 +268,20 @@ it('keeps «Sin permisos» one minute before the window closes', () => {
   expect(screen.getByRole('button', { name: 'Ya revisé, reintentar' })).toBeInTheDocument();
 });
 
+// Reviewer probe (W14-H1A review): only a real day whose window already passed proves a closure.
+it.each(['daily:2026-11-20', 'daily:2026-02-30', 'daily:invalid', undefined])(
+  'keeps «Sin permisos» and «Ya revisé, reintentar» for %s, which proves no closure',
+  key => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-17T15:00:00Z'));
+    renderStopped({ ...closedWindowSend, key });
+    fireEvent.click(screen.getByText('Guardado local · 1 por revisar'));
+    expect(screen.queryByText('Plazo de edición cerrado')).not.toBeInTheDocument();
+    expect(screen.getByText('Sin permisos')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Ya revisé, reintentar' })).toBeInTheDocument();
+  }
+);
+
 it('keeps «Sin permisos» for the administrator, who has no editing window', () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-17T15:00:00Z'));

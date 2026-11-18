@@ -39,12 +39,27 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /**
  * The nurse editing window (SAVE-04): from 24 h before to 48 h after the census day's midnight in
  * Rapa Nui, as the Firestore rules and the daily-record functions allow. The administrator has no
- * window; callers decide that. A malformed day is outside it, as on the server.
+ * window; callers decide that. A malformed day has no window, as on the server.
  */
-export const isWithinNurseEditingWindow = (day: string, now: number = Date.now()): boolean => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+const nurseEditingWindow = (day: string): { opensAfter: number; closesAt: number } | null => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
   const midnight = clinicalWallClockToDate(day, '00:00');
-  if (calendarStampInClinicalTimeZone(midnight).iso !== day) return false;
+  if (calendarStampInClinicalTimeZone(midnight).iso !== day) return null;
   const dayStart = midnight.getTime();
-  return now > dayStart - DAY_MS && now < dayStart + 2 * DAY_MS;
+  return { opensAfter: dayStart - DAY_MS, closesAt: dayStart + 2 * DAY_MS };
+};
+
+/** Whether a nurse may still write `day` at `now`. A malformed day is outside it. */
+export const isWithinNurseEditingWindow = (day: string, now: number = Date.now()): boolean => {
+  const bounds = nurseEditingWindow(day);
+  return !!bounds && now > bounds.opensAfter && now < bounds.closesAt;
+};
+
+/**
+ * Whether the window of a real day has already passed at `now`, for good. A malformed day, or one
+ * whose window is open or not open yet, has not closed.
+ */
+export const hasNurseEditingWindowClosed = (day: string, now: number = Date.now()): boolean => {
+  const bounds = nurseEditingWindow(day);
+  return !!bounds && now >= bounds.closesAt;
 };

@@ -147,11 +147,15 @@ test('withdraws an unnecessary permission-blocked send with a downloadable backu
   await page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }).click();
   const details = page.getByTestId('rayen-local-sync-details');
   await details.locator('summary').first().click();
-  await expect(details.getByText('Sin permisos')).toBeVisible();
-  await expect(details.getByText(/El servidor rechazó este envío por permisos/)).toBeVisible();
-  await details.getByText('Revisar reintento', { exact: true }).click();
+  // A nurse's send for a day whose 48 h already passed: the window, not the account, refused it,
+  // and a retry can never succeed, so only the reviewed discard is offered.
+  await expect(details.getByText('Guardado local · 1 por revisar')).toBeVisible();
+  await expect(details.getByText('Plazo de edición cerrado')).toBeVisible();
+  await expect(details.getByText(/plazo de 48 h para editar este día cerró/)).toBeVisible();
+  await expect(details.getByText('Sin permisos')).toHaveCount(0);
+  await expect(details.getByText('Revisar reintento', { exact: true })).toHaveCount(0);
+  await expect(details.getByRole('button', { name: /reintentar/i })).toHaveCount(0);
   expect(await readSyncTask(page, id)).toEqual({ ...task, id });
-  await details.getByText('Revisar reintento', { exact: true }).click();
   await details.getByRole('button', { name: 'Descartar envío', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Descartar envío del censo' });
   await expect(dialog.getByText('Censo del 22-10-2026')).toBeVisible();
@@ -228,7 +232,7 @@ test('reaches an older blocked send beyond two pages and withdraws only that sen
   await page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }).click();
   const details = page.getByTestId('rayen-local-sync-details');
   await details.locator('summary').first().click();
-  await expect(details.getByText('Guardado local · 25 por enviar')).toBeVisible();
+  await expect(details.getByText('Guardado local · 24 por enviar · 1 por revisar')).toBeVisible();
   const oldSend = details.getByText('Censo del 22-10-2026');
   await expect(oldSend).toHaveCount(0);
   await details.getByRole('button', { name: 'Ver más envíos' }).click();
