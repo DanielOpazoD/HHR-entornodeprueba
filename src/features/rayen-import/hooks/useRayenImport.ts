@@ -14,6 +14,7 @@ import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useAuth } from '@/context/AuthContext';
 import * as dailyRecordQuery from '@/hooks/useDailyRecordQuery';
 import { useRepositories } from '@/services/RepositoryContext';
+import { isAdminAppRole } from '@/shared/access/operationalAccessPolicy';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { resolveRayenPolicyBlockMessage, useRayenImportMode } from './useRayenImportMode';
 import {
@@ -85,7 +86,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
   const { currentUser, role } = useAuth();
   const { mutateAsync: saveDailyRecordMutation } = dailyRecordQuery.useSaveDailyRecordMutation();
   const { dailyRecord } = useRepositories();
-  const isAdmin = role === 'admin';
+  const isAdmin = isAdminAppRole(role);
   const [state, setStateFromReact] = useState<RayenImportState>(INITIAL_RAYEN_IMPORT_STATE);
   const {
     execution,

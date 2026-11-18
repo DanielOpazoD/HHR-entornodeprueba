@@ -201,11 +201,13 @@
         "controls": [{ "text": "Solo administradores pueden editar" }]
       },
       "gate": [
+        "src/shared/access/censusDayWriteAccessPolicy.ts",
         "src/hooks/stabilityRulesController.ts",
         "src/utils/clinicalWallClock.ts",
         "src/hooks/useStabilityRules.ts"
       ],
       "tests": [
+        "src/tests/shared/access/censusDayWriteAccessPolicy.test.ts",
         "src/tests/hooks/stabilityRulesController.test.ts",
         "src/tests/hooks/useStabilityRules.deadline.test.tsx",
         "src/tests/utils/clinicalWallClock.test.ts",

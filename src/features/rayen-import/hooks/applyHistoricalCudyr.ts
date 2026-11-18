@@ -1,5 +1,4 @@
 import type { UserRole } from '@/types/authRoleTypes';
-import { addCalendarDays, isCalendarDate } from '@/utils/clinicalDateUtils';
 import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type {
@@ -9,6 +8,7 @@ import type {
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { resolveHistoricalCudyrBatchOperation } from '../domain/historicalCudyrPatch';
 import { readClinicalFillDerivedView } from './clinicalFillDerivedView';
+import { canApplyPreviousDayCudyr } from '@/shared/access/censusDayWriteAccessPolicy';
 
 type ApplyClinicalEnrichmentBatch =
   typeof import('./applyClinicalEnrichmentBatch').applyClinicalEnrichmentBatch;
@@ -16,20 +16,6 @@ type ApplyClinicalEnrichmentBatch =
 const uniqueBatchItems = (items: HistoricalCudyrBatchItem[]): HistoricalCudyrBatchItem[] => [
   ...new Map(items.map(item => [item.clinicalEpisodeId, item])).values(),
 ];
-
-const previousIsoDay = (day: string): string | null =>
-  isCalendarDate(day) ? addCalendarDays(day, -1) : null;
-
-const canWriteAuthoritativeHistoricalDay = ({
-  censusDay,
-  sourceDate,
-  role,
-}: {
-  censusDay: string;
-  sourceDate: string;
-  role: UserRole | null;
-}): boolean =>
-  (role === 'admin' || role === 'nurse_hospital') && previousIsoDay(sourceDate) === censusDay;
 
 /**
  * Persists the previous census day's CUDYR values through the same authoritative callable used
@@ -64,7 +50,7 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
   const uniqueItems = uniqueBatchItems(items);
   if (uniqueItems.length === 0) return { results: [] };
   if (
-    !canWriteAuthoritativeHistoricalDay({
+    !canApplyPreviousDayCudyr({
       censusDay,
       sourceDate: sourceRecord.date,
       role,

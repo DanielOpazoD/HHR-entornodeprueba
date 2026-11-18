@@ -8,7 +8,7 @@ import {
   reconcileNursingShiftProposal,
 } from '../domain/applyNursingShiftProposal';
 import { isNursingStaffingCollectionContextCurrent } from '../domain/nursingStaffingCollectionContext';
-import { canWritePreviousDay } from '../domain/previousDayCorrections';
+import { canWriteCensusDay } from '@/shared/access/censusDayWriteAccessPolicy';
 import { collectNursingStaffingProposal } from '../domain/collectNursingStaffingProposal';
 import { requestHistoryScales } from '../bridge/rayenImportBridge';
 import { getRayenImportErrorMessage } from './rayenImportState';
@@ -119,7 +119,7 @@ export const useRayenStaffingProposalReview = ({
         ...proposal,
         sourceLastUpdated: freshRecord.lastUpdated,
       });
-      if (!canWritePreviousDay(reconciled.censusDate, isAdmin)) {
+      if (!canWriteCensusDay(reconciled.censusDate, isAdmin)) {
         setStaffingProposal(null);
         setStaffingProposalError(
           'Este censo está fuera de la ventana de edición de dotación clínica.'

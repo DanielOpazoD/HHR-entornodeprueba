@@ -21,8 +21,8 @@ vi.mock('@/features/rayen-import/domain/applyNursingShiftProposal', () => ({
   reconcileNursingShiftProposal: (_record: unknown, proposal: unknown) => proposal,
   buildNursingShiftProposalPatch: () => ({ nursesDayShift: ['ENFERMERA SINTETICA'] }),
 }));
-vi.mock('@/features/rayen-import/domain/previousDayCorrections', () => ({
-  canWritePreviousDay: () => true,
+vi.mock('@/shared/access/censusDayWriteAccessPolicy', () => ({
+  canWriteCensusDay: () => true,
 }));
 vi.mock('@/features/rayen-import/domain/nursingStaffingCollectionContext', () => ({
   isNursingStaffingCollectionContextCurrent: () => true,

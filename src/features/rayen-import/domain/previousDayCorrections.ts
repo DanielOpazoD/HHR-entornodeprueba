@@ -41,13 +41,9 @@ import {
   isSameDocumentBeforeLetterRule,
   normalizeRut,
 } from '@/utils/rutUtils';
-import { isWithinNurseEditingWindow } from '@/utils/clinicalWallClock';
+import { canWriteCensusDay } from '@/shared/access/censusDayWriteAccessPolicy';
 
 export { verifyPreviousDayAdmissionPlacements } from './previousDayAdmissionEvidence';
-
-/** The nurse editing window on the hospital clock (SAVE-04); the administrator has none. */
-export const canWritePreviousDay = (day: string, isAdmin: boolean): boolean =>
-  isAdmin || isWithinNurseEditingWindow(day);
 
 export interface CrossDayCorrectionResult {
   confirmed: number;
@@ -141,7 +137,7 @@ export const computePreviousDayEdits = async (
       Boolean(
         (records.get(day) as { medicalSignature?: unknown } | null | undefined)?.medicalSignature
       ),
-    withinEditingWindow: day => canWritePreviousDay(day, isAdmin),
+    withinEditingWindow: day => canWriteCensusDay(day, isAdmin),
     alreadyDischarged: (day, rut, encounterId) => {
       if (!alreadyDischarged(day, rut, encounterId)) return false;
       // A filed movement with an occupied copy is still a historical correction: leaving both
@@ -154,7 +150,7 @@ export const computePreviousDayEdits = async (
     censusDay,
     records,
     isAdmin,
-    canWritePreviousDay
+    canWriteCensusDay
   );
   const edits = [...dischargeEdits, ...admissionEdits].sort(
     (left, right) => left.day.localeCompare(right.day) || left.reason.localeCompare(right.reason)
@@ -232,7 +228,7 @@ export const fileCrossDayCorrections = async (
       !day ||
       day >= censusDay ||
       !confirmedDischargeDays.has(day) ||
-      !canWritePreviousDay(day, isAdmin) ||
+      !canWriteCensusDay(day, isAdmin) ||
       !isOccupied(patient)
     )
       return;
@@ -259,7 +255,7 @@ export const fileCrossDayCorrections = async (
     diff,
     censusDay,
     isAdmin,
-    canWritePreviousDay
+    canWriteCensusDay
   );
   const affectedDays = new Set([...byDay.keys(), ...admissionsByDay.keys()]);
   const records = new Map<string, DailyRecord>();
