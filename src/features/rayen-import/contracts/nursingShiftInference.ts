@@ -53,6 +53,11 @@ export interface NursingShiftSuggestion {
   names: string[];
   /** Exact HHR catalog identities used while resolving Eloisa authors. */
   catalogNames?: string[];
+  /**
+   * People Eloísa accredits in this proposal who have no row in the roster yet (first seen in
+   * this run). They are rows of their own when telling people apart, never roster matches.
+   */
+  uncataloguedPeople?: string[];
   /** Nurses already present in the matching HHR shift; informational, never re-applied. */
   alreadyAssigned?: string[];
   /** Existing standard slots shown when confirmation would replace an incorrect complete roster. */

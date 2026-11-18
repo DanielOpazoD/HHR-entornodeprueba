@@ -81,8 +81,9 @@ const rename = (from: string, to: string) => {
   fireEvent.click(screen.getByTitle('Guardar'));
 };
 const renderManager = (ui: ReactElement) => {
-  const { wrapper } = createQueryClientTestWrapper();
+  const { wrapper, queryClient } = createQueryClientTestWrapper();
   render(ui, { wrapper });
+  return queryClient;
 };
 // The shared Eloísa catalog the app subscribes to; these people are not in the saved list.
 const seedEloisa = (role: 'nurse' | 'tens', name: string) =>
@@ -207,3 +208,147 @@ it('removing a row shown with its Eloísa name removes the saved alias, as on ma
   await waitFor(() => expect(rows()).toEqual(['Sintético Otro', 'Sintético Canónico']), REMOTE);
   expect(screen.queryByText(CONFLICT)).not.toBeInTheDocument();
 });
+
+it.each(['nurse', 'tens'] as const)(
+  '%s: adding a cedilla-less alias of the same Eloísa ID keeps one saved entry, spelled as saved',
+  async role => {
+    const listDoc = role === 'nurse' ? 'nurses' : 'tens';
+    await setDoc(settingsRef(listDoc), { list: ['Françoise Soto'] });
+    await setDoc(settingsRef(SHARED_STAFF_DOC), {
+      list: [
+        {
+          key: `${role}:id:syn1`,
+          role,
+          name: 'Françoise Soto',
+          practitionerId: 'syn1',
+          aliases: ['Françoise Soto', 'Francoise Soto'],
+        },
+      ],
+    });
+    renderManager(role === 'nurse' ? <Nurses /> : <Tens />);
+    await screen.findByText('Françoise Soto', {}, REMOTE);
+    const input = screen.getByPlaceholderText('Nombre completo…');
+    fireEvent.change(input, { target: { value: 'Francoise Soto' } });
+    fireEvent.click(screen.getByLabelText('Agregar personal'));
+    await waitFor(() => expect(input).toHaveValue(''), REMOTE);
+    expect(await serverList(listDoc)).toEqual(['Françoise Soto']);
+    const rows = screen
+      .getAllByTitle('Editar')
+      .map(button => button.closest('.group')?.textContent);
+    expect(rows).toEqual(['Françoise Soto']);
+    expect(screen.queryByText(CONFLICT)).not.toBeInTheDocument();
+  }
+);
+
+it.each(['nurse', 'tens'] as const)(
+  '%s: respelling one of two Eloísa people whose names fold alike keeps the other row',
+  async role => {
+    const listDoc = role === 'nurse' ? 'nurses' : 'tens';
+    const names = ['Maria Pena', 'Maria Peña'];
+    await setDoc(settingsRef(listDoc), { list: names });
+    await setDoc(settingsRef(SHARED_STAFF_DOC), {
+      list: names.map((name, index) => ({
+        key: `${role}:id:syn${index}`,
+        role,
+        name,
+        aliases: [name],
+        practitionerId: `syn${index}`,
+      })),
+    });
+    renderManager(role === 'nurse' ? <Nurses /> : <Tens />);
+    await screen.findByText('Maria Pena', {}, REMOTE);
+    await screen.findByText('Maria Peña', {}, REMOTE);
+    const input = screen.getByPlaceholderText('Nombre completo…');
+    fireEvent.change(input, { target: { value: 'Alba Prado' } });
+    fireEvent.click(screen.getByLabelText('Agregar personal'));
+    await waitFor(() => expect(input).toHaveValue(''), REMOTE);
+    expect(await serverList(listDoc)).toEqual([...names, 'Alba Prado']);
+    rename('Maria Pena', 'María Pena');
+    await waitFor(
+      async () =>
+        expect(await serverList(listDoc)).toEqual(['María Pena', 'Maria Peña', 'Alba Prado']),
+      REMOTE
+    );
+    expect(screen.queryByText(CONFLICT)).not.toBeInTheDocument();
+  }
+);
+
+it.each(['nurse', 'tens'] as const)(
+  '%s: a respelled row stays its person when the editor reopens and Eloísa publishes again',
+  async role => {
+    const listDoc = role === 'nurse' ? 'nurses' : 'tens';
+    const names = ['Maria Pena', 'Maria Peña'];
+    const people = names.map((name, index) => ({
+      key: `${role}:id:syn${index}`,
+      role,
+      name,
+      aliases: [name],
+      practitionerId: `syn${index}`,
+    }));
+    await setDoc(settingsRef(listDoc), { list: names });
+    await setDoc(settingsRef(SHARED_STAFF_DOC), { list: people });
+    const rows = () =>
+      screen.getAllByTitle('Editar').map(button => button.closest('.group')?.textContent);
+    renderManager(role === 'nurse' ? <Nurses /> : <Tens />);
+    await screen.findByText('Maria Pena', {}, REMOTE);
+    await screen.findByText('Maria Peña', {}, REMOTE);
+    rename('Maria Pena', 'María Pena');
+    await waitFor(
+      async () => expect(await serverList(listDoc)).toEqual(['María Pena', 'Maria Peña']),
+      REMOTE
+    );
+    cleanup();
+    renderManager(role === 'nurse' ? <Nurses /> : <Tens />);
+    await waitFor(() => expect(rows()).toEqual(['María Pena', 'Maria Peña']), REMOTE);
+    const { publishSharedStaffCatalog } = await import('@/services/staff/sharedEloisaStaffCatalog');
+    await publishSharedStaffCatalog(people);
+    expect(await serverList(listDoc)).toEqual(['María Pena', 'Maria Peña']);
+    await waitFor(() => expect(rows()).toEqual(['María Pena', 'Maria Peña']), REMOTE);
+  }
+);
+
+it.each(['nurse', 'tens'] as const)(
+  '%s: a failed addition keeps its warning while only another ID that spells alike is saved',
+  async role => {
+    const listDoc = role === 'nurse' ? 'nurses' : 'tens';
+    await setDoc(settingsRef(listDoc), { list: ['Luz Peña'] });
+    await setDoc(settingsRef(SHARED_STAFF_DOC), {
+      list: [
+        {
+          key: `${role}:id:syn1`,
+          role,
+          name: 'Luz Pena Vega',
+          aliases: ['Luz Pena Vega', 'Luz Pena'],
+          practitionerId: 'syn1',
+        },
+        {
+          key: `${role}:id:syn2`,
+          role,
+          name: 'Luz Peña',
+          aliases: ['Luz Peña'],
+          practitionerId: 'syn2',
+        },
+      ],
+    });
+    const client = renderManager(role === 'nurse' ? <Nurses /> : <Tens />);
+    await screen.findByText('Luz Pena Vega', {}, REMOTE);
+    await screen.findByText('Luz Peña', {}, REMOTE);
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const input = screen.getByPlaceholderText('Nombre completo…');
+    fireEvent.change(input, { target: { value: 'Luz Pena' } });
+    fireEvent.click(screen.getByLabelText('Agregar personal'));
+    await waitFor(
+      () => expect(client.getMutationCache().getAll().at(-1)?.state.status).toBe('error'),
+      REMOTE
+    );
+    // The accepted list holds «Luz Peña», another person: the warning must stay.
+    await new Promise(resolve => setTimeout(resolve, 300));
+    expect(screen.getByText(/El cambio no se guardó/)).toBeInTheDocument();
+    expect(input).toHaveValue('Luz Pena');
+    expect(await serverList(listDoc)).toEqual(['Luz Peña']);
+    online.mockReturnValue(true);
+    fireEvent.click(screen.getByLabelText('Agregar personal'));
+    await waitFor(() => expect(input).toHaveValue(''), REMOTE);
+    expect(await serverList(listDoc)).toEqual(['Luz Peña', 'Luz Pena']);
+  }
+);

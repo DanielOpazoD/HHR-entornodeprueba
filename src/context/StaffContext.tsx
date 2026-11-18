@@ -18,7 +18,7 @@ import {
   useSaveProfessionalsMutation,
 } from '@/hooks/useStaffQuery';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
-import { reconcileNurseCatalogNames } from '@/services/staff/nurseIdentity';
+import { formatNurseCatalogNames } from '@/services/staff/nurseIdentity';
 import type { EloisaStaffIdentity } from '@/services/staff/eloisaStaffIdentity';
 import { useStaffUsage } from '@/hooks/useStaffUsage';
 import type { StaffUsage } from '@/services/staff/staffUsage';
@@ -94,7 +94,7 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
   } = useTensQuery();
   const { data: professionals = NO_PROFESSIONALS, isLoading: professionalsLoading } =
     useProfessionalsQuery();
-  const reconciledNurses = useMemo(() => reconcileNurseCatalogNames(nurses), [nurses]);
+  const reconciledNurses = useMemo(() => formatNurseCatalogNames(nurses), [nurses]);
 
   // 2. Mutations for saving
   const { mutate: saveNurses } = useSaveNursesMutation();
@@ -109,7 +109,7 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
   const setNursesList = useCallback(
     (updatedNurses: string[]) => {
       saveNurses(
-        savedCatalogEdit(nursesSaved, reconciledNurses, reconcileNurseCatalogNames(updatedNurses))
+        savedCatalogEdit(nursesSaved, reconciledNurses, formatNurseCatalogNames(updatedNurses))
       );
     },
     [saveNurses, nursesSaved, reconciledNurses]

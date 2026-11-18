@@ -15,13 +15,18 @@ import {
   resetDetailedStaffingAssignmentToStandard,
   updateDetailedStaffingAssignment,
 } from '@/services/staff/dailyRecordDetailedStaffing';
+import type { EloisaStaffIdentity } from '@/services/staff/eloisaStaffIdentity';
 import {
   buildResolvedStaffSelectionOptions,
+  isVacancySelection,
   resolveStaffSelectionValue,
 } from '@/services/staff/staffSelectionPresentation';
+import { StaffSelectionNameHint } from './StaffSelectionNameHint';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
+import { useStaffContext } from '@/context/StaffContext';
 
 const staffShiftDetailsLogger = createScopedLogger('StaffShiftDetailsModal');
+const NO_IDENTITIES: EloisaStaffIdentity[] = [];
 
 interface StaffShiftDetailsModalProps {
   isOpen: boolean;
@@ -62,13 +67,17 @@ const StaffRoleSection: React.FC<{
   onChange: (detail: DailyRecordStaffingDetailsV1) => void;
 }> = ({ draft, shift, role, recordDate, catalog, onChange }) => {
   const assignments = draft[shift][role === 'nurse' ? 'nurses' : 'tens'];
+  // The same people and presentation as the header selector: one option per person.
+  const { staffIdentities = NO_IDENTITIES } = useStaffContext();
   const options = React.useMemo(
     () =>
       buildResolvedStaffSelectionOptions(
         catalog,
-        assignments.map(assignment => assignment.name)
+        assignments.map(assignment => assignment.name),
+        staffIdentities,
+        role
       ),
-    [assignments, catalog]
+    [assignments, catalog, staffIdentities, role]
   );
   let extraIndex = 0;
 
@@ -94,6 +103,13 @@ const StaffRoleSection: React.FC<{
       <div className="space-y-2">
         {assignments.map(assignment => {
           const currentExtraIndex = assignment.slotType === 'extra' ? ++extraIndex : extraIndex;
+          const selected = resolveStaffSelectionValue(
+            assignment.name,
+            staffIdentities,
+            role,
+            options
+          );
+          const hintId = `staff-detail-${assignment.id}-name`;
 
           return (
             <div
@@ -103,23 +119,28 @@ const StaffRoleSection: React.FC<{
               <div className="flex items-center text-xs font-semibold uppercase tracking-wide text-slate-500">
                 {resolveAssignmentLabel(assignment, currentExtraIndex)}
               </div>
-              <select
-                value={resolveStaffSelectionValue(assignment.name, [], role, options)}
-                onChange={event =>
-                  onChange(
-                    updateDetailedStaffingAssignment(draft, shift, role, assignment.id, {
-                      name: event.target.value,
-                    })
-                  )
-                }
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-medical-400 focus:outline-none"
-              >
-                {options.map(option => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
+              {/* As in the header selector: the saved name stays readable on hover or focus. */}
+              <div className="group relative">
+                <select
+                  value={selected}
+                  aria-describedby={isVacancySelection(assignment.name) ? undefined : hintId}
+                  onChange={event =>
+                    onChange(
+                      updateDetailedStaffingAssignment(draft, shift, role, assignment.id, {
+                        name: event.target.value,
+                      })
+                    )
+                  }
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-medical-400 focus:outline-none"
+                >
+                  {options.map(option => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                <StaffSelectionNameHint id={hintId} name={selected} />
+              </div>
               <input
                 type="time"
                 value={assignment.startTime}

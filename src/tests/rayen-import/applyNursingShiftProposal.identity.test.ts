@@ -374,7 +374,8 @@ describe('nursing shift identity reconciliation', () => {
     const current = record();
     const review = reconcileNursingShiftProposal(current, {
       ...proposal,
-      day: suggestion(['José Pérez', 'JOSE PEREZ']),
+      // The roster has one row per person: both spellings are that one row.
+      day: suggestion(['José Pérez', 'JOSE PEREZ'], ['José Pérez']),
     });
 
     expect(review.day.names).toEqual(['José Pérez']);

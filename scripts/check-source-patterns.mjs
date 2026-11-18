@@ -174,6 +174,46 @@ const RULES = [
     ],
     fix: 'No copies un componente por rol: pasa role="nurse" | "tens" a StaffSelector o StaffManagerModal y pon lo que difiere en su tabla por rol.',
   },
+  {
+    id: 'staff-name-fold',
+    // W16-ID1: comparing staff by a folded name outside the identity module joined two Eloísa IDs
+    // that spell alike («Luz Pena», «Luz Peña») in views, saves and proposals.
+    files: file =>
+      isProduction(file) &&
+      ![
+        'src/services/staff/nurseIdentity.ts',
+        'src/services/staff/eloisaStaffIdentity.ts',
+      ].includes(file),
+    patterns: [/\b(?:nurseIdentityKey|uniqueStaffNames|reconcileNurseCatalogNames)\b/g],
+    fix: 'Decide si dos nombres del personal son la misma persona con @/services/staff/eloisaStaffIdentity (staffPerson, listedStaffPerson, staffRowKey, sameStaffMember, staffNameKey, personSpellings); el nombre plegado solo se usa dentro de ese módulo.',
+  },
+  {
+    id: 'staff-name-fold-by-hand',
+    // The same fold written by hand (NFD and dropping marks) in code about nursing staff names.
+    files: file =>
+      isProduction(file) &&
+      under(
+        'src/services/staff/',
+        'src/features/census/components/staff-catalog/',
+        'src/features/census/components/Staff',
+        'src/features/rayen-import/domain/inferNursingShifts',
+        'src/features/rayen-import/domain/staffIdentityReconciliation',
+        'src/features/rayen-import/domain/applyNursingShiftProposal',
+        'src/features/rayen-import/domain/staffingSlotPolicy',
+        'src/features/rayen-import/domain/clinicalFillStaffing',
+        'src/hooks/useStaff',
+        'src/hooks/useEloisaStaff',
+        'src/context/StaffContext'
+      )(file) &&
+      ![
+        'src/services/staff/nurseIdentity.ts',
+        'src/services/staff/eloisaStaffIdentity.ts',
+        // Physicians are another catalog with its own rules.
+        'src/services/staff/treatingPhysicianCatalog.ts',
+      ].includes(file),
+    patterns: [/\.normalize\(\s*['"]NF[KD]{1,2}['"]\s*\)/g],
+    fix: 'No pliegues nombres del personal a mano: compara con @/services/staff/eloisaStaffIdentity (staffPerson, listedStaffPerson, staffRowKey, sameStaffMember).',
+  },
 ];
 
 const walk = directory =>

@@ -9,13 +9,32 @@ export interface NurseAuthorIdentityParts {
   firstSurname: string;
 }
 
+/**
+ * A name's identity text. Only what the hospital treats as the same name folds: case, spacing,
+ * the acute accent, the diaeresis and the tilde of the ñ. A cedilla, grave, circumflex or any
+ * other mark keeps two names apart («França» is not «Franca»).
+ */
 const normalizeIdentityText = (value: string): string =>
   value
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u0301\u0308]/g, '')
+    .replace(/([nN])\u0303/g, '$1')
+    .normalize('NFC')
     .trim()
     .replace(/\s+/g, ' ')
     .toLocaleLowerCase('es');
+
+const marks = (name: string) => (name.normalize('NFD').match(/\p{M}/gu) ?? []).length;
+const letters = (name: string) =>
+  name.normalize('NFD').replace(/\p{M}/gu, '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('es');
+
+/** The same written text, apart from case and spacing (which never tell two people apart). */
+export const sameStaffText = (name: string) =>
+  name.normalize('NFC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('es');
+
+/** Two spellings of the same letters, whatever their marks: only these choose between them. */
+export const isSpellingOf = (left: string, right: string): boolean =>
+  letters(left) === letters(right);
 
 const normalizeDisplayName = (value: string): string =>
   value
@@ -31,12 +50,12 @@ const tokens = (value: string): string[] => normalizeIdentityText(value).split('
 
 export const nurseIdentityKey = (value: string): string => normalizeIdentityText(value);
 
-/** Existing catalog spelling wins ties; only an equivalent, richer spelling replaces it. */
-export const preferredStaffName = (catalogName: string, incoming: string): string => {
-  if (nurseIdentityKey(catalogName) !== nurseIdentityKey(incoming)) return catalogName;
-  const marks = (name: string) => (name.normalize('NFD').match(/[\u0300-\u036f]/g) ?? []).length;
-  return marks(incoming) > marks(catalogName) ? incoming : catalogName;
-};
+/**
+ * The spelling kept for one person: a spelling of the same letters with more marks replaces the
+ * kept one («Peña» over «Pena», «Françoise» over «Francoise»); anything else keeps it.
+ */
+export const preferredStaffName = (kept: string, incoming: string): string =>
+  isSpellingOf(kept, incoming) && marks(incoming) > marks(kept) ? incoming : kept;
 
 export const uniqueStaffNames = (names: string[]): string[] => {
   const preferred = new Map<string, string>();
@@ -54,8 +73,9 @@ export const toShortNurseName = (value: string): string => {
   return parts.length >= 2 ? parts.slice(0, 2).join(' ') : normalized;
 };
 
+/** The role list as identities: one per row, never joining two rows that spell alike. */
 export const buildNurseCatalogIdentities = (nurseCatalog: string[]): NurseCatalogIdentity[] => {
-  return reconcileNurseCatalogNames(nurseCatalog)
+  return formatNurseCatalogNames(nurseCatalog)
     .filter(displayName => tokens(displayName).length >= 2)
     .map(displayName => ({
       key: normalizeIdentityText(displayName),
@@ -63,6 +83,14 @@ export const buildNurseCatalogIdentities = (nurseCatalog: string[]): NurseCatalo
       catalogMatched: true,
     }));
 };
+
+/**
+ * A nurse list as shown: each name re-capitalized, the same text once. It never joins two rows
+ * that spell alike: the list already has one row per person (`staffCatalogRows`).
+ */
+export const formatNurseCatalogNames = (nurseCatalog: string[]): string[] => [
+  ...new Set(nurseCatalog.map(normalizeDisplayName).filter(Boolean)),
+];
 
 export const reconcileNurseCatalogNames = (nurseCatalog: string[]): string[] => {
   return uniqueStaffNames(nurseCatalog.map(normalizeDisplayName).filter(Boolean));
@@ -80,7 +108,11 @@ export const resolveNurseIdentity = (
   // extension sends that label unparsed, it must never become a fake nurse.
   if (/^\d{1,4}[-/]/.test(remoteTokens[0])) return null;
   const remoteKey = normalizeIdentityText(author);
-  const exactMatch = catalog.find(candidate => candidate.key === remoteKey);
+  // The same written row first; a spelling that folds like two rows is neither of them.
+  const sameKey = catalog.filter(candidate => candidate.key === remoteKey);
+  const exactMatch =
+    sameKey.find(candidate => sameStaffText(candidate.displayName) === sameStaffText(author)) ??
+    (sameKey.length === 1 ? sameKey[0] : undefined);
   if (exactMatch)
     return {
       ...exactMatch,
@@ -109,8 +141,8 @@ export const resolveNurseIdentity = (
 export const reconcileSelectedNurseName = (value: string, nurseCatalog: string[]): string => {
   const normalized = normalizeDisplayName(value);
   if (!normalized) return '';
-  const catalog = buildNurseCatalogIdentities(nurseCatalog);
-  const exactMatch = catalog.find(candidate => candidate.key === normalizeIdentityText(normalized));
-  if (exactMatch) return preferredStaffName(exactMatch.displayName, normalized);
-  return normalized;
+  const sameKey = buildNurseCatalogIdentities(nurseCatalog)
+    .filter(candidate => candidate.key === normalizeIdentityText(normalized))
+    .map(candidate => candidate.displayName);
+  return [...sameKey, normalized].reduce(preferredStaffName);
 };

@@ -24,6 +24,7 @@ import { useRayenClinicalFill } from './useRayenClinicalFill';
 import { useHistoricalCudyrPersistence } from './useHistoricalCudyrPersistence';
 import { useRayenSnapshotPreview } from './useRayenSnapshotPreview';
 import { useNursesQuery, useTensQuery } from '@/hooks/useStaffQuery';
+import { savedStaffRows } from '@/services/staff/eloisaStaffIdentity';
 import { invalidateRayenFillAttempt, reportRayenStaffingOutcome } from './useRayenFillStatus';
 import { useRayenStaffingProposalActions } from './useRayenStaffingProposalActions';
 import { hasPendingStaffingDecision } from '../domain/applyNursingShiftProposal';
@@ -64,9 +65,18 @@ const loadInvalidEpisodeIds = async () =>
 
 export const useRayenImport = (selectedCensusDate?: string) => {
   const queryClient = useQueryClient();
-  // Automatic discovery does not confer the evidence bonus of a manually curated roster.
-  const { manualData: nursesList = [] } = useNursesQuery();
-  const { manualData: tensList = [] } = useTensQuery();
+  // Automatic discovery does not confer the evidence bonus of a manually curated roster. The
+  // roster has one row per person, so two Eloísa IDs that spell alike stay two people.
+  const nurses = useNursesQuery();
+  const tens = useTensQuery();
+  const nursesList = useMemo(
+    () => savedStaffRows(nurses.manualData ?? [], nurses.identities, 'nurse'),
+    [nurses.manualData, nurses.identities]
+  );
+  const tensList = useMemo(
+    () => savedStaffRows(tens.manualData ?? [], tens.identities, 'tens'),
+    [tens.manualData, tens.identities]
+  );
   const { policy, mode, status: policyStatus } = useRayenImportMode();
   const recoveryPolicyRef = useCurrentRayenRecoveryPolicy(policy, policyStatus);
   const dailyRecordData = useDailyRecordData();

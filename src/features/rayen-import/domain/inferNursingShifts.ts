@@ -8,9 +8,9 @@ import type {
   NursingShiftSuggestion,
   RayenNursingActivity,
 } from '../contracts/nursingShiftInference';
+import { sameStaffMember } from '@/services/staff/eloisaStaffIdentity';
 import {
   buildNurseCatalogIdentities,
-  nurseIdentityKey,
   resolveNurseIdentity,
   type NurseCatalogIdentity,
 } from '@/services/staff/nurseIdentity';
@@ -24,6 +24,8 @@ export interface NursingActivityObservation extends RayenNursingActivity {
     aliases: string[];
     catalogMatched?: boolean;
   };
+  /** Local registry resolution: the author, without ID, names two Eloísa people, so none. */
+  staffNameAmbiguous?: boolean;
 }
 
 const NURSE_ROLE = /enfermer/i;
@@ -106,6 +108,9 @@ const buildSuggestion = (
   standardSlots: number
 ): NursingShiftSuggestion => {
   const candidates = new Map<string, CandidateAccumulator>();
+  // An author that names two Eloísa people cannot be attributed: the shift needs review.
+  let unattributable = false;
+  const uncataloguedPeople = new Set<string>();
   let ignoredBoundaryRecords = 0;
   const ignoredBoundaryEvidence: NursingBoundaryExclusion[] = [];
 
@@ -132,7 +137,8 @@ const buildSuggestion = (
     if (classified.boundary) {
       ignoredBoundaryRecords += 1;
       ignoredBoundaryEvidence.push({
-        name: identity.displayName,
+        // The person the source ID accredits, as for the candidates below.
+        name: observation.resolvedStaffIdentity?.name ?? identity.displayName,
         role: observation.role,
         recordedAt: observation.recordedAt,
         source: observation.source,
@@ -141,6 +147,15 @@ const buildSuggestion = (
       continue;
     }
 
+    if (observation.staffNameAmbiguous) {
+      unattributable = true;
+      continue;
+    }
+    if (
+      observation.resolvedStaffIdentity &&
+      observation.resolvedStaffIdentity.catalogMatched !== true
+    )
+      uncataloguedPeople.add(observation.resolvedStaffIdentity.name);
     const key =
       observation.resolvedStaffIdentity?.key ??
       (observation.practitionerId ? `id:${observation.practitionerId}` : identity.key);
@@ -179,15 +194,21 @@ const buildSuggestion = (
     candidates.set(key, accumulator);
   }
 
-  const identityCollision = [...candidates].some(([key, candidate]) =>
-    [...candidates].some(
-      ([otherKey, other]) =>
-        otherKey !== key &&
-        [candidate.name, ...candidate.structuredAliases].some(
-          alias => nurseIdentityKey(alias) === nurseIdentityKey(other.name)
-        )
-    )
-  );
+  const identityCollision =
+    unattributable ||
+    [...candidates].some(([key, candidate]) =>
+      [...candidates].some(
+        ([otherKey, other]) =>
+          otherKey !== key &&
+          [candidate.name, ...candidate.structuredAliases].some(alias =>
+            sameStaffMember(
+              alias,
+              other.name,
+              staffCatalog.map(identity => identity.displayName)
+            )
+          )
+      )
+    );
 
   const evidence: NursingShiftEvidence[] = [...candidates.values()]
     .map(candidate => {
@@ -234,6 +255,7 @@ const buildSuggestion = (
   return {
     names,
     catalogNames: staffCatalog.map(identity => identity.displayName),
+    uncataloguedPeople: [...uncataloguedPeople],
     candidates: evidence,
     ignoredBoundaryRecords,
     ignoredBoundaryEvidence,

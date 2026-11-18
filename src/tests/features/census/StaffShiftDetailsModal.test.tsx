@@ -3,6 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { StaffShiftDetailsModal } from '@/features/census/components/StaffShiftDetailsModal';
 import { DailyRecordFreshnessGateError } from '@/hooks/controllers/dailyRecordFreshnessGateError';
 import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
+import { mergeEloisaStaff } from '@/services/staff/eloisaStaffDiscovery';
+import type { EloisaStaffIdentity } from '@/services/staff/eloisaStaffIdentity';
+
+// The people Eloísa reports, as the header selector reads them from the staff context.
+const staff = vi.hoisted(() => ({ staffIdentities: [] as EloisaStaffIdentity[] }));
+vi.mock('@/context/StaffContext', () => ({ useStaffContext: () => staff }));
 
 const buildDetail = (): DailyRecordStaffingDetailsV1 => ({
   day: {
@@ -125,5 +131,62 @@ describe('StaffShiftDetailsModal', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     expect(onSave).toHaveBeenCalledTimes(2);
     process.off('unhandledRejection', unhandled);
+  });
+
+  describe.each([
+    { role: 'nurse', sourceRole: 'Enfermera' },
+    { role: 'tens', sourceRole: 'TENS' },
+  ] as const)('two Eloísa people whose names fold alike ($role)', ({ role, sourceRole }) => {
+    // Case and spacing never tell two people apart; marks such as the ñ or an accent do.
+    it.each([
+      ['Luz Pena', 'Luz Pena'],
+      ['Luz Peña', 'Luz Peña'],
+      ['LUZ  PENA', 'Luz Pena'],
+      ['Luz Pená', 'Vacante'],
+    ])('reopens a slot saved as «%s» showing «%s»', (saved, shown) => {
+      staff.staffIdentities = mergeEloisaStaff(
+        [],
+        [
+          ['syn1', 'Luz Pena'],
+          ['syn2', 'Luz Peña'],
+        ].map(([practitionerId, author]) => ({
+          practitionerId,
+          author,
+          role: sourceRole,
+          recordedAt: '2026-11-01T12:00',
+        }))
+      );
+      const detail = buildDetail();
+      detail.day[role === 'nurse' ? 'nurses' : 'tens'][0].name = saved;
+      const onSave = vi.fn();
+      render(
+        <StaffShiftDetailsModal
+          isOpen
+          onClose={vi.fn()}
+          role={role}
+          initialShift="day"
+          recordDate="2026-11-12"
+          detail={detail}
+          nursesList={role === 'nurse' ? ['Luz Pena', 'Luz Peña'] : []}
+          tensList={role === 'tens' ? ['Luz Pena', 'Luz Peña'] : []}
+          onSave={onSave}
+        />
+      );
+      const [select] = screen.getAllByRole('combobox');
+      expect(select).toHaveValue(shown);
+      // The slot keeps its saved text readable, as the header selector does.
+      const hint = document.getElementById(select.getAttribute('aria-describedby') ?? '');
+      expect(hint).toHaveTextContent(shown === 'Vacante' ? saved : shown);
+      fireEvent.click(screen.getByRole('button', { name: /guardar/i }));
+      expect(onSave.mock.calls[0]?.[0].day[role === 'nurse' ? 'nurses' : 'tens'][0].name).toBe(
+        saved
+      );
+      expect(Array.from((select as HTMLSelectElement).options, option => option.value)).toEqual([
+        'Vacante',
+        'Luz Pena',
+        'Luz Peña',
+      ]);
+      staff.staffIdentities = [];
+    });
   });
 });

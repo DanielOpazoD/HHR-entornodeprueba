@@ -32,11 +32,11 @@ describe('useStaffUsage', () => {
         ),
       { wrapper, initialProps: { full: false } }
     );
-    await waitFor(() => expect(result.current.nurse['ana soto']).toBe(1));
+    await waitFor(() => expect(result.current.nurse['text:ana soto']).toBe(1));
     expect(db.limit).toHaveBeenCalledWith(90);
     rerender({ full: true });
-    expect(result.current.nurse['ana soto diaz']).toBe(1);
-    expect(result.current.tens['berta perez']).toBe(1);
+    expect(result.current.nurse['nurse:a']).toBe(1);
+    expect(result.current.tens['text:berta perez']).toBe(1);
     expect(db.read).toHaveBeenCalledTimes(1);
   });
 
@@ -56,7 +56,7 @@ describe('useStaffUsage', () => {
       config: { defaultOptions: alwaysRefetchDefaults },
     });
     const { result } = renderHook(() => useStaffUsage([]), { wrapper });
-    await waitFor(() => expect(result.current.nurse['ana soto']).toBe(1));
+    await waitFor(() => expect(result.current.nurse['text:ana soto']).toBe(1));
 
     try {
       await act(async () => {
@@ -68,7 +68,7 @@ describe('useStaffUsage', () => {
         await queryClient.invalidateQueries({ queryKey: queryKeys.staff.all });
       });
       expect(db.read).toHaveBeenCalledTimes(1);
-      expect(result.current.nurse['ana soto']).toBe(1);
+      expect(result.current.nurse['text:ana soto']).toBe(1);
     } finally {
       focusManager.setFocused(undefined);
       onlineManager.setOnline(true);

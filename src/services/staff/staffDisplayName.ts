@@ -1,5 +1,6 @@
-import { reconcileNurseCatalogNames, preferredStaffName, nurseIdentityKey } from './nurseIdentity';
+import { preferredStaffName, isSpellingOf } from './nurseIdentity';
 import {
+  personDisplaySpellings,
   resolveEloisaStaffIdentity,
   resolveEloisaStaffName,
   staffNameMatches,
@@ -16,7 +17,7 @@ export const formatStaffDisplayName = (
   const identity = resolveEloisaStaffIdentity(name, entries, role);
   const fullName = resolveEloisaStaffName(name, entries, role);
   if (!identity) return fullName;
-  const shortAliases = reconcileNurseCatalogNames(identity.aliases)
+  const shortAliases = personDisplaySpellings(identity.aliases)
     .filter(
       alias =>
         alias.split(' ').length === 2 &&
@@ -27,11 +28,7 @@ export const formatStaffDisplayName = (
             staffNameMatches(other, alias)
         )
     )
-    .map(alias =>
-      nurseIdentityKey(alias) === nurseIdentityKey(fullName)
-        ? preferredStaffName(fullName, alias)
-        : alias
-    );
+    .map(alias => (isSpellingOf(alias, fullName) ? preferredStaffName(fullName, alias) : alias));
   // Without structured evidence, the second word could be another given name.
   return shortAliases.length === 1 ? shortAliases[0] : fullName;
 };

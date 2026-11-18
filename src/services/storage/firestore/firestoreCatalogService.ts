@@ -1,4 +1,10 @@
-import { preferredStaffName, nurseIdentityKey } from '@/services/staff/nurseIdentity';
+import { preferredStaffName } from '@/services/staff/nurseIdentity';
+import {
+  listedStaffPerson,
+  readStaffIdentities,
+  withRespelledRow,
+  type EloisaStaffIdentity,
+} from '@/services/staff/eloisaStaffIdentity';
 import { doc, runTransaction } from 'firebase/firestore';
 import { classifySyncError } from '@/services/storage/syncErrorCatalog';
 import { reportBasicReadPermissionDenied } from '@/services/auth/sessionPermissionStormDetector';
@@ -55,29 +61,37 @@ const saveStringCatalog = async (
 ): Promise<string[]> => {
   await ensureFirestoreRuntimeReady(runtime);
   const ref = getSettingsDocRef(docId, runtime);
+  const eloisaRef = getSettingsDocRef(SETTINGS_DOCS.ELOISA_STAFF, runtime);
   return runTransaction(runtime.getDb(), async transaction => {
-    const snapshot = await transaction.get(ref);
+    const [snapshot, eloisa] = await Promise.all([
+      transaction.get(ref),
+      transaction.get(eloisaRef),
+    ]);
     const current = normalizeStringCatalog(readStringCatalogFromSnapshot(snapshot, key));
+    // Each saved text is a row of one person (`listedStaffPerson`): names of one Eloísa ID are
+    // one entry, and editing a row never reaches the row of another ID that spells alike.
+    const people = readStaffIdentities(eloisa.data()?.list);
+    const role = docId === SETTINGS_DOCS.NURSES ? 'nurse' : 'tens';
+    const person = (name: string) => listedStaffPerson(name, people, role);
     const changes = diffCatalog(
       normalizeStringCatalog(base),
       normalizeStringCatalog(values),
       exactStaffName
     );
     let merged = applyCatalogChanges(current, changes, exactStaffName);
+    let respelledPeople: EloisaStaffIdentity[] | undefined;
     // Admit edits by exact text first; choose spelling only for names being written.
     for (const change of changes) {
       if (change.kind === 'remove') continue;
-      const variants = merged.filter(
-        name => nurseIdentityKey(name) === nurseIdentityKey(change.after)
-      );
-      const previous = current.find(
-        name => nurseIdentityKey(name) === nurseIdentityKey(change.after)
-      );
+      if (change.kind === 'edit')
+        respelledPeople =
+          withRespelledRow(respelledPeople ?? people, change.before, change.after, role) ??
+          respelledPeople;
+      const variants = merged.filter(name => person(name) === person(change.after));
+      const previous = current.find(name => person(name) === person(change.after));
       // Someone respelling a row by hand means exactly that text: the preference only settles
       // variants that arrive as another row, never a deliberate correction of the same one.
-      const respelled =
-        change.kind === 'edit' &&
-        nurseIdentityKey(change.before) === nurseIdentityKey(change.after);
+      const respelled = change.kind === 'edit' && person(change.before) === person(change.after);
       const preferred = respelled
         ? change.after
         : variants.reduce(preferredStaffName, previous ?? change.after);
@@ -87,7 +101,10 @@ const saveStringCatalog = async (
         name === first ? [preferred] : texts.has(name) ? [] : [name]
       );
     }
-    transaction.set(ref, { list: merged, [key]: merged, lastUpdated: new Date().toISOString() });
+    const lastUpdated = new Date().toISOString();
+    transaction.set(ref, { list: merged, [key]: merged, lastUpdated });
+    if (respelledPeople)
+      transaction.set(eloisaRef, { list: respelledPeople, lastUpdated }, { merge: true });
     return merged;
   });
 };

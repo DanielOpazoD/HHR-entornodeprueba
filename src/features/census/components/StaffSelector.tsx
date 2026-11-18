@@ -2,9 +2,11 @@ import React from 'react';
 import { Users, Settings, Sun, Moon, ChevronDown, type LucideIcon } from 'lucide-react';
 import { useStaffContext, type StaffContextType } from '@/context/StaffContext';
 import type { ShiftIndicatorState } from '@/features/census/controllers/censusStaffHeaderController';
-import type { NursingRole } from '@/services/staff/eloisaStaffIdentity';
+import { listedStaffPerson, type NursingRole } from '@/services/staff/eloisaStaffIdentity';
 import {
   buildResolvedStaffSelectionOptions,
+  exactStaffOption,
+  isAmbiguousStaffName,
   isVacancySelection,
   resolveStaffSelectionValue,
 } from '@/services/staff/staffSelectionPresentation';
@@ -14,7 +16,7 @@ import { partitionStaffOptions } from '@/services/staff/staffUsage';
 import { StaffMoreOptionsButton } from './StaffMoreOptionsButton';
 import { StaffSelectionNameHint } from './StaffSelectionNameHint';
 import {
-  reconcileNurseCatalogNames,
+  formatNurseCatalogNames,
   reconcileSelectedNurseName,
 } from '@/services/staff/nurseIdentity';
 
@@ -46,7 +48,7 @@ const STAFF_SELECTOR_ROLES: Record<NursingRole, StaffSelectorRoleConfig> = {
     label: 'Enfermería',
     slots: [0, 1],
     selectWidthClass: 'w-[75px]',
-    reconcileCatalog: reconcileNurseCatalogNames,
+    reconcileCatalog: formatNurseCatalogNames,
     reconcileSelected: reconcileSelectedNurseName,
     matchesOptionSpelling: false,
     catalogControls: staff => ({
@@ -119,13 +121,14 @@ export const StaffSelector: React.FC<StaffSelectorProps> = ({
     () => config.reconcileCatalog(catalog),
     [config, catalog]
   );
-  const reconciled = React.useMemo(
-    () => ({
-      day: dayShift.map(name => config.reconcileSelected(name, reconciledCatalog)),
-      night: nightShift.map(name => config.reconcileSelected(name, reconciledCatalog)),
-    }),
-    [config, dayShift, nightShift, reconciledCatalog]
-  );
+  const reconciled = React.useMemo(() => {
+    // A name two Eloísa people share is shown as written, never respelled as one of them.
+    const reconcile = (name: string) =>
+      isAmbiguousStaffName(name, staffIdentities, role)
+        ? name
+        : config.reconcileSelected(name, reconciledCatalog);
+    return { day: dayShift.map(reconcile), night: nightShift.map(reconcile) };
+  }, [config, dayShift, nightShift, reconciledCatalog, staffIdentities, role]);
   const options = React.useMemo(
     () =>
       buildResolvedStaffSelectionOptions(
@@ -136,17 +139,22 @@ export const StaffSelector: React.FC<StaffSelectorProps> = ({
       ),
     [reconciledCatalog, reconciled, staffIdentities, role]
   );
+  // Both roles show a saved name as the option written the same (case and spacing aside).
   const resolveSelected = (name: string | undefined) =>
-    resolveStaffSelectionValue(
-      name,
-      staffIdentities,
-      role,
-      config.matchesOptionSpelling ? options : undefined
+    exactStaffOption(
+      resolveStaffSelectionValue(
+        name,
+        staffIdentities,
+        role,
+        config.matchesOptionSpelling ? options : undefined
+      ),
+      options
     );
   const groups = partitionStaffOptions(
     options,
     [...reconciled.day, ...reconciled.night].map(resolveSelected),
-    staffUsage?.[role]
+    staffUsage?.[role],
+    name => listedStaffPerson(name, staffIdentities, role)
   );
   const raw: Record<Shift, string[]> = { day: dayShift, night: nightShift };
 

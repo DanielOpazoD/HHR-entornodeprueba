@@ -1,17 +1,35 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StaffSelector } from '@/features/census/components/StaffSelector';
 import { VACANCY_LABEL } from '@/services/staff/staffSelectionPresentation';
+import { mergeEloisaStaff } from '@/services/staff/eloisaStaffDiscovery';
+import type { EloisaStaffIdentity } from '@/services/staff/eloisaStaffIdentity';
 
 const setShowNurseManager = vi.fn();
 const setShowTensManager = vi.fn();
+// People Eloísa reports for one test, on top of the fixed ones below.
+const eloisa = vi.hoisted(() => ({ people: [] as EloisaStaffIdentity[] }));
+afterEach(() => {
+  eloisa.people = [];
+});
+/** Eloísa people built from observations with source IDs, as the app registers them. */
+const eloisaPeople = (role: 'nurse' | 'tens', observed: [id: string, author: string][]) =>
+  mergeEloisaStaff(
+    [],
+    observed.map(([practitionerId, author]) => ({
+      practitionerId,
+      author,
+      role: role === 'nurse' ? 'Enfermera' : 'TENS',
+      recordedAt: '2026-11-01T12:00',
+    }))
+  );
 
 vi.mock('@/context/StaffContext', () => ({
   useStaffContext: () => ({
     setShowNurseManager,
     setShowTensManager,
-    staffUsage: { nurse: { 'ana habitual': 3 }, tens: { 'ana habitual': 3 } },
-    staffIdentities: (['nurse', 'tens'] as const).flatMap(role => [
+    staffUsage: { nurse: { 'text:ana habitual': 3 }, tens: { 'text:ana habitual': 3 } },
+    staffIdentities: (['nurse', 'tens'] as const).flatMap<EloisaStaffIdentity>(role => [
       {
         key: `${role}:id:a`,
         role,
@@ -24,6 +42,7 @@ vi.mock('@/context/StaffContext', () => ({
         name: 'Ana Pena',
         aliases: ['Ana Pena', 'A Pena'],
       },
+      ...eloisa.people.filter(person => person.role === role),
     ]),
   }),
 }));
@@ -120,6 +139,91 @@ describe.each(roles)(
       );
       expect(screen.queryByRole('option', { name: 'Ana Pena' })).not.toBeInTheDocument();
     });
+
+    it('keeps a cedilla apart: an alias of «Ana Franca» never shows «Ana França»', () => {
+      eloisa.people = eloisaPeople(role, [
+        ['syn-f1', 'A Franca'],
+        ['syn-f1', 'Ana Franca'],
+        ['syn-f2', 'Ana França'],
+      ]);
+      const update = vi.fn();
+      renderSelector({
+        dayShift: shift(slots, 'A Franca'),
+        catalog: ['Ana França'],
+        onUpdate: update,
+      });
+      expect(screen.getByLabelText(dayLabel)).toHaveValue('Ana Franca');
+      expect(screen.getByRole('tooltip')).toHaveTextContent('Ana Franca');
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it('shows a saved name that two Eloísa people share as written, never as one of them', () => {
+      eloisa.people = eloisaPeople(role, [
+        ['syn-p1', 'Ana Pena'],
+        ['syn-p2', 'Ana Peña'],
+      ]);
+      const update = vi.fn();
+      renderSelector({
+        dayShift: shift(slots, 'Ana Pena'),
+        catalog: ['Ana Peña'],
+        onUpdate: update,
+      });
+      expect(screen.getByLabelText(dayLabel)).toHaveValue(VACANCY_LABEL);
+      expect(screen.getByRole('tooltip')).toHaveTextContent('Ana Pena');
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it('shows two Eloísa IDs whose names fold alike as two options and saves the one chosen', () => {
+      eloisa.people = eloisaPeople(role, [
+        ['syn-l1', 'Luz Pena'],
+        ['syn-l2', 'Luz Peña'],
+      ]);
+      const update = vi.fn();
+      const { rerender } = renderSelector({
+        catalog: ['Luz Pena', 'Luz Peña'],
+        onUpdate: update,
+      });
+      expect(screen.getAllByRole('option', { name: 'Luz Pena' })).toHaveLength(slots * 2);
+      expect(screen.getAllByRole('option', { name: 'Luz Peña' })).toHaveLength(slots * 2);
+      fireEvent.change(screen.getByLabelText(dayLabel), { target: { value: 'Luz Pena' } });
+      expect(update).toHaveBeenLastCalledWith('day', 0, 'Luz Pena');
+      fireEvent.change(screen.getByLabelText(dayLabel), { target: { value: 'Luz Peña' } });
+      expect(update).toHaveBeenLastCalledWith('day', 0, 'Luz Peña');
+      // Reopened, the saved choice shows as itself, never as the other person; case and
+      // spacing do not tell people apart («LUZ  PENA» is the option «Luz Pena»).
+      for (const [saved, shown] of [
+        ['Luz Pena', 'Luz Pena'],
+        ['Luz Peña', 'Luz Peña'],
+        ['LUZ  PENA', 'Luz Pena'],
+      ]) {
+        rerender(
+          <StaffSelector
+            role={role}
+            dayShift={shift(slots, saved)}
+            nightShift={shift(slots)}
+            catalog={['Luz Pena', 'Luz Peña']}
+            onUpdate={update}
+          />
+        );
+        expect(screen.getByLabelText(dayLabel)).toHaveValue(shown);
+      }
+    });
+
+    it.each([
+      ['one Eloísa ID', [['syn-l1', 'Luz Pena']] as [string, string][]],
+      ['no Eloísa ID', [] as [string, string][]],
+    ])(
+      'shows «Luz Pena» and «Luz Peña» as one option spelled with ñ with %s',
+      (_label, observed) => {
+        eloisa.people = eloisaPeople(role, observed);
+        renderSelector({ dayShift: shift(slots, 'Luz Pena'), catalog: ['Luz Pena', 'Luz Peña'] });
+        expect(screen.getAllByRole('option', { name: 'Luz Peña' })).toHaveLength(slots * 2);
+        expect(screen.queryByRole('option', { name: 'Luz Pena' })).not.toBeInTheDocument();
+        expect(screen.getByLabelText(dayLabel)).toHaveValue(
+          role === 'tens' ? 'Luz Peña' : 'Luz Peña'
+        );
+      }
+    );
 
     it('keeps selected staff visible even when the catalog has not hydrated yet', () => {
       renderSelector({ dayShift: shift(slots, 'Persona Sintetica'), catalog: [] });

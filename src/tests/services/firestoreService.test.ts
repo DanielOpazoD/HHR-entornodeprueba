@@ -268,10 +268,9 @@ describe('firestoreService', () => {
 
   it('should save nurse catalog to firestore', async () => {
     const setDocMock = vi.mocked(firestore.setDoc);
-    vi.mocked(firestore.getDoc).mockResolvedValueOnce({
-      exists: () => false,
-      data: () => undefined,
-    } as never);
+    // The save reads the list and the shared Eloísa people in one transaction; neither exists.
+    const absent = { exists: () => false, data: () => undefined } as never;
+    vi.mocked(firestore.getDoc).mockResolvedValueOnce(absent).mockResolvedValueOnce(absent);
     await saveNurseCatalogToFirestore(['Nurse A'], []);
     expect(setDocMock).toHaveBeenCalled();
     const payload = setDocMock.mock.calls[0]?.[1] as Record<string, unknown>;
@@ -328,10 +327,9 @@ describe('firestoreService', () => {
 
   it('should save TENS catalog to firestore', async () => {
     const setDocMock = vi.mocked(firestore.setDoc);
-    vi.mocked(firestore.getDoc).mockResolvedValueOnce({
-      exists: () => false,
-      data: () => undefined,
-    } as never);
+    // The save reads the list and the shared Eloísa people in one transaction; neither exists.
+    const absent = { exists: () => false, data: () => undefined } as never;
+    vi.mocked(firestore.getDoc).mockResolvedValueOnce(absent).mockResolvedValueOnce(absent);
     await saveTensCatalogToFirestore(['TENS A'], []);
     expect(setDocMock).toHaveBeenCalled();
   });

@@ -242,6 +242,25 @@ describe('StaffProvider publication', () => {
     view.unmount();
   });
 
+  it('keeps two nurse rows that spell alike (two Eloísa people) apart when shown and saved', () => {
+    state.nurses = ['Luz Pena', 'Luz Peña'];
+    const nursesSaved = { list: ['Luz Pena', 'Luz Peña'], textsOf: (name: string) => [name] };
+    hooks.nurses.mockImplementation(() => ({
+      data: state.nurses,
+      saved: nursesSaved,
+      identities: state.identities,
+      isLoading: false,
+    }));
+    const view = harness();
+    expect(view.current().nursesList).toEqual(['Luz Pena', 'Luz Peña']);
+    act(() => view.current().setNursesList(['Luz Pena', 'Luz Peña', 'Nueva Persona']));
+    expect(state.saveNurses).toHaveBeenCalledExactlyOnceWith({
+      next: ['Luz Pena', 'Luz Peña', 'Nueva Persona'],
+      base: ['Luz Pena', 'Luz Peña'],
+    });
+    view.unmount();
+  });
+
   it('setters change exactly the saved texts behind each shown row', () => {
     state.nurses = ['Synthetic Canonical', 'Synthetic Eloisa'];
     state.tens = ['Synthetic TENS', 'Synthetic TENS Eloisa'];
