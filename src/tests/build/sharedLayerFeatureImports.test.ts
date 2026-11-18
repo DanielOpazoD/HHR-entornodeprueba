@@ -61,7 +61,10 @@ describe('shared layers import no feature in runtime', () => {
       fs.readFileSync(path.join(ROOT, 'scripts/folder-dependency-matrix.json'), 'utf8')
     );
     const files = {
-      'scripts/folder-dependency-matrix.json': JSON.stringify({ layers: policy.layers }),
+      'scripts/folder-dependency-matrix.json': JSON.stringify({
+        layers: policy.layers,
+        dataAccess: { ...policy.dataAccess, exceptions: [] },
+      }),
       [OVERLAYS]: `${fs.readFileSync(path.join(ROOT, OVERLAYS), 'utf8')}${FORMER_EXCEPTION}`,
       'src/features/census/public-components.ts': 'export const GlobalPatientSearchModal = 1;',
     };
@@ -69,7 +72,7 @@ describe('shared layers import no feature in runtime', () => {
       mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
       writeFileSync(path.join(root, file), content);
     }
-    const result = checkFolderDependencies(root);
+    const result = checkFolderDependencies(root, {});
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(`- ${OVERLAYS}:`);
     expect(result.stderr).toContain(
