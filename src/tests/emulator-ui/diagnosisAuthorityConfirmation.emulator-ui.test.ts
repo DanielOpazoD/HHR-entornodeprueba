@@ -456,6 +456,18 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       expectDelivered([DIAGNOSIS]);
     });
 
+    it('saves a diagnosis and its correction typed one after the other, in order', async () => {
+      expectShownSaved(await typeDiagnosis(DIAGNOSIS));
+      expectShownSaved(await typeDiagnosis(CORRECTED));
+      await expectClinicalOutcome({ diagnosis: CORRECTED, history: [BASE, DIAGNOSIS] });
+      // Transport: two changes, each under its own identifier.
+      expectDelivered([DIAGNOSIS, CORRECTED]);
+      const [first, correction] = network.delivered;
+      expect(correction.mutationId, 'transport: the correction is a new change').not.toBe(
+        first.mutationId
+      );
+    });
+
     /** The person types a diagnosis, its answer is lost, and they correct it while offline. */
     const correctWhileAnswerLost = async () => {
       network.answerLost = { downAfterCut: Infinity };
