@@ -5,7 +5,7 @@ import {
   DEFAULT_RECEIVING_CENTER,
   EVACUATION_METHOD_COMMERCIAL,
 } from '@/constants/clinicalMovementConstants';
-import { TransferModal } from '@/components/modals/actions/TransferModal';
+import { TransferModal } from '@/features/census/components/movements/TransferModal';
 
 describe('TransferModal', () => {
   it('shows the operational consequence before confirming a new transfer', () => {

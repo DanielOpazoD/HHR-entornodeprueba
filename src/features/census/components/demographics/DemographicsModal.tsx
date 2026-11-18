@@ -2,13 +2,13 @@ import React from 'react';
 import { ClipboardPaste, User } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { buttonClassName } from '@/components/ui/base/buttonStyles';
-import { DemographicsModalProps } from './demographics/types';
-import { useDemographicsLogic } from './demographics/useDemographicsLogic';
-import { DemographicsHeader } from './demographics/DemographicsHeader';
-import { DemographicsPersonalSection } from './demographics/DemographicsPersonalSection';
-import { DemographicsOriginSection } from './demographics/DemographicsOriginSection';
+import { DemographicsModalProps } from './types';
+import { useDemographicsLogic } from './useDemographicsLogic';
+import { DemographicsHeader } from './DemographicsHeader';
+import { DemographicsPersonalSection } from './DemographicsPersonalSection';
+import { DemographicsOriginSection } from './DemographicsOriginSection';
 
-export type { DemographicSubset } from './demographics/types';
+export type { DemographicSubset } from './types';
 
 export const DemographicsModal: React.FC<DemographicsModalProps> = ({
   isOpen,

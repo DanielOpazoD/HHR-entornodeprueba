@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { BlockedBedsGrid } from '@/components/modals/BlockedBedsGrid';
+import { BlockedBedsGrid } from '@/features/census/components/bed-manager/BlockedBedsGrid';
 
 describe('BlockedBedsGrid', () => {
   it('calls onBedClick with selected bed payload', () => {

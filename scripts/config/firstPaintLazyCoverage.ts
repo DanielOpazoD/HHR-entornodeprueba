@@ -44,7 +44,8 @@ const OPTIONAL_TARGETS: Record<string, string> = {
     'Indications editor opens on request.',
   'src/components/layout/date-strip/actions/HandoffSaveDropdown':
     'Handoff toolbar belongs to another route.',
-  'src/components/modals/DemographicsModal': 'Demographics dialog opens on request.',
+  'src/features/census/components/demographics/DemographicsModal':
+    'Demographics dialog opens on request.',
   'src/components/modals/ExamRequestModal': 'Exam form opens on request.',
   'src/components/modals/ImagingRequestDialog': 'Imaging form opens on request.',
   'src/components/modals/PatientHistoryModal': 'History opens on request.',
@@ -129,6 +130,8 @@ const OPTIONAL_TARGETS: Record<string, string> = {
     'Vitals history has its own loading/error state.',
   'src/services/specialty/specialtyJevClient':
     'Online specialty dialog retains its manual assignment fallback.',
+  'src/services/staff/recoverCensusStaff':
+    'Staff recovery loads only when the button is pressed and shows its own retry message.',
   'src/services/storage/firestore/firestoreRecordQueries':
     'Online specialty rule reads have their own error state.',
 };

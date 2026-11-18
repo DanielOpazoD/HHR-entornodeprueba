@@ -97,7 +97,7 @@ vi.mock('@/features/census/components/EmptyBedRow', () => ({
   ),
 }));
 
-vi.mock('@/components/modals/DemographicsModal', () => ({
+vi.mock('@/features/census/components/demographics/DemographicsModal', () => ({
   DemographicsModal: ({
     isOpen,
     onClose,

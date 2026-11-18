@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { PatientRowModals } from '@/features/census/components/patient-row/PatientRowModals';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
-vi.mock('@/components/modals/DemographicsModal', () => ({
+vi.mock('@/features/census/components/demographics/DemographicsModal', () => ({
   DemographicsModal: ({
     bedId,
     isClinicalCribPatient,

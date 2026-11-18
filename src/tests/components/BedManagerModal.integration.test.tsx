@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { BedManagerModal } from '@/components/modals/BedManagerModal';
+import { BedManagerModal } from '@/features/census/components/bed-manager/BedManagerModal';
 
 const mockedUseDailyRecordData = vi.fn();
 const mockedUseDailyRecordBedActions = vi.fn();

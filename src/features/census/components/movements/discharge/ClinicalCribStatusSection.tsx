@@ -1,6 +1,6 @@
 import React from 'react';
 import type { DischargeStatus } from '@/constants/clinicalMovementConstants';
-import { DischargeStatusRadioGroup } from '@/components/modals/actions/discharge/DischargeStatusRadioGroup';
+import { DischargeStatusRadioGroup } from '@/features/census/components/movements/discharge/DischargeStatusRadioGroup';
 
 interface ClinicalCribStatusSectionProps {
   clinicalCribName?: string;

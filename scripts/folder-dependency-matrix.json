@@ -97,28 +97,10 @@
         "reason": "El diálogo sube la firma a Storage; la acción sube a un hook del perfil."
       },
       {
-        "from": "src/components/modals/actions/MoveCopyModal.tsx",
-        "to": "src/services/RepositoryContext.tsx",
-        "kind": "value",
-        "reason": "El modal toma los repositorios de RepositoryContext; la acción sube a un hook."
-      },
-      {
-        "from": "src/components/modals/actions/TransferModal.tsx",
-        "to": "src/services/transfers/transferService.ts",
-        "kind": "value",
-        "reason": "El modal guarda traslados en Firestore; la acción sube a un hook o a la feature."
-      },
-      {
         "from": "src/components/modals/PatientHistoryModal.tsx",
         "to": "src/services/patient/patientHistoryService.ts",
         "kind": "value",
         "reason": "El modal lee el historial del paciente de la base local; la lectura sube a un hook."
-      },
-      {
-        "from": "src/components/modals/RecoverCensusStaffButton.tsx",
-        "to": "src/services/staff/recoverCensusStaff.ts",
-        "kind": "deferred",
-        "reason": "El botón recupera el personal del censo en Firestore; la acción sube a la feature del censo."
       },
       {
         "from": "src/components/shared/GlobalErrorBoundary.tsx",

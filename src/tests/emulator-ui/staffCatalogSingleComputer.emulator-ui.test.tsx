@@ -38,7 +38,7 @@ import {
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import * as remote from '@/services/storage/firestore';
 import { useNursesQuery, useTensQuery } from '@/hooks/useStaffQuery';
-import { StaffManagerModal } from '@/components/modals/StaffManagerModal';
+import { StaffManagerModal } from '@/features/census/components/staff-catalog/StaffManagerModal';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
 

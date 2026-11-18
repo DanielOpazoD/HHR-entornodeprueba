@@ -1,5 +1,5 @@
 import React from 'react';
-import { MovementDateTimeField } from '@/components/modals/actions/shared/MovementDateTimeField';
+import { MovementDateTimeField } from '@/features/census/components/movements/shared/MovementDateTimeField';
 
 interface DischargeTimeFieldProps {
   showDateInput?: boolean;
