@@ -273,20 +273,18 @@ const resolveRecordForSyncTask = async (
     ? undefined
     : holdOutPlainDayFieldsChangedElsewhere(task, remoteData, remoteRecord, record);
   if (heldOut) ({ task, record } = heldOut);
-  const appliedPaths = assertUnchangedReplayPatchBase(task, remoteData, remoteRecord, record);
-  if (appliedPaths.length) {
+  const applied = assertUnchangedReplayPatchBase(task, remoteData, remoteRecord, record, ownTask);
+  if (applied.length) {
     // The server already holds these fields as the edit wants them, a lost ACK included: the
     // task ends as sent when nothing else is left, and those fields keep the server's own text.
     if (
-      normalizeChangedPaths(task.syncContract?.changedPaths).every(path =>
-        appliedPaths.includes(path)
-      )
+      normalizeChangedPaths(task.syncContract?.changedPaths).every(path => applied.includes(path))
     )
       return alreadyApplied(detached, heldOut);
     record = applyPatches(
       record,
       Object.fromEntries(
-        appliedPaths.map(path => [path, getValueAtPath(remoteRecord, path)])
+        applied.map(path => [path, getValueAtPath(remoteRecord, path)])
       ) as DailyRecordPatch
     );
   }
@@ -334,7 +332,7 @@ const resolveRecordForSyncTask = async (
   }
 
   if (!canRebasePatch)
-    assertNoSamePathRemoteMutation(task, remoteData, remoteRecord, record, appliedPaths);
+    assertNoSamePathRemoteMutation(task, remoteData, remoteRecord, record, applied);
   const mergedRecord = resolveDailyRecordConflict(remoteRecord, record, {
     changedPaths: task.syncContract?.changedPaths,
   });

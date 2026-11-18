@@ -139,7 +139,7 @@ export const holdOutPlainDayFieldsChangedElsewhere = (
   );
   const rebased = rebaseHeldOutPart(
     rest,
-    pathsChangedElsewhere(rest, storedData, stored, restRecord),
+    pathsChangedElsewhere(rest, storedData, stored, restRecord, task),
     stored,
     restRecord
   );

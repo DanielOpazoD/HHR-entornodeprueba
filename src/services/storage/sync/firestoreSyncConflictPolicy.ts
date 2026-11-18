@@ -5,6 +5,7 @@ import { FIELD_CHANGED_ELSEWHERE_MESSAGE } from '@/services/storage/syncErrorCat
 
 import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
 import { hasSameNoteValue } from './dayTaskReplayGuard';
+import { resolveOptionalBaseRevision, resolveRecordBaseRevision } from './syncTaskContractPolicy';
 
 const MERGEABLE_MOVEMENT_ARRAY_ROOTS = new Set(['discharges', 'transfers', 'cma']);
 const MEDICAL_HANDOFF_SUMMARY_PATH = 'medicalHandoffNovedades';
@@ -252,32 +253,72 @@ const remoteHolds = (
   hasEquivalentReplayValue(getValueAtPath(remoteData, path), expected) ||
   hasEquivalentReplayValue(getValueAtPath(remoteRecord, path), expected);
 
-/** The captured fields where the server holds neither the edit's base nor its pending value. */
+/**
+ * Whether another computer wrote a field after this computer last saw the day: the stored day's
+ * last write named it, is none of the task's own edits and came after the newest revision the task
+ * knows (`queued`, the task as queued: its payload is the day as shown at its last edit, and a part
+ * published or detached from it carries none of its earlier identifiers). A write the person had
+ * already read is the value they edited over, not a change. A day with no known revision counts
+ * from 0, as the server does. Only that last write's meta tells, and a write naming a whole bed or
+ * day (`beds.R1`, `*`) does not say it wrote the field.
+ */
+const writtenElsewhereSinceBase = (
+  queued: SyncTask,
+  remoteData: Record<string, unknown>
+): ((path: string) => boolean) => {
+  const meta = remoteData.meta as Record<string, unknown> | undefined;
+  const contract = queued.syncContract;
+  const revision = resolveOptionalBaseRevision(meta?.revision);
+  const seen = Math.max(
+    contract?.baseRevision ?? 0,
+    resolveRecordBaseRevision(queued.payload as DailyRecord) ?? 0
+  );
+  const writer = meta?.lastMutationId;
+  if (
+    revision === undefined ||
+    revision <= seen ||
+    writer === contract?.mutationId ||
+    (typeof writer === 'string' && contract?.mutationIds?.includes(writer))
+  )
+    return () => false;
+  const named = normalizeChangedPaths(meta?.lastChangedPaths);
+  return path => named.some(written => written === path || written.startsWith(`${path}.`));
+};
+
+/**
+ * The captured fields another computer changed: the server holds neither the edit's base nor its
+ * pending value, or it holds the base again after another computer wrote the field (an explicit
+ * restore of the original value is a change too). `queued` is the task as queued, whose
+ * identifiers tell this computer's own writes.
+ */
 export const pathsChangedElsewhere = (
   task: SyncTask,
   remoteData: Record<string, unknown>,
   remoteRecord: DailyRecord,
-  localRecord: DailyRecord
+  localRecord: DailyRecord,
+  queued: SyncTask
 ): string[] => {
   const base = task.patchBaseValues ?? {};
+  const writtenElsewhere = writtenElsewhereSinceBase(queued, remoteData);
   return normalizeChangedPaths(task.syncContract?.changedPaths).filter(
     path =>
       Object.hasOwn(base, path) &&
       !remoteHolds(remoteData, remoteRecord, path, getValueAtPath(localRecord, path)) &&
-      !remoteHolds(remoteData, remoteRecord, path, base[path])
+      (writtenElsewhere(path) || !remoteHolds(remoteData, remoteRecord, path, base[path]))
   );
 };
 
 /**
  * Compare each captured field with its edit base even when a direct writer left no changed-path
- * metadata. A field conflicts only when the server holds neither the base nor the pending value.
+ * metadata. A field conflicts when another computer changed it (`pathsChangedElsewhere`).
  * Returns the captured fields the server already holds as the pending value.
  */
 export const assertUnchangedReplayPatchBase = (
   task: SyncTask,
   remoteData: Record<string, unknown>,
   remoteRecord: DailyRecord,
-  localRecord: DailyRecord
+  localRecord: DailyRecord,
+  queued: SyncTask
 ): string[] => {
   const base = task.patchBaseValues;
   if (!base) return [];
@@ -287,7 +328,7 @@ export const assertUnchangedReplayPatchBase = (
   const applied = captured.filter(path =>
     hasEquivalentReplayValue(getValueAtPath(remoteData, path), getValueAtPath(localRecord, path))
   );
-  const remotePaths = pathsChangedElsewhere(task, remoteData, remoteRecord, localRecord);
+  const remotePaths = pathsChangedElsewhere(task, remoteData, remoteRecord, localRecord, queued);
   if (hasBlockingOverlappingChangedPath(remotePaths, paths, remoteRecord, localRecord)) {
     throw new ConcurrencyError(FIELD_CHANGED_ELSEWHERE_MESSAGE);
   }
