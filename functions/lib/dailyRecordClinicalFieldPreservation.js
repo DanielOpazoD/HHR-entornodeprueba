@@ -66,9 +66,14 @@ const keepIncomingDeviceField = (nextRecord, incomingRecord, path) => {
   const inCrib = parts[2] === 'clinicalCrib';
   const field = parts[inCrib ? 3 : 2];
   if (!MANUAL_DEVICE_FIELDS.has(field)) return;
+  const ownValue = (object, key) =>
+    isPlainObject(object) && Object.prototype.hasOwnProperty.call(object, key)
+      ? object[key]
+      : undefined;
+  // Own properties only: a path segment never reaches an object's prototype.
   const holderOf = record => {
-    const bed = record?.beds?.[parts[1]];
-    const holder = inCrib && isPlainObject(bed) ? bed.clinicalCrib : bed;
+    const bed = ownValue(record?.beds, parts[1]);
+    const holder = inCrib ? ownValue(bed, 'clinicalCrib') : bed;
     return isPlainObject(holder) ? holder : null;
   };
   const target = holderOf(nextRecord);

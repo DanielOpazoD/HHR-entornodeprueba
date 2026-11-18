@@ -96,6 +96,15 @@ describe('daily-record clinical field preservation', () => {
     ).toEqual([]);
   });
 
+  it('never follows a named device path into an object prototype', () => {
+    preserveRayenClinicalFields({
+      remoteRecord: { beds: {} },
+      incomingRecord: { beds: {} },
+      editedPaths: ['beds.__proto__.devices', 'beds.constructor.devices'],
+    });
+    expect(Object.prototype).not.toHaveProperty('devices');
+  });
+
   it('removes client-supplied batch fields from episodes not present in the remote record', () => {
     const result = preserveRayenClinicalFields({
       remoteRecord: { beds: {} },
