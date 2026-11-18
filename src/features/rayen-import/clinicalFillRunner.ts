@@ -126,6 +126,7 @@ export const runClinicalFill = async (
     ),
     trackRequest: performance.trackRequest,
     recordTimeout: performance.recordTimeout,
+    measure: performance.timeStage,
   });
   const nursingObservations: NursingActivityObservation[] = [];
   const gate = () => createConcurrencyGate(READ_CONCURRENCY, deps.signal);
@@ -412,13 +413,20 @@ export const runClinicalFill = async (
     summary.incremental.checkpointOnlyTargets = batchPersistence.batch.checkpointOnlyTargets;
   }
 
-  if (readsStaffing) {
-    const staffing = await collectClinicalFillStaffing(nursingObservations, fecha, deps);
-    summary.staffingProposal = staffing.proposal;
-    if (staffing.error) summary.errors.push(staffing.error);
-  }
-  const cudyrSource = (await cudyrPreflight).source;
-  summary.errors.push(...(await permanentArchive));
+  // After the save the run only waits for the staff registry and the CUDYR archive, which started
+  // with the reads; `closeWait` is that wait, the last stretch before the run closes.
+  const cudyrSource = await performance.timeStage('closeWait', async () => {
+    if (readsStaffing) {
+      const staffing = await performance.timeStage('staffRegistration', () =>
+        collectClinicalFillStaffing(nursingObservations, fecha, deps)
+      );
+      summary.staffingProposal = staffing.proposal;
+      if (staffing.error) summary.errors.push(staffing.error);
+    }
+    const { source } = await cudyrPreflight;
+    summary.errors.push(...(await permanentArchive));
+    return source;
+  });
   const cudyrCacheHits = cudyrSource.historyAvailable ? Math.max(0, cudyrEpisodeIds.length - 1) : 0;
   summary.performance = performance.finish(summary.incremental!, cudyrCacheHits);
 

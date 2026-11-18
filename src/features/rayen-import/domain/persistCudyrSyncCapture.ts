@@ -7,6 +7,7 @@ import {
 } from '../observability/rayenSyncDiagnostics';
 import { buildCudyrCaptureParts } from './cudyrCapturePlan';
 import { createConcurrencyGate } from './concurrencyGate';
+import type { ClinicalFillStageTimer } from './clinicalFillPerformance';
 
 export type CudyrCaptureWriter = (
   request: ArchiveCudyrHistoryRequest
@@ -24,8 +25,10 @@ export const persistCudyrSyncCapture = async (input: {
   recoverPlacements?: (
     episode: string
   ) => Promise<import('@/types/domain/cudyrPlacement').CudyrSourcePlacement[]>;
+  measure?: ClinicalFillStageTimer;
 }): Promise<ClinicalFillError[]> => {
   const gate = createConcurrencyGate(3);
+  const measure: ClinicalFillStageTimer = input.measure ?? ((_stage, operation) => operation());
   const errors = await Promise.all(
     input.episodes.map(clinicalEpisodeId =>
       gate(async () => {
@@ -38,7 +41,9 @@ export const persistCudyrSyncCapture = async (input: {
           let recoveredPlacements;
           if (input.recoverPlacements) {
             try {
-              const recovered = await input.recoverPlacements(clinicalEpisodeId);
+              const recovered = await measure('cudyrArchivePlacementReads', () =>
+                input.recoverPlacements!(clinicalEpisodeId)
+              );
               recoveredPlacements = recovered;
             } catch (error) {
               input.signal?.throwIfAborted();
@@ -62,7 +67,7 @@ export const persistCudyrSyncCapture = async (input: {
           });
           for (const part of parts) {
             input.signal?.throwIfAborted();
-            const result = await input.write(part);
+            const result = await measure('cudyrArchiveWrites', () => input.write(part));
             if (result === 'queued' && !failed) {
               reason = 'historical_archive_failed';
               detail =

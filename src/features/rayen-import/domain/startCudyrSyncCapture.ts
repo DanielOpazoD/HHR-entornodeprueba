@@ -4,6 +4,7 @@ import { captureClinicalCudyrSource } from './clinicalCudyrPreflight';
 import { persistCudyrSyncCapture } from './persistCudyrSyncCapture';
 import { collectCudyrDailyFacts } from '@/services/cudyr/cudyrReportFacts';
 import { newbornOwnRut } from './clinicalCribMaternalAssociation';
+import type { ClinicalFillStageTimer } from './clinicalFillPerformance';
 
 /** One source fetch supplies both the daily projection and the independent permanent archive. */
 export const startCudyrSyncCapture = (input: {
@@ -14,7 +15,9 @@ export const startCudyrSyncCapture = (input: {
   needsRead: boolean;
   trackRequest: Parameters<typeof captureClinicalCudyrSource>[0]['trackRequest'];
   recordTimeout: (value: unknown) => void;
+  measure?: ClinicalFillStageTimer;
 }) => {
+  const measure: ClinicalFillStageTimer = input.measure ?? ((_stage, operation) => operation());
   const { deps, record } = input;
   const preflight = input.needsRead
     ? captureClinicalCudyrSource({
@@ -31,71 +34,76 @@ export const startCudyrSyncCapture = (input: {
     deps.archiveCudyrCapture && input.captureEpisodes.length
       ? preflight.then(({ source }) => {
           const observedAt = deps.now().toISOString();
-          return persistCudyrSyncCapture({
-            censusDate: input.censusDate,
-            runId: deps.diagnosticRunId ?? record.rayenSync?.runId ?? '',
-            captureId: deps.createId(),
-            observedAt,
-            episodes: input.captureEpisodes,
-            source,
-            write: deps.archiveCudyrCapture!,
-            signal: deps.signal,
-            ...(deps.recoverCudyrPlacements
-              ? {
-                  recoverPlacements: (episode: string) => {
-                    const facts = collectCudyrDailyFacts(record).filter(
-                      f => f.patient.clinicalEpisodeId === episode
-                    );
-                    const maternalFor = (fact: (typeof facts)[number]) => {
-                      const parent = record.beds[fact.placement.bedId ?? ''];
-                      const decision = fact.patient.neonatalPlacementDecision;
-                      const storedMaternal = fact.patient.neonatalMaternalRut;
-                      const reviewedMaternal =
-                        decision?.clinicalEpisodeId === episode ? decision.maternalRut : undefined;
-                      if (reviewedMaternal || storedMaternal)
-                        return reviewedMaternal || storedMaternal!;
-                      if (decision?.clinicalEpisodeId === episode) {
-                        if (decision.parentEpisodeId !== parent?.clinicalEpisodeId) return '';
-                      }
-                      return fact.placement.section === 'crib' &&
-                        parent?.clinicalCrib?.clinicalEpisodeId === episode
-                        ? parent.rut
-                        : decision?.clinicalEpisodeId === episode
-                          ? decision.maternalRut || fact.patient.neonatalMaternalRut || ''
-                          : fact.patient.neonatalMaternalRut || '';
-                    };
-                    const key = (rut: string) => rut.replace(/[^0-9a-z]/gi, '').toUpperCase();
-                    const identities = new Set(
-                      facts
-                        .map(f => key(newbornOwnRut(f.patient) || maternalFor(f)))
-                        .filter(Boolean)
-                    );
-                    const maternal = facts.every(
-                      f =>
-                        f.placement.section === 'crib' ||
-                        f.placement.isClinicalCrib ||
-                        f.patient.bedMode === 'Cuna' ||
-                        Boolean(f.patient.neonatalMaternalRut) ||
-                        (f.patient.neonatalPlacementDecision?.clinicalEpisodeId === episode &&
-                          Boolean(f.patient.neonatalPlacementDecision.maternalRut))
-                    );
-                    // A newborn with no RUN of its own, once it left with its mother, has no
-                    // document left in the census. The report is read by exact episode and its
-                    // reader accepts that only when it prints the delivery folio alone.
-                    if (identities.size > 1 || (!identities.size && !(facts.length && maternal)))
-                      return Promise.reject(new Error('Identidad de episodio ambigua.'));
-                    const parents = new Set(facts.map(f => key(maternalFor(f))).filter(Boolean));
-                    return deps.recoverCudyrPlacements!(
-                      episode,
-                      [...identities][0] ?? '',
-                      observedAt,
-                      maternal ? 'maternal' : 'patient',
-                      maternal && parents.size === 1 ? [...parents][0] : undefined
-                    );
-                  },
-                }
-              : {}),
-          });
+          return measure('cudyrArchive', () =>
+            persistCudyrSyncCapture({
+              censusDate: input.censusDate,
+              runId: deps.diagnosticRunId ?? record.rayenSync?.runId ?? '',
+              captureId: deps.createId(),
+              observedAt,
+              episodes: input.captureEpisodes,
+              source,
+              write: deps.archiveCudyrCapture!,
+              signal: deps.signal,
+              measure,
+              ...(deps.recoverCudyrPlacements
+                ? {
+                    recoverPlacements: (episode: string) => {
+                      const facts = collectCudyrDailyFacts(record).filter(
+                        f => f.patient.clinicalEpisodeId === episode
+                      );
+                      const maternalFor = (fact: (typeof facts)[number]) => {
+                        const parent = record.beds[fact.placement.bedId ?? ''];
+                        const decision = fact.patient.neonatalPlacementDecision;
+                        const storedMaternal = fact.patient.neonatalMaternalRut;
+                        const reviewedMaternal =
+                          decision?.clinicalEpisodeId === episode
+                            ? decision.maternalRut
+                            : undefined;
+                        if (reviewedMaternal || storedMaternal)
+                          return reviewedMaternal || storedMaternal!;
+                        if (decision?.clinicalEpisodeId === episode) {
+                          if (decision.parentEpisodeId !== parent?.clinicalEpisodeId) return '';
+                        }
+                        return fact.placement.section === 'crib' &&
+                          parent?.clinicalCrib?.clinicalEpisodeId === episode
+                          ? parent.rut
+                          : decision?.clinicalEpisodeId === episode
+                            ? decision.maternalRut || fact.patient.neonatalMaternalRut || ''
+                            : fact.patient.neonatalMaternalRut || '';
+                      };
+                      const key = (rut: string) => rut.replace(/[^0-9a-z]/gi, '').toUpperCase();
+                      const identities = new Set(
+                        facts
+                          .map(f => key(newbornOwnRut(f.patient) || maternalFor(f)))
+                          .filter(Boolean)
+                      );
+                      const maternal = facts.every(
+                        f =>
+                          f.placement.section === 'crib' ||
+                          f.placement.isClinicalCrib ||
+                          f.patient.bedMode === 'Cuna' ||
+                          Boolean(f.patient.neonatalMaternalRut) ||
+                          (f.patient.neonatalPlacementDecision?.clinicalEpisodeId === episode &&
+                            Boolean(f.patient.neonatalPlacementDecision.maternalRut))
+                      );
+                      // A newborn with no RUN of its own, once it left with its mother, has no
+                      // document left in the census. The report is read by exact episode and its
+                      // reader accepts that only when it prints the delivery folio alone.
+                      if (identities.size > 1 || (!identities.size && !(facts.length && maternal)))
+                        return Promise.reject(new Error('Identidad de episodio ambigua.'));
+                      const parents = new Set(facts.map(f => key(maternalFor(f))).filter(Boolean));
+                      return deps.recoverCudyrPlacements!(
+                        episode,
+                        [...identities][0] ?? '',
+                        observedAt,
+                        maternal ? 'maternal' : 'patient',
+                        maternal && parents.size === 1 ? [...parents][0] : undefined
+                      );
+                    },
+                  }
+                : {}),
+            })
+          );
         })
       : Promise.resolve([]);
   return { preflight, archive };
