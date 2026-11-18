@@ -84,6 +84,8 @@ const tryAutoMergeBlockedFullSaveRegression = async (
   if (mergeResult?.status !== 'auto_merged') {
     return false;
   }
+  // `auto_merged` means the queue stored the merged day on this computer together with its task.
+  state.savedLocally = true;
   state.queuedForRetry = true;
   state.autoMerged = true;
   applyRecoveryDecisionToState(state, {

@@ -217,7 +217,7 @@ export const isDailyRecordWriteBlockedResult = (
  * What a write left, in one place. `savedHere`: its producer recorded a copy on this computer.
  * `confirmed`: the server holds it (`stale`: this computer's copy could not follow). `local`: not
  * refused, and the queue sends it by itself; without `savedHere` the producer recorded no copy,
- * so the box says error. `held`: kept here, waiting for a person or for its author. `not_saved`:
+ * so the box says error and the notice «not saved». `held`: kept here, waiting for a person or for its author. `not_saved`:
  * not on the day: blocked, not stored, or its session ended first.
  */
 export type DailyRecordWriteStatus = { savedHere: boolean } & (
@@ -250,7 +250,6 @@ export const resolveDailyRecordWriteStatus = (
   if (savedRemotely) {
     return { savedHere, state: 'confirmed', localCopy: unrecoverable ? 'stale' : 'current' };
   }
-  // A full save merged before its local write keeps `savedHere` false: the box says error.
   if (result.outcome === 'auto_merged' && result.autoMerged) {
     return { savedHere, state: 'local', cause: 'merged' };
   }

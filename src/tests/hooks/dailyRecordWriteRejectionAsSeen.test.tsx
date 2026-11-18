@@ -22,6 +22,12 @@ import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositor
 import { authoredOptions } from '@/services/storage/authoringSession';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
+import {
+  isDailyRecordWriteRejectedResult,
+  resolveDailyRecordWriteStatus,
+  type UpdatePartialDailyRecordResult,
+} from '@/services/repositories/contracts/dailyRecordResults';
+import { resolveDailyRecordSyncStatus } from '@/hooks/controllers/dailyRecordSyncStatusController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   BEFORE,
@@ -29,6 +35,7 @@ import {
   NEXT_OWNER,
   NOTE_PATCH,
   PARITY_DATE,
+  PARITY_OWNER,
   endSession,
   firestoreError,
   readLocalDurability,
@@ -294,7 +301,9 @@ describe('the census edit timing event (useDailyRecordSyncQuery.ts:263)', () => 
  * (clearSessionScopedClientState), the query cache is cleared (useAuthState.ts:254) and the next
  * person signs in. The server's answer to the send arrives after all of that.
  */
+const lastWrite: { result?: UpdatePartialDailyRecordResult } = {};
 const sendDuringSessionEnd = async (options?: ApplyDailyRecordPatchOptions) => {
+  lastWrite.result = undefined;
   const client = newClient();
   const census = renderHook(() => useDailyRecordSyncQuery(PARITY_DATE, false, 'ready'), {
     wrapper: wrap(client),
@@ -306,7 +315,8 @@ const sendDuringSessionEnd = async (options?: ApplyDailyRecordPatchOptions) => {
   const shippedWrite = port.updatePartialDetailed.getMockImplementation()!;
   port.updatePartialDetailed.mockImplementation(async (...args) => {
     shownToAuthorDuringSend = shownNote(client);
-    return shippedWrite(...args);
+    lastWrite.result = await shippedWrite(...args);
+    return lastWrite.result;
   });
   endSessionHook.current = async () => {
     census.unmount();
@@ -351,6 +361,24 @@ describe('H3: the session ends while a census edit is on its way', () => {
     };
     const seen = await sendDuringSessionEnd();
     process.stdout.write(`H3 direct ${JSON.stringify(seen)}\n`);
+    // W16-SR1: the edit is safe with its author, so its state is «kept here», never refused.
+    const [task] = await hospitalDB.syncQueue.toArray();
+    expect({
+      estado: resolveDailyRecordWriteStatus(lastWrite.result!),
+      rechazado: isDailyRecordWriteRejectedResult(lastWrite.result),
+      cuadro: resolveDailyRecordSyncStatus([
+        { isPending: false, isError: false, isSuccess: true, data: { result: lastWrite.result! } },
+      ]),
+      tarea: {
+        dueño: task.ownerKey === PARITY_OWNER ? 'quien editó' : task.ownerKey,
+        nota: (task.payload as DailyRecord).handoffNovedadesNightShift,
+      },
+    }).toEqual({
+      estado: { savedHere: true, state: 'held', reason: 'session_changed' },
+      rechazado: false,
+      cuadro: 'local',
+      tarea: { dueño: 'quien editó', nota: EDIT },
+    });
     expect(seen).toEqual({
       promesa: 'resuelve',
       avisos: [],
