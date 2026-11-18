@@ -48,6 +48,7 @@ const {
   idempotentAuthority,
   recordAuthorityTelemetry,
 } = require('./dailyRecordAuthorityOutcome');
+const { changedFieldPaths } = require('./dailyRecordFieldWrites');
 
 const previousIsoDay = date =>
   Number.isFinite(calendarDayAtUtcNoon(date).getTime()) ? addCalendarDays(date, -1) : null;
@@ -289,6 +290,10 @@ const createFullSaveHandler =
           syncContract,
           now,
           record: recordForPersistence,
+          // Only what this save changes: the other fields keep the edit that wrote them.
+          writtenPaths: snapshot.exists
+            ? changedFieldPaths(remoteData, recordForPersistence)
+            : ['*'],
         });
         revision = nextMeta.revision;
         recordState = buildAuthorityRecordState({

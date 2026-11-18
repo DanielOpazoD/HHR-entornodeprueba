@@ -457,7 +457,7 @@ const createRayenClinicalEnrichmentFunctions = ({
             canonicalDigest: batchDigest,
             now,
           });
-          nextRecord.meta.fieldWrites = batchFieldWrites(nextRecord, remoteData.meta);
+          nextRecord.meta.fieldWrites = batchFieldWrites(nextRecord, remoteData);
           // The established authority path also stores a Firestore Timestamp; firestoreShared
           // normalizes it back to the DailyRecord ISO-string contract on every client hydration.
           nextRecord.lastUpdated = now;

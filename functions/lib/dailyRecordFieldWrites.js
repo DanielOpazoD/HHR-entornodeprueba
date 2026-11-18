@@ -1,14 +1,19 @@
 /**
  * `meta.fieldWrites`: which edit wrote each field of the day. Only the server writes it, with
- * every patch, whole-day save and Rayen batch:
+ * every patch, whole-day save and Rayen batch, naming only the fields that write changed:
  * - `fields[path]`: the day revision that last wrote the field and a digest of the value it
  *   stored (`digest` is null for `*`, a write of the whole day);
  * - `writes[revision]`: the edit (`mutationId`) and the computer (`clientId`) behind each
- *   revision a field still names.
+ *   revision a field still names;
+ * - `revision`: the day revision this map was last brought up to date with;
+ * - `incompleteThrough`: the newest revision whose changes the map may miss. A writer that leaves
+ *   the map as it was (a direct client write, a restore, a CUDYR or specialty adjustment) is found
+ *   by the next write that keeps the map: the map was not at the day's revision, or the day's
+ *   `lastUpdated` is not the stamp a server write puts in `meta.updatedAt`.
  * A queued edit replayed after a lost answer tells by it which fields its own earlier edit wrote
  * and which another computer wrote after the base it saw (src/services/storage/sync/
- * fieldWriteAttribution.ts reads it, with the same digest). A write that leaves the map as it
- * was cannot claim a field: its value no longer matches the digest.
+ * fieldWriteAttribution.ts reads it, with the same digest). An entry at or before
+ * `incompleteThrough`, or whose digest no longer matches the stored value, never credits a field.
  */
 const MAX_FIELD_WRITES = 300;
 
@@ -62,15 +67,53 @@ const readValueAtPath = (record, path) =>
 const isEntry = entry =>
   isPlainObject(entry) && Number.isSafeInteger(entry.revision) && entry.revision >= 0;
 
+const revisionOf = value => (Number.isSafeInteger(value) && value >= 0 ? value : undefined);
+
+/** A stored stamp as one comparable value: a timestamp to the nanosecond, or its text. */
+const stampOf = value => {
+  if (typeof value === 'string') return value;
+  return value !== null && typeof value === 'object' && typeof value.toMillis === 'function'
+    ? `${value.seconds}.${value.nanoseconds}`
+    : undefined;
+};
+
+/** A map of fields to compare key by key; a timestamp or a date is one value. */
+const isFieldMap = value =>
+  isPlainObject(value) && !(value instanceof Date) && typeof value.toMillis !== 'function';
+
 /**
- * The map after a write of `paths` (none or `*`: the whole day) that produced `revision` of
- * `record`. A written path replaces its own entry and the entries below it; an entry above it
- * still names the rest of that object. Past MAX_FIELD_WRITES the oldest entries go: a field
- * without an entry is decided as before the map existed.
+ * The fields a whole-day write changes, as the shortest paths whose stored values differ (a list
+ * is one value). The day's version fields (`meta`, `lastUpdated`) are not fields.
  */
-const nextFieldWrites = ({ previous, paths, record, revision, mutationId, clientId }) => {
-  const written = !paths.length || paths.includes('*') ? ['*'] : [...new Set(paths)];
-  const before = isPlainObject(previous?.fields) && !written.includes('*') ? previous.fields : {};
+const changedFieldPaths = (before, after, prefix = '') =>
+  [...new Set([...Object.keys(before || {}), ...Object.keys(after || {})])].flatMap(key => {
+    if (!prefix && (key === 'meta' || key === 'lastUpdated')) return [];
+    const path = prefix ? `${prefix}.${key}` : key;
+    const left = before?.[key];
+    const right = after?.[key];
+    if (isFieldMap(left) && isFieldMap(right)) return changedFieldPaths(left, right, path);
+    return canonicalValue(left) === canonicalValue(right) ? [] : [path];
+  });
+
+/**
+ * The map after a write of `paths` (`*`: the whole day) that produced `revision` of `record` over
+ * `previousDay`, the day as stored before it. A written path replaces its own entry and the
+ * entries below it; an entry above it still names the rest of that object. Past
+ * MAX_FIELD_WRITES the oldest entries go: a field without an entry is decided as before the map.
+ */
+const nextFieldWrites = ({ previousDay, paths, record, revision, mutationId, clientId }) => {
+  const written = paths.includes('*') ? ['*'] : [...new Set(paths)];
+  const previous = isPlainObject(previousDay?.meta?.fieldWrites)
+    ? previousDay.meta.fieldWrites
+    : {};
+  const before = isPlainObject(previous.fields) && !written.includes('*') ? previous.fields : {};
+  const previousRevision = revisionOf(previousDay?.meta?.revision) ?? 0;
+  const missed =
+    Object.keys(before).length > 0 &&
+    (revisionOf(previous.revision) !== previousRevision ||
+      !stampOf(previousDay?.lastUpdated) ||
+      stampOf(previousDay?.lastUpdated) !== stampOf(previousDay?.meta?.updatedAt));
+  const incompleteThrough = missed ? previousRevision : revisionOf(previous.incompleteThrough);
   const kept = Object.entries(before)
     .filter(
       ([path, entry]) =>
@@ -86,7 +129,7 @@ const nextFieldWrites = ({ previous, paths, record, revision, mutationId, client
       ...kept,
     ].slice(0, MAX_FIELD_WRITES)
   );
-  const previousWrites = isPlainObject(previous?.writes) ? previous.writes : {};
+  const previousWrites = isPlainObject(previous.writes) ? previous.writes : {};
   const writes = Object.fromEntries(
     [...new Set(Object.values(fields).map(entry => String(entry.revision)))].map(key => [
       key,
@@ -95,18 +138,29 @@ const nextFieldWrites = ({ previous, paths, record, revision, mutationId, client
         : previousWrites[key] || { mutationId: null, clientId: null },
     ])
   );
-  return { fields, writes };
+  return {
+    revision,
+    fields,
+    writes,
+    ...(incompleteThrough === undefined ? {} : { incompleteThrough }),
+  };
 };
 
-/** The map after a batch whose meta names its revision, edit and fields, and no computer. */
-const batchFieldWrites = (record, previousMeta) =>
+/** The map after a Rayen batch: the fields it changed, its edit and no computer. */
+const batchFieldWrites = (record, previousDay) =>
   nextFieldWrites({
-    previous: previousMeta?.fieldWrites,
-    paths: record.meta.lastChangedPaths,
+    previousDay,
+    paths: changedFieldPaths(previousDay, record),
     record,
     revision: record.meta.revision,
     mutationId: record.meta.lastMutationId,
     clientId: null,
   });
 
-module.exports = { MAX_FIELD_WRITES, batchFieldWrites, fieldValueDigest, nextFieldWrites };
+module.exports = {
+  MAX_FIELD_WRITES,
+  batchFieldWrites,
+  changedFieldPaths,
+  fieldValueDigest,
+  nextFieldWrites,
+};

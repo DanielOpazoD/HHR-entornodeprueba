@@ -150,35 +150,23 @@ export const hasRemoteAppliedMutation = (
   return Boolean(remoteMutationId && localMutationId && remoteMutationId === localMutationId);
 };
 
-/** A stored stamp as one comparable value: a Firestore timestamp to the nanosecond, or its text. */
-const stampOf = (value: unknown): string | undefined => {
-  if (typeof value === 'string') return value;
-  const { seconds, nanoseconds } = (value ?? {}) as { seconds?: unknown; nanoseconds?: unknown };
-  return typeof seconds === 'number' && typeof nanoseconds === 'number'
-    ? `${seconds}.${nanoseconds}`
-    : undefined;
-};
-
 /**
  * The task with the stored values as its base at the fields an earlier edit folded into it wrote:
  * its answer was lost and a correction joined the task meanwhile. A field counts when the newest
- * write touching it is that edit's own (one of this task's earlier identifiers) and left the value
- * it stored (`isLastWrittenBy`), and the day's last write was a server write: every server write
- * stamps `meta.updatedAt` with the day's `lastUpdated`, so a later write that keeps the meta
- * breaks the match. Another computer's write of another field leaves the attribution in place.
- * The correction then rebases on that first save under the replay's version checks. Otherwise the
+ * write touching it is that edit's own (one of this task's earlier identifiers), credible and left
+ * the value it stored (`isLastWrittenBy`). Another computer's save of another field leaves the
+ * attribution in place; a writer that leaves the record of field writes as it was ends it. The
+ * correction then rebases on that first save under the replay's version checks. Otherwise the
  * task as it is: an equal text from another computer is not this task's.
  */
 export const withOwnEarlierWriteAsBase = (
   task: SyncTask,
   remoteData: Record<string, unknown>
 ): SyncTask => {
-  const meta = remoteData.meta as Record<string, unknown> | undefined;
   const contract = task.syncContract;
   const base = task.patchBaseValues;
   const earlier = (contract?.mutationIds ?? []).filter(id => id !== contract?.mutationId);
-  const stamp = stampOf(remoteData.lastUpdated);
-  if (!base || !earlier.length || !stamp || stamp !== stampOf(meta?.updatedAt)) return task;
+  if (!base || !earlier.length) return task;
   const writes = storedFieldWrites(remoteData);
   const written = normalizeChangedPaths(contract?.changedPaths).filter(
     path => Object.hasOwn(base, path) && isLastWrittenBy(writes, path, earlier, remoteData)

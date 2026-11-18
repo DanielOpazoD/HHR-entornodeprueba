@@ -157,7 +157,7 @@ const collectChangedPaths = syncContract =>
         .map(path => path.trim())
     : [];
 
-/** `writtenPaths`: the fields this write stores, when they are not just the edit's changed paths. */
+/** `writtenPaths`: the fields this write changes (`*`, the default: the whole day). */
 const buildNextMeta = ({ remoteData, syncContract, now, record, writtenPaths }) => {
   const mutationId = normalizeShortString(syncContract?.mutationId);
   const clientId = normalizeShortString(syncContract?.clientId);
@@ -173,8 +173,8 @@ const buildNextMeta = ({ remoteData, syncContract, now, record, writtenPaths }) 
     lastChangedPaths: collectChangedPaths(syncContract),
     updatedAt: now,
     fieldWrites: nextFieldWrites({
-      previous: remoteData?.meta?.fieldWrites,
-      paths: writtenPaths ?? collectChangedPaths(syncContract),
+      previousDay: remoteData,
+      paths: writtenPaths ?? ['*'],
       record,
       revision,
       mutationId,

@@ -14,29 +14,65 @@ import {
 // reads it (fieldWriteAttribution.ts): both digest a stored value the same way, or no field is
 // ever credited to its own edit.
 const require = createRequire(import.meta.url);
+type FieldWritesMap = {
+  revision: number;
+  incompleteThrough?: number;
+  fields: Record<string, { revision: number; digest: string | null }>;
+  writes: Record<string, { mutationId: string | null; clientId: string | null }>;
+};
 const {
   MAX_FIELD_WRITES,
+  changedFieldPaths,
   fieldValueDigest: serverDigest,
   nextFieldWrites,
 } = require('../../../functions/lib/dailyRecordFieldWrites.js') as {
   MAX_FIELD_WRITES: number;
+  changedFieldPaths: (before: unknown, after: unknown) => string[];
   fieldValueDigest: (value: unknown) => string;
   nextFieldWrites: (input: {
-    previous?: unknown;
+    previousDay?: unknown;
     paths: string[];
     record: Record<string, unknown>;
     revision: number;
     mutationId?: string | null;
     clientId?: string | null;
-  }) => {
-    fields: Record<string, { revision: number; digest: string | null }>;
-    writes: Record<string, { mutationId: string | null; clientId: string | null }>;
-  };
+  }) => FieldWritesMap;
 };
 
 const record = (pathology: string, status = 'Estable') => ({
   beds: { R1: { pathology, status, devices: ['CVC'] }, R2: { pathology: 'OTRA' } },
 });
+type Day = ReturnType<typeof record> & { lastUpdated?: unknown; meta?: Record<string, unknown> };
+
+/** The day a server write of `paths` leaves over `previous`, stamped as the server stamps it. */
+const serverWrite = (
+  previous: Day | undefined,
+  next: ReturnType<typeof record>,
+  paths: string[],
+  revision: number,
+  mutationId: string,
+  clientId?: string
+): Day => {
+  const stamp = new AdminTimestamp(1_763_000_000 + revision, 0);
+  return {
+    ...next,
+    lastUpdated: stamp,
+    meta: {
+      revision,
+      updatedAt: stamp,
+      lastMutationId: mutationId,
+      lastChangedPaths: paths,
+      fieldWrites: nextFieldWrites({
+        previousDay: previous,
+        paths,
+        record: next,
+        revision,
+        mutationId,
+        clientId,
+      }),
+    },
+  };
+};
 
 describe('the field-write digest', () => {
   it.each([
@@ -71,109 +107,195 @@ describe('the field-write digest', () => {
 });
 
 describe('the map a write leaves', () => {
-  const first = nextFieldWrites({
-    paths: ['beds.R1.pathology'],
-    record: record('NEUMONIA'),
-    revision: 2,
-    mutationId: 'm-P1',
-    clientId: 'client-P1',
-  });
+  const first = serverWrite(
+    undefined,
+    record('NEUMONIA'),
+    ['beds.R1.pathology'],
+    2,
+    'm-P1',
+    'c-P1'
+  );
 
   it('names the edit, the computer and the stored value of each written field', () => {
-    expect(first).toEqual({
+    expect(first.meta?.fieldWrites).toEqual({
+      revision: 2,
       fields: { 'beds.R1.pathology': { revision: 2, digest: serverDigest('NEUMONIA') } },
-      writes: { 2: { mutationId: 'm-P1', clientId: 'client-P1' } },
+      writes: { 2: { mutationId: 'm-P1', clientId: 'c-P1' } },
     });
   });
 
   it('keeps another field’s entry when the next write is of another field', () => {
-    const next = nextFieldWrites({
-      previous: first,
-      paths: ['beds.R1.status'],
-      record: record('NEUMONIA', 'Grave'),
-      revision: 3,
-      mutationId: 'm-P2',
-      clientId: 'client-P2',
+    const next = serverWrite(
+      first,
+      record('NEUMONIA', 'Grave'),
+      ['beds.R1.status'],
+      3,
+      'm-P2',
+      'c-P2'
+    );
+    const map = next.meta?.fieldWrites as FieldWritesMap;
+    expect(Object.keys(map.fields).sort()).toEqual(['beds.R1.pathology', 'beds.R1.status']);
+    expect(map.writes).toEqual({
+      2: { mutationId: 'm-P1', clientId: 'c-P1' },
+      3: { mutationId: 'm-P2', clientId: 'c-P2' },
     });
-    expect(Object.keys(next.fields).sort()).toEqual(['beds.R1.pathology', 'beds.R1.status']);
-    expect(next.writes).toEqual({
-      2: { mutationId: 'm-P1', clientId: 'client-P1' },
-      3: { mutationId: 'm-P2', clientId: 'client-P2' },
-    });
+    expect(map.incompleteThrough).toBeUndefined();
   });
 
   it('replaces the entries a write covers, and a whole-day write replaces them all', () => {
-    const bed = nextFieldWrites({
-      previous: first,
-      paths: ['beds.R1'],
-      record: record('NEUMONIA'),
-      revision: 3,
-      mutationId: 'm-P2',
-    });
+    const bed = serverWrite(first, record('NEUMONIA'), ['beds.R1'], 3, 'm-P2').meta
+      ?.fieldWrites as FieldWritesMap;
     expect(Object.keys(bed.fields)).toEqual(['beds.R1']);
     expect(Object.keys(bed.writes)).toEqual(['3']);
-    const day = nextFieldWrites({ previous: first, paths: [], record: {}, revision: 3 });
+    const day = serverWrite(first, record('NEUMONIA'), ['*'], 3, 'm-P2').meta
+      ?.fieldWrites as FieldWritesMap;
     expect(day.fields).toEqual({ '*': { revision: 3, digest: null } });
   });
 
+  it('marks a change it may have missed: a write that kept the meta or left the map behind', () => {
+    // A direct client write: a new `lastUpdated`, the meta as it was.
+    const direct = { ...first, lastUpdated: '2026-11-18T12:00:00.000Z' };
+    const afterDirect = serverWrite(
+      direct,
+      record('NEUMONIA', 'Grave'),
+      ['beds.R1.status'],
+      3,
+      'm-P2'
+    ).meta?.fieldWrites as FieldWritesMap;
+    expect(afterDirect.incompleteThrough).toBe(2);
+    // A server write that left the map at revision 2 (a restore, a CUDYR adjustment).
+    const stamp = new AdminTimestamp(1_763_000_100, 0);
+    const restored = {
+      ...first,
+      lastUpdated: stamp,
+      meta: { ...first.meta, revision: 3, updatedAt: stamp },
+    };
+    const afterRestore = serverWrite(
+      restored,
+      record('NEUMONIA', 'Grave'),
+      ['beds.R1.status'],
+      4,
+      'm-P2'
+    ).meta?.fieldWrites as FieldWritesMap;
+    expect(afterRestore.incompleteThrough).toBe(3);
+    // It stays with the map.
+    const restoredDay = serverWrite(
+      restored,
+      record('NEUMONIA', 'Grave'),
+      ['beds.R1.status'],
+      4,
+      'm-P2'
+    );
+    const later = serverWrite(
+      restoredDay,
+      record('NEUMONIA', 'Grave'),
+      ['beds.R2.pathology'],
+      5,
+      'm-P3'
+    );
+    expect((later.meta?.fieldWrites as FieldWritesMap).incompleteThrough).toBe(3);
+  });
+
   it(`keeps the newest ${MAX_FIELD_WRITES} fields`, () => {
-    let map = first;
+    let day = first;
     for (let index = 0; index <= MAX_FIELD_WRITES; index++)
-      map = nextFieldWrites({
-        previous: map,
-        paths: [`beds.B${index}.status`],
-        record: {},
-        revision: 3 + index,
-        mutationId: `m-${index}`,
-      });
+      day = serverWrite(
+        day,
+        record('NEUMONIA'),
+        [`beds.B${index}.status`],
+        3 + index,
+        `m-${index}`
+      );
+    const map = day.meta?.fieldWrites as FieldWritesMap;
     expect(Object.keys(map.fields)).toHaveLength(MAX_FIELD_WRITES);
     expect(map.fields['beds.R1.pathology']).toBeUndefined();
     expect(Object.keys(map.writes)).toHaveLength(MAX_FIELD_WRITES);
+    expect(map.incompleteThrough).toBeUndefined();
+  });
+});
+
+describe('the fields a whole-day save changes', () => {
+  it('names the shortest paths whose values differ, a list as one value', () => {
+    const before = { ...record('NEUMONIA'), lastUpdated: 'a', meta: { revision: 1 } };
+    const after = {
+      ...record('NEUMONIA', 'Grave'),
+      lastUpdated: 'b',
+      meta: { revision: 2 },
+      night: 'NOCHE',
+    };
+    after.beds.R1.devices = ['CVC', 'SNG'];
+    expect(changedFieldPaths(before, after).sort()).toEqual([
+      'beds.R1.devices',
+      'beds.R1.status',
+      'night',
+    ]);
+    expect(changedFieldPaths(before, structuredClone(before))).toEqual([]);
+  });
+
+  it('reads a stored timestamp and the same instant alike', () => {
+    expect(
+      changedFieldPaths(
+        { at: new AdminTimestamp(1_763_000_000, 0) },
+        { at: new Date(1_763_000_000_000) }
+      )
+    ).toEqual([]);
   });
 });
 
 describe('the replay’s reading of the map', () => {
-  /** The stored day after P1's diagnosis (revision 2) and P2's status (revision 3). */
-  const stored = () => {
-    const day = record('NEUMONIA', 'Grave');
-    const first = nextFieldWrites({
-      paths: ['beds.R1.pathology'],
-      record: day,
-      revision: 2,
-      mutationId: 'm-P1',
-      clientId: 'client-P1',
-    });
-    const fieldWrites = nextFieldWrites({
-      previous: first,
-      paths: ['beds.R1.status'],
-      record: day,
-      revision: 3,
-      mutationId: 'm-P2',
-      clientId: 'client-P2',
-    });
-    return {
-      ...day,
-      meta: {
-        revision: 3,
-        lastMutationId: 'm-P2',
-        lastChangedPaths: ['beds.R1.status'],
-        fieldWrites,
-      },
-    };
-  };
+  /** P1's diagnosis (revision 2), then P2's status (revision 3). */
+  const stored = () =>
+    serverWrite(
+      serverWrite(undefined, record('NEUMONIA'), ['beds.R1.pathology'], 2, 'm-P1', 'c-P1'),
+      record('NEUMONIA', 'Grave'),
+      ['beds.R1.status'],
+      3,
+      'm-P2',
+      'c-P2'
+    );
+  const credited = (day: Day, path = 'beds.R1.pathology', ids = ['m-P1']) =>
+    isLastWrittenBy(storedFieldWrites(day), path, ids, day);
 
   it('credits a field to its own earlier edit after another computer wrote another field', () => {
     const day = stored();
-    const writes = storedFieldWrites(day);
-    expect(isLastWrittenBy(writes, 'beds.R1.pathology', ['m-P1'], day)).toBe(true);
-    expect(isLastWrittenBy(writes, 'beds.R1.status', ['m-P1'], day)).toBe(false);
-    expect(isLastWrittenBy(writes, 'beds.R1.pathology', ['m-other'], day)).toBe(false);
+    expect(credited(day)).toBe(true);
+    expect(credited(day, 'beds.R1.status')).toBe(false);
+    expect(credited(day, 'beds.R1.pathology', ['m-other'])).toBe(false);
   });
 
-  it('does not credit a field whose value changed without the map', () => {
+  it('does not credit a field whose value no longer matches its digest', () => {
     const day = stored();
     day.beds.R1.pathology = 'OTRO';
-    expect(isLastWrittenBy(storedFieldWrites(day), 'beds.R1.pathology', ['m-P1'], day)).toBe(false);
+    expect(credited(day)).toBe(false);
+  });
+
+  it('does not credit a field after a write the map may have missed, even with the same text', () => {
+    // A direct client write puts another text and the first one back; then a server write.
+    const direct = { ...stored(), lastUpdated: '2026-11-18T12:00:00.000Z' };
+    expect(credited(direct)).toBe(false);
+    const next = serverWrite(direct, record('NEUMONIA', 'Estable'), ['beds.R1.status'], 4, 'm-P3');
+    expect(credited(next)).toBe(false);
+    // A later edit of P1 is credible again.
+    const own = serverWrite(
+      next,
+      record('NEUMONIA 2', 'Estable'),
+      ['beds.R1.pathology'],
+      5,
+      'm-P1b'
+    );
+    expect(credited(own, 'beds.R1.pathology', ['m-P1b'])).toBe(true);
+  });
+
+  it('does not take an identifier a non-recording write inherited as its own', () => {
+    // A CUDYR adjustment keeps `lastMutationId` and names its own field.
+    const before = stored();
+    const stamp = new AdminTimestamp(1_763_000_500, 0);
+    const adjusted = {
+      ...before,
+      lastUpdated: stamp,
+      meta: { ...before.meta, revision: 4, updatedAt: stamp, lastChangedPaths: ['beds.R1.status'] },
+    };
+    expect(credited(adjusted, 'beds.R1.status', ['m-P2'])).toBe(false);
   });
 
   it('tells another computer’s write after the revision a field was read at', () => {
@@ -183,26 +305,34 @@ describe('the replay’s reading of the map', () => {
     expect(elsewhere('beds.R1.status', 1)).toBe(true);
     expect(elsewhere('beds.R1.status', 3)).toBe(false);
     expect(elsewhere('beds.R1.status', 1, ['m-P2'])).toBe(false);
-    expect(elsewhere('beds.R1.status', 1, [], 'client-P2')).toBe(false);
+    expect(elsewhere('beds.R1.status', 1, [], 'c-P2')).toBe(false);
     expect(elsewhere('beds.R1', 1)).toBe(true);
     expect(elsewhere('beds.R1.status.detail', 1)).toBe(false);
   });
 
   it('reads a day saved before the map by its last write, as before', () => {
+    const stamp = new ClientTimestamp(1_763_000_000, 0);
     const day = {
       ...record('NEUMONIA'),
-      meta: { revision: 2, lastMutationId: 'm-P1', lastChangedPaths: ['beds.R1.pathology'] },
+      lastUpdated: stamp,
+      meta: {
+        revision: 2,
+        updatedAt: stamp,
+        lastMutationId: 'm-P1',
+        lastChangedPaths: ['beds.R1.pathology'],
+      },
     };
-    const writes = storedFieldWrites(day);
-    expect(writes).toEqual([
+    expect(storedFieldWrites(day)).toEqual([
       {
         path: 'beds.R1.pathology',
         revision: 2,
         mutationId: 'm-P1',
         clientId: undefined,
         digest: clientDigest('NEUMONIA'),
+        credible: true,
       },
     ]);
-    expect(isLastWrittenBy(writes, 'beds.R1.pathology', ['m-P1'], day)).toBe(true);
+    expect(credited(day)).toBe(true);
+    expect(credited({ ...day, lastUpdated: '2026-11-18T12:00:00.000Z' })).toBe(false);
   });
 });

@@ -37,6 +37,7 @@ import { FIELD_CHANGED_ELSEWHERE_MESSAGE } from '@/services/storage/syncErrorCat
 import { applyPatches } from '@/utils/patchUtils';
 import { PatientStatus } from '@/types/domain/patientClassification';
 import { resolveRecordBaseRevision } from '@/services/storage/sync/syncTaskContractPolicy';
+import { isLastWrittenBy, storedFieldWrites } from '@/services/storage/sync/fieldWriteAttribution';
 
 /**
  * A diagnosis typed in the census cell, saved under the production configuration (the schema-v2
@@ -709,23 +710,253 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       expectDelivered([DIAGNOSIS]);
     });
 
-    it('holds the correction when a write that kept the field record changed the first edit’s text', async () => {
+    it('holds the correction when a write recorded for another field changed the first edit’s text', async () => {
       await correctWhileAnswerLost(async () => {
-        // A whole-day write stamped as the server stamps it that leaves `meta.fieldWrites` as it
-        // was (a restore does), then another computer's save of another field.
+        // A server write whose record of field writes names the status only, though it also put
+        // another diagnosis: the stored text no longer matches the first edit's digest.
+        const stored = (await admin.doc(dayPath).get()).data()!;
+        const record = stored.meta.fieldWrites as {
+          fields: Record<string, unknown>;
+          writes: Record<string, unknown>;
+        };
         const stamp = Timestamp.now();
         await admin.doc(dayPath).update({
           'beds.R1.pathology': OTHER,
+          'beds.R1.status': 'Grave',
           lastUpdated: stamp,
           'meta.revision': 3,
-          'meta.lastMutationId': 'synthetic-restore',
-          'meta.lastChangedPaths': ['*'],
+          'meta.lastMutationId': 'synthetic-P2-status',
+          'meta.lastChangedPaths': ['beds.R1.status'],
           'meta.updatedAt': stamp,
+          'meta.fieldWrites': {
+            revision: 3,
+            fields: { ...record.fields, 'beds.R1.status': { revision: 3, digest: 'synthetic' } },
+            writes: { ...record.writes, 3: { mutationId: 'synthetic-P2-status', clientId: null } },
+          },
         });
-        await otherComputerSaves({ 'beds.R1.status': 'Grave' });
       });
-      await expectCorrectionHeld(OTHER, 4);
+      await expectCorrectionHeld(OTHER, 3);
       expectDelivered([DIAGNOSIS]);
+    });
+
+    it('holds the correction when the day’s last writes left the record behind and named another field', async () => {
+      await correctWhileAnswerLost(async () => {
+        // Two server-stamped writes that keep `meta.fieldWrites` as it was and name the status
+        // only, though they put another diagnosis and then the first edit's text back.
+        for (const [revision, diagnosis] of [
+          [3, OTHER],
+          [4, DIAGNOSIS],
+        ] as const) {
+          const stamp = Timestamp.now();
+          await admin.doc(dayPath).update({
+            'beds.R1.pathology': diagnosis,
+            lastUpdated: stamp,
+            'meta.revision': revision,
+            'meta.lastMutationId': `synthetic-P2-${revision}`,
+            'meta.lastChangedPaths': ['beds.R1.status'],
+            'meta.updatedAt': stamp,
+          });
+        }
+      });
+      await expectCorrectionHeld(DIAGNOSIS, 4);
+      expectDelivered([DIAGNOSIS]);
+    });
+
+    // Found by the review of W17-ATT1: a writer that leaves the record of field writes as it was
+    // (a direct client write, a restore) may change the field and put the first edit's text back.
+    // The next server write marks the record incomplete up to there, so the first edit no longer
+    // credits the field and the replay decides by its values, as before the record.
+    it.each([
+      ['another text', false],
+      ['the first edit’s text put back', true],
+    ])(
+      'holds the correction after a direct write of the day text left %s and another computer saved another field',
+      async (_label, restored) => {
+        const day = baseRecord();
+        day[night] = 'NOCHE BASE';
+        await seedManualDiagnosis(day);
+        const typeHere = async (text: string, diagnosis: string) => {
+          const shown = (await hospitalDB.dailyRecords.get(date)) as DailyRecord;
+          return asP1(() =>
+            updatePartialDetailed(
+              date,
+              { [night]: text, 'beds.R1.pathology': diagnosis } as DailyRecordPatch,
+              { authoringSession: captureAuthoringSession(), baseRecord: shown }
+            )
+          );
+        };
+        // Saved without network; the queue publishes it and its answer is lost.
+        setFirestoreEnabled(false);
+        await typeHere('NOCHE P1', DIAGNOSIS);
+        setFirestoreEnabled(true);
+        network.answerLost = { downAfterCut: Infinity };
+        await runQueue();
+        expect((await readServer())[night]).toBe('NOCHE P1');
+        // Another person's direct writes of the day text, through the real rules.
+        const other = env
+          .authenticatedContext('synthetic-P2', {
+            email: 'synthetic-P2@example.invalid',
+            role: 'nurse_hospital',
+          })
+          .firestore();
+        const { doc, updateDoc, serverTimestamp } = await import('firebase/firestore');
+        const writeDirectly = (text: string) =>
+          updateDoc(doc(other as never, dayPath), {
+            [night]: text,
+            lastUpdated: serverTimestamp(),
+          });
+        await writeDirectly('NOCHE AJENA');
+        if (restored) await writeDirectly('NOCHE P1');
+        await otherComputerSaves({ 'beds.R1.status': 'Grave' });
+        setFirestoreEnabled(false);
+        await typeHere('CORRECCION LOCAL', CORRECTED);
+        setFirestoreEnabled(true);
+        network.down = 0;
+        await runQueue();
+        const stored = await readServer();
+        expect(stored[night]).toBe(restored ? 'NOCHE P1' : 'NOCHE AJENA');
+        expect(
+          (await hospitalDB.syncQueue.toArray()).map(task => [
+            task.status,
+            (task.payload as DailyRecord)[night],
+          ])
+        ).toEqual([['CONFLICT', 'CORRECCION LOCAL']]);
+        expectDelivered([DIAGNOSIS]);
+      }
+    );
+
+    it.each([
+      ['another diagnosis, then another computer saved another field', false, true],
+      ['the restore undone, then another computer saved another field', true, true],
+      ['the restore undone as the day’s last write', true, false],
+    ])(
+      'holds the correction after an administrator’s restore left %s',
+      async (_label, undo, thenSave) => {
+        await seedManualDiagnosis();
+        await correctWhileAnswerLost(async () => {
+          const committed = (await admin.doc(dayPath).get()).data()!;
+          const selected = {
+            ...committed,
+            beds: { ...committed.beds, R1: { ...committed.beds.R1, pathology: OTHER } },
+          };
+          const { createDailyRecordRestoreFunctions } = createRequire(import.meta.url)(
+            '../../../functions/lib/dailyRecordRestoreFunctions.js'
+          );
+          const api = createDailyRecordRestoreFunctions({
+            firestore: admin,
+            Timestamp,
+            resolveRoleForEmail: async () => 'admin',
+            readHistorical: async () => ({ record: selected, docs: [] }),
+          });
+          const minute = new Date(Math.floor((Date.now() - 60_000) / 60_000) * 60_000);
+          const restore = async (source: object) =>
+            api.restoreDailyRecord.run(
+              {
+                ...source,
+                date,
+                confirmationDate: date,
+                expectedLastUpdated: (await readServer()).lastUpdated,
+              },
+              { auth: { uid: 'synthetic-admin', token: { email: 'admin@example.invalid' } } }
+            );
+          const changed = await restore({ readTime: minute.toISOString() });
+          expect(await serverDiagnosis()).toBe(OTHER);
+          if (undo) {
+            await restore({ backupId: changed.backupId });
+            expect(await serverDiagnosis()).toBe(DIAGNOSIS);
+          }
+          if (thenSave) await otherComputerSaves({ 'beds.R1.status': 'Grave' });
+        });
+        await expectCorrectionHeld(undo ? DIAGNOSIS : OTHER, 3 + Number(undo) + Number(thenSave));
+        expectDelivered([DIAGNOSIS]);
+      }
+    );
+
+    // Found by the review of W17-ATT1: a whole-day save recorded the whole day as its own, so the
+    // first edit of another bed lost its attribution. It now records only the fields it changed.
+    it.each([
+      ['publishes the correction', false],
+      ['holds the correction over a restored diagnosis', true],
+    ])(
+      '%s after another computer saved the whole day changing only another bed',
+      async (_label, restored) => {
+        const day = baseRecord();
+        day.beds.R2 = DataFactory.createMockPatient('R2', {
+          patientName: 'DOS SINTETICO',
+          rut: '11.111.111-1',
+          admissionDate: date,
+          clinicalEpisodeId: 'synthetic-episode-R2',
+          pathology: 'FRACTURA DE CADERA',
+          age: '70',
+        });
+        await seedManualDiagnosis(day);
+        await correctWhileAnswerLost(async () => {
+          if (restored) await otherComputerTypesDiagnosis(BASE);
+          const record = await readServer();
+          record.beds.R2.status = PatientStatus.GRAVE;
+          await network.api!.saveDailyRecordWithClinicalAuthority.run(
+            {
+              date,
+              record,
+              expectedLastUpdated: record.lastUpdated,
+              mode: 'enforced',
+              syncContract: {
+                baseRevision: resolveRecordBaseRevision(record),
+                mutationId: 'synthetic-P2-full',
+                clientId: 'synthetic-P2-client',
+                changedPaths: ['*'],
+              },
+            },
+            { auth: { uid: 'synthetic-P2', token: { email: 'synthetic-P2@example.invalid' } } }
+          );
+        });
+        const stored = await readServer();
+        expect(stored.beds.R2.status).toBe('Grave');
+        if (restored) {
+          await expectCorrectionHeld(BASE, 4);
+          expectDelivered([DIAGNOSIS]);
+        } else {
+          expect(stored.beds.R1.pathology).toBe(CORRECTED);
+          expect(resolveRecordBaseRevision(stored)).toBe(4);
+          expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
+          expectDelivered([DIAGNOSIS, CORRECTED]);
+        }
+      }
+    );
+
+    it('does not take the edit a CUDYR adjustment inherited as the writer of the category', async () => {
+      const path = 'beds.R1.evaluationScores.cudyr';
+      await admin
+        .doc(dayPath)
+        .update({ [path]: { category: 'C1', recordedDate: date, source: 'synthetic' } });
+      await otherComputerSaves({ 'beds.R1.status': 'Grave' });
+      const inherited = (await admin.doc(dayPath).get()).data()!.meta.lastMutationId;
+      const { createAdminCudyrResultFunctions } = createRequire(import.meta.url)(
+        '../../../functions/lib/adminCudyrResultFunctions.js'
+      );
+      await createAdminCudyrResultFunctions({
+        firestore: admin,
+        Timestamp,
+        resolveRoleForEmail: async () => 'admin',
+      }).setAdminCudyrResult.run(
+        {
+          date,
+          expectedLastUpdated: (await readServer()).lastUpdated,
+          clinicalEpisodeId: 'synthetic-episode-R1',
+          bedId: 'R1',
+          category: 'B1',
+        },
+        { auth: { uid: 'synthetic-admin', token: { email: 'admin@example.invalid' } } }
+      );
+      const credited = async () => {
+        const data = (await admin.doc(dayPath).get()).data()!;
+        return isLastWrittenBy(storedFieldWrites(data), path, [inherited], data);
+      };
+      // The adjustment keeps the status save's identifier as the day's last edit.
+      expect((await admin.doc(dayPath).get()).data()!.meta.lastMutationId).toBe(inherited);
+      expect(await credited()).toBe(false);
+      await otherComputerSaves({ 'beds.R1.status': 'Estable' });
+      expect(await credited()).toBe(false);
     });
 
     // Found by the recheck of W16-ABA1, fixed in W17-ATT1: one tab still shows revision 1 while

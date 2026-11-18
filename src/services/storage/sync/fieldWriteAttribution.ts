@@ -13,6 +13,12 @@ export interface FieldWrite {
   clientId?: string;
   /** Digest of the value that write stored (none for `*`, the whole day). */
   digest?: string;
+  /**
+   * Whether this entry can credit a field to its edit: the day's last write was a server write
+   * (it stamps `meta.updatedAt` with the day's `lastUpdated`), and no change the map may miss came
+   * after it (the map is at the day's revision and the entry is newer than `incompleteThrough`).
+   */
+  credible: boolean;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -57,50 +63,64 @@ export const fieldValueDigest = (value: unknown): string => {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 };
 
+/** A stored stamp as one comparable value: a Firestore timestamp to the nanosecond, or its text. */
+const stampOf = (value: unknown): string | undefined => {
+  if (typeof value === 'string') return value;
+  const { seconds, nanoseconds } = (value ?? {}) as { seconds?: unknown; nanoseconds?: unknown };
+  return typeof seconds === 'number' && typeof nanoseconds === 'number'
+    ? `${seconds}.${nanoseconds}`
+    : undefined;
+};
+
 /**
- * The field writes a stored day tells: its `meta.fieldWrites`, and its last write as the meta names
- * it when the map does not record that write (a day saved before the map, or a writer that keeps
- * the map as it was). That last write stored the values the day holds now.
+ * The field writes a stored day tells: its `meta.fieldWrites`, and, when the map is not at the
+ * day's revision (a day saved before the map, or a writer that leaves it as it was), the last
+ * write as the meta names it. That last write stored the values the day holds now; an edit
+ * identifier the map gives to an earlier revision was inherited by it, not written.
  */
 export const storedFieldWrites = (remoteData: Record<string, unknown>): FieldWrite[] => {
   const meta = isRecord(remoteData.meta) ? remoteData.meta : {};
   const map = isRecord(meta.fieldWrites) ? meta.fieldWrites : {};
   const writes = isRecord(map.writes) ? map.writes : {};
+  const revision = resolveOptionalBaseRevision(meta.revision);
+  const stamp = stampOf(remoteData.lastUpdated);
+  const serverStamped = stamp !== undefined && stamp === stampOf(meta.updatedAt);
+  const current = revision !== undefined && resolveOptionalBaseRevision(map.revision) === revision;
+  const incompleteThrough = resolveOptionalBaseRevision(map.incompleteThrough) ?? -1;
   const recorded = Object.entries(isRecord(map.fields) ? map.fields : {}).flatMap(
     ([path, entry]): FieldWrite[] => {
-      const revision = isRecord(entry) ? resolveOptionalBaseRevision(entry.revision) : undefined;
-      if (!isRecord(entry) || revision === undefined) return [];
-      const writer = writes[String(revision)];
+      const written = isRecord(entry) ? resolveOptionalBaseRevision(entry.revision) : undefined;
+      if (!isRecord(entry) || written === undefined) return [];
+      const writer = writes[String(written)];
       return [
         {
           path,
-          revision,
+          revision: written,
           mutationId: isRecord(writer) ? textOf(writer.mutationId) : undefined,
           clientId: isRecord(writer) ? textOf(writer.clientId) : undefined,
           digest: textOf(entry.digest),
+          credible: serverStamped && current && written > incompleteThrough,
         },
       ];
     }
   );
-  const revision = resolveOptionalBaseRevision(meta.revision);
+  if (current || revision === undefined) return recorded;
+  const lastMutationId = textOf(meta.lastMutationId);
+  const inherited = Object.entries(writes).some(
+    ([written, writer]) =>
+      written !== String(revision) && isRecord(writer) && writer.mutationId === lastMutationId
+  );
   const named = Array.isArray(meta.lastChangedPaths) ? meta.lastChangedPaths : [];
-  const lastWrite =
-    revision === undefined
-      ? []
-      : named
-          .filter(
-            (path): path is string =>
-              typeof path === 'string' &&
-              path.trim().length > 0 &&
-              !recorded.some(write => write.path === path && write.revision >= revision)
-          )
-          .map(path => ({
-            path,
-            revision,
-            mutationId: textOf(meta.lastMutationId),
-            clientId: textOf(meta.lastWriterClientId),
-            digest: fieldValueDigest(getValueAtPath(remoteData, path)),
-          }));
+  const lastWrite = named
+    .filter((path): path is string => typeof path === 'string' && path.trim().length > 0)
+    .map(path => ({
+      path,
+      revision,
+      mutationId: inherited ? undefined : lastMutationId,
+      clientId: textOf(meta.lastWriterClientId),
+      digest: fieldValueDigest(getValueAtPath(remoteData, path)),
+      credible: serverStamped,
+    }));
   return [...recorded, ...lastWrite];
 };
 
@@ -111,8 +131,9 @@ const overlaps = (written: string, path: string): boolean =>
   path.startsWith(`${written}.`);
 
 /**
- * Whether the newest write touching `path` is one of `ids` (this task's earlier edits), wrote
- * this very field and left the value it stored there.
+ * Whether the newest write touching `path` is one of `ids` (this task's earlier edits), credible,
+ * wrote this very field and left the value it stored there. Otherwise the field is decided by its
+ * values, as before the map.
  */
 export const isLastWrittenBy = (
   writes: FieldWrite[],
@@ -125,7 +146,9 @@ export const isLastWrittenBy = (
   const last = touching.filter(write => write.revision === newest);
   return (
     last.length > 0 &&
-    last.every(write => write.mutationId !== undefined && ids.includes(write.mutationId)) &&
+    last.every(
+      write => write.credible && write.mutationId !== undefined && ids.includes(write.mutationId)
+    ) &&
     last.some(
       write =>
         write.path === path && write.digest === fieldValueDigest(getValueAtPath(remoteData, path))

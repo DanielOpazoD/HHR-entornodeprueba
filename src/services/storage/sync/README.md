@@ -60,21 +60,28 @@ ni se confirma como guardada.
 No requiere cambios en Functions ni reglas (SAVE-01 a SAVE-03).
 
 El servidor anota en cada guardado (parche, guardado completo y lote de Rayen) qué edición escribió
-cada campo: `meta.fieldWrites` (`functions/lib/dailyRecordFieldWrites.js`). Por campo guarda la
-revisión que lo escribió y una huella del valor guardado; por revisión, la edición (`mutationId`) y
-el equipo (`clientId`). Una ruta escrita reemplaza su entrada y las de debajo; quedan las 300 más
-nuevas. Solo lo escribe el servidor: las reglas de Firestore no cambian. El reenvío lo lee con
-`fieldWriteAttribution.ts`, con la misma huella; un día guardado sin ese dato, o cuya última
-escritura no lo actualizó, se lee también por su última escritura (`meta.lastMutationId` y
-`meta.lastChangedPaths`), como antes.
+cada campo que ese guardado cambió: `meta.fieldWrites` (`functions/lib/dailyRecordFieldWrites.js`).
+El parche anota sus rutas y las de especialidad que cambió el servidor; el guardado completo y el lote
+de Rayen, las rutas cuyo valor difiere del día guardado. Por campo guarda la revisión que lo escribió
+y una huella del valor guardado; por revisión, la edición (`mutationId`) y el equipo (`clientId`).
+Una ruta escrita reemplaza su entrada y las de debajo; las demás se conservan, y quedan las 300 más
+nuevas. El mapa guarda también la revisión con que se actualizó (`revision`). Una escritura que no lo
+actualiza (escritura directa del cliente, restauración, ajuste de CUDYR, política de especialidad)
+la detecta el guardado siguiente del servidor: el mapa no estaba en la revisión del día, o
+`lastUpdated` no era el sello que el servidor pone en `meta.updatedAt`. Desde entonces el mapa marca
+`incompleteThrough`, y ninguna entrada de esa revisión o anterior acredita un campo. Solo lo escribe
+el servidor: las reglas de Firestore no cambian. El reenvío lo lee con `fieldWriteAttribution.ts`,
+con la misma huella; un día guardado sin ese dato, o cuya última escritura no lo actualizó, se lee
+también por su última escritura (`meta.lastMutationId` y `meta.lastChangedPaths`), como antes, salvo
+que el mapa dé ese identificador a una revisión anterior (la escritura lo heredó, no lo escribió).
 
 Si la respuesta de una edición se perdió y una corrección se juntó en su tarea, el servidor puede
 tener ya esa primera edición. Esa edición pasa a ser la base de la corrección en cada campo donde la
 escritura más nueva que lo toca es una de las ediciones anteriores de la tarea, escribió ese mismo
-campo y dejó el valor que guardó (la huella coincide). Además, la última escritura del día debe ser
-del servidor: cada una pone en `meta.updatedAt` el mismo valor que en `lastUpdated`, así que una
-escritura posterior que deje `meta` igual rompe la coincidencia. Que otro equipo haya guardado otro
-campo después no cambia nada. En ese caso el valor guardado reemplaza la base del campo en la tarea,
+campo, sigue acreditada (la última escritura del día es del servidor, el mapa está en la revisión del
+día y la entrada es posterior a `incompleteThrough`) y dejó el valor que guardó (la huella coincide
+con el valor guardado ahora). Que otro equipo haya guardado otro campo después, por parche, guardado
+completo o lote, no cambia nada. Si no, el campo se decide por sus valores, como antes del mapa. En ese caso el valor guardado reemplaza la base del campo en la tarea,
 y la corrección sigue por la conciliación de arriba, con la misma exigencia de episodio y versión
 (`withOwnEarlierWriteAsBase`). Un texto igual escrito por otro equipo no cumple esas condiciones, y
 la tarea queda completa en `CONFLICT`.
@@ -94,9 +101,9 @@ otro equipo aunque su valor coincida con la base (`pathsChangedElsewhere`), y la
 
 Las partes publicadas o separadas de una tarea se juzgan con la tarea en cola. Una escritura que
 nombra la cama o el día entero (`beds.R1`, `*`) no dice que escribió el campo. Las escrituras
-directas del cliente y los escritores del servidor que no actualizan el mapa (ajuste de CUDYR,
-política de especialidad, restauración) no dejan rastro por campo: mientras son la última escritura
-se leen por su `meta`, y después la huella impide atribuir a la tarea un valor que cambiaron.
+directas del cliente y los escritores del servidor que no actualizan el mapa no dejan rastro por
+campo: mientras son la última escritura se leen por su `meta`, y después `incompleteThrough` impide
+atribuir a la tarea un valor anterior a ellas, aunque vuelva a ser el mismo texto.
 
 Los datos simples del día (fuera de camas, dotación y movimientos), con el valor base de cada
 campo y una versión conocida, se reenvían con la misma escritura que una edición directa
