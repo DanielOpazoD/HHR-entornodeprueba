@@ -1,6 +1,6 @@
 import type { SavedCudyrReview, CudyrReviewSource } from '@/types/domain/cudyrReview';
 import type { CudyrReconciliationFile } from '@/types/domain/cudyrReconciliation';
-import type { ArchivedCudyrSupplement } from './cudyrSupplementService';
+import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
 
 /** A source set is explicit: never substitute a newer or similarly named file. */
 export const cudyrReviewSourceSets = (records: SavedCudyrReview[], from: string, to: string) => {

@@ -28,7 +28,7 @@ vi.mock('@/services/cudyr/cudyrSupplementService', () => ({
   loadCudyrSupplements: vi.fn(),
   importCudyrSupplement: vi.fn(),
 }));
-vi.mock('@/services/cudyr/cudyrReadView', () => ({
+vi.mock('@/features/cudyr/report/cudyrReadView', () => ({
   readCudyrReadView: vi.fn().mockResolvedValue(null),
   saveCudyrReadView: vi.fn(),
 }));

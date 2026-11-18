@@ -3,13 +3,13 @@ import { Workbook } from 'exceljs';
 import { utils, write } from 'xlsx';
 import { supplementRequest } from '@/tests/fixtures/cudyrSupplementFixture';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
-import { buildCudyrEssentialWorkbook } from '@/services/cudyr/cudyrEssentialWorkbook';
+import { buildCudyrEssentialWorkbook } from '@/features/cudyr/export/cudyrEssentialWorkbook';
 import { readCudyrWorkbookMatrix } from '@/services/cudyr/cudyrSupplementBinary';
-import { addCudyrSourceSheets } from '@/services/cudyr/cudyrSourceWorkbook';
+import { addCudyrSourceSheets } from '@/features/cudyr/export/cudyrSourceWorkbook';
 import {
   loadCudyrSourceSheets,
   selectCudyrSourceReports,
-} from '@/services/cudyr/cudyrSourceLoader';
+} from '@/features/cudyr/export/cudyrSourceLoader';
 import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
 import { confirmedReportInput } from './reportFixtures';
 const mocks = vi.hoisted(() => ({ load: vi.fn(), call: vi.fn(), generation: 1 }));

@@ -1,7 +1,7 @@
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
-import { callCudyrArchive } from './cudyrSupplementService';
+import { callCudyrArchive } from '@/services/cudyr/cudyrSupplementService';
 
 const sessionGuard = (signal?: AbortSignal) => {
   const generation = getSessionGeneration(),

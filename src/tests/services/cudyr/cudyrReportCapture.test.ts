@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildCudyrReport, cudyrReportTotals } from '@/services/cudyr/cudyrReportModel';
 import { reportInput, reportRecord, reportCapture, reportObservation } from './reportFixtures';
-import { cudyrControlStatus } from '@/services/cudyr/cudyrDailyControl';
+import { cudyrControlStatus } from '@/features/cudyr/report/cudyrDailyControl';
 
 describe('CUDYR source result and capture coverage', () => {
   it('distinguishes empty observation, unavailable source, incomplete capture and local pending', () => {

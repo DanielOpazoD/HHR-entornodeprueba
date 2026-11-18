@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { cudyrExcelDateText, cudyrExcelMoment } from '@/services/cudyr/cudyrExcelDates';
+import { cudyrExcelDateText, cudyrExcelMoment } from '@/features/cudyr/export/cudyrExcelDates';
 import { exportSheet, row, source } from './cudyrSourceTable.fixtures';
 import { confirmedReportInput } from './reportFixtures';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
-import { buildCudyrEssentialWorkbook } from '@/services/cudyr/cudyrEssentialWorkbook';
+import { buildCudyrEssentialWorkbook } from '@/features/cudyr/export/cudyrEssentialWorkbook';
 vi.mock('@/services/cudyr/cudyrSupplementService', () => ({}));
 
 describe('CUDYR Excel dates', () => {

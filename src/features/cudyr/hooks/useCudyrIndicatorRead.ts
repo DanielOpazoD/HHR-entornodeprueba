@@ -1,9 +1,9 @@
 import { useEffect, useMemo } from 'react';
 import { useCudyrReport } from './useCudyrReport';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
-import { buildCudyrMonthlyIndicator } from '@/services/cudyr/cudyrMonthlyIndicator';
-import { cudyrIndicatorFirstSync } from '@/services/cudyr/cudyrIndicatorRefresh';
-import type { CudyrIndicatorRead } from '@/services/cudyr/cudyrIndicatorHistory';
+import { buildCudyrMonthlyIndicator } from '@/features/cudyr/indicator/cudyrMonthlyIndicator';
+import { cudyrIndicatorFirstSync } from '@/features/cudyr/indicator/cudyrIndicatorRefresh';
+import type { CudyrIndicatorRead } from '@/features/cudyr/indicator/cudyrIndicatorHistory';
 import { getNextDay } from '@/utils/clinicalDayUtils';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';

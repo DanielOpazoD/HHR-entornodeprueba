@@ -35,7 +35,7 @@
         "src/features/cudyr/components/AdminCudyrResultEditor.tsx",
         "src/features/cudyr/hooks/useAdminCudyrBulkRemoval.ts",
         "src/features/cudyr/hooks/useAdminCudyrResult.ts",
-        "src/services/cudyr/adminCudyrResultService.ts"
+        "src/features/cudyr/report/adminCudyrResultService.ts"
       ]
     }
   ]

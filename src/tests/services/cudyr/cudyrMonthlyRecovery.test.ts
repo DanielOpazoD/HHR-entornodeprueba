@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   monthlyRecoveryPeriod,
   recoverCudyrMonthlyReports,
-} from '@/services/cudyr/cudyrMonthlyRecovery';
+} from '@/features/cudyr/recovery/cudyrMonthlyRecovery';
 import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
 vi.mock('@/services/cudyr/cudyrSupplementFile', () => ({ readCudyrSupplementFile: vi.fn() }));
 vi.mock('@/services/cudyr/cudyrSupplementService', () => ({

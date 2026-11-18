@@ -1,7 +1,7 @@
 import { confirmedReportInput } from './reportFixtures';
 import { describe, expect, it } from 'vitest';
 import { buildCudyrReport, cudyrReportTotals } from '@/services/cudyr/cudyrReportModel';
-import { buildCudyrEssentialWorkbook } from '@/services/cudyr/cudyrEssentialWorkbook';
+import { buildCudyrEssentialWorkbook } from '@/features/cudyr/export/cudyrEssentialWorkbook';
 import { reportInput, reportObservation, reportPatient, reportRecord } from './reportFixtures';
 
 const discharge = (date: string, status: 'Vivo' | 'Fallecido' = 'Vivo') => ({

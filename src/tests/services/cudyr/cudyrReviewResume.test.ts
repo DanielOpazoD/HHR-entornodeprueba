@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   resolveCudyrReviewSources,
   cudyrReviewSourceSets,
-} from '@/services/cudyr/cudyrReviewResume';
+} from '@/features/cudyr/reconciliation/cudyrReviewResume';
 import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
 import type { SavedCudyrReview } from '@/types/domain/cudyrReview';
 import { reviewRequest } from '../../fixtures/cudyrReviewFixture';

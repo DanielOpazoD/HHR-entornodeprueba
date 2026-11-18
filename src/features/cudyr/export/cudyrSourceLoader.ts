@@ -7,8 +7,8 @@ import {
   callCudyrArchive,
   loadCudyrSupplements,
   type ArchivedCudyrSupplement,
-} from './cudyrSupplementService';
-import { readInCudyrWorker } from './cudyrWorkerRead';
+} from '@/services/cudyr/cudyrSupplementService';
+import { readInCudyrWorker } from '@/services/cudyr/cudyrWorkerRead';
 
 export const selectCudyrSourceReports = (
   data: CudyrReportDataset,

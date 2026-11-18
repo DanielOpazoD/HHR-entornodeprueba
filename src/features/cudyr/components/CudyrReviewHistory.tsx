@@ -1,7 +1,7 @@
 import { cudyrMomentLabel } from '@/services/cudyr/cudyrReportPresentation';
 import { useEffect, useRef, useState } from 'react';
-import { loadCudyrReviews } from '@/services/cudyr/cudyrReviewService';
-import { CUDYR_LINK_LABELS } from '@/services/cudyr/cudyrLinkReview';
+import { loadCudyrReviews } from '@/features/cudyr/reconciliation/cudyrReviewService';
+import { CUDYR_LINK_LABELS } from '@/features/cudyr/reconciliation/cudyrLinkReview';
 import type { SavedCudyrReview } from '@/types/domain/cudyrReview';
 
 export const CudyrReviewHistory = ({ review }: { review: SavedCudyrReview }) => {

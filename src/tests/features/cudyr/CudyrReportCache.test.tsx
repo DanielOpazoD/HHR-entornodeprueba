@@ -1,5 +1,5 @@
 import { loadCudyrReport } from '@/services/cudyr/cudyrReportLoader';
-import { readCudyrReadView, saveCudyrReadView } from '@/services/cudyr/cudyrReadView';
+import { readCudyrReadView, saveCudyrReadView } from '@/features/cudyr/report/cudyrReadView';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCudyrReport } from '@/features/cudyr/hooks/useCudyrReport';
@@ -12,7 +12,7 @@ vi.mock('@/services/storage/sessionScopedStorageService', () => ({
 vi.mock('@/services/storage/sessionStorageTransition', () => ({
   getSessionGeneration: () => session.generation,
 }));
-vi.mock('@/services/cudyr/cudyrReadView', () => ({
+vi.mock('@/features/cudyr/report/cudyrReadView', () => ({
   readCudyrReadView: vi.fn(),
   saveCudyrReadView: vi.fn(),
 }));

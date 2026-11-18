@@ -3,8 +3,8 @@ import { cudyrMomentLabel } from '@/services/cudyr/cudyrReportPresentation';
 import type { CudyrComparisonItem } from '@/types/domain/cudyrReconciliation';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import type { CudyrReviewSource } from '@/types/domain/cudyrReview';
-import { isCurrentCudyrReview } from '@/services/cudyr/cudyrReviewEvidence';
-import { isReviewableCudyrSource } from '@/services/cudyr/cudyrLinkReview';
+import { isCurrentCudyrReview } from '@/features/cudyr/reconciliation/cudyrReviewEvidence';
+import { isReviewableCudyrSource } from '@/features/cudyr/reconciliation/cudyrLinkReview';
 import { useCudyrReviews } from '../hooks/useCudyrReviews';
 import { CudyrComparisonRows } from './CudyrComparisonRows';
 

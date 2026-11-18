@@ -1,5 +1,5 @@
 import type { CudyrSupplementMatrix } from '@/types/domain/cudyrSupplement';
-import type { ArchivedCudyrSupplement } from './cudyrSupplementService';
+import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
 
 export interface CudyrSourceSheet {
   month: string;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { verifyCudyrMonthlySources } from '@/services/cudyr/cudyrMonthlyVerification';
+import { verifyCudyrMonthlySources } from '@/features/cudyr/recovery/cudyrMonthlyVerification';
 import { supplementRequest } from '@/tests/fixtures/cudyrSupplementFixture';
 import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';

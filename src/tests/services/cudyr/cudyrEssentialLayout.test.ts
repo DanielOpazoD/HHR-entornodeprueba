@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Workbook } from 'exceljs';
 import { buildCudyrReport, cudyrReportTotals } from '@/services/cudyr/cudyrReportModel';
-import { buildCudyrEssentialWorkbook } from '@/services/cudyr/cudyrEssentialWorkbook';
+import { buildCudyrEssentialWorkbook } from '@/features/cudyr/export/cudyrEssentialWorkbook';
 import { confirmedReportInput } from './reportFixtures';
 
 const sample = () => {

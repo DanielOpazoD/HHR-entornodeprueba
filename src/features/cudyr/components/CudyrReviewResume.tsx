@@ -1,5 +1,5 @@
 import type { SavedCudyrReview, CudyrReviewSource } from '@/types/domain/cudyrReview';
-import { cudyrReviewSourceSets } from '@/services/cudyr/cudyrReviewResume';
+import { cudyrReviewSourceSets } from '@/features/cudyr/reconciliation/cudyrReviewResume';
 
 export const CudyrReviewResume = ({
   records,

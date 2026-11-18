@@ -7,8 +7,11 @@ import type {
   CudyrReviewSource,
   SavedCudyrReview,
 } from '@/types/domain/cudyrReview';
-import { buildCudyrReviewEvidence } from '@/services/cudyr/cudyrReviewEvidence';
-import { loadCudyrReviews, saveCudyrReview } from '@/services/cudyr/cudyrReviewService';
+import { buildCudyrReviewEvidence } from '@/features/cudyr/reconciliation/cudyrReviewEvidence';
+import {
+  loadCudyrReviews,
+  saveCudyrReview,
+} from '@/features/cudyr/reconciliation/cudyrReviewService';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 export const useCudyrReviews = (
