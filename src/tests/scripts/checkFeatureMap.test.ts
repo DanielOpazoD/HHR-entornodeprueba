@@ -15,6 +15,7 @@ afterEach(() => {
 const feature = (overrides: Record<string, unknown> = {}) => ({
   id: 'census.open-day',
   name: 'Abrir el día',
+  owner: 'src/app',
   reach: { screen: 'Censo', controls: [{ testId: 'go-day' }, { text: 'Ir a hoy' }] },
   gate: ['src/app/DayButton.tsx'],
   tests: ['src/tests/day.test.ts', 'e2e/day.spec.ts › opens the selected day'],
@@ -111,6 +112,22 @@ describe('check-feature-map', () => {
     ],
     ['no visible control', { reach: { screen: 'Censo', controls: [] } }, 'no cita ningún control'],
     ['an unknown rule', { rules: ['SAVE-99'] }, 'la regla SAVE-99 no es una fila'],
+    ['no owner folder', { owner: undefined }, 'falta "owner"'],
+    [
+      'an owner folder that does not exist',
+      { owner: 'src/gone' },
+      'la carpeta dueña src/gone no existe',
+    ],
+    [
+      'an owner that is a file, not a folder',
+      { owner: 'src/app/DayButton.tsx' },
+      'la carpeta dueña src/app/DayButton.tsx no existe',
+    ],
+    [
+      'a first gate outside the owner folder',
+      { owner: 'src/tests' },
+      'la primera puerta src/app/DayButton.tsx no está dentro de la carpeta dueña src/tests',
+    ],
   ])('rejects %s with a message that says how to fix it', (_name, overrides, diagnostic) => {
     const result = checkFeatureMap(createRepository([feature(overrides)]));
     expect(result.status).toBe(1);

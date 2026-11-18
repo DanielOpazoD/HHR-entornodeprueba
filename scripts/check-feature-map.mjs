@@ -6,6 +6,8 @@
  * join the map; it requires that whatever the map cites exists:
  *
  *  - every gate path and test path exists, and a cited test is a test file;
+ *  - "owner" is the folder that holds the first gate, where the function's main decision lives,
+ *    so an agent knows in one step where to work;
  *  - a test cited as `path › title` contains that exact title as a string literal;
  *  - a cited e2e spec runs in CI or nightly (scripts/config/e2e-test-ownership.json);
  *  - every feature cites at least one test and one visible control;
@@ -48,13 +50,15 @@ const readAppSources = root => {
   return sources;
 };
 
-const isFile = (root, relativePath) => {
+const statOf = (root, relativePath) => {
   try {
-    return fs.statSync(path.join(root, relativePath)).isFile();
+    return fs.statSync(path.join(root, relativePath));
   } catch {
-    return false;
+    return null;
   }
 };
+const isFile = (root, relativePath) => statOf(root, relativePath)?.isFile() === true;
+const isDirectory = (root, relativePath) => statOf(root, relativePath)?.isDirectory() === true;
 
 const quotedIn = (source, value) =>
   ['"', "'", '`'].some(quote => source.includes(`${quote}${value}${quote}`));
@@ -132,6 +136,24 @@ export const checkFeatureMap = (root = process.cwd(), { mapPath = FEATURE_MAP_PA
           'Si el código se movió, cita su ruta nueva; el mapa sigue al código.'
         );
       }
+    }
+
+    const owner = typeof feature?.owner === 'string' ? feature.owner.replace(/\/+$/, '') : '';
+    if (!owner) {
+      report(
+        'falta "owner".',
+        'Escribe la carpeta que contiene la primera puerta, donde vive la decisión principal.'
+      );
+    } else if (!isDirectory(root, owner)) {
+      report(
+        `la carpeta dueña ${owner} no existe.`,
+        'Si el código se movió, cita la carpeta nueva que contiene la primera puerta.'
+      );
+    } else if (gate.length > 0 && !gate[0].startsWith(`${owner}/`)) {
+      report(
+        `la primera puerta ${gate[0]} no está dentro de la carpeta dueña ${owner}.`,
+        'La primera puerta es la decisión principal: pon en "owner" la carpeta que la contiene.'
+      );
     }
 
     const tests = Array.isArray(feature?.tests) ? feature.tests : [];
