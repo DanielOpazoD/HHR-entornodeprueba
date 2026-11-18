@@ -2,7 +2,7 @@ import type {
   ClinicalDocumentRecord,
   ClinicalDocumentTemplate,
 } from '@/domain/clinical-documents/entities';
-import { isLegacyClinicalEpisodeKey } from '@/application/patient-flow/clinicalEpisode';
+import { isLegacyClinicalEpisodeKey } from '@/domain/clinical-episode/clinicalEpisode';
 import { normalizeRut } from '@/utils/rutUtils';
 
 export const resolveSelectedClinicalTemplateId = (

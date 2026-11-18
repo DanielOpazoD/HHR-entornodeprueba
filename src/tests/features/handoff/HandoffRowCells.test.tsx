@@ -5,7 +5,7 @@ import { HandoffDevicesCell } from '@/features/handoff/components/HandoffDevices
 import { HandoffPatientCell } from '@/features/handoff/components/HandoffPatientCell';
 import { useWoundCarePhotoCount } from '@/features/wound-care/public';
 
-vi.mock('@/application/patient-flow/clinicalEpisode', () => ({
+vi.mock('@/domain/clinical-episode/clinicalEpisode', () => ({
   buildClinicalEpisodeKey: vi.fn(() => 'episode-key-1'),
 }));
 

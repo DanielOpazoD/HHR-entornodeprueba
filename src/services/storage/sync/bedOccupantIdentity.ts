@@ -1,5 +1,5 @@
 import type { PatientData } from '@/types/domain/patient';
-import { hasSamePatientEpisodeIdentity } from '@/application/patient-flow/patientEpisodeIdentityPolicy';
+import { hasSamePatientEpisodeIdentity } from '@/domain/clinical-episode/patientEpisodeIdentityPolicy';
 
 const hasIdentity = (patient: PatientData | undefined): boolean =>
   Boolean(

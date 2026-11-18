@@ -9,7 +9,7 @@ import {
   applyCensusImportDiff,
   buildDischarge,
 } from '@/features/rayen-import/domain/applyCensusImportDiff';
-import { ensureDailyRecordClinicalEpisodeIds } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
+import { ensureDailyRecordClinicalEpisodeIds } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import type { RayenEncounter } from '@/features/rayen-import/contracts/rayenSnapshot';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { findPatientErasures } from '@/services/repositories/dailyRecordErasureGuard';

@@ -1,4 +1,4 @@
-import { classifyPatientMovementForRecord } from '@/application/patient-flow/clinicalEpisode';
+import { classifyPatientMovementForRecord } from '@/domain/clinical-episode/clinicalEpisode';
 import { normalizeDateOnly } from '@/utils/clinicalDayUtils';
 
 interface ResolveIsNewAdmissionForRecordParams {

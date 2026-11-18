@@ -18,7 +18,7 @@ import {
 import {
   getActiveDischarges,
   getActiveTransfers,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 
 export interface AnalysisResult {
   totalRecords: number;

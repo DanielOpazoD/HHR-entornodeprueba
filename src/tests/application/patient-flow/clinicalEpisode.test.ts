@@ -8,7 +8,7 @@ import {
   resolveClinicalEpisode,
   resolveClinicalEpisodeAdmissionDate,
   resolveClinicalEpisodeIdentifier,
-} from '@/application/patient-flow/clinicalEpisode';
+} from '@/domain/clinical-episode/clinicalEpisode';
 
 describe('clinicalEpisode application model', () => {
   it('builds a canonical episode key', () => {

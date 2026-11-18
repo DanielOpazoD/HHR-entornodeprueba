@@ -5,7 +5,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
 import { assertAdmissionDatePersistencePolicy } from '@/services/repositories/dailyRecordAdmissionDateWritePolicy';
-import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/admissionDatePolicy';
+import { AdmissionDatePolicyViolationError } from '@/domain/clinical-episode/admissionDatePolicy';
 import { findPatientErasures } from '@/services/repositories/dailyRecordErasureGuard';
 import { applyDailyRecordClinicalConsistencyCheck } from '@/services/repositories/dailyRecordClinicalConsistencyCheck';
 import { evaluateDailyRecordClinicalAuthority } from '@/services/repositories/dailyRecordClinicalAuthorityPolicy';

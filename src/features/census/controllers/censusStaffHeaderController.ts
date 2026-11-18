@@ -1,6 +1,6 @@
 import type { DischargeData, TransferData } from '@/types/domain/movements';
 import type { CensusHeaderPatientContract } from '@/application/census/censusStaffHeaderContracts';
-import { classifyPatientMovementForRecord } from '@/application/patient-flow/clinicalEpisode';
+import { classifyPatientMovementForRecord } from '@/domain/clinical-episode/clinicalEpisode';
 import {
   resolveDetailedStaffingState,
   resolveShiftRoleStaffingMeta,
@@ -11,7 +11,7 @@ import {
   getActiveDischarges,
   getActiveTransfers,
   getActiveMovements,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 
 export interface StaffSelectorsState {
   nursesDayShift: string[];

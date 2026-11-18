@@ -12,7 +12,7 @@ import {
 } from './patientHistoryRecordLoader';
 export type { PatientHistoryLoadOptions } from './patientHistoryRecordLoader';
 import { BEDS } from '@/constants/beds';
-import { getActiveMovements } from '@/application/census/movementTombstonePolicy';
+import { getActiveMovements } from '@/domain/movements/movementTombstonePolicy';
 import { diffCalendarDays } from '@/utils/clinicalDateUtils';
 
 // ============================================================================

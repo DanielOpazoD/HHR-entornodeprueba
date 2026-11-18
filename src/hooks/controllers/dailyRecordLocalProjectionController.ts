@@ -3,7 +3,7 @@ import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { flattenObject } from '@/services/storage/firestore/firestoreShared';
 import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields';
 import { applyPatches } from '@/utils/patchUtils';
-import { hasSamePatientEpisodeIdentity } from '@/application/patient-flow/patientEpisodeIdentityPolicy';
+import { hasSamePatientEpisodeIdentity } from '@/domain/clinical-episode/patientEpisodeIdentityPolicy';
 import { toRecordTimestamp } from '@/services/repositories/dailyRecordConsistencyPolicy';
 
 const RAYEN_OWNED_FIELDS = new Set<string>(RAYEN_OWNED_CLINICAL_FIELDS);

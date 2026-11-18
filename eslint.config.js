@@ -370,18 +370,18 @@ const RUT_REGEX_RESTRICTION = {
     'No copies la expresión de RUT: usa normalizeRut(), isSameRut(), isSameDocument() o documentIdentityKey() de src/utils/rutUtils.ts (AGENTS.md).',
 };
 
-// Identity is patient plus episode (ID-01): only the patient-flow resolver builds or reads the
+// Identity is patient plus episode (ID-01): only the clinical-episode resolver builds or reads the
 // legacy `rut__admission` episode key.
 const EPISODE_KEY_BUILD_RESTRICTION = {
   selector: "TemplateElement[value.raw='__'][tail=false]:not(:first-child)",
   message:
-    'No armes una clave `${a}__${b}` a mano: la clave de episodio sale de buildClinicalEpisodeKey() en src/application/patient-flow/clinicalEpisode.ts. Si la clave no es clínica, exime el archivo junto a reminderShared.ts en eslint.config.js.',
+    'No armes una clave `${a}__${b}` a mano: la clave de episodio sale de buildClinicalEpisodeKey() en src/domain/clinical-episode/clinicalEpisode.ts. Si la clave no es clínica, exime el archivo junto a reminderShared.ts en eslint.config.js.',
 };
 const EPISODE_KEY_PARSE_RESTRICTION = {
   selector:
     "CallExpression[callee.property.name=/^(split|includes)$/][arguments.0.value='__']:matches([callee.object.name='episodeKey'], [callee.object.property.name='episodeKey'])",
   message:
-    'Lee una clave de episodio antigua con isLegacyClinicalEpisodeKey() o parseLegacyClinicalEpisodeKey() de src/application/patient-flow/clinicalEpisode.ts.',
+    'Lee una clave de episodio antigua con isLegacyClinicalEpisodeKey() o parseLegacyClinicalEpisodeKey() de src/domain/clinical-episode/clinicalEpisode.ts.',
 };
 const LEGACY_DOCUMENT_HYDRATION_RESTRICTION = {
   selector: "Identifier[name='hydrateLegacyClinicalDocument']",
@@ -566,7 +566,7 @@ export default tseslint.config(
   },
   {
     // The home of the episode key.
-    files: ['src/application/patient-flow/clinicalEpisode.ts'],
+    files: ['src/domain/clinical-episode/clinicalEpisode.ts'],
     rules: {
       'no-restricted-syntax': syntaxRestrictions({
         omit: [EPISODE_KEY_BUILD_RESTRICTION, EPISODE_KEY_PARSE_RESTRICTION],

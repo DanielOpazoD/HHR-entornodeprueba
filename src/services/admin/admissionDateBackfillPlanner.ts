@@ -10,7 +10,7 @@ import {
 import {
   resolveAdmissionDateAudit,
   resolveAdmissionDateSuggestion,
-} from '@/application/patient-flow/admissionDatePolicy';
+} from '@/domain/clinical-episode/admissionDatePolicy';
 import { createEpisodeAdmissionTracker } from '@/services/calculations/minsal/episodeTracker';
 import type {
   AdmissionDateBackfillPlan,

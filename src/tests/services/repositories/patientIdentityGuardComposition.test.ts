@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { findPatientErasures } from '@/services/repositories/dailyRecordErasureGuard';
-import { hasSamePatientEpisodeIdentity } from '@/application/patient-flow/patientEpisodeIdentityPolicy';
+import { hasSamePatientEpisodeIdentity } from '@/domain/clinical-episode/patientEpisodeIdentityPolicy';
 import { isSameEpisodeForExplicitCensusPatch } from '@/services/repositories/explicitLocalCensusPatchPolicy';
 
 // One synthetic pair of occupants, judged by the three identity comparators a single write can

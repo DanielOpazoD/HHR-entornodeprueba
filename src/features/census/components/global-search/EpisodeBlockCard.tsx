@@ -27,7 +27,7 @@ import type {
 import type { GroupedEpisode } from '@/features/census/components/global-search/globalSearchContracts';
 import { resolveEpisodeCensusTargetDate } from '@/features/census/components/global-search/episodeGroupingController';
 import { DocRow } from '@/features/census/components/global-search/DocRow';
-import { buildClinicalEpisodeKey } from '@/application/patient-flow/clinicalEpisode';
+import { buildClinicalEpisodeKey } from '@/domain/clinical-episode/clinicalEpisode';
 import { formatDateToCL } from '@/utils/clinicalUtils';
 
 // ---------------------------------------------------------------------------

@@ -50,7 +50,7 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   'src/features/rayen-import/domain/historicalAdministrativeEvidence.ts',
   // Legacy movement classification: the preserved Cuna/Cama mode disambiguates old bed labels.
   // It never supplies current occupancy; explicit Cama and normal statistical rules prevail.
-  'src/application/census/movementTombstonePolicy.ts',
+  'src/domain/movements/movementTombstonePolicy.ts',
   'src/domain/CensusManager.ts',
   'src/services/admin/admissionDateBackfillPlanner.ts',
   // Read-only admission audit cohort: a completed movement supplies only the historical person,

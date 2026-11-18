@@ -1,4 +1,4 @@
-import { resolveClinicalEpisodeIdentifier } from '@/application/patient-flow/clinicalEpisode';
+import { resolveClinicalEpisodeIdentifier } from '@/domain/clinical-episode/clinicalEpisode';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import type { SyncTask, SyncTaskContract } from '@/services/storage/syncQueueTypes';

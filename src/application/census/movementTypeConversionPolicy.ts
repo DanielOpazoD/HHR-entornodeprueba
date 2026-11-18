@@ -5,7 +5,7 @@ import {
   getActiveDischarges,
   getActiveTransfers,
   tombstoneMovementById,
-} from './movementTombstonePolicy';
+} from '../../domain/movements/movementTombstonePolicy';
 import {
   buildCmaFromDischarge,
   buildCmaFromTransfer,

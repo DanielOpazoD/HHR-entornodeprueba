@@ -14,7 +14,7 @@ import {
   getActiveCma,
   getActiveDischarges,
   getActiveTransfers,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 const RECLASSIFICATION_CONTEXT = {

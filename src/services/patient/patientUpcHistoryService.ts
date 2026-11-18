@@ -8,7 +8,7 @@ import {
   getActiveDischarges,
   getActiveTransfers,
   getActiveCma,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 
 type Patient = Pick<
   PatientData,

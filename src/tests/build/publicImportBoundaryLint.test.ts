@@ -245,7 +245,7 @@ describe('module homes in ESLint', () => {
         expect.stringContaining('parseLegacyClinicalEpisodeKey()'),
       ]);
     expect(await restrictions('src/tests/Probe.test.ts', parse)).toEqual([]);
-    const home = 'src/application/patient-flow/clinicalEpisode.ts';
+    const home = 'src/domain/clinical-episode/clinicalEpisode.ts';
     expect(await restrictions(home, `${key}\n${parse}`)).toEqual([]);
   });
 
@@ -271,7 +271,7 @@ describe('module homes in ESLint', () => {
 
   it('passes on the real homes and entrypoints', async () => {
     for (const file of [
-      'src/application/patient-flow/clinicalEpisode.ts',
+      'src/domain/clinical-episode/clinicalEpisode.ts',
       'src/services/reminders/reminderShared.ts',
       'src/domain/clinical-documents/compatibility.ts',
       'src/application/ports/clinicalDocumentCompatibilityPort.ts',

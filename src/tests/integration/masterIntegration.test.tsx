@@ -8,7 +8,7 @@ import { DataFactory } from '../factories/DataFactory';
 import { calculateStats } from '@/services/calculations/statsCalculator';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import { wireStatefulDailyRecordRepoMock } from '@/tests/utils/dailyRecordRepositoryMockUtils';
-import { getActiveTransfers } from '@/application/census/movementTombstonePolicy';
+import { getActiveTransfers } from '@/domain/movements/movementTombstonePolicy';
 
 // Mock Repositories and Services
 const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({

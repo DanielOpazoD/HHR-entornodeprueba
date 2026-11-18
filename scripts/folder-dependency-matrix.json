@@ -340,184 +340,16 @@
       "reason": "Esquema zod que usa un servicio (telemetría o personal); ARCH-15 separa el efecto del contrato puro."
     },
     {
-      "from": "src/services/admin/admissionDateBackfillPlanner.ts",
-      "to": "src/application/patient-flow/admissionDatePolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/calculations/minsal/calculator.ts",
-      "to": "src/application/census/movementTombstonePolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/calculations/minsal/cmaStats.ts",
-      "to": "src/application/census/movementTombstonePolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/calculations/minsal/snapshot.ts",
-      "to": "src/application/census/movementTombstonePolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/calculations/minsal/traceability.ts",
-      "to": "src/application/census/movementTombstonePolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/daily-record/dailyRecordAdmitPatientPort.ts",
-      "to": "src/application/patient-flow/clinicalEpisodeIdPolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/exporters/excel/censusHiddenSheetsAggregation.ts",
-      "to": "src/application/census/movementTombstonePolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/exporters/excel/censusWorkbookDaySheetBuilder.ts",
-      "to": "src/application/census/movementTombstonePolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/exporters/excel/sections/summarySection.ts",
-      "to": "src/application/census/movementTombstonePolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/exporters/exportCsvSerialization.ts",
-      "to": "src/application/census/movementTombstonePolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
       "from": "src/services/firebase-runtime/firebaseConfigRuntimeAdapter.ts",
       "to": "src/firebaseConfig.ts",
       "kind": "value",
       "reason": "firebaseConfig.ts vive en la raíz de src/; ARCH-15 lo lleva a services/firebase-runtime."
     },
     {
-      "from": "src/services/patient/patientHistoryService.ts",
-      "to": "src/application/census/movementTombstonePolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/patient/patientUpcHistoryService.ts",
-      "to": "src/application/census/movementTombstonePolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/pdf/handoffPdfMovementsSummarySection.ts",
-      "to": "src/application/census/movementTombstonePolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
       "from": "src/services/repositories/ClinicalDocumentRepository.ts",
       "to": "src/application/ports/clinicalDocumentCompatibilityPort.ts",
       "kind": "value",
       "reason": "Puerto que implementa un servicio; ARCH-4 lo lleva a la capa de servicios."
-    },
-    {
-      "from": "src/services/repositories/clinicalMovementBedConsistencyPolicy.ts",
-      "to": "src/application/census/movementTombstonePolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/repositories/dailyRecordAdmissionDateWritePolicy.ts",
-      "to": "src/application/patient-flow/admissionDatePolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/repositories/dailyRecordAdmissionDateWritePolicy.ts",
-      "to": "src/application/patient-flow/patientEpisodeIdentityPolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/repositories/dailyRecordAggregate.ts",
-      "to": "src/application/census/movementTombstonePolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/repositories/dailyRecordBackgroundMasterSyncController.ts",
-      "to": "src/application/census/movementTombstonePolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/repositories/dailyRecordClinicalAuthorityPolicy.ts",
-      "to": "src/application/census/movementTombstonePolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/repositories/dailyRecordClinicalAuthorityPolicy.ts",
-      "to": "src/application/patient-flow/clinicalEpisode.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/repositories/dailyRecordConflictPostMergeInvariantChecker.ts",
-      "to": "src/application/census/movementReclassificationConcurrencyPolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/repositories/dailyRecordPatchPersistenceController.ts",
-      "to": "src/application/patient-flow/clinicalEpisodeIdPolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/repositories/dailyRecordPendingWriteRebase.ts",
-      "to": "src/application/patient-flow/patientEpisodeIdentityPolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/repositories/dailyRecordPersistencePreparation.ts",
-      "to": "src/application/patient-flow/clinicalEpisodeIdPolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/repositories/dailyRecordRepositoryWriteService.ts",
-      "to": "src/application/census/movementReclassificationConcurrencyPolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/repositories/dailyRecordRepositoryWriteService.ts",
-      "to": "src/application/patient-flow/admissionDatePolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/repositories/patientEpisodeNarrativePolicy.ts",
-      "to": "src/application/patient-flow/clinicalEpisode.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/repositories/patientEpisodeNarrativePolicy.ts",
-      "to": "src/application/patient-flow/clinicalEpisodeIdPolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
     },
     {
       "from": "src/services/repositories/ports/repositoryAuditPort.ts",
@@ -530,42 +362,6 @@
       "to": "src/application/ports/dailyRecordPort.ts",
       "kind": "value",
       "reason": "Puerto que implementa un servicio; ARCH-4 lo lleva a la capa de servicios."
-    },
-    {
-      "from": "src/services/storage/clinicalDerivedWriteHygiene.ts",
-      "to": "src/application/patient-flow/clinicalEpisodeIdPolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/storage/firestore/specialistMedicalHandoffIdentity.ts",
-      "to": "src/application/patient-flow/clinicalEpisodeIdPolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/storage/sync/bedOccupantIdentity.ts",
-      "to": "src/application/patient-flow/patientEpisodeIdentityPolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/services/storage/sync/syncTaskContractPolicy.ts",
-      "to": "src/application/patient-flow/clinicalEpisode.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/shared/access/operationalAccessPolicy.ts",
-      "to": "src/application/clinical-documents/clinicalDocumentAccessPolicy.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
-    },
-    {
-      "from": "src/shared/contracts/medicalIndications.ts",
-      "to": "src/application/patient-flow/clinicalEpisode.ts",
-      "kind": "value",
-      "reason": "Política pura ubicada en application/; ARCH-4 la baja a domain/."
     },
     {
       "from": "src/shared/document-intake/qrDocumentAccessService.ts",

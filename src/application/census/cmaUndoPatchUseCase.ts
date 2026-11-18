@@ -1,7 +1,7 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { CMAData } from '@/types/domain/movements';
-import { tombstoneMovementsWhere } from '@/application/census/movementTombstonePolicy';
+import { tombstoneMovementsWhere } from '@/domain/movements/movementTombstonePolicy';
 import { matchesRestoredPatientDestination } from '@/application/census/movementUndoIdentityPolicy';
 
 export const buildUndoCmaPatch = (record: DailyRecord, item: CMAData): DailyRecordPatch | null => {

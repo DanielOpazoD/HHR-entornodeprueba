@@ -15,7 +15,7 @@ import type {
 } from '@/application/daily-record/commands/admitPatientCommand';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import { resolveClinicalEpisodeIdForAdmission } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
+import { resolveClinicalEpisodeIdForAdmission } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import type { UpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { isDailyRecordWriteBlockedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';

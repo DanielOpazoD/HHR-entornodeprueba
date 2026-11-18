@@ -7,7 +7,7 @@ import {
   getActiveTransfers,
   isMovementDeleted,
   tombstoneMovementById,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 describe('movement tombstone policy', () => {

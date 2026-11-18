@@ -4,7 +4,7 @@ import {
   type ApplyContext,
   type CensusImportDiff,
 } from '@/features/rayen-import';
-import { getStatisticalDischarges } from '@/application/census/movementTombstonePolicy';
+import { getStatisticalDischarges } from '@/domain/movements/movementTombstonePolicy';
 import { resolveUndoPatientMovement } from '@/features/census/controllers/patientMovementUndoController';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { EMPTY_PATIENT } from '@/constants/patient';

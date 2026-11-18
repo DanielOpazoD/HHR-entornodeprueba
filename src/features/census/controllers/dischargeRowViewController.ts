@@ -6,7 +6,7 @@ import {
 } from '@/features/census/controllers/censusDischargesTableController';
 import { normalizeCribDisplayText } from '@/services/terminology/cribTerminology';
 import { resolveMovementHistoricalAdmissionDate } from '@/types/domain/movements';
-import { isClinicalCribDischarge } from '@/application/census/movementTombstonePolicy';
+import { isClinicalCribDischarge } from '@/domain/movements/movementTombstonePolicy';
 
 const dischargeBedLabel = (item: DischargeData): string => {
   const name = normalizeCribDisplayText(item.bedName);

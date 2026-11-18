@@ -1,4 +1,4 @@
-import { buildLegacyClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
+import { buildLegacyClinicalEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import type { PatientData } from '@/types/domain/patient';
 
 import type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';

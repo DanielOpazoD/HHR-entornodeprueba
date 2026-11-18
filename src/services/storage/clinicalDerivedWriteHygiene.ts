@@ -18,7 +18,7 @@ import {
   CLINICAL_DERIVED_LAYOUT_FIELD,
   CLINICAL_DERIVED_MOVED_FIELDS,
 } from '@/services/storage/clinicalDerivedConstants';
-import { ensurePatientClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
+import { ensurePatientClinicalEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 type PlainObject = Record<string, unknown>;
 
