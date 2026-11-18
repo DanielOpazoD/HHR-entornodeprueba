@@ -6,7 +6,7 @@ import { getAllRecords } from '@/services/storage/indexeddb/indexedDbRecordServi
 import { exportDataJSONWithResult } from '@/services/exporters/exportService';
 import { useFileOperations } from '@/hooks/useFileOperations';
 import { PatientHistoryModal } from '@/components/modals/PatientHistoryModal';
-import { RecoverCensusStaffButton } from '@/components/modals/RecoverCensusStaffButton';
+import { RecoverCensusStaffButton } from '@/features/census/components/staff-catalog/RecoverCensusStaffButton';
 
 const mocks = vi.hoisted(() => ({
   download: vi.fn(),

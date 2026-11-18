@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { MovementDateTimeField } from '@/components/modals/actions/shared/MovementDateTimeField';
+import { MovementDateTimeField } from '@/features/census/components/movements/shared/MovementDateTimeField';
 
 describe('MovementDateTimeField', () => {
   it('renders date + time inputs when showDateInput is true', () => {

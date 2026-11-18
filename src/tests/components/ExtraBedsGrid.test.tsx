@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { ExtraBedsGrid } from '@/components/modals/ExtraBedsGrid';
+import { ExtraBedsGrid } from '@/features/census/components/bed-manager/ExtraBedsGrid';
 
 describe('ExtraBedsGrid', () => {
   it('calls onToggleBed with bed id and keeps aria-pressed state', () => {

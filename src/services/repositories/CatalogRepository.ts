@@ -74,259 +74,160 @@ const confirmCatalogSave = async <T>(save: Promise<T>): Promise<T> => {
   }
 };
 
-// ============================================================================
-// Nurses Catalog
-// ============================================================================
+/** Where one staff catalog lives; every catalog follows the same read, save and live rules. */
+interface StaffCatalogStore<T> {
+  key: 'nurses' | 'tens' | 'professionals';
+  /** Name in log lines. */
+  label: string;
+  normalize: (value: unknown) => T[];
+  /** The local copy as stored. */
+  readLocal: () => Promise<T[]>;
+  /** What a read answers from the stored local copy; an empty answer goes to the remote one. */
+  answerFromLocal: (stored: T[]) => T[];
+  /** What a read that found nothing saved returns. */
+  whenEmpty: () => T[];
+  getRemote: () => Promise<T[]>;
+  saveRemote: (items: T[], base: T[]) => Promise<T[]>;
+  subscribeRemote: (
+    callback: (items: T[]) => void,
+    onError?: (error: unknown) => void
+  ) => () => void;
+}
 
-/**
- * Retrieves the list of nurses from local storage.
- * Returns default placeholder values if no nurses have been configured.
- */
-export const getNurses = async (): Promise<string[]> => {
-  // 1. Try local
-  const localList = await getCatalog('nurses');
+const nurseStore: StaffCatalogStore<string> = {
+  key: 'nurses',
+  label: 'nurses',
+  normalize: normalizeStringCatalog,
+  readLocal: () => getCatalog('nurses'),
+  answerFromLocal: stored => stored,
+  whenEmpty: () => catalogExamples(NURSE_CATALOG_EXAMPLES),
+  getRemote: () => getNurseCatalogFromFirestore(),
+  saveRemote: (items, base) => saveNurseCatalogToFirestore(items, base),
+  subscribeRemote: (callback, onError) => subscribeToNurseCatalog(callback, onError),
+};
+
+const tensStore: StaffCatalogStore<string> = {
+  key: 'tens',
+  label: 'TENS',
+  normalize: normalizeStringCatalog,
+  readLocal: () => getCatalog('tens'),
+  answerFromLocal: stored => stored,
+  whenEmpty: () => catalogExamples(TENS_CATALOG_EXAMPLES),
+  getRemote: () => getTensCatalogFromFirestore(),
+  saveRemote: (items, base) => saveTensCatalogToFirestore(items, base),
+  subscribeRemote: (callback, onError) => subscribeToTensCatalog(callback, onError),
+};
+
+const professionalStore: StaffCatalogStore<ProfessionalCatalogItem> = {
+  key: 'professionals',
+  label: 'professionals',
+  normalize: normalizeProfessionalCatalog,
+  readLocal: () => getCatalogValues<ProfessionalCatalogItem>('professionals'),
+  answerFromLocal: normalizeProfessionalCatalog,
+  whenEmpty: () => [],
+  getRemote: () => getProfessionalsCatalogFromFirestore(),
+  saveRemote: (items, base) => saveProfessionalsCatalogToFirestore(items, base),
+  subscribeRemote: (callback, onError) => subscribeToProfessionalsCatalog(callback, onError),
+};
+
+/** Local copy first, then the remote one; a failed remote read is an error, never an empty list. */
+const readCatalog = async <T>(store: StaffCatalogStore<T>): Promise<T[]> => {
+  const localList = store.answerFromLocal(await store.readLocal());
   if (localList.length > 0) return localList;
 
-  // 2. Try Beta Firestore
   if (isFirestoreEnabled()) {
     try {
-      const remoteList = await getNurseCatalogFromFirestore();
+      const remoteList = await store.getRemote();
       if (remoteList.length > 0) {
-        await cacheCatalogValues('nurses', remoteList, true);
+        await cacheCatalogValues<T>(store.key, remoteList, true);
         return remoteList;
       }
     } catch (err) {
-      catalogRepositoryLogger.warn('Failed to fetch nurses from remote', err);
+      catalogRepositoryLogger.warn(`Failed to fetch ${store.label} from remote`, err);
       throw err;
     }
   }
 
-  return catalogExamples(NURSE_CATALOG_EXAMPLES);
+  return store.whenEmpty();
 };
 
-/**
- * Confirms the nurses list remotely before refreshing its local cache.
- */
-export const saveNurses = async (nurses: string[], base: string[]): Promise<string[] | void> => {
-  const normalized = normalizeStringCatalog(nurses);
+/** Confirms the list remotely before refreshing its local copy; a conflict keeps the server list. */
+const saveCatalog = async <T>(
+  store: StaffCatalogStore<T>,
+  items: T[],
+  base: T[]
+): Promise<T[] | void> => {
+  const normalized = store.normalize(items);
   assertCatalogRemoteAvailable();
-  let accepted: string[];
+  let accepted: T[];
   try {
-    accepted = await confirmCatalogSave(saveNurseCatalogToFirestore(normalized, base));
+    accepted = await confirmCatalogSave(store.saveRemote(normalized, base));
   } catch (cause) {
     if (cause instanceof CatalogConflictError) {
-      await cacheCatalogValues('nurses', normalizeStringCatalog(cause.current), true);
+      await cacheCatalogValues(store.key, store.normalize(cause.current), true);
       throw cause;
     }
     throw new CatalogRemoteSyncError(cause);
   }
-  await cacheCatalogValues('nurses', accepted ?? normalized, true);
+  await cacheCatalogValues(store.key, accepted ?? normalized, true);
   return accepted;
 };
 
-const subscribeToLocalStringCatalog = (
-  key: 'nurses' | 'tens',
-  callback: (items: string[]) => void,
+/** Live remote updates, or a single read of the local copy while sync is off. */
+const subscribeCatalog = <T>(
+  store: StaffCatalogStore<T>,
+  callback: (items: T[]) => void,
   onError?: (error: unknown) => void
 ): (() => void) => {
-  let isActive = true;
-  void getCatalog(key)
-    .then(items => {
-      if (isActive) {
-        callback(normalizeStringCatalog(items));
-      }
-    })
-    .catch(error => {
-      if (isActive) onError?.(error);
-    });
+  assertCatalogSubscriptionCallback(callback, store.key);
+  if (!isFirestoreEnabled()) {
+    let isActive = true;
+    void store
+      .readLocal()
+      .then(items => {
+        if (isActive) callback(store.normalize(items));
+      })
+      .catch(error => {
+        if (isActive) onError?.(error);
+      });
+    return () => {
+      isActive = false;
+    };
+  }
 
-  return () => {
-    isActive = false;
-  };
+  return store.subscribeRemote(async items => {
+    const normalized = store.normalize(items);
+    await cacheCatalogValues<T>(store.key, normalized, true);
+    callback(normalized);
+  }, onError);
 };
 
-const subscribeToLocalProfessionalsCatalog = (
-  callback: (professionals: ProfessionalCatalogItem[]) => void,
-  onError?: (error: unknown) => void
-): (() => void) => {
-  let isActive = true;
-  void getCatalogValues<ProfessionalCatalogItem>('professionals')
-    .then(items => {
-      if (isActive) {
-        callback(normalizeProfessionalCatalog(items));
-      }
-    })
-    .catch(error => {
-      if (isActive) onError?.(error);
-    });
-
-  return () => {
-    isActive = false;
-  };
-};
-
-/**
- * Subscribes to real-time updates for the nurses catalog from Firestore.
- */
+export const getNurses = (): Promise<string[]> => readCatalog(nurseStore);
+export const saveNurses = (nurses: string[], base: string[]): Promise<string[] | void> =>
+  saveCatalog(nurseStore, nurses, base);
 export const subscribeNurses = (
   callback: (nurses: string[]) => void,
   onError?: (error: unknown) => void
-): (() => void) => {
-  assertCatalogSubscriptionCallback(callback, 'nurses');
-  if (!isFirestoreEnabled()) {
-    return subscribeToLocalStringCatalog('nurses', callback, onError);
-  }
+): (() => void) => subscribeCatalog(nurseStore, callback, onError);
 
-  return subscribeToNurseCatalog(async nurses => {
-    const normalized = normalizeStringCatalog(nurses);
-    await cacheCatalogValues('nurses', normalized, true);
-    callback(normalized);
-  }, onError);
-};
-
-// ============================================================================
-// TENS Catalog
-// ============================================================================
-
-/**
- * Retrieves the list of TENS from local storage.
- */
-export const getTens = async (): Promise<string[]> => {
-  // 1. Try local
-  const localList = await getCatalog('tens');
-  if (localList.length > 0) return localList;
-
-  // 2. Try Beta Firestore
-  if (isFirestoreEnabled()) {
-    try {
-      const remoteList = await getTensCatalogFromFirestore();
-      if (remoteList.length > 0) {
-        await cacheCatalogValues('tens', remoteList, true);
-        return remoteList;
-      }
-    } catch (err) {
-      catalogRepositoryLogger.warn('Failed to fetch TENS from remote', err);
-      throw err;
-    }
-  }
-
-  return catalogExamples(TENS_CATALOG_EXAMPLES);
-};
-
-/**
- * Confirms the TENS list remotely before refreshing its local cache.
- */
-export const saveTens = async (tens: string[], base: string[]): Promise<string[] | void> => {
-  const normalized = normalizeStringCatalog(tens);
-  assertCatalogRemoteAvailable();
-  let accepted: string[];
-  try {
-    accepted = await confirmCatalogSave(saveTensCatalogToFirestore(normalized, base));
-  } catch (cause) {
-    if (cause instanceof CatalogConflictError) {
-      await cacheCatalogValues('tens', normalizeStringCatalog(cause.current), true);
-      throw cause;
-    }
-    throw new CatalogRemoteSyncError(cause);
-  }
-  await cacheCatalogValues('tens', accepted ?? normalized, true);
-  return accepted;
-};
-
-/**
- * Subscribes to real-time updates for the TENS catalog from Firestore.
- */
+export const getTens = (): Promise<string[]> => readCatalog(tensStore);
+export const saveTens = (tens: string[], base: string[]): Promise<string[] | void> =>
+  saveCatalog(tensStore, tens, base);
 export const subscribeTens = (
   callback: (tens: string[]) => void,
   onError?: (error: unknown) => void
-): (() => void) => {
-  assertCatalogSubscriptionCallback(callback, 'tens');
-  if (!isFirestoreEnabled()) {
-    return subscribeToLocalStringCatalog('tens', callback, onError);
-  }
+): (() => void) => subscribeCatalog(tensStore, callback, onError);
 
-  return subscribeToTensCatalog(async tens => {
-    const normalized = normalizeStringCatalog(tens);
-    await cacheCatalogValues('tens', normalized, true);
-    callback(normalized);
-  }, onError);
-};
-
-// ============================================================================
-// Professionals Catalog
-// ============================================================================
-
-/**
- * Retrieves the list of professionals from local storage.
- */
-export const getProfessionals = async (): Promise<ProfessionalCatalogItem[]> => {
-  // 1. Try local
-  const localList = await getCatalogValues<ProfessionalCatalogItem>('professionals');
-  const parsedList = normalizeProfessionalCatalog(localList);
-  if (parsedList.length > 0) return parsedList;
-
-  // 2. Try Beta Firestore
-  if (isFirestoreEnabled()) {
-    try {
-      const remoteList = await getProfessionalsCatalogFromFirestore();
-      if (remoteList.length > 0) {
-        await cacheCatalogValues<ProfessionalCatalogItem>('professionals', remoteList, true);
-        return remoteList;
-      }
-    } catch (err) {
-      catalogRepositoryLogger.warn('Failed to fetch professionals from remote', err);
-      throw err;
-    }
-  }
-
-  return [];
-};
-
-/**
- * Confirms the professionals list remotely before refreshing its local cache.
- */
-export const saveProfessionals = async (
+export const getProfessionals = (): Promise<ProfessionalCatalogItem[]> =>
+  readCatalog(professionalStore);
+export const saveProfessionals = (
   professionals: ProfessionalCatalogItem[],
   base: ProfessionalCatalogItem[]
-): Promise<ProfessionalCatalogItem[] | void> => {
-  const normalized = normalizeProfessionalCatalog(professionals);
-  assertCatalogRemoteAvailable();
-  let accepted: ProfessionalCatalogItem[];
-  try {
-    accepted = await confirmCatalogSave(saveProfessionalsCatalogToFirestore(normalized, base));
-  } catch (cause) {
-    if (cause instanceof CatalogConflictError) {
-      await cacheCatalogValues('professionals', normalizeProfessionalCatalog(cause.current), true);
-      throw cause;
-    }
-    throw new CatalogRemoteSyncError(cause);
-  }
-  await cacheCatalogValues('professionals', accepted ?? normalized, true);
-  return accepted;
-};
-
-/**
- * Subscribes to real-time updates for the professionals catalog from Firestore.
- */
+): Promise<ProfessionalCatalogItem[] | void> => saveCatalog(professionalStore, professionals, base);
 export const subscribeProfessionals = (
   callback: (professionals: ProfessionalCatalogItem[]) => void,
   onError?: (error: unknown) => void
-): (() => void) => {
-  assertCatalogSubscriptionCallback(callback, 'professionals');
-  if (!isFirestoreEnabled()) {
-    return subscribeToLocalProfessionalsCatalog(callback, onError);
-  }
-
-  return subscribeToProfessionalsCatalog(async professionals => {
-    const normalized = normalizeProfessionalCatalog(professionals);
-    await cacheCatalogValues<ProfessionalCatalogItem>('professionals', normalized, true);
-    callback(normalized);
-  }, onError);
-};
-
-// ============================================================================
-// Repository Object Export
-// ============================================================================
+): (() => void) => subscribeCatalog(professionalStore, callback, onError);
 
 export const CatalogRepository: ICatalogRepository = {
   getNurses,

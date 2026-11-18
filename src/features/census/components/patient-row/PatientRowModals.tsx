@@ -1,7 +1,7 @@
 import React, { lazy, Suspense, useContext, useEffect, useRef } from 'react';
 import { buildPatientRowModalRenderModel } from '@/features/census/controllers/patientRowModalRenderController';
 import type { PatientRowModalsProps } from '@/features/census/components/patient-row/patientRowContracts';
-import { hasMeaningfulDemographicSubset } from '@/components/modals/demographics/utils';
+import { hasMeaningfulDemographicSubset } from '@/features/census/components/demographics/utils';
 import { resolveExamRequestPatientIdentity } from '@/components/modals/controllers/examRequestPatientIdentity';
 import {
   CensusExamOrderDateContext,
@@ -10,7 +10,7 @@ import {
 import { openExamOrderRequest } from '../exam-orders/examOrderSelectionStore';
 
 const LazyDemographicsModal = lazy(() =>
-  import('@/components/modals/DemographicsModal').then(module => ({
+  import('@/features/census/components/demographics/DemographicsModal').then(module => ({
     default: module.DemographicsModal,
   }))
 );

@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { BedReasonDialog } from '@/components/modals/BedReasonDialog';
+import { BedReasonDialog } from '@/features/census/components/bed-manager/BedReasonDialog';
 
 describe('BedReasonDialog', () => {
   it('associates the reason label with the text input', async () => {

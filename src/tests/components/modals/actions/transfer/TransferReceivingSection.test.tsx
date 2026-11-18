@@ -6,7 +6,7 @@ import {
   DEFAULT_RECEIVING_CENTER,
   RECEIVING_CENTER_OTHER,
 } from '@/constants/clinicalMovementConstants';
-import { TransferReceivingSection } from '@/components/modals/actions/transfer/TransferReceivingSection';
+import { TransferReceivingSection } from '@/features/census/components/movements/transfer/TransferReceivingSection';
 
 describe('TransferReceivingSection', () => {
   it('associates the receiving center label with the select control', async () => {

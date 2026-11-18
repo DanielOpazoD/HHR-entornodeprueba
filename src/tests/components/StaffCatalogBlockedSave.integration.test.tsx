@@ -34,7 +34,7 @@ import * as local from '@/services/storage/indexeddb/indexedDbCatalogService';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import * as remote from '@/services/storage/firestore';
 import { useNursesQuery, useTensQuery } from '@/hooks/useStaffQuery';
-import { StaffManagerModal } from '@/components/modals/StaffManagerModal';
+import { StaffManagerModal } from '@/features/census/components/staff-catalog/StaffManagerModal';
 import { TreatingPhysiciansSettings } from '@/features/admin/components/TreatingPhysiciansSettings';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 

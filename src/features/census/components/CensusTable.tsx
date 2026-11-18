@@ -39,7 +39,7 @@ import { useCensusBedDeepLinkFocus } from '@/features/census/hooks/useCensusBedD
 const censusTableAdmitLogger = createScopedLogger('CensusTableAdmit');
 export type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 const LazyDemographicsModal = lazy(() =>
-  import('@/components/modals/DemographicsModal').then(module => ({
+  import('@/features/census/components/demographics/DemographicsModal').then(module => ({
     default: module.DemographicsModal,
   }))
 );

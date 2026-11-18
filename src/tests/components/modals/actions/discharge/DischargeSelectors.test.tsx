@@ -3,8 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DISCHARGE_TYPE_OTHER } from '@/constants/clinicalMovementConstants';
-import { DischargeTargetSelector } from '@/components/modals/actions/discharge/DischargeTargetSelector';
-import { DischargeTypeSelector } from '@/components/modals/actions/discharge/DischargeTypeSelector';
+import { DischargeTargetSelector } from '@/features/census/components/movements/discharge/DischargeTargetSelector';
+import { DischargeTypeSelector } from '@/features/census/components/movements/discharge/DischargeTypeSelector';
 
 describe('discharge selectors', () => {
   it('groups discharge type radios under an accessible name', () => {
