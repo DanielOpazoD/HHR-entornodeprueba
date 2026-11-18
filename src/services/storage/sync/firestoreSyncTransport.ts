@@ -44,6 +44,7 @@ import {
   assertNoSamePathRemoteMutation,
   assertUnchangedReplayPatchBase,
   hasRemoteAppliedMutation,
+  withOwnEarlierWriteAsBase,
 } from '@/services/storage/sync/firestoreSyncConflictPolicy';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import type { DetachedOccupantWork } from './dayTaskOccupantDetach';
@@ -205,6 +206,9 @@ const resolveRecordForSyncTask = async (
 
   const remoteData = remoteSnap.data() as Record<string, unknown>;
   const remoteLastUpdated = getRemoteLastUpdated(remoteData);
+  // An earlier edit of this task the server saved while its answer was lost is this task's base.
+  const ownTask = withOwnEarlierWriteAsBase(task, remoteData);
+  task = ownTask;
   const contract = task.syncContract;
   const compacted = contract?.mutationIds?.some(id => id !== contract.mutationId);
   const changedPaths = contract?.changedPaths ?? [];
@@ -295,7 +299,7 @@ const resolveRecordForSyncTask = async (
       storedData: remoteData,
       heldOut,
     };
-  const rebasedPart = withoutUnchangedPlainDayFields(queuedTask, remoteRecord, queuedRecord);
+  const rebasedPart = withoutUnchangedPlainDayFields(ownTask, remoteRecord, queuedRecord);
   // Without the fields another computer changed, the rest was just checked field by field.
   const canRebasePatch =
     !detached &&

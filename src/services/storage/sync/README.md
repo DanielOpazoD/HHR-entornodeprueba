@@ -59,6 +59,17 @@ o una tarea antigua sin esta evidencia conserva la revisión existente; no se pu
 ni se confirma como guardada.
 No requiere cambios en Functions ni reglas (SAVE-01 a SAVE-03).
 
+Si la respuesta de una edición se perdió y una corrección se juntó en su tarea, el servidor puede
+tener ya esa primera edición. Esa edición pasa a ser la base de la corrección solo si se cumplen
+tres condiciones. `meta.lastMutationId` debe ser uno de los identificadores anteriores de la tarea.
+El día guardado debe ser la versión que esa edición produjo: cada escritura del servidor pone en
+`meta.updatedAt` el mismo valor que en `lastUpdated`, así que cualquier escritura posterior rompe la
+coincidencia, incluso una que deje `meta` igual. Y el campo debe estar en `meta.lastChangedPaths`.
+En ese caso el valor guardado reemplaza la base del campo en la tarea, y la corrección sigue por la
+conciliación de arriba, con la misma exigencia de episodio y versión
+(`withOwnEarlierWriteAsBase`). Un texto igual escrito por otro equipo no cumple esas condiciones,
+y la tarea queda completa en `CONFLICT`.
+
 Los datos simples del día (fuera de camas, dotación y movimientos), con el valor base de cada
 campo y una versión conocida, se reenvían con la misma escritura que una edición directa
 (`updateRecordPartial`, en `plainDayFieldReplay.ts`): su transacción acepta una versión más nueva

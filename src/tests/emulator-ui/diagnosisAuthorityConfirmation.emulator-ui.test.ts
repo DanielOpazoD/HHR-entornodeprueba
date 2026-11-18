@@ -21,6 +21,17 @@ import { getSyncQueueTelemetry, processSyncQueue } from '@/services/storage/sync
 import { reconcileAuthorizedSessionOwner } from '@/services/storage/sessionScopedStorageService';
 import { createDailyRecordWriteAuthorityFunctions } from '@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import {
+  buildAddDischargeInput,
+  buildAtomicPatientMovementPatch,
+  buildDischargeAddCommandPayload,
+  resolveAddDischargeMovement,
+  resolveAtomicPatientMovementListKey,
+} from '@/application/census/public';
+import { BEDS } from '@/constants/beds';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { FIELD_CHANGED_ELSEWHERE_MESSAGE } from '@/services/storage/syncErrorCatalog';
 
 /**
  * A diagnosis typed in the census cell, saved under the production configuration (the schema-v2
@@ -184,6 +195,9 @@ const OWNER = 'user:synthetic-P1';
 const BASE = 'DIAGNOSTICO BASE';
 const DIAGNOSIS = 'NEUMONIA ADQUIRIDA EN LA COMUNIDAD';
 const CORRECTED = 'NEUMONIA POR ASPIRACION';
+const THIRD = 'NEUMONIA POR ASPIRACION, EN TRATAMIENTO';
+const OTHER = 'INSUFICIENCIA CARDIACA';
+const night = 'handoffNovedadesNightShift';
 
 const baseRecord = (): DailyRecord =>
   ({
@@ -468,37 +482,86 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       );
     });
 
-    /** The person types a diagnosis, its answer is lost, and they correct it while offline. */
-    const correctWhileAnswerLost = async () => {
+    /**
+     * The person types a diagnosis, its answer is lost, and they correct it while offline;
+     * `meanwhile` runs between the first edit and the correction.
+     */
+    const correctWhileAnswerLost = async (meanwhile?: () => Promise<unknown>) => {
       network.answerLost = { downAfterCut: Infinity };
       await expectShownPending(await typeDiagnosis(DIAGNOSIS), DIAGNOSIS);
-      await expectShownPending(await typeDiagnosis(CORRECTED), CORRECTED);
       expect(await serverDiagnosis()).toBe(DIAGNOSIS);
+      await meanwhile?.();
+      await expectShownPending(await typeDiagnosis(CORRECTED), CORRECTED);
       network.down = 0;
       await runQueue();
     };
+    let otherWrites = 0;
+    /** Another computer saves `patch` through the same authority handler, with its own identity. */
+    const otherComputerSaves = async (patch: Record<string, unknown>) => {
+      const stored = (await admin.doc(dayPath).get()).data()!;
+      const stamp = stored.lastUpdated;
+      await network.api!.patchDailyRecordWithClinicalAuthority.run(
+        {
+          date,
+          patch,
+          expectedLastUpdated:
+            stamp instanceof Timestamp ? stamp.toDate().toISOString() : String(stamp),
+          mode: 'enforced',
+          syncContract: {
+            mutationId: `synthetic-P2-mutation-${++otherWrites}`,
+            clientId: 'synthetic-P2-client',
+            tabId: 'synthetic-P2-tab',
+            changedPaths: Object.keys(patch),
+            baseRevision: stored.meta?.revision,
+          },
+        },
+        { auth: { uid: 'synthetic-P2', token: { email: 'synthetic-P2@example.invalid' } } }
+      );
+    };
+    /**
+     * Clinical, for a real conflict: the server keeps `diagnosis` at `revision`, and the whole
+     * task waits for review with both edits' identifiers and the correction, which the cell shows.
+     */
+    const expectCorrectionHeld = async (diagnosis: string, revision: number) => {
+      expect(await serverDiagnosis()).toBe(diagnosis);
+      expect((await admin.doc(dayPath).get()).data()?.meta?.revision).toBe(revision);
+      const tasks = await hospitalDB.syncQueue.toArray();
+      expect(
+        tasks.map(task => ({
+          status: task.status,
+          error: task.error,
+          diagnosis: (task.payload as DailyRecord).beds.R1.pathology,
+          paths: task.syncContract?.changedPaths,
+          mutations: task.syncContract?.mutationIds?.length,
+        }))
+      ).toEqual([
+        {
+          status: 'CONFLICT',
+          error: expect.stringContaining(FIELD_CHANGED_ELSEWHERE_MESSAGE),
+          diagnosis: CORRECTED,
+          paths: expect.arrayContaining(['beds.R1.pathology']),
+          mutations: 2,
+        },
+      ]);
+      expect(await cellDiagnosis()).toBe(CORRECTED);
+      expect(await waiting()).toBe(1);
+    };
 
-    // Real defect, found 2026-11-17 (W14-T2 REPORT.md): the correction joins the first edit's
-    // queued task (compacted: `mutationIds` [first, correction], base value BASE). The server
-    // already holds the first edit under its own identifier, which the queue only recognises
-    // when it is the task's main one (firestoreSyncTransport.ts, `hasRemoteAppliedMutation`), so
-    // the field check reads that first edit as changed on another computer and holds the whole
-    // task as a conflict («El campo cambió en otro equipo»): the correction never reaches the
-    // server. Not fixed here (tests only).
-    it.fails(
-      'a second diagnosis typed while the first one’s answer is lost is saved after it',
-      async () => {
-        await correctWhileAnswerLost();
-        // Both edits on the server in order: the first one, then the correction on top.
-        await expectClinicalOutcome({ diagnosis: CORRECTED, history: [BASE, DIAGNOSIS] });
-        // Transport: the correction travels as its own change, never as a repeat of the first.
-        expectDelivered([DIAGNOSIS, CORRECTED]);
-        const [first, correction] = network.delivered;
-        expect(correction.mutationId, 'transport: the correction is a new change').not.toBe(
-          first.mutationId
-        );
-      }
-    );
+    // Found 2026-11-17 (W14-T2), fixed in W14-ACK1: the correction joins the first edit's queued
+    // task (compacted: `mutationIds` [first, correction], base value BASE). The server holds the
+    // first edit under its own identifier, at the version it produced: the replay takes that
+    // stored value as the correction's base, instead of a change from another computer.
+    it('a second diagnosis typed while the first one’s answer is lost is saved after it', async () => {
+      await correctWhileAnswerLost();
+      // Both edits on the server in order: the first one, then the correction on top.
+      await expectClinicalOutcome({ diagnosis: CORRECTED, history: [BASE, DIAGNOSIS] });
+      // Transport: the correction travels as its own change, never as a repeat of the first.
+      expectDelivered([DIAGNOSIS, CORRECTED]);
+      const [first, correction] = network.delivered;
+      expect(correction.mutationId, 'transport: the correction is a new change').not.toBe(
+        first.mutationId
+      );
+    });
 
     it('never drops a diagnosis corrected while the first one’s answer is lost', async () => {
       await correctWhileAnswerLost();
@@ -509,6 +572,176 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         task => (task.payload as DailyRecord).beds?.R1?.pathology
       );
       expect([await serverDiagnosis(), ...kept]).toContain(CORRECTED);
+    });
+
+    it('holds the correction when another computer changed that diagnosis in between', async () => {
+      await correctWhileAnswerLost(() => otherComputerSaves({ 'beds.R1.pathology': OTHER }));
+      await expectCorrectionHeld(OTHER, 3);
+      // Transport: the queue never sends the correction over the other computer's diagnosis.
+      expectDelivered([DIAGNOSIS]);
+    });
+
+    it('holds the correction when another computer saved the same text as the first edit', async () => {
+      // Equal text, but another computer's save: it is not this task's first edit.
+      await correctWhileAnswerLost(() => otherComputerSaves({ 'beds.R1.pathology': DIAGNOSIS }));
+      await expectCorrectionHeld(DIAGNOSIS, 3);
+      expectDelivered([DIAGNOSIS]);
+    });
+
+    it('holds the correction when a later write kept the first edit’s identifier', async () => {
+      // A write that leaves the day's meta as it was (a direct client write does) puts the same
+      // text: the stored day is no longer the version the first edit produced.
+      await correctWhileAnswerLost(() =>
+        admin.doc(dayPath).update({ 'beds.R1.pathology': DIAGNOSIS, lastUpdated: Timestamp.now() })
+      );
+      await expectCorrectionHeld(DIAGNOSIS, 2);
+      expectDelivered([DIAGNOSIS]);
+    });
+
+    it('sends the correction once when the first diagnosis never reached the server', async () => {
+      network.requestsLost = Infinity;
+      await expectShownPending(await typeDiagnosis(DIAGNOSIS), DIAGNOSIS);
+      await expectShownPending(await typeDiagnosis(CORRECTED), CORRECTED);
+      expect(await serverDiagnosis()).toBe(BASE);
+      network.requestsLost = 0;
+      await runQueue();
+      await expectClinicalOutcome({ diagnosis: CORRECTED, history: [BASE] });
+      expectDelivered([CORRECTED]);
+    });
+
+    it('saves three diagnoses in order when two of their answers were lost', async () => {
+      network.answerLost = { downAfterCut: Infinity };
+      await expectShownPending(await typeDiagnosis(DIAGNOSIS), DIAGNOSIS);
+      await expectShownPending(await typeDiagnosis(CORRECTED), CORRECTED);
+      // The connection comes back for the queue's send, and that answer is lost too.
+      network.down = 0;
+      network.answerLost = { downAfterCut: Infinity };
+      await runQueue();
+      expect(await serverDiagnosis()).toBe(CORRECTED);
+      await expectShownPending(await typeDiagnosis(THIRD), THIRD);
+      network.down = 0;
+      await runQueue();
+      await expectClinicalOutcome({ diagnosis: THIRD, history: [BASE, DIAGNOSIS, CORRECTED] });
+      expectDelivered([DIAGNOSIS, CORRECTED, THIRD]);
+      expect(
+        new Set(network.delivered.map(request => request.mutationId)).size,
+        'transport: three changes, each under its own identifier'
+      ).toBe(3);
+    });
+
+    it('never writes the correction over another patient now in the bed', async () => {
+      const BETO = {
+        ...DataFactory.createMockPatient('R1', {
+          patientName: 'BETO SINTETICO',
+          rut: '11.111.111-1',
+          admissionDate: date,
+          clinicalEpisodeId: 'synthetic-episode-R1-next',
+          // The same text as the first patient's base: only the episode tells them apart.
+          pathology: BASE,
+          age: '61',
+        }),
+      };
+      await correctWhileAnswerLost(async () => {
+        // Another computer's admission, stamped as the server stamps every write.
+        const stamp = Timestamp.now();
+        await admin.doc(dayPath).update({
+          'beds.R1': BETO,
+          lastUpdated: stamp,
+          'meta.revision': 3,
+          'meta.lastMutationId': 'synthetic-P2-admission',
+          'meta.lastChangedPaths': ['beds.R1'],
+          'meta.updatedAt': stamp,
+        });
+      });
+      const stored = await readServer();
+      expect(stored.beds.R1).toMatchObject({ rut: BETO.rut, pathology: BASE });
+      expect((await admin.doc(dayPath).get()).data()?.meta?.revision).toBe(3);
+      // The correction stays kept for the patient it was written for (ID-01).
+      const kept = (await hospitalDB.syncQueue.toArray()).map(task => [
+        task.status,
+        (task.payload as DailyRecord).beds.R1.rut,
+        (task.payload as DailyRecord).beds.R1.pathology,
+      ]);
+      expect(kept).toContainEqual(['CONFLICT', '12.345.678-5', CORRECTED]);
+      expectDelivered([DIAGNOSIS]);
+    });
+
+    it('publishes the correction and a discharge, and holds a text another computer changed', async () => {
+      // A second patient and the night handoff text on the day.
+      const day = baseRecord();
+      day.beds.R2 = DataFactory.createMockPatient('R2', {
+        patientName: 'CARLA SINTETICA',
+        rut: '10.000.013-K',
+        admissionDate: date,
+        clinicalEpisodeId: 'synthetic-episode-R2',
+        pathology: 'FRACTURA DE CADERA',
+        age: '80',
+      });
+      day[night] = 'NOCHE BASE';
+      await admin.doc(dayPath).set(day);
+      await hospitalDB.dailyRecords.put(day);
+      // Another computer changes the night text before this computer's first edit (a direct write,
+      // as the census saves day texts).
+      await admin
+        .doc(dayPath)
+        .update({ [night]: 'NOCHE OTRO EQUIPO', lastUpdated: Timestamp.now() });
+      const shownDay = async () => (await hospitalDB.dailyRecords.get(date)) as DailyRecord;
+      const patchHere = async (patch: DailyRecordPatch) => {
+        const shown = await shownDay();
+        return asP1(() =>
+          updatePartialDetailed(date, patch, {
+            authoringSession: captureAuthoringSession(),
+            baseRecord: shown,
+          })
+        );
+      };
+      await correctWhileAnswerLost(async () => {
+        // «Dar de alta» for R2, as the census row builds it.
+        const record = await shownDay();
+        const resolution = resolveAddDischargeMovement(
+          buildAddDischargeInput({
+            record,
+            bedId: 'R2',
+            payload: buildDischargeAddCommandPayload({
+              status: 'Vivo',
+              dischargeType: 'Domicilio (Habitual)',
+              time: '10:00',
+              target: 'both',
+            }),
+            bedsCatalog: BEDS,
+            createEmptyPatient,
+          })
+        );
+        if (!resolution.ok) throw new Error('The census refused the discharge');
+        await patchHere(
+          buildAtomicPatientMovementPatch({
+            updatedRecord: resolution.value.updatedRecord,
+            movementKey: resolveAtomicPatientMovementListKey('discharge'),
+            sourceBedIds: ['R2'],
+          })
+        );
+        await patchHere({ [night]: 'NOCHE ESTE EQUIPO' } as DailyRecordPatch);
+      });
+      const stored = await readServer();
+      expect(stored.beds.R1.pathology).toBe(CORRECTED);
+      expect(stored.beds.R2).toMatchObject({ rut: '', patientName: '' });
+      expect(stored.discharges.map(item => item.patientName)).toEqual(['CARLA SINTETICA']);
+      expect(stored[night]).toBe('NOCHE OTRO EQUIPO');
+      expect(
+        (await hospitalDB.syncQueue.toArray()).map(task => [
+          task.status,
+          task.syncContract?.changedPaths,
+          (task.payload as DailyRecord)[night],
+          task.error,
+        ])
+      ).toEqual([
+        [
+          'CONFLICT',
+          [night],
+          'NOCHE ESTE EQUIPO',
+          expect.stringContaining(FIELD_CHANGED_ELSEWHERE_MESSAGE),
+        ],
+      ]);
     });
   }
 );
