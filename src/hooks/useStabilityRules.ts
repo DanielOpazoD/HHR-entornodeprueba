@@ -13,9 +13,13 @@ const MAX_TIMEOUT_MS = 2_147_483_647;
  * Reports the instant the nurse editing window of `day` closes, once it has: one timeout aimed
  * at that instant, nothing before it. Timers run late after the computer sleeps, so returning to
  * the tab, or any render after the instant, checks again at once. The same instant reported twice
- * is the same state, so it renders once.
+ * is the same state, so it renders once. While the window is still open it reports null, so a
+ * clock set back after a first close is reported again when it closes a second time.
  */
-const useNurseWindowCloseTimer = (day: string | null, onClosed: (closedAt: number) => void) => {
+const useNurseWindowCloseTimer = (
+  day: string | null,
+  onClosed: (closedAt: number | null) => void
+) => {
   const closesAt = useMemo(() => (day === null ? null : nurseEditingWindowClosesAt(day)), [day]);
 
   useEffect(() => {
@@ -28,8 +32,9 @@ const useNurseWindowCloseTimer = (day: string | null, onClosed: (closedAt: numbe
     const check = () => {
       clearTimeout(timer);
       const remaining = closesAt - Date.now();
-      if (remaining <= 0) onClosed(closesAt);
-      else timer = setTimeout(check, Math.min(remaining, MAX_TIMEOUT_MS));
+      if (remaining <= 0) return onClosed(closesAt);
+      onClosed(null);
+      timer = setTimeout(check, Math.min(remaining, MAX_TIMEOUT_MS));
     };
     const checkWhenVisible = () => {
       if (document.visibilityState === 'visible') check();

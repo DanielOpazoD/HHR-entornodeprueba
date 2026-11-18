@@ -73,6 +73,23 @@ describe.each(['Pacific/Easter', 'America/Santiago', 'UTC', 'Pacific/Auckland'])
       expect(view.result.current.isDateLocked).toBe(true);
     });
 
+    it('locks again when the clock was set back after a first close and the day refreshed', async () => {
+      process.env.TZ = timezone;
+      const midnight = clinicalWallClockToDate(DAY, '00:00').getTime();
+      const { view } = await openCensusAt(47 * HOUR_MS, { date: DAY });
+      passTime(HOUR_MS);
+      expect(view.result.current.isDateLocked).toBe(true);
+
+      // The computer's clock is corrected to an hour before the close and the day arrives again.
+      vi.setSystemTime(midnight + 47 * HOUR_MS);
+      view.rerender({ current: { date: DAY } });
+      expect(view.result.current.isDateLocked).toBe(false);
+
+      passTime(HOUR_MS);
+      expect(view.result.current.isDateLocked).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
     it('locks on the next render after the 48 h while the timeout is still late', async () => {
       process.env.TZ = timezone;
       const record = { date: DAY };
