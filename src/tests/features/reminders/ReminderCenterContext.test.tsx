@@ -63,7 +63,8 @@ vi.mock('@/services/reminders/reminderErrorPolicy', () => ({
   resolveReminderAdminErrorMessage: vi.fn(() => 'No fue posible cargar avisos.'),
 }));
 
-vi.mock('@/services/admin/attributionService', () => ({
+vi.mock('@/utils/clinicalDayUtils', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/utils/clinicalDayUtils')>()),
   getCurrentShift: () => mockShift,
 }));
 

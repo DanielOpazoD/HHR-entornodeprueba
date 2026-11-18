@@ -1,4 +1,4 @@
-import { getNextDay } from '@/utils/clinicalDayUtils';
+import { getNextDay, NIGHT_SHIFT_START_MINUTES } from '@/utils/clinicalDayUtils';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 
 export type CudyrPendingPhase = 'scheduled' | 'application_window' | 'overdue';
@@ -31,7 +31,10 @@ export const resolveCudyrPendingStatus = (
   const applicationDay = getNextDay(censusIsoDay);
   const censusLabel = formatIsoDay(censusIsoDay);
   const applicationLabel = formatIsoDay(applicationDay);
-  if (current.day < censusIsoDay || (current.day === censusIsoDay && current.minutes < 20 * 60)) {
+  if (
+    current.day < censusIsoDay ||
+    (current.day === censusIsoDay && current.minutes < NIGHT_SHIFT_START_MINUTES)
+  ) {
     return {
       phase: 'scheduled',
       label: CUDYR_WAITING_LABEL,

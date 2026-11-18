@@ -8,8 +8,8 @@ import {
   getCurrentTimeValue,
 } from '@/features/clinical-documents/controllers/clinicalDocumentEpisodeController';
 import { collectMonthlyPrescriptionExport } from '@/features/prescriptions/services/prescriptionMonthlyPdfService';
-import { getCurrentShift } from '@/services/admin/attributionService';
 import { getTodayFormatted } from '@/services/pdf/pdfBrowserUtils';
+import { getCurrentShift } from '@/utils/clinicalDayUtils';
 import type { PrescriptionRecord } from '@/types/prescriptionTypes';
 
 // 23:30 on Oct 31 in Rapa Nui (UTC-5) is already Nov 1 both in UTC (04:30) and on the
