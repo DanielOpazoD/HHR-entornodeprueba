@@ -4,6 +4,13 @@ import type { CudyrSupplementPatient } from '@/types/domain/cudyrSupplement';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import { cudyrIdentity } from '@/domain/cudyr/cudyrSourceIdentity';
 
+/**
+ * CUDYR's fixed morning cut (CUD-06): an admission on the next calendar day at or after 08:00 is
+ * past that census day's night, whatever the weekday. It is not the handoff shift start.
+ */
+// clinical-clock-allow shift-start-literal: CUDYR attributes by a fixed 08:00 cut (CUD-06), not the weekend 09:00 handoff.
+const CUDYR_NIGHT_CUTOFF = '08:00';
+
 /** Compare instants, not ISO spellings: UTC and an explicit local offset may be identical. */
 export const cudyrSourceAdmissionInstant = (rows: CudyrReportRow[]): number | null => {
   if (rows.some(r => r.admissionEvidenceConflict)) return null;
@@ -45,7 +52,11 @@ export const cudyrSourceNonHospitalAdmission = (rows: CudyrReportRow[]) => {
   const times = new Set(rows.map(r => r.admissionTime).filter(Boolean));
   const time = [...times][0] || '';
   if (times.size > 1 || (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time))) return null;
-  if (rows.some(r => date > getNextDay(r.date) || (date > r.date && (!time || time >= '08:00'))))
+  if (
+    rows.some(
+      r => date > getNextDay(r.date) || (date > r.date && (!time || time >= CUDYR_NIGHT_CUTOFF))
+    )
+  )
     return null;
   return { iso: date, hhmm: time };
 };

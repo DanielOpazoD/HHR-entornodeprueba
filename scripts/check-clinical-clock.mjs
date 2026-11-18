@@ -38,6 +38,12 @@
  *     boundary by the device's offset (the nurse window ran 2 h early on mainland computers until
  *     2026-11-17, and the census lock read a device noon until W14-TZ1).
  *
+ * 11. shift-start-literal: the shift hours (08:00, 09:00, 20:00, as text or as `h * 60` minutes)
+ *     are written only in src/utils/clinicalDayScheduleUtils.ts, so a schedule change has one
+ *     place. An hour with another meaning that happens to match (Eloísa's fluid balance, CUDYR's
+ *     fixed cut) gets its own named constant behind a preceding
+ *     `clinical-clock-allow shift-start-literal: <reason>`.
+ *
  * `getTodayISO` / `getClinicalCalendarDateISO` / `calendarStampInClinicalTimeZone` and the
  * formatters in `src/utils/dateDisplayUtils.ts` (`formatCalendarDate`, `formatTimestamp`,
  * `readClinicalTimestamp`) are the doors. Exceptions are local and reasoned; unreviewed
@@ -54,6 +60,9 @@ const CALENDAR_SOURCES = new Set([
   'src/utils/clinicalDateUtils.ts',
   'functions/lib/hospitalCalendarDay.js',
 ]);
+const SHIFT_SOURCE = 'src/utils/clinicalDayScheduleUtils.ts';
+// '08:00', "9:00", `20:00`, or 8 * 60 minutes; 8 * 60 * 1000 is a duration, not a time of day.
+const SHIFT_START_LITERAL = /(['"`])(?:0?[89]|20):00\1|\b(?:8|9|20)\s*\*\s*60\b(?!\s*\*)/g;
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs']);
 const DATE_OPTION = /\b(?:hour|minute|second|day|month|year|weekday|dateStyle|timeStyle|era)\b/;
 const FORMAT_CALL =
@@ -109,6 +118,17 @@ const zoneLessFormatLines = source => {
     lines.push(lineOf(source, match.index));
   }
   return lines;
+};
+
+const shiftStartLiteralLines = source => {
+  const sourceLines = source.split('\n');
+  const allowed = /^\s*\/\/ clinical-clock-allow shift-start-literal:\s*\S/;
+  const lines = new Set();
+  for (const match of source.matchAll(SHIFT_START_LITERAL)) {
+    const line = lineOf(source, match.index);
+    if (!allowed.test(sourceLines[line - 2] ?? '')) lines.add(line);
+  }
+  return [...lines];
 };
 
 const localCalendarGetterLines = rule => source => {
@@ -616,6 +636,12 @@ export const checkClinicalClock = (root = process.cwd()) => {
       files: [...productionFiles, ...netlifyFiles],
       find: deviceWallClockInstantLines,
       hint: "a zone-less Thh:mm is the device's wall clock: use clinicalWallClockToDate(day, 'hh:mm') or isWithinNurseEditingWindow() from src/utils/clinicalWallClock for the hospital's, and diffCalendarDays() for day counts",
+    },
+    {
+      rule: 'shift-start-literal',
+      files: [...productionFiles, ...netlifyFiles].filter(file => file !== SHIFT_SOURCE),
+      find: shiftStartLiteralLines,
+      hint: 'the shift hours live in src/utils/clinicalDayScheduleUtils.ts: use getShiftSchedule(), resolveClinicalDayBounds(), getCurrentShift(), DEFAULT_SHIFT_SCHEDULE or NIGHT_SHIFT_START_MINUTES from src/utils/clinicalDayUtils; an hour with another meaning gets its own named constant behind clinical-clock-allow shift-start-literal: <reason>',
     },
     {
       rule: 'instant-calendar-slice',

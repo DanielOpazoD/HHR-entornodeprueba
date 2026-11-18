@@ -191,6 +191,8 @@ jobs:
           npx prettier --check -- "${files[@]}"
       - name: Validate static controls against the repository
         if: needs.ci-scope.outputs.scope == 'tooling-only'
+        env:
+          FOLDER_BOOK_BASE: ${{ github.event.pull_request.base.sha }}
         run: npm run check:quality
       - name: Check TypeScript types
         if: needs.ci-scope.outputs.scope == 'tooling-only'
@@ -428,11 +430,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          # The pull request merge commit and its base parent: check:folder-dependencies
+          # compares its exceptions book with the base so the book only shrinks.
+          fetch-depth: 2
 
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
 
       - name: Run quality static group
+        env:
+          FOLDER_BOOK_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
         run: npm run check:quality:group -- ${{ matrix.group }}
 
       - name: Upload quality static profile

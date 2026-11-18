@@ -60,6 +60,11 @@ try {
     ],
     ['architecture', /^src\//, 'Respeta la capa que nombra el control.'],
     [
+      'folder-dependencies',
+      /^(src\/|netlify\/functions\/)/,
+      'Respeta la dirección entre capas: mueve hacia abajo lo compartido o lleva a su feature lo que solo usa ella, como indica el control.',
+    ],
+    [
       'clinical-clock',
       /^(src\/|functions\/|netlify\/|e2e\/|extension\/|playwright[\w.-]*\.config\.ts$)/,
       'Usa el reloj del hospital (src/utils/clinicalTimeZone.ts) como indica el control.',

@@ -4,7 +4,6 @@ import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import react from 'eslint-plugin-react';
 import tseslint from 'typescript-eslint';
-import boundaries from 'eslint-plugin-boundaries';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -509,25 +508,9 @@ export default tseslint.config(
     plugins: {
       'react-hooks': reactHooks,
       react,
-      boundaries,
     },
     settings: {
       react: { version: 'detect' },
-      'boundaries/elements': [
-        { type: 'app', pattern: 'src/application/*' },
-        { type: 'features', pattern: 'src/features/*' },
-        { type: 'services', pattern: 'src/services/*' }, // Considering domain/services equivalent logic layer for now based on current structure
-        {
-          type: 'shared',
-          pattern: [
-            'src/components/*',
-            'src/hooks/*',
-            'src/utils/*',
-            'src/types/*',
-            'src/config/*',
-          ],
-        },
-      ],
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -558,20 +541,6 @@ export default tseslint.config(
       '@typescript-eslint/no-require-imports': 'warn',
       '@typescript-eslint/no-empty-object-type': 'warn',
       '@typescript-eslint/ban-ts-comment': 'warn',
-
-      // Architecture boundaries rules
-      'boundaries/dependencies': [
-        'error',
-        {
-          default: 'disallow',
-          rules: [
-            { from: { type: 'app' }, allow: { to: { type: ['features', 'services', 'shared'] } } },
-            { from: { type: 'features' }, allow: { to: { type: ['services', 'shared'] } } },
-            { from: { type: 'services' }, allow: { to: { type: 'shared' } } },
-            { from: { type: 'shared' }, allow: { to: { type: 'shared' } } },
-          ],
-        },
-      ],
 
       'no-restricted-syntax': syntaxRestrictions(),
     },
@@ -692,12 +661,6 @@ export default tseslint.config(
     rules: {
       'no-console': 'off',
       'no-unused-vars': 'off',
-    },
-  },
-  {
-    files: ['netlify/functions/**/*.{ts,js}', 'functions/**/*.js'],
-    rules: {
-      'boundaries/dependencies': 'off',
     },
   },
   {
