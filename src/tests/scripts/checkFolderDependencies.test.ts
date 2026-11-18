@@ -623,6 +623,12 @@ describe('one direction rule between the folders of src/', () => {
       ['an object property', 'export const x = { indexedDB: true };', 0],
       ['a parameter', 'export const x = (indexedDB: number) => indexedDB + 1;', 0],
       ['a member of another object', 'export const x = (o: { indexedDB: 1 }) => o.indexedDB;', 0],
+      [
+        'a destructured property key',
+        'export const x = ({ indexedDB: enabled }: { indexedDB: boolean }) => enabled;',
+        0,
+      ],
+      ['self.indexedDB', "export const x = () => self.indexedDB.open('db');", 1],
     ])('reads %s through an intermediate service as %s', (_name, leaf, status) => {
       const result = check({
         ...component("import { x } from '@/services/bookmarks/bookmarkService';"),

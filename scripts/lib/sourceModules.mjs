@@ -218,6 +218,7 @@ export const usesGlobal = (fileName, source, globals) => {
       ts.isIdentifier(node) &&
       globals.includes(node.text) &&
       node.parent?.name !== node && // a property, parameter, variable or member name
+      node.parent?.propertyName !== node && // the key of a destructured property: `{ indexedDB: x }`
       !insideType(node)
     )
       uses.push({ name: node.text, free: true });

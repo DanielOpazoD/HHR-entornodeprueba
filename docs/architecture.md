@@ -24,7 +24,7 @@ La fuente es [`scripts/folder-dependency-matrix.json`](../scripts/folder-depende
 
 | #   | Capa                                                                         | Carpetas de `src/`                                           | Puede importar                                                                  |
 | --- | ---------------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| 0   | Núcleo puro: sin I/O ni React                                                | `types`, `domain`, `utils`, `constants`, `schemas`, `shared` | solo núcleo                                                                     |
+| 0   | Núcleo (objetivo: sin I/O ni React)                                          | `types`, `domain`, `utils`, `constants`, `schemas`, `shared` | solo núcleo                                                                     |
 | 1   | Servicios: Firestore, IndexedDB, cola, sesión, auth, telemetría, exportación | `services`, `config`                                         | núcleo                                                                          |
 | 2   | Casos de uso compartidos y puertos                                           | `application`                                                | servicios y núcleo                                                              |
 | 3   | Estado React compartido                                                      | `hooks`, `context`                                           | capas 0 a 2                                                                     |
@@ -41,8 +41,11 @@ Qué impone hoy un control y qué queda como objetivo:
   cargas diferidas (`import()`, workers con `new URL(…, import.meta.url)` o `?worker`). Cuenta
   cualquier grafía que Vite compila: alias `@/`, relativa, con extensión, `/src/…`, y `.js`,
   `.mjs` o `.cjs` que Vite sirve como `.ts`, `.mts` o `.cts`. Los imports de solo tipos cruzan
-  libres, y `?raw`, `?url` e `?inline` traen texto o una URL, no código, así que no son
-  dependencias.
+  libres. `?raw` y `?url` traen texto o una URL, no código, y no son dependencias; el control
+  tampoco sigue `?inline`, aunque para un módulo `.ts` Vite sí compila su código: es
+  **criterio** no usarlo para código (hoy no hay ninguno).
+- **Hoy:** la capa 0 se define por carpeta, no por contenido: que no haga I/O ni use React es
+  **objetivo** (por ejemplo `shared/ui` todavía tiene hooks de React con almacenamiento).
 - **Hoy:** las relaciones que ya subían están en el libro de la matriz (`exceptions`), una por
   relación de archivo a archivo, con su motivo. El libro solo baja: falla una relación nueva,
   falla una entrada que el código ya no tiene, y falla una entrada que no está en el libro de la
