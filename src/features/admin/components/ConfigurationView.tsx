@@ -24,6 +24,7 @@ import {
 import { TreatingPhysiciansSettings } from './TreatingPhysiciansSettings';
 import { VitalSignsVisualRangesSettings } from './VitalSignsVisualRangesSettings';
 import { CensusNursingScalesSetting } from './CensusNursingScalesSetting';
+import { canAccessAppModuleRoute } from '@/shared/access/operationalAccessPolicy';
 
 // Configuration view — admin-only page grouping BOTH user preferences (formerly
 // "Preferencias" modal: visual, table, security) AND system administration
@@ -44,7 +45,7 @@ export const ConfigurationView: React.FC = () => {
   const { settings, updateSetting } = useUISettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (role !== 'admin') {
+  if (!canAccessAppModuleRoute({ role, module: 'CONFIGURATION' })) {
     return <AccessRestricted />;
   }
 

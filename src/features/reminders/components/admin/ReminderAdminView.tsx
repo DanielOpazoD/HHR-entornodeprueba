@@ -5,6 +5,7 @@ import { ReminderCard } from '@/components/reminders/ReminderCard';
 import { ReminderFormModal } from '@/features/reminders/components/admin/ReminderFormModal';
 import { ReminderReadStatusTable } from '@/features/reminders/components/admin/ReminderReadStatusTable';
 import { useReminderAdmin } from '@/features/reminders/hooks/useReminderAdmin';
+import { mayBeAdminRole } from '@/shared/access/operationalAccessPolicy';
 
 export const ReminderAdminView: React.FC = () => {
   const { role } = useAuth();
@@ -27,7 +28,7 @@ export const ReminderAdminView: React.FC = () => {
     closeReadStatus,
   } = useReminderAdmin();
 
-  if (role !== 'admin' && role !== undefined) {
+  if (!mayBeAdminRole(role)) {
     return (
       <div className="mx-auto max-w-2xl rounded-[2rem] border border-rose-100 bg-white p-10 text-center shadow-xl">
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-100 text-rose-600">

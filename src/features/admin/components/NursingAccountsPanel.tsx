@@ -16,6 +16,7 @@ import {
   type NursingAccountList,
 } from '@/services/auth/nursingAccountService';
 import { type ManagedUserRole } from '@/shared/access/roleAccessMatrix';
+import { isAdminAppRole } from '@/shared/access/operationalAccessPolicy';
 
 const actionCopy: Record<AccountAction, { title: string; message: string; done: string }> = {
   reset: {
@@ -82,7 +83,7 @@ export default function NursingAccountsPanel({
   );
   const reload = async () => showList(await callAccount<NursingAccountList>('listNursingAccounts'));
   useEffect(() => {
-    if (role === 'admin')
+    if (isAdminAppRole(role))
       void callAccount<NursingAccountList>('listNursingAccounts')
         .then(showList)
         .catch(error => setMessage(accountErrorMessage(error)));
@@ -169,7 +170,7 @@ export default function NursingAccountsPanel({
       setMessage('Accesos individuales habilitados; los dos Google se conservan.');
     });
   };
-  if (role !== 'admin') return null;
+  if (!isAdminAppRole(role)) return null;
   const visible = accounts.filter(
     account =>
       (showDeleted ||

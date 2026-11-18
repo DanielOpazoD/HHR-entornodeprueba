@@ -3,6 +3,7 @@ import { Download, FileText, Plus, Printer, Save } from 'lucide-react';
 import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import { useAuth } from '@/context/AuthContext';
 import type { UserRole } from '@/types/authRoleTypes';
+import { resolveRoleAccess } from '@/shared/access/roleAccessMatrix';
 import { readSessionProfessionalIdentity } from '@/services/user-profile/sessionProfessionalIdentity';
 import { formatRut, isValidRut } from '@/utils/rutUtils';
 import arsenal from '../../../domain/pharmacy/arsenalHhr2025.json';
@@ -35,12 +36,6 @@ interface PharmacyActEditorProps extends Omit<ToolComponentProps, 'patients'> {
   role: UserRole | undefined;
 }
 
-const suggestedProfessionalRole = (role: UserRole | undefined): string => {
-  if (role === 'nurse_hospital') return 'Enfermero/a';
-  if (role === 'doctor_urgency' || role === 'doctor_specialist') return 'Médico/a';
-  return '';
-};
-
 const PharmacyActEditor: React.FC<PharmacyActEditorProps> = ({
   kind,
   uid,
@@ -56,7 +51,7 @@ const PharmacyActEditor: React.FC<PharmacyActEditorProps> = ({
       kind,
       loadPharmacyProfessional(uid, identity?.name || displayName, undefined, {
         rut: identity?.rut ?? '',
-        role: suggestedProfessionalRole(role),
+        role: resolveRoleAccess(role).professionLabel,
       })
     );
   });

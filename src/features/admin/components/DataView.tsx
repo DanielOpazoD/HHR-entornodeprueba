@@ -6,6 +6,7 @@ import { AdminTabsShell } from './internal/AdminTabsShell';
 import { DataMaintenanceView } from './DataMaintenanceView';
 import { PatientMasterView } from './PatientMasterView';
 import { BackupFilesView } from '@/features/backup/public';
+import { canAccessAppModuleRoute } from '@/shared/access/operationalAccessPolicy';
 
 // Data view — admin-only page grouping all hospital data administration:
 //   - "Mantenimiento" (JSON import/export) ← was "Mantenimiento de Datos" menu item
@@ -16,7 +17,7 @@ import { BackupFilesView } from '@/features/backup/public';
 export const DataView: React.FC = () => {
   const { role } = useAuth();
 
-  if (role !== 'admin') {
+  if (!canAccessAppModuleRoute({ role, module: 'DATA' })) {
     return <AccessRestricted />;
   }
 

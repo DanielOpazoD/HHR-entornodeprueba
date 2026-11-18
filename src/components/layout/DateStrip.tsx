@@ -25,6 +25,7 @@ import { DateStripPeriodControl } from './date-strip/DateStripPeriodControl';
 import { MONTH_NAMES } from '@/constants/export';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import type { ModuleType } from '@/constants/navigationConfig';
+import { canUseDayActions } from '@/shared/access/operationalAccessPolicy';
 
 const SaveDropdown = React.lazy(() =>
   import('./date-strip/actions/SaveDropdown').then(module => ({
@@ -199,7 +200,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
     return () => observer.disconnect();
   }, [selectedDay, selectedMonth, selectedYear]);
 
-  const isGuest = role === 'viewer';
+  const isGuest = !canUseDayActions(role);
 
   const changeMonth = (delta: number) => {
     const nextMonthYear = resolveShiftedMonthYear({

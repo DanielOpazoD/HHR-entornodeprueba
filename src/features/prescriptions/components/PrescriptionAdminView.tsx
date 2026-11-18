@@ -19,6 +19,7 @@ import {
 } from '@/features/prescriptions/services/prescriptionQrCodeService';
 import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
+import { canConfigurePrescriptions, isAdminAppRole } from '@/shared/access/operationalAccessPolicy';
 
 const QR_PIXEL_SIZE = 360;
 
@@ -34,8 +35,8 @@ const validatePinShape = (pin: string): string | null => {
 
 export const PrescriptionAdminView: React.FC = () => {
   const auth = useAuth();
-  const isAdmin = auth.role === 'admin';
-  const canAccessConfig = isAdmin || auth.role === 'nurse_hospital';
+  const isAdmin = isAdminAppRole(auth.role);
+  const canAccessConfig = canConfigurePrescriptions(auth.role);
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const uploadUrl = buildPrescriptionsUploadUrl(origin);

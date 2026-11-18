@@ -15,6 +15,7 @@ import type {
 } from '@/services/repositories/repositoryConfig';
 import type { UserHealthRecentEvent, VersionUpdateReason } from '@/services/admin/healthService';
 import { buildSyncOperationHealthEvents } from '@/hooks/controllers/systemHealthSyncOperationEvents';
+import { canReportSystemHealth } from '@/shared/access/operationalAccessPolicy';
 
 const buildSystemHealthAppVersion = (syncBatchSize: number): string =>
   `v${CURRENT_SCHEMA_VERSION} (sync-batch:${syncBatchSize}, backend-contract:${BACKEND_RUNTIME_CONTRACT_VERSION}, authority:${resolveDailyRecordAuthorityMode()})`;
@@ -46,10 +47,8 @@ export interface BuildRecentUserHealthEventsOptions {
   maxEvents?: number;
 }
 
-const HEALTH_REPORTER_ROLES = new Set<UserRole>(['admin', 'nurse_hospital']);
-
 export const canReportSystemHealthForRole = (role: UserRole | undefined): boolean =>
-  !!role && HEALTH_REPORTER_ROLES.has(role);
+  canReportSystemHealth(role);
 
 export const canReportSystemHealthForRuntime = (
   role: UserRole | undefined,

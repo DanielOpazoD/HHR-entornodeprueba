@@ -405,6 +405,21 @@ const ADMIN_TABS_FRAME_RESTRICTION = {
   message:
     'No copies la barra de pestañas de administración: usa AdminTabsShell (src/features/admin/components/internal/AdminTabsShell.tsx) y pásale las pestañas como datos.',
 };
+// One owner of role decisions (W17-R1): a role compared or listed by hand drifted into copies
+// (prescriptions in three files, admin plus nursing in four). A capability is a named predicate in
+// src/shared/access, checked by the role truth table.
+const ROLE_NAME = '/^(admin|nurse_hospital|editor|viewer|doctor_urgency|doctor_specialist)$/';
+const ROLE_DECISION_MESSAGE =
+  'No compares ni listes roles a mano: usa un predicado de src/shared/access/operationalAccessPolicy.ts (p. ej. isAdminAppRole, canEditPrescriptions, canAccessAppModuleRoute) o una columna de roleAccessMatrix.ts, o agrega uno con su columna en la tabla de verdad de src/tests/shared/access/operationalAccessPolicy.test.ts (AGENTS.md).';
+const ROLE_LITERAL_RESTRICTION = {
+  selector: `BinaryExpression[operator=/^[!=]==$/] > Literal[value=${ROLE_NAME}]`,
+  message: ROLE_DECISION_MESSAGE,
+};
+const ROLE_LIST_RESTRICTION = {
+  selector: `ArrayExpression > Literal[value=${ROLE_NAME}]`,
+  message: ROLE_DECISION_MESSAGE,
+};
+const ROLE_RESTRICTIONS = [ROLE_LITERAL_RESTRICTION, ROLE_LIST_RESTRICTION];
 const SOURCE_SYNTAX_RESTRICTIONS = [
   ...GLOSSARY_SYNTAX_RESTRICTIONS,
   SESSION_MESSAGE_RESTRICTION,
@@ -414,6 +429,7 @@ const SOURCE_SYNTAX_RESTRICTIONS = [
   LEGACY_DOCUMENT_HYDRATION_RESTRICTION,
   AUDIT_CONTRACT_RESTRICTION,
   ADMIN_TABS_FRAME_RESTRICTION,
+  ...ROLE_RESTRICTIONS,
 ];
 // One rule option per file: a later config replaces the whole list, so homes omit only their own.
 const syntaxRestrictions = ({ omit = [], add = [] } = {}) => [
@@ -555,6 +571,13 @@ export default tseslint.config(
     },
   },
   {
+    // Role decisions are a rule of the app in src/; server functions and e2e check roles on
+    // their own side.
+    files: ['**/*.{ts,tsx}'],
+    ignores: ['src/**'],
+    rules: { 'no-restricted-syntax': syntaxRestrictions({ omit: ROLE_RESTRICTIONS }) },
+  },
+  {
     // The sender of the session message.
     files: ['src/services/storage/sessionStorageTransition.ts'],
     rules: { 'no-restricted-syntax': syntaxRestrictions({ omit: [SESSION_MESSAGE_RESTRICTION] }) },
@@ -611,8 +634,30 @@ export default tseslint.config(
     },
   },
   {
-    // Tests assert the page bridge of the session message, build their own document text and
-    // exercise the legacy readers they guard.
+    // The owner of role decisions, the role type and the reminder role values (a list of values,
+    // not a decision).
+    files: [
+      'src/shared/access/**/*.ts',
+      'src/types/authRoleTypes.ts',
+      'src/schemas/reminderSchemas.ts',
+      'src/shared/reminders/reminderUiOptions.ts',
+    ],
+    rules: { 'no-restricted-syntax': syntaxRestrictions({ omit: ROLE_RESTRICTIONS }) },
+  },
+  {
+    // «¿Puede escribir este día?» mixes role and date; its own PR (W17-D1) moves these four into
+    // src/shared/access and removes this entry.
+    files: [
+      'src/features/rayen-import/hooks/applyHistoricalCudyr.ts',
+      'src/features/rayen-import/hooks/useRayenImport.ts',
+      'src/hooks/useStabilityRules.ts',
+      'src/services/storage/sync/syncQueueEngine.ts',
+    ],
+    rules: { 'no-restricted-syntax': syntaxRestrictions({ omit: ROLE_RESTRICTIONS }) },
+  },
+  {
+    // Tests assert the page bridge of the session message, build their own document text,
+    // exercise the legacy readers they guard and pick roles to test with.
     files: ['src/tests/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-syntax': syntaxRestrictions({
@@ -621,6 +666,7 @@ export default tseslint.config(
           RUT_REGEX_RESTRICTION,
           EPISODE_KEY_PARSE_RESTRICTION,
           LEGACY_DOCUMENT_HYDRATION_RESTRICTION,
+          ...ROLE_RESTRICTIONS,
         ],
       }),
     },

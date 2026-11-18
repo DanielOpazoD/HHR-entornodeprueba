@@ -7,6 +7,10 @@ export interface RoleAccessDefinition {
   label: string;
   badgeLabel: string;
   badgeClassName: string;
+  /** Shown before the label where a role is chosen. */
+  icon: string;
+  /** The profession a signed act suggests for this role; empty when the role names none. */
+  professionLabel: string;
   generalLoginAllowed: boolean;
   assignableInRoleManagement: boolean;
   modules: ModuleType[];
@@ -23,6 +27,8 @@ const ROLE_ACCESS_MATRIX = {
     label: 'Administrador Total',
     badgeLabel: 'ADMIN',
     badgeClassName: 'bg-indigo-600 text-white border-indigo-700',
+    icon: '🔑',
+    professionLabel: '',
     generalLoginAllowed: true,
     assignableInRoleManagement: true,
     modules: [
@@ -77,6 +83,8 @@ const ROLE_ACCESS_MATRIX = {
     label: 'Enfermería Hospitalaria',
     badgeLabel: 'ENFERMERÍA',
     badgeClassName: 'bg-emerald-500 text-white border-emerald-600',
+    icon: '👩‍⚕️',
+    professionLabel: 'Enfermero/a',
     generalLoginAllowed: true,
     assignableInRoleManagement: true,
     modules: ['CENSUS', 'CUDYR', 'NURSING_HANDOFF', 'MEDICAL_HANDOFF', 'AUDIT_DOCUMENTS'],
@@ -91,6 +99,8 @@ const ROLE_ACCESS_MATRIX = {
     label: 'Médico de Urgencia',
     badgeLabel: 'URGENCIA',
     badgeClassName: 'bg-sky-500 text-white border-sky-600',
+    icon: '🩺',
+    professionLabel: 'Médico/a',
     generalLoginAllowed: true,
     assignableInRoleManagement: true,
     modules: ['CENSUS', 'NURSING_HANDOFF', 'MEDICAL_HANDOFF'],
@@ -105,6 +115,8 @@ const ROLE_ACCESS_MATRIX = {
     label: 'Especialista (Censo abreviado + Entrega Médica)',
     badgeLabel: 'ESPECIALISTA LIMITADO',
     badgeClassName: 'bg-violet-500 text-white border-violet-600',
+    icon: '🧠',
+    professionLabel: 'Médico/a',
     generalLoginAllowed: true,
     assignableInRoleManagement: true,
     modules: ['CENSUS', 'MEDICAL_HANDOFF'],
@@ -119,6 +131,8 @@ const ROLE_ACCESS_MATRIX = {
     label: 'Invitado (Solo Lectura)',
     badgeLabel: 'INVITADO',
     badgeClassName: 'bg-slate-400 text-white border-slate-500',
+    icon: '🎨',
+    professionLabel: '',
     generalLoginAllowed: true,
     assignableInRoleManagement: true,
     modules: ['CENSUS'],
@@ -133,6 +147,8 @@ const ROLE_ACCESS_MATRIX = {
     label: 'Editor legado',
     badgeLabel: 'EDITOR LEGADO',
     badgeClassName: 'bg-slate-400 text-white border-slate-500',
+    icon: '🔑',
+    professionLabel: '',
     generalLoginAllowed: true,
     assignableInRoleManagement: false,
     modules: ['CENSUS', 'CUDYR', 'NURSING_HANDOFF', 'MEDICAL_HANDOFF'],

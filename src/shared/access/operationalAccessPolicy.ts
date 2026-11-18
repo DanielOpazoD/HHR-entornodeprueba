@@ -7,7 +7,7 @@ import {
   getRoleDisplayName,
   getVisibleModules,
   isAdmin,
-} from '@/utils/permissions';
+} from '@/shared/access/rolePermissions';
 import { canReadClinicalDocuments } from '@/shared/access/clinicalDocumentAccessPolicy';
 import {
   isSpecialistCensusAccessProfile,
@@ -218,3 +218,57 @@ export const canExportAuditDataForRole = (role: SupportedRole): boolean =>
   canDoAction(knownRole(role), ACTIONS.EXPORT_PDF);
 
 export const getRoleDisplayLabel = (role?: UserRole): string => getRoleDisplayName(role);
+
+/**
+ * Functions telemetry is strictly admin-only: it can carry error messages, request context and
+ * external service failure signatures, operational detail that non-admins must not see.
+ */
+export const canAccessFunctionsTelemetryView = (role: SupportedRole): boolean =>
+  isAdmin(knownRole(role));
+
+/**
+ * An admin view that renders while the role is still loading: only a role known not to be admin
+ * is turned away (role management and reminders).
+ */
+export const mayBeAdminRole = (role: SupportedRole): boolean =>
+  role === undefined || isAdminAppRole(role);
+
+/** The ward's own tools: the administrator and hospital nursing. */
+const isAdminOrHospitalNurse = (role: SupportedRole): boolean =>
+  isAdmin(knownRole(role)) || role === 'nurse_hospital';
+
+export const canUseBookmarks = (role: SupportedRole): boolean => isAdminOrHospitalNurse(role);
+
+export const canReportSystemHealth = (role: SupportedRole): boolean => isAdminOrHospitalNurse(role);
+
+/** Day actions (bookmarks, PDF, handoff) are hidden only from the read-only guest. */
+export const canUseDayActions = (role: SupportedRole): boolean => role !== 'viewer';
+
+/**
+ * The prescription visor: whoever edits some module sees it and edits its prescriptions, the
+ * legacy editor and the specialist included.
+ */
+export const canViewPrescriptions = (role: SupportedRole): boolean => canEditAnyAppModule(role);
+
+export const canEditPrescriptions = (role: SupportedRole): boolean => canEditAnyAppModule(role);
+
+export const canConfigurePrescriptions = (role: SupportedRole): boolean =>
+  isAdminOrHospitalNurse(role);
+
+export const canDeletePrescriptions = (role: SupportedRole): boolean =>
+  isAdminOrHospitalNurse(role);
+
+export const canPublishSpecialtyDecision = (role: SupportedRole): boolean =>
+  isAdmin(knownRole(role));
+
+export const canSetArbitraryAdmissionDate = (role: SupportedRole): boolean =>
+  isAdmin(knownRole(role));
+
+export const canManageFugaNotification = (role: SupportedRole): boolean => isAdmin(knownRole(role));
+
+/** setAdminCudyrResult stays admin-only; nursing syncs CUDYR like the admin but does not set it. */
+export const canSetAdminCudyrResult = (role: SupportedRole): boolean => isAdmin(knownRole(role));
+
+/** The local error log of every person on this browser, not only one's own. */
+export const canReadAllLocalDiagnostics = (role: SupportedRole): boolean =>
+  isAdmin(knownRole(role));

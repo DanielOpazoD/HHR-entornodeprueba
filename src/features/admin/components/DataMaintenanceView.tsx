@@ -3,6 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import { DataMaintenancePanel } from './internal/DataMaintenancePanel';
 import { Database } from 'lucide-react';
 import { useCensusContext } from '@/context/CensusContext';
+import { canUseAdminMaintenanceActions } from '@/shared/access/operationalAccessPolicy';
 
 const DailyRecordRestorePanel = lazy(() =>
   import('./DailyRecordRestorePanel').then(module => ({ default: module.DailyRecordRestorePanel }))
@@ -15,6 +16,7 @@ const InvalidClinicalEpisodesPanel = lazy(() =>
 
 export const DataMaintenanceView: React.FC = () => {
   const { currentUser } = useAuth();
+  const canUseAdminMaintenance = canUseAdminMaintenanceActions(currentUser?.role);
   const [showRestore, setShowRestore] = useState(false);
   const [showInvalidEpisodes, setShowInvalidEpisodes] = useState(false);
   const { fileOps } = useCensusContext();
@@ -38,7 +40,7 @@ export const DataMaintenanceView: React.FC = () => {
         </div>
       </div>
 
-      {currentUser?.role === 'admin' && (
+      {canUseAdminMaintenance && (
         <div className="mb-6">
           <button
             className="rounded border bg-white p-3"
@@ -53,7 +55,7 @@ export const DataMaintenanceView: React.FC = () => {
           )}
         </div>
       )}
-      {currentUser?.role === 'admin' && (
+      {canUseAdminMaintenance && (
         <div className="mb-6">
           <button
             className="rounded border bg-white p-3"

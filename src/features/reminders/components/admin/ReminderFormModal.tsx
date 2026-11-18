@@ -8,6 +8,7 @@ import {
   REMINDER_ROLE_OPTIONS,
   REMINDER_SHIFT_OPTIONS,
   REMINDER_TYPE_LABELS,
+  DEFAULT_REMINDER_TARGET_ROLES,
 } from '@/shared/reminders/reminderUiOptions';
 import type { ReminderAdminSubmission } from '@/features/reminders/hooks/useReminderAdmin';
 import { getTodayISO } from '@/utils/dateCoreUtils';
@@ -18,7 +19,7 @@ const buildInitialDraft = (reminder?: Reminder | null): ReminderDraftInput => ({
   message: reminder?.message ?? '',
   imageUrl: reminder?.imageUrl ?? '',
   type: reminder?.type ?? 'info',
-  targetRoles: reminder?.targetRoles ?? ['nurse_hospital'],
+  targetRoles: reminder?.targetRoles ?? [...DEFAULT_REMINDER_TARGET_ROLES],
   targetShifts: reminder?.targetShifts ?? ['day', 'night'],
   startDate: reminder?.startDate ?? getTodayISO(),
   endDate: reminder?.endDate ?? getTodayISO(),

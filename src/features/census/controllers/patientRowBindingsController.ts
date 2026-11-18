@@ -23,6 +23,7 @@ import {
 } from '@/features/census/controllers/patientRowBindingSectionsController';
 import type { PatientRowResolvedIndicators } from '@/features/census/controllers/patientRowIndicatorsController';
 import { resolvePatientRowViewContext } from '@/features/census/controllers/patientRowViewContextController';
+import { canSetArbitraryAdmissionDate } from '@/shared/access/operationalAccessPolicy';
 
 export interface BuildPatientRowBindingsParams {
   bed: BedDefinition;
@@ -186,7 +187,7 @@ export const buildPatientRowModalsBindings = ({
     data,
     currentDateString,
     isSubRow,
-    canUseArbitraryAdmissionDate: role === 'admin',
+    canUseArbitraryAdmissionDate: canSetArbitraryAdmissionDate(role),
     runtime,
     viewContext: resolvePatientRowContextWithOverrides({
       role,

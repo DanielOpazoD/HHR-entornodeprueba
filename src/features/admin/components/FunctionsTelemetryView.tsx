@@ -2,13 +2,13 @@ import React from 'react';
 import { Activity } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useFunctionsTelemetryData } from '@/hooks/useFunctionsTelemetryData';
-import { canAccessFunctionsTelemetryView } from '@/services/admin/functionsTelemetryAccessPolicy';
 import { AccessRestricted } from './internal/AccessRestricted';
 import { DailyRecordAuthorityRolloutCard } from './internal/functionsTelemetry/DailyRecordAuthorityRolloutCard';
 import { FunctionsTelemetrySummaryCards } from './internal/functionsTelemetry/FunctionsTelemetrySummaryCards';
 import { FunctionsTelemetryFilters } from './internal/functionsTelemetry/FunctionsTelemetryFilters';
 import { FunctionsTelemetryTable } from './internal/functionsTelemetry/FunctionsTelemetryTable';
 import { RayenClinicalEnrichmentRolloutCard } from './internal/functionsTelemetry/RayenClinicalEnrichmentRolloutCard';
+import { canAccessFunctionsTelemetryView } from '@/shared/access/operationalAccessPolicy';
 
 export const FunctionsTelemetryView: React.FC = () => {
   const { role } = useAuth();

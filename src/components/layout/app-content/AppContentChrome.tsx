@@ -1,4 +1,3 @@
-import { canAccessAppModuleRoute } from '@/shared/access/operationalAccessPolicy';
 import { CensusConflictMenuFallback } from '@/components/layout/date-strip/CensusToolbarLoadingActions';
 import React from 'react';
 import { Navbar } from '@/components/layout/Navbar';
@@ -10,6 +9,10 @@ import { Search, BarChart3 } from 'lucide-react';
 import { CensusToolbarMenuTargetContext } from '@/shared/ui/CensusToolbarMenuTargetContext';
 import { CensusOptionsMenu } from '@/components/layout/date-strip/CensusOptionsMenu';
 import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessProfile';
+import {
+  canAccessAppModuleRoute,
+  canManageClinicalConflictCenter,
+} from '@/shared/access/operationalAccessPolicy';
 
 const CensusConflictQuickAction = lazyWithRetry(() =>
   import('@/components/clinical-conflicts/CensusConflictQuickAction').then(module => ({
@@ -128,7 +131,7 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
                         CUDYR · control diario
                       </button>
                     )}
-                    {auth.role === 'admin' && (
+                    {canManageClinicalConflictCenter(auth.role) && (
                       <React.Suspense fallback={<CensusConflictMenuFallback />}>
                         <CensusConflictQuickAction />
                       </React.Suspense>
