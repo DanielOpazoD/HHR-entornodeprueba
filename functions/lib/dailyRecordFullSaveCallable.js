@@ -180,7 +180,12 @@ const createFullSaveHandler =
           origin,
           role,
         })
-          ? preserveRayenClinicalFields({ remoteRecord: remoteData, incomingRecord: record })
+          ? preserveRayenClinicalFields({
+              remoteRecord: remoteData,
+              incomingRecord: record,
+              // A queued device edit names its own paths; those keep what the nurse recorded.
+              editedPaths: collectChangedPaths(syncContract),
+            })
           : record;
         if (
           !snapshot.exists &&

@@ -55,11 +55,46 @@ const preservePatientClinicalFields = (incomingPatient, remotePatients, clinical
   return nextPatient;
 };
 
+const MANUAL_DEVICE_FIELDS = new Set(RAYEN_MANUALLY_MANAGED_DEVICE_FIELDS);
+
+// For `beds.<bed>.<device field>` or `beds.<bed>.clinicalCrib.<device field>` (or a path inside
+// that field), copies the incoming field onto the record being saved, or removes it when the
+// incoming holder has none: what a patch of that path writes.
+const keepIncomingDeviceField = (nextRecord, incomingRecord, path) => {
+  const parts = String(path).split('.');
+  if (parts[0] !== 'beds' || !parts[1]) return;
+  const inCrib = parts[2] === 'clinicalCrib';
+  const field = parts[inCrib ? 3 : 2];
+  if (!MANUAL_DEVICE_FIELDS.has(field)) return;
+  const holderOf = record => {
+    const bed = record?.beds?.[parts[1]];
+    const holder = inCrib && isPlainObject(bed) ? bed.clinicalCrib : bed;
+    return isPlainObject(holder) ? holder : null;
+  };
+  const target = holderOf(nextRecord);
+  const source = holderOf(incomingRecord);
+  if (!target) return;
+  if (source && Object.prototype.hasOwnProperty.call(source, field)) {
+    target[field] = clonePlainValue(source[field]);
+  } else {
+    delete target[field];
+  }
+};
+
 /**
  * Full-record saves remain responsible for census structure, but never for fields owned by the
  * authoritative Rayen clinical batch. Matching by episode (not bed) preserves data across moves.
+ * Devices are the one exception nurses also manage by hand: the device paths a save names as its
+ * own change (`editedPaths`, from its sync contract) keep the incoming value, exactly as the patch
+ * callable accepts them online. The queue publishes an offline edit as a full save, so without this
+ * the edit was replaced by the stored devices and acknowledged as saved (SAVE-01).
  */
-const preserveRayenClinicalFields = ({ remoteRecord, incomingRecord, fields }) => {
+const preserveRayenClinicalFields = ({
+  remoteRecord,
+  incomingRecord,
+  fields,
+  editedPaths = [],
+}) => {
   const preservedFields = Array.isArray(fields) && fields.length ? fields : RAYEN_CLINICAL_FIELDS;
   const nextRecord = clonePlainValue(incomingRecord);
   const remotePatients = new Map([
@@ -83,6 +118,7 @@ const preserveRayenClinicalFields = ({ remoteRecord, incomingRecord, fields }) =
   });
 
   nextRecord.beds = incomingBeds;
+  editedPaths.forEach(path => keepIncomingDeviceField(nextRecord, incomingRecord, path));
   return nextRecord;
 };
 
