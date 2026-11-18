@@ -1,4 +1,5 @@
-import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { callCudyrFunction, type CudyrFunctionEndpoint } from './cudyrFunctionsCall';
 import { normalizeDailyRecordAuthorityError } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import type {
   CorrectCudyrDischargeRequest,
@@ -9,16 +10,13 @@ import type {
   ReadCudyrDischargeAuditResult,
 } from '@/types/domain/cudyrDischarge';
 
-const call = async <Request, Result>(endpoint: string, request: Request): Promise<Result> => {
-  const runtime = await defaultFunctionsRuntime.getRegionalFunctions('southamerica-east1');
-  try {
-    const { httpsCallable } = await import('firebase/functions');
-    return (await httpsCallable<Request, Result>(runtime, endpoint, { timeout: 20_000 })(request))
-      .data;
-  } catch (error) {
-    throw normalizeDailyRecordAuthorityError(error);
-  }
-};
+/** Each call is its own operation, begun when the person acts: the guard is taken here. */
+const call = <Request, Result>(endpoint: CudyrFunctionEndpoint, request: Request) =>
+  callCudyrFunction<Result, Request>(endpoint, request, guardAuthoringSession()).catch(
+    (error: unknown) => {
+      throw normalizeDailyRecordAuthorityError(error);
+    }
+  );
 export const correctCudyrDischarge = (request: CorrectCudyrDischargeRequest) =>
   call<CorrectCudyrDischargeRequest, CorrectCudyrDischargeResult>('archiveCudyrHistory', request);
 export const readCudyrDischarges = (request: ReadCudyrDischargesRequest) =>

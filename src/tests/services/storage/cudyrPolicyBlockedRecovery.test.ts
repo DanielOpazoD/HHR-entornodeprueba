@@ -1,10 +1,12 @@
 // @vitest-environment node
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { createCudyrPolicyBlockedRecovery } from '@/services/storage/sync/cudyrPolicyBlockedRecovery';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import { isAuthoringSessionCurrent } from '@/services/storage/authoringSession';
+import { admitSyntheticSession, clearSyntheticSession } from '@/tests/utils/syntheticSession';
 
 const blocked = (overrides: Partial<SyncTask> = {}): SyncTask => ({
   opId: 'capture',
@@ -19,33 +21,29 @@ const blocked = (overrides: Partial<SyncTask> = {}): SyncTask => ({
   payload: { request: { observedAt: '2026-10-09T12:00:00Z', sourceRunId: 'original' } },
   ...overrides,
 });
+/** The session the sync run captured when it began. */
+const RUN = { ownerKey: 'owner', generation: 'generation' };
 const setup = () => {
   const process = vi.fn(async () => {});
-  let owner = 'owner',
-    generation = 'generation';
   const store = createDexieSyncQueueStore();
   const recovery = createCudyrPolicyBlockedRecovery({
     ensureReady: async () => {},
     store,
-    getOwner: () => owner,
-    getGeneration: () => generation,
+    isSessionCurrent: isAuthoringSessionCurrent,
     process,
   });
   return {
     recovery,
     store,
     process,
-    setOwner: (value: string) => {
-      owner = value;
-    },
-    setGeneration: (value: string) => {
-      generation = value;
-    },
+    setGeneration: (value: string) => admitSyntheticSession('owner', value),
   };
 };
 beforeEach(async () => {
   await hospitalDB.syncQueue.clear();
+  admitSyntheticSession('owner', 'generation');
 });
+afterEach(clearSyntheticSession);
 
 describe('CUDYR policy-blocked archive recovery', () => {
   it('recovers all 17 owned policy failures in one batch, preserving the original capture', async () => {
@@ -53,7 +51,7 @@ describe('CUDYR policy-blocked archive recovery', () => {
       Array.from({ length: 17 }, (_, i) => blocked({ opId: `capture-${i}` }))
     );
     const { recovery, process } = setup();
-    expect(await recovery(true)).toBe(17);
+    expect(await recovery(true, RUN)).toBe(17);
     const tasks = await hospitalDB.syncQueue.toArray();
     expect(tasks).toHaveLength(17); // no deletion until remote acknowledgement
     expect(tasks.every(task => task.status === 'PENDING' && task.error === undefined)).toBe(true);
@@ -61,7 +59,7 @@ describe('CUDYR policy-blocked archive recovery', () => {
       tasks.every(task => JSON.stringify(task.payload) === JSON.stringify(blocked().payload))
     ).toBe(true);
     expect(process).toHaveBeenCalledTimes(1);
-    expect(await recovery(true)).toBe(0); // active tasks are not reset
+    expect(await recovery(true, RUN)).toBe(0); // active tasks are not reset
   });
 
   it('never revives unrelated validation, conflicts, daily writes, foreign or unowned tasks', async () => {
@@ -76,7 +74,7 @@ describe('CUDYR policy-blocked archive recovery', () => {
     await hospitalDB.syncQueue.bulkAdd(tasks);
     const before = await hospitalDB.syncQueue.toArray();
     const { recovery, process } = setup();
-    expect(await recovery(true)).toBe(0);
+    expect(await recovery(true, RUN)).toBe(0);
     expect(await hospitalDB.syncQueue.toArray()).toEqual(before);
     expect(process).not.toHaveBeenCalled();
   });
@@ -84,7 +82,7 @@ describe('CUDYR policy-blocked archive recovery', () => {
   it('does not touch the queue when current clinical authority is unavailable', async () => {
     await hospitalDB.syncQueue.add(blocked());
     const { recovery, process } = setup();
-    expect(await recovery(false)).toBe(0);
+    expect(await recovery(false, RUN)).toBe(0);
     expect((await hospitalDB.syncQueue.toArray())[0].status).toBe('FAILED');
     expect(process).not.toHaveBeenCalled();
   });
@@ -93,7 +91,7 @@ describe('CUDYR policy-blocked archive recovery', () => {
     await hospitalDB.syncQueue.add(blocked());
     const state = setup();
     state.setGeneration('replacement');
-    expect(await state.recovery(true, 'generation')).toBe(0);
+    expect(await state.recovery(true, RUN)).toBe(0);
     expect((await hospitalDB.syncQueue.toArray())[0].status).toBe('FAILED');
     expect(state.process).not.toHaveBeenCalled();
   });
@@ -107,7 +105,7 @@ describe('CUDYR policy-blocked archive recovery', () => {
       state.setGeneration('replacement');
       return changed;
     };
-    await expect(state.recovery(true)).rejects.toThrow('sesión cambió');
+    await expect(state.recovery(true, RUN)).rejects.toThrow('sesión cambió');
     expect((await hospitalDB.syncQueue.toArray()).every(task => task.status === 'FAILED')).toBe(
       true
     );
@@ -123,7 +121,7 @@ describe('CUDYR policy-blocked archive recovery', () => {
       authorized = false;
       return changed;
     };
-    await expect(state.recovery(true, 'generation', () => authorized)).rejects.toThrow('política');
+    await expect(state.recovery(true, RUN, () => authorized)).rejects.toThrow('política');
     expect((await hospitalDB.syncQueue.toArray()).every(task => task.status === 'FAILED')).toBe(
       true
     );

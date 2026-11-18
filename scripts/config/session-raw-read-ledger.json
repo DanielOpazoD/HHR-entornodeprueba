@@ -39,7 +39,6 @@
     "src/services/storage/sync/cudyrPendingRead.ts": "cola: titularidad de la tarea (SAVE-03)",
     "src/services/storage/sync/dailyRecordTaskRetirement.ts": "cola: exige también la generación durable (SAVE-03)",
     "src/services/storage/sync/nursingHandoffSession.ts": "cola: exige también la generación durable (SAVE-03)",
-    "src/services/storage/sync/publicCudyrPolicyRecovery.ts": "cola: dependencias inyectadas de la recuperación (SAVE-03)",
     "src/services/storage/sync/publicSyncQueue.ts": "cola: dependencias inyectadas (SAVE-03)"
   }
 }

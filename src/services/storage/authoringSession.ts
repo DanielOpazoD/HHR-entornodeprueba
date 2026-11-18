@@ -18,9 +18,14 @@ export const captureAuthoringSession = (): AuthoringSession => ({
  * days the write would land on.
  */
 export const isAuthoringSessionCurrent = (session: AuthoringSession): boolean =>
-  !isSessionCleanupPending() &&
-  session.ownerKey === getStoredSessionOwnerKey() &&
-  session.generation === getSessionGeneration();
+  isAdmittedOwner(session.ownerKey) && session.generation === getSessionGeneration();
+
+/**
+ * Whether `ownerKey` is the person this browser holds now, with no logout cleanup in progress.
+ * Work kept in someone's name without a generation (a queued task) is revived only for them.
+ */
+export const isAdmittedOwner = (ownerKey: string | null | undefined): boolean =>
+  !isSessionCleanupPending() && (ownerKey ?? null) === getStoredSessionOwnerKey();
 
 /** One asynchronous operation's view of the session it began in. */
 export interface AuthoringSessionGuard {

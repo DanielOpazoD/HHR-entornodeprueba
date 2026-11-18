@@ -273,6 +273,14 @@ decisión rechazada ni inventa ausencia local.
   en esta pestaña, con `sessionEpochGuard()` o `useSessionEpoch()`. Nadie más compara la sesión a
   mano (ESLint `session/raw-read`; lo que falta migrar figura en
   `scripts/config/session-raw-read-ledger.json` y solo baja).
+- La guarda se impone en la salida. Lo que A inició no sale ni se reactiva después de que el
+  navegador admite a B o empieza el cierre de A: todo envío CUDYR a Functions pasa por
+  `callCudyrFunction()` (`src/services/cudyr/cudyrFunctionsCall.ts`) con el guard que la
+  operación capturó al empezar, y lo consulta justo antes de enviar; `requeueQuarantinedTask()`
+  reactiva una tarea solo a nombre del propietario admitido ahora, y las recuperaciones de la cola
+  reciben la sesión capturada al iniciar la corrida, nunca el propietario leído después. Lo que no
+  sale queda tal cual (la tarea sigue en la cola con su dueño) y la operación de A termina en
+  silencio.
 - La edición local en vuelo conserva propietario, base y contexto en reposo, aunque la cola activa
   siguiente esté llena; revierte la vista sin avisar a la sesión siguiente.
 - El cambio de sesión de Eloísa se observa solo con `onSessionChange` o `useSessionEpoch`

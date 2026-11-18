@@ -1,5 +1,6 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { SyncQueueStorePort } from './syncQueuePorts';
+import type { AuthoringSession } from '@/services/storage/authoringSession';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CudyrArchiveOutboxPayload } from '@/types/domain/cudyrHistory';
 import { collectCudyrDailyFacts } from '@/services/cudyr/cudyrReportFacts';
@@ -56,22 +57,19 @@ const verifiedAbsent = (task: SyncTask, record: DailyRecord | null): boolean => 
 
 /** Called only after the normal sync. Preserve original payload/error as a reversible local
  * record; RETIRED is not a Firebase acknowledgement and carries no report evidence.
+ * `session` is the one the sync run captured when it began; only its owner's tasks are touched.
  */
 export const createObsoleteCudyrCaptureRecovery =
   (deps: {
     store: SyncQueueStorePort;
-    getOwner: () => string | null;
-    getGeneration: () => string | null;
+    isSessionCurrent: (session: AuthoringSession) => boolean;
     readConfirmedCensus: (date: string) => Promise<DailyRecord | null>;
     now: () => Date;
   }) =>
-  async (generation: string, isAuthorized: () => boolean): Promise<number> => {
-    const owner = deps.getOwner();
-    const valid = () =>
-      Boolean(
-        owner && owner === deps.getOwner() && generation === deps.getGeneration() && isAuthorized()
-      );
-    if (!valid() || !deps.store.withEnqueueTransaction) return 0;
+  async (session: AuthoringSession, isAuthorized: () => boolean): Promise<number> => {
+    const owner = session.ownerKey;
+    const valid = () => Boolean(owner && deps.isSessionCurrent(session) && isAuthorized());
+    if (!owner || !valid() || !deps.store.withEnqueueTransaction) return 0;
     const candidates = (await deps.store.listAll(owner))
       .filter(t => t.ownerKey === owner && isObsoleteEmptyCudyrCandidate(t))
       .slice(0, 50);

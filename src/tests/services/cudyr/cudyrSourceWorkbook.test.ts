@@ -15,7 +15,9 @@ import { confirmedReportInput } from './reportFixtures';
 const mocks = vi.hoisted(() => ({ load: vi.fn(), call: vi.fn(), generation: 1 }));
 vi.mock('@/services/cudyr/cudyrSupplementService', () => ({
   loadCudyrSupplements: mocks.load,
-  callCudyrArchive: mocks.call,
+}));
+vi.mock('@/services/cudyr/cudyrFunctionsCall', () => ({
+  callCudyrFunction: mocks.call,
 }));
 vi.mock('@/services/storage/sessionStorageTransition', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/storage/sessionStorageTransition')>()),
@@ -302,17 +304,20 @@ describe('original Eloísa source in monthly Excel', () => {
   it('reads archived bytes only on demand and discards an in-flight file when the session changes', async () => {
     const data = buildCudyrReport(confirmedReportInput());
     mocks.load.mockResolvedValue([archive()]);
-    mocks.call.mockImplementation(async () => {
+    // The door asks the operation's guard again once the reply arrives.
+    mocks.call.mockImplementation(async (_endpoint, _request, guard) => {
       mocks.generation++;
+      guard.check();
       return { ...archive().file, base64: supplementRequest().file.base64 };
     });
     await expect(loadCudyrSourceSheets(data, new AbortController().signal)).rejects.toThrow(
       /sesión/
     );
-    expect(mocks.call).toHaveBeenCalledWith('readCudyrHistory', {
-      kind: 'monthly-supplement-file',
-      id: 'first',
-    });
+    expect(mocks.call).toHaveBeenCalledWith(
+      'readCudyrHistory',
+      { kind: 'monthly-supplement-file', id: 'first' },
+      expect.objectContaining({ check: expect.any(Function) })
+    );
   });
   it('shows an explicit absent-source note instead of fabricating an Eloísa report', async () => {
     mocks.load.mockResolvedValue([]);

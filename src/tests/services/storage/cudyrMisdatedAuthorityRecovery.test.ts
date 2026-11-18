@@ -1,12 +1,18 @@
 // @vitest-environment node
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { createMisdatedCudyrAuthorityRecovery } from '@/services/storage/sync/cudyrMisdatedAuthorityRecovery';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { CudyrArchiveOutboxPayload } from '@/types/domain/cudyrHistory';
+import { isAuthoringSessionCurrent } from '@/services/storage/authoringSession';
+import {
+  admitSyntheticSession,
+  clearSyntheticSession,
+  replaceStoredSessionOwner,
+} from '@/tests/utils/syntheticSession';
 
 const task = (): SyncTask => ({
   opId: 'op',
@@ -51,33 +57,29 @@ const census = (): DailyRecord =>
     rayenSyncHistory: [{ id: 'original', sourceDate: '2026-10-10', status: 'partial' }],
   }) as unknown as DailyRecord;
 const setup = () => {
-  let owner = 'owner',
-    generation = 'session',
-    authorized = true;
+  let authorized = true;
   const read = vi.fn(async () => census());
   const recover = createMisdatedCudyrAuthorityRecovery({
     store: createDexieSyncQueueStore(),
-    getOwner: () => owner,
-    getGeneration: () => generation,
+    isSessionCurrent: isAuthoringSessionCurrent,
     readConfirmedCensus: read,
   });
   return {
     read,
-    run: () => recover('session', () => authorized),
+    // The session the sync run captured when it began.
+    run: () => recover({ ownerKey: 'owner', generation: 'session' }, () => authorized),
     revoke: () => {
       authorized = false;
     },
-    changeOwner: () => {
-      owner = 'other';
-    },
-    changeSession: () => {
-      generation = 'other';
-    },
+    changeOwner: () => replaceStoredSessionOwner('other'),
+    changeSession: () => admitSyntheticSession('owner', 'other'),
   };
 };
 beforeEach(async () => {
   await hospitalDB.syncQueue.clear();
+  admitSyntheticSession('owner', 'session');
 });
+afterEach(clearSyntheticSession);
 describe('misdated CUDYR archive recovery', () => {
   it('reaches a provable capture beyond 50 unprovable entries', async () => {
     const rows = Array.from({ length: 51 }, (_, i) => {

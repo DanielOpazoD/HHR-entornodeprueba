@@ -13,6 +13,7 @@ import { buildSyncQueueStats } from '@/hooks/controllers/syncQueueMonitorControl
 import { listQuarantinedOperations } from '@/features/rayen-import/components/localSyncPresentation';
 import { RayenSyncQueueDetails } from '@/features/rayen-import/components/RayenSyncQueueDetails';
 import type { SyncTask, SyncTaskContract } from '@/services/storage/syncQueueTypes';
+import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 
 const mocks = vi.hoisted(() => ({
   read: vi.fn(),
@@ -126,6 +127,8 @@ const expectDurableReview = async (row: SyncTask, input: SyncTask) => {
 beforeEach(async () => {
   vi.resetAllMocks();
   localStorage.clear();
+  // The tasks' owner is the person signed in: only they may revive their work.
+  localStorage.setItem(SESSION_OWNER_KEY, owner);
   await hospitalDB.syncQueue.clear();
   await hospitalDB.dailyRecords.clear();
   mocks.mode = 'client_only';

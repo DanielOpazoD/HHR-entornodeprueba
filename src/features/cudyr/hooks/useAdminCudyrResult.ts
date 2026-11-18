@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useNotification } from '@/context/UIContext';
 import { setAdminCudyrResult } from '@/features/cudyr/report/adminCudyrResultService';
 import { canSetAdminCudyrResult } from '@/shared/access/operationalAccessPolicy';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 
 interface UseAdminCudyrResultInput {
   record: DailyRecord | null;
@@ -42,12 +43,16 @@ export const useAdminCudyrResult = ({ record, readOnly }: UseAdminCudyrResultInp
           ? `${adjustments[0].bedId}:${adjustments[0].clinicalCrib ? 'crib' : 'bed'}`
           : 'bulk';
       setAdminCudyrMutationKey(mutationKey);
+      const guard = guardAuthoringSession();
       try {
-        const response = await setAdminCudyrResult({
-          date: record.date,
-          adjustments,
-          expectedLastUpdated: record.lastUpdated,
-        });
+        const response = await setAdminCudyrResult(
+          {
+            date: record.date,
+            adjustments,
+            expectedLastUpdated: record.lastUpdated,
+          },
+          guard
+        );
         const isSingle = adjustments.length === 1;
         const category = isSingle ? adjustments[0].category : null;
         success(
@@ -62,6 +67,8 @@ export const useAdminCudyrResult = ({ record, readOnly }: UseAdminCudyrResultInp
         );
         return true;
       } catch (caughtError) {
+        // The person who asked is gone: their adjustment ends in silence, nothing told to the next.
+        if (!guard.isCurrent()) return false;
         notifyError(
           'No se guardó el ajuste CUDYR',
           caughtError instanceof Error

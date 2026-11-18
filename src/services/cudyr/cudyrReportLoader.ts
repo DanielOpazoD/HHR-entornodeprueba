@@ -105,7 +105,7 @@ export const loadCudyrReport = async (
       : undefined;
     let reply;
     try {
-      reply = await probeOfficialCudyrReport(month, cached);
+      reply = await probeOfficialCudyrReport(month, guard, cached);
     } catch (error) {
       check();
       // The hook retains the last good copy and reports failed remote verification.
@@ -120,7 +120,7 @@ export const loadCudyrReport = async (
         saved = await decodeOfficialCudyrReport(reply, cached);
       } catch (error) {
         if (reply.state !== 'unchanged') throw error;
-        const authoritative = await probeOfficialCudyrReport(month);
+        const authoritative = await probeOfficialCudyrReport(month, guard);
         check();
         if (authoritative.state === 'missing')
           throw new Error('El informe cambió; vuelva a cargar el mes.');
@@ -346,7 +346,7 @@ export const loadCudyrReport = async (
   check();
   if (native && sourceVersion) {
     try {
-      const saved = await saveOfficialCudyrReport(approved, sourceVersion, signal);
+      const saved = await saveOfficialCudyrReport(approved, sourceVersion, guard);
       check();
       return { ...saved, readIncomplete };
     } catch (error) {

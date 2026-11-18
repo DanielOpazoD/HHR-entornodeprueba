@@ -1,8 +1,10 @@
 import { createCudyrPolicyBlockedRecovery } from './cudyrPolicyBlockedRecovery';
 import { createDexieSyncQueueStore } from './dexieSyncQueueStore';
 import { ensureDbReady } from '@/services/storage/indexeddb/indexedDbCore';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import {
+  isAuthoringSessionCurrent,
+  type AuthoringSession,
+} from '@/services/storage/authoringSession';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { createObsoleteCudyrCaptureRecovery } from './cudyrObsoleteCaptureRecovery';
 import { getDocFromServer } from 'firebase/firestore';
@@ -12,8 +14,7 @@ import { createMisdatedCudyrAuthorityRecovery } from './cudyrMisdatedAuthorityRe
 
 const repairMisdatedArchives = createMisdatedCudyrAuthorityRecovery({
   store: createDexieSyncQueueStore(),
-  getOwner: getStoredSessionOwnerKey,
-  getGeneration: getSessionGeneration,
+  isSessionCurrent: isAuthoringSessionCurrent,
   readConfirmedCensus: async date => {
     const snapshot = await getDocFromServer(getRecordDocRef(date));
     return snapshot.exists() ? (snapshot.data() as DailyRecord) : null;
@@ -22,8 +23,7 @@ const repairMisdatedArchives = createMisdatedCudyrAuthorityRecovery({
 
 const retireObsoleteChecks = createObsoleteCudyrCaptureRecovery({
   store: createDexieSyncQueueStore(),
-  getOwner: getStoredSessionOwnerKey,
-  getGeneration: getSessionGeneration,
+  isSessionCurrent: isAuthoringSessionCurrent,
   now: () => new Date(),
   readConfirmedCensus: async date => {
     const snapshot = await getDocFromServer(getRecordDocRef(date));
@@ -40,23 +40,22 @@ async function processRecoveredArchives(): Promise<void> {
 const recoverPolicyBlockedArchives = createCudyrPolicyBlockedRecovery({
   ensureReady: ensureDbReady,
   store: createDexieSyncQueueStore(),
-  getOwner: getStoredSessionOwnerKey,
-  getGeneration: getSessionGeneration,
+  isSessionCurrent: isAuthoringSessionCurrent,
   process: processRecoveredArchives,
 });
+/** `session` is the one the sync run captured when it began, before any wait. */
 export const recoverPolicyBlockedCudyrArchives = async (
   authorized: boolean,
-  expectedGeneration: string,
+  session: AuthoringSession,
   isAuthorized: () => boolean
 ): Promise<number> => {
+  const stillOwned = () => isAuthoringSessionCurrent(session) && isAuthorized();
   try {
     await ensureDbReady();
-    const repaired = authorized
-      ? await repairMisdatedArchives(expectedGeneration, isAuthorized)
-      : 0;
-    const count = await recoverPolicyBlockedArchives(authorized, expectedGeneration, isAuthorized);
-    if (repaired && !count) await processRecoveredArchives();
-    if (authorized && isAuthorized()) await retireObsoleteChecks(expectedGeneration, isAuthorized);
+    const repaired = authorized ? await repairMisdatedArchives(session, isAuthorized) : 0;
+    const count = await recoverPolicyBlockedArchives(authorized, session, isAuthorized);
+    if (repaired && !count && stillOwned()) await processRecoveredArchives();
+    if (authorized && stillOwned()) await retireObsoleteChecks(session, isAuthorized);
     return count + repaired;
   } catch {
     recordOperationalTelemetry({

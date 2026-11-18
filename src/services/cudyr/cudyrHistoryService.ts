@@ -1,5 +1,5 @@
 import { guardAuthoringSession } from '@/services/storage/authoringSession';
-import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
+import { callCudyrFunction, type CudyrFunctionEndpoint } from './cudyrFunctionsCall';
 import { normalizeDailyRecordAuthorityError } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import type {
   ArchiveCudyrHistoryRequest,
@@ -13,26 +13,13 @@ import type {
   ReadCudyrEpisodeCapturesRequest,
 } from '@/types/domain/cudyrCapture';
 
-const callHistory = async <Request, Response>(
-  name: string,
-  payload: Request
-): Promise<Response> => {
-  const { check } = guardAuthoringSession();
-  const functions = await defaultFunctionsRuntime.getRegionalFunctions('southamerica-east1');
-  check();
-  try {
-    const { httpsCallable } = await import('firebase/functions');
-    check();
-    const result = await httpsCallable<Request, Response>(functions, name, { timeout: 20_000 })(
-      payload
-    );
-    check();
-    return result.data;
-  } catch (error) {
-    check();
-    throw normalizeDailyRecordAuthorityError(error);
-  }
-};
+/** Each call is its own operation (the queue checks its task's owner just before): guard taken here. */
+const callHistory = <Request, Response>(name: CudyrFunctionEndpoint, payload: Request) =>
+  callCudyrFunction<Response, Request>(name, payload, guardAuthoringSession()).catch(
+    (error: unknown) => {
+      throw normalizeDailyRecordAuthorityError(error);
+    }
+  );
 
 export const archiveCudyrHistory = (payload: ArchiveCudyrHistoryRequest) =>
   callHistory<ArchiveCudyrHistoryRequest, ArchiveCudyrHistoryResult>(

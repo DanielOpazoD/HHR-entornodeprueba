@@ -59,8 +59,8 @@ describe('daily documentary CUDYR recovery', () => {
         id: 'synthetic-content-id',
         status: 'ok',
       }));
-      const capture: typeof captureCudyrMonthlyReport = (month, signal, check) =>
-        captureCudyrMonthlyReport(month, signal, check, { fetchReport, readFile, save });
+      const capture: typeof captureCudyrMonthlyReport = (month, signal, guard) =>
+        captureCudyrMonthlyReport(month, signal, guard, { fetchReport, readFile, save });
       const reader = createDailyCudyrRecoveryReader({
         signal: new AbortController().signal,
         now,

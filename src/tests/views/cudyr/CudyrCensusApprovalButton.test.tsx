@@ -38,7 +38,9 @@ it('requires explicit confirmation and submits the prepared revision with a reas
       expectedRevision: 4,
       reason: 'Cotejo documental sintético completado.',
       days: [{ date: '2026-08-01', fingerprint: 'synthetic' }],
-    })
+    }),
+    // The guard the approval captured when it began travels to the send.
+    expect.objectContaining({ check: expect.any(Function) })
   );
 });
 it('approves a month without documentary reconciliation at revision 0', async () => {
@@ -49,7 +51,8 @@ it('approves a month without documentary reconciliation at revision 0', async ()
   fireEvent.click(screen.getByRole('button', { name: 'Confirmar cierre oficial' }));
   await waitFor(() => expect(onApproved).toHaveBeenCalledOnce());
   expect(mocks.approve).toHaveBeenCalledWith(
-    expect.objectContaining({ month: '2026-08', expectedRevision: 0 })
+    expect.objectContaining({ month: '2026-08', expectedRevision: 0 }),
+    expect.objectContaining({ check: expect.any(Function) })
   );
   // The default reason never claims a documentary reconciliation that did not happen.
   expect(mocks.approve.mock.calls[0]?.[0].reason).not.toMatch(/concilia/i);

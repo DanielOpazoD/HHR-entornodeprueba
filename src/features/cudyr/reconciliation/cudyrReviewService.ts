@@ -1,24 +1,18 @@
-import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { callCudyrFunction, type CudyrFunctionEndpoint } from '@/services/cudyr/cudyrFunctionsCall';
 import type {
   CudyrReviewDecision,
   CudyrReviewEvidence,
   SavedCudyrReview,
 } from '@/types/domain/cudyrReview';
 
-const call = async <T>(endpoint: string, request: unknown, signal: AbortSignal): Promise<T> => {
-  const { check } = guardAuthoringSession({
-    signal,
-    message: 'La sesión cambió. Vuelva a consultar.',
-  });
-  check();
-  const runtime = await defaultFunctionsRuntime.getRegionalFunctions('southamerica-east1');
-  check();
-  const { httpsCallable } = await import('firebase/functions');
-  const result = await httpsCallable<unknown, T>(runtime, endpoint, { timeout: 20000 })(request);
-  check();
-  return result.data;
-};
+/** Each call is its own operation, begun when the person acts: the guard is taken here. */
+const call = <T>(endpoint: CudyrFunctionEndpoint, request: unknown, signal: AbortSignal) =>
+  callCudyrFunction<T>(
+    endpoint,
+    request,
+    guardAuthoringSession({ signal, message: 'La sesión cambió. Vuelva a consultar.' })
+  );
 export const loadCudyrReviews = async (month: string, signal: AbortSignal, reviewId?: string) => {
   const { check } = guardAuthoringSession({ signal });
   const reviews: SavedCudyrReview[] = [],
