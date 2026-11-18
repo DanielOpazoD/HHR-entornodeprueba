@@ -4,7 +4,7 @@
 
 ## Decisión
 
-El identificador y contexto de episodio clínico pasan a resolverse desde un modelo compartido en `src/application/patient-flow/clinicalEpisode.ts`.
+El identificador y contexto de episodio clínico pasan a resolverse desde un modelo compartido en `src/domain/clinical-episode/clinicalEpisode.ts`.
 
 Desde el bloque PR3, el modelo acepta `clinicalEpisodeId` como identificador canónico opcional. Mientras el dato se adopta gradualmente, el resolver usa esta prioridad:
 

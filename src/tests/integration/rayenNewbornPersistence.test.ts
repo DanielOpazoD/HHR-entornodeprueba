@@ -8,7 +8,7 @@ import {
 import {
   getActiveDischarges,
   getStatisticalDischarges,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {

@@ -5,7 +5,7 @@ import {
   getActiveCma,
   getActiveDischarges,
   getActiveTransfers,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 
 import type { AutoTableFunction, JsPDFWithAutoTable } from './handoffPdfTypes';
 import type { HandoffPdfMovementSummaryTable } from './handoffPdfSectionTypes';

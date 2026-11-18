@@ -8,7 +8,7 @@ import {
   getVisibleModules,
   isAdmin,
 } from '@/utils/permissions';
-import { canReadClinicalDocuments } from '@/application/clinical-documents/clinicalDocumentAccessPolicy';
+import { canReadClinicalDocuments } from '@/shared/access/clinicalDocumentAccessPolicy';
 import {
   isSpecialistCensusAccessProfile,
   type CensusAccessProfile,

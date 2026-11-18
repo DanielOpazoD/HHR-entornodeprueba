@@ -17,7 +17,7 @@ import { normalizeMovementReportingSnapshot } from './movementCompatibility';
 import {
   getStatisticalDischarges,
   getActiveTransfers,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 import {
   buildReportingSpecialtyTraceFields,
   resolveReportingSpecialty,

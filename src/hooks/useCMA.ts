@@ -7,14 +7,14 @@ import { capitalizeWords } from '@/utils/stringUtils';
 import { formatRut, hasNonRutLetter, isValidRut } from '@/utils/rutUtils';
 import { buildClearPatientPatches } from '@/hooks/controllers/bedManagementPatchController';
 import { buildAtomicPatientMovementPatch, buildUndoCmaPatch } from '@/application/census/public';
-import { tombstoneMovementById } from '@/application/census/movementTombstonePolicy';
+import { tombstoneMovementById } from '@/domain/movements/movementTombstonePolicy';
 import {
   convertCmaToHomeDischargeRecord,
   convertCmaToTransferRecord,
   selectMovementReclassificationSummary,
 } from '@/application/census/movementTypeConversionPolicy';
 import { buildCmaEpisodeMovementFields } from '@/application/census/cmaEpisodeMovementFields';
-import { ensurePatientClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
+import { ensurePatientClinicalEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import { patientMovementRuntimeLogger } from '@/hooks/controllers/hookControllerLoggers';
 import { usePatientMovementAudit } from '@/hooks/usePatientMovementAudit';
 import { useMovementReclassificationExecution } from '@/hooks/useMovementReclassificationExecution';

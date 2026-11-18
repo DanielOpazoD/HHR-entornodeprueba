@@ -68,10 +68,10 @@ Qué impone hoy un control y qué queda como objetivo:
 - **Hoy:** no hay ciclos de imports en ejecución (`npm run check:import-cycles`).
 - **Hoy:** `eslint-plugin-boundaries` está retirado: solo veía imports relativos con `.ts`
   explícito, y lo que prohibía con razón lo cubre `check:folder-dependencies`.
-- **Objetivo:** vaciar el libro (políticas puras de `application/` a `domain/`, correo del
-  censo y fachada del censo a su área, `shared/` repartido en núcleo, servicios y UI, `views/` y
-  `config/` a `app-shell/`), y que ningún módulo de las capas 0 a 4 alcance un área en
-  ejecución.
+- **Objetivo:** vaciar el libro (los puertos de `application/` que importan los servicios, a
+  un contrato de servicios; correo del censo y fachada del censo a su área; `shared/` repartido
+  en núcleo, servicios y UI; `views/` y `config/` a `app-shell/`), y que ningún módulo de las
+  capas 0 a 4 alcance un área en ejecución.
 
 ## Reglas
 
@@ -126,7 +126,7 @@ Qué impone hoy un control y qué queda como objetivo:
 | Sesión: propietario, generación, cambio              | `services/storage/sessionStorageTransition.ts`, `services/storage/authoringSession.ts` (**objetivo:** `services/session/`) | `captureAuthoringSession` / `isAuthoringSessionCurrent`, `onSessionChange`, `useSessionEpoch`  |
 | Reloj, día clínico y turno                           | `utils/clinicalTimeZone.ts`, `utils/clinicalDayScheduleUtils.ts`                                                           | `utils/clinicalDayUtils.ts`; nunca `new Date()` local                                          |
 | Plazo de 48 h para días anteriores                   | cálculo temporal en `utils/clinicalWallClock.ts`                                                                           | el predicado de cada operación conserva su regla (no es una sola pregunta)                     |
-| Identidad: RUT, pasaporte, episodio                  | `utils/rutUtils.ts`, `application/patient-flow/clinicalEpisode.ts`                                                         | las mismas                                                                                     |
+| Identidad: RUT, pasaporte, episodio                  | `utils/rutUtils.ts`, `domain/clinical-episode/clinicalEpisode.ts`                                                          | las mismas                                                                                     |
 | Permisos y roles                                     | `shared/access/*` y `utils/permissions.ts` (**objetivo:** un solo dueño)                                                   | `shared/access/operationalAccessPolicy.ts`                                                     |
 | Registro de auditoría desde la UI                    | `hooks/useAudit.ts` (contrato `AuditLoggers`); envío en `application/audit`                                                | `useAuditContext`; un registrador suelto se tipa `AuditLoggers['<nombre>']`                    |
 | Telemetría                                           | `services/observability`                                                                                                   | sus adaptadores por dominio                                                                    |

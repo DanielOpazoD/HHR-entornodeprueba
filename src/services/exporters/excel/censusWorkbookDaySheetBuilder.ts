@@ -16,7 +16,7 @@ import {
   getActiveCma,
   getActiveDischarges,
   getActiveTransfers,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 
 export const createCensusWorkbookDaySheet = (
   workbook: Workbook,

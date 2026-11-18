@@ -6,7 +6,7 @@ import type { DailyRecordMovementState as MinsalDailyRecord } from '@/types/doma
 import {
   getStatisticalDischarges,
   getActiveTransfers,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 
 export function countOccupiedBeds(beds: Record<string, PatientData>): number {
   let count = 0;

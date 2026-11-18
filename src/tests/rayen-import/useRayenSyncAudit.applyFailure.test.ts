@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/admissionDatePolicy';
+import { AdmissionDatePolicyViolationError } from '@/domain/clinical-episode/admissionDatePolicy';
 import { useRayenSyncAudit } from '@/features/rayen-import/hooks/useRayenSyncAudit';
 import { buildRayenSyncDiagnosticReport } from '@/features/rayen-import/domain/rayenSyncDiagnosticReport';
 import { RayenSyncEventSchema } from '@/schemas/zod/dailyRecord';

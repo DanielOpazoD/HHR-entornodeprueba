@@ -1,4 +1,4 @@
-import { getActiveTransfers } from '@/application/census/movementTombstonePolicy';
+import { getActiveTransfers } from '@/domain/movements/movementTombstonePolicy';
 import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import { roundAnalyticsPercent as roundPercent } from '@/features/analytics/controllers/analyticsPercentageController';
 import type { TransferData } from '@/types/domain/movements';

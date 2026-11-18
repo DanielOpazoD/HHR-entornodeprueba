@@ -2,12 +2,12 @@ import {
   buildClinicalEpisodeKey,
   normalizeClinicalEpisodeId,
   resolveClinicalEpisodeIdentifier,
-} from '@/application/patient-flow/clinicalEpisode';
+} from '@/domain/clinical-episode/clinicalEpisode';
 import {
   getActiveCma,
   getActiveDischarges,
   getActiveTransfers,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {

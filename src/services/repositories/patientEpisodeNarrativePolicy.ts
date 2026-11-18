@@ -1,7 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import { buildClinicalEpisodeKey } from '@/application/patient-flow/clinicalEpisode';
-import { LEGACY_EPISODE_ID_PREFIX } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
+import { buildClinicalEpisodeKey } from '@/domain/clinical-episode/clinicalEpisode';
+import { LEGACY_EPISODE_ID_PREFIX } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 const EPISODE_SCOPED_PATIENT_STRUCTURED_FIELDS = new Set([
   'clinicalEvents',

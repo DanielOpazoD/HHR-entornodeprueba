@@ -10,7 +10,7 @@ Guía corta para reglas operativas no obvias que hoy conviene conocer antes de t
 
 Referencias:
 
-- `src/application/patient-flow/clinicalEpisode.ts`
+- `src/domain/clinical-episode/clinicalEpisode.ts`
 - `src/utils/clinicalDayUtils.ts`
 - `src/features/census/components/global-search/episodeGroupingController.ts`
 

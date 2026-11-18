@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { buildCensusTableLayoutBindings } from '@/features/census/controllers/censusTableLayoutController';
 import { useClinicalDocumentPresenceByBed } from '@/features/census/hooks/useClinicalDocumentPresenceByBed';
 import { useCensusTableViewModel } from '@/features/census/hooks/useCensusTableViewModel';
-import { canReadClinicalDocuments } from '@/application/clinical-documents/clinicalDocumentAccessPolicy';
+import { canReadClinicalDocuments } from '@/shared/access/clinicalDocumentAccessPolicy';
 import { useDailyRecordMovements } from '@/context/DailyRecordContext';
 import { useAuth } from '@/context/AuthContext';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';

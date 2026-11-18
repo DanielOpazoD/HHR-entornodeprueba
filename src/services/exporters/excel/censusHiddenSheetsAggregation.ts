@@ -9,7 +9,7 @@ import {
   getActiveCma,
   getStatisticalDischarges,
   getActiveTransfers,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 
 import type {
   CensusHiddenSheetMonthContext,

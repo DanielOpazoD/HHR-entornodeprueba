@@ -2,7 +2,7 @@ import { ConcurrencyError } from '@/services/storage/firestore/firestoreRecordWr
 import { FIELD_CHANGED_ELSEWHERE_MESSAGE } from '@/services/storage/syncErrorCatalog';
 import { DataRegressionError, VersionMismatchError } from '@/utils/integrityGuard';
 import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
-import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/admissionDatePolicy';
+import { AdmissionDatePolicyViolationError } from '@/domain/clinical-episode/admissionDatePolicy';
 import type {
   SaveDailyRecordResult,
   UpdatePartialDailyRecordResult,

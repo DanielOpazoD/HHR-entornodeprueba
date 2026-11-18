@@ -8,10 +8,7 @@ import type {
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { useAuditContext } from '@/context/AuditContext';
-import {
-  getActiveTransfers,
-  isMovementDeleted,
-} from '@/application/census/movementTombstonePolicy';
+import { getActiveTransfers, isMovementDeleted } from '@/domain/movements/movementTombstonePolicy';
 
 // Mock dependencies
 vi.mock('@/context/AuditContext', () => ({

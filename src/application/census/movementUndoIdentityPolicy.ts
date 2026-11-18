@@ -1,4 +1,4 @@
-import type { PatientEpisodeContract } from '@/application/patient-flow/clinicalEpisodeContracts';
+import type { PatientEpisodeContract } from '@/domain/clinical-episode/clinicalEpisodeContracts';
 import type { CMAData, DischargeData, TransferData } from '@/types/domain/movements';
 
 type MovementIdentity = Pick<

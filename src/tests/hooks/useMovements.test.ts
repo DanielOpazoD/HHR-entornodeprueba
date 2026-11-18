@@ -10,7 +10,7 @@ import {
   getActiveDischarges,
   getActiveTransfers,
   isMovementDeleted,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 
 describe('useMovements', () => {
   type BedPatient = DailyRecord['beds'][string];

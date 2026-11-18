@@ -16,7 +16,7 @@
 import {
   buildClinicalEpisodeLookupKeys,
   buildPatientPresenceSnapshot,
-} from '@/application/patient-flow/clinicalEpisode';
+} from '@/domain/clinical-episode/clinicalEpisode';
 import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 import { normalizeRut } from '@/utils/rutUtils';
 

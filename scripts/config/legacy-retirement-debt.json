@@ -49,7 +49,7 @@
       "owner": "census/clinical-documents",
       "phase": "restrict",
       "maxAuthorizedConsumers": 1,
-      "approvedConsumers": ["src/application/patient-flow/clinicalEpisode.ts"],
+      "approvedConsumers": ["src/domain/clinical-episode/clinicalEpisode.ts"],
       "consumerDetection": {
         "sourceRoots": ["src"],
         "markers": [
@@ -60,7 +60,7 @@
           "alternateEpisodeKeys"
         ],
         "includePathPatterns": [
-          "^src/application/patient-flow/clinicalEpisode\\.ts$",
+          "^src/domain/clinical-episode/clinicalEpisode\\.ts$",
           "^src/features/census/components/global-search/",
           "^src/features/census/controllers/clinicalDocumentPresenceController\\.ts$",
           "^src/features/clinical-documents/"

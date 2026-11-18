@@ -1,5 +1,5 @@
 import type { DischargeData, TransferData } from '@/types/domain/movements';
-import { getStatisticalDischarges } from '@/application/census/movementTombstonePolicy';
+import { getStatisticalDischarges } from '@/domain/movements/movementTombstonePolicy';
 
 export interface MovementSummaryModel {
   totalDeaths: number;

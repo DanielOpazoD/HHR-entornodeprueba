@@ -11,7 +11,7 @@ import { ensureDailyRecordDateTimestamp } from '@/services/repositories/dailyRec
 import { syncDailyRecordClinicalResources } from '@/services/repositories/dailyRecordClinicalDomainService';
 import { assertAdmissionDatePersistencePolicy } from '@/services/repositories/dailyRecordAdmissionDateWritePolicy';
 import { buildInvariantRepairReviewContext } from '@/services/repositories/invariantRepairReviewContext';
-import { ensureDailyRecordClinicalEpisodeIds } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
+import { ensureDailyRecordClinicalEpisodeIds } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 const normalizePreparedRecord = (
   record: DailyRecord,

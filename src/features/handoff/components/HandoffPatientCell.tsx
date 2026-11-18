@@ -3,7 +3,7 @@ import type { PatientData } from '@/types/domain/patient';
 import React, { useState } from 'react';
 import { Baby, Camera, Loader2 } from 'lucide-react';
 
-import { buildClinicalEpisodeKey } from '@/application/patient-flow/clinicalEpisode';
+import { buildClinicalEpisodeKey } from '@/domain/clinical-episode/clinicalEpisode';
 import {
   WoundCareModal,
   WoundCareErrorBoundary,

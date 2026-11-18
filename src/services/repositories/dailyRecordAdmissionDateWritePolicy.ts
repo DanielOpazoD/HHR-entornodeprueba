@@ -4,9 +4,9 @@ import {
   AdmissionDatePolicyViolationError,
   resolveAdmissionDateMutationViolation,
   resolveAdmissionDateWindowViolation,
-} from '@/application/patient-flow/admissionDatePolicy';
+} from '@/domain/clinical-episode/admissionDatePolicy';
 import { normalizeDateOnly } from '@/utils/clinicalDayUtils';
-import { hasSamePatientEpisodeIdentity } from '@/application/patient-flow/patientEpisodeIdentityPolicy';
+import { hasSamePatientEpisodeIdentity } from '@/domain/clinical-episode/patientEpisodeIdentityPolicy';
 
 interface RecordPatientEntry {
   path: string;

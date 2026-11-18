@@ -7,7 +7,7 @@ import {
   syntheticEncounter,
   vitalSignsForm,
 } from './deterministicClinicalReplay.fixtures';
-import { getStatisticalDischarges } from '@/application/census/movementTombstonePolicy';
+import { getStatisticalDischarges } from '@/domain/movements/movementTombstonePolicy';
 import { replay } from './deterministicClinicalReplay.harness';
 
 const day = '2026-08-15';

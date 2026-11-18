@@ -5,7 +5,7 @@ import {
   buildLegacyClinicalEpisodeId,
   ensureDailyRecordClinicalEpisodeIds,
   resolveClinicalEpisodeIdForAdmission,
-} from '@/application/patient-flow/clinicalEpisodeIdPolicy';
+} from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 describe('clinicalEpisodeIdPolicy', () => {
