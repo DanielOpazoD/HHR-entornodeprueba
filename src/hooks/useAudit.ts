@@ -55,8 +55,11 @@ const resolveViewSubject = (
   patientRut?: string
 ): string => [patientRut || details.rut, details.patientName, entityId].filter(Boolean).join('|');
 
-interface UseAuditReturn {
-  // Logging functions
+/**
+ * What the app can audit, declared once: `useAudit` implements it and `AuditContext` shares it.
+ * Code that needs one logger takes it as `AuditLoggers['logEvent']`, not a hand-written copy.
+ */
+export interface AuditLoggers {
   logPatientAdmission: (
     bedId: string,
     patientName: string,
@@ -169,13 +172,14 @@ interface UseAuditReturn {
     details: Record<string, unknown>,
     patientRut?: string,
     recordDate?: string,
-    authors?: string
+    authors?: string,
+    waitMs?: number
   ) => void;
   // Fetching
   fetchLogs: (limit?: number) => Promise<AuditLogEntry[]>;
 }
 
-export const useAudit = (userId: string): UseAuditReturn => {
+export const useAudit = (userId: string): AuditLoggers => {
   const recordEvent = useCallback(
     async (
       action: AuditAction,

@@ -1,8 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import { useCallback } from 'react';
-import type { AuditAction } from '@/types/auditActionTypes';
-import type { AuditLogEntry } from '@/types/auditLogTypes';
+import type { AuditLoggers } from '@/hooks/useAudit';
 import type { ClinicalEvent } from '@/types/domain/clinicalEvents';
 
 import type { PatientFieldValue } from '@/types/valueTypes';
@@ -20,16 +19,7 @@ import {
 interface UseClinicalEventHandlersParams {
   record: { date: string; beds: Record<string, PatientData> } | null;
   updatePatient: (bedId: string, field: keyof PatientData, value: PatientFieldValue) => void;
-  logDebouncedEvent: (
-    action: AuditAction,
-    entityType: AuditLogEntry['entityType'],
-    entityId: string,
-    details: Record<string, unknown>,
-    patientRut?: string,
-    recordDate?: string,
-    authors?: string,
-    waitMs?: number
-  ) => void;
+  logDebouncedEvent: AuditLoggers['logDebouncedEvent'];
   onSuccess: (message: string, description?: string) => void;
 }
 

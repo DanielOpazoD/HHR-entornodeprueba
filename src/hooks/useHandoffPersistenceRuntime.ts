@@ -5,6 +5,7 @@ import type {
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { AuditLoggers } from '@/hooks/useAudit';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import { runHandoffMutation } from '@/hooks/controllers/handoffManagementMutationController';
 
@@ -12,13 +13,7 @@ interface HandoffManagementPersistenceInput {
   recordRef: RefObject<DailyRecord | null>;
   saveAndUpdate: PersistDailyRecord;
   patchRecord: ApplyDailyRecordPatch;
-  logHandoffNovedadesModified: (
-    shift: string,
-    content: string,
-    oldContent: string,
-    recordDate: string,
-    authors?: string
-  ) => void;
+  logHandoffNovedadesModified: AuditLoggers['logHandoffNovedadesModified'];
   userId: string;
   notifyError: (title: string, message: string) => void;
 }

@@ -389,6 +389,15 @@ const LEGACY_DOCUMENT_HYDRATION_RESTRICTION = {
   message:
     'Hidrata documentos clínicos antiguos con ClinicalDocumentCompatibilityPort (src/application/ports/clinicalDocumentCompatibilityPort.ts), no con hydrateLegacyClinicalDocument().',
 };
+// The audit loggers are one contract (`AuditLoggers` in src/hooks/useAudit.ts): `AuditContext`
+// declared a second copy of it, ~100 lines that drifted apart (2026-11-18).
+const AUDIT_LOGGER_NAME =
+  '/^log(Event|DebouncedEvent|ViewEvent|PatientCleared|DailyRecord(Created|Deleted)|CudyrModified|HandoffNovedadesModified|MedicalHandoffModified|NurseHandoffModified|ClinicalDocument(Created|Edited|Deleted))$/';
+const AUDIT_CONTRACT_RESTRICTION = {
+  selector: `:matches(TSMethodSignature[key.name=${AUDIT_LOGGER_NAME}], TSPropertySignature[key.name=${AUDIT_LOGGER_NAME}] > TSTypeAnnotation > TSFunctionType)`,
+  message:
+    "No escribas a mano la firma de un registrador de auditoría: tómala de AuditLoggers en src/hooks/useAudit.ts (p. ej. `logEvent: AuditLoggers['logEvent']`).",
+};
 const SOURCE_SYNTAX_RESTRICTIONS = [
   ...GLOSSARY_SYNTAX_RESTRICTIONS,
   SESSION_MESSAGE_RESTRICTION,
@@ -396,6 +405,7 @@ const SOURCE_SYNTAX_RESTRICTIONS = [
   EPISODE_KEY_BUILD_RESTRICTION,
   EPISODE_KEY_PARSE_RESTRICTION,
   LEGACY_DOCUMENT_HYDRATION_RESTRICTION,
+  AUDIT_CONTRACT_RESTRICTION,
 ];
 // One rule option per file: a later config replaces the whole list, so homes omit only their own.
 const syntaxRestrictions = ({ omit = [], add = [] } = {}) => [
@@ -601,6 +611,11 @@ export default tseslint.config(
     rules: {
       'no-restricted-syntax': syntaxRestrictions({ omit: [LEGACY_DOCUMENT_HYDRATION_RESTRICTION] }),
     },
+  },
+  {
+    // The home of the audit loggers contract.
+    files: ['src/hooks/useAudit.ts'],
+    rules: { 'no-restricted-syntax': syntaxRestrictions({ omit: [AUDIT_CONTRACT_RESTRICTION] }) },
   },
   {
     files: ['src/utils/clinicalDayUtils.ts'],
