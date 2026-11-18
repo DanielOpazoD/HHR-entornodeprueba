@@ -29,6 +29,11 @@ interface StaffSelectorRoleConfig {
   /** Nurse names are re-capitalized against their catalog; TENS names are shown as saved. */
   reconcileCatalog: (catalog: string[]) => string[];
   reconcileSelected: (name: string, catalog: string[]) => string;
+  /**
+   * TENS shows a selection under the option spelled like it (#1506: «Ana Pena» shows «Ana Peña»);
+   * nursing does not, as before the two selectors were joined.
+   */
+  matchesOptionSpelling: boolean;
   catalogControls: (staff: StaffContextType) => {
     unavailable?: boolean;
     retry?: () => void;
@@ -43,6 +48,7 @@ const STAFF_SELECTOR_ROLES: Record<NursingRole, StaffSelectorRoleConfig> = {
     selectWidthClass: 'w-[75px]',
     reconcileCatalog: reconcileNurseCatalogNames,
     reconcileSelected: reconcileSelectedNurseName,
+    matchesOptionSpelling: false,
     catalogControls: staff => ({
       unavailable: staff.nursesCatalogUnavailable,
       retry: staff.retryNursesCatalog,
@@ -55,6 +61,7 @@ const STAFF_SELECTOR_ROLES: Record<NursingRole, StaffSelectorRoleConfig> = {
     selectWidthClass: 'w-[60px]',
     reconcileCatalog: catalog => catalog,
     reconcileSelected: name => name,
+    matchesOptionSpelling: true,
     catalogControls: staff => ({
       unavailable: staff.tensCatalogUnavailable,
       retry: staff.retryTensCatalog,
@@ -129,9 +136,13 @@ export const StaffSelector: React.FC<StaffSelectorProps> = ({
       ),
     [reconciledCatalog, reconciled, staffIdentities, role]
   );
-  // Resolving against the shown options keeps an equivalent spelling selected (one person).
   const resolveSelected = (name: string | undefined) =>
-    resolveStaffSelectionValue(name, staffIdentities, role, options);
+    resolveStaffSelectionValue(
+      name,
+      staffIdentities,
+      role,
+      config.matchesOptionSpelling ? options : undefined
+    );
   const groups = partitionStaffOptions(
     options,
     [...reconciled.day, ...reconciled.night].map(resolveSelected),
