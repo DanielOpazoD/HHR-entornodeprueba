@@ -277,7 +277,7 @@ test.describe('Night admission critical sync recovery', () => {
     expect(authority.queuedCallCount()).toBe(0);
     await pendingSave.click();
     const localSaveDetails = page.getByTestId('rayen-local-sync-details');
-    await expect(localSaveDetails).toContainText('1 por enviar');
+    await expect(localSaveDetails).toContainText('Guardado local · 1 por revisar');
     await localSaveDetails.locator(':scope > summary').click();
     await localSaveDetails.getByRole('button', { name: 'Reintentar', exact: true }).click();
     expect(await page.evaluate(() => navigator.onLine)).toBe(true);

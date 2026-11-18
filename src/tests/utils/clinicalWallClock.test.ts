@@ -3,7 +3,11 @@ import { createRequire } from 'node:module';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
-import { clinicalWallClockToDate, isWithinNurseEditingWindow } from '@/utils/clinicalWallClock';
+import {
+  clinicalWallClockToDate,
+  hasNurseEditingWindowClosed,
+  isWithinNurseEditingWindow,
+} from '@/utils/clinicalWallClock';
 
 const require = createRequire(import.meta.url);
 const { hospitalDayStart } = require('../../../functions/lib/hospitalCalendarDay.js');
@@ -73,30 +77,34 @@ describe.each([
 
   it('opens and closes at the same instants as the daily-record functions for every day of 2026', () => {
     process.env.TZ = timezone;
-    // From 24 h before to 48 h after the day's Rapa Nui midnight, both ends excluded.
-    const boundaries: [number, boolean][] = [
-      [-DAY_MS, false],
-      [-DAY_MS + 1, true],
-      [2 * DAY_MS - 1, true],
-      [2 * DAY_MS, false],
+    // From 24 h before to 48 h after the day's Rapa Nui midnight, both ends excluded. It has
+    // closed only from its end on; before it opens it has not closed.
+    const boundaries: [number, boolean, boolean][] = [
+      [-DAY_MS - 1, false, false],
+      [-DAY_MS, false, false],
+      [-DAY_MS + 1, true, false],
+      [2 * DAY_MS - 1, true, false],
+      [2 * DAY_MS, false, true],
     ];
     for (let index = 0; index < 365; index += 1) {
       const day = new Date(Date.UTC(2026, 0, 1 + index)).toISOString().slice(0, 10);
       const midnight = hospitalDayStart(day);
       expect(clinicalWallClockToDate(day, '00:00').getTime(), day).toBe(midnight);
-      for (const [offset, open] of boundaries) {
+      for (const [offset, open, closed] of boundaries) {
         const now = midnight + offset;
         expect(isWithinNurseEditingWindow(day, now), `${day} ${offset}`).toBe(open);
+        expect(hasNurseEditingWindowClosed(day, now), `${day} ${offset}`).toBe(closed);
         expect(serverAllowsNurse(day, now), `${day} ${offset}`).toBe(open);
       }
     }
   });
 
-  it('keeps a malformed day outside the window, as the server does', () => {
+  it('keeps a malformed day outside the window, as the server does, and never closed', () => {
     process.env.TZ = timezone;
     const now = Date.parse('2026-11-17T12:00:00.000Z');
     for (const day of ['', '2026-11-17T00:00', '17-11-2026', '2026-02-30', '2026-13-01']) {
       expect(isWithinNurseEditingWindow(day, now), day).toBe(false);
+      expect(hasNurseEditingWindowClosed(day, now), day).toBe(false);
       expect(serverAllowsNurse(day, now), day).toBe(false);
     }
   });

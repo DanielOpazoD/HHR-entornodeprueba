@@ -107,6 +107,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
     result,
     error,
     errorTechnicalDetail,
+    isAdmin,
     staffingProposal,
     isStaffingProposalBusy,
     staffingProposalError,
@@ -343,6 +344,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
                 operations={queue.operations.slice(0, operationLimit)}
                 refresh={queue.refresh}
                 working={working}
+                isAdmin={isAdmin}
                 pagination={{
                   hasMore: queue.operations.length > operationLimit,
                   onShowMore: () => setOperationLimit(limit => limit + SYNC_QUEUE_PAGE_SIZE),
