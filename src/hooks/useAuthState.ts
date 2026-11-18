@@ -132,6 +132,9 @@ export const useAuthState = (): UseAuthStateReturn => {
       : createAuthenticatingAuthSessionState();
   });
   const admissionRevision = useRef(0);
+  // Logout clears the census cache. An account admitted over another one without that logout
+  // (Firebase hands over a different user) must not open on the previous person's census.
+  const admittedOwnerKey = useRef<string | null>(null);
   // The ref holds the last state this hook set, so a second update before the
   // re-render already sees the first one.
   const sessionStateRef = useRef(sessionState);
@@ -147,8 +150,13 @@ export const useAuthState = (): UseAuthStateReturn => {
       return;
     }
     commit(createAuthenticatingAuthSessionState());
-    void Promise.resolve(reconcileAuthorizedSessionOwner(resolveSessionOwnerKey(next.user.uid)!))
+    const ownerKey = resolveSessionOwnerKey(next.user.uid)!;
+    void Promise.resolve(reconcileAuthorizedSessionOwner(ownerKey))
       .then(() => {
+        // After the admission: the session generation has changed, so a late answer to the
+        // previous person's edit can no longer write what this clears.
+        if (admittedOwnerKey.current && admittedOwnerKey.current !== ownerKey) clearQueryCache();
+        admittedOwnerKey.current = ownerKey;
         if (revision === admissionRevision.current) commit(next);
       })
       .catch(() => {
