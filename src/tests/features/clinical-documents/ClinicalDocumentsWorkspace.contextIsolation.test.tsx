@@ -53,7 +53,7 @@ vi.mock('@/services/laboratory/syslabService', () => ({
   searchSyslabExams,
   fetchSyslabExamDetails,
 }));
-vi.mock('@/services/radiology/mmradService', () => ({
+vi.mock('@/features/radiology/services/mmradService', () => ({
   searchMMRADExams: vi.fn(async () => ({ examenes: [] })),
 }));
 vi.mock('@/application/clinical-documents/clinicalDocumentUseCases', async importOriginal => ({

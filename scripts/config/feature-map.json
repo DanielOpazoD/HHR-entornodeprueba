@@ -532,7 +532,7 @@
     {
       "id": "imaging.mmrad",
       "name": "Imágenes MMRAD de un paciente",
-      "owner": "src/services/radiology",
+      "owner": "src/features/radiology",
       "reach": {
         "screen": "Columna «Accesos», sector Imágenes",
         "controls": [
@@ -542,8 +542,8 @@
         ]
       },
       "gate": [
-        "src/services/radiology/mmradService.ts",
-        "src/components/modals/RadiologyViewerModal.tsx",
+        "src/features/radiology/services/mmradService.ts",
+        "src/features/radiology/components/RadiologyViewerModal.tsx",
         "netlify/functions/mmrad-search.ts"
       ],
       "tests": [
@@ -558,13 +558,13 @@
     {
       "id": "imaging.dicom",
       "name": "Visor DICOM",
-      "owner": "src/components/radiology",
+      "owner": "src/features/radiology",
       "reach": {
         "screen": "Visor de imágenes MMRAD o explorador clínico, «Ver DICOM»",
         "controls": [{ "text": "Ver DICOM" }, { "testId": "clinical-imaging-actions" }]
       },
       "gate": [
-        "src/components/radiology/DicomViewer.tsx",
+        "src/features/radiology/dicom-viewer/DicomViewer.tsx",
         "netlify/functions/lib/mmrad-dicom-policy.ts"
       ],
       "tests": [

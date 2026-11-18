@@ -49,9 +49,9 @@ const OPTIONAL_TARGETS: Record<string, string> = {
   'src/components/modals/ExamRequestModal': 'Exam form opens on request.',
   'src/components/modals/ImagingRequestDialog': 'Imaging form opens on request.',
   'src/components/modals/PatientHistoryModal': 'History opens on request.',
-  'src/components/modals/RadiologyViewerModal':
+  'src/features/radiology/components/RadiologyViewerModal':
     'Imaging viewer opens on request and needs online images.',
-  'src/components/radiology/DicomViewerDialog':
+  'src/features/radiology/dicom-viewer/DicomViewerDialog':
     'DICOM viewer opens on request from the clinical explorer and needs online images.',
   'src/components/reminders/ReminderModal': 'Reminder editor opens on request.',
   'src/components/shared/ExcelViewerModal': 'Shared census export preview opens on request.',

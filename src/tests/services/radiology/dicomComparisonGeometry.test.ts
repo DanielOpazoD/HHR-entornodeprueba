@@ -5,7 +5,7 @@ import {
   comparisonPlane,
   comparisonReferenceLine,
   nearestComparisonSlice,
-} from '@/services/radiology/dicomComparisonGeometry';
+} from '@/features/radiology/services/dicomComparisonGeometry';
 const axial = (z: number, patch: Partial<SliceGeometry> = {}): SliceGeometry => ({
   imageId: `synthetic-${z}`,
   position: [0, 0, z],

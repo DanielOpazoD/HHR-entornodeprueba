@@ -5,9 +5,9 @@ import {
   searchMMRADExams,
   searchMMRADCheckDigitExams,
   type MMRADSearchResult,
-} from '@/services/radiology/mmradService';
-vi.mock('@/services/radiology/mmradService', async original => ({
-  ...(await original<typeof import('@/services/radiology/mmradService')>()),
+} from '@/features/radiology/services/mmradService';
+vi.mock('@/features/radiology/services/mmradService', async original => ({
+  ...(await original<typeof import('@/features/radiology/services/mmradService')>()),
   searchMMRADExams: vi.fn(),
   searchMMRADCheckDigitExams: vi.fn(),
 }));

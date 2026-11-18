@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { DicomViewportGrid } from '@/components/radiology/DicomViewportGrid';
-import type { DicomRuntime } from '@/services/radiology/dicomRuntimeTypes';
+import { DicomViewportGrid } from '@/features/radiology/dicom-viewer/DicomViewportGrid';
+import type { DicomRuntime } from '@/features/radiology/services/dicomRuntimeTypes';
 describe('scoped DICOM keyboard', () => {
   it('navigates slices and planes, undoes measurements, and respects disabled shortcuts and busy state', () => {
     const step = vi.fn(),

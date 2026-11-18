@@ -29,7 +29,7 @@ import {
   isRateLimited,
   type NetlifyEventLike,
 } from './lib/http';
-import { parseMMRADReportSections } from '../../src/services/radiology/mmradReportSupport';
+import { parseMMRADReportSections } from '../../src/domain/radiology/mmradReportSupport';
 import { getClinicalCalendarDateISO } from '../../src/utils/clinicalTimeZone';
 
 import {

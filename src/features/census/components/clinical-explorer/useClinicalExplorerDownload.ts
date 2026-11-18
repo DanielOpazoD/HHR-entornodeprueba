@@ -1,9 +1,9 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
-import { mergeMMRADExamLists } from '@/components/modals/controllers/radiologyExamListMemory';
-import { searchMmradStudies } from '@/components/modals/controllers/mmradStudySearch';
+import { mergeMMRADExamLists } from '@/features/radiology/controllers/radiologyExamListMemory';
+import { searchMmradStudies } from '@/features/radiology/controllers/mmradStudySearch';
 import type { ClinicalExplorerPatient } from '@/features/census/controllers/clinicalExplorerController';
 import { downloadBlob } from '@/services/exporters/exportDownload';
-import { fetchMMRADPdfBlob, type MMRADExam } from '@/services/radiology/mmradService';
+import { fetchMMRADPdfBlob, type MMRADExam } from '@/features/radiology/services/mmradService';
 import { getSessionEpoch, onSessionChange } from '@/services/storage/sessionStorageTransition';
 import {
   calendarStampInClinicalTimeZone,

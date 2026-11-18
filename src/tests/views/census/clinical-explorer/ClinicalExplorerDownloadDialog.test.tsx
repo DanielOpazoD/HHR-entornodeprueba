@@ -3,7 +3,7 @@ import { PDFDocument } from 'pdf-lib';
 import PizZip from 'pizzip';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuditDocumentsResult } from '@/features/audit-documents/eloisa-history';
-import type { MMRADExam } from '@/services/radiology/mmradService';
+import type { MMRADExam } from '@/features/radiology/services/mmradService';
 
 const mocks = vi.hoisted(() => ({
   audit: vi.fn(),
@@ -27,8 +27,9 @@ vi.mock('@/features/rayen-import/clinical-panel', async importOriginal => ({
 vi.mock('@/features/laboratory/hospitalization-reports', () => ({
   useSyslabHospitalizationReports: (params: unknown) => mocks.lab(params),
 }));
-vi.mock('@/services/radiology/mmradService', async importOriginal => {
-  const actual = await importOriginal<typeof import('@/services/radiology/mmradService')>();
+vi.mock('@/features/radiology/services/mmradService', async importOriginal => {
+  const actual =
+    await importOriginal<typeof import('@/features/radiology/services/mmradService')>();
   return {
     ...actual,
     searchMMRADExams: (...args: unknown[]) => mocks.search(...args),
@@ -48,7 +49,7 @@ vi.mock('@/services/pdf/pdfLibRuntime', () => ({
 }));
 
 import { ClinicalExplorerHeader } from '@/features/census/components/clinical-explorer/ClinicalExplorerHeader';
-import { openMMRADExamListMemory } from '@/components/modals/controllers/radiologyExamListMemory';
+import { openMMRADExamListMemory } from '@/features/radiology/controllers/radiologyExamListMemory';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 

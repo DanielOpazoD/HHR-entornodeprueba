@@ -30,7 +30,7 @@ vi.mock('@/features/laboratory', () => ({
   ),
 }));
 
-vi.mock('@/components/modals/RadiologyViewerModal', () => ({
+vi.mock('@/features/radiology/components/RadiologyViewerModal', () => ({
   RadiologyViewerModal: ({
     patients,
     initialPatientRut,

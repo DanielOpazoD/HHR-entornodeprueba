@@ -13,8 +13,9 @@ vi.mock('@/components/modals/ImagingRequestDialog', () => ({
 vi.mock('@/features/clinical-documents', () => ({
   ClinicalDocumentsModal: () => <div role="dialog" aria-label="Documentos clínicos" />,
 }));
-vi.mock('@/services/radiology/mmradService', async importOriginal => {
-  const actual = await importOriginal<typeof import('@/services/radiology/mmradService')>();
+vi.mock('@/features/radiology/services/mmradService', async importOriginal => {
+  const actual =
+    await importOriginal<typeof import('@/features/radiology/services/mmradService')>();
   return {
     ...actual,
     searchMMRADExams: (...args: unknown[]) => mocks.mmradSearch(...args),
@@ -22,7 +23,7 @@ vi.mock('@/services/radiology/mmradService', async importOriginal => {
       Promise.resolve({ rut, examenes: [] }),
   };
 });
-vi.mock('@/components/radiology/useDicomReviewCache', () => ({
+vi.mock('@/features/radiology/dicom-viewer/useDicomReviewCache', () => ({
   useDicomReviewCache: () => undefined,
 }));
 vi.mock('@/features/laboratory/hooks/useSyslabAccess', () => ({

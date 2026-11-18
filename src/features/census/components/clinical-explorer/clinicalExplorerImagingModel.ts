@@ -1,5 +1,5 @@
-import type { MMRADExam } from '@/services/radiology/mmradService';
-import { formatMmradStamp, sortByMmradStampDesc } from '@/services/radiology/mmradStamp';
+import type { MMRADExam } from '@/features/radiology/services/mmradService';
+import { formatMmradStamp, sortByMmradStampDesc } from '@/features/radiology/services/mmradStamp';
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 

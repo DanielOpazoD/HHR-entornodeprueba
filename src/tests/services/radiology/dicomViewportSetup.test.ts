@@ -15,8 +15,8 @@ vi.mock('@cornerstonejs/tools', () => ({
   StackScrollTool: { toolName: 'StackScroll' },
   Enums: { MouseBindings: { Wheel: 'wheel' } },
 }));
-vi.mock('@/services/radiology/dicomInitialization', () => ({ dicomTools: [] }));
-import { configureDicomViewports } from '@/services/radiology/dicomViewportSetup';
+vi.mock('@/features/radiology/services/dicomInitialization', () => ({ dicomTools: [] }));
+import { configureDicomViewports } from '@/features/radiology/services/dicomViewportSetup';
 
 /**
  * Mirrors Cornerstone 4.22 on one shared VTK window: setViewports forgets the old viewports

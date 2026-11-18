@@ -16,7 +16,7 @@ vi.mock('@/features/laboratory', () => ({
   ),
 }));
 
-vi.mock('@/components/modals/RadiologyViewerModal', () => ({
+vi.mock('@/features/radiology/components/RadiologyViewerModal', () => ({
   RadiologyViewerModal: ({ onRequestImaging }: { onRequestImaging?: () => void }) => (
     <div role="dialog" aria-label="Visualizador MMRAD">
       {onRequestImaging && (

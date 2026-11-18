@@ -3,11 +3,11 @@ import { expect, it } from 'vitest';
 import {
   createDicomMeasurementStore,
   type DicomMeasurement,
-} from '@/services/radiology/dicomMeasurementStore';
+} from '@/features/radiology/services/dicomMeasurementStore';
 import {
   dicomMeasurementPlace,
   dicomMeasurementsText,
-} from '@/services/radiology/dicomMeasurementReport';
+} from '@/features/radiology/services/dicomMeasurementReport';
 
 const measurement = (patch: Partial<DicomMeasurement>): DicomMeasurement => ({
   id: crypto.randomUUID(),

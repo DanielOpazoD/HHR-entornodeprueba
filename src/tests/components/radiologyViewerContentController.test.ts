@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { MMRADExam, MMRADSearchResult } from '@/services/radiology/mmradService';
+import type { MMRADExam, MMRADSearchResult } from '@/features/radiology/services/mmradService';
 import {
   buildRadiologyExamCardState,
   buildRadiologyResultsEmptyMessage,
   countMMRADExamsForModality,
   hasMMRADStructuredReport,
   shouldHideMMRADStatusBadge,
-} from '@/components/modals/controllers/radiologyViewerContentController';
+} from '@/features/radiology/controllers/radiologyViewerContentController';
 
 const ctExam: MMRADExam = {
   nombre_examen: 'TC Torax',

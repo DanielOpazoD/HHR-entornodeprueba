@@ -22,8 +22,8 @@ Se comprueba el RUT nuevamente al exportar Word. No se modifica el censo.
 ## Carga y reconstrucción
 
 El diálogo se monta por clic. Su importación dinámica separa interfaz y runtime:
-`components/radiology/DicomViewerDialog.tsx` → `DicomViewer.tsx` →
-`services/radiology/dicomRuntime.ts`. Cornerstone, vtk.js, decodificadores y
+`features/radiology/dicom-viewer/DicomViewerDialog.tsx` → `DicomViewer.tsx` →
+`features/radiology/services/dicomRuntime.ts`. Cornerstone, vtk.js, decodificadores y
 trabajadores quedan fuera del arranque y del precache PWA. No hay precarga al pasar
 el puntero. Abrir Radiología o el selector de exámenes tampoco carga Cornerstone.
 

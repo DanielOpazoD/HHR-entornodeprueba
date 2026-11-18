@@ -5,7 +5,7 @@ import {
   normalizeDicomPatientId,
   type DicomSeries,
   type DicomStudy,
-} from '../../../src/services/radiology/dicomTypes';
+} from '../../../src/domain/radiology/dicomTypes';
 
 /**
  * MMRAD's current viewer, «Visualizador Universitas» (ClearCanvas PACS + Cornerstone3D), observed

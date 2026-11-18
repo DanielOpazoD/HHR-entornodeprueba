@@ -11,6 +11,7 @@ import {
 } from '@/components/layout/date-strip/dateStripNavigationController';
 import { DateStripDayButtons } from '@/components/layout/date-strip/DateStripDayButtons';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
+import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/dateStripRadiologyViewer';
 import { useDateStripWheelNavigation } from '@/components/layout/date-strip/useDateStripWheelNavigation';
 import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessProfile';
@@ -128,6 +129,7 @@ export interface DateStripProps
   accessProfile?: CensusAccessProfile;
   medicalIndicationsPatients?: MedicalIndicationsPatientOption[];
   renderFeatureQuickActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
+  radiologyViewer?: DateStripRadiologyViewer;
   onOpenPatientSearch?: () => void;
   hideQuickActions?: boolean;
   isLoading?: boolean;
@@ -173,6 +175,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
   accessProfile = 'default',
   medicalIndicationsPatients = [],
   renderFeatureQuickActions,
+  radiologyViewer,
   onOpenPatientSearch,
 }) => {
   const daysContainerRef = useRef<HTMLDivElement>(null);
@@ -386,6 +389,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
                 <DateStripQuickActions
                   onOpenBedManager={specialistCensusAccess ? undefined : onOpenBedManager}
                   renderFeatureQuickActions={renderFeatureQuickActions}
+                  radiologyViewer={radiologyViewer}
                   hideClinicalQuickActions={isHandoffModule}
                   medicalIndicationsPatients={
                     currentModule === 'CENSUS' ? medicalIndicationsPatients : []

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { printLibraryDocument } from '../../../services/libraryDocumentActions';
-import type { DicomCapture } from '@/services/radiology/dicomTypes';
+import type { DicomCapture } from '@/domain/radiology/dicomTypes';
 import type {
   ClinicalFormDefinition,
   ClinicalFormValues,

@@ -1,15 +1,15 @@
-import { hasMMRADStructuredReport } from '@/components/modals/controllers/radiologyViewerContentController';
+import { hasMMRADStructuredReport } from '@/features/radiology/controllers/radiologyViewerContentController';
 import type {
   AuditDocumentsProgress,
   AuditDocumentsResult,
 } from '@/features/audit-documents/eloisa-history';
 import type { SyslabHospitalizationReports } from '@/features/laboratory/hospitalization-reports';
-import type { MMRADExam } from '@/services/radiology/mmradService';
+import type { MMRADExam } from '@/features/radiology/services/mmradService';
 import {
   formatMmradStamp,
   mmradStampSortKey,
   parseMmradStamp,
-} from '@/services/radiology/mmradStamp';
+} from '@/features/radiology/services/mmradStamp';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import {

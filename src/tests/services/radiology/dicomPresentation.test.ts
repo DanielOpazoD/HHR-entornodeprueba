@@ -4,7 +4,7 @@ import {
   adjustTransfer,
   defaultVolumePresentation,
   normalizeVolumePresentation,
-} from '@/services/radiology/dicomPresentation';
+} from '@/features/radiology/services/dicomPresentation';
 
 describe('DICOM volume presentation', () => {
   it('uses modality-specific presets and never labels MR intensities as CT', () => {

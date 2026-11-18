@@ -55,8 +55,8 @@ Referencias:
 
 Referencias:
 
-- `src/services/radiology/mmradReportSupport.ts`
-- `src/components/modals/RadiologyViewerModal.tsx`
+- `src/domain/radiology/mmradReportSupport.ts`
+- `src/features/radiology/components/RadiologyViewerModal.tsx`
 - `src/features/clinical-documents/components/ClinicalDocumentMMRADCopyDialog.tsx`
 
 ## DailyRecord write path

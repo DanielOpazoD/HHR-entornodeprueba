@@ -1,6 +1,6 @@
 import { act, render, waitFor, screen, fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MMRADExam, MMRADSearchResult } from '@/services/radiology/mmradService';
+import type { MMRADExam, MMRADSearchResult } from '@/features/radiology/services/mmradService';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 
@@ -10,8 +10,9 @@ const mmradMocks = vi.hoisted(() => ({
   blob: vi.fn(),
 }));
 
-vi.mock('@/services/radiology/mmradService', async importOriginal => {
-  const actual = await importOriginal<typeof import('@/services/radiology/mmradService')>();
+vi.mock('@/features/radiology/services/mmradService', async importOriginal => {
+  const actual =
+    await importOriginal<typeof import('@/features/radiology/services/mmradService')>();
   return {
     ...actual,
     fetchMMRADPdfBlob: mmradMocks.blob,
@@ -21,7 +22,7 @@ vi.mock('@/services/radiology/mmradService', async importOriginal => {
   };
 });
 
-import { RadiologyViewerModal } from '@/components/modals/RadiologyViewerModal';
+import { RadiologyViewerModal } from '@/features/radiology/components/RadiologyViewerModal';
 
 const patient = {
   bedId: 'R2',
