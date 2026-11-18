@@ -1,10 +1,10 @@
 let censusRecipientListUseCasesPromise: Promise<
-  typeof import('@/application/census-email/censusRecipientListUseCases')
+  typeof import('@/features/census/email/use-cases/censusRecipientListUseCases')
 > | null = null;
 
 const loadCensusRecipientListUseCases = async () => {
   censusRecipientListUseCasesPromise ??=
-    import('@/application/census-email/censusRecipientListUseCases');
+    import('@/features/census/email/use-cases/censusRecipientListUseCases');
   return censusRecipientListUseCasesPromise;
 };
 

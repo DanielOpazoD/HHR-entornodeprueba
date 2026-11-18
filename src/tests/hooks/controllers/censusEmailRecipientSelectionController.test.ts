@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   resolveBootstrapRecipientSelection,
   resolveStoredRecipientSelection,
-} from '@/hooks/controllers/censusEmailRecipientSelectionController';
+} from '@/features/census/email/controllers/censusEmailRecipientSelectionController';
 import {
   CENSUS_GLOBAL_EMAIL_RECIPIENT_LIST,
   type GlobalEmailRecipientList,

@@ -7,7 +7,7 @@ import {
   resolveDateBoundSendState,
   updateDateBoundErrorState,
   updateDateBoundStatusState,
-} from '@/hooks/controllers/censusEmailStateController';
+} from '@/features/census/email/controllers/censusEmailStateController';
 
 describe('censusEmailStateController', () => {
   it('creates initial date-bound message state', () => {

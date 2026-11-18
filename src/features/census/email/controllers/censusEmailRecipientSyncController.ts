@@ -3,7 +3,7 @@ import {
   CENSUS_GLOBAL_EMAIL_RECIPIENT_LIST,
   type GlobalEmailRecipientList,
 } from '@/services/email/emailRecipientListSupport';
-import { buildRecipientListSavePayload } from '@/hooks/controllers/censusEmailRecipientListController';
+import { buildRecipientListSavePayload } from '@/features/census/email/controllers/censusEmailRecipientListController';
 
 interface RecipientSyncActor {
   uid?: string;

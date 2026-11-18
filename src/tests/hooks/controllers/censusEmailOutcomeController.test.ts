@@ -6,7 +6,7 @@ import {
   createApplicationPartial,
   createApplicationSuccess,
 } from '@/shared/contracts/applicationOutcomeFactories';
-import { resolveCensusEmailSendOutcomePresentation } from '@/hooks/controllers/censusEmailOutcomeController';
+import { resolveCensusEmailSendOutcomePresentation } from '@/features/census/email/controllers/censusEmailOutcomeController';
 
 describe('censusEmailOutcomeController', () => {
   it('maps success outcome to success state without alert', () => {

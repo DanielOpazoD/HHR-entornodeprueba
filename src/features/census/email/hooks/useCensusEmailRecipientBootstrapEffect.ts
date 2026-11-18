@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import type { CensusEmailBrowserRuntime } from '@/hooks/controllers/censusEmailBrowserRuntimeController';
-import type { RecipientRuntimeState } from '@/hooks/controllers/censusEmailRecipientRuntimeController';
-import { withRecipientListUseCases } from '@/hooks/controllers/censusEmailRecipientUseCaseLoader';
+import type { CensusEmailBrowserRuntime } from '@/features/census/email/controllers/censusEmailBrowserRuntimeController';
+import type { RecipientRuntimeState } from '@/features/census/email/controllers/censusEmailRecipientRuntimeController';
+import { withRecipientListUseCases } from '@/features/census/email/controllers/censusEmailRecipientUseCaseLoader';
 
 const ACTIVE_LIST_STORAGE_KEY = 'censusEmailActiveRecipientListId';
 const RECIPIENTS_STORAGE_KEY = 'censusEmailRecipients';

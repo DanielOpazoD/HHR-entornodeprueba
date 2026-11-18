@@ -1,11 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
-import { type CensusEmailSendStatus } from '@/hooks/useCensusEmailDeliveryActions';
+import { type CensusEmailSendStatus } from '@/features/census/email/hooks/useCensusEmailDeliveryActions';
 import {
   createInitialCensusSendState,
   resolveDateBoundSendState,
   updateDateBoundErrorState,
   updateDateBoundStatusState,
-} from '@/hooks/controllers/censusEmailStateController';
+} from '@/features/census/email/controllers/censusEmailStateController';
 
 export const useCensusEmailSendState = (currentDateString: string) => {
   const [sendState, setSendState] = useState<{

@@ -3,10 +3,10 @@ import {
   type BootstrapRecipientSelectionState,
   type CensusRecipientSelectionSource,
   type CensusRecipientSelectionState,
-} from '@/hooks/controllers/censusEmailRecipientSelectionController';
+} from '@/features/census/email/controllers/censusEmailRecipientSelectionController';
 import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
 import type { GlobalEmailRecipientList } from '@/services/email/emailRecipientListService';
-import { resolveRecipientListForSelection } from '@/hooks/controllers/censusEmailRecipientMutationController';
+import { resolveRecipientListForSelection } from '@/features/census/email/controllers/censusEmailRecipientMutationController';
 
 interface ApplicationOutcomeLike<TData = unknown> {
   status: string;

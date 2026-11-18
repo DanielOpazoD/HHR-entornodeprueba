@@ -9,7 +9,7 @@ import {
   resolveRecipientSelectionRuntimeState,
   resolveRecipientSyncState,
   resolveStoredRecipientRuntimeState,
-} from '@/hooks/controllers/censusEmailRecipientRuntimeController';
+} from '@/features/census/email/controllers/censusEmailRecipientRuntimeController';
 
 describe('censusEmailRecipientRuntimeController', () => {
   it('builds the fallback bootstrap message', () => {

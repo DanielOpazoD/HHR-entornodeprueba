@@ -1,22 +1,22 @@
 import { useCallback, useMemo } from 'react';
-import type { RecipientRuntimeMutationSpec } from '@/hooks/controllers/censusEmailRecipientMutationActionController';
+import type { RecipientRuntimeMutationSpec } from '@/features/census/email/controllers/censusEmailRecipientMutationActionController';
 import {
   applyRecipientListSelection,
   buildRecipientDeferredSyncHandlers,
   runRecipientRuntimeMutation as runRecipientRuntimeMutationController,
   type UseCensusEmailRecipientListsParams,
   type UseCensusEmailRecipientListsReturn,
-} from '@/hooks/controllers/censusEmailRecipientListsController';
-import { useCensusEmailRecipientBootstrapEffect } from '@/hooks/useCensusEmailRecipientBootstrapEffect';
-import { useCensusEmailRecipientDeferredSyncEffect } from '@/hooks/useCensusEmailRecipientDeferredSyncEffect';
-import { useCensusEmailRecipientMutationActions } from '@/hooks/useCensusEmailRecipientMutationActions';
-import { useCensusEmailRecipientPersistenceEffect } from '@/hooks/useCensusEmailRecipientPersistenceEffect';
-import { useCensusEmailRecipientRuntimeState } from '@/hooks/useCensusEmailRecipientRuntimeState';
+} from '@/features/census/email/controllers/censusEmailRecipientListsController';
+import { useCensusEmailRecipientBootstrapEffect } from '@/features/census/email/hooks/useCensusEmailRecipientBootstrapEffect';
+import { useCensusEmailRecipientDeferredSyncEffect } from '@/features/census/email/hooks/useCensusEmailRecipientDeferredSyncEffect';
+import { useCensusEmailRecipientMutationActions } from '@/features/census/email/hooks/useCensusEmailRecipientMutationActions';
+import { useCensusEmailRecipientPersistenceEffect } from '@/features/census/email/hooks/useCensusEmailRecipientPersistenceEffect';
+import { useCensusEmailRecipientRuntimeState } from '@/features/census/email/hooks/useCensusEmailRecipientRuntimeState';
 
 export type {
   UseCensusEmailRecipientListsParams,
   UseCensusEmailRecipientListsReturn,
-} from '@/hooks/controllers/censusEmailRecipientListsController';
+} from '@/features/census/email/controllers/censusEmailRecipientListsController';
 
 export const useCensusEmailRecipientLists = ({
   canManageGlobalRecipientLists,

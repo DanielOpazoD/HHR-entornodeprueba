@@ -1,12 +1,12 @@
 import type { RefObject } from 'react';
-import type { UseCensusEmailDeliveryActionsParams } from '@/hooks/useCensusEmailDeliveryActions';
-import { resolveCensusEmailSendOutcomePresentation } from '@/hooks/controllers/censusEmailOutcomeController';
+import type { UseCensusEmailDeliveryActionsParams } from '@/features/census/email/hooks/useCensusEmailDeliveryActions';
+import { resolveCensusEmailSendOutcomePresentation } from '@/features/census/email/controllers/censusEmailOutcomeController';
 import { resolveUpcEmailBlockReason } from '@/shared/census/upcEvaluationPolicy';
 
 import {
   buildSendCensusConfirmationMessage,
   executeSendCensusEmail,
-} from '@/application/census-email/sendCensusEmailUseCases';
+} from '@/features/census/email/use-cases/sendCensusEmailUseCases';
 
 type DeliveryParams = Omit<UseCensusEmailDeliveryActionsParams, 'status' | 'record'> & {
   latestContext: RefObject<

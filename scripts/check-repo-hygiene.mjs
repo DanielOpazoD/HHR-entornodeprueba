@@ -39,6 +39,12 @@ const FEATURE_PUBLIC_BOUNDARIES = [
         importPath: '@/features/census/public-components',
         callers: new Set(['src/views/LazyViews.ts']),
       },
+      // The census email hook is built by the authenticated shell and stays in its chunk; the
+      // light barrel is loaded by bootstrap, so re-exporting it there would move it earlier.
+      {
+        importPath: '@/features/census/email/hooks/useCensusEmail',
+        callers: new Set(['src/app-shell/runtime/useAuthenticatedAppRuntime.ts']),
+      },
     ],
   },
   {
