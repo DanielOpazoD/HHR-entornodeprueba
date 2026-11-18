@@ -7,6 +7,7 @@ import {
   clinicalWallClockToDate,
   hasNurseEditingWindowClosed,
   isWithinNurseEditingWindow,
+  nurseEditingWindowClosesAt,
 } from '@/utils/clinicalWallClock';
 
 const require = createRequire(import.meta.url);
@@ -99,12 +100,24 @@ describe.each([
     }
   });
 
+  it('reports the closing instant as the first one the server refuses, for every day of 2026', () => {
+    process.env.TZ = timezone;
+    for (let index = 0; index < 365; index += 1) {
+      const day = new Date(Date.UTC(2026, 0, 1 + index)).toISOString().slice(0, 10);
+      const closesAt = nurseEditingWindowClosesAt(day);
+      expect(closesAt, day).toBe(hospitalDayStart(day) + 2 * DAY_MS);
+      expect(serverAllowsNurse(day, (closesAt ?? 0) - 1), day).toBe(true);
+      expect(serverAllowsNurse(day, closesAt ?? 0), day).toBe(false);
+    }
+  });
+
   it('keeps a malformed day outside the window, as the server does, and never closed', () => {
     process.env.TZ = timezone;
     const now = Date.parse('2026-11-17T12:00:00.000Z');
     for (const day of ['', '2026-11-17T00:00', '17-11-2026', '2026-02-30', '2026-13-01']) {
       expect(isWithinNurseEditingWindow(day, now), day).toBe(false);
       expect(hasNurseEditingWindowClosed(day, now), day).toBe(false);
+      expect(nurseEditingWindowClosesAt(day), day).toBeNull();
       expect(serverAllowsNurse(day, now), day).toBe(false);
     }
   });
