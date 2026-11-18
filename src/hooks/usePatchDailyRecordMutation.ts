@@ -311,16 +311,17 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
               : freshRecord)
         );
 
-        if (!isAuthorSessionCurrent(input)) {
-          return {
-            previousRecord: undefined,
-            optimisticRecord: undefined,
-            unregisterPendingPatch: () => {},
-            optimisticApplied: false,
-            releaseMutationTurn,
-          };
-        }
+        // The session may end before or during the wait below: nothing is painted in either case.
+        const skipped = {
+          previousRecord: undefined,
+          optimisticRecord: undefined,
+          unregisterPendingPatch: () => {},
+          optimisticApplied: false,
+          releaseMutationTurn,
+        };
+        if (!isAuthorSessionCurrent(input)) return skipped;
         await queryClient.cancelQueries({ queryKey: queryKeys.dailyRecord.byDate(date) });
+        if (!isAuthorSessionCurrent(input)) return skipped;
         const isRemoteAuthorityFirst =
           options?.requireRemoteAuthorityFirst === true ||
           isClinicalEventsOnlyDailyRecordPatch(partial);
@@ -436,13 +437,15 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
             : cachedRecord
           : displayRecord;
       if (nextDisplayRecord) {
-        await setAcknowledgedDailyRecordQueryData(
+        const published = await setAcknowledgedDailyRecordQueryData(
           queryClient,
           date,
           nextDisplayRecord,
           confirmedRecord,
-          context?.optimisticRecord?.lastUpdated
+          context?.optimisticRecord?.lastUpdated,
+          { stillCurrent: () => isAuthorSessionCurrent(input) }
         );
+        if (!published) return;
       }
       const currentRecord = confirmedRecord ?? cachedRecord ?? displayRecord;
       if (!currentRecord) return;

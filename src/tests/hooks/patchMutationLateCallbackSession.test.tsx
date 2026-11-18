@@ -283,3 +283,39 @@ describe('the same session still sees its answer', () => {
     expect(shown()).toBe(expected);
   });
 });
+
+describe('the session ends while the edit waits for running reads to stop', () => {
+  it('a confirmation that was waiting does not repopulate the next reader', async () => {
+    const edit = await sendHeldEdit();
+    const cancelQueries = client.cancelQueries.bind(client);
+    vi.spyOn(client, 'cancelQueries').mockImplementationOnce(async (...args) => {
+      await cancelQueries(...args);
+      await switchToNextSession();
+    });
+
+    await edit.answer('confirmed');
+
+    // Before the second check: { rendered: A's edit, reads: 0 }.
+    expect(await openCensus()).toEqual({ rendered: NEXT, reads: 1 });
+  });
+
+  it('an edit that was about to show is not painted over the next census', async () => {
+    setDailyRecordQueryData(client, date, recordWith(BEFORE));
+    const cancelQueries = client.cancelQueries.bind(client);
+    vi.spyOn(client, 'cancelQueries').mockImplementationOnce(async (...args) => {
+      await cancelQueries(...args);
+      await switchToNextSession();
+      setDailyRecordQueryData(client, date, recordWith(NEXT));
+    });
+    vi.mocked(repository.updatePartialDetailed).mockResolvedValue(answerOf('rejected'));
+    const { result } = renderHook(() => usePatchDailyRecordMutation(date), { wrapper });
+
+    await act(async () => {
+      await result.current
+        .mutateAsync({ date, partial: patch, options: optimisticServerFirst })
+        .catch(error => error);
+    });
+
+    expect(shown()).toBe(NEXT);
+  });
+});

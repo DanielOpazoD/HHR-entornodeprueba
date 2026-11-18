@@ -224,7 +224,7 @@ export const useSaveDailyRecordMutation = () => {
       }
       if (!payload.result?.savedRemotely) return;
       if (payload.result.confirmedRecord) {
-        await setAcknowledgedDailyRecordQueryData(
+        const published = await setAcknowledgedDailyRecordQueryData(
           queryClient,
           payload.record.date,
           payload.result.localProjectionRecord ?? payload.result.confirmedRecord,
@@ -233,8 +233,10 @@ export const useSaveDailyRecordMutation = () => {
           {
             retainedProjection: Boolean(payload.result.localProjectionRecord),
             optimisticRecord: input.record,
+            stillCurrent: () => isAuthoringSessionCurrent(input.authoringSession),
           }
         );
+        if (!published) return;
       }
       markDailyRecordRemoteConfirmed(payload.record.date, {
         source: 'write',
