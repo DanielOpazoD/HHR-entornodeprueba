@@ -9,7 +9,10 @@ import {
   setDailyRecordQueryData,
 } from '@/hooks/controllers/dailyRecordQueryController';
 import { setRemoteConfirmedDailyRecordQueryData } from '@/hooks/controllers/dailyRecordConfirmedCacheController';
-import { resetDailyRecordFreshnessGateForTests } from '@/hooks/controllers/dailyRecordFreshnessGateController';
+import {
+  getDailyRecordLastRemoteConfirmedAt,
+  resetDailyRecordFreshnessGateForTests,
+} from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { RepositoryProvider, createRepositoryContainer } from '@/services/RepositoryContext';
 import {
   createSaveDailyRecordResult,
@@ -62,25 +65,27 @@ const startSave = async () => {
     });
     await entered.promise;
   });
-  const finish = async (confirmedRecord: DailyRecord, localProjectionRecord?: DailyRecord) => {
+  const settle = async (result: SaveDailyRecordResult) => {
     await act(async () => {
-      response.resolve(
-        createSaveDailyRecordResult({
-          date,
-          outcome: 'clean',
-          savedLocally: true,
-          savedRemotely: true,
-          queuedForRetry: false,
-          autoMerged: false,
-          confirmedRecord,
-          localProjectionRecord,
-        })
-      );
+      response.resolve(result);
       await pending;
     });
     return client.getQueryData<DailyRecordQueryResult>(getDailyRecordQueryKey(date));
   };
-  return { client, finish, pending };
+  const finish = (confirmedRecord: DailyRecord, localProjectionRecord?: DailyRecord) =>
+    settle(
+      createSaveDailyRecordResult({
+        date,
+        outcome: 'clean',
+        savedLocally: true,
+        savedRemotely: true,
+        queuedForRetry: false,
+        autoMerged: false,
+        confirmedRecord,
+        localProjectionRecord,
+      })
+    );
+  return { client, finish, settle, pending };
 };
 
 describe('full-save mutation acknowledgement', () => {
@@ -154,6 +159,29 @@ describe('full-save mutation acknowledgement', () => {
       runtime: { sourceOfTruth: 'local', consistencyState: 'local_only' },
     });
   });
+
+  // The freshness gate trusts this mark to skip a server read before the next edit.
+  it.each([
+    ['waits in the queue without network', 'queued', false, false],
+    ['is saved on this computer only', 'clean', false, false],
+    ['is confirmed by the server without its version', 'clean', true, true],
+  ] as const)(
+    'a whole-day save that %s counts as server-confirmed only if the server holds it',
+    async (_label, outcome, savedRemotely, marked) => {
+      const { settle } = await startSave();
+      await settle(
+        createSaveDailyRecordResult({
+          date,
+          outcome,
+          savedLocally: true,
+          savedRemotely,
+          queuedForRetry: outcome === 'queued',
+          autoMerged: false,
+        })
+      );
+      expect(getDailyRecordLastRemoteConfirmedAt(date) !== undefined).toBe(marked);
+    }
+  );
 
   it('adopts normalized A when no intervening edit is pending', async () => {
     const { finish } = await startSave();
