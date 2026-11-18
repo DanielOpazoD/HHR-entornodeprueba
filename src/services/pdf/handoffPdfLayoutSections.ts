@@ -6,6 +6,7 @@ import type {
 } from '@/services/pdf/contracts/handoffPdfContracts';
 import type { DailyRecordHandoffPdfState as HandoffPdfRecord } from '@/types/domain/dailyRecordSlices';
 import { createScopedLogger } from '@/services/utils/loggerScope';
+import { DEFAULT_SHIFT_SCHEDULE } from '@/utils/clinicalDayUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { getBase64ImageFromURL, getHandoffStaffInfo, Schedule } from './handoffPdfUtils';
 import {
@@ -55,8 +56,8 @@ export const addHandoffHeader = async (
   const shiftLabel = selectedShift === 'day' ? 'TURNO LARGO' : 'TURNO NOCHE';
   const shiftHours =
     selectedShift === 'day'
-      ? `(${schedule?.dayStart || '08:00'} - ${schedule?.dayEnd || '20:00'})`
-      : `(${schedule?.nightStart || '20:00'} - ${schedule?.nightEnd || '08:00'})`;
+      ? `(${schedule?.dayStart || DEFAULT_SHIFT_SCHEDULE.dayStart} - ${schedule?.dayEnd || DEFAULT_SHIFT_SCHEDULE.dayEnd})`
+      : `(${schedule?.nightStart || DEFAULT_SHIFT_SCHEDULE.nightStart} - ${schedule?.nightEnd || DEFAULT_SHIFT_SCHEDULE.nightEnd})`;
 
   if (!isMedical) {
     doc.text(`${shiftLabel} ${shiftHours}`, pageWidth - margin, margin + 9, { align: 'right' });

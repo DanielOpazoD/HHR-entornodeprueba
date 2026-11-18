@@ -1,4 +1,8 @@
-import { parseTimeMinutes, resolveClinicalDayBounds } from '@/utils/clinicalDayUtils';
+import {
+  DEFAULT_SHIFT_SCHEDULE,
+  parseTimeMinutes,
+  resolveClinicalDayBounds,
+} from '@/utils/clinicalDayUtils';
 
 export const MOVEMENT_DATE_TIME_OUT_OF_RANGE_ERROR = 'Fecha/hora fuera de rango para el turno.';
 
@@ -17,6 +21,8 @@ const formatMinutesAsTime = (minutes: number): string => {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 };
 
+const minuteBefore = (minutes: number): string => formatMinutesAsTime(Math.max(0, minutes - 1));
+
 export const resolveMovementDateForRecordShift = (
   recordDate: string,
   movementDate?: string,
@@ -34,17 +40,18 @@ export const resolveMovementDateForRecordShift = (
 
 export const resolveMovementDateTimeBounds = (recordDate: string): MovementDateTimeBounds => {
   if (!recordDate) {
+    const { nightEnd } = DEFAULT_SHIFT_SCHEDULE;
     return {
       minDate: '',
       maxDate: '',
       nextDay: '',
-      nightEnd: '08:00',
-      nextDayMaxTime: '07:59',
+      nightEnd,
+      nextDayMaxTime: minuteBefore(parseTimeMinutes(nightEnd) ?? 0),
     };
   }
 
   const { nextDay, nightEnd, nightEndMinutes } = resolveClinicalDayBounds(recordDate);
-  const nextDayMaxTime = formatMinutesAsTime(Math.max(0, nightEndMinutes - 1));
+  const nextDayMaxTime = minuteBefore(nightEndMinutes);
 
   return {
     minDate: recordDate,
@@ -70,10 +77,9 @@ export const isMovementDateTimeAllowed = (
   const timeMinutes = parseTimeMinutes(movementTime);
   if (timeMinutes === null) return false;
 
-  const { nextDay, nightEnd } = resolveMovementDateTimeBounds(recordDate);
+  const { nextDay, nightEndMinutes } = resolveClinicalDayBounds(recordDate);
   if (movementDate !== nextDay) return true;
 
-  const nightEndMinutes = parseTimeMinutes(nightEnd) ?? 8 * 60;
   return timeMinutes < nightEndMinutes;
 };
 

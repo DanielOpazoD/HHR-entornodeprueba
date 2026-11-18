@@ -452,6 +452,11 @@ var CHILEAN_HOLIDAYS = [
 ];
 
 // src/utils/clinicalDayScheduleUtils.ts
+var BUSINESS_DAY_SHIFT_START = "08:00";
+var NON_BUSINESS_DAY_SHIFT_START = "09:00";
+var NIGHT_SHIFT_START = "20:00";
+var BUSINESS_DAY_SHIFT_START_MINUTES = 8 * 60;
+var NIGHT_SHIFT_START_MINUTES = 20 * 60;
 var parseTimeMinutes = (value) => {
   if (!value) return null;
   const [hourPart = "", minutePart = ""] = value.trim().split(":");
@@ -475,14 +480,15 @@ var getNextDay = (dateString) => {
 var getPreviousDay = (dateString) => {
   return addCalendarDays(dateString, -1);
 };
+var dayShiftStart = (isBusiness) => isBusiness ? BUSINESS_DAY_SHIFT_START : NON_BUSINESS_DAY_SHIFT_START;
 var getShiftSchedule = (dateString) => {
   const todayIsBusinessDay = isBusinessDay(dateString);
   const nextDay = getNextDay(dateString);
   const tomorrowIsBusinessDay = isBusinessDay(nextDay);
-  const dayStart = todayIsBusinessDay ? "08:00" : "09:00";
-  const dayEnd = "20:00";
-  const nightStart = "20:00";
-  const nightEnd = tomorrowIsBusinessDay ? "08:00" : "09:00";
+  const dayStart = dayShiftStart(todayIsBusinessDay);
+  const dayEnd = NIGHT_SHIFT_START;
+  const nightStart = NIGHT_SHIFT_START;
+  const nightEnd = dayShiftStart(tomorrowIsBusinessDay);
   let description = todayIsBusinessDay ? "D\xEDa H\xE1bil" : "Fin de Semana / Feriado";
   if (todayIsBusinessDay !== tomorrowIsBusinessDay) {
     description += tomorrowIsBusinessDay ? " \u2192 D\xEDa H\xE1bil" : " \u2192 No H\xE1bil";
@@ -497,8 +503,8 @@ var getShiftSchedule = (dateString) => {
 };
 var resolveClinicalDayBounds = (recordDate) => {
   const schedule = getShiftSchedule(recordDate);
-  const dayStartMinutes = parseTimeMinutes(schedule.dayStart) ?? 8 * 60;
-  const nightEndMinutes = parseTimeMinutes(schedule.nightEnd) ?? 8 * 60;
+  const dayStartMinutes = parseTimeMinutes(schedule.dayStart) ?? BUSINESS_DAY_SHIFT_START_MINUTES;
+  const nightEndMinutes = parseTimeMinutes(schedule.nightEnd) ?? BUSINESS_DAY_SHIFT_START_MINUTES;
   return {
     dayStart: schedule.dayStart,
     dayStartMinutes,
