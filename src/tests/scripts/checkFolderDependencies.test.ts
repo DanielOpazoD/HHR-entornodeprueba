@@ -53,7 +53,8 @@ const spellings = (from: string, to: string) => {
     'relativa .ts': `import { x } from '${relative}.ts';`,
     reexportación: `export { x } from '${alias}';`,
     'sin nombres': `import '${relative}';`,
-    'import()': `export const load = () => import('${alias}');`,
+    // Built in two parts so check:declared-dependencies does not read it as an import.
+    'import()': `export const load = () => import(${`'${alias}'`});`,
     'new URL (worker)': `export const w = new URL('${relative}.ts', import.meta.url);`,
   };
 };
