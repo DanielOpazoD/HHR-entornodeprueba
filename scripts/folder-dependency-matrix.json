@@ -130,54 +130,6 @@
   },
   "exceptions": [
     {
-      "from": "src/application/census-email/censusRecipientListUseCases.ts",
-      "to": "src/hooks/controllers/censusEmailRecipientListController.ts",
-      "kind": "value",
-      "reason": "Correo del censo repartido entre application/ y hooks/; ARCH-6 lo reúne en features/census/email."
-    },
-    {
-      "from": "src/application/census-email/censusRecipientListUseCases.ts",
-      "to": "src/hooks/controllers/censusEmailRecipientRuntimeController.ts",
-      "kind": "value",
-      "reason": "Correo del censo repartido entre application/ y hooks/; ARCH-6 lo reúne en features/census/email."
-    },
-    {
-      "from": "src/application/census-email/censusRecipientListUseCases.ts",
-      "to": "src/hooks/controllers/censusEmailRecipientsBootstrapController.ts",
-      "kind": "value",
-      "reason": "Correo del censo repartido entre application/ y hooks/; ARCH-6 lo reúne en features/census/email."
-    },
-    {
-      "from": "src/application/census-email/censusRecipientListUseCases.ts",
-      "to": "src/hooks/controllers/censusEmailRecipientSelectionController.ts",
-      "kind": "value",
-      "reason": "Correo del censo repartido entre application/ y hooks/; ARCH-6 lo reúne en features/census/email."
-    },
-    {
-      "from": "src/application/census-email/censusRecipientListUseCases.ts",
-      "to": "src/hooks/controllers/censusEmailRecipientSyncController.ts",
-      "kind": "value",
-      "reason": "Correo del censo repartido entre application/ y hooks/; ARCH-6 lo reúne en features/census/email."
-    },
-    {
-      "from": "src/application/census-email/sendCensusEmailUseCases.ts",
-      "to": "src/features/census/index.ts",
-      "kind": "value",
-      "reason": "Correo del censo repartido fuera de su feature; ARCH-6 lo reúne en features/census/email."
-    },
-    {
-      "from": "src/application/census-email/sendCensusEmailUseCases.ts",
-      "to": "src/hooks/controllers/censusEmailSendController.ts",
-      "kind": "value",
-      "reason": "Correo del censo repartido entre application/ y hooks/; ARCH-6 lo reúne en features/census/email."
-    },
-    {
-      "from": "src/application/census-email/sendCensusEmailUseCases.ts",
-      "to": "src/hooks/controllers/censusExcelSheetController.ts",
-      "kind": "value",
-      "reason": "Correo del censo repartido entre application/ y hooks/; ARCH-6 lo reúne en features/census/email."
-    },
-    {
       "from": "src/application/census/censusStaffHeaderReadModel.ts",
       "to": "src/features/census/index.ts",
       "kind": "value",
