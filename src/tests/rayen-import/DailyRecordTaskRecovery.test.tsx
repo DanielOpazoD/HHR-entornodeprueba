@@ -58,7 +58,7 @@ const openPanel = async () => {
     view.rerender(<RayenSyncQueueDetails {...props} working={false} refresh={refresh} />);
   };
   const view = render(<RayenSyncQueueDetails {...initial} working={false} refresh={refresh} />);
-  fireEvent.click(screen.getByText('Guardado local · 1 por enviar'));
+  fireEvent.click(screen.getByText('Guardado local · 1 por revisar'));
   fireEvent.click(screen.getByRole('button', { name: 'Descartar envío' }));
   await screen.findByText('Ya revisé el censo compartido y no necesito enviar estos cambios.');
   return view;
@@ -77,7 +77,7 @@ it('removes the pending indicator only after confirmation and exposes the origin
   fireEvent.click(screen.getByRole('checkbox'));
   fireEvent.click(screen.getByRole('button', { name: 'Sí, descartar envío' }));
   await screen.findByRole('button', { name: 'Descargar respaldo' });
-  expect(screen.queryByText('Guardado local · 1 por enviar')).not.toBeInTheDocument();
+  expect(screen.queryByText('Guardado local · 1 por revisar')).not.toBeInTheDocument();
   expect(
     screen.getByText(/no se reintentan ni cuentan como guardados en el servidor/)
   ).toBeVisible();
@@ -105,7 +105,7 @@ it('leaves the newer send pending when another tab changes it while the confirma
   fireEvent.click(screen.getByRole('button', { name: 'Sí, descartar envío' }));
   await screen.findByText(/La acción no terminó/);
   expect(await hospitalDB.syncQueue.get(id)).toMatchObject({ status: 'FAILED', payload });
-  expect(screen.getByText('Guardado local · 1 por enviar')).toBeVisible();
+  expect(screen.getByText('Guardado local · 1 por revisar')).toBeVisible();
   expect(screen.queryByRole('button', { name: 'Descargar respaldo' })).not.toBeInTheDocument();
 });
 
@@ -118,7 +118,7 @@ it('keeps the failed send visible when its retirement cannot be persisted', asyn
   fireEvent.click(screen.getByRole('button', { name: 'Sí, descartar envío' }));
   await screen.findByText(/La acción no terminó/);
   expect(await hospitalDB.syncQueue.get(id)).toEqual({ ...task, id });
-  expect(screen.getByText('Guardado local · 1 por enviar')).toBeVisible();
+  expect(screen.getByText('Guardado local · 1 por revisar')).toBeVisible();
 });
 
 it('shows the declared clinical, handoff and staffing scope before discarding, without changing the send', async () => {

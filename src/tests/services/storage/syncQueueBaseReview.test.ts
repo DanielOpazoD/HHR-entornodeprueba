@@ -99,8 +99,11 @@ const processTask = async (input: ReturnType<typeof task>, maxRetries = 1) => {
   await engine(maxRetries).processQueue();
   return store().listAll(owner);
 };
+// A refusal read while the day is still inside the nurse editing window.
 const recovery = (row: SyncTask) =>
-  listQuarantinedOperations([toSyncQueueOperationSnapshot(row)])[0]?.recovery;
+  listQuarantinedOperations([toSyncQueueOperationSnapshot(row)], {
+    now: Date.parse(`${date}T15:00:00Z`),
+  })[0]?.recovery;
 const expectDurableReview = async (row: SyncTask, input: SyncTask) => {
   expect(recovery(row)).toBe('review_base');
   expect(row).toMatchObject({

@@ -390,6 +390,8 @@ export const useRayenImport = (selectedCensusDate?: string) => {
       result: state.result,
       error: state.error,
       errorTechnicalDetail: visibleErrorTechnicalDetail(state, isAdmin),
+      /** Only the administrator reads technical texts, like the raw reason of a refused send. */
+      isAdmin,
       staffingProposal,
       isStaffingProposalBusy,
       staffingProposalError,

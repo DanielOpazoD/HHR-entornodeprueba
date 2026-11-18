@@ -3,6 +3,7 @@ import { requiresDailyRecordBaseReview } from '@/services/storage/sync/dailyReco
 import type { SyncQueueOperation, SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
 import type { SyncToneLevel } from './syncTone';
 import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
+import { hasNurseEditingWindowClosed } from '@/utils/clinicalWallClock';
 
 /**
  * Evita parpadeos durante guardados normales. El aviso del cuadro Eloísa aparece
@@ -50,6 +51,7 @@ interface QuarantinedOperationTarget {
 export type QuarantinedOperationView = QuarantinedOperationTarget &
   (
     | { recovery: 'review_authorization'; retryGuidance: string }
+    | { recovery: 'editing_window_closed'; guidance: string }
     | { recovery: 'retry' | 'review_base' | 'discard_detached' }
   );
 
@@ -75,31 +77,60 @@ export const targetLabelFromKey = (
   return `Censo del ${formatClinicalDayMonthYear(date)}`;
 };
 
+const DAILY_RECORD_KEY = /^daily:(\d{4}-\d{2}-\d{2})$/;
+
+/**
+ * A nurse's census send refused after its day's editing window passed (SAVE-04): the account keeps
+ * its permissions, the window does not reopen, so a retry can never succeed. The rules path gives
+ * no message of its own, so the day decides, not the error text. A missing, malformed or future day
+ * proves no closure and keeps the permission review. The administrator has no window.
+ */
+const isClosedWindowRefusal = (
+  operation: SyncQueueOperation,
+  isAdmin: boolean,
+  now: number
+): boolean => {
+  const day = operation.key?.match(DAILY_RECORD_KEY)?.[1];
+  return (
+    !isAdmin &&
+    operation.type === 'UPDATE_DAILY_RECORD' &&
+    operation.status === 'FAILED' &&
+    !!day &&
+    /(?:^|\/)permission-denied$/.test(operation.lastErrorCode ?? '') &&
+    hasNurseEditingWindowClosed(day, now)
+  );
+};
+
 /**
  * Edits detached from a patient who left the bed can never be sent as they are: a retry always
  * fails, so the panel offers a confirmed discard instead.
  */
 const resolveQuarantineRecovery = (
-  operation: SyncQueueOperation
+  operation: SyncQueueOperation,
+  isAdmin: boolean,
+  now: number
 ): QuarantinedOperationView['recovery'] => {
   // A closed session cleared the day these edits were made on: like a write without a known base,
   // they cannot be resent as they are, only reviewed and retired with a backup.
   if (operation.projectionReleased || requiresDailyRecordBaseReview(operation))
     return 'review_base';
+  if (isClosedWindowRefusal(operation, isAdmin, now)) return 'editing_window_closed';
   if (operation.status === 'FAILED' && operation.lastErrorCategory === 'authorization')
     return 'review_authorization';
   if (operation.status !== 'CONFLICT') return 'retry';
   return operation.key?.includes(':detached:') ? 'discard_detached' : 'retry';
 };
 
+/** The stopped sends of the panel; `now` and the viewer's role decide a closed editing window. */
 export const listQuarantinedOperations = (
-  operations: SyncQueueOperation[]
+  operations: SyncQueueOperation[],
+  { isAdmin = false, now = Date.now() }: { isAdmin?: boolean; now?: number } = {}
 ): QuarantinedOperationView[] =>
   operations
     .filter(operation => operation.status === 'FAILED' || operation.status === 'CONFLICT')
     .filter(operation => typeof operation.id === 'number')
     .map(operation => {
-      const recovery = resolveQuarantineRecovery(operation);
+      const recovery = resolveQuarantineRecovery(operation, isAdmin, now);
       const target = {
         id: operation.id as number,
         code: operation.lastErrorCode,
@@ -112,9 +143,17 @@ export const listQuarantinedOperations = (
               ? 'Autorización anterior'
               : (CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ?? 'Envío detenido'),
         canRetire:
-          operation.type === 'UPDATE_DAILY_RECORD' &&
-          /^daily:\d{4}-\d{2}-\d{2}$/.test(operation.key ?? ''),
+          operation.type === 'UPDATE_DAILY_RECORD' && DAILY_RECORD_KEY.test(operation.key ?? ''),
       };
+      if (recovery === 'editing_window_closed') {
+        return {
+          ...target,
+          recovery,
+          categoryLabel: 'Plazo de edición cerrado',
+          guidance:
+            'El plazo de 48 h para editar este día cerró antes de que el cambio llegara al servidor. Quedó solo en este equipo y no se enviará: en «Descartar envío» descarga su copia para que un administrador lo ingrese.',
+        };
+      }
       if (recovery === 'review_authorization') {
         if (operation.lastErrorCode === 'session_owner_logged_out') {
           return {
