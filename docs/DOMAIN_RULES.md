@@ -266,6 +266,13 @@ decisión rechazada ni inventa ausencia local.
   confirmado y la cola durable; una corrida interrumpida exige una captura nueva, sin reanudación
   ni avisos de sesión. Al cambiar de sesión solo se recupera la entrega de turno de enfermería;
   las sincronizaciones salen de Eloísa y se detienen.
+- Una operación que espera pregunta si sigue la misma persona con `guardAuthoringSession()`
+  (`src/services/storage/authoringSession.ts`): captura la sesión una vez y corta tras cada espera
+  si cambió el propietario guardado o la generación admitida, o si hay un cierre de sesión a medio
+  limpiar. Lo guardado por persona se indexa con `authoringSessionScope()`; lo que solo se muestra
+  en esta pestaña, con `sessionEpochGuard()` o `useSessionEpoch()`. Nadie más compara la sesión a
+  mano (ESLint `session/raw-read`; lo que falta migrar figura en
+  `scripts/config/session-raw-read-ledger.json` y solo baja).
 - La edición local en vuelo conserva propietario, base y contexto en reposo, aunque la cola activa
   siguiente esté llena; revierte la vista sin avisar a la sesión siguiente.
 - El cambio de sesión de Eloísa se observa solo con `onSessionChange` o `useSessionEpoch`
