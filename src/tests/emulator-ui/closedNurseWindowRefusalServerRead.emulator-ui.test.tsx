@@ -682,7 +682,7 @@ it.each([
         .doc(dayPath)
         .update({ [night]: 'SEGUNDA CORRECCION', lastUpdated: Timestamp.now() });
     }
-    const attempts = vi.spyOn(rebase, 'rebasePendingDailyRecordWrite');
+    const attempts = vi.spyOn(rebase, 'overlayPendingDailyRecordWrite');
     const first = await getForDateWithMeta(closedDay);
     const second = await syncWithFirestoreDetailed(closedDay);
     const count = attempts.mock.calls.length;
