@@ -9,10 +9,18 @@ export interface NurseAuthorIdentityParts {
   firstSurname: string;
 }
 
+/**
+ * AGENTS.md: names that differ only in tildes, diéresis, ñ, capitals or spaces are one person.
+ * Only those marks fold (acute U+0301, diaeresis U+0308, the tilde of ñ); a cedilla or any other
+ * mark keeps two names apart («Ana Franca» ≠ «Ana França»).
+ */
+const SAME_PERSON_MARKS = /[\u0301\u0308]|(?<=n)\u0303/giu;
+
 const normalizeIdentityText = (value: string): string =>
   value
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(SAME_PERSON_MARKS, '')
+    .normalize('NFC')
     .trim()
     .replace(/\s+/g, ' ')
     .toLocaleLowerCase('es');

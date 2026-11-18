@@ -42,11 +42,17 @@ export const resolveStaffSelectionValue = (
   const resolved = normalizeStaffSelectionValue(
     resolveEloisaStaffName(normalizeStaffSelectionValue(value), identities, role)
   );
+  // Two Eloísa people share this spelling once folded: choose neither, keep the resolved name.
+  const people = identities.filter(
+    entry => (!role || entry.role === role) && staffNameMatches(entry, resolved)
+  );
+  if (people.length > 1) return resolved;
   const known = catalog.find(name => nurseIdentityKey(name) === nurseIdentityKey(resolved));
   return known === undefined ? resolved : preferredStaffName(known, resolved);
 };
 import {
   resolveEloisaStaffName,
+  staffNameMatches,
   type EloisaStaffIdentity,
   type NursingRole,
 } from './eloisaStaffIdentity';

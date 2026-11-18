@@ -1,32 +1,56 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { StaffSelector } from '@/features/census/components/StaffSelector';
 import { VACANCY_LABEL } from '@/services/staff/staffSelectionPresentation';
+import { mergeEloisaStaff } from '@/services/staff/eloisaStaffDiscovery';
+import type { EloisaStaffIdentity, NursingRole } from '@/services/staff/eloisaStaffIdentity';
 
 const setShowNurseManager = vi.fn();
 const setShowTensManager = vi.fn();
+
+const defaultIdentities = (['nurse', 'tens'] as const).flatMap(role => [
+  {
+    key: `${role}:id:a`,
+    role,
+    name: 'Ana Maria Soto Rojas',
+    aliases: ['Ana Maria Soto Rojas', 'Ana Soto'],
+  },
+  {
+    key: `${role}:id:p`,
+    role,
+    name: 'Ana Pena',
+    aliases: ['Ana Pena', 'A Pena'],
+  },
+]);
+const staff: { staffIdentities: EloisaStaffIdentity[] } = { staffIdentities: defaultIdentities };
 
 vi.mock('@/context/StaffContext', () => ({
   useStaffContext: () => ({
     setShowNurseManager,
     setShowTensManager,
     staffUsage: { nurse: { 'ana habitual': 3 }, tens: { 'ana habitual': 3 } },
-    staffIdentities: (['nurse', 'tens'] as const).flatMap(role => [
-      {
-        key: `${role}:id:a`,
-        role,
-        name: 'Ana Maria Soto Rojas',
-        aliases: ['Ana Maria Soto Rojas', 'Ana Soto'],
-      },
-      {
-        key: `${role}:id:p`,
-        role,
-        name: 'Ana Pena',
-        aliases: ['Ana Pena', 'A Pena'],
-      },
-    ]),
+    staffIdentities: staff.staffIdentities,
   }),
 }));
+
+beforeEach(() => {
+  staff.staffIdentities = defaultIdentities;
+});
+
+/** Eloísa people as discovery builds them: one entry per practitioner id. */
+const eloisaPeople = (
+  role: NursingRole,
+  authors: Array<[practitionerId: string, author: string]>
+) =>
+  mergeEloisaStaff(
+    [],
+    authors.map(([practitionerId, author]) => ({
+      practitionerId,
+      author,
+      role: role === 'nurse' ? 'enfermera' : 'TENS',
+      recordedAt: '2026-01-01T12:00',
+    }))
+  );
 
 const roles = [
   { role: 'nurse', label: 'Enfermería', slots: 2, setShowManager: setShowNurseManager },
@@ -100,6 +124,38 @@ describe.each(roles)('StaffSelector ($label)', ({ role, label, slots, setShowMan
     renderSelector({ dayShift: shift(slots, 'A Pena'), catalog: ['Ana Peña'] });
     expect(screen.getByLabelText(dayLabel)).toHaveValue('Ana Peña');
     expect(screen.queryByRole('option', { name: 'Ana Pena' })).not.toBeInTheDocument();
+  });
+
+  it('keeps a cedilla apart: an alias of Ana Franca never shows Ana França', () => {
+    staff.staffIdentities = eloisaPeople(role, [
+      ['syn1', 'A Franca'],
+      ['syn1', 'Ana Franca'],
+      ['syn2', 'Ana França'],
+    ]);
+    expect(staff.staffIdentities).toHaveLength(2);
+    renderSelector({ dayShift: shift(slots, 'A Franca'), catalog: ['Ana França'] });
+    const select = screen.getByLabelText(dayLabel) as HTMLSelectElement;
+    expect(select).toHaveValue('Ana Franca');
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Ana Franca');
+    expect([...select.options].map(option => option.value)).toEqual([
+      VACANCY_LABEL,
+      'Ana França',
+      'Ana Franca',
+    ]);
+  });
+
+  it('chooses no one when two Eloísa people share the folded spelling', () => {
+    staff.staffIdentities = eloisaPeople(role, [
+      ['syn1', 'A Pena'],
+      ['syn1', 'Ana Pena'],
+      ['syn2', 'Ana Peña'],
+    ]);
+    expect(staff.staffIdentities).toHaveLength(2);
+    renderSelector({ dayShift: shift(slots, 'A Pena'), catalog: ['Ana Peña'] });
+    // As main showed for Enfermería: the slot is not shown as syn2, the hint keeps syn1's name.
+    expect(screen.getByLabelText(dayLabel)).not.toHaveValue('Ana Peña');
+    expect(screen.getByLabelText(dayLabel)).toHaveValue(VACANCY_LABEL);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Ana Pena');
   });
 
   it('keeps selected staff visible even when the catalog has not hydrated yet', () => {

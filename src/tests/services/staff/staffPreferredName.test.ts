@@ -37,3 +37,14 @@ it('groups historical shift spellings without changing stored selections', async
   expect(resolveStaffSelectionValue(selected[0], [], 'tens', options)).toBe('Ana Peña');
   expect(selected).toEqual(['Ana Pena']);
 });
+
+it.each([
+  ['José Núñez', '  jose   NUNEZ ', true],
+  ['Aïna Vergües', 'Aina Vergues', true],
+  ['Begoña Muñoz', 'BEGONA MUNOZ', true],
+  ['Ana França', 'Ana Franca', false],
+  ['João Silva', 'Joao Silva', false],
+])('folds only tildes, diéresis, ñ, capitals and spaces: %s / %s', async (a, b, same) => {
+  const { nurseIdentityKey } = await import('@/services/staff/nurseIdentity');
+  expect(nurseIdentityKey(a) === nurseIdentityKey(b)).toBe(same);
+});
