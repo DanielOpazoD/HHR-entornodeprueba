@@ -1,5 +1,5 @@
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
-import { createCudyrIdentityResolver } from './cudyrNameReconciliation';
+import { createCudyrIdentityResolver } from '@/services/cudyr/cudyrNameReconciliation';
 import type { CudyrReportDataset, CudyrReportRow } from '@/types/domain/cudyrReport';
 import type { CudyrSupplementReport } from '@/types/domain/cudyrSupplement';
 import type {

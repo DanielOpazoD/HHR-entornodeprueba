@@ -11,7 +11,7 @@ import {
   cudyrLinkCandidates,
   validateCudyrLinkDraft,
   type CudyrLinkDraft,
-} from '@/services/cudyr/cudyrLinkReview';
+} from '@/features/cudyr/reconciliation/cudyrLinkReview';
 
 export const CudyrLinkReviewForm = ({
   item,

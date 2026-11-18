@@ -1,19 +1,19 @@
 import { useState } from 'react';
 import type { CudyrReviewController } from '../hooks/useCudyrReviews';
-import { isCurrentCudyrReview } from '@/services/cudyr/cudyrReviewEvidence';
+import { isCurrentCudyrReview } from '@/features/cudyr/reconciliation/cudyrReviewEvidence';
 import { CudyrSavedReview } from './CudyrSavedReview';
 import { CudyrLinkReviewForm } from './CudyrLinkReviewForm';
 import {
   CUDYR_LINK_LABELS,
   isReviewableCudyrSource,
   type CudyrLinkDraft,
-} from '@/services/cudyr/cudyrLinkReview';
+} from '@/features/cudyr/reconciliation/cudyrLinkReview';
 import type {
   CudyrComparisonItem,
   CudyrComparisonStatus,
 } from '@/types/domain/cudyrReconciliation';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
-import { CUDYR_COMPARISON_LABELS } from '@/services/cudyr/cudyrMonthlyComparison';
+import { CUDYR_COMPARISON_LABELS } from '@/features/cudyr/reconciliation/cudyrMonthlyComparison';
 import {
   CUDYR_MODALITY_LABELS,
   CUDYR_ELIGIBILITY_LABELS,

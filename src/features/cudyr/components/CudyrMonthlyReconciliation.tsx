@@ -1,12 +1,15 @@
 import { CudyrRecoveryPanel } from './CudyrRecoveryPanel';
-import { resolveCudyrReviewSources } from '@/services/cudyr/cudyrReviewResume';
+import { resolveCudyrReviewSources } from '@/features/cudyr/reconciliation/cudyrReviewResume';
 import { cudyrMomentLabel } from '@/services/cudyr/cudyrReportPresentation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import type { CudyrReconciliationFile } from '@/types/domain/cudyrReconciliation';
 import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
-import { compareCudyrMonth, cudyrMonthlyInventory } from '@/services/cudyr/cudyrMonthlyComparison';
-import { readCudyrReconciliationFile } from '@/services/cudyr/cudyrReconciliationFile';
+import {
+  compareCudyrMonth,
+  cudyrMonthlyInventory,
+} from '@/features/cudyr/reconciliation/cudyrMonthlyComparison';
+import { readCudyrReconciliationFile } from '@/features/cudyr/reconciliation/cudyrReconciliationFile';
 import { CudyrReviewWorkspace } from './CudyrReviewWorkspace';
 import type { CudyrReviewSource } from '@/types/domain/cudyrReview';
 

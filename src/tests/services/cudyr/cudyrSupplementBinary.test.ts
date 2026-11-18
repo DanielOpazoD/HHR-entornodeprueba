@@ -7,7 +7,7 @@ import {
 import { buildCudyrReportWorkbook } from '@/services/cudyr/cudyrReportWorkbook';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { reportInput } from './reportFixtures';
-import { supplementCandidates } from '@/services/cudyr/cudyrSupplementPresentation';
+import { supplementCandidates } from '@/features/cudyr/report/cudyrSupplementPresentation';
 import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
 vi.mock('@/services/exporters/excelUtils', async () => {
   const { Workbook } = await import('exceljs');

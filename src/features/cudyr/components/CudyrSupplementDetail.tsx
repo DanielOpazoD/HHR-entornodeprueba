@@ -1,5 +1,5 @@
 import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
-import { supplementCandidates } from '@/services/cudyr/cudyrSupplementPresentation';
+import { supplementCandidates } from '@/features/cudyr/report/cudyrSupplementPresentation';
 export const CudyrSupplementDetail = ({
   reports,
   document,

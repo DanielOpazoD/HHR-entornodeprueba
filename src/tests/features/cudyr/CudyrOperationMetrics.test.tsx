@@ -13,7 +13,7 @@ vi.mock('@/services/storage/sessionStorageTransition', () => ({ getSessionGenera
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
 }));
-vi.mock('@/services/cudyr/cudyrReadView', () => ({
+vi.mock('@/features/cudyr/report/cudyrReadView', () => ({
   readCudyrReadView: vi.fn(),
   saveCudyrReadView: vi.fn(),
 }));

@@ -1,8 +1,11 @@
 import { cudyrExcelMoment, cudyrExcelDateText } from './cudyrExcelDates';
 import type { Worksheet } from 'exceljs';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
-import { cudyrControlStatus } from './cudyrDailyControl';
-import { CUDYR_ELIGIBILITY_LABELS, CUDYR_MODALITY_LABELS } from './cudyrReportPresentation';
+import { cudyrControlStatus } from '../report/cudyrDailyControl';
+import {
+  CUDYR_ELIGIBILITY_LABELS,
+  CUDYR_MODALITY_LABELS,
+} from '@/services/cudyr/cudyrReportPresentation';
 
 /** Below the unchanged daily grid; strings stay literal, never executable Excel formulas. */
 export const addCudyrEssentialDetail = (sheet: Worksheet, rows: CudyrReportRow[]) => {

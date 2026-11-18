@@ -1,6 +1,9 @@
 import { expect } from 'vitest';
 import { Workbook } from 'exceljs';
-import { addCudyrSourceSheets, type CudyrSourceSheet } from '@/services/cudyr/cudyrSourceWorkbook';
+import {
+  addCudyrSourceSheets,
+  type CudyrSourceSheet,
+} from '@/features/cudyr/export/cudyrSourceWorkbook';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { confirmedReportInput } from './reportFixtures';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';

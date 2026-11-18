@@ -1,11 +1,13 @@
-import { recordCudyrOperation } from '@/services/cudyr/cudyrOperationTelemetry';
+import { recordCudyrOperation } from '@/features/cudyr/report/cudyrOperationTelemetry';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CudyrMonthlyRecovery } from '@/features/cudyr/components/CudyrMonthlyRecovery';
-vi.mock('@/services/cudyr/cudyrOperationTelemetry', () => ({ recordCudyrOperation: vi.fn() }));
+vi.mock('@/features/cudyr/report/cudyrOperationTelemetry', () => ({
+  recordCudyrOperation: vi.fn(),
+}));
 const recover = vi.hoisted(() => vi.fn());
 const clock = vi.hoisted(() => ({ closed: true }));
-vi.mock('@/services/cudyr/cudyrMonthlyRecovery', () => ({
+vi.mock('@/features/cudyr/recovery/cudyrMonthlyRecovery', () => ({
   monthlyRecoveryWindow: () => (clock.closed ? { last: '2026-08-31', next: '2026-09-01' } : null),
   recoverCudyrMonthlyReports: recover,
 }));

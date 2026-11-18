@@ -1,7 +1,7 @@
 import { exportSheet, row, source } from './cudyrSourceTable.fixtures';
 import { CUDYR_EXCLUSION_LABELS, type CudyrExclusionReason } from '@/types/domain/cudyrExclusion';
 import { describe, expect, it, vi } from 'vitest';
-import { validateCudyrSourceSheet } from '@/services/cudyr/cudyrSourceValidation';
+import { validateCudyrSourceSheet } from '@/features/cudyr/export/cudyrSourceValidation';
 
 vi.mock('@/services/cudyr/cudyrSupplementService', () => ({}));
 const boundaryCase = () => {

@@ -7,7 +7,7 @@ const ports = vi.hoisted(() => ({
   download: vi.fn().mockResolvedValue(undefined),
   navigate: vi.fn().mockResolvedValue({ ok: true }),
 }));
-vi.mock('@/services/cudyr/cudyrRecoveryWorkbook', () => ({
+vi.mock('@/features/cudyr/recovery/cudyrRecoveryWorkbook', () => ({
   downloadCudyrRecoveryPlan: ports.download,
 }));
 vi.mock('@/features/rayen-import/clinical-panel', () => ({

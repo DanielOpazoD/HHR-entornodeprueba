@@ -1,6 +1,6 @@
 import type { Worksheet } from 'exceljs';
 import type { CudyrSourceSheet } from './cudyrSourceTypes';
-import { parseCudyrSupplementMatrix } from './cudyrSupplementParser';
+import { parseCudyrSupplementMatrix } from '@/services/cudyr/cudyrSupplementParser';
 import { CUDYR_SOURCE_COLUMNS as columns } from './cudyrSourceColumns';
 
 /** Check original episodes and values independently of the presentation projection. */

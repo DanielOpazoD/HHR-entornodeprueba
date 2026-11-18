@@ -3,14 +3,14 @@ import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import {
   buildCudyrEssentialWorkbook,
   downloadCudyrEssential,
-} from '@/services/cudyr/cudyrEssentialWorkbook';
+} from '@/features/cudyr/export/cudyrEssentialWorkbook';
 import { confirmedReportInput } from './reportFixtures';
-import type { CudyrSourceSheet } from '@/services/cudyr/cudyrSourceTypes';
+import type { CudyrSourceSheet } from '@/features/cudyr/export/cudyrSourceTypes';
 
 const mocks = vi.hoisted(() => ({ load: vi.fn(), save: vi.fn() }));
-vi.mock('@/services/cudyr/cudyrSourceLoader', () => ({ loadCudyrSourceSheets: mocks.load }));
+vi.mock('@/features/cudyr/export/cudyrSourceLoader', () => ({ loadCudyrSourceSheets: mocks.load }));
 vi.mock('file-saver', () => ({ saveAs: mocks.save }));
-vi.mock('@/services/cudyr/cudyrSourceWorkbook', () => {
+vi.mock('@/features/cudyr/export/cudyrSourceWorkbook', () => {
   throw new Error('Source presentation unavailable');
 });
 

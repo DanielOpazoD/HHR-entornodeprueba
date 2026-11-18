@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
-import { cudyrControlStatus, cudyrEligibilityOrigin } from '@/services/cudyr/cudyrDailyControl';
+import {
+  cudyrControlStatus,
+  cudyrEligibilityOrigin,
+} from '@/features/cudyr/report/cudyrDailyControl';
 import { cudyrMomentLabel } from '@/services/cudyr/cudyrReportPresentation';
 
 export const CudyrExcludedCasesDialog = ({

@@ -1,10 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { CudyrMonthlyReconciliation } from '@/features/cudyr/components/CudyrMonthlyReconciliation';
-import { readCudyrReconciliationFile } from '@/services/cudyr/cudyrReconciliationFile';
+import { readCudyrReconciliationFile } from '@/features/cudyr/reconciliation/cudyrReconciliationFile';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { reportInput } from '../../services/cudyr/reportFixtures';
-vi.mock('@/services/cudyr/cudyrReconciliationFile', () => ({
+vi.mock('@/features/cudyr/reconciliation/cudyrReconciliationFile', () => ({
   readCudyrReconciliationFile: vi.fn(),
 }));
 // These tests own file/period lifecycle. Persistence is covered by CudyrReviewPersistence.test.tsx.

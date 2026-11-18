@@ -1,9 +1,9 @@
 // @vitest-environment node
 import { webcrypto } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildCudyrReviewEvidence } from '@/services/cudyr/cudyrReviewEvidence';
+import { buildCudyrReviewEvidence } from '@/features/cudyr/reconciliation/cudyrReviewEvidence';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
-import { compareCudyrMonth } from '@/services/cudyr/cudyrMonthlyComparison';
+import { compareCudyrMonth } from '@/features/cudyr/reconciliation/cudyrMonthlyComparison';
 import { reportInput } from './reportFixtures';
 import type { CudyrComparisonItem } from '@/types/domain/cudyrReconciliation';
 

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { it, expect } from 'vitest';
-import { cudyrExclusionSummary } from '@/services/cudyr/cudyrExclusionSummary';
+import { cudyrExclusionSummary } from '@/features/cudyr/report/cudyrExclusionSummary';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { confirmedReportInput } from './reportFixtures';
 it('counts excluded patient-days independently of recorded CUDYR and distinct people', () => {

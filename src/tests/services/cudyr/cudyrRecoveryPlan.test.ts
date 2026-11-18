@@ -1,8 +1,11 @@
 import { confirmedReportInput } from './reportFixtures';
 import { describe, expect, it } from 'vitest';
-import { buildCudyrRecoveryPlan, cudyrRecoveryGuidance } from '@/services/cudyr/cudyrRecoveryPlan';
+import {
+  buildCudyrRecoveryPlan,
+  cudyrRecoveryGuidance,
+} from '@/features/cudyr/recovery/cudyrRecoveryPlan';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
-import { buildCudyrRecoveryWorkbook } from '@/services/cudyr/cudyrRecoveryWorkbook';
+import { buildCudyrRecoveryWorkbook } from '@/features/cudyr/recovery/cudyrRecoveryWorkbook';
 import { reportInput } from './reportFixtures';
 
 describe('targeted historical recovery worklist', () => {
