@@ -73,9 +73,10 @@ Qué de la tabla impone hoy un control:
    `features/handoff`; `hhr/feature-boundaries` exige el puerto para
    `ClinicalDocumentRepository` y `censusEmailService`. En el resto, criterio.
 4. **Un concepto, un dueño y una puerta** (tabla de abajo). Fuera del dueño no se repite la
-   decisión. **Hoy:** impuesto para RUT y pasaporte, clave de episodio, mensaje de sesión
-   (ESLint `no-restricted-syntax`), reloj clínico (`npm run check:clinical-clock`), runtime de
-   Firestore y permisos heredados (`npm run check:source-patterns`). En el resto, criterio.
+   decisión. **Hoy:** impuesto para RUT y pasaporte, clave de episodio, mensaje de sesión,
+   firmas de los registradores de auditoría (ESLint `no-restricted-syntax`), reloj clínico
+   (`npm run check:clinical-clock`), runtime de Firestore y permisos heredados
+   (`npm run check:source-patterns`). En el resto, criterio.
 5. **Controladores y hooks no importan implementaciones de componentes**, y fuera de
    `DailyRecordContext` se usan las acciones acotadas del registro diario. **Hoy:**
    `npm run check:architecture`.
@@ -106,6 +107,7 @@ Qué de la tabla impone hoy un control:
 | Plazo de 48 h para días anteriores                   | cálculo temporal en `utils/clinicalWallClock.ts`                                                                           | el predicado de cada operación conserva su regla (no es una sola pregunta)                     |
 | Identidad: RUT, pasaporte, episodio                  | `utils/rutUtils.ts`, `application/patient-flow/clinicalEpisode.ts`                                                         | las mismas                                                                                     |
 | Permisos y roles                                     | `shared/access/*` y `utils/permissions.ts` (**objetivo:** un solo dueño)                                                   | `shared/access/operationalAccessPolicy.ts`                                                     |
+| Registro de auditoría desde la UI                    | `hooks/useAudit.ts` (contrato `AuditLoggers`); envío en `application/audit`                                                | `useAuditContext`; un registrador suelto se tipa `AuditLoggers['<nombre>']`                    |
 | Telemetría                                           | `services/observability`                                                                                                   | sus adaptadores por dominio                                                                    |
 | Efectos del navegador                                | `shared/runtime`                                                                                                           | `browserWindowRuntimeCore`, `browserClipboardRuntime`                                          |
 | Eloísa, CUDYR, correo del censo, documentos clínicos | su área en `features/`, más `services/cudyr` y Functions para CUDYR                                                        | el `public.ts` del área                                                                        |
