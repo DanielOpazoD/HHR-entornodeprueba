@@ -1,4 +1,4 @@
-import { nurseIdentityKey, preferredStaffName } from './nurseIdentity';
+import { isSpellingOf, preferredStaffName } from './nurseIdentity';
 import { doc, onSnapshot, runTransaction } from 'firebase/firestore';
 import { defaultFirestoreServiceRuntime as runtime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import {
@@ -10,25 +10,15 @@ import {
 import { mergeStaffRegistries } from './eloisaStaffDiscovery';
 import {
   mergeStaffCatalog,
+  readStaffIdentities,
   resolveEloisaStaffIdentity,
+  staffPerson,
   type EloisaStaffIdentity,
 } from './eloisaStaffIdentity';
 
-export const SHARED_STAFF_DOC = 'eloisa_staff_catalog';
+export const SHARED_STAFF_DOC = SETTINGS_DOCS.ELOISA_STAFF;
 const list = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
-const identities = (value: unknown): EloisaStaffIdentity[] =>
-  Array.isArray(value)
-    ? value.filter(
-        (v): v is EloisaStaffIdentity =>
-          v &&
-          typeof v.key === 'string' &&
-          typeof v.name === 'string' &&
-          ['nurse', 'tens'].includes(v.role) &&
-          Array.isArray(v.aliases) &&
-          v.aliases.every((a: unknown) => typeof a === 'string')
-      )
-    : [];
 const ref = (id: string) =>
   doc(
     runtime.getDb(),
@@ -49,8 +39,12 @@ export const planSharedStaffCatalog = (
   const merged = mergeStaffRegistries(incoming, previous);
   const entries = merged.map(entry => ({
     ...entry,
+    // The saved spelling of this same person stays unless Eloísa's has more marks.
     name: (entry.role === 'nurse' ? nurses : tens)
-      .filter(name => nurseIdentityKey(name) === nurseIdentityKey(entry.name))
+      .filter(
+        name =>
+          isSpellingOf(name, entry.name) && staffPerson(name, merged, entry.role).key === entry.key
+      )
       .reduce((preferred, name) => preferredStaffName(name, preferred), entry.name),
     manuallyCatalogued:
       entry.manuallyCatalogued ??
@@ -82,7 +76,7 @@ export const publishSharedStaffCatalog = async (
       transaction.get(tensRef),
     ]);
     check();
-    const previous = identities(shared.data()?.list);
+    const previous = readStaffIdentities(shared.data()?.list);
     const { list: nurseList, nurses: legacyNurses } = nurses.data() ?? {};
     const nurseNames = list(nurseList ?? legacyNurses);
     const tensNames = list(tens.data()?.list ?? tens.data()?.tens);
@@ -110,4 +104,8 @@ export const subscribeSharedStaffCatalog = (
   next: (entries: EloisaStaffIdentity[]) => void,
   error: (error: unknown) => void
 ): (() => void) =>
-  onSnapshot(ref(SHARED_STAFF_DOC), snapshot => next(identities(snapshot.data()?.list)), error);
+  onSnapshot(
+    ref(SHARED_STAFF_DOC),
+    snapshot => next(readStaffIdentities(snapshot.data()?.list)),
+    error
+  );

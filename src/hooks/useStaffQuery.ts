@@ -1,4 +1,3 @@
-import { nurseIdentityKey } from '@/services/staff/nurseIdentity';
 import {
   CatalogConflictError,
   diffCatalog,
@@ -8,13 +7,14 @@ import {
   type SavedStaffCatalog,
 } from '@/services/repositories/contracts/catalogChanges';
 import { replaceEqualDeep, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { queryKeys } from '../config/queryClient';
 import { CatalogRepository } from '@/services/repositories/CatalogRepository';
 import { useAuth } from '@/context/AuthContext';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import { useEloisaStaff } from './useEloisaStaff';
 import {
+  listedStaffPerson,
   mergeStaffCatalog,
   savedTextsOfRow,
   staffCatalogRows,
@@ -88,12 +88,21 @@ interface CatalogSource<T> {
   /** The confirmed list a whole-list save replaces; undefined when it was never read. */
   savedBase: (data: T[] | undefined) => T[] | undefined;
   /** Whether the accepted list already holds the edit, so a lost answer is not an error. */
-  isAccepted: (edit: CatalogEdit<T>, current: unknown) => boolean;
+  isAccepted: (
+    edit: CatalogEdit<T>,
+    current: unknown,
+    identities: readonly EloisaStaffIdentity[]
+  ) => boolean;
   structuralSharing: boolean | ((previous: unknown, next: unknown) => unknown);
 }
 
-const staffNamesAccepted = (edit: CatalogEdit<string>, current: unknown): boolean =>
-  catalogEditAccepted(edit, current, normalizeStringCatalog, exactStaffName, nurseIdentityKey);
+/** An added name is accepted once a row of the same person is saved, never another ID's row. */
+const staffNamesAccepted =
+  (role: NursingRole) =>
+  (edit: CatalogEdit<string>, current: unknown, identities: readonly EloisaStaffIdentity[]) =>
+    catalogEditAccepted(edit, current, normalizeStringCatalog, exactStaffName, name =>
+      listedStaffPerson(name, [...identities], role)
+    );
 
 // Nurses and TENS differ only in where their list lives; names follow the same identity rules.
 const STAFF_CATALOGS: Record<NursingRole, CatalogSource<string>> = {
@@ -104,7 +113,7 @@ const STAFF_CATALOGS: Record<NursingRole, CatalogSource<string>> = {
     save: (next, base) => CatalogRepository.saveNurses(next, base),
     normalize: normalizeStringCatalog,
     savedBase: savedStaffNames,
-    isAccepted: staffNamesAccepted,
+    isAccepted: staffNamesAccepted('nurse'),
     structuralSharing: keepExampleProvenance,
   },
   tens: {
@@ -114,7 +123,7 @@ const STAFF_CATALOGS: Record<NursingRole, CatalogSource<string>> = {
     save: (next, base) => CatalogRepository.saveTens(next, base),
     normalize: normalizeStringCatalog,
     savedBase: savedStaffNames,
-    isAccepted: staffNamesAccepted,
+    isAccepted: staffNamesAccepted('tens'),
     structuralSharing: keepExampleProvenance,
   },
 };
@@ -236,7 +245,12 @@ const useAcceptedCatalogChange = <T>(
  * Saves a whole catalog against the list it was edited from. Never saves over a list that was
  * not read, and on a conflict shows the list the server holds instead of the edit.
  */
-const useCatalogSaveMutation = <T>(source: CatalogSource<T>) => {
+const NO_STAFF_IDENTITIES: readonly EloisaStaffIdentity[] = [];
+
+const useCatalogSaveMutation = <T>(
+  source: CatalogSource<T>,
+  identities: readonly EloisaStaffIdentity[] = NO_STAFF_IDENTITIES
+) => {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
@@ -268,15 +282,21 @@ const useCatalogSaveMutation = <T>(source: CatalogSource<T>) => {
       }
     },
   });
-  useAcceptedCatalogChange(source.key, mutation, source.isAccepted);
+  const isAccepted = useCallback(
+    (edit: CatalogEdit<T>, current: unknown) => source.isAccepted(edit, current, identities),
+    [source, identities]
+  );
+  useAcceptedCatalogChange(source.key, mutation, isAccepted);
   return mutation;
 };
 
 /** Saves the nurses catalog. */
-export const useSaveNursesMutation = () => useCatalogSaveMutation(STAFF_CATALOGS.nurse);
+export const useSaveNursesMutation = () =>
+  useCatalogSaveMutation(STAFF_CATALOGS.nurse, useEloisaStaff());
 
 /** Saves the TENS catalog. */
-export const useSaveTensMutation = () => useCatalogSaveMutation(STAFF_CATALOGS.tens);
+export const useSaveTensMutation = () =>
+  useCatalogSaveMutation(STAFF_CATALOGS.tens, useEloisaStaff());
 
 /** Saves the professionals catalog. */
 export const useSaveProfessionalsMutation = () => useCatalogSaveMutation(PROFESSIONALS_CATALOG);

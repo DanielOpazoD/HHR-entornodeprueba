@@ -5,6 +5,7 @@ import { ensureDbReady, hospitalDB } from '@/services/storage/indexeddb/indexedD
 import {
   nursingRole,
   resolveEloisaStaffIdentity,
+  staffPerson,
   type EloisaStaffIdentity,
   type StaffObservation,
 } from './eloisaStaffIdentity';
@@ -63,14 +64,19 @@ export const registerEloisaStaff = async <T extends StaffObservation>(
   if (!observations.length) return observations;
   const identities = await saveDiscoveredStaff(mergeEloisaStaff([], observations));
   return observations.map(observation => {
+    const role = nursingRole(observation.role);
     const identity = resolveEloisaStaffIdentity(
       observation.author,
       identities,
-      nursingRole(observation.role),
+      role,
       observation.practitionerId
     );
+    // Without a source ID, a name two Eloísa people share names neither of them.
+    const ambiguous =
+      !observation.practitionerId && staffPerson(observation.author, identities, role).ambiguous;
     return {
       ...observation,
+      ...(ambiguous ? { staffNameAmbiguous: true } : {}),
       resolvedStaffIdentity: identity
         ? {
             key: identity.key,

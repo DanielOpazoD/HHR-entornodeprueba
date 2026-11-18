@@ -90,6 +90,19 @@ const rejected: Array<[rule: string, file: string, source: string]> = [
   ['staff-role-copies', 'src/components/modals/a.tsx', 'function NurseManagerModal() {}'],
   // Review of #1748: function, arrow and class components named for one role.
   ['staff-role-copies', 'src/A.tsx', 'export function NurseX() {return <div/>}'],
+  ['staff-name-fold', 'src/features/x/a.ts', 'nurseIdentityKey(a) === nurseIdentityKey(b);'],
+  ['staff-name-fold', 'src/services/staff/staffUsage.ts', 'uniqueStaffNames(names);'],
+  ['staff-name-fold', 'src/A.tsx', "import { reconcileNurseCatalogNames } from 'x';"],
+  [
+    'staff-name-fold-by-hand',
+    'src/services/staff/staffUsage.ts',
+    "name.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');",
+  ],
+  [
+    'staff-name-fold-by-hand',
+    'src/features/rayen-import/domain/staffIdentityReconciliation.ts',
+    'name.normalize("NFKD");',
+  ],
   ['staff-role-copies', 'src/A.tsx', 'export const TensX = () => <div/>'],
   [
     'staff-role-copies',
@@ -150,6 +163,23 @@ const accepted: Array<[why: string, file: string, source: string]> = [
   ['a role component in a test file', 'src/tests/A.test.tsx', 'const NurseX = () => <div/>;'],
   ['ordinary text', 'src/A.tsx', 'export const help = "NurseX y TensX";'],
   ['a role-named error class', 'src/A.tsx', 'export class NurseError extends Error {}'],
+  ['the staff name rules', 'src/services/staff/nurseIdentity.ts', 'nurseIdentityKey(a);'],
+  [
+    'the staff identity module',
+    'src/services/staff/eloisaStaffIdentity.ts',
+    'uniqueStaffNames(names);',
+  ],
+  ['a folded name in a test', 'src/tests/a.test.ts', 'nurseIdentityKey(a);'],
+  [
+    'a fold outside staff code',
+    'src/features/census/components/clinical-explorer/a.ts',
+    "name.normalize('NFD');",
+  ],
+  [
+    'the physician catalog',
+    'src/services/staff/treatingPhysicianCatalog.ts',
+    "x.normalize('NFD');",
+  ],
 ];
 
 describe('check-source-patterns', () => {

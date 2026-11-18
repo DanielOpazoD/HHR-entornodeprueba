@@ -95,6 +95,32 @@ En los catálogos de enfermería y TENS, las variantes que solo difieren en tild
 mayúsculas o espacios son una persona. Se conserva la forma con más diacríticos y, en empate, la
 ya catalogada. La presentación no reescribe turnos históricos.
 
+Cualquier otra marca separa dos nombres: la cedilla, el acento grave y el circunflejo
+(«França» y «Franca» son dos personas si nada las une). El ID de Eloísa manda sobre la grafía:
+los nombres de un mismo ID son una persona y una sola entrada del catálogo, que conserva la grafía
+guardada, y dos IDs son dos personas aunque sus nombres se parezcan: dos filas de la lista, dos
+opciones del selector y dos personas en las propuestas de turno, cada una con su grafía.
+
+- **La lista del rol tiene una fila por persona.** Corregir a mano la grafía de una fila
+  («Maria Pena» → «María Pena») la deja como fila de esa misma persona, también al reabrir el editor
+  y al volver a publicar; nunca toca la fila de otra persona.
+- **Texto exacto de una opción** es el mismo texto salvo mayúsculas y espacios, que no distinguen
+  personas; las tildes, la ñ o la cedilla sí cuentan para elegir entre dos IDs. Un turno guardado con
+  el texto de una opción se muestra como esa opción; si no coincide con ninguna y es de dos personas,
+  se ve vacante con el nombre guardado en la ayuda, en el encabezado y en el detalle, y no se reescribe.
+- **Un nombre sin ID que coincide con dos personas de Eloísa no elige a ninguna:** una actividad
+  firmada así deja el turno para revisar y no se agrega a la lista del rol.
+- **Un guardado se da por confirmado solo con la fila de la misma persona**, no con la de otra que se
+  escribe parecido. Un registro antiguo sin ID se compara con la regla de hoy, no por la clave con que
+  se guardó.
+
+Toda decisión de «misma persona, otra o ambigua» la toma `src/services/staff/eloisaStaffIdentity.ts`
+(`staffPerson`, `listedStaffPerson`, `staffRowKey`, `sameStaffMember`); el nombre plegado solo se usa
+dentro de ese módulo y de `nurseIdentity.ts` (controles `staff-name-fold` y `staff-name-fold-by-hand`
+en `check-source-patterns`). Una persona que Eloísa acredita por primera vez en una sincronización
+cuenta como persona propia en la propuesta de ese turno. Límite conocido: dos IDs con el mismo nombre
+exacto son una sola fila de la lista, porque la lista guarda nombres.
+
 ## Fechas y población del censo
 
 | ID      | Comportamiento esperado                                                                                                                                                                                                                                | Por qué                                                                                                                        |

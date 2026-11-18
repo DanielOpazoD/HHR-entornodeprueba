@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import {
+  nurseIdentityKey,
   reconcileNurseCatalogNames,
   reconcileSelectedNurseName,
 } from '@/services/staff/nurseIdentity';
@@ -22,6 +23,18 @@ it.each([
   expect(reconcileNurseCatalogNames([saved, incoming])).toEqual([preferred]);
   expect(reconcileSelectedNurseName(saved, [incoming, preferred])).toBe(preferred);
 });
+// The contract folds only tildes, diaeresis, ñ, case and spacing; other marks are other names.
+it.each([
+  ['Ana França', 'Ana Franca'],
+  ['Ana Côte', 'Ana Cote'],
+  ['Agnès Soto', 'Agnes Soto'],
+  ['João Soto', 'Joao Soto'],
+])('keeps %s and %s as two people', (marked, plain) => {
+  expect(nurseIdentityKey(marked)).not.toBe(nurseIdentityKey(plain));
+  expect(reconcileNurseCatalogNames([marked, plain])).toEqual([marked, plain]);
+  expect(reconcileSelectedNurseName(plain, [marked])).toBe(plain);
+});
+
 it('keeps distinct full identities and leaves historical input unchanged', () => {
   const historical = ['Ana Pena Soto', 'Ana Peña Rojas'];
   expect(reconcileNurseCatalogNames(historical)).toEqual(historical);

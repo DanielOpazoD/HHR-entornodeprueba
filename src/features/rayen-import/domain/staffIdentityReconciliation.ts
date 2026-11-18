@@ -2,25 +2,32 @@ import type {
   NursingShiftEvidence,
   NursingShiftSuggestion,
 } from '../contracts/nursingShiftInference';
-import { nurseIdentityKey, toShortNurseName } from '@/services/staff/nurseIdentity';
+import { toShortNurseName } from '@/services/staff/nurseIdentity';
+import { staffNameTokens, staffRowKey } from '@/services/staff/eloisaStaffIdentity';
 
-const identityTokenCount = (name: string): number => nurseIdentityKey(name).split(' ').length;
+// Who a name is comes from the staff identity module, over the role list of the proposal: two
+// rows of that list are two people even when their names fold alike («Luz Pena», «Luz Peña»).
+// A person Eloísa accredits for the first time in this run is a row of their own as well.
+const keyOf = (suggestion: NursingShiftSuggestion, name: string): string =>
+  staffRowKey(name, [...(suggestion.catalogNames ?? []), ...(suggestion.uncataloguedPeople ?? [])]);
 
-const identityTokens = (name: string): string[] => nurseIdentityKey(name).split(' ');
+const identityTokenCount = (name: string): number => staffNameTokens(name).length;
 
-const shortIdentityKey = (name: string): string => nurseIdentityKey(toShortNurseName(name));
+const identityTokens = (name: string): string[] => staffNameTokens(name);
 
 const isExactCatalogIdentity = (suggestion: NursingShiftSuggestion, name: string): boolean =>
   (suggestion.catalogNames ?? []).some(
-    catalogName => nurseIdentityKey(catalogName) === nurseIdentityKey(name)
+    catalogName => keyOf(suggestion, catalogName) === keyOf(suggestion, name)
   );
 
-const candidateCanonicalKey = (candidate: NursingShiftEvidence): string =>
-  nurseIdentityKey(candidate.name);
+const candidateCanonicalKey = (
+  suggestion: NursingShiftSuggestion,
+  candidate: NursingShiftEvidence
+): string => keyOf(suggestion, candidate.name);
 
 const isExactCandidateIdentity = (suggestion: NursingShiftSuggestion, name: string): boolean =>
   suggestion.candidates.some(
-    candidate => candidateCanonicalKey(candidate) === nurseIdentityKey(name)
+    candidate => candidateCanonicalKey(suggestion, candidate) === keyOf(suggestion, name)
   );
 
 const canRepresentStructuredAlias = (alias: string, fullName: string): boolean => {
@@ -42,18 +49,18 @@ const catalogTargetKeys = (suggestion: NursingShiftSuggestion, shortName: string
   new Set(
     (suggestion.catalogNames ?? [])
       .filter(catalogName => canRepresentStructuredAlias(shortName, catalogName))
-      .map(nurseIdentityKey)
+      .map(name => keyOf(suggestion, name))
   );
 
 const aliasTargetKeys = (suggestion: NursingShiftSuggestion): Map<string, Set<string>> => {
   const targets = new Map<string, Set<string>>();
   for (const candidate of suggestion.candidates) {
-    const canonicalKey = candidateCanonicalKey(candidate);
+    const canonicalKey = candidateCanonicalKey(suggestion, candidate);
     for (const alias of [
       ...(candidate.identityAliases ?? []),
       ...(candidate.observedNames ?? []),
     ]) {
-      const aliasKey = nurseIdentityKey(alias);
+      const aliasKey = keyOf(suggestion, alias);
       const candidates = targets.get(aliasKey) ?? new Set<string>();
       candidates.add(canonicalKey);
       targets.set(aliasKey, candidates);
@@ -63,19 +70,19 @@ const aliasTargetKeys = (suggestion: NursingShiftSuggestion): Map<string, Set<st
 };
 
 const candidateKeysForName = (suggestion: NursingShiftSuggestion, name: string): Set<string> => {
-  const nameKey = nurseIdentityKey(name);
+  const nameKey = keyOf(suggestion, name);
   const exactCandidate = suggestion.candidates.find(
-    candidate => candidateCanonicalKey(candidate) === nameKey
+    candidate => candidateCanonicalKey(suggestion, candidate) === nameKey
   );
-  if (exactCandidate) return new Set([candidateCanonicalKey(exactCandidate)]);
+  if (exactCandidate) return new Set([candidateCanonicalKey(suggestion, exactCandidate)]);
 
   const matches = new Set<string>();
   for (const candidate of suggestion.candidates) {
     const evidenceKeys = [
       ...(candidate.identityAliases ?? []),
       ...(candidate.observedNames ?? []),
-    ].map(nurseIdentityKey);
-    if (evidenceKeys.includes(nameKey)) matches.add(candidateCanonicalKey(candidate));
+    ].map(name => keyOf(suggestion, name));
+    if (evidenceKeys.includes(nameKey)) matches.add(candidateCanonicalKey(suggestion, candidate));
   }
   return matches;
 };
@@ -89,8 +96,11 @@ const knownCanonicalNames = (suggestion: NursingShiftSuggestion): string[] => [
 const fallbackLongVariantCount = (suggestion: NursingShiftSuggestion, coreKey: string): number =>
   new Set(
     knownCanonicalNames(suggestion)
-      .filter(name => identityTokenCount(name) > 2 && shortIdentityKey(name) === coreKey)
-      .map(nurseIdentityKey)
+      .filter(
+        name =>
+          identityTokenCount(name) > 2 && keyOf(suggestion, toShortNurseName(name)) === coreKey
+      )
+      .map(name => keyOf(suggestion, name))
   ).size;
 
 /** True when an occupied short label can resolve to more than one full identity. */
@@ -102,7 +112,7 @@ export const hasAmbiguousOccupiedStaffAlias = (
   const aliases = aliasTargetKeys(suggestion);
 
   return occupiedNames.some(occupiedName => {
-    const coreKey = nurseIdentityKey(occupiedName);
+    const coreKey = keyOf(suggestion, occupiedName);
     const verifiedTargets = new Set(aliases.get(coreKey) ?? []);
     const verifiedAlternativeTargets = new Set(
       [...verifiedTargets].filter(targetKey => targetKey !== coreKey)
@@ -143,7 +153,7 @@ export const hasAmbiguousOccupiedStaffAlias = (
         identityTokenCount(otherOccupiedName) > 2 &&
         canRepresentStructuredAlias(occupiedName, otherOccupiedName)
       ) {
-        possibleKeys.add(nurseIdentityKey(otherOccupiedName));
+        possibleKeys.add(keyOf(suggestion, otherOccupiedName));
       }
     }
     return possibleKeys.size > 1;
@@ -156,7 +166,7 @@ export const namesReferToSameStaffMember = (
   left: string,
   right: string
 ): boolean => {
-  if (nurseIdentityKey(left) === nurseIdentityKey(right)) return true;
+  if (keyOf(suggestion, left) === keyOf(suggestion, right)) return true;
   const leftCandidates = candidateKeysForName(suggestion, left);
   const rightCandidates = candidateKeysForName(suggestion, right);
   const uniqueSharedCandidate =
@@ -182,17 +192,17 @@ export const deduplicateSuggestedPeople = (
 ): DeduplicatedStaffPeople => {
   const namesByIdentity = new Map<string, string>();
   for (const name of names) {
-    const key = nurseIdentityKey(name);
+    const key = keyOf(suggestion, name);
     if (!namesByIdentity.has(key)) namesByIdentity.set(key, name);
   }
   const uniqueNames = [...namesByIdentity.values()];
-  const selectedKeys = new Set(uniqueNames.map(nurseIdentityKey));
+  const selectedKeys = new Set(uniqueNames.map(name => keyOf(suggestion, name)));
   const collapsedShortKeys = new Set<string>();
   const aliases = aliasTargetKeys(suggestion);
   let ambiguous = false;
 
   for (const name of uniqueNames) {
-    const shortKey = nurseIdentityKey(name);
+    const shortKey = keyOf(suggestion, name);
     const verifiedTargets = aliases.get(shortKey) ?? new Set<string>();
     const targets = new Set([...verifiedTargets, ...catalogTargetKeys(suggestion, name)]);
     const selectedTargets = [...targets].filter(key => selectedKeys.has(key));
@@ -228,7 +238,7 @@ export const deduplicateSuggestedPeople = (
   }
 
   return {
-    names: uniqueNames.filter(name => !collapsedShortKeys.has(nurseIdentityKey(name))),
+    names: uniqueNames.filter(name => !collapsedShortKeys.has(keyOf(suggestion, name))),
     ambiguous,
   };
 };

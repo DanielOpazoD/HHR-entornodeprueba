@@ -90,6 +90,8 @@ export const SETTINGS_DOCS = {
   NURSES: 'nurses',
   /** TENS catalog */
   TENS: 'tens',
+  /** People Eloísa reported, with their source IDs and aliases (shared staff identity) */
+  ELOISA_STAFF: 'eloisa_staff_catalog',
   /** Table column configuration */
   TABLE_CONFIG: 'tableConfig',
   /** Default discharge indications catalog for clinical documents */

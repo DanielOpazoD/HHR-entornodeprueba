@@ -1,9 +1,14 @@
 import type { DailyRecordStaffingState } from '@/types/domain/dailyRecordSlices';
 import { collectRecordedStaffNames } from './dailyRecordStaffing';
-import { nurseIdentityKey } from './nurseIdentity';
-import { resolveStaffSelectionValue, isVacancySelection } from './staffSelectionPresentation';
-import type { EloisaStaffIdentity, NursingRole } from './eloisaStaffIdentity';
+import { isVacancySelection } from './staffSelectionPresentation';
+import {
+  listedStaffPerson,
+  staffRowKey,
+  type EloisaStaffIdentity,
+  type NursingRole,
+} from './eloisaStaffIdentity';
 
+/** Censuses per person (`listedStaffPerson` key), so two IDs that spell alike count apart. */
 export type StaffUsage = Record<NursingRole, Record<string, number>>;
 export const countStaffUsage = (
   records: Partial<DailyRecordStaffingState>[],
@@ -16,7 +21,7 @@ export const countStaffUsage = (
       const daily = new Set(
         (role === 'nurse' ? names.nurseNames : names.tensNames)
           .filter(name => typeof name === 'string' && !isVacancySelection(name))
-          .map(name => nurseIdentityKey(resolveStaffSelectionValue(name, identities, role)))
+          .map(name => listedStaffPerson(name.trim(), identities, role))
       );
       // One occurrence per census, not per patient, alias or copied shift slot.
       for (const key of daily) usage[role][key] = (usage[role][key] ?? 0) + 1;
@@ -28,20 +33,20 @@ export const countStaffUsage = (
 export const partitionStaffOptions = (
   options: string[],
   selected: string[],
-  usage: Record<string, number> = {}
+  usage: Record<string, number> = {},
+  /** The person an option or selection stands for; the same key `countStaffUsage` counts. */
+  personOf: (name: string) => string = name => staffRowKey(name)
 ) => {
   const names = options.filter(name => !isVacancySelection(name));
-  const protectedNames = new Set(selected.map(nurseIdentityKey));
+  const protectedNames = new Set(selected.map(personOf));
   const count =
-    names.length >= 4 && names.some(name => (usage[nurseIdentityKey(name)] ?? 0) > 0)
+    names.length >= 4 && names.some(name => (usage[personOf(name)] ?? 0) > 0)
       ? Math.round(names.length * 0.25)
       : 0;
   const hidden = [...names]
-    .filter(name => !protectedNames.has(nurseIdentityKey(name)))
+    .filter(name => !protectedNames.has(personOf(name)))
     .sort(
-      (a, b) =>
-        (usage[nurseIdentityKey(a)] ?? 0) - (usage[nurseIdentityKey(b)] ?? 0) ||
-        a.localeCompare(b, 'es')
+      (a, b) => (usage[personOf(a)] ?? 0) - (usage[personOf(b)] ?? 0) || a.localeCompare(b, 'es')
     )
     .slice(0, count);
   const hiddenSet = new Set(hidden);

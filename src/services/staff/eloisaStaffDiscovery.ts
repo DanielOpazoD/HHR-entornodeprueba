@@ -1,6 +1,8 @@
-import { nurseIdentityKey, preferredStaffName, uniqueStaffNames } from './nurseIdentity';
+import { isSpellingOf, preferredStaffName } from './nurseIdentity';
 import {
   nursingRole,
+  personSpellings,
+  staffNameKey,
   staffNameMatches,
   type EloisaStaffIdentity,
   type StaffObservation,
@@ -13,28 +15,58 @@ const validName = (value: string) =>
   value.split(' ').length >= 2 &&
   !/^(no informad|sin informaci|enfermer[oa] |tens )/i.test(value);
 
+/**
+ * The record a person is kept under: by source ID, else by name under today's rule. A record
+ * without ID is found by its name, never by a key an older name fold wrote.
+ */
+const recordOf = (
+  records: Map<string, EloisaStaffIdentity>,
+  {
+    key,
+    role,
+    name,
+    practitionerId,
+  }: Pick<EloisaStaffIdentity, 'key' | 'role' | 'name' | 'practitionerId'>
+): EloisaStaffIdentity | undefined =>
+  practitionerId
+    ? records.get(key)
+    : [...records.values()].find(
+        record =>
+          !record.practitionerId &&
+          record.role === role &&
+          staffNameKey(record.name) === staffNameKey(name)
+      );
+
+/** A new person's key: one an older fold already gave another person («ana franca») stays theirs. */
+const freeKey = (records: Map<string, EloisaStaffIdentity>, key: string): string =>
+  records.has(key) ? key.replace(':name:', ':spelling:') : key;
+
+/** One person's name: a richer spelling of the same letters, else the longer name. */
+const personName = (kept: string, incoming: string, incomingWinsTie: boolean): string =>
+  isSpellingOf(kept, incoming)
+    ? preferredStaffName(kept, incoming)
+    : incoming.length > kept.length || (incomingWinsTie && incoming.length === kept.length)
+      ? incoming
+      : kept;
+
 export const mergeStaffRegistries = (
   incoming: EloisaStaffIdentity[],
   previous: EloisaStaffIdentity[]
 ): EloisaStaffIdentity[] => {
   const records = new Map(previous.map(entry => [entry.key, entry]));
   for (const entry of incoming) {
-    const known = records.get(entry.key);
+    const known = recordOf(records, entry);
+    const key = known?.key ?? freeKey(records, entry.key);
     records.set(
-      entry.key,
+      key,
       known
         ? {
             ...entry,
             ...known,
-            name:
-              nurseIdentityKey(entry.name) === nurseIdentityKey(known.name)
-                ? preferredStaffName(known.name, entry.name)
-                : entry.name.length > known.name.length
-                  ? entry.name
-                  : known.name,
-            aliases: uniqueStaffNames([...known.aliases, ...entry.aliases, known.name, entry.name]),
+            name: personName(known.name, entry.name, false),
+            aliases: personSpellings([...known.aliases, ...entry.aliases, known.name, entry.name]),
           }
-        : entry
+        : { ...entry, key }
     );
   }
   return mergeEloisaStaff([...records.values()], []);
@@ -60,14 +92,15 @@ export const mergeEloisaStaff = (
       continue;
     const sourceId = clean(observation.practitionerId ?? '');
     const practitionerId = sourceId && sourceId !== '0' ? sourceId : undefined;
-    const key = `${role}:${practitionerId ? `id:${practitionerId}` : `name:${nurseIdentityKey(name)}`}`;
-    const previous = records.get(key);
+    const ownKey = `${role}:${practitionerId ? `id:${practitionerId}` : `name:${staffNameKey(name)}`}`;
+    const previous = recordOf(records, { key: ownKey, role, name, practitionerId });
+    const key = previous?.key ?? freeKey(records, ownKey);
     const parts = observation.authorIdentity;
     const structured =
       parts && clean(parts.firstGivenName) && clean(parts.firstSurname)
         ? clean(`${parts.firstGivenName} ${parts.firstSurname}`)
         : '';
-    const aliases = uniqueStaffNames([
+    const aliases = personSpellings([
       ...(previous?.aliases ?? []),
       ...(previous ? [previous.name] : []),
       name,
@@ -77,12 +110,7 @@ export const mergeEloisaStaff = (
       ...previous,
       key,
       role,
-      name:
-        previous && nurseIdentityKey(previous.name) === nurseIdentityKey(name)
-          ? preferredStaffName(previous.name, name)
-          : previous && previous.name.length > name.length
-            ? previous.name
-            : name,
+      name: previous ? personName(previous.name, name, true) : name,
       ...(practitionerId ? { practitionerId } : {}),
       aliases,
     });
@@ -100,7 +128,7 @@ export const mergeEloisaStaff = (
     if (targets.length !== 1) continue;
     const target = targets[0];
     if (entry.manuallyCatalogued) target.manuallyCatalogued = true;
-    target.aliases = uniqueStaffNames([...target.aliases, entry.name, ...entry.aliases]);
+    target.aliases = personSpellings([...target.aliases, entry.name, ...entry.aliases]);
     records.delete(key);
   }
   return [...records.values()].sort((a, b) => a.key.localeCompare(b.key));
