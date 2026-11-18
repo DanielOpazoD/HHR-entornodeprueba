@@ -8,7 +8,7 @@ import {
   type ClinicalEpisodeFallbackEvent,
   resolveClinicalEpisode,
   resolveClinicalEpisodeAdmissionDate,
-} from '@/application/patient-flow/clinicalEpisode';
+} from '@/domain/clinical-episode/clinicalEpisode';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { calculateAge } from '@/utils/clinicalUtils';
 import { normalizeCalendarDate } from '@/utils/clinicalDateUtils';

@@ -6,7 +6,7 @@ import {
   getActiveCma,
   getActiveDischarges,
   getActiveTransfers,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 
 interface ShiftMovement {
   time?: string;

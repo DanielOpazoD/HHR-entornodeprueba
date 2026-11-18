@@ -1,4 +1,4 @@
-import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/admissionDatePolicy';
+import { AdmissionDatePolicyViolationError } from '@/domain/clinical-episode/admissionDatePolicy';
 import { normalizeDateOnly } from '@/utils/clinicalDayUtils';
 import {
   MAX_RAYEN_STRUCTURAL_REVIEW_ISSUES,

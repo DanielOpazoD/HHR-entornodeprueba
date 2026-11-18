@@ -1,9 +1,9 @@
-import type { PatientEpisodeContract } from '@/application/patient-flow/clinicalEpisodeContracts';
+import type { PatientEpisodeContract } from '@/domain/clinical-episode/clinicalEpisodeContracts';
 import {
   buildClinicalEpisodeKey,
   normalizeClinicalEpisodeId,
   resolveClinicalEpisodeAdmissionDate,
-} from '@/application/patient-flow/clinicalEpisode';
+} from '@/domain/clinical-episode/clinicalEpisode';
 
 const CANONICAL_EPISODE_ID_PREFIX = 'ep_';
 export const LEGACY_EPISODE_ID_PREFIX = 'legacy_ep_';

@@ -3,7 +3,7 @@ import {
   canDeleteClinicalDocuments,
   canEditClinicalDocuments,
   canReadClinicalDocuments,
-} from '@/application/clinical-documents/clinicalDocumentAccessPolicy';
+} from '@/shared/access/clinicalDocumentAccessPolicy';
 
 /**
  * Role-based permission guards for clinical document operations.

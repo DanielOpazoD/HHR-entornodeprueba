@@ -5,7 +5,7 @@ import type {
   PatientTraceability,
 } from '@/types/minsalTypes';
 import type { DailyRecordMovementState as MinsalDailyRecord } from '@/types/domain/dailyRecordSlices';
-import { getActiveCma } from '@/application/census/movementTombstonePolicy';
+import { getActiveCma } from '@/domain/movements/movementTombstonePolicy';
 import {
   buildReportingSpecialtyTraceFields,
   resolveReportingSpecialty,

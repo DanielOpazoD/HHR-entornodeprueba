@@ -3,7 +3,7 @@ import type { DischargeData } from '@/types/domain/movements';
 import { buildCensusMovementTableHeaders } from './censusMovementTableHeaders';
 import { buildMovementRowActions } from '@/features/census/controllers/censusMovementRowActionsController';
 import { canReclassifyHomeDischarge } from '@/application/census/movementTypeConversionPolicy';
-import { isClinicalCribDischarge } from '@/application/census/movementTombstonePolicy';
+import { isClinicalCribDischarge } from '@/domain/movements/movementTombstonePolicy';
 
 export const DISCHARGES_TABLE_HEADERS = buildCensusMovementTableHeaders(['Tipo Alta', 'Estado']);
 

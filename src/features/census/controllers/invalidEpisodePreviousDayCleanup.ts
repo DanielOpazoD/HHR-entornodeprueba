@@ -6,7 +6,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   tombstoneMovementsWhere,
   type TombstonableMovement,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 import { buildAtomicPatientMovementPatch } from '@/application/census/atomicPatientMovementPatchController';
 import { buildClearPatientPatches } from '@/hooks/controllers/bedManagementPatchController';
 import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';

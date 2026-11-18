@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { planRayenCensusImport, applyCensusImportDiff } from '@/features/rayen-import';
 import { RayenImportPreviewModal } from '@/features/rayen-import/components/RayenImportPreviewModal';
-import { getActiveDischarges } from '@/application/census/movementTombstonePolicy';
+import { getActiveDischarges } from '@/domain/movements/movementTombstonePolicy';
 import { DischargeDataSchema } from '@/schemas/zod/movements';
 import { repairRecord } from './clinicalCribDischargeRepairs.fixtures';
 

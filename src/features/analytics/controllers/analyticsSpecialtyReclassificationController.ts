@@ -2,7 +2,7 @@ import {
   getActiveCma,
   getActiveDischarges,
   getActiveTransfers,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 import { MinsalMovementKind, SpecialtyReclassification } from '@/types/minsalTypes';
 import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import { resolveReportingSpecialty } from '@/services/calculations/minsal/specialtyReporting';

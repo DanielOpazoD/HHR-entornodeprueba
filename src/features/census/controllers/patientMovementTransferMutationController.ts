@@ -8,7 +8,7 @@ import {
   buildClearedBedPatient,
   clonePatientSnapshot,
 } from '@/features/census/controllers/patientMovementCreationSharedController';
-import { ensurePatientClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
+import { ensurePatientClinicalEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import {
   buildMovementProvenance,
   type MovementProvenanceSeed,

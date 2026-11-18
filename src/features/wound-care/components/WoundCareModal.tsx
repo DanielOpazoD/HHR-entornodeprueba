@@ -18,7 +18,7 @@ import { PhotoGallery } from './PhotoGallery';
 import { WoundCareErrorBoundary } from './WoundCareErrorBoundary';
 import { formatSessionDate } from '../controllers/photoGalleryController';
 import { WoundCareMobileQrPanel } from './WoundCareMobileQrPanel';
-import { resolveAdmissionDateFromClinicalEpisodeKey } from '@/application/patient-flow/clinicalEpisode';
+import { resolveAdmissionDateFromClinicalEpisodeKey } from '@/domain/clinical-episode/clinicalEpisode';
 
 // ============================================================================
 // Episode Section (collapsible per hospitalization)

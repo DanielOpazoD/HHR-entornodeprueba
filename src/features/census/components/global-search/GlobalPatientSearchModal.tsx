@@ -15,7 +15,7 @@ import { PatientEpisodeTimeline } from '@/features/census/components/global-sear
 import { SearchResultsSkeleton } from '@/features/census/components/global-search/SearchResultsSkeleton';
 import type { ClinicalDocSummary } from '@/features/census/components/global-search/globalSearchContracts';
 import type { ClinicalDocumentsWorkspacePatientContract } from '@/features/clinical-documents';
-import { resolveAdmissionDateFromClinicalEpisodeKey } from '@/application/patient-flow/clinicalEpisode';
+import { resolveAdmissionDateFromClinicalEpisodeKey } from '@/domain/clinical-episode/clinicalEpisode';
 
 const LazyClinicalDocumentsModal = lazy(() =>
   import('@/features/clinical-documents').then(module => ({

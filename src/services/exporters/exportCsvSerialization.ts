@@ -11,7 +11,7 @@ import { resolveEffectiveUpcState } from '@/shared/census/upcBedPolicy';
 import {
   getActiveDischarges,
   getActiveTransfers,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 
 const escapeCsvValue = (value: unknown): string => {
   if (value === null || value === undefined) return '';

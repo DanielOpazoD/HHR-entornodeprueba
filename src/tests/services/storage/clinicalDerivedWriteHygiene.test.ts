@@ -12,7 +12,7 @@ import {
   withClearedStoredMovedFields,
 } from '@/services/storage/clinicalDerivedWriteHygiene';
 import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
-import { ensureDailyRecordClinicalEpisodeIds } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
+import { ensureDailyRecordClinicalEpisodeIds } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 type Holder = Record<string, unknown>;
 type Day = Record<string, unknown> & { beds: Record<string, Holder> };

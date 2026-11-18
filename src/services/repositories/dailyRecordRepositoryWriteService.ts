@@ -54,9 +54,9 @@ import { buildPreOutboxRemoteAckOptions } from '@/services/repositories/dailyRec
 import { buildPreOutboxRemoteAckCallbacks } from '@/services/repositories/dailyRecordPreOutboxRemoteAckCallbacks';
 import { dailyRecordWriteLogger } from '@/services/repositories/repositoryLoggers';
 import { DataRegressionError, VersionMismatchError } from '@/utils/integrityGuard';
-import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/admissionDatePolicy';
+import { AdmissionDatePolicyViolationError } from '@/domain/clinical-episode/admissionDatePolicy';
 import { classifyConflictChangedContexts } from '@/services/repositories/conflictResolutionDomainPolicy';
-import { isMovementReclassificationPatch } from '@/application/census/movementReclassificationConcurrencyPolicy';
+import { isMovementReclassificationPatch } from '@/domain/movements/movementReclassificationConcurrencyPolicy';
 import { runWithDailyRecordWriteLock } from '@/services/repositories/dailyRecordWriteCoordinator';
 import {
   assertDailyRecordPartialUpdateAccepted,

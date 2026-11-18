@@ -3,7 +3,7 @@ import type { PatientData } from '@/types/domain/patient';
 import * as z from 'zod';
 import { BEDS } from '@/constants/beds';
 import { PatientDataSchema } from '@/schemas/zod/patient';
-import { getActiveDischarges } from '@/application/census/movementTombstonePolicy';
+import { getActiveDischarges } from '@/domain/movements/movementTombstonePolicy';
 import { normalizeRut } from '@/utils/rutUtils';
 import {
   calendarDateForMovement,

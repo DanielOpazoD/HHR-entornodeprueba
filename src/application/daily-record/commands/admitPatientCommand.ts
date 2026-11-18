@@ -36,7 +36,7 @@ import {
   buildRuntimeOperationStatusSnapshot,
   type RuntimeOperationStatusSnapshot,
 } from '@/shared/contracts/runtimeOperationStatus';
-import { resolveClinicalEpisodeIdForAdmission } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
+import { resolveClinicalEpisodeIdForAdmission } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { EloisaManualImportAudit } from '@/shared/contracts/eloisaManualImport';
 import type { DeviceDetails, DeviceInstance } from '@/types/domain/devices';

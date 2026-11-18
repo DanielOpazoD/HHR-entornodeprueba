@@ -4,7 +4,7 @@ import { normalizeDateOnly } from '@/utils/clinicalDayUtils';
 import {
   resolveAdmissionDateAudit as resolveAdmissionDateAuditPolicy,
   type AdmissionDateAuditResolution,
-} from '@/application/patient-flow/admissionDatePolicy';
+} from '@/domain/clinical-episode/admissionDatePolicy';
 export {
   resolveAllowedAdmissionDates,
   resolveAdmissionDateOptions,

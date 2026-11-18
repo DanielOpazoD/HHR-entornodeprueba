@@ -2,7 +2,7 @@ import type { PatientData } from '@/types/domain/patient';
 
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-import { tombstoneMovementsWhere } from '@/application/census/movementTombstonePolicy';
+import { tombstoneMovementsWhere } from '@/domain/movements/movementTombstonePolicy';
 import { matchesRestoredPatientDestination } from '@/application/census/movementUndoIdentityPolicy';
 
 interface ApplyUndoDischargeInput {

@@ -1,5 +1,5 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { tombstoneMovementById } from '@/application/census/movementTombstonePolicy';
+import { tombstoneMovementById } from '@/domain/movements/movementTombstonePolicy';
 import { DischargeType, TransferData, type IeehData } from '@/types/domain/movements';
 
 interface UpdateDischargeMovementInput {

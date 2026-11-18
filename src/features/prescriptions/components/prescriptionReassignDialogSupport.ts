@@ -5,7 +5,7 @@ import {
   formatDayLabel,
   todayIso,
 } from '@/features/prescriptions/components/prescriptionBedGridSupport';
-import { isMovementDeleted } from '@/application/census/movementTombstonePolicy';
+import { isMovementDeleted } from '@/domain/movements/movementTombstonePolicy';
 
 export interface DailyBedOption {
   bedId: string;

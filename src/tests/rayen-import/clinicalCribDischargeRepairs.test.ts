@@ -14,7 +14,7 @@ import { areRayenStructuralPlansEquivalent } from '@/features/rayen-import/hooks
 import {
   getActiveDischarges,
   getStatisticalDischarges,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 import { mergeMovementArrayById } from '@/services/repositories/conflictResolutionMovementMergePolicy';
 import type { DischargeData } from '@/types/domain/movements';
 import { repairRecord } from './clinicalCribDischargeRepairs.fixtures';

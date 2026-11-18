@@ -4,7 +4,7 @@ import type { PendingDailyRecordSyncTaskSnapshot } from '@/services/storage/sync
 import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields';
-import { hasSamePatientEpisodeIdentity } from '@/application/patient-flow/patientEpisodeIdentityPolicy';
+import { hasSamePatientEpisodeIdentity } from '@/domain/clinical-episode/patientEpisodeIdentityPolicy';
 
 const BED_SCOPED_PATH = /^beds\.([^.]+)(?:\.(clinicalCrib)(?:\.|$)|(?:\.|$))/;
 const BED_SLOT_METADATA_FIELDS = new Set(['isBlocked', 'blockedReason']);

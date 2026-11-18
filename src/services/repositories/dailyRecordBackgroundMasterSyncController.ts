@@ -13,7 +13,7 @@ import {
 import {
   getActiveDischarges,
   getActiveTransfers,
-} from '@/application/census/movementTombstonePolicy';
+} from '@/domain/movements/movementTombstonePolicy';
 
 type MasterSyncDailyRecordPatient = ReturnType<
   typeof collectDailyRecordPatientsForMasterSync

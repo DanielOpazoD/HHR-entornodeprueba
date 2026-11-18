@@ -1,4 +1,4 @@
-import { resolveClinicalEpisodeIdentifier } from '@/application/patient-flow/clinicalEpisode';
+import { resolveClinicalEpisodeIdentifier } from '@/domain/clinical-episode/clinicalEpisode';
 import type { AuditAction } from '@/types/auditActionTypes';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
 

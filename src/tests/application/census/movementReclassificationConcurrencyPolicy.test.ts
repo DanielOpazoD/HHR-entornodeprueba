@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   findActiveMovementLineageConflicts,
   isMovementReclassificationPatch,
-} from '@/application/census/movementReclassificationConcurrencyPolicy';
+} from '@/domain/movements/movementReclassificationConcurrencyPolicy';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const movement = (id: string, lineageId: string, deletedAt?: string) => ({

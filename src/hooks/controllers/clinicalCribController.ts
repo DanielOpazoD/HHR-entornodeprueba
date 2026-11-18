@@ -5,7 +5,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 
 import type { ClinicalCribCreateRequest } from '@/types/domain/intentionalBedClear';
-import { resolveClinicalEpisodeIdForAdmission } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
+import { resolveClinicalEpisodeIdForAdmission } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import {
   buildConfirmedBedOccupantIdentity,
   canRebaseIntentionalBedClear,

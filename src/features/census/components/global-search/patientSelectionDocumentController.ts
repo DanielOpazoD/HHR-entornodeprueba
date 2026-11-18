@@ -2,7 +2,7 @@ import {
   buildLegacyClinicalDocumentEpisodeLookupKeys,
   parseLegacyClinicalEpisodeKey,
   type LegacyClinicalEpisodeKeyParts,
-} from '@/application/patient-flow/clinicalEpisode';
+} from '@/domain/clinical-episode/clinicalEpisode';
 import type { ClinicalDocSummary } from '@/features/census/components/global-search/globalSearchContracts';
 
 export type PatientSelectionEpisodeLookupKey = LegacyClinicalEpisodeKeyParts;

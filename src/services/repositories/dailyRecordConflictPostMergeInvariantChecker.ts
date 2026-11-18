@@ -5,7 +5,7 @@ import {
 } from '@/services/repositories/dailyRecordClinicalConsistencyCheck';
 import { shouldPreserveLocalPatientNarrative } from '@/services/repositories/patientEpisodeNarrativePolicy';
 import { buildMedicalHandoffSummary } from '@/domain/handoff/specialty';
-import { findActiveMovementLineageConflicts } from '@/application/census/movementReclassificationConcurrencyPolicy';
+import { findActiveMovementLineageConflicts } from '@/domain/movements/movementReclassificationConcurrencyPolicy';
 import { finalizeCudyrCompletion } from '@/domain/cudyr/cudyrCompletion';
 import { collectClosedCudyrInvariantViolations } from '@/services/repositories/dailyRecordCudyrPostMergeInvariantChecker';
 

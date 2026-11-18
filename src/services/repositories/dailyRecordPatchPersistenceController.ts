@@ -19,7 +19,7 @@ import {
 } from '@/services/repositories/dailyRecordMetadataDomainService';
 import { assertAdmissionDatePersistencePolicy } from '@/services/repositories/dailyRecordAdmissionDateWritePolicy';
 import { buildInvariantRepairReviewContext } from '@/services/repositories/invariantRepairReviewContext';
-import { buildDailyRecordClinicalEpisodeIdPatches } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
+import { buildDailyRecordClinicalEpisodeIdPatches } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import { mergeRayenSyncHistory } from '@/services/repositories/dailyRecordRayenSyncHistoryPolicy';
 
 export const preparePatchedRecordPersistence = (
