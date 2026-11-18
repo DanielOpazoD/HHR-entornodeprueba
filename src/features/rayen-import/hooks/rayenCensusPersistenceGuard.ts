@@ -1,8 +1,10 @@
-import type {
-  SaveDailyRecordResult,
-  UpdatePartialDailyRecordResult,
+import {
+  isDailyRecordWriteRejectedResult,
+  resolveDailyRecordWriteStatus,
+  toDailyRecordWriteError,
+  type SaveDailyRecordResult,
+  type UpdatePartialDailyRecordResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
-import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
@@ -84,9 +86,23 @@ export const applyRayenHistoricalCorrectionState = (
       : handoff;
 
 /**
- * Clinical enrichment must start only after the structural census write is authoritative.
- * A queued or auto-merged full save is safe for eventual recovery, but its remote structure can
- * still be stale, so applying patient patches immediately could target the previous bed layout.
+ * Whether this structural census is the day's settled state: confirmed by the server, or stored
+ * here with no server to send it to. A queued, merged or held write is safe for eventual
+ * recovery, but its remote structure can still be stale.
+ */
+export const isRayenCensusWriteSettled = (
+  result: SaveDailyRecordResult | UpdatePartialDailyRecordResult
+): boolean => {
+  const status = resolveDailyRecordWriteStatus(result);
+  return (
+    (status.state === 'confirmed' && status.localCopy === 'current') ||
+    (status.state === 'local' && status.cause === 'stored')
+  );
+};
+
+/**
+ * Clinical enrichment must start only after the structural census write is settled: applying
+ * patient patches over a structure the server may not hold yet could target the previous beds.
  */
 export const assertRayenCensusPersistenceConfirmed = (
   payload: RayenCensusPersistencePayload
@@ -98,30 +114,19 @@ export const assertRayenCensusPersistenceConfirmed = (
     );
   }
 
+  // Un rechazo por versión viaja como ConcurrencyError (toDailyRecordWriteError): el lazo de
+  // replan de confirmRayenImport lo reconoce y reintenta sobre el registro fresco. Verificado en
+  // vivo (31-08): el CAS rechazado llegaba como Error genérico, la corrida moría con 0 reintentos
+  // y la escritura encolada del evento de fallo chocaba con la SIGUIENTE corrida.
   if (isDailyRecordWriteRejectedResult(result)) {
-    const rejection =
-      result.blockingError ??
-      new Error(result.userSafeMessage || 'No fue posible guardar la estructura del censo.');
-    // Un rechazo por versión debe viajar con su nombre real: el lazo de
-    // replan de confirmRayenImport lo reconoce y reintenta sobre el registro
-    // fresco. Verificado en vivo (31-08): el CAS rechazado llegaba como Error
-    // genérico, la corrida moría con 0 reintentos y la escritura encolada del
-    // evento de fallo chocaba con la SIGUIENTE corrida — fallos en cascada.
-    if (result.conflictSummary?.kind === 'concurrency' && rejection.name === 'Error') {
-      rejection.name = 'ConcurrencyError';
-    }
-    throw rejection;
+    throw toDailyRecordWriteError(result, 'No fue posible guardar la estructura del censo.');
   }
 
-  if (result.outcome !== 'clean') {
-    const pendingWrite = new Error(
-      result.userSafeMessage ||
-        'El censo quedó guardado localmente y está pendiente de confirmación en la nube. La información clínica no se aplicó; vuelve a sincronizar cuando termine el guardado.'
+  if (!isRayenCensusWriteSettled(result)) {
+    throw toDailyRecordWriteError(
+      result,
+      'El censo quedó guardado localmente y está pendiente de confirmación en la nube. La información clínica no se aplicó; vuelve a sincronizar cuando termine el guardado.'
     );
-    if (result.conflictSummary?.kind === 'concurrency') {
-      pendingWrite.name = 'ConcurrencyError';
-    }
-    throw pendingWrite;
   }
 };
 

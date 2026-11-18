@@ -29,7 +29,10 @@ import {
   type RayenSyncRun,
 } from '../domain/rayenSyncHistory';
 import { elapsedMilliseconds, mergeRayenSyncPerformance } from '../domain/rayenSyncPerformance';
-import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
+import {
+  isDailyRecordWriteRejectedResult,
+  toDailyRecordWriteError,
+} from '@/services/repositories/contracts/dailyRecordResults';
 import { createRayenSyncRunLifecycle } from '../domain/rayenSyncRunLifecycle';
 import { buildRayenApplyFailureEvidence } from '../domain/rayenApplyFailureEvidence';
 import {
@@ -75,10 +78,7 @@ const assertMetadataPatchAccepted = (payload: unknown): void => {
       | undefined
   )?.result;
   if (!result || !isDailyRecordWriteRejectedResult(result)) return;
-  const error =
-    result.blockingError ?? new Error(result.userSafeMessage || 'No se confirmó el guardado.');
-  if (result.conflictSummary?.kind === 'concurrency') error.name = 'ConcurrencyError';
-  throw error;
+  throw toDailyRecordWriteError(result, 'No se confirmó el guardado.');
 };
 
 const sourceFromHealth = (health?: RayenExtensionHealthState): RayenSyncSource | undefined =>

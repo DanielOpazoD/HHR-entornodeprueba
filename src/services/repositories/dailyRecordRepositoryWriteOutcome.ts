@@ -1,23 +1,23 @@
-import type {
-  SaveDailyRecordResult,
-  UpdatePartialDailyRecordResult,
+import {
+  resolveDailyRecordWriteStatus,
+  toDailyRecordWriteError,
+  type SaveDailyRecordResult,
+  type UpdatePartialDailyRecordResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
-import { isDailyRecordWriteBlockedResult } from '@/services/repositories/contracts/dailyRecordResults';
-import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
 
-export const assertDailyRecordSaveAccepted = (result: SaveDailyRecordResult): void => {
-  if (result.blockingError) throw result.blockingError;
-};
-
-export const assertDailyRecordPartialUpdateAccepted = (
-  result: UpdatePartialDailyRecordResult
+/**
+ * What `save`/`updatePartial` callers get: the write throws when it was blocked or its producer
+ * attached an error. A refusal that kept this computer's copy for review resolves here; the census
+ * flow (`assertDailyRecordWriteAccepted`) is the caller that stops on it.
+ */
+export const assertDailyRecordRepositoryWriteAccepted = (
+  result: SaveDailyRecordResult | UpdatePartialDailyRecordResult
 ): void => {
-  if (result.blockingError) throw result.blockingError;
-  if (result.outcome !== 'blocked' && !isDailyRecordWriteBlockedResult(result)) return;
-  throw new Error(
-    resolveApplicationOutcomeMessage(
+  const status = resolveDailyRecordWriteStatus(result);
+  if (result.blockingError || (status.state === 'not_saved' && status.reason === 'blocked')) {
+    throw toDailyRecordWriteError(
       result,
       'La actualización quedó bloqueada por una validación de consistencia.'
-    )
-  );
+    );
+  }
 };
