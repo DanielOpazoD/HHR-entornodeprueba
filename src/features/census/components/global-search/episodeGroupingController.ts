@@ -14,17 +14,15 @@ import type {
   PatientHistoryResult,
   PatientMovement,
 } from '@/services/patient/patientHistoryService';
+import { diffCalendarDays } from '@/utils/clinicalDateUtils';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const calculateDaysBetween = (start: string, end: string): number => {
-  const s = new Date(`${start}T12:00:00`);
-  const e = new Date(`${end}T12:00:00`);
-  return Math.max(Math.round((e.getTime() - s.getTime()) / (1000 * 3600 * 24)), 0);
-};
+const calculateDaysBetween = (start: string, end: string): number =>
+  Math.max(diffCalendarDays(start, end) ?? 0, 0);
 
 const buildOpenEpisode = (
   admission: HospitalizationEvent,

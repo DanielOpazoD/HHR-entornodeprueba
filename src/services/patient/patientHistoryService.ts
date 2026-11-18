@@ -13,6 +13,7 @@ import {
 export type { PatientHistoryLoadOptions } from './patientHistoryRecordLoader';
 import { BEDS } from '@/constants/beds';
 import { getActiveMovements } from '@/application/census/movementTombstonePolicy';
+import { diffCalendarDays } from '@/utils/clinicalDateUtils';
 
 // ============================================================================
 // Types
@@ -222,14 +223,8 @@ function collectPatientMovementHistory(
   if (movements.length === 0) return null;
 
   // Use the official formula for totalDays (matching Census first column)
-  const calculateDays = (startStr: string, endStr: string): number => {
-    if (!startStr || !endStr) return 0;
-    const start = new Date(`${startStr}T12:00:00`);
-    const end = new Date(`${endStr}T12:00:00`);
-    const diff = end.getTime() - start.getTime();
-    const days = Math.round(diff / (1000 * 3600 * 24));
-    return days >= 0 ? days : 0;
-  };
+  const calculateDays = (startStr: string, endStr: string): number =>
+    Math.max(diffCalendarDays(startStr, endStr) ?? 0, 0);
 
   const firstSeenDate = movements[0].date;
   const totalDays = calculateDays(firstSeenDate, lastSeenDate);
