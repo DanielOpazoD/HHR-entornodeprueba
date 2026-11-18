@@ -75,7 +75,7 @@ describe('unconfirmed queue visibility', () => {
     );
     const result = project(rows);
     expect(result.stats).toMatchObject({ pending: 2, failed: 1, conflict: 1, retrying: 0 });
-    expect(result.html).toContain('Guardado local · 4 por enviar');
+    expect(result.html).toContain('Guardado local · 2 por enviar · 2 por revisar');
   });
   it('preserves retry age and operational budgets during an active send', () => {
     const telemetry = buildSyncQueueTelemetryFromRows(

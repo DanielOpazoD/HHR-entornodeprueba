@@ -21,7 +21,9 @@ export const RayenSyncQueueDetails: React.FC<{
   refresh: () => Promise<void>;
   working: boolean;
   pagination?: { hasMore: boolean; onShowMore: () => void };
-}> = ({ stats, operations, refresh, working, pagination }) => {
+  /** Only the administrator reads the raw code and text of a refusal. */
+  isAdmin?: boolean;
+}> = ({ stats, operations, refresh, working, pagination, isAdmin = false }) => {
   const [busy, setBusy] = React.useState(false);
   const [actionFailed, setActionFailed] = React.useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = React.useState<number | null>(null);
@@ -31,10 +33,19 @@ export const RayenSyncQueueDetails: React.FC<{
   // Their edits left the stored day: they cannot be resent, only reviewed and entered again.
   const releasedIds = new Set(operations.filter(op => op.projectionReleased).map(op => op.id));
   const blocked = listQuarantinedOperations(
-    operations.filter(op => !isPolicyBlockedCudyrArchive(op))
+    operations.filter(op => !isPolicyBlockedCudyrArchive(op)),
+    { isAdmin }
   );
-  // Retrying tasks are already included in pending.
-  const total = stats.pending + stats.failed + stats.conflict;
+  // Retrying tasks are already included in pending. Stopped sends do not go out by themselves:
+  // they are counted apart, for review, never as about to be sent.
+  const stopped = stats.failed + stats.conflict;
+  const total = stats.pending + stopped;
+  const summary = [
+    stats.pending > 0 && `${stats.pending} por enviar`,
+    stopped > 0 && `${stopped} por revisar`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const unavailable =
     stats.readState === 'unavailable' || stats.recentOperationsReadState === 'unavailable';
   const run = async (id: number, action: (taskId: number) => Promise<boolean>) => {
@@ -58,7 +69,7 @@ export const RayenSyncQueueDetails: React.FC<{
           data-testid="rayen-local-sync-details"
         >
           <summary className="cursor-pointer font-semibold text-slate-600">
-            Guardado local · {unavailable ? 'por comprobar' : `${total} por enviar`}
+            Guardado local · {unavailable ? 'por comprobar' : summary}
           </summary>
           {unavailable && (
             <p className={`mt-1 ${SYNC_TONE.review.text}`}>
@@ -120,7 +131,12 @@ export const RayenSyncQueueDetails: React.FC<{
                       {operation.retryGuidance}
                     </span>
                   )}
-                  {(operation.code || operation.detail) && (
+                  {operation.recovery === 'editing_window_closed' && (
+                    <span className={`block text-[10px] ${stoppedSendText}`}>
+                      {operation.guidance}
+                    </span>
+                  )}
+                  {isAdmin && (operation.code || operation.detail) && (
                     <details className="text-[10px] text-slate-400">
                       <summary>Detalle técnico</summary>
                       {operation.code && <span>{operation.code}</span>}
@@ -140,7 +156,8 @@ export const RayenSyncQueueDetails: React.FC<{
                       Descartar envío
                     </button>
                   )}
-                  {operation.recovery === 'review_base' ? null : operation.recovery ===
+                  {operation.recovery === 'review_base' ||
+                  operation.recovery === 'editing_window_closed' ? null : operation.recovery ===
                     'review_authorization' ? (
                     <details
                       className="text-right"

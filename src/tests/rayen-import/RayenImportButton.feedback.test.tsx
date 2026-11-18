@@ -118,10 +118,40 @@ describe('RayenImportButton feedback', () => {
     await clickLazyControl(
       screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' })
     );
-    expect(await screen.findByText('Guardado local · 17 por enviar')).toBeInTheDocument();
+    expect(await screen.findByText('Guardado local · 17 por revisar')).toBeInTheDocument();
     expect(screen.getAllByText(/CUDYR · autorización anterior/)).toHaveLength(1);
     expect(screen.queryByText('Registro del censo')).not.toBeInTheDocument();
     expect(mocks.triggerImport).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [false, 'hides'],
+    [true, 'shows'],
+  ])('passes the role to the panel: admin %s → %s the raw refusal', async isAdmin => {
+    mocks.useRayenImport.mockReturnValue({ ...mocks.useRayenImport(), isAdmin });
+    mocks.useSyncQueueMonitor.mockReturnValue({
+      stats: { pending: 0, failed: 1, conflict: 0, retrying: 0, oldestPendingAgeMs: 0 },
+      operations: [
+        {
+          id: 1,
+          type: 'UPDATE_DAILY_RECORD',
+          status: 'FAILED',
+          retryCount: 0,
+          timestamp: 1,
+          key: 'daily:2026-10-22',
+          lastErrorCategory: 'authorization',
+          lastErrorCode: 'permission-denied',
+          error: '[authorization/permission-denied] synthetic rules evaluation text',
+        },
+      ],
+      refresh: vi.fn(),
+    });
+    render(<RayenImportButton />);
+    await clickLazyControl(
+      screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' })
+    );
+    expect(await screen.findByText('Guardado local · 1 por revisar')).toBeInTheDocument();
+    expect(screen.queryByText('Detalle técnico') !== null).toBe(isAdmin);
   });
 
   it('keeps active retries visible in the usual panel without triggering a sync', async () => {
@@ -170,7 +200,9 @@ describe('RayenImportButton feedback', () => {
       await clickLazyControl(
         screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' })
       );
-      expect(await screen.findByText('Guardado local · 25 por enviar')).toBeVisible();
+      expect(
+        await screen.findByText('Guardado local · 24 por enviar · 1 por revisar')
+      ).toBeVisible();
       expect(screen.queryByText('Censo del 22-10-2026')).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Ver más envíos' }));
       expect(screen.queryByText('Censo del 22-10-2026')).not.toBeInTheDocument();
