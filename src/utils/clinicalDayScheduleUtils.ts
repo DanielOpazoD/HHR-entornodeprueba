@@ -18,8 +18,8 @@ export interface ClinicalDayBounds {
 }
 
 /*
- * The hospital's shift hours on the Rapa Nui wall clock, written only here
- * (`npm run check:clinical-clock`, rule shift-start-literal). The day shift starts at 08:00 on a
+ * The hospital's shift hours on the Rapa Nui wall clock, written only here (the clinical clock
+ * control's shift-start-literal rule). The day shift starts at 08:00 on a
  * business day and at 09:00 on a weekend or holiday; the night shift always starts at 20:00 and
  * ends when the next day's day shift starts.
  */
