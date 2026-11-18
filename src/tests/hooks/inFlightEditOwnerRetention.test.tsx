@@ -218,7 +218,8 @@ it('review: actual UI callback notifies B about A', async () => {
     inFlight = h.result.current.patchRecord(patch).catch((e: unknown) => e);
   });
   await waitFor(() => expect(persistCalls).toBe(1));
-  await clearSessionScopedClientState('manual');
+  // Logout as the app runs it: the census cache is cleared (useAuthState.ts, clearQueryCache).
+  await clearSessionScopedClientState('manual', async () => setup.client.clear());
   await reconcileAuthorizedSessionOwner('user:C1-B');
   releaseWrite?.();
   await inFlight;
@@ -229,7 +230,8 @@ it('review: actual UI callback notifies B about A', async () => {
   expect(notices.error).not.toHaveBeenCalled();
   expect(notices.warning).not.toHaveBeenCalled();
   expect(notices.success).not.toHaveBeenCalled();
-  expect(value(setup.client)).not.toBe(patch['beds.R1.pathology']);
+  // Nothing of A's reaches B's cleared census: neither the edit nor a late rollback.
+  expect(value(setup.client)).toBeUndefined();
 });
 
 it('direct repository patch retains its author while waiting for the lock', async () => {

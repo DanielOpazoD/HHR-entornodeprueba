@@ -387,10 +387,9 @@ describe('H3: the session ends while a census edit is on its way', () => {
     });
   });
 
-  // W14-D1 H3: contradice la regla de cambio de sesión (ver REPORT)
-  // The late rollback writes the departing session's census into the cleared cache, and the
-  // next session's reader shows it without reading the day.
-  it('server first shown at once (crib creation): the next session shows the previous census', async () => {
+  // The late rollback no longer writes the departing session's census into the cleared cache:
+  // the next session's reader reads the day itself.
+  it('server first shown at once (crib creation): the next session reads the day itself', async () => {
     server.answer = {
       kind: 'refuses_after_session_ends',
       error: () => firestoreError('permission-denied'),
@@ -406,8 +405,8 @@ describe('H3: the session ends while a census edit is on its way', () => {
       avisos: [],
       mostradoAQuienEditaDuranteElEnvio: 'NOTA SINTETICA A',
       sesionSiguiente: {
-        muestra: 'NOCHE BASE',
-        lecturasDelDia: 0,
+        muestra: 'sin censo',
+        lecturasDelDia: 1,
       },
       cola: {},
       notaGuardada: undefined,

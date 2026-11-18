@@ -50,17 +50,24 @@ export const setAcknowledgedDailyRecordQueryData = async (
   {
     retainedProjection,
     optimisticRecord,
-  }: { retainedProjection?: boolean; optimisticRecord?: DailyRecord } = {}
-) => {
+    stillCurrent,
+  }: {
+    retainedProjection?: boolean;
+    optimisticRecord?: DailyRecord;
+    /** Asked again after the wait below: the session may end while queries are cancelled. */
+    stillCurrent?: () => boolean;
+  } = {}
+): Promise<boolean> => {
   if (!confirmedRecord) {
     setDailyRecordQueryData(queryClient, date, displayRecord);
-    return;
+    return true;
   }
   const isConfirmedProjection =
     !retainedProjection && hasSameComparableValue(displayRecord, confirmedRecord);
   const incomingRecord = isConfirmedProjection ? confirmedRecord : displayRecord;
   const queryKey = getDailyRecordQueryKey(date);
   await queryClient.cancelQueries({ queryKey, exact: true });
+  if (stillCurrent && !stillCurrent()) return false;
   queryClient.setQueryData<DailyRecordQueryResult>(queryKey, previous => {
     const cachedRecord = previous?.record;
     releaseConfirmedPendingDailyRecordPatches(date, confirmedRecord, cachedRecord ?? undefined);
@@ -97,6 +104,7 @@ export const setAcknowledgedDailyRecordQueryData = async (
       createProjectionRuntime(date, isConfirmedProjection)
     );
   });
+  return true;
 };
 
 /** Publishes an authority-confirmed payload without letting an older write ACK replace newer remote data. */
