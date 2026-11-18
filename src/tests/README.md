@@ -1,49 +1,16 @@
 # `src/tests`
 
-## Propósito
-
-Cobertura de calidad técnica en múltiples niveles (unit, integración y contratos).
-
-## Estructura
-
-| Path           | Tipo de pruebas                                 |
-| -------------- | ----------------------------------------------- |
-| `components/`  | UI y controllers de componentes                 |
-| `hooks/`       | Hooks de aplicación y controllers auxiliares    |
-| `services/`    | Servicios de datos, exportadores, storage, etc. |
-| `views/`       | Composición de vistas/feature controllers       |
-| `integration/` | Flujos transversales entre capas                |
-| `security/`    | Reglas Firestore y validaciones de seguridad    |
-| `schemas/`     | Validaciones de esquemas                        |
-| `utils/`       | Utilidades puras                                |
-| `types/`       | Contratos/tipos                                 |
-| `factories/`   | Data factories para tests                       |
-| `setup.ts`     | Setup global de testing                         |
-
-## Estrategia
-
-- Unit tests para controllers puros y utilidades.
-- Integration tests para hooks + repositorios + estado.
-- Pruebas de regresión en módulos críticos (`census`, `handoff`, `transfers`).
-
-## Comandos útiles
+Pruebas unitarias y de integración con Vitest (`*.test.ts`, `*.test.tsx`), organizadas por
+capa y por área; las pruebas con emulador viven en `emulator/` y `emulator-ui/`. Cada prueba
+verifica lo que observa quien usa el código y usa solo datos sintéticos. De preferencia, la
+prueba de `src/X/y.ts` vive en `src/tests/X/` ([arquitectura](../../docs/architecture.md)).
 
 ```bash
-npm run test
-npm run test:watch
-npm run test:coverage
-npx vitest run src/tests/views/census
-npx vitest run src/tests/components/InitialLoadingScreen.test.tsx src/tests/components/AppLoadingBehavior.test.tsx
-npx vitest run src/tests/components/InitialLoadingScreen.test.tsx src/tests/components/AppLoadingBehavior.test.tsx src/tests/views/census/CensusView.test.tsx
+npx vitest run src/tests/ruta/suite.test.ts
+npm run test:changed
+npm run test:emulator:file -- src/tests/emulator-ui/suite.emulator-ui.test.ts
 ```
 
-## Convenciones
-
-1. Nombre: `*.test.ts` o `*.test.tsx`.
-2. Priorizar tests de comportamiento observable.
-3. Mockear integración externa (Firebase, browser runtime) cuando corresponda.
-4. Evitar acoplar tests a detalles internos no estables.
-
-Pure controller suites may opt into Node when their behavior needs no DOM.
-Keep browser tests in their browser environment; see the
-[measured cohorts and reproduction commands](../../docs/testing/NODE_UNIT_SUITES.md).
+Las suites de controladores puros pueden correr en Node cuando no necesitan DOM; las de
+navegador se quedan en su entorno ([cohortes medidas y comandos](../../docs/testing/NODE_UNIT_SUITES.md)).
+Más detalle en [CONTRIBUTING.md](../../CONTRIBUTING.md).

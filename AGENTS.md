@@ -20,8 +20,8 @@ el resto de `docs/` es de consulta, no lectura previa.
   por su identificador (ID-01, TIME-02, SAVE-01…) o su tema, en el
   [contrato operativo](docs/DOMAIN_RULES.md). El contrato manda sobre el código y sobre este
   archivo, y guarda el detalle de cada fila de abajo.
-- **Un módulo nuevo, una responsabilidad que se mueve o un cruce de features:** «Elegir dónde
-  cambiar» en [CONTRIBUTING.md](CONTRIBUTING.md) y el README de la carpeta.
+- **Algo nuevo o que cambia de lugar** (un módulo, una responsabilidad que se mueve, un cruce
+  de features): la [página de arquitectura](docs/architecture.md) (dónde va cada cosa).
 - **Un área con diseño propio:** ese diseño en `docs/`; por ejemplo, la fase 1a:
   [DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md](docs/DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md).
 - **Un fallo en CI:** el control que falló en

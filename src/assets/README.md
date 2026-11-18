@@ -1,16 +1,5 @@
 # `src/assets`
 
-## Propósito
-
-Contenedor para recursos estáticos internos del bundle (si no van en `public/`).
-
-## Estado actual
-
-| Path          | Estado    | Comentario                          |
-| ------------- | --------- | ----------------------------------- |
-| `src/assets/` | Reservado | Actualmente sin archivos de runtime |
-
-## Criterio de uso
-
-- Usar `public/` para recursos estáticos sin fingerprint del bundler.
-- Usar `src/assets/` para recursos importados desde código (`import img from ...`).
+Recursos estáticos que el código importa (`import img from …`) y que el empaquetador debe
+procesar. Hoy está vacía. Un recurso que no se importa desde el código, sin huella del
+empaquetador, va en `public/`. Dónde va cada cosa: [arquitectura](../../docs/architecture.md).

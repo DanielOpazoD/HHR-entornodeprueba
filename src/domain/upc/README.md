@@ -16,14 +16,6 @@ Pure business logic for classifying hospitalized patients as **UPC-UTI** or **UP
 | Neo1–Neo2 | Yes          | **No** (UTI only, protocol §3) |
 | H1C1–H6C2 | No           | No                             |
 
-## Files
-
-| File                   | Purpose                                                       |
-| ---------------------- | ------------------------------------------------------------- |
-| `upcCriteria.ts`       | Criterion constants (3 UCI + 6 UTI), validators, sanitizer    |
-| `upcClassification.ts` | `resolveUpcClassification()` — pure function, no side effects |
-| `upcContracts.ts`      | `UpcChecklistRecord` — Firestore persistence shape            |
-
 ## Algorithm
 
 ```

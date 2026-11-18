@@ -15,17 +15,12 @@ query / comando / suscripción
   -> storage local/remoto -> outcome -> caché/UI
 ```
 
-| Módulo dueño                                      | Responsabilidad                                   |
-| ------------------------------------------------- | ------------------------------------------------- |
-| `dailyRecordRepositoryReadService.ts`             | Lectura y resultado con metadata                  |
-| `dailyRecordRepositoryWriteService.ts`            | Guardado y patches, validación y recuperación     |
-| `dailyRecordBackupImportWriteService.ts`          | Importación de un respaldo, bajo bloqueo por día  |
-| `dailyRecordRepositorySyncService.ts`             | Suscripción, reconciliación y adopción confirmada |
-| `dailyRecordRepositoryInitializationService.ts`   | Inicialización de un día y copia de paciente      |
-| `dailyRecordDeletionService.ts`                   | Eliminación protegida por día y papelera remota   |
-| `dailyRecordLocalCachePersistence.ts`             | Admisión remota transaccional común               |
-| `dailyRecordConsistencyPolicy.ts` y `contracts/*` | Estados, inputs y resultados tipados              |
-| `repositoryConfig.ts`                             | Disponibilidad del runtime remoto                 |
+Cada operación tiene su servicio dueño: `dailyRecordRepositoryReadService.ts` (lectura con
+metadatos), `dailyRecordRepositoryWriteService.ts` (guardado y parches),
+`dailyRecordRepositorySyncService.ts` (suscripción y adopción confirmada),
+`dailyRecordRepositoryInitializationService.ts`, `dailyRecordDeletionService.ts` y
+`dailyRecordBackupImportWriteService.ts`; los estados y resultados tipados están en
+`dailyRecordConsistencyPolicy.ts` y `contracts/`.
 
 No tratar un `null`, una copia local o un error remoto como confirmación de ausencia.
 Conservar el outbox, las revisiones y el resultado de autoridad del comando. El

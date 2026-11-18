@@ -12,16 +12,6 @@ El modulo se integra como un **icono de camara sutil** en la celda del paciente 
 de la tabla de Entrega de Turno de Enfermeria. Al hacer clic, se abre un modal con el historial
 fotografico completo del paciente (hospitalizacion actual y previas).
 
-## Subcapas internas
-
-| Path           | Rol                                                                              |
-| -------------- | -------------------------------------------------------------------------------- |
-| `components/`  | UI: modal, galeria, lightbox, upload, consent                                    |
-| `controllers/` | Logica pura: estado de consentimiento, validacion de upload, agrupacion de fotos |
-| `domain/`      | Contratos, validacion de archivos, opciones de ubicacion corporal                |
-| `hooks/`       | Suscripcion a datos, orquestacion de uploads, historial multi-episodio           |
-| `services/`    | Generacion de PDF de consentimiento informado                                    |
-
 ## API publica
 
 ```typescript

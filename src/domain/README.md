@@ -1,21 +1,6 @@
 # `src/domain`
 
-## Propósito
-
-Lógica de dominio transversal independiente de UI/framework.
-
-## Archivos
-
-| Archivo            | Propósito                                                      |
-| ------------------ | -------------------------------------------------------------- |
-| `CensusManager.ts` | Reglas de dominio y validación de acciones de censo/movimiento |
-
-## Patrón
-
-- Dominio puro y reusable desde hooks/controllers.
-
-## Ejemplo
-
-```ts
-const validation = CensusManager.validateMovement(actionState, record);
-```
+Reglas de dominio puras, sin React ni I/O, que usan dos o más áreas (por ejemplo
+`CensusManager.ts`, CUDYR, UPC, escalas de evaluación, entrega). Una regla que usa una sola
+área va en `features/<área>/domain`. Dónde va cada cosa:
+[arquitectura](../../docs/architecture.md).

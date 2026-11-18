@@ -10,13 +10,12 @@
 ## Lectura recomendada
 
 1. [README.md](../README.md)
-2. [Contrato operativo](DOMAIN_RULES.md) y [glosario](GLOSSARY.md); después, [arquitectura y flujos vigentes](architecture.md)
+2. [Contrato operativo](DOMAIN_RULES.md) y [glosario](GLOSSARY.md); después, la [página de arquitectura](architecture.md): dónde va cada cosa
 3. [Cómo contribuir y validar](../CONTRIBUTING.md) y [reglas para agentes](../AGENTS.md), que Claude Code carga desde [CLAUDE.md](../CLAUDE.md)
-4. [docs/CODEBASE_CANON.md](CODEBASE_CANON.md)
-5. README del módulo que vas a tocar en `src/features/*/README.md` o `src/*/README.md`
-6. [docs/RUNBOOK_INDEX.md](RUNBOOK_INDEX.md)
-7. [Cadencia de mantenimiento](FOUNDATION_MAINTENANCE_CADENCE.md)
-8. [PROJECT_STATUS.md](../PROJECT_STATUS.md)
+4. README del módulo que vas a tocar en `src/features/*/README.md` o `src/*/README.md`
+5. [docs/RUNBOOK_INDEX.md](RUNBOOK_INDEX.md)
+6. [Cadencia de mantenimiento](FOUNDATION_MAINTENANCE_CADENCE.md)
+7. [PROJECT_STATUS.md](../PROJECT_STATUS.md)
 
 ## Módulos canónicos por área
 
@@ -35,10 +34,9 @@ Documentos que gobiernan decisiones activas y estructura actual del repo.
 
 - [README.md](../README.md)
 - [ARCHITECTURE.md](../ARCHITECTURE.md) — punto de entrada a la guía canónica
-- [docs/architecture.md](architecture.md) — flujos, autoridad y límites vigentes
+- [docs/architecture.md](architecture.md) — la única página de arquitectura: capas, reglas, dueños y dónde va cada cosa
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — entorno, selección de pruebas y publicación
 - [PROJECT_STATUS.md](../PROJECT_STATUS.md)
-- [docs/CODEBASE_CANON.md](CODEBASE_CANON.md)
 - [docs/DOMAIN_RULES.md](DOMAIN_RULES.md) — intención, invariantes y políticas operativas; leer antes de modificar un flujo
 - [docs/GLOSSARY.md](GLOSSARY.md) — vocabulario canónico del dominio (paciente/cama/alta/traslado/CUDYR/CMA/MINSAL…)
 - [docs/TODO_TRIAGE_PROCESS.md](TODO_TRIAGE_PROCESS.md) — playbook para mantener cero markers `TODO`/`FIXME` en código
@@ -57,7 +55,6 @@ Cada ADR declara su `**Estado:**` en la primera línea después del título:
 actualizar el `Estado` y apuntar al ADR reemplazante.
 
 - [ADR_ACCESS_POLICY_FACADE](ADR_ACCESS_POLICY_FACADE.md) — Vigente
-- [ADR_APPLICATION_BOUNDARY_ENFORCEMENT](ADR_APPLICATION_BOUNDARY_ENFORCEMENT.md) — Vigente
 - [ADR_APPLICATION_USE_CASES](ADR_APPLICATION_USE_CASES.md) — Vigente
 - [ADR_AUTH_RUNTIME_RECOVERY](ADR_AUTH_RUNTIME_RECOVERY.md) — Vigente
 - [ADR_CANONICAL_WRITE_ADOPTION_FACADES](ADR_CANONICAL_WRITE_ADOPTION_FACADES.md) — Histórico

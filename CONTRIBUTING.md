@@ -42,23 +42,11 @@ Functions tiene su propio manifest y lockfile en `functions/`; tratarlo por sepa
 
 ## Elegir dónde cambiar
 
-Al crear un módulo o mover una responsabilidad, consultar el README de la carpeta
-afectada; [arquitectura](docs/architecture.md) y [Codebase Canon](docs/CODEBASE_CANON.md)
-solo si el cambio cruza capas.
+Dónde va cada cosa, qué capa puede depender de cuál y quién es dueño de cada concepto lo
+dice la [página de arquitectura](docs/architecture.md); no se repite aquí. Además:
 
-- Preferir el dueño y camino existentes. Un wrapper sin validación, coordinación o
-  contrato propio no justifica otro módulo.
-- Una lógica usada por una sola feature permanece en ella. Promoverla a `shared`
-  sólo cuando exista reutilización real y semántica común.
-- Consumidores externos usan la API pública de la feature. Los adapters de servicios
-  concretos pertenecen al límite permitido, sin abrir imports de storage desde UI.
-- Preservar APIs públicas y lectores históricos. Código aparentemente antiguo puede
-  proteger datos, permisos o sesiones todavía válidos.
-- Memoizar sólo cuando la identidad o el coste importe a un consumidor demostrado.
-  No usar `useCallback` o `useMemo` como requisito universal.
-- Mover un archivo o carpeta con `node scripts/move-modules.mjs --check <origen> <destino>` (sin
-  `--check`, mueve): reescribe imports, `vi.mock`, configuraciones y documentos, y lista para
-  revisar a mano las carpetas que dejan de contener lo movido (cobertura, chunks, globs).
+Memoizar sólo cuando la identidad o el coste importe a un consumidor demostrado. No usar
+`useCallback` o `useMemo` como requisito universal.
 
 ## Iterar y probar comportamiento
 
