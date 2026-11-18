@@ -205,7 +205,105 @@ describe('move-modules', () => {
 
     const file = run(root, ['--check', 'src/app/consumer.ts', 'src/features/consumer.ts']);
     expect(file.output).toContain(
-      'scripts/config/chunking.ts:1  folder src/app/ will no longer hold src/app/consumer.ts'
+      'scripts/config/chunking.ts:1  folder src/app/ will be empty after the move (it held src/app/consumer.ts)'
+    );
+  });
+
+  it('refuses a regular expression that names a moved path, until --reviewed', () => {
+    // A guard such as `not.toMatch(/…old path…/)` would pass forever after the move.
+    const root = createRepo({
+      'src/lib/greeting.ts': "export const greet = () => 'real';\n",
+      'src/tests/build/policy.test.ts':
+        'expect(source).not.toMatch(/from [\'"]@\\/lib\\/greeting[\'"]/);\n',
+    });
+    const move = ['src/lib/greeting.ts', 'src/shared/greeting.ts'];
+
+    const check = run(root, ['--check', ...move]);
+    expect(check.status).toBe(1);
+    expect(check.output).toContain('src/tests/build/policy.test.ts:1  src/lib/greeting  (');
+    expect(check.output).toContain('Nothing was changed.');
+    expect(run(root, move).status).toBe(1);
+    expect(existsSync(path.join(root, 'src/lib/greeting.ts'))).toBe(true);
+
+    expect(run(root, ['--reviewed', ...move]).status).toBe(0);
+    expect(existsSync(path.join(root, 'src/shared/greeting.ts'))).toBe(true);
+  });
+
+  it('lists a Markdown link to a folder the move leaves empty', () => {
+    const root = createRepo({
+      'src/lib/greeting.ts': "export const greet = () => 'real';\n",
+      'docs/inventory.md': 'See [lib](../src/lib/) and [greeting](../src/lib/greeting.ts).\n',
+    });
+
+    const { status, output } = run(root, [
+      '--check',
+      'src/lib/greeting.ts',
+      'src/shared/greeting.ts',
+    ]);
+
+    expect(status, output).toBe(0);
+    expect(output).toContain(
+      'docs/inventory.md:1  link ../src/lib/ points to a folder the move leaves empty'
+    );
+    expect(output).toContain(
+      'docs/inventory.md:1  ../src/lib/greeting.ts → ../src/shared/greeting.ts'
+    );
+  });
+
+  // The pilot (evidence/W15/A6): a hook moved from a shared layer into the census feature.
+  const INTO_FEATURE = {
+    'src/hooks/format.ts': 'export const format = (text: string) => text.trim();\n',
+    'src/hooks/useMail.ts': "import { format } from './format';\nexport const useMail = format;\n",
+    'src/hooks/index.ts': "export { useMail } from './useMail';\n",
+    'src/features/census/view.ts':
+      "import { useMail } from '../../hooks/useMail';\nexport { useMail };\n",
+    'src/tests/build/firstPaint.test.ts': "const sources = ['src/features/census'];\n",
+  };
+  const INTO_FEATURE_MOVE = ['src/hooks/useMail.ts', 'src/features/census/email/useMail.ts'];
+
+  it('lists a folder a control watches when it receives a moved file', () => {
+    const root = createRepo(INTO_FEATURE);
+
+    const { status, output } = run(root, ['--check', ...INTO_FEATURE_MOVE]);
+
+    expect(status, output).toBe(0);
+    expect(output).toContain(
+      'src/tests/build/firstPaint.test.ts:1  folder src/features/census will now also hold src/hooks/useMail.ts'
+    );
+  });
+
+  it('writes a relative import that crosses into or out of a feature with the @/ alias', () => {
+    const root = createRepo(INTO_FEATURE);
+
+    expect(run(root, ['--reviewed', ...INTO_FEATURE_MOVE]).status).toBe(0);
+
+    // Shared layer → feature and feature → shared layer: the boundary rules read the alias.
+    expect(read(root, 'src/hooks/index.ts')).toBe(
+      "export { useMail } from '@/features/census/email/useMail';\n"
+    );
+    expect(read(root, 'src/features/census/email/useMail.ts')).toContain(
+      "import { format } from '@/hooks/format';"
+    );
+    // Inside one feature, relative stays relative.
+    expect(read(root, 'src/features/census/view.ts')).toContain("from './email/useMail';");
+  });
+
+  it('reformats only the Markdown tables it rewrote', () => {
+    const untouched = '\nKept   as *written*:\n\n| a | b |\n|---|---|\n| x | y |\n';
+    const root = createRepo({
+      'src/lib/greeting.ts': "export const greet = () => 'real';\n",
+      'docs/log.md': `| Module | Note |\n| --- | --- |\n| \`src/lib/greeting.ts\` | moved |\n${untouched}`,
+    });
+
+    expect(run(root, ['src/lib/greeting.ts', 'src/shared/text/greeting.ts']).status).toBe(0);
+
+    expect(read(root, 'docs/log.md')).toBe(
+      [
+        '| Module                        | Note  |',
+        '| ----------------------------- | ----- |',
+        '| `src/shared/text/greeting.ts` | moved |',
+        '',
+      ].join('\n') + untouched
     );
   });
 
@@ -286,8 +384,10 @@ describe('move-modules', () => {
 
   it('lists the rewrites of a sample move on the real repository without applying it', () => {
     // A module with references in e2e, tests, hooks and docs. If it moves, pick another one.
+    // `--reviewed`: this file's own regular expressions below name the old path.
     const { status, output } = run(REPO, [
       '--check',
+      '--reviewed',
       'src/config/queryClient.ts',
       'src/services/query/queryClient.ts',
     ]);
@@ -298,6 +398,9 @@ describe('move-modules', () => {
     );
     expect(output).toMatch(
       /src\/hooks\/useStaffQuery\.ts:\d+ {2}\.\.\/config\/queryClient → \.\.\/services\/query\/queryClient/
+    );
+    expect(output).toMatch(
+      /src\/tests\/scripts\/moveModules\.test\.ts:\d+ {2}src\/config\/queryClient\.ts {2}\(/
     );
     expect(existsSync(path.join(REPO, 'src/config/queryClient.ts'))).toBe(true);
     expect(existsSync(path.join(REPO, 'src/services/query/queryClient.ts'))).toBe(false);
