@@ -56,6 +56,9 @@ solo si el cambio cruza capas.
   proteger datos, permisos o sesiones todavía válidos.
 - Memoizar sólo cuando la identidad o el coste importe a un consumidor demostrado.
   No usar `useCallback` o `useMemo` como requisito universal.
+- Mover un archivo o carpeta con `node scripts/move-modules.mjs --check <origen> <destino>` (sin
+  `--check`, mueve): reescribe imports, `vi.mock`, configuraciones y documentos, y lista para
+  revisar a mano las carpetas que dejan de contener lo movido (cobertura, chunks, globs).
 
 ## Iterar y probar comportamiento
 
