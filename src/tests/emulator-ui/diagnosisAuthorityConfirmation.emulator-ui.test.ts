@@ -25,13 +25,21 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 /**
  * A diagnosis typed in the census cell, saved under the production configuration (the schema-v2
  * policy with enforced clinical batches, VITE_DAILY_RECORD_AUTHORITY_MODE left undefined): with
- * a normal confirmation, and when the server saved it but its answer never came back (SAVE-01,
- * SAVE-03). Runs the shipped census reducer, repository write, sync queue, callable client and
- * transport (with its receipt read of the server copy), the shipped authority handler in
- * `functions/lib` with the real admin transaction, and the real rules on the Firestore emulator.
- * Not real: the callable's HTTPS hop (Cloud Functions runtime, ID-token check, region), replaced
- * by a direct call of the handler; the role lookup, fixed to `nurse_hospital`; and the network
- * failures, injected at that hop and at the receipt read.
+ * a normal confirmation, when the server saved it but its answer never came back, and when the
+ * request never reached the server (SAVE-01, SAVE-03). Runs the shipped census reducer,
+ * repository write, sync queue, callable client and transport (with its receipt read of the
+ * server copy), the shipped authority handler in `functions/lib` with the real admin transaction,
+ * the mutation-id generator, and the real rules on the Firestore emulator.
+ * Not real: the callable's HTTPS hop (Cloud Functions runtime, ID-token check, App Check, region,
+ * SDK timeout), replaced by a direct call of the handler's `run`; the role lookup, fixed to
+ * `nurse_hospital`; the network failures, injected at that hop and at the client's Firestore
+ * reads; and the waits between direct-send retries, set to zero (the retry loop itself is real).
+ *
+ * Each case states two kinds of expectation. Clinical: what the person sees (saved or pending,
+ * the cell's value) and what stays on the server and in the queue (value, revision, history).
+ * Transport, labelled as such: how many requests reached the server and what they carried. A
+ * change that removes a round trip on purpose may need new transport numbers; the clinical
+ * expectations must hold unchanged.
  */
 
 // One SDK per person, bound to the async chain that writes, as in queueAcrossTabRestart.
@@ -64,16 +72,29 @@ vi.mock('@/firebaseConfig', () => ({
   getFunctionsInstance: vi.fn(),
   mountConfigWarning: vi.fn(),
 }));
+// The shipped retry loop (attempts, `shouldRetry`, `onRetry`) without its 1 + 2 + 4 s waits.
+vi.mock('@/utils/networkUtils', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/utils/networkUtils')>();
+  return {
+    ...actual,
+    withRetry: <T>(fn: () => Promise<T>, options: Parameters<typeof actual.withRetry>[1] = {}) =>
+      actual.withRetry(fn, { ...options, initialDelay: 0 }),
+  };
+});
 
 /**
- * The HTTPS hop of `httpsCallable`. The handler runs and commits; `cut` then drops the answer, as
- * a connection lost on the way back does, and leaves the next `down` network calls (callable
- * sends and server reads) failing: none, only the receipt read that follows, or every one until
- * the test brings the network back.
+ * The network between this computer and the server.
+ * - `requestsLost`: the next callable requests time out before reaching the handler (the
+ *   Functions endpoint is unreachable while Firestore reads still work).
+ * - `answerLost`: the next request reaches the handler, which commits; its answer never comes
+ *   back. The connection then stays down for `downAfterCut` more calls.
+ * - `down`: callable requests and the client's Firestore reads fail with `unavailable`.
+ * `delivered` records what reached the handler.
  */
 const network = vi.hoisted(() => ({
-  dispatched: 0,
-  cut: undefined as undefined | { down: number },
+  delivered: [] as { mutationId?: string; diagnosis?: unknown; change?: unknown }[],
+  requestsLost: 0,
+  answerLost: undefined as undefined | { downAfterCut: number },
   down: 0,
   api: undefined as
     | undefined
@@ -81,6 +102,8 @@ const network = vi.hoisted(() => ({
 }));
 /** Whether this network call fails because the connection is still down. */
 const isDown = () => network.down > 0 && network.down-- > 0;
+const unavailable = () =>
+  Object.assign(new Error('Synthetic network cut'), { code: 'unavailable' });
 vi.mock('@/services/firebase-runtime/functionsRuntime', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/firebase-runtime/functionsRuntime')>()),
   defaultFunctionsRuntime: {
@@ -93,7 +116,25 @@ vi.mock('firebase/functions', () => ({
   httpsCallable: (_functions: unknown, name: string) => async (payload: unknown) => {
     if (isDown())
       throw Object.assign(new Error('Synthetic network cut'), { code: 'functions/unavailable' });
-    network.dispatched++;
+    if (network.requestsLost > 0) {
+      network.requestsLost--;
+      throw Object.assign(new Error('Synthetic lost request'), {
+        code: 'functions/deadline-exceeded',
+      });
+    }
+    // A patch from the direct send, or the whole day from the queue.
+    const sent = payload as {
+      syncContract?: { mutationId?: string };
+      patch?: Record<string, unknown>;
+      record?: { beds?: Record<string, { pathology?: unknown }> };
+    };
+    network.delivered.push(
+      structuredClone({
+        mutationId: sent.syncContract?.mutationId,
+        diagnosis: sent.patch?.['beds.R1.pathology'] ?? sent.record?.beds?.R1?.pathology,
+        change: sent.patch ?? sent.record,
+      })
+    );
     const uid = scope.getStore()?.uid;
     let data: unknown;
     try {
@@ -109,9 +150,9 @@ vi.mock('firebase/functions', () => ({
       };
       throw Object.assign(new Error(message), { code: `functions/${code}`, details });
     }
-    if (network.cut) {
-      network.down = network.cut.down;
-      network.cut = undefined;
+    if (network.answerLost) {
+      network.down = network.answerLost.downAfterCut;
+      network.answerLost = undefined;
       throw Object.assign(new Error('Synthetic lost answer'), {
         code: 'functions/deadline-exceeded',
       });
@@ -123,10 +164,15 @@ vi.mock('firebase/firestore', async importOriginal => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
   return {
     ...actual,
+    // The receipt read after a lost answer.
     getDocFromServer: async (...args: Parameters<typeof actual.getDocFromServer>) => {
-      if (isDown())
-        throw Object.assign(new Error('Synthetic network cut'), { code: 'unavailable' });
+      if (isDown()) throw unavailable();
       return actual.getDocFromServer(...args);
+    },
+    // The queue's read of the server copy before it sends.
+    getDoc: async (...args: Parameters<typeof actual.getDoc>) => {
+      if (isDown()) throw unavailable();
+      return actual.getDoc(...args);
     },
   };
 });
@@ -135,7 +181,9 @@ const date = getTodayISO();
 const dayPath = `hospitals/hanga_roa/dailyRecords/${date}`;
 const projectId = 'demo-hhr-diagnosis-authority-confirmation';
 const OWNER = 'user:synthetic-P1';
+const BASE = 'DIAGNOSTICO BASE';
 const DIAGNOSIS = 'NEUMONIA ADQUIRIDA EN LA COMUNIDAD';
+const CORRECTED = 'NEUMONIA POR ASPIRACION';
 
 const baseRecord = (): DailyRecord =>
   ({
@@ -150,7 +198,7 @@ const baseRecord = (): DailyRecord =>
           rut: '12.345.678-5',
           admissionDate: date,
           clinicalEpisodeId: 'synthetic-episode-R1',
-          pathology: 'DIAGNOSTICO BASE',
+          pathology: BASE,
           age: '40',
         }),
       },
@@ -187,15 +235,16 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         date
       );
     };
-    const historyCopies = async () => (await admin.collection(`${dayPath}/history`).get()).size;
+    const serverDiagnosis = async () => (await readServer()).beds.R1.pathology;
+    const cellDiagnosis = async () => (await hospitalDB.dailyRecords.get(date))?.beds.R1.pathology;
     /** What the census does when the person types in the R1 diagnosis cell. */
-    const typeDiagnosis = async () => {
+    const typeDiagnosis = async (value = DIAGNOSIS) => {
       const shown = (await hospitalDB.dailyRecords.get(date)) as DailyRecord;
       const patch = bedManagementReducer(shown, {
         type: 'UPDATE_PATIENT',
         bedId: 'R1',
         field: 'pathology',
-        value: DIAGNOSIS,
+        value,
       });
       if (!patch) throw new Error('The census produced no patch');
       return asP1(() =>
@@ -209,11 +258,15 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       const telemetry = await asP1(() => getSyncQueueTelemetry());
       return telemetry.pending + telemetry.failed + telemetry.conflict;
     };
-    /** The queue over the next half hour, past any retry wait. */
+    /** The browser's clock moves on across the test, so every retry wait the queue set is past. */
+    let clockShift = 0;
+    /** The queue over the next half hour. */
     const runQueue = async () => {
       const now = Date.now;
       for (let round = 1; round <= 3; round++) {
-        const clock = vi.spyOn(Date, 'now').mockImplementation(() => now() + round * 10 * 60_000);
+        clockShift += 10 * 60_000;
+        const shift = clockShift;
+        const clock = vi.spyOn(Date, 'now').mockImplementation(() => now() + shift);
         try {
           await asP1(() => processSyncQueue());
         } finally {
@@ -221,17 +274,47 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         }
       }
     };
-    /** Everything settled: one saved version on the server, the cell, and nothing waiting. */
-    const expectSavedOnce = async () => {
-      expect((await readServer()).beds.R1.pathology).toBe(DIAGNOSIS);
-      // One commit on top of the base revision, with one history copy: neither written twice
-      // nor rolled back.
-      expect((await admin.doc(dayPath).get()).data()?.meta).toMatchObject({ revision: 2 });
-      expect(await historyCopies()).toBe(1);
-      expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.pathology).toBe(DIAGNOSIS);
+    /** Clinical: the person is told «guardado». */
+    const expectShownSaved = (result: UpdatePartialDailyRecordResult) => {
+      expect(result).toMatchObject({ savedLocally: true, updatedRemotely: true });
+      expect(shownNotice(result)).toEqual(['success']);
+    };
+    /** Clinical: kept on this computer and waiting, never «guardado». */
+    const expectShownPending = async (result: UpdatePartialDailyRecordResult, cell: string) => {
+      expect(result).toMatchObject({ savedLocally: true, updatedRemotely: false });
+      expect(result.queuedForRetry).toBe(true);
+      expect(shownNotice(result)).not.toContain('success');
+      expect(await cellDiagnosis()).toBe(cell);
+      expect(await waiting()).toBeGreaterThan(0);
+    };
+    /**
+     * Clinical, once everything settled: the server holds `diagnosis` at `revision` (one commit
+     * per edit on top of the base revision 1: neither written twice nor rolled back), its history
+     * holds each earlier version in order, the cell shows it and nothing waits in the queue.
+     */
+    const expectClinicalOutcome = async ({
+      diagnosis = DIAGNOSIS,
+      history = [BASE],
+    }: { diagnosis?: string; history?: string[] } = {}) => {
+      expect(await serverDiagnosis()).toBe(diagnosis);
+      expect((await admin.doc(dayPath).get()).data()?.meta).toMatchObject({
+        revision: history.length + 1,
+      });
+      const copies = await admin.collection(`${dayPath}/history`).orderBy('__name__').get();
+      expect(copies.docs.map(copy => copy.data().beds?.R1?.pathology)).toEqual(history);
+      expect(copies.docs.map(copy => copy.data().meta?.revision)).toEqual(
+        history.map((_, index) => index + 1)
+      );
+      expect(await cellDiagnosis()).toBe(diagnosis);
       expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
       expect(await waiting()).toBe(0);
     };
+    /** Transport: the requests that reached the authority handler, and the diagnosis each carried. */
+    const expectDelivered = (diagnoses: string[]) =>
+      expect(
+        network.delivered.map(request => request.diagnosis),
+        'transport: requests that reached the server'
+      ).toEqual(diagnoses);
 
     beforeAll(async () => {
       const endpoint = /^(127\.0\.0\.1|localhost):(\d+)$/.exec(
@@ -271,7 +354,8 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_CALLABLE', '');
       // The queue runs only when the test says so: the browser's own wake-ups are steps here.
       vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-      Object.assign(network, { dispatched: 0, cut: undefined, down: 0 });
+      Object.assign(network, { delivered: [], requestsLost: 0, answerLost: undefined, down: 0 });
+      clockShift = 0;
       await env.clearFirestore();
       await admin.doc('hospitals/hanga_roa/settings/rayenImportPolicy').set({
         schemaVersion: 2,
@@ -299,57 +383,120 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       if (app) await deleteApp(app);
     });
 
-    it('saves the diagnosis with one send and tells the person it is saved', async () => {
+    it('saves the diagnosis and tells the person it is saved', async () => {
       const result = await typeDiagnosis();
-      expect(result).toMatchObject({ savedLocally: true, updatedRemotely: true });
-      expect(shownNotice(result)).toEqual(['success']);
-      expect(network.dispatched).toBe(1);
-      await expectSavedOnce();
+      expectShownSaved(result);
+      await expectClinicalOutcome();
+      expectDelivered([DIAGNOSIS]);
     });
 
-    it('confirms a diagnosis the server saved when its answer was lost, without a second send', async () => {
-      network.cut = { down: 0 };
+    it('confirms a diagnosis the server saved when its answer was lost', async () => {
+      network.answerLost = { downAfterCut: 0 };
       const result = await typeDiagnosis();
-      // The receipt read finds this exact change on the server: it is saved, not retried.
-      expect(result).toMatchObject({ savedLocally: true, updatedRemotely: true });
-      expect(shownNotice(result)).toEqual(['success']);
+      // The receipt read finds this exact change on the server.
+      expectShownSaved(result);
       await runQueue();
-      expect(network.dispatched).toBe(1);
-      await expectSavedOnce();
+      await expectClinicalOutcome();
+      // Transport: the receipt confirms it, so nothing is sent again.
+      expectDelivered([DIAGNOSIS]);
+    });
+
+    it('keeps a diagnosis whose request never reached the server pending until it arrives', async () => {
+      // Every request times out on the way while Firestore still answers reads: the receipt read
+      // finds the base version, not this change.
+      network.requestsLost = Infinity;
+      const result = await typeDiagnosis();
+      await expectShownPending(result, DIAGNOSIS);
+      expect(await serverDiagnosis()).toBe(BASE);
+      // The queue's own attempts are lost too: the change keeps waiting, never dropped.
+      await runQueue();
+      expect(await serverDiagnosis()).toBe(BASE);
+      expect(await cellDiagnosis()).toBe(DIAGNOSIS);
+      expect(await waiting()).toBeGreaterThan(0);
+      expectDelivered([]);
+
+      // The endpoint answers again: the queue publishes the diagnosis once.
+      network.requestsLost = 0;
+      await runQueue();
+      await expectClinicalOutcome();
+      expectDelivered([DIAGNOSIS]);
     });
 
     it('the server recognises the resend of a diagnosis whose answer and receipt were lost', async () => {
-      // Only the receipt read fails; a second later the send is repeated and reaches the server.
-      network.cut = { down: 1 };
+      // Only the receipt read fails; the direct send then repeats the request, which arrives.
+      network.answerLost = { downAfterCut: 1 };
       const result = await typeDiagnosis();
-      expect(network.dispatched).toBe(2);
       // The server finds this exact change already stored: it answers without writing it again.
-      expect(result).toMatchObject({ savedLocally: true, updatedRemotely: true });
-      expect(shownNotice(result)).toEqual(['success']);
+      expectShownSaved(result);
       await runQueue();
-      expect(network.dispatched).toBe(2);
-      await expectSavedOnce();
+      await expectClinicalOutcome();
+      // Transport: the repeat reached the server, with the same change under the same identifier.
+      expectDelivered([DIAGNOSIS, DIAGNOSIS]);
+      const [first, repeat] = network.delivered;
+      expect(repeat, 'transport: the repeat is the same change').toEqual(first);
+      expect(first.mutationId).toEqual(expect.any(String));
     });
 
-    it('a diagnosis whose answer and receipt were both lost is recognised on retry, not written twice', async () => {
-      // The connection stays down after the cut: the receipt read cannot reach the server either.
-      network.cut = { down: Infinity };
+    it('a diagnosis whose answer and receipt were both lost is recognised later, not written twice', async () => {
+      // The connection stays down after the cut: reads cannot reach the server either.
+      network.answerLost = { downAfterCut: Infinity };
       const result = await typeDiagnosis();
-      // Saved on this computer and waiting; the person still sees the diagnosis, not «guardado».
-      expect(result).toMatchObject({ savedLocally: true, updatedRemotely: false });
-      expect(shownNotice(result)).not.toContain('success');
-      expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.pathology).toBe(DIAGNOSIS);
-      expect(await waiting()).toBe(1);
+      await expectShownPending(result, DIAGNOSIS);
       // The server already has it: the lost answer was the only failure.
-      expect((await readServer()).beds.R1.pathology).toBe(DIAGNOSIS);
-      expect(network.dispatched).toBe(1);
+      expect(await serverDiagnosis()).toBe(DIAGNOSIS);
+      // While still offline the queue cannot read the server, and the change keeps waiting.
+      await runQueue();
+      expect(await waiting()).toBeGreaterThan(0);
 
-      // The network is back: the queue reads the server copy, finds this exact change already
-      // stored and ends the task without sending it again.
+      // The network is back: the queue finds this change on the server and ends the task.
       network.down = 0;
       await runQueue();
-      expect(network.dispatched).toBe(1);
-      await expectSavedOnce();
+      await expectClinicalOutcome();
+      // Transport: recognised from the server copy, so nothing is sent again.
+      expectDelivered([DIAGNOSIS]);
+    });
+
+    /** The person types a diagnosis, its answer is lost, and they correct it while offline. */
+    const correctWhileAnswerLost = async () => {
+      network.answerLost = { downAfterCut: Infinity };
+      await expectShownPending(await typeDiagnosis(DIAGNOSIS), DIAGNOSIS);
+      await expectShownPending(await typeDiagnosis(CORRECTED), CORRECTED);
+      expect(await serverDiagnosis()).toBe(DIAGNOSIS);
+      network.down = 0;
+      await runQueue();
+    };
+
+    // Real defect, found 2026-11-17 (W14-T2 REPORT.md): the correction joins the first edit's
+    // queued task (compacted: `mutationIds` [first, correction], base value BASE). The server
+    // already holds the first edit under its own identifier, which the queue only recognises
+    // when it is the task's main one (firestoreSyncTransport.ts, `hasRemoteAppliedMutation`), so
+    // the field check reads that first edit as changed on another computer and holds the whole
+    // task as a conflict («El campo cambió en otro equipo»): the correction never reaches the
+    // server. Not fixed here (tests only).
+    it.fails(
+      'a second diagnosis typed while the first one’s answer is lost is saved after it',
+      async () => {
+        await correctWhileAnswerLost();
+        // Both edits on the server in order: the first one, then the correction on top.
+        await expectClinicalOutcome({ diagnosis: CORRECTED, history: [BASE, DIAGNOSIS] });
+        // Transport: the correction travels as its own change, never as a repeat of the first.
+        expectDelivered([DIAGNOSIS, CORRECTED]);
+        const [first, correction] = network.delivered;
+        expect(correction.mutationId, 'transport: the correction is a new change').not.toBe(
+          first.mutationId
+        );
+      }
+    );
+
+    it('never drops a diagnosis corrected while the first one’s answer is lost', async () => {
+      await correctWhileAnswerLost();
+      // Holds with the defect above and after its fix: the correction is on the server or still
+      // kept in this computer's queue, and the cell shows it.
+      expect(await cellDiagnosis()).toBe(CORRECTED);
+      const kept = (await hospitalDB.syncQueue.toArray()).map(
+        task => (task.payload as DailyRecord).beds?.R1?.pathology
+      );
+      expect([await serverDiagnosis(), ...kept]).toContain(CORRECTED);
     });
   }
 );
