@@ -1,31 +1,27 @@
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import {
-  resolveDailyRecordSyncOwnership,
-  resolvePatientFieldSyncOwnership,
-} from '@/services/repositories/dailyRecordSyncOwnershipPolicy';
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 import { holdsDailyRecordProjection } from './dexieSyncQueueQuarantine';
 
 /** Puts the paths of the writes still pending on a day on top of the server's version of it. */
 export type PendingPathsOverRemote = (remote: DailyRecord, pending: SyncTask[]) => DailyRecord;
 
-const withoutDerived = (value: object | undefined, isDerived: (key: string) => boolean) =>
-  value && Object.fromEntries(Object.entries(value).filter(([key]) => !isDerived(key)));
-const isDerivedPatientField = (field: string) =>
-  resolvePatientFieldSyncOwnership(field) === 'derivedProjection';
+/**
+ * The one field this computer computes from the rest and the server copy may lack: a patient's FHIR
+ * resource, rebuilt by `mapPatientToFhir` whenever a bed is saved here (`syncPatientFhirResource`,
+ * `addClinicalFhirPatchesForTouchedBeds`). Everything else, `activeExtraBeds` included, is data.
+ */
+const withoutFhir = <T extends object>(patient: T | undefined) =>
+  patient && Object.fromEntries(Object.entries(patient).filter(([key]) => key !== 'fhir_resource'));
 
-/** The day without what this computer derives from it (`derivedProjection`, e.g. FHIR). */
+/** The day as data, without the FHIR resources this computer derives from it. */
 const ownedContent = (record: DailyRecord) => ({
-  ...withoutDerived(record, key => resolveDailyRecordSyncOwnership(key) === 'derivedProjection'),
+  ...record,
   beds: Object.fromEntries(
     Object.entries(record.beds ?? {}).map(([bedId, bed]) => [
       bedId,
-      bed && {
-        ...withoutDerived(bed, isDerivedPatientField),
-        clinicalCrib: withoutDerived(bed.clinicalCrib, isDerivedPatientField),
-      },
+      bed && { ...withoutFhir(bed), clinicalCrib: withoutFhir(bed.clinicalCrib) },
     ])
   ),
 });

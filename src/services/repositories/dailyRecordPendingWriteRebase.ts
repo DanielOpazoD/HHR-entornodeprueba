@@ -183,3 +183,23 @@ export const rebasePendingDailyRecordWrite = ({
     pendingPaths,
   };
 };
+
+/**
+ * What a read shows for one pending write: the server's day with the write's own paths on top,
+ * exactly as the write holds them, lists included. Unlike a confirmed command, the server has not
+ * applied this write, so no Rayen-owned field the person changed (a device, its history) is put
+ * back from the server over it. Throws, as the rebase does, for a write without its paths or a bed
+ * or crib that now holds another patient.
+ */
+export const overlayPendingDailyRecordWrite = ({
+  authoritativeRecord,
+  pendingTask,
+}: {
+  authoritativeRecord: DailyRecord;
+  pendingTask: PendingDailyRecordSyncTaskSnapshot;
+}): DailyRecord =>
+  preparePatchedRecordPersistence(
+    authoritativeRecord,
+    authoritativeRecord.date,
+    buildSafePendingPatch({ authoritativeRecord, pendingTask, alreadyAppliedPatch: {} })
+  ).record;
