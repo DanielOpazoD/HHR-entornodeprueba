@@ -31,6 +31,11 @@ export const RayenSyncPerformanceSchema = z.object({
     persistence: OptionalNonNegativeIntegerSchema,
     currentClinicalPersistence: OptionalNonNegativeIntegerSchema,
     historicalCudyrPersistence: OptionalNonNegativeIntegerSchema,
+    closeWait: OptionalNonNegativeIntegerSchema,
+    staffRegistration: OptionalNonNegativeIntegerSchema,
+    cudyrArchive: OptionalNonNegativeIntegerSchema,
+    cudyrArchivePlacementReads: OptionalNonNegativeIntegerSchema,
+    cudyrArchiveWrites: OptionalNonNegativeIntegerSchema,
   }),
   counters: z.object({
     requests: NonNegativeIntegerSchema,

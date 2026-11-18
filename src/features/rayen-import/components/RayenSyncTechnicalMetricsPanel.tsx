@@ -21,6 +21,11 @@ const STAGE_LABELS: Array<[keyof RayenSyncPerformance['stagesMs'], string]> = [
   ['persistence', 'Persistencia sumada'],
   ['currentClinicalPersistence', 'Persistencia clínica actual'],
   ['historicalCudyrPersistence', 'Persistencia CUDYR histórica'],
+  ['closeWait', 'Espera del cierre tras el guardado'],
+  ['staffRegistration', 'Registro del personal incluido'],
+  ['cudyrArchive', 'Archivo CUDYR'],
+  ['cudyrArchivePlacementReads', 'Archivo CUDYR: ubicaciones sumadas'],
+  ['cudyrArchiveWrites', 'Archivo CUDYR: escrituras sumadas'],
 ];
 
 const formatDuration = (durationMs: number): string =>
