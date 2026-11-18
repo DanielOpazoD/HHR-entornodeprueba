@@ -314,8 +314,10 @@ for (const path of ['suscripción', 'E'] as const)
       await vi.waitFor(() => expect(result).toBeDefined());
       stop();
     }
+    // W14-H1B (SAVE-01): the held write declares no paths, so the server's day cannot be shown
+    // under it; the stored copy is kept and, not being the server's day, is not confirmed.
     expect(result).toMatchObject({
-      serverConfirmed: true,
+      serverConfirmed: false,
       sourceOfTruth: 'local',
       consistencyState: 'local_kept',
     });

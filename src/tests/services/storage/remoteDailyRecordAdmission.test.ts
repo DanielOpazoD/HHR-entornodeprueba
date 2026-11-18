@@ -120,7 +120,17 @@ it.each(['retained_pending', 'superseded'] as const)(
         expectedBase: { kind: 'stored', record: null },
       },
     ]);
-    expect(results).toEqual([{ date: record.date, status, record, remoteRecord }]);
+    // A held write without paths cannot take the server's day under it: the row stays, and the
+    // admission says it is not the server's day (W14-H1B, SAVE-01).
+    expect(results).toEqual([
+      {
+        date: record.date,
+        status,
+        record,
+        remoteRecord,
+        ...(status === 'retained_pending' ? { serverComposed: false } : {}),
+      },
+    ]);
     expect(await hospitalDB.dailyRecords.toArray()).toEqual([record]);
     expect(await hospitalDB.syncQueue.toArray()).toEqual(tasks);
   }

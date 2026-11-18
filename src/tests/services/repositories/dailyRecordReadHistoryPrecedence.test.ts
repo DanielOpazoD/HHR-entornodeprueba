@@ -351,6 +351,9 @@ describe.each(readModes)('daily record history through %s reads and real cache h
     expect((await reopen())?.rayenSyncHistory).toEqual(result.record?.rayenSyncHistory);
   });
 
+  // W14-H1B (SAVE-01): a confirmed read shows the server's day with the pending paths on top. The
+  // pending staffing edit stays, under the version it was written on; the Rayen history, which
+  // nothing here has pending, is the server's reviewed one.
   it.each(unresolvedStates)(
     'retains the pending projection and outbox in state %s',
     async status => {
@@ -375,7 +378,7 @@ describe.each(readModes)('daily record history through %s reads and real cache h
 
       for (const selected of [result.record, await reopen()]) {
         expect(selected?.tensDayShift).toEqual(['SYNTHETIC PENDING']);
-        expect(selected?.rayenSyncHistory).toEqual(pending.rayenSyncHistory);
+        expect(selected?.rayenSyncHistory).toEqual([reviewedEvent()]);
         expect(selected?.lastUpdated).toBe(baseTime);
       }
       expect(await hospitalDB.syncQueue.toArray()).toEqual(outboxBefore);
