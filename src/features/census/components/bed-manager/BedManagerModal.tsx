@@ -5,9 +5,9 @@ import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useDailyRecordBedActions } from '@/context/useDailyRecordScopedActions';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { ModalSection } from '@/components/shared/baseModalSection';
-import { BedReasonDialog } from '@/components/modals/BedReasonDialog';
-import { BlockedBedsGrid } from '@/components/modals/BlockedBedsGrid';
-import { ExtraBedsGrid } from '@/components/modals/ExtraBedsGrid';
+import { BedReasonDialog } from '@/features/census/components/bed-manager/BedReasonDialog';
+import { BlockedBedsGrid } from '@/features/census/components/bed-manager/BlockedBedsGrid';
+import { ExtraBedsGrid } from '@/features/census/components/bed-manager/ExtraBedsGrid';
 import {
   resolveBlockedBedsGridItems,
   resolveExtraBedsGridItems,

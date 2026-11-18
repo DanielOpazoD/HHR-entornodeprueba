@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { DemographicsModal } from '@/components/modals/DemographicsModal';
-import type { DemographicSubset } from '@/components/modals/DemographicsModal';
+import { DemographicsModal } from '@/features/census/components/demographics/DemographicsModal';
+import type { DemographicSubset } from '@/features/census/components/demographics/DemographicsModal';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { CLINICAL_CENSUS_EDITABLE_FIELDS } from '@/services/repositories/explicitLocalCensusPatchPolicy';
 

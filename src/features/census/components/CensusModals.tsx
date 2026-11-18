@@ -1,10 +1,10 @@
 import React from 'react';
-import { StaffManagerModal } from '@/components/modals/StaffManagerModal';
-import { BedManagerModal } from '@/components/modals/BedManagerModal';
+import { StaffManagerModal } from '@/features/census/components/staff-catalog/StaffManagerModal';
+import { BedManagerModal } from '@/features/census/components/bed-manager/BedManagerModal';
 import { useCensusModalsModel } from '@/features/census/hooks/useCensusModalsModel';
-import { MoveCopyModal } from '@/components/modals/actions/MoveCopyModal';
-import { DischargeModal } from '@/components/modals/actions/DischargeModal';
-import { TransferModal } from '@/components/modals/actions/TransferModal';
+import { MoveCopyModal } from '@/features/census/components/movements/MoveCopyModal';
+import { DischargeModal } from '@/features/census/components/movements/DischargeModal';
+import { TransferModal } from '@/features/census/components/movements/TransferModal';
 import type { CensusActionModalPropsModel } from '@/features/census/hooks/useCensusActionModalProps';
 
 interface CensusActionModalsProps {

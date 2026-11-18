@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MoveCopyModal } from '@/components/modals/actions/MoveCopyModal';
+import { MoveCopyModal } from '@/features/census/components/movements/MoveCopyModal';
 
 const mockedUseDailyRecordData = vi.fn();
 const mockedGetForDate = vi.fn();

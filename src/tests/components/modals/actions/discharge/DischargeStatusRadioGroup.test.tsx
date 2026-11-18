@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { DischargeStatusRadioGroup } from '@/components/modals/actions/discharge/DischargeStatusRadioGroup';
+import { DischargeStatusRadioGroup } from '@/features/census/components/movements/discharge/DischargeStatusRadioGroup';
 
 describe('DischargeStatusRadioGroup', () => {
   it('groups discharge status radios under an accessible name', async () => {

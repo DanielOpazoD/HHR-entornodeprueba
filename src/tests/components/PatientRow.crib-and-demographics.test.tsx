@@ -23,7 +23,7 @@ vi.mock('@/context/UIContext', async () => {
   };
 });
 
-vi.mock('@/components/modals/DemographicsModal', () => ({
+vi.mock('@/features/census/components/demographics/DemographicsModal', () => ({
   DemographicsModal: ({
     isOpen,
     onSave,

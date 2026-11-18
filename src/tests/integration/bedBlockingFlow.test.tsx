@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, within } from '@testing-library/react';
-import { BedManagerModal } from '@/components/modals/BedManagerModal';
+import { BedManagerModal } from '@/features/census/components/bed-manager/BedManagerModal';
 import { PatientRow } from '@/features/census/components/PatientRow';
 import { DailyRecordProvider } from '@/context/DailyRecordContext';
 import { BEDS } from '@/constants/beds';

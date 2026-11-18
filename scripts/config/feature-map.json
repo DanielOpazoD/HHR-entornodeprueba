@@ -67,7 +67,7 @@
       "gate": [
         "src/features/census/controllers/censusDischargeCommandController.ts",
         "src/hooks/usePatientDischarges.ts",
-        "src/components/modals/actions/DischargeModal.tsx"
+        "src/features/census/components/movements/DischargeModal.tsx"
       ],
       "tests": [
         "src/tests/components/DischargeModal.test.tsx",
@@ -86,7 +86,7 @@
       "gate": [
         "src/features/census/controllers/censusTransferCommandController.ts",
         "src/hooks/usePatientTransfers.ts",
-        "src/components/modals/actions/TransferModal.tsx"
+        "src/features/census/components/movements/TransferModal.tsx"
       ],
       "tests": [
         "src/tests/components/TransferModal.test.tsx",
@@ -129,7 +129,7 @@
       "gate": [
         "src/features/census/controllers/censusMoveOrCopyCommandController.ts",
         "src/features/census/controllers/censusRowActionController.ts",
-        "src/components/modals/actions/MoveCopyModal.tsx"
+        "src/features/census/components/movements/MoveCopyModal.tsx"
       ],
       "tests": [
         "src/tests/components/MoveCopyModal.test.tsx",
@@ -150,8 +150,8 @@
       },
       "gate": [
         "src/hooks/useBedManagerModalModel.ts",
-        "src/components/modals/BedManagerModal.tsx",
-        "src/components/modals/ExtraBedsGrid.tsx"
+        "src/features/census/components/bed-manager/BedManagerModal.tsx",
+        "src/features/census/components/bed-manager/ExtraBedsGrid.tsx"
       ],
       "tests": [
         "src/tests/integration/bedBlockingFlow.test.tsx",

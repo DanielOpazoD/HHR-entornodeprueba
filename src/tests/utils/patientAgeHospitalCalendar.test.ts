@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { calculateFormattedAge } from '@/components/modals/demographics/utils';
+import { calculateFormattedAge } from '@/features/census/components/demographics/utils';
 import { calculateAge } from '@/utils/clinicalUtils';
 import { buildTransferPatientSnapshot } from '@/features/census/controllers/censusTransferSyncController';
 import { DataFactory } from '@/tests/factories/DataFactory';

@@ -13,14 +13,14 @@ vi.mock('@/hooks/useStaffQuery', () => ({
   useSaveTensMutation: () => mockSaveMutation.tens(),
 }));
 
-vi.mock('@/components/modals/StaffCatalogManagerModal', () => ({
+vi.mock('@/features/census/components/staff-catalog/StaffCatalogManagerModal', () => ({
   StaffCatalogManagerModal: (props: unknown) => {
     mockStaffCatalogManagerModal(props);
     return <div data-testid="staff-catalog-modal" />;
   },
 }));
 
-import { StaffManagerModal } from '@/components/modals/StaffManagerModal';
+import { StaffManagerModal } from '@/features/census/components/staff-catalog/StaffManagerModal';
 
 describe('StaffManagerModal', () => {
   beforeEach(() => {

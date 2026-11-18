@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { StaffCatalogManagerModal } from '@/components/modals/StaffCatalogManagerModal';
+import { StaffCatalogManagerModal } from '@/features/census/components/staff-catalog/StaffCatalogManagerModal';
 
 vi.mock('../../hooks/useScrollLock', () => ({
   useScrollLock: () => {},

@@ -64,7 +64,7 @@ Estos son los módulos que más sentido tiene evaluar uno por uno primero.
 ### 5. Gestión de traslados
 
 - **Feature principal:** [src/features/census](../src/features/census) (`TransfersSection` y controllers `censusTransfer*`)
-- **Modal:** [src/components/modals/actions/TransferModal.tsx](../src/components/modals/actions/TransferModal.tsx)
+- **Modal:** [src/features/census/components/movements/TransferModal.tsx](../src/features/census/components/movements/TransferModal.tsx)
 - Incluye:
   - solicitudes
   - estados del traslado

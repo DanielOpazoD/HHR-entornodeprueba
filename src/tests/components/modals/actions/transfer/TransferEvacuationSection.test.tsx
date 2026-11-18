@@ -7,7 +7,7 @@ import {
   EVACUATION_METHOD_COMMERCIAL,
   EVACUATION_METHOD_OTHER,
 } from '@/constants/clinicalMovementConstants';
-import { TransferEvacuationSection } from '@/components/modals/actions/transfer/TransferEvacuationSection';
+import { TransferEvacuationSection } from '@/features/census/components/movements/transfer/TransferEvacuationSection';
 
 const defaultProps = {
   evacuationMethod: DEFAULT_EVACUATION_METHOD,

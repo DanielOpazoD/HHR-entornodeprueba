@@ -11,7 +11,7 @@ import {
   useSaveTensMutation,
   useTensQuery,
 } from '@/hooks/useStaffQuery';
-import { StaffCatalogManagerModal } from '@/components/modals/StaffCatalogManagerModal';
+import { StaffCatalogManagerModal } from '@/features/census/components/staff-catalog/StaffCatalogManagerModal';
 import type { NursingRole } from '@/services/staff/eloisaStaffIdentity';
 
 /** Each role's catalog read and save; the role never changes for a mounted modal. */
