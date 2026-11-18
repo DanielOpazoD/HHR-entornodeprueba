@@ -3,23 +3,26 @@ import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordP
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import { saveDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordSavePersistenceController';
-import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
+import {
+  isDailyRecordWriteRejectedResult,
+  resolveDailyRecordWriteStatus,
+  toDailyRecordWriteError,
+} from '@/services/repositories/contracts/dailyRecordResults';
 import { assertRayenCensusPersistenceConfirmed } from '../hooks/rayenCensusPersistenceGuard';
 
-export type HistoricalPatchOutcome = 'confirmed' | 'durably_queued';
-
-export const classifyHistoricalPatchOutcome = (
+/**
+ * Whether a cross-day patch waits in this computer's queue instead of counting as applied: the
+ * server did not take it and only this computer keeps it. A refusal that kept nothing throws.
+ */
+export const isHistoricalPatchOnlyQueued = (
   result: Awaited<ReturnType<typeof patchDailyRecordWithCompatibility>>
-): HistoricalPatchOutcome => {
-  if (!result || result.updatedRemotely || !isDailyRecordWriteRejectedResult(result))
-    return 'confirmed';
+): boolean => {
+  if (!result) return false;
+  const status = resolveDailyRecordWriteStatus(result);
+  if (status.state === 'confirmed' || !isDailyRecordWriteRejectedResult(result)) return false;
   // Only proven local persistence can be described as queued after a remote rejection.
-  if (result.savedLocally) return 'durably_queued';
-  const error =
-    result.blockingError ??
-    new Error(result.userSafeMessage || 'No se confirmó el guardado histórico.');
-  if (result.conflictSummary?.kind === 'concurrency') error.name = 'ConcurrencyError';
-  throw error;
+  if (status.savedHere) return true;
+  throw toDailyRecordWriteError(result, 'No se confirmó el guardado histórico.');
 };
 
 /** Movement and matching occupancy repair must reach authority together, without an invalid midpoint. */
@@ -34,6 +37,10 @@ export const persistHistoricalOccupancyCorrection = async (
     requireConfirmedRecord: true,
   });
   assertRayenCensusPersistenceConfirmed({ record: corrected, result });
-  if (!result?.savedRemotely || result.confirmedRecord?.date !== base.date)
+  if (
+    !result ||
+    resolveDailyRecordWriteStatus(result).state !== 'confirmed' ||
+    result.confirmedRecord?.date !== base.date
+  )
     throw new Error('No se confirmó la conciliación del censo histórico.');
 };

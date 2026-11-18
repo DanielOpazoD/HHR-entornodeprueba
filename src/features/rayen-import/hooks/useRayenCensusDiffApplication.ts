@@ -13,6 +13,7 @@ import {
   type DailyRecordWriteLease,
 } from '@/services/repositories/dailyRecordWriteCoordinator';
 import {
+  isRayenCensusWriteSettled,
   resolveConfirmedRayenCensusHandoff,
   resolveStructuralStageResult,
   type ConfirmedRayenCensusHandoff,
@@ -181,8 +182,7 @@ export const useRayenCensusDiffApplication = ({
             // una corrida commiteada en una revisión espuria.
             if (
               persistence.result &&
-              !isDailyRecordWriteRejectedResult(persistence.result) &&
-              persistence.result.outcome === 'clean' &&
+              isRayenCensusWriteSettled(persistence.result) &&
               persistence.record.rayenSync?.runId !== run.id
             ) {
               const reread = await loadAuthoritativeRecord(persistenceBase.date);

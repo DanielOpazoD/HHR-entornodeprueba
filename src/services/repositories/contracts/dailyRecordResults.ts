@@ -7,6 +7,7 @@ import type {
   DailyRecordSyncConsistencyState,
   DailyRecordWriteConsistencyState,
 } from '@/services/repositories/contracts/dailyRecordConsistency';
+import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -278,4 +279,22 @@ export const isDailyRecordWriteRejectedResult = (
     (status.state === 'held' && status.reason === 'needs_review') ||
     (status.state === 'confirmed' && status.localCopy === 'stale')
   );
+};
+
+/**
+ * The only conversion of a write result into the error its caller throws: the producer's own
+ * error when it attached one, otherwise the result's message (or `fallbackMessage`). A conflict
+ * with another writer travels named `ConcurrencyError`, which Rayen's replan loop retries on a
+ * fresh read; a producer's error that already has its own class keeps it.
+ */
+export const toDailyRecordWriteError = (
+  result: SaveDailyRecordResult | UpdatePartialDailyRecordResult,
+  fallbackMessage: string
+): Error => {
+  const error =
+    result.blockingError ?? new Error(resolveApplicationOutcomeMessage(result, fallbackMessage));
+  if (result.conflictSummary?.kind === 'concurrency' && error.name === 'Error') {
+    error.name = 'ConcurrencyError';
+  }
+  return error;
 };

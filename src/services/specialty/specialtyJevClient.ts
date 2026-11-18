@@ -2,7 +2,8 @@ import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { assertDailyRecordPartialUpdateAccepted } from '@/services/repositories/dailyRecordRepositoryWriteOutcome';
+import { assertDailyRecordRepositoryWriteAccepted } from '@/services/repositories/dailyRecordRepositoryWriteOutcome';
+import { resolveDailyRecordWriteStatus } from '@/services/repositories/contracts/dailyRecordResults';
 import type { SpecialtyIntent } from '@/types/domain/specialtyDecision';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { loadCIE10Database } from '@/services/terminology/cie10SpanishDatabase';
@@ -265,8 +266,8 @@ const writeSpecialtyIntent = async (
     requireRemoteAuthorityFirst: true,
     requireConfirmedRecord: true,
   });
-  assertDailyRecordPartialUpdateAccepted(result);
-  if (!result.updatedRemotely || result.queuedForRetry) {
+  assertDailyRecordRepositoryWriteAccepted(result);
+  if (resolveDailyRecordWriteStatus(result).state !== 'confirmed') {
     throw new Error('No se confirmó la especialidad en el censo remoto.');
   }
 };

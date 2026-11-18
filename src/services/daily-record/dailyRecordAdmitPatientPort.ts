@@ -16,9 +16,11 @@ import type {
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { resolveClinicalEpisodeIdForAdmission } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
-import type { UpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
-import { isDailyRecordWriteBlockedResult } from '@/services/repositories/contracts/dailyRecordResults';
-import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
+import {
+  isDailyRecordWriteRejectedResult,
+  toDailyRecordWriteError,
+  type UpdatePartialDailyRecordResult,
+} from '@/services/repositories/contracts/dailyRecordResults';
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 
@@ -105,23 +107,10 @@ const buildSnapshotFromInput = (input: AdmitPatientInput): AdmittedPatientSnapsh
 const assertAdmissionPersistenceAccepted = (
   result: void | UpdatePartialDailyRecordResult
 ): void => {
-  if (!result) {
-    return;
-  }
-
-  if (
-    result.outcome === 'blocked' ||
-    result.outcome === 'unrecoverable' ||
-    isDailyRecordWriteBlockedResult(result)
-  ) {
-    throw (
-      result.blockingError ||
-      new Error(
-        resolveApplicationOutcomeMessage(
-          result,
-          'La admisión quedó bloqueada por una validación de consistencia.'
-        )
-      )
+  if (result && isDailyRecordWriteRejectedResult(result)) {
+    throw toDailyRecordWriteError(
+      result,
+      'La admisión quedó bloqueada por una validación de consistencia.'
     );
   }
 };

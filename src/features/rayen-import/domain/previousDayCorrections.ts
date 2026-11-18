@@ -27,9 +27,8 @@ import type {
 import type { ReportEgreso } from '../contracts/egresoReport';
 import { normalizeMovementBedConsistency } from '@/services/repositories/clinicalMovementBedConsistencyPolicy';
 import {
-  classifyHistoricalPatchOutcome,
+  isHistoricalPatchOnlyQueued,
   persistHistoricalOccupancyCorrection,
-  type HistoricalPatchOutcome,
 } from './historicalCorrectionPersistence';
 import {
   applyHistoricalAdmissions,
@@ -340,17 +339,17 @@ export const fileCrossDayCorrections = async (
       result.confirmed += 1;
       continue;
     }
-    let dayOutcome: HistoricalPatchOutcome = 'confirmed';
+    let onlyQueued = false;
     for (const patch of correction.patches) {
-      const outcome = classifyHistoricalPatchOutcome(
+      const queued = isHistoricalPatchOnlyQueued(
         await patchDailyRecordWithCompatibility(port, correction.day, patch, {
           authoringSession: captureAuthoringSession(),
           baseRecord: correction.record,
         })
       );
-      if (outcome === 'durably_queued') dayOutcome = 'durably_queued';
+      if (queued) onlyQueued = true;
     }
-    if (dayOutcome === 'confirmed' && Object.keys(correction.diagnosisPatch).length > 0) {
+    if (!onlyQueued && Object.keys(correction.diagnosisPatch).length > 0) {
       // Each authority phase reads its own fresh base and preserves concurrent values.
       for (const nested of [false, true]) {
         const paths = Object.keys(correction.diagnosisPatch).filter(
@@ -391,17 +390,17 @@ export const fileCrossDayCorrections = async (
         }
         const patch = missingPatch;
         if (!Object.keys(patch).length) continue;
-        const outcome = classifyHistoricalPatchOutcome(
+        const queued = isHistoricalPatchOnlyQueued(
           await patchDailyRecordWithCompatibility(port, correction.day, patch, {
             authoringSession: captureAuthoringSession(),
             baseRecord: confirmedRecord,
           })
         );
-        if (outcome === 'durably_queued') dayOutcome = outcome;
+        if (queued) onlyQueued = true;
       }
     }
-    if (dayOutcome === 'confirmed') result.confirmed += 1;
-    else result.durablyQueued += 1;
+    if (onlyQueued) result.durablyQueued += 1;
+    else result.confirmed += 1;
   }
   return result;
 };
