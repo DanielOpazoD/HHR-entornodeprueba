@@ -12,6 +12,11 @@ import { useEffect, useMemo, useRef } from 'react';
 import { queryKeys } from '../config/queryClient';
 import { CatalogRepository } from '@/services/repositories/CatalogRepository';
 import { useAuth } from '@/context/AuthContext';
+import {
+  captureAuthoringSession,
+  isAuthoringSessionCurrent,
+  type AuthoringSession,
+} from '@/services/storage/authoringSession';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import { useEloisaStaff } from './useEloisaStaff';
 import {
@@ -226,6 +231,13 @@ const catalogEditAccepted = <T extends string | ProfessionalCatalogItem>(
   );
 };
 
+/**
+ * Logout clears the catalog cache. A save answered after its session ended must not refill it for
+ * whoever signs in next; what the server accepted stays there and the next reader fetches it.
+ */
+const isSaveSessionCurrent = (session: AuthoringSession | undefined): boolean =>
+  session !== undefined && isAuthoringSessionCurrent(session);
+
 const useAcceptedCatalogChange = <T>(
   key: string,
   mutation: { error: unknown; variables?: T; reset: () => void },
@@ -263,20 +275,23 @@ export const useSaveNursesMutation = () => {
     networkMode: 'always',
     retry: false,
     onMutate: async () => {
+      const authoringSession = captureAuthoringSession();
       // Display fallbacks are not a loaded base for replacing the complete catalog.
       if (queryClient.getQueryData([...queryKeys.staff.all, 'nurses']) === undefined) {
         throw new CatalogReadUnavailableError();
       }
       await queryClient.cancelQueries({ queryKey: [...queryKeys.staff.all, 'nurses'] });
+      return authoringSession;
     },
-    onSuccess: (result, edit) => {
+    onSuccess: (result, edit, authoringSession) => {
+      if (!isSaveSessionCurrent(authoringSession)) return;
       queryClient.setQueryData(
         [...queryKeys.staff.all, 'nurses'],
         normalizeStringCatalog(result ?? catalogNext(edit))
       );
     },
-    onError: error => {
-      if (error instanceof CatalogConflictError) {
+    onError: (error, _edit, authoringSession) => {
+      if (error instanceof CatalogConflictError && isSaveSessionCurrent(authoringSession)) {
         queryClient.setQueryData(
           [...queryKeys.staff.all, 'nurses'],
           normalizeStringCatalog(error.current)
@@ -307,20 +322,23 @@ export const useSaveTensMutation = () => {
     networkMode: 'always',
     retry: false,
     onMutate: async () => {
+      const authoringSession = captureAuthoringSession();
       // Display fallbacks are not a loaded base for replacing the complete catalog.
       if (queryClient.getQueryData([...queryKeys.staff.all, 'tens']) === undefined) {
         throw new CatalogReadUnavailableError();
       }
       await queryClient.cancelQueries({ queryKey: [...queryKeys.staff.all, 'tens'] });
+      return authoringSession;
     },
-    onSuccess: (result, edit) => {
+    onSuccess: (result, edit, authoringSession) => {
+      if (!isSaveSessionCurrent(authoringSession)) return;
       queryClient.setQueryData(
         [...queryKeys.staff.all, 'tens'],
         normalizeStringCatalog(result ?? catalogNext(edit))
       );
     },
-    onError: error => {
-      if (error instanceof CatalogConflictError) {
+    onError: (error, _edit, authoringSession) => {
+      if (error instanceof CatalogConflictError && isSaveSessionCurrent(authoringSession)) {
         queryClient.setQueryData(
           [...queryKeys.staff.all, 'tens'],
           normalizeStringCatalog(error.current)
@@ -354,20 +372,23 @@ export const useSaveProfessionalsMutation = () => {
     networkMode: 'always',
     retry: false,
     onMutate: async () => {
+      const authoringSession = captureAuthoringSession();
       // Display fallbacks are not a loaded base for replacing the complete catalog.
       if (queryClient.getQueryData([...queryKeys.staff.all, 'professionals']) === undefined) {
         throw new CatalogReadUnavailableError();
       }
       await queryClient.cancelQueries({ queryKey: [...queryKeys.staff.all, 'professionals'] });
+      return authoringSession;
     },
-    onSuccess: (result, edit) => {
+    onSuccess: (result, edit, authoringSession) => {
+      if (!isSaveSessionCurrent(authoringSession)) return;
       queryClient.setQueryData(
         [...queryKeys.staff.all, 'professionals'],
         normalizeProfessionalCatalog(result ?? catalogNext(edit))
       );
     },
-    onError: error => {
-      if (error instanceof CatalogConflictError) {
+    onError: (error, _edit, authoringSession) => {
+      if (error instanceof CatalogConflictError && isSaveSessionCurrent(authoringSession)) {
         queryClient.setQueryData(
           [...queryKeys.staff.all, 'professionals'],
           normalizeProfessionalCatalog(error.current)

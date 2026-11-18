@@ -2,12 +2,13 @@
 // (it is mocked globally in tests/setup.ts)
 vi.unmock('@/services/repositories/CatalogRepository');
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { CatalogRepository } from '@/services/repositories/CatalogRepository';
 import * as catalogService from '@/services/storage/indexeddb/indexedDbCatalogService';
 import * as firestoreService from '@/services/storage/firestore';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 
 vi.mock('@/services/storage/indexeddb/indexedDbCatalogService', () => ({
   getCatalog: vi.fn(),
@@ -171,5 +172,69 @@ describe('CatalogRepository', () => {
         }),
       ]);
     });
+  });
+
+  describe('Remote snapshots', () => {
+    const subscriptions = [
+      {
+        catalog: 'nurses',
+        subscribe: CatalogRepository.subscribeNurses,
+        remote: firestoreService.subscribeToNurseCatalog,
+        list: ['ENFERMERA SINTETICA A'],
+      },
+      {
+        catalog: 'tens',
+        subscribe: CatalogRepository.subscribeTens,
+        remote: firestoreService.subscribeToTensCatalog,
+        list: ['TENS SINTETICO A'],
+      },
+      {
+        catalog: 'professionals',
+        subscribe: CatalogRepository.subscribeProfessionals,
+        remote: firestoreService.subscribeToProfessionalsCatalog,
+        list: [{ name: 'PROFESIONAL SINTETICO A', phone: '' }],
+      },
+    ] as const;
+
+    /** A snapshot arrives; its local copy is held until the case releases it. */
+    const receiveSnapshot = ({ subscribe, remote, list }: (typeof subscriptions)[number]) => {
+      let deliver!: (items: unknown[]) => Promise<void>;
+      vi.mocked(remote).mockImplementation(callback => {
+        deliver = callback as (items: unknown[]) => Promise<void>;
+        return () => {};
+      });
+      let release!: () => void;
+      vi.mocked(catalogService.cacheCatalogValues).mockImplementation(
+        () => new Promise<void>(resolve => (release = resolve))
+      );
+      const callback = vi.fn();
+      (subscribe as (cb: (items: unknown[]) => void) => () => void)(callback);
+      const delivered = deliver([...list]);
+      return { callback, finish: async () => (release(), await delivered) };
+    };
+
+    afterEach(() => setSessionGeneration(null));
+
+    it.each(subscriptions)(
+      'a $catalog snapshot whose session ended while it was stored locally reaches no screen',
+      async row => {
+        setSessionGeneration('synthetic-generation-A', 'user:synthetic-A');
+        const snapshot = receiveSnapshot(row);
+        setSessionGeneration('synthetic-generation-B', 'user:synthetic-B');
+        await snapshot.finish();
+        expect(catalogService.cacheCatalogValues).toHaveBeenCalledWith(row.catalog, row.list, true);
+        expect(snapshot.callback).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each(subscriptions)(
+      'a $catalog snapshot in the same session reaches the screen',
+      async row => {
+        setSessionGeneration('synthetic-generation-A', 'user:synthetic-A');
+        const snapshot = receiveSnapshot(row);
+        await snapshot.finish();
+        expect(snapshot.callback).toHaveBeenCalledWith(row.list);
+      }
+    );
   });
 });

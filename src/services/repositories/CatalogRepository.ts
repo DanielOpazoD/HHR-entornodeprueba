@@ -27,6 +27,10 @@ import {
   catalogExamples,
 } from '@/services/repositories/contracts/catalogContracts';
 import { catalogRepositoryLogger } from '@/services/repositories/repositoryLoggers';
+import {
+  captureAuthoringSession,
+  isAuthoringSessionCurrent,
+} from '@/services/storage/authoringSession';
 
 export interface ICatalogRepository {
   getNurses(): Promise<string[]>;
@@ -73,6 +77,23 @@ const confirmCatalogSave = async <T>(save: Promise<T>): Promise<T> => {
     clearTimeout(timer);
   }
 };
+
+/**
+ * Keeps the local copy of a remote snapshot, then hands it on only if the session that received
+ * it is still current: logout cleared the screen's catalog, and the next person reads their own.
+ */
+const deliverAfterLocalCopy =
+  <T>(
+    catalogId: 'nurses' | 'tens' | 'professionals',
+    normalize: (items: T[]) => T[],
+    callback: (items: T[]) => void
+  ) =>
+  async (items: T[]): Promise<void> => {
+    const session = captureAuthoringSession();
+    const normalized = normalize(items);
+    await cacheCatalogValues<T>(catalogId, normalized, true);
+    if (isAuthoringSessionCurrent(session)) callback(normalized);
+  };
 
 // ============================================================================
 // Nurses Catalog
@@ -177,11 +198,10 @@ export const subscribeNurses = (
     return subscribeToLocalStringCatalog('nurses', callback, onError);
   }
 
-  return subscribeToNurseCatalog(async nurses => {
-    const normalized = normalizeStringCatalog(nurses);
-    await cacheCatalogValues('nurses', normalized, true);
-    callback(normalized);
-  }, onError);
+  return subscribeToNurseCatalog(
+    deliverAfterLocalCopy('nurses', normalizeStringCatalog, callback),
+    onError
+  );
 };
 
 // ============================================================================
@@ -245,11 +265,10 @@ export const subscribeTens = (
     return subscribeToLocalStringCatalog('tens', callback, onError);
   }
 
-  return subscribeToTensCatalog(async tens => {
-    const normalized = normalizeStringCatalog(tens);
-    await cacheCatalogValues('tens', normalized, true);
-    callback(normalized);
-  }, onError);
+  return subscribeToTensCatalog(
+    deliverAfterLocalCopy('tens', normalizeStringCatalog, callback),
+    onError
+  );
 };
 
 // ============================================================================
@@ -317,11 +336,10 @@ export const subscribeProfessionals = (
     return subscribeToLocalProfessionalsCatalog(callback, onError);
   }
 
-  return subscribeToProfessionalsCatalog(async professionals => {
-    const normalized = normalizeProfessionalCatalog(professionals);
-    await cacheCatalogValues<ProfessionalCatalogItem>('professionals', normalized, true);
-    callback(normalized);
-  }, onError);
+  return subscribeToProfessionalsCatalog(
+    deliverAfterLocalCopy('professionals', normalizeProfessionalCatalog, callback),
+    onError
+  );
 };
 
 // ============================================================================
