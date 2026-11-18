@@ -19,8 +19,9 @@ const changedPathsOf = (task: SyncTask): string[] =>
 /** A bed field goes back only while the bed still shows the episode this write was made for (ID-01). */
 const sameOccupant = (stored: DailyRecord, payload: DailyRecord, path: string): boolean => {
   const [root, bedId] = path.split('.');
+  if (root !== 'beds') return true;
   return (
-    root !== 'beds' ||
+    bedId !== undefined &&
     isSameEpisodeForExplicitCensusPatch(stored.beds?.[bedId], payload.beds?.[bedId])
   );
 };

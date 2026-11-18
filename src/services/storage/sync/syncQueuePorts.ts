@@ -159,7 +159,7 @@ export interface SyncRuntimePort {
   getActorKey?(): string | null;
   /** A logout cleanup failed here, or awaits admission: queue work neither starts nor confirms. */
   isFenced?(): boolean;
-  /** The role the server reads for this session's writes (its token claim); null when unknown. */
+  /** The role the server reads for this session's writes (its token claim); null without one. */
   getWriterRole?(): Promise<string | null>;
 }
 

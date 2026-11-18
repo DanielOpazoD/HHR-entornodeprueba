@@ -35,14 +35,10 @@ export const createBrowserSyncRuntime = (): SyncRuntimePort => {
     // already admitted must not stall on one left by another tab that was closed mid-logout.
     isFenced: () =>
       hasSessionCleanupFailed() || (!getSessionGeneration() && isSessionCleanupPending()),
+    // A failed token read throws: the queue logs it and asks again on its next pass.
     getWriterRole: async () => {
-      try {
-        const role = (await defaultAuthRuntime.getCurrentUser()?.getIdTokenResult())?.claims.role;
-        return typeof role === 'string' ? role : null;
-      } catch {
-        // Unknown is not a role: the caller keeps today's recovery.
-        return null;
-      }
+      const role = (await defaultAuthRuntime.getCurrentUser()?.getIdTokenResult())?.claims.role;
+      return typeof role === 'string' ? role : null;
     },
   };
 };
