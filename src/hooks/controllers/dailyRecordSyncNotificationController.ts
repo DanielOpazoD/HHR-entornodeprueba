@@ -269,6 +269,8 @@ const resolveWriteOutcomeFeedback = (
           : 'Los cambios quedaron confirmados en el servidor.'
       );
     case 'local':
+      // Without a recorded copy the sync box says error, so the notice says the same.
+      if (!status.savedHere) return notSavedFeedback(patch);
       // Routine: the day's queue task saves it right away, and the sync status shows it pending.
       if (status.cause === 'queue_route') return null;
       if (status.cause === 'merged') {
@@ -278,7 +280,6 @@ const resolveWriteOutcomeFeedback = (
           'El sistema integró los cambios recientes automáticamente.'
         );
       }
-      if (!status.savedHere) return notSavedFeedback(patch);
       if (status.cause === 'retrying') {
         return createSyncRetrying(
           'pending_sync',

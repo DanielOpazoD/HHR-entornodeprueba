@@ -10,7 +10,9 @@ import {
 import {
   createSaveDailyRecordResult,
   createUpdatePartialDailyRecordResult,
+  type SaveDailyRecordResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
+import { resolveDailyRecordSyncStatus } from '@/hooks/controllers/dailyRecordSyncStatusController';
 
 describe('dailyRecordSyncNotificationController', () => {
   it('reports a server-confirmed save and patch as successful', () => {
@@ -295,6 +297,39 @@ describe('dailyRecordSyncNotificationController', () => {
       title: 'Guardado no confirmado',
     });
     expect(feedback?.message).not.toMatch(/integró/i);
+  });
+
+  it('agrees with the sync box on whether a merged or routed write left a copy here', () => {
+    const write = (
+      savedLocally: boolean,
+      shape: Pick<SaveDailyRecordResult, 'outcome' | 'autoMerged' | 'reason'>
+    ) =>
+      createSaveDailyRecordResult({
+        date: '2026-03-03',
+        savedLocally,
+        savedRemotely: false,
+        queuedForRetry: true,
+        ...shape,
+      });
+    const merged = { outcome: 'auto_merged', autoMerged: true } as const;
+    const routed = { outcome: 'queued', autoMerged: false, reason: 'queue_route' } as const;
+    const seen = (result: SaveDailyRecordResult) => [
+      resolveDailyRecordSyncStatus([
+        { isPending: false, isError: false, isSuccess: true, data: { result } },
+      ]),
+      resolveSaveOutcomeFeedback(result)?.title ?? 'sin aviso',
+    ];
+
+    expect(
+      [write(true, merged), write(false, merged), write(true, routed), write(false, routed)].map(
+        seen
+      )
+    ).toEqual([
+      ['local', 'Censo actualizado'],
+      ['error', 'Guardado no confirmado'],
+      ['local', 'sin aviso'],
+      ['error', 'Guardado no confirmado'],
+    ]);
   });
 
   it('distinguishes a local-only save from a queued retry', () => {

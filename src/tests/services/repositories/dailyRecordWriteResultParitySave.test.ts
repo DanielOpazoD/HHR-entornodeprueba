@@ -176,9 +176,9 @@ export const SAVE_CASES: Record<string, SaveCase> = {
       notaGuardada: 'NOCHE BASE',
     },
   },
-  // Disagree: the box says error while the notice says «integrated» and the flow continues.
+  // W16-SR1: the merge stores the day here with its task, so the box agrees with the notice.
   'el día completo vaciaría una cama que el servidor tiene ocupada': {
-    from: 'dailyRecordRepositoryWriteService.ts:162-176 (fusión automática del bloqueo)',
+    from: 'dailyRecordRepositoryWriteService.ts:76-105 (fusión automática del bloqueo)',
     record: () => {
       const day = edited();
       day.beds.R1 = { ...day.beds.R1, patientName: '', rut: '', clinicalEpisodeId: '' };
@@ -186,7 +186,7 @@ export const SAVE_CASES: Record<string, SaveCase> = {
     },
     expected: {
       vista: 'conserva la edición',
-      cuadro: 'error',
+      cuadro: 'local',
       aviso: 'Censo actualizado: El sistema integró los cambios recientes automáticamente.',
       flujo: 'sigue',
       repositorio: 'sigue',
