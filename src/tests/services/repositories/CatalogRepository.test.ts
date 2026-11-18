@@ -9,6 +9,7 @@ import * as firestoreService from '@/services/storage/firestore';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { CatalogConflictError } from '@/services/repositories/contracts/catalogChanges';
 
 vi.mock('@/services/storage/indexeddb/indexedDbCatalogService', () => ({
   getCatalog: vi.fn(),
@@ -204,7 +205,7 @@ describe('CatalogRepository', () => {
         return () => {};
       });
       let release!: () => void;
-      vi.mocked(catalogService.cacheCatalogValues).mockImplementation(
+      vi.mocked(catalogService.cacheCatalogValues).mockImplementationOnce(
         () => new Promise<void>(resolve => (release = resolve))
       );
       const callback = vi.fn();
@@ -236,5 +237,138 @@ describe('CatalogRepository', () => {
         expect(snapshot.callback).toHaveBeenCalledWith(row.list);
       }
     );
+  });
+
+  describe('Local copy order', () => {
+    const catalogs = [
+      {
+        catalog: 'nurses',
+        subscribe: CatalogRepository.subscribeNurses,
+        remoteSubscribe: firestoreService.subscribeToNurseCatalog,
+        save: CatalogRepository.saveNurses,
+        remoteSave: firestoreService.saveNurseCatalogToFirestore,
+        read: CatalogRepository.getNurses,
+        localRead: catalogService.getCatalog,
+        remoteRead: firestoreService.getNurseCatalogFromFirestore,
+        older: ['ENFERMERA SINTETICA A'],
+        newer: ['ENFERMERA SINTETICA B'],
+      },
+      {
+        catalog: 'tens',
+        subscribe: CatalogRepository.subscribeTens,
+        remoteSubscribe: firestoreService.subscribeToTensCatalog,
+        save: CatalogRepository.saveTens,
+        remoteSave: firestoreService.saveTensCatalogToFirestore,
+        read: CatalogRepository.getTens,
+        localRead: catalogService.getCatalog,
+        remoteRead: firestoreService.getTensCatalogFromFirestore,
+        older: ['TENS SINTETICO A'],
+        newer: ['TENS SINTETICO B'],
+      },
+      {
+        catalog: 'professionals',
+        subscribe: CatalogRepository.subscribeProfessionals,
+        remoteSubscribe: firestoreService.subscribeToProfessionalsCatalog,
+        save: CatalogRepository.saveProfessionals,
+        remoteSave: firestoreService.saveProfessionalsCatalogToFirestore,
+        read: CatalogRepository.getProfessionals,
+        localRead: catalogService.getCatalogValues,
+        remoteRead: firestoreService.getProfessionalsCatalogFromFirestore,
+        older: [{ name: 'PROFESIONAL SINTETICO', phone: '', specialty: 'Cirugía' }],
+        newer: [{ name: 'PROFESIONAL SINTETICO', phone: '', specialty: 'Pediatría' }],
+      },
+    ] as const;
+    type Row = (typeof catalogs)[number];
+    type Answer = { resolve: (list: unknown) => void; reject: (error: unknown) => void };
+
+    /** The next remote call of this kind answers only when the case says so. */
+    const hold = (remoteCall: Row['remoteSave'] | Row['remoteRead']) => {
+      let answer!: Answer;
+      vi.mocked(remoteCall).mockImplementationOnce(
+        () => new Promise<never>((resolve, reject) => (answer = { resolve, reject } as Answer))
+      );
+      return () => answer;
+    };
+    const save = (row: Row, list: readonly unknown[]) =>
+      (row.save as (next: unknown[], base: unknown[]) => Promise<unknown>)([...list], []);
+    const copies = (row: Row) =>
+      vi
+        .mocked(catalogService.cacheCatalogValues)
+        .mock.calls.filter(([catalogId]) => catalogId === row.catalog)
+        .map(([, list]) => list);
+
+    it.each(catalogs)(
+      'an earlier $catalog save answered last leaves the later confirmed list',
+      async row => {
+        const earlier = hold(row.remoteSave);
+        const settled = save(row, row.older);
+        await save(row, row.newer);
+        earlier().resolve([...row.older]);
+        await settled;
+        expect(copies(row)).toEqual([row.newer]);
+      }
+    );
+
+    it.each(catalogs)(
+      'an earlier $catalog conflict answered last leaves the later confirmed list',
+      async row => {
+        const earlier = hold(row.remoteSave);
+        const settled = save(row, row.older);
+        await save(row, row.newer);
+        earlier().reject(new CatalogConflictError([...row.older]));
+        await expect(settled).rejects.toBeInstanceOf(CatalogConflictError);
+        expect(copies(row)).toEqual([row.newer]);
+      }
+    );
+
+    it.each(catalogs)(
+      'an earlier $catalog read answered last leaves the later confirmed list',
+      async row => {
+        vi.mocked(row.localRead).mockResolvedValueOnce([]);
+        const earlier = hold(row.remoteRead);
+        const reading = row.read();
+        await vi.waitFor(() => expect(row.remoteRead).toHaveBeenCalled());
+        await save(row, row.newer);
+        earlier().resolve([...row.older]);
+        await reading;
+        expect(copies(row)).toEqual([row.newer]);
+      }
+    );
+
+    it.each(catalogs)('$catalog answers in order each refresh the copy', async row => {
+      await save(row, row.older);
+      await save(row, row.newer);
+      vi.mocked(row.remoteSave).mockRejectedValueOnce(new CatalogConflictError([...row.older]));
+      await expect(save(row, row.newer)).rejects.toBeInstanceOf(CatalogConflictError);
+      expect(copies(row)).toEqual([row.older, row.newer, row.older]);
+    });
+
+    it.each(catalogs)(
+      'a $catalog snapshot that arrived later is not replaced by an earlier save answered last',
+      async row => {
+        let deliver!: (items: unknown[]) => Promise<void>;
+        vi.mocked(row.remoteSubscribe).mockImplementationOnce(callback => {
+          deliver = callback as (items: unknown[]) => Promise<void>;
+          return () => {};
+        });
+        (row.subscribe as (callback: (items: unknown[]) => void) => () => void)(vi.fn());
+        const earlier = hold(row.remoteSave);
+        const settled = save(row, row.older);
+        await deliver([...row.newer]);
+        earlier().resolve([...row.older]);
+        await settled;
+        expect(copies(row)).toEqual([row.newer]);
+      }
+    );
+
+    it.each(catalogs)('a later save of another catalog does not hold back $catalog', async row => {
+      const other = catalogs[(catalogs.indexOf(row) + 1) % catalogs.length];
+      const earlier = hold(row.remoteSave);
+      const settled = save(row, row.older);
+      await save(other, other.newer);
+      earlier().resolve([...row.older]);
+      await settled;
+      expect(copies(row)).toEqual([row.older]);
+    });
   });
 });

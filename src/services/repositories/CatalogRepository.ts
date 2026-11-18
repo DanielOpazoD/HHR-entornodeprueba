@@ -78,20 +78,37 @@ const confirmCatalogSave = async <T>(save: Promise<T>): Promise<T> => {
   }
 };
 
+type CatalogId = 'nurses' | 'tens' | 'professionals';
+
+/**
+ * The local copy keeps the newest list this document received from the server. Firestore gives the
+ * client no version of the document, and its `lastUpdated` comes from each writer's clock, so
+ * answers are ordered by when this document asked: the answer to an earlier request (another
+ * session's save, a read still in flight) never replaces a list a later request already copied.
+ * Nothing in flight outlives the document, so the order needs no storage.
+ */
+let remoteRequests = 0;
+const newestCopiedRequest = new Map<CatalogId, number>();
+const startRemoteRequest = (catalogId: CatalogId) => {
+  const request = ++remoteRequests;
+  return <T>(list: T[]): Promise<void> => {
+    if (request < (newestCopiedRequest.get(catalogId) ?? 0)) return Promise.resolve();
+    newestCopiedRequest.set(catalogId, request);
+    return cacheCatalogValues<T>(catalogId, list, true);
+  };
+};
+
 /**
  * Keeps the local copy of a remote snapshot, then hands it on only if the session that received
  * it is still current: logout cleared the screen's catalog, and the next person reads their own.
  */
 const deliverAfterLocalCopy =
-  <T>(
-    catalogId: 'nurses' | 'tens' | 'professionals',
-    normalize: (items: T[]) => T[],
-    callback: (items: T[]) => void
-  ) =>
+  <T>(catalogId: CatalogId, normalize: (items: T[]) => T[], callback: (items: T[]) => void) =>
   async (items: T[]): Promise<void> => {
     const session = captureAuthoringSession();
+    const copy = startRemoteRequest(catalogId);
     const normalized = normalize(items);
-    await cacheCatalogValues<T>(catalogId, normalized, true);
+    await copy(normalized);
     if (isAuthoringSessionCurrent(session)) callback(normalized);
   };
 
@@ -111,9 +128,10 @@ export const getNurses = async (): Promise<string[]> => {
   // 2. Try Beta Firestore
   if (isFirestoreEnabled()) {
     try {
+      const copy = startRemoteRequest('nurses');
       const remoteList = await getNurseCatalogFromFirestore();
       if (remoteList.length > 0) {
-        await cacheCatalogValues('nurses', remoteList, true);
+        await copy(remoteList);
         return remoteList;
       }
     } catch (err) {
@@ -132,16 +150,17 @@ export const saveNurses = async (nurses: string[], base: string[]): Promise<stri
   const normalized = normalizeStringCatalog(nurses);
   assertCatalogRemoteAvailable();
   let accepted: string[];
+  const copy = startRemoteRequest('nurses');
   try {
     accepted = await confirmCatalogSave(saveNurseCatalogToFirestore(normalized, base));
   } catch (cause) {
     if (cause instanceof CatalogConflictError) {
-      await cacheCatalogValues('nurses', normalizeStringCatalog(cause.current), true);
+      await copy(normalizeStringCatalog(cause.current));
       throw cause;
     }
     throw new CatalogRemoteSyncError(cause);
   }
-  await cacheCatalogValues('nurses', accepted ?? normalized, true);
+  await copy(accepted ?? normalized);
   return accepted;
 };
 
@@ -219,9 +238,10 @@ export const getTens = async (): Promise<string[]> => {
   // 2. Try Beta Firestore
   if (isFirestoreEnabled()) {
     try {
+      const copy = startRemoteRequest('tens');
       const remoteList = await getTensCatalogFromFirestore();
       if (remoteList.length > 0) {
-        await cacheCatalogValues('tens', remoteList, true);
+        await copy(remoteList);
         return remoteList;
       }
     } catch (err) {
@@ -240,16 +260,17 @@ export const saveTens = async (tens: string[], base: string[]): Promise<string[]
   const normalized = normalizeStringCatalog(tens);
   assertCatalogRemoteAvailable();
   let accepted: string[];
+  const copy = startRemoteRequest('tens');
   try {
     accepted = await confirmCatalogSave(saveTensCatalogToFirestore(normalized, base));
   } catch (cause) {
     if (cause instanceof CatalogConflictError) {
-      await cacheCatalogValues('tens', normalizeStringCatalog(cause.current), true);
+      await copy(normalizeStringCatalog(cause.current));
       throw cause;
     }
     throw new CatalogRemoteSyncError(cause);
   }
-  await cacheCatalogValues('tens', accepted ?? normalized, true);
+  await copy(accepted ?? normalized);
   return accepted;
 };
 
@@ -287,9 +308,10 @@ export const getProfessionals = async (): Promise<ProfessionalCatalogItem[]> => 
   // 2. Try Beta Firestore
   if (isFirestoreEnabled()) {
     try {
+      const copy = startRemoteRequest('professionals');
       const remoteList = await getProfessionalsCatalogFromFirestore();
       if (remoteList.length > 0) {
-        await cacheCatalogValues<ProfessionalCatalogItem>('professionals', remoteList, true);
+        await copy(remoteList);
         return remoteList;
       }
     } catch (err) {
@@ -311,16 +333,17 @@ export const saveProfessionals = async (
   const normalized = normalizeProfessionalCatalog(professionals);
   assertCatalogRemoteAvailable();
   let accepted: ProfessionalCatalogItem[];
+  const copy = startRemoteRequest('professionals');
   try {
     accepted = await confirmCatalogSave(saveProfessionalsCatalogToFirestore(normalized, base));
   } catch (cause) {
     if (cause instanceof CatalogConflictError) {
-      await cacheCatalogValues('professionals', normalizeProfessionalCatalog(cause.current), true);
+      await copy(normalizeProfessionalCatalog(cause.current));
       throw cause;
     }
     throw new CatalogRemoteSyncError(cause);
   }
-  await cacheCatalogValues('professionals', accepted ?? normalized, true);
+  await copy(accepted ?? normalized);
   return accepted;
 };
 
