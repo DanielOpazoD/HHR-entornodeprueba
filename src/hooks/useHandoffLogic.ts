@@ -26,7 +26,7 @@
 
 import { useCallback, useMemo } from 'react';
 
-import { getShiftSchedule } from '@/utils/clinicalDayUtils';
+import { DEFAULT_SHIFT_SCHEDULE, getShiftSchedule } from '@/utils/clinicalDayUtils';
 import { useAuditContext } from '@/context/AuditContext';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useDailyRecordBedActions } from '@/context/useDailyRecordScopedActions';
@@ -61,14 +61,7 @@ export const useHandoffLogic = ({
   // ========== MEMOS ==========
 
   const schedule = useMemo(() => {
-    if (!record)
-      return {
-        dayStart: '08:00',
-        dayEnd: '20:00',
-        nightStart: '20:00',
-        nightEnd: '08:00',
-        description: '',
-      };
+    if (!record) return DEFAULT_SHIFT_SCHEDULE;
     return getShiftSchedule(record.date);
   }, [record]);
 

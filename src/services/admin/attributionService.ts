@@ -1,12 +1,10 @@
-import { isWorkingDay } from './calendarService';
-import { calendarDayAtUtcNoon } from '@/utils/clinicalDateUtils';
 import { INSTITUTIONAL_ACCOUNTS, isInstitutionalAccount } from '@/constants/identities';
 import type { DailyRecordStaffingState } from '@/types/domain/dailyRecordSlices';
 import {
   resolveDayShiftNurses,
   resolveNightShiftNurses,
 } from '@/services/staff/dailyRecordStaffing';
-import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
+import { getCurrentShift } from '@/utils/clinicalDayUtils';
 
 /**
  * Service to handle nurse attribution logic for shared accounts.
@@ -27,33 +25,6 @@ export const isSharedNursingAccount = (userId: string | undefined): boolean => {
   if (!userId) return false;
   // We check both primary and alternative for backward compatibility during transition
   return isInstitutionalAccount(userId);
-};
-
-/**
- * Determines the current shift from the hospital wall clock (Rapa Nui), whatever the device
- * time zone, and whether that hospital day is a working day.
- *
- * Rules:
- * - Working Days (Hábiles): Day (08:00-20:00), Night (20:00-08:00 next day)
- * - Non-working Days (Inhábiles): Day (09:00-20:00), Night (20:00-09:00 next day)
- *
- * @param date Optional date to check (defaults to now)
- */
-export const getCurrentShift = (date: Date = new Date()): 'day' | 'night' => {
-  const stamp = calendarStampInClinicalTimeZone(date);
-  const hour = Number(stamp.hhmm.slice(0, 2));
-  // UTC noon of the hospital day keeps its weekday and holiday lookup on that same day.
-  const isHabil = isWorkingDay(calendarDayAtUtcNoon(stamp.iso));
-
-  if (isHabil) {
-    // Working Day logic: 08:00 split
-    if (hour >= 8 && hour < 20) return 'day';
-    return 'night';
-  } else {
-    // Non-working Day logic: 09:00 split
-    if (hour >= 9 && hour < 20) return 'day';
-    return 'night';
-  }
 };
 
 /**

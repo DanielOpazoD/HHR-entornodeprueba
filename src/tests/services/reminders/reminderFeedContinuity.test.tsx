@@ -38,7 +38,10 @@ vi.mock('@/context/AuthContext', () => ({
     remoteSyncStatus: 'ready',
   }),
 }));
-vi.mock('@/services/admin/attributionService', () => ({ getCurrentShift: () => 'day' }));
+vi.mock('@/utils/clinicalDayUtils', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/utils/clinicalDayUtils')>()),
+  getCurrentShift: () => 'day',
+}));
 vi.mock('@/services/reminders/ReminderReadService', () => ({
   ReminderReadService: {
     getUserShiftReadState: vi.fn(async () => ({ status: 'read' })),

@@ -224,6 +224,43 @@ describe('check-clinical-clock', () => {
     expect(output.match(/\[hand-calendar-anchor\]/g)).toHaveLength(4);
   });
 
+  it('keeps the shift hours in the shift schedule and accepts a named hour with its reason', () => {
+    const { status, output } = runGuard({
+      'src/utils/clinicalDayScheduleUtils.ts': "const START = '08:00';\nconst NIGHT = 20 * 60;\n",
+      // The attribution fallback and handoff defaults before W15-CLK1.
+      'src/hooks/a.ts': [
+        'const schedule = { dayStart: \'08:00\', nightEnd: "09:00" };',
+        'const nightStartMinutes = 20 * 60;',
+        'const shown = `${s?.nightStart || `20:00`}`;',
+        "const early = time >= '8:00';",
+      ].join('\n'),
+      'netlify/functions/b.ts': 'const start = 9 * 60;\n',
+      'src/features/c.ts': [
+        '// clinical-clock-allow shift-start-literal: the fluid balance day starts at 08:00 every day.',
+        "const FLUID_BALANCE_DAY_START = '08:00';",
+        'const STALE_AFTER_MS = 8 * 60 * 1000;',
+        "const reminder = '18:00';",
+        "const placeholder = '08:30';",
+        '// clinical-clock-allow shift-start-literal:',
+        "const unexplained = '20:00';",
+      ].join('\n'),
+      'src/tests/d.test.ts': "expect(isWithinDayShift('08:00')).toBe(true);\n",
+    });
+    expect(status).toBe(1);
+    expect(output).toContain(
+      '[shift-start-literal] src/hooks/a.ts:1 — the shift hours live in src/utils/clinicalDayScheduleUtils.ts: use getShiftSchedule(), resolveClinicalDayBounds(), getCurrentShift(), DEFAULT_SHIFT_SCHEDULE or NIGHT_SHIFT_START_MINUTES from src/utils/clinicalDayUtils; an hour with another meaning gets its own named constant behind clinical-clock-allow shift-start-literal: <reason>'
+    );
+    for (const location of [
+      'src/hooks/a.ts:2',
+      'src/hooks/a.ts:3',
+      'src/hooks/a.ts:4',
+      'netlify/functions/b.ts:1',
+      'src/features/c.ts:7',
+    ])
+      expect(output).toContain(`[shift-start-literal] ${location} `);
+    expect(output.match(/\[shift-start-literal\]/g)).toHaveLength(6);
+  });
+
   it('reports a zone-less wall-clock time read as an instant and names the hospital clock', () => {
     const { status, output } = runGuard({
       // The nurse window before 2026-11-17 (previousDayCorrections.ts).

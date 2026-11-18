@@ -1,8 +1,8 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
+import { getCurrentShift } from '@/utils/clinicalDayUtils';
 import {
   getNurseAuthors,
-  getCurrentShift,
   getAttributedAuthors,
   isSharedNursingAccount,
   SHARED_NURSING_ACCOUNT,
