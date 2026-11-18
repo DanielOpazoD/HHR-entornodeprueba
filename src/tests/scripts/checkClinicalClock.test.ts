@@ -289,7 +289,7 @@ describe('check-clinical-clock', () => {
       'src/hooks/c.ts:3',
     ])
       expect(output).toContain(
-        `[device-wall-clock-instant] ${location} — a zone-less Thh:mm is the device's wall clock: use clinicalWallClockToDate(day, 'hh:mm') or isWithinNurseEditingWindow() from src/utils/clinicalWallClock for the hospital's, and diffCalendarDays() for day counts`
+        `[device-wall-clock-instant] ${location} — a zone-less Thh:mm is the device's wall clock: use clinicalWallClockToDate(day, 'hh:mm') from src/utils/clinicalWallClock for the hospital's, a day-write predicate of src/shared/access/censusDayWriteAccessPolicy for the 48 h window, and diffCalendarDays() for day counts`
       );
     expect(output).toContain('[device-wall-clock-instant] netlify/functions/b.ts:1');
     expect(output.match(/\[device-wall-clock-instant\]/g)).toHaveLength(6);

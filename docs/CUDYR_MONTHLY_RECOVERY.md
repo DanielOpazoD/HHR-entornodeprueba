@@ -93,7 +93,7 @@ la cama actual para identificarlo. Por decisión del responsable del 01-11-2026,
 con las mismas fechas y caminos que administración, tanto en la recuperación diaria
 como en la mensual. El guardado del día anterior mantiene la autoridad de la corrida.
 Esto no habilita `setAdminCudyrResult`, otros campos clínicos ni otros roles; tampoco
-cambia la ventana de 48 horas de `canWritePreviousDay`. No se cambian las reglas:
+cambia la ventana de 48 horas de `canWriteCensusDay`. No se cambian las reglas:
 los archivos CUDYR se escriben solo por callable para ambos roles, y las
 escrituras generales del censo conservan su ventana. Se conservan los ajustes
 administrativos y el CUDYR saneado (CUD-01).

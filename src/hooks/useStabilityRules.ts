@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { DailyRecordDateRef } from '@/types/domain/dailyRecordSlices';
 import { useAuth } from '@/context/AuthContext';
+import { isAdminAppRole } from '@/shared/access/operationalAccessPolicy';
 import { nurseEditingWindowClosesAt } from '@/utils/clinicalWallClock';
 import { buildStabilityRules, type StabilityRules } from './stabilityRulesController';
 import { isE2EEditableRecordOverrideEnabled } from '@/shared/runtime/e2eRuntime';
@@ -64,7 +65,7 @@ const useNurseWindowCloseTimer = (
 export const useStabilityRules = (record: DailyRecordDateRef | null): StabilityRules => {
   const { role, isEditor } = useAuth();
   const e2eEditableOverride = isE2EEditableRecordOverrideEnabled();
-  const isAdmin = role === 'admin' || e2eEditableOverride;
+  const isAdmin = isAdminAppRole(role) || e2eEditableOverride;
   const canEdit = isEditor || e2eEditableOverride;
   const [windowClosedAt, setWindowClosedAt] = useState<number | null>(null);
 

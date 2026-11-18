@@ -16,7 +16,7 @@ import {
   buildNursingShiftProposalPatch,
   reconcileNursingShiftProposal,
 } from '../domain/applyNursingShiftProposal';
-import { canWritePreviousDay } from '../domain/previousDayCorrections';
+import { canWriteCensusDay } from '@/shared/access/censusDayWriteAccessPolicy';
 import { getRayenImportErrorMessage } from './rayenImportState';
 import { reportRayenStaffingOutcome } from './useRayenFillStatus';
 import { isNursingStaffingCollectionContextCurrent } from '../domain/nursingStaffingCollectionContext';
@@ -62,7 +62,7 @@ export const useRayenStaffingProposalActions = ({
           'La propuesta corresponde a otra fecha del censo. Vuelve a sincronizar el día actual.'
         );
       }
-      if (!canWritePreviousDay(proposal.censusDate, isAdmin)) {
+      if (!canWriteCensusDay(proposal.censusDate, isAdmin)) {
         throw new Error(
           'Este censo está fuera de la ventana de edición. Solicita la actualización a un administrador.'
         );

@@ -44,6 +44,7 @@ import { replacePendingDailyRecordTask } from '@/services/storage/sync/syncQueue
 import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/pendingDailyRecordSyncTask';
 import { hasPendingNursingHandoff } from './nursingHandoffTasks';
 import { buildSyncQueueFailureContext } from './syncQueueFailureContext';
+import { canReleaseClosedWindowRefusals } from '@/shared/access/censusDayWriteAccessPolicy';
 
 export interface ProcessSyncQueueOptions {
   nursingHandoffOnly?: boolean;
@@ -286,7 +287,9 @@ export const createSyncQueueEngine = ({
         owner,
         Date.now(),
         async () =>
-          sameSession() && (await runtime.getWriterRole?.()) === 'nurse_hospital' && sameSession()
+          sameSession() &&
+          canReleaseClosedWindowRefusals(await runtime.getWriterRole?.()) &&
+          sameSession()
       );
     } catch (error) {
       // The tasks stay as they were; the next pass tries again.

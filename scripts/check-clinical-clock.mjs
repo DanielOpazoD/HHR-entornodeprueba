@@ -635,7 +635,7 @@ export const checkClinicalClock = (root = process.cwd()) => {
       rule: 'device-wall-clock-instant',
       files: [...productionFiles, ...netlifyFiles],
       find: deviceWallClockInstantLines,
-      hint: "a zone-less Thh:mm is the device's wall clock: use clinicalWallClockToDate(day, 'hh:mm') or isWithinNurseEditingWindow() from src/utils/clinicalWallClock for the hospital's, and diffCalendarDays() for day counts",
+      hint: "a zone-less Thh:mm is the device's wall clock: use clinicalWallClockToDate(day, 'hh:mm') from src/utils/clinicalWallClock for the hospital's, a day-write predicate of src/shared/access/censusDayWriteAccessPolicy for the 48 h window, and diffCalendarDays() for day counts",
     },
     {
       rule: 'shift-start-literal',
