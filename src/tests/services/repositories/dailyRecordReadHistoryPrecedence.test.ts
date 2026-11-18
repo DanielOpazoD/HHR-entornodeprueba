@@ -351,36 +351,52 @@ describe.each(readModes)('daily record history through %s reads and real cache h
     expect((await reopen())?.rayenSyncHistory).toEqual(result.record?.rayenSyncHistory);
   });
 
-  it.each(unresolvedStates)(
-    'retains the pending projection and outbox in state %s',
-    async status => {
-      const pending = record({ rayenSyncHistory: [event()], tensDayShift: ['SYNTHETIC PENDING'] });
-      await seed(pending);
-      await hospitalDB.syncQueue.add({
-        opId: 'synthetic-pending-write',
-        type: 'UPDATE_DAILY_RECORD',
-        key: `daily:${date}`,
-        payload: pending,
-        timestamp: Date.parse(baseTime),
-        retryCount: 0,
-        status,
-        syncContract: { expectedVersion: baseTime, changedPaths: ['tensDayShift'] },
-      });
-      const outboxBefore = await hospitalDB.syncQueue.toArray();
+  // W14-H1B (SAVE-01): a confirmed read shows the server's day with the pending paths on top when it
+  // can be sure of them. The pending staffing edit is a list: with the base it was made on, the day
+  // is the server's (its reviewed Rayen history) with that edit on top; without a base, the stored
+  // projection stays as it is and is not confirmed. Either way the outbox is untouched.
+  describe.each([
+    ['with the base it was made on', true],
+    ['without its base', false],
+  ] as const)('a pending staffing list %s', (_case, withBase) => {
+    it.each(unresolvedStates)(
+      'retains the pending edit and the outbox in state %s',
+      async status => {
+        const pending = record({
+          rayenSyncHistory: [event()],
+          tensDayShift: ['SYNTHETIC PENDING'],
+        });
+        await seed(pending);
+        await hospitalDB.syncQueue.add({
+          opId: 'synthetic-pending-write',
+          type: 'UPDATE_DAILY_RECORD',
+          key: `daily:${date}`,
+          payload: pending,
+          timestamp: Date.parse(baseTime),
+          retryCount: 0,
+          status,
+          syncContract: { expectedVersion: baseTime, changedPaths: ['tensDayShift'] },
+          ...(withBase ? { patchBaseValues: { tensDayShift: record().tensDayShift } } : {}),
+        });
+        const outboxBefore = await hospitalDB.syncQueue.toArray();
 
-      const result = await read(
-        mode,
-        record({ lastUpdated: laterTime, rayenSyncHistory: [reviewedEvent()] })
-      );
+        const result = await read(
+          mode,
+          record({ lastUpdated: laterTime, rayenSyncHistory: [reviewedEvent()] })
+        );
 
-      for (const selected of [result.record, await reopen()]) {
-        expect(selected?.tensDayShift).toEqual(['SYNTHETIC PENDING']);
-        expect(selected?.rayenSyncHistory).toEqual(pending.rayenSyncHistory);
-        expect(selected?.lastUpdated).toBe(baseTime);
+        expect(result.serverConfirmed).toBe(withBase);
+        for (const selected of [result.record, await reopen()]) {
+          expect(selected?.tensDayShift).toEqual(['SYNTHETIC PENDING']);
+          expect(selected?.rayenSyncHistory).toEqual(
+            withBase ? [reviewedEvent()] : pending.rayenSyncHistory
+          );
+          expect(selected?.lastUpdated).toBe(baseTime);
+        }
+        expect(await hospitalDB.syncQueue.toArray()).toEqual(outboxBefore);
       }
-      expect(await hospitalDB.syncQueue.toArray()).toEqual(outboxBefore);
-    }
-  );
+    );
+  });
 });
 
 it('keeps original audit source records and arrays unchanged', async () => {

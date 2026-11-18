@@ -7,6 +7,11 @@ import {
 } from '@/services/repositories/explicitLocalCensusPatchPolicy';
 import { buildSyncMutationIdentity } from '@/services/storage/sync/syncMutationIdentity';
 import { onSessionChange } from '@/services/storage/sessionStorageTransition';
+import {
+  DAILY_RECORD_STORE_CHANGED_EVENT,
+  type DailyRecordStoreChangedEventDetail,
+} from '@/services/storage/indexeddb/indexedDbRecordEvents';
+import { pathsOverlap } from '@/services/storage/sync/dayTaskReplayGuard';
 
 export const PENDING_DAILY_RECORD_PATCH_STORAGE_KEY = 'hhr_pending_daily_record_patches_v1';
 export const PENDING_DAILY_RECORD_PATCH_TTL_MS = 5 * 60 * 1000;
@@ -244,6 +249,28 @@ export const registerPendingDailyRecordPatch = (
 onSessionChange(() => {
   pendingPatchRegistry.clear();
 });
+
+// A stopped day write released after the nurse window gave its fields back to the stored day
+// (SAVE-04): its unconfirmed overlay goes with them, so the census shows the server's values.
+if (typeof window !== 'undefined') {
+  window.addEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, event => {
+    const { operation, dates, paths } =
+      (event as CustomEvent<DailyRecordStoreChangedEventDetail>).detail ?? {};
+    if (operation !== 'release' || !paths?.length) return;
+    for (const date of dates ?? []) {
+      const entries = getPendingEntriesForDate(date).flatMap(entry => {
+        const patch = Object.fromEntries(
+          Object.entries(entry.patch).filter(
+            ([path]) => !paths.some(released => pathsOverlap(released, path))
+          )
+        ) as DailyRecordPatch;
+        return Object.keys(patch).length ? [{ ...entry, patch }] : [];
+      });
+      writeMemoryEntriesForDate(date, entries);
+      writePersistedEntriesForDate(date, entries);
+    }
+  });
+}
 
 export const clearPendingDailyRecordPatchesForTests = (): void => {
   pendingPatchRegistry.clear();
