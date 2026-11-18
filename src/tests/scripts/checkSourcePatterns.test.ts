@@ -82,6 +82,12 @@ const rejected: Array<[rule: string, file: string, source: string]> = [
   ],
   ['firestore-runtime', 'src/a.ts', 'import "@/services/firebase-runtime/firestoreRuntime";'],
   ['legacy-permissions', 'src/a.ts', "import { can } from '@/utils/permissions';"],
+  [
+    'staff-role-copies',
+    'src/features/census/components/TensSelector.tsx',
+    'export const TensSelector: React.FC<Props> = () => null;',
+  ],
+  ['staff-role-copies', 'src/components/modals/a.tsx', 'function NurseManagerModal() {}'],
 ];
 
 const accepted: Array<[why: string, file: string, source: string]> = [
@@ -121,6 +127,9 @@ const accepted: Array<[why: string, file: string, source: string]> = [
     'src/shared/access/operationalAccessPolicy.ts',
     "import { can } from '@/utils/permissions';",
   ],
+  ['a role-named type', 'src/a.tsx', 'interface NurseSelectorProps {}'],
+  ['a role component in a test', 'src/tests/a.test.tsx', 'const NurseSelector = () => null;'],
+  ['a role helper in a .ts module', 'src/services/staff/a.ts', 'const NurseCatalog = [];'],
 ];
 
 describe('check-source-patterns', () => {

@@ -106,11 +106,8 @@ vi.mock('@/features/census/components/CensusRegisterMainContent', () => ({
 vi.mock('@/features/census/components/CensusRegisterSections', () => ({
   CensusRegisterSections: () => null,
 }));
-vi.mock('@/features/census/components/NurseSelector', () => ({
-  NurseSelector: () => <div data-testid="nurse-selector" />,
-}));
-vi.mock('@/features/census/components/TensSelector', () => ({
-  TensSelector: () => <div data-testid="tens-selector" />,
+vi.mock('@/features/census/components/StaffSelector', () => ({
+  StaffSelector: ({ role }: { role: 'nurse' | 'tens' }) => <div data-testid={`${role}-selector`} />,
 }));
 vi.mock('@/components/layout/SummaryCard', () => ({
   CombinedSummaryCard: () => null,

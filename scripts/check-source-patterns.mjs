@@ -150,6 +150,13 @@ const RULES = [
     patterns: [importOf('@/utils/permissions')],
     fix: 'Importa los permisos desde @/shared/access/operationalAccessPolicy.',
   },
+  {
+    id: 'staff-role-copies',
+    files: file => isProduction(file) && /\.[jt]sx$/.test(file),
+    // A component per nursing role (NurseX / TensX) is the copy W15-U1 folded back into one.
+    patterns: [/\b(?:const|function)\s+(?:Nurse|Tens)[A-Z]\w*/g],
+    fix: 'No copies un componente por rol: pasa role="nurse" | "tens" a StaffSelector o StaffManagerModal y pon lo que difiere en su tabla por rol.',
+  },
 ];
 
 const walk = directory =>

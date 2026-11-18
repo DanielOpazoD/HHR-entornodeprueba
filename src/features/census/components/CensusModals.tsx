@@ -1,6 +1,5 @@
 import React from 'react';
-import { NurseManagerModal } from '@/components/modals/NurseManagerModal';
-import { TensManagerModal } from '@/components/modals/TensManagerModal';
+import { StaffManagerModal } from '@/components/modals/StaffManagerModal';
 import { BedManagerModal } from '@/components/modals/BedManagerModal';
 import { useCensusModalsModel } from '@/features/census/hooks/useCensusModalsModel';
 import { MoveCopyModal } from '@/components/modals/actions/MoveCopyModal';
@@ -45,17 +44,19 @@ export const CensusModals: React.FC<CensusModalsProps> = ({
 
   return (
     <>
-      <NurseManagerModal
+      <StaffManagerModal
+        role="nurse"
         isOpen={showNurseManager}
         onClose={() => setShowNurseManager(false)}
-        nursesList={nursesList}
+        staffList={nursesList}
         saved={nursesSaved}
       />
 
-      <TensManagerModal
+      <StaffManagerModal
+        role="tens"
         isOpen={showTensManager}
         onClose={() => setShowTensManager(false)}
-        tensList={tensList}
+        staffList={tensList}
         saved={tensSaved}
       />
 
