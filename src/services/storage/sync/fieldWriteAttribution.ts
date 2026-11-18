@@ -16,7 +16,8 @@ export interface FieldWrite {
   /**
    * Whether this entry can credit a field to its edit: the day's last write was a server write
    * (it stamps `meta.updatedAt` with the day's `lastUpdated`), and no change the map may miss came
-   * after it (the map is at the day's revision and the entry is newer than `incompleteThrough`).
+   * after it (the map is at the day's revision and the entry is newer than `incompleteThrough`,
+   * and, outside the bed tree, than `outsideBedsIncompleteThrough`).
    */
   credible: boolean;
 }
@@ -63,6 +64,12 @@ export const fieldValueDigest = (value: unknown): string => {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 };
 
+/**
+ * A field of the bed tree. Under the Rayen fence the rules keep clients from changing it
+ * (`preservesServerOwnedClinicalState`), so a direct client write never reaches it.
+ */
+const isBedTreePath = (path: string): boolean => /^(beds|bedTypeOverrides)(\.|$)/.test(path);
+
 /** A stored stamp as one comparable value: a Firestore timestamp to the nanosecond, or its text. */
 const stampOf = (value: unknown): string | undefined => {
   if (typeof value === 'string') return value;
@@ -87,6 +94,8 @@ export const storedFieldWrites = (remoteData: Record<string, unknown>): FieldWri
   const serverStamped = stamp !== undefined && stamp === stampOf(meta.updatedAt);
   const current = revision !== undefined && resolveOptionalBaseRevision(map.revision) === revision;
   const incompleteThrough = resolveOptionalBaseRevision(map.incompleteThrough) ?? -1;
+  const outsideBedsIncompleteThrough =
+    resolveOptionalBaseRevision(map.outsideBedsIncompleteThrough) ?? -1;
   const recorded = Object.entries(isRecord(map.fields) ? map.fields : {}).flatMap(
     ([path, entry]): FieldWrite[] => {
       const written = isRecord(entry) ? resolveOptionalBaseRevision(entry.revision) : undefined;
@@ -99,7 +108,11 @@ export const storedFieldWrites = (remoteData: Record<string, unknown>): FieldWri
           mutationId: isRecord(writer) ? textOf(writer.mutationId) : undefined,
           clientId: isRecord(writer) ? textOf(writer.clientId) : undefined,
           digest: textOf(entry.digest),
-          credible: serverStamped && current && written > incompleteThrough,
+          credible:
+            serverStamped &&
+            current &&
+            written > incompleteThrough &&
+            (isBedTreePath(path) || written > outsideBedsIncompleteThrough),
         },
       ];
     }

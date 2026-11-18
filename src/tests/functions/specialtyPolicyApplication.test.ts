@@ -123,6 +123,17 @@ describe('publishing persistent automatic specialty rules', () => {
     expect(saved.beds.R5.clinicalCrib.specialty).toBe('Pediatría');
     expect(saved.beds.R3).not.toHaveProperty('isBlocked');
     expect(saved.meta.revision).toBe(6);
+    // The record of field writes names what the application changed, under its own identifier.
+    const fieldWrites = (
+      saved.meta as unknown as {
+        fieldWrites: { revision: number; fields: Record<string, { revision: number }> };
+      }
+    ).fieldWrites;
+    expect(fieldWrites.revision).toBe(6);
+    expect(Object.keys(fieldWrites.fields)).toEqual(
+      expect.arrayContaining(['beds.R1.specialty', 'beds.R5.clinicalCrib.specialty'])
+    );
+    expect(fieldWrites.fields['beds.R1.pathology']).toBeUndefined();
     const audits = [...docs.entries()].filter(([key]) => key.includes('/specialtyDecisions/'));
     expect(audits).toHaveLength(2);
     expect(audits[0][1]).toMatchObject({

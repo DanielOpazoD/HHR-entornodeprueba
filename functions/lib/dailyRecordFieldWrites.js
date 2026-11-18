@@ -5,15 +5,19 @@
  *   stored (`digest` is null for `*`, a write of the whole day);
  * - `writes[revision]`: the edit (`mutationId`) and the computer (`clientId`) behind each
  *   revision a field still names;
- * - `revision`: the day revision this map was last brought up to date with;
+ * - `revision`: the day revision this map was last brought up to date with, and `fenced` when that
+ *   write ran under the Rayen clinical fence (the rules then keep clients out of `beds` and
+ *   `bedTypeOverrides`: `preservesServerOwnedClinicalState`);
  * - `incompleteThrough`: the newest revision whose changes the map may miss. A writer that leaves
- *   the map as it was (a direct client write, a restore, a CUDYR or specialty adjustment) is found
- *   by the next write that keeps the map: the map was not at the day's revision, or the day's
- *   `lastUpdated` is not the stamp a server write puts in `meta.updatedAt`.
+ *   the map as it was is found by the next write that keeps the map: a server write (a restore)
+ *   left the map below the day's revision, or a direct client write left a `lastUpdated` that is
+ *   not the stamp a server write puts in `meta.updatedAt`;
+ * - `outsideBedsIncompleteThrough`: the same for a direct client write between two fenced writes,
+ *   which can only have changed day fields outside the bed tree (handoff texts, staffing).
  * A queued edit replayed after a lost answer tells by it which fields its own earlier edit wrote
  * and which another computer wrote after the base it saw (src/services/storage/sync/
- * fieldWriteAttribution.ts reads it, with the same digest). An entry at or before
- * `incompleteThrough`, or whose digest no longer matches the stored value, never credits a field.
+ * fieldWriteAttribution.ts reads it, with the same digest). An entry at or before the mark that
+ * covers its path, or whose digest no longer matches the stored value, never credits a field.
  */
 const MAX_FIELD_WRITES = 300;
 
@@ -101,19 +105,35 @@ const changedFieldPaths = (before, after, prefix = '') =>
  * entries below it; an entry above it still names the rest of that object. Past
  * MAX_FIELD_WRITES the oldest entries go: a field without an entry is decided as before the map.
  */
-const nextFieldWrites = ({ previousDay, paths, record, revision, mutationId, clientId }) => {
+const nextFieldWrites = ({
+  previousDay,
+  paths,
+  record,
+  revision,
+  mutationId,
+  clientId,
+  fenced = false,
+}) => {
   const written = paths.includes('*') ? ['*'] : [...new Set(paths)];
   const previous = isPlainObject(previousDay?.meta?.fieldWrites)
     ? previousDay.meta.fieldWrites
     : {};
   const before = isPlainObject(previous.fields) && !written.includes('*') ? previous.fields : {};
   const previousRevision = revisionOf(previousDay?.meta?.revision) ?? 0;
-  const missed =
-    Object.keys(before).length > 0 &&
-    (revisionOf(previous.revision) !== previousRevision ||
-      !stampOf(previousDay?.lastUpdated) ||
+  const recorded = Object.keys(before).length > 0;
+  const serverMissed = recorded && revisionOf(previous.revision) !== previousRevision;
+  const clientMissed =
+    recorded &&
+    (!stampOf(previousDay?.lastUpdated) ||
       stampOf(previousDay?.lastUpdated) !== stampOf(previousDay?.meta?.updatedAt));
-  const incompleteThrough = missed ? previousRevision : revisionOf(previous.incompleteThrough);
+  const bedsFenced = fenced && previous.fenced === true;
+  const incompleteThrough =
+    serverMissed || (clientMissed && !bedsFenced)
+      ? previousRevision
+      : revisionOf(previous.incompleteThrough);
+  const outsideBedsIncompleteThrough = clientMissed
+    ? previousRevision
+    : revisionOf(previous.outsideBedsIncompleteThrough);
   const kept = Object.entries(before)
     .filter(
       ([path, entry]) =>
@@ -140,27 +160,34 @@ const nextFieldWrites = ({ previousDay, paths, record, revision, mutationId, cli
   );
   return {
     revision,
+    ...(fenced ? { fenced: true } : {}),
     fields,
     writes,
     ...(incompleteThrough === undefined ? {} : { incompleteThrough }),
+    ...(outsideBedsIncompleteThrough === undefined ? {} : { outsideBedsIncompleteThrough }),
   };
 };
 
-/** The map after a Rayen batch: the fields it changed, its edit and no computer. */
-const batchFieldWrites = (record, previousDay) =>
+/**
+ * The map after a server write of the whole `record` whose meta names its revision: the fields it
+ * changed from `previousDay`, `mutationId` (none: no edit of anyone's) and no computer.
+ * `policySnapshot` is the Rayen import policy read in the same transaction.
+ */
+const wholeRecordFieldWrites = (record, previousDay, { mutationId = null, policySnapshot } = {}) =>
   nextFieldWrites({
     previousDay,
     paths: changedFieldPaths(previousDay, record),
     record,
     revision: record.meta.revision,
-    mutationId: record.meta.lastMutationId,
+    mutationId,
     clientId: null,
+    fenced: Boolean(policySnapshot?.exists) && policySnapshot.data()?.schemaVersion === 2,
   });
 
 module.exports = {
   MAX_FIELD_WRITES,
-  batchFieldWrites,
   changedFieldPaths,
   fieldValueDigest,
   nextFieldWrites,
+  wholeRecordFieldWrites,
 };

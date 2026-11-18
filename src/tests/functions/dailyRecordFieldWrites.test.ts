@@ -16,7 +16,9 @@ import {
 const require = createRequire(import.meta.url);
 type FieldWritesMap = {
   revision: number;
+  fenced?: boolean;
   incompleteThrough?: number;
+  outsideBedsIncompleteThrough?: number;
   fields: Record<string, { revision: number; digest: string | null }>;
   writes: Record<string, { mutationId: string | null; clientId: string | null }>;
 };
@@ -36,6 +38,7 @@ const {
     revision: number;
     mutationId?: string | null;
     clientId?: string | null;
+    fenced?: boolean;
   }) => FieldWritesMap;
 };
 
@@ -51,7 +54,8 @@ const serverWrite = (
   paths: string[],
   revision: number,
   mutationId: string,
-  clientId?: string
+  clientId?: string,
+  fenced = false
 ): Day => {
   const stamp = new AdminTimestamp(1_763_000_000 + revision, 0);
   return {
@@ -69,10 +73,14 @@ const serverWrite = (
         revision,
         mutationId,
         clientId,
+        fenced,
       }),
     },
   };
 };
+
+const credit = (day: Day) =>
+  isLastWrittenBy(storedFieldWrites(day), 'beds.R1.pathology', ['m-P1'], day);
 
 describe('the field-write digest', () => {
   it.each([
@@ -194,6 +202,63 @@ describe('the map a write leaves', () => {
       'm-P3'
     );
     expect((later.meta?.fieldWrites as FieldWritesMap).incompleteThrough).toBe(3);
+  });
+
+  it('limits a direct client write between two fenced writes to the fields outside the beds', () => {
+    // Under the Rayen fence the rules keep a client's direct write out of the bed tree.
+    const fencedFirst = serverWrite(
+      undefined,
+      record('NEUMONIA'),
+      ['beds.R1.pathology', 'night'],
+      2,
+      'm-P1',
+      'c-P1',
+      true
+    );
+    const direct = { ...fencedFirst, lastUpdated: '2026-11-18T12:00:00.000Z' };
+    const fencedNext = serverWrite(
+      direct,
+      record('NEUMONIA', 'Grave'),
+      ['beds.R1.status'],
+      3,
+      'm-P2',
+      'c-P2',
+      true
+    );
+    const map = fencedNext.meta?.fieldWrites as FieldWritesMap;
+    expect(map).toMatchObject({ fenced: true, outsideBedsIncompleteThrough: 2 });
+    expect(map.incompleteThrough).toBeUndefined();
+    const writes = storedFieldWrites(fencedNext);
+    expect(isLastWrittenBy(writes, 'beds.R1.pathology', ['m-P1'], fencedNext)).toBe(true);
+    expect(isLastWrittenBy(writes, 'night', ['m-P1'], fencedNext)).toBe(false);
+    // Without the fence at either write, the direct write may have changed any field.
+    for (const [before, now] of [
+      [true, false],
+      [false, true],
+    ]) {
+      const unfenced = serverWrite(
+        {
+          ...serverWrite(
+            undefined,
+            record('NEUMONIA'),
+            ['beds.R1.pathology'],
+            2,
+            'm-P1',
+            'c-P1',
+            before
+          ),
+          lastUpdated: '2026-11-18T12:00:00.000Z',
+        },
+        record('NEUMONIA', 'Grave'),
+        ['beds.R1.status'],
+        3,
+        'm-P2',
+        'c-P2',
+        now
+      );
+      expect((unfenced.meta?.fieldWrites as FieldWritesMap).incompleteThrough).toBe(2);
+      expect(credit(unfenced)).toBe(false);
+    }
   });
 
   it(`keeps the newest ${MAX_FIELD_WRITES} fields`, () => {

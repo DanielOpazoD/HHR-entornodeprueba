@@ -23,6 +23,7 @@ const {
   assertUnusedSpecialtyDecisionIds,
 } = require('./specialtyAuditAuthority');
 const {
+  isRayenClinicalWriteFenceActive,
   preserveRayenClinicalFields,
   shouldPreserveRayenClinicalFields,
 } = require('./dailyRecordClinicalFieldPreservation');
@@ -290,6 +291,7 @@ const createFullSaveHandler =
           syncContract,
           now,
           record: recordForPersistence,
+          fenced: isRayenClinicalWriteFenceActive(policySnapshot),
           // Only what this save changes: the other fields keep the edit that wrote them.
           writtenPaths: snapshot.exists
             ? changedFieldPaths(remoteData, recordForPersistence)

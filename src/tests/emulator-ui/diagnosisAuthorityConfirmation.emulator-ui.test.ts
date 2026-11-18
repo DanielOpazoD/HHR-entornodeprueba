@@ -35,6 +35,11 @@ import { BEDS } from '@/constants/beds';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { FIELD_CHANGED_ELSEWHERE_MESSAGE } from '@/services/storage/syncErrorCatalog';
 import { applyPatches } from '@/utils/patchUtils';
+import { updateRecordPartial } from '@/services/storage/firestore/firestoreRecordWrites';
+import {
+  executeUpdateHandoffNovedades,
+  executeUpdateHandoffStaff,
+} from '@/application/handoff/handoffManagementUseCases';
 import { PatientStatus } from '@/types/domain/patientClassification';
 import { resolveRecordBaseRevision } from '@/services/storage/sync/syncTaskContractPolicy';
 import { isLastWrittenBy, storedFieldWrites } from '@/services/storage/sync/fieldWriteAttribution';
@@ -762,6 +767,92 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       expectDelivered([DIAGNOSIS]);
     });
 
+    // Found by the recheck of W17-ATT1, round 2: the night handoff text and the nurses on shift
+    // are direct client writes, and an administrator's CUDYR adjustment left the record behind;
+    // each one ended the first edit's attribution, so the correction waited for review. A CUDYR
+    // adjustment now records its fields, and a direct write between two writes under the Rayen
+    // fence (the rules keep it out of the beds) ends it only outside the beds.
+    it.each(['the night handoff text', 'the night nurses', 'an administrator’s CUDYR adjustment'])(
+      'publishes the correction after %s and another computer’s save while the first answer was lost',
+      async writer => {
+        const day = baseRecord();
+        day.beds.R1.evaluationScores = {
+          cudyr: { category: 'C1', recordedDate: date, source: 'synthetic' },
+        } as DailyRecord['beds'][string]['evaluationScores'];
+        await seedManualDiagnosis(day);
+        await correctWhileAnswerLost(async () => {
+          if (writer === 'an administrator’s CUDYR adjustment') {
+            const { createAdminCudyrResultFunctions } = createRequire(import.meta.url)(
+              '../../../functions/lib/adminCudyrResultFunctions.js'
+            );
+            await createAdminCudyrResultFunctions({
+              firestore: admin,
+              Timestamp,
+              resolveRoleForEmail: async () => 'admin',
+            }).setAdminCudyrResult.run(
+              {
+                date,
+                expectedLastUpdated: (await readServer()).lastUpdated,
+                clinicalEpisodeId: 'synthetic-episode-R1',
+                bedId: 'R1',
+                category: 'B1',
+              },
+              { auth: { uid: 'synthetic-admin', token: { email: 'admin@example.invalid' } } }
+            );
+          } else {
+            // Another nurse's census saves it as the handoff screen does: a direct partial write.
+            const nurse = {
+              uid: 'synthetic-P2',
+              role: 'nurse_hospital',
+              db: env
+                .authenticatedContext('synthetic-P2', {
+                  email: 'synthetic-P2@example.invalid',
+                  role: 'nurse_hospital',
+                })
+                .firestore(),
+            };
+            const shown = await readServer();
+            const persist = {
+              record: shown,
+              patchRecord: async (patch: DailyRecordPatch) => {
+                await updateRecordPartial(date, patch, shown.lastUpdated, { baseRecord: shown });
+              },
+              saveRecord: () => {
+                throw new Error('The handoff screen saves this field by patch');
+              },
+            };
+            const down = network.down;
+            network.down = 0;
+            try {
+              await scope.run(nurse, () =>
+                writer === 'the night handoff text'
+                  ? executeUpdateHandoffNovedades({ ...persist, shift: 'night', value: 'NOCHE P2' })
+                  : executeUpdateHandoffStaff({
+                      ...persist,
+                      shift: 'night',
+                      type: 'delivers',
+                      staffList: ['ENFERMERA SINTETICA'],
+                    })
+              );
+            } finally {
+              network.down = down;
+            }
+          }
+          await otherComputerSaves({ 'beds.R1.status': 'De cuidado' });
+        });
+        const stored = await readServer();
+        expect(stored.beds.R1).toMatchObject({ pathology: CORRECTED, status: 'De cuidado' });
+        if (writer === 'the night handoff text') expect(stored[night]).toBe('NOCHE P2');
+        if (writer === 'the night nurses')
+          expect(stored.nursesNightShift).toEqual(['ENFERMERA SINTETICA']);
+        if (writer === 'an administrator’s CUDYR adjustment')
+          expect(stored.beds.R1.evaluationScores?.cudyr?.category).toBe('B1');
+        expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
+        expect(await waiting()).toBe(0);
+        expectDelivered([DIAGNOSIS, CORRECTED]);
+      }
+    );
+
     // Found by the review of W17-ATT1: a writer that leaves the record of field writes as it was
     // (a direct client write, a restore) may change the field and put the first edit's text back.
     // The next server write marks the record incomplete up to there, so the first edit no longer
@@ -770,7 +861,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       ['another text', false],
       ['the first edit’s text put back', true],
     ])(
-      'holds the correction after a direct write of the day text left %s and another computer saved another field',
+      'holds the day text after a direct write left %s and another computer saved another field, and publishes the diagnosis',
       async (_label, restored) => {
         const day = baseRecord();
         day[night] = 'NOCHE BASE';
@@ -815,13 +906,17 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         await runQueue();
         const stored = await readServer();
         expect(stored[night]).toBe(restored ? 'NOCHE P1' : 'NOCHE AJENA');
+        // The diagnosis nobody else wrote is published; the disputed text alone waits for review,
+        // as any day text another computer changed (W12-CW12).
+        expect(stored.beds.R1.pathology).toBe(CORRECTED);
         expect(
           (await hospitalDB.syncQueue.toArray()).map(task => [
             task.status,
+            task.syncContract?.changedPaths,
             (task.payload as DailyRecord)[night],
           ])
-        ).toEqual([['CONFLICT', 'CORRECCION LOCAL']]);
-        expectDelivered([DIAGNOSIS]);
+        ).toEqual([['CONFLICT', [night], 'CORRECCION LOCAL']]);
+        expectDelivered([DIAGNOSIS, CORRECTED]);
       }
     );
 

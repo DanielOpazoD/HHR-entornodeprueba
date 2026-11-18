@@ -313,6 +313,7 @@ const createPatchHandler =
           now,
           record: patchedRecord,
           writtenPaths,
+          fenced: isRayenClinicalWriteFenceActive(policySnapshot),
         });
         const derivedWrite = derivedSplit?.plan({ patchedRecord, now, mutationId });
 

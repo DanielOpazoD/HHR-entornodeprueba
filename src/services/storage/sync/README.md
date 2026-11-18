@@ -65,11 +65,22 @@ El parche anota sus rutas y las de especialidad que cambió el servidor; el guar
 de Rayen, las rutas cuyo valor difiere del día guardado. Por campo guarda la revisión que lo escribió
 y una huella del valor guardado; por revisión, la edición (`mutationId`) y el equipo (`clientId`).
 Una ruta escrita reemplaza su entrada y las de debajo; las demás se conservan, y quedan las 300 más
-nuevas. El mapa guarda también la revisión con que se actualizó (`revision`). Una escritura que no lo
-actualiza (escritura directa del cliente, restauración, ajuste de CUDYR, política de especialidad)
-la detecta el guardado siguiente del servidor: el mapa no estaba en la revisión del día, o
-`lastUpdated` no era el sello que el servidor pone en `meta.updatedAt`. Desde entonces el mapa marca
-`incompleteThrough`, y ninguna entrada de esa revisión o anterior acredita un campo. Solo lo escribe
+nuevas. El ajuste administrativo de CUDYR y la aplicación de la política de especialidad también anotan lo
+que cambian, sin edición de nadie. El mapa guarda la revisión con que se actualizó (`revision`) y si
+ese guardado corrió bajo la valla clínica de Rayen (`fenced`: con la política v2 las reglas impiden
+al cliente cambiar `beds` y `bedTypeOverrides`, `preservesServerOwnedClinicalState`). Una escritura
+que no lo actualiza la detecta el guardado siguiente del servidor:
+
+- la restauración (o cualquier escritor del servidor que no anote) deja el mapa bajo la revisión
+  del día: el mapa marca `incompleteThrough` y ninguna entrada de esa revisión o anterior acredita
+  un campo;
+- una escritura directa del cliente (novedades y listas de la entrega, dotación, y el reenvío de
+  esos datos) deja un `lastUpdated` que no es el sello `meta.updatedAt` del servidor. Entre dos
+  guardados bajo la valla solo pudo cambiar datos del día fuera de las camas: el mapa marca
+  `outsideBedsIncompleteThrough` y el corte vale solo para esos campos. Sin la valla en alguno de
+  los dos, marca `incompleteThrough`.
+
+Solo lo escribe
 el servidor: las reglas de Firestore no cambian. El reenvío lo lee con `fieldWriteAttribution.ts`,
 con la misma huella; un día guardado sin ese dato, o cuya última escritura no lo actualizó, se lee
 también por su última escritura (`meta.lastMutationId` y `meta.lastChangedPaths`), como antes, salvo

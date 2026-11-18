@@ -158,7 +158,7 @@ const collectChangedPaths = syncContract =>
     : [];
 
 /** `writtenPaths`: the fields this write changes (`*`, the default: the whole day). */
-const buildNextMeta = ({ remoteData, syncContract, now, record, writtenPaths }) => {
+const buildNextMeta = ({ remoteData, syncContract, now, record, writtenPaths, fenced }) => {
   const mutationId = normalizeShortString(syncContract?.mutationId);
   const clientId = normalizeShortString(syncContract?.clientId);
   const tabId = normalizeShortString(syncContract?.tabId);
@@ -179,6 +179,7 @@ const buildNextMeta = ({ remoteData, syncContract, now, record, writtenPaths }) 
       revision,
       mutationId,
       clientId,
+      fenced,
     }),
   };
 };

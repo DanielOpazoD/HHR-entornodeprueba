@@ -22,7 +22,7 @@ const {
   assertRayenClinicalRunAuthority,
 } = require('./rayenClinicalBatchAuthority');
 const { createClinicalDerivedStore, isClinicalDerivedSplitDay } = require('./clinicalDerivedStore');
-const { batchFieldWrites } = require('./dailyRecordFieldWrites');
+const { wholeRecordFieldWrites } = require('./dailyRecordFieldWrites');
 const {
   applyClinicalEnrichment,
   assertHistoricalCudyrPayload,
@@ -457,7 +457,8 @@ const createRayenClinicalEnrichmentFunctions = ({
             canonicalDigest: batchDigest,
             now,
           });
-          nextRecord.meta.fieldWrites = batchFieldWrites(nextRecord, remoteData);
+          const writer = { mutationId: payload.mutationId, policySnapshot };
+          nextRecord.meta.fieldWrites = wholeRecordFieldWrites(nextRecord, remoteData, writer);
           // The established authority path also stores a Firestore Timestamp; firestoreShared
           // normalizes it back to the DailyRecord ISO-string contract on every client hydration.
           nextRecord.lastUpdated = now;
