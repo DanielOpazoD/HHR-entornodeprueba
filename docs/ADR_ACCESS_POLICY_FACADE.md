@@ -13,5 +13,5 @@ La coexistencia entre helpers legacy de `utils/permissions` y políticas más nu
 ## Consecuencia
 
 - El app shell usa `getVisibleAppModules`, `canEditAppModule` y `sanitizeAppModuleForRole`.
-- `utils/permissions` queda como compatibilidad legacy y fuente base de reglas.
-- Los consumidores nuevos deben entrar por la fachada operativa, no por combinaciones ad hoc.
+- Las acciones por rol viven en `shared/access/rolePermissions.ts` (antes `utils/permissions`, fundido en `shared/access` el 18-11-2026), detrás de la fachada.
+- Los consumidores nuevos deben entrar por la fachada operativa, no por combinaciones ad hoc: ESLint rechaza comparar o listar roles a mano fuera de `shared/access`.

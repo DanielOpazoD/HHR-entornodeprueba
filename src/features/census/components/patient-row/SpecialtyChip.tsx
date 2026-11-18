@@ -31,6 +31,7 @@ import {
   SPECIALTY_CHIP_STYLES,
   SPECIALTY_CHIP_FALLBACK,
 } from '@/constants/clinicalSpecialtyConstants';
+import { canPublishSpecialtyDecision } from '@/shared/access/operationalAccessPolicy';
 
 const SpecialtyRoundEntry = lazy(() =>
   import('../specialty-round/SpecialtyRoundEntry').then(module => ({
@@ -143,7 +144,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
         await defaultAuthRuntime.ready;
         const user = defaultAuthRuntime.getCurrentUser();
         const role = user ? await resolveFirebaseUserRole(user) : null;
-        if (active) setCanPublish(role === 'admin');
+        if (active) setCanPublish(canPublishSpecialtyDecision(role ?? undefined));
       } catch {
         if (active) setCanPublish(false);
       }

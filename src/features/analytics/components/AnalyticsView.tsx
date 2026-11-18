@@ -29,6 +29,7 @@ import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { useNotification } from '@/context/UIContext';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import type { SpecialtyGroupingMode } from '@/types/minsalTypes';
+import { isAdminAppRole } from '@/shared/access/operationalAccessPolicy';
 
 interface AnalyticsViewProps {
   onOpenCensusDate?: (date: string) => void;
@@ -61,7 +62,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
   const copy = resolveAnalyticsPresentationCopy();
   const { error: notifyError } = useNotification();
   const auth = useAuth();
-  const isAdmin = auth.role === 'admin' || auth.currentUser?.role === 'admin';
+  const isAdmin = isAdminAppRole(auth.role) || isAdminAppRole(auth.currentUser?.role);
   const [specialtyGroupingMode, setSpecialtyGroupingMode] =
     React.useState<SpecialtyGroupingMode>('detailed');
   const [activeTab, setActiveTab] = React.useState<AnalyticsTab>('summary');

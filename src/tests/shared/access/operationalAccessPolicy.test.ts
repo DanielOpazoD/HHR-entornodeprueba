@@ -2,9 +2,25 @@
 import { describe, expect, it } from 'vitest';
 import type { ModuleType } from '@/constants/navigationConfig';
 import type { UserRole } from '@/types/authRoleTypes';
+import { canEditClosedEpisodeDocuments } from '@/shared/access/clinicalDocumentAccessPolicy';
+import { resolveRoleAccess } from '@/shared/access/roleAccessMatrix';
 import {
   canAccessAppModuleRoute,
+  canAccessFunctionsTelemetryView,
   canAccessAuditSensitivePanelsForRole,
+  canConfigurePrescriptions,
+  canDeletePrescriptions,
+  canEditPrescriptions,
+  canManageFugaNotification,
+  canPublishSpecialtyDecision,
+  canReadAllLocalDiagnostics,
+  canReportSystemHealth,
+  canSetAdminCudyrResult,
+  canSetArbitraryAdmissionDate,
+  canUseBookmarks,
+  canUseDayActions,
+  canViewPrescriptions,
+  mayBeAdminRole,
   canAccessAuditViewForRole,
   canCorrectCudyrDischarge,
   canDeleteTodayDailyRecord,
@@ -331,6 +347,62 @@ describe('role × permission truth table', () => {
         },
       }
     `);
+  });
+
+  // One column per named capability, in this order. Each replaced a role compared or listed by
+  // hand (W17-R1); a role moved in or out of a predicate breaks its row here.
+  const namedCapabilities = (role: string | undefined): string =>
+    [
+      canAccessFunctionsTelemetryView(role),
+      mayBeAdminRole(role),
+      canUseBookmarks(role),
+      canReportSystemHealth(role),
+      canUseDayActions(role),
+      canViewPrescriptions(role),
+      canEditPrescriptions(role),
+      canConfigurePrescriptions(role),
+      canDeletePrescriptions(role),
+      canPublishSpecialtyDecision(role),
+      canSetArbitraryAdmissionDate(role),
+      canManageFugaNotification(role),
+      canSetAdminCudyrResult(role),
+      canReadAllLocalDiagnostics(role),
+      canEditClosedEpisodeDocuments(role as UserRole | undefined),
+    ]
+      .map(flag)
+      .join('');
+
+  it('keeps every named capability for known, missing and free-text roles', () => {
+    expect(Object.fromEntries(roles.map(role => [String(role), namedCapabilities(role)]))).toEqual({
+      admin: '111111111111111',
+      nurse_hospital: '001111111000000',
+      doctor_urgency: '000011100000000',
+      doctor_specialist: '000011100000000',
+      viewer: '000000000000000',
+      editor: '000011100000000',
+      undefined: '010010000000000',
+      hacker: '000010000000000',
+      '': '000010000000000',
+      ADMIN: '000010000000000',
+      ' admin': '000010000000000',
+    });
+  });
+
+  it('keeps the icon and the suggested profession of every role', () => {
+    expect(
+      [...knownRoles, undefined].map(role => {
+        const access = resolveRoleAccess(role);
+        return `${role}: ${access.icon} ${access.professionLabel}`.trim();
+      })
+    ).toEqual([
+      'admin: 🔑',
+      'nurse_hospital: 👩‍⚕️ Enfermero/a',
+      'doctor_urgency: 🩺 Médico/a',
+      'doctor_specialist: 🧠 Médico/a',
+      'viewer: 🎨',
+      'editor: 🔑',
+      'undefined: 🎨',
+    ]);
   });
 
   it('keeps the role label of every known role and of no role', () => {

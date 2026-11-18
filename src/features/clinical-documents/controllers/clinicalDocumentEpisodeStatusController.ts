@@ -4,6 +4,7 @@ import type {
 } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
 
 import type { UserRole } from '@/types/authRoleTypes';
+import { canEditClosedEpisodeDocuments } from '@/shared/access/clinicalDocumentAccessPolicy';
 
 interface ClinicalDocumentEpisodeClosureState {
   isClosed: boolean;
@@ -62,7 +63,7 @@ export const canMutateClinicalDocumentsEpisode = (
     return true;
   }
 
-  return role === 'admin';
+  return canEditClosedEpisodeDocuments(role);
 };
 
 /**
@@ -82,7 +83,7 @@ export const buildClinicalDocumentsReadOnlyMessage = (
   }
 
   const closure = resolveClinicalDocumentsEpisodeClosure(patient);
-  if (!closure.isClosed || role === 'admin') {
+  if (!closure.isClosed || canEditClosedEpisodeDocuments(role)) {
     return null;
   }
 
@@ -100,7 +101,10 @@ export const resolveClinicalDocumentPersistReason = (
   patient: ClinicalDocumentsWorkspacePatientContract,
   role: UserRole | undefined
 ): 'autosave' | 'admin_fix' => {
-  if (role === 'admin' && resolveClinicalDocumentsEpisodeClosure(patient).isClosed) {
+  if (
+    canEditClosedEpisodeDocuments(role) &&
+    resolveClinicalDocumentsEpisodeClosure(patient).isClosed
+  ) {
     return 'admin_fix';
   }
 

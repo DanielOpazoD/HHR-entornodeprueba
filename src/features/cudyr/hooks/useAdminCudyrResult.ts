@@ -7,6 +7,7 @@ import type {
 import { useAuth } from '@/context/AuthContext';
 import { useNotification } from '@/context/UIContext';
 import { setAdminCudyrResult } from '@/features/cudyr/report/adminCudyrResultService';
+import { canSetAdminCudyrResult } from '@/shared/access/operationalAccessPolicy';
 
 interface UseAdminCudyrResultInput {
   record: DailyRecord | null;
@@ -20,7 +21,9 @@ export const useAdminCudyrResult = ({ record, readOnly }: UseAdminCudyrResultInp
 
   const saveAdminCudyrResults = useCallback(
     async (adjustments: AdminCudyrResultAdjustment[]): Promise<boolean> => {
-      if (role !== 'admin' || readOnly || !record || adminCudyrMutationKey) return false;
+      if (!canSetAdminCudyrResult(role) || readOnly || !record || adminCudyrMutationKey) {
+        return false;
+      }
 
       if (
         adjustments.length === 0 ||
@@ -86,7 +89,7 @@ export const useAdminCudyrResult = ({ record, readOnly }: UseAdminCudyrResultInp
   return {
     saveAdminCudyrResult,
     saveAdminCudyrResults,
-    canAdminAdjustCudyrResult: role === 'admin' && !readOnly,
+    canAdminAdjustCudyrResult: canSetAdminCudyrResult(role) && !readOnly,
     adminCudyrMutationKey,
   };
 };

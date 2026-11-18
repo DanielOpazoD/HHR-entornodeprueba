@@ -13,6 +13,7 @@ import {
 import { useAdmissionAudit } from './useAdmissionAudit';
 import { buildAdmissionAuditBook } from './admissionAuditBook';
 import { AdmissionAuditDetails } from './AdmissionAuditDetails';
+import { canAccessAppModuleRoute } from '@/shared/access/operationalAccessPolicy';
 
 const control =
   'min-h-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 disabled:opacity-50';
@@ -21,7 +22,10 @@ const button =
 
 export const AdmissionAuditView = () => {
   const { currentUser } = useAuth();
-  const owner = currentUser?.role === 'admin' ? currentUser.uid : null;
+  const owner =
+    currentUser && canAccessAppModuleRoute({ role: currentUser.role, module: 'ADMISSION_AUDIT' })
+      ? currentUser.uid
+      : null;
   const audit = useAdmissionAudit(owner);
   const today = getClinicalCalendarDateISO();
   const [period, setPeriod] = useState<AdmissionPeriod>({ from: today, to: today });

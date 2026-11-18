@@ -5,6 +5,7 @@ import { AccessRestricted } from './internal/AccessRestricted';
 import { AdminTabsShell } from './internal/AdminTabsShell';
 import { ReminderAdminView } from '@/features/reminders/public';
 import { WhatsAppIntegrationView } from '@/features/whatsapp/public';
+import { canAccessAppModuleRoute } from '@/shared/access/operationalAccessPolicy';
 
 // Communications view — admin-only page grouping staff-facing communications:
 //   - "Avisos al personal" (Reminders)   ← was REMINDERS menu item
@@ -13,7 +14,7 @@ import { WhatsAppIntegrationView } from '@/features/whatsapp/public';
 export const CommunicationsView: React.FC = () => {
   const { role } = useAuth();
 
-  if (role !== 'admin') {
+  if (!canAccessAppModuleRoute({ role, module: 'COMMUNICATIONS' })) {
     return <AccessRestricted />;
   }
 

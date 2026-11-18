@@ -10,6 +10,7 @@ import {
   type DailyRestoreResult,
   type DailyRestoreSummary,
 } from '@/services/admin/dailyRecordRestoreService';
+import { canUseAdminMaintenanceActions } from '@/shared/access/operationalAccessPolicy';
 
 type State =
   | { kind: 'idle' }
@@ -79,7 +80,7 @@ export const DailyRecordRestorePanel = () => {
   const [confirmation, setConfirmation] = useState('');
   const [state, setState] = useState<State>({ kind: 'idle' });
   const busy = state.kind === 'loading' || state.kind === 'restoring';
-  if (currentUser?.role !== 'admin') return null;
+  if (!canUseAdminMaintenanceActions(currentUser?.role)) return null;
   const preview = async (source: DailyRestoreSource) => {
     setState({ kind: 'loading' });
     setConfirmation('');

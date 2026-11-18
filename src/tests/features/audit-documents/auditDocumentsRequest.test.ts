@@ -5,7 +5,7 @@ import {
   parseRutList,
   resolvePatientRanges,
 } from '@/features/audit-documents/domain/auditDocumentsRequest';
-import { getVisibleModules } from '@/utils/permissions';
+import { getVisibleModules } from '@/shared/access/rolePermissions';
 
 describe('RUT list for the audit download', () => {
   it('reads RUTs pasted one per line, by commas or from a spreadsheet with names', () => {

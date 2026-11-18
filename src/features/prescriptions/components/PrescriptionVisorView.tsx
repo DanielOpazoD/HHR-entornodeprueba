@@ -22,6 +22,10 @@ import {
   loadStoredMonthlyPdfOptions,
   persistMonthlyPdfOptions,
 } from '@/features/prescriptions/components/prescriptionVisorPdfOptions';
+import {
+  canDeletePrescriptions,
+  canEditPrescriptions,
+} from '@/shared/access/operationalAccessPolicy';
 
 type VisorMode = 'list' | 'bed-grid';
 
@@ -46,8 +50,8 @@ export const PrescriptionVisorView: React.FC = () => {
     initialPdfOptions.imageQuality
   );
 
-  const canEdit = auth.role === 'admin' || auth.role === 'nurse_hospital' || auth.isEditor;
-  const canDelete = auth.role === 'admin' || auth.role === 'nurse_hospital';
+  const canEdit = canEditPrescriptions(auth.role);
+  const canDelete = canDeletePrescriptions(auth.role);
 
   const handleReassign = useCallback(
     async (patch: {

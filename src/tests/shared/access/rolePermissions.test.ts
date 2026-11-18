@@ -9,7 +9,7 @@ import {
   isAdmin,
   canViewModule,
   ROLES,
-} from '@/utils/permissions';
+} from '@/shared/access/rolePermissions';
 
 describe('permissions.ts - Security Critical Tests', () => {
   describe('isAdmin', () => {

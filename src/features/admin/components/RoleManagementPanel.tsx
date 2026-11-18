@@ -8,6 +8,7 @@ import { RoleAccessPreview } from './internal/RoleAccessPreview';
 import { RoleForm } from './internal/RoleForm';
 import { RoleTable } from './internal/RoleTable';
 import { DeleteRoleModal } from './internal/DeleteRoleModal';
+import { mayBeAdminRole } from '@/shared/access/operationalAccessPolicy';
 
 const RoleManagementPanel: React.FC = () => {
   const { role: authRole } = useAuth();
@@ -35,7 +36,7 @@ const RoleManagementPanel: React.FC = () => {
   } = useRoleManagement();
 
   // If authRole is definitively NOT admin (and not undefined/loading), show blocked
-  if (authRole !== 'admin' && authRole !== undefined) {
+  if (!mayBeAdminRole(authRole)) {
     return <AccessRestricted />;
   }
 

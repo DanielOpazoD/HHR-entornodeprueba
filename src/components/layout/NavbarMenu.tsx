@@ -11,6 +11,10 @@ import { useNavbarNavigation } from '@/hooks/useNavbarNavigation';
 import { useDropdownMenu } from '@/hooks/useDropdownMenu';
 import { useAuth } from '@/context/AuthContext';
 import { resolveNavbarMenuAction } from '@/components/layout/navbar/navbarMenuController';
+import {
+  canConfigurePrescriptions,
+  canViewPrescriptions,
+} from '@/shared/access/operationalAccessPolicy';
 
 interface MenuItemProps {
   icon: LucideIcon;
@@ -62,10 +66,8 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
 }) => {
   const { isOpen, menuRef, toggle, close } = useDropdownMenu();
   const auth = useAuth();
-  const isAdmin = auth.role === 'admin';
-  const canSeePrescriptionsVisor =
-    isAdmin || auth.role === 'nurse_hospital' || auth.role === 'doctor_urgency' || auth.isEditor;
-  const canSeePrescriptionsConfig = isAdmin || auth.role === 'nurse_hospital';
+  const canSeePrescriptionsVisor = canViewPrescriptions(auth.role);
+  const canSeePrescriptionsConfig = canConfigurePrescriptions(auth.role);
 
   const { systemItems } = useNavbarNavigation(currentModule, visibleModules, censusViewMode);
 

@@ -4,6 +4,7 @@ import { ErrorLog } from '@/services/logging/errorLogTypes';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 
 import { ensureDbReady, hospitalDB as db } from './indexedDbCore';
+import { canReadAllLocalDiagnostics } from '@/shared/access/operationalAccessPolicy';
 
 export const saveErrorLog = async (log: ErrorLog): Promise<void> => {
   const storedLog = { ...log, localOwnerKey: getSessionOwner() };
@@ -30,7 +31,11 @@ export const getErrorLogs = async (limit = 50, role?: UserRole): Promise<ErrorLo
     const logs = await db.errorLogs
       .orderBy('timestamp')
       .reverse()
-      .filter(log => role === 'admin' || ('localOwnerKey' in log && log.localOwnerKey === owner))
+      .filter(
+        log =>
+          canReadAllLocalDiagnostics(role) ||
+          ('localOwnerKey' in log && log.localOwnerKey === owner)
+      )
       .limit(limit)
       .toArray();
     if (epoch !== getSessionEpoch() || owner !== getSessionOwner()) {
@@ -54,7 +59,7 @@ export const clearErrorLogs = async (role?: UserRole): Promise<void> => {
   const owner = getSessionOwner();
   try {
     await ensureDbReady();
-    if (role === 'admin') await db.errorLogs.clear();
+    if (canReadAllLocalDiagnostics(role)) await db.errorLogs.clear();
     else if (owner)
       await db.errorLogs
         .filter(log => 'localOwnerKey' in log && log.localOwnerKey === owner)

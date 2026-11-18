@@ -17,3 +17,7 @@ export const canArchiveClinicalDocuments = (role: UserRole | undefined): boolean
   role === 'admin';
 
 export const canDeleteClinicalDocuments = (role: UserRole | undefined): boolean => role === 'admin';
+
+/** Documents of a closed episode stay editable only for the administrator (an audited fix). */
+export const canEditClosedEpisodeDocuments = (role: UserRole | undefined): boolean =>
+  role === 'admin';

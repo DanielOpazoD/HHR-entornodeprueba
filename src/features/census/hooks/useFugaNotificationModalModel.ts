@@ -13,6 +13,7 @@ import {
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import type { DischargeData } from '@/types/domain/movements';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
+import { canManageFugaNotification } from '@/shared/access/operationalAccessPolicy';
 
 interface UseFugaNotificationModalModelParams {
   isOpen: boolean;
@@ -35,7 +36,7 @@ export const useFugaNotificationModalModel = ({
     [staffRecord]
   );
   const specialty = String(dischargeItem.specialty || '');
-  const isAdminUser = role === 'admin';
+  const isAdminUser = canManageFugaNotification(role);
   const [manualRecipients, setManualRecipients] = useState('');
   const [testMode, setTestMode] = useState(false);
   const [testRecipient, setTestRecipient] = useState('');

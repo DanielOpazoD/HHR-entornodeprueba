@@ -81,7 +81,7 @@ const rejected: Array<[rule: string, file: string, source: string]> = [
     "import { db } from '@/services/firebase-runtime/firestoreRuntime';",
   ],
   ['firestore-runtime', 'src/a.ts', 'import "@/services/firebase-runtime/firestoreRuntime";'],
-  ['legacy-permissions', 'src/a.ts', "import { can } from '@/utils/permissions';"],
+  ['role-permissions-door', 'src/a.ts', "import { can } from '@/shared/access/rolePermissions';"],
   [
     'staff-role-copies',
     'src/features/census/components/TensSelector.tsx',
@@ -147,7 +147,7 @@ const accepted: Array<[why: string, file: string, source: string]> = [
   [
     'the access policy',
     'src/shared/access/operationalAccessPolicy.ts',
-    "import { can } from '@/utils/permissions';",
+    "import { can } from '@/shared/access/rolePermissions';",
   ],
   ['a role-named type', 'src/a.tsx', 'interface NurseSelectorProps {}'],
   ['a role component in a test', 'src/tests/a.test.tsx', 'const NurseSelector = () => null;'],

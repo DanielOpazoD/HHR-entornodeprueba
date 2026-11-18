@@ -11,6 +11,7 @@ import type { ErrorLog, ErrorSeverity } from '@/services/logging/errorLogTypes';
 import { buildContextSummary } from '@/hooks/controllers/systemHealthReporterController';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
+import { canReadAllLocalDiagnostics } from '@/shared/access/operationalAccessPolicy';
 
 const PRIVATE_CONTEXT_KEYS = new Set(['patient', 'patientname', 'rut', 'diagnosis', 'diagnostico']);
 
@@ -164,7 +165,7 @@ const SessionErrorLogsView: React.FC<{ role: UserRole }> = ({ role }) => {
           <div>
             <h1 className="text-xl font-bold text-slate-800">Errores locales</h1>
             <p className="text-xs text-slate-500">
-              {role === 'admin'
+              {canReadAllLocalDiagnostics(role)
                 ? 'Registros del equipo guardados en este navegador para soporte y depuración.'
                 : 'Registros de tu sesión guardados en este navegador para soporte y depuración.'}
             </p>
@@ -221,7 +222,7 @@ const SessionErrorLogsView: React.FC<{ role: UserRole }> = ({ role }) => {
       ) : logs.length === 0 && loadError ? null : logs.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-12 text-center">
           <p className="font-semibold text-slate-700">
-            {role === 'admin'
+            {canReadAllLocalDiagnostics(role)
               ? 'No hay errores locales registrados en este navegador.'
               : 'No hay errores locales registrados para tu usuario.'}
           </p>

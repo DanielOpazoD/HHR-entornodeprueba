@@ -91,16 +91,7 @@ export const RoleForm: React.FC<RoleFormProps> = ({
             >
               {roleOptions.map(option => (
                 <option key={option.role} value={option.role}>
-                  {option.role === 'viewer'
-                    ? '🎨'
-                    : option.role === 'nurse_hospital'
-                      ? '👩‍⚕️'
-                      : option.role === 'doctor_urgency'
-                        ? '🩺'
-                        : option.role === 'doctor_specialist'
-                          ? '🧠'
-                          : '🔑'}{' '}
-                  {option.label}
+                  {option.icon} {option.label}
                 </option>
               ))}
             </select>

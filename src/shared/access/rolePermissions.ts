@@ -1,10 +1,10 @@
 /**
- * Role-Based Access Control (RBAC) System
+ * Role-Based Access Control (RBAC): the actions each role may perform.
  *
- * This module defines all roles and permissions for the hospital system.
+ * Visible and editable modules come from the role access matrix (roleAccessMatrix.ts); a role that
+ * is missing or unknown gets the matrix default (the census, read-only). Callers outside
+ * src/shared/access go through operationalAccessPolicy.ts, the one door to role decisions.
  * It is SECURITY-CRITICAL and must be protected by Firestore Security Rules.
- *
- * @module permissions
  */
 
 import { ModuleType } from '@/constants/navigationConfig';
@@ -30,50 +30,7 @@ export const ROLES = {
 } as const;
 
 // ==========================================
-// 2. CONFIGURACIÓN DE PERMISOS
-// ==========================================
-
-// Módulos disponibles: 'CENSUS', 'CUDYR', 'NURSING_HANDOFF', 'MEDICAL_HANDOFF', 'REPORTS', 'AUDIT'
-
-interface RolePermissions {
-  modules: ModuleType[]; // Pestañas visibles
-  canEdit: ModuleType[]; // Módulos donde puede editar/guardar
-}
-
-const PERMISSIONS: Record<UserRole, RolePermissions> = {
-  [ROLES.ADMIN]: {
-    modules: resolveRoleAccess(ROLES.ADMIN).modules,
-    canEdit: resolveRoleAccess(ROLES.ADMIN).canEdit,
-  },
-  [ROLES.NURSE_HOSPITAL]: {
-    modules: resolveRoleAccess(ROLES.NURSE_HOSPITAL).modules,
-    canEdit: resolveRoleAccess(ROLES.NURSE_HOSPITAL).canEdit,
-  },
-  editor: {
-    modules: resolveRoleAccess('editor').modules,
-    canEdit: resolveRoleAccess('editor').canEdit,
-  },
-  [ROLES.DOCTOR_URGENCY]: {
-    modules: resolveRoleAccess(ROLES.DOCTOR_URGENCY).modules,
-    canEdit: resolveRoleAccess(ROLES.DOCTOR_URGENCY).canEdit,
-  },
-  [ROLES.DOCTOR_SPECIALIST]: {
-    modules: resolveRoleAccess(ROLES.DOCTOR_SPECIALIST).modules,
-    canEdit: resolveRoleAccess(ROLES.DOCTOR_SPECIALIST).canEdit,
-  },
-  [ROLES.VIEWER]: {
-    modules: resolveRoleAccess(ROLES.VIEWER).modules,
-    canEdit: resolveRoleAccess(ROLES.VIEWER).canEdit,
-  },
-};
-
-const DEFAULT_PERMISSIONS: RolePermissions = {
-  modules: ['CENSUS'], // Por defecto, si el rol no existe, ve el censo (read-only)
-  canEdit: [],
-};
-
-// ==========================================
-// 3. PERMISOS DE ACCIONES (GRANULARES)
+// 2. PERMISOS DE ACCIONES (GRANULARES)
 // ==========================================
 
 /**
@@ -173,14 +130,6 @@ const DEFAULT_ACTIONS: ActionPermission[] = [ACTIONS.PATIENT_READ];
 // ==========================================
 
 /**
- * Obtiene los permisos para un rol dado.
- */
-const getPermissions = (role?: UserRole): RolePermissions => {
-  if (!role) return DEFAULT_PERMISSIONS;
-  return PERMISSIONS[role] || DEFAULT_PERMISSIONS;
-};
-
-/**
  * Get action permissions for a given role.
  * @param role - User's role
  * @returns Array of allowed action permissions
@@ -202,7 +151,7 @@ const getActionPermissions = (role?: UserRole): ActionPermission[] => {
  *
  * @example
  * ```typescript
- * import { canDoAction, ACTIONS } from '@/utils/permissions';
+ * import { canDoAction, ACTIONS } from '@/shared/access/rolePermissions';
  *
  * // In a component or hook:
  * if (canDoAction(userRole, ACTIONS.RECORD_DELETE)) {
@@ -239,7 +188,7 @@ export function canDoAction(role: UserRole | undefined, action: ActionPermission
  * ```
  */
 export function getVisibleModules(role: UserRole | undefined): ModuleType[] {
-  return getPermissions(role).modules;
+  return resolveRoleAccess(role).modules;
 }
 
 /**
@@ -260,8 +209,7 @@ export function getVisibleModules(role: UserRole | undefined): ModuleType[] {
  * ```
  */
 export function canEditModule(role: UserRole | undefined, module: ModuleType): boolean {
-  const perms = getPermissions(role);
-  return perms.canEdit.includes(module);
+  return resolveRoleAccess(role).canEdit.includes(module);
 }
 
 /**

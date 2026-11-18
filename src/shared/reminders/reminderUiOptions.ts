@@ -33,5 +33,8 @@ export const REMINDER_ROLE_OPTIONS: Array<{ value: UserRole; label: string }> = 
   { value: 'editor', label: 'Editor legado' },
 ];
 
+/** A new reminder goes to hospital nursing until the author picks other roles. */
+export const DEFAULT_REMINDER_TARGET_ROLES: UserRole[] = ['nurse_hospital'];
+
 export const getReminderRoleLabel = (role: UserRole): string =>
   REMINDER_ROLE_OPTIONS.find(option => option.value === role)?.label ?? role;

@@ -37,6 +37,7 @@ import {
 } from './systemHealthUserWindowActions';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
+import { canUseAdminMaintenanceActions } from '@/shared/access/operationalAccessPolicy';
 
 const todayInputValue = () => getTodayISO();
 
@@ -85,7 +86,7 @@ export const SystemHealthDashboard = () => {
     () => buildSystemHealthSyncConvergencePanelModel(filteredUsers),
     [filteredUsers]
   );
-  const canManageSystemHealthOperations = role === 'admin';
+  const canManageSystemHealthOperations = canUseAdminMaintenanceActions(role);
 
   const notifyAdminOnlyAction = () => {
     error('Accion restringida', 'Requiere rol admin');

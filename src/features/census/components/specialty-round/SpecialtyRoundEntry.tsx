@@ -7,6 +7,7 @@ import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import { useDailyRecordFreshnessUi } from '@/hooks/useDailyRecordFreshnessUi';
 import { buildSpecialtyRoundCandidates } from './specialtyRoundModel';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
+import { canPublishSpecialtyDecision } from '@/shared/access/operationalAccessPolicy';
 
 const SpecialtyRoundWindow = lazy(() =>
   import('./SpecialtyRoundWindow').then(module => ({
@@ -35,7 +36,7 @@ export const SpecialtyRoundEntry = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const enabled = useFeatureFlag('SPECIALTY_JEV_CONSULTATION');
   const { role } = useAuth();
-  const isAdmin = role === 'admin';
+  const isAdmin = canPublishSpecialtyDecision(role);
   const beds = useDailyRecordBeds();
   const freshnessUi = useDailyRecordFreshnessUi(date);
   const count = useMemo(() => buildSpecialtyRoundCandidates(beds, date).length, [beds, date]);

@@ -147,11 +147,9 @@ const RULES = [
     fix: 'Accede a Firestore por firestoreServiceRuntime.ts o repositoryFirestoreRuntime.ts.',
   },
   {
-    id: 'legacy-permissions',
-    files: file =>
-      isProduction(file) &&
-      !['src/utils/permissions.ts', 'src/shared/access/operationalAccessPolicy.ts'].includes(file),
-    patterns: [importOf('@/utils/permissions')],
+    id: 'role-permissions-door',
+    files: file => isProduction(file) && !file.startsWith('src/shared/access/'),
+    patterns: [importOf('@/shared/access/rolePermissions')],
     fix: 'Importa los permisos desde @/shared/access/operationalAccessPolicy.',
   },
   {

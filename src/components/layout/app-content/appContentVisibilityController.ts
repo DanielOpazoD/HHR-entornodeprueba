@@ -1,4 +1,5 @@
 import type { ModuleType } from '@/constants/navigationConfig';
+import { canUseBookmarks } from '@/shared/access/operationalAccessPolicy';
 
 type CensusViewMode = 'REGISTER' | 'ANALYTICS';
 
@@ -30,8 +31,6 @@ interface ResolveBookmarkBarVisibilityParams {
   showBookmarksBar: boolean;
   role?: string | null;
 }
-
-const BOOKMARK_ALLOWED_ROLES = new Set(['admin', 'nurse_hospital']);
 
 /**
  * Whether the BookmarkBar itself should render (bar is open and conditions met).
@@ -76,5 +75,5 @@ const canAccessBookmarks = ({
   if (currentModule !== 'CENSUS' || censusViewMode !== 'REGISTER') {
     return false;
   }
-  return role !== null && role !== undefined && BOOKMARK_ALLOWED_ROLES.has(role);
+  return role !== null && role !== undefined && canUseBookmarks(role);
 };
