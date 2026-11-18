@@ -38,8 +38,8 @@ vi.mock('@cornerstonejs/tools', () => ({
     },
   },
 }));
-import { createDicomMeasurementSession } from '@/services/radiology/dicomMeasurementSession';
-import { createDicomMeasurementStore } from '@/services/radiology/dicomMeasurementStore';
+import { createDicomMeasurementSession } from '@/features/radiology/services/dicomMeasurementSession';
+import { createDicomMeasurementStore } from '@/features/radiology/services/dicomMeasurementStore';
 
 const drawing = (uid: string, imageId = 'dicomfile:1', toolName = 'DicomStackLength') => ({
   annotationUID: uid,

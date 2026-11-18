@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MMRADExam, MMRADSearchResult } from '@/services/radiology/mmradService';
+import type { MMRADExam, MMRADSearchResult } from '@/features/radiology/services/mmradService';
 import {
   buildFilteredMMRADExams,
   buildMMRADExamKey,
@@ -7,7 +7,7 @@ import {
   extractMMRADModalities,
   resolveInitialMMRADModalityTab,
   resolveMMRADDatePresetRange,
-} from '@/components/modals/controllers/radiologyViewerModalController';
+} from '@/features/radiology/controllers/radiologyViewerModalController';
 
 const exams: MMRADExam[] = [
   {

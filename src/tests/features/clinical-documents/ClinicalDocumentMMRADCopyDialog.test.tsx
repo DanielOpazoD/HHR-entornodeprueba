@@ -6,7 +6,7 @@ const { searchMMRADExams, writeTextMock } = vi.hoisted(() => ({
   writeTextMock: vi.fn(),
 }));
 
-vi.mock('@/services/radiology/mmradService', () => ({
+vi.mock('@/features/radiology/services/mmradService', () => ({
   searchMMRADExams,
 }));
 

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from 'vitest';
-import { readDicomBytes } from '@/services/radiology/readDicomBytes';
+import { readDicomBytes } from '@/features/radiology/services/readDicomBytes';
 describe('bounded speculative DICOM read', () => {
   it('cancels before reading an advertised oversized body', async () => {
     const cancel = vi.fn();

@@ -5,7 +5,7 @@ const { searchMMRADExams, writeClipboardText } = vi.hoisted(() => ({
   searchMMRADExams: vi.fn(),
   writeClipboardText: vi.fn(),
 }));
-vi.mock('@/services/radiology/mmradService', () => ({ searchMMRADExams }));
+vi.mock('@/features/radiology/services/mmradService', () => ({ searchMMRADExams }));
 vi.mock('@/shared/runtime/browserClipboardRuntime', () => ({ writeClipboardText }));
 
 import { ClinicalDocumentMMRADCopyDialog } from '@/features/clinical-documents/components/ClinicalDocumentMMRADCopyDialog';

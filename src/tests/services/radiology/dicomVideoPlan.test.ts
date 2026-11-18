@@ -10,7 +10,7 @@ import {
   turntableDicomAngles,
   turntableDicomCamera,
   validateDicomVideoFrames,
-} from '@/services/radiology/dicomVideoPlan';
+} from '@/features/radiology/services/dicomVideoPlan';
 
 describe('video frame sequences', () => {
   it('defaults to an anonymous 720p loop', () => {

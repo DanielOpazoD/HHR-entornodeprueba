@@ -45,7 +45,7 @@ vi.mock('@cornerstonejs/core', () => ({
     },
   },
 }));
-import { createDicomVolume } from '@/services/radiology/dicomVolume';
+import { createDicomVolume } from '@/features/radiology/services/dicomVolume';
 const geometry = () =>
   [0, 1, 2].map(i => ({
     imageId: `synthetic-${i}`,

@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { DicomCineControls } from '@/components/radiology/DicomCineControls';
-import type { DicomRuntime } from '@/services/radiology/dicomRuntimeTypes';
+import { DicomCineControls } from '@/features/radiology/dicom-viewer/DicomCineControls';
+import type { DicomRuntime } from '@/features/radiology/services/dicomRuntimeTypes';
 
 describe('partial cine range selection', () => {
   it('never silently expands the selected playback bounds as availability grows', () => {

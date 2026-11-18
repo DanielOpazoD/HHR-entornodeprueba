@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDicomReviewCache } from '@/services/radiology/dicomReviewCache';
-import { createDicomStudyPrefetch } from '@/services/radiology/dicomStudyPrefetch';
+import { createDicomReviewCache } from '@/features/radiology/services/dicomReviewCache';
+import { createDicomStudyPrefetch } from '@/features/radiology/services/dicomStudyPrefetch';
 import {
   syntheticDicom,
   syntheticSopUid,
@@ -8,7 +8,9 @@ import {
   SYNTHETIC_STUDY_UID,
 } from '@/tests/fixtures/syntheticDicom';
 const fetchMock = vi.hoisted(() => vi.fn());
-vi.mock('@/services/radiology/mmradDicomService', () => ({ fetchDicomInstance: fetchMock }));
+vi.mock('@/features/radiology/services/mmradDicomService', () => ({
+  fetchDicomInstance: fetchMock,
+}));
 const study = {
   uid: SYNTHETIC_STUDY_UID,
   patientId: SYNTHETIC_PATIENT_ID,

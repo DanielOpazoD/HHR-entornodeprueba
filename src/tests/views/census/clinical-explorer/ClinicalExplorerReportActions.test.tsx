@@ -2,10 +2,10 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClinicalExplorerReportActions } from '@/features/census/components/clinical-explorer/ClinicalExplorerReportActions';
 import { downloadBlob } from '@/services/exporters/exportDownload';
-import type { MMRADExam } from '@/services/radiology/mmradService';
+import type { MMRADExam } from '@/features/radiology/services/mmradService';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 
-vi.unmock('@/services/radiology/mmradService');
+vi.unmock('@/features/radiology/services/mmradService');
 vi.mock('@/services/auth/authRequestHeaders', () => ({
   resolveCurrentUserAuthHeaders: vi
     .fn()

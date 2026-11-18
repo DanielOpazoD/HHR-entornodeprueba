@@ -1,22 +1,21 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense } from 'react';
 import { FlaskConical, Lock } from 'lucide-react';
 import { XRayIcon } from '@/components/ui/XRayIcon';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
 import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
+import type {
+  DateStripRadiologyPatient,
+  DateStripRadiologyViewer,
+} from '@/components/layout/date-strip/dateStripRadiologyViewer';
 
 const FEATURE_QUICK_ACTIONS_STARTUP_DELAY_MS = 1200;
-
-const LazyRadiologyViewerModal = lazy(() =>
-  import('@/components/modals/RadiologyViewerModal').then(module => ({
-    default: module.RadiologyViewerModal,
-  }))
-);
 
 interface DateStripQuickActionsProps {
   onOpenBedManager?: () => void;
   medicalIndicationsPatients?: MedicalIndicationsPatientOption[];
   renderFeatureQuickActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
+  radiologyViewer?: DateStripRadiologyViewer;
   hideClinicalQuickActions?: boolean;
   menuLayout?: boolean;
 }
@@ -25,6 +24,7 @@ export const DateStripQuickActions: React.FC<DateStripQuickActionsProps> = ({
   onOpenBedManager,
   medicalIndicationsPatients = [],
   renderFeatureQuickActions,
+  radiologyViewer: RadiologyViewer,
   hideClinicalQuickActions = false,
   menuLayout = false,
 }) => {
@@ -55,7 +55,7 @@ export const DateStripQuickActions: React.FC<DateStripQuickActionsProps> = ({
     [medicalIndicationsPatients]
   );
 
-  const radiologyPatients = React.useMemo(
+  const radiologyPatients = React.useMemo<DateStripRadiologyPatient[]>(
     () =>
       quickActionPatients.map(p => ({
         bedId: p.bedId,
@@ -108,7 +108,7 @@ export const DateStripQuickActions: React.FC<DateStripQuickActionsProps> = ({
         }
       >
         {!hideClinicalQuickActions &&
-          (radiologyPatients.length > 0 ? (
+          (RadiologyViewer && radiologyPatients.length > 0 ? (
             <>
               <button
                 data-census-menu-action
@@ -121,7 +121,7 @@ export const DateStripQuickActions: React.FC<DateStripQuickActionsProps> = ({
               </button>
               {isRadiologyOpen ? (
                 <Suspense fallback={null}>
-                  <LazyRadiologyViewerModal
+                  <RadiologyViewer
                     isOpen={isRadiologyOpen}
                     onClose={() => setIsRadiologyOpen(false)}
                     patients={radiologyPatients}

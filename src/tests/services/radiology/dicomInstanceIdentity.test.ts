@@ -1,8 +1,8 @@
 // @vitest-environment node
 import { parseDicom } from 'dicom-parser';
 import { describe, expect, it } from 'vitest';
-import { validateDicomInstanceIdentity } from '@/services/radiology/dicomInstanceIdentity';
-import type { DicomStudy, DicomSeries } from '@/services/radiology/dicomTypes';
+import { validateDicomInstanceIdentity } from '@/features/radiology/services/dicomInstanceIdentity';
+import type { DicomStudy, DicomSeries } from '@/domain/radiology/dicomTypes';
 import {
   syntheticDicom,
   SYNTHETIC_STUDY_UID,

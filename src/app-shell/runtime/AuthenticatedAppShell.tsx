@@ -8,6 +8,7 @@ import type { UseDateNavigationReturn } from '@/hooks/useDateNavigation';
 import { DeferredSystemHealthReporter } from '@/app-shell/runtime/DeferredSystemHealthReporter';
 import { useAuthenticatedAppRuntime } from '@/app-shell/runtime/useAuthenticatedAppRuntime';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
+import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/dateStripRadiologyViewer';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { markPerf } from '@/shared/runtime/perfAudit';
 import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
@@ -21,6 +22,14 @@ const LaboratoryQuickAction = lazyWithRetry(() =>
 const ClinicalLibraryQuickAction = lazyWithRetry(() =>
   import('@/features/clinical-library/quick-action').then(module => ({
     default: module.ClinicalLibraryQuickAction,
+  }))
+);
+
+// The date strip's MMRAD viewer. Plain React.lazy, as the date strip loaded it before the viewer
+// moved to its feature.
+const RadiologyViewerModal: DateStripRadiologyViewer = React.lazy(() =>
+  import('@/features/radiology/components/RadiologyViewerModal').then(module => ({
+    default: module.RadiologyViewerModal,
   }))
 );
 
@@ -78,6 +87,7 @@ export const AuthenticatedAppShell = ({ auth, dateNav }: AuthenticatedAppShellPr
       <AppContent
         ui={ui}
         renderFeatureQuickActions={renderFeatureQuickActions}
+        radiologyViewer={RadiologyViewerModal}
         renderCensusTrailingActions={renderCensusTrailingActions}
       />
     </CensusProvider>

@@ -1,11 +1,11 @@
 import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Camera, Trash2 } from 'lucide-react';
-import type { DicomCapture } from '@/services/radiology/dicomTypes';
+import type { DicomCapture } from '@/domain/radiology/dicomTypes';
 import type { useClinicalFormAnnexes } from './useClinicalFormAnnexes';
 import { isClinicalFormRut } from '../../../domain/forms/clinicalFormIdentity';
 
 const Radiology = lazy(() =>
-  import('@/components/modals/RadiologyViewerModal').then(module => ({
+  import('@/features/radiology/components/RadiologyViewerModal').then(module => ({
     default: module.RadiologyViewerModal,
   }))
 );

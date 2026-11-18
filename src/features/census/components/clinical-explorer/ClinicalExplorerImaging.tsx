@@ -1,8 +1,8 @@
 import React, { lazy, Suspense, useLayoutEffect, useRef, useState } from 'react';
 import { FileText, Images } from 'lucide-react';
 import { XRayIcon } from '@/components/ui/XRayIcon';
-import { hasMMRADStructuredReport } from '@/components/modals/controllers/radiologyViewerContentController';
-import { useDicomReviewCache } from '@/components/radiology/useDicomReviewCache';
+import { hasMMRADStructuredReport } from '@/features/radiology/controllers/radiologyViewerContentController';
+import { useDicomReviewCache } from '@/features/radiology/dicom-viewer/useDicomReviewCache';
 import {
   clinicalExplorerPatientIdentity,
   type ClinicalExplorerPatient,
@@ -10,9 +10,12 @@ import {
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
-import { describeMMRADRegisteredPatient, type MMRADExam } from '@/services/radiology/mmradService';
+import {
+  describeMMRADRegisteredPatient,
+  type MMRADExam,
+} from '@/features/radiology/services/mmradService';
 import { getSessionEpoch, onSessionChange } from '@/services/storage/sessionStorageTransition';
-import { deliverMmradPdf } from '@/services/radiology/mmradPdfDelivery';
+import { deliverMmradPdf } from '@/features/radiology/services/mmradPdfDelivery';
 import {
   asMmradDateBound,
   formatStudyStamp,
@@ -34,7 +37,7 @@ import { ClinicalExplorerIdentityNotice } from './ClinicalExplorerIdentityNotice
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const DicomViewerDialog = lazy(() =>
-  import('@/components/radiology/DicomViewerDialog').then(module => ({
+  import('@/features/radiology/dicom-viewer/DicomViewerDialog').then(module => ({
     default: module.DicomViewerDialog,
   }))
 );

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@cornerstonejs/core', () => ({ Enums: { Events: { IMAGE_RENDERED: 'image-rendered' } } }));
-import { waitForDicomRender } from '@/services/radiology/dicomRenderReady';
+import { waitForDicomRender } from '@/features/radiology/services/dicomRenderReady';
 
 describe('DICOM render readiness', () => {
   afterEach(() => vi.useRealTimers());

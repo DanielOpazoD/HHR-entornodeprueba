@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { StackViewport } from '@cornerstonejs/core';
-import { createProgressiveStack } from '@/services/radiology/dicomProgressiveStack';
-import type { ProgressiveDicomSeries } from '@/services/radiology/dicomSeriesLoader';
+import { createProgressiveStack } from '@/features/radiology/services/dicomProgressiveStack';
+import type { ProgressiveDicomSeries } from '@/features/radiology/services/dicomSeriesLoader';
 
 it('keeps the latest requested cut when downloads arrive out of order and cancels detached views', async () => {
   const waiting = new Map<number, (id: string) => void>();

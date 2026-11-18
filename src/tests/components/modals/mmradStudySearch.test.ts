@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MMRADExam, MMRADSearchResult } from '@/services/radiology/mmradService';
+import type { MMRADExam, MMRADSearchResult } from '@/features/radiology/services/mmradService';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 
 const mmradMocks = vi.hoisted(() => ({ search: vi.fn(), checkDigit: vi.fn() }));
-vi.mock('@/services/radiology/mmradService', async importOriginal => {
-  const actual = await importOriginal<typeof import('@/services/radiology/mmradService')>();
+vi.mock('@/features/radiology/services/mmradService', async importOriginal => {
+  const actual =
+    await importOriginal<typeof import('@/features/radiology/services/mmradService')>();
   return {
     ...actual,
     searchMMRADExams: (...args: unknown[]) => mmradMocks.search(...args),
@@ -13,7 +14,7 @@ vi.mock('@/services/radiology/mmradService', async importOriginal => {
   };
 });
 
-import { searchMmradStudies } from '@/components/modals/controllers/mmradStudySearch';
+import { searchMmradStudies } from '@/features/radiology/controllers/mmradStudySearch';
 
 const RUT = '12.345.678-5';
 const exam = (name: string): MMRADExam => ({
@@ -50,7 +51,12 @@ describe('searchMmradStudies', () => {
     const settled = vi.fn();
     const first = searchMmradStudies(
       { rut: RUT, patientName: 'PACIENTE', dateFrom: '', dateTo: '' },
-      { isCurrent: () => true, onShown: (r, exact) => shown.push([r.examenes.map(e => e.nombre_examen), exact]), onExactError: vi.fn(), onAlternateSettled: settled }
+      {
+        isCurrent: () => true,
+        onShown: (r, exact) => shown.push([r.examenes.map(e => e.nombre_examen), exact]),
+        onExactError: vi.fn(),
+        onAlternateSettled: settled,
+      }
     );
     expect(first.remembered).toBeUndefined();
     await first.done;
@@ -63,7 +69,10 @@ describe('searchMmradStudies', () => {
       { rut: RUT, dateFrom: '', dateTo: '' },
       { isCurrent: () => true, onShown: vi.fn(), onExactError: vi.fn() }
     );
-    expect(second.remembered?.examenes.map(e => e.nombre_examen).sort()).toEqual(['Rx tórax', 'TC abdomen']);
+    expect(second.remembered?.examenes.map(e => e.nombre_examen).sort()).toEqual([
+      'Rx tórax',
+      'TC abdomen',
+    ]);
     await second.done;
   });
 
@@ -74,7 +83,11 @@ describe('searchMmradStudies', () => {
     const shown: MMRADSearchResult[] = [];
     const first = searchMmradStudies(
       { rut: RUT, patientName: 'PACIENTE', dateFrom: '', dateTo: '' },
-      { isCurrent: () => true, onShown: r => shown.push(r), onExactError: (m, remembered) => errors.push([m, remembered]) }
+      {
+        isCurrent: () => true,
+        onShown: r => shown.push(r),
+        onExactError: (m, remembered) => errors.push([m, remembered]),
+      }
     );
     await first.done;
     await flush();
@@ -82,11 +95,18 @@ describe('searchMmradStudies', () => {
     expect(shown.at(-1)?.check_digit_search).toBe('partial');
 
     mmradMocks.search.mockResolvedValueOnce(reply([exam('Rx tórax')]));
-    await searchMmradStudies({ rut: RUT, dateFrom: '', dateTo: '' }, { isCurrent: () => true, onShown: vi.fn(), onExactError: vi.fn() }).done;
+    await searchMmradStudies(
+      { rut: RUT, dateFrom: '', dateTo: '' },
+      { isCurrent: () => true, onShown: vi.fn(), onExactError: vi.fn() }
+    ).done;
     mmradMocks.search.mockRejectedValueOnce(new Error('sin red'));
     const refresh = searchMmradStudies(
       { rut: RUT, dateFrom: '', dateTo: '' },
-      { isCurrent: () => true, onShown: vi.fn(), onExactError: (m, remembered) => errors.push([m, remembered]) }
+      {
+        isCurrent: () => true,
+        onShown: vi.fn(),
+        onExactError: (m, remembered) => errors.push([m, remembered]),
+      }
     );
     expect(refresh.remembered?.examenes).toHaveLength(1);
     await refresh.done;
@@ -96,7 +116,11 @@ describe('searchMmradStudies', () => {
   it('never shows a late answer once the caller moved on, and skips the alternate without a name', async () => {
     let current = true;
     let resolveExact: (value: MMRADSearchResult) => void = () => undefined;
-    mmradMocks.search.mockReturnValueOnce(new Promise(resolve => { resolveExact = resolve; }));
+    mmradMocks.search.mockReturnValueOnce(
+      new Promise(resolve => {
+        resolveExact = resolve;
+      })
+    );
     const onShown = vi.fn();
     const settled = vi.fn();
     const handle = searchMmradStudies(

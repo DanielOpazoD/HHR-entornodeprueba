@@ -4,7 +4,7 @@ import { PDFDocument } from 'pdf-lib';
 import PizZip from 'pizzip';
 import { vi } from 'vitest';
 import type { AuditDocumentsResult } from '@/features/audit-documents/eloisa-history';
-import type { MMRADExam } from '@/services/radiology/mmradService';
+import type { MMRADExam } from '@/features/radiology/services/mmradService';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 import { BEDS } from '@/constants/beds';
 import { ClinicalExplorerHeader } from '@/features/census/components/clinical-explorer/ClinicalExplorerHeader';

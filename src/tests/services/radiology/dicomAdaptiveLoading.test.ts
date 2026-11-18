@@ -1,7 +1,7 @@
-import { DICOM_DEFAULT_DOWNLOADS } from '@/services/radiology/dicomDownloadLimits';
+import { DICOM_DEFAULT_DOWNLOADS } from '@/features/radiology/services/dicomDownloadLimits';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { startDicomSeries } from '@/services/radiology/dicomSeriesLoader';
-import { DicomTransferError } from '@/services/radiology/dicomLoadState';
+import { startDicomSeries } from '@/features/radiology/services/dicomSeriesLoader';
+import { DicomTransferError } from '@/features/radiology/services/dicomLoadState';
 import {
   syntheticDicom,
   syntheticSopUid,
@@ -15,7 +15,9 @@ const mocks = vi.hoisted(() => ({
   add: vi.fn(),
   remove: vi.fn(),
 }));
-vi.mock('@/services/radiology/mmradDicomService', () => ({ fetchDicomInstance: mocks.fetch }));
+vi.mock('@/features/radiology/services/mmradDicomService', () => ({
+  fetchDicomInstance: mocks.fetch,
+}));
 vi.mock('@cornerstonejs/core', () => ({
   imageLoader: { loadAndCacheImage: mocks.decode },
   cache: { getImageLoadObject: () => ({}), removeImageLoadObject: mocks.remove },

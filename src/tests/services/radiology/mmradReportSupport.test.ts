@@ -4,7 +4,7 @@ import {
   buildMMRADPortalReceiptPrintHtml,
   buildMMRADReportClipboardText,
   parseMMRADReportSections,
-} from '@/services/radiology/mmradReportSupport';
+} from '@/domain/radiology/mmradReportSupport';
 
 describe('mmradReportSupport', () => {
   const reportHtml = `

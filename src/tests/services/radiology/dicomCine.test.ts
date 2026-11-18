@@ -3,7 +3,7 @@ import {
   abortableDicomTask,
   playDicomCine,
   validateCineOptions,
-} from '@/services/radiology/dicomCine';
+} from '@/features/radiology/services/dicomCine';
 
 afterEach(() => vi.useRealTimers());
 describe('verified slice cine', () => {

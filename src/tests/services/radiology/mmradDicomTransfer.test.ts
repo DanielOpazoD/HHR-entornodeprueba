@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchDicomInstance, fetchDicomStudy } from '@/services/radiology/mmradDicomService';
+import {
+  fetchDicomInstance,
+  fetchDicomStudy,
+} from '@/features/radiology/services/mmradDicomService';
 import {
   DicomOriginalTooLargeError,
   DicomTicketExpiredError,
-} from '@/services/radiology/dicomLoadState';
+} from '@/features/radiology/services/dicomLoadState';
 vi.mock('@/services/auth/authRequestHeaders', () => ({
   resolveCurrentUserAuthHeaders: async () => ({}),
 }));

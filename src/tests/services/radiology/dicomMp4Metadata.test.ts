@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { clearMp4CreationTimes } from '@/services/radiology/dicomMp4Metadata';
+import { clearMp4CreationTimes } from '@/features/radiology/services/dicomMp4Metadata';
 
 const u32 = (value: number) => [
   value >>> 24,

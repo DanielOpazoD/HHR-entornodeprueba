@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { MMRADExam, MMRADSearchResult } from '@/services/radiology/mmradService';
+import type { MMRADExam, MMRADSearchResult } from '@/features/radiology/services/mmradService';
 import {
   mergeMMRADExamLists,
   openMMRADExamListMemory,
   readRememberedMMRADExams,
-} from '@/components/modals/controllers/radiologyExamListMemory';
+} from '@/features/radiology/controllers/radiologyExamListMemory';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 

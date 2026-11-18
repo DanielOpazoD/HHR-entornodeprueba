@@ -6,7 +6,7 @@ import {
   hasDicomHuCalibration,
   huProbeText,
   huRoiText,
-} from '@/services/radiology/dicomQuantitative';
+} from '@/features/radiology/services/dicomQuantitative';
 import { syntheticDicom } from '@/tests/fixtures/syntheticDicom';
 const image = {
   preScale: { scaled: true, scalingParameters: { rescaleSlope: 2, rescaleIntercept: -1024 } },

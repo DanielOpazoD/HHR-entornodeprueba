@@ -8,7 +8,7 @@ import {
   dicomMeasurementSummary,
   parseDicomUnit,
   readDicomMeasurement,
-} from '@/services/radiology/dicomMeasurementText';
+} from '@/features/radiology/services/dicomMeasurementText';
 
 const roi = {
   area: 120,

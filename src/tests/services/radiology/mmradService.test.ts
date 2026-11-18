@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.unmock('@/services/radiology/mmradService');
+vi.unmock('@/features/radiology/services/mmradService');
 
 vi.mock('@/services/utils/loggerScope', async () => {
   const { createLoggerScopeMock } = await import('@/tests/utils/loggerScopeMock');
@@ -20,7 +20,7 @@ import {
   fetchMMRADPdfBlobUrl,
   fetchMMRADPortalReceiptHtml,
   searchMMRADExams,
-} from '@/services/radiology/mmradService';
+} from '@/features/radiology/services/mmradService';
 
 describe('mmradService', () => {
   const mockFetch = vi.fn();

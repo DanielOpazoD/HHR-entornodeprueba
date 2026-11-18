@@ -3,16 +3,14 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import { DateStripQuickActions } from '@/components/layout/date-strip/DateStripQuickActions';
 
-vi.mock('@/components/modals/RadiologyViewerModal', () => ({
-  RadiologyViewerModal: ({
-    isOpen,
-    patients,
-  }: {
-    isOpen: boolean;
-    patients: Array<{ rut: string; patientName: string }>;
-  }) =>
-    isOpen ? <div>Radiology Viewer {patients[0]?.patientName ?? patients[0]?.rut}</div> : null,
-}));
+// The authenticated shell hands the date strip the MMRAD viewer from features/radiology.
+const RadiologyViewer = ({
+  isOpen,
+  patients,
+}: {
+  isOpen: boolean;
+  patients: Array<{ rut: string; patientName: string }>;
+}) => (isOpen ? <div>Radiology Viewer {patients[0]?.patientName ?? patients[0]?.rut}</div> : null);
 
 describe('DateStripQuickActions', () => {
   const patients = [
@@ -32,7 +30,12 @@ describe('DateStripQuickActions', () => {
   ];
 
   it('does not mount radiology viewer until the quick action is opened', async () => {
-    render(<DateStripQuickActions medicalIndicationsPatients={patients} />);
+    render(
+      <DateStripQuickActions
+        medicalIndicationsPatients={patients}
+        radiologyViewer={RadiologyViewer}
+      />
+    );
 
     expect(screen.queryByText(/Radiology Viewer/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /indicaciones/i })).not.toBeInTheDocument();
@@ -45,6 +48,13 @@ describe('DateStripQuickActions', () => {
     fireEvent.click(screen.getByTitle('Radiología / Imagenología'));
 
     expect(await screen.findByText(/Radiology Viewer Juan Perez/i)).toBeInTheDocument();
+  });
+
+  it('keeps MMRAD as a loading placeholder until the shell hands it the viewer', () => {
+    render(<DateStripQuickActions medicalIndicationsPatients={patients} />);
+
+    expect(screen.queryByTitle('Radiología / Imagenología')).not.toBeInTheDocument();
+    expect(screen.getByTitle('MMRAD (cargando...)')).toBeDisabled();
   });
 
   it('defers feature quick actions during startup and filters patients before invoking them', async () => {
@@ -108,6 +118,7 @@ describe('DateStripQuickActions', () => {
       <DateStripQuickActions
         onOpenBedManager={vi.fn()}
         medicalIndicationsPatients={patients}
+        radiologyViewer={RadiologyViewer}
         renderFeatureQuickActions={renderFeatureQuickActions}
         hideClinicalQuickActions
       />

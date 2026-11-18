@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { parseDicom } from 'dicom-parser';
-import { supportsDicomResampling } from '@/services/radiology/dicomPixelMapping';
+import { supportsDicomResampling } from '@/features/radiology/services/dicomPixelMapping';
 import { syntheticDicom, SYNTHETIC_PATIENT_ID } from '@/tests/fixtures/syntheticDicom';
 
 describe('DICOM resampling mapping eligibility', () => {

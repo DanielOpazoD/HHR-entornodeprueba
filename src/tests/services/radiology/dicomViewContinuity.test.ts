@@ -6,12 +6,14 @@ vi.mock('@cornerstonejs/core', () => ({
     Events: { CAMERA_MODIFIED: 'camera', VOI_MODIFIED: 'voi' },
   },
 }));
-vi.mock('@/services/radiology/dicomRenderReady', () => ({
+vi.mock('@/features/radiology/services/dicomRenderReady', () => ({
   waitForDicomRender: async (_: unknown, render: () => void) => render(),
 }));
 const contexts = vi.hoisted(() => vi.fn());
-vi.mock('@/services/radiology/dicomGraphicsResources', () => ({ dicomGraphicsContexts: contexts }));
-import { createDicomViewContinuity } from '@/services/radiology/dicomViewContinuity';
+vi.mock('@/features/radiology/services/dicomGraphicsResources', () => ({
+  dicomGraphicsContexts: contexts,
+}));
+import { createDicomViewContinuity } from '@/features/radiology/services/dicomViewContinuity';
 const setup = () => {
   const controller = new AbortController();
   const canvas = new EventTarget();

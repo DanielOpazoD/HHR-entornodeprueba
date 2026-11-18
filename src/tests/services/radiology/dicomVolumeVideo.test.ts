@@ -16,7 +16,7 @@ vi.mock('@cornerstonejs/core', () => ({
     ) => viewport.moveTo(Math.max(0, Math.min(viewport.steps - 1, viewport.step + options.delta))),
   },
 }));
-vi.mock('@/services/radiology/dicomRenderReady', () => ({
+vi.mock('@/features/radiology/services/dicomRenderReady', () => ({
   waitForDicomRender: async (_: unknown, draw: () => void, signal: AbortSignal) => {
     signal.throwIfAborted();
     draw();
@@ -25,14 +25,14 @@ vi.mock('@/services/radiology/dicomRenderReady', () => ({
   },
 }));
 // The measurement overlay reads Cornerstone's SVG layer, which the e2e suite covers.
-vi.mock('@/services/radiology/dicomMeasurementOverlay', () => ({
+vi.mock('@/features/radiology/services/dicomMeasurementOverlay', () => ({
   measurementOverlayAfterRender: async () => null,
 }));
 import {
   describeDicomPlaneSlices,
   openDicomVolumeVideo,
   type DicomVideoRequest,
-} from '@/services/radiology/dicomVolumeVideo';
+} from '@/features/radiology/services/dicomVolumeVideo';
 
 const camera = (z: number) => ({
   focalPoint: [0, 0, z],
