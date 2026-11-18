@@ -288,6 +288,7 @@ const createFullSaveHandler =
           remoteData,
           syncContract,
           now,
+          record: recordForPersistence,
         });
         revision = nextMeta.revision;
         recordState = buildAuthorityRecordState({

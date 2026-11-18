@@ -1,6 +1,7 @@
 /* @flake-safe: Today's synthetic census satisfies the real rules' hospital write window. */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
 import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
@@ -33,6 +34,9 @@ import {
 import { BEDS } from '@/constants/beds';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { FIELD_CHANGED_ELSEWHERE_MESSAGE } from '@/services/storage/syncErrorCatalog';
+import { applyPatches } from '@/utils/patchUtils';
+import { PatientStatus } from '@/types/domain/patientClassification';
+import { resolveRecordBaseRevision } from '@/services/storage/sync/syncTaskContractPolicy';
 
 /**
  * A diagnosis typed in the census cell, saved under the production configuration (the schema-v2
@@ -252,9 +256,12 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     };
     const serverDiagnosis = async () => (await readServer()).beds.R1.pathology;
     const cellDiagnosis = async () => (await hospitalDB.dailyRecords.get(date))?.beds.R1.pathology;
-    /** What the census does when the person types in the R1 diagnosis cell. */
-    const typeDiagnosis = async (value = DIAGNOSIS) => {
-      const shown = (await hospitalDB.dailyRecords.get(date)) as DailyRecord;
+    /**
+     * What the census does when the person types in the R1 diagnosis cell; `screen` is the day the
+     * census shows, by default this computer's stored copy.
+     */
+    const typeDiagnosis = async (value = DIAGNOSIS, screen?: DailyRecord) => {
+      const shown = screen ?? ((await hospitalDB.dailyRecords.get(date)) as DailyRecord);
       const patch = bedManagementReducer(shown, {
         type: 'UPDATE_PATIENT',
         bedId: 'R1',
@@ -667,6 +674,116 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       expect(await waiting()).toBe(0);
     });
 
+    // Found by the review of W16-ABA1, fixed in W17-ATT1: after the first edit's lost answer,
+    // another computer's save of another field became the day's last write and hid that the
+    // diagnosis on the server was this task's own first edit. The server now records which edit
+    // wrote each field (`meta.fieldWrites`).
+    it.each([
+      ['a diagnosis', false],
+      ['a diagnosis typed by hand', true],
+    ])(
+      'publishes the correction of %s after another computer changed the bed’s status while the first answer was lost',
+      async (_label, manual) => {
+        if (manual) await seedManualDiagnosis();
+        await correctWhileAnswerLost(() => otherComputerSaves({ 'beds.R1.status': 'Grave' }));
+        expect((await readServer()).beds.R1).toMatchObject({
+          pathology: CORRECTED,
+          status: 'Grave',
+        });
+        expect((await admin.doc(dayPath).get()).data()?.meta?.revision).toBe(4);
+        expect(await cellDiagnosis()).toBe(CORRECTED);
+        expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
+        expect(await waiting()).toBe(0);
+        expectDelivered([DIAGNOSIS, CORRECTED]);
+      }
+    );
+
+    // The limit W16-ABA1 left: the restore was no longer the day's last write.
+    it('holds the correction when another computer restored the original diagnosis and then saved another field', async () => {
+      await seedManualDiagnosis();
+      await correctWhileAnswerLost(async () => {
+        await otherComputerTypesDiagnosis(BASE);
+        await otherComputerSaves({ 'beds.R1.status': 'Grave' });
+      });
+      await expectCorrectionHeld(BASE, 4);
+      expectDelivered([DIAGNOSIS]);
+    });
+
+    it('holds the correction when a write that kept the field record changed the first edit’s text', async () => {
+      await correctWhileAnswerLost(async () => {
+        // A whole-day write stamped as the server stamps it that leaves `meta.fieldWrites` as it
+        // was (a restore does), then another computer's save of another field.
+        const stamp = Timestamp.now();
+        await admin.doc(dayPath).update({
+          'beds.R1.pathology': OTHER,
+          lastUpdated: stamp,
+          'meta.revision': 3,
+          'meta.lastMutationId': 'synthetic-restore',
+          'meta.lastChangedPaths': ['*'],
+          'meta.updatedAt': stamp,
+        });
+        await otherComputerSaves({ 'beds.R1.status': 'Grave' });
+      });
+      await expectCorrectionHeld(OTHER, 4);
+      expectDelivered([DIAGNOSIS]);
+    });
+
+    // Found by the recheck of W16-ABA1, fixed in W17-ATT1: one tab still shows revision 1 while
+    // another tab of this computer read the diagnosis another computer changed and put back
+    // (revisions 2 and 3) into the shared local copy. The edit typed from the earlier screen was
+    // read at revision 1, whatever revision the shared copy reached.
+    it('holds a correction typed from an earlier screen after another tab read a restored diagnosis', async () => {
+      await seedManualDiagnosis();
+      const earlierScreen = (await hospitalDB.dailyRecords.get(date)) as DailyRecord;
+      await otherComputerTypesDiagnosis(OTHER);
+      await otherComputerTypesDiagnosis(BASE);
+      // The other tab reads the day: the shared copy is now revision 3, with the restored text.
+      const read = await asP1(() => getForDateWithMeta(date));
+      expect(resolveRecordBaseRevision(read.record as DailyRecord)).toBe(3);
+      expect(resolveRecordBaseRevision((await hospitalDB.dailyRecords.get(date))!)).toBe(3);
+      network.requestsLost = Infinity;
+      await expectShownPending(await typeDiagnosis(CORRECTED, earlierScreen), CORRECTED);
+      network.requestsLost = 0;
+      await runQueue();
+      expect(await serverDiagnosis()).toBe(BASE);
+      expect((await admin.doc(dayPath).get()).data()?.meta?.revision).toBe(3);
+      expect(
+        (await hospitalDB.syncQueue.toArray()).map(task => ({
+          status: task.status,
+          error: task.error,
+          diagnosis: (task.payload as DailyRecord).beds.R1.pathology,
+        }))
+      ).toEqual([
+        {
+          status: 'CONFLICT',
+          error: expect.stringContaining(FIELD_CHANGED_ELSEWHERE_MESSAGE),
+          diagnosis: CORRECTED,
+        },
+      ]);
+      expect(await waiting()).toBe(1);
+      expectDelivered([]);
+    });
+
+    it('publishes a correction typed from a screen that had not caught up with its own saved diagnosis', async () => {
+      const screen = (await hospitalDB.dailyRecords.get(date)) as DailyRecord;
+      expectShownSaved(await typeDiagnosis(DIAGNOSIS, screen));
+      // The census still shows revision 1, with this computer's own diagnosis painted on it.
+      const firstEdit = bedManagementReducer(screen, {
+        type: 'UPDATE_PATIENT',
+        bedId: 'R1',
+        field: 'pathology',
+        value: DIAGNOSIS,
+      });
+      const stale = applyPatches(structuredClone(screen), firstEdit as DailyRecordPatch);
+      expect(resolveRecordBaseRevision(stale)).toBe(1);
+      network.requestsLost = Infinity;
+      await expectShownPending(await typeDiagnosis(CORRECTED, stale), CORRECTED);
+      network.requestsLost = 0;
+      await runQueue();
+      await expectClinicalOutcome({ diagnosis: CORRECTED, history: [BASE, DIAGNOSIS] });
+      expectDelivered([DIAGNOSIS, CORRECTED]);
+    });
+
     it('publishes a pending diagnosis after another computer changed another field of the bed', async () => {
       network.requestsLost = Infinity;
       await expectShownPending(await typeDiagnosis(DIAGNOSIS), DIAGNOSIS);
@@ -679,6 +796,125 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
       expectDelivered([DIAGNOSIS]);
     });
+
+    // Every server writer now records the fields it wrote: none of them makes a pending edit of
+    // another field or bed a conflict.
+    it.each(['a whole-day save', 'a Rayen batch', 'another tab’s save of another bed'])(
+      'publishes a pending diagnosis after %s',
+      async writer => {
+        const day = baseRecord();
+        day.beds.R2 = DataFactory.createMockPatient('R2', {
+          patientName: 'DOS SINTETICO',
+          rut: '11.111.111-1',
+          admissionDate: date,
+          clinicalEpisodeId: 'synthetic-episode-R2',
+          pathology: 'FRACTURA DE CADERA',
+          age: '70',
+        });
+        // The applied run a Rayen batch belongs to, under the policy set up for every case.
+        const history: unknown = [
+          {
+            id: 'synthetic-run',
+            sourceDate: date,
+            startedAt: new Date().toISOString(),
+            status: 'applied',
+            by: 'Persona sintética',
+            policy: {
+              schemaVersion: 2,
+              mode: 'preview',
+              clinicalBatchMode: 'enforced',
+              revision: 7,
+            },
+          },
+        ];
+        Object.assign(day, { rayenSyncHistory: history });
+        await admin.doc(dayPath).set(day);
+        await hospitalDB.dailyRecords.put(day);
+        network.requestsLost = Infinity;
+        await expectShownPending(await typeDiagnosis(DIAGNOSIS), DIAGNOSIS);
+        const P2 = {
+          auth: { uid: 'synthetic-P2', token: { email: 'synthetic-P2@example.invalid' } },
+        };
+        if (writer === 'a whole-day save') {
+          const record = await readServer();
+          record.beds.R2.status = PatientStatus.GRAVE;
+          await network.api!.saveDailyRecordWithClinicalAuthority.run(
+            {
+              date,
+              record,
+              expectedLastUpdated: day.lastUpdated,
+              mode: 'enforced',
+              syncContract: {
+                baseRevision: 1,
+                mutationId: 'synthetic-P2-full',
+                changedPaths: ['*'],
+              },
+            },
+            P2
+          );
+        } else if (writer === 'a Rayen batch') {
+          const { createRayenClinicalEnrichmentFunctions } = createRequire(import.meta.url)(
+            '../../../functions/lib/rayenClinicalEnrichmentFunctions.js'
+          );
+          await createRayenClinicalEnrichmentFunctions({
+            firestore: admin,
+            Timestamp,
+            resolveRoleForEmail: async () => 'nurse_hospital',
+          }).applyRayenClinicalEnrichmentBatch.run(
+            {
+              date,
+              authorityDate: date,
+              runId: 'synthetic-run',
+              mutationId: 'synthetic-P2-batch',
+              fieldContractVersion: 2,
+              expectedLastUpdated: day.lastUpdated,
+              baseRevision: 1,
+              clientRuntimeContractVersion: 3,
+              mode: 'enforced',
+              patches: [
+                {
+                  bedId: 'R1',
+                  clinicalEpisodeId: 'synthetic-episode-R1',
+                  fields: { evaluationScores: { braden: { total: 17 } } },
+                },
+              ],
+            },
+            P2
+          );
+        } else {
+          // The same computer and person, another tab.
+          const [queued] = await hospitalDB.syncQueue.toArray();
+          await network.api!.patchDailyRecordWithClinicalAuthority.run(
+            {
+              date,
+              patch: { 'beds.R2.pathology': OTHER },
+              expectedLastUpdated: day.lastUpdated,
+              mode: 'enforced',
+              syncContract: {
+                baseRevision: 1,
+                mutationId: 'synthetic-P1-other-tab',
+                clientId: queued.syncContract?.clientId,
+                tabId: 'synthetic-other-tab',
+                changedPaths: ['beds.R2.pathology'],
+              },
+            },
+            { auth: { uid: computer.uid, token: { email: `${computer.uid}@example.invalid` } } }
+          );
+        }
+        expect((await admin.doc(dayPath).get()).data()?.meta?.revision).toBe(2);
+        network.requestsLost = 0;
+        await runQueue();
+        const stored = await readServer();
+        expect(stored.beds.R1.pathology).toBe(DIAGNOSIS);
+        if (writer === 'a whole-day save') expect(stored.beds.R2.status).toBe('Grave');
+        if (writer === 'a Rayen batch')
+          expect(stored.beds.R1.evaluationScores?.braden?.total).toBe(17);
+        if (writer === 'another tab’s save of another bed')
+          expect(stored.beds.R2.pathology).toBe(OTHER);
+        expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
+        expectDelivered([DIAGNOSIS]);
+      }
+    );
 
     it('publishes a pending diagnosis typed over another computer’s earlier save of it', async () => {
       // This computer already shows the other computer's diagnosis when its person edits it.

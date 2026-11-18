@@ -47,6 +47,7 @@ import {
 import {
   buildDailyRecordSyncContract,
   mergeSyncTaskContracts,
+  resolveRecordBaseRevision,
 } from '@/services/storage/sync/syncTaskContractPolicy';
 
 /**
@@ -106,6 +107,7 @@ export const foldWriteIntoOutbox = ({
   const previous = detached?.task ?? existing ?? owner;
   const baseContract = previous?.syncContract;
   const patchBaseValues = { ...previous?.patchBaseValues };
+  const patchBaseRevisions = { ...previous?.patchBaseRevisions };
   if (patchWrite) {
     // Where an edit was detached, this write's base is the value that edit was written over,
     // never its unsent text (#1661): the server holding that value is not a change elsewhere.
@@ -126,7 +128,14 @@ export const foldWriteIntoOutbox = ({
           pending.startsWith(`${path}.`) ||
           path.startsWith(`${pending}.`)
       );
-      if (!previous || !overlapsPending) patchBaseValues[path] = getValueAtPath(base, path);
+      if (previous && overlapsPending) continue;
+      patchBaseValues[path] = getValueAtPath(base, path);
+      // The revision of the copy that value came from: the census, or the held edit's own.
+      const revision = Object.hasOwn(heldBases, path)
+        ? existing?.patchBaseRevisions?.[path]
+        : resolveRecordBaseRevision(patchWrite.baseRecord);
+      if (revision === undefined) delete patchBaseRevisions[path];
+      else patchBaseRevisions[path] = revision;
     }
   }
   // A direct write of fields the held conflict does not hold: once the server confirms it, the
@@ -152,6 +161,7 @@ export const foldWriteIntoOutbox = ({
     payload,
     conflictBeforeDirectWrite,
     patchBaseValues,
+    patchBaseRevisions,
     patchBaseContext: previous
       ? previous.patchBaseContext
       : patchWrite

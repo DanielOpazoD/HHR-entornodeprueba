@@ -5,7 +5,12 @@ import { FIELD_CHANGED_ELSEWHERE_MESSAGE } from '@/services/storage/syncErrorCat
 
 import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
 import { hasSameNoteValue } from './dayTaskReplayGuard';
-import { resolveOptionalBaseRevision, resolveRecordBaseRevision } from './syncTaskContractPolicy';
+import { resolveRecordBaseRevision } from './syncTaskContractPolicy';
+import {
+  isLastWrittenBy,
+  isWrittenElsewhereSince,
+  storedFieldWrites,
+} from './fieldWriteAttribution';
 
 const MERGEABLE_MOVEMENT_ARRAY_ROOTS = new Set(['discharges', 'transfers', 'cma']);
 const MEDICAL_HANDOFF_SUMMARY_PATH = 'medicalHandoffNovedades';
@@ -155,13 +160,14 @@ const stampOf = (value: unknown): string | undefined => {
 };
 
 /**
- * The task with the stored values as its base at the fields that an earlier edit folded into it
- * wrote, when the stored day is exactly the version that edit produced: its answer was lost and a
- * correction joined the task meanwhile. Credited by that edit's own mutation id (one of this task's
- * earlier ids), by the version it produced (every server write stamps `meta.updatedAt` with the
- * day's `lastUpdated`, so any later write, even one that keeps the meta, breaks the match) and by
- * the fields it changed. The correction then rebases on that first save under the replay's version
- * checks. Otherwise the task as it is: an equal text from another computer is not this task's.
+ * The task with the stored values as its base at the fields an earlier edit folded into it wrote:
+ * its answer was lost and a correction joined the task meanwhile. A field counts when the newest
+ * write touching it is that edit's own (one of this task's earlier identifiers) and left the value
+ * it stored (`isLastWrittenBy`), and the day's last write was a server write: every server write
+ * stamps `meta.updatedAt` with the day's `lastUpdated`, so a later write that keeps the meta
+ * breaks the match. Another computer's write of another field leaves the attribution in place.
+ * The correction then rebases on that first save under the replay's version checks. Otherwise the
+ * task as it is: an equal text from another computer is not this task's.
  */
 export const withOwnEarlierWriteAsBase = (
   task: SyncTask,
@@ -170,20 +176,12 @@ export const withOwnEarlierWriteAsBase = (
   const meta = remoteData.meta as Record<string, unknown> | undefined;
   const contract = task.syncContract;
   const base = task.patchBaseValues;
-  const earlierId = meta?.lastMutationId;
+  const earlier = (contract?.mutationIds ?? []).filter(id => id !== contract?.mutationId);
   const stamp = stampOf(remoteData.lastUpdated);
-  if (
-    !base ||
-    typeof earlierId !== 'string' ||
-    earlierId === contract?.mutationId ||
-    !contract?.mutationIds?.includes(earlierId) ||
-    !stamp ||
-    stamp !== stampOf(meta?.updatedAt)
-  )
-    return task;
-  const changedPaths = normalizeChangedPaths(contract.changedPaths);
-  const written = normalizeChangedPaths(meta?.lastChangedPaths).filter(
-    path => changedPaths.includes(path) && Object.hasOwn(base, path)
+  if (!base || !earlier.length || !stamp || stamp !== stampOf(meta?.updatedAt)) return task;
+  const writes = storedFieldWrites(remoteData);
+  const written = normalizeChangedPaths(contract?.changedPaths).filter(
+    path => Object.hasOwn(base, path) && isLastWrittenBy(writes, path, earlier, remoteData)
   );
   if (!written.length) return task;
   return {
@@ -254,35 +252,34 @@ const remoteHolds = (
   hasEquivalentReplayValue(getValueAtPath(remoteRecord, path), expected);
 
 /**
- * Whether another computer wrote a field after this computer last saw the day: the stored day's
- * last write named it, is none of the task's own edits and came after the newest revision the task
- * knows (`queued`, the task as queued: its payload is the day as shown at its last edit, and a part
- * published or detached from it carries none of its earlier identifiers). A write the person had
- * already read is the value they edited over, not a change. A day with no known revision counts
- * from 0, as the server does. Only that last write's meta tells, and a write naming a whole bed or
- * day (`beds.R1`, `*`) does not say it wrote the field.
+ * Whether another computer wrote a field after this computer saw it (`isWrittenElsewhereSince`):
+ * after the revision its base was read at, or, for an edit queued without it, the newest revision
+ * the task knows. `queued` is the task as queued: its payload is the day as shown at its last edit,
+ * and a part published or detached from it carries none of its earlier identifiers. A write the
+ * person had already read is the value they edited over, not a change. A day with no known
+ * revision counts from 0, as the server does.
  */
 const writtenElsewhereSinceBase = (
   queued: SyncTask,
   remoteData: Record<string, unknown>
 ): ((path: string) => boolean) => {
-  const meta = remoteData.meta as Record<string, unknown> | undefined;
   const contract = queued.syncContract;
-  const revision = resolveOptionalBaseRevision(meta?.revision);
+  const ids = [contract?.mutationId, ...(contract?.mutationIds ?? [])].filter(
+    (id): id is string => typeof id === 'string'
+  );
   const seen = Math.max(
     contract?.baseRevision ?? 0,
     resolveRecordBaseRevision(queued.payload as DailyRecord) ?? 0
   );
-  const writer = meta?.lastMutationId;
-  if (
-    revision === undefined ||
-    revision <= seen ||
-    writer === contract?.mutationId ||
-    (typeof writer === 'string' && contract?.mutationIds?.includes(writer))
-  )
-    return () => false;
-  const named = normalizeChangedPaths(meta?.lastChangedPaths);
-  return path => named.some(written => written === path || written.startsWith(`${path}.`));
+  const writes = storedFieldWrites(remoteData);
+  return path =>
+    isWrittenElsewhereSince(
+      writes,
+      path,
+      queued.patchBaseRevisions?.[path] ?? seen,
+      ids,
+      contract?.clientId
+    );
 };
 
 /**

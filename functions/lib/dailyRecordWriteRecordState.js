@@ -2,6 +2,7 @@
 const functions = require('firebase-functions/v1');
 const { resolveCurrentRevision, toIsoTimestamp } = require('./dailyRecordWriteVersionGuards');
 const { CLINICAL_DERIVED_MOVED_FIELDS } = require('./clinicalDerivedContract');
+const { nextFieldWrites } = require('./dailyRecordFieldWrites');
 const {
   FORBIDDEN_PATCH_PATH_SEGMENTS,
   isPlainObject,
@@ -156,19 +157,29 @@ const collectChangedPaths = syncContract =>
         .map(path => path.trim())
     : [];
 
-const buildNextMeta = ({ remoteData, syncContract, now }) => {
+/** `writtenPaths`: the fields this write stores, when they are not just the edit's changed paths. */
+const buildNextMeta = ({ remoteData, syncContract, now, record, writtenPaths }) => {
   const mutationId = normalizeShortString(syncContract?.mutationId);
   const clientId = normalizeShortString(syncContract?.clientId);
   const tabId = normalizeShortString(syncContract?.tabId);
+  const revision = resolveCurrentRevision(remoteData) + 1;
 
   return {
     ...(isPlainObject(remoteData?.meta) ? clonePlainValue(remoteData.meta) : {}),
-    revision: resolveCurrentRevision(remoteData) + 1,
+    revision,
     lastMutationId: mutationId || null,
     lastWriterClientId: clientId || null,
     lastWriterTabId: tabId || null,
     lastChangedPaths: collectChangedPaths(syncContract),
     updatedAt: now,
+    fieldWrites: nextFieldWrites({
+      previous: remoteData?.meta?.fieldWrites,
+      paths: writtenPaths ?? collectChangedPaths(syncContract),
+      record,
+      revision,
+      mutationId,
+      clientId,
+    }),
   };
 };
 

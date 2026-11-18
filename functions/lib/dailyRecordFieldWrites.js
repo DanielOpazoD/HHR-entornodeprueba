@@ -1,0 +1,112 @@
+/**
+ * `meta.fieldWrites`: which edit wrote each field of the day. Only the server writes it, with
+ * every patch, whole-day save and Rayen batch:
+ * - `fields[path]`: the day revision that last wrote the field and a digest of the value it
+ *   stored (`digest` is null for `*`, a write of the whole day);
+ * - `writes[revision]`: the edit (`mutationId`) and the computer (`clientId`) behind each
+ *   revision a field still names.
+ * A queued edit replayed after a lost answer tells by it which fields its own earlier edit wrote
+ * and which another computer wrote after the base it saw (src/services/storage/sync/
+ * fieldWriteAttribution.ts reads it, with the same digest). A write that leaves the map as it
+ * was cannot claim a field: its value no longer matches the digest.
+ */
+const MAX_FIELD_WRITES = 300;
+
+const isPlainObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+/** A stored value as one text: map keys sorted, an absent value as null, a timestamp by instant. */
+const canonicalValue = value => {
+  if (value === undefined || value === null) return 'null';
+  if (Array.isArray(value)) return `[${value.map(canonicalValue).join(',')}]`;
+  if (value instanceof Date) {
+    const millis = value.getTime();
+    return JSON.stringify(
+      `@${Math.floor(millis / 1000)}.${(((millis % 1000) + 1000) % 1000) * 1e6}`
+    );
+  }
+  if (typeof value === 'object' && typeof value.toMillis === 'function')
+    return JSON.stringify(`@${value.seconds}.${value.nanoseconds}`);
+  if (typeof value === 'object')
+    return `{${Object.keys(value)
+      .filter(key => value[key] !== undefined)
+      .sort()
+      .map(key => `${JSON.stringify(key)}:${canonicalValue(value[key])}`)
+      .join(',')}}`;
+  return JSON.stringify(value) ?? 'null';
+};
+
+/** A 53-bit digest of the stored value (cyrb53), in base 36. Not a security measure. */
+const fieldValueDigest = value => {
+  const text = canonicalValue(value);
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let index = 0; index < text.length; index++) {
+    const code = text.charCodeAt(index);
+    h1 = Math.imul(h1 ^ code, 2654435761);
+    h2 = Math.imul(h2 ^ code, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+};
+
+const readValueAtPath = (record, path) =>
+  String(path)
+    .split('.')
+    .reduce(
+      (current, segment) =>
+        current !== null && typeof current === 'object' ? current[segment] : undefined,
+      record
+    );
+
+const isEntry = entry =>
+  isPlainObject(entry) && Number.isSafeInteger(entry.revision) && entry.revision >= 0;
+
+/**
+ * The map after a write of `paths` (none or `*`: the whole day) that produced `revision` of
+ * `record`. A written path replaces its own entry and the entries below it; an entry above it
+ * still names the rest of that object. Past MAX_FIELD_WRITES the oldest entries go: a field
+ * without an entry is decided as before the map existed.
+ */
+const nextFieldWrites = ({ previous, paths, record, revision, mutationId, clientId }) => {
+  const written = !paths.length || paths.includes('*') ? ['*'] : [...new Set(paths)];
+  const before = isPlainObject(previous?.fields) && !written.includes('*') ? previous.fields : {};
+  const kept = Object.entries(before)
+    .filter(
+      ([path, entry]) =>
+        isEntry(entry) && !written.some(next => path === next || path.startsWith(`${next}.`))
+    )
+    .sort(([, left], [, right]) => right.revision - left.revision);
+  const fields = Object.fromEntries(
+    [
+      ...written.map(path => [
+        path,
+        { revision, digest: path === '*' ? null : fieldValueDigest(readValueAtPath(record, path)) },
+      ]),
+      ...kept,
+    ].slice(0, MAX_FIELD_WRITES)
+  );
+  const previousWrites = isPlainObject(previous?.writes) ? previous.writes : {};
+  const writes = Object.fromEntries(
+    [...new Set(Object.values(fields).map(entry => String(entry.revision)))].map(key => [
+      key,
+      key === String(revision)
+        ? { mutationId: mutationId || null, clientId: clientId || null }
+        : previousWrites[key] || { mutationId: null, clientId: null },
+    ])
+  );
+  return { fields, writes };
+};
+
+/** The map after a batch whose meta names its revision, edit and fields, and no computer. */
+const batchFieldWrites = (record, previousMeta) =>
+  nextFieldWrites({
+    previous: previousMeta?.fieldWrites,
+    paths: record.meta.lastChangedPaths,
+    record,
+    revision: record.meta.revision,
+    mutationId: record.meta.lastMutationId,
+    clientId: null,
+  });
+
+module.exports = { MAX_FIELD_WRITES, batchFieldWrites, fieldValueDigest, nextFieldWrites };

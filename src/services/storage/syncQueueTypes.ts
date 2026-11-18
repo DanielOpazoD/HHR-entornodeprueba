@@ -51,6 +51,8 @@ export interface SyncTask {
   syncContract?: SyncTaskContract;
   /** Original values of granular edits, kept locally to prove a safe authority rebase. */
   patchBaseValues?: Record<string, unknown>;
+  /** The day revision each of those values was read at: the copy the census showed. */
+  patchBaseRevisions?: Record<string, number>;
   /** Original occupant/episode context; never renewed by compaction. */
   patchBaseContext?: Record<string, unknown>;
   /** Local projection ancestry only; these ids never acknowledge publication of another task. */

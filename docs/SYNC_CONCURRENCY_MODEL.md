@@ -63,6 +63,11 @@ patches stay direct: the server rejects them unless the fence is active.
 
 Other server writers (CUDYR admin adjustments, specialty policy application) also stamp `meta.lastChangedPaths`. Client direct writes never do.
 
+The save callables and the Rayen batch also record `meta.fieldWrites`
+(`functions/lib/dailyRecordFieldWrites.js`): for each written field, the revision that wrote it and
+a digest of the stored value, and for each such revision the edit and computer behind it (newest
+300 fields). The queue replay reads it per field (`fieldWriteAttribution.ts`, see the sync README).
+
 ## Guards, by path
 
 ### Full save — direct: `saveRecordAtomically` (`firestoreWriteSupport.ts`)
