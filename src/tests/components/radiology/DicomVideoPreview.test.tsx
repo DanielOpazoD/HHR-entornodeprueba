@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
-import { DicomVideoPreview } from '@/components/radiology/DicomVideoPreview';
+import { DicomVideoPreview } from '@/features/radiology/dicom-viewer/DicomVideoPreview';
 
 it.each([false, true])('offers a playable MP4 directly with identified=%s', identified => {
   const failed = vi.fn();

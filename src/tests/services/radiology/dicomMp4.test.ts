@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { exportDicomMp4, type DicomMp4Settings } from '@/services/radiology/dicomMp4';
-import type { DicomCineSession } from '@/services/radiology/dicomCine';
+import { exportDicomMp4, type DicomMp4Settings } from '@/features/radiology/services/dicomMp4';
+import type { DicomCineSession } from '@/features/radiology/services/dicomCine';
 
 /** ftyp + moov(mvhd, trak(tkhd, mdia(mdhd))) with a non-zero creation/modification time. */
 const syntheticMp4 = () => {

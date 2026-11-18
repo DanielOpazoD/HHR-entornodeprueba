@@ -132,6 +132,7 @@ Qué impone hoy un control y qué queda como objetivo:
 | Telemetría                                           | `services/observability`                                                                                                   | sus adaptadores por dominio                                                                    |
 | Efectos del navegador                                | `shared/runtime`                                                                                                           | `browserWindowRuntimeCore`, `browserClipboardRuntime`                                          |
 | Eloísa, CUDYR, correo del censo, documentos clínicos | su área en `features/`, más `services/cudyr` y Functions para CUDYR                                                        | el `public.ts` del área                                                                        |
+| Imágenes: MMRAD y visor DICOM                        | `features/radiology`; lo puro que también compila Netlify, en `domain/radiology`                                           | los módulos de `radiology` en `publicModulesByFeature`                                         |
 
 ## Si vas a agregar X, va en Y
 
@@ -189,6 +190,7 @@ esta tabla.
 | [`handoff/`](../src/features/handoff/README.md)                       | Entrega de turno de enfermería y planilla de entrega médica en Drive                                        |
 | [`laboratory/`](../src/features/laboratory/README.md)                 | Exámenes del paciente: visor de Syslab, informes originales de Exalab y bandeja de exámenes del censo       |
 | `prescriptions/`                                                      | Respaldo fotográfico de recetas por cama: carga con QR y PIN, visor y administración                        |
+| [`radiology/`](../src/features/radiology/README.md)                   | Imágenes del paciente: exámenes e informes de MMRAD y el visor DICOM                                        |
 | [`rayen-import/`](../src/features/rayen-import/README.md)             | Sincroniza el censo con Eloísa mediante la extensión; los cambios de camas se aplican tras confirmarlos     |
 | `rayen-manual-import/`                                                | Ingresa en una cama vacía un paciente copiado de Eloísa con un código, avisando si ya está en el censo      |
 | [`reminders/`](../src/features/reminders/README.md)                   | Avisos que jefatura o administración publican para el personal clínico                                      |

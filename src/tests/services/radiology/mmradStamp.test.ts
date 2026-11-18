@@ -4,12 +4,24 @@ import {
   mmradStampSortKey,
   parseMmradStamp,
   sortByMmradStampDesc,
-} from '@/services/radiology/mmradStamp';
+} from '@/features/radiology/services/mmradStamp';
 
 describe('mmradStamp', () => {
   it('reads day, month, year and the optional time, with slashes, dots or dashes', () => {
-    expect(parseMmradStamp('10/04/2026 09:00')).toEqual({ day: '10', month: '04', year: '2026', hours: '09', minutes: '00' });
-    expect(parseMmradStamp('01.11.2026')).toEqual({ day: '01', month: '11', year: '2026', hours: null, minutes: null });
+    expect(parseMmradStamp('10/04/2026 09:00')).toEqual({
+      day: '10',
+      month: '04',
+      year: '2026',
+      hours: '09',
+      minutes: '00',
+    });
+    expect(parseMmradStamp('01.11.2026')).toEqual({
+      day: '01',
+      month: '11',
+      year: '2026',
+      hours: null,
+      minutes: null,
+    });
     expect(parseMmradStamp('24-10-2026 11:30')).toMatchObject({ day: '24', month: '10' });
     expect(parseMmradStamp('')).toBeNull();
     expect(parseMmradStamp('sin fecha')).toBeNull();

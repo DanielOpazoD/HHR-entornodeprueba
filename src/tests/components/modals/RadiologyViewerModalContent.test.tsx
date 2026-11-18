@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import { RadiologyViewerResults } from '@/components/modals/RadiologyViewerModalContent';
-import { RadiologyPortalReceiptPreview } from '@/components/modals/RadiologyPortalReceiptPreview';
-import type { MMRADSearchResult } from '@/services/radiology/mmradService';
+import { RadiologyViewerResults } from '@/features/radiology/components/RadiologyViewerModalContent';
+import { RadiologyPortalReceiptPreview } from '@/features/radiology/components/RadiologyPortalReceiptPreview';
+import type { MMRADSearchResult } from '@/features/radiology/services/mmradService';
 
 const buildResult = (): MMRADSearchResult => ({
   rut: '11111111-1',

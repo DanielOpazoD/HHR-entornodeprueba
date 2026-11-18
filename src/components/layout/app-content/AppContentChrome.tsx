@@ -38,12 +38,14 @@ import {
 import type { UseUIStateReturn } from '@/hooks/useUIState';
 import type { AppContentRuntime } from '@/components/layout/app-content/useAppContentRuntime';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
+import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/dateStripRadiologyViewer';
 
 export interface AppContentChromeProps {
   ui: UseUIStateReturn;
   runtime: AppContentRuntime;
   onOpenCensusDate?: (date: string) => void;
   renderFeatureQuickActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
+  radiologyViewer?: DateStripRadiologyViewer;
   renderCensusTrailingActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
 }
 
@@ -52,6 +54,7 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
   runtime,
   onOpenCensusDate,
   renderFeatureQuickActions,
+  radiologyViewer,
   renderCensusTrailingActions,
 }) => {
   const { auth } = runtime;
@@ -65,6 +68,7 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
     runtime,
     medicalIndicationsPatients,
     renderFeatureQuickActions,
+    radiologyViewer,
   });
   const navbarProps = buildNavbarProps({ ui, runtime });
   const appRouterShellState = buildAppRouterShellState({ ui, runtime, onOpenCensusDate });

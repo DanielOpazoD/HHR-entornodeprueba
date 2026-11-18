@@ -375,14 +375,16 @@
             </tr>
             <tr>
               <td>Modal</td>
-              <td class="file"><code>src/components/modals/RadiologyViewerModal.tsx</code></td>
+              <td class="file">
+                <code>src/features/radiology/components/RadiologyViewerModal.tsx</code>
+              </td>
               <td>Estado, búsqueda, filtros, progreso, pestañas, PDF, comprobante y copia.</td>
               <td>Copiar o convertir en módulo compartido.</td>
             </tr>
             <tr>
               <td>Presentación</td>
               <td class="file">
-                <code>src/components/modals/RadiologyViewerModalContent.tsx</code>
+                <code>src/features/radiology/components/RadiologyViewerModalContent.tsx</code>
               </td>
               <td>Controles, progreso, resultados, acciones y estado vacío.</td>
               <td>Reutilizable con cambios de estilos.</td>
@@ -390,7 +392,7 @@
             <tr>
               <td>Controladores puros</td>
               <td class="file">
-                <code>src/components/modals/controllers/radiologyViewerModalController.ts</code
+                <code>src/features/radiology/controllers/radiologyViewerModalController.ts</code
                 ><br /><code>radiologyViewerContentController.ts</code>
               </td>
               <td>Deduplicación, orden de camas, modalidades, fechas y capacidades por examen.</td>
@@ -398,13 +400,13 @@
             </tr>
             <tr>
               <td>Cliente HTTP</td>
-              <td class="file"><code>src/services/radiology/mmradService.ts</code></td>
+              <td class="file"><code>src/features/radiology/services/mmradService.ts</code></td>
               <td>Bearer, búsqueda, descarga PDF y comprobante.</td>
               <td>Extraer detrás de una interfaz.</td>
             </tr>
             <tr>
               <td>Parser/formato</td>
-              <td class="file"><code>src/services/radiology/mmradReportSupport.ts</code></td>
+              <td class="file"><code>src/domain/radiology/mmradReportSupport.ts</code></td>
               <td>Limpia HTML, extrae secciones, compone texto y HTML imprimible.</td>
               <td>Copiar con todas sus pruebas.</td>
             </tr>

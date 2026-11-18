@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, expect, it, vi } from 'vitest';
-import { createDicomDownloadQueue } from '@/services/radiology/dicomDownloadQueue';
-import { DicomTransferError } from '@/services/radiology/dicomLoadState';
+import { createDicomDownloadQueue } from '@/features/radiology/services/dicomDownloadQueue';
+import { DicomTransferError } from '@/features/radiology/services/dicomLoadState';
 
 afterEach(() => {
   vi.restoreAllMocks();

@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { normalizeDicomPatientId, type DicomCapture } from '@/services/radiology/dicomTypes';
+import { normalizeDicomPatientId, type DicomCapture } from '@/domain/radiology/dicomTypes';
 import { validateClinicalFormAnnexes } from '../../../services/clinicalFormAnnexes';
 
 /** Captures belong to one reviewed patient/episode and never enter persistent preferences. */

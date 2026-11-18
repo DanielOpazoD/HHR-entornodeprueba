@@ -8,6 +8,7 @@ import type { DateStripProps } from '@/components/layout/DateStrip';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
 import type { AppContentRuntime } from '@/components/layout/app-content/useAppContentRuntime';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
+import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/dateStripRadiologyViewer';
 
 interface MedicalIndicationsPatientSourceExtras {
   admissionTime?: string;
@@ -137,6 +138,7 @@ export const buildDateStripProps = ({
   runtime,
   medicalIndicationsPatients,
   renderFeatureQuickActions,
+  radiologyViewer,
 }: {
   ui: Pick<
     UseUIStateReturn,
@@ -162,6 +164,7 @@ export const buildDateStripProps = ({
   >;
   medicalIndicationsPatients: MedicalIndicationsPatientOption[];
   renderFeatureQuickActions?: (patients: MedicalIndicationsPatientOption[]) => ReactNode;
+  radiologyViewer?: DateStripRadiologyViewer;
 }): DateStripProps => {
   const canUseCensusActions = canUseCensusDateStripActions(
     ui.currentModule,
@@ -220,6 +223,7 @@ export const buildDateStripProps = ({
     accessProfile: runtime.censusAccessProfile,
     medicalIndicationsPatients,
     renderFeatureQuickActions,
+    radiologyViewer,
     onOpenPatientSearch: ui.patientSearchModal.open,
   };
 };

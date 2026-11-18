@@ -18,7 +18,7 @@ const LabResultsViewerModal = React.lazy(() =>
 );
 
 const RadiologyViewerModal = React.lazy(() =>
-  import('@/components/modals/RadiologyViewerModal').then(module => ({
+  import('@/features/radiology/components/RadiologyViewerModal').then(module => ({
     default: module.RadiologyViewerModal,
   }))
 );

@@ -4,9 +4,9 @@ import {
   mergeMMRADExamLists,
   openMMRADExamListMemory,
   readRememberedMMRADExams,
-} from '@/components/modals/controllers/radiologyExamListMemory';
-import { searchMmradStudies } from '@/components/modals/controllers/mmradStudySearch';
-import type { MMRADExam, MMRADSearchResult } from '@/services/radiology/mmradService';
+} from '@/features/radiology/controllers/radiologyExamListMemory';
+import { searchMmradStudies } from '@/features/radiology/controllers/mmradStudySearch';
+import type { MMRADExam, MMRADSearchResult } from '@/features/radiology/services/mmradService';
 import { asMmradDateBound, sortStudiesNewestFirst } from './clinicalExplorerImagingModel';
 
 export type ClinicalExplorerImagingPhase = 'listing' | 'ready' | 'empty' | 'error';

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { createDicomReviewCache } from '@/services/radiology/dicomReviewCache';
+import { createDicomReviewCache } from '@/features/radiology/services/dicomReviewCache';
 
 const study = { uid: 'study-a', patientId: '12.345-6', date: '', series: [] };
 const series = {

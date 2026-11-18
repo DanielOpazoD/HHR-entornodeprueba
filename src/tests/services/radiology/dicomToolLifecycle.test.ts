@@ -5,7 +5,7 @@ const state = vi.hoisted(() => ({
   destroyToolGroup: vi.fn(),
 }));
 vi.mock('@cornerstonejs/tools', () => ({ ToolGroupManager: state }));
-import { destroyDicomToolGroup } from '@/services/radiology/dicomToolLifecycle';
+import { destroyDicomToolGroup } from '@/features/radiology/services/dicomToolLifecycle';
 it('disables tool observers before removing the group registry entry', () => {
   const calls: string[] = [];
   state.getToolGroup.mockReturnValue({

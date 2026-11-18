@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DicomPatientBar } from '@/components/radiology/DicomPatientBar';
+import { DicomPatientBar } from '@/features/radiology/dicom-viewer/DicomPatientBar';
 vi.mock('@/services/auth/authRequestHeaders', () => ({
   resolveCurrentUserAuthHeaders: async () => ({}),
 }));

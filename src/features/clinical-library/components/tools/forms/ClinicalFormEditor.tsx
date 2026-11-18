@@ -26,7 +26,7 @@ import {
 } from './useClinicalFormPdf';
 import { useClinicalFormAnnexes } from './useClinicalFormAnnexes';
 import { ClinicalFormAnnexPanel } from './ClinicalFormAnnexPanel';
-import { normalizeDicomPatientId } from '@/services/radiology/dicomTypes';
+import { normalizeDicomPatientId } from '@/domain/radiology/dicomTypes';
 import './clinicalForms.css';
 
 export interface ClinicalFormEditorProps {

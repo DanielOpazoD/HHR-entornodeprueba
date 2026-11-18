@@ -6,7 +6,7 @@ vi.mock('@cornerstonejs/core', () => ({
   cache: { getVolume },
   getShouldUseCPURendering: () => false,
 }));
-import { resetDicomVolumeGraphics } from '@/services/radiology/dicomGraphicsResources';
+import { resetDicomVolumeGraphics } from '@/features/radiology/services/dicomGraphicsResources';
 it('releases the GPU texture with its owning window before invalidating cached slices', () => {
   const calls: string[] = [];
   const owner = {};

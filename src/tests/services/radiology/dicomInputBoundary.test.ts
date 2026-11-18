@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 vi.mock('@cornerstonejs/tools', () => ({
   Enums: { Events: { MOUSE_DOWN: 'down', MOUSE_DOWN_ACTIVATE: 'activate' } },
 }));
-import { createDicomInputBoundary } from '@/services/radiology/dicomInputBoundary';
+import { createDicomInputBoundary } from '@/features/radiology/services/dicomInputBoundary';
 afterEach(() => vi.restoreAllMocks());
 it('blocks a queued click from before undo/tool change but allows the next real interaction', () => {
   const element = document.createElement('div');

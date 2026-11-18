@@ -11,15 +11,17 @@
       "clinical-documents",
       "laboratory",
       "rayen-import",
-      "rayen-manual-import"
+      "rayen-manual-import",
+      "radiology"
     ],
-    "clinical-documents": ["clinical-library", "laboratory"],
-    "clinical-library": [],
+    "clinical-documents": ["clinical-library", "laboratory", "radiology"],
+    "clinical-library": ["radiology"],
     "cudyr": ["rayen-import"],
     "document-scanner": [],
     "handoff": ["cudyr", "wound-care"],
     "laboratory": [],
     "prescriptions": [],
+    "radiology": [],
     "rayen-import": [],
     "rayen-manual-import": [],
     "reminders": [],
@@ -47,6 +49,17 @@
       "@/features/laboratory/hospitalization-reports",
       "@/features/laboratory/quick-action",
       "@/features/laboratory/report-pdf"
+    ],
+    "radiology": [
+      "@/features/radiology/components/RadiologyViewerModal",
+      "@/features/radiology/controllers/mmradStudySearch",
+      "@/features/radiology/controllers/radiologyExamListMemory",
+      "@/features/radiology/controllers/radiologyViewerContentController",
+      "@/features/radiology/dicom-viewer/DicomViewerDialog",
+      "@/features/radiology/dicom-viewer/useDicomReviewCache",
+      "@/features/radiology/services/mmradPdfDelivery",
+      "@/features/radiology/services/mmradService",
+      "@/features/radiology/services/mmradStamp"
     ],
     "rayen-import": [
       "@/features/rayen-import/RayenImportButton",

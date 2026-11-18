@@ -11,6 +11,7 @@ import {
   type ReminderCenterProviderComponent,
 } from '@/components/layout/app-content/reminderCenterProviderLoader';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
+import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/dateStripRadiologyViewer';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import {
   ReminderCenterContext,
@@ -28,6 +29,7 @@ const AppContentOverlays = lazyWithRetry(() =>
 interface AppContentProps {
   ui: UseUIStateReturn;
   renderFeatureQuickActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
+  radiologyViewer?: DateStripRadiologyViewer;
   /** Acciones visibles al extremo derecho de la barra de fechas del censo (p. ej. «Documentos»). */
   renderCensusTrailingActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
 }
@@ -79,6 +81,7 @@ const DeferredReminderCenterProvider: ReminderCenterProviderComponent = ({ child
 export const AppContent: React.FC<AppContentProps> = ({
   ui,
   renderFeatureQuickActions,
+  radiologyViewer,
   renderCensusTrailingActions,
 }) => {
   const runtime = useAppContentRuntime({ ui });
@@ -121,6 +124,7 @@ export const AppContent: React.FC<AppContentProps> = ({
             runtime={runtime}
             onOpenCensusDate={openCensusDate}
             renderFeatureQuickActions={renderFeatureQuickActions}
+            radiologyViewer={radiologyViewer}
             renderCensusTrailingActions={renderCensusTrailingActions}
           />
           <React.Suspense fallback={null}>

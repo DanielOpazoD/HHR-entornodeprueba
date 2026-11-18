@@ -7,7 +7,7 @@ import { createClinicalFormDocx } from '@/features/clinical-library/services/cli
 import { validateClinicalFormAnnexes } from '@/features/clinical-library/services/clinicalFormAnnexes';
 import { getClinicalForm } from '@/features/clinical-library/domain/forms/clinicalFormCatalog';
 import { useClinicalFormAnnexes } from '@/features/clinical-library/components/tools/forms/useClinicalFormAnnexes';
-import type { DicomCapture } from '@/services/radiology/dicomTypes';
+import type { DicomCapture } from '@/domain/radiology/dicomTypes';
 
 const form = getClinicalForm('informe-traslado-hospital-salvador');
 const template = new Uint8Array(readFileSync(`public${form.sourceUrl}`));

@@ -19,13 +19,13 @@ vi.mock('@cornerstonejs/dicom-image-loader', () => ({ wadouri: { metaData: base 
 import {
   dicomProjectionCalibration,
   installDicomCalibration,
-} from '@/services/radiology/dicomCalibration';
+} from '@/features/radiology/services/dicomCalibration';
 import {
   readDicomSpacingAttributes,
   registerDicomImage,
   releaseDicomImage,
   type DicomSpacingAttributes,
-} from '@/services/radiology/dicomImageRegistry';
+} from '@/features/radiology/services/dicomImageRegistry';
 import { syntheticDicom } from '@/tests/fixtures/syntheticDicom';
 
 const DX = '1.2.840.10008.5.1.4.1.1.1.1';

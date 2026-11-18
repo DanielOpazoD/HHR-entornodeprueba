@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { StackViewport } from '@cornerstonejs/core';
-vi.mock('@/services/radiology/dicomRenderReady', () => ({
+vi.mock('@/features/radiology/services/dicomRenderReady', () => ({
   waitForDicomRender: async (_: unknown, render: () => void) => render(),
 }));
-import { openDicomCineSession } from '@/services/radiology/dicomCineSession';
-import type { createProgressiveStack } from '@/services/radiology/dicomProgressiveStack';
+import { openDicomCineSession } from '@/features/radiology/services/dicomCineSession';
+import type { createProgressiveStack } from '@/features/radiology/services/dicomProgressiveStack';
 
 const setup = () => {
   const pane = document.createElement('div');

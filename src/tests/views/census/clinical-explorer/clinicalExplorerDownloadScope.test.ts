@@ -5,7 +5,7 @@ import {
   parseHistorySummary,
   splitCtStudiesByDay,
 } from '@/features/census/components/clinical-explorer/clinicalExplorerDownloadScope';
-import type { MMRADExam } from '@/services/radiology/mmradService';
+import type { MMRADExam } from '@/features/radiology/services/mmradService';
 
 const exam = (overrides: Partial<MMRADExam>): MMRADExam => ({
   nombre_examen: 'TC tórax',

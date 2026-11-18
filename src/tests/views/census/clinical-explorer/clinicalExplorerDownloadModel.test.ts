@@ -17,7 +17,7 @@ import {
   zipEntryNames,
   type DownloadDocument,
 } from '@/features/census/components/clinical-explorer/clinicalExplorerDownloadModel';
-import type { MMRADExam } from '@/services/radiology/mmradService';
+import type { MMRADExam } from '@/features/radiology/services/mmradService';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 import type { LabResultRow } from '@/types/domain/labExamTypes';
 

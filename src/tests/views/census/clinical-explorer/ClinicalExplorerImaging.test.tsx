@@ -11,8 +11,9 @@ const mocks = vi.hoisted(() => ({
   download: vi.fn(),
 }));
 
-vi.mock('@/services/radiology/mmradService', async importOriginal => {
-  const actual = await importOriginal<typeof import('@/services/radiology/mmradService')>();
+vi.mock('@/features/radiology/services/mmradService', async importOriginal => {
+  const actual =
+    await importOriginal<typeof import('@/features/radiology/services/mmradService')>();
   return {
     ...actual,
     searchMMRADExams: (...args: unknown[]) => mocks.search(...args),
@@ -24,10 +25,10 @@ vi.mock('@/services/radiology/mmradService', async importOriginal => {
 vi.mock('@/services/exporters/exportDownload', () => ({
   downloadBlob: (...args: unknown[]) => mocks.download(...args),
 }));
-vi.mock('@/components/radiology/useDicomReviewCache', () => ({
+vi.mock('@/features/radiology/dicom-viewer/useDicomReviewCache', () => ({
   useDicomReviewCache: () => undefined,
 }));
-vi.mock('@/components/radiology/DicomViewerDialog', () => ({
+vi.mock('@/features/radiology/dicom-viewer/DicomViewerDialog', () => ({
   DicomViewerDialog: ({
     title,
     link,
@@ -46,7 +47,7 @@ vi.mock('@/components/radiology/DicomViewerDialog', () => ({
 import { BEDS } from '@/constants/beds';
 import { ClinicalExplorerImaging } from '@/features/census/components/clinical-explorer/ClinicalExplorerImaging';
 import { listClinicalExplorerPatients } from '@/features/census/controllers/clinicalExplorerController';
-import type { MMRADExam } from '@/services/radiology/mmradService';
+import type { MMRADExam } from '@/features/radiology/services/mmradService';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 const RUT = '12.345.678-5';

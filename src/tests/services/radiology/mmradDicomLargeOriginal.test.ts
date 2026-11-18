@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchDicomInstance } from '@/services/radiology/mmradDicomService';
-import { createDicomDownloadQueue } from '@/services/radiology/dicomDownloadQueue';
+import { fetchDicomInstance } from '@/features/radiology/services/mmradDicomService';
+import { createDicomDownloadQueue } from '@/features/radiology/services/dicomDownloadQueue';
 import {
   DicomOriginalTooLargeError,
   DicomTicketExpiredError,
   DicomTransferError,
-} from '@/services/radiology/dicomLoadState';
+} from '@/features/radiology/services/dicomLoadState';
 
 vi.mock('@/services/auth/authRequestHeaders', () => ({
   resolveCurrentUserAuthHeaders: async () => ({ Authorization: 'Bearer synthetic-id-token' }),

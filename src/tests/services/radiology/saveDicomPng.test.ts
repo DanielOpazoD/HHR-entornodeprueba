@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { saveAs } from 'file-saver';
-import { saveDicomPng } from '@/services/radiology/saveDicomPng';
-import type { DicomCapture } from '@/services/radiology/dicomTypes';
+import { saveDicomPng } from '@/features/radiology/services/saveDicomPng';
+import type { DicomCapture } from '@/domain/radiology/dicomTypes';
 vi.mock('file-saver', () => ({ saveAs: vi.fn() }));
 const capture = vi.fn().mockResolvedValue({ png: new Uint8Array([1, 2, 3]) } as DicomCapture);
 describe('DICOM capture download', () => {

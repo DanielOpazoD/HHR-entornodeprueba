@@ -4,8 +4,8 @@
  * still pending inside the chosen range. Pure helpers, kept apart from the outcome model.
  */
 import type { SyslabExamItem } from '@/types/domain/labExamTypes';
-import type { MMRADExam } from '@/services/radiology/mmradService';
-import { mmradStampSortKey } from '@/services/radiology/mmradStamp';
+import type { MMRADExam } from '@/features/radiology/services/mmradService';
+import { mmradStampSortKey } from '@/features/radiology/services/mmradStamp';
 
 /** One stay listed in the ZIP's «00 Resumen.csv», delivered or not. */
 export interface ListedStay {

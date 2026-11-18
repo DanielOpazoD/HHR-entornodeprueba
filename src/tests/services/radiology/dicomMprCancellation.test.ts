@@ -9,11 +9,11 @@ vi.mock('@cornerstonejs/core', () => ({
   eventTarget: mocks.events,
   getEnabledElementByIds: mocks.enabled,
 }));
-vi.mock('@/services/radiology/dicomQuantitative', () => ({
+vi.mock('@/features/radiology/services/dicomQuantitative', () => ({
   huProbeText: vi.fn(),
   huRoiText: vi.fn(),
 }));
-vi.mock('@/services/radiology/dicomReferencePointTool', () => ({
+vi.mock('@/features/radiology/services/dicomReferencePointTool', () => ({
   DicomReferencePointTool: { toolName: 'Reference' },
 }));
 vi.mock('@cornerstonejs/tools', () => ({
@@ -33,8 +33,8 @@ vi.mock('@cornerstonejs/tools', () => ({
     },
   },
 }));
-import { createMprTools } from '@/services/radiology/dicomMprTools';
-import { createDicomMeasurementStore } from '@/services/radiology/dicomMeasurementStore';
+import { createMprTools } from '@/features/radiology/services/dicomMprTools';
+import { createDicomMeasurementStore } from '@/features/radiology/services/dicomMeasurementStore';
 const measurements = () => ({
   store: createDicomMeasurementStore(),
   series: { uid: 'synthetic-series', number: 1, modality: 'CT' },

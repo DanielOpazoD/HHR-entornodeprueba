@@ -1,10 +1,10 @@
-import { DICOM_DEFAULT_DOWNLOADS } from '@/services/radiology/dicomDownloadLimits';
+import { DICOM_DEFAULT_DOWNLOADS } from '@/features/radiology/services/dicomDownloadLimits';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { planDicomVolume } from '@/domain/radiology/dicomGeometry';
-import { createDicomReviewCache } from '@/services/radiology/dicomReviewCache';
-import { createDicomStudyPrefetch } from '@/services/radiology/dicomStudyPrefetch';
-import { loadDicomSeries, startDicomSeries } from '@/services/radiology/dicomSeriesLoader';
-import type { DicomSeries, DicomStudy } from '@/services/radiology/dicomTypes';
+import { createDicomReviewCache } from '@/features/radiology/services/dicomReviewCache';
+import { createDicomStudyPrefetch } from '@/features/radiology/services/dicomStudyPrefetch';
+import { loadDicomSeries, startDicomSeries } from '@/features/radiology/services/dicomSeriesLoader';
+import type { DicomSeries, DicomStudy } from '@/domain/radiology/dicomTypes';
 import {
   syntheticDicom,
   syntheticSopUid,
@@ -20,7 +20,9 @@ const mocks = vi.hoisted(() => ({
   remove: vi.fn(),
   unload: vi.fn(),
 }));
-vi.mock('@/services/radiology/mmradDicomService', () => ({ fetchDicomInstance: mocks.fetch }));
+vi.mock('@/features/radiology/services/mmradDicomService', () => ({
+  fetchDicomInstance: mocks.fetch,
+}));
 vi.mock('@cornerstonejs/core', () => ({
   imageLoader: { loadAndCacheImage: mocks.decode },
   cache: { getImageLoadObject: () => ({}), removeImageLoadObject: mocks.remove },
@@ -233,7 +235,7 @@ describe('progressive verified download queue', () => {
   });
 
   it('renders a verified cut before completion and prioritizes the requested cut next', async () => {
-    const { startDicomSeries } = await import('@/services/radiology/dicomSeriesLoader');
+    const { startDicomSeries } = await import('@/features/radiology/services/dicomSeriesLoader');
     const extended = {
       ...series,
       instances: Array.from({ length: 12 }, (_, i) => ({
@@ -275,7 +277,7 @@ describe('progressive verified download queue', () => {
   });
 
   it('rejects a late foreign image without publishing it and releases earlier valid images', async () => {
-    const { startDicomSeries } = await import('@/services/radiology/dicomSeriesLoader');
+    const { startDicomSeries } = await import('@/features/radiology/services/dicomSeriesLoader');
     let foreign!: (bytes: Uint8Array) => void;
     mocks.fetch.mockImplementation((ticket: string) =>
       ticket === '0'
@@ -296,7 +298,7 @@ describe('progressive verified download queue', () => {
   });
 
   it('invalidates the session immediately while another decode is still pending', async () => {
-    const { startDicomSeries } = await import('@/services/radiology/dicomSeriesLoader');
+    const { startDicomSeries } = await import('@/features/radiology/services/dicomSeriesLoader');
     let foreign!: (bytes: Uint8Array) => void;
     let finish!: () => void;
     mocks.fetch.mockImplementation((ticket: string) =>
@@ -322,7 +324,7 @@ describe('progressive verified download queue', () => {
   });
 
   it('releases images that finish decoding after cancellation without reporting them ready', async () => {
-    const { startDicomSeries } = await import('@/services/radiology/dicomSeriesLoader');
+    const { startDicomSeries } = await import('@/features/radiology/services/dicomSeriesLoader');
     mocks.fetch.mockImplementation((ticket: string) =>
       Promise.resolve(syntheticDicom(Number(ticket), 5))
     );

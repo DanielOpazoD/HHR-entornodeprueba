@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DicomTicketExpiredError } from '@/services/radiology/dicomLoadState';
-import { createDicomStudyPrefetch } from '@/services/radiology/dicomStudyPrefetch';
-import { startDicomSeries } from '@/services/radiology/dicomSeriesLoader';
-import type { DicomSeries, DicomStudy } from '@/services/radiology/dicomTypes';
+import { DicomTicketExpiredError } from '@/features/radiology/services/dicomLoadState';
+import { createDicomStudyPrefetch } from '@/features/radiology/services/dicomStudyPrefetch';
+import { startDicomSeries } from '@/features/radiology/services/dicomSeriesLoader';
+import type { DicomSeries, DicomStudy } from '@/domain/radiology/dicomTypes';
 import {
   syntheticDicom,
   syntheticSopUid,
@@ -12,7 +12,9 @@ import {
 } from '@/tests/fixtures/syntheticDicom';
 
 const mocks = vi.hoisted(() => ({ fetch: vi.fn(), decode: vi.fn(), add: vi.fn() }));
-vi.mock('@/services/radiology/mmradDicomService', () => ({ fetchDicomInstance: mocks.fetch }));
+vi.mock('@/features/radiology/services/mmradDicomService', () => ({
+  fetchDicomInstance: mocks.fetch,
+}));
 vi.mock('@cornerstonejs/core', () => ({
   imageLoader: { loadAndCacheImage: mocks.decode },
   cache: { getImageLoadObject: () => ({}), removeImageLoadObject: vi.fn() },

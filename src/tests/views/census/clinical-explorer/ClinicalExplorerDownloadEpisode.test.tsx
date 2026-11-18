@@ -26,8 +26,9 @@ vi.mock('@/features/rayen-import/clinical-panel', async importOriginal => ({
 vi.mock('@/features/laboratory/hospitalization-reports', () => ({
   useSyslabHospitalizationReports: (params: unknown) => mocks.lab(params),
 }));
-vi.mock('@/services/radiology/mmradService', async importOriginal => {
-  const actual = await importOriginal<typeof import('@/services/radiology/mmradService')>();
+vi.mock('@/features/radiology/services/mmradService', async importOriginal => {
+  const actual =
+    await importOriginal<typeof import('@/features/radiology/services/mmradService')>();
   return {
     ...actual,
     searchMMRADExams: (...args: unknown[]) => mocks.search(...args),

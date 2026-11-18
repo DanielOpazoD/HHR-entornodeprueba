@@ -4,10 +4,10 @@
 
 - **Módulo:** Visualizador MMRAD
 - **Ruta(s) principal(es):**
-  - [src/components/modals/RadiologyViewerModal.tsx](../src/components/modals/RadiologyViewerModal.tsx)
-  - [src/components/modals/RadiologyViewerModalContent.tsx](../src/components/modals/RadiologyViewerModalContent.tsx)
-  - [src/services/radiology/mmradService.ts](../src/services/radiology/mmradService.ts)
-  - [src/services/radiology/mmradReportSupport.ts](../src/services/radiology/mmradReportSupport.ts)
+  - [src/features/radiology/components/RadiologyViewerModal.tsx](../src/features/radiology/components/RadiologyViewerModal.tsx)
+  - [src/features/radiology/components/RadiologyViewerModalContent.tsx](../src/features/radiology/components/RadiologyViewerModalContent.tsx)
+  - [src/features/radiology/services/mmradService.ts](../src/features/radiology/services/mmradService.ts)
+  - [src/domain/radiology/mmradReportSupport.ts](../src/domain/radiology/mmradReportSupport.ts)
   - [netlify/functions/mmrad-search.ts](../netlify/functions/mmrad-search.ts)
 - **Fecha de evaluación:** 2026-04-15
 - **Evaluador:** Codex
@@ -42,12 +42,12 @@
 ## 3. Qué hace bien este módulo
 
 - Tiene buen soporte puro para parsing y copiado clínico:
-  - [mmradReportSupport.ts](../src/services/radiology/mmradReportSupport.ts)
+  - [mmradReportSupport.ts](../src/domain/radiology/mmradReportSupport.ts)
 - La ronda actual dejó seams puros útiles para el shell del visor:
-  - [radiologyViewerModalController.ts](../src/components/modals/controllers/radiologyViewerModalController.ts)
-  - [radiologyViewerContentController.ts](../src/components/modals/controllers/radiologyViewerContentController.ts)
+  - [radiologyViewerModalController.ts](../src/features/radiology/controllers/radiologyViewerModalController.ts)
+  - [radiologyViewerContentController.ts](../src/features/radiology/controllers/radiologyViewerContentController.ts)
 - El servicio de frontend hacia Netlify está razonablemente delgado:
-  - [mmradService.ts](../src/services/radiology/mmradService.ts)
+  - [mmradService.ts](../src/features/radiology/services/mmradService.ts)
 - El backend de búsqueda MMRAD está cubierto con una batería útil:
   - [mmradSearch.test.ts](../src/tests/netlify/mmradSearch.test.ts)
 - El modal expone acciones reales de alto valor:
@@ -64,7 +64,7 @@
   - normalización de report URLs
   - clipboard text clínico
 - La pieza más pesada del shell ya bajó bastante al sacar helpers de pacientes, modalidades, rangos y keys:
-  - [RadiologyViewerModal.tsx](../src/components/modals/RadiologyViewerModal.tsx)
+  - [RadiologyViewerModal.tsx](../src/features/radiology/components/RadiologyViewerModal.tsx)
 - `RadiologyViewerModalContent.tsx` está bien descompuesto por subcomponentes exportados, pero el archivo aún es el hotspot principal por densidad visual.
 - La integración entre UI y búsqueda MMRAD está bien resuelta, y ahora el modal principal mezcla menos state orchestration que al inicio de la evaluación.
 
@@ -91,12 +91,12 @@
 
 | Archivo                                                                                                                                           | Rol                             | Riesgo / observación                                                                          |
 | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | --------------------------------------------------------------------------------------------- |
-| [src/components/modals/RadiologyViewerModal.tsx](../src/components/modals/RadiologyViewerModal.tsx)                                               | Modal principal / runtime shell | `274` líneas; quedó más lineal después de extraer filtros, modalidades, pacientes y keys.     |
-| [src/components/modals/RadiologyViewerModalContent.tsx](../src/components/modals/RadiologyViewerModalContent.tsx)                                 | Shell visual y subcomponentes   | `370` líneas; sigue siendo el hotspot principal por densidad visual y branching de contenido. |
-| [src/components/modals/controllers/radiologyViewerModalController.ts](../src/components/modals/controllers/radiologyViewerModalController.ts)     | Runtime modal puro              | `96` líneas; seam nuevo y valioso para selección de pacientes, tabs y filtros.                |
-| [src/components/modals/controllers/radiologyViewerContentController.ts](../src/components/modals/controllers/radiologyViewerContentController.ts) | View-model visual puro          | `37` líneas; concentra badges, mensajes vacíos y estado por examen.                           |
-| [src/services/radiology/mmradReportSupport.ts](../src/services/radiology/mmradReportSupport.ts)                                                   | Parsing / copiado / print HTML  | `209` líneas; fuerte y útil, aunque ya es un soporte importante por sí mismo.                 |
-| [src/services/radiology/mmradService.ts](../src/services/radiology/mmradService.ts)                                                               | Cliente frontend de búsqueda    | `74` líneas; bastante razonable y delgado.                                                    |
+| [src/features/radiology/components/RadiologyViewerModal.tsx](../src/features/radiology/components/RadiologyViewerModal.tsx)                                               | Modal principal / runtime shell | `274` líneas; quedó más lineal después de extraer filtros, modalidades, pacientes y keys.     |
+| [src/features/radiology/components/RadiologyViewerModalContent.tsx](../src/features/radiology/components/RadiologyViewerModalContent.tsx)                                 | Shell visual y subcomponentes   | `370` líneas; sigue siendo el hotspot principal por densidad visual y branching de contenido. |
+| [src/features/radiology/controllers/radiologyViewerModalController.ts](../src/features/radiology/controllers/radiologyViewerModalController.ts)     | Runtime modal puro              | `96` líneas; seam nuevo y valioso para selección de pacientes, tabs y filtros.                |
+| [src/features/radiology/controllers/radiologyViewerContentController.ts](../src/features/radiology/controllers/radiologyViewerContentController.ts) | View-model visual puro          | `37` líneas; concentra badges, mensajes vacíos y estado por examen.                           |
+| [src/domain/radiology/mmradReportSupport.ts](../src/domain/radiology/mmradReportSupport.ts)                                                   | Parsing / copiado / print HTML  | `209` líneas; fuerte y útil, aunque ya es un soporte importante por sí mismo.                 |
+| [src/features/radiology/services/mmradService.ts](../src/features/radiology/services/mmradService.ts)                                                               | Cliente frontend de búsqueda    | `74` líneas; bastante razonable y delgado.                                                    |
 
 ---
 
@@ -136,8 +136,8 @@ Resultado actual después de la ronda de mejoras:
 - **Objetivo:** hacer más declarativo el runtime del modal.
 - **Cambio ejecutado:** extraer `radiologyViewerModalController.ts` para pacientes únicos, modalidades, filtros, rangos y keys de examen.
 - **Archivos tocados:**
-  - [src/components/modals/RadiologyViewerModal.tsx](../src/components/modals/RadiologyViewerModal.tsx)
-  - [src/components/modals/controllers/radiologyViewerModalController.ts](../src/components/modals/controllers/radiologyViewerModalController.ts)
+  - [src/features/radiology/components/RadiologyViewerModal.tsx](../src/features/radiology/components/RadiologyViewerModal.tsx)
+  - [src/features/radiology/controllers/radiologyViewerModalController.ts](../src/features/radiology/controllers/radiologyViewerModalController.ts)
 - **Criterio de cierre:** logrado; el modal principal quedó más lineal y con menos branching visible.
 
 ### Bloque 2
@@ -145,8 +145,8 @@ Resultado actual después de la ronda de mejoras:
 - **Objetivo:** bajar densidad de `RadiologyViewerModalContent.tsx`.
 - **Cambio ejecutado:** extraer `radiologyViewerContentController.ts` para badges, availability, conteos por modalidad y mensajes vacíos.
 - **Archivos tocados:**
-  - [src/components/modals/RadiologyViewerModalContent.tsx](../src/components/modals/RadiologyViewerModalContent.tsx)
-  - [src/components/modals/controllers/radiologyViewerContentController.ts](../src/components/modals/controllers/radiologyViewerContentController.ts)
+  - [src/features/radiology/components/RadiologyViewerModalContent.tsx](../src/features/radiology/components/RadiologyViewerModalContent.tsx)
+  - [src/features/radiology/controllers/radiologyViewerContentController.ts](../src/features/radiology/controllers/radiologyViewerContentController.ts)
 - **Criterio de cierre:** logrado; el content quedó algo más declarativo sin fragmentar de más la UI.
 
 ### Bloque 3
@@ -154,8 +154,8 @@ Resultado actual después de la ronda de mejoras:
 - **Objetivo:** frenar antes de sobreingeniar.
 - **Cambio esperado:** no seguir podando salvo que aparezca dolor real en `RadiologyViewerModalContent.tsx` o en el soporte MMRAD.
 - **Archivos probables:**
-  - [src/components/modals/RadiologyViewerModalContent.tsx](../src/components/modals/RadiologyViewerModalContent.tsx)
-  - [src/services/radiology/mmradReportSupport.ts](../src/services/radiology/mmradReportSupport.ts)
+  - [src/features/radiology/components/RadiologyViewerModalContent.tsx](../src/features/radiology/components/RadiologyViewerModalContent.tsx)
+  - [src/domain/radiology/mmradReportSupport.ts](../src/domain/radiology/mmradReportSupport.ts)
 - **Criterio de cierre:** conservar el módulo estable y mover el foco al siguiente módulo del inventario.
 
 ---

@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { useDicomReviewCache } from '@/components/radiology/useDicomReviewCache';
+import { useDicomReviewCache } from '@/features/radiology/dicom-viewer/useDicomReviewCache';
 
 describe('patient review cache ownership', () => {
   it('retains one cache within a patient review, isolates patient changes and clears on close', async () => {

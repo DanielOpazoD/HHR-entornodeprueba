@@ -3,7 +3,7 @@ import { formatFormDate } from '../domain/forms/clinicalFormDates';
 import type { ClinicalFormDefinition, ClinicalFormValues } from '../domain/forms/clinicalFormTypes';
 import { clinicalFormTemplateHash } from './clinicalFormPdf';
 import { CLINICAL_FORM_TEXT_SIZE } from './clinicalFormTypography';
-import type { DicomCapture } from '@/services/radiology/dicomTypes';
+import type { DicomCapture } from '@/domain/radiology/dicomTypes';
 import { appendClinicalFormAnnexes, validateClinicalFormAnnexes } from './clinicalFormAnnexes';
 
 const WORD_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';

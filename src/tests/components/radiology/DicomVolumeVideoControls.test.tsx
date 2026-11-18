@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { DicomVolumeVideoControls } from '@/components/radiology/DicomVolumeVideoControls';
-import type { DicomRuntime } from '@/services/radiology/dicomRuntimeTypes';
+import { DicomVolumeVideoControls } from '@/features/radiology/dicom-viewer/DicomVolumeVideoControls';
+import type { DicomRuntime } from '@/features/radiology/services/dicomRuntimeTypes';
 
 const runtime = (slices = { current: 4, total: 10 }) =>
   ({

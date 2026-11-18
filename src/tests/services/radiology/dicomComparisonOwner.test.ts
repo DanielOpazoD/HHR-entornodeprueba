@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest';
-import { createDicomComparisonOwner } from '@/services/radiology/dicomComparisonOwner';
-import type { DicomComparison } from '@/services/radiology/dicomComparison';
+import { createDicomComparisonOwner } from '@/features/radiology/services/dicomComparisonOwner';
+import type { DicomComparison } from '@/features/radiology/services/dicomComparison';
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>(yes => {

@@ -12,7 +12,7 @@ import {
   normalizeDicomPatientId,
   type DicomStudy,
   type DicomSeries,
-} from '../../../src/services/radiology/dicomTypes';
+} from '../../../src/domain/radiology/dicomTypes';
 
 const object = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' && !Array.isArray(value)

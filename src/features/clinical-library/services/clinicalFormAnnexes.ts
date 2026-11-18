@@ -1,5 +1,5 @@
 import type PizZip from 'pizzip';
-import { normalizeDicomPatientId, type DicomCapture } from '@/services/radiology/dicomTypes';
+import { normalizeDicomPatientId, type DicomCapture } from '@/domain/radiology/dicomTypes';
 
 const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const R = 'http://schemas.openxmlformats.org/package/2006/relationships';

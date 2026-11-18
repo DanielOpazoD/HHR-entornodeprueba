@@ -33,7 +33,7 @@ import {
   UNIVERSITAS_ORIGIN,
   universitasInstanceRequest,
 } from './lib/mmrad-universitas';
-import { normalizeDicomPatientId, type DicomStudy } from '../../src/services/radiology/dicomTypes';
+import { normalizeDicomPatientId, type DicomStudy } from '../../src/domain/radiology/dicomTypes';
 import { isSameRutWithOtherVerifier, isValidRut } from '../../src/utils/rutUtils';
 
 interface Dependencies {

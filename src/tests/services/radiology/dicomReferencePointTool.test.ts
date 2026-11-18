@@ -11,7 +11,7 @@ vi.mock('@cornerstonejs/tools', () => ({
     }
   },
 }));
-import { DicomReferencePointTool } from '@/services/radiology/dicomReferencePointTool';
+import { DicomReferencePointTool } from '@/features/radiology/services/dicomReferencePointTool';
 
 describe('orthogonal reference interaction', () => {
   it('clamps clicks and drags in voxel coordinates before broadcasting a physical point', () => {

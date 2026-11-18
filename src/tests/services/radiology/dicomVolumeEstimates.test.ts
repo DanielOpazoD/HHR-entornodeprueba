@@ -5,7 +5,7 @@ import {
   dicomSliceInterval,
   estimateAbcHalf,
   estimateEllipsoid,
-} from '@/services/radiology/dicomVolumeEstimates';
+} from '@/features/radiology/services/dicomVolumeEstimates';
 
 describe('ABC/2', () => {
   it('multiplies the diameters by the haemorrhage extent and halves it', () => {

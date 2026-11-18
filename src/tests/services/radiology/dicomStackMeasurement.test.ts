@@ -5,14 +5,14 @@ import {
   describeDicomStackAnnotation,
   dicomStackTextLines,
   dicomStackToolNames,
-} from '@/services/radiology/dicomStackMeasurement';
-import { dicomStackShowsHu } from '@/services/radiology/dicomCursorValue';
+} from '@/features/radiology/services/dicomStackMeasurement';
+import { dicomStackShowsHu } from '@/features/radiology/services/dicomCursorValue';
 import {
   findDicomImage,
   registerDicomImage,
   releaseDicomImage,
   type DicomImageInfo,
-} from '@/services/radiology/dicomImageRegistry';
+} from '@/features/radiology/services/dicomImageRegistry';
 
 const image = (imageId: string, patch: Partial<DicomImageInfo>) =>
   registerDicomImage(imageId, {
