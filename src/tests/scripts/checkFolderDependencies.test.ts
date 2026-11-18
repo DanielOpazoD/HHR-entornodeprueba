@@ -797,6 +797,30 @@ describe('one direction rule between the folders of src/', () => {
     });
   });
 
+  it('keeps the layer table of docs/architecture.md equal to the matrix', () => {
+    const page = readFileSync('docs/architecture.md', 'utf8');
+    const section = page.slice(page.indexOf('## Capas y dirección'), page.indexOf('## Reglas'));
+    const rows = section
+      .split('\n')
+      .filter(line => /^\|\s*\d+\s*\|/.test(line))
+      .map(line => {
+        const cells = line.split('|').map(cell => cell.trim());
+        return {
+          layer: Number(cells[1]),
+          folders: [...cells[3].matchAll(/`([^`]+)`/g)].map(match => match[1]).sort(),
+        };
+      });
+    expect(
+      rows,
+      'Actualiza la tabla «Capas y dirección» de docs/architecture.md con las capas de la matriz'
+    ).toEqual(
+      liveLayers.map((entry: { layer: number; folders: string[] }) => ({
+        layer: entry.layer,
+        folders: [...entry.folders].sort(),
+      }))
+    );
+  });
+
   it('prints and exits as the command exactly what it decides in process', () => {
     for (const [files, status] of [
       [target('src/services/target.ts'), 0],

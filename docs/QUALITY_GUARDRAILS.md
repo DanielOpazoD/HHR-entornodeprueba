@@ -149,7 +149,7 @@ La dirección entre carpetas es una sola regla: `npm run check:folder-dependenci
 ante una referencia de valor o diferida hacia una capa superior de
 `scripts/folder-dependency-matrix.json` que no esté en su libro de excepciones, ante un
 componente compartido que abre datos, ante una excepción que ya no existe y ante una entrada que
-no está en el libro de la base. Ver [dependency-map.md](dependency-map.md).
+no está en el libro de la base. Ver «Capas y dirección» en [architecture.md](architecture.md#capas-y-dirección).
 
 ## Cuándo abrir una excepción
 
