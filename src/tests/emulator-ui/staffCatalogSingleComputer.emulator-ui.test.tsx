@@ -38,8 +38,7 @@ import {
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import * as remote from '@/services/storage/firestore';
 import { useNursesQuery, useTensQuery } from '@/hooks/useStaffQuery';
-import { NurseManagerModal } from '@/components/modals/NurseManagerModal';
-import { TensManagerModal } from '@/components/modals/TensManagerModal';
+import { StaffManagerModal } from '@/components/modals/StaffManagerModal';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
 
@@ -52,12 +51,26 @@ const catalogs: Table<CatalogRecord> = hospitalDB.table('catalogs');
 function Nurses() {
   const query = useNursesQuery();
   return (
-    <NurseManagerModal isOpen onClose={() => {}} nursesList={query.data} saved={query.saved} />
+    <StaffManagerModal
+      role="nurse"
+      isOpen
+      onClose={() => {}}
+      staffList={query.data}
+      saved={query.saved}
+    />
   );
 }
 function Tens() {
   const query = useTensQuery();
-  return <TensManagerModal isOpen onClose={() => {}} tensList={query.data} saved={query.saved} />;
+  return (
+    <StaffManagerModal
+      role="tens"
+      isOpen
+      onClose={() => {}}
+      staffList={query.data}
+      saved={query.saved}
+    />
+  );
 }
 const settingsRef = (id: string) => doc(sdkDb, `hospitals/${getActiveHospitalId()}/settings/${id}`);
 const serverList = async (id = 'nurses') => (await getDocFromServer(settingsRef(id))).data()?.list;

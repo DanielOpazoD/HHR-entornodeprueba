@@ -34,9 +34,8 @@ import * as local from '@/services/storage/indexeddb/indexedDbCatalogService';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import * as remote from '@/services/storage/firestore';
 import { useNursesQuery, useTensQuery } from '@/hooks/useStaffQuery';
-import { NurseManagerModal } from '@/components/modals/NurseManagerModal';
+import { StaffManagerModal } from '@/components/modals/StaffManagerModal';
 import { TreatingPhysiciansSettings } from '@/features/admin/components/TreatingPhysiciansSettings';
-import { TensManagerModal } from '@/components/modals/TensManagerModal';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 
 const catalogs: Table<CatalogRecord> = hospitalDB.table('catalogs');
@@ -62,9 +61,9 @@ const cases = [
 function Manager({ entry }: { entry: (typeof cases)[number] }) {
   const query = entry.query();
   return entry.key === 'nurses' ? (
-    <NurseManagerModal isOpen onClose={() => {}} nursesList={query.data} />
+    <StaffManagerModal role="nurse" isOpen onClose={() => {}} staffList={query.data} />
   ) : (
-    <TensManagerModal isOpen onClose={() => {}} tensList={query.data} />
+    <StaffManagerModal role="tens" isOpen onClose={() => {}} staffList={query.data} />
   );
 }
 describe('staff catalog blocked save visible integration', () => {

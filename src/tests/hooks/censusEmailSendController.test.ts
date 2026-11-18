@@ -5,7 +5,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   buildMonthIntegrityDates,
   resolveMonthRecordsForDelivery,
-} from '@/hooks/controllers/censusEmailSendController';
+} from '@/features/census/email/controllers/censusEmailSendController';
 
 const createRecord = (date: string): DailyRecord =>
   ({

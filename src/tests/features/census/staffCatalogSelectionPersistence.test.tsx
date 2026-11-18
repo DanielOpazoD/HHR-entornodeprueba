@@ -7,8 +7,7 @@ import { updatePartial } from '@/services/repositories/dailyRecordRepositoryWrit
 import { StaffProvider } from '@/context/StaffContext';
 import { useNursesQuery, useTensQuery } from '@/hooks/useStaffQuery';
 import { useNurseManagement, useTensManagement } from '@/hooks/useNurseManagement';
-import { NurseSelector } from '@/features/census/components/NurseSelector';
-import { TensSelector } from '@/features/census/components/TensSelector';
+import { StaffSelector } from '@/features/census/components/StaffSelector';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -59,18 +58,20 @@ function Staffing({ role }: { role: 'nurses' | 'tens' }) {
         {query.isError ? 'Lectura fallida' : query.isSuccess ? 'Lectura correcta' : 'Leyendo'}
       </span>
       {role === 'nurses' ? (
-        <NurseSelector
-          nursesList={query.data}
-          nursesDayShift={record.nursesDayShift ?? []}
-          nursesNightShift={[]}
-          onUpdateNurse={nurse.updateNurse}
+        <StaffSelector
+          role="nurse"
+          catalog={query.data}
+          dayShift={record.nursesDayShift ?? []}
+          nightShift={[]}
+          onUpdate={nurse.updateNurse}
         />
       ) : (
-        <TensSelector
-          tensList={query.data}
-          tensDayShift={record.tensDayShift ?? []}
-          tensNightShift={[]}
-          onUpdateTens={technician.updateTens}
+        <StaffSelector
+          role="tens"
+          catalog={query.data}
+          dayShift={record.tensDayShift ?? []}
+          nightShift={[]}
+          onUpdate={technician.updateTens}
         />
       )}
     </StaffProvider>

@@ -1,8 +1,8 @@
 import { act, renderHook } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
-import { useCensusEmailRecipientMutationActions } from '@/hooks/useCensusEmailRecipientMutationActions';
+import { useCensusEmailRecipientMutationActions } from '@/features/census/email/hooks/useCensusEmailRecipientMutationActions';
 
-vi.mock('@/hooks/controllers/censusEmailRecipientMutationActionController', () => {
+vi.mock('@/features/census/email/controllers/censusEmailRecipientMutationActionController', () => {
   throw new Error('unavailable');
 });
 

@@ -54,17 +54,17 @@ describe('authenticated shell delivery boundaries', () => {
     const service = 'src/services/email/emailRecipientListService.ts';
     const graph = await bundleDelivery(
       [
-        'src/hooks/useCensusEmailRecipientRuntimeState.ts',
-        'src/hooks/controllers/censusEmailRecipientSelectionController.ts',
-        'src/hooks/controllers/censusEmailRecipientListController.ts',
-        'src/hooks/controllers/censusEmailRecipientSyncController.ts',
-        'src/hooks/controllers/censusEmailRecipientUseCaseLoader.ts',
+        'src/features/census/email/hooks/useCensusEmailRecipientRuntimeState.ts',
+        'src/features/census/email/controllers/censusEmailRecipientSelectionController.ts',
+        'src/features/census/email/controllers/censusEmailRecipientListController.ts',
+        'src/features/census/email/controllers/censusEmailRecipientSyncController.ts',
+        'src/features/census/email/controllers/censusEmailRecipientUseCaseLoader.ts',
       ],
       [
         service,
         'src/services/email/emailRecipientListSupport.ts',
-        'src/application/census-email/censusRecipientListUseCases.ts',
-        'src/hooks/controllers/censusEmailRecipientsBootstrapController.ts',
+        'src/features/census/email/use-cases/censusRecipientListUseCases.ts',
+        'src/features/census/email/controllers/censusEmailRecipientsBootstrapController.ts',
       ]
     );
     expect(graph.allModules).toContain(absolute(service));

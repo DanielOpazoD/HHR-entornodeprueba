@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { useCensusEmailRecipientRuntimeState } from '@/hooks/useCensusEmailRecipientRuntimeState';
+import { useCensusEmailRecipientRuntimeState } from '@/features/census/email/hooks/useCensusEmailRecipientRuntimeState';
 
 const remoteList = {
   id: 'census-default',

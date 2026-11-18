@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { useCensusEmailRecipientPersistenceEffect } from '@/hooks/useCensusEmailRecipientPersistenceEffect';
+import { useCensusEmailRecipientPersistenceEffect } from '@/features/census/email/hooks/useCensusEmailRecipientPersistenceEffect';
 import { saveSetting } from '@/services/storage/indexeddb/indexedDbSettingsService';
 
 vi.mock('@/services/storage/indexeddb/indexedDbSettingsService', () => ({

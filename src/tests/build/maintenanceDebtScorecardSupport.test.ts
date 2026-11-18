@@ -9,10 +9,13 @@ describe('maintenanceDebtScorecardSupport', () => {
   it('adds configured hotspot limits and remaining headroom to watchlist rows', () => {
     expect(
       buildMaintenanceDebtWatchlistRows({
-        watchlistFiles: ['firestore.rules', 'src/hooks/useCensusEmailRecipientLists.ts'],
+        watchlistFiles: [
+          'firestore.rules',
+          'src/features/census/email/hooks/useCensusEmailRecipientLists.ts',
+        ],
         countLines: (file: string) => (file === 'firestore.rules' ? 989 : 150),
         moduleLimits: {
-          'src/hooks/useCensusEmailRecipientLists.ts': 180,
+          'src/features/census/email/hooks/useCensusEmailRecipientLists.ts': 180,
         },
         rulesLimits: {
           'firestore.rules': 1050,
@@ -27,7 +30,7 @@ describe('maintenanceDebtScorecardSupport', () => {
         remainingLines: 61,
       },
       {
-        file: 'src/hooks/useCensusEmailRecipientLists.ts',
+        file: 'src/features/census/email/hooks/useCensusEmailRecipientLists.ts',
         lines: 150,
         limit: 180,
         limitSource: 'module-allowlist',

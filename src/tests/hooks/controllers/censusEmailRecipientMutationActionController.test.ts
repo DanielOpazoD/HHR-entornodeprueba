@@ -8,7 +8,7 @@ import {
   buildCreateRecipientListMutationSpec,
   buildDeleteRecipientListMutationSpec,
   buildRenameRecipientListMutationSpec,
-} from '@/hooks/controllers/censusEmailRecipientMutationActionController';
+} from '@/features/census/email/controllers/censusEmailRecipientMutationActionController';
 
 describe('censusEmailRecipientMutationActionController', () => {
   const actor = { uid: 'user-1', email: 'nurse@example.com' };

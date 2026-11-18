@@ -1,7 +1,6 @@
 import React, { Suspense } from 'react';
 import type { Statistics } from '@/types/domain/statistics';
-import { NurseSelector } from './NurseSelector';
-import { TensSelector } from './TensSelector';
+import { StaffSelector } from './StaffSelector';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 const StaffShiftDetailsModal = lazyWithRetry(() =>
@@ -102,20 +101,22 @@ export const CensusStaffHeader = React.memo(function CensusStaffHeader({
         >
           {!readModel.specialistAccess && (
             <div className="census-toolbar-staff flex max-w-full flex-wrap items-stretch justify-center gap-2">
-              <NurseSelector
-                nursesDayShift={readModel.staffSelectorsState.nursesDayShift}
-                nursesNightShift={readModel.staffSelectorsState.nursesNightShift}
-                nursesList={nursesList}
-                onUpdateNurse={updateNurse}
+              <StaffSelector
+                role="nurse"
+                dayShift={readModel.staffSelectorsState.nursesDayShift}
+                nightShift={readModel.staffSelectorsState.nursesNightShift}
+                catalog={nursesList}
+                onUpdate={updateNurse}
                 shiftIndicators={readModel.staffIndicatorsState.nurseIndicators}
                 onOpenDetailedStaffing={readOnly ? undefined : () => openDetail('nurse')}
                 className={`self-stretch ${readModel.selectorsClassName}`}
               />
-              <TensSelector
-                tensDayShift={readModel.staffSelectorsState.tensDayShift}
-                tensNightShift={readModel.staffSelectorsState.tensNightShift}
-                tensList={tensList}
-                onUpdateTens={updateTens}
+              <StaffSelector
+                role="tens"
+                dayShift={readModel.staffSelectorsState.tensDayShift}
+                nightShift={readModel.staffSelectorsState.tensNightShift}
+                catalog={tensList}
+                onUpdate={updateTens}
                 shiftIndicators={readModel.staffIndicatorsState.tensIndicators}
                 onOpenDetailedStaffing={readOnly ? undefined : () => openDetail('tens')}
                 className={`self-stretch ${readModel.selectorsClassName}`}

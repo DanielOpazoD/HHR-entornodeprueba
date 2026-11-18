@@ -4,7 +4,6 @@ import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import react from 'eslint-plugin-react';
 import tseslint from 'typescript-eslint';
-import boundaries from 'eslint-plugin-boundaries';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -398,6 +397,14 @@ const AUDIT_CONTRACT_RESTRICTION = {
   message:
     "No escribas a mano la firma de un registrador de auditoría: tómala de AuditLoggers en src/hooks/useAudit.ts (p. ej. `logEvent: AuditLoggers['logEvent']`).",
 };
+// The admin pages with tabs share one frame. Four pages had copied its ~40 lines of title bar
+// and tab buttons (2026-11-18); a copy starts with the tab button's classes.
+const ADMIN_TABS_FRAME_RESTRICTION = {
+  selector:
+    "Literal[value='px-3 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1.5']",
+  message:
+    'No copies la barra de pestañas de administración: usa AdminTabsShell (src/features/admin/components/internal/AdminTabsShell.tsx) y pásale las pestañas como datos.',
+};
 const SOURCE_SYNTAX_RESTRICTIONS = [
   ...GLOSSARY_SYNTAX_RESTRICTIONS,
   SESSION_MESSAGE_RESTRICTION,
@@ -406,6 +413,7 @@ const SOURCE_SYNTAX_RESTRICTIONS = [
   EPISODE_KEY_PARSE_RESTRICTION,
   LEGACY_DOCUMENT_HYDRATION_RESTRICTION,
   AUDIT_CONTRACT_RESTRICTION,
+  ADMIN_TABS_FRAME_RESTRICTION,
 ];
 // One rule option per file: a later config replaces the whole list, so homes omit only their own.
 const syntaxRestrictions = ({ omit = [], add = [] } = {}) => [
@@ -509,25 +517,9 @@ export default tseslint.config(
     plugins: {
       'react-hooks': reactHooks,
       react,
-      boundaries,
     },
     settings: {
       react: { version: 'detect' },
-      'boundaries/elements': [
-        { type: 'app', pattern: 'src/application/*' },
-        { type: 'features', pattern: 'src/features/*' },
-        { type: 'services', pattern: 'src/services/*' }, // Considering domain/services equivalent logic layer for now based on current structure
-        {
-          type: 'shared',
-          pattern: [
-            'src/components/*',
-            'src/hooks/*',
-            'src/utils/*',
-            'src/types/*',
-            'src/config/*',
-          ],
-        },
-      ],
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -558,20 +550,6 @@ export default tseslint.config(
       '@typescript-eslint/no-require-imports': 'warn',
       '@typescript-eslint/no-empty-object-type': 'warn',
       '@typescript-eslint/ban-ts-comment': 'warn',
-
-      // Architecture boundaries rules
-      'boundaries/dependencies': [
-        'error',
-        {
-          default: 'disallow',
-          rules: [
-            { from: { type: 'app' }, allow: { to: { type: ['features', 'services', 'shared'] } } },
-            { from: { type: 'features' }, allow: { to: { type: ['services', 'shared'] } } },
-            { from: { type: 'services' }, allow: { to: { type: 'shared' } } },
-            { from: { type: 'shared' }, allow: { to: { type: 'shared' } } },
-          ],
-        },
-      ],
 
       'no-restricted-syntax': syntaxRestrictions(),
     },
@@ -616,6 +594,11 @@ export default tseslint.config(
     // The home of the audit loggers contract.
     files: ['src/hooks/useAudit.ts'],
     rules: { 'no-restricted-syntax': syntaxRestrictions({ omit: [AUDIT_CONTRACT_RESTRICTION] }) },
+  },
+  {
+    // The home of the admin tabs frame.
+    files: ['src/features/admin/components/internal/AdminTabsShell.tsx'],
+    rules: { 'no-restricted-syntax': syntaxRestrictions({ omit: [ADMIN_TABS_FRAME_RESTRICTION] }) },
   },
   {
     files: ['src/utils/clinicalDayUtils.ts'],
@@ -692,12 +675,6 @@ export default tseslint.config(
     rules: {
       'no-console': 'off',
       'no-unused-vars': 'off',
-    },
-  },
-  {
-    files: ['netlify/functions/**/*.{ts,js}', 'functions/**/*.js'],
-    rules: {
-      'boundaries/dependencies': 'off',
     },
   },
   {

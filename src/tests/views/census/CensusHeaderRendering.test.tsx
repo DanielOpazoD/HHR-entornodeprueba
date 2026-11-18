@@ -10,13 +10,13 @@ const calls = vi.hoisted(() => ({ nurse: vi.fn() }));
 vi.mock('@/context/StaffContext', () => ({
   useStaffContext: () => ({ nursesList: [], tensList: [], professionalsCatalog: [] }),
 }));
-vi.mock('@/features/census/components/NurseSelector', () => ({
-  NurseSelector: (props: { nursesDayShift: string[] }) => {
+vi.mock('@/features/census/components/StaffSelector', () => ({
+  StaffSelector: (props: { role: 'nurse' | 'tens'; dayShift: string[] }) => {
+    if (props.role !== 'nurse') return null;
     calls.nurse(props);
-    return <span>{props.nursesDayShift.join(',')}</span>;
+    return <span>{props.dayShift.join(',')}</span>;
   },
 }));
-vi.mock('@/features/census/components/TensSelector', () => ({ TensSelector: () => null }));
 const record = DataFactory.createMockDailyRecord('2026-10-15');
 const value = (next = record): DailyRecordContextType =>
   ({

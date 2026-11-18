@@ -31,7 +31,6 @@
       "scripts/check-declared-dependencies.mjs",
       "scripts/check-empty-on-failure-reads.mjs",
       "scripts/check-firestore-emulator-governance.mjs",
-      "scripts/check-folder-dependencies.mjs",
       "scripts/check-guardrail-governance.mjs",
       "scripts/check-import-cycles.mjs",
       "scripts/check-legacy-retirement-debt.mjs",

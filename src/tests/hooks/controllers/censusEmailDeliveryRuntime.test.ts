@@ -1,9 +1,9 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { deliverCensusEmail } from '@/hooks/controllers/censusEmailDeliveryRuntime';
+import { deliverCensusEmail } from '@/features/census/email/controllers/censusEmailDeliveryRuntime';
 
 const executeSend = vi.hoisted(() => vi.fn());
-vi.mock('@/application/census-email/sendCensusEmailUseCases', () => ({
+vi.mock('@/features/census/email/use-cases/sendCensusEmailUseCases', () => ({
   buildSendCensusConfirmationMessage: () => 'Confirmación sintética',
   executeSendCensusEmail: executeSend,
 }));
