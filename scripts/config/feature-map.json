@@ -195,7 +195,7 @@
     {
       "id": "census.previous-day-window",
       "name": "Ventana de 48 h de enfermería: el día anterior se cierra",
-      "owner": "src/hooks",
+      "owner": "src/shared/access",
       "reach": {
         "screen": "Censo Diario de un día pasado, al editar o usar el menú de la fila",
         "controls": [{ "text": "Solo administradores pueden editar" }]
@@ -203,7 +203,6 @@
       "gate": [
         "src/shared/access/censusDayWriteAccessPolicy.ts",
         "src/hooks/stabilityRulesController.ts",
-        "src/utils/clinicalWallClock.ts",
         "src/hooks/useStabilityRules.ts"
       ],
       "tests": [
