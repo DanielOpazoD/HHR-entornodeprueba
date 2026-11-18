@@ -107,8 +107,7 @@ Resultado esperado:
 ## Cobertura automatizada relacionada
 
 - `src/tests/hooks/useStaffQuery.test.tsx`
-- `src/tests/features/census/NurseSelector.test.tsx`
-- `src/tests/features/census/TensSelector.test.tsx`
+- `src/tests/features/census/StaffSelector.test.tsx`
 - `src/tests/views/census/admissionInput.test.tsx`
 - `src/tests/views/census/admissionInputController.test.ts`
 - `src/tests/hooks/useDailyRecord.lifecycle.test.tsx`

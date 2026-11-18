@@ -53,38 +53,23 @@ vi.mock('@/context/StaffContext', () => ({
   useStaffContext: () => mockedUseStaffContext(),
 }));
 
-vi.mock('@/features/census/components/NurseSelector', () => ({
-  NurseSelector: (props: {
-    nursesDayShift: string[];
-    nursesNightShift: string[];
+vi.mock('@/features/census/components/StaffSelector', () => ({
+  StaffSelector: (props: {
+    role: 'nurse' | 'tens';
+    dayShift: string[];
+    nightShift: string[];
     className?: string;
     onOpenDetailedStaffing?: () => void;
   }) => (
-    <div data-testid="nurse-selector">
+    <div data-testid={`${props.role}-selector`}>
       {props.onOpenDetailedStaffing && (
-        <button onClick={props.onOpenDetailedStaffing}>Detalle enfermería</button>
+        <button onClick={props.onOpenDetailedStaffing}>
+          {props.role === 'nurse' ? 'Detalle enfermería' : 'Detalle TENS'}
+        </button>
       )}
-      <span data-testid="nurse-day">{JSON.stringify(props.nursesDayShift)}</span>
-      <span data-testid="nurse-night">{JSON.stringify(props.nursesNightShift)}</span>
-      <span data-testid="nurse-class">{props.className}</span>
-    </div>
-  ),
-}));
-
-vi.mock('@/features/census/components/TensSelector', () => ({
-  TensSelector: (props: {
-    tensDayShift: string[];
-    tensNightShift: string[];
-    className?: string;
-    onOpenDetailedStaffing?: () => void;
-  }) => (
-    <div data-testid="tens-selector">
-      {props.onOpenDetailedStaffing && (
-        <button onClick={props.onOpenDetailedStaffing}>Detalle TENS</button>
-      )}
-      <span data-testid="tens-day">{JSON.stringify(props.tensDayShift)}</span>
-      <span data-testid="tens-night">{JSON.stringify(props.tensNightShift)}</span>
-      <span data-testid="tens-class">{props.className}</span>
+      <span data-testid={`${props.role}-day`}>{JSON.stringify(props.dayShift)}</span>
+      <span data-testid={`${props.role}-night`}>{JSON.stringify(props.nightShift)}</span>
+      <span data-testid={`${props.role}-class`}>{props.className}</span>
     </div>
   ),
 }));

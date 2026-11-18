@@ -82,6 +82,21 @@ const rejected: Array<[rule: string, file: string, source: string]> = [
   ],
   ['firestore-runtime', 'src/a.ts', 'import "@/services/firebase-runtime/firestoreRuntime";'],
   ['legacy-permissions', 'src/a.ts', "import { can } from '@/utils/permissions';"],
+  [
+    'staff-role-copies',
+    'src/features/census/components/TensSelector.tsx',
+    'export const TensSelector: React.FC<Props> = () => null;',
+  ],
+  ['staff-role-copies', 'src/components/modals/a.tsx', 'function NurseManagerModal() {}'],
+  // Review of #1748: function, arrow and class components named for one role.
+  ['staff-role-copies', 'src/A.tsx', 'export function NurseX() {return <div/>}'],
+  ['staff-role-copies', 'src/A.tsx', 'export const TensX = () => <div/>'],
+  [
+    'staff-role-copies',
+    'src/A.tsx',
+    'export class NurseX extends React.Component { render(){return <div/>} }',
+  ],
+  ['staff-role-copies', 'src/A.tsx', 'export const NurseX = React.memo((props: P) => null);'],
 ];
 
 const accepted: Array<[why: string, file: string, source: string]> = [
@@ -121,6 +136,20 @@ const accepted: Array<[why: string, file: string, source: string]> = [
     'src/shared/access/operationalAccessPolicy.ts',
     "import { can } from '@/utils/permissions';",
   ],
+  ['a role-named type', 'src/a.tsx', 'interface NurseSelectorProps {}'],
+  ['a role component in a test', 'src/tests/a.test.tsx', 'const NurseSelector = () => null;'],
+  ['a role helper in a .ts module', 'src/services/staff/a.ts', 'const NurseCatalog = [];'],
+  // Review of #1748: data, text and types named for one role are not components.
+  ['role-named data', 'src/A.tsx', 'export const NurseLabels = ["Enfermería"];'],
+  [
+    'a literal that quotes a component',
+    'src/A.tsx',
+    'export const help = "Ejemplo: function TensX()";',
+  ],
+  ['a role-named type alias', 'src/A.tsx', 'export type NurseSlot = string;'],
+  ['a role component in a test file', 'src/tests/A.test.tsx', 'const NurseX = () => <div/>;'],
+  ['ordinary text', 'src/A.tsx', 'export const help = "NurseX y TensX";'],
+  ['a role-named error class', 'src/A.tsx', 'export class NurseError extends Error {}'],
 ];
 
 describe('check-source-patterns', () => {

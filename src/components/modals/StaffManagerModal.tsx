@@ -6,27 +6,39 @@ import React from 'react';
 import { CatalogRemoteSyncError } from '@/services/repositories/contracts/catalogContracts';
 import {
   CatalogReadUnavailableError,
-  useTensQuery,
+  useNursesQuery,
+  useSaveNursesMutation,
   useSaveTensMutation,
+  useTensQuery,
 } from '@/hooks/useStaffQuery';
 import { StaffCatalogManagerModal } from '@/components/modals/StaffCatalogManagerModal';
+import type { NursingRole } from '@/services/staff/eloisaStaffIdentity';
 
-interface TensManagerModalProps {
+/** Each role's catalog read and save; the role never changes for a mounted modal. */
+const STAFF_CATALOG_HOOKS = {
+  nurse: { useCatalogQuery: useNursesQuery, useSaveCatalog: useSaveNursesMutation },
+  tens: { useCatalogQuery: useTensQuery, useSaveCatalog: useSaveTensMutation },
+} as const satisfies Record<NursingRole, unknown>;
+
+interface StaffManagerModalProps {
+  role: NursingRole;
   isOpen: boolean;
   onClose: () => void;
-  tensList: string[];
-  /** The saved list behind `tensList`, from the same source. */
+  staffList: string[];
+  /** The saved list behind `staffList`, from the same source. */
   saved?: SavedStaffCatalog;
 }
 
-export const TensManagerModal: React.FC<TensManagerModalProps> = ({
+export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
+  role,
   isOpen,
   onClose,
-  tensList,
+  staffList,
   saved,
 }) => {
-  const mutation = useSaveTensMutation();
-  const query = useTensQuery();
+  const { useCatalogQuery, useSaveCatalog } = STAFF_CATALOG_HOOKS[role];
+  const mutation = useSaveCatalog();
+  const query = useCatalogQuery();
   const save = async (names: string[], base?: string[]) => {
     try {
       await mutation.mutateAsync(base ? { next: names, base } : names);
@@ -51,14 +63,14 @@ export const TensManagerModal: React.FC<TensManagerModalProps> = ({
     <StaffCatalogManagerModal
       isOpen={isOpen}
       onClose={onClose}
-      staffList={tensList}
+      staffList={staffList}
       saved={saved}
       onSave={save}
       syncing={mutation.isPending}
       hasSyncError={mutation.error instanceof CatalogRemoteSyncError}
       saveError={saveError}
       onRetry={mutation.error instanceof CatalogReadUnavailableError ? retry : undefined}
-      variant="tens"
+      variant={role}
     />
   );
 };

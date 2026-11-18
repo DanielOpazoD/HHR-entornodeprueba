@@ -185,13 +185,9 @@
         "screen": "Censo Diario, encabezado del personal",
         "controls": [{ "testId": "census-staff-and-sync" }]
       },
-      "gate": [
-        "src/features/census/components/NurseSelector.tsx",
-        "src/features/census/components/TensSelector.tsx"
-      ],
+      "gate": ["src/features/census/components/StaffSelector.tsx"],
       "tests": [
-        "src/tests/features/census/NurseSelector.test.tsx",
-        "src/tests/features/census/TensSelector.test.tsx",
+        "src/tests/features/census/StaffSelector.test.tsx",
         "src/tests/services/staff/staffPreferredName.test.ts"
       ],
       "rules": []

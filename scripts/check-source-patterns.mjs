@@ -26,6 +26,10 @@ const mockOrImportOf = specifier => {
   return new RegExp(`(?:from\\s+${quoted}|mock\\(${quoted})`, 'g');
 };
 
+// A component named for one nursing role, e.g. NurseSelector or TensManagerModal.
+const ROLE_NAME = '(?:Nurse|Tens)[A-Z]\\w*';
+const EXPORT = '(?:export[ \\t]+(?:default[ \\t]+)?)?';
+
 const RULES = [
   {
     id: 'legacy-staff',
@@ -149,6 +153,26 @@ const RULES = [
       !['src/utils/permissions.ts', 'src/shared/access/operationalAccessPolicy.ts'].includes(file),
     patterns: [importOf('@/utils/permissions')],
     fix: 'Importa los permisos desde @/shared/access/operationalAccessPolicy.',
+  },
+  {
+    id: 'staff-role-copies',
+    files: file => isProduction(file) && /\.[jt]sx$/.test(file),
+    // A component per nursing role (NurseX / TensX) is the copy W15-U1 folded back into one.
+    // Only declarations that start a line count, so a string that mentions one does not, and
+    // only components: a function, a component class, or a const bound to a function.
+    // Data such as `const NurseLabels = [...]` stays allowed.
+    patterns: [
+      new RegExp(`^[ \\t]*${EXPORT}function[ \\t]+${ROLE_NAME}`, 'gm'),
+      new RegExp(
+        `^[ \\t]*${EXPORT}class[ \\t]+${ROLE_NAME}[ \\t]+extends[ \\t]+(?:React\\.)?(?:Pure)?Component\\b`,
+        'gm'
+      ),
+      new RegExp(
+        `^[ \\t]*${EXPORT}const[ \\t]+${ROLE_NAME}[ \\t]*(?::[^=\\n]+)?=[ \\t]*(?:(?:React\\.)?(?:memo|forwardRef)\\([ \\t]*)?(?:async[ \\t]+)?(?:function\\b|\\(|[A-Za-z_$][\\w$]*[ \\t]*=>)`,
+        'gm'
+      ),
+    ],
+    fix: 'No copies un componente por rol: pasa role="nurse" | "tens" a StaffSelector o StaffManagerModal y pon lo que difiere en su tabla por rol.',
   },
 ];
 
