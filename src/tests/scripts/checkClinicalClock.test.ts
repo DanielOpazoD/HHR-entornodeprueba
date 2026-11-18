@@ -224,7 +224,7 @@ describe('check-clinical-clock', () => {
     expect(output.match(/\[hand-calendar-anchor\]/g)).toHaveLength(4);
   });
 
-  it('reports a zone-less midnight read as an instant and names the hospital midnight', () => {
+  it('reports a zone-less wall-clock time read as an instant and names the hospital clock', () => {
     const { status, output } = runGuard({
       // The nurse window before 2026-11-17 (previousDayCorrections.ts).
       'src/features/a.ts': [
@@ -235,18 +235,30 @@ describe('check-clinical-clock', () => {
         'const midnight = new Date(`${day}T00:00:00.000`);',
         'const late = Date.now() >= midnight.valueOf();',
       ].join('\n'),
+      // The census lock before W14-TZ1 (stabilityRulesController.ts): a device noon.
+      'src/hooks/c.ts': [
+        'const recordDateAtNoon = new Date(`${record.date}T12:00:00`);',
+        'const hours = (now.getTime() - recordDateAtNoon.getTime()) / 3_600_000;',
+        'const shift = Date.parse(`${day}T08:00`) > Date.now();',
+      ].join('\n'),
       'netlify/functions/b.ts': 'const past = (now as Date) > new Date(`${day}T00:00:00`);\n',
     });
     expect(status).toBe(1);
-    for (const location of ['src/features/a.ts:2', 'src/features/a.ts:4', 'src/features/a.ts:6'])
+    for (const location of [
+      'src/features/a.ts:2',
+      'src/features/a.ts:4',
+      'src/features/a.ts:6',
+      'src/hooks/c.ts:2',
+      'src/hooks/c.ts:3',
+    ])
       expect(output).toContain(
-        `[device-midnight-instant] ${location} — a zone-less T00:00:00 is the device's midnight: use clinicalWallClockToDate(day, '00:00') from src/utils/clinicalWallClock for the hospital's`
+        `[device-wall-clock-instant] ${location} — a zone-less Thh:mm is the device's wall clock: use clinicalWallClockToDate(day, 'hh:mm') or isWithinNurseEditingWindow() from src/utils/clinicalWallClock for the hospital's, and diffCalendarDays() for day counts`
       );
-    expect(output).toContain('[device-midnight-instant] netlify/functions/b.ts:1');
-    expect(output.match(/\[device-midnight-instant\]/g)).toHaveLength(4);
+    expect(output).toContain('[device-wall-clock-instant] netlify/functions/b.ts:1');
+    expect(output.match(/\[device-wall-clock-instant\]/g)).toHaveLength(6);
   });
 
-  it('allows a zone-less midnight read back as a calendar day, zoned midnights and the hospital midnight', () => {
+  it('allows a zone-less wall-clock time read back as a calendar day, zoned times and the hospital midnight', () => {
     const { status, output } = runGuard({
       'src/features/a.ts': [
         // clinicalDocumentPresentation.ts reads its label back with local getters.
@@ -254,6 +266,8 @@ describe('check-clinical-clock', () => {
         'const parsed = new Date(`${value}T00:00:00`);',
         'if (Number.isNaN(parsed.getTime())) throw new Error(value);',
         'const utc = Date.now() - new Date(`${day}T00:00:00Z`).getTime();',
+        // clinicalDayScheduleUtils.ts reads a device noon back as its weekday.
+        'const weekday = new Date(`${day}T12:00:00`).getDay();',
         'const offset = Date.now() - Date.parse(`${day}T00:00:00-05:00`);',
         "const open = Date.now() - clinicalWallClockToDate(day, '00:00').getTime() < 1;",
         'const name = `${day}T00:00:00` + suffix;',
