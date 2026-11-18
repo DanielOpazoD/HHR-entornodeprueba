@@ -82,9 +82,7 @@ const spellings = (from: string, to: string) => {
     'reexportación .js': `export { x } from '${relative}.js';`,
     'absoluta /src/': `export * from '/${to}';`,
     '?worker': `import W from '${relative}.ts?worker';\nexport { W };`,
-    '?url': `import u from '${relative}.ts?url';\nexport { u };`,
-    '?raw': `import r from '${relative}.ts?raw';\nexport { r };`,
-    '?inline': `import i from '${relative}.ts?inline';\nexport { i };`,
+    '?sharedworker': `import S from '${relative}.ts?sharedworker';\nexport { S };`,
   };
 };
 
@@ -282,12 +280,39 @@ describe('one direction rule between the folders of src/', () => {
     expect(result.stderr).toContain(`No la agregues a "exceptions" en ${POLICY}`);
   });
 
-  it.each(['?worker', '?url'])('counts a %s import as a deferred load', query => {
+  it.each(['?worker', '?sharedworker'])('counts a %s import as a deferred load', query => {
     const result = check({
       'src/utils/probe.ts': `import W from '../services/target.ts${query}';\nexport { W };`,
       ...target('src/services/target.ts'),
     });
-    expect(result.stderr).toContain(`(carga diferida, «../services/target.ts${query}»)`);
+    expect(result.stderr).toContain(
+      '→ src/services/target.ts (carga diferida, «../services/target.ts»)'
+    );
+  });
+
+  // Vite brings these as text or a URL: no code of the file runs, so they are not references.
+  it.each(['?raw', '?url', '?inline'])('does not count a %s import as a dependency', query => {
+    const result = check({
+      'src/utils/probe.ts': `import text from '../services/target.ts${query}';\nexport { text };`,
+      ...target('src/services/target.ts'),
+    });
+    expect(result.status, result.output).toBe(0);
+  });
+
+  // Vite serves `.mts` for `.mjs` and `.cts` for `.cjs`, as `.ts` for `.js`.
+  it.each([
+    ['.mjs', '.mts'],
+    ['.cjs', '.cts'],
+    ['.js', '.ts'],
+  ])('resolves a %s specifier to the %s module', (written, actual) => {
+    const result = check({
+      'src/utils/entry.ts': `export { x } from '../services/target${written}';`,
+      [`src/services/target${actual}`]: 'export const x = 1;',
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      `- src/utils/entry.ts:1 → src/services/target${actual} (valor, «../services/target${written}»)`
+    );
   });
 
   it('rejects a deferred upward load and names its class', () => {
@@ -541,7 +566,7 @@ describe('one direction rule between the folders of src/', () => {
         '- src/components/probe.tsx:1 → src/services/bookmarks/bookmarkService.ts (valor'
       );
       expect(result.stderr).toContain(
-        'components es interfaz compartida sin acceso a datos, y src/services/bookmarks/bookmarkService.ts abre datos: importa firebase/firestore.'
+        'components es interfaz compartida sin acceso a datos, y src/services/bookmarks/bookmarkService.ts abre datos: usa firebase/firestore.'
       );
       expect(result.stderr).toContain('sube la lectura o la escritura a un hook o contexto');
       expect(result.stderr).toContain(`No la agregues a "dataAccess.exceptions" en ${POLICY}`);
@@ -587,6 +612,48 @@ describe('one direction rule between the folders of src/', () => {
           '// indexedDB is opened elsewhere\nexport const z = "indexedDB";',
       });
       expect(result.status, result.output).toBe(0);
+    });
+
+    // The raw global, by syntax: the free identifier or a member of window, globalThis or self.
+    it.each([
+      ['window.indexedDB', "export const x = () => window.indexedDB.open('db');", 1],
+      ["window['indexedDB']", "export const x = () => window['indexedDB'].open('db');", 1],
+      ['globalThis.indexedDB', "export const x = () => globalThis.indexedDB.open('db');", 1],
+      ['a property type', 'export interface Caps { indexedDB: boolean }\nexport const x = 1;', 0],
+      ['an object property', 'export const x = { indexedDB: true };', 0],
+      ['a parameter', 'export const x = (indexedDB: number) => indexedDB + 1;', 0],
+      ['a member of another object', 'export const x = (o: { indexedDB: 1 }) => o.indexedDB;', 0],
+    ])('reads %s through an intermediate service as %s', (_name, leaf, status) => {
+      const result = check({
+        ...component("import { x } from '@/services/bookmarks/bookmarkService';"),
+        'src/services/bookmarks/bookmarkService.ts': "export { x } from '@/services/storage/leaf';",
+        'src/services/storage/leaf.ts': leaf,
+      });
+      expect(result.status, result.output).toBe(status);
+    });
+
+    // Readers no package reveals are listed by path in dataAccess.modules.
+    it.each([
+      [
+        'src/services/storage/firestore/firestoreServerDocumentRead.ts',
+        'the Firestore REST reader',
+      ],
+      ['src/services/storage/localpersistence/localPersistenceService.ts', 'the local backup'],
+    ])('treats %s (%s) as data', file => {
+      const alias = `@/${file.replace(/^src\//, '').replace(/\.ts$/, '')}`;
+      const result = check({
+        ...component(`import { x } from '${alias}';`),
+        [file]: 'export const x = 1;',
+        'src/services/storage/format.ts': 'export const y = 1;',
+      });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(`${file} abre datos: figura en "dataAccess.modules".`);
+      const helper = check({
+        ...component("import { y } from '@/services/storage/format';"),
+        [file]: 'export const x = 1;',
+        'src/services/storage/format.ts': 'export const y = 1;',
+      });
+      expect(helper.status, helper.output).toBe(0);
     });
 
     it('binds shared UI only: hooks and features may read data', () => {

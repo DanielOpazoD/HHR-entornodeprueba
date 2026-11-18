@@ -45,10 +45,14 @@
     }
   ],
   "dataAccess": {
-    "rule": "La interfaz compartida no abre datos: components/ no carga, en valor ni en diferido, un módulo de services/ que importe uno de estos paquetes o use uno de estos globales, directamente o a través de otros módulos de services/. Los tipos sí pueden cruzar.",
+    "rule": "La interfaz compartida no abre datos: components/ no carga, en valor ni en diferido, un módulo de services/ que importe uno de estos paquetes, use uno de estos globales o figure en modules (archivo, o carpeta terminada en /), directamente o a través de otros módulos de services/. Los tipos sí pueden cruzar.",
     "from": ["components"],
     "packages": ["firebase/firestore", "firebase/storage", "dexie"],
     "globals": ["indexedDB"],
+    "modules": [
+      "src/services/storage/firestore/firestoreServerDocumentRead.ts",
+      "src/services/storage/localpersistence/"
+    ],
     "exceptions": [
       {
         "from": "src/components/bookmarks/BookmarkBar.tsx",

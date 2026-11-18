@@ -13,8 +13,10 @@
  *
  * Shared UI holds no data access: `components/` does not load, by value or deferred, a module of
  * `services/` that opens data, that is, one that imports a package of `dataAccess.packages`
- * (Firestore, Storage, IndexedDB through Dexie) or names a global of `dataAccess.globals` (the raw
- * `indexedDB`), directly or through other modules of `services/`.
+ * (Firestore, Storage, IndexedDB through Dexie), uses a global of `dataAccess.globals` (the raw
+ * `indexedDB`) or is listed in `dataAccess.modules` (data readers no package reveals: the REST
+ * reader of Firestore, the local DailyRecord backup), directly or through other modules of
+ * `services/`. It is a guide, not a proof: other ways to data are left to review.
  * Data access is spread over many service folders next to pure helpers, so it is told by what a
  * module imports, not by its folder.
  *
@@ -164,15 +166,27 @@ const computeConsumers = (root, appFiles, edges, layerOf, featureLayer) => {
 };
 
 /**
- * Modules of `services/` that open data, each with how: the package it imports, or the module of
- * `services/` through which it reaches one.
+ * Modules of `services/` that open data, each with how: the package or global it uses, its listing
+ * in `dataAccess.modules` (a file, or a folder ending in `/`), or the module of `services/` through
+ * which it reaches one of those.
  */
-const findDataServices = (edges, packageReferences, { packages, globals = [] }) => {
+const findDataServices = (
+  appFiles,
+  edges,
+  packageReferences,
+  { packages, globals = [], modules = [] }
+) => {
   const opensData = specifier =>
     globals.find(name => specifier === name) ??
     packages.find(name => specifier === name || specifier.startsWith(`${name}/`));
   const isService = file => folderOf(file) === 'services';
   const reasons = new Map();
+  for (const file of appFiles) {
+    const listed = modules.find(entry =>
+      entry.endsWith('/') ? file.startsWith(entry) : file === entry
+    );
+    if (listed && isService(file)) reasons.set(file, { package: listed, declared: true });
+  }
   for (const reference of packageReferences) {
     const name = opensData(reference.specifier);
     if (name && isService(reference.from) && !reasons.has(reference.from))
@@ -228,7 +242,7 @@ export const analyzeFolderDependencies = (root = process.cwd()) => {
       upward.set(relationKey(relation), { ...relation, edge });
   }
 
-  const dataServices = findDataServices(edges, packageReferences, dataAccess);
+  const dataServices = findDataServices(appFiles, edges, packageReferences, dataAccess);
   const dataReads = new Map();
   for (const edge of edges) {
     if (!dataAccess.from.includes(folderOf(edge.from)) || !BOUND_KINDS.has(edge.kind)) continue;
@@ -291,8 +305,13 @@ const formatUnlisted = (analysis, relation) => {
 };
 
 const formatDataRead = (analysis, relation) => {
-  const { package: name, via } = relation.data;
-  const how = via ? `llega a ${name} por ${via}` : `importa ${name}`;
+  const { package: name, via, declared } = relation.data;
+  const source = declared ? `${name} (en "dataAccess.modules")` : name;
+  const how = via
+    ? `llega a ${source} por ${via}`
+    : declared
+      ? `figura en "dataAccess.modules"`
+      : `usa ${name}`;
   const from = analysis.describe(relation.from);
   return [
     `- ${relation.from}:${relation.edge.line} → ${relation.to} (${KIND_LABEL[relation.kind]}, «${relation.edge.specifier}»)`,

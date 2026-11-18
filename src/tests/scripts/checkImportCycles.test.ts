@@ -65,6 +65,24 @@ describe('check-import-cycles', () => {
     expect(status).toBe(0);
   });
 
+  // Vite brings `?raw`, `?url` and `?inline` imports as text or a URL: no code of the file runs.
+  it.each(['raw', 'url', 'inline'])('does not count a ?%s import as a runtime edge', query => {
+    const { status, output } = runGuard({
+      'src/a.ts': `import text from './b.ts?${query}';\nexport const a = text;\n`,
+      'src/b.ts': "import { a } from './a';\nexport const b = a;\n",
+    });
+    expect(output).toContain('Import cycle check passed');
+    expect(status).toBe(0);
+  });
+
+  it('still reports the same pair with a static import', () => {
+    const { status } = runGuard({
+      'src/a.ts': "import { b } from './b';\nexport const a = b;\n",
+      'src/b.ts': "import { a } from './a';\nexport const b = a;\n",
+    });
+    expect(status).toBe(1);
+  });
+
   it('covers Functions and Netlify code, where a require() inside a function still closes a cycle', () => {
     const functionsCycle = runGuard({
       'functions/lib/store.js':
