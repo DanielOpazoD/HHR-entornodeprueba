@@ -129,7 +129,7 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
       rayenStructuralWriteGuard: true,
       requireConfirmedRecord: true,
     });
-    expect(result.outcome).toBe('blocked');
+    expect(result).toMatchObject({ state: 'not_saved', reason: 'blocked' });
     expect(result.blockingError?.name).toBe('DataRegressionError');
     expect(queueSyncTask).not.toHaveBeenCalled();
     expect(saveRecordToFirestore).not.toHaveBeenCalled();
@@ -546,6 +546,6 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
 
     expect(queueSyncTask).not.toHaveBeenCalledWith(expect.objectContaining({ date: '2026-02-14' }));
     expect(logRepositoryConflictAutoMerged).not.toHaveBeenCalled();
-    expect(result.consistencyState).toBe('unrecoverable');
+    expect(result).toMatchObject({ state: 'held', reason: 'needs_review' });
   });
 });

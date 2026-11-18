@@ -240,12 +240,10 @@ describe('dailyRecordRepositoryWriteService explicit census patch auto-merge', (
     await expect(
       updatePartialDetailed('2026-02-15', patch, { authoringSession: captureAuthoringSession() })
     ).resolves.toMatchObject({
-      outcome: 'auto_merged',
-      autoMerged: true,
-      queuedForRetry: true,
-      conflictSummary: expect.objectContaining({
-        changedPaths: Object.keys(patch),
-      }),
+      savedHere: true,
+      state: 'local',
+      cause: 'merged',
+      concurrencyConflict: true,
     });
 
     expect(queueSyncTask).toHaveBeenCalledWith(
@@ -305,12 +303,10 @@ describe('dailyRecordRepositoryWriteService explicit census patch auto-merge', (
     await expect(
       updatePartialDetailed('2026-02-15', patch, { authoringSession: captureAuthoringSession() })
     ).resolves.toMatchObject({
-      outcome: 'auto_merged',
-      autoMerged: true,
-      queuedForRetry: true,
-      conflictSummary: expect.objectContaining({
-        changedPaths: Object.keys(patch),
-      }),
+      savedHere: true,
+      state: 'local',
+      cause: 'merged',
+      concurrencyConflict: true,
     });
 
     expect(queueSyncTask).toHaveBeenCalledWith(

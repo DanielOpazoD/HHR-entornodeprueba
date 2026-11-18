@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
-import type { SaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 const mocks = vi.hoisted(() => ({
   isFirestoreEnabled: vi.fn(() => true),
@@ -119,7 +119,15 @@ const renderFill = (loadDailyRecord: () => Promise<DailyRecord>) => {
 
 const handoffOf = (confirmed: DailyRecord) =>
   resolveConfirmedRayenCensusHandoff(
-    { record: confirmed, result: { date: DATE, outcome: 'clean' } as SaveDailyRecordResult },
+    {
+      record: confirmed,
+      result: {
+        date: DATE,
+        savedHere: true,
+        state: 'confirmed',
+        localCopy: 'current',
+      } as DailyRecordWriteResult,
+    },
     {
       date: DATE,
       clinicalDay: DATE,

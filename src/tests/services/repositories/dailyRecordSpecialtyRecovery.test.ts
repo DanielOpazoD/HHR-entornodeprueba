@@ -28,7 +28,7 @@ describe('manual specialty authority and recovery', () => {
     const base = makeBase();
     storage.localRead.mockRejectedValueOnce(new Error('Synthetic IndexedDB read failure'));
     storage.write.mockResolvedValue(receipt(commit(base, makeIntent(), 'confirmed')));
-    expect((await save(base)).updatedRemotely).toBe(true);
+    expect((await save(base)).state).toBe('confirmed');
     expect(storage.localRead).toHaveBeenCalledTimes(2);
     expect(storage.queue).not.toHaveBeenCalled();
   });
@@ -84,7 +84,7 @@ describe('manual specialty authority and recovery', () => {
     release();
     await hold;
     const results = await Promise.all(saves);
-    expect(results.every(result => result.updatedRemotely)).toBe(true);
+    expect(results.every(result => result.state === 'confirmed')).toBe(true);
     expect(storage.write).toHaveBeenCalledTimes(10);
     expect(storage.read).not.toHaveBeenCalled();
     expect(
@@ -112,7 +112,7 @@ describe('manual specialty authority and recovery', () => {
             receipt(commit(fresher, intent, options.syncContract!.mutationId!))
         );
       const result = await save(base, intent);
-      expect(result.updatedRemotely).toBe(true);
+      expect(result.state).toBe('confirmed');
       const firstOptions = storage.write.mock.calls[0][3];
       expect(storage.write.mock.calls[1][2]).toBe(fresher.lastUpdated);
       expect(storage.write.mock.calls[1][3].syncContract).toMatchObject({
@@ -203,7 +203,7 @@ describe('manual specialty authority and recovery', () => {
         }
       );
       const result = await save(base, intent);
-      expect(result.updatedRemotely).toBe(true);
+      expect(result.state).toBe('confirmed');
       expect(result.confirmedRecord).toEqual(remote);
       expect(storage.write).toHaveBeenCalledTimes(1);
       expect(storage.adopt).toHaveBeenCalledWith(remote, expect.any(Function));
@@ -268,7 +268,7 @@ describe('manual specialty authority and recovery', () => {
       }
     );
     const result = await save(base);
-    expect(result.updatedRemotely).toBe(true);
+    expect(result.state).toBe('confirmed');
     expect(result.confirmedRecord?.beds.R1.specialty).toBe(Specialty.CIRUGIA);
     expect(result.localProjectionRecord?.beds.R1.pathology).toBe('Diagnóstico sintético pendiente');
     expect(result.localProjectionRecord?.beds.R1.specialtyAssignment?.decisionId).toBe(
@@ -287,7 +287,7 @@ describe('manual specialty authority and recovery', () => {
       async (_date, _patch, _expected, options: DailyRecordPartialWriteOptions) =>
         receipt(commit(base, makeIntent(), options.syncContract!.mutationId!))
     );
-    expect((await save(base)).updatedRemotely).toBe(true);
+    expect((await save(base)).state).toBe('confirmed');
     expect(storage.queue).not.toHaveBeenCalled();
   });
 
@@ -365,8 +365,8 @@ describe('manual specialty authority and recovery', () => {
         }
       );
       const result = await save(base, intent);
-      expect(result.updatedRemotely).toBe(true);
-      expect(result.savedLocally).toBe(true);
+      expect(result.state).toBe('confirmed');
+      expect(result.savedHere).toBe(true);
       if (scope === 'dependencies') expect(adoptedPaths).toEqual([`${path}.pathology`]);
       expect(adoptedMutationIds).toContain('pending-classification');
       expect(targetPatient(result.localProjectionRecord!, intent).pathology).toBe(

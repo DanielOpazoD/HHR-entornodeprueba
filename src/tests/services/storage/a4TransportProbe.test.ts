@@ -284,7 +284,7 @@ for (const path of ['suscripción', 'E', 'rango', 'mantenimiento'] as const)
     );
     h.offline = false;
     const tasks = await hospitalDB.syncQueue.toArray();
-    expect(result.savedLocally).toBe(true);
+    expect(result.savedHere).toBe(true);
     expect(tasks).toHaveLength(1);
     expect(tasks[0].syncContract?.changedPaths).toEqual(['beds.R4.pathology']);
   });

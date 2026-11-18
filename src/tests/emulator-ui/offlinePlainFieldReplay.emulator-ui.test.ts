@@ -259,7 +259,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     for (const data of onB) {
       const result = await editOnB(data);
       // Kept on this device and queued: nothing says «guardado».
-      expect(result.updatedRemotely).toBe(false);
+      expect(result.state).not.toBe('confirmed');
     }
     const queued = await queue();
     expect(queued.length).toBeGreaterThan(0);

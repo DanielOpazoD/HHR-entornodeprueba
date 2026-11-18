@@ -12,9 +12,8 @@ import { queryKeys } from '@/config/queryClient';
 import { useRepositories } from '@/services/RepositoryContext';
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
 import {
-  createUpdatePartialDailyRecordResult,
   isDailyRecordWriteRejectedResult,
-  resolveDailyRecordWriteStatus,
+  type DailyRecordWriteResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import {
@@ -170,17 +169,15 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
         const intent = options?.intentionalBedClear;
         const appliedPatch = buildAppliedBedClearPatch(intent, record, partial);
         const adoptedRecord = await dailyRecord.adoptAuthoritativeRecord(record, appliedPatch);
-        return createUpdatePartialDailyRecordResult({
+        const alreadyApplied: DailyRecordWriteResult = {
           date,
-          outcome: 'clean',
-          savedLocally: true,
-          updatedRemotely: true,
-          queuedForRetry: false,
-          autoMerged: false,
+          savedHere: true,
+          state: 'confirmed',
+          localCopy: 'current',
           confirmedRecord: record,
           localProjectionRecord: adoptedRecord,
-          observabilityTags: ['daily_record', 'write', 'persisted_and_synced', 'already_applied'],
-        });
+        };
+        return alreadyApplied;
       };
 
       let writeBaseRecord = baseRecord;
@@ -393,8 +390,8 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
         return;
       }
       if (!payload.result) return;
-      const status = resolveDailyRecordWriteStatus(payload.result);
-      if (status.state !== 'confirmed') {
+      const result = payload.result;
+      if (result.state !== 'confirmed') {
         // A queued clinical-events edit is the base for this tab's next edit, but is not an ACK.
         // Publish only after local CAS accepted it, and never replace a newer visible record.
         const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
@@ -402,8 +399,8 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
         )?.record;
         // Kept on this computer with its queue task: retrying, merged, queue-routed or held.
         const waitsInQueue =
-          status.savedHere &&
-          (status.state === 'held' || (status.state === 'local' && status.cause !== 'stored'));
+          result.savedHere &&
+          (result.state === 'held' || (result.state === 'local' && result.cause !== 'stored'));
         if (
           waitsInQueue &&
           isClinicalEventsOnlyDailyRecordPatch(payload.partial) &&

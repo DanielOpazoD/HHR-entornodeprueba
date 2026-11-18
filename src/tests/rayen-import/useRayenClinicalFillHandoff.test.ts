@@ -12,7 +12,7 @@ import {
   resolveClinicalFillDay,
   useRayenClinicalFill,
 } from '@/features/rayen-import/hooks/useRayenClinicalFill';
-import type { SaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 const mocks = vi.hoisted(() => ({
   beginRayenFill: vi.fn(),
@@ -64,7 +64,12 @@ const confirmedHandoff = (
   resolveConfirmedRayenCensusHandoff(
     {
       record,
-      result: { date: record.date, outcome: 'clean' } as SaveDailyRecordResult,
+      result: {
+        date: record.date,
+        savedHere: true,
+        state: 'confirmed',
+        localCopy: 'current',
+      } as DailyRecordWriteResult,
     },
     { date: record.date, clinicalDay, runId: record.rayenSync?.runId ?? '', diff }
   );
@@ -250,7 +255,12 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
     const handoff = resolveConfirmedRayenCensusHandoff(
       {
         record,
-        result: { date: record.date, outcome: 'clean' } as SaveDailyRecordResult,
+        result: {
+          date: record.date,
+          savedHere: true,
+          state: 'confirmed',
+          localCopy: 'current',
+        } as DailyRecordWriteResult,
       },
       {
         date: record.date,

@@ -93,8 +93,8 @@ describe('confirmed local-first full save with a pending projection', () => {
     finish();
     const result = await request;
     expect(result).toMatchObject({
-      savedRemotely: true,
-      savedLocally: true,
+      savedHere: true,
+      state: 'confirmed',
       confirmedRecord: confirmed,
     });
     expect(result.localProjectionRecord).toBeUndefined();
@@ -107,8 +107,8 @@ describe('confirmed local-first full save with a pending projection', () => {
     remote.read.mockResolvedValue(confirmed);
     finishWithoutReceipt();
     expect(await request).toMatchObject({
-      savedRemotely: true,
-      savedLocally: true,
+      savedHere: true,
+      state: 'confirmed',
       confirmedRecord: confirmed,
     });
     expect(await localRecord()).toEqual(confirmed);
@@ -119,7 +119,7 @@ describe('confirmed local-first full save with a pending projection', () => {
     const { sent, finishWithoutReceipt, request } = await beginSave(false);
     finishWithoutReceipt();
     const result = await request;
-    expect(result).toMatchObject({ savedRemotely: true, savedLocally: true });
+    expect(result).toMatchObject({ savedHere: true, state: 'confirmed' });
     expect(result.confirmedRecord).toBeUndefined();
     expect(await localRecord()).toEqual(sent);
     expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
@@ -143,8 +143,8 @@ describe('confirmed local-first full save with a pending projection', () => {
     finish();
     const result = await request;
     expect(result).toMatchObject({
-      savedRemotely: true,
-      savedLocally: true,
+      savedHere: true,
+      state: 'confirmed',
       confirmedRecord: confirmed,
       localProjectionRecord: later,
     });
@@ -161,9 +161,9 @@ describe('confirmed local-first full save with a pending projection', () => {
     finish();
     const result = await request;
     expect(result).toMatchObject({
-      savedRemotely: true,
-      savedLocally: false,
-      outcome: 'unrecoverable',
+      savedHere: false,
+      state: 'confirmed',
+      localCopy: 'stale',
       confirmedRecord: confirmed,
     });
     expect(await localRecord()).toEqual(sent);

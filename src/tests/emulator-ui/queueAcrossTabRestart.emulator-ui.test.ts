@@ -313,7 +313,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
           baseRecord: shown,
         })
       );
-      expect(saved).toMatchObject({ savedLocally: true, updatedRemotely: false });
+      expect(saved).toMatchObject({ savedHere: true, state: 'local', cause: 'stored' });
       const [queued] = await tab.hospitalDB.syncQueue.toArray();
       expect(queued).toMatchObject({ ownerKey: OWNER, status: 'PENDING' });
 

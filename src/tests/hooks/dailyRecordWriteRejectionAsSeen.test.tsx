@@ -24,8 +24,7 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import {
   isDailyRecordWriteRejectedResult,
-  resolveDailyRecordWriteStatus,
-  type UpdatePartialDailyRecordResult,
+  type DailyRecordWriteResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
 import { resolveDailyRecordSyncStatus } from '@/hooks/controllers/dailyRecordSyncStatusController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -301,7 +300,7 @@ describe('the census edit timing event (useDailyRecordSyncQuery.ts:263)', () => 
  * (clearSessionScopedClientState), the query cache is cleared (useAuthState.ts:254) and the next
  * person signs in. The server's answer to the send arrives after all of that.
  */
-const lastWrite: { result?: UpdatePartialDailyRecordResult } = {};
+const lastWrite: { result?: DailyRecordWriteResult } = {};
 const sendDuringSessionEnd = async (options?: ApplyDailyRecordPatchOptions) => {
   lastWrite.result = undefined;
   const client = newClient();
@@ -364,7 +363,7 @@ describe('H3: the session ends while a census edit is on its way', () => {
     // W16-SR1: the edit is safe with its author, so its state is «kept here», never refused.
     const [task] = await hospitalDB.syncQueue.toArray();
     expect({
-      estado: resolveDailyRecordWriteStatus(lastWrite.result!),
+      estado: lastWrite.result,
       rechazado: isDailyRecordWriteRejectedResult(lastWrite.result),
       cuadro: resolveDailyRecordSyncStatus([
         { isPending: false, isError: false, isSuccess: true, data: { result: lastWrite.result! } },
@@ -374,7 +373,11 @@ describe('H3: the session ends while a census edit is on its way', () => {
         nota: (task.payload as DailyRecord).handoffNovedadesNightShift,
       },
     }).toEqual({
-      estado: { savedHere: true, state: 'held', reason: 'session_changed' },
+      estado: expect.objectContaining({
+        savedHere: true,
+        state: 'held',
+        reason: 'session_changed',
+      }),
       rechazado: false,
       cuadro: 'local',
       tarea: { dueño: 'quien editó', nota: EDIT },

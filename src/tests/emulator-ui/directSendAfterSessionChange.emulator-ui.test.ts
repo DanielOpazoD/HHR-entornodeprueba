@@ -36,6 +36,7 @@ import {
 } from '@/hooks/controllers/dailyRecordSyncNotificationController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 /**
  * A census edit that already entered this computer's queue is on its way to the server when its
@@ -233,7 +234,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       shown.lastUpdated,
       { authoringSession: captureAuthoringSession(), baseRecord: shown }
     ).then(result => ({
-      updatedRemotely: result.savedRemotely,
+      state: result.state,
       feedback: resolveSaveOutcomeFeedback(result),
     }));
   const editField =
@@ -244,7 +245,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         baseRecord: shown,
         ...extra,
       }).then(result => ({
-        updatedRemotely: result.updatedRemotely,
+        state: result.state,
         feedback: resolvePatchOutcomeFeedback(result),
       }));
   const writeNote = editField({ handoffNovedadesNightShift: 'NOTA SINTETICA DE P1' });
@@ -277,7 +278,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       }),
       { authoringSession: captureAuthoringSession(), baseRecord: shown }
     );
-    expect(result.outcome).toBe('queued');
+    expect(result).toMatchObject({ state: 'local', cause: 'queue_route' });
     slowStep.next = slowOnceQueued;
     // Past the short hold before a queued write's first attempt.
     const now = Date.now;
@@ -288,7 +289,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       clock.mockRestore();
     }
     return {
-      updatedRemotely: result.updatedRemotely,
+      state: result.state,
       feedback: resolvePatchOutcomeFeedback(result),
     };
   };
@@ -299,7 +300,9 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       /** The routing reads miss the fence, as on a token race at startup. */
       staleRouting?: boolean;
       held: HeldStep;
-      send: (shown: DailyRecord) => Promise<{ updatedRemotely: boolean; feedback: unknown }>;
+      send: (
+        shown: DailyRecord
+      ) => Promise<{ state: DailyRecordWriteResult['state']; feedback: unknown }>;
       field?: (record: Partial<DailyRecord>) => string | undefined;
       base?: string;
       written?: string;
@@ -426,7 +429,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       }));
       process.stdout.write(
         `SC2 ${kind} after session change ${JSON.stringify({
-          updatedRemotely: result.updatedRemotely,
+          state: result.state,
           server: field(await readServer()),
           dispatched: server.dispatched,
           history,
@@ -438,7 +441,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       expect(field(await readServer())).toBe(base);
       expect(server.dispatched).toBe(0);
       expect(history).toBe(0);
-      expect(result.updatedRemotely).toBe(false);
+      expect(result.state).not.toBe('confirmed');
       expect(result.feedback).toBeNull();
       expect(retained).toEqual([
         {

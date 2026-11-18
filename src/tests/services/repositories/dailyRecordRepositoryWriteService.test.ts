@@ -149,8 +149,7 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     const result = await saveDetailed(record, undefined, {
       authoringSession: captureAuthoringSession(),
     });
-    expect(result.outcome).toBe('queued');
-    expect(result.queuedForRetry).toBe(true);
+    expect(result).toMatchObject({ state: 'local', cause: 'retrying' });
 
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.objectContaining({ date: '2026-02-19' }),
@@ -180,9 +179,7 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
       authoringSession: captureAuthoringSession(),
     });
 
-    expect(result.outcome).toBe('unrecoverable');
-    expect(result.queuedForRetry).toBe(false);
-    expect(result.consistencyState).toBe('unrecoverable');
+    expect(result).toMatchObject({ savedHere: false, state: 'not_saved', reason: 'local_failed' });
     expect(result.userSafeMessage).toContain('cola de sincronización alcanzó su límite');
   });
 
@@ -200,8 +197,7 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
       authoringSession: captureAuthoringSession(),
     });
 
-    expect(result.outcome).toBe('blocked');
-    expect(result.consistencyState).toBe('blocked_validation');
+    expect(result).toMatchObject({ state: 'not_saved', reason: 'blocked' });
     expect(saveToIndexedDB).not.toHaveBeenCalled();
   });
 
@@ -257,8 +253,8 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
         { authoringSession: captureAuthoringSession() }
       );
 
-      expect(result.outcome).toBe('blocked');
-      expect(result.savedLocally).toBe(false);
+      expect(result).toMatchObject({ state: 'not_saved', reason: 'blocked' });
+      expect(result.savedHere).toBe(false);
     } finally {
       restoreConsole(consoleSpies);
     }
@@ -305,9 +301,9 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
       { authoringSession: captureAuthoringSession() }
     );
 
-    expect(result.outcome).toBe('clean');
-    expect(result.savedLocally).toBe(true);
-    expect(result.updatedRemotely).toBe(true);
+    expect(result.state).toBe('confirmed');
+    expect(result.savedHere).toBe(true);
+    expect(result.state).toBe('confirmed');
     expect(admitLocalRecords).toHaveBeenCalledWith([
       expect.objectContaining({
         record: expect.objectContaining({ date: remote.date, lastUpdated: remote.lastUpdated }),
@@ -359,8 +355,7 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
       { authoringSession: captureAuthoringSession() }
     );
 
-    expect(result.outcome).toBe('blocked');
-    expect(result.consistencyState).toBe('blocked_validation');
+    expect(result).toMatchObject({ state: 'not_saved', reason: 'blocked' });
     expect(saveToIndexedDB).not.toHaveBeenCalled();
     expect(updateRecordPartialToFirestore).not.toHaveBeenCalled();
   });
@@ -395,7 +390,7 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
       { authoringSession: captureAuthoringSession() }
     );
 
-    expect(result.outcome).toBe('clean');
+    expect(result.state).toBe('confirmed');
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-05-08',
       expect.objectContaining({
@@ -442,7 +437,7 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
       { authoringSession: captureAuthoringSession() }
     );
 
-    expect(result.outcome).toBe('clean');
+    expect(result.state).toBe('confirmed');
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-05-08',
       expect.objectContaining({

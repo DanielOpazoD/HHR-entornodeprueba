@@ -40,8 +40,8 @@ vi.mock('@/services/firebase-runtime/authRuntime', () => ({
 }));
 
 /**
- * W14-D1-1 — parity table, whole-day saves (`saveDetailed`, `buildSaveResult` and
- * `buildBlockedSaveResult`) through the mounted useSaveDailyRecordMutation, plus the backup
+ * W14-D1-1 — parity table, whole-day saves (`saveDetailed`, `buildWriteResult` and
+ * `buildBlockedWriteResult`) through the mounted useSaveDailyRecordMutation, plus the backup
  * import's deferred save. Same harness and columns as dailyRecordWriteResultParity.test.ts.
  */
 interface SaveCase {
@@ -302,7 +302,7 @@ const observeSave = async (testCase: SaveCase) => {
   return {
     vista: run.vista,
     cuadro: run.cuadro,
-    ...(await observeConsumers(run.result, record)),
+    ...(await observeConsumers(run.result, record, 'save')),
     ...durability,
   };
 };

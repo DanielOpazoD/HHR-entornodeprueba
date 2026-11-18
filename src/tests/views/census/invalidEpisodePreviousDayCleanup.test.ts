@@ -35,8 +35,8 @@ const repositoryFor = (record: DailyRecord | null, accepted = true) => ({
   getAuthoritativeForDate: vi.fn(async () => record),
   updatePartialDetailed: vi.fn(async () =>
     accepted
-      ? { status: 'success' as const, updatedRemotely: true }
-      : { status: 'blocked' as const, updatedRemotely: false, outcome: 'blocked' }
+      ? { date: '2026-11-04', savedHere: true, state: 'confirmed', localCopy: 'current' }
+      : { date: '2026-11-04', savedHere: false, state: 'not_saved', reason: 'blocked' }
   ),
 });
 

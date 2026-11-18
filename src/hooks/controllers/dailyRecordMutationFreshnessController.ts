@@ -14,7 +14,7 @@ import {
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { didDailyRecordFreshnessHydrateNewerRemote } from '@/hooks/controllers/dailyRecordFreshnessHydrationController';
 import { PENDING_DAILY_RECORD_PATCH_TTL_MS } from '@/hooks/controllers/dailyRecordPendingPatchController';
-import type { UpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { toRecordTimestamp } from '@/services/repositories/dailyRecordConsistencyPolicy';
 import {
@@ -59,7 +59,7 @@ export const patchDailyRecordWithCompatibility = async (
   date: string,
   partial: DailyRecordPatch,
   options: PartialUpdateDailyRecordOptions
-): Promise<UpdatePartialDailyRecordResult | null> => {
+): Promise<DailyRecordWriteResult | null> => {
   if (typeof dailyRecord.updatePartialDetailed === 'function') {
     return dailyRecord.updatePartialDetailed(date, partial, options);
   }

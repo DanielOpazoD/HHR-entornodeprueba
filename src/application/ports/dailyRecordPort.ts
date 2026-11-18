@@ -6,9 +6,8 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { CopyPatientToDateResult } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import type {
-  SaveDailyRecordResult,
+  DailyRecordWriteResult,
   SyncDailyRecordResult,
-  UpdatePartialDailyRecordResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
 import type {
   DailyRecordReadResult,
@@ -116,7 +115,7 @@ const updatePartialDailyRecord = (
   date: string,
   patch: DailyRecordPatch,
   options?: PublicWriteOptions<PartialUpdateDailyRecordOptions>
-): Promise<UpdatePartialDailyRecordResult> => {
+): Promise<DailyRecordWriteResult> => {
   const authored = authoredOptions<PartialUpdateDailyRecordOptions>(options ?? {});
   return withWriteService(service => service.updatePartialDetailed(date, patch, authored));
 };
@@ -125,7 +124,7 @@ const saveDailyRecord = (
   record: DailyRecord,
   expectedLastUpdated?: string,
   options?: PublicWriteOptions<SaveDailyRecordOptions>
-): Promise<SaveDailyRecordResult> => {
+): Promise<DailyRecordWriteResult> => {
   const authored = authoredOptions<SaveDailyRecordOptions>(options ?? {});
   return withWriteService(service => service.saveDetailed(record, expectedLastUpdated, authored));
 };

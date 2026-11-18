@@ -7,26 +7,18 @@ import {
   resolveSaveErrorFeedback,
   resolveSaveOutcomeFeedback,
 } from '@/hooks/controllers/dailyRecordSyncNotificationController';
-import {
-  createSaveDailyRecordResult,
-  createUpdatePartialDailyRecordResult,
-  type SaveDailyRecordResult,
-} from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { resolveDailyRecordSyncStatus } from '@/hooks/controllers/dailyRecordSyncStatusController';
 
 describe('dailyRecordSyncNotificationController', () => {
   it('reports a server-confirmed save and patch as successful', () => {
     expect(
-      resolveSaveOutcomeFeedback(
-        createSaveDailyRecordResult({
-          date: '2026-03-03',
-          outcome: 'clean',
-          savedLocally: true,
-          savedRemotely: true,
-          queuedForRetry: false,
-          autoMerged: false,
-        })
-      )
+      resolveSaveOutcomeFeedback({
+        date: '2026-03-03',
+        savedHere: true,
+        state: 'confirmed',
+        localCopy: 'current',
+      })
     ).toEqual({
       channel: 'success',
       title: 'Censo guardado',
@@ -36,16 +28,12 @@ describe('dailyRecordSyncNotificationController', () => {
     });
 
     expect(
-      resolvePatchOutcomeFeedback(
-        createUpdatePartialDailyRecordResult({
-          date: '2026-03-03',
-          outcome: 'clean',
-          savedLocally: true,
-          updatedRemotely: true,
-          queuedForRetry: false,
-          autoMerged: false,
-        })
-      )
+      resolvePatchOutcomeFeedback({
+        date: '2026-03-03',
+        savedHere: true,
+        state: 'confirmed',
+        localCopy: 'current',
+      })
     ).toMatchObject({
       channel: 'success',
       title: 'Cambio guardado',
@@ -55,16 +43,12 @@ describe('dailyRecordSyncNotificationController', () => {
 
   it('returns feedback for queued and auto-merged save outcomes', () => {
     expect(
-      resolveSaveOutcomeFeedback(
-        createSaveDailyRecordResult({
-          date: '2026-03-03',
-          outcome: 'queued',
-          savedLocally: true,
-          savedRemotely: false,
-          queuedForRetry: true,
-          autoMerged: false,
-        })
-      )
+      resolveSaveOutcomeFeedback({
+        date: '2026-03-03',
+        savedHere: true,
+        state: 'local',
+        cause: 'retrying',
+      })
     ).toEqual({
       channel: 'warning',
       title: 'Guardado local pendiente',
@@ -75,16 +59,12 @@ describe('dailyRecordSyncNotificationController', () => {
     });
 
     expect(
-      resolveSaveOutcomeFeedback(
-        createSaveDailyRecordResult({
-          date: '2026-03-03',
-          outcome: 'auto_merged',
-          savedLocally: true,
-          savedRemotely: false,
-          queuedForRetry: false,
-          autoMerged: true,
-        })
-      )
+      resolveSaveOutcomeFeedback({
+        date: '2026-03-03',
+        savedHere: true,
+        state: 'local',
+        cause: 'merged',
+      })
     ).toEqual({
       channel: 'warning',
       title: 'Censo actualizado',
@@ -98,18 +78,16 @@ describe('dailyRecordSyncNotificationController', () => {
   it('tells the writer whose field another device changed that the text waits for review', () => {
     const queued = {
       date: '2026-03-03',
-      outcome: 'auto_merged',
-      savedLocally: true,
-      updatedRemotely: false,
-      queuedForRetry: true,
-      autoMerged: true,
+      savedHere: true,
+      state: 'local',
+      cause: 'merged',
     } as const;
-    const conflict = resolvePatchOutcomeFeedback(
-      createUpdatePartialDailyRecordResult({
-        ...queued,
-        reason: 'field_changed_elsewhere',
-      })
-    );
+    const conflict = resolvePatchOutcomeFeedback({
+      date: '2026-03-03',
+      savedHere: true,
+      state: 'held',
+      reason: 'field_changed_elsewhere',
+    });
 
     expect(conflict).toEqual({
       channel: 'warning',
@@ -121,7 +99,7 @@ describe('dailyRecordSyncNotificationController', () => {
     });
     expect(conflict?.message).not.toMatch(/integró|guardad/i);
     // A real integration keeps its notice.
-    expect(resolvePatchOutcomeFeedback(createUpdatePartialDailyRecordResult(queued))?.message).toBe(
+    expect(resolvePatchOutcomeFeedback(queued)?.message).toBe(
       'El sistema integró los cambios recientes automáticamente.'
     );
   });
@@ -129,41 +107,25 @@ describe('dailyRecordSyncNotificationController', () => {
   it('stays silent for an edit that the day queue task saves, and only for that one', () => {
     const queued = {
       date: '2026-03-03',
-      outcome: 'queued',
-      savedLocally: true,
-      updatedRemotely: false,
-      queuedForRetry: true,
-      autoMerged: false,
+      savedHere: true,
+      state: 'local',
+      cause: 'retrying',
     } as const;
 
-    expect(
-      resolvePatchOutcomeFeedback(
-        createUpdatePartialDailyRecordResult({
-          ...queued,
-          reason: 'queue_route',
-        })
-      )
-    ).toBeNull();
+    expect(resolvePatchOutcomeFeedback({ ...queued, cause: 'queue_route' })).toBeNull();
     // A retry after a failed remote write keeps its notice.
-    expect(resolvePatchOutcomeFeedback(createUpdatePartialDailyRecordResult(queued))?.title).toBe(
-      'Cambio pendiente de sincronización'
-    );
+    expect(resolvePatchOutcomeFeedback(queued)?.title).toBe('Cambio pendiente de sincronización');
   });
 
   it('returns feedback for blocked patch outcomes', () => {
     expect(
-      resolvePatchOutcomeFeedback(
-        createUpdatePartialDailyRecordResult({
-          date: '2026-03-03',
-          outcome: 'blocked',
-          savedLocally: false,
-          updatedRemotely: false,
-          queuedForRetry: false,
-          autoMerged: false,
-          consistencyState: 'unrecoverable',
-          userSafeMessage: 'No se encontró un registro local válido para aplicar el cambio.',
-        })
-      )
+      resolvePatchOutcomeFeedback({
+        date: '2026-03-03',
+        savedHere: false,
+        state: 'not_saved',
+        reason: 'blocked',
+        userSafeMessage: 'No se encontró un registro local válido para aplicar el cambio.',
+      })
     ).toEqual({
       channel: 'error',
       title: 'Actualización bloqueada',
@@ -176,19 +138,19 @@ describe('dailyRecordSyncNotificationController', () => {
 
   it('surfaces the specific blocked patch reason before falling back to missing-base copy', () => {
     expect(
-      resolvePatchOutcomeFeedback(
-        createUpdatePartialDailyRecordResult({
-          date: '2026-03-03',
-          outcome: 'blocked',
-          savedLocally: false,
-          updatedRemotely: false,
-          queuedForRetry: false,
-          autoMerged: false,
-          consistencyState: 'blocked_regression',
-          userSafeMessage:
-            'Se bloqueó una reducción sospechosa de texto clínico. Recarga antes de reintentar.',
-        })
-      )
+      resolvePatchOutcomeFeedback({
+        date: '2026-03-03',
+        savedHere: false,
+        state: 'not_saved',
+        reason: 'blocked',
+        userSafeMessage:
+          'Se bloqueó una reducción sospechosa de texto clínico. Recarga antes de reintentar.',
+        blockingError: new DataRegressionError(
+          'Se bloqueó una reducción sospechosa de texto clínico. Recarga antes de reintentar.',
+          2,
+          37
+        ),
+      })
     ).toEqual({
       channel: 'error',
       title: 'Protección de Datos',
@@ -200,17 +162,13 @@ describe('dailyRecordSyncNotificationController', () => {
   });
 
   it('rejects a local-save claim when a blocked operation saved no local copy', () => {
-    const feedback = resolvePatchOutcomeFeedback(
-      createUpdatePartialDailyRecordResult({
-        date: '2026-03-03',
-        outcome: 'blocked',
-        savedLocally: false,
-        updatedRemotely: false,
-        queuedForRetry: false,
-        autoMerged: false,
-        userSafeMessage: 'Los cambios se guardaron localmente.',
-      })
-    );
+    const feedback = resolvePatchOutcomeFeedback({
+      date: '2026-03-03',
+      savedHere: false,
+      state: 'not_saved',
+      reason: 'blocked',
+      userSafeMessage: 'Los cambios se guardaron localmente.',
+    });
 
     expect(feedback).toMatchObject({
       channel: 'error',
@@ -221,16 +179,12 @@ describe('dailyRecordSyncNotificationController', () => {
   });
 
   it('reports a result with no confirmed copy as a complete failure', () => {
-    const feedback = resolveSaveOutcomeFeedback(
-      createSaveDailyRecordResult({
-        date: '2026-03-03',
-        outcome: 'unrecoverable',
-        savedLocally: false,
-        savedRemotely: false,
-        queuedForRetry: false,
-        autoMerged: false,
-      })
-    );
+    const feedback = resolveSaveOutcomeFeedback({
+      date: '2026-03-03',
+      savedHere: false,
+      state: 'not_saved',
+      reason: 'local_failed',
+    });
 
     expect(feedback).toEqual({
       channel: 'error',
@@ -243,16 +197,12 @@ describe('dailyRecordSyncNotificationController', () => {
   });
 
   it('does not describe an invalid queue outcome as locally saved', () => {
-    const feedback = resolveSaveOutcomeFeedback(
-      createSaveDailyRecordResult({
-        date: '2026-03-03',
-        outcome: 'queued',
-        savedLocally: false,
-        savedRemotely: false,
-        queuedForRetry: true,
-        autoMerged: false,
-      })
-    );
+    const feedback = resolveSaveOutcomeFeedback({
+      date: '2026-03-03',
+      savedHere: false,
+      state: 'local',
+      cause: 'retrying',
+    });
 
     expect(feedback).toMatchObject({
       channel: 'error',
@@ -262,16 +212,12 @@ describe('dailyRecordSyncNotificationController', () => {
   });
 
   it('does not claim a retry queue when the result did not enqueue one', () => {
-    const feedback = resolvePatchOutcomeFeedback(
-      createUpdatePartialDailyRecordResult({
-        date: '2026-03-03',
-        outcome: 'queued',
-        savedLocally: true,
-        updatedRemotely: false,
-        queuedForRetry: false,
-        autoMerged: false,
-      })
-    );
+    const feedback = resolvePatchOutcomeFeedback({
+      date: '2026-03-03',
+      savedHere: true,
+      state: 'local',
+      cause: 'stored',
+    });
 
     expect(feedback).toMatchObject({
       channel: 'warning',
@@ -281,16 +227,12 @@ describe('dailyRecordSyncNotificationController', () => {
   });
 
   it('does not claim an automatic merge when the result did not perform one', () => {
-    const feedback = resolveSaveOutcomeFeedback(
-      createSaveDailyRecordResult({
-        date: '2026-03-03',
-        outcome: 'auto_merged',
-        savedLocally: false,
-        savedRemotely: false,
-        queuedForRetry: false,
-        autoMerged: false,
-      })
-    );
+    const feedback = resolveSaveOutcomeFeedback({
+      date: '2026-03-03',
+      savedHere: false,
+      state: 'local',
+      cause: 'stored',
+    });
 
     expect(feedback).toMatchObject({
       channel: 'error',
@@ -301,19 +243,12 @@ describe('dailyRecordSyncNotificationController', () => {
 
   it('agrees with the sync box on whether a merged or routed write left a copy here', () => {
     const write = (
-      savedLocally: boolean,
-      shape: Pick<SaveDailyRecordResult, 'outcome' | 'autoMerged' | 'reason'>
-    ) =>
-      createSaveDailyRecordResult({
-        date: '2026-03-03',
-        savedLocally,
-        savedRemotely: false,
-        queuedForRetry: true,
-        ...shape,
-      });
-    const merged = { outcome: 'auto_merged', autoMerged: true } as const;
-    const routed = { outcome: 'queued', autoMerged: false, reason: 'queue_route' } as const;
-    const seen = (result: SaveDailyRecordResult) => [
+      savedHere: boolean,
+      cause: 'merged' | 'queue_route'
+    ): DailyRecordWriteResult => ({ date: '2026-03-03', savedHere, state: 'local', cause });
+    const merged = 'merged';
+    const routed = 'queue_route';
+    const seen = (result: DailyRecordWriteResult) => [
       resolveDailyRecordSyncStatus([
         { isPending: false, isError: false, isSuccess: true, data: { result } },
       ]),
@@ -334,16 +269,12 @@ describe('dailyRecordSyncNotificationController', () => {
 
   it('distinguishes a local-only save from a queued retry', () => {
     expect(
-      resolveSaveOutcomeFeedback(
-        createSaveDailyRecordResult({
-          date: '2026-03-03',
-          outcome: 'clean',
-          savedLocally: true,
-          savedRemotely: false,
-          queuedForRetry: false,
-          autoMerged: false,
-        })
-      )
+      resolveSaveOutcomeFeedback({
+        date: '2026-03-03',
+        savedHere: true,
+        state: 'local',
+        cause: 'stored',
+      })
     ).toMatchObject({
       channel: 'warning',
       title: 'Guardado sólo local',
@@ -353,18 +284,13 @@ describe('dailyRecordSyncNotificationController', () => {
 
   it('prefers userSafeMessage for consistency-related save feedback', () => {
     expect(
-      resolveSaveOutcomeFeedback(
-        createSaveDailyRecordResult({
-          date: '2026-03-03',
-          outcome: 'clean',
-          savedLocally: true,
-          savedRemotely: false,
-          queuedForRetry: false,
-          autoMerged: false,
-          consistencyState: 'unrecoverable',
-          userSafeMessage: 'mensaje visible de sync',
-        })
-      )
+      resolveSaveOutcomeFeedback({
+        date: '2026-03-03',
+        savedHere: true,
+        state: 'held',
+        reason: 'needs_review',
+        userSafeMessage: 'mensaje visible de sync',
+      })
     ).toEqual({
       channel: 'warning',
       title: 'Guardado local sin sincronización',
@@ -377,18 +303,13 @@ describe('dailyRecordSyncNotificationController', () => {
 
   it('does not describe a confirmed server write as unsynchronized', () => {
     expect(
-      resolvePatchOutcomeFeedback(
-        createUpdatePartialDailyRecordResult({
-          date: '2026-03-03',
-          outcome: 'clean',
-          savedLocally: false,
-          updatedRemotely: true,
-          queuedForRetry: false,
-          autoMerged: false,
-          consistencyState: 'unrecoverable',
-          userSafeMessage: 'El servidor guardó el cambio; la copia local necesita revisión.',
-        })
-      )
+      resolvePatchOutcomeFeedback({
+        date: '2026-03-03',
+        savedHere: false,
+        state: 'confirmed',
+        localCopy: 'stale',
+        userSafeMessage: 'El servidor guardó el cambio; la copia local necesita revisión.',
+      })
     ).toMatchObject({
       title: 'Cambio guardado; copia local pendiente',
       message: 'El servidor guardó el cambio; la copia local necesita revisión.',
@@ -397,37 +318,24 @@ describe('dailyRecordSyncNotificationController', () => {
 
   it('keeps default census sync feedback free of technical remote wording', () => {
     const defaultFeedback = [
-      resolveSaveOutcomeFeedback(
-        createSaveDailyRecordResult({
-          date: '2026-03-03',
-          outcome: 'auto_merged',
-          savedLocally: true,
-          savedRemotely: false,
-          queuedForRetry: false,
-          autoMerged: true,
-        })
-      ),
-      resolvePatchOutcomeFeedback(
-        createUpdatePartialDailyRecordResult({
-          date: '2026-03-03',
-          outcome: 'auto_merged',
-          savedLocally: true,
-          updatedRemotely: false,
-          queuedForRetry: false,
-          autoMerged: true,
-        })
-      ),
-      resolvePatchOutcomeFeedback(
-        createUpdatePartialDailyRecordResult({
-          date: '2026-03-03',
-          outcome: 'clean',
-          savedLocally: true,
-          updatedRemotely: false,
-          queuedForRetry: false,
-          autoMerged: false,
-          consistencyState: 'unrecoverable',
-        })
-      ),
+      resolveSaveOutcomeFeedback({
+        date: '2026-03-03',
+        savedHere: true,
+        state: 'local',
+        cause: 'merged',
+      }),
+      resolvePatchOutcomeFeedback({
+        date: '2026-03-03',
+        savedHere: true,
+        state: 'local',
+        cause: 'merged',
+      }),
+      resolvePatchOutcomeFeedback({
+        date: '2026-03-03',
+        savedHere: true,
+        state: 'held',
+        reason: 'needs_review',
+      }),
     ];
     const forbiddenTechnicalWording = /firebase|remot[oa]|stale|cache|concurr/i;
 

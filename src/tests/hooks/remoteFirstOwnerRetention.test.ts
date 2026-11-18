@@ -180,6 +180,7 @@ it.each(
     await lock;
   }
   const result = await settled;
+  if ('error' in result) throw result.error;
   if (!change) {
     expect(remote.write).toHaveBeenCalledTimes(1);
     expect(remote.write.mock.calls[0][0]).toEqual(
@@ -191,9 +192,7 @@ it.each(
       for (const path of Object.keys(patch))
         expect(sentPaths.some(sent => sent === path || sent.startsWith(`${path}.`))).toBe(true);
     }
-    expect(result).toMatchObject(
-      kind === 'structural' ? { savedRemotely: true } : { updatedRemotely: true }
-    );
+    expect(result).toMatchObject({ state: 'confirmed' });
     expect(vi.mocked(recordOperationalTelemetry)).not.toHaveBeenCalledWith(
       expect.objectContaining({ operation: 'remote_first_write_session_changed' })
     );
@@ -202,7 +201,7 @@ it.each(
   expect(remote.write).not.toHaveBeenCalled();
   expect(await hospitalDB.dailyRecords.get(date)).toEqual(nextRow);
   expect(await hospitalDB.syncQueue.get(800)).toEqual(nextTask);
-  expect(result).toMatchObject({ outcome: 'unrecoverable', savedLocally: false });
+  expect(result).toMatchObject({ savedHere: false, state: 'not_saved', reason: 'session_changed' });
   expect(vi.mocked(recordOperationalTelemetry)).toHaveBeenCalledWith({
     category: 'sync',
     operation: 'remote_first_write_session_changed',
@@ -210,8 +209,9 @@ it.each(
     runtimeState: 'recoverable',
     issues: ['La sesión de autoría terminó antes del despacho remoto.'],
   });
-  if ('updatedRemotely' in result) expect(resolvePatchOutcomeFeedback(result)).toBeNull();
-  if ('savedRemotely' in result) expect(resolveSaveOutcomeFeedback(result)).toBeNull();
+  expect(
+    kind === 'structural' ? resolveSaveOutcomeFeedback(result) : resolvePatchOutcomeFeedback(result)
+  ).toBeNull();
   const tasks = (await hospitalDB.syncQueue.toArray()).filter(
     task => task.ownerKey === 'user:synthetic-A'
   );

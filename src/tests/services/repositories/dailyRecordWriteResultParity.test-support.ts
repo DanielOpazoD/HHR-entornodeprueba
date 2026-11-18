@@ -7,11 +7,7 @@ import {
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import * as writeService from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { assertDailyRecordRepositoryWriteAccepted } from '@/services/repositories/dailyRecordRepositoryWriteOutcome';
-import {
-  resolveDailyRecordWriteStatus,
-  type SaveDailyRecordResult,
-  type UpdatePartialDailyRecordResult,
-} from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import {
   resolvePatchOutcomeFeedback,
   resolveSaveOutcomeFeedback,
@@ -161,19 +157,19 @@ const outcomeOf = async (step: () => unknown): Promise<string> => {
   }
 };
 
-type WriteResult = SaveDailyRecordResult | UpdatePartialDailyRecordResult;
-
 /**
  * Each consumer's own answer to the same result, one question per column. Values are what a
  * person or the next step observes (text, «sigue», «lanza Clase: mensaje»), never result flags.
  */
-export const observeConsumers = async (result: WriteResult, record: DailyRecord) => {
-  const patch = 'updatedRemotely' in result;
-  const feedback = patch
-    ? resolvePatchOutcomeFeedback(result)
-    : resolveSaveOutcomeFeedback(result as SaveDailyRecordResult);
+export const observeConsumers = async (
+  result: DailyRecordWriteResult,
+  record: DailyRecord,
+  write: 'save' | 'patch'
+) => {
+  const patch = write === 'patch';
+  const feedback = patch ? resolvePatchOutcomeFeedback(result) : resolveSaveOutcomeFeedback(result);
   const repository = buildMockDailyRecordRepository();
-  vi.mocked(repository.saveDetailed).mockResolvedValue(result as SaveDailyRecordResult);
+  vi.mocked(repository.saveDetailed).mockResolvedValue(result);
   return {
     aviso: feedback ? `${feedback.title}: ${feedback.message}` : 'sin aviso',
     // useDailyRecordSyncQuery.ts:182 / :260: the census flow continues or throws.
@@ -182,7 +178,7 @@ export const observeConsumers = async (result: WriteResult, record: DailyRecord)
     repositorio: await outcomeOf(() => assertDailyRecordRepositoryWriteAccepted(result)),
     ingreso: patch
       ? await outcomeOf(() =>
-          createDailyRecordAdmitPatientPort(async () => result as UpdatePartialDailyRecordResult)
+          createDailyRecordAdmitPatientPort(async () => result)
             .persistAdmission({
               bedId: 'R1',
               patientName: 'PACIENTE SINTETICO INGRESO',
@@ -195,16 +191,14 @@ export const observeConsumers = async (result: WriteResult, record: DailyRecord)
         )
       : 'no aplica',
     confirmado: {
-      // resolveDailyRecordWriteStatus: what the sync box and the notice call «saved».
-      cuadroYAviso: resolveDailyRecordWriteStatus(result).state === 'confirmed',
+      // The result's state: what the sync box and the notice call «saved».
+      cuadroYAviso: result.state === 'confirmed',
       // The timing event (useDailyRecordSyncQuery.ts:263) and the backup restore
       // (dataMaintenanceService.ts:318) are observed through their own flows: see
       // dailyRecordWriteRejectionAsSeen.test.tsx and dailyRecordWriteResultParityMaintenance.test.ts.
       especialidad: patch
         ? await outcomeOf(async () => {
-            vi.mocked(writeService.updatePartialDetailed).mockResolvedValueOnce(
-              result as UpdatePartialDailyRecordResult
-            );
+            vi.mocked(writeService.updatePartialDetailed).mockResolvedValueOnce(result);
             await assignSpecialtyManually(
               {
                 date: PARITY_DATE,
@@ -221,9 +215,7 @@ export const observeConsumers = async (result: WriteResult, record: DailyRecord)
     },
     historico: patch
       ? await outcomeOf(() =>
-          isHistoricalPatchOnlyQueued(result as UpdatePartialDailyRecordResult)
-            ? 'durably_queued'
-            : 'confirmed'
+          isHistoricalPatchOnlyQueued(result) ? 'durably_queued' : 'confirmed'
         )
       : await outcomeOf(async () => {
           await persistHistoricalOccupancyCorrection(repository, record, record);

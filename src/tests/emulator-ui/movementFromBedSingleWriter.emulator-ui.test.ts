@@ -10,7 +10,7 @@ import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import type { UpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import {
   presentSyncOutcomeFeedback,
   resolvePatchOutcomeFeedback,
@@ -181,7 +181,7 @@ const movementPatch = (movement: Movement, person: Person, base: DailyRecord): D
   });
 };
 
-const shownNotices = (result: UpdatePartialDailyRecordResult) => {
+const shownNotices = (result: DailyRecordWriteResult) => {
   const shown: string[] = [];
   const record = (title: string, message?: string) => shown.push(`${title} · ${message ?? ''}`);
   presentSyncOutcomeFeedback(resolvePatchOutcomeFeedback(result), 'Actualización', {
@@ -353,8 +353,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       const base = await readRemote();
       const result = await write('B', movementPatch(movement, ANA, base), base);
 
-      expect(result.outcome).toBe('queued');
-      expect(result.autoMerged).toBe(false);
+      expect(result).toMatchObject({ state: 'local', cause: 'queue_route' });
       expect(shownNotices(result)).toEqual([]);
 
       await settleQueue('B');

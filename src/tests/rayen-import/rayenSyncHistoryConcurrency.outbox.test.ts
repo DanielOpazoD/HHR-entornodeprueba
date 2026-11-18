@@ -64,7 +64,7 @@ describe('Rayen history rebase against the writer base', () => {
         if (pending) await write(base, [event('R1', status)]);
         else await hospitalDB.dailyRecords.put(record([event('R1', status)]));
 
-        expect((await write(base, [event('R2', 'failed'), event('R1')])).savedLocally).toBe(true);
+        expect((await write(base, [event('R2', 'failed'), event('R1')])).savedHere).toBe(true);
         expect(await readHistory()).toEqual([event('R1', status), event('R2', 'failed')]);
       });
     }

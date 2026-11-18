@@ -55,7 +55,7 @@ describeMissingRemoteDay('demo-hhr-e8e', h => {
         )
       );
       expect(transport.attempts).toBe(attempts);
-      expect(result).toMatchObject({ savedLocally: true, updatedRemotely: false });
+      expect(result).toMatchObject({ savedHere: true, state: 'held', reason: 'needs_review' });
       expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
         { status: 'PENDING', payload: { date, handoffNovedadesDayShift: 'EDITADO' } },
       ]);

@@ -124,7 +124,7 @@ describe('a local day that could not be read is unknown, never absent', () => {
         baseRecord: pending(),
       });
 
-      expect(result).toMatchObject({ outcome: 'blocked', savedLocally: false });
+      expect(result).toMatchObject({ savedHere: false, state: 'not_saved', reason: 'blocked' });
       expect(await hospitalDB.dailyRecords.get(date)).toEqual(pending());
     });
 
@@ -133,7 +133,7 @@ describe('a local day that could not be read is unknown, never absent', () => {
         authoringSession: captureAuthoringSession(),
       });
 
-      expect(result).toMatchObject({ savedLocally: true });
+      expect(result).toMatchObject({ savedHere: true });
       expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.admissionDate).toBe('2026-10-21');
     });
   });

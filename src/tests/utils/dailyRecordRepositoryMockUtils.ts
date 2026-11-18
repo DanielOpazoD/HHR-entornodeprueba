@@ -3,7 +3,6 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { vi } from 'vitest';
 import { deepClone } from '@/utils/deepClone';
-import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 interface DailyRecordRepositoryMockLike {
   getForDate: (date: string) => Promise<DailyRecord | null>;
@@ -90,15 +89,13 @@ export const wireStatefulDailyRecordRepoMock = (
         const nextRecord = applyPatches(cloneRecord(currentRecord), partial);
         options.setCurrentRecord(nextRecord);
         return writeOptions?.requireConfirmedRecord
-          ? createUpdatePartialDailyRecordResult({
+          ? {
               date,
-              outcome: 'clean',
-              savedLocally: true,
-              updatedRemotely: true,
-              queuedForRetry: false,
-              autoMerged: false,
+              savedHere: true,
+              state: 'confirmed',
+              localCopy: 'current',
               confirmedRecord: cloneRecord(nextRecord),
-            })
+            }
           : null;
       }
     );

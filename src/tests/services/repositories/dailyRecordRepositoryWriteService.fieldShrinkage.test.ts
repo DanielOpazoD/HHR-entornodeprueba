@@ -159,7 +159,7 @@ describe('dailyRecordRepositoryWriteService field shrinkage telemetry', () => {
       { authoringSession: captureAuthoringSession() }
     );
 
-    expect(result.outcome).toBe('clean');
+    expect(result.state).toBe('confirmed');
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.objectContaining({ date: '2026-02-11' }),
       expect.objectContaining({ origin: 'direct_queue' }),
@@ -186,8 +186,7 @@ describe('dailyRecordRepositoryWriteService field shrinkage telemetry', () => {
       { authoringSession: captureAuthoringSession() }
     );
 
-    expect(result.outcome).toBe('blocked');
-    expect(result.consistencyState).toBe('blocked_regression');
+    expect(result).toMatchObject({ state: 'not_saved', reason: 'blocked' });
     expect(result.blockingError?.name).toBe('DataRegressionError');
     expect(saveToIndexedDB).not.toHaveBeenCalled();
     expect(updateRecordPartialToFirestore).not.toHaveBeenCalled();
@@ -228,8 +227,7 @@ describe('dailyRecordRepositoryWriteService field shrinkage telemetry', () => {
       { authoringSession: captureAuthoringSession() }
     );
 
-    expect(result.outcome).toBe('blocked');
-    expect(result.consistencyState).toBe('blocked_regression');
+    expect(result).toMatchObject({ state: 'not_saved', reason: 'blocked' });
     expect(result.blockingError?.name).toBe('DataRegressionError');
     expect(saveToIndexedDB).not.toHaveBeenCalled();
     expect(updateRecordPartialToFirestore).not.toHaveBeenCalled();
@@ -269,8 +267,7 @@ describe('dailyRecordRepositoryWriteService field shrinkage telemetry', () => {
       { authoringSession: captureAuthoringSession() }
     );
 
-    expect(result.outcome).toBe('blocked');
-    expect(result.consistencyState).toBe('blocked_regression');
+    expect(result).toMatchObject({ state: 'not_saved', reason: 'blocked' });
     expect(result.blockingError?.name).toBe('DataRegressionError');
     expect(saveToIndexedDB).not.toHaveBeenCalled();
     expect(updateRecordPartialToFirestore).not.toHaveBeenCalled();
@@ -331,8 +328,7 @@ describe('dailyRecordRepositoryWriteService field shrinkage telemetry', () => {
       { authoringSession: captureAuthoringSession() }
     );
 
-    expect(result.outcome).toBe('blocked');
-    expect(result.consistencyState).toBe('blocked_regression');
+    expect(result).toMatchObject({ state: 'not_saved', reason: 'blocked' });
     expect(result.blockingError?.name).toBe('DataRegressionError');
     expect(saveToIndexedDB).not.toHaveBeenCalled();
     expect(updateRecordPartialToFirestore).not.toHaveBeenCalled();

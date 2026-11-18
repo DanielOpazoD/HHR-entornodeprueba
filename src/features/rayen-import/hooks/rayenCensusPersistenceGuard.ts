@@ -1,9 +1,7 @@
 import {
   isDailyRecordWriteRejectedResult,
-  resolveDailyRecordWriteStatus,
   toDailyRecordWriteError,
-  type SaveDailyRecordResult,
-  type UpdatePartialDailyRecordResult,
+  type DailyRecordWriteResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -15,7 +13,7 @@ import {
 
 export interface RayenCensusPersistencePayload {
   record: DailyRecord;
-  result: SaveDailyRecordResult | UpdatePartialDailyRecordResult | null;
+  result: DailyRecordWriteResult | null;
 }
 
 const CONFIRMED_RAYEN_CENSUS_HANDOFF = Symbol('confirmed-rayen-census-handoff');
@@ -90,13 +88,10 @@ export const applyRayenHistoricalCorrectionState = (
  * here with no server to send it to. A queued, merged or held write is safe for eventual
  * recovery, but its remote structure can still be stale.
  */
-export const isRayenCensusWriteSettled = (
-  result: SaveDailyRecordResult | UpdatePartialDailyRecordResult
-): boolean => {
-  const status = resolveDailyRecordWriteStatus(result);
+export const isRayenCensusWriteSettled = (result: DailyRecordWriteResult): boolean => {
   return (
-    (status.state === 'confirmed' && status.localCopy === 'current') ||
-    (status.state === 'local' && status.cause === 'stored')
+    (result.state === 'confirmed' && result.localCopy === 'current') ||
+    (result.state === 'local' && result.cause === 'stored')
   );
 };
 

@@ -13,7 +13,7 @@ import * as guards from '@/services/storage/firestore/firestoreWriteSupport';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import * as fence from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import type { UpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import {
   presentSyncOutcomeFeedback,
   resolvePatchOutcomeFeedback,
@@ -149,7 +149,7 @@ const valueAt = (record: DailyRecord, path: string): unknown =>
     .split('.')
     .reduce<unknown>((value, key) => (value as Record<string, unknown>)?.[key], record);
 /** The notice the census shows for a patch result, as `useDailyRecordSyncQuery` presents it. */
-const shownNotice = (result: UpdatePartialDailyRecordResult) => {
+const shownNotice = (result: DailyRecordWriteResult) => {
   const shown: [channel: string, title: string, message?: string][] = [];
   presentSyncOutcomeFeedback(resolvePatchOutcomeFeedback(result), 'Actualización', {
     success: (title, message) => shown.push(['success', title, message]),
@@ -445,7 +445,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       ),
     ]);
     if (observed.status === 'rejected') throw observed.reason;
-    const savedB = observed.value.updatedRemotely;
+    const savedB = observed.value.state === 'confirmed';
     expect(calls.direct).toBe(0);
     expect([other.status === 'fulfilled', savedB].filter(Boolean)).toHaveLength(1);
     await settleQueue();
@@ -482,7 +482,11 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     ]);
     if (observed.status === 'rejected') throw observed.reason;
     expect(other.status).toBe('fulfilled');
-    expect(observed.value).toMatchObject({ savedLocally: true, updatedRemotely: false });
+    expect(observed.value).toMatchObject({
+      savedHere: true,
+      state: 'held',
+      reason: 'field_changed_elsewhere',
+    });
     expect(shownNotice(observed.value)).toEqual(FIELD_CHANGED_NOTICE);
     await settleQueue();
     expect((await read()).handoffNovedadesDayShift).toBe('NOVEDAD A');
@@ -503,7 +507,11 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
       )
     );
-    expect(result).toMatchObject({ savedLocally: true, updatedRemotely: false });
+    expect(result).toMatchObject({
+      savedHere: true,
+      state: 'held',
+      reason: 'field_changed_elsewhere',
+    });
     expect(shownNotice(result)).toEqual(FIELD_CHANGED_NOTICE);
     await settleQueue();
     expect((await read()).handoffNovedadesDayShift).toBe('NOVEDAD A');
@@ -528,7 +536,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
           baseRecord: baseRecord(),
         })
       );
-      expect(result).toMatchObject({ outcome: 'clean', updatedRemotely: true });
+      expect(result).toMatchObject({ state: 'confirmed', localCopy: 'current' });
       expect(shownNotice(result).map(([channel]) => channel)).toEqual(['success']);
       expect(await read()).toMatchObject({ handoffNovedadesDayShift: 'NOVEDAD A', ...edit });
       expect(await hospitalDB.syncQueue.count()).toBe(0);
@@ -577,7 +585,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
       )
     );
-    expect(result).toMatchObject({ savedLocally: true, updatedRemotely: false });
+    expect(result).toMatchObject({ savedHere: true, state: 'local', cause: 'merged' });
     await settleQueue();
     expect((await read()).beds.R1.pathology).toBe('A');
     expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
@@ -597,7 +605,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
       )
     );
-    expect(offline).toMatchObject({ savedLocally: true, updatedRemotely: false });
+    expect(offline).toMatchObject({ savedHere: true, state: 'local', cause: 'stored' });
     expect(await hospitalDB.syncQueue.count()).toBe(1);
     setFirestoreEnabled(true);
     await settleQueue();
@@ -647,7 +655,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       );
       expect(calls.transaction).toBeGreaterThan(0);
       expect(calls.patch).toBe(1);
-      expect(result).toMatchObject({ savedLocally: true, updatedRemotely: true });
+      expect(result).toMatchObject({ savedHere: true, state: 'confirmed' });
       expect((await read()).beds.R1.pathology).toBe('B');
       expect(await hospitalDB.syncQueue.count()).toBe(0);
     });

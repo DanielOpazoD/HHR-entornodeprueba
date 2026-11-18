@@ -123,7 +123,7 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       },
       { authoringSession: captureAuthoringSession(), baseRecord: hydratedBase }
     );
-    expect(result.outcome).toBe('clean');
+    expect(result.state).toBe('confirmed');
     expect(getRecordFromIndexedDB).not.toHaveBeenCalled();
     expect(getRecordFromFirestore).not.toHaveBeenCalled();
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
@@ -154,7 +154,7 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       },
       { authoringSession: captureAuthoringSession(), baseRecord: hydratedBase }
     );
-    expect(result.outcome).toBe('clean');
+    expect(result.state).toBe('confirmed');
     expect(getRecordFromIndexedDB).not.toHaveBeenCalled();
     expect(getRecordFromFirestore).not.toHaveBeenCalled();
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
@@ -189,7 +189,7 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       { authoringSession: captureAuthoringSession(), baseRecord: hydratedBase }
     );
 
-    expect(result.outcome).toBe('clean');
+    expect(result.state).toBe('confirmed');
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-18',
       expect.objectContaining({
@@ -236,7 +236,7 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       authoringSession: captureAuthoringSession(),
       baseRecord: hydratedBase,
     });
-    expect(result.outcome).toBe('clean');
+    expect(result.state).toBe('confirmed');
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-18',
       expect.objectContaining({
@@ -299,7 +299,7 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       baseRecord: hydratedBase,
     });
 
-    expect(result.outcome).toBe('clean');
+    expect(result.state).toBe('confirmed');
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-18',
       expect.objectContaining({
@@ -358,7 +358,7 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       authoringSession: captureAuthoringSession(),
       baseRecord: hydratedBase,
     });
-    expect(result.outcome).toBe('clean');
+    expect(result.state).toBe('confirmed');
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-18',
       expect.objectContaining({
@@ -504,7 +504,7 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
         requireConfirmedRecord: true,
       }
     );
-    expect(result.outcome).toBe('clean');
+    expect(result.state).toBe('confirmed');
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-13',
       expect.any(Object),

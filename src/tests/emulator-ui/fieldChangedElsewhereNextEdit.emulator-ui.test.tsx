@@ -46,6 +46,7 @@ import {
 } from '@/services/storage/sessionScopedStorageService';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 /**
  * What the census does after «El campo cambió en otro equipo» (W12-CW5): the screen keeps this
@@ -215,7 +216,7 @@ const censusHere = async (seed?: (day: DailyRecord) => void) => {
     { wrapper, initialProps: { live: false } }
   );
   const mutate = async (partial: DailyRecordPatch, options?: object) => {
-    let payload: { result?: { updatedRemotely?: boolean; reason?: string } } = {};
+    let payload: { result?: DailyRecordWriteResult } = {};
     await act(async () => {
       payload = (await hook.result.current.mutateAsync({
         date,
@@ -236,12 +237,12 @@ const conflictOnNight = async () => {
   // The other computer writes first; this screen has not received it yet.
   await admin.doc(dayPath).update({ [night]: 'A1', lastUpdated: Timestamp.now() });
   const first = await edit(night, 'B2');
-  expect(first?.updatedRemotely).toBe(false);
-  expect(first?.reason).toBe('field_changed_elsewhere');
+  expect(first?.state).not.toBe('confirmed');
+  expect(first).toMatchObject({ state: 'held', reason: 'field_changed_elsewhere' });
   const second = await edit(night, 'B3');
   expect((await server())[night]).toBe('A1');
-  expect(second?.updatedRemotely).toBe(false);
-  expect(second?.reason).toBe('field_changed_elsewhere');
+  expect(second?.state).not.toBe('confirmed');
+  expect(second).toMatchObject({ state: 'held', reason: 'field_changed_elsewhere' });
   return { hook, mutate, edit };
 };
 
@@ -261,7 +262,7 @@ it('meets the other computer’s text again on the next edit after the notice', 
 
   // A field nobody else changed is still saved at once (#1603).
   const day = await edit('handoffNovedadesDayShift', 'B4');
-  expect(day?.updatedRemotely).toBe(true);
+  expect(day?.state).toBe('confirmed');
   expect(await server()).toMatchObject({ handoffNovedadesDayShift: 'B4', [night]: 'A1' });
   hook.unmount();
 }, 60_000);
@@ -290,10 +291,10 @@ it.each(['live', 'refetch'] as const)(
 
     // Still a field the other computer changed: met again, not replaced.
     const again = await edit(night, 'B5');
-    expect(again?.reason).toBe('field_changed_elsewhere');
+    expect(again).toMatchObject({ state: 'held', reason: 'field_changed_elsewhere' });
     expect((await server())[night]).toBe('A1');
     // A field nobody else changed is saved at once.
-    expect((await edit('handoffNovedadesDayShift', 'B6'))?.updatedRemotely).toBe(true);
+    expect((await edit('handoffNovedadesDayShift', 'B6'))?.state).toBe('confirmed');
 
     // A crib re-reads the server's day before it is created, so it is saved over that version.
     const parent = shown()!.record!.beds.R4;
@@ -337,7 +338,7 @@ it('clears the bed («Limpiar») of a patient whose diagnosis waits after the no
       },
     }
   );
-  expect(discharge?.updatedRemotely).toBe(true);
+  expect(discharge?.state).toBe('confirmed');
   expect((await server()).beds.R4).toMatchObject({ rut: '', pathology: '' });
   const held = (await hospitalDB.syncQueue.toArray()).filter(
     task => (task.payload as DailyRecord | undefined)?.beds?.R4?.pathology === 'B4'
@@ -421,7 +422,7 @@ const moveOut = async (
     });
   });
   executor.unmount();
-  return outcomes as { updatedRemotely?: boolean; reason?: string }[];
+  return outcomes as (DailyRecordWriteResult | undefined)[];
 };
 const listOf = (kind: Movement) => (kind === 'discharge' ? 'discharges' : 'transfers');
 const movedOut = (record: DailyRecord | undefined, kind: Movement) =>
@@ -455,7 +456,7 @@ it.each(['discharge', 'transfer'] as const)(
     setFirestoreEnabled(true);
 
     const [saved] = await moveOut(mutate, kind);
-    expect(saved?.reason).toBe('queue_route');
+    expect(saved).toMatchObject({ state: 'local', cause: 'queue_route' });
     await replay();
 
     const remote = await server();
@@ -564,11 +565,20 @@ it.each(['first', 'second'])(
     try {
       const { edit, hook } = await censusHere();
       await admin.doc(dayPath).update({ [night]: 'A1', lastUpdated: Timestamp.now() });
-      expect((await edit(night, 'B2'))?.reason).toBe('field_changed_elsewhere');
-      expect((await edit(night, 'B3'))?.reason).toBe('field_changed_elsewhere');
+      expect(await edit(night, 'B2')).toMatchObject({
+        state: 'held',
+        reason: 'field_changed_elsewhere',
+      });
+      expect(await edit(night, 'B3')).toMatchObject({
+        state: 'held',
+        reason: 'field_changed_elsewhere',
+      });
       // A field nobody else changed is still saved at once (#1603).
-      expect((await edit('handoffNovedadesDayShift', 'B4'))?.updatedRemotely).toBe(true);
-      expect((await edit(night, 'B5'))?.reason).toBe('field_changed_elsewhere');
+      expect((await edit('handoffNovedadesDayShift', 'B4'))?.state).toBe('confirmed');
+      expect(await edit(night, 'B5')).toMatchObject({
+        state: 'held',
+        reason: 'field_changed_elsewhere',
+      });
       await queueIdle();
 
       expect(await server()).toMatchObject({ handoffNovedadesDayShift: 'B4', [night]: 'A1' });
@@ -619,7 +629,10 @@ it('«Dar de alta» reaches the server while a text of the day waits after the n
   expect((await getSyncQueueTelemetry()).conflict).toBe(1);
 
   // Still a field the other computer changed: met again, not replaced.
-  expect((await edit(night, 'B5'))?.reason).toBe('field_changed_elsewhere');
+  expect(await edit(night, 'B5')).toMatchObject({
+    state: 'held',
+    reason: 'field_changed_elsewhere',
+  });
   await replay();
   expect((await server())[night]).toBe('A1');
   await expectUnsentNightKept('B5');

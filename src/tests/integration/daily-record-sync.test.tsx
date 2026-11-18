@@ -1,7 +1,3 @@
-import {
-  createSaveDailyRecordResult,
-  createUpdatePartialDailyRecordResult,
-} from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { createUnconfirmedDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';
 /**
@@ -24,6 +20,7 @@ import {
   flushDailyActionTimings,
   startDailyActionTiming,
 } from '@/services/observability/dailyActionTiming';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 // ============================================================================
 // Mocks
@@ -161,20 +158,14 @@ describe('DailyRecord Sync Integration', () => {
     vi.clearAllMocks();
     mockGetForDate.mockReturnValue(null);
     mockSyncWithFirestore.mockResolvedValue(null);
-    const persisted = {
+    const persisted: DailyRecordWriteResult = {
       date: '2024-12-28',
-      outcome: 'clean' as const,
-      savedLocally: true,
-      queuedForRetry: false,
-      autoMerged: false,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
     };
-    mockSave.mockResolvedValue(createSaveDailyRecordResult({ ...persisted, savedRemotely: true }));
-    mockUpdatePartial.mockResolvedValue(
-      createUpdatePartialDailyRecordResult({
-        ...persisted,
-        updatedRemotely: true,
-      })
-    );
+    mockSave.mockResolvedValue(persisted);
+    mockUpdatePartial.mockResolvedValue(persisted);
     mockDailyRecordRepositoryPort.getForDate.mockImplementation((date: string) =>
       mockGetForDate(date)
     );
@@ -424,16 +415,12 @@ describe('DailyRecord Sync Integration', () => {
   it('distinguishes a returned save failure from an exception for recovered-copy exports', async () => {
     const record = createMockRecord('2024-12-28');
     mockGetForDate.mockResolvedValue(record);
-    mockSave.mockResolvedValue(
-      createSaveDailyRecordResult({
-        date: record.date,
-        outcome: 'unrecoverable',
-        savedLocally: false,
-        savedRemotely: false,
-        queuedForRetry: false,
-        autoMerged: false,
-      })
-    );
+    mockSave.mockResolvedValue({
+      date: record.date,
+      savedHere: false,
+      state: 'not_saved',
+      reason: 'local_failed',
+    });
     const { result } = renderHook(() => useDailyRecordSyncQuery(record.date, false, 'ready'), {
       wrapper: createWrapper(),
     });
@@ -510,16 +497,12 @@ describe('DailyRecord Sync Integration', () => {
     await act(async () => {
       await result.current.patchRecord({ 'beds.R1.patientName': 'Paciente Sintético' });
     });
-    mockUpdatePartial.mockResolvedValueOnce(
-      createUpdatePartialDailyRecordResult({
-        date: '2024-12-28',
-        outcome: 'queued',
-        savedLocally: true,
-        updatedRemotely: false,
-        queuedForRetry: true,
-        autoMerged: false,
-      })
-    );
+    mockUpdatePartial.mockResolvedValueOnce({
+      date: '2024-12-28',
+      savedHere: true,
+      state: 'local',
+      cause: 'retrying',
+    });
     await act(async () => {
       await result.current.patchRecord({ 'beds.R1.pathology': 'Diagnóstico sintético' });
     });

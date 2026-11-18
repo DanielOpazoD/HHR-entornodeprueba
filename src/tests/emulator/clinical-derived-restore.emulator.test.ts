@@ -143,9 +143,9 @@ const HISTORY = [vitals(DAY, 72), vitals(PRIOR_DAY, 70)];
         const saved = await read();
         await boundary.afterSave?.();
         return {
-          outcome: 'clean',
-          savedLocally: true,
-          savedRemotely: true,
+          savedHere: true,
+          state: 'confirmed',
+          localCopy: 'current',
           confirmedRecord: { ...saved, lastUpdated: iso(saved.lastUpdated) },
         };
       }

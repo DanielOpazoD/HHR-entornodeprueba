@@ -1,8 +1,6 @@
 import {
-  resolveDailyRecordWriteStatus,
   toDailyRecordWriteError,
-  type SaveDailyRecordResult,
-  type UpdatePartialDailyRecordResult,
+  type DailyRecordWriteResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
 
 /**
@@ -10,11 +8,8 @@ import {
  * attached an error. A refusal that kept this computer's copy for review resolves here; the census
  * flow (`assertDailyRecordWriteAccepted`) is the caller that stops on it.
  */
-export const assertDailyRecordRepositoryWriteAccepted = (
-  result: SaveDailyRecordResult | UpdatePartialDailyRecordResult
-): void => {
-  const status = resolveDailyRecordWriteStatus(result);
-  if (result.blockingError || (status.state === 'not_saved' && status.reason === 'blocked')) {
+export const assertDailyRecordRepositoryWriteAccepted = (result: DailyRecordWriteResult): void => {
+  if (result.blockingError || (result.state === 'not_saved' && result.reason === 'blocked')) {
     throw toDailyRecordWriteError(
       result,
       'La actualización quedó bloqueada por una validación de consistencia.'

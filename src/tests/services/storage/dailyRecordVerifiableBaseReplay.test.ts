@@ -73,7 +73,7 @@ it.each([false, true])(
       { 'beds.R6.pathology': 'PENDIENTE SINTETICO' },
       { authoringSession: captureAuthoringSession(), baseRecord: base }
     );
-    expect(result.updatedRemotely).toBe(false);
+    expect(result.state).not.toBe('confirmed');
     expect(remote().beds.R6.pathology).toBe('Dx E');
     const [pending] = await queue();
     expect(pending.syncContract?.expectedVersion).toBe('');
@@ -115,7 +115,7 @@ it('publishes a patch whose writer keeps the actual stored version', async () =>
     { 'beds.R6.pathology': 'ACEPTADO SINTETICO' },
     { authoringSession: captureAuthoringSession(), baseRecord: base }
   );
-  expect(result.updatedRemotely).toBe(true);
+  expect(result.state).toBe('confirmed');
   expect(remote().beds.R6.pathology).toBe('ACEPTADO SINTETICO');
   expect(await queue()).toHaveLength(0);
 });

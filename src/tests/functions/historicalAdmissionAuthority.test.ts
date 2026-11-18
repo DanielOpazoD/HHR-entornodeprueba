@@ -7,7 +7,6 @@ import { extractDailyRecordBedTreePatch } from '@/services/storage/firestore/fir
 import { normalizeDailyRecordInvariants } from '@/utils/recordInvariants';
 import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
-import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import {
   computePreviousDayEdits,
   fileCrossDayCorrections,
@@ -131,14 +130,12 @@ it.each([false, true])(
           makeContext()
         );
         remote = result.recordState.record;
-        return createUpdatePartialDailyRecordResult({
+        return {
           date,
-          outcome: 'clean',
-          savedLocally: true,
-          updatedRemotely: true,
-          queuedForRetry: false,
-          autoMerged: false,
-        });
+          savedHere: true,
+          state: 'confirmed' as const,
+          localCopy: 'current' as const,
+        };
       }
     );
     const port = {

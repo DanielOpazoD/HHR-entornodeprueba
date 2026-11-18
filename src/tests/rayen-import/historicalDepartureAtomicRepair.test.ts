@@ -8,7 +8,6 @@ import {
 } from '@/features/rayen-import/domain/previousDayCorrections';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import { saveDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordSavePersistenceController';
-import { createSaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 
@@ -101,17 +100,13 @@ const setup = (recoverChild: boolean) => {
 describe('historical departure repair before the previous-night CUDYR batch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(saveDailyRecordWithCompatibility).mockImplementation(async (_port, record) =>
-      createSaveDailyRecordResult({
-        date: record.date,
-        outcome: 'clean',
-        savedLocally: true,
-        savedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-        confirmedRecord: record,
-      })
-    );
+    vi.mocked(saveDailyRecordWithCompatibility).mockImplementation(async (_port, record) => ({
+      date: record.date,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
+      confirmedRecord: record,
+    }));
   });
   it.each([true, false])(
     'commits a consistent historical census atomically; own RN departure known: %s',

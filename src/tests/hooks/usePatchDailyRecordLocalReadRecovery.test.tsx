@@ -115,7 +115,7 @@ it.each(['present', 'absent', 'once', 'always', 'competing'] as const)(
             },
           },
         });
-        expect(response.result?.updatedRemotely).toBe(true);
+        expect(response.result?.state).toBe('confirmed');
       } catch (error) {
         failure = error;
       }

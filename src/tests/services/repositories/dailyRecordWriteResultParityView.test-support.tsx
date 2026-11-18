@@ -15,10 +15,7 @@ import { RepositoryProvider, createRepositoryContainer } from '@/services/Reposi
 import { createDailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
 import { resolvePatchErrorFeedback } from '@/hooks/controllers/dailyRecordSyncNotificationController';
-import type {
-  SaveDailyRecordResult,
-  UpdatePartialDailyRecordResult,
-} from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { authoredOptions, captureAuthoringSession } from '@/services/storage/authoringSession';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import * as writeService from '@/services/repositories/dailyRecordRepositoryWriteService';
@@ -45,7 +42,7 @@ const mountWith = (
   shown: DailyRecord | null,
   authoritative?: DailyRecord,
   beforeWrite?: () => unknown,
-  respond?: () => UpdatePartialDailyRecordResult
+  respond?: () => DailyRecordWriteResult
 ) => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false, gcTime: 0 } },
@@ -123,14 +120,14 @@ export const runPatchInHook = async (
     authoritative?: DailyRecord;
     beforeWrite?: () => unknown;
     /** A producer that today's hook flow cannot trigger, called in place of the repository. */
-    respond?: () => UpdatePartialDailyRecordResult;
+    respond?: () => DailyRecordWriteResult;
   } = {}
 ) => {
   onlineManager.setOnline(true);
   const shown = (await hospitalDB.dailyRecords.get(PARITY_DATE)) ?? null;
   const { client, wrapper } = mountWith(shown, authoritative, beforeWrite, respond);
   const hook = renderHook(() => usePatchDailyRecordMutation(PARITY_DATE), { wrapper });
-  let result: UpdatePartialDailyRecordResult | null = null;
+  let result: DailyRecordWriteResult | null = null;
   let error: unknown;
   await act(async () => {
     try {
@@ -156,7 +153,7 @@ export const runPatchInHook = async (
   };
   hook.unmount();
   client.clear();
-  return { result: result as UpdatePartialDailyRecordResult | null, error, ...view };
+  return { result: result as DailyRecordWriteResult | null, error, ...view };
 };
 
 /** The same for a whole-day save through useSaveDailyRecordMutation. */
@@ -169,7 +166,7 @@ export const runSaveInHook = async (
   const shown = (await hospitalDB.dailyRecords.get(PARITY_DATE)) as DailyRecord;
   const { client, wrapper } = mountWith(shown, undefined, beforeWrite);
   const hook = renderHook(() => useSaveDailyRecordMutation(), { wrapper });
-  let result: SaveDailyRecordResult | null = null;
+  let result: DailyRecordWriteResult | null = null;
   let error: unknown;
   await act(async () => {
     try {
@@ -195,7 +192,7 @@ export const runSaveInHook = async (
   };
   hook.unmount();
   client.clear();
-  return { result: result as SaveDailyRecordResult | null, error, ...view };
+  return { result: result as DailyRecordWriteResult | null, error, ...view };
 };
 
 /** One row of a parity table: how today's code produces the shape, and what each consumer does. */
@@ -210,7 +207,7 @@ export interface ParityCase {
   /** What the person edited, read from the census (the night note by default). */
   read?: Shown;
   authoritative?: () => DailyRecord;
-  respond?: () => UpdatePartialDailyRecordResult;
+  respond?: () => DailyRecordWriteResult;
   expected: Record<string, unknown>;
 }
 
@@ -248,7 +245,8 @@ export const observePatchCase = async (testCase: ParityCase) => {
     cuadro: run.cuadro,
     ...(await observeConsumers(
       run.result,
-      (await hospitalDB.dailyRecords.get(PARITY_DATE)) ?? baseDay()
+      (await hospitalDB.dailyRecords.get(PARITY_DATE)) ?? baseDay(),
+      'patch'
     )),
     ...durability,
   };

@@ -36,9 +36,8 @@ import { syncPatientsToMasterInBackground } from '@/services/repositories/dailyR
 import { resolveBlockingFieldShrinkages } from '@/services/repositories/dailyRecordFieldShrinkageGuard';
 import {
   applyRecoveryDecisionToState,
-  buildBlockedSaveResult,
-  buildPartialUpdateResult,
-  buildSaveResult,
+  buildBlockedWriteResult,
+  buildWriteResult,
   createRemoteWriteState,
   type RemoteWriteState,
   applyBlockedSaveRecoveryToState,
@@ -171,7 +170,7 @@ const saveDetailedWithinLock = async (
         options.authoringSession
       ))
     ) {
-      return buildSaveResult(command.date, remoteState);
+      return buildWriteResult(command.date, remoteState);
     }
 
     if (
@@ -180,7 +179,7 @@ const saveDetailedWithinLock = async (
       err instanceof AdmissionDatePolicyViolationError
     ) {
       applyBlockedSaveRecoveryToState(remoteState, err);
-      return buildBlockedSaveResult(command.date, remoteState);
+      return buildBlockedWriteResult(command.date, remoteState);
     }
     throw err;
   }
@@ -209,7 +208,7 @@ const saveDetailedWithinLock = async (
     remoteState.savedLocally = true;
     remoteState.queuedForRetry = true;
     remoteState.consistencyState = 'queued_for_retry';
-    return buildSaveResult(command.date, remoteState);
+    return buildWriteResult(command.date, remoteState);
   }
   const nextAction = await persistLocalAndAttemptRemoteSync({
     change: {
@@ -271,12 +270,12 @@ const saveDetailedWithinLock = async (
     },
   });
   if (nextAction === 'return') {
-    return buildSaveResult(command.date, remoteState);
+    return buildWriteResult(command.date, remoteState);
   }
 
   syncPatientsToMasterInBackground(validatedRecord);
 
-  return buildSaveResult(command.date, remoteState);
+  return buildWriteResult(command.date, remoteState);
 };
 
 export const saveDetailed = (
@@ -467,7 +466,7 @@ const updatePartialDetailedWithinLock = async (
       remoteAuthorityFirst: guardedCommandPolicy.remoteAuthorityFirst,
     },
   });
-  return buildPartialUpdateResult(command.date, remoteState);
+  return buildWriteResult(command.date, remoteState);
 };
 
 export const updatePartialDetailed = (

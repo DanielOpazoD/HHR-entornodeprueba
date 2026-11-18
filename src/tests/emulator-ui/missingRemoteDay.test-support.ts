@@ -362,7 +362,7 @@ export const missingRemoteDayMatrix = (
         queueControl.online = true;
         await actor('B', () => processSyncQueue());
         const after = (await h.admin.doc(dayPath).get()).data();
-        expect(result.updatedRemotely).toBe(false);
+        expect(result.state).not.toBe('confirmed');
         expect(before).toBeUndefined();
         expect(queue).toMatchObject([
           {
@@ -391,7 +391,7 @@ export const missingRemoteDayMatrix = (
           if (label === 'day') expect(otherDevice?.handoffNovedadesDayShift).toBe('EDITADO');
           if (label === 'staff') expect(otherDevice?.nursesDayShift).toContain('ENFERMERA NUEVA');
         }
-        expect(result.savedLocally).toBe(true);
+        expect(result.savedHere).toBe(true);
       });
     }
   }

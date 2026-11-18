@@ -12,7 +12,7 @@ import { bedManagementReducer } from '@/hooks/useBedManagementReducer';
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
-import type { UpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import {
   presentSyncOutcomeFeedback,
   resolvePatchOutcomeFeedback,
@@ -232,7 +232,7 @@ const baseRecord = (): DailyRecord =>
   }) as DailyRecord;
 
 /** The notice the census shows for a patch result, as `useDailyRecordSyncQuery` presents it. */
-const shownNotice = (result: UpdatePartialDailyRecordResult) => {
+const shownNotice = (result: DailyRecordWriteResult) => {
   const shown: string[] = [];
   presentSyncOutcomeFeedback(resolvePatchOutcomeFeedback(result), 'Actualización', {
     success: () => shown.push('success'),
@@ -303,14 +303,13 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       }
     };
     /** Clinical: the person is told «guardado». */
-    const expectShownSaved = (result: UpdatePartialDailyRecordResult) => {
-      expect(result).toMatchObject({ savedLocally: true, updatedRemotely: true });
+    const expectShownSaved = (result: DailyRecordWriteResult) => {
+      expect(result).toMatchObject({ savedHere: true, state: 'confirmed' });
       expect(shownNotice(result)).toEqual(['success']);
     };
     /** Clinical: kept on this computer and waiting, never «guardado». */
-    const expectShownPending = async (result: UpdatePartialDailyRecordResult, cell: string) => {
-      expect(result).toMatchObject({ savedLocally: true, updatedRemotely: false });
-      expect(result.queuedForRetry).toBe(true);
+    const expectShownPending = async (result: DailyRecordWriteResult, cell: string) => {
+      expect(result).toMatchObject({ savedHere: true, state: 'local', cause: 'retrying' });
       expect(shownNotice(result)).not.toContain('success');
       expect(await cellDiagnosis()).toBe(cell);
       expect(await waiting()).toBeGreaterThan(0);

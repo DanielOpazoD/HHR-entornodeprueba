@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { resolveConfirmedRayenCensusHandoff } from '@/features/rayen-import/hooks/rayenCensusPersistenceGuard';
 import { classifyRayenApplyFailureReason } from '@/features/rayen-import/observability/rayenSyncDiagnostics';
-import type { SaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 /**
@@ -11,18 +11,14 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
  * concurrencia que el lazo de replan reintenta.
  */
 
-const buildResult = (overrides: Partial<SaveDailyRecordResult> = {}): SaveDailyRecordResult => ({
-  date: '2026-07-28',
-  outcome: 'clean',
-  savedLocally: true,
-  savedRemotely: true,
-  queuedForRetry: false,
-  autoMerged: false,
-  consistencyState: 'persisted_and_synced',
-  conflictSummary: null,
-  observabilityTags: ['daily_record', 'write'],
-  ...overrides,
-});
+const buildResult = (overrides: Partial<DailyRecordWriteResult> = {}): DailyRecordWriteResult =>
+  ({
+    date: '2026-07-28',
+    savedHere: true,
+    state: 'confirmed',
+    localCopy: 'current',
+    ...overrides,
+  }) as DailyRecordWriteResult;
 
 const buildRecord = (runId = 'run-1', overrides: Partial<DailyRecord> = {}): DailyRecord =>
   ({

@@ -40,7 +40,6 @@ import {
   DailyRecordWriteBlockedOutcomeError,
 } from '@/hooks/controllers/dailyRecordWriteOutcomeGuard';
 import { resolveDailyRecordSyncStatus } from '@/hooks/controllers/dailyRecordSyncStatusController';
-import { resolveDailyRecordWriteStatus } from '@/services/repositories/contracts/dailyRecordResults';
 import { presentDailyRecordRefreshOutcome } from '@/hooks/controllers/dailyRecordRefreshOutcomeController';
 import { dailyRecordSyncLogger } from '@/hooks/hookLoggers';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
@@ -261,8 +260,7 @@ export const useDailyRecordSyncQuery = (
         assertDailyRecordWriteAccepted(payload.result);
         // Accepted edits only: a refused one is timed once, in the catch below.
         if (isCurrentWrite(authoringSession)) {
-          const confirmed =
-            !!payload.result && resolveDailyRecordWriteStatus(payload.result).state === 'confirmed';
+          const confirmed = !!payload.result && payload.result.state === 'confirmed';
           recordDailyActionTiming('census_edit_saved', startedAt, confirmed);
         }
       } catch (err) {

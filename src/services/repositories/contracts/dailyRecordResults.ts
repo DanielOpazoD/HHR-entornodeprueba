@@ -5,7 +5,6 @@ import type {
   DailyRecordRetryability,
   DailyRecordSourceOfTruth,
   DailyRecordSyncConsistencyState,
-  DailyRecordWriteConsistencyState,
 } from '@/services/repositories/contracts/dailyRecordConsistency';
 import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
 
@@ -25,65 +24,32 @@ const assertDate = (date: string, operation: string): void => {
  */
 export type DailyRecordWriteReason = 'session_changed' | 'field_changed_elsewhere' | 'queue_route';
 
-export interface SaveDailyRecordResult {
+/**
+ * What a full save or a partial update left, decided once by the repository that wrote it.
+ * `savedHere`: its producer recorded a copy on this computer. `confirmed`: the server holds it
+ * (`stale`: this computer's copy could not follow). `local`: not refused, and the queue sends it
+ * by itself; without `savedHere` the producer recorded no copy, so the box says error and the
+ * notice «not saved». `held`: kept here, waiting for a person or for its author. `not_saved`: not
+ * on the day: blocked, not stored, or its session ended first.
+ */
+export type DailyRecordWriteResult = {
   date: string;
-  outcome: 'clean' | 'queued' | 'auto_merged' | 'blocked' | 'unrecoverable';
-  savedLocally: boolean;
-  savedRemotely: boolean;
-  queuedForRetry: boolean;
-  autoMerged: boolean;
-  consistencyState: DailyRecordWriteConsistencyState;
-  conflictSummary: DailyRecordConflictSummary | null;
-  observabilityTags: string[];
-  reason?: DailyRecordWriteReason;
+  savedHere: boolean;
   userSafeMessage?: string;
+  /** The producer's own error; a blocked write keeps its class (regression, version, validation). */
   blockingError?: Error;
-  /** Exact server-confirmed state returned by the authority callable, when available. */
+  /** Another writer changed the day first: the caller's error travels as `ConcurrencyError`. */
+  concurrencyConflict?: true;
+  /** Exact server-confirmed state returned or read back after the write, when available. */
   confirmedRecord?: DailyRecord;
-  /** Retained local work that the full-save response did not confirm. */
+  /** Local projection rebased onto that confirmed state while other local work is pending. */
   localProjectionRecord?: DailyRecord;
-}
-
-type SaveDailyRecordResultInput = Pick<
-  SaveDailyRecordResult,
-  'date' | 'outcome' | 'savedLocally' | 'savedRemotely' | 'queuedForRetry' | 'autoMerged'
-> &
-  Partial<
-    Omit<
-      SaveDailyRecordResult,
-      'date' | 'outcome' | 'savedLocally' | 'savedRemotely' | 'queuedForRetry' | 'autoMerged'
-    >
-  >;
-
-export interface UpdatePartialDailyRecordResult {
-  date: string;
-  outcome: 'clean' | 'queued' | 'auto_merged' | 'blocked' | 'unrecoverable';
-  savedLocally: boolean;
-  updatedRemotely: boolean;
-  queuedForRetry: boolean;
-  autoMerged: boolean;
-  consistencyState: DailyRecordWriteConsistencyState;
-  conflictSummary: DailyRecordConflictSummary | null;
-  observabilityTags: string[];
-  reason?: DailyRecordWriteReason;
-  userSafeMessage?: string;
-  blockingError?: Error;
-  /** Exact server-confirmed state returned or read back after the patch, when requested. */
-  confirmedRecord?: DailyRecord;
-  /** Local projection rebased onto that confirmed state while another granular write is pending. */
-  localProjectionRecord?: DailyRecord;
-}
-
-type UpdatePartialDailyRecordResultInput = Pick<
-  UpdatePartialDailyRecordResult,
-  'date' | 'outcome' | 'savedLocally' | 'updatedRemotely' | 'queuedForRetry' | 'autoMerged'
-> &
-  Partial<
-    Omit<
-      UpdatePartialDailyRecordResult,
-      'date' | 'outcome' | 'savedLocally' | 'updatedRemotely' | 'queuedForRetry' | 'autoMerged'
-    >
-  >;
+} & (
+  | { state: 'confirmed'; localCopy: 'current' | 'stale' }
+  | { state: 'local'; cause: 'stored' | 'retrying' | 'merged' | 'queue_route' }
+  | { state: 'held'; reason: 'field_changed_elsewhere' | 'session_changed' | 'needs_review' }
+  | { state: 'not_saved'; reason: 'blocked' | 'session_changed' | 'local_failed' }
+);
 
 export interface SyncDailyRecordResult {
   publication?: 'superseded';
@@ -115,48 +81,6 @@ export interface CopyPatientResult {
   targetDate: string;
   outcome: 'clean' | 'repaired';
 }
-
-const resolveWriteConsistencyState = (
-  outcome: SaveDailyRecordResult['outcome'],
-  remotelyConfirmed: boolean
-): DailyRecordWriteConsistencyState =>
-  outcome === 'queued'
-    ? 'queued_for_retry'
-    : outcome === 'auto_merged'
-      ? 'auto_merged'
-      : outcome === 'unrecoverable'
-        ? 'unrecoverable'
-        : outcome === 'blocked'
-          ? 'blocked_validation'
-          : remotelyConfirmed
-            ? 'persisted_and_synced'
-            : 'persisted_local_only';
-
-export const createSaveDailyRecordResult = (
-  input: SaveDailyRecordResultInput
-): SaveDailyRecordResult => {
-  assertDate(input.date, 'save result');
-  return {
-    ...input,
-    conflictSummary: input.conflictSummary || null,
-    observabilityTags: Array.from(new Set(input.observabilityTags || ['daily_record', 'write'])),
-    consistencyState:
-      input.consistencyState || resolveWriteConsistencyState(input.outcome, input.savedRemotely),
-  };
-};
-
-export const createUpdatePartialDailyRecordResult = (
-  input: UpdatePartialDailyRecordResultInput
-): UpdatePartialDailyRecordResult => {
-  assertDate(input.date, 'updatePartial result');
-  return {
-    ...input,
-    conflictSummary: input.conflictSummary || null,
-    observabilityTags: Array.from(new Set(input.observabilityTags || ['daily_record', 'write'])),
-    consistencyState:
-      input.consistencyState || resolveWriteConsistencyState(input.outcome, input.updatedRemotely),
-  };
-};
 
 export const createSyncDailyRecordResult = (
   input: SyncDailyRecordResultInput
@@ -204,82 +128,19 @@ export const createCopyPatientResult = (input: CopyPatientResult): CopyPatientRe
   return input;
 };
 
-export const isDailyRecordWriteBlockedResult = (
-  result: SaveDailyRecordResult | UpdatePartialDailyRecordResult | null | undefined
-): boolean =>
-  Boolean(
-    result &&
-    (result.consistencyState === 'blocked_regression' ||
-      result.consistencyState === 'blocked_version_mismatch' ||
-      result.consistencyState === 'blocked_validation')
-  );
-
-/**
- * What a write left, in one place. `savedHere`: its producer recorded a copy on this computer.
- * `confirmed`: the server holds it (`stale`: this computer's copy could not follow). `local`: not
- * refused, and the queue sends it by itself; without `savedHere` the producer recorded no copy,
- * so the box says error and the notice «not saved». `held`: kept here, waiting for a person or for its author. `not_saved`:
- * not on the day: blocked, not stored, or its session ended first.
- */
-export type DailyRecordWriteStatus = { savedHere: boolean } & (
-  | { state: 'confirmed'; localCopy: 'current' | 'stale' }
-  | { state: 'local'; cause: 'stored' | 'retrying' | 'merged' | 'queue_route' }
-  | { state: 'held'; reason: 'field_changed_elsewhere' | 'session_changed' | 'needs_review' }
-  | { state: 'not_saved'; reason: 'blocked' | 'session_changed' | 'local_failed' }
-);
-
-/** The only derivation of a write's state: the notice, the sync box and the guards read it. */
-export const resolveDailyRecordWriteStatus = (
-  result: SaveDailyRecordResult | UpdatePartialDailyRecordResult
-): DailyRecordWriteStatus => {
-  const savedHere = result.savedLocally;
-  if (result.reason === 'session_changed') {
-    return savedHere
-      ? { savedHere, state: 'held', reason: 'session_changed' }
-      : { savedHere, state: 'not_saved', reason: 'session_changed' };
-  }
-  if (result.reason === 'queue_route') return { savedHere, state: 'local', cause: 'queue_route' };
-  if (result.reason === 'field_changed_elsewhere') {
-    return { savedHere, state: 'held', reason: 'field_changed_elsewhere' };
-  }
-  if (result.outcome === 'blocked' || isDailyRecordWriteBlockedResult(result)) {
-    return { savedHere, state: 'not_saved', reason: 'blocked' };
-  }
-  const unrecoverable =
-    result.outcome === 'unrecoverable' || result.consistencyState === 'unrecoverable';
-  const savedRemotely = 'savedRemotely' in result ? result.savedRemotely : result.updatedRemotely;
-  if (savedRemotely) {
-    return { savedHere, state: 'confirmed', localCopy: unrecoverable ? 'stale' : 'current' };
-  }
-  if (result.outcome === 'auto_merged' && result.autoMerged) {
-    return { savedHere, state: 'local', cause: 'merged' };
-  }
-  if (unrecoverable) {
-    return savedHere
-      ? { savedHere, state: 'held', reason: 'needs_review' }
-      : { savedHere, state: 'not_saved', reason: 'local_failed' };
-  }
-  if (result.outcome === 'queued' && result.queuedForRetry) {
-    return { savedHere, state: 'local', cause: 'retrying' };
-  }
-  return { savedHere, state: 'local', cause: 'stored' };
-};
-
 /**
  * A write that cannot safely continue the caller's workflow, even if it returned a result. A
  * session that ended during a direct send keeps the edit in its author's queue and is not one.
  */
 export const isDailyRecordWriteRejectedResult = (
-  result: SaveDailyRecordResult | UpdatePartialDailyRecordResult | null | undefined
-): boolean => {
-  if (!result) return false;
-  const status = resolveDailyRecordWriteStatus(result);
-  return (
-    status.state === 'not_saved' ||
-    (status.state === 'held' && status.reason === 'needs_review') ||
-    (status.state === 'confirmed' && status.localCopy === 'stale')
+  result: DailyRecordWriteResult | null | undefined
+): boolean =>
+  Boolean(
+    result &&
+    (result.state === 'not_saved' ||
+      (result.state === 'held' && result.reason === 'needs_review') ||
+      (result.state === 'confirmed' && result.localCopy === 'stale'))
   );
-};
 
 /**
  * The only conversion of a write result into the error its caller throws: the producer's own
@@ -288,12 +149,12 @@ export const isDailyRecordWriteRejectedResult = (
  * fresh read; a producer's error that already has its own class keeps it.
  */
 export const toDailyRecordWriteError = (
-  result: SaveDailyRecordResult | UpdatePartialDailyRecordResult,
+  result: DailyRecordWriteResult,
   fallbackMessage: string
 ): Error => {
   const error =
     result.blockingError ?? new Error(resolveApplicationOutcomeMessage(result, fallbackMessage));
-  if (result.conflictSummary?.kind === 'concurrency' && error.name === 'Error') {
+  if (result.concurrencyConflict && error.name === 'Error') {
     error.name = 'ConcurrencyError';
   }
   return error;

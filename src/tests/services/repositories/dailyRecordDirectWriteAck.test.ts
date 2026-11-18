@@ -111,7 +111,7 @@ describe('a direct write acknowledges only its own edit', () => {
       { nursesDayShift: ['SINTETICA SIN RED'] },
       { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
     );
-    expect(offlineEdit.savedLocally).toBe(true);
+    expect(offlineEdit.savedHere).toBe(true);
     expect(remote.record?.nursesDayShift).toEqual(['SINTETICA BASE']);
 
     vi.setSystemTime(new Date('2026-10-24T13:00:00.000Z'));
@@ -157,7 +157,7 @@ describe('a direct write acknowledges only its own edit', () => {
       { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
     );
 
-    expect(result.savedLocally).toBe(true);
+    expect(result.savedHere).toBe(true);
     expect(remote.record?.tensDayShift).toEqual(['SINTETICO UNICO']);
     expect(await hospitalDB.syncQueue.count()).toBe(0);
   });

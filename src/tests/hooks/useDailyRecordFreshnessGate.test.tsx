@@ -16,7 +16,6 @@ import {
   createDailyRecordQueryResult,
   createDailyRecordReadResult,
 } from '@/services/repositories/contracts/dailyRecordQueries';
-import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { createTestQueryClient } from '@/tests/utils/queryClientTestUtils';
@@ -86,16 +85,12 @@ describe('daily record remote freshness gate', () => {
       resolveRemoteRead = resolve;
     });
     vi.mocked(dailyRecord.getForDateWithMeta).mockReturnValue(remoteRead);
-    vi.mocked(dailyRecord.updatePartialDetailed).mockResolvedValue(
-      createUpdatePartialDailyRecordResult({
-        date,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-      })
-    );
+    vi.mocked(dailyRecord.updatePartialDetailed).mockResolvedValue({
+      date,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
+    });
     queryClient.setQueryData(
       getDailyRecordQueryKey(date),
       createDailyRecordQueryResult(localRecord, {
@@ -197,16 +192,12 @@ describe('daily record remote freshness gate', () => {
         repairApplied: false,
       })
     );
-    vi.mocked(dailyRecord.updatePartialDetailed).mockResolvedValue(
-      createUpdatePartialDailyRecordResult({
-        date,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-      })
-    );
+    vi.mocked(dailyRecord.updatePartialDetailed).mockResolvedValue({
+      date,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
+    });
 
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>
@@ -267,16 +258,12 @@ describe('daily record remote freshness gate', () => {
         repairApplied: false,
       })
     );
-    vi.mocked(dailyRecord.updatePartialDetailed).mockResolvedValue(
-      createUpdatePartialDailyRecordResult({
-        date,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-      })
-    );
+    vi.mocked(dailyRecord.updatePartialDetailed).mockResolvedValue({
+      date,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
+    });
     queryClient.setQueryData(
       getDailyRecordQueryKey(date),
       createDailyRecordQueryResult(localRecord, {
