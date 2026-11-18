@@ -29,7 +29,7 @@
 | ----- | ---------- | ---------------------------------------------------------------------------- |
 | `B01` | completado | limpieza de `.DS_Store` en el workspace y protección vigente en `.gitignore` |
 | `B02` | completado | duplicados `* 2.ts` retirados del árbol activo                               |
-| `B03` | completado | taxonomía canónica documentada en `docs/CODEBASE_CANON.md`                   |
+| `B03` | completado | taxonomía canónica documentada (hoy en `docs/architecture.md`)               |
 | `B04` | completado | `README.md`, `src/README.md` y `ARCHITECTURE.md` alineados con la taxonomía  |
 | `B05` | completado | `src/infrastructure/` retirado como capa activa; no admite código nuevo      |
 

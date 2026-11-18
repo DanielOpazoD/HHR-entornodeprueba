@@ -1,21 +1,5 @@
 # `src/config`
 
-## Propósito
-
-Configuración transversal de librerías de infraestructura de aplicación.
-
-## Archivos
-
-| Archivo          | Propósito                                                                 |
-| ---------------- | ------------------------------------------------------------------------- |
-| `queryClient.ts` | Configura `@tanstack/react-query` (`queryKeys`, defaults, cache behavior) |
-
-## Patrón
-
-- Config centralizada y reusable para evitar settings duplicados por hook.
-
-## Ejemplo
-
-```ts
-import { queryClient } from '@/config/queryClient';
-```
+Configuración transversal de librerías de la aplicación, como el cliente de TanStack Query
+(`queryClient.ts`) y la validación del entorno. Constantes de negocio van en `constants/`.
+Dónde va cada cosa: [arquitectura](../../docs/architecture.md).

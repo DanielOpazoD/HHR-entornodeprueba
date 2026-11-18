@@ -98,22 +98,8 @@ incluyen los mismos controles.
 
 ### Capas en `src/`
 
-| Capa/Directorio    | Rol                                                                               |
-| ------------------ | --------------------------------------------------------------------------------- |
-| `src/features/`    | Módulos de negocio por feature (census, handoff, transfers, etc.)                 |
-| `src/application/` | Casos de uso compartidos, outcomes y puertos                                      |
-| `src/components/`  | Componentes UI reutilizables y layout global                                      |
-| `src/hooks/`       | Hooks de orquestación y lógica de aplicación                                      |
-| `src/context/`     | Context providers y contratos de estado global                                    |
-| `src/services/`    | Acceso a datos, repositorios, integración externa y utilidades de infraestructura |
-| `src/domain/`      | Lógica de dominio transversal                                                     |
-| `src/shared/`      | Runtime adapters y tipos transversales de UI                                      |
-| `src/types/`       | Contratos TypeScript de entidades y DTOs                                          |
-| `src/schemas/`     | Esquemas de validación                                                            |
-| `src/utils/`       | Helpers puros transversales                                                       |
-| `src/tests/`       | Pruebas por capa y por feature                                                    |
-
-Taxonomía canónica y reglas de ownership: [docs/CODEBASE_CANON.md](docs/CODEBASE_CANON.md)
+Las capas de `src/`, qué puede depender de qué y dónde va cada cosa están en una sola página:
+[docs/architecture.md](docs/architecture.md).
 
 ## Path Aliases
 
@@ -136,7 +122,6 @@ import { useDailyRecord } from '@/hooks/useDailyRecord';
 - [Índice operativo de runbooks](docs/RUNBOOK_INDEX.md)
 - [Mapa global de documentación](docs/DOCUMENTATION_MAP.md)
 - [Auditoría técnica de la aplicación](docs/TECHNICAL_APPLICATION_AUDIT.md)
-- [Taxonomía canónica del código](docs/CODEBASE_CANON.md)
 - [Modelo de acceso y login](docs/AUTH_ACCESS_MODEL.md)
 - [Runbook de incidentes de acceso](docs/RUNBOOK_AUTH_ACCESS_INCIDENTS.md)
 - [Arquitectura global](docs/architecture.md)
@@ -157,7 +142,6 @@ import { useDailyRecord } from '@/hooks/useDailyRecord';
 - [Registro de deuda técnica](docs/TECHNICAL_DEBT_REGISTER.md)
 - [ADR Repository Provider obligatorio](docs/ADR_REPOSITORY_PROVIDER_REQUIRED.md)
 - [ADR fachada de access policy](docs/ADR_ACCESS_POLICY_FACADE.md)
-- [ADR boundary de application](docs/ADR_APPLICATION_BOUNDARY_ENFORCEMENT.md)
 - [ADR daily-record runtime path](docs/ADR_DAILY_RECORD_RUNTIME_PATH.md)
 - [ADR auth runtime recovery](docs/ADR_AUTH_RUNTIME_RECOVERY.md)
 - [ADR clinical-documents workspace contract](docs/ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md)
@@ -179,7 +163,6 @@ import { useDailyRecord } from '@/hooks/useDailyRecord';
 - [src/config/README.md](src/config/README.md)
 - [src/constants/README.md](src/constants/README.md)
 - [src/context/README.md](src/context/README.md)
-- [src/docs/README.md](src/docs/README.md)
 - [src/domain/README.md](src/domain/README.md)
 - [src/features/README.md](src/features/README.md)
 - [src/hooks/README.md](src/hooks/README.md)

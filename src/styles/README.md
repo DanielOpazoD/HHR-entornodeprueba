@@ -1,15 +1,5 @@
 # `src/styles`
 
-## Propósito
-
-Estilos CSS especializados no cubiertos por utilidades Tailwind genéricas.
-
-## Archivos
-
-| Archivo     | Propósito                                               |
-| ----------- | ------------------------------------------------------- |
-| `print.css` | Reglas de impresión para documentos clínicos y reportes |
-
-## Convención
-
-- Mantener en esta carpeta estilos orientados a medios/contextos específicos (print, kiosk, etc.).
+CSS para contextos que Tailwind no cubre bien, como la impresión (`print.css`) y controles
+comunes. Los estilos de un componente van junto a él. Dónde va cada cosa:
+[arquitectura](../../docs/architecture.md).

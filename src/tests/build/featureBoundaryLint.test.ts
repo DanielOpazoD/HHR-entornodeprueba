@@ -106,18 +106,18 @@ describe('feature boundaries in ESLint (from scripts/feature-dependency-matrix.j
     expect(Object.keys(matrix.features).sort()).toEqual(directories);
   });
 
-  it('keeps the src/features/README.md table in parity with the feature directories', () => {
-    const readme = fs.readFileSync(path.join(ROOT, 'src/features/README.md'), 'utf8');
-    const rows = [...readme.matchAll(/^\|\s*\[?`([a-z-]+)\/`/gm)].map(match => match[1]).sort();
+  it('keeps the «Áreas» table of docs/architecture.md in parity with the feature directories', () => {
+    const page = fs.readFileSync(path.join(ROOT, 'docs/architecture.md'), 'utf8');
+    const section = page.split(/^## /m).find(part => part.startsWith('Áreas\n')) ?? '';
+    const rows = [...section.matchAll(/^\|\s*\[?`([a-z-]+)\/`/gm)].map(match => match[1]).sort();
     const directories = fs
       .readdirSync(path.join(ROOT, 'src/features'), { withFileTypes: true })
       .filter(entry => entry.isDirectory())
       .map(entry => entry.name)
       .sort();
-    expect(
-      rows,
-      'Agrega o quita la fila de la carpeta en «Mapa de features» de src/features/README.md'
-    ).toEqual(directories);
+    expect(rows, 'Agrega o quita la fila de la carpeta en «Áreas» de docs/architecture.md').toEqual(
+      directories
+    );
   });
 
   it.each(['Probe.spec.ts', 'Probe.d.ts', 'Probe.config.ts'])(

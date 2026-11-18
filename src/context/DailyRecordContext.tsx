@@ -4,7 +4,7 @@
  * Fragmented context system for optimal rendering of census data.
  *
  * 📘 GUÍA DE ESTILO: Para elegir el hook correcto y evitar problemas de performance,
- * consulta src/docs/HOOKS_STYLE_GUIDE.md
+ * consulta «El registro diario» en docs/architecture.md
  */
 import React, { useContext } from 'react';
 import { DailyRecordContextType } from '@/context/dailyRecordContextContracts';

@@ -4,18 +4,6 @@
 
 Módulo central del producto: censo diario, acciones sobre camas/pacientes, movimientos (alta/traslado/move-copy), UI de tablas y reglas de turno/fecha.
 
-## Subcapas internas
-
-| Path           | Rol                                                      |
-| -------------- | -------------------------------------------------------- |
-| `components/`  | UI del censo (tabla, filas, modales, secciones)          |
-| `hooks/`       | Orquestación de estado y acciones de la feature          |
-| `controllers/` | Lógica pura (validación, mapping, ejecución de comandos) |
-| `domain/`      | Contratos de movimientos y reglas propias                |
-| `context/`     | Contextos internos de acciones de censo                  |
-| `types/`       | Tipos internos del módulo                                |
-| `validation/`  | Validaciones específicas de acciones de censo            |
-
 ## Ownership de controllers
 
 - `src/features/census/controllers` es la fuente de verdad para controllers propios de `census`.
@@ -98,33 +86,6 @@ El IEEH ya no se completa desde el censo: se llena en el panel IEEH de la epicri
 [docs/features/ieeh-pdf-flow.md](../../../docs/features/ieeh-pdf-flow.md).
 
 - La preparación del formulario se mantiene separada de la lógica de impresión del PDF.
-
-## Archivos clave
-
-| Archivo                                                  | Motivo                                                          |
-| -------------------------------------------------------- | --------------------------------------------------------------- |
-| `controllers/clinicalShiftCalendarController.ts`         | Fuente única de invariantes de fecha/turno                      |
-| `controllers/censusActionExecutionController.ts`         | Resolución de comandos tipados                                  |
-| `controllers/censusActionRuntimeController.ts`           | Ejecución runtime desacoplada de provider                       |
-| `controllers/patientMovementCommandRuntimeController.ts` | Bridge command -> action runtime                                |
-| `controllers/bedManagerModalController.ts`               | Transiciones y validación del flujo de bloqueo de camas         |
-| `controllers/bedManagerGridItemsController.ts`           | Mapeo puro de `DailyRecord` a props de grillas de camas         |
-| `components/censusMovementActionPresentation.tsx`        | Iconografía y estilo compartidos de acciones de movimientos     |
-| `components/patient-row/nameInputController.ts`          | Contrato puro de display/edición del nombre del paciente        |
-| `src/hooks/useDischargeModalForm.ts`                     | Form flow de altas                                              |
-| `src/hooks/useTransferModalForm.ts`                      | Form flow de traslados                                          |
-| `src/hooks/useBedManagerModalModel.ts`                   | Orquestación UI vs dominio del modal de camas                   |
-| `hooks/useCensusMovementActionsCellModel.ts`             | View-model para celda de acciones de movimientos                |
-| `hooks/useCensusViewScreenModel.ts`                      | Fachada de pantalla: un solo `dayView` cerrado por día          |
-| `hooks/useCensusTableRuntime.ts`                         | Runtime unificado de tabla (dependencias + resize + activación) |
-| `hooks/useDischargesSectionModel.ts`                     | Fachada de wiring para altas                                    |
-| `hooks/useTransfersSectionModel.ts`                      | Fachada de wiring para traslados                                |
-| `components/patient-row/PatientClinicalAccess.tsx`       | Columna «Accesos»: rongorongo y temas clínicos del paciente     |
-| `components/patient-row/ClinicalAccessRadialMenu.tsx`    | Anillo de temas alrededor del explorador clínico                |
-| `components/patient-row/patientClinicalAccessIcons.ts`   | El ícono rongorongo de la columna «Accesos»                     |
-| `components/FugaNotificationModal.tsx`                   | Modal de notificación de fuga por correo                        |
-| `hooks/useFugaNotificationModalModel.ts`                 | Orquestación UI del envío de fuga                               |
-| `controllers/fugaNotificationPolicyController.ts`        | Política compartida de destinatarios y validación de fuga       |
 
 ## Calidad
 

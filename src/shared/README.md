@@ -1,36 +1,10 @@
 # `src/shared`
 
-## Propósito
+Piezas transversales reales: contratos puros (`contracts/`, por ejemplo `ApplicationOutcome` y
+los contratos HTTP con Netlify en `contracts/serverless.ts`), adaptadores del navegador
+(`runtime/browserWindowRuntimeCore.ts` y `runtime/browserClipboardRuntime.ts`; cada adaptador
+se importa desde su propio archivo), permisos (`access/`) y ayudas de presentación usadas por
+más de un módulo. No es dueña de tipos del dominio, que viven en `src/types/domain`, ni un
+lugar para código sin dueño claro: lo que usa una sola área va en esa área.
 
-Utilidades y contratos transversales compartidos entre múltiples capas/features.
-
-## Mapa
-
-| Path                                  | Propósito                                                                           |
-| ------------------------------------- | ----------------------------------------------------------------------------------- |
-| `contracts/*.ts`                      | Contratos transversales reales y helpers genéricos reutilizables entre features     |
-| `access/*.ts`                         | Policies compartidas de acceso/capabilities                                         |
-| `*/**/*Presentation*.ts`              | Helpers de presentación reutilizados por más de un módulo                           |
-| `runtime/browserWindowRuntimeCore.ts` | Adapter para efectos browser (`alert`, `confirm`, `open`, `reload`, `localStorage`) |
-| `ui/anchoredOverlayTypes.ts`          | Tipos de overlays/posicionamiento reutilizables                                     |
-
-El portapapeles y la identificación del navegador pertenecen a
-`runtime/browserClipboardRuntime.ts`. Importar cada adaptador desde su propietario;
-la fachada histórica `browserWindowRuntime.ts` fue retirada.
-
-`contracts/serverless.ts` conserva los schemas y tipos compartidos por el cliente
-y las funciones Netlify; no cambia su validación ni sus contratos HTTP.
-
-## Patrón
-
-- Runtime Adapter Pattern para reducir acoplamiento directo a APIs globales del navegador.
-- `ApplicationOutcome` y sus helpers de mensaje viven en `shared/contracts/` porque los consumen `application`, `services`, `hooks`, `context` y features.
-- `patientDomainContracts.ts` vive en `shared/contracts/` como fachada curada para consumers transversales que necesitan tipos del hotspot `patient` sin importar directo desde `src/types/domain/patient`.
-- `src/shared/` no es owner de tipos de dominio: si un tipo viene de entidad/payload estable, vive en `src/types/`.
-
-## Ejemplo
-
-```ts
-import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
-defaultBrowserWindowRuntime.alert('Mensaje');
-```
+Dueños, puertas y el objetivo de repartir esta carpeta: [arquitectura](../../docs/architecture.md).

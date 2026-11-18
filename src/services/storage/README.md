@@ -4,32 +4,14 @@
 
 Capa de persistencia concreta: IndexedDB, localStorage, Firestore y sincronización.
 
-## Entry points canónicos
+## Puertas
 
-| Path                | Uso soportado                                               |
-| ------------------- | ----------------------------------------------------------- |
-| `storage/firestore` | lectura/escritura remota de registros y catálogos           |
-| `storage/sync`      | cola, retry, métricas y telemetría de sincronización        |
-| `storage/core`      | disponibilidad de IndexedDB, fallback y mantenimiento/reset |
-| `storage/records`   | acceso directo al record store local                        |
-| `storage/runtime`   | bootstrap/bindings y política visible de fallback           |
-
-La fachada `index.ts` se mantiene como compatibilidad mínima.
-
-## Mapa
-
-| Path/Archivo                                  | Propósito                                             |
-| --------------------------------------------- | ----------------------------------------------------- |
-| `syncQueueTypes.ts`                           | Tipos de cola de sincronización                       |
-| `sync/`                                       | Engine, runtime, transport y store del outbox         |
-| `core/`                                       | Entry point público de disponibilidad y mantenimiento |
-| `records/`                                    | Entry point público del record store local            |
-| `runtime/`                                    | Entry point público de bootstrap y fallback UI        |
-| `tableConfigService.ts`                       | Persistencia de configuración de tablas               |
-| `uiSettingsService.ts`                        | Persistencia de preferencias UI                       |
-| `localpersistence/localPersistenceService.ts` | Fallback local unificado (records/settings)           |
-| `index.ts`                                    | Exports de storage                                    |
-| `indexeddb/` / `localstorage/` / `firestore/` | Implementaciones más finas por backend                |
+Desde fuera de esta carpeta se entra por `@/services/storage/firestore` (lectura y escritura
+remota de registros y catálogos) y `@/services/storage/sync` (cola, reintentos, métricas y
+telemetría de sincronización). La sesión (`sessionStorageTransition.ts`,
+`authoringSession.ts`), la copia local (`indexeddb/`, `localstorage/`, `localpersistence/`) y
+la configuración de tablas e interfaz tienen cada una su archivo; la raíz no tiene barril
+`index.ts`.
 
 `storage/firestore` es el entrypoint remoto soportado.
 La construcción de rangos mensuales y helpers de escritura sigue viviendo en
@@ -63,9 +45,6 @@ lectura correcta puede devolver una lista vacía. El monitor distingue ese fallo
 los contadores disponibles y lo muestra como «Guardado local · por comprobar».
 El reporte de salud conserva los contadores y el evento del fallo aunque no pueda
 adjuntar la lista reciente. Una lectura posterior correcta restablece el monitor.
-`storage/index.ts` queda como barrel de compatibilidad mínima; nuevos imports deben ir a `storage/firestore`, `storage/sync`, `storage/core`, `storage/records` o `storage/runtime`.
-Los adapters de storage que necesiten `DailyRecord` deben importarlo desde
-`storageDailyRecordContracts.ts`, no directo desde `src/types/domain/dailyRecord`.
 
 ## Estrategia
 
@@ -82,9 +61,8 @@ Cambios en esta capa requieren:
 
 1. tests de servicios,
 2. verificación de degradación/fallback,
-3. revisión de impacto en `DailyRecordRepository`.
-4. si tocan `sync/` o `firestore/`, actualizar `reports/operational-health.md`
-5. mantener alineados `docs/RUNBOOK_SYNC_RESILIENCE.md`,
+3. si tocan `sync/` o `firestore/`, actualizar `reports/operational-health.md`
+4. mantener alineados `docs/RUNBOOK_SYNC_RESILIENCE.md`,
    `docs/RUNBOOK_OPERATIONAL_BUDGETS.md` y `npm run check:operational-runbooks`
    cuando cambien budgets, degradación local o criterios de alerta.
    y mantener `storage/firestore`/`storage/sync` como fachadas curadas.
@@ -103,8 +81,6 @@ Cambios en esta capa requieren:
 - `storage/sync` es el único punto de acceso soportado para telemetría, stats
   y operaciones recientes; la UI no debe leer Dexie directo para esta información.
 - `sync/publicSyncQueue.ts` es la implementación canónica del outbox.
-- `storage/core` es el único punto de acceso soportado para fallback/reset desde UI y hooks.
-- `storage/runtime` es el punto de acceso soportado para copy/UI de degradación y bootstrap IndexedDB.
 - Si cambia la policy domain-aware de sync, deben actualizarse en conjunto:
   - `sync/syncDomainPolicy.ts`
   - `syncQueueTypes.ts`

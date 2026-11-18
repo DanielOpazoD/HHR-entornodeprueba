@@ -139,7 +139,7 @@ Abrir en este orden:
 
 - Para orientarte en el repo completo: [DOCUMENTATION_MAP.md](./DOCUMENTATION_MAP.md)
 - Para comandos curados: [DEVELOPER_COMMANDS.md](./DEVELOPER_COMMANDS.md)
-- Para decisiones canónicas de estructura: [CODEBASE_CANON.md](./CODEBASE_CANON.md)
+- Para decidir dónde va cada cosa: [architecture.md](./architecture.md)
 - Para el plan activo de mejoras por bloques: [superpowers/plans/2026-04-20-audit-block-roadmap.md](./superpowers/plans/2026-04-20-audit-block-roadmap.md)
 
 ## Regla de mantenimiento
