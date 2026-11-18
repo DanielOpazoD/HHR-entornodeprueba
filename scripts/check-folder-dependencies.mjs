@@ -11,10 +11,16 @@
  * and are allowed in any direction. Any spelling counts: `@/` alias, relative, with or without
  * extension.
  *
- * The upward relations that exist today are listed one by one, file to file, under
- * `exceptions`, each with its reason. The list only shrinks: a new upward relation fails even if
- * another one disappeared, and a listed relation that no longer exists (or no longer goes up)
- * fails until it is removed from the list.
+ * Shared UI holds no data access: `components/` does not load, by value or deferred, a module of
+ * `services/` that opens data, that is, one that imports a package of `dataAccess.packages`
+ * (Firestore, Storage, IndexedDB through Dexie) or names a global of `dataAccess.globals` (the raw
+ * `indexedDB`), directly or through other modules of `services/`.
+ * Data access is spread over many service folders next to pure helpers, so it is told by what a
+ * module imports, not by its folder.
+ *
+ * The relations of both rules that exist today are listed one by one, file to file, in the
+ * exceptions book (`exceptions` and `dataAccess.exceptions`), each with its reason. The book only
+ * shrinks: see `scripts/lib/folderDependencyBook.mjs`.
  *
  * Feature to feature imports are not this rule: `hhr/feature-boundaries` and
  * `hhr/public-import-boundaries` own them with `scripts/feature-dependency-matrix.json`.
@@ -33,7 +39,14 @@ import {
   listProductionSources,
   readClassifiedReferences,
   resolveSpecifier,
+  usesGlobal,
 } from './lib/sourceModules.mjs';
+import {
+  compareWithBase,
+  relationKey,
+  resolveBookBase,
+  validateSection,
+} from './lib/folderDependencyBook.mjs';
 
 export const POLICY_PATH = 'scripts/folder-dependency-matrix.json';
 const ENTRY_POINTS_PATH = 'scripts/config/unreachable-modules.json';
@@ -53,8 +66,6 @@ export const folderOf = file => {
   if (parts[0] !== 'src') return null;
   return parts.length > 2 ? parts[1] : ROOT_FOLDER;
 };
-
-const relationKey = ({ from, to, kind }) => `${from}|${to}|${kind}`;
 
 /** Policy problems that make every verdict meaningless; checked before reading the code. */
 const readPolicy = root => {
@@ -77,41 +88,37 @@ const readPolicy = root => {
     }
   }
   const exceptions = policy.exceptions ?? [];
-  const seen = new Set();
-  for (const exception of exceptions) {
-    const key = relationKey(exception);
-    if (
-      typeof exception.from !== 'string' ||
-      typeof exception.to !== 'string' ||
-      !BOUND_KINDS.has(exception.kind) ||
-      typeof exception.reason !== 'string' ||
-      exception.reason.trim() === ''
-    ) {
-      problems.push(
-        `Excepción inválida ${JSON.stringify(exception)}: necesita "from", "to", "kind" (value o deferred) y "reason".`
-      );
-    } else if (seen.has(key)) {
-      problems.push(`Excepción repetida: ${exception.from} → ${exception.to} (${exception.kind}).`);
-    }
-    seen.add(key);
+  const dataAccess = policy.dataAccess ?? {};
+  if (!Array.isArray(dataAccess.from) || !Array.isArray(dataAccess.packages)) {
+    problems.push(`${POLICY_PATH} necesita "dataAccess" con "from" y "packages".`);
   }
-  return { problems, layerOf, nameOf, exceptions };
+  problems.push(
+    ...validateSection(exceptions, 'exceptions'),
+    ...validateSection(dataAccess.exceptions ?? [], 'dataAccess.exceptions')
+  );
+  return { problems, layerOf, nameOf, exceptions, dataAccess, policy };
 };
 
 /** Every resolved reference of production code in `src/` and Netlify Functions. */
-const readGraph = root => {
+const readGraph = (root, dataGlobals = []) => {
   const appFiles = listProductionSources(root, 'src');
   const netlifyFiles = listProductionSources(root, NETLIFY_DIR);
   const known = new Set([...appFiles, ...netlifyFiles]);
   const edges = [];
+  const packageReferences = [];
   for (const from of [...appFiles, ...netlifyFiles]) {
     const source = fs.readFileSync(path.join(root, from), 'utf8');
+    for (const name of dataGlobals)
+      if (usesGlobal(from, source, [name]))
+        packageReferences.push({ from, specifier: name, kind: 'global' });
     for (const reference of readClassifiedReferences(from, source)) {
       const to = resolveSpecifier(from, reference.specifier, known);
       if (to && to !== from) edges.push({ from, to, ...reference });
+      else if (!to && !/^[./@]/.test(reference.specifier) && reference.kind !== 'type')
+        packageReferences.push({ from, ...reference });
     }
   }
-  return { appFiles, edges };
+  return { appFiles, edges, packageReferences };
 };
 
 /** For each shared module, the consumers that reach it; see the header. */
@@ -156,13 +163,42 @@ const computeConsumers = (root, appFiles, edges, layerOf, featureLayer) => {
   return consumersOf;
 };
 
+/**
+ * Modules of `services/` that open data, each with how: the package it imports, or the module of
+ * `services/` through which it reaches one.
+ */
+const findDataServices = (edges, packageReferences, { packages, globals = [] }) => {
+  const opensData = specifier =>
+    globals.find(name => specifier === name) ??
+    packages.find(name => specifier === name || specifier.startsWith(`${name}/`));
+  const isService = file => folderOf(file) === 'services';
+  const reasons = new Map();
+  for (const reference of packageReferences) {
+    const name = opensData(reference.specifier);
+    if (name && isService(reference.from) && !reasons.has(reference.from))
+      reasons.set(reference.from, { package: name });
+  }
+  const runtimeEdges = edges.filter(
+    edge => edge.kind !== 'type' && isService(edge.from) && isService(edge.to)
+  );
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const edge of runtimeEdges) {
+      if (reasons.has(edge.from) || !reasons.has(edge.to)) continue;
+      reasons.set(edge.from, { package: reasons.get(edge.to).package, via: edge.to });
+      grew = true;
+    }
+  }
+  return reasons;
+};
+
 /** The whole analysis, for the command and for `report-quality-metrics`. */
 export const analyzeFolderDependencies = (root = process.cwd()) => {
   const policy = readPolicy(root);
   if (policy.problems.length > 0) return { problems: policy.problems };
-  const { layerOf, nameOf, exceptions } = policy;
+  const { layerOf, nameOf, exceptions, dataAccess } = policy;
   const featureLayer = layerOf.get('features');
-  const { appFiles, edges } = readGraph(root);
+  const { appFiles, edges, packageReferences } = readGraph(root, dataAccess.globals ?? []);
   const problems = [];
   const unknownFolders = [
     ...new Set(appFiles.map(folderOf).filter(folder => !layerOf.has(folder))),
@@ -192,9 +228,24 @@ export const analyzeFolderDependencies = (root = process.cwd()) => {
       upward.set(relationKey(relation), { ...relation, edge });
   }
 
-  const listed = new Map(exceptions.map(exception => [relationKey(exception), exception]));
-  const unlisted = [...upward.values()].filter(relation => !listed.has(relationKey(relation)));
-  const stale = exceptions.filter(exception => !upward.has(relationKey(exception)));
+  const dataServices = findDataServices(edges, packageReferences, dataAccess);
+  const dataReads = new Map();
+  for (const edge of edges) {
+    if (!dataAccess.from.includes(folderOf(edge.from)) || !BOUND_KINDS.has(edge.kind)) continue;
+    if (!dataServices.has(edge.to)) continue;
+    const relation = { from: edge.from, to: edge.to, kind: edge.kind };
+    if (!dataReads.has(relationKey(relation)))
+      dataReads.set(relationKey(relation), { ...relation, edge, data: dataServices.get(edge.to) });
+  }
+  const compare = (found, book) => {
+    const listed = new Set(book.map(relationKey));
+    return {
+      unlisted: [...found.values()].filter(relation => !listed.has(relationKey(relation))),
+      stale: book.filter(entry => !found.has(relationKey(entry))),
+    };
+  };
+  const { unlisted, stale } = compare(upward, exceptions);
+  const data = compare(dataReads, dataAccess.exceptions ?? []);
   const consumersOf = computeConsumers(root, appFiles, edges, layerOf, featureLayer);
   const describe = file => {
     const folder = folderOf(file);
@@ -207,6 +258,11 @@ export const analyzeFolderDependencies = (root = process.cwd()) => {
     upwardTypeRelations: upwardTypes.size,
     unlisted,
     stale,
+    dataReads: [...dataReads.values()],
+    dataUnlisted: data.unlisted,
+    dataStale: data.stale,
+    dataServiceCount: dataServices.size,
+    policy: policy.policy,
     consumersOf,
     describe,
   };
@@ -234,6 +290,23 @@ const formatUnlisted = (analysis, relation) => {
   ];
 };
 
+const formatDataRead = (analysis, relation) => {
+  const { package: name, via } = relation.data;
+  const how = via ? `llega a ${name} por ${via}` : `importa ${name}`;
+  const from = analysis.describe(relation.from);
+  return [
+    `- ${relation.from}:${relation.edge.line} → ${relation.to} (${KIND_LABEL[relation.kind]}, «${relation.edge.specifier}»)`,
+    `  ${from.folder} es ${from.name} sin acceso a datos, y ${relation.to} abre datos: ${how}.`,
+    `  Qué hacer: sube la lectura o la escritura a un hook o contexto (capa 3) o a la feature que la usa, y entrega al componente los datos y las acciones por props. Si basta el tipo, usa «import type». No la agregues a "dataAccess.exceptions" en ${POLICY_PATH}: ese libro solo baja.`,
+  ];
+};
+
+const formatStale = (entries, label) =>
+  entries.flatMap(entry => [
+    `- ${entry.from} → ${entry.to} (${KIND_LABEL[entry.kind]})`,
+    `  Sácala de "${label}" en ${POLICY_PATH}: el libro solo baja.`,
+  ]);
+
 const formatOwnership = analysis => {
   const byFeature = new Map();
   for (const [file] of analysis.consumersOf) {
@@ -253,39 +326,58 @@ const formatOwnership = analysis => {
   return `${lines.join('\n')}\n`;
 };
 
-/** Checks the rule in the repository at `root`, as the command prints and exits. */
-export const checkFolderDependencies = (root = process.cwd()) => {
+/**
+ * Checks the rule in the repository at `root`, as the command prints and exits. `env` gives the
+ * base of the book (`FOLDER_BOOK_BASE`); without it, `git merge-base HEAD origin/main`.
+ */
+export const checkFolderDependencies = (root = process.cwd(), env = process.env) => {
   const analysis = analyzeFolderDependencies(root);
   if (analysis.problems.length > 0) {
     return { status: 1, stdout: '', stderr: `${analysis.problems.join('\n')}\n` };
   }
-  const { counts, upward, unlisted, stale } = analysis;
-  if (unlisted.length === 0 && stale.length === 0) {
-    const byKind = kind => upward.filter(relation => relation.kind === kind).length;
-    return {
-      status: 0,
-      stdout:
-        `Folder dependency checks passed: ${counts.value} referencias de valor, ${counts.deferred} diferidas y ${counts.type} de tipo entre carpetas; ` +
-        `${upward.length} relaciones hacia arriba, todas en el libro (${byKind('value')} de valor, ${byKind('deferred')} diferidas); ` +
-        `${analysis.upwardTypeRelations} de tipo hacia arriba, permitidas.\n`,
-      stderr: '',
-    };
-  }
+  const { counts, upward, unlisted, stale, dataReads, dataUnlisted, dataStale } = analysis;
+  const resolved = resolveBookBase(root, env);
+  if (resolved.error) return { status: 1, stdout: '', stderr: `${resolved.error}\n` };
+  const book = compareWithBase(root, POLICY_PATH, analysis.policy, resolved.base);
   const lines = [];
   if (unlisted.length > 0) {
     lines.push(`\nDependencias hacia arriba sin registrar (regla en ${POLICY_PATH}):`);
     for (const relation of unlisted) lines.push(...formatUnlisted(analysis, relation));
   }
-  if (stale.length > 0) {
-    lines.push('\nEl libro de excepciones registra relaciones que ya no suben en el código:');
-    for (const exception of stale) {
+  if (dataUnlisted.length > 0) {
+    lines.push(`\nInterfaz compartida que abre datos (regla "dataAccess" en ${POLICY_PATH}):`);
+    for (const relation of dataUnlisted) lines.push(...formatDataRead(analysis, relation));
+  }
+  if (stale.length + dataStale.length > 0) {
+    lines.push('\nEl libro de excepciones registra relaciones que el código ya no tiene:');
+    lines.push(
+      ...formatStale(stale, 'exceptions'),
+      ...formatStale(dataStale, 'dataAccess.exceptions')
+    );
+  }
+  if (book.added.length > 0) {
+    lines.push(
+      `\nEl libro solo baja: estas entradas no están en el de la base ${book.base.slice(0, 9)}.`
+    );
+    for (const entry of book.added) {
       lines.push(
-        `- ${exception.from} → ${exception.to} (${KIND_LABEL[exception.kind]})`,
-        `  Sácala de "exceptions" en ${POLICY_PATH}: el libro solo baja.`
+        `- "${entry.section}": ${entry.from} → ${entry.to} (${KIND_LABEL[entry.kind]})`,
+        '  Quítala del libro y corrige la dependencia; registrar una relación nueva es decisión del responsable, en su propia PR.'
       );
     }
   }
-  return { status: 1, stdout: '', stderr: `${lines.join('\n')}\n` };
+  if (lines.length > 0) return { status: 1, stdout: '', stderr: `${lines.join('\n')}\n` };
+  const byKind = (relations, kind) => relations.filter(relation => relation.kind === kind).length;
+  const summary =
+    `Folder dependency checks passed: ${counts.value} referencias de valor, ${counts.deferred} diferidas y ${counts.type} de tipo entre carpetas; ` +
+    `${upward.length} relaciones hacia arriba, todas en el libro (${byKind(upward, 'value')} de valor, ${byKind(upward, 'deferred')} diferidas); ` +
+    `${analysis.upwardTypeRelations} de tipo hacia arriba, permitidas; ` +
+    `${dataReads.length} lecturas de datos desde la interfaz compartida, todas en el libro (${analysis.dataServiceCount} módulos de services abren datos).`;
+  return {
+    status: 0,
+    stdout: `${summary}\n${book.notice ? `${book.notice}\n` : ''}`,
+    stderr: '',
+  };
 };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {

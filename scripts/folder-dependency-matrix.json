@@ -44,6 +44,86 @@
       "responsibility": "Arranque, rutas y vistas perezosas; (raíz) son los archivos directos de src/."
     }
   ],
+  "dataAccess": {
+    "rule": "La interfaz compartida no abre datos: components/ no carga, en valor ni en diferido, un módulo de services/ que importe uno de estos paquetes o use uno de estos globales, directamente o a través de otros módulos de services/. Los tipos sí pueden cruzar.",
+    "from": ["components"],
+    "packages": ["firebase/firestore", "firebase/storage", "dexie"],
+    "globals": ["indexedDB"],
+    "exceptions": [
+      {
+        "from": "src/components/bookmarks/BookmarkBar.tsx",
+        "to": "src/services/bookmarks/bookmarkService.ts",
+        "kind": "value",
+        "reason": "Los marcadores leen y guardan en Firestore desde sus componentes; la lectura sube a un hook de marcadores."
+      },
+      {
+        "from": "src/components/bookmarks/BookmarkManagerModal.tsx",
+        "to": "src/services/bookmarks/bookmarkService.ts",
+        "kind": "value",
+        "reason": "Los marcadores leen y guardan en Firestore desde sus componentes; la lectura sube a un hook de marcadores."
+      },
+      {
+        "from": "src/components/bookmarks/hooks/useBookmarkBarPreferences.ts",
+        "to": "src/services/bookmarks/bookmarkService.ts",
+        "kind": "value",
+        "reason": "Los marcadores leen y guardan en Firestore desde sus componentes; la lectura sube a un hook de marcadores."
+      },
+      {
+        "from": "src/components/bookmarks/hooks/useBookmarkImport.ts",
+        "to": "src/services/bookmarks/bookmarkService.ts",
+        "kind": "value",
+        "reason": "Los marcadores leen y guardan en Firestore desde sus componentes; la lectura sube a un hook de marcadores."
+      },
+      {
+        "from": "src/components/layout/app-content/useAppContentRuntime.ts",
+        "to": "src/services/exporters/censusMasterExport.ts",
+        "kind": "deferred",
+        "reason": "El shell carga la exportación maestra del censo, que lee la base local; la acción sube al arranque o a la feature del censo."
+      },
+      {
+        "from": "src/components/layout/StorageStatusBadge.tsx",
+        "to": "src/services/storage/indexeddb/indexedDbMaintenanceService.ts",
+        "kind": "value",
+        "reason": "La insignia ofrece limpiar la base local; la acción sube a un hook."
+      },
+      {
+        "from": "src/components/layout/UserSignatureDialog.tsx",
+        "to": "src/services/user-profile/userSignatureService.ts",
+        "kind": "value",
+        "reason": "El diálogo sube la firma a Storage; la acción sube a un hook del perfil."
+      },
+      {
+        "from": "src/components/modals/actions/MoveCopyModal.tsx",
+        "to": "src/services/RepositoryContext.tsx",
+        "kind": "value",
+        "reason": "El modal toma los repositorios de RepositoryContext; la acción sube a un hook."
+      },
+      {
+        "from": "src/components/modals/actions/TransferModal.tsx",
+        "to": "src/services/transfers/transferService.ts",
+        "kind": "value",
+        "reason": "El modal guarda traslados en Firestore; la acción sube a un hook o a la feature."
+      },
+      {
+        "from": "src/components/modals/PatientHistoryModal.tsx",
+        "to": "src/services/patient/patientHistoryService.ts",
+        "kind": "value",
+        "reason": "El modal lee el historial del paciente de la base local; la lectura sube a un hook."
+      },
+      {
+        "from": "src/components/modals/RecoverCensusStaffButton.tsx",
+        "to": "src/services/staff/recoverCensusStaff.ts",
+        "kind": "deferred",
+        "reason": "El botón recupera el personal del censo en Firestore; la acción sube a la feature del censo."
+      },
+      {
+        "from": "src/components/shared/GlobalErrorBoundary.tsx",
+        "to": "src/services/utils/errorService.ts",
+        "kind": "value",
+        "reason": "El límite de errores registra el error con errorService, que persiste en la base local; queda hasta separar el registro de la pantalla."
+      }
+    ]
+  },
   "exceptions": [
     {
       "from": "src/application/census-email/censusRecipientListUseCases.ts",

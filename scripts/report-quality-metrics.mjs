@@ -193,8 +193,16 @@ const getFolderDependencyDebtMetrics = () => {
   const analysis = analyzeFolderDependencies(ROOT);
   if (analysis.problems.length > 0) return { violations: analysis.problems.length, listed: 0 };
   return {
-    violations: analysis.unlisted.length + analysis.stale.length,
-    listed: analysis.upward.length - analysis.unlisted.length,
+    violations:
+      analysis.unlisted.length +
+      analysis.stale.length +
+      analysis.dataUnlisted.length +
+      analysis.dataStale.length,
+    listed:
+      analysis.upward.length -
+      analysis.unlisted.length +
+      analysis.dataReads.length -
+      analysis.dataUnlisted.length,
   };
 };
 

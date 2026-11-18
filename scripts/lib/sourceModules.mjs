@@ -30,14 +30,30 @@ export const listProductionSources = (root, relativeDir) => {
   return files;
 };
 
-/** The listed file a specifier points at, or null for packages and files outside the list. */
+/** TypeScript sources Vite serves for a `.js`-style specifier, as `./x.js` → `./x.ts`. */
+const TS_FOR_JS = [
+  [/\.js$/, ['.ts', '.tsx']],
+  [/\.jsx$/, ['.tsx']],
+  [/\.mjs$/, ['.mts']],
+];
+
+/**
+ * The listed file a specifier points at, resolved as Vite does, or null for packages and files
+ * outside the list: `@/` is `src/`, a leading `/` is the repository root (`/src/x.ts`), a query
+ * (`?worker`, `?url`, `?raw`, `?inline`) names the same file, and `./x.js` may be `./x.ts`.
+ */
 export const resolveSpecifier = (fromFile, specifier, files) => {
+  const bare = specifier.split('?')[0];
   let base;
-  if (specifier.startsWith('@/')) base = `src/${specifier.slice(2)}`;
-  else if (specifier.startsWith('.')) base = toPosix(path.join(path.dirname(fromFile), specifier));
+  if (bare.startsWith('@/')) base = `src/${bare.slice(2)}`;
+  else if (bare.startsWith('.')) base = toPosix(path.join(path.dirname(fromFile), bare));
+  else if (bare.startsWith('/')) base = toPosix(path.posix.normalize(bare.slice(1)));
   else return null;
   const candidates = [
     base,
+    ...TS_FOR_JS.flatMap(([pattern, extensions]) =>
+      pattern.test(base) ? extensions.map(extension => base.replace(pattern, extension)) : []
+    ),
     ...SOURCE_EXTENSIONS.map(extension => `${base}${extension}`),
     ...SOURCE_EXTENSIONS.map(extension => `${base}/index${extension}`),
   ];
@@ -76,8 +92,9 @@ const isImportMetaUrl = node =>
  * - `type`: erased when compiling (`import type`, `export type`, every named specifier marked
  *   `type`, or `import('x').T` in a type position);
  * - `value`: evaluated when the importing module loads (imports, side-effect imports, re-exports);
- * - `deferred`: loaded later, by `import('x')` or by `new URL('x', import.meta.url)`, which is
- *   how Vite is told about a worker.
+ * - `deferred`: loaded later, by `import('x')`, by `new URL('x', import.meta.url)` (how Vite is
+ *   told about a worker), or by any import with a Vite query (`x?worker`, `x?url`, `x?raw`,
+ *   `x?inline`): the file reaches the build, but its module does not run when the importer loads.
  * Comments, strings and non-literal specifiers are not references.
  */
 export const readClassifiedReferences = (fileName, source) => {
@@ -92,7 +109,7 @@ export const readClassifiedReferences = (fileName, source) => {
   const add = (literal, kind) =>
     references.push({
       specifier: literal.text,
-      kind,
+      kind: kind === 'value' && literal.text.includes('?') ? 'deferred' : kind,
       line: tree.getLineAndCharacterOfPosition(literal.getStart(tree)).line + 1,
     });
   const visit = node => {
@@ -137,4 +154,18 @@ export const readClassifiedReferences = (fileName, source) => {
   };
   visit(tree);
   return references;
+};
+
+/** Whether the source names one of `globals` as code (`indexedDB`, `window.indexedDB`). */
+export const usesGlobal = (fileName, source, globals) => {
+  if (!globals.some(name => source.includes(name))) return false;
+  const tree = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true);
+  let found = false;
+  const visit = node => {
+    if (found) return;
+    if (ts.isIdentifier(node) && globals.includes(node.text)) found = true;
+    else ts.forEachChild(node, visit);
+  };
+  visit(tree);
+  return found;
 };

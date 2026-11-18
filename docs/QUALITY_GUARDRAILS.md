@@ -147,8 +147,9 @@ comparar resultados.
 
 La dirección entre carpetas es una sola regla: `npm run check:folder-dependencies` falla
 ante una referencia de valor o diferida hacia una capa superior de
-`scripts/folder-dependency-matrix.json` que no esté en su libro de excepciones, y ante una
-excepción que ya no existe. El libro solo baja; ver [dependency-map.md](dependency-map.md).
+`scripts/folder-dependency-matrix.json` que no esté en su libro de excepciones, ante un
+componente compartido que abre datos, ante una excepción que ya no existe y ante una entrada que
+no está en el libro de la base. Ver [dependency-map.md](dependency-map.md).
 
 ## Cuándo abrir una excepción
 

@@ -1,9 +1,10 @@
 // @vitest-environment node
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { parse } from 'yaml';
 import {
   analyzeFolderDependencies,
   checkFolderDependencies,
@@ -11,18 +12,32 @@ import {
 
 type Exception = { from: string; to: string; kind: string; reason: string };
 const POLICY = 'scripts/folder-dependency-matrix.json';
-// The live layers with a synthetic book: the verdicts below are written by hand, never derived.
-const liveLayers = JSON.parse(readFileSync(POLICY, 'utf8')).layers;
+// The live layers and data packages with a synthetic book: the verdicts below are written by
+// hand, never derived.
+const livePolicy = JSON.parse(readFileSync(POLICY, 'utf8'));
+const liveLayers = livePolicy.layers;
+const policyText = (exceptions: Exception[] = [], dataExceptions: Exception[] = []) =>
+  JSON.stringify({
+    layers: liveLayers,
+    dataAccess: { ...livePolicy.dataAccess, exceptions: dataExceptions },
+    exceptions,
+  });
+// No CI base leaks into the synthetic repositories.
+const NO_BASE = {};
 const roots: string[] = [];
 
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-const createRepository = (files: Record<string, string>, exceptions: Exception[] = []) => {
+const createRepository = (
+  files: Record<string, string>,
+  exceptions: Exception[] = [],
+  dataExceptions: Exception[] = []
+) => {
   const root = mkdtempSync(path.join(tmpdir(), 'hhr-folder-dependencies-'));
   roots.push(root);
-  const policy = JSON.stringify({ layers: liveLayers, exceptions });
+  const policy = policyText(exceptions, dataExceptions);
   for (const [relativePath, content] of Object.entries({ [POLICY]: policy, ...files })) {
     const destination = path.join(root, relativePath);
     mkdirSync(path.dirname(destination), { recursive: true });
@@ -31,8 +46,15 @@ const createRepository = (files: Record<string, string>, exceptions: Exception[]
   return root;
 };
 
-const check = (files: Record<string, string>, exceptions: Exception[] = []) => {
-  const result = checkFolderDependencies(createRepository(files, exceptions));
+const check = (
+  files: Record<string, string>,
+  exceptions: Exception[] = [],
+  dataExceptions: Exception[] = []
+) => {
+  const result = checkFolderDependencies(
+    createRepository(files, exceptions, dataExceptions),
+    NO_BASE
+  );
   return { ...result, output: `${result.stdout}${result.stderr}` };
 };
 
@@ -56,12 +78,25 @@ const spellings = (from: string, to: string) => {
     // Built in two parts so check:declared-dependencies does not read it as an import.
     'import()': `export const load = () => import(${`'${alias}'`});`,
     'new URL (worker)': `export const w = new URL('${relative}.ts', import.meta.url);`,
+    // Spellings Vite compiles to the same file.
+    'reexportación .js': `export { x } from '${relative}.js';`,
+    'absoluta /src/': `export * from '/${to}';`,
+    '?worker': `import W from '${relative}.ts?worker';\nexport { W };`,
+    '?url': `import u from '${relative}.ts?url';\nexport { u };`,
+    '?raw': `import r from '${relative}.ts?raw';\nexport { r };`,
+    '?inline': `import i from '${relative}.ts?inline';\nexport { i };`,
   };
 };
 
 // What eslint-plugin-boundaries prohibited, measured on 3d96acba9 (W15-A1 probe-table.md:
 // only relative spellings with an explicit `.ts`), and what decides each case now.
-const formerBoundaryCases = [
+const formerBoundaryCases: {
+  name: string;
+  from: string;
+  to: string;
+  content?: string;
+  now: 'rejected' | 'allowed';
+}[] = [
   {
     name: 'servicios → feature',
     from: 'src/services/admin/probe.ts',
@@ -112,10 +147,18 @@ const formerBoundaryCases = [
     now: 'allowed',
   },
   {
-    name: 'components/<sub> → servicios',
+    name: 'components/<sub> → servicios sin datos',
     from: 'src/components/layout/probe.tsx',
     to: 'src/services/storage/sessionOwnerKey.ts',
     now: 'allowed',
+  },
+  // Kept on purpose, now in every spelling: shared UI opens no data (dataAccess).
+  {
+    name: 'components/<sub> → servicio de datos',
+    from: 'src/components/layout/probe.tsx',
+    to: 'src/services/repositories/WoundCarePhotoRepository.ts',
+    content: "import { getFirestore } from 'firebase/firestore';\nexport const x = getFirestore;",
+    now: 'rejected',
   },
   // Never seen by boundaries in any spelling; the folder rule sees them in all.
   {
@@ -155,7 +198,10 @@ describe('one direction rule between the folders of src/', () => {
     for (const fixture of formerBoundaryCases) {
       for (const [spelling, code] of Object.entries(spellings(fixture.from, fixture.to))) {
         it(`${fixture.name}, ${spelling}: ${fixture.now}`, () => {
-          const result = check({ [fixture.from]: code, ...target(fixture.to) });
+          const result = check({
+            [fixture.from]: code,
+            [fixture.to]: fixture.content ?? 'export const x = 1;',
+          });
           expect(result.status, result.output).toBe(fixture.now === 'rejected' ? 1 : 0);
         });
       }
@@ -234,6 +280,14 @@ describe('one direction rule between the folders of src/', () => {
     expect(result.stderr).toContain('mueve hacia abajo lo que comparten');
     expect(result.stderr).toContain('«import type»');
     expect(result.stderr).toContain(`No la agregues a "exceptions" en ${POLICY}`);
+  });
+
+  it.each(['?worker', '?url'])('counts a %s import as a deferred load', query => {
+    const result = check({
+      'src/utils/probe.ts': `import W from '../services/target.ts${query}';\nexport { W };`,
+      ...target('src/services/target.ts'),
+    });
+    expect(result.stderr).toContain(`(carga diferida, «../services/target.ts${query}»)`);
   });
 
   it('rejects a deferred upward load and names its class', () => {
@@ -466,6 +520,216 @@ describe('one direction rule between the folders of src/', () => {
     });
   });
 
+  describe('shared UI opens no data', () => {
+    const firestore =
+      "import { getFirestore } from 'firebase/firestore';\nexport const x = getFirestore;";
+    const component = (code: string) => ({ 'src/components/probe.tsx': code });
+    const dataRead = {
+      from: 'src/components/probe.tsx',
+      to: 'src/services/bookmarks/bookmarkService.ts',
+      kind: 'value',
+      reason: 'synthetic',
+    };
+
+    it('rejects a component that imports a service which imports Firestore', () => {
+      const result = check({
+        ...component("import { x } from '@/services/bookmarks/bookmarkService';"),
+        'src/services/bookmarks/bookmarkService.ts': firestore,
+      });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        '- src/components/probe.tsx:1 → src/services/bookmarks/bookmarkService.ts (valor'
+      );
+      expect(result.stderr).toContain(
+        'components es interfaz compartida sin acceso a datos, y src/services/bookmarks/bookmarkService.ts abre datos: importa firebase/firestore.'
+      );
+      expect(result.stderr).toContain('sube la lectura o la escritura a un hook o contexto');
+      expect(result.stderr).toContain(`No la agregues a "dataAccess.exceptions" en ${POLICY}`);
+    });
+
+    it.each([
+      ['Storage', "import { ref } from 'firebase/storage';\nexport const x = ref;"],
+      ['Dexie', "import Dexie from 'dexie';\nexport const x = Dexie;"],
+      ['a lazy Firestore load', "export const x = () => import('firebase/firestore');"],
+      ['the raw indexedDB global', 'export const x = () => indexedDB.deleteDatabase("db");'],
+    ])('treats a service that opens %s as data', (_name, content) => {
+      const result = check({
+        ...component("import { x } from '@/services/bookmarks/bookmarkService';"),
+        'src/services/bookmarks/bookmarkService.ts': content,
+      });
+      expect(result.status, result.output).toBe(1);
+    });
+
+    it('follows services that reach data through other services, and names the path', () => {
+      const result = check({
+        ...component("export const load = () => import('@/services/patient/history');"),
+        'src/services/patient/history.ts': "export { x } from './loader';",
+        'src/services/patient/loader.ts': "export { x } from '@/services/storage/db';",
+        'src/services/storage/db.ts': "import Dexie from 'dexie';\nexport const x = Dexie;",
+      });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('(carga diferida');
+      expect(result.stderr).toContain(
+        'abre datos: llega a dexie por src/services/patient/loader.ts.'
+      );
+    });
+
+    it.each([
+      ['a type-only import', "import type { x } from '@/services/bookmarks/bookmarkService';"],
+      ['a service without data', "import { y } from '@/services/bookmarks/format';"],
+      ['a mention of indexedDB in a comment', "import { z } from '@/services/bookmarks/note';"],
+    ])('accepts %s', (_name, code) => {
+      const result = check({
+        ...component(code),
+        'src/services/bookmarks/bookmarkService.ts': firestore,
+        'src/services/bookmarks/format.ts': 'export const y = 1;',
+        'src/services/bookmarks/note.ts':
+          '// indexedDB is opened elsewhere\nexport const z = "indexedDB";',
+      });
+      expect(result.status, result.output).toBe(0);
+    });
+
+    it('binds shared UI only: hooks and features may read data', () => {
+      for (const from of ['src/hooks/useProbe.ts', 'src/features/census/probe.ts']) {
+        const result = check({
+          [from]: "import { x } from '@/services/bookmarks/bookmarkService';",
+          'src/services/bookmarks/bookmarkService.ts': firestore,
+        });
+        expect(result.status, result.output).toBe(0);
+      }
+    });
+
+    it('accepts a listed data read and asks to remove it once gone', () => {
+      const files = {
+        ...component("import { x } from '@/services/bookmarks/bookmarkService';"),
+        'src/services/bookmarks/bookmarkService.ts': firestore,
+      };
+      const listed = check(files, [], [dataRead]);
+      expect(listed.status, listed.output).toBe(0);
+      expect(listed.stdout).toContain(
+        '1 lecturas de datos desde la interfaz compartida, todas en el libro'
+      );
+      const gone = check(
+        { 'src/services/bookmarks/bookmarkService.ts': firestore },
+        [],
+        [dataRead]
+      );
+      expect(gone.status).toBe(1);
+      expect(gone.stderr).toContain('Sácala de "dataAccess.exceptions"');
+    });
+  });
+
+  describe('the book only shrinks against the base of the change', () => {
+    const upward = (file: string) => ({
+      [file]: "import { x } from '@/application/target';",
+      ...target('src/application/target.ts'),
+    });
+    const entry = (from: string): Exception => ({
+      from,
+      to: 'src/application/target.ts',
+      kind: 'value',
+      reason: 'synthetic',
+    });
+    const gitIn = (root: string, ...args: string[]) =>
+      execFileSync('git', ['-C', root, ...args], { stdio: 'pipe', encoding: 'utf8' });
+    // A repository whose origin/main holds `baseBook`; the working tree is then changed.
+    const repositoryWithBase = (files: Record<string, string>, baseBook: Exception[] | null) => {
+      const root = createRepository(files, baseBook ?? []);
+      if (baseBook === null)
+        writeFileSync(path.join(root, POLICY), JSON.stringify({ layers: liveLayers }));
+      gitIn(root, 'init', '-q');
+      gitIn(root, 'add', '-A');
+      gitIn(root, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'base');
+      gitIn(root, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+      return root;
+    };
+    const rewrite = (root: string, files: Record<string, string>, book: Exception[]) => {
+      for (const [file, content] of Object.entries(files)) {
+        mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+        writeFileSync(path.join(root, file), content);
+      }
+      writeFileSync(path.join(root, POLICY), policyText(book));
+    };
+
+    it('rejects a new relation listed in the same change', () => {
+      const root = repositoryWithBase(upward('src/services/a.ts'), [entry('src/services/a.ts')]);
+      rewrite(root, upward('src/services/b.ts'), [
+        entry('src/services/a.ts'),
+        entry('src/services/b.ts'),
+      ]);
+      const result = checkFolderDependencies(root, NO_BASE);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        'El libro solo baja: estas entradas no están en el de la base'
+      );
+      expect(result.stderr).toContain(
+        '- "exceptions": src/services/b.ts → src/application/target.ts (valor)'
+      );
+    });
+
+    it('rejects swapping a listed relation for a new one with the same total', () => {
+      const root = repositoryWithBase(upward('src/services/a.ts'), [entry('src/services/a.ts')]);
+      writeFileSync(path.join(root, 'src/services/a.ts'), 'export const a = 1;');
+      rewrite(root, upward('src/services/b.ts'), [entry('src/services/b.ts')]);
+      const result = checkFolderDependencies(root, NO_BASE);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('- "exceptions": src/services/b.ts');
+    });
+
+    it('accepts removing a relation and its entry', () => {
+      const root = repositoryWithBase(upward('src/services/a.ts'), [entry('src/services/a.ts')]);
+      writeFileSync(path.join(root, 'src/services/a.ts'), 'export const a = 1;');
+      rewrite(root, {}, []);
+      const result = checkFolderDependencies(root, NO_BASE);
+      expect(result.status, `${result.stdout}${result.stderr}`).toBe(0);
+    });
+
+    it('compares with FOLDER_BOOK_BASE when CI passes it, and fails when it is missing', () => {
+      const root = repositoryWithBase(upward('src/services/a.ts'), [entry('src/services/a.ts')]);
+      gitIn(root, 'update-ref', '-d', 'refs/remotes/origin/main');
+      rewrite(root, upward('src/services/b.ts'), [
+        entry('src/services/a.ts'),
+        entry('src/services/b.ts'),
+      ]);
+      expect(checkFolderDependencies(root, { FOLDER_BOOK_BASE: 'HEAD' }).status).toBe(1);
+      const missing = checkFolderDependencies(root, { FOLDER_BOOK_BASE: 'deadbeef' });
+      expect(missing.status).toBe(1);
+      expect(missing.stderr).toContain(
+        'FOLDER_BOOK_BASE=deadbeef no es un commit de este checkout'
+      );
+    });
+
+    it('creates the book when the base has none, and only warns without a base', () => {
+      const created = repositoryWithBase(upward('src/services/a.ts'), null);
+      rewrite(created, {}, [entry('src/services/a.ts')]);
+      expect(checkFolderDependencies(created, NO_BASE).status).toBe(0);
+      const local = check(upward('src/services/a.ts'), [entry('src/services/a.ts')]);
+      expect(local.status).toBe(0);
+      expect(local.stdout).toContain('Aviso: no hay base para comprobar que el libro solo baja');
+    });
+
+    it('gets the pull request base in the CI jobs that run the rule', () => {
+      type Step = {
+        uses?: string;
+        run?: string;
+        with?: Record<string, unknown>;
+        env?: Record<string, string>;
+      };
+      const workflow = parse(readFileSync('.github/workflows/ci-cd.yml', 'utf8')) as {
+        jobs: Record<string, { steps: Step[] }>;
+      };
+      const groups = workflow.jobs['quality-static-groups'].steps;
+      const checkout = groups.find(step => step.uses === 'actions/checkout@v7');
+      expect(Number(checkout?.with?.['fetch-depth'])).toBeGreaterThanOrEqual(2);
+      const run = groups.find(step => step.run?.includes('check:quality:group'));
+      expect(run?.env?.FOLDER_BOOK_BASE).toContain("'HEAD^1'");
+      const tooling = workflow.jobs['tooling-scope-gate'].steps.find(
+        step => step.run === 'npm run check:quality'
+      );
+      expect(tooling?.env?.FOLDER_BOOK_BASE).toBe('${{ github.event.pull_request.base.sha }}');
+    });
+  });
+
   it('prints and exits as the command exactly what it decides in process', () => {
     for (const [files, status] of [
       [target('src/services/target.ts'), 0],
@@ -478,15 +742,17 @@ describe('one direction rule between the folders of src/', () => {
       ],
     ] as const) {
       const root = createRepository(files);
+      const env = { ...process.env };
+      delete env.FOLDER_BOOK_BASE;
       const result = spawnSync(
         process.execPath,
         [path.resolve('scripts/check-folder-dependencies.mjs')],
-        { cwd: root, encoding: 'utf8' }
+        { cwd: root, encoding: 'utf8', env }
       );
       expect(result.error).toBeUndefined();
       expect(result.status).toBe(status);
       expect({ status: result.status, stdout: result.stdout, stderr: result.stderr }).toEqual(
-        checkFolderDependencies(root)
+        checkFolderDependencies(root, env)
       );
     }
   });
