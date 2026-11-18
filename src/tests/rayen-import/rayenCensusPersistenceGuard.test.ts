@@ -22,12 +22,8 @@ const buildResult = (overrides: Partial<SaveDailyRecordResult> = {}): SaveDailyR
   queuedForRetry: false,
   autoMerged: false,
   consistencyState: 'persisted_and_synced',
-  sourceOfTruth: 'remote',
-  retryability: 'not_applicable',
-  recoveryAction: 'none',
   conflictSummary: null,
   observabilityTags: ['daily_record', 'write'],
-  repairApplied: false,
   ...overrides,
 });
 
@@ -129,7 +125,6 @@ describe('rayenCensusPersistenceGuard', () => {
         result: buildResult({
           savedRemotely: false,
           consistencyState: 'persisted_local_only',
-          sourceOfTruth: 'local',
         }),
       })
     ).not.toThrow();
@@ -147,7 +142,6 @@ describe('rayenCensusPersistenceGuard', () => {
             queuedForRetry: true,
             autoMerged: outcome === 'auto_merged',
             consistencyState: outcome === 'auto_merged' ? 'auto_merged' : 'queued_for_retry',
-            sourceOfTruth: 'local',
           }),
         })
       ).toThrow(/pendiente de confirmación en la nube/i);
@@ -165,7 +159,6 @@ describe('rayenCensusPersistenceGuard', () => {
         result: buildResult({
           outcome: 'blocked',
           savedRemotely: false,
-          sourceOfTruth: 'none',
           conflictSummary: { kind: 'concurrency' } as never,
           userSafeMessage:
             'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
@@ -185,7 +178,6 @@ describe('rayenCensusPersistenceGuard', () => {
         result: buildResult({
           outcome: 'blocked',
           savedRemotely: false,
-          sourceOfTruth: 'none',
           conflictSummary: { kind: 'concurrency' } as never,
           blockingError: new Error('conflicto plano'),
         }),
@@ -206,7 +198,6 @@ describe('rayenCensusPersistenceGuard', () => {
           savedRemotely: false,
           queuedForRetry: true,
           consistencyState: 'queued_for_retry',
-          sourceOfTruth: 'local',
         }),
       });
     } catch (error) {
@@ -227,7 +218,6 @@ describe('rayenCensusPersistenceGuard', () => {
           queuedForRetry: true,
           autoMerged: true,
           consistencyState: 'auto_merged',
-          sourceOfTruth: 'local',
           conflictSummary: {
             kind: 'concurrency',
             sourceOfTruth: 'local',
@@ -250,7 +240,6 @@ describe('rayenCensusPersistenceGuard', () => {
           savedLocally: false,
           savedRemotely: false,
           consistencyState: 'unrecoverable',
-          sourceOfTruth: 'none',
           userSafeMessage: 'No fue posible confirmar el guardado local.',
         }),
       })

@@ -245,7 +245,6 @@ describe('createDailyRecordAdmitPatientPort', () => {
         updatedRemotely: false,
         queuedForRetry: false,
         autoMerged: false,
-        patchedFields: 4,
         consistencyState: 'unrecoverable',
         userSafeMessage: 'No se encontró un registro local válido para aplicar el cambio.',
       })
@@ -266,7 +265,6 @@ describe('createDailyRecordAdmitPatientPort', () => {
         updatedRemotely: false,
         queuedForRetry: false,
         autoMerged: false,
-        patchedFields: 4,
         consistencyState: 'unrecoverable',
         userSafeMessage: 'La escritura no pudo recuperarse de forma segura.',
       })

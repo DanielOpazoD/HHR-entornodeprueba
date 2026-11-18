@@ -16,7 +16,7 @@ describe('dailyRecordWriteBlockingRecoveryController', () => {
     }));
 
     expect(result?.status).toBe('throw');
-    expect(result?.decision.blockingReason).toBe('regression');
+    expect(result?.decision.consistencyState).toBe('blocked_regression');
     expect(result?.decision.userSafeMessage).toBe('regression');
   });
 
@@ -44,7 +44,7 @@ describe('dailyRecordWriteBlockingRecoveryController', () => {
     }));
 
     expect(result).not.toBeNull();
-    expect(result?.decision.blockingReason).toBe('version_mismatch');
+    expect(result?.decision.consistencyState).toBe('blocked_version_mismatch');
     expect(result?.decision.conflictSummary?.kind).toBe('version_mismatch');
   });
 });

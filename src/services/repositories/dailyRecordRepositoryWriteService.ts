@@ -88,8 +88,6 @@ const tryAutoMergeBlockedFullSaveRegression = async (
   state.autoMerged = true;
   applyRecoveryDecisionToState(state, {
     consistencyState: 'auto_merged',
-    retryability: 'automatic_retry',
-    recoveryAction: 'auto_merge_and_queue',
     conflictSummary: {
       kind: 'regression_blocked',
       sourceOfTruth: 'local',
@@ -308,7 +306,6 @@ const updatePartialDetailedWithinLock = async (
     return buildMissingBasePartialUpdateResult({
       date: command.date,
       state: remoteState,
-      patchedFields: Object.keys(command.patch).length,
     });
   }
 
@@ -349,12 +346,10 @@ const updatePartialDetailedWithinLock = async (
         state: remoteState,
         changedPaths: Object.keys(command.patch),
         error: err,
-        patchedFields: Object.keys(command.patch).length,
       });
     }
     throw err;
   }
-  const patchedFields = Object.keys(mergedPatches).length;
   const semanticChangedPaths = Object.keys(command.patch);
   const syncContract = buildDailyRecordSyncContract(validatedRecord, {
     expectedVersion: current.lastUpdated,
@@ -404,7 +399,6 @@ const updatePartialDetailedWithinLock = async (
       date: command.date,
       state: remoteState,
       shrinkages: suspiciousShrinkages,
-      patchedFields,
     });
   }
 
@@ -474,7 +468,7 @@ const updatePartialDetailedWithinLock = async (
       remoteAuthorityFirst: guardedCommandPolicy.remoteAuthorityFirst,
     },
   });
-  return buildPartialUpdateResult(command.date, remoteState, patchedFields);
+  return buildPartialUpdateResult(command.date, remoteState);
 };
 
 export const updatePartialDetailed = (

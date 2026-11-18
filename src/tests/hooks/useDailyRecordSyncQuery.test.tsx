@@ -28,7 +28,6 @@ const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
       updatedRemotely: true,
       queuedForRetry: false,
       autoMerged: false,
-      patchedFields: 1,
     }),
     syncWithFirestoreDetailed: vi.fn().mockResolvedValue({
       date: '2025-12-27',

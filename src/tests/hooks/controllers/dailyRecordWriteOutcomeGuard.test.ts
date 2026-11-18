@@ -18,14 +18,9 @@ const buildPatchResult = (
   updatedRemotely: true,
   queuedForRetry: false,
   autoMerged: false,
-  patchedFields: 1,
   consistencyState: 'persisted_and_synced',
-  sourceOfTruth: 'remote',
-  retryability: 'not_applicable',
-  recoveryAction: 'none',
   conflictSummary: null,
   observabilityTags: ['daily_record', 'write'],
-  repairApplied: false,
   ...overrides,
 });
 
@@ -37,12 +32,8 @@ const buildSaveResult = (overrides: Partial<SaveDailyRecordResult>): SaveDailyRe
   queuedForRetry: false,
   autoMerged: false,
   consistencyState: 'persisted_and_synced',
-  sourceOfTruth: 'remote',
-  retryability: 'not_applicable',
-  recoveryAction: 'none',
   conflictSummary: null,
   observabilityTags: ['daily_record', 'write'],
-  repairApplied: false,
   ...overrides,
 });
 
@@ -60,7 +51,6 @@ describe('dailyRecordWriteOutcomeGuard', () => {
       savedLocally: false,
       updatedRemotely: false,
       consistencyState: 'unrecoverable',
-      sourceOfTruth: 'none',
       userSafeMessage: 'No se encontró un registro local válido para aplicar el cambio.',
     });
 
@@ -90,7 +80,6 @@ describe('dailyRecordWriteOutcomeGuard', () => {
       savedLocally: false,
       savedRemotely: false,
       consistencyState: 'unrecoverable',
-      sourceOfTruth: 'none',
       userSafeMessage: 'La persistencia local no pudo confirmarse.',
     });
 

@@ -189,7 +189,6 @@ describe('definitive clear first-attempt reconciliation', () => {
           updatedRemotely: true,
           queuedForRetry: false,
           autoMerged: false,
-          patchedFields: 1,
           confirmedRecord: clearedRecord,
         });
       }
@@ -282,7 +281,6 @@ describe('definitive clear first-attempt reconciliation', () => {
           updatedRemotely: true,
           queuedForRetry: false,
           autoMerged: false,
-          patchedFields: 1,
           confirmedRecord: clearedRecord,
         });
       }

@@ -170,7 +170,6 @@ export const GUARDED_CASES: Record<string, ParityCase> = {
       buildMissingBasePartialUpdateResult({
         date: PARITY_DATE,
         state: createRemoteWriteState(),
-        patchedFields: 1,
       }),
     expected: {
       vista: 'vuelve al valor anterior',

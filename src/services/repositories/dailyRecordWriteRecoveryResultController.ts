@@ -1,9 +1,3 @@
-import {
-  createAutoMergeDecision,
-  createBlockedDecision,
-  createQueuedRetryDecision,
-  createUnrecoverableDecision,
-} from '@/services/repositories/dailyRecordRecoveryPolicy';
 import type { DailyRecordConflictSummary } from '@/services/repositories/contracts/dailyRecordConsistency';
 import type { RemoteWriteRecoveryResult } from '@/services/repositories/contracts/dailyRecordWriteRecoveryResult';
 
@@ -18,12 +12,13 @@ export const buildBlockedRecoveryResult = (input: {
   queuedForRetry: false,
   autoMerged: false,
   error: input.error,
-  decision: createBlockedDecision(
-    input.blockingReason,
-    input.conflictSummary,
-    input.observabilityTags,
-    input.userSafeMessage
-  ),
+  decision: {
+    consistencyState:
+      input.blockingReason === 'regression' ? 'blocked_regression' : 'blocked_version_mismatch',
+    conflictSummary: input.conflictSummary,
+    observabilityTags: input.observabilityTags,
+    userSafeMessage: input.userSafeMessage,
+  },
 });
 
 export const buildAutoMergedRecoveryResult = (
@@ -34,7 +29,12 @@ export const buildAutoMergedRecoveryResult = (
   status: 'auto_merged',
   queuedForRetry: true,
   autoMerged: true,
-  decision: createAutoMergeDecision(conflictSummary, observabilityTags, userSafeMessage),
+  decision: {
+    consistencyState: 'auto_merged',
+    conflictSummary,
+    observabilityTags,
+    userSafeMessage,
+  },
 });
 
 export const buildThrowUnrecoverableRecoveryResult = (input: {
@@ -47,11 +47,12 @@ export const buildThrowUnrecoverableRecoveryResult = (input: {
   queuedForRetry: false,
   autoMerged: false,
   error: input.error,
-  decision: createUnrecoverableDecision(
-    input.conflictSummary,
-    input.observabilityTags,
-    input.userSafeMessage
-  ),
+  decision: {
+    consistencyState: 'unrecoverable',
+    conflictSummary: input.conflictSummary,
+    observabilityTags: input.observabilityTags,
+    userSafeMessage: input.userSafeMessage,
+  },
 });
 
 export const buildQueuedRetryRecoveryResult = (
@@ -62,7 +63,12 @@ export const buildQueuedRetryRecoveryResult = (
   status: 'queued_for_retry',
   queuedForRetry: true,
   autoMerged: false,
-  decision: createQueuedRetryDecision(conflictSummary, observabilityTags, userSafeMessage),
+  decision: {
+    consistencyState: 'queued_for_retry',
+    conflictSummary,
+    observabilityTags,
+    userSafeMessage,
+  },
 });
 
 export const buildUnrecoverableRecoveryResult = (
@@ -73,5 +79,10 @@ export const buildUnrecoverableRecoveryResult = (
   status: 'unrecoverable',
   queuedForRetry: false,
   autoMerged: false,
-  decision: createUnrecoverableDecision(conflictSummary, observabilityTags, userSafeMessage),
+  decision: {
+    consistencyState: 'unrecoverable',
+    conflictSummary,
+    observabilityTags,
+    userSafeMessage,
+  },
 });

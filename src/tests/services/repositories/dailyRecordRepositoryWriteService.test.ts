@@ -202,7 +202,6 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
 
     expect(result.outcome).toBe('blocked');
     expect(result.consistencyState).toBe('blocked_validation');
-    expect(result.blockingReason).toBe('validation');
     expect(saveToIndexedDB).not.toHaveBeenCalled();
   });
 
@@ -362,7 +361,6 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
 
     expect(result.outcome).toBe('blocked');
     expect(result.consistencyState).toBe('blocked_validation');
-    expect(result.blockingReason).toBe('validation');
     expect(saveToIndexedDB).not.toHaveBeenCalled();
     expect(updateRecordPartialToFirestore).not.toHaveBeenCalled();
   });

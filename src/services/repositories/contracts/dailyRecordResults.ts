@@ -24,14 +24,9 @@ export interface SaveDailyRecordResult {
   queuedForRetry: boolean;
   autoMerged: boolean;
   consistencyState: DailyRecordWriteConsistencyState;
-  sourceOfTruth: DailyRecordSourceOfTruth;
-  retryability: DailyRecordRetryability;
-  recoveryAction: DailyRecordRecoveryAction;
   conflictSummary: DailyRecordConflictSummary | null;
   observabilityTags: string[];
   userSafeMessage?: string;
-  blockingReason?: 'regression' | 'version_mismatch' | 'validation';
-  repairApplied: boolean;
   blockingError?: Error;
   /** Exact server-confirmed state returned by the authority callable, when available. */
   confirmedRecord?: DailyRecord;
@@ -57,16 +52,10 @@ export interface UpdatePartialDailyRecordResult {
   updatedRemotely: boolean;
   queuedForRetry: boolean;
   autoMerged: boolean;
-  patchedFields: number;
   consistencyState: DailyRecordWriteConsistencyState;
-  sourceOfTruth: DailyRecordSourceOfTruth;
-  retryability: DailyRecordRetryability;
-  recoveryAction: DailyRecordRecoveryAction;
   conflictSummary: DailyRecordConflictSummary | null;
   observabilityTags: string[];
   userSafeMessage?: string;
-  blockingReason?: 'regression' | 'version_mismatch' | 'validation';
-  repairApplied: boolean;
   blockingError?: Error;
   /** Exact server-confirmed state returned or read back after the patch, when requested. */
   confirmedRecord?: DailyRecord;
@@ -76,24 +65,12 @@ export interface UpdatePartialDailyRecordResult {
 
 type UpdatePartialDailyRecordResultInput = Pick<
   UpdatePartialDailyRecordResult,
-  | 'date'
-  | 'outcome'
-  | 'savedLocally'
-  | 'updatedRemotely'
-  | 'queuedForRetry'
-  | 'autoMerged'
-  | 'patchedFields'
+  'date' | 'outcome' | 'savedLocally' | 'updatedRemotely' | 'queuedForRetry' | 'autoMerged'
 > &
   Partial<
     Omit<
       UpdatePartialDailyRecordResult,
-      | 'date'
-      | 'outcome'
-      | 'savedLocally'
-      | 'updatedRemotely'
-      | 'queuedForRetry'
-      | 'autoMerged'
-      | 'patchedFields'
+      'date' | 'outcome' | 'savedLocally' | 'updatedRemotely' | 'queuedForRetry' | 'autoMerged'
     >
   >;
 
@@ -146,6 +123,22 @@ export const resolveDailyRecordSavedState = (result: {
       ? 'local'
       : 'error';
 
+const resolveWriteConsistencyState = (
+  outcome: SaveDailyRecordResult['outcome'],
+  remotelyConfirmed: boolean
+): DailyRecordWriteConsistencyState =>
+  outcome === 'queued'
+    ? 'queued_for_retry'
+    : outcome === 'auto_merged'
+      ? 'auto_merged'
+      : outcome === 'unrecoverable'
+        ? 'unrecoverable'
+        : outcome === 'blocked'
+          ? 'blocked_validation'
+          : remotelyConfirmed
+            ? 'persisted_and_synced'
+            : 'persisted_local_only';
+
 export const createSaveDailyRecordResult = (
   input: SaveDailyRecordResultInput
 ): SaveDailyRecordResult => {
@@ -154,47 +147,8 @@ export const createSaveDailyRecordResult = (
     ...input,
     conflictSummary: input.conflictSummary || null,
     observabilityTags: Array.from(new Set(input.observabilityTags || ['daily_record', 'write'])),
-    repairApplied: input.repairApplied || false,
-    sourceOfTruth:
-      input.sourceOfTruth ||
-      ({ saved: 'remote', local: 'local', error: 'none' } as const)[
-        resolveDailyRecordSavedState(input)
-      ],
     consistencyState:
-      input.consistencyState ||
-      (input.outcome === 'queued'
-        ? 'queued_for_retry'
-        : input.outcome === 'auto_merged'
-          ? 'auto_merged'
-          : input.outcome === 'unrecoverable'
-            ? 'unrecoverable'
-            : input.outcome === 'blocked'
-              ? 'blocked_validation'
-              : input.savedRemotely
-                ? 'persisted_and_synced'
-                : 'persisted_local_only'),
-    retryability:
-      input.retryability ||
-      (input.outcome === 'queued'
-        ? 'automatic_retry'
-        : input.outcome === 'auto_merged'
-          ? 'automatic_retry'
-          : input.outcome === 'blocked'
-            ? 'blocked'
-            : input.outcome === 'unrecoverable'
-              ? 'manual_review'
-              : 'not_applicable'),
-    recoveryAction:
-      input.recoveryAction ||
-      (input.outcome === 'queued'
-        ? 'queue_retry'
-        : input.outcome === 'auto_merged'
-          ? 'auto_merge_and_queue'
-          : input.outcome === 'blocked'
-            ? 'block_and_surface'
-            : input.outcome === 'unrecoverable'
-              ? 'defer_remote_sync'
-              : 'none'),
+      input.consistencyState || resolveWriteConsistencyState(input.outcome, input.savedRemotely),
   };
 };
 
@@ -202,56 +156,12 @@ export const createUpdatePartialDailyRecordResult = (
   input: UpdatePartialDailyRecordResultInput
 ): UpdatePartialDailyRecordResult => {
   assertDate(input.date, 'updatePartial result');
-  if (!Number.isFinite(input.patchedFields) || input.patchedFields < 1) {
-    throw new Error(
-      `[RepositoryContract] updatePartial result requires patchedFields >= 1. Received: ${input.patchedFields}`
-    );
-  }
   return {
     ...input,
     conflictSummary: input.conflictSummary || null,
     observabilityTags: Array.from(new Set(input.observabilityTags || ['daily_record', 'write'])),
-    repairApplied: input.repairApplied || false,
-    sourceOfTruth:
-      input.sourceOfTruth ||
-      ({ saved: 'remote', local: 'local', error: 'none' } as const)[
-        resolveDailyRecordSavedState(input)
-      ],
     consistencyState:
-      input.consistencyState ||
-      (input.outcome === 'queued'
-        ? 'queued_for_retry'
-        : input.outcome === 'auto_merged'
-          ? 'auto_merged'
-          : input.outcome === 'unrecoverable'
-            ? 'unrecoverable'
-            : input.outcome === 'blocked'
-              ? 'blocked_validation'
-              : input.updatedRemotely
-                ? 'persisted_and_synced'
-                : 'persisted_local_only'),
-    retryability:
-      input.retryability ||
-      (input.outcome === 'queued'
-        ? 'automatic_retry'
-        : input.outcome === 'auto_merged'
-          ? 'automatic_retry'
-          : input.outcome === 'blocked'
-            ? 'blocked'
-            : input.outcome === 'unrecoverable'
-              ? 'manual_review'
-              : 'not_applicable'),
-    recoveryAction:
-      input.recoveryAction ||
-      (input.outcome === 'queued'
-        ? 'queue_retry'
-        : input.outcome === 'auto_merged'
-          ? 'auto_merge_and_queue'
-          : input.outcome === 'blocked'
-            ? 'block_and_surface'
-            : input.outcome === 'unrecoverable'
-              ? 'defer_remote_sync'
-              : 'none'),
+      input.consistencyState || resolveWriteConsistencyState(input.outcome, input.updatedRemotely),
   };
 };
 

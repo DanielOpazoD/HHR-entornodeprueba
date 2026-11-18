@@ -19,12 +19,8 @@ const buildResult = (overrides: Partial<SaveDailyRecordResult> = {}): SaveDailyR
   queuedForRetry: false,
   autoMerged: false,
   consistencyState: 'persisted_and_synced',
-  sourceOfTruth: 'remote',
-  retryability: 'not_applicable',
-  recoveryAction: 'none',
   conflictSummary: null,
   observabilityTags: ['daily_record', 'write'],
-  repairApplied: false,
   ...overrides,
 });
 

@@ -173,7 +173,6 @@ describe('DailyRecord Sync Integration', () => {
       createUpdatePartialDailyRecordResult({
         ...persisted,
         updatedRemotely: true,
-        patchedFields: 1,
       })
     );
     mockDailyRecordRepositoryPort.getForDate.mockImplementation((date: string) =>
@@ -519,7 +518,6 @@ describe('DailyRecord Sync Integration', () => {
         updatedRemotely: false,
         queuedForRetry: true,
         autoMerged: false,
-        patchedFields: 1,
       })
     );
     await act(async () => {

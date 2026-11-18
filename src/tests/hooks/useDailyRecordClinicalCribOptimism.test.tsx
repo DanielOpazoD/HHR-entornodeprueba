@@ -271,7 +271,6 @@ describe('remote-confirmed clinical crib optimism', () => {
         updatedRemotely: true,
         queuedForRetry: false,
         autoMerged: false,
-        patchedFields: 1,
         confirmedRecord,
       })
     );
@@ -390,7 +389,6 @@ describe('remote-confirmed clinical crib optimism', () => {
         updatedRemotely: true,
         queuedForRetry: false,
         autoMerged: false,
-        patchedFields: 1,
         confirmedRecord,
       })
     );
