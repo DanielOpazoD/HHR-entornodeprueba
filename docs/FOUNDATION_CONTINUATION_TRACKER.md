@@ -73,7 +73,7 @@
 - `system-confidence`: `ok`
 - `release-readiness`: `ok`
 - `quality-metrics`: `featureBoundaryViolations=2`, `dailyRecordBoundaryViolations=0`, `rawConsoleWarnErrorOutsideStructuredSink=3`
-- `maintenance-debt-scorecard`: `pendingHotspots=0`; watchlist explícita en `firestore.rules` y `src/hooks/useCensusEmailRecipientLists.ts`
+- `maintenance-debt-scorecard`: `pendingHotspots=0`; watchlist explícita en `firestore.rules` y `src/features/census/email/hooks/useCensusEmailRecipientLists.ts`
 - focos activos: `foundations`, `permissions` y `functions-security`; sin drift documental ni scorecards degradados
 
 ## Nota de consolidación 2026-04-19
@@ -93,7 +93,7 @@
 - `app-authenticated-shell` quedó bajo presupuesto y ya no degrada el scorecard de release.
 - La deuda residual queda rebajada a watchlist de mantenimiento, no a gates activos:
   - `firestore.rules`
-  - `src/hooks/useCensusEmailRecipientLists.ts`
+  - `src/features/census/email/hooks/useCensusEmailRecipientLists.ts`
 
 ## Nota de consolidación 2026-04-16
 
@@ -124,7 +124,7 @@
   - `release-readiness`: `ok`
 - La watchlist restante queda explícita y chica:
   - `firestore.rules`
-  - `src/hooks/useCensusEmailRecipientLists.ts`
+  - `src/features/census/email/hooks/useCensusEmailRecipientLists.ts`
 
 ## Nota de reportes 2026-04-16
 
@@ -140,12 +140,12 @@
 ## Pendientes reales de mayor retorno
 
 1. `firestore.rules` sigue siendo el hotspot más grande del watchlist y merece nuevas iteraciones pequeñas sin tocar semántica.
-2. `src/hooks/useCensusEmailRecipientLists.ts` ya bajó complejidad incidental, pero sigue en watchlist por tamaño y churn.
+2. `src/features/census/email/hooks/useCensusEmailRecipientLists.ts` ya bajó complejidad incidental, pero sigue en watchlist por tamaño y churn.
 3. `quality-metrics` no bloquea, pero sigue reportando convergencia cualitativa que conviene vigilar aunque los guardrails formales estén verdes.
 4. El siguiente retorno real está en mantenimiento incremental, no en abrir otro plan grande ni en agregar más tracker.
 
 ## Siguiente paso recomendado
 
 1. Mantener una cadencia corta y quirúrgica sobre la watchlist, sin reabrir un ciclo grande.
-2. Priorizar una iteración en `firestore.rules` o `src/hooks/useCensusEmailRecipientLists.ts`, no en ambos a la vez.
+2. Priorizar una iteración en `firestore.rules` o `src/features/census/email/hooks/useCensusEmailRecipientLists.ts`, no en ambos a la vez.
 3. Mantener `reports/*` sincronizados al cierre de cada lote y volver a correr `check:report-freshness`.

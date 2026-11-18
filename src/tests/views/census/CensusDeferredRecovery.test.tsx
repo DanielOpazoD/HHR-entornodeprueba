@@ -50,8 +50,7 @@ vi.mock('@/context/DailyRecordContext', () => ({
 vi.mock('@/context/useDailyRecordScopedActions', () => ({
   useDailyRecordStaffActions: () => ({}),
 }));
-vi.mock('@/features/census/components/NurseSelector', () => ({ NurseSelector: () => null }));
-vi.mock('@/features/census/components/TensSelector', () => ({ TensSelector: () => null }));
+vi.mock('@/features/census/components/StaffSelector', () => ({ StaffSelector: () => null }));
 const online = (value: boolean) =>
   Object.defineProperty(navigator, 'onLine', { configurable: true, value });
 afterEach(() => {

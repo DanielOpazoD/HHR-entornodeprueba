@@ -94,9 +94,9 @@ Referencias:
 - `src/services/repositories/dailyRecordPersistencePreparation.ts`
 - `src/services/repositories/dailyRecordWriteRecoveryController.ts`
 - `src/services/repositories/dailyRecordMasterSyncController.ts`
-- `src/application/census-email/censusRecipientListUseCases.ts`
-- `src/application/census-email/censusRecipientListOutcomeController.ts`
-- `src/hooks/controllers/censusEmailRecipientSyncController.ts`
+- `src/features/census/email/use-cases/censusRecipientListUseCases.ts`
+- `src/features/census/email/controllers/censusRecipientListOutcomeController.ts`
+- `src/features/census/email/controllers/censusEmailRecipientSyncController.ts`
 
 ## Scorecard de deuda viva
 

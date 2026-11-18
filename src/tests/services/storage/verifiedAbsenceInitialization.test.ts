@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { A, clone, day, harnessState } from './dayRecordOutboxHarness';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { initializeDay } from '@/services/repositories/dailyRecordRepositoryInitializationService';
-import { executeSendCensusEmail } from '@/application/census-email/sendCensusEmailUseCases';
+import { executeSendCensusEmail } from '@/features/census/email/use-cases/sendCensusEmailUseCases';
 import { defaultDailyRecordReadPort } from '@/application/ports/dailyRecordPort';
 vi.unmock('@/application/ports/dailyRecordPort');
 

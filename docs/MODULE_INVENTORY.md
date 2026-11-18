@@ -130,8 +130,8 @@ Estos tal vez no ameriten evaluación independiente al principio, pero sí deben
 
 ### 13. Correo de censo
 
-- **Application:** [src/application/census-email](../src/application/census-email)
-- **Hooks:** `useCensusEmail*`
+- **Feature:** [src/features/census/email](../src/features/census/email) (hooks, controllers y casos de uso)
+- **Servicios:** `src/services/integrations/censusEmail*`, puerto `src/application/ports/censusEmailPort.ts`
 
 ### 14. Copias, backups y archivos compartidos
 

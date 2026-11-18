@@ -5,7 +5,7 @@ import {
   resolveActiveRecipientListForSync,
   resolveDeferredRecipientSyncInput,
   shouldSkipRecipientSync,
-} from '@/hooks/controllers/censusEmailRecipientSyncController';
+} from '@/features/census/email/controllers/censusEmailRecipientSyncController';
 
 describe('censusEmailRecipientSyncController', () => {
   it('skips sync when user cannot manage or recipients did not change', () => {

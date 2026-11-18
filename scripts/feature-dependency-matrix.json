@@ -34,7 +34,11 @@
   "publicModulesByFeature": {
     "admin": ["@/features/admin/admission-audit"],
     "audit-documents": ["@/features/audit-documents/eloisa-history"],
-    "census": ["@/features/census/census-view", "@/features/census/public-components"],
+    "census": [
+      "@/features/census/census-view",
+      "@/features/census/email/hooks/useCensusEmail",
+      "@/features/census/public-components"
+    ],
     "clinical-documents": ["@/features/clinical-documents/internal"],
     "clinical-library": ["@/features/clinical-library/quick-action"],
     "handoff": ["@/features/handoff/medical-handoff-spreadsheet"],

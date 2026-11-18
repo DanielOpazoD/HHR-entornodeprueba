@@ -25,7 +25,7 @@ vi.mock('@/hooks/useAppState', () => ({
   useAppState: () => mockUseAppState(),
 }));
 
-vi.mock('@/hooks/useCensusEmail', () => ({
+vi.mock('@/features/census/email/hooks/useCensusEmail', () => ({
   useCensusEmail: (...args: unknown[]) => mockUseCensusEmail(...args),
 }));
 

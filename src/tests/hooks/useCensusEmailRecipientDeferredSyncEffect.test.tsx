@@ -1,11 +1,11 @@
 import { renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useCensusEmailRecipientDeferredSyncEffect } from '@/hooks/useCensusEmailRecipientDeferredSyncEffect';
-import { scheduleDeferredRecipientSync } from '@/hooks/controllers/censusEmailRecipientDeferredSyncController';
+import { useCensusEmailRecipientDeferredSyncEffect } from '@/features/census/email/hooks/useCensusEmailRecipientDeferredSyncEffect';
+import { scheduleDeferredRecipientSync } from '@/features/census/email/controllers/censusEmailRecipientDeferredSyncController';
 import { CENSUS_GLOBAL_EMAIL_RECIPIENT_LIST } from '@/services/email/emailRecipientListService';
 import type { GlobalEmailRecipientList } from '@/services/email/emailRecipientListService';
 
-vi.mock('@/hooks/controllers/censusEmailRecipientDeferredSyncController', () => ({
+vi.mock('@/features/census/email/controllers/censusEmailRecipientDeferredSyncController', () => ({
   scheduleDeferredRecipientSync: vi.fn(),
 }));
 
