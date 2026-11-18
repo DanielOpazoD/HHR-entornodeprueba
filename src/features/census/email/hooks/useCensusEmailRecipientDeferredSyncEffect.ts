@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
-import { scheduleDeferredRecipientSync } from '@/hooks/controllers/censusEmailRecipientDeferredSyncController';
+import { scheduleDeferredRecipientSync } from '@/features/census/email/controllers/censusEmailRecipientDeferredSyncController';
 import type { GlobalEmailRecipientList } from '@/services/email/emailRecipientListService';
-import { resolveRecipientSyncState } from '@/hooks/controllers/censusEmailRecipientRuntimeController';
-import { resolveDeferredRecipientSyncInput } from '@/hooks/controllers/censusEmailRecipientSyncController';
-import { withRecipientListUseCases } from '@/hooks/controllers/censusEmailRecipientUseCaseLoader';
+import { resolveRecipientSyncState } from '@/features/census/email/controllers/censusEmailRecipientRuntimeController';
+import { resolveDeferredRecipientSyncInput } from '@/features/census/email/controllers/censusEmailRecipientSyncController';
+import { withRecipientListUseCases } from '@/features/census/email/controllers/censusEmailRecipientUseCaseLoader';
 
 interface UseCensusEmailRecipientDeferredSyncEffectParams {
   enabled: boolean;

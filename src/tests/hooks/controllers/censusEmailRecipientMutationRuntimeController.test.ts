@@ -5,7 +5,7 @@ import {
   resolveRecipientRuntimeAfterDeleteOutcome,
   resolveRecipientRuntimeAfterRename,
   resolveRecipientRuntimeAfterDelete,
-} from '@/hooks/controllers/censusEmailRecipientMutationRuntimeController';
+} from '@/features/census/email/controllers/censusEmailRecipientMutationRuntimeController';
 import type { GlobalEmailRecipientList } from '@/services/email/emailRecipientListService';
 
 const buildList = (

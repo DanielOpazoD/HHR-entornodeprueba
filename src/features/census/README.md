@@ -12,12 +12,18 @@ Módulo central del producto: censo diario, acciones sobre camas/pacientes, movi
 
 ## API pública mínima
 
-- Código fuera de `src/features/census/**` consume `census` por tres puertas públicas:
+- Código fuera de `src/features/census/**` consume `census` por cuatro puertas públicas:
   - `@/features/census` (`index.ts`, que reexporta `public.ts`): controllers livianos, tipos y vistas permitidas.
   - `@/features/census/census-view`: solo `CensusView` y su tipo de contexto, para la carga perezosa de `/censo`.
   - `@/features/census/public-components`: componentes pesados (`CensusView`, `CensusEmailConfigModal`,
     `GlobalPatientSearchModal`), que se cargan con `import()` dinámico para no entrar al arranque.
-- Las dos últimas figuran en `publicModulesByFeature` de `scripts/feature-dependency-matrix.json`.
+  - `@/features/census/email/hooks/useCensusEmail`: el hook del correo del censo, solo para el
+    shell autenticado; su tipo de retorno (`UseCensusEmailReturn`) vive en `src/context/CensusContext.tsx`.
+- Las tres últimas figuran en `publicModulesByFeature` de `scripts/feature-dependency-matrix.json`.
+- El correo del censo vive en `email/` (`hooks/`, `controllers/`, `use-cases/`). Su cliente de red
+  (`src/services/integrations/censusEmail*`) y su puerto (`src/application/ports/censusEmailPort.ts`,
+  que también usa el respaldo) quedan fuera, igual que
+  `src/services/exporters/censusEmailDiagnosisPrivacy.ts`, que compila la función `send-census-email`.
 - Imports directos a `components/`, `hooks/`, `controllers/`, `contracts/`, `types/` o `context/` desde fuera de la feature se consideran saltos de boundary.
 - Excepción intencional: `src/tests/**` puede importar internals para testear unidades puras; `src/hooks/controllers/**` mantiene shims históricos mientras exista compatibilidad de transición.
 

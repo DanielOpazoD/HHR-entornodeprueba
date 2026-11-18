@@ -1,9 +1,9 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { useCensusEmailRecipientBootstrapEffect } from '@/hooks/useCensusEmailRecipientBootstrapEffect';
-import { withRecipientListUseCases } from '@/hooks/controllers/censusEmailRecipientUseCaseLoader';
+import { useCensusEmailRecipientBootstrapEffect } from '@/features/census/email/hooks/useCensusEmailRecipientBootstrapEffect';
+import { withRecipientListUseCases } from '@/features/census/email/controllers/censusEmailRecipientUseCaseLoader';
 
-vi.mock('@/hooks/controllers/censusEmailRecipientUseCaseLoader', () => ({
+vi.mock('@/features/census/email/controllers/censusEmailRecipientUseCaseLoader', () => ({
   withRecipientListUseCases: vi.fn(),
 }));
 

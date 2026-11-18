@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildSendCensusConfirmationMessage,
   executeSendCensusEmail,
-} from '@/application/census-email/sendCensusEmailUseCases';
+} from '@/features/census/email/use-cases/sendCensusEmailUseCases';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { CensusMonthUnavailableError } from '@/services/storage/firestore/firestoreRecordQueries';

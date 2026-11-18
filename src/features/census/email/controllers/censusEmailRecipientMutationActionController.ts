@@ -1,15 +1,15 @@
 import type { GlobalEmailRecipientList } from '@/services/email/emailRecipientListService';
-import { resolveRecipientListForSelection } from '@/hooks/controllers/censusEmailRecipientMutationController';
+import { resolveRecipientListForSelection } from '@/features/census/email/controllers/censusEmailRecipientMutationController';
 import {
   resolveRecipientRuntimeAfterCreate,
   resolveRecipientRuntimeAfterDeleteOutcome,
   resolveRecipientRuntimeAfterRename,
-} from '@/hooks/controllers/censusEmailRecipientMutationRuntimeController';
-import type { RecipientRuntimeState } from '@/hooks/controllers/censusEmailRecipientRuntimeController';
+} from '@/features/census/email/controllers/censusEmailRecipientMutationRuntimeController';
+import type { RecipientRuntimeState } from '@/features/census/email/controllers/censusEmailRecipientRuntimeController';
 import type {
   CensusRecipientListUseCasesModule,
   RecipientUseCaseResult,
-} from '@/hooks/controllers/censusEmailRecipientUseCaseLoader';
+} from '@/features/census/email/controllers/censusEmailRecipientUseCaseLoader';
 
 interface RecipientListActor {
   uid?: string;

@@ -72,7 +72,7 @@
     "docs:generate": "typedoc",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "lint:extension": "eslint \"extension/*.js\" --report-unused-disable-directives --max-warnings 0",
-    "lint:strict:core": "eslint src/application src/hooks/controllers src/hooks/admin/useSystemHealthReporter.ts src/hooks/useAudit*.ts src/hooks/useBackup*.ts src/hooks/useBedManagement*.ts src/hooks/useCensusEmail*.ts src/hooks/useDailyRecord*.ts src/hooks/useExportManager.ts src/hooks/useFileOperations.ts src/hooks/useHandoffManagement*.ts src/hooks/usePatientAnalysis.ts src/hooks/usePatientMovementAudit.ts src/features/census src/features/analytics src/features/clinical-documents src/features/admin/components/SystemHealthDashboard.tsx src/services/observability src/services/staff src/services/repositories src/services/exporters src/services/pdf src/services/admin --report-unused-disable-directives --max-warnings 0",
+    "lint:strict:core": "eslint src/application src/hooks/controllers src/hooks/admin/useSystemHealthReporter.ts src/hooks/useAudit*.ts src/hooks/useBackup*.ts src/hooks/useBedManagement*.ts src/hooks/useDailyRecord*.ts src/hooks/useExportManager.ts src/hooks/useFileOperations.ts src/hooks/useHandoffManagement*.ts src/hooks/usePatientAnalysis.ts src/hooks/usePatientMovementAudit.ts src/features/census src/features/analytics src/features/clinical-documents src/features/admin/components/SystemHealthDashboard.tsx src/services/observability src/services/staff src/services/repositories src/services/exporters src/services/pdf src/services/admin --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "check:architecture": "node scripts/check-architecture.mjs",
     "check:source-patterns": "node scripts/check-source-patterns.mjs",
@@ -268,7 +268,6 @@
     "@vitest/coverage-v8": "4.1.12",
     "esbuild": "^0.27.2",
     "eslint": "^9.39.2",
-    "eslint-plugin-boundaries": "^6.0.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-storybook": "^10.6.6",
@@ -336,10 +335,7 @@
     "@grpc/grpc-js": "1.14.5",
     "hono": "4.12.27",
     "tar@<=7.5.20": "7.5.22",
-    "websocket-driver": "0.7.5",
-    "eslint-plugin-boundaries": {
-      "handlebars": "4.7.10"
-    }
+    "websocket-driver": "0.7.5"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,mjs,cjs,mts,cts}": [

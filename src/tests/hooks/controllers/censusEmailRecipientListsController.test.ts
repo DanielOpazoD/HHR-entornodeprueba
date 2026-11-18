@@ -5,8 +5,8 @@ import {
   applyRecipientListSelection,
   buildRecipientDeferredSyncHandlers,
   runRecipientRuntimeMutation,
-} from '@/hooks/controllers/censusEmailRecipientListsController';
-import type { RecipientRuntimeMutationSpec } from '@/hooks/controllers/censusEmailRecipientMutationActionController';
+} from '@/features/census/email/controllers/censusEmailRecipientListsController';
+import type { RecipientRuntimeMutationSpec } from '@/features/census/email/controllers/censusEmailRecipientMutationActionController';
 
 describe('censusEmailRecipientListsController', () => {
   const remoteList: GlobalEmailRecipientList = {

@@ -1,12 +1,12 @@
 import type { GlobalEmailRecipientList } from '@/services/email/emailRecipientListService';
-import type { CensusEmailBrowserRuntime } from '@/hooks/controllers/censusEmailBrowserRuntimeController';
-import type { RecipientRuntimeMutationSpec } from '@/hooks/controllers/censusEmailRecipientMutationActionController';
-import { executeRecipientRuntimeMutationSpec } from '@/hooks/controllers/censusEmailRecipientMutationRunner';
+import type { CensusEmailBrowserRuntime } from '@/features/census/email/controllers/censusEmailBrowserRuntimeController';
+import type { RecipientRuntimeMutationSpec } from '@/features/census/email/controllers/censusEmailRecipientMutationActionController';
+import { executeRecipientRuntimeMutationSpec } from '@/features/census/email/controllers/censusEmailRecipientMutationRunner';
 import {
   resolveRecipientSelectionRuntimeState,
   type RecipientRuntimeState,
   type resolveRecipientSyncState,
-} from '@/hooks/controllers/censusEmailRecipientRuntimeController';
+} from '@/features/census/email/controllers/censusEmailRecipientRuntimeController';
 
 export interface UseCensusEmailRecipientListsParams {
   canManageGlobalRecipientLists: boolean;

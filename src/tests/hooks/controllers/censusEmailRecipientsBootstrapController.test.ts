@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { resolveCensusRecipientsBootstrap } from '@/hooks/controllers/censusEmailRecipientsBootstrapController';
+import { resolveCensusRecipientsBootstrap } from '@/features/census/email/controllers/censusEmailRecipientsBootstrapController';
 
 vi.mock('@/services/storage/indexeddb/indexedDbSettingsService', () => ({
   getSetting: vi.fn(),

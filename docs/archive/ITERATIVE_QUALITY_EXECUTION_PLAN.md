@@ -408,4 +408,4 @@ Subir la confianza operativa del repo sin re-arquitectura: cerrar el desalineami
   - `frontendStartup.previewGate.status=ok`
 - El residual operativo queda fuera de gates y explícito como watchlist de mantenimiento:
   - `firestore.rules`
-  - `src/hooks/useCensusEmailRecipientLists.ts`
+  - `src/features/census/email/hooks/useCensusEmailRecipientLists.ts`

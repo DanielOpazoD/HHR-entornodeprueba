@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { GlobalEmailRecipientList } from '@/services/email/emailRecipientListService';
-import { upsertRecipientListState } from '@/hooks/controllers/censusEmailRecipientListStateController';
+import { upsertRecipientListState } from '@/features/census/email/controllers/censusEmailRecipientListStateController';
 
 describe('censusEmailRecipientListStateController', () => {
   const buildList = (id: string, name: string): GlobalEmailRecipientList => ({

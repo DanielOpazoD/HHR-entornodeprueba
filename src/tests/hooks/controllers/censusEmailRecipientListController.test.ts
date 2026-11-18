@@ -6,7 +6,7 @@ import {
   resolveDeleteRecipientListError,
   resolveRecipientListFallback,
   resolveRenamedRecipientListName,
-} from '@/hooks/controllers/censusEmailRecipientListController';
+} from '@/features/census/email/controllers/censusEmailRecipientListController';
 
 describe('censusEmailRecipientListController', () => {
   it('validates create permissions and name', () => {

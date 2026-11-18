@@ -1,9 +1,9 @@
 import { act, renderHook } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
-import { useCensusEmailDeliveryActions } from '@/hooks/useCensusEmailDeliveryActions';
+import { useCensusEmailDeliveryActions } from '@/features/census/email/hooks/useCensusEmailDeliveryActions';
 
 const loadDelivery = vi.hoisted(() => vi.fn());
-vi.mock('@/hooks/controllers/censusEmailDeliveryRuntime', () => {
+vi.mock('@/features/census/email/controllers/censusEmailDeliveryRuntime', () => {
   loadDelivery();
   throw new Error('delivery unavailable');
 });

@@ -48,7 +48,6 @@ export { useBackupFilesQuery } from './useBackupFilesQuery';
 export { useFileOperations } from './useFileOperations';
 
 // Email
-export { useCensusEmail } from './useCensusEmail';
 export { useHandoffLogic } from './useHandoffLogic';
 
 // Exam Request

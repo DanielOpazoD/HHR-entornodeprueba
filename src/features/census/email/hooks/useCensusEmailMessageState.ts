@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   createInitialCensusMessageState,
   resolveCensusEmailMessage,
-} from '@/hooks/controllers/censusEmailStateController';
+} from '@/features/census/email/controllers/censusEmailStateController';
 
 export const useCensusEmailMessageState = (currentDateString: string, nurseSignature: string) => {
   const [messageState, setMessageState] = useState<{
