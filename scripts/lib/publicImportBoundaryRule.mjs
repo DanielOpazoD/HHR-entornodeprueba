@@ -8,7 +8,6 @@ const { publicImportPatterns, publicModulesByFeature } = JSON.parse(
   fs.readFileSync(new URL('../feature-dependency-matrix.json', import.meta.url), 'utf8')
 );
 const extensions = ['.ts', '.tsx', '.js', '.jsx'];
-const sharedLayers = new Set(['components', 'hooks', 'services', 'context', 'domain']);
 export const GOVERNED_APPLICATION_PUBLIC_IMPORTS = new Set([
   '@/features/census/components/global-search/globalSearchContracts',
   '@/features/census/controllers/bedManagerGridItemsController',
@@ -50,24 +49,17 @@ export const publicImportBoundaryRule = {
     type: 'problem',
     schema: [],
     messages: {
-      public: 'Importa «{{target}}» por la superficie pública de «{{feature}}».',
-      shared:
-        'La capa compartida no importa features directamente: «{{target}}». Usa su contrato de aplicación.',
+      public:
+        'Importa «{{target}}» por la superficie pública de «{{feature}}»: {{paths}}. Fuera de las features, si una capa general puede depender de una feature lo decide npm run check:folder-dependencies.',
     },
   },
   create(context) {
     const importer = path.relative(ROOT, context.filename).split(path.sep).join('/');
     if (['.test.', '.spec.', '.stories.'].some(marker => importer.includes(marker))) return {};
-    const genericScope = !importer.includes('/tests/');
-    const sharedScope = sharedLayers.has(importer.split('/')[1]);
+    if (importer.includes('/tests/')) return {};
     const check = node => {
       if (typeof node?.value !== 'string') return;
       const target = node.value;
-      if (sharedScope && target.startsWith('@/features/')) {
-        context.report({ node, messageId: 'shared', data: { target } });
-        return;
-      }
-      if (!genericScope) return;
       const resolved = resolve(importer, target);
       if (!resolved) return;
       const relative = path.relative(SRC, resolved).split(path.sep).join('/');
@@ -83,7 +75,11 @@ export const publicImportBoundaryRule = {
         GOVERNED_APPLICATION_PUBLIC_IMPORTS.has(target)
       )
         return;
-      context.report({ node, messageId: 'public', data: { target, feature } });
+      context.report({
+        node,
+        messageId: 'public',
+        data: { target, feature, paths: publicPaths.join(', ') },
+      });
     };
     return {
       ImportDeclaration: node => check(node.source),

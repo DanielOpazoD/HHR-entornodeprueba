@@ -145,10 +145,10 @@ El scorecard de mantenimiento consume `quality-metrics.json` y
 `legacy-retirement-debt.json`. Comprobar fecha, SHA y estado del checkout antes de
 comparar resultados.
 
-La frontera de carpetas no tiene lista de excepciones ni reporte de deuda:
-`npm run check:folder-dependencies` falla ante cualquier import fuera de
-`scripts/folder-dependency-matrix.json`. Un import así se corrige moviéndolo a una
-capa que pueda conocer el feature, no flexibilizando la matriz.
+La dirección entre carpetas es una sola regla: `npm run check:folder-dependencies` falla
+ante una referencia de valor o diferida hacia una capa superior de
+`scripts/folder-dependency-matrix.json` que no esté en su libro de excepciones, y ante una
+excepción que ya no existe. El libro solo baja; ver [dependency-map.md](dependency-map.md).
 
 ## Cuándo abrir una excepción
 

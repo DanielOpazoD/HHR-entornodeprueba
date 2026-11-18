@@ -1,43 +1,38 @@
-# Dependency Map (Carpetas `src`)
+# Dirección entre carpetas de `src/`
 
-Este documento define responsabilidades por carpeta y el contrato de dependencias permitido.
-El contrato ejecutable vive en:
+La regla es una sola y vive en dos archivos:
 
-- `../scripts/folder-dependency-matrix.json`
-- `../scripts/check-folder-dependencies.mjs`
+- `../scripts/folder-dependency-matrix.json`: la capa de cada carpeta de primer nivel de `src/`
+  (y de los archivos directos de `src/`, «(raíz)») y el libro de excepciones.
+- `../scripts/check-folder-dependencies.mjs`: el control (`npm run check:folder-dependencies`).
 
-## Objetivo
+## La regla
 
-- Reducir acoplamiento entre capas.
-- Evitar dependencias inversas (por ejemplo, lógica de dominio importando UI).
-- Permitir refactor incremental con deuda controlada por allowlist.
+- Un módulo depende solo de su capa o de las de abajo, del núcleo puro (0) a la composición (6).
+- Obliga a las referencias que ejecutan código: imports de valor, reexportaciones, imports sin
+  nombres, `import()` y `new URL('x', import.meta.url)` (workers). Cualquier grafía cuenta:
+  alias `@/`, relativa, con o sin extensión.
+- Los imports de solo tipos (`import type`, `export type`, `import('x').T`) se borran al compilar
+  y pueden cruzar en cualquier dirección.
+- Entre features mandan `hhr/feature-boundaries` y `hhr/public-import-boundaries` con
+  `../scripts/feature-dependency-matrix.json`, no esta regla.
 
-## Reglas Ejecutables (zonas gobernadas)
+## El libro de excepciones
 
-| Zona         | Rol                                          | Puede importar                                                                                                                                             |
-| ------------ | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `features`   | Módulos funcionales y orquestación de flujo  | `components`, `hooks`, `context`, `services`, `domain`, `types`, `constants`, `utils`, `shared`, `schemas`, `config`, `core`, `adapters`, `infrastructure` |
-| `components` | Composición de UI reutilizable               | `hooks`, `context`, `services`, `types`, `constants`, `utils`, `shared`, `schemas`, `core`                                                                 |
-| `hooks`      | Comportamiento reusable y orquestación de UI | `services`, `context`, `types`, `constants`, `utils`, `shared`, `schemas`, `config`                                                                        |
-| `context`    | Estado global y contratos de provider        | `hooks`, `services`, `types`, `constants`, `utils`, `shared`                                                                                               |
-| `services`   | Operaciones de negocio, I/O e integraciones  | `types`, `constants`, `utils`, `schemas`, `shared`, `config`                                                                                               |
-| `domain`     | Reglas de dominio puras                      | `types`, `constants`, `utils`                                                                                                                              |
-| `core`       | Primitivas transversales de la app           | `types`, `constants`, `utils`, `shared`, `services`                                                                                                        |
+Las relaciones hacia arriba que existían cuando se creó la regla están listadas una por una
+(archivo origen → archivo destino, clase y motivo) en `exceptions`. El libro solo baja: una
+relación nueva hacia arriba falla aunque otra haya desaparecido, y una relación listada que ya no
+existe falla hasta que se saca del libro. Agregar una entrada es decisión del responsable.
 
-## Convenciones de diseño
+## Qué hacer cuando falla
 
-- `services` no depende de UI (`components`, `hooks`, `context`, `features`).
-- `domain` no depende de capas de aplicación/UI.
-- `context` solo coordina estado y casos de uso; no renderiza UI de `components`.
-- `components` y `hooks` son capas consumidoras, no dueñas de reglas de negocio.
+El error nombra origen, línea, destino, clase de referencia y la capa de cada uno. Se corrige
+moviendo hacia abajo lo que ambos comparten, o llevando a la feature lo que solo usa ella; si
+basta el tipo, con `import type`. El control dice «muévelo a la feature» solo cuando esa feature
+es el único consumidor del archivo.
 
-## Flujo de trabajo recomendado
+## Informe de pertenencia
 
-1. Si agregas una dependencia nueva entre zonas, primero valida si respeta la matriz.
-2. Si necesitas romper la regla por migración, agrega el caso a allowlist con justificación en PR.
-3. En paralelo, crea tarea para remover ese item de allowlist.
-
-## CI / Checks
-
-- `npm run check:folder-dependencies` valida nuevas violaciones.
-- `npm run check:quality` incluye este check en la cadena completa.
+`node scripts/check-folder-dependencies.mjs --ownership` lista los módulos compartidos que alcanza
+una sola feature (contando navegador, worker, Netlify Functions y lo que Functions compila desde
+`src/`). Es un informe, no una regla: cada módulo abre una revisión de su dueño.

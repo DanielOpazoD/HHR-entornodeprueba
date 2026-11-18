@@ -7,6 +7,7 @@ import { findTestModifiers } from './testGovernanceSupport.mjs';
 import { buildReleaseConfidenceMatrixReport } from './releaseConfidenceMatrixSupport.mjs';
 import { buildEvidenceProvenance } from './evidenceProvenanceSupport.mjs';
 import { getGitReportState } from './gitReportState.mjs';
+import { analyzeFolderDependencies } from './check-folder-dependencies.mjs';
 
 const ROOT = process.cwd();
 const SRC_ROOT = path.join(ROOT, 'src');
@@ -15,7 +16,6 @@ const REPORTS_DIR = path.join(ROOT, 'reports');
 const JSON_OUTPUT = path.join(REPORTS_DIR, 'quality-metrics.json');
 const MD_OUTPUT = path.join(REPORTS_DIR, 'quality-metrics.md');
 const MODULE_ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'module-size-allowlist.json');
-const FOLDER_MATRIX_PATH = path.join(ROOT, 'scripts', 'folder-dependency-matrix.json');
 const HOOK_CONTROLLERS_DIR = path.join(SRC_ROOT, 'hooks', 'controllers');
 const FEATURE_CENSUS_CONTROLLERS_DIR = path.join(SRC_ROOT, 'features', 'census', 'controllers');
 const LOGGER_CONSOLE_SINK_PATH = 'src/services/utils/loggerService.ts';
@@ -188,99 +188,13 @@ const getModuleSizeMetrics = () => {
   };
 };
 
-const resolveImport = (importerFilePath, importPath) => {
-  if (!importPath.startsWith('@/') && !importPath.startsWith('.')) return null;
-
-  const basePath = importPath.startsWith('@/')
-    ? path.join(SRC_ROOT, importPath.slice(2))
-    : path.resolve(path.dirname(importerFilePath), importPath);
-
-  const candidates = [];
-  if (path.extname(basePath)) {
-    candidates.push(basePath);
-  } else {
-    for (const extension of SOURCE_EXTENSIONS) {
-      candidates.push(`${basePath}${extension}`);
-      candidates.push(path.join(basePath, `index${extension}`));
-    }
-  }
-
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
-      return path.normalize(candidate);
-    }
-  }
-
-  return null;
-};
-
+/** The folder rule's own analysis: unlisted upward relations are violations. */
 const getFolderDependencyDebtMetrics = () => {
-  const matrix = safeReadJson(FOLDER_MATRIX_PATH);
-  if (!matrix || !matrix.zones || typeof matrix.zones !== 'object') {
-    return {
-      violations: 0,
-      topZonePairs: [],
-    };
-  }
-
-  const knownZones = new Set(Object.keys(matrix.zones));
-  const files = sourceFiles.filter(filePath => {
-    const extension = path.extname(filePath);
-    if (!SOURCE_EXTENSIONS.has(extension)) return false;
-    if (filePath.endsWith('.d.ts')) return false;
-    const relative = toPosix(path.relative(ROOT, filePath));
-    return (
-      !relative.includes('/tests/') && !relative.includes('.test.') && !relative.includes('.spec.')
-    );
-  });
-
-  const getZone = relativePath => {
-    const zone = relativePath.replace(/^src\//, '').split('/')[0];
-    return knownZones.has(zone) ? zone : null;
-  };
-
-  const uniqueViolations = new Map();
-  const pairCounts = new Map();
-
-  for (const filePath of files) {
-    const importer = toPosix(path.relative(ROOT, filePath));
-    const importerZone = getZone(importer);
-    if (!importerZone) continue;
-
-    const content = fs.readFileSync(filePath, 'utf8');
-    IMPORT_REGEX.lastIndex = 0;
-    let match;
-
-    while ((match = IMPORT_REGEX.exec(content)) !== null) {
-      const importPath = match[1] || match[2];
-      if (!importPath) continue;
-
-      const resolved = resolveImport(filePath, importPath);
-      if (!resolved) continue;
-
-      const imported = toPosix(path.relative(ROOT, resolved));
-      const importedZone = getZone(imported);
-      if (!importedZone || importedZone === importerZone) continue;
-
-      const allowed = matrix.zones[importerZone]?.allowedDependencies || [];
-      if (allowed.includes(importedZone)) continue;
-
-      const key = `${importer}|${importPath}|${imported}`;
-      uniqueViolations.set(key, true);
-
-      const pair = `${importerZone}->${importedZone}`;
-      pairCounts.set(pair, (pairCounts.get(pair) || 0) + 1);
-    }
-  }
-
-  const topZonePairs = [...pairCounts.entries()]
-    .map(([pair, count]) => ({ pair, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 10);
-
+  const analysis = analyzeFolderDependencies(ROOT);
+  if (analysis.problems.length > 0) return { violations: analysis.problems.length, listed: 0 };
   return {
-    violations: uniqueViolations.size,
-    topZonePairs,
+    violations: analysis.unlisted.length + analysis.stale.length,
+    listed: analysis.upward.length - analysis.unlisted.length,
   };
 };
 
@@ -546,6 +460,7 @@ const mdLines = [
   '## Folder Dependency Debt',
   '',
   `- Violations: ${metrics.folderDependencyDebt.violations}`,
+  `- Upward relations listed in the exceptions book: ${metrics.folderDependencyDebt.listed}`,
   '',
   '## Tests',
   '',

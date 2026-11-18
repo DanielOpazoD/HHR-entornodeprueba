@@ -1,9 +1,12 @@
 // @vitest-environment node
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { ESLint } from 'eslint';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { checkFolderDependencies } from '../../../scripts/check-folder-dependencies.mjs';
 
 const ROOT = path.resolve(__dirname, '../../../');
 const OVERLAYS = 'src/components/layout/app-content/AppContentOverlays.tsx';
@@ -19,18 +22,24 @@ let eslint: ESLint;
 beforeAll(() => {
   eslint = new ESLint({ cwd: ROOT });
 });
-const sharedLayerErrors = async (file: string, code?: string) => {
-  const [result] =
-    code === undefined
-      ? await eslint.lintFiles([path.join(ROOT, file)])
-      : await eslint.lintText(code, { filePath: path.join(ROOT, file) });
-  return result.messages.filter(
-    message => message.ruleId === 'hhr/public-import-boundaries' && message.severity === 2
-  );
+const roots: string[] = [];
+afterEach(() => {
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
+
+const boundaryRules = async (file: string, code: string) => {
+  const [result] = await eslint.lintText(code, { filePath: path.join(ROOT, file) });
+  return [
+    ...new Set(
+      result.messages
+        .filter(message => /^hhr\//.test(message.ruleId ?? '') && message.severity === 2)
+        .map(message => message.ruleId)
+    ),
+  ];
 };
 
-describe('shared layers import no feature, without an exception list', () => {
-  it('keeps no folder exception list for the folder dependency check to accept', () => {
+describe('shared layers import no feature in runtime', () => {
+  it('keeps no folder exception list file and passes on the real tree', () => {
     expect(fs.existsSync(path.join(ROOT, 'scripts/folder-dependency-allowlist.json'))).toBe(false);
     const check = spawnSync(process.execPath, ['scripts/check-folder-dependencies.mjs'], {
       cwd: ROOT,
@@ -40,12 +49,47 @@ describe('shared layers import no feature, without an exception list', () => {
   });
 
   it('lints the overlays without any feature import', async () => {
-    expect(await sharedLayerErrors(OVERLAYS)).toEqual([]);
+    expect(
+      await boundaryRules(OVERLAYS, fs.readFileSync(path.join(ROOT, OVERLAYS), 'utf8'))
+    ).toEqual([]);
   });
 
-  it('rejects the former overlay exception in the real overlays module', async () => {
-    const source = fs.readFileSync(path.join(ROOT, OVERLAYS), 'utf8');
-    const errors = await sharedLayerErrors(OVERLAYS, `${source}${FORMER_EXCEPTION}`);
-    expect(errors.map(error => error.messageId)).toEqual(['shared']);
+  it('rejects the former overlay exception in the real overlays module', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'hhr-shared-layer-'));
+    roots.push(root);
+    const policy = JSON.parse(
+      fs.readFileSync(path.join(ROOT, 'scripts/folder-dependency-matrix.json'), 'utf8')
+    );
+    const files = {
+      'scripts/folder-dependency-matrix.json': JSON.stringify({ layers: policy.layers }),
+      [OVERLAYS]: `${fs.readFileSync(path.join(ROOT, OVERLAYS), 'utf8')}${FORMER_EXCEPTION}`,
+      'src/features/census/public-components.ts': 'export const GlobalPatientSearchModal = 1;',
+    };
+    for (const [file, content] of Object.entries(files)) {
+      mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+      writeFileSync(path.join(root, file), content);
+    }
+    const result = checkFolderDependencies(root);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(`- ${OVERLAYS}:`);
+    expect(result.stderr).toContain(
+      '→ src/features/census/public-components.ts (carga diferida, «@/features/census/public-components»)'
+    );
+  });
+
+  // The feature to feature rows of the former boundaries spelling table (W15-A1): ESLint still
+  // owns them, in every spelling, after the boundaries plugin left.
+  it.each([
+    ['alias', '@/features/census/controllers/admissionInputController'],
+    ['alias .ts', '@/features/census/controllers/admissionInputController.ts'],
+    ['relativa', '../census/controllers/admissionInputController'],
+    ['relativa .ts', '../census/controllers/admissionInputController.ts'],
+    ['public surface without permission', '@/features/census/public'],
+  ])('rejects a feature import the matrix does not allow (%s)', async (_spelling, target) => {
+    const rules = await boundaryRules(
+      'src/features/whatsapp/public.ts',
+      `import * as probe from '${target}';\nexport const __probe = probe;\n`
+    );
+    expect(rules).toContain('hhr/feature-boundaries');
   });
 });

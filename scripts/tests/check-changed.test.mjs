@@ -69,6 +69,7 @@ test('includes committed, staged, unstaged, untracked and deleted changes', () =
   assert.match(result.calls, /check:unchecked-index/);
   assert.match(result.calls, /check:module-size/);
   assert.match(result.calls, /check:architecture/);
+  assert.match(result.calls, /check:folder-dependencies/);
   assert.match(result.calls, /check:cudyr-source-parser/);
 });
 
