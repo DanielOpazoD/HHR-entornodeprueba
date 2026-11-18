@@ -28,6 +28,8 @@ import {
 import { useRayenCensusDiffApplication } from '@/features/rayen-import/hooks/useRayenCensusDiffApplication';
 import { finalizeRayenHistoricalDischarges } from '@/features/rayen-import/hooks/finalizeRayenHistoricalDischarges';
 import { useRayenSyncAudit } from '@/features/rayen-import/hooks/useRayenSyncAudit';
+import { createRayenSyncPersistenceQueue } from '@/features/rayen-import/hooks/rayenSyncPersistenceQueue';
+import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { buildDischarge } from '@/features/rayen-import/domain/applyCensusImportDiff';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { DailyRecordWriteLease } from '@/services/repositories/dailyRecordWriteCoordinator';
@@ -267,6 +269,53 @@ describe('selected-day checkpoint (useRayenCensusDiffApplication)', () => {
     expect(getDailyRecordLastRemoteConfirmedAt(date)).toBeUndefined();
   });
 
+  it('a session that ends while the census reads are cancelled is not filled either', async () => {
+    const cancelled = held<void>();
+    const cancelQueries = vi
+      .spyOn(client, 'cancelQueries')
+      .mockImplementationOnce(() => cancelled.promise);
+    const apply = renderDiffApplication({
+      checkpointRepository: {
+        updatePartialDetailed: vi.fn(async () =>
+          confirmedWrite(stamp(recordOf(date, A_NOTE)).record)
+        ) as never,
+      },
+    });
+    let settled!: Promise<unknown>;
+    act(() => {
+      settled = apply.current(recordOf(date, A_NOTE), emptyDiff()).catch(error => error);
+    });
+    await waitFor(() => expect(cancelQueries).toHaveBeenCalled());
+
+    await switchToNextSession();
+    await act(async () => {
+      cancelled.release();
+      await settled;
+    });
+
+    // The run stops: the hook's caller receives the stop, never a confirmed result.
+    expect(await settled).toBeInstanceOf(Error);
+    expect(await openCensus()).toEqual(B_READS_THE_DAY);
+  });
+
+  it('a step that begins after the session ended still sends as A and shows nothing', async () => {
+    const checkpoint = vi.fn(async () => confirmedWrite(stamp(recordOf(date, A_NOTE)).record));
+    const apply = renderDiffApplication({
+      checkpointRepository: { updatePartialDetailed: checkpoint as never },
+    });
+    await switchToNextSession();
+
+    let settled: unknown;
+    await act(async () => {
+      settled = await apply.current(recordOf(date, A_NOTE), emptyDiff()).catch(error => error);
+    });
+
+    // The repository refuses A's session; the scripted one answers, and the run still stops.
+    expect(checkpoint).toHaveBeenCalledWith(date, expect.anything(), sentAsA);
+    expect(settled).toBeInstanceOf(Error);
+    expect(await openCensus()).toEqual(B_READS_THE_DAY);
+  });
+
   it('the same session still shows its confirmed checkpoint', async () => {
     const confirmed = stamp(recordOf(date, A_NOTE)).record;
     const apply = renderDiffApplication({
@@ -465,6 +514,39 @@ describe('historical discharge finalization (finalizeRayenHistoricalDischarges)'
       expect(getDailyRecordLastRemoteConfirmedAt(heldDay)).toBeUndefined();
     }
   );
+
+  it('a session that ends while the census reads are cancelled is not filled either', async () => {
+    const cancelled = held<void>();
+    const cancelQueries = vi
+      .spyOn(client, 'cancelQueries')
+      .mockImplementationOnce(() => cancelled.promise);
+    const finalRepository = {
+      getAuthoritativeForDate: vi.fn(async (day: string) =>
+        day === date ? selected() : history()
+      ),
+      updatePartialDetailed: vi.fn(async () => confirmedWrite(cleared(selected()))),
+    };
+    let settled!: Promise<unknown>;
+    act(() => {
+      settled = finalizeRayenHistoricalDischarges(
+        applied(),
+        finalRepository as never,
+        client,
+        false,
+        A_SESSION
+      ).catch(error => error);
+    });
+    await waitFor(() => expect(cancelQueries).toHaveBeenCalled());
+
+    await switchToNextSession();
+    await act(async () => {
+      cancelled.release();
+      await settled;
+    });
+
+    expect(await settled).toBeInstanceOf(Error);
+    expect(await openCensus()).toEqual(B_READS_THE_DAY);
+  });
 });
 
 describe('run audit (useRayenSyncAudit)', () => {
@@ -489,5 +571,97 @@ describe('run audit (useRayenSyncAudit)', () => {
     });
 
     expect(patchDailyRecord).not.toHaveBeenCalled();
+  });
+});
+
+describe('run audit queued behind other work (useRayenSyncAudit + the persistence queue)', () => {
+  it('a failure that runs after the session changed leaves no history, warning or event', async () => {
+    const patchDailyRecord = vi.fn();
+    const audit = renderHook(
+      () =>
+        useRayenSyncAudit({
+          currentRecordRef: { current: recordOf(date, A_NOTE) },
+          patchDailyRecord,
+          actor: run.by,
+        }),
+      { wrapper }
+    ).result;
+    const queue = createRayenSyncPersistenceQueue();
+    const earlierWrite = held<void>();
+    const first = queue.run(() => earlierWrite.promise);
+    const started = audit.current.startRun();
+    const failed = queue.run(() => audit.current.failRun('apply_failed', started.id));
+
+    await switchToNextSession();
+    vi.mocked(recordOperationalTelemetry).mockClear();
+    await act(async () => {
+      earlierWrite.release();
+      await first;
+      await failed;
+    });
+
+    // Before the fix: one rayen_sync_run / failed event for A's run in B's session.
+    expect(patchDailyRecord).not.toHaveBeenCalled();
+    expect(recordOperationalTelemetry).not.toHaveBeenCalled();
+  });
+
+  it('a completion that runs after the session changed leaves no history or event', async () => {
+    const patchDailyRecord = vi.fn();
+    const audit = renderHook(
+      () =>
+        useRayenSyncAudit({
+          currentRecordRef: { current: recordOf(date, A_NOTE) },
+          patchDailyRecord,
+          actor: run.by,
+        }),
+      { wrapper }
+    ).result;
+    const started = audit.current.startRun();
+    const applied = audit.current.applyRunToRecord(recordOf(date, A_NOTE), emptyDiff()).record;
+    const queue = createRayenSyncPersistenceQueue();
+    const earlierWrite = held<void>();
+    const first = queue.run(() => earlierWrite.promise);
+    const completed = queue
+      .run(() =>
+        audit.current.completeRun(applied, { total: 0, patched: 0, errors: [] }, null, started.id)
+      )
+      .catch(error => error);
+
+    await switchToNextSession();
+    vi.mocked(recordOperationalTelemetry).mockClear();
+    await act(async () => {
+      earlierWrite.release();
+      await first;
+      await completed;
+    });
+
+    expect(patchDailyRecord).not.toHaveBeenCalled();
+    expect(recordOperationalTelemetry).not.toHaveBeenCalled();
+  });
+
+  it('the same session still records its failure', async () => {
+    const patchDailyRecord = vi.fn(async () => ({
+      result: confirmedWrite(recordOf(date, A_NOTE)),
+    }));
+    const audit = renderHook(
+      () =>
+        useRayenSyncAudit({
+          currentRecordRef: { current: recordOf(date, A_NOTE) },
+          patchDailyRecord,
+          actor: run.by,
+        }),
+      { wrapper }
+    ).result;
+    const started = audit.current.startRun();
+    vi.mocked(recordOperationalTelemetry).mockClear();
+
+    await act(async () => {
+      await audit.current.failRun('apply_failed', started.id);
+    });
+
+    expect(patchDailyRecord).toHaveBeenCalledTimes(1);
+    expect(
+      vi.mocked(recordOperationalTelemetry).mock.calls.map(([event]) => event.operation)
+    ).toContain('rayen_sync_run');
   });
 });

@@ -26,12 +26,8 @@ import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordP
 import type { QueryClient } from '@tanstack/react-query';
 import { setRemoteConfirmedDailyRecordQueryData } from '@/hooks/controllers/dailyRecordConfirmedCacheController';
 import { markDailyRecordRemoteConfirmed } from '@/hooks/controllers/dailyRecordFreshnessGateController';
-import {
-  assertAuthoringSessionCurrent,
-  captureAuthoringSession,
-  isAuthoringSessionCurrent,
-  type AuthoringSession,
-} from '@/services/storage/authoringSession';
+import type { AuthoringSession } from '@/services/storage/authoringSession';
+import { assertRayenRunAlive, isRayenRunAlive, rayenRunSession } from './rayenRunLiveness';
 
 export interface ConfirmedRayenCensusApplyResult extends ApplyResult {
   confirmedHandoff: ConfirmedRayenCensusHandoff;
@@ -78,7 +74,8 @@ export const useRayenCensusDiffApplication = ({
         async writeLease => {
           const run = ensureRun();
           // Every write and cache update below belongs to the session that began the run.
-          const authoringSession = run.authoringSession ?? captureAuthoringSession();
+          const authoringSession = rayenRunSession(run);
+          const alive = { session: authoringSession };
           const localResult = await loadLocalRecord(record.date);
           const persistenceBase = buildRayenStructuralPersistenceBase(
             record,
@@ -168,7 +165,7 @@ export const useRayenCensusDiffApplication = ({
             if (confirmedCheckpointRecord) {
               // Logout clears the census cache. An answer that arrives after the run's session
               // ended stops the run instead of filling the next person's census.
-              assertAuthoringSessionCurrent(authoringSession);
+              assertRayenRunAlive(alive);
               markDailyRecordRemoteConfirmed(persistenceBase.date, {
                 source: 'write',
                 remoteLastUpdated: confirmedCheckpointRecord.lastUpdated,
@@ -179,9 +176,9 @@ export const useRayenCensusDiffApplication = ({
                 queryClient,
                 persistenceBase.date,
                 confirmedCheckpointRecord,
-                { stillCurrent: () => isAuthoringSessionCurrent(authoringSession) }
+                { stillCurrent: () => isRayenRunAlive(alive) }
               );
-              if (!published) assertAuthoringSessionCurrent(authoringSession);
+              if (!published) assertRayenRunAlive(alive);
             }
           } else {
             persistence = await saveDailyRecord(

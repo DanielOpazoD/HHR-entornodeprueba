@@ -9,8 +9,8 @@ import {
   type RayenClinicalEnrichmentBatchPayload,
 } from '../bridge/rayenClinicalEnrichmentBatchClient';
 import type { ClinicalEnrichmentBatchMode } from '../domain/clinicalEnrichmentBatchMode';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { isRayenRunAlive } from './rayenRunLiveness';
 import { createSyncMutationId } from '@/services/storage/sync/syncMutationIdentity';
 import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
 import {
@@ -71,12 +71,10 @@ export const applyClinicalEnrichmentBatch = async ({
   invoke = callRayenClinicalEnrichmentBatch,
   createMutationId = createSyncMutationId,
 }: ApplyClinicalEnrichmentBatchInput): Promise<ClinicalFillBatchApplyResult> => {
-  const owner = getStoredSessionOwnerKey(),
-    generation = getSessionGeneration();
+  const session = captureAuthoringSession();
   const check = () => {
     checkSession?.();
-    if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
-      throw new Error('La sesión cambió.');
+    if (!isRayenRunAlive({ session })) throw new Error('La sesión cambió.');
   };
   return runExclusiveDailyRecordWrite(
     record.date,

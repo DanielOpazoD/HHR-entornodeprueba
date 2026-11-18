@@ -1,12 +1,10 @@
-import { useCallback, type Dispatch } from 'react';
+import { useCallback, useEffect, useRef, type Dispatch } from 'react';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import {
   describeRayenPlanningFailure,
   getRayenImportErrorMessage,
   type RayenImportState,
 } from './rayenImportState';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { logError } from '@/services/utils/errorService';
 import { defaultMonotonicNow, elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 import { useTreatingPhysicianCatalogSync } from './useTreatingPhysicianCatalogSync';
@@ -38,6 +36,7 @@ import {
   returnRayenReplanToReview,
 } from './rayenSnapshotPreviewPreparation';
 import { raceWithTimeout } from '../domain/raceWithTimeout';
+import { isRayenRunAlive, rayenRunSession } from './rayenRunLiveness';
 
 interface RayenSnapshotExecutionIdentity {
   runId: string;
@@ -85,6 +84,13 @@ export const useRayenSnapshotPreview = ({
   monotonicNow = defaultMonotonicNow,
 }: UseRayenSnapshotPreviewInput) => {
   const prepareTreatingPhysicianSnapshot = useTreatingPhysicianCatalogSync();
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
   return useCallback(
     async (
       snapshot: RayenCensusSnapshot,
@@ -121,14 +127,17 @@ export const useRayenSnapshotPreview = ({
         selectedDate: preparedContext.selectedDate,
       };
       if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
-      const sessionOwner = getStoredSessionOwnerKey();
-      const sessionGeneration = getSessionGeneration();
-      // A failure or a commit that arrives after the session changed belongs to no one: the run
-      // stops there without continuing or telling anyone.
-      const ownsSession = () =>
-        sessionOwner === getStoredSessionOwnerKey() && sessionGeneration === getSessionGeneration();
-      const ownsPlanning = () =>
-        isRayenSyncExecutionCurrent(executionRef.current, executionIdentity) && ownsSession();
+      // After each wait the run asks whether it is still alive (rayenRunLiveness). Asking the
+      // extension or showing a proposal needs its view, execution and session; failing or saving,
+      // its execution and session; continuing after the commit, only its session. A run that is
+      // not alive stops there without telling anyone.
+      const session = rayenRunSession(run);
+      const isExecutionCurrent = () =>
+        isRayenSyncExecutionCurrent(executionRef.current, executionIdentity);
+      const ownsView = () =>
+        isRayenRunAlive({ session, isMounted: () => mountedRef.current, isExecutionCurrent });
+      const ownsPlanning = () => isRayenRunAlive({ session, isExecutionCurrent });
+      const ownsSession = () => isRayenRunAlive({ session });
       const execution = createRayenSnapshotExecutionReporter(dispatchExecution, executionIdentity);
       const returnReplanToReview = (error: unknown) =>
         returnRayenReplanToReview({
@@ -176,7 +185,8 @@ export const useRayenSnapshotPreview = ({
         stopPlanning({ error: INVALID_EPISODE_LOAD_ERROR });
         return;
       }
-      if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
+      // The read may answer after the view unmounted or the session ended: no bridge query then.
+      if (!ownsView()) return;
       let structuralPlan: Awaited<ReturnType<typeof prepareRayenStructuralPlan>>;
       try {
         structuralPlan = await prepareRayenStructuralPlan({
@@ -207,7 +217,7 @@ export const useRayenSnapshotPreview = ({
       }
       const { replanDiff } = structuralPlan;
       let diff = structuralPlan.diff;
-      if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
+      if (!ownsView()) return;
       structuralReplanRef.current = {
         ...executionIdentity,
         clinicalDay: preparedContext.target.clinicalDay,
@@ -227,9 +237,7 @@ export const useRayenSnapshotPreview = ({
       execution.recordOutcome({ structuralConflicts: structuralConflictCount });
       const persistConvergedStructure = () =>
         runSerializedPersistence(() => {
-          if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) {
-            return Promise.resolve(null);
-          }
+          if (!ownsPlanning()) return Promise.resolve(null);
           return applyConfirmedRayenImport({
             applyPreviousDays: false,
             base: authoritativeBaseRecord,
@@ -254,8 +262,7 @@ export const useRayenSnapshotPreview = ({
         });
       let structureCommitted = false;
       const finishFailedPersistence = (error: unknown) => {
-        if (!ownsSession()) return;
-        if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
+        if (!ownsPlanning()) return;
         if (returnReplanToReview(error)) {
           const replan = structuralReplanRef.current;
           if (matchesRayenStructuralReplan(replan, executionIdentity)) {

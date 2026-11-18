@@ -7,7 +7,7 @@ import {
   type SetStateAction,
 } from 'react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { isRayenRunAlive, rayenRunSession } from './rayenRunLiveness';
 import type {
   CapturePreparationLock,
   RayenImportCaptureOptions,
@@ -368,10 +368,11 @@ export const useRayenImportCapture = ({
         const run = startRun(health, performance, policy, options?.reviewRequirement);
         const selectedDate = toIsoReportDate(currentRecord);
         dispatchExecution({ type: 'prepare', runId: run.id, selectedDate });
-        const generation = getSessionGeneration();
+        const session = rayenRunSession(run);
         const isPreparationCurrent = (): boolean => {
           const ownsLock = capturePreparationLockRef.current === preparationLock;
-          const current = mountedRef.current && ownsLock && generation === getSessionGeneration();
+          const current =
+            ownsLock && isRayenRunAlive({ session, isMounted: () => mountedRef.current });
           if (!current && ownsLock) dispatchExecution({ type: 'cancel', runId: run.id });
           return (
             current &&

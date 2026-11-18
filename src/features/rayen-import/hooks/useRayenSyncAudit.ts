@@ -1,9 +1,5 @@
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import {
-  captureAuthoringSession,
-  type AuthoringSession,
-} from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { isRayenRunAlive, rayenRunSession } from './rayenRunLiveness';
 import { useCallback, useRef, type MutableRefObject } from 'react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
@@ -111,13 +107,11 @@ export const useRayenSyncAudit = ({
   const persistMetadataPatch = useCallback(
     async <T>(
       fallbackRecord: DailyRecord,
-      build: (freshRecord: DailyRecord) => { patch: DailyRecordPatch | null; value: T },
-      session: AuthoringSession = captureAuthoringSession()
+      build: (freshRecord: DailyRecord) => { patch: DailyRecordPatch | null; value: T }
     ): Promise<T> => {
-      const { ownerKey: owner, generation } = session;
+      const session = captureAuthoringSession();
       const check = () => {
-        if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
-          throw new Error('La sesión cambió.');
+        if (!isRayenRunAlive({ session })) throw new Error('La sesión cambió.');
       };
       let base = fallbackRecord;
       let lastError: unknown;
@@ -244,17 +238,16 @@ export const useRayenSyncAudit = ({
       requestedRunId?: string,
       options?: CompleteRayenSyncRunOptions
     ): Promise<void> => {
-      const owner = getStoredSessionOwnerKey(),
-        generation = getSessionGeneration();
-      const sessionChanged = () =>
-        owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration();
+      // Use the applied run id even when a newer manual attempt has started.
+      const runId = requestedRunId ?? recordAtApply.rayenSync?.runId;
+      // A completion queued behind other work may run after the run's session ended.
+      const session = rayenRunSession(runId ? lifecycle.getRun(runId) : undefined);
+      const sessionChanged = () => !isRayenRunAlive({ session });
       const check = () => {
         options?.checkSession?.();
         if (sessionChanged()) throw new Error('La sesión cambió.');
       };
       check();
-      // Use the applied run id even when a newer manual attempt has started.
-      const runId = requestedRunId ?? recordAtApply.rayenSync?.runId;
       if (!runId) return;
       const claim = lifecycle.claimTerminal(runId);
       // A clinical-only retry may update the same persisted terminal event in this session.
@@ -382,6 +375,10 @@ export const useRayenSyncAudit = ({
       const run = id ? lifecycle.getRun(id) : undefined;
       const record = currentRecordRef.current;
       if (!run) return;
+      // A run whose session ended (failRun queued behind other work) leaves nothing behind in the
+      // next session: no history patch, no warning, no terminal event.
+      const session = rayenRunSession(run);
+      if (!isRayenRunAlive({ session })) return;
       const claim = lifecycle.claimTerminal(run.id);
       if (!claim) return;
       const event = buildFailedRayenSyncEvent(run, reason, now().toISOString());
@@ -389,17 +386,12 @@ export const useRayenSyncAudit = ({
       if (evidence) event.structuralReview = evidence;
       if (record) {
         try {
-          // A run that ends after its session did records nothing in the next one.
-          await persistMetadataPatch(
-            record,
-            base => ({
-              patch: {
-                rayenSyncHistory: upsertRayenSyncEvent(base.rayenSyncHistory, event),
-              },
-              value: undefined,
-            }),
-            run.authoringSession
-          );
+          await persistMetadataPatch(record, base => ({
+            patch: {
+              rayenSyncHistory: upsertRayenSyncEvent(base.rayenSyncHistory, event),
+            },
+            value: undefined,
+          }));
         } catch (error) {
           reportRayenSyncWarning('sync_audit_persist_failed', {
             runId: run.id,

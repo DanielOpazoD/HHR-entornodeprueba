@@ -13,11 +13,10 @@ import { markDailyRecordRemoteConfirmed } from '@/hooks/controllers/dailyRecordF
 import { setRemoteConfirmedDailyRecordQueryData } from '@/hooks/controllers/dailyRecordConfirmedCacheController';
 import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
 import {
-  assertAuthoringSessionCurrent,
   captureAuthoringSession,
-  isAuthoringSessionCurrent,
   type AuthoringSession,
 } from '@/services/storage/authoringSession';
+import { assertRayenRunAlive, isRayenRunAlive } from './rayenRunLiveness';
 import type { ConfirmedRayenCensusApplyResult } from './useRayenCensusDiffApplication';
 import { assertRayenCensusPersistenceConfirmed } from './rayenCensusPersistenceGuard';
 import { matchesDischargeSubject } from '../domain/dischargeSubjectIdentity';
@@ -60,16 +59,17 @@ export const finalizeRayenHistoricalDischarges = async (
   const entries = result.deferredHistoricalDischarges ?? [];
   if (!entries.length) return result;
   // Logout clears the census cache; an answer arriving after it must not fill the next census.
+  const alive = { session: authoringSession };
   const publish = async (record: DailyRecord, markConfirmed?: () => void) => {
-    assertAuthoringSessionCurrent(authoringSession);
+    assertRayenRunAlive(alive);
     markConfirmed?.();
     const published = await setRemoteConfirmedDailyRecordQueryData(
       queryClient,
       record.date,
       record,
-      { stillCurrent: () => isAuthoringSessionCurrent(authoringSession) }
+      { stillCurrent: () => isRayenRunAlive(alive) }
     );
-    if (!published) assertAuthoringSessionCurrent(authoringSession);
+    if (!published) assertRayenRunAlive(alive);
   };
   return runExclusiveDailyRecordWrite(result.record.date, async dailyRecordWriteLease => {
     let confirmed = result.record;

@@ -9,9 +9,20 @@ import {
 } from '@/features/rayen-import/hooks/confirmRayenImport';
 import { useRayenSnapshotPreview } from '@/features/rayen-import/hooks/useRayenSnapshotPreview';
 import {
-  getSessionGeneration,
-  setSessionGeneration,
-} from '@/services/storage/sessionStorageTransition';
+  clearSessionScopedClientState,
+  reconcileAuthorizedSessionOwner,
+} from '@/services/storage/sessionScopedStorageService';
+
+// Native Storage from a fresh window, so the session owner, generation and cleanup mark behave
+// as shipped during a real logout.
+const storageFrame = document.createElement('iframe');
+document.body.append(storageFrame);
+const local = storageFrame.contentWindow!.localStorage;
+Object.defineProperty(globalThis, 'localStorage', { value: local, configurable: true });
+Object.defineProperty(globalThis, 'sessionStorage', {
+  value: storageFrame.contentWindow!.sessionStorage,
+  configurable: true,
+});
 
 const mocks = vi.hoisted(() => ({
   applyConfirmedRayenImport: vi.fn(),
@@ -115,10 +126,12 @@ const renderPreview = ({
   monotonicNow = Date.now,
   reviewRequirement,
   loadInvalidEpisodeIds = vi.fn().mockResolvedValue(new Set<string>()),
+  runSerializedPersistence = operation => operation(),
 }: {
   monotonicNow?: () => number;
   reviewRequirement?: 'day_bootstrap';
   loadInvalidEpisodeIds?: () => Promise<ReadonlySet<string>>;
+  runSerializedPersistence?: <T>(operation: () => Promise<T>) => Promise<T>;
 } = {}) => {
   const setState = vi.fn();
   const dispatchExecution = vi.fn();
@@ -164,7 +177,7 @@ const renderPreview = ({
   };
   const hook = renderHook(() =>
     useRayenSnapshotPreview({
-      dailyRecord: {} as never,
+      dailyRecord: { getAuthoritativeForDate: async () => null } as never,
       isAdmin: false,
       setState,
       dispatchExecution,
@@ -180,7 +193,7 @@ const renderPreview = ({
       preparedSyncContextRef: preparedSyncContextRef as never,
       structuralReplanRef,
       structuralPersistenceExecutionKeysRef,
-      runSerializedPersistence: operation => operation(),
+      runSerializedPersistence,
       loadAuthoritativeStructuralRecord: vi.fn(),
       loadInvalidEpisodeIds,
       monotonicNow,
@@ -501,12 +514,15 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     );
   });
 
-  describe('the session that planned the run ends while its structure is saved', () => {
-    let generationBefore: string | null;
-    beforeEach(() => {
-      generationBefore = getSessionGeneration();
+  describe('a run of A whose session ends (real logout, then B signs in)', () => {
+    beforeEach(async () => {
+      local.clear();
+      await reconcileAuthorizedSessionOwner('user:synthetic-A');
     });
-    afterEach(() => setSessionGeneration(generationBefore));
+    const switchToB = async () => {
+      await clearSessionScopedClientState('manual');
+      await reconcileAuthorizedSessionOwner('user:synthetic-B');
+    };
 
     const persistAcrossSessionChange = async (
       settle: (harness: ReturnType<typeof renderPreview>) => void
@@ -525,7 +541,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
       const persistence = harness.result.current(snapshot, {} as never, 'run-1', 'request-1');
       await vi.waitFor(() => expect(mocks.applyConfirmedRayenImport).toHaveBeenCalledOnce());
       const statesBefore = harness.setState.mock.calls.length;
-      setSessionGeneration('synthetic-next-session');
+      await switchToB();
       release();
       await act(async () => persistence);
       return { harness, statesAfter: harness.setState.mock.calls.length - statesBefore };
@@ -547,6 +563,154 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
 
       expect(harness.failRun).not.toHaveBeenCalled();
       expect(statesAfter).toBe(0);
+    });
+
+    it('a commit answered while the logout cleanup runs starts no clinical work', async () => {
+      mocks.prepareRayenStructuralPlan.mockResolvedValue({
+        diff: noChangeDiff,
+        replanDiff: vi.fn(),
+      });
+      let release!: () => void;
+      let saving!: () => void;
+      const reached = new Promise<void>(resolve => (saving = resolve));
+      mocks.applyConfirmedRayenImport.mockImplementationOnce(() => {
+        saving();
+        return new Promise(resolve => (release = () => resolve(committedResult(noChangeDiff))));
+      });
+      const harness = renderPreview();
+      const work = harness.result.current(snapshot, {} as never, 'run-1', 'request-1');
+      await reached;
+      let finish!: () => void;
+      let arrived!: () => void;
+      const cleaning = new Promise<void>(resolve => (arrived = resolve));
+      // Owner and generation still match here; only the cleanup mark says the session is ending.
+      const closing = clearSessionScopedClientState('manual', () => {
+        arrived();
+        return new Promise<void>(resolve => (finish = resolve));
+      });
+      await cleaning;
+      try {
+        harness.setState.mockClear();
+        release();
+        await act(async () => work);
+
+        // Before the fix: { clinical: 1, ui: 1 }.
+        expect(harness.runClinicalStage).not.toHaveBeenCalled();
+        expect(harness.setState).not.toHaveBeenCalled();
+      } finally {
+        finish();
+        await closing;
+      }
+    });
+
+    it('a checkpoint whose turn comes after the session ended is never saved', async () => {
+      mocks.prepareRayenStructuralPlan.mockResolvedValue({
+        diff: noChangeDiff,
+        replanDiff: vi.fn(),
+      });
+      mocks.applyConfirmedRayenImport.mockResolvedValue(committedResult(noChangeDiff));
+      let releaseTurn!: () => void;
+      const turn = new Promise<void>(resolve => (releaseTurn = resolve));
+      let queued!: () => void;
+      const reachedQueue = new Promise<void>(resolve => (queued = resolve));
+      const harness = renderPreview({
+        runSerializedPersistence: operation => {
+          queued();
+          return turn.then(operation);
+        },
+      });
+      const work = harness.result.current(snapshot, {} as never, 'run-1', 'request-1');
+      await reachedQueue;
+      await switchToB();
+      releaseTurn();
+      await act(async () => work);
+
+      expect(mocks.applyConfirmedRayenImport).not.toHaveBeenCalled();
+      expect(harness.runClinicalStage).not.toHaveBeenCalled();
+    });
+
+    it('a plan delivered afterwards is neither shown nor put up for review', async () => {
+      let release!: () => void;
+      const waiting = new Promise<void>(resolve => (release = resolve));
+      mocks.prepareRayenStructuralPlan.mockImplementationOnce(async () => {
+        await waiting;
+        return { diff: admissionDiff, replanDiff: vi.fn() };
+      });
+      const harness = renderPreview();
+      const work = harness.result.current(snapshot, {} as never, 'run-1', 'request-1');
+      await vi.waitFor(() => expect(mocks.prepareRayenStructuralPlan).toHaveBeenCalled());
+      await switchToB();
+      harness.setState.mockClear();
+      harness.dispatchExecution.mockClear();
+      release();
+      await act(async () => work);
+
+      // Before the fix: the proposal opened with one admission and the run went to awaiting_review.
+      expect(harness.setState).not.toHaveBeenCalled();
+      expect(harness.dispatchExecution).not.toHaveBeenCalled();
+      expect(harness.structuralReplanRef.current).toBeNull();
+    });
+
+    it.each([
+      ['its view unmounted', false],
+      ['its session ended after unmounting', true],
+    ])('a read answered after %s asks the extension nothing about A', async (_label, logout) => {
+      const actual = await vi.importActual<
+        typeof import('@/features/rayen-import/hooks/prepareRayenStructuralPlan')
+      >('@/features/rayen-import/hooks/prepareRayenStructuralPlan');
+      mocks.prepareRayenStructuralPlan.mockImplementationOnce(actual.prepareRayenStructuralPlan);
+      let release!: () => void;
+      const wait = new Promise<void>(resolve => (release = resolve));
+      const loadInvalidEpisodeIds = vi.fn(async () => {
+        await wait;
+        return new Set<string>();
+      });
+      const harness = renderPreview({ loadInvalidEpisodeIds });
+      const egresoRow = {
+        run: '11.111.111-1',
+        patientName: 'PACIENTE SINTETICO A',
+        fechaEgreso: '25-08-2026 12:00',
+        correctedDay: '2026-08-25',
+        correctedTime: '12:00',
+        bedLabel: 'R1',
+        destino: 'Domicilio',
+      };
+      const work = harness.result.current(
+        snapshot,
+        { egresoRows: [egresoRow] } as never,
+        'run-1',
+        'request-1'
+      );
+      await vi.waitFor(() => expect(loadInvalidEpisodeIds).toHaveBeenCalledOnce());
+      harness.unmount();
+      if (logout) await switchToB();
+      const post = vi.spyOn(window, 'postMessage');
+      // A query that does go out is answered at once, so the case fails on the assertion below
+      // instead of waiting for the extension.
+      post.mockImplementation(message => {
+        if (message?.type !== 'HHR_RAYEN_EGRESO_LOOKUP_REQUEST') return;
+        queueMicrotask(() =>
+          window.dispatchEvent(
+            new MessageEvent('message', {
+              source: window,
+              origin: window.location.origin,
+              data: { type: 'HHR_RAYEN_EGRESO_LOOKUP_RESULT', reqId: message.reqId, results: [] },
+            })
+          )
+        );
+      });
+      try {
+        release();
+        await work;
+
+        // Before the fix: HHR_RAYEN_EGRESO_LOOKUP_REQUEST for A's RUN during B's session.
+        expect(post.mock.calls.map(([message]) => message?.type)).not.toContain(
+          'HHR_RAYEN_EGRESO_LOOKUP_REQUEST'
+        );
+        expect(harness.setState).not.toHaveBeenCalled();
+      } finally {
+        post.mockRestore();
+      }
     });
   });
 });

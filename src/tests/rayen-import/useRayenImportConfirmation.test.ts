@@ -12,6 +12,11 @@ import {
   getSessionGeneration,
   setSessionGeneration,
 } from '@/services/storage/sessionStorageTransition';
+import { SESSION_CLEANUP_PENDING_KEY } from '@/services/storage/sessionOwnerKey';
+import {
+  captureAuthoringSession,
+  type AuthoringSession,
+} from '@/services/storage/authoringSession';
 import type { RayenImportState } from '@/features/rayen-import/hooks/rayenImportState';
 import type {
   ClinicalFillRequest,
@@ -20,6 +25,10 @@ import type {
 import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 const mocks = vi.hoisted(() => ({
   applyConfirmedRayenImport: vi.fn(),
+  finalizeRayenHistoricalDischarges: vi.fn(),
+}));
+vi.mock('@/features/rayen-import/hooks/finalizeRayenHistoricalDischarges', () => ({
+  finalizeRayenHistoricalDischarges: mocks.finalizeRayenHistoricalDischarges,
 }));
 vi.mock('@/features/rayen-import/hooks/confirmRayenImport', async importOriginal => ({
   ...(await importOriginal<typeof import('@/features/rayen-import/hooks/confirmRayenImport')>()),
@@ -97,6 +106,8 @@ const renderConfirmation = ({
   monotonicNow = Date.now,
   recordRunPerformance = vi.fn(),
   structuralPersistenceExecutionKeys = new Set<string>(),
+  runSerializedPersistence = operation => operation(),
+  run = { id: 'run-1' },
 }: {
   executionRef?: ReturnType<typeof createExecutionRef>;
   runClinicalStage?: (source: ClinicalFillRequest) => Promise<ClinicalStageResult>;
@@ -104,6 +115,8 @@ const renderConfirmation = ({
   monotonicNow?: () => number;
   recordRunPerformance?: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
   structuralPersistenceExecutionKeys?: Set<string>;
+  runSerializedPersistence?: <T>(operation: () => Promise<T>) => Promise<T>;
+  run?: { id: string; authoringSession?: AuthoringSession };
 } = {}) => {
   const setState = vi.fn();
   const dispatchExecution = vi.fn();
@@ -139,13 +152,13 @@ const renderConfirmation = ({
       dailyRecord: {} as never,
       queryClient: new QueryClient(),
       isAdmin: false,
-      ensureRun: vi.fn().mockReturnValue({ id: 'run-1' }),
+      ensureRun: vi.fn().mockReturnValue(run),
       failRun,
       recordRunPerformance,
       applyDiff: vi.fn() as never,
       runClinicalStage,
       loadAuthoritativeStructuralRecord: vi.fn(),
-      runSerializedPersistence: operation => operation(),
+      runSerializedPersistence,
       monotonicNow,
     })
   );
@@ -498,9 +511,20 @@ describe('useRayenImportConfirmation execution ownership', () => {
     beforeEach(() => {
       generationBefore = getSessionGeneration();
     });
-    afterEach(() => setSessionGeneration(generationBefore));
+    afterEach(() => {
+      setSessionGeneration(generationBefore);
+      localStorage.removeItem(SESSION_CLEANUP_PENDING_KEY);
+    });
 
-    const confirmAcrossSessionChange = async (settle: () => unknown) => {
+    const endSession = {
+      'B was admitted': () => setSessionGeneration('synthetic-next-session'),
+      // Owner and generation still match while the logout cleanup runs; its mark already counts.
+      'the logout cleanup started': () => localStorage.setItem(SESSION_CLEANUP_PENDING_KEY, '1'),
+    };
+    const confirmAcrossSessionChange = async (
+      settle: () => unknown,
+      end: () => void = endSession['B was admitted']
+    ) => {
       let release!: () => void;
       mocks.applyConfirmedRayenImport.mockReturnValue(
         new Promise<void>(resolve => {
@@ -514,7 +538,7 @@ describe('useRayenImportConfirmation execution ownership', () => {
       });
       await vi.waitFor(() => expect(mocks.applyConfirmedRayenImport).toHaveBeenCalledOnce());
       const statesBefore = harness.setState.mock.calls.length;
-      setSessionGeneration('synthetic-next-session');
+      end();
       release();
       await act(async () => confirmation);
       return { harness, statesAfter: harness.setState.mock.calls.length - statesBefore };
@@ -543,6 +567,52 @@ describe('useRayenImportConfirmation execution ownership', () => {
         expect(statesAfter).toBe(0);
       }
     );
+
+    it('a commit answered during the logout cleanup starts no clinical work', async () => {
+      const { harness, statesAfter } = await confirmAcrossSessionChange(
+        () => committedResult(),
+        endSession['the logout cleanup started']
+      );
+
+      expect(harness.runClinicalStage).not.toHaveBeenCalled();
+      expect(statesAfter).toBe(0);
+    });
+
+    it('a persistence whose turn comes after the session ended never starts', async () => {
+      let releaseTurn!: () => void;
+      const turn = new Promise<void>(resolve => (releaseTurn = resolve));
+      mocks.applyConfirmedRayenImport.mockResolvedValue(committedResult());
+      const harness = renderConfirmation({
+        runSerializedPersistence: operation => turn.then(operation),
+      });
+      let confirmation!: Promise<void>;
+      act(() => {
+        confirmation = harness.result.current();
+      });
+      setSessionGeneration('synthetic-next-session');
+      releaseTurn();
+      await act(async () => confirmation);
+
+      expect(mocks.applyConfirmedRayenImport).not.toHaveBeenCalled();
+      expect(harness.runClinicalStage).not.toHaveBeenCalled();
+    });
+
+    it('hands the historical clearing the session that began the run', async () => {
+      setSessionGeneration('synthetic-generation-A');
+      const runSession = captureAuthoringSession();
+      mocks.applyConfirmedRayenImport.mockImplementation(
+        async ({ finalizeHistoricalDischarges }) => {
+          setSessionGeneration('synthetic-next-session');
+          await finalizeHistoricalDischarges(committedResult());
+          return committedResult();
+        }
+      );
+      const harness = renderConfirmation({ run: { id: 'run-1', authoringSession: runSession } });
+
+      await act(async () => harness.result.current());
+
+      expect(mocks.finalizeRayenHistoricalDischarges.mock.calls[0]?.[4]).toEqual(runSession);
+    });
 
     it('a failure answered afterwards records and shows nothing', async () => {
       const { harness, statesAfter } = await confirmAcrossSessionChange(() => {

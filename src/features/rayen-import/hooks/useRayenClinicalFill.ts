@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { isRayenRunAlive } from './rayenRunLiveness';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalFillSummary } from '../clinicalFillRunner';
 import type {
@@ -100,10 +100,8 @@ export const useRayenClinicalFill = ({
 }: UseRayenClinicalFillInput) =>
   useCallback(
     async (request: ClinicalFillRequest): Promise<ClinicalStageResult> => {
-      const owner = getStoredSessionOwnerKey(),
-        generation = getSessionGeneration();
-      const sessionChanged = () =>
-        owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration();
+      const session = captureAuthoringSession();
+      const sessionChanged = () => !isRayenRunAlive({ session });
       const check = () => {
         if (sessionChanged()) throw new Error('La sesión cambió.');
       };

@@ -36,10 +36,7 @@ import {
   type CommittedRayenStructuralPersistenceOutcome,
 } from './rayenSnapshotPersistenceExecution';
 import { defaultMonotonicNow } from '../domain/rayenSyncPerformance';
-import {
-  captureAuthoringSession,
-  isAuthoringSessionCurrent,
-} from '@/services/storage/authoringSession';
+import { isRayenRunAlive, rayenRunSession } from './rayenRunLiveness';
 
 type ExecutionController = ReturnType<typeof useRayenSyncExecutionController>;
 type SyncAudit = ReturnType<typeof useRayenSyncAudit>;
@@ -147,8 +144,8 @@ export const useRayenImportConfirmation = ({
       const confirmationKey = rayenSyncExecutionKey(executionIdentity);
       // Once the session that began the run ends, the run stops without continuing or telling
       // anyone; what the server already confirmed stays confirmed.
-      const authoringSession = run.authoringSession ?? captureAuthoringSession();
-      const sessionEnded = () => !isAuthoringSessionCurrent(authoringSession);
+      const authoringSession = rayenRunSession(run);
+      const sessionEnded = () => !isRayenRunAlive({ session: authoringSession });
       let confirmedStructuralReplan: RayenStructuralReplan | null = null;
       let reviewReadyStructuralReplan: RayenStructuralReplan | null = null;
       let structureCommitted = false;
@@ -284,7 +281,13 @@ export const useRayenImportConfirmation = ({
         },
         persist: () =>
           runSerializedPersistence(() => {
-            if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) {
+            if (
+              !isRayenRunAlive({
+                session: authoringSession,
+                isExecutionCurrent: () =>
+                  isRayenSyncExecutionCurrent(executionRef.current, executionIdentity),
+              })
+            ) {
               return Promise.resolve(null);
             }
             const structuralReplan = confirmedStructuralReplan;
