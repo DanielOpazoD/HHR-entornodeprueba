@@ -145,8 +145,8 @@ export const createSyncQueueEngine = ({
   const queueTask = async (
     type: SyncTask['type'],
     payload: unknown,
-    meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
-    options: Omit<SyncQueueEnqueueOptions, 'authoringSession'> = {}
+    meta: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'> | undefined,
+    options: SyncQueueEnqueueOptions
   ): Promise<SyncQueueEnqueueResult> => {
     const { enqueueStandaloneSyncTask } = await import('./enqueueStandaloneSyncTask');
     return enqueueStandaloneSyncTask(
@@ -324,9 +324,12 @@ export const createSyncQueueEngine = ({
                 leaseUntil: now + SYNC_QUEUE_LEASE_MS,
                 attemptId: createSyncQueueAttemptId(),
               },
-              ...(options.nursingHandoffOnly
-                ? [(task: SyncTask) => task.ownerKey === owner && hasPendingNursingHandoff(task)]
-                : [])
+              // Claiming is an exit: asked per task inside the claim's transaction, so a task is
+              // taken only while this tab still acts for the owner this pass began with.
+              (task: SyncTask) =>
+                owner === runtime.getOwnerKey() &&
+                (!options.nursingHandoffOnly ||
+                  (task.ownerKey === owner && hasPendingNursingHandoff(task)))
             );
             if (readyTasks.length === 0) {
               return;

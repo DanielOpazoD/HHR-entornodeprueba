@@ -1,4 +1,4 @@
-import { getSessionGeneration } from './sessionStorageTransition';
+import { getSessionEpoch, getSessionGeneration, getSessionOwner } from './sessionStorageTransition';
 import { getStoredSessionOwnerKey, isSessionCleanupPending } from './sessionOwnerKey';
 
 /** The person and session that began a write: whose intent it carries, whatever happens later. */
@@ -7,20 +7,49 @@ export interface AuthoringSession {
   generation: string | null;
 }
 
+/**
+ * The owner is the person this tab admitted, never the shared key another tab may already have
+ * replaced: an edit A makes in a census still open after B signed in elsewhere stays A's (kept for
+ * A to review on return), never B's. Before any admission it is the browser's owner.
+ */
 export const captureAuthoringSession = (): AuthoringSession => ({
-  ownerKey: getStoredSessionOwnerKey(),
+  ownerKey: getSessionOwner() ?? getStoredSessionOwnerKey(),
   generation: getSessionGeneration(),
 });
 
 /**
- * Whether the session that began a write still holds this browser's days and queue. A logout in
- * progress (in this tab or another) already counts as a change: its cleanup may have cleared the
- * days the write would land on.
+ * The person this tab may act for: the one it admitted, while the browser still holds them. Null
+ * once another tab admitted someone else on the shared key, and null in a document that logged out
+ * (it admitted someone and holds no session now) until it admits again: such a tab claims, sends,
+ * revives, discards and enqueues nobody's work, and everyone's stays as it is. A document that has
+ * admitted nobody yet (start-up) follows the browser's owner, as before admission.
+ */
+export const getTabOwnerKey = (): string | null => {
+  const generation = getSessionGeneration();
+  if (generation === null && getSessionEpoch() > 0) return null;
+  const browserOwner = getStoredSessionOwnerKey();
+  const admitted = getSessionOwner();
+  return admitted === null || admitted === browserOwner ? browserOwner : null;
+};
+
+/**
+ * Whether `ownerKey` is the person this tab may act for (getTabOwnerKey), with no logout cleanup
+ * in progress. Every exit of the queue and every write asks this: work kept in someone's name is
+ * enqueued, sent, revived or discarded only for them, in a tab that admitted them.
+ */
+export const isAdmittedOwner = (ownerKey: string | null | undefined): boolean =>
+  !isSessionCleanupPending() &&
+  (ownerKey ?? null) === getTabOwnerKey() &&
+  // A tab that no longer acts for anyone acts for no unowned work either.
+  (ownerKey != null || getStoredSessionOwnerKey() === null);
+
+/**
+ * Whether the session that began a write still holds this tab, this browser's days and queue. A
+ * logout in progress (in this tab or another) already counts as a change: its cleanup may have
+ * cleared the days the write would land on.
  */
 export const isAuthoringSessionCurrent = (session: AuthoringSession): boolean =>
-  !isSessionCleanupPending() &&
-  session.ownerKey === getStoredSessionOwnerKey() &&
-  session.generation === getSessionGeneration();
+  isAdmittedOwner(session.ownerKey) && session.generation === getSessionGeneration();
 
 /** One asynchronous operation's view of the session it began in. */
 export interface AuthoringSessionGuard {
@@ -56,9 +85,14 @@ export const guardAuthoringSession = ({
 /**
  * Key of what is remembered for one person and session, or '' when nobody is admitted. Caches kept
  * in browser storage use it rather than the session epoch, which restarts at every page load.
+ * Without an argument it is the scope this tab acts for now: '' once another tab admitted someone
+ * else, so a late result is never kept or shown under a person the browser no longer holds.
  */
 export const authoringSessionScope = (
-  { ownerKey, generation }: AuthoringSession = captureAuthoringSession()
+  { ownerKey, generation }: AuthoringSession = {
+    ownerKey: getTabOwnerKey(),
+    generation: getSessionGeneration(),
+  }
 ): string => (ownerKey && generation ? `${ownerKey}:${generation}` : '');
 
 /** A write's send checks this before each wait and inside its transaction; a throw stops it. */

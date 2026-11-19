@@ -273,6 +273,24 @@ decisión rechazada ni inventa ausencia local.
   en esta pestaña, con `sessionEpochGuard()` o `useSessionEpoch()`. Nadie más compara la sesión a
   mano (ESLint `session/raw-read`; lo que falta migrar figura en
   `scripts/config/session-raw-read-ledger.json` y solo baja).
+- La guarda se impone en la salida. Lo que A inició no sale ni se reactiva después de que el
+  navegador admite a B o empieza el cierre de A: todo envío CUDYR a Functions pasa por
+  `callCudyrFunction()` (`src/services/cudyr/cudyrFunctionsCall.ts`) con el guard que la
+  operación capturó al empezar, y lo consulta justo antes de enviar.
+- La cola tiene una sola regla para todas sus salidas (encolar, procesar, reintentar, descartar,
+  liberar y mostrar en el panel): solo trabajo de la persona que **esta pestaña** admitió, mientras
+  el navegador la siga teniendo (`getTabOwnerKey()` e `isAdmittedOwner()` en
+  `authoringSession.ts`; la cola la lee como `getOwnerKey()` de su runtime). Una pestaña que sigue
+  admitida como A después de que otra admitió a B no actúa por nadie, y tampoco una pestaña que cerró
+  sesión hasta que vuelva a admitir a alguien. La sesión capturada lleva a quien esta pestaña
+  admitió, no la clave compartida: una edición del censo o de la entrega que A hace con el censo
+  aún abierto tras entrar B queda retenida para A, nunca en la cola de B. Una tarea se encola a
+  nombre de la sesión capturada al iniciar la operación; si esa sesión cambió, no se encola a
+  nombre de nadie más (la corrida interrumpida exige una captura nueva). Reclamar una tarea para
+  enviarla también es una salida: se pregunta por tarea dentro de la transacción. Reintentar y
+  descartar vuelven a preguntar después de leer la fila y nunca valen durante un cierre. Las recuperaciones reciben la
+  sesión capturada al iniciar la corrida. Nada se borra: lo de otro dueño queda intacto y su dueño
+  lo envía al volver.
 - La edición local en vuelo conserva propietario, base y contexto en reposo, aunque la cola activa
   siguiente esté llena; revierte la vista sin avisar a la sesión siguiente.
 - El cambio de sesión de Eloísa se observa solo con `onSessionChange` o `useSessionEpoch`

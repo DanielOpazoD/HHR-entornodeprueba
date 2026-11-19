@@ -2,6 +2,7 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { clearSyncTaskRuntimeState } from '@/services/storage/sync/syncQueueTaskFactory';
 import { requiresDailyRecordBaseReview } from '@/services/storage/sync/dailyRecordBaseReview';
+import { isAdmittedOwner } from '@/services/storage/authoringSession';
 
 /**
  * Estados de cuarentena de la cola y sus operaciones de recuperación.
@@ -84,14 +85,21 @@ export const findReusableSyncTask = async (
       !task.projectionReleased
   ) || null;
 
-/** Revive una tarea FAILED/CONFLICT como PENDING limpia (acción explícita del usuario). */
+/**
+ * Revive una tarea FAILED/CONFLICT como PENDING limpia. Es la única salida que reactiva trabajo de
+ * la cola: `ownerKey` es el de quien inició la operación y solo se acepta si es quien esta pestaña
+ * admite ahora (isAdmittedOwner) y no hay un cierre de sesión en curso; si no, la tarea queda tal cual.
+ */
 export const requeueQuarantinedTask = (
   taskId: number,
   ownerKey?: string | null
 ): Promise<boolean> =>
   hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {
+    if (!isAdmittedOwner(ownerKey)) return false;
     const task = await hospitalDB.syncQueue.get(taskId);
     if (
+      // Asked again after the read: a logout or another person may have begun meanwhile.
+      !isAdmittedOwner(ownerKey) ||
       !task ||
       !matchesOwner(ownerKey, task.ownerKey) ||
       !QUARANTINED_TASK_STATES.has(task.status) ||
@@ -108,14 +116,19 @@ export const requeueQuarantinedTask = (
     return true;
   });
 
-/** Elimina una tarea FAILED/CONFLICT; nunca toca tareas activas (acción explícita del usuario). */
+/**
+ * Elimina una tarea FAILED/CONFLICT; nunca toca tareas activas (acción explícita del usuario). Como
+ * el reintento, solo vale para tareas de quien esta pestaña admite ahora y nunca durante un cierre.
+ */
 export const discardQuarantinedTask = (
   taskId: number,
   ownerKey?: string | null
 ): Promise<boolean> =>
   hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {
+    if (!isAdmittedOwner(ownerKey)) return false;
     const task = await hospitalDB.syncQueue.get(taskId);
     if (
+      !isAdmittedOwner(ownerKey) ||
       !task ||
       !matchesOwner(ownerKey, task.ownerKey) ||
       !QUARANTINED_TASK_STATES.has(task.status)

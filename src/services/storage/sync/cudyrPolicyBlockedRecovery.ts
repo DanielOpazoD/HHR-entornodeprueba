@@ -1,5 +1,6 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { SyncQueueStorePort } from './syncQueuePorts';
+import type { AuthoringSession } from '@/services/storage/authoringSession';
 
 const POLICY_REJECTION = 'Clinical enrichment is not authorized by the current global policy.';
 export const isPolicyBlockedCudyrArchive = (
@@ -11,35 +12,26 @@ export const isPolicyBlockedCudyrArchive = (
   !!task.error?.endsWith(POLICY_REJECTION);
 
 /** One bounded recovery per confirmed sync, never on report opening or a timer.
- * The durable outbox belongs to an authenticated owner across logins. Generation
- * guards the CURRENT asynchronous attempt; it is not a capture-expiration rule.
+ * The durable outbox belongs to an authenticated owner across logins. `session` is the one the
+ * sync run captured when it began: only that person's tasks are revived, and nothing is revived or
+ * processed once this browser holds someone else or a logout began (the rows stay as they were).
  */
 export const createCudyrPolicyBlockedRecovery =
   (deps: {
     ensureReady: () => Promise<void>;
     store: SyncQueueStorePort;
-    getOwner: () => string | null;
-    getGeneration: () => string | null;
+    isSessionCurrent: (session: AuthoringSession) => boolean;
     process: () => Promise<void>;
   }) =>
   async (
     authorized: boolean,
-    expectedGeneration?: string,
+    session: AuthoringSession,
     isAuthorized = () => authorized
   ): Promise<number> => {
-    const owner = deps.getOwner(),
-      generation = deps.getGeneration();
-    if (
-      !authorized ||
-      !isAuthorized() ||
-      !owner ||
-      !generation ||
-      (expectedGeneration && expectedGeneration !== generation)
-    )
-      return 0;
+    const owner = session.ownerKey;
+    const stillOwned = () => deps.isSessionCurrent(session) && isAuthorized();
+    if (!authorized || !owner || !session.generation || !stillOwned()) return 0;
     await deps.ensureReady();
-    const stillOwned = () =>
-      owner === deps.getOwner() && generation === deps.getGeneration() && isAuthorized();
     if (!stillOwned() || !deps.store.withEnqueueTransaction || !deps.store.requeueQuarantinedTask)
       return 0;
     const count = await deps.store.withEnqueueTransaction(async () => {

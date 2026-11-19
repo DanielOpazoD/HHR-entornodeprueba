@@ -50,7 +50,8 @@ it('loads an approved month and reuses its known version without decoding again'
 });
 
 it('removes optional undefined fields before callable transport so approval hashes stay identical', async () => {
-  const service = await import('@/services/cudyr/cudyrSupplementService');
+  const service = await import('@/services/cudyr/cudyrFunctionsCall');
+  const { guardAuthoringSession } = await import('@/services/storage/authoringSession');
   const { saveOfficialCudyrReport } = await import('@/services/cudyr/cudyrOfficialReport');
   const report = buildCudyrReport(confirmedReportInput());
   report.from = '2026-08-01';
@@ -68,8 +69,10 @@ it('removes optional undefined fields before callable transport so approval hash
       reason: 'Reviewed',
     },
   }));
-  const call = vi.spyOn(service, 'callCudyrArchive').mockResolvedValue({ persisted: false });
-  await expect(saveOfficialCudyrReport(report, 'source-version')).rejects.toThrow('guardar');
+  const call = vi.spyOn(service, 'callCudyrFunction').mockResolvedValue({ persisted: false });
+  await expect(
+    saveOfficialCudyrReport(report, 'source-version', guardAuthoringSession())
+  ).rejects.toThrow('guardar');
   const sent = call.mock.calls[0][1] as { report: typeof report };
   expect('censusVerification' in sent.report.coverage[0]).toBe(false);
   expect(JSON.stringify(sent.report)).toBe(JSON.stringify(report));

@@ -1,22 +1,24 @@
-import { callCudyrArchive, supplementMonths } from './cudyrSupplementService';
+import { supplementMonths } from './cudyrSupplementService';
+import { callCudyrFunction } from './cudyrFunctionsCall';
 import { readInCudyrWorker } from './cudyrWorkerRead';
 import type { CudyrCensusSource, ArchivedCudyrCensus } from '@/types/domain/cudyrCensusEvidence';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import {
+  guardAuthoringSession,
+  type AuthoringSessionGuard,
+} from '@/services/storage/authoringSession';
 export const loadCudyrCensusSources = async (from: string, to: string, signal: AbortSignal) => {
-  const { check } = guardAuthoringSession({ signal });
+  const guard = guardAuthoringSession({ signal });
   const result: ArchivedCudyrCensus[] = [];
   for (const month of supplementMonths(from, to)) {
     let cursor: string | null = null;
     const seen = new Set<string>();
     do {
-      check();
       const page: { reports: ArchivedCudyrCensus[]; nextCursor: string | null } =
-        await callCudyrArchive('readCudyrHistory', {
-          kind: 'daily-census-sources',
-          month,
-          ...(cursor ? { cursor } : {}),
-        });
-      check();
+        await callCudyrFunction(
+          'readCudyrHistory',
+          { kind: 'daily-census-sources', month, ...(cursor ? { cursor } : {}) },
+          guard
+        );
       result.push(...page.reports);
       cursor = page.nextCursor;
       if (cursor && seen.has(cursor)) throw new Error('Paginación censal incompleta.');
@@ -28,15 +30,14 @@ export const loadCudyrCensusSources = async (from: string, to: string, signal: A
 export const saveCudyrCensusSource = (
   source: CudyrCensusSource,
   base64: string,
-  observedAt: string
+  observedAt: string,
+  guard: AuthoringSessionGuard
 ) =>
-  callCudyrArchive<{ persisted: boolean }>('archiveCudyrHistory', {
-    kind: 'import-daily-census-source',
-    confirmed: true,
-    source,
-    base64,
-    observedAt,
-  });
+  callCudyrFunction<{ persisted: boolean }>(
+    'archiveCudyrHistory',
+    { kind: 'import-daily-census-source', confirmed: true, source, base64, observedAt },
+    guard
+  );
 export const readCudyrCensusFile = async (
   base64: string,
   signal: AbortSignal

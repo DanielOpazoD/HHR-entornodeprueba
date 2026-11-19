@@ -1,24 +1,21 @@
 import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
-import { callCudyrArchive } from '@/services/cudyr/cudyrSupplementService';
+import { callCudyrFunction } from '@/services/cudyr/cudyrFunctionsCall';
 
+/** Nobody admitted: the shared copy is neither read nor written. */
 const sessionGuard = (signal?: AbortSignal) => {
   const guard = guardAuthoringSession({ signal });
-  return () => {
-    guard.check();
-    if (!guard.session.ownerKey) throw new Error('La sesión cambió.');
-  };
+  if (!guard.session.ownerKey) throw new Error('La sesión cambió.');
+  return guard;
 };
 
 /** This copy is presentation-only. The caller must continue an authoritative Firebase read. */
 export const readCudyrReadView = async (from: string, to: string, signal: AbortSignal) => {
-  const check = sessionGuard(signal);
-  const reply = await callCudyrArchive<{ state: string; savedAt?: string; report?: string }>(
+  const reply = await callCudyrFunction<{ state: string; savedAt?: string; report?: string }>(
     'readCudyrHistory',
     { kind: 'read-view', from, to },
-    check
+    sessionGuard(signal)
   );
-  check();
   if (reply.state !== 'ready' || !reply.report || reply.report.length > 900_000) return null;
   const bytes = Uint8Array.from(atob(reply.report), c => c.charCodeAt(0));
   const reader = new Response(bytes).body!.pipeThrough(new DecompressionStream('gzip')).getReader();
@@ -62,9 +59,9 @@ export const readCudyrReadView = async (from: string, to: string, signal: AbortS
     return null;
   return { ...report, readViewSnapshot: reply.savedAt || report.generatedAt };
 };
-export const saveCudyrReadView = (report: CudyrReportDataset) => {
+export const saveCudyrReadView = async (report: CudyrReportDataset) => {
   if (report.readIncomplete !== false || report.officialSnapshot || report.readViewSnapshot) return;
-  return callCudyrArchive(
+  await callCudyrFunction(
     'archiveCudyrHistory',
     {
       kind: 'save-read-view',

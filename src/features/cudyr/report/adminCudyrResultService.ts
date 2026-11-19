@@ -2,7 +2,8 @@ import type {
   AdminCudyrResultAdjustment,
   CudyrResultOption,
 } from '@/domain/cudyr/adminCudyrResult';
-import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
+import type { AuthoringSessionGuard } from '@/services/storage/authoringSession';
+import { callCudyrFunction } from '@/services/cudyr/cudyrFunctionsCall';
 import { normalizeDailyRecordAuthorityError } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 
 export interface AdminCudyrResultPayload {
@@ -29,19 +30,14 @@ export interface AdminCudyrResultResponse {
   category?: CudyrResultOption | null;
 }
 
-export const setAdminCudyrResult = async (
-  payload: AdminCudyrResultPayload
-): Promise<AdminCudyrResultResponse> => {
-  const functions = await defaultFunctionsRuntime.getFunctions();
-  const { httpsCallable } = await import('firebase/functions');
-  const callable = httpsCallable<AdminCudyrResultPayload, AdminCudyrResultResponse>(
-    functions,
-    'setAdminCudyrResult'
-  );
-
-  try {
-    return (await callable(payload)).data;
-  } catch (error) {
+export const setAdminCudyrResult = (
+  payload: AdminCudyrResultPayload,
+  guard: AuthoringSessionGuard
+): Promise<AdminCudyrResultResponse> =>
+  callCudyrFunction<AdminCudyrResultResponse, AdminCudyrResultPayload>(
+    'setAdminCudyrResult',
+    payload,
+    guard
+  ).catch((error: unknown) => {
     throw normalizeDailyRecordAuthorityError(error);
-  }
-};
+  });

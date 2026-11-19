@@ -12,6 +12,7 @@ import {
   resolveSyncTaskNextAttemptAt,
   type SyncQueueEnqueueOptions,
 } from './syncQueueEnqueuePolicy';
+import { isAuthoringSessionCurrent } from '@/services/storage/authoringSession';
 
 /** Standalone immutable payload enqueue is loaded only when needed, outside clinical startup. */
 const enqueueWithinTransaction = async (
@@ -24,13 +25,17 @@ const enqueueWithinTransaction = async (
   },
   type: SyncTask['type'],
   payload: unknown,
-  meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
-  options: Omit<SyncQueueEnqueueOptions, 'authoringSession'> = {}
+  meta: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'> | undefined,
+  options: SyncQueueEnqueueOptions
 ): Promise<SyncQueueEnqueueResult> => {
   const countActiveTasks = async (ownerKey: string | null) =>
     countActiveSyncTasks(await store.listAll(ownerKey));
   const key = getSyncTaskKey(type, payload);
-  const ownerKey = runtime.getOwnerKey();
+  // The task belongs to whoever began the operation, never to whoever holds the browser now: once
+  // that changed, nothing is enqueued in anyone's name (an interrupted run needs a new capture).
+  const ownerKey = options.authoringSession.ownerKey;
+  if (!isAuthoringSessionCurrent(options.authoringSession) || ownerKey !== runtime.getOwnerKey())
+    return { accepted: false, mode: 'enqueue_failed', pendingTasks: 0, maxPendingTasks };
   const taskOwnerKey = ownerKey ?? undefined;
   const now = Date.now();
   const contextMeta = buildSyncQueueTaskContextMeta({

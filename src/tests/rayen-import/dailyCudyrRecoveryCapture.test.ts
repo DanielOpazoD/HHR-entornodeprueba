@@ -41,7 +41,7 @@ const read = (
     signal,
     now,
     loadDay,
-    capture: (month, abort, check) => captureCudyrMonthlyReport(month, abort, check, dependencies),
+    capture: (month, abort, guard) => captureCudyrMonthlyReport(month, abort, guard, dependencies),
   })(historicalDay(), [patient().clinicalEpisodeId], {
     map: new Map(),
     historyAvailable: true,

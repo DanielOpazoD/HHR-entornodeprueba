@@ -1,5 +1,6 @@
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
-import { callCudyrArchive } from './cudyrSupplementService';
+import type { AuthoringSessionGuard } from '@/services/storage/authoringSession';
+import { callCudyrFunction } from './cudyrFunctionsCall';
 import { cudyrArchiveCoverage } from './cudyrArchiveCoverage';
 
 interface Reply {
@@ -25,15 +26,20 @@ export const isOfficialCudyrMonth = (data: CudyrReportDataset) => {
 };
 export const probeOfficialCudyrReport = (
   month: string,
+  guard: AuthoringSessionGuard,
   cached?: CudyrReportDataset,
   episodes?: string[]
 ) =>
-  callCudyrArchive<Reply>('readCudyrHistory', {
-    kind: 'official-report',
-    month,
-    ...(cached?.officialSnapshot ? { knownVersion: cached.officialSnapshot.version } : {}),
-    ...(episodes ? { episodes } : {}),
-  });
+  callCudyrFunction<Reply>(
+    'readCudyrHistory',
+    {
+      kind: 'official-report',
+      month,
+      ...(cached?.officialSnapshot ? { knownVersion: cached.officialSnapshot.version } : {}),
+      ...(episodes ? { episodes } : {}),
+    },
+    guard
+  );
 export const decodeOfficialCudyrReport = async (reply: Reply, cached?: CudyrReportDataset) => {
   let result = cached;
   const packed = reply.state === 'unchanged' ? cached?.officialSnapshot?.packed : reply.report;
@@ -83,27 +89,29 @@ export const decodeOfficialCudyrReport = async (reply: Reply, cached?: CudyrRepo
 export const saveOfficialCudyrReport = async (
   report: CudyrReportDataset,
   sourceVersion: string,
-  signal?: AbortSignal
+  guard: AuthoringSessionGuard
 ) => {
   if (!isOfficialCudyrMonth(report)) return report;
   const month = report.from.slice(0, 7);
-  signal?.throwIfAborted();
-  const receipt = await callCudyrArchive<{
+  const receipt = await callCudyrFunction<{
     persisted: boolean;
     version: string;
     savedAt: string;
     sourceVersion: string;
     report: string;
-  }>('archiveCudyrHistory', {
-    kind: 'save-official-report',
-    schemaVersion: 1,
-    month,
-    // Callable encoding turns undefined object properties into null. Preserve the
-    // JSON representation that was fingerprinted and approved before transport.
-    report: JSON.parse(JSON.stringify(report)) as CudyrReportDataset,
-    sourceVersion,
-  });
-  signal?.throwIfAborted();
+  }>(
+    'archiveCudyrHistory',
+    {
+      kind: 'save-official-report',
+      schemaVersion: 1,
+      month,
+      // Callable encoding turns undefined object properties into null. Preserve the
+      // JSON representation that was fingerprinted and approved before transport.
+      report: JSON.parse(JSON.stringify(report)) as CudyrReportDataset,
+      sourceVersion,
+    },
+    guard
+  );
   if (!receipt.persisted) throw new Error('No se pudo guardar el informe oficial.');
   return (await decodeOfficialCudyrReport({ ...receipt, state: 'ready' }))!;
 };

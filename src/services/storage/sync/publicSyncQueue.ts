@@ -15,6 +15,7 @@ import {
 } from '@/services/storage/sync/syncQueueEngine';
 import type { SyncQueueEnqueueResult } from '@/services/storage/sync/syncQueueEngineContracts';
 import type { SyncQueueEnqueueOptions } from '@/services/storage/sync/syncQueueEnqueuePolicy';
+import { authoredOptions, type PublicWriteOptions } from '@/services/storage/authoringSession';
 import type { SyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueOperationSnapshot';
 import {
   buildSyncQueueDomainMetrics,
@@ -237,11 +238,13 @@ export const queueSyncTask = async (
   type: SyncTask['type'],
   payload: unknown,
   meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
-  options?: Omit<SyncQueueEnqueueOptions, 'authoringSession'>
+  options: PublicWriteOptions<SyncQueueEnqueueOptions> = {}
 ): Promise<SyncQueueEnqueueResult> => {
+  // Captured before the first wait: the task belongs to whoever asked, never to a later owner.
+  const authored = authoredOptions(options);
   try {
     await ensureDbReady();
-    const result = await syncQueueEngine.queueTask(type, payload, meta, options);
+    const result = await syncQueueEngine.queueTask(type, payload, meta, authored);
     if (!result.accepted && result.mode === 'rejected_backpressure') {
       recordOperationalTelemetry({
         category: 'sync',

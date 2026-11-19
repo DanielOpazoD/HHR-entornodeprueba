@@ -335,7 +335,7 @@ export const useRayenClinicalFill = ({
                           import('@/services/cudyr/cudyrArchiveQueue').then(
                             ({ persistCudyrArchivePart }) => {
                               check();
-                              return persistCudyrArchivePart(request, watchdog.signal, check);
+                              return persistCudyrArchivePart(request, watchdog.signal, session);
                             }
                           ),
                     now: () => new Date(),

@@ -3,10 +3,10 @@ import type { CudyrSourceSheet } from './cudyrSourceTypes';
 import { getNextDay } from '@/utils/clinicalDayUtils';
 import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import {
-  callCudyrArchive,
   loadCudyrSupplements,
   type ArchivedCudyrSupplement,
 } from '@/services/cudyr/cudyrSupplementService';
+import { callCudyrFunction } from '@/services/cudyr/cudyrFunctionsCall';
 import { readInCudyrWorker } from '@/services/cudyr/cudyrWorkerRead';
 
 export const selectCudyrSourceReports = (
@@ -57,19 +57,19 @@ const readSourceMatrix = (
   );
 
 export const loadCudyrSourceSheets = async (data: CudyrReportDataset, signal: AbortSignal) => {
-  const { check } = guardAuthoringSession({ signal });
+  const guard = guardAuthoringSession({ signal });
+  const { check } = guard;
   check();
   const reports = await loadCudyrSupplements(data.from, getNextDay(data.to), signal);
   check();
   const selected = selectCudyrSourceReports(data, reports);
   const sources: CudyrSourceSheet[] = [];
   for (const archive of selected) {
-    check();
-    const file = await callCudyrArchive<ArchivedCudyrSupplement['file'] & { base64: string }>(
+    const file = await callCudyrFunction<ArchivedCudyrSupplement['file'] & { base64: string }>(
       'readCudyrHistory',
-      { kind: 'monthly-supplement-file', id: archive.id }
+      { kind: 'monthly-supplement-file', id: archive.id },
+      guard
     );
-    check();
     if (
       file.sha256 !== archive.file.sha256 ||
       typeof file.base64 !== 'string' ||

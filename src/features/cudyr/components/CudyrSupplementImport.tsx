@@ -57,7 +57,7 @@ const CudyrSupplementImportSession = ({
     setBusy(true);
     setError('');
     try {
-      const result = await importCudyrSupplement(preview);
+      const result = await importCudyrSupplement(preview, session.current);
       if (!current()) return;
       if (!result.persisted) throw new Error('Sin confirmación del servidor.');
       setPreview(null);

@@ -59,7 +59,10 @@ it('refetches the saved artifact if a known-version cache cannot be decoded', as
   mocks.decode.mockRejectedValueOnce(new Error('Corrupt local cache'));
   const result = await loadCudyrReport('2026-08-01', '2026-08-31');
   expect(mocks.probe).toHaveBeenCalledTimes(2);
-  expect(mocks.probe).toHaveBeenLastCalledWith('2026-08');
+  expect(mocks.probe).toHaveBeenLastCalledWith(
+    '2026-08',
+    expect.objectContaining({ check: expect.any(Function) })
+  );
   expect(result.officialSnapshot).toBeTruthy();
   expect(cudyrReportLoaderPorts.readRecord).not.toHaveBeenCalled();
 });

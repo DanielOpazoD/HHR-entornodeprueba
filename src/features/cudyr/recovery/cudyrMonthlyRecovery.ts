@@ -149,7 +149,7 @@ export const recoverCudyrMonthlyReports = async (
         const parsed = await ports.census.readFile(source.base64, signal);
         check();
         if (parsed.date !== date) throw new Error('Censo de otra fecha.');
-        const saved = await ports.census.save(parsed, source.base64, source.capturedAt);
+        const saved = await ports.census.save(parsed, source.base64, source.capturedAt, guard);
         check();
         if (!saved.persisted) throw new Error('Guardado censal no confirmado.');
         onProgress({ reportMonth: date, status: 'saved' });
@@ -185,7 +185,7 @@ export const recoverCudyrMonthlyReports = async (
     }
     onProgress({ reportMonth, status: 'reading' });
     try {
-      await captureCudyrMonthlyReport(reportMonth, signal, check, ports);
+      await captureCudyrMonthlyReport(reportMonth, signal, guard, ports);
       result.recovered++;
       onProgress({ reportMonth, status: 'saved' });
     } catch (error) {

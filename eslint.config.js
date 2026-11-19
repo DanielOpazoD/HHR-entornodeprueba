@@ -517,6 +517,13 @@ const DAY_WINDOW_RESTRICTION = {
   message:
     'No uses la ventana de 48 h directamente: elige el predicado de la operación en src/shared/access/censusDayWriteAccessPolicy.ts (canWriteCensusDay, canCleanInvalidEpisodeDay, canApplyPreviousDayCudyr…) o agrega uno ahí; la limpieza de episodio inválido respeta las 48 h también para el administrador (SAVE-04).',
 };
+// W17-EXIT: CUDYR work leaves for its Functions through one door that asks the operation's
+// session guard right before sending; a second transport would skip it.
+const CUDYR_FUNCTIONS_DOOR_RESTRICTION = {
+  selector: ":matches(ImportDeclaration, ImportExpression)[source.value='firebase/functions']",
+  message:
+    'Un llamado CUDYR a Functions sale por callCudyrFunction() de src/services/cudyr/cudyrFunctionsCall.ts, con el guard que la operación capturó al empezar (AGENTS.md: cambio de propietario).',
+};
 const SOURCE_SYNTAX_RESTRICTIONS = [
   ...GLOSSARY_SYNTAX_RESTRICTIONS,
   SESSION_MESSAGE_RESTRICTION,
@@ -748,6 +755,14 @@ export default tseslint.config(
       'src/shared/reminders/reminderUiOptions.ts',
     ],
     rules: { 'no-restricted-syntax': syntaxRestrictions({ omit: ROLE_RESTRICTIONS }) },
+  },
+  {
+    // CUDYR code reaches its Functions only through the door, which compares the session.
+    files: ['src/services/cudyr/**/*.{ts,tsx}', 'src/features/cudyr/**/*.{ts,tsx}'],
+    ignores: ['src/services/cudyr/cudyrFunctionsCall.ts'],
+    rules: {
+      'no-restricted-syntax': syntaxRestrictions({ add: [CUDYR_FUNCTIONS_DOOR_RESTRICTION] }),
+    },
   },
   {
     // Tests assert the page bridge of the session message, build their own document text,

@@ -57,7 +57,8 @@ export const createDailyCudyrRecoveryReader = ({
   now?: () => Date;
   capture?: typeof captureCudyrMonthlyReport;
 }): NonNullable<ClinicalFillDeps['recoverMissingCudyr']> => {
-  const { check } = guardAuthoringSession({ signal });
+  const guard = guardAuthoringSession({ signal });
+  const { check } = guard;
   return async (record, episodes, source) => {
     const result: DailyCudyrRecoveryResult = { current: new Map(), previous: [], errors: [] };
     if (!episodes.length) return result;
@@ -132,7 +133,7 @@ export const createDailyCudyrRecoveryReader = ({
       check();
       const monthGaps = gaps.filter(gap => gap.sourceDate.startsWith(month));
       try {
-        const report = await capture(month, signal, check);
+        const report = await capture(month, signal, guard);
         check();
         if (
           Date.parse(report.capturedAt) > now().getTime() + 10000 ||

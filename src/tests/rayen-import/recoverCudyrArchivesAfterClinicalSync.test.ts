@@ -55,7 +55,11 @@ describe('CUDYR recovery after the normal clinical synchronization', () => {
       'enforced',
       'session'
     );
-    expect(mocks.recover).toHaveBeenCalledWith(true, 'session', expect.any(Function));
+    expect(mocks.recover).toHaveBeenCalledWith(
+      true,
+      { ownerKey: OWNER, generation: 'session' },
+      expect.any(Function)
+    );
   });
   it.each([
     ['failed', 'ready', 'enforced', 'session'],

@@ -27,10 +27,11 @@ export const CudyrCensusApprovalButton = ({
     const controller = new AbortController();
     active.current?.abort();
     active.current = controller;
-    const { check } = guardAuthoringSession({
+    const guard = guardAuthoringSession({
       signal: controller.signal,
       message: 'La sesión cambió. Vuelva a abrir el mes.',
     });
+    const { check } = guard;
     setBusy(true);
     setError('');
     try {
@@ -41,14 +42,16 @@ export const CudyrCensusApprovalButton = ({
       const month = data.from.slice(0, 7);
       // A month without documentary reconciliation is approved at revision 0.
       const review = reviews.find(r => r.month === month);
-      await approveCudyrReconstructedCensus({
-        month,
-        expectedRevision: review?.revision ?? 0,
-        operationId: crypto.randomUUID(),
-        reason,
-        days,
-      });
-      check();
+      await approveCudyrReconstructedCensus(
+        {
+          month,
+          expectedRevision: review?.revision ?? 0,
+          operationId: crypto.randomUUID(),
+          reason,
+          days,
+        },
+        guard
+      );
       onApproved();
       setOpen(false);
     } catch (caught) {

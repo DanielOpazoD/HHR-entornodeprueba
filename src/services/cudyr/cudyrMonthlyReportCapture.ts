@@ -1,6 +1,7 @@
 import { requestViaBridgeChannel } from '@/services/transport/extensionRequestChannel';
 import { CudyrReportUnreadableError, readCudyrSupplementFile } from './cudyrSupplementFile';
 import { importCudyrSupplement } from './cudyrSupplementService';
+import type { AuthoringSessionGuard } from '@/services/storage/authoringSession';
 
 type SourceReport = { month: string; base64: string; capturedAt: string };
 export const fetchCudyrMonthlyReport = (month: string, signal: AbortSignal, censusDate?: string) =>
@@ -43,9 +44,10 @@ export class CudyrMonthlyReportArchiveError extends Error {}
 export const captureCudyrMonthlyReport = async (
   month: string,
   signal: AbortSignal,
-  check: () => void,
+  guard: AuthoringSessionGuard,
   ports = cudyrMonthlyReportPorts
 ) => {
+  const { check } = guard;
   check();
   const source = await ports.fetchReport(month, signal);
   check();
@@ -61,7 +63,7 @@ export const captureCudyrMonthlyReport = async (
         ...parsed,
         capture: { source: 'extension_monthly_report', observedAt: source.capturedAt },
       },
-      check
+      guard
     );
   } catch {
     check();

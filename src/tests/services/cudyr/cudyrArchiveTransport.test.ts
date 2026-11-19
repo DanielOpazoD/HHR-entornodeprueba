@@ -1,21 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-const h = vi.hoisted(() => ({
-  get: vi.fn(),
-  archive: vi.fn(),
-  owner: 'user:synthetic',
-  generation: 'session-test',
-}));
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  admitSyntheticSession,
+  clearSyntheticSession,
+  replaceStoredSessionOwner,
+} from '@/tests/utils/syntheticSession';
+const h = vi.hoisted(() => ({ get: vi.fn(), archive: vi.fn() }));
 vi.mock('firebase/firestore', () => ({ getDoc: h.get }));
 vi.mock('@/services/storage/firestore/firestoreShared', () => ({
   getRecordDocRef: (date: string) => date,
 }));
 vi.mock('@/services/cudyr/cudyrHistoryService', () => ({ archiveCudyrHistory: h.archive }));
-vi.mock('@/services/storage/sessionOwnerKey', () => ({
-  getStoredSessionOwnerKey: () => h.owner,
-}));
-vi.mock('@/services/storage/sessionStorageTransition', () => ({
-  getSessionGeneration: () => h.generation,
-}));
 import { replayCudyrArchive } from '@/services/storage/sync/cudyrArchiveTransport';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
@@ -37,10 +31,12 @@ const task: SyncTask = {
   status: 'PROCESSING',
 };
 const runtime = {} as FirestoreServiceRuntimePort;
+/** The replay sends with the guard it captured, so the door asks the same session. */
+const withGuard = expect.objectContaining({ check: expect.any(Function) });
+afterEach(clearSyntheticSession);
 beforeEach(() => {
   vi.clearAllMocks();
-  h.owner = 'user:synthetic';
-  h.generation = 'session-test';
+  admitSyntheticSession('user:synthetic', 'session-test');
   h.get.mockResolvedValue({
     exists: () => true,
     data: () => ({ rayenSync: { runId: 'new-run' } }),
@@ -56,23 +52,23 @@ describe('CUDYR replay authority and ownership', () => {
   it('refreshes the authority of the same census while preserving the original captured source', async () => {
     await replayCudyrArchive(task, runtime);
     expect(h.get).toHaveBeenCalledWith('2026-10-06');
-    expect(h.archive).toHaveBeenCalledWith({ ...request, runId: 'new-run' });
+    expect(h.archive).toHaveBeenCalledWith({ ...request, runId: 'new-run' }, withGuard);
     expect(request.runId).toBe('old-run');
   });
   it('replays a durable capture after the same owner signs in with a new admitted generation', async () => {
-    h.generation = 'new-admitted-session';
+    admitSyntheticSession('user:synthetic', 'new-admitted-session');
     await replayCudyrArchive(task, runtime);
-    expect(h.archive).toHaveBeenCalledWith({ ...request, runId: 'new-run' });
+    expect(h.archive).toHaveBeenCalledWith({ ...request, runId: 'new-run' }, withGuard);
   });
   it('does not dispatch another owner’s capture', async () => {
-    h.owner = 'user:other';
+    replaceStoredSessionOwner('user:other');
     await expect(replayCudyrArchive(task, runtime)).rejects.toThrow('sesión cambió');
     expect(h.get).not.toHaveBeenCalled();
     expect(h.archive).not.toHaveBeenCalled();
   });
   it('rechecks the session after awaiting the authoritative census', async () => {
     h.get.mockImplementation(async () => {
-      h.generation = 'replacement';
+      admitSyntheticSession('user:synthetic', 'replacement');
       return { exists: () => true, data: () => ({ rayenSync: { runId: 'new-run' } }) };
     });
     await expect(replayCudyrArchive(task, runtime)).rejects.toThrow('sesión cambió');

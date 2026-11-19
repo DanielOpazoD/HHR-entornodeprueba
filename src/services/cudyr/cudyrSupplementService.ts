@@ -1,5 +1,8 @@
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
-import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
+import {
+  guardAuthoringSession,
+  type AuthoringSessionGuard,
+} from '@/services/storage/authoringSession';
+import { callCudyrFunction } from './cudyrFunctionsCall';
 import type { CudyrSupplementReport } from '@/types/domain/cudyrSupplement';
 export interface ArchivedCudyrSupplement {
   id: string;
@@ -13,16 +16,6 @@ export interface ArchivedCudyrSupplement {
   capture?: { source: 'extension_monthly_report'; observedAt: string };
   file: { name: string; sha256: string; byteLength: number };
 }
-export const callCudyrArchive = async <T>(
-  endpoint: string,
-  request: unknown,
-  beforeCall?: () => void
-): Promise<T> => {
-  const runtime = await defaultFunctionsRuntime.getRegionalFunctions('southamerica-east1');
-  const { httpsCallable } = await import('firebase/functions');
-  beforeCall?.();
-  return (await httpsCallable<unknown, T>(runtime, endpoint, { timeout: 20000 })(request)).data;
-};
 export const importCudyrSupplement = (
   request: {
     operationId: string;
@@ -30,9 +23,9 @@ export const importCudyrSupplement = (
     file: { name: string; base64: string };
     report: CudyrSupplementReport;
   },
-  beforeCall?: () => void
+  guard: AuthoringSessionGuard
 ) =>
-  callCudyrArchive<{ persisted: boolean; id: string; status: string; captureStored?: boolean }>(
+  callCudyrFunction<{ persisted: boolean; id: string; status: string; captureStored?: boolean }>(
     'archiveCudyrHistory',
     {
       ...request,
@@ -40,7 +33,7 @@ export const importCudyrSupplement = (
       schemaVersion: 1,
       confirmed: true,
     },
-    beforeCall
+    guard
   );
 export const supplementMonths = (from: string, to: string) => {
   const months: string[] = [];
@@ -53,21 +46,18 @@ export const supplementMonths = (from: string, to: string) => {
   return months;
 };
 export const loadCudyrSupplements = async (from: string, to: string, signal: AbortSignal) => {
-  const { check } = guardAuthoringSession({ signal });
+  const guard = guardAuthoringSession({ signal });
   const reports: ArchivedCudyrSupplement[] = [];
   for (const month of supplementMonths(from, to)) {
     let cursor: string | null = null;
     const seen = new Set<string>();
     do {
-      check();
       const result: { reports: ArchivedCudyrSupplement[]; nextCursor: string | null } =
-        await callCudyrArchive('readCudyrHistory', {
-          kind: 'monthly-supplements',
-          month,
-          limit: 5,
-          ...(cursor ? { cursor } : {}),
-        });
-      check();
+        await callCudyrFunction(
+          'readCudyrHistory',
+          { kind: 'monthly-supplements', month, limit: 5, ...(cursor ? { cursor } : {}) },
+          guard
+        );
       reports.push(...result.reports);
       cursor = result.nextCursor;
       if (cursor && seen.has(cursor))

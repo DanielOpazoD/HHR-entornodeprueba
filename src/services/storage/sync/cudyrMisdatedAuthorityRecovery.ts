@@ -2,28 +2,28 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { addCalendarDays, isCalendarDate } from '@/utils/clinicalDateUtils';
 import type { CudyrArchiveOutboxPayload } from '@/types/domain/cudyrHistory';
 import type { SyncQueueStorePort } from './syncQueuePorts';
+import type { AuthoringSession } from '@/services/storage/authoringSession';
 import { isPolicyBlockedCudyrArchive } from './cudyrPolicyBlockedRecovery';
 
 /** Repairs the former clinical-day/authority-day mix-up only when the original run
  * is found in the immediately preceding census. Source observations remain immutable.
+ * `session` is the one the sync run captured when it began; only its owner's tasks are touched.
  */
 export const createMisdatedCudyrAuthorityRecovery =
   (deps: {
     store: SyncQueueStorePort;
-    getOwner: () => string | null;
-    getGeneration: () => string | null;
+    isSessionCurrent: (session: AuthoringSession) => boolean;
     readConfirmedCensus: (date: string) => Promise<DailyRecord | null>;
   }) =>
-  async (expectedGeneration: string, isAuthorized: () => boolean): Promise<number> => {
-    const owner = deps.getOwner();
-    const valid = () =>
-      Boolean(
-        owner &&
-        owner === deps.getOwner() &&
-        expectedGeneration === deps.getGeneration() &&
-        isAuthorized()
-      );
-    if (!valid() || !deps.store.withEnqueueTransaction || !deps.store.requeueQuarantinedTask)
+  async (session: AuthoringSession, isAuthorized: () => boolean): Promise<number> => {
+    const owner = session.ownerKey;
+    const valid = () => Boolean(owner && deps.isSessionCurrent(session) && isAuthorized());
+    if (
+      !owner ||
+      !valid() ||
+      !deps.store.withEnqueueTransaction ||
+      !deps.store.requeueQuarantinedTask
+    )
       return 0;
     const tasks = (await deps.store.listAll(owner)).filter(task => {
       const request = (task.payload as Partial<CudyrArchiveOutboxPayload> | null)?.request;

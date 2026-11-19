@@ -1,7 +1,7 @@
 // @vitest-environment node
 import 'fake-indexeddb/auto';
 import { EMPTY_PATIENT } from '@/constants/patient';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import {
@@ -11,6 +11,12 @@ import {
 import { buildSyncQueueTelemetryFromRows } from '@/services/storage/sync/syncQueueTelemetryController';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { isAuthoringSessionCurrent } from '@/services/storage/authoringSession';
+import {
+  admitSyntheticSession,
+  clearSyntheticSession,
+  replaceStoredSessionOwner,
+} from '@/tests/utils/syntheticSession';
 
 const request = () => ({
   schemaVersion: 1 as const,
@@ -62,35 +68,31 @@ const census = () =>
   }) as unknown as DailyRecord;
 const setup = () => {
   const store = createDexieSyncQueueStore();
-  let owner = 'owner',
-    generation = 'session',
-    authorized = true;
+  let authorized = true;
   const read = vi.fn(async () => census());
   const recover = createObsoleteCudyrCaptureRecovery({
     store,
-    getOwner: () => owner,
-    getGeneration: () => generation,
+    isSessionCurrent: isAuthoringSessionCurrent,
     readConfirmedCensus: read,
     now: () => new Date('2026-10-10T21:00:00Z'),
   });
   return {
     store,
     read,
-    run: () => recover('session', () => authorized),
-    setOwner: (v: string) => {
-      owner = v;
-    },
+    // The session the sync run captured when it began.
+    run: () => recover({ ownerKey: 'owner', generation: 'session' }, () => authorized),
+    setOwner: replaceStoredSessionOwner,
     revoke: () => {
       authorized = false;
     },
-    changeSession: () => {
-      generation = 'other';
-    },
+    changeSession: () => admitSyntheticSession('owner', 'other'),
   };
 };
 beforeEach(async () => {
   await hospitalDB.syncQueue.clear();
+  admitSyntheticSession('owner', 'session');
 });
+afterEach(clearSyntheticSession);
 
 describe('obsolete empty CUDYR checks', () => {
   it('retires three obsolete checks without deleting payloads or claiming Firebase acknowledgement', async () => {

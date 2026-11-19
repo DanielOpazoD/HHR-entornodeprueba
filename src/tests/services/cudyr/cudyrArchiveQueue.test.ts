@@ -32,6 +32,11 @@ vi.mock('@/services/storage/sync/publicSyncQueue', () => ({
 
 import { persistCudyrArchivePart } from '@/services/cudyr/cudyrArchiveQueue';
 import type { ArchiveCudyrHistoryRequest } from '@/types/domain/cudyrHistory';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
+
+/** A sync run's archive part, with the guard the run captured when it began. */
+const persist = (signal?: AbortSignal) =>
+  persistCudyrArchivePart(request, signal, guardAuthoringSession());
 
 const request: ArchiveCudyrHistoryRequest = {
   schemaVersion: 1,
@@ -73,17 +78,21 @@ describe('durable CUDYR archive handoff', () => {
     h.ready.mockImplementation(async () => {
       admitSyntheticSession('user:synthetic-b', 'synthetic-generation-b');
     });
-    expect(await persistCudyrArchivePart(request)).toBe('failed');
+    // The run's own guard stops it, as in the sync run that passes it.
+    await expect(persist()).rejects.toThrow('La sesión cambió.');
     expect(h.queue).not.toHaveBeenCalled();
     expect(h.archive).not.toHaveBeenCalled();
     expect(h.remove).not.toHaveBeenCalled();
   });
 
   it('saves the exact snapshot before sending and removes it only after a complete acknowledgement', async () => {
-    expect(await persistCudyrArchivePart(request)).toBe('persisted');
+    expect(await persist()).toBe('persisted');
     expect(h.queue).toHaveBeenCalledWith(
       { id: expect.any(String), request },
-      expect.objectContaining({ deferProcessing: true })
+      expect.objectContaining({
+        deferProcessing: true,
+        authoringSession: { ownerKey: 'user:synthetic', generation: 'session-test' },
+      })
     );
     expect(h.queue.mock.invocationCallOrder[0]).toBeLessThan(h.archive.mock.invocationCallOrder[0]);
     expect(h.archive.mock.invocationCallOrder[0]).toBeLessThan(
@@ -95,21 +104,21 @@ describe('durable CUDYR archive handoff', () => {
     async mode => {
       if (mode === 'network') h.archive.mockRejectedValue(new Error('offline'));
       else h.archive.mockResolvedValue({ success: true, persisted: true, results: [] });
-      expect(await persistCudyrArchivePart(request)).toBe('queued');
+      expect(await persist()).toBe('queued');
       expect(h.remove).not.toHaveBeenCalled();
       expect(h.release).toHaveBeenCalledOnce();
       expect(h.process).toHaveBeenCalledOnce();
     }
   );
   it('retains a captured snapshot for background delivery when the foreground watchdog expires', async () => {
-    expect(await persistCudyrArchivePart(request, AbortSignal.abort())).toBe('queued');
+    expect(await persist(AbortSignal.abort())).toBe('queued');
     expect(h.queue).toHaveBeenCalledOnce();
     expect(h.archive).not.toHaveBeenCalled();
     expect(h.release).toHaveBeenCalledOnce();
   });
   it('does not send if durable storage rejects the capture', async () => {
     h.queue.mockResolvedValue({ accepted: false, mode: 'rejected_backpressure' });
-    expect(await persistCudyrArchivePart(request)).toBe('failed');
+    expect(await persist()).toBe('failed');
     expect(h.archive).not.toHaveBeenCalled();
   });
   it.each(['resolve', 'reject'])(
@@ -137,7 +146,7 @@ describe('durable CUDYR archive handoff', () => {
       );
       const controller = new AbortController();
       const removeListener = vi.spyOn(controller.signal, 'removeEventListener');
-      const pending = persistCudyrArchivePart(request, controller.signal);
+      const pending = persist(controller.signal);
       await dispatched;
       controller.abort();
       expect(await pending).toBe('queued');
@@ -151,7 +160,7 @@ describe('durable CUDYR archive handoff', () => {
   );
   it('does not call an in-memory fallback durable', async () => {
     h.fallback = true;
-    expect(await persistCudyrArchivePart(request)).toBe('failed');
+    expect(await persist()).toBe('failed');
     expect(h.queue).not.toHaveBeenCalled();
   });
   it('stops dispatch when the user session changes while enqueuing', async () => {
@@ -159,7 +168,7 @@ describe('durable CUDYR archive handoff', () => {
       replaceStoredSessionOwner('user:other');
       return { accepted: true };
     });
-    expect(await persistCudyrArchivePart(request)).toBe('failed');
+    await expect(persist()).rejects.toThrow('La sesión cambió.');
     expect(h.archive).not.toHaveBeenCalled();
     expect(h.remove).not.toHaveBeenCalled();
   });
@@ -168,7 +177,7 @@ describe('durable CUDYR archive handoff', () => {
       admitSyntheticSession('user:synthetic', 'synthetic-session-b');
       return { success: true, persisted: true, results: [], captureReceiptId: 'receipt' };
     });
-    expect(await persistCudyrArchivePart(request)).toBe('queued');
+    expect(await persist()).toBe('queued');
     expect(h.remove).not.toHaveBeenCalled();
     expect(h.release).not.toHaveBeenCalled();
     expect(h.process).not.toHaveBeenCalled();
@@ -180,13 +189,13 @@ describe('durable CUDYR archive handoff', () => {
       admitSyntheticSession('user:synthetic', 'synthetic-session-b');
       return true;
     });
-    expect(await persistCudyrArchivePart(request)).toBe('queued');
+    expect(await persist()).toBe('queued');
     expect(h.process).not.toHaveBeenCalled();
   });
 
   it('keeps confirmed remote success if only local acknowledgement cleanup fails', async () => {
     h.remove.mockRejectedValue(new Error('local storage unavailable'));
-    expect(await persistCudyrArchivePart(request)).toBe('persisted');
+    expect(await persist()).toBe('persisted');
     expect(h.release).not.toHaveBeenCalled();
   });
 });

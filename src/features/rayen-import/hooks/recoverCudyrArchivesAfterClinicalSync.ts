@@ -51,14 +51,19 @@ export const recoverCudyrArchivesAfterClinicalSync = async (
       current.policy.revision === expectedRevision
     );
   };
-  const { generation } = session.session;
-  if (result.status !== 'complete' || !isAuthorized() || !generation || !session.isCurrent())
+  if (
+    result.status !== 'complete' ||
+    !isAuthorized() ||
+    !session.session.generation ||
+    !session.isCurrent()
+  )
     return;
   try {
     const { recoverPolicyBlockedCudyrArchives } =
       await import('@/services/storage/sync/publicCudyrPolicyRecovery');
     if (!isAuthorized() || !session.isCurrent()) return;
-    await recoverPolicyBlockedCudyrArchives(true, generation, isAuthorized);
+    // The run's own capture travels down: the queue compares it, never the owner read later.
+    await recoverPolicyBlockedCudyrArchives(true, session.session, isAuthorized);
   } catch {
     // A recovery chunk failure cannot undo an already confirmed clinical stage. The archives stay
     // in the durable queue and the next complete sync releases them, so nobody has to act.

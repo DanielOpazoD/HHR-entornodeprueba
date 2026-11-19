@@ -1,8 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   importCudyrSupplement,
   loadCudyrSupplements,
 } from '@/services/cudyr/cudyrSupplementService';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { admitSyntheticSession, clearSyntheticSession } from '@/tests/utils/syntheticSession';
 const { request, runtime } = vi.hoisted(() => ({ request: vi.fn(), runtime: vi.fn() }));
 vi.mock('firebase/functions', () => ({ httpsCallable: () => request }));
 vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
@@ -12,6 +14,7 @@ beforeEach(() => {
   request.mockReset();
   runtime.mockReset().mockResolvedValue({});
 });
+afterEach(clearSyntheticSession);
 describe('complete persisted supplement pagination', () => {
   it('keeps the month readable beyond fifty immutable versions', async () => {
     for (let page = 0; page < 11; page++)
@@ -62,7 +65,7 @@ describe('complete persisted supplement pagination', () => {
           release = () => resolve({});
         })
     );
-    let sessionChanged = false;
+    admitSyntheticSession('user:synthetic-a', 'generation-a');
     const pending = importCudyrSupplement(
       {
         operationId: 'synthetic',
@@ -77,14 +80,12 @@ describe('complete persisted supplement pagination', () => {
           patients: [],
         },
       },
-      () => {
-        if (sessionChanged) throw new Error('Synthetic session changed');
-      }
+      guardAuthoringSession()
     );
-    sessionChanged = true;
+    admitSyntheticSession('user:synthetic-b', 'generation-b');
     if (!release) throw new Error('Runtime must be waiting');
     release();
-    await expect(pending).rejects.toThrow('Synthetic session changed');
+    await expect(pending).rejects.toThrow('La sesión cambió.');
     expect(request).not.toHaveBeenCalled();
   });
 });
