@@ -5,7 +5,6 @@ import {
 } from '@/features/census/controllers/censusEmptyStateDiagnostic';
 import { describe, expect, it } from 'vitest';
 import {
-  isDailyRecordBootstrapPending,
   resolveDailyRecordBootstrapPhase,
   shouldAttemptTodayEmptyRecovery,
 } from '@/hooks/controllers/dailyRecordBootstrapController';
@@ -83,9 +82,6 @@ describe('dailyRecordBootstrapController', () => {
   });
 
   it('marks only pending phases as recoverable bootstrap states', () => {
-    expect(isDailyRecordBootstrapPending('remote_runtime_bootstrapping')).toBe(true);
-    expect(isDailyRecordBootstrapPending('remote_record_bootstrapping')).toBe(true);
-    expect(isDailyRecordBootstrapPending('remote_record_timeout')).toBe(false);
     expect(
       shouldAttemptTodayEmptyRecovery({
         currentDateString: '2025-01-01',

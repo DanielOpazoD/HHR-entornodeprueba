@@ -130,13 +130,3 @@ export interface WoundCarePhotoSession {
   date: string;
   photos: WoundCarePhoto[];
 }
-
-/** Full timeline for a patient's hospitalization episode */
-export interface WoundCareTimeline {
-  episodeKey: string;
-  patientRut: string;
-  patientName: string;
-  consent: WoundCareConsent | null;
-  sessions: WoundCarePhotoSession[];
-  totalPhotos: number;
-}

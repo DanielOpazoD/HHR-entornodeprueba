@@ -1,13 +1,10 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
 import {
-  isConsentSigned,
-  canUploadPhotos,
   validatePhotoFile,
   validateConsentFile,
   BODY_LOCATION_OPTIONS,
 } from '@/features/wound-care/domain/woundCareValidation';
-import type { WoundCareConsent, WoundCareAuditActor } from '@/types/domain/woundCare';
 
 // ============================================================================
 // Helpers
@@ -17,68 +14,6 @@ const createMockFile = (name: string, size: number, type: string): File => {
   const buffer = new ArrayBuffer(size);
   return new File([buffer], name, { type });
 };
-
-const mockActor: WoundCareAuditActor = {
-  uid: 'u1',
-  email: 'e@e.cl',
-  displayName: 'Test',
-  role: 'editor',
-};
-
-const signedConsent: WoundCareConsent = {
-  id: 'c1',
-  patientRut: '1-1',
-  patientName: 'P',
-  episodeKey: 'ep',
-  status: 'signed',
-  consentFileStoragePath: 'p',
-  consentFileDownloadUrl: 'u',
-  consentFileMimeType: 'application/pdf',
-  consentFileSize: 100,
-  signedAt: '2026-01-01T00:00:00Z',
-  uploadedAt: '2026-01-01T00:00:00Z',
-  uploadedBy: mockActor,
-};
-
-// ============================================================================
-// Consent Validation
-// ============================================================================
-
-describe('isConsentSigned', () => {
-  it('returns true only for signed consent', () => {
-    expect(isConsentSigned(signedConsent)).toBe(true);
-  });
-
-  it('returns false for null', () => {
-    expect(isConsentSigned(null)).toBe(false);
-  });
-
-  it('returns false for undefined', () => {
-    expect(isConsentSigned(undefined)).toBe(false);
-  });
-
-  it('returns false for revoked consent', () => {
-    expect(isConsentSigned({ ...signedConsent, status: 'revoked' })).toBe(false);
-  });
-
-  it('returns false for pending consent', () => {
-    expect(isConsentSigned({ ...signedConsent, status: 'pending' })).toBe(false);
-  });
-});
-
-describe('canUploadPhotos', () => {
-  it('mirrors isConsentSigned - true for signed', () => {
-    expect(canUploadPhotos(signedConsent)).toBe(true);
-  });
-
-  it('mirrors isConsentSigned - false for null', () => {
-    expect(canUploadPhotos(null)).toBe(false);
-  });
-
-  it('mirrors isConsentSigned - false for revoked', () => {
-    expect(canUploadPhotos({ ...signedConsent, status: 'revoked' })).toBe(false);
-  });
-});
 
 // ============================================================================
 // Photo File Validation

@@ -1,7 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
-  hasNursingShiftSuggestions,
   inferNursingShifts,
   isNurseRole,
   isNursingTechnicianRole,
@@ -49,7 +48,6 @@ describe('inferNursingShifts', () => {
 
     expect(proposal.day.names).toEqual(['Berta Soto', 'Ana Pérez']);
     expect(proposal.night.names).toEqual(['Carla Rojas', 'Daniela Vera']);
-    expect(hasNursingShiftSuggestions(proposal)).toBe(true);
   });
 
   it('reads each Ficha Médico stamp on the clock of its field before choosing the shift', () => {

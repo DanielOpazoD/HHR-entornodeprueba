@@ -175,23 +175,6 @@ const createFileInfoMapper = <T extends BaseStoredFile, TParsed extends { date: 
   };
 };
 
-export const createListFilesInMonth = <
-  T extends BaseStoredFile,
-  TParsed extends { date: string } = { date: string },
->(
-  config: ListFilesConfig<T, TParsed>
-) => {
-  const detailed = createListFilesInMonthWithReport(config);
-  return async (
-    year: string,
-    month: string,
-    runtime: Pick<BackupStorageRuntime, 'ready' | 'getStorage'> = defaultBackupStorageRuntime
-  ): Promise<T[]> => {
-    const result = await detailed(year, month, runtime);
-    return result.files;
-  };
-};
-
 export const createListFilesInMonthWithReport = <
   T extends BaseStoredFile,
   TParsed extends { date: string } = { date: string },

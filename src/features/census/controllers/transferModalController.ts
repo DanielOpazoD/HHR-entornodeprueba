@@ -10,7 +10,6 @@ import {
   resolveMovementEditorInitialDate,
 } from '@/features/census/controllers/clinicalShiftCalendarController';
 import { resolveValidHourMinuteOrFallback } from '@/features/census/controllers/timeInputController';
-import { hasModalFieldErrors } from '@/features/census/controllers/modalFormController';
 
 export interface TransferModalFieldErrors {
   time?: string;
@@ -99,9 +98,6 @@ export const buildTransferValidationErrors = ({
 
   return fieldErrors;
 };
-
-export const hasTransferValidationErrors = (fieldErrors: TransferModalFieldErrors): boolean =>
-  hasModalFieldErrors(fieldErrors);
 
 export const resolveTransferMethodChangeEffects = ({
   nextMethod,

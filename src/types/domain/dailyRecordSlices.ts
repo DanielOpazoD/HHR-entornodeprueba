@@ -21,11 +21,6 @@ export type DailyRecordMovementState = Pick<
   'date' | 'beds' | 'discharges' | 'transfers' | 'cma'
 >;
 
-export type DailyRecordMovementCollectionsState = Pick<
-  DailyRecord,
-  'discharges' | 'transfers' | 'cma'
->;
-
 export type DailyRecordPatientHistoryState = DailyRecordMovementState;
 
 export type DailyRecordStaffingState = Pick<
@@ -39,11 +34,6 @@ export type DailyRecordStaffingState = Pick<
   | 'staffingDetailsV1'
   | 'date'
   | 'handoffNightReceives'
->;
-
-export type DailyRecordMedicalMessagingState = Pick<
-  DailyRecord,
-  'date' | 'beds' | 'medicalHandoffDoctor'
 >;
 
 export type DailyRecordMedicalHandoffSummaryState = Pick<

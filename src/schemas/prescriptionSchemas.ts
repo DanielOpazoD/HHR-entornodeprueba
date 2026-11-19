@@ -81,8 +81,6 @@ const legacyCompatiblePrescriptionRecordSchema = prescriptionRecordSchema.extend
   }),
 });
 
-export type ParsedPrescriptionRecord = z.infer<typeof prescriptionRecordSchema>;
-
 /**
  * Strict parse: throws on invalid input. Use only when the caller knows
  * the data should already be valid (e.g., after a write).

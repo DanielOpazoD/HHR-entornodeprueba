@@ -109,15 +109,3 @@ export const validateCriticalFields = (
     issueCount: issues.length,
   };
 };
-
-/**
- * Get a human-readable description of missing fields
- */
-export const getMissingFieldsLabel = (fields: CriticalField[]): string => {
-  const labels: Record<CriticalField, string> = {
-    status: 'Estado',
-    admissionDate: 'Fecha de ingreso',
-  };
-
-  return fields.map(f => labels[f]).join(', ');
-};

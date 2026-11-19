@@ -9,10 +9,6 @@ export const preloadCensusComponentsChunk = (
   loadCensusComponents: LoadCensusChunk = () => import('./census-view')
 ): Promise<unknown> => loadCensusComponents();
 
-export const preloadCensusRegisterContentChunk = (
-  loadCensusRegisterContent: LoadCensusChunk = () => import('./components/CensusRegisterContent')
-): Promise<unknown> => loadCensusRegisterContent();
-
 export { CensusOperationalStateBanner } from './components/CensusOperationalStateBanner';
 export { resolveCensusOperationalState } from './controllers/censusOperationalStateController';
 export type { CensusAccessProfile } from './types/censusAccessProfile';

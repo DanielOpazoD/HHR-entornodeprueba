@@ -2,7 +2,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildExamRequestOpenState,
-  countSelectedExamRequests,
   resolveExamRequestPrevision,
   toggleExamRequestSelection,
 } from '@/hooks/controllers/examRequestController';
@@ -31,6 +30,6 @@ describe('examRequestController', () => {
     expect(added.has('HEMOGRAMA')).toBe(true);
     expect(added.has('GLICEMIA')).toBe(true);
     expect(removed.has('HEMOGRAMA')).toBe(false);
-    expect(countSelectedExamRequests(removed)).toBe(1);
+    expect(removed.size).toBe(1);
   });
 });

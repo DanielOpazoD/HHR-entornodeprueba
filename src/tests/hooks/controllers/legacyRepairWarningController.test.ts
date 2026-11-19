@@ -1,9 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import {
-  getLegacyRepairWarningMessage,
-  hasCriticalLegacyRepairSignal,
-} from '@/hooks/controllers/legacyRepairWarningController';
+import { hasCriticalLegacyRepairSignal } from '@/hooks/controllers/legacyRepairWarningController';
 
 describe('legacyRepairWarningController', () => {
   it('ignores minor legacy normalization rules', () => {
@@ -31,9 +28,5 @@ describe('legacyRepairWarningController', () => {
         sourceMigrationRulesApplied: ['salvage_patient_fallback_applied'],
       })
     ).toBe(true);
-  });
-
-  it('keeps the copy-day warning message stable', () => {
-    expect(getLegacyRepairWarningMessage('copy_day')).toContain('repararon datos antiguos');
   });
 });

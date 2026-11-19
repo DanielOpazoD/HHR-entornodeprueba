@@ -17,7 +17,6 @@ import {
   formatReminderPriorityLabel,
   formatReminderShiftLabel,
   formatReminderReceiptDate,
-  formatReminderReadWindowLabel,
 } from '@/shared/reminders/reminderPresentation';
 import {
   buildReminderReadReceiptId,
@@ -332,15 +331,6 @@ describe('reminderPresentation', () => {
   it('formats receipt date or Legacy fallback', () => {
     expect(formatReminderReceiptDate({ dateKey: '2026-03-15' })).toBe('15-03-2026');
     expect(formatReminderReceiptDate({ dateKey: undefined as unknown as string })).toBe('Legacy');
-  });
-
-  it('formats read window label combining date and shift', () => {
-    expect(formatReminderReadWindowLabel({ dateKey: '2026-03-15', shift: 'day' })).toBe(
-      '15-03-2026 / Dia'
-    );
-    expect(formatReminderReadWindowLabel({ dateKey: '2026-03-15', shift: 'night' })).toBe(
-      '15-03-2026 / Noche'
-    );
   });
 });
 

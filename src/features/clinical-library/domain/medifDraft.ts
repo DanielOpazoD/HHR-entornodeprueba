@@ -14,10 +14,6 @@ import { emptyMedifPreferences, filterMedifExportValues } from './medifPreferenc
 import type { MedifPreferences } from './medifPreferences';
 
 export type { MedifValues } from './medifSchema';
-export interface MedifDraft {
-  version: 1;
-  values: MedifValues;
-}
 
 export const emptyMedifValues = (): MedifValues => ({
   ...Object.fromEntries(MEDIF_FIELDS.map(field => [field.id, ''])),

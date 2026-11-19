@@ -1,9 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from 'vitest';
-import {
-  validateCriticalFields,
-  getMissingFieldsLabel,
-} from '@/services/validation/criticalFieldsValidator';
+import { validateCriticalFields } from '@/services/validation/criticalFieldsValidator';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
@@ -143,22 +140,6 @@ describe('criticalFieldsValidator', () => {
 
       const result = validateCriticalFields(record);
       expect(result.issueCount).toBe(2);
-    });
-  });
-
-  describe('getMissingFieldsLabel', () => {
-    it('should return status label', () => {
-      expect(getMissingFieldsLabel(['status'])).toBe('Estado');
-    });
-
-    it('should return admissionDate label', () => {
-      expect(getMissingFieldsLabel(['admissionDate'])).toBe('Fecha de ingreso');
-    });
-
-    it('should return combined labels', () => {
-      const label = getMissingFieldsLabel(['status', 'admissionDate']);
-      expect(label).toContain('Estado');
-      expect(label).toContain('Fecha de ingreso');
     });
   });
 });

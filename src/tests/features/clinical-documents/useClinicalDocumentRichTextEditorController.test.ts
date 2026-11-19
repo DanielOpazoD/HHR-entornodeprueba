@@ -4,7 +4,7 @@ import type { ClipboardEvent, KeyboardEvent, MutableRefObject } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useClinicalDocumentRichTextEditorController } from '@/features/clinical-documents/hooks/useClinicalDocumentRichTextEditorController';
-import { CLINICAL_DOCUMENT_MAX_INLINE_IMAGE_BYTES } from '@/features/clinical-documents/controllers/clinicalDocumentPasteController';
+import { CLINICAL_ATTACHMENT_INLINE_IMAGE_MAX_BYTES } from '@/features/clinical-documents/controllers/clinicalAttachmentFilePolicy';
 import type { ClinicalDocumentRichTextEditorActivationApi } from '@/features/clinical-documents/hooks/clinicalDocumentRichTextEditorTypes';
 
 const applyEditorCommandMock = vi.fn();
@@ -277,7 +277,7 @@ describe('useClinicalDocumentRichTextEditorController', () => {
     }));
     const preventDefault = vi.fn();
     const file = new File(
-      [new Uint8Array(CLINICAL_DOCUMENT_MAX_INLINE_IMAGE_BYTES + 1)],
+      [new Uint8Array(CLINICAL_ATTACHMENT_INLINE_IMAGE_MAX_BYTES + 1)],
       'large.jpg',
       { type: 'image/jpeg' }
     );
@@ -318,7 +318,7 @@ describe('useClinicalDocumentRichTextEditorController', () => {
     const onUploadPastedImage = vi.fn(async () => null);
     const onImagePasteRejected = vi.fn();
     const file = new File(
-      [new Uint8Array(CLINICAL_DOCUMENT_MAX_INLINE_IMAGE_BYTES + 1)],
+      [new Uint8Array(CLINICAL_ATTACHMENT_INLINE_IMAGE_MAX_BYTES + 1)],
       'large.jpg',
       { type: 'image/jpeg' }
     );

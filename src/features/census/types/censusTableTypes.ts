@@ -5,13 +5,6 @@ import type { BedType } from '@/features/census/contracts/censusBedContracts';
 
 export type DiagnosisMode = 'free' | 'cie10';
 
-export interface OccupiedBedRow {
-  id: string;
-  bed: BedDefinition;
-  data: PatientData;
-  isSubRow: boolean;
-}
-
 export type UnifiedBedRow =
   | {
       kind: 'occupied';

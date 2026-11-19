@@ -3,13 +3,7 @@ import type {
   LabMicrobiologyCategory,
   LabMicrobiologyEntry,
 } from '@/types/domain/labAnalyticsTypes';
-import { MICROBIOLOGY_PATTERNS } from '../constants/labExamConstants';
 import { MICROBIOLOGY_CATEGORY_RULES } from '../constants/labMicrobiologyRuleConstants';
-
-export const hasMicrobiologyPattern = (value: string): boolean => {
-  const upper = value.toUpperCase();
-  return MICROBIOLOGY_PATTERNS.some(pattern => upper.includes(pattern));
-};
 
 const hasAlertMicrobiologyResult = (result: string): boolean =>
   /(positivo|reactivo|detectado|aislado|presente|desarrollo|resistente|sensible)/i.test(result);

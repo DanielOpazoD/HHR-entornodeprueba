@@ -14,11 +14,6 @@ export interface ClinicalAttachmentAuditActor {
 
 export type ClinicalAttachmentFileKind = 'image' | 'pdf' | 'docx' | 'other';
 export type ClinicalAttachmentStatus = 'active' | 'deleted' | 'upload_failed';
-export type ClinicalAttachmentSource =
-  | 'file-picker'
-  | 'pasted-image'
-  | 'document-section'
-  | 'episode';
 
 export interface ClinicalAttachmentImageMeta {
   width?: number;

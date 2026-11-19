@@ -26,26 +26,3 @@ export const EXAM_FILTER_CATEGORIES: { label: string; patterns: string[] }[] = [
   },
   { label: 'Orina', patterns: ['ORINA', 'SEDIMENTO'] },
 ];
-
-export const MICROBIOLOGY_PATTERNS: string[] = [
-  'CULTIVO',
-  'COPROCULTIVO',
-  'UROCULTIVO',
-  'HEMOCULTIVO',
-  'MICROBIOLOG',
-  'ANTIBIOGRAMA',
-  'PCR PANEL',
-  'PANEL RESPIRATORIO',
-  'ARBOVIROSIS',
-  'DENGUE',
-  'CHIKUNGUNYA',
-  'ZIKA',
-  'VIRUS',
-  'INFLUENZA',
-  'COVID',
-  'SARS',
-  'BACTER',
-  'HONGO',
-  'LEVADUR',
-  'PARASITO',
-];

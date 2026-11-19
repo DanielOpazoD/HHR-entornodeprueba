@@ -1,13 +1,9 @@
 import React from 'react';
 import { Calendar, Clock } from 'lucide-react';
 import type { DeviceInfo } from '@/types/domain/devices';
-import { DEVICE_OPTIONS, VVP_DEVICE_KEYS } from '@/constants/clinicalDeviceConstants';
+import { DEVICE_OPTIONS } from '@/constants/clinicalDeviceConstants';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { isAnyVvpDevice } from '@/components/device-selector/deviceSelectorController';
-
-// Legacy tracked devices list (kept for backward compatibility)
-export const TRACKED_DEVICES = ['CUP', 'CVC', 'VMI', ...VVP_DEVICE_KEYS] as const;
-export type TrackedDevice = (typeof TRACKED_DEVICES)[number];
 
 // Labels for known devices
 export const DEVICE_LABELS: Record<string, string> = {

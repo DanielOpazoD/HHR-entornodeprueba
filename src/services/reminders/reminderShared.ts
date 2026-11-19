@@ -9,9 +9,6 @@ import type { Reminder, ReminderReadReceipt } from '@/types/reminders';
 
 export const REMINDER_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 
-export const getRemindersCollectionPath = (hospitalId: string = getActiveHospitalId()) =>
-  `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.REMINDERS}`;
-
 export const getRemindersCollectionRef = (
   runtime: ReminderFirestoreRuntime = defaultReminderFirestoreRuntime
 ): CollectionReference =>

@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { User } from 'firebase/auth';
 import {
-  formatAuditTimestamp,
   getCurrentUserEmail,
   getCurrentUserDisplayName,
   getCurrentUserUid,
@@ -184,13 +183,6 @@ describe('auditUtils', () => {
         'Failed to fetch IP address',
         expect.any(Error)
       );
-    });
-  });
-
-  describe('formatAuditTimestamp', () => {
-    it('should format valid timestamps and keep unknown ones defensive', () => {
-      expect(formatAuditTimestamp('2026-03-17T10:30:00.000Z')).toContain('2026');
-      expect(formatAuditTimestamp(null)).toBe('Fecha desconocida');
     });
   });
 });

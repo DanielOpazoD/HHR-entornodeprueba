@@ -10,7 +10,6 @@ import type { FhirResource } from './domain/fhir';
 import type { PatientData, MedicalHandoffAudit, MedicalHandoffEntry } from './domain/patient';
 import type { PatientStatus, Specialty } from './domain/patientClassification';
 import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
-import { LucideIcon } from 'lucide-react';
 
 // ============================================================================
 // Patient Data Field Values
@@ -36,39 +35,6 @@ export type PatientFieldValue =
   | MedicalHandoffEntry[]
   | UpcChecklistRecord
   | FhirResource;
-
-/**
- * Specific field value types for type-safe updates
- */
-export type PatientStringField =
-  | 'patientName'
-  | 'rut'
-  | 'age'
-  | 'pathology'
-  | 'admissionDate'
-  | 'bedId'
-  | 'location'
-  | 'handoffNote'
-  | 'blockedReason'
-  | 'documentType';
-
-export type PatientBooleanField =
-  | 'isBlocked'
-  | 'hasWristband'
-  | 'surgicalComplication'
-  | 'isUPC'
-  | 'hasCompanionCrib';
-
-export type PatientArrayField = 'devices' | 'clinicalEvents' | 'medicalHandoffEntries';
-
-export type PatientEnumField = 'status' | 'specialty' | 'bedMode';
-
-export type PatientObjectField =
-  | 'clinicalCrib'
-  | 'cudyr'
-  | 'deviceDetails'
-  | 'medicalHandoffAudit'
-  | 'upcChecklist';
 
 // ============================================================================
 // Error Handling
@@ -98,11 +64,6 @@ export function getErrorMessage(error: CaughtError): string {
 // ============================================================================
 // Component Props
 // ============================================================================
-
-/**
- * Type for Lucide icon components used in props
- */
-export type IconComponent = LucideIcon;
 
 // ============================================================================
 // Data Utilities (Re-exported for backwards compatibility)

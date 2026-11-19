@@ -1,4 +1,4 @@
-import { INSTITUTIONAL_ACCOUNTS, isInstitutionalAccount } from '@/constants/identities';
+import { isInstitutionalAccount } from '@/constants/identities';
 import type { DailyRecordStaffingState } from '@/types/domain/dailyRecordSlices';
 import {
   resolveDayShiftNurses,
@@ -11,11 +11,6 @@ import { getCurrentShift } from '@/utils/clinicalDayUtils';
  * Primarily used to comply with MINSAL requirements for individual responsibility
  * when using institutional shared emails.
  */
-
-/**
- * Shared nursing account email that requires attribution
- */
-export const SHARED_NURSING_ACCOUNT = INSTITUTIONAL_ACCOUNTS.NURSING;
 
 /**
  * Determines if a user represents a shared nursing account

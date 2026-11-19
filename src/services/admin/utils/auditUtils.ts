@@ -3,10 +3,8 @@
  * Handles user identification and IP address tracking for audit logs.
  */
 
-import { Timestamp } from 'firebase/firestore';
 import { auditUtilsLogger } from '@/services/admin/adminLoggers';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
-import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 // ============================================================================
 // User Identification
@@ -44,65 +42,6 @@ export const getCurrentUserEmail = (): string => {
     auditUtilsLogger.warn('Failed to resolve current user info', e);
     return 'system_context';
   }
-};
-
-/**
- * Universal parser for audit timestamps
- * Handles ISO strings, Firebase Timestamps (objects or plain),
- * numbers (ms), and Date objects.
- */
-export const parseAuditTimestamp = (timestamp: unknown): Date => {
-  if (!timestamp) return new Date(0);
-
-  // Handle Firebase Timestamp objects (Firestore native)
-  if (timestamp instanceof Timestamp) {
-    return timestamp.toDate();
-  }
-
-  // Handle plain objects from JSON or duck-typed Timestamps
-  if (typeof timestamp === 'object' && timestamp !== null) {
-    // Type guard for object with methods/properties
-    const obj = timestamp as Record<string, unknown>;
-
-    // Duck typing for toDate()
-    if ('toDate' in obj && typeof obj.toDate === 'function') {
-      return (obj.toDate as () => Date)();
-    }
-
-    // Handle plain objects with seconds/nanoseconds (common in serialized state)
-    if ('seconds' in obj && typeof obj.seconds === 'number') {
-      return new Date(obj.seconds * 1000);
-    }
-
-    // Handle Date objects
-    if (timestamp instanceof Date) {
-      return timestamp;
-    }
-  }
-
-  // Handle ISO strings or numbers (ms)
-  if (typeof timestamp === 'string' || typeof timestamp === 'number') {
-    const date = new Date(timestamp);
-    return isNaN(date.getTime()) ? new Date(0) : date;
-  }
-
-  return new Date(0);
-};
-
-export const formatAuditTimestamp = (timestamp: unknown, locale = 'es-CL'): string => {
-  const date = parseAuditTimestamp(timestamp);
-  if (date.getTime() === 0) return 'Fecha desconocida';
-
-  return date.toLocaleString(locale, {
-    timeZone: CLINICAL_TIME_ZONE,
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
 };
 
 /**

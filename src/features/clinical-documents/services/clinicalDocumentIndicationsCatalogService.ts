@@ -199,11 +199,6 @@ export const createClinicalDocumentIndicationsCatalogService = (
 const defaultClinicalDocumentIndicationsCatalogService =
   createClinicalDocumentIndicationsCatalogService();
 
-export const loadClinicalDocumentIndicationsCatalog = async (
-  owner: ClinicalDocumentIndicationsCatalogOwner
-): Promise<ClinicalDocumentIndicationsCatalog> =>
-  defaultClinicalDocumentIndicationsCatalogService.load(owner);
-
 export const subscribeToClinicalDocumentIndicationsCatalog = (
   callback: (catalog: ClinicalDocumentIndicationsCatalog) => void,
   owner: ClinicalDocumentIndicationsCatalogOwner
