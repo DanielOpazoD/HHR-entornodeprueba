@@ -1,7 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
-  RUNTIME_OPERATION_STATUSES,
   buildRuntimeOperationStatusSnapshot,
   getRuntimeOperationSeverity,
   isBlockingRuntimeStatus,
@@ -11,21 +10,17 @@ import {
   type RuntimeOperationStatus,
 } from '@/shared/contracts/runtimeOperationStatus';
 
-describe('runtimeOperationStatus catalog', () => {
-  it('lists every canonical status exactly once and in progression order', () => {
-    expect(RUNTIME_OPERATION_STATUSES).toEqual([
-      'ready',
-      'saving',
-      'pending',
-      'conflict',
-      'blocked',
-      'offline',
-      'degraded',
-      'failed',
-    ]);
-    expect(new Set(RUNTIME_OPERATION_STATUSES).size).toBe(RUNTIME_OPERATION_STATUSES.length);
-  });
-});
+// Every status exactly once: `satisfies` stops compiling if the union gains or loses one.
+const RUNTIME_OPERATION_STATUSES = Object.keys({
+  ready: true,
+  saving: true,
+  pending: true,
+  conflict: true,
+  blocked: true,
+  offline: true,
+  degraded: true,
+  failed: true,
+} satisfies Record<RuntimeOperationStatus, true>) as RuntimeOperationStatus[];
 
 describe('getRuntimeOperationSeverity', () => {
   const cases: Array<[RuntimeOperationStatus, RuntimeOperationSeverity]> = [

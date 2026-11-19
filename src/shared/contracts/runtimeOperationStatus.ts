@@ -28,17 +28,6 @@ export type RuntimeOperationStatus =
 
 export type RuntimeOperationSeverity = 'ok' | 'warning' | 'error';
 
-export const RUNTIME_OPERATION_STATUSES: readonly RuntimeOperationStatus[] = [
-  'ready',
-  'saving',
-  'pending',
-  'conflict',
-  'blocked',
-  'offline',
-  'degraded',
-  'failed',
-] as const;
-
 const SEVERITY_BY_STATUS: Readonly<Record<RuntimeOperationStatus, RuntimeOperationSeverity>> = {
   ready: 'ok',
   saving: 'ok',

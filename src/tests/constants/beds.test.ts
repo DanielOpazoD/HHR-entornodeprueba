@@ -11,10 +11,11 @@ import {
   EXTRA_BEDS,
   OCCUPANCY_ONLY_EXTRA_BEDS,
   REGULAR_BEDS,
-  UTI_BEDS,
-  MEDIA_BEDS,
 } from '@/constants/beds';
 import { BedType } from '@/types/domain/beds';
+
+const UTI_BEDS = REGULAR_BEDS.filter(bed => bed.type === BedType.UTI);
+const MEDIA_BEDS = REGULAR_BEDS.filter(bed => bed.type === BedType.MEDIA);
 
 describe('beds constants', () => {
   describe('HOSPITAL_CAPACITY', () => {

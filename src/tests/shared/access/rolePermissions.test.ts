@@ -7,7 +7,6 @@ import {
   canEditModule,
   getVisibleModules,
   isAdmin,
-  canViewModule,
   ROLES,
 } from '@/shared/access/rolePermissions';
 
@@ -117,15 +116,15 @@ describe('permissions.ts - Security Critical Tests', () => {
     });
   });
 
-  describe('canViewModule', () => {
+  describe('getVisibleModules per module', () => {
     it('should return true if module is in visible list', () => {
-      expect(canViewModule(ROLES.NURSE_HOSPITAL, 'CENSUS')).toBe(true);
-      expect(canViewModule(ROLES.VIEWER, 'CENSUS')).toBe(true);
+      expect(getVisibleModules(ROLES.NURSE_HOSPITAL).includes('CENSUS')).toBe(true);
+      expect(getVisibleModules(ROLES.VIEWER).includes('CENSUS')).toBe(true);
     });
 
     it('should return false if module is NOT in visible list', () => {
-      expect(canViewModule(ROLES.VIEWER, 'AUDIT')).toBe(false);
-      expect(canViewModule(ROLES.DOCTOR_URGENCY, 'CUDYR')).toBe(false);
+      expect(getVisibleModules(ROLES.VIEWER).includes('AUDIT')).toBe(false);
+      expect(getVisibleModules(ROLES.DOCTOR_URGENCY).includes('CUDYR')).toBe(false);
     });
   });
 });
@@ -137,10 +136,10 @@ describe('Permissions System (RBAC)', () => {
     const role = ROLES.ADMIN;
 
     it('should have access to all modules', () => {
-      expect(canViewModule(role, 'CENSUS')).toBe(true);
-      expect(canViewModule(role, 'CUDYR')).toBe(true);
-      expect(canViewModule(role, 'AUDIT')).toBe(true);
-      expect(canViewModule(role, 'WHATSAPP')).toBe(true);
+      expect(getVisibleModules(role).includes('CENSUS')).toBe(true);
+      expect(getVisibleModules(role).includes('CUDYR')).toBe(true);
+      expect(getVisibleModules(role).includes('AUDIT')).toBe(true);
+      expect(getVisibleModules(role).includes('WHATSAPP')).toBe(true);
     });
 
     it('should be allowed to perform critical admin actions', () => {
@@ -154,14 +153,14 @@ describe('Permissions System (RBAC)', () => {
     const role = ROLES.NURSE_HOSPITAL;
 
     it('should have access to core clinical modules', () => {
-      expect(canViewModule(role, 'CENSUS')).toBe(true);
-      expect(canViewModule(role, 'CUDYR')).toBe(true);
-      expect(canViewModule(role, 'NURSING_HANDOFF')).toBe(true);
+      expect(getVisibleModules(role).includes('CENSUS')).toBe(true);
+      expect(getVisibleModules(role).includes('CUDYR')).toBe(true);
+      expect(getVisibleModules(role).includes('NURSING_HANDOFF')).toBe(true);
     });
 
     it('should NOT have access to AUDIT or WHATSAPP config', () => {
-      expect(canViewModule(role, 'AUDIT')).toBe(false);
-      expect(canViewModule(role, 'WHATSAPP')).toBe(false);
+      expect(getVisibleModules(role).includes('AUDIT')).toBe(false);
+      expect(getVisibleModules(role).includes('WHATSAPP')).toBe(false);
     });
 
     it('should be allowed to delete records but NOT read audit logs', () => {
@@ -179,9 +178,9 @@ describe('Permissions System (RBAC)', () => {
     const role = ROLES.DOCTOR_URGENCY;
 
     it('should have limited module access', () => {
-      expect(canViewModule(role, 'CENSUS')).toBe(true);
-      expect(canViewModule(role, 'MEDICAL_HANDOFF')).toBe(true);
-      expect(canViewModule(role, 'CUDYR')).toBe(false);
+      expect(getVisibleModules(role).includes('CENSUS')).toBe(true);
+      expect(getVisibleModules(role).includes('MEDICAL_HANDOFF')).toBe(true);
+      expect(getVisibleModules(role).includes('CUDYR')).toBe(false);
     });
 
     it('should be allowed to sign medical handoff', () => {
@@ -203,7 +202,7 @@ describe('Permissions System (RBAC)', () => {
 
   describe('Guest / No Role', () => {
     it('should default to read-only censo access', () => {
-      expect(canViewModule(undefined, 'CENSUS')).toBe(true);
+      expect(getVisibleModules(undefined).includes('CENSUS')).toBe(true);
       expect(canEditModule(undefined, 'CENSUS')).toBe(false);
       expect(canDoAction(undefined, ACTIONS.PATIENT_WRITE)).toBe(false);
     });

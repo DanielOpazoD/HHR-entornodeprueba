@@ -9,25 +9,6 @@ export type VitalSignsProfile =
   | 'adult';
 export type VitalSignsMetricKey = 'pa' | 'fc' | 'spo2' | 'temp' | 'fr' | 'eva' | 'hgt' | 'ins';
 
-export const VITAL_STATUS_MEANINGS: Readonly<Record<VitalStatus, string>> = {
-  neutral: 'Gris: valor visible sin una banda segura para esta población o métrica.',
-  normal: 'Negro/gris oscuro: dentro de la banda visual habitual.',
-  warn: 'Naranjo: fuera de la banda habitual; requiere revisión clínica.',
-  alert: 'Rojo: desviación marcada; requiere evaluación prioritaria.',
-};
-
-export const VITAL_SIGNS_PROFILE_DEFINITIONS: Readonly<Record<VitalSignsProfile, string>> = {
-  unknown:
-    'Edad desconocida o insuficiente en la fecha de la medición. Todos los valores permanecen grises.',
-  newborn:
-    'Recién nacido de 0 a 27 días completos en la fecha de la medición. La cama o ubicación no define el perfil.',
-  infant: 'Lactante desde 28 días completos hasta antes de cumplir 1 año.',
-  child_1_4: 'Paciente pediátrico desde 1 año hasta 4 años completos.',
-  child_5_11: 'Paciente pediátrico desde 5 años hasta 11 años completos.',
-  adolescent_12_17: 'Paciente pediátrico desde 12 años hasta 17 años completos.',
-  adult: 'Paciente de 18 años o más.',
-};
-
 interface RangeRule {
   kind: 'range';
   normal: { min: number; max: number };

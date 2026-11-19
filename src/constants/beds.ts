@@ -93,5 +93,3 @@ export const OCCUPANCY_ONLY_EXTRA_BEDS = EXTRA_BEDS.filter(
 );
 export const OCCUPANCY_ONLY_EXTRA_BED_IDS = new Set(OCCUPANCY_ONLY_EXTRA_BEDS.map(bed => bed.id));
 export const REGULAR_BEDS = BEDS.filter(b => !b.isExtra);
-export const UTI_BEDS = REGULAR_BEDS.filter(b => b.type === BedType.UTI);
-export const MEDIA_BEDS = BEDS.filter(b => b.type === BedType.MEDIA && !b.isExtra);
