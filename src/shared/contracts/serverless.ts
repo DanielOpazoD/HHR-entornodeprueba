@@ -6,8 +6,6 @@ export const ServerlessErrorResponseSchema = z.object({
   error: z.string(),
 });
 
-export type ServerlessErrorResponse = z.infer<typeof ServerlessErrorResponseSchema>;
-
 export const Cie10SearchResultSchema = z.object({
   code: z.string(),
   description: z.string(),
@@ -31,8 +29,6 @@ export const Cie10SearchResponseSchema = z.object({
   error: z.string().optional(),
 });
 
-export type Cie10SearchResponse = z.infer<typeof Cie10SearchResponseSchema>;
-
 export const ClinicalDocumentAiImportPayloadSchema = z.object({
   antecedentes: z.string(),
   historiaEvolucionClinica: z.string(),
@@ -47,8 +43,6 @@ export const ClinicalDocumentAiImportRequestSchema = z.object({
   sourceText: z.string(),
 });
 
-export type ClinicalDocumentAiImportRequest = z.infer<typeof ClinicalDocumentAiImportRequestSchema>;
-
 export const ClinicalDocumentAiImportResponseSchema = z.object({
   available: z.boolean(),
   provider: z.string().optional(),
@@ -56,10 +50,6 @@ export const ClinicalDocumentAiImportResponseSchema = z.object({
   document: ClinicalDocumentAiImportPayloadSchema.optional(),
   message: z.string().optional(),
 });
-
-export type ClinicalDocumentAiImportResponse = z.infer<
-  typeof ClinicalDocumentAiImportResponseSchema
->;
 
 export const ClinicalAttachmentNameSuggestionRequestSchema = z.object({
   attachment: z.object({
@@ -81,10 +71,6 @@ export const ClinicalAttachmentNameSuggestionRequestSchema = z.object({
     .optional(),
 });
 
-export type ClinicalAttachmentNameSuggestionRequest = z.infer<
-  typeof ClinicalAttachmentNameSuggestionRequestSchema
->;
-
 export const ClinicalAttachmentNameSuggestionResponseSchema = z.object({
   available: z.boolean(),
   provider: z.string().optional(),
@@ -92,10 +78,6 @@ export const ClinicalAttachmentNameSuggestionResponseSchema = z.object({
   suggestedName: z.string().optional(),
   message: z.string().optional(),
 });
-
-export type ClinicalAttachmentNameSuggestionResponse = z.infer<
-  typeof ClinicalAttachmentNameSuggestionResponseSchema
->;
 
 const CensusWorkbookSheetDescriptorSchema = z.custom<CensusWorkbookSheetDescriptor>();
 const CensusExportRecordArraySchema = z.custom<CensusExportRecord[]>(

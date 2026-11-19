@@ -119,20 +119,10 @@ export const getHospitalPath = (hospitalId: string = getActiveHospitalId()) =>
   `${COLLECTIONS.HOSPITALS}/${hospitalId}` as const;
 
 /**
- * Build path to daily records collection
- */
-export const getDailyRecordsPath = (hospitalId: string = getActiveHospitalId()) =>
-  `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.DAILY_RECORDS}` as const;
-
-/**
  * Build path to settings collection
  */
 export const getSettingsPath = (hospitalId: string = getActiveHospitalId()) =>
   `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.SETTINGS}` as const;
-
-/** Server-owned specialty policy; never sourced from the legacy writable settings path. */
-export const getSpecialtyPolicyDocPath = (hospitalId: string = getActiveHospitalId()) =>
-  `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.SPECIALTY_POLICIES}/active` as const;
 
 /**
  * Build path to a specific settings document
@@ -184,12 +174,3 @@ export const getAnalyticsSpecialtyReclassificationsPath = (
   hospitalId: string = getActiveHospitalId()
 ) =>
   `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.ANALYTICS_SPECIALTY_RECLASSIFICATIONS}` as const;
-
-// ============================================================================
-// Type Exports
-// ============================================================================
-
-export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];
-export type HospitalCollectionName =
-  (typeof HOSPITAL_COLLECTIONS)[keyof typeof HOSPITAL_COLLECTIONS];
-export type SettingsDocName = (typeof SETTINGS_DOCS)[keyof typeof SETTINGS_DOCS];
