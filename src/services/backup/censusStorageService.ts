@@ -9,7 +9,6 @@ import type { BackupStorageRuntime } from '@/services/firebase-runtime/backupRun
 import {
   createListYears,
   createListMonths,
-  createListFilesInMonth,
   createListFilesInMonthWithReport,
 } from './baseStorageService';
 import type { BaseStoredFile } from '@/types/backupArtifacts';
@@ -259,25 +258,6 @@ export const listCensusMonths = createListMonths(STORAGE_ROOT);
  * List all Census files in a month (using base service)
  * Note: Display name is normalized to format (DD-MM-YYYY - Censo Diario.xlsx)
  */
-export const listCensusFilesInMonth = createListFilesInMonth<BaseStoredFile, { date: string }>({
-  storageRoot: STORAGE_ROOT,
-  parseFilePath,
-  mapToFile: (item, metadata, downloadUrl, parsed) => {
-    // Generate normalized display name from parsed date
-    const [year, month, day] = parsed.date.split('-');
-    const displayName = `${day}-${month}-${year} - Censo Diario.xlsx`;
-
-    return {
-      name: displayName, // Always use normalized format for display
-      fullPath: item.fullPath,
-      downloadUrl,
-      date: parsed.date,
-      createdAt: metadata.customMetadata?.uploadedAt || metadata.timeCreated,
-      size: metadata.size,
-    };
-  },
-});
-
 export const listCensusFilesInMonthWithReport = createListFilesInMonthWithReport<
   BaseStoredFile,
   { date: string }

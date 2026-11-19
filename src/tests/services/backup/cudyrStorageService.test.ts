@@ -10,7 +10,6 @@ import {
   deleteCudyrFileWithResult,
   listCudyrYears,
   listCudyrMonths,
-  listCudyrFilesInMonth,
 } from '@/services/backup/cudyrStorageService';
 import { uploadBytes, getDownloadURL, getMetadata, deleteObject } from 'firebase/storage';
 
@@ -37,7 +36,6 @@ vi.mock('@/services/backup/baseStorageService', () => ({
   MONTH_NAMES: [],
   createListYears: vi.fn(() => vi.fn()),
   createListMonths: vi.fn(() => vi.fn()),
-  createListFilesInMonth: vi.fn(() => vi.fn()),
   createListFilesInMonthWithReport: vi.fn(() => vi.fn()),
 }));
 
@@ -142,7 +140,6 @@ describe('cudyrStorageService', () => {
     it('should exist', () => {
       expect(listCudyrYears).toBeDefined();
       expect(listCudyrMonths).toBeDefined();
-      expect(listCudyrFilesInMonth).toBeDefined();
     });
   });
 });

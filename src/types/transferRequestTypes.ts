@@ -61,30 +61,3 @@ export interface TransferRequest {
   updatedAt: string;
   createdBy: string;
 }
-
-/**
- * Form data for creating/editing a transfer request.
- */
-export interface TransferFormData {
-  patientId: string;
-  bedId: string;
-  requestDate?: string;
-  destinationHospital: string;
-  transferReason: string;
-  requestingDoctor: string;
-  requiredSpecialty?: string;
-  requiredBedType?: string;
-  observations?: string;
-  transferNotes?: TransferNote[];
-  customFields?: Record<string, string>;
-}
-
-/**
- * Hospital template configuration.
- */
-export interface HospitalTemplate {
-  id: string;
-  name: string;
-  requiredFields: string[];
-  templateUrl?: string;
-}

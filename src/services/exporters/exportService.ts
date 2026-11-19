@@ -22,15 +22,7 @@ import {
 } from '@/shared/contracts/applicationOutcomeFactories';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 
-import { exportServiceLogger } from '@/services/exporters/exporterLoggers';
 import { getTodayISO } from '@/utils/dateCoreUtils';
-
-export const exportDataJSON = async () => {
-  const result = await exportDataJSONWithResult();
-  if (result.status !== 'success') {
-    return;
-  }
-};
 
 export const exportDataJSONWithResult = async (): Promise<
   ApplicationOutcome<{ exported: boolean }>
@@ -55,13 +47,6 @@ export const exportDataJSONWithResult = async (): Promise<
 };
 
 type DailyRecordCsvExportInput = DailyRecordCsvExportState & DailyRecordDateRef;
-
-export const exportDataCSV = (record: DailyRecordCsvExportInput | null) => {
-  const result = exportDataCSVWithResult(record);
-  if (result.status !== 'success') {
-    return;
-  }
-};
 
 export const exportDataCSVWithResult = (
   record: DailyRecordCsvExportInput | null
@@ -90,11 +75,6 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
   return importDataJSONDetailedFile(file);
 };
 
-export const importDataCSV = async (_file: File): Promise<boolean> => {
-  const result = await importDataCSVWithResult(_file);
-  return result.status === 'success' ? result.data.imported : false;
-};
-
 export const importDataJSONWithResult = async (
   file: File
 ): Promise<ApplicationOutcome<{ imported: boolean }>> => {
@@ -119,17 +99,4 @@ export const importDataJSONWithResult = async (
       },
     ]);
   }
-};
-
-export const importDataCSVWithResult = async (
-  _file: File
-): Promise<ApplicationOutcome<{ imported: boolean }>> => {
-  exportServiceLogger.warn('CSV import is not fully implemented. Use JSON.');
-  return createApplicationFailed({ imported: false }, [
-    {
-      kind: 'validation',
-      message: 'La importación CSV no está disponible. Usa JSON.',
-      userSafeMessage: 'La importación CSV no está disponible. Usa JSON.',
-    },
-  ]);
 };

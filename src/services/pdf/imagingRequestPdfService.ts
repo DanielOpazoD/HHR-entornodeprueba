@@ -12,7 +12,6 @@ import type { PatientData } from '@/types/domain/patient';
 
 import { calculateAge, formatDateToCL as formatDate } from '@/utils/clinicalUtils';
 import { formatPatientDisplayName } from '@/utils/patientNameDisplayUtils';
-import { saveAndDownloadPdf } from './pdfBase';
 import {
   SOLICITUD_FIELD_COORDS,
   ENCUESTA_FIELD_COORDS,
@@ -20,14 +19,12 @@ import {
 } from './imagingRequestPdfCoordinates';
 import type { CustomMark } from './pdfMarkTypes';
 import {
-  buildSuggestedPdfName,
   createUppercaseTextDrawer,
   drawCustomMarks,
   embedHelvetica,
   getTodayFormatted,
   injectPrintScriptAndOpen,
   loadPdfTemplate,
-  createPdfObjectUrl,
 } from './pdfBrowserUtils';
 
 // Re-export constants for backwards compatibility and tests
@@ -179,33 +176,6 @@ export const fillConsentimientoForm = async (
     marks,
     includeDateField: 'fecha',
   });
-};
-
-/**
- * Download the filled imaging request form
- */
-export const downloadImagingRequestForm = async (
-  patient: PatientData,
-  requestingPhysician: string = '',
-  marks: CustomMark[] = []
-): Promise<void> => {
-  const bytes = await fillImagingRequestForm(patient, requestingPhysician, marks);
-  const suggestedName = buildSuggestedPdfName('SolicitudImagen', patient.patientName || 'paciente');
-
-  await saveAndDownloadPdf(bytes, suggestedName);
-};
-
-/**
- * Generate a Blob URL for the filled imaging request form
- * This is used for previewing the PDF in an iframe
- */
-export const generateImagingRequestPreviewUrl = async (
-  patient: PatientData,
-  requestingPhysician: string = '',
-  marks: CustomMark[] = []
-): Promise<string> => {
-  const pdfBytes = await fillImagingRequestForm(patient, requestingPhysician, marks);
-  return createPdfObjectUrl(pdfBytes);
 };
 
 /**

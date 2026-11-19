@@ -20,12 +20,15 @@ import { afterEach, describe, expect, it } from 'vitest';
 const roots: string[] = [];
 const baselinePath = 'scripts/config/unchecked-index-baseline.json';
 const baseline = JSON.stringify({ version: 1, total: 2, areas: { 'src/example/read': 2 } });
+// The synthetic projects only index ES5 arrays: no @types packages and no DOM declarations, which
+// were most of each compilation's input.
+const minimalLibraries = { types: [], lib: ['es5'] };
 
 const fixture = (
   prefix: string,
   files: Record<string, string> = {
     'tsconfig.json': JSON.stringify({
-      compilerOptions: { strict: true, types: [] },
+      compilerOptions: { strict: true, ...minimalLibraries },
       include: ['src'],
     }),
     'src/example/read.ts': 'export const value: string = ["synthetic"][0];\n',
@@ -95,7 +98,7 @@ describe('unchecked-index CLI', () => {
 
   it('rejects an analysis with no production files, including baseline writes', () => {
     const root = fixture('hhr unchecked empty ', {
-      'tsconfig.json': JSON.stringify({ compilerOptions: { types: [] }, include: ['src'] }),
+      'tsconfig.json': JSON.stringify({ compilerOptions: minimalLibraries, include: ['src'] }),
       'src/tests/only.ts': 'export const value = 1;\n',
     });
     for (const args of [[], ['--write-baseline']]) {
@@ -120,7 +123,7 @@ describe('unchecked-index CLI', () => {
   it('rejects invalid compiler options even when production files are listed', () => {
     const root = fixture('hhr unchecked options ', {
       'tsconfig.json': JSON.stringify({
-        compilerOptions: { types: [], unknownCompilerOption: true },
+        compilerOptions: { ...minimalLibraries, unknownCompilerOption: true },
         include: ['src'],
       }),
       'src/example/read.ts': 'export const value = 1;\n',
@@ -164,7 +167,7 @@ describe('unchecked-index CLI', () => {
     writeFileSync(
       path.join(root, 'tsconfig.json'),
       JSON.stringify({
-        compilerOptions: { strict: true, types: [], unknownCompilerOption: true },
+        compilerOptions: { strict: true, ...minimalLibraries, unknownCompilerOption: true },
         include: ['src'],
       })
     );
