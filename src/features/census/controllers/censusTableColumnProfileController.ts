@@ -1,6 +1,6 @@
 import type { TableColumnConfig } from '@/context/TableConfigContext';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
-import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
+import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessProfile';
 
 /**
  * Columnas ocultas para todos los perfiles (rediseño censo 2026):

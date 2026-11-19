@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { BedType } from '@/features/census/contracts/censusBedContracts';
+import { BedType } from '@/types/domain/beds';
 import { type BedDefinition } from '@/types/domain/beds';
 import { listCensusExamRequestCandidates } from '@/features/census/controllers/censusExamRequestController';
 

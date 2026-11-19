@@ -4,7 +4,7 @@ import {
   normalizeOptionalText,
   validateDischargeExecutionInput,
 } from '@/features/census/validation/censusActionValidation';
-import { fail, failWithCode, ok } from '@/features/census/controllers/controllerResult';
+import { fail, failWithCode, ok } from '@/shared/contracts/controllerResult';
 import type {
   CensusActionError,
   CensusActionCommandResult,

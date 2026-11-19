@@ -13,7 +13,7 @@ import {
   ControllerResult,
   failWithCode,
   ok,
-} from '@/features/census/controllers/controllerResult';
+} from '@/shared/contracts/controllerResult';
 import type { RowActionCommand } from '@/features/census/types/censusRowActionCommandTypes';
 export type {
   RowActionCommand,
