@@ -161,7 +161,7 @@ describe('useDailyRecordSyncQuery', () => {
       buildReadResult(mockRecord)
     );
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
 
@@ -187,7 +187,7 @@ describe('useDailyRecordSyncQuery', () => {
       async (_date, syncFromRemote) => buildReadResult(syncFromRemote ? null : mockRecord)
     );
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'local_only'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'local_only'), {
       wrapper: createWrapper(),
     });
 
@@ -212,7 +212,7 @@ describe('useDailyRecordSyncQuery', () => {
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockImplementation(
       async (_date, syncFromRemote) => (syncFromRemote ? remote.promise : buildReadResult(null))
     );
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() =>
@@ -245,7 +245,7 @@ describe('useDailyRecordSyncQuery', () => {
       buildReadResult(mockRecord)
     );
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
 
@@ -269,7 +269,7 @@ describe('useDailyRecordSyncQuery', () => {
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
       buildReadResult(refreshed)
     );
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => expect(result.current.record).toEqual(refreshed));
@@ -289,7 +289,7 @@ describe('useDailyRecordSyncQuery', () => {
       buildReadResult(mockRecord)
     );
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
 
@@ -316,7 +316,7 @@ describe('useDailyRecordSyncQuery', () => {
       .mockImplementationOnce(() => firstRefresh.promise)
       .mockImplementationOnce(() => secondRefresh.promise);
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
 
@@ -364,12 +364,9 @@ describe('useDailyRecordSyncQuery', () => {
     const deferredRefresh = createDeferred<{ success: boolean; data: unknown }>();
     mockExecuteSyncDailyRecord.mockImplementationOnce(() => deferredRefresh.promise);
 
-    const { result, unmount } = renderHook(
-      () => useDailyRecordSyncQuery(mockDate, false, 'ready'),
-      {
-        wrapper: createWrapper(),
-      }
-    );
+    const { result, unmount } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.record).not.toBeNull());
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockClear();
@@ -395,7 +392,7 @@ describe('useDailyRecordSyncQuery', () => {
       buildUnavailableReadResult()
     );
 
-    renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
 
@@ -411,7 +408,7 @@ describe('useDailyRecordSyncQuery', () => {
       buildReadResult(null)
     );
 
-    renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'local_only'), {
+    renderHook(() => useDailyRecordSyncQuery(mockDate, 'local_only'), {
       wrapper: createWrapper(),
     });
 
@@ -432,7 +429,7 @@ describe('useDailyRecordSyncQuery', () => {
 
     const { result, rerender } = renderHook(
       ({ remoteSyncStatus }: { remoteSyncStatus: 'local_only' | 'ready' }) =>
-        useDailyRecordSyncQuery(mockDate, false, remoteSyncStatus),
+        useDailyRecordSyncQuery(mockDate, remoteSyncStatus),
       {
         initialProps: { remoteSyncStatus: 'local_only' } as {
           remoteSyncStatus: 'local_only' | 'ready';
@@ -471,7 +468,7 @@ describe('useDailyRecordSyncQuery', () => {
       data: { date: mockDate, outcome: 'clean', record: mockRecord },
     });
 
-    renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
 

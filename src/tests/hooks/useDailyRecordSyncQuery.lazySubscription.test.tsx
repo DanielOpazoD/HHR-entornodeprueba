@@ -83,7 +83,7 @@ describe('persistent lazy subscription load failure in the recovery owner', () =
       const phases: string[] = [];
       const { result, rerender, unmount } = renderHook(
         () => {
-          const state = useDailyRecordSyncQuery(date, false, 'ready');
+          const state = useDailyRecordSyncQuery(date, 'ready');
           phases.push(state.bootstrapPhase);
           return state;
         },

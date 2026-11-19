@@ -187,7 +187,7 @@ describe('definitive bed clear confirmation', () => {
       () => write.promise
     );
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => {
@@ -268,7 +268,7 @@ describe('definitive bed clear confirmation', () => {
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
       buildReadResult(occupiedRecord)
     );
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => {
@@ -331,7 +331,7 @@ describe('definitive bed clear confirmation', () => {
       () => write.promise
     );
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => {
@@ -394,7 +394,7 @@ describe('definitive bed clear confirmation', () => {
       () => write.promise
     );
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => {
@@ -457,7 +457,7 @@ describe('definitive bed clear confirmation', () => {
       () => write.promise
     );
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => {

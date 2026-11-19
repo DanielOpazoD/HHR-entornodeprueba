@@ -194,7 +194,7 @@ describe('definitive bed clear serialization', () => {
       .mockImplementationOnce(() => clearWrite.promise)
       .mockImplementationOnce(() => newerWrite.promise);
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => {
@@ -294,7 +294,7 @@ describe('definitive bed clear serialization', () => {
     const testRuntime = createQueryClientTestWrapper({
       wrapChildren: children => <UIProvider>{children}</UIProvider>,
     });
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: testRuntime.wrapper,
     });
     await waitFor(() => {
@@ -363,7 +363,7 @@ describe('definitive bed clear serialization', () => {
       .mockImplementationOnce(() => clearWrite.promise)
       .mockImplementationOnce(() => newerWrite.promise);
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => {

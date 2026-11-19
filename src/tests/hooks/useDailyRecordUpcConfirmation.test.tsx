@@ -133,7 +133,7 @@ describe('remote-confirmed UPC journal', () => {
     const write = createDeferred<DailyRecordWriteResult>();
     mockDailyRecordRepositoryPort.getForDateWithMeta.mockResolvedValue(buildReadResult(occupied));
     mockDailyRecordRepositoryPort.updatePartialDetailed.mockImplementation(() => write.promise);
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => expect(result.current.record?.beds.R1).toBeDefined());

@@ -75,7 +75,7 @@ const readResult = (record: DailyRecord) => ({
 
 /** The census as the app wires it: the real day hook feeds the real provider and rows. */
 const Census = () => {
-  const day = useDailyRecord(date, false, 'ready');
+  const day = useDailyRecord(date, 'ready');
   if (!day.record) return null;
   const record = day.record;
   return (

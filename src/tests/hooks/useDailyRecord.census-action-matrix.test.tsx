@@ -461,7 +461,7 @@ describe('useDailyRecord census action matrix', () => {
       remoteLastUpdated: initialRecord.lastUpdated,
     });
 
-    const { result } = renderHook(() => useDailyRecord(date, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecord(date, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => expect(result.current.record).not.toBeNull());

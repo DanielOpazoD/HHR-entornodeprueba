@@ -109,7 +109,7 @@ describe('opening a day without census after a save of another day failed', () =
     const renders: Array<{ date: string; bootstrapPhase: string; syncStatus: string }> = [];
     const view = renderHook(
       ({ date }: { date: string }) => {
-        const state = useDailyRecordSyncQuery(date, false, 'ready');
+        const state = useDailyRecordSyncQuery(date, 'ready');
         renders.push({ date, bootstrapPhase: state.bootstrapPhase, syncStatus: state.syncStatus });
         return state;
       },

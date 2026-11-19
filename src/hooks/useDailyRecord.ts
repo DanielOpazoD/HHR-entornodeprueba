@@ -23,7 +23,6 @@ import { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
  */
 export const useDailyRecord = (
   currentDateString: string,
-  isOfflineMode: boolean = false,
   remoteSyncStatus: RemoteSyncRuntimeStatus = 'local_only',
   ensureStaleDayEditAllowed?: StaleDayEditGuard
 ): DailyRecordContextType => {
@@ -44,7 +43,7 @@ export const useDailyRecord = (
     markLocalChange,
     refresh,
     patchRecord,
-  } = useDailyRecordSyncQuery(currentDateString, isOfflineMode, remoteSyncStatus);
+  } = useDailyRecordSyncQuery(currentDateString, remoteSyncStatus);
 
   // ========================================================================
   // Orchestrated Sub-hooks

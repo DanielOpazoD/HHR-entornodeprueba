@@ -154,7 +154,7 @@ describe('remote-confirmed clinical crib optimism', () => {
       () => write.promise
     );
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => {
@@ -234,7 +234,7 @@ describe('remote-confirmed clinical crib optimism', () => {
       authoritativeBase
     );
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'local_only'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'local_only'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => {
@@ -315,7 +315,7 @@ describe('remote-confirmed clinical crib optimism', () => {
       authoritativeRecord
     );
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() =>
@@ -385,7 +385,7 @@ describe('remote-confirmed clinical crib optimism', () => {
       confirmedRecord,
     });
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => expect(result.current.record?.beds.R1).toBeDefined());
@@ -432,7 +432,7 @@ describe('remote-confirmed clinical crib optimism', () => {
       () => write.promise
     );
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => {

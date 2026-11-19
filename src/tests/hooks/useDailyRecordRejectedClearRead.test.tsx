@@ -138,7 +138,7 @@ describe('authoritative reads after rejected clears', () => {
       const { wrapper, queryClient } = createQueryClientTestWrapper({
         wrapChildren: children => <UIProvider>{children}</UIProvider>,
       });
-      const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+      const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
         wrapper,
       });
       await waitFor(() =>

@@ -140,7 +140,7 @@ describe('useDailyRecordSyncQuery notification ownership', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('emits exactly one truthful notice for a server-confirmed save', async () => {
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => expect(result.current.record).not.toBeNull());
@@ -161,7 +161,7 @@ describe('useDailyRecordSyncQuery notification ownership', () => {
     vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockRejectedValueOnce(
       new Error('storage unavailable')
     );
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => expect(result.current.record).not.toBeNull());
@@ -188,7 +188,7 @@ describe('useDailyRecordSyncQuery notification ownership', () => {
       state: 'not_saved',
       reason: 'blocked',
     });
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => expect(result.current.record).not.toBeNull());

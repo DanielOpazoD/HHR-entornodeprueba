@@ -105,7 +105,7 @@ describe('definitive clear first-attempt reconciliation', () => {
     };
     mockDailyRecordRepositoryPort.getForDateWithMeta.mockResolvedValue(buildReadResult(local));
     mockDailyRecordRepositoryPort.getAuthoritativeForDate.mockResolvedValue(remote);
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() =>
@@ -191,7 +191,7 @@ describe('definitive clear first-attempt reconciliation', () => {
       }
     );
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() =>
@@ -281,7 +281,7 @@ describe('definitive clear first-attempt reconciliation', () => {
       }
     );
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() =>
@@ -370,7 +370,7 @@ describe('definitive clear first-attempt reconciliation', () => {
       localProjection
     );
 
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() =>
@@ -446,7 +446,7 @@ describe('definitive clear first-attempt reconciliation', () => {
         new ConcurrencyError('response lost after remote commit')
       );
 
-      const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+      const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
         wrapper: createWrapper(),
       });
       await waitFor(() =>

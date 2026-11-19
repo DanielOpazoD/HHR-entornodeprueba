@@ -190,7 +190,7 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
     let safeResult: { current: unknown } | null = null;
     let safeUnmount: (() => void) | null = null;
     await act(async () => {
-      const hook = renderHook(() => useDailyRecordSyncQuery(date, false, 'ready'), { wrapper });
+      const hook = renderHook(() => useDailyRecordSyncQuery(date, 'ready'), { wrapper });
       safeResult = hook.result;
       safeUnmount = hook.unmount;
     });
@@ -248,7 +248,7 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
     let safeResult: { current: unknown } | null = null;
     let safeUnmount: (() => void) | null = null;
     await act(async () => {
-      const hook = renderHook(() => useDailyRecordSyncQuery(date, false, 'local_only'), {
+      const hook = renderHook(() => useDailyRecordSyncQuery(date, 'local_only'), {
         wrapper,
       });
       safeResult = hook.result;
@@ -315,7 +315,7 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
     let safeResult: { current: unknown } | null = null;
     let safeUnmount: (() => void) | null = null;
     await act(async () => {
-      const hook = renderHook(() => useDailyRecordSyncQuery(date, false, 'local_only'), {
+      const hook = renderHook(() => useDailyRecordSyncQuery(date, 'local_only'), {
         wrapper,
       });
       safeResult = hook.result;
@@ -399,7 +399,7 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
     let safeResult: { current: unknown } | null = null;
     let safeUnmount: (() => void) | null = null;
     await act(async () => {
-      const hook = renderHook(() => useDailyRecordSyncQuery(date, false, 'ready'), { wrapper });
+      const hook = renderHook(() => useDailyRecordSyncQuery(date, 'ready'), { wrapper });
       safeResult = hook.result;
       safeUnmount = hook.unmount;
     });
@@ -472,7 +472,7 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
     let safeResult: { current: unknown } | null = null;
     let safeUnmount: (() => void) | null = null;
     await act(async () => {
-      const hook = renderHook(() => useDailyRecordSyncQuery(date, false, 'ready'), { wrapper });
+      const hook = renderHook(() => useDailyRecordSyncQuery(date, 'ready'), { wrapper });
       safeResult = hook.result;
       safeUnmount = hook.unmount;
     });

@@ -63,7 +63,6 @@ const isCurrentWrite = (session?: AuthoringSession): boolean =>
 
 export const useDailyRecordSyncQuery = (
   currentDateString: string,
-  _isOfflineMode: boolean = false, // Handled implicitly by TanStack Query & Repository
   remoteSyncStatus: RemoteSyncRuntimeStatus = 'local_only'
 ): UseDailyRecordSyncResult => {
   const queryClient = useQueryClient();
@@ -80,12 +79,7 @@ export const useDailyRecordSyncQuery = (
     isError: isRecordError,
     fetchStatus: recordFetchStatus,
     refetch,
-  } = useDailyRecordQuery(
-    currentDateString,
-    _isOfflineMode,
-    effectiveRemoteSyncStatus,
-    remoteSyncStatus
-  );
+  } = useDailyRecordQuery(currentDateString, false, effectiveRemoteSyncStatus, remoteSyncStatus);
 
   useCensusRecordPerf(currentDateString, record?.date, recordRuntime?.sourceOfTruth);
 
