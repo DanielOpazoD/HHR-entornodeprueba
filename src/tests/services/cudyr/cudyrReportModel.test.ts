@@ -202,6 +202,35 @@ describe('CUDYR canonical report', () => {
       });
     }
   });
+  it('counts one application saved several times in the source with the same time, content and author', () => {
+    const original = reportObservation();
+    original.evaluation.items = [
+      { fieldId: 'surveillance', value: '3' },
+      { fieldId: 'vitalSigns', value: '2' },
+    ];
+    const copy = (id: string, version: string) =>
+      reportObservation({
+        id,
+        eventKey: id,
+        evaluation: { ...original.evaluation, sourceEvaluationId: id, sourceVersion: version },
+      });
+    const observations = [original, copy('event-2', 'v2'), copy('event-3', 'v3')];
+    const data = buildCudyrReport(confirmedReportInput({ observations }));
+    const row = data.rows[0];
+    expect(row).toMatchObject({
+      cudyrStatus: 'registrado',
+      eligibility: 'elegible',
+      evaluationCount: 1,
+      evaluation: { category: 'C2', authorId: 'author-1' },
+    });
+    expect(cudyrReportTotals([row])).toMatchObject({ eligible: 1, categorized: 1, review: 0 });
+    // Every archived copy stays as evidence (CUD-02).
+    expect(data.observations).toHaveLength(3);
+    // Identical copies without a verifiable time still need review.
+    for (const item of observations) item.evaluation.recordedAt = 'invalid';
+    const unverifiable = buildCudyrReport(confirmedReportInput({ observations })).rows[0];
+    expect(unverifiable).toMatchObject({ cudyrStatus: 'por_revisar', evaluation: null });
+  });
   it('reconciles an HHR external transfer as departure while internal bed changes stay in placement context', () => {
     const record = reportRecord();
     record.transfers = [

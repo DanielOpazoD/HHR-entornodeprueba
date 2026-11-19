@@ -16,6 +16,15 @@ const clinicalSignature = (value: CudyrSourceEvaluation) =>
     riskScore: value.riskScore ?? null,
     items: (value.items || []).map(item => [item.fieldId, item.value]).sort(),
   });
+/** One application saved several times in the source: same clinical content, time and authorship. */
+const applicationSignature = (value: CudyrSourceEvaluation) =>
+  JSON.stringify([
+    clinicalSignature(value),
+    value.authorId,
+    value.author,
+    value.authorRoleId,
+    value.authorRole,
+  ]);
 const fromObservation = (item: CudyrHistoryObservation): CudyrReportEvaluation => ({
   category: item.evaluation.category,
   source: 'Eloísa · Gestión de Camas',
@@ -97,7 +106,8 @@ export const selectCudyrReportEvaluation = (
       warnings: ['Ajuste administrativo HHR aplicado.'],
     };
   }
-  const candidates: CudyrHistoryObservation[] = [];
+  const applications = new Map<string, CudyrHistoryObservation>();
+  let duplicates = 0;
   let conflict = false;
   const eventReferences: Array<string | undefined> = [];
   for (const versions of events.values()) {
@@ -133,8 +143,17 @@ export const selectCudyrReportEvaluation = (
         Object.values(b.evaluation).filter(Boolean).length -
         Object.values(a.evaluation).filter(Boolean).length
     )[0];
-    candidates.push(richer);
+    // Copies of one application collapse to one; the lowest archive id keeps the choice stable.
+    const key = applicationSignature(richer.evaluation);
+    const kept = applications.get(key);
+    if (kept) duplicates += 1;
+    if (!kept || richer.id < kept.id) applications.set(key, richer);
   }
+  if (duplicates)
+    warnings.push(
+      'Aplicación guardada más de una vez en la fuente con igual hora, contenido y autoría; cuenta como una.'
+    );
+  const candidates = [...applications.values()];
   candidates.sort(
     (a, b) => Date.parse(b.evaluation.recordedAt) - Date.parse(a.evaluation.recordedAt)
   );
@@ -152,7 +171,7 @@ export const selectCudyrReportEvaluation = (
   if (events.size)
     return {
       evaluation: !conflict && candidates[0] ? fromObservation(candidates[0]) : null,
-      count: events.size,
+      count: events.size - duplicates,
       referenceAt:
         eventReferences.length && eventReferences.every((value): value is string => Boolean(value))
           ? new Date(Math.max(...eventReferences.map(value => Date.parse(value)))).toISOString()
