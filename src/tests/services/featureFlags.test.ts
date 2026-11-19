@@ -22,34 +22,36 @@ describe('FeatureFlags', () => {
     expect(featureFlags.isEnabled('USE_ADMIT_PATIENT_COMMAND')).toBe(
       isFeatureEnabled('USE_ADMIT_PATIENT_COMMAND')
     );
-    expect(featureFlags.isEnabled('SHOW_DEBUG_PANEL')).toBe(isFeatureEnabled('SHOW_DEBUG_PANEL'));
+    expect(featureFlags.isEnabled('SPECIALTY_RULES_MEMORY')).toBe(
+      isFeatureEnabled('SPECIALTY_RULES_MEMORY')
+    );
   });
 
   it('should enable and disable flags', async () => {
     const { featureFlags } = await import('@/services/utils/featureFlags');
 
-    featureFlags.enable('SHOW_DEBUG_PANEL');
-    expect(featureFlags.isEnabled('SHOW_DEBUG_PANEL')).toBe(true);
+    featureFlags.enable('SPECIALTY_RULES_MEMORY');
+    expect(featureFlags.isEnabled('SPECIALTY_RULES_MEMORY')).toBe(true);
 
-    featureFlags.disable('SHOW_DEBUG_PANEL');
-    expect(featureFlags.isEnabled('SHOW_DEBUG_PANEL')).toBe(false);
+    featureFlags.disable('SPECIALTY_RULES_MEMORY');
+    expect(featureFlags.isEnabled('SPECIALTY_RULES_MEMORY')).toBe(false);
   });
 
   it('should toggle flags', async () => {
     const { featureFlags } = await import('@/services/utils/featureFlags');
 
-    const initial = featureFlags.isEnabled('SHOW_DEBUG_PANEL');
-    const toggled = featureFlags.toggle('SHOW_DEBUG_PANEL');
+    const initial = featureFlags.isEnabled('SPECIALTY_RULES_MEMORY');
+    const toggled = featureFlags.toggle('SPECIALTY_RULES_MEMORY');
 
     expect(toggled).toBe(!initial);
-    expect(featureFlags.isEnabled('SHOW_DEBUG_PANEL')).toBe(!initial);
+    expect(featureFlags.isEnabled('SPECIALTY_RULES_MEMORY')).toBe(!initial);
   });
 
   it('should get all flags', async () => {
     const { featureFlags } = await import('@/services/utils/featureFlags');
 
     const allFlags = featureFlags.getAll();
-    expect(allFlags.SHOW_DEBUG_PANEL).toBe(featureFlags.isEnabled('SHOW_DEBUG_PANEL'));
+    expect(allFlags.SPECIALTY_RULES_MEMORY).toBe(featureFlags.isEnabled('SPECIALTY_RULES_MEMORY'));
     expect(allFlags.USE_ADMIT_PATIENT_COMMAND).toBe(
       featureFlags.isEnabled('USE_ADMIT_PATIENT_COMMAND')
     );
@@ -58,22 +60,26 @@ describe('FeatureFlags', () => {
   it('should reset flags to defaults', async () => {
     const { featureFlags, FEATURE_FLAGS } = await import('@/services/utils/featureFlags');
 
-    featureFlags.enable('SHOW_DEBUG_PANEL');
-    featureFlags.reset('SHOW_DEBUG_PANEL');
+    featureFlags.enable('SPECIALTY_RULES_MEMORY');
+    featureFlags.reset('SPECIALTY_RULES_MEMORY');
 
     // After reset, should return to default
-    expect(featureFlags.isEnabled('SHOW_DEBUG_PANEL')).toBe(FEATURE_FLAGS.SHOW_DEBUG_PANEL);
+    expect(featureFlags.isEnabled('SPECIALTY_RULES_MEMORY')).toBe(
+      FEATURE_FLAGS.SPECIALTY_RULES_MEMORY
+    );
   });
 
   it('should notify subscribers when a flag changes', async () => {
     const { featureFlags } = await import('@/services/utils/featureFlags');
     const values: boolean[] = [];
-    const unsubscribe = featureFlags.subscribe('SHOW_DEBUG_PANEL', enabled => values.push(enabled));
+    const unsubscribe = featureFlags.subscribe('SPECIALTY_RULES_MEMORY', enabled =>
+      values.push(enabled)
+    );
 
-    featureFlags.enable('SHOW_DEBUG_PANEL');
-    featureFlags.disable('SHOW_DEBUG_PANEL');
+    featureFlags.enable('SPECIALTY_RULES_MEMORY');
+    featureFlags.disable('SPECIALTY_RULES_MEMORY');
     unsubscribe();
-    featureFlags.enable('SHOW_DEBUG_PANEL');
+    featureFlags.enable('SPECIALTY_RULES_MEMORY');
 
     expect(values).toEqual([true, false]);
   });
@@ -81,7 +87,7 @@ describe('FeatureFlags', () => {
   it('should reset all flags back to defaults', async () => {
     const { featureFlags, FEATURE_FLAGS } = await import('@/services/utils/featureFlags');
 
-    featureFlags.enable('SHOW_DEBUG_PANEL');
+    featureFlags.enable('SPECIALTY_RULES_MEMORY');
     featureFlags.disable('USE_ADMIT_PATIENT_COMMAND');
     featureFlags.resetAll();
 
@@ -93,13 +99,13 @@ describe('FeatureFlags', () => {
       'hhr_feature_flags',
       JSON.stringify({
         USE_ADMIT_PATIENT_COMMAND: false,
-        SHOW_DEBUG_PANEL: true,
+        SPECIALTY_RULES_MEMORY: true,
       })
     );
 
     const { featureFlags } = await import('@/services/utils/featureFlags');
 
     expect(featureFlags.isEnabled('USE_ADMIT_PATIENT_COMMAND')).toBe(false);
-    expect(featureFlags.isEnabled('SHOW_DEBUG_PANEL')).toBe(true);
+    expect(featureFlags.isEnabled('SPECIALTY_RULES_MEMORY')).toBe(true);
   });
 });

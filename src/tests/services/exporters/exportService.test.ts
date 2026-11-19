@@ -1,14 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  exportDataJSON,
   exportDataJSONWithResult,
-  exportDataCSV,
   exportDataCSVWithResult,
   importDataJSON,
   importDataJSONWithResult,
   importDataJSONDetailed,
-  importDataCSV,
-  importDataCSVWithResult,
 } from '@/services/exporters/exportService';
 import * as backupStorage from '@/services/repositories/dailyRecordBackupImportWriteService';
 import * as recordStorage from '@/services/storage/indexeddb/indexedDbRecordService';
@@ -92,25 +88,7 @@ describe('exportService', () => {
     });
   });
 
-  describe('exportDataJSON', () => {
-    it('exports all records as JSON', async () => {
-      const mockElement = { click: vi.fn() };
-      vi.spyOn(document, 'createElement').mockReturnValue(
-        mockElement as unknown as HTMLAnchorElement
-      );
-      vi.spyOn(document.body, 'appendChild').mockImplementation(node => node as unknown as Node);
-      vi.spyOn(document.body, 'removeChild').mockImplementation(node => node as unknown as Node);
-
-      vi.mocked(recordStorage.getAllRecords).mockResolvedValue({
-        '2025-01-01': mockRecord,
-      });
-
-      await exportDataJSON();
-
-      expect(recordStorage.getAllRecords).toHaveBeenCalled();
-      expect(mockElement.click).toHaveBeenCalled();
-    });
-
+  describe('exportDataJSONWithResult', () => {
     it('returns a typed success when exporting JSON succeeds', async () => {
       const mockElement = { click: vi.fn() };
       vi.spyOn(document, 'createElement').mockReturnValue(
@@ -126,20 +104,18 @@ describe('exportService', () => {
 
       expect(result.status).toBe('success');
       expect(result.data.exported).toBe(true);
+      expect(recordStorage.getAllRecords).toHaveBeenCalled();
+      expect(mockElement.click).toHaveBeenCalled();
     });
   });
 
-  describe('exportDataCSV', () => {
-    it('does nothing when record is null', () => {
+  describe('exportDataCSVWithResult', () => {
+    it('returns a typed validation failure and creates no link when record is null', () => {
       const createSpy = vi.spyOn(document, 'createElement');
-      exportDataCSV(null);
-      expect(createSpy).not.toHaveBeenCalled();
-    });
-
-    it('returns a typed validation failure when record is null', () => {
       const result = exportDataCSVWithResult(null);
       expect(result.status).toBe('failed');
       expect(result.issues[0]?.kind).toBe('validation');
+      expect(createSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -235,21 +211,6 @@ describe('exportService', () => {
       expect(result.outcome).toBe('repaired');
       expect(result.repairedCount).toBe(1);
       expect(result.importedCount).toBe(1);
-    });
-  });
-
-  describe('importDataCSV', () => {
-    it('returns false as CSV import is not implemented', async () => {
-      const file = new File(['data'], 'test.csv');
-      const result = await importDataCSV(file);
-      expect(result).toBe(false);
-    });
-
-    it('returns a typed validation failure as CSV import is not implemented', async () => {
-      const file = new File(['data'], 'test.csv');
-      const result = await importDataCSVWithResult(file);
-      expect(result.status).toBe('failed');
-      expect(result.issues[0]?.userSafeMessage).toContain('CSV');
     });
   });
 });

@@ -107,11 +107,6 @@ export const openPdfBlobInNewTab = ({
   return url;
 };
 
-export const createPdfObjectUrl = (bytes: Uint8Array): string => {
-  const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
-  return URL.createObjectURL(blob);
-};
-
 export const injectPrintScriptAndOpen = async ({
   filledBytes,
   fileName,
@@ -124,15 +119,6 @@ export const injectPrintScriptAndOpen = async ({
   await injectPrintScript(printDoc);
   const finalBytes = await printDoc.save();
   openPdfBlobInNewTab({ bytes: finalBytes as Uint8Array, fileName });
-};
-
-export const buildSuggestedPdfName = (prefix: string, patientName: string): string => {
-  const safeName = (patientName || 'paciente')
-    .replace(/[^a-zA-ZáéíóúñÁÉÍÓÚÑ\s]/g, '')
-    .trim()
-    .replace(/\s+/g, '_');
-
-  return `${prefix}_${safeName}_${getTodayISO()}.pdf`;
 };
 
 export const embedHelvetica = async (pdfDoc: PDFDocument) =>
