@@ -1,5 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
+import { comparableName, normalizeNameSpacing } from '@/utils/legacyNameParts';
 import { formatCensusPatientName, formatPatientDisplayName } from '@/utils/patientNameDisplayUtils';
 
 export interface ResolveNameInputStateParams {
@@ -16,24 +17,21 @@ export interface NameInputState {
   canEditInlineName: boolean;
 }
 
-const normalizeNamePart = (value: string): string => value.trim().replace(/\s+/g, ' ');
-const normalizeComparableName = (value: string): string => normalizeNamePart(value).toLowerCase();
-
 const resolveFullName = (data: PatientData, preferLegacyName = false): string => {
   const firstName = data.firstName || '';
   const lastName = data.lastName || '';
   const secondLastName = data.secondLastName || '';
   const hasSplitFields = Boolean(firstName.trim() || lastName.trim() || secondLastName.trim());
   const fullNameFromParts = [firstName, lastName, secondLastName]
-    .map(normalizeNamePart)
+    .map(normalizeNameSpacing)
     .filter(Boolean)
     .join(' ');
-  const legacyName = normalizeNamePart(data.patientName || '');
+  const legacyName = normalizeNameSpacing(data.patientName || '');
 
   if (
     !preferLegacyName &&
     hasSplitFields &&
-    normalizeComparableName(fullNameFromParts) === normalizeComparableName(legacyName)
+    comparableName(fullNameFromParts) === comparableName(legacyName)
   ) {
     return fullNameFromParts;
   }

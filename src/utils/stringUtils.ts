@@ -22,3 +22,6 @@ export const capitalizeWords = (str: string): string => {
 export const removeAccents = (str: string): string => {
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 };
+
+/** Search key: no accents, lower case, no outer spaces. «Ñuñoa » and «nunoa» match. */
+export const foldSearchText = (value: string): string => removeAccents(value).toLowerCase().trim();
