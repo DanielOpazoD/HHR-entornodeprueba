@@ -4,7 +4,7 @@ import {
   createApplicationFailed,
   createApplicationSuccess,
 } from '@/shared/contracts/applicationOutcomeFactories';
-import type { ApplicationOutcome, UseCase } from '@/shared/contracts/applicationOutcomeTypes';
+import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 
 import type { DailyRecordInitializationResult } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import {
@@ -61,39 +61,29 @@ const normalizeInitializationResult = (
   };
 };
 
-export class InitializeDailyRecordUseCase implements UseCase<
-  InitializeDailyRecordInput,
-  InitializeDailyRecordOutput
-> {
-  async execute(
-    input: InitializeDailyRecordInput
-  ): Promise<ApplicationOutcome<InitializeDailyRecordOutput>> {
-    const repository = input.repository || defaultDailyRecordReadPort;
-    try {
-      const initialization = normalizeInitializationResult(
-        (await repository.initializeDay(input.date, input.copyFromDate)) as
-          | DailyRecordInitializationResult
-          | DailyRecord
-      );
-      return mapInitializationOutcome(initialization);
-    } catch (error) {
-      return createApplicationFailed(
-        {
-          record: null as never,
-          initialization: null as never,
-        },
-        [
-          {
-            kind: 'unknown',
-            message: error instanceof Error ? error.message : 'No se pudo inicializar el día.',
-          },
-        ]
-      );
-    }
-  }
-}
-
 export const executeInitializeDailyRecord = async (
   input: InitializeDailyRecordInput
-): Promise<ApplicationOutcome<InitializeDailyRecordOutput>> =>
-  new InitializeDailyRecordUseCase().execute(input);
+): Promise<ApplicationOutcome<InitializeDailyRecordOutput>> => {
+  const repository = input.repository || defaultDailyRecordReadPort;
+  try {
+    const initialization = normalizeInitializationResult(
+      (await repository.initializeDay(input.date, input.copyFromDate)) as
+        | DailyRecordInitializationResult
+        | DailyRecord
+    );
+    return mapInitializationOutcome(initialization);
+  } catch (error) {
+    return createApplicationFailed(
+      {
+        record: null as never,
+        initialization: null as never,
+      },
+      [
+        {
+          kind: 'unknown',
+          message: error instanceof Error ? error.message : 'No se pudo inicializar el día.',
+        },
+      ]
+    );
+  }
+};

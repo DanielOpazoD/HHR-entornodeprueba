@@ -41,10 +41,6 @@ export interface ApplicationOutcomeMetadata {
   telemetryTags?: string[];
 }
 
-export interface UseCase<Input, Output> {
-  execute(input: Input): Promise<ApplicationOutcome<Output>>;
-}
-
 export const isApplicationOutcomeSuccess = <T>(
   outcome: ApplicationOutcome<T>
 ): outcome is ApplicationOutcome<T> & { status: 'success' } => outcome.status === 'success';

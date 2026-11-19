@@ -6,7 +6,7 @@ import {
   createApplicationPartial,
   createApplicationSuccess,
 } from '@/shared/contracts/applicationOutcomeFactories';
-import type { ApplicationOutcome, UseCase } from '@/shared/contracts/applicationOutcomeTypes';
+import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 
 import {
   defaultDailyRecordSyncPort,
@@ -72,146 +72,142 @@ const buildSyncConflict = (kind: SyncConflictDescriptor['kind']): SyncConflictDe
   };
 };
 
-export class SyncDailyRecordUseCase implements UseCase<SyncDailyRecordInput, SyncOutcome> {
-  async execute(input: SyncDailyRecordInput): Promise<ApplicationOutcome<SyncOutcome>> {
-    const repository = input.repository || defaultDailyRecordSyncPort;
-    try {
-      const sync = await repository.syncWithFirestoreDetailed(input.date);
+export const executeSyncDailyRecord = async (
+  input: SyncDailyRecordInput
+): Promise<ApplicationOutcome<SyncOutcome>> => {
+  const repository = input.repository || defaultDailyRecordSyncPort;
+  try {
+    const sync = await repository.syncWithFirestoreDetailed(input.date);
 
-      if (!sync) {
-        return createApplicationPartial(
+    if (!sync) {
+      return createApplicationPartial(
+        {
+          record: null,
+          sync: null,
+          degradationReason: 'missing_remote_record',
+          conflict: buildSyncConflict('missing_remote_record'),
+        },
+        [
           {
-            record: null,
-            sync: null,
-            degradationReason: 'missing_remote_record',
-            conflict: buildSyncConflict('missing_remote_record'),
-          },
-          [
-            {
-              kind: 'not_found',
-              message: 'No hay fuente remota disponible para sincronizar este día.',
-              userSafeMessage: 'No hay fuente remota disponible para este día.',
-              retryable: true,
-              severity: 'warning',
-              telemetryTags: ['sync', 'missing_remote_record'],
-            },
-          ],
-          {
-            reason: 'missing_remote_record',
+            kind: 'not_found',
+            message: 'No hay fuente remota disponible para sincronizar este día.',
             userSafeMessage: 'No hay fuente remota disponible para este día.',
             retryable: true,
             severity: 'warning',
-            technicalContext: {
-              date: input.date,
-            },
             telemetryTags: ['sync', 'missing_remote_record'],
-          }
-        );
-      }
-
-      if (sync.consistencyState === 'blocked') {
-        return createApplicationDegraded(
-          {
-            record: sync.record,
-            sync,
-            degradationReason: 'remote_blocked',
-            conflict: buildSyncConflict('remote_blocked'),
           },
-          [
-            {
-              kind: 'remote_blocked',
-              message: 'La sincronización remota quedó bloqueada; se mantiene la copia local.',
-              userSafeMessage:
-                'La copia local se mantuvo porque la sincronización remota quedó bloqueada.',
-              retryable: true,
-              severity: 'warning',
-              telemetryTags: ['sync', 'remote_blocked'],
-            },
-          ],
+        ],
+        {
+          reason: 'missing_remote_record',
+          userSafeMessage: 'No hay fuente remota disponible para este día.',
+          retryable: true,
+          severity: 'warning',
+          technicalContext: {
+            date: input.date,
+          },
+          telemetryTags: ['sync', 'missing_remote_record'],
+        }
+      );
+    }
+
+    if (sync.consistencyState === 'blocked') {
+      return createApplicationDegraded(
+        {
+          record: sync.record,
+          sync,
+          degradationReason: 'remote_blocked',
+          conflict: buildSyncConflict('remote_blocked'),
+        },
+        [
           {
-            reason: 'remote_blocked',
+            kind: 'remote_blocked',
+            message: 'La sincronización remota quedó bloqueada; se mantiene la copia local.',
             userSafeMessage:
               'La copia local se mantuvo porque la sincronización remota quedó bloqueada.',
             retryable: true,
             severity: 'warning',
-            technicalContext: {
-              date: input.date,
-              syncOutcome: sync.consistencyState,
-            },
             telemetryTags: ['sync', 'remote_blocked'],
-          }
-        );
-      }
-
-      if (sync.consistencyState === 'missing_remote') {
-        return createApplicationPartial(
-          {
-            record: sync.record,
-            sync,
-            degradationReason: 'missing_remote_record',
-            conflict: buildSyncConflict('missing_remote_record'),
-          },
-          [
-            {
-              kind: 'not_found',
-              message: 'No se encontró registro remoto para este día.',
-              userSafeMessage: 'No se encontró registro remoto para este día.',
-              retryable: true,
-              severity: 'warning',
-              telemetryTags: ['sync', 'missing_remote_record'],
-            },
-          ],
-          {
-            reason: 'missing_remote_record',
-            userSafeMessage: 'No se encontró registro remoto para este día.',
-            retryable: true,
-            severity: 'warning',
-            technicalContext: {
-              date: input.date,
-              syncOutcome: sync.consistencyState,
-            },
-            telemetryTags: ['sync', 'missing_remote_record'],
-          }
-        );
-      }
-
-      return createApplicationSuccess({
-        record: sync.record,
-        sync,
-      });
-    } catch (error) {
-      return createApplicationFailed(
-        {
-          record: null,
-          sync: null,
-          conflict: buildSyncConflict('sync_failed'),
-        },
-        [
-          {
-            kind: 'unknown',
-            message:
-              error instanceof Error ? error.message : 'No se pudo completar la sincronización.',
-            userSafeMessage: 'No se pudo completar la sincronización.',
-            retryable: true,
-            severity: 'error',
-            telemetryTags: ['sync', 'failed'],
           },
         ],
         {
-          reason: 'sync_failed',
-          userSafeMessage: 'No se pudo completar la sincronización.',
+          reason: 'remote_blocked',
+          userSafeMessage:
+            'La copia local se mantuvo porque la sincronización remota quedó bloqueada.',
           retryable: true,
-          severity: 'error',
+          severity: 'warning',
           technicalContext: {
             date: input.date,
+            syncOutcome: sync.consistencyState,
           },
-          telemetryTags: ['sync', 'failed'],
+          telemetryTags: ['sync', 'remote_blocked'],
         }
       );
     }
-  }
-}
 
-export const executeSyncDailyRecord = async (
-  input: SyncDailyRecordInput
-): Promise<ApplicationOutcome<SyncOutcome>> => new SyncDailyRecordUseCase().execute(input);
+    if (sync.consistencyState === 'missing_remote') {
+      return createApplicationPartial(
+        {
+          record: sync.record,
+          sync,
+          degradationReason: 'missing_remote_record',
+          conflict: buildSyncConflict('missing_remote_record'),
+        },
+        [
+          {
+            kind: 'not_found',
+            message: 'No se encontró registro remoto para este día.',
+            userSafeMessage: 'No se encontró registro remoto para este día.',
+            retryable: true,
+            severity: 'warning',
+            telemetryTags: ['sync', 'missing_remote_record'],
+          },
+        ],
+        {
+          reason: 'missing_remote_record',
+          userSafeMessage: 'No se encontró registro remoto para este día.',
+          retryable: true,
+          severity: 'warning',
+          technicalContext: {
+            date: input.date,
+            syncOutcome: sync.consistencyState,
+          },
+          telemetryTags: ['sync', 'missing_remote_record'],
+        }
+      );
+    }
+
+    return createApplicationSuccess({
+      record: sync.record,
+      sync,
+    });
+  } catch (error) {
+    return createApplicationFailed(
+      {
+        record: null,
+        sync: null,
+        conflict: buildSyncConflict('sync_failed'),
+      },
+      [
+        {
+          kind: 'unknown',
+          message:
+            error instanceof Error ? error.message : 'No se pudo completar la sincronización.',
+          userSafeMessage: 'No se pudo completar la sincronización.',
+          retryable: true,
+          severity: 'error',
+          telemetryTags: ['sync', 'failed'],
+        },
+      ],
+      {
+        reason: 'sync_failed',
+        userSafeMessage: 'No se pudo completar la sincronización.',
+        retryable: true,
+        severity: 'error',
+        technicalContext: {
+          date: input.date,
+        },
+        telemetryTags: ['sync', 'failed'],
+      }
+    );
+  }
+};
