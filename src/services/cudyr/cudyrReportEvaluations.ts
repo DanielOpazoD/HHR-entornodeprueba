@@ -138,11 +138,9 @@ export const selectCudyrReportEvaluation = (
       warnings.push('Autorías contradictorias del mismo evento en la fuente.');
       continue;
     }
-    const richer = [...versions].sort(
-      (a, b) =>
-        Object.values(b.evaluation).filter(Boolean).length -
-        Object.values(a.evaluation).filter(Boolean).length
-    )[0];
+    const filled = (item: CudyrHistoryObservation) =>
+      Object.values(item.evaluation).filter(Boolean).length;
+    const richer = versions.reduce((best, item) => (filled(item) > filled(best) ? item : best));
     // Copies of one application collapse to one; the lowest archive id keeps the choice stable.
     const key = applicationSignature(richer.evaluation);
     const kept = applications.get(key);
