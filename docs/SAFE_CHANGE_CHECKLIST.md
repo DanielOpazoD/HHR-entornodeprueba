@@ -260,5 +260,5 @@ emuladores. Las pruebas usan su propio censo y aplican la política de escritura
    inicia `npx firebase emulators:start --only auth,firestore,functions --project demo-hhr-handoff`.
 2. Desde el checkout de la extensión, ejecuta `node scripts/build-nursing-handoff-pilot.mjs`.
 3. Desde HHR, ejecuta la prueba con `HHR_HANDOFF_EXTENSION_CHECKOUT=/ruta/extension node functions/scripts/smokeNursingHandoffExtension.cjs`.
-   La prueba abre Chromium con una lista de pacientes sintética y guarda en Firestore con
-   HHR cerrado. Sin esa variable corre sólo la prueba de servidor.
+   La prueba abre Chromium con una sesión de Eloísa y una lista de pacientes sintéticas.
+   Guarda en Firestore con HHR cerrado. Sin esa variable corre sólo la prueba de servidor.

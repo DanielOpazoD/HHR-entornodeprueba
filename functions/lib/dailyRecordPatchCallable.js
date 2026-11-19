@@ -120,7 +120,7 @@ const createPatchHandler =
           );
         }
 
-        assertPatchBase?.(snapshot, data);
+        if (assertPatchBase) await assertPatchBase(snapshot, data, transaction);
         const remoteData = snapshot.data() || {};
         if (hasAlreadyAppliedMutation({ snapshot, syncContract })) {
           authority = idempotentAuthority;

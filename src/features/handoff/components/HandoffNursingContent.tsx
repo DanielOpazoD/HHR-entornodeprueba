@@ -3,7 +3,6 @@ import type { BedDefinition } from '@/types/domain/beds';
 import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import { HandoffPatientTable } from './HandoffPatientTable';
 import { MovementsSummary } from './MovementsSummary';
-import { NursingHandoffDemoPairing } from './NursingHandoffDemoPairing';
 import { HandoffNovedades } from './HandoffNovedades';
 import type { HandoffClinicalEventActions } from './handoffRowContracts';
 import { buildHandoffNovedadesBindings } from '@/features/handoff/controllers/handoffViewController';
@@ -44,9 +43,6 @@ export const HandoffNursingContent: React.FC<HandoffNursingContentProps> = ({
 
   return (
     <>
-      {import.meta.env.DEV &&
-        import.meta.env.VITE_FIREBASE_PROJECT_ID === 'demo-hhr-handoff' &&
-        import.meta.env.VITE_FUNCTIONS_EMULATOR_HOST && <NursingHandoffDemoPairing />}
       <HandoffPatientTable
         visibleBeds={visibleBeds}
         record={record}

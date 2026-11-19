@@ -46,7 +46,6 @@ const authHelpers = createAuthHelpers({ auth, firestore });
 
 module.exports = {
   ...createNursingHandoffDemoFunctions({
-    auth,
     firestore,
     Timestamp,
     FieldValue,

@@ -1,4 +1,4 @@
-const { randomBytes, createHash } = require('node:crypto');
+const { createHash } = require('node:crypto');
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { resolveClinicalDayForDateTime } = require('./generated/cudyrSourceParser.cjs');
@@ -18,8 +18,9 @@ const clock = new Intl.DateTimeFormat('en-CA', {
   hourCycle: 'h23',
 });
 const digest = value => createHash('sha256').update(value).digest('hex');
-const secret = () => randomBytes(24).toString('base64url');
-const validSecret = value => typeof value === 'string' && /^[\w-]{32}$/.test(value);
+const validDemoSession = value =>
+  typeof value === 'string' && /^eloisa-demo-v1\.[a-zA-Z0-9_-]{32}$/.test(value);
+const positiveId = value => typeof value === 'string' && /^[1-9]\d{0,15}$/.test(value);
 const fail = (code, message) => {
   throw new functions.https.HttpsError(code, message);
 };
@@ -110,8 +111,33 @@ function waitForNote(ref, initial, select, version, shift) {
   });
 }
 
+// This is the session authority for the synthetic Eloísa fixture. Only the emulator
+// seed can create these documents. Real browser credentials are outside this pilot.
+function assertDemoSession(snapshot, source) {
+  const session = snapshot.data();
+  if (!session?.active || !Number.isFinite(session.expiresAt) || session.expiresAt <= Date.now()) {
+    fail('unauthenticated', 'Inicia sesión en Eloísa de pruebas y vuelve a abrir la entrega.');
+  }
+  const { facilityId, practitionerId, roleId } = session;
+  const ids = [facilityId, practitionerId, roleId];
+  if (
+    !ids.every(positiveId) ||
+    facilityId !== source.facilityId ||
+    practitionerId !== source.practitionerId ||
+    roleId !== source.roleId ||
+    session.canAccessChart !== true
+  ) {
+    fail('permission-denied', 'La sesión de Eloísa de pruebas no tiene acceso a esta ficha.');
+  }
+  return {
+    auth: {
+      uid: `eloisa-demo-${facilityId}-${practitionerId}`,
+      token: { email: `eloisa-demo-${facilityId}-${practitionerId}@example.test` },
+    },
+  };
+}
+
 function createHandler({
-  auth,
   firestore,
   Timestamp,
   FieldValue,
@@ -124,14 +150,15 @@ function createHandler({
       fail('permission-denied', 'Este permiso corresponde a enfermería de HHR.');
     }
   };
-  const grants = firestore.collection('nursingHandoffDemoGrants');
+  const sessions = firestore.collection('nursingHandoffDemoSessions');
   const records = firestore.collection('hospitals').doc(HOSPITAL_ID).collection('dailyRecords');
   const write = createPatchHandler({
     firestore,
     Timestamp,
     FieldValue,
     resolveRoleForEmail,
-    assertPatchBase(snapshot, data) {
+    async assertPatchBase(snapshot, data, transaction) {
+      assertDemoSession(await transaction.get(data.sessionRef), data.source);
       const slot = clinicalSlot(clinicalNow());
       if (slot.date !== data.date || slot.shift !== data.shift) {
         fail('failed-precondition', 'Cambió el turno. Abre otra entrega.');
@@ -142,70 +169,18 @@ function createHandler({
     },
   });
 
-  return async (data, context) => {
+  return async data => {
     const action = data?.action;
-    if (action === 'issue') {
-      await authz(context);
-      const code = secret();
-      const { uid, token } = context.auth;
-      await grants.doc(digest(code)).create({
-        kind: 'code',
-        uid,
-        token,
-        expiry: Date.now() + 5 * 60_000,
-      });
-      return { code };
+    if (action !== 'read' && action !== 'save') {
+      fail('invalid-argument', 'La operación de entrega de turno no es válida.');
     }
-
-    if (action === 'connect') {
-      if (!validSecret(data.code)) fail('invalid-argument', 'Revisa el código de HHR.');
-      const codeRef = grants.doc(digest(data.code));
-      const grant = secret();
-      await firestore.runTransaction(async tx => {
-        const code = (await tx.get(codeRef)).data();
-        if (code?.kind !== 'code' || code.expiry <= Date.now()) {
-          fail('unauthenticated', 'El código venció o ya se usó.');
-        }
-        const expiry = Math.min((code.token.exp || 0) * 1000, Date.now() + 60 * 60_000);
-        if (expiry <= Date.now())
-          fail('unauthenticated', 'Genera un código desde una sesión vigente de HHR.');
-        tx.create(grants.doc(digest(grant)), { ...code, kind: 'grant', expiry });
-        tx.delete(codeRef);
-      });
-      return { grant };
+    const source = data.source;
+    if (!validDemoSession(source?.sessionProof)) {
+      fail('unauthenticated', 'Inicia sesión en Eloísa de pruebas y vuelve a abrir la entrega.');
     }
-
-    if (!['read', 'save', 'disconnect'].includes(action) || !validSecret(data?.grant)) {
-      fail('unauthenticated', 'Vincula HHR para acceder a la entrega de turno.');
-    }
-    const grantRef = grants.doc(digest(data.grant));
-    const grant = (await grantRef.get()).data();
-    if (grant?.kind !== 'grant' || grant.expiry <= Date.now()) {
-      fail('unauthenticated', 'La vinculación con HHR venció.');
-    }
-    if (action === 'disconnect') {
-      await grantRef.delete();
-      return { disconnected: true };
-    }
-    const { uid, token } = grant;
-    const actor = { auth: { uid, token } };
-    const assertCurrentGrant = async () => {
-      const user = await auth.getUser(uid).catch(error => {
-        if (error.code === 'auth/user-not-found')
-          fail('unauthenticated', 'La cuenta de HHR ya no existe.');
-        throw error;
-      });
-      if (
-        grant.expiry <= Date.now() ||
-        user.disabled ||
-        user.email !== token.email ||
-        Date.parse(user.tokensValidAfterTime) > token.auth_time * 1000
-      ) {
-        fail('unauthenticated', 'La sesión de HHR ya no está vigente.');
-      }
-      await authz(actor);
-    };
-    await assertCurrentGrant();
+    const sessionRef = sessions.doc(digest(source.sessionProof));
+    const actor = assertDemoSession(await sessionRef.get(), source);
+    await authz(actor);
 
     const { episode, patientRun } = data;
     const run = normalizeRun(patientRun);
@@ -230,10 +205,9 @@ function createHandler({
       const active = clinicalSlot(clinicalNow());
       if (active.date !== date || active.shift !== shift)
         fail('failed-precondition', 'Cambió el turno o la fecha censal. Abre otra entrega.');
-      if (grant.expiry <= Date.now() || !(await grantRef.get()).exists) {
-        fail('unauthenticated', 'La vinculación con HHR venció.');
+      if (data.since) {
+        await authz(assertDemoSession(await sessionRef.get(), source));
       }
-      if (data.since) await assertCurrentGrant();
       return viewOf(entry, date, shift);
     }
 
@@ -264,10 +238,18 @@ function createHandler({
         shift,
         patch,
         snapshotVersion: current.snapshotVersion,
+        sessionRef,
+        source: {
+          facilityId: source.facilityId,
+          practitionerId: source.practitionerId,
+          roleId: source.roleId,
+        },
         expectedLastUpdated: current.lastUpdated,
-        ...(Number.isInteger(current.revision)
-          ? { syncContract: { baseRevision: current.revision } }
-          : {}),
+        syncContract: {
+          clientId: actor.auth.uid,
+          changedPaths: Object.keys(patch),
+          ...(Number.isInteger(current.revision) ? { baseRevision: current.revision } : {}),
+        },
         origin: 'eloisa_nursing_handoff',
       },
       actor
