@@ -70,6 +70,7 @@ test('includes committed, staged, unstaged, untracked and deleted changes', () =
   assert.match(result.calls, /check:module-size/);
   assert.match(result.calls, /check:architecture/);
   assert.match(result.calls, /check:folder-dependencies/);
+  assert.match(result.calls, /check:feature-map/);
   assert.match(result.calls, /check:cudyr-source-parser/);
 });
 
@@ -111,4 +112,13 @@ test('includes a staged change even if the working copy equals HEAD', () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.calls, /src\/deleted.ts/);
   assert.match(result.calls, /check:module-size/);
+});
+
+test('a domain-rules or feature-map edit checks the feature map without source checks', () => {
+  const { write, run } = fixture();
+  write('docs/DOMAIN_RULES.md', 'Changed\n');
+  const result = run();
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.calls, /check:feature-map/);
+  assert.doesNotMatch(result.calls, /check:unchecked-index|check:module-size/);
 });

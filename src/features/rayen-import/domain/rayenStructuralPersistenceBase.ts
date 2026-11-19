@@ -6,6 +6,7 @@ import { resolveDailyRecordConflict } from '@/services/repositories/conflictReso
 import { mergePatientData } from '@/services/repositories/conflictResolutionMergeUtils';
 import { adoptStoredClinicalDerivedState } from '@/services/storage/clinicalDerivedWriteHygiene';
 import type { DailyRecordQueuedWriteState } from '@/services/storage/syncQueueTypes';
+import { stableStringify } from './rayenStableStringify';
 
 const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
   Boolean(patient?.patientName?.trim() && !patient.isBlocked);
@@ -46,16 +47,6 @@ const matchesAuthoritativeOccupant = (
     localAdmissionTime === authoritativeAdmissionTime
   );
   return sameIdentifier && sameAdmissionDay && sameAdmissionTime;
-};
-
-const stableStringify = (value: unknown): string => {
-  if (value === undefined) return 'null';
-  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  const entries = Object.entries(value as Record<string, unknown>)
-    .filter(([, entry]) => entry !== undefined)
-    .sort(([left], [right]) => left.localeCompare(right));
-  return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${stableStringify(entry)}`).join(',')}}`;
 };
 
 const haveSamePatientContent = (left: PatientData, right: PatientData): boolean => {
