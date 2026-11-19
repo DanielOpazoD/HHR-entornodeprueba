@@ -60,6 +60,11 @@ try {
     ],
     ['architecture', /^src\//, 'Respeta la capa que nombra el control.'],
     [
+      'feature-map',
+      /^(src\/|e2e\/|docs\/DOMAIN_RULES\.md$|scripts\/config\/(?:feature-map|e2e-test-ownership)\.json$)/,
+      'Actualiza la fila de scripts/config/feature-map.json que nombra el control.',
+    ],
+    [
       'folder-dependencies',
       /^(src\/|netlify\/functions\/)/,
       'Respeta la dirección entre capas: mueve hacia abajo lo compartido o lleva a su feature lo que solo usa ella, como indica el control.',
