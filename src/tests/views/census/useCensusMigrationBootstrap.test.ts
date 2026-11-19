@@ -3,17 +3,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCensusMigrationBootstrap } from '@/features/census/hooks/useCensusMigrationBootstrap';
 
 const {
-  mockedCreateCensusMigrationStorageRuntime,
+  mockedCreateCensusStorageRuntime,
   mockedExecuteCensusMigrationBootstrapController,
   warnMock,
 } = vi.hoisted(() => ({
-  mockedCreateCensusMigrationStorageRuntime: vi.fn(),
+  mockedCreateCensusStorageRuntime: vi.fn(),
   mockedExecuteCensusMigrationBootstrapController: vi.fn(),
   warnMock: vi.fn(),
 }));
 
+vi.mock('@/features/census/controllers/censusBrowserRuntimeAdapter', () => ({
+  createCensusStorageRuntime: () => mockedCreateCensusStorageRuntime(),
+}));
+
 vi.mock('@/features/census/controllers/censusMigrationBootstrapController', () => ({
-  createCensusMigrationStorageRuntime: () => mockedCreateCensusMigrationStorageRuntime(),
   executeCensusMigrationBootstrapController: (...args: unknown[]) =>
     mockedExecuteCensusMigrationBootstrapController(...args),
 }));
@@ -42,7 +45,7 @@ describe('useCensusMigrationBootstrap', () => {
 
   it('runs migration bootstrap on mount', () => {
     const runtime = { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn() };
-    mockedCreateCensusMigrationStorageRuntime.mockReturnValue(runtime);
+    mockedCreateCensusStorageRuntime.mockReturnValue(runtime);
     mockedExecuteCensusMigrationBootstrapController.mockReturnValue({ ok: true });
 
     renderHook(() => useCensusMigrationBootstrap());
@@ -52,7 +55,7 @@ describe('useCensusMigrationBootstrap', () => {
 
   it('logs warning when bootstrap fails', () => {
     const runtime = { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn() };
-    mockedCreateCensusMigrationStorageRuntime.mockReturnValue(runtime);
+    mockedCreateCensusStorageRuntime.mockReturnValue(runtime);
     mockedExecuteCensusMigrationBootstrapController.mockReturnValue({
       ok: false,
       error: { message: 'migration failed' },
@@ -63,12 +66,16 @@ describe('useCensusMigrationBootstrap', () => {
     expect(warnMock).toHaveBeenCalledWith('Migration bootstrap failed', 'migration failed');
   });
 
-  it('does not run when disabled', () => {
-    const runtime = { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn() };
-    mockedCreateCensusMigrationStorageRuntime.mockReturnValue(runtime);
+  it('defers the bootstrap to idle time and cancels it on unmount', () => {
+    vi.stubGlobal(
+      'requestIdleCallback',
+      vi.fn(() => 7)
+    );
 
-    renderHook(() => useCensusMigrationBootstrap(false));
+    const { unmount } = renderHook(() => useCensusMigrationBootstrap());
+    unmount();
 
+    expect(window.cancelIdleCallback).toHaveBeenCalledWith(7);
     expect(mockedExecuteCensusMigrationBootstrapController).not.toHaveBeenCalled();
   });
 });

@@ -5,7 +5,7 @@ import {
   buildRegisterContentProps,
   resolveCensusViewBranch,
 } from '@/features/census/controllers/censusViewController';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 
 interface UseCensusViewRouteModelParams {

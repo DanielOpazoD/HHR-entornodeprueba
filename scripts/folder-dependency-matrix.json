@@ -226,12 +226,6 @@
       "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
     },
     {
-      "from": "src/application/census/public.ts",
-      "to": "src/features/census/types/censusAccessProfile.ts",
-      "kind": "value",
-      "reason": "Fachada del censo en application/census/public.ts; ARCH-10 la retira."
-    },
-    {
       "from": "src/application/clinical-documents/clinicalAttachmentUseCases.ts",
       "to": "src/features/clinical-documents/internal.ts",
       "kind": "value",
@@ -326,12 +320,6 @@
       "to": "src/firebaseConfig.ts",
       "kind": "value",
       "reason": "firebaseConfig.ts vive en la raíz de src/; ARCH-15 lo lleva a services/firebase-runtime."
-    },
-    {
-      "from": "src/services/repositories/ClinicalDocumentRepository.ts",
-      "to": "src/application/ports/clinicalDocumentCompatibilityPort.ts",
-      "kind": "value",
-      "reason": "Puerto que implementa un servicio; ARCH-4 lo lleva a la capa de servicios."
     },
     {
       "from": "src/services/repositories/ports/repositoryAuditPort.ts",

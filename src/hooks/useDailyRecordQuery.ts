@@ -3,7 +3,7 @@ import { loadDailyRecordSavePersistence } from '@/hooks/useWarmDailyRecordSavePa
 import { mutationOptions, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../config/queryClient';
 import { useRepositories } from '@/services/RepositoryContext';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   createDailyRecordQueryOptions,
   createDailyRecordSubscription,
@@ -271,19 +271,28 @@ export const useSaveDailyRecordMutation = () => {
   // Structural Rayen saves still require the server; ordinary saves must reach IndexedDB offline.
   const local = useMutation({ ...options, networkMode: 'always' });
   const remote = useMutation({ ...options, networkMode: 'online' });
-  const selectMutation = (input: SaveDailyRecordMutationInput) => {
-    const requiresRemote = Boolean(input.rayenStructuralWriteGuard);
-    setRemoteSelected(requiresRemote);
-    return requiresRemote ? remote : local;
-  };
-  return {
-    ...(remoteSelected ? remote : local),
-    mutate: (...args: Parameters<typeof local.mutate>) => selectMutation(args[0]).mutate(...args),
-    mutateAsync: (...args: Parameters<typeof local.mutateAsync>) =>
-      selectMutation(args[0]).mutateAsync(...args),
-    reset: () => {
-      local.reset();
-      remote.reset();
+  const { mutate: mutateLocal, mutateAsync: mutateLocalAsync, reset: resetLocal } = local;
+  const { mutate: mutateRemote, mutateAsync: mutateRemoteAsync, reset: resetRemote } = remote;
+  // Stable identities, so the census actions built on saves do not change on every write step.
+  const mutate = useCallback(
+    (...args: Parameters<typeof mutateLocal>) => {
+      const viaRemote = Boolean(args[0].rayenStructuralWriteGuard);
+      setRemoteSelected(viaRemote);
+      return viaRemote ? mutateRemote(...args) : mutateLocal(...args);
     },
-  };
+    [mutateLocal, mutateRemote]
+  );
+  const mutateAsync = useCallback(
+    (...args: Parameters<typeof mutateLocalAsync>) => {
+      const viaRemote = Boolean(args[0].rayenStructuralWriteGuard);
+      setRemoteSelected(viaRemote);
+      return viaRemote ? mutateRemoteAsync(...args) : mutateLocalAsync(...args);
+    },
+    [mutateLocalAsync, mutateRemoteAsync]
+  );
+  const reset = useCallback(() => {
+    resetLocal();
+    resetRemote();
+  }, [resetLocal, resetRemote]);
+  return { ...(remoteSelected ? remote : local), mutate, mutateAsync, reset };
 };

@@ -2,7 +2,7 @@ import {
   getVisibleUtilityActions,
   type UtilityActionConfig,
 } from '@/features/census/components/patient-row/patientActionMenuConfig';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import { canUseCensusUtilityActions } from '@/shared/access/operationalAccessPolicy';
 import type {
   PatientActionMenuBinding,

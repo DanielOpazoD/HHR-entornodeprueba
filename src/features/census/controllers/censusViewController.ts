@@ -2,7 +2,7 @@ import type { BedDefinition } from '@/types/domain/beds';
 import type { Statistics } from '@/types/domain/statistics';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CSSProperties } from 'react';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import type { CensusEmptyStateDiagnostic } from '@/features/census/controllers/censusEmptyStateDiagnostic';
 import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 import type { DailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordBootstrapController';

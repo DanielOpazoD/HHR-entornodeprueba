@@ -9,7 +9,7 @@ import type { CensusTableHeaderProps } from '@/features/census/types/censusTable
 import { AlertsViewToggle } from '@/features/census/components/CensusViewToggles';
 import { useNursingScalesVisible } from '@/features/census/hooks/useNursingScalesVisible';
 import { useCensusViewPreferences } from '@/features/census/hooks/useCensusViewPreferences';
-import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessProfile';
 
 /** Columns the «Alertas» view replaces with one cell, as `ClinicalAlertsViewCell` spans them. */
 const ALERTS_VIEW_COLUMNS = ['admission', 'dmi', 'scores', 'upc'] as const;

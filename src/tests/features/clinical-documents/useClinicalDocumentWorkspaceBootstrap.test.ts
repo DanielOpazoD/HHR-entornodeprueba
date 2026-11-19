@@ -13,7 +13,6 @@ import {
 const controllerMocks = vi.hoisted(() => ({
   listActiveClinicalDocumentTemplates: vi.fn(),
   buildClinicalDocumentEpisodeContext: vi.fn(),
-  hydrateClinicalDocumentWorkspaceRecord: vi.fn(),
 }));
 
 vi.mock('@/features/clinical-documents/controllers/clinicalDocumentTemplateController', () => ({
@@ -22,10 +21,6 @@ vi.mock('@/features/clinical-documents/controllers/clinicalDocumentTemplateContr
 
 vi.mock('@/features/clinical-documents/controllers/clinicalDocumentEpisodeController', () => ({
   buildClinicalDocumentEpisodeContext: controllerMocks.buildClinicalDocumentEpisodeContext,
-}));
-
-vi.mock('@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController', () => ({
-  hydrateClinicalDocumentWorkspaceRecord: controllerMocks.hydrateClinicalDocumentWorkspaceRecord,
 }));
 
 vi.mock('@/application/clinical-documents/clinicalDocumentUseCases', async () => {
@@ -48,7 +43,6 @@ describe('useClinicalDocumentWorkspaceBootstrap', () => {
       sourceDailyRecordDate: '2026-03-06',
       specialty: 'Medicina',
     });
-    controllerMocks.hydrateClinicalDocumentWorkspaceRecord.mockImplementation(document => document);
     vi.mocked(clinicalDocumentUseCases.subscribeClinicalDocumentsByEpisodeKeys).mockImplementation(
       (_episodeKeys, callback) => {
         callback([buildDocument()]);
@@ -78,6 +72,12 @@ describe('useClinicalDocumentWorkspaceBootstrap', () => {
   });
 
   it('uses fixed templates and hydrates subscription documents', async () => {
+    vi.mocked(clinicalDocumentUseCases.subscribeClinicalDocumentsByEpisodeKeys).mockImplementation(
+      (_episodeKeys, callback) => {
+        callback([{ ...buildDocument(), patientInfoTitle: '' }]);
+        return vi.fn();
+      }
+    );
     const { result } = renderHook(() =>
       useClinicalDocumentWorkspaceBootstrap({
         patient: patient as never,
@@ -95,6 +95,7 @@ describe('useClinicalDocumentWorkspaceBootstrap', () => {
       expect(result.current.documents).toHaveLength(1);
       expect(result.current.selectedDocumentId).toBe(result.current.documents[0]?.id);
     });
+    expect(result.current.documents[0]?.patientInfoTitle).toBe('Información del Paciente');
 
     expect(clinicalDocumentUseCases.subscribeClinicalDocumentsByEpisodeKeys).toHaveBeenCalledWith(
       ['11.111.111-1__2026-03-06', '11111111-1__2026-03-06'],

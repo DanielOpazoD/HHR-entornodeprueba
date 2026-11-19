@@ -16,7 +16,7 @@ import {
 import { useDailyRecordStaffActions } from '@/context/useDailyRecordScopedActions';
 import { useStaffContext } from '@/context/StaffContext';
 import { buildCensusStaffHeaderReadModel } from '@/application/census/censusStaffHeaderReadModel';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import type { DetailedStaffingRole } from '@/types/domain/dailyRecordStaffingDetails';
 // Keep the first paint responsive and recover interrupted panel downloads without
 // automatically reloading an editable census.

@@ -26,7 +26,6 @@ export const GOVERNED_APPLICATION_PUBLIC_IMPORTS = new Set([
   '@/features/census/controllers/patientMovementUndoErrorPresentation',
   '@/features/census/controllers/patientMovementUndoMutationController',
   '@/features/census/controllers/transferModalController',
-  '@/features/census/types/censusAccessProfile',
 ]);
 
 // Resolve only existing files, in the same order as the former source checks.

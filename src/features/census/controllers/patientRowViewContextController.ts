@@ -7,7 +7,7 @@ import { resolvePatientRowIndicators } from '@/features/census/controllers/patie
 
 import type { UserRole } from '@/types/authRoleTypes';
 import type { PatientRowRuntime } from '@/features/census/components/patient-row/patientRowRuntimeContracts';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 
 interface PatientRowViewContextInput {
   role?: UserRole;

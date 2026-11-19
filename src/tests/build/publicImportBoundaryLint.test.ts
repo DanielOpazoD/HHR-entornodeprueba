@@ -220,8 +220,6 @@ describe('module homes in ESLint', () => {
   };
   const key = 'export const k = (a: string, b: string) => `${a}__${b}`;';
   const parse = "export const p = (episodeKey: string) => episodeKey.split('__');";
-  const hydrate =
-    "import { hydrateLegacyClinicalDocument as h } from '@/domain/clinical-documents/compatibility';\nexport { h };";
 
   it('keeps extensionless deep feature imports behind the public surface', async () => {
     for (const target of [
@@ -249,13 +247,6 @@ describe('module homes in ESLint', () => {
     expect(await restrictions(home, `${key}\n${parse}`)).toEqual([]);
   });
 
-  it('hydrates legacy clinical documents only through the compatibility port', async () => {
-    expect(await restrictions('src/hooks/Probe.ts', hydrate)).not.toEqual([]);
-    expect(
-      await restrictions('src/application/ports/clinicalDocumentCompatibilityPort.ts', hydrate)
-    ).toEqual([]);
-  });
-
   it('keeps public entrypoints as re-exports of their focused modules', async () => {
     for (const [file, code] of [
       ['src/utils/clinicalDayUtils.ts', 'export const getShiftSchedule = () => 1;'],
@@ -273,8 +264,6 @@ describe('module homes in ESLint', () => {
     for (const file of [
       'src/domain/clinical-episode/clinicalEpisode.ts',
       'src/services/reminders/reminderShared.ts',
-      'src/domain/clinical-documents/compatibility.ts',
-      'src/application/ports/clinicalDocumentCompatibilityPort.ts',
       'src/utils/clinicalDayUtils.ts',
       'src/components/shared/BaseModal.tsx',
       'src/features/census/components/patient-row/patientRowContracts.ts',

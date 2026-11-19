@@ -1,9 +1,5 @@
 import { BedBlockSchema } from '@/schemas/inputSchemas';
-import {
-  failWithCode,
-  ok,
-  type ControllerResult,
-} from '@/features/census/controllers/controllerResult';
+import { failWithCode, ok, type ControllerResult } from '@/shared/contracts/controllerResult';
 
 export interface BedManagerModalState {
   blockingBedId: string | null;

@@ -11,8 +11,8 @@ export const preloadCensusComponentsChunk = (
 
 export { CensusOperationalStateBanner } from './components/CensusOperationalStateBanner';
 export { resolveCensusOperationalState } from './controllers/censusOperationalStateController';
-export type { CensusAccessProfile } from './types/censusAccessProfile';
-export { isSpecialistCensusAccessProfile } from './types/censusAccessProfile';
+export type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
+export { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessProfile';
 export type {
   ClinicalDocSummary,
   EpisodeDocuments,
