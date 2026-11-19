@@ -1,5 +1,7 @@
 import * as z from 'zod';
 
+import { comparableName } from '@/utils/legacyNameParts';
+
 export const RUT_REGEX = /^(\d{1,2}\.?\d{3}\.?\d{3}[-]?[\dkK])?$/; // Chilean RUT format (optional)
 export const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/; // YYYY-MM-DD format
 
@@ -37,10 +39,7 @@ export const composeNameParts = (
     .join(' ');
 
 export const normalizeComparableName = (value: string | undefined): string =>
-  String(value || '')
-    .trim()
-    .replace(/\s+/g, ' ')
-    .toLowerCase();
+  comparableName(value || '');
 
 export const normalizeLegacyIdentityValue = (value: string | undefined): string => {
   const normalized = String(value || '')

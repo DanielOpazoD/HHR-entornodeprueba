@@ -1,3 +1,4 @@
+import { foldSearchText } from '@/utils/stringUtils';
 import {
   LIBRARY_CATEGORY_IDS,
   type LibraryCategoryId,
@@ -13,12 +14,7 @@ export interface LibraryFilter {
 
 /** Minúsculas sin tildes ni espacios repetidos: «Imagenología» y «imagenologia» son lo mismo. */
 export const normalizeSearchText = (value: string): string =>
-  value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim();
+  foldSearchText(value).replace(/\s+/g, ' ');
 
 const entryHaystack = (entry: LibraryEntry): string =>
   normalizeSearchText([entry.title, entry.description, ...entry.keywords].join(' '));

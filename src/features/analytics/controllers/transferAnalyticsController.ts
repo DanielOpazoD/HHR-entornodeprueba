@@ -2,7 +2,7 @@ import { getActiveTransfers } from '@/domain/movements/movementTombstonePolicy';
 import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import { roundAnalyticsPercent as roundPercent } from '@/features/analytics/controllers/analyticsPercentageController';
 import type { TransferData } from '@/types/domain/movements';
-import { removeAccents } from '@/utils/stringUtils';
+import { foldSearchText } from '@/utils/stringUtils';
 
 export type TransferAnalyticsCategory =
   | 'latam'
@@ -56,16 +56,14 @@ export interface TransferAnalytics {
   details: TransferAnalyticsDetail[];
 }
 
-const normalizeSearchText = (value: string): string => removeAccents(value).toLowerCase().trim();
-
 const includesAny = (value: string, needles: string[]): boolean =>
   needles.some(needle => value.includes(needle));
 
 export const resolveTransferAnalyticsCategory = (
   transfer: Pick<TransferData, 'evacuationMethod' | 'evacuationMethodOther'>
 ): TransferAnalyticsCategory => {
-  const method = normalizeSearchText(transfer.evacuationMethod || '');
-  const detail = normalizeSearchText(transfer.evacuationMethodOther || '');
+  const method = foldSearchText(transfer.evacuationMethod || '');
+  const detail = foldSearchText(transfer.evacuationMethodOther || '');
   const searchable = `${method} ${detail}`;
 
   if (searchable.includes('aerocardal')) return 'aerocardal';

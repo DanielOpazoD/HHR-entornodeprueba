@@ -1,4 +1,4 @@
-import { resolveLegacyNameParts } from '@/utils/legacyNameParts';
+import { normalizeNameSpacing, resolveLegacyNameParts } from '@/utils/legacyNameParts';
 import type { PatientNamePartsSource } from '@/types/domain/patientIdentity';
 
 /** Display only: preserve the stored identity and the casing of the rest of the name. */
@@ -8,10 +8,7 @@ const MAX_DISPLAYED_GIVEN_NAMES = 3;
 // A particle opens the name that follows it: «de los Ángeles» counts as one given name.
 const GIVEN_NAME_PARTICLES = new Set(['de', 'del', 'la', 'las', 'los', 'y']);
 
-const normalizeSpaces = (value: string | undefined): string =>
-  String(value || '')
-    .trim()
-    .replace(/\s+/g, ' ');
+const normalizeSpaces = (value: string | undefined): string => normalizeNameSpacing(value || '');
 
 /** Keeps the first three given names; accents and case stay as stored. */
 export const limitGivenNames = (givenNames: string | undefined): string => {

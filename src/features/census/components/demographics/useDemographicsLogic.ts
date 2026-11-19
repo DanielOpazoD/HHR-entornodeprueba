@@ -11,12 +11,12 @@ import {
 import type { AdmissionOrigin } from '@/types/domain/patient';
 import {
   buildLocalData,
-  normalizeNamePart,
   composeFullName,
   calculateFormattedAge,
   hasMeaningfulLocalDemographics,
   resolveRequiredDemographicsCompletion,
 } from './utils';
+import { normalizeNameSpacing } from '@/utils/legacyNameParts';
 import type { PatientData } from '@/types/domain/patient';
 
 interface UseDemographicsLogicProps {
@@ -64,11 +64,11 @@ export const useDemographicsLogic = ({
 
   const displayName = useMemo(() => {
     if (isProvisionalRnMode) {
-      return normalizeNamePart(localData.provisionalName) || 'RN provisional';
+      return normalizeNameSpacing(localData.provisionalName) || 'RN provisional';
     }
     return (
       composeFullName(localData.firstName, localData.lastName, localData.secondLastName) ||
-      normalizeNamePart(data.patientName || '') ||
+      normalizeNameSpacing(data.patientName || '') ||
       'Paciente Nuevo'
     );
   }, [
@@ -121,7 +121,7 @@ export const useDemographicsLogic = ({
     const age = localData.birthDate ? calculateFormattedAge(localData.birthDate) : data.age;
 
     if (isProvisionalRnMode) {
-      const provisionalName = normalizeNamePart(localData.provisionalName);
+      const provisionalName = normalizeNameSpacing(localData.provisionalName);
       const nameValidation = PatientInputSchema.pick({ patientName: true }).safeParse({
         patientName: provisionalName,
       });
@@ -170,9 +170,9 @@ export const useDemographicsLogic = ({
 
     onSave({
       identityStatus: 'official',
-      firstName: normalizeNamePart(localData.firstName),
-      lastName: normalizeNamePart(localData.lastName),
-      secondLastName: normalizeNamePart(localData.secondLastName),
+      firstName: normalizeNameSpacing(localData.firstName),
+      lastName: normalizeNameSpacing(localData.lastName),
+      secondLastName: normalizeNameSpacing(localData.secondLastName),
       patientName: fullName,
       rut: localData.rut.trim(),
       documentType: localData.documentType,

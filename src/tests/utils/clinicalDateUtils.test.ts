@@ -26,6 +26,17 @@ describe('clinicalDateUtils', () => {
     expect(parseCalendarDateUtcNoon('invalid')).toBeNull();
   });
 
+  it('takes years 0000–0099 as written and keeps the proleptic leap years', () => {
+    expect(isCalendarDate('0005-01-01')).toBe(true);
+    expect(isCalendarDate('0000-02-29')).toBe(true);
+    expect(isCalendarDate('0048-02-29')).toBe(true);
+    expect(isCalendarDate('0050-02-29')).toBe(false);
+    expect(isCalendarDate('0100-02-29')).toBe(false);
+    expect(isCalendarDate('1900-02-29')).toBe(false);
+    expect(isCalendarDate('2000-02-29')).toBe(true);
+    expect(isCalendarDate('0099-12-32')).toBe(false);
+  });
+
   it('adds and diffs calendar days across month and year boundaries', () => {
     expect(addCalendarDays('2026-01-31', 1)).toBe('2026-02-01');
     expect(addCalendarDays('2026-02-01', -1)).toBe('2026-01-31');

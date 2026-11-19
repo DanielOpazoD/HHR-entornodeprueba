@@ -4,7 +4,7 @@ import type { BedDefinition } from '@/types/domain/beds';
 
 import { isValidRut, normalizeRut } from '@/utils/rutUtils';
 import { buildCensusBedRows } from './censusTableViewController';
-import { removeAccents } from '@/utils/stringUtils';
+import { foldSearchText } from '@/utils/stringUtils';
 
 export interface ClinicalExplorerPatient {
   bedId: string;
@@ -68,16 +68,16 @@ export const listClinicalExplorerExamCandidates = (
   });
 };
 
-const normalize = (value: string): string => removeAccents(value).toLowerCase().trim();
-
 export const filterClinicalExplorerPatients = (
   patients: ClinicalExplorerPatient[],
   query: string
 ): ClinicalExplorerPatient[] => {
-  const needle = normalize(query);
+  const needle = foldSearchText(query);
   if (!needle) return patients;
   return patients.filter(patient =>
-    normalize(`${patient.data.patientName} ${patient.data.rut} ${patient.bedId}`).includes(needle)
+    foldSearchText(`${patient.data.patientName} ${patient.data.rut} ${patient.bedId}`).includes(
+      needle
+    )
   );
 };
 

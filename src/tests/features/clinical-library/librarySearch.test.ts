@@ -22,6 +22,24 @@ describe('library search', () => {
     expect(normalizeSearchText('CHA₂DS₂-VASc')).toBe('cha₂ds₂-vasc');
   });
 
+  it('collapses every kind of whitespace exactly like its former hand-written pipeline', () => {
+    const removedCopy = (value: string) =>
+      value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+    const spaces = [' ', '  ', '\t', '\n', '\u00a0', '\u2028', '\u3000', '\ufeff'];
+    const samples = spaces.flatMap(space => [
+      `${space}Ñandú${space}${space}TAC${space}`,
+      `a${space}\u0301${space}b`,
+    ]);
+    expect(samples.filter(sample => normalizeSearchText(sample) !== removedCopy(sample))).toEqual(
+      []
+    );
+  });
+
   it('matches accent-insensitive tokens against title, description and keywords', () => {
     const imaging = byId('solicitud-imagenologia');
     expect(matchesLibraryQuery(imaging, 'imagenologia')).toBe(true);

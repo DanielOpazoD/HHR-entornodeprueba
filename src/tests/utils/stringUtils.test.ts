@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { describe, it, expect } from 'vitest';
-import { capitalizeWords, removeAccents } from '@/utils/stringUtils';
+import { capitalizeWords, foldSearchText, removeAccents } from '@/utils/stringUtils';
 
 describe('stringUtils', () => {
   describe('capitalizeWords', () => {
@@ -23,7 +23,8 @@ describe('stringUtils', () => {
     });
 
     // Fifteen search and mapping helpers had their own copy of this pipeline; they now call
-    // removeAccents and keep their own order of trim/lowercase. Each removed copy, verbatim:
+    // removeAccents and keep their own order of trim/lowercase (the search filters of the
+    // clinical explorer and of transfer analytics share `foldSearchText`). Each removed copy, verbatim:
     const strip = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const removedCopies = {
       lower: (value: string) => strip(value).toLowerCase(),
@@ -34,7 +35,7 @@ describe('stringUtils', () => {
     };
     const replacements: Record<keyof typeof removedCopies, (value: string) => string> = {
       lower: value => removeAccents(value).toLowerCase(),
-      lowerTrim: value => removeAccents(value).toLowerCase().trim(),
+      lowerTrim: foldSearchText,
       trimLower: value => removeAccents(value).trim().toLowerCase(),
       lowerFirst: value => removeAccents(value.toLowerCase()),
       trimLowerFirst: value => removeAccents(value.trim().toLowerCase()),

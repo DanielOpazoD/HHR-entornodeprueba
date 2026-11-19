@@ -1,3 +1,9 @@
+/** A patient name without outer spaces and with one space between words. */
+export const normalizeNameSpacing = (value: string): string => value.trim().replace(/\s+/g, ' ');
+
+/** Compare key for two spellings of one patient name: spacing and case do not count, accents do. */
+export const comparableName = (value: string): string => normalizeNameSpacing(value).toLowerCase();
+
 /**
  * Read-time guess for records stored without a given-name/surname split: the last two words are
  * taken as surnames. Records are re-saved after parsing, so a guessed split can end up stored.
@@ -9,7 +15,7 @@ export const resolveLegacyNameParts = (
   lastName: string;
   secondLastName: string;
 } => {
-  const normalizedName = patientName.trim().replace(/\s+/g, ' ');
+  const normalizedName = normalizeNameSpacing(patientName);
   if (!normalizedName) {
     return { firstName: '', lastName: '', secondLastName: '' };
   }

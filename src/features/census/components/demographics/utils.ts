@@ -9,37 +9,18 @@ import {
 import type { AdmissionOrigin } from '@/types/domain/patient';
 import { PatientIdentityStatus } from '@/types/domain/patientIdentity';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
-
-export const normalizeNamePart = (value: string): string => value.trim().replace(/\s+/g, ' ');
-const normalizeComparableName = (value: string): string => normalizeNamePart(value).toLowerCase();
+import {
+  comparableName,
+  normalizeNameSpacing,
+  resolveLegacyNameParts,
+} from '@/utils/legacyNameParts';
 
 export const composeFullName = (
   firstName: string,
   lastName: string,
   secondLastName: string
-): string => [firstName, lastName, secondLastName].map(normalizeNamePart).filter(Boolean).join(' ');
-
-export const splitFromLegacyName = (
-  patientName: string
-): { firstName: string; lastName: string; secondLastName: string } => {
-  const normalized = normalizeNamePart(patientName);
-  if (!normalized) {
-    return { firstName: '', lastName: '', secondLastName: '' };
-  }
-
-  const parts = normalized.split(' ');
-  if (parts.length === 1) {
-    return { firstName: parts[0], lastName: '', secondLastName: '' };
-  }
-  if (parts.length === 2) {
-    return { firstName: parts[0], lastName: parts[1], secondLastName: '' };
-  }
-  return {
-    firstName: parts.slice(0, -2).join(' '),
-    lastName: parts[parts.length - 2],
-    secondLastName: parts[parts.length - 1],
-  };
-};
+): string =>
+  [firstName, lastName, secondLastName].map(normalizeNameSpacing).filter(Boolean).join(' ');
 
 export const inferIdentityStatus = (
   data: DemographicSubset,
@@ -74,7 +55,7 @@ export const buildLocalData = (
   const hasExplicitNameParts = Boolean(explicitFullName);
   const hasMismatchedExplicitNameParts =
     hasExplicitNameParts &&
-    normalizeComparableName(explicitFullName) !== normalizeComparableName(data.patientName || '');
+    comparableName(explicitFullName) !== comparableName(data.patientName || '');
 
   const initialNameParts =
     hasExplicitNameParts && !hasMismatchedExplicitNameParts
@@ -83,13 +64,13 @@ export const buildLocalData = (
           lastName: data.lastName || '',
           secondLastName: data.secondLastName || '',
         }
-      : splitFromLegacyName(data.patientName || '');
+      : resolveLegacyNameParts(data.patientName || '');
 
   return {
     firstName: initialNameParts.firstName,
     lastName: initialNameParts.lastName,
     secondLastName: initialNameParts.secondLastName,
-    provisionalName: normalizeNamePart(data.patientName || ''),
+    provisionalName: normalizeNameSpacing(data.patientName || ''),
     identityStatus: inferIdentityStatus(data, isClinicalCribPatient),
     rut: data.rut || '',
     documentType: (data.documentType || 'RUT') as DocumentType,
@@ -108,14 +89,14 @@ export const buildLocalData = (
 
 export const hasMeaningfulDemographicSubset = (data: DemographicSubset): boolean =>
   Boolean(
-    normalizeNamePart(data.patientName || '') ||
-    normalizeNamePart(data.firstName || '') ||
-    normalizeNamePart(data.lastName || '') ||
-    normalizeNamePart(data.secondLastName || '') ||
+    normalizeNameSpacing(data.patientName || '') ||
+    normalizeNameSpacing(data.firstName || '') ||
+    normalizeNameSpacing(data.lastName || '') ||
+    normalizeNameSpacing(data.secondLastName || '') ||
     (data.rut || '').trim() ||
     (data.birthDate || '').trim() ||
     (data.admissionOrigin || '').trim() ||
-    normalizeNamePart(data.admissionOriginDetails || '') ||
+    normalizeNameSpacing(data.admissionOriginDetails || '') ||
     data.isRapanui ||
     (data.biologicalSex && data.biologicalSex !== 'Indeterminado') ||
     (data.insurance && data.insurance !== 'Fonasa') ||
@@ -123,19 +104,19 @@ export const hasMeaningfulDemographicSubset = (data: DemographicSubset): boolean
     (data.documentType && data.documentType !== 'RUT') ||
     (data.admissionDate || '').trim() ||
     (data.admissionTime || '').trim() ||
-    normalizeNamePart(data.pathology || '')
+    normalizeNameSpacing(data.pathology || '')
   );
 
 export const hasMeaningfulLocalDemographics = (localData: LocalDemographicsState): boolean =>
   Boolean(
-    normalizeNamePart(localData.provisionalName) ||
-    normalizeNamePart(localData.firstName) ||
-    normalizeNamePart(localData.lastName) ||
-    normalizeNamePart(localData.secondLastName) ||
+    normalizeNameSpacing(localData.provisionalName) ||
+    normalizeNameSpacing(localData.firstName) ||
+    normalizeNameSpacing(localData.lastName) ||
+    normalizeNameSpacing(localData.secondLastName) ||
     localData.rut.trim() ||
     localData.birthDate.trim() ||
     localData.admissionOrigin ||
-    normalizeNamePart(localData.admissionOriginDetails) ||
+    normalizeNameSpacing(localData.admissionOriginDetails) ||
     localData.isRapanui ||
     localData.biologicalSex !== 'Indeterminado' ||
     localData.insurance !== 'Fonasa' ||
@@ -143,7 +124,7 @@ export const hasMeaningfulLocalDemographics = (localData: LocalDemographicsState
     localData.documentType !== 'RUT' ||
     localData.admissionDate.trim() ||
     localData.admissionTime.trim() ||
-    normalizeNamePart(localData.pathology)
+    normalizeNameSpacing(localData.pathology)
   );
 
 export interface DemographicsCompletionStatus {
@@ -158,17 +139,17 @@ export const resolveRequiredDemographicsCompletion = (
   const missingFields: string[] = [];
 
   if (isProvisionalRnMode) {
-    if (!normalizeNamePart(localData.provisionalName)) {
+    if (!normalizeNameSpacing(localData.provisionalName)) {
       missingFields.push('nombre provisional');
     }
   } else {
-    if (!normalizeNamePart(localData.firstName)) {
+    if (!normalizeNameSpacing(localData.firstName)) {
       missingFields.push('nombre');
     }
-    if (!normalizeNamePart(localData.lastName)) {
+    if (!normalizeNameSpacing(localData.lastName)) {
       missingFields.push('apellido paterno');
     }
-    if (!normalizeNamePart(localData.secondLastName)) {
+    if (!normalizeNameSpacing(localData.secondLastName)) {
       missingFields.push('apellido materno');
     }
     if (!localData.rut.trim()) {
@@ -190,7 +171,7 @@ export const resolveRequiredDemographicsCompletion = (
   }
   if (
     localData.admissionOrigin === 'Otro' &&
-    !normalizeNamePart(localData.admissionOriginDetails)
+    !normalizeNameSpacing(localData.admissionOriginDetails)
   ) {
     missingFields.push('detalle de procedencia');
   }
