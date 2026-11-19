@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useLatestRef } from '@/hooks/useLatestRef';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { hasCriticalLegacyRepairSignal } from '@/hooks/controllers/legacyRepairWarningController';
 import { buildCopyPatientNotifications } from '@/hooks/controllers/persistenceFeedbackController';
@@ -39,14 +40,17 @@ export const useDailyRecordCopyActions = ({
   refresh,
   dailyRecord,
   warning,
-}: UseDailyRecordCopyActionsOptions) =>
-  useCallback(
+}: UseDailyRecordCopyActionsOptions) => {
+  // Read the day shown at click time, so editing a bed does not rebuild this action.
+  const recordRef = useLatestRef(record);
+  return useCallback(
     async (bedId: string, targetDate: string, targetBedId?: string) => {
-      if (!record?.beds[bedId]?.patientName) return;
+      const currentRecord = recordRef.current;
+      if (!currentRecord?.beds[bedId]?.patientName) return;
 
       try {
         const copyResult = await dailyRecord.copyPatientToDateDetailed(
-          record.date,
+          currentRecord.date,
           bedId,
           targetDate,
           targetBedId || bedId
@@ -64,5 +68,6 @@ export const useDailyRecordCopyActions = ({
         throw error;
       }
     },
-    [dailyRecord, record, refresh, warning]
+    [dailyRecord, recordRef, refresh, warning]
   );
+};

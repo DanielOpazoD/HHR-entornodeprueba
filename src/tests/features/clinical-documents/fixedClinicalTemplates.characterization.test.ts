@@ -5,7 +5,7 @@ import {
   createClinicalDocumentDraft,
   restoreClinicalDocumentDraftTemplate,
 } from '@/features/clinical-documents/domain/factories';
-import { hydrateClinicalDocumentWorkspaceRecord } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
+import { hydrateClinicalDocumentRecord } from '@/domain/clinical-documents/compatibility';
 import { buildDocument, patient } from './useClinicalDocumentWorkspaceBootstrap.fixtures';
 
 vi.mock('@/application/clinical-documents/clinicalDocumentUseCases', () => ({
@@ -103,9 +103,7 @@ describe('current fixed clinical template behaviour on main', () => {
         )
       ).toEqual(shape(draft));
       const saved = structuredClone(edited);
-      expect(shape(hydrateClinicalDocumentWorkspaceRecord(saved))).toMatchSnapshot(
-        'saved hydration'
-      );
+      expect(shape(hydrateClinicalDocumentRecord(saved))).toMatchSnapshot('saved hydration');
     });
   }
 });

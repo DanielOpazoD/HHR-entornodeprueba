@@ -5,12 +5,7 @@ import {
   resolveToggleClinicalCribCommand,
   resolveToggleCompanionCribCommand,
 } from '@/features/census/controllers/patientRowBedConfigController';
-import {
-  type ControllerResult,
-  fail,
-  failWithCode,
-  ok,
-} from '@/features/census/controllers/controllerResult';
+import { type ControllerResult, fail, failWithCode, ok } from '@/shared/contracts/controllerResult';
 import type { ControllerConfirmDescriptor } from '@/shared/contracts/controllers/confirmDescriptor';
 
 type BedModeFieldValue = 'Cama' | 'Cuna' | boolean;
@@ -120,7 +115,10 @@ export const executeToggleCompanionCribController = async ({
     try {
       await dialogs.alert(resolution.error.message, resolution.error.title);
     } catch {
-      return failWithCode('ALERT_FAILED', 'No se pudo mostrar la alerta de configuración neonatal.');
+      return failWithCode(
+        'ALERT_FAILED',
+        'No se pudo mostrar la alerta de configuración neonatal.'
+      );
     }
     return fail(resolution.error);
   }

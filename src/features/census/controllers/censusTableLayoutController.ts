@@ -14,7 +14,7 @@ import type {
   CensusTableBodyProps,
   CensusTableHeaderProps,
 } from '@/features/census/types/censusTableComponentContracts';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import {
   resolveVisibleCensusColumnCount,
   resolveVisibleCensusColumns,

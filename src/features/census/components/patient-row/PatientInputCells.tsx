@@ -16,7 +16,7 @@ import {
   PatientInputStatusSection,
 } from '@/features/census/components/patient-row/PatientInputCellSections';
 import type { PatientInputCellsProps } from '@/features/census/components/patient-row/patientRowContracts';
-import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import { PatientClinicalAccess } from '@/features/census/components/patient-row/PatientClinicalAccess';
 
 export const PatientInputCells: React.FC<PatientInputCellsProps> = ({

@@ -4,7 +4,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { SectionErrorBoundary } from '@/components/shared/SectionErrorBoundary';
 import { CensusTable } from './CensusTable';
 import { UpcClassificationWindowProvider } from './patient-row/UpcClassificationWindowContext';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
 
 interface CensusRegisterMainContentProps {

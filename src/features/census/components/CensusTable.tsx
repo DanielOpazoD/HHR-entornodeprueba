@@ -15,7 +15,7 @@ import { useCensusTableBindingsModel } from '@/features/census/hooks/useCensusTa
 import { useDailyRecordBeds, useDailyRecordData } from '@/context/DailyRecordContext';
 import { useDailyRecordBedActions } from '@/context/useDailyRecordScopedActions';
 import { ViewLoader } from '@/components/ui/ViewLoader';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { resolveEmptyBedSaveAction } from '@/features/census/controllers/admitPatientGate';
 import { useAdmitPatient } from '@/hooks/useAdmitPatient';

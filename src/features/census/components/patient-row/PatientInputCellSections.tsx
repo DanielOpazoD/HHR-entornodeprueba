@@ -16,8 +16,8 @@ import type {
   PatientInputFlowSectionBindings,
   PatientInputIdentitySectionBindings,
 } from '@/features/census/components/patient-row/patientInputSectionContracts';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
-import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
+import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessProfile';
 /**
  * Rediseño censo 2026: la identidad se renderiza en una sola celda "Paciente"
  * (nombre + edad + RUT). Los componentes NameInput / RutPassportInput / AgeInput

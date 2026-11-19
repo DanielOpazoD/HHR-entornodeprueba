@@ -7,7 +7,7 @@ import {
   type RowActionErrorCode,
   resolveRowActionCommand,
 } from '@/features/census/controllers/censusRowActionController';
-import { type ControllerResult, ok } from '@/features/census/controllers/controllerResult';
+import { type ControllerResult, ok } from '@/shared/contracts/controllerResult';
 import type {
   RowActionRuntimeActions,
   RowActionRuntimeConfirm,

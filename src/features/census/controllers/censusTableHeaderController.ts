@@ -1,5 +1,5 @@
 import type { TableColumnConfig } from '@/context/TableConfigContext';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import { isVisibleCensusColumn } from '@/features/census/controllers/censusTableColumnProfileController';
 
 export type CensusHeaderColumnKey = Exclude<keyof TableColumnConfig, 'actions'>;

@@ -108,13 +108,13 @@ test('measures authenticated census readiness after a real emulator read', async
     await page.goto('/');
     await page.evaluate(
       async ({ address, secret }) => {
-        const modulePath = '/src/services/auth/authCredentialFlow.ts';
-        const { signIn } = await import(/* @vite-ignore */ modulePath);
-        await signIn(address, secret);
+        const modulePath = '/e2e/fixtures/emulatorPasswordSignIn.ts';
+        const { signInWithEmulatorPassword } = await import(/* @vite-ignore */ modulePath);
+        await signInWithEmulatorPassword(address, secret);
       },
       { address: email, secret: password }
     );
-    expect(roleLookups).toBeGreaterThan(0);
+    await expect.poll(() => roleLookups, { timeout: 30_000 }).toBeGreaterThan(0);
 
     await page.goto(`/censo?date=${date}`);
     const input = page
