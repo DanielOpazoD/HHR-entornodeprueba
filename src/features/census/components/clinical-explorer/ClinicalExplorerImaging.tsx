@@ -14,7 +14,7 @@ import {
   describeMMRADRegisteredPatient,
   type MMRADExam,
 } from '@/features/radiology/services/mmradService';
-import { getSessionEpoch, onSessionChange } from '@/services/storage/sessionStorageTransition';
+import { onSessionChange, sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
 import { deliverMmradPdf } from '@/features/radiology/services/mmradPdfDelivery';
 import {
   asMmradDateBound,
@@ -136,13 +136,12 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
   const viewerExam = imaging.studies.find(exam => studyKey(exam) === viewerKey) ?? null;
 
   const openPdf = async (exam: MMRADExam): Promise<void> => {
-    if (!exam.pdf_url || pdfOperation.current || getSessionEpoch() !== sessionEpoch) return;
+    const isSessionShown = sessionEpochGuard(sessionEpoch);
+    if (!exam.pdf_url || pdfOperation.current || !isSessionShown()) return;
     const operation = new AbortController();
     pdfOperation.current = operation;
     const isCurrent = (): boolean =>
-      pdfOperation.current === operation &&
-      !operation.signal.aborted &&
-      getSessionEpoch() === sessionEpoch;
+      pdfOperation.current === operation && !operation.signal.aborted && isSessionShown();
     setPdfMessage(null);
     setPdfBusy(studyKey(exam));
     try {

@@ -4,7 +4,7 @@ import { searchMmradStudies } from '@/features/radiology/controllers/mmradStudyS
 import type { ClinicalExplorerPatient } from '@/features/census/controllers/clinicalExplorerController';
 import { downloadBlob } from '@/services/exporters/exportDownload';
 import { fetchMMRADPdfBlob, type MMRADExam } from '@/features/radiology/services/mmradService';
-import { getSessionEpoch, onSessionChange } from '@/services/storage/sessionStorageTransition';
+import { onSessionChange, sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
 import {
   calendarStampInClinicalTimeZone,
   getClinicalCalendarDateISO,
@@ -182,7 +182,7 @@ export const useClinicalExplorerDownload = (
 
   const openRun = (): { run: Run; isCurrent: () => boolean } | null => {
     if (runRef.current) return null;
-    const epoch = getSessionEpoch();
+    const isSessionShown = sessionEpochGuard();
     const runIdentity = identityRef.current;
     const run: Run = { controller: new AbortController() };
     runRef.current = run;
@@ -190,7 +190,7 @@ export const useClinicalExplorerDownload = (
       mounted.current &&
       runRef.current === run &&
       !run.controller.signal.aborted &&
-      getSessionEpoch() === epoch &&
+      isSessionShown() &&
       identityRef.current === runIdentity;
     return { run, isCurrent };
   };

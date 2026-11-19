@@ -1,5 +1,5 @@
 import { fetchMMRADPdfBlob } from './mmradService';
-import { getSessionEpoch, onSessionChange } from '@/services/storage/sessionStorageTransition';
+import { onSessionChange, sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 
 type PdfTarget = { print: boolean } | { download: (blob: Blob) => void };
@@ -10,7 +10,7 @@ export const deliverMmradPdf = async (
   controller: AbortController,
   target: PdfTarget
 ): Promise<void> => {
-  const epoch = getSessionEpoch();
+  const isSessionShown = sessionEpochGuard();
   const { signal } = controller;
   if (signal.aborted) return;
   const popup = 'download' in target ? null : defaultBrowserWindowRuntime.open('', '_blank');
@@ -18,7 +18,7 @@ export const deliverMmradPdf = async (
   const cancel = () => popup?.close();
   signal.addEventListener('abort', cancel, { once: true });
   const unsubscribe = onSessionChange(() => controller.abort());
-  const isCurrent = () => !signal.aborted && getSessionEpoch() === epoch;
+  const isCurrent = () => !signal.aborted && isSessionShown();
   try {
     const blob = await fetchMMRADPdfBlob(link, signal);
     if (!isCurrent()) return;
