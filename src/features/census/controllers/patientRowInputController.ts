@@ -21,13 +21,23 @@ export const buildDeliveryRoutePatch = (
   deliveryCesareanLabor: route === 'Cesárea' ? cesareanLabor : undefined,
 });
 
-/** Who a row's data is: its accredited episode, or for records without one (a `legacy_ep_` id
- * identifies no one) its document, name and admission. */
-const patientScopeIdentity = (data: PatientData | undefined): unknown[] => {
+/**
+ * Who a row's data is, for its save scope. Only an accredited episode identifies a patient: a
+ * `legacy_ep_` id, a document or a name can be corrected on the same patient, and a provisional
+ * newborn's legacy id even changes when its own name is saved. Without one the row keeps the scope
+ * it had before episodes were used here: a crib row none, a bed row its document or name and
+ * admission (ID-05 lists the limit).
+ */
+const patientScopeIdentity = (data: PatientData | undefined, isSubRow: boolean): unknown[] => {
   const episode = resolveAccreditedClinicalEpisodeId(data);
-  return episode
-    ? [episode]
-    : [data?.rut, data?.patientName, data?.admissionDate, data?.admissionTime];
+  if (episode) return [episode];
+  if (isSubRow) return [];
+  return [
+    data?.clinicalEpisodeId || data?.rut,
+    data?.clinicalEpisodeId ? undefined : data?.patientName,
+    data?.admissionDate,
+    data?.admissionTime,
+  ];
 };
 
 /**
@@ -41,12 +51,19 @@ export const buildPatientRowSaveScopeKey = (
   bedId = data?.bedId,
   isSubRow = false
 ): string =>
-  JSON.stringify([date, bedId, isSubRow ? 'clinicalCrib' : 'bed', ...patientScopeIdentity(data)]);
+  JSON.stringify([
+    date,
+    bedId,
+    isSubRow ? 'clinicalCrib' : 'bed',
+    ...patientScopeIdentity(data, isSubRow),
+  ]);
 
 /**
- * The bed's patient a crib row belongs to. Two provisional newborns of different mothers can carry
- * the same name and admission; the crib row is keyed by its mother so that a new mother in the bed
- * is a new crib row, and nothing typed for the previous newborn is sent (ID-03, ID-05).
+ * The mother a crib row belongs to, when her episode is accredited. Two provisional newborns of
+ * different mothers can carry the same name and admission; keying the crib row by its mother makes
+ * a new mother in the bed a new crib row, so nothing typed for the previous newborn is sent
+ * (ID-03, ID-05). A mother without an accredited episode adds nothing: correcting her document or
+ * name must not drop what is being typed for her newborn.
  */
-export const buildClinicalCribScopeOwner = (mother: PatientData): string =>
-  JSON.stringify(patientScopeIdentity(mother));
+export const buildClinicalCribScopeOwner = (mother: PatientData): string | undefined =>
+  resolveAccreditedClinicalEpisodeId(mother);

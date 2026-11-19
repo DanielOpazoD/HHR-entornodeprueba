@@ -14,7 +14,7 @@ export type UnifiedBedRow =
       isSubRow: boolean;
       /** Provisional crib row projected from a pending guarded creation; read-only until the ACK. */
       isPendingCreate?: boolean;
-      /** On a crib row: who its mother is, so a new mother in the bed mounts a new crib row. */
+      /** On a crib row: its mother's accredited episode, so a new mother mounts a new crib row. */
       saveScopeOwner?: string;
     }
   | { kind: 'empty'; id: string; bed: BedDefinition };
