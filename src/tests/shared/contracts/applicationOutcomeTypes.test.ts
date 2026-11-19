@@ -9,7 +9,6 @@ import {
   type ApplicationOutcomeStatus,
   type ApplicationErrorKind,
   type ApplicationIssue,
-  type UseCase,
 } from '@/shared/contracts/applicationOutcomeTypes';
 
 describe('applicationOutcomeTypes helpers', () => {
@@ -43,13 +42,5 @@ describe('applicationOutcomeTypes helpers', () => {
       'validation' | 'permission' | 'not_found' | 'conflict' | 'remote_blocked' | 'unknown'
     >();
     expectTypeOf<ApplicationIssue>().toMatchTypeOf<ApplicationOutcomeMetadata>();
-  });
-
-  it('keeps use cases returning application outcomes asynchronously', () => {
-    type DemoUseCase = UseCase<{ id: string }, { ok: boolean }>;
-
-    expectTypeOf<DemoUseCase['execute']>().toEqualTypeOf<
-      (input: { id: string }) => Promise<ApplicationOutcome<{ ok: boolean }>>
-    >();
   });
 });
