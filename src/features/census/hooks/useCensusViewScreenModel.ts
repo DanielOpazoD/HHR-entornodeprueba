@@ -59,7 +59,7 @@ export const useCensusViewScreenModel = ({
     hasPostDeployRefreshMarker,
   });
 
-  useCensusMigrationBootstrap(true);
+  useCensusMigrationBootstrap();
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage marker is a browser-side deploy signal, not derivable during SSR-safe render
