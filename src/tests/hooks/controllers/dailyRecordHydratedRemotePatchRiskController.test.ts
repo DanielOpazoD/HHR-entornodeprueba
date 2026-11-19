@@ -146,6 +146,43 @@ describe('dailyRecordHydratedRemotePatchRiskController', () => {
     ).toBe('independent_field');
   });
 
+  it('treats an admission name differing only in case or spaces as the same episode, not a new one', () => {
+    const previousRecord = DataFactory.createMockDailyRecord('2026-05-16');
+    const hydratedRecord = DataFactory.createMockDailyRecord('2026-05-16');
+    hydratedRecord.beds.R3 = DataFactory.createMockPatient('R3', {
+      patientName: 'Paciente Nuevo',
+      rut: '12.345.678-5',
+    });
+
+    expect(
+      classifyHydratedRemotePatchRisk({
+        attemptedPatch: {
+          'beds.R3.patientName': '  paciente nuevo ',
+          'beds.R3.rut': '12.345.678-5',
+        },
+        previousRecord,
+        hydratedRecord,
+      })
+    ).toBe('same_field');
+  });
+
+  it('treats a field that hydration turned from absent into null as unchanged', () => {
+    const previousRecord = DataFactory.createMockDailyRecord('2026-05-16');
+    const hydratedRecord = DataFactory.createMockDailyRecord('2026-05-16');
+    delete previousRecord.beds.R1.cie10Code;
+    Object.assign(hydratedRecord.beds.R1, { cie10Code: null });
+
+    expect(
+      classifyHydratedRemotePatchRisk({
+        attemptedPatch: {
+          'beds.R1.cie10Code': 'I10',
+        },
+        previousRecord,
+        hydratedRecord,
+      })
+    ).toBe('independent_field');
+  });
+
   it('allows the first diagnosis edit after Firebase confirms a newly created patient', () => {
     const previousRecord = DataFactory.createMockDailyRecord('2026-05-16');
     const hydratedRecord = DataFactory.createMockDailyRecord('2026-05-16');
