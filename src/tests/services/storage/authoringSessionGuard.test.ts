@@ -27,19 +27,25 @@ const transitions = {
   'a new sign-in (new generation)': () => admitSyntheticSession('user:synthetic-b', 'generation-b'),
   'the same person signs in again': () =>
     admitSyntheticSession('user:synthetic-a', 'generation-a-returned'),
+  'logged out and back in under the same generation': () => {
+    clearSyntheticSession();
+    admitSyntheticSession('user:synthetic-a', 'generation-a');
+  },
   'another tab replaced the stored owner': () => replaceStoredSessionOwner('user:synthetic-b'),
   'a logout cleanup is pending': () => localStorage.setItem(SESSION_CLEANUP_PENDING_KEY, 'cleanup'),
   'logged out': () => clearSyntheticSession(),
 } as const;
 
 // Columns: copied block, guardAuthoringSession().isCurrent(), sessionEpochGuard()().
-// The guard differs from the block only for a pending logout cleanup, on purpose: that cleanup
-// may already have cleared what the operation would write. The epoch belongs to this tab, so a
+// The guard differs from the block only where written, on purpose: a pending logout cleanup may
+// already have cleared what the operation would write, and a logout followed by the same person and
+// generation is still a change (the guard keeps the epoch). The epoch belongs to this tab, so a
 // replacement in another tab does not move it until this tab admits it.
 const expected: Record<keyof typeof transitions, [boolean, boolean, boolean]> = {
   unchanged: [true, true, true],
   'a new sign-in (new generation)': [false, false, false],
   'the same person signs in again': [false, false, false],
+  'logged out and back in under the same generation': [true, false, false],
   'another tab replaced the stored owner': [false, false, true],
   'a logout cleanup is pending': [true, false, true],
   'logged out': [false, false, false],

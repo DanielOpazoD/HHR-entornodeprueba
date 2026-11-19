@@ -1,4 +1,7 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import {
+  captureAuthoringSession,
+  guardAuthoringSession,
+} from '@/services/storage/authoringSession';
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
@@ -27,8 +30,6 @@ import {
 } from '@/services/repositories/contracts/dailyRecordResults';
 import { resolveRemoteGoldenPathReadResult } from './dailyRecordRemoteReadController';
 import { captureLocalRecordBase } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
 export interface DailyRecordInitializationOptions {
@@ -93,13 +94,11 @@ const buildCopySourceMeta = (
 };
 
 const captureInitializationSession = () => {
-  const owner = getStoredSessionOwnerKey();
-  const epoch = getSessionEpoch();
-  const isCurrent = () => owner === getStoredSessionOwnerKey() && epoch === getSessionEpoch();
+  const { session, isCurrent } = guardAuthoringSession();
   const assertCurrentSession = () => {
     if (!isCurrent()) throw new ConcurrencyError('La sesión cambió durante la apertura del censo.');
   };
-  return { isCurrent, assertCurrentSession, authoringSession: captureAuthoringSession() };
+  return { isCurrent, assertCurrentSession, authoringSession: session };
 };
 
 const loadRemoteInitializationSeed = async (

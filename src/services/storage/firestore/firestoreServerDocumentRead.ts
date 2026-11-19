@@ -1,7 +1,6 @@
 import type { Firestore } from 'firebase/firestore';
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 
 export type FirestoreRestValue = {
   stringValue?: string;
@@ -41,10 +40,7 @@ export const readFirestoreDocumentFromServer = async (
   fieldPaths: string[] = []
 ): Promise<Record<string, FirestoreRestValue> | null> => {
   // An answer obtained with the previous person's session is never applied to the next one.
-  const owner = getStoredSessionOwnerKey();
-  const generation = getSessionGeneration();
-  const sameSession = () =>
-    owner === getStoredSessionOwnerKey() && generation === getSessionGeneration();
+  const { isCurrent: sameSession } = guardAuthoringSession();
   const mask = fieldPaths.map(field => `mask.fieldPaths=${encodeURIComponent(field)}`).join('&');
   const url = `${firestoreRestOrigin()}/v1/projects/${db.app.options.projectId}/databases/(default)/documents/${path}${mask ? `?${mask}` : ''}`;
   const abort = new AbortController();
