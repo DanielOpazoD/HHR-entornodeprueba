@@ -426,11 +426,6 @@ vi.mock('../hooks/useAuthState', () => ({
 }));
 
 // Mock canonical auth entrypoints globally
-const mockAuthCredentialFlow = {
-  signIn: vi.fn(),
-  createUser: vi.fn(),
-};
-
 const mockAuthGoogleFlow = {
   signInWithGoogle: vi.fn(),
   warmGoogleSignInRuntime: vi.fn(),
@@ -455,12 +450,10 @@ const mockAuthFallback = {
   hasActiveFirebaseSession: vi.fn().mockReturnValue(false),
 };
 
-const mockAuthCredentialFlowFactory = () => mockAuthCredentialFlow;
 const mockAuthGoogleFlowFactory = () => mockAuthGoogleFlow;
 const mockAuthSessionFactory = () => mockAuthSession;
 const mockAuthFallbackFactory = () => mockAuthFallback;
 
-vi.mock('@/services/auth/authCredentialFlow', () => mockAuthCredentialFlowFactory());
 vi.mock('@/services/auth/authGoogleFlow', () => mockAuthGoogleFlowFactory());
 vi.mock('@/services/auth/authSession', () => mockAuthSessionFactory());
 vi.mock('../services/auth/authSession', () => mockAuthSessionFactory());
@@ -470,7 +463,6 @@ vi.mock('../services/auth/authFallback', () => mockAuthFallbackFactory());
 vi.mock('@/application/auth/authSessionUseCases', () => ({
   executeGoogleSignIn: vi.fn(),
   executeGoogleSignInWarmup: vi.fn(),
-  executeCredentialSignIn: vi.fn(),
   executeRedirectAuthResolution: vi.fn().mockResolvedValue({
     status: 'success',
     data: null,

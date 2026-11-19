@@ -20,11 +20,9 @@ vi.mock('@/services/auth/authE2EPopupRuntime', () => ({
 }));
 
 vi.unmock('@/services/auth/authFallback');
-vi.unmock('@/services/auth/authCredentialFlow');
 vi.unmock('@/services/auth/authGoogleFlow');
 
 import { signInWithGoogle } from '@/services/auth/authGoogleFlow';
-import { signIn, createUser } from '@/services/auth/authCredentialFlow';
 import {
   handleSignInRedirectResult,
   hasActiveFirebaseSession,
@@ -34,8 +32,6 @@ import {
 vi.mock('firebase/auth', () => ({
   signInWithPopup: vi.fn(),
   signInWithCredential: vi.fn(),
-  signInWithEmailAndPassword: vi.fn(),
-  createUserWithEmailAndPassword: vi.fn(),
   signOut: vi.fn(),
   signInWithRedirect: vi.fn(),
   getRedirectResult: vi.fn(),
@@ -96,9 +92,6 @@ describe('auth runtime injection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRecordAuthPerfEvent.mockReset();
-    vi.mocked(firebaseAuth.createUserWithEmailAndPassword).mockResolvedValue({
-      user: { uid: 'created-1', email: 'new@hospital.cl', displayName: 'Created User' },
-    } as unknown as firebaseAuth.UserCredential);
   });
 
   it('uses the injected runtime for Google popup auth', async () => {
@@ -310,31 +303,6 @@ describe('auth runtime injection', () => {
     expect(firebaseAuth.signInWithRedirect).toHaveBeenCalledWith(
       authRuntime.auth,
       expect.anything()
-    );
-  });
-
-  it('uses the injected runtime for email/password sign-in and sign-out fallback', async () => {
-    const authRuntime = createAuthRuntime();
-    vi.mocked(firebaseAuth.signInWithEmailAndPassword).mockResolvedValue({
-      user: {
-        uid: 'user-1',
-        email: 'admin@hospital.cl',
-        displayName: 'Admin',
-      },
-    } as unknown as firebaseAuth.UserCredential);
-
-    await signIn('admin@hospital.cl', 'secret', { authRuntime });
-    await createUser('new@hospital.cl', 'secret', { authRuntime });
-
-    expect(firebaseAuth.signInWithEmailAndPassword).toHaveBeenCalledWith(
-      authRuntime.auth,
-      'admin@hospital.cl',
-      'secret'
-    );
-    expect(firebaseAuth.createUserWithEmailAndPassword).toHaveBeenCalledWith(
-      authRuntime.auth,
-      'new@hospital.cl',
-      'secret'
     );
   });
 

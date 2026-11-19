@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { signIn, createUser } from '@/services/auth/authCredentialFlow';
 import { signInWithGoogleRedirect, handleSignInRedirectResult } from '@/services/auth/authFallback';
 import { signOut } from '@/services/auth/authSession';
 import * as authRedirectRuntime from '@/services/auth/authRedirectRuntime';
@@ -7,7 +6,6 @@ import * as firebaseAuth from 'firebase/auth';
 import { signInWithGoogle, warmGoogleSignInRuntime } from '@/services/auth/authGoogleFlow';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 
-vi.unmock('@/services/auth/authCredentialFlow');
 vi.unmock('@/services/auth/authGoogleFlow');
 vi.unmock('../../services/auth/authFallback');
 vi.unmock('@/services/auth/authFallback');
@@ -24,13 +22,11 @@ vi.mock('firebase/auth', () => {
   ).prototype.setCustomParameters = vi.fn();
 
   return {
-    signInWithEmailAndPassword: vi.fn(),
     signInWithPopup: vi.fn(),
     signOut: vi.fn(),
     onAuthStateChanged: vi.fn(),
     GoogleAuthProvider,
     signInAnonymously: vi.fn(),
-    createUserWithEmailAndPassword: vi.fn(),
     signInWithRedirect: vi.fn(),
     getRedirectResult: vi.fn(),
   };
@@ -103,86 +99,6 @@ describe('auth public entrypoints', () => {
     } finally {
       getFunctions.mockRestore();
     }
-  });
-
-  describe('signIn', () => {
-    it('should allow access for users authorized in config/roles', async () => {
-      const mockFirebaseUser = {
-        user: {
-          uid: '123',
-          email: 'admin@hospital.cl',
-          displayName: 'Admin',
-        },
-      };
-      mockCheckUserRoleCallable.mockResolvedValue({
-        data: { role: 'admin' },
-      });
-
-      vi.mocked(firebaseAuth.signInWithEmailAndPassword).mockResolvedValue(
-        mockFirebaseUser as unknown as firebaseAuth.UserCredential
-      );
-
-      const result = await signIn('admin@hospital.cl', 'password');
-
-      expect(result.uid).toBe('123');
-      expect(result.role).toBe('admin');
-      expect(firebaseAuth.signInWithEmailAndPassword).toHaveBeenCalled();
-    });
-
-    it('should deny access and sign out if user has no valid role', async () => {
-      const mockFirebaseUser = {
-        user: {
-          uid: '456',
-          email: 'unknown@gmail.com',
-          displayName: 'Unknown',
-        },
-      };
-
-      vi.mocked(firebaseAuth.signInWithEmailAndPassword).mockResolvedValue(
-        mockFirebaseUser as unknown as firebaseAuth.UserCredential
-      );
-      await expect(signIn('unknown@gmail.com', 'password')).rejects.toThrow('Acceso no autorizado');
-      expect(firebaseAuth.signOut).toHaveBeenCalled();
-    });
-
-    it('should normalize emails during check', async () => {
-      const mockFirebaseUser = {
-        user: {
-          uid: '123',
-          email: 'ADMIN@HOSPITAL.CL ', // With spaces and caps
-          displayName: 'Admin',
-        },
-      };
-      mockCheckUserRoleCallable.mockResolvedValue({
-        data: { role: 'admin' },
-      });
-
-      vi.mocked(firebaseAuth.signInWithEmailAndPassword).mockResolvedValue(
-        mockFirebaseUser as unknown as firebaseAuth.UserCredential
-      );
-
-      const result = await signIn(' ADMIN@hospital.cl', 'password');
-
-      expect(result.role).toBe('admin');
-    });
-
-    it('should reject emails that only look privileged when no configured role exists', async () => {
-      const mockFirebaseUser = {
-        user: {
-          uid: 'attacker-1',
-          email: 'admin@hospital.cl.attacker@evil.com',
-          displayName: 'Attacker',
-        },
-      };
-
-      vi.mocked(firebaseAuth.signInWithEmailAndPassword).mockResolvedValue(
-        mockFirebaseUser as unknown as firebaseAuth.UserCredential
-      );
-      await expect(signIn('admin@hospital.cl.attacker@evil.com', 'password')).rejects.toThrow(
-        'Acceso no autorizado'
-      );
-      expect(firebaseAuth.signOut).toHaveBeenCalled();
-    });
   });
 
   describe('signInWithGoogle', () => {
@@ -306,34 +222,6 @@ describe('auth public entrypoints', () => {
 
       expect(rejectedError).toMatchObject({ code: 'auth/popup-timeout' });
       expect(localStorage.getItem(GOOGLE_LOGIN_LOCK_KEY)).toBeNull();
-    });
-  });
-
-  describe('createUser', () => {
-    it('should create a new user', async () => {
-      const mockUser = {
-        user: {
-          uid: 'new-123',
-          email: 'new@test.com',
-          displayName: 'New User',
-        },
-      };
-      vi.mocked(firebaseAuth.createUserWithEmailAndPassword).mockResolvedValue(
-        mockUser as unknown as firebaseAuth.UserCredential
-      );
-
-      const result = await createUser('new@test.com', 'password');
-      expect(result.uid).toBe('new-123');
-    });
-
-    it('should map Firebase error codes', async () => {
-      vi.mocked(firebaseAuth.createUserWithEmailAndPassword).mockRejectedValue({
-        code: 'auth/email-already-in-use',
-      });
-
-      await expect(createUser('used@test.com', 'password')).rejects.toThrow(
-        'Este email ya está registrado'
-      );
     });
   });
 
