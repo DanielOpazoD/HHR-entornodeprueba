@@ -11,9 +11,6 @@ import {
 } from '@/services/storage/sessionStorageTransition';
 import { AUDIT_CONNECTION_OUTBOX_PREFIX } from '@/services/admin/auditSession/auditConnectionOutbox';
 
-vi.mock('@/services/storage/sync', () => ({
-  recordSyncQueueOwnershipTelemetry: vi.fn(),
-}));
 vi.mock('@/services/storage/sessionSyncQueuePreservation', () => ({
   clearSessionDailyRecords: vi.fn().mockResolvedValue(undefined),
 }));

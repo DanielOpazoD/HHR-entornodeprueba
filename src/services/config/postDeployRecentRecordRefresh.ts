@@ -3,7 +3,6 @@ import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import type { OperationalOutcomeLike } from '@/services/observability/operationalTelemetryContracts';
 import type { SyncQueueTelemetry } from '@/services/storage/sync';
-import { getSyncQueueTelemetry } from '@/services/storage/sync';
 import { deleteUnheldRecord } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 
@@ -188,7 +187,9 @@ export const executePostDeployRecentRecordRefresh = async ({
   todayDateString = getTodayISO(),
   readMarker = readPostDeployRecentRecordRefreshMarker,
   clearMarker = clearPostDeployRecentRecordRefreshMarker,
-  readSyncQueueTelemetry = getSyncQueueTelemetry,
+  // Loaded on use: this module is part of startup, and the queue loads Firestore.
+  readSyncQueueTelemetry = async () =>
+    (await import('@/services/storage/sync')).getSyncQueueTelemetry(),
   deleteLocalRecord = deleteUnheldRecord,
   syncRemoteRecord,
 }: ExecutePostDeployRecentRecordRefreshParams): Promise<PostDeployRecentRecordRefreshResult> => {
