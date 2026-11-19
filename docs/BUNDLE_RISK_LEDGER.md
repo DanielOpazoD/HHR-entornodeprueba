@@ -10,13 +10,13 @@ Este ledger gobierna los chunks que hoy explican el warning de tamaño de Vite o
 
 ## Current surfaces
 
-| Surface                   | Owner                             | Threshold                           | Current signal                                          | Release posture                                                          | Guardrail                                                                      |
-| ------------------------- | --------------------------------- | ----------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| `vendor-heic2any`         | prescriptions/runtime             | 1,450,000 bytes chunk budget        | ~1,320 KB, async only for HEIC/HEIF prescription photos | Not a release blocker while it stays out of precache and below threshold | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`         |
-| `vendor-pdfjs`            | clinical-documents/PDF runtime    | 520,000 bytes chunk budget          | ~455 KB, async PDF.js text/import runtime               | Not a release blocker while excluded from PWA install-time precache      | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`         |
-| `pdfjs-worker`            | clinical-documents/PDF runtime    | 2,500,000 bytes async worker budget | ~2,303 KB, async PDF.js worker                          | Not a release blocker while excluded from PWA install-time precache      | `pwaPrecachePolicy.test`, `check:runtime-asset-margin`                         |
-| `vendor-pdf-lib`          | clinical-documents/PDF generation | 430,000 bytes chunk budget          | ~382 KB, near warning band but still below ceiling      | Not a release blocker while PDF generation remains on-demand             | `bundleBudgetConfig.test`, `check:bundle-budget`, `check:runtime-asset-margin` |
-| `app-authenticated-shell` | app-shell/census runtime          | 665,600 bytes startup chunk budget  | Holgura medida 2026-11-11; repetir al superar ~97 %     | Not a release blocker while startup imports remain guarded               | `chunkingPolicy.test`, `check:bundle-budget`, `check:runtime-asset-margin`     |
+| Surface                   | Owner                             | Threshold                           | Current signal                                              | Release posture                                                          | Guardrail                                                                      |
+| ------------------------- | --------------------------------- | ----------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `vendor-heic2any`         | prescriptions/runtime             | 1,450,000 bytes chunk budget        | ~1,320 KB, async only for HEIC/HEIF prescription photos     | Not a release blocker while it stays out of precache and below threshold | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`         |
+| `vendor-pdfjs`            | clinical-documents/PDF runtime    | 520,000 bytes chunk budget          | ~455 KB, async PDF.js text/import runtime                   | Not a release blocker while excluded from PWA install-time precache      | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`         |
+| `pdfjs-worker`            | clinical-documents/PDF runtime    | 2,500,000 bytes async worker budget | ~2,303 KB, async PDF.js worker                              | Not a release blocker while excluded from PWA install-time precache      | `pwaPrecachePolicy.test`, `check:runtime-asset-margin`                         |
+| `vendor-pdf-lib`          | clinical-documents/PDF generation | 430,000 bytes chunk budget          | ~382 KB, near warning band but still below ceiling          | Not a release blocker while PDF generation remains on-demand             | `bundleBudgetConfig.test`, `check:bundle-budget`, `check:runtime-asset-margin` |
+| `app-authenticated-shell` | app-shell/census runtime          | 349,000 bytes startup chunk budget  | Bajado 2026-11-19 (332 KB + ~5 %); repetir al superar ~97 % | Not a release blocker while startup imports remain guarded               | `chunkingPolicy.test`, `check:bundle-budget`, `check:runtime-asset-margin`     |
 
 ## Trigger policy
 
@@ -534,6 +534,25 @@ repetible bloquea el ajuste. Rollback: revertir este cambio de configuración,
 ledger y expectativas de pruebas; se restauran los 635.136 bytes sin cambiar
 código clínico, datos ni recursos offline. La historia anterior permanece en las entradas previas
 y en Git.
+
+## Pantalla de ingreso sin shell ni Firestore (2026-11-19, W19-BOOT)
+
+Rollup mete en un chunk manual todas las dependencias estáticas que ninguna otra regla nombra.
+Por eso `app-authenticated-shell` absorbía las utilidades que comparte con la entrada, y la
+entrada cargaba antes del primer pintado el shell (627 KB) y, a través de él, Firestore
+(398 KB), aun sin sesión. `chunkingPolicy.ts` reclama primero lo que la entrada importa
+estáticamente (chunk `app-bootstrap`); la regla `date-strip-controls`, que solo existía para
+escapar de esa absorción, se retiró. La limpieza de sesión y el refresco tras despliegue ya no
+importan la cola de sincronización al arrancar.
+
+- Cierre estático de la entrada: 11 archivos / 1.858.523 B → 8 / 1.066.332 B.
+- Camino autenticado completo hasta el censo (entrada, App, ruta y vista): 2.326.272 → 2.329.484 B.
+- Precarga: 4.715,7 → 4.719,4 KB (279 → 284 archivos), bajo el tope sin cambiarlo.
+- `app-authenticated-shell`: 627.725 → 332.294 B; su tope baja de 665.600 a 349.000 B.
+- `check:chunk-graph` falla si la entrada vuelve a cargar el shell o Firestore.
+
+Reversión: quitar el reclamo de `chunkingPolicy.ts`, restaurar la regla `date-strip-controls` y
+el tope anterior. Evidencia: carpeta W19/BOOT del programa de calidad.
 
 ## Historia del tope de precarga
 
