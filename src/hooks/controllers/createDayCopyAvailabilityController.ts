@@ -1,10 +1,7 @@
 import { formatCensusMonthName } from '@/shared/census/censusPresentation';
+import { resolveClinicalDayBounds } from '@/utils/clinicalDayScheduleUtils';
 import { clinicalWallClockToDate } from '@/utils/clinicalWallClock';
 import { getTodayISO } from '@/utils/dateCoreUtils';
-
-/** Hospital hour at which the night shift has handed over and the day can be copied. */
-export const COPY_PREVIOUS_DAY_UNLOCK_HOUR = 8;
-const COPY_UNLOCK_TIME = `${String(COPY_PREVIOUS_DAY_UNLOCK_HOUR).padStart(2, '0')}:00`;
 
 export interface CreateDayCopyAvailability {
   isCopyLocked: boolean;
@@ -40,7 +37,8 @@ export const resolveCreateDayCopyAvailability = (
   }
 
   // On the hospital clock: a mainland device would otherwise unlock two hours early.
-  const unlockAt = clinicalWallClockToDate(currentDateString, COPY_UNLOCK_TIME);
+  const { dayStart } = resolveClinicalDayBounds(currentDateString);
+  const unlockAt = clinicalWallClockToDate(currentDateString, dayStart);
   const remainingMs = Math.max(0, unlockAt.getTime() - now.getTime());
   const isCopyLocked = remainingMs > 0;
 
@@ -62,7 +60,8 @@ export const buildCopyUnlockDescription = (
   const capitalizedMonthName = formatCensusMonthName(currentDateString);
   const formattedDate = `${parseInt(day, 10)} de ${capitalizedMonthName}`;
 
+  const { dayStart } = resolveClinicalDayBounds(currentDateString);
   return availability.isTargetToday
-    ? `Disponible hoy desde las ${COPY_PREVIOUS_DAY_UNLOCK_HOUR}:00 hrs.`
-    : `Disponible desde el ${formattedDate} a las ${COPY_PREVIOUS_DAY_UNLOCK_HOUR}:00 hrs.`;
+    ? `Disponible hoy desde las ${dayStart} hrs.`
+    : `Disponible desde el ${formattedDate} a las ${dayStart} hrs.`;
 };

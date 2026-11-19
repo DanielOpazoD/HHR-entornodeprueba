@@ -12,7 +12,7 @@ export const inheritPatientHandoffNotes = (
     return;
   }
 
-  const prevNightNote = sourcePatient.handoffNoteNightShift || sourcePatient.handoffNote || '';
+  const prevNightNote = sourcePatient.handoffNoteNightShift ?? sourcePatient.handoffNote ?? '';
   targetPatient.handoffNoteDayShift = prevNightNote;
   targetPatient.handoffNoteNightShift = prevNightNote;
 };

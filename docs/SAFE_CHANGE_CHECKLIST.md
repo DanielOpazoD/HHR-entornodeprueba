@@ -249,3 +249,16 @@ casillas y fecha de próximo conteo, edición/recarga, lectura sola, teclado y c
 de cama tras desplazamiento. Impresión y PDF conservan todo el contenido; el aviso
 de desplazamiento y la posición fija sólo corresponden a pantalla. Exige pruebas
 focalizadas, build/budgets sin ampliar límites, revisión independiente y CI del SHA final.
+
+### Piloto local de entrega de turno desde Eloísa
+
+Usa los emuladores de Auth, Firestore y Functions con el proyecto desechable
+`demo-hhr-handoff`. La función `nursingHandoffExtension` sólo se registra con esos
+emuladores. Las pruebas usan su propio censo y aplican la política de escritura v2.
+
+1. Desde HHR, instala las dependencias raíz y de `functions`. Con Java 21 disponible,
+   inicia `npx firebase emulators:start --only auth,firestore,functions --project demo-hhr-handoff`.
+2. Desde el checkout de la extensión, ejecuta `node scripts/build-nursing-handoff-pilot.mjs`.
+3. Desde HHR, ejecuta la prueba con `HHR_HANDOFF_EXTENSION_CHECKOUT=/ruta/extension node functions/scripts/smokeNursingHandoffExtension.cjs`.
+   La prueba abre Chromium con una lista de pacientes sintética y guarda en Firestore con
+   HHR cerrado. Sin esa variable corre sólo la prueba de servidor.
