@@ -18,9 +18,6 @@
  * Add new flags here with their default state.
  */
 export const FEATURE_FLAGS = {
-  // UI Features
-  SHOW_DEBUG_PANEL: false,
-
   // Experimental Features
   /** Server-controlled episode assignment is opt-in; this only exposes its client intent. */
   SPECIALTY_EPISODE_ASSIGNMENT: false,
@@ -88,7 +85,6 @@ class FeatureFlagsService {
   private static instance: FeatureFlagsService;
   private overrides: Partial<Record<FeatureFlag, boolean>> = {};
   private listeners: Map<FeatureFlag, Set<(enabled: boolean) => void>> = new Map();
-  private allListeners: Set<() => void> = new Set();
 
   private constructor() {
     this.loadFromStorage();
@@ -133,17 +129,6 @@ class FeatureFlagsService {
     ) {
       this.overrides.SPECIALTY_EPISODE_ASSIGNMENT = true;
       this.overrides.SPECIALTY_JEV_CONSULTATION = true;
-    }
-    // Enable debug features in development
-    const isDev =
-      typeof window !== 'undefined' &&
-      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-
-    if (isDev) {
-      // Only set if not already overridden by user
-      if (this.overrides.SHOW_DEBUG_PANEL === undefined) {
-        this.overrides.SHOW_DEBUG_PANEL = true;
-      }
     }
   }
 
@@ -237,19 +222,8 @@ class FeatureFlagsService {
     };
   }
 
-  /**
-   * Subscribe to any change in any flag
-   */
-  subscribeAll(callback: () => void): () => void {
-    this.allListeners.add(callback);
-    return () => {
-      this.allListeners.delete(callback);
-    };
-  }
-
   private notifyListeners(flag: FeatureFlag, enabled: boolean): void {
     this.listeners.get(flag)?.forEach(callback => callback(enabled));
-    this.allListeners.forEach(callback => callback());
   }
 }
 

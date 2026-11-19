@@ -64,7 +64,7 @@ export type { BedOperationsActions } from './useBedOperations';
 // Internal sync hook (exposed for testing/advanced use)
 
 // Feature Flags
-export { useFeatureFlag, useAllFeatureFlags } from './useFeatureFlag';
+export { useFeatureFlag } from './useFeatureFlag';
 
 // Version Check (auto-refresh on new deployments)
 export { useVersionCheck } from './useVersionCheck';
