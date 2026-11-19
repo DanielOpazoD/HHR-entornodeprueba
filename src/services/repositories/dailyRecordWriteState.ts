@@ -1,63 +1,11 @@
-import { DataRegressionError, VersionMismatchError } from '@/utils/integrityGuard';
-import type {
-  DailyRecordWriteReason,
-  DailyRecordWriteResult,
-} from '@/services/repositories/contracts/dailyRecordResults';
-import type { DailyRecordRecoveryDecision } from '@/services/repositories/contracts/dailyRecordWriteRecoveryResult';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
-
-export interface RemoteWriteState {
-  savedLocally: boolean;
-  savedRemotely: boolean;
-  queuedForRetry: boolean;
-  autoMerged: boolean;
-  consistencyState:
-    | 'persisted_local_only'
-    | 'persisted_and_synced'
-    | 'queued_for_retry'
-    | 'auto_merged'
-    | 'blocked_regression'
-    | 'blocked_version_mismatch'
-    | 'blocked_validation'
-    | 'unrecoverable';
-  conflictSummary: DailyRecordRecoveryDecision['conflictSummary'];
-  observabilityTags: string[];
-  /** Set by the producer that held or routed the write; the result's state is derived from it. */
-  reason?: DailyRecordWriteReason;
-  userSafeMessage?: string;
-  blockingError?: Error;
-  confirmedRecord?: DailyRecord;
-  localProjectionRecord?: DailyRecord;
-}
-
-export const createRemoteWriteState = (): RemoteWriteState => ({
-  savedLocally: false,
-  savedRemotely: false,
-  queuedForRetry: false,
-  autoMerged: false,
-  consistencyState: 'persisted_local_only',
-  conflictSummary: null,
-  observabilityTags: ['daily_record', 'write', 'local_only'],
-});
-
-export const applyRecoveryDecisionToState = (
-  state: RemoteWriteState,
-  decision: DailyRecordRecoveryDecision,
-  blockingError?: Error
-): void => {
-  state.consistencyState = decision.consistencyState;
-  state.conflictSummary = decision.conflictSummary;
-  state.observabilityTags = decision.observabilityTags;
-  state.reason = decision.reason;
-  state.userSafeMessage = decision.userSafeMessage;
-  state.blockingError = blockingError;
-};
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
-/** Where a write ended up: whether a copy stayed here, its state and that state's detail. */
+/** A write's state and that state's detail (`cause`, `reason` or `localCopy`). */
 type WriteOutcome = DistributiveOmit<
   DailyRecordWriteResult,
   | 'date'
+  | 'savedHere'
   | 'userSafeMessage'
   | 'blockingError'
   | 'concurrencyConflict'
@@ -65,111 +13,91 @@ type WriteOutcome = DistributiveOmit<
   | 'localProjectionRecord'
 >;
 
-/** The only derivation of what a write left: every result leaves the repository through it. */
-const resolveWriteState = (state: RemoteWriteState): WriteOutcome => {
-  const savedHere = state.savedLocally;
-  if (state.reason === 'session_changed') {
-    return savedHere
-      ? { savedHere, state: 'held', reason: 'session_changed' }
-      : { savedHere, state: 'not_saved', reason: 'session_changed' };
-  }
-  if (state.reason === 'queue_route') return { savedHere, state: 'local', cause: 'queue_route' };
-  if (state.reason === 'field_changed_elsewhere') {
-    return { savedHere, state: 'held', reason: 'field_changed_elsewhere' };
-  }
-  if (
-    state.consistencyState === 'blocked_regression' ||
-    state.consistencyState === 'blocked_version_mismatch' ||
-    state.consistencyState === 'blocked_validation'
-  ) {
-    return { savedHere, state: 'not_saved', reason: 'blocked' };
-  }
-  const unrecoverable = state.consistencyState === 'unrecoverable';
-  if (state.savedRemotely) {
-    return { savedHere, state: 'confirmed', localCopy: unrecoverable ? 'stale' : 'current' };
-  }
-  if (unrecoverable) {
-    return savedHere
-      ? { savedHere, state: 'held', reason: 'needs_review' }
-      : { savedHere, state: 'not_saved', reason: 'local_failed' };
-  }
-  if (state.autoMerged) return { savedHere, state: 'local', cause: 'merged' };
-  if (state.queuedForRetry) return { savedHere, state: 'local', cause: 'retrying' };
-  return { savedHere, state: 'local', cause: 'stored' };
+/** Why the write ended where it did, as its caller is told. */
+interface WriteDecision {
+  userSafeMessage?: string;
+  blockingError?: Error;
+  /** Another writer changed the day first. */
+  concurrencyConflict?: boolean;
+}
+
+/**
+ * The repository's write so far, and whether the caller's workflow goes on after it (`return`:
+ * the write stopped and the caller only reports it).
+ */
+export interface RemoteWriteStep {
+  result: DailyRecordWriteResult;
+  next: 'continue' | 'return';
+}
+
+/** Nothing stored yet: the result every write starts from. */
+export const startWriteResult = (date: string): DailyRecordWriteResult => ({
+  date,
+  savedHere: false,
+  state: 'local',
+  cause: 'stored',
+});
+
+/**
+ * The same write in a new state. With a decision, its message, error and conflict mark replace
+ * the current ones; without one, they stay.
+ */
+export const settleWriteResult = (
+  current: DailyRecordWriteResult,
+  outcome: WriteOutcome,
+  decision?: WriteDecision
+): DailyRecordWriteResult => {
+  const said = decision ?? current;
+  return {
+    date: current.date,
+    savedHere: current.savedHere,
+    ...outcome,
+    ...(said.concurrencyConflict ? { concurrencyConflict: true as const } : {}),
+    userSafeMessage: said.userSafeMessage,
+    blockingError: said.blockingError,
+    confirmedRecord: current.confirmedRecord,
+    localProjectionRecord: current.localProjectionRecord,
+  };
 };
 
-const withConcurrencyConflict = (state: RemoteWriteState) =>
-  state.conflictSummary?.kind === 'concurrency' ? { concurrencyConflict: true as const } : {};
+/**
+ * A write the queue keeps sending by itself. One the server already took stays confirmed.
+ */
+export const pendingWriteOutcome = (
+  current: DailyRecordWriteResult,
+  cause: 'retrying' | 'merged'
+): WriteOutcome =>
+  current.state === 'confirmed'
+    ? { state: 'confirmed', localCopy: 'current' }
+    : { state: 'local', cause };
 
-/** What a full save or a partial update returns once the repository finished with it. */
-export const buildWriteResult = (
-  date: string,
-  state: RemoteWriteState
-): DailyRecordWriteResult => ({
-  date,
-  ...resolveWriteState(state),
-  ...withConcurrencyConflict(state),
-  userSafeMessage: state.userSafeMessage,
-  blockingError: state.blockingError,
-  confirmedRecord: state.confirmedRecord,
-  localProjectionRecord: state.localProjectionRecord,
-});
+/**
+ * A write no automatic path can finish: held here for review, or not saved when no copy stayed.
+ * One the server already took stays confirmed, with this computer's copy behind it.
+ */
+export const unrecoverableWriteOutcome = (current: DailyRecordWriteResult): WriteOutcome => {
+  if (current.state === 'confirmed') return { state: 'confirmed', localCopy: 'stale' };
+  return current.savedHere
+    ? { state: 'held', reason: 'needs_review' }
+    : { state: 'not_saved', reason: 'local_failed' };
+};
+
+/** The authoring session ended before the write finished: held for its author when stored here. */
+export const sessionEndedWriteOutcome = (current: DailyRecordWriteResult): WriteOutcome =>
+  current.savedHere
+    ? { state: 'held', reason: 'session_changed' }
+    : { state: 'not_saved', reason: 'session_changed' };
 
 /** A write stopped before anything was stored: not on this computer nor on the server. */
 export const buildBlockedWriteResult = (
   date: string,
-  state: RemoteWriteState
+  userSafeMessage: string,
+  blockingError?: Error
 ): DailyRecordWriteResult => ({
   date,
   savedHere: false,
   state: 'not_saved',
   reason: 'blocked',
-  ...withConcurrencyConflict(state),
-  userSafeMessage: state.userSafeMessage,
-  blockingError: state.blockingError,
+  userSafeMessage,
+  blockingError,
 });
-
-/**
- * Clasifica un error de integridad bloqueante de un guardado completo
- * (regresión, versión o validación de fecha de ingreso) y lo aplica al estado.
- */
-export const applyBlockedSaveRecoveryToState = (state: RemoteWriteState, err: Error): void => {
-  const blockedKind =
-    err instanceof DataRegressionError
-      ? 'regression'
-      : err instanceof VersionMismatchError
-        ? 'version_mismatch'
-        : 'validation';
-  applyRecoveryDecisionToState(
-    state,
-    {
-      consistencyState:
-        blockedKind === 'regression'
-          ? 'blocked_regression'
-          : blockedKind === 'version_mismatch'
-            ? 'blocked_version_mismatch'
-            : 'blocked_validation',
-      conflictSummary: {
-        kind:
-          blockedKind === 'regression'
-            ? 'regression_blocked'
-            : blockedKind === 'version_mismatch'
-              ? 'version_mismatch'
-              : 'validation_blocked',
-        sourceOfTruth: 'none',
-        message: err.message,
-      },
-      observabilityTags: [
-        'daily_record',
-        'write',
-        blockedKind === 'regression'
-          ? 'regression_blocked'
-          : blockedKind === 'version_mismatch'
-            ? 'version_mismatch'
-            : 'validation_blocked',
-      ],
-      userSafeMessage: err.message,
-    },
-    err
-  );
-};

@@ -4,7 +4,6 @@ import 'fake-indexeddb/auto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createRemoteWriteState } from '@/services/repositories/dailyRecordWriteState';
 import { persistLocalAndAttemptRemoteSync } from '@/services/repositories/dailyRecordRemotePersistenceController';
 import { classifySyncError } from '@/services/storage/syncErrorCatalog';
 
@@ -37,16 +36,14 @@ describe('authority readback preserves pending edits', () => {
         retryCount: 0,
       });
       const pending = await hospitalDB.syncQueue.toArray();
-      const state = createRemoteWriteState();
       // Shaped like the SDK's offline read failure, which the sync catalog would treat as network.
       const error = Object.assign(new Error('synthetic readback offline'), {
         code: 'unavailable',
       });
       const ack = vi.fn();
-      const result = await persistLocalAndAttemptRemoteSync({
+      const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
         authoringSession: captureAuthoringSession(),
         change: { date: record.date, record, changedPaths: ['beds.R1.status'] },
-        remoteState: state,
         remote: {
           remoteWrite: async () => undefined,
           onRemoteFailure: vi.fn(),
@@ -67,7 +64,7 @@ describe('authority readback preserves pending edits', () => {
       });
       expect(result).toBe('return');
       expect(state.confirmedRecord).toBeUndefined();
-      expect(state.consistencyState).toBe('unrecoverable');
+      expect(state).toMatchObject({ savedHere: false, state: 'confirmed', localCopy: 'stale' });
       expect(ack).not.toHaveBeenCalled();
       expect(await hospitalDB.dailyRecords.get(record.date)).toEqual(record);
       expect(await hospitalDB.syncQueue.toArray()).toEqual(pending);
@@ -80,11 +77,9 @@ describe('authority readback preserves pending edits', () => {
 
   it('keeps genuine absence blocked without inventing confirmation', async () => {
     const record = DataFactory.createMockDailyRecord('2026-04-02');
-    const state = createRemoteWriteState();
-    const result = await persistLocalAndAttemptRemoteSync({
+    const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
       change: { date: record.date, record, changedPaths: [] },
-      remoteState: state,
       remote: {
         remoteWrite: async () => undefined,
         onRemoteFailure: vi.fn(),

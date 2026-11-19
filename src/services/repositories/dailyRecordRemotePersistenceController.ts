@@ -5,25 +5,25 @@ import {
 } from '@/services/storage/authoringSession';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import {
-  saveRecordStrict as saveToIndexedDB,
-  type LocalRecordWriteResult,
-} from '@/services/storage/indexeddb/indexedDbRecordService';
+import { saveRecordStrict as saveToIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { logger } from '@/services/utils/loggerService';
 import { resolveRemoteWriteRecovery } from '@/services/repositories/dailyRecordRemoteWriteController';
-import type { RemoteWriteRecoveryResult } from '@/services/repositories/contracts/dailyRecordWriteRecoveryResult';
 import {
-  applyRecoveryDecisionToState,
-  type RemoteWriteState,
+  sessionEndedWriteOutcome,
+  settleWriteResult,
+  startWriteResult,
+  type RemoteWriteStep,
 } from '@/services/repositories/dailyRecordWriteState';
 import type { SyncQueueEnqueueResult } from '@/services/storage/sync';
 import {
-  applyLocalPersistenceFailure,
+  confirmedByServer,
   isValidRemoteAuthorityRecord,
-  markLocalWriteSucceeded,
-  markRemoteWriteSucceeded,
+  localCopyStale,
+  notStored,
   recoverAlreadyAppliedRemoteWrite,
+  storedHere,
+  toWriteError,
 } from '@/services/repositories/dailyRecordRemotePersistenceState';
 import {
   attemptStaleVersionRebaseRetry,
@@ -39,27 +39,33 @@ export interface RemoteAuthorityWriteResult {
   };
 }
 
-const toRejectedOutboxPersistenceResult = (
-  result: SyncQueueEnqueueResult
-): LocalRecordWriteResult => ({
-  ok: false,
-  operation: 'save',
-  store: 'none',
-  dates: [],
-  error: new Error(
-    result.mode === 'rejected_backpressure'
-      ? 'La cola de sincronización alcanzó su límite operativo antes de confirmar la persistencia local.'
-      : result.mode === 'retained_for_owner'
-        ? 'La sesión cambió antes de guardar; el cambio quedó para su usuario original.'
-        : 'La cola de sincronización no pudo confirmar la persistencia local.'
-  ),
-  userSafeMessage:
-    result.mode === 'rejected_backpressure'
-      ? 'La cola de sincronización alcanzó su límite operativo. Revisa conectividad o libera tareas pendientes antes de reintentar.'
-      : result.mode === 'retained_for_owner'
-        ? 'La sesión cambió antes de guardar. El cambio quedó pendiente para la persona que lo hizo.'
-        : 'No fue posible guardar el registro local junto a su tarea de sincronización.',
-});
+/** The outbox refused the write before anything was stored with its task. */
+const rejectedByOutbox = (
+  current: Parameters<typeof notStored>[0],
+  { mode }: SyncQueueEnqueueResult
+) => {
+  if (mode === 'retained_for_owner') {
+    return notStored(
+      current,
+      new Error('La sesión cambió antes de guardar; el cambio quedó para su usuario original.'),
+      'La sesión cambió antes de guardar. El cambio quedó pendiente para la persona que lo hizo.',
+      'session_changed'
+    );
+  }
+  return mode === 'rejected_backpressure'
+    ? notStored(
+        current,
+        new Error(
+          'La cola de sincronización alcanzó su límite operativo antes de confirmar la persistencia local.'
+        ),
+        'La cola de sincronización alcanzó su límite operativo. Revisa conectividad o libera tareas pendientes antes de reintentar.'
+      )
+    : notStored(
+        current,
+        new Error('La cola de sincronización no pudo confirmar la persistencia local.'),
+        'No fue posible guardar el registro local junto a su tarea de sincronización.'
+      );
+};
 
 const runWithOptionalPreOutboxRenewal = async <T>(
   remoteStep: () => Promise<T>,
@@ -173,22 +179,14 @@ const resolveRemoteAuthorityRecord = async (
  * The read failure travels as `cause` of a code-less error, so the save keeps the same blocked,
  * non-retryable classification it had when this failure was reported as a missing version.
  */
-const unconfirmedRemoteAuthorityStateResult = (
-  date: string,
+const unconfirmedRemoteAuthorityError = (
   readback: Exclude<RemoteAuthorityReadback, { kind: 'confirmed' }>
-): LocalRecordWriteResult => ({
-  ok: false,
-  operation: 'save',
-  store: 'none',
-  dates: [date],
-  error:
-    readback.kind === 'unavailable'
-      ? new Error('No se pudo leer en el servidor la versión confirmada del registro.', {
-          cause: readback.error,
-        })
-      : new Error('La autoridad remota no devolvió la versión confirmada del registro.'),
-  userSafeMessage: 'La copia local no pudo confirmar la versión guardada en el servidor.',
-});
+): Error =>
+  readback.kind === 'unavailable'
+    ? new Error('No se pudo leer en el servidor la versión confirmada del registro.', {
+        cause: readback.error,
+      })
+    : new Error('La autoridad remota no devolvió la versión confirmada del registro.');
 
 /** What is written: the day, its record, the paths it changes and the version it expects. */
 interface DailyRecordPersistedChange {
@@ -252,7 +250,6 @@ interface RemotePersistencePolicy {
 
 interface PersistLocalAndAttemptRemoteSyncInput {
   change: DailyRecordPersistedChange;
-  remoteState: RemoteWriteState;
   authoringSession: AuthoringSession;
   remote: DailyRecordRemoteWriteAttempt;
   outbox?: PreOutboxLocalRetention;
@@ -262,9 +259,9 @@ interface PersistLocalAndAttemptRemoteSyncInput {
   policy?: RemotePersistencePolicy;
 }
 
+/** Stores the write here and on the server; the step's result says where it ended up. */
 export const persistLocalAndAttemptRemoteSync = async ({
   change: { date, record, changedPaths, expectedVersion },
-  remoteState,
   authoringSession,
   remote: { remoteWrite, readRemoteConfirmedRecord, onRemoteFailure },
   outbox: {
@@ -281,22 +278,10 @@ export const persistLocalAndAttemptRemoteSync = async ({
     allowConflictAutoMerge = true,
     remoteAuthorityFirst = false,
   } = {},
-}: PersistLocalAndAttemptRemoteSyncInput): Promise<'continue' | 'return'> => {
+}: PersistLocalAndAttemptRemoteSyncInput): Promise<RemoteWriteStep> => {
+  let result = startWriteResult(date);
   if (remoteAuthorityFirst) {
-    const rejectForeignWrite = (): 'return' => {
-      applyLocalPersistenceFailure(
-        changedPaths,
-        {
-          ok: false,
-          operation: 'save',
-          store: 'none',
-          dates: [],
-          error: new Error('La sesión cambió antes de enviar la escritura.'),
-          userSafeMessage: 'La sesión cambió. La operación no fue enviada ni guardada.',
-        },
-        remoteState
-      );
-      remoteState.reason = 'session_changed';
+    const rejectForeignWrite = (): RemoteWriteStep => {
       recordOperationalTelemetry({
         category: 'sync',
         operation: 'remote_first_write_session_changed',
@@ -304,7 +289,15 @@ export const persistLocalAndAttemptRemoteSync = async ({
         runtimeState: 'recoverable',
         issues: ['La sesión de autoría terminó antes del despacho remoto.'],
       });
-      return 'return';
+      return {
+        result: notStored(
+          result,
+          new Error('La sesión cambió antes de enviar la escritura.'),
+          'La sesión cambió. La operación no fue enviada ni guardada.',
+          'session_changed'
+        ),
+        next: 'return',
+      };
     };
     if (!isAuthoringSessionCurrent(authoringSession)) return rejectForeignWrite();
     if (!isFirestoreEnabled()) {
@@ -334,20 +327,19 @@ export const persistLocalAndAttemptRemoteSync = async ({
       }
     } catch (error) {
       if (!isAuthoringSessionCurrent(authoringSession)) return rejectForeignWrite();
-      const alreadyAppliedRecovery = await recoverAlreadyAppliedRemoteWrite({
+      const alreadyApplied = await recoverAlreadyAppliedRemoteWrite({
         error,
         date,
-        changedPaths,
-        state: remoteState,
+        current: result,
         resolveAlreadyAppliedRemoteRecord,
         adoptAlreadyAppliedRemoteRecord: adoptRemoteAuthorityRecord,
       });
-      if (alreadyAppliedRecovery !== 'not_applied') return alreadyAppliedRecovery;
+      if (alreadyApplied) return alreadyApplied;
 
       onRemoteFailure(error);
       throw error;
     }
-    markRemoteWriteSucceeded(remoteState);
+    result = confirmedByServer(result);
 
     const authority = await resolveRemoteAuthorityRecord(
       record,
@@ -356,51 +348,42 @@ export const persistLocalAndAttemptRemoteSync = async ({
       expectedVersion
     );
     if (authority.kind !== 'confirmed') {
-      applyLocalPersistenceFailure(
-        changedPaths,
-        unconfirmedRemoteAuthorityStateResult(date, authority),
-        remoteState,
-        { remoteCommitted: true }
-      );
-      return 'return';
+      return {
+        result: localCopyStale(result, unconfirmedRemoteAuthorityError(authority)),
+        next: 'return',
+      };
     }
-    const authoritativeRecord = authority.record;
-    remoteState.confirmedRecord = authoritativeRecord;
-
-    const persistedLocally = await persistConfirmedRemoteRecordLocally({
-      date,
-      changedPaths,
-      authoritativeRecord,
-      remoteState,
+    return persistConfirmedRemoteRecordLocally({
+      current: { ...result, confirmedRecord: authority.record },
+      authoritativeRecord: authority.record,
       adoptRemoteAuthorityRecord,
     });
-    if (!persistedLocally) return 'return';
-    return 'continue';
   }
 
   if (queueLocalBeforeRemote) {
     const outboxResult = await queueLocalBeforeRemote();
     if (!outboxResult.accepted) {
-      applyLocalPersistenceFailure(
-        changedPaths,
-        toRejectedOutboxPersistenceResult(outboxResult),
-        remoteState
-      );
-      if (outboxResult.mode === 'retained_for_owner') remoteState.reason = 'session_changed';
-      return 'return';
+      return { result: rejectedByOutbox(result, outboxResult), next: 'return' };
     }
-    markLocalWriteSucceeded(remoteState);
   } else {
     const localResult = await saveToIndexedDB(record);
     if (!localResult.ok) {
-      applyLocalPersistenceFailure(changedPaths, localResult, remoteState);
-      return 'return';
+      const userSafeMessage =
+        localResult.userSafeMessage || 'No fue posible guardar el registro local.';
+      return {
+        result: notStored(
+          result,
+          toWriteError(localResult.error, userSafeMessage),
+          userSafeMessage
+        ),
+        next: 'return',
+      };
     }
-    markLocalWriteSucceeded(remoteState);
   }
+  result = storedHere(result);
 
   if (!isFirestoreEnabled()) {
-    return 'continue';
+    return { result, next: 'continue' };
   }
 
   try {
@@ -419,7 +402,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
       }
       remoteResult = rebased.result;
     }
-    markRemoteWriteSucceeded(remoteState);
+    result = confirmedByServer(result);
     // Callable-backed writes return an authority payload. A Rayen structural import can also use
     // the direct Firestore adapter (which returns `void`), so that one flow explicitly requests a
     // readback before handing control to the clinical stage.
@@ -437,38 +420,29 @@ export const persistLocalAndAttemptRemoteSync = async ({
       );
       if (authority.kind !== 'confirmed') {
         await releaseLocalPreOutboxHold?.();
-        applyLocalPersistenceFailure(
-          changedPaths,
-          unconfirmedRemoteAuthorityStateResult(date, authority),
-          remoteState,
-          { remoteCommitted: true }
-        );
-        return 'return';
+        return {
+          result: localCopyStale(result, unconfirmedRemoteAuthorityError(authority)),
+          next: 'return',
+        };
       }
-      const authoritativeRecord = authority.record;
-      remoteState.confirmedRecord = authoritativeRecord;
-      const persistedLocally = await persistConfirmedRemoteRecordLocally({
-        date,
-        changedPaths,
-        authoritativeRecord,
-        remoteState,
+      result = { ...result, confirmedRecord: authority.record };
+      const persisted = await persistConfirmedRemoteRecordLocally({
+        current: result,
+        authoritativeRecord: authority.record,
         adoptRemoteAuthorityRecord,
         completeConfirmedLocalWrite,
         releaseLocalPreOutboxHold,
       });
-      if (!persistedLocally) return 'return';
-      if (completeConfirmedLocalWrite) return 'continue';
+      if (persisted.next === 'return' || completeConfirmedLocalWrite) return persisted;
+      result = persisted.result;
     }
     await ackLocalAfterRemote?.();
-    return 'continue';
+    return { result, next: 'continue' };
   } catch (err) {
     // The send stopped because its session ended: the edit stays in its author's queue, for that
     // person to review and resend. Nothing is recovered or shown in the next session.
     if (!isAuthoringSessionCurrent(authoringSession)) {
       await releaseLocalPreOutboxHold?.();
-      remoteState.queuedForRetry = true;
-      remoteState.consistencyState = 'queued_for_retry';
-      remoteState.reason = 'session_changed';
       recordOperationalTelemetry({
         category: 'sync',
         operation: 'direct_send_session_changed',
@@ -476,42 +450,33 @@ export const persistLocalAndAttemptRemoteSync = async ({
         runtimeState: 'recoverable',
         issues: ['La sesión de autoría terminó antes de que el envío directo llegara al servidor.'],
       });
-      return 'return';
+      return {
+        result: settleWriteResult(result, sessionEndedWriteOutcome(result)),
+        next: 'return',
+      };
     }
     onRemoteFailure(err);
     // The write stays held while its recovery runs. Released first, the queue could replay it
     // meanwhile, and a recovery that stores it again would leave a second task for the same edit.
-    let recovery: RemoteWriteRecoveryResult;
+    const current = result;
     try {
-      recovery = await runWithOptionalPreOutboxRenewal(
+      return await runWithOptionalPreOutboxRenewal(
         () =>
-          resolveRemoteWriteRecovery(
+          resolveRemoteWriteRecovery({
             date,
             record,
             changedPaths,
-            err,
+            error: err,
+            current,
             authoringSession,
             expectedVersion,
             allowConflictAutoMerge,
-            Boolean(queueLocalBeforeRemote)
-          ),
+            localWriteAlreadyQueued: Boolean(queueLocalBeforeRemote),
+          }),
         preOutboxHoldRenewal
       );
     } finally {
       await releaseLocalPreOutboxHold?.();
     }
-    if (recovery.status === 'throw') {
-      applyRecoveryDecisionToState(
-        remoteState,
-        recovery.decision,
-        recovery.error instanceof Error ? recovery.error : undefined
-      );
-      return 'return';
-    }
-
-    remoteState.queuedForRetry = recovery.queuedForRetry;
-    remoteState.autoMerged = recovery.autoMerged;
-    applyRecoveryDecisionToState(remoteState, recovery.decision);
-    return recovery.status === 'auto_merged' ? 'return' : 'continue';
   }
 };

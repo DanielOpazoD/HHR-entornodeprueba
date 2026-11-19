@@ -1,6 +1,5 @@
 import type { AuthoringSession } from '@/services/storage/authoringSession';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { ConflictAutoMergeRecoveryResult } from '@/services/repositories/contracts/dailyRecordWriteRecoveryResult';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { resolveDailyRecordConflictWithTrace } from '@/services/repositories/conflictResolutionMatrix';
 import { evaluateDailyRecordConflictPostMergeInvariants } from '@/services/repositories/dailyRecordConflictPostMergeInvariantChecker';
@@ -19,6 +18,11 @@ import {
   buildConflictId,
   saveConflictVersionSnapshots,
 } from '@/services/storage/firestore/dailyRecordConflictSnapshotService';
+
+/** `auto_merged`: the queue stored the merged day here together with its task. */
+interface ConflictAutoMergeRecoveryResult {
+  status: 'auto_merged' | 'not_possible';
+}
 
 const queueMergedRecoveryTask = async (
   record: DailyRecord,
