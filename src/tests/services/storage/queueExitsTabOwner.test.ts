@@ -30,7 +30,6 @@ vi.mock('@/services/storage/indexeddb/indexedDbCore', async original => ({
   ...(await original<object>()),
   ensureDbReady: port.ready,
 }));
-vi.mock('@/services/storage/sync', () => ({ recordSyncQueueOwnershipTelemetry: vi.fn() }));
 vi.mock('@/services/firebase-runtime/authRuntime', () => ({
   defaultAuthRuntime: {
     getCurrentUser: () => ({

@@ -1,4 +1,4 @@
-import { recordSyncQueueOwnershipTelemetry } from '@/services/storage/sync';
+import { getTabOwnerKey } from '@/services/storage/authoringSession';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import {
   getLogoutGeneration,
@@ -116,6 +116,26 @@ const clearSensitiveSessionState = async (ownerKey: string | null): Promise<void
       failures.map(result => result.reason),
       'Session cleanup failed'
     );
+};
+
+// The queue's ownership record, kept here: importing the queue would load Firestore at startup.
+const recordSyncQueueOwnershipTelemetry = (
+  operation: 'session_owner_changed' | 'session_owner_cleared',
+  context: Record<string, unknown>
+): void => {
+  recordOperationalTelemetry({
+    category: 'sync',
+    operation,
+    status: 'degraded',
+    runtimeState: 'recoverable',
+    issues: [
+      'La cola de sincronizacion actualizo su ownership local para mantener aislamiento entre sesiones.',
+    ],
+    context: {
+      ownerKey: getTabOwnerKey(),
+      ...context,
+    },
+  });
 };
 
 export const reconcileAuthorizedSessionOwner = (ownerKey: string): Promise<void> =>

@@ -134,4 +134,30 @@ if (cycles.length > 0) {
   process.exit(1);
 }
 
-console.log(`[chunk-graph] ✅ No vendor→feature imports. ${vendorGraph.size} vendor chunks acyclic.`);
+/* ── The login screen paints without the authenticated shell or Firestore ── */
+
+const LOGIN_FORBIDDEN_CHUNKS = ['app-authenticated-shell-', 'vendor-firebase-firestore-'];
+const entryHtml = fs.readFileSync(path.join(process.cwd(), 'dist', 'index.html'), 'utf8');
+const startupChunks = new Set(
+  [...entryHtml.matchAll(/<script type="module"[^>]*src="\/assets\/([^"]+)"/g)].map(m => m[1])
+);
+for (const file of startupChunks) {
+  const content = fs.readFileSync(path.join(assetsDir, file), 'utf8');
+  for (const m of content.matchAll(/(?:from|import)"\.\/([^"]+)"/g)) startupChunks.add(m[1]);
+}
+const forbiddenStartup = [...startupChunks].filter(file =>
+  LOGIN_FORBIDDEN_CHUNKS.some(prefix => file.startsWith(prefix))
+);
+if (forbiddenStartup.length > 0) {
+  console.error(
+    `[chunk-graph] ❌ The entry statically loads ${forbiddenStartup.join(', ')} before the login screen paints.\n` +
+      '  Import the module that pulls it with import() where the action happens, or keep the\n' +
+      '  startup claim in scripts/config/chunkingPolicy.ts first so manual chunks cannot absorb it.\n'
+  );
+  process.exit(1);
+}
+
+console.log(
+  `[chunk-graph] ✅ No vendor→feature imports. ${vendorGraph.size} vendor chunks acyclic. ` +
+    `Startup loads ${startupChunks.size} chunks, without the authenticated shell or Firestore.`
+);

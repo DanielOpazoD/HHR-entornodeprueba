@@ -82,12 +82,35 @@ describe('chunkingPolicy', () => {
     expect(chunkForModule('/repo/src/components/layout/app-content/useAppContentRuntime.ts')).toBe(
       'app-authenticated-shell'
     );
-    expect(
-      chunkForModule('/repo/src/components/layout/date-strip/DateStripButtonControls.tsx')
-    ).toBe('date-strip-controls');
-    expect(
-      chunkForModule('/repo/src/components/layout/date-strip/DateStripPeriodControl.tsx')
-    ).toBe('date-strip-controls');
+  });
+
+  it('claims what the entry imports statically before a manual chunk can absorb it', () => {
+    const importedIds: Record<string, string[]> = {
+      '/repo/index.html': ['/repo/src/index.tsx'],
+      '/repo/src/index.tsx': [
+        '/repo/src/shared/runtime/perfAudit.ts',
+        '/repo/node_modules/react/index.js',
+      ],
+      '/repo/src/shared/runtime/perfAudit.ts': [],
+      '/repo/src/app-shell/runtime/AuthenticatedAppShell.tsx': [
+        '/repo/src/shared/runtime/perfAudit.ts',
+        '/repo/src/services/storage/sync/index.ts',
+      ],
+    };
+    const graph = {
+      getModuleIds: () => Object.keys(importedIds).values(),
+      getModuleInfo: (id: string) =>
+        ({ isEntry: id === '/repo/index.html', importedIds: importedIds[id] ?? [] }) as never,
+    };
+
+    // The entry module stays in the entry chunk; Vite drops an entry chunk left with only CSS.
+    expect(chunkForModule('/repo/src/index.tsx', graph)).toBeUndefined();
+    expect(chunkForModule('/repo/src/shared/runtime/perfAudit.ts', graph)).toBe('app-bootstrap');
+    expect(chunkForModule('/repo/node_modules/react/index.js', graph)).toBe('vendor-react');
+    expect(chunkForModule('/repo/src/app-shell/runtime/AuthenticatedAppShell.tsx', graph)).toBe(
+      'app-authenticated-shell'
+    );
+    expect(chunkForModule('/repo/src/services/storage/sync/index.ts', graph)).toBeUndefined();
   });
 
   it('keeps non-critical global overlays outside the authenticated shell manual chunk', () => {

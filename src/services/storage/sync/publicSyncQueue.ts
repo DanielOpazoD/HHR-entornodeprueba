@@ -113,25 +113,6 @@ export const {
   triggerProcessing: syncQueueEngine.triggerProcessing,
 });
 
-export const recordSyncQueueOwnershipTelemetry = (
-  operation: 'session_owner_changed' | 'session_owner_cleared',
-  context: Record<string, unknown> = {}
-): void => {
-  recordOperationalTelemetry({
-    category: 'sync',
-    operation,
-    status: 'degraded',
-    runtimeState: 'recoverable',
-    issues: [
-      'La cola de sincronizacion actualizo su ownership local para mantener aislamiento entre sesiones.',
-    ],
-    context: {
-      ownerKey: getSyncOwnerKey(),
-      ...context,
-    },
-  });
-};
-
 export const isConflictSyncError = (error: unknown): boolean =>
   classifySyncError(error).category === 'conflict';
 export const isRetryableSyncError = (error: unknown): boolean => classifySyncError(error).retryable;

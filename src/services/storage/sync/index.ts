@@ -23,7 +23,6 @@ export {
   queueSyncTask,
   releaseDailyRecordPreOutboxHold,
   renewDailyRecordPreOutboxHold,
-  recordSyncQueueOwnershipTelemetry,
 } from '@/services/storage/sync/publicSyncQueue';
 
 export type {

@@ -1,3 +1,5 @@
+import type { Rollup } from 'vite';
+
 // Surviving modules of the former shared clinical-document chunk, measured from
 // Rollup's generateBundle metadata before removing the template manager. Keep this
 // boundary explicit: the feature also exports contracts used by census startup.
@@ -52,8 +54,48 @@ const clinicalDocumentsWorkspaceModules = new Set([
   '/src/shared/clinical-documents/clinicalAttachmentRuntimeContracts.ts',
 ]);
 
-export const chunkForModule = (moduleId: string): string | undefined => {
+// Rollup also moves into a manual chunk every static dependency no other rule names. The
+// authenticated shell chunk thus took the utilities the entry shares with it, and the login screen
+// downloaded the shell and Firestore before its first paint. What the entry module imports
+// statically is claimed first, so manual chunks only take what startup does not need. The entry
+// module itself stays in the entry chunk: an entry chunk left with only CSS is dropped by Vite.
+const startupModulesByBuild = new WeakMap<Rollup.GetModuleInfo, ReadonlySet<string>>();
+
+const collectStartupModules = ({
+  getModuleIds,
+  getModuleInfo,
+}: Rollup.ManualChunkMeta): ReadonlySet<string> => {
+  const known = startupModulesByBuild.get(getModuleInfo);
+  if (known) return known;
+  const importsOf = (id: string) => getModuleInfo(id)?.importedIds ?? [];
+  const entryModules = new Set(
+    [...getModuleIds()].filter(id => getModuleInfo(id)?.isEntry).flatMap(importsOf)
+  );
+  const startup = new Set<string>();
+  const pending = [...entryModules];
+  for (const id of pending) {
+    for (const imported of importsOf(id)) {
+      if (!entryModules.has(imported) && !startup.has(imported)) {
+        startup.add(imported);
+        pending.push(imported);
+      }
+    }
+  }
+  startupModulesByBuild.set(getModuleInfo, startup);
+  return startup;
+};
+
+const isStartupAppModule = (moduleId: string, graph: Rollup.ManualChunkMeta): boolean =>
+  /\/src\/[^?]+\.tsx?(\?|$)/.test(moduleId) &&
+  !moduleId.includes('/node_modules/') &&
+  collectStartupModules(graph).has(moduleId);
+
+export const chunkForModule = (
+  moduleId: string,
+  graph?: Rollup.ManualChunkMeta
+): string | undefined => {
   const normalizedId = moduleId.replace(/\\/g, '/');
+  if (graph && isStartupAppModule(moduleId, graph)) return 'app-bootstrap';
   if (
     clinicalDocumentsWorkspaceModules.has(normalizedId.slice(normalizedId.lastIndexOf('/src/')))
   ) {
@@ -69,16 +111,6 @@ export const chunkForModule = (moduleId: string): string | undefined => {
   if (normalizedId.endsWith('/src/utils/htmlEscape.ts')) return 'htmlEscape';
   const inNodeModules = normalizedId.includes('/node_modules/');
   const has = (fragment: string): boolean => normalizedId.includes(fragment);
-
-  // These visual controls are shared by bootstrap fallbacks and lazy menu owners.
-  // Keep their small reusable module separate from the authenticated data runtime.
-  if (
-    has('/src/components/layout/date-strip/DateStripButtonControls.tsx') ||
-    has('/src/components/layout/date-strip/DateStripPeriodControl.tsx') ||
-    has('/src/components/layout/date-strip/actions/dateStripActionStateController.ts')
-  ) {
-    return 'date-strip-controls';
-  }
 
   // Small runtime loaders shared by PDF, image and CUDYR tools. Left to Rollup they
   // landed inside the online-only Rayen reconstruction chunk, so prescriptions, the

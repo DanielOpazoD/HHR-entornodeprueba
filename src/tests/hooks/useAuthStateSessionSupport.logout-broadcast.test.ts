@@ -12,9 +12,6 @@ vi.mock('@/application/ports/auditPort', () => ({
   defaultAuditPort: { logUserLogout: vi.fn().mockResolvedValue(undefined) },
 }));
 vi.mock('@/config/queryClient', () => ({ clearQueryCache: vi.fn() }));
-vi.mock('@/services/storage/sync', () => ({
-  recordSyncQueueOwnershipTelemetry: vi.fn(),
-}));
 vi.mock('@/services/storage/sessionSyncQueuePreservation', () => ({
   clearSessionDailyRecords: vi.fn().mockResolvedValue(undefined),
 }));

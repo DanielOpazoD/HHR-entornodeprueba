@@ -22,7 +22,6 @@ vi.mock('@/services/storage/sync/publicSyncQueue', () => ({ processSyncQueue: po
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
 }));
-vi.mock('@/services/storage/sync', () => ({ recordSyncQueueOwnershipTelemetry: vi.fn() }));
 vi.mock('firebase/firestore', async original => ({
   ...(await original<object>()),
   getDocFromServer: async () => ({ exists: () => false }),

@@ -98,8 +98,8 @@ describe('bundle budget config', () => {
     expect(
       config.startupChunkBudgets.find(budget => budget.label === 'app-authenticated-shell')
     ).toMatchObject({
-      // Owner-approved measured startup headroom (2026-11-11; BUNDLE_RISK_LEDGER.md).
-      maxBytes: 665600,
+      // Measured shell plus ~5% once startup modules left it (2026-11-19; BUNDLE_RISK_LEDGER.md).
+      maxBytes: 349000,
       severity: 'error',
     });
   });
