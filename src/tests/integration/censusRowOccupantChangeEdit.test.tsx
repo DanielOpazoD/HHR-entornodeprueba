@@ -128,53 +128,53 @@ const Census = () => {
   );
 };
 
-describe('a census cell whose bed changes occupant before the edit is sent (ID-02, ID-03)', () => {
-  it('never writes what was typed for the previous newborn onto the newborn now in the crib', async () => {
-    setFirestoreEnabled(true);
-    resetDailyRecordFreshnessGateForTests();
-    let stored = DataFactory.createMockDailyRecord(date, {
-      beds: {
-        [bed.id]: DataFactory.createMockPatient(bed.id, {
-          patientName: 'MADRE SINTETICA',
-          rut: '11.111.111-1',
-          clinicalEpisodeId: 'episode-mother',
-          admissionDate: date,
-          clinicalCrib: provisionalNewborn('episode-newborn-a', 'RN DE MADRE SINTETICA'),
-        }),
-      },
-    });
-    const patches: DailyRecordPatch[] = [];
-    let pushServerSnapshot: ((result: SyncDailyRecordResult, pending: boolean) => void) | null =
-      null;
-    ports.getForDate.mockImplementation(async () => stored);
-    ports.getAuthoritativeForDate.mockImplementation(async () => stored);
-    ports.getForDateWithMeta.mockImplementation(async () => readResult(stored));
-    ports.subscribeDetailed.mockImplementation((_date, callback) => {
-      pushServerSnapshot = callback;
-      return () => {};
-    });
-    ports.updatePartialDetailed.mockImplementation(async (_date, patch: DailyRecordPatch) => {
-      patches.push(patch);
-      stored = applyPatches(stored, patch);
-      return { date, savedHere: true, state: 'confirmed', localCopy: 'current' };
-    });
-    markDailyRecordRemoteConfirmed(date, {
-      source: 'query',
-      confirmedRecord: stored,
-      remoteLastUpdated: stored.lastUpdated,
-    });
+/**
+ * Renders the census with a provisional newborn in bed R1's crib, then lets the test replace that
+ * newborn by a server answer, as a synchronization or another computer would.
+ */
+const renderCensusWithNewborn = async () => {
+  setFirestoreEnabled(true);
+  resetDailyRecordFreshnessGateForTests();
+  let stored = DataFactory.createMockDailyRecord(date, {
+    beds: {
+      [bed.id]: DataFactory.createMockPatient(bed.id, {
+        patientName: 'MADRE SINTETICA',
+        rut: '11.111.111-1',
+        clinicalEpisodeId: 'episode-mother',
+        admissionDate: date,
+        clinicalCrib: provisionalNewborn('episode-newborn-a', 'RN DE MADRE SINTETICA'),
+      }),
+    },
+  });
+  const patches: DailyRecordPatch[] = [];
+  let pushServerSnapshot: ((result: SyncDailyRecordResult, pending: boolean) => void) | null = null;
+  ports.getForDate.mockImplementation(async () => stored);
+  ports.getAuthoritativeForDate.mockImplementation(async () => stored);
+  ports.getForDateWithMeta.mockImplementation(async () => readResult(stored));
+  ports.subscribeDetailed.mockImplementation((_date, callback) => {
+    pushServerSnapshot = callback;
+    return () => {};
+  });
+  ports.updatePartialDetailed.mockImplementation(async (_date, patch: DailyRecordPatch) => {
+    patches.push(patch);
+    stored = applyPatches(stored, patch);
+    return { date, savedHere: true, state: 'confirmed', localCopy: 'current' };
+  });
+  markDailyRecordRemoteConfirmed(date, {
+    source: 'query',
+    confirmedRecord: stored,
+    remoteLastUpdated: stored.lastUpdated,
+  });
 
-    render(
-      <DefaultRepositoryProvider>
-        <Census />
-      </DefaultRepositoryProvider>
-    );
-    const newbornName = await screen.findByPlaceholderText('Nombre RN / Niño');
-    await waitFor(() => expect(pushServerSnapshot).not.toBeNull());
+  render(
+    <DefaultRepositoryProvider>
+      <Census />
+    </DefaultRepositoryProvider>
+  );
+  const newbornName = await screen.findByPlaceholderText('Nombre RN / Niño');
+  await waitFor(() => expect(pushServerSnapshot).not.toBeNull());
 
-    // The nurse types the newborn's name; the cell sends it after its pause (350 ms).
-    fireEvent.change(newbornName, { target: { value: TYPED_NAME } });
-    // Before that pause ends, the server answers that the crib now holds another newborn.
+  const replaceNewborn = async () => {
     stored = {
       ...stored,
       beds: {
@@ -189,11 +189,11 @@ describe('a census cell whose bed changes occupant before the edit is sent (ID-0
     await act(async () => {
       pushServerSnapshot!(serverSnapshot(stored), false);
     });
-    await waitFor(() =>
-      expect(screen.getByPlaceholderText('Nombre RN / Niño')).toHaveValue('RN OTRO EPISODIO')
-    );
-
-    // Well past the pause: the edit typed for the first newborn reaches no one.
+    // The row now shows the new newborn (its name label; a focused input keeps its own text).
+    await screen.findByText('RN OTRO EPISODIO');
+  };
+  const expectTypedNameReachedNoOne = async () => {
+    // Well past the cell's pause (350 ms).
     await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 800));
     });
@@ -201,5 +201,33 @@ describe('a census cell whose bed changes occupant before the edit is sent (ID-0
     expect(stored.beds[bed.id].clinicalCrib?.patientName).toBe('RN OTRO EPISODIO');
     expect(stored.beds[bed.id].clinicalCrib?.clinicalEpisodeId).toBe('episode-newborn-b');
     expect(screen.getByPlaceholderText('Nombre RN / Niño')).toHaveValue('RN OTRO EPISODIO');
+  };
+  return { newbornName, replaceNewborn, expectTypedNameReachedNoOne };
+};
+
+describe('a census cell whose bed changes occupant before the edit is sent (ID-03, ID-05)', () => {
+  it('never writes what was typed for the previous newborn onto the newborn now in the crib', async () => {
+    const { newbornName, replaceNewborn, expectTypedNameReachedNoOne } =
+      await renderCensusWithNewborn();
+
+    // The nurse types the newborn's name; the cell sends it after its pause (350 ms).
+    fireEvent.change(newbornName, { target: { value: TYPED_NAME } });
+    // Before that pause ends, the server answers that the crib now holds another newborn.
+    await replaceNewborn();
+
+    await expectTypedNameReachedNoOne();
+  });
+
+  it('does not send the previous newborn name when the nurse leaves the cell after the change', async () => {
+    const { newbornName, replaceNewborn, expectTypedNameReachedNoOne } =
+      await renderCensusWithNewborn();
+
+    // Still in the cell, the nurse has typed; the crib changes newborn; then the nurse leaves it.
+    fireEvent.focus(newbornName);
+    fireEvent.change(newbornName, { target: { value: TYPED_NAME } });
+    await replaceNewborn();
+    fireEvent.blur(screen.getByPlaceholderText('Nombre RN / Niño'));
+
+    await expectTypedNameReachedNoOne();
   });
 });
