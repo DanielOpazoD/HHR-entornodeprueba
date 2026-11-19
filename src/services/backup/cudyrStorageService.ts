@@ -15,7 +15,6 @@ import type { BackupStorageRuntime } from '@/services/firebase-runtime/backupRun
 import {
   createListYears,
   createListMonths,
-  createListFilesInMonth,
   createListFilesInMonthWithReport,
 } from '@/services/backup/baseStorageService';
 import type { BaseStoredFile } from '@/types/backupArtifacts';
@@ -296,30 +295,6 @@ export const listCudyrMonths = createListMonths(STORAGE_ROOT);
  * Note: Display name is normalized to new format (DD-MM-YYYY - CUDYR.xlsx)
  * even for older files stored with the old naming convention.
  */
-export const listCudyrFilesInMonth = createListFilesInMonth<
-  StoredCudyrFile,
-  { date: string; year: string; month: string }
->({
-  storageRoot: STORAGE_ROOT,
-  parseFilePath,
-  mapToFile: (item, metadata, downloadUrl, parsed) => {
-    // Generate normalized display name from parsed date (DD-MM-YYYY - CUDYR.xlsx)
-    const [year, month, day] = parsed.date.split('-');
-    const displayName = `${day}-${month}-${year} - CUDYR.xlsx`;
-
-    return {
-      name: displayName, // Always use normalized format for display
-      fullPath: item.fullPath,
-      downloadUrl,
-      date: parsed.date,
-      year: parsed.year as string,
-      month: parsed.month as string,
-      createdAt: metadata.customMetadata?.uploadedAt || metadata.timeCreated,
-      size: metadata.size,
-    };
-  },
-});
-
 export const listCudyrFilesInMonthWithReport = createListFilesInMonthWithReport<
   StoredCudyrFile,
   { date: string; year: string; month: string }

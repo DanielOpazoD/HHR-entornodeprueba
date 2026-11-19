@@ -12,7 +12,6 @@ import {
 } from 'firebase/storage';
 import {
   createPdfStorageService,
-  listFilesInMonth,
   listFilesInMonthWithReport,
 } from '@/services/backup/pdfStorageService';
 import type { BackupStorageRuntime } from '@/services/firebase-runtime/backupRuntime';
@@ -93,7 +92,9 @@ describe('pdfStorageService file contracts', () => {
     const item = storedReference(name);
     vi.mocked(listAll).mockResolvedValue({ items: [item], prefixes: [] });
 
-    await expect(listFilesInMonth('2026', '01', runtime)).resolves.toEqual([
+    const result = await listFilesInMonthWithReport('2026', '01', runtime);
+
+    expect(result.files).toEqual([
       {
         name,
         fullPath: item.fullPath,
