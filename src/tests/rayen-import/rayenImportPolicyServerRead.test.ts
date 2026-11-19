@@ -2,19 +2,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Timestamp, type Firestore } from 'firebase/firestore';
 
 const session = vi.hoisted(() => ({
+  owner: 'user:synthetic-a',
+  generation: 'generation-a',
   headers: vi.fn(async () => ({ Authorization: 'Bearer synthetic-token' })),
 }));
 
 vi.mock('@/services/auth/authRequestHeaders', () => ({
   resolveCurrentUserAuthHeaders: session.headers,
 }));
+vi.mock('@/services/storage/sessionOwnerKey', () => ({
+  getStoredSessionOwnerKey: () => session.owner,
+}));
+vi.mock('@/services/storage/sessionStorageTransition', () => ({
+  getSessionGeneration: () => session.generation,
+}));
 
 import readRayenImportPolicyFromServer from '@/features/rayen-import/settings/policyServerRead';
-import {
-  admitSyntheticSession,
-  clearSyntheticSession,
-  replaceStoredSessionOwner,
-} from '@/tests/utils/syntheticSession';
 
 const db = { app: { options: { projectId: 'demo-hhr' } } } as unknown as Firestore;
 const respond = (status: number, body: unknown = {}) =>
@@ -23,12 +26,10 @@ const respond = (status: number, body: unknown = {}) =>
 describe('reading the sync policy straight from the Firestore server', () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
-    admitSyntheticSession('user:synthetic-a', 'generation-a');
+    session.owner = 'user:synthetic-a';
+    session.generation = 'generation-a';
   });
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    clearSyntheticSession();
-  });
+  afterEach(() => vi.unstubAllGlobals());
 
   it('asks the server with the person’s session, bypassing every cache', async () => {
     const fetch = respond(200, {
@@ -74,7 +75,8 @@ describe('reading the sync policy straight from the Firestore server', () => {
   it('discards an answer obtained with the previous person’s session', async () => {
     session.headers.mockImplementationOnce(async () => {
       // The person changes while the token is being obtained.
-      admitSyntheticSession('user:synthetic-b', 'generation-b');
+      session.owner = 'user:synthetic-b';
+      session.generation = 'generation-b';
       return { Authorization: 'Bearer synthetic-a' };
     });
     vi.stubGlobal('fetch', respond(200, { fields: { mode: { stringValue: 'preview' } } }));
@@ -89,7 +91,7 @@ describe('reading the sync policy straight from the Firestore server', () => {
         const response = new Response(JSON.stringify({ fields: {} }), { status: 200 });
         const json = response.json.bind(response);
         response.json = async () => {
-          replaceStoredSessionOwner('user:synthetic-b');
+          session.owner = 'user:synthetic-b';
           return json();
         };
         return response;

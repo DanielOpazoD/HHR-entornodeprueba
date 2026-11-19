@@ -11,7 +11,8 @@ import {
 } from '@/services/storage/sync/pendingDayComposition';
 import { ensureDbReady, hospitalDB as db, isDatabaseInFallbackMode } from './indexedDbCore';
 import { dispatchDailyRecordStoreChanged } from './indexedDbRecordEvents';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
 import { publishAdmissionEffects } from './remoteAdmissionEffects';
 
 export type LocalRecordWriteStore = 'indexeddb' | 'fallback' | 'e2e' | 'none';
@@ -298,7 +299,8 @@ export const admitLocalRecords = async (
     ...new Map(candidates.map(candidate => [candidate.record.date, candidate])).values(),
   ];
   if (!unique.length) return [];
-  const session = guardAuthoringSession();
+  const owner = getStoredSessionOwnerKey();
+  const epoch = getSessionEpoch();
   const changed: string[] = [];
   let occurrences = 0;
   try {
@@ -324,7 +326,11 @@ export const admitLocalRecords = async (
         for (const candidate of unique) {
           const { record, expectedBase, remoteRecord, isCurrent, serverConfirmed } = candidate;
           const stored = (await db.dailyRecords.get(record.date)) ?? null;
-          if (!session.isCurrent() || (isCurrent && !isCurrent())) {
+          if (
+            owner !== getStoredSessionOwnerKey() ||
+            epoch !== getSessionEpoch() ||
+            (isCurrent && !isCurrent())
+          ) {
             decisions.push({ date: record.date, status: 'superseded', record: stored });
             continue;
           }
@@ -381,7 +387,11 @@ export const admitLocalRecords = async (
             });
           }
         }
-        if (!session.isCurrent() || unique.some(item => item.isCurrent && !item.isCurrent())) {
+        if (
+          owner !== getStoredSessionOwnerKey() ||
+          epoch !== getSessionEpoch() ||
+          unique.some(item => item.isCurrent && !item.isCurrent())
+        ) {
           throw new Error('La sesión o la observación cambió durante la admisión.');
         }
         if (writable.length) await db.dailyRecords.bulkPut(writable);

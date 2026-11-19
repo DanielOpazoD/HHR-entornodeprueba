@@ -1,30 +1,29 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Firestore } from 'firebase/firestore';
+
+const session = vi.hoisted(() => ({ owner: 'user:synthetic-a' }));
 
 vi.mock('@/services/auth/authRequestHeaders', () => ({
   resolveCurrentUserAuthHeaders: async () => ({ Authorization: 'Bearer synthetic-token' }),
+}));
+vi.mock('@/services/storage/sessionOwnerKey', () => ({
+  getStoredSessionOwnerKey: () => session.owner,
 }));
 
 import {
   readFirestoreDocumentFromServer,
   SERVER_DOCUMENT_READ_TIMEOUT_MS,
 } from '@/services/storage/firestore/firestoreServerDocumentRead';
-import {
-  admitSyntheticSession,
-  clearSyntheticSession,
-  replaceStoredSessionOwner,
-} from '@/tests/utils/syntheticSession';
 
 const db = { app: { options: { projectId: 'demo-hhr' } } } as unknown as Firestore;
 const path = 'hospitals/hanga_roa/dailyRecords/2026-11-06';
 
 describe('reading one Firestore document straight from the server', () => {
-  beforeEach(() => admitSyntheticSession('user:synthetic-a', 'generation-a'));
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
-    clearSyntheticSession();
+    session.owner = 'user:synthetic-a';
   });
 
   it('asks only for the listed fields and reports an existing document without them', async () => {
@@ -74,7 +73,7 @@ describe('reading one Firestore document straight from the server', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => {
-        replaceStoredSessionOwner('user:synthetic-b');
+        session.owner = 'user:synthetic-b';
         throw new TypeError('Failed to fetch');
       })
     );
