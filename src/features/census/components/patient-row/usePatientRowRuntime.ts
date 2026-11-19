@@ -6,7 +6,7 @@ import type { PatientRowAction } from '@/features/census/types/patientRowActionT
 import { derivePatientRowState } from '../../controllers/patientRowStateController';
 import { usePatientRowDependencies } from './usePatientRowDependencies';
 import type { PatientRowRuntime } from './patientRowRuntimeContracts';
-import { usePatientRowEditingRuntime } from './usePatientRowEditingRuntime';
+import { usePatientRowHandlersModel } from './usePatientRowHandlersModel';
 import { usePatientRowInteractionRuntime } from './usePatientRowInteractionRuntime';
 import { buildPatientRowRuntime } from '../../controllers/patientRowRuntimeController';
 import { buildPatientRowRuntimeHookParams } from '../../controllers/patientRowRuntimeModelController';
@@ -58,7 +58,7 @@ export const usePatientRowRuntime = ({
       alert,
     },
   });
-  const editingRuntime = usePatientRowEditingRuntime(runtimeHookParams.editingRuntimeParams);
+  const editingRuntime = usePatientRowHandlersModel(runtimeHookParams.editingRuntimeParams);
   const interactionRuntime = usePatientRowInteractionRuntime(
     runtimeHookParams.interactionRuntimeParams
   );
