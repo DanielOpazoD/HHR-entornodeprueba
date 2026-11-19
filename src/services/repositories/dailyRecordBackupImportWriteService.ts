@@ -3,9 +3,8 @@ import {
   runExclusiveDailyRecordWrite,
   type DailyRecordWriteLease,
 } from './dailyRecordWriteCoordinator';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { saveDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { assertDailyRecordRepositoryWriteAccepted } from '@/services/repositories/dailyRecordRepositoryWriteOutcome';
@@ -13,8 +12,9 @@ import { assertDailyRecordRepositoryWriteAccepted } from '@/services/repositorie
 /** D3 checks every date the file names (even if D10 skips it) and every date it will write. */
 export const saveBackupImport = async (records: DailyRecord[], sourceDates: string[]) => {
   await ensureDbReady();
-  const generation = getSessionGeneration();
-  const owner = getStoredSessionOwnerKey();
+  const { session, check } = guardAuthoringSession({
+    message: 'La sesión cambió durante la importación.',
+  });
   const dates = [...new Set([...sourceDates, ...records.map(record => record.date)])].sort();
   const leases = new Map<string, DailyRecordWriteLease>();
   const lock = async (index: number): Promise<string[]> => {
@@ -45,8 +45,7 @@ export const saveBackupImport = async (records: DailyRecord[], sourceDates: stri
         );
         if (pendingDates.length) return pendingDates;
         for (const record of records) {
-          if (generation !== getSessionGeneration() || owner !== getStoredSessionOwnerKey())
-            throw new Error('La sesión cambió durante la importación.');
+          check();
           if (
             isClinicalDerivedLayoutRegression(
               (await hospitalDB.dailyRecords.get(record.date)) ?? null,
@@ -55,7 +54,7 @@ export const saveBackupImport = async (records: DailyRecord[], sourceDates: stri
           )
             throw new Error('El día local dividido cambió durante la importación.');
           const saved = await saveDetailed(record, record.lastUpdated, {
-            authoringSession: { ownerKey: owner, generation },
+            authoringSession: session,
             writeOrigin: 'backup_restore',
             deferRemoteSync: true,
             dailyRecordWriteLease: leases.get(record.date),
@@ -63,8 +62,7 @@ export const saveBackupImport = async (records: DailyRecord[], sourceDates: stri
           assertDailyRecordRepositoryWriteAccepted(saved);
           if (!saved.savedHere) throw new Error('No fue posible guardar el respaldo local.');
         }
-        if (generation !== getSessionGeneration() || owner !== getStoredSessionOwnerKey())
-          throw new Error('La sesión cambió durante la importación.');
+        check();
         return [];
       }
     );

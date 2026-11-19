@@ -1,5 +1,4 @@
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { HospitalizationEvent } from '@/types/domain/patientMaster';
 import { PatientMasterRepository } from '@/services/repositories/PatientMasterRepository';
@@ -155,10 +154,7 @@ const syncTransfersToMaster = async (
  *  4. Traslado events from transfers
  */
 export const syncPatientsToMasterInBackground = (record: DailyRecord): void => {
-  const owner = getStoredSessionOwnerKey();
-  const epoch = getSessionEpoch();
-  const isCurrentSession = () =>
-    owner === getStoredSessionOwnerKey() && epoch === getSessionEpoch();
+  const { isCurrent: isCurrentSession } = guardAuthoringSession();
 
   setTimeout(async () => {
     try {

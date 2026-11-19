@@ -1,5 +1,5 @@
 import type { UserRole } from '@/types/authRoleTypes';
-import { getSessionEpoch, getSessionOwner } from '../sessionStorageTransition';
+import { getSessionOwner, sessionEpochGuard } from '../sessionStorageTransition';
 import { ErrorLog } from '@/services/logging/errorLogTypes';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 
@@ -24,7 +24,8 @@ export const saveErrorLog = async (log: ErrorLog): Promise<void> => {
 
 export const getErrorLogs = async (limit = 50, role?: UserRole): Promise<ErrorLog[]> => {
   const owner = getSessionOwner();
-  const epoch = getSessionEpoch();
+  // Shown only in this tab; the admitted owner never changes without the epoch.
+  const isCurrent = sessionEpochGuard();
   try {
     await ensureDbReady();
     if (!owner) return [];
@@ -38,7 +39,7 @@ export const getErrorLogs = async (limit = 50, role?: UserRole): Promise<ErrorLo
       )
       .limit(limit)
       .toArray();
-    if (epoch !== getSessionEpoch() || owner !== getSessionOwner()) {
+    if (!isCurrent()) {
       throw new Error('La sesión cambió durante la lectura de errores locales.');
     }
     return logs;

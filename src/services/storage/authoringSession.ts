@@ -1,4 +1,9 @@
-import { getSessionEpoch, getSessionGeneration, getSessionOwner } from './sessionStorageTransition';
+import {
+  getSessionEpoch,
+  getSessionGeneration,
+  getSessionOwner,
+  sessionEpochGuard,
+} from './sessionStorageTransition';
 import { getStoredSessionOwnerKey, isSessionCleanupPending } from './sessionOwnerKey';
 
 /** The person and session that began a write: whose intent it carries, whatever happens later. */
@@ -55,7 +60,7 @@ export const isAuthoringSessionCurrent = (session: AuthoringSession): boolean =>
 export interface AuthoringSessionGuard {
   /** Captured once, before the first wait; a write carries it and a cache is keyed by it. */
   readonly session: AuthoringSession;
-  /** False once the signal aborts or the session changes. */
+  /** False once the signal aborts or the session changes, even if it later changes back. */
   isCurrent: () => boolean;
   /** Throws the signal's abort, or `message` when the session changed. */
   check: () => void;
@@ -66,18 +71,22 @@ export interface AuthoringSessionGuard {
  * signed in: capture here, then call check() (or isCurrent()) after every wait. Use it whenever the
  * result is written or left stored (IndexedDB, queue, server, browser storage), and for a late read
  * of shared data. A result that is only shown in this tab can use sessionEpochGuard() instead.
+ * The epoch is part of it: a logout and a sign-in back under the same person and generation is
+ * still a change, even though the captured session looks current again.
  */
 export const guardAuthoringSession = ({
   signal,
   message = 'La sesión cambió.',
 }: { signal?: AbortSignal; message?: string } = {}): AuthoringSessionGuard => {
   const session = captureAuthoringSession();
+  const sameEpoch = sessionEpochGuard();
+  const current = () => sameEpoch() && isAuthoringSessionCurrent(session);
   return {
     session,
-    isCurrent: () => !signal?.aborted && isAuthoringSessionCurrent(session),
+    isCurrent: () => !signal?.aborted && current(),
     check: () => {
       signal?.throwIfAborted();
-      if (!isAuthoringSessionCurrent(session)) throw new Error(message);
+      if (!current()) throw new Error(message);
     },
   };
 };

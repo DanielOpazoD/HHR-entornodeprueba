@@ -1,5 +1,4 @@
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import type { DailyRecordAuthorityMode } from '@/services/storage/firestore/dailyRecordAuthorityMode';
@@ -118,11 +117,9 @@ const invokeAuthority = async (
   payload: DailyRecordAuthorityCallablePayload | DailyRecordAuthorityPatchCallablePayload,
   assertCanPublish?: () => void
 ): Promise<DailyRecordAuthorityCallableResponse> => {
-  const owner = getStoredSessionOwnerKey(),
-    generation = getSessionGeneration();
+  const session = guardAuthoringSession();
   const check = () => {
-    if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
-      throw new Error('La sesión cambió.');
+    session.check();
     assertCanPublish?.();
   };
   const transport = await import('./dailyRecordAuthorityTransport');
