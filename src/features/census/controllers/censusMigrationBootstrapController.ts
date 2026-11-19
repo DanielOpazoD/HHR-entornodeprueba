@@ -1,8 +1,4 @@
-import {
-  failWithCode,
-  ok,
-  type ControllerResult,
-} from '@/features/census/controllers/controllerResult';
+import { failWithCode, ok, type ControllerResult } from '@/shared/contracts/controllerResult';
 
 export interface CensusMigrationStorage {
   getItem: (key: string) => string | null;

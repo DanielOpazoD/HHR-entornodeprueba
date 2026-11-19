@@ -1,4 +1,4 @@
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
 import type { RowMenuAlign } from '@/features/census/components/patient-row/patientRowUiContracts';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';

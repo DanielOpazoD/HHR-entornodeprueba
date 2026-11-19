@@ -4,8 +4,6 @@
 
 export { searchMasterPatients } from './searchMasterPatientsUseCase';
 export { buildUndoCmaPatch } from './cmaUndoPatchUseCase';
-export type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
-export { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 export type {
   ClinicalDocSummary,
   EpisodeDocuments,

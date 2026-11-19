@@ -1,6 +1,6 @@
 import React from 'react';
 import type { PatientMainRowBlockedCellProps } from '@/features/census/components/patient-row/patientRowContracts';
-import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessProfile';
 
 export const PatientMainRowBlockedCell: React.FC<PatientMainRowBlockedCellProps> = ({
   blockedReason,

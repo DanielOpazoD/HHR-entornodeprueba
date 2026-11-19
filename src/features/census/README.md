@@ -97,9 +97,8 @@ El IEEH ya no se completa desde el censo: se llena en el panel IEEH de la epicri
 
 - Cobertura alta en `src/tests/views/census/**`.
 - Checks de arquitectura y boundaries runtime en CI local (`check:quality`).
-- Los tipos compartidos de camas y movimientos deben entrar por
-  `contracts/censusBedContracts.ts` y `contracts/censusMovementContracts.ts`,
-  no directo desde `src/types/domain/*`.
+- Los tipos del dominio (camas, movimientos) se importan directo de `src/types/domain/*`,
+  sin archivos intermedios que solo los reexporten.
 - Los límites y significados visuales de signos vitales están documentados en
   [`docs/VITAL_SIGNS_VISUAL_RANGES.md`](../../../docs/VITAL_SIGNS_VISUAL_RANGES.md); su configuración
   ejecutable compartida vive en `src/constants/vitalSignsThresholds.ts`.

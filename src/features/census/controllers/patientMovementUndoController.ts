@@ -5,7 +5,7 @@ import {
   ControllerResult,
   failWithCode,
   ok,
-} from '@/features/census/controllers/controllerResult';
+} from '@/shared/contracts/controllerResult';
 
 export type UndoPatientMovementErrorCode =
   | 'BED_NOT_FOUND'

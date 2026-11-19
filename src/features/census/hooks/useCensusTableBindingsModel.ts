@@ -6,7 +6,7 @@ import { useCensusTableViewModel } from '@/features/census/hooks/useCensusTableV
 import { canReadClinicalDocuments } from '@/shared/access/clinicalDocumentAccessPolicy';
 import { useDailyRecordMovements } from '@/context/DailyRecordContext';
 import { useAuth } from '@/context/AuthContext';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import { useDeferredCensusEnhancement } from '@/features/census/hooks/useDeferredCensusEnhancement';
 
 interface UseCensusTableBindingsModelParams {
