@@ -1,6 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useMemo, useRef, useEffect } from 'react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 import type { CudyrScore } from '@/types/domain/cudyr';
@@ -211,12 +211,22 @@ export const useBedAudit = (record: DailyRecord | null) => {
     [logEvent]
   );
 
-  return {
-    auditPatientChange,
-    auditCudyrChange,
-    auditCribCudyrChange,
-    auditPatientCleared,
-    auditPatientModified,
-    auditPatientMovement,
-  };
+  return useMemo(
+    () => ({
+      auditPatientChange,
+      auditCudyrChange,
+      auditCribCudyrChange,
+      auditPatientCleared,
+      auditPatientModified,
+      auditPatientMovement,
+    }),
+    [
+      auditPatientChange,
+      auditCudyrChange,
+      auditCribCudyrChange,
+      auditPatientCleared,
+      auditPatientModified,
+      auditPatientMovement,
+    ]
+  );
 };
