@@ -36,10 +36,6 @@ export interface NursingAccount {
   updatedAt: number;
   recoveryRequired: boolean;
 }
-export interface PrivateActivation {
-  activationToken: string;
-  expiresAt: number;
-}
 export interface NursingAccountList {
   accounts: NursingAccount[];
   individualOnly: boolean;

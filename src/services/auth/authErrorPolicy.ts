@@ -73,9 +73,6 @@ export const isPopupOpenFailureAuthError = (error: unknown): boolean => {
   return code === 'auth/popup-blocked' || code === 'auth/popup-coop-blocked';
 };
 
-export const shouldDowngradeGoogleAuthLogLevel = (error: unknown): boolean =>
-  isPopupRecoverableAuthError(error) || isPopupCancellationAuthError(error);
-
 const GOOGLE_AUTH_ERROR_MESSAGES: Record<string, string> = {
   'auth/multi-tab-login-in-progress':
     'Ya hay otra pestaña intentando entrar. Espera unos segundos o prueba la otra forma de ingreso.',

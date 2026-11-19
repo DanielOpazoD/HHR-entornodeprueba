@@ -5,11 +5,8 @@ import {
   formatDateDDMMYYYY,
   getTodayISO,
   formatDateForDisplay,
-  formatTimeHHMM,
-  daysBetween,
   getTimeRoundedToStep,
   isFutureDate,
-  parseISODate,
   isBusinessDay,
   getShiftSchedule,
   resolveClinicalDayBounds,
@@ -60,24 +57,6 @@ describe('dateUtils', () => {
     });
   });
 
-  describe('formatTimeHHMM', () => {
-    it('should format an ISO timestamp to 24h HH:MM output', () => {
-      expect(formatTimeHHMM('2026-03-07T21:45:00')).toBe('21:45');
-    });
-
-    it('should return fallback for empty or invalid values', () => {
-      expect(formatTimeHHMM()).toBe('--:--');
-      expect(formatTimeHHMM('invalid')).toBe('--:--');
-    });
-  });
-
-  describe('daysBetween', () => {
-    it('should calculate days between two dates correctly', () => {
-      expect(daysBetween('2024-12-01', '2024-12-05')).toBe(4);
-      expect(daysBetween('2024-12-01', '2024-12-01')).toBe(0);
-    });
-  });
-
   describe('getTimeRoundedToStep', () => {
     it('should round time to default 5 minute step', () => {
       const date = new Date('2024-12-25T15:12:00Z'); // 10:12
@@ -112,24 +91,6 @@ describe('dateUtils', () => {
 
     it('should return false for a past date', () => {
       expect(isFutureDate('2024-12-24')).toBe(false);
-    });
-  });
-
-  describe('parseISODate', () => {
-    it('should return a Date object for a valid ISO string', () => {
-      const result = parseISODate('2024-12-25');
-      expect(result).toBeInstanceOf(Date);
-      expect(result?.getUTCFullYear()).toBe(2024);
-      expect(result?.getUTCMonth()).toBe(11);
-      expect(result?.getUTCDate()).toBe(25);
-    });
-
-    it('should return null for invalid date string', () => {
-      expect(parseISODate('invalid')).toBeNull();
-    });
-
-    it('should return null if no date is provided', () => {
-      expect(parseISODate()).toBeNull();
     });
   });
 

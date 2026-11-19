@@ -142,14 +142,6 @@ export const loadSpecialtyRoundSetup = async (): Promise<SpecialtyRoundSetup> =>
   };
 };
 
-export const loadSpecialtyJevCatalog = async (): Promise<Record<string, string>> => {
-  const setup = await loadSpecialtyRoundSetup();
-  if (setup.policy.aiMode !== 'consultative') {
-    throw new JevSuggestionUnavailableError('Jev no está disponible.');
-  }
-  return setup.labels;
-};
-
 export const saveSpecialtyRules = async (
   policy: SpecialtyRoundSetup['policy'],
   rules: SpecialtyCatalogRule[],
@@ -181,21 +173,6 @@ export const saveSpecialtyRules = async (
       : {}),
   });
   return data;
-};
-
-/** Read-only preflight. The provider receives only this approved code/label after confirmation. */
-export const prepareSpecialtyJevConsultation = async (
-  cie10Code: string
-): Promise<JevConsultationPreparation> => {
-  const labels = await loadSpecialtyJevCatalog();
-  const code = cie10Code.trim().toUpperCase().replace(/\s+/g, '');
-  const canonicalLabel = resolveSpecialtyJevLabel(labels, code);
-  if (!/^[A-Z][0-9]{2}(?:\.[0-9A-Z]{1,4})?$/.test(code) || !canonicalLabel) {
-    throw new JevSuggestionUnavailableError(
-      'El diagnóstico no está habilitado en el catálogo Jev.'
-    );
-  }
-  return { code, canonicalLabel };
 };
 
 export const requestSpecialtySuggestion = async (

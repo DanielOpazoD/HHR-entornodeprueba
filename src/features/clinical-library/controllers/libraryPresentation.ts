@@ -17,11 +17,6 @@ export const documentFormatLabel = (format: LibraryDocumentFormat, pages?: numbe
   return pages ? `PDF · ${documentPagesLabel(pages)}` : 'PDF';
 };
 
-export const formatDocumentSize = (sizeKb: number): string =>
-  sizeKb >= 1024
-    ? `${(sizeKb / 1024).toLocaleString('es-CL', { maximumFractionDigits: 1 })} MB`
-    : `${Math.round(sizeKb)} KB`;
-
 /** Decimales proporcionales a la magnitud: 0,012 · 1,75 · 26,3 · 105. */
 export const formatClinicalNumber = (value: number, maxDecimals?: number): string => {
   const magnitude = Math.abs(value);

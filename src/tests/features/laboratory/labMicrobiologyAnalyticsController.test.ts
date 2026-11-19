@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   buildMicrobiologyEntriesForExam,
   collectMicrobiologyFinding,
-  hasMicrobiologyPattern,
   resolveMicrobiologyCategoriesForExam,
 } from '@/features/laboratory/controllers/labMicrobiologyAnalyticsController';
 import type { LabResultRow, SyslabExamItem } from '@/types/domain/labExamTypes';
@@ -25,8 +24,7 @@ describe('labMicrobiologyAnalyticsController', () => {
     ],
   };
 
-  it('detects microbiology patterns and categories from the combined exam names', () => {
-    expect(hasMicrobiologyPattern('Rhinovirus')).toBe(true);
+  it('detects microbiology categories from the combined exam names', () => {
     expect(resolveMicrobiologyCategoriesForExam(combinedExam)).toEqual([
       'otros_cultivos',
       'pcr_8_virus',

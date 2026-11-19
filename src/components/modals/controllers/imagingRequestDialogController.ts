@@ -71,11 +71,6 @@ export const buildImagingDialogShellModel = (patient: PatientData): ImagingDialo
   patientPathology: patient.pathology,
 });
 
-export const resolveCurrentImagingDocument = (
-  selectedDoc: DocumentOption
-): DocumentTypeOption | undefined =>
-  IMAGING_DOCUMENT_OPTIONS.find(documentOption => documentOption.id === selectedDoc);
-
 export const buildImagingClosedState = () => ({
   marks: [] as CustomMark[],
   isPrinting: false,

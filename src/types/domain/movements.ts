@@ -30,7 +30,6 @@ export interface MovementEpisodeFields {
 }
 
 export type MovementClassification = 'discharge' | 'transfer' | 'cma';
-export type MovementProvenanceSource = 'manual' | 'gestion_camas' | 'reclassified';
 
 interface MovementProvenanceBase {
   /** Stable across every reclassification of the same egreso. */

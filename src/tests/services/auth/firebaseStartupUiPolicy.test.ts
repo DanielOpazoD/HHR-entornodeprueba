@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getFirebaseStartupFailureMessage,
-  getFirebaseStartupNotice,
   getFirebaseStartupWarningCopy,
   getMissingEnvWarningCopy,
 } from '@/services/auth/firebaseStartupUiPolicy';
@@ -78,36 +77,6 @@ describe('firebaseStartupUiPolicy', () => {
 
       const occurrences = copy.summary.match(/VITE_FIREBASE_API_KEY/g) ?? [];
       expect(occurrences.length).toBe(1);
-    });
-  });
-
-  it('maps blocking and degraded startup diagnostics to shared notices', () => {
-    expect(
-      getFirebaseStartupNotice({
-        issues: [],
-        hasBlockingIssue: true,
-        summary: 'Bloqueante',
-        nextStep: 'Revisar variables',
-      })
-    ).toMatchObject({
-      channel: 'error',
-      state: 'blocked',
-      actionRequired: true,
-      message: 'Bloqueante',
-    });
-
-    expect(
-      getFirebaseStartupNotice({
-        issues: [],
-        hasBlockingIssue: false,
-        summary: 'Advertencia',
-        nextStep: 'Revisar variables',
-      })
-    ).toMatchObject({
-      channel: 'warning',
-      state: 'degraded',
-      actionRequired: false,
-      message: 'Advertencia',
     });
   });
 });

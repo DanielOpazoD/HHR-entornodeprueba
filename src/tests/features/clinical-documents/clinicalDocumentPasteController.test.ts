@@ -7,10 +7,12 @@ import {
   buildPastedImageHtml,
   buildPastedStorageImageHtml,
   classifyPasteContent,
-  CLINICAL_DOCUMENT_MAX_INLINE_IMAGE_BYTES,
   readFileAsDataUrl,
 } from '@/features/clinical-documents/controllers/clinicalDocumentPasteController';
-import { CLINICAL_ATTACHMENT_COMPRESSIBLE_IMAGE_MAX_BYTES } from '@/features/clinical-documents/controllers/clinicalAttachmentFilePolicy';
+import {
+  CLINICAL_ATTACHMENT_COMPRESSIBLE_IMAGE_MAX_BYTES,
+  CLINICAL_ATTACHMENT_INLINE_IMAGE_MAX_BYTES,
+} from '@/features/clinical-documents/controllers/clinicalAttachmentFilePolicy';
 
 // ---------------------------------------------------------------------------
 // Helpers to build a mock DataTransfer
@@ -59,7 +61,7 @@ describe('classifyPasteContent', () => {
   });
 
   it('marks images above the inline limit for Storage upload', () => {
-    const oversizedPayload = new Uint8Array(CLINICAL_DOCUMENT_MAX_INLINE_IMAGE_BYTES + 1);
+    const oversizedPayload = new Uint8Array(CLINICAL_ATTACHMENT_INLINE_IMAGE_MAX_BYTES + 1);
     const file = new File([oversizedPayload], 'large.png', { type: 'image/png' });
     const dt = buildMockDataTransfer({
       files: [file],

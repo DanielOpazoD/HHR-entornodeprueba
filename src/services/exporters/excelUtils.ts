@@ -33,17 +33,6 @@ export const createWorkbook = async (): Promise<Workbook> => {
 };
 
 /**
- * Saves a workbook to a buffer for download or attachment.
- *
- * @param workbook - The ExcelJS Workbook to convert
- * @returns {Promise<Buffer>} Buffer containing the xlsx file data
- */
-export const workbookToBuffer = async (workbook: Workbook): Promise<Buffer> => {
-  const arrayBuffer = await workbook.xlsx.writeBuffer();
-  return Buffer.from(arrayBuffer);
-};
-
-/**
  * Standard border style for cells.
  */
 export const BORDER_THIN = {

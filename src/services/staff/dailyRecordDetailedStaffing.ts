@@ -141,37 +141,6 @@ const normalizeRoleAssignments = ({
   return [...sortAssignments(standardAssignments), ...extras];
 };
 
-export const createEmptyDetailedStaffing = (date: string): DailyRecordStaffingDetailsV1 => ({
-  day: {
-    nurses: normalizeRoleAssignments({
-      date,
-      shift: 'day',
-      role: 'nurse',
-      legacyNames: ['', ''],
-    }),
-    tens: normalizeRoleAssignments({
-      date,
-      shift: 'day',
-      role: 'tens',
-      legacyNames: ['', '', ''],
-    }),
-  },
-  night: {
-    nurses: normalizeRoleAssignments({
-      date,
-      shift: 'night',
-      role: 'nurse',
-      legacyNames: ['', ''],
-    }),
-    tens: normalizeRoleAssignments({
-      date,
-      shift: 'night',
-      role: 'tens',
-      legacyNames: ['', '', ''],
-    }),
-  },
-});
-
 export const resolveDetailedStaffingState = (
   record: DailyRecordDetailedStaffingShape | null | undefined,
   fallbackDate?: string

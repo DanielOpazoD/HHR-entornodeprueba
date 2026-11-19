@@ -1,9 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  getCachedAIResults,
-  cacheAIResults,
-  clearAICache,
-} from '@/services/terminology/aiResultsCache';
+import { getCachedAIResults, cacheAIResults } from '@/services/terminology/aiResultsCache';
 
 const CACHE_KEY = 'cie10_ai_cache';
 
@@ -48,12 +44,6 @@ describe('aiResultsCache', () => {
 
     const stored = JSON.parse(localStorage.getItem(CACHE_KEY) ?? '{}');
     expect(stored.entries).toHaveLength(50);
-  });
-
-  it('should clear cache', () => {
-    cacheAIResults('test', [{ code: '1', description: '1' }]);
-    clearAICache();
-    expect(getCachedAIResults('test')).toBeNull();
   });
 
   it('should handle corrupted JSON in localStorage', () => {

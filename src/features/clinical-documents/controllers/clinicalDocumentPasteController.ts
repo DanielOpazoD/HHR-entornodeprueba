@@ -16,7 +16,6 @@
 import { sanitizePastedHtml } from '@/features/clinical-documents/controllers/clinicalDocumentRichTextController';
 import {
   CLINICAL_ATTACHMENT_COMPRESSIBLE_IMAGE_MAX_BYTES,
-  CLINICAL_ATTACHMENT_INLINE_IMAGE_MAX_BYTES,
   resolveClinicalAttachmentFilePolicy,
 } from '@/features/clinical-documents/controllers/clinicalAttachmentFilePolicy';
 import { escapeHtml } from '@/utils/htmlEscape';
@@ -24,8 +23,6 @@ import { escapeHtml } from '@/utils/htmlEscape';
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-export const CLINICAL_DOCUMENT_MAX_INLINE_IMAGE_BYTES = CLINICAL_ATTACHMENT_INLINE_IMAGE_MAX_BYTES;
 
 interface PasteContentImageFile {
   kind: 'image-file';

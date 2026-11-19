@@ -1,7 +1,6 @@
 // @vitest-environment node
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
-  hasApplicationIssues,
   isApplicationOutcomeNonFailure,
   isApplicationOutcomeSuccess,
   type ApplicationOutcome,
@@ -31,11 +30,6 @@ describe('applicationOutcomeTypes helpers', () => {
     expect(isApplicationOutcomeNonFailure(createOutcome('partial'))).toBe(true);
     expect(isApplicationOutcomeNonFailure(createOutcome('degraded'))).toBe(true);
     expect(isApplicationOutcomeNonFailure(createOutcome('failed'))).toBe(false);
-  });
-
-  it('reports whether an outcome carries issues', () => {
-    expect(hasApplicationIssues(createOutcome('success'))).toBe(false);
-    expect(hasApplicationIssues(createOutcome('failed'))).toBe(true);
   });
 
   it('keeps outcome status and issue metadata unions explicit', () => {

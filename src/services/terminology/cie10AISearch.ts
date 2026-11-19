@@ -232,10 +232,6 @@ async function searchWithLocalDevAPI(query: string, signal?: AbortSignal): Promi
   }
 }
 
-export function isAIAvailable(): boolean {
-  return aiIsAvailable;
-}
-
 export async function searchCIE10WithAI(
   query: string,
   signal?: AbortSignal

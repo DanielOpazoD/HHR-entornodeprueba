@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 
-const mockSendWhatsAppMessage = vi.fn();
 const mockGetWhatsAppConfig = vi.fn();
 const mockGetMessageTemplates = vi.fn();
 const mockSaveMessageTemplates = vi.fn();
@@ -22,7 +21,6 @@ vi.mock('@/context/UIContext', () => ({
 }));
 
 vi.mock('@/services/integrations/whatsapp/whatsappService', () => ({
-  sendWhatsAppMessage: (...args: unknown[]) => mockSendWhatsAppMessage(...args),
   getWhatsAppConfig: (...args: unknown[]) => mockGetWhatsAppConfig(...args),
   getMessageTemplates: (...args: unknown[]) => mockGetMessageTemplates(...args),
   saveMessageTemplates: (...args: unknown[]) => mockSaveMessageTemplates(...args),

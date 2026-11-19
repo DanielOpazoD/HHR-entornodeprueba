@@ -3,7 +3,6 @@ import {
   buildImagingClosedState,
   buildImagingDialogShellModel,
   IMAGING_DOCUMENT_OPTIONS,
-  resolveCurrentImagingDocument,
   resolveImagingCanvasIntent,
   runImagingPrintAction,
 } from '@/components/modals/controllers/imagingRequestDialogController';
@@ -22,7 +21,6 @@ describe('imagingRequestDialogController', () => {
     expect(shell.title).toBe('Solicitud de Imágenes');
     expect(shell.subtitle).toBe('Paciente Imagen');
     expect(IMAGING_DOCUMENT_OPTIONS).toHaveLength(3);
-    expect(resolveCurrentImagingDocument('encuesta')?.title).toContain('Encuesta');
   });
 
   it('builds the closed state and canvas intent', () => {
