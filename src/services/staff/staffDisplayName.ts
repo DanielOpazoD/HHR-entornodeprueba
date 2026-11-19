@@ -1,8 +1,8 @@
 import { preferredStaffName, isSpellingOf } from './nurseIdentity';
 import {
+  identityStaffName,
   personDisplaySpellings,
   resolveEloisaStaffIdentity,
-  resolveEloisaStaffName,
   staffNameMatches,
   type EloisaStaffIdentity,
   type NursingRole,
@@ -15,7 +15,7 @@ export const formatStaffDisplayName = (
   role?: NursingRole | null
 ): string => {
   const identity = resolveEloisaStaffIdentity(name, entries, role);
-  const fullName = resolveEloisaStaffName(name, entries, role);
+  const fullName = identityStaffName(name, identity);
   if (!identity) return fullName;
   const shortAliases = personDisplaySpellings(identity.aliases)
     .filter(

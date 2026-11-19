@@ -164,19 +164,24 @@ export const withRespelledRow = (
   );
 };
 
+/**
+ * The name shown for a name already resolved to `identity`: the person's Eloísa name, keeping the
+ * name's own spelling of the same letters unless Eloísa's carries more marks; itself without one.
+ */
+export const identityStaffName = (name: string, identity: EloisaStaffIdentity | undefined) =>
+  identity === undefined
+    ? name
+    : isSpellingOf(identity.name, name)
+      ? preferredStaffName(name, identity.name)
+      : identity.name;
+
 export const resolveEloisaStaffName = (
   name: string,
   entries: EloisaStaffIdentity[],
   role?: NursingRole | null,
   practitionerId?: string
-): string => {
-  const resolved = resolveEloisaStaffIdentity(name, entries, role, practitionerId)?.name;
-  return resolved === undefined
-    ? name
-    : isSpellingOf(resolved, name)
-      ? preferredStaffName(name, resolved)
-      : resolved;
-};
+): string =>
+  identityStaffName(name, resolveEloisaStaffIdentity(name, entries, role, practitionerId));
 
 /** A shown row and the exact saved texts it was built from (none for a name only Eloísa gives). */
 export interface StaffCatalogRow {
