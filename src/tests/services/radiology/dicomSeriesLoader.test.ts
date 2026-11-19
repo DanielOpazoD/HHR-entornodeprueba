@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { planDicomVolume } from '@/domain/radiology/dicomGeometry';
 import { createDicomReviewCache } from '@/features/radiology/services/dicomReviewCache';
 import { createDicomStudyPrefetch } from '@/features/radiology/services/dicomStudyPrefetch';
-import { loadDicomSeries, startDicomSeries } from '@/features/radiology/services/dicomSeriesLoader';
+import { startDicomSeries } from '@/features/radiology/services/dicomSeriesLoader';
 import type { DicomSeries, DicomStudy } from '@/domain/radiology/dicomTypes';
 import {
   syntheticDicom,
@@ -65,7 +65,8 @@ const localizerMatrix = {
   position: [0, 0] as [number, number],
   padding: true,
 };
-const load = () => loadDicomSeries(study, series, new AbortController().signal, vi.fn());
+const load = () =>
+  startDicomSeries(study, series, new AbortController().signal, vi.fn()).completion;
 const install = (plane = localizerPlane, localizerIndex = 0, patient = SYNTHETIC_PATIENT_ID) => {
   mocks.fetch.mockImplementation(async (ticket: string) => {
     const i = Number(ticket),
