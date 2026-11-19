@@ -126,6 +126,8 @@
       "tests": [
         "src/tests/components/ui/DebouncedInput.test.tsx",
         "src/tests/views/census/usePatientRowInputHandlers.test.ts",
+        "src/tests/views/census/clinicalCribRowEdits.test.ts",
+        "src/tests/integration/censusRowOccupantChangeEdit.test.tsx",
         "src/tests/hooks/controllers/bedManagementDispatchController.test.ts",
         "src/tests/hooks/useDailyRecordSyncQuery.notifications.test.tsx",
         "src/tests/hooks/usePatchDailyRecordMutation.retry.test.tsx",
@@ -138,7 +140,7 @@
         "e2e/night-admission-sync-recovery-critical.spec.ts › admits, diagnoses, retries synchronization, clears, and survives reload",
         "e2e/multiuser-offline-conflict.spec.ts › persists an offline edit before loading another client accepted diagnosis"
       ],
-      "rules": ["SAVE-01", "SAVE-02", "SAVE-03", "SAVE-04"]
+      "rules": ["ID-05", "SAVE-01", "SAVE-02", "SAVE-03", "SAVE-04"]
     },
     {
       "id": "census.discharge",
