@@ -322,12 +322,6 @@
       "reason": "firebaseConfig.ts vive en la raíz de src/; ARCH-15 lo lleva a services/firebase-runtime."
     },
     {
-      "from": "src/services/repositories/ClinicalDocumentRepository.ts",
-      "to": "src/application/ports/clinicalDocumentCompatibilityPort.ts",
-      "kind": "value",
-      "reason": "Puerto que implementa un servicio; ARCH-4 lo lleva a la capa de servicios."
-    },
-    {
       "from": "src/services/repositories/ports/repositoryAuditPort.ts",
       "to": "src/application/audit/writeAuditEventUseCaseLoader.ts",
       "kind": "value",
