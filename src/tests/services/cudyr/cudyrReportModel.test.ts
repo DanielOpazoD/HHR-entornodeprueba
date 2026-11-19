@@ -205,8 +205,8 @@ describe('CUDYR canonical report', () => {
   it('counts one application saved several times in the source with the same time, content and author', () => {
     const original = reportObservation();
     original.evaluation.items = [
-      { fieldId: 'surveillance', value: '3' },
-      { fieldId: 'vitalSigns', value: '2' },
+      { fieldId: 'surveillance', typeId: 1, value: '3' },
+      { fieldId: 'vitalSigns', typeId: 2, value: '2' },
     ];
     const copy = (id: string, version: string) =>
       reportObservation({

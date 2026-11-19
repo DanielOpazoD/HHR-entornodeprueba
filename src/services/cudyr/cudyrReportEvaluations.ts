@@ -16,15 +16,42 @@ const clinicalSignature = (value: CudyrSourceEvaluation) =>
     riskScore: value.riskScore ?? null,
     items: (value.items || []).map(item => [item.fieldId, item.value]).sort(),
   });
-/** One application saved several times in the source: same clinical content, time and authorship. */
-const applicationSignature = (value: CudyrSourceEvaluation) =>
-  JSON.stringify([
-    clinicalSignature(value),
-    value.authorId,
-    value.author,
-    value.authorRoleId,
-    value.authorRole,
-  ]);
+const AUTHORSHIP_FIELDS = ['authorId', 'author', 'authorRoleId', 'authorRole'] as const;
+/**
+ * Key shared only by copies of one application saved several times in the source: the full
+ * instrument (every item with its field, type and value), category, scores and time, plus one
+ * credited author and role taken from every version. Anything missing yields no key: never merged.
+ */
+const sameApplicationKey = (versions: CudyrHistoryObservation[]): string | undefined => {
+  // The caller already sent versions with two values in one authorship field to review.
+  const [authorId, author, authorRoleId, authorRole] = AUTHORSHIP_FIELDS.map(
+    field => versions.map(item => item.evaluation[field]).find(Boolean) ?? ''
+  );
+  if (!authorId || !(authorRoleId || authorRole)) return undefined;
+  const contents = new Set(
+    versions.map(({ evaluation: e }) => {
+      const items = e.items || [];
+      return items.length &&
+        items.every(item => Number.isInteger(item.typeId)) &&
+        /^[A-D][1-3]$/.test(e.category) &&
+        Number.isInteger(e.dependencyScore) &&
+        Number.isInteger(e.riskScore) &&
+        Number.isFinite(Date.parse(e.recordedAt))
+        ? JSON.stringify([
+            e.category,
+            e.recordedAt,
+            e.dependencyScore,
+            e.riskScore,
+            items.map(item => [item.fieldId, item.typeId, item.value]).sort(),
+          ])
+        : '';
+    })
+  );
+  const [content] = contents;
+  return contents.size === 1 && content
+    ? JSON.stringify([content, authorId, author, authorRoleId, authorRole])
+    : undefined;
+};
 const fromObservation = (item: CudyrHistoryObservation): CudyrReportEvaluation => ({
   category: item.evaluation.category,
   source: 'Eloísa · Gestión de Camas',
@@ -110,7 +137,7 @@ export const selectCudyrReportEvaluation = (
   let duplicates = 0;
   let conflict = false;
   const eventReferences: Array<string | undefined> = [];
-  for (const versions of events.values()) {
+  for (const [eventKey, versions] of events) {
     if (versions.some(item => item.evaluation.isDeleted)) {
       warnings.push('Existe una aplicación anulada en la fuente; sus versiones se conservan.');
       continue;
@@ -122,16 +149,8 @@ export const selectCudyrReportEvaluation = (
       continue;
     }
     if (
-      ['authorId', 'author', 'authorRoleId', 'authorRole'].some(
-        field =>
-          new Set(
-            versions
-              .map(
-                item =>
-                  item.evaluation[field as 'authorId' | 'author' | 'authorRoleId' | 'authorRole']
-              )
-              .filter(Boolean)
-          ).size > 1
+      AUTHORSHIP_FIELDS.some(
+        field => new Set(versions.map(item => item.evaluation[field]).filter(Boolean)).size > 1
       )
     ) {
       conflict = true;
@@ -142,7 +161,7 @@ export const selectCudyrReportEvaluation = (
       Object.values(item.evaluation).filter(Boolean).length;
     const richer = versions.reduce((best, item) => (filled(item) > filled(best) ? item : best));
     // Copies of one application collapse to one; the lowest archive id keeps the choice stable.
-    const key = applicationSignature(richer.evaluation);
+    const key = sameApplicationKey(versions) ?? JSON.stringify(['event', eventKey]);
     const kept = applications.get(key);
     if (kept) duplicates += 1;
     if (!kept || richer.id < kept.id) applications.set(key, richer);
