@@ -5,7 +5,6 @@
  */
 
 export {
-  createListFilesInMonth,
   createListFilesInMonthWithReport,
   createListMonths,
   createListYears,

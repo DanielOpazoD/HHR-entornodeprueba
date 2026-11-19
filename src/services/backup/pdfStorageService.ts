@@ -16,7 +16,6 @@ import type { BackupStorageRuntime } from '@/services/firebase-runtime/backupRun
 import {
   createListYears,
   createListMonths,
-  createListFilesInMonth,
   createListFilesInMonthWithReport,
 } from './baseStorageService';
 import type { StoredPdfFile } from '@/types/backupArtifacts';
@@ -40,16 +39,6 @@ import {
   runStorageLookupWithTimeout,
   type BackupStorageMutationResult,
 } from '@/services/backup/backupStorageRuntimeSupport';
-
-// ============= Types =============
-
-export interface PdfFolder {
-  name: string;
-  path: string;
-  type: 'year' | 'month';
-  children?: PdfFolder[];
-  fileCount?: number;
-}
 
 // ============= Constants =============
 
@@ -307,27 +296,8 @@ export const listYears = createListYears(STORAGE_ROOT);
 export const listMonths = createListMonths(STORAGE_ROOT);
 
 /**
- * List all files in a month (using base service)
+ * List all files in a month, with the report of what could not be read.
  */
-export const listFilesInMonth = createListFilesInMonth<
-  StoredPdfFile,
-  { date: string; shiftType: 'day' | 'night' }
->({
-  storageRoot: STORAGE_ROOT,
-  parseFilePath,
-  mapToFile: (item, metadata, downloadUrl, parsed) => {
-    return {
-      name: item.name,
-      fullPath: item.fullPath,
-      downloadUrl,
-      date: parsed.date,
-      shiftType: parsed.shiftType,
-      createdAt: metadata.customMetadata?.uploadedAt || metadata.timeCreated,
-      size: metadata.size,
-    };
-  },
-});
-
 export const listFilesInMonthWithReport = createListFilesInMonthWithReport<
   StoredPdfFile,
   { date: string; shiftType: 'day' | 'night' }
@@ -344,28 +314,3 @@ export const listFilesInMonthWithReport = createListFilesInMonthWithReport<
     size: metadata.size,
   }),
 });
-
-/**
- * Get folder structure for navigation
- */
-export const getFolderStructure = async (): Promise<PdfFolder[]> => {
-  const years = await listYears();
-
-  const structure: PdfFolder[] = [];
-
-  for (const year of years) {
-    const months = await listMonths(year);
-    structure.push({
-      name: year,
-      path: `${STORAGE_ROOT}/${year}`,
-      type: 'year',
-      children: months.map(m => ({
-        name: m.name,
-        path: `${STORAGE_ROOT}/${year}/${m.number}`,
-        type: 'month' as const,
-      })),
-    });
-  }
-
-  return structure;
-};
