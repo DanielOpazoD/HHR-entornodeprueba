@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.unmock('@/application/auth/authSessionUseCases');
 
-const mockSignIn = vi.fn();
 const mockSignInWithGoogle = vi.fn();
 const mockHandleSignInRedirectResult = vi.fn();
 const mockGetCurrentAuthSessionState = vi.fn();
@@ -10,10 +9,6 @@ const mockResolveCurrentAuthSessionState = vi.fn();
 const mockIsPopupRecoverableAuthError = vi.fn();
 const mockIsPopupCancellationAuthError = vi.fn();
 const mockResolveAuthErrorCode = vi.fn();
-
-vi.mock('@/services/auth/authCredentialFlow', () => ({
-  signIn: (...args: unknown[]) => mockSignIn(...args),
-}));
 
 vi.mock('@/services/auth/authGoogleFlow', () => ({
   signInWithGoogle: (...args: unknown[]) => mockSignInWithGoogle(...args),
@@ -36,7 +31,6 @@ vi.mock('@/services/auth/authErrorPolicy', () => ({
 }));
 
 import {
-  executeCredentialSignIn,
   executeGoogleSignIn,
   executeResolvedCurrentAuthSessionState,
   executeRedirectAuthResolution,
@@ -143,39 +137,6 @@ describe('authSessionUseCases', () => {
     expect(outcome.retryable).toBe(true);
     expect(outcome.severity).toBe('warning');
     expect(outcome.data.status).toBe('auth_error');
-  });
-
-  it('returns success outcome for credential sign-in', async () => {
-    mockSignIn.mockResolvedValue({
-      uid: 'cred-1',
-      email: 'admin@hospital.cl',
-      displayName: 'Admin',
-      role: 'admin',
-    });
-
-    const outcome = await executeCredentialSignIn('  Admin@Hospital.cl ', 'secret');
-
-    expect(outcome.status).toBe('success');
-    expect(outcome.data.status).toBe('authorized');
-    expect(mockSignIn).toHaveBeenCalledWith('admin@hospital.cl', 'secret');
-  });
-
-  it('returns failed outcome when credential sign-in email is invalid and avoids auth call', async () => {
-    const outcome = await executeCredentialSignIn('correo-invalido', 'secret');
-
-    expect(outcome.status).toBe('failed');
-    expect(outcome.reason).toBe('auth/credential-invalid-email');
-    expect(outcome.data.status).toBe('auth_error');
-    expect(mockSignIn).not.toHaveBeenCalled();
-  });
-
-  it('returns failed outcome when credential sign-in password is missing', async () => {
-    const outcome = await executeCredentialSignIn('admin@hospital.cl', '');
-
-    expect(outcome.status).toBe('failed');
-    expect(outcome.reason).toBe('auth/credential-missing-password');
-    expect(outcome.data.status).toBe('auth_error');
-    expect(mockSignIn).not.toHaveBeenCalled();
   });
 
   it('returns failed outcome when redirect resolution surfaces an auth error state', async () => {
