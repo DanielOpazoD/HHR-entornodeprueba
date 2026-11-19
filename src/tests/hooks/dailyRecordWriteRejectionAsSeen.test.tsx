@@ -213,7 +213,7 @@ describe('H1: the server refuses for good an edit already in the queue', () => {
   it('says «saved locally», reverts the cell, fails the row, keeps the edit for reload', async () => {
     server.answer = { kind: 'refuses', error: () => firestoreError('permission-denied') };
     const client = newClient();
-    const { result } = renderHook(() => useDailyRecordSyncQuery(PARITY_DATE, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(PARITY_DATE, 'ready'), {
       wrapper: wrap(client),
     });
     await waitFor(() => expect(result.current.record?.handoffNovedadesNightShift).toBe(BEFORE));
@@ -277,7 +277,7 @@ describe('the census edit timing event (useDailyRecordSyncQuery.ts:263)', () => 
     const stopTiming = startDailyActionTiming();
     vi.mocked(dispatchOperationalTelemetryExternally).mockClear();
     const client = newClient();
-    const { result } = renderHook(() => useDailyRecordSyncQuery(PARITY_DATE, false, 'ready'), {
+    const { result } = renderHook(() => useDailyRecordSyncQuery(PARITY_DATE, 'ready'), {
       wrapper: wrap(client),
     });
     await waitFor(() => expect(result.current.record?.handoffNovedadesNightShift).toBe(BEFORE));
@@ -304,7 +304,7 @@ const lastWrite: { result?: DailyRecordWriteResult } = {};
 const sendDuringSessionEnd = async (options?: ApplyDailyRecordPatchOptions) => {
   lastWrite.result = undefined;
   const client = newClient();
-  const census = renderHook(() => useDailyRecordSyncQuery(PARITY_DATE, false, 'ready'), {
+  const census = renderHook(() => useDailyRecordSyncQuery(PARITY_DATE, 'ready'), {
     wrapper: wrap(client),
   });
   await waitFor(() =>

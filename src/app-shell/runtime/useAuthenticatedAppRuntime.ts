@@ -123,7 +123,6 @@ export const useAuthenticatedAppRuntime = ({
   const ensureStaleDayEditAllowed = useStaleDayEditGuard(clinicalToday);
   const dailyRecordHook = useDailyRecord(
     dateNav.currentDateString,
-    false,
     auth.remoteSyncStatus,
     ensureStaleDayEditAllowed
   );

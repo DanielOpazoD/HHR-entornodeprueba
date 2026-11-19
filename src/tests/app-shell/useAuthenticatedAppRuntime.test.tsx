@@ -127,12 +127,7 @@ describe('useAuthenticatedAppRuntime', () => {
 
     const { result } = renderHook(() => useAuthenticatedAppRuntime({ auth, dateNav }));
 
-    expect(mockUseDailyRecord).toHaveBeenCalledWith(
-      '2026-03-27',
-      false,
-      'ready',
-      expect.any(Function)
-    );
+    expect(mockUseDailyRecord).toHaveBeenCalledWith('2026-03-27', 'ready', expect.any(Function));
     expect(mockUseExistingDaysQuery).toHaveBeenCalledWith(2026, 2, { enabled: true });
     expect(mockResolveShiftNurseSignature).toHaveBeenCalledWith(
       mockUseDailyRecord.mock.results[0]?.value.record,

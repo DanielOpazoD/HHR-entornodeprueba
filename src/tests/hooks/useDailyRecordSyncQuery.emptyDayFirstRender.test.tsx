@@ -112,7 +112,7 @@ const openDay = async (
   );
   const view = renderHook(
     () => {
-      const state = useDailyRecordSyncQuery(date, false, 'ready');
+      const state = useDailyRecordSyncQuery(date, 'ready');
       renders.push({ bootstrapPhase: state.bootstrapPhase, syncStatus: state.syncStatus });
       return state;
     },
