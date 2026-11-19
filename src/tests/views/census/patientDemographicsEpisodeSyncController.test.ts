@@ -306,6 +306,27 @@ describe('patientDemographicsEpisodeSyncController', () => {
     expect(updatePartial).toHaveBeenCalledWith('2026-04-09', { 'beds.R3.age': '2d' });
   });
 
+  it('updates an adult whose earlier day only carries an id derived from a legacy record', async () => {
+    const adult = DataFactory.createMockPatient('R3', {
+      patientName: 'PACIENTE SINTETICO',
+      rut: '12.345.678-5',
+      clinicalEpisodeId: 'ep_explicit',
+      firstSeenDate: '2026-04-09',
+    });
+    const legacyDay = { ...adult, clinicalEpisodeId: 'legacy_ep_derived' };
+    const updatePartial = await harmonizeOnDay(adult, { R3: legacyDay }, false);
+    expect(updatePartial).toHaveBeenCalledWith('2026-04-09', { 'beds.R3.age': '2d' });
+  });
+
+  it('does not accredit a newborn by an id derived from a legacy record', async () => {
+    const updatePartial = await harmonizeOnDay(
+      newbornOf('R1', 'ep_newborn'),
+      { R1: motherWith('R1', newbornOf('R1', 'legacy_ep_derived')) },
+      true
+    );
+    expect(updatePartial).not.toHaveBeenCalled();
+  });
+
   it('does not write an adult day where two beds match the same name without documents', async () => {
     const adult = (bedId: string) =>
       DataFactory.createMockPatient(bedId, {
