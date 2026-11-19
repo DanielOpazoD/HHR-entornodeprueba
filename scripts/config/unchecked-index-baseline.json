@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1263,
+  "total": 1258,
   "areas": {
     "src/application/backup-export": 4,
     "src/application/wound-care": 1,
@@ -13,7 +13,7 @@
     "src/features/admin": 27,
     "src/features/analytics": 2,
     "src/features/backup": 5,
-    "src/features/census": 51,
+    "src/features/census": 46,
     "src/features/clinical-documents": 15,
     "src/features/clinical-library": 88,
     "src/features/cudyr": 46,
