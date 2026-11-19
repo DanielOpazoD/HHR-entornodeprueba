@@ -114,6 +114,16 @@ test('includes a staged change even if the working copy equals HEAD', () => {
   assert.match(result.calls, /check:module-size/);
 });
 
+test('a Functions or extension edit checks the feature map, whose flow steps cite them', () => {
+  for (const file of ['functions/lib/patch.js', 'extension/background.js']) {
+    const { write, run } = fixture();
+    write(file, 'module.exports = {};\n');
+    const result = run();
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.calls, /check:feature-map/);
+  }
+});
+
 test('a domain-rules or feature-map edit checks the feature map without source checks', () => {
   const { write, run } = fixture();
   write('docs/DOMAIN_RULES.md', 'Changed\n');

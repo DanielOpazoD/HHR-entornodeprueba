@@ -61,7 +61,7 @@ try {
     ['architecture', /^src\//, 'Respeta la capa que nombra el control.'],
     [
       'feature-map',
-      /^(src\/|e2e\/|docs\/DOMAIN_RULES\.md$|scripts\/config\/(?:feature-map|e2e-test-ownership)\.json$)/,
+      /^(src\/|e2e\/|functions\/lib\/|extension\/|docs\/DOMAIN_RULES\.md$|scripts\/config\/(?:feature-map|e2e-test-ownership)\.json$)/,
       'Actualiza la fila de scripts/config/feature-map.json que nombra el control.',
     ],
     [

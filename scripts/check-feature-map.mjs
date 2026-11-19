@@ -13,7 +13,10 @@
  *  - every feature cites at least one test and one visible control;
  *  - a `testId` appears as a string literal, and a `text` appears verbatim, in app code under
  *    src/ (tests, specs and stories excluded);
- *  - every rule is a row of docs/DOMAIN_RULES.md.
+ *  - every rule is a row of docs/DOMAIN_RULES.md;
+ *  - an optional "flow" lists, in order, the steps where each decision of a multi-layer flow
+ *    lives, as `path › symbol`: the file exists, the symbol appears in it as a whole name, and
+ *    every gate is one of the steps.
  */
 
 import fs from 'node:fs';
@@ -59,6 +62,9 @@ const statOf = (root, relativePath) => {
 };
 const isFile = (root, relativePath) => statOf(root, relativePath)?.isFile() === true;
 const isDirectory = (root, relativePath) => statOf(root, relativePath)?.isDirectory() === true;
+
+const namedIn = (source, symbol) =>
+  new RegExp(`(^|[^\\w$])${symbol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w$])`).test(source);
 
 const quotedIn = (source, value) =>
   ['"', "'", '`'].some(quote => source.includes(`${quote}${value}${quote}`));
@@ -138,6 +144,54 @@ export const checkFeatureMap = (root = process.cwd(), { mapPath = FEATURE_MAP_PA
       }
     }
 
+    if (feature?.flow !== undefined) {
+      const flow = Array.isArray(feature.flow) ? feature.flow : [];
+      if (flow.length < 2) {
+        report(
+          '"flow" no tiene al menos dos pasos.',
+          'Cita en orden cada paso como { "at": "ruta › símbolo", "decides": "…" }, o quita "flow".'
+        );
+      }
+      const stepPaths = new Set();
+      for (const step of flow) {
+        const at = typeof step?.at === 'string' ? step.at : '';
+        const separatorAt = at.indexOf(TITLE_SEPARATOR);
+        const stepPath = separatorAt === -1 ? at : at.slice(0, separatorAt);
+        const symbol = separatorAt === -1 ? '' : at.slice(separatorAt + TITLE_SEPARATOR.length);
+        stepPaths.add(stepPath);
+        if (!stepPath || !symbol) {
+          report(
+            `el paso «${at}» no tiene la forma «ruta › símbolo».`,
+            'Escribe la ruta del archivo y el nombre donde vive la decisión.'
+          );
+        } else if (!isFile(root, stepPath)) {
+          report(
+            `el paso ${stepPath} no existe.`,
+            'Si el código se movió, cita su ruta nueva; el mapa sigue al código.'
+          );
+        } else if (!namedIn(fs.readFileSync(path.join(root, stepPath), 'utf8'), symbol)) {
+          report(
+            `${stepPath} no nombra «${symbol}».`,
+            'Si la decisión cambió de nombre o de archivo, cita el nombre y la ruta actuales.'
+          );
+        }
+        if (typeof step?.decides !== 'string' || !step.decides.trim()) {
+          report(
+            `el paso «${at}» no dice qué decide.`,
+            'Escribe en "decides" qué se resuelve ahí.'
+          );
+        }
+      }
+      for (const gatePath of gate) {
+        if (!stepPaths.has(gatePath)) {
+          report(
+            `la puerta ${gatePath} no es un paso de "flow".`,
+            'Cita cada puerta también como paso, en su lugar del flujo.'
+          );
+        }
+      }
+    }
+
     const owner = typeof feature?.owner === 'string' ? feature.owner.replace(/\/+$/, '') : '';
     if (!owner) {
       report(
@@ -212,9 +266,11 @@ export const checkFeatureMap = (root = process.cwd(), { mapPath = FEATURE_MAP_PA
     ]);
   }
   const testCount = features.reduce((total, feature) => total + feature.tests.length, 0);
+  const flows = features.filter(feature => Array.isArray(feature.flow));
+  const stepCount = flows.reduce((total, feature) => total + feature.flow.length, 0);
   return {
     status: 0,
-    stdout: `[feature-map] OK: ${features.length} funciones con puerta, control y ${testCount} pruebas verificadas.\n`,
+    stdout: `[feature-map] OK: ${features.length} funciones con puerta, control y ${testCount} pruebas verificadas; ${flows.length} flujos con ${stepCount} pasos.\n`,
     stderr: '',
   };
 };

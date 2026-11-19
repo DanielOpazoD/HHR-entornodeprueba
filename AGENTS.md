@@ -13,7 +13,8 @@ el resto de `docs/` es de consulta, no lectura previa.
 
 - **Una función que ve el usuario** (un botón, un flujo): su fila en
   [feature-map.json](scripts/config/feature-map.json) dice cómo se llega, la carpeta dueña, la
-  puerta de código (la primera es donde vive la decisión) y qué pruebas la acreditan.
+  puerta de código (la primera es donde vive la decisión) y qué pruebas la acreditan. Guardar
+  una celda y sincronizar con Eloísa tienen además `flow`: cada paso en orden, archivo y símbolo.
 - **Un texto, un estilo o una constante:** nada más. Si la constante figura en una regla de
   este archivo, actualiza su fila.
 - **Datos clínicos, identidad, hora, guardado, sincronización, sesión o permisos:** la regla,
