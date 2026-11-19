@@ -60,9 +60,23 @@ vi.mock('@/services/firebase-runtime/firebaseRuntimeLoggers', () => ({
 }));
 
 import {
-  initializeFirebaseServices,
-  connectFirebaseEmulators,
+  connectAuthEmulator,
+  connectFirestoreEmulator,
+  initializeFirebaseCore,
+  initializeFirestoreService,
 } from '@/services/firebase-runtime/firebaseServiceBootstrap';
+
+// firebaseConfig.ts runs these steps in this order; the tests drive the same sequence.
+const initializeFirebaseServices = async (config: FirebaseOptions) => {
+  const core = await initializeFirebaseCore(config);
+  return { ...core, ...(await initializeFirestoreService(core.app)) };
+};
+
+const connectFirebaseEmulators = async ({
+  auth,
+  db,
+}: Parameters<typeof connectAuthEmulator>[0] & Parameters<typeof connectFirestoreEmulator>[0]) =>
+  Promise.all([connectAuthEmulator({ auth }), connectFirestoreEmulator({ db })]);
 
 // ── Helpers ──────────────────────────────────────────────────────────
 

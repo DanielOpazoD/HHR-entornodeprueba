@@ -49,7 +49,6 @@ const mockAuditState = {
 vi.mock('../../services/admin/utils/auditUtils', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/admin/utils/auditUtils')>()),
   getCurrentUserEmail: vi.fn(() => mockAuditState.email),
-  getCurrentUserDisplayName: vi.fn(() => 'Doctor Account'),
   getCurrentUserUid: vi.fn(() => mockAuditState.uid),
   getCurrentAuditSession: vi.fn(() => ({
     uid: mockAuditState.uid,

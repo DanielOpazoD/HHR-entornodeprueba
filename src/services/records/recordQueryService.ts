@@ -6,10 +6,6 @@ import {
   getRecordsRange,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 
-export const fetchRecordsForMonth = async (year: number, month: number): Promise<DailyRecord[]> => {
-  return getRecordsForMonth(year, month);
-};
-
 const hasPatientData = (dayRecord: DailyRecord | undefined): boolean => {
   if (!dayRecord || !dayRecord.beds) return false;
 

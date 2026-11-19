@@ -481,7 +481,6 @@ vi.mock('@/application/auth/authSessionUseCases', () => ({
     data: null,
     issues: [],
   }),
-  executeCurrentAuthSessionState: vi.fn(),
 }));
 
 // Mock AuthContext and useAuth

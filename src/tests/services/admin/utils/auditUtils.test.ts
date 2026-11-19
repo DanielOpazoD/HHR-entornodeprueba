@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { User } from 'firebase/auth';
 import {
   getCurrentUserEmail,
-  getCurrentUserDisplayName,
   getCurrentUserUid,
   getCachedIpAddress,
   fetchAndCacheIpAddress,
@@ -103,28 +102,6 @@ describe('auditUtils', () => {
         'Failed to resolve current user info',
         expect.any(Error)
       );
-    });
-  });
-
-  describe('getCurrentUserDisplayName', () => {
-    it('should return display name', () => {
-      setCurrentUser({ displayName: 'John Doe' });
-
-      expect(getCurrentUserDisplayName()).toBe('John Doe');
-    });
-
-    it('should return undefined if no display name', () => {
-      setCurrentUser({ displayName: null });
-
-      expect(getCurrentUserDisplayName()).toBeUndefined();
-    });
-
-    it('should return undefined on error', () => {
-      authRuntimeMocks.getCurrentUser.mockImplementation(() => {
-        throw new Error('Error');
-      });
-
-      expect(getCurrentUserDisplayName()).toBeUndefined();
     });
   });
 

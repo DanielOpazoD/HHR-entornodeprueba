@@ -133,9 +133,3 @@ export const buildFallbackPatientDataReport = (
     droppedListItems,
   };
 };
-
-export const buildFallbackPatientData = (
-  data: unknown,
-  bedId: string,
-  options: FallbackPatientDataOptions = {}
-): PatientData => buildFallbackPatientDataReport(data, bedId, options).patient;

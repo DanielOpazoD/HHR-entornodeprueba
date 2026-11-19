@@ -73,14 +73,6 @@ export const isAuditSessionActor = (actor: string, session: AuditSessionIdentity
   actor === session.uid ||
   (Boolean(session.email) && actor.toLowerCase() === session.email?.toLowerCase());
 
-export const getCurrentUserDisplayName = (): string | undefined => {
-  try {
-    return resolveCurrentUser()?.displayName || undefined;
-  } catch (_e) {
-    return undefined;
-  }
-};
-
 /**
  * Get Firebase UID
  */

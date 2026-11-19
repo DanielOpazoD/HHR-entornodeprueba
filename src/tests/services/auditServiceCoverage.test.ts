@@ -44,7 +44,6 @@ const { mockAuditUtils } = vi.hoisted(() => {
   return {
     mockAuditUtils: {
       getCurrentUserEmail,
-      getCurrentUserDisplayName: vi.fn(),
       getCurrentUserUid: vi.fn(),
       getCurrentAuditSession: vi.fn(() => ({ uid: 'uid-tester', email: getCurrentUserEmail() })),
       getCachedIpAddress: vi.fn(),
