@@ -82,6 +82,7 @@ it('reuses exact dependencies across compatible jobs with one pristine-cache wri
     'final-confidence-and-readiness',
     'lighthouse-ci',
     'postmerge-evidence',
+    'preview-build',
     'preview-smoke-lanes',
     'quality-static-base',
     'quality-static-dependent-groups',
