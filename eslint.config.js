@@ -472,11 +472,6 @@ const EPISODE_KEY_PARSE_RESTRICTION = {
   message:
     'Lee una clave de episodio antigua con isLegacyClinicalEpisodeKey() o parseLegacyClinicalEpisodeKey() de src/domain/clinical-episode/clinicalEpisode.ts.',
 };
-const LEGACY_DOCUMENT_HYDRATION_RESTRICTION = {
-  selector: "Identifier[name='hydrateLegacyClinicalDocument']",
-  message:
-    'Hidrata documentos clínicos antiguos con ClinicalDocumentCompatibilityPort (src/application/ports/clinicalDocumentCompatibilityPort.ts), no con hydrateLegacyClinicalDocument().',
-};
 // The audit loggers are one contract (`AuditLoggers` in src/hooks/useAudit.ts): `AuditContext`
 // declared a second copy of it, ~100 lines that drifted apart (2026-11-18).
 const AUDIT_LOGGER_NAME =
@@ -530,7 +525,6 @@ const SOURCE_SYNTAX_RESTRICTIONS = [
   RUT_REGEX_RESTRICTION,
   EPISODE_KEY_BUILD_RESTRICTION,
   EPISODE_KEY_PARSE_RESTRICTION,
-  LEGACY_DOCUMENT_HYDRATION_RESTRICTION,
   AUDIT_CONTRACT_RESTRICTION,
   ADMIN_TABS_FRAME_RESTRICTION,
   ...ROLE_RESTRICTIONS,
@@ -709,16 +703,6 @@ export default tseslint.config(
     },
   },
   {
-    // The legacy clinical-document hydration and the port that owns it.
-    files: [
-      'src/domain/clinical-documents/compatibility.ts',
-      'src/application/ports/clinicalDocumentCompatibilityPort.ts',
-    ],
-    rules: {
-      'no-restricted-syntax': syntaxRestrictions({ omit: [LEGACY_DOCUMENT_HYDRATION_RESTRICTION] }),
-    },
-  },
-  {
     // The home of the audit loggers contract.
     files: ['src/hooks/useAudit.ts'],
     rules: { 'no-restricted-syntax': syntaxRestrictions({ omit: [AUDIT_CONTRACT_RESTRICTION] }) },
@@ -774,7 +758,6 @@ export default tseslint.config(
           SESSION_MESSAGE_RESTRICTION,
           RUT_REGEX_RESTRICTION,
           EPISODE_KEY_PARSE_RESTRICTION,
-          LEGACY_DOCUMENT_HYDRATION_RESTRICTION,
           ...ROLE_RESTRICTIONS,
           DAY_WINDOW_RESTRICTION,
         ],

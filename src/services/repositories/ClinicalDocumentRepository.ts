@@ -7,8 +7,8 @@ import {
 } from '@/domain/clinical-documents/rendering';
 import {
   hydrateClinicalDocumentRecord,
-  normalizeClinicalDocumentRecordForStorage,
-} from '@/application/ports/clinicalDocumentCompatibilityPort';
+  normalizeClinicalDocumentForPersistence,
+} from '@/domain/clinical-documents/compatibility';
 import {
   formatClinicalDocumentContractIssues,
   parseClinicalDocumentRecord,
@@ -166,7 +166,7 @@ const deleteLocalClinicalDocument = (documentId: string, hospitalId: string): vo
 };
 
 const enrichRecord = (record: ClinicalDocumentRecord): ClinicalDocumentRecord => {
-  const hydrated = parseClinicalDocumentRecord(normalizeClinicalDocumentRecordForStorage(record));
+  const hydrated = parseClinicalDocumentRecord(normalizeClinicalDocumentForPersistence(record));
   const renderedText = buildClinicalDocumentRenderedText(hydrated);
   return {
     ...hydrated,
