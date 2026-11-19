@@ -25,6 +25,18 @@ vi.mock('@/services/storage/firestore/firestoreServiceRuntime', () => ({
   defaultFirestoreServiceRuntime: { ready: Promise.resolve(), getDb: () => sdkDb },
 }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ remoteSyncStatus: 'ready' }) }));
+// Any copy of the Eloísa list other than the one the shown rows come from can arrive late; a
+// test sets this to model that copy still empty while the rows already show Eloísa people.
+const otherEloisaCopy = vi.hoisted(() => ({ late: false }));
+vi.mock('@/hooks/useEloisaStaff', async importOriginal => {
+  const real = await importOriginal<typeof import('@/hooks/useEloisaStaff')>();
+  return {
+    useEloisaStaff: (shared = false) => {
+      const list = real.useEloisaStaff(shared);
+      return !shared && otherEloisaCopy.late ? [] : list;
+    },
+  };
+});
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import {
   doc,
@@ -123,6 +135,7 @@ beforeEach(async () => {
   await catalogs.clear();
 });
 afterEach(async () => {
+  otherEloisaCopy.late = false;
   cleanup();
   await terminate(sdkDb);
   await deleteApp(sdkApp);
@@ -180,7 +193,7 @@ it('removing a saved person that another computer renamed is still a conflict', 
   // The editor keeps the list it read, as before the other computer's change arrives.
   vi.spyOn(remote, 'subscribeToNurseCatalog').mockImplementation(() => () => {});
   renderManager(<Nurses />);
-  await screen.findByText('Sintético Guardado');
+  await screen.findByText('Sintético Guardado', {}, REMOTE);
   await screen.findByText('Sintético Eloísa', {}, REMOTE);
   await setDoc(settingsRef('nurses'), { list: ['Sintético Otro Equipo'] });
   fireEvent.click(row('Sintético Guardado').querySelector('[title="Eliminar"]')!);
@@ -307,48 +320,120 @@ it.each(['nurse', 'tens'] as const)(
   }
 );
 
+// An offline addition whose accent-only twin is another Eloísa ID's saved row.
+const failedAdditionKeepsWarning = async (role: 'nurse' | 'tens') => {
+  const listDoc = role === 'nurse' ? 'nurses' : 'tens';
+  await setDoc(settingsRef(listDoc), { list: ['Luz Peña'] });
+  await setDoc(settingsRef(SHARED_STAFF_DOC), {
+    list: [
+      {
+        key: `${role}:id:syn1`,
+        role,
+        name: 'Luz Pena Vega',
+        aliases: ['Luz Pena Vega', 'Luz Pena'],
+        practitionerId: 'syn1',
+      },
+      {
+        key: `${role}:id:syn2`,
+        role,
+        name: 'Luz Peña',
+        aliases: ['Luz Peña'],
+        practitionerId: 'syn2',
+      },
+    ],
+  });
+  const client = renderManager(role === 'nurse' ? <Nurses /> : <Tens />);
+  await screen.findByText('Luz Pena Vega', {}, REMOTE);
+  await screen.findByText('Luz Peña', {}, REMOTE);
+  const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+  const input = screen.getByPlaceholderText('Nombre completo…');
+  fireEvent.change(input, { target: { value: 'Luz Pena' } });
+  fireEvent.click(screen.getByLabelText('Agregar personal'));
+  await waitFor(
+    () => expect(client.getMutationCache().getAll().at(-1)?.state.status).toBe('error'),
+    REMOTE
+  );
+  // The accepted list holds «Luz Peña», another person: the warning must stay.
+  await new Promise(resolve => setTimeout(resolve, 300));
+  expect(screen.getByText(/El cambio no se guardó/)).toBeInTheDocument();
+  expect(input).toHaveValue('Luz Pena');
+  expect(await serverList(listDoc)).toEqual(['Luz Peña']);
+  online.mockReturnValue(true);
+  fireEvent.click(screen.getByLabelText('Agregar personal'));
+  await waitFor(() => expect(input).toHaveValue(''), REMOTE);
+  expect(await serverList(listDoc)).toEqual(['Luz Peña', 'Luz Pena']);
+};
+
 it.each(['nurse', 'tens'] as const)(
   '%s: a failed addition keeps its warning while only another ID that spells alike is saved',
+  failedAdditionKeepsWarning
+);
+
+// The save once judged with its own copy of the Eloísa list: while that copy was still empty,
+// «Luz Pena» passed for the saved «Luz Peña» and the unsaved addition lost its warning.
+it.each(['nurse', 'tens'] as const)(
+  '%s: a failed addition keeps its warning while another copy of the Eloísa list is still empty',
   async role => {
+    otherEloisaCopy.late = true;
+    await failedAdditionKeepsWarning(role);
+  }
+);
+
+// A late saved list is read with the people the rows have when it arrives, not when the person
+// clicked: Eloísa may meanwhile tell apart a name that looked like the one being added.
+it.each([
+  ['nurse', 'another person', 'Luz Peña', true],
+  ['tens', 'another person', 'Luz Peña', true],
+  ['nurse', 'the same person', 'Luz Pena Vega', false],
+  ['tens', 'the same person', 'Luz Pena Vega', false],
+] as const)(
+  '%s: a failed addition and a later save of %s from another computer',
+  async (role, _label, savedElsewhere, warningStays) => {
     const listDoc = role === 'nurse' ? 'nurses' : 'tens';
-    await setDoc(settingsRef(listDoc), { list: ['Luz Peña'] });
-    await setDoc(settingsRef(SHARED_STAFF_DOC), {
-      list: [
-        {
-          key: `${role}:id:syn1`,
-          role,
-          name: 'Luz Pena Vega',
-          aliases: ['Luz Pena Vega', 'Luz Pena'],
-          practitionerId: 'syn1',
-        },
-        {
-          key: `${role}:id:syn2`,
-          role,
-          name: 'Luz Peña',
-          aliases: ['Luz Peña'],
-          practitionerId: 'syn2',
-        },
-      ],
-    });
+    const added = {
+      key: `${role}:id:syn1`,
+      role,
+      name: 'Luz Pena Vega',
+      aliases: ['Luz Pena'],
+      practitionerId: 'syn1',
+    };
+    const other = {
+      key: `${role}:id:syn2`,
+      role,
+      name: 'Luz Peña',
+      aliases: ['Luz Peña'],
+      practitionerId: 'syn2',
+    };
+    await setDoc(settingsRef(listDoc), { list: ['Base Sintética'] });
+    await setDoc(settingsRef(SHARED_STAFF_DOC), { list: [added] });
     const client = renderManager(role === 'nurse' ? <Nurses /> : <Tens />);
+    await screen.findByText('Base Sintética', {}, REMOTE);
     await screen.findByText('Luz Pena Vega', {}, REMOTE);
-    await screen.findByText('Luz Peña', {}, REMOTE);
     const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     const input = screen.getByPlaceholderText('Nombre completo…');
     fireEvent.change(input, { target: { value: 'Luz Pena' } });
     fireEvent.click(screen.getByLabelText('Agregar personal'));
+    await screen.findByText(/El cambio no se guardó/, {}, REMOTE);
+    online.mockReturnValue(true);
+    await setDoc(settingsRef(SHARED_STAFF_DOC), { list: [added, other] });
+    await screen.findByText('Luz Peña', {}, REMOTE);
+    await setDoc(settingsRef(listDoc), { list: ['Base Sintética', savedElsewhere] });
     await waitFor(
-      () => expect(client.getMutationCache().getAll().at(-1)?.state.status).toBe('error'),
+      () =>
+        expect(client.getQueryData(['staff', listDoc])).toEqual(['Base Sintética', savedElsewhere]),
       REMOTE
     );
-    // The accepted list holds «Luz Peña», another person: the warning must stay.
-    await new Promise(resolve => setTimeout(resolve, 300));
-    expect(screen.getByText(/El cambio no se guardó/)).toBeInTheDocument();
-    expect(input).toHaveValue('Luz Pena');
-    expect(await serverList(listDoc)).toEqual(['Luz Peña']);
-    online.mockReturnValue(true);
-    fireEvent.click(screen.getByLabelText('Agregar personal'));
-    await waitFor(() => expect(input).toHaveValue(''), REMOTE);
-    expect(await serverList(listDoc)).toEqual(['Luz Peña', 'Luz Pena']);
+    if (warningStays) {
+      // Nothing may clear the warning now; give a wrong reconciliation the time to run.
+      await new Promise(resolve => setTimeout(resolve, 300));
+      expect(screen.getByText(/El cambio no se guardó/)).toBeInTheDocument();
+      expect(input).toHaveValue('Luz Pena');
+    } else {
+      await waitFor(
+        () => expect(screen.queryByText(/El cambio no se guardó/)).not.toBeInTheDocument(),
+        REMOTE
+      );
+    }
+    expect(await serverList(listDoc)).toEqual(['Base Sintética', savedElsewhere]);
   }
 );

@@ -29,6 +29,8 @@ import {
 } from '@/services/repositories/contracts/catalogContracts';
 
 type CatalogEdit<T> = T[] | { next: T[]; base: T[] };
+/** The person an item is listed as, from the rows shown now; absent while their people are unknown. */
+type CatalogPerson<T> = ((item: T) => string) | undefined;
 const catalogNext = <T>(edit: CatalogEdit<T>): T[] => (Array.isArray(edit) ? edit : edit.next);
 
 const useCatalogRealtimeReady = (): boolean => {
@@ -88,21 +90,26 @@ interface CatalogSource<T> {
   /** The confirmed list a whole-list save replaces; undefined when it was never read. */
   savedBase: (data: T[] | undefined) => T[] | undefined;
   /** Whether the accepted list already holds the edit, so a lost answer is not an error. */
-  isAccepted: (
-    edit: CatalogEdit<T>,
-    current: unknown,
-    identities: readonly EloisaStaffIdentity[]
-  ) => boolean;
+  isAccepted: (edit: CatalogEdit<T>, current: unknown, person: CatalogPerson<T>) => boolean;
   structuralSharing: boolean | ((previous: unknown, next: unknown) => unknown);
 }
 
-/** An added name is accepted once a row of the same person is saved, never another ID's row. */
-const staffNamesAccepted =
-  (role: NursingRole) =>
-  (edit: CatalogEdit<string>, current: unknown, identities: readonly EloisaStaffIdentity[]) =>
-    catalogEditAccepted(edit, current, normalizeStringCatalog, exactStaffName, name =>
-      listedStaffPerson(name, [...identities], role)
-    );
+/**
+ * An added name is accepted once a row of the same person is saved, never another ID's row. The
+ * people are those of the shown rows when the saved list arrives; unknown, only the exact text.
+ */
+const staffNamesAccepted = (
+  edit: CatalogEdit<string>,
+  current: unknown,
+  person: CatalogPerson<string>
+) =>
+  catalogEditAccepted(
+    edit,
+    current,
+    normalizeStringCatalog,
+    exactStaffName,
+    person ?? exactStaffName
+  );
 
 // Nurses and TENS differ only in where their list lives; names follow the same identity rules.
 const STAFF_CATALOGS: Record<NursingRole, CatalogSource<string>> = {
@@ -113,7 +120,7 @@ const STAFF_CATALOGS: Record<NursingRole, CatalogSource<string>> = {
     save: (next, base) => CatalogRepository.saveNurses(next, base),
     normalize: normalizeStringCatalog,
     savedBase: savedStaffNames,
-    isAccepted: staffNamesAccepted('nurse'),
+    isAccepted: staffNamesAccepted,
     structuralSharing: keepExampleProvenance,
   },
   tens: {
@@ -123,7 +130,7 @@ const STAFF_CATALOGS: Record<NursingRole, CatalogSource<string>> = {
     save: (next, base) => CatalogRepository.saveTens(next, base),
     normalize: normalizeStringCatalog,
     savedBase: savedStaffNames,
-    isAccepted: staffNamesAccepted('tens'),
+    isAccepted: staffNamesAccepted,
     structuralSharing: keepExampleProvenance,
   },
 };
@@ -180,19 +187,23 @@ const useCatalogQuery = <T>(source: CatalogSource<T>, isCatalogRealtimeReady: bo
   return query;
 };
 
-/** What the screen shows and, for each shown row, the saved texts it stands for. */
+const NO_ELOISA_STAFF: EloisaStaffIdentity[] = [];
+
+/** What the screen shows and, for each shown row, the saved texts and person it stands for. */
 const useStaffCatalogView = (
   data: string[] | undefined,
-  discovered: EloisaStaffIdentity[],
+  discovered: EloisaStaffIdentity[] | undefined,
   role: NursingRole
 ) =>
   useMemo(() => {
     const list = savedStaffNames(data);
+    const people = discovered ?? NO_ELOISA_STAFF;
     const saved: SavedStaffCatalog | undefined = list && {
       list,
-      textsOf: savedTextsOfRow(staffCatalogRows(list, discovered, role)),
+      textsOf: savedTextsOfRow(staffCatalogRows(list, people, role)),
+      person: discovered && ((name: string) => listedStaffPerson(name, discovered, role)),
     };
-    return { data: mergeStaffCatalog(data ?? [], discovered, role), saved };
+    return { data: mergeStaffCatalog(data ?? [], people, role), saved };
   }, [data, discovered, role]);
 
 /** A nursing role's saved names joined with the staff Eloísa reports for that role. */
@@ -204,7 +215,7 @@ const useStaffNamesQuery = (role: NursingRole) => {
   return {
     ...query,
     manualData: query.data,
-    identities: discovered,
+    identities: discovered ?? NO_ELOISA_STAFF,
     ...view,
   };
 };
@@ -245,12 +256,7 @@ const useAcceptedCatalogChange = <T>(
  * Saves a whole catalog against the list it was edited from. Never saves over a list that was
  * not read, and on a conflict shows the list the server holds instead of the edit.
  */
-const NO_STAFF_IDENTITIES: readonly EloisaStaffIdentity[] = [];
-
-const useCatalogSaveMutation = <T>(
-  source: CatalogSource<T>,
-  identities: readonly EloisaStaffIdentity[] = NO_STAFF_IDENTITIES
-) => {
+const useCatalogSaveMutation = <T>(source: CatalogSource<T>, person?: CatalogPerson<T>) => {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
@@ -283,20 +289,20 @@ const useCatalogSaveMutation = <T>(
     },
   });
   const isAccepted = useCallback(
-    (edit: CatalogEdit<T>, current: unknown) => source.isAccepted(edit, current, identities),
-    [source, identities]
+    (edit: CatalogEdit<T>, current: unknown) => source.isAccepted(edit, current, person),
+    [source, person]
   );
   useAcceptedCatalogChange(source.key, mutation, isAccepted);
   return mutation;
 };
 
-/** Saves the nurses catalog. */
-export const useSaveNursesMutation = () =>
-  useCatalogSaveMutation(STAFF_CATALOGS.nurse, useEloisaStaff());
+/** Saves the nurses catalog; `person` comes from the shown rows (`saved.person`). */
+export const useSaveNursesMutation = (person?: CatalogPerson<string>) =>
+  useCatalogSaveMutation(STAFF_CATALOGS.nurse, person);
 
-/** Saves the TENS catalog. */
-export const useSaveTensMutation = () =>
-  useCatalogSaveMutation(STAFF_CATALOGS.tens, useEloisaStaff());
+/** Saves the TENS catalog; `person` comes from the shown rows (`saved.person`). */
+export const useSaveTensMutation = (person?: CatalogPerson<string>) =>
+  useCatalogSaveMutation(STAFF_CATALOGS.tens, person);
 
 /** Saves the professionals catalog. */
 export const useSaveProfessionalsMutation = () => useCatalogSaveMutation(PROFESSIONALS_CATALOG);

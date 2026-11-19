@@ -83,6 +83,11 @@ export const applyCatalogChanges = <T extends string | ProfessionalCatalogItem>(
 export interface SavedStaffCatalog {
   list: string[];
   textsOf: (shown: string) => readonly string[];
+  /**
+   * The person each name is listed as, from the Eloísa list that builds the shown rows now.
+   * Absent while that list was not read: then no two texts count as one person.
+   */
+  person?: (name: string) => string;
 }
 
 /**

@@ -20,7 +20,7 @@ const applicationDateTime = (entry: EvaluationScoreEntry): string => {
 };
 
 export const ScoresHistoryTable: React.FC<ScoresHistoryTableProps> = ({ history }) => {
-  const professionals = useEloisaStaff();
+  const professionals = useEloisaStaff() ?? [];
   if (history.length === 0) return null;
 
   return (

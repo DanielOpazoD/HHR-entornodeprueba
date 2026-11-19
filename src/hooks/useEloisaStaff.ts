@@ -3,8 +3,9 @@ import type { EloisaStaffIdentity } from '@/services/staff/eloisaStaffIdentity';
 import { subscribeEloisaStaff } from '@/services/staff/eloisaStaffRegistry';
 import { logger } from '@/services/utils/loggerService';
 
-export const useEloisaStaff = (shared = false): EloisaStaffIdentity[] => {
-  const [entries, setEntries] = useState<EloisaStaffIdentity[]>([]);
+/** The Eloísa staff on this computer; undefined until read, because unknown is not «nobody». */
+export const useEloisaStaff = (shared = false): EloisaStaffIdentity[] | undefined => {
+  const [entries, setEntries] = useState<EloisaStaffIdentity[]>();
   useEffect(
     () =>
       subscribeEloisaStaff(

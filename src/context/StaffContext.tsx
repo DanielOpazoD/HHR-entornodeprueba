@@ -97,8 +97,8 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
   const reconciledNurses = useMemo(() => formatNurseCatalogNames(nurses), [nurses]);
 
   // 2. Mutations for saving
-  const { mutate: saveNurses } = useSaveNursesMutation();
-  const { mutate: saveTens } = useSaveTensMutation();
+  const { mutate: saveNurses } = useSaveNursesMutation(nursesSaved?.person);
+  const { mutate: saveTens } = useSaveTensMutation(tensSaved?.person);
   const { mutate: saveProfessionals } = useSaveProfessionalsMutation();
 
   // 3. Manager modal visibility state

@@ -37,7 +37,8 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
   saved,
 }) => {
   const { useCatalogQuery, useSaveCatalog } = STAFF_CATALOG_HOOKS[role];
-  const mutation = useSaveCatalog();
+  // A late answer is judged with the people the shown rows have when it arrives.
+  const mutation = useSaveCatalog(saved?.person);
   const query = useCatalogQuery();
   const save = async (names: string[], base?: string[]) => {
     try {

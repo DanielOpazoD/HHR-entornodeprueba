@@ -33,7 +33,7 @@ export const CudyrHistoryPanel = ({
   cudyr: CudyrCellModel | null;
   entry: ImportedCudyr;
 }) => {
-  const professionals = useEloisaStaff();
+  const professionals = useEloisaStaff() ?? [];
   const history = entry.history?.length ? entry.history : [entry];
   const official = entry.source.includes('Gestión de Camas');
   return (
