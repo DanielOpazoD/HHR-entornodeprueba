@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   search: vi.fn(),
   checkDigit: vi.fn(),
-  pdf: vi.fn(),
   blob: vi.fn(),
   download: vi.fn(),
 }));
@@ -18,7 +17,6 @@ vi.mock('@/features/radiology/services/mmradService', async importOriginal => {
     ...actual,
     searchMMRADExams: (...args: unknown[]) => mocks.search(...args),
     searchMMRADCheckDigitExams: (...args: unknown[]) => mocks.checkDigit(...args),
-    fetchMMRADPdfBlobUrl: (...args: unknown[]) => mocks.pdf(...args),
     fetchMMRADPdfBlob: (...args: unknown[]) => mocks.blob(...args),
   };
 });
@@ -131,7 +129,6 @@ describe('ClinicalExplorerImaging', () => {
     vi.stubGlobal('jest', { advanceTimersByTime: (ms: number) => vi.advanceTimersByTime(ms) });
     mocks.search.mockReset();
     mocks.checkDigit.mockReset();
-    mocks.pdf.mockReset();
     mocks.blob.mockReset();
     mocks.download.mockReset();
     mocks.search.mockResolvedValue({ rut: RUT, examenes: studies });

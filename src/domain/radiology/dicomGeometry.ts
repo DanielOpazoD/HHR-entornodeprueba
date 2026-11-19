@@ -165,6 +165,3 @@ export const planDicomVolume = (slices: SliceGeometry[]): DicomVolumePlan => {
     resampled,
   };
 };
-
-export const volumeImageOrder = (slices: SliceGeometry[]): string[] =>
-  planDicomVolume(slices).slices.map(slice => slice.imageId);

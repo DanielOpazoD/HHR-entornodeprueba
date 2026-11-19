@@ -9,8 +9,7 @@
  * Data flow:
  *   unifiedRows → buildBedEpisodeBindings → episodeKeys
  *   Firestore query (by episodeKeys) → ClinicalDocumentPresenceRecord[]
- *   records → buildClinicalDocumentPresenceByBed (boolean per bed)
- *   records → buildClinicalDocumentPresenceInfoByBed (counts per bed)
+ *   records → buildClinicalDocumentPresenceProjection (boolean and counts per bed)
  */
 
 import {
@@ -100,53 +99,8 @@ const recordMatchesPatientRut = (
 };
 
 // ---------------------------------------------------------------------------
-// Active episode keys (boolean presence)
+// Presence and document counts (badge display)
 // ---------------------------------------------------------------------------
-
-/**
- * Returns the set of episode keys that have at least one active
- * (non-archived) clinical-document record.
- */
-export const buildActiveClinicalDocumentEpisodeKeys = (
-  records: ClinicalDocumentPresenceRecord[] | undefined
-): Set<string> =>
-  new Set(
-    (records || []).filter(record => record.status !== 'archived').map(record => record.episodeKey)
-  );
-
-/**
- * Maps each bed to a boolean indicating whether its patient has
- * at least one active clinical-document record.
- */
-export const buildClinicalDocumentPresenceByBed = (
-  bindings: BedEpisodeBinding[],
-  activeEpisodeKeys: Set<string>,
-  records?: ClinicalDocumentPresenceRecord[]
-): Record<string, boolean> => {
-  if (records) return buildClinicalDocumentPresenceProjection(bindings, records).byBedId;
-  const result: Record<string, boolean> = {};
-  bindings.forEach(b => {
-    const episodeKeys = b.episodeKeys?.length ? b.episodeKeys : [b.episodeKey];
-    result[b.bedId] = episodeKeys.some(episodeKey => activeEpisodeKeys.has(episodeKey));
-  });
-
-  return result;
-};
-
-// ---------------------------------------------------------------------------
-// Document counts (badge display)
-// ---------------------------------------------------------------------------
-
-/**
- * Maps each bed to detailed document presence info including counts.
- * Used to populate the Documentos badge in the «Accesos» column.
- */
-export const buildClinicalDocumentPresenceInfoByBed = (
-  bindings: BedEpisodeBinding[],
-  records: ClinicalDocumentPresenceRecord[] | undefined
-): Record<string, ClinicalDocumentPresenceInfo> => {
-  return buildClinicalDocumentPresenceProjection(bindings, records).infoByBedId;
-};
 
 /** One request-local index serves both badges; no persistent clinical cache. */
 export const buildClinicalDocumentPresenceProjection = (

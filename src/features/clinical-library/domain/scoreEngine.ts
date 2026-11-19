@@ -136,16 +136,3 @@ export const evaluateScore = (
     band: resolveBand(),
   };
 };
-
-/** Totales alcanzables por el score (para verificar que las bandas los cubren todos). */
-export const reachableScoreTotals = (definition: ScoreDefinition): number[] => {
-  let totals = new Set<number>([0]);
-  for (const item of definition.items) {
-    const increments =
-      item.kind === 'boolean' ? [0, item.points] : item.options.map(option => option.points);
-    const next = new Set<number>();
-    for (const total of totals) for (const increment of increments) next.add(total + increment);
-    totals = next;
-  }
-  return [...totals].sort((left, right) => left - right);
-};

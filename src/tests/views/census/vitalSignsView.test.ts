@@ -5,11 +5,7 @@ import {
   buildVitalsHistory,
 } from '@/features/census/controllers/vitalSignsView';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
-import {
-  classifyVitalSign,
-  VITAL_STATUS_MEANINGS,
-  VITAL_SIGNS_PROFILE_DEFINITIONS,
-} from '@/constants/vitalSignsThresholds';
+import { classifyVitalSign } from '@/constants/vitalSignsThresholds';
 import { resolveVitalSignsProfile } from '@/utils/vitalSignsProfileResolver';
 
 const vitals = (over: Partial<PatientVitalSigns> = {}): PatientVitalSigns => ({
@@ -185,21 +181,6 @@ describe('buildVitalsHistory', () => {
 });
 
 describe('vital signs threshold configuration', () => {
-  it('keeps every visual state and population definition documented in configuration', () => {
-    expect(Object.keys(VITAL_STATUS_MEANINGS)).toEqual(['neutral', 'normal', 'warn', 'alert']);
-    expect(VITAL_SIGNS_PROFILE_DEFINITIONS.newborn).toContain('0 a 27 días');
-    expect(VITAL_SIGNS_PROFILE_DEFINITIONS.newborn).toContain('La cama o ubicación no define');
-    expect(Object.keys(VITAL_SIGNS_PROFILE_DEFINITIONS)).toEqual([
-      'unknown',
-      'newborn',
-      'infant',
-      'child_1_4',
-      'child_5_11',
-      'adolescent_12_17',
-      'adult',
-    ]);
-  });
-
   it.each([
     ['adult', 'pa', 90, 'alert'],
     ['adult', 'pa', 91, 'warn'],

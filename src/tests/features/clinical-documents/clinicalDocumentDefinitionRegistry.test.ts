@@ -1,18 +1,26 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
-import {
-  assertClinicalDocumentDefinitionRegistryIntegrity,
-  getClinicalDocumentDefinitionRegistryIntegrity,
-} from '@/domain/clinical-documents/definitions';
+import { CLINICAL_DOCUMENT_DEFINITION_REGISTRY } from '@/domain/clinical-documents/definitions';
+import type { ClinicalDocumentType } from '@/domain/clinical-documents/entities';
+
+const SUPPORTED_TYPES: ClinicalDocumentType[] = [
+  'epicrisis',
+  'evolucion',
+  'informe_medico',
+  'epicrisis_traslado',
+  'otro',
+];
 
 describe('clinicalDocumentDefinitionRegistry', () => {
-  it('has a valid definition for every supported document type', () => {
-    const integrity = getClinicalDocumentDefinitionRegistryIntegrity();
+  it.each(SUPPORTED_TYPES)('has a valid printable definition for %s', type => {
+    const definition = CLINICAL_DOCUMENT_DEFINITION_REGISTRY[type];
 
-    expect(integrity.ok).toBe(true);
-    expect(integrity.missingTypes).toEqual([]);
-    expect(integrity.invalidPrintTypes).toEqual([]);
-    expect(() => assertClinicalDocumentDefinitionRegistryIntegrity()).not.toThrow();
+    expect(definition).toBeDefined();
+    expect(Number.isFinite(definition.schemaVersion)).toBe(true);
+    expect(definition.printOptions).toMatchObject({
+      pageSize: 'letter',
+      mode: 'inline_browser_print',
+    });
   });
 });

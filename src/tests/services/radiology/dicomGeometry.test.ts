@@ -1,6 +1,9 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { volumeImageOrder, type SliceGeometry } from '@/domain/radiology/dicomGeometry';
+import { planDicomVolume, type SliceGeometry } from '@/domain/radiology/dicomGeometry';
+
+const volumeImageOrder = (images: SliceGeometry[]): string[] =>
+  planDicomVolume(images).slices.map(slice => slice.imageId);
 
 const slices = (): SliceGeometry[] =>
   Array.from({ length: 4 }, (_, i) => ({

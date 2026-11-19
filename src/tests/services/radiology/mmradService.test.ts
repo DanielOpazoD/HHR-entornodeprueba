@@ -17,7 +17,6 @@ import {
   buildMMRADPdfUrl,
   buildMMRADPortalReceiptUrl,
   fetchMMRADPdfBlob,
-  fetchMMRADPdfBlobUrl,
   fetchMMRADPortalReceiptHtml,
   searchMMRADExams,
 } from '@/features/radiology/services/mmradService';
@@ -114,25 +113,6 @@ describe('mmradService', () => {
     );
   });
 
-  it('fetches the proxied PDF with auth headers and returns a blob URL', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      blob: () => Promise.resolve(new Blob(['pdf'], { type: 'application/pdf' })),
-    });
-
-    const result = await fetchMMRADPdfBlobUrl('https://ris.mmrad.cl/informePDF?id=1459869');
-
-    expect(result).toBe('blob:mmrad-pdf');
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('/.netlify/functions/mmrad-search?action=pdf&link='),
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: 'Bearer token-123',
-        }),
-      })
-    );
-  });
-
   it('returns the original PDF blob unchanged and forwards cancellation to the authenticated proxy', async () => {
     const original = new Blob(['%PDF synthetic original'], { type: 'application/pdf' });
     const controller = new AbortController();
@@ -149,16 +129,15 @@ describe('mmradService', () => {
   });
 
   it.each(['text/html', 'application/json', 'application/octet-stream', ''])(
-    'rejects a non-PDF MIME type (%s) before creating a URL',
+    'rejects a non-PDF MIME type (%s)',
     async type => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         blob: () => Promise.resolve(new Blob(['not a PDF'], { type })),
       });
-      await expect(fetchMMRADPdfBlobUrl('https://mmrad.example/pdf/1')).rejects.toThrow(
+      await expect(fetchMMRADPdfBlob('https://mmrad.example/pdf/1')).rejects.toThrow(
         'MMRAD no devolvió un PDF original válido.'
       );
-      expect(URL.createObjectURL).not.toHaveBeenCalled();
     }
   );
 
