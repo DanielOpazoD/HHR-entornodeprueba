@@ -1,5 +1,5 @@
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
-import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
+import { sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
 import type { ExalabExam } from '@/types/domain/labExamTypes';
 import {
   askExalabAutoConnect,
@@ -23,9 +23,9 @@ const request = async (
   body?: Record<string, unknown>,
   link?: string
 ) => {
-  const epoch = getSessionEpoch();
+  const isSessionShown = sessionEpochGuard();
   const headers = await resolveCurrentUserAuthHeaders();
-  if (signal.aborted || epoch !== getSessionEpoch())
+  if (signal.aborted || !isSessionShown())
     throw new DOMException('Consulta cancelada.', 'AbortError');
   if (!headers.Authorization) throw new ExalabRequestError('Inicia sesión en HHR.');
   const query = new URLSearchParams({ action, ...(link ? { link } : {}) });
@@ -37,7 +37,7 @@ const request = async (
     cache: 'no-store',
     redirect: 'error',
   });
-  if (signal.aborted || epoch !== getSessionEpoch())
+  if (signal.aborted || !isSessionShown())
     throw new DOMException('Consulta cancelada.', 'AbortError');
   if (action === 'pdf' && response.ok) {
     const blob = await response.blob();
@@ -47,7 +47,7 @@ const request = async (
       (await blob.slice(0, 5).text()) !== '%PDF-'
     )
       throw new ExalabRequestError('Exalab no devolvió un PDF válido.');
-    if (signal.aborted || epoch !== getSessionEpoch())
+    if (signal.aborted || !isSessionShown())
       throw new DOMException('Consulta cancelada.', 'AbortError');
     return blob;
   }
@@ -60,7 +60,7 @@ const request = async (
   if (!raw || typeof raw !== 'object' || Array.isArray(raw))
     throw new ExalabRequestError('El puente Exalab no devolvió datos válidos.');
   const data = raw as Record<string, unknown>;
-  if (signal.aborted || epoch !== getSessionEpoch())
+  if (signal.aborted || !isSessionShown())
     throw new DOMException('Consulta cancelada.', 'AbortError');
   if (!response.ok || data.success !== true)
     throw new ExalabRequestError(

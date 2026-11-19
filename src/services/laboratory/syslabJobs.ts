@@ -1,5 +1,5 @@
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
-import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
+import { sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
 import type {
   LabResultRow,
   SyslabDetailsResponse,
@@ -64,9 +64,9 @@ export const requestSyslabJob = async <T>(
   offset?: number,
   rateLimitAttempt = 0
 ): Promise<T> => {
-  const epoch = getSessionEpoch();
+  const isSessionShown = sessionEpochGuard();
   const assertCurrent = () => {
-    if (!isCurrent() || getSessionEpoch() !== epoch) throw new Error('Consulta cancelada.');
+    if (!isCurrent() || !isSessionShown()) throw new Error('Consulta cancelada.');
   };
   assertCurrent();
   const headers = await resolveCurrentUserAuthHeaders();
@@ -105,7 +105,7 @@ export const requestSyslabJob = async <T>(
         action,
         body,
         id,
-        () => getSessionEpoch() === epoch && isCurrent(),
+        () => isSessionShown() && isCurrent(),
         offset,
         rateLimitAttempt + 1
       );
@@ -157,9 +157,8 @@ export const readRemoteSyslabDetailsJob = async (
   links: string[],
   options: SyslabDetailsOptions
 ): Promise<SyslabDetailsResponse> => {
-  const epoch = getSessionEpoch();
-  const isCurrent = () =>
-    getSessionEpoch() === epoch && (!options.isCurrent || options.isCurrent());
+  const isSessionShown = sessionEpochGuard();
+  const isCurrent = () => isSessionShown() && (!options.isCurrent || options.isCurrent());
   const selected = [...new Set(links)];
   const requestedUrl = (index: number): string => {
     const link = selected[index];

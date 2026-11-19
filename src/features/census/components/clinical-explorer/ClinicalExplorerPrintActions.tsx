@@ -7,7 +7,7 @@ import {
   requestClinicalPanel,
 } from '@/features/rayen-import/clinical-panel';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
-import { getSessionEpoch, onSessionChange } from '@/services/storage/sessionStorageTransition';
+import { onSessionChange, sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { buildIndicationsPrintHtml, printHtmlDocument } from './clinicalExplorerPrint';
@@ -36,7 +36,7 @@ export const ClinicalExplorerPrintActions: React.FC<ClinicalExplorerPrintActions
   indicationDate,
   compact = false,
 }) => {
-  const epoch = useSessionEpoch();
+  const isSessionShown = sessionEpochGuard(useSessionEpoch());
   const mounted = useRef(false);
   const operation = useRef<AbortController | null>(null);
   const [state, setState] = useState<ActionState>({ kind: 'idle' });
@@ -60,7 +60,7 @@ export const ClinicalExplorerPrintActions: React.FC<ClinicalExplorerPrintActions
     mounted.current &&
     operation.current === controller &&
     !controller.signal.aborted &&
-    getSessionEpoch() === epoch;
+    isSessionShown();
 
   const printIndications = async (controller: AbortController): Promise<void> => {
     // Read again at the moment of printing: the paper carries what Ficha Médico says now.
@@ -113,7 +113,7 @@ export const ClinicalExplorerPrintActions: React.FC<ClinicalExplorerPrintActions
   };
 
   const run = async (action: Action): Promise<void> => {
-    if (operation.current || getSessionEpoch() !== epoch) return;
+    if (operation.current || !isSessionShown()) return;
     const controller = new AbortController();
     operation.current = controller;
     setState({ kind: 'pending', action });

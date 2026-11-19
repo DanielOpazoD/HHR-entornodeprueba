@@ -5,6 +5,7 @@ import {
   SESSION_CLEANUP_PENDING_KEY,
 } from '@/services/storage/sessionOwnerKey';
 import {
+  getSessionEpoch,
   getSessionGeneration,
   sessionEpochGuard,
 } from '@/services/storage/sessionStorageTransition';
@@ -77,6 +78,13 @@ describe('one session guard for asynchronous operations', () => {
     const guard = guardAuthoringSession({ message: 'La sesión cambió. Vuelva a abrir el mes.' });
     admitSyntheticSession('user:synthetic-b', 'generation-b');
     expect(() => guard.check()).toThrow('La sesión cambió. Vuelva a abrir el mes.');
+  });
+
+  it('guards the epoch a component rendered with: a change before its re-render already counts', () => {
+    const rendered = getSessionEpoch();
+    admitSyntheticSession('user:synthetic-b', 'generation-b');
+    expect(sessionEpochGuard(rendered)()).toBe(false);
+    expect(sessionEpochGuard()()).toBe(true);
   });
 
   it('keys remembered data by person and session, and by nobody when no one is admitted', () => {

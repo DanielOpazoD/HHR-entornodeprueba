@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
-import { getSessionEpoch, onSessionChange } from '@/services/storage/sessionStorageTransition';
+import { onSessionChange, sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
 import { readAdmissionAuditCensus } from '@/services/admin/admissionAuditCensus';
 import {
   parseAdmissionVitalSigns,
@@ -69,10 +69,11 @@ export const useAdmissionAudit = (owner: string | null) => {
     }
     const controller = new AbortController();
     operation.current = controller;
+    const isSessionShown = sessionEpochGuard(epoch);
     const isCurrent = () =>
       !controller.signal.aborted &&
       current.current === scope &&
-      getSessionEpoch() === epoch &&
+      isSessionShown() &&
       operation.current === controller;
     setStatus({
       scope,

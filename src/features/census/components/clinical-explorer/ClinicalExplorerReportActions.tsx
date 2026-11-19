@@ -5,7 +5,7 @@ import { downloadBlob } from '@/services/exporters/exportDownload';
 import { buildMMRADReportClipboardText } from '@/domain/radiology/mmradReportSupport';
 import type { MMRADExam } from '@/features/radiology/services/mmradService';
 import { deliverMmradPdf } from '@/features/radiology/services/mmradPdfDelivery';
-import { getSessionEpoch, onSessionChange } from '@/services/storage/sessionStorageTransition';
+import { onSessionChange, sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
 import { writePrivateClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { EXPLORER_ICON_BUTTON } from './clinicalExplorerUi';
 
@@ -18,7 +18,7 @@ type ActionState =
 
 /** Mounted for one patient, episode and study by the report's identity key. */
 export const ClinicalExplorerReportActions: React.FC<{ exam: MMRADExam }> = ({ exam }) => {
-  const epoch = useSessionEpoch();
+  const isSessionShown = sessionEpochGuard(useSessionEpoch());
   const mounted = useRef(false);
   const operation = useRef<AbortController | null>(null);
   const [state, setState] = useState<ActionState>({ kind: 'idle' });
@@ -49,10 +49,10 @@ export const ClinicalExplorerReportActions: React.FC<{ exam: MMRADExam }> = ({ e
     mounted.current &&
     operation.current === controller &&
     !controller.signal.aborted &&
-    getSessionEpoch() === epoch;
+    isSessionShown();
 
   const run = async (action: Action): Promise<void> => {
-    if (operation.current || getSessionEpoch() !== epoch) return;
+    if (operation.current || !isSessionShown()) return;
     if (action === 'download' ? !exam.pdf_url : !clipboardText) return;
     const controller = new AbortController();
     operation.current = controller;

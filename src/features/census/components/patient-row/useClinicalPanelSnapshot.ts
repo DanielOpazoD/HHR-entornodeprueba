@@ -1,5 +1,5 @@
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
-import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
+import { sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   dailyActionNow,
@@ -58,14 +58,11 @@ export const useClinicalPanelSnapshot = (clinicalEpisodeId: string) => {
     pending.current?.controller.abort();
     const request = { episode: clinicalEpisodeId, controller: new AbortController() };
     const startedAt = dailyActionNow();
+    const isSessionShown = sessionEpochGuard(generation);
     pending.current = request;
     void requestClinicalPanel(clinicalEpisodeId, undefined, request.controller.signal)
       .then(result => {
-        if (
-          pending.current !== request ||
-          request.controller.signal.aborted ||
-          generation !== getSessionEpoch()
-        )
+        if (pending.current !== request || request.controller.signal.aborted || !isSessionShown())
           return;
         const state = panelStateFrom(result);
         recordDailyActionTiming('clinical_panel_ready', startedAt, state.phase === 'ready');
@@ -77,11 +74,7 @@ export const useClinicalPanelSnapshot = (clinicalEpisodeId: string) => {
         });
       })
       .catch(() => {
-        if (
-          pending.current !== request ||
-          request.controller.signal.aborted ||
-          generation !== getSessionEpoch()
-        )
+        if (pending.current !== request || request.controller.signal.aborted || !isSessionShown())
           return;
         recordDailyActionTiming('clinical_panel_ready', startedAt, false);
         const error = {
