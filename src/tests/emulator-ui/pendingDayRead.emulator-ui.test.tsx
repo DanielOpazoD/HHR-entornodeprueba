@@ -213,7 +213,7 @@ const censusHere = async (seed?: (day: DailyRecord) => void) => {
     { wrapper, initialProps: { live: false } }
   );
   const mutate = async (partial: DailyRecordPatch, options?: object) => {
-    let payload: { result?: { updatedRemotely?: boolean; observabilityTags?: string[] } } = {};
+    let payload: { result?: DailyRecordWriteResult } = {};
     await act(async () => {
       payload = (await hook.result.current.mutateAsync({
         date,
@@ -507,6 +507,7 @@ it.each(Object.keys(lists) as (keyof typeof lists)[])(
 );
 
 import { createRequire } from 'node:module';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 const { createRayenClinicalEnrichmentFunctions } = createRequire(import.meta.url)(
   '../../../functions/lib/rayenClinicalEnrichmentFunctions.js'
 );

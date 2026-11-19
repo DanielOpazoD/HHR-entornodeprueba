@@ -5,7 +5,7 @@ import { defaultDailyRecordRepositoryPort } from '@/application/ports/dailyRecor
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { setDailyRecordQueryData } from '@/hooks/controllers/dailyRecordQueryController';
 
 const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
@@ -15,21 +15,17 @@ const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
     save: vi.fn().mockResolvedValue(undefined),
     saveDetailed: vi.fn().mockResolvedValue({
       date: '2025-12-27',
-      outcome: 'clean',
-      savedLocally: true,
-      savedRemotely: true,
-      queuedForRetry: false,
-      autoMerged: false,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
     }),
     subscribeDetailed: vi.fn(() => vi.fn()),
     updatePartial: vi.fn().mockResolvedValue(undefined),
     updatePartialDetailed: vi.fn().mockResolvedValue({
       date: '2025-12-27',
-      outcome: 'clean',
-      savedLocally: true,
-      updatedRemotely: true,
-      queuedForRetry: false,
-      autoMerged: false,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
     }),
     syncWithFirestoreDetailed: vi.fn().mockResolvedValue({
       date: '2025-12-27',
@@ -187,8 +183,8 @@ describe('definitive bed clear serialization', () => {
       },
       lastUpdated: '2026-01-01T00:00:02.000Z',
     };
-    const clearWrite = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
-    const newerWrite = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    const clearWrite = createDeferred<DailyRecordWriteResult>();
+    const newerWrite = createDeferred<DailyRecordWriteResult>();
     let remotelyVisibleRecord = occupiedRecord;
 
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockImplementation(async () =>
@@ -226,17 +222,13 @@ describe('definitive bed clear serialization', () => {
     expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledTimes(1);
     expect(result.current.record?.beds.R1.pathology).toBe('Diagnóstico inicial');
 
-    clearWrite.resolve(
-      createUpdatePartialDailyRecordResult({
-        date: mockDate,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-        confirmedRecord: clearedRecord,
-      })
-    );
+    clearWrite.resolve({
+      date: mockDate,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
+      confirmedRecord: clearedRecord,
+    });
     await act(async () => {
       await clearPromise;
     });
@@ -244,17 +236,13 @@ describe('definitive bed clear serialization', () => {
       expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledTimes(2);
     });
 
-    newerWrite.resolve(
-      createUpdatePartialDailyRecordResult({
-        date: mockDate,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-        confirmedRecord: newerRecord,
-      })
-    );
+    newerWrite.resolve({
+      date: mockDate,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
+      confirmedRecord: newerRecord,
+    });
     await act(async () => {
       await newerPromise;
     });
@@ -295,7 +283,7 @@ describe('definitive bed clear serialization', () => {
         }),
       },
     });
-    const write = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    const write = createDeferred<DailyRecordWriteResult>();
     let remotelyVisibleRecord = occupiedRecord;
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockImplementation(async () =>
       buildReadResult(remotelyVisibleRecord)
@@ -328,17 +316,13 @@ describe('definitive bed clear serialization', () => {
       remotelyVisibleRecord = realtimeNewer;
       setDailyRecordQueryData(testRuntime.queryClient, mockDate, realtimeNewer);
     });
-    write.resolve(
-      createUpdatePartialDailyRecordResult({
-        date: mockDate,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-        confirmedRecord: confirmedClear,
-      })
-    );
+    write.resolve({
+      date: mockDate,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
+      confirmedRecord: confirmedClear,
+    });
 
     await act(async () => {
       await clearPromise;
@@ -368,8 +352,8 @@ describe('definitive bed clear serialization', () => {
       },
       lastUpdated: '2026-01-01T00:00:01.000Z',
     };
-    const clearWrite = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
-    const newerWrite = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    const clearWrite = createDeferred<DailyRecordWriteResult>();
+    const newerWrite = createDeferred<DailyRecordWriteResult>();
     let remotelyVisibleRecord = occupiedRecord;
 
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockImplementation(async () =>
@@ -406,17 +390,13 @@ describe('definitive bed clear serialization', () => {
     expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledTimes(1);
 
     remotelyVisibleRecord = clearedRecord;
-    clearWrite.resolve(
-      createUpdatePartialDailyRecordResult({
-        date: mockDate,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-        confirmedRecord: clearedRecord,
-      })
-    );
+    clearWrite.resolve({
+      date: mockDate,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
+      confirmedRecord: clearedRecord,
+    });
     await act(async () => {
       await clearPromise;
     });

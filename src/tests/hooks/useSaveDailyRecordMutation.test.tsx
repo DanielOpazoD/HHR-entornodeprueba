@@ -14,10 +14,7 @@ import {
   resetDailyRecordFreshnessGateForTests,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { RepositoryProvider, createRepositoryContainer } from '@/services/RepositoryContext';
-import {
-  createSaveDailyRecordResult,
-  type SaveDailyRecordResult,
-} from '@/services/repositories/contracts/dailyRecordResults';
+import { type DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -44,7 +41,7 @@ const startSave = async () => {
   const client = createTestQueryClient();
   const repository = buildMockDailyRecordRepository();
   const entered = deferred<void>();
-  const response = deferred<SaveDailyRecordResult>();
+  const response = deferred<DailyRecordWriteResult>();
   vi.mocked(repository.saveDetailed).mockImplementation(() => {
     entered.resolve();
     return response.promise;
@@ -65,7 +62,7 @@ const startSave = async () => {
     });
     await entered.promise;
   });
-  const settle = async (result: SaveDailyRecordResult) => {
+  const settle = async (result: DailyRecordWriteResult) => {
     await act(async () => {
       response.resolve(result);
       await pending;
@@ -73,18 +70,14 @@ const startSave = async () => {
     return client.getQueryData<DailyRecordQueryResult>(getDailyRecordQueryKey(date));
   };
   const finish = (confirmedRecord: DailyRecord, localProjectionRecord?: DailyRecord) =>
-    settle(
-      createSaveDailyRecordResult({
-        date,
-        outcome: 'clean',
-        savedLocally: true,
-        savedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-        confirmedRecord,
-        localProjectionRecord,
-      })
-    );
+    settle({
+      date,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
+      confirmedRecord,
+      localProjectionRecord,
+    });
   return { client, finish, settle, pending };
 };
 
@@ -162,23 +155,18 @@ describe('full-save mutation acknowledgement', () => {
 
   // The freshness gate trusts this mark to skip a server read before the next edit.
   it.each([
-    ['waits in the queue without network', 'queued', false, false],
-    ['is saved on this computer only', 'clean', false, false],
-    ['is confirmed by the server without its version', 'clean', true, true],
+    ['waits in the queue without network', { state: 'local', cause: 'retrying' }, false],
+    ['is saved on this computer only', { state: 'local', cause: 'stored' }, false],
+    [
+      'is confirmed by the server without its version',
+      { state: 'confirmed', localCopy: 'current' },
+      true,
+    ],
   ] as const)(
     'a whole-day save that %s counts as server-confirmed only if the server holds it',
-    async (_label, outcome, savedRemotely, marked) => {
+    async (_label, write, marked) => {
       const { settle } = await startSave();
-      await settle(
-        createSaveDailyRecordResult({
-          date,
-          outcome,
-          savedLocally: true,
-          savedRemotely,
-          queuedForRetry: outcome === 'queued',
-          autoMerged: false,
-        })
-      );
+      await settle({ date, savedHere: true, ...write });
       expect(getDailyRecordLastRemoteConfirmedAt(date) !== undefined).toBe(marked);
     }
   );

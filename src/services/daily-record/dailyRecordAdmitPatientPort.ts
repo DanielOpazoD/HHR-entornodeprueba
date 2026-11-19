@@ -19,7 +19,7 @@ import { resolveClinicalEpisodeIdForAdmission } from '@/domain/clinical-episode/
 import {
   isDailyRecordWriteRejectedResult,
   toDailyRecordWriteError,
-  type UpdatePartialDailyRecordResult,
+  type DailyRecordWriteResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
@@ -56,7 +56,7 @@ export type AdmitPatientPersistenceFn = (
   date: string,
   patch: DailyRecordPatch,
   options: PartialUpdateDailyRecordOptions
-) => Promise<void | UpdatePartialDailyRecordResult>;
+) => Promise<void | DailyRecordWriteResult>;
 
 export const buildAdmitPatientPatch = (input: AdmitPatientInput): DailyRecordPatch => {
   if (input.eloisaManualAdmissionSource) {
@@ -104,9 +104,7 @@ const buildSnapshotFromInput = (input: AdmitPatientInput): AdmittedPatientSnapsh
   recordDate: input.recordDate,
 });
 
-const assertAdmissionPersistenceAccepted = (
-  result: void | UpdatePartialDailyRecordResult
-): void => {
+const assertAdmissionPersistenceAccepted = (result: void | DailyRecordWriteResult): void => {
   if (result && isDailyRecordWriteRejectedResult(result)) {
     throw toDailyRecordWriteError(
       result,

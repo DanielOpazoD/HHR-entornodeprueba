@@ -1,10 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { saveBackupImport } from '@/services/repositories/dailyRecordBackupImportWriteService';
-import {
-  createSaveDailyRecordResult,
-  type SaveDailyRecordResult,
-} from '@/services/repositories/contracts/dailyRecordResults';
+import { type DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 const mocks = vi.hoisted(() => ({ saveDetailed: vi.fn() }));
@@ -20,15 +17,12 @@ vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
 const DATE = '2026-11-17';
 const day = DataFactory.createMockDailyRecord(DATE, { lastUpdated: '2026-11-17T08:00:00.000Z' });
 
-const savedHere = (savedLocally: boolean): SaveDailyRecordResult =>
-  createSaveDailyRecordResult({
-    date: DATE,
-    outcome: 'clean',
-    savedLocally,
-    savedRemotely: false,
-    queuedForRetry: false,
-    autoMerged: false,
-  });
+const savedHere = (copyHere: boolean): DailyRecordWriteResult => ({
+  date: DATE,
+  savedHere: copyHere,
+  state: 'local',
+  cause: 'stored',
+});
 
 describe('saveBackupImport', () => {
   beforeEach(async () => {

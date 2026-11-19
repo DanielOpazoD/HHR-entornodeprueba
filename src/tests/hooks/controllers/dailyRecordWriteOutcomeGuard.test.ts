@@ -4,84 +4,44 @@ import {
   assertDailyRecordWriteAccepted,
   DailyRecordWriteBlockedOutcomeError,
 } from '@/hooks/controllers/dailyRecordWriteOutcomeGuard';
-import type {
-  SaveDailyRecordResult,
-  UpdatePartialDailyRecordResult,
-} from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 
-const buildPatchResult = (
-  overrides: Partial<UpdatePartialDailyRecordResult>
-): UpdatePartialDailyRecordResult => ({
-  date: '2026-02-18',
-  outcome: 'clean',
-  savedLocally: true,
-  updatedRemotely: true,
-  queuedForRetry: false,
-  autoMerged: false,
-  consistencyState: 'persisted_and_synced',
-  conflictSummary: null,
-  observabilityTags: ['daily_record', 'write'],
-  ...overrides,
-});
-
-const buildSaveResult = (overrides: Partial<SaveDailyRecordResult>): SaveDailyRecordResult => ({
-  date: '2026-02-18',
-  outcome: 'clean',
-  savedLocally: true,
-  savedRemotely: true,
-  queuedForRetry: false,
-  autoMerged: false,
-  consistencyState: 'persisted_and_synced',
-  conflictSummary: null,
-  observabilityTags: ['daily_record', 'write'],
-  ...overrides,
-});
+const DATE = '2026-02-18';
 
 describe('dailyRecordWriteOutcomeGuard', () => {
-  it.each(['clean', 'queued', 'auto_merged'] as const)(
-    'accepts patch result outcome %s',
-    outcome => {
-      expect(() => assertDailyRecordWriteAccepted(buildPatchResult({ outcome }))).not.toThrow();
-    }
-  );
+  it.each<DailyRecordWriteResult>([
+    { date: DATE, savedHere: true, state: 'confirmed', localCopy: 'current' },
+    { date: DATE, savedHere: true, state: 'local', cause: 'retrying' },
+    { date: DATE, savedHere: true, state: 'local', cause: 'merged' },
+  ])('lets the census flow continue after $state ($cause$localCopy)', result => {
+    expect(() => assertDailyRecordWriteAccepted(result)).not.toThrow();
+  });
 
-  it('rejects a blocked outcome even when consistencyState is unrecoverable', () => {
-    const result = buildPatchResult({
-      outcome: 'blocked',
-      savedLocally: false,
-      updatedRemotely: false,
-      consistencyState: 'unrecoverable',
+  it('rejects a blocked write with its own message', () => {
+    const result: DailyRecordWriteResult = {
+      date: DATE,
+      savedHere: false,
+      state: 'not_saved',
+      reason: 'blocked',
       userSafeMessage: 'No se encontró un registro local válido para aplicar el cambio.',
-    });
+    };
 
     expect(() => assertDailyRecordWriteAccepted(result)).toThrow(
-      DailyRecordWriteBlockedOutcomeError
+      new DailyRecordWriteBlockedOutcomeError(result)
+    );
+    expect(() => assertDailyRecordWriteAccepted(result)).toThrow(
+      'No se encontró un registro local válido para aplicar el cambio.'
     );
   });
 
-  it.each(['blocked_validation', 'blocked_regression', 'blocked_version_mismatch'] as const)(
-    'rejects save result consistencyState %s',
-    consistencyState => {
-      const result = buildSaveResult({
-        outcome: 'clean',
-        consistencyState,
-        userSafeMessage: 'Operación bloqueada por consistencia.',
-      });
-
-      expect(() => assertDailyRecordWriteAccepted(result)).toThrow(
-        DailyRecordWriteBlockedOutcomeError
-      );
-    }
-  );
-
   it('rejects an unrecoverable result instead of reporting a successful mutation', () => {
-    const result = buildSaveResult({
-      outcome: 'unrecoverable',
-      savedLocally: false,
-      savedRemotely: false,
-      consistencyState: 'unrecoverable',
+    const result: DailyRecordWriteResult = {
+      date: DATE,
+      savedHere: false,
+      state: 'not_saved',
+      reason: 'local_failed',
       userSafeMessage: 'La persistencia local no pudo confirmarse.',
-    });
+    };
 
     expect(() => assertDailyRecordWriteAccepted(result)).toThrow(
       DailyRecordWriteBlockedOutcomeError

@@ -300,8 +300,11 @@ describe('useRayenSyncAudit', () => {
       .fn()
       .mockResolvedValueOnce({
         result: {
-          outcome: 'blocked',
-          conflictSummary: { kind: 'concurrency' },
+          date: '2026-07-14',
+          savedHere: false,
+          state: 'not_saved',
+          reason: 'blocked',
+          concurrencyConflict: true,
           blockingError: conflict,
         },
       })

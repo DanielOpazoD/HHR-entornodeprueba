@@ -48,7 +48,9 @@ describe('useRayenCensusDiffApplication', () => {
       record,
       result: {
         date: record.date,
-        outcome: 'clean',
+        savedHere: true,
+        state: 'confirmed',
+        localCopy: 'current',
         confirmedRecord: record,
       },
     }));
@@ -139,8 +141,9 @@ describe('useRayenCensusDiffApplication', () => {
       Object.assign(confirmedRecord, patch);
       return {
         date: confirmedRecord.date,
-        outcome: 'clean',
-        updatedRemotely: true,
+        savedHere: true,
+        state: 'confirmed',
+        localCopy: 'current',
         confirmedRecord,
       };
     });
@@ -208,8 +211,9 @@ describe('useRayenCensusDiffApplication', () => {
     } as DailyRecord;
     const checkpointDailyRecord = vi.fn(async () => ({
       date: baseRecord.date,
-      outcome: 'clean',
-      updatedRemotely: true,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
       confirmedRecord: staleConfirmation,
     }));
     const stampedAuthoritative = {
@@ -296,8 +300,9 @@ describe('useRayenCensusDiffApplication', () => {
     const checkpointDailyRecord = vi.fn(
       async (_date: string, patch: object, options: { baseRecord: DailyRecord }) => ({
         date: baseRecord.date,
-        outcome: 'clean',
-        updatedRemotely: true,
+        savedHere: true,
+        state: 'confirmed',
+        localCopy: 'current',
         confirmedRecord: {
           ...options.baseRecord,
           ...patch,
@@ -410,7 +415,13 @@ describe('useRayenCensusDiffApplication', () => {
     } as DailyRecord;
     const saveDailyRecord = vi.fn(async () => ({
       record: stamped,
-      result: { date: stamped.date, outcome: 'clean', confirmedRecord: stamped },
+      result: {
+        date: stamped.date,
+        savedHere: true,
+        state: 'confirmed',
+        localCopy: 'current',
+        confirmedRecord: stamped,
+      },
     }));
     const checkpointDailyRecord = vi.fn();
     const { result } = renderHook(() =>
@@ -467,7 +478,13 @@ describe('useRayenCensusDiffApplication', () => {
     } as DailyRecord;
     const saveDailyRecord = vi.fn(async (record: DailyRecord) => ({
       record,
-      result: { date: record.date, outcome: 'clean', confirmedRecord: record },
+      result: {
+        date: record.date,
+        savedHere: true,
+        state: 'confirmed',
+        localCopy: 'current',
+        confirmedRecord: record,
+      },
     }));
     const checkpointDailyRecord = vi.fn();
     const { result } = renderHook(() =>

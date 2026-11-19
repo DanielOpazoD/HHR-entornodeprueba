@@ -60,7 +60,7 @@ describe('patch bases with optional empty cache fields', () => {
         authoringSession: captureAuthoringSession(),
         baseRecord: { ...stored, [field]: empty },
       });
-      expect(result.savedLocally).toBe(true);
+      expect(result.savedHere).toBe(true);
       expect(await hospitalDB.dailyRecords.get(date)).toMatchObject(patch);
       const tasks = await hospitalDB.syncQueue.toArray();
       expect(tasks).toHaveLength(1);
@@ -83,7 +83,7 @@ describe('patch bases with optional empty cache fields', () => {
         { authoringSession: captureAuthoringSession(), baseRecord: base }
       ),
     ]);
-    expect(results.every(result => result.savedLocally)).toBe(true);
+    expect(results.every(result => result.savedHere)).toBe(true);
     for (const value of [
       await hospitalDB.dailyRecords.get(date),
       (await hospitalDB.syncQueue.toArray())[0]?.payload as DailyRecord,

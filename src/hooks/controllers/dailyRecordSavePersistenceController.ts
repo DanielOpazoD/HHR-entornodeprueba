@@ -1,7 +1,7 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { SaveDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
-import type { SaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { SaveDailyRecordMutationInput } from './dailyRecordMutationFreshnessController';
 
 export const saveDailyRecordWithCompatibility = async (
@@ -9,7 +9,7 @@ export const saveDailyRecordWithCompatibility = async (
   record: DailyRecord,
   expectedLastUpdated: string = record.lastUpdated,
   options: SaveDailyRecordOptions
-): Promise<SaveDailyRecordResult | null> => {
+): Promise<DailyRecordWriteResult | null> => {
   if (typeof dailyRecord.saveDetailed === 'function') {
     return dailyRecord.saveDetailed(record, expectedLastUpdated, options);
   }

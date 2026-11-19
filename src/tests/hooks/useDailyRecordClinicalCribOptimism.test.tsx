@@ -6,7 +6,7 @@ import { defaultDailyRecordRepositoryPort } from '@/application/ports/dailyRecor
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
 
 const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
@@ -146,7 +146,7 @@ describe('remote-confirmed clinical crib optimism', () => {
       patientName: 'RN de Paciente principal',
       rut: '',
     });
-    const write = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    const write = createDeferred<DailyRecordWriteResult>();
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
       buildReadResult(occupiedRecord)
     );
@@ -223,7 +223,7 @@ describe('remote-confirmed clinical crib optimism', () => {
       beds: { R1: { ...occupiedRecord.beds.R1, clinicalCrib: newCrib } },
       lastUpdated: '2026-01-01T00:00:01.000Z',
     });
-    const write = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    const write = createDeferred<DailyRecordWriteResult>();
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
       buildReadResult(occupiedRecord)
     );
@@ -263,17 +263,13 @@ describe('remote-confirmed clinical crib optimism', () => {
       })
     );
 
-    write.resolve(
-      createUpdatePartialDailyRecordResult({
-        date: mockDate,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-        confirmedRecord,
-      })
-    );
+    write.resolve({
+      date: mockDate,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
+      confirmedRecord,
+    });
     await act(async () => createPromise);
 
     await waitFor(() => {
@@ -381,17 +377,13 @@ describe('remote-confirmed clinical crib optimism', () => {
     vi.mocked(defaultDailyRecordRepositoryPort.getAuthoritativeForDate).mockResolvedValue(
       authoritativeRecord
     );
-    vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockResolvedValue(
-      createUpdatePartialDailyRecordResult({
-        date: mockDate,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-        confirmedRecord,
-      })
-    );
+    vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockResolvedValue({
+      date: mockDate,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
+      confirmedRecord,
+    });
 
     const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
       wrapper: createWrapper(),
@@ -432,7 +424,7 @@ describe('remote-confirmed clinical crib optimism', () => {
         }),
       },
     });
-    const write = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    const write = createDeferred<DailyRecordWriteResult>();
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
       buildReadResult(occupiedRecord)
     );

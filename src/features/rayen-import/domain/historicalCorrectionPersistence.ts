@@ -5,7 +5,6 @@ import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyReco
 import { saveDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordSavePersistenceController';
 import {
   isDailyRecordWriteRejectedResult,
-  resolveDailyRecordWriteStatus,
   toDailyRecordWriteError,
 } from '@/services/repositories/contracts/dailyRecordResults';
 import { assertRayenCensusPersistenceConfirmed } from '../hooks/rayenCensusPersistenceGuard';
@@ -18,10 +17,9 @@ export const isHistoricalPatchOnlyQueued = (
   result: Awaited<ReturnType<typeof patchDailyRecordWithCompatibility>>
 ): boolean => {
   if (!result) return false;
-  const status = resolveDailyRecordWriteStatus(result);
-  if (status.state === 'confirmed' || !isDailyRecordWriteRejectedResult(result)) return false;
+  if (result.state === 'confirmed' || !isDailyRecordWriteRejectedResult(result)) return false;
   // Only proven local persistence can be described as queued after a remote rejection.
-  if (status.savedHere) return true;
+  if (result.savedHere) return true;
   throw toDailyRecordWriteError(result, 'No se confirmó el guardado histórico.');
 };
 
@@ -37,10 +35,6 @@ export const persistHistoricalOccupancyCorrection = async (
     requireConfirmedRecord: true,
   });
   assertRayenCensusPersistenceConfirmed({ record: corrected, result });
-  if (
-    !result ||
-    resolveDailyRecordWriteStatus(result).state !== 'confirmed' ||
-    result.confirmedRecord?.date !== base.date
-  )
+  if (!result || result.state !== 'confirmed' || result.confirmedRecord?.date !== base.date)
     throw new Error('No se confirmó la conciliación del censo histórico.');
 };

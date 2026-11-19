@@ -7,7 +7,6 @@ import {
 } from '@/features/rayen-import/domain/previousDayCorrections';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields';
-import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import {
   historicalRecord,
   motherAndNewbornDiff,
@@ -29,14 +28,12 @@ it('reoffers diagnosis after a queued admission reaches the server, without over
   const port = { ...repository, getAuthoritativeForDate: vi.fn(async () => remote) };
   vi.mocked(patchDailyRecordWithCompatibility).mockImplementation(async (_port, date, patch) => {
     remote = applyPatches(remote, patch);
-    return createUpdatePartialDailyRecordResult({
+    return {
       date,
-      outcome: 'clean',
-      savedLocally: true,
-      updatedRemotely: true,
-      queuedForRetry: false,
-      autoMerged: false,
-    });
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
+    };
   });
   // The durable structural task has completed, but its diagnosis was never written.
   remote.beds.H4C1 = structuredClone(diff.admissions[0].patient);
@@ -74,14 +71,12 @@ it('copies diagnosis through a separate clinical patch after confirming the hist
       expect(options?.baseRecord).toBe(remote);
       patches.push(patch);
       remote = applyPatches(remote, patch);
-      return createUpdatePartialDailyRecordResult({
+      return {
         date,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-      });
+        savedHere: true,
+        state: 'confirmed',
+        localCopy: 'current',
+      };
     }
   );
   const plan = await computePreviousDayEdits(port, diff, '2026-07-26', false);
@@ -123,14 +118,12 @@ it('persists a server-missing admission even when the local merged read already 
     async (_port, date, patch, options) => {
       expect(options?.baseRecord).toBe(remote);
       remote = applyPatches(remote, patch);
-      return createUpdatePartialDailyRecordResult({
+      return {
         date,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-      });
+        savedHere: true,
+        state: 'confirmed',
+        localCopy: 'current',
+      };
     }
   );
   const plan = await computePreviousDayEdits(port, motherAndNewbornDiff, '2026-07-26', false);
@@ -238,14 +231,12 @@ it.each([false, true])(
       }
       expect(Object.keys(patch).every(path => path.startsWith('beds.H4C1.'))).toBe(true);
       persisted = applyPatches(persisted, patch);
-      return createUpdatePartialDailyRecordResult({
+      return {
         date: _day,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-      });
+        savedHere: true,
+        state: 'confirmed',
+        localCopy: 'current',
+      };
     });
     const plan = await computePreviousDayEdits(repository, diff, '2026-07-26', false);
     await expect(

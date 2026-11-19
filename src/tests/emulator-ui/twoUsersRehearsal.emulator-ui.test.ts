@@ -285,7 +285,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
       )
     );
-    expect(offline).toMatchObject({ savedLocally: true, updatedRemotely: false });
+    expect(offline).toMatchObject({ savedHere: true, state: 'local', cause: 'stored' });
     const [pending] = await hospitalDB.syncQueue.toArray();
     expect(pending.patchBaseValues).toMatchObject({ 'beds.R1.pathology': 'BASE' });
     const collision = scenario === 'same-field' || scenario === 'hidden-same-field';

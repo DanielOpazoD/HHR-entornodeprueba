@@ -5,7 +5,7 @@ import { defaultDailyRecordRepositoryPort } from '@/application/ports/dailyRecor
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
   mockDailyRecordRepositoryPort: {
@@ -16,21 +16,17 @@ const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
     save: vi.fn().mockResolvedValue(undefined),
     saveDetailed: vi.fn().mockResolvedValue({
       date: '2025-12-27',
-      outcome: 'clean',
-      savedLocally: true,
-      savedRemotely: true,
-      queuedForRetry: false,
-      autoMerged: false,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
     }),
     subscribeDetailed: vi.fn(() => vi.fn()),
     updatePartial: vi.fn().mockResolvedValue(undefined),
     updatePartialDetailed: vi.fn().mockResolvedValue({
       date: '2025-12-27',
-      outcome: 'clean',
-      savedLocally: true,
-      updatedRemotely: true,
-      queuedForRetry: false,
-      autoMerged: false,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
     }),
     syncWithFirestoreDetailed: vi.fn().mockResolvedValue({
       date: '2025-12-27',
@@ -181,7 +177,7 @@ describe('definitive bed clear confirmation', () => {
       },
       lastUpdated: '2026-01-01T00:00:02.000Z',
     });
-    const write = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    const write = createDeferred<DailyRecordWriteResult>();
     let remoteWriteConfirmed = false;
 
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockImplementation(async () =>
@@ -242,17 +238,13 @@ describe('definitive bed clear confirmation', () => {
     );
 
     remoteWriteConfirmed = true;
-    write.resolve(
-      createUpdatePartialDailyRecordResult({
-        date: mockDate,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-        confirmedRecord: clearedRecord,
-      })
-    );
+    write.resolve({
+      date: mockDate,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
+      confirmedRecord: clearedRecord,
+    });
 
     await act(async () => {
       await clearPromise;
@@ -331,7 +323,7 @@ describe('definitive bed clear confirmation', () => {
       },
     });
     const clearedBed = DataFactory.createMockPatient('R1', { patientName: '', rut: '' });
-    const write = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    const write = createDeferred<DailyRecordWriteResult>();
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
       buildReadResult(occupiedRecord)
     );
@@ -394,7 +386,7 @@ describe('definitive bed clear confirmation', () => {
       rut: '',
       clinicalCrib: undefined,
     });
-    const write = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    const write = createDeferred<DailyRecordWriteResult>();
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
       buildReadResult(occupiedRecord)
     );
@@ -457,7 +449,7 @@ describe('definitive bed clear confirmation', () => {
         }),
       },
     });
-    const write = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    const write = createDeferred<DailyRecordWriteResult>();
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
       buildReadResult(occupiedRecord)
     );

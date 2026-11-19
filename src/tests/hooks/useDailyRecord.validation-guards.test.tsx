@@ -7,10 +7,6 @@ import { UIProvider } from '@/context/UIContext';
 import { applyPatches } from '@/utils/patchUtils';
 import { DataFactory } from '../factories/DataFactory';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
-import {
-  createSaveDailyRecordResult,
-  createUpdatePartialDailyRecordResult,
-} from '@/services/repositories/contracts/dailyRecordResults';
 
 const { mockDailyRecordPorts } = vi.hoisted(() => ({
   mockDailyRecordPorts: {
@@ -20,20 +16,16 @@ const { mockDailyRecordPorts } = vi.hoisted(() => ({
     save: vi.fn().mockResolvedValue(undefined),
     saveDetailed: vi.fn().mockResolvedValue({
       date: '2025-01-01',
-      outcome: 'clean',
-      savedLocally: true,
-      savedRemotely: true,
-      queuedForRetry: false,
-      autoMerged: false,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
     }),
     updatePartial: vi.fn().mockResolvedValue(undefined),
     updatePartialDetailed: vi.fn().mockResolvedValue({
       date: '2025-01-01',
-      outcome: 'clean',
-      savedLocally: true,
-      updatedRemotely: true,
-      queuedForRetry: false,
-      autoMerged: false,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
     }),
     initializeDay: vi.fn().mockResolvedValue(null),
     deleteDay: vi.fn().mockResolvedValue(undefined),
@@ -160,14 +152,12 @@ describe('useDailyRecord validation guards', () => {
       if (recordsMap[date]) {
         recordsMap[date] = applyPatches(recordsMap[date], partial);
       }
-      return createUpdatePartialDailyRecordResult({
+      return {
         date,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-      });
+        savedHere: true,
+        state: 'confirmed',
+        localCopy: 'current',
+      };
     });
 
     vi.mocked(repo.save).mockImplementation(async record => {
@@ -176,14 +166,12 @@ describe('useDailyRecord validation guards', () => {
 
     vi.mocked(repo.saveDetailed).mockImplementation(async record => {
       recordsMap[record.date] = record;
-      return createSaveDailyRecordResult({
+      return {
         date: record.date,
-        outcome: 'clean',
-        savedLocally: true,
-        savedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-      });
+        savedHere: true,
+        state: 'confirmed',
+        localCopy: 'current',
+      };
     });
 
     mockDailyRecordPorts.getForDateWithMeta.mockImplementation(async (date: string) => ({

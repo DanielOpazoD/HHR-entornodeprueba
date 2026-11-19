@@ -197,8 +197,11 @@ describe('applyConfirmedRayenImport', () => {
     conflict.name = 'ConcurrencyError';
     vi.mocked(patchDailyRecordWithCompatibility)
       .mockResolvedValueOnce({
-        outcome: 'blocked',
-        conflictSummary: { kind: 'concurrency' },
+        date: '2026-07-25',
+        savedHere: false,
+        state: 'not_saved',
+        reason: 'blocked',
+        concurrencyConflict: true,
         blockingError: conflict,
       } as never)
       .mockResolvedValueOnce({} as never);
@@ -271,8 +274,11 @@ describe('applyConfirmedRayenImport', () => {
     vi.mocked(patchDailyRecordWithCompatibility)
       .mockReset()
       .mockResolvedValue({
-        outcome: 'blocked',
-        conflictSummary: { kind: 'concurrency' },
+        date: '2026-07-25',
+        savedHere: false,
+        state: 'not_saved',
+        reason: 'blocked',
+        concurrencyConflict: true,
         blockingError: conflict,
       } as never);
     const acceptedDiff = {
@@ -329,7 +335,10 @@ describe('applyConfirmedRayenImport', () => {
     vi.mocked(patchDailyRecordWithCompatibility)
       .mockReset()
       .mockResolvedValue({
-        outcome: 'blocked',
+        date: '2026-07-25',
+        savedHere: false,
+        state: 'not_saved',
+        reason: 'blocked',
         blockingError: historicalFailure,
       } as never);
     const acceptedDiff = {
@@ -385,10 +394,9 @@ describe('applyConfirmedRayenImport', () => {
     vi.mocked(patchDailyRecordWithCompatibility)
       .mockReset()
       .mockResolvedValue({
-        outcome: 'blocked',
-        savedLocally: true,
-        updatedRemotely: false,
-        queuedForRetry: false,
+        savedHere: true,
+        state: 'not_saved',
+        reason: 'blocked',
       } as never);
     const acceptedDiff = {
       ...motherAndNewbornDiff,

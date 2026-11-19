@@ -1,16 +1,12 @@
 import type { SyncStatus } from '@/context/dailyRecordContextContracts';
 
-import {
-  resolveDailyRecordWriteStatus,
-  type SaveDailyRecordResult,
-  type UpdatePartialDailyRecordResult,
-} from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 export interface DailyRecordMutationFlags {
   isPending: boolean;
   isError: boolean;
   isSuccess: boolean;
-  data?: { result: SaveDailyRecordResult | UpdatePartialDailyRecordResult | null };
+  data?: { result: DailyRecordWriteResult | null };
 }
 
 export const resolveDailyRecordSyncStatus = (
@@ -24,11 +20,10 @@ export const resolveDailyRecordSyncStatus = (
     const result = mutation.data?.result;
     if (mutation.isError) return 'error';
     if (!result) return 'idle';
-    const status = resolveDailyRecordWriteStatus(result);
-    const blocked = status.state === 'not_saved' && status.reason === 'blocked';
+    const blocked = result.state === 'not_saved' && result.reason === 'blocked';
     if (!mutation.isSuccess && !blocked) return 'idle';
-    if (status.state === 'confirmed') return 'saved';
-    return status.state !== 'not_saved' && status.savedHere ? 'local' : 'error';
+    if (result.state === 'confirmed') return 'saved';
+    return result.state !== 'not_saved' && result.savedHere ? 'local' : 'error';
   });
   if (states.includes('error')) {
     return 'error';

@@ -11,7 +11,7 @@ import { useRayenClinicalFillRetry } from '@/features/rayen-import/hooks/useRaye
 import { resetRayenFillProgress } from '@/features/rayen-import/hooks/useRayenFillStatus';
 import type { ClinicalRetryToken } from '@/features/rayen-import/contracts/clinicalStageResult';
 import { resolveConfirmedRayenCensusHandoff } from '@/features/rayen-import/hooks/rayenCensusPersistenceGuard';
-import type { SaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 const record = {
   date: '2026-08-08',
@@ -199,7 +199,12 @@ describe('useRayenClinicalFillRetry', () => {
     const handoff = resolveConfirmedRayenCensusHandoff(
       {
         record: confirmedRecord,
-        result: { date: confirmedRecord.date, outcome: 'clean' } as SaveDailyRecordResult,
+        result: {
+          date: confirmedRecord.date,
+          savedHere: true,
+          state: 'confirmed',
+          localCopy: 'current',
+        } as DailyRecordWriteResult,
       },
       { date: confirmedRecord.date, runId: 'persisted-run' }
     );

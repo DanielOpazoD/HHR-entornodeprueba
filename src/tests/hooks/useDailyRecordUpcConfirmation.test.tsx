@@ -5,7 +5,7 @@ import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
   mockDailyRecordRepositoryPort: {
@@ -130,7 +130,7 @@ describe('remote-confirmed UPC journal', () => {
       evaluatedAt: '2025-12-27T12:00:00Z',
       history: [],
     };
-    const write = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    const write = createDeferred<DailyRecordWriteResult>();
     mockDailyRecordRepositoryPort.getForDateWithMeta.mockResolvedValue(buildReadResult(occupied));
     mockDailyRecordRepositoryPort.updatePartialDetailed.mockImplementation(() => write.promise);
     const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {

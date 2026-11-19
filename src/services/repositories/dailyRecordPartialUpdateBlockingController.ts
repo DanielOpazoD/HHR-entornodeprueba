@@ -1,6 +1,6 @@
 import {
   applyRecoveryDecisionToState,
-  buildBlockedPartialUpdateResult,
+  buildBlockedWriteResult,
   type RemoteWriteState,
 } from '@/services/repositories/dailyRecordWriteState';
 import type { FieldShrinkage } from '@/services/repositories/dailyRecordFieldShrinkageGuard';
@@ -41,7 +41,7 @@ export const buildMissingBasePartialUpdateResult = ({
     userSafeMessage: MISSING_BASE_MESSAGE,
   });
 
-  return buildBlockedPartialUpdateResult(date, state);
+  return buildBlockedWriteResult(date, state);
 };
 
 export const buildValidationBlockedPartialUpdateResult = ({
@@ -66,7 +66,7 @@ export const buildValidationBlockedPartialUpdateResult = ({
     error
   );
 
-  return buildBlockedPartialUpdateResult(date, state);
+  return buildBlockedWriteResult(date, state);
 };
 
 export const buildFieldShrinkageBlockedPartialUpdateResult = ({
@@ -97,5 +97,5 @@ export const buildFieldShrinkageBlockedPartialUpdateResult = ({
     error
   );
 
-  return buildBlockedPartialUpdateResult(date, state);
+  return buildBlockedWriteResult(date, state);
 };

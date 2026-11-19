@@ -213,9 +213,9 @@ describe('Multi-tab regression — stale snapshot writes are detected', () => {
       authoringSession: captureAuthoringSession(),
     });
 
-    expect(result.savedRemotely).toBe(false);
-    expect(result.consistencyState).toBe('blocked_regression');
-    expect(result.blockingError).toBeDefined();
+    expect(result.state).not.toBe('confirmed');
+    expect(result).toMatchObject({ state: 'not_saved', reason: 'blocked' });
+    expect(result.blockingError?.name).toBe('DataRegressionError');
     expect(result.blockingError?.name).toBe('DataRegressionError');
   });
 
@@ -234,9 +234,9 @@ describe('Multi-tab regression — stale snapshot writes are detected', () => {
       authoringSession: captureAuthoringSession(),
     });
 
-    expect(result.savedRemotely).toBe(false);
-    expect(result.consistencyState).toBe('blocked_version_mismatch');
-    expect(result.blockingError).toBeDefined();
+    expect(result.state).not.toBe('confirmed');
+    expect(result).toMatchObject({ state: 'not_saved', reason: 'blocked' });
+    expect(result.blockingError?.name).toBe('VersionMismatchError');
     expect(result.blockingError?.name).toBe('VersionMismatchError');
   });
 
@@ -301,8 +301,7 @@ describe('Multi-tab regression — stale snapshot writes are detected', () => {
       { authoringSession: captureAuthoringSession() }
     );
 
-    expect(result.outcome).toBe('blocked');
-    expect(result.consistencyState).toBe('blocked_regression');
+    expect(result).toMatchObject({ state: 'not_saved', reason: 'blocked' });
     expect(result.blockingError?.name).toBe('DataRegressionError');
 
     const shrinkageCall = warnSpy.mock.calls.find(
@@ -359,8 +358,6 @@ describe('Multi-tab regression — stale snapshot writes are detected', () => {
       // A stale version merges and is sent again; only «changed elsewhere» is held at once.
       undefined
     );
-    expect(result.outcome).not.toBe('failed');
-    expect(result.autoMerged).toBe(true);
-    expect(result.conflictSummary?.kind).toBe('concurrency');
+    expect(result).toMatchObject({ state: 'local', cause: 'merged', concurrencyConflict: true });
   });
 });

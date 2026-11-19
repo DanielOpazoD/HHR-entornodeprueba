@@ -13,8 +13,7 @@ import {
   resetDailyRecordFreshnessGateForTests,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { clearPendingDailyRecordPatchesForTests } from '@/hooks/controllers/dailyRecordPendingPatchController';
-import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
-import type { UpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { RepositoryProvider, createRepositoryContainer } from '@/services/RepositoryContext';
 import {
   clearSessionScopedClientState,
@@ -75,26 +74,22 @@ const readOf = (record: DailyRecord | null) => ({
   repairApplied: false,
 });
 type Answer = 'rejected' | 'confirmed' | 'thrown';
-const answerOf = (answer: Answer): UpdatePartialDailyRecordResult => {
+const answerOf = (answer: Answer): DailyRecordWriteResult => {
   if (answer === 'thrown') throw new Error('synthetic network failure');
   return answer === 'rejected'
-    ? createUpdatePartialDailyRecordResult({
+    ? {
         date,
-        outcome: 'unrecoverable',
-        savedLocally: false,
-        updatedRemotely: false,
-        queuedForRetry: false,
-        autoMerged: false,
-      })
-    : createUpdatePartialDailyRecordResult({
+        savedHere: false,
+        state: 'not_saved',
+        reason: 'local_failed',
+      }
+    : {
         date,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
+        savedHere: true,
+        state: 'confirmed',
+        localCopy: 'current',
         confirmedRecord: recordWith(EDIT),
-      });
+      };
 };
 
 // Native Storage from a fresh window, so the session owner and generation behave as shipped.
@@ -163,7 +158,7 @@ const sendHeldEdit = async () => {
   let answer!: (kind: Answer) => void;
   vi.mocked(repository.updatePartialDetailed).mockImplementation(
     () =>
-      new Promise<UpdatePartialDailyRecordResult>((resolve, reject) => {
+      new Promise<DailyRecordWriteResult>((resolve, reject) => {
         answer = kind => {
           try {
             resolve(answerOf(kind));
@@ -252,7 +247,7 @@ describe('a late answer after the session changed leaves the next session alone'
     setDailyRecordQueryData(client, date, recordWith(NEXT));
     vi.mocked(repository.updatePartialDetailed).mockImplementation(
       () =>
-        new Promise<UpdatePartialDailyRecordResult>(resolve => {
+        new Promise<DailyRecordWriteResult>(resolve => {
           answerSecond = () => resolve(answerOf('rejected'));
         })
     );

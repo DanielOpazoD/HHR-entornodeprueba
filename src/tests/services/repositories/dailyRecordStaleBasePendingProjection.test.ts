@@ -94,8 +94,8 @@ describe('a stale-base patch applies on top of the pending local projection', ()
       { authoringSession: captureAuthoringSession(), baseRecord: base }
     );
 
-    expect(tabA.savedLocally).toBe(true);
-    expect(tabB.savedLocally).toBe(true);
+    expect(tabA.savedHere).toBe(true);
+    expect(tabB.savedHere).toBe(true);
     expect((await projection())?.nursesDayShift).toEqual(['SINTETICA EDICION A']);
     expect((await projection())?.tensDayShift).toEqual(['SINTETICO EDICION B']);
     expect(await pendingTasks()).toHaveLength(1);
@@ -136,7 +136,7 @@ describe('a stale-base patch applies on top of the pending local projection', ()
         authoringSession: captureAuthoringSession(),
         baseRecord: optimistic,
       });
-      expect(result.savedLocally).toBe(true);
+      expect(result.savedHere).toBe(true);
       optimistic = applyOptimisticDailyRecordPatch(optimistic, patch);
     }
 
@@ -223,7 +223,7 @@ describe('a stale-base patch applies on top of the pending local projection', ()
       { authoringSession: captureAuthoringSession(), baseRecord: base }
     );
 
-    expect(tabB.savedLocally).toBe(true);
+    expect(tabB.savedHere).toBe(true);
     const ids = (record?: DailyRecord) => record?.discharges.map(discharge => discharge.id);
     expect(ids(await projection())).toEqual(['alta-sintetica-a', 'alta-sintetica-b']);
     expect(ids(await pendingPayload())).toEqual(['alta-sintetica-a', 'alta-sintetica-b']);

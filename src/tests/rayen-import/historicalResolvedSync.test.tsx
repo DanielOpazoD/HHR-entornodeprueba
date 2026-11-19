@@ -154,9 +154,11 @@ describe('resolved historical synchronization', () => {
     async updatedRemotely => {
       resetPreviousDayAdmissionFixtures();
       vi.mocked(patchDailyRecordWithCompatibility).mockResolvedValue({
-        outcome: updatedRemotely ? 'clean' : 'blocked',
-        updatedRemotely,
-        savedLocally: true,
+        date: '2026-07-25',
+        savedHere: true,
+        ...(updatedRemotely
+          ? { state: 'confirmed', localCopy: 'current' }
+          : { state: 'not_saved', reason: 'blocked' }),
       } as never);
       const plan = await computePreviousDayEdits(
         repository,

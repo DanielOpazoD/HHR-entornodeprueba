@@ -125,9 +125,13 @@ it.each([
       expect(stored).toEqual(nextRecord);
       expect(authoredTask?.projectionReleased).toBe(true);
     }
-    expect(result.outcome).toBe(retained ? 'unrecoverable' : 'clean');
+    expect(result).toMatchObject(
+      retained
+        ? { state: 'not_saved', reason: 'session_changed' }
+        : { state: 'local', cause: 'stored' }
+    );
     process.stdout.write(
-      `N2a ${JSON.stringify({ captureAtEntry, change, owner: authoredTask?.ownerKey, outcome: result.outcome, pathology: stored?.beds.R1.pathology })}\n`
+      `N2a ${JSON.stringify({ captureAtEntry, change, owner: authoredTask?.ownerKey, state: result.state, pathology: stored?.beds.R1.pathology })}\n`
     );
   }
 );

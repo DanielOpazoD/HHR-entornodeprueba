@@ -18,17 +18,16 @@ describe('dailyRecordPartialUpdateBlockingController', () => {
 
     expect(result).toMatchObject({
       date: '2026-05-28',
-      outcome: 'blocked',
-      savedLocally: false,
-      updatedRemotely: false,
-      consistencyState: 'unrecoverable',
+      savedHere: false,
+      state: 'not_saved',
+      reason: 'blocked',
       userSafeMessage: 'No se encontró un registro local válido para aplicar el cambio.',
     });
-    expect(result.conflictSummary).toMatchObject({
+    expect(state.conflictSummary).toMatchObject({
       kind: 'remote_missing',
       sourceOfTruth: 'none',
     });
-    expect(result.observabilityTags).toEqual(['daily_record', 'write', 'missing_local_record']);
+    expect(state.observabilityTags).toEqual(['daily_record', 'write', 'missing_local_record']);
   });
 
   it('builds the canonical blocked result for validation failures', () => {
@@ -43,18 +42,19 @@ describe('dailyRecordPartialUpdateBlockingController', () => {
     });
 
     expect(result).toMatchObject({
-      outcome: 'blocked',
-      consistencyState: 'blocked_validation',
+      savedHere: false,
+      state: 'not_saved',
+      reason: 'blocked',
       userSafeMessage: 'Ingreso fuera de ventana clínica',
       blockingError: error,
     });
-    expect(result.conflictSummary).toMatchObject({
+    expect(state.conflictSummary).toMatchObject({
       kind: 'validation_blocked',
       sourceOfTruth: 'none',
       changedPaths: ['beds.R1.admissionDate'],
       message: 'Ingreso fuera de ventana clínica',
     });
-    expect(result.observabilityTags).toEqual(['daily_record', 'write', 'validation_blocked']);
+    expect(state.observabilityTags).toEqual(['daily_record', 'write', 'validation_blocked']);
   });
 
   it('builds the canonical blocked result for suspicious clinical text shrinkage', () => {
@@ -69,17 +69,14 @@ describe('dailyRecordPartialUpdateBlockingController', () => {
       ],
     });
 
-    expect(result).toMatchObject({
-      outcome: 'blocked',
-      consistencyState: 'blocked_regression',
-    });
+    expect(result).toMatchObject({ savedHere: false, state: 'not_saved', reason: 'blocked' });
     expect(result.blockingError?.name).toBe('DataRegressionError');
     expect(result.userSafeMessage).toContain('100 -> 25');
-    expect(result.conflictSummary).toMatchObject({
+    expect(state.conflictSummary).toMatchObject({
       kind: 'regression_blocked',
       sourceOfTruth: 'none',
       changedPaths: ['beds.R1.pathology', 'beds.R1.medicalHandoffNote'],
     });
-    expect(result.observabilityTags).toEqual(['daily_record', 'write', 'field_shrinkage_blocked']);
+    expect(state.observabilityTags).toEqual(['daily_record', 'write', 'field_shrinkage_blocked']);
   });
 });

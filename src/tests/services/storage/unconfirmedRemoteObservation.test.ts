@@ -248,7 +248,7 @@ for (const path of ['S', 'E', 'P'] as const)
       { nursesDayShift: ['Offline after logout'] },
       { authoringSession: captureAuthoringSession(), baseRecord: r!.record! }
     );
-    expect(result.savedLocally).toBe(true);
+    expect(result.savedHere).toBe(true);
     expect(await hospitalDB.dailyRecords.count()).toBe(1);
     const tasks = await hospitalDB.syncQueue.toArray();
     expect(tasks).toHaveLength(1);

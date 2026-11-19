@@ -1,20 +1,13 @@
-import type {
-  SaveDailyRecordResult,
-  UpdatePartialDailyRecordResult,
+import {
+  isDailyRecordWriteRejectedResult,
+  type DailyRecordWriteResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
-import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
 
-type DailyRecordWriteResult =
-  | SaveDailyRecordResult
-  | UpdatePartialDailyRecordResult
-  | null
-  | undefined;
-
 export class DailyRecordWriteBlockedOutcomeError extends Error {
-  readonly result: Exclude<DailyRecordWriteResult, null | undefined>;
+  readonly result: DailyRecordWriteResult;
 
-  constructor(result: Exclude<DailyRecordWriteResult, null | undefined>) {
+  constructor(result: DailyRecordWriteResult) {
     super(
       resolveApplicationOutcomeMessage(
         result,
@@ -26,7 +19,9 @@ export class DailyRecordWriteBlockedOutcomeError extends Error {
   }
 }
 
-export const assertDailyRecordWriteAccepted = (result: DailyRecordWriteResult): void => {
+export const assertDailyRecordWriteAccepted = (
+  result: DailyRecordWriteResult | null | undefined
+): void => {
   if (!result) {
     return;
   }

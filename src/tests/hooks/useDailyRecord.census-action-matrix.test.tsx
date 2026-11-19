@@ -12,10 +12,6 @@ import type { PatientData } from '@/types/domain/patient';
 import type { CMAData } from '@/types/domain/movements';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import {
-  createSaveDailyRecordResult,
-  createUpdatePartialDailyRecordResult,
-} from '@/services/repositories/contracts/dailyRecordResults';
-import {
   resetDailyRecordFreshnessGateForTests,
   markDailyRecordRemoteConfirmed,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
@@ -207,25 +203,21 @@ const setupRecordStore = (record: DailyRecord) => {
     if (recordsMap[requestedDate]) {
       recordsMap[requestedDate] = applyPatches(recordsMap[requestedDate], patch);
     }
-    return createUpdatePartialDailyRecordResult({
+    return {
       date: requestedDate,
-      outcome: 'clean',
-      savedLocally: true,
-      updatedRemotely: true,
-      queuedForRetry: false,
-      autoMerged: false,
-    });
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
+    };
   });
   mockDailyRecordPorts.saveDetailed.mockImplementation(async recordToSave => {
     recordsMap[recordToSave.date] = recordToSave;
-    return createSaveDailyRecordResult({
+    return {
       date: recordToSave.date,
-      outcome: 'clean',
-      savedLocally: true,
-      savedRemotely: true,
-      queuedForRetry: false,
-      autoMerged: false,
-    });
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
+    };
   });
 };
 

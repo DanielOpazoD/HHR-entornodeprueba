@@ -16,9 +16,9 @@ import {
 
 vi.mock('@/hooks/controllers/dailyRecordMutationFreshnessController', () => ({
   patchDailyRecordWithCompatibility: vi.fn().mockResolvedValue({
-    outcome: 'clean',
-    savedLocally: true,
-    updatedRemotely: true,
+    savedHere: true,
+    state: 'confirmed',
+    localCopy: 'current',
   }),
 }));
 

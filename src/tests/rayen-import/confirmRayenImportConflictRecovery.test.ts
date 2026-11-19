@@ -5,7 +5,7 @@ import type { ApplyResult } from '@/features/rayen-import/domain/applyCensusImpo
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { resolveConfirmedRayenCensusHandoff } from '@/features/rayen-import/hooks/rayenCensusPersistenceGuard';
-import type { SaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 const record = (lastUpdated: string): DailyRecord =>
   ({
@@ -81,15 +81,10 @@ describe('applyConfirmedRayenImport · recuperación de conflictos envueltos', (
     } as DailyRecord;
     const cleanResult = {
       date: '2026-07-16',
-      outcome: 'clean',
-      savedLocally: true,
-      savedRemotely: true,
-      queuedForRetry: false,
-      autoMerged: false,
-      consistencyState: 'persisted_and_synced',
-      conflictSummary: null,
-      observabilityTags: ['daily_record', 'write'],
-    } as SaveDailyRecordResult;
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
+    } as DailyRecordWriteResult;
     const overtaken = () => {
       try {
         resolveConfirmedRayenCensusHandoff(

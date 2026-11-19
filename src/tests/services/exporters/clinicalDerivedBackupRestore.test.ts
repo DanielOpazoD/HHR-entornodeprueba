@@ -186,9 +186,9 @@ const serverConfirms = (confirm: (sent: DailyRecord) => DailyRecord) =>
   mocks.saveRemote.mockImplementation(async (sent: DailyRecord) => {
     serverDay = confirm(sent);
     return {
-      outcome: 'clean',
-      savedLocally: true,
-      savedRemotely: true,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
       confirmedRecord: serverDay,
     };
   });
@@ -282,7 +282,7 @@ describe('reporting a restore whose per-episode data did not come back', () => {
           clinicalSyncCheckpoint: checkpoint('unrelated'),
         }),
       ];
-      return { outcome: 'clean', savedLocally: true, savedRemotely: true, confirmedRecord };
+      return { savedHere: true, state: 'confirmed', localCopy: 'current', confirmedRecord };
     });
 
     const result = await importRecordsFromBackup(monthBackup([splitDay()]));
@@ -299,9 +299,9 @@ describe('reporting a restore whose per-episode data did not come back', () => {
   it('is partial when the server no longer has the day it confirmed', async () => {
     // Confirmed with the embedded values, then deleted before the restore checks it.
     mocks.saveRemote.mockImplementation(async (sent: DailyRecord) => ({
-      outcome: 'clean',
-      savedLocally: true,
-      savedRemotely: true,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
       confirmedRecord: { ...sent, clinicalDerivedLayout: NEW_LAYOUT },
     }));
 
@@ -326,10 +326,9 @@ describe('reporting a restore whose per-episode data did not come back', () => {
 
   it('is partial when the restored day did not reach the server', async () => {
     mocks.saveRemote.mockResolvedValue({
-      outcome: 'queued',
-      savedLocally: true,
-      savedRemotely: false,
-      queuedForRetry: true,
+      savedHere: true,
+      state: 'local',
+      cause: 'retrying',
     });
 
     const result = await importRecordsFromBackup(monthBackup([splitDay()]));

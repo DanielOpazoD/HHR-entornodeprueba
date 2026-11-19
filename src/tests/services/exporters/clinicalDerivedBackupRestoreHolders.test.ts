@@ -59,9 +59,9 @@ beforeEach(() => {
 /** The repository save: the server confirms `confirm(sent)`. */
 const serverConfirms = (confirm: (sent: DailyRecord) => DailyRecord) =>
   mocks.saveRemote.mockImplementation(async (sent: DailyRecord) => ({
-    outcome: 'clean',
-    savedLocally: true,
-    savedRemotely: true,
+    savedHere: true,
+    state: 'confirmed',
+    localCopy: 'current',
     confirmedRecord: confirm(sent),
   }));
 

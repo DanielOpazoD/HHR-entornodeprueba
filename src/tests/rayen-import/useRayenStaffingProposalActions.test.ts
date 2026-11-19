@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { QueryClient } from '@tanstack/react-query';
 import { useRayenStaffingProposalActions } from '@/features/rayen-import/hooks/useRayenStaffingProposalActions';
-import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { NursingStaffingProposal } from '@/features/rayen-import/contracts/nursingShiftInference';
 import { buildMockDailyRecordRepository } from '@/tests/factories/dailyRecordRepositoryMock';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -61,8 +61,7 @@ const renderActions = () => {
   return { confirm: result.current.confirm, setProposal, setError };
 };
 
-const write = (overrides: Parameters<typeof createUpdatePartialDailyRecordResult>[0]) =>
-  createUpdatePartialDailyRecordResult(overrides);
+const write = (result: DailyRecordWriteResult) => result;
 
 describe('useRayenStaffingProposalActions: applying the proposal', () => {
   beforeEach(() => {
@@ -74,11 +73,9 @@ describe('useRayenStaffingProposalActions: applying the proposal', () => {
     mocks.patch.mockResolvedValue(
       write({
         date: DATE,
-        outcome: 'unrecoverable',
-        savedLocally: true,
-        updatedRemotely: false,
-        queuedForRetry: false,
-        autoMerged: false,
+        savedHere: true,
+        state: 'held',
+        reason: 'needs_review',
         userSafeMessage: 'Los cambios se guardaron localmente, pero requieren revisión manual.',
       })
     );
@@ -96,12 +93,9 @@ describe('useRayenStaffingProposalActions: applying the proposal', () => {
     mocks.patch.mockResolvedValue(
       write({
         date: DATE,
-        outcome: 'blocked',
-        savedLocally: false,
-        updatedRemotely: false,
-        queuedForRetry: false,
-        autoMerged: false,
-        consistencyState: 'blocked_regression',
+        savedHere: false,
+        state: 'not_saved',
+        reason: 'blocked',
         userSafeMessage: 'Texto del aviso',
         blockingError: new Error('Se bloqueó una reducción sospechosa de texto clínico.'),
       })
@@ -118,11 +112,9 @@ describe('useRayenStaffingProposalActions: applying the proposal', () => {
     mocks.patch.mockResolvedValue(
       write({
         date: DATE,
-        outcome: 'queued',
-        savedLocally: true,
-        updatedRemotely: false,
-        queuedForRetry: true,
-        autoMerged: false,
+        savedHere: true,
+        state: 'local',
+        cause: 'retrying',
       })
     );
     const { confirm, setProposal } = renderActions();

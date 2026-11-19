@@ -6,7 +6,6 @@ import { defaultDailyRecordRepositoryPort } from '@/application/ports/dailyRecor
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
 const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
@@ -182,15 +181,13 @@ describe('definitive clear first-attempt reconciliation', () => {
     vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockImplementation(
       async () => {
         remotelyVisibleRecord = clearedRecord;
-        return createUpdatePartialDailyRecordResult({
+        return {
           date: mockDate,
-          outcome: 'clean',
-          savedLocally: true,
-          updatedRemotely: true,
-          queuedForRetry: false,
-          autoMerged: false,
+          savedHere: true,
+          state: 'confirmed',
+          localCopy: 'current',
           confirmedRecord: clearedRecord,
-        });
+        };
       }
     );
 
@@ -274,15 +271,13 @@ describe('definitive clear first-attempt reconciliation', () => {
     vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockImplementation(
       async () => {
         remotelyVisibleRecord = clearedRecord;
-        return createUpdatePartialDailyRecordResult({
+        return {
           date: mockDate,
-          outcome: 'clean',
-          savedLocally: true,
-          updatedRemotely: true,
-          queuedForRetry: false,
-          autoMerged: false,
+          savedHere: true,
+          state: 'confirmed',
+          localCopy: 'current',
           confirmedRecord: clearedRecord,
-        });
+        };
       }
     );
 

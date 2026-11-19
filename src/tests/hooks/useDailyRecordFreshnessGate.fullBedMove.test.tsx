@@ -14,7 +14,6 @@ import {
   createDailyRecordQueryResult,
   createDailyRecordReadResult,
 } from '@/services/repositories/contracts/dailyRecordQueries';
-import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { createTestQueryClient } from '@/tests/utils/queryClientTestUtils';
@@ -78,16 +77,12 @@ describe('daily record freshness gate full-bed move patches', () => {
         repairApplied: false,
       })
     );
-    vi.mocked(dailyRecord.updatePartialDetailed).mockResolvedValue(
-      createUpdatePartialDailyRecordResult({
-        date,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-      })
-    );
+    vi.mocked(dailyRecord.updatePartialDetailed).mockResolvedValue({
+      date,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
+    });
     queryClient.setQueryData(
       getDailyRecordQueryKey(date),
       createDailyRecordQueryResult(localRecord, {

@@ -6,7 +6,6 @@ import {
   type AdmitPatientPersistenceFn,
 } from '@/services/daily-record/dailyRecordAdmitPatientPort';
 import type { AdmitPatientInput } from '@/application/daily-record/commands/admitPatientCommand';
-import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 const baseInput = (overrides: Partial<AdmitPatientInput> = {}): AdmitPatientInput => ({
   bedId: 'H5C1',
@@ -237,18 +236,13 @@ describe('createDailyRecordAdmitPatientPort', () => {
   });
 
   it('rejects a blocked repository outcome instead of returning an admitted snapshot', async () => {
-    const persist = vi.fn().mockResolvedValueOnce(
-      createUpdatePartialDailyRecordResult({
-        date: '2026-05-03',
-        outcome: 'blocked',
-        savedLocally: false,
-        updatedRemotely: false,
-        queuedForRetry: false,
-        autoMerged: false,
-        consistencyState: 'unrecoverable',
-        userSafeMessage: 'No se encontró un registro local válido para aplicar el cambio.',
-      })
-    ) as unknown as AdmitPatientPersistenceFn;
+    const persist = vi.fn().mockResolvedValueOnce({
+      date: '2026-05-03',
+      savedHere: false,
+      state: 'not_saved',
+      reason: 'blocked',
+      userSafeMessage: 'No se encontró un registro local válido para aplicar el cambio.',
+    }) as unknown as AdmitPatientPersistenceFn;
     const port = createDailyRecordAdmitPatientPort(persist);
 
     await expect(port.persistAdmission(baseInput())).rejects.toThrow(
@@ -257,18 +251,13 @@ describe('createDailyRecordAdmitPatientPort', () => {
   });
 
   it('rejects an unrecoverable repository outcome instead of returning an admitted snapshot', async () => {
-    const persist = vi.fn().mockResolvedValueOnce(
-      createUpdatePartialDailyRecordResult({
-        date: '2026-05-03',
-        outcome: 'unrecoverable',
-        savedLocally: false,
-        updatedRemotely: false,
-        queuedForRetry: false,
-        autoMerged: false,
-        consistencyState: 'unrecoverable',
-        userSafeMessage: 'La escritura no pudo recuperarse de forma segura.',
-      })
-    ) as unknown as AdmitPatientPersistenceFn;
+    const persist = vi.fn().mockResolvedValueOnce({
+      date: '2026-05-03',
+      savedHere: false,
+      state: 'not_saved',
+      reason: 'local_failed',
+      userSafeMessage: 'La escritura no pudo recuperarse de forma segura.',
+    }) as unknown as AdmitPatientPersistenceFn;
     const port = createDailyRecordAdmitPatientPort(persist);
 
     await expect(port.persistAdmission(baseInput())).rejects.toThrow(

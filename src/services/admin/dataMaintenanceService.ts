@@ -8,7 +8,6 @@ import { captureAuthoringSession } from '@/services/storage/authoringSession';
 
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { saveDetailed as saveDailyRecordDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { resolveDailyRecordWriteStatus } from '@/services/repositories/contracts/dailyRecordResults';
 import { logAuditEvent } from './auditService';
 import { getCurrentUserEmail } from './utils/auditUtils';
 import { hasStructuralRepairs, parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
@@ -316,8 +315,7 @@ export const importRecordsFromBackup = async (
         restore.kind === 'absent' ||
         (restore.kind === 'embedded' &&
           (await confirmClinicalDerivedDayRestore(restore, {
-            savedRemotely:
-              Boolean(saved) && resolveDailyRecordWriteStatus(saved).state === 'confirmed',
+            savedRemotely: Boolean(saved) && saved.state === 'confirmed',
           })));
       if (!keptClinicalDerived) {
         clinicalDerivedIncompleteDates.push(parsed.record.date);

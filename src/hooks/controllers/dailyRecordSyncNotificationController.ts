@@ -3,11 +3,7 @@ import { FIELD_CHANGED_ELSEWHERE_MESSAGE } from '@/services/storage/syncErrorCat
 import { DataRegressionError, VersionMismatchError } from '@/utils/integrityGuard';
 import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
 import { AdmissionDatePolicyViolationError } from '@/domain/clinical-episode/admissionDatePolicy';
-import type {
-  SaveDailyRecordResult,
-  UpdatePartialDailyRecordResult,
-} from '@/services/repositories/contracts/dailyRecordResults';
-import { resolveDailyRecordWriteStatus } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import {
   createBlockedNotice,
   createDegradedNotice,
@@ -174,13 +170,13 @@ const REMOTE_PERSISTENCE_CLAIM =
 const resolveSyncConsistencyMessage = (
   result: {
     userSafeMessage?: string;
-    savedLocally: boolean;
+    savedHere: boolean;
     remoteConfirmed: boolean;
   },
   fallbackMessage: string
 ): string => {
   const candidate = resolveApplicationOutcomeMessage(result, fallbackMessage);
-  if (!result.savedLocally && LOCAL_PERSISTENCE_CLAIM.test(candidate)) {
+  if (!result.savedHere && LOCAL_PERSISTENCE_CLAIM.test(candidate)) {
     return fallbackMessage;
   }
   if (!result.remoteConfirmed && REMOTE_PERSISTENCE_CLAIM.test(candidate)) {
@@ -199,24 +195,23 @@ const notSavedFeedback = (patch: boolean) =>
   );
 
 const resolveWriteOutcomeFeedback = (
-  result: SaveDailyRecordResult | UpdatePartialDailyRecordResult | null | undefined,
+  result: DailyRecordWriteResult | null | undefined,
   patch: boolean
 ): SyncOutcomeFeedback | null => {
   if (!result) return null;
-  const status = resolveDailyRecordWriteStatus(result);
-  const remoteConfirmed = status.state === 'confirmed';
+  const remoteConfirmed = result.state === 'confirmed';
   const consistencyMessage = (fallbackMessage: string) =>
     resolveSyncConsistencyMessage({ ...result, remoteConfirmed }, fallbackMessage);
-  switch (status.state) {
+  switch (result.state) {
     case 'not_saved':
       // Work of a departed session is not shown to the next one.
-      if (status.reason === 'session_changed') return null;
-      if (status.reason === 'blocked') {
+      if (result.reason === 'session_changed') return null;
+      if (result.reason === 'blocked') {
         return createSyncBlocked(
           'blocked',
-          result.consistencyState === 'blocked_regression'
+          result.blockingError instanceof DataRegressionError
             ? 'Protección de Datos'
-            : result.consistencyState === 'blocked_version_mismatch'
+            : result.blockingError instanceof VersionMismatchError
               ? 'Versión de Datos Antigua'
               : patch
                 ? 'Actualización bloqueada'
@@ -230,8 +225,8 @@ const resolveWriteOutcomeFeedback = (
       }
       return notSavedFeedback(patch);
     case 'held':
-      if (status.reason === 'session_changed') return null;
-      if (status.reason === 'field_changed_elsewhere') {
+      if (result.reason === 'session_changed') return null;
+      if (result.reason === 'field_changed_elsewhere') {
         // Nothing was integrated: the edit waits for review with this device's text.
         return createSyncDegraded(
           'pending_review',
@@ -249,7 +244,7 @@ const resolveWriteOutcomeFeedback = (
         )
       );
     case 'confirmed':
-      if (status.localCopy === 'stale') {
+      if (result.localCopy === 'stale') {
         return createSyncDegraded(
           'unrecoverable',
           patch
@@ -270,17 +265,17 @@ const resolveWriteOutcomeFeedback = (
       );
     case 'local':
       // Without a recorded copy the sync box says error, so the notice says the same.
-      if (!status.savedHere) return notSavedFeedback(patch);
+      if (!result.savedHere) return notSavedFeedback(patch);
       // Routine: the day's queue task saves it right away, and the sync status shows it pending.
-      if (status.cause === 'queue_route') return null;
-      if (status.cause === 'merged') {
+      if (result.cause === 'queue_route') return null;
+      if (result.cause === 'merged') {
         return createSyncDegraded(
           'auto_merged',
           patch ? 'Cambio actualizado' : 'Censo actualizado',
           'El sistema integró los cambios recientes automáticamente.'
         );
       }
-      if (status.cause === 'retrying') {
+      if (result.cause === 'retrying') {
         return createSyncRetrying(
           'pending_sync',
           patch ? 'Cambio pendiente de sincronización' : 'Guardado local pendiente',
@@ -299,9 +294,8 @@ const resolveWriteOutcomeFeedback = (
   }
 };
 
-export const resolveSaveOutcomeFeedback = (result: SaveDailyRecordResult | null | undefined) =>
+export const resolveSaveOutcomeFeedback = (result: DailyRecordWriteResult | null | undefined) =>
   resolveWriteOutcomeFeedback(result, false);
 
-export const resolvePatchOutcomeFeedback = (
-  result: UpdatePartialDailyRecordResult | null | undefined
-) => resolveWriteOutcomeFeedback(result, true);
+export const resolvePatchOutcomeFeedback = (result: DailyRecordWriteResult | null | undefined) =>
+  resolveWriteOutcomeFeedback(result, true);

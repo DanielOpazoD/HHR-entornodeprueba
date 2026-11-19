@@ -80,7 +80,13 @@ const setup = async (emptyCrib = false) => {
     remote = { ...record, lastUpdated: '2026-09-28T03:01:00.000Z' };
     return {
       record: remote,
-      result: { date, outcome: 'clean', updatedRemotely: true, confirmedRecord: remote },
+      result: {
+        date,
+        savedHere: true,
+        state: 'confirmed',
+        localCopy: 'current',
+        confirmedRecord: remote,
+      },
     };
   };
   const save = vi.fn(async (record: DailyRecord) => accept(record));
@@ -139,8 +145,9 @@ const setup = async (emptyCrib = false) => {
         history.lastUpdated = '2026-09-28T03:01:30.000Z';
         return {
           date: history.date,
-          outcome: 'clean',
-          updatedRemotely: true,
+          savedHere: true,
+          state: 'confirmed',
+          localCopy: 'current',
           confirmedRecord: history,
         };
       }
@@ -149,7 +156,13 @@ const setup = async (emptyCrib = false) => {
         beds: { ...remote.beds, R3: value['beds.R3'] as PatientData },
         lastUpdated: '2026-09-28T03:02:00.000Z',
       };
-      return { date, outcome: 'clean', updatedRemotely: true, confirmedRecord: remote };
+      return {
+        date,
+        savedHere: true,
+        state: 'confirmed',
+        localCopy: 'current',
+        confirmedRecord: remote,
+      };
     }
   );
   const repository = {

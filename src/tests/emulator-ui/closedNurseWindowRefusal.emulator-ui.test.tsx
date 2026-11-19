@@ -41,6 +41,7 @@ import type { DailyRecordQueryResult } from '@/services/repositories/contracts/d
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { addCalendarDays } from '@/utils/clinicalDateUtils';
 import { clinicalWallClockToDate } from '@/utils/clinicalWallClock';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 /**
  * SAVE-04 after the window: a nurse's edit written without network that reaches the server only
@@ -250,7 +251,7 @@ const censusOf = async (date: string) => {
     { wrapper, initialProps: { live: true } }
   );
   const edit = async (field: Field) => {
-    let payload: { result?: { updatedRemotely?: boolean; savedLocally?: boolean } } = {};
+    let payload: { result?: DailyRecordWriteResult } = {};
     await act(async () => {
       payload = (await hook.result.current.mutateAsync({
         date,
@@ -266,7 +267,7 @@ const censusOf = async (date: string) => {
 const editOfflineThenSend = async (census: Awaited<ReturnType<typeof censusOf>>, field: Field) => {
   setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
   const result = await census.edit(field);
-  expect(result).toMatchObject({ savedLocally: true, updatedRemotely: false });
+  expect(result).toMatchObject({ savedHere: true, state: 'local', cause: 'stored' });
   await sendQueueLater(census);
 };
 
@@ -374,7 +375,7 @@ it.each(['note', 'diagnosis'] as const)(
     const census = await censusOf(weekAgo);
     const result = await census.edit(field);
 
-    expect(result?.updatedRemotely).toBe(true);
+    expect(result?.state).toBe('confirmed');
     expect(valueOf(await server(weekAgo), field)).toBe(edited(field));
     expect(valueOf(shown(weekAgo), field)).toBe(edited(field));
     expect(await hospitalDB.syncQueue.toArray()).toEqual([]);

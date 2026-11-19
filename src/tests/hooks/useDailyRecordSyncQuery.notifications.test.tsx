@@ -5,7 +5,6 @@ import { defaultDailyRecordRepositoryPort } from '@/application/ports/dailyRecor
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { UIProvider } from '@/context/UIContext';
-import { createSaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 const { repository } = vi.hoisted(() => ({
   repository: {
@@ -130,16 +129,12 @@ describe('useDailyRecordSyncQuery notification ownership', () => {
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
       buildReadResult()
     );
-    vi.mocked(defaultDailyRecordRepositoryPort.saveDetailed).mockResolvedValue(
-      createSaveDailyRecordResult({
-        date: mockDate,
-        outcome: 'clean',
-        savedLocally: true,
-        savedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-      })
-    );
+    vi.mocked(defaultDailyRecordRepositoryPort.saveDetailed).mockResolvedValue({
+      date: mockDate,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
+    });
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -187,16 +182,12 @@ describe('useDailyRecordSyncQuery notification ownership', () => {
   });
 
   it('emits exactly one rejection notice when a resolved save outcome is blocked', async () => {
-    vi.mocked(defaultDailyRecordRepositoryPort.saveDetailed).mockResolvedValueOnce(
-      createSaveDailyRecordResult({
-        date: mockDate,
-        outcome: 'blocked',
-        savedLocally: false,
-        savedRemotely: false,
-        queuedForRetry: false,
-        autoMerged: false,
-      })
-    );
+    vi.mocked(defaultDailyRecordRepositoryPort.saveDetailed).mockResolvedValueOnce({
+      date: mockDate,
+      savedHere: false,
+      state: 'not_saved',
+      reason: 'blocked',
+    });
     const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
       wrapper: createWrapper(),
     });

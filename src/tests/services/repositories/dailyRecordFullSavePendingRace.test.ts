@@ -68,7 +68,7 @@ it('rejects a full save overtaken after preparation and accepts a retry from the
     retained.lastUpdated,
     { authoringSession: captureAuthoringSession(), baseRecord: retained }
   );
-  expect(result.savedLocally).toBe(true);
+  expect(result.savedHere).toBe(true);
   const final = await hospitalDB.dailyRecords.get(date);
   expect(final?.nursesDayShift).toEqual(['SYNTHETIC A']);
   expect(final?.tensDayShift).toEqual(['SYNTHETIC B']);

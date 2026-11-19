@@ -9,7 +9,6 @@ import { getSessionGeneration } from '@/services/storage/sessionStorageTransitio
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { saveDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { assertDailyRecordRepositoryWriteAccepted } from '@/services/repositories/dailyRecordRepositoryWriteOutcome';
-import { resolveDailyRecordWriteStatus } from '@/services/repositories/contracts/dailyRecordResults';
 
 /** D3 checks every date the file names (even if D10 skips it) and every date it will write. */
 export const saveBackupImport = async (records: DailyRecord[], sourceDates: string[]) => {
@@ -62,8 +61,7 @@ export const saveBackupImport = async (records: DailyRecord[], sourceDates: stri
             dailyRecordWriteLease: leases.get(record.date),
           });
           assertDailyRecordRepositoryWriteAccepted(saved);
-          if (!resolveDailyRecordWriteStatus(saved).savedHere)
-            throw new Error('No fue posible guardar el respaldo local.');
+          if (!saved.savedHere) throw new Error('No fue posible guardar el respaldo local.');
         }
         if (generation !== getSessionGeneration() || owner !== getStoredSessionOwnerKey())
           throw new Error('La sesión cambió durante la importación.');

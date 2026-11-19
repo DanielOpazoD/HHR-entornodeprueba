@@ -44,7 +44,7 @@ describe('manual specialty save reads', () => {
     const local = { ...makeBase(), meta: { revision: 3 }, lastUpdated: '2026-02-18T08:00:00.000Z' };
     storage.localRead.mockResolvedValue(local);
     storage.write.mockResolvedValue(receipt(commit(local, makeIntent(), 'confirmed')));
-    expect((await save(base)).updatedRemotely).toBe(true);
+    expect((await save(base)).state).toBe('confirmed');
     expect(storage.write.mock.calls[0][2]).toBe(local.lastUpdated);
     expect(storage.write.mock.calls[0][3].syncContract.baseRevision).toBe(3);
     expect(storage.read).not.toHaveBeenCalled();
@@ -60,7 +60,7 @@ describe('manual specialty save reads', () => {
         lastUpdated: '2099-01-01T00:00:00.000Z',
       });
       storage.write.mockResolvedValue(receipt(commit(base, makeIntent(), 'confirmed')));
-      expect((await save(base)).updatedRemotely).toBe(true);
+      expect((await save(base)).state).toBe('confirmed');
       expect(storage.write.mock.calls[0][2]).toBe(base.lastUpdated);
       expect(storage.write.mock.calls[0][3].syncContract.baseRevision).toBe(1);
       expect(storage.read).not.toHaveBeenCalled();
@@ -76,7 +76,7 @@ describe('manual specialty save reads', () => {
       storage.localRead.mockRejectedValue(failure);
       storage.write.mockResolvedValue(receipt(commit(base, makeIntent(target), 'confirmed')));
 
-      expect((await save(base, makeIntent(target))).updatedRemotely).toBe(true);
+      expect((await save(base, makeIntent(target))).state).toBe('confirmed');
       expect(storage.localRead).toHaveBeenCalledTimes(2);
 
       expect(base).toEqual(original);

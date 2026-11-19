@@ -220,11 +220,10 @@ describe('dailyRecordRepositoryWriteService intentional clear authority payloads
       }
     );
     expect(result).toMatchObject({
-      outcome: 'clean',
-      savedLocally: true,
-      updatedRemotely: true,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
       confirmedRecord: authoritativeRecord,
-      observabilityTags: expect.arrayContaining(['already_applied']),
     });
     expect(result.localProjectionRecord?.beds.R1.clinicalCrib?.patientName).toBe(
       'RN de Paciente principal'
@@ -318,11 +317,10 @@ describe('dailyRecordRepositoryWriteService intentional clear authority payloads
     );
 
     expect(result).toMatchObject({
-      outcome: 'clean',
-      savedLocally: true,
-      updatedRemotely: true,
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
       confirmedRecord: authoritativeRecord,
-      observabilityTags: expect.arrayContaining(['already_applied']),
     });
     expect(result.localProjectionRecord?.beds.R1.clinicalCrib).toBeUndefined();
     expect(getRecordFromFirestore).toHaveBeenCalledWith(current.date, { source: 'server' });

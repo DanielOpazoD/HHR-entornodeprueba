@@ -434,7 +434,7 @@ const editIn = async (m: Model, path: Path, tab = tab1): Promise<string> => {
   }
   // A bed edit commits on the server first: a refused local save may still have published it.
   const stored = getValueAtPath(await readServer(), path);
-  if (!saved?.savedLocally && stored !== value) return `editar ${value} (${refusal})`;
+  if (!saved?.savedHere && stored !== value) return `editar ${value} (${refusal})`;
   const edit = {
     value,
     path,
@@ -446,7 +446,11 @@ const editIn = async (m: Model, path: Path, tab = tab1): Promise<string> => {
   m.edits.push(edit);
   // SAVE-01: «guardado» only when the server holds it, or a later edit of this step replaced it.
   const replacedNow = editOf(m, stored);
-  if (saved?.updatedRemotely && stored !== value && !(replacedNow && replacedNow.path === path))
+  if (
+    saved?.state === 'confirmed' &&
+    stored !== value &&
+    !(replacedNow && replacedNow.path === path)
+  )
     throw new Error(`SAVE-01: «${value}» se informó guardado sin estar en el servidor`);
   return `${tab === tab1 ? '' : `${tab.name}: `}editar ${value} en ${short(path)}${m.online ? '' : ' sin red'}`;
 };
@@ -558,7 +562,7 @@ const clearBedOnB = command(
             intentionalBedClear: rebaseIntentionalBedClear(shown, server),
           });
         }).then(
-          result => (result.updatedRemotely ? 'limpiada' : result.outcome),
+          result => (result.state === 'confirmed' ? 'limpiada' : result.state),
           // The census shows the refusal and keeps the patient; the bed stays as it was.
           (error: unknown) => `rechazado: ${(error as Error).message}`
         )
@@ -922,18 +926,17 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       );
     };
     expect(await edit(night, 'B2')).toMatchObject({
-      updatedRemotely: false,
-      outcome: 'auto_merged',
+      savedHere: true,
+      state: 'held',
+      reason: 'field_changed_elsewhere',
     });
     const second = await edit(night, 'B3');
     expect((await readServer())[night]).toBe('A1');
-    expect(second.updatedRemotely).toBe(false);
-    expect(second.reason).toBe('field_changed_elsewhere');
+    expect(second).toMatchObject({ state: 'held', reason: 'field_changed_elsewhere' });
 
     // A field nobody else changed is still saved at once, without a notice (#1603).
     const day = await edit('handoffNovedadesDayShift', 'B4');
-    expect(day).toMatchObject({ updatedRemotely: true });
-    expect(day.reason).not.toBe('field_changed_elsewhere');
+    expect(day).toMatchObject({ state: 'confirmed' });
     expect(await readServer()).toMatchObject({
       handoffNovedadesDayShift: 'B4',
       handoffNovedadesNightShift: 'A1',
@@ -955,12 +958,11 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       );
     };
     await network(false).run(m, {});
-    expect(await edit('B1')).toMatchObject({ savedLocally: true, updatedRemotely: false });
+    expect(await edit('B1')).toMatchObject({ savedHere: true, state: 'local', cause: 'stored' });
     await network(true).run(m, {});
 
     const online = await edit('B2');
-    expect(online).toMatchObject({ updatedRemotely: true });
-    expect(online.reason).not.toBe('field_changed_elsewhere');
+    expect(online).toMatchObject({ state: 'confirmed' });
     expect((await readServer())[night]).toBe('B2');
   }, 60_000);
 
