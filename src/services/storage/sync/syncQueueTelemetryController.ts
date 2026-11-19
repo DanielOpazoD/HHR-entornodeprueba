@@ -26,10 +26,6 @@ export interface SyncQueueTruthSelectionTelemetryInput {
   acceptedRevision?: number;
 }
 
-export interface SyncQueueTelemetrySnapshot extends SyncQueueTelemetry {
-  capturedAt: number;
-}
-
 export const buildSyncQueueTelemetryFromRows = <T extends SyncQueueTelemetryRow>(
   rows: readonly T[],
   now: number,

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { fail, failWithCode, ok } from '@/features/census/controllers/controllerResult';
+import { fail, failWithCode, ok } from '@/shared/contracts/controllerResult';
 
 describe('controllerResult helpers', () => {
   it('builds success results with ok()', () => {

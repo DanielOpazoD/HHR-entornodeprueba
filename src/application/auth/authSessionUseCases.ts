@@ -8,7 +8,6 @@ import type {
 } from '@/shared/contracts/applicationOutcomeTypes';
 
 import type { AuthSessionState } from '@/types/authSessionTypes';
-import { signIn } from '@/services/auth/authCredentialFlow';
 import { signInWithGoogle, warmGoogleSignInRuntime } from '@/services/auth/authGoogleFlow';
 import { resolveCurrentAuthSessionState } from '@/services/auth/authSession';
 import { handleSignInRedirectResult } from '@/services/auth/authFallback';
@@ -18,10 +17,6 @@ import {
   resolveAuthErrorCode,
 } from '@/services/auth/authErrorPolicy';
 import { toResolvedAuthSessionState } from '@/services/auth/authSessionState';
-import {
-  normalizeCredentialSignInInput,
-  validateCredentialSignInInput,
-} from './authSessionContracts';
 
 type AuthErrorSessionState = Extract<AuthSessionState, { status: 'auth_error' }>;
 
@@ -104,28 +99,6 @@ const buildAuthFailure = (
   );
 };
 
-const buildCredentialValidationFailure = (
-  issues: ApplicationIssue[]
-): ApplicationOutcome<AuthSessionState> => {
-  const [primaryIssue] = issues;
-  const issue =
-    primaryIssue ||
-    ({
-      kind: 'validation',
-      code: 'auth/credential-invalid-input',
-      message: 'Credential sign-in input is invalid.',
-      userSafeMessage: 'Revisa email y contraseña antes de continuar.',
-      retryable: true,
-      severity: 'info',
-    } satisfies ApplicationIssue);
-
-  return createApplicationFailed(toAuthErrorStateFromIssue(issue), issues, {
-    ...toAuthErrorMetadata(issue),
-    reason: issue.code || 'auth/credential-invalid-input',
-    severity: resolveAuthIssueSeverity(issue.severity),
-  });
-};
-
 export const executeGoogleSignInWarmup = (): void => {
   warmGoogleSignInRuntime();
 };
@@ -147,24 +120,6 @@ export const executeGoogleSignIn = async (
       'auth/google-signin-failed',
       'Error al iniciar sesión con Google'
     );
-  }
-};
-
-export const executeCredentialSignIn = async (
-  email: string,
-  password: string
-): Promise<ApplicationOutcome<AuthSessionState>> => {
-  const normalizedInput = normalizeCredentialSignInInput({ email, password });
-  const inputIssues = validateCredentialSignInInput(normalizedInput);
-  if (inputIssues.length > 0) {
-    return buildCredentialValidationFailure(inputIssues);
-  }
-
-  try {
-    const user = await signIn(normalizedInput.email, normalizedInput.password);
-    return createApplicationSuccess(toResolvedAuthSessionState(user));
-  } catch (error) {
-    return buildAuthFailure(error, 'auth/credential-signin-failed', 'Error de autenticación');
   }
 };
 

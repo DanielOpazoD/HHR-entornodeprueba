@@ -6,7 +6,7 @@ import type { PatientData } from '@/types/domain/patient';
  * Extracted from useBedManagement for better separation of concerns.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { PatientFieldValue } from '@/types/valueTypes';
 import { capitalizeWords } from '@/utils/stringUtils';
@@ -139,10 +139,8 @@ export const usePatientValidation = (): PatientValidationActions => {
     [formatPatientName, validateRut, validateAdmissionDate]
   );
 
-  return {
-    processFieldValue,
-    validateAdmissionDate,
-    validateRut,
-    formatPatientName,
-  };
+  return useMemo(
+    () => ({ processFieldValue, validateAdmissionDate, validateRut, formatPatientName }),
+    [processFieldValue, validateAdmissionDate, validateRut, formatPatientName]
+  );
 };

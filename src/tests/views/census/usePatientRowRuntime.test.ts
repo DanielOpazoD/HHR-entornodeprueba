@@ -129,4 +129,23 @@ describe('usePatientRowRuntime', () => {
     expect(toggleBedType).toHaveBeenCalledWith('R1');
     expect(updateClinicalCrib).toHaveBeenCalledWith('R1', 'remove');
   });
+
+  it('passes the row editing contract straight to the handlers model', () => {
+    renderHook(() =>
+      usePatientRowRuntime({ bed, data, currentDateString: '2026-01-03', onAction })
+    );
+
+    const dependencies = vi.mocked(usePatientRowDependencies).mock.results[0].value;
+    expect(usePatientRowHandlersModel).toHaveBeenCalledWith({
+      bedId: 'R1',
+      currentDateString: '2026-01-03',
+      data,
+      documentType: data.documentType,
+      updatePatient: dependencies.updatePatient,
+      updatePatientMultiple: dependencies.updatePatientMultiple,
+      clearPatient: dependencies.clearPatient,
+      updateClinicalCrib: dependencies.updateClinicalCrib,
+      updateClinicalCribMultiple: dependencies.updateClinicalCribMultiple,
+    });
+  });
 });

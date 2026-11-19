@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 
 /** Keep the page's sticky header when the table fits; preserve horizontal access on narrow screens. */
 export const CensusTableViewport: React.FC<

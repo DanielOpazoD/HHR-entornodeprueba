@@ -1,9 +1,4 @@
-import {
-  failWithCode,
-  ok,
-  type ControllerResult,
-} from '@/features/census/controllers/controllerResult';
-import { createCensusStorageRuntime } from '@/features/census/controllers/censusBrowserRuntimeAdapter';
+import { failWithCode, ok, type ControllerResult } from '@/shared/contracts/controllerResult';
 
 export interface CensusMigrationStorage {
   getItem: (key: string) => string | null;
@@ -19,16 +14,6 @@ export type CensusMigrationBootstrapResult = ControllerResult<
   { outcome: CensusMigrationOutcome },
   CensusMigrationErrorCode
 >;
-
-export const createCensusMigrationStorageRuntime = (
-  runtime: Pick<
-    ReturnType<typeof createCensusStorageRuntime>,
-    'getItem' | 'setItem'
-  > = createCensusStorageRuntime()
-): CensusMigrationStorage => ({
-  getItem: key => runtime.getItem(key),
-  setItem: (key, value) => runtime.setItem(key, value),
-});
 
 export const executeCensusMigrationBootstrapController = (
   storage: CensusMigrationStorage

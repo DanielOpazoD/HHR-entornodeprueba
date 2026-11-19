@@ -5,7 +5,7 @@ import {
 } from '@/services/storage/authoringSession';
 import { isClinicalEventsOnlyDailyRecordPatch } from '@/services/repositories/dailyRecordClinicalDomainService';
 import { mutationOptions, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { queryKeys } from '@/config/queryClient';
@@ -107,6 +107,17 @@ const captureInput = (input: DailyRecordPatchMutationVariables): PatchMutationIn
     ...resolved,
     options: authoredOptions<PartialUpdateDailyRecordOptions>(resolved.options ?? {}),
   };
+};
+
+/** Server decisions wait for the network; plain local-first edits may enter the outbox offline. */
+const requiresRemoteAuthority = (input: PatchMutationInput): boolean => {
+  const { options } = resolveInput(input);
+  return Boolean(
+    options?.requireRemoteAuthorityFirst ||
+    options?.intentionalBedClear ||
+    options?.clinicalCribCreate ||
+    options?.specialtyIntent
+  );
 };
 
 const acquireMutationTurn = async (date: string): Promise<() => void> => {
@@ -473,36 +484,34 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
   // Keep server decisions paused offline; only local-first writes may enter the outbox now.
   const local = useMutation({ ...options, networkMode: 'always' });
   const remote = useMutation({ ...options, networkMode: 'online' });
-  const selectMutation = (input: PatchMutationInput) => {
-    const { options } = resolveInput(input);
-    const requiresRemote = Boolean(
-      options?.requireRemoteAuthorityFirst ||
-      options?.intentionalBedClear ||
-      options?.clinicalCribCreate ||
-      options?.specialtyIntent
-    );
-    setRemoteSelected(requiresRemote);
-    return requiresRemote ? remote : local;
-  };
-  return {
-    ...(remoteSelected ? remote : local),
-    mutate: (
+  const { mutate: mutateLocal, mutateAsync: mutateLocalAsync, reset: resetLocal } = local;
+  const { mutate: mutateRemote, mutateAsync: mutateRemoteAsync, reset: resetRemote } = remote;
+  // Stable identities: the census actions built on these must not change each time a write moves
+  // between pending and settled. The session is captured per call, never at creation.
+  const mutate = useCallback(
+    (input: DailyRecordPatchMutationVariables, options?: Parameters<typeof mutateLocal>[1]) => {
+      const authored = captureInput(input);
+      const viaRemote = requiresRemoteAuthority(authored);
+      setRemoteSelected(viaRemote);
+      return viaRemote ? mutateRemote(authored, options) : mutateLocal(authored, options);
+    },
+    [mutateLocal, mutateRemote]
+  );
+  const mutateAsync = useCallback(
+    (
       input: DailyRecordPatchMutationVariables,
-      options?: Parameters<typeof local.mutate>[1]
+      options?: Parameters<typeof mutateLocalAsync>[1]
     ) => {
       const authored = captureInput(input);
-      return selectMutation(authored).mutate(authored, options);
+      const viaRemote = requiresRemoteAuthority(authored);
+      setRemoteSelected(viaRemote);
+      return viaRemote ? mutateRemoteAsync(authored, options) : mutateLocalAsync(authored, options);
     },
-    mutateAsync: (
-      input: DailyRecordPatchMutationVariables,
-      options?: Parameters<typeof local.mutateAsync>[1]
-    ) => {
-      const authored = captureInput(input);
-      return selectMutation(authored).mutateAsync(authored, options);
-    },
-    reset: () => {
-      local.reset();
-      remote.reset();
-    },
-  };
+    [mutateLocalAsync, mutateRemoteAsync]
+  );
+  const reset = useCallback(() => {
+    resetLocal();
+    resetRemote();
+  }, [resetLocal, resetRemote]);
+  return { ...(remoteSelected ? remote : local), mutate, mutateAsync, reset };
 };

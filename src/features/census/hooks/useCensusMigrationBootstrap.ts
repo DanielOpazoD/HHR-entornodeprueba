@@ -1,25 +1,17 @@
-import { useEffect, useMemo } from 'react';
-import {
-  createCensusMigrationStorageRuntime,
-  executeCensusMigrationBootstrapController,
-} from '@/features/census/controllers/censusMigrationBootstrapController';
+import { useEffect } from 'react';
+import { createCensusStorageRuntime } from '@/features/census/controllers/censusBrowserRuntimeAdapter';
+import { executeCensusMigrationBootstrapController } from '@/features/census/controllers/censusMigrationBootstrapController';
 import { censusMigrationLogger } from '@/features/census/hooks/censusHookLoggers';
 
-export const useCensusMigrationBootstrap = (enabled = true): void => {
-  const migrationStorage = useMemo(() => createCensusMigrationStorageRuntime(), []);
-
+export const useCensusMigrationBootstrap = (): void => {
   useEffect(() => {
-    if (!enabled) {
-      return;
-    }
-
     let cancelled = false;
     const runBootstrap = () => {
       if (cancelled) {
         return;
       }
 
-      const result = executeCensusMigrationBootstrapController(migrationStorage);
+      const result = executeCensusMigrationBootstrapController(createCensusStorageRuntime());
 
       if (!result.ok) {
         censusMigrationLogger.warn('Migration bootstrap failed', result.error.message);
@@ -39,5 +31,5 @@ export const useCensusMigrationBootstrap = (enabled = true): void => {
       }
       window.clearTimeout(idleCallback);
     };
-  }, [enabled, migrationStorage]);
+  }, []);
 };

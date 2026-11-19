@@ -7,11 +7,7 @@ import type {
   DischargeAddCommandPayload,
   TransferCommandPayload,
 } from '@/features/census/domain/movements/contracts';
-import {
-  ControllerError,
-  ControllerResult,
-  ok,
-} from '@/features/census/controllers/controllerResult';
+import { ControllerError, ControllerResult, ok } from '@/shared/contracts/controllerResult';
 import { resolveMovementDisplayDate } from '@/features/census/controllers/censusMovementDatePresentationController';
 import {
   resolveOccupiedMovementSource,

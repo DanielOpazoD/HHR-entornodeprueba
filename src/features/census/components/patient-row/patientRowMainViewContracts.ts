@@ -3,10 +3,10 @@ import type { PatientData } from '@/types/domain/patient';
 import type { CSSProperties } from 'react';
 import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 import type { BedDefinition } from '@/types/domain/beds';
-import type { BedType } from '@/features/census/contracts/censusBedContracts';
+import type { BedType } from '@/types/domain/beds';
 
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import type {
   ClinicalCribInputChangeHandlers,
   MainPatientInputChangeHandlers,

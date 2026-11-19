@@ -3,7 +3,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { BedDefinition } from '@/types/domain/beds';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-import { ControllerResult, failWithCode, ok } from '@/features/census/controllers/controllerResult';
+import { ControllerResult, failWithCode, ok } from '@/shared/contracts/controllerResult';
 import { deepClone } from '@/utils/deepClone';
 import { buildMovementUndoSnapshot } from '@/utils/movementUndoSnapshot';
 

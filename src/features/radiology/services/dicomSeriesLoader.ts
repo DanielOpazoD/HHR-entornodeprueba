@@ -211,11 +211,3 @@ export interface ProgressiveDicomSeries {
   request: (index: number) => Promise<string>;
   cancel: () => void;
 }
-
-/** Complete-series consumer retained for volume validation and focused tests. */
-export const loadDicomSeries = (
-  study: DicomStudy,
-  series: DicomSeries,
-  signal: AbortSignal,
-  progress: (loaded: number, total: number) => void
-): Promise<LoadedDicomSeries> => startDicomSeries(study, series, signal, progress).completion;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
-import { hydrateClinicalDocumentRecord } from '@/application/ports/clinicalDocumentCompatibilityPort';
+import { hydrateClinicalDocumentRecord } from '@/domain/clinical-documents/compatibility';
 
 const buildDocument = () =>
   createClinicalDocumentDraft({
@@ -36,6 +36,23 @@ const buildDocument = () =>
   });
 
 describe('clinical document compatibility', () => {
+  it('hydrates legacy defaults and epicrisis section labels', () => {
+    const document = buildDocument();
+    document.patientInfoTitle = '';
+    document.footerMedicoLabel = '';
+    document.footerEspecialidadLabel = '';
+
+    const hydrated = hydrateClinicalDocumentRecord(document);
+
+    expect(hydrated.patientInfoTitle).toBe('Información del Paciente');
+    expect(hydrated.footerMedicoLabel).toBe('Médico');
+    expect(hydrated.footerEspecialidadLabel).toBe('Especialidad');
+    expect(hydrated.sections.some(section => section.title === 'Diagnósticos de egreso')).toBe(
+      true
+    );
+    expect(hydrated.sections.some(section => section.title === 'Indicaciones al alta')).toBe(true);
+  });
+
   it('hydrates empty section titles with a safe fallback title', () => {
     const document = buildDocument();
     document.sections = document.sections.map((section, index) =>

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createCensusStorageRuntime } from '@/features/census/controllers/censusBrowserRuntimeAdapter';
 import {
   CENSUS_MIGRATION_STORAGE_KEY,
-  createCensusMigrationStorageRuntime,
   executeCensusMigrationBootstrapController,
 } from '@/features/census/controllers/censusMigrationBootstrapController';
 
@@ -68,29 +68,13 @@ describe('censusMigrationBootstrapController', () => {
     }
   });
 
-  it('creates browser storage runtime bound to localStorage', () => {
-    const getItemSpy = vi.spyOn(window.localStorage, 'getItem');
-    const setItemSpy = vi.spyOn(window.localStorage, 'setItem');
-    const runtime = createCensusMigrationStorageRuntime();
+  it('marks the flag in localStorage through the census storage runtime', () => {
+    window.localStorage.removeItem(CENSUS_MIGRATION_STORAGE_KEY);
 
-    runtime.getItem('migration-key');
-    runtime.setItem('migration-key', 'SKIPPED');
+    const result = executeCensusMigrationBootstrapController(createCensusStorageRuntime());
 
-    expect(getItemSpy).toHaveBeenCalledWith('migration-key');
-    expect(setItemSpy).toHaveBeenCalledWith('migration-key', 'SKIPPED');
-  });
-
-  it('supports injecting browser runtime adapters', () => {
-    const runtime = createCensusMigrationStorageRuntime({
-      getItem: vi.fn().mockReturnValue('DONE'),
-      setItem: vi.fn(),
-    });
-
-    const result = executeCensusMigrationBootstrapController(runtime);
-
-    expect(result).toEqual({
-      ok: true,
-      value: { outcome: 'already_done' },
-    });
+    expect(result).toEqual({ ok: true, value: { outcome: 'marked_skipped' } });
+    expect(window.localStorage.getItem(CENSUS_MIGRATION_STORAGE_KEY)).toBe('SKIPPED');
+    window.localStorage.removeItem(CENSUS_MIGRATION_STORAGE_KEY);
   });
 });

@@ -5,7 +5,7 @@ import { createInitialActionState } from '@/domain/censusActionContracts';
 import { resolveDischargeCommand } from '@/features/census/controllers/censusDischargeCommandController';
 import { resolveMoveOrCopyCommand } from '@/features/census/controllers/censusMoveOrCopyCommandController';
 import { resolveTransferCommand } from '@/features/census/controllers/censusTransferCommandController';
-import { failWithCode, ok } from '@/features/census/controllers/controllerResult';
+import { failWithCode, ok } from '@/shared/contracts/controllerResult';
 import {
   executeDischargeRuntimeCommand,
   executeTransferRuntimeCommand,
