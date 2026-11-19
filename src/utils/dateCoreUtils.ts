@@ -7,9 +7,3 @@ import { getClinicalCalendarDateISO } from './clinicalTimeZone';
 export const getTodayISO = (now: Date = new Date()): string => getClinicalCalendarDateISO(now);
 
 export const isFutureDate = (dateString: string): boolean => dateString > getTodayISO();
-
-export const parseISODate = (isoDate?: string): Date | null => {
-  if (!isoDate) return null;
-  const date = new Date(isoDate);
-  return isNaN(date.getTime()) ? null : date;
-};

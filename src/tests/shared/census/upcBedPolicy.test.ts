@@ -5,7 +5,6 @@ import {
   isUciEligibleBedId,
   resolveEffectiveUpcState,
   resolveUpcClassificationFromChecklist,
-  resolveIsUpcFromChecklist,
   resolveNormalizedUpcFlag,
 } from '@/shared/census/upcBedPolicy';
 
@@ -81,35 +80,6 @@ describe('resolveUpcClassificationFromChecklist', () => {
         evaluatedAt: '2026-04-14T00:00:00Z',
       })
     ).toBe('UPC_UCI');
-  });
-});
-
-describe('resolveIsUpcFromChecklist', () => {
-  it('returns false for undefined/null checklist', () => {
-    expect(resolveIsUpcFromChecklist(undefined)).toBe(false);
-    expect(resolveIsUpcFromChecklist(null)).toBe(false);
-  });
-
-  it('returns false for null classification', () => {
-    expect(
-      resolveIsUpcFromChecklist({
-        uciCriteria: [],
-        utiCriteria: [],
-        classification: null,
-        evaluatedAt: '',
-      })
-    ).toBe(false);
-  });
-
-  it('returns true for any classification', () => {
-    expect(
-      resolveIsUpcFromChecklist({
-        uciCriteria: [],
-        utiCriteria: ['uti_mon_cardiaca'],
-        classification: 'UPC_UTI',
-        evaluatedAt: '2026-04-14T00:00:00Z',
-      })
-    ).toBe(true);
   });
 });
 

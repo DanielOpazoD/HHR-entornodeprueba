@@ -90,15 +90,6 @@ export const readClinicalTimestamp = (value: string): ClinicalCalendarStamp | nu
   return { iso: wallClock.slice(0, 10), hhmm: wallClock.slice(11, 16) };
 };
 
-/** `HH:mm` (24h) of a timestamp on the hospital clock. */
-export const formatTimeHHMM = (isoDateTime?: string): string => {
-  if (!isoDateTime) return '--:--';
-
-  return (
-    formatTimestamp(isoDateTime, { hour: '2-digit', minute: '2-digit', hour12: false }) ?? '--:--'
-  );
-};
-
 /**
  * Formats a timestamp as `dd-mm-aaaa hh:mm` (24 h) on the hospital clock, the one date-time format
  * of the app (e.g. `25-06-2026 16:30`). Returns the original input unchanged when it is not a

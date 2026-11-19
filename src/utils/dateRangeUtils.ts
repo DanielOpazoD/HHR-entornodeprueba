@@ -1,13 +1,6 @@
 import { calendarStampInClinicalTimeZone } from './clinicalTimeZone';
 import { getTodayISO } from './dateCoreUtils';
 
-export const daysBetween = (startDate: string, endDate: string): number => {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const diffTime = Math.abs(end.getTime() - start.getTime());
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-};
-
 export const getTimeRoundedToStep = (date: Date = new Date(), stepMinutes = 5): string => {
   const stepMs = stepMinutes * 60 * 1000;
   const roundedMs = Math.round(date.getTime() / stepMs) * stepMs;

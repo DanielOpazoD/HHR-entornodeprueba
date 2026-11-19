@@ -1,5 +1,4 @@
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
-type ClinicalDocumentStatus = 'draft' | 'ready_for_signature' | 'signed' | 'archived';
 
 export const formatClinicalDocumentDateTime = (isoString?: string): string => {
   if (!isoString) return '—';
@@ -14,42 +13,4 @@ export const formatClinicalDocumentDateTime = (isoString?: string): string => {
         hour: '2-digit',
         minute: '2-digit',
       });
-};
-
-export const formatClinicalDocumentDate = (value?: string): string => {
-  if (!value) return 'Sin fecha';
-  // clinical-clock-allow device-calendar-today: local midnight of a calendar day read back with local getters keeps its label in every zone.
-  const parsed = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return value;
-  const day = String(parsed.getDate()).padStart(2, '0');
-  const month = String(parsed.getMonth() + 1).padStart(2, '0');
-  const year = parsed.getFullYear();
-  return `${day}-${month}-${year}`;
-};
-
-export const resolveClinicalDocumentSourceDateLabel = (value?: string): string =>
-  value ? formatClinicalDocumentDate(value) : 'Sin fecha';
-
-export const getClinicalDocumentStatusLabel = (status: ClinicalDocumentStatus): string => {
-  switch (status) {
-    case 'ready_for_signature':
-    case 'signed':
-      return 'Borrador';
-    case 'archived':
-      return 'Archivada';
-    default:
-      return 'Borrador';
-  }
-};
-
-export const getClinicalDocumentStatusClassName = (status: ClinicalDocumentStatus): string => {
-  switch (status) {
-    case 'signed':
-    case 'ready_for_signature':
-      return 'bg-slate-100 text-slate-600';
-    case 'archived':
-      return 'bg-slate-200 text-slate-600';
-    default:
-      return 'bg-slate-100 text-slate-600';
-  }
 };
