@@ -1,5 +1,3 @@
-import { getTodayISO } from '@/utils/dateCoreUtils';
-import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import { normalizeDateOnly } from '@/utils/clinicalDayUtils';
 import {
   resolveAdmissionDateAudit as resolveAdmissionDateAuditPolicy,
@@ -15,23 +13,6 @@ export {
   resolveAdmissionTimeValue,
   type AdmissionTimePickerModel,
 } from '@/shared/date/admissionTimeOptions';
-
-export interface AdmissionDateChangeResolution {
-  admissionDate: string;
-  admissionTime?: string;
-  shouldPatchMultiple: boolean;
-}
-
-export interface AdmissionDateUpdatePlan {
-  nextPatch: {
-    admissionDate: string;
-    admissionTime?: string;
-    firstSeenDate?: string;
-  };
-  shouldUseMultipleUpdate: boolean;
-}
-
-export const resolveAdmissionDateMax = (todayIso: string = getTodayISO()): string => todayIso;
 
 /**
  * Resolves the tooltip text for the admission date cell.
@@ -110,66 +91,6 @@ export const resolveAdmissionDateIsEditable = ({
   }
 
   return isNewAdmission;
-};
-
-export const resolveAdmissionDateChange = ({
-  nextDate,
-  currentAdmissionTime,
-  now = new Date(),
-}: {
-  nextDate: string;
-  currentAdmissionTime?: string;
-  now?: Date;
-}): AdmissionDateChangeResolution => {
-  if (nextDate && !currentAdmissionTime) {
-    return {
-      admissionDate: nextDate,
-      admissionTime: calendarStampInClinicalTimeZone(now).hhmm,
-      shouldPatchMultiple: true,
-    };
-  }
-
-  return {
-    admissionDate: nextDate,
-    shouldPatchMultiple: false,
-  };
-};
-
-export const resolveAdmissionDateUpdatePlan = ({
-  nextDate,
-  currentAdmissionTime,
-  currentDateString,
-  firstSeenDate,
-  now = new Date(),
-}: {
-  nextDate: string;
-  currentAdmissionTime?: string;
-  currentDateString: string;
-  firstSeenDate?: string;
-  now?: Date;
-}): AdmissionDateUpdatePlan => {
-  const resolution = resolveAdmissionDateChange({
-    nextDate,
-    currentAdmissionTime,
-    now,
-  });
-  const normalizedFirstSeenDate = normalizeDateOnly(firstSeenDate);
-  const normalizedNextDate = normalizeDateOnly(nextDate);
-  const shouldRepairStaleFirstSeenDate =
-    Boolean(normalizedFirstSeenDate) &&
-    Boolean(normalizedNextDate) &&
-    normalizedFirstSeenDate !== normalizedNextDate &&
-    normalizedNextDate === currentDateString;
-  const shouldAnchorFirstSeenDate = !firstSeenDate || shouldRepairStaleFirstSeenDate;
-
-  return {
-    nextPatch: {
-      admissionDate: resolution.admissionDate,
-      ...(resolution.shouldPatchMultiple ? { admissionTime: resolution.admissionTime } : {}),
-      ...(shouldAnchorFirstSeenDate ? { firstSeenDate: currentDateString } : {}),
-    },
-    shouldUseMultipleUpdate: resolution.shouldPatchMultiple || shouldAnchorFirstSeenDate,
-  };
 };
 
 export const resolveAdmissionDateAudit = ({
