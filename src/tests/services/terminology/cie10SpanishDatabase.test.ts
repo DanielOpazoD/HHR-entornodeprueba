@@ -70,16 +70,8 @@ describe('Motor de Búsqueda Asíncrono CIE-10 (searchCIE10)', () => {
   describe('Carga de base de datos JSON', () => {
     it('debe cargar la base de datos a través de fetch', async () => {
       const db = await loadCIE10Database();
-      expect(db.length).toBeGreaterThan(0);
+      expect(db).toEqual(mockDatabase);
       expect(fetchSpy).toHaveBeenCalled();
-    });
-
-    it('cada entrada debe tener code y description', async () => {
-      const db = await loadCIE10Database();
-      for (const entry of db) {
-        expect(entry.code).toBeDefined();
-        expect(entry.description).toBeDefined();
-      }
     });
   });
 

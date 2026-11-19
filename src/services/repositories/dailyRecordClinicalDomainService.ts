@@ -16,23 +16,6 @@ import { touchDailyRecordLastUpdated } from '@/services/repositories/dailyRecord
 import { normalizePatientUpcForBed } from '@/shared/census/upcBedPolicy';
 import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields';
 
-const normalizeComparablePatientName = (patientName: string | undefined): string =>
-  String(patientName || '')
-    .trim()
-    .toLowerCase();
-
-const areSameNamedPatients = (
-  currentPatient: PatientData | undefined,
-  previousPatient: PatientData | undefined
-): boolean =>
-  Boolean(
-    currentPatient &&
-    previousPatient &&
-    normalizeComparablePatientName(currentPatient.patientName) &&
-    normalizeComparablePatientName(currentPatient.patientName) ===
-      normalizeComparablePatientName(previousPatient.patientName)
-  );
-
 const hasCarryoverIdentity = (patient: PatientData): boolean =>
   Boolean((patient.patientName?.trim() || patient.rut?.trim()) && patient.admissionDate?.trim());
 
@@ -86,37 +69,6 @@ export const assignCarriedPatientToRecord = (
   targetRecord.beds[targetBedId] = preparePatientForCarryover(sourcePatient, targetBedId);
   touchDailyRecordLastUpdated(targetRecord);
   return targetRecord;
-};
-
-export const preserveCIE10FromPreviousDay = (
-  newBeds: Record<string, PatientData>,
-  prevBeds: Record<string, PatientData>
-): void => {
-  for (const bedId of Object.keys(newBeds)) {
-    const newPatient = newBeds[bedId];
-    const prevPatient = prevBeds[bedId];
-
-    if (!newPatient || !prevPatient) continue;
-    if (!areSameNamedPatients(newPatient, prevPatient)) continue;
-
-    if (!newPatient.cie10Code && prevPatient.cie10Code) {
-      newPatient.cie10Code = prevPatient.cie10Code;
-    }
-    if (!newPatient.cie10Description && prevPatient.cie10Description) {
-      newPatient.cie10Description = prevPatient.cie10Description;
-    }
-
-    if (newPatient.clinicalCrib && prevPatient.clinicalCrib) {
-      if (!areSameNamedPatients(newPatient.clinicalCrib, prevPatient.clinicalCrib)) continue;
-
-      if (!newPatient.clinicalCrib.cie10Code && prevPatient.clinicalCrib.cie10Code) {
-        newPatient.clinicalCrib.cie10Code = prevPatient.clinicalCrib.cie10Code;
-      }
-      if (!newPatient.clinicalCrib.cie10Description && prevPatient.clinicalCrib.cie10Description) {
-        newPatient.clinicalCrib.cie10Description = prevPatient.clinicalCrib.cie10Description;
-      }
-    }
-  }
 };
 
 export const buildEmptyClinicalBeds = (): Record<string, PatientData> => {

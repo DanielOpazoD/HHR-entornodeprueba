@@ -257,6 +257,17 @@ describe('useBedManagement patient updates', () => {
       act(() => {
         result.current.updateClinicalCrib('R1', 'create');
       });
+
+      expect(mockPatchRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          'beds.R1.clinicalCrib': expect.objectContaining({
+            bedMode: 'Cuna',
+            patientName: 'RN de Test Patient',
+            identityStatus: 'provisional',
+          }),
+        }),
+        expect.objectContaining({ clinicalCribCreate: expect.objectContaining({ bedId: 'R1' }) })
+      );
     });
 
     it('updates multiple clinical crib fields', () => {

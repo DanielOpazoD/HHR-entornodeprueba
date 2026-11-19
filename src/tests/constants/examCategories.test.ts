@@ -42,10 +42,6 @@ describe('EXAM_CATEGORIES', () => {
   describe('Bioquimica Category', () => {
     const bioquimica = EXAM_CATEGORIES.find(c => c.id === 'bioquimica');
 
-    it('should exist', () => {
-      expect(bioquimica).toBeDefined();
-    });
-
     it('should have tube information', () => {
       expect(bioquimica?.tube).toBe('TUBO AMARILLO – ROJO');
     });
@@ -69,10 +65,6 @@ describe('EXAM_CATEGORIES', () => {
   describe('Hematologia Category', () => {
     const hematologia = EXAM_CATEGORIES.find(c => c.id === 'hematologia');
 
-    it('should exist', () => {
-      expect(hematologia).toBeDefined();
-    });
-
     it('should have TUBO LILA', () => {
       expect(hematologia?.tube).toBe('TUBO LILA');
     });
@@ -84,10 +76,6 @@ describe('EXAM_CATEGORIES', () => {
 
   describe('Coagulacion Category', () => {
     const coagulacion = EXAM_CATEGORIES.find(c => c.id === 'coagulacion');
-
-    it('should exist', () => {
-      expect(coagulacion).toBeDefined();
-    });
 
     it('should have TUBO CELESTE', () => {
       expect(coagulacion?.tube).toBe('TUBO CELESTE');

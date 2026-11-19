@@ -9,7 +9,6 @@ import {
   buildEmptyClinicalBeds,
   preparePatientForCarryover,
   isClinicalEventsOnlyDailyRecordPatch,
-  preserveCIE10FromPreviousDay,
 } from '@/services/repositories/dailyRecordClinicalDomainService';
 
 const buildPatient = (bedId: string, overrides: Partial<PatientData> = {}): PatientData => ({
@@ -259,22 +258,6 @@ describe('dailyRecordClinicalDomainService', () => {
     expect(beds.R1.rut).toBe('');
     expect(beds.R1.pathology).toBe('');
     expect(beds.R1.admissionDate).toBe('');
-  });
-
-  it('preserves cie10 only when patient names match', () => {
-    const newBeds = {
-      R1: buildPatient('R1', { patientName: 'Paciente Uno' }),
-      R2: buildPatient('R2', { patientName: 'Paciente Dos' }),
-    };
-    const prevBeds = {
-      R1: buildPatient('R1', { patientName: 'Paciente Uno', cie10Code: 'A09' }),
-      R2: buildPatient('R2', { patientName: 'Otro Paciente', cie10Code: 'B20' }),
-    };
-
-    preserveCIE10FromPreviousDay(newBeds, prevBeds);
-
-    expect(newBeds.R1.cie10Code).toBe('A09');
-    expect(newBeds.R2.cie10Code).toBeUndefined();
   });
 
   it('adds fhir patches only for touched beds with named patients', () => {
