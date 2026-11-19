@@ -10,6 +10,7 @@ import {
   useSaveProfessionalsMutation,
 } from '@/hooks/useStaffQuery';
 import { CatalogRepository } from '@/services/repositories/CatalogRepository';
+import { listedStaffPerson } from '@/services/staff/eloisaStaffIdentity';
 import { useEloisaStaff } from '@/hooks/useEloisaStaff';
 vi.mock('@/hooks/useEloisaStaff', () => ({ useEloisaStaff: vi.fn() }));
 import { useAuth } from '@/context/AuthContext';
@@ -289,9 +290,11 @@ describe('useStaffQuery Hooks', () => {
 });
 
 describe.each([
-  ['nurses', useSaveNursesMutation, 'saveNurses'],
-  ['tens', useSaveTensMutation, 'saveTens'],
-] as const)('%s late spelling confirmation', (catalog, useSave, save) => {
+  ['nurses', 'nurse', useSaveNursesMutation, 'saveNurses'],
+  ['tens', 'tens', useSaveTensMutation, 'saveTens'],
+] as const)('%s late spelling confirmation', (catalog, role, useSave, save) => {
+  // The editor's rows were built from an Eloísa list that was read and holds nobody.
+  const person = (name: string) => listedStaffPerson(name, [], role);
   it.each([
     ['adds an equivalent variant', ['Ana Peña'], ['Ana Peña', 'ANA PENA'], ['Ana Peña'], true],
     ['adds a newly discovered variant', [], ['ANA PENA'], ['Ana Peña'], true],
@@ -308,7 +311,28 @@ describe.each([
     vi.mocked(CatalogRepository[save]).mockRejectedValue(error);
     const { result } = renderHook(() => useSave(), { wrapper });
     await act(async () => {
-      await expect(result.current.mutateAsync({ base, next })).rejects.toBe(error);
+      await expect(result.current.mutateAsync({ base, next, person })).rejects.toBe(error);
+    });
+    await act(async () => {
+      queryClient.setQueryData(['staff', catalog], stored);
+    });
+    await waitFor(() => expect(result.current.error).toBe(accepted ? null : error));
+  });
+
+  // Without the Eloísa list behind the rows, two spellings are never one person by guess.
+  it.each([
+    ['keeps an equivalent variant unsaved', ['Ana Peña'], ['Ana Peña'], false],
+    ['accepts the exact saved text', ['Ana Peña'], ['Ana Peña', 'ANA PENA'], true],
+  ])('without the Eloísa list read, %s', async (_label, base, stored, accepted) => {
+    const { wrapper, queryClient } = createQueryClientTestWrapper();
+    queryClient.setQueryData(['staff', catalog], base);
+    const error = new CatalogRemoteSyncError('confirmation_timeout');
+    vi.mocked(CatalogRepository[save]).mockRejectedValue(error);
+    const { result } = renderHook(() => useSave(), { wrapper });
+    await act(async () => {
+      await expect(result.current.mutateAsync({ base, next: [...base, 'ANA PENA'] })).rejects.toBe(
+        error
+      );
     });
     await act(async () => {
       queryClient.setQueryData(['staff', catalog], stored);

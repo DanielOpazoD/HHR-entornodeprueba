@@ -6,6 +6,7 @@ import { StaffNameSchema } from '@/schemas/inputSchemas';
 import {
   savedCatalogEdit,
   type SavedStaffCatalog,
+  type SavedStaffCatalogEdit,
 } from '@/services/repositories/contracts/catalogChanges';
 import clsx from 'clsx';
 import { RecoverCensusStaffButton } from './RecoverCensusStaffButton';
@@ -18,7 +19,7 @@ interface StaffCatalogManagerModalProps {
   staffList: string[];
   /** The confirmed saved list behind `staffList`, from the same source as the shown rows. */
   saved?: SavedStaffCatalog;
-  onSave: (updatedStaffList: string[], base?: string[]) => boolean | void | Promise<boolean | void>;
+  onSave: (edit: SavedStaffCatalogEdit) => boolean | void | Promise<boolean | void>;
   saveError?: string;
   onRetry?: () => Promise<void>;
   syncing: boolean;
@@ -72,8 +73,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
   const editBase = useRef({ shown: staffList, saved });
   // Removing or renaming a row changes exactly the saved texts that row stands for.
   const saveChange = (next: string[], base = { shown: staffList, saved }) => {
-    const edit = savedCatalogEdit(base.saved, base.shown, next);
-    return onSave(edit.next, edit.base);
+    return onSave(savedCatalogEdit(base.saved, base.shown, next));
   };
   const config = STAFF_CATALOG_VARIANT_CONFIG[variant];
   const [newStaffName, setNewStaffName] = useState('');

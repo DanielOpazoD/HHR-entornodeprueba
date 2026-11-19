@@ -35,7 +35,7 @@ describe('StaffCatalogManagerModal', () => {
     const button = screen.getByRole('button', { name: 'Agregar personal' });
     expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
     fireEvent.click(button);
-    expect(onSave).toHaveBeenCalledWith(['Persona Sintética'], expect.any(Array));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ next: ['Persona Sintética'] }));
   });
 
   it('shows nurse empty state when no records are provided', () => {
@@ -72,7 +72,7 @@ describe('StaffCatalogManagerModal', () => {
     fireEvent.change(input, { target: { value: '   Maria   ' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
-    expect(onSave).toHaveBeenCalledWith(['Ana', 'Maria'], expect.any(Array));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ next: ['Ana', 'Maria'] }));
   });
 
   it('shows validation error when trying to add an invalid name', () => {
@@ -118,10 +118,10 @@ describe('StaffCatalogManagerModal', () => {
     const editInput = screen.getByDisplayValue('Ana');
     fireEvent.change(editInput, { target: { value: 'Ana María' } });
     fireEvent.keyDown(editInput, { key: 'Enter' });
-    expect(onSave).toHaveBeenCalledWith(['Ana María'], expect.any(Array));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ next: ['Ana María'] }));
 
     await waitFor(() => expect(screen.queryByTitle('Guardar')).not.toBeInTheDocument());
     fireEvent.click(screen.getByTitle('Eliminar'));
-    expect(onSave).toHaveBeenCalledWith([], expect.any(Array));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ next: [] }));
   });
 });
