@@ -1,7 +1,6 @@
 import {
   CatalogConflictError,
   type SavedStaffCatalog,
-  type SavedStaffCatalogEdit,
 } from '@/services/repositories/contracts/catalogChanges';
 import React from 'react';
 import { CatalogRemoteSyncError } from '@/services/repositories/contracts/catalogContracts';
@@ -38,11 +37,12 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
   saved,
 }) => {
   const { useCatalogQuery, useSaveCatalog } = STAFF_CATALOG_HOOKS[role];
-  const mutation = useSaveCatalog();
+  // A late answer is judged with the people the shown rows have when it arrives.
+  const mutation = useSaveCatalog(saved?.person);
   const query = useCatalogQuery();
-  const save = async (edit: SavedStaffCatalogEdit) => {
+  const save = async (names: string[], base?: string[]) => {
     try {
-      await mutation.mutateAsync(edit);
+      await mutation.mutateAsync(base ? { next: names, base } : names);
       return true;
     } catch {
       return false;

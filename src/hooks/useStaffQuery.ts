@@ -7,7 +7,7 @@ import {
   type SavedStaffCatalog,
 } from '@/services/repositories/contracts/catalogChanges';
 import { replaceEqualDeep, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { queryKeys } from '../config/queryClient';
 import { CatalogRepository } from '@/services/repositories/CatalogRepository';
 import { useAuth } from '@/context/AuthContext';
@@ -28,7 +28,9 @@ import {
   normalizeProfessionalCatalog,
 } from '@/services/repositories/contracts/catalogContracts';
 
-type CatalogEdit<T> = T[] | { next: T[]; base: T[]; person?: (item: T) => string };
+type CatalogEdit<T> = T[] | { next: T[]; base: T[] };
+/** The person an item is listed as, from the rows shown now; absent while their people are unknown. */
+type CatalogPerson<T> = ((item: T) => string) | undefined;
 const catalogNext = <T>(edit: CatalogEdit<T>): T[] => (Array.isArray(edit) ? edit : edit.next);
 
 const useCatalogRealtimeReady = (): boolean => {
@@ -88,21 +90,25 @@ interface CatalogSource<T> {
   /** The confirmed list a whole-list save replaces; undefined when it was never read. */
   savedBase: (data: T[] | undefined) => T[] | undefined;
   /** Whether the accepted list already holds the edit, so a lost answer is not an error. */
-  isAccepted: (edit: CatalogEdit<T>, current: unknown) => boolean;
+  isAccepted: (edit: CatalogEdit<T>, current: unknown, person: CatalogPerson<T>) => boolean;
   structuralSharing: boolean | ((previous: unknown, next: unknown) => unknown);
 }
 
 /**
  * An added name is accepted once a row of the same person is saved, never another ID's row. The
- * people come with the edit, from the rows it was made from; without them only the exact text.
+ * people are those of the shown rows when the saved list arrives; unknown, only the exact text.
  */
-const staffNamesAccepted = (edit: CatalogEdit<string>, current: unknown) =>
+const staffNamesAccepted = (
+  edit: CatalogEdit<string>,
+  current: unknown,
+  person: CatalogPerson<string>
+) =>
   catalogEditAccepted(
     edit,
     current,
     normalizeStringCatalog,
     exactStaffName,
-    (!Array.isArray(edit) && edit.person) || exactStaffName
+    person ?? exactStaffName
   );
 
 // Nurses and TENS differ only in where their list lives; names follow the same identity rules.
@@ -250,7 +256,7 @@ const useAcceptedCatalogChange = <T>(
  * Saves a whole catalog against the list it was edited from. Never saves over a list that was
  * not read, and on a conflict shows the list the server holds instead of the edit.
  */
-const useCatalogSaveMutation = <T>(source: CatalogSource<T>) => {
+const useCatalogSaveMutation = <T>(source: CatalogSource<T>, person?: CatalogPerson<T>) => {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
@@ -282,15 +288,21 @@ const useCatalogSaveMutation = <T>(source: CatalogSource<T>) => {
       }
     },
   });
-  useAcceptedCatalogChange(source.key, mutation, source.isAccepted);
+  const isAccepted = useCallback(
+    (edit: CatalogEdit<T>, current: unknown) => source.isAccepted(edit, current, person),
+    [source, person]
+  );
+  useAcceptedCatalogChange(source.key, mutation, isAccepted);
   return mutation;
 };
 
-/** Saves the nurses catalog. */
-export const useSaveNursesMutation = () => useCatalogSaveMutation(STAFF_CATALOGS.nurse);
+/** Saves the nurses catalog; `person` comes from the shown rows (`saved.person`). */
+export const useSaveNursesMutation = (person?: CatalogPerson<string>) =>
+  useCatalogSaveMutation(STAFF_CATALOGS.nurse, person);
 
-/** Saves the TENS catalog. */
-export const useSaveTensMutation = () => useCatalogSaveMutation(STAFF_CATALOGS.tens);
+/** Saves the TENS catalog; `person` comes from the shown rows (`saved.person`). */
+export const useSaveTensMutation = (person?: CatalogPerson<string>) =>
+  useCatalogSaveMutation(STAFF_CATALOGS.tens, person);
 
 /** Saves the professionals catalog. */
 export const useSaveProfessionalsMutation = () => useCatalogSaveMutation(PROFESSIONALS_CATALOG);

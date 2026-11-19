@@ -378,3 +378,62 @@ it.each(['nurse', 'tens'] as const)(
     await failedAdditionKeepsWarning(role);
   }
 );
+
+// A late saved list is read with the people the rows have when it arrives, not when the person
+// clicked: Eloísa may meanwhile tell apart a name that looked like the one being added.
+it.each([
+  ['nurse', 'another person', 'Luz Peña', true],
+  ['tens', 'another person', 'Luz Peña', true],
+  ['nurse', 'the same person', 'Luz Pena Vega', false],
+  ['tens', 'the same person', 'Luz Pena Vega', false],
+] as const)(
+  '%s: a failed addition and a later save of %s from another computer',
+  async (role, _label, savedElsewhere, warningStays) => {
+    const listDoc = role === 'nurse' ? 'nurses' : 'tens';
+    const added = {
+      key: `${role}:id:syn1`,
+      role,
+      name: 'Luz Pena Vega',
+      aliases: ['Luz Pena'],
+      practitionerId: 'syn1',
+    };
+    const other = {
+      key: `${role}:id:syn2`,
+      role,
+      name: 'Luz Peña',
+      aliases: ['Luz Peña'],
+      practitionerId: 'syn2',
+    };
+    await setDoc(settingsRef(listDoc), { list: ['Base Sintética'] });
+    await setDoc(settingsRef(SHARED_STAFF_DOC), { list: [added] });
+    const client = renderManager(role === 'nurse' ? <Nurses /> : <Tens />);
+    await screen.findByText('Base Sintética', {}, REMOTE);
+    await screen.findByText('Luz Pena Vega', {}, REMOTE);
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const input = screen.getByPlaceholderText('Nombre completo…');
+    fireEvent.change(input, { target: { value: 'Luz Pena' } });
+    fireEvent.click(screen.getByLabelText('Agregar personal'));
+    await screen.findByText(/El cambio no se guardó/, {}, REMOTE);
+    online.mockReturnValue(true);
+    await setDoc(settingsRef(SHARED_STAFF_DOC), { list: [added, other] });
+    await screen.findByText('Luz Peña', {}, REMOTE);
+    await setDoc(settingsRef(listDoc), { list: ['Base Sintética', savedElsewhere] });
+    await waitFor(
+      () =>
+        expect(client.getQueryData(['staff', listDoc])).toEqual(['Base Sintética', savedElsewhere]),
+      REMOTE
+    );
+    if (warningStays) {
+      // Nothing may clear the warning now; give a wrong reconciliation the time to run.
+      await new Promise(resolve => setTimeout(resolve, 300));
+      expect(screen.getByText(/El cambio no se guardó/)).toBeInTheDocument();
+      expect(input).toHaveValue('Luz Pena');
+    } else {
+      await waitFor(
+        () => expect(screen.queryByText(/El cambio no se guardó/)).not.toBeInTheDocument(),
+        REMOTE
+      );
+    }
+    expect(await serverList(listDoc)).toEqual(['Base Sintética', savedElsewhere]);
+  }
+);

@@ -293,7 +293,7 @@ describe.each([
   ['nurses', 'nurse', useSaveNursesMutation, 'saveNurses'],
   ['tens', 'tens', useSaveTensMutation, 'saveTens'],
 ] as const)('%s late spelling confirmation', (catalog, role, useSave, save) => {
-  // The editor's rows were built from an Eloísa list that was read and holds nobody.
+  // The shown rows come from an Eloísa list that was read and holds nobody.
   const person = (name: string) => listedStaffPerson(name, [], role);
   it.each([
     ['adds an equivalent variant', ['Ana Peña'], ['Ana Peña', 'ANA PENA'], ['Ana Peña'], true],
@@ -309,9 +309,9 @@ describe.each([
     queryClient.setQueryData(['staff', catalog], base);
     const error = new CatalogRemoteSyncError('confirmation_timeout');
     vi.mocked(CatalogRepository[save]).mockRejectedValue(error);
-    const { result } = renderHook(() => useSave(), { wrapper });
+    const { result } = renderHook(() => useSave(person), { wrapper });
     await act(async () => {
-      await expect(result.current.mutateAsync({ base, next, person })).rejects.toBe(error);
+      await expect(result.current.mutateAsync({ base, next })).rejects.toBe(error);
     });
     await act(async () => {
       queryClient.setQueryData(['staff', catalog], stored);

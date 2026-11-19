@@ -84,16 +84,9 @@ export interface SavedStaffCatalog {
   list: string[];
   textsOf: (shown: string) => readonly string[];
   /**
-   * The person each name is listed as, from the same Eloísa list that built the shown rows.
+   * The person each name is listed as, from the Eloísa list that builds the shown rows now.
    * Absent while that list was not read: then no two texts count as one person.
    */
-  person?: (name: string) => string;
-}
-
-/** A whole-list edit in saved texts, carrying the people of the rows it was made from. */
-export interface SavedStaffCatalogEdit {
-  base: string[];
-  next: string[];
   person?: (name: string) => string;
 }
 
@@ -107,7 +100,7 @@ export const savedCatalogEdit = (
   saved: SavedStaffCatalog | undefined,
   shownBase: readonly string[],
   shownNext: readonly string[]
-): SavedStaffCatalogEdit => {
+): { base: string[]; next: string[] } => {
   const list = saved?.list ?? [...shownBase];
   const textsOf = saved?.textsOf ?? ((shown: string) => [shown]);
   const removedRows = shownBase.filter(name => !shownNext.includes(name));
@@ -119,7 +112,7 @@ export const savedCatalogEdit = (
     !replaced.has(text) ? [text] : text === first && renamed !== undefined ? [renamed] : []
   );
   const inPlace = first !== undefined && renamed !== undefined;
-  return { base: list, next: inPlace ? kept : [...kept, ...added], person: saved?.person };
+  return { base: list, next: inPlace ? kept : [...kept, ...added] };
 };
 
 export const professionalCatalogIdentity = (item: ProfessionalCatalogItem): string =>
