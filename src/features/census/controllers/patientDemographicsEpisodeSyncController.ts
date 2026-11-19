@@ -175,7 +175,8 @@ const findMatchingPatientPath = ({
     ? candidates.filter(({ patient }) => patient.clinicalEpisodeId === sourceEpisode)
     : [];
   const eligible = accredited.length > 0 ? accredited : isClinicalCribPatient ? [] : candidates;
-  return eligible.length === 1 ? eligible[0] : null;
+  const [only, ...others] = eligible;
+  return only && others.length === 0 ? only : null;
 };
 
 const buildDemographicsPatch = ({
