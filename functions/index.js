@@ -40,9 +40,18 @@ const { createDailyRecordRestoreFunctions } = require('./lib/dailyRecordRestoreF
 
 const { createMmradDicomSantiagoFunction } = require('./lib/mmrad/mmradDicomSantiagoFunction');
 
+const { createNursingHandoffDemoFunctions } = require('./lib/nursingHandoffExtension');
+
 const authHelpers = createAuthHelpers({ auth, firestore });
 
 module.exports = {
+  ...createNursingHandoffDemoFunctions({
+    auth,
+    firestore,
+    Timestamp,
+    FieldValue,
+    resolveRoleForEmail: authHelpers.resolveRoleForEmail,
+  }),
   ...createDailyRecordRestoreFunctions({
     firestore,
     Timestamp,

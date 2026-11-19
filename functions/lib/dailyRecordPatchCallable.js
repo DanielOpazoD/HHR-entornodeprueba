@@ -53,7 +53,7 @@ const {
 } = require('./dailyRecordAuthorityOutcome');
 
 const createPatchHandler =
-  ({ firestore, Timestamp, FieldValue, resolveRoleForEmail }) =>
+  ({ firestore, Timestamp, FieldValue, resolveRoleForEmail, assertPatchBase }) =>
   async (data, context) => {
     const startedAt = Date.now();
     const { email, role } = await assertAuthorizedDailyRecordWriter({
@@ -120,6 +120,7 @@ const createPatchHandler =
           );
         }
 
+        assertPatchBase?.(snapshot, data);
         const remoteData = snapshot.data() || {};
         if (hasAlreadyAppliedMutation({ snapshot, syncContract })) {
           authority = idempotentAuthority;

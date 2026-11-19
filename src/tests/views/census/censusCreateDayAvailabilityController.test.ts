@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import {
+  buildCopyUnlockDescription,
   formatCopyUnlockCountdown,
   resolveCreateDayCopyAvailability,
 } from '@/hooks/controllers/createDayCopyAvailabilityController';
@@ -82,6 +83,17 @@ describe('createDayCopyAvailabilityController', () => {
       countdownLabel: '08:30:00',
     });
   });
+
+  it.each(['2026-11-21', '2026-12-25'])(
+    'waits for night handoff on %s until 09:00 in Rapa Nui',
+    date => {
+      const beforeClose = new Date(date + 'T08:59:00-05:00');
+      expect(resolveCreateDayCopyAvailability(date, beforeClose).countdownLabel).toBe('00:01:00');
+      expect(buildCopyUnlockDescription(date, beforeClose)).toContain('09:00');
+      const dayShift = new Date(date + 'T09:00:00-05:00');
+      expect(resolveCreateDayCopyAvailability(date, dayShift).isCopyLocked).toBe(false);
+    }
+  );
 
   it('formats countdown in hh:mm:ss', () => {
     expect(formatCopyUnlockCountdown(3723000)).toBe('01:02:03');

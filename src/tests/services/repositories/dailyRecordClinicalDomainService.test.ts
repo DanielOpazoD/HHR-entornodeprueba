@@ -31,6 +31,23 @@ const buildPatient = (bedId: string, overrides: Partial<PatientData> = {}): Pati
 });
 
 describe('dailyRecordClinicalDomainService', () => {
+  it('carries the final night note to the next day, including a deliberate clear', () => {
+    const patient = buildPatient('R1', {
+      handoffNote: 'Nota antigua',
+      handoffNoteDayShift: 'Nota de día',
+    });
+    const fromNight = preparePatientForCarryover({
+      ...patient,
+      handoffNoteNightShift: 'Cierre nocturno',
+    });
+    expect(fromNight.handoffNoteDayShift).toBe('Cierre nocturno');
+    expect(fromNight.handoffNoteNightShift).toBe('Cierre nocturno');
+    const cleared = preparePatientForCarryover({ ...patient, handoffNoteNightShift: '' });
+    expect(cleared.handoffNoteDayShift).toBe('');
+    expect(cleared.handoffNoteNightShift).toBe('');
+    expect(preparePatientForCarryover(patient).handoffNoteDayShift).toBe('Nota antigua');
+  });
+
   it('prepares carryover patient by clearing cudyr and inheriting night notes', () => {
     const source = buildPatient('R1', {
       handoffNoteNightShift: 'Nota noche madre',
