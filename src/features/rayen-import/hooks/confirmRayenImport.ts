@@ -8,6 +8,7 @@ import { applyCmaAdmissionResolutions } from '../domain/cmaAdmissionReview';
 import { getRayenImportErrorMessage } from './rayenImportState';
 import { toIsoReportDate } from './reportDateHelpers';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
+import { stableStringify } from '../domain/rayenStableStringify';
 
 const isVersionConflict = (error: unknown): boolean =>
   (error instanceof Error && error.name === 'ConcurrencyError') ||
@@ -16,16 +17,6 @@ const isVersionConflict = (error: unknown): boolean =>
   );
 
 const MAX_FRESH_RECORD_RETRIES = 2;
-
-const stableStringify = (value: unknown): string => {
-  if (value === undefined) return 'null';
-  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  const entries = Object.entries(value as Record<string, unknown>)
-    .filter(([, entry]) => entry !== undefined)
-    .sort(([left], [right]) => left.localeCompare(right));
-  return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${stableStringify(entry)}`).join(',')}}`;
-};
 
 const comparableStructuralPlan = (diff: CensusImportDiff) => ({
   neonatalSourceChanges: diff.neonatalSourceChanges ?? [],
