@@ -11,24 +11,12 @@ import { featureFlags, type FeatureFlag } from '@/services/utils/featureFlags';
  * Automatically re-renders when the flag state changes.
  *
  * @example
- * const showDebug = useFeatureFlag('SHOW_DEBUG_PANEL');
- * if (showDebug) { ... }
+ * const rulesMemory = useFeatureFlag('SPECIALTY_RULES_MEMORY');
+ * if (rulesMemory) { ... }
  */
 export const useFeatureFlag = (flag: FeatureFlag): boolean => {
   return useSyncExternalStore(
     callback => featureFlags.subscribe(flag, callback),
     () => featureFlags.isEnabled(flag)
-  );
-};
-
-/**
- * Hook to get all feature flags with their current values.
- * Useful for admin/debug panels.
- * Automatically re-renders when any flag state changes.
- */
-export const useAllFeatureFlags = (): Record<FeatureFlag, boolean> => {
-  return useSyncExternalStore(
-    callback => featureFlags.subscribeAll(callback),
-    () => featureFlags.getAll()
   );
 };

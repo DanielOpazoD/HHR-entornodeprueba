@@ -41,14 +41,35 @@ it('runs census, library, pharmacy, clinical-panel, sync-navigation and DICOM/ca
     )
   ).toEqual([]);
   const { jobs } = parseWorkflow(fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8'));
+  // One job builds the preview bundle; every lane serves that same artifact.
+  const previewBuild = jobs['preview-build'];
+  expect(previewBuild.needs).toEqual(['ci-scope']);
+  const buildRuns = previewBuild.steps.map(step => step.run ?? '');
+  const bundleUpload = previewBuild.steps.findIndex(step => step.with?.name === 'preview-dist');
+  expect(buildRuns.indexOf('npm run build')).toBeGreaterThanOrEqual(0);
+  expect(buildRuns.indexOf('npm run build')).toBeLessThan(bundleUpload);
+  expect(previewBuild.steps[bundleUpload]).toMatchObject({
+    uses: 'actions/upload-artifact@v7',
+    with: { path: 'dist/', 'if-no-files-found': 'error' },
+  });
   const lanes = jobs['preview-smoke-lanes'];
-  expect(lanes.needs).toEqual(['ci-scope']);
+  expect(lanes.needs).toEqual(['ci-scope', 'preview-build']);
   expect(lanes.strategy?.['fail-fast']).toBe(false);
   expect(lanes.strategy?.matrix.lane).toEqual(PREVIEW_SMOKE_LANE_NAMES);
   const laneRuns = lanes.steps.map(step => step.run ?? '');
-  expect(laneRuns.indexOf('npm run build')).toBeLessThan(
+  expect(laneRuns).not.toContain('npm run build');
+  const bundleDownload = lanes.steps.findIndex(step => step.with?.name === 'preview-dist');
+  expect(lanes.steps[bundleDownload]).toMatchObject({
+    uses: 'actions/download-artifact@v7',
+    with: { path: 'dist' },
+  });
+  expect(bundleDownload).toBeLessThan(
     laneRuns.indexOf('node scripts/run-preview-smoke-lane.mjs --lane=${{ matrix.lane }}')
   );
+  // A failed bundle fails every lane instead of skipping them, which would look green.
+  expect(lanes.if).toBe("${{ !cancelled() && needs.ci-scope.outputs.scope == 'full' }}");
+  expect(lanes.steps[0]).toMatchObject({ if: "needs.preview-build.result != 'success'" });
+  expect(lanes.steps[0].run).toContain('exit 1');
   for (const lane of PREVIEW_SMOKE_LANE_NAMES) {
     // Playwright blobs are zips already: upload them as-is and download without
     // decompressing, so download-artifact never stream-unzips a zip within a zip.
