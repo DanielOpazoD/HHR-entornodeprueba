@@ -1,9 +1,4 @@
 import type { FirebaseRuntimeConfigDiagnostics } from '@/services/auth/firebaseAuthConfigPolicy';
-import {
-  createBlockedNotice,
-  createDegradedNotice,
-  type OperationalNotice,
-} from '@/shared/feedback/operationalNoticePolicy';
 
 export type FirebaseStartupWarningCopy = {
   title: string;
@@ -80,15 +75,4 @@ export const getMissingEnvWarningCopy = (issues: readonly string[]): FirebaseSta
     footnote:
       'Este aviso solo aparece en desarrollo local. En producción la configuración se carga al runtime desde la función serverless de Netlify.',
   };
-};
-
-export const getFirebaseStartupNotice = (
-  diagnostics?: FirebaseRuntimeConfigDiagnostics
-): OperationalNotice => {
-  const copy = getFirebaseStartupWarningCopy(diagnostics);
-  if (diagnostics?.hasBlockingIssue) {
-    return createBlockedNotice(copy.title, copy.summary);
-  }
-
-  return createDegradedNotice(copy.title, copy.summary);
 };

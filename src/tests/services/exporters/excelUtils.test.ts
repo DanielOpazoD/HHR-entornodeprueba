@@ -1,10 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import {
-  createWorkbook,
-  workbookToBuffer,
-  BORDER_THIN,
-  HEADER_FILL,
-} from '@/services/exporters/excelUtils';
+import { createWorkbook, BORDER_THIN, HEADER_FILL } from '@/services/exporters/excelUtils';
 
 // Mock ExcelJS
 vi.mock('exceljs', () => ({
@@ -24,14 +19,6 @@ describe('excelUtils', () => {
     it('should create a new workbook', async () => {
       const workbook = await createWorkbook();
       expect(workbook).toBeDefined();
-    });
-  });
-
-  describe('workbookToBuffer', () => {
-    it('should convert workbook to buffer', async () => {
-      const workbook = await createWorkbook();
-      const buffer = await workbookToBuffer(workbook);
-      expect(buffer).toBeInstanceOf(Buffer);
     });
   });
 

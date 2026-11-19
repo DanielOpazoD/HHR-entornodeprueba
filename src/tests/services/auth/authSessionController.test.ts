@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   resolveAuthSessionState,
-  resolveAuthSessionUser,
   toAnonymousAuthUser,
 } from '@/services/auth/authSessionController';
 
@@ -49,7 +48,7 @@ describe('authSessionController', () => {
   it('returns resolved user for authorized standard users', async () => {
     const resolveFirebaseUserRole = vi.fn().mockResolvedValue('admin');
 
-    const result = await resolveAuthSessionUser(
+    const { user } = await resolveAuthSessionState(
       {
         uid: 'user-1',
         email: 'admin@hospital.cl',
@@ -62,32 +61,13 @@ describe('authSessionController', () => {
       }
     );
 
-    expect(result).toEqual(
+    expect(user).toEqual(
       expect.objectContaining({
         uid: 'user-1',
         role: 'admin',
       })
     );
     expect(resolveFirebaseUserRole).toHaveBeenCalledTimes(1);
-  });
-
-  it('signs out unauthorized standard users before building an app session', async () => {
-    const signOutUnauthorizedUser = vi.fn().mockResolvedValue(undefined);
-
-    const result = await resolveAuthSessionUser(
-      {
-        uid: 'user-3',
-        email: 'removed@hospital.cl',
-        isAnonymous: false,
-      } as never,
-      {
-        signOutUnauthorizedUser,
-        resolveFirebaseUserRole: vi.fn().mockResolvedValue(null),
-      }
-    );
-
-    expect(result).toBeNull();
-    expect(signOutUnauthorizedUser).toHaveBeenCalledTimes(1);
   });
 
   it('returns unauthorized session state for removed users', async () => {

@@ -39,11 +39,3 @@ export const resolveAuthSessionState = async (
 
   return toResolvedAuthSessionState(toAuthUser(firebaseUser, role));
 };
-
-export const resolveAuthSessionUser = async (
-  firebaseUser: User,
-  dependencies: AuthSessionResolverDependencies
-): Promise<AuthUser | null> => {
-  const sessionState = await resolveAuthSessionState(firebaseUser, dependencies);
-  return sessionState.user;
-};

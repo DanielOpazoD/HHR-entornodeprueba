@@ -2,7 +2,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildDetailedStaffingPatch,
-  createEmptyDetailedStaffing,
   resolveDetailedStaffingState,
   resolveShiftRoleStaffingMeta,
   updateDetailedStaffingStandardSlot,
@@ -37,7 +36,7 @@ describe('dailyRecordDetailedStaffing', () => {
   });
 
   it('builds a backward-compatible patch with standard arrays and detailed staffing', () => {
-    const detail = createEmptyDetailedStaffing('2026-04-17');
+    const detail = resolveDetailedStaffingState({ date: '2026-04-17' });
     detail.day.nurses[0].name = 'Enf Base';
     detail.day.nurses[1].name = 'Enf Parcial';
     detail.day.nurses[1].startTime = '10:00';
@@ -63,7 +62,7 @@ describe('dailyRecordDetailedStaffing', () => {
   });
 
   it('preserves custom hours when the simple view changes a standard slot name', () => {
-    const detail = createEmptyDetailedStaffing('2026-04-17');
+    const detail = resolveDetailedStaffingState({ date: '2026-04-17' });
     detail.day.nurses[1].name = 'Enf Original';
     detail.day.nurses[1].startTime = '10:00';
     detail.day.nurses[1].endTime = '18:00';
@@ -78,7 +77,7 @@ describe('dailyRecordDetailedStaffing', () => {
   });
 
   it('ignores fractional standard slot indices when resolving selector names', () => {
-    const detail = createEmptyDetailedStaffing('2026-04-17');
+    const detail = resolveDetailedStaffingState({ date: '2026-04-17' });
     detail.day.nurses.push({
       id: 'day-nurse-invalid-fractional-slot',
       name: 'No debe ocupar una casilla',

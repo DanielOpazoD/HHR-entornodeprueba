@@ -8,25 +8,8 @@ export const CLOSED_TRANSFER_STATUSES: readonly TransferStatus[] = [
   'NO_RESPONSE',
 ] as const;
 
-export const ACTIVE_TRANSFER_STATUSES: readonly TransferStatus[] = [
-  'REQUESTED',
-  'RECEIVED',
-  'ACCEPTED',
-  'ACCEPTED_WITH_CAPACITY',
-  'ACCEPTED_WAITING_CAPACITY',
-] as const;
-
 export const isClosedTransferStatus = (status: TransferStatus): boolean =>
   CLOSED_TRANSFER_STATUSES.includes(status);
-
-export const isActiveTransferStatus = (status: TransferStatus): boolean =>
-  ACTIVE_TRANSFER_STATUSES.includes(status);
-
-export const isFinalizedTransferStatus = (status: TransferStatus): boolean =>
-  isClosedTransferStatus(status);
-
-export const isTransferredTransferStatus = (status: TransferStatus): boolean =>
-  status === 'TRANSFERRED';
 
 export const normalizeLegacyTransferStatus = (
   rawStatus: string | null | undefined
