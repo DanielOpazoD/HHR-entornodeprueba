@@ -3,7 +3,7 @@ import {
   ok,
   type ControllerError,
   type ControllerResult,
-} from '@/features/census/controllers/controllerResult';
+} from '@/shared/contracts/controllerResult';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

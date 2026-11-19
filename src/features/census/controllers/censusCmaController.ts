@@ -3,11 +3,7 @@ import type { PatientData } from '@/types/domain/patient';
 import type { CMAData } from '@/types/domain/movements';
 
 import type { ControllerConfirmDescriptor } from '@/shared/contracts/controllers/confirmDescriptor';
-import {
-  type ControllerResult,
-  failWithCode,
-  ok,
-} from '@/features/census/controllers/controllerResult';
+import { type ControllerResult, failWithCode, ok } from '@/shared/contracts/controllerResult';
 export { buildCmaEpisodeMovementFields } from '@/application/census/cmaEpisodeMovementFields';
 
 export const CMA_INTERVENTION_TYPES = [

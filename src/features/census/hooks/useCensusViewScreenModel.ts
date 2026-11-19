@@ -4,7 +4,7 @@ import { useDailyRecordSync } from '@/context/DailyRecordContext';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { useCensusMigrationBootstrap } from './useCensusMigrationBootstrap';
 import { useCensusViewRouteModel } from './useCensusViewRouteModel';
-import type { CensusAccessProfile } from '../types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import { resolveCensusEmptyStateDiagnostic } from '@/features/census/controllers/censusEmptyStateDiagnostic';
 import { resolveCensusDayView } from '@/features/census/controllers/censusViewController';
 import { readPostDeployRecentRecordRefreshMarker } from '@/services/config/postDeployRecentRecordRefresh';
@@ -59,7 +59,7 @@ export const useCensusViewScreenModel = ({
     hasPostDeployRefreshMarker,
   });
 
-  useCensusMigrationBootstrap(true);
+  useCensusMigrationBootstrap();
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage marker is a browser-side deploy signal, not derivable during SSR-safe render

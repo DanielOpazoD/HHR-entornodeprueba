@@ -9,8 +9,8 @@ import { CensusAttentionBar } from './CensusAttentionBar';
 import { CensusStaffHeader } from './CensusStaffHeader';
 import { CensusRegisterMainContent } from './CensusRegisterMainContent';
 import { CensusOperationalStateBanner } from './CensusOperationalStateBanner';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
-import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
+import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import { useDeferredCensusEnhancement } from '@/features/census/hooks/useDeferredCensusEnhancement';
 import { useDailyRecordData, useDailyRecordStatus } from '@/context/DailyRecordContext';
 import {

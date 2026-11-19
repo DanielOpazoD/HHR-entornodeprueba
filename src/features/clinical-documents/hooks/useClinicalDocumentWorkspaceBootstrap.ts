@@ -8,7 +8,7 @@ import type {
 } from '@/domain/clinical-documents/entities';
 import { listActiveClinicalDocumentTemplates } from '@/features/clinical-documents/controllers/clinicalDocumentTemplateController';
 import { buildClinicalDocumentEpisodeContext } from '@/features/clinical-documents/controllers/clinicalDocumentEpisodeController';
-import { hydrateClinicalDocumentWorkspaceRecord } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
+import { hydrateClinicalDocumentRecord } from '@/domain/clinical-documents/compatibility';
 import { subscribeClinicalDocumentsByEpisodeKeys } from '@/application/clinical-documents/clinicalDocumentUseCases';
 import {
   resolveNextSelectedClinicalDocumentId,
@@ -93,7 +93,7 @@ export const useClinicalDocumentWorkspaceBootstrap = ({
     const unsubscribe = subscribeClinicalDocumentsByEpisodeKeys(
       episodeKeys,
       docs => {
-        const hydrated = docs.map(document => hydrateClinicalDocumentWorkspaceRecord(document));
+        const hydrated = docs.map(hydrateClinicalDocumentRecord);
         const currentEpisodeDocuments = filterClinicalDocumentsForCurrentEpisode({
           documents: hydrated,
           currentEpisodeKey: episode.episodeKey,

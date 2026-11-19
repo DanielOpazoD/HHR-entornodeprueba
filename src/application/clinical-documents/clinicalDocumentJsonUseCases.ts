@@ -6,7 +6,7 @@ import {
   duplicateClinicalDocumentDraft,
   safeParseClinicalDocumentRecord,
 } from '@/features/clinical-documents/internal';
-import { hydrateClinicalDocumentRecord } from '@/application/ports/clinicalDocumentCompatibilityPort';
+import { hydrateClinicalDocumentRecord } from '@/domain/clinical-documents/compatibility';
 import {
   createApplicationFailed,
   createApplicationSuccess,

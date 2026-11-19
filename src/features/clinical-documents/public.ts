@@ -22,7 +22,6 @@ export type { ClinicalDocumentsWorkspacePatientContract } from './contracts/clin
 export type { ClinicalDocumentDraftBaseState } from './hooks/clinicalDocumentDraftReducer';
 export {
   buildClinicalDocumentActor,
-  hydrateClinicalDocumentWorkspaceRecord,
   serializeClinicalDocument,
 } from './controllers/clinicalDocumentWorkspaceController';
 export {

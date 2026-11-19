@@ -2,7 +2,7 @@ import type { PatientData } from '@/types/domain/patient';
 
 import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 import type { BedDefinition } from '@/types/domain/beds';
-import type { BedType } from '@/features/census/contracts/censusBedContracts';
+import type { BedType } from '@/types/domain/beds';
 
 import type { RowMenuAlign } from '@/features/census/components/patient-row/patientRowUiContracts';
 import type {
@@ -14,7 +14,7 @@ import type {
 import type { PatientRowCapabilities } from '@/features/census/controllers/patientRowCapabilitiesController';
 import type { PatientRowResolvedIndicators } from '@/features/census/controllers/patientRowIndicatorsController';
 import { buildPatientMainRowViewState } from '@/features/census/controllers/patientRowMainViewController';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 
 export interface PatientRowViewContext {
   capabilities: PatientRowCapabilities;

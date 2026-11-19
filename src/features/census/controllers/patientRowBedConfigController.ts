@@ -1,10 +1,5 @@
 import type { ControllerConfirmDescriptor } from '@/shared/contracts/controllers/confirmDescriptor';
-import {
-  ControllerError,
-  ControllerResult,
-  fail,
-  ok,
-} from '@/features/census/controllers/controllerResult';
+import { ControllerError, ControllerResult, fail, ok } from '@/shared/contracts/controllerResult';
 
 export type PatientRowConfirmDescriptor = ControllerConfirmDescriptor;
 

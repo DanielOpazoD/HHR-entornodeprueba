@@ -1,9 +1,5 @@
 import type { ControllerConfirmDescriptor } from '@/shared/contracts/controllers/confirmDescriptor';
-import {
-  type ControllerResult,
-  failWithCode,
-  ok,
-} from '@/features/census/controllers/controllerResult';
+import { type ControllerResult, failWithCode, ok } from '@/shared/contracts/controllerResult';
 import {
   canDeleteTodayDailyRecord,
   canResetOrDeleteDailyRecord,
