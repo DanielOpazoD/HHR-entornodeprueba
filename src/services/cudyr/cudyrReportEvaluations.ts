@@ -16,6 +16,42 @@ const clinicalSignature = (value: CudyrSourceEvaluation) =>
     riskScore: value.riskScore ?? null,
     items: (value.items || []).map(item => [item.fieldId, item.value]).sort(),
   });
+const AUTHORSHIP_FIELDS = ['authorId', 'author', 'authorRoleId', 'authorRole'] as const;
+/**
+ * Key shared only by copies of one application saved several times in the source: the full
+ * instrument (every item with its field, type and value), category, scores and time, plus one
+ * credited author and role taken from every version. Anything missing yields no key: never merged.
+ */
+const sameApplicationKey = (versions: CudyrHistoryObservation[]): string | undefined => {
+  // The caller already sent versions with two values in one authorship field to review.
+  const [authorId, author, authorRoleId, authorRole] = AUTHORSHIP_FIELDS.map(
+    field => versions.map(item => item.evaluation[field]).find(Boolean) ?? ''
+  );
+  if (!authorId || !(authorRoleId || authorRole)) return undefined;
+  const contents = new Set(
+    versions.map(({ evaluation: e }) => {
+      const items = e.items || [];
+      return items.length &&
+        items.every(item => Number.isInteger(item.typeId)) &&
+        /^[A-D][1-3]$/.test(e.category) &&
+        Number.isInteger(e.dependencyScore) &&
+        Number.isInteger(e.riskScore) &&
+        Number.isFinite(Date.parse(e.recordedAt))
+        ? JSON.stringify([
+            e.category,
+            e.recordedAt,
+            e.dependencyScore,
+            e.riskScore,
+            items.map(item => [item.fieldId, item.typeId, item.value]).sort(),
+          ])
+        : '';
+    })
+  );
+  const [content] = contents;
+  return contents.size === 1 && content
+    ? JSON.stringify([content, authorId, author, authorRoleId, authorRole])
+    : undefined;
+};
 const fromObservation = (item: CudyrHistoryObservation): CudyrReportEvaluation => ({
   category: item.evaluation.category,
   source: 'Eloísa · Gestión de Camas',
@@ -97,10 +133,11 @@ export const selectCudyrReportEvaluation = (
       warnings: ['Ajuste administrativo HHR aplicado.'],
     };
   }
-  const candidates: CudyrHistoryObservation[] = [];
+  const applications = new Map<string, CudyrHistoryObservation>();
+  let duplicates = 0;
   let conflict = false;
   const eventReferences: Array<string | undefined> = [];
-  for (const versions of events.values()) {
+  for (const [eventKey, versions] of events) {
     if (versions.some(item => item.evaluation.isDeleted)) {
       warnings.push('Existe una aplicación anulada en la fuente; sus versiones se conservan.');
       continue;
@@ -112,29 +149,28 @@ export const selectCudyrReportEvaluation = (
       continue;
     }
     if (
-      ['authorId', 'author', 'authorRoleId', 'authorRole'].some(
-        field =>
-          new Set(
-            versions
-              .map(
-                item =>
-                  item.evaluation[field as 'authorId' | 'author' | 'authorRoleId' | 'authorRole']
-              )
-              .filter(Boolean)
-          ).size > 1
+      AUTHORSHIP_FIELDS.some(
+        field => new Set(versions.map(item => item.evaluation[field]).filter(Boolean)).size > 1
       )
     ) {
       conflict = true;
       warnings.push('Autorías contradictorias del mismo evento en la fuente.');
       continue;
     }
-    const richer = [...versions].sort(
-      (a, b) =>
-        Object.values(b.evaluation).filter(Boolean).length -
-        Object.values(a.evaluation).filter(Boolean).length
-    )[0];
-    candidates.push(richer);
+    const filled = (item: CudyrHistoryObservation) =>
+      Object.values(item.evaluation).filter(Boolean).length;
+    const richer = versions.reduce((best, item) => (filled(item) > filled(best) ? item : best));
+    // Copies of one application collapse to one; the lowest archive id keeps the choice stable.
+    const key = sameApplicationKey(versions) ?? JSON.stringify(['event', eventKey]);
+    const kept = applications.get(key);
+    if (kept) duplicates += 1;
+    if (!kept || richer.id < kept.id) applications.set(key, richer);
   }
+  if (duplicates)
+    warnings.push(
+      'Aplicación guardada más de una vez en la fuente con igual hora, contenido y autoría; cuenta como una.'
+    );
+  const candidates = [...applications.values()];
   candidates.sort(
     (a, b) => Date.parse(b.evaluation.recordedAt) - Date.parse(a.evaluation.recordedAt)
   );
@@ -152,7 +188,7 @@ export const selectCudyrReportEvaluation = (
   if (events.size)
     return {
       evaluation: !conflict && candidates[0] ? fromObservation(candidates[0]) : null,
-      count: events.size,
+      count: events.size - duplicates,
       referenceAt:
         eventReferences.length && eventReferences.every((value): value is string => Boolean(value))
           ? new Date(Math.max(...eventReferences.map(value => Date.parse(value)))).toISOString()
