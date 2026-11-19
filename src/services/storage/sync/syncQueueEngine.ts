@@ -327,7 +327,7 @@ export const createSyncQueueEngine = ({
               // Claiming is an exit: asked per task inside the claim's transaction, so a task is
               // taken only while this tab still acts for the owner this pass began with.
               (task: SyncTask) =>
-                !stopped() &&
+                owner === runtime.getOwnerKey() &&
                 (!options.nursingHandoffOnly ||
                   (task.ownerKey === owner && hasPendingNursingHandoff(task)))
             );
