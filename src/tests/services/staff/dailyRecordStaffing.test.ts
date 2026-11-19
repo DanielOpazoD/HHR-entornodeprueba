@@ -6,7 +6,6 @@ import {
   normalizeUnknownDailyRecordStaffing,
   resolveNightShiftNurses,
   resolvePresentedNightShiftNurses,
-  resolvePrimaryDayShiftNurse,
   resolveShiftNurseSignature,
 } from '@/services/staff/dailyRecordStaffing';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -40,7 +39,6 @@ describe('dailyRecordStaffing', () => {
 
     expect(resolveDayShiftNurses(record)).toEqual(['Ana', 'Berta']);
     expect(resolveNightShiftNurses(record)).toEqual(['Claudia']);
-    expect(resolvePrimaryDayShiftNurse(record)).toBe('Ana');
     expect(resolveExportableNursesText(record)).toBe('Ana & Berta');
   });
 
@@ -52,7 +50,6 @@ describe('dailyRecordStaffing', () => {
     });
 
     expect(resolveDayShiftNurses(record)).toEqual(['Legacy A', 'Legacy B']);
-    expect(resolvePrimaryDayShiftNurse(record)).toBe('Legacy A');
   });
 
   it('falls back between shifts for nurse signature text', () => {

@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   canPrintInline,
-  openLibraryDocument,
   printLibraryDocument,
   toLibraryDocumentHref,
 } from '@/features/clinical-library/services/libraryDocumentActions';
@@ -68,12 +67,6 @@ describe('library document actions', () => {
     const frames = document.querySelectorAll('iframe[data-library-print-frame]');
     expect(frames).toHaveLength(1);
     expect(frames[0].getAttribute('src')).toBe('/docs/b.pdf');
-  });
-
-  it('opens documents in a new isolated tab', () => {
-    const runtime = runtimeStub();
-    openLibraryDocument('/docs/a b.pdf', runtime);
-    expect(runtime.open).toHaveBeenCalledWith('/docs/a%20b.pdf', '_blank', 'noopener,noreferrer');
   });
 
   it('prints through a hidden iframe and removes it after printing', () => {

@@ -1,19 +1,5 @@
 import { formatCensusIsoDate } from '@/shared/census/censusPresentation';
-import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 import { formatCalendarDate } from '@/utils/dateDisplayUtils';
-
-export const formatHandoffDateTime = (isoTimestamp?: string | null): string => {
-  if (!isoTimestamp) {
-    return 'sin registro';
-  }
-
-  const parsed = new Date(isoTimestamp);
-  if (Number.isNaN(parsed.getTime())) {
-    return 'sin registro';
-  }
-
-  return parsed.toLocaleString('es-CL', { timeZone: CLINICAL_TIME_ZONE });
-};
 
 export const formatHandoffDate = (isoDate?: string | null): string => {
   if (!isoDate) {
@@ -60,17 +46,4 @@ export const resolveHandoffDocumentTitleLabel = ({
   }
 
   return `${selectedShift === 'day' ? 'TL' : 'TN'} ${formattedDate}`;
-};
-
-export const getMedicalSpecialtyStatusLabel = (
-  status: 'updated_by_specialist' | 'confirmed_no_changes' | 'pending'
-): string => {
-  switch (status) {
-    case 'updated_by_specialist':
-      return 'Actualizado por especialista hoy';
-    case 'confirmed_no_changes':
-      return 'Confirmado sin cambios';
-    default:
-      return 'Pendiente';
-  }
 };

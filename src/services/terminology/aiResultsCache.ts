@@ -134,11 +134,3 @@ export function cacheAIResults(query: string, results: CIE10Entry[]): void {
 
   saveCache(cache);
 }
-
-/**
- * Clear all cached AI results
- */
-export function clearAICache(): void {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-  localStorage.removeItem(CACHE_KEY);
-}

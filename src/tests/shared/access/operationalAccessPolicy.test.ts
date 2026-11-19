@@ -38,7 +38,6 @@ import {
   canUseCensusUtilityActions,
   canUseAdminMaintenanceActions,
   canVerifyPassiveBackupForRole,
-  canVerifyArchiveStatusForModule,
   canViewOrManageBackupFiles,
   canViewPatientHistoryFromRestrictedProfiles,
   getDefaultAppModuleForRole,
@@ -64,11 +63,10 @@ describe('operationalAccessPolicy', () => {
   });
 
   it('allows archive verification only for editable census and nursing handoff modules', () => {
-    expect(canVerifyArchiveStatusForModule('admin', 'CENSUS')).toBe(true);
-    expect(canVerifyArchiveStatusForModule('nurse_hospital', 'NURSING_HANDOFF')).toBe(true);
-    expect(canVerifyArchiveStatusForModule('doctor_specialist', 'CENSUS')).toBe(false);
-    expect(canVerifyArchiveStatusForModule('doctor_specialist', 'MEDICAL_HANDOFF')).toBe(false);
     expect(canVerifyPassiveBackupForRole('admin', 'CENSUS')).toBe(true);
+    expect(canVerifyPassiveBackupForRole('nurse_hospital', 'NURSING_HANDOFF')).toBe(true);
+    expect(canVerifyPassiveBackupForRole('doctor_specialist', 'CENSUS')).toBe(false);
+    expect(canVerifyPassiveBackupForRole('doctor_specialist', 'MEDICAL_HANDOFF')).toBe(false);
     expect(canViewOrManageBackupFiles('nurse_hospital')).toBe(true);
     expect(canViewOrManageBackupFiles('doctor_specialist')).toBe(false);
   });
@@ -201,7 +199,7 @@ describe('role × permission truth table', () => {
     routes: modules.filter(module => canAccessAppModuleRoute({ role, module })).join(','),
     sanitizedAudit: sanitizeAppModuleForRole(role, 'AUDIT'),
     archiveVerify: ['CENSUS', 'CUDYR', 'NURSING_HANDOFF', 'MEDICAL_HANDOFF', 'other']
-      .map(module => flag(canVerifyArchiveStatusForModule(role, module)))
+      .map(module => flag(canVerifyPassiveBackupForRole(role, module)))
       .join(''),
     flags: [
       canEditAnyAppModule(role),

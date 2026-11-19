@@ -127,4 +127,3 @@ export const createDicomMeasurementSession = (context: DicomMeasurementContext) 
     },
   };
 };
-export type DicomMeasurementSession = ReturnType<typeof createDicomMeasurementSession>;

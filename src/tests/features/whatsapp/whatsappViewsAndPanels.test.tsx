@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 
-const mockSendWhatsAppMessage = vi.fn();
 const mockGetWhatsAppConfig = vi.fn();
 const mockGetMessageTemplates = vi.fn();
 const mockSaveMessageTemplates = vi.fn();
@@ -22,7 +21,6 @@ vi.mock('@/context/UIContext', () => ({
 }));
 
 vi.mock('@/services/integrations/whatsapp/whatsappService', () => ({
-  sendWhatsAppMessage: (...args: unknown[]) => mockSendWhatsAppMessage(...args),
   getWhatsAppConfig: (...args: unknown[]) => mockGetWhatsAppConfig(...args),
   getMessageTemplates: (...args: unknown[]) => mockGetMessageTemplates(...args),
   saveMessageTemplates: (...args: unknown[]) => mockSaveMessageTemplates(...args),
@@ -103,18 +101,16 @@ describe('WhatsAppIntegrationView', () => {
     expect(screen.getByText('Turnos Pabellón')).toBeInTheDocument();
   });
 
-  it('switches between tabs', () => {
+  it('switches between tabs', async () => {
+    mockGetMessageTemplates.mockResolvedValue([]);
     render(<WhatsAppIntegrationView />);
 
     fireEvent.click(screen.getByText('Plantillas'));
-    fireEvent.click(screen.getByText('Configuración'));
-  });
+    expect(await screen.findByText('Plantillas de Mensaje')).toBeInTheDocument();
 
-  it('shows all three tab labels', () => {
-    render(<WhatsAppIntegrationView />);
-    expect(screen.getByText('Turnos Pabellón')).toBeInTheDocument();
-    expect(screen.getByText('Plantillas')).toBeInTheDocument();
-    expect(screen.getByText('Configuración')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Configuración'));
+    expect(await screen.findByText('Configuración WhatsApp')).toBeInTheDocument();
+    expect(screen.queryByText('Plantillas de Mensaje')).not.toBeInTheDocument();
   });
 });
 

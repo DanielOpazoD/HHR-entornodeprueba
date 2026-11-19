@@ -100,7 +100,7 @@ export const SAVE_CASES: Record<string, SaveCase> = {
     },
   },
   'sin red: el día completo queda en la cola': {
-    from: 'dailyRecordRemoteRecoveryController.ts:22',
+    from: 'dailyRecordRemoteWriteController.ts (resolveRemoteWriteRecovery: retryable)',
     answer: { kind: 'refuses', error: () => firestoreError('unavailable') },
     expected: {
       vista: 'conserva la edición',
@@ -126,7 +126,7 @@ export const SAVE_CASES: Record<string, SaveCase> = {
   },
   // Same disagreement as the edit's H1: the notice says «local» while the view reverts.
   'el servidor rechaza el día completo sin reintento': {
-    from: 'dailyRecordRemoteRecoveryController.ts:29-35',
+    from: 'dailyRecordRemoteWriteController.ts (resolveRemoteWriteRecovery: no safe route)',
     answer: { kind: 'refuses', error: () => firestoreError('permission-denied') },
     expected: {
       vista: 'vuelve al valor anterior',

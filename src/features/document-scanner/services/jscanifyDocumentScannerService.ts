@@ -29,19 +29,9 @@ export type {
 } from './documentScannerTypes';
 
 const MAX_PAGE_COUNT = 12;
-const MAX_OUTPUT_DIMENSION = 2200;
-const A4_RATIO = Math.SQRT2;
 export const DOCUMENT_UPLOAD_SOURCE_BUDGET_BYTES = Math.floor(4.75 * 1024 * 1024);
 const UPLOAD_QUALITY_STEPS = [0.82, 0.7, 0.58, 0.46] as const;
 const UPLOAD_SCALE_STEPS = [1, 0.85, 0.7, 0.58, 0.48] as const;
-
-export const getDocumentOutputDimensions = (
-  width: number,
-  height: number
-): { width: number; height: number } =>
-  height >= width
-    ? { width: Math.round(MAX_OUTPUT_DIMENSION / A4_RATIO), height: MAX_OUTPUT_DIMENSION }
-    : { width: MAX_OUTPUT_DIMENSION, height: Math.round(MAX_OUTPUT_DIMENSION / A4_RATIO) };
 
 export const createJscanifyDocumentSession = async (
   files: ReadonlyArray<File>

@@ -1,42 +1,47 @@
 import type { AuthoringSession } from '@/services/storage/authoringSession';
 import { attemptConflictAutoMergeRecovery } from '@/services/repositories/dailyRecordConflictAutoMergeController';
-import type { DailyRecordConflictSummary } from '@/services/repositories/contracts/dailyRecordConsistency';
-import type { RemoteWriteRecoveryResult } from '@/services/repositories/contracts/dailyRecordWriteRecoveryResult';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import {
-  buildAutoMergedRecoveryResult,
-  buildThrowUnrecoverableRecoveryResult,
-} from '@/services/repositories/dailyRecordWriteRecoveryResultController';
+  pendingWriteOutcome,
+  settleWriteResult,
+  unrecoverableWriteOutcome,
+  type RemoteWriteStep,
+} from '@/services/repositories/dailyRecordWriteState';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   FIELD_CHANGED_ELSEWHERE_MESSAGE,
   isFieldChangedElsewhereError,
 } from '@/services/storage/syncErrorCatalog';
 
-type ConflictSummaryBuilder = (
-  kind: DailyRecordConflictSummary['kind'],
-  message: string
-) => DailyRecordConflictSummary;
+/** Another writer changed the day first and nothing merged it: a person reviews it. */
+const unresolvedConflict = (
+  current: DailyRecordWriteResult,
+  error: unknown,
+  userSafeMessage: string
+): RemoteWriteStep => ({
+  result: settleWriteResult(current, unrecoverableWriteOutcome(current), {
+    userSafeMessage,
+    blockingError: error instanceof Error ? error : undefined,
+    concurrencyConflict: true,
+  }),
+  next: 'return',
+});
 
 export const resolveConcurrencyRemoteWriteRecovery = async (
   date: string,
   record: DailyRecord,
   changedPaths: string[],
   error: unknown,
-  buildConflictSummary: ConflictSummaryBuilder,
+  current: DailyRecordWriteResult,
   authoringSession: AuthoringSession,
   allowAutoMerge: boolean = true
-): Promise<RemoteWriteRecoveryResult> => {
+): Promise<RemoteWriteStep> => {
   if (!allowAutoMerge) {
-    return buildThrowUnrecoverableRecoveryResult({
+    return unresolvedConflict(
+      current,
       error,
-      conflictSummary: buildConflictSummary(
-        'concurrency',
-        'El egreso ya fue reclasificado desde otra sesión; se requiere recargar antes de continuar.'
-      ),
-      observabilityTags: ['daily_record', 'write', 'reclassification_conflict'],
-      userSafeMessage:
-        'El egreso fue modificado por otro usuario. Recarga el censo antes de reclasificarlo.',
-    });
+      'El egreso fue modificado por otro usuario. Recarga el censo antes de reclasificarlo.'
+    );
   }
 
   const fieldChangedElsewhere = isFieldChangedElsewhereError(error);
@@ -50,31 +55,28 @@ export const resolveConcurrencyRemoteWriteRecovery = async (
   if (mergeResult.status === 'auto_merged' && fieldChangedElsewhere) {
     // Held as a conflict that keeps this device's text: nothing was integrated, and sending it
     // again would only meet the same refusal.
-    return buildAutoMergedRecoveryResult(
-      buildConflictSummary('concurrency', FIELD_CHANGED_ELSEWHERE_MESSAGE),
-      FIELD_CHANGED_ELSEWHERE_MESSAGE,
-      ['daily_record', 'write', 'auto_merged'],
-      'field_changed_elsewhere'
-    );
+    return {
+      result: settleWriteResult(
+        current,
+        { state: 'held', reason: 'field_changed_elsewhere' },
+        { userSafeMessage: FIELD_CHANGED_ELSEWHERE_MESSAGE, concurrencyConflict: true }
+      ),
+      next: 'return',
+    };
   }
   if (mergeResult.status === 'auto_merged') {
-    return buildAutoMergedRecoveryResult(
-      buildConflictSummary(
-        'concurrency',
-        'Se resolvió un conflicto remoto mediante fusión automática.'
-      ),
-      'Se resolvió un conflicto remoto mediante fusión automática.',
-      ['daily_record', 'write', 'auto_merged']
-    );
+    return {
+      result: settleWriteResult(current, pendingWriteOutcome(current, 'merged'), {
+        userSafeMessage: 'Se resolvió un conflicto remoto mediante fusión automática.',
+        concurrencyConflict: true,
+      }),
+      next: 'return',
+    };
   }
 
-  return buildThrowUnrecoverableRecoveryResult({
+  return unresolvedConflict(
+    current,
     error,
-    conflictSummary: buildConflictSummary(
-      'concurrency',
-      'Se detectó un conflicto remoto que no pudo resolverse automáticamente.'
-    ),
-    observabilityTags: ['daily_record', 'write', 'conflict_unrecoverable'],
-    userSafeMessage: 'Se detectó un conflicto remoto que requiere revisión manual.',
-  });
+    'Se detectó un conflicto remoto que requiere revisión manual.'
+  );
 };

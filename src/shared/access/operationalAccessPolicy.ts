@@ -111,11 +111,6 @@ export const canViewPatientHistoryFromRestrictedProfiles = ({
   hasRut: boolean;
 }): boolean => !isSpecialistCensusAccessProfile(accessProfile) && hasRut;
 
-export const canVerifyArchiveStatusForModule = (
-  role: SupportedRole,
-  moduleType: ModuleType | string
-): boolean => canVerifyPassiveBackupForRole(role, moduleType);
-
 export const canEditCudyrForDate = ({
   role,
   readOnly,

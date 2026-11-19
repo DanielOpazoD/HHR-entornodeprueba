@@ -243,16 +243,17 @@ describe('a stale-base patch applies on top of the pending local projection', ()
       tensDayShift: ['SINTETICO EDICION B'],
     };
 
-    const recovery = await resolveRemoteWriteRecovery(
+    const recovery = await resolveRemoteWriteRecovery({
       date,
-      staleRecord,
-      ['tensDayShift'],
-      Object.assign(new Error('synthetic network failure'), { code: 'unavailable' }),
-      captureAuthoringSession(),
-      base.lastUpdated
-    );
+      record: staleRecord,
+      changedPaths: ['tensDayShift'],
+      error: Object.assign(new Error('synthetic network failure'), { code: 'unavailable' }),
+      current: { date, savedHere: true, state: 'local', cause: 'stored' },
+      authoringSession: captureAuthoringSession(),
+      expectedVersion: base.lastUpdated,
+    });
 
-    expect(recovery.status).toBe('queued_for_retry');
+    expect(recovery.result).toMatchObject({ state: 'local', cause: 'retrying' });
     expect((await projection())?.nursesDayShift).toEqual(['SINTETICA EDICION A']);
     expect((await projection())?.tensDayShift).toEqual(['SINTETICO EDICION B']);
     expect((await pendingPayload())?.nursesDayShift).toEqual(['SINTETICA EDICION A']);

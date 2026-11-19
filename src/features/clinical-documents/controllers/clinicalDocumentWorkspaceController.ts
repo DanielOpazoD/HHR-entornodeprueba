@@ -1,4 +1,3 @@
-import type { ClinicalDocumentEpisodeContext } from '@/features/clinical-documents/domain/clinicalDocumentEpisodeTypes';
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import type { ConfirmOptions } from '@/context/uiContracts';
 import { getClinicalDocumentDefinition } from '@/domain/clinical-documents/definitions';
@@ -89,6 +88,3 @@ export const buildClinicalDocumentWorkspaceNotifyPort = (
   info,
   confirm,
 });
-
-/** Alias for the episode context used by the clinical document workspace. */
-export type ClinicalDocumentWorkspaceEpisode = ClinicalDocumentEpisodeContext;

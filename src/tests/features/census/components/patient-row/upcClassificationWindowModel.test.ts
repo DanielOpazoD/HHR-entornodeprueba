@@ -3,8 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   buildUpcDraftRecords,
   buildUpcClassificationRows,
-  countPendingUpcClassifications,
-  isClassifiableUpcBedId,
   resolveUpcEpisodeIdentity,
   resolveUpcQuickEvaluationAvailability,
   sanitizeUpcCriteriaDraft,
@@ -138,17 +136,9 @@ describe('upcClassificationWindowModel', () => {
     });
   });
 
-  it('recognizes only beds supported by the UPC protocol', () => {
-    expect(isClassifiableUpcBedId('R4')).toBe(true);
-    expect(isClassifiableUpcBedId('NEO2')).toBe(true);
-    expect(isClassifiableUpcBedId('H1C1')).toBe(false);
-    expect(isClassifiableUpcBedId()).toBe(false);
-  });
-
-  it('does not count empty beds as pending and reports the day status', () => {
+  it('reports the day status of an occupied bed', () => {
     const rows = buildUpcClassificationRows({ R2: { patientName: 'Paciente R2' } }, DATE);
 
-    expect(countPendingUpcClassifications(rows)).toBe(1);
     expect(rows.find(row => row.bedId === 'R2')?.pendingReason).toBe('Evaluación UPC pendiente');
   });
 
@@ -175,7 +165,6 @@ describe('upcClassificationWindowModel', () => {
     const row = rows.find(candidate => candidate.bedId === 'R3');
     expect(row?.pendingReason).toBeNull();
     expect(row?.classification).toBeNull();
-    expect(countPendingUpcClassifications(rows)).toBe(0);
   });
 });
 

@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { createAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { createFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { createStorageRuntime } from '@/services/firebase-runtime/storageRuntime';
-import { createBackupFirestoreRuntime } from '@/services/firebase-runtime/backupRuntime';
 import { createReminderFirestoreRuntime } from '@/services/firebase-runtime/reminderRuntime';
 import type { FirebaseConfigRuntimeAdapter } from '@/services/firebase-runtime/firebaseConfigRuntimeAdapter';
 
@@ -47,13 +46,10 @@ describe('firebase runtime factories', () => {
     await expect(storageRuntime.getStorage()).resolves.toEqual({ name: 'storage' });
   });
 
-  it('creates backup and reminder runtimes from an injected adapter', () => {
+  it('creates the reminder runtime from an injected adapter', () => {
     const adapter = createAdapterStub();
-    const backupRuntime = createBackupFirestoreRuntime(adapter);
     const reminderRuntime = createReminderFirestoreRuntime(adapter);
 
-    expect(backupRuntime.auth.currentUser?.email).toBe('test@hospital.cl');
-    expect(backupRuntime.db).toEqual({ name: 'db' });
     expect(reminderRuntime.firestore).toEqual({ name: 'db' });
   });
 });

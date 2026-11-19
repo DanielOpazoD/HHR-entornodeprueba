@@ -53,6 +53,3 @@ export const isApplicationOutcomeNonFailure = <T>(
   outcome: ApplicationOutcome<T>
 ): outcome is ApplicationOutcome<T> & { status: 'success' | 'partial' | 'degraded' } =>
   outcome.status !== 'failed';
-
-export const hasApplicationIssues = <T>(outcome: ApplicationOutcome<T>): boolean =>
-  outcome.issues.length > 0;

@@ -23,13 +23,6 @@ export const canPrintInline = (runtimeNavigator: Navigator | undefined): boolean
   return !/AppleWebKit/i.test(agent) || /Chrom(e|ium)/i.test(agent);
 };
 
-export const openLibraryDocument = (
-  url: string,
-  runtime: BrowserWindowRuntime = defaultBrowserWindowRuntime
-): void => {
-  runtime.open(toLibraryDocumentHref(url), '_blank', 'noopener,noreferrer');
-};
-
 export interface PrintLibraryDocumentDependencies {
   host?: Document | null;
   runtime?: BrowserWindowRuntime;

@@ -5,7 +5,6 @@ import {
   isPopupCancellationAuthError,
   isPopupRecoverableAuthError,
   resolveAuthErrorCode,
-  shouldDowngradeGoogleAuthLogLevel,
   toGoogleAuthError,
 } from '@/services/auth/authErrorPolicy';
 
@@ -63,14 +62,5 @@ describe('authErrorPolicy', () => {
     expect(err.message).toContain('cancelado');
     expect(isPopupCancellationAuthError(err)).toBe(true);
     expect(isPopupRecoverableAuthError(err)).toBe(false);
-  });
-
-  it('downgrades recoverable popup errors to warning log level', () => {
-    expect(
-      shouldDowngradeGoogleAuthLogLevel({
-        message: 'INTERNAL ASSERTION FAILED: Cross-Origin-Opener-Policy',
-      })
-    ).toBe(true);
-    expect(shouldDowngradeGoogleAuthLogLevel({ message: 'fatal unknown error' })).toBe(false);
   });
 });

@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { hospitalDB, isDatabaseInFallbackMode } from '@/services/storage/indexeddb/indexedDbCore';
 import { persistLocalAndAttemptRemoteSync } from '@/services/repositories/dailyRecordRemotePersistenceController';
-import { createRemoteWriteState } from '@/services/repositories/dailyRecordWriteState';
 import {
   completeDirectDailyRecordSyncTask,
   processSyncQueue,
@@ -96,11 +95,9 @@ const recover = async (
 ) => {
   nextPublish = outcome;
   let sent: SyncTask | undefined;
-  const state = createRemoteWriteState();
-  const result = await persistLocalAndAttemptRemoteSync({
+  const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
     authoringSession: captureAuthoringSession(),
     change: { date, record: editA(), changedPaths: ['*'], expectedVersion: baseVersion },
-    remoteState: state,
     outbox: {
       queueLocalBeforeRemote: enqueueA,
       releaseLocalPreOutboxHold: async () => {
@@ -183,11 +180,7 @@ describe('durable daily record retry identity', () => {
       const { sent, state } = await recover(outcome);
       const recovered = await onlyTask();
 
-      expect(state).toMatchObject({
-        savedLocally: true,
-        savedRemotely: false,
-        queuedForRetry: true,
-      });
+      expect(state).toMatchObject({ savedHere: true, state: 'local', cause: 'retrying' });
       expect(await hospitalDB.dailyRecords.get(date)).toEqual(editA());
       expect(recovered.payload).toEqual(sent.payload);
       expect(recovered.syncContract).toMatchObject({

@@ -109,16 +109,6 @@ export const executeListClinicalDocumentsByEpisodeKeys = async (
   }
 };
 
-export const subscribeClinicalDocumentsByEpisode = (
-  episodeKey: string,
-  callback: (documents: ClinicalDocumentRecord[]) => void,
-  hospitalId: string,
-  dependencies: ClinicalDocumentUseCaseDependencies = {}
-): (() => void) => {
-  const clinicalDocumentPort = dependencies.clinicalDocumentPort || defaultClinicalDocumentPort;
-  return clinicalDocumentPort.subscribeByEpisode(episodeKey, callback, hospitalId);
-};
-
 export const subscribeClinicalDocumentsByEpisodeKeys = (
   episodeKeys: string[],
   callback: (documents: ClinicalDocumentRecord[]) => void,

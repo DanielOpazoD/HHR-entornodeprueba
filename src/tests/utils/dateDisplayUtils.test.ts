@@ -6,7 +6,6 @@ import {
   formatCalendarDate,
   formatDateForDisplay,
   formatDateTimeCL,
-  formatTimeHHMM,
   readClinicalTimestamp,
 } from '@/utils/dateDisplayUtils';
 
@@ -37,13 +36,6 @@ describe('formatDateTimeCL', () => {
 
   it('shows zone-less wall-clock readings (Rayen, datetime-local) as written', () => {
     expect(formatDateTimeCL('2026-07-16T00:30')).toMatch(/^16-07-2026 00:30$/);
-    expect(formatTimeHHMM('2026-07-16 10:05:00')).toBe('10:05');
-  });
-});
-
-describe('formatTimeHHMM', () => {
-  it('reads instants on the hospital clock', () => {
-    expect(formatTimeHHMM('2026-06-25T22:30:00.000Z')).toBe('16:30');
   });
 });
 

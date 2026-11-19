@@ -21,17 +21,29 @@ const getDefaultDocument = (): Document | null => {
   return null;
 };
 
+const SEQUENTIAL_CONTROLS = 'button, [href], input, select, textarea, [tabindex]';
+const BODY_CONTROLS = 'input, select, textarea';
+
+const isSequentiallyFocusable = (element: HTMLElement): boolean => {
+  if (
+    element.tabIndex < 0 ||
+    element.matches(':disabled') ||
+    element.closest('[hidden], [inert], [aria-hidden="true"]')
+  ) {
+    return false;
+  }
+  const style = getComputedStyle(element);
+  return style.display !== 'none' && style.visibility !== 'hidden';
+};
+
 const sequentialControls = (modal: HTMLElement): HTMLElement[] =>
-  Array.from(
-    modal.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]')
-  ).filter(
-    element =>
-      element.tabIndex >= 0 &&
-      !element.matches(':disabled') &&
-      !element.closest('[hidden], [inert], [aria-hidden="true"]') &&
-      getComputedStyle(element).display !== 'none' &&
-      getComputedStyle(element).visibility !== 'hidden'
+  Array.from(modal.querySelectorAll<HTMLElement>(SEQUENTIAL_CONTROLS)).filter(
+    isSequentiallyFocusable
   );
+
+/** Stops at the first match, so a long form does not compute the style of every control. */
+const firstSequentialControl = (modal: HTMLElement, selector: string): HTMLElement | undefined =>
+  Array.from(modal.querySelectorAll<HTMLElement>(selector)).find(isSequentiallyFocusable);
 
 export const resolveBaseModalLifecycleDependencies = (
   dependencies?: BaseModalLifecycleDependencies
@@ -54,15 +66,9 @@ const focusFirstModalElement = (
     return;
   }
 
-  const controls = sequentialControls(modalRef.current);
-  const bodyFocusable = controls.find(element => element.matches('input, select, textarea'));
-
-  if (bodyFocusable) {
-    bodyFocusable.focus();
-    return;
-  }
-
-  const firstFocusable = controls[0];
+  const firstFocusable =
+    firstSequentialControl(modalRef.current, BODY_CONTROLS) ??
+    firstSequentialControl(modalRef.current, SEQUENTIAL_CONTROLS);
 
   (firstFocusable ?? modalRef.current).focus();
 };

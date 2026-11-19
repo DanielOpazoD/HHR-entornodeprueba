@@ -22,15 +22,3 @@ export const hasCriticalLegacyRepairSignal = (
         signal.sourceCompatibilityIntensity !== 'none' &&
         hasCriticalRepairRules(signal.sourceMigrationRulesApplied)))
   );
-
-export const getLegacyRepairWarningMessage = (
-  context: 'copy_day' | 'import_backup' | 'copy_patient'
-) => {
-  if (context === 'import_backup') {
-    return 'Se importó correctamente, pero se repararon datos antiguos incompatibles.';
-  }
-  if (context === 'copy_patient') {
-    return 'La copia se realizó correctamente, pero se repararon datos antiguos del paciente.';
-  }
-  return 'La copia se realizó correctamente, pero se repararon datos antiguos incompatibles.';
-};

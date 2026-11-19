@@ -3,10 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   canEditSpecialistTodayBoundRecord,
-  canSpecialistEditClinicalDocumentDrafts,
-  canSpecialistReadClinicalDocuments,
   hasSpecialistRestrictedMedicalAccess,
-  isDoctorSpecialistRole,
   resolveSpecialistCapabilities,
   resolveSpecialistCensusAccessProfile,
   SPECIALIST_EDITABLE_MODULES,
@@ -19,8 +16,6 @@ describe('specialistAccessPolicy', () => {
   });
 
   it('recognizes the specialist role and resolves its census profile', () => {
-    expect(isDoctorSpecialistRole('doctor_specialist')).toBe(true);
-    expect(isDoctorSpecialistRole('doctor_urgency')).toBe(false);
     expect(resolveSpecialistCensusAccessProfile('doctor_specialist')).toBe('specialist');
     expect(resolveSpecialistCensusAccessProfile('admin')).toBe('default');
   });
@@ -114,9 +109,13 @@ describe('specialistAccessPolicy', () => {
   });
 
   it('opens clinical documents read/edit draft capabilities for specialists', () => {
-    expect(canSpecialistReadClinicalDocuments('doctor_specialist')).toBe(true);
-    expect(canSpecialistEditClinicalDocumentDrafts('doctor_specialist')).toBe(true);
-    expect(canSpecialistReadClinicalDocuments('doctor_urgency')).toBe(false);
-    expect(canSpecialistEditClinicalDocumentDrafts('doctor_urgency')).toBe(false);
+    expect(resolveSpecialistCapabilities('doctor_specialist')).toMatchObject({
+      canReadClinicalDocuments: true,
+      canEditClinicalDocumentDrafts: true,
+    });
+    expect(resolveSpecialistCapabilities('doctor_urgency')).toMatchObject({
+      canReadClinicalDocuments: false,
+      canEditClinicalDocumentDrafts: false,
+    });
   });
 });

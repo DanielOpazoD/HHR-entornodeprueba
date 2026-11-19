@@ -210,10 +210,6 @@ export const normalizeUnknownDailyRecordStaffing = (
     nursesNightShift: ensurePair(record.nursesNightShift),
   });
 
-export const resolvePrimaryDayShiftNurse = (
-  record: DailyRecordShiftStaffingShape | null | undefined
-): string | undefined => resolveDayShiftNurses(record)[0];
-
 export const hasLegacyDayShiftNurses = (
   record: DailyRecordShiftStaffingShape | null | undefined
 ): boolean => {

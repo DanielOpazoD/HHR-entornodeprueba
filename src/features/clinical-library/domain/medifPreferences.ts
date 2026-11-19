@@ -151,12 +151,6 @@ export const setMedifFieldHidden = (
 export const isMedifFieldHidden = (preferences: MedifPreferences, fieldId: string): boolean =>
   preferences.hiddenFieldIds.includes(fieldId);
 
-export const toggleHiddenMedifField = (
-  preferences: MedifPreferences,
-  fieldId: string
-): MedifPreferences =>
-  setMedifFieldHidden(preferences, fieldId, !isMedifFieldHidden(preferences, fieldId));
-
 /** Returns a new whitelist of visible values; the draft in memory is never modified. */
 export const filterMedifExportValues = (
   values: MedifValues,

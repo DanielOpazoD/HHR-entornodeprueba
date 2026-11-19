@@ -10,13 +10,6 @@ import { hasRecentAuthenticatedSessionHint } from '@/services/auth/authStorageHi
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import { useAuth, type AuthContextType } from '@/context/AuthContext';
 
-export type AppBootstrapPhase =
-  | 'bootstrapping'
-  | 'rehydrating'
-  | 'authenticated'
-  | 'unauthenticated'
-  | 'local_only';
-
 export type AppBootstrapState =
   | {
       status: 'loading';

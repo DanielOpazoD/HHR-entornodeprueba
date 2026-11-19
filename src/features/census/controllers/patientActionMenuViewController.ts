@@ -82,6 +82,3 @@ export const resolvePatientActionMenuViewState = ({
       canEditClinical && showClinicalSection && Boolean(hasMedicalIndicationsAction),
   };
 };
-
-export const resolvePatientActionMenuPanelClassName = (align: 'top' | 'bottom'): string =>
-  align === 'top' ? 'top-0' : 'bottom-0';

@@ -35,12 +35,6 @@ const whatsAppHealthSchema = z.object({
   error: z.string().optional(),
 });
 
-const whatsAppSendMessageSchema = z.object({
-  success: z.boolean().optional(),
-  messageId: z.string().optional(),
-  error: z.string().optional(),
-});
-
 const whatsAppGroupListSchema = z.array(
   z.object({
     id: z.string(),
@@ -86,43 +80,6 @@ export async function checkBotHealth(): Promise<{
       whatsapp: 'disconnected',
       error: 'Cannot connect to bot server',
     };
-  }
-}
-
-export async function sendWhatsAppMessage(
-  groupId: string,
-  message: string
-): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  try {
-    const response = await fetchBotJson('/send-message', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ groupId, message }),
-    });
-
-    const payload = whatsAppSendMessageSchema.safeParse(await response.json());
-    const result = payload.success ? payload.data : { error: 'Invalid send-message payload' };
-    if (!response.ok) {
-      throw new Error(result.error || 'Failed to send message');
-    }
-
-    await logWhatsAppOperation({
-      type: 'HANDOFF_SENT',
-      method: 'MANUAL',
-      success: true,
-      metadata: { groupId, messageLength: message.length },
-    });
-
-    return { success: true, messageId: result.messageId };
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    await logWhatsAppOperation({
-      type: 'ERROR',
-      success: false,
-      error: errorMessage,
-    });
-
-    return { success: false, error: errorMessage };
   }
 }
 

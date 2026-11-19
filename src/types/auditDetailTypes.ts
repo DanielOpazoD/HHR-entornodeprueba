@@ -33,13 +33,7 @@ export interface AuditDeviceChange {
   new: string | null | { installationDate?: string; notes?: string } | 'Eliminado';
 }
 
-export interface AuditFieldChange {
-  old: AuditValue;
-  new: AuditValue;
-}
-
 export type AuditDeviceChangesMap = Record<string, AuditDeviceChange>;
-export type AuditFieldChangesMap = Record<string, AuditFieldChange>;
 
 export type AuditDetails = AuditDetailsPatient &
   AuditDetailsChange &

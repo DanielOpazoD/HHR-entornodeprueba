@@ -4,7 +4,6 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { buildMissingBasePartialUpdateResult } from '@/services/repositories/dailyRecordPartialUpdateBlockingController';
-import { createRemoteWriteState } from '@/services/repositories/dailyRecordWriteState';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import {
   PARITY_DATE,
@@ -165,12 +164,8 @@ export const GUARDED_CASES: Record<string, ParityCase> = {
   // Called directly: with a census on screen the hook always passes its base, so the repository
   // meets a missing day only through other callers (admission port, Rayen, specialty).
   'no hay registro del día para aplicar el cambio': {
-    from: 'dailyRecordPartialUpdateBlockingController.ts:32-51 (dailyRecordRepositoryWriteService.ts:306)',
-    respond: () =>
-      buildMissingBasePartialUpdateResult({
-        date: PARITY_DATE,
-        state: createRemoteWriteState(),
-      }),
+    from: 'dailyRecordPartialUpdateBlockingController.ts:5-6 (dailyRecordRepositoryWriteService.ts:282)',
+    respond: () => buildMissingBasePartialUpdateResult(PARITY_DATE),
     expected: {
       vista: 'vuelve al valor anterior',
       cuadro: 'error',
