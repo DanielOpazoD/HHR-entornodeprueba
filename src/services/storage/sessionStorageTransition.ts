@@ -23,10 +23,11 @@ export const getSessionEpoch = (): number => sessionEpoch;
 
 /**
  * Whether this tab still shows the person it showed when the guard was taken: for a result that is
- * only displayed here. Anything written or stored uses guardAuthoringSession() instead.
+ * only displayed here. A component passes the epoch it rendered with (useSessionEpoch()), so an
+ * action started before React re-rendered after a change is refused too. Anything written or
+ * stored uses guardAuthoringSession() instead.
  */
-export const sessionEpochGuard = (): (() => boolean) => {
-  const epoch = sessionEpoch;
+export const sessionEpochGuard = (epoch: number = sessionEpoch): (() => boolean) => {
   return () => sessionEpoch === epoch;
 };
 

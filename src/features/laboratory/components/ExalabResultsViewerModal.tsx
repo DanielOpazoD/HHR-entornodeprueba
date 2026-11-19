@@ -7,7 +7,7 @@ import {
   calendarStampInClinicalTimeZone,
   getClinicalCalendarDateISO,
 } from '@/utils/clinicalTimeZone';
-import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
+import { sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
 import { onExalabSessionAvailable } from '@/services/laboratory/exalabExtensionBridge';
 import {
   autoConnectExalab,
@@ -105,12 +105,11 @@ export const ExalabResultsViewerModal = ({
     active.current?.controller.abort();
     const controller = new AbortController();
     const id = ++sequence.current;
-    const epoch = getSessionEpoch();
+    const isSessionShown = sessionEpochGuard();
     active.current = { controller, id };
     setBusy(true);
     setError(null);
-    const current = () =>
-      !controller.signal.aborted && sequence.current === id && getSessionEpoch() === epoch;
+    const current = () => !controller.signal.aborted && sequence.current === id && isSessionShown();
     let reconnected = false;
     try {
       try {
@@ -151,8 +150,8 @@ export const ExalabResultsViewerModal = ({
   useEffect(() => {
     const controller = new AbortController();
     initialCheck.current = controller;
-    const epoch = getSessionEpoch();
-    const current = () => !controller.signal.aborted && epoch === getSessionEpoch();
+    const isSessionShown = sessionEpochGuard();
+    const current = () => !controller.signal.aborted && isSessionShown();
     void (async () => {
       try {
         const status = await exalabStatus(controller.signal).catch(failure => {
