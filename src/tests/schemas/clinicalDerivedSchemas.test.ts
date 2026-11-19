@@ -131,7 +131,7 @@ describe('daily record marker', () => {
     ).toEqual([]);
   });
 
-  // A broken bed goes through buildFallbackPatientData. On a split day its moved fields are found
+  // A broken bed goes through buildFallbackPatientDataReport. On a split day its moved fields are found
   // by episode id (overlay and direct writes), so the salvaged bed and crib keep that id.
   const brokenBeds = {
     R1: {

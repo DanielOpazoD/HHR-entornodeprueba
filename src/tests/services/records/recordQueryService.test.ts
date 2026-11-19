@@ -51,7 +51,6 @@ describe('record query local/remote boundary', () => {
     const records = [day('2026-04-02', 'Synthetic'), day('2026-04-03', '   ')];
     mocks.month.mockResolvedValue(records);
     mocks.localRange.mockResolvedValue([...records]);
-    expect(await service.fetchRecordsForMonth(2026, 4)).toBe(records);
     expect(await service.fetchExistingDaysInMonth(2026, 4)).toEqual([2]);
     expect(await service.fetchRecordsRangeSorted('2026-04-01', '2026-04-30')).toEqual([
       records[1],

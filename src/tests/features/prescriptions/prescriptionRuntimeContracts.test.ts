@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  parsePrescriptionRecord,
+  prescriptionRecordSchema,
   safeParsePrescriptionRecord,
 } from '@/schemas/prescriptionSchemas';
 import type { PrescriptionRecord } from '@/types/prescriptionTypes';
@@ -34,14 +34,14 @@ const validRecord = (overrides: Partial<PrescriptionRecord> = {}): PrescriptionR
   ...overrides,
 });
 
-describe('parsePrescriptionRecord', () => {
+describe('prescriptionRecordSchema (strict parse)', () => {
   it('accepts a fully populated authenticated upload', () => {
-    expect(() => parsePrescriptionRecord(validRecord())).not.toThrow();
+    expect(() => prescriptionRecordSchema.parse(validRecord())).not.toThrow();
   });
 
   it('accepts a QR-PIN upload without uid/email', () => {
     expect(() =>
-      parsePrescriptionRecord(
+      prescriptionRecordSchema.parse(
         validRecord({
           uploader: { source: 'qr_pin', displayName: 'Estación QR sala' },
           bedId: undefined,
@@ -54,7 +54,7 @@ describe('parsePrescriptionRecord', () => {
 
   it('accepts Stock de Hospitalizados as a non-patient assignment category', () => {
     expect(() =>
-      parsePrescriptionRecord(
+      prescriptionRecordSchema.parse(
         validRecord({
           assignmentScope: 'hospitalized_stock',
           bedId: undefined,
@@ -66,7 +66,7 @@ describe('parsePrescriptionRecord', () => {
   });
 
   it('accepts Firestore null patient fields for Stock de Hospitalizados reads', () => {
-    const parsed = parsePrescriptionRecord(
+    const parsed = prescriptionRecordSchema.parse(
       validRecord({
         assignmentScope: 'hospitalized_stock',
         bedId: null as never,
@@ -86,19 +86,19 @@ describe('parsePrescriptionRecord', () => {
 
   it('rejects an unsupported prescription type', () => {
     expect(() =>
-      parsePrescriptionRecord(validRecord({ prescriptionType: 'antibioticos' as never }))
+      prescriptionRecordSchema.parse(validRecord({ prescriptionType: 'antibioticos' as never }))
     ).toThrow();
   });
 
   it('rejects an unsupported assignment category', () => {
     expect(() =>
-      parsePrescriptionRecord(validRecord({ assignmentScope: 'ward_stock' as never }))
+      prescriptionRecordSchema.parse(validRecord({ assignmentScope: 'ward_stock' as never }))
     ).toThrow();
   });
 
   it('rejects a record with mismatched contentType (must be image/jpeg)', () => {
     expect(() =>
-      parsePrescriptionRecord(
+      prescriptionRecordSchema.parse(
         validRecord({
           image: { ...validRecord().image, contentType: 'image/png' as never },
         })
@@ -108,7 +108,7 @@ describe('parsePrescriptionRecord', () => {
 
   it('rejects negative byteSize', () => {
     expect(() =>
-      parsePrescriptionRecord(
+      prescriptionRecordSchema.parse(
         validRecord({
           image: { ...validRecord().image, byteSize: -1 },
         })

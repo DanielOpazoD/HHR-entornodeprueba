@@ -3,10 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as core from '@/services/storage/indexeddb/indexedDbCore';
 import { getRecordsForMonth } from '@/services/storage/indexeddb/indexedDbRecordService';
-import {
-  fetchExistingDaysInMonth,
-  fetchRecordsForMonth,
-} from '@/services/records/recordQueryService';
+import { fetchExistingDaysInMonth } from '@/services/records/recordQueryService';
 import { generateCensusMasterExcel } from '@/services/exporters/censusMasterExport';
 import { useExistingDaysQuery } from '@/hooks/useExistingDaysQuery';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
@@ -66,7 +63,7 @@ describe('local monthly read failure reaches decisions', () => {
 
   it('does not report missing calendar days or an empty monthly facade on failure', async () => {
     failRead();
-    await expect(fetchRecordsForMonth(2026, 4)).rejects.toThrow('synthetic');
+    await expect(getRecordsForMonth(2026, 4)).rejects.toThrow('synthetic');
     await expect(fetchExistingDaysInMonth(2026, 4)).rejects.toThrow('synthetic');
   });
 

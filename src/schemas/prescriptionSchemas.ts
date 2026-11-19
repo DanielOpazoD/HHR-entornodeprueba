@@ -82,13 +82,6 @@ const legacyCompatiblePrescriptionRecordSchema = prescriptionRecordSchema.extend
 });
 
 /**
- * Strict parse: throws on invalid input. Use only when the caller knows
- * the data should already be valid (e.g., after a write).
- */
-export const parsePrescriptionRecord = (input: unknown): PrescriptionRecord =>
-  prescriptionRecordSchema.parse(input) as PrescriptionRecord;
-
-/**
  * Lenient parse: returns the parsed record on success or `null` when the
  * input fails validation. Used at the Firestore read boundary so a single
  * corrupt document doesn't blow up the listing for the rest.

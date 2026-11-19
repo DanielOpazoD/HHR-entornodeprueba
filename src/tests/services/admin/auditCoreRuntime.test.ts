@@ -20,7 +20,6 @@ const DOCTOR = { uid: 'doctor-123', email: 'doctor@hospital.cl', displayName: 'D
 
 const auditUtilsMocks = vi.hoisted(() => ({
   getCurrentUserEmail: vi.fn(() => 'doctor@hospital.cl'),
-  getCurrentUserDisplayName: vi.fn(() => 'Doctor Account'),
   getCurrentUserUid: vi.fn<() => string | undefined>(() => 'doctor-123'),
   getCurrentAuditSession:
     vi.fn<() => { uid: string; email?: string; displayName?: string } | null>(),

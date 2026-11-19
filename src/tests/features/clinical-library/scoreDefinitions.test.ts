@@ -8,10 +8,22 @@ import {
 import {
   evaluateScore,
   findScoreBand,
-  reachableScoreTotals,
   scoreMaxTotal,
   type ScoreDefinition,
 } from '@/features/clinical-library/domain/scoreEngine';
+
+/** Every total the score can reach, to check that its bands cover all of them. */
+const reachableScoreTotals = (score: ScoreDefinition): number[] => {
+  let totals = new Set<number>([0]);
+  for (const item of score.items) {
+    const increments =
+      item.kind === 'boolean' ? [0, item.points] : item.options.map(option => option.points);
+    const next = new Set<number>();
+    for (const total of totals) for (const increment of increments) next.add(total + increment);
+    totals = next;
+  }
+  return [...totals].sort((left, right) => left - right);
+};
 
 const definition = (id: string): ScoreDefinition => {
   const found = findScoreDefinition(id);

@@ -223,17 +223,6 @@ export function isAdmin(role: UserRole | undefined): boolean {
 }
 
 /**
- * Check if user can view a specific module
- *
- * @param {UserRole | undefined} role - User's role
- * @param {ModuleType} module - Module to check
- * @returns {boolean} True if user can view, false otherwise
- */
-export function canViewModule(role: UserRole | undefined, module: ModuleType): boolean {
-  return getVisibleModules(role).includes(module);
-}
-
-/**
  * Human-friendly display name for a given role.
  */
 export function getRoleDisplayName(role?: UserRole): string {

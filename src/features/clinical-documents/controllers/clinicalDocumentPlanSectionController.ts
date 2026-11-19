@@ -26,10 +26,6 @@ export const CLINICAL_DOCUMENT_PLAN_SUBSECTIONS: readonly ClinicalDocumentPlanSu
   { id: 'control_clinico', title: 'Control clínico' },
 ] as const;
 
-const PLAN_TITLE_BY_ID = Object.fromEntries(
-  CLINICAL_DOCUMENT_PLAN_SUBSECTIONS.map(subsection => [subsection.id, subsection.title])
-) as Record<ClinicalDocumentPlanSubsectionId, string>;
-
 const PLAN_ID_BY_NORMALIZED_TITLE = Object.fromEntries(
   CLINICAL_DOCUMENT_PLAN_SUBSECTIONS.map(subsection => [
     normalizeTitle(subsection.title),
@@ -264,8 +260,3 @@ export const appendClinicalDocumentUnifiedPlanText = (value: string, text: strin
     buildUnifiedClinicalDocumentPlanSectionContent(value),
     text
   );
-
-/** Returns the display title for a plan subsection (e.g. "Indicaciones generales"). */
-export const getClinicalDocumentPlanSubsectionTitle = (
-  subsectionId: ClinicalDocumentPlanSubsectionId
-): string => PLAN_TITLE_BY_ID[subsectionId];

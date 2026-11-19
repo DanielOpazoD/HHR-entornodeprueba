@@ -91,9 +91,6 @@ export const fetchMMRADPdfBlob = async (pdfLink: string, signal?: AbortSignal): 
   return pdfBlob;
 };
 
-export const fetchMMRADPdfBlobUrl = async (pdfLink: string): Promise<string> =>
-  URL.createObjectURL(await fetchMMRADPdfBlob(pdfLink));
-
 export const fetchMMRADPortalReceiptHtml = async (receiptLink: string): Promise<string> => {
   const authHeaders = await resolveCurrentUserAuthHeaders();
   const response = await fetch(buildMMRADPortalReceiptUrl(receiptLink), {

@@ -9,11 +9,8 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  buildActiveClinicalDocumentEpisodeKeys,
   buildBedEpisodeBindings,
-  buildClinicalDocumentPresenceByBed,
   buildClinicalDocumentPresenceProjection,
-  buildClinicalDocumentPresenceInfoByBed,
   type BedEpisodeBinding,
 } from '@/features/census/controllers/clinicalDocumentPresenceController';
 import { BEDS } from '@/constants/beds';
@@ -70,28 +67,9 @@ describe('clinicalDocumentPresenceController', () => {
     });
   });
 
-  describe('buildActiveClinicalDocumentEpisodeKeys', () => {
-    it('returns only episode keys with non-archived documents', () => {
-      const keys = buildActiveClinicalDocumentEpisodeKeys(records);
-
-      expect(keys.has('12345678-9__2026-01-10')).toBe(true);
-      expect(keys.has('98765432-1__2026-02-15')).toBe(true);
-      expect(keys.has('11111111-1__2026-03-01')).toBe(false);
-    });
-
-    it('returns empty set for undefined records', () => {
-      expect(buildActiveClinicalDocumentEpisodeKeys(undefined).size).toBe(0);
-    });
-
-    it('returns empty set for empty array', () => {
-      expect(buildActiveClinicalDocumentEpisodeKeys([]).size).toBe(0);
-    });
-  });
-
-  describe('buildClinicalDocumentPresenceByBed', () => {
+  describe('buildClinicalDocumentPresenceProjection byBedId', () => {
     it('maps bed IDs to boolean presence', () => {
-      const activeKeys = buildActiveClinicalDocumentEpisodeKeys(records);
-      const result = buildClinicalDocumentPresenceByBed(bindings, activeKeys);
+      const result = buildClinicalDocumentPresenceProjection(bindings, records).byBedId;
 
       expect(result).toEqual({
         R1: true,
@@ -116,17 +94,15 @@ describe('clinicalDocumentPresenceController', () => {
           patientRut: '17.444.506-0',
         },
       ];
-      const activeKeys = buildActiveClinicalDocumentEpisodeKeys(contaminatedRecords);
-
       expect(
-        buildClinicalDocumentPresenceByBed(contaminatedBindings, activeKeys, contaminatedRecords)
+        buildClinicalDocumentPresenceProjection(contaminatedBindings, contaminatedRecords).byBedId
       ).toEqual({ R1: false });
     });
   });
 
-  describe('buildClinicalDocumentPresenceInfoByBed', () => {
+  describe('buildClinicalDocumentPresenceProjection infoByBedId', () => {
     it('counts total and draft documents per bed', () => {
-      const result = buildClinicalDocumentPresenceInfoByBed(bindings, records);
+      const result = buildClinicalDocumentPresenceProjection(bindings, records).infoByBedId;
 
       expect(result.R1).toEqual({
         present: true,
@@ -158,7 +134,8 @@ describe('clinicalDocumentPresenceController', () => {
       ];
 
       expect(
-        buildClinicalDocumentPresenceInfoByBed(contaminatedBindings, contaminatedRecords).R1
+        buildClinicalDocumentPresenceProjection(contaminatedBindings, contaminatedRecords)
+          .infoByBedId.R1
       ).toEqual({
         present: true,
         totalCount: 1,
@@ -167,7 +144,7 @@ describe('clinicalDocumentPresenceController', () => {
     });
 
     it('counts published documents correctly', () => {
-      const result = buildClinicalDocumentPresenceInfoByBed(bindings, records);
+      const result = buildClinicalDocumentPresenceProjection(bindings, records).infoByBedId;
 
       expect(result.R2).toEqual({
         present: true,
@@ -177,7 +154,7 @@ describe('clinicalDocumentPresenceController', () => {
     });
 
     it('returns zero counts for beds with only archived documents', () => {
-      const result = buildClinicalDocumentPresenceInfoByBed(bindings, records);
+      const result = buildClinicalDocumentPresenceProjection(bindings, records).infoByBedId;
 
       expect(result.NEO1).toEqual({
         present: false,
@@ -187,14 +164,14 @@ describe('clinicalDocumentPresenceController', () => {
     });
 
     it('handles undefined records', () => {
-      const result = buildClinicalDocumentPresenceInfoByBed(bindings, undefined);
+      const result = buildClinicalDocumentPresenceProjection(bindings, undefined).infoByBedId;
 
       expect(result.R1.totalCount).toBe(0);
       expect(result.R1.present).toBe(false);
     });
 
     it('handles empty bindings', () => {
-      const result = buildClinicalDocumentPresenceInfoByBed([], records);
+      const result = buildClinicalDocumentPresenceProjection([], records).infoByBedId;
 
       expect(Object.keys(result)).toHaveLength(0);
     });
@@ -211,7 +188,7 @@ it('visits each document at most twice across 20 beds instead of rescanning the 
       return 'draft';
     },
   }));
-  const result = buildClinicalDocumentPresenceInfoByBed(beds, documents);
+  const result = buildClinicalDocumentPresenceProjection(beds, documents).infoByBedId;
   expect(
     Object.values(result).every(info => info.totalCount === 15 && info.draftCount === 15)
   ).toBe(true);
@@ -365,10 +342,8 @@ describe('clinical document presence for census rows', () => {
       },
     ];
 
-    const activeEpisodeKeys = buildActiveClinicalDocumentEpisodeKeys(documents);
-
     expect(
-      buildClinicalDocumentPresenceByBed(
+      buildClinicalDocumentPresenceProjection(
         [
           { bedId: 'R1', episodeKey: '11.111.111-1__2026-03-05' },
           {
@@ -377,8 +352,8 @@ describe('clinical document presence for census rows', () => {
             episodeKeys: ['episode-canonical-r2', '22.222.222-2__2026-03-05'],
           },
         ],
-        activeEpisodeKeys
-      )
+        documents
+      ).byBedId
     ).toEqual({
       R1: true,
       R2: false,
@@ -402,14 +377,10 @@ describe('clinical document presence for census rows', () => {
       },
     ];
 
-    expect(
-      buildClinicalDocumentPresenceByBed(
-        bindings,
-        buildActiveClinicalDocumentEpisodeKeys(documents),
-        documents
-      )
-    ).toEqual({ R3: true });
-    expect(buildClinicalDocumentPresenceInfoByBed(bindings, documents)).toEqual({
+    expect(buildClinicalDocumentPresenceProjection(bindings, documents).byBedId).toEqual({
+      R3: true,
+    });
+    expect(buildClinicalDocumentPresenceProjection(bindings, documents).infoByBedId).toEqual({
       R3: {
         present: true,
         totalCount: 1,
@@ -440,14 +411,10 @@ describe('clinical document presence for census rows', () => {
       },
     ];
 
-    expect(
-      buildClinicalDocumentPresenceByBed(
-        bindings,
-        buildActiveClinicalDocumentEpisodeKeys(documents),
-        documents
-      )
-    ).toEqual({ R4: false });
-    expect(buildClinicalDocumentPresenceInfoByBed(bindings, documents)).toEqual({
+    expect(buildClinicalDocumentPresenceProjection(bindings, documents).byBedId).toEqual({
+      R4: false,
+    });
+    expect(buildClinicalDocumentPresenceProjection(bindings, documents).infoByBedId).toEqual({
       R4: {
         present: false,
         totalCount: 0,
@@ -473,14 +440,10 @@ describe('clinical document presence for census rows', () => {
       },
     ];
 
-    expect(
-      buildClinicalDocumentPresenceByBed(
-        bindings,
-        buildActiveClinicalDocumentEpisodeKeys(documents),
-        documents
-      )
-    ).toEqual({ R1: false });
-    expect(buildClinicalDocumentPresenceInfoByBed(bindings, documents)).toEqual({
+    expect(buildClinicalDocumentPresenceProjection(bindings, documents).byBedId).toEqual({
+      R1: false,
+    });
+    expect(buildClinicalDocumentPresenceProjection(bindings, documents).infoByBedId).toEqual({
       R1: {
         present: false,
         totalCount: 0,

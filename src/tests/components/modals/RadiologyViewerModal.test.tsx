@@ -16,7 +16,6 @@ vi.mock('@/features/radiology/services/mmradService', async importOriginal => {
   return {
     ...actual,
     fetchMMRADPdfBlob: mmradMocks.blob,
-    fetchMMRADPdfBlobUrl: async (url: string) => URL.createObjectURL(await mmradMocks.blob(url)),
     searchMMRADExams: mmradMocks.search,
     searchMMRADCheckDigitExams: mmradMocks.checkDigit,
   };

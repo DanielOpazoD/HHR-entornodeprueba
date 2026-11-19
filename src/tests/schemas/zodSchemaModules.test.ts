@@ -2,7 +2,10 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { buildFallbackPatientData } from '@/schemas/zodFallbackBuilders';
+import { buildFallbackPatientDataReport } from '@/schemas/zodFallbackBuilders';
+
+const buildFallbackPatientData = (...args: Parameters<typeof buildFallbackPatientDataReport>) =>
+  buildFallbackPatientDataReport(...args).patient;
 import { hasStructuralRepairs } from '@/schemas/zodParseReports';
 import { parseDailyRecordWithDefaultsReport, safeParseDailyRecord } from '@/schemas/zodSafeParsers';
 import { PatientDataSchema } from '@/schemas/zod/patient';

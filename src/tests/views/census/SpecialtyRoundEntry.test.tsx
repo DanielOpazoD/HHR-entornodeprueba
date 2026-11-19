@@ -1,4 +1,3 @@
-import { SpecialtyRoundLoadingTrigger } from '@/features/census/components/specialty-round/SpecialtyRoundTrigger';
 import { fireEvent, render, screen, within, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SpecialtyRoundEntry } from '@/features/census/components/specialty-round/SpecialtyRoundEntry';
@@ -46,14 +45,6 @@ describe('SpecialtyRoundEntry', () => {
     expect(onWindowChange).toHaveBeenCalledWith(true);
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar reglas' }));
     await waitFor(() => expect(onWindowChange).toHaveBeenLastCalledWith(false));
-  });
-
-  it('reserves a disabled specialty trigger only when the feature is enabled', () => {
-    const { rerender } = render(<SpecialtyRoundLoadingTrigger />);
-    expect(screen.getByRole('button', { name: 'Especialidades' })).toBeDisabled();
-    enabled.value = false;
-    rerender(<SpecialtyRoundLoadingTrigger />);
-    expect(screen.queryByText('Especialidades')).not.toBeInTheDocument();
   });
 
   it('shows one quiet menu with rules and round actions for an administrator', () => {

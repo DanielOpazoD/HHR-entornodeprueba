@@ -3,7 +3,6 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 import { ClinicalDocumentSheet } from '@/features/clinical-documents/components/ClinicalDocumentSheet';
 import { getDefaultClinicalDocumentIndicationsCatalog } from '@/features/clinical-documents/services/clinicalDocumentIndicationsCatalogService';
-import { getClinicalDocumentPlanSubsectionTitle } from '@/features/clinical-documents/controllers/clinicalDocumentPlanSectionController';
 import {
   buildDocument,
   buildPersonalIndicationsCatalog,
@@ -72,15 +71,9 @@ describe('ClinicalDocumentSheet', () => {
       screen.queryByText(/documento sin alertas obligatorias visibles/i)
     ).not.toBeInTheDocument();
     expect(screen.queryByText(/falta completar diagnóstico/i)).not.toBeInTheDocument();
-    expect(
-      screen.getByText(getClinicalDocumentPlanSubsectionTitle('generales'))
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(getClinicalDocumentPlanSubsectionTitle('farmacologicas'))
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(getClinicalDocumentPlanSubsectionTitle('control_clinico'))
-    ).toBeInTheDocument();
+    expect(screen.getByText('Indicaciones generales')).toBeInTheDocument();
+    expect(screen.getByText('Indicaciones farmacológicas')).toBeInTheDocument();
+    expect(screen.getByText('Control clínico')).toBeInTheDocument();
     expect(
       screen.queryByText(
         /hay cambios remotos pendientes\. guarda o recarga el documento para sincronizar/i

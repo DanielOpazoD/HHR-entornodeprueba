@@ -146,15 +146,6 @@ export const initializeFirestoreService = async (
   return { db };
 };
 
-export const initializeFirebaseServices = async (
-  config: FirebaseOptions
-): Promise<FirebaseBootstrapResult> => {
-  const core = await initializeFirebaseCore(config);
-  const firestore = await initializeFirestoreService(core.app);
-  firebaseBootstrapLogger.info('Firebase services ready');
-  return { ...core, ...firestore };
-};
-
 export const connectAuthEmulator = async ({ auth }: Pick<FirebaseBootstrapResult, 'auth'>) => {
   const authEmulatorHost = import.meta.env.VITE_AUTH_EMULATOR_HOST;
   const authRuntime = await import('firebase/auth');
@@ -179,11 +170,4 @@ export const connectFirestoreEmulator = async ({ db }: Pick<FirebaseBootstrapRes
       );
     }
   }
-};
-
-export const connectFirebaseEmulators = async ({
-  auth,
-  db,
-}: Pick<FirebaseBootstrapResult, 'auth' | 'db'>) => {
-  await Promise.all([connectAuthEmulator({ auth }), connectFirestoreEmulator({ db })]);
 };

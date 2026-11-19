@@ -10,10 +10,7 @@ import type {
 import type { AuthSessionState } from '@/types/authSessionTypes';
 import { signIn } from '@/services/auth/authCredentialFlow';
 import { signInWithGoogle, warmGoogleSignInRuntime } from '@/services/auth/authGoogleFlow';
-import {
-  getCurrentAuthSessionState,
-  resolveCurrentAuthSessionState,
-} from '@/services/auth/authSession';
+import { resolveCurrentAuthSessionState } from '@/services/auth/authSession';
 import { handleSignInRedirectResult } from '@/services/auth/authFallback';
 import {
   isPopupCancellationAuthError,
@@ -186,9 +183,6 @@ export const executeRedirectAuthResolution = async (): Promise<
 
   return createApplicationSuccess(sessionState);
 };
-
-export const executeCurrentAuthSessionState = (): ApplicationOutcome<AuthSessionState> =>
-  createApplicationSuccess(getCurrentAuthSessionState());
 
 export const executeResolvedCurrentAuthSessionState = async (): Promise<
   ApplicationOutcome<AuthSessionState | null>

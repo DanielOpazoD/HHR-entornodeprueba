@@ -37,7 +37,6 @@ vi.mock('@/services/auth/authErrorPolicy', () => ({
 
 import {
   executeCredentialSignIn,
-  executeCurrentAuthSessionState,
   executeGoogleSignIn,
   executeResolvedCurrentAuthSessionState,
   executeRedirectAuthResolution,
@@ -196,23 +195,6 @@ describe('authSessionUseCases', () => {
 
     expect(outcome.status).toBe('failed');
     expect(outcome.reason).toBe('auth_redirect_result_failed');
-  });
-
-  it('returns current auth session state as success outcome', () => {
-    mockGetCurrentAuthSessionState.mockReturnValue({
-      status: 'anonymous_signature',
-      user: {
-        uid: 'anon-1',
-        email: null,
-        displayName: 'Anonymous Doctor',
-        role: 'viewer',
-      },
-    });
-
-    const outcome = executeCurrentAuthSessionState();
-
-    expect(outcome.status).toBe('success');
-    expect(outcome.data.status).toBe('anonymous_signature');
   });
 
   it('returns resolved current auth session state when a persisted firebase session already exists', async () => {
