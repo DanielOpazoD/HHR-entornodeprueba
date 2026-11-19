@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "meaning": "Funciones que ve una persona: cómo se llega, la carpeta dueña, la puerta de código y las pruebas que acreditan que funciona. La primera puerta es el módulo donde vive la decisión principal de la función (no un contenedor) y \"owner\" es la carpeta que la contiene: ahí empieza el trabajo; las otras puertas son la vista con el control visible o lo que ejecuta la decisión. `npm run check:feature-map` comprueba que todo lo citado exista. Una prueba e2e se cita como «ruta › título» y debe correr en CI o nightly según scripts/config/e2e-test-ownership.json.",
+  "meaning": "Funciones que ve una persona: cómo se llega, la carpeta dueña, la puerta de código y las pruebas que acreditan que funciona. La primera puerta es el módulo donde vive la decisión principal de la función (no un contenedor) y \"owner\" es la carpeta que la contiene: ahí empieza el trabajo; las otras puertas son la vista con el control visible o lo que ejecuta la decisión. `npm run check:feature-map` comprueba que todo lo citado exista. Un flujo que cruza varias capas agrega \"flow\": sus pasos en orden, cada uno «ruta › símbolo» con lo que se decide ahí; el control comprueba que el archivo nombre ese símbolo y que cada puerta sea un paso. Una prueba e2e se cita como «ruta › título» y debe correr en CI o nightly según scripts/config/e2e-test-ownership.json.",
   "features": [
     {
       "id": "census.open-day",
@@ -55,6 +55,90 @@
         "e2e/multiuser-offline-conflict.spec.ts › shows a failed recent-send read instead of a healthy empty queue and recovers after reload"
       ],
       "rules": ["SAVE-01", "SAVE-02", "SAVE-03"]
+    },
+    {
+      "id": "census.cell-save-flow",
+      "name": "Guardar una celda del censo: de lo escrito a la confirmación del servidor",
+      "owner": "src/services/repositories",
+      "reach": {
+        "screen": "Censo Diario, una celda de la fila del paciente; el estado, en el cuadro de sincronización y en «Guardado pendiente»",
+        "controls": [{ "testId": "patient-row" }, { "text": "Guardado pendiente · Ver detalle" }]
+      },
+      "gate": [
+        "src/services/repositories/dailyRecordRepositoryWriteService.ts",
+        "src/hooks/controllers/bedManagementDispatchController.ts",
+        "src/services/storage/sync/syncQueueEngine.ts"
+      ],
+      "flow": [
+        {
+          "at": "src/components/ui/DebouncedInput.tsx › DebouncedInput",
+          "decides": "El texto queda en la celda y se entrega al salir de ella o tras una pausa sin escribir (500 ms si la celda no indica otra)."
+        },
+        {
+          "at": "src/features/census/components/patient-row/usePatientRowInputHandlers.ts › usePatientRowUpdateAdapter",
+          "decides": "Descarta lo escrito si la fila ya es de otro día, cama o episodio; junta los campos del bloque clínico inicial en un solo envío."
+        },
+        {
+          "at": "src/hooks/controllers/bedManagementDispatchController.ts › executeBedManagementAction",
+          "decides": "Valida, arma el cambio con el reductor (nada si no cambia nada), pide confirmar un día anterior, separa lo estructural de lo clínico y elige si la acción exige confirmación del servidor (limpiar cama, cuna, evaluación UPC, especialidad)."
+        },
+        {
+          "at": "src/hooks/useDailyRecordSyncQuery.ts › patchRecord",
+          "decides": "Toma la sesión de quien escribe y muestra el resultado solo si esa sesión sigue vigente; un cambio rechazado no cuenta como guardado."
+        },
+        {
+          "at": "src/hooks/usePatchDailyRecordMutation.ts › usePatchDailyRecordMutation",
+          "decides": "Proyecta el cambio en pantalla mientras viaja, envía de a uno por día, no reintenta por su cuenta y deshace la proyección si el guardado falla."
+        },
+        {
+          "at": "src/services/repositories/dailyRecordRepositoryWriteService.ts › updatePartialDetailedWithinLock",
+          "decides": "Con el día bloqueado para otras escrituras de esta pestaña, elige la versión base, frena un campo que se acorta sospechosamente y decide si va primero al servidor o primero a la cola local."
+        },
+        {
+          "at": "src/services/repositories/dailyRecordRemotePersistenceController.ts › persistLocalAndAttemptRemoteSync",
+          "decides": "Ejecuta ese orden y da el estado: confirmado por el servidor, guardado en este equipo o no guardado."
+        },
+        {
+          "at": "src/services/storage/sync/publicSyncQueue.ts › queueDailyRecordSyncTaskWithLocalRecord",
+          "decides": "Guarda el cambio en la cola durable de IndexedDB antes del envío: sobrevive a recargar la página y a quedar sin conexión."
+        },
+        {
+          "at": "src/services/storage/firestore/firestoreRecordWrites.ts › updateRecordPartial",
+          "decides": "Envía por la función del servidor o escribe directo, según los campos; un cambio que mezcla campos que deben ir separados queda en la cola."
+        },
+        {
+          "at": "functions/lib/dailyRecordPatchCallable.js › createPatchHandler",
+          "decides": "El servidor comprueba rol y plazo de 48 h y escribe solo los campos cambiados en una transacción con la versión esperada."
+        },
+        {
+          "at": "src/services/storage/sync/syncQueueEngine.ts › processQueue",
+          "decides": "Sin conexión, el cambio espera en la cola; al volver la red, la pestaña o cada 30 s se reenvía en nombre de quien lo escribió, y se retira de la cola solo con la confirmación."
+        },
+        {
+          "at": "src/services/storage/sync/firestoreSyncTransport.ts › createFirestoreSyncTransport",
+          "decides": "Reenvía la tarea tal como quedó guardada: un campo ya aplicado se reconoce solo por el valor que guarda el servidor, y un conflicto real conserva la tarea completa sin escribir."
+        },
+        {
+          "at": "src/hooks/controllers/dailyRecordSyncStatusController.ts › resolveDailyRecordSyncStatus",
+          "decides": "Traduce los envíos en curso al estado del cuadro de sincronización (SyncStatusIndicator)."
+        }
+      ],
+      "tests": [
+        "src/tests/components/ui/DebouncedInput.test.tsx",
+        "src/tests/views/census/usePatientRowInputHandlers.test.ts",
+        "src/tests/hooks/controllers/bedManagementDispatchController.test.ts",
+        "src/tests/hooks/useDailyRecordSyncQuery.notifications.test.tsx",
+        "src/tests/hooks/usePatchDailyRecordMutation.retry.test.tsx",
+        "src/tests/services/repositories/dailyRecordRemotePersistenceController.test.ts",
+        "src/tests/integration/offlineQueueRecovery.test.ts",
+        "src/tests/emulator-ui/diagnosisAuthorityConfirmation.emulator-ui.test.ts › saves the diagnosis and tells the person it is saved",
+        "src/tests/emulator-ui/offlineReplayEquivalence.emulator-ui.test.ts",
+        "src/tests/emulator-ui/queueAcrossTabRestart.emulator-ui.test.ts",
+        "src/tests/hooks/dailyRecordSyncStatusController.test.ts",
+        "e2e/night-admission-sync-recovery-critical.spec.ts › admits, diagnoses, retries synchronization, clears, and survives reload",
+        "e2e/multiuser-offline-conflict.spec.ts › persists an offline edit before loading another client accepted diagnosis"
+      ],
+      "rules": ["SAVE-01", "SAVE-02", "SAVE-03", "SAVE-04"]
     },
     {
       "id": "census.discharge",
@@ -315,6 +399,111 @@
         "e2e/census-sync-history-navigation.spec.ts › navigates from history to the current occupied or empty bed and copies a category-only code"
       ],
       "rules": ["SAVE-01"]
+    },
+    {
+      "id": "eloisa.sync-flow",
+      "name": "Sincronizar con Eloísa: del botón al historial de sincronizaciones",
+      "owner": "src/features/rayen-import/domain",
+      "reach": {
+        "screen": "Censo Diario, barra de Eloísa: «Sincronizar» y el historial",
+        "controls": [{ "testId": "rayen-import-button" }, { "testId": "rayen-sync-history-button" }]
+      },
+      "gate": [
+        "src/features/rayen-import/domain/reconcileCensus.ts",
+        "src/features/rayen-import/hooks/useRayenCensusDiffApplication.ts",
+        "src/features/rayen-import/hooks/useRayenSyncAudit.ts"
+      ],
+      "flow": [
+        {
+          "at": "src/features/rayen-import/components/RayenImportButton.tsx › handleSync",
+          "decides": "No empieza si la política no está lista o ya hay una comprobación en curso; primero comprueba que la extensión y las dos fuentes respondan."
+        },
+        {
+          "at": "src/features/rayen-import/hooks/useRayenImportCapture.ts › useRayenImportCapture",
+          "decides": "Abre la corrida (startRun), la ata a la sesión de quien la pidió y descarta una preparación que quedó vieja."
+        },
+        {
+          "at": "src/features/rayen-import/hooks/rayenSyncTemporalContext.ts › prepareRayenSyncTemporalContext",
+          "decides": "Fija el día del censo con su versión más fresca y el rango de lectura; rechaza un día futuro o una captura que cruza la entrega de turno."
+        },
+        {
+          "at": "src/features/rayen-import/bridge/rayenSnapshotBridge.ts › requestRayenSyncBundle",
+          "decides": "Pide la lectura a la extensión y acepta solo la respuesta de esa misma solicitud y de este mismo origen."
+        },
+        {
+          "at": "extension/content-hhr-sync-bundle.js › __hhrSyncBundleRelayListener",
+          "decides": "Pasa la solicitud de la página al trabajador de la extensión y devuelve la lectura o el error; una captura cancelada no reaparece como error tardío."
+        },
+        {
+          "at": "extension/background.js › handleSyncBundleRequest",
+          "decides": "Autoriza los episodios de la lectura y permite cancelarla."
+        },
+        {
+          "at": "extension/rayen-sync-bundle-runtime.js › capture",
+          "decides": "Lee Ficha Médico y Gestión de Camas a la vez, exige ambas listas y un desfase máximo de 2 minutos entre ellas, y reintenta una sola vez una falla rápida."
+        },
+        {
+          "at": "src/features/rayen-import/hooks/useRayenSnapshotPreview.ts › useRayenSnapshotPreview",
+          "decides": "Planifica contra el censo del servidor y los pacientes no válidos; con cambios de camas pide revisión humana, sin cambios guarda y sigue a la etapa clínica."
+        },
+        {
+          "at": "src/features/rayen-import/domain/reconcileCensus.ts › reconcileCensus",
+          "decides": "Compara el censo con la lectura y propone ingresos, egresos, traslados, movimientos y conflictos."
+        },
+        {
+          "at": "src/features/rayen-import/hooks/confirmRayenImport.ts › applyConfirmedRayenImport",
+          "decides": "Tras la revisión, vuelve a planificar si el censo cambió y aplica solo un plan equivalente al revisado."
+        },
+        {
+          "at": "src/features/rayen-import/hooks/useRayenCensusDiffApplication.ts › useRayenCensusDiffApplication",
+          "decides": "Aplica los cambios con el día bloqueado y escribe en la misma escritura la corrida aplicada en rayenSync y rayenSyncHistory, con la versión de su base."
+        },
+        {
+          "at": "src/features/rayen-import/clinicalFillRunner.ts › runClinicalFill",
+          "decides": "Con la estructura confirmada, lee la ficha de cada paciente y guarda sus datos clínicos y su CUDYR del día."
+        },
+        {
+          "at": "src/features/rayen-import/domain/startCudyrSyncCapture.ts › startCudyrSyncCapture",
+          "decides": "Una sola lectura de CUDYR alimenta el registro del día y el archivo permanente."
+        },
+        {
+          "at": "src/services/cudyr/cudyrArchiveQueue.ts › persistCudyrArchivePart",
+          "decides": "Guarda cada parte del archivo CUDYR en la cola local antes de enviarla; una respuesta dudosa la deja en la cola para reenviarla."
+        },
+        {
+          "at": "functions/lib/cudyrHistoryFunctions.js › archiveCudyrHistory",
+          "decides": "El servidor archiva la captura CUDYR de forma idempotente."
+        },
+        {
+          "at": "src/features/rayen-import/hooks/useRayenSyncAudit.ts › completeRun",
+          "decides": "Cierra la corrida en rayenSyncHistory como completa, parcial o fallida, con su cobertura y sus causas."
+        },
+        {
+          "at": "src/features/rayen-import/components/RayenSyncHistoryModal.tsx › RayenSyncHistoryModal",
+          "decides": "Muestra el historial de sincronizaciones del día."
+        }
+      ],
+      "tests": [
+        "e2e/rayen-delayed-health-preflight.spec.ts › keeps a disconnected preflight out of history and records an error only after verification",
+        "src/tests/rayen-import/useRayenImportCapture.test.ts",
+        "src/tests/rayen-import/rayenSyncTemporalContext.test.ts",
+        "src/tests/rayen-import/rayenImportInfra.test.ts",
+        "src/tests/rayen-import/contentHhrSyncBundleCancel.test.ts",
+        "src/tests/rayen-import/syncBundleCancellationRuntime.test.ts",
+        "src/tests/rayen-import/rayenSyncBundleRuntime.test.ts",
+        "src/tests/rayen-import/useRayenSnapshotPreview.test.ts",
+        "src/tests/rayen-import/syncLifecycleReplay.test.ts",
+        "src/tests/rayen-import/confirmRayenImport.test.ts",
+        "src/tests/rayen-import/useRayenCensusDiffApplication.test.ts",
+        "src/tests/rayen-import/deterministicClinicalReplay.test.ts",
+        "src/tests/rayen-import/cudyrSyncArchive.test.ts",
+        "src/tests/services/cudyr/cudyrArchiveDurability.test.ts",
+        "src/tests/emulator/cudyr-history.emulator.test.ts",
+        "src/tests/rayen-import/useRayenSyncAudit.test.ts",
+        "src/tests/rayen-import/RayenSyncHistoryModal.recovery.test.tsx",
+        "e2e/rayen-mother-newborn-d1-discharge-critical.spec.ts › persiste ambos episodios históricos tras la revisión explícita"
+      ],
+      "rules": ["SRC-01", "CEN-01", "CUD-10", "ID-02", "RN-02", "CUD-01", "SAVE-01", "TIME-02"]
     },
     {
       "id": "eloisa.chart-fields",

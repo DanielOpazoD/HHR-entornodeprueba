@@ -135,6 +135,60 @@ describe('check-feature-map', () => {
     expect(result.stderr).toContain(FEATURE_MAP_PATH);
   });
 
+  const flow = (steps: unknown[]) =>
+    feature({
+      flow: steps,
+      gate: ['src/app/DayButton.tsx'],
+    });
+  const dayStep = { at: 'src/app/DayButton.tsx › DayButton', decides: 'Abre el día elegido.' };
+  const saveStep = { at: 'src/app/saveDay.ts › saveDay', decides: 'Guarda el día.' };
+  const flowFiles = { 'src/app/saveDay.ts': 'export const saveDay = () => undefined;' };
+
+  it('accepts a flow whose every step names its decision, and counts its steps', () => {
+    const result = checkFeatureMap(createRepository([flow([dayStep, saveStep])], flowFiles));
+    expect(result.stderr).toBe('');
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('1 flujos con 2 pasos');
+  });
+
+  it.each([
+    [
+      'a step whose file does not name the symbol',
+      [dayStep, { ...saveStep, at: 'src/app/saveDay.ts › saveNight' }],
+      'src/app/saveDay.ts no nombra «saveNight»',
+    ],
+    [
+      'a symbol that only appears inside a longer name',
+      [dayStep, { ...saveStep, at: 'src/app/saveDay.ts › save' }],
+      'src/app/saveDay.ts no nombra «save»',
+    ],
+    [
+      'a step whose file does not exist',
+      [dayStep, { ...saveStep, at: 'src/app/gone.ts › saveDay' }],
+      'el paso src/app/gone.ts no existe',
+    ],
+    [
+      'a step without a symbol',
+      [dayStep, { ...saveStep, at: 'src/app/saveDay.ts' }],
+      'el paso «src/app/saveDay.ts» no tiene la forma «ruta › símbolo»',
+    ],
+    [
+      'a step that does not say what it decides',
+      [dayStep, { at: saveStep.at, decides: ' ' }],
+      `el paso «${saveStep.at}» no dice qué decide`,
+    ],
+    ['a flow of one step', [dayStep], '"flow" no tiene al menos dos pasos'],
+    [
+      'a gate that is not a step',
+      [saveStep, { ...saveStep, decides: 'Otra vez.' }],
+      'la puerta src/app/DayButton.tsx no es un paso de "flow"',
+    ],
+  ])('rejects %s with a message that says how to fix it', (_name, steps, diagnostic) => {
+    const result = checkFeatureMap(createRepository([flow(steps)], flowFiles));
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(`census.open-day: ${diagnostic}`);
+  });
+
   it('rejects a repeated id and an empty map', () => {
     expect(checkFeatureMap(createRepository([feature(), feature()])).stderr).toContain(
       'el id está repetido'
@@ -154,6 +208,27 @@ describe('check-feature-map', () => {
     const result = checkFeatureMap(process.cwd(), { mapPath: copyPath });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(`${map.features[0].id}: la puerta ${map.features[0].gate[0]}`);
+  });
+
+  it('turns red when a copy of the real map cites a flow step whose symbol was renamed', () => {
+    const map = JSON.parse(readFileSync(FEATURE_MAP_PATH, 'utf8'));
+    const withFlow = map.features.filter((entry: { flow?: unknown[] }) => entry.flow);
+    expect(withFlow.map((entry: { id: string }) => entry.id)).toEqual([
+      'census.cell-save-flow',
+      'eloisa.sync-flow',
+    ]);
+    const renamed = withFlow[0].flow[1];
+    renamed.at = `${renamed.at}Renamed`;
+    const copyRoot = mkdtempSync(path.join(tmpdir(), 'hhr-feature-map-copy-'));
+    roots.push(copyRoot);
+    const copyPath = path.join(copyRoot, 'feature-map.json');
+    writeFileSync(copyPath, JSON.stringify(map));
+
+    const result = checkFeatureMap(process.cwd(), { mapPath: copyPath });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      `census.cell-save-flow: ${renamed.at.split(' › ')[0]} no nombra`
+    );
   });
 
   it('prints and exits as the command exactly what it decides in process', () => {
