@@ -40,17 +40,6 @@ export const filterLibraryEntries = (
       matchesLibraryQuery(entry, filter.query)
   );
 
-export const countLibraryEntriesByCategory = (
-  entries: ReadonlyArray<LibraryEntry>
-): Record<LibraryCategoryId, number> => {
-  const counts = Object.fromEntries(LIBRARY_CATEGORY_IDS.map(id => [id, 0])) as Record<
-    LibraryCategoryId,
-    number
-  >;
-  for (const entry of entries) counts[entry.category] += 1;
-  return counts;
-};
-
 export interface LibraryEntryGroup {
   category: LibraryCategoryId;
   entries: LibraryEntry[];

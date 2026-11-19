@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   appendJscanifyDocumentPages,
   computeSha384Integrity,
-  getDocumentOutputDimensions,
   JSCANIFY_POC_METADATA,
   mapScannerLuminance,
 } from '@/features/document-scanner/services/jscanifyDocumentScannerService';
@@ -13,14 +12,6 @@ import {
 } from '@/features/document-scanner/services/documentFilterProfiles';
 
 describe('JScanify document scanner proof of concept', () => {
-  it('normalizes portrait pages to an A4-like output ratio', () => {
-    expect(getDocumentOutputDimensions(1200, 1800)).toEqual({ width: 1556, height: 2200 });
-  });
-
-  it('preserves landscape orientation in the normalized output', () => {
-    expect(getDocumentOutputDimensions(1800, 1200)).toEqual({ width: 2200, height: 1556 });
-  });
-
   it('pins the open-source processing runtimes', () => {
     expect(JSCANIFY_POC_METADATA).toEqual({
       jscanifyVersion: '1.4.2',

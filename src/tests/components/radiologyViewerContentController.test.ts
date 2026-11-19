@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MMRADExam, MMRADSearchResult } from '@/features/radiology/services/mmradService';
 import {
-  buildRadiologyExamCardState,
   buildRadiologyResultsEmptyMessage,
   countMMRADExamsForModality,
   hasMMRADStructuredReport,
@@ -32,10 +31,7 @@ describe('radiologyViewerContentController', () => {
     expect(hasMMRADStructuredReport(ctExam)).toBe(true);
   });
 
-  it('builds card confirmation and empty messages', () => {
-    const state = buildRadiologyExamCardState(ctExam, 'https://example.com/report.html');
-
-    expect(state.isCopyConfirmed).toBe(true);
+  it('builds empty messages', () => {
     expect(buildRadiologyResultsEmptyMessage('CT')).toContain('CT');
     expect(buildRadiologyResultsEmptyMessage(null)).toBe('No se encontraron exámenes');
   });

@@ -9,7 +9,6 @@ import {
 } from '@/constants/clinicalMovementConstants';
 import {
   buildTransferValidationErrors,
-  hasTransferValidationErrors,
   resolveTransferInitialTime,
   resolveTransferMethodChangeEffects,
 } from '@/features/census/controllers/transferModalController';
@@ -38,7 +37,6 @@ describe('transferModalController', () => {
     expect(errors.otherCenter).toBeTypeOf('string');
     expect(errors.otherEvacuation).toBeTypeOf('string');
     expect(errors.escort).toBeTypeOf('string');
-    expect(hasTransferValidationErrors(errors)).toBe(true);
   });
 
   it('does not return escort error for Aerocardal even with empty escort', () => {

@@ -318,6 +318,3 @@ const TOOLS: ReadonlyArray<LibraryToolEntry> = [
 ];
 
 export const CLINICAL_LIBRARY_ENTRIES: ReadonlyArray<LibraryEntry> = [...DOCUMENTS, ...TOOLS];
-
-export const findLibraryEntry = (id: string): LibraryEntry | undefined =>
-  CLINICAL_LIBRARY_ENTRIES.find(entry => entry.id === id);

@@ -3,11 +3,7 @@ import {
   resolveUpcClassificationLabel,
   type UpcClassification,
 } from '@/domain/upc/upcClassification';
-import {
-  isUciEligibleBedId,
-  isUpcEligibleBedId,
-  resolveEffectiveUpcState,
-} from '@/shared/census/upcBedPolicy';
+import { isUciEligibleBedId, resolveEffectiveUpcState } from '@/shared/census/upcBedPolicy';
 import { resolveUpcReviewReason } from '@/shared/census/upcEvaluationPolicy';
 import {
   buildUpcCriteriaEvaluation,
@@ -183,12 +179,6 @@ export const resolveUpcQuickEvaluationAvailability = ({
   }
   return { allowed: true, reason: null };
 };
-
-/** Summary shown in the window header: how many beds still need today's evaluation. */
-export const countPendingUpcClassifications = (rows: readonly UpcClassificationRow[]): number =>
-  rows.filter(row => row.hasPatient && row.pendingReason !== null).length;
-
-export const isClassifiableUpcBedId = (bedId?: string | null): boolean => isUpcEligibleBedId(bedId);
 
 export interface UpcDraftRecordsInput {
   rows: readonly UpcClassificationRow[];

@@ -34,18 +34,3 @@ export const consentStatusColor: Record<ConsentDisplayState, string> = {
   signed: 'text-emerald-700 bg-emerald-50 border-emerald-200',
   revoked: 'text-red-600 bg-red-50 border-red-200',
 };
-
-/** Whether the given consent state allows photo uploads (only when signed). */
-export const canUploadPhotosFromState = (state: ConsentDisplayState): boolean => state === 'signed';
-
-/** Return the CTA label for the consent action button based on the current state. */
-export const resolveConsentActionLabel = (state: ConsentDisplayState): string => {
-  switch (state) {
-    case 'none':
-      return 'Subir consentimiento';
-    case 'signed':
-      return 'Ver consentimiento';
-    case 'revoked':
-      return 'Subir nuevo consentimiento';
-  }
-};

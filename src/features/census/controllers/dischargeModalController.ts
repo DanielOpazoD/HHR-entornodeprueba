@@ -8,7 +8,6 @@ import { validateDischargeExecutionInput } from '@/features/census/validation/ce
 import type { DischargeModalConfirmPayload, DischargeTarget } from '@/types/movements';
 import { resolveMovementEditorInitialDate } from '@/features/census/controllers/clinicalShiftCalendarController';
 import { resolveValidHourMinuteOrFallback } from '@/features/census/controllers/timeInputController';
-import { hasModalFieldErrors } from '@/features/census/controllers/modalFormController';
 
 export interface DischargeModalFieldErrors {
   time?: string;
@@ -88,9 +87,6 @@ export const mapDischargeValidationErrors = (
 
   return fieldErrors;
 };
-
-export const hasDischargeValidationErrors = (fieldErrors: DischargeModalFieldErrors): boolean =>
-  hasModalFieldErrors(fieldErrors);
 
 export const buildDischargeConfirmPayload = ({
   status,

@@ -1,5 +1,3 @@
-export type ClinicalPanelNavigationDirection = 'previous' | 'next';
-
 /** One panel per bed and episode; a crib shares its bed but not its episode. */
 export const buildClinicalPanelKey = (bedId: string, episodeId: string): string =>
   `${bedId}:${episodeId.trim()}`;

@@ -4,22 +4,11 @@
  * Pure validation functions for consent checks, file types, and size limits.
  */
 
-import type { WoundCareConsent } from '@/types/domain/woundCare';
 import {
   ACCEPTED_PHOTO_MIME_TYPES,
   ACCEPTED_CONSENT_MIME_TYPES,
   MAX_FILE_SIZE_BYTES,
 } from '../constants';
-
-// ============================================================================
-// Consent Validation
-// ============================================================================
-
-export const isConsentSigned = (consent: WoundCareConsent | null | undefined): boolean =>
-  consent?.status === 'signed';
-
-export const canUploadPhotos = (consent: WoundCareConsent | null | undefined): boolean =>
-  isConsentSigned(consent);
 
 // ============================================================================
 // File Validation
@@ -96,5 +85,3 @@ export const BODY_LOCATION_OPTIONS = [
   'Sacro',
   'Otro',
 ] as const;
-
-export type BodyLocation = (typeof BODY_LOCATION_OPTIONS)[number];

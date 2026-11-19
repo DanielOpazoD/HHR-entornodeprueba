@@ -2,9 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   deriveConsentDisplayState,
-  canUploadPhotosFromState,
   consentStatusLabel,
-  resolveConsentActionLabel,
 } from '@/features/wound-care/controllers/consentStatusController';
 import { groupPhotosByDate } from '@/application/wound-care/woundCarePhotoTime';
 import {
@@ -64,22 +62,10 @@ describe('consentStatusController', () => {
     expect(deriveConsentDisplayState({ ...baseConsent, status: 'revoked' })).toBe('revoked');
   });
 
-  it('canUploadPhotosFromState only true for signed', () => {
-    expect(canUploadPhotosFromState('signed')).toBe(true);
-    expect(canUploadPhotosFromState('none')).toBe(false);
-    expect(canUploadPhotosFromState('revoked')).toBe(false);
-  });
-
   it('provides labels for all states', () => {
     expect(consentStatusLabel.none).toBeTruthy();
     expect(consentStatusLabel.signed).toBeTruthy();
     expect(consentStatusLabel.revoked).toBeTruthy();
-  });
-
-  it('resolveConsentActionLabel provides correct labels', () => {
-    expect(resolveConsentActionLabel('none')).toBe('Subir consentimiento');
-    expect(resolveConsentActionLabel('signed')).toBe('Ver consentimiento');
-    expect(resolveConsentActionLabel('revoked')).toBe('Subir nuevo consentimiento');
   });
 });
 

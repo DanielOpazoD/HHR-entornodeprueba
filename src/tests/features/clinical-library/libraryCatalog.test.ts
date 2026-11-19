@@ -7,7 +7,6 @@ import {
   CLINICAL_LIBRARY_ENTRIES,
   LIBRARY_CATEGORIES,
   findLibraryCategory,
-  findLibraryEntry,
 } from '@/features/clinical-library/domain/libraryCatalog';
 import {
   LIBRARY_CATEGORY_IDS,
@@ -47,8 +46,6 @@ describe('clinical library catalog', () => {
       expect(entry.description.trim()).not.toBe('');
       expect(entry.keywords.length).toBeGreaterThan(0);
     }
-    expect(findLibraryEntry('consentimiento-informado')?.kind).toBe('document');
-    expect(findLibraryEntry('missing')).toBeUndefined();
   });
 
   it('points every document to a real public asset outside the PWA precache', () => {
