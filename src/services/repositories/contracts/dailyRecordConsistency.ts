@@ -22,16 +22,6 @@ export type DailyRecordReadConsistencyState =
   | 'missing'
   | 'unavailable';
 
-export type DailyRecordWriteConsistencyState =
-  | 'persisted_local_only'
-  | 'persisted_and_synced'
-  | 'queued_for_retry'
-  | 'auto_merged'
-  | 'blocked_regression'
-  | 'blocked_version_mismatch'
-  | 'blocked_validation'
-  | 'unrecoverable';
-
 export type DailyRecordSyncConsistencyState =
   | 'up_to_date'
   | 'remote_applied'

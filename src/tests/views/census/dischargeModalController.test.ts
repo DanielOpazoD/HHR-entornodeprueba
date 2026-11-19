@@ -4,7 +4,6 @@ import { DEFAULT_DISCHARGE_TYPE } from '@/constants/clinicalMovementConstants';
 import {
   buildDischargeConfirmPayload,
   buildInitialDischargeFormState,
-  hasDischargeValidationErrors,
   mapDischargeValidationErrors,
   shouldShowBabyStatus,
   shouldShowMotherStatus,
@@ -43,7 +42,6 @@ describe('dischargeModalController', () => {
 
     expect(errors.time).toBeTypeOf('string');
     expect(errors.other).toBeTypeOf('string');
-    expect(hasDischargeValidationErrors(errors)).toBe(true);
   });
 
   it('builds payload with typeOther only when discharge type is Otra', () => {

@@ -295,8 +295,3 @@ export const inferNursingShifts = (
     ),
   };
 };
-
-export const hasNursingShiftSuggestions = (proposal: NursingStaffingProposal): boolean =>
-  [proposal.day, proposal.night, proposal.tensDay, proposal.tensNight].some(suggestion =>
-    Boolean(suggestion && (suggestion.names.length > 0 || suggestion.ambiguous))
-  );

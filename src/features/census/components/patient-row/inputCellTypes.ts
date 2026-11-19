@@ -51,13 +51,6 @@ export type CheckHandler = (
 ) => (e: ChangeEvent<HTMLInputElement>) => void;
 
 /**
- * Props for components that need multiple field updates atomically
- */
-export interface MultipleUpdateProps {
-  onMultipleUpdate?: (fields: PatientRowPatientPatch) => PatientRowSaveResult;
-}
-
-/**
  * Props for device-related components
  */
 export type DeviceHandlers = PatientDeviceCallbacks;

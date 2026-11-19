@@ -9,8 +9,3 @@ export const parseLocalizedDecimal = (value: string): number | null => {
 
 export const isPositiveFinite = (value: number | null | undefined): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value > 0;
-
-export const roundTo = (value: number, decimals: number): number => {
-  const factor = 10 ** decimals;
-  return Math.round((value + Number.EPSILON) * factor) / factor;
-};

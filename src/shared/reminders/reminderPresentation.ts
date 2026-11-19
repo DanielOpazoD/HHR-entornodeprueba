@@ -14,7 +14,3 @@ export const formatReminderPriorityLabel = (priority: number): string =>
 
 export const formatReminderReceiptDate = (receipt: Pick<ReminderReadReceipt, 'dateKey'>): string =>
   receipt.dateKey ? formatClinicalDayMonthYear(receipt.dateKey) : 'Legacy';
-
-export const formatReminderReadWindowLabel = (
-  receipt: Pick<ReminderReadReceipt, 'dateKey' | 'shift'>
-): string => `${formatReminderReceiptDate(receipt)} / ${formatReminderShiftLabel(receipt.shift)}`;

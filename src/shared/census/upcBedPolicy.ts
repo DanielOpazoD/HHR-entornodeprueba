@@ -30,11 +30,6 @@ export const resolveUpcClassificationFromChecklist = (
   return derived ?? checklist.classification ?? null;
 };
 
-/** Backward-compat: derive boolean isUPC from checklist. */
-export const resolveIsUpcFromChecklist = (
-  checklist: UpcChecklistRecord | undefined | null
-): boolean => resolveUpcClassificationFromChecklist(checklist) !== null;
-
 export const resolveNormalizedUpcFlag = (
   bedId: string | undefined | null,
   isUPC: boolean | undefined | null

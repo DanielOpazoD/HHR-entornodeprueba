@@ -18,9 +18,6 @@ export interface SpecialistCapabilities {
   canEditClinicalDocumentDrafts: boolean;
 }
 
-export const isDoctorSpecialistRole = (role: SupportedRole): boolean =>
-  role === 'doctor_specialist';
-
 export const resolveSpecialistCapabilities = (role: SupportedRole): SpecialistCapabilities => {
   const roleAccess = resolveRoleAccess(role);
   const isSpecialist = roleAccess.specialistRestrictedMedicalAccess;
@@ -68,9 +65,3 @@ export const canEditSpecialistTodayBoundRecord = ({
     normalizedRecordDate && normalizedTodayISO && normalizedRecordDate === normalizedTodayISO
   );
 };
-
-export const canSpecialistReadClinicalDocuments = (role: SupportedRole): boolean =>
-  resolveSpecialistCapabilities(role).canReadClinicalDocuments;
-
-export const canSpecialistEditClinicalDocumentDrafts = (role: SupportedRole): boolean =>
-  resolveSpecialistCapabilities(role).canEditClinicalDocumentDrafts;

@@ -35,17 +35,14 @@ import { attemptConflictAutoMergeRecovery } from '@/services/repositories/dailyR
 import { syncPatientsToMasterInBackground } from '@/services/repositories/dailyRecordBackgroundMasterSyncController';
 import { resolveBlockingFieldShrinkages } from '@/services/repositories/dailyRecordFieldShrinkageGuard';
 import {
-  applyRecoveryDecisionToState,
   buildBlockedWriteResult,
-  buildWriteResult,
-  createRemoteWriteState,
-  type RemoteWriteState,
-  applyBlockedSaveRecoveryToState,
+  settleWriteResult,
+  startWriteResult,
 } from '@/services/repositories/dailyRecordWriteState';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import {
   buildFieldShrinkageBlockedPartialUpdateResult,
   buildMissingBasePartialUpdateResult,
-  buildValidationBlockedPartialUpdateResult,
 } from '@/services/repositories/dailyRecordPartialUpdateBlockingController';
 import { persistLocalAndAttemptRemoteSync } from '@/services/repositories/dailyRecordRemotePersistenceController';
 import { buildGranularPatchStaleVersionRetryHooks } from '@/services/repositories/dailyRecordStaleVersionRebase';
@@ -69,35 +66,31 @@ import { resolveUnsentDayBase } from '@/services/storage/sync/plainDayFieldRepla
 import { isValidRemoteAuthorityRecord } from '@/services/repositories/dailyRecordRemotePersistenceState';
 import { assertAuthoringSessionCurrent } from '@/services/storage/authoringSession';
 
+/** Stored here with its queue task, which sends it by itself. */
+const queuedHereResult = (
+  date: string,
+  cause: 'retrying' | 'merged',
+  userSafeMessage?: string
+): DailyRecordWriteResult =>
+  settleWriteResult(
+    { ...startWriteResult(date), savedHere: true },
+    { state: 'local', cause },
+    { userSafeMessage }
+  );
+
+/** `null`: no merge. A merge means the queue stored the merged day here with its task. */
 const tryAutoMergeBlockedFullSaveRegression = async (
   date: string,
   record: DailyRecord,
-  error: DataRegressionError,
-  state: RemoteWriteState,
   authoringSession: SaveDailyRecordOptions['authoringSession']
-): Promise<boolean> => {
+): Promise<DailyRecordWriteResult | null> => {
   const mergeResult = await attemptConflictAutoMergeRecovery(date, record, ['*'], authoringSession);
-  if (mergeResult?.status !== 'auto_merged') {
-    return false;
-  }
-  // `auto_merged` means the queue stored the merged day on this computer together with its task.
-  state.savedLocally = true;
-  state.queuedForRetry = true;
-  state.autoMerged = true;
-  applyRecoveryDecisionToState(state, {
-    consistencyState: 'auto_merged',
-    conflictSummary: {
-      kind: 'regression_blocked',
-      sourceOfTruth: 'local',
-      localTimestamp: record.lastUpdated,
-      changedPaths: ['*'],
-      message: error.message,
-    },
-    observabilityTags: ['daily_record', 'write', 'regression_auto_merged'],
-    userSafeMessage:
-      'Se detectó una posible pérdida de datos y se fusionó automáticamente con la copia remota.',
-  });
-  return true;
+  if (mergeResult?.status !== 'auto_merged') return null;
+  return queuedHereResult(
+    date,
+    'merged',
+    'Se detectó una posible pérdida de datos y se fusionó automáticamente con la copia remota.'
+  );
 };
 const resolvePartialUpdateBaseRecord = async (
   date: string,
@@ -141,7 +134,6 @@ const saveDetailedWithinLock = async (
   options: SaveDailyRecordOptions
 ) => {
   const command = createSaveDailyRecordCommand(record, expectedLastUpdated ?? record.lastUpdated);
-  const remoteState = createRemoteWriteState();
   let validatedRecord: DailyRecord = command.record;
   try {
     const currentLocalRecord = await getRecordForDateStrict(command.date);
@@ -157,29 +149,25 @@ const saveDetailedWithinLock = async (
     }
     if (!options.deferRemoteSync) await runRemoteSaveIntegrityCheck(command.date, validatedRecord);
   } catch (err) {
-    if (
+    const merged =
       err instanceof DataRegressionError &&
       !options.deferRemoteSync &&
       !options.rayenStructuralWriteGuard &&
-      validatedRecord &&
-      (await tryAutoMergeBlockedFullSaveRegression(
-        command.date,
-        validatedRecord,
-        err,
-        remoteState,
-        options.authoringSession
-      ))
-    ) {
-      return buildWriteResult(command.date, remoteState);
-    }
+      validatedRecord
+        ? await tryAutoMergeBlockedFullSaveRegression(
+            command.date,
+            validatedRecord,
+            options.authoringSession
+          )
+        : null;
+    if (merged) return merged;
 
     if (
       err instanceof DataRegressionError ||
       err instanceof VersionMismatchError ||
       err instanceof AdmissionDatePolicyViolationError
     ) {
-      applyBlockedSaveRecoveryToState(remoteState, err);
-      return buildBlockedWriteResult(command.date, remoteState);
+      return buildBlockedWriteResult(command.date, err.message, err);
     }
     throw err;
   }
@@ -205,19 +193,15 @@ const saveDetailedWithinLock = async (
       }
     );
     if (!queued.accepted) throw new Error('No fue posible guardar el respaldo junto a su envío.');
-    remoteState.savedLocally = true;
-    remoteState.queuedForRetry = true;
-    remoteState.consistencyState = 'queued_for_retry';
-    return buildWriteResult(command.date, remoteState);
+    return queuedHereResult(command.date, 'retrying');
   }
-  const nextAction = await persistLocalAndAttemptRemoteSync({
+  const { result, next } = await persistLocalAndAttemptRemoteSync({
     change: {
       date: command.date,
       record: validatedRecord,
       changedPaths: ['*'],
       expectedVersion: command.expectedLastUpdated,
     },
-    remoteState,
     authoringSession: options.authoringSession,
     remote: {
       remoteWrite: () =>
@@ -269,13 +253,8 @@ const saveDetailedWithinLock = async (
       remoteAuthorityFirst: Boolean(options.rayenStructuralWriteGuard),
     },
   });
-  if (nextAction === 'return') {
-    return buildWriteResult(command.date, remoteState);
-  }
-
-  syncPatientsToMasterInBackground(validatedRecord);
-
-  return buildWriteResult(command.date, remoteState);
+  if (next === 'continue') syncPatientsToMasterInBackground(validatedRecord);
+  return result;
 };
 
 export const saveDetailed = (
@@ -296,15 +275,11 @@ const updatePartialDetailedWithinLock = async (
   options: PartialUpdateDailyRecordOptions
 ) => {
   const command = createPartialUpdateDailyRecordCommand(date, partialData);
-  const remoteState = createRemoteWriteState();
   let current = await resolvePartialUpdateBaseRecord(command.date, options);
 
   if (!current) {
     dailyRecordWriteLogger.warn(`No record found for ${command.date}; partial update aborted`);
-    return buildMissingBasePartialUpdateResult({
-      date: command.date,
-      state: remoteState,
-    });
+    return buildMissingBasePartialUpdateResult(command.date);
   }
 
   // Try the observed version first. The authority transaction owns CAS and the episode/decision
@@ -339,12 +314,7 @@ const updatePartialDetailedWithinLock = async (
     ));
   } catch (err) {
     if (err instanceof AdmissionDatePolicyViolationError) {
-      return buildValidationBlockedPartialUpdateResult({
-        date: command.date,
-        state: remoteState,
-        changedPaths: Object.keys(command.patch),
-        error: err,
-      });
+      return buildBlockedWriteResult(command.date, err.message, err);
     }
     throw err;
   }
@@ -393,21 +363,16 @@ const updatePartialDetailedWithinLock = async (
     mergedPatches
   );
   if (suspiciousShrinkages.length > 0) {
-    return buildFieldShrinkageBlockedPartialUpdateResult({
-      date: command.date,
-      state: remoteState,
-      shrinkages: suspiciousShrinkages,
-    });
+    return buildFieldShrinkageBlockedPartialUpdateResult(command.date, suspiciousShrinkages);
   }
 
-  await persistLocalAndAttemptRemoteSync({
+  const { result } = await persistLocalAndAttemptRemoteSync({
     change: {
       date: command.date,
       record: validatedRecord,
       changedPaths: semanticChangedPaths,
       expectedVersion: current.lastUpdated,
     },
-    remoteState,
     authoringSession: options.authoringSession,
     remote: {
       remoteWrite: () =>
@@ -466,7 +431,7 @@ const updatePartialDetailedWithinLock = async (
       remoteAuthorityFirst: guardedCommandPolicy.remoteAuthorityFirst,
     },
   });
-  return buildWriteResult(command.date, remoteState);
+  return result;
 };
 
 export const updatePartialDetailed = (

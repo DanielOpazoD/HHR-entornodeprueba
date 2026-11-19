@@ -4,6 +4,11 @@ import {
   normalizeDailyRecordClinicalField,
   parseDailyRecordBedPatchPath,
 } from '@/hooks/controllers/dailyRecordClinicalPatchPathController';
+import {
+  getPathValue,
+  hasMeaningfulText,
+  patchValueMatchesHydratedRecord,
+} from '@/hooks/controllers/dailyRecordHydratedPatchValues';
 
 const POST_ADMISSION_FOLLOW_UP_FIELDS = new Set([
   'pathology',
@@ -20,43 +25,6 @@ const DIAGNOSIS_FOLLOW_UP_FIELDS = new Set([
   'cie10Description',
   'diagnosisComments',
 ]);
-
-const getPathValue = (source: unknown, path: string): unknown =>
-  path.split('.').reduce<unknown>((current, segment) => {
-    if (current === null || typeof current !== 'object') {
-      return undefined;
-    }
-    return (current as Record<string, unknown>)[segment];
-  }, source);
-
-const valuesDiffer = (left: unknown, right: unknown): boolean =>
-  JSON.stringify(left ?? null) !== JSON.stringify(right ?? null);
-
-const hasOwnPatchPath = (patch: DailyRecordPatch, path: string): boolean =>
-  Object.prototype.hasOwnProperty.call(patch, path);
-
-const getPatchValue = (patch: DailyRecordPatch, path: string): unknown =>
-  (patch as Record<string, unknown>)[path];
-
-const normalizeComparableText = (value: unknown): string =>
-  typeof value === 'string' ? value.trim().toLowerCase() : '';
-
-const hasMeaningfulText = (value: unknown): boolean => normalizeComparableText(value).length > 0;
-
-const patchValueMatchesHydratedRecord = (
-  attemptedPatch: DailyRecordPatch,
-  attemptedPath: string,
-  hydratedRecord: DailyRecord,
-  canonicalPath: string
-): boolean => {
-  if (!hasOwnPatchPath(attemptedPatch, attemptedPath)) {
-    return false;
-  }
-  return !valuesDiffer(
-    getPatchValue(attemptedPatch, attemptedPath),
-    getPathValue(hydratedRecord, canonicalPath)
-  );
-};
 
 const hasHydratedDiagnosisValue = (hydratedRecord: DailyRecord, bedId: string): boolean => {
   const hydratedBed = hydratedRecord.beds?.[bedId];

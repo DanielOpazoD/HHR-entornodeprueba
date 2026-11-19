@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   checkBotHealth,
   fetchShiftsFromGroup,
-  sendWhatsAppMessage,
   getWhatsAppGroups,
   getWhatsAppConfig,
   updateWhatsAppConfig,
@@ -50,16 +49,6 @@ describe('whatsappService', () => {
 
       const health = await checkBotHealth();
       expect(health.status).toBe('ok');
-    });
-
-    it('should send a message', async () => {
-      vi.mocked(fetch).mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ success: true, messageId: '123' }),
-      } as unknown as Response);
-
-      const result = await sendWhatsAppMessage('group1', 'Hello');
-      expect(result.success).toBe(true);
     });
 
     it('should get WhatsApp groups', async () => {

@@ -109,7 +109,7 @@ describe('baseStorageService', () => {
       expect(years).toEqual([]);
     });
 
-    it('createListFilesInMonth returns files correctly', async () => {
+    it('createListFilesInMonthWithReport returns files correctly', async () => {
       interface TestFile extends BaseStoredFile {
         date: string;
       }
@@ -125,7 +125,7 @@ describe('baseStorageService', () => {
           size: meta.size,
         }),
       };
-      const listFiles = BaseStorage.createListFilesInMonth(config);
+      const listFiles = BaseStorage.createListFilesInMonthWithReport(config);
 
       const { listAll, getMetadata, getDownloadURL } = await import('firebase/storage');
       vi.mocked(listAll).mockResolvedValueOnce({
@@ -138,52 +138,52 @@ describe('baseStorageService', () => {
       } as unknown as FullMetadata);
       vi.mocked(getDownloadURL).mockResolvedValueOnce('http://download.com/file1');
 
-      const files = await listFiles('2025', '01');
+      const { files } = await listFiles('2025', '01');
       expect(files).toHaveLength(1);
       expect(files[0].name).toBe('file1.json');
     });
 
-    it('createListFilesInMonth returns empty if no items found', async () => {
+    it('createListFilesInMonthWithReport returns empty if no items found', async () => {
       const config: BaseStorage.ListFilesConfig<BaseStoredFile> = {
         storageRoot: 'test-root',
         parseFilePath: vi.fn(),
         mapToFile: vi.fn(),
       };
-      const listFiles = BaseStorage.createListFilesInMonth(config);
+      const listFiles = BaseStorage.createListFilesInMonthWithReport(config);
       const { listAll } = await import('firebase/storage');
       vi.mocked(listAll).mockResolvedValueOnce({
         prefixes: [],
         items: [],
       } as unknown as ListResult);
 
-      const files = await listFiles('2025', '01');
+      const { files } = await listFiles('2025', '01');
       expect(files).toEqual([]);
     });
 
-    it('createListFilesInMonth skips files that fail parsing', async () => {
+    it('createListFilesInMonthWithReport skips files that fail parsing', async () => {
       const config: BaseStorage.ListFilesConfig<BaseStoredFile> = {
         storageRoot: 'test-root',
         parseFilePath: vi.fn().mockReturnValue(null), // Fail parsing
         mapToFile: vi.fn(),
       };
-      const listFiles = BaseStorage.createListFilesInMonth(config);
+      const listFiles = BaseStorage.createListFilesInMonthWithReport(config);
       const { listAll } = await import('firebase/storage');
       vi.mocked(listAll).mockResolvedValueOnce({
         prefixes: [],
         items: [{ name: 'invalid.json', fullPath: 'path' }],
       } as unknown as ListResult);
 
-      const files = await listFiles('2025', '01');
+      const { files } = await listFiles('2025', '01');
       expect(files).toEqual([]);
     });
 
-    it('createListFilesInMonth handles individual file info errors', async () => {
+    it('createListFilesInMonthWithReport handles individual file info errors', async () => {
       const config: BaseStorage.ListFilesConfig<BaseStoredFile> = {
         storageRoot: 'test-root',
         parseFilePath: vi.fn().mockReturnValue({ date: '2025-01-01' }),
         mapToFile: vi.fn(),
       };
-      const listFiles = BaseStorage.createListFilesInMonth(config);
+      const listFiles = BaseStorage.createListFilesInMonthWithReport(config);
       const { listAll, getMetadata } = await import('firebase/storage');
       vi.mocked(listAll).mockResolvedValueOnce({
         prefixes: [],
@@ -191,17 +191,17 @@ describe('baseStorageService', () => {
       } as unknown as ListResult);
       vi.mocked(getMetadata).mockRejectedValueOnce(new Error('Metadata error'));
 
-      const files = await listFiles('2025', '01');
+      const { files } = await listFiles('2025', '01');
       expect(files).toEqual([]);
     });
 
-    it('createListFilesInMonth skips expected miss errors per file', async () => {
+    it('createListFilesInMonthWithReport skips expected miss errors per file', async () => {
       const config: BaseStorage.ListFilesConfig<BaseStoredFile> = {
         storageRoot: 'test-root',
         parseFilePath: vi.fn().mockReturnValue({ date: '2025-01-01' }),
         mapToFile: vi.fn(),
       };
-      const listFiles = BaseStorage.createListFilesInMonth(config);
+      const listFiles = BaseStorage.createListFilesInMonthWithReport(config);
       const { listAll, getMetadata } = await import('firebase/storage');
       vi.mocked(listAll).mockResolvedValueOnce({
         prefixes: [],
@@ -209,7 +209,7 @@ describe('baseStorageService', () => {
       } as unknown as ListResult);
       vi.mocked(getMetadata).mockRejectedValueOnce({ code: 'storage/unauthorized' });
 
-      const files = await listFiles('2025', '01');
+      const { files } = await listFiles('2025', '01');
       expect(files).toEqual([]);
     });
   });

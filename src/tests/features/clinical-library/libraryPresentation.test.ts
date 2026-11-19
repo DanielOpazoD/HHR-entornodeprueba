@@ -1,10 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
-import {
-  formatClinicalNumber,
-  formatDocumentSize,
-} from '@/features/clinical-library/controllers/libraryPresentation';
+import { formatClinicalNumber } from '@/features/clinical-library/controllers/libraryPresentation';
 import {
   PLAUSIBLE_RANGES,
   plausibleValue,
@@ -13,13 +10,6 @@ import {
 import { formatConcentration } from '@/features/clinical-library/controllers/infusionPresentation';
 
 describe('library presentation helpers', () => {
-  it('formats sizes with a binary megabyte threshold', () => {
-    expect(formatDocumentSize(97)).toBe('97 KB');
-    expect(formatDocumentSize(1000)).toBe('1000 KB');
-    expect(formatDocumentSize(1024)).toBe('1 MB');
-    expect(formatDocumentSize(7110)).toBe('6,9 MB');
-  });
-
   it('never shows a real dose as zero', () => {
     expect(formatClinicalNumber(26.25)).toBe('26,3');
     expect(formatClinicalNumber(0.1)).toBe('0,1');

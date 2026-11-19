@@ -1,11 +1,11 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
 import { getCurrentShift } from '@/utils/clinicalDayUtils';
+import { INSTITUTIONAL_ACCOUNTS } from '@/constants/identities';
 import {
   getNurseAuthors,
   getAttributedAuthors,
   isSharedNursingAccount,
-  SHARED_NURSING_ACCOUNT,
 } from '@/services/admin/attributionService';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
@@ -25,7 +25,7 @@ describe('attributionService', () => {
 
   describe('isSharedNursingAccount', () => {
     it('should return true for the shared official email', () => {
-      expect(isSharedNursingAccount(SHARED_NURSING_ACCOUNT)).toBe(true);
+      expect(isSharedNursingAccount(INSTITUTIONAL_ACCOUNTS.NURSING)).toBe(true);
     });
 
     it('should return false for other emails', () => {
@@ -96,7 +96,7 @@ describe('attributionService', () => {
 
   describe('getAttributedAuthors', () => {
     it('should return authors for shared account', () => {
-      expect(getAttributedAuthors(SHARED_NURSING_ACCOUNT, mockRecord, 'day')).toBe(
+      expect(getAttributedAuthors(INSTITUTIONAL_ACCOUNTS.NURSING, mockRecord, 'day')).toBe(
         'Enfermero 1, Enfermero 2'
       );
     });

@@ -38,6 +38,3 @@ export const toggleExamRequestSelection = (
   }
   return next;
 };
-
-export const countSelectedExamRequests = (selectedExams: ReadonlySet<string>): number =>
-  selectedExams.size;

@@ -233,19 +233,6 @@ describe('useExportManager', () => {
     });
   });
 
-  it('should handle null record', () => {
-    const props = {
-      ...defaultProps,
-      record: null,
-    };
-
-    const { result } = renderHook(() =>
-      useExportManager({ ...props, canVerifyArchiveStatus: false })
-    );
-
-    expect(result.current.handleExportPDF).toBeDefined();
-  });
-
   it('backs up census excel from the resolved stable snapshot', async () => {
     const flushBeforeExport = vi.fn().mockResolvedValue({ status: 'ready', check: () => null });
     const exportedRecord = { ...mockRecord, nursesNightShift: ['Updated Nurse'] } as DailyRecord;

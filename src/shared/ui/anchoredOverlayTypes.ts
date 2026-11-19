@@ -12,7 +12,3 @@ export type VerticalPlacement = 'top' | 'bottom';
 export interface VerticalPlacementPosition extends TopLeftPosition {
   placement: VerticalPlacement;
 }
-
-export interface DropDirectionPosition extends TopLeftPosition {
-  dropUp: boolean;
-}

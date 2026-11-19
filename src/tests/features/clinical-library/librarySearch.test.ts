@@ -3,13 +3,12 @@ import { describe, expect, it } from 'vitest';
 
 import { CLINICAL_LIBRARY_ENTRIES } from '@/features/clinical-library/domain/libraryCatalog';
 import {
-  countLibraryEntriesByCategory,
   filterLibraryEntries,
   groupLibraryEntriesByCategory,
   matchesLibraryQuery,
   normalizeSearchText,
 } from '@/features/clinical-library/domain/librarySearch';
-import { parseLocalizedDecimal, roundTo } from '@/features/clinical-library/domain/numberInput';
+import { parseLocalizedDecimal } from '@/features/clinical-library/domain/numberInput';
 
 const byId = (id: string) => {
   const entry = CLINICAL_LIBRARY_ENTRIES.find(candidate => candidate.id === id);
@@ -48,13 +47,7 @@ describe('library search', () => {
     ).toEqual([]);
   });
 
-  it('counts and groups entries in canonical category order, keeping empty groups', () => {
-    const counts = countLibraryEntriesByCategory(CLINICAL_LIBRARY_ENTRIES);
-    expect(counts.tools).toBe(6);
-    expect(counts.forms).toBeGreaterThan(0);
-    expect(counts.protocols).toBe(0);
-    expect(counts.infographics).toBe(0);
-
+  it('groups entries in canonical category order, keeping empty groups', () => {
     const groups = groupLibraryEntriesByCategory(CLINICAL_LIBRARY_ENTRIES);
     expect(groups.map(group => group.category)).toEqual([
       'forms',
@@ -77,10 +70,5 @@ describe('localized number input', () => {
     expect(parseLocalizedDecimal('1,000.5')).toBeNull();
     expect(parseLocalizedDecimal('abc')).toBeNull();
     expect(parseLocalizedDecimal('1e3')).toBeNull();
-  });
-
-  it('rounds to the requested decimals without floating noise', () => {
-    expect(roundTo(1.005, 2)).toBe(1.01);
-    expect(roundTo(26.25, 1)).toBe(26.3);
   });
 });

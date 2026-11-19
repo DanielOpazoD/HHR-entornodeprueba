@@ -9,7 +9,6 @@ import {
   loadMedifPreferences,
   saveMedifPreferences,
   setMedifFieldHidden,
-  toggleHiddenMedifField,
 } from '@/features/clinical-library/domain/medifPreferences';
 import {
   emptyMedifValues,
@@ -55,7 +54,7 @@ describe('MEDIF field preferences', () => {
     const wheelchair = setMedifFieldHidden(original, 'p1_silla_si', true);
     expect(wheelchair.hiddenFieldIds).toEqual(['p1_silla_si', 'p1_silla_no']);
     expect(original.hiddenFieldIds).toEqual([]);
-    expect(toggleHiddenMedifField(wheelchair, 'p1_silla_no').hiddenFieldIds).toEqual([]);
+    expect(setMedifFieldHidden(wheelchair, 'p1_silla_no', false).hiddenFieldIds).toEqual([]);
     const identity = setMedifFieldHidden(original, 'p2_nombre_paciente', true);
     expect(identity.hiddenFieldIds).toEqual(['p1_nombre_pasajero', 'p2_nombre_paciente']);
     expect(importMedifPreferences(configuration(['p1_edad'])).hiddenFieldIds).toEqual([

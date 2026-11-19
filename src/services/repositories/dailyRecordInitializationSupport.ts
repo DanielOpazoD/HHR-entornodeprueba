@@ -4,14 +4,13 @@ import { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   buildClinicalBedsFromPreviousRecord,
   buildEmptyClinicalBeds,
-  preserveCIE10FromPreviousDay,
   preparePatientForCarryover,
 } from '@/services/repositories/dailyRecordClinicalDomainService';
 import { resolveInitialDayHandoff } from '@/services/repositories/dailyRecordHandoffDomainService';
 import { createRecordDateTimestamp } from '@/services/repositories/dailyRecordMetadataDomainService';
 import { resolveInheritedDailyRecordStaffing } from '@/services/repositories/dailyRecordStaffingDomainService';
 
-export { preserveCIE10FromPreviousDay, preparePatientForCarryover };
+export { preparePatientForCarryover };
 
 export const buildInitializedDayRecord = (
   date: string,

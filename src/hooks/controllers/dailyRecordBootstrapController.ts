@@ -68,9 +68,6 @@ export const resolveDailyRecordBootstrapPhase = ({
   return gracePeriodExpired ? 'remote_record_timeout' : 'remote_record_bootstrapping';
 };
 
-export const isDailyRecordBootstrapPending = (phase: DailyRecordBootstrapPhase): boolean =>
-  phase === 'remote_runtime_bootstrapping' || phase === 'remote_record_bootstrapping';
-
 export const shouldAttemptTodayEmptyRecovery = ({
   currentDateString,
   todayDateString,

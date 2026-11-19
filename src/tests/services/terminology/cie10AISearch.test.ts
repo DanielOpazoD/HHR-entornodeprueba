@@ -18,7 +18,6 @@
  * FUNCIONES EXPORTADAS:
  *  - searchCIE10WithAI(query, signal?) → CIE10Entry[]
  *  - checkAIAvailability() → boolean
- *  - isAIAvailable() → boolean (sync, cached)
  *
  * SEGURIDAD:
  *  - En producción: SOLO usa endpoint serverless (key nunca en frontend)
@@ -178,7 +177,7 @@ describe('Búsqueda IA CIE-10 (cie10AISearch)', () => {
       await cie10Module.searchCIE10WithAI('synthetic');
       finish(response(false));
       await expect(probe).resolves.toBe(true);
-      expect(cie10Module.isAIAvailable()).toBe(true);
+      await expect(cie10Module.checkAIAvailability()).resolves.toBe(true);
     });
   });
 

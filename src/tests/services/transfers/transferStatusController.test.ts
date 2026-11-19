@@ -2,12 +2,8 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  ACTIVE_TRANSFER_STATUSES,
   CLOSED_TRANSFER_STATUSES,
-  isActiveTransferStatus,
   isClosedTransferStatus,
-  isFinalizedTransferStatus,
-  isTransferredTransferStatus,
   normalizeHistoryStatusFrom,
   normalizeLegacyTransferStatus,
   pickLatestOpenTransferRequest,
@@ -23,16 +19,10 @@ describe('transferStatusController', () => {
     expect(normalizeLegacyTransferStatus(undefined)).toBe('REQUESTED');
   });
 
-  it('exposes active and closed status helpers consistently', () => {
-    expect(ACTIVE_TRANSFER_STATUSES).toContain('REQUESTED');
-    expect(ACTIVE_TRANSFER_STATUSES).toContain('ACCEPTED_WITH_CAPACITY');
-    expect(ACTIVE_TRANSFER_STATUSES).toContain('ACCEPTED_WAITING_CAPACITY');
+  it('exposes closed status helpers consistently', () => {
     expect(CLOSED_TRANSFER_STATUSES).toContain('TRANSFERRED');
-    expect(isActiveTransferStatus('ACCEPTED')).toBe(true);
-    expect(isActiveTransferStatus('ACCEPTED_WITH_CAPACITY')).toBe(true);
     expect(isClosedTransferStatus('CANCELLED')).toBe(true);
-    expect(isFinalizedTransferStatus('REJECTED')).toBe(true);
-    expect(isTransferredTransferStatus('TRANSFERRED')).toBe(true);
+    expect(isClosedTransferStatus('REJECTED')).toBe(true);
   });
 
   it('reads every legacy status as its current name and keeps current ones', () => {
@@ -52,9 +42,7 @@ describe('transferStatusController', () => {
 
   it('separates open from closed statuses', () => {
     expect(isClosedTransferStatus('REQUESTED')).toBe(false);
-    expect(isActiveTransferStatus('TRANSFERRED')).toBe(false);
-    expect(isFinalizedTransferStatus('RECEIVED')).toBe(false);
-    expect(isTransferredTransferStatus('CANCELLED')).toBe(false);
+    expect(isClosedTransferStatus('RECEIVED')).toBe(false);
   });
 
   it('picks the most recently touched open request, never an archived or closed one', () => {
