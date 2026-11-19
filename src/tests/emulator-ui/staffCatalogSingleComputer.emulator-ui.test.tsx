@@ -42,7 +42,8 @@ import { StaffManagerModal } from '@/features/census/components/staff-catalog/St
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
 
-// A real emulator transaction can exceed RTL's 1 s default wait.
+// Every list on screen comes from a read through IndexedDB and the emulator, and the first case
+// of a worker also pays the first render: together they can exceed RTL's 1 s default wait.
 const REMOTE = { timeout: 10_000 };
 const CONFLICT = 'La lista cambió en otro equipo. Revise la lista actualizada y repita el cambio.';
 const catalogs: Table<CatalogRecord> = hospitalDB.table('catalogs');
@@ -81,6 +82,12 @@ const rename = (from: string, to: string) => {
   fireEvent.change(screen.getByDisplayValue(from), { target: { value: to } });
   fireEvent.click(screen.getByTitle('Guardar'));
 };
+// The editor ignores a change while a save is in flight; a person waits until it takes one again.
+const editorReady = () =>
+  waitFor(
+    () => expect(screen.getByRole('button', { name: 'Agregar personal' })).toBeEnabled(),
+    REMOTE
+  );
 const renderManager = (ui: ReactElement) => {
   const { wrapper } = createQueryClientTestWrapper();
   render(ui, { wrapper });
@@ -134,7 +141,7 @@ it('renaming a display example on an empty catalog saves the new name, without a
   await setDoc(settingsRef('nurses'), { list: [] });
   holdListener();
   renderManager(<Nurses />);
-  await screen.findByText('Enfermero/a 1');
+  await screen.findByText('Enfermero/a 1', {}, REMOTE);
   rename('Enfermero/a 1', 'Sintético Real');
   await waitFor(async () => expect(await serverList()).toEqual(['Sintético Real']), REMOTE);
   await screen.findByText('Sintético Real', {}, REMOTE);
@@ -145,11 +152,12 @@ it('renaming a display example on an empty catalog saves the new name, without a
 it('removing an example or adding beside them on a missing catalog saves no example', async () => {
   holdListener();
   renderManager(<Tens />);
-  await screen.findByText('TENS 2');
+  await screen.findByText('TENS 2', {}, REMOTE);
   fireEvent.click(
     screen.getByText('TENS 2').closest('.group')!.querySelector('[title="Eliminar"]')!
   );
   await waitFor(async () => expect(await serverList('tens')).toEqual([]), REMOTE);
+  await editorReady();
   fireEvent.change(screen.getByPlaceholderText('Nombre completo…'), {
     target: { value: 'Sintético Nuevo' },
   });
@@ -161,7 +169,7 @@ it('removing an example or adding beside them on a missing catalog saves no exam
 it('renaming a row with hidden case variants does not bring the old name back', async () => {
   await setDoc(settingsRef('nurses'), { list: ['Sintético Uno', 'sintético uno'] });
   renderManager(<Nurses />);
-  await screen.findByText('Sintético Uno');
+  await screen.findByText('Sintético Uno', {}, REMOTE);
   expect(screen.queryByText('sintético uno')).not.toBeInTheDocument();
   rename('Sintético Uno', 'Sintético Nuevo');
   await waitFor(async () => expect(await serverList()).toEqual(['Sintético Nuevo']), REMOTE);
@@ -175,10 +183,11 @@ it('renaming keeps the visible position of the row', async () => {
     list: ['Sintético Uno', 'Sintético Dos', 'Sintético Tres'],
   });
   renderManager(<Nurses />);
-  await screen.findByText('Sintético Uno');
+  await screen.findByText('Sintético Uno', {}, REMOTE);
   rename('Sintético Uno', 'Sintético Nuevo');
   await screen.findByText('Sintético Nuevo', {}, REMOTE);
   expect(visibleRows()).toEqual(['Sintético Nuevo', 'Sintético Dos', 'Sintético Tres']);
+  await editorReady();
   rename('Sintético Dos', 'Sintético Medio');
   await screen.findByText('Sintético Medio', {}, REMOTE);
   expect(visibleRows()).toEqual(['Sintético Nuevo', 'Sintético Medio', 'Sintético Tres']);
@@ -188,7 +197,7 @@ it('renaming keeps the visible position of the row', async () => {
 it('removing the only row leaves a real empty list', async () => {
   await setDoc(settingsRef('nurses'), { list: ['Sintético Uno'] });
   renderManager(<Nurses />);
-  await screen.findByText('Sintético Uno');
+  await screen.findByText('Sintético Uno', {}, REMOTE);
   fireEvent.click(screen.getByTitle('Eliminar'));
   await waitFor(async () => expect(await serverList()).toEqual([]), REMOTE);
   await waitFor(() => expect(screen.queryByText('Sintético Uno')).not.toBeInTheDocument(), REMOTE);
@@ -202,7 +211,7 @@ for (const [saved, incoming] of [
   it(`keeps one accented row after adding ${incoming} to ${saved}`, async () => {
     await setDoc(settingsRef('nurses'), { list: [saved] });
     renderManager(<Nurses />);
-    await screen.findByText(saved);
+    await screen.findByText(saved, {}, REMOTE);
     fireEvent.change(screen.getByPlaceholderText('Nombre completo…'), {
       target: { value: incoming },
     });
@@ -211,7 +220,7 @@ for (const [saved, incoming] of [
     await waitFor(() => expect(visibleRows()).toEqual(['Ana Peña']), REMOTE);
     cleanup();
     renderManager(<Nurses />);
-    await screen.findByText('Ana Peña');
+    await screen.findByText('Ana Peña', {}, REMOTE);
     expect(visibleRows()).toEqual(['Ana Peña']);
   });
 }
