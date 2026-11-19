@@ -867,7 +867,8 @@ jobs:
     runs-on: ubuntu-24.04
     # The build consumes the release-evidence runtime contract from this job.
     # Other release gates still block ci-summary, but can run alongside the build.
-    # The preview smoke runs in preview-smoke-lanes so it no longer waits here.
+    # The preview smoke runs in preview-smoke-lanes, on preview-build's bundle, so it
+    # no longer waits here.
     needs: [quality-static-governance-snapshots]
 
     steps:
@@ -921,19 +922,15 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  preview-smoke-lanes:
-    # The preview pack starts with the other gates instead of after build-budget.
-    # Each lane serves its own bundle of the same commit: deployments rebuild on
-    # Netlify, and the bundle differs from build-budget only in release-evidence.json.
-    # Lanes are split by observed duration; see scripts/previewSmokeLaneSupport.mjs.
-    name: preview-smoke-lane (${{ matrix.lane }})
+  preview-build:
+    # The preview pack starts with the other gates instead of after build-budget,
+    # so it does not wait for the release-evidence runtime. Deployments rebuild on
+    # Netlify, and this bundle differs from build-budget only in release-evidence.json.
+    # It is built once here and every preview lane serves the same artifact.
+    name: preview-build
     runs-on: ubuntu-24.04
     needs: [ci-scope]
     if: needs.ci-scope.outputs.scope == 'full'
-    strategy:
-      fail-fast: false
-      matrix:
-        lane: [app, dicom-graphics-stress, dicom-1, dicom-2, dicom-3]
 
     steps:
       - name: Checkout code
@@ -946,6 +943,48 @@ jobs:
         run: npm run build
         env:
           CI: true
+
+      - name: Upload preview bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: preview-dist
+          path: dist/
+          # Kept as long as the production dist, so a lane re-run days later still finds it.
+          retention-days: 7
+          if-no-files-found: error
+          overwrite: true
+
+  preview-smoke-lanes:
+    # Lanes are split by observed duration; see scripts/previewSmokeLaneSupport.mjs.
+    # They run even when preview-build fails, only to fail visibly: a lane skipped
+    # for a missing bundle would look green in the checks list.
+    name: preview-smoke-lane (${{ matrix.lane }})
+    runs-on: ubuntu-24.04
+    needs: [ci-scope, preview-build]
+    if: ${{ !cancelled() && needs.ci-scope.outputs.scope == 'full' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [app, dicom-graphics-stress, dicom-1, dicom-2, dicom-3]
+
+    steps:
+      - name: Require the shared preview bundle
+        if: needs.preview-build.result != 'success'
+        run: |
+          echo "::error::preview-build ended as '${{ needs.preview-build.result }}'; this lane has no bundle to test."
+          exit 1
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
+
+      - name: Download preview bundle
+        uses: actions/download-artifact@v7
+        with:
+          name: preview-dist
+          path: dist
 
       - name: Install Playwright browsers for preview bootstrap smoke
         uses: ./.github/actions/setup-ci-chromium
