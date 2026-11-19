@@ -1,60 +1,50 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { warmRayenClinicalEnrichmentBatch } from '@/features/rayen-import/bridge/rayenClinicalEnrichmentBatchClient';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  RAYEN_CLINICAL_ENRICHMENT_TIMEOUT_MS,
+  warmRayenClinicalEnrichmentBatch,
+} from '@/features/rayen-import/bridge/rayenClinicalEnrichmentBatchClient';
 
-const mocks = vi.hoisted(() => ({ getRegionalFunctions: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  regionalInstance: { region: 'southamerica-east1' },
+  getRegionalFunctions: vi.fn(),
+  httpsCallable: vi.fn(),
+  invoke: vi.fn(),
+}));
 
 vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
   defaultFunctionsRuntime: { getRegionalFunctions: mocks.getRegionalFunctions },
 }));
-
-// A stand-in for the SDK's Functions instance: the real SDK starts a background IndexedDB
-// heartbeat that outlives the test. The warm-up uses the instance's own resolver (`_url`).
-const regionalFunctions = (origin: string) => (region: string) => ({
-  region,
-  _url: (name: string) => `${origin}/${region}/${name}`,
-});
+vi.mock('firebase/functions', () => ({ httpsCallable: mocks.httpsCallable }));
 
 describe('clinical batch warm-up', () => {
-  const fetchMock = vi.fn();
-
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.stubGlobal('fetch', fetchMock);
+    mocks.getRegionalFunctions.mockResolvedValue(mocks.regionalInstance);
+    mocks.httpsCallable.mockReturnValue(mocks.invoke);
   });
 
-  afterEach(() => vi.unstubAllGlobals());
-
-  it('sends one bare preflight to the address the callable itself resolves', async () => {
-    mocks.getRegionalFunctions.mockImplementation(async (region: string) =>
-      regionalFunctions('https://functions.example')(region)
-    );
-    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+  it('calls the clinical save callable with only the warm-up marker', async () => {
+    mocks.invoke.mockResolvedValue({ data: { warmed: true } });
 
     await warmRayenClinicalEnrichmentBatch();
 
     expect(mocks.getRegionalFunctions).toHaveBeenCalledExactlyOnceWith('southamerica-east1');
-    // No body, no Authorization and no payload: the server only answers the CORS preflight.
-    expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
-      'https://functions.example/southamerica-east1/applyRayenClinicalEnrichmentBatch',
-      { method: 'OPTIONS' }
+    expect(mocks.httpsCallable).toHaveBeenCalledExactlyOnceWith(
+      mocks.regionalInstance,
+      'applyRayenClinicalEnrichmentBatch',
+      { timeout: RAYEN_CLINICAL_ENRICHMENT_TIMEOUT_MS }
     );
+    // Exactly the marker the server recognizes: no patient data, date or contract stamp.
+    expect(mocks.invoke).toHaveBeenCalledExactlyOnceWith({ warmup: true });
   });
 
-  it('settles quietly when the browser refuses the OPTIONS request after its preflight', async () => {
-    mocks.getRegionalFunctions.mockImplementation(async (region: string) =>
-      regionalFunctions('https://functions.example')(region)
+  it('settles quietly when the server refuses the warm-up', async () => {
+    mocks.invoke.mockRejectedValue(
+      Object.assign(new Error('unauthenticated'), { code: 'unauthenticated' })
     );
-    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
 
     await expect(warmRayenClinicalEnrichmentBatch()).resolves.toBeUndefined();
-    expect(fetchMock).toHaveBeenCalledOnce();
-  });
-
-  it('sends nothing when the SDK instance exposes no address resolver', async () => {
-    mocks.getRegionalFunctions.mockResolvedValue({ region: 'southamerica-east1' });
-
-    await expect(warmRayenClinicalEnrichmentBatch()).resolves.toBeUndefined();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mocks.invoke).toHaveBeenCalledOnce();
   });
 
   it('sends nothing when the Functions runtime is unavailable', async () => {
@@ -63,6 +53,6 @@ describe('clinical batch warm-up', () => {
     );
 
     await expect(warmRayenClinicalEnrichmentBatch()).resolves.toBeUndefined();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mocks.httpsCallable).not.toHaveBeenCalled();
   });
 });

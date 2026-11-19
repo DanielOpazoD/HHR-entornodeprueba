@@ -43,8 +43,8 @@ const {
 } = require('./rayenClinicalEnrichmentPolicy');
 
 const { assertDocumentaryCudyrAuthority } = require('./rayenDocumentaryCudyrPolicy');
-
-const operation = 'applyRayenClinicalEnrichmentBatch';
+const { answerClinicalBatchWarmup, isClinicalBatchWarmup } = require('./rayenClinicalBatchWarmup');
+const { recordTelemetry } = require('./rayenClinicalEnrichmentTelemetry');
 // v3: parity compares the combined view (episode documents over the day, phase 1a D13). Only
 // split days report it, so unmarked days keep their v2 evidence exactly as before.
 const PARITY_CONTRACT_VERSION = 3;
@@ -147,63 +147,6 @@ const summarizePayload = payload => ({
   mutationCorrelationId: correlationId(payload.mutationId),
 });
 
-const recordTelemetry = async ({
-  firestore,
-  requestSummary,
-  startedAt,
-  status,
-  authorityStatus,
-  resultParity,
-  parityContractVersion,
-  parityDiagnostics,
-  revision,
-  policyRevision,
-  transactionAttempts,
-  serverTimingsMs,
-  transactionTimingsMs,
-  error,
-}) => {
-  try {
-    await firestore
-      .collection('hospitals')
-      .doc(HOSPITAL_ID)
-      .collection('functionsTelemetry')
-      .add({
-        service: 'rayenClinicalEnrichment',
-        operation,
-        hospitalId: HOSPITAL_ID,
-        durationMs: Date.now() - startedAt,
-        attempt: transactionAttempts,
-        totalAttempts: transactionAttempts,
-        status,
-        errorCode: error?.code || null,
-        timestamp: new Date().toISOString(),
-        context: {
-          ...requestSummary,
-          serverTimingsMs,
-          ...(transactionTimingsMs ? { transactionTimingsMs } : {}),
-          authorityStatus,
-          resultParity,
-          parityContractVersion,
-          ...parityDiagnostics,
-          // Closed enum of a split-day rejection (clinicalDerivedStore); never the message.
-          ...(error?.clinicalDerivedRejection
-            ? { clinicalDerivedRejection: error.clinicalDerivedRejection }
-            : {}),
-          revision: Number.isFinite(revision) ? revision : null,
-          policyRevision: Number.isFinite(policyRevision) ? policyRevision : null,
-          transactionAttempts,
-          transactionRetries: Math.max(0, transactionAttempts - 1),
-        },
-      });
-  } catch (telemetryError) {
-    console.warn(
-      'Failed to record Rayen clinical enrichment telemetry',
-      sanitizeLogValue({ date: requestSummary.date, error: telemetryError })
-    );
-  }
-};
-
 const createRayenClinicalEnrichmentFunctions = ({
   firestore,
   Timestamp,
@@ -212,6 +155,9 @@ const createRayenClinicalEnrichmentFunctions = ({
   monotonicNow = () => performance.now(),
 }) => ({
   applyRayenClinicalEnrichmentBatch: clinicalFunctions.https.onCall(async (data, context) => {
+    if (isClinicalBatchWarmup(data)) {
+      return answerClinicalBatchWarmup({ context, resolveRoleForEmail });
+    }
     const startedAt = Date.now();
     const clinicalDerived = createClinicalDerivedStore({ FieldValue });
     const handlerStartedAt = monotonicNow();
