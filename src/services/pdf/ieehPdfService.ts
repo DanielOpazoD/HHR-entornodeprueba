@@ -32,9 +32,8 @@ import type { PatientData } from '@/types/domain/patient';
 
 import type { PDFFont } from 'pdf-lib';
 
-import { openPdfPrintDialog, saveAndDownloadPdf } from './pdfBase';
+import { openPdfPrintDialog } from './pdfBase';
 import { FIELD_COORDS, mapInsurance, mapSex, mapProcedencia } from './ieehPdfCoordinates';
-import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import { loadPdfLibGenerationRuntime } from './pdfLibRuntime';
 import type { DischargeFormData } from './ieehPdfContracts';
 import {
@@ -294,17 +293,6 @@ export const fillIEEHForm = async (
 };
 
 /**
- * Generate and trigger download of the filled IEEH form
- */
-export const downloadIEEHForm = async (
-  patient: PatientData,
-  discharge: DischargeFormData = {}
-): Promise<void> => {
-  const pdfBytes = await fillIEEHForm(patient, discharge);
-  await saveAndDownloadPdf(pdfBytes, buildIEEHFileName(patient.patientName));
-};
-
-/**
  * Generate and open the browser print dialog for the filled IEEH form.
  */
 export const printIEEHForm = async (
@@ -314,17 +302,4 @@ export const printIEEHForm = async (
 ): Promise<void> => {
   const pdfBytes = await fillIEEHForm(patient, discharge);
   await openPdfPrintDialog(pdfBytes, buildIEEHFileName(patient.patientName), printWindow);
-};
-
-/**
- * Open filled IEEH form in a new browser tab for preview
- */
-export const previewIEEHForm = async (
-  patient: PatientData,
-  discharge: DischargeFormData = {}
-): Promise<void> => {
-  const pdfBytes = await fillIEEHForm(patient, discharge);
-  const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
-  const url = URL.createObjectURL(blob);
-  defaultBrowserWindowRuntime.open(url, '_blank');
 };

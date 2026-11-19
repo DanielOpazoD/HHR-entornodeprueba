@@ -1,14 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useFeatureFlag, useAllFeatureFlags } from '@/hooks/useFeatureFlag';
-import { featureFlags, FeatureFlag } from '@/services/utils/featureFlags';
+import { useFeatureFlag } from '@/hooks/useFeatureFlag';
+import { featureFlags } from '@/services/utils/featureFlags';
 
 vi.mock('@/services/utils/featureFlags', () => ({
   featureFlags: {
     isEnabled: vi.fn(),
     subscribe: vi.fn(() => vi.fn()),
-    subscribeAll: vi.fn(() => vi.fn()),
-    getAll: vi.fn(() => ({})),
   },
 }));
 
@@ -20,7 +18,7 @@ describe('useFeatureFlag', () => {
   it('should return false when flag is disabled', () => {
     vi.mocked(featureFlags.isEnabled).mockReturnValue(false);
 
-    const { result } = renderHook(() => useFeatureFlag('SHOW_DEBUG_PANEL'));
+    const { result } = renderHook(() => useFeatureFlag('SPECIALTY_RULES_MEMORY'));
 
     expect(result.current).toBe(false);
   });
@@ -28,7 +26,7 @@ describe('useFeatureFlag', () => {
   it('should return true when flag is enabled', () => {
     vi.mocked(featureFlags.isEnabled).mockReturnValue(true);
 
-    const { result } = renderHook(() => useFeatureFlag('SHOW_DEBUG_PANEL'));
+    const { result } = renderHook(() => useFeatureFlag('SPECIALTY_RULES_MEMORY'));
 
     expect(result.current).toBe(true);
   });
@@ -36,9 +34,12 @@ describe('useFeatureFlag', () => {
   it('should subscribe to flag changes on mount', () => {
     vi.mocked(featureFlags.isEnabled).mockReturnValue(false);
 
-    renderHook(() => useFeatureFlag('SHOW_DEBUG_PANEL'));
+    renderHook(() => useFeatureFlag('SPECIALTY_RULES_MEMORY'));
 
-    expect(featureFlags.subscribe).toHaveBeenCalledWith('SHOW_DEBUG_PANEL', expect.any(Function));
+    expect(featureFlags.subscribe).toHaveBeenCalledWith(
+      'SPECIALTY_RULES_MEMORY',
+      expect.any(Function)
+    );
   });
 
   it('should unsubscribe on unmount', () => {
@@ -46,7 +47,7 @@ describe('useFeatureFlag', () => {
     vi.mocked(featureFlags.subscribe).mockReturnValue(unsubscribeMock);
     vi.mocked(featureFlags.isEnabled).mockReturnValue(false);
 
-    const { unmount } = renderHook(() => useFeatureFlag('SHOW_DEBUG_PANEL'));
+    const { unmount } = renderHook(() => useFeatureFlag('SPECIALTY_RULES_MEMORY'));
 
     unmount();
 
@@ -62,7 +63,7 @@ describe('useFeatureFlag', () => {
       return vi.fn();
     });
 
-    const { result } = renderHook(() => useFeatureFlag('SHOW_DEBUG_PANEL'));
+    const { result } = renderHook(() => useFeatureFlag('SPECIALTY_RULES_MEMORY'));
 
     expect(result.current).toBe(false);
 
@@ -72,28 +73,5 @@ describe('useFeatureFlag', () => {
     });
 
     expect(result.current).toBe(true);
-  });
-});
-
-describe('useAllFeatureFlags', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('should return all flags', () => {
-    const flagsSnapshot: Record<FeatureFlag, boolean> = {
-      SHOW_DEBUG_PANEL: true,
-      SPECIALTY_EPISODE_ASSIGNMENT: false,
-      SPECIALTY_RULES_MEMORY: false,
-      SPECIALTY_JEV_CONSULTATION: false,
-      USE_ADMIT_PATIENT_COMMAND: true,
-    };
-
-    vi.mocked(featureFlags.getAll).mockReturnValue(flagsSnapshot);
-
-    const { result } = renderHook(() => useAllFeatureFlags());
-
-    expect(result.current).toEqual(flagsSnapshot);
-    expect(featureFlags.subscribeAll).toHaveBeenCalledWith(expect.any(Function));
   });
 });
