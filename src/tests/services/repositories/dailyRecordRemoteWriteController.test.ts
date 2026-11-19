@@ -1,7 +1,8 @@
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { VersionMismatchError } from '@/utils/integrityGuard';
+import { DataRegressionError, VersionMismatchError } from '@/utils/integrityGuard';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { createSavedByQueueRouteError } from '@/services/storage/syncErrorCatalog';
 
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
@@ -88,6 +89,34 @@ describe('dailyRecordRemoteWriteController', () => {
     ).rejects.toThrow('Tu aplicación está desactualizada');
   });
 
+  /** Recovery of a direct send that was stored here before its remote step failed. */
+  const storedHere = (date = '2026-04-16'): DailyRecordWriteResult => ({
+    date,
+    savedHere: true,
+    state: 'local',
+    cause: 'stored',
+  });
+  const recover = (
+    error: unknown,
+    overrides: Partial<Parameters<typeof resolveRemoteWriteRecovery>[0]> = {}
+  ) =>
+    resolveRemoteWriteRecovery({
+      date: '2026-04-16',
+      record: buildRecord('2026-04-16', '2026-04-16T12:00:00.000Z'),
+      changedPaths: ['beds.R1.patientName'],
+      error,
+      current: storedHere(),
+      authoringSession: captureAuthoringSession(),
+      ...overrides,
+    });
+  const queueRefuses = () =>
+    vi.mocked(queueDailyRecordSyncTaskWithLocalRecord).mockResolvedValueOnce({
+      accepted: false,
+      mode: 'rejected_backpressure',
+      pendingTasks: 192,
+      maxPendingTasks: 192,
+    });
+
   it('queues retry recovery with retry metadata when the remote error is retryable', async () => {
     vi.mocked(isRetryableSyncError).mockReturnValue(true);
     vi.mocked(queueDailyRecordSyncTaskWithLocalRecord).mockResolvedValueOnce({
@@ -97,15 +126,12 @@ describe('dailyRecordRemoteWriteController', () => {
       maxPendingTasks: 192,
     });
 
-    const result = await resolveRemoteWriteRecovery(
-      '2026-04-16',
-      buildRecord('2026-04-16', '2026-04-16T12:00:00.000Z'),
-      ['beds.R1.patientName'],
-      new Error('network down'),
-      captureAuthoringSession()
-    );
+    const step = await recover(new Error('network down'));
 
-    expect(result.status).toBe('queued_for_retry');
+    expect(step).toMatchObject({
+      next: 'continue',
+      result: { savedHere: true, state: 'local', cause: 'retrying' },
+    });
     expect(queueDailyRecordSyncTaskWithLocalRecord).toHaveBeenCalledWith(
       expect.objectContaining({ date: '2026-04-16' }),
       expect.objectContaining({
@@ -115,89 +141,144 @@ describe('dailyRecordRemoteWriteController', () => {
     );
   });
 
-  it('names the queue route as the reason when only the day task saves the edit', async () => {
-    const recover = (alreadyQueued: boolean) =>
-      resolveRemoteWriteRecovery(
-        '2026-04-16',
-        buildRecord('2026-04-16', '2026-04-16T12:00:00.000Z'),
-        ['discharges'],
-        createSavedByQueueRouteError('synthetic movement from a bed'),
-        captureAuthoringSession(),
-        '2026-04-16T11:00:00.000Z',
-        true,
-        alreadyQueued
-      );
+  it('holds a retryable write for review when the queue is full', async () => {
+    vi.mocked(isRetryableSyncError).mockReturnValue(true);
+    queueRefuses();
 
-    expect(await recover(true)).toMatchObject({
-      status: 'queued_for_retry',
-      decision: { reason: 'queue_route' },
+    const step = await recover(new Error('network down'));
+
+    expect(step).toMatchObject({
+      next: 'continue',
+      result: { state: 'held', reason: 'needs_review' },
+    });
+    expect(step.result.userSafeMessage).toContain('cola de sincronización alcanzó su límite');
+    expect(step.result.blockingError).toBeUndefined();
+  });
+
+  it('holds a write with no safe recovery route for review', async () => {
+    vi.mocked(isRetryableSyncError).mockReturnValue(false);
+
+    const step = await recover(new Error('permission denied'));
+
+    expect(step).toMatchObject({
+      next: 'continue',
+      result: { savedHere: true, state: 'held', reason: 'needs_review' },
+    });
+    expect(step.result.userSafeMessage).toBe(
+      'Los cambios se guardaron localmente, pero la sincronización remota requiere revisión manual.'
+    );
+    expect(queueDailyRecordSyncTaskWithLocalRecord).not.toHaveBeenCalled();
+  });
+
+  it('keeps a write the server already took confirmed when a later step fails', async () => {
+    const confirmed: DailyRecordWriteResult = {
+      ...storedHere(),
+      state: 'confirmed',
+      localCopy: 'current',
+    };
+    vi.mocked(isRetryableSyncError).mockReturnValue(false);
+    expect((await recover(new Error('ack failed'), { current: confirmed })).result).toMatchObject({
+      state: 'confirmed',
+      localCopy: 'stale',
+    });
+
+    vi.mocked(isRetryableSyncError).mockReturnValue(true);
+    const retried = await recover(new Error('ack failed'), {
+      current: confirmed,
+      localWriteAlreadyQueued: true,
+    });
+    expect(retried.result).toMatchObject({ state: 'confirmed', localCopy: 'current' });
+  });
+
+  it.each([
+    new DataRegressionError('Synthetic regression', 1, 2),
+    new VersionMismatchError('Synthetic version mismatch'),
+  ])('stops a write the server blocked ($name) without queueing it', async error => {
+    vi.mocked(isRetryableSyncError).mockReturnValue(true);
+
+    const step = await recover(error);
+
+    expect(step).toEqual({
+      next: 'return',
+      result: expect.objectContaining({
+        savedHere: true,
+        state: 'not_saved',
+        reason: 'blocked',
+        userSafeMessage: error.message,
+        blockingError: error,
+      }),
+    });
+    expect(step.result.concurrencyConflict).toBeUndefined();
+    expect(queueDailyRecordSyncTaskWithLocalRecord).not.toHaveBeenCalled();
+  });
+
+  it('names the queue route as the cause when only the day task saves the edit', async () => {
+    const recoverRoute = (localWriteAlreadyQueued: boolean) =>
+      recover(createSavedByQueueRouteError('synthetic movement from a bed'), {
+        changedPaths: ['discharges'],
+        expectedVersion: '2026-04-16T11:00:00.000Z',
+        localWriteAlreadyQueued,
+      });
+
+    expect(await recoverRoute(true)).toMatchObject({
+      next: 'continue',
+      result: { state: 'local', cause: 'queue_route' },
     });
     expect(queueDailyRecordSyncTaskWithLocalRecord).not.toHaveBeenCalled();
 
-    // Not stored in the queue: no reason, the edit was not routed anywhere.
-    vi.mocked(queueDailyRecordSyncTaskWithLocalRecord).mockResolvedValueOnce({
-      accepted: false,
-      mode: 'rejected_backpressure',
-      pendingTasks: 192,
-      maxPendingTasks: 192,
+    // Not stored in the queue: the edit was not routed anywhere and waits for review.
+    queueRefuses();
+    const refused = await recoverRoute(false);
+    expect(refused).toMatchObject({
+      next: 'continue',
+      result: { state: 'held', reason: 'needs_review' },
     });
-    const refused = await recover(false);
-    expect(refused.status).toBe('unrecoverable');
-    expect(refused.decision.reason).toBeUndefined();
   });
 
   it('reuses durable acceptance without enqueueing or claiming a remote confirmation', async () => {
     vi.mocked(isRetryableSyncError).mockReturnValue(true);
 
-    const result = await resolveRemoteWriteRecovery(
-      '2026-04-16',
-      buildRecord('2026-04-16', '2026-04-16T12:00:00.000Z'),
-      ['*'],
-      new Error('network down'),
-      captureAuthoringSession(),
-      '2026-04-16T11:00:00.000Z',
-      true,
-      true
-    );
+    const step = await recover(new Error('network down'), {
+      changedPaths: ['*'],
+      expectedVersion: '2026-04-16T11:00:00.000Z',
+      localWriteAlreadyQueued: true,
+    });
 
-    expect(result).toMatchObject({
-      status: 'queued_for_retry',
-      queuedForRetry: true,
-      autoMerged: false,
-      decision: {
-        consistencyState: 'queued_for_retry',
+    expect(step).toMatchObject({
+      next: 'continue',
+      result: {
+        state: 'local',
+        cause: 'retrying',
         userSafeMessage:
           'Los cambios se guardaron localmente y quedaron pendientes de sincronización.',
       },
     });
-    expect(result).not.toHaveProperty('confirmedRecord');
+    expect(step.result.confirmedRecord).toBeUndefined();
     expect(queueDailyRecordSyncTaskWithLocalRecord).not.toHaveBeenCalled();
   });
 
   it.each([
-    { error: new VersionMismatchError('Synthetic version mismatch'), kind: 'version_mismatch' },
+    {
+      error: new VersionMismatchError('Synthetic version mismatch'),
+      kind: 'version_mismatch',
+      expected: { state: 'not_saved', reason: 'blocked' },
+    },
     {
       error: Object.assign(new Error('Synthetic conflict'), { name: 'ConcurrencyError' }),
       kind: 'concurrency',
+      expected: { state: 'held', reason: 'needs_review', concurrencyConflict: true },
     },
-  ])('preserves $kind despite prior durable acceptance', async ({ error, kind }) => {
+  ])('preserves $kind despite prior durable acceptance', async ({ error, expected }) => {
     vi.mocked(isRetryableSyncError).mockReturnValue(true);
-    const result = await resolveRemoteWriteRecovery(
-      '2026-04-16',
-      buildRecord('2026-04-16', '2026-04-16T12:00:00.000Z'),
-      ['*'],
-      error,
-      captureAuthoringSession(),
-      undefined,
-      false,
-      true
-    );
+    const step = await recover(error, {
+      changedPaths: ['*'],
+      allowConflictAutoMerge: false,
+      localWriteAlreadyQueued: true,
+    });
 
-    expect(result).toMatchObject({
-      status: 'throw',
-      error,
-      queuedForRetry: false,
-      decision: { conflictSummary: { kind } },
+    expect(step).toMatchObject({
+      next: 'return',
+      result: { ...expected, blockingError: error },
     });
     expect(queueDailyRecordSyncTaskWithLocalRecord).not.toHaveBeenCalled();
   });

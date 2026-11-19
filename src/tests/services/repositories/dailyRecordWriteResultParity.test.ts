@@ -153,7 +153,7 @@ export const DIRECT_SEND_CASES: Record<string, ParityCase> = {
     },
   },
   'sin red: queda en la cola y se reintenta solo': {
-    from: 'dailyRecordRemoteRecoveryController.ts:22 (dailyRecordRemoteWriteController.ts:164)',
+    from: 'dailyRecordRemoteWriteController.ts (resolveRemoteWriteRecovery: retryable)',
     answer: refuses(() => firestoreError('unavailable')),
     expected: {
       vista: 'conserva la edición',
@@ -179,7 +179,7 @@ export const DIRECT_SEND_CASES: Record<string, ParityCase> = {
   // W14-D1 H1: contradice SAVE-01 (ver REPORT): the local copy the notice reports exists, yet
   // the flow rejects and the view reverts while that durable copy keeps the edit.
   'el servidor rechaza sin reintento después de encolar (H1)': {
-    from: 'dailyRecordRemoteRecoveryController.ts:29-35 (dailyRecordRemoteWriteController.ts:177)',
+    from: 'dailyRecordRemoteWriteController.ts (resolveRemoteWriteRecovery: no safe route)',
     answer: refuses(() => firestoreError('permission-denied')),
     expected: {
       vista: 'vuelve al valor anterior',

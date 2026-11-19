@@ -1,61 +1,51 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { saveRecordStrict as saveToIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
 import {
-  applyLocalPersistenceFailure,
-  markLocalWriteSucceeded,
+  localCopyStale,
+  storedHere,
+  toWriteError,
 } from '@/services/repositories/dailyRecordRemotePersistenceState';
-import type { RemoteWriteState } from '@/services/repositories/dailyRecordWriteState';
+import type { RemoteWriteStep } from '@/services/repositories/dailyRecordWriteState';
 
+/** Stores the server-confirmed record here; `current` already says the server holds it. */
 export const persistConfirmedRemoteRecordLocally = async ({
-  date,
-  changedPaths,
+  current,
   authoritativeRecord,
-  remoteState,
   adoptRemoteAuthorityRecord,
   completeConfirmedLocalWrite,
   releaseLocalPreOutboxHold,
 }: {
-  date: string;
-  changedPaths: string[];
+  current: DailyRecordWriteResult;
   authoritativeRecord: DailyRecord;
-  remoteState: RemoteWriteState;
   adoptRemoteAuthorityRecord?: (record: DailyRecord) => Promise<DailyRecord>;
   completeConfirmedLocalWrite?: (record: DailyRecord) => Promise<DailyRecord | undefined>;
   releaseLocalPreOutboxHold?: () => Promise<void>;
-}): Promise<boolean> => {
+}): Promise<RemoteWriteStep> => {
   const reconcile = completeConfirmedLocalWrite ?? adoptRemoteAuthorityRecord;
   if (reconcile) {
+    let localProjectionRecord: DailyRecord | undefined;
     try {
-      remoteState.localProjectionRecord = await reconcile(authoritativeRecord);
+      localProjectionRecord = await reconcile(authoritativeRecord);
     } catch (error) {
       await releaseLocalPreOutboxHold?.();
-      applyLocalPersistenceFailure(
-        changedPaths,
-        {
-          ok: false,
-          operation: 'save',
-          store: 'none',
-          dates: [date],
-          error,
-          userSafeMessage:
-            'El cambio quedó confirmado en el servidor, pero la cola local no pudo reconciliarse.',
-        },
-        remoteState,
-        { remoteCommitted: true }
+      const blockingError = toWriteError(
+        error,
+        'El cambio quedó confirmado en el servidor, pero la cola local no pudo reconciliarse.'
       );
-      return false;
+      return { result: localCopyStale(current, blockingError), next: 'return' };
     }
-  } else {
-    const localResult = await saveToIndexedDB(authoritativeRecord);
-    if (!localResult.ok) {
-      await releaseLocalPreOutboxHold?.();
-      applyLocalPersistenceFailure(changedPaths, localResult, remoteState, {
-        remoteCommitted: true,
-      });
-      return false;
-    }
+    return { result: storedHere({ ...current, localProjectionRecord }), next: 'continue' };
   }
 
-  markLocalWriteSucceeded(remoteState);
-  return true;
+  const localResult = await saveToIndexedDB(authoritativeRecord);
+  if (!localResult.ok) {
+    await releaseLocalPreOutboxHold?.();
+    const blockingError = toWriteError(
+      localResult.error,
+      localResult.userSafeMessage || 'No fue posible guardar el registro local.'
+    );
+    return { result: localCopyStale(current, blockingError), next: 'return' };
+  }
+  return { result: storedHere(current), next: 'continue' };
 };

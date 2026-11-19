@@ -2,7 +2,6 @@
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { createRemoteWriteState } from '@/services/repositories/dailyRecordWriteState';
 import { createDirectFirestoreWriteReceipt } from '@/services/storage/firestore/firestoreDirectWriteReceipt';
 
 const { saveToIndexedDBMock, isFirestoreEnabledMock } = vi.hoisted(() => ({
@@ -48,7 +47,6 @@ describe('daily record confirmed state handoff', () => {
   });
 
   it('exposes the exact server-confirmed record for the next clinical stage', async () => {
-    const state = createRemoteWriteState();
     const staleReadback = vi.fn().mockResolvedValue(buildRecord());
     const confirmedMeta = {
       revision: 40,
@@ -61,10 +59,9 @@ describe('daily record confirmed state handoff', () => {
       lastUpdated: '2026-08-07T10:30:00.000Z',
     } as unknown as DailyRecord;
 
-    const result = await persistLocalAndAttemptRemoteSync({
+    const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
       change: { date: '2026-08-07', record: buildRecord(), changedPaths: ['*'] },
-      remoteState: state,
       remote: {
         remoteWrite: vi.fn().mockResolvedValue({
           recordState: {
@@ -86,7 +83,6 @@ describe('daily record confirmed state handoff', () => {
   });
 
   it('reads back the committed record when an older callable omits recordState', async () => {
-    const state = createRemoteWriteState();
     const confirmedRecord = {
       ...buildRecord(),
       beds: { R2: { bedId: 'R2', patientName: 'Confirmado por lectura remota' } },
@@ -94,10 +90,9 @@ describe('daily record confirmed state handoff', () => {
     } as unknown as DailyRecord;
     const readRemoteConfirmedRecord = vi.fn().mockResolvedValue(confirmedRecord);
 
-    const result = await persistLocalAndAttemptRemoteSync({
+    const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
       change: { date: '2026-08-07', record: buildRecord(), changedPaths: ['*'] },
-      remoteState: state,
       remote: {
         remoteWrite: vi.fn().mockResolvedValue({ success: true }),
         readRemoteConfirmedRecord,
@@ -113,7 +108,6 @@ describe('daily record confirmed state handoff', () => {
   });
 
   it('reads back a direct Firestore write that returns no authority payload', async () => {
-    const state = createRemoteWriteState();
     const submittedRecord = buildRecord();
     const confirmedRecord = {
       ...submittedRecord,
@@ -121,10 +115,9 @@ describe('daily record confirmed state handoff', () => {
     } as DailyRecord;
     const readRemoteConfirmedRecord = vi.fn().mockResolvedValue(confirmedRecord);
 
-    const result = await persistLocalAndAttemptRemoteSync({
+    const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
       change: { date: '2026-08-07', record: submittedRecord, changedPaths: ['*'] },
-      remoteState: state,
       remote: {
         remoteWrite: vi.fn().mockResolvedValue(undefined),
         readRemoteConfirmedRecord,
@@ -141,7 +134,6 @@ describe('daily record confirmed state handoff', () => {
   });
 
   it('reconciles a normal confirmed write before acknowledging its pending outbox task', async () => {
-    const state = createRemoteWriteState();
     const submittedRecord = buildRecord();
     const remoteRecord = {
       ...submittedRecord,
@@ -161,10 +153,9 @@ describe('daily record confirmed state handoff', () => {
     const adoptRemoteAuthorityRecord = vi.fn().mockResolvedValue(localProjection);
     const ackLocalAfterRemote = vi.fn().mockResolvedValue(true);
 
-    const result = await persistLocalAndAttemptRemoteSync({
+    const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
       change: { date: submittedRecord.date, record: submittedRecord, changedPaths: ['beds.R1'] },
-      remoteState: state,
       remote: {
         remoteWrite: vi.fn().mockResolvedValue({
           recordState: {
@@ -198,12 +189,9 @@ describe('daily record confirmed state handoff', () => {
   });
 
   it('fails closed when neither the callable nor a readback confirms the server record', async () => {
-    const state = createRemoteWriteState();
-
-    const result = await persistLocalAndAttemptRemoteSync({
+    const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
       change: { date: '2026-08-07', record: buildRecord(), changedPaths: ['*'] },
-      remoteState: state,
       remote: {
         remoteWrite: vi.fn().mockResolvedValue({ success: true }),
         onRemoteFailure: vi.fn(),
@@ -213,7 +201,7 @@ describe('daily record confirmed state handoff', () => {
 
     expect(result).toBe('return');
     expect(state.confirmedRecord).toBeUndefined();
-    expect(state.consistencyState).toBe('unrecoverable');
+    expect(state).toMatchObject({ savedHere: false, state: 'confirmed', localCopy: 'stale' });
     expect(saveToIndexedDBMock).not.toHaveBeenCalled();
   });
 });
@@ -231,7 +219,6 @@ describe('daily record confirmed readback guard', () => {
   const persistWithReadback = (
     readRemoteConfirmedRecord: () => Promise<DailyRecord | null>,
     remoteAuthorityFirst: boolean,
-    state = createRemoteWriteState(),
     remoteResult?: unknown,
     baseVersion = expectedVersion
   ) =>
@@ -243,7 +230,6 @@ describe('daily record confirmed readback guard', () => {
         changedPaths: ['rayenSync'],
         expectedVersion: baseVersion,
       },
-      remoteState: state,
       remote: {
         remoteWrite: vi.fn().mockResolvedValue(remoteResult),
         readRemoteConfirmedRecord,
@@ -265,14 +251,17 @@ describe('daily record confirmed readback guard', () => {
   afterEach(() => vi.useRealTimers());
 
   it('adopts the committed-record receipt without reading the server back', async () => {
-    const state = createRemoteWriteState();
     const readRemoteConfirmedRecord = vi.fn();
     const receipt = createDirectFirestoreWriteReceipt(
       committedRecord,
       new Date(committedRecord.lastUpdated)
     );
 
-    const result = await persistWithReadback(readRemoteConfirmedRecord, true, state, receipt);
+    const { next: result, result: state } = await persistWithReadback(
+      readRemoteConfirmedRecord,
+      true,
+      receipt
+    );
 
     expect(result).toBe('continue');
     expect(readRemoteConfirmedRecord).not.toHaveBeenCalled();
@@ -285,65 +274,62 @@ describe('daily record confirmed readback guard', () => {
     ['local first', false],
   ])('retries a pre-commit readback twice, then fails closed (%s)', async (_label, first) => {
     vi.useFakeTimers();
-    const state = createRemoteWriteState();
     const readRemoteConfirmedRecord = vi.fn().mockResolvedValue(preCommitRecord);
 
-    const pending = persistWithReadback(readRemoteConfirmedRecord, first, state);
+    const pending = persistWithReadback(readRemoteConfirmedRecord, first);
     await vi.advanceTimersByTimeAsync(249);
     expect(readRemoteConfirmedRecord).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
     expect(readRemoteConfirmedRecord).toHaveBeenCalledTimes(2);
     await vi.advanceTimersByTimeAsync(750);
 
-    await expect(pending).resolves.toBe('return');
+    const { next, result: state } = await pending;
+    expect(next).toBe('return');
     expect(readRemoteConfirmedRecord).toHaveBeenCalledTimes(3);
     expect(state.confirmedRecord).toBeUndefined();
-    expect(state.consistencyState).toBe('unrecoverable');
+    expect(state).toMatchObject({ savedHere: false, state: 'confirmed', localCopy: 'stale' });
     expect(saveToIndexedDBMock).not.toHaveBeenCalledWith(preCommitRecord);
   });
 
   it('treats the base instant written in another ISO form as the pre-commit readback', async () => {
     vi.useFakeTimers();
-    const state = createRemoteWriteState();
     const readRemoteConfirmedRecord = vi.fn().mockResolvedValue(preCommitRecord);
 
     const pending = persistWithReadback(
       readRemoteConfirmedRecord,
       true,
-      state,
       undefined,
       '2026-08-07T09:00:00Z'
     );
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(pending).resolves.toBe('return');
+    const { next, result: state } = await pending;
+    expect(next).toBe('return');
     expect(readRemoteConfirmedRecord).toHaveBeenCalledTimes(3);
     expect(state.confirmedRecord).toBeUndefined();
   });
 
   it('accepts the committed record once a retried readback catches up', async () => {
     vi.useFakeTimers();
-    const state = createRemoteWriteState();
     const readRemoteConfirmedRecord = vi
       .fn()
       .mockResolvedValueOnce(preCommitRecord)
       .mockResolvedValueOnce(committedRecord);
 
-    const pending = persistWithReadback(readRemoteConfirmedRecord, true, state);
+    const pending = persistWithReadback(readRemoteConfirmedRecord, true);
     await vi.advanceTimersByTimeAsync(250);
 
-    await expect(pending).resolves.toBe('continue');
+    const { next, result: state } = await pending;
+    expect(next).toBe('continue');
     expect(readRemoteConfirmedRecord).toHaveBeenCalledTimes(2);
     expect(state.confirmedRecord).toBe(committedRecord);
   });
 
   it('accepts a readback newer than the base version without waiting', async () => {
-    const state = createRemoteWriteState();
     const readRemoteConfirmedRecord = vi.fn().mockResolvedValue(committedRecord);
 
-    await expect(persistWithReadback(readRemoteConfirmedRecord, false, state)).resolves.toBe(
-      'continue'
-    );
+    const { next, result: state } = await persistWithReadback(readRemoteConfirmedRecord, false);
+    expect(next).toBe('continue');
     expect(readRemoteConfirmedRecord).toHaveBeenCalledOnce();
     expect(state.confirmedRecord).toBe(committedRecord);
   });

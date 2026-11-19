@@ -13,23 +13,20 @@ import {
   DataRegressionError,
   VersionMismatchError,
 } from '@/utils/integrityGuard';
-import type { DailyRecordConflictSummary } from '@/services/repositories/contracts/dailyRecordConsistency';
-import type { RemoteWriteRecoveryResult } from '@/services/repositories/contracts/dailyRecordWriteRecoveryResult';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import {
-  buildDailyRecordConflictSummary,
   buildRecoveryTaskMeta,
-  resolveEffectiveChangedPaths,
   resolveRetryOrigin,
 } from '@/services/repositories/dailyRecordWriteRecoveryController';
-import {
-  resolveQueuedRetryRecoveryResult,
-  resolveRemoteUnavailableRecoveryResult,
-} from '@/services/repositories/dailyRecordRemoteRecoveryController';
-import { resolveBlockedRemoteWriteRecovery } from '@/services/repositories/dailyRecordWriteBlockingRecoveryController';
 import { resolveConcurrencyRemoteWriteRecovery } from '@/services/repositories/dailyRecordWriteConcurrencyRecoveryController';
+import {
+  pendingWriteOutcome,
+  settleWriteResult,
+  unrecoverableWriteOutcome,
+  type RemoteWriteStep,
+} from '@/services/repositories/dailyRecordWriteState';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { dailyRecordWriteLogger } from '@/services/repositories/repositoryLoggers';
-import { buildQueuedRetryRecoveryResult } from '@/services/repositories/dailyRecordWriteRecoveryResultController';
 import { isSavedByQueueRouteError } from '@/services/storage/syncErrorCatalog';
 
 const isConcurrencyError = (error: unknown): boolean =>
@@ -103,23 +100,48 @@ export const runRemoteSaveIntegrityCheck = async (
   }
 };
 
-export const resolveRemoteWriteRecovery = async (
-  date: string,
-  record: DailyRecord,
-  changedPaths: string[],
-  error: unknown,
-  authoringSession: AuthoringSession,
-  expectedVersion?: string,
-  allowConflictAutoMerge: boolean = true,
-  localWriteAlreadyQueued: boolean = false
-): Promise<RemoteWriteRecoveryResult> => {
-  const effectiveChangedPaths = resolveEffectiveChangedPaths(changedPaths);
-  const conflictSummary = (kind: DailyRecordConflictSummary['kind'], message: string) =>
-    buildDailyRecordConflictSummary(record.lastUpdated, effectiveChangedPaths, kind, message);
+const QUEUED_MESSAGE =
+  'Los cambios se guardaron localmente y quedaron pendientes de sincronización.';
+const QUEUE_BACKPRESSURE_MESSAGE =
+  'Los cambios se guardaron localmente, pero la cola de sincronización alcanzó su límite operativo. Reintenta cuando la conectividad se estabilice o revisa el estado de sincronización.';
+const REMOTE_UNAVAILABLE_MESSAGE =
+  'Los cambios se guardaron localmente, pero la sincronización remota requiere revisión manual.';
 
-  const blockedRecovery = resolveBlockedRemoteWriteRecovery(error, conflictSummary);
-  if (blockedRecovery) {
-    return blockedRecovery;
+interface RemoteWriteRecoveryInput {
+  date: string;
+  record: DailyRecord;
+  changedPaths: string[];
+  error: unknown;
+  /** The write's result when the remote step failed. */
+  current: DailyRecordWriteResult;
+  authoringSession: AuthoringSession;
+  expectedVersion?: string;
+  allowConflictAutoMerge?: boolean;
+  /** The write's own outbox task already holds it: recovery never stores a second copy. */
+  localWriteAlreadyQueued?: boolean;
+}
+
+/** The next result of a write whose remote step failed. */
+export const resolveRemoteWriteRecovery = async ({
+  date,
+  record,
+  changedPaths,
+  error,
+  current,
+  authoringSession,
+  expectedVersion,
+  allowConflictAutoMerge = true,
+  localWriteAlreadyQueued = false,
+}: RemoteWriteRecoveryInput): Promise<RemoteWriteStep> => {
+  if (error instanceof DataRegressionError || error instanceof VersionMismatchError) {
+    return {
+      result: settleWriteResult(
+        current,
+        { state: 'not_saved', reason: 'blocked' },
+        { userSafeMessage: error.message, blockingError: error }
+      ),
+      next: 'return',
+    };
   }
 
   const ensureQueued = async () =>
@@ -129,24 +151,25 @@ export const resolveRemoteWriteRecovery = async (
       buildRecoveryTaskMeta(changedPaths, resolveRetryOrigin(changedPaths), expectedVersion),
       authoringSession
     ));
+  const queueFull = (): RemoteWriteStep => ({
+    result: settleWriteResult(current, unrecoverableWriteOutcome(current), {
+      userSafeMessage: QUEUE_BACKPRESSURE_MESSAGE,
+    }),
+    next: 'continue',
+  });
 
   // Not a conflict: nothing remote to merge. The day's queue task saves this edit with its base
   // version, and that task alone, so it waits there without a second copy or a notice.
   if (isSavedByQueueRouteError(error)) {
-    return (await ensureQueued())
-      ? buildQueuedRetryRecoveryResult(
-          null,
-          'Los cambios se guardaron localmente y quedaron pendientes de sincronización.',
-          ['daily_record', 'write'],
-          'queue_route'
-        )
-      : resolveQueuedRetryRecoveryResult(
-          false,
-          conflictSummary(
-            'remote_unavailable',
-            'La cola de sincronización alcanzó su límite operativo antes de programar el guardado.'
-          )
-        );
+    if (!(await ensureQueued())) return queueFull();
+    return {
+      result: settleWriteResult(
+        current,
+        { state: 'local', cause: 'queue_route' },
+        { userSafeMessage: QUEUED_MESSAGE }
+      ),
+      next: 'continue',
+    };
   }
 
   if (isConcurrencyError(error)) {
@@ -155,29 +178,26 @@ export const resolveRemoteWriteRecovery = async (
       record,
       changedPaths,
       error,
-      conflictSummary,
+      current,
       authoringSession,
       allowConflictAutoMerge
     );
   }
 
   if (isRetryableSyncError(error)) {
-    const queued = await ensureQueued();
-    return resolveQueuedRetryRecoveryResult(
-      queued,
-      conflictSummary(
-        'remote_unavailable',
-        queued
-          ? 'El guardado remoto falló y se programó un reintento automático.'
-          : 'La cola de sincronización alcanzó su límite operativo antes de programar el reintento.'
-      )
-    );
+    if (!(await ensureQueued())) return queueFull();
+    return {
+      result: settleWriteResult(current, pendingWriteOutcome(current, 'retrying'), {
+        userSafeMessage: QUEUED_MESSAGE,
+      }),
+      next: 'continue',
+    };
   }
 
-  return resolveRemoteUnavailableRecoveryResult(
-    conflictSummary(
-      'remote_unavailable',
-      'El guardado remoto falló sin una ruta segura de recuperación automática.'
-    )
-  );
+  return {
+    result: settleWriteResult(current, unrecoverableWriteOutcome(current), {
+      userSafeMessage: REMOTE_UNAVAILABLE_MESSAGE,
+    }),
+    next: 'continue',
+  };
 };

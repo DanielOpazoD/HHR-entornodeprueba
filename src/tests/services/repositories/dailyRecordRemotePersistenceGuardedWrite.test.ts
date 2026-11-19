@@ -2,7 +2,6 @@
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { createRemoteWriteState } from '@/services/repositories/dailyRecordWriteState';
 import { buildGuardedDailyRecordPatchPolicy } from '@/services/repositories/dailyRecordGuardedCommandPolicy';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
@@ -69,17 +68,15 @@ describe('guarded remote-first daily-record persistence', () => {
   });
 
   it('never waits for or acknowledges an outbox task that it did not create', async () => {
-    const state = createRemoteWriteState();
     const ackLocalAfterRemote = vi.fn(() => new Promise<void>(() => {}));
 
-    const result = await persistLocalAndAttemptRemoteSync({
+    const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
       change: {
         date: '2026-05-23',
         record: buildRecord('2026-05-23'),
         changedPaths: ['beds.R1.clinicalCrib'],
       },
-      remoteState: state,
       remote: {
         remoteWrite: vi.fn().mockResolvedValue(buildAuthorityReceipt()),
         onRemoteFailure: vi.fn(),
@@ -91,9 +88,9 @@ describe('guarded remote-first daily-record persistence', () => {
     expect(result).toBe('continue');
     expect(ackLocalAfterRemote).not.toHaveBeenCalled();
     expect(state).toMatchObject({
-      savedRemotely: true,
-      savedLocally: true,
-      consistencyState: 'persisted_and_synced',
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
       confirmedRecord: expect.any(Object),
     });
   });
@@ -147,7 +144,6 @@ describe('guarded remote-first daily-record persistence', () => {
       ...buildRecord('2026-05-23'),
       lastUpdated: '2026-05-23T10:30:00.000Z',
     };
-    const state = createRemoteWriteState();
     const onRemoteFailure = vi.fn();
     const resolveAlreadyAppliedRemoteRecord = vi.fn().mockResolvedValue(authoritativeRecord);
     const localProjection = {
@@ -156,14 +152,13 @@ describe('guarded remote-first daily-record persistence', () => {
     };
     const adoptRemoteAuthorityRecord = vi.fn().mockResolvedValue(localProjection);
 
-    const result = await persistLocalAndAttemptRemoteSync({
+    const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
       change: {
         date: '2026-05-23',
         record: buildRecord('2026-05-23'),
         changedPaths: ['beds.R1.clinicalCrib'],
       },
-      remoteState: state,
       remote: { remoteWrite: vi.fn().mockRejectedValue(rejection), onRemoteFailure },
       adoption: { resolveAlreadyAppliedRemoteRecord, adoptRemoteAuthorityRecord },
       policy: { remoteAuthorityFirst: true },
@@ -175,12 +170,11 @@ describe('guarded remote-first daily-record persistence', () => {
     expect(saveToIndexedDBMock).not.toHaveBeenCalled();
     expect(onRemoteFailure).not.toHaveBeenCalled();
     expect(state).toMatchObject({
-      savedLocally: true,
-      savedRemotely: true,
-      consistencyState: 'persisted_and_synced',
+      savedHere: true,
+      state: 'confirmed',
+      localCopy: 'current',
       confirmedRecord: authoritativeRecord,
       localProjectionRecord: localProjection,
-      observabilityTags: ['daily_record', 'write', 'persisted_and_synced', 'already_applied'],
     });
   });
 });
