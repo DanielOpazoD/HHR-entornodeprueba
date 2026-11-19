@@ -85,9 +85,14 @@ export const guardAuthoringSession = ({
 /**
  * Key of what is remembered for one person and session, or '' when nobody is admitted. Caches kept
  * in browser storage use it rather than the session epoch, which restarts at every page load.
+ * Without an argument it is the scope this tab acts for now: '' once another tab admitted someone
+ * else, so a late result is never kept or shown under a person the browser no longer holds.
  */
 export const authoringSessionScope = (
-  { ownerKey, generation }: AuthoringSession = captureAuthoringSession()
+  { ownerKey, generation }: AuthoringSession = {
+    ownerKey: getTabOwnerKey(),
+    generation: getSessionGeneration(),
+  }
 ): string => (ownerKey && generation ? `${ownerKey}:${generation}` : '');
 
 /** A write's send checks this before each wait and inside its transaction; a throw stops it. */
