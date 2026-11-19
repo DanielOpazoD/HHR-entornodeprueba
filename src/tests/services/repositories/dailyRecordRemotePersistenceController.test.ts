@@ -2,7 +2,7 @@
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { createRemoteWriteState } from '@/services/repositories/dailyRecordWriteState';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 const { saveToIndexedDBMock, isFirestoreEnabledMock, resolveRemoteWriteRecoveryMock } = vi.hoisted(
   () => ({
     saveToIndexedDBMock: vi.fn(),
@@ -77,13 +77,11 @@ describe('dailyRecordRemotePersistenceController', () => {
 
   it('persists locally and skips remote write when Firestore is disabled', async () => {
     isFirestoreEnabledMock.mockReturnValue(false);
-    const state = createRemoteWriteState();
     const remoteWrite = vi.fn();
 
-    const result = await persistLocalAndAttemptRemoteSync({
+    const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
       change: { date: '2026-05-23', record: buildRecord('2026-05-23'), changedPaths: ['*'] },
-      remoteState: state,
       remote: { remoteWrite, onRemoteFailure: vi.fn() },
     });
 
@@ -92,16 +90,13 @@ describe('dailyRecordRemotePersistenceController', () => {
       expect.objectContaining({ date: '2026-05-23' })
     );
     expect(remoteWrite).not.toHaveBeenCalled();
-    expect(state.savedLocally).toBe(true);
-    expect(state.savedRemotely).toBe(false);
-    expect(state.consistencyState).toBe('persisted_local_only');
+    expect(state).toMatchObject({ savedHere: true, state: 'local', cause: 'stored' });
   });
 
   it('marks the remote state as synced after a successful remote write', async () => {
-    const state = createRemoteWriteState();
     const remoteWrite = vi.fn().mockResolvedValue(undefined);
 
-    const result = await persistLocalAndAttemptRemoteSync({
+    const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
       change: {
         date: '2026-05-23',
@@ -109,21 +104,15 @@ describe('dailyRecordRemotePersistenceController', () => {
         changedPaths: ['*'],
         expectedVersion: '2026-05-23T10:00:00.000Z',
       },
-      remoteState: state,
       remote: { remoteWrite, onRemoteFailure: vi.fn() },
     });
 
     expect(result).toBe('continue');
     expect(remoteWrite).toHaveBeenCalledTimes(1);
-    expect(state.savedRemotely).toBe(true);
-    expect(state.savedLocally).toBe(true);
-    expect(state.consistencyState).toBe('persisted_and_synced');
-    expect(state.savedLocally).toBe(true);
-    expect(state.observabilityTags).toEqual(['daily_record', 'write', 'persisted_and_synced']);
+    expect(state).toMatchObject({ savedHere: true, state: 'confirmed', localCopy: 'current' });
   });
 
   it('uses a transactional outbox preflight instead of a separate local save when provided', async () => {
-    const state = createRemoteWriteState();
     const remoteWrite = vi.fn().mockResolvedValue(buildAuthorityReceipt());
     const queueLocalBeforeRemote = vi.fn().mockResolvedValue({
       accepted: true,
@@ -133,7 +122,7 @@ describe('dailyRecordRemotePersistenceController', () => {
     });
     const ackLocalAfterRemote = vi.fn().mockResolvedValue(undefined);
 
-    const result = await persistLocalAndAttemptRemoteSync({
+    const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
       change: {
         date: '2026-05-23',
@@ -141,7 +130,6 @@ describe('dailyRecordRemotePersistenceController', () => {
         changedPaths: ['*'],
         expectedVersion: '2026-05-23T10:00:00.000Z',
       },
-      remoteState: state,
       remote: { remoteWrite, onRemoteFailure: vi.fn() },
       outbox: { queueLocalBeforeRemote, ackLocalAfterRemote },
     });
@@ -156,14 +144,11 @@ describe('dailyRecordRemotePersistenceController', () => {
     );
     expect(remoteWrite).toHaveBeenCalledTimes(1);
     expect(ackLocalAfterRemote).toHaveBeenCalledTimes(1);
-    expect(state.consistencyState).toBe('persisted_and_synced');
-    expect(state.savedRemotely).toBe(true);
-    expect(state.savedLocally).toBe(true);
+    expect(state).toMatchObject({ savedHere: true, state: 'confirmed', localCopy: 'current' });
   });
 
   it('keeps remote authority after a guarded commit when the local cache cannot update', async () => {
     const localError = new Error('indexeddb quota exceeded');
-    const state = createRemoteWriteState();
     saveToIndexedDBMock.mockResolvedValue({
       ok: false,
       operation: 'save',
@@ -173,14 +158,13 @@ describe('dailyRecordRemotePersistenceController', () => {
       userSafeMessage: 'No fue posible guardar el registro local.',
     });
 
-    const result = await persistLocalAndAttemptRemoteSync({
+    const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
       change: {
         date: '2026-05-23',
         record: buildRecord('2026-05-23'),
         changedPaths: ['beds.R1.vitalSigns'],
       },
-      remoteState: state,
       remote: {
         remoteWrite: vi.fn().mockResolvedValue(buildAuthorityReceipt()),
         onRemoteFailure: vi.fn(),
@@ -189,26 +173,18 @@ describe('dailyRecordRemotePersistenceController', () => {
     });
 
     expect(result).toBe('return');
-    expect(state.savedRemotely).toBe(true);
-    expect(state.savedLocally).toBe(false);
-    expect(state.consistencyState).toBe('unrecoverable');
-    expect(state.conflictSummary).toMatchObject({
-      kind: 'local_persistence_failed',
-      sourceOfTruth: 'remote',
+    expect(state).toMatchObject({
+      savedHere: false,
+      state: 'confirmed',
+      localCopy: 'stale',
+      blockingError: localError,
     });
     expect(state.userSafeMessage).toContain('guardados en el servidor');
-    expect(state.observabilityTags).toEqual([
-      'daily_record',
-      'write',
-      'remote_committed',
-      'local_cache_stale',
-    ]);
     expect(resolveRemoteWriteRecoveryMock).not.toHaveBeenCalled();
   });
 
   it('commits guarded writes remotely before local persistence and never creates an outbox task', async () => {
     const order: string[] = [];
-    const state = createRemoteWriteState();
     const remoteWrite = vi.fn().mockImplementation(async () => {
       order.push('remote');
       return buildAuthorityReceipt();
@@ -225,14 +201,13 @@ describe('dailyRecordRemotePersistenceController', () => {
     const queueLocalBeforeRemote = vi.fn();
     const ackLocalAfterRemote = vi.fn().mockResolvedValue(undefined);
 
-    const result = await persistLocalAndAttemptRemoteSync({
+    const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
       change: {
         date: '2026-05-23',
         record: buildRecord('2026-05-23'),
         changedPaths: ['beds.R1.vitalSigns'],
       },
-      remoteState: state,
       remote: { remoteWrite, onRemoteFailure: vi.fn() },
       outbox: { queueLocalBeforeRemote, ackLocalAfterRemote },
       policy: { remoteAuthorityFirst: true },
@@ -248,29 +223,27 @@ describe('dailyRecordRemotePersistenceController', () => {
         beds: { R1: expect.objectContaining({ patientName: 'Registro preservado por servidor' }) },
       })
     );
-    expect(state.consistencyState).toBe('persisted_and_synced');
+    expect(state).toMatchObject({ savedHere: true, state: 'confirmed', localCopy: 'current' });
   });
 
   it('does not cache a guarded write when the server omits its authoritative record state', async () => {
-    const state = createRemoteWriteState();
-
-    const result = await persistLocalAndAttemptRemoteSync({
+    const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
       change: {
         date: '2026-05-23',
         record: buildRecord('2026-05-23'),
         changedPaths: ['beds.R1.vitalSigns'],
       },
-      remoteState: state,
       remote: { remoteWrite: vi.fn().mockResolvedValue(undefined), onRemoteFailure: vi.fn() },
       policy: { remoteAuthorityFirst: true },
     });
 
     expect(result).toBe('return');
     expect(saveToIndexedDBMock).not.toHaveBeenCalled();
-    expect(state.savedRemotely).toBe(true);
-    expect(state.savedLocally).toBe(false);
-    expect(state.consistencyState).toBe('unrecoverable');
+    expect(state).toMatchObject({ savedHere: false, state: 'confirmed', localCopy: 'stale' });
+    expect(state.blockingError?.message).toBe(
+      'La autoridad remota no devolvió la versión confirmada del registro.'
+    );
     expect(state.userSafeMessage).toContain('guardados en el servidor');
   });
 
@@ -287,7 +260,6 @@ describe('dailyRecordRemotePersistenceController', () => {
           record: buildRecord('2026-05-23'),
           changedPaths: ['beds.R1.vitalSigns'],
         },
-        remoteState: createRemoteWriteState(),
         remote: { remoteWrite: vi.fn().mockRejectedValue(rejection), onRemoteFailure },
         outbox: { queueLocalBeforeRemote },
         policy: { remoteAuthorityFirst: true },
@@ -302,7 +274,6 @@ describe('dailyRecordRemotePersistenceController', () => {
 
   it('renews the pre-outbox hold while a direct remote write is still in flight', async () => {
     vi.useFakeTimers();
-    const state = createRemoteWriteState();
     const queueLocalBeforeRemote = vi.fn().mockResolvedValue({
       accepted: true,
       mode: 'created',
@@ -327,7 +298,6 @@ describe('dailyRecordRemotePersistenceController', () => {
         changedPaths: ['*'],
         expectedVersion: '2026-05-23T10:00:00.000Z',
       },
-      remoteState: state,
       remote: { remoteWrite, onRemoteFailure: vi.fn() },
       outbox: {
         queueLocalBeforeRemote,
@@ -355,19 +325,18 @@ describe('dailyRecordRemotePersistenceController', () => {
     resolveRemoteWriteRecoveryMock.mockImplementationOnce(async () => {
       steps.push('recovery');
       return {
-        status: 'auto_merged',
-        queuedForRetry: true,
-        autoMerged: true,
-        decision: {
-          consistencyState: 'auto_merged',
-          observabilityTags: ['auto_merged'],
+        next: 'return',
+        result: {
+          date: '2026-05-23',
+          savedHere: true,
+          state: 'held',
           reason: 'field_changed_elsewhere',
           userSafeMessage: 'El campo cambió en otro equipo.',
         },
       };
     });
 
-    const result = await persistLocalAndAttemptRemoteSync({
+    const { next: result } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
       change: {
         date: '2026-05-23',
@@ -375,7 +344,6 @@ describe('dailyRecordRemotePersistenceController', () => {
         changedPaths: ['handoffNovedadesNightShift'],
         expectedVersion: '2026-05-23T10:00:00.000Z',
       },
-      remoteState: createRemoteWriteState(),
       remote: {
         remoteWrite: vi.fn().mockRejectedValue(new Error('changed elsewhere')),
         onRemoteFailure: vi.fn(),
@@ -397,6 +365,52 @@ describe('dailyRecordRemotePersistenceController', () => {
     expect(steps).toEqual(['recovery', 'release']);
   });
 
+  // W14-D1-7: the recovery starts from what the write already reached, never from a fresh result.
+  it('hands its recovery the confirmed result when the outbox ack fails after the server took it', async () => {
+    const ackError = new Error('synthetic ack failure');
+    const receipt = buildAuthorityReceipt();
+    resolveRemoteWriteRecoveryMock.mockImplementationOnce(async ({ current }) => ({
+      result: current,
+      next: 'continue',
+    }));
+
+    const { result: state } = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
+      change: {
+        date: '2026-05-23',
+        record: buildRecord('2026-05-23'),
+        changedPaths: ['*'],
+        expectedVersion: '2026-05-23T10:00:00.000Z',
+      },
+      remote: { remoteWrite: vi.fn().mockResolvedValue(receipt), onRemoteFailure: vi.fn() },
+      outbox: {
+        queueLocalBeforeRemote: vi.fn().mockResolvedValue({
+          accepted: true,
+          mode: 'created',
+          pendingTasks: 1,
+          maxPendingTasks: 192,
+        }),
+        ackLocalAfterRemote: vi.fn().mockRejectedValue(ackError),
+      },
+    });
+
+    expect(resolveRemoteWriteRecoveryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: ackError,
+        current: expect.objectContaining({
+          savedHere: true,
+          state: 'confirmed',
+          localCopy: 'current',
+          confirmedRecord: receipt.recordState.record,
+        }),
+      })
+    );
+    expect(state).toMatchObject({
+      state: 'confirmed',
+      confirmedRecord: receipt.recordState.record,
+    });
+  });
+
   // W14-D1-3: each way a write meets an ended session names it; the notice and the guards read it.
   describe('a session that ended before the write finished', () => {
     const departedSession = { ownerKey: 'user:synthetic-departed', generation: 'departed' };
@@ -415,30 +429,30 @@ describe('dailyRecordRemotePersistenceController', () => {
       });
 
     it('server first: nothing is sent and the reason says the session changed', async () => {
-      const state = createRemoteWriteState();
       const remoteWrite = vi.fn();
 
-      const result = await persistLocalAndAttemptRemoteSync({
+      const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
         authoringSession: departedSession,
         change,
-        remoteState: state,
         remote: { remoteWrite, onRemoteFailure: vi.fn() },
         policy: { remoteAuthorityFirst: true },
       });
 
       expect(result).toBe('return');
       expect(remoteWrite).not.toHaveBeenCalled();
-      expect(state).toMatchObject({ savedLocally: false, reason: 'session_changed' });
+      expect(state).toMatchObject({
+        savedHere: false,
+        state: 'not_saved',
+        reason: 'session_changed',
+      });
     });
 
     it('the queue kept the edit for its author: the reason says the session changed', async () => {
-      const state = createRemoteWriteState();
       const remoteWrite = vi.fn();
 
-      const result = await persistLocalAndAttemptRemoteSync({
+      const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
         authoringSession: captureAuthoringSession(),
         change,
-        remoteState: state,
         remote: { remoteWrite, onRemoteFailure: vi.fn() },
         outbox: {
           queueLocalBeforeRemote: vi.fn().mockResolvedValue({
@@ -452,17 +466,22 @@ describe('dailyRecordRemotePersistenceController', () => {
 
       expect(result).toBe('return');
       expect(remoteWrite).not.toHaveBeenCalled();
-      expect(state).toMatchObject({ savedLocally: false, reason: 'session_changed' });
+      expect(state).toMatchObject({
+        savedHere: false,
+        state: 'not_saved',
+        reason: 'session_changed',
+      });
+      expect(state.userSafeMessage).toBe(
+        'La sesión cambió antes de guardar. El cambio quedó pendiente para la persona que lo hizo.'
+      );
     });
 
     it('direct send: the edit stays queued for its author with the reason', async () => {
-      const state = createRemoteWriteState();
       const releaseLocalPreOutboxHold = vi.fn().mockResolvedValue(undefined);
 
-      const result = await persistLocalAndAttemptRemoteSync({
+      const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
         authoringSession: departedSession,
         change,
-        remoteState: state,
         remote: {
           remoteWrite: vi.fn().mockRejectedValue(new Error('La sesión cambió antes de enviar.')),
           onRemoteFailure: vi.fn(),
@@ -473,26 +492,21 @@ describe('dailyRecordRemotePersistenceController', () => {
       expect(result).toBe('return');
       expect(resolveRemoteWriteRecoveryMock).not.toHaveBeenCalled();
       expect(releaseLocalPreOutboxHold).toHaveBeenCalledTimes(1);
-      expect(state).toMatchObject({ savedLocally: true, reason: 'session_changed' });
+      expect(state).toMatchObject({ savedHere: true, state: 'held', reason: 'session_changed' });
     });
 
     it('a refusal while the session is current carries no session reason', async () => {
-      const state = createRemoteWriteState();
-      resolveRemoteWriteRecoveryMock.mockResolvedValueOnce({
-        status: 'queued_for_retry',
-        queuedForRetry: true,
-        autoMerged: false,
-        decision: {
-          consistencyState: 'queued_for_retry',
-          conflictSummary: null,
-          observabilityTags: [],
-        },
-      });
+      const retrying: DailyRecordWriteResult = {
+        date: '2026-05-23',
+        savedHere: true,
+        state: 'local',
+        cause: 'retrying',
+      };
+      resolveRemoteWriteRecoveryMock.mockResolvedValueOnce({ result: retrying, next: 'continue' });
 
-      await persistLocalAndAttemptRemoteSync({
+      const { result: state } = await persistLocalAndAttemptRemoteSync({
         authoringSession: captureAuthoringSession(),
         change,
-        remoteState: state,
         remote: {
           remoteWrite: vi.fn().mockRejectedValue(new Error('network down')),
           onRemoteFailure: vi.fn(),
@@ -500,12 +514,12 @@ describe('dailyRecordRemotePersistenceController', () => {
         outbox: { queueLocalBeforeRemote: acceptedOutbox() },
       });
 
-      expect(state.reason).toBeUndefined();
+      expect(state).toBe(retrying);
+      expect(state).not.toHaveProperty('reason');
     });
   });
 
   it('blocks the remote write when transactional outbox preflight is rejected', async () => {
-    const state = createRemoteWriteState();
     const remoteWrite = vi.fn().mockResolvedValue(undefined);
     const queueLocalBeforeRemote = vi.fn().mockResolvedValue({
       accepted: false,
@@ -514,7 +528,7 @@ describe('dailyRecordRemotePersistenceController', () => {
       maxPendingTasks: 192,
     });
 
-    const result = await persistLocalAndAttemptRemoteSync({
+    const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
       change: {
         date: '2026-05-23',
@@ -522,42 +536,32 @@ describe('dailyRecordRemotePersistenceController', () => {
         changedPaths: ['beds.R1.patientName'],
         expectedVersion: '2026-05-23T10:00:00.000Z',
       },
-      remoteState: state,
       remote: { remoteWrite, onRemoteFailure: vi.fn() },
       outbox: { queueLocalBeforeRemote },
     });
 
     expect(result).toBe('return');
     expect(remoteWrite).not.toHaveBeenCalled();
-    expect(state.consistencyState).toBe('unrecoverable');
-    expect(state.conflictSummary).toMatchObject({
-      kind: 'local_persistence_failed',
-      sourceOfTruth: 'none',
-      changedPaths: ['beds.R1.patientName'],
-    });
+    expect(state).toMatchObject({ savedHere: false, state: 'not_saved', reason: 'local_failed' });
+    expect(state.userSafeMessage).toContain('alcanzó su límite operativo');
+    expect(state.blockingError?.message).toContain('alcanzó su límite operativo');
   });
 
-  it('applies recovery and returns early when remote recovery asks to throw', async () => {
-    const state = createRemoteWriteState();
+  it('returns the recovery result of a failed remote write', async () => {
     const remoteError = new Error('remote failed');
     const blockingError = new Error('manual review');
     const onRemoteFailure = vi.fn();
-    resolveRemoteWriteRecoveryMock.mockResolvedValueOnce({
-      status: 'throw',
-      error: blockingError,
-      decision: {
-        consistencyState: 'unrecoverable',
-        conflictSummary: {
-          kind: 'remote_unavailable',
-          sourceOfTruth: 'none',
-          message: 'remote failed',
-        },
-        observabilityTags: ['daily_record', 'write', 'unrecoverable'],
-        userSafeMessage: 'Revisar manualmente.',
-      },
-    });
+    const recovered: DailyRecordWriteResult = {
+      date: '2026-05-23',
+      savedHere: true,
+      state: 'held',
+      reason: 'needs_review',
+      userSafeMessage: 'Revisar manualmente.',
+      blockingError,
+    };
+    resolveRemoteWriteRecoveryMock.mockResolvedValueOnce({ result: recovered, next: 'return' });
 
-    const result = await persistLocalAndAttemptRemoteSync({
+    const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
       change: {
         date: '2026-05-23',
@@ -565,33 +569,35 @@ describe('dailyRecordRemotePersistenceController', () => {
         changedPaths: ['beds.R1.patientName'],
         expectedVersion: '2026-05-23T10:00:00.000Z',
       },
-      remoteState: state,
       remote: { remoteWrite: vi.fn().mockRejectedValue(remoteError), onRemoteFailure },
     });
 
     expect(result).toBe('return');
     expect(onRemoteFailure).toHaveBeenCalledWith(remoteError);
-    expect(resolveRemoteWriteRecoveryMock).toHaveBeenCalledWith(
-      '2026-05-23',
-      expect.objectContaining({ date: '2026-05-23' }),
-      ['beds.R1.patientName'],
-      remoteError,
-      captureAuthoringSession(),
-      '2026-05-23T10:00:00.000Z',
-      true,
-      false
-    );
-    expect(state.consistencyState).toBe('unrecoverable');
-    expect(state.blockingError).toBe(blockingError);
+    expect(resolveRemoteWriteRecoveryMock).toHaveBeenCalledWith({
+      date: '2026-05-23',
+      record: expect.objectContaining({ date: '2026-05-23' }),
+      changedPaths: ['beds.R1.patientName'],
+      error: remoteError,
+      // The write was stored here before its remote step failed.
+      current: { date: '2026-05-23', savedHere: true, state: 'local', cause: 'stored' },
+      authoringSession: captureAuthoringSession(),
+      expectedVersion: '2026-05-23T10:00:00.000Z',
+      allowConflictAutoMerge: true,
+      localWriteAlreadyQueued: false,
+    });
+    expect(state).toBe(recovered);
   });
 
   it('propagates the no-auto-merge policy for a reclassification conflict', async () => {
     resolveRemoteWriteRecoveryMock.mockResolvedValueOnce({
-      status: 'throw',
-      error: new Error('reload required'),
-      decision: {
-        consistencyState: 'unrecoverable',
-        observabilityTags: ['reclassification_conflict'],
+      next: 'return',
+      result: {
+        date: '2026-05-23',
+        savedHere: true,
+        state: 'held',
+        reason: 'needs_review',
+        concurrencyConflict: true,
         userSafeMessage: 'Recarga el censo.',
       },
     });
@@ -605,20 +611,17 @@ describe('dailyRecordRemotePersistenceController', () => {
         changedPaths: ['discharges', 'cma'],
         expectedVersion: '2026-05-23T10:00:00.000Z',
       },
-      remoteState: createRemoteWriteState(),
       remote: { remoteWrite: vi.fn().mockRejectedValue(remoteError), onRemoteFailure: vi.fn() },
       policy: { allowConflictAutoMerge: false },
     });
 
     expect(resolveRemoteWriteRecoveryMock).toHaveBeenCalledWith(
-      '2026-05-23',
-      expect.objectContaining({ date: '2026-05-23' }),
-      ['discharges', 'cma'],
-      remoteError,
-      captureAuthoringSession(),
-      '2026-05-23T10:00:00.000Z',
-      false,
-      false
+      expect.objectContaining({
+        changedPaths: ['discharges', 'cma'],
+        error: remoteError,
+        allowConflictAutoMerge: false,
+        localWriteAlreadyQueued: false,
+      })
     );
   });
 
@@ -632,10 +635,9 @@ describe('dailyRecordRemotePersistenceController', () => {
       error: localError,
       userSafeMessage: 'No fue posible guardar el registro local.',
     });
-    const state = createRemoteWriteState();
     const remoteWrite = vi.fn().mockResolvedValue(undefined);
 
-    const result = await persistLocalAndAttemptRemoteSync({
+    const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
       change: {
         date: '2026-05-23',
@@ -643,17 +645,17 @@ describe('dailyRecordRemotePersistenceController', () => {
         changedPaths: ['*'],
         expectedVersion: '2026-05-23T10:00:00.000Z',
       },
-      remoteState: state,
       remote: { remoteWrite, onRemoteFailure: vi.fn() },
     });
 
     expect(result).toBe('return');
     expect(remoteWrite).not.toHaveBeenCalled();
-    expect(state.consistencyState).toBe('unrecoverable');
-    expect(state.blockingError).toBe(localError);
-    expect(state.conflictSummary).toMatchObject({
-      kind: 'local_persistence_failed',
-      sourceOfTruth: 'none',
+    expect(state).toMatchObject({
+      savedHere: false,
+      state: 'not_saved',
+      reason: 'local_failed',
+      blockingError: localError,
+      userSafeMessage: 'No fue posible guardar el registro local.',
     });
   });
 });

@@ -1,55 +1,47 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { LocalRecordWriteResult } from '@/services/storage/indexeddb/indexedDbRecordService';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { logger } from '@/services/utils/loggerService';
 import {
-  applyRecoveryDecisionToState,
-  type RemoteWriteState,
+  settleWriteResult,
+  type RemoteWriteStep,
 } from '@/services/repositories/dailyRecordWriteState';
 
-export const markRemoteWriteSucceeded = (state: RemoteWriteState): void => {
-  state.savedRemotely = true;
-  state.consistencyState = 'persisted_and_synced';
-  state.observabilityTags = ['daily_record', 'write', 'persisted_and_synced'];
-};
+const LOCAL_COPY_STALE_MESSAGE =
+  'Los cambios ya quedaron guardados en el servidor, pero no se pudo actualizar la copia local. Recarga la página antes de continuar.';
 
-export const markLocalWriteSucceeded = (state: RemoteWriteState): void => {
-  state.savedLocally = true;
-};
+/** The caller's own error when it is one; otherwise an error that says what failed. */
+export const toWriteError = (error: unknown, message: string): Error =>
+  error instanceof Error ? error : new Error(message);
 
-const toLocalPersistenceError = (result: LocalRecordWriteResult): Error =>
-  result.error instanceof Error
-    ? result.error
-    : new Error(result.userSafeMessage || 'No fue posible guardar el registro local.');
+/** The server took the write. */
+export const confirmedByServer = (current: DailyRecordWriteResult): DailyRecordWriteResult =>
+  settleWriteResult(current, { state: 'confirmed', localCopy: 'current' });
 
-export const applyLocalPersistenceFailure = (
-  changedPaths: string[],
-  result: LocalRecordWriteResult,
-  state: RemoteWriteState,
-  { remoteCommitted = false }: { remoteCommitted?: boolean } = {}
-): void => {
-  const error = toLocalPersistenceError(result);
-  if (remoteCommitted) state.savedLocally = false;
-  const userSafeMessage = remoteCommitted
-    ? 'Los cambios ya quedaron guardados en el servidor, pero no se pudo actualizar la copia local. Recarga la página antes de continuar.'
-    : result.userSafeMessage || 'No fue posible guardar el registro local.';
-  applyRecoveryDecisionToState(
-    state,
-    {
-      consistencyState: 'unrecoverable',
-      conflictSummary: {
-        kind: 'local_persistence_failed',
-        sourceOfTruth: remoteCommitted ? 'remote' : 'none',
-        changedPaths,
-        message: userSafeMessage,
-      },
-      observabilityTags: remoteCommitted
-        ? ['daily_record', 'write', 'remote_committed', 'local_cache_stale']
-        : ['daily_record', 'write', 'local_persistence_failed'],
-      userSafeMessage,
-    },
-    error
+/** This computer stored the write. */
+export const storedHere = (current: DailyRecordWriteResult): DailyRecordWriteResult => ({
+  ...current,
+  savedHere: true,
+});
+
+/** The server took the write, but this computer's copy could not follow it. */
+export const localCopyStale = (
+  current: DailyRecordWriteResult,
+  blockingError: Error
+): DailyRecordWriteResult =>
+  settleWriteResult(
+    { ...current, savedHere: false },
+    { state: 'confirmed', localCopy: 'stale' },
+    { userSafeMessage: LOCAL_COPY_STALE_MESSAGE, blockingError }
   );
-};
+
+/** Neither this computer nor the server stored the write. */
+export const notStored = (
+  current: DailyRecordWriteResult,
+  blockingError: Error,
+  userSafeMessage: string,
+  reason: 'local_failed' | 'session_changed' = 'local_failed'
+): DailyRecordWriteResult =>
+  settleWriteResult(current, { state: 'not_saved', reason }, { userSafeMessage, blockingError });
 
 export const isValidRemoteAuthorityRecord = (
   candidate: DailyRecord | null | undefined,
@@ -62,22 +54,24 @@ export const isValidRemoteAuthorityRecord = (
     candidate.lastUpdated
   );
 
+/**
+ * A guarded write that lost its race can still be the one the server holds. `null`: not proven,
+ * the caller treats the write as failed.
+ */
 export const recoverAlreadyAppliedRemoteWrite = async ({
   error,
   date,
-  changedPaths,
-  state,
+  current,
   resolveAlreadyAppliedRemoteRecord,
   adoptAlreadyAppliedRemoteRecord,
 }: {
   error: unknown;
   date: string;
-  changedPaths: string[];
-  state: RemoteWriteState;
+  current: DailyRecordWriteResult;
   resolveAlreadyAppliedRemoteRecord?: (error: unknown) => Promise<DailyRecord | null>;
   adoptAlreadyAppliedRemoteRecord?: (record: DailyRecord) => Promise<DailyRecord>;
-}): Promise<'not_applied' | 'continue' | 'return'> => {
-  if (!resolveAlreadyAppliedRemoteRecord) return 'not_applied';
+}): Promise<RemoteWriteStep | null> => {
+  if (!resolveAlreadyAppliedRemoteRecord) return null;
 
   let alreadyAppliedRecord: DailyRecord | null = null;
   try {
@@ -86,36 +80,22 @@ export const recoverAlreadyAppliedRemoteWrite = async ({
   } catch (resolutionError) {
     logger.warn('Could not verify whether the guarded write was already applied', resolutionError);
   }
-  if (!alreadyAppliedRecord) return 'not_applied';
+  if (!alreadyAppliedRecord) return null;
   if (!adoptAlreadyAppliedRemoteRecord) {
     logger.warn('Already-applied guarded write has no safe local adoption callback');
-    return 'not_applied';
+    return null;
   }
 
-  markRemoteWriteSucceeded(state);
-  state.observabilityTags = ['daily_record', 'write', 'persisted_and_synced', 'already_applied'];
-  state.confirmedRecord = alreadyAppliedRecord;
+  const confirmed = { ...confirmedByServer(current), confirmedRecord: alreadyAppliedRecord };
+  let localProjectionRecord: DailyRecord;
   try {
-    state.localProjectionRecord = await adoptAlreadyAppliedRemoteRecord(alreadyAppliedRecord);
-  } catch (error) {
-    applyLocalPersistenceFailure(
-      changedPaths,
-      {
-        ok: false,
-        operation: 'save',
-        store: 'none',
-        dates: [date],
-        error,
-        userSafeMessage:
-          'El cambio quedó confirmado en el servidor, pero la cola local cambió antes de poder reconciliarse.',
-      },
-      state,
-      {
-        remoteCommitted: true,
-      }
+    localProjectionRecord = await adoptAlreadyAppliedRemoteRecord(alreadyAppliedRecord);
+  } catch (adoptionError) {
+    const blockingError = toWriteError(
+      adoptionError,
+      'El cambio quedó confirmado en el servidor, pero la cola local cambió antes de poder reconciliarse.'
     );
-    return 'return';
+    return { result: localCopyStale(confirmed, blockingError), next: 'return' };
   }
-  markLocalWriteSucceeded(state);
-  return 'continue';
+  return { result: storedHere({ ...confirmed, localProjectionRecord }), next: 'continue' };
 };

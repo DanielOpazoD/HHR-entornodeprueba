@@ -1,23 +1,28 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import {
   buildBlockedWriteResult,
-  buildWriteResult,
-  createRemoteWriteState,
-  type RemoteWriteState,
+  pendingWriteOutcome,
+  sessionEndedWriteOutcome,
+  settleWriteResult,
+  startWriteResult,
+  unrecoverableWriteOutcome,
 } from '@/services/repositories/dailyRecordWriteState';
 
 const DATE = '2026-04-16';
 
-const stateWith = (changes: Partial<RemoteWriteState>): RemoteWriteState => ({
-  ...createRemoteWriteState(),
-  ...changes,
-});
+const started = startWriteResult(DATE);
+const stored: DailyRecordWriteResult = { ...started, savedHere: true };
+const confirmed: DailyRecordWriteResult = {
+  ...stored,
+  state: 'confirmed',
+  localCopy: 'current',
+};
 
 /** What a caller reads from the result: whether a copy stayed here, and the write's state. */
-const seen = (state: RemoteWriteState) => {
-  const result = buildWriteResult(DATE, state);
+const seen = (result: DailyRecordWriteResult) => {
   const { savedHere } = result;
   if (result.state === 'confirmed') return [savedHere, result.state, result.localCopy];
   if (result.state === 'local') return [savedHere, result.state, result.cause];
@@ -25,112 +30,98 @@ const seen = (state: RemoteWriteState) => {
 };
 
 describe('dailyRecordWriteState', () => {
-  it.each<[string, Partial<RemoteWriteState>, unknown[]]>([
-    ['stored with no server', { savedLocally: true }, [true, 'local', 'stored']],
-    [
-      'confirmed by the server',
-      { savedLocally: true, savedRemotely: true, consistencyState: 'persisted_and_synced' },
-      [true, 'confirmed', 'current'],
-    ],
-    [
-      'confirmed while this copy could not follow',
-      { savedRemotely: true, consistencyState: 'unrecoverable' },
-      [false, 'confirmed', 'stale'],
-    ],
+  it('starts with nothing stored', () => {
+    expect(seen(started)).toEqual([false, 'local', 'stored']);
+  });
+
+  it.each<
+    [string, DailyRecordWriteResult, (current: DailyRecordWriteResult) => unknown, unknown[]]
+  >([
     [
       'queued for an automatic retry',
-      { savedLocally: true, queuedForRetry: true, consistencyState: 'queued_for_retry' },
+      stored,
+      c => pendingWriteOutcome(c, 'retrying'),
       [true, 'local', 'retrying'],
     ],
     [
       'merged with the remote copy',
-      {
-        savedLocally: true,
-        queuedForRetry: true,
-        autoMerged: true,
-        consistencyState: 'auto_merged',
-      },
+      stored,
+      c => pendingWriteOutcome(c, 'merged'),
       [true, 'local', 'merged'],
     ],
     [
-      'kept here for review',
-      { savedLocally: true, consistencyState: 'unrecoverable' },
-      [true, 'held', 'needs_review'],
+      'queued after the server took it',
+      confirmed,
+      c => pendingWriteOutcome(c, 'retrying'),
+      [true, 'confirmed', 'current'],
     ],
+    ['kept here for review', stored, unrecoverableWriteOutcome, [true, 'held', 'needs_review']],
     [
-      'merged and then found unrecoverable',
-      { savedLocally: true, autoMerged: true, consistencyState: 'unrecoverable' },
-      [true, 'held', 'needs_review'],
+      'unrecoverable after the server took it',
+      confirmed,
+      unrecoverableWriteOutcome,
+      [true, 'confirmed', 'stale'],
     ],
     [
       'lost before any copy',
-      { consistencyState: 'unrecoverable' },
+      started,
+      unrecoverableWriteOutcome,
       [false, 'not_saved', 'local_failed'],
     ],
     [
-      'blocked by a remote integrity check',
-      { savedLocally: true, consistencyState: 'blocked_version_mismatch' },
-      [true, 'not_saved', 'blocked'],
-    ],
-    [
-      'blocked by validation',
-      { savedLocally: true, consistencyState: 'blocked_validation' },
-      [true, 'not_saved', 'blocked'],
-    ],
-    [
-      'routed to the day queue task',
-      { savedLocally: true, queuedForRetry: true, reason: 'queue_route' },
-      [true, 'local', 'queue_route'],
-    ],
-    [
-      'held because the field changed elsewhere',
-      {
-        savedLocally: true,
-        queuedForRetry: true,
-        autoMerged: true,
-        consistencyState: 'auto_merged',
-        reason: 'field_changed_elsewhere',
-      },
-      [true, 'held', 'field_changed_elsewhere'],
-    ],
-    [
       'kept for its author when the session ended',
-      { savedLocally: true, queuedForRetry: true, reason: 'session_changed' },
+      stored,
+      sessionEndedWriteOutcome,
+      [true, 'held', 'session_changed'],
+    ],
+    [
+      'kept for its author after the server took it',
+      confirmed,
+      sessionEndedWriteOutcome,
       [true, 'held', 'session_changed'],
     ],
     [
       'never stored when the session ended first',
-      { consistencyState: 'unrecoverable', reason: 'session_changed' },
+      started,
+      sessionEndedWriteOutcome,
       [false, 'not_saved', 'session_changed'],
     ],
-  ])('a write %s leaves its state once', (_, changes, expected) => {
-    expect(seen(stateWith(changes))).toEqual(expected);
+  ])('a write %s settles in one state', (_, current, outcome, expected) => {
+    expect(
+      seen(settleWriteResult(current, outcome(current) as Parameters<typeof settleWriteResult>[1]))
+    ).toEqual(expected);
   });
 
-  it('names a conflict with another writer so its error travels as ConcurrencyError', () => {
-    const conflict = stateWith({
-      consistencyState: 'unrecoverable',
-      conflictSummary: { kind: 'concurrency', sourceOfTruth: 'local' },
+  it('replaces the message, error and conflict mark only with a decision', () => {
+    const blockingError = new Error('conflicto sintetico');
+    const decided = settleWriteResult(
+      { ...confirmed, confirmedRecord: { date: DATE } as never },
+      { state: 'held', reason: 'needs_review' },
+      { userSafeMessage: 'revisar', blockingError, concurrencyConflict: true }
+    );
+    expect(decided).toMatchObject({
+      state: 'held',
+      reason: 'needs_review',
+      userSafeMessage: 'revisar',
+      blockingError,
+      concurrencyConflict: true,
+      confirmedRecord: { date: DATE },
     });
-    const unavailable = stateWith({
-      consistencyState: 'unrecoverable',
-      conflictSummary: { kind: 'remote_unavailable', sourceOfTruth: 'local' },
-    });
+    expect(decided).not.toHaveProperty('localCopy');
 
-    expect(buildWriteResult(DATE, conflict).concurrencyConflict).toBe(true);
-    expect(buildWriteResult(DATE, unavailable)).not.toHaveProperty('concurrencyConflict');
+    const kept = settleWriteResult(decided, { state: 'held', reason: 'session_changed' });
+    expect(kept).toMatchObject({ userSafeMessage: 'revisar', concurrencyConflict: true });
+
+    const cleared = settleWriteResult(decided, { state: 'local', cause: 'retrying' }, {});
+    expect(cleared).not.toHaveProperty('concurrencyConflict');
+    expect(cleared.blockingError).toBeUndefined();
+    expect(cleared).not.toHaveProperty('reason');
   });
 
   it('builds a blocked result with no copy anywhere and the producer error', () => {
     const blockingError = new Error('Regla clinica invalida');
-    const state = stateWith({
-      savedLocally: true,
-      consistencyState: 'blocked_validation',
-      userSafeMessage: 'Regla clinica invalida',
-      blockingError,
-    });
 
-    expect(buildBlockedWriteResult(DATE, state)).toEqual({
+    expect(buildBlockedWriteResult(DATE, 'Regla clinica invalida', blockingError)).toEqual({
       date: DATE,
       savedHere: false,
       state: 'not_saved',
