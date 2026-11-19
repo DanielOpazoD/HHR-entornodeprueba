@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1257,
+  "total": 1246,
   "areas": {
     "src/application/backup-export": 4,
     "src/application/wound-care": 1,
@@ -41,7 +41,7 @@
     "src/services/backup": 13,
     "src/services/calculations": 1,
     "src/services/config": 2,
-    "src/services/cudyr": 177,
+    "src/services/cudyr": 166,
     "src/services/exporters": 21,
     "src/services/integrations": 7,
     "src/services/laboratory": 4,
