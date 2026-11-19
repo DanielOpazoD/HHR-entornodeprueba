@@ -31,6 +31,18 @@ const isSupportSheet = (sheetName: string): boolean =>
 const getVisibleDaySheets = (workbook: Awaited<ReturnType<typeof buildCensusMasterWorkbook>>) =>
   getVisibleSheets(workbook).filter(sheet => !isSupportSheet(sheet.name));
 
+const findBedRowValues = (
+  workbook: Awaited<ReturnType<typeof buildCensusMasterWorkbook>>,
+  bedId: string
+): unknown[] => {
+  const sheet = getVisibleDaySheets(workbook)[0];
+  for (let rowNumber = 1; rowNumber <= sheet.rowCount; rowNumber += 1) {
+    const values = sheet.getRow(rowNumber).values as unknown[];
+    if (values[2] === bedId) return values;
+  }
+  throw new Error(`No row for bed ${bedId}`);
+};
+
 // ============================================================================
 // Mock Data Factories
 // ============================================================================
@@ -351,12 +363,14 @@ describe('Census → Excel Export Integration', () => {
       const record = createMockDailyRecord('2024-12-23', { occupiedBeds: 3 });
 
       // Block some beds
-      record.beds['R10'].isBlocked = true;
-      record.beds['R11'].isBlocked = true;
+      record.beds['R3'].isBlocked = true;
+      record.beds['R4'].isBlocked = true;
 
       const workbook = await buildCensusMasterWorkbook([record]);
 
-      expect(workbook).toBeDefined();
+      expect(findBedRowValues(workbook, 'R2')[4]).toBe('Paciente 2');
+      expect(findBedRowValues(workbook, 'R3')[4]).toBe('Bloqueada');
+      expect(findBedRowValues(workbook, 'R4')[4]).toBe('Bloqueada');
     });
 
     it('should handle UPC patients', async () => {
@@ -367,7 +381,8 @@ describe('Census → Excel Export Integration', () => {
 
       const workbook = await buildCensusMasterWorkbook([record]);
 
-      expect(workbook).toBeDefined();
+      expect(findBedRowValues(workbook, 'R1')[13]).toBe('UPC-UTI');
+      expect(findBedRowValues(workbook, 'R2')[13]).toBe('No UPC');
     });
 
     it('should exclude empty extra beds and include occupied ones', async () => {

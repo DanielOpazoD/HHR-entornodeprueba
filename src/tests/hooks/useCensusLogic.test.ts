@@ -84,8 +84,8 @@ describe('useCensusLogic', () => {
     it('should return census data from context', () => {
       const { result } = renderHook(() => useCensusLogic('2025-01-10'));
 
-      expect(result.current.beds).toBeDefined();
-      expect(result.current.movements).toBeDefined();
+      expect(result.current.beds).toBe(POPULATED_BEDS);
+      expect(result.current.movements).toEqual({ discharges: [], transfers: [], cma: [] });
     });
 
     it('should return staff lists from context', () => {

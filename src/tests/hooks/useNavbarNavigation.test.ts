@@ -2,10 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 
 // Mock dependencies
+const authState = vi.hoisted(() => ({ role: 'admin' }));
+
 vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({
-    role: 'admin',
-  }),
+  useAuth: () => authState,
 }));
 
 vi.mock('@/shared/access/operationalAccessPolicy', () => ({
@@ -60,17 +60,21 @@ describe('useNavbarNavigation', () => {
   });
 
   it('should filter admin-only items for non-admin users', () => {
-    // With admin role, admin items should be visible
-    const { result } = renderHook(() =>
-      useTestHook(
-        'HANDOFF' as unknown as CurrentModuleArg,
-        ['HANDOFF', 'ADMIN'] as unknown as VisibleModulesArg,
-        'REGISTER'
-      )
-    );
+    authState.role = 'nurse_hospital';
+    try {
+      const { result } = renderHook(() =>
+        useTestHook(
+          'HANDOFF' as unknown as CurrentModuleArg,
+          ['HANDOFF', 'ADMIN'] as unknown as VisibleModulesArg,
+          'REGISTER'
+        )
+      );
 
-    const adminItem = result.current.systemItems.find(item => item.id === 'admin');
-    expect(adminItem).toBeDefined();
+      expect(result.current.systemItems.map(item => item.id)).toEqual([]);
+      expect(result.current.clinicalTabs.map(item => item.id)).toContain('handoff');
+    } finally {
+      authState.role = 'admin';
+    }
   });
 
   it('should detect utility active state', () => {
@@ -82,7 +86,7 @@ describe('useNavbarNavigation', () => {
       )
     );
 
-    expect(result.current.isUtilityActive).toBeDefined();
+    expect(result.current.isUtilityActive).toBe(true);
   });
 
   it('should filter items based on required module', () => {

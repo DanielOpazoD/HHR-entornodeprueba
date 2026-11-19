@@ -23,7 +23,9 @@ describe('optional source presentation during monthly Excel export', () => {
   it('builds without an attachment even when source presentation cannot load', async () => {
     const data = buildCudyrReport(confirmedReportInput());
     const { workbook } = await buildCudyrEssentialWorkbook(data);
-    expect(workbook.getWorksheet('Resumen CUDYR Mensual')).toBeDefined();
+    const sheetNames = workbook.worksheets.map(sheet => sheet.name);
+    expect(sheetNames[0]).toBe('Resumen CUDYR Mensual');
+    expect(sheetNames.filter(name => name.startsWith('Eloísa'))).toEqual([]);
   });
 
   it('downloads an empty-source result without loading source presentation', async () => {

@@ -101,18 +101,16 @@ describe('WhatsAppIntegrationView', () => {
     expect(screen.getByText('Turnos Pabellón')).toBeInTheDocument();
   });
 
-  it('switches between tabs', () => {
+  it('switches between tabs', async () => {
+    mockGetMessageTemplates.mockResolvedValue([]);
     render(<WhatsAppIntegrationView />);
 
     fireEvent.click(screen.getByText('Plantillas'));
-    fireEvent.click(screen.getByText('Configuración'));
-  });
+    expect(await screen.findByText('Plantillas de Mensaje')).toBeInTheDocument();
 
-  it('shows all three tab labels', () => {
-    render(<WhatsAppIntegrationView />);
-    expect(screen.getByText('Turnos Pabellón')).toBeInTheDocument();
-    expect(screen.getByText('Plantillas')).toBeInTheDocument();
-    expect(screen.getByText('Configuración')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Configuración'));
+    expect(await screen.findByText('Configuración WhatsApp')).toBeInTheDocument();
+    expect(screen.queryByText('Plantillas de Mensaje')).not.toBeInTheDocument();
   });
 });
 

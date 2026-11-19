@@ -8,8 +8,6 @@ import {
   cudyrExistsDetailed,
   deleteCudyrFile,
   deleteCudyrFileWithResult,
-  listCudyrYears,
-  listCudyrMonths,
 } from '@/services/backup/cudyrStorageService';
 import { uploadBytes, getDownloadURL, getMetadata, deleteObject } from 'firebase/storage';
 
@@ -133,13 +131,6 @@ describe('cudyrStorageService', () => {
 
       expect(result.status).toBe('invalid_date');
       expect(deleteObject).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('Factory-provided functions', () => {
-    it('should exist', () => {
-      expect(listCudyrYears).toBeDefined();
-      expect(listCudyrMonths).toBeDefined();
     });
   });
 });
