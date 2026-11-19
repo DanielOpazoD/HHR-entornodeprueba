@@ -5,11 +5,12 @@
 
 import React from 'react';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
-import { Download, Trash2, Calendar, Eye, FileText } from 'lucide-react';
+import { Calendar, FileText } from 'lucide-react';
 import type { BaseStoredFile } from '@/types/backupArtifacts';
 import { generateDateRange } from '@/utils/dateRangeUtils';
 import { MONTH_NAMES } from '@/types/backupArtifacts';
 import { formatBackupDisplayDate } from '@/shared/backup/backupPresentation';
+import { BackupFileCell } from './BackupFileCell';
 
 interface DailyBackupCalendarViewProps {
   files: BaseStoredFile[];
@@ -83,8 +84,9 @@ export const DailyBackupCalendarView: React.FC<DailyBackupCalendarViewProps> = (
                 </span>
               </td>
               <td className="px-1 py-0.5 text-center">
-                <FileCell
+                <BackupFileCell
                   file={fileMap[dateStr]}
+                  toneClassName="bg-slate-50 hover:bg-slate-100 border-slate-200"
                   onDownload={onDownload}
                   onView={onView}
                   onDelete={onDelete}
@@ -96,67 +98,6 @@ export const DailyBackupCalendarView: React.FC<DailyBackupCalendarViewProps> = (
           ))}
         </tbody>
       </table>
-    </div>
-  );
-};
-
-interface FileCellProps {
-  file?: BaseStoredFile;
-  onDownload: (file: BaseStoredFile) => void;
-  onView: (file: BaseStoredFile) => void;
-  onDelete: (file: BaseStoredFile) => void;
-  canDelete: boolean;
-  formatSize: (bytes: number) => string;
-}
-
-const FileCell: React.FC<FileCellProps> = ({
-  file,
-  onDownload,
-  onView,
-  onDelete,
-  canDelete,
-  formatSize,
-}) => {
-  if (!file) {
-    return (
-      <div className="flex items-center justify-center h-6">
-        <span className="text-[10px] text-slate-300 italic">—</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="inline-flex items-center justify-center gap-1 px-1.5 py-0.5 rounded border bg-slate-50 hover:bg-slate-100 border-slate-200 transition-colors">
-      <div className="flex items-center shrink-0">
-        <button
-          onClick={() => onView(file)}
-          className="p-0.5 text-blue-600 hover:bg-blue-100 rounded transition-colors"
-          title="Ver"
-        >
-          <Eye size={12} />
-        </button>
-        <button
-          onClick={() => onDownload(file)}
-          className="p-0.5 text-teal-600 hover:bg-teal-100 rounded transition-colors"
-          title="Descargar"
-        >
-          <Download size={12} />
-        </button>
-        {canDelete && (
-          <button
-            onClick={() => onDelete(file)}
-            className="p-0.5 text-red-500 hover:bg-red-100 rounded transition-colors"
-            title="Eliminar"
-          >
-            <Trash2 size={12} />
-          </button>
-        )}
-      </div>
-      {file.size && (
-        <span className="text-[9px] text-slate-500 font-medium tabular-nums border-l border-slate-200 pl-1 ml-0.5">
-          {formatSize(file.size)}
-        </span>
-      )}
     </div>
   );
 };
