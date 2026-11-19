@@ -1,4 +1,4 @@
-import { getSessionGeneration, getSessionOwner } from './sessionStorageTransition';
+import { getSessionEpoch, getSessionGeneration, getSessionOwner } from './sessionStorageTransition';
 import { getStoredSessionOwnerKey, isSessionCleanupPending } from './sessionOwnerKey';
 
 /** The person and session that began a write: whose intent it carries, whatever happens later. */
@@ -7,18 +7,26 @@ export interface AuthoringSession {
   generation: string | null;
 }
 
+/**
+ * The owner is the person this tab admitted, never the shared key another tab may already have
+ * replaced: an edit A makes in a census still open after B signed in elsewhere stays A's (kept for
+ * A to review on return), never B's. Before any admission it is the browser's owner.
+ */
 export const captureAuthoringSession = (): AuthoringSession => ({
-  ownerKey: getStoredSessionOwnerKey(),
+  ownerKey: getSessionOwner() ?? getStoredSessionOwnerKey(),
   generation: getSessionGeneration(),
 });
 
 /**
  * The person this tab may act for: the one it admitted, while the browser still holds them. Null
- * once another tab admitted someone else on the shared key: this tab then sends, revives, discards
- * and enqueues nobody's work, and everyone's stays as it is. A document that has admitted nobody
- * (start-up, or a logged-out tab) follows the browser's owner, as before admission.
+ * once another tab admitted someone else on the shared key, and null in a document that logged out
+ * (it admitted someone and holds no session now) until it admits again: such a tab claims, sends,
+ * revives, discards and enqueues nobody's work, and everyone's stays as it is. A document that has
+ * admitted nobody yet (start-up) follows the browser's owner, as before admission.
  */
 export const getTabOwnerKey = (): string | null => {
+  const generation = getSessionGeneration();
+  if (generation === null && getSessionEpoch() > 0) return null;
   const browserOwner = getStoredSessionOwnerKey();
   const admitted = getSessionOwner();
   return admitted === null || admitted === browserOwner ? browserOwner : null;

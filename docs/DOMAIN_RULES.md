@@ -281,10 +281,14 @@ decisión rechazada ni inventa ausencia local.
   liberar y mostrar en el panel): solo trabajo de la persona que **esta pestaña** admitió, mientras
   el navegador la siga teniendo (`getTabOwnerKey()` e `isAdmittedOwner()` en
   `authoringSession.ts`; la cola la lee como `getOwnerKey()` de su runtime). Una pestaña que sigue
-  admitida como A después de que otra admitió a B no actúa por nadie. Una tarea se encola a nombre
-  de la sesión capturada al iniciar la operación; si esa sesión cambió, no se encola a nombre de
-  nadie más (la corrida interrumpida exige una captura nueva). Reintentar y descartar vuelven a
-  preguntar después de leer la fila y nunca valen durante un cierre. Las recuperaciones reciben la
+  admitida como A después de que otra admitió a B no actúa por nadie, y tampoco una pestaña que cerró
+  sesión hasta que vuelva a admitir a alguien. La sesión capturada lleva a quien esta pestaña
+  admitió, no la clave compartida: una edición del censo o de la entrega que A hace con el censo
+  aún abierto tras entrar B queda retenida para A, nunca en la cola de B. Una tarea se encola a
+  nombre de la sesión capturada al iniciar la operación; si esa sesión cambió, no se encola a
+  nombre de nadie más (la corrida interrumpida exige una captura nueva). Reclamar una tarea para
+  enviarla también es una salida: se pregunta por tarea dentro de la transacción. Reintentar y
+  descartar vuelven a preguntar después de leer la fila y nunca valen durante un cierre. Las recuperaciones reciben la
   sesión capturada al iniciar la corrida. Nada se borra: lo de otro dueño queda intacto y su dueño
   lo envía al volver.
 - La edición local en vuelo conserva propietario, base y contexto en reposo, aunque la cola activa

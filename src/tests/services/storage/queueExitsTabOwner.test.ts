@@ -8,16 +8,21 @@ import {
 } from '@/services/storage/sessionScopedStorageService';
 import { getSessionOwner } from '@/services/storage/sessionStorageTransition';
 import { isSessionCleanupPending } from '@/services/storage/sessionOwnerKey';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import {
+  captureAuthoringSession,
+  guardAuthoringSession,
+} from '@/services/storage/authoringSession';
 import {
   discardQuarantinedSyncTask,
   ensureSyncQueueOnlineListener,
   processSyncQueue,
+  queueDailyRecordSyncTaskWithLocalRecord,
   retryQuarantinedSyncTask,
 } from '@/services/storage/sync/publicSyncQueue';
 import { persistCudyrArchivePart } from '@/services/cudyr/cudyrArchiveQueue';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { replaceStoredSessionOwner } from '@/tests/utils/syntheticSession';
+import { DataFactory } from '@/tests/factories/DataFactory';
 import type { ArchiveCudyrHistoryRequest } from '@/types/domain/cudyrHistory';
 
 const port = vi.hoisted(() => ({ ready: vi.fn(), sent: vi.fn() }));
@@ -214,5 +219,58 @@ describe('every queue exit acts only for the person this tab admitted', () => {
     goOnline();
     await vi.waitFor(async () => expect(await hospitalDB.syncQueue.get(id)).toBeUndefined());
     expect(port.sent.mock.calls).toEqual([[`archive-${A}`, A]]);
+  });
+
+  it('enqueue: an edit A makes in a census still open after B signed in elsewhere stays A’s', async () => {
+    await otherTabAdmitsB();
+    const day = DataFactory.createMockDailyRecord('2026-11-18');
+    const result = await queueDailyRecordSyncTaskWithLocalRecord(
+      day,
+      { contexts: ['clinical'] },
+      { authoringSession: captureAuthoringSession(), deferProcessing: true }
+    );
+    expect(result.mode).toBe('retained_for_owner');
+    const rows = await hospitalDB.syncQueue.toArray();
+    // Kept for A to review on return; B's queue never holds it, so B neither sees nor revives it.
+    expect(rows.map(row => row.ownerKey)).toEqual([A]);
+  });
+
+  it('claim: a pass begun before A logged out claims nothing once B holds the browser', async () => {
+    let entered!: () => void;
+    let release!: () => void;
+    const waiting = new Promise<void>(resolve => (entered = resolve));
+    const held = new Promise<void>(resolve => (release = resolve));
+    port.ready.mockImplementationOnce(async () => {
+      entered();
+      await held;
+    });
+    const pass = processSyncQueue();
+    await waiting;
+    await clearSessionScopedClientState('automatic');
+    await otherTabAdmitsB();
+    const id = await hospitalDB.syncQueue.add(archiveTask(B, 'PENDING'));
+    const before = await hospitalDB.syncQueue.get(id);
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+    release();
+    await pass;
+    await new Promise(resolve => setTimeout(resolve, 100));
+    expect(port.sent).not.toHaveBeenCalled();
+    expect(await hospitalDB.syncQueue.get(id)).toEqual(before);
+  });
+
+  it('claim: each task is asked inside the claim, so a change during it takes nothing', async () => {
+    const id = await hospitalDB.syncQueue.add(archiveTask(A, 'PENDING'));
+    const before = await hospitalDB.syncQueue.get(id);
+    const where = hospitalDB.syncQueue.where.bind(hospitalDB.syncQueue);
+    // B signs in elsewhere exactly while this tab's claim reads the ready tasks.
+    vi.spyOn(hospitalDB.syncQueue, 'where').mockImplementation(((index: string) => {
+      if (index === '[status+timestamp]') replaceStoredSessionOwner(B);
+      return where(index);
+    }) as never);
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+    await processSyncQueue();
+    vi.restoreAllMocks();
+    expect(port.sent).not.toHaveBeenCalled();
+    expect(await hospitalDB.syncQueue.get(id)).toEqual(before);
   });
 });

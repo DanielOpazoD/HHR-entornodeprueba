@@ -324,9 +324,12 @@ export const createSyncQueueEngine = ({
                 leaseUntil: now + SYNC_QUEUE_LEASE_MS,
                 attemptId: createSyncQueueAttemptId(),
               },
-              ...(options.nursingHandoffOnly
-                ? [(task: SyncTask) => task.ownerKey === owner && hasPendingNursingHandoff(task)]
-                : [])
+              // Claiming is an exit: asked per task inside the claim's transaction, so a task is
+              // taken only while this tab still acts for the owner this pass began with.
+              (task: SyncTask) =>
+                !stopped() &&
+                (!options.nursingHandoffOnly ||
+                  (task.ownerKey === owner && hasPendingNursingHandoff(task)))
             );
             if (readyTasks.length === 0) {
               return;
