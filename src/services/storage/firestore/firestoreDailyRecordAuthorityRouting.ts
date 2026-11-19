@@ -108,11 +108,6 @@ const isClinicalAuthorityDerivedPatchPath = (path: string): boolean => {
   return field === 'clinicalEpisodeId' && nestedField === undefined && rest.length === 0;
 };
 
-export const isClinicalAuthorityPatch = (patch: Record<string, unknown>): boolean => {
-  const paths = Object.keys(patch);
-  return paths.length > 0 && paths.every(isClinicalAuthorityPatchPath);
-};
-
 export const extractClinicalAuthorityPatch = (
   patch: Record<string, unknown>
 ): Record<string, unknown> =>
@@ -149,9 +144,6 @@ export const STAFFING_PATH =
  */
 export const isPlainDayFieldPath = (path: string): boolean =>
   !isDailyRecordBedTreePath(path) && !STAFFING_PATH.test(path);
-
-export const touchesDailyRecordBedTree = (patch: Record<string, unknown>): boolean =>
-  Object.keys(patch).some(isDailyRecordBedTreePath);
 
 export const extractDailyRecordBedTreePatch = (
   patch: Record<string, unknown>

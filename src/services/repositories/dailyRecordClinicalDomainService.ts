@@ -12,7 +12,6 @@ import {
   inheritPatientHandoffNotes,
   inheritPatientMedicalHandoff,
 } from '@/services/repositories/dailyRecordHandoffDomainService';
-import { touchDailyRecordLastUpdated } from '@/services/repositories/dailyRecordMetadataDomainService';
 import { normalizePatientUpcForBed } from '@/shared/census/upcBedPolicy';
 import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields';
 
@@ -59,16 +58,6 @@ export const preparePatientForCarryover = (
   }
 
   return normalizePatientUpcForBed(clonedPatient, targetBedId);
-};
-
-export const assignCarriedPatientToRecord = (
-  targetRecord: DailyRecord,
-  targetBedId: string,
-  sourcePatient: PatientData
-): DailyRecord => {
-  targetRecord.beds[targetBedId] = preparePatientForCarryover(sourcePatient, targetBedId);
-  touchDailyRecordLastUpdated(targetRecord);
-  return targetRecord;
 };
 
 export const buildEmptyClinicalBeds = (): Record<string, PatientData> => {

@@ -17,14 +17,6 @@ const assertDate = (date: string, operation: string): void => {
 };
 
 /**
- * Why a write did not simply land, set by the producer that decided it (never read from tags):
- * `session_changed`: the authoring session ended before the write finished; `field_changed_elsewhere`:
- * another device changed the same field, so the edit is held as a conflict with this device's text
- * (SAVE-02); `queue_route`: only the day's queue task saves it (a movement that frees a bed).
- */
-export type DailyRecordWriteReason = 'session_changed' | 'field_changed_elsewhere' | 'queue_route';
-
-/**
  * What a full save or a partial update left, decided once by the repository that wrote it.
  * `savedHere`: its producer recorded a copy on this computer. `confirmed`: the server holds it
  * (`stale`: this computer's copy could not follow). `local`: not refused, and the queue sends it
