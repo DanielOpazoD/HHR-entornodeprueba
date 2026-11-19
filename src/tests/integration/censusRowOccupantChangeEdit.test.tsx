@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
-import { PatientRow } from '@/features/census/components/PatientRow';
+import { CensusTableBody } from '@/features/census/components/CensusTableBody';
+import { buildCensusBedRows } from '@/features/census/controllers/censusTableViewController';
 import { DailyRecordProvider } from '@/context/DailyRecordContext';
 import { DefaultRepositoryProvider } from '@/services/RepositoryContext';
 import { BEDS } from '@/constants/beds';
@@ -19,6 +20,7 @@ import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { PatientData } from '@/types/domain/patient';
 import { applyPatches } from '@/utils/patchUtils';
 import { DataFactory } from '../factories/DataFactory';
+import { ensurePatientClinicalEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import { render } from './setup';
 
 const { ports } = vi.hoisted(() => ({
@@ -93,37 +95,61 @@ const provisionalNewborn = (episode: string, patientName: string) =>
     admissionDate: date,
   });
 
-/** The census as the app wires it: the real day hook, provider, bed row and its crib row. */
+/** A provisional newborn saved without an episode: the read path derives its `legacy_ep_` id. */
+const legacyNewborn = () =>
+  ensurePatientClinicalEpisodeId(
+    DataFactory.createMockPatient(bed.id, {
+      patientName: 'RN PROVISIONAL SINTETICO',
+      firstName: '',
+      lastName: '',
+      secondLastName: '',
+      rut: '',
+      identityStatus: 'provisional',
+      clinicalEpisodeId: undefined,
+      admissionDate: date,
+      firstSeenDate: date,
+      admissionTime: '07:20',
+    })
+  );
+
+const columns = {
+  actions: 42,
+  bed: 96,
+  type: 64,
+  name: 190,
+  access: 64,
+  rut: 128,
+  age: 56,
+  diagnosis: 220,
+  specialty: 112,
+  status: 0,
+  admission: 128,
+  dmi: 0,
+  scores: 56,
+  cqx: 0,
+  upc: 0,
+};
+
+/** The census as the app wires it: the real day hook and provider, and the table's own rows. */
 const Census = () => {
   const day = useDailyRecord(date, 'ready');
   if (!day.record) return null;
-  const record = day.record;
-  const crib = record.beds[bed.id].clinicalCrib;
+  const { unifiedRows } = buildCensusBedRows({ visibleBeds: [bed], beds: day.record.beds });
   return (
     <DailyRecordProvider value={day}>
       <table>
-        <tbody>
-          <PatientRow
-            key={bed.id}
-            data={record.beds[bed.id]}
-            bed={bed}
-            currentDateString={date}
-            onAction={() => {}}
-            bedType={bed.type}
-          />
-          {crib && (
-            // Same stable key as the census table: the crib row stays mounted when its occupant changes.
-            <PatientRow
-              key={`${bed.id}-cuna`}
-              data={crib}
-              bed={bed}
-              currentDateString={date}
-              onAction={() => {}}
-              bedType={bed.type}
-              isSubRow
-            />
-          )}
-        </tbody>
+        <CensusTableBody
+          unifiedRows={unifiedRows}
+          currentDateString={date}
+          readOnly={false}
+          diagnosisMode="free"
+          columns={columns}
+          visibleColumnCount={12}
+          bedTypes={{ [bed.id]: bed.type }}
+          clinicalDocumentPresenceByBedId={{}}
+          onAction={() => {}}
+          onActivateEmptyBed={() => {}}
+        />
       </table>
     </DailyRecordProvider>
   );
@@ -133,7 +159,9 @@ const Census = () => {
  * Renders the census with a provisional newborn in bed R1's crib, then lets the test replace that
  * newborn by a server answer, as a synchronization or another computer would.
  */
-const renderCensusWithNewborn = async () => {
+const renderCensusWithNewborn = async (
+  firstNewborn: PatientData = provisionalNewborn('episode-newborn-a', 'RN DE MADRE SINTETICA')
+) => {
   setFirestoreEnabled(true);
   resetDailyRecordFreshnessGateForTests();
   let stored = DataFactory.createMockDailyRecord(date, {
@@ -143,7 +171,7 @@ const renderCensusWithNewborn = async () => {
         rut: '11.111.111-1',
         clinicalEpisodeId: 'episode-mother',
         admissionDate: date,
-        clinicalCrib: provisionalNewborn('episode-newborn-a', 'RN DE MADRE SINTETICA'),
+        clinicalCrib: firstNewborn,
       }),
     },
   });
@@ -204,6 +232,27 @@ const renderCensusWithNewborn = async () => {
     expect(screen.getByPlaceholderText('Nombre RN / Niño')).toHaveValue('RN OTRO EPISODIO');
   };
   /** The same newborn and episode, with one field corrected by another computer. */
+  /** Another mother takes the bed, with her own newborn in the crib. */
+  const replaceMother = async (newborn: PatientData) => {
+    stored = {
+      ...stored,
+      beds: {
+        ...stored.beds,
+        [bed.id]: {
+          ...stored.beds[bed.id],
+          patientName: 'SEGUNDA MADRE SINTETICA',
+          rut: '12.345.678-5',
+          clinicalEpisodeId: 'ep_second_mother',
+          clinicalCrib: newborn,
+        },
+      },
+      lastUpdated: '2026-05-17T15:00:00.000Z',
+    };
+    await act(async () => {
+      pushServerSnapshot!(serverSnapshot(stored), false);
+    });
+    await screen.findByText('SEGUNDA MADRE SINTETICA');
+  };
   const correctSameNewborn = async (change: Partial<PatientData>) => {
     stored = {
       ...stored,
@@ -223,6 +272,7 @@ const renderCensusWithNewborn = async () => {
   return {
     newbornName,
     replaceNewborn,
+    replaceMother,
     correctSameNewborn,
     expectTypedNameReachedNoOne,
     patches,
@@ -281,4 +331,44 @@ describe('a census cell whose bed changes occupant before the edit is sent (ID-0
       ]);
     }
   );
+
+  it.each([
+    ['in the cell', true],
+    ['after leaving it', false],
+  ] as const)(
+    'drops the name typed for a legacy newborn when another mother and her same-looking newborn take the bed (%s)',
+    async (_moment, focused) => {
+      const census = await renderCensusWithNewborn(legacyNewborn());
+      const firstCrib = census.stored().beds[bed.id].clinicalCrib!;
+      expect(firstCrib.clinicalEpisodeId).toMatch(/^legacy_ep_/);
+
+      if (focused) fireEvent.focus(census.newbornName);
+      fireEvent.change(census.newbornName, { target: { value: TYPED_NAME } });
+      await census.replaceMother(legacyNewborn());
+      // Both newborns carry the same derived id: only the mother tells them apart.
+      expect(census.stored().beds[bed.id].clinicalCrib?.clinicalEpisodeId).toBe(
+        firstCrib.clinicalEpisodeId
+      );
+      if (focused) fireEvent.blur(screen.getByPlaceholderText('Nombre RN / Niño'));
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 850));
+      });
+
+      expect(census.patches).toEqual([]);
+      expect(census.stored().beds[bed.id].clinicalCrib?.patientName).toBe(
+        'RN PROVISIONAL SINTETICO'
+      );
+    }
+  );
+
+  it('still saves the name typed for the same legacy newborn while its mother stays', async () => {
+    const census = await renderCensusWithNewborn(legacyNewborn());
+
+    fireEvent.change(census.newbornName, { target: { value: TYPED_NAME } });
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 850));
+    });
+
+    expect(census.patches).toEqual([{ [`beds.${bed.id}.clinicalCrib.patientName`]: TYPED_NAME }]);
+  });
 });

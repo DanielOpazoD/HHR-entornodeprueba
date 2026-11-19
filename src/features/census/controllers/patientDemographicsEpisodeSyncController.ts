@@ -11,7 +11,7 @@ import type { PatientRowPatientPatch } from '@/features/census/components/patien
 import { createScopedLogger, type ScopedLogger } from '@/services/utils/loggerScope';
 import { parseCalendarDateUtcNoon } from '@/utils/clinicalDateUtils';
 import { editsEloisaNameParts } from '@/utils/patientNamePartsSource';
-import { LEGACY_EPISODE_ID_PREFIX } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
+import { resolveAccreditedClinicalEpisodeId as accreditedEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 const patientDemographicsEpisodeSyncLogger = createScopedLogger('PatientDemographicsEpisodeSync');
 
@@ -128,15 +128,6 @@ const resolveMatchBasePath = ({
   bedId: string;
   isClinicalCribPatient: boolean;
 }): string => (isClinicalCribPatient ? `beds.${bedId}.clinicalCrib` : `beds.${bedId}`);
-
-/**
- * An episode id that names a hospitalization. A `legacy_ep_` id is only a hash the read path
- * derives for a record saved without one (document, admission date and time): it accredits nothing.
- */
-const accreditedEpisodeId = (patient: PatientData): string | undefined => {
-  const id = patient.clinicalEpisodeId?.trim();
-  return id && !id.startsWith(LEGACY_EPISODE_ID_PREFIX) ? id : undefined;
-};
 
 /**
  * The one patient of that day who is this episode (ID-02, ID-03). Same document or name is a
