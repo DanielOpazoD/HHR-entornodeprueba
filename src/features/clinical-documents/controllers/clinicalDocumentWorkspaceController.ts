@@ -1,17 +1,11 @@
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import type { ConfirmOptions } from '@/context/uiContracts';
 import { getClinicalDocumentDefinition } from '@/domain/clinical-documents/definitions';
-import { hydrateClinicalDocumentRecord } from '@/application/ports/clinicalDocumentCompatibilityPort';
 import { formatClinicalDocumentDateTime as formatClinicalDocumentDateTimePresentation } from '@/shared/clinical-documents/clinicalDocumentPresentation';
 
 /** Serializes a clinical document record to JSON, returning empty string for null. */
 export const serializeClinicalDocument = (record: ClinicalDocumentRecord | null): string =>
   record ? JSON.stringify(record) : '';
-
-/** Hydrates a persisted document record, filling missing compatibility defaults. */
-export const hydrateClinicalDocumentWorkspaceRecord = (
-  record: ClinicalDocumentRecord
-): ClinicalDocumentRecord => hydrateClinicalDocumentRecord(record);
 
 /** Formats an ISO date string for display in the clinical document UI. */
 export const formatClinicalDocumentDateTime = (isoString?: string): string => {

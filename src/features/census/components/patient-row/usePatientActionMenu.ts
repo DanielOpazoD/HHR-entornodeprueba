@@ -7,7 +7,7 @@ import {
 } from '@/features/census/controllers/patientActionMenuController';
 import { buildPatientActionMenuInteractionHandlers } from '@/features/census/controllers/patientActionMenuInteractionController';
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import type {
   PatientActionMenuBinding,
   PatientActionMenuIndicators,

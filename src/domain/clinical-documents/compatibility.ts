@@ -142,7 +142,8 @@ export const hydrateClinicalDocumentV1ToCurrent = (
   record: ClinicalDocumentRecord
 ): ClinicalDocumentRecord => applyClinicalDocumentDefinitionDefaults(record);
 
-export const hydrateLegacyClinicalDocument = (
+/** Brings a stored clinical document to the current shape; the only door for legacy compatibility. */
+export const hydrateClinicalDocumentRecord = (
   record: ClinicalDocumentRecord
 ): ClinicalDocumentRecord => {
   const schemaVersion = resolveClinicalDocumentSchemaVersion(record);

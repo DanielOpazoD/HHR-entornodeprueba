@@ -157,12 +157,15 @@ export const useDailyRecordSyncQuery = (
 
   const { error: notifyError, success, warning } = useNotification();
 
-  // 4. Compatibility handlers
+  // 4. Compatibility handlers. They depend on `mutateAsync`, which is stable,
+  // not on the mutation result, which changes on every pending/success step.
+  const { mutateAsync: saveRecord } = saveMutation;
+  const { mutateAsync: applyPatch } = patchMutation;
   const saveAndUpdate = useCallback(
     async (updatedRecord: DailyRecord, baseRecord?: DailyRecord) => {
       const authoringSession = captureAuthoringSession();
       try {
-        const payload = await saveMutation.mutateAsync({
+        const payload = await saveRecord({
           record: updatedRecord,
           authoringSession,
           baseRecord,
@@ -206,7 +209,7 @@ export const useDailyRecordSyncQuery = (
         throw err;
       }
     },
-    [saveMutation, notifyError, success, refetch, clearPendingRefetchTimeout, warning]
+    [saveRecord, notifyError, success, refetch, clearPendingRefetchTimeout, warning]
   );
 
   const patchRecord = useCallback(
@@ -240,7 +243,7 @@ export const useDailyRecordSyncQuery = (
               }
             : {}),
         };
-        const payload = await patchMutation.mutateAsync({
+        const payload = await applyPatch({
           ...input,
           options: { ...('options' in input ? input.options : {}), authoringSession },
         });
@@ -279,7 +282,7 @@ export const useDailyRecordSyncQuery = (
         throw err;
       }
     },
-    [currentDateString, patchMutation, notifyError, success, warning]
+    [currentDateString, applyPatch, notifyError, success, warning]
   );
 
   const setRecord = useCallback(

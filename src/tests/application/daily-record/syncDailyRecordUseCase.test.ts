@@ -75,4 +75,36 @@ describe('syncDailyRecordUseCase', () => {
     expect(outcome.reason).toBe('missing_remote_record');
     expect(outcome.userSafeMessage).toContain('registro remoto');
   });
+
+  it('returns partial when the repository has no remote source', async () => {
+    const repository = { syncWithFirestoreDetailed: vi.fn().mockResolvedValue(null) };
+
+    const outcome = await executeSyncDailyRecord({ date: '2026-03-05', repository });
+
+    expect(outcome.status).toBe('partial');
+    expect(outcome.data).toEqual(
+      expect.objectContaining({
+        record: null,
+        sync: null,
+        degradationReason: 'missing_remote_record',
+      })
+    );
+    expect(outcome.userSafeMessage).toBe('No hay fuente remota disponible para este día.');
+  });
+
+  it('returns failed with an automatic retry when the repository throws', async () => {
+    const repository = {
+      syncWithFirestoreDetailed: vi.fn().mockRejectedValue(new Error('network down')),
+    };
+
+    const outcome = await executeSyncDailyRecord({ date: '2026-03-05', repository });
+
+    expect(outcome.status).toBe('failed');
+    expect(outcome.data.record).toBeNull();
+    expect(outcome.data.conflict).toEqual(
+      expect.objectContaining({ kind: 'sync_failed', retryStrategy: 'automatic_retry' })
+    );
+    expect(outcome.issues[0]?.message).toBe('network down');
+    expect(outcome.reason).toBe('sync_failed');
+  });
 });

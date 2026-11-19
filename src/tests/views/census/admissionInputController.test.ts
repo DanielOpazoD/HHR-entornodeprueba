@@ -1,135 +1,20 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
-  resolveAdmissionDateChange,
   resolveAdmissionDateAudit,
-  resolveAdmissionDateMax,
   resolveAdmissionDateOptions,
   resolveAdmissionDateIsEditable,
   resolveAdmissionTimePickerModel,
-  resolveAdmissionDateUpdatePlan,
   resolveAdmissionTimeValue,
   resolveAdmissionTooltip,
   resolveIsCriticalAdmissionEmpty,
 } from '@/features/census/controllers/admissionInputController';
 
 describe('admissionInputController', () => {
-  it.each([
-    ['2026-07-20T05:30:00Z', '2026-07-19', '23:30'],
-    ['2026-10-05T04:30:00Z', '2026-10-04', '23:30'],
-  ])(
-    'uses the hospital clock at %s without changing the chosen date',
-    (instant, nextDate, time) => {
-      expect(resolveAdmissionDateChange({ nextDate, now: new Date(instant) })).toEqual({
-        admissionDate: nextDate,
-        admissionTime: time,
-        shouldPatchMultiple: true,
-      });
-    }
-  );
-
   it('detects critical admission empty when patient exists and date is missing', () => {
     expect(resolveIsCriticalAdmissionEmpty('Paciente', '')).toBe(true);
     expect(resolveIsCriticalAdmissionEmpty('Paciente', '2026-02-15')).toBe(false);
     expect(resolveIsCriticalAdmissionEmpty('', '')).toBe(false);
-  });
-
-  it('auto-fills time when date is set and time is missing', () => {
-    const resolution = resolveAdmissionDateChange({
-      nextDate: '2026-02-15',
-      currentAdmissionTime: '',
-      now: new Date('2026-02-15T06:42:00-05:00'),
-    });
-
-    expect(resolution.shouldPatchMultiple).toBe(true);
-    expect(resolution.admissionDate).toBe('2026-02-15');
-    expect(resolution.admissionTime).toBe('06:42');
-  });
-
-  it('keeps single-field change when admission time already exists', () => {
-    const resolution = resolveAdmissionDateChange({
-      nextDate: '2026-02-15',
-      currentAdmissionTime: '05:30',
-      now: new Date('2026-02-15T06:42:00-05:00'),
-    });
-
-    expect(resolution.shouldPatchMultiple).toBe(false);
-    expect(resolution.admissionDate).toBe('2026-02-15');
-    expect(resolution.admissionTime).toBeUndefined();
-  });
-
-  it('builds a multiple-update plan when time is missing or firstSeenDate must be anchored', () => {
-    expect(
-      resolveAdmissionDateUpdatePlan({
-        nextDate: '2026-02-15',
-        currentAdmissionTime: '',
-        currentDateString: '2026-02-15',
-        firstSeenDate: undefined,
-        now: new Date('2026-02-15T06:42:00-05:00'),
-      })
-    ).toEqual({
-      nextPatch: {
-        admissionDate: '2026-02-15',
-        admissionTime: '06:42',
-        firstSeenDate: '2026-02-15',
-      },
-      shouldUseMultipleUpdate: true,
-    });
-
-    expect(
-      resolveAdmissionDateUpdatePlan({
-        nextDate: '2026-02-15',
-        currentAdmissionTime: '05:30',
-        currentDateString: '2026-02-15',
-        firstSeenDate: undefined,
-        now: new Date('2026-02-15T06:42:00-05:00'),
-      })
-    ).toEqual({
-      nextPatch: {
-        admissionDate: '2026-02-15',
-        firstSeenDate: '2026-02-15',
-      },
-      shouldUseMultipleUpdate: true,
-    });
-  });
-
-  it('repairs firstSeenDate when time exists and date is corrected to current day', () => {
-    expect(
-      resolveAdmissionDateUpdatePlan({
-        nextDate: '2026-02-15',
-        currentAdmissionTime: '05:30',
-        currentDateString: '2026-02-15',
-        firstSeenDate: '2026-02-14',
-        now: new Date('2026-02-15T06:42:00-05:00'),
-      })
-    ).toEqual({
-      nextPatch: {
-        admissionDate: '2026-02-15',
-        firstSeenDate: '2026-02-15',
-      },
-      shouldUseMultipleUpdate: true,
-    });
-  });
-
-  it('does not repair firstSeenDate when admission date is moved away from current record day', () => {
-    expect(
-      resolveAdmissionDateUpdatePlan({
-        nextDate: '2026-02-16',
-        currentAdmissionTime: '05:30',
-        currentDateString: '2026-02-15',
-        firstSeenDate: '2026-02-14',
-        now: new Date('2026-02-15T06:42:00-05:00'),
-      })
-    ).toEqual({
-      nextPatch: {
-        admissionDate: '2026-02-16',
-      },
-      shouldUseMultipleUpdate: false,
-    });
-  });
-
-  it('returns provided max date fallback', () => {
-    expect(resolveAdmissionDateMax('2026-02-15')).toBe('2026-02-15');
   });
 
   it('suggests the current clinical day window for suspicious admissions', () => {

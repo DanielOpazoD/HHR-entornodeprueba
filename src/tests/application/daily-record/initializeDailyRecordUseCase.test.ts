@@ -45,4 +45,14 @@ describe('initializeDailyRecordUseCase', () => {
     expect(outcome.status).toBe('degraded');
     expect(outcome.issues[0]?.code).toBe('legacy_schema_bridge');
   });
+
+  it('returns failed without a record when the repository throws', async () => {
+    const repository = { initializeDay: vi.fn().mockRejectedValue(new Error('disk full')) };
+
+    const outcome = await executeInitializeDailyRecord({ date: '2026-03-05', repository });
+
+    expect(outcome.status).toBe('failed');
+    expect(outcome.data.record).toBeNull();
+    expect(outcome.issues[0]?.message).toBe('disk full');
+  });
 });

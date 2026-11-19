@@ -1,7 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { FileText, MoreHorizontal, User } from 'lucide-react';
 import { MedicalButton } from '@/components/ui/base/MedicalButton';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import { PatientRowMenuPortal } from '@/features/census/components/patient-row/PatientRowMenuPortal';
 import type {
   PatientActionMenuActionFilter,

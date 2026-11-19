@@ -30,7 +30,7 @@
 ## Draft, autosave y compatibilidad
 
 - Todo documento nuevo se crea con `schemaVersion` actual.
-- Documentos antiguos se hidratan por `hydrateLegacyClinicalDocument`.
+- Documentos antiguos se hidratan por `hydrateClinicalDocumentRecord` (`src/domain/clinical-documents/compatibility.ts`).
 - Todo documento/template leído o persistido pasa por contratos runtime.
 - El reducer del draft separa:
   - edición local

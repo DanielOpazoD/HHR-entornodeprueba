@@ -189,6 +189,3 @@ export const resolveRemoteSyncRuntimeState = ({
 export const resolveRemoteSyncRuntimeStatus = (
   input: ResolveRemoteSyncRuntimeStatusInput
 ): RemoteSyncRuntimeStatus => resolveRemoteSyncRuntimeState(input).status;
-
-export const shouldUseRemoteSyncRuntime = (input: ResolveRemoteSyncRuntimeStatusInput): boolean =>
-  resolveRemoteSyncRuntimeState(input).status === 'ready';

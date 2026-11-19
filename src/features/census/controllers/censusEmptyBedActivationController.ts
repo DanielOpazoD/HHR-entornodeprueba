@@ -1,4 +1,4 @@
-import { ok, type ControllerResult } from '@/features/census/controllers/controllerResult';
+import { ok, type ControllerResult } from '@/shared/contracts/controllerResult';
 
 interface EmptyBedActivationRuntime {
   requestFrame: (callback: () => void) => void;

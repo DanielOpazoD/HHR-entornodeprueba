@@ -146,7 +146,7 @@ describe('CensusView', () => {
       });
       expect(screen.getByTestId('empty-day-prompt')).toBeInTheDocument();
       expect(screen.queryByTestId('view-loader')).not.toBeInTheDocument();
-      expect(vi.mocked(useCensusMigrationBootstrap)).toHaveBeenCalledWith(true);
+      expect(vi.mocked(useCensusMigrationBootstrap)).toHaveBeenCalledWith();
     }
   );
 
