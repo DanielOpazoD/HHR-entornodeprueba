@@ -20,7 +20,12 @@ export const buildDeliveryRoutePatch = (
   deliveryCesareanLabor: route === 'Cesárea' ? cesareanLabor : undefined,
 });
 
-/** Scope unsent drafts and UI feedback to one census occupant, including legacy records. */
+/**
+ * Scope unsent drafts and UI feedback to one census occupant (ID-05): it changes only when the
+ * occupant is replaced. The episode id names the hospitalization, so correcting that episode's
+ * admission date or time keeps the scope; legacy records without one still tell a readmission
+ * apart by document or name and admission.
+ */
 export const buildPatientRowSaveScopeKey = (
   date: string | undefined,
   data: PatientData | undefined,
@@ -31,8 +36,7 @@ export const buildPatientRowSaveScopeKey = (
     date,
     bedId,
     isSubRow ? 'clinicalCrib' : 'bed',
-    data?.clinicalEpisodeId || data?.rut,
-    data?.clinicalEpisodeId ? undefined : data?.patientName,
-    data?.admissionDate,
-    data?.admissionTime,
+    ...(data?.clinicalEpisodeId
+      ? [data.clinicalEpisodeId]
+      : [data?.rut, data?.patientName, data?.admissionDate, data?.admissionTime]),
   ]);

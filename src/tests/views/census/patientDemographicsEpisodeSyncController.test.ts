@@ -1,4 +1,5 @@
 // @vitest-environment node
+import type { PatientData } from '@/types/domain/patient';
 import { describe, expect, it, vi } from 'vitest';
 import {
   harmonizeEpisodeDemographicsHistory,
@@ -192,6 +193,7 @@ describe('patientDemographicsEpisodeSyncController', () => {
     const sourcePatient = DataFactory.createMockPatient('C1', {
       patientName: 'RN Antiguo',
       rut: '9.876.543-2',
+      clinicalEpisodeId: 'episode-newborn',
       firstSeenDate: '2026-04-09',
       admissionDate: '2026-04-09',
     });
@@ -215,6 +217,7 @@ describe('patientDemographicsEpisodeSyncController', () => {
                 clinicalCrib: DataFactory.createMockPatient('C1', {
                   patientName: 'RN Antiguo',
                   rut: '9.876.543-2',
+                  clinicalEpisodeId: 'episode-newborn',
                   firstSeenDate: '2026-04-09',
                 }),
               }),
@@ -228,6 +231,94 @@ describe('patientDemographicsEpisodeSyncController', () => {
     expect(updatePartial).toHaveBeenCalledWith('2026-04-09', {
       'beds.R1.clinicalCrib.patientName': 'RN Corregido',
     });
+  });
+
+  const harmonizeOnDay = async (
+    sourcePatient: PatientData,
+    beds: Record<string, PatientData>,
+    isClinicalCribPatient: boolean
+  ) => {
+    const updatePartial = vi.fn().mockResolvedValue(undefined);
+    await harmonizeEpisodeDemographicsHistory({
+      currentDate: '2026-04-10',
+      sourcePatient,
+      updatedFields: { age: '2d' },
+      isClinicalCribPatient,
+      dailyRecordReadRepository: {
+        getAvailableDates: vi.fn().mockResolvedValue(['2026-04-09']),
+        getForDate: vi
+          .fn()
+          .mockResolvedValue(DataFactory.createMockDailyRecord('2026-04-09', { beds })),
+      },
+      dailyRecordWriteRepository: { updatePartial },
+    });
+    return updatePartial;
+  };
+  const newbornOf = (bedId: string, clinicalEpisodeId?: string) =>
+    DataFactory.createMockPatient(bedId, {
+      patientName: 'RN DE MADRE SINTETICA',
+      rut: '',
+      ...(clinicalEpisodeId ? { clinicalEpisodeId } : {}),
+      firstSeenDate: '2026-04-09',
+      age: '1d',
+    });
+  const motherWith = (bedId: string, crib: PatientData) =>
+    DataFactory.createMockPatient(bedId, { patientName: `MADRE ${bedId}`, clinicalCrib: crib });
+
+  it.each([
+    ['before', ['R1', 'R2']],
+    ['after', ['R2', 'R1']],
+  ] as const)(
+    'corrects only the newborn of the same episode when another newborn with its name is %s it',
+    async (_order, [otherBed, ownBed]) => {
+      const updatePartial = await harmonizeOnDay(
+        newbornOf(ownBed, 'rn-A'),
+        {
+          [otherBed]: motherWith(otherBed, newbornOf(otherBed, 'rn-B')),
+          [ownBed]: motherWith(ownBed, newbornOf(ownBed, 'rn-A')),
+        },
+        true
+      );
+      expect(updatePartial.mock.calls).toEqual([
+        ['2026-04-09', { [`beds.${ownBed}.clinicalCrib.age`]: '2d' }],
+      ]);
+    }
+  );
+
+  it('does not write a day where no newborn carries the edited episode', async () => {
+    const updatePartial = await harmonizeOnDay(
+      newbornOf('R1', 'rn-A'),
+      { R1: motherWith('R1', newbornOf('R1')), R2: motherWith('R2', newbornOf('R2')) },
+      true
+    );
+    expect(updatePartial).not.toHaveBeenCalled();
+  });
+
+  it('keeps updating an adult matched by document even when that day has no episode id', async () => {
+    const adult = DataFactory.createMockPatient('R3', {
+      patientName: 'PACIENTE SINTETICO',
+      rut: '12.345.678-5',
+      clinicalEpisodeId: 'episode-adult',
+      firstSeenDate: '2026-04-09',
+    });
+    const legacyDay = { ...adult, clinicalEpisodeId: undefined };
+    const updatePartial = await harmonizeOnDay(adult, { R3: legacyDay }, false);
+    expect(updatePartial).toHaveBeenCalledWith('2026-04-09', { 'beds.R3.age': '2d' });
+  });
+
+  it('does not write an adult day where two beds match the same name without documents', async () => {
+    const adult = (bedId: string) =>
+      DataFactory.createMockPatient(bedId, {
+        patientName: 'PACIENTE SINTETICO',
+        rut: '',
+        firstSeenDate: '2026-04-09',
+      });
+    const updatePartial = await harmonizeOnDay(
+      adult('R3'),
+      { R3: adult('R3'), R4: adult('R4') },
+      false
+    );
+    expect(updatePartial).not.toHaveBeenCalled();
   });
 
   const episodePatient = (firstSeenDate: string) =>

@@ -16,6 +16,7 @@ import {
 } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import type { PatientData } from '@/types/domain/patient';
 import { applyPatches } from '@/utils/patchUtils';
 import { DataFactory } from '../factories/DataFactory';
 import { render } from './setup';
@@ -202,7 +203,31 @@ const renderCensusWithNewborn = async () => {
     expect(stored.beds[bed.id].clinicalCrib?.clinicalEpisodeId).toBe('episode-newborn-b');
     expect(screen.getByPlaceholderText('Nombre RN / Niño')).toHaveValue('RN OTRO EPISODIO');
   };
-  return { newbornName, replaceNewborn, expectTypedNameReachedNoOne };
+  /** The same newborn and episode, with one field corrected by another computer. */
+  const correctSameNewborn = async (change: Partial<PatientData>) => {
+    stored = {
+      ...stored,
+      beds: {
+        ...stored.beds,
+        [bed.id]: {
+          ...stored.beds[bed.id],
+          clinicalCrib: { ...stored.beds[bed.id].clinicalCrib!, ...change },
+        },
+      },
+      lastUpdated: '2026-05-17T16:00:00.000Z',
+    };
+    await act(async () => {
+      pushServerSnapshot!(serverSnapshot(stored), false);
+    });
+  };
+  return {
+    newbornName,
+    replaceNewborn,
+    correctSameNewborn,
+    expectTypedNameReachedNoOne,
+    patches,
+    stored: () => stored,
+  };
 };
 
 describe('a census cell whose bed changes occupant before the edit is sent (ID-03, ID-05)', () => {
@@ -230,4 +255,30 @@ describe('a census cell whose bed changes occupant before the edit is sent (ID-0
 
     await expectTypedNameReachedNoOne();
   });
+
+  it.each([
+    ['its admission time', { admissionTime: '08:37' }],
+    ['its age', { age: '3d' }],
+  ] as const)(
+    'saves the whole name typed for the same newborn when another computer corrects %s',
+    async (_field, change) => {
+      const census = await renderCensusWithNewborn();
+
+      fireEvent.focus(census.newbornName);
+      for (const value of ['RN N', 'RN NUE', 'RN NUEVO SINTETICO']) {
+        fireEvent.change(census.newbornName, { target: { value } });
+      }
+      await census.correctSameNewborn(change);
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 850));
+      });
+
+      const crib = census.stored().beds[bed.id].clinicalCrib!;
+      expect(crib.clinicalEpisodeId).toBe('episode-newborn-a');
+      expect(crib.patientName).toBe('RN NUEVO SINTETICO');
+      expect(census.patches).toEqual([
+        { [`beds.${bed.id}.clinicalCrib.patientName`]: 'RN NUEVO SINTETICO' },
+      ]);
+    }
+  );
 });

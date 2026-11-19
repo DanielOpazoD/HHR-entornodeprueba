@@ -5,6 +5,9 @@ import { usePatientRowHandlersModel } from '@/features/census/components/patient
 import { buildPatientRowRuntimeHookParams } from '@/features/census/controllers/patientRowRuntimeModelController';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { PatientData } from '@/types/domain/patient';
+import { Specialty } from '@/types/domain/patientClassification';
+import { bedManagementReducer, type BedAction } from '@/hooks/useBedManagementReducer';
+import { applyPatches } from '@/utils/patchUtils';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 const { ports } = vi.hoisted(() => ({
@@ -117,4 +120,136 @@ describe('editing from the crib row (ID-03, ID-05)', () => {
       expect(patches).toEqual([[yesterday, { 'beds.R1.clinicalCrib.age': '2d' }]])
     );
   });
+
+  it.each([
+    ['first', ['R2', 'R1']],
+    ['second', ['R1', 'R2']],
+  ] as const)(
+    'corrects only that newborn on earlier days when a newborn with the same name sits in the %s crib',
+    async (_position, [ownBed, otherBed]) => {
+      const own = { ...newborn('rn-A', 'RN DE MADRE SINTETICA'), age: '1d' };
+      const other = { ...newborn('rn-B', own.patientName), age: '1d' };
+      let earlierDay = DataFactory.createMockDailyRecord(yesterday, {
+        beds: {
+          [otherBed]: DataFactory.createMockPatient(otherBed, {
+            patientName: 'MADRE SINTETICA',
+            clinicalCrib: other,
+          }),
+          [ownBed]: DataFactory.createMockPatient(ownBed, {
+            patientName: 'MADRE SINTETICA',
+            clinicalCrib: own,
+          }),
+        },
+      });
+      ports.getForDate.mockImplementation(async (date: string) =>
+        date === yesterday ? earlierDay : null
+      );
+      ports.updatePartial.mockImplementation(async (_date: string, patch: DailyRecordPatch) => {
+        earlierDay = applyPatches(earlierDay, patch);
+      });
+      const { result } = renderCribRow(own);
+
+      act(() => {
+        result.current.modalSavers.onSaveCribDemographics({ age: '2d' });
+      });
+
+      await waitFor(() => expect(earlierDay.beds[ownBed].clinicalCrib?.age).toBe('2d'));
+      expect(earlierDay.beds[otherBed].clinicalCrib?.age).toBe('1d');
+      expect(earlierDay.beds[ownBed].age).toBe(earlierDay.beds[otherBed].age);
+    }
+  );
 });
+
+it.each([
+  ['crib', true],
+  ['mother', false],
+] as const)(
+  'keeps name, diagnosis, specialty and age edits on the %s row they were typed in',
+  async (_row, isSubRow) => {
+    const crib = DataFactory.createMockPatient('R1', {
+      clinicalEpisodeId: 'episode-newborn',
+      patientName: 'RN SINTETICO',
+      rut: '',
+      firstSeenDate: today,
+    });
+    const mother = DataFactory.createMockPatient('R1', {
+      clinicalEpisodeId: 'episode-mother',
+      clinicalCrib: crib,
+      patientName: 'MADRE SINTETICA',
+      firstSeenDate: today,
+    });
+    let record = DataFactory.createMockDailyRecord(today, { beds: { R1: mother } });
+    const dispatch = (action: BedAction) => {
+      record = applyPatches(record, bedManagementReducer(record, action)!);
+    };
+    const { result } = renderHook(() =>
+      usePatientRowHandlersModel(
+        buildPatientRowRuntimeHookParams({
+          bed: { id: 'R1' },
+          data: isSubRow ? crib : mother,
+          currentDateString: today,
+          isSubRow,
+          onAction: vi.fn(),
+          rowState: { isCunaMode: false, hasCompanion: false, hasClinicalCrib: !isSubRow },
+          dependencies: {
+            updatePatient: (bedId, field, value) => {
+              dispatch({ type: 'UPDATE_PATIENT', bedId, field, value });
+            },
+            updatePatientMultiple: async (bedId, fields) => {
+              dispatch({ type: 'UPDATE_PATIENT_MULTIPLE', bedId, fields });
+              return true;
+            },
+            // The row's handlers only send patient fields; crib create/remove are other commands.
+            updateClinicalCrib: (bedId, field, value) => {
+              dispatch({
+                type: 'UPDATE_CLINICAL_CRIB',
+                bedId,
+                field: field as keyof PatientData,
+                value,
+              });
+            },
+            updateClinicalCribMultiple: async (bedId, fields) => {
+              dispatch({ type: 'UPDATE_CLINICAL_CRIB_MULTIPLE', bedId, fields });
+              return true;
+            },
+            clearPatient: vi.fn(),
+            toggleBedType: vi.fn(),
+            confirm: vi.fn(),
+            alert: vi.fn(),
+          },
+        }).editingRuntimeParams
+      )
+    );
+    const handlers = isSubRow
+      ? result.current.handlers.cribInputChangeHandlers
+      : result.current.handlers.mainInputChangeHandlers;
+    const saveDemographics = isSubRow
+      ? result.current.modalSavers.onSaveCribDemographics
+      : result.current.modalSavers.onSaveDemographics;
+    const name = isSubRow ? 'RN SINTETICO CORREGIDO' : 'MADRE SINTETICA CORREGIDA';
+    const typed = (value: string) => ({ target: { value } }) as ChangeEvent<HTMLInputElement>;
+
+    act(() => {
+      if (isSubRow) handlers.text('patientName')(typed(name));
+      else saveDemographics({ patientName: name });
+      handlers.text('pathology')(typed('BORRADOR'));
+      handlers.text('pathology')(typed('DIAGNOSTICO FINAL'));
+      handlers.text('specialty')(typed(Specialty.PEDIATRIA));
+      saveDemographics({ age: isSubRow ? '2d' : '31' });
+    });
+    // Past the clinical block's coalescing pause.
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 650));
+    });
+
+    const edited = isSubRow ? record.beds.R1.clinicalCrib! : record.beds.R1;
+    expect(edited).toMatchObject({
+      patientName: name,
+      pathology: 'DIAGNOSTICO FINAL',
+      specialty: Specialty.PEDIATRIA,
+      age: isSubRow ? '2d' : '31',
+    });
+    if (isSubRow) expect({ ...record.beds.R1, clinicalCrib: crib }).toEqual(mother);
+    else expect(record.beds.R1.clinicalCrib).toEqual(crib);
+  }
+);

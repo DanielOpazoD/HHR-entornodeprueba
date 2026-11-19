@@ -128,6 +128,12 @@ const resolveMatchBasePath = ({
   isClinicalCribPatient: boolean;
 }): string => (isClinicalCribPatient ? `beds.${bedId}.clinicalCrib` : `beds.${bedId}`);
 
+/**
+ * The one patient of that day who is this episode (ID-02, ID-03). Same document or name is a
+ * candidate; a different episode id never is. An equal episode id accredits it; without one, an
+ * adult's single candidate keeps updating as before, while a newborn (provisional names repeat)
+ * needs its episode. More than one candidate is ambiguous: that day is not written.
+ */
 const findMatchingPatientPath = ({
   recordBeds,
   sourcePatient,
@@ -139,6 +145,8 @@ const findMatchingPatientPath = ({
   sourceFirstSeenDate: string;
   isClinicalCribPatient: boolean;
 }): { patient: PatientData; basePath: string } | null => {
+  const sourceEpisode = sourcePatient.clinicalEpisodeId;
+  const candidates: Array<{ patient: PatientData; basePath: string }> = [];
   for (const [bedId, bedPatient] of Object.entries(recordBeds)) {
     const candidate = isClinicalCribPatient ? bedPatient.clinicalCrib : bedPatient;
     if (!candidate || !matchesPatientIdentity(sourcePatient, candidate)) {
@@ -149,13 +157,25 @@ const findMatchingPatientPath = ({
       continue;
     }
 
-    return {
+    if (
+      sourceEpisode &&
+      candidate.clinicalEpisodeId &&
+      candidate.clinicalEpisodeId !== sourceEpisode
+    ) {
+      continue;
+    }
+
+    candidates.push({
       patient: candidate,
       basePath: resolveMatchBasePath({ bedId, isClinicalCribPatient }),
-    };
+    });
   }
 
-  return null;
+  const accredited = sourceEpisode
+    ? candidates.filter(({ patient }) => patient.clinicalEpisodeId === sourceEpisode)
+    : [];
+  const eligible = accredited.length > 0 ? accredited : isClinicalCribPatient ? [] : candidates;
+  return eligible.length === 1 ? eligible[0] : null;
 };
 
 const buildDemographicsPatch = ({
