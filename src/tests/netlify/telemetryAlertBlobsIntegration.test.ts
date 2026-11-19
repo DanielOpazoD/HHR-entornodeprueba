@@ -109,11 +109,25 @@ describe('telemetry alerts through Blobs SDK and HTTP provider', () => {
       expect(raw).not.toContain(secret);
   };
 
+  /**
+   * Holds the next acknowledged write past the client's 3 s cap per Blobs call. The cap still
+   * aborts real HTTP; it is scaled down so the wait costs tenths of a second instead of 3 s.
+   */
+  const delayAcknowledgementPastCallCap = () => {
+    const timeout = AbortSignal.timeout.bind(AbortSignal);
+    const scaledCapMs = 500;
+    const cap = vi
+      .spyOn(AbortSignal, 'timeout')
+      .mockImplementation(ms => timeout(ms === 3_000 ? scaledCapMs : ms));
+    server.acknowledgementDelayMs = scaledCapMs + 200;
+    return cap;
+  };
+
   it.each(['normal', 'dropped', 'delayed'] as const)(
     'enforces real SDK ETags and atomic conditional writes, including auth and missing blobs (%s)',
     async mode => {
       server.dropAcknowledgement = mode === 'dropped';
-      server.acknowledgementDelayMs = mode === 'delayed' ? 3_100 : 0;
+      const cap = mode === 'delayed' ? delayAcknowledgementPastCallCap() : undefined;
       const a = createBlobAlertLedgerStore(sdk());
       const b = createBlobAlertLedgerStore(sdk());
       expect(await a.read()).toBeNull();
@@ -165,6 +179,7 @@ describe('telemetry alerts through Blobs SDK and HTTP provider', () => {
         createBlobAlertLedgerStore(sdk('incorrect-local-token')).read()
       ).rejects.toThrow();
       expect((await server.receipt())!.version).toBe(2);
+      if (cap) expect(cap).toHaveBeenCalledWith(3_000);
     }
   );
 
@@ -191,7 +206,7 @@ describe('telemetry alerts through Blobs SDK and HTTP provider', () => {
   it.each([401, 404, 409, 500])(
     'rejects HTTP PUT %i without sending or mutating the pending receipt',
     async status => {
-      if (status === 401) server.acknowledgementDelayMs = 3_100;
+      const cap = status === 401 ? delayAcknowledgementPastCallCap() : undefined;
       const { id } = await queue().enqueue(sanitizedEvent());
       const pending = await server.rawReceipt();
       const pendingEtag = (await createBlobAlertLedgerStore(sdk()).read())!.etag;
@@ -211,6 +226,7 @@ describe('telemetry alerts through Blobs SDK and HTTP provider', () => {
       server.failPut = undefined;
       expect((await queue().deliver(id!)).alert).toBe('sent');
       expect(server.gmailRequests).toHaveLength(1);
+      if (cap) expect(cap).toHaveBeenCalledWith(3_000);
     }
   );
 

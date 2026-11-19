@@ -38,6 +38,24 @@ describe('BaseModal focus lifecycle', () => {
     expect(last).toHaveFocus();
   });
 
+  it('opens on the first enabled, shown field, ahead of the buttons before it', () => {
+    render(
+      <BaseModal isOpen onClose={vi.fn()} title="Focus">
+        <button>Earlier action</button>
+        <input aria-label="Disabled field" disabled />
+        <div hidden>
+          <input aria-label="Field in a hidden block" />
+        </div>
+        <input aria-label="Field without display" style={{ display: 'none' }} />
+        <input aria-label="Invisible field" style={{ visibility: 'hidden' }} />
+        <input aria-label="Field out of the tab order" tabIndex={-1} />
+        <input aria-label="First usable field" />
+        <input aria-label="Later field" />
+      </BaseModal>
+    );
+    expect(screen.getByLabelText('First usable field')).toHaveFocus();
+  });
+
   it('returns focus to the opener on close and cancels pending focus on rapid close', () => {
     const opener = document.createElement('button');
     document.body.appendChild(opener);

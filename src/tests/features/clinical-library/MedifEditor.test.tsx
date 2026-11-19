@@ -41,22 +41,25 @@ const setup = () => {
   return { ...render(<MedifEditor {...props} />), props };
 };
 
+// Filtering on aria-expanded before the name keeps the query from naming every form button.
 const openSettings = (): void => {
-  const button = screen.getByRole('button', { name: 'Configurar MEDIF' });
-  if (button.getAttribute('aria-expanded') !== 'true') fireEvent.click(button);
+  const collapsed = screen.queryByRole('button', { name: 'Configurar MEDIF', expanded: false });
+  if (collapsed) fireEvent.click(collapsed);
 };
 
 // The form and the preferences list hold 137 controls; querying them by name across the
-// whole editor recomputes every label, so queries start from the group that holds the field.
-const passengerGroup = () => within(screen.getByRole('group', { name: 'Datos del pasajero' }));
+// whole editor recomputes every label, so queries start from the block or group that holds the field.
+const formBlock = (title: string) => within(screen.getByRole('region', { name: title }));
+const passengerGroup = () =>
+  within(formBlock('Paciente y vuelo').getByRole('group', { name: 'Datos del pasajero' }));
 const insurancePreference = () =>
   within(screen.getByRole('group', { name: 'Paciente' })).getByRole('checkbox', {
     name: /Seguro de viaje/,
   });
 const physicianName = () =>
-  within(screen.getByRole('group', { name: 'Datos del médico' })).getByRole('textbox', {
-    name: 'Nombre del médico tratante',
-  });
+  within(
+    formBlock('Médico y declaraciones').getByRole('group', { name: 'Datos del médico' })
+  ).getByRole('textbox', { name: 'Nombre del médico tratante' });
 
 describe('MedifEditor', () => {
   beforeEach(() => {
@@ -384,7 +387,7 @@ describe('MedifEditor', () => {
       target: { value: '7 meses' },
     });
     expect(document.getElementById('medif-p2_edad')).not.toBeInTheDocument();
-    const wheelchair = screen.getByRole('group', {
+    const wheelchair = formBlock('Asistencia y acompañante').getByRole('group', {
       name: '¿Necesita silla de ruedas?',
     });
     expect(within(wheelchair).getByRole('radio', { name: 'Sí' })).not.toBeChecked();
@@ -470,12 +473,11 @@ describe('MedifEditor', () => {
     });
     openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Variables' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Configurar MEDIF' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Configurar MEDIF', expanded: true }));
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Configurar MEDIF' })).toHaveAttribute(
-      'aria-expanded',
-      'false'
-    );
+    expect(
+      screen.getByRole('button', { name: 'Configurar MEDIF', expanded: false })
+    ).toHaveAttribute('aria-expanded', 'false');
     expect(physicianName()).toHaveValue('Dra. Prueba');
   });
 
