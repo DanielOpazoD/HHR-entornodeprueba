@@ -95,41 +95,42 @@ const fitTextToWidth = (
   return { fitted: fitted.trim(), rest: '' };
 };
 
-const LINES_PER_SHEET = MEDICAL_INDICATIONS_LINE_FIELD_NAMES.length;
+const ROW_WIDTHS = MEDICAL_INDICATIONS_LINE_FIELD_NAMES.map(
+  fieldName => MEDICAL_INDICATIONS_PDF_COORDINATES[fieldName]?.width ?? 0
+);
 
 /**
  * Every indication, wrapped into the form's rows and split into sheets of 15 rows. Nothing is
  * dropped: what does not fit on the first sheet goes on continuation sheets.
  */
 const layoutIndicationSheets = (font: PDFFont, indications: string[]): string[][] => {
-  const lines: string[] = [];
+  const sheets: string[][] = [];
+  let sheet: string[] = [];
   indications
     .map(item => item.trim())
     .filter(Boolean)
     .forEach((indication, index) => {
       let remainingText = `${index + 1}. ${indication}`;
       while (remainingText) {
-        const fieldName = MEDICAL_INDICATIONS_LINE_FIELD_NAMES[lines.length % LINES_PER_SHEET];
-        const maxWidth = MEDICAL_INDICATIONS_PDF_COORDINATES[fieldName].width;
-        const { fitted, rest } = fitTextToWidth(remainingText, maxWidth, font);
+        if (sheet.length === ROW_WIDTHS.length) {
+          sheets.push(sheet);
+          sheet = [];
+        }
+        const { fitted, rest } = fitTextToWidth(remainingText, ROW_WIDTHS[sheet.length] ?? 0, font);
         if (!fitted) {
           throw new Error(`La indicación ${index + 1} no cabe en el formulario de indicaciones.`);
         }
-        lines.push(fitted);
+        sheet.push(fitted);
         remainingText = rest;
       }
     });
-
-  const sheets: string[][] = [];
-  for (let start = 0; start < Math.max(lines.length, 1); start += LINES_PER_SHEET) {
-    sheets.push(lines.slice(start, start + LINES_PER_SHEET));
-  }
+  sheets.push(sheet);
   return sheets;
 };
 
 const drawIndicationLines = (page: PDFPage, font: PDFFont, lines: string[]): void => {
-  lines.forEach((value, index) => {
-    drawFieldText(page, font, MEDICAL_INDICATIONS_LINE_FIELD_NAMES[index], value);
+  MEDICAL_INDICATIONS_LINE_FIELD_NAMES.forEach((fieldName, index) => {
+    drawFieldText(page, font, fieldName, lines[index] ?? '');
   });
 };
 
@@ -178,21 +179,22 @@ export const fillMedicalIndicationsPdf = async (
       ? [generated, `Hoja ${sheetIndex + 1} de ${sheets.length}`].filter(Boolean).join(' · ')
       : generated;
 
-  drawIndicationLines(page, font, sheets[0]);
+  const [firstSheet = [], ...continuationSheets] = sheets;
+  drawIndicationLines(page, font, firstSheet);
   drawSheetFooter(page, font, footerFor(0));
 
-  if (sheets.length > 1) {
+  if (continuationSheets.length > 0) {
     // Continuation sheets are blank copies of the indications page, placed right after it.
     const blankTemplate = await PDFDocument.load(templateBytes);
     const continuations = await pdfDoc.copyPages(
       blankTemplate,
-      sheets.slice(1).map(() => 0)
+      continuationSheets.map(() => 0)
     );
     continuations.forEach((continuation, offset) => {
       const sheetIndex = offset + 1;
       pdfDoc.insertPage(sheetIndex, continuation);
       drawIdentification(continuation, font, data);
-      drawIndicationLines(continuation, font, sheets[sheetIndex]);
+      drawIndicationLines(continuation, font, continuationSheets[offset] ?? []);
       drawSheetFooter(continuation, font, footerFor(sheetIndex));
     });
   }
