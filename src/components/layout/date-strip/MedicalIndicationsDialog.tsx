@@ -35,6 +35,8 @@ interface MedicalIndicationsDialogProps {
   patients: MedicalIndicationsPatientOption[];
 }
 
+const NO_FREE_LINES_MESSAGE = 'No quedan espacios disponibles para insertar más indicaciones.';
+
 const buildToday = () => formatDateDDMMYYYY(getTodayISO());
 
 const buildGenerationLabel = (isoDate: string) =>
@@ -71,13 +73,11 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
     [auditLabel, currentUserId]
   );
   const library = useMedicalIndicationsLibrary(libraryActor, isOpen);
-  const [usedTemplateIds, setUsedTemplateIds] = React.useState<string[]>([]);
   const [printError, setPrintError] = React.useState('');
   const [saveMessage, setSaveMessage] = React.useState('');
   const [isSavingRecord, setIsSavingRecord] = React.useState(false);
 
   if (useChangedOnRender([isOpen]) && !isOpen) {
-    setUsedTemplateIds([]);
     setPrintError('');
     setSaveMessage('');
     setIsSavingRecord(false);
@@ -95,11 +95,9 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
         if (isCancelled) return;
         if (!record) {
           resetAppliedRecordDraft(appliedRecordLookup.patient);
-          setUsedTemplateIds([]);
           return;
         }
         hydrateFromRecord(record);
-        setUsedTemplateIds(record.generatedFromTemplateIds);
       })
       .catch(error => {
         if (isCancelled) return;
@@ -133,7 +131,7 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
       generatedByName: currentUser.displayName || currentUser.email || currentUser.uid,
       generatedByRole: authContext?.role,
       generatedByAuditLabel: auditLabel,
-      generatedFromTemplateIds: usedTemplateIds,
+      generatedFromTemplateIds: editor.templateIds,
       content: {
         reposo: editor.reposo,
         regimen: editor.regimen,
@@ -210,16 +208,13 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
 
   const handleInsertTemplate = async (template: MedicalIndicationTemplate) => {
     if (editor.activeIndications.length >= editor.maxIndications) {
-      library.setError('No quedan espacios disponibles para insertar más indicaciones.');
+      library.setError(NO_FREE_LINES_MESSAGE);
       return;
     }
 
     try {
       await library.markTemplateUsed(template);
-      editor.insertIndication(template.text);
-      setUsedTemplateIds(current =>
-        current.includes(template.id) ? current : [...current, template.id]
-      );
+      editor.insertTemplate(template);
     } catch (error) {
       library.setError(
         error instanceof Error ? error.message : 'No se pudo auditar la reutilización.'
@@ -228,6 +223,8 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
   };
 
   const remainingSlots = editor.maxIndications - editor.activeIndications.length;
+  const notice =
+    printError || library.error || (editor.templateDidNotFit ? NO_FREE_LINES_MESSAGE : '');
 
   return (
     <BaseModal
@@ -281,10 +278,10 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
             onTargetDateChange={editor.setTargetDate}
           />
 
-          {(printError || library.error) && (
+          {notice && (
             <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
               <AlertCircle size={15} className="mt-0.5 shrink-0" />
-              <span>{printError || library.error}</span>
+              <span>{notice}</span>
             </div>
           )}
           {saveMessage && (

@@ -73,7 +73,10 @@ const patient: MedicalIndicationsPatientOption = {
   treatingDoctor: 'Equipo de prueba',
 };
 
-const storedRecordWith = (indications: string[]): MedicalIndicationRecord => ({
+const storedRecordWith = (
+  indications: string[],
+  generatedFromTemplateIds: string[] = ['template_previous']
+): MedicalIndicationRecord => ({
   id: 'record_test',
   patientRut: patient.rut,
   patientName: patient.patientName,
@@ -83,7 +86,7 @@ const storedRecordWith = (indications: string[]): MedicalIndicationRecord => ({
   generatedAt: '2026-11-19T12:00:00.000Z',
   generatedByUserId: 'user_test',
   generatedByName: 'Médico Test',
-  generatedFromTemplateIds: [],
+  generatedFromTemplateIds,
   admissionDate: patient.admissionDate,
   daysOfStayForTargetDate: '2',
   treatingDoctor: patient.treatingDoctor,
@@ -95,6 +98,28 @@ const storedRecordWith = (indications: string[]): MedicalIndicationRecord => ({
   indications,
   pdfPrintedAt: null,
 });
+
+const personalTemplate: MedicalIndicationTemplate = {
+  id: 'template_test',
+  userId: 'user_test',
+  text: 'Plantilla de prueba',
+  createdAt: '2026-11-01T12:00:00.000Z',
+  updatedAt: '2026-11-01T12:00:00.000Z',
+  createdByName: 'Médico Test',
+  lastUsedAt: null,
+  useCount: 0,
+  isArchived: false,
+};
+
+/** Clicks «Insertar» and returns once the template's audit is pending; call the result to finish it. */
+const insertTemplateWithPendingAudit = async (user: ReturnType<typeof userEvent.setup>) => {
+  const templateCard = screen.getByText('Plantilla de prueba').parentElement as HTMLElement;
+  await user.click(within(templateCard).getByRole('button', { name: /Insertar/ }));
+  await waitFor(() => expect(ports.releaseMarkUsed).not.toBeNull());
+  return async () => {
+    await act(async () => ports.releaseMarkUsed?.());
+  };
+};
 
 const numberedLines = (count: number) =>
   Array.from({ length: count }, (_, index) => `Indicación previa ${index + 1}`);
@@ -179,27 +204,13 @@ describe('MedicalIndicationsDialog free-text draft', () => {
 
   it('a template that lands after its audit takes the last slot without touching the draft', async () => {
     ports.storedRecords = [storedRecordWith(numberedLines(14))];
-    ports.templates = [
-      {
-        id: 'template_test',
-        userId: 'user_test',
-        text: 'Plantilla de prueba',
-        createdAt: '2026-11-01T12:00:00.000Z',
-        updatedAt: '2026-11-01T12:00:00.000Z',
-        createdByName: 'Médico Test',
-        lastUsedAt: null,
-        useCount: 0,
-        isArchived: false,
-      },
-    ];
+    ports.templates = [personalTemplate];
     const { user, input } = await renderDialog(14);
     await waitFor(() => expect(screen.getByText('Plantilla de prueba')).toBeInTheDocument());
 
     await user.type(input, 'Texto en espera');
-    const templateCard = screen.getByText('Plantilla de prueba').parentElement as HTMLElement;
-    await user.click(within(templateCard).getByRole('button', { name: /Insertar/ }));
-    await waitFor(() => expect(ports.releaseMarkUsed).not.toBeNull());
-    ports.releaseMarkUsed?.();
+    const finishAudit = await insertTemplateWithPendingAudit(user);
+    await finishAudit();
     await waitFor(() => expect(screen.getByText(/^15 de 15/)).toBeInTheDocument());
 
     await user.type(input, '{Enter}');
@@ -208,5 +219,28 @@ describe('MedicalIndicationsDialog free-text draft', () => {
     const expected = [...numberedLines(14), 'Plantilla de prueba'];
     expect(listedIndications()).toEqual(expected);
     expect(await saveAndReadDeliveredLines(user)).toEqual(expected);
+    expect(ports.createdRecords[0].generatedFromTemplateIds).toEqual([
+      'template_previous',
+      'template_test',
+    ]);
+  });
+
+  it('a template that finds the last slot taken during its audit is neither credited nor silent', async () => {
+    ports.storedRecords = [storedRecordWith(numberedLines(14))];
+    ports.templates = [personalTemplate];
+    const { user, input } = await renderDialog(14);
+    await waitFor(() => expect(screen.getByText('Plantilla de prueba')).toBeInTheDocument());
+
+    const finishAudit = await insertTemplateWithPendingAudit(user);
+    await user.type(input, 'Texto manual{Enter}');
+    await finishAudit();
+
+    expect(
+      screen.getByText('No quedan espacios disponibles para insertar más indicaciones.')
+    ).toBeInTheDocument();
+    const expected = [...numberedLines(14), 'Texto manual'];
+    expect(listedIndications()).toEqual(expected);
+    expect(await saveAndReadDeliveredLines(user)).toEqual(expected);
+    expect(ports.createdRecords[0].generatedFromTemplateIds).toEqual(['template_previous']);
   });
 });
