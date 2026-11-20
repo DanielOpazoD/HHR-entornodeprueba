@@ -4,6 +4,7 @@ import {
   formatMedicalIndicationsDate,
   normalizeMedicalIndicationsDateKey,
   type MedicalIndicationRecord,
+  type MedicalIndicationTemplate,
   type MedicalIndicationsKineType,
   type MedicalIndicationsPatientOption,
 } from '@/shared/contracts/medicalIndications';
@@ -45,10 +46,17 @@ export const useMedicalIndicationsEditor = ({
   const [treatingDoctor, setTreatingDoctor] = React.useState('');
   const [pendingNotes, setPendingNotes] = React.useState('');
   const [targetDate, setTargetDate] = React.useState('');
-  // The free-text box and the lines live in one state, so adding a draft also empties the box.
-  const [{ draft: indicationDraft, lines: indications }, setIndicationsList] = React.useState(
-    () => ({ draft: '', lines: emptyIndicationLines() })
-  );
+  // The free-text box, the lines and the templates they came from live in one state, so adding
+  // a draft also empties the box and a template is credited only when its text took a line.
+  const [
+    { draft: indicationDraft, lines: indications, templateIds, templateDidNotFit },
+    setIndicationsList,
+  ] = React.useState(() => ({
+    draft: '',
+    lines: emptyIndicationLines(),
+    templateIds: [] as string[],
+    templateDidNotFit: false,
+  }));
   const setIndicationDraft = (draft: string) =>
     setIndicationsList(current => ({ ...current, draft }));
   const setIndications = (update: (lines: string[]) => string[]) =>
@@ -71,6 +79,10 @@ export const useMedicalIndicationsEditor = ({
     setTargetDate(resolveInitialTargetDate(selectedPatient));
   }
 
+  if (useChangedOnRender([isOpen]) && !isOpen) {
+    setIndicationsList(current => ({ ...current, templateIds: [], templateDidNotFit: false }));
+  }
+
   const activeIndications = React.useMemo(
     () => indications.map(text => text.trim()).filter(Boolean),
     [indications]
@@ -90,18 +102,29 @@ export const useMedicalIndicationsEditor = ({
   );
 
   // A template inserted after its audit lands on the latest lines and leaves the draft alone.
-  const insertIndication = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    setIndications(current => placeInFirstEmptyLine(current, trimmed) ?? current);
-  };
+  // When those lines are already full it is neither added nor credited, and the dialog says so.
+  const insertTemplate = (template: Pick<MedicalIndicationTemplate, 'id' | 'text'>) =>
+    setIndicationsList(current => {
+      const trimmed = template.text.trim();
+      if (!trimmed) return current;
+      const lines = placeInFirstEmptyLine(current.lines, trimmed);
+      if (!lines) return { ...current, templateDidNotFit: true };
+      return {
+        ...current,
+        lines,
+        templateIds: current.templateIds.includes(template.id)
+          ? current.templateIds
+          : [...current.templateIds, template.id],
+        templateDidNotFit: false,
+      };
+    });
 
   // With every line taken the draft stays in the box, so nothing typed is lost.
   const addIndication = () =>
     setIndicationsList(current => {
       const trimmed = current.draft.trim();
       const lines = trimmed ? placeInFirstEmptyLine(current.lines, trimmed) : null;
-      return lines ? { draft: '', lines } : current;
+      return lines ? { ...current, draft: '', lines } : current;
     });
 
   const removeIndication = (targetIndex: number) => {
@@ -158,6 +181,8 @@ export const useMedicalIndicationsEditor = ({
         ...nextIndications,
         ...Array.from({ length: INDICATIONS_LINES - nextIndications.length }, () => ''),
       ],
+      templateIds: record.generatedFromTemplateIds,
+      templateDidNotFit: false,
     });
     setEditingIndex(null);
     setEditingValue('');
@@ -171,7 +196,12 @@ export const useMedicalIndicationsEditor = ({
       setKineTimes('');
       setTreatingDoctor(patient?.treatingDoctor || '');
       setPendingNotes('');
-      setIndicationsList({ draft: '', lines: emptyIndicationLines() });
+      setIndicationsList({
+        draft: '',
+        lines: emptyIndicationLines(),
+        templateIds: [],
+        templateDidNotFit: false,
+      });
       setEditingIndex(null);
       setEditingValue('');
     },
@@ -211,7 +241,9 @@ export const useMedicalIndicationsEditor = ({
     setEditingValue,
     isPrinting,
     setIsPrinting,
-    insertIndication,
+    templateIds,
+    templateDidNotFit,
+    insertTemplate,
     addIndication,
     removeIndication,
     moveIndication,

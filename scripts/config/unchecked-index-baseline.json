@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1246,
+  "total": 1244,
   "areas": {
     "src/application/backup-export": 4,
     "src/application/wound-care": 1,
@@ -46,7 +46,7 @@
     "src/services/integrations": 7,
     "src/services/laboratory": 4,
     "src/services/patient": 17,
-    "src/services/pdf": 22,
+    "src/services/pdf": 20,
     "src/services/records": 2,
     "src/services/repositories": 32,
     "src/services/staff": 8,
