@@ -6,7 +6,6 @@ export interface PatientActionMenuInteractionHandlers {
   handleViewClinicalDocuments: () => void;
   handleViewExamRequest: () => void;
   handleViewImagingRequest: () => void;
-  handleViewMedicalIndications: () => void;
 }
 
 interface BuildPatientActionMenuInteractionHandlersParams {
@@ -15,7 +14,6 @@ interface BuildPatientActionMenuInteractionHandlersParams {
   onViewClinicalDocuments?: () => void;
   onViewExamRequest?: () => void;
   onViewImagingRequest?: () => void;
-  onViewMedicalIndications?: () => void;
   close: () => void;
 }
 
@@ -30,7 +28,6 @@ export const buildPatientActionMenuInteractionHandlers = ({
   onViewClinicalDocuments,
   onViewExamRequest,
   onViewImagingRequest,
-  onViewMedicalIndications,
   close,
 }: BuildPatientActionMenuInteractionHandlersParams): PatientActionMenuInteractionHandlers => ({
   handleAction: action => {
@@ -41,5 +38,4 @@ export const buildPatientActionMenuInteractionHandlers = ({
   handleViewClinicalDocuments: invokeAndClose(onViewClinicalDocuments, close),
   handleViewExamRequest: invokeAndClose(onViewExamRequest, close),
   handleViewImagingRequest: invokeAndClose(onViewImagingRequest, close),
-  handleViewMedicalIndications: invokeAndClose(onViewMedicalIndications, close),
 });

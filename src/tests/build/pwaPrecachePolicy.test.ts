@@ -52,7 +52,6 @@ describe('PWA precache policy', () => {
       'CudyrView',
       'ClinicalDocumentIeehPanel',
       'VitalsDetailModal',
-      'MedicalIndicationsDialog',
       'hospitalizationReportsBridge',
     ]) {
       expect(

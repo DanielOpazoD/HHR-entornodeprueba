@@ -29,26 +29,6 @@
       "test": "src/tests/application/prescriptions/prescriptionUseCases.test.ts"
     },
     {
-      "action": "MEDICAL_INDICATION_TEMPLATE_CREATED",
-      "test": "src/tests/application/medical-indications/medicalIndicationsUseCases.test.ts"
-    },
-    {
-      "action": "MEDICAL_INDICATION_TEMPLATE_UPDATED",
-      "test": "src/tests/application/medical-indications/medicalIndicationsUseCases.test.ts"
-    },
-    {
-      "action": "MEDICAL_INDICATION_TEMPLATE_ARCHIVED",
-      "test": "src/tests/application/medical-indications/medicalIndicationsUseCases.test.ts"
-    },
-    {
-      "action": "MEDICAL_INDICATION_TEMPLATE_USED",
-      "test": "src/tests/application/medical-indications/medicalIndicationsUseCases.test.ts"
-    },
-    {
-      "action": "MEDICAL_INDICATION_RECORD_CREATED",
-      "test": "src/tests/application/medical-indications/medicalIndicationsUseCases.test.ts"
-    },
-    {
       "action": "CLINICAL_DOCUMENT_DELETED",
       "test": "src/tests/application/clinical-documents/clinicalDocumentDeleteUseCase.test.ts"
     },

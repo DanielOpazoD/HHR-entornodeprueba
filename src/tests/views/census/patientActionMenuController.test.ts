@@ -21,7 +21,6 @@ describe('patientActionMenuController', () => {
       hasClinicalDocumentsAction: false,
       hasExamRequestAction: true,
       hasImagingRequestAction: false,
-      hasMedicalIndicationsAction: false,
     });
   });
 

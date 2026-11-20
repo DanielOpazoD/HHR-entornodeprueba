@@ -11,7 +11,6 @@ describe('patientActionMenuInteractionController', () => {
     const onViewClinicalDocuments = vi.fn();
     const onViewExamRequest = vi.fn();
     const onViewImagingRequest = vi.fn();
-    const onViewMedicalIndications = vi.fn();
 
     const handlers = buildPatientActionMenuInteractionHandlers({
       onAction,
@@ -19,7 +18,6 @@ describe('patientActionMenuInteractionController', () => {
       onViewClinicalDocuments,
       onViewExamRequest,
       onViewImagingRequest,
-      onViewMedicalIndications,
       close,
     });
 
@@ -28,15 +26,13 @@ describe('patientActionMenuInteractionController', () => {
     handlers.handleViewClinicalDocuments();
     handlers.handleViewExamRequest();
     handlers.handleViewImagingRequest();
-    handlers.handleViewMedicalIndications();
 
     expect(onAction).toHaveBeenCalledWith('clear');
     expect(onViewHistory).toHaveBeenCalled();
     expect(onViewClinicalDocuments).toHaveBeenCalled();
     expect(onViewExamRequest).toHaveBeenCalled();
     expect(onViewImagingRequest).toHaveBeenCalled();
-    expect(onViewMedicalIndications).toHaveBeenCalled();
-    expect(close).toHaveBeenCalledTimes(6);
+    expect(close).toHaveBeenCalledTimes(5);
   });
 
   it('still closes when an optional callback is missing', () => {
@@ -50,8 +46,7 @@ describe('patientActionMenuInteractionController', () => {
     handlers.handleViewClinicalDocuments();
     handlers.handleViewExamRequest();
     handlers.handleViewImagingRequest();
-    handlers.handleViewMedicalIndications();
 
-    expect(close).toHaveBeenCalledTimes(5);
+    expect(close).toHaveBeenCalledTimes(4);
   });
 });

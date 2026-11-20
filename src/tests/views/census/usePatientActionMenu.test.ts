@@ -70,29 +70,4 @@ describe('usePatientActionMenu', () => {
     expect(onViewExamRequest).toHaveBeenCalledTimes(1);
     expect(result.current.isOpen).toBe(false);
   });
-
-  it('opens and closes the medical indications dialog through the same menu hook', () => {
-    const onViewMedicalIndications = vi.fn();
-    const { result } = renderHook(() =>
-      usePatientActionMenu({
-        isBlocked: false,
-        readOnly: false,
-        onAction: vi.fn(),
-        onViewMedicalIndications,
-      })
-    );
-
-    act(() => {
-      result.current.openMedicalIndicationsDialog();
-    });
-
-    expect(onViewMedicalIndications).toHaveBeenCalledTimes(1);
-    expect(result.current.isMedicalIndicationsOpen).toBe(true);
-
-    act(() => {
-      result.current.closeMedicalIndicationsDialog();
-    });
-
-    expect(result.current.isMedicalIndicationsOpen).toBe(false);
-  });
 });

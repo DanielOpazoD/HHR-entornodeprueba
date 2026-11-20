@@ -121,8 +121,10 @@ _Última actualización: Enero 2026_
 
 ### Revisión de permisos para preparar la transición
 
-Los permisos de plantillas propias, indicaciones inmutables y correcciones de
-metadatos de recetas se prueban en emulador antes de publicar reglas. Una
+Los permisos de correcciones de metadatos de recetas se prueban en emulador antes
+de publicar reglas. Las colecciones de indicaciones médicas (`medicalIndicationTemplates`,
+`medicalIndicationRecords`) se retiraron con su función el 19-11-2026: ninguna regla las
+concede y la regla general las cierra. Una
 corrección de asignación o tipo de receta no autoriza sustituir su fuente de
 carga ni atribuirla a otro funcionario. Los permisos existentes de eliminación
 manual de recetas y finalización/corrección de traslados se conservan.

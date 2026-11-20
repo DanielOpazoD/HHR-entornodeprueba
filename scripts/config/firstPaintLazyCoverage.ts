@@ -40,8 +40,6 @@ const OPTIONAL_TARGETS: Record<string, string> = {
   'src/components/layout/UserAvatarModal': 'Avatar editor opens on request.',
   'src/components/layout/UserMenuPanel': 'User menu opens on request.',
   'src/components/layout/UserSignatureDialog': 'Signature editor opens on request.',
-  'src/components/layout/date-strip/MedicalIndicationsDialog':
-    'Indications editor opens on request.',
   'src/components/layout/date-strip/actions/HandoffSaveDropdown':
     'Handoff toolbar belongs to another route.',
   'src/features/census/components/demographics/DemographicsModal':
@@ -125,7 +123,6 @@ const OPTIONAL_TARGETS: Record<string, string> = {
   'src/services/patient/patientUpcHistoryService':
     'UPC history has an independent loading/error state.',
   'src/services/pdf/antecedentPrescriptionPdf': 'PDF export starts only on request.',
-  'src/services/pdf/medicalIndicationsPdfService': 'PDF export starts only on request.',
   'src/services/repositories/dailyRecordClinicalDerivedReadService':
     'Vitals history has its own loading/error state.',
   'src/services/specialty/specialtyJevClient':

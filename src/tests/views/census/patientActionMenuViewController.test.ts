@@ -24,7 +24,6 @@ describe('patientActionMenuViewController', () => {
       showClinicalDocumentsAction: true,
       showExamRequestAction: true,
       showImagingRequestAction: true,
-      showMedicalIndicationsAction: false,
     });
   });
 
@@ -82,7 +81,6 @@ describe('patientActionMenuViewController', () => {
       hasClinicalDocumentsAction: true,
       hasExamRequestAction: true,
       hasImagingRequestAction: true,
-      hasMedicalIndicationsAction: true,
     });
 
     expect(view).toMatchObject({
@@ -95,7 +93,6 @@ describe('patientActionMenuViewController', () => {
       showClinicalDocumentsAction: true,
       showExamRequestAction: false,
       showImagingRequestAction: false,
-      showMedicalIndicationsAction: false,
     });
   });
 
@@ -121,7 +118,6 @@ describe('patientActionMenuViewController', () => {
       showClinicalDocumentsAction: true,
       showExamRequestAction: true,
       showImagingRequestAction: true,
-      showMedicalIndicationsAction: false,
     });
   });
 

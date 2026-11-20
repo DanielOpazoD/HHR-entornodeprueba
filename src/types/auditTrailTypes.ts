@@ -13,7 +13,6 @@ export type AuditTrailArea =
   | 'medicalHandoff'
   | 'cudyr'
   | 'documents'
-  | 'indications'
   | 'prescriptions'
   | 'woundCare'
   | 'session'

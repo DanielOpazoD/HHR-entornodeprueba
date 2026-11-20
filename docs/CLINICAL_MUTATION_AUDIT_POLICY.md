@@ -32,8 +32,8 @@ Ninguna es "mejor": son decisiones distintas. La política sólo exige que la el
 - **`failClosed`** — la mutación **debe abortar** si su auditoría no se puede escribir. Reservada
   para sobrescrituras/borrados de administrador donde un cambio sin auditar es inaceptable **y**
   abortar es seguro (no urgente, reversible). Ej.: `CONFLICT_VERSION_RESTORED`, los borrados de
-  registro clínico (`DAILY_RECORD_DELETED`, `CLINICAL_DOCUMENT_DELETED`),
-  `MEDICAL_INDICATION_TEMPLATE_*`. Enlaza un `test` probatorio.
+  registro clínico (`DAILY_RECORD_DELETED`, `CLINICAL_DOCUMENT_DELETED`). Enlaza un `test`
+  probatorio.
 - **`bestEffortObservable`** — la mutación **procede** aunque la auditoría falle, pero el fallo se
   **superficializa** (outcome degradado, telemetría, o la escritura de `auditCore` auto-observada). Reservada
   para acciones de **flujo clínico urgente** donde abortar dañaría la atención (admitir, dar de alta,
@@ -99,13 +99,10 @@ Para no dar **falsa confianza**, conviene ser explícito sobre el alcance:
 Se auditaron los emisores de las 14 acciones declaradas `failClosed`. Resultado: solo **7** eran
 realmente fail-closed; las otras 7 se **reclasificaron** tras verificar el emisor.
 
-**`failClosed` (9, verificadas + con test probatorio enlazado):**
+**`failClosed` (4, verificadas + con test probatorio enlazado; las cinco de indicaciones médicas se
+retiraron con la función el 19-11-2026):**
 
 - `CONFLICT_VERSION_RESTORED`, `PRESCRIPTION_MANUAL_DELETED` — audit-first; abortan si la auditoría falla.
-- `MEDICAL_INDICATION_RECORD_CREATED` — atómico (`createWithAuditEvent`: registro + auditoría en un
-  solo `runBatch`).
-- `MEDICAL_INDICATION_TEMPLATE_{CREATED,UPDATED,ARCHIVED,USED}` — **reordenadas a audit-first** (antes
-  mutaban y luego asertaban; ahora abortan antes de mutar).
 - `CLINICAL_DOCUMENT_DELETED`, `DAILY_RECORD_DELETED` — **Scope C**: re-plumbeadas a use-cases
   audit-first (`executeDeleteClinicalDocument`, `executeDeleteDailyRecord`). Ya no se borra un
   registro clínico sin auditoría garantizada; el logger fire-and-forget del hook se retiró.

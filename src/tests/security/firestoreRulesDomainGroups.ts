@@ -508,130 +508,18 @@ export function registerFirestoreRulesDomainGroups({
     });
   });
 
-  describe('Medical Indications Collections', () => {
-    const templatePath = 'hospitals/H1/medicalIndicationTemplates/user_doctor/items/tpl-1';
-    const recordPath = 'hospitals/H1/medicalIndicationRecords/record-1';
-    const templatePayload = {
-      id: 'tpl-1',
-      userId: 'user_doctor',
-      text: 'Control de signos vitales cada 6 horas',
-      createdAt: new Date(NOW_MS).toISOString(),
-      updatedAt: new Date(NOW_MS).toISOString(),
-      createdByName: 'Doctor Test',
-      useCount: 0,
-      isArchived: false,
-    };
-    const recordPayload = {
-      id: 'record-1',
-      patientRut: '15.789.482-4',
-      patientName: 'Paciente Test',
-      episodeId: 'ep_test',
-      bedId: 'R1',
-      targetDate: CURRENT_RECORD_DATE,
-      generatedAt: new Date(NOW_MS).toISOString(),
-      generatedByUserId: 'user_doctor',
-      generatedByName: 'Doctor Test',
-      generatedByRole: 'doctor_urgency',
-      generatedFromTemplateIds: [],
-      admissionDate: CURRENT_RECORD_DATE,
-      daysOfStayForTargetDate: '1',
-      treatingDoctor: 'Doctor Test',
-      reposo: 'Relativo',
-      regimen: 'Liviano',
-      kineType: 'ninguna',
-      kineTimes: '',
-      pendingNotes: '',
-      indications: ['Control'],
-      pdfPrintedAt: null,
-    };
-
-    it('users can manage only their own personal medical indication templates', async () => {
-      await assertSucceeds(doctor().doc(templatePath).set(templatePayload));
-      await assertSucceeds(
-        doctor()
-          .doc(templatePath)
-          .update({
-            text: 'Control cada 8 horas',
-            updatedAt: new Date(NOW_MS + 1).toISOString(),
-            userId: 'user_doctor',
-          })
-      );
-
-      await assertFails(
-        specialist()
-          .doc(templatePath)
-          .set({ ...templatePayload, id: 'tpl-other' })
-      );
-      await assertFails(
-        doctor()
-          .doc('hospitals/H1/medicalIndicationTemplates/user_specialist/items/tpl-2')
-          .set({ ...templatePayload, id: 'tpl-2', userId: 'user_doctor' })
-      );
-    });
-
-    it('clinical write doctors can create generated medical indication records', async () => {
-      await assertSucceeds(doctor().doc(recordPath).set(recordPayload));
-      await assertSucceeds(
-        specialist()
-          .doc('hospitals/H1/medicalIndicationRecords/record-specialist')
-          .set({
-            ...recordPayload,
-            id: 'record-specialist',
-            generatedByUserId: 'user_specialist',
-            generatedByRole: 'doctor_specialist',
-          })
-      );
-      await assertSucceeds(
-        admin()
-          .doc('hospitals/H1/medicalIndicationRecords/record-admin')
-          .set({
-            ...recordPayload,
-            id: 'record-admin',
-            generatedByUserId: 'user_admin',
-            generatedByRole: 'admin',
-          })
-      );
-    });
-
-    it('rejects generated medical indication records with forged author identity or malformed payloads', async () => {
-      await assertFails(
-        doctor()
-          .doc('hospitals/H1/medicalIndicationRecords/record-forged')
-          .set({
-            ...recordPayload,
-            id: 'record-forged',
-            generatedByUserId: 'user_specialist',
-            generatedByName: 'Especialista Falso',
-          })
-      );
-      await assertFails(
-        doctor()
-          .doc('hospitals/H1/medicalIndicationRecords/record-malformed')
-          .set({
-            ...recordPayload,
-            id: 'record-malformed',
-            generatedByUserId: 'user_doctor',
-            generatedAt: NOW_MS,
-            indications: [],
-            extraDebugField: 'no debería persistir',
-          })
-      );
-    });
-
-    it('generated medical indication records are readable but append-only', async () => {
-      await setupDoc(admin(), recordPath, {
-        ...recordPayload,
-        generatedByUserId: 'user_admin',
-        generatedByRole: 'admin',
-      });
-
-      await assertSucceeds(nurse().doc(recordPath).get());
-      await assertSucceeds(authed().doc(recordPath).get());
-      await assertFails(
-        nurse().doc('hospitals/H1/medicalIndicationRecords/record-nurse').set(recordPayload)
-      );
-      await assertFails(doctor().doc(recordPath).update({ pendingNotes: 'Cambio posterior' }));
-      await assertFails(admin().doc(recordPath).delete());
+  describe('Retired medical indications collections', () => {
+    it('refuses every read and write: the feature was removed and nothing grants them', async () => {
+      const templatePath = 'hospitals/H1/medicalIndicationTemplates/user_doctor/items/tpl-1';
+      const recordPath = 'hospitals/H1/medicalIndicationRecords/record-1';
+      for (const client of [doctor(), specialist(), nurse(), admin()]) {
+        await assertFails(client.doc(templatePath).get());
+        await assertFails(
+          client.doc(templatePath).set({ userId: 'user_doctor', text: 'Sintético' })
+        );
+        await assertFails(client.doc(recordPath).get());
+        await assertFails(client.doc(recordPath).set({ id: 'record-1' }));
+      }
     });
   });
 

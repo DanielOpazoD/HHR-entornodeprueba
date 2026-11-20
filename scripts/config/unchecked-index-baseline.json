@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "total": 1244,
+  "total": 1235,
   "areas": {
     "src/application/backup-export": 4,
     "src/application/wound-care": 1,
     "src/components/bookmarks": 2,
-    "src/components/layout": 15,
+    "src/components/layout": 13,
     "src/constants/email": 2,
     "src/domain/cudyr": 21,
     "src/domain/evaluationScales": 5,
@@ -46,7 +46,7 @@
     "src/services/integrations": 7,
     "src/services/laboratory": 4,
     "src/services/patient": 17,
-    "src/services/pdf": 20,
+    "src/services/pdf": 13,
     "src/services/records": 2,
     "src/services/repositories": 32,
     "src/services/staff": 8,

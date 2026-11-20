@@ -1,7 +1,6 @@
 import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
 import type { RowMenuAlign } from '@/features/census/components/patient-row/patientRowUiContracts';
-import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
 
 export interface PatientActionMenuIndicators {
   hasClinicalDocument?: boolean;
@@ -14,7 +13,6 @@ export interface PatientActionMenuCallbacks {
   onViewClinicalDocuments?: () => void;
   onViewExamRequest?: () => void;
   onViewImagingRequest?: () => void;
-  onViewMedicalIndications?: () => void;
   onViewHistory?: () => void;
 }
 
@@ -32,7 +30,6 @@ export interface PatientActionMenuAvailability {
   showClinicalDocumentsAction: boolean;
   showExamRequestAction: boolean;
   showImagingRequestAction: boolean;
-  showMedicalIndicationsAction: boolean;
 }
 
 export interface PatientActionMenuBinding {
@@ -43,5 +40,4 @@ export interface PatientActionMenuBinding {
   accessProfile?: CensusAccessProfile;
   indicators: Required<PatientActionMenuIndicators>;
   availability: PatientActionMenuAvailability;
-  medicalIndicationsPatient?: MedicalIndicationsPatientOption;
 }

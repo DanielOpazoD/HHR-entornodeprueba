@@ -10,7 +10,7 @@ import {
   loadReminderCenterProvider,
   type ReminderCenterProviderComponent,
 } from '@/components/layout/app-content/reminderCenterProviderLoader';
-import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
+import type { CensusQuickActionPatient } from '@/shared/contracts/censusQuickActionPatient';
 import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/dateStripRadiologyViewer';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import {
@@ -28,10 +28,10 @@ const AppContentOverlays = lazyWithRetry(() =>
 
 interface AppContentProps {
   ui: UseUIStateReturn;
-  renderFeatureQuickActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
+  renderFeatureQuickActions?: (patients: CensusQuickActionPatient[]) => React.ReactNode;
   radiologyViewer?: DateStripRadiologyViewer;
   /** Acciones visibles al extremo derecho de la barra de fechas del censo (p. ej. «Documentos»). */
-  renderCensusTrailingActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
+  renderCensusTrailingActions?: (patients: CensusQuickActionPatient[]) => React.ReactNode;
 }
 
 // Publish the deferred runtime through a provider that is present from the first

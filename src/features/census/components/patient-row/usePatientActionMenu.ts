@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useDropdownMenu } from '@/hooks/useDropdownMenu';
 import type { UtilityActionConfig } from '@/features/census/components/patient-row/patientActionMenuConfig';
 import {
@@ -28,26 +28,21 @@ interface UsePatientActionMenuParams {
   onViewClinicalDocuments?: () => void;
   onViewExamRequest?: () => void;
   onViewImagingRequest?: () => void;
-  onViewMedicalIndications?: () => void;
   allowedActions?: readonly PatientRowAction[];
 }
 
 interface UsePatientActionMenuResult {
   isOpen: boolean;
-  isMedicalIndicationsOpen: boolean;
   menuRef: ReturnType<typeof useDropdownMenu>['menuRef'];
   binding: PatientActionMenuBinding;
   utilityActions: UtilityActionConfig[];
   toggle: () => void;
   close: () => void;
-  openMedicalIndicationsDialog: () => void;
-  closeMedicalIndicationsDialog: () => void;
   handleAction: (action: PatientRowAction) => void;
   handleViewHistory: () => void;
   handleViewClinicalDocuments: () => void;
   handleViewExamRequest: () => void;
   handleViewImagingRequest: () => void;
-  handleViewMedicalIndications: () => void;
 }
 
 export const usePatientActionMenu = ({
@@ -64,11 +59,9 @@ export const usePatientActionMenu = ({
   onViewClinicalDocuments,
   onViewExamRequest,
   onViewImagingRequest,
-  onViewMedicalIndications,
   allowedActions,
 }: UsePatientActionMenuParams): UsePatientActionMenuResult => {
   const { isOpen, menuRef, toggle, close } = useDropdownMenu();
-  const [isMedicalIndicationsOpen, setIsMedicalIndicationsOpen] = useState(false);
 
   const menuModel = useMemo(
     () =>
@@ -86,7 +79,6 @@ export const usePatientActionMenu = ({
           onViewClinicalDocuments,
           onViewExamRequest,
           onViewImagingRequest,
-          onViewMedicalIndications,
         }),
         allowedActions,
       }),
@@ -98,7 +90,6 @@ export const usePatientActionMenu = ({
       onViewClinicalDocuments,
       onViewExamRequest,
       onViewImagingRequest,
-      onViewMedicalIndications,
       onViewHistory,
       accessProfile,
       clinicalEditingDisabled,
@@ -116,7 +107,6 @@ export const usePatientActionMenu = ({
         onViewClinicalDocuments,
         onViewExamRequest,
         onViewImagingRequest,
-        onViewMedicalIndications,
         close,
       }),
     [
@@ -126,29 +116,16 @@ export const usePatientActionMenu = ({
       onViewExamRequest,
       onViewHistory,
       onViewImagingRequest,
-      onViewMedicalIndications,
     ]
   );
 
-  const openMedicalIndicationsDialog = useCallback(() => {
-    interactions.handleViewMedicalIndications();
-    setIsMedicalIndicationsOpen(true);
-  }, [interactions]);
-
-  const closeMedicalIndicationsDialog = useCallback(() => {
-    setIsMedicalIndicationsOpen(false);
-  }, []);
-
   return {
     isOpen,
-    isMedicalIndicationsOpen,
     menuRef,
     binding: menuModel.binding,
     utilityActions: menuModel.utilityActions,
     toggle,
     close,
-    openMedicalIndicationsDialog,
-    closeMedicalIndicationsDialog,
     ...interactions,
   };
 };

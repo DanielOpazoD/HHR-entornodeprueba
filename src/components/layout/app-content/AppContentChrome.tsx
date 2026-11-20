@@ -36,20 +36,20 @@ import {
   buildAppRouterShellState,
   buildDateStripProps,
   buildNavbarProps,
-  buildMedicalIndicationsPatientOptions,
+  buildCensusQuickActionPatients,
 } from '@/components/layout/app-content/appContentChromeController';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
 import type { AppContentRuntime } from '@/components/layout/app-content/useAppContentRuntime';
-import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
+import type { CensusQuickActionPatient } from '@/shared/contracts/censusQuickActionPatient';
 import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/dateStripRadiologyViewer';
 
 export interface AppContentChromeProps {
   ui: UseUIStateReturn;
   runtime: AppContentRuntime;
   onOpenCensusDate?: (date: string) => void;
-  renderFeatureQuickActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
+  renderFeatureQuickActions?: (patients: CensusQuickActionPatient[]) => React.ReactNode;
   radiologyViewer?: DateStripRadiologyViewer;
-  renderCensusTrailingActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
+  renderCensusTrailingActions?: (patients: CensusQuickActionPatient[]) => React.ReactNode;
 }
 
 export const AppContentChrome: React.FC<AppContentChromeProps> = ({
@@ -63,13 +63,13 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
   const { auth } = runtime;
   const [handoffTarget, setHandoffTarget] = React.useState<HTMLDivElement | null>(null);
 
-  const medicalIndicationsPatients = React.useMemo<MedicalIndicationsPatientOption[]>(() => {
-    return buildMedicalIndicationsPatientOptions(runtime.record);
+  const censusQuickActionPatients = React.useMemo<CensusQuickActionPatient[]>(() => {
+    return buildCensusQuickActionPatients(runtime.record);
   }, [runtime.record]);
   const dateStripProps = buildDateStripProps({
     ui,
     runtime,
-    medicalIndicationsPatients,
+    censusQuickActionPatients,
     renderFeatureQuickActions,
     radiologyViewer,
   });
@@ -93,7 +93,7 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
             trailingActions={
               ui.currentModule === 'CENSUS' ? (
                 <>
-                  {renderCensusTrailingActions?.(medicalIndicationsPatients)}
+                  {renderCensusTrailingActions?.(censusQuickActionPatients)}
                   <CensusOptionsMenu>
                     {dateStripProps.onOpenPatientSearch && (
                       <button
