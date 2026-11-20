@@ -10,6 +10,7 @@ interface BuildPatientRowEditingRuntimeParamsInput {
   bed: Pick<BedDefinition, 'id'>;
   data: PatientData;
   currentDateString: string;
+  isSubRow: boolean;
   dependencies: Pick<
     PatientRowDependencies,
     | 'updatePatient'
@@ -24,11 +25,14 @@ export const buildPatientRowEditingRuntimeParams = ({
   bed,
   data,
   currentDateString,
+  isSubRow,
   dependencies,
 }: BuildPatientRowEditingRuntimeParamsInput) => ({
   bedId: bed.id,
   currentDateString,
   data,
+  // The crib row's own data is the crib: its edits are scoped to that newborn's episode (ID-03).
+  cribData: isSubRow ? data : data.clinicalCrib,
   documentType: data.documentType,
   updatePatient: dependencies.updatePatient,
   updatePatientMultiple: dependencies.updatePatientMultiple,
@@ -98,7 +102,7 @@ export const buildPatientRowRuntimeHookParams = ({
   data,
   currentDateString,
   getRecordLastUpdated,
-  isSubRow,
+  isSubRow = false,
   onAction,
   rowState,
   dependencies,
@@ -107,6 +111,7 @@ export const buildPatientRowRuntimeHookParams = ({
     bed,
     data,
     currentDateString,
+    isSubRow,
     dependencies,
   }),
   interactionRuntimeParams: buildPatientRowInteractionRuntimeParams({

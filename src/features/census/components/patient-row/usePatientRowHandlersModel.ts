@@ -17,6 +17,8 @@ interface UsePatientRowHandlersModelParams {
   bedId: string;
   currentDateString: string;
   data: PatientData;
+  /** The crib whose edits these handlers save: the row's own data on the crib row. */
+  cribData: PatientData | undefined;
   documentType?: PatientRowPatientDocumentType;
   updatePatient: (bedId: string, field: PatientRowPatientField, value: PatientFieldValue) => void;
   updatePatientMultiple: (bedId: string, fields: PatientRowPatientPatch) => PatientRowSaveResult;
@@ -36,6 +38,7 @@ export const usePatientRowHandlersModel = ({
   bedId,
   currentDateString,
   data,
+  cribData,
   documentType,
   updatePatient,
   updatePatientMultiple,
@@ -55,7 +58,7 @@ export const usePatientRowHandlersModel = ({
   const cribHandlers = usePatientRowCribInputHandlers({
     bedId,
     currentDateString,
-    data: data.clinicalCrib,
+    data: cribData,
     updateClinicalCrib,
     updateClinicalCribMultiple,
   });

@@ -19,6 +19,7 @@ describe('patientRowRuntimeModelController', () => {
       bed: { id: 'R1' },
       data: DataFactory.createMockPatient('R1', { documentType: 'RUT' }),
       currentDateString: '2026-01-03',
+      isSubRow: false,
       dependencies: {
         updatePatient,
         updatePatientMultiple,
@@ -32,6 +33,7 @@ describe('patientRowRuntimeModelController', () => {
       bedId: 'R1',
       currentDateString: '2026-01-03',
       data: expect.objectContaining({ documentType: 'RUT' }),
+      cribData: undefined,
       documentType: 'RUT',
       updatePatient,
       updatePatientMultiple,
@@ -39,6 +41,33 @@ describe('patientRowRuntimeModelController', () => {
       updateClinicalCrib,
       updateClinicalCribMultiple,
     });
+  });
+
+  it('scopes crib edits to the crib row own newborn, and to the bed crib from the bed row', () => {
+    const crib = DataFactory.createMockPatient('R1', { clinicalEpisodeId: 'episode-newborn' });
+    const mother = DataFactory.createMockPatient('R1', {
+      clinicalEpisodeId: 'episode-mother',
+      clinicalCrib: crib,
+    });
+    const dependencies = {
+      updatePatient: vi.fn(),
+      updatePatientMultiple: vi.fn(),
+      clearPatient: vi.fn(),
+      updateClinicalCrib: vi.fn(),
+      updateClinicalCribMultiple: vi.fn(),
+    };
+    const build = (data: typeof crib, isSubRow: boolean) =>
+      buildPatientRowEditingRuntimeParams({
+        bed: { id: 'R1' },
+        data,
+        currentDateString: '2026-01-03',
+        isSubRow,
+        dependencies,
+      }).cribData;
+
+    // On the crib row, the row's data is the crib itself; it has no crib of its own.
+    expect(build(crib, true)).toBe(crib);
+    expect(build(mother, false)).toBe(crib);
   });
 
   it('builds interaction runtime params from row state and callbacks', () => {
@@ -116,6 +145,7 @@ describe('patientRowRuntimeModelController', () => {
       bedId: 'R1',
       currentDateString: '2026-01-03',
       data: patient,
+      cribData: undefined,
       documentType: 'RUT',
       updatePatient,
       updatePatientMultiple,

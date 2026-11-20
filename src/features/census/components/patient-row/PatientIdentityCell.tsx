@@ -127,6 +127,13 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   const admissionDetail = `Ingreso: ${admissionShort} · ${admissionTime} (Rapa Nui)`;
   const specialtyLabel = (data.specialty || '').trim();
   const specialtyScopeBedId = isSubRow ? parentBedId : data.bedId;
+  // Who this row's edits belong to: a new day, bed or episode is a new cell, never the old text.
+  const saveScopeKey = buildPatientRowSaveScopeKey(
+    currentDateString,
+    data,
+    specialtyScopeBedId,
+    isSubRow
+  );
   const matchedPhysician = findProfessionalByRayenIdentity(
     professionalsCatalog,
     data.treatingPhysicianId,
@@ -195,6 +202,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
             >
               <div className="group/name relative min-h-4 min-w-0">
                 <DebouncedInput
+                  key={saveScopeKey}
                   type="text"
                   name="patientName"
                   className="absolute inset-0 h-full w-full border-0 bg-slate-50 p-0 text-[13px] font-semibold text-inherit opacity-0 focus:opacity-100 focus:outline-none"
@@ -334,18 +342,8 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
             <span className="flex min-w-0 items-center gap-1">
               {(hasRutValue || admissionShort) && <span className="text-slate-300">/</span>}
               <SpecialtyChip
-                key={buildPatientRowSaveScopeKey(
-                  currentDateString,
-                  data,
-                  specialtyScopeBedId,
-                  isSubRow
-                )}
-                saveScopeKey={buildPatientRowSaveScopeKey(
-                  currentDateString,
-                  data,
-                  specialtyScopeBedId,
-                  isSubRow
-                )}
+                key={saveScopeKey}
+                saveScopeKey={saveScopeKey}
                 censusDate={currentDateString}
                 specialty={specialtyLabel}
                 decision={data.specialtyAssignment}

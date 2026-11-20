@@ -67,6 +67,18 @@ export const resolveClinicalEpisodeIdForAdmission = (
   return `${CANONICAL_EPISODE_ID_PREFIX}${normalizeGeneratedId(createId())}`;
 };
 
+/**
+ * The episode id that names a hospitalization, or undefined. A `legacy_ep_` id is only a hash
+ * derived from document, name and admission for a record saved without one: two patients with the
+ * same values share it, so it identifies no one.
+ */
+export const resolveAccreditedClinicalEpisodeId = (
+  patient: Pick<PatientEpisodeContract, 'clinicalEpisodeId'> | undefined
+): string | undefined => {
+  const id = normalizeClinicalEpisodeId(patient?.clinicalEpisodeId);
+  return id && !id.startsWith(LEGACY_EPISODE_ID_PREFIX) ? id : undefined;
+};
+
 export const buildLegacyClinicalEpisodeId = (
   patient: PatientEpisodeContract
 ): string | undefined => {

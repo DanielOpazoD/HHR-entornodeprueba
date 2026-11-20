@@ -55,6 +55,7 @@ describe('usePatientRowHandlersModel', () => {
         bedId: 'R1',
         currentDateString: '2026-01-03',
         data: DataFactory.createMockPatient('R1'),
+        cribData: undefined,
         documentType: 'RUT',
         updatePatient: vi.fn(),
         updatePatientMultiple: vi.fn(),
