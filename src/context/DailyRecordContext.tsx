@@ -12,7 +12,6 @@ import { DailyRecordProviderTree } from '@/context/dailyRecordProviderTree';
 import { buildDailyRecordStatusModel } from '@/context/dailyRecordStatusController';
 
 import { useDailyRecordFragmentedValues } from '@/context/useDailyRecordFragmentedValues';
-import { useRequiredDailyRecordActionsContext } from './dailyRecordActionsContext';
 import {
   DailyRecordBedsContext,
   DailyRecordDataContext,
@@ -133,14 +132,6 @@ export const useDailyRecordStaff = () => {
  */
 export const useDailyRecordOverrides = () => {
   return useRequiredContextValue(DailyRecordOverridesContext, 'useDailyRecordOverrides') || {};
-};
-
-/**
- * Access only stable actions.
- * Does NOT re-render when data changes. Use for buttons, forms, etc.
- */
-export const useDailyRecordActions = () => {
-  return useRequiredDailyRecordActionsContext('useDailyRecordActions');
 };
 
 export {

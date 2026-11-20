@@ -89,7 +89,6 @@ const createAuthState = (overrides: Partial<AuthContextType> = {}): AuthContextT
     },
     currentUser: null,
     authorizedUser: null,
-    user: null,
     role: 'viewer',
     isLoading: false,
     isAuthenticated: false,
@@ -238,7 +237,6 @@ describe('useAppBootstrapState', () => {
       createAuthState({
         currentUser,
         authorizedUser: currentUser,
-        user: currentUser,
         role: 'admin',
         isAuthenticated: true,
         isAuthorizedSession: true,
@@ -279,7 +277,6 @@ describe('useAppBootstrapState', () => {
         sessionState: { status: 'authorized', user: currentUser },
         currentUser,
         authorizedUser: currentUser,
-        user: currentUser,
         role: 'admin',
         isAuthenticated: true,
         isAuthorizedSession: true,
@@ -309,7 +306,6 @@ describe('useAppBootstrapState', () => {
       createAuthState({
         currentUser,
         authorizedUser: currentUser,
-        user: currentUser,
         role: 'admin',
         isAuthenticated: true,
         isAuthorizedSession: true,
@@ -347,7 +343,6 @@ describe('useAppBootstrapState', () => {
     const auth = createAuthState({
       currentUser,
       authorizedUser: currentUser,
-      user: currentUser,
       role: 'admin',
       isAuthenticated: true,
       isAuthorizedSession: true,

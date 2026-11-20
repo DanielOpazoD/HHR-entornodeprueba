@@ -331,7 +331,7 @@ describe('useAuthState cross-tab logout', () => {
     });
 
     await waitFor(() => expect(authSession.signOut).toHaveBeenCalledTimes(1));
-    expect(result.current.user).toBe(null);
+    expect(result.current.currentUser).toBe(null);
     expect(sessionStorage.getItem('firebase:authUser:demo-key')).toBeNull();
     expect(sessionStorage.getItem('hhr_logged_this_session')).toBeNull();
     expect(clearSessionScopedClientState).toHaveBeenCalledWith(

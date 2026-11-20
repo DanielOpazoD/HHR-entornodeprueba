@@ -122,7 +122,14 @@ const createPatchHandler =
 
         if (assertPatchBase) await assertPatchBase(snapshot, data, transaction);
         const remoteData = snapshot.data() || {};
-        if (hasAlreadyAppliedMutation({ snapshot, syncContract })) {
+        if (
+          hasAlreadyAppliedMutation({
+            snapshot,
+            syncContract,
+            values: patch,
+            uid: context.auth?.uid,
+          })
+        ) {
           authority = idempotentAuthority;
           coverage = collectClinicalEpisodeCoverage(remoteData);
           revision = resolveCurrentRevision(remoteData);
@@ -315,6 +322,7 @@ const createPatchHandler =
           record: patchedRecord,
           writtenPaths,
           fenced: isRayenClinicalWriteFenceActive(policySnapshot),
+          writerUid: context.auth?.uid,
         });
         const derivedWrite = derivedSplit?.plan({ patchedRecord, now, mutationId });
 

@@ -211,7 +211,7 @@ describe('CensusTable layout and actions', () => {
   const applyDefaultMocks = () => {
     vi.mocked(useAuth).mockReturnValue(
       asContextReturn<ReturnType<typeof useAuth>>({
-        user: null,
+        currentUser: null,
         role: 'viewer',
         isLoading: false,
         isAuthenticated: false,
@@ -327,7 +327,7 @@ describe('CensusTable layout and actions', () => {
     mockConfirm.mockResolvedValue(true);
     vi.mocked(useAuth).mockReturnValue(
       asContextReturn<ReturnType<typeof useAuth>>({
-        user: null,
+        currentUser: null,
         role: 'admin',
         isLoading: false,
         isAuthenticated: false,

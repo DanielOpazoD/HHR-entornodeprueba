@@ -1,6 +1,6 @@
 import type { CensusExportRecord } from '@/services/contracts/censusExportServiceContracts';
 
-import { formatSheetDate } from '@/services/exporters/excel/formatters';
+import { formatDateDDMMYYYY } from '@/services/exporters/excel/formatters';
 import type {
   CensusMasterWorkbookOptions,
   CensusWorkbookSheetDescriptor,
@@ -22,7 +22,7 @@ export const buildCensusWorkbookSheetDescriptors = (
       record,
       descriptor: {
         recordDate: record.date,
-        sheetName: formatSheetDate(record.date),
+        sheetName: formatDateDDMMYYYY(record.date),
         sortOrder: index,
       } as CensusWorkbookSheetDescriptor,
     }));

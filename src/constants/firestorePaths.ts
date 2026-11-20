@@ -17,10 +17,6 @@ import { HospitalConfigService } from '@/services/config/HospitalConfigService';
  */
 export const getActiveHospitalId = () => HospitalConfigService.getHospitalId();
 
-// Legacy constant for broad compatibility during transition
-/** @deprecated Use getActiveHospitalId() */
-export const HOSPITAL_ID = HospitalConfigService.getHospitalId();
-
 // ============================================================================
 // Collection Names
 // ============================================================================

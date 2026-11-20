@@ -266,3 +266,9 @@ Abre Chromium con una sesión y un paciente ficticios. Comprueba el guardado en 
 cerrado. Agrega `--interactive` para preparar una carpeta de extensión de uso local y un paciente
 ficticio para verificar el flujo en Chrome con una sesión habitual de Hospitalizados.
 La misma ejecución prepara la extensión y el emulador. Usa la carpeta indicada durante esa ejecución.
+
+Con `--interactive --censo-compartido`, HHR se abre en `http://127.0.0.1:3016`
+y utiliza el mismo Firestore local que la extensión. El lanzador muestra el acceso temporal de HHR.
+El censo empieza vacío. Usa el flujo habitual de sincronización de HHR para publicarlo en ese
+entorno y luego abre la entrega desde la fila correspondiente de Eloísa. El episodio y el RUN
+propio deben coincidir. Puedes cerrar la pestaña de HHR después de cargar el censo.

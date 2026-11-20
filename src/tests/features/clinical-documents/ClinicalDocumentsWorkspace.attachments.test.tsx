@@ -23,7 +23,7 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({
-    user: { uid: 'doctor', email: 'doctor@example.test' },
+    currentUser: { uid: 'doctor', email: 'doctor@example.test' },
     role: 'doctor_urgency',
   }),
 }));
