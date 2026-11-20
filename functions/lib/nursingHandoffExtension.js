@@ -1,9 +1,8 @@
-const { randomBytes, createHash } = require('node:crypto');
+const { createHash, timingSafeEqual } = require('node:crypto');
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { resolveClinicalDayForDateTime } = require('./generated/cudyrSourceParser.cjs');
 const { createPatchHandler } = require('./dailyRecordPatchCallable');
-const { assertAuthorizedDailyRecordWriter } = require('./dailyRecordWritePolicy');
 
 const DEMO_PROJECT = 'demo-hhr-handoff';
 const DAY = 'handoffNoteDayShift';
@@ -18,8 +17,9 @@ const clock = new Intl.DateTimeFormat('en-CA', {
   hourCycle: 'h23',
 });
 const digest = value => createHash('sha256').update(value).digest('hex');
-const secret = () => randomBytes(24).toString('base64url');
-const validSecret = value => typeof value === 'string' && /^[\w-]{32}$/.test(value);
+const validLocalKey = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+const loopbackEmulator = host => /^127\.0\.0\.1:\d+$/.test(host ?? '');
+const positiveId = value => typeof value === 'string' && /^[1-9]\d{0,15}$/.test(value);
 const fail = (code, message) => {
   throw new functions.https.HttpsError(code, message);
 };
@@ -110,27 +110,38 @@ function waitForNote(ref, initial, select, version, shift) {
   });
 }
 
+// The loopback pilot installation is the trust boundary. It verifies the native
+// session before forwarding its identity, without forwarding Rayen credentials.
+function localActor(source, expectedKey) {
+  if (
+    !validLocalKey(expectedKey) ||
+    !validLocalKey(source?.installationKey) ||
+    !timingSafeEqual(Buffer.from(source.installationKey, 'hex'), Buffer.from(expectedKey, 'hex'))
+  ) {
+    fail('unauthenticated', 'Abre la entrega desde la extensión del piloto local.');
+  }
+  const { facilityId, practitionerId, roleId } = source;
+  if (![facilityId, practitionerId, roleId].every(positiveId)) {
+    fail('permission-denied', 'Eloísa no confirmó el profesional y el establecimiento.');
+  }
+  const uid = `eloisa-${facilityId}-${practitionerId}-${roleId}`;
+  return { auth: { uid, token: { email: uid + '@example.test' } } };
+}
+
 function createHandler({
-  auth,
   firestore,
   Timestamp,
   FieldValue,
-  resolveRoleForEmail,
+  installationKey,
   clinicalNow = () => new Date(),
 }) {
-  const authz = async context => {
-    const { role } = await assertAuthorizedDailyRecordWriter({ context, resolveRoleForEmail });
-    if (role !== 'nurse_hospital' && role !== 'admin') {
-      fail('permission-denied', 'Este permiso corresponde a enfermería de HHR.');
-    }
-  };
-  const grants = firestore.collection('nursingHandoffDemoGrants');
   const records = firestore.collection('hospitals').doc(HOSPITAL_ID).collection('dailyRecords');
   const write = createPatchHandler({
     firestore,
     Timestamp,
     FieldValue,
-    resolveRoleForEmail,
+    // The local pilot only constructs the two nursing-note paths below.
+    resolveRoleForEmail: () => 'nurse_hospital',
     assertPatchBase(snapshot, data) {
       const slot = clinicalSlot(clinicalNow());
       if (slot.date !== data.date || slot.shift !== data.shift) {
@@ -142,70 +153,12 @@ function createHandler({
     },
   });
 
-  return async (data, context) => {
+  return async data => {
     const action = data?.action;
-    if (action === 'issue') {
-      await authz(context);
-      const code = secret();
-      const { uid, token } = context.auth;
-      await grants.doc(digest(code)).create({
-        kind: 'code',
-        uid,
-        token,
-        expiry: Date.now() + 5 * 60_000,
-      });
-      return { code };
+    if (action !== 'read' && action !== 'save') {
+      fail('invalid-argument', 'La operación de entrega de turno no es válida.');
     }
-
-    if (action === 'connect') {
-      if (!validSecret(data.code)) fail('invalid-argument', 'Revisa el código de HHR.');
-      const codeRef = grants.doc(digest(data.code));
-      const grant = secret();
-      await firestore.runTransaction(async tx => {
-        const code = (await tx.get(codeRef)).data();
-        if (code?.kind !== 'code' || code.expiry <= Date.now()) {
-          fail('unauthenticated', 'El código venció o ya se usó.');
-        }
-        const expiry = Math.min((code.token.exp || 0) * 1000, Date.now() + 60 * 60_000);
-        if (expiry <= Date.now())
-          fail('unauthenticated', 'Genera un código desde una sesión vigente de HHR.');
-        tx.create(grants.doc(digest(grant)), { ...code, kind: 'grant', expiry });
-        tx.delete(codeRef);
-      });
-      return { grant };
-    }
-
-    if (!['read', 'save', 'disconnect'].includes(action) || !validSecret(data?.grant)) {
-      fail('unauthenticated', 'Vincula HHR para acceder a la entrega de turno.');
-    }
-    const grantRef = grants.doc(digest(data.grant));
-    const grant = (await grantRef.get()).data();
-    if (grant?.kind !== 'grant' || grant.expiry <= Date.now()) {
-      fail('unauthenticated', 'La vinculación con HHR venció.');
-    }
-    if (action === 'disconnect') {
-      await grantRef.delete();
-      return { disconnected: true };
-    }
-    const { uid, token } = grant;
-    const actor = { auth: { uid, token } };
-    const assertCurrentGrant = async () => {
-      const user = await auth.getUser(uid).catch(error => {
-        if (error.code === 'auth/user-not-found')
-          fail('unauthenticated', 'La cuenta de HHR ya no existe.');
-        throw error;
-      });
-      if (
-        grant.expiry <= Date.now() ||
-        user.disabled ||
-        user.email !== token.email ||
-        Date.parse(user.tokensValidAfterTime) > token.auth_time * 1000
-      ) {
-        fail('unauthenticated', 'La sesión de HHR ya no está vigente.');
-      }
-      await authz(actor);
-    };
-    await assertCurrentGrant();
+    const actor = localActor(data.source, installationKey ?? process.env.HHR_HANDOFF_LOCAL_KEY);
 
     const { episode, patientRun } = data;
     const run = normalizeRun(patientRun);
@@ -230,10 +183,6 @@ function createHandler({
       const active = clinicalSlot(clinicalNow());
       if (active.date !== date || active.shift !== shift)
         fail('failed-precondition', 'Cambió el turno o la fecha censal. Abre otra entrega.');
-      if (grant.expiry <= Date.now() || !(await grantRef.get()).exists) {
-        fail('unauthenticated', 'La vinculación con HHR venció.');
-      }
-      if (data.since) await assertCurrentGrant();
       return viewOf(entry, date, shift);
     }
 
@@ -265,9 +214,11 @@ function createHandler({
         patch,
         snapshotVersion: current.snapshotVersion,
         expectedLastUpdated: current.lastUpdated,
-        ...(Number.isInteger(current.revision)
-          ? { syncContract: { baseRevision: current.revision } }
-          : {}),
+        syncContract: {
+          clientId: actor.auth.uid,
+          changedPaths: Object.keys(patch),
+          ...(Number.isInteger(current.revision) ? { baseRevision: current.revision } : {}),
+        },
         origin: 'eloisa_nursing_handoff',
       },
       actor
@@ -285,8 +236,8 @@ function createNursingHandoffDemoFunctions(deps) {
   const enabled =
     process.env.FUNCTIONS_EMULATOR === 'true' &&
     process.env.GCLOUD_PROJECT === DEMO_PROJECT &&
-    Boolean(process.env.FIRESTORE_EMULATOR_HOST) &&
-    Boolean(process.env.FIREBASE_AUTH_EMULATOR_HOST);
+    loopbackEmulator(process.env.FIRESTORE_EMULATOR_HOST) &&
+    loopbackEmulator(process.env.FIREBASE_AUTH_EMULATOR_HOST);
   return enabled
     ? {
         nursingHandoffExtension: functions

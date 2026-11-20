@@ -1,40 +1,53 @@
 const assert = require('node:assert/strict');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
-const { randomUUID } = require('node:crypto');
+const { randomBytes } = require('node:crypto');
 
 const projectId = 'demo-hhr-handoff';
 process.env.GCLOUD_PROJECT = projectId;
 process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
 process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
 const { initializeApp, deleteApp } = require('firebase-admin/app');
-const { getAuth } = require('firebase-admin/auth');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
 const { clinicalSlot, createHandler } = require('../lib/nursingHandoffExtension');
-const { createAuthHelpers } = require('../lib/authFunctions');
 
 const endpoint = `http://127.0.0.1:5001/${projectId}/southamerica-east1/nursingHandoffExtension`;
-const call = async (data, token) => {
+const call = async data => {
   const res = await fetch(endpoint, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: 'Bearer ' + token }),
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ data }),
   });
   const body = await res.json();
   return res.ok ? body.result : { status: body.error?.status, message: body.error?.message };
 };
 
+function waitForBrowserSave(day, notePath) {
+  return new Promise((resolve, reject) => {
+    const unsubscribe = day.onSnapshot(snapshot => {
+      const actor = snapshot.get('meta.lastWriterClientId');
+      if (
+        snapshot.get(notePath) === 'Verificación local sin código' &&
+        /^eloisa-\d+-\d+-\d+$/.test(actor ?? '')
+      ) {
+        console.log('OK: nota ficticia confirmada con autor de Eloísa registrado.');
+      }
+    }, reject);
+    for (const signal of ['SIGINT', 'SIGTERM']) {
+      process.once(signal, () => {
+        unsubscribe();
+        resolve();
+      });
+    }
+  });
+}
+
 async function main() {
   const app = initializeApp({ projectId });
-  const auth = getAuth(app);
   const firestore = getFirestore(app);
-  const email = 'nurse-' + randomUUID() + '@example.test';
-  const password = randomUUID();
-  const { uid } = await auth.createUser({ email, password });
-  const accessRef = firestore.doc('hhr_account_access/' + uid);
+  const installationKey = process.env.HHR_HANDOFF_LOCAL_KEY;
+  assert.ok(/^[a-f0-9]{64}$/.test(installationKey ?? ''), 'Falta el entorno local del piloto.');
+  const source = { installationKey, facilityId: '1', practitionerId: '2', roleId: '3' };
   const date = clinicalSlot(new Date()).date;
   const policy = firestore.doc('hospitals/hanga_roa/settings/rayenImportPolicy');
   const day = firestore.doc('hospitals/hanga_roa/dailyRecords/' + date);
@@ -60,35 +73,31 @@ async function main() {
       cma: [],
     });
   };
-  let grant;
   let ownsFixture = false;
   let ownsPolicy = false;
   try {
-    await auth.setCustomUserClaims(uid, { hhrAccountVersion: 1 });
-    await accessRef.set({ status: 'active', version: 1, role: 'nurse_hospital' });
-    const authResponse = await fetch(
-      'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-hhr-handoff',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, returnSecureToken: true }),
-      }
-    );
-    assert.ok(authResponse.ok);
-    const { idToken } = await authResponse.json();
-    assert.equal((await call({ action: 'issue' })).status, 'UNAUTHENTICATED');
-    const issued = await call({ action: 'issue' }, idToken);
-    assert.ok(issued.code, issued.message);
-    const paired = await call({ action: 'connect', code: issued.code });
-    grant = paired.grant;
-    assert.ok(grant, paired.message);
-    assert.equal((await call({ action: 'connect', code: issued.code })).status, 'UNAUTHENTICATED');
-
     await policy.create({ schemaVersion: 2, mode: 'preview', clinicalBatchMode: 'enforced' });
     ownsPolicy = true;
     await seed(day);
     ownsFixture = true;
-    const read = extra => call({ action: 'read', grant, episode, patientRun, ...extra });
+    if (process.env.HHR_HANDOFF_LOCAL_INTERACTIVE === '1') {
+      console.log(
+        'Paciente ficticio listo. Abre su entrega desde la Ficha de Hospitalizados en Chrome.'
+      );
+      await waitForBrowserSave(day, noteNight);
+      return;
+    }
+    const read = extra => call({ action: 'read', source, episode, patientRun, ...extra });
+    assert.equal((await read({ source: undefined })).status, 'UNAUTHENTICATED');
+    const otherKey = randomBytes(32).toString('hex');
+    assert.equal(
+      (await read({ source: { ...source, installationKey: otherKey } })).status,
+      'UNAUTHENTICATED'
+    );
+    assert.equal(
+      (await read({ source: { ...source, practitionerId: '' } })).status,
+      'PERMISSION_DENIED'
+    );
     const initial = await read();
     assert.equal(initial.text, '', initial.message);
     assert.equal((await read({ patientRun: '22222222-2' })).status, 'FAILED_PRECONDITION');
@@ -97,7 +106,7 @@ async function main() {
     const write = (text, version = initial.version) =>
       call({
         action: 'save',
-        grant,
+        source,
         episode,
         patientRun,
         ...fields,
@@ -109,6 +118,8 @@ async function main() {
     assert.equal(saved.confirmed, true, JSON.stringify(saved));
     assert.equal((await watch).text, saved.text);
     assert.equal((await day.get()).get(noteNight), saved.text);
+    const writes = (await day.get()).get('meta.fieldWrites');
+    assert.equal(writes.writes[writes.fields[noteNight].revision].clientId, 'eloisa-1-2-3');
     assert.equal((await day.get()).get(noteDay), initial.shift === 'day' ? saved.text : undefined);
     assert.equal((await write(saved.text)).confirmed, true);
     const remote = 'Edición sintética desde HHR';
@@ -118,16 +129,14 @@ async function main() {
 
     // Exercise both shifts against the real Firestore and patch authority while holding the census date fixed.
     let instant = new Date(date + 'T16:00:00Z');
-    const token = JSON.parse(Buffer.from(idToken.split('.')[1], 'base64url'));
     const handle = createHandler({
-      auth,
       firestore,
       FieldValue,
       Timestamp,
-      resolveRoleForEmail: createAuthHelpers({ auth, firestore }).resolveRoleForEmail,
+      installationKey,
       clinicalNow: () => instant,
     });
-    const run = (action, extra = {}) => handle({ action, grant, episode, patientRun, ...extra });
+    const run = (action, extra = {}) => handle({ action, source, episode, patientRun, ...extra });
     const dayView = await run('read');
     assert.equal(dayView.shift, 'day');
     await run('save', { ...dayView, text: 'Día confirmado' });
@@ -145,14 +154,12 @@ async function main() {
     assert.equal(result.handoffNoteDayShift, 'Día confirmado');
     assert.equal(result.handoffNoteNightShift, 'Noche confirmada');
     if (process.env.HHR_HANDOFF_EXTENSION_CHECKOUT) {
-      const browserCode = (await call({ action: 'issue' }, idToken)).code;
-      assert.ok(browserCode);
       const { stdout } = await promisify(execFile)(
         process.execPath,
         ['scripts/smoke-nursing-handoff-pilot.mjs'],
         {
           cwd: process.env.HHR_HANDOFF_EXTENSION_CHECKOUT,
-          env: { ...process.env, HHR_HANDOFF_SMOKE_CODE: browserCode },
+          env: process.env,
           timeout: 90_000,
         }
       ).catch(error => {
@@ -161,15 +168,10 @@ async function main() {
       assert.equal((await day.get()).get(noteNight), 'Cambio sincronizado entre editores');
       console.log(stdout.trim());
     }
-    await auth.updateUser(token.sub, { disabled: true });
-    assert.equal((await read()).status, 'UNAUTHENTICATED');
     console.log(
       'OK: HTTP emulado, permisos, notificación de cambios, confirmación, conflictos y turnos.'
     );
   } finally {
-    if (grant) await call({ action: 'disconnect', grant });
-    await accessRef.delete();
-    await auth.deleteUser(uid);
     if (ownsPolicy) await policy.delete();
     if (ownsFixture) await firestore.recursiveDelete(day);
     await deleteApp(app);
