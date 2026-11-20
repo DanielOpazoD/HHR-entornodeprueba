@@ -104,33 +104,6 @@ export const isSameDocument = (left?: string, right?: string): boolean =>
     hasNonRutLetter(right ?? '') &&
     passportText(left) === passportText(right));
 
-/** Full-width and other compatibility forms read as their ASCII digits and letters. */
-const compatibilityAsAscii = (value?: string): string => (value ?? '').normalize('NFKC');
-
-/**
- * The same document of a patient (ID-01). A document is a passport when it has letters or the
- * caller states one; any other is a RUT. Two passports compare by their text, separators and case
- * aside; two RUTs by their digits, whatever the punctuation; a passport never matches a RUT, even
- * when its digits form that RUT. Compatibility forms such as full-width digits read as ASCII
- * first, and a RUT with any other numeral matches nothing, so no significant character is dropped.
- */
-export const isSamePatientDocument = (
-  left: { rut?: string; passport: boolean },
-  right: { rut?: string; passport: boolean }
-): boolean => {
-  const leftValue = compatibilityAsAscii(left.rut);
-  const rightValue = compatibilityAsAscii(right.rut);
-  const leftPassport = left.passport || hasNonRutLetter(leftValue);
-  if (leftPassport !== (right.passport || hasNonRutLetter(rightValue))) return false;
-  if (leftPassport) return passportText(leftValue) === passportText(rightValue);
-  const otherNumeral = /[^\P{N}0-9]/u;
-  return (
-    !otherNumeral.test(leftValue) &&
-    !otherNumeral.test(rightValue) &&
-    normalizeRut(leftValue) === normalizeRut(rightValue)
-  );
-};
-
 /**
  * Map/Set key for a document: two keys are equal exactly when isSameDocument holds. A value
  * without any digit ("SIN RUT", "S/N", "RN") is a marker, not a document, and has no key, so

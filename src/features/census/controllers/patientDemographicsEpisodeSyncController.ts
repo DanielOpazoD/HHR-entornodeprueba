@@ -11,8 +11,7 @@ import type { PatientRowPatientPatch } from '@/features/census/components/patien
 import { createScopedLogger, type ScopedLogger } from '@/services/utils/loggerScope';
 import { parseCalendarDateUtcNoon } from '@/utils/clinicalDateUtils';
 import { editsEloisaNameParts } from '@/utils/patientNamePartsSource';
-import { documentIdentityKey, isSamePatientDocument } from '@/utils/rutUtils';
-import { inferDocumentTypeFromIdentity } from '@/schemas/zod/helpers';
+import { isValidRut, normalizeRut } from '@/utils/rutUtils';
 import { resolveAccreditedClinicalEpisodeId as accreditedEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 const patientDemographicsEpisodeSyncLogger = createScopedLogger('PatientDemographicsEpisodeSync');
@@ -100,27 +99,30 @@ const pickDemographicUpdates = (
   return result;
 };
 
-/**
- * Whether an earlier day's stated passport counts as one. Reading a day saved before schema
- * versions types every document by its shape and turns a stored RUT such as `123.456-0` or
- * `12.345.678/5` into `Pasaporte`, so for a value of that shape the read type proves nothing:
- * it then compares as a RUT and never matches the edited row's passport.
- */
-const isCreditedPassport = (candidate: PatientData): boolean =>
-  candidate.documentType === 'Pasaporte' &&
-  inferDocumentTypeFromIdentity(candidate.rut) !== 'Pasaporte';
+/** Any numeral, in any script: the field holds a document, not a marker such as `S/R`. */
+const hasDocument = (patient: PatientData): boolean => /\p{N}/u.test(patient.rut ?? '');
 
 /**
- * Document and type first (ID-01): a passport, with or without letters, is never the RUT its
- * digits form. A value without digits (`S/R`, `SIN RUT`) is no document: matching falls back to
- * the name.
+ * The canonical RUT of a patient declared `RUT` whose check digit is correct, written only with
+ * ASCII digits (`isValidRut` would drop any other numeral); null for anything else.
+ */
+const declaredValidRut = (patient: PatientData): string | null => {
+  const value = patient.rut ?? '';
+  return patient.documentType === 'RUT' && isValidRut(value) && !/[^\P{N}0-9]/u.test(value)
+    ? normalizeRut(value)
+    : null;
+};
+
+/**
+ * Without the same accredited episode, an earlier day is this patient only when both are declared
+ * RUT, both RUTs are valid and they are the same RUT (ID-01). A passport, a missing or different
+ * type or an invalid RUT matches nothing, so a passport without an accredited episode gets no
+ * correction on earlier days. The name decides only when neither side holds a document.
  */
 const matchesPatientIdentity = (sourcePatient: PatientData, candidate: PatientData): boolean => {
-  if (documentIdentityKey(sourcePatient.rut) && documentIdentityKey(candidate.rut)) {
-    return isSamePatientDocument(
-      { rut: sourcePatient.rut, passport: sourcePatient.documentType === 'Pasaporte' },
-      { rut: candidate.rut, passport: isCreditedPassport(candidate) }
-    );
+  if (hasDocument(sourcePatient) || hasDocument(candidate)) {
+    const rut = declaredValidRut(sourcePatient);
+    return rut !== null && rut === declaredValidRut(candidate);
   }
 
   const sourceName = normalizePatientName(sourcePatient.patientName);

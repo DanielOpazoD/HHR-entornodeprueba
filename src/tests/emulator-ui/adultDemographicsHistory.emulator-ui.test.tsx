@@ -2,8 +2,8 @@
  * A demographic correction saved from an adult's or a mother's row reaches the same patient on
  * the day before, as main did, through the real port, queue and authority handlers (ID-01, ID-02).
  * A day saved without an episode id carries only a derived `legacy_ep_` id, which accredits
- * nothing: a single match by document or name still updates it. A document is read with its stated
- * type: a numeric passport never corrects the person whose RUT has the same digits.
+ * nothing. Without the same accredited episode, a single match by a declared, valid and equal RUT,
+ * or by name when neither day holds a document, still updates it; a passport never does.
  */
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { readFileSync } from 'node:fs';
@@ -161,8 +161,9 @@ const documentCase = (
 // Same final data as main except two cases decided on purpose: two different accredited episodes
 // are a real readmission (main wrote it), and the bed of the same accredited episode wins over a
 // bed without one (main wrote the first match). Ambiguous days end unchanged, as main's write was
-// held by the server as a conflict; now it is not attempted. A numeric passport and the RUT of its
-// digits are two people (ID-01): main wrote that day, also for a short RUT or one with a slash.
+// held by the server as a conflict; now it is not attempted. Without the same accredited episode,
+// only two declared, valid and equal RUTs are one person (ID-01): main also wrote a numeric
+// passport over the RUT of its digits, and corrected passports matched by their text.
 const scenarios: Scenario[] = [
   { id: 'the same episode', source: 'A', prior: ['A'], key: 'rut', corrected: 0 },
   {
@@ -212,14 +213,15 @@ const scenarios: Scenario[] = [
     documents: { prior: passport('123456785'), edited: run('12.345.678-5') },
   },
   {
-    id: 'the same numeric passport in another format',
+    id: 'the same numeric passport in another format, without episode',
     prior: [undefined],
     key: 'rut',
-    corrected: 0,
+    corrected: null,
     documents: { prior: passport('12.345.678-5'), edited: passport('123456785') },
   },
   // A day saved before schema versions is read with a type inferred from the document's shape:
   // `RUT` for an untyped `123456785`, `Pasaporte` for a stored RUT `123.456-0` or `12.345.678/5`.
+  // Without the same accredited episode only two declared, valid and equal RUTs match (ID-01).
   documentCase(
     'a passport over the RUT of its digits, same name',
     run('12.345.678-5'),
@@ -236,12 +238,17 @@ const scenarios: Scenario[] = [
   ),
   documentCase('the same RUT in another format', run('12.345.678-5'), run('123456785'), 0),
   documentCase(
-    'the same passport with letters, separators and case',
+    'the same passport with letters, separators and case, without episode',
     passport('AB123456'),
     passport('a-b 123.456'),
+    null
+  ),
+  documentCase(
+    'a RUT whose earlier day has no type, read as RUT',
+    untyped('123456785'),
+    run('12.345.678-5'),
     0
   ),
-  documentCase('a RUT whose earlier day has no type', untyped('123456785'), run('12.345.678-5'), 0),
   documentCase(
     'a passport whose earlier day of the same episode has no type',
     untyped('123456785'),
@@ -250,19 +257,35 @@ const scenarios: Scenario[] = [
     { source: 'A' }
   ),
   documentCase(
-    'a short RUT whose earlier day has no type',
+    'a short RUT whose earlier day has no type, read as passport',
     untyped('123.456-0'),
     run('1234560'),
-    0
+    null
   ),
-  documentCase('a short RUT over the same stated RUT', run('123.456-0'), run('1234560'), 0),
+  documentCase(
+    'a short RUT over the same stated RUT, read as passport',
+    run('123.456-0'),
+    run('1234560'),
+    null
+  ),
   documentCase('a passport over a stated short RUT', run('123.456-0'), passport('1234560'), null),
-  documentCase('a RUT over the same RUT with a slash', run('12.345.678/5'), run('123456785'), 0),
+  documentCase(
+    'a RUT over the same RUT with a slash, read as passport',
+    run('12.345.678/5'),
+    run('123456785'),
+    null
+  ),
   documentCase(
     'a passport over a RUT with a slash',
     run('12.345.678/5'),
     passport('123456785'),
     null
+  ),
+  documentCase(
+    'a RUT with K and spaces, without episode',
+    run('12.345.670-K'),
+    run(' 12 345 670 k '),
+    0
   ),
   documentCase(
     'server only: a passport whose earlier day of the same episode has no type',
@@ -279,10 +302,17 @@ const scenarios: Scenario[] = [
     { serverOnly: true }
   ),
   documentCase(
+    "server only: another person's RUT over a passport with inner spaces",
+    passport('12 345 678 5'),
+    run('12.345.678-5'),
+    null,
+    { serverOnly: true }
+  ),
+  documentCase(
     'current schema: a short RUT whose earlier day has no type',
     untyped('123.456-0'),
     run('1234560'),
-    0,
+    null,
     { currentSchema: true }
   ),
   documentCase(
@@ -299,6 +329,100 @@ const scenarios: Scenario[] = [
     null,
     { currentSchema: true }
   ),
+  documentCase(
+    'current schema: a RUT with K and spaces of the same episode',
+    run('12.345.670-K'),
+    run(' 12 345 670 k '),
+    0,
+    { source: 'A', currentSchema: true }
+  ),
+  documentCase(
+    'current schema: a passport with letters and dashes of the same episode',
+    passport(' aB-0012-c '),
+    passport('AB 00.12-C'),
+    0,
+    { source: 'A', currentSchema: true }
+  ),
+  documentCase(
+    'current schema: a passport with letters and dashes, without episode',
+    passport(' aB-0012-c '),
+    passport('AB 00.12-C'),
+    null,
+    { currentSchema: true }
+  ),
+  documentCase(
+    'current schema: another passport with letters and dashes',
+    passport('AB-0012-C'),
+    passport('XB-0012-C'),
+    null,
+    { currentSchema: true }
+  ),
+  documentCase(
+    'current schema: a short passport of the same episode',
+    passport('1234560'),
+    passport('1234560'),
+    0,
+    { source: 'A', currentSchema: true }
+  ),
+  documentCase(
+    'current schema: a full-width passport of the same episode',
+    passport('１２３４５６７４'),
+    passport('12345674'),
+    0,
+    { source: 'A', currentSchema: true }
+  ),
+  documentCase(
+    "current schema: another person's RUT over a stated short passport",
+    passport('1234560'),
+    run('123.456-0'),
+    null,
+    { currentSchema: true }
+  ),
+  documentCase(
+    "current schema: another person's RUT over a passport with inner spaces",
+    passport('12 345 678 5'),
+    run('12.345.678-5'),
+    null,
+    { currentSchema: true }
+  ),
+  documentCase(
+    'current schema: full-width K passports of two people with one name',
+    passport('K１２３４５６７４'),
+    passport('K１２３４５６７５'),
+    null,
+    { currentSchema: true, sameName: true }
+  ),
+  {
+    ...documentCase(
+      'current schema: an accredited RUT today over a passport with inner spaces',
+      passport('12 345 678 5'),
+      run('12.345.678-5'),
+      null,
+      { currentSchema: true }
+    ),
+    source: 'A',
+  },
+  {
+    ...documentCase(
+      'current schema: the same passport with spaces, episode only today',
+      passport('12 345 678 5'),
+      passport('123456785'),
+      null,
+      { currentSchema: true }
+    ),
+    source: 'A',
+  },
+  {
+    ...documentCase(
+      'current schema: two different accredited episodes',
+      passport('12 345 678 5'),
+      run('12.345.678-5'),
+      null,
+      { currentSchema: true }
+    ),
+    source: 'A',
+    prior: ['B'],
+  },
 ];
 
 for (const role of ['adult', 'mother'] as const) {
@@ -320,6 +444,7 @@ for (const role of ['adult', 'mother'] as const) {
             scenario.key === 'rut' && edited && !scenario.sameName
               ? 'NOMBRE ACTUAL SINTETICO'
               : 'NOMBRE ANTERIOR SINTETICO',
+          documentType: 'RUT',
           rut: scenario.key === 'nombre' ? '' : edited ? '11.111.111-1' : '11111111-1',
           ...scenario.documents?.[edited ? 'edited' : 'prior'],
           clinicalEpisodeId: episode,

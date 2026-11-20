@@ -88,12 +88,23 @@ con esta versión; no acreditan una migración de autoría de diagnósticos hist
 
 Un pasaporte nunca se convierte en RUT ni se compara como RUT. Un documento de Eloísa con una
 letra que no sea la K final es un pasaporte y se guarda como tal en los casos nuevos; un paciente
-ya guardado conserva su documento. Un pasaporte solo con dígitos se distingue por su tipo: un
-pasaporte `123456785` y el RUT `12.345.678-5` son dos personas (`isSamePatientDocument`). Dos
-pasaportes se comparan por su texto y dos RUT por sus dígitos, con cualquier puntuación. Al leer
-un día anterior, un «Pasaporte» que la lectura de registros sin versión pudo deducir por la forma
-(`123.456-0`, `12.345.678/5`) no acredita un pasaporte, y el mismo episodio acreditado identifica
-al paciente aunque ese día lea otro tipo.
+ya guardado conserva su documento.
+
+### Corrección demográfica de días anteriores (ID-01, ID-05)
+
+Al corregir un dato demográfico desde la fila, HHR lo copia a los días anteriores del mismo
+episodio solo en el paciente que es ese episodio:
+
+1. El mismo episodio acreditado (no `legacy_ep_`) es la misma persona.
+2. Sin él, un día anterior es esa persona solo si los dos documentos están declarados RUT, ambos
+   tienen dígito verificador correcto y son el mismo RUT. El nombre decide solo cuando ningún día
+   tiene documento, y con un único candidato.
+3. Cualquier otro caso no se escribe: un pasaporte, un tipo ausente o distinto, un RUT inválido o
+   dos candidatos.
+
+Límite conocido: un pasaporte sin episodio acreditado no recibe correcciones en días anteriores,
+tampoco un día antiguo que la lectura sin versión tipó como pasaporte por su forma (`123.456-0`,
+`12.345.678/5`). Desde octubre de 2026 los días de producción tienen episodios acreditados.
 
 ### Nombres del personal
 

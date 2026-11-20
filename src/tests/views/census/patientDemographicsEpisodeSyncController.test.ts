@@ -13,7 +13,8 @@ describe('patientDemographicsEpisodeSyncController', () => {
       patientName: 'Nombre Antiguo',
       firstSeenDate: '2026-04-09',
       admissionDate: '2026-04-09',
-      rut: '12.345.678-9',
+      documentType: 'RUT',
+      rut: '12.345.678-5',
     });
     const getAvailableDates = vi.fn().mockResolvedValue(['2026-04-09', '2026-04-10', '2026-04-11']);
     const getForDate = vi
@@ -25,7 +26,8 @@ describe('patientDemographicsEpisodeSyncController', () => {
               patientName: 'Nombre Antiguo',
               firstSeenDate: '2026-04-09',
               admissionDate: '2026-04-09',
-              rut: '12.345.678-9',
+              documentType: 'RUT',
+              rut: '12.345.678-5',
               age: '44',
             }),
           },
@@ -38,7 +40,8 @@ describe('patientDemographicsEpisodeSyncController', () => {
               patientName: 'Nombre Antiguo',
               firstSeenDate: '2026-04-09',
               admissionDate: '2026-04-09',
-              rut: '12.345.678-9',
+              documentType: 'RUT',
+              rut: '12.345.678-5',
               age: '44',
             }),
           },
@@ -68,7 +71,7 @@ describe('patientDemographicsEpisodeSyncController', () => {
     });
   });
 
-  it('never reduces a passport to the digits of a RUT when matching previous days', async () => {
+  it('never corrects a passport on earlier days without its accredited episode', async () => {
     const sourcePatient = DataFactory.createMockPatient('R2', {
       patientName: 'Paciente Pasaporte',
       documentType: 'Pasaporte',
@@ -108,9 +111,9 @@ describe('patientDemographicsEpisodeSyncController', () => {
       dailyRecordWriteRepository: { updatePartial },
     });
 
-    expect(updatePartial).toHaveBeenCalledExactlyOnceWith('2026-04-09', {
-      'beds.R5.patientName': 'Paciente Corregido',
-    });
+    // Neither another passport with the same digits nor the same passport in another format:
+    // without an accredited episode only two declared, valid and equal RUTs are one patient.
+    expect(updatePartial).not.toHaveBeenCalled();
   });
 
   it('treats placeholder documents as missing and falls back to the name', async () => {
@@ -297,6 +300,7 @@ describe('patientDemographicsEpisodeSyncController', () => {
   it('keeps updating an adult matched by document even when that day has no episode id', async () => {
     const adult = DataFactory.createMockPatient('R3', {
       patientName: 'PACIENTE SINTETICO',
+      documentType: 'RUT',
       rut: '12.345.678-5',
       clinicalEpisodeId: 'episode-adult',
       firstSeenDate: '2026-04-09',
@@ -309,6 +313,7 @@ describe('patientDemographicsEpisodeSyncController', () => {
   it('updates an adult whose earlier day only carries an id derived from a legacy record', async () => {
     const adult = DataFactory.createMockPatient('R3', {
       patientName: 'PACIENTE SINTETICO',
+      documentType: 'RUT',
       rut: '12.345.678-5',
       clinicalEpisodeId: 'ep_explicit',
       firstSeenDate: '2026-04-09',
@@ -379,33 +384,79 @@ describe('patientDemographicsEpisodeSyncController', () => {
     }
   );
 
-  it('keeps correcting the same numeric passport written in another format', async () => {
-    const updatePartial = await harmonizeOnDay(
-      adultWith('R1', 'Pasaporte', '123456785'),
-      { R4: adultWith('R4', 'Pasaporte', '12.345.678-5') },
-      false
-    );
-    expect(updatePartial).toHaveBeenCalledExactlyOnceWith('2026-04-09', { 'beds.R4.age': '2d' });
-  });
-
-  // Reading a day saved before schema versions types a stored RUT `123.456-0` or `12.345.678/5`
-  // as `Pasaporte` by its shape: that read type proves no passport.
   it.each([
-    ['a RUT', 'RUT', '1234560', '123.456-0', true],
-    ['a RUT', 'RUT', '123456785', '12.345.678/5', true],
-    ['a passport', 'Pasaporte', '1234560', '123.456-0', false],
-    ['a passport', 'Pasaporte', '123456785', '12.345.678/5', false],
+    [
+      'the same numeric passport in another format',
+      adultWith('R1', 'Pasaporte', '123456785'),
+      adultWith('R4', 'Pasaporte', '12.345.678-5'),
+    ],
+    // Reading a day saved before schema versions types a stored RUT by its shape: `Pasaporte`.
+    [
+      'a RUT over an earlier day read as passport',
+      adultWith('R1', 'RUT', '1234560'),
+      adultWith('R4', 'Pasaporte', '123.456-0'),
+    ],
+    [
+      'a RUT over a RUT with a slash read as passport',
+      adultWith('R1', 'RUT', '123456785'),
+      adultWith('R4', 'Pasaporte', '12.345.678/5'),
+    ],
+    [
+      'a RUT over a passport with inner spaces',
+      adultWith('R1', 'RUT', '12.345.678-5'),
+      adultWith('R4', 'Pasaporte', '12 345 678 5'),
+    ],
+    [
+      'a RUT over the same RUT without a stated type',
+      adultWith('R1', 'RUT', '12.345.678-5'),
+      adultWith('R4', undefined, '123456785'),
+    ],
+    [
+      'a RUT without a stated type over the same RUT',
+      adultWith('R1', undefined, '12.345.678-5'),
+      adultWith('R4', 'RUT', '123456785'),
+    ],
+    [
+      'the same invalid RUT',
+      adultWith('R1', 'RUT', '12.345.678-9'),
+      adultWith('R4', 'RUT', '123456789'),
+    ],
+    [
+      'RUTs that differ only in a full-width digit',
+      adultWith('R1', 'RUT', '12.345.678-5４'),
+      adultWith('R4', 'RUT', '12.345.678-5５'),
+    ],
+    [
+      'a document on one day and none on the other, same name',
+      { ...adultWith('R1', 'RUT', '12.345.678-5'), patientName: 'MISMO NOMBRE' },
+      { ...adultWith('R4', 'RUT', ''), patientName: 'MISMO NOMBRE' },
+    ],
+    [
+      'full-width K passports of two people with one name',
+      { ...adultWith('R1', 'Pasaporte', 'K１２３４５６７４'), patientName: 'MISMO NOMBRE' },
+      { ...adultWith('R4', 'Pasaporte', 'K１２３４５６７５'), patientName: 'MISMO NOMBRE' },
+    ],
   ] as const)(
-    'with %s %s, an earlier day read as passport %s corrects only a RUT',
-    async (_kind, editedType, editedRut, priorRut, corrects) => {
+    'without an accredited episode, does not correct %s',
+    async (_case, edited, prior) => {
+      const updatePartial = await harmonizeOnDay(edited, { R4: prior }, false);
+      expect(updatePartial).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    ['the same RUT in another format', '12.345.678-5', '123456785'],
+    ['the same RUT with K and spaces', '12.345.670-K', ' 12 345 670 k '],
+    ['the same short RUT', '123.456-0', '1234560'],
+  ])(
+    'without an accredited episode, corrects %s declared RUT on both days',
+    async (_case, editedRut, priorRut) => {
       const updatePartial = await harmonizeOnDay(
-        adultWith('R1', editedType, editedRut),
-        { R4: adultWith('R4', 'Pasaporte', priorRut) },
+        adultWith('R1', 'RUT', editedRut),
+        { R4: adultWith('R4', 'RUT', priorRut) },
         false
       );
-      expect(updatePartial.mock.calls).toEqual(
-        corrects ? [['2026-04-09', { 'beds.R4.age': '2d' }]] : []
-      );
+      expect(updatePartial).toHaveBeenCalledExactlyOnceWith('2026-04-09', { 'beds.R4.age': '2d' });
     }
   );
 
@@ -417,6 +468,15 @@ describe('patientDemographicsEpisodeSyncController', () => {
       false
     );
     expect(updatePartial).toHaveBeenCalledExactlyOnceWith('2026-04-09', { 'beds.R4.age': '2d' });
+  });
+
+  it('does not correct the same RUT in an earlier day of another accredited episode', async () => {
+    const updatePartial = await harmonizeOnDay(
+      { ...adultWith('R1', 'RUT', '12.345.678-5'), clinicalEpisodeId: 'ep_A' },
+      { R4: { ...adultWith('R4', 'RUT', '12.345.678-5'), clinicalEpisodeId: 'ep_B' } },
+      false
+    );
+    expect(updatePartial).not.toHaveBeenCalled();
   });
 
   it('does not correct the same document in an earlier day of another hospitalization', async () => {
@@ -434,7 +494,8 @@ describe('patientDemographicsEpisodeSyncController', () => {
       patientName: 'Nombre Antiguo',
       firstSeenDate,
       admissionDate: firstSeenDate,
-      rut: '12.345.678-9',
+      documentType: 'RUT',
+      rut: '12.345.678-5',
     });
   const dayWith = (date: string, firstSeenDate: string) =>
     DataFactory.createMockDailyRecord(date, {
@@ -443,7 +504,8 @@ describe('patientDemographicsEpisodeSyncController', () => {
           patientName: 'Nombre Antiguo',
           firstSeenDate,
           admissionDate: firstSeenDate,
-          rut: '12.345.678-9',
+          documentType: 'RUT',
+          rut: '12.345.678-5',
         }),
       },
     });
