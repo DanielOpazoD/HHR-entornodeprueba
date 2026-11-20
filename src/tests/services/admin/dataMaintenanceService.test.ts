@@ -25,6 +25,7 @@ import {
   exportYearToDateRecordsWithOutcome,
   importRecordsFromBackup,
 } from '@/services/admin/dataMaintenanceService';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordsRange: mockGetRecordsRange,
@@ -218,7 +219,7 @@ describe('dataMaintenanceService', () => {
       month: 3,
       recordCount: 1,
       records: [
-        {
+        asStoredDailyRecordShape({
           date: '2026-03-03',
           beds: {
             R1: {
@@ -232,7 +233,7 @@ describe('dataMaintenanceService', () => {
           cma: [],
           activeExtraBeds: [],
           lastUpdated: '2026-03-03T10:00:00.000Z',
-        } as unknown as DailyRecord,
+        }),
       ],
     });
 
@@ -263,7 +264,7 @@ describe('dataMaintenanceService', () => {
       year: 2026,
       month: 3,
       recordCount: 1,
-      records: [{ date: '2026-03-03', beds: {}, medicalSignature: 42 } as unknown as DailyRecord],
+      records: [asStoredDailyRecordShape({ date: '2026-03-03', beds: {}, medicalSignature: 42 })],
     });
 
     expect(result).toEqual({ success: 1, failed: 0, repaired: 1, outcome: 'repaired' });
@@ -280,7 +281,7 @@ describe('dataMaintenanceService', () => {
         cma: [],
         activeExtraBeds: [],
         lastUpdated: `${date}T09:00:00.000Z`,
-      }) as unknown as DailyRecord;
+      }) satisfies DailyRecord;
     mockGetRecordForDate.mockImplementation(async (date: string) =>
       date === '2026-03-03'
         ? {

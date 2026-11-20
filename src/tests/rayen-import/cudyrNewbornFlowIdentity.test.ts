@@ -4,7 +4,7 @@ import { cudyrPlacementsFromPatientFlow } from '@/features/rayen-import/mapping/
 import { persistCudyrSyncCapture } from '@/features/rayen-import/domain/persistCudyrSyncCapture';
 import { startCudyrSyncCapture } from '@/features/rayen-import/domain/startCudyrSyncCapture';
 import { presentRayenCoverageIssue } from '@/features/rayen-import/components/rayenSyncPresentation';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const observedAt = '2026-10-10T04:16:00.000Z';
 const flow = `Paciente: RN Ejemplo RUN Materno/progenitor(a): 11.111.111-1
@@ -23,7 +23,7 @@ describe('CUDYR bed recovery for a newborn identified by parental RUN', () => {
       );
       const write = vi.fn().mockResolvedValue('persisted');
       const { archive } = startCudyrSyncCapture({
-        record: {
+        record: asStoredDailyRecordShape({
           date: '2026-10-09',
           beds: {
             R3: independent
@@ -47,7 +47,7 @@ describe('CUDYR bed recovery for a newborn identified by parental RUN', () => {
                 }
               : { rut: '11.111.111-1', clinicalCrib: { clinicalEpisodeId: '1001', rut: childRun } },
           },
-        } as unknown as DailyRecord,
+        }),
         censusDate: '2026-10-09',
         captureEpisodes: ['1001'],
         needsRead: true,
@@ -104,7 +104,7 @@ describe('CUDYR bed recovery for a newborn identified by parental RUN', () => {
         cudyrPlacementsFromPatientFlow(flow, episode, rut, at, identityKind, maternalRut)
       );
       const { archive } = startCudyrSyncCapture({
-        record: { date: '2026-10-09', beds: { R3: bed } } as unknown as DailyRecord,
+        record: asStoredDailyRecordShape({ date: '2026-10-09', beds: { R3: bed } }),
         censusDate: '2026-10-09',
         captureEpisodes: ['1001'],
         needsRead: true,
@@ -142,7 +142,7 @@ describe('CUDYR bed recovery for a newborn identified by parental RUN', () => {
       );
       const write = vi.fn().mockResolvedValue('persisted');
       const { archive } = startCudyrSyncCapture({
-        record: {
+        record: asStoredDailyRecordShape({
           date: '2026-10-09',
           beds: {
             R3: {
@@ -167,7 +167,7 @@ describe('CUDYR bed recovery for a newborn identified by parental RUN', () => {
               },
             },
           },
-        } as unknown as DailyRecord,
+        }),
         censusDate: '2026-10-09',
         captureEpisodes: ['1001'],
         needsRead: true,
@@ -276,7 +276,7 @@ Sexo: Mujer Edad: 0 año(s)
       );
       const write = vi.fn().mockResolvedValue('persisted');
       const { archive } = startCudyrSyncCapture({
-        record: {
+        record: asStoredDailyRecordShape({
           date: '2026-10-09',
           // Mother and newborn left together: nothing in the bed names the mother any more.
           beds: { R3: { patientName: '', rut: '', bedMode: 'Cama' } },
@@ -292,7 +292,7 @@ Sexo: Mujer Edad: 0 año(s)
             },
             { id: 'child', bedId: 'R3', clinicalEpisodeId: '1001', time: '14:10', ...movement },
           ],
-        } as unknown as DailyRecord,
+        }),
         censusDate: '2026-10-09',
         captureEpisodes: ['1001'],
         needsRead: true,

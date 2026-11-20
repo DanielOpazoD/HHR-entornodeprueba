@@ -4,6 +4,8 @@ import { reconstructHistoricalSnapshotAtClose } from '@/features/rayen-import/do
 import type { RayenCensusSnapshot } from '@/features/rayen-import/contracts/rayenSnapshot';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { EgresoReportRow } from '@/features/rayen-import/contracts/egresoReport';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const emptyRecord = { date: '2026-07-24', beds: {} } as DailyRecord;
 
@@ -311,17 +313,17 @@ Flujo del Paciente RUN: 222222222
   });
 
   it('surfaces a local occupant absent from both external sources', async () => {
-    const localRecord = {
-      date: '2026-07-24',
+    const localRecord = DataFactory.createMockDailyRecord('2026-07-24', {
       beds: {
         NEO1: {
+          ...createEmptyPatient('NEO1'),
           patientName: 'Paciente Solo Local',
           rut: '33.333.333-3',
           clinicalEpisodeId: '142888',
           admissionDate: '2026-07-23',
         },
       },
-    } as unknown as DailyRecord;
+    });
     const fetchReport = vi.fn();
 
     const result = await reconstructHistoricalSnapshotAtClose(
@@ -343,10 +345,10 @@ Flujo del Paciente RUN: 222222222
   });
 
   it.each([true, undefined])('preserves a proven D-1 bed with flag %s', async flag => {
-    const localRecord = {
-      date: '2026-07-24',
+    const localRecord = DataFactory.createMockDailyRecord('2026-07-24', {
       beds: {
         NEO1: {
+          ...createEmptyPatient('NEO1'),
           patientName: 'Paciente Egresado',
           rut: '6.321.880-4',
           clinicalEpisodeId: '142083',
@@ -354,7 +356,7 @@ Flujo del Paciente RUN: 222222222
           admissionTime: '16:41',
         },
       },
-    } as unknown as DailyRecord;
+    });
     const fetchReport = vi.fn(async () => ({ base64: '', error: 'Sin trazabilidad' }));
     const fetchDischargeReport = vi.fn(async () => ({ base64: 'QQ==' }));
     const lookupEgresos = vi.fn(async () => [
@@ -399,10 +401,10 @@ Flujo del Paciente RUN: 222222222
   });
 
   it('excludes a local-only episode whose exact administrative discharge predates the cutoff', async () => {
-    const localRecord = {
-      date: '2026-07-24',
+    const localRecord = DataFactory.createMockDailyRecord('2026-07-24', {
       beds: {
         NEO1: {
+          ...createEmptyPatient('NEO1'),
           patientName: 'Paciente Egresado Temprano',
           rut: '6.321.880-4',
           clinicalEpisodeId: '142083',
@@ -410,7 +412,7 @@ Flujo del Paciente RUN: 222222222
           admissionTime: '16:41',
         },
       },
-    } as unknown as DailyRecord;
+    });
     const fetchReport = vi.fn();
 
     const result = await reconstructHistoricalSnapshotAtClose(
@@ -440,17 +442,17 @@ Flujo del Paciente RUN: 222222222
   });
 
   it('does not preserve the local bed when the exact egreso records a prior unit transfer', async () => {
-    const localRecord = {
-      date: '2026-07-24',
+    const localRecord = DataFactory.createMockDailyRecord('2026-07-24', {
       beds: {
         NEO1: {
+          ...createEmptyPatient('NEO1'),
           patientName: 'Paciente Trasladado',
           rut: '6.321.880-4',
           clinicalEpisodeId: '142083',
           admissionDate: '2026-07-24',
         },
       },
-    } as unknown as DailyRecord;
+    });
     const reportWithTransfer = statisticalDischargeText.replace(
       '25 1er TRASLADO - - -',
       '25 1er TRASLADO 0 7 - 3 0 2 5 - 0 7 - 2 6 Unidad Crítica 4 0 5'

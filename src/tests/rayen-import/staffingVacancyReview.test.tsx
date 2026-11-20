@@ -8,7 +8,7 @@ import {
 } from '@/features/rayen-import/domain/applyNursingShiftProposal';
 import { RayenNursingShiftProposalModal } from '@/features/rayen-import/components/RayenNursingShiftProposalModal';
 import type { NursingStaffingProposal } from '@/features/rayen-import/contracts/nursingShiftInference';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
 const suggestion = (names: string[]) => ({
   names,
   ambiguous: false,
@@ -32,14 +32,13 @@ const proposal: NursingStaffingProposal = {
   night: suggestion([]),
 };
 const record = (placeholder: string) =>
-  ({
-    date: proposal.censusDate,
+  DataFactory.createMockDailyRecord(proposal.censusDate, {
     beds: {},
     nursesDayShift: [placeholder, placeholder],
     nursesNightShift: ['', ''],
     tensDayShift: ['', '', ''],
     tensNightShift: ['', '', ''],
-  }) as unknown as DailyRecord;
+  });
 
 describe('staffing vacancy review', () => {
   it.each(['', '--', 'Vacante'])(

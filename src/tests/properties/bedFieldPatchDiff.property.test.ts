@@ -14,7 +14,7 @@ import {
   isUpcEligibleBedId,
   resolveNormalizedUpcFlag,
 } from '@/shared/census/upcBedPolicy';
-import { DataFactory } from '@/tests/factories/DataFactory';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 import { patchValueArb } from '@/tests/properties/arbitraries';
 import type {
   CesareanLabor,
@@ -216,7 +216,7 @@ const applyFlatPatch = (record: DailyRecord, patch: Record<string, unknown>): Da
     if (value === undefined) delete (node as Record<string, unknown>)[last];
     else (node as Record<string, unknown>)[last] = value;
   });
-  return next as unknown as DailyRecord;
+  return asStoredDailyRecordShape(next);
 };
 
 const flatPatchArb = (state: CensusState): fc.Arbitrary<Record<string, unknown>> => {

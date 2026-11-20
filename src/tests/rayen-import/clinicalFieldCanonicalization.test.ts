@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { buildClinicalPatientPatch } from '@/features/rayen-import/domain/clinicalPatientPatch';
 import type { PatientData } from '@/types/domain/patient';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const vital = (sourceEventId: string, heartRate: number): PatientVitalSigns => ({
   sourceEventId,
@@ -80,11 +81,10 @@ describe('clinical field canonicalization', () => {
   });
   it('does not resend nullable vital fields after the authoritative Firestore hydration', () => {
     const reading = vital('2', 80);
-    const source = {
-      date: '2026-07-10',
+    const source = DataFactory.createMockDailyRecord('2026-07-10', {
       beds: {
         H1C2: {
-          bedId: 'H1C2',
+          ...createEmptyPatient('H1C2'),
           patientName: 'Paciente sintético',
           devices: [],
           vitalSigns: reading,
@@ -95,7 +95,7 @@ describe('clinical field canonicalization', () => {
       transfers: [],
       cma: [],
       lastUpdated: '',
-    } as unknown as DailyRecord;
+    });
     const hydrated = docToRecord(JSON.parse(JSON.stringify(source)), source.date).beds.H1C2;
     expect(hydrated.vitalSigns?.hgt).toBeUndefined();
     const incoming = { ...hydrated, vitalSigns: reading, vitalSignsHistory: [reading] };

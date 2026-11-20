@@ -15,6 +15,7 @@ import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreRulesEmulatorConfig';
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 let activeDb: unknown;
 vi.mock('@/firebaseConfig', () => ({
@@ -49,7 +50,7 @@ const buildRecord = (
   beds: Record<string, unknown> = {},
   id: string = date
 ): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: id,
     beds,
     discharges: [],
@@ -69,7 +70,7 @@ const buildRecord = (
     handoffNovedadesNightShift: '',
     medicalHandoffNovedades: '',
     schemaVersion: 1,
-  }) as unknown as DailyRecord;
+  });
 
 const newPatient = (fields: Record<string, unknown>) => ({
   bedId: 'R1',

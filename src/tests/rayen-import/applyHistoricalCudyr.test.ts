@@ -5,6 +5,8 @@ import { applyHistoricalCudyrBatchAuthoritatively } from '@/features/rayen-impor
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 vi.mock('@/hooks/controllers/dailyRecordMutationFreshnessController', () => ({
   patchDailyRecordWithCompatibility: vi.fn(),
@@ -19,34 +21,29 @@ const cudyr: ImportedCudyr = {
 };
 
 const record = (revision: string): DailyRecord =>
-  ({
-    date: '2026-07-29',
+  DataFactory.createMockDailyRecord('2026-07-29', {
     beds: {
-      H2C1: {
-        bedId: 'H2C1',
-        patientName: 'Paciente',
-        clinicalEpisodeId: '142000',
-      },
+      H2C1: { ...createEmptyPatient('H2C1'), patientName: 'Paciente', clinicalEpisodeId: '142000' },
     },
     discharges: [],
     transfers: [],
     cma: [],
     activeExtraBeds: [],
     lastUpdated: revision,
-  }) as unknown as DailyRecord;
+  });
 
 const recordWithTwoEpisodes = (revision: string): DailyRecord =>
-  ({
+  DataFactory.createMockDailyRecord('2026-01-01', {
     ...record(revision),
     beds: {
       ...record(revision).beds,
       H2C2: {
-        bedId: 'H2C2',
+        ...createEmptyPatient('H2C2'),
         patientName: 'Paciente dos',
         clinicalEpisodeId: '142001',
       },
     },
-  }) as unknown as DailyRecord;
+  });
 
 describe('applyHistoricalCudyr', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -92,10 +89,10 @@ describe('applyHistoricalCudyr', () => {
         },
       });
       const secondCudyr: ImportedCudyr = { ...cudyr, category: 'B2', author: 'Otra enfermera' };
-      const sourceRecord = {
+      const sourceRecord = asStoredDailyRecordShape({
         ...record('revision-source'),
         date: '2026-07-30',
-      } as unknown as DailyRecord;
+      });
 
       await expect(
         applyHistoricalCudyrBatchAuthoritatively({
@@ -143,7 +140,7 @@ describe('applyHistoricalCudyr', () => {
       const rebuildOperations = applyBatch.mock.calls[0]?.[0].rebuildOperations as (
         record: DailyRecord
       ) => unknown[];
-      const concurrentRecord = {
+      const concurrentRecord = asStoredDailyRecordShape({
         ...historicalRecord,
         beds: {
           ...historicalRecord.beds,
@@ -152,7 +149,7 @@ describe('applyHistoricalCudyr', () => {
             evaluationScores: { braden: { total: 19 } },
           },
         },
-      } as unknown as DailyRecord;
+      });
       expect(rebuildOperations(concurrentRecord)).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -169,10 +166,10 @@ describe('applyHistoricalCudyr', () => {
       getAuthoritativeForDate: vi.fn().mockResolvedValue(null),
     } as unknown as DailyRecordRepositoryPort;
     const applyBatch = vi.fn();
-    const sourceRecord = {
+    const sourceRecord = asStoredDailyRecordShape({
       ...record('revision-source'),
       date: '2026-07-30',
-    } as unknown as DailyRecord;
+    });
 
     await expect(
       applyHistoricalCudyrBatchAuthoritatively({
@@ -204,10 +201,10 @@ describe('applyHistoricalCudyr', () => {
     const repository = {
       getAuthoritativeForDate: vi.fn().mockResolvedValue(historicalRecord),
     } as unknown as DailyRecordRepositoryPort;
-    const sourceRecord = {
+    const sourceRecord = asStoredDailyRecordShape({
       ...record('revision-source'),
       date: '2026-07-30',
-    } as unknown as DailyRecord;
+    });
 
     const result = await applyHistoricalCudyrBatchAuthoritatively({
       dailyRecord: repository,
@@ -240,10 +237,10 @@ describe('applyHistoricalCudyr', () => {
       getAuthoritativeForDate: vi.fn().mockResolvedValue(record('revision-1')),
     } as unknown as DailyRecordRepositoryPort;
     const applyBatch = vi.fn();
-    const sourceRecord = {
+    const sourceRecord = asStoredDailyRecordShape({
       ...record('revision-source'),
       date: '2026-07-30',
-    } as unknown as DailyRecord;
+    });
 
     await expect(
       applyHistoricalCudyrBatchAuthoritatively({
@@ -271,25 +268,26 @@ describe('applyHistoricalCudyr', () => {
   });
 
   it('rebuilds only pending CUDYR operations after a concurrent authoritative write', async () => {
-    const initialRecord = {
+    const initialRecord = DataFactory.createMockDailyRecord('2026-01-01', {
       ...recordWithTwoEpisodes('revision-1'),
       beds: {
         ...recordWithTwoEpisodes('revision-1').beds,
         H2C1: {
+          ...createEmptyPatient('H2C1'),
           ...recordWithTwoEpisodes('revision-1').beds.H2C1,
           evaluationScores: { cudyr },
         },
       },
-    } as unknown as DailyRecord;
+    });
     const repository = {
       getAuthoritativeForDate: vi.fn().mockResolvedValue(initialRecord),
     } as unknown as DailyRecordRepositoryPort;
     const applyBatch = vi.fn().mockResolvedValue({ patientWrites: 1, historySnapshots: 1 });
     const secondCudyr: ImportedCudyr = { ...cudyr, category: 'B2', author: 'Otra enfermera' };
-    const sourceRecord = {
+    const sourceRecord = asStoredDailyRecordShape({
       ...record('revision-source'),
       date: '2026-07-30',
-    } as unknown as DailyRecord;
+    });
 
     await applyHistoricalCudyrBatchAuthoritatively({
       dailyRecord: repository,
@@ -307,13 +305,13 @@ describe('applyHistoricalCudyr', () => {
     const rebuildOperations = applyBatch.mock.calls[0]?.[0].rebuildOperations as (
       record: DailyRecord
     ) => unknown[];
-    const concurrentRecord = {
+    const concurrentRecord = DataFactory.createMockDailyRecord('2026-01-01', {
       ...initialRecord,
       beds: {
         H2C2: initialRecord.beds.H2C2,
       },
       lastUpdated: 'revision-2',
-    } as unknown as DailyRecord;
+    });
 
     expect(() => rebuildOperations(concurrentRecord)).not.toThrow();
     expect(rebuildOperations(concurrentRecord)).toEqual([

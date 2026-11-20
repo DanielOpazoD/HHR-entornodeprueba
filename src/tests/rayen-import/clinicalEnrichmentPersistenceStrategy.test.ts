@@ -2,16 +2,16 @@ import { describe, expect, it, vi } from 'vitest';
 import { createClinicalEnrichmentPersistenceStrategy } from '@/features/rayen-import/hooks/clinicalEnrichmentPersistenceStrategy';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalFillPatchOperation } from '@/features/rayen-import';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 const record = (lastUpdated: string): DailyRecord =>
-  ({
-    date: '2026-08-02',
+  DataFactory.createMockDailyRecord('2026-08-02', {
     beds: {},
     discharges: [],
     transfers: [],
     cma: [],
     lastUpdated,
-  }) as unknown as DailyRecord;
+  });
 
 const operations: ClinicalFillPatchOperation[] = [
   {

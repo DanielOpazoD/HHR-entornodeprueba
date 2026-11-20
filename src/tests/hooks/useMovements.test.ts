@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useMovements } from '@/hooks/useMovements';
-import { DataFactory } from '@/tests/factories/DataFactory';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { TransferData } from '@/types/domain/movements';
 import type { PatientData } from '@/types/domain/patient';
@@ -416,7 +416,7 @@ describe('useMovements', () => {
 });
 
 function createEmptyPatient(bedId: string) {
-  return {
+  return asStoredDailyRecordShape<DailyRecord['beds'][string]>({
     bedId,
     patientName: '',
     rut: '',
@@ -427,5 +427,5 @@ function createEmptyPatient(bedId: string) {
     nursingCare: '',
     clinicalCrib: undefined,
     location: 'Interior',
-  } as unknown as DailyRecord['beds'][string];
+  });
 }

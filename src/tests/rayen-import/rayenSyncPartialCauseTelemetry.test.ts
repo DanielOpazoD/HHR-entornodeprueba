@@ -23,23 +23,29 @@ import { clearOperationalTelemetryEvents } from '@/services/observability/operat
 import type { ClinicalFillError } from '@/features/rayen-import/contracts/clinicalFillContracts';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const PATIENT = 'Paciente Sintético Uno';
 const RUT = '11.111.111-1';
 const EPISODE = 'synthetic-episode-77';
 
 const record = (): DailyRecord =>
-  ({
-    date: '2026-11-08',
+  DataFactory.createMockDailyRecord('2026-11-08', {
     beds: {
-      R1: { bedId: 'R1', patientName: PATIENT, rut: RUT, clinicalEpisodeId: EPISODE },
+      R1: {
+        ...createEmptyPatient('R1'),
+        patientName: PATIENT,
+        rut: RUT,
+        clinicalEpisodeId: EPISODE,
+      },
     },
     discharges: [],
     transfers: [],
     cma: [],
     lastUpdated: '2026-11-08T09:00:00.000Z',
     activeExtraBeds: [],
-  }) as unknown as DailyRecord;
+  });
 
 const diff = (): CensusImportDiff =>
   ({

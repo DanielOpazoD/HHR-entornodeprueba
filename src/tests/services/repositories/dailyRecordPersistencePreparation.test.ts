@@ -3,9 +3,10 @@
 import { describe, expect, it } from 'vitest';
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const makeRecord = (): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-02-18',
     beds: {
       R1: {
@@ -34,7 +35,7 @@ const makeRecord = (): DailyRecord =>
     cma: [],
     activeExtraBeds: [],
     lastUpdated: '2026-02-18T10:05:00.000Z',
-  }) as unknown as DailyRecord;
+  });
 
 describe('prepareDailyRecordForPersistence', () => {
   it('repairs stale active bed data when a matching discharge already exists', () => {

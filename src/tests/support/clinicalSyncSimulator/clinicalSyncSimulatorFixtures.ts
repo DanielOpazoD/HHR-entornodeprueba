@@ -1,7 +1,8 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 export const createClinicalSyncEmptyBed = (bedId: string): DailyRecord['beds'][string] =>
-  ({
+  asStoredDailyRecordShape<DailyRecord['beds'][string]>({
     bedId,
     patientName: '',
     rut: '',
@@ -11,13 +12,13 @@ export const createClinicalSyncEmptyBed = (bedId: string): DailyRecord['beds'][s
     status: 'Estable',
     admissionDate: '',
     devices: [],
-  }) as unknown as DailyRecord['beds'][string];
+  });
 
 export const createClinicalSyncPatient = (
   bedId: string,
   overrides: Partial<DailyRecord['beds'][string]> = {}
 ): DailyRecord['beds'][string] =>
-  ({
+  asStoredDailyRecordShape<DailyRecord['beds'][string]>({
     bedId,
     patientName: 'Paciente Censo',
     rut: '11.111.111-1',
@@ -29,7 +30,7 @@ export const createClinicalSyncPatient = (
     clinicalEpisodeId: 'episode-censo-1',
     devices: [],
     ...overrides,
-  }) as unknown as DailyRecord['beds'][string];
+  });
 
 export const createClinicalSyncCensusRecord = (
   overrides: Partial<DailyRecord> = {}

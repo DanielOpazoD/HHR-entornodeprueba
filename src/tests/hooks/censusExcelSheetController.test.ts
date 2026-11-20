@@ -18,7 +18,7 @@ const buildRecord = (date: string): DailyRecord =>
     lastUpdated: '',
     nurses: [],
     activeExtraBeds: [],
-  }) as unknown as DailyRecord;
+  }) satisfies DailyRecord;
 
 describe('censusExcelSheetController', () => {
   it('builds one current-day snapshot using the current time in the sheet name', () => {

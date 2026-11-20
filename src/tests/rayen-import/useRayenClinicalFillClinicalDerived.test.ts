@@ -39,6 +39,7 @@ vi.mock('@/features/rayen-import/hooks/useRayenFillStatus', () => ({
 import { resetRayenClinicalFillQueueForTests } from '@/features/rayen-import/domain/rayenClinicalFillQueue';
 import { resolveConfirmedRayenCensusHandoff } from '@/features/rayen-import/hooks/rayenCensusPersistenceGuard';
 import { useRayenClinicalFill } from '@/features/rayen-import/hooks/useRayenClinicalFill';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const DATE = '2026-11-02';
 const GENERATION = 'gen_synthetic_a';
@@ -46,7 +47,7 @@ const RUN_ID = 'run-synthetic';
 const reading = (label: string) => [{ recordedDate: DATE, recordedAt: `${DATE} 08:00`, label }];
 
 const splitDay = (revision = 5, marked = true): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: DATE,
     lastUpdated: `${DATE}T10:0${revision}:00.000Z`,
     meta: { revision },
@@ -79,7 +80,7 @@ const splitDay = (revision = 5, marked = true): DailyRecord =>
         policy: { mode: 'preview', clinicalBatchMode: 'enforced', revision: 1 },
       },
     ],
-  }) as unknown as DailyRecord;
+  });
 
 const doc = (clinicalEpisodeId: string, dayRevision: number, history: unknown) =>
   ({

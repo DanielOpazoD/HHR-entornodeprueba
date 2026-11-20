@@ -2,6 +2,7 @@ import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalF
 import { describe, expect, it, vi } from 'vitest';
 import { type ClinicalFillError } from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const BRADEN_HISTORY_EVENT = {
   publishDatetime: '2026-07-10T08:00:00',
@@ -42,7 +43,7 @@ const BRADEN_SUMMARY_FORM = {
 };
 
 const record = (beds: Record<string, { encId?: string; name?: string }>): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-07-10',
     beds: Object.fromEntries(
       Object.entries(beds).map(([bedId, { encId, name }]) => [
@@ -54,7 +55,7 @@ const record = (beds: Record<string, { encId?: string; name?: string }>): DailyR
     transfers: [],
     cma: [],
     lastUpdated: '',
-  }) as unknown as DailyRecord;
+  });
 
 const okDeps = (over: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
   fetchDeviceReport: vi.fn().mockResolvedValue({ base64: '' }),

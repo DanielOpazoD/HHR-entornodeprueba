@@ -2,16 +2,17 @@
 import { describe, expect, it } from 'vitest';
 import { resolveDailyRecordConflictWithTrace } from '@/services/repositories/conflictResolutionMatrix';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 // Stored legacy days can hold a primitive where the type now expects an object; the record
 // salvage in zodSafeParsers keeps a truthy numeric checklist, for example.
 const storedDay = (fields: Record<string, unknown>): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-11-15',
     beds: {},
     lastUpdated: '2026-11-15T12:00:00Z',
     ...fields,
-  }) as unknown as DailyRecord;
+  });
 
 const mergedStructure = {
   date: '2026-11-15',

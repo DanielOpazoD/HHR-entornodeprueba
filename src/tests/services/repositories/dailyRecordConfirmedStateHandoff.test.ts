@@ -21,6 +21,8 @@ vi.mock('@/services/repositories/dailyRecordRemoteWriteController', () => ({
 }));
 
 import { persistLocalAndAttemptRemoteSync } from '@/services/repositories/dailyRecordRemotePersistenceController';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const buildRecord = (): DailyRecord =>
   ({
@@ -53,11 +55,11 @@ describe('daily record confirmed state handoff', () => {
       lastMutationId: 'mutation-40',
       updatedAt: '2026-08-07T10:30:00.000Z',
     };
-    const confirmedRecord = {
+    const confirmedRecord = DataFactory.createMockDailyRecord('2026-01-01', {
       ...buildRecord(),
-      beds: { R1: { bedId: 'R1', patientName: 'Versión confirmada' } },
+      beds: { R1: { ...createEmptyPatient('R1'), patientName: 'Versión confirmada' } },
       lastUpdated: '2026-08-07T10:30:00.000Z',
-    } as unknown as DailyRecord;
+    });
 
     const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
@@ -83,11 +85,11 @@ describe('daily record confirmed state handoff', () => {
   });
 
   it('reads back the committed record when an older callable omits recordState', async () => {
-    const confirmedRecord = {
+    const confirmedRecord = DataFactory.createMockDailyRecord('2026-01-01', {
       ...buildRecord(),
-      beds: { R2: { bedId: 'R2', patientName: 'Confirmado por lectura remota' } },
+      beds: { R2: { ...createEmptyPatient('R2'), patientName: 'Confirmado por lectura remota' } },
       lastUpdated: '2026-08-07T10:45:00.000Z',
-    } as unknown as DailyRecord;
+    });
     const readRemoteConfirmedRecord = vi.fn().mockResolvedValue(confirmedRecord);
 
     const { next: result, result: state } = await persistLocalAndAttemptRemoteSync({
@@ -135,11 +137,11 @@ describe('daily record confirmed state handoff', () => {
 
   it('reconciles a normal confirmed write before acknowledging its pending outbox task', async () => {
     const submittedRecord = buildRecord();
-    const remoteRecord = {
+    const remoteRecord = asStoredDailyRecordShape({
       ...submittedRecord,
       discharges: [{ id: 'egreso-obsoleto', patientName: 'Movimiento remoto obsoleto' }],
       lastUpdated: '2026-08-07T10:50:00.000Z',
-    } as unknown as DailyRecord;
+    });
     const localProjection = {
       ...remoteRecord,
       discharges: [
@@ -210,11 +212,11 @@ describe('daily record confirmed state handoff', () => {
 describe('daily record confirmed readback guard', () => {
   const expectedVersion = '2026-08-07T09:00:00.000Z';
   const preCommitRecord = { ...buildRecord(), lastUpdated: expectedVersion } as DailyRecord;
-  const committedRecord = {
+  const committedRecord = DataFactory.createMockDailyRecord('2026-01-01', {
     ...buildRecord(),
-    beds: { R1: { bedId: 'R1', patientName: 'Paciente Sintético Confirmado' } },
+    beds: { R1: { ...createEmptyPatient('R1'), patientName: 'Paciente Sintético Confirmado' } },
     lastUpdated: '2026-08-07T10:05:00.000Z',
-  } as unknown as DailyRecord;
+  });
 
   const persistWithReadback = (
     readRemoteConfirmedRecord: () => Promise<DailyRecord | null>,

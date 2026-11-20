@@ -1,8 +1,8 @@
 // @vitest-environment node
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { attemptConflictAutoMergeRecovery } from '@/services/repositories/dailyRecordConflictAutoMergeController';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 const {
   getRecordFromFirestoreMock,
@@ -67,12 +67,11 @@ vi.mock('@/services/repositories/dailyRecordConflictPostMergeInvariantChecker', 
   evaluateDailyRecordConflictPostMergeInvariants: evaluatePostMergeInvariantsMock,
 }));
 
-const record = {
-  date: '2026-04-15',
+const record = DataFactory.createMockDailyRecord('2026-04-15', {
   schemaVersion: 1,
   beds: {},
   lastUpdated: '2026-04-15T12:00:00.000Z',
-} as unknown as DailyRecord;
+});
 
 describe('dailyRecordConflictAutoMergeController', () => {
   beforeEach(() => {

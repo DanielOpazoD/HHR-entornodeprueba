@@ -6,6 +6,8 @@ import type {
 } from '@/features/rayen-import/contracts/patientClinicalBundle';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientClinicalAlert } from '@/types/domain/clinicalAlerts';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const STORED: PatientClinicalAlert = {
   id: 'alert-stored',
@@ -14,11 +16,10 @@ const STORED: PatientClinicalAlert = {
 };
 
 const record = (): DailyRecord =>
-  ({
-    date: '2026-07-10',
+  DataFactory.createMockDailyRecord('2026-07-10', {
     beds: {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente 1',
         clinicalEpisodeId: 'E1',
         devices: [],
@@ -29,7 +30,7 @@ const record = (): DailyRecord =>
     transfers: [],
     cma: [],
     lastUpdated: '',
-  }) as unknown as DailyRecord;
+  });
 
 const eloisaAlert = {
   guid: 'alert-new',

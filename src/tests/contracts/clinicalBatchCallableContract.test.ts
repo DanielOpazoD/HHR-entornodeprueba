@@ -12,14 +12,14 @@ import type { ClinicalFillPatchOperation } from '@/features/rayen-import';
 import type { RayenClinicalEnrichmentBatchPayload } from '@/features/rayen-import/bridge/rayenClinicalEnrichmentBatchClient';
 import { prepareClinicalEnrichmentBatchPayload } from '@/features/rayen-import/hooks/clinicalEnrichmentBatchPayload';
 import { CUDYR_DOCUMENTARY_SOURCE } from '@/domain/evaluationScales/documentaryCudyr';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const require = createRequire(import.meta.url);
 const {
   parseClinicalEnrichmentPayload,
 } = require('../../../functions/lib/rayenClinicalEnrichmentPolicy.js');
 
-const record = {
+const record = asStoredDailyRecordShape({
   date: '2026-07-28',
   lastUpdated: '2026-07-28T10:00:00.000Z',
   beds: {},
@@ -27,7 +27,7 @@ const record = {
   transfers: [],
   cma: [],
   meta: { revision: 7 },
-} as unknown as DailyRecord;
+});
 
 /** One patient per bed, each with a clinical field and its checkpoint, as a real run sends. */
 const operations = (

@@ -1,8 +1,9 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { resetRayenClinicalFillQueueForTests } from '@/features/rayen-import/domain/rayenClinicalFillQueue';
 import { useRayenClinicalFill } from '@/features/rayen-import/hooks/useRayenClinicalFill';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const mocks = vi.hoisted(() => ({
   beginRayenFill: vi.fn(),
@@ -34,14 +35,14 @@ const enforcedRunEvidence = (runId: string) => ({
 });
 
 const createRecord = (runId: string, withEvidence = false) =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-07-14',
     beds: {},
     discharges: [],
     transfers: [],
     cma: [],
     ...(withEvidence ? enforcedRunEvidence(runId) : { rayenSync: { runId } }),
-  }) as unknown as DailyRecord;
+  });
 
 const renderClinicalFill = (overrides: Record<string, unknown> = {}) =>
   renderHook(() =>
@@ -76,10 +77,16 @@ describe('useRayenClinicalFill authority revalidation', () => {
   });
 
   it('keeps the applied run retryable after the fallback lacks frozen policy evidence', async () => {
-    const record = {
+    const record = DataFactory.createMockDailyRecord('2026-01-01', {
       ...createRecord('run-without-event'),
-      beds: { R1: { bedId: 'R1', patientName: 'Paciente', clinicalEpisodeId: 'episode-1' } },
-    } as unknown as DailyRecord;
+      beds: {
+        R1: {
+          ...createEmptyPatient('R1'),
+          patientName: 'Paciente',
+          clinicalEpisodeId: 'episode-1',
+        },
+      },
+    });
     const loadDailyRecord = vi.fn().mockResolvedValue(record);
     const patchDailyRecord = vi.fn();
     const completeRun = vi.fn().mockResolvedValue(undefined);

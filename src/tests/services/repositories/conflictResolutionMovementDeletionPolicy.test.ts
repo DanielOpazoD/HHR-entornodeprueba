@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const makeRecord = (lastUpdated: string): DailyRecord =>
   ({
@@ -22,7 +23,7 @@ describe('conflict resolution movement deletion policy', () => {
     remote.discharges = [];
 
     const local = makeRecord('2026-02-18T10:00:00.000Z');
-    local.discharges = [
+    local.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       {
         id: 'discharge-local-just-created',
         bedId: 'H2C2',
@@ -30,7 +31,7 @@ describe('conflict resolution movement deletion policy', () => {
         rut: '17.274.300-5',
         diagnosis: 'Diagnóstico de egreso',
       },
-    ] as unknown as DailyRecord['discharges'];
+    ]);
 
     const resolved = resolveDailyRecordConflict(remote, local);
 
@@ -46,23 +47,23 @@ describe('conflict resolution movement deletion policy', () => {
 
   it('keeps remote tombstones dominant when the same movement was deleted remotely', () => {
     const remote = makeRecord('2026-02-18T10:05:00.000Z');
-    remote.discharges = [
+    remote.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       {
         id: 'discharge-deleted-remotely',
         bedId: 'R1',
         patientName: 'Paciente Alta',
         deletedAt: '2026-02-18T10:04:00.000Z',
       },
-    ] as unknown as DailyRecord['discharges'];
+    ]);
 
     const local = makeRecord('2026-02-18T10:00:00.000Z');
-    local.discharges = [
+    local.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       {
         id: 'discharge-deleted-remotely',
         bedId: 'R1',
         patientName: 'Paciente Alta',
       },
-    ] as unknown as DailyRecord['discharges'];
+    ]);
 
     const resolved = resolveDailyRecordConflict(remote, local);
 
@@ -75,23 +76,23 @@ describe('conflict resolution movement deletion policy', () => {
 
   it('keeps remote tombstones dominant during changed-path movement merges', () => {
     const remote = makeRecord('2026-02-18T10:05:00.000Z');
-    remote.discharges = [
+    remote.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       {
         id: 'discharge-deleted-remotely',
         bedId: 'R1',
         patientName: 'Paciente Alta',
         deletedAt: '2026-02-18T10:04:00.000Z',
       },
-    ] as unknown as DailyRecord['discharges'];
+    ]);
 
     const local = makeRecord('2026-02-18T10:00:00.000Z');
-    local.discharges = [
+    local.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       {
         id: 'discharge-deleted-remotely',
         bedId: 'R1',
         patientName: 'Paciente Alta',
       },
-    ] as unknown as DailyRecord['discharges'];
+    ]);
 
     const resolved = resolveDailyRecordConflict(remote, local, {
       changedPaths: ['discharges'],
@@ -111,27 +112,27 @@ describe('conflict resolution movement deletion policy', () => {
     remote.cma = [];
 
     const local = makeRecord('2026-02-18T10:00:00.000Z');
-    local.discharges = [
+    local.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       {
         id: 'discharge-deleted-remotely',
         bedId: 'R1',
         patientName: 'Paciente Alta',
       },
-    ] as unknown as DailyRecord['discharges'];
-    local.transfers = [
+    ]);
+    local.transfers = asStoredDailyRecordShape<DailyRecord['transfers']>([
       {
         id: 'transfer-deleted-remotely',
         bedId: 'R2',
         patientName: 'Paciente Traslado',
       },
-    ] as unknown as DailyRecord['transfers'];
-    local.cma = [
+    ]);
+    local.cma = asStoredDailyRecordShape<DailyRecord['cma']>([
       {
         id: 'cma-deleted-remotely',
         bedName: 'R3',
         patientName: 'Paciente CMA',
       },
-    ] as unknown as DailyRecord['cma'];
+    ]);
 
     const resolved = resolveDailyRecordConflict(remote, local);
 
@@ -148,22 +149,22 @@ describe('conflict resolution movement deletion policy', () => {
 
   it('keeps explicit local movement edits in changed-path merges', () => {
     const remote = makeRecord('2026-02-18T10:05:00.000Z');
-    remote.discharges = [
+    remote.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       {
         id: 'd1',
         bedId: 'R1',
         patientName: 'Paciente Remoto',
       },
-    ] as unknown as DailyRecord['discharges'];
+    ]);
 
     const local = makeRecord('2026-02-18T10:00:00.000Z');
-    local.discharges = [
+    local.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       {
         id: 'd1',
         bedId: 'R1',
         patientName: 'Paciente Editado Local',
       },
-    ] as unknown as DailyRecord['discharges'];
+    ]);
 
     const resolved = resolveDailyRecordConflict(remote, local, {
       changedPaths: ['discharges'],

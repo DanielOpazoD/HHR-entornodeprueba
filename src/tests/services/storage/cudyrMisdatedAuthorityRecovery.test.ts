@@ -13,6 +13,7 @@ import {
   clearSyntheticSession,
   replaceStoredSessionOwner,
 } from '@/tests/utils/syntheticSession';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const task = (): SyncTask => ({
   opId: 'op',
@@ -52,10 +53,10 @@ const task = (): SyncTask => ({
   },
 });
 const census = (): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-10-10',
     rayenSyncHistory: [{ id: 'original', sourceDate: '2026-10-10', status: 'partial' }],
-  }) as unknown as DailyRecord;
+  });
 const setup = () => {
   let authorized = true;
   const read = vi.fn(async () => census());
@@ -133,7 +134,7 @@ describe('misdated CUDYR archive recovery', () => {
       if (mode === 'wrong-run') r.rayenSyncHistory![0].id = 'unrelated';
       if (mode === 'wrong-date') r.rayenSyncHistory![0].sourceDate = '2026-10-09';
       if (mode === 'failed-run') r.rayenSyncHistory![0].status = 'failed';
-      s.read.mockResolvedValue(mode === 'missing' ? (null as unknown as DailyRecord) : r);
+      s.read.mockResolvedValue(mode === 'missing' ? asStoredDailyRecordShape(null) : r);
       expect(await s.run()).toBe(0);
       expect((await hospitalDB.syncQueue.toArray())[0].payload).toEqual(task().payload);
     }

@@ -22,6 +22,7 @@ import {
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { clearPendingDailyRecordPatchesForTests } from '@/hooks/controllers/dailyRecordPendingPatchController';
 import { getTodayISO } from '@/utils/dateCoreUtils';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const runEmulatorUiTests =
   process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1' ||
@@ -88,7 +89,7 @@ vi.mock('@/firebaseConfig', () => ({
 }));
 
 const buildRecord = (date: string, patientName: string, pathology: string): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date,
     beds: {
       R1: {
@@ -123,7 +124,7 @@ const buildRecord = (date: string, patientName: string, pathology: string): Dail
     dateTimestamp: Date.parse(`${date}T00:00:00.000Z`),
     handoffDayChecklist: {},
     handoffNightChecklist: {},
-  }) as unknown as DailyRecord;
+  });
 
 describeUiEmulator('UI sync flow with Firestore emulator', () => {
   let testEnv: RulesTestEnvironment;

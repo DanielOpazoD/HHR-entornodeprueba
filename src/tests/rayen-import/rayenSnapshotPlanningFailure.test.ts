@@ -75,7 +75,7 @@ const record = {
   cma: [],
   activeExtraBeds: [],
   lastUpdated: '2026-07-08T10:00:00.000Z',
-} as unknown as DailyRecord;
+} satisfies DailyRecord;
 
 const snapshot: RayenCensusSnapshot = {
   capturedAt: reference.toISOString(),

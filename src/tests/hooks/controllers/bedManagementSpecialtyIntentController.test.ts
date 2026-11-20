@@ -7,10 +7,11 @@ import {
   resolveManualSpecialtyIntent,
   preserveExplicitEmptySpecialtyChoice,
 } from '@/hooks/controllers/bedManagementSpecialtyIntentController';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 vi.mock('@/services/utils/featureFlags', () => ({ isFeatureEnabled: () => true }));
 
-const record = {
+const record = asStoredDailyRecordShape({
   date: '2026-09-23',
   beds: {
     R1: {
@@ -19,7 +20,7 @@ const record = {
       clinicalCrib: { clinicalEpisodeId: 'crib-one', specialty: '' },
     },
   },
-} as unknown as DailyRecord;
+});
 const manualDecision = {
   schemaVersion: 3,
   episodeId: 'episode-one',
@@ -67,7 +68,7 @@ describe('episode-bound specialty action projection', () => {
       beds: { ...record.beds, R1: { ...record.beds.R1, specialtyAssignment: manualDecision } },
     };
     expect(
-      preserveExplicitEmptySpecialtyChoice({}, intent, alreadyManual as unknown as DailyRecord)
+      preserveExplicitEmptySpecialtyChoice({}, intent, asStoredDailyRecordShape(alreadyManual))
     ).toEqual({});
   });
 

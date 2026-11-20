@@ -1,18 +1,24 @@
 import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const singleRecord = (date = '2026-07-10'): DailyRecord =>
-  ({
-    date,
+  DataFactory.createMockDailyRecord(date, {
     beds: {
-      H1C2: { bedId: 'H1C2', patientName: 'Paciente uno', clinicalEpisodeId: 'E1', devices: [] },
+      H1C2: {
+        ...createEmptyPatient('H1C2'),
+        patientName: 'Paciente uno',
+        clinicalEpisodeId: 'E1',
+        devices: [],
+      },
     },
     discharges: [],
     transfers: [],
     cma: [],
     lastUpdated: '',
-  }) as unknown as DailyRecord;
+  });
 
 const singleDeps = (over: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
   fetchDeviceReport: vi.fn().mockResolvedValue({ base64: '' }),

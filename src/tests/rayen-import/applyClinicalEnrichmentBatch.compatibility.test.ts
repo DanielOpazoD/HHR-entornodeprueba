@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { applyClinicalEnrichmentBatch } from '@/features/rayen-import/hooks/applyClinicalEnrichmentBatch';
 import type { ClinicalFillPatchOperation } from '@/features/rayen-import';
 import type { RayenClinicalEnrichmentBatchPayload } from '@/features/rayen-import/bridge/rayenClinicalEnrichmentBatchClient';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
-const record = {
+const record = asStoredDailyRecordShape({
   date: '2026-07-28',
   lastUpdated: '2026-07-28T10:00:00.000Z',
   beds: {},
@@ -12,7 +12,7 @@ const record = {
   transfers: [],
   cma: [],
   meta: { revision: 7 },
-} as unknown as DailyRecord;
+});
 
 const operations: ClinicalFillPatchOperation[] = [
   {

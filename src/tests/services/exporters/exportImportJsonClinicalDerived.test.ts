@@ -35,7 +35,7 @@ const day = (date: string, lastUpdated: string, extra: Record<string, unknown> =
     nurses: ['', ''],
     activeExtraBeds: [],
     ...extra,
-  }) as unknown as DailyRecord;
+  }) satisfies DailyRecord;
 const file = (entries: Record<string, unknown>) =>
   new File([JSON.stringify(entries)], 'respaldo-sintetico.json', { type: 'application/json' });
 const savedDates = () => (mocks.saveMany.mock.calls[0]?.[0] as DailyRecord[]).map(r => r.date);

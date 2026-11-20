@@ -10,6 +10,7 @@ import type {
 } from '@/features/rayen-import/contracts/clinicalFillContracts';
 import type { ClinicalStageResult } from '@/features/rayen-import/contracts/clinicalStageResult';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 vi.mock('@/features/rayen-import/hooks/useRayenFillStatus', () => ({
   beginRayenFill: vi.fn(() => true),
@@ -29,7 +30,7 @@ vi.mock('@/features/rayen-import/hooks/clinicalFillDerivedView', () => ({
 const RUN_ID = 'run-field-conflict';
 
 const census = (revision: number, runId = RUN_ID): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-11-08',
     lastUpdated: `2026-11-08T10:00:0${revision}.000Z`,
     beds: Object.fromEntries(
@@ -57,7 +58,7 @@ const census = (revision: number, runId = RUN_ID): DailyRecord =>
         policy: { mode: 'preview', clinicalBatchMode: 'enforced', revision: 1 },
       },
     ],
-  }) as unknown as DailyRecord;
+  });
 
 const fieldConflict = (episode: number): ClinicalFillError => ({
   bedId: `R${episode}`,

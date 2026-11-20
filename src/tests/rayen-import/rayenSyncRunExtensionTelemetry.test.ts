@@ -52,7 +52,7 @@ const record = (): DailyRecord =>
     cma: [],
     lastUpdated: '2026-11-11T09:00:00.000Z',
     activeExtraBeds: [],
-  }) as unknown as DailyRecord;
+  }) satisfies DailyRecord;
 
 const diff = (): CensusImportDiff =>
   ({

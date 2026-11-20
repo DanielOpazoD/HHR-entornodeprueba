@@ -5,7 +5,7 @@
 import { vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
-import { DataFactory } from '@/tests/factories/DataFactory';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 import { processSyncQueue } from '@/services/storage/sync';
 
 type Doc = Record<string, unknown>;
@@ -46,7 +46,7 @@ vi.mock('firebase/firestore', async importOriginal => ({
       get: () => remoteSnapshot(),
       set: (_ref: unknown, data: Doc, options?: { merge?: boolean }) => {
         if (options?.merge && h.remote) mergeDeep(remoteDoc(), data);
-        else h.remote = clone(data) as unknown as DailyRecord;
+        else h.remote = asStoredDailyRecordShape(clone(data));
       },
       update: (_ref: unknown, data: Doc) => mergeDeep(remoteDoc(), data),
     });

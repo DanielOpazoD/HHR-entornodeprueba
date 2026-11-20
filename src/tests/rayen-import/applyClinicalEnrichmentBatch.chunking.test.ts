@@ -4,6 +4,7 @@ import { rebuildClinicalEnrichmentOperations } from '@/features/rayen-import/dom
 import type { ClinicalFillPatchOperation } from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { createDependencies, operations, record } from './applyClinicalEnrichmentBatch.fixtures';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 describe('applyClinicalEnrichmentBatch chunking', () => {
   it('fails closed when one target exceeds the callable budget', async () => {
@@ -158,7 +159,7 @@ describe('applyClinicalEnrichmentBatch chunking', () => {
 
   it('coalesces multiple clinical sources for one moved episode after a version conflict', async () => {
     const deps = createDependencies();
-    const baseRecord = {
+    const baseRecord = asStoredDailyRecordShape({
       ...record,
       beds: {
         H2C1: {
@@ -168,7 +169,7 @@ describe('applyClinicalEnrichmentBatch chunking', () => {
           vitalSigns: { heartRate: 70 },
         },
       },
-    } as unknown as DailyRecord;
+    });
     const refreshedRecord = {
       ...baseRecord,
       beds: {

@@ -2,10 +2,10 @@
 import { describe, expect, it } from 'vitest';
 import { collectCensusStaff } from '@/services/staff/censusStaffDiscovery';
 import { mergeEloisaStaff } from '@/services/staff/eloisaStaffDiscovery';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 describe('census staff discovery', () => {
   it('reads current and historical attributable fields without changing clinical records', () => {
-    const record = {
+    const record = asStoredDailyRecordShape({
       date: '2026-09-01',
       nursesDayShift: ['Ana Antigua', 'Vacante'],
       tensNightShift: ['Bruno Anterior'],
@@ -46,7 +46,7 @@ describe('census staff discovery', () => {
           },
         },
       ],
-    } as unknown as DailyRecord;
+    });
     const before = JSON.stringify(record);
     const found = mergeEloisaStaff([], collectCensusStaff(record));
     expect(found.map(entry => entry.name).sort()).toEqual(

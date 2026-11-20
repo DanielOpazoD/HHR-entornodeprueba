@@ -13,6 +13,7 @@ import {
   useRayenClinicalFill,
 } from '@/features/rayen-import/hooks/useRayenClinicalFill';
 import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const mocks = vi.hoisted(() => ({
   beginRayenFill: vi.fn(),
@@ -83,14 +84,14 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
   });
 
   it('uses the clinical day frozen in the confirmed handoff', () => {
-    const record = {
+    const record = asStoredDailyRecordShape({
       date: '2026-07-15',
       beds: {},
       discharges: [],
       transfers: [],
       cma: [],
       ...enforcedRunEvidence('run-historical'),
-    } as unknown as DailyRecord;
+    });
     const handoff = confirmedHandoff(record, '2026-07-14');
 
     expect(resolveClinicalFillDay(handoff, record)).toBe('2026-07-14');
@@ -98,14 +99,14 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
   });
 
   it('uses the confirmed census handoff without a redundant policy read', async () => {
-    const confirmedRecord = {
+    const confirmedRecord = asStoredDailyRecordShape({
       date: '2026-07-14',
       beds: {},
       discharges: [],
       transfers: [],
       cma: [],
       ...enforcedRunEvidence('run-confirmed'),
-    } as unknown as DailyRecord;
+    });
     const loadDailyRecord = vi.fn();
     const completeRun = vi.fn().mockResolvedValue(undefined);
     const { result } = renderHook(() =>
@@ -144,14 +145,14 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
   });
 
   it('keeps pending structural corrections out of the clinical result', async () => {
-    const record = {
+    const record = asStoredDailyRecordShape({
       date: '2026-07-14',
       beds: {},
       discharges: [],
       transfers: [],
       cma: [],
       ...enforcedRunEvidence('run-historical-pending'),
-    } as unknown as DailyRecord;
+    });
     const completeRun = vi.fn().mockResolvedValue(undefined);
     const { result } = renderHook(() =>
       useRayenClinicalFill({
@@ -193,14 +194,14 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
   });
 
   it('keeps fresh structural evidence requirements out of the clinical result', async () => {
-    const record = {
+    const record = asStoredDailyRecordShape({
       date: '2026-07-14',
       beds: {},
       discharges: [],
       transfers: [],
       cma: [],
       ...enforcedRunEvidence('run-historical-failed'),
-    } as unknown as DailyRecord;
+    });
     const completeRun = vi.fn().mockResolvedValue(undefined);
     const { result } = renderHook(() =>
       useRayenClinicalFill({
@@ -242,7 +243,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
   });
 
   it('does not convert an isolated structural conflict into a clinical failure', async () => {
-    const record = {
+    const record = asStoredDailyRecordShape({
       date: '2026-07-14',
       beds: {
         R1: { bedId: 'R1', patientName: 'Paciente', clinicalEpisodeId: 'episode-blocked' },
@@ -251,7 +252,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       transfers: [],
       cma: [],
       ...enforcedRunEvidence('run-structural-conflict'),
-    } as unknown as DailyRecord;
+    });
     const handoff = resolveConfirmedRayenCensusHandoff(
       {
         record,
@@ -313,22 +314,22 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
 
   it('revalidates a confirmed handoff once when the fill actually waited in the queue', async () => {
     let releaseFirstCompletion!: () => void;
-    const firstRecord = {
+    const firstRecord = asStoredDailyRecordShape({
       date: '2026-07-14',
       beds: {},
       discharges: [],
       transfers: [],
       cma: [],
       ...enforcedRunEvidence('run-first'),
-    } as unknown as DailyRecord;
-    const queuedRecord = {
+    });
+    const queuedRecord = asStoredDailyRecordShape({
       ...firstRecord,
       ...enforcedRunEvidence('run-queued'),
-    } as unknown as DailyRecord;
-    const authoritativeQueuedRecord = {
+    });
+    const authoritativeQueuedRecord = DataFactory.createMockDailyRecord('2026-01-01', {
       ...queuedRecord,
       nursesDayShift: ['Profesional vigente'],
-    } as unknown as DailyRecord;
+    });
     const loadDailyRecord = vi.fn().mockResolvedValue(authoritativeQueuedRecord);
     const completeRun = vi.fn((record: DailyRecord) => {
       if (record.rayenSync?.runId !== 'run-first') return Promise.resolve();
@@ -370,15 +371,15 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
 
   it('keeps the revalidated record in a retry without losing the confirmed handoff', async () => {
     let releaseFirstCompletion!: () => void;
-    const firstRecord = {
+    const firstRecord = asStoredDailyRecordShape({
       date: '2026-07-14',
       beds: {},
       discharges: [],
       transfers: [],
       cma: [],
       ...enforcedRunEvidence('run-first'),
-    } as unknown as DailyRecord;
-    const queuedRecord = {
+    });
+    const queuedRecord = asStoredDailyRecordShape({
       ...firstRecord,
       beds: {
         R1: {
@@ -388,8 +389,8 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         },
       },
       ...enforcedRunEvidence('run-queued'),
-    } as unknown as DailyRecord;
-    const authoritativeQueuedRecord = {
+    });
+    const authoritativeQueuedRecord = asStoredDailyRecordShape({
       date: queuedRecord.date,
       beds: queuedRecord.beds,
       discharges: [],
@@ -397,7 +398,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       cma: [],
       rayenSync: { runId: 'run-queued' },
       nursesDayShift: ['Profesional vigente'],
-    } as unknown as DailyRecord;
+    });
     const loadDailyRecord = vi.fn().mockResolvedValue(authoritativeQueuedRecord);
     const completeRun = vi.fn((record: DailyRecord) => {
       if (record.rayenSync?.runId === 'run-first') {
@@ -443,22 +444,22 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
 
   it('does not let a queued old run enrich a newer authoritative census', async () => {
     let releaseFirstCompletion!: () => void;
-    const firstRecord = {
+    const firstRecord = asStoredDailyRecordShape({
       date: '2026-07-14',
       beds: {},
       discharges: [],
       transfers: [],
       cma: [],
       ...enforcedRunEvidence('run-first'),
-    } as unknown as DailyRecord;
-    const queuedRecord = {
+    });
+    const queuedRecord = asStoredDailyRecordShape({
       ...firstRecord,
       ...enforcedRunEvidence('run-queued'),
-    } as unknown as DailyRecord;
-    const newerRecord = {
+    });
+    const newerRecord = asStoredDailyRecordShape({
       ...queuedRecord,
       ...enforcedRunEvidence('run-newer'),
-    } as unknown as DailyRecord;
+    });
     const loadDailyRecord = vi.fn().mockResolvedValue(newerRecord);
     const completeRun = vi.fn((record: DailyRecord) => {
       if (record.rayenSync?.runId !== 'run-first') return Promise.resolve();

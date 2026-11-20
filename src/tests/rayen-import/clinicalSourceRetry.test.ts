@@ -11,9 +11,10 @@ import {
   resolveClinicalStageResult,
   mergeClinicalRetrySummary,
 } from '@/features/rayen-import/domain/clinicalStageResolution';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const record = () =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-09-27',
     lastUpdated: '2026-09-28T07:00:00Z',
     beds: {
@@ -29,7 +30,7 @@ const record = () =>
     discharges: [],
     transfers: [],
     cma: [],
-  }) as unknown as DailyRecord;
+  });
 const deps = (): ClinicalFillDeps => ({
   fetchDeviceReport: vi.fn().mockResolvedValue({ base64: '', entries: [], source: 'json' }),
   extractDeviceItems: vi.fn().mockResolvedValue([]),

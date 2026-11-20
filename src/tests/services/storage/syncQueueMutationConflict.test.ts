@@ -30,6 +30,7 @@ vi.mock('@/services/storage/firestore/dailyRecordAuthorityCallableClient', () =>
 import { getDoc, setDoc } from 'firebase/firestore';
 import { processSyncQueue, queueSyncTask } from '@/services/storage/sync';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const makeRecord = (date: string, marker: string): DailyRecord => ({
   date,
@@ -139,26 +140,26 @@ describe('sync queue mutation conflicts', () => {
 
   it('revalidates overlapping movement arrays by id and publishes the merged record through authority', async () => {
     const local = makeRecord('2025-01-23', '2025-01-23T10:10:00.000Z');
-    local.discharges = [
+    local.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       { id: 'discharge-local', bedId: 'R1', patientName: 'Alta local' },
-    ] as unknown as DailyRecord['discharges'];
-    local.transfers = [
+    ]);
+    local.transfers = asStoredDailyRecordShape<DailyRecord['transfers']>([
       { id: 'transfer-local', bedId: 'R2', patientName: 'Traslado local' },
-    ] as unknown as DailyRecord['transfers'];
-    local.cma = [
+    ]);
+    local.cma = asStoredDailyRecordShape<DailyRecord['cma']>([
       { id: 'cma-local', bedName: 'R3', originalBedId: 'R3', patientName: 'CMA local' },
-    ] as unknown as DailyRecord['cma'];
+    ]);
 
     const remote = makeRecord('2025-01-23', '2025-01-23T10:20:00.000Z');
-    remote.discharges = [
+    remote.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       { id: 'discharge-remote', bedId: 'R4', patientName: 'Alta remota' },
-    ] as unknown as DailyRecord['discharges'];
-    remote.transfers = [
+    ]);
+    remote.transfers = asStoredDailyRecordShape<DailyRecord['transfers']>([
       { id: 'transfer-remote', bedId: 'R5', patientName: 'Traslado remoto' },
-    ] as unknown as DailyRecord['transfers'];
-    remote.cma = [
+    ]);
+    remote.cma = asStoredDailyRecordShape<DailyRecord['cma']>([
       { id: 'cma-remote', bedName: 'R6', originalBedId: 'R6', patientName: 'CMA remoto' },
-    ] as unknown as DailyRecord['cma'];
+    ]);
     (remote as DailyRecord & { meta: Record<string, unknown> }).meta = {
       revision: 5,
       lastMutationId: 'remote-movement-mutation',
@@ -376,15 +377,15 @@ describe('sync queue mutation conflicts', () => {
         { id: 'entry-b', specialty: 'medicinaInterna', note: 'B: control antihipertensivo' },
       ] as never,
     });
-    local.discharges = [
+    local.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       { id: 'discharge-b', bedId: 'R2', patientName: 'Alta cliente B' },
-    ] as unknown as DailyRecord['discharges'];
-    local.transfers = [
+    ]);
+    local.transfers = asStoredDailyRecordShape<DailyRecord['transfers']>([
       { id: 'transfer-b', bedId: 'R3', patientName: 'Traslado cliente B' },
-    ] as unknown as DailyRecord['transfers'];
-    local.cma = [
+    ]);
+    local.cma = asStoredDailyRecordShape<DailyRecord['cma']>([
       { id: 'cma-b', bedName: 'R4', originalBedId: 'R4', patientName: 'CMA cliente B' },
-    ] as unknown as DailyRecord['cma'];
+    ]);
     local.medicalHandoffBySpecialty = {
       medicinaInterna: {
         note: 'B: control antihipertensivo',
@@ -401,15 +402,15 @@ describe('sync queue mutation conflicts', () => {
         { id: 'entry-a', specialty: 'cirugia', note: 'A: control quirurgico' },
       ] as never,
     });
-    remote.discharges = [
+    remote.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       { id: 'discharge-a', bedId: 'R5', patientName: 'Alta cliente A' },
-    ] as unknown as DailyRecord['discharges'];
-    remote.transfers = [
+    ]);
+    remote.transfers = asStoredDailyRecordShape<DailyRecord['transfers']>([
       { id: 'transfer-a', bedId: 'R6', patientName: 'Traslado cliente A' },
-    ] as unknown as DailyRecord['transfers'];
-    remote.cma = [
+    ]);
+    remote.cma = asStoredDailyRecordShape<DailyRecord['cma']>([
       { id: 'cma-a', bedName: 'R7', originalBedId: 'R7', patientName: 'CMA cliente A' },
-    ] as unknown as DailyRecord['cma'];
+    ]);
     remote.medicalHandoffBySpecialty = {
       cirugia: {
         note: 'A: control quirurgico',

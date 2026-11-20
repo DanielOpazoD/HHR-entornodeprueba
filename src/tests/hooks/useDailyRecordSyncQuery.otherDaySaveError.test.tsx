@@ -7,7 +7,7 @@ import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordP
 import { createNotFoundDailyRecordReadResult } from '@/services/repositories/dailyRecordReadResultController';
 import { createDailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 // The real port, repository subscription, query controller and save mutation; only the Firestore
 // SDK listener, the local database, the server read and the refused write are synthetic.
@@ -62,7 +62,7 @@ vi.mock('@/hooks/controllers/dailyRecordSavePersistenceController', () => ({
 
 const previousDay = '2026-11-14';
 const emptyDay = '2026-11-15';
-const previousRecord = { date: previousDay, beds: {} } as unknown as DailyRecord;
+const previousRecord = DataFactory.createMockDailyRecord(previousDay, { beds: {} });
 
 const settle = async () => {
   await act(async () => {

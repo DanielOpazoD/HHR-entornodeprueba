@@ -3,7 +3,7 @@ import { expect, it } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import type { CensusImportDiff } from '@/features/rayen-import';
 import { selectEligibleEgresoRows } from '@/features/rayen-import/domain/egresoReportEligibility';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 const emptyDiff = (): CensusImportDiff => ({
   admissions: [],
@@ -40,13 +40,12 @@ it('reconciles an unverified crib report with the actual associated discharge', 
       clinicalEpisodeId: 'child',
     },
   };
-  const record = {
-    date: '2026-10-18',
+  const record = DataFactory.createMockDailyRecord('2026-10-18', {
     beds: { H2C2: mother },
     discharges: [],
     transfers: [],
     cma: [],
-  } as unknown as DailyRecord;
+  });
   const result = selectEligibleEgresoRows(
     emptyDiff(),
     [

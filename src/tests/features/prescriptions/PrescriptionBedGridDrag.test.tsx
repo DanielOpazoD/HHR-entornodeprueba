@@ -14,6 +14,8 @@ import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRe
 import { PrescriptionBedGridView } from '@/features/prescriptions/components/PrescriptionBedGridView';
 import type { PrescriptionRecord } from '@/types/prescriptionTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const buildRecord = (
   id: string,
@@ -37,11 +39,10 @@ const buildRecord = (
 });
 
 const buildDailyRecord = (): DailyRecord =>
-  ({
-    date: '2026-05-04',
+  DataFactory.createMockDailyRecord('2026-05-04', {
     beds: {
       H1C2: {
-        bedId: 'H1C2',
+        ...createEmptyPatient('H1C2'),
         isBlocked: false,
         bedMode: 'Cama',
         hasCompanionCrib: false,
@@ -56,7 +57,7 @@ const buildDailyRecord = (): DailyRecord =>
     cma: [],
     lastUpdated: '2026-05-04T10:00:00.000Z',
     activeExtraBeds: [],
-  }) as unknown as DailyRecord;
+  });
 
 const loose = buildRecord('loose');
 const previous = buildRecord('previous', {

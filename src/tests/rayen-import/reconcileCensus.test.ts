@@ -9,6 +9,7 @@ import {
 import { EMPTY_PATIENT } from '@/constants/patient';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const REFERENCE = new Date('2026-07-08T12:00:00-06:00');
 
@@ -27,7 +28,10 @@ const makeRecord = (
 
 /** Minimal HHR discharge record (only the fields reconcile reads for identity). */
 const hhrDischarge = (rut: string, episodeId: string): DailyRecord['discharges'][number] =>
-  ({ rut, clinicalEpisodeId: episodeId }) as unknown as DailyRecord['discharges'][number];
+  asStoredDailyRecordShape<DailyRecord['discharges'][number]>({
+    rut,
+    clinicalEpisodeId: episodeId,
+  });
 
 const makeEncounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => ({
   encounterId: 'E1',

@@ -10,6 +10,7 @@ import {
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 // Synthetic stand-ins for what the clinical sync derives per bed (shape irrelevant to the workbook).
 const derived = (): Partial<PatientData> =>
@@ -40,7 +41,7 @@ const patient = (bedId: string, overrides: Partial<PatientData> = {}): PatientDa
 });
 
 const day = (date: string): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date,
     beds: {
       [BEDS[0].id]: patient(BEDS[0].id, {
@@ -75,7 +76,7 @@ const day = (date: string): DailyRecord =>
     nurses: [],
     activeExtraBeds: [],
     rayenSyncHistory: [{ id: `run-${date}`, status: 'applied', detail: 'z'.repeat(3000) }],
-  }) as unknown as DailyRecord;
+  });
 
 const month = ['2026-03-04', '2026-03-05', '2026-03-06'].map(day);
 

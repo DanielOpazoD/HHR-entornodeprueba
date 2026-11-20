@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import type { CensusImportDiff } from '@/features/rayen-import';
 import { selectEligibleEgresoRows } from '@/features/rayen-import/domain/egresoReportEligibility';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const emptyDiff = (): CensusImportDiff => ({
   admissions: [],
@@ -25,7 +25,7 @@ const emptyDiff = (): CensusImportDiff => ({
 
 describe('reingreso el mismo día', () => {
   const readmission = (discharges: unknown[]) =>
-    ({
+    asStoredDailyRecordShape({
       date: '2026-11-01',
       beds: {
         R2: {
@@ -41,7 +41,7 @@ describe('reingreso el mismo día', () => {
       discharges,
       transfers: [],
       cma: [],
-    }) as unknown as DailyRecord;
+    });
   const row = (fechaEgreso: string) =>
     ({
       encounterId: '',

@@ -3,7 +3,7 @@ import { buildRayenSyncDiagnosticReport } from '@/features/rayen-import/domain/r
 import { buildRayenSyncCoverage } from '@/features/rayen-import/domain/rayenSyncHistory';
 import { RayenSyncEventSchema } from '@/schemas/zod/dailyRecord';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const event: RayenSyncEvent = {
   id: 'run-test',
@@ -76,7 +76,7 @@ describe('explicit clinical diagnostic export', () => {
     });
   });
   it('uses exact episode identity, never the new occupant or the mother sharing a document', () => {
-    const record = {
+    const record = asStoredDailyRecordShape({
       date: '2026-10-17',
       beds: {
         R3: {
@@ -86,7 +86,7 @@ describe('explicit clinical diagnostic export', () => {
           clinicalCrib: { patientName: 'RN', rut: 'TEST', clinicalEpisodeId: 'child' },
         },
       },
-    } as unknown as DailyRecord;
+    });
     const errors = [
       {
         bedId: 'R3',

@@ -10,6 +10,9 @@ import {
   resolveDetailedStaffingState,
   updateDetailedStaffingStandardSlot,
 } from '@/services/staff/dailyRecordDetailedStaffing';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { PatientStatus } from '@/types/domain/patientClassification';
 
 const makeRecord = (date: string, lastUpdated: string): DailyRecord => ({
   date,
@@ -26,20 +29,16 @@ describe('conflictResolutionMatrix', () => {
   it('applies changed path without overwriting unrelated remote fields', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
-      R1: {
-        bedId: 'R1',
-        patientName: 'Nombre remoto',
-        pathology: 'Diag remoto',
-      } as unknown as DailyRecord['beds'][string],
+      R1: { ...createEmptyPatient('R1'), patientName: 'Nombre remoto', pathology: 'Diag remoto' },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:01:00.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Nombre local',
         pathology: 'Diag local (stale)',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const resolved = resolveDailyRecordConflict(remote, local, {
@@ -260,23 +259,23 @@ describe('conflictResolutionMatrix', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Nombre corregido remoto',
         rut: '11.111.111-1',
         pathology: 'Diag remoto',
         handoffNote: 'Nota remota',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T09:59:00.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Nombre local sin actualizar',
         rut: '11.111.111-1',
         pathology: 'Diag local',
         handoffNote: 'Nota local',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const resolved = resolveDailyRecordConflict(remote, local, { changedPaths: ['*'] });
@@ -287,20 +286,12 @@ describe('conflictResolutionMatrix', () => {
   it('prioritizes administrative fields from remote during automatic merge', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
-      R1: {
-        bedId: 'R1',
-        bedMode: 'Cama',
-        location: 'Habitacion A',
-      } as unknown as DailyRecord['beds'][string],
+      R1: { ...createEmptyPatient('R1'), bedMode: 'Cama', location: 'Habitacion A' },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     local.beds = {
-      R1: {
-        bedId: 'R1',
-        bedMode: 'Cuna',
-        location: 'Pasillo',
-      } as unknown as DailyRecord['beds'][string],
+      R1: { ...createEmptyPatient('R1'), bedMode: 'Cuna', location: 'Pasillo' },
     };
 
     const resolved = resolveDailyRecordConflict(remote, local, { changedPaths: ['*'] });
@@ -311,19 +302,19 @@ describe('conflictResolutionMatrix', () => {
   it('preserves an intentional bed clear during automatic merge', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
-      R1: {
+      R1: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R1',
         patientName: 'Paciente remoto',
         rut: '11.111.111-1',
         pathology: 'Diagnostico remoto',
         admissionDate: '',
         status: 'Vivo',
-      } as unknown as DailyRecord['beds'][string],
+      }),
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     local.beds = {
-      R1: {
+      R1: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R1',
         patientName: '',
         rut: '',
@@ -332,7 +323,7 @@ describe('conflictResolutionMatrix', () => {
         status: 'EMPTY',
         bedMode: 'Cama',
         hasCompanionCrib: false,
-      } as unknown as DailyRecord['beds'][string],
+      }),
     };
 
     const resolved = resolveDailyRecordConflict(remote, local, {
@@ -354,37 +345,37 @@ describe('conflictResolutionMatrix', () => {
     // only apply when the caller explicitly says this bed was edited.
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
-      R1: {
+      R1: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R1',
         patientName: 'BASELINE',
         rut: '11.111.111-1',
         pathology: 'Old diagnosis',
         admissionDate: '2026-02-10',
         status: 'Vivo',
-      } as unknown as DailyRecord['beds'][string],
+      }),
       R2: {
-        bedId: 'R2',
+        ...createEmptyPatient('R2'),
         patientName: 'USER B NEW PATIENT',
         rut: '22.222.222-2',
         pathology: 'USER B NON CONFLICT DX',
         admissionDate: '2026-02-18',
-        status: 'Estable',
-      } as unknown as DailyRecord['beds'][string],
+        status: PatientStatus.ESTABLE,
+      },
     };
 
     // Local snapshot: User A edited R1 (newer timestamp wins) but never
     // touched R2 — its bed entry is just the bootstrap default.
     const local = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     local.beds = {
-      R1: {
+      R1: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R1',
         patientName: 'BASELINE',
         rut: '11.111.111-1',
         pathology: 'USER A LOCAL DX',
         admissionDate: '2026-02-10',
         status: 'Vivo',
-      } as unknown as DailyRecord['beds'][string],
-      R2: {
+      }),
+      R2: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R2',
         patientName: '',
         rut: '',
@@ -393,7 +384,7 @@ describe('conflictResolutionMatrix', () => {
         status: '',
         bedMode: 'Cama',
         hasCompanionCrib: false,
-      } as unknown as DailyRecord['beds'][string],
+      }),
     };
 
     const resolved = resolveDailyRecordConflict(remote, local);
@@ -414,19 +405,19 @@ describe('conflictResolutionMatrix', () => {
     // though the local timestamp is newer.
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
-      R1: {
+      R1: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R1',
         patientName: 'Should not resurrect',
         rut: '99.999.999-9',
         pathology: 'Pre-clear diagnosis',
         admissionDate: '2026-02-10',
         status: 'Vivo',
-      } as unknown as DailyRecord['beds'][string],
+      }),
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     local.beds = {
-      R1: {
+      R1: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R1',
         patientName: '',
         rut: '',
@@ -435,7 +426,7 @@ describe('conflictResolutionMatrix', () => {
         status: 'EMPTY',
         bedMode: 'Cama',
         hasCompanionCrib: false,
-      } as unknown as DailyRecord['beds'][string],
+      }),
     };
 
     const resolved = resolveDailyRecordConflict(remote, local, {
@@ -449,27 +440,27 @@ describe('conflictResolutionMatrix', () => {
   it('does not resurrect the source bed when a move is auto-merged after a remote conflict', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
-      R1: {
+      R1: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R1',
         patientName: 'Paciente movido',
         rut: '22.222.222-2',
         pathology: 'Diagnostico remoto',
         admissionDate: '2026-02-10',
         status: 'Vivo',
-      } as unknown as DailyRecord['beds'][string],
-      R2: {
+      }),
+      R2: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R2',
         patientName: '',
         rut: '',
         pathology: '',
         admissionDate: '',
         status: 'EMPTY',
-      } as unknown as DailyRecord['beds'][string],
+      }),
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     local.beds = {
-      R1: {
+      R1: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R1',
         patientName: '',
         rut: '',
@@ -478,15 +469,15 @@ describe('conflictResolutionMatrix', () => {
         status: 'EMPTY',
         bedMode: 'Cama',
         hasCompanionCrib: false,
-      } as unknown as DailyRecord['beds'][string],
-      R2: {
+      }),
+      R2: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R2',
         patientName: 'Paciente movido',
         rut: '22.222.222-2',
         pathology: 'Diagnostico remoto',
         admissionDate: '2026-02-10',
         status: 'Vivo',
-      } as unknown as DailyRecord['beds'][string],
+      }),
     };
 
     const resolved = resolveDailyRecordConflict(remote, local, {
@@ -503,20 +494,12 @@ describe('conflictResolutionMatrix', () => {
   it('returns trace with policy version and per-field decisions', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
-      R1: {
-        bedId: 'R1',
-        pathology: 'Diag remoto',
-        location: 'Habitacion A',
-      } as unknown as DailyRecord['beds'][string],
+      R1: { ...createEmptyPatient('R1'), pathology: 'Diag remoto', location: 'Habitacion A' },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T09:55:00.000Z');
     local.beds = {
-      R1: {
-        bedId: 'R1',
-        pathology: 'Diag local',
-        location: 'Pasillo',
-      } as unknown as DailyRecord['beds'][string],
+      R1: { ...createEmptyPatient('R1'), pathology: 'Diag local', location: 'Pasillo' },
     };
 
     const result = resolveDailyRecordConflictWithTrace(remote, local, { changedPaths: ['*'] });

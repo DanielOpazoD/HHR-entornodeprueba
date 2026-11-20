@@ -1,6 +1,5 @@
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const { mockGetAvailableDates, mockGetForDate, mockSaveDetailed, mockLogAuditEvent } = vi.hoisted(
   () => ({
@@ -15,6 +14,7 @@ import {
   auditAdmissionDateBackfill,
   applyAdmissionDateBackfill,
 } from '@/services/admin/admissionDateBackfillService';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 vi.mock('@/services/repositories/dailyRecordRepositoryReadService', () => ({
   getAvailableDates: mockGetAvailableDates,
@@ -44,7 +44,7 @@ describe('admissionDateBackfillService', () => {
     mockGetAvailableDates.mockResolvedValue(['2026-03-02', '2026-03-01']);
     mockGetForDate.mockImplementation(async (date: string) => {
       if (date === '2026-03-01') {
-        return {
+        return asStoredDailyRecordShape({
           date,
           beds: {
             R1: {
@@ -101,10 +101,10 @@ describe('admissionDateBackfillService', () => {
           cma: [],
           activeExtraBeds: [],
           lastUpdated: '2026-03-01T10:00:00.000Z',
-        } as unknown as DailyRecord;
+        });
       }
 
-      return {
+      return asStoredDailyRecordShape({
         date,
         beds: {
           R1: {
@@ -131,7 +131,7 @@ describe('admissionDateBackfillService', () => {
         cma: [],
         activeExtraBeds: [],
         lastUpdated: '2026-03-02T10:00:00.000Z',
-      } as unknown as DailyRecord;
+      });
     });
 
     const audit = await auditAdmissionDateBackfill();

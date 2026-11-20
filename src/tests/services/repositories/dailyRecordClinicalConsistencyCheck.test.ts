@@ -12,9 +12,10 @@ import {
   applyDailyRecordClinicalConsistencyCheck,
   recordClinicalConsistencyTelemetry,
 } from '@/services/repositories/dailyRecordClinicalConsistencyCheck';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const makeRecord = (): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-02-18',
     beds: {
       R1: {
@@ -41,7 +42,7 @@ const makeRecord = (): DailyRecord =>
     nurses: [],
     activeExtraBeds: [],
     lastUpdated: '2026-02-18T10:00:00.000Z',
-  }) as unknown as DailyRecord;
+  });
 
 describe('dailyRecordClinicalConsistencyCheck', () => {
   beforeEach(() => {

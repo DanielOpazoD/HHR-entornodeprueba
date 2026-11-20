@@ -14,14 +14,13 @@ const STORED = {
 const patient = () =>
   DataFactory.createMockPatient('R1', { clinicalEpisodeId: '123456', fluidBalance: STORED });
 const record = (): DailyRecord =>
-  ({
-    date: DAY,
+  DataFactory.createMockDailyRecord(DAY, {
     beds: { R1: patient() },
     discharges: [],
     transfers: [],
     cma: [],
     lastUpdated: '',
-  }) as unknown as DailyRecord;
+  });
 const deps = (fluidBalance?: RayenFluidBalanceResult): ClinicalFillDeps => ({
   fetchDeviceReport: vi.fn().mockResolvedValue({ entries: [], source: 'json', base64: '' }),
   extractDeviceItems: vi.fn().mockResolvedValue([]),

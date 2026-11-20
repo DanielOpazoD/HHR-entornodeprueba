@@ -2,10 +2,10 @@ import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalF
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createClinicalWriteCoordinator } from '@/features/rayen-import/domain/clinicalWriteCoordinator';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const record = (count = 1) =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-07-10',
     beds: Object.fromEntries(
       Array.from({ length: count }, (_, index) => [
@@ -22,7 +22,7 @@ const record = (count = 1) =>
     transfers: [],
     cma: [],
     lastUpdated: '',
-  }) as unknown as DailyRecord;
+  });
 const delay = <T>(ms: number, value: T) =>
   new Promise<T>(resolve => setTimeout(() => resolve(value), ms));
 const deps = (): ClinicalFillDeps => ({

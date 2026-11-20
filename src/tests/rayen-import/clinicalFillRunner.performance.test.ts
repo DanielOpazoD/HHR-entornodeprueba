@@ -7,6 +7,7 @@ import {
 } from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { logger } from '@/services/utils/loggerService';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const SCALE_EVENT = {
   publishDatetime: '2026-07-10T10:00:00',
@@ -16,7 +17,7 @@ const SCALE_EVENT = {
 };
 
 const record = (patientCount: number): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-07-10',
     beds: Object.fromEntries(
       Array.from({ length: patientCount }, (_, index) => {
@@ -36,7 +37,7 @@ const record = (patientCount: number): DailyRecord =>
     transfers: [],
     cma: [],
     lastUpdated: '',
-  }) as unknown as DailyRecord;
+  });
 
 const deps = (overrides: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
   fetchDeviceReport: vi.fn().mockResolvedValue({ base64: '' }),

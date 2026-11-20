@@ -53,6 +53,8 @@ import {
   saveRecordStrict as saveToIndexedDB,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { subscribeToRecord } from '@/services/storage/firestore/firestoreRecordQueries';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 describe('dailyRecordRepositorySyncService', () => {
   const subscriptions: Array<() => void> = [];
@@ -122,16 +124,14 @@ describe('dailyRecordRepositorySyncService', () => {
   });
 
   it('applies the remote record and hydrates IndexedDB when the remote copy is newer', async () => {
-    const localRecord = {
-      date: '2026-03-03',
-      beds: { R1: { patientName: 'Paciente Local' } },
+    const localRecord = DataFactory.createMockDailyRecord('2026-03-03', {
+      beds: { R1: { ...createEmptyPatient('R1'), patientName: 'Paciente Local' } },
       lastUpdated: '2026-03-03T08:00:00.000Z',
-    } as unknown as DailyRecord;
-    const remoteRecord = {
-      date: '2026-03-03',
-      beds: { R1: { patientName: 'Paciente Remoto' } },
+    });
+    const remoteRecord = DataFactory.createMockDailyRecord('2026-03-03', {
+      beds: { R1: { ...createEmptyPatient('R1'), patientName: 'Paciente Remoto' } },
       lastUpdated: '2026-03-03T12:00:00.000Z',
-    } as unknown as DailyRecord;
+    });
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(localRecord);
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
@@ -161,28 +161,24 @@ describe('dailyRecordRepositorySyncService', () => {
   });
 
   it('uses the newer remote canonical diagnosis when realtime emits shorter diagnosis text', async () => {
-    const localRecord = {
-      date: '2026-03-03',
+    const localRecord = DataFactory.createMockDailyRecord('2026-03-03', {
       beds: {
         R1: {
-          bedId: 'R1',
+          ...createEmptyPatient('R1'),
           patientName: 'Paciente Local',
           pathology: 'Puérpera de cesárea.',
           admissionDate: '2026-03-03',
         },
       },
       lastUpdated: '2026-03-03T12:00:00.000Z',
-    } as unknown as DailyRecord;
-    const remoteRecord = {
+    });
+    const remoteRecord = DataFactory.createMockDailyRecord('2026-01-01', {
       ...localRecord,
       beds: {
-        R1: {
-          ...localRecord.beds.R1,
-          pathology: 'Puérpera',
-        },
+        R1: { ...createEmptyPatient('R1'), ...localRecord.beds.R1, pathology: 'Puérpera' },
       },
       lastUpdated: '2026-03-03T12:00:02.000Z',
-    } as unknown as DailyRecord;
+    });
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(localRecord);
 
     vi.mocked(subscribeToRecord).mockImplementationOnce((_date, callback) => {
@@ -222,11 +218,10 @@ describe('dailyRecordRepositorySyncService', () => {
   });
 
   it('returns missing_remote when the local record exists but no remote record was found', async () => {
-    const localRecord = {
-      date: '2026-03-03',
-      beds: { R1: { patientName: 'Paciente Local' } },
+    const localRecord = DataFactory.createMockDailyRecord('2026-03-03', {
+      beds: { R1: { ...createEmptyPatient('R1'), patientName: 'Paciente Local' } },
       lastUpdated: '2026-03-03T12:00:00.000Z',
-    } as unknown as DailyRecord;
+    });
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(localRecord);
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
@@ -249,11 +244,10 @@ describe('dailyRecordRepositorySyncService', () => {
   });
 
   it('keeps the local record as blocked fallback when the remote sync throws', async () => {
-    const localRecord = {
-      date: '2026-03-03',
-      beds: { R1: { patientName: 'Paciente Local' } },
+    const localRecord = DataFactory.createMockDailyRecord('2026-03-03', {
+      beds: { R1: { ...createEmptyPatient('R1'), patientName: 'Paciente Local' } },
       lastUpdated: '2026-03-03T12:00:00.000Z',
-    } as unknown as DailyRecord;
+    });
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(localRecord);
     vi.mocked(loadRemoteRecordWithFallback).mockRejectedValueOnce(new Error('remote down'));
@@ -272,11 +266,10 @@ describe('dailyRecordRepositorySyncService', () => {
   });
 
   it('emits detailed subscription consistency when Firestore emits a missing document', async () => {
-    const localRecord = {
-      date: '2026-03-03',
-      beds: { R1: { patientName: 'Paciente Local' } },
+    const localRecord = DataFactory.createMockDailyRecord('2026-03-03', {
+      beds: { R1: { ...createEmptyPatient('R1'), patientName: 'Paciente Local' } },
       lastUpdated: '2026-03-03T12:00:00.000Z',
-    } as unknown as DailyRecord;
+    });
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(localRecord);
 
     vi.mocked(subscribeToRecord).mockImplementationOnce((_date, callback) => {
@@ -340,11 +333,12 @@ describe('dailyRecordRepositorySyncService', () => {
         () =>
           new Promise(resolve => {
             setTimeout(() => {
-              resolve({
-                date: '2026-03-03',
-                beds: { R1: { patientName: 'Paciente Local' } },
-                lastUpdated: '2026-03-03T12:00:00.000Z',
-              } as unknown as DailyRecord);
+              resolve(
+                DataFactory.createMockDailyRecord('2026-03-03', {
+                  beds: { R1: { ...createEmptyPatient('R1'), patientName: 'Paciente Local' } },
+                  lastUpdated: '2026-03-03T12:00:00.000Z',
+                })
+              );
             }, 0);
           })
       );

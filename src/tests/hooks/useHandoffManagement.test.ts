@@ -33,6 +33,8 @@ vi.mock('@/services/admin/attributionService', () => ({
 import { useHandoffManagement } from '@/hooks/useHandoffManagement';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 describe('useHandoffManagement', () => {
   let mockRecord: DailyRecord;
@@ -43,14 +45,13 @@ describe('useHandoffManagement', () => {
     vi.clearAllMocks();
     mockSaveAndUpdate = vi.fn().mockResolvedValue(undefined);
     mockPatchRecord = vi.fn().mockResolvedValue(undefined);
-    mockRecord = {
-      date: '2024-12-28',
-      beds: { R1: { patientName: 'Test' } },
+    mockRecord = DataFactory.createMockDailyRecord('2024-12-28', {
+      beds: { R1: { ...createEmptyPatient('R1'), patientName: 'Test' } },
       handoffDayChecklist: {},
       handoffNightChecklist: {},
       handoffNovedadesDayShift: '',
       handoffNovedadesNightShift: '',
-    } as unknown as DailyRecord;
+    });
   });
 
   it('should return all management functions', () => {

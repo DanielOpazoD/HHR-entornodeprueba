@@ -1,8 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { usePatientTransfers } from '@/hooks/usePatientTransfers';
-import { DataFactory } from '@/tests/factories/DataFactory';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 import type { PersistDailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 
 vi.mock('@/context/AuditContext', () => ({
@@ -11,10 +10,10 @@ vi.mock('@/context/AuditContext', () => ({
 
 describe('transfer inline persistence', () => {
   it('reports failed persistence to the inline editor', async () => {
-    const record = {
+    const record = asStoredDailyRecordShape({
       ...DataFactory.createMockDailyRecord('2026-11-04'),
       transfers: [{ id: 'transfer-1', patientName: 'Sintético', time: '' }],
-    } as unknown as DailyRecord;
+    });
     const save = vi
       .fn<PersistDailyRecord>()
       .mockRejectedValueOnce(new Error('Synthetic save failure'));

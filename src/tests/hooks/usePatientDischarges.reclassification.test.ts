@@ -8,6 +8,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useAuditContext } from '@/context/AuditContext';
 import { usePatientDischarges } from '@/hooks/usePatientDischarges';
 import type { PatientData } from '@/types/domain/patient';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 vi.mock('@/context/AuditContext', () => ({
   useAuditContext: vi.fn(),
@@ -38,8 +39,7 @@ describe('usePatientDischarges reclassification', () => {
     } as unknown as ReturnType<typeof useAuditContext>);
     mockSaveAndUpdate = vi.fn().mockResolvedValue(undefined) as PersistDailyRecord;
     mockPatchRecord = vi.fn().mockResolvedValue(undefined) as ApplyDailyRecordPatch;
-    mockRecord = {
-      date: '2024-12-28',
+    mockRecord = DataFactory.createMockDailyRecord('2024-12-28', {
       beds: {
         R1: {
           bedId: 'R1',
@@ -53,7 +53,7 @@ describe('usePatientDischarges reclassification', () => {
       discharges: [],
       transfers: [],
       cma: [],
-    } as unknown as DailyRecord;
+    });
   });
 
   it('converts a home discharge into CMA in one movement patch', async () => {
@@ -65,10 +65,10 @@ describe('usePatientDischarges reclassification', () => {
       biologicalSex: 'Femenino',
       clinicalEpisodeId: 'episode-discharge',
     } as PatientData;
-    const recordWithDischarge = {
+    const recordWithDischarge = DataFactory.createMockDailyRecord('2026-01-01', {
       ...mockRecord,
       discharges: [
-        {
+        DataFactory.createMockDischarge({
           id: 'discharge-1',
           bedId: 'R1',
           bedName: 'R1',
@@ -82,9 +82,9 @@ describe('usePatientDischarges reclassification', () => {
           dischargeType: 'Domicilio (Habitual)',
           clinicalEpisodeId: 'episode-discharge',
           originalData,
-        },
+        }),
       ],
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() =>
       usePatientDischarges(recordWithDischarge, mockSaveAndUpdate, undefined, mockPatchRecord)
@@ -149,10 +149,10 @@ describe('usePatientDischarges reclassification', () => {
           resolvePersistence = resolve;
         })
     ) as ApplyDailyRecordPatch;
-    const recordWithDischarge = {
+    const recordWithDischarge = DataFactory.createMockDailyRecord('2026-01-01', {
       ...mockRecord,
       discharges: [
-        {
+        DataFactory.createMockDischarge({
           id: 'discharge-concurrent',
           bedId: 'R1',
           bedName: 'R1',
@@ -164,9 +164,9 @@ describe('usePatientDischarges reclassification', () => {
           status: 'Vivo',
           dischargeType: 'Domicilio (Habitual)',
           originalData: mockRecord.beds.R1,
-        },
+        }),
       ],
-    } as unknown as DailyRecord;
+    });
     const { result } = renderHook(() =>
       usePatientDischarges(recordWithDischarge, mockSaveAndUpdate, undefined, mockPatchRecord)
     );
@@ -193,10 +193,10 @@ describe('usePatientDischarges reclassification', () => {
   });
 
   it('converts a home discharge into transfer in one movement patch', () => {
-    const recordWithDischarge = {
+    const recordWithDischarge = DataFactory.createMockDailyRecord('2026-01-01', {
       ...mockRecord,
       discharges: [
-        {
+        DataFactory.createMockDischarge({
           id: 'discharge-transfer',
           bedId: 'R1',
           bedName: 'R1',
@@ -208,10 +208,10 @@ describe('usePatientDischarges reclassification', () => {
           status: 'Vivo',
           dischargeType: 'Domicilio (Habitual)',
           clinicalEpisodeId: 'episode-transfer',
-        },
+        }),
       ],
       transfers: [],
-    } as unknown as DailyRecord;
+    });
     const { result } = renderHook(() =>
       usePatientDischarges(recordWithDischarge, mockSaveAndUpdate, undefined, mockPatchRecord)
     );

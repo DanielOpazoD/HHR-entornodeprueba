@@ -2,7 +2,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { addCudyrTable } from '@/services/pdf/handoffPdfCudyrSection';
 import { HANDOFF_PDF_PAGE_LAYOUT } from '@/services/pdf/handoffPdfPageLayout';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const createDocMock = () =>
   ({
@@ -21,15 +22,14 @@ describe('handoffPdfCudyrSection', () => {
   it('renders canonical night-shift nurses in the CUDYR header', () => {
     const doc = createDocMock();
     const autoTable = vi.fn();
-    const record = {
-      date: '2026-03-07',
+    const record = DataFactory.createMockDailyRecord('2026-03-07', {
       beds: {},
       discharges: [],
       transfers: [],
       cma: [],
       lastUpdated: '2026-03-07T10:00:00.000Z',
       nursesNightShift: ['Carla', 'Rosa'],
-    } as unknown as DailyRecord;
+    });
 
     addCudyrTable(doc, record, 10, autoTable as never);
 
@@ -49,15 +49,14 @@ describe('handoffPdfCudyrSection', () => {
   it('renders canonical vacancy labels when no night-shift nurses are assigned', () => {
     const doc = createDocMock();
     const autoTable = vi.fn();
-    const record = {
-      date: '2026-03-07',
+    const record = DataFactory.createMockDailyRecord('2026-03-07', {
       beds: {},
       discharges: [],
       transfers: [],
       cma: [],
       lastUpdated: '2026-03-07T10:00:00.000Z',
       nursesNightShift: ['', ''],
-    } as unknown as DailyRecord;
+    });
 
     addCudyrTable(doc, record, 10, autoTable as never);
 
@@ -71,15 +70,14 @@ describe('handoffPdfCudyrSection', () => {
   it('normalizes legacy vacancy markers in the CUDYR header', () => {
     const doc = createDocMock();
     const autoTable = vi.fn();
-    const record = {
-      date: '2026-03-07',
+    const record = DataFactory.createMockDailyRecord('2026-03-07', {
       beds: {},
       discharges: [],
       transfers: [],
       cma: [],
       lastUpdated: '2026-03-07T10:00:00.000Z',
       nursesNightShift: [' Carla ', '--'],
-    } as unknown as DailyRecord;
+    });
 
     addCudyrTable(doc, record, 10, autoTable as never);
 
@@ -93,15 +91,14 @@ describe('handoffPdfCudyrSection', () => {
   it('renders the fixed night-shift application timestamp in the PDF header', () => {
     const doc = createDocMock();
     const autoTable = vi.fn();
-    const record = {
-      date: '2026-03-07',
+    const record = DataFactory.createMockDailyRecord('2026-03-07', {
       beds: {},
       discharges: [],
       transfers: [],
       cma: [],
       lastUpdated: '2026-03-07T10:00:00.000Z',
       cudyrUpdatedAt: '2026-03-07T21:45:00',
-    } as unknown as DailyRecord;
+    });
 
     addCudyrTable(doc, record, 10, autoTable as never);
 
@@ -120,15 +117,14 @@ describe('handoffPdfCudyrSection', () => {
   it('keeps the same fixed application timestamp even if only cudyrLockedAt exists', () => {
     const doc = createDocMock();
     const autoTable = vi.fn();
-    const record = {
-      date: '2026-03-07',
+    const record = DataFactory.createMockDailyRecord('2026-03-07', {
       beds: {},
       discharges: [],
       transfers: [],
       cma: [],
       lastUpdated: '2026-03-07T10:00:00.000Z',
       cudyrLockedAt: '2026-03-07T18:20:00',
-    } as unknown as DailyRecord;
+    });
 
     addCudyrTable(doc, record, 10, autoTable as never);
 
@@ -142,10 +138,10 @@ describe('handoffPdfCudyrSection', () => {
   it('renders the summary headline with categorizable beds, categorized beds and index', () => {
     const doc = createDocMock();
     const autoTable = vi.fn();
-    const record = {
-      date: '2026-04-12',
+    const record = DataFactory.createMockDailyRecord('2026-04-12', {
       beds: {
         R1: {
+          ...createEmptyPatient('R1'),
           patientName: 'Paciente categorizado',
           rut: '1-9',
           admissionDate: '2026-04-11',
@@ -168,6 +164,7 @@ describe('handoffPdfCudyrSection', () => {
           },
         },
         R2: {
+          ...createEmptyPatient('R2'),
           patientName: 'Paciente sin categorizar',
           rut: '2-7',
           admissionDate: '2026-04-11',
@@ -179,7 +176,7 @@ describe('handoffPdfCudyrSection', () => {
       transfers: [],
       cma: [],
       lastUpdated: '2026-04-12T10:00:00.000Z',
-    } as unknown as DailyRecord;
+    });
 
     addCudyrTable(doc, record, 10, autoTable as never);
 
@@ -195,10 +192,10 @@ describe('handoffPdfCudyrSection', () => {
   it('does not categorize blocked night-shift admissions and still keeps them visible in the table', () => {
     const doc = createDocMock();
     const autoTable = vi.fn();
-    const record = {
-      date: '2026-04-12',
+    const record = DataFactory.createMockDailyRecord('2026-04-12', {
       beds: {
         R1: {
+          ...createEmptyPatient('R1'),
           patientName: 'Paciente bloqueado',
           rut: '1-9',
           admissionDate: '2026-04-12',
@@ -225,7 +222,7 @@ describe('handoffPdfCudyrSection', () => {
       transfers: [],
       cma: [],
       lastUpdated: '2026-04-12T10:00:00.000Z',
-    } as unknown as DailyRecord;
+    });
 
     addCudyrTable(doc, record, 10, autoTable as never);
 
@@ -243,7 +240,7 @@ describe('handoffPdfCudyrSection', () => {
   it('includes eligible clinical crib rows in the PDF table', () => {
     const doc = createDocMock();
     const autoTable = vi.fn();
-    const record = {
+    const record = asStoredDailyRecordShape({
       date: '2026-04-12',
       beds: {
         R1: {
@@ -295,7 +292,7 @@ describe('handoffPdfCudyrSection', () => {
       transfers: [],
       cma: [],
       lastUpdated: '2026-04-12T10:00:00.000Z',
-    } as unknown as DailyRecord;
+    });
 
     addCudyrTable(doc, record, 10, autoTable as never);
 
