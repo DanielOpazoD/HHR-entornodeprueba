@@ -116,28 +116,42 @@ describe('medicalHandoffSpreadsheetController', () => {
     expect(rows[1].stableKey).toMatch(/^episode-h1:[a-f0-9]{96}$/);
   });
 
-  it('tells apart legacy newborns of different mothers and keeps every other key as main', () => {
+  it('separates legacy newborns of different mothers only where main repeats the key', () => {
     const mainKey = (id: string) => `episode-h1:${createHash('sha384').update(id).digest('hex')}`;
-    const cribKey = (motherEpisodeId: string | undefined, cribEpisodeId: string, bedId = 'R1') =>
-      buildMedicalHandoffSpreadsheetRows(
-        createRecord({
-          [bedId]: createPatient({
-            bedId,
-            clinicalEpisodeId: motherEpisodeId,
-            clinicalCrib: createPatient({ patientName: 'RN', clinicalEpisodeId: cribEpisodeId }),
-          }),
-        }),
-        beds,
-        professionalsCatalog
-      )[1].stableKey;
     const legacy = 'legacy_ep_l0nbd';
+    const motherWithCrib = (bedId: string, motherEpisodeId?: string, cribEpisodeId = legacy) =>
+      createPatient({
+        bedId,
+        clinicalEpisodeId: motherEpisodeId,
+        clinicalCrib: createPatient({ patientName: 'RN', clinicalEpisodeId: cribEpisodeId }),
+      });
+    const keys = (recordBeds: Record<string, HandoffPatientContract>) =>
+      buildMedicalHandoffSpreadsheetRows(createRecord(recordBeds), beds, professionalsCatalog).map(
+        row => row.stableKey
+      );
 
-    expect(cribKey('ep_mother_1', legacy)).not.toBe(cribKey('ep_mother_2', legacy));
-    expect(cribKey('ep_mother_1', legacy, 'R3')).toBe(cribKey('ep_mother_1', legacy));
-    expect(cribKey('ep_mother_1', legacy)).toMatch(/^episode-h1:[a-f0-9]{96}$/);
-    expect(cribKey('ep_mother_1', 'ep_rn_1')).toBe(mainKey('ep_rn_1'));
-    expect(cribKey('legacy_ep_mother', legacy)).toBe(mainKey(legacy));
-    expect(cribKey(undefined, legacy)).toBe(mainKey(legacy));
+    expect(keys({ R1: motherWithCrib('R1', 'ep_mother_1') })[1]).toBe(mainKey(legacy));
+    const together = keys({
+      R1: motherWithCrib('R1', 'ep_mother_1'),
+      R2: motherWithCrib('R2', 'ep_mother_2'),
+    });
+    expect(together[0]).toBe(mainKey('ep_mother_1'));
+    expect(new Set([together[1], together[3], mainKey(legacy)]).size).toBe(3);
+    expect(together[1]).toMatch(/^episode-h1:[a-f0-9]{96}$/);
+    const afterMove = keys({
+      R2: motherWithCrib('R2', 'ep_mother_2'),
+      R3: motherWithCrib('R3', 'ep_mother_1'),
+    });
+    expect([afterMove[3], afterMove[1]]).toEqual([together[1], together[3]]);
+    expect(
+      keys({
+        R1: motherWithCrib('R1', 'ep_mother_1', 'ep_rn_1'),
+        R2: motherWithCrib('R2', 'ep_mother_2', 'ep_rn_2'),
+      })
+    ).toEqual(['ep_mother_1', 'ep_rn_1', 'ep_mother_2', 'ep_rn_2'].map(mainKey));
+    expect(
+      keys({ R1: motherWithCrib('R1', 'legacy_ep_m'), R2: motherWithCrib('R2', undefined) })
+    ).toEqual([mainKey('legacy_ep_m'), mainKey(legacy), 'bed:r2:paciente-uno', mainKey(legacy)]);
   });
 
   it('builds a deterministic fallback key without exposing the RUT', () => {

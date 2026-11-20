@@ -75,7 +75,9 @@ export const loadPatientUpcHistory = async (patient: Patient, throughDate: strin
   if (
     !/^\d{4}-\d{2}-\d{2}$/.test(start || '') ||
     start > throughDate ||
-    (!resolveAccreditedClinicalEpisodeId(patient) && !normalizedRut(patient.rut))
+    // Without an accredited episode, days join only by document and admission date.
+    (!resolveAccreditedClinicalEpisodeId(patient) &&
+      !(normalizedRut(patient.rut) && patient.admissionDate))
   ) {
     return {
       entries: checklistUpcHistory(patient.upcChecklist),

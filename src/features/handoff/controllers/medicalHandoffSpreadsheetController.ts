@@ -53,40 +53,47 @@ const normalizeKeyPart = (value: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-const buildStableKey = (
-  patient: HandoffPatientContract,
-  fallbackBedId: string,
-  mother?: HandoffPatientContract
-): string => {
+const buildStableKey = (patient: HandoffPatientContract, fallbackBedId: string): string => {
   const episodeId = normalizeText(patient.clinicalEpisodeId);
   if (episodeId) {
-    // A `legacy_ep_` crib id is a hash of name and admission: two newborns «RN» share it. The
-    // accredited admission of the mother tells them apart (ID-03, ID-05).
-    const motherEpisodeId = episodeId.startsWith(LEGACY_EPISODE_ID_PREFIX)
-      ? resolveAccreditedClinicalEpisodeId({
-          clinicalEpisodeId: normalizeText(mother?.clinicalEpisodeId),
-        })
-      : undefined;
-    return `episode-h1:${hashStableKeyPart(motherEpisodeId ? `${motherEpisodeId}\n${episodeId}` : episodeId)}`;
+    return `episode-h1:${hashStableKeyPart(episodeId)}`;
   }
 
   return `bed:${normalizeKeyPart(fallbackBedId)}:${normalizeKeyPart(patient.patientName)}`;
 };
 
+/**
+ * A `legacy_ep_` crib id is a hash of name and admission: two newborns «RN» share it. Their
+ * mothers' accredited admissions tell them apart (ID-03). Used only when the same export repeats
+ * the key, so a single newborn keeps the row it had, also after «Solo Madre» moves it to the bed.
+ */
+const motherSeparatedCribKey = (
+  crib: HandoffPatientContract,
+  mother: HandoffPatientContract
+): string | undefined => {
+  const episodeId = normalizeText(crib.clinicalEpisodeId);
+  const motherEpisodeId = episodeId.startsWith(LEGACY_EPISODE_ID_PREFIX)
+    ? resolveAccreditedClinicalEpisodeId({
+        clinicalEpisodeId: normalizeText(mother.clinicalEpisodeId),
+      })
+    : undefined;
+  return motherEpisodeId
+    ? `episode-h1:${hashStableKeyPart(`${motherEpisodeId}\n${episodeId}`)}`
+    : undefined;
+};
+
 const buildRow = ({
   patient,
-  mother,
   bedLabel,
   fallbackBedId,
   professionalsCatalog,
 }: {
   patient: HandoffPatientContract;
-  mother?: HandoffPatientContract;
   bedLabel: string;
   fallbackBedId: string;
   professionalsCatalog: ProfessionalCatalogItem[];
 }): MedicalHandoffSpreadsheetRow => ({
-  stableKey: buildStableKey(patient, fallbackBedId, mother),
+  stableKey: buildStableKey(patient, fallbackBedId),
   bed: bedLabel,
   patientName: formatPatientNameWithAge(patient.patientName, patient.age),
   age: normalizeText(patient.age),
@@ -106,6 +113,7 @@ export const buildMedicalHandoffSpreadsheetRows = (
   professionalsCatalog: ProfessionalCatalogItem[]
 ): MedicalHandoffSpreadsheetRow[] => {
   const rows: MedicalHandoffSpreadsheetRow[] = [];
+  const separatedKeys = new Map<MedicalHandoffSpreadsheetRow, string>();
 
   visibleBeds.forEach(bed => {
     const patient = record.beds[bed.id];
@@ -126,17 +134,24 @@ export const buildMedicalHandoffSpreadsheetRows = (
     // legacy presentation flag and can remain false on migrated active cribs.
     const crib = patient.clinicalCrib;
     if (crib && normalizeText(crib.patientName)) {
-      rows.push(
-        buildRow({
-          patient: crib,
-          mother: patient,
-          bedLabel: `Cuna RN (${bed.name || bed.id})`,
-          fallbackBedId: `${bed.id}-cuna-rn`,
-          professionalsCatalog,
-        })
-      );
+      const row = buildRow({
+        patient: crib,
+        bedLabel: `Cuna RN (${bed.name || bed.id})`,
+        fallbackBedId: `${bed.id}-cuna-rn`,
+        professionalsCatalog,
+      });
+      rows.push(row);
+      const separatedKey = motherSeparatedCribKey(crib, patient);
+      if (separatedKey) separatedKeys.set(row, separatedKey);
     }
   });
 
-  return rows;
+  const keyCount = new Map<string, number>();
+  rows.forEach(row => keyCount.set(row.stableKey, (keyCount.get(row.stableKey) ?? 0) + 1));
+  return rows.map(row => {
+    const separatedKey = separatedKeys.get(row);
+    return separatedKey && (keyCount.get(row.stableKey) ?? 0) > 1
+      ? { ...row, stableKey: separatedKey }
+      : row;
+  });
 };

@@ -105,6 +105,21 @@ describe('patient UPC history reader', () => {
     expect(isSameUpcHistoryEpisode(legacy, { ...legacy, admissionDate: '2026-08-01' })).toBe(false);
     expect(isSameUpcHistoryEpisode({ ...legacy, rut: '' }, { ...legacy, rut: '' })).toBe(false);
   });
+  it('shows the selected evaluation of a legacy record with a document but no admission date', async () => {
+    const selected = {
+      ...patient,
+      clinicalEpisodeId: 'legacy_ep_x',
+      admissionDate: '',
+      firstSeenDate: '2026-09-04',
+      upcChecklist: entry('confirmed'),
+    };
+    const other = record('other-admission');
+    other.beds.R2 = { ...selected, bedId: 'R2', upcChecklist: entry('other-admission') };
+    vi.mocked(getRecordsRangeFromFirestore).mockResolvedValue([other]);
+    const result = await loadPatientUpcHistory(selected, '2026-09-04');
+    expect(result.entries.map(e => e.evaluationId)).toEqual(['confirmed']);
+    expect(result.warning).toMatch(/Solo se muestra el registro actual/);
+  });
   it('shows only the selected record of a newborn with nothing to join its days', async () => {
     const result = await loadPatientUpcHistory(
       { ...patient, rut: '', clinicalEpisodeId: 'legacy_ep_l0nbd' },

@@ -5,6 +5,8 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
 import { buildMedicalHandoffSpreadsheetRows } from '@/features/handoff/controllers/medicalHandoffSpreadsheetController';
+import { resolveAddDischargeMovement } from '@/features/census/controllers/patientMovementCreationController';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 interface AppsScriptRowsContext {
   applyHhrColumnWidths_: (sheet: unknown) => void;
@@ -461,54 +463,115 @@ describe('medical handoff Apps Script row reconciliation', () => {
     expect(result[0][9]).toBe(hashedKey);
   });
 
-  it('keeps each legacy newborn note under its own row and an old key with its own note', () => {
-    const { mergeHhrRows_ } = loadAppsScriptRowsContext();
+  describe('legacy newborns (ID-03)', () => {
     const legacy = 'legacy_ep_l0nbd';
-    const cribRow = (bedId: string, motherEpisodeId: string) =>
+    const crib = { bedId: 'R1', patientName: 'RN Sintético', age: '1d', clinicalEpisodeId: legacy };
+    const mother = (bedId: string, clinicalEpisodeId: string, clinicalCrib: object = crib) => ({
+      bedId,
+      patientName: `Madre ${bedId}`,
+      age: '30a',
+      rut: '12.345.678-5',
+      admissionDate: '2026-11-04',
+      clinicalEpisodeId,
+      clinicalCrib,
+    });
+    const record = (beds: Record<string, object>) =>
+      ({
+        date: '2026-11-05',
+        beds,
+        discharges: [],
+        transfers: [],
+        cma: [],
+      }) as unknown as DailyRecord;
+    const exportRows = (census: DailyRecord) =>
       buildMedicalHandoffSpreadsheetRows(
-        {
-          date: '2026-11-05',
-          beds: {
-            [bedId]: {
-              bedId,
-              patientName: `Madre ${bedId}`,
-              age: '30a',
-              admissionDate: '2026-11-04',
-              clinicalEpisodeId: motherEpisodeId,
-              clinicalCrib: { bedId, patientName: 'RN', age: '1d', clinicalEpisodeId: legacy },
-            },
-          },
-        } as never,
-        [{ id: bedId, name: bedId }] as never,
+        census,
+        Object.keys(census.beds).map(id => ({ id, name: id })) as never,
         []
-      )[1] as unknown as Record<string, string>;
-    const first = cribRow('R1', 'ep_mother_1');
-    const second = cribRow('R2', 'ep_mother_2');
+      ) as unknown as Record<string, string>[];
+    const sheetInMemory = (context: AppsScriptRowsContext) => {
+      const cells: unknown[][] = [currentHeaders.slice()];
+      const getRange = (row: number, column: number, rowCount: number, columnCount: number) => {
+        const write = (values: unknown[][]) =>
+          values.forEach((line, i) => {
+            const target = (cells[row - 1 + i] ??= Array(10).fill(''));
+            line.forEach((value, j) => (target[column - 1 + j] = value));
+          });
+        return {
+          getValues: () =>
+            cells
+              .slice(row - 1, row - 1 + rowCount)
+              .map(line => line.slice(column - 1, column - 1 + columnCount)),
+          setValues: write,
+          setValue: (value: unknown) => write([[value]]),
+          clearContent: () =>
+            write(Array.from({ length: rowCount }, () => Array(columnCount).fill(''))),
+        };
+      };
+      const sheet = { getLastRow: () => cells.length, getLastColumn: () => 10, getRange };
+      return {
+        rows: () => cells.slice(1),
+        update: (incoming: Record<string, string>[]) => context.upsertHhrRows_(sheet, incoming),
+      };
+    };
+    const texts = ['Entrega RN', 'Observación RN', 'Indicación RN'];
 
-    const sheet = mergeHhrRows_([], [first]);
-    sheet[0][6] = 'Nota del primer RN';
-    const afterSecond = mergeHhrRows_(sheet, [second]);
-    expect(afterSecond.map(row => [row[0], row[6]])).toEqual([
-      ['Cuna RN (R1)', 'Nota del primer RN'],
-      ['Cuna RN (R2)', ''],
-    ]);
-    expect(mergeHhrRows_([], [first, second])).toHaveLength(2);
+    it.each([legacy, 'ep_rn_sintetico'])(
+      'keeps one row with the three texts when «Solo Madre» leaves the newborn in the bed (%s)',
+      cribEpisodeId => {
+        const before = record({
+          R1: mother('R1', 'ep_madre_a', { ...crib, clinicalEpisodeId: cribEpisodeId }),
+        });
+        const sheet = sheetInMemory(loadAppsScriptRowsContext());
+        sheet.update(exportRows(before));
+        sheet.rows()[1].splice(6, 3, ...texts);
+        const movement = resolveAddDischargeMovement({
+          record: before,
+          bedId: 'R1',
+          bedsCatalog: [{ id: 'R1', name: 'R1' }] as never,
+          payload: {
+            dischargeTarget: 'mother',
+            status: 'Vivo',
+            type: 'Domicilio (Habitual)',
+            time: '12:00',
+          } as never,
+          createEmptyPatient: bedId => ({ bedId }) as never,
+          createId: () => 'movimiento-sintetico',
+        });
+        if (!movement.ok) throw new Error('discharge rejected');
+        const after = exportRows(movement.value.updatedRecord);
+        expect(after).toHaveLength(1);
+        sheet.update(after);
+        sheet.update(after);
 
-    const oldRow = [
-      'Cuna RN (R1)',
-      'RN (1d)',
-      '',
-      '',
-      '',
-      '',
-      'Nota antigua',
-      '',
-      '',
-      hashEpisodeStableKey(legacy),
-    ];
-    expect(mergeHhrRows_([oldRow], [first]).map(row => [row[0], row[6], row[9]])).toEqual([
-      ['Cuna RN (R1)', 'Nota antigua', hashEpisodeStableKey(legacy)],
-      ['Cuna RN (R1)', '', first.stableKey],
-    ]);
+        const newbornRows = sheet.rows().filter(row => row[1] === 'RN Sintético (1d)');
+        expect(newbornRows.map(row => [row[0], ...row.slice(6, 9)])).toEqual([['R1', ...texts]]);
+      }
+    );
+
+    it('keeps each note under its newborn across re-exports, moves and an old row', () => {
+      const sheet = sheetInMemory(loadAppsScriptRowsContext());
+      sheet.update([{ ...exportRows(record({ R1: mother('R1', 'ep_madre_a') }))[1] }]);
+      sheet.rows()[0][6] = 'Histórica';
+      const together = record({ R1: mother('R1', 'ep_madre_a'), R2: mother('R2', 'ep_madre_b') });
+      const [, cribA, , cribB] = exportRows(together);
+      sheet.update(exportRows(together));
+      const rowOf = (key: string) => sheet.rows().find(row => row[9] === key)!;
+      rowOf(cribA.stableKey)[6] = 'Nota A';
+      rowOf(cribB.stableKey)[6] = 'Nota B';
+      const moved = record({ R2: mother('R2', 'ep_madre_b'), R3: mother('R3', 'ep_madre_a') });
+      for (let i = 0; i < 3; i += 1) sheet.update(exportRows(moved));
+
+      expect(
+        sheet
+          .rows()
+          .filter(row => String(row[0]).startsWith('Cuna'))
+          .map(row => [row[0], row[6]])
+      ).toEqual([
+        ['Cuna RN (R1)', 'Histórica'],
+        ['Cuna RN (R3)', 'Nota A'],
+        ['Cuna RN (R2)', 'Nota B'],
+      ]);
+    });
   });
 });
