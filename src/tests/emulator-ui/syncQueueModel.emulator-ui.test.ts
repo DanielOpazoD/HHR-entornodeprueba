@@ -38,8 +38,10 @@ import {
   rebaseIntentionalBedClear,
 } from '@/hooks/controllers/intentionalBedClearController';
 import { createDailyRecordWriteAuthorityFunctions } from '@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import { PatientStatus } from '@/types/domain/patientClassification';
 import type { PatientData } from '@/types/domain/patient';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
@@ -48,7 +50,8 @@ import type { SyncTask } from '@/services/storage/syncQueueTypes';
  * sequences of what people do (edit a day field or a bed's diagnosis with or without network, the
  * network coming back, the queue resending, another computer writing or changing a bed's patient,
  * this computer admitting one or clearing its bed («Limpiar»), a person signing in, out or over another, a page
- * reload) and runs them on the shipped code: the real repository, outbox, queue, transport,
+ * reload, a committed diagnosis whose reply is lost and a different field written just afterwards)
+ * and runs them on the shipped code: the real repository, outbox, queue, transport,
  * session cleanup and the shipped authority handler, against the Firestore emulator. Some steps
  * run two actions at once, interleaved by `fc.scheduler()` at every send and answer: an edit
  * while the queue resends, and two tabs of the same person on the same day.
@@ -152,6 +155,8 @@ const occupantOf = (record: DailyRecord | undefined): string => {
 // ── The reference model (what a person may expect, whatever the code does) ──────────────────────
 /** An edit this computer accepted: its unique text, who wrote it and the text it replaced. */
 interface Edit {
+  lostMutationId?: string;
+  reportedState?: DailyRecordWriteResult['state'];
   value: string;
   path: Path;
   owner: string;
@@ -169,6 +174,8 @@ interface Model {
   everOnServer: Set<unknown>;
   count: number;
   admissions: number;
+  lostAnswerStep?: number;
+  otherStatus?: PatientStatus;
   log: string[];
 }
 const newModel = (): Model => ({
@@ -213,6 +220,13 @@ const heldBy = (tasks: SyncTask[], edit: Edit) =>
   );
 /** Successful bed patches whose committed revision was not the one they were written on (#1603). */
 const bedBaseViolations: string[] = [];
+// Repeated delivery may return an idempotent receipt. Only a fresh commit counts as a write.
+const committedMutations: string[] = [];
+const observeCommit = (receipt: authority.DailyRecordAuthorityCallableResponse) => {
+  if (receipt.authorityStatus === 'ok' && receipt.mutationId)
+    committedMutations.push(receipt.mutationId);
+  return receipt;
+};
 
 /** Every rule, after every step. Each failure names the rule and the sequence so far. */
 const checkRules = async (m: Model, step: string) => {
@@ -226,6 +240,13 @@ const checkRules = async (m: Model, step: string) => {
   const occupant = occupantOf(server);
   // Camas (#1603): a bed patch commits only on the revision it was written on.
   if (bedBaseViolations.length > 0) fail('Versión base de cama', bedBaseViolations.join('; '));
+  for (const edit of m.edits) {
+    if (
+      edit.lostMutationId &&
+      committedMutations.filter(id => id === edit.lostMutationId).length !== 1
+    )
+      fail('SAVE-01', `la escritura de «${edit.value}» no se aplicó exactamente una vez`);
+  }
   for (const path of PATHS) {
     const before = m.server[path];
     const now = getValueAtPath(server, path);
@@ -254,6 +275,9 @@ const checkRules = async (m: Model, step: string) => {
     m.server[path] = getValueAtPath(server, path);
     m.everOnServer.add(m.server[path]);
   }
+  if (m.occupant !== occupant) m.otherStatus = undefined;
+  if (m.otherStatus !== undefined && server.beds[BED].status !== m.otherStatus)
+    fail('SAVE-02', 'el reenvío perdió el estado escrito por el otro equipo');
   m.occupant = occupant;
   // SAVE-03 and «nunca desaparece»: confirmed, replaced by its author, or still held for its author.
   const unsettled = m.edits.filter(edit => !settled(m, edit));
@@ -443,7 +467,7 @@ const editIn = async (m: Model, path: Path, tab = tab1): Promise<string> => {
     generation: authoringSession.generation,
     occupant: path === BED_PATH ? occupant : '',
   };
-  m.edits.push(edit);
+  m.edits.push({ ...edit, reportedState: saved?.state });
   // SAVE-01: «guardado» only when the server holds it, or a later edit of this step replaced it.
   const replacedNow = editOf(m, stored);
   if (
@@ -594,20 +618,72 @@ const admitOnB = command(
     return `ingresar a ${fields.patientName}${m.online ? '' : ' sin red'}`;
   }
 );
+const setNetwork = async (m: Model, online: boolean) => {
+  m.online = online;
+  // As the app does when the browser reports it (buildAuthRemoteSyncState).
+  for (const tab of [tab1, tab2])
+    tab.setFirestoreSyncState(
+      online ? { mode: 'enabled', reason: 'ready' } : { mode: 'local_only', reason: 'offline' }
+    );
+  await (online ? deviceB.db.enableNetwork() : deviceB.db.disableNetwork());
+};
 const network = (online: boolean) =>
   command(
     online ? 'vuelve la red' : 'se corta la red',
     m => m.online !== online,
-    async m => {
-      m.online = online;
-      // As the app does when the browser reports it (buildAuthRemoteSyncState).
-      for (const tab of [tab1, tab2])
-        tab.setFirestoreSyncState(
-          online ? { mode: 'enabled', reason: 'ready' } : { mode: 'local_only', reason: 'offline' }
-        );
-      await (online ? deviceB.db.enableNetwork() : deviceB.db.disableNetwork());
-    }
+    m => setNetwork(m, online)
   );
+// Drop the reply at the remote-write boundary, after the real handler has committed. B also
+// loses connectivity, so its repository must keep the edit until receipt or replay is possible.
+const loseAnswer = command(
+  'se pierde la respuesta del diagnóstico',
+  m => m.online && m.person !== null && m.occupant !== '',
+  async m => {
+    const send = vi.mocked(writes.updateRecordPartial);
+    const deliver = send.getMockImplementation()!;
+    let lost: { mutationId?: string } | undefined;
+    await send.withImplementation(
+      async (...args) => {
+        const result = await deliver(...args);
+        if (!(BED_PATH in args[1])) return result;
+        lost = { mutationId: args[3]?.syncContract?.mutationId };
+        throw Object.assign(new Error('Synthetic lost response'), { code: 'unavailable' });
+      },
+      async () => {
+        await editIn(m, BED_PATH);
+      }
+    );
+    if (!lost) return 'diagnóstico sin respuesta perdida (no se aplicó)';
+    const edit = m.edits.at(-1)!;
+    expect(lost.mutationId).toEqual(expect.any(String));
+    edit.lostMutationId = lost.mutationId;
+    expect(edit).toMatchObject({ path: BED_PATH, reportedState: 'local' });
+    expect((await readServer()).beds[BED].pathology).toBe(edit.value);
+    const pending = heldBy(await hospitalDB.syncQueue.toArray(), edit).filter(task =>
+      task.syncContract?.changedPaths?.includes(BED_PATH)
+    );
+    expect(pending.map(task => task.status)).toEqual(['PENDING']);
+    await setNetwork(m, false);
+    m.lostAnswerStep = m.log.length + 1;
+    return `se pierde la respuesta al guardar el diagnóstico ${edit.value}`;
+  }
+);
+
+const otherFieldAfterLoss = command(
+  'otro equipo cambia el estado tras la respuesta perdida',
+  m => m.lostAnswerStep === m.log.length,
+  async m => {
+    const before = await readServer();
+    const status =
+      before.beds[BED].status === PatientStatus.GRAVE ? PatientStatus.ESTABLE : PatientStatus.GRAVE;
+    await onA({ [`beds.${BED}.status`]: status });
+    m.otherStatus = status;
+    expect((await readServer()).beds[BED]).toMatchObject({
+      status,
+      pathology: m.server[BED_PATH],
+    });
+  }
+);
 const replay = command(
   'reenvío de la cola',
   m => m.online && m.person !== null,
@@ -699,6 +775,8 @@ const otherTabReplays = pathArb.chain(path =>
 const commands = [
   ...PATHS.flatMap(path => Array(2).fill(fc.constant(editOnB(path)))),
   ...PATHS.map(path => fc.constant(writeOnA(path))),
+  fc.constant(loseAnswer),
+  fc.constant(otherFieldAfterLoss),
   fc.constant(replaceOnA),
   fc.constant(readmitOnServer),
   fc.constant(clearBedOnB),
@@ -756,6 +834,7 @@ const resetWorld = async () => {
   await hospitalDB.syncQueue.clear();
   localStorage.clear();
   bedBaseViolations.length = 0;
+  committedMutations.length = 0;
   await admin.doc('hospitals/hanga_roa/settings/rayenImportPolicy').set({
     schemaVersion: 2,
     mode: 'preview',
@@ -880,7 +959,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       vi.spyOn(callable, 'patchDailyRecordWithClinicalAuthorityCallable').mockImplementation(
         async payload => {
           try {
-            return await patchAuthority(payload);
+            return observeCommit(await patchAuthority(payload));
           } catch (error) {
             throw callable.normalizeDailyRecordAuthorityError(error);
           }
@@ -889,7 +968,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       vi.spyOn(callable, 'saveDailyRecordWithClinicalAuthorityCallable').mockImplementation(
         async payload => {
           try {
-            return await saveAuthority(payload);
+            return observeCommit(await saveAuthority(payload));
           } catch (error) {
             throw callable.normalizeDailyRecordAuthorityError(error);
           }
@@ -1161,6 +1240,65 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     expect((await readServer()).beds[BED]).toMatchObject({ rut: '11111111-1', pathology: '' });
     expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
   }, 60_000);
+
+  it.each([
+    ['only the lost answer', [loseAnswer]],
+    ['a different field written immediately afterwards', [loseAnswer, otherFieldAfterLoss]],
+  ] as const)('saves the offline correction once after %s', async (_case, steps) => {
+    const m = await resetWorld();
+    await fc.asyncModelRun(() => ({ model: m, real: {} }), steps);
+    expect(m.online).toBe(false);
+    const before = await readServer();
+    expect(before.beds[BED].status).toBe(
+      steps.length === 2 ? PatientStatus.GRAVE : PatientStatus.ESTABLE
+    );
+    await editOnB(BED_PATH).run(m, {});
+    await checkSettledAfterDrain(m);
+    const stored = await readServer();
+    expect(stored.beds[BED]).toMatchObject({ pathology: 'B2', status: before.beds[BED].status });
+    expect(resolveRecordBaseRevision(stored)).toBe(steps.length + 2);
+    expect(await hospitalDB.syncQueue.count()).toBe(0);
+  });
+
+  it('drains the committed diagnosis without a duplicate write after a lost answer', async () => {
+    const m = await resetWorld();
+    await loseAnswer.run(m, {});
+    await otherFieldAfterLoss.run(m, {});
+    const committed = await readServer();
+    await checkSettledAfterDrain(m);
+    expect(await readServer()).toEqual(committed);
+    expect(await hospitalDB.syncQueue.count()).toBe(0);
+  });
+
+  describe('an unrelated offline edit after a conflict', () => {
+    let statusAfterEdit: SyncTask['status'];
+    beforeAll(async () => {
+      const m = await resetWorld();
+      const day = 'handoffNovedadesDayShift';
+      await writeOnA(day).run(m, {});
+      await editOnB(day).run(m, {});
+      const held = m.edits.at(-1)!;
+      const tasksForEdit = async () =>
+        heldBy(await hospitalDB.syncQueue.toArray(), held).filter(task =>
+          task.syncContract?.changedPaths?.includes(day)
+        );
+      expect((await tasksForEdit()).map(task => task.status)).toEqual(['CONFLICT']);
+      await network(false).run(m, {});
+      await editOnB('handoffNovedadesNightShift').run(m, {});
+      expect(m.edits.at(-1)).toMatchObject({
+        path: 'handoffNovedadesNightShift',
+        reportedState: 'local',
+      });
+      const tasks = await tasksForEdit();
+      expect(tasks).toHaveLength(1);
+      statusAfterEdit = tasks[0].status;
+      expect(['PENDING', 'CONFLICT']).toContain(statusAfterEdit);
+    });
+    // W20-Q1: compaction currently reactivates the day edit when the night edit is queued.
+    it.fails('keeps the conflicting edit held for review', () => {
+      expect(statusAfterEdit).toBe('CONFLICT');
+    });
+  });
 
   it('keeps every rule after every step of random sequences', async () => {
     await fc.assert(
