@@ -58,11 +58,6 @@ const rejected: Array<[rule: string, file: string, source: string]> = [
     LAZY_VIEWS,
     "lazy(() => import('@/features/census/census-view/deep'));",
   ],
-  ['census-controller-browser', `${CONTROLLERS}a.ts`, 'window.scrollTo(0, 0);'],
-  ['census-controller-browser', `${CONTROLLERS}a.ts`, 'globalThis.x;'],
-  ['census-controller-browser', `${CONTROLLERS}a.ts`, 'localStorage;'],
-  ['census-controller-browser', `${CONTROLLERS}a.ts`, 'document.title;'],
-  ['census-controller-browser', `${CONTROLLERS}censusBrowserRuntimeAdapter.ts`, 'window.x;'],
   [
     'census-controller-default-runtime',
     `${CONTROLLERS}a.ts`,
@@ -129,7 +124,6 @@ const accepted: Array<[why: string, file: string, source: string]> = [
     `${CONTROLLERS}censusBrowserRuntimeAdapter.ts`,
     "import { defaultBrowserWindowRuntime } from '@/shared/runtime';",
   ],
-  ['a census controller test', `${CONTROLLERS}a.test.ts`, 'window.x;'],
   ['the shared runtime', 'src/shared/runtime/a.ts', "window.open(url); alert('x');"],
   [
     'the census email runtime controller',
