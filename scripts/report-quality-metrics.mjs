@@ -8,6 +8,12 @@ import { buildReleaseConfidenceMatrixReport } from './releaseConfidenceMatrixSup
 import { buildEvidenceProvenance } from './evidenceProvenanceSupport.mjs';
 import { getGitReportState } from './gitReportState.mjs';
 import { analyzeFolderDependencies } from './check-folder-dependencies.mjs';
+import {
+  measureAgentRules,
+  measureExceptionBooks,
+  measureModuleGraph,
+  measureNpmScripts,
+} from './lib/evaluationMetrics.mjs';
 
 const ROOT = process.cwd();
 const SRC_ROOT = path.join(ROOT, 'src');
@@ -19,6 +25,11 @@ const MODULE_ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'module-size-allowlist.
 const HOOK_CONTROLLERS_DIR = path.join(SRC_ROOT, 'hooks', 'controllers');
 const FEATURE_CENSUS_CONTROLLERS_DIR = path.join(SRC_ROOT, 'features', 'census', 'controllers');
 const LOGGER_CONSOLE_SINK_PATH = 'src/services/utils/loggerService.ts';
+
+// Size the quality evaluations call large, below the 600-line cap of check:module-size.
+const LARGE_MODULE_LINES = 400;
+const UNKNOWN_CAST_PATTERN = /\bas unknown as\b/g;
+const UNKNOWN_CAST_TO_DAILY_RECORD_PATTERN = /\bas unknown as DailyRecord\b/g;
 
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
 const TEST_FILE_PATTERN = /\.(test|spec)\.(ts|tsx|js|jsx)$/;
@@ -121,11 +132,14 @@ const getSourceMetrics = () => {
 
   const byZone = new Map();
   let totalLines = 0;
+  let largeModuleCount = 0;
 
   for (const filePath of files) {
     const relative = toPosix(path.relative(ROOT, filePath));
     const source = fs.readFileSync(filePath, 'utf8');
-    totalLines += countLines(source);
+    const lineCount = countLines(source);
+    totalLines += lineCount;
+    if (lineCount > LARGE_MODULE_LINES) largeModuleCount += 1;
 
     const zone = relative.replace(/^src\//, '').split('/')[0] || 'unknown';
     byZone.set(zone, (byZone.get(zone) || 0) + 1);
@@ -138,6 +152,8 @@ const getSourceMetrics = () => {
   return {
     fileCount: files.length,
     lineCount: totalLines,
+    largeModuleLines: LARGE_MODULE_LINES,
+    largeModuleCount,
     zones,
   };
 };
@@ -266,9 +282,14 @@ const getTypeSafetySignals = () => {
   let explicitAnyCount = 0;
   let explicitAnySourceCount = 0;
   let explicitAnyTestCount = 0;
+  let unknownCastSourceCount = 0;
+  let unknownCastTestCount = 0;
+  let unknownCastToDailyRecordTestCount = 0;
 
   for (const filePath of files) {
-    const count = countExplicitAny(fs.readFileSync(filePath, 'utf8'), filePath);
+    const content = fs.readFileSync(filePath, 'utf8');
+    const count = countExplicitAny(content, filePath);
+    const unknownCasts = content.match(UNKNOWN_CAST_PATTERN)?.length ?? 0;
     explicitAnyCount += count;
 
     const relative = toPosix(path.relative(ROOT, filePath));
@@ -279,12 +300,23 @@ const getTypeSafetySignals = () => {
 
     if (isTest) {
       explicitAnyTestCount += count;
+      unknownCastTestCount += unknownCasts;
+      unknownCastToDailyRecordTestCount +=
+        content.match(UNKNOWN_CAST_TO_DAILY_RECORD_PATTERN)?.length ?? 0;
     } else {
       explicitAnySourceCount += count;
+      unknownCastSourceCount += unknownCasts;
     }
   }
 
-  return { explicitAnyCount, explicitAnySourceCount, explicitAnyTestCount };
+  return {
+    explicitAnyCount,
+    explicitAnySourceCount,
+    explicitAnyTestCount,
+    unknownCastSourceCount,
+    unknownCastTestCount,
+    unknownCastToDailyRecordTestCount,
+  };
 };
 
 const getConvergenceSignals = () => {
@@ -431,6 +463,12 @@ const metrics = {
   tests: getTestMetrics(),
   typeSafety: getTypeSafetySignals(),
   convergence: getConvergenceSignals(),
+  evaluation: {
+    ...measureModuleGraph(ROOT),
+    npmScripts: measureNpmScripts(ROOT),
+    agentRules: measureAgentRules(ROOT),
+    exceptionBooks: measureExceptionBooks(ROOT),
+  },
   releaseConfidence: {
     overall: releaseConfidenceMatrix.overall,
     areaCount: releaseConfidenceMatrix.counts.areaCount,
@@ -448,6 +486,32 @@ const metrics = {
 fs.mkdirSync(REPORTS_DIR, { recursive: true });
 fs.writeFileSync(JSON_OUTPUT, `${JSON.stringify(metrics, null, 2)}\n`, 'utf8');
 
+/** A figure the report could not read is "not measured", never zero. */
+const shown = value => (value === null || value === undefined ? 'not measured' : value);
+
+const evaluationMarkdown = ({
+  unusedProductionExports: unused,
+  singleImporterModules: single,
+  npmScripts,
+  agentRules,
+  exceptionBooks: books,
+}) => [
+  '## Evaluation Figures',
+  '',
+  `- Production exports no production module imports: ${unused.total} (${unused.values} values, ${unused.types} types; ${unused.valuesUsedInOwnFile} values used in their own file)`,
+  `- Production modules with a single production importer: ${single.count} (${single.upTo60Lines} of them up to 60 lines)`,
+  `- npm scripts: ${
+    npmScripts
+      ? `${npmScripts.total} (${Object.entries(npmScripts.byPrefix)
+          .map(([prefix, count]) => `${prefix} ${count}`)
+          .join(', ')})`
+      : shown(null)
+  }`,
+  `- AGENTS.md rules: ${shown(agentRules?.rules)}; naming **[docs]**: ${shown(agentRules?.withDocs)}; **[docs]** alone: ${shown(agentRules?.docsOnly)}; size: ${shown(agentRules?.bytes)} bytes`,
+  `- Exception books: unknown-cast ceilings ${shown(books.unknownCastCeilings)}, unchecked-index baseline ${shown(books.uncheckedIndexBaseline)}, pending raw session reads ${shown(books.sessionRawReadPending)}, unreachable modules retained ${shown(books.unreachableRetainedFiles)}`,
+  '',
+];
+
 const mdLines = [
   '# Quality Metrics Snapshot',
   '',
@@ -458,6 +522,7 @@ const mdLines = [
   '',
   `- Files: ${metrics.source.fileCount}`,
   `- Lines: ${metrics.source.lineCount}`,
+  `- Modules over ${metrics.source.largeModuleLines} lines: ${metrics.source.largeModuleCount}`,
   '',
   '## Module Size',
   '',
@@ -486,6 +551,9 @@ const mdLines = [
   `- Explicit any occurrences (total): ${metrics.typeSafety.explicitAnyCount}`,
   `- Explicit any in source (non-test): ${metrics.typeSafety.explicitAnySourceCount}`,
   `- Explicit any in tests: ${metrics.typeSafety.explicitAnyTestCount}`,
+  `- \`as unknown as\` in source (non-test): ${metrics.typeSafety.unknownCastSourceCount}`,
+  `- \`as unknown as\` in tests: ${metrics.typeSafety.unknownCastTestCount}`,
+  `- \`as unknown as DailyRecord\` in tests: ${metrics.typeSafety.unknownCastToDailyRecordTestCount}`,
   '',
   '## Convergence Signals',
   '',
@@ -495,6 +563,7 @@ const mdLines = [
   `- Census controller ownership drift: ${metrics.convergence.controllerOwnershipDrift}`,
   `- Raw console warn/error outside structured sink: ${metrics.convergence.rawConsoleOutsideStructuredSink}`,
   '',
+  ...evaluationMarkdown(metrics.evaluation),
   '## Release Confidence Governance',
   '',
   `- Overall: ${metrics.releaseConfidence.overall}`,
