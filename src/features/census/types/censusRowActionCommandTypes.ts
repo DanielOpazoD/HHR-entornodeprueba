@@ -1,6 +1,7 @@
 import type { CMAData } from '@/types/domain/movements';
 import type { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 import type { ControllerConfirmDescriptor } from '@/shared/contracts/controllers/confirmDescriptor';
+import type { AccreditedEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 export type RowActionConfirmDescriptor = ControllerConfirmDescriptor;
 
@@ -25,7 +26,7 @@ export type RowActionCommand =
   | {
       kind: 'confirmInvalid';
       bedId: string;
-      clinicalEpisodeId: string;
+      clinicalEpisodeId: AccreditedEpisodeId;
       confirm: RowActionConfirmDescriptor;
     }
   | {

@@ -15,6 +15,7 @@ import {
   ok,
 } from '@/shared/contracts/controllerResult';
 import type { RowActionCommand } from '@/features/census/types/censusRowActionCommandTypes';
+import { resolveAccreditedClinicalEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 export type {
   RowActionCommand,
   RowActionConfirmDescriptor,
@@ -72,7 +73,8 @@ export const resolveRowActionCommand = ({
       });
 
     case 'invalid': {
-      const clinicalEpisodeId = patient.clinicalEpisodeId?.trim();
+      // A legacy hash can name two newborns: marking it would also remove the other one (ID-01).
+      const clinicalEpisodeId = resolveAccreditedClinicalEpisodeId(patient);
       if (!clinicalEpisodeId) {
         return failWithCode(
           'EPISODE_REQUIRED',

@@ -8,6 +8,7 @@ import { useCensusActionCommands } from '../context/censusActionContexts';
 import { useCensusMovementData } from './useCensusMovementData';
 import { useMovementSectionModel } from './useMovementSectionModel';
 import type { DischargeData } from '@/types/domain/movements';
+import type { AccreditedEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import { PREVIOUS_DAY_UNCHECKED_MESSAGE } from '@/features/census/controllers/censusActionNotificationController';
 import {
   buildMovementTypeConversionConfirmDialog,
@@ -68,9 +69,12 @@ export const useDischargesSectionModel = () => {
     }
   };
 
-  const handleMarkDischargeInvalid = async (discharge: DischargeData) => {
-    const clinicalEpisodeId = discharge.clinicalEpisodeId?.trim();
-    if (!canMarkInvalid || !clinicalEpisodeId) return;
+  // The row menu offers it only for an accredited episode and hands that episode over.
+  const handleMarkDischargeInvalid = async (
+    discharge: DischargeData,
+    clinicalEpisodeId: AccreditedEpisodeId
+  ) => {
+    if (!canMarkInvalid) return;
     try {
       if (!(await confirm(DISCHARGE_INVALID_CONFIRM_DIALOG))) return;
     } catch {
