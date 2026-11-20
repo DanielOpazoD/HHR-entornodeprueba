@@ -272,40 +272,6 @@ describe('bedManagementReducer bed state controls', () => {
     });
   });
 
-  it('ignores clinical crib CUDYR updates when the crib has not been created yet', () => {
-    const record = DataFactory.createMockDailyRecord('2026-04-12');
-
-    const patch = bedManagementReducer(record, {
-      type: 'UPDATE_CLINICAL_CRIB_CUDYR',
-      bedId: 'R1',
-      field: 'changeClothes',
-      value: 2,
-    });
-
-    expect(patch).toBeNull();
-  });
-
-  it('updates clinical crib CUDYR fields while refreshing the shared timestamp', () => {
-    const record = DataFactory.createMockDailyRecord('2026-04-12');
-    record.beds.R1 = DataFactory.createMockPatient('R1', {
-      clinicalCrib: DataFactory.createMockPatient('R1-crib', {
-        patientName: 'RN Temporal',
-      }),
-    });
-
-    const patch = bedManagementReducer(record, {
-      type: 'UPDATE_CLINICAL_CRIB_CUDYR',
-      bedId: 'R1',
-      field: 'changeClothes',
-      value: 2,
-    });
-
-    expect(patch).toMatchObject({
-      'beds.R1.clinicalCrib.cudyr.changeClothes': 2,
-    });
-    expect(patch).toHaveProperty('cudyrUpdatedAt');
-  });
-
   it('toggles extra beds by adding and removing the same bed id predictably', () => {
     const record = DataFactory.createMockDailyRecord('2026-04-12');
     record.activeExtraBeds = ['H1C1'];

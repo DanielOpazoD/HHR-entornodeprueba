@@ -58,28 +58,6 @@ const getPatchFieldMetadata = (action: BedAction): BedPatchFieldMetadata => {
         actionLabel: 'Guardar datos de cama',
       };
     }
-    case 'UPDATE_CUDYR':
-      return {
-        bedId: action.bedId,
-        fieldKey: `cudyr.${String(action.field)}`,
-        fieldLabel: `CUDYR ${String(action.field)}`,
-        actionLabel: 'Guardar CUDYR',
-      };
-    case 'UPDATE_CUDYR_MULTIPLE': {
-      const fields = Object.keys(action.fields);
-      return {
-        bedId: action.bedId,
-        fieldKey: fields.map(field => `cudyr.${field}`).join(', '),
-        fieldLabel: `${fields.length} campos CUDYR`,
-        actionLabel: 'Guardar CUDYR',
-      };
-    }
-    case 'UPDATE_CUDYR_BATCH':
-      return {
-        fieldKey: 'cudyr.batch',
-        fieldLabel: 'CUDYR en lote',
-        actionLabel: 'Guardar CUDYR',
-      };
     case 'UPDATE_CLINICAL_CRIB':
       return {
         bedId: action.bedId,
@@ -96,22 +74,6 @@ const getPatchFieldMetadata = (action: BedAction): BedPatchFieldMetadata => {
           .map(field => `Cuna clinica ${getPatientFieldLabel(field as keyof PatientData)}`)
           .join(', '),
         actionLabel: 'Guardar datos de cuna clinica',
-      };
-    }
-    case 'UPDATE_CLINICAL_CRIB_CUDYR':
-      return {
-        bedId: action.bedId,
-        fieldKey: `clinicalCrib.cudyr.${String(action.field)}`,
-        fieldLabel: `Cuna clinica CUDYR ${String(action.field)}`,
-        actionLabel: 'Guardar CUDYR de cuna clinica',
-      };
-    case 'UPDATE_CLINICAL_CRIB_CUDYR_MULTIPLE': {
-      const fields = Object.keys(action.fields);
-      return {
-        bedId: action.bedId,
-        fieldKey: fields.map(field => `clinicalCrib.cudyr.${field}`).join(', '),
-        fieldLabel: `${fields.length} campos CUDYR de cuna clinica`,
-        actionLabel: 'Guardar CUDYR de cuna clinica',
       };
     }
     case 'CLEAR_PATIENT':

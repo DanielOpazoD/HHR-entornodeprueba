@@ -23,7 +23,6 @@ export {
   useDailyRecordBedActions,
   useDailyRecordMovementActions,
   useDailyRecordStaffActions,
-  useDailyRecordCudyrActions,
   useDailyRecordHandoffActions,
 } from './DailyRecordContext';
 

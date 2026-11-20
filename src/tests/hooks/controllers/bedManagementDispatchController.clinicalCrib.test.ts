@@ -44,8 +44,6 @@ describe('bedManagementDispatchController clinical crib commands', () => {
     };
     const bedAudit: BedManagementAuditPort = {
       auditPatientChange: vi.fn(),
-      auditCudyrChange: vi.fn(),
-      auditCribCudyrChange: vi.fn(),
       auditPatientCleared: vi.fn(),
       auditPatientModified: vi.fn(),
       auditPatientMovement: vi.fn(),
