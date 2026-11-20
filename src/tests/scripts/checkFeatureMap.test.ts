@@ -214,10 +214,12 @@ describe('check-feature-map', () => {
     const map = JSON.parse(readFileSync(FEATURE_MAP_PATH, 'utf8'));
     const withFlow = map.features.filter((entry: { flow?: unknown[] }) => entry.flow);
     expect(withFlow.map((entry: { id: string }) => entry.id)).toEqual([
+      'census.open-day-flow',
       'census.cell-save-flow',
       'eloisa.sync-flow',
+      'eloisa.discharge-time-flow',
     ]);
-    const renamed = withFlow[0].flow[1];
+    const renamed = withFlow[1].flow[1];
     renamed.at = `${renamed.at}Renamed`;
     const copyRoot = mkdtempSync(path.join(tmpdir(), 'hhr-feature-map-copy-'));
     roots.push(copyRoot);

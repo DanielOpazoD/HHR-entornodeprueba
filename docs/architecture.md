@@ -221,8 +221,10 @@ límites están en [SYNC_CONCURRENCY_MODEL.md](SYNC_CONCURRENCY_MODEL.md); la pr
 [Daily Record Runtime Path](ADR_DAILY_RECORD_RUNTIME_PATH.md) y
 [Daily Census Truth Contract](ADR_DAILY_CENSUS_TRUTH_CONTRACT.md).
 
-**Paso a paso.** Guardar una celda (`census.cell-save-flow`) y sincronizar con Eloísa
-(`eloisa.sync-flow`) están en [`feature-map.json`](../scripts/config/feature-map.json) como
+**Paso a paso.** Abrir el día (`census.open-day-flow`), guardar una celda
+(`census.cell-save-flow`), sincronizar con Eloísa (`eloisa.sync-flow`) y la fecha y hora de un
+egreso desde Eloísa (`eloisa.discharge-time-flow`) están en
+[`feature-map.json`](../scripts/config/feature-map.json) como
 pasos «archivo › símbolo» en orden, con lo que se decide en cada uno y las pruebas que los
 acreditan. **Hoy:** `npm run check:feature-map` comprueba que cada archivo nombre su símbolo;
 esta página no repite los pasos.
