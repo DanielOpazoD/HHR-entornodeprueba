@@ -4,6 +4,7 @@ import { calculateHospitalizedDays } from '@/features/census/controllers/patient
 import { hasMeaningfulPatientIdentity } from '@/features/census/controllers/patientIdentityController';
 import type { PatientClinicalAccessProps } from '@/features/census/components/patient-row/patientRowInputViewContracts';
 import { resolvePatientActionMenuViewState } from '@/features/census/controllers/patientActionMenuViewController';
+import { resolveAccreditedClinicalEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 export type PatientActionSectionBinding = PatientMainRowActionCellProps;
 
@@ -82,7 +83,7 @@ export const buildPatientActionSectionBinding = ({
       onOpenHistory
     ),
     clinicalDocumentCount,
-    canMarkInvalid: Boolean(data.clinicalEpisodeId?.trim()),
+    canMarkInvalid: resolveAccreditedClinicalEpisodeId(data) !== undefined,
     clinicalPatient: !isBlocked && hasPatientIdentity ? data : undefined,
     censusDate: currentDateString,
   };

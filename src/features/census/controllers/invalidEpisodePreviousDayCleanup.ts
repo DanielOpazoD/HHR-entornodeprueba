@@ -14,6 +14,7 @@ import { assertDailyRecordWriteAccepted } from '@/hooks/controllers/dailyRecordW
 import { getPreviousDay, resolveCurrentClinicalDay } from '@/utils/clinicalDayUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { canCleanInvalidEpisodeDay } from '@/shared/access/censusDayWriteAccessPolicy';
+import type { AccreditedEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 export type PreviousDayCleanupOutcome =
   /** Nothing to do: a past census day, or the previous day never held the episode. */
@@ -51,7 +52,8 @@ export const cleanInvalidEpisodeFromPreviousDay = async ({
 }: {
   repository: CleanupRepository;
   censusDate: string;
-  clinicalEpisodeId: string;
+  /** Only an accredited episode: a legacy hash would also match another patient yesterday. */
+  clinicalEpisodeId: AccreditedEpisodeId;
   now?: Date;
 }): Promise<PreviousDayCleanupOutcome> => {
   if (censusDate !== resolveCurrentClinicalDay(now)) return { status: 'not_applicable' };

@@ -7,6 +7,7 @@ import {
 import { normalizeCribDisplayText } from '@/services/terminology/cribTerminology';
 import { resolveMovementHistoricalAdmissionDate } from '@/types/domain/movements';
 import { isClinicalCribDischarge } from '@/domain/movements/movementTombstonePolicy';
+import type { AccreditedEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 const dischargeBedLabel = (item: DischargeData): string => {
   const name = normalizeCribDisplayText(item.bedName);
@@ -23,7 +24,10 @@ interface DischargeRowActionHandlers {
   deleteDischarge: (id: string) => void | Promise<void>;
   convertDischargeToCma: (id: string) => void | Promise<void>;
   convertDischargeToTransfer?: (id: string) => void | Promise<void>;
-  markDischargeInvalid?: (discharge: DischargeData) => void | Promise<void>;
+  markDischargeInvalid?: (
+    discharge: DischargeData,
+    clinicalEpisodeId: AccreditedEpisodeId
+  ) => void | Promise<void>;
 }
 
 export const resolveDischargeRowViewModel = (
