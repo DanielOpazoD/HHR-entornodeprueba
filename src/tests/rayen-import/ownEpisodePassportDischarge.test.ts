@@ -42,7 +42,7 @@ const recordWith = (date: string, p?: PatientData): DailyRecord =>
     cma: [],
     lastUpdated: '',
     activeExtraBeds: [],
-  }) as unknown as DailyRecord;
+  }) satisfies DailyRecord;
 const reportRow = (run: string, day: string, time: string): EgresoReportRow => ({
   run,
   patientName: 'AMALIA INVENTADA',

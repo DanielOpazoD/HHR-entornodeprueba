@@ -14,7 +14,7 @@ const makeRecord = (lastUpdated: string): DailyRecord =>
     cma: [],
     activeExtraBeds: [],
     lastUpdated,
-  }) as unknown as DailyRecord;
+  }) satisfies DailyRecord;
 
 describe('newborn occupancy during maternal closure normalization', () => {
   it('does not restore a departed crib while clearing residual data from the freed maternal bed', () => {

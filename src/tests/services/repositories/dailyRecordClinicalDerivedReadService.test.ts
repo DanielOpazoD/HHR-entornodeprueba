@@ -23,6 +23,7 @@ import {
 import { sanitizeOperationalTelemetryContextValues } from '@/services/observability/operationalTelemetryPrivacy';
 import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const DATE = '2026-11-02';
 const GENERATION = 'gen_synthetic_a';
@@ -31,7 +32,7 @@ const reading = (label: string) => [
 ];
 
 const day = (extra: Record<string, unknown> = {}, revision = 5): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: DATE,
     lastUpdated: `${DATE}T10:00:00.000Z`,
     meta: { revision },
@@ -49,7 +50,7 @@ const day = (extra: Record<string, unknown> = {}, revision = 5): DailyRecord =>
       },
     },
     ...extra,
-  }) as unknown as DailyRecord;
+  });
 
 const episodeDoc = (clinicalEpisodeId: string, dayRevision = 5) =>
   ({

@@ -1,19 +1,19 @@
 import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { describe, expect, it, vi } from 'vitest';
 import type { HistoricalCudyrBatchItem } from '@/features/rayen-import/contracts/clinicalFillContracts';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ArchiveCudyrHistoryRequest } from '@/types/domain/cudyrHistory';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 describe('CUDYR selected census authority', () => {
   it('reads on the following morning but archives and projects into the selected census night', async () => {
-    const record = {
+    const record = asStoredDailyRecordShape({
       date: '2026-10-10',
       beds: { R1: { bedId: 'R1', patientName: 'Paciente sintético', clinicalEpisodeId: 'E1' } },
       discharges: [],
       transfers: [],
       cma: [],
       rayenSync: { runId: 'selected-run' },
-    } as unknown as DailyRecord;
+    });
     const current = { id: 'current', category: 'C2', recordedAt: '2026-10-11T03:00:00-05:00' };
     const previous = { id: 'previous', category: 'D3', recordedAt: '2026-10-10T03:00:00-05:00' };
     const archive = vi.fn(async (request: ArchiveCudyrHistoryRequest) => {

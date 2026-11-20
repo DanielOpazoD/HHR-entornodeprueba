@@ -5,6 +5,7 @@ import { resolveConflictSnapshotRecoveryState } from '@/application/clinical-con
 import { buildConflictAuditSummary } from '@/services/repositories/conflictResolutionAuditSummary';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const makeRecord = (lastUpdated: string): DailyRecord =>
   ({
@@ -23,19 +24,19 @@ describe('daily record census incident regression', () => {
     const pierreJeanRecord = makeRecord('2026-07-01T13:00:00.000Z');
     pierreJeanRecord.beds = {
       H2C1: {
-        bedId: 'H2C1',
+        ...createEmptyPatient('H2C1'),
         patientName: 'Pierre-jean',
         rut: '25DF52626',
         pathology: 'Celulitis pie izquierdo',
         location: 'Sala Hospitalizados',
-      } as unknown as DailyRecord['beds'][string],
+      },
       H2C2: {
-        bedId: 'H2C2',
+        ...createEmptyPatient('H2C2'),
         patientName: '',
         rut: '',
         pathology: '',
         location: 'Sala Hospitalizados',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const movePatch = buildMoveOrCopyPatch(pierreJeanRecord, 'move', 'H2C1', 'H2C2');
@@ -49,13 +50,13 @@ describe('daily record census incident regression', () => {
     );
 
     const bernardo = {
-      bedId: 'H2C2',
+      ...createEmptyPatient('H2C2'),
       patientName: 'Bernardo Orrego Llanos',
       rut: '17.274.300-5',
       pathology: 'Diagnóstico de egreso',
       admissionDate: '2026-06-28',
       location: 'Sala Hospitalizados',
-    } as unknown as DailyRecord['beds'][string];
+    };
     const { discharges } = buildDischargeEntries({
       patient: bernardo,
       bedId: 'H2C2',

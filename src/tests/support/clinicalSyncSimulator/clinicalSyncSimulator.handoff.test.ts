@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { createClinicalSyncSimulator } from './clinicalSyncSimulator';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { PatientStatus } from '@/types/domain/patientClassification';
 
 const actor = {
   uid: 'doctor-1',
@@ -10,17 +13,16 @@ const actor = {
 };
 
 const makeRecord = (): DailyRecord =>
-  ({
-    date: '2026-07-03',
+  DataFactory.createMockDailyRecord('2026-07-03', {
     beds: {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente Handoff',
         rut: '11.111.111-1',
         age: '40a',
         pathology: 'Diagnostico base',
         specialty: 'Medicina',
-        status: 'Estable',
+        status: PatientStatus.ESTABLE,
         admissionDate: '2026-07-01',
         clinicalEpisodeId: 'episode-handoff-1',
         devices: [],
@@ -39,7 +41,7 @@ const makeRecord = (): DailyRecord =>
     handoffNovedadesNightShift: '',
     medicalHandoffBySpecialty: {},
     medicalHandoffNovedades: '',
-  }) as unknown as DailyRecord;
+  });
 
 describe('clinicalSyncSimulator handoff scenarios', () => {
   it('preserves compatible nursing handoff notes and novedades across stale restart replay', () => {

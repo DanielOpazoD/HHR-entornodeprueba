@@ -4,6 +4,7 @@ import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusI
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useRayenCensusDiffApplication } from '@/features/rayen-import/hooks/useRayenCensusDiffApplication';
 import { QueryClient } from '@tanstack/react-query';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const queryClient = new QueryClient();
 
@@ -344,11 +345,11 @@ describe('useRayenCensusDiffApplication', () => {
   });
 
   it('rejects a metadata checkpoint when the authoritative structure changed after planning', async () => {
-    const changedRemote = {
+    const changedRemote = asStoredDailyRecordShape({
       ...baseRecord,
       beds: { R1: { id: 'R1', name: 'R1', status: 'available' } },
       lastUpdated: '2026-08-08T00:59:00.000Z',
-    } as unknown as DailyRecord;
+    });
     const checkpointDailyRecord = vi.fn();
     const { result } = renderHook(() =>
       useRayenCensusDiffApplication({

@@ -13,13 +13,13 @@ import { resolveIsNewAdmissionForRecord } from '@/features/census/controllers/pa
 import type { ApplyResult } from '@/features/rayen-import/domain/applyCensusImportDiff';
 import type { RayenSyncRun } from '@/features/rayen-import/domain/rayenSyncHistory';
 import { RayenImportPreviewModal } from '@/features/rayen-import/components/RayenImportPreviewModal';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { EgresoReportRow } from '@/features/rayen-import/contracts/egresoReport';
 import {
   motherAndNewbornDiff,
   repository,
   resetPreviousDayAdmissionFixtures,
 } from './previousDayAdmissionCorrections.fixtures';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 vi.mock('@/hooks/controllers/dailyRecordMutationFreshnessController', () => ({
   patchDailyRecordWithCompatibility: vi.fn(),
@@ -35,7 +35,7 @@ const row: EgresoReportRow = {
   motivo: 'Alta',
   fechaEgreso: '24-07-2026 17:38',
 };
-const record = {
+const record = asStoredDailyRecordShape({
   date: '2026-07-24',
   beds: {},
   transfers: [],
@@ -52,7 +52,7 @@ const record = {
       movementProvenance: { source: 'gestion_camas' },
     },
   ],
-} as unknown as DailyRecord;
+});
 
 describe('resolved historical synchronization', () => {
   afterEach(() => vi.useRealTimers());

@@ -1,8 +1,9 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { reconstructHistoricalSnapshotAtClose } from '@/features/rayen-import/domain/historicalSnapshotReconstruction';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenCensusSnapshot } from '@/features/rayen-import/contracts/rayenSnapshot';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 describe('historical pavilion recovery and active episode evidence', () => {
   const encodedReport = (text: string): string =>
@@ -14,7 +15,7 @@ describe('historical pavilion recovery and active episode evidence', () => {
     const result = await reconstructHistoricalSnapshotAtClose(
       '2026-09-15',
       { capturedAt: '2026-10-15T18:00:00-05:00', facilityId: 7, isComplete: true, encounters: [] },
-      { date: '2026-09-15', beds: {} } as unknown as DailyRecord,
+      DataFactory.createMockDailyRecord('2026-09-15', { beds: {} }),
       [
         {
           run: '10.000.000-K',
@@ -69,29 +70,31 @@ describe('historical pavilion recovery and active episode evidence', () => {
         },
       ],
     };
-    const pavilionRecord = {
-      date: '2026-07-30',
+    const pavilionRecord = DataFactory.createMockDailyRecord('2026-07-30', {
       beds: {
         R1: {
+          ...createEmptyPatient('R1'),
           patientName: 'Tamarii Tuki Hey',
           rut: '18.658.570-4',
           clinicalEpisodeId: '150001',
           location: 'Área quirúrgica indiferenciada / Pabellón-R1 / P-R1',
         },
         R2: {
+          ...createEmptyPatient('R2'),
           patientName: 'Nicolas Segundo Quezada Ika',
           rut: '20.236.052-1',
           clinicalEpisodeId: '150002',
           location: 'Área quirúrgica indiferenciada / Pabellón-R2 / P-R2',
         },
         R3: {
+          ...createEmptyPatient('R3'),
           patientName: 'Paciente Pabellón Local',
           rut: '17.777.777-7',
           clinicalEpisodeId: '150004',
           location: 'Área quirúrgica indiferenciada / Pabellón-R1 / P-R1',
         },
       },
-    } as unknown as DailyRecord;
+    });
     const fetchReport = vi.fn(async (encounterId: string) => {
       const runByEpisode: Record<string, string> = {
         '150001': '186585704',
@@ -149,16 +152,16 @@ Flujo del Paciente RUN: ${runByEpisode[encounterId]}
         },
       ],
     };
-    const historicalRecord = {
-      date: '2026-07-30',
+    const historicalRecord = DataFactory.createMockDailyRecord('2026-07-30', {
       beds: {
         H2C2: {
+          ...createEmptyPatient('H2C2'),
           patientName: 'Paciente Historico',
           rut: '12.345.678-5',
           clinicalEpisodeId: '150006',
         },
       },
-    } as unknown as DailyRecord;
+    });
     const fetchReport = vi.fn().mockResolvedValue({
       base64: encodedReport(`
 Flujo del Paciente RUN: 123456785
@@ -185,17 +188,17 @@ Flujo del Paciente RUN: 123456785
   });
 
   it('keeps a discharged report row as evidence when P-R1 happened after the cutoff', async () => {
-    const historicalRecord = {
-      date: '2026-07-30',
+    const historicalRecord = DataFactory.createMockDailyRecord('2026-07-30', {
       beds: {
         H2C2: {
+          ...createEmptyPatient('H2C2'),
           patientName: 'Paciente Egresado',
           rut: '12.345.678-5',
           clinicalEpisodeId: '150007',
           admissionDate: '2026-07-30',
         },
       },
-    } as unknown as DailyRecord;
+    });
     const snapshot: RayenCensusSnapshot = {
       capturedAt: '2026-07-31T12:00:00-06:00',
       facilityId: 1342,
@@ -240,10 +243,10 @@ Flujo del Paciente RUN: 123456785
   });
 
   it('recovers a Ficha Medico omission by clinical episode from active bed evidence', async () => {
-    const reinaRecord = {
-      date: '2026-07-30',
+    const reinaRecord = DataFactory.createMockDailyRecord('2026-07-30', {
       beds: {
         R2: {
+          ...createEmptyPatient('R2'),
           patientName: 'Reina Haoa',
           firstName: 'Reina',
           lastName: 'Haoa',
@@ -253,7 +256,7 @@ Flujo del Paciente RUN: 123456785
           location: 'Área Médico Quirúrgica Indiferenciada / Recuperación 2 / R2',
         },
       },
-    } as unknown as DailyRecord;
+    });
     const activeBedSnapshot: RayenCensusSnapshot = {
       capturedAt: '2026-07-31T10:00:00-06:00',
       facilityId: 1342,

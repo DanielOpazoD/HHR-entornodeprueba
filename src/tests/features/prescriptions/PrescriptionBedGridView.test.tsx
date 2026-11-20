@@ -24,6 +24,8 @@ import { PrescriptionBedGridView } from '@/features/prescriptions/components/Pre
 import { resolvePrescriptionImageDownloadUrl } from '@/features/prescriptions/services/prescriptionStorageImageService';
 import type { PrescriptionRecord } from '@/types/prescriptionTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const buildRecord = (
   id: string,
@@ -47,11 +49,10 @@ const buildRecord = (
 });
 
 const buildDailyRecord = (): DailyRecord =>
-  ({
-    date: '2026-05-04',
+  DataFactory.createMockDailyRecord('2026-05-04', {
     beds: {
       H1C2: {
-        bedId: 'H1C2',
+        ...createEmptyPatient('H1C2'),
         isBlocked: false,
         bedMode: 'Cama',
         hasCompanionCrib: false,
@@ -66,7 +67,7 @@ const buildDailyRecord = (): DailyRecord =>
     cma: [],
     lastUpdated: '2026-05-04T10:00:00.000Z',
     activeExtraBeds: [],
-  }) as unknown as DailyRecord;
+  });
 
 const buildEmptyDailyRecord = (date: string): DailyRecord =>
   ({
@@ -77,7 +78,7 @@ const buildEmptyDailyRecord = (date: string): DailyRecord =>
     cma: [],
     lastUpdated: `${date}T10:00:00.000Z`,
     activeExtraBeds: [],
-  }) as unknown as DailyRecord;
+  }) satisfies DailyRecord;
 
 const renderGrid = (ui: React.ReactElement) => render(<UIProvider>{ui}</UIProvider>);
 
@@ -193,21 +194,23 @@ describe('PrescriptionBedGridView', () => {
   });
 
   it('moves prescriptions from a previous bed to the current active bed for the same patient', async () => {
-    vi.mocked(getRecordFromFirestore).mockResolvedValue({
-      ...buildDailyRecord(),
-      beds: {
-        H6C1: {
-          bedId: 'H6C1',
-          isBlocked: false,
-          bedMode: 'Cama',
-          hasCompanionCrib: false,
-          patientName: 'Luis Pate Tuki',
-          rut: '6.451.632-9',
-          age: '55',
-          pathology: '—',
+    vi.mocked(getRecordFromFirestore).mockResolvedValue(
+      DataFactory.createMockDailyRecord('2026-01-01', {
+        ...buildDailyRecord(),
+        beds: {
+          H6C1: {
+            ...createEmptyPatient('H6C1'),
+            isBlocked: false,
+            bedMode: 'Cama',
+            hasCompanionCrib: false,
+            patientName: 'Luis Pate Tuki',
+            rut: '6.451.632-9',
+            age: '55',
+            pathology: '—',
+          },
         },
-      },
-    } as unknown as DailyRecord);
+      })
+    );
     const movedPatientPrescription = buildRecord('rx-moved-bed', {
       assignmentScope: 'patient',
       bedId: 'R1',

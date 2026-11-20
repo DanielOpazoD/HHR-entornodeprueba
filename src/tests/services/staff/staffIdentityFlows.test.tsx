@@ -16,8 +16,8 @@ import {
 } from '@/services/staff/eloisaStaffIdentity';
 import { countStaffUsage } from '@/services/staff/staffUsage';
 import { formatStaffDisplayName } from '@/services/staff/staffDisplayName';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 const staff = vi.hoisted(() => ({ staffIdentities: [] as EloisaStaffIdentity[] }));
 vi.mock('@/context/StaffContext', () => ({ useStaffContext: () => staff }));
@@ -136,7 +136,7 @@ describe.each(['nurse', 'tens'] as const)('staff identity flows (%s)', role => {
         role === 'nurse' ? list : [],
         role === 'tens' ? list : []
       );
-      const record = { date: '2026-11-12', beds: {}, [slot]: [a] } as unknown as DailyRecord;
+      const record = DataFactory.createMockDailyRecord('2026-11-12', { beds: {}, [slot]: [a] });
       const patch = buildNursingShiftProposalPatch(
         record,
         reconcileNursingShiftProposal(record, proposal)

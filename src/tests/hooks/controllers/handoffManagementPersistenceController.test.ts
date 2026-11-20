@@ -7,10 +7,10 @@ import {
 import { buildUpdatedHandoffStaffRecord } from '@/domain/handoff/management';
 import { executeUpdateHandoffStaff } from '@/application/handoff/handoffManagementUseCases';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 const baseRecord = (): DailyRecord =>
-  ({
-    date: '2026-03-07',
+  DataFactory.createMockDailyRecord('2026-03-07', {
     handoffNovedadesDayShift: 'Antes día',
     handoffNovedadesNightShift: 'Antes noche',
     nursesDayShift: ['Dia 1'],
@@ -18,7 +18,7 @@ const baseRecord = (): DailyRecord =>
     tensDayShift: ['Tens Día'],
     tensNightShift: ['Tens Noche'],
     handoffNightReceives: ['Recibe Noche'],
-  }) as unknown as DailyRecord;
+  });
 
 describe('handoffManagementPersistenceController', () => {
   it('builds novedades payloads using the previous content', () => {

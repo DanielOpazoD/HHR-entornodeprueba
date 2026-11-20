@@ -6,8 +6,8 @@ import {
   buildMinsalComparisonSummary,
   resolvePreviousMinsalPeriod,
 } from '@/services/calculations/minsal/minsalStatsInsights';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { MinsalStatistics } from '@/types/minsalTypes';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const buildStats = (overrides: Partial<MinsalStatistics>): MinsalStatistics => ({
   periodStart: '2026-03-08',
@@ -81,7 +81,7 @@ describe('minsalStatsInsightsController', () => {
 
   it('detects non-blocking statistical data quality issues with clinical navigation dates', () => {
     const records = [
-      {
+      asStoredDailyRecordShape({
         date: '2026-03-10',
         beds: {
           R1: {
@@ -142,7 +142,7 @@ describe('minsalStatsInsightsController', () => {
             specialty: 'Dermatología',
           },
         ],
-      } as unknown as DailyRecord,
+      }),
     ];
 
     const issues = buildAnalyticsDataQualityIssues(records, {

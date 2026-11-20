@@ -6,6 +6,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { findPatientErasures } from '@/services/repositories/dailyRecordErasureGuard';
 import { hasSamePatientEpisodeIdentity } from '@/domain/clinical-episode/patientEpisodeIdentityPolicy';
 import { isSameEpisodeForExplicitCensusPatch } from '@/services/repositories/explicitLocalCensusPatchPolicy';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 // One synthetic pair of occupants, judged by the three identity comparators a single write can
 // meet: the erasure guard's relocation exemption (client and server mirror), the canonical
@@ -40,7 +41,7 @@ const occupant = (bedId: string, fields: Partial<PatientData>): PatientData =>
   }) as PatientData;
 
 const record = (beds: Record<string, PatientData>): DailyRecord =>
-  ({ date: '2026-07-03', beds, discharges: [], transfers: [], cma: [] }) as unknown as DailyRecord;
+  DataFactory.createMockDailyRecord('2026-07-03', { beds, discharges: [], transfers: [], cma: [] });
 
 const erasureVerdict = (vacated: PatientData, present: PatientData): ErasureVerdict => {
   const remote = record({ R1: vacated });

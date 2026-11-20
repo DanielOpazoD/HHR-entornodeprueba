@@ -5,6 +5,8 @@ import { evaluateDailyRecordConflictPostMergeInvariants } from '@/services/repos
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { CUDYR_SCORE_FIELDS } from '@/domain/cudyr/cudyrCompletion';
 import type { CudyrScore } from '@/types/domain/cudyr';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const completeCudyr = (value = 1): CudyrScore =>
   Object.fromEntries(CUDYR_SCORE_FIELDS.map(field => [field, value])) as unknown as CudyrScore;
@@ -38,7 +40,7 @@ const makePatient = (
 describe('dailyRecordConflictPostMergeInvariantChecker', () => {
   it('blocks post-merge records that drop visible movements, revive tombstones or duplicate active patients', () => {
     const remote = makeRecord('2026-07-01T10:10:00.000Z');
-    remote.discharges = [
+    remote.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       { id: 'discharge-remote', bedId: 'R1', patientName: 'Alta remota' },
       {
         id: 'discharge-deleted',
@@ -46,64 +48,56 @@ describe('dailyRecordConflictPostMergeInvariantChecker', () => {
         patientName: 'Alta eliminada',
         deletedAt: '2026-07-01T10:09:00.000Z',
       },
-    ] as unknown as DailyRecord['discharges'];
-    remote.transfers = [
+    ]);
+    remote.transfers = asStoredDailyRecordShape<DailyRecord['transfers']>([
       { id: 'transfer-remote', bedId: 'R3', patientName: 'Traslado remoto' },
-    ] as unknown as DailyRecord['transfers'];
-    remote.cma = [
+    ]);
+    remote.cma = asStoredDailyRecordShape<DailyRecord['cma']>([
       {
         id: 'cma-remote',
         bedName: 'R4',
         originalBedId: 'R4',
         patientName: 'CMA remoto',
       },
-    ] as unknown as DailyRecord['cma'];
+    ]);
 
     const local = makeRecord('2026-07-01T10:00:00.000Z');
-    local.discharges = [
+    local.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       { id: 'discharge-local', bedId: 'R5', patientName: 'Alta local' },
       { id: 'discharge-deleted', bedId: 'R2', patientName: 'Alta eliminada revivida' },
-    ] as unknown as DailyRecord['discharges'];
-    local.transfers = [
+    ]);
+    local.transfers = asStoredDailyRecordShape<DailyRecord['transfers']>([
       { id: 'transfer-local', bedId: 'R6', patientName: 'Traslado local' },
-    ] as unknown as DailyRecord['transfers'];
-    local.cma = [
+    ]);
+    local.cma = asStoredDailyRecordShape<DailyRecord['cma']>([
       {
         id: 'cma-local',
         bedName: 'R7',
         originalBedId: 'R7',
         patientName: 'CMA local',
       },
-    ] as unknown as DailyRecord['cma'];
+    ]);
 
     const resolved = makeRecord('2026-07-01T10:10:00.000Z');
     resolved.beds = {
-      R8: {
-        bedId: 'R8',
-        patientName: 'Paciente duplicado',
-        rut: '12.345.678-9',
-      } as unknown as DailyRecord['beds'][string],
-      R9: {
-        bedId: 'R9',
-        patientName: 'Paciente duplicado',
-        rut: '12.345.678-9',
-      } as unknown as DailyRecord['beds'][string],
+      R8: { ...createEmptyPatient('R8'), patientName: 'Paciente duplicado', rut: '12.345.678-9' },
+      R9: { ...createEmptyPatient('R9'), patientName: 'Paciente duplicado', rut: '12.345.678-9' },
     };
-    resolved.discharges = [
+    resolved.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       { id: 'discharge-local', bedId: 'R5', patientName: 'Alta local' },
       { id: 'discharge-deleted', bedId: 'R2', patientName: 'Alta eliminada revivida' },
-    ] as unknown as DailyRecord['discharges'];
-    resolved.transfers = [
+    ]);
+    resolved.transfers = asStoredDailyRecordShape<DailyRecord['transfers']>([
       { id: 'transfer-remote', bedId: 'R3', patientName: 'Traslado remoto' },
-    ] as unknown as DailyRecord['transfers'];
-    resolved.cma = [
+    ]);
+    resolved.cma = asStoredDailyRecordShape<DailyRecord['cma']>([
       {
         id: 'cma-local',
         bedName: 'R7',
         originalBedId: 'R7',
         patientName: 'CMA local',
       },
-    ] as unknown as DailyRecord['cma'];
+    ]);
 
     const result = evaluateDailyRecordConflictPostMergeInvariants({
       remote,
@@ -133,23 +127,23 @@ describe('dailyRecordConflictPostMergeInvariantChecker', () => {
 
   it('accepts safe merged movement unions with dominant tombstones and no duplicate active patient', () => {
     const remote = makeRecord('2026-07-01T10:10:00.000Z');
-    remote.discharges = [
+    remote.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       {
         id: 'discharge-deleted',
         bedId: 'R2',
         patientName: 'Alta eliminada',
         deletedAt: '2026-07-01T10:09:00.000Z',
       },
-    ] as unknown as DailyRecord['discharges'];
+    ]);
 
     const local = makeRecord('2026-07-01T10:00:00.000Z');
-    local.discharges = [
+    local.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       { id: 'discharge-local', bedId: 'R5', patientName: 'Alta local' },
       { id: 'discharge-deleted', bedId: 'R2', patientName: 'Alta eliminada revivida' },
-    ] as unknown as DailyRecord['discharges'];
+    ]);
 
     const resolved = makeRecord('2026-07-01T10:10:00.000Z');
-    resolved.discharges = [
+    resolved.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       {
         id: 'discharge-deleted',
         bedId: 'R2',
@@ -157,7 +151,7 @@ describe('dailyRecordConflictPostMergeInvariantChecker', () => {
         deletedAt: '2026-07-01T10:09:00.000Z',
       },
       { id: 'discharge-local', bedId: 'R5', patientName: 'Alta local' },
-    ] as unknown as DailyRecord['discharges'];
+    ]);
 
     const result = evaluateDailyRecordConflictPostMergeInvariants({
       remote,
@@ -184,12 +178,12 @@ describe('dailyRecordConflictPostMergeInvariantChecker', () => {
       previousMovementId: 'source-1',
       previousClassification: 'discharge' as const,
     };
-    resolved.transfers = [
+    resolved.transfers = asStoredDailyRecordShape<DailyRecord['transfers']>([
       { id: 'transfer-1', movementProvenance: provenance },
-    ] as unknown as DailyRecord['transfers'];
-    resolved.cma = [
+    ]);
+    resolved.cma = asStoredDailyRecordShape<DailyRecord['cma']>([
       { id: 'cma-1', movementProvenance: provenance },
-    ] as unknown as DailyRecord['cma'];
+    ]);
 
     const result = evaluateDailyRecordConflictPostMergeInvariants({
       remote,

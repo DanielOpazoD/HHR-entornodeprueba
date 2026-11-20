@@ -1,20 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
 import { buildBedOptions } from '@/features/prescriptions/components/prescriptionReassignDialogSupport';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
   getRecordFromFirestore: vi.fn(),
 }));
 
 const daily = (secondDocument: string): DailyRecord =>
-  ({
+  DataFactory.createMockDailyRecord('2026-01-01', {
     beds: {
-      R1: { patientName: 'Sol Sintetico', rut: '12.345.678-5' },
-      R2: { patientName: 'Luna Sintetica', rut: secondDocument },
+      R1: { ...createEmptyPatient('R1'), patientName: 'Sol Sintetico', rut: '12.345.678-5' },
+      R2: { ...createEmptyPatient('R2'), patientName: 'Luna Sintetica', rut: secondDocument },
     },
     discharges: [],
     transfers: [],
-  }) as unknown as DailyRecord;
+  });
 
 describe('buildBedOptions document identity', () => {
   it('offers both passport and RUT patients even when their digits match', () => {
@@ -38,11 +40,11 @@ describe('buildBedOptions document identity', () => {
 });
 
 const sameBed = (rut: string, name = 'Bea Inventada', active = true): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     beds: active ? { R1: { patientName: 'Ana Inventada', rut } } : {},
     discharges: [{ bedId: 'R1', patientName: name, rut }],
     transfers: [{ bedId: 'R1', patientName: name, rut }],
-  }) as unknown as DailyRecord;
+  });
 
 describe('undocumented people sharing a bed', () => {
   it.each(['', 'SIN RUT', 'RN', 'S/N'])('keeps both people for %s', rut => {

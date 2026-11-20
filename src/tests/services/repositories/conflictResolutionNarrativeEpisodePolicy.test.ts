@@ -3,6 +3,8 @@
 import { describe, expect, it } from 'vitest';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const makeRecord = (date: string, lastUpdated: string): DailyRecord => ({
   date,
@@ -20,27 +22,27 @@ describe('conflict resolution narrative episode policy', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente Nuevo',
         rut: '22.222.222-2',
         admissionDate: '2026-02-18',
         handoffNoteDayShift: '',
         handoffNoteNightShift: '',
         medicalHandoffNote: '',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente Antiguo',
         rut: '11.111.111-1',
         admissionDate: '2026-02-10',
         handoffNoteDayShift: 'Evolucion del paciente antiguo',
         handoffNoteNightShift: 'Noche del paciente antiguo',
         medicalHandoffNote: 'Nota medica del paciente antiguo',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const resolved = resolveDailyRecordConflict(remote, local);
@@ -56,23 +58,23 @@ describe('conflict resolution narrative episode policy', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente Nuevo',
         rut: '22.222.222-2',
         admissionDate: '2026-02-18',
         handoffNoteDayShift: '',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente Antiguo',
         rut: '11.111.111-1',
         admissionDate: '2026-02-10',
         handoffNoteDayShift: 'Evolucion stale desde outbox local',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const resolved = resolveDailyRecordConflict(remote, local, {
@@ -87,23 +89,23 @@ describe('conflict resolution narrative episode policy', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente Nuevo',
         rut: '',
         admissionDate: '2026-02-18',
         handoffNoteDayShift: '',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente Antiguo',
         rut: '',
         admissionDate: '2026-02-10',
         handoffNoteDayShift: 'Evolucion del paciente anterior sin RUT',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const resolved = resolveDailyRecordConflict(remote, local);
@@ -116,25 +118,25 @@ describe('conflict resolution narrative episode policy', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente Nuevo',
         rut: '22.222.222-2',
         admissionDate: '2026-02-18',
         clinicalEvents: [],
         medicalHandoffEntries: [],
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     local.beds = {
-      R1: {
+      R1: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R1',
         patientName: 'Paciente Antiguo',
         rut: '11.111.111-1',
         admissionDate: '2026-02-10',
         clinicalEvents: [{ id: 'event-old', name: 'Evento del paciente antiguo' }],
         medicalHandoffEntries: [{ id: 'handoff-old', note: 'Evolucion del paciente antiguo' }],
-      } as unknown as DailyRecord['beds'][string],
+      }),
     };
 
     const resolved = resolveDailyRecordConflict(remote, local);
@@ -148,19 +150,19 @@ describe('conflict resolution narrative episode policy', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T18:00:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente Reingresado',
         rut: '11.111.111-1',
         admissionDate: '2026-02-18',
         admissionTime: '18:00',
         handoffNoteDayShift: '',
         clinicalEvents: [],
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T18:05:00.000Z');
     local.beds = {
-      R1: {
+      R1: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R1',
         patientName: 'Paciente Egresado Manana',
         rut: '11.111.111-1',
@@ -168,7 +170,7 @@ describe('conflict resolution narrative episode policy', () => {
         admissionTime: '08:00',
         handoffNoteDayShift: 'Evolucion del episodio de la manana',
         clinicalEvents: [{ id: 'event-morning', name: 'Evento del episodio de la manana' }],
-      } as unknown as DailyRecord['beds'][string],
+      }),
     };
 
     const resolved = resolveDailyRecordConflict(remote, local);
@@ -182,7 +184,7 @@ describe('conflict resolution narrative episode policy', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T18:00:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente Reingresado',
         rut: '11.111.111-1',
         admissionDate: '2026-02-18',
@@ -190,12 +192,12 @@ describe('conflict resolution narrative episode policy', () => {
         clinicalEpisodeId: 'ep-afternoon',
         handoffNoteDayShift: '',
         clinicalEvents: [],
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T18:05:00.000Z');
     local.beds = {
-      R1: {
+      R1: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R1',
         patientName: 'Paciente Reingresado',
         rut: '11.111.111-1',
@@ -204,7 +206,7 @@ describe('conflict resolution narrative episode policy', () => {
         clinicalEpisodeId: 'ep-morning',
         handoffNoteDayShift: 'Evolucion de otro episodio',
         clinicalEvents: [{ id: 'event-morning', name: 'Evento de otro episodio' }],
-      } as unknown as DailyRecord['beds'][string],
+      }),
     };
 
     const resolved = resolveDailyRecordConflict(remote, local);
@@ -217,19 +219,19 @@ describe('conflict resolution narrative episode policy', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente con hidratacion',
         rut: '11.111.111-1',
         admissionDate: '2026-02-18',
         clinicalEpisodeId: 'legacy_ep_remote',
         handoffNoteDayShift: '',
         clinicalEvents: [],
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     local.beds = {
-      R1: {
+      R1: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R1',
         patientName: 'Paciente con hidratacion',
         rut: '11.111.111-1',
@@ -237,7 +239,7 @@ describe('conflict resolution narrative episode policy', () => {
         clinicalEpisodeId: 'legacy_ep_local',
         handoffNoteDayShift: 'Evolucion local del mismo episodio',
         clinicalEvents: [{ id: 'event-local', name: 'Evento local del mismo episodio' }],
-      } as unknown as DailyRecord['beds'][string],
+      }),
     };
 
     const resolved = resolveDailyRecordConflict(remote, local, {
@@ -254,23 +256,23 @@ describe('conflict resolution narrative episode policy', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente Nuevo',
         rut: '22.222.222-2',
         admissionDate: '2026-02-18',
         clinicalEvents: [],
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     local.beds = {
-      R1: {
+      R1: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R1',
         patientName: 'Paciente Antiguo',
         rut: '11.111.111-1',
         admissionDate: '2026-02-10',
         clinicalEvents: [{ id: 'event-old', name: 'Evento stale desde outbox local' }],
-      } as unknown as DailyRecord['beds'][string],
+      }),
     };
 
     const resolved = resolveDailyRecordConflict(remote, local, {

@@ -4,6 +4,8 @@ import { reconstructHistoricalSnapshotAtClose } from '@/features/rayen-import/do
 import { planRayenCensusImport } from '@/features/rayen-import/importRayenCensusUseCase';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenCensusSnapshot } from '@/features/rayen-import/contracts/rayenSnapshot';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 describe('historical mother and clinical crib reconstruction', () => {
   it.each([
@@ -122,13 +124,12 @@ it('preserves a known historical crib after both exact episodes leave the live c
     admissionDate: '2026-07-24',
     admissionTime: '15:00',
   };
-  const record = {
-    date: '2026-07-25',
-    beds: { H4C1: { ...mother, clinicalCrib: child } },
+  const record = DataFactory.createMockDailyRecord('2026-07-25', {
+    beds: { H4C1: { ...createEmptyPatient('H4C1'), ...mother, clinicalCrib: child } },
     discharges: [],
     transfers: [],
     cma: [],
-  } as unknown as DailyRecord;
+  });
   const row = {
     run: mother.rut,
     patientName: mother.patientName,
@@ -219,7 +220,7 @@ it('keeps filed mother and crib departures out of occupancy after their own cens
     neonatalMaternalRut: mother.rut,
     bedMode: 'Cuna' as const,
   };
-  const record = {
+  const record = asStoredDailyRecordShape({
     date: '2026-07-25',
     beds: { H4C1: { ...EMPTY_PATIENT } },
     discharges: [
@@ -233,7 +234,7 @@ it('keeps filed mother and crib departures out of occupancy after their own cens
     ],
     transfers: [],
     cma: [],
-  } as unknown as DailyRecord;
+  });
   const row = {
     run: mother.rut,
     patientName: mother.patientName,

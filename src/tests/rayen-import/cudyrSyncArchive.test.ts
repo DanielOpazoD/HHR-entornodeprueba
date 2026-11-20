@@ -1,10 +1,10 @@
 import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { captureClinicalCudyrSource } from '@/features/rayen-import/domain/clinicalCudyrPreflight';
 import { describe, expect, it, vi } from 'vitest';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { buildCudyrCaptureParts } from '@/features/rayen-import/domain/cudyrCapturePlan';
 import { persistCudyrSyncCapture } from '@/features/rayen-import/domain/persistCudyrSyncCapture';
 import type { ClinicalCudyrSource } from '@/features/rayen-import/domain/clinicalCudyrPreflight';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const history = [
   {
@@ -123,13 +123,13 @@ describe('ordinary sync permanent CUDYR archive', () => {
       fetchScalesForms: vi.fn(),
       applyPatch: vi.fn(),
     };
-    const record = {
+    const record = asStoredDailyRecordShape({
       date: input.censusDate,
       beds: {},
       discharges: [{ originalData: { clinicalEpisodeId: 'episode-test' } }],
       transfers: [],
       cma: [],
-    } as unknown as DailyRecord;
+    });
     const before = structuredClone(record);
     const result = await runClinicalFill(record, input.censusDate, deps);
     expect(result.errors).toEqual([]);
@@ -167,13 +167,13 @@ describe('ordinary sync permanent CUDYR archive', () => {
         fetchScalesForms: vi.fn(),
         applyPatch: vi.fn(),
       };
-      const record = {
+      const record = asStoredDailyRecordShape({
         date: input.censusDate,
         beds: {},
         discharges: [{ originalData: { clinicalEpisodeId: 'episode-test' } }],
         transfers: [],
         cma: [],
-      } as unknown as DailyRecord;
+      });
       const result = await runClinicalFill(record, input.censusDate, deps);
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].source).toBe('cudyr');

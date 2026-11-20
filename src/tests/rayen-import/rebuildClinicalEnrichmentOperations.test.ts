@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { rebuildClinicalEnrichmentOperations } from '@/features/rayen-import/domain/rebuildClinicalEnrichmentOperations';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalFillPatchOperation } from '@/features/rayen-import';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const patient = (bedId: string, total: number, heartRate = 70) => ({
   bedId,
@@ -11,14 +12,14 @@ const patient = (bedId: string, total: number, heartRate = 70) => ({
 });
 
 const record = (bedId: string, total: number, heartRate = 70): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-08-02',
     beds: { [bedId]: patient(bedId, total, heartRate) },
     discharges: [],
     transfers: [],
     cma: [],
     lastUpdated: '2026-08-02T10:00:00.000Z',
-  }) as unknown as DailyRecord;
+  });
 
 const operation: ClinicalFillPatchOperation = {
   target: {
@@ -74,10 +75,10 @@ describe('rebuildClinicalEnrichmentOperations', () => {
     };
     const withSecond = (total: number): DailyRecord => {
       const day = record('R1', total);
-      day.beds.R2 = {
+      day.beds.R2 = asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         ...patient('R2', 16),
         clinicalEpisodeId: 'episode-2',
-      } as unknown as DailyRecord['beds'][string];
+      });
       return day;
     };
     const conflicts: string[] = [];

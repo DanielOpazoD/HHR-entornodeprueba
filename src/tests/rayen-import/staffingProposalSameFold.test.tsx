@@ -13,7 +13,6 @@ import {
   reconcileNursingShiftProposal,
 } from '@/features/rayen-import/domain/applyNursingShiftProposal';
 import { useRayenStaffingProposalActions } from '@/features/rayen-import/hooks/useRayenStaffingProposalActions';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const spies = vi.hoisted(() => ({ fresh: vi.fn(), patch: vi.fn() }));
 vi.mock('@/hooks/controllers/dailyRecordMutationFreshnessController', () => ({
@@ -61,7 +60,7 @@ describe.each(['nurse', 'tens'] as const)(
 
     it('does not report «Luz Peña» as synchronized where «Luz Pena» works, and adds her', () => {
       const catalog = ['Luz Pena', 'Luz Peña', 'Alba Prado', 'Inés Soto'];
-      const record = { date, beds: {}, [slot]: ['Luz Pena'] } as unknown as DailyRecord;
+      const record = DataFactory.createMockDailyRecord(date, { beds: {}, [slot]: ['Luz Pena'] });
       const proposal = infer(
         [...activity(role, 'Luz Peña', 'syn1'), ...activity(role, 'Alba Prado', 'syn2', 23)],
         catalog

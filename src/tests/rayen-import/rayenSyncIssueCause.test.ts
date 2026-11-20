@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildRayenSyncCoverage } from '@/features/rayen-import/domain/rayenSyncHistory';
 import { RayenSyncMetaSchema } from '@/schemas/zod/dailyRecord';
 import type { ClinicalFillError } from '@/features/rayen-import/contracts/clinicalFillContracts';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const failure = (message: string, reason: ClinicalFillError['reason'] = 'source_unavailable') =>
   ({
@@ -60,7 +60,7 @@ describe('the sync history explains why a source could not be read', () => {
   });
 
   it('names a patient discharged today by exact episode, not as an old unidentified attempt', () => {
-    const record = {
+    const record = asStoredDailyRecordShape({
       date: '2026-11-01',
       beds: {},
       discharges: [
@@ -72,7 +72,7 @@ describe('the sync history explains why a source could not be read', () => {
           clinicalEpisodeId: 'E1',
         },
       ],
-    } as unknown as DailyRecord;
+    });
     const error = { ...failure('Fuente no disponible'), bedId: '*' };
     const issue = buildRayenSyncCoverage(1, [error], '2026-11-01T18:50:00.000Z', record)
       .issues?.[0];
@@ -85,7 +85,7 @@ describe('the sync history explains why a source could not be read', () => {
   });
 
   it('does not borrow the identity of a deleted movement', () => {
-    const record = {
+    const record = asStoredDailyRecordShape({
       date: '2026-11-01',
       beds: {},
       discharges: [
@@ -98,7 +98,7 @@ describe('the sync history explains why a source could not be read', () => {
           deletedAt: '2026-11-01T12:00:00.000Z',
         },
       ],
-    } as unknown as DailyRecord;
+    });
     const error = { ...failure('Fuente no disponible'), bedId: '*' };
     const issue = buildRayenSyncCoverage(1, [error], '2026-11-01T18:50:00.000Z', record)
       .issues?.[0];

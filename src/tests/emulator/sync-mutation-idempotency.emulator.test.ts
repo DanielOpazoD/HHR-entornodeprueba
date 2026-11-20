@@ -48,6 +48,7 @@ import {
 } from '@/services/storage/sync';
 import { resetSyncMutationIdentityForTests } from '@/services/storage/sync/syncMutationIdentity';
 import { getTodayISO } from '@/utils/dateCoreUtils';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const CURRENT_RECORD_DATE = getTodayISO();
 const isoAt = (date: string, time: string): string => `${date}T${time}.000Z`;
@@ -252,7 +253,7 @@ describeEmulator('Firestore emulator mutation idempotency', () => {
       R10: buildEmptyBed('R10'),
     };
 
-    const remoteAfterClientA = {
+    const remoteAfterClientA = asStoredDailyRecordShape({
       ...base,
       lastUpdated: isoAt(date, '10:10:00'),
       beds: {
@@ -297,9 +298,9 @@ describeEmulator('Firestore emulator mutation idempotency', () => {
           diagnosis: 'CMA remoto conservado',
         },
       ],
-    } as unknown as DailyRecord;
+    });
 
-    const localStaleAfterRestart = {
+    const localStaleAfterRestart = asStoredDailyRecordShape({
       ...base,
       lastUpdated: isoAt(date, '10:00:00'),
       beds: {
@@ -344,7 +345,7 @@ describeEmulator('Firestore emulator mutation idempotency', () => {
           diagnosis: 'CMA local conservado tras reinicio',
         },
       ],
-    } as unknown as DailyRecord;
+    });
 
     await saveRecord(localStaleAfterRestart);
     await testEnv.withSecurityRulesDisabled(async context => {

@@ -4,7 +4,7 @@ import {
   migrateLegacyDataWithReport,
 } from '@/services/repositories/dataMigration';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { DataFactory } from '@/tests/factories/DataFactory';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 type LegacyDailyRecord = DailyRecord & {
   nurseName?: string;
@@ -197,13 +197,13 @@ describe('Data Migration Service - Staff Fields', () => {
   it('reports null normalization and patient fallback when legacy records are malformed', () => {
     const record = createBaseRecord({
       beds: {
-        R1: {
+        R1: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
           patientName: 'Paciente Legacy',
           status: 'ESTADO_INVALIDO',
           clinicalEvents: [null],
-        } as unknown as DailyRecord['beds'][string],
+        }),
       },
-      discharges: [null] as unknown as DailyRecord['discharges'],
+      discharges: asStoredDailyRecordShape<DailyRecord['discharges']>([null]),
       schemaVersion: 1,
     });
 

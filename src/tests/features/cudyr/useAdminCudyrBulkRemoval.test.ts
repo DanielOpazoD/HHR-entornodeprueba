@@ -3,9 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { BedDefinition } from '@/types/domain/beds';
 import { useAdminCudyrBulkRemoval } from '@/features/cudyr/hooks/useAdminCudyrBulkRemoval';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const makeRecord = (date = '2026-08-26') =>
-  ({
+  asStoredDailyRecordShape({
     date,
     beds: {
       H3C2: {
@@ -27,7 +28,7 @@ const makeRecord = (date = '2026-08-26') =>
         },
       },
     },
-  }) as unknown as DailyRecord;
+  });
 
 const visibleBeds = [{ id: 'H3C2' }, { id: 'H5C1' }] as BedDefinition[];
 

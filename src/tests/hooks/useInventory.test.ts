@@ -3,6 +3,7 @@ import { renderHook } from '@testing-library/react';
 import { useInventory } from '@/hooks/useInventory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 describe('useInventory', () => {
   it('should return default values when record is null', () => {
@@ -17,13 +18,13 @@ describe('useInventory', () => {
   });
 
   it('should calculate occupied beds correctly', () => {
-    const mockRecord = {
+    const mockRecord = DataFactory.createMockDailyRecord('2026-01-01', {
       beds: {
         R1: { bedId: 'R1', patientName: 'Patient A' } as PatientData,
         R2: { bedId: 'R2', patientName: 'Patient B' } as PatientData,
         R3: { bedId: 'R3', patientName: '' } as PatientData,
       },
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() => useInventory(mockRecord));
 
@@ -33,12 +34,12 @@ describe('useInventory', () => {
   });
 
   it('should calculate blocked beds correctly', () => {
-    const mockRecord = {
+    const mockRecord = DataFactory.createMockDailyRecord('2026-01-01', {
       beds: {
         R1: { bedId: 'R1', patientName: '', isBlocked: true } as PatientData,
         R2: { bedId: 'R2', patientName: '', isBlocked: false } as PatientData,
       },
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() => useInventory(mockRecord));
 
@@ -47,12 +48,12 @@ describe('useInventory', () => {
   });
 
   it('should calculate free beds correctly', () => {
-    const mockRecord = {
+    const mockRecord = DataFactory.createMockDailyRecord('2026-01-01', {
       beds: {
         R1: { bedId: 'R1', patientName: '' } as PatientData,
         R2: { bedId: 'R2', patientName: '' } as PatientData,
       },
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() => useInventory(mockRecord));
 
@@ -69,11 +70,11 @@ describe('useInventory', () => {
   });
 
   it('should calculate occupancy rate correctly', () => {
-    const mockRecord = {
+    const mockRecord = DataFactory.createMockDailyRecord('2026-01-01', {
       beds: {
         R1: { bedId: 'R1', patientName: 'Patient A' } as PatientData,
       },
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() => useInventory(mockRecord));
 

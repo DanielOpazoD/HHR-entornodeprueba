@@ -33,7 +33,7 @@ const buildRecord = (): DailyRecord =>
     transfers: [],
     cma: [],
     lastUpdated: '2026-03-07T00:00:00.000Z',
-  }) as unknown as DailyRecord;
+  }) satisfies DailyRecord;
 
 describe('bedOperationsAuditController', () => {
   it('resolves move/copy with patch and audit payloads', () => {

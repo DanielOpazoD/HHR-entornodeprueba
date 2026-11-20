@@ -4,6 +4,7 @@ import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyR
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { applyPatches } from '@/utils/patchUtils';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const BED_IDS = ['R1', 'R2', 'R3', 'R4', 'H1C1', 'H1C2', 'H2C1', 'H2C2', 'H3C1', 'H4C1'];
 const HISTORY_EVENT = {
@@ -19,7 +20,7 @@ const HISTORY_EVENT = {
 };
 
 const record = (): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-07-10',
     beds: Object.fromEntries(
       BED_IDS.map((bedId, index) => [
@@ -37,7 +38,7 @@ const record = (): DailyRecord =>
     cma: [],
     activeExtraBeds: [],
     lastUpdated: '2026-07-10T12:00:00.000Z',
-  }) as unknown as DailyRecord;
+  });
 
 const deps = (applyPatch: ClinicalFillDeps['applyPatch']): ClinicalFillDeps => ({
   fetchDeviceReport: vi.fn().mockResolvedValue({ base64: '' }),

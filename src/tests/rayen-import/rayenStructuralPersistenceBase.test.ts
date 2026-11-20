@@ -6,6 +6,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { buildRayenStructuralPersistenceBase } from '@/features/rayen-import/domain/rayenStructuralPersistenceBase';
 import { applyCensusImportDiff } from '@/features/rayen-import/domain/applyCensusImportDiff';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const patient = (bedId: string, note?: string): PatientData =>
   ({
@@ -446,9 +447,9 @@ describe('buildRayenStructuralPersistenceBase', () => {
   it('blocks newer local removals before restoring authoritative structural collections', () => {
     const authoritative = record({ R4: patient('R4') }, '2026-08-17T20:00:00.000Z');
     authoritative.activeExtraBeds = ['EXTRA-1'];
-    authoritative.discharges = [
+    authoritative.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       { id: 'confirmed-discharge' },
-    ] as unknown as DailyRecord['discharges'];
+    ]);
     const local = record({ R4: patient('R4') }, '2026-08-17T20:01:00.000Z');
 
     expect(() =>
@@ -459,12 +460,12 @@ describe('buildRayenStructuralPersistenceBase', () => {
   it('blocks a newer local edit to an existing movement with the same id', () => {
     const authoritative = record({ R4: patient('R4') }, '2026-08-17T20:00:00.000Z');
     const local = record({ R4: patient('R4') }, '2026-08-17T20:01:00.000Z');
-    authoritative.discharges = [
+    authoritative.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       { id: 'shared-discharge', time: '19:00' },
-    ] as unknown as DailyRecord['discharges'];
-    local.discharges = [
+    ]);
+    local.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
       { id: 'shared-discharge', time: '19:30' },
-    ] as unknown as DailyRecord['discharges'];
+    ]);
 
     expect(() =>
       buildRayenStructuralPersistenceBase(authoritative, local, emptyDiff, pendingLocal)
@@ -491,8 +492,10 @@ describe('buildRayenStructuralPersistenceBase', () => {
       time: '19:30',
       status: 'Vivo',
     };
-    authoritative.discharges = [legacyMovement] as unknown as DailyRecord['discharges'];
-    local.discharges = [{ ...legacyMovement }] as unknown as DailyRecord['discharges'];
+    authoritative.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
+      legacyMovement,
+    ]);
+    local.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([{ ...legacyMovement }]);
 
     expect(() =>
       buildRayenStructuralPersistenceBase(authoritative, local, emptyDiff, pendingLocal)

@@ -184,3 +184,11 @@ export const DataFactory = {
     ...overrides,
   }),
 };
+
+/**
+ * A day, or part of one, kept exactly as written: a shape the current `DailyRecord` type does not
+ * describe (a missing field, a malformed value, an old stored document) or one the factory would
+ * change by adding fields the test must not see. Use `DataFactory.createMockDailyRecord` for
+ * everything else, so a change to the type breaks the test at compile time.
+ */
+export const asStoredDailyRecordShape = <T = DailyRecord>(shape: unknown): T => shape as T;

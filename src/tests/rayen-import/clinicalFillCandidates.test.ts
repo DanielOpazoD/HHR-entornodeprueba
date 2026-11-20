@@ -4,9 +4,9 @@ import {
   collectClinicalFillCandidates,
   countClinicalFillEligiblePatients,
 } from '@/features/rayen-import/domain/clinicalFillCandidates';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
-const record = {
+const record = asStoredDailyRecordShape({
   date: '2026-07-28',
   beds: {
     H1C1: {
@@ -30,7 +30,7 @@ const record = {
   cma: [],
   activeExtraBeds: [],
   lastUpdated: '2026-07-28T10:00:00.000Z',
-} as unknown as DailyRecord;
+});
 
 describe('clinicalFillCandidates', () => {
   it('limits enrichment to structurally confirmed episodes, including an allowed crib', () => {

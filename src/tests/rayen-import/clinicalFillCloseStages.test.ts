@@ -1,6 +1,8 @@
 import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 // What a sync run does after its clinical save and before it closes, and how long each part takes.
 const SCALE_EVENT = {
@@ -11,11 +13,10 @@ const SCALE_EVENT = {
 };
 
 const record = (): DailyRecord =>
-  ({
-    date: '2026-07-10',
+  DataFactory.createMockDailyRecord('2026-07-10', {
     beds: {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente Sintético',
         rut: '12.345.678-5',
         clinicalEpisodeId: 'E1',
@@ -26,7 +27,7 @@ const record = (): DailyRecord =>
     transfers: [],
     cma: [],
     lastUpdated: '',
-  }) as unknown as DailyRecord;
+  });
 
 const setup = (archiveResult: 'persisted' | 'failed') => {
   let clock = 0;

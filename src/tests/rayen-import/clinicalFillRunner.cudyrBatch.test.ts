@@ -2,19 +2,30 @@ import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalF
 import { describe, expect, it, vi } from 'vitest';
 import { resolveClinicalStageResult } from '@/features/rayen-import/domain/clinicalStageResolution';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const record = (): DailyRecord =>
-  ({
-    date: '2026-07-16',
+  DataFactory.createMockDailyRecord('2026-07-16', {
     beds: {
-      H1C2: { bedId: 'H1C2', patientName: 'Paciente uno', clinicalEpisodeId: 'E1', devices: [] },
-      H2C1: { bedId: 'H2C1', patientName: 'Paciente dos', clinicalEpisodeId: 'E2', devices: [] },
+      H1C2: {
+        ...createEmptyPatient('H1C2'),
+        patientName: 'Paciente uno',
+        clinicalEpisodeId: 'E1',
+        devices: [],
+      },
+      H2C1: {
+        ...createEmptyPatient('H2C1'),
+        patientName: 'Paciente dos',
+        clinicalEpisodeId: 'E2',
+        devices: [],
+      },
     },
     discharges: [],
     transfers: [],
     cma: [],
     lastUpdated: '',
-  }) as unknown as DailyRecord;
+  });
 
 const singleRecord = (date = '2026-07-10'): DailyRecord => {
   const rec = record();

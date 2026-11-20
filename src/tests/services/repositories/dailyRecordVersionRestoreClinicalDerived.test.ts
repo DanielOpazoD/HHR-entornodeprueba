@@ -60,6 +60,7 @@ vi.mock('@/services/observability/operationalTelemetryOutcomeRecorder', () => ({
 
 import { restoreDailyRecordVersion } from '@/services/repositories/dailyRecordVersionRestoreController';
 import { saveRecordToFirestore } from '@/services/storage/firestore/firestoreRecordWrites';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 type Holder = Record<string, unknown>;
 
@@ -84,7 +85,7 @@ const patient = (bedId: string, clinicalEpisodeId: string, extra: Holder = {}): 
   ...extra,
 });
 const day = (beds: Record<string, Holder>, extra: Holder = {}): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: DATE,
     beds,
     discharges: [],
@@ -94,7 +95,7 @@ const day = (beds: Record<string, Holder>, extra: Holder = {}): DailyRecord =>
     nurses: ['', ''],
     activeExtraBeds: [],
     ...extra,
-  }) as unknown as DailyRecord;
+  });
 
 // Live split day: ep_a lives in its document, ep_b is not split yet (embedded copy only).
 const liveSplit = () =>

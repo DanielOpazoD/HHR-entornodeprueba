@@ -6,6 +6,7 @@ import {
   applySpecialtyReclassificationChange,
   buildAnalyticsMovementReclassificationRows,
 } from '@/features/analytics/controllers/analyticsSpecialtyReclassificationController';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const buildRecord = (): DailyRecord =>
   ({
@@ -84,7 +85,7 @@ describe('analyticsSpecialtyReclassificationController', () => {
   });
 
   it('uses legacy movement snapshots when direct discharge or transfer specialty is missing', () => {
-    const legacyRecord = {
+    const legacyRecord = asStoredDailyRecordShape({
       ...buildRecord(),
       discharges: [
         {
@@ -116,7 +117,7 @@ describe('analyticsSpecialtyReclassificationController', () => {
         },
       ],
       cma: [],
-    } as unknown as DailyRecord;
+    });
 
     const rows = buildAnalyticsMovementReclassificationRows([legacyRecord], []);
 

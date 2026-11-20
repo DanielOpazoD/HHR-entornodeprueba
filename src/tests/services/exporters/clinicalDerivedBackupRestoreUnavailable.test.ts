@@ -44,7 +44,7 @@ const day = (date: string, extra: Record<string, unknown> = {}) =>
     nurses: ['', ''],
     activeExtraBeds: [],
     ...extra,
-  }) as unknown as DailyRecord;
+  }) satisfies DailyRecord;
 
 beforeEach(() => {
   vi.clearAllMocks();

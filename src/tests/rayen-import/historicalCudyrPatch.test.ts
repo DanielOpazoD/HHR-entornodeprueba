@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { resolveHistoricalCudyrBatchOperation } from '@/features/rayen-import/domain/historicalCudyrPatch';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const official: ImportedCudyr = {
   category: 'C1',
@@ -12,11 +14,10 @@ const official: ImportedCudyr = {
 };
 
 const recordWith = (cudyr: ImportedCudyr): DailyRecord =>
-  ({
-    date: '2026-07-15',
+  DataFactory.createMockDailyRecord('2026-07-15', {
     beds: {
       H5C1: {
-        bedId: 'H5C1',
+        ...createEmptyPatient('H5C1'),
         patientName: 'Paciente',
         clinicalEpisodeId: 'episode-1',
         evaluationScores: { cudyr },
@@ -25,7 +26,7 @@ const recordWith = (cudyr: ImportedCudyr): DailyRecord =>
     discharges: [],
     transfers: [],
     cma: [],
-  }) as unknown as DailyRecord;
+  });
 
 describe('resolveHistoricalCudyrBatchOperation', () => {
   it('preserves an administrative adjustment instead of treating it as imported state', () => {

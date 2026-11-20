@@ -5,8 +5,9 @@ import {
   mergeClinicalRetrySummary,
   resolveClinicalStageResult,
 } from '@/features/rayen-import/domain/clinicalStageResolution';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { resetRayenClinicalFillQueueForTests } from '@/features/rayen-import/domain/rayenClinicalFillQueue';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const mocks = vi.hoisted(() => ({
   beginRayenFill: vi.fn(),
@@ -48,7 +49,7 @@ describe('useRayenClinicalFill', () => {
   it('terminalizes an applied run when another fill already owns the shared progress slot', async () => {
     mocks.beginRayenFill.mockReturnValue(false);
     const completeRun = vi.fn().mockRejectedValue(new Error('audit unavailable'));
-    const record = {
+    const record = asStoredDailyRecordShape({
       date: '2026-07-14',
       beds: {
         R1: { bedId: 'R1', patientName: 'Paciente', clinicalEpisodeId: 'episode-1' },
@@ -57,7 +58,7 @@ describe('useRayenClinicalFill', () => {
       transfers: [],
       cma: [],
       ...enforcedRunEvidence(),
-    } as unknown as DailyRecord;
+    });
     const { result } = renderHook(() =>
       useRayenClinicalFill({
         nurseCatalog: [],
@@ -103,7 +104,7 @@ describe('useRayenClinicalFill', () => {
 
   it('terminalizes an applied run when the fresh census cannot be loaded', async () => {
     const completeRun = vi.fn().mockRejectedValue(new Error('audit unavailable'));
-    const record = {
+    const record = asStoredDailyRecordShape({
       date: '2026-07-14',
       beds: {
         R1: { bedId: 'R1', patientName: 'Paciente', clinicalEpisodeId: 'episode-1' },
@@ -112,7 +113,7 @@ describe('useRayenClinicalFill', () => {
       transfers: [],
       cma: [],
       rayenSync: { runId: 'run-load-failed' },
-    } as unknown as DailyRecord;
+    });
     const { result } = renderHook(() =>
       useRayenClinicalFill({
         nurseCatalog: [],
@@ -159,14 +160,14 @@ describe('useRayenClinicalFill', () => {
 
   it('reports an explicit no-data nursing result in the same settled flow', async () => {
     const onStaffingProposal = vi.fn();
-    const record = {
+    const record = asStoredDailyRecordShape({
       date: '2026-07-14',
       beds: {},
       discharges: [],
       transfers: [],
       cma: [],
       ...enforcedRunEvidence(),
-    } as unknown as DailyRecord;
+    });
     const { result } = renderHook(() =>
       useRayenClinicalFill({
         nurseCatalog: ['Camila Soto'],
@@ -202,14 +203,14 @@ describe('useRayenClinicalFill', () => {
         })
     );
     const onStaffingProposal = vi.fn();
-    const record = {
+    const record = asStoredDailyRecordShape({
       date: '2026-07-14',
       beds: {},
       discharges: [],
       transfers: [],
       cma: [],
       ...enforcedRunEvidence(),
-    } as unknown as DailyRecord;
+    });
     const { result } = renderHook(() =>
       useRayenClinicalFill({
         nurseCatalog: [],
@@ -233,14 +234,14 @@ describe('useRayenClinicalFill', () => {
   });
 
   it('settles as partial when run completion persistence fails', async () => {
-    const record = {
+    const record = asStoredDailyRecordShape({
       date: '2026-07-14',
       beds: {},
       discharges: [],
       transfers: [],
       cma: [],
       ...enforcedRunEvidence(),
-    } as unknown as DailyRecord;
+    });
     const { result } = renderHook(() =>
       useRayenClinicalFill({
         nurseCatalog: [],
@@ -316,7 +317,7 @@ describe('useRayenClinicalFill', () => {
   });
 
   it('reports failure when every episode candidate on the same bed failed', () => {
-    const record = {
+    const record = asStoredDailyRecordShape({
       date: '2026-07-14',
       beds: {
         R1: {
@@ -332,7 +333,7 @@ describe('useRayenClinicalFill', () => {
       discharges: [],
       transfers: [],
       cma: [],
-    } as unknown as DailyRecord;
+    });
 
     expect(
       resolveClinicalStageResult(
@@ -370,7 +371,7 @@ describe('useRayenClinicalFill', () => {
   });
 
   it('reports partial when one of two episode candidates on the same bed completes', () => {
-    const record = {
+    const record = asStoredDailyRecordShape({
       date: '2026-07-14',
       beds: {
         R1: {
@@ -386,7 +387,7 @@ describe('useRayenClinicalFill', () => {
       discharges: [],
       transfers: [],
       cma: [],
-    } as unknown as DailyRecord;
+    });
 
     expect(
       resolveClinicalStageResult(
@@ -418,16 +419,15 @@ describe('useRayenClinicalFill', () => {
   });
 
   it('reports failure when duplicate candidate representations of one episode all fail', () => {
-    const record = {
-      date: '2026-07-14',
+    const record = DataFactory.createMockDailyRecord('2026-07-14', {
       beds: {
         R1: {
-          bedId: 'R1',
+          ...createEmptyPatient('R1'),
           patientName: 'Paciente',
           clinicalEpisodeId: 'episode-moved',
         },
         R2: {
-          bedId: 'R2',
+          ...createEmptyPatient('R2'),
           patientName: 'Paciente',
           clinicalEpisodeId: 'episode-moved',
         },
@@ -435,7 +435,7 @@ describe('useRayenClinicalFill', () => {
       discharges: [],
       transfers: [],
       cma: [],
-    } as unknown as DailyRecord;
+    });
 
     expect(
       resolveClinicalStageResult(

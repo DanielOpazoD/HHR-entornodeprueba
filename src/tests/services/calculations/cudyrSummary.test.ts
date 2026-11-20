@@ -2,6 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { buildDailyCudyrSummary, resolveVisibleCudyrBeds } from '@/services/cudyr/cudyrSummary';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 // Mock BEDS
 vi.mock('@/constants/beds', () => ({
@@ -28,7 +29,7 @@ describe('cudyrSummary', () => {
     date: '2025-01-01',
     beds: {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Patient 1',
         rut: '12345678-9',
         isBlocked: false,
@@ -37,7 +38,7 @@ describe('cudyrSummary', () => {
         cudyr: { changeClothes: 1 } as unknown as CudyrType,
       },
       M1: {
-        bedId: 'M1',
+        ...createEmptyPatient('M1'),
         patientName: 'Patient 2',
         rut: '98765432-1',
         isBlocked: false,
@@ -54,7 +55,7 @@ describe('cudyrSummary', () => {
           cudyr: { changeClothes: 0 } as unknown as CudyrType,
         } as unknown as BedValue,
       },
-    } as unknown as DailyRecord['beds'],
+    },
     discharges: [],
     transfers: [],
     lastUpdated: 'now',
@@ -175,8 +176,8 @@ describe('cudyrSummary', () => {
       const blockedRecord: DailyRecord = {
         ...mockRecord,
         beds: {
-          R1: { bedId: 'R1', patientName: 'Blocked', isBlocked: true },
-        } as unknown as DailyRecord['beds'],
+          R1: { ...createEmptyPatient('R1'), patientName: 'Blocked', isBlocked: true },
+        },
       };
       const summary = buildDailyCudyrSummary(blockedRecord);
       expect(summary.occupiedCount).toBe(0);
@@ -196,7 +197,7 @@ describe('cudyrSummary', () => {
             admissionTime: '18:00',
             cudyr: {} as CudyrType,
           } as unknown as BedValue,
-        } as unknown as DailyRecord['beds'],
+        },
       };
       expect(buildDailyCudyrSummary(recordWithExtra)).toMatchObject({
         occupiedCount: 1,
@@ -230,7 +231,7 @@ describe('cudyrSummary', () => {
             admissionTime: '23:30',
             cudyr: { changeClothes: 3, vitalSigns: 3 } as unknown as CudyrType,
           } as unknown as BedValue,
-        } as unknown as DailyRecord['beds'],
+        },
       };
 
       const summary = buildDailyCudyrSummary(ineligibleRecord);

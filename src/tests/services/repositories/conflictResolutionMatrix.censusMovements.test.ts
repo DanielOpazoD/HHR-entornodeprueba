@@ -2,6 +2,9 @@
 import { describe, expect, it } from 'vitest';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { PatientStatus } from '@/types/domain/patientClassification';
 
 const makeRecord = (date: string, lastUpdated: string): DailyRecord => ({
   date,
@@ -19,39 +22,39 @@ describe('conflictResolutionMatrix census movement policies', () => {
     const remote = makeRecord('2026-07-01', '2026-07-01T13:00:00.000Z');
     remote.beds = {
       H2C1: {
-        bedId: 'H2C1',
+        ...createEmptyPatient('H2C1'),
         patientName: 'Pierre-jean',
         rut: '25DF52626',
         admissionDate: '2026-06-29',
         pathology: 'Celulitis pie izquierdo',
         location: 'Sala Hospitalizados',
-      } as unknown as DailyRecord['beds'][string],
+      },
       H2C2: {
-        bedId: 'H2C2',
+        ...createEmptyPatient('H2C2'),
         patientName: '',
         rut: '',
         pathology: '',
         location: 'Sala Hospitalizados',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-07-01', '2026-07-01T13:05:00.000Z');
     local.beds = {
       H2C1: {
-        bedId: 'H2C1',
+        ...createEmptyPatient('H2C1'),
         patientName: '',
         rut: '',
         pathology: '',
         location: 'Sala Hospitalizados',
-      } as unknown as DailyRecord['beds'][string],
+      },
       H2C2: {
-        bedId: 'H2C2',
+        ...createEmptyPatient('H2C2'),
         patientName: 'Pierre-jean',
         rut: '25DF52626',
         admissionDate: '2026-06-29',
         pathology: 'Celulitis pie izquierdo',
         location: 'Sala Hospitalizados',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const resolved = resolveDailyRecordConflict(remote, local, {
@@ -68,25 +71,25 @@ describe('conflictResolutionMatrix census movement policies', () => {
     const remote = makeRecord('2026-07-01', '2026-07-01T13:00:00.000Z');
     remote.beds = {
       R5: {
-        bedId: 'R5',
+        ...createEmptyPatient('R5'),
         patientName: 'Paciente Movimiento Local',
         rut: '55.555.555-5',
         admissionDate: '2026-06-30',
         pathology: 'Diagnostico a conservar',
-        status: 'Estable',
+        status: PatientStatus.ESTABLE,
         specialty: 'Med Interna',
         age: '40a',
-      } as unknown as DailyRecord['beds'][string],
+      },
       R10: {
-        bedId: 'R10',
+        ...createEmptyPatient('R10'),
         patientName: '',
         rut: '',
         admissionDate: '',
         pathology: '',
-        status: 'Estable',
+        status: PatientStatus.ESTABLE,
         specialty: 'Med Interna',
         age: '40a',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-07-01', '2026-07-01T13:05:00.000Z');
@@ -113,16 +116,16 @@ describe('conflictResolutionMatrix census movement policies', () => {
 
   it('merges movement arrays by id (union with local override)', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
-    remote.transfers = [
+    remote.transfers = asStoredDailyRecordShape<DailyRecord['transfers']>([
       { id: 't1', bedId: 'R1', patientName: 'A' },
       { id: 't2', bedId: 'R2', patientName: 'B' },
-    ] as unknown as DailyRecord['transfers'];
+    ]);
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:01:00.000Z');
-    local.transfers = [
+    local.transfers = asStoredDailyRecordShape<DailyRecord['transfers']>([
       { id: 't2', bedId: 'R2', patientName: 'B (local)' },
       { id: 't3', bedId: 'R3', patientName: 'C' },
-    ] as unknown as DailyRecord['transfers'];
+    ]);
 
     const resolved = resolveDailyRecordConflict(remote, local, {
       changedPaths: ['transfers'],

@@ -13,6 +13,7 @@ import {
 import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 /** A structural save confirmed by the server, unless `write` says what else it left. */
 const buildResult = (write: Partial<DailyRecordWriteResult> = {}): DailyRecordWriteResult =>
@@ -285,16 +286,16 @@ describe('rayenCensusPersistenceGuard', () => {
     const record = buildRecord('run-1', {
       beds: {
         H1C1: {
-          bedId: 'H1C1',
+          ...createEmptyPatient('H1C1'),
           patientName: 'Paciente seguro',
           clinicalEpisodeId: 'episode-safe',
         },
         H2C1: {
-          bedId: 'H2C1',
+          ...createEmptyPatient('H2C1'),
           patientName: 'Paciente en conflicto',
           clinicalEpisodeId: 'episode-blocked',
         },
-      } as unknown as DailyRecord['beds'],
+      },
     });
     const diff = {
       conflicts: [
@@ -323,16 +324,16 @@ describe('rayenCensusPersistenceGuard', () => {
     const record = buildRecord('run-1', {
       beds: {
         H1C1: {
-          bedId: 'H1C1',
+          ...createEmptyPatient('H1C1'),
           patientName: 'Paciente seguro',
           clinicalEpisodeId: 'episode-safe',
         },
         BOX2: {
-          bedId: 'BOX2',
+          ...createEmptyPatient('BOX2'),
           patientName: 'Ingreso duplicado',
           clinicalEpisodeId: 'episode-invalid',
         },
-      } as unknown as DailyRecord['beds'],
+      },
     });
     const diff = { conflicts: [], invalidClinicalEpisodeIds: ['episode-invalid'] } as never;
 
@@ -348,16 +349,16 @@ describe('rayenCensusPersistenceGuard', () => {
     const record = buildRecord('run-1', {
       beds: {
         H1C1: {
-          bedId: 'H1C1',
+          ...createEmptyPatient('H1C1'),
           patientName: 'Paciente seguro',
           clinicalEpisodeId: 'episode-safe',
         },
         H2C1: {
-          bedId: 'H2C1',
+          ...createEmptyPatient('H2C1'),
           patientName: 'Ocupante de cama disputada',
           clinicalEpisodeId: 'episode-occupant',
         },
-      } as unknown as DailyRecord['beds'],
+      },
     });
     const diff = {
       conflicts: [
@@ -387,11 +388,11 @@ describe('rayenCensusPersistenceGuard', () => {
     const record = buildRecord('run-1', {
       beds: {
         H2C1: {
-          bedId: 'H2C1',
+          ...createEmptyPatient('H2C1'),
           patientName: 'Paciente en conflicto',
           clinicalEpisodeId: 'episode-blocked',
         },
-      } as unknown as DailyRecord['beds'],
+      },
     });
     const diff = {
       conflicts: [{ bedId: 'H2C1', reason: 'Identidad ambigua en la cama.' }],
@@ -413,11 +414,11 @@ describe('rayenCensusPersistenceGuard', () => {
     const record = buildRecord('run-1', {
       beds: {
         H1C1: {
-          bedId: 'H1C1',
+          ...createEmptyPatient('H1C1'),
           patientName: 'Paciente seguro en apariencia',
           clinicalEpisodeId: 'episode-unknown-scope',
         },
-      } as unknown as DailyRecord['beds'],
+      },
     });
     const diff = {
       conflicts: [{ bedId: null, reason: 'La evidencia no identifica una cama ni episodio.' }],

@@ -7,7 +7,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const { invoke, httpsCallable } = vi.hoisted(() => ({ invoke: vi.fn(), httpsCallable: vi.fn() }));
 vi.mock('firebase/functions', () => ({ httpsCallable }));
@@ -24,10 +23,14 @@ import {
   patchDailyRecordWithClinicalAuthorityCallable as patch,
   saveDailyRecordWithClinicalAuthorityCallable as save,
 } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 const date = '2026-11-02';
 const syncContract = { mutationId: 'synthetic-mutation', changedPaths: ['beds.R1.cudyr'] };
-const record = { date, lastUpdated: `${date}T10:00:00.000Z`, beds: {} } as unknown as DailyRecord;
+const record = DataFactory.createMockDailyRecord(date, {
+  lastUpdated: `${date}T10:00:00.000Z`,
+  beds: {},
+});
 
 beforeEach(() => {
   vi.clearAllMocks();

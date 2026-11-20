@@ -9,6 +9,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { useAuditContext } from '@/context/AuditContext';
 import { getActiveDischarges, isMovementDeleted } from '@/domain/movements/movementTombstonePolicy';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 // Mock dependencies
 vi.mock('@/context/AuditContext', () => ({
@@ -41,8 +42,7 @@ describe('usePatientDischarges', () => {
     } as unknown as ReturnType<typeof useAuditContext>);
     mockSaveAndUpdate = vi.fn().mockResolvedValue(undefined) as PersistDailyRecord;
     mockPatchRecord = vi.fn().mockResolvedValue(undefined) as ApplyDailyRecordPatch;
-    mockRecord = {
-      date: '2024-12-28',
+    mockRecord = DataFactory.createMockDailyRecord('2024-12-28', {
       beds: {
         R1: {
           bedId: 'R1',
@@ -61,7 +61,7 @@ describe('usePatientDischarges', () => {
       discharges: [],
       transfers: [],
       cma: [],
-    } as unknown as DailyRecord;
+    });
   });
 
   it('should return all discharge functions', () => {
@@ -140,10 +140,10 @@ describe('usePatientDischarges', () => {
   });
 
   it('should update discharge', () => {
-    const recordWithDischarge = {
+    const recordWithDischarge = asStoredDailyRecordShape({
       ...mockRecord,
       discharges: [{ id: 'discharge-1', patientName: 'Test', status: 'Vivo', time: '' }],
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() =>
       usePatientDischarges(recordWithDischarge, mockSaveAndUpdate)
@@ -157,10 +157,10 @@ describe('usePatientDischarges', () => {
   });
 
   it('updates discharge through a movement patch when available', () => {
-    const recordWithDischarge = {
+    const recordWithDischarge = asStoredDailyRecordShape({
       ...mockRecord,
       discharges: [{ id: 'discharge-1', patientName: 'Test', status: 'Vivo', time: '' }],
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() =>
       usePatientDischarges(recordWithDischarge, mockSaveAndUpdate, undefined, mockPatchRecord)
@@ -184,10 +184,10 @@ describe('usePatientDischarges', () => {
   });
 
   it('should delete discharge', () => {
-    const recordWithDischarge = {
+    const recordWithDischarge = asStoredDailyRecordShape({
       ...mockRecord,
       discharges: [{ id: 'discharge-1', patientName: 'Test' }],
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() =>
       usePatientDischarges(recordWithDischarge, mockSaveAndUpdate)
@@ -201,10 +201,10 @@ describe('usePatientDischarges', () => {
   });
 
   it('deletes discharge through a movement patch when available', () => {
-    const recordWithDischarge = {
+    const recordWithDischarge = asStoredDailyRecordShape({
       ...mockRecord,
       discharges: [{ id: 'discharge-1', patientName: 'Test' }],
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() =>
       usePatientDischarges(recordWithDischarge, mockSaveAndUpdate, undefined, mockPatchRecord)
@@ -228,7 +228,7 @@ describe('usePatientDischarges', () => {
   });
 
   it('should handle mother-only discharge', () => {
-    const recordWithCrib = {
+    const recordWithCrib = asStoredDailyRecordShape({
       ...mockRecord,
       beds: {
         ...mockRecord.beds,
@@ -237,7 +237,7 @@ describe('usePatientDischarges', () => {
           clinicalCrib: { patientName: 'Baby', rut: '98765432-1' },
         },
       },
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() => usePatientDischarges(recordWithCrib, mockSaveAndUpdate));
 
@@ -257,7 +257,7 @@ describe('usePatientDischarges', () => {
   });
 
   it('should undo discharge and restore patient snapshot', async () => {
-    const recordWithDischarge = {
+    const recordWithDischarge = asStoredDailyRecordShape({
       ...mockRecord,
       discharges: [
         {
@@ -274,7 +274,7 @@ describe('usePatientDischarges', () => {
           isNested: false,
         },
       ],
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() =>
       usePatientDischarges(recordWithDischarge, mockSaveAndUpdate)
@@ -315,7 +315,7 @@ describe('usePatientDischarges', () => {
 
   it('should notify runtime when undo is blocked by occupied bed', () => {
     const runtime = { alert: vi.fn() };
-    const recordWithDischarge = {
+    const recordWithDischarge = asStoredDailyRecordShape({
       ...mockRecord,
       discharges: [
         {
@@ -327,7 +327,7 @@ describe('usePatientDischarges', () => {
           isNested: false,
         },
       ],
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() =>
       usePatientDischarges(recordWithDischarge, mockSaveAndUpdate, runtime)

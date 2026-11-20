@@ -9,6 +9,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { useAuditContext } from '@/context/AuditContext';
 import { getActiveTransfers, isMovementDeleted } from '@/domain/movements/movementTombstonePolicy';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 // Mock dependencies
 vi.mock('@/context/AuditContext', () => ({
@@ -40,8 +41,7 @@ describe('usePatientTransfers', () => {
     } as unknown as ReturnType<typeof useAuditContext>);
     mockSaveAndUpdate = vi.fn().mockResolvedValue(undefined) as PersistDailyRecord;
     mockPatchRecord = vi.fn().mockResolvedValue(undefined) as ApplyDailyRecordPatch;
-    mockRecord = {
-      date: '2024-12-28',
+    mockRecord = DataFactory.createMockDailyRecord('2024-12-28', {
       beds: {
         R1: {
           bedId: 'R1',
@@ -60,7 +60,7 @@ describe('usePatientTransfers', () => {
       transfers: [],
       discharges: [],
       cma: [],
-    } as unknown as DailyRecord;
+    });
   });
 
   it('should return all transfer functions', () => {
@@ -138,10 +138,10 @@ describe('usePatientTransfers', () => {
   });
 
   it('should update transfer', () => {
-    const recordWithTransfer = {
+    const recordWithTransfer = asStoredDailyRecordShape({
       ...mockRecord,
       transfers: [{ id: 'transfer-1', patientName: 'Test', time: '' }],
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() => usePatientTransfers(recordWithTransfer, mockSaveAndUpdate));
 
@@ -153,10 +153,10 @@ describe('usePatientTransfers', () => {
   });
 
   it('updates transfer through a movement patch when available', () => {
-    const recordWithTransfer = {
+    const recordWithTransfer = asStoredDailyRecordShape({
       ...mockRecord,
       transfers: [{ id: 'transfer-1', patientName: 'Test', time: '' }],
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() =>
       usePatientTransfers(recordWithTransfer, mockSaveAndUpdate, undefined, mockPatchRecord)
@@ -180,7 +180,7 @@ describe('usePatientTransfers', () => {
   });
 
   it('persists transfer diagnosis updates and logs the clinical diagnosis change', async () => {
-    const recordWithTransfer = {
+    const recordWithTransfer = asStoredDailyRecordShape({
       ...mockRecord,
       transfers: [
         {
@@ -192,7 +192,7 @@ describe('usePatientTransfers', () => {
           clinicalEpisodeId: 'episode-1',
         },
       ],
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() =>
       usePatientTransfers(recordWithTransfer, mockSaveAndUpdate, undefined, mockPatchRecord)
@@ -239,10 +239,10 @@ describe('usePatientTransfers', () => {
   });
 
   it('should delete transfer', () => {
-    const recordWithTransfer = {
+    const recordWithTransfer = asStoredDailyRecordShape({
       ...mockRecord,
       transfers: [{ id: 'transfer-1', patientName: 'Test' }],
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() => usePatientTransfers(recordWithTransfer, mockSaveAndUpdate));
 
@@ -254,10 +254,10 @@ describe('usePatientTransfers', () => {
   });
 
   it('deletes transfer through a movement patch when available', () => {
-    const recordWithTransfer = {
+    const recordWithTransfer = asStoredDailyRecordShape({
       ...mockRecord,
       transfers: [{ id: 'transfer-1', patientName: 'Test' }],
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() =>
       usePatientTransfers(recordWithTransfer, mockSaveAndUpdate, undefined, mockPatchRecord)
@@ -295,12 +295,12 @@ describe('usePatientTransfers', () => {
       receivingCenter: 'Hospital',
       clinicalEpisodeId: 'episode-transfer',
     };
-    const recordWithTransfer = {
+    const recordWithTransfer = DataFactory.createMockDailyRecord('2026-01-01', {
       ...mockRecord,
       transfers: [transfer],
       discharges: [],
       cma: [],
-    } as unknown as DailyRecord;
+    });
     const { result } = renderHook(() =>
       usePatientTransfers(recordWithTransfer, mockSaveAndUpdate, undefined, mockPatchRecord)
     );
@@ -356,7 +356,7 @@ describe('usePatientTransfers', () => {
   });
 
   it('should undo transfer and restore patient snapshot', () => {
-    const recordWithTransfer = {
+    const recordWithTransfer = asStoredDailyRecordShape({
       ...mockRecord,
       transfers: [
         {
@@ -373,7 +373,7 @@ describe('usePatientTransfers', () => {
           isNested: false,
         },
       ],
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() => usePatientTransfers(recordWithTransfer, mockSaveAndUpdate));
 
@@ -396,7 +396,7 @@ describe('usePatientTransfers', () => {
   });
 
   it('undoes transfer through a movement patch when available', () => {
-    const recordWithTransfer = {
+    const recordWithTransfer = asStoredDailyRecordShape({
       ...mockRecord,
       transfers: [
         {
@@ -413,7 +413,7 @@ describe('usePatientTransfers', () => {
           isNested: false,
         },
       ],
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() =>
       usePatientTransfers(recordWithTransfer, mockSaveAndUpdate, undefined, mockPatchRecord)
@@ -442,7 +442,7 @@ describe('usePatientTransfers', () => {
 
   it('should notify runtime when undo transfer is blocked', () => {
     const runtime = { alert: vi.fn() };
-    const recordWithTransfer = {
+    const recordWithTransfer = asStoredDailyRecordShape({
       ...mockRecord,
       transfers: [
         {
@@ -454,7 +454,7 @@ describe('usePatientTransfers', () => {
           isNested: false,
         },
       ],
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() =>
       usePatientTransfers(recordWithTransfer, mockSaveAndUpdate, runtime)

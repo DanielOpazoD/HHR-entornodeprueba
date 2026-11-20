@@ -28,15 +28,16 @@ const loadReaderChunk = () => {
 
 import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const DATE = '2026-11-02';
 const GENERATION = 'gen_synthetic_a';
-const record = {
+const record = asStoredDailyRecordShape({
   date: DATE,
   meta: { revision: 2 },
   clinicalDerivedLayout: { version: 1, generation: GENERATION },
   beds: { R1: { clinicalEpisodeId: 'ep_a', vitalSignsHistory: [] } },
-} as unknown as DailyRecord;
+});
 const unmarked = { ...record, clinicalDerivedLayout: undefined } as DailyRecord;
 
 // A fresh service per test: nothing cached from a previous load, and the mock reloads too.
