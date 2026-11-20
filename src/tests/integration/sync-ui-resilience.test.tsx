@@ -6,6 +6,9 @@ import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
 import { ConcurrencyError } from '@/services/storage/firestore';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { PatientStatus } from '@/types/domain/patientClassification';
 
 const mockSubscribe = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>();
 const mockGetForDate = vi.fn();
@@ -61,11 +64,10 @@ const createWrapper = () => {
 };
 
 const buildRecord = (date: string, name: string): DailyRecord =>
-  ({
-    date,
+  DataFactory.createMockDailyRecord(date, {
     beds: {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         isBlocked: false,
         bedMode: 'Cama',
         hasCompanionCrib: false,
@@ -74,7 +76,7 @@ const buildRecord = (date: string, name: string): DailyRecord =>
         age: '40a',
         pathology: 'Diag',
         specialty: 'Med Interna',
-        status: 'Estable',
+        status: PatientStatus.ESTABLE,
         admissionDate: date,
         hasWristband: false,
         devices: [],
@@ -88,7 +90,7 @@ const buildRecord = (date: string, name: string): DailyRecord =>
     lastUpdated: `${date}T10:00:00.000Z`,
     nurses: [],
     activeExtraBeds: [],
-  }) as unknown as DailyRecord;
+  });
 
 describe('Sync UI Resilience Integration', () => {
   const date = '2026-02-19';

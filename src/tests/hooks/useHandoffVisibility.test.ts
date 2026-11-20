@@ -3,6 +3,7 @@ import { renderHook } from '@testing-library/react';
 import { useHandoffVisibility } from '@/hooks/useHandoffVisibility';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 // Mock constants
 vi.mock('@/constants/beds', () => ({
@@ -70,13 +71,12 @@ describe('useHandoffVisibility', () => {
   });
 
   it('should return false for empty bed', () => {
-    const recordWithEmptyBed = {
-      date: '2024-12-28',
+    const recordWithEmptyBed = DataFactory.createMockDailyRecord('2024-12-28', {
       beds: {
         R1: { bedId: 'R1', patientName: '' } as PatientData,
       },
       activeExtraBeds: [],
-    } as unknown as DailyRecord;
+    });
 
     const { result } = renderHook(() => useHandoffVisibility(recordWithEmptyBed, 'day'));
 

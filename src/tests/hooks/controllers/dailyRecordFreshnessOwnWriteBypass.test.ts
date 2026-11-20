@@ -11,22 +11,31 @@ import { assertHydratedRemotePatchCanProceed } from '@/hooks/controllers/dailyRe
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { getSyncClientId } from '@/services/storage/sync/syncMutationIdentity';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { PatientStatus } from '@/types/domain/patientClassification';
 
 const DATE = '2026-08-30';
 
 const buildRecord = (overrides: Partial<DailyRecord> = {}): DailyRecord =>
-  ({
-    date: DATE,
+  DataFactory.createMockDailyRecord(DATE, {
     lastUpdated: '2026-08-30T10:00:00.000Z',
     beds: {
-      R1: { bedId: 'R1', patientName: 'Paciente Uno', status: 'Estable' },
-      R2: { bedId: 'R2', patientName: 'Paciente Dos', status: 'Estable' },
+      R1: {
+        ...createEmptyPatient('R1'),
+        patientName: 'Paciente Uno',
+        status: PatientStatus.ESTABLE,
+      },
+      R2: {
+        ...createEmptyPatient('R2'),
+        patientName: 'Paciente Dos',
+        status: PatientStatus.ESTABLE,
+      },
     },
     discharges: [],
     transfers: [],
     cma: [],
     ...overrides,
-  }) as unknown as DailyRecord;
+  });
 
 const buildHydratedFreshness = (record: DailyRecord): DailyRecordQueryResult =>
   ({

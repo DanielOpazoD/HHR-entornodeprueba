@@ -5,12 +5,13 @@ import { syncPatientsToMasterInBackground } from '@/services/repositories/dailyR
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { PatientMasterRepository } from '@/services/repositories/PatientMasterRepository';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const createRecord = (): DailyRecord => ({
   date: '2026-04-14',
   beds: {
     R1: {
-      bedId: 'R1',
+      ...createEmptyPatient('R1'),
       isBlocked: false,
       bedMode: 'Cama',
       hasCompanionCrib: false,
@@ -28,7 +29,7 @@ const createRecord = (): DailyRecord => ({
       devices: [],
       surgicalComplication: false,
       isUPC: false,
-    } as unknown as DailyRecord['beds'][string],
+    },
   },
   discharges: [
     {
@@ -218,7 +219,7 @@ describe('dailyRecordBackgroundMasterSyncController', () => {
       date: '2026-04-14',
       beds: {
         R1: {
-          bedId: 'R1',
+          ...createEmptyPatient('R1'),
           isBlocked: false,
           bedMode: 'Cama',
           hasCompanionCrib: false,
@@ -233,7 +234,7 @@ describe('dailyRecordBackgroundMasterSyncController', () => {
           devices: [],
           surgicalComplication: false,
           isUPC: false,
-        } as unknown as DailyRecord['beds'][string],
+        },
       },
       discharges: [],
       transfers: [],

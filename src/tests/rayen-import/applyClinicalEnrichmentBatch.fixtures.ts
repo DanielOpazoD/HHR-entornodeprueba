@@ -1,9 +1,9 @@
 import { vi } from 'vitest';
 import type { ClinicalFillPatchOperation } from '@/features/rayen-import';
 import type { RayenClinicalEnrichmentBatchPayload } from '@/features/rayen-import/bridge/rayenClinicalEnrichmentBatchClient';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
-export const record = {
+export const record = asStoredDailyRecordShape({
   date: '2026-07-28',
   lastUpdated: '2026-07-28T10:00:00.000Z',
   beds: {},
@@ -11,7 +11,7 @@ export const record = {
   transfers: [],
   cma: [],
   meta: { revision: 7 },
-} as unknown as DailyRecord;
+});
 
 export const operations: ClinicalFillPatchOperation[] = [
   {

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { prepareClinicalEnrichmentBatchPayload } from '@/features/rayen-import/hooks/clinicalEnrichmentBatchPayload';
 import type { ClinicalFillPatchOperation } from '@/features/rayen-import';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
-const record = {
+const record = asStoredDailyRecordShape({
   date: '2026-07-28',
   lastUpdated: '2026-07-28T10:00:00.000Z',
   beds: {},
@@ -11,7 +11,7 @@ const record = {
   transfers: [],
   cma: [],
   meta: { revision: 7 },
-} as unknown as DailyRecord;
+});
 
 const prepare = (operations: ClinicalFillPatchOperation[]) =>
   prepareClinicalEnrichmentBatchPayload({
@@ -40,10 +40,10 @@ describe('clinicalEnrichmentBatchPayload', () => {
   });
 
   it('omits baseRevision when the record revision is null', () => {
-    const recordWithoutRevision = {
+    const recordWithoutRevision = asStoredDailyRecordShape({
       ...record,
       meta: { revision: null },
-    } as unknown as DailyRecord;
+    });
     const { payload } = prepareClinicalEnrichmentBatchPayload({
       mode: 'enforced',
       record: recordWithoutRevision,

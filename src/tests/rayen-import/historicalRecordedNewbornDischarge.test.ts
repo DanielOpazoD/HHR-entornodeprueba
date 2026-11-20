@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DischargeData } from '@/types/domain/movements';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { EgresoReportRow } from '@/features/rayen-import/contracts/egresoReport';
@@ -9,6 +8,7 @@ import {
   buildAppliedRayenSyncEvent,
   completeRayenSyncEvent,
 } from '@/features/rayen-import/domain/rayenSyncHistory';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 const newborn: DischargeData = {
   id: 'synthetic-rn',
@@ -47,14 +47,13 @@ const row: EgresoReportRow = {
 };
 
 async function replay(discharges: DischargeData[], rows = [row]) {
-  const record = {
-    date: '2026-11-10',
+  const record = DataFactory.createMockDailyRecord('2026-11-10', {
     beds: {},
     discharges,
     transfers: [],
     cma: [],
     activeExtraBeds: [],
-  } as unknown as DailyRecord;
+  });
   const diff = await replanRayenStructure(
     record,
     {

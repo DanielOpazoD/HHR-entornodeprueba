@@ -3,20 +3,20 @@ import { describe, expect, it } from 'vitest';
 import { buildBedPatchFailureTelemetryEvent } from '@/hooks/controllers/bedManagementHealthTelemetry';
 import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
-const record = {
+const record = DataFactory.createMockDailyRecord('2026-01-01', {
   ...DataFactory.createMockDailyRecord('2026-05-21'),
   beds: {
     R1: {
-      bedId: 'R1',
+      ...createEmptyPatient('R1'),
       patientName: 'Paciente Sintético',
       rut: '11.111.111-1',
       clinicalEpisodeId: 'episodio-sintetico',
       pathology: 'Neumonia sintética',
     },
   },
-} as unknown as DailyRecord;
+});
 const event = () =>
   buildBedPatchFailureTelemetryEvent(
     record,

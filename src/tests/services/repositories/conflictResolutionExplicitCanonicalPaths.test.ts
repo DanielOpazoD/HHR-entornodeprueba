@@ -5,6 +5,9 @@ import {
   resolveDailyRecordConflictWithTrace,
 } from '@/services/repositories/conflictResolutionMatrix';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { PatientStatus } from '@/types/domain/patientClassification';
 
 const makeRecord = (date: string, lastUpdated: string): DailyRecord => ({
   date,
@@ -22,19 +25,19 @@ describe('conflictResolution explicit canonical paths', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Nombre remoto vigente',
         pathology: 'Diagnostico remoto vigente',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Nombre local stale',
         pathology: 'Diagnostico local stale',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const resolved = resolveDailyRecordConflict(remote, local, {
@@ -49,31 +52,31 @@ describe('conflictResolution explicit canonical paths', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         clinicalEpisodeId: 'episode-r1',
         patientName: 'Paciente vigente',
         rut: '11.111.111-1',
         admissionDate: '2026-02-17',
         specialty: 'Medicina',
         secondarySpecialty: undefined,
-        status: 'Estable',
+        status: PatientStatus.ESTABLE,
         pathology: 'Diagnostico remoto vigente',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         clinicalEpisodeId: 'episode-r1',
         patientName: 'Paciente vigente',
         rut: '11.111.111-1',
         admissionDate: '2026-02-17',
         specialty: 'Otra especialidad',
         secondarySpecialty: 'Infectologia',
-        status: 'De cuidado',
+        status: PatientStatus.DE_CUIDADO,
         pathology: 'Diagnostico local stale',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const result = resolveDailyRecordConflictWithTrace(remote, local, {
@@ -100,7 +103,7 @@ describe('conflictResolution explicit canonical paths', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         clinicalEpisodeId: 'episode-r1',
         patientName: 'Paciente vigente',
         rut: '11.111.111-1',
@@ -116,13 +119,13 @@ describe('conflictResolution explicit canonical paths', () => {
         deliveryCesareanLabor: undefined,
         isUPC: false,
         upcChecklist: undefined,
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         clinicalEpisodeId: 'episode-r1',
         patientName: 'Paciente vigente',
         rut: '11.111.111-1',
@@ -143,7 +146,7 @@ describe('conflictResolution explicit canonical paths', () => {
           utiCriteria: [],
           evaluatedAt: '2026-02-18T10:00:00.000Z',
         },
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const result = resolveDailyRecordConflictWithTrace(remote, local, {
@@ -195,7 +198,7 @@ describe('conflictResolution explicit canonical paths', () => {
   it('keeps explicit status edits when the remote snapshot already has a generated episode id', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     remote.beds = {
-      R1: {
+      R1: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R1',
         clinicalEpisodeId: 'ep_r1_generated',
         patientName: 'Paciente vigente',
@@ -203,20 +206,20 @@ describe('conflictResolution explicit canonical paths', () => {
         admissionDate: '2026-02-18',
         admissionTime: '08:00',
         status: '',
-      } as unknown as DailyRecord['beds'][string],
+      }),
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         clinicalEpisodeId: undefined,
         patientName: 'Paciente vigente',
         rut: '11.111.111-1',
         admissionDate: '2026-02-18',
         admissionTime: '08:00',
-        status: 'Grave',
-      } as unknown as DailyRecord['beds'][string],
+        status: PatientStatus.GRAVE,
+      },
     };
 
     const result = resolveDailyRecordConflictWithTrace(remote, local, {
@@ -238,7 +241,7 @@ describe('conflictResolution explicit canonical paths', () => {
   it('keeps newer local status and specialty visible for the same episode during whole-record reconciliation', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
-      R1: {
+      R1: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R1',
         clinicalEpisodeId: 'ep_r1_generated',
         patientName: 'Paciente vigente',
@@ -247,21 +250,21 @@ describe('conflictResolution explicit canonical paths', () => {
         admissionTime: '08:00',
         status: '',
         specialty: '',
-      } as unknown as DailyRecord['beds'][string],
+      }),
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:00:05.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         clinicalEpisodeId: undefined,
         patientName: 'Paciente vigente',
         rut: '11.111.111-1',
         admissionDate: '2026-02-18',
         admissionTime: '08:00',
-        status: 'Grave',
+        status: PatientStatus.GRAVE,
         specialty: 'Medicina',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const result = resolveDailyRecordConflictWithTrace(remote, local, { changedPaths: ['*'] });
@@ -288,7 +291,7 @@ describe('conflictResolution explicit canonical paths', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:08.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         clinicalEpisodeId: 'ep_r1_generated',
         patientName: 'Paciente vigente',
         rut: '11.111.111-1',
@@ -296,14 +299,14 @@ describe('conflictResolution explicit canonical paths', () => {
         admissionTime: '08:00',
         pathology: '',
         specialty: '',
-        status: 'De cuidado',
-      } as unknown as DailyRecord['beds'][string],
+        status: PatientStatus.DE_CUIDADO,
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:00:05.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         clinicalEpisodeId: undefined,
         patientName: 'Paciente vigente',
         rut: '11.111.111-1',
@@ -311,8 +314,8 @@ describe('conflictResolution explicit canonical paths', () => {
         admissionTime: '08:00',
         pathology: 'Neumonia adquirida en la comunidad',
         specialty: 'Medicina',
-        status: 'De cuidado',
-      } as unknown as DailyRecord['beds'][string],
+        status: PatientStatus.DE_CUIDADO,
+      },
     };
 
     const result = resolveDailyRecordConflictWithTrace(remote, local, { changedPaths: ['*'] });
@@ -341,7 +344,7 @@ describe('conflictResolution explicit canonical paths', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         clinicalEpisodeId: 'episode-new',
         patientName: 'Paciente nuevo',
         rut: '11.111.111-1',
@@ -349,14 +352,14 @@ describe('conflictResolution explicit canonical paths', () => {
         admissionTime: '15:30',
         specialty: 'Medicina',
         secondarySpecialty: undefined,
-        status: 'Estable',
-      } as unknown as DailyRecord['beds'][string],
+        status: PatientStatus.ESTABLE,
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         clinicalEpisodeId: 'episode-old',
         patientName: 'Paciente antiguo',
         rut: '11.111.111-1',
@@ -364,8 +367,8 @@ describe('conflictResolution explicit canonical paths', () => {
         admissionTime: '08:00',
         specialty: 'Otra especialidad',
         secondarySpecialty: 'Infectologia',
-        status: 'De cuidado',
-      } as unknown as DailyRecord['beds'][string],
+        status: PatientStatus.DE_CUIDADO,
+      },
     };
 
     const resolved = resolveDailyRecordConflict(remote, local, {

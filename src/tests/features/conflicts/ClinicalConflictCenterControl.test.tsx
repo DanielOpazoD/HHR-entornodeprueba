@@ -9,6 +9,8 @@ import { ClinicalConflictCenterControl } from '@/components/clinical-conflicts/C
 import type { ConflictVersionRecoveryModel } from '@/hooks/clinical-conflicts/useConflictVersionRecovery';
 import type { ConflictVersionSnapshot } from '@/application/ports/dailyRecordConflictRecoveryPort';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const mockRecovery = vi.hoisted(() => vi.fn<() => ConflictVersionRecoveryModel>());
 
@@ -17,11 +19,10 @@ vi.mock('@/hooks/clinical-conflicts/useConflictVersionRecovery', () => ({
 }));
 
 const buildRecord = (pathology: string, note: string): DailyRecord =>
-  ({
-    date: '2026-07-01',
+  DataFactory.createMockDailyRecord('2026-07-01', {
     beds: {
       H1: {
-        bedId: 'H1',
+        ...createEmptyPatient('H1'),
         bedName: 'H1',
         patientName: 'Pierre Jean',
         rut: '25DF52626',
@@ -34,7 +35,7 @@ const buildRecord = (pathology: string, note: string): DailyRecord =>
     cma: [],
     activeExtraBeds: [],
     lastUpdated: '2026-07-01T10:00:00.000Z',
-  }) as unknown as DailyRecord;
+  });
 
 const buildSnapshot = (
   id: string,
@@ -49,7 +50,7 @@ const buildSnapshot = (
 });
 
 const buildCrowdedRecord = (pathologyPrefix: string): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-07-01',
     beds: Object.fromEntries(
       Array.from({ length: 13 }, (_, index) => {
@@ -71,7 +72,7 @@ const buildCrowdedRecord = (pathologyPrefix: string): DailyRecord =>
     cma: [],
     activeExtraBeds: [],
     lastUpdated: '2026-07-01T10:00:00.000Z',
-  }) as unknown as DailyRecord;
+  });
 
 const buildRecordWithDischarge = (): DailyRecord =>
   ({
@@ -90,7 +91,7 @@ const buildRecordWithDischarge = (): DailyRecord =>
         status: 'Vivo',
       },
     ],
-  }) as unknown as DailyRecord;
+  }) satisfies DailyRecord;
 
 const defaultRecovery = (
   overrides: Partial<ConflictVersionRecoveryModel> = {}

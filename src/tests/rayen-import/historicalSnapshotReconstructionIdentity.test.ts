@@ -4,6 +4,8 @@ import { reconstructHistoricalSnapshotAtClose } from '@/features/rayen-import/do
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { EgresoReportRow } from '@/features/rayen-import/contracts/egresoReport';
 import type { RayenCensusSnapshot } from '@/features/rayen-import/contracts/rayenSnapshot';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const emptyRecord = { date: '2026-07-24', beds: {} } as DailyRecord;
 const snapshot: RayenCensusSnapshot = {
@@ -41,17 +43,18 @@ describe('historical reconstruction identity and clinical-day guards', () => {
   );
 
   it('accepts an exact numeric passport printed under Número de Identificación', async () => {
-    const current = {
+    const current = DataFactory.createMockDailyRecord('2026-01-01', {
       ...emptyRecord,
       beds: {
         R2: {
+          ...createEmptyPatient('R2'),
           patientName: 'Paciente Trazable',
           rut: '9876543',
           documentType: 'Pasaporte',
           clinicalEpisodeId: '142040',
         },
       },
-    } as unknown as DailyRecord;
+    });
     const result = await reconstructHistoricalSnapshotAtClose(
       current.date,
       { ...snapshot, encounters: [{ ...snapshot.encounters[0], run: '9876543' }] },
@@ -99,7 +102,7 @@ describe('historical reconstruction identity and clinical-day guards', () => {
   );
 
   it('rejects a report-backed clinical crib when its maternal relationship would be lost', async () => {
-    const cribRecord = {
+    const cribRecord = asStoredDailyRecordShape({
       date: '2026-07-24',
       beds: {
         H2C1: {
@@ -112,7 +115,7 @@ describe('historical reconstruction identity and clinical-day guards', () => {
           },
         },
       },
-    } as unknown as DailyRecord;
+    });
     const rows = [
       {
         run: '55.555.555-5',
@@ -173,17 +176,17 @@ describe('historical reconstruction identity and clinical-day guards', () => {
   });
 
   it('rejects contradictory RUNs for the same local and administrative episode', async () => {
-    const localRecord = {
-      date: '2026-07-24',
+    const localRecord = DataFactory.createMockDailyRecord('2026-07-24', {
       beds: {
         NEO1: {
+          ...createEmptyPatient('NEO1'),
           patientName: 'Paciente Local',
           rut: '11.111.111-1',
           clinicalEpisodeId: '142040',
           admissionDate: '2026-07-23',
         },
       },
-    } as unknown as DailyRecord;
+    });
     const rows = [
       {
         run: '66.666.666-6',
@@ -257,17 +260,17 @@ Flujo del Paciente RUN: 111111111
   });
 
   it('shows one review item when an incomplete report row and a local episode name the same RUN', async () => {
-    const localRecord = {
-      date: '2026-07-24',
+    const localRecord = DataFactory.createMockDailyRecord('2026-07-24', {
       beds: {
         NEO1: {
+          ...createEmptyPatient('NEO1'),
           patientName: 'Paciente Duplicado',
           rut: '77.777.777-7',
           clinicalEpisodeId: '142889',
           admissionDate: '2026-07-23',
         },
       },
-    } as unknown as DailyRecord;
+    });
     const rows = [
       {
         run: '77.777.777-7',

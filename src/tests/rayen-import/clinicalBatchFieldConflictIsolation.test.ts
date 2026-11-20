@@ -7,11 +7,12 @@ import type { RayenClinicalEnrichmentBatchPayload } from '@/features/rayen-impor
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalFillPatchOperation } from '@/features/rayen-import/contracts/clinicalFillContracts';
 import { createDependencies } from './applyClinicalEnrichmentBatch.fixtures';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const BEDS = ['R1', 'R2', 'R3'] as const;
 
 const record = (heartRates: Record<string, number> = {}, revision = 1): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-11-08',
     lastUpdated: `2026-11-08T10:00:0${revision}.000Z`,
     meta: { revision },
@@ -31,7 +32,7 @@ const record = (heartRates: Record<string, number> = {}, revision = 1): DailyRec
     discharges: [],
     transfers: [],
     cma: [],
-  }) as unknown as DailyRecord;
+  });
 
 const operations: ClinicalFillPatchOperation[] = BEDS.map((bedId, index) => ({
   target: { censusDate: '2026-11-08', bedId, clinicalEpisodeId: `episode-${index + 1}` },

@@ -15,6 +15,7 @@ import type {
   ClinicalDerivedTarget,
 } from '@/types/domain/clinicalDerived';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const require = createRequire(import.meta.url);
 const server = require('../../../functions/lib/clinicalDerivedContract.js');
@@ -49,14 +50,14 @@ const patient = (clinicalEpisodeId: string, extra: Holder = {}): Holder => ({
 });
 
 const day = (beds: Beds, extra: Holder = {}): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: DATE,
     lastUpdated: `${DATE}T10:00:00.000Z`,
     meta: { revision: 5 },
     clinicalDerivedLayout: marker,
     beds,
     ...extra,
-  }) as unknown as DailyRecord;
+  });
 
 const episodeDoc = (clinicalEpisodeId: string, fields: Holder, overrides: Holder = {}) =>
   ({

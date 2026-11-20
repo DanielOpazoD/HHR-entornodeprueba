@@ -11,6 +11,7 @@ import {
   resolveDailyRecordConflictWithTrace,
 } from '@/services/repositories/conflictResolutionMatrix';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 type Holder = Record<string, unknown>;
 
@@ -41,7 +42,7 @@ const record = (
   beds: Record<string, Holder>,
   extra: Holder = {}
 ): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: DATE,
     beds,
     discharges: [],
@@ -51,7 +52,7 @@ const record = (
     nurses: [],
     activeExtraBeds: [],
     ...extra,
-  }) as unknown as DailyRecord;
+  });
 
 const holder = (value: DailyRecord, bedId: string, crib = false): Holder => {
   const bed = (value.beds as unknown as Record<string, Holder>)[bedId];

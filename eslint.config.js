@@ -537,6 +537,20 @@ const syntaxRestrictions = ({ omit = [], add = [] } = {}) => [
   ...add,
 ];
 
+// A test day cast through `unknown` keeps compiling when `DailyRecord` changes, so the test can stay
+// green with data the app no longer produces.
+const DOUBLE_CAST =
+  "TSAsExpression[expression.type='TSAsExpression'][expression.typeAnnotation.type='TSUnknownKeyword']";
+const TEST_DAILY_RECORD_DOUBLE_CAST_RESTRICTION = {
+  selector: [
+    `${DOUBLE_CAST} > TSTypeReference[typeName.name='DailyRecord']`,
+    `${DOUBLE_CAST} > TSArrayType > TSTypeReference[typeName.name='DailyRecord']`,
+    `${DOUBLE_CAST} > TSIndexedAccessType TSTypeReference[typeName.name='DailyRecord']`,
+  ].join(', '),
+  message:
+    '«as unknown as DailyRecord» deja la prueba en verde aunque cambie el tipo. Arma el día con DataFactory.createMockDailyRecord (src/tests/factories/DataFactory.ts); si la prueba necesita a propósito un dato incompleto o antiguo, usa asStoredDailyRecordShape.',
+};
+
 // Public entrypoints over focused modules: the code lives in those modules, not here again.
 const REEXPORT_ONLY_RESTRICTION = {
   selector: 'Program > :not(ExportNamedDeclaration[source], ExportAllDeclaration)',
@@ -777,6 +791,7 @@ export default tseslint.config(
           ...ROLE_RESTRICTIONS,
           DAY_WINDOW_RESTRICTION,
         ],
+        add: [TEST_DAILY_RECORD_DOUBLE_CAST_RESTRICTION],
       }),
     },
   },

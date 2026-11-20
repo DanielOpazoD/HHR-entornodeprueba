@@ -3,9 +3,10 @@
 import { describe, expect, it } from 'vitest';
 import { buildDailyRecordSyncContract } from '@/services/storage/sync/syncTaskContractPolicy';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const recordWithRevision = (revision: unknown): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-08-26',
     lastUpdated: '2026-08-26T22:30:00.000Z',
     beds: {},
@@ -13,7 +14,7 @@ const recordWithRevision = (revision: unknown): DailyRecord =>
     transfers: [],
     cma: [],
     meta: { revision },
-  }) as unknown as DailyRecord;
+  });
 
 describe('syncTaskContractPolicy', () => {
   it('keeps an explicitly unknown version instead of substituting the local edit time', () => {

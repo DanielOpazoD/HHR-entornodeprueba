@@ -7,6 +7,7 @@ import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyR
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 import { applyPatches } from '@/utils/patchUtils';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 /** Real-shaped Braden 17 (07-10) as a slimmed clinical-history event from the panel de historial. */
 const BRADEN_HISTORY_EVENT = {
@@ -23,7 +24,7 @@ const BRADEN_HISTORY_EVENT = {
 };
 
 const record = (beds: Record<string, { encId?: string; name?: string }>): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-07-10',
     beds: Object.fromEntries(
       Object.entries(beds).map(([bedId, { encId, name }]) => [
@@ -35,7 +36,7 @@ const record = (beds: Record<string, { encId?: string; name?: string }>): DailyR
     transfers: [],
     cma: [],
     lastUpdated: '',
-  }) as unknown as DailyRecord;
+  });
 
 const authoritativeEmptyCudyr = {
   items: [],

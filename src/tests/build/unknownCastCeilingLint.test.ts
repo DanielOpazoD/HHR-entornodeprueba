@@ -65,3 +65,33 @@ describe('production files never add an `as unknown as`', () => {
     }
   });
 });
+
+describe('tests never build a day through `as unknown as`', () => {
+  const restricted = async (code: string) =>
+    (
+      await eslint.lintText(
+        `import type { DailyRecord } from '@/types/domain/dailyRecord';\n${code}`,
+        {
+          filePath: 'src/tests/probe.test.ts',
+        }
+      )
+    )[0].messages.filter(message => message.ruleId === 'no-restricted-syntax');
+
+  it.each([
+    'export const day = { date: "2026-01-01" } as unknown as DailyRecord;',
+    'export const days = [] as unknown as DailyRecord[];',
+    "export const bed = { bedId: 'R1' } as unknown as DailyRecord['beds'][string];",
+  ])('rejects %s and names the factory and the stored-shape helper', async code => {
+    const [message] = await restricted(code);
+    expect(message?.message).toContain('DataFactory.createMockDailyRecord');
+    expect(message?.message).toContain('asStoredDailyRecordShape');
+  });
+
+  it('accepts a checked day and other double casts', async () => {
+    expect(
+      await restricted(
+        'export const a = { date: "2026-01-01" } as Partial<DailyRecord>;\nexport const b = 1 as unknown as string;'
+      )
+    ).toEqual([]);
+  });
+});

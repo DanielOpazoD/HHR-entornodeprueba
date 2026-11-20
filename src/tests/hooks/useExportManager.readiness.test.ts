@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { useExportManager } from '@/hooks/useExportManager';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import * as backupExportArchiveUseCases from '@/application/backup-export/backupExportArchiveUseCases';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 const notificationApi = {
   success: vi.fn(),
@@ -61,15 +62,14 @@ vi.mock('@/application/backup-export/backupExportStorageUseCases', async () => {
 describe('useExportManager readiness', () => {
   const originalRequestIdleCallback = window.requestIdleCallback;
   const originalCancelIdleCallback = window.cancelIdleCallback;
-  const mockRecord: DailyRecord = {
-    date: '2024-12-28',
+  const mockRecord: DailyRecord = DataFactory.createMockDailyRecord('2024-12-28', {
     beds: {},
     discharges: [],
     transfers: [],
     nursesDayShift: ['Nurse A'],
     nursesNightShift: ['Nurse B'],
     handoffNightReceives: ['Nurse C'],
-  } as unknown as DailyRecord;
+  });
 
   const defaultProps = {
     currentDateString: '2024-12-28',

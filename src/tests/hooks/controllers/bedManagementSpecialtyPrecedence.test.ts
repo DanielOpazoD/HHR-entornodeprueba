@@ -1,20 +1,20 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { executeBedManagementAction } from '@/hooks/controllers/bedManagementDispatchController';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import { featureFlags } from '@/services/utils/featureFlags';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 describe('manual specialty precedence across structural edits', () => {
   afterEach(() => featureFlags.reset('SPECIALTY_EPISODE_ASSIGNMENT'));
 
   const makeRecord = () =>
-    ({
-      date: '2026-09-23',
+    DataFactory.createMockDailyRecord('2026-09-23', {
       lastUpdated: '2026-09-23T10:00:00.000Z',
       beds: {
         R1: {
-          bedId: 'R1',
+          ...createEmptyPatient('R1'),
           patientName: 'Paciente',
           rut: '11.111.111-1',
           clinicalEpisodeId: 'synthetic-episode',
@@ -28,7 +28,7 @@ describe('manual specialty precedence across structural edits', () => {
       discharges: [],
       transfers: [],
       cma: [],
-    }) as unknown as DailyRecord;
+    });
 
   it('does not write structure before a simultaneous manual choice', async () => {
     featureFlags.enable('SPECIALTY_EPISODE_ASSIGNMENT');

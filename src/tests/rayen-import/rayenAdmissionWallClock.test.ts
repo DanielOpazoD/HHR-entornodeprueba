@@ -9,9 +9,9 @@ import { clinicalAdmissionDay } from '@/features/rayen-import/domain/censusDayPo
 import { createDischargedEncounterMatcher } from '@/features/rayen-import/domain/censusDischargeHistory';
 import { filterRecordedOutcomeActions } from '@/features/rayen-import/domain/filterRecordedOutcomeActions';
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { RayenEncounter } from '@/features/rayen-import/contracts/rayenSnapshot';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const encounter = (admissionDatetime?: string): RayenEncounter => ({
   encounterId: 'episode-synthetic',
@@ -69,7 +69,7 @@ describe('admission wall clock across mapper and nursing-day policy', () => {
 
 describe('legacy outcome timestamp identity', () => {
   const source = encounter('2026-07-08T02:30:00Z');
-  const record = {
+  const record = asStoredDailyRecordShape({
     date: '2026-07-07',
     beds: {},
     transfers: [],
@@ -85,7 +85,7 @@ describe('legacy outcome timestamp identity', () => {
         },
       },
     ],
-  } as unknown as DailyRecord;
+  });
 
   it('recognizes a recorded local admission timestamp from UTC evidence', () => {
     expect(createDischargedEncounterMatcher(record)(source)).toBe(true);

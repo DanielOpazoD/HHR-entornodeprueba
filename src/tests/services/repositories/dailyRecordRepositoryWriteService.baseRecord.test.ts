@@ -90,6 +90,7 @@ import {
   adoptAuthoritativeDailyRecordAtomically,
   queueDailyRecordSyncTaskWithLocalRecord as queueSyncTask,
 } from '@/services/storage/sync';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 const expectSyncContract = (expectedVersion: string, changedPaths: string[]) =>
   expect.objectContaining({
     syncContract: expect.objectContaining({
@@ -483,7 +484,7 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
           lastMutationId: 'rayen-run-guarded',
           updatedAt: '2026-02-13T08:05:00.000Z',
         },
-        record: {
+        record: asStoredDailyRecordShape({
           ...hydratedBase,
           lastUpdated: '2026-02-13T08:05:00.000Z',
           meta: {
@@ -491,7 +492,7 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
             lastMutationId: 'rayen-run-guarded',
             updatedAt: '2026-02-13T08:05:00.000Z',
           },
-        } as unknown as DailyRecord,
+        }),
       },
     });
     const result = await updatePartialDetailed(

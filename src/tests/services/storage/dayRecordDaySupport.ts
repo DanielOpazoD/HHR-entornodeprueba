@@ -15,6 +15,7 @@ import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
 import type { DailyRecord, DailyRecordPatch } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const h = harnessState();
 export const DATE = '2026-10-24';
@@ -27,7 +28,7 @@ export const MODES = [
 ] as const;
 
 export const local = async () => (await hospitalDB.dailyRecords.get(DATE)) as DailyRecord;
-export const remote = () => h.remote as unknown as DailyRecord;
+export const remote = () => asStoredDailyRecordShape(h.remote);
 export const queue = () => hospitalDB.syncQueue.toArray();
 export const dayTasks = async () => (await queue()).filter(task => task.key === `daily:${DATE}`);
 

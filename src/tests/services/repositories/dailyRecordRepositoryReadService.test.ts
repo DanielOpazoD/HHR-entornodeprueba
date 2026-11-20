@@ -11,6 +11,7 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync/publicSyncQueue';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 // Local-only reads against the real Dexie store (fake-indexeddb). Reads that involve Firestore
 // run against the real emulator in
@@ -19,7 +20,7 @@ import { captureAuthoringSession } from '@/services/storage/authoringSession';
 const date = '2026-03-19';
 
 const buildRecord = (lastUpdated: string, beds: Record<string, unknown> = {}): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date,
     beds,
     discharges: [],
@@ -39,7 +40,7 @@ const buildRecord = (lastUpdated: string, beds: Record<string, unknown> = {}): D
     handoffNovedadesNightShift: '',
     medicalHandoffNovedades: '',
     schemaVersion: 1,
-  }) as unknown as DailyRecord;
+  });
 
 /** An unsynced edit as the app stores it: the local copy and its outbox task, never processed. */
 const queueLocalEdit = async (record: DailyRecord) => {

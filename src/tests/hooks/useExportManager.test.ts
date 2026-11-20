@@ -7,6 +7,7 @@ import * as backupExportStorageUseCases from '@/application/backup-export/backup
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import type { LookupBackupArchiveStatusOutput } from '@/application/backup-export/backupExportStorageUseCases';
 import type { BackupHandoffPdfOutput } from '@/application/backup-export/backupExportArchiveContracts';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 const notificationApi = {
   success: vi.fn(),
@@ -65,15 +66,14 @@ vi.mock('@/application/backup-export/backupExportStorageUseCases', async () => {
 describe('useExportManager', () => {
   const originalRequestIdleCallback = window.requestIdleCallback;
   const originalCancelIdleCallback = window.cancelIdleCallback;
-  const mockRecord: DailyRecord = {
-    date: '2024-12-28',
+  const mockRecord: DailyRecord = DataFactory.createMockDailyRecord('2024-12-28', {
     beds: {},
     discharges: [],
     transfers: [],
     nursesDayShift: ['Nurse A'],
     nursesNightShift: ['Nurse B'],
     handoffNightReceives: ['Nurse C'],
-  } as unknown as DailyRecord;
+  });
 
   const defaultProps = {
     currentDateString: '2024-12-28',

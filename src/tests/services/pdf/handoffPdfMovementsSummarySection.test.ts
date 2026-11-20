@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { addMovementsSummary } from '@/services/pdf/handoffPdfMovementsSummarySection';
 import { HANDOFF_PDF_PAGE_LAYOUT } from '@/services/pdf/handoffPdfPageLayout';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const createDocMock = () =>
   ({
@@ -24,7 +24,7 @@ describe('handoffPdfMovementsSummarySection', () => {
     const autoTable = vi.fn(() => {
       (doc as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY += 12;
     });
-    const record = {
+    const record = asStoredDailyRecordShape({
       discharges: [
         {
           bedName: 'A1',
@@ -51,7 +51,7 @@ describe('handoffPdfMovementsSummarySection', () => {
           interventionType: 'CMA',
         },
       ],
-    } as unknown as DailyRecord;
+    });
 
     addMovementsSummary(doc, record, 14, 100, autoTable as never);
 

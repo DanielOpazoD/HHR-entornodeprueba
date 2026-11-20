@@ -1,9 +1,10 @@
 import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const record = (beds: Record<string, { encId?: string }>): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-07-10',
     beds: Object.fromEntries(
       Object.entries(beds).map(([bedId, { encId }]) => [
@@ -15,7 +16,7 @@ const record = (beds: Record<string, { encId?: string }>): DailyRecord =>
     transfers: [],
     cma: [],
     lastUpdated: '',
-  }) as unknown as DailyRecord;
+  });
 
 const deps = (over: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
   fetchDeviceReport: vi.fn().mockResolvedValue({ base64: '' }),

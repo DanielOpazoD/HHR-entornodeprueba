@@ -17,8 +17,9 @@ import {
   ConcurrencyError,
 } from '@/services/storage/firestore';
 import * as firestore from 'firebase/firestore';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DocumentSnapshot, QuerySnapshot, Timestamp, DocumentData } from 'firebase/firestore';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 // Mock the modular Firestore SDK
 vi.mock('firebase/firestore', async () => {
@@ -93,17 +94,16 @@ describe('firestoreService', () => {
   };
 
   const mockDate = '2024-12-24';
-  const mockRecord = {
-    date: mockDate,
+  const mockRecord = DataFactory.createMockDailyRecord(mockDate, {
     beds: {
-      BED_01: { patientName: 'John Doe', bedMode: 'Cama' },
+      BED_01: { ...createEmptyPatient('BED_01'), patientName: 'John Doe', bedMode: 'Cama' },
     },
     lastUpdated: '2024-12-24T00:00:00.000Z',
     nursesDayShift: ['', ''],
     nursesNightShift: ['', ''],
     tensDayShift: ['', '', ''],
     tensNightShift: ['', '', ''],
-  } as unknown as DailyRecord;
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();

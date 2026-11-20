@@ -41,7 +41,7 @@ const record = {
   activeExtraBeds: [],
   cudyrLocked: true,
   cudyrLockedAt: `${date}T09:00:00.000Z`,
-} as unknown as DailyRecord;
+} satisfies DailyRecord;
 
 describeEmulator('authority lost response with server-only Firestore evidence', () => {
   let env: RulesTestEnvironment;

@@ -3,7 +3,9 @@
 import { describe, expect, it } from 'vitest';
 import { resolveDailyRecordConflictWithTrace } from '@/services/repositories/conflictResolutionMatrix';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { Specialty } from '@/types/domain/patientClassification';
+import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const makeRecord = (date: string, lastUpdated: string): DailyRecord =>
   ({
@@ -15,13 +17,13 @@ const makeRecord = (date: string, lastUpdated: string): DailyRecord =>
     lastUpdated,
     nurses: [],
     activeExtraBeds: [],
-  }) as unknown as DailyRecord;
+  }) satisfies DailyRecord;
 
 describe('clinical census field conflict policy', () => {
   it('prioritizes Firebase census fields over stale local diagnosis and specialty', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
-      R1: {
+      R1: asStoredDailyRecordShape<DailyRecord['beds'][string]>({
         bedId: 'R1',
         patientName: 'Paciente Censo Remoto',
         rut: '11.111.111-1',
@@ -48,13 +50,13 @@ describe('clinical census field conflict policy', () => {
           evaluatedAt: '2026-02-18T10:00:00.000Z',
         },
         handoffNote: 'Nota localizable no censal remota',
-      } as unknown as DailyRecord['beds'][string],
+      }),
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T09:55:00.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente Censo Local Cache',
         rut: '22.222.222-2',
         documentType: 'Pasaporte',
@@ -67,7 +69,7 @@ describe('clinical census field conflict policy', () => {
         diagnosisComments: 'Comentario cache antiguo',
         specialty: Specialty.PEDIATRIA,
         secondarySpecialty: '',
-        status: 'Grave',
+        status: PatientStatus.GRAVE,
         ginecobstetriciaType: undefined,
         deliveryRoute: undefined,
         deliveryDate: undefined,
@@ -80,7 +82,7 @@ describe('clinical census field conflict policy', () => {
           evaluatedAt: '2026-02-18T09:00:00.000Z',
         },
         handoffNote: 'Nota local de turno debe preservarse',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const result = resolveDailyRecordConflictWithTrace(remote, local, { changedPaths: ['*'] });
@@ -127,25 +129,25 @@ describe('clinical census field conflict policy', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente Remoto',
         rut: '11.111.111-1',
         pathology: 'Diagnostico Firebase vigente',
         specialty: Specialty.MEDICINA,
         handoffNote: 'Nota remota antigua',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente Local Cache',
         rut: '22.222.222-2',
         pathology: 'Diagnostico local stale',
         specialty: Specialty.PEDIATRIA,
         handoffNote: 'Nota local nueva aun pendiente de sincronizar',
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const result = resolveDailyRecordConflictWithTrace(remote, local, { changedPaths: ['*'] });

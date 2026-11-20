@@ -17,6 +17,8 @@ import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRe
 import { PrescriptionReassignDialog } from '@/features/prescriptions/components/PrescriptionReassignDialog';
 import type { PrescriptionRecord } from '@/types/prescriptionTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const baseRecord: PrescriptionRecord = {
   id: 'rx-1',
@@ -36,22 +38,20 @@ const baseRecord: PrescriptionRecord = {
 };
 
 const buildEmptyDay = (): DailyRecord =>
-  ({
-    date: '2026-05-05',
+  DataFactory.createMockDailyRecord('2026-05-05', {
     beds: {},
     discharges: [],
     transfers: [],
     cma: [],
     lastUpdated: '2026-05-05T10:00:00.000Z',
     activeExtraBeds: [],
-  }) as unknown as DailyRecord;
+  });
 
 const buildPopulatedDay = (): DailyRecord =>
-  ({
-    date: '2026-05-04',
+  DataFactory.createMockDailyRecord('2026-05-04', {
     beds: {
       H1C2: {
-        bedId: 'H1C2',
+        ...createEmptyPatient('H1C2'),
         isBlocked: false,
         bedMode: 'Cama',
         hasCompanionCrib: false,
@@ -66,10 +66,10 @@ const buildPopulatedDay = (): DailyRecord =>
     cma: [],
     lastUpdated: '2026-05-04T10:00:00.000Z',
     activeExtraBeds: [],
-  }) as unknown as DailyRecord;
+  });
 
 const buildMovementDay = (): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     ...buildPopulatedDay(),
     discharges: [
       {
@@ -89,7 +89,7 @@ const buildMovementDay = (): DailyRecord =>
         rut: '33.333.333-3',
       },
     ],
-  }) as unknown as DailyRecord;
+  });
 
 describe('PrescriptionReassignDialog', () => {
   beforeEach(() => {
@@ -180,11 +180,11 @@ describe('PrescriptionReassignDialog', () => {
 const active = { bedId: 'R1', patientName: 'Paciente Activa Sintética', rut: '11.111.111-1' };
 const discharged = { bedId: 'R1', patientName: 'Paciente Alta Sintética', rut: '22.222.222-2' };
 const sameBedDay = (): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     ...buildEmptyDay(),
     beds: { R1: active },
     discharges: [discharged],
-  }) as unknown as DailyRecord;
+  });
 
 const openDialog = async (day: DailyRecord, record: PrescriptionRecord = baseRecord) => {
   vi.mocked(getRecordFromFirestore).mockResolvedValue(day);
@@ -209,11 +209,11 @@ describe('reassignment chooses a person', () => {
   it.each(['Ana Inventada', 'Bea Inventada'])(
     'submits undocumented %s from R1',
     async patientName => {
-      const day = {
+      const day = asStoredDailyRecordShape({
         ...buildEmptyDay(),
         beds: { R1: { ...active, patientName: 'Ana Inventada', rut: '' } },
         discharges: [{ ...discharged, patientName: 'Bea Inventada', rut: '' }],
-      } as unknown as DailyRecord;
+      });
       const { select, onSubmit } = await openDialog(day);
       const option = screen.getByRole('option', {
         name: new RegExp(patientName),
@@ -255,12 +255,12 @@ describe('reassignment chooses a person', () => {
     ['active', 'Activo', ''],
   ])('preserves the single-bed payload for %s (%s, %s)', async (status, label, rut) => {
     const person = { ...active, rut };
-    const day = {
+    const day = asStoredDailyRecordShape({
       ...buildEmptyDay(),
       beds: status === 'active' ? { R1: person } : {},
       discharges: status === 'discharge' ? [person] : [],
       transfers: status === 'transfer' ? [person] : [],
-    } as unknown as DailyRecord;
+    });
     const { onSubmit } = await openDialog(day, { ...baseRecord, bedId: 'R1' });
     const option = screen.getByRole('option', {
       name: `R1 · ${person.patientName}${rut ? ` (${rut})` : ''} · ${label}`,

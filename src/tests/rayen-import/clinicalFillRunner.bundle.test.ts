@@ -4,6 +4,8 @@ import type { RayenPatientClinicalBundle } from '@/features/rayen-import/contrac
 import { mapHistoryScalesPayload } from '@/features/rayen-import/bridge/patientClinicalBundleChannel';
 import { readClinicalPatientSources } from '@/features/rayen-import/domain/clinicalPatientReaders';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const SCALE_EVENT = {
   publishDatetime: '2026-07-10T10:00:00',
@@ -13,16 +15,20 @@ const SCALE_EVENT = {
 };
 
 const record = (): DailyRecord =>
-  ({
-    date: '2026-07-10',
+  DataFactory.createMockDailyRecord('2026-07-10', {
     beds: {
-      R1: { bedId: 'R1', patientName: 'Paciente 1', clinicalEpisodeId: 'E1', devices: [] },
+      R1: {
+        ...createEmptyPatient('R1'),
+        patientName: 'Paciente 1',
+        clinicalEpisodeId: 'E1',
+        devices: [],
+      },
     },
     discharges: [],
     transfers: [],
     cma: [],
     lastUpdated: '',
-  }) as unknown as DailyRecord;
+  });
 
 const bundle = (
   overrides: Partial<RayenPatientClinicalBundle> = {}

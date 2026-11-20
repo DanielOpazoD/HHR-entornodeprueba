@@ -3,6 +3,7 @@ import { EMPTY_PATIENT } from '@/constants/patient';
 import type { CensusImportDiff } from '@/features/rayen-import';
 import { selectEligibleEgresoRows } from '@/features/rayen-import/domain/egresoReportEligibility';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 const emptyDiff = (): CensusImportDiff => ({
   admissions: [],
@@ -31,13 +32,12 @@ describe('egreso report eligibility', () => {
     ['18-10-2026 00:19', '11.111.111-1', 1],
     ['invalid', '11.111.111-1', 1],
   ])('does not reopen a prior-night orphan discharge: %s', (fechaEgreso, run, expected) => {
-    const record = {
-      date: '2026-10-17',
+    const record = DataFactory.createMockDailyRecord('2026-10-17', {
       beds: {},
       discharges: [],
       transfers: [],
       cma: [],
-    } as unknown as DailyRecord;
+    });
     const result = selectEligibleEgresoRows(
       emptyDiff(),
       [

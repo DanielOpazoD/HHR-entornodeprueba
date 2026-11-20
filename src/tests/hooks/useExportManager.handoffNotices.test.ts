@@ -5,6 +5,7 @@ import { useExportManager } from '@/hooks/useExportManager';
 import type { BackupHandoffPdfOutput } from '@/application/backup-export/backupExportArchiveContracts';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 const notificationApi = {
   success: vi.fn(),
@@ -50,15 +51,14 @@ vi.mock('@/application/backup-export/backupExportStorageUseCases', async () => {
 });
 
 describe('useExportManager handoff backup notices', () => {
-  const mockRecord: DailyRecord = {
-    date: '2024-12-28',
+  const mockRecord: DailyRecord = DataFactory.createMockDailyRecord('2024-12-28', {
     beds: {},
     discharges: [],
     transfers: [],
     nursesDayShift: ['Nurse A'],
     nursesNightShift: ['Nurse B'],
     handoffNightReceives: ['Nurse C'],
-  } as unknown as DailyRecord;
+  });
 
   const defaultProps = {
     currentDateString: '2024-12-28',

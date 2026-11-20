@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { FIXED_ISO_TIMESTAMP } from './excelExport.testUtils';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 describe('censusMasterWorkbook', () => {
   describe('buildCensusMasterWorkbook', () => {
@@ -27,12 +27,12 @@ describe('censusMasterWorkbook', () => {
       const { buildCensusMasterWorkbook } =
         await import('@/services/exporters/censusMasterWorkbook');
 
-      const mockRecord = {
+      const mockRecord = asStoredDailyRecordShape({
         date: '2025-12-25',
         beds: {},
         createdAt: FIXED_ISO_TIMESTAMP,
         updatedAt: FIXED_ISO_TIMESTAMP,
-      } as unknown as DailyRecord;
+      });
 
       try {
         const workbook = await buildCensusMasterWorkbook([mockRecord]);
@@ -52,8 +52,7 @@ describe('headerSection', () => {
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('header');
-    const record = {
-      date: '2026-04-18',
+    const record = DataFactory.createMockDailyRecord('2026-04-18', {
       beds: {},
       discharges: [],
       transfers: [],
@@ -61,7 +60,7 @@ describe('headerSection', () => {
       activeExtraBeds: [],
       lastUpdated: FIXED_ISO_TIMESTAMP,
       nursesNightShift: [' -- ', ''],
-    } as unknown as DailyRecord;
+    });
 
     addHeaderSection(sheet, record as never, 1);
 

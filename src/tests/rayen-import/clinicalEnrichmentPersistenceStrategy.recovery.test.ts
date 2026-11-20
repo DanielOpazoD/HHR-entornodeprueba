@@ -5,9 +5,10 @@ import { persistClinicalBatch } from '@/features/rayen-import/domain/clinicalBat
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalFillPatchOperation } from '@/features/rayen-import/contracts/clinicalFillContracts';
 import { createDependencies } from './applyClinicalEnrichmentBatch.fixtures';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const record = (bedId = 'R1', heartRate = 70, revision = 1): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-07-28',
     lastUpdated: `2026-07-28T10:00:0${revision}.000Z`,
     meta: { revision },
@@ -22,7 +23,7 @@ const record = (bedId = 'R1', heartRate = 70, revision = 1): DailyRecord =>
     discharges: [],
     transfers: [],
     cma: [],
-  }) as unknown as DailyRecord;
+  });
 
 const operations: ClinicalFillPatchOperation[] = [
   {

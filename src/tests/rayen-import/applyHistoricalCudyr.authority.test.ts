@@ -4,6 +4,8 @@ import { applyHistoricalCudyrBatchAuthoritatively } from '@/features/rayen-impor
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 vi.mock('@/hooks/controllers/dailyRecordMutationFreshnessController', () => ({
   patchDailyRecordWithCompatibility: vi.fn(),
@@ -17,24 +19,19 @@ const cudyr: ImportedCudyr = {
 };
 
 const record = (revision: string): DailyRecord =>
-  ({
-    date: '2026-07-29',
+  DataFactory.createMockDailyRecord('2026-07-29', {
     beds: {
-      H2C1: {
-        bedId: 'H2C1',
-        patientName: 'Paciente',
-        clinicalEpisodeId: '142000',
-      },
+      H2C1: { ...createEmptyPatient('H2C1'), patientName: 'Paciente', clinicalEpisodeId: '142000' },
     },
     discharges: [],
     transfers: [],
     cma: [],
     activeExtraBeds: [],
     lastUpdated: revision,
-  }) as unknown as DailyRecord;
+  });
 
 const sourceRecord = (): DailyRecord =>
-  ({ ...record('revision-source'), date: '2026-07-30' }) as unknown as DailyRecord;
+  ({ ...record('revision-source'), date: '2026-07-30' }) satisfies DailyRecord;
 
 describe('historical CUDYR remote authority', () => {
   it('stops before dispatch when the historical authoritative read crosses the session boundary', async () => {

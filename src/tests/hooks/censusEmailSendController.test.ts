@@ -17,7 +17,7 @@ const createRecord = (date: string): DailyRecord =>
     lastUpdated: '',
     nurses: [],
     activeExtraBeds: [],
-  }) as unknown as DailyRecord;
+  }) satisfies DailyRecord;
 
 describe('censusEmailSendController', () => {
   it('builds month integrity date sequence', () => {

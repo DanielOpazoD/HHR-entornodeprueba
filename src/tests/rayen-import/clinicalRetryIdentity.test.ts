@@ -5,14 +5,21 @@ import {
   mergeClinicalRetrySummary,
   resolveClinicalStageResult,
 } from '@/features/rayen-import/domain/clinicalStageResolution';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
-const record = {
-  date: '2026-10-15',
-  beds: { R2: { bedId: 'R2', patientName: 'Paciente sintético', clinicalEpisodeId: 'moved' } },
+const record = DataFactory.createMockDailyRecord('2026-10-15', {
+  beds: {
+    R2: {
+      ...createEmptyPatient('R2'),
+      patientName: 'Paciente sintético',
+      clinicalEpisodeId: 'moved',
+    },
+  },
   discharges: [],
   transfers: [],
   cma: [],
-} as unknown as DailyRecord;
+});
 const summary = (errors: ClinicalFillSummary['errors']): ClinicalFillSummary => ({
   total: 2,
   patched: 0,

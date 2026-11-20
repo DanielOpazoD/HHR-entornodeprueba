@@ -6,9 +6,9 @@ import { rayenToPatientData } from '@/features/rayen-import/mapping/rayenToPatie
 import { applyEgresoReport } from '@/features/rayen-import/domain/applyEgresoReport';
 import { createEmptyCensusImportDiff } from '@/features/rayen-import/domain/censusImportDiffFactory';
 import type { EgresoReportRow } from '@/features/rayen-import/contracts/egresoReport';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { encounter, newborn, REFERENCE } from './clinicalCribDischargePromotion.fixtures';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 const row = (run: string): EgresoReportRow => ({
   run,
@@ -268,15 +268,14 @@ describe('a report row whose document has a letter in the middle, once applied',
           ),
         };
     const rows = await enrichReportOnlyDischarges([reportRow(run)], DAY, lookup);
-    const record = {
-      date: DAY,
+    const record = DataFactory.createMockDailyRecord(DAY, {
       beds: bed ? { H5C1: bed } : {},
       discharges: [],
       transfers: [],
       cma: [],
       lastUpdated: '',
       activeExtraBeds: [],
-    } as unknown as DailyRecord;
+    });
     const diff = applyEgresoReport(createEmptyCensusImportDiff(true), rows, record);
     return {
       episodes: rows.map(enriched => enriched.encounterId),

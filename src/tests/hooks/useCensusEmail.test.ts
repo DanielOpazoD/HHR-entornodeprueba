@@ -33,7 +33,7 @@ describe('useCensusEmail', () => {
       nurses: [],
       activeExtraBeds: [],
       cma: [],
-    } as unknown as DailyRecord,
+    } satisfies DailyRecord,
     currentDateString: '2025-01-08',
     nurseSignature: 'Nurse Name',
     selectedYear: 2025,

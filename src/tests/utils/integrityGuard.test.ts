@@ -3,6 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { calculateDensity, checkRegression } from '@/utils/integrityGuard';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 describe('IntegrityGuard', () => {
   type BedValue = DailyRecord['beds'][string];
@@ -19,7 +20,7 @@ describe('IntegrityGuard', () => {
   });
 
   const createDenseRecord = (date: string): DailyRecord =>
-    ({
+    asStoredDailyRecordShape({
       date,
       beds: {
         BED_01: {
@@ -59,7 +60,7 @@ describe('IntegrityGuard', () => {
       activeExtraBeds: [],
       lastUpdated: `${date}T00:00:00.000Z`,
       novedadesDayShift: 'Some news',
-    }) as unknown as DailyRecord;
+    });
 
   describe('calculateDensity', () => {
     it('should return 0 for null/undefined', () => {
@@ -140,14 +141,13 @@ describe('IntegrityGuard', () => {
       for (let index = 0; index < 6; index += 1) {
         newRecord.beds[`BED_${index}`] = patient(index);
       }
-      newRecord.discharges = [6, 7, 8, 9].map(
-        index =>
-          ({
-            id: `discharge-${index}`,
-            bedId: `BED_${index}`,
-            patientName: `Patient ${index}`,
-            originalData: patient(index),
-          }) as unknown as DailyRecord['discharges'][number]
+      newRecord.discharges = [6, 7, 8, 9].map(index =>
+        asStoredDailyRecordShape<DailyRecord['discharges'][number]>({
+          id: `discharge-${index}`,
+          bedId: `BED_${index}`,
+          patientName: `Patient ${index}`,
+          originalData: patient(index),
+        })
       );
 
       expect(checkRegression(oldRecord, newRecord).isSuspicious).toBe(false);
@@ -166,13 +166,12 @@ describe('IntegrityGuard', () => {
         oldRecord.beds[`BED_${index}`] = bed;
         if (index < 6) newRecord.beds[`BED_${index}`] = bed;
       }
-      newRecord.discharges = [6, 7, 8, 9].map(
-        index =>
-          ({
-            id: `discharge-${index}`,
-            bedId: `BED_${index}`,
-            patientName: `Patient ${index}`,
-          }) as unknown as DailyRecord['discharges'][number]
+      newRecord.discharges = [6, 7, 8, 9].map(index =>
+        asStoredDailyRecordShape<DailyRecord['discharges'][number]>({
+          id: `discharge-${index}`,
+          bedId: `BED_${index}`,
+          patientName: `Patient ${index}`,
+        })
       );
 
       expect(checkRegression(oldRecord, newRecord).isSuspicious).toBe(true);
@@ -181,12 +180,12 @@ describe('IntegrityGuard', () => {
     it('reports a visible positive loss when a historical movement is replaced one-for-one', () => {
       const oldRecord = createDenseRecord('2024-01-01');
       const newRecord = createDenseRecord('2024-01-01');
-      oldRecord.discharges = [
+      oldRecord.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
         { id: 'movement-old', bedId: 'BED_01', patientName: 'Historical' },
-      ] as unknown as DailyRecord['discharges'];
-      newRecord.discharges = [
+      ]);
+      newRecord.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
         { id: 'movement-new', bedId: 'BED_01', patientName: 'Historical' },
-      ] as unknown as DailyRecord['discharges'];
+      ]);
 
       expect(checkRegression(oldRecord, newRecord)).toEqual({
         isSuspicious: true,
@@ -209,20 +208,19 @@ describe('IntegrityGuard', () => {
         oldRecord.beds[`BED_${index}`] = bed;
         if (index < 6) newRecord.beds[`BED_${index}`] = bed;
       }
-      newRecord.discharges = [6, 7, 8, 9].map(
-        index =>
-          ({
-            id: `unrelated-${index}`,
+      newRecord.discharges = [6, 7, 8, 9].map(index =>
+        asStoredDailyRecordShape<DailyRecord['discharges'][number]>({
+          id: `unrelated-${index}`,
+          bedId: `OTHER_${index}`,
+          patientName: `Other ${index}`,
+          rut: `OTHER-${index}`,
+          originalData: {
             bedId: `OTHER_${index}`,
             patientName: `Other ${index}`,
             rut: `OTHER-${index}`,
-            originalData: {
-              bedId: `OTHER_${index}`,
-              patientName: `Other ${index}`,
-              rut: `OTHER-${index}`,
-              handoffNote: 'Registro ajeno',
-            },
-          }) as unknown as DailyRecord['discharges'][number]
+            handoffNote: 'Registro ajeno',
+          },
+        })
       );
 
       expect(checkRegression(oldRecord, newRecord).isSuspicious).toBe(true);
@@ -239,12 +237,14 @@ describe('IntegrityGuard', () => {
         oldRecord.beds[`BED_${index}`] = bed;
         if (index < 2) newRecord.beds[`BED_${index}`] = bed;
       }
-      const historical = Array.from({ length: 60 }, (_, index) => ({
-        id: `historical-${index}`,
-        bedId: `OLD_${index}`,
-        patientName: `Historical ${index}`,
-        originalData: { patientName: `Historical ${index}` },
-      })) as unknown as DailyRecord['discharges'];
+      const historical = asStoredDailyRecordShape<DailyRecord['discharges']>(
+        Array.from({ length: 60 }, (_, index) => ({
+          id: `historical-${index}`,
+          bedId: `OLD_${index}`,
+          patientName: `Historical ${index}`,
+          originalData: { patientName: `Historical ${index}` },
+        }))
+      );
       oldRecord.discharges = historical;
       newRecord.discharges = historical;
 
@@ -259,11 +259,13 @@ describe('IntegrityGuard', () => {
         oldRecord.beds[`BED_${index}`] = bed;
         if (index < 2) newRecord.beds[`BED_${index}`] = bed;
       }
-      const legacy = Array.from({ length: 60 }, (_, index) => ({
-        bedId: `OLD_${index}`,
-        patientName: `Legacy ${index}`,
-        originalData: { patientName: `Legacy ${index}` },
-      })) as unknown as DailyRecord['discharges'];
+      const legacy = asStoredDailyRecordShape<DailyRecord['discharges']>(
+        Array.from({ length: 60 }, (_, index) => ({
+          bedId: `OLD_${index}`,
+          patientName: `Legacy ${index}`,
+          originalData: { patientName: `Legacy ${index}` },
+        }))
+      );
       oldRecord.discharges = legacy;
       newRecord.discharges = legacy;
 
@@ -273,22 +275,22 @@ describe('IntegrityGuard', () => {
     it('allows editing mutable fields on a legacy movement without an id', () => {
       const oldRecord = createDenseRecord('2024-01-01');
       const newRecord = createDenseRecord('2024-01-01');
-      oldRecord.discharges = [
+      oldRecord.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
         {
           bedId: 'BED_01',
           patientName: 'Nombre anterior',
           time: '08:00',
           originalData: { patientName: 'Nombre anterior' },
         },
-      ] as unknown as DailyRecord['discharges'];
-      newRecord.discharges = [
+      ]);
+      newRecord.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>([
         {
           bedId: 'BED_02',
           patientName: 'Nombre corregido',
           time: '08:15',
           originalData: { patientName: 'Nombre anterior' },
         },
-      ] as unknown as DailyRecord['discharges'];
+      ]);
 
       expect(checkRegression(oldRecord, newRecord).isSuspicious).toBe(false);
     });
@@ -296,11 +298,13 @@ describe('IntegrityGuard', () => {
     it('flags deletion of historical movements even when current beds are preserved', () => {
       const oldRecord = createDenseRecord('2024-01-01');
       const newRecord = createDenseRecord('2024-01-01');
-      oldRecord.discharges = Array.from({ length: 10 }, (_, index) => ({
-        id: `movement-${index}`,
-        bedId: `OLD_${index}`,
-        patientName: `Historical ${index}`,
-      })) as unknown as DailyRecord['discharges'];
+      oldRecord.discharges = asStoredDailyRecordShape<DailyRecord['discharges']>(
+        Array.from({ length: 10 }, (_, index) => ({
+          id: `movement-${index}`,
+          bedId: `OLD_${index}`,
+          patientName: `Historical ${index}`,
+        }))
+      );
 
       expect(checkRegression(oldRecord, newRecord)).toEqual({
         isSuspicious: true,

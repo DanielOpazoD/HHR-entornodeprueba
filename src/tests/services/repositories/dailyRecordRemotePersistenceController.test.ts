@@ -25,6 +25,7 @@ vi.mock('@/services/repositories/dailyRecordRemoteWriteController', () => ({
 }));
 
 import { persistLocalAndAttemptRemoteSync } from '@/services/repositories/dailyRecordRemotePersistenceController';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const buildRecord = (date: string): DailyRecord =>
   ({
@@ -46,7 +47,7 @@ const buildAuthorityReceipt = () => ({
       lastMutationId: 'mutation-2',
       updatedAt: '2026-05-23T10:30:00.000Z',
     },
-    record: {
+    record: asStoredDailyRecordShape({
       ...buildRecord('2026-05-23'),
       beds: { R1: { bedId: 'R1', patientName: 'Registro preservado por servidor' } },
       lastUpdated: '2026-05-23T10:30:00.000Z',
@@ -55,7 +56,7 @@ const buildAuthorityReceipt = () => ({
         lastMutationId: 'mutation-2',
         updatedAt: '2026-05-23T10:30:00.000Z',
       },
-    } as unknown as DailyRecord,
+    }),
   },
 });
 

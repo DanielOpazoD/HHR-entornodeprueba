@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const makeRecord = (date: string, lastUpdated: string): DailyRecord => ({
   date,
@@ -20,20 +21,20 @@ describe('conflictResolutionMatrix device merge policy', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente con dispositivo',
         devices: ['CVC', 'VVP#1'],
         deviceDetails: {
           CVC: { installationDate: '2026-02-16' },
           'VVP#1': { installationDate: '2026-02-17' },
         },
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente con dispositivo',
         devices: ['VVP#1'],
         deviceDetails: {
@@ -44,7 +45,7 @@ describe('conflictResolutionMatrix device merge policy', () => {
           },
           'VVP#1': { installationDate: '2026-02-17' },
         },
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const resolved = resolveDailyRecordConflict(remote, local, {
@@ -59,7 +60,7 @@ describe('conflictResolutionMatrix device merge policy', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente con CVC',
         rut: '22.222.222-2',
         admissionDate: '2026-02-10',
@@ -69,13 +70,13 @@ describe('conflictResolutionMatrix device merge policy', () => {
           CVC: { installationDate: '2026-02-18' },
           'VVP#1': { installationDate: '2026-02-18' },
         },
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente con CVC',
         rut: '22.222.222-2',
         admissionDate: '2026-02-10',
@@ -88,7 +89,7 @@ describe('conflictResolutionMatrix device merge policy', () => {
           },
           'VVP#1': { installationDate: '2026-02-18' },
         },
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const resolved = resolveDailyRecordConflict(remote, local, {
@@ -103,19 +104,19 @@ describe('conflictResolutionMatrix device merge policy', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente antiguo',
         devices: ['VVP#1'],
         deviceDetails: {
           'VVP#1': { installationDate: '2026-02-17' },
         },
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente antiguo',
         devices: ['VVP#1', 'VVP#2'],
         deviceDetails: {
@@ -140,7 +141,7 @@ describe('conflictResolutionMatrix device merge policy', () => {
             updatedAt: 2,
           },
         ],
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const resolved = resolveDailyRecordConflict(remote, local);
@@ -155,20 +156,20 @@ describe('conflictResolutionMatrix device merge policy', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente con dispositivo',
         devices: ['CVC', 'VVP#1'],
         deviceDetails: {
           CVC: { installationDate: '2026-02-16' },
           'VVP#1': { installationDate: '2026-02-17' },
         },
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente con dispositivo',
         devices: ['VVP#1'],
         deviceDetails: {
@@ -193,7 +194,7 @@ describe('conflictResolutionMatrix device merge policy', () => {
             updatedAt: 3,
           },
         ],
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const resolved = resolveDailyRecordConflict(remote, local, {
@@ -215,7 +216,7 @@ describe('conflictResolutionMatrix device merge policy', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z');
     remote.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente actual',
         rut: '22.222.222-2',
         admissionDate: '2026-02-18',
@@ -236,13 +237,13 @@ describe('conflictResolutionMatrix device merge policy', () => {
             updatedAt: 10,
           },
         ],
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const local = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     local.beds = {
       R1: {
-        bedId: 'R1',
+        ...createEmptyPatient('R1'),
         patientName: 'Paciente anterior',
         rut: '11.111.111-1',
         admissionDate: '2026-02-10',
@@ -264,7 +265,7 @@ describe('conflictResolutionMatrix device merge policy', () => {
             updatedAt: 1,
           },
         ],
-      } as unknown as DailyRecord['beds'][string],
+      },
     };
 
     const resolved = resolveDailyRecordConflict(remote, local, {

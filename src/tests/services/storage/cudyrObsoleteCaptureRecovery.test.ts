@@ -17,6 +17,7 @@ import {
   clearSyntheticSession,
   replaceStoredSessionOwner,
 } from '@/tests/utils/syntheticSession';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const request = () => ({
   schemaVersion: 1 as const,
@@ -49,7 +50,7 @@ const task = (overrides: Partial<SyncTask> = {}): SyncTask => ({
   ...overrides,
 });
 const census = () =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-10-10',
     beds: {},
     discharges: [],
@@ -65,7 +66,7 @@ const census = () =>
         structuralReview: { snapshotComplete: true },
       },
     ],
-  }) as unknown as DailyRecord;
+  });
 const setup = () => {
   const store = createDexieSyncQueueStore();
   let authorized = true;

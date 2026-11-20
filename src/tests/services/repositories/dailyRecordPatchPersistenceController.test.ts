@@ -5,6 +5,7 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const {
   applyPatchesMock,
@@ -68,7 +69,7 @@ describe('dailyRecordPatchPersistenceController', () => {
     cma: [],
     nurses: [],
     activeExtraBeds: [],
-  } as unknown as DailyRecord;
+  } satisfies DailyRecord;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -119,7 +120,7 @@ describe('dailyRecordPatchPersistenceController', () => {
   });
 
   it('merges movement-bed consistency repairs into the outgoing patch', () => {
-    const patched = {
+    const patched = asStoredDailyRecordShape({
       ...current,
       beds: {
         R1: {
@@ -144,7 +145,7 @@ describe('dailyRecordPatchPersistenceController', () => {
           movementDate: '2026-02-18',
         },
       ],
-    } as unknown as DailyRecord;
+    });
     applyPatchesMock.mockReturnValue(patched);
     normalizeDailyRecordInvariantsMock.mockReturnValue({
       record: patched,
@@ -177,7 +178,7 @@ describe('dailyRecordPatchPersistenceController', () => {
       status: 'Vivo',
       movementDate: '2026-02-18',
     };
-    const reoccupied = {
+    const reoccupied = asStoredDailyRecordShape({
       ...current,
       beds: {
         R1: {
@@ -192,12 +193,12 @@ describe('dailyRecordPatchPersistenceController', () => {
         },
       },
       discharges: [discharge],
-    } as unknown as DailyRecord;
+    });
     applyPatchesMock.mockReturnValue(reoccupied);
     normalizeDailyRecordInvariantsMock.mockReturnValue({ record: reoccupied, patches: {} });
 
     preparePatchedRecordPersistence(
-      { ...current, discharges: [discharge] } as unknown as DailyRecord,
+      asStoredDailyRecordShape({ ...current, discharges: [discharge] }),
       '2026-04-19',
       { 'beds.R1.patientName': 'Paciente Egresado' }
     );

@@ -9,6 +9,7 @@ import type {
   CensusImportDiff,
   DischargeEntry,
 } from '@/features/rayen-import/contracts/censusImportDiff';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const NOW = new Date(2026, 6, 12, 15, 30, 0);
 const ctx = { idFactory: () => 'random-id', now: NOW, syncRunId: 'cross-day-run-1' };
@@ -73,7 +74,7 @@ describe('applyCrossDayDiff', () => {
   it('skips a patient already recorded as discharged that day, even with a DIFFERENT id (dedup by RUT)', () => {
     // A discharge the nurse (or another path) already filed has a different id than our deterministic
     // one, so id-only dedup would append a SECOND egreso for the same patient.
-    const alreadyDischarged = {
+    const alreadyDischarged = DataFactory.createMockDischarge({
       id: 'manual-abc',
       rut: '19.338.541-9',
       patientName: 'Haggen Estefanis Roe',
@@ -82,7 +83,7 @@ describe('applyCrossDayDiff', () => {
       dischargeType: 'Domicilio (Habitual)',
       status: 'Vivo',
       bedId: 'NEO1',
-    } as unknown as DailyRecord['discharges'][number];
+    });
     const result = applyCrossDayDiff(
       makeRecord('2026-07-11', { discharges: [alreadyDischarged] }),
       [{ entry: entry(), patient: haggen() }],
@@ -198,14 +199,14 @@ describe('applyCrossDayDiff', () => {
   });
 
   it('recognizes the legacy bed-based id for a RUN-less episode after upgrading', () => {
-    const legacyMovement = {
+    const legacyMovement = asStoredDailyRecordShape<DailyRecord['discharges'][number]>({
       id: 'rayen-egreso:bed-NEO1:2026-07-11',
       clinicalEpisodeId: 'NEWBORN-EPISODE',
       rut: '',
       patientName: 'RN de Haggen',
       bedId: 'NEO1',
       movementDate: '2026-07-11',
-    } as unknown as DailyRecord['discharges'][number];
+    });
     const result = applyCrossDayDiff(
       makeRecord('2026-07-11', { discharges: [legacyMovement] }),
       [
@@ -222,7 +223,7 @@ describe('applyCrossDayDiff', () => {
   });
 
   it('does not duplicate an associated newborn already recorded under a manual id', () => {
-    const existingNewborn = {
+    const existingNewborn = asStoredDailyRecordShape<DailyRecord['discharges'][number]>({
       id: 'manual-newborn-discharge',
       clinicalEpisodeId: 'NEWBORN-EPISODE',
       rut: '',
@@ -230,7 +231,7 @@ describe('applyCrossDayDiff', () => {
       bedId: 'NEO1',
       movementDate: '2026-07-11',
       isNested: true,
-    } as unknown as DailyRecord['discharges'][number];
+    });
     const patient = haggen({
       clinicalCrib: {
         ...EMPTY_PATIENT,
@@ -265,14 +266,14 @@ describe('applyCrossDayDiff', () => {
   });
 
   it('backfills the associated newborn when the maternal discharge already exists', () => {
-    const existingMother = {
+    const existingMother = asStoredDailyRecordShape<DailyRecord['discharges'][number]>({
       id: 'manual-maternal-discharge',
       clinicalEpisodeId: 'MOTHER-EPISODE',
       rut: '19.338.541-9',
       patientName: 'Haggen Estefanis Roe',
       bedId: 'NEO1',
       movementDate: '2026-07-11',
-    } as unknown as DailyRecord['discharges'][number];
+    });
     const patient = haggen({
       clinicalEpisodeId: 'MOTHER-EPISODE',
       clinicalCrib: {

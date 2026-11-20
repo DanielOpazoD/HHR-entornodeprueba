@@ -16,14 +16,14 @@ import {
   type DailyRecordAuthorityCallablePayload,
 } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { AUTHORITY_READBACK_TIMEOUT_MS } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 const date = '2026-10-19';
-const record = {
-  date,
+const record = DataFactory.createMockDailyRecord(date, {
   lastUpdated: `${date}T10:00:00.000Z`,
   beds: {},
   discharges: [],
-} as unknown as DailyRecord;
+});
 const payload: DailyRecordAuthorityCallablePayload = {
   date,
   record,

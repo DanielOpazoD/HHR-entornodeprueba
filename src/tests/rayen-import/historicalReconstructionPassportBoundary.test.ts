@@ -8,6 +8,7 @@ import type {
   RayenCensusSnapshot,
   RayenEncounter,
 } from '@/features/rayen-import/contracts/rayenSnapshot';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 // A passport whose digits form the RUT of another person.
 const PASSPORT = 'P123456785';
@@ -101,7 +102,7 @@ describe('historical reconstruction keeps a passport apart from the RUT its digi
   ])(
     'a passport in a %s references the earlier-census row %s only when it is the same document',
     (_label, rowDocument, bed, referencedRows) => {
-      const record = { date: emptyRecord.date, beds: { H3C1: bed } } as unknown as DailyRecord;
+      const record = asStoredDailyRecordShape({ date: emptyRecord.date, beds: { H3C1: bed } });
 
       expect(
         relevantHistoricalReportRows([earlierCensusRow(rowDocument)], record.date, record, [])

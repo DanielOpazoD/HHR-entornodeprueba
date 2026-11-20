@@ -8,6 +8,7 @@ import type {
   ClinicalStageResult,
 } from '@/features/rayen-import/contracts/clinicalStageResult';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 vi.mock('@/features/rayen-import/hooks/useRayenFillStatus', () => ({
   beginRayenFill: vi.fn(() => true),
@@ -22,7 +23,7 @@ afterEach(() => {
 });
 
 const census = (ids: string[]): DailyRecord =>
-  ({
+  asStoredDailyRecordShape({
     date: '2026-07-14',
     beds: Object.fromEntries(
       ids.map((id, index) => [
@@ -48,7 +49,7 @@ const census = (ids: string[]): DailyRecord =>
         policy: { mode: 'preview', clinicalBatchMode: 'enforced', revision: 1 },
       },
     ],
-  }) as unknown as DailyRecord;
+  });
 
 describe('legacy clinical retry cohort', () => {
   it('keeps the original episodes through repeated failures after new admissions appear', async () => {
