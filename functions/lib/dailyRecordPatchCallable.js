@@ -126,7 +126,7 @@ const createPatchHandler =
           hasAlreadyAppliedMutation({
             snapshot,
             syncContract,
-            paths: Object.keys(patch),
+            values: patch,
             uid: context.auth?.uid,
           })
         ) {

@@ -42,6 +42,7 @@ const {
   buildSlimHistorySnapshot,
   collectChangedPaths,
   hasAlreadyAppliedMutation,
+  readValueAtPath,
 } = require('./dailyRecordWriteRecordState');
 const {
   asSpecialtyHttpsError,
@@ -139,7 +140,9 @@ const createFullSaveHandler =
           hasAlreadyAppliedMutation({
             snapshot,
             syncContract,
-            paths: collectChangedPaths(syncContract),
+            values: Object.fromEntries(
+              collectChangedPaths(syncContract).map(path => [path, readValueAtPath(record, path)])
+            ),
             uid: context.auth?.uid,
           })
         ) {

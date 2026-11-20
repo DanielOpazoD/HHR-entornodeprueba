@@ -34,7 +34,7 @@ const {
   fieldValueDigest: (value: unknown) => string;
   isStillWrittenBy: (
     day: unknown,
-    paths: string[],
+    values: unknown,
     author: { mutationId?: string; uid?: string; clientId?: string }
   ) => boolean;
   nextFieldWrites: (input: {
@@ -415,6 +415,23 @@ describe('the replay’s reading of the map', () => {
 });
 
 describe('the server’s reading of the map (a replay of an edit already stored)', () => {
+  /** What P1's edit asked to store; a path it did not write asks for the stored value. */
+  const asked = (day: unknown, paths: string[]) =>
+    Object.fromEntries(
+      paths.map(path => [
+        path,
+        { 'beds.R1.pathology': 'NEUMONIA', night: 'NOCHE' }[path] ??
+          path
+            .split('.')
+            .reduce<unknown>((value, key) => (value as Record<string, unknown>)?.[key], day),
+      ])
+    );
+  /** The server's answer to P1's resend of `paths`, with the values P1's edit asked for. */
+  const stillWritten = (
+    day: unknown,
+    paths: string[],
+    author: { mutationId?: string; uid?: string; clientId?: string }
+  ) => isStillWrittenBy(day, asked(day, paths), author);
   /** P1's account and computer resend their edit `id`. */
   const P1 = (id = 'm-P1') => ({ mutationId: id, uid: 'u-c-P1', clientId: 'c-P1' });
   const both = (pathology: string, r2: Record<string, unknown> = { pathology: 'ITU' }) => ({
@@ -577,7 +594,7 @@ describe('the server’s reading of the map (a replay of an edit already stored)
   it.each(days)('credits exactly its own untouched fields for %s', (_label, day, credited) => {
     for (const path of ['beds.R1.pathology', 'beds.R1.status', 'beds.R2.pathology', 'night'])
       for (const id of ['m-P1', 'm-P2']) {
-        const server = isStillWrittenBy(day, [path], P1(id));
+        const server = stillWritten(day, [path], P1(id));
         expect(server, `${path} by ${id}`).toBe(id === 'm-P1' && credited[path] === true);
         // Never more than the replay credits by the same map.
         if (server) expect(isLastWrittenBy(storedFieldWrites(day), path, [id], day)).toBe(true);
@@ -585,33 +602,47 @@ describe('the server’s reading of the map (a replay of an edit already stored)
   });
 
   it('credits only the same account and computer, every path of the request or none', () => {
-    expect(isStillWrittenBy(otherBed, ['beds.R1.pathology'], P1())).toBe(true);
-    expect(isStillWrittenBy(otherBed, ['beds.R1.pathology'], { ...P1(), uid: 'u-c-P2' })).toBe(
+    expect(stillWritten(otherBed, ['beds.R1.pathology'], P1())).toBe(true);
+    expect(stillWritten(otherBed, ['beds.R1.pathology'], { ...P1(), uid: 'u-c-P2' })).toBe(false);
+    expect(stillWritten(otherBed, ['beds.R1.pathology'], { ...P1(), uid: undefined })).toBe(false);
+    expect(stillWritten(otherBed, ['beds.R1.pathology'], { ...P1(), clientId: 'c-P2' })).toBe(
       false
     );
-    expect(isStillWrittenBy(otherBed, ['beds.R1.pathology'], { ...P1(), uid: undefined })).toBe(
+    expect(stillWritten(otherBed, ['beds.R1.pathology'], { ...P1(), clientId: undefined })).toBe(
       false
     );
-    expect(isStillWrittenBy(otherBed, ['beds.R1.pathology'], { ...P1(), clientId: 'c-P2' })).toBe(
+    expect(stillWritten(otherBed, ['beds.R1.pathology', 'beds.R1.status'], P1())).toBe(false);
+    expect(stillWritten(otherBed, [], P1())).toBe(false);
+    expect(stillWritten(otherBed, ['*'], P1())).toBe(false);
+    expect(stillWritten(otherBed, ['beds.R1.pathology'], { ...P1(), mutationId: undefined })).toBe(
+      false
+    );
+  });
+
+  it('never takes a request with another value for a field as the same edit', () => {
+    const correction = { 'beds.R1.pathology': 'NEUMONIA GRAVE' };
+    expect(isStillWrittenBy(otherBed, { 'beds.R1.pathology': 'NEUMONIA' }, P1())).toBe(true);
+    expect(isStillWrittenBy(otherBed, correction, P1())).toBe(false);
+    // An entry with no computer still needs the same value (W20-C3 recheck: same account, the
+    // first computer without `clientId`, the second with one).
+    expect(isStillWrittenBy(later(noComputer), correction, P1())).toBe(false);
+    expect(isStillWrittenBy(later(noComputer), correction, { ...P1(), clientId: undefined })).toBe(
       false
     );
     expect(
-      isStillWrittenBy(otherBed, ['beds.R1.pathology'], { ...P1(), clientId: undefined })
+      isStillWrittenBy(
+        otherBed,
+        { 'beds.R1.pathology': 'NEUMONIA', 'beds.R1.status': 'Grave' },
+        P1()
+      )
     ).toBe(false);
-    expect(isStillWrittenBy(otherBed, ['beds.R1.pathology', 'beds.R1.status'], P1())).toBe(false);
-    expect(isStillWrittenBy(otherBed, [], P1())).toBe(false);
-    expect(isStillWrittenBy(otherBed, ['*'], P1())).toBe(false);
-    expect(
-      isStillWrittenBy(otherBed, ['beds.R1.pathology'], { ...P1(), mutationId: undefined })
-    ).toBe(false);
+    expect(isStillWrittenBy(otherBed, ['beds.R1.pathology'], P1())).toBe(false);
   });
 
   it('never takes two missing identities as the same', () => {
     const map = otherBed.meta?.fieldWrites as FieldWritesMap;
     const anonymous = later(noAccount);
-    expect(isStillWrittenBy(anonymous, ['beds.R1.pathology'], { ...P1(), uid: undefined })).toBe(
-      false
-    );
+    expect(stillWritten(anonymous, ['beds.R1.pathology'], { ...P1(), uid: undefined })).toBe(false);
     const noEdit = {
       ...otherBed,
       meta: {
@@ -619,9 +650,9 @@ describe('the server’s reading of the map (a replay of an edit already stored)
         fieldWrites: { ...map, writes: { ...map.writes, 2: { uid: 'u-c-P1' } } },
       },
     };
-    expect(
-      isStillWrittenBy(noEdit, ['beds.R1.pathology'], { ...P1(), mutationId: undefined })
-    ).toBe(false);
+    expect(stillWritten(noEdit, ['beds.R1.pathology'], { ...P1(), mutationId: undefined })).toBe(
+      false
+    );
   });
 
   it('never credits, and never throws, on a malformed map', () => {
@@ -652,7 +683,6 @@ describe('the server’s reading of the map (a replay of an edit already stored)
       })),
       ...odd.map(lastUpdated => ({ ...otherBed, lastUpdated })),
     ];
-    for (const day of variants)
-      expect(isStillWrittenBy(day, ['beds.R1.pathology'], P1())).toBe(false);
+    for (const day of variants) expect(stillWritten(day, ['beds.R1.pathology'], P1())).toBe(false);
   });
 });

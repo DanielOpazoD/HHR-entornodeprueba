@@ -328,9 +328,10 @@ Lectura operativa:
   éxito idempotente y drenar la tarea sin reescribir.
 - El servidor responde `idempotent` al mismo pedido reenviado también cuando otro equipo guardó
   otra cama después: cada campo del pedido sigue anotado en `meta.fieldWrites` con esa edición,
-  la misma cuenta (`uid`) y el mismo equipo, y conserva el valor que ella guardó. Si después se
-  escribió cualquier campo de esa cama (también su paciente o su episodio), o la anotación es de
-  otra cuenta o equipo, decide como cualquier escritura.
+  la misma cuenta (`uid`) y el mismo equipo, y el valor guardado es idéntico al que trae el
+  pedido. Si el pedido trae otro valor, si después se escribió cualquier campo de esa cama
+  (también su paciente o su episodio), o si la anotación es de otra cuenta o equipo, decide como
+  cualquier escritura.
 - Si queda una tarea `direct_queue` reciente, no borrar: puede representar una
   confirmación remota pendiente o un ack local que no alcanzó a ejecutarse.
 

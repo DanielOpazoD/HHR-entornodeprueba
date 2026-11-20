@@ -299,6 +299,37 @@ emulator('a replay of a committed edit after another computer saved', () => {
     }
   );
 
+  it.each(['patch', 'full'] as const)(
+    'saves a correction with the same account and identifier after a computer that sent none (%s)',
+    async mode => {
+      // W20-C3 recheck: the first computer omits `clientId`, the second sends one and another
+      // text; only the same value can be the same edit.
+      const first = await request('A', 'shared', { [diagnosis]: 'UNO' });
+      delete (first.syncContract as { clientId?: string }).clientId;
+      await expect(patchOn('A', first)).resolves.toMatchObject({ revision: 2 });
+      await write('B', 'another', { 'beds.R2.pathology': 'TRES' });
+      const fresh = await request('A', 'shared', { [diagnosis]: 'DOS' });
+      fresh.syncContract.clientId = 'segundo-equipo';
+      const { meta: _meta, ...day } = await stored();
+      const answer =
+        mode === 'patch'
+          ? patchOn('A', fresh)
+          : api.saveDailyRecordWithClinicalAuthority.run(
+              {
+                ...fresh,
+                patch: undefined,
+                record: { ...day, beds: { ...day.beds, R1: { ...day.beds.R1, pathology: 'DOS' } } },
+              },
+              context('A')
+            );
+      expect(await statusOf(answer)).toBe('ok');
+      expect(await stored()).toMatchObject({
+        meta: { revision: 4 },
+        beds: { R1: { pathology: 'DOS' } },
+      });
+    }
+  );
+
   it('decides as main after a restore, and after a tracked write that follows it', async () => {
     const sent = await begin();
     const restored = await stored();

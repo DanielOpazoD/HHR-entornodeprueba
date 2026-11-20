@@ -239,11 +239,12 @@ const buildAuthorityRecordState = ({ record, lastUpdated, meta }) => {
 
 /**
  * Whether the stored day already holds this request's edit: the day's last write was it, or, as
- * `meta.fieldWrites` tells, the same account (`uid`) and computer wrote it, every one of `paths`
- * (the fields the request writes) still holds the value it stored, and nothing wrote their beds
- * since: another computer saved elsewhere after it, and its answer was lost.
+ * `meta.fieldWrites` tells, the same account (`uid`) and computer wrote it, every path of `values`
+ * (each field the request writes, with the value it writes) still holds that very value, and
+ * nothing wrote their beds since: another computer saved elsewhere after it, and its answer was
+ * lost. A request with another value for a field is never the same edit.
  */
-const hasAlreadyAppliedMutation = ({ snapshot, syncContract, paths, uid }) => {
+const hasAlreadyAppliedMutation = ({ snapshot, syncContract, values, uid }) => {
   if (!snapshot.exists) {
     return false;
   }
@@ -251,14 +252,11 @@ const hasAlreadyAppliedMutation = ({ snapshot, syncContract, paths, uid }) => {
   const remoteMutationId = normalizeShortString(snapshot.data()?.meta?.lastMutationId);
   const localMutationId = normalizeShortString(syncContract?.mutationId);
   if (remoteMutationId && localMutationId && remoteMutationId === localMutationId) return true;
-  return (
-    Array.isArray(paths) &&
-    isStillWrittenBy(snapshot.data(), paths, {
-      mutationId: localMutationId,
-      uid: normalizeShortString(uid, 128),
-      clientId: normalizeShortString(syncContract?.clientId),
-    })
-  );
+  return isStillWrittenBy(snapshot.data(), values, {
+    mutationId: localMutationId,
+    uid: normalizeShortString(uid, 128),
+    clientId: normalizeShortString(syncContract?.clientId),
+  });
 };
 
 module.exports = {

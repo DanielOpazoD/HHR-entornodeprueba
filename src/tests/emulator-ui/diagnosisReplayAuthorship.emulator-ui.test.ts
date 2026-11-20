@@ -415,6 +415,43 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       expect((await admin.doc(dayPath).get()).data()?.meta?.revision).toBe(4);
     });
 
+    it('saves a correction after the same account’s computer without an identifier used its edit identifier', async () => {
+      collision.active = true;
+      // A computer of the same account saved the first text without `clientId`.
+      const day = await readServer();
+      const patch = bedManagementReducer(day, {
+        type: 'UPDATE_PATIENT',
+        bedId: 'R1',
+        field: 'pathology',
+        value: DIAGNOSIS,
+      });
+      if (!patch) throw new Error('Missing diagnosis patch');
+      await network.api!.patchDailyRecordWithClinicalAuthority.run(
+        {
+          date,
+          patch,
+          expectedLastUpdated: day.lastUpdated,
+          mode: 'enforced',
+          syncContract: {
+            mutationId: 'review-shared-id',
+            changedPaths: Object.keys(patch),
+            baseRevision: 1,
+          },
+        },
+        { auth: { uid: computer.uid, token: { email: `${computer.uid}@example.invalid` } } }
+      );
+      await otherComputerSaves({ 'beds.R2.pathology': OTHER }, 'independent-edit');
+      await hospitalDB.dailyRecords.put(await readServer());
+
+      const result = await typeDiagnosis(CORRECTED);
+
+      expect(result.state).toBe('confirmed');
+      expect(await serverDiagnosis()).toBe(CORRECTED);
+      expect(await cellDiagnosis()).toBe(CORRECTED);
+      expect(await waiting()).toBe(0);
+      expect((await admin.doc(dayPath).get()).data()?.meta?.revision).toBe(4);
+    });
+
     it('does not credit a resend of the former occupant’s diagnosis to the next episode', async () => {
       network.answerLost = { downAfterCut: 0 };
       network.afterFirstReply = async () => {

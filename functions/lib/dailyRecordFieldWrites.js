@@ -176,16 +176,17 @@ const isBedTreePath = path => /^(beds|bedTypeOverrides)(\.|$)/.test(path);
 const scopeOf = path => /^beds\.[^.]+/.exec(path)?.[0] ?? path;
 
 /**
- * Whether the stored `day` still holds every one of `paths` as the edit `mutationId` of account
- * `uid` (and computer `clientId`, when the entry names one) wrote it, read as the replay reads the
- * map (fieldWriteAttribution.ts, `isLastWrittenBy`): the map is at the day's revision and the
- * day's last write was a server write; for each path, its entry names a write by this edit and
- * account, is newer than any change the map may miss, its digest is the stored value's, and no
- * entry newer than it touches the path's bed (any field of it: the patient may have changed) or,
- * outside the beds, the path itself (a whole-day write leaves no other entry). No paths, or `*`,
- * never tells.
+ * Whether the stored `day` already holds exactly `values` (path to the value the request writes)
+ * as the edit `mutationId` of account `uid` (and computer `clientId`, when the entry names one)
+ * wrote them, read as the replay reads the map (fieldWriteAttribution.ts, `isLastWrittenBy`): the
+ * map is at the day's revision and the day's last write was a server write; for each path, its
+ * entry names a write by this edit and account, is newer than any change the map may miss, its
+ * digest is both the stored value's and the requested value's, and no entry newer than it touches
+ * the path's bed (any field of it: the patient may have changed) or, outside the beds, the path
+ * itself (a whole-day write leaves no other entry). No paths, or `*`, never tells.
  */
-const isStillWrittenBy = (day, paths, { mutationId, uid, clientId } = {}) => {
+const isStillWrittenBy = (day, values, { mutationId, uid, clientId } = {}) => {
+  const paths = isPlainObject(values) ? Object.keys(values) : [];
   const meta = isPlainObject(day?.meta) ? day.meta : {};
   const map = isPlainObject(meta.fieldWrites) ? meta.fieldWrites : {};
   const fields = isPlainObject(map.fields) ? map.fields : {};
@@ -222,7 +223,8 @@ const isStillWrittenBy = (day, paths, { mutationId, uid, clientId } = {}) => {
       (writer.clientId === null || writer.clientId === undefined || writer.clientId === clientId) &&
       entry.revision > incompleteThrough &&
       (isBedTreePath(path) || entry.revision > outsideBedsIncompleteThrough) &&
-      entry.digest === fieldValueDigest(readValueAtPath(day, path))
+      entry.digest === fieldValueDigest(readValueAtPath(day, path)) &&
+      entry.digest === fieldValueDigest(values[path])
     );
   });
 };
