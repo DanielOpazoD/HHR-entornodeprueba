@@ -5,6 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { resolveOpeningCensusDay } from '@/app-shell/bootstrap/openingCensusDay';
 import { useDateNavigation } from '@/hooks/useDateNavigation';
 
 describe('useDateNavigation', () => {
@@ -25,7 +26,7 @@ describe('useDateNavigation', () => {
       // is still 2026-02-19, regardless of the machine running the test.
       vi.setSystemTime(new Date('2026-02-20T12:59:00.000Z'));
 
-      const { result } = renderHook(() => useDateNavigation());
+      const { result } = renderHook(() => useDateNavigation(resolveOpeningCensusDay()));
 
       expect(result.current.currentDateString).toBe('2026-02-19');
     });
@@ -34,7 +35,7 @@ describe('useDateNavigation', () => {
       // 09:30 in Rapa Nui, after the rollover: clinical "today" is 2026-02-20.
       vi.setSystemTime(new Date('2026-02-20T14:30:00.000Z'));
 
-      const { result } = renderHook(() => useDateNavigation());
+      const { result } = renderHook(() => useDateNavigation(resolveOpeningCensusDay()));
 
       expect(result.current.currentDateString).toBe('2026-02-20');
     });
@@ -42,7 +43,7 @@ describe('useDateNavigation', () => {
     it('should initialize from the date query string when present', () => {
       window.history.replaceState({}, '', '/?date=2026-03-14');
 
-      const { result } = renderHook(() => useDateNavigation());
+      const { result } = renderHook(() => useDateNavigation(resolveOpeningCensusDay()));
 
       expect(result.current.selectedYear).toBe(2026);
       expect(result.current.selectedMonth).toBe(2);
@@ -50,7 +51,7 @@ describe('useDateNavigation', () => {
     });
 
     it('should generate correct date string format', () => {
-      const { result } = renderHook(() => useDateNavigation());
+      const { result } = renderHook(() => useDateNavigation(resolveOpeningCensusDay()));
 
       // Should be in YYYY-MM-DD format
       expect(result.current.currentDateString).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -59,7 +60,7 @@ describe('useDateNavigation', () => {
 
   describe('setSelectedYear', () => {
     it('should update the year', () => {
-      const { result } = renderHook(() => useDateNavigation());
+      const { result } = renderHook(() => useDateNavigation(resolveOpeningCensusDay()));
 
       act(() => {
         result.current.setSelectedYear(2020);
@@ -71,7 +72,7 @@ describe('useDateNavigation', () => {
 
   describe('setSelectedMonth', () => {
     it('should update the month', () => {
-      const { result } = renderHook(() => useDateNavigation());
+      const { result } = renderHook(() => useDateNavigation(resolveOpeningCensusDay()));
 
       act(() => {
         result.current.setSelectedMonth(5); // June (0-indexed)
@@ -83,7 +84,7 @@ describe('useDateNavigation', () => {
 
   describe('setSelectedDay', () => {
     it('should update the day', () => {
-      const { result } = renderHook(() => useDateNavigation());
+      const { result } = renderHook(() => useDateNavigation(resolveOpeningCensusDay()));
 
       act(() => {
         result.current.setSelectedDay(15);
@@ -95,7 +96,7 @@ describe('useDateNavigation', () => {
 
   describe('daysInMonth', () => {
     it('should return correct days for January', () => {
-      const { result } = renderHook(() => useDateNavigation());
+      const { result } = renderHook(() => useDateNavigation(resolveOpeningCensusDay()));
 
       act(() => {
         result.current.setSelectedYear(2024);
@@ -106,7 +107,7 @@ describe('useDateNavigation', () => {
     });
 
     it('should return correct days for February in leap year', () => {
-      const { result } = renderHook(() => useDateNavigation());
+      const { result } = renderHook(() => useDateNavigation(resolveOpeningCensusDay()));
 
       act(() => {
         result.current.setSelectedYear(2024); // Leap year
@@ -117,7 +118,7 @@ describe('useDateNavigation', () => {
     });
 
     it('should return correct days for February in non-leap year', () => {
-      const { result } = renderHook(() => useDateNavigation());
+      const { result } = renderHook(() => useDateNavigation(resolveOpeningCensusDay()));
 
       act(() => {
         result.current.setSelectedYear(2025); // Not a leap year
@@ -130,7 +131,7 @@ describe('useDateNavigation', () => {
 
   describe('currentDateString', () => {
     it('should format date with zero-padded month and day', () => {
-      const { result } = renderHook(() => useDateNavigation());
+      const { result } = renderHook(() => useDateNavigation(resolveOpeningCensusDay()));
 
       act(() => {
         result.current.setSelectedYear(2024);
@@ -142,7 +143,7 @@ describe('useDateNavigation', () => {
     });
 
     it('should format date correctly for double-digit month/day', () => {
-      const { result } = renderHook(() => useDateNavigation());
+      const { result } = renderHook(() => useDateNavigation(resolveOpeningCensusDay()));
 
       act(() => {
         result.current.setSelectedYear(2024);
@@ -154,7 +155,7 @@ describe('useDateNavigation', () => {
     });
 
     it('should not force the current date into the URL while navigating days', () => {
-      const { result } = renderHook(() => useDateNavigation());
+      const { result } = renderHook(() => useDateNavigation(resolveOpeningCensusDay()));
 
       act(() => {
         result.current.setSelectedYear(2024);

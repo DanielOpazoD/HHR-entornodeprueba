@@ -139,7 +139,7 @@ describe('useAppBootstrapState', () => {
       })
     );
 
-    const { result } = renderHook(() => useAppBootstrapState());
+    const { result } = renderHook(() => useAppBootstrapState('2026-03-27'));
 
     expect(result.current.status).toBe('loading');
     expect(result.current.phase).toBe('rehydrating');
@@ -164,7 +164,7 @@ describe('useAppBootstrapState', () => {
       })
     );
 
-    const { result } = renderHook(() => useAppBootstrapState());
+    const { result } = renderHook(() => useAppBootstrapState('2026-03-27'));
 
     expect(result.current.status).toBe('unauthenticated');
     await waitFor(() =>
@@ -197,7 +197,7 @@ describe('useAppBootstrapState', () => {
       })
     );
 
-    const { result } = renderHook(() => useAppBootstrapState());
+    const { result } = renderHook(() => useAppBootstrapState('2026-03-27'));
 
     expect(result.current.status).toBe('loading');
     expect(result.current.phase).toBe('rehydrating');
@@ -206,7 +206,7 @@ describe('useAppBootstrapState', () => {
   it('opens the normal sign-in gate for an old medical signature link', () => {
     window.history.replaceState(null, '', '/?mode=signature&date=27-03-2026&token=synthetic');
     try {
-      const { result } = renderHook(() => useAppBootstrapState());
+      const { result } = renderHook(() => useAppBootstrapState('2026-03-27'));
 
       expect(result.current.status).toBe('unauthenticated');
       expect(result.current.phase).toBe('local_only');
@@ -216,7 +216,7 @@ describe('useAppBootstrapState', () => {
   });
 
   it('returns unauthenticated when there is no active session', () => {
-    const { result } = renderHook(() => useAppBootstrapState());
+    const { result } = renderHook(() => useAppBootstrapState('2026-03-27'));
 
     expect(result.current.status).toBe('unauthenticated');
     expect(result.current.phase).toBe('local_only');
@@ -251,7 +251,7 @@ describe('useAppBootstrapState', () => {
     );
     mockGetOptionalDb.mockReturnValue({ name: 'db' } as never);
 
-    const { result } = renderHook(() => useAppBootstrapState());
+    const { result } = renderHook(() => useAppBootstrapState('2026-03-27'));
 
     expect(result.current.status).toBe('authenticated');
     expect(result.current.phase).toBe('authenticated');
@@ -287,7 +287,7 @@ describe('useAppBootstrapState', () => {
       })
     );
 
-    renderHook(() => useAppBootstrapState());
+    renderHook(() => useAppBootstrapState('2026-03-27'));
 
     expect(mockSetFirestoreSyncState).toHaveBeenCalledWith({
       mode: 'bootstrapping',
@@ -316,7 +316,7 @@ describe('useAppBootstrapState', () => {
       })
     );
 
-    renderHook(() => useAppBootstrapState());
+    renderHook(() => useAppBootstrapState('2026-03-27'));
 
     expect(mockSetFirestoreSyncState).toHaveBeenCalledWith({
       mode: 'bootstrapping',

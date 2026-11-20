@@ -159,7 +159,7 @@ export const buildAppBootstrapState = ({
   };
 };
 
-export const useAppBootstrapState = (): AppBootstrapState => {
+export const useAppBootstrapState = (openingDay: string): AppBootstrapState => {
   const auth = useAuth();
   const recentAuthenticatedSessionHint = hasRecentAuthenticatedSessionHint();
 
@@ -168,7 +168,7 @@ export const useAppBootstrapState = (): AppBootstrapState => {
   useStalenessGuard();
   useSyncFirestoreStatus(auth.remoteSyncState);
 
-  const dateNav = useDateNavigation();
+  const dateNav = useDateNavigation(openingDay);
 
   return React.useMemo<AppBootstrapState>(
     () =>

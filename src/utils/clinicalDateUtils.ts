@@ -50,6 +50,16 @@ export const isCalendarDate = (value: string): boolean => {
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 };
 
+/**
+ * The day a census address opens on: its `?date=` when that is a real calendar day with a
+ * four-digit year, otherwise `clinicalDay` (the hospital's current clinical day). The header
+ * painted before sign-in and the census after it both start here, so they never disagree.
+ */
+export const resolveLandingCalendarDay = (search: string, clinicalDay: string): string => {
+  const requested = new URLSearchParams(search).get('date');
+  return requested && requested >= '1000' && isCalendarDate(requested) ? requested : clinicalDay;
+};
+
 export const addCalendarDays = (dateString: string, days: number): string => {
   // UTC on both sides: the label never passes through the device zone, so a device ahead of
   // UTC by more than twelve hours gets the same day as the hospital.

@@ -6,6 +6,7 @@ import { CensusProvider } from '@/context/CensusContext';
 import type { AuthContextType } from '@/context/AuthContext';
 import type { UseDateNavigationReturn } from '@/hooks/useDateNavigation';
 import { DeferredSystemHealthReporter } from '@/app-shell/runtime/DeferredSystemHealthReporter';
+import { HandoffExtensionConnection } from './HandoffExtensionConnection';
 import { useAuthenticatedAppRuntime } from '@/app-shell/runtime/useAuthenticatedAppRuntime';
 import type { CensusQuickActionPatient } from '@/shared/contracts/censusQuickActionPatient';
 import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/dateStripRadiologyViewer';
@@ -84,6 +85,7 @@ export const AuthenticatedAppShell = ({ auth, dateNav }: AuthenticatedAppShellPr
   return (
     <CensusProvider value={censusContextValue}>
       <DeferredSystemHealthReporter />
+      <HandoffExtensionConnection auth={auth} />
       <AppContent
         ui={ui}
         renderFeatureQuickActions={renderFeatureQuickActions}

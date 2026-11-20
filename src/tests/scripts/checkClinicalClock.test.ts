@@ -27,7 +27,7 @@ const createRepository = (files: Record<string, string>) => {
 
 /** Runs the guard, in this process, on a synthetic repository made of `files`. */
 const runGuard = (files: Record<string, string>) => {
-  const result = checkClinicalClock(createRepository(files));
+  const result = checkClinicalClock(createRepository(files), {});
   return { status: result.status, output: `${result.stdout}${result.stderr}` };
 };
 
@@ -42,11 +42,15 @@ describe('check-clinical-clock', () => {
       ["\nconst zone = 'Pacific/Easter';\n", 1],
     ] as const) {
       const root = createRepository({ 'src/features/a.ts': source });
-      const result = spawnSync(process.execPath, [GUARD], { cwd: root, encoding: 'utf8' });
+      const result = spawnSync(process.execPath, [GUARD], {
+        cwd: root,
+        encoding: 'utf8',
+        env: { ...process.env, FOLDER_BOOK_BASE: '' },
+      });
       expect(result.error).toBeUndefined();
       expect(result.status).toBe(status);
       expect({ status: result.status, stdout: result.stdout, stderr: result.stderr }).toEqual(
-        checkClinicalClock(root)
+        checkClinicalClock(root, {})
       );
     }
   });
@@ -481,5 +485,61 @@ describe('check-clinical-clock', () => {
     expect(output).not.toContain('src/features/a.ts:2');
     expect(output).toContain('[instant-calendar-slice] src/features/a.ts:3');
     expect(output).toContain('[instant-calendar-slice] src/features/a.ts:5');
+  });
+
+  it('lets hand-written date patterns only go down from the base commit', () => {
+    const pattern = '/^\\d{4}-\\d{2}-\\d{2}$/.test(day);\n';
+    const root = createRepository({
+      'src/features/a.ts': pattern.repeat(2),
+      'src/utils/clinicalDateUtils.ts': pattern,
+      'functions/lib/hospitalCalendarDay.js': pattern,
+    });
+    const git = (...args: string[]) =>
+      spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' }).stdout.trim();
+    git('init', '-q');
+    git('add', '-A');
+    git(
+      '-c',
+      'user.name=synthetic',
+      '-c',
+      'user.email=synthetic@example.invalid',
+      'commit',
+      '-qm',
+      'base'
+    );
+    const env = { FOLDER_BOOK_BASE: git('rev-parse', 'HEAD') };
+    const write = (file: string, content: string) => {
+      mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+      writeFileSync(path.join(root, file), content);
+    };
+
+    expect(checkClinicalClock(root, env).status).toBe(0);
+    for (const added of ['src/features/b.ts', 'functions/lib/b.js']) {
+      write(added, pattern);
+      const { status, stderr } = checkClinicalClock(root, env);
+      expect(status).toBe(1);
+      expect(stderr).toContain(
+        '[hand-date-pattern] src/ + functions/lib/ — 3 lines with a hand-written \\d{4}-\\d{2}-\\d{2} pattern, 2 at the base'
+      );
+      expect(stderr).toContain('isCalendarDate()');
+      rmSync(path.join(root, added));
+    }
+    // The calendar modules, tests and declarations do not count; going down always passes.
+    write('src/utils/clinicalDateUtils.ts', pattern.repeat(4));
+    write('functions/lib/hospitalCalendarDay.js', pattern.repeat(4));
+    write('src/tests/a.test.ts', pattern);
+    write('src/features/a.test.ts', pattern);
+    write('src/types/a.d.ts', pattern);
+    expect(checkClinicalClock(root, env).status).toBe(0);
+    write('src/features/a.ts', pattern);
+    expect(checkClinicalClock(root, env).status).toBe(0);
+    // A base this checkout lacks fails; no base at all only warns.
+    expect(checkClinicalClock(root, { FOLDER_BOOK_BASE: 'deadbeef' }).stderr).toContain(
+      'FOLDER_BOOK_BASE=deadbeef no es un commit de este checkout'
+    );
+    write('src/features/b.ts', pattern.repeat(5));
+    const withoutBase = checkClinicalClock(root, {});
+    expect(withoutBase.status).toBe(0);
+    expect(withoutBase.stdout).toContain('no se comparó la cuenta de fechas escritas a mano');
   });
 });

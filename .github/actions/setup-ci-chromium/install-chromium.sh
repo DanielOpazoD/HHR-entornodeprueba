@@ -6,9 +6,12 @@
 # `apt-get update` aborts the whole install, so retry once with only the
 # Ubuntu archive enabled. A second failure is a real failure.
 #
-# The .deb files apt downloads are kept beside the browser cache. When the
-# Ubuntu mirror is slow (25 MB took 10 minutes on 2026-10-22), apt installs
-# the same packages from disk and only refreshes its package lists.
+# The .deb files apt installed are kept beside the browser cache, each with its
+# exact version. When the Ubuntu mirror is slow (25 MB took 10 minutes on
+# 2026-10-22, 11 MB took 3.5 minutes on 2026-11-20), apt installs the same
+# packages from disk and only refreshes its package lists. Their fingerprint
+# goes to the step output `debs`, so the cache is saved again only when apt
+# installed a different set (for example, an Ubuntu update of mesa).
 #
 # A mirror can also stop answering without closing the connection. apt then waits
 # until the step's 15 minutes run out (seen four times on 2026-10-31), so it gets a
@@ -38,9 +41,29 @@ seed_cached_debs() {
   echo "Reusing $count cached Chromium dependency packages."
 }
 
-keep_downloaded_debs() {
+# File names apt gives each installed package: name_version_arch.deb, with the
+# epoch colon written as %3a.
+installed_deb_names() {
+  dpkg-query -W -f='${db:Status-Abbrev}|${Package}_${Version}_${Architecture}.deb\n' |
+    awk -F'|' '$1 ~ /^ii/ { print $2 }' | sed 's/:/%3a/g'
+}
+
+keep_installed_debs() {
   mkdir -p "$deb_cache"
   find "$archives_dir" -maxdepth 1 -name '*.deb' -exec cp {} "$deb_cache/" \; 2>/dev/null || true
+  local installed deb
+  installed=$(installed_deb_names)
+  # Versions apt replaced or never installed would be restored, and saved, forever.
+  for deb in "$deb_cache"/*.deb; do
+    [ -f "$deb" ] || continue
+    grep -qxF "$(basename "$deb")" <<<"$installed" || rm -f -- "$deb"
+  done
+  local fingerprint
+  fingerprint=$(find "$deb_cache" -maxdepth 1 -name '*.deb' -exec basename {} \; | LC_ALL=C sort | cksum | cut -d' ' -f1)
+  echo "Keeping $(find "$deb_cache" -maxdepth 1 -name '*.deb' | wc -l | tr -d ' ') installed Chromium dependency packages (set $fingerprint)."
+  if [ -n "${GITHUB_OUTPUT:-}" ]; then
+    printf 'debs=%s\n' "$fingerprint" >> "$GITHUB_OUTPUT"
+  fi
 }
 
 install_chromium() {
@@ -50,7 +73,7 @@ install_chromium() {
 limit_apt_stalls
 seed_cached_debs
 if install_chromium; then
-  keep_downloaded_debs
+  keep_installed_debs
   exit 0
 fi
 
@@ -66,4 +89,4 @@ for source in "$sources_dir"/*; do
 done
 
 install_chromium
-keep_downloaded_debs
+keep_installed_debs

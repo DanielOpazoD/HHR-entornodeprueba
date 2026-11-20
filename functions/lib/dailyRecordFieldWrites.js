@@ -3,8 +3,8 @@
  * every patch, whole-day save and Rayen batch, naming only the fields that write changed:
  * - `fields[path]`: the day revision that last wrote the field and a digest of the value it
  *   stored (`digest` is null for `*`, a write of the whole day);
- * - `writes[revision]`: the edit (`mutationId`) and the computer (`clientId`) behind each
- *   revision a field still names;
+ * - `writes[revision]`: the edit (`mutationId`), the computer (`clientId`) and, for a patch or
+ *   whole-day save, the signed-in account (`uid`) behind each revision a field still names;
  * - `revision`: the day revision this map was last brought up to date with, and `fenced` when that
  *   write ran under the Rayen clinical fence (the rules then keep clients out of `beds` and
  *   `bedTypeOverrides`: `preservesServerOwnedClinicalState`);
@@ -16,7 +16,8 @@
  *   which can only have changed day fields outside the bed tree (handoff texts, staffing).
  * A queued edit replayed after a lost answer tells by it which fields its own earlier edit wrote
  * and which another computer wrote after the base it saw (src/services/storage/sync/
- * fieldWriteAttribution.ts reads it, with the same digest). An entry at or before the mark that
+ * fieldWriteAttribution.ts reads it, with the same digest), and the server answers by it a resent
+ * request whose edit is still stored (`isStillWrittenBy`). An entry at or before the mark that
  * covers its path, or whose digest no longer matches the stored value, never credits a field.
  */
 const MAX_FIELD_WRITES = 300;
@@ -68,6 +69,26 @@ const readValueAtPath = (record, path) =>
       record
     );
 
+/** A requested path the request leaves out: unlike `null`, it asks for no stored field at all. */
+const ABSENT = Symbol('absent path');
+
+const hasPath = (record, path) => {
+  const segments = String(path).split('.');
+  let current = record;
+  for (const segment of segments) {
+    if (current === null || typeof current !== 'object' || !Object.hasOwn(current, segment))
+      return false;
+    current = current[segment];
+  }
+  return true;
+};
+
+/** What a whole-day request asks for at each of `paths`: its value, or ABSENT when it omits it. */
+const requestedValues = (record, paths) =>
+  Object.fromEntries(
+    paths.map(path => [path, hasPath(record, path) ? readValueAtPath(record, path) : ABSENT])
+  );
+
 const isEntry = entry =>
   isPlainObject(entry) && Number.isSafeInteger(entry.revision) && entry.revision >= 0;
 
@@ -112,6 +133,7 @@ const nextFieldWrites = ({
   revision,
   mutationId,
   clientId,
+  uid,
   fenced = false,
 }) => {
   const written = paths.includes('*') ? ['*'] : [...new Set(paths)];
@@ -154,7 +176,7 @@ const nextFieldWrites = ({
     [...new Set(Object.values(fields).map(entry => String(entry.revision)))].map(key => [
       key,
       key === String(revision)
-        ? { mutationId: mutationId || null, clientId: clientId || null }
+        ? { mutationId: mutationId || null, clientId: clientId || null, ...(uid ? { uid } : {}) }
         : previousWrites[key] || { mutationId: null, clientId: null },
     ])
   );
@@ -166,6 +188,68 @@ const nextFieldWrites = ({
     ...(incompleteThrough === undefined ? {} : { incompleteThrough }),
     ...(outsideBedsIncompleteThrough === undefined ? {} : { outsideBedsIncompleteThrough }),
   };
+};
+
+const isBedTreePath = path => /^(beds|bedTypeOverrides)(\.|$)/.test(path);
+
+/** What a later write must not have touched: a field's whole bed (its patient, crib included). */
+const scopeOf = path => /^beds\.[^.]+/.exec(path)?.[0] ?? path;
+
+/**
+ * Whether the stored `day` already holds exactly `values` (path to the value the request writes)
+ * as the edit `mutationId` of account `uid` (and computer `clientId`, when the entry names one)
+ * wrote them, read as the replay reads the map (fieldWriteAttribution.ts, `isLastWrittenBy`): the
+ * map is at the day's revision and the day's last write was a server write; for each path, its
+ * entry names a write by this edit and account, is newer than any change the map may miss, its
+ * digest is both the stored value's and the requested value's, the field is stored exactly when
+ * the request has it (absent, `null` and empty differ: `requestedValues`), and no entry newer than it touches
+ * the path's bed (any field of it: the patient may have changed) or, outside the beds, the path
+ * itself (a whole-day write leaves no other entry). No paths, or `*`, never tells.
+ */
+const isStillWrittenBy = (day, values, { mutationId, uid, clientId } = {}) => {
+  const paths = isPlainObject(values) ? Object.keys(values) : [];
+  const meta = isPlainObject(day?.meta) ? day.meta : {};
+  const map = isPlainObject(meta.fieldWrites) ? meta.fieldWrites : {};
+  const fields = isPlainObject(map.fields) ? map.fields : {};
+  const writes = isPlainObject(map.writes) ? map.writes : {};
+  const revision = revisionOf(meta.revision);
+  const stamp = stampOf(day?.lastUpdated);
+  if (
+    !mutationId ||
+    !uid ||
+    paths.length === 0 ||
+    revision === undefined ||
+    revisionOf(map.revision) !== revision ||
+    stamp === undefined ||
+    stamp !== stampOf(meta.updatedAt)
+  )
+    return false;
+  const incompleteThrough = revisionOf(map.incompleteThrough) ?? -1;
+  const outsideBedsIncompleteThrough = revisionOf(map.outsideBedsIncompleteThrough) ?? -1;
+  return paths.every(path => {
+    const entry = fields[path];
+    const writer = isEntry(entry) ? writes[String(entry.revision)] : undefined;
+    if (!isPlainObject(writer)) return false;
+    const scope = scopeOf(path);
+    const newer = Object.entries(fields).some(
+      ([other, otherEntry]) =>
+        (other === scope || other.startsWith(`${scope}.`) || scope.startsWith(`${other}.`)) &&
+        isEntry(otherEntry) &&
+        otherEntry.revision > entry.revision
+    );
+    return (
+      !newer &&
+      writer.mutationId === mutationId &&
+      writer.uid === uid &&
+      (writer.clientId === null || writer.clientId === undefined || writer.clientId === clientId) &&
+      entry.revision > incompleteThrough &&
+      (isBedTreePath(path) || entry.revision > outsideBedsIncompleteThrough) &&
+      entry.digest === fieldValueDigest(readValueAtPath(day, path)) &&
+      // The digest reads an absent field as null; the request must also keep its presence.
+      hasPath(day, path) === (values[path] !== ABSENT) &&
+      entry.digest === fieldValueDigest(values[path] === ABSENT ? undefined : values[path])
+    );
+  });
 };
 
 /**
@@ -188,6 +272,8 @@ module.exports = {
   MAX_FIELD_WRITES,
   changedFieldPaths,
   fieldValueDigest,
+  isStillWrittenBy,
   nextFieldWrites,
+  requestedValues,
   wholeRecordFieldWrites,
 };

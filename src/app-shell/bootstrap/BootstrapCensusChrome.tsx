@@ -152,18 +152,6 @@ const toBootstrapDate = (isoDate: string) => ({
   selectedDay: Number(isoDate.slice(8, 10)),
 });
 
-const resolveBootstrapDate = () => {
-  const rawDate =
-    typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('date');
-  // A route date with no zero part wins; otherwise land where useDateNavigation does: the
-  // hospital's clinical day, never the device date.
-  return toBootstrapDate(
-    rawDate && /^(?!0000)\d{4}-(?!00)\d{2}-(?!00)\d{2}$/.test(rawDate)
-      ? rawDate
-      : resolveCurrentClinicalDay()
-  );
-};
-
 const resolveDaysInMonth = (year: number, monthIndex: number) =>
   new Date(year, monthIndex + 1, 0).getDate();
 
@@ -234,8 +222,12 @@ const buildBootstrapAuthContextValue = (
   };
 };
 
-export const BootstrapRouteChrome: React.FC = () => {
-  const [bootstrapDate] = React.useState(resolveBootstrapDate);
+/**
+ * `day` is the census day this chrome shows: the opening day `src/index.tsx` fixed once (`resolveOpeningCensusDay`) for
+ * this page load, or the census's own selected day once it runs.
+ */
+export const BootstrapRouteChrome: React.FC<{ day: string }> = ({ day }) => {
+  const bootstrapDate = toBootstrapDate(day);
   const [bootstrapModule] = React.useState(resolveBootstrapModule);
   const [persistedUser] = React.useState(readPersistedFirebaseAuthUser);
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);

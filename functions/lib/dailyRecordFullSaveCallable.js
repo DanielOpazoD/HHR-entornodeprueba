@@ -49,7 +49,7 @@ const {
   idempotentAuthority,
   recordAuthorityTelemetry,
 } = require('./dailyRecordAuthorityOutcome');
-const { changedFieldPaths } = require('./dailyRecordFieldWrites');
+const { changedFieldPaths, requestedValues } = require('./dailyRecordFieldWrites');
 
 const previousIsoDay = date =>
   Number.isFinite(calendarDayAtUtcNoon(date).getTime()) ? addCalendarDays(date, -1) : null;
@@ -135,7 +135,14 @@ const createFullSaveHandler =
               hasActiveEpisodeIdentity(patient) || hasActiveEpisodeIdentity(patient?.clinicalCrib)
           );
         const priorSnapshot = isEmptyDay && priorRef ? await transaction.get(priorRef) : null;
-        if (hasAlreadyAppliedMutation({ snapshot, syncContract })) {
+        if (
+          hasAlreadyAppliedMutation({
+            snapshot,
+            syncContract,
+            values: requestedValues(record, collectChangedPaths(syncContract)),
+            uid: context.auth?.uid,
+          })
+        ) {
           const remoteData = snapshot.data() || {};
           responseAuthority = idempotentAuthority;
           responseCoverage = collectClinicalEpisodeCoverage(remoteData);
@@ -296,6 +303,7 @@ const createFullSaveHandler =
           writtenPaths: snapshot.exists
             ? changedFieldPaths(remoteData, recordForPersistence)
             : ['*'],
+          writerUid: context.auth?.uid,
         });
         revision = nextMeta.revision;
         recordState = buildAuthorityRecordState({

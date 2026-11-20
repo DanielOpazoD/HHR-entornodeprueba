@@ -20,8 +20,8 @@ const digest = value => createHash('sha256').update(value).digest('hex');
 const validLocalKey = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 const loopbackEmulator = host => /^127\.0\.0\.1:\d+$/.test(host ?? '');
 const positiveId = value => typeof value === 'string' && /^[1-9]\d{0,15}$/.test(value);
-const fail = (code, message) => {
-  throw new functions.https.HttpsError(code, message);
+const fail = (code, message, details) => {
+  throw new functions.https.HttpsError(code, message, details);
 };
 
 function clinicalSlot(now) {
@@ -38,9 +38,8 @@ const normalizeRun = value =>
     .replace(/[.\s-]/g, '')
     .toUpperCase();
 
-function findHandoff(snapshot, episode, run) {
-  if (!snapshot.exists)
-    fail('failed-precondition', 'El censo de esta fecha aún no está disponible en HHR.');
+function findHandoff(snapshot, episode, run, slot, census) {
+  if (!snapshot.exists) fail('not-found', 'Falta este día en el ' + census + '.', slot);
   const record = snapshot.data();
   const matches = [];
   for (const [bed, patient] of Object.entries(record.beds ?? {})) {
@@ -51,6 +50,7 @@ function findHandoff(snapshot, episode, run) {
       if (String(item?.clinicalEpisodeId ?? '') === episode) matches.push({ path, item });
     }
   }
+  if (!matches.length) fail('not-found', 'Este episodio aún no está en el ' + census + '.', slot);
   if (
     matches.length !== 1 ||
     normalizeRun(matches[0].item.rut) !== run ||
@@ -59,7 +59,7 @@ function findHandoff(snapshot, episode, run) {
   ) {
     fail(
       'failed-precondition',
-      'HHR no encontró un único paciente con este RUN y episodio en el censo.'
+      'El ' + census + ' encontró el episodio y falta confirmar la identidad del paciente.'
     );
   }
   const { path, item } = matches[0];
@@ -134,14 +134,17 @@ function createHandler({
   FieldValue,
   installationKey,
   clinicalNow = () => new Date(),
+  authorize = data => localActor(data.source, installationKey ?? process.env.HHR_HANDOFF_LOCAL_KEY),
+  resolveRoleForEmail = () => 'nurse_hospital',
+  origin = 'eloisa_nursing_handoff',
+  census = 'censo local de pruebas',
 }) {
   const records = firestore.collection('hospitals').doc(HOSPITAL_ID).collection('dailyRecords');
   const write = createPatchHandler({
     firestore,
     Timestamp,
     FieldValue,
-    // The local pilot only constructs the two nursing-note paths below.
-    resolveRoleForEmail: () => 'nurse_hospital',
+    resolveRoleForEmail,
     assertPatchBase(snapshot, data) {
       const slot = clinicalSlot(clinicalNow());
       if (slot.date !== data.date || slot.shift !== data.shift) {
@@ -158,7 +161,7 @@ function createHandler({
     if (action !== 'read' && action !== 'save') {
       fail('invalid-argument', 'La operación de entrega de turno no es válida.');
     }
-    const actor = localActor(data.source, installationKey ?? process.env.HHR_HANDOFF_LOCAL_KEY);
+    const actor = await authorize(data);
 
     const { episode, patientRun } = data;
     const run = normalizeRun(patientRun);
@@ -173,7 +176,7 @@ function createHandler({
       fail('failed-precondition', 'Cambió el turno o la fecha censal. Abre otra entrega.');
     }
     const ref = records.doc(date);
-    const select = snapshot => findHandoff(snapshot, episode, run);
+    const select = snapshot => findHandoff(snapshot, episode, run, slot, census);
     const current = select(await ref.get());
 
     if (action === 'read') {
@@ -183,6 +186,7 @@ function createHandler({
       const active = clinicalSlot(clinicalNow());
       if (active.date !== date || active.shift !== shift)
         fail('failed-precondition', 'Cambió el turno o la fecha censal. Abre otra entrega.');
+      if (data.since) await authorize(data);
       return viewOf(entry, date, shift);
     }
 
@@ -219,7 +223,7 @@ function createHandler({
           changedPaths: Object.keys(patch),
           ...(Number.isInteger(current.revision) ? { baseRevision: current.revision } : {}),
         },
-        origin: 'eloisa_nursing_handoff',
+        origin,
       },
       actor
     );

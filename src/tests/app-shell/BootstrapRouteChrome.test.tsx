@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { BootstrapRouteChrome } from '@/app-shell/bootstrap/BootstrapCensusChrome';
+import { resolveOpeningCensusDay } from '@/app-shell/bootstrap/openingCensusDay';
 import { signOut as mockedAuthSessionSignOut } from '@/services/auth/authSession';
 import { clearSessionScopedClientState } from '@/services/storage/sessionScopedStorageService';
 
@@ -50,7 +51,7 @@ describe('BootstrapRouteChrome', () => {
   it('renders census chrome and preserves the route date when bootstrapping census', () => {
     window.history.replaceState({}, '', '/census?date=2026-04-22');
 
-    render(<BootstrapRouteChrome />);
+    render(<BootstrapRouteChrome day={resolveOpeningCensusDay()} />);
 
     expect(document.documentElement).toHaveClass('aesthetic-typography');
     expect(screen.getByTestId('bootstrap-navbar')).toHaveTextContent('CENSUS');
@@ -87,7 +88,7 @@ describe('BootstrapRouteChrome', () => {
       vi.setSystemTime(new Date('2027-01-01T03:30:00Z'));
       try {
         window.history.replaceState({}, '', route);
-        render(<BootstrapRouteChrome />);
+        render(<BootstrapRouteChrome day={resolveOpeningCensusDay()} />);
       } finally {
         vi.useRealTimers();
       }
@@ -104,17 +105,54 @@ describe('BootstrapRouteChrome', () => {
     }
   );
 
+  // 07:30 on Friday 20 November 2026 in Rapa Nui: the night shift still works the 19th.
+  const NIGHT_SHIFT_CLINICAL_DAY = '2026-11-19';
+  it.each([
+    ['/census', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=2024-02-29', '2024-02-29'],
+    ['/census?date=2026-12-31', '2026-12-31'],
+    ['/census?date=2026-11-20', '2026-11-20'],
+    ['/census?date=2026-02-30', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=2025-02-29', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=2026-04-31', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=2026-00-10', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=2026-13-01', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=2026-11-00', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=0000-01-01', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=0050-01-01', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=2026-1-5', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=2026-11-006', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=texto', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=', NIGHT_SHIFT_CLINICAL_DAY],
+  ])('the page opens %s on one day, shown by the header', (route, expectedDay) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-20T12:30:00Z'));
+    let openingDay: string;
+    try {
+      window.history.replaceState({}, '', route);
+      openingDay = resolveOpeningCensusDay();
+      render(<BootstrapRouteChrome day={openingDay} />);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(openingDay).toBe(expectedDay);
+    expect(mockDateStrip).toHaveBeenLastCalledWith(
+      expect.objectContaining({ currentDateString: expectedDay })
+    );
+  });
+
   it('honors the saved typography preference during bootstrap', () => {
     window.history.replaceState({}, '', '/census');
     window.localStorage.setItem('hhr_ui_settings', JSON.stringify({ modernTypography: false }));
-    render(<BootstrapRouteChrome />);
+    render(<BootstrapRouteChrome day={resolveOpeningCensusDay()} />);
     expect(document.documentElement).not.toHaveClass('aesthetic-typography');
   });
 
   it('renders the nursing handoff chrome for nursing-handoff refreshes', () => {
     window.history.replaceState({}, '', '/nursing-handoff');
 
-    render(<BootstrapRouteChrome />);
+    render(<BootstrapRouteChrome day={resolveOpeningCensusDay()} />);
 
     expect(screen.getByTestId('bootstrap-navbar')).toHaveTextContent('NURSING_HANDOFF');
     expect(screen.getByTestId('bootstrap-date-strip')).toHaveTextContent('NURSING_HANDOFF');
@@ -151,7 +189,7 @@ describe('BootstrapRouteChrome', () => {
     });
 
     try {
-      render(<BootstrapRouteChrome />);
+      render(<BootstrapRouteChrome day={resolveOpeningCensusDay()} />);
 
       const navbarProps = mockNavbar.mock.calls[0][0] as { onLogout: () => void };
       act(() => {
