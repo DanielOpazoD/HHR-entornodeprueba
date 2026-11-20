@@ -88,7 +88,9 @@ con esta versión; no acreditan una migración de autoría de diagnósticos hist
 
 Un pasaporte nunca se convierte en RUT ni se compara como RUT. Un documento de Eloísa con una
 letra que no sea la K final es un pasaporte y se guarda como tal en los casos nuevos; un paciente
-ya guardado conserva su documento.
+ya guardado conserva su documento. Un pasaporte solo con dígitos se distingue por su tipo: un
+pasaporte `123456785` y el RUT `12.345.678-5` son dos personas cuando ambos declaran su tipo
+(`isSamePatientDocument`); un día guardado sin tipo se compara solo por el documento.
 
 ### Nombres del personal
 

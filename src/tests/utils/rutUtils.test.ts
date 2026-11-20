@@ -10,6 +10,7 @@ import {
   hasPassportShapeBeforeLetterRule,
   isSameRut,
   isSameDocument,
+  isSamePatientDocument,
   normalizeRut,
   documentIdentityKey,
   documentKeyBeforeLetterRule,
@@ -148,6 +149,36 @@ describe('rutUtils', () => {
     it('never matches a passport with a RUT, or two passports that only share digits', () => {
       expect(isSameDocument('P123456785', '12.345.678-5')).toBe(false);
       expect(isSameDocument('P123456785', 'X123456785')).toBe(false);
+    });
+  });
+
+  describe('isSamePatientDocument, the document with its stated type', () => {
+    const passport = (rut: string) => ({ rut, documentType: 'Pasaporte' });
+    const run = (rut: string) => ({ rut, documentType: 'RUT' });
+    it.each([
+      ['a numeric passport and the RUT of its digits', passport('123456785'), run('12.345.678-5')],
+      ['a RUT and the numeric passport of its digits', run('12.345.678-5'), passport('123456785')],
+      ['a passport with letters and a RUT', passport('P123456785'), run('12.345.678-5')],
+      ['two passports that only share digits', passport('P123456785'), passport('X123456785')],
+    ])('never matches %s', (_case, left, right) => {
+      expect(isSamePatientDocument(left, right)).toBe(false);
+    });
+
+    it.each([
+      [
+        'the same numeric passport in another format',
+        passport('12.345.678-5'),
+        passport('123456785'),
+      ],
+      ['the same passport in another format', passport('P123456785'), passport(' p-123456785 ')],
+      ['the same RUT in another format', run('12.345.678-5'), run('123456785')],
+      // Letters make it a passport whatever type was stated.
+      ['a passport with letters stated as RUT', run('P123456785'), passport('P123456785')],
+      // A day saved without a type compares by its document, as before.
+      ['a document without a stated type', { rut: '123456785' }, passport('123456785')],
+    ])('matches %s', (_case, left, right) => {
+      expect(isSamePatientDocument(left, right)).toBe(true);
+      expect(isSamePatientDocument(right, left)).toBe(true);
     });
   });
 

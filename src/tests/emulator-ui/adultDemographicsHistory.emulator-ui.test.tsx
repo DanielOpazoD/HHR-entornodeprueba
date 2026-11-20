@@ -2,7 +2,8 @@
  * A demographic correction saved from an adult's or a mother's row reaches the same patient on
  * the day before, as main did, through the real port, queue and authority handlers (ID-01, ID-02).
  * A day saved without an episode id carries only a derived `legacy_ep_` id, which accredits
- * nothing: a single match by document or name still updates it.
+ * nothing: a single match by document or name still updates it. A document is read with its stated
+ * type: a numeric passport never corrects the person whose RUT has the same digits.
  */
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { readFileSync } from 'node:fs';
@@ -130,11 +131,17 @@ type Scenario = {
   key: 'rut' | 'nombre';
   /** Bed index whose age changes on the earlier day; null when that day is not written. */
   corrected: number | null;
+  /** Stated type and document of the earlier day and of the edited row; untyped RUTs otherwise. */
+  documents?: { prior: TypedDocument; edited: TypedDocument };
 };
+type TypedDocument = { documentType: 'RUT' | 'Pasaporte'; rut: string };
+const passport = (rut: string): TypedDocument => ({ documentType: 'Pasaporte', rut });
+const run = (rut: string): TypedDocument => ({ documentType: 'RUT', rut });
 // Same final data as main except two cases decided on purpose: two different accredited episodes
 // are a real readmission (main wrote it), and the bed of the same accredited episode wins over a
 // bed without one (main wrote the first match). Ambiguous days end unchanged, as main's write was
-// held by the server as a conflict; now it is not attempted.
+// held by the server as a conflict; now it is not attempted. A numeric passport and the RUT of its
+// digits are two people (ID-01): main wrote that day.
 const scenarios: Scenario[] = [
   { id: 'the same episode', source: 'A', prior: ['A'], key: 'rut', corrected: 0 },
   {
@@ -169,6 +176,27 @@ const scenarios: Scenario[] = [
     key: 'rut',
     corrected: 1,
   },
+  {
+    id: 'a numeric passport over the RUT of its digits',
+    prior: [undefined],
+    key: 'rut',
+    corrected: null,
+    documents: { prior: run('12.345.678-5'), edited: passport('123456785') },
+  },
+  {
+    id: 'a RUT over the numeric passport of its digits',
+    prior: [undefined],
+    key: 'rut',
+    corrected: null,
+    documents: { prior: passport('123456785'), edited: run('12.345.678-5') },
+  },
+  {
+    id: 'the same numeric passport in another format',
+    prior: [undefined],
+    key: 'rut',
+    corrected: 0,
+    documents: { prior: passport('12.345.678-5'), edited: passport('123456785') },
+  },
 ];
 
 for (const role of ['adult', 'mother'] as const) {
@@ -191,6 +219,7 @@ for (const role of ['adult', 'mother'] as const) {
               ? 'NOMBRE ACTUAL SINTETICO'
               : 'NOMBRE ANTERIOR SINTETICO',
           rut: scenario.key === 'nombre' ? '' : edited ? '11.111.111-1' : '11111111-1',
+          ...scenario.documents?.[edited ? 'edited' : 'prior'],
           clinicalEpisodeId: episode,
           firstSeenDate: first,
           admissionDate: first,

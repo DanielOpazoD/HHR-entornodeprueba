@@ -11,6 +11,7 @@ import type { PatientRowPatientPatch } from '@/features/census/components/patien
 import { createScopedLogger, type ScopedLogger } from '@/services/utils/loggerScope';
 import { parseCalendarDateUtcNoon } from '@/utils/clinicalDateUtils';
 import { editsEloisaNameParts } from '@/utils/patientNamePartsSource';
+import { documentIdentityKey, isSamePatientDocument } from '@/utils/rutUtils';
 import { resolveAccreditedClinicalEpisodeId as accreditedEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 const patientDemographicsEpisodeSyncLogger = createScopedLogger('PatientDemographicsEpisodeSync');
@@ -74,15 +75,6 @@ const listEpisodeCalendarDays = (firstSeenDate: string, currentDate: string): st
   );
 };
 
-/**
- * Formatting only: `12.345.678-9` and `123456789` are one identity document, and letters stay,
- * so a passport is never reduced to the digits of a RUT (`X1234567` and `Y1234567` differ).
- * A value with no digit or K (`S/R`, `SIN RUT`) is no document: matching falls back to the name,
- * exactly as before, so this rule can only remove matches, never add them.
- */
-const normalizeDocument = (value?: string): string =>
-  /[0-9kK]/.test(value ?? '') ? (value ?? '').toUpperCase().replace(/[.\s-]/g, '') : '';
-
 const normalizePatientName = (patientName?: string): string =>
   (patientName ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
 
@@ -107,12 +99,14 @@ const pickDemographicUpdates = (
   return result;
 };
 
+/**
+ * Document and type first (ID-01): a passport, with or without letters, is never the RUT its
+ * digits form. A value without digits (`S/R`, `SIN RUT`) is no document: matching falls back to
+ * the name.
+ */
 const matchesPatientIdentity = (sourcePatient: PatientData, candidate: PatientData): boolean => {
-  const sourceDocument = normalizeDocument(sourcePatient.rut);
-  const candidateDocument = normalizeDocument(candidate.rut);
-
-  if (sourceDocument && candidateDocument) {
-    return sourceDocument === candidateDocument;
+  if (documentIdentityKey(sourcePatient.rut) && documentIdentityKey(candidate.rut)) {
+    return isSamePatientDocument(sourcePatient, candidate);
   }
 
   const sourceName = normalizePatientName(sourcePatient.patientName);

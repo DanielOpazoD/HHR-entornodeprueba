@@ -105,6 +105,22 @@ export const isSameDocument = (left?: string, right?: string): boolean =>
     passportText(left) === passportText(right));
 
 /**
+ * The same document of a patient, read with its stated type (ID-01). Letters already make both
+ * values one passport, whatever type was stated. Between digits only, two stated types that
+ * differ are two documents: a passport 123456785 is never the RUT 12.345.678-5 its digits form.
+ * A value without a stated type compares as isSameDocument.
+ */
+export const isSamePatientDocument = (
+  left: { rut?: string; documentType?: string },
+  right: { rut?: string; documentType?: string }
+): boolean =>
+  isSameDocument(left.rut, right.rut) &&
+  (hasNonRutLetter(left.rut ?? '') ||
+    !left.documentType ||
+    !right.documentType ||
+    left.documentType === right.documentType);
+
+/**
  * Map/Set key for a document: two keys are equal exactly when isSameDocument holds. A value
  * without any digit ("SIN RUT", "S/N", "RN") is a marker, not a document, and has no key, so
  * two people without a document are never grouped by it.

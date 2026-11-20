@@ -342,6 +342,62 @@ describe('patientDemographicsEpisodeSyncController', () => {
     expect(updatePartial).not.toHaveBeenCalled();
   });
 
+  const adultWith = (bedId: string, documentType: PatientData['documentType'], rut: string) =>
+    DataFactory.createMockPatient(bedId, {
+      patientName: `PACIENTE ${bedId}`,
+      documentType,
+      rut,
+      firstSeenDate: '2026-04-09',
+    });
+
+  it.each([
+    [
+      'a numeric passport',
+      'the RUT of its digits',
+      'Pasaporte',
+      '123456785',
+      'RUT',
+      '12.345.678-5',
+    ],
+    [
+      'a RUT',
+      'the numeric passport of its digits',
+      'RUT',
+      '12.345.678-5',
+      'Pasaporte',
+      '123456785',
+    ],
+  ] as const)(
+    'never corrects with %s the earlier day of another person with %s',
+    async (_edited, _other, editedType, editedRut, otherType, otherRut) => {
+      const updatePartial = await harmonizeOnDay(
+        adultWith('R1', editedType, editedRut),
+        { R4: adultWith('R4', otherType, otherRut) },
+        false
+      );
+      expect(updatePartial).not.toHaveBeenCalled();
+    }
+  );
+
+  it('keeps correcting the same numeric passport written in another format', async () => {
+    const updatePartial = await harmonizeOnDay(
+      adultWith('R1', 'Pasaporte', '123456785'),
+      { R4: adultWith('R4', 'Pasaporte', '12.345.678-5') },
+      false
+    );
+    expect(updatePartial).toHaveBeenCalledExactlyOnceWith('2026-04-09', { 'beds.R4.age': '2d' });
+  });
+
+  it('does not correct the same document in an earlier day of another hospitalization', async () => {
+    const adult = adultWith('R1', 'RUT', '12.345.678-5');
+    const updatePartial = await harmonizeOnDay(
+      adult,
+      { R4: { ...adultWith('R4', 'RUT', '12.345.678-5'), firstSeenDate: '2026-04-08' } },
+      false
+    );
+    expect(updatePartial).not.toHaveBeenCalled();
+  });
+
   const episodePatient = (firstSeenDate: string) =>
     DataFactory.createMockPatient('R2', {
       patientName: 'Nombre Antiguo',
