@@ -35,11 +35,11 @@ import {
   relevantHistoricalReportRows,
   latestReportRowsByEpisode,
   reportBackedCandidates,
+  reportClinicalStamp,
   verifiedHistoricalCribParent,
   type HistoricalCandidate,
 } from './historicalAdministrativeEvidence';
 import { isPavilionRecoveryLocation } from './pavilionRecoverySyncPolicy';
-import { reportClinicalStamp } from './egresoReportPolicy';
 import { censusNightCloseTimestamp } from './censusDayPolicy';
 import { clinicalCribAtHistoricalParent } from './historicalEncounterFromLocal';
 import { readHistoricalPatientFlow } from './historicalFlowAuthorizationRecovery';

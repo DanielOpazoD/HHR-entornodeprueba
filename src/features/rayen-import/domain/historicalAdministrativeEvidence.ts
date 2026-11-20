@@ -5,8 +5,13 @@ import type { ConflictEntry } from '../contracts/censusImportDiff';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenActiveBedAssignment, RayenEncounter } from '../contracts/rayenSnapshot';
-import { isLaterReportEgreso, reportClinicalStamp } from './egresoReportPolicy';
+import {
+  officialCalendarDay,
+  parseStatisticalEgresoInstant,
+  parseStatisticalEgresoStamp,
+} from '../mapping/reportEgresoDateTime';
 import { historicalReconstructionConflict as unresolvedConflict } from './historicalReconstructionConflicts';
+import { isLaterEgresoRow } from './egresoReportPolicy';
 import { historicalEncounterFromLocal } from './historicalEncounterFromLocal';
 import { isPavilionRecoveryLocation } from './pavilionRecoverySyncPolicy';
 
@@ -36,6 +41,30 @@ export const verifiedHistoricalCribParent = (
     : undefined;
 };
 
+export const reportClinicalStamp = (
+  row: EgresoReportRow
+): { iso: string; calendarIso: string; hhmm: string } | null => {
+  if (
+    /^\d{4}-\d{2}-\d{2}$/.test(row.correctedDay ?? '') &&
+    /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(row.correctedTime ?? '')
+  ) {
+    const iso = row.correctedDay as string;
+    const hhmm = row.correctedTime as string;
+    // Rows from before the official calendar day was carried keep their census day here.
+    const calendarIso = officialCalendarDay(iso, hhmm, row.correctedCalendarDay) ?? iso;
+    return { iso, calendarIso, hhmm };
+  }
+  const parsed =
+    parseStatisticalEgresoStamp(row.fechaEgreso) ?? parseStatisticalEgresoInstant(row.fechaEgreso);
+  return parsed ? { iso: parsed.iso, calendarIso: parsed.calendarIso, hhmm: parsed.hhmm } : null;
+};
+
+/** The order key rows had before the official calendar day was carried; it only breaks ties. */
+const orderKey = (row: EgresoReportRow): string => {
+  const stamp = reportClinicalStamp({ ...row, correctedCalendarDay: undefined });
+  return stamp ? `${stamp.calendarIso}T${stamp.hhmm}` : '';
+};
+
 export const latestReportRowsByEpisode = (
   reportRows: EgresoReportRow[]
 ): Map<string, EgresoReportRow> => {
@@ -46,7 +75,18 @@ export const latestReportRowsByEpisode = (
     const verifiedCrib = row.fromClinicalCrib && row.exactEpisodeVerification === 'verified';
     if (!/^\d+$/.test(episode) || (!normalizeRut(row.run) && !verifiedCrib) || !stamp) continue;
     const prior = byEpisode.get(episode);
-    if (!prior || isLaterReportEgreso(row, prior)) byEpisode.set(episode, row);
+    const priorStamp = prior ? reportClinicalStamp(prior) : null;
+    if (
+      !priorStamp ||
+      isLaterEgresoRow(
+        orderKey(row),
+        stamp.calendarIso,
+        orderKey(prior as EgresoReportRow),
+        priorStamp.calendarIso
+      )
+    ) {
+      byEpisode.set(episode, row);
+    }
   }
   return byEpisode;
 };

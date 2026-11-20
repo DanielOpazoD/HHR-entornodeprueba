@@ -98,6 +98,7 @@ const evaluate = async (rows: EgresoReportRow[]) => {
   };
 };
 
+// Row selection is main's (census day + time; history: its calendar key), in both orders.
 it.each([false, true])('medianoche con fechas acreditadas, invertir=%s', async reverse => {
   const friday = row('06-11-2026 23:00');
   const saturday = row('07-11-2026 01:00');
@@ -106,7 +107,7 @@ it.each([false, true])('medianoche con fechas acreditadas, invertir=%s', async r
   );
   const facts = await evaluate(reverse ? [saturday, friday] : [friday, saturday]);
   expect(facts).toMatchObject({
-    events: [['2026-11-07', '01:00']],
+    events: [['2026-11-06', '23:00']],
     historyTime: saturday.fechaEgreso,
     conflicts: 0,
   });

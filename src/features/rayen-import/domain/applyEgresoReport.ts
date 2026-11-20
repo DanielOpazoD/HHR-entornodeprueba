@@ -303,7 +303,12 @@ export const applyEgresoReport = (
           admissionTime: current.admissionTime,
         },
         verification: confirmHospitalDischarge(pending?.verification),
-        ...correctedStamp(row),
+        ...correctedStamp(
+          row.fechaEgreso,
+          row.correctedDay,
+          row.correctedTime,
+          row.correctedCalendarDay
+        ),
       });
       continue;
     }

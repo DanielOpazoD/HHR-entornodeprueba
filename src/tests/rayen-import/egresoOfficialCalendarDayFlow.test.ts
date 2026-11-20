@@ -263,14 +263,14 @@ it('egreso de viernes antes de su ingreso a mediodía permanece para revisión',
   expect(saved.beds.R2.patientName).toBeTruthy();
   expect(diff.conflicts.length).toBeGreaterThan(0);
 });
-it('el historial elige la fila corregida del día siguiente a las 00:30', () => {
+it('el historial conserva la elección de main entre la fila corregida de las 00:30 y la de las 21:30', () => {
   const late = row('04-11-2026 21:30');
   const early = row('05-11-2026 00:30', {
     correctedDay: '2026-11-04',
     correctedTime: '00:30',
     correctedCalendarDay: '2026-11-05',
   });
-  expect(latestReportRowsByEpisode([late, early]).get(episode.encounterId)).toBe(early);
+  expect(latestReportRowsByEpisode([late, early]).get(episode.encounterId)).toBe(late);
 });
 it('archivar en el censo previo conserva el día y la hora incluso tras reintento', async () => {
   const { fileCrossDayCorrections, computePreviousDayEdits } =

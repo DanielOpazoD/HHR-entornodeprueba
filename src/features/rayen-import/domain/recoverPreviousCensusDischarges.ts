@@ -5,7 +5,10 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
-import { parseStatisticalEgresoInstant } from '../mapping/reportEgresoDateTime';
+import {
+  correctedEgresoFields,
+  parseStatisticalEgresoInstant,
+} from '../mapping/reportEgresoDateTime';
 import { reportRowFromLookup } from './applyEgresoLookupFallback';
 import { previousCensusDate, unexplainedPreviousCensusOccupants } from './previousCensusContinuity';
 import { neonatalMaternalLookupRut } from './neonatalMaternalLookupIdentity';
@@ -154,9 +157,7 @@ export const recoverPreviousCensusDischarges = async (
           // A lookup through the mother must never become the newborn's personal document.
           run: patient.rut ?? '',
           exactEpisodeVerification: 'verified' as const,
-          correctedDay: stamp.iso,
-          correctedCalendarDay: stamp.calendarIso,
-          correctedTime: stamp.hhmm,
+          ...correctedEgresoFields(stamp.calendarIso, stamp.hhmm),
           admissionDay: admission,
           admissionTime: patient.admissionTime,
           diagnostico: stored?.pathology,

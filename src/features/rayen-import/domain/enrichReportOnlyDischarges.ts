@@ -65,7 +65,6 @@ const sameDischargeEvent = (left: EgresoReportRow, right: EgresoReportRow): bool
       'encounterId',
       'correctedDay',
       'correctedTime',
-      'correctedCalendarDay',
       'admissionDay',
       'admissionTime',
       'dischargeStatus',
@@ -92,7 +91,7 @@ const enrichFromGestionCamas = async (
     )
       return '';
     const run = normalizeRut(row.run);
-    const { correctedDay } = correctedStamp(row);
+    const { correctedDay } = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
     // Unzoned bulk cells may already use the island clock. Either interpretation may locate
     // this census's episode; only the subsequent exact API/PDF verification confirms its time.
     const local =
@@ -232,7 +231,8 @@ const enrichFromGestionCamas = async (
         // another episode's discharge on the same census day. Exact episode targets stay exact.
         if (
           !target.encounterId &&
-          correctedStamp(row).correctedDay !== target.dischargeDay &&
+          correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime).correctedDay !==
+            target.dischargeDay &&
           evidence?.dischargeAt.slice(0, 16) !==
             encounterWallClockInRapaNui(row.fechaEgreso)?.slice(0, 16)
         )
@@ -260,11 +260,7 @@ const enrichFromGestionCamas = async (
                 ),
               }
             : lookupStamp
-              ? {
-                  correctedDay: lookupStamp.iso,
-                  correctedCalendarDay: lookupStamp.calendarIso,
-                  correctedTime: lookupStamp.hhmm,
-                }
+              ? correctedEgresoFields(lookupStamp.calendarIso, lookupStamp.hhmm)
               : {}),
           ...('fromClinicalCrib' in target && target.fromClinicalCrib
             ? { fromClinicalCrib: true }
