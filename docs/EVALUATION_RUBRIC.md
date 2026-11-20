@@ -18,6 +18,11 @@ Los `reports/` no se versionan: describen el commit que los generó. Se leen del
 artefactos de su corrida de CI (`quality-metrics`, `confidence-and-readiness`, `critical-coverage`) o
 generándolos en ese checkout con `npm run report:governance-snapshots`; nunca de una corrida anterior.
 
+Las cifras que cada evaluación contaba a mano salen de `quality-metrics`: módulos, líneas y módulos de
+más de 400 líneas en «Source»; `as unknown as` en «Type Safety Signals»; exportaciones sin consumidor
+productivo, módulos con un solo importador, scripts npm por prefijo, reglas de `AGENTS.md` y libros de
+excepciones en «Evaluation Figures». Una cifra «not measured» no es cero.
+
 ## 1. Escala base
 
 Usar esta escala antes de aplicar pesos y techos:
