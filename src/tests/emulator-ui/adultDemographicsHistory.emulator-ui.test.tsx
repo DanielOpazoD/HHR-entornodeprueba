@@ -243,11 +243,21 @@ const scenarios: Scenario[] = [
     passport('a-b 123.456'),
     null
   ),
+  // Known limit, measured on 2026-11-19: a day saved without schemaVersion (55 days, all on or
+  // before 2026-04-29, none inside an open episode) is read with the migration's inferred type, and
+  // an inferred RUT counts as declared. These two cases document that limit; they are not the rule.
   documentCase(
-    'a RUT whose earlier day has no type, read as RUT',
+    'limit of days without schemaVersion: an untyped earlier document read as RUT counts as declared',
     untyped('123456785'),
     run('12.345.678-5'),
     0
+  ),
+  documentCase(
+    'limit of days without schemaVersion, server only: an untyped earlier document read as RUT counts as declared',
+    untyped('123456785'),
+    run('12.345.678-5'),
+    0,
+    { serverOnly: true }
   ),
   documentCase(
     'a passport whose earlier day of the same episode has no type',

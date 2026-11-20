@@ -107,8 +107,11 @@ Límite conocido: un pasaporte sin episodio acreditado no recibe correcciones en
 tampoco un día antiguo que la lectura sin versión tipó como pasaporte por su forma (`123.456-0`,
 `12.345.678/5`). Desde octubre de 2026 los días de producción tienen episodios acreditados.
 
-Límite abierto: un día guardado sin versión de esquema (todo guardado la estampa desde febrero de 2026) se lee con un tipo deducido por la forma, y para el controlador ese `RUT` deducido es igual
-a uno declarado.
+Límite de días antiguos: un día guardado sin `schemaVersion` puede traer un tipo deducido por la
+migración al leerlo, y ese tipo se trata como declarado; un `RUT` deducido cuenta como RUT
+declarado. Medición en producción del 19-11-2026: de 323 días guardados en 2026, 55 no tienen
+`schemaVersion`, todos con fecha igual o anterior al 2026-04-29, y ningún episodio abierto los toca
+(el más antiguo ingresó el 2026-07-08).
 
 ### Nombres del personal
 
