@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FirebaseConfigRuntimeAdapter } from '@/services/firebase-runtime/firebaseConfigRuntimeAdapter';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
+import type { AccreditedEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 const firestore = vi.hoisted(() => ({
   doc: vi.fn((_db: unknown, path: string, id: string) => ({ path: `${path}/${id}` })),
@@ -30,7 +31,11 @@ const adapter = (uid: string | null = 'user_nurse') =>
     getAuth: () => ({ currentUser: uid ? { uid } : null }),
   }) as unknown as FirebaseConfigRuntimeAdapter;
 
-const mark = { clinicalEpisodeId: ' 900200 ', censusDate: '2026-11-05', bedId: 'NEO1' };
+const mark = {
+  clinicalEpisodeId: '900200' as AccreditedEpisodeId,
+  censusDate: '2026-11-05',
+  bedId: 'NEO1',
+};
 
 describe('markClinicalEpisodeInvalid', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -68,11 +73,10 @@ describe('markClinicalEpisodeInvalid', () => {
     );
   });
 
-  it('fails without a session or an episode, before writing anything', async () => {
+  // A blank or legacy episode never reaches here: only an accredited one is accepted (the
+  // «Paciente no válido» parity test runs those through the real decision).
+  it('fails without a session, before writing anything', async () => {
     await expect(markClinicalEpisodeInvalid(mark, adapter(null))).rejects.toThrow();
-    await expect(
-      markClinicalEpisodeInvalid({ ...mark, clinicalEpisodeId: ' ' }, adapter())
-    ).rejects.toThrow();
     expect(firestore.setDoc).not.toHaveBeenCalled();
   });
 });

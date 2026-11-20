@@ -1,6 +1,7 @@
 // @vitest-environment node
 /**
- * «Paciente no válido» against main (W21-ID2). Each case runs the real decision, the real mark
+ * «Paciente no válido» against main (W21-ID2): the legacy cases name what main did; every other
+ * case is what main measured, unchanged. Each case runs the real decision, the real mark
  * service and the real previous-day cleanup over an in-memory repository, and counts what reaches
  * storage: marks written, beds cleared today, beds cleared yesterday (own episode or another
  * person). The legacy rows reproduce the W20 probe: two newborns first saved as «RN» on the same
@@ -23,7 +24,10 @@ vi.mock('firebase/firestore', async importOriginal => ({
   ...firestore,
 }));
 
-import { ensurePatientClinicalEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
+import {
+  ensurePatientClinicalEpisodeId,
+  resolveAccreditedClinicalEpisodeId,
+} from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import { executeRowActionController } from '@/features/census/controllers/censusRowActionRuntimeController';
 import { cleanAndDescribePreviousDay } from '@/features/census/controllers/invalidEpisodePreviousDayCleanup';
 import { buildDischargeRowActions } from '@/features/census/controllers/censusDischargesTableController';
@@ -192,19 +196,29 @@ describe('«Paciente no válido» parity with main (W21-ID2)', () => {
     expect(legacyAlfa.clinicalEpisodeId).toBe(legacyBeta.clinicalEpisodeId);
   });
 
-  it('a legacy episode: marks, clears today and clears the other newborn yesterday', async () => {
+  // main: marks 1, clears today 1 and clears the other newborn yesterday 1.
+  it('a legacy episode: nothing is marked or cleared, today or yesterday', async () => {
     expect(await runBedAction('invalid', legacyAlfa, yesterdayWith({ NEO2: legacyBeta }))).toEqual({
-      marks: 1,
-      today: 1,
+      marks: 0,
+      today: 0,
       yesterdayOwn: 0,
-      yesterdayForeign: 1,
-      result: 'applied:true',
+      yesterdayForeign: 0,
+      result: 'EPISODE_REQUIRED',
     });
   });
 
-  it('a legacy episode is offered in the bed menu and on its alta', () => {
-    expect(menuOffersInvalid(legacyAlfa)).toBe(true);
-    expect(dischargeOffersInvalid(String(legacyAlfa.clinicalEpisodeId))).toBe(true);
+  // main: offered in both.
+  it('a legacy episode is not offered in the bed menu nor on its alta', () => {
+    expect(menuOffersInvalid(legacyAlfa)).toBe(false);
+    expect(dischargeOffersInvalid(String(legacyAlfa.clinicalEpisodeId))).toBe(false);
+  });
+
+  it('only the resolver accredits an episode, trimmed, and never a legacy hash', () => {
+    expect(
+      ['900200', ' 900200 ', 'ep_0f9c2a', '', '   ', 'legacy_ep_l0nbd', ' legacy_ep_l0nbd'].map(
+        clinicalEpisodeId => resolveAccreditedClinicalEpisodeId({ clinicalEpisodeId })
+      )
+    ).toEqual(['900200', '900200', 'ep_0f9c2a', undefined, undefined, undefined, undefined]);
   });
 
   it.each([
