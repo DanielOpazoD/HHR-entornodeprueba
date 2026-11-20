@@ -1,17 +1,19 @@
 const assert = require('node:assert/strict');
-const { execFile } = require('node:child_process');
+const { execFile, spawn } = require('node:child_process');
 const { promisify } = require('node:util');
-const { randomBytes } = require('node:crypto');
+const { randomBytes, randomUUID } = require('node:crypto');
+const { resolve } = require('node:path');
 
 const projectId = 'demo-hhr-handoff';
 process.env.GCLOUD_PROJECT = projectId;
-process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
-process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
 const { initializeApp, deleteApp } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
 const { clinicalSlot, createHandler } = require('../lib/nursingHandoffExtension');
+const { ACCESS, INDEX, digest } = require('../lib/accounts/accountPolicy');
 
-const endpoint = `http://127.0.0.1:5001/${projectId}/southamerica-east1/nursingHandoffExtension`;
+const port = Number(process.env.HHR_HANDOFF_FUNCTIONS_PORT ?? 5001);
+const endpoint = `http://127.0.0.1:${port}/${projectId}/southamerica-east1/nursingHandoffExtension`;
 const call = async data => {
   const res = await fetch(endpoint, {
     method: 'POST',
@@ -42,7 +44,52 @@ function waitForBrowserSave(day, notePath) {
   });
 }
 
+async function openSharedCensus(app, firestore) {
+  const auth = getAuth(app);
+  const rut = '22222222-2';
+  const uid = 'hhrn_' + randomUUID();
+  const email = uid + '@accounts.hhr.invalid';
+  const password = randomBytes(18).toString('base64url');
+  await auth.createUser({ uid, email, password, emailVerified: true });
+  await auth.setCustomUserClaims(uid, { hhrAccountVersion: 1, role: 'admin' });
+  await firestore.collection(ACCESS).doc(uid).set({ status: 'active', role: 'admin', version: 1 });
+  await firestore.collection(INDEX).doc(digest(rut)).set({ uid });
+  const root = resolve(__dirname, '../..');
+  const port = '3016';
+  console.log('HHR local: http://127.0.0.1:' + port);
+  console.log('Inicio de sesión exclusivo del emulador:', rut, password);
+  const web = spawn(
+    process.execPath,
+    [
+      resolve(root, 'node_modules/vite/bin/vite.js'),
+      '--host',
+      '127.0.0.1',
+      '--port',
+      port,
+      '--strictPort',
+    ],
+    { cwd: root, stdio: 'inherit' }
+  );
+  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => web.kill());
+  return new Promise((resolve, reject) => {
+    web.once('error', reject);
+    web.once('exit', code =>
+      code ? reject(new Error('HHR local terminó con estado ' + code)) : resolve()
+    );
+  });
+}
+
 async function main() {
+  for (const host of [
+    process.env.FIRESTORE_EMULATOR_HOST,
+    process.env.FIREBASE_AUTH_EMULATOR_HOST,
+  ]) {
+    assert.match(
+      host ?? '',
+      /^127\.0\.0\.1:\d+$/,
+      'Ejecuta la prueba junto a los emuladores locales.'
+    );
+  }
   const app = initializeApp({ projectId });
   const firestore = getFirestore(app);
   const installationKey = process.env.HHR_HANDOFF_LOCAL_KEY;
@@ -78,6 +125,10 @@ async function main() {
   try {
     await policy.create({ schemaVersion: 2, mode: 'preview', clinicalBatchMode: 'enforced' });
     ownsPolicy = true;
+    if (process.env.HHR_HANDOFF_SHARED_CENSUS === '1') {
+      await openSharedCensus(app, firestore);
+      return;
+    }
     await seed(day);
     ownsFixture = true;
     if (process.env.HHR_HANDOFF_LOCAL_INTERACTIVE === '1') {
@@ -101,6 +152,14 @@ async function main() {
     const initial = await read();
     assert.equal(initial.text, '', initial.message);
     assert.equal((await read({ patientRun: '22222222-2' })).status, 'FAILED_PRECONDITION');
+    assert.deepEqual(await read({ episode: '901002' }), {
+      status: 'NOT_FOUND',
+      message: 'Este episodio aún no está en el censo de HHR Pruebas.',
+    });
+    await day.update({
+      'beds.R2': { ...patient, clinicalEpisodeId: '901002', rut: '22222222-2' },
+    });
+    assert.equal((await read({ episode: '901002', patientRun: '22222222-2' })).text, '');
     assert.equal((await read({ episode: '901002' })).status, 'FAILED_PRECONDITION');
     const fields = { date, shift: initial.shift };
     const write = (text, version = initial.version) =>

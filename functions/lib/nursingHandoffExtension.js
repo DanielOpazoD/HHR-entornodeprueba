@@ -40,7 +40,7 @@ const normalizeRun = value =>
 
 function findHandoff(snapshot, episode, run) {
   if (!snapshot.exists)
-    fail('failed-precondition', 'El censo de esta fecha aún no está disponible en HHR.');
+    fail('not-found', 'El censo de esta fecha aún no está disponible en HHR Pruebas.');
   const record = snapshot.data();
   const matches = [];
   for (const [bed, patient] of Object.entries(record.beds ?? {})) {
@@ -51,6 +51,7 @@ function findHandoff(snapshot, episode, run) {
       if (String(item?.clinicalEpisodeId ?? '') === episode) matches.push({ path, item });
     }
   }
+  if (!matches.length) fail('not-found', 'Este episodio aún no está en el censo de HHR Pruebas.');
   if (
     matches.length !== 1 ||
     normalizeRun(matches[0].item.rut) !== run ||
@@ -59,7 +60,7 @@ function findHandoff(snapshot, episode, run) {
   ) {
     fail(
       'failed-precondition',
-      'HHR no encontró un único paciente con este RUN y episodio en el censo.'
+      'HHR Pruebas encontró el episodio, pero no pudo confirmar la identidad del paciente.'
     );
   }
   const { path, item } = matches[0];
