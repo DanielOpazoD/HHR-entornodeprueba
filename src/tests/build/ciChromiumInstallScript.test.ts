@@ -12,13 +12,22 @@ afterEach(() => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
+// apt names a package file name_version_arch.deb and writes the epoch colon as %3a.
+const currentDeb = 'libfake_1%3a2_amd64.deb';
+
 /**
  * Runs the install script against a fake `npx` that fails its first `failures` calls. Like apt,
- * the fake reuses `libfake.deb` when it is already in the archives and downloads it otherwise.
+ * the fake reuses the current `libfake` file when it is already in the archives and downloads it
+ * otherwise. The fake `dpkg-query` reports `installed` (by default `libfake` 1:2 installed and
+ * `libgone` removed).
  */
 const runInstall = (
   failures: number,
-  { cachedDebs = [] as string[], debCacheExists = true } = {}
+  {
+    cachedDebs = [] as string[],
+    debCacheExists = true,
+    installed = ['ii |libfake_1:2_amd64.deb', 'rc |libgone_1_amd64.deb'],
+  } = {}
 ) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ci-chromium-install-'));
   roots.push(root);
@@ -43,16 +52,22 @@ const runInstall = (
   );
   const calls = path.join(root, 'calls');
   const downloads = path.join(root, 'downloads');
+  const githubOutput = path.join(root, 'github-output');
   fs.writeFileSync(
     path.join(bin, 'npx'),
     [
       '#!/usr/bin/env bash',
       `echo "$*" >> "${calls}"`,
       `mkdir -p "${archives}"`,
-      `if [ -f "${archives}/libfake.deb" ]; then echo reused >> "${downloads}"; else echo deb > "${archives}/libfake.deb"; echo downloaded >> "${downloads}"; fi`,
+      `if [ -f "${archives}/${currentDeb}" ]; then echo reused >> "${downloads}"; else echo deb > "${archives}/${currentDeb}"; echo downloaded >> "${downloads}"; fi`,
       `[ "$(wc -l < "${calls}")" -gt ${failures} ]`,
       '',
     ].join('\n'),
+    { mode: 0o755 }
+  );
+  fs.writeFileSync(
+    path.join(bin, 'dpkg-query'),
+    ['#!/usr/bin/env bash', ...installed.map(line => `echo '${line}'`), ''].join('\n'),
     { mode: 0o755 }
   );
   const result = spawnSync('bash', [script], {
@@ -66,6 +81,7 @@ const runInstall = (
       APT_CONF_DIR: aptConf,
       CHROMIUM_DEB_CACHE: debCache,
       CI_SUDO: '',
+      GITHUB_OUTPUT: githubOutput,
     },
   });
   return {
@@ -77,6 +93,7 @@ const runInstall = (
     disabled: fs.existsSync(disabled) ? fs.readdirSync(disabled).sort() : [],
     downloads: fs.readFileSync(downloads, 'utf8').trim().split('\n'),
     cachedAfter: fs.readdirSync(debCache).sort(),
+    stepOutput: fs.existsSync(githubOutput) ? fs.readFileSync(githubOutput, 'utf8') : '',
   };
 };
 
@@ -113,16 +130,46 @@ it('fails after the single retry instead of looping', () => {
 it('keeps the downloaded packages so the next run installs them from disk', () => {
   const first = runInstall(0);
   expect(first.downloads).toEqual(['downloaded']);
-  expect(first.cachedAfter).toEqual(['libfake.deb']);
+  expect(first.cachedAfter).toEqual([currentDeb]);
 
-  const next = runInstall(0, { cachedDebs: ['libfake.deb'] });
+  const next = runInstall(0, { cachedDebs: [currentDeb] });
   expect(next.downloads).toEqual(['reused']);
   expect(next.output).toContain('Reusing 1 cached Chromium dependency packages.');
+});
+
+it('keeps exactly the package versions apt installed, so a newer Ubuntu package is cached once', () => {
+  const stale = runInstall(0, {
+    cachedDebs: ['libfake_1%3a1_amd64.deb', 'libgone_1_amd64.deb', 'libnever_1_all.deb'],
+  });
+  expect(stale.downloads).toEqual(['downloaded']);
+  expect(stale.cachedAfter).toEqual([currentDeb]);
+
+  const next = runInstall(0, { cachedDebs: stale.cachedAfter });
+  expect(next.downloads).toEqual(['reused']);
+  expect(next.cachedAfter).toEqual([currentDeb]);
+});
+
+it('fingerprints the installed package set for the cache key', () => {
+  const fingerprint = (stepOutput: string) => /^debs=(\d+)$/m.exec(stepOutput)?.[1];
+  const installed = runInstall(0).stepOutput;
+  expect(fingerprint(installed)).toBeDefined();
+  // Same set, same entry: the action does not save the cache again.
+  expect(
+    fingerprint(runInstall(0, { cachedDebs: [currentDeb, 'libgone_1_amd64.deb'] }).stepOutput)
+  ).toBe(fingerprint(installed));
+  // A package apt added is a different set and gets its own entry.
+  const grown = runInstall(0, {
+    cachedDebs: ['libextra_3_all.deb'],
+    installed: ['ii |libfake_1:2_amd64.deb', 'ii |libextra_3_all.deb'],
+  });
+  expect(grown.cachedAfter).toEqual(['libextra_3_all.deb', currentDeb]);
+  expect(fingerprint(grown.stepOutput)).toBeDefined();
+  expect(fingerprint(grown.stepOutput)).not.toBe(fingerprint(installed));
 });
 
 it('installs on a cache miss, before the package folder exists', () => {
   const result = runInstall(0, { debCacheExists: false });
   expect(result.status).toBe(0);
   expect(result.calls).toEqual(['playwright install --with-deps chromium']);
-  expect(result.cachedAfter).toEqual(['libfake.deb']);
+  expect(result.cachedAfter).toEqual([currentDeb]);
 });
