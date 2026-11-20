@@ -9,6 +9,7 @@ import {
   findPlannedBedByEpisode,
   findOccupiedBed,
   findOccupiedClinicalCrib,
+  hasContradictoryOfficialStamp,
   hasRecordedMovement,
   hasPlannedPatientIdentity,
   indexPrincipalBeds,
@@ -67,6 +68,20 @@ export const applyEgresoReport = (
           ),
     sourceDocuments
   );
+  // A contradictory official stamp already asks for review (eligibility); no other row of the same
+  // episode or document may apply that egreso meanwhile.
+  const contradicted = eligibleLocationRows.filter(hasContradictoryOfficialStamp);
+  for (const [key, row] of byRun) {
+    const episode = String(row.encounterId ?? '').trim();
+    if (
+      contradicted.some(other =>
+        episode
+          ? String(other.encounterId ?? '').trim() === episode
+          : isSameDocument(other.run, row.run)
+      )
+    )
+      byRun.delete(key);
+  }
   // Check only rows selected for application, retaining the source document that eligibility
   // may have replaced with the matched occupant's document. The report routes still read a
   // document stored before the letter rule by its digits; such a match is reviewed, not applied.

@@ -237,7 +237,7 @@ export const correctedStamp = ({
     : UNCONFIRMED_STAMP;
 };
 
-/** When a report row's egreso happened, or null when it is unknown or contradictory. */
+/** When a report row's egreso happened in Rapa Nui, or null when it is unknown or contradictory. */
 export const reportClinicalStamp = (
   row: EgresoStampSource
 ): { iso: string; calendarIso: string; hhmm: string } | null => {
@@ -255,14 +255,20 @@ export const reportClinicalStamp = (
     /^\d{4}-\d{2}-\d{2}$/.test(row.correctedDay ?? '') &&
     /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(row.correctedTime ?? '')
   ) {
-    // Rows from before the official calendar day was carried keep their census day here.
+    // Rows from before the official calendar day was carried get the day the movement builder
+    // deduces from their census day and time, so every row is ordered by its Rapa Nui instant.
     const iso = row.correctedDay as string;
-    return { iso, calendarIso: iso, hhmm: row.correctedTime as string };
+    const hhmm = row.correctedTime as string;
+    return { iso, calendarIso: calendarDateForMovement(iso, hhmm), hhmm };
   }
   const parsed =
     parseStatisticalEgresoStamp(row.fechaEgreso) ?? parseStatisticalEgresoInstant(row.fechaEgreso);
   return parsed ? { iso: parsed.iso, calendarIso: parsed.calendarIso, hhmm: parsed.hhmm } : null;
 };
+
+/** The source gave an official calendar day that is impossible or outside its census shift. */
+export const hasContradictoryOfficialStamp = (row: EgresoStampSource): boolean =>
+  row.correctedCalendarDay !== undefined && !reportClinicalStamp(row);
 
 /**
  * The one order of two report rows for the same egreso, used by the census and by the history:
