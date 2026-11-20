@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import type { AuthContextType } from '@/context/AuthContext';
 import { canConnectNursingHandoff } from '@/shared/access/operationalAccessPolicy';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
-import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 
 const resultType = 'HHR_NURSING_HANDOFF_LINK_RESULT';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -70,25 +69,17 @@ export function HandoffExtensionConnection({ auth }: { auth: AuthContextType }) 
     try {
       await defaultAuthRuntime.ready;
       if (defaultAuthRuntime.getCurrentUser()?.uid !== user.uid) throw new Error('session changed');
-      const functions = await defaultFunctionsRuntime.getRegionalFunctions('southamerica-east1');
-      const { httpsCallable } = await import('firebase/functions');
-      const call = httpsCallable<Record<string, string>, { expiresAt: number }>(
-        functions,
-        'nursingHandoffHosted',
-        { timeout: 15000 }
-      );
-      const { data } = await call({
-        action: 'connect',
-        deviceId: request.deviceId,
-        challenge: request.challenge,
-      });
+      const { connectNursingHandoff } =
+        await import('@/services/handoff/nursingHandoffConnectionService');
+      if (defaultAuthRuntime.getCurrentUser()?.uid !== user.uid) throw new Error('session changed');
+      const expiresAt = await connectNursingHandoff(request.deviceId, request.challenge);
       if (
         defaultAuthRuntime.getCurrentUser()?.uid !== user.uid ||
-        !Number.isFinite(data.expiresAt) ||
-        data.expiresAt <= Date.now()
+        !Number.isFinite(expiresAt) ||
+        expiresAt <= Date.now()
       )
         throw new Error('session changed');
-      finish(data.expiresAt);
+      finish(expiresAt);
     } catch {
       setError('No se pudo conectar. Comprueba tu sesión de HHR e inténtalo de nuevo.');
     } finally {
