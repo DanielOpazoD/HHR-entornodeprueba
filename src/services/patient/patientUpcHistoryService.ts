@@ -9,6 +9,7 @@ import {
   getActiveTransfers,
   getActiveCma,
 } from '@/domain/movements/movementTombstonePolicy';
+import { resolveAccreditedClinicalEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 type Patient = Pick<
   PatientData,
@@ -29,7 +30,10 @@ export const isSameUpcHistoryEpisode = (target: Patient, candidate: Patient): bo
   if (rut && otherRut && rut !== otherRut) return false;
   if ((target.documentType || 'RUT') !== (candidate.documentType || 'RUT')) return false;
   if (target.clinicalEpisodeId && candidate.clinicalEpisodeId) {
-    return target.clinicalEpisodeId === candidate.clinicalEpisodeId;
+    if (target.clinicalEpisodeId !== candidate.clinicalEpisodeId) return false;
+    // A shared `legacy_ep_` id is only a hash of name and admission (two newborns «RN» share
+    // it), so it needs the document below; an accredited id names the hospitalization.
+    if (resolveAccreditedClinicalEpisodeId(target)) return true;
   }
   return Boolean(
     rut &&
@@ -71,7 +75,9 @@ export const loadPatientUpcHistory = async (patient: Patient, throughDate: strin
   if (
     !/^\d{4}-\d{2}-\d{2}$/.test(start || '') ||
     start > throughDate ||
-    (!patient.clinicalEpisodeId && !normalizedRut(patient.rut))
+    // Without an accredited episode, days join only by document and admission date.
+    (!resolveAccreditedClinicalEpisodeId(patient) &&
+      !(normalizedRut(patient.rut) && patient.admissionDate))
   ) {
     return {
       entries: checklistUpcHistory(patient.upcChecklist),
