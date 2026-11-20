@@ -26,7 +26,7 @@ describe('Rayen contextual synchronization presentation', () => {
       <RayenImportPreviewModal
         isOpen
         diff={null}
-        stage={{ type: 'verifying_structure' }}
+        stage={{ type: 'persisting_structure' }}
         error={null}
         targetDate="2026-08-01"
         onConfirm={vi.fn()}

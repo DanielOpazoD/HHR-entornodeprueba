@@ -9,7 +9,6 @@ export type RayenSyncStage =
   | { type: 'planning_structure' }
   | { type: 'awaiting_review' }
   | { type: 'persisting_structure' }
-  | { type: 'verifying_structure' }
   | { type: 'syncing_clinical' }
   | { type: 'complete' }
   | { type: 'partial'; retry: 'clinical_only' }
@@ -186,13 +185,7 @@ export const RAYEN_SYNC_STAGE_TRANSITIONS: Readonly<
     'needs_review:structure',
     'failed',
   ],
-  persisting_structure: [
-    'verifying_structure',
-    'awaiting_review',
-    'needs_review:structure',
-    'failed',
-  ],
-  verifying_structure: ['syncing_clinical', 'failed'],
+  persisting_structure: ['syncing_clinical', 'awaiting_review', 'needs_review:structure', 'failed'],
   syncing_clinical: ['complete', 'partial', 'needs_review:post_commit', 'failed'],
   complete: [],
   partial: [],
@@ -283,7 +276,6 @@ export const isRayenSyncExecutionActive = (stage: RayenSyncStage | null): boolea
   stage?.type === 'capturing' ||
   stage?.type === 'planning_structure' ||
   stage?.type === 'persisting_structure' ||
-  stage?.type === 'verifying_structure' ||
   stage?.type === 'syncing_clinical';
 
 /**

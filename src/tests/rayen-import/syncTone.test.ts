@@ -66,7 +66,6 @@ const stages: RayenSyncStage['type'][] = [
   'awaiting_review',
   'needs_review',
   'persisting_structure',
-  'verifying_structure',
   'syncing_clinical',
   'complete',
   'partial',

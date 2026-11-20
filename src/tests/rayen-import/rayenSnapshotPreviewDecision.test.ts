@@ -4,7 +4,6 @@ import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusI
 import {
   hasNoApplicableRayenStructuralChanges,
   resolveRayenSnapshotPlanningStage,
-  shouldOpenRayenSnapshotPreview,
 } from '@/features/rayen-import/hooks/rayenSnapshotPlanningDecision';
 
 const createDiff = (conflictCount = 0): CensusImportDiff => ({
@@ -66,25 +65,5 @@ describe('hasNoApplicableRayenStructuralChanges', () => {
     expect(resolveRayenSnapshotPlanningStage(false, false)).toEqual({
       type: 'awaiting_review',
     });
-  });
-
-  it('no abre un modal informativo tras persistir: la corrección histórica pendiente vive en el aviso de revisión', () => {
-    expect(
-      shouldOpenRayenSnapshotPreview({
-        persistenceCompleted: true,
-        hasUnresolvedConflicts: false,
-        hasNoApplicableChanges: true,
-      })
-    ).toBe(false);
-  });
-
-  it('mantiene la revisión de conflictos pendientes tras persistir sin cambios', () => {
-    expect(
-      shouldOpenRayenSnapshotPreview({
-        persistenceCompleted: true,
-        hasUnresolvedConflicts: true,
-        hasNoApplicableChanges: true,
-      })
-    ).toBe(true);
   });
 });

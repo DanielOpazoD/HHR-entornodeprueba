@@ -368,7 +368,6 @@ describe('useRayenImportCapture lifecycle guards', () => {
     'planning_structure',
     'awaiting_review',
     'persisting_structure',
-    'verifying_structure',
     'syncing_clinical',
   ] as const)('ignores a capture timeout after the execution reaches %s', async target => {
     const execution = createExecutionHarness();
@@ -408,7 +407,6 @@ describe('useRayenImportCapture lifecycle guards', () => {
       'planning_structure',
       'awaiting_review',
       'persisting_structure',
-      'verifying_structure',
       'syncing_clinical',
     ] as const) {
       execution.dispatchExecution({ type: 'transition', runId: 'run-1', stage: { type } });

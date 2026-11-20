@@ -103,8 +103,7 @@ const renderConfirmation = ({
 } = {}) => {
   const setState = vi.fn();
   const dispatchExecution = vi.fn();
-  const transitionExecution = vi.fn();
-  const failRun = vi.fn();
+  const failRun = vi.fn().mockResolvedValue(undefined);
   const preparedSyncContextRef = { current: { record, runId: 'run-1' } };
   const structuralReplanRef = {
     current: {
@@ -127,7 +126,6 @@ const renderConfirmation = ({
       setState,
       executionRef: executionRef as never,
       dispatchExecution,
-      transitionExecution,
       preparedSyncContextRef: preparedSyncContextRef as never,
       structuralReplanRef,
       structuralPersistenceExecutionKeysRef,
@@ -156,7 +154,6 @@ const renderConfirmation = ({
     setState,
     structuralReplanRef,
     structuralPersistenceExecutionKeysRef,
-    transitionExecution,
   };
 };
 
@@ -323,7 +320,9 @@ describe('useRayenImportConfirmation execution ownership', () => {
 
     await act(async () => harness.result.current());
 
-    expect(harness.transitionExecution).toHaveBeenCalledWith({ type: 'failed' }, 'run-1');
+    expect(harness.dispatchExecution).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'transition', runId: 'run-1', stage: { type: 'failed' } })
+    );
     expect(harness.failRun).toHaveBeenCalledWith('apply_failed', 'run-1', error);
     expect(harness.runClinicalStage).not.toHaveBeenCalled();
     expect(appliedState(harness.setState)).toMatchObject({
@@ -345,9 +344,12 @@ describe('useRayenImportConfirmation execution ownership', () => {
 
     await act(async () => harness.result.current());
 
-    expect(harness.transitionExecution).toHaveBeenCalledWith(
-      { type: 'needs_review', scope: 'structure' },
-      'run-1'
+    expect(harness.dispatchExecution).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'transition',
+        runId: 'run-1',
+        stage: { type: 'needs_review', scope: 'structure' },
+      })
     );
     expect(harness.preparedSyncContextRef.current).toMatchObject({ record: freshRecord });
     expect(appliedState(harness.setState)).toMatchObject({
@@ -408,7 +410,7 @@ describe('useRayenImportConfirmation execution ownership', () => {
     await act(async () => harness.result.current());
 
     expect(mocks.applyConfirmedRayenImport).not.toHaveBeenCalled();
-    expect(harness.transitionExecution).not.toHaveBeenCalled();
+    expect(harness.dispatchExecution).not.toHaveBeenCalled();
     expect(harness.setState).not.toHaveBeenCalled();
     expect(structuralPersistenceExecutionKeys).toEqual(new Set([executionKey]));
   });
@@ -422,7 +424,8 @@ describe('useRayenImportConfirmation execution ownership', () => {
 
     await act(async () => harness.result.current());
 
-    expect(harness.failRun).toHaveBeenCalledWith('apply_failed', 'run-1');
+    // Committed structure: the failure carries no apply evidence.
+    expect(harness.failRun).toHaveBeenCalledWith('apply_failed', 'run-1', undefined);
     expect(appliedState(harness.setState)).toMatchObject({ error: clinicalError.message });
   });
 
