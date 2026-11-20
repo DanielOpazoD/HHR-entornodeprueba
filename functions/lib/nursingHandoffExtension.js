@@ -135,14 +135,16 @@ function createHandler({
   FieldValue,
   installationKey,
   clinicalNow = () => new Date(),
+  authorize = data => localActor(data.source, installationKey ?? process.env.HHR_HANDOFF_LOCAL_KEY),
+  resolveRoleForEmail = () => 'nurse_hospital',
+  origin = 'eloisa_nursing_handoff',
 }) {
   const records = firestore.collection('hospitals').doc(HOSPITAL_ID).collection('dailyRecords');
   const write = createPatchHandler({
     firestore,
     Timestamp,
     FieldValue,
-    // The local pilot only constructs the two nursing-note paths below.
-    resolveRoleForEmail: () => 'nurse_hospital',
+    resolveRoleForEmail,
     assertPatchBase(snapshot, data) {
       const slot = clinicalSlot(clinicalNow());
       if (slot.date !== data.date || slot.shift !== data.shift) {
@@ -159,7 +161,7 @@ function createHandler({
     if (action !== 'read' && action !== 'save') {
       fail('invalid-argument', 'La operación de entrega de turno no es válida.');
     }
-    const actor = localActor(data.source, installationKey ?? process.env.HHR_HANDOFF_LOCAL_KEY);
+    const actor = await authorize(data);
 
     const { episode, patientRun } = data;
     const run = normalizeRun(patientRun);
@@ -184,6 +186,7 @@ function createHandler({
       const active = clinicalSlot(clinicalNow());
       if (active.date !== date || active.shift !== shift)
         fail('failed-precondition', 'Cambió el turno o la fecha censal. Abre otra entrega.');
+      if (data.since) await authorize(data);
       return viewOf(entry, date, shift);
     }
 
@@ -220,7 +223,7 @@ function createHandler({
           changedPaths: Object.keys(patch),
           ...(Number.isInteger(current.revision) ? { baseRevision: current.revision } : {}),
         },
-        origin: 'eloisa_nursing_handoff',
+        origin,
       },
       actor
     );
