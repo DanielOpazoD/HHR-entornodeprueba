@@ -80,7 +80,8 @@ beforeAll(async () => {
     })
     .firestore();
   setFirestoreEnabled(true);
-  // Offline: anything the rows send waits in the queue until processSyncQueue in flush().
+  // Offline for the queue's own wake-up: a cell edit is sent straight to the server, and anything
+  // kept in the queue would only be sent by the processSyncQueue in settle().
   vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
   const context = () => ({
     auth: { uid: 'synthetic-B', token: { email: 'synthetic-B@example.invalid' } },
@@ -222,7 +223,8 @@ async function start(motherLegacy: boolean, newbornLegacy = true) {
     })
   );
   const seed = DataFactory.createMockDailyRecord(date, {
-    beds: { R1: mother },
+    // A whole day, as the server stores it: a retry rebased on a newer version keeps its beds.
+    beds: { ...DataFactory.createMockDailyRecord(date).beds, R1: mother },
     lastUpdated: new Date(Date.now() - 120000).toISOString(),
     dateTimestamp: clinicalWallClockToDate(date, '00:00').getTime(),
   });
@@ -263,12 +265,32 @@ async function push(changes: Record<string, unknown>) {
     for (const [k, v] of Object.entries(changes)) expect(received[k]).toEqual(v);
   });
 }
-async function flush() {
-  await act(async () => {
-    await new Promise(resolve => setTimeout(resolve, 850));
-    await processSyncQueue();
-  });
-  return (await admin.doc(path).get()).data()!.beds.R1;
+/**
+ * Waits, within a bounded time, until the server shows the mother's correction and the newborn's
+ * edit together and the queue is empty, then returns the bed as the server stores it. The cell
+ * sends its edit after its own pause and the write's receipt can still be on its way, so a single
+ * read after a fixed pause can see the previous value on a slow runner (main behaves the same).
+ */
+async function settle(expected: {
+  mother?: Record<string, unknown>;
+  newborn: Record<string, unknown>;
+}) {
+  let saved: Record<string, any> | undefined;
+  await waitFor(
+    async () => {
+      await processSyncQueue();
+      saved = (await admin.doc(path).get()).data()!.beds.R1;
+      for (const [key, value] of Object.entries(expected.mother ?? {})) {
+        expect(saved![key]).toBe(value);
+      }
+      for (const [key, value] of Object.entries(expected.newborn)) {
+        expect(saved!.clinicalCrib[key]).toBe(value);
+      }
+      expect(await hospitalDB.syncQueue.count()).toBe(0);
+    },
+    { timeout: 10_000 }
+  );
+  return saved!;
 }
 const corrections = {
   pathology: 'DX MATERNO CORREGIDO',
@@ -301,7 +323,10 @@ for (const [legacy, newbornLegacy] of [
           }
           await push({ [maternalField]: value });
           const retained = original === getName();
-          const saved = await flush();
+          const saved = await settle({
+            mother: { [maternalField]: value },
+            newborn: { [field]: typed[field] },
+          });
           const queue = await hospitalDB.syncQueue.count();
           expect(saved[maternalField]).toBe(value);
           expect(retained).toBe(true);
@@ -333,7 +358,7 @@ it.each([true, false])(
       );
       const focused = getName() === document.activeElement;
       await user.keyboard(' DEL MAR');
-      const saved = await flush();
+      const saved = await settle({ newborn: { patientName: 'RN LUNA DEL MAR' } });
       const queue = await hospitalDB.syncQueue.count();
       expect(queue).toBe(0);
       expect(saved.clinicalCrib.patientName).toBe('RN LUNA DEL MAR');
@@ -353,7 +378,10 @@ it('keeps the newborn diagnosis being typed when only the dots of its legacy mot
     fireEvent.change(input, { target: { value: typed.pathology } });
     const formatted = c.mother.rut.replaceAll('.', '');
     await push({ rut: formatted });
-    const saved = await flush();
+    const saved = await settle({
+      mother: { rut: formatted },
+      newborn: { pathology: typed.pathology },
+    });
     const queue = await hospitalDB.syncQueue.count();
     expect(queue).toBe(0);
     expect(saved.clinicalCrib.pathology).toBe(typed.pathology);
