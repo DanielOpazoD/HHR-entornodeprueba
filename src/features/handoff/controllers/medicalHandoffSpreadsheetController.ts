@@ -4,6 +4,10 @@ import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContract
 import type { HandoffPatientContract } from '@/domain/handoff/patientContracts';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import { resolveVisibleTreatingPhysicianName } from '@/services/staff/treatingPhysicianCatalog';
+import {
+  LEGACY_EPISODE_ID_PREFIX,
+  resolveAccreditedClinicalEpisodeId,
+} from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 export interface MedicalHandoffSpreadsheetRow {
   stableKey: string;
@@ -49,10 +53,21 @@ const normalizeKeyPart = (value: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-const buildStableKey = (patient: HandoffPatientContract, fallbackBedId: string): string => {
+const buildStableKey = (
+  patient: HandoffPatientContract,
+  fallbackBedId: string,
+  mother?: HandoffPatientContract
+): string => {
   const episodeId = normalizeText(patient.clinicalEpisodeId);
   if (episodeId) {
-    return `episode-h1:${hashStableKeyPart(episodeId)}`;
+    // A `legacy_ep_` crib id is a hash of name and admission: two newborns «RN» share it. The
+    // accredited admission of the mother tells them apart (ID-03, ID-05).
+    const motherEpisodeId = episodeId.startsWith(LEGACY_EPISODE_ID_PREFIX)
+      ? resolveAccreditedClinicalEpisodeId({
+          clinicalEpisodeId: normalizeText(mother?.clinicalEpisodeId),
+        })
+      : undefined;
+    return `episode-h1:${hashStableKeyPart(motherEpisodeId ? `${motherEpisodeId}\n${episodeId}` : episodeId)}`;
   }
 
   return `bed:${normalizeKeyPart(fallbackBedId)}:${normalizeKeyPart(patient.patientName)}`;
@@ -60,16 +75,18 @@ const buildStableKey = (patient: HandoffPatientContract, fallbackBedId: string):
 
 const buildRow = ({
   patient,
+  mother,
   bedLabel,
   fallbackBedId,
   professionalsCatalog,
 }: {
   patient: HandoffPatientContract;
+  mother?: HandoffPatientContract;
   bedLabel: string;
   fallbackBedId: string;
   professionalsCatalog: ProfessionalCatalogItem[];
 }): MedicalHandoffSpreadsheetRow => ({
-  stableKey: buildStableKey(patient, fallbackBedId),
+  stableKey: buildStableKey(patient, fallbackBedId, mother),
   bed: bedLabel,
   patientName: formatPatientNameWithAge(patient.patientName, patient.age),
   age: normalizeText(patient.age),
@@ -112,6 +129,7 @@ export const buildMedicalHandoffSpreadsheetRows = (
       rows.push(
         buildRow({
           patient: crib,
+          mother: patient,
           bedLabel: `Cuna RN (${bed.name || bed.id})`,
           fallbackBedId: `${bed.id}-cuna-rn`,
           professionalsCatalog,

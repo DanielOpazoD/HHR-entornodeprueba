@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import { buildMedicalHandoffSpreadsheetRows } from '@/features/handoff/controllers/medicalHandoffSpreadsheetController';
@@ -113,6 +114,30 @@ describe('medicalHandoffSpreadsheetController', () => {
       admissionDate: '07-08-2026',
     });
     expect(rows[1].stableKey).toMatch(/^episode-h1:[a-f0-9]{96}$/);
+  });
+
+  it('tells apart legacy newborns of different mothers and keeps every other key as main', () => {
+    const mainKey = (id: string) => `episode-h1:${createHash('sha384').update(id).digest('hex')}`;
+    const cribKey = (motherEpisodeId: string | undefined, cribEpisodeId: string, bedId = 'R1') =>
+      buildMedicalHandoffSpreadsheetRows(
+        createRecord({
+          [bedId]: createPatient({
+            bedId,
+            clinicalEpisodeId: motherEpisodeId,
+            clinicalCrib: createPatient({ patientName: 'RN', clinicalEpisodeId: cribEpisodeId }),
+          }),
+        }),
+        beds,
+        professionalsCatalog
+      )[1].stableKey;
+    const legacy = 'legacy_ep_l0nbd';
+
+    expect(cribKey('ep_mother_1', legacy)).not.toBe(cribKey('ep_mother_2', legacy));
+    expect(cribKey('ep_mother_1', legacy, 'R3')).toBe(cribKey('ep_mother_1', legacy));
+    expect(cribKey('ep_mother_1', legacy)).toMatch(/^episode-h1:[a-f0-9]{96}$/);
+    expect(cribKey('ep_mother_1', 'ep_rn_1')).toBe(mainKey('ep_rn_1'));
+    expect(cribKey('legacy_ep_mother', legacy)).toBe(mainKey(legacy));
+    expect(cribKey(undefined, legacy)).toBe(mainKey(legacy));
   });
 
   it('builds a deterministic fallback key without exposing the RUT', () => {

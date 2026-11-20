@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
+import { buildMedicalHandoffSpreadsheetRows } from '@/features/handoff/controllers/medicalHandoffSpreadsheetController';
 
 interface AppsScriptRowsContext {
   applyHhrColumnWidths_: (sheet: unknown) => void;
@@ -458,5 +459,56 @@ describe('medical handoff Apps Script row reconciliation', () => {
     expect(result).toHaveLength(1);
     expect(result[0][6]).toBe('Nota antigua\n\n---\n\nNota reciente');
     expect(result[0][9]).toBe(hashedKey);
+  });
+
+  it('keeps each legacy newborn note under its own row and an old key with its own note', () => {
+    const { mergeHhrRows_ } = loadAppsScriptRowsContext();
+    const legacy = 'legacy_ep_l0nbd';
+    const cribRow = (bedId: string, motherEpisodeId: string) =>
+      buildMedicalHandoffSpreadsheetRows(
+        {
+          date: '2026-11-05',
+          beds: {
+            [bedId]: {
+              bedId,
+              patientName: `Madre ${bedId}`,
+              age: '30a',
+              admissionDate: '2026-11-04',
+              clinicalEpisodeId: motherEpisodeId,
+              clinicalCrib: { bedId, patientName: 'RN', age: '1d', clinicalEpisodeId: legacy },
+            },
+          },
+        } as never,
+        [{ id: bedId, name: bedId }] as never,
+        []
+      )[1] as unknown as Record<string, string>;
+    const first = cribRow('R1', 'ep_mother_1');
+    const second = cribRow('R2', 'ep_mother_2');
+
+    const sheet = mergeHhrRows_([], [first]);
+    sheet[0][6] = 'Nota del primer RN';
+    const afterSecond = mergeHhrRows_(sheet, [second]);
+    expect(afterSecond.map(row => [row[0], row[6]])).toEqual([
+      ['Cuna RN (R1)', 'Nota del primer RN'],
+      ['Cuna RN (R2)', ''],
+    ]);
+    expect(mergeHhrRows_([], [first, second])).toHaveLength(2);
+
+    const oldRow = [
+      'Cuna RN (R1)',
+      'RN (1d)',
+      '',
+      '',
+      '',
+      '',
+      'Nota antigua',
+      '',
+      '',
+      hashEpisodeStableKey(legacy),
+    ];
+    expect(mergeHhrRows_([oldRow], [first]).map(row => [row[0], row[6], row[9]])).toEqual([
+      ['Cuna RN (R1)', 'Nota antigua', hashEpisodeStableKey(legacy)],
+      ['Cuna RN (R1)', '', first.stableKey],
+    ]);
   });
 });
