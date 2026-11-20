@@ -749,6 +749,22 @@ export default tseslint.config(
     },
   },
   {
+    // Census controllers reach the browser only through censusBrowserRuntimeAdapter.ts. By scope:
+    // a comment or a local named `document` is not the browser global.
+    files: ['src/features/census/controllers/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.*'],
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        ...['window', 'globalThis', 'localStorage', 'document', 'navigator'].map(name => ({
+          name,
+          message:
+            'Los controladores del censo reciben el navegador por censusBrowserRuntimeAdapter.ts.',
+        })),
+      ],
+    },
+  },
+  {
     // Tests assert the page bridge of the session message, build their own document text,
     // exercise the legacy readers they guard and pick roles to test with.
     files: ['src/tests/**/*.{ts,tsx}'],

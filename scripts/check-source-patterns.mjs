@@ -90,18 +90,6 @@ const RULES = [
     fix: 'Carga la vista desde la API pública del feature (@/features/<feature>) o, si es un subcamino ligero a propósito, agrégalo a allowMatch con su motivo.',
   },
   {
-    id: 'census-controller-browser',
-    files: file => under('src/features/census/controllers/')(file) && !file.includes('.test.'),
-    patterns: [
-      /\bwindow\./g,
-      /\bglobalThis\b/g,
-      /\blocalStorage\b/g,
-      /\bdocument\./g,
-      /\bnavigator\.clipboard\b/g,
-    ],
-    fix: 'Los controladores del censo reciben el navegador por censusBrowserRuntimeAdapter.ts.',
-  },
-  {
     id: 'census-controller-default-runtime',
     files: file =>
       under('src/features/census/controllers/')(file) &&
