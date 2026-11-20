@@ -4,6 +4,13 @@ import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
 import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
+import { createElement, type ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { DefaultRepositoryProvider } from '@/services/RepositoryContext';
+import { useDailyRecordQuery } from '@/hooks/useDailyRecordQuery';
+import { usePatchDailyRecordMutation } from '@/hooks/usePatchDailyRecordMutation';
+import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryController';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
@@ -23,7 +30,7 @@ import {
   setFirestoreEnabled,
   setFirestoreSyncState,
 } from '@/services/repositories/repositoryConfig';
-import { processSyncQueue } from '@/services/storage/sync';
+import { processSyncQueue, retryQuarantinedSyncTask } from '@/services/storage/sync';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { resolveRecordBaseRevision } from '@/services/storage/sync/syncTaskContractPolicy';
 import {
@@ -657,6 +664,131 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       expect(calls.patch).toBe(1);
       expect(result).toMatchObject({ savedHere: true, state: 'confirmed' });
       expect((await read()).beds.R1.pathology).toBe('B');
+      expect(await hospitalDB.syncQueue.count()).toBe(0);
+    });
+
+    // The rules refuse the whole direct write and the authority takes only bed paths, so its
+    // receipt cannot stand for a day field the person also asked for: the whole edit stays in
+    // the queue until it is saved.
+    for (const [label, edits, stored] of [
+      [
+        'diagnosis and handoff note',
+        { 'beds.R1.pathology': 'DX B', handoffNovedadesDayShift: 'NOVEDAD B' },
+        ['BASE', 'NOVEDAD BASE'],
+      ],
+      [
+        'age and handoff note',
+        { 'beds.R1.age': '52', handoffNovedadesDayShift: 'NOVEDAD B' },
+        ['40', 'NOVEDAD BASE'],
+      ],
+      ['age and extra bed', { 'beds.R1.age': '52', activeExtraBeds: ['E1'] }, ['40', []]],
+    ] as const) {
+      it(`keeps a ${label} edit whole when only its bed part could be saved`, async () => {
+        await configure('production');
+        unreadablePolicy();
+        await hospitalDB.dailyRecords.put(baseRecord());
+        const values = (record: DailyRecord | undefined) =>
+          Object.keys(edits).map(path => record && valueAt(record, path));
+        const expected = Object.values(edits);
+        const result = await actor('B', () =>
+          updatePartialDetailed(date, edits as DailyRecordPatch, {
+            authoringSession: captureAuthoringSession(),
+            baseRecord: baseRecord(),
+          })
+        );
+        expect(result.state).not.toBe('confirmed');
+        expect(shownNotice(result).map(([channel]) => channel)).not.toContain('success');
+        expect(values(await read())).toEqual(stored);
+        expect(values(await hospitalDB.dailyRecords.get(date))).toEqual(expected);
+        // The refused send stops for review with the whole edit, never only its bed part.
+        const [task] = await vi.waitFor(
+          async () => {
+            const tasks = await hospitalDB.syncQueue.toArray();
+            if (tasks.some(item => item.status === 'PROCESSING')) throw new Error('queue busy');
+            return tasks;
+          },
+          { timeout: 20_000, interval: 50 }
+        );
+        expect(await hospitalDB.syncQueue.count()).toBe(1);
+        expect(task).toMatchObject({ status: 'FAILED', lastErrorCategory: 'authorization' });
+        expect(values(task.payload as DailyRecord)).toEqual(expected);
+
+        // Once the policy reads again, «Ya revisé, reintentar» saves both fields.
+        vi.mocked(fence.isServerClinicalWriteFenceActive).mockRestore();
+        vi.mocked(fence.resolveEffectiveDailyRecordAuthorityMode).mockRestore();
+        expect(await actor('B', () => retryQuarantinedSyncTask(task.id!))).toBe(true);
+        await settleQueue();
+        expect(values(await read())).toEqual(expected);
+        expect(await hospitalDB.syncQueue.count()).toBe(0);
+      });
+    }
+
+    // The storage writer decides by the patch it sends, not by how complete its contract is.
+    for (const contract of ['complete', 'absent', 'incomplete'] as const) {
+      it(`never confirms an age and handoff note patch with only the age (${contract} contract)`, async () => {
+        await configure('production');
+        unreadablePolicy();
+        const edits = { 'beds.R1.age': '52', handoffNovedadesDayShift: 'NOVEDAD PEDIDA' };
+        const changedPaths = contract === 'incomplete' ? ['beds.R1.age'] : Object.keys(edits);
+        const write = actor('B', () =>
+          writes.updateRecordPartial(
+            date,
+            edits,
+            baseRecord().lastUpdated,
+            contract === 'absent' ? {} : { syncContract: { changedPaths } }
+          )
+        );
+        await expect(write).rejects.toMatchObject({ code: 'permission-denied' });
+        expect(calls.patch).toBe(0);
+        const server = await read();
+        expect([server.beds.R1.age, server.handoffNovedadesDayShift]).toEqual([
+          '40',
+          'NOVEDAD BASE',
+        ]);
+      });
+    }
+
+    it('saves an age edit alone when the normalizer repairs the local extra-bed list', async () => {
+      await configure('production');
+      unreadablePolicy();
+      // A legacy local day lists R1 as an extra bed; the server already has the empty list.
+      await hospitalDB.dailyRecords.put({ ...baseRecord(), activeExtraBeds: ['R1'] });
+      const client = new QueryClient({
+        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      });
+      const wrapper = ({ children }: { children: ReactNode }) =>
+        createElement(
+          QueryClientProvider,
+          { client },
+          createElement(DefaultRepositoryProvider, null, children)
+        );
+      await actor('B', async () => {
+        // The census opens the local day and edits only the age through its mutation hook.
+        const hook = renderHook(
+          () => {
+            useDailyRecordQuery(date, false, 'local_only');
+            return usePatchDailyRecordMutation(date);
+          },
+          { wrapper }
+        );
+        try {
+          const visible = () =>
+            client.getQueryData<{ record?: DailyRecord }>(getDailyRecordQueryKey(date))?.record;
+          await waitFor(() => expect(visible()?.beds.R1.age).toBe('40'));
+          const saved = await act(() =>
+            hook.result.current.mutateAsync({ date, partial: { 'beds.R1.age': '52' } })
+          );
+          expect(saved?.result?.state).toBe('confirmed');
+          expect(saved?.result && shownNotice(saved.result)[0]?.[0]).toBe('success');
+        } finally {
+          hook.unmount();
+          client.clear();
+        }
+      });
+      expect(calls.patch).toBe(1);
+      const server = await read();
+      expect(server.beds.R1.age).toBe('52');
+      expect(server.activeExtraBeds).toEqual([]);
       expect(await hospitalDB.syncQueue.count()).toBe(0);
     });
 

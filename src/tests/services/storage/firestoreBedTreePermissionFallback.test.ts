@@ -115,4 +115,66 @@ describe('runPartialUpdatePersistWithPermissionFallbacks', () => {
     ).rejects.toMatchObject({ code: 'permission-denied' });
     expect(mocks.callable).not.toHaveBeenCalled();
   });
+
+  it('un parche de camas con un campo del día relanza el error: el callable no acreditaría la nota', async () => {
+    const original = permissionDenied();
+    await expect(
+      runPartialUpdatePersistWithPermissionFallbacks({
+        persist: vi.fn().mockRejectedValue(original),
+        date: '2026-08-31',
+        sanitizedPatch: { ...BED_PATCH, handoffNovedadesDayShift: 'Nota' },
+        tryRefreshCurrentUserRoleClaim: vi.fn().mockResolvedValue(false),
+      })
+    ).rejects.toBe(original);
+    expect(mocks.callable).not.toHaveBeenCalled();
+  });
+
+  it('decide con las rutas que pidió la persona, no con las reparaciones del normalizador', async () => {
+    const patch = { ...BED_PATCH, activeExtraBeds: [] };
+    mocks.callable.mockResolvedValue({ ok: true });
+    const run = (changedPaths: string[]) =>
+      runPartialUpdatePersistWithPermissionFallbacks({
+        persist: vi.fn().mockRejectedValue(permissionDenied()),
+        date: '2026-08-31',
+        sanitizedPatch: patch,
+        syncContract: { changedPaths },
+        tryRefreshCurrentUserRoleClaim: vi.fn().mockResolvedValue(false),
+      });
+
+    // Solo se pidieron camas: la lista reparada no viaja, como antes.
+    await expect(run(['beds.NEO2.devices', 'beds.NEO2.deviceDetails'])).resolves.toEqual({
+      ok: true,
+    });
+    expect(mocks.callable.mock.calls[0][0].patch).toEqual({
+      'beds.NEO2.devices': ['LA', 'SNG'],
+      'beds.NEO2.deviceDetails': { SNG: { installationDate: '2026-08-31' } },
+    });
+
+    // Se pidió también la lista de camas extra: el recibo de camas no la acreditaría.
+    await expect(run(['beds.NEO2.devices', 'activeExtraBeds'])).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    expect(mocks.callable).toHaveBeenCalledTimes(1);
+  });
+
+  it('decide con el parche: un contrato incompleto o ausente no deja atrás un campo del día', async () => {
+    const run = (sanitizedPatch: Record<string, unknown>, changedPaths?: string[]) =>
+      runPartialUpdatePersistWithPermissionFallbacks({
+        persist: vi.fn().mockRejectedValue(permissionDenied()),
+        date: '2026-08-31',
+        sanitizedPatch,
+        syncContract: changedPaths && { changedPaths },
+        tryRefreshCurrentUserRoleClaim: vi.fn().mockResolvedValue(false),
+      });
+
+    // La novedad viaja en el parche aunque el contrato solo nombre la cama.
+    await expect(
+      run({ ...BED_PATCH, handoffNovedadesDayShift: 'Nota' }, ['beds.NEO2.devices'])
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    // Sin contrato no se sabe si la lista de camas extra fue pedida.
+    await expect(run({ ...BED_PATCH, activeExtraBeds: [] })).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    expect(mocks.callable).not.toHaveBeenCalled();
+  });
 });

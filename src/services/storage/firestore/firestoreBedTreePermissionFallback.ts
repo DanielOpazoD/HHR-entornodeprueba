@@ -5,7 +5,10 @@ import {
   shouldRetryDailyRecordAuthorityError,
 } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { buildAuthorityPatchSyncContract } from '@/services/storage/firestore/firestoreRecordWritePatchPolicy';
-import { extractDailyRecordBedTreePatch } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
+import {
+  extractDailyRecordBedTreePatch,
+  isDailyRecordBedTreePath,
+} from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import {
   isPermissionDeniedError,
   unlessSessionChanged,
@@ -47,6 +50,24 @@ export const runPartialUpdatePersistWithPermissionFallbacks = async <TResult>({
 }): Promise<TResult> => {
   const retryBedTreeViaCallable = async (error: unknown): Promise<TResult | null> => {
     if (!isPermissionDeniedError(error)) return null;
+    // The callable's receipt stands for the whole patch, which may carry only bed-tree paths
+    // and companions that can stay behind: dateTimestamp, which the stored day keeps, and the
+    // normalizer's repair of activeExtraBeds when the sync contract names its requested paths
+    // without that list. Any other day field keeps the original error.
+    const requested = syncContract?.changedPaths;
+    const canStayBehind = (path: string) =>
+      path === 'dateTimestamp' ||
+      (path === 'activeExtraBeds' &&
+        Boolean(requested?.length) &&
+        !requested?.includes(path) &&
+        !requested?.includes('*'));
+    if (
+      Object.keys(sanitizedPatch).some(
+        path => !isDailyRecordBedTreePath(path) && !canStayBehind(path)
+      )
+    ) {
+      return null;
+    }
     const bedTreePatch = extractDailyRecordBedTreePatch(sanitizedPatch);
     if (Object.keys(bedTreePatch).length === 0) return null;
     firestoreWriteLogger.warn(
