@@ -244,6 +244,20 @@ for (const basename of getSourceBasenameSet(HOOK_CONTROLLERS_DIR)) {
   });
 }
 
+// Every agent session loads AGENTS.md whole (CLAUDE.md includes it), so its size is a cost each session pays.
+const AGENTS_FILE = 'AGENTS.md';
+const AGENTS_MAX_BYTES = 20_000;
+const agentsBytes = fs.statSync(path.join(root, AGENTS_FILE)).size;
+if (agentsBytes > AGENTS_MAX_BYTES) {
+  failures.push({
+    file: AGENTS_FILE,
+    rule: {
+      id: 'agents-size-ceiling',
+      description: `AGENTS.md pesa ${agentsBytes} bytes y su techo es ${AGENTS_MAX_BYTES}: deja aquí cada regla en una frase y lleva el detalle a docs/DOMAIN_RULES.md; sin tablas, porque Prettier las rellena con espacios.`,
+    },
+  });
+}
+
 const ownerProtectedConfig = JSON.parse(
   fs.readFileSync(path.join(root, OWNER_PROTECTED_FILES_CONFIG), 'utf8')
 );

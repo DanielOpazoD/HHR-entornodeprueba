@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
   extractBootstrapTelemetrySignals,
   selectFrontendStartupCriticalAssets,
@@ -18,9 +19,6 @@ const read = relativePath => fs.readFileSync(path.join(workspaceRoot, relativePa
 const systemHealthBudgetContent = read('src/services/admin/systemHealthOperationalBudgets.ts');
 const syncDomainPolicyContent = read('src/services/storage/sync/syncDomainPolicy.ts');
 const conflictDomainContent = read('src/services/repositories/conflictResolutionDomainPolicy.ts');
-const indexedDbRecoveryBudgetsContent = read(
-  'src/services/storage/indexeddb/indexedDbRecoveryBudgets.ts'
-);
 const authConfigContent = read('functions/lib/auth/authConfig.js');
 const authHelpersContent = read('functions/lib/auth/authHelpersFactory.js');
 const operationalRuntimeStateContent = read(
@@ -29,8 +27,17 @@ const operationalRuntimeStateContent = read(
 const bootstrapRuntimeTelemetryContent = read(
   'src/app-shell/bootstrap/bootstrapRuntimeTelemetry.ts'
 );
-const authBootstrapBudgetContent = read('src/services/auth/authBootstrapBudgets.ts');
-const syncQueueBudgetContent = read('src/services/storage/sync/syncQueueOperationalBudgets.ts');
+// The runtime budget modules are dependency-free TypeScript that Node 22 strips natively, so the
+// report publishes the exported values the app runs instead of re-parsing their source text.
+const importRuntimeModule = relativePath =>
+  import(pathToFileURL(path.join(workspaceRoot, relativePath)).href);
+const syncQueueBudgets = await importRuntimeModule(
+  'src/services/storage/sync/syncQueueOperationalBudgets.ts'
+);
+const authBootstrapBudgets = await importRuntimeModule('src/services/auth/authBootstrapBudgets.ts');
+const indexedDbRecoveryBudgets = await importRuntimeModule(
+  'src/services/storage/indexeddb/indexedDbRecoveryBudgets.ts'
+);
 const repositoryFiles = [
   'src/services/repositories/dailyRecordRepositoryReadService.ts',
   'src/services/repositories/dailyRecordRepositoryInitializationService.ts',
@@ -52,16 +59,6 @@ const extractObjectNumbers = (content, objectName) => {
   return Object.fromEntries(
     [...match[1].matchAll(/([A-Za-z0-9_]+):\s*(\d+)/g)].map(item => [item[1], Number(item[2])])
   );
-};
-
-const extractConstArrayNumbers = (content, name) => {
-  const match = content.match(new RegExp(`${name}\\s*=\\s*\\[([^\\]]+)\\]`, 'm'));
-  if (!match) return [];
-
-  return match[1]
-    .split(',')
-    .map(part => Number(part.trim()))
-    .filter(value => Number.isFinite(value));
 };
 
 const extractConstArrayStrings = (content, name) => {
@@ -179,11 +176,11 @@ const collectThresholds = () => {
 };
 
 const syncConfig = {
-  batchSize: extractConstNumber(syncQueueBudgetContent, 'SYNC_QUEUE_BATCH_SIZE'),
-  maxRetries: extractConstNumber(syncQueueBudgetContent, 'MAX_RETRIES'),
-  baseRetryDelayMs: extractConstNumber(syncQueueBudgetContent, 'BASE_RETRY_DELAY_MS'),
-  maxRetryDelayMs: extractConstNumber(syncQueueBudgetContent, 'MAX_RETRY_DELAY_MS'),
-  runtimeThresholds: extractObjectNumbers(syncQueueBudgetContent, 'SYNC_QUEUE_RUNTIME_THRESHOLDS'),
+  batchSize: syncQueueBudgets.SYNC_QUEUE_BATCH_SIZE,
+  maxRetries: syncQueueBudgets.MAX_RETRIES,
+  baseRetryDelayMs: syncQueueBudgets.BASE_RETRY_DELAY_MS,
+  maxRetryDelayMs: syncQueueBudgets.MAX_RETRY_DELAY_MS,
+  runtimeThresholds: { ...syncQueueBudgets.SYNC_QUEUE_RUNTIME_THRESHOLDS },
 };
 
 const versionContent = read('src/constants/version.ts');
@@ -202,19 +199,9 @@ const prolongedOfflineUserAgeMs = extractConstNumber(
   'PROLONGED_OFFLINE_USER_AGE_MS'
 );
 const localPersistence = {
-  openTimeoutMs: extractConstNumber(indexedDbRecoveryBudgetsContent, 'INDEXED_DB_OPEN_TIMEOUT_MS'),
-  deleteTimeoutMs: extractConstNumber(
-    indexedDbRecoveryBudgetsContent,
-    'INDEXED_DB_DELETE_TIMEOUT_MS'
-  ),
-  maxBackgroundRecoveryAttempts: extractConstNumber(
-    indexedDbRecoveryBudgetsContent,
-    'MAX_BACKGROUND_RECOVERY_ATTEMPTS'
-  ),
-  recoveryRetryDelaysMs: extractConstArrayNumbers(
-    indexedDbRecoveryBudgetsContent,
-    'INDEXED_DB_RECOVERY_RETRY_DELAYS_MS'
-  ),
+  openTimeoutMs: indexedDbRecoveryBudgets.INDEXED_DB_OPEN_TIMEOUT_MS,
+  maxBackgroundRecoveryAttempts: indexedDbRecoveryBudgets.MAX_BACKGROUND_RECOVERY_ATTEMPTS,
+  recoveryRetryDelaysMs: [...indexedDbRecoveryBudgets.INDEXED_DB_RECOVERY_RETRY_DELAYS_MS],
 };
 const authAccess = {
   generalLoginRoles: extractSetStrings(authConfigContent, 'GENERAL_LOGIN_ROLES'),
@@ -228,8 +215,8 @@ const operationalRuntimeStates = {
   states: extractConstTupleStrings(operationalRuntimeStateContent, 'OPERATIONAL_RUNTIME_STATES'),
 };
 const authBootstrap = {
-  pendingTtlMs: extractConstNumber(authBootstrapBudgetContent, 'AUTH_BOOTSTRAP_PENDING_TTL_MS'),
-  timeoutsMs: extractObjectNumbers(authBootstrapBudgetContent, 'AUTH_BOOTSTRAP_TIMEOUTS_MS'),
+  pendingTtlMs: authBootstrapBudgets.AUTH_BOOTSTRAP_PENDING_TTL_MS,
+  timeoutsMs: { ...authBootstrapBudgets.AUTH_BOOTSTRAP_TIMEOUTS_MS },
 };
 const runbooks = [
   'docs/RUNBOOK_SYNC_RESILIENCE.md',
@@ -429,7 +416,6 @@ ${Object.entries(summary.conflictContexts)
 ## Local Persistence Recovery Budgets
 
 - IndexedDB open timeout (ms): ${summary.localPersistence.openTimeoutMs ?? 'unknown'}
-- IndexedDB delete timeout (ms): ${summary.localPersistence.deleteTimeoutMs ?? 'unknown'}
 - Max background recovery attempts: ${summary.localPersistence.maxBackgroundRecoveryAttempts ?? 'unknown'}
 - Recovery retry delays (ms): ${
   summary.localPersistence.recoveryRetryDelaysMs.length > 0

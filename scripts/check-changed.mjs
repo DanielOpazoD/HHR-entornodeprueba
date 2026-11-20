@@ -55,8 +55,8 @@ try {
     ],
     [
       'repo-hygiene',
-      /^(?:Formularios\/|Hospital Salvador\/|printables\/|[^/]+\.png$)/i,
-      'Restaura los archivos que el responsable protege o registra su aprobación como indica el control.',
+      /^(?:Formularios\/|Hospital Salvador\/|printables\/|[^/]+\.png$|AGENTS\.md$)/i,
+      'Restaura los archivos que el responsable protege o registra su aprobación, o acorta AGENTS.md, como indica el control.',
     ],
     ['architecture', /^src\//, 'Respeta la capa que nombra el control.'],
     [
