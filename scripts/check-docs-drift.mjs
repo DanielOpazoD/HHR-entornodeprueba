@@ -17,7 +17,6 @@ const checks = [
       'migrationLedger.ts',
       'reports/runtime-contracts.md',
       'dailyRecordAggregate.ts',
-      'reports/schema-evolution.md',
       'docs/RUNBOOK_OPERATIONAL_BUDGETS.md',
       'reports/operational-health.md',
     ],

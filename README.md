@@ -135,7 +135,6 @@ import { useDailyRecord } from '@/hooks/useDailyRecord';
 - Scorecard de release readiness: generar con `npm run report:release-readiness-scorecard`
 - Gobernanza de guardrails: generar con `npm run report:guardrail-governance`
 - [Política de cambio sostenible](scripts/config/sustainable-change-policy.json) (reporte: `npm run report:sustainable-change-policy`)
-- [Baseline de ejecución técnica](scripts/config/technical-execution-baseline.json) (reporte: `npm run report:technical-execution-baseline`)
 - [Checklist de cambio seguro](docs/SAFE_CHANGE_CHECKLIST.md)
 - [Política de decisión para cambios de ingeniería](docs/ENGINEERING_CHANGE_DECISION_POLICY.md)
 - [Definition of Done técnico](docs/ENGINEERING_DEFINITION_OF_DONE.md)
