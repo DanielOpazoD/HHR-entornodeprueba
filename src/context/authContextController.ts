@@ -36,7 +36,6 @@ export interface AuthContextType {
   authRuntime: NormalizedAuthOperationalState['authRuntime'];
   currentUser: AuthUser | null;
   authorizedUser: AuthUser | null;
-  user: AuthUser | null;
   role: UserRole;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -60,7 +59,6 @@ export const buildAuthContextValue = (
   authRuntime: normalizedAuthState.authRuntime,
   currentUser: normalizedAuthState.currentUser,
   authorizedUser: normalizedAuthState.authorizedUser,
-  user: normalizedAuthState.currentUser,
   role: normalizedAuthState.role,
   isLoading: normalizedAuthState.authLoading,
   isAuthenticated: isAuthenticatedAuthSessionState(normalizedAuthState.sessionState),

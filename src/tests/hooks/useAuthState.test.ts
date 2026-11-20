@@ -112,7 +112,7 @@ describe('useAuthState baseline', () => {
       });
     });
 
-    await waitFor(() => expect(result.current.user?.uid).toBe('u123'));
+    await waitFor(() => expect(result.current.currentUser?.uid).toBe('u123'));
     expect(result.current.isEditor).toBe(true);
     await waitFor(() =>
       expect(sessionScopedStorageService.reconcileAuthorizedSessionOwner).toHaveBeenCalledWith(
@@ -139,7 +139,7 @@ describe('useAuthState baseline', () => {
       });
     });
 
-    await waitFor(() => expect(result.current.user?.uid).toBe('specialist-1'));
+    await waitFor(() => expect(result.current.currentUser?.uid).toBe('specialist-1'));
     expect(result.current.role).toBe('doctor_specialist');
     expect(result.current.isEditor).toBe(true);
   });
@@ -164,7 +164,7 @@ describe('useAuthState baseline', () => {
       await result.current.handleLogout('manual');
     });
 
-    await waitFor(() => expect(result.current.user).toBe(null));
+    await waitFor(() => expect(result.current.currentUser).toBe(null));
     expect(authSession.signOut).toHaveBeenCalled();
     expect(sessionStorage.getItem(RECENT_MANUAL_LOGOUT_KEY)).toBeTruthy();
     await waitFor(() =>
@@ -254,12 +254,12 @@ describe('useAuthState baseline', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(SESSION_TIMEOUT_MS);
     });
-    expect(result.current.user?.uid).toBe('u1');
+    expect(result.current.currentUser?.uid).toBe('u1');
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1000);
     });
 
-    expect(result.current.user).toBe(null);
+    expect(result.current.currentUser).toBe(null);
     expect(vi.mocked(auditConnectionRuntime.endCurrentAuditConnection).mock.calls[0][0]).toBe(
       'automatic'
     );
@@ -374,7 +374,7 @@ describe('useAuthState baseline', () => {
 
     await waitFor(() => expect(result.current.authLoading).toBe(false));
 
-    expect(result.current.user?.uid).toBe('redirect-1');
+    expect(result.current.currentUser?.uid).toBe('redirect-1');
     expect(result.current.role).toBe('viewer');
   });
 
@@ -401,7 +401,7 @@ describe('useAuthState baseline', () => {
 
     await waitFor(() => expect(result.current.authLoading).toBe(false));
 
-    expect(result.current.user?.uid).toBe('existing-1');
+    expect(result.current.currentUser?.uid).toBe('existing-1');
     expect(result.current.role).toBe('admin');
   });
 
@@ -447,7 +447,7 @@ describe('useAuthState baseline', () => {
 
     await waitFor(() => expect(result.current.authLoading).toBe(false));
 
-    expect(result.current.user?.uid).toBe('current-1');
+    expect(result.current.currentUser?.uid).toBe('current-1');
     expect(result.current.role).toBe('editor');
   });
 
@@ -488,7 +488,7 @@ describe('useAuthState baseline', () => {
       });
     });
 
-    await waitFor(() => expect(result.current.user?.uid).toBe('anon-signature'));
+    await waitFor(() => expect(result.current.currentUser?.uid).toBe('anon-signature'));
     expect(result.current.role).toBe('viewer');
     expect(result.current.sessionState.status).toBe('anonymous_signature');
   });

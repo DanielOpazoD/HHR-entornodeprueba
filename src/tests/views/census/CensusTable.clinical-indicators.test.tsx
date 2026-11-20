@@ -175,7 +175,7 @@ describe('CensusTable clinical indicators', () => {
   const applyDefaultMocks = () => {
     vi.mocked(useAuth).mockReturnValue(
       asContextReturn<ReturnType<typeof useAuth>>({
-        user: null,
+        currentUser: null,
         role: 'viewer',
         isLoading: false,
         isAuthenticated: false,
@@ -261,7 +261,7 @@ describe('CensusTable clinical indicators', () => {
     vi.useFakeTimers();
     vi.mocked(useAuth).mockReturnValue(
       asContextReturn<ReturnType<typeof useAuth>>({
-        user: null,
+        currentUser: null,
         role: 'nurse_hospital',
         isLoading: false,
         isAuthenticated: false,
@@ -304,7 +304,7 @@ describe('CensusTable clinical indicators', () => {
 
     vi.mocked(useAuth).mockReturnValue(
       asContextReturn<ReturnType<typeof useAuth>>({
-        user: null,
+        currentUser: null,
         role: 'nurse_hospital',
         isLoading: false,
         isAuthenticated: false,

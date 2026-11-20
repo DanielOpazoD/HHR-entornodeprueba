@@ -72,7 +72,11 @@ describe('CensusTable rows', () => {
     vi.clearAllMocks();
     localStorage.clear();
     vi.mocked(useAuth).mockReturnValue(
-      asContextReturn<ReturnType<typeof useAuth>>({ user: null, role: 'admin', isEditor: true })
+      asContextReturn<ReturnType<typeof useAuth>>({
+        currentUser: null,
+        role: 'admin',
+        isEditor: true,
+      })
     );
     vi.mocked(useDailyRecordData).mockReturnValue(
       asContextReturn<ReturnType<typeof useDailyRecordData>>({ record })

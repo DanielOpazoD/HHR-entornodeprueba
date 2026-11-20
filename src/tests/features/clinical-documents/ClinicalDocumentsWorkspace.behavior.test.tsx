@@ -28,7 +28,7 @@ const { openClinicalDocumentBrowserPrintPreview } = vi.hoisted(() => ({
 }));
 
 const authState = {
-  user: { uid: 'u1', email: 'doctor@test.com', displayName: 'Doctor Test' },
+  currentUser: { uid: 'u1', email: 'doctor@test.com', displayName: 'Doctor Test' },
   role: 'doctor_urgency',
 };
 
@@ -177,7 +177,7 @@ describe('ClinicalDocumentsWorkspace behavior', () => {
       value: vi.fn(() => true),
       configurable: true,
     });
-    authState.user = { uid: 'u1', email: 'doctor@test.com', displayName: 'Doctor Test' };
+    authState.currentUser = { uid: 'u1', email: 'doctor@test.com', displayName: 'Doctor Test' };
     authState.role = 'doctor_urgency';
 
     vi.mocked(listActiveClinicalDocumentTemplates).mockReturnValue([
@@ -225,7 +225,7 @@ describe('ClinicalDocumentsWorkspace behavior', () => {
   });
 
   it('renders read-only sheet actions for nurse role', async () => {
-    authState.user = { uid: 'n1', email: 'nurse@test.com', displayName: 'Nurse Test' };
+    authState.currentUser = { uid: 'n1', email: 'nurse@test.com', displayName: 'Nurse Test' };
     authState.role = 'nurse_hospital';
 
     render(
@@ -245,7 +245,11 @@ describe('ClinicalDocumentsWorkspace behavior', () => {
   });
 
   it('blocks editing for non-admin users when the episode is closed', async () => {
-    authState.user = { uid: 's1', email: 'specialist@test.com', displayName: 'Specialist Test' };
+    authState.currentUser = {
+      uid: 's1',
+      email: 'specialist@test.com',
+      displayName: 'Specialist Test',
+    };
     authState.role = 'doctor_specialist';
 
     render(
@@ -269,7 +273,7 @@ describe('ClinicalDocumentsWorkspace behavior', () => {
   });
 
   it('keeps admin editing enabled on closed episodes', async () => {
-    authState.user = { uid: 'a1', email: 'admin@test.com', displayName: 'Admin Test' };
+    authState.currentUser = { uid: 'a1', email: 'admin@test.com', displayName: 'Admin Test' };
     authState.role = 'admin';
 
     render(

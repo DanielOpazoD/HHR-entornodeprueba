@@ -28,7 +28,10 @@ const { getLabResults, searchSyslabExams, fetchSyslabExamDetails, buildLabSummar
   }));
 const authState = { role: 'doctor_urgency' };
 vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({ user: { uid: 'doctor', email: 'doctor@example.test' }, role: authState.role }),
+  useAuth: () => ({
+    currentUser: { uid: 'doctor', email: 'doctor@example.test' },
+    role: authState.role,
+  }),
 }));
 vi.mock('@/context/UIContext', () => ({
   useNotification: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }),
