@@ -1,47 +1,82 @@
-import { useEffect, useRef } from 'react';
-import type {
-  ApplyDailyRecordPatch,
-  PersistDailyRecord,
-} from '@/application/shared/dailyRecordCoreContracts';
+import { useCallback, useMemo } from 'react';
+import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useNotification } from '@/context/UIContext';
 import { useAuditContext } from '@/context/AuditContext';
-import { useHandoffGeneralPersistenceActions } from '@/hooks/useHandoffGeneralPersistenceActions';
-import { useHandoffPersistenceRuntime } from '@/hooks/useHandoffPersistenceRuntime';
+import { useLatestRef } from '@/hooks/useLatestRef';
+import { getAttributedAuthors } from '@/services/admin/attributionService';
+import { isValidSharedChecklistValue } from '@/domain/handoff/sharedChecklist';
+import {
+  buildChecklistPatch,
+  buildHandoffReceivesPatch,
+  buildNovedadesPatch,
+} from '@/domain/handoff/management';
 
-interface HandoffManagementActions {
-  updateHandoffChecklist: (
-    shift: 'day' | 'night' | 'shared',
-    field: string,
-    value: boolean | string
-  ) => void;
-  updateHandoffNovedades: (shift: 'day' | 'night', value: string) => void;
-  updateHandoffStaff: (
-    shift: 'day' | 'night',
-    type: 'delivers' | 'receives' | 'tens',
-    staffList: string[]
-  ) => void;
-}
+/**
+ * A handoff field has nobody to answer to. patchRecord already told the user and kept the edit
+ * in its queue, so a refusal ends here, as it does for the shift staff selects.
+ */
+const settleHandoffWrite = (write: Promise<void>): Promise<boolean> =>
+  Promise.resolve(write).then(
+    () => true,
+    () => false
+  );
 
 export const useHandoffManagement = (
   record: DailyRecord | null,
-  saveAndUpdate: PersistDailyRecord,
   patchRecord: ApplyDailyRecordPatch
-): HandoffManagementActions => {
+) => {
   const { error: notifyError } = useNotification();
   const { logHandoffNovedadesModified, userId } = useAuditContext();
-  const recordRef = useRef(record);
-  useEffect(() => {
-    recordRef.current = record;
-  }, [record]);
+  const recordRef = useLatestRef(record);
 
-  const runtime = useHandoffPersistenceRuntime({
-    recordRef,
-    saveAndUpdate,
-    patchRecord,
-    logHandoffNovedadesModified,
-    userId,
-    notifyError,
-  });
-  return useHandoffGeneralPersistenceActions(runtime);
+  const updateHandoffChecklist = useCallback(
+    (shift: 'day' | 'night' | 'shared', field: string, value: boolean | string) => {
+      if (!recordRef.current) return;
+      if (shift === 'shared' && !isValidSharedChecklistValue(field, value)) {
+        notifyError(
+          'Error al guardar',
+          'Revise la fecha del carro de paro y use un código de 8 dígitos.'
+        );
+        return;
+      }
+      void settleHandoffWrite(patchRecord(buildChecklistPatch(shift, field, value)));
+    },
+    [notifyError, patchRecord, recordRef]
+  );
+
+  const updateHandoffNovedades = useCallback(
+    (shift: 'day' | 'night', value: string) => {
+      const currentRecord = recordRef.current;
+      if (!currentRecord) return;
+      void settleHandoffWrite(patchRecord(buildNovedadesPatch(shift, value))).then(saved => {
+        if (!saved) return;
+        const previous =
+          shift === 'day'
+            ? currentRecord.handoffNovedadesDayShift
+            : currentRecord.handoffNovedadesNightShift;
+        logHandoffNovedadesModified(
+          shift,
+          value,
+          previous || '',
+          currentRecord.date,
+          getAttributedAuthors(userId, currentRecord, shift) ?? ''
+        );
+      });
+    },
+    [logHandoffNovedadesModified, patchRecord, recordRef, userId]
+  );
+
+  const updateHandoffReceives = useCallback(
+    (shift: 'day' | 'night', staffList: string[]) => {
+      if (!recordRef.current) return;
+      void settleHandoffWrite(patchRecord(buildHandoffReceivesPatch(shift, staffList)));
+    },
+    [patchRecord, recordRef]
+  );
+
+  return useMemo(
+    () => ({ updateHandoffChecklist, updateHandoffNovedades, updateHandoffReceives }),
+    [updateHandoffChecklist, updateHandoffNovedades, updateHandoffReceives]
+  );
 };

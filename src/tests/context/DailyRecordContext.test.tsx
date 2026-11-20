@@ -85,7 +85,7 @@ describe('DailyRecordContext', () => {
     updateDetailedStaffing: vi.fn(),
     updateHandoffChecklist: vi.fn(),
     updateHandoffNovedades: vi.fn(),
-    updateHandoffStaff: vi.fn(),
+    updateHandoffReceives: vi.fn(),
   } as unknown as DailyRecordContextType;
 
   const TestComponent = ({ hook }: { hook: () => unknown }) => {
