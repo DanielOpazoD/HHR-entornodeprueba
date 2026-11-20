@@ -104,21 +104,32 @@ export const isSameDocument = (left?: string, right?: string): boolean =>
     hasNonRutLetter(right ?? '') &&
     passportText(left) === passportText(right));
 
+/** Full-width and other compatibility forms read as their ASCII digits and letters. */
+const compatibilityAsAscii = (value?: string): string => (value ?? '').normalize('NFKC');
+
 /**
- * The same document of a patient, read with its stated type (ID-01). Letters already make both
- * values one passport, whatever type was stated. Between digits only, two stated types that
- * differ are two documents: a passport 123456785 is never the RUT 12.345.678-5 its digits form.
- * A value without a stated type compares as isSameDocument.
+ * The same document of a patient (ID-01). A document is a passport when it has letters or the
+ * caller states one; any other is a RUT. Two passports compare by their text, separators and case
+ * aside; two RUTs by their digits, whatever the punctuation; a passport never matches a RUT, even
+ * when its digits form that RUT. Compatibility forms such as full-width digits read as ASCII
+ * first, and a RUT with any other numeral matches nothing, so no significant character is dropped.
  */
 export const isSamePatientDocument = (
-  left: { rut?: string; documentType?: string },
-  right: { rut?: string; documentType?: string }
-): boolean =>
-  isSameDocument(left.rut, right.rut) &&
-  (hasNonRutLetter(left.rut ?? '') ||
-    !left.documentType ||
-    !right.documentType ||
-    left.documentType === right.documentType);
+  left: { rut?: string; passport: boolean },
+  right: { rut?: string; passport: boolean }
+): boolean => {
+  const leftValue = compatibilityAsAscii(left.rut);
+  const rightValue = compatibilityAsAscii(right.rut);
+  const leftPassport = left.passport || hasNonRutLetter(leftValue);
+  if (leftPassport !== (right.passport || hasNonRutLetter(rightValue))) return false;
+  if (leftPassport) return passportText(leftValue) === passportText(rightValue);
+  const otherNumeral = /[^\P{N}0-9]/u;
+  return (
+    !otherNumeral.test(leftValue) &&
+    !otherNumeral.test(rightValue) &&
+    normalizeRut(leftValue) === normalizeRut(rightValue)
+  );
+};
 
 /**
  * Map/Set key for a document: two keys are equal exactly when isSameDocument holds. A value

@@ -12,6 +12,7 @@ import { createScopedLogger, type ScopedLogger } from '@/services/utils/loggerSc
 import { parseCalendarDateUtcNoon } from '@/utils/clinicalDateUtils';
 import { editsEloisaNameParts } from '@/utils/patientNamePartsSource';
 import { documentIdentityKey, isSamePatientDocument } from '@/utils/rutUtils';
+import { inferDocumentTypeFromIdentity } from '@/schemas/zod/helpers';
 import { resolveAccreditedClinicalEpisodeId as accreditedEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 const patientDemographicsEpisodeSyncLogger = createScopedLogger('PatientDemographicsEpisodeSync');
@@ -100,13 +101,26 @@ const pickDemographicUpdates = (
 };
 
 /**
+ * Whether an earlier day's stated passport counts as one. Reading a day saved before schema
+ * versions types every document by its shape and turns a stored RUT such as `123.456-0` or
+ * `12.345.678/5` into `Pasaporte`, so for a value of that shape the read type proves nothing:
+ * it then compares as a RUT and never matches the edited row's passport.
+ */
+const isCreditedPassport = (candidate: PatientData): boolean =>
+  candidate.documentType === 'Pasaporte' &&
+  inferDocumentTypeFromIdentity(candidate.rut) !== 'Pasaporte';
+
+/**
  * Document and type first (ID-01): a passport, with or without letters, is never the RUT its
  * digits form. A value without digits (`S/R`, `SIN RUT`) is no document: matching falls back to
  * the name.
  */
 const matchesPatientIdentity = (sourcePatient: PatientData, candidate: PatientData): boolean => {
   if (documentIdentityKey(sourcePatient.rut) && documentIdentityKey(candidate.rut)) {
-    return isSamePatientDocument(sourcePatient, candidate);
+    return isSamePatientDocument(
+      { rut: sourcePatient.rut, passport: sourcePatient.documentType === 'Pasaporte' },
+      { rut: candidate.rut, passport: isCreditedPassport(candidate) }
+    );
   }
 
   const sourceName = normalizePatientName(sourcePatient.patientName);
@@ -145,7 +159,14 @@ const findMatchingPatientPath = ({
   const candidates: Array<{ patient: PatientData; basePath: string; episode?: string }> = [];
   for (const [bedId, bedPatient] of Object.entries(recordBeds)) {
     const candidate = isClinicalCribPatient ? bedPatient.clinicalCrib : bedPatient;
-    if (!candidate || !matchesPatientIdentity(sourcePatient, candidate)) {
+    if (!candidate) {
+      continue;
+    }
+
+    // The same accredited episode is this patient even if that day's document reads otherwise.
+    const episode = accreditedEpisodeId(candidate);
+    const sameEpisode = Boolean(sourceEpisode) && episode === sourceEpisode;
+    if (!sameEpisode && !matchesPatientIdentity(sourcePatient, candidate)) {
       continue;
     }
 
@@ -153,7 +174,6 @@ const findMatchingPatientPath = ({
       continue;
     }
 
-    const episode = accreditedEpisodeId(candidate);
     if (sourceEpisode && episode && episode !== sourceEpisode) {
       continue;
     }

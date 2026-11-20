@@ -388,6 +388,37 @@ describe('patientDemographicsEpisodeSyncController', () => {
     expect(updatePartial).toHaveBeenCalledExactlyOnceWith('2026-04-09', { 'beds.R4.age': '2d' });
   });
 
+  // Reading a day saved before schema versions types a stored RUT `123.456-0` or `12.345.678/5`
+  // as `Pasaporte` by its shape: that read type proves no passport.
+  it.each([
+    ['a RUT', 'RUT', '1234560', '123.456-0', true],
+    ['a RUT', 'RUT', '123456785', '12.345.678/5', true],
+    ['a passport', 'Pasaporte', '1234560', '123.456-0', false],
+    ['a passport', 'Pasaporte', '123456785', '12.345.678/5', false],
+  ] as const)(
+    'with %s %s, an earlier day read as passport %s corrects only a RUT',
+    async (_kind, editedType, editedRut, priorRut, corrects) => {
+      const updatePartial = await harmonizeOnDay(
+        adultWith('R1', editedType, editedRut),
+        { R4: adultWith('R4', 'Pasaporte', priorRut) },
+        false
+      );
+      expect(updatePartial.mock.calls).toEqual(
+        corrects ? [['2026-04-09', { 'beds.R4.age': '2d' }]] : []
+      );
+    }
+  );
+
+  it('corrects the same accredited episode even when that day reads another document type', async () => {
+    const edited = { ...adultWith('R1', 'Pasaporte', '123456785'), clinicalEpisodeId: 'ep_A' };
+    const updatePartial = await harmonizeOnDay(
+      edited,
+      { R4: { ...adultWith('R4', 'RUT', '123456785'), clinicalEpisodeId: 'ep_A' } },
+      false
+    );
+    expect(updatePartial).toHaveBeenCalledExactlyOnceWith('2026-04-09', { 'beds.R4.age': '2d' });
+  });
+
   it('does not correct the same document in an earlier day of another hospitalization', async () => {
     const adult = adultWith('R1', 'RUT', '12.345.678-5');
     const updatePartial = await harmonizeOnDay(

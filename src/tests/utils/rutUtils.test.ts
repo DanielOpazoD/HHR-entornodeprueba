@@ -152,16 +152,20 @@ describe('rutUtils', () => {
     });
   });
 
-  describe('isSamePatientDocument, the document with its stated type', () => {
-    const passport = (rut: string) => ({ rut, documentType: 'Pasaporte' });
-    const run = (rut: string) => ({ rut, documentType: 'RUT' });
+  describe('isSamePatientDocument, a passport or a RUT', () => {
+    const passport = (rut: string) => ({ rut, passport: true });
+    const run = (rut: string) => ({ rut, passport: false });
     it.each([
       ['a numeric passport and the RUT of its digits', passport('123456785'), run('12.345.678-5')],
-      ['a RUT and the numeric passport of its digits', run('12.345.678-5'), passport('123456785')],
       ['a passport with letters and a RUT', passport('P123456785'), run('12.345.678-5')],
       ['two passports that only share digits', passport('P123456785'), passport('X123456785')],
+      ['passports that differ in a full-width digit', passport('1234567４'), passport('1234567５')],
+      ['RUTs that differ in a full-width digit', run('1234567４'), run('1234567５')],
+      ['RUTs that differ in another numeral', run('1234567٤'), run('1234567٥')],
+      ['a RUT with another numeral and the RUT without it', run('1234567٤'), run('1234567')],
     ])('never matches %s', (_case, left, right) => {
       expect(isSamePatientDocument(left, right)).toBe(false);
+      expect(isSamePatientDocument(right, left)).toBe(false);
     });
 
     it.each([
@@ -171,11 +175,11 @@ describe('rutUtils', () => {
         passport('123456785'),
       ],
       ['the same passport in another format', passport('P123456785'), passport(' p-123456785 ')],
+      ['the same passport in full-width digits', passport('1234567４'), passport('12345674')],
       ['the same RUT in another format', run('12.345.678-5'), run('123456785')],
-      // Letters make it a passport whatever type was stated.
-      ['a passport with letters stated as RUT', run('P123456785'), passport('P123456785')],
-      // A day saved without a type compares by its document, as before.
-      ['a document without a stated type', { rut: '123456785' }, passport('123456785')],
+      ['the same RUT with any punctuation', run('12.345.678/5'), run('12,345,678-5')],
+      // Letters make it a passport whatever the caller states.
+      ['a passport with letters not stated as one', run('P123456785'), passport('p-123456785')],
     ])('matches %s', (_case, left, right) => {
       expect(isSamePatientDocument(left, right)).toBe(true);
       expect(isSamePatientDocument(right, left)).toBe(true);

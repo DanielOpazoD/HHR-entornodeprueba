@@ -133,15 +133,36 @@ type Scenario = {
   corrected: number | null;
   /** Stated type and document of the earlier day and of the edited row; untyped RUTs otherwise. */
   documents?: { prior: TypedDocument; edited: TypedDocument };
+  /** Both days carry the same name, so only the document can tell them apart. */
+  sameName?: boolean;
+  /** The earlier day is saved with the current schema version; otherwise its read types it by shape. */
+  currentSchema?: boolean;
+  /** The earlier day exists only in Firestore, not in the local database. */
+  serverOnly?: boolean;
 };
-type TypedDocument = { documentType: 'RUT' | 'Pasaporte'; rut: string };
+type TypedDocument = { documentType?: 'RUT' | 'Pasaporte'; rut: string };
 const passport = (rut: string): TypedDocument => ({ documentType: 'Pasaporte', rut });
 const run = (rut: string): TypedDocument => ({ documentType: 'RUT', rut });
+const untyped = (rut: string): TypedDocument => ({ documentType: undefined, rut });
+const documentCase = (
+  id: string,
+  prior: TypedDocument,
+  edited: TypedDocument,
+  corrected: number | null,
+  options: Pick<Scenario, 'source' | 'sameName' | 'currentSchema' | 'serverOnly'> = {}
+): Scenario => ({
+  id,
+  prior: [options.source],
+  key: 'rut',
+  corrected,
+  documents: { prior, edited },
+  ...options,
+});
 // Same final data as main except two cases decided on purpose: two different accredited episodes
 // are a real readmission (main wrote it), and the bed of the same accredited episode wins over a
 // bed without one (main wrote the first match). Ambiguous days end unchanged, as main's write was
 // held by the server as a conflict; now it is not attempted. A numeric passport and the RUT of its
-// digits are two people (ID-01): main wrote that day.
+// digits are two people (ID-01): main wrote that day, also for a short RUT or one with a slash.
 const scenarios: Scenario[] = [
   { id: 'the same episode', source: 'A', prior: ['A'], key: 'rut', corrected: 0 },
   {
@@ -197,6 +218,87 @@ const scenarios: Scenario[] = [
     corrected: 0,
     documents: { prior: passport('12.345.678-5'), edited: passport('123456785') },
   },
+  // A day saved before schema versions is read with a type inferred from the document's shape:
+  // `RUT` for an untyped `123456785`, `Pasaporte` for a stored RUT `123.456-0` or `12.345.678/5`.
+  documentCase(
+    'a passport over the RUT of its digits, same name',
+    run('12.345.678-5'),
+    passport('123456785'),
+    null,
+    { sameName: true }
+  ),
+  documentCase(
+    'a RUT over the passport of its digits, same name',
+    passport('123456785'),
+    run('12.345.678-5'),
+    null,
+    { sameName: true }
+  ),
+  documentCase('the same RUT in another format', run('12.345.678-5'), run('123456785'), 0),
+  documentCase(
+    'the same passport with letters, separators and case',
+    passport('AB123456'),
+    passport('a-b 123.456'),
+    0
+  ),
+  documentCase('a RUT whose earlier day has no type', untyped('123456785'), run('12.345.678-5'), 0),
+  documentCase(
+    'a passport whose earlier day of the same episode has no type',
+    untyped('123456785'),
+    passport('123456785'),
+    0,
+    { source: 'A' }
+  ),
+  documentCase(
+    'a short RUT whose earlier day has no type',
+    untyped('123.456-0'),
+    run('1234560'),
+    0
+  ),
+  documentCase('a short RUT over the same stated RUT', run('123.456-0'), run('1234560'), 0),
+  documentCase('a passport over a stated short RUT', run('123.456-0'), passport('1234560'), null),
+  documentCase('a RUT over the same RUT with a slash', run('12.345.678/5'), run('123456785'), 0),
+  documentCase(
+    'a passport over a RUT with a slash',
+    run('12.345.678/5'),
+    passport('123456785'),
+    null
+  ),
+  documentCase(
+    'server only: a passport whose earlier day of the same episode has no type',
+    untyped('123456785'),
+    passport('123456785'),
+    0,
+    { source: 'A', serverOnly: true }
+  ),
+  documentCase(
+    'server only: a passport over a stated short RUT',
+    run('123.456-0'),
+    passport('1234560'),
+    null,
+    { serverOnly: true }
+  ),
+  documentCase(
+    'current schema: a short RUT whose earlier day has no type',
+    untyped('123.456-0'),
+    run('1234560'),
+    0,
+    { currentSchema: true }
+  ),
+  documentCase(
+    'current schema: a passport whose earlier day of the same episode has no type',
+    untyped('123456785'),
+    passport('123456785'),
+    0,
+    { source: 'A', currentSchema: true }
+  ),
+  documentCase(
+    'current schema: passports that differ in a full-width last digit',
+    passport('1234567４'),
+    passport('1234567５'),
+    null,
+    { currentSchema: true }
+  ),
 ];
 
 for (const role of ['adult', 'mother'] as const) {
@@ -215,7 +317,7 @@ for (const role of ['adult', 'mother'] as const) {
       const makePatient = (bedId: string, episode: string | undefined, edited: boolean) =>
         DataFactory.createMockPatient(bedId, {
           patientName:
-            scenario.key === 'rut' && edited
+            scenario.key === 'rut' && edited && !scenario.sameName
               ? 'NOMBRE ACTUAL SINTETICO'
               : 'NOMBRE ANTERIOR SINTETICO',
           rut: scenario.key === 'nombre' ? '' : edited ? '11.111.111-1' : '11111111-1',
@@ -244,12 +346,13 @@ for (const role of ['adult', 'mother'] as const) {
       );
       const seed = DataFactory.createMockDailyRecord(first, {
         beds,
+        schemaVersion: scenario.currentSchema ? 1 : undefined,
         lastUpdated: new Date(Date.now() - 90_000).toISOString(),
         dateTimestamp: clinicalWallClockToDate(first, '00:00').getTime(),
       });
       const path = `hospitals/hanga_roa/dailyRecords/${first}`;
       await admin.doc(path).set(JSON.parse(JSON.stringify(seed)));
-      await hospitalDB.dailyRecords.put(seed);
+      if (!scenario.serverOnly) await hospitalDB.dailyRecords.put(seed);
       const read = vi.spyOn(defaultDailyRecordReadPort, 'getForDate');
       const write = vi.spyOn(defaultDailyRecordWritePort, 'updatePartial');
       const savedToday = vi.fn(async () => true);
