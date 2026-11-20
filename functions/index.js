@@ -45,12 +45,7 @@ const { createNursingHandoffDemoFunctions } = require('./lib/nursingHandoffExten
 const authHelpers = createAuthHelpers({ auth, firestore });
 
 module.exports = {
-  ...createNursingHandoffDemoFunctions({
-    firestore,
-    Timestamp,
-    FieldValue,
-    resolveRoleForEmail: authHelpers.resolveRoleForEmail,
-  }),
+  ...createNursingHandoffDemoFunctions({ firestore, Timestamp, FieldValue }),
   ...createDailyRecordRestoreFunctions({
     firestore,
     Timestamp,

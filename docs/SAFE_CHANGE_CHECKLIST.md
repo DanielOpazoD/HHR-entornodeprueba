@@ -256,9 +256,13 @@ Usa los emuladores de Auth, Firestore y Functions con el proyecto desechable
 `demo-hhr-handoff`. La función `nursingHandoffExtension` sólo se registra con esos
 emuladores. Las pruebas usan su propio censo y aplican la política de escritura v2.
 
-1. Desde HHR, instala las dependencias raíz y de `functions`. Con Java 21 disponible,
-   inicia `npx firebase emulators:start --only auth,firestore,functions --project demo-hhr-handoff`.
-2. Desde el checkout de la extensión, ejecuta `node scripts/build-nursing-handoff-pilot.mjs`.
-3. Desde HHR, ejecuta la prueba con `HHR_HANDOFF_EXTENSION_CHECKOUT=/ruta/extension node functions/scripts/smokeNursingHandoffExtension.cjs`.
-   La prueba abre Chromium con una sesión de Eloísa y una lista de pacientes sintéticas.
-   Guarda en Firestore con HHR cerrado. Sin esa variable corre sólo la prueba de servidor.
+Desde HHR, instala las dependencias raíz y de `functions`. Con Java 21 disponible, ejecuta:
+
+```bash
+HHR_HANDOFF_EXTENSION_CHECKOUT=/ruta/extension node functions/scripts/runNursingHandoffPilot.cjs
+```
+
+Abre Chromium con una sesión y un paciente ficticios. Comprueba el guardado en Firestore con HHR
+cerrado. Agrega `--interactive` para preparar una carpeta de extensión de uso local y un paciente
+ficticio para verificar el flujo en Chrome con una sesión habitual de Hospitalizados.
+La misma ejecución prepara la extensión y el emulador. Usa la carpeta indicada durante esa ejecución.

@@ -1,9 +1,8 @@
-const { createHash } = require('node:crypto');
+const { createHash, timingSafeEqual } = require('node:crypto');
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { resolveClinicalDayForDateTime } = require('./generated/cudyrSourceParser.cjs');
 const { createPatchHandler } = require('./dailyRecordPatchCallable');
-const { assertAuthorizedDailyRecordWriter } = require('./dailyRecordWritePolicy');
 
 const DEMO_PROJECT = 'demo-hhr-handoff';
 const DAY = 'handoffNoteDayShift';
@@ -18,8 +17,8 @@ const clock = new Intl.DateTimeFormat('en-CA', {
   hourCycle: 'h23',
 });
 const digest = value => createHash('sha256').update(value).digest('hex');
-const validDemoSession = value =>
-  typeof value === 'string' && /^eloisa-demo-v1\.[a-zA-Z0-9_-]{32}$/.test(value);
+const validLocalKey = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+const loopbackEmulator = host => /^127\.0\.0\.1:\d+$/.test(host ?? '');
 const positiveId = value => typeof value === 'string' && /^[1-9]\d{0,15}$/.test(value);
 const fail = (code, message) => {
   throw new functions.https.HttpsError(code, message);
@@ -111,54 +110,39 @@ function waitForNote(ref, initial, select, version, shift) {
   });
 }
 
-// This is the session authority for the synthetic Eloísa fixture. Only the emulator
-// seed can create these documents. Real browser credentials are outside this pilot.
-function assertDemoSession(snapshot, source) {
-  const session = snapshot.data();
-  if (!session?.active || !Number.isFinite(session.expiresAt) || session.expiresAt <= Date.now()) {
-    fail('unauthenticated', 'Inicia sesión en Eloísa de pruebas y vuelve a abrir la entrega.');
-  }
-  const { facilityId, practitionerId, roleId } = session;
-  const ids = [facilityId, practitionerId, roleId];
+// The loopback pilot installation is the trust boundary. It verifies the native
+// session before forwarding its identity, without forwarding Rayen credentials.
+function localActor(source, expectedKey) {
   if (
-    !ids.every(positiveId) ||
-    facilityId !== source.facilityId ||
-    practitionerId !== source.practitionerId ||
-    roleId !== source.roleId ||
-    session.canAccessChart !== true
+    !validLocalKey(expectedKey) ||
+    !validLocalKey(source?.installationKey) ||
+    !timingSafeEqual(Buffer.from(source.installationKey, 'hex'), Buffer.from(expectedKey, 'hex'))
   ) {
-    fail('permission-denied', 'La sesión de Eloísa de pruebas no tiene acceso a esta ficha.');
+    fail('unauthenticated', 'Abre la entrega desde la extensión del piloto local.');
   }
-  return {
-    auth: {
-      uid: `eloisa-demo-${facilityId}-${practitionerId}`,
-      token: { email: `eloisa-demo-${facilityId}-${practitionerId}@example.test` },
-    },
-  };
+  const { facilityId, practitionerId, roleId } = source;
+  if (![facilityId, practitionerId, roleId].every(positiveId)) {
+    fail('permission-denied', 'Eloísa no confirmó el profesional y el establecimiento.');
+  }
+  const uid = `eloisa-${facilityId}-${practitionerId}-${roleId}`;
+  return { auth: { uid, token: { email: uid + '@example.test' } } };
 }
 
 function createHandler({
   firestore,
   Timestamp,
   FieldValue,
-  resolveRoleForEmail,
+  installationKey,
   clinicalNow = () => new Date(),
 }) {
-  const authz = async context => {
-    const { role } = await assertAuthorizedDailyRecordWriter({ context, resolveRoleForEmail });
-    if (role !== 'nurse_hospital' && role !== 'admin') {
-      fail('permission-denied', 'Este permiso corresponde a enfermería de HHR.');
-    }
-  };
-  const sessions = firestore.collection('nursingHandoffDemoSessions');
   const records = firestore.collection('hospitals').doc(HOSPITAL_ID).collection('dailyRecords');
   const write = createPatchHandler({
     firestore,
     Timestamp,
     FieldValue,
-    resolveRoleForEmail,
-    async assertPatchBase(snapshot, data, transaction) {
-      assertDemoSession(await transaction.get(data.sessionRef), data.source);
+    // The local pilot only constructs the two nursing-note paths below.
+    resolveRoleForEmail: () => 'nurse_hospital',
+    assertPatchBase(snapshot, data) {
       const slot = clinicalSlot(clinicalNow());
       if (slot.date !== data.date || slot.shift !== data.shift) {
         fail('failed-precondition', 'Cambió el turno. Abre otra entrega.');
@@ -174,13 +158,7 @@ function createHandler({
     if (action !== 'read' && action !== 'save') {
       fail('invalid-argument', 'La operación de entrega de turno no es válida.');
     }
-    const source = data.source;
-    if (!validDemoSession(source?.sessionProof)) {
-      fail('unauthenticated', 'Inicia sesión en Eloísa de pruebas y vuelve a abrir la entrega.');
-    }
-    const sessionRef = sessions.doc(digest(source.sessionProof));
-    const actor = assertDemoSession(await sessionRef.get(), source);
-    await authz(actor);
+    const actor = localActor(data.source, installationKey ?? process.env.HHR_HANDOFF_LOCAL_KEY);
 
     const { episode, patientRun } = data;
     const run = normalizeRun(patientRun);
@@ -205,9 +183,6 @@ function createHandler({
       const active = clinicalSlot(clinicalNow());
       if (active.date !== date || active.shift !== shift)
         fail('failed-precondition', 'Cambió el turno o la fecha censal. Abre otra entrega.');
-      if (data.since) {
-        await authz(assertDemoSession(await sessionRef.get(), source));
-      }
       return viewOf(entry, date, shift);
     }
 
@@ -238,12 +213,6 @@ function createHandler({
         shift,
         patch,
         snapshotVersion: current.snapshotVersion,
-        sessionRef,
-        source: {
-          facilityId: source.facilityId,
-          practitionerId: source.practitionerId,
-          roleId: source.roleId,
-        },
         expectedLastUpdated: current.lastUpdated,
         syncContract: {
           clientId: actor.auth.uid,
@@ -267,8 +236,8 @@ function createNursingHandoffDemoFunctions(deps) {
   const enabled =
     process.env.FUNCTIONS_EMULATOR === 'true' &&
     process.env.GCLOUD_PROJECT === DEMO_PROJECT &&
-    Boolean(process.env.FIRESTORE_EMULATOR_HOST) &&
-    Boolean(process.env.FIREBASE_AUTH_EMULATOR_HOST);
+    loopbackEmulator(process.env.FIRESTORE_EMULATOR_HOST) &&
+    loopbackEmulator(process.env.FIREBASE_AUTH_EMULATOR_HOST);
   return enabled
     ? {
         nursingHandoffExtension: functions
