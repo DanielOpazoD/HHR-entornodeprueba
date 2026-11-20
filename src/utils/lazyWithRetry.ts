@@ -4,6 +4,10 @@
  * A missing chunk must not reload an editable workspace automatically. Offline
  * failures wait for connectivity and retry; persistent failures expose an explicit
  * recovery action while preserving the surrounding interface.
+ *
+ * `preload()` starts the same single load ahead of the first render. Once it settles, the
+ * component renders without suspending: a Suspense fallback that was shown makes React hold the
+ * reveal of the real content for 300 ms, so on-demand dialogs open faster when they wait for it.
  */
 
 import { createElement, lazy, type ComponentProps, type ComponentType } from 'react';
@@ -62,7 +66,8 @@ const waitForBrowserOnline = (): Promise<void> => {
 export function lazyWithRetry<T extends ComponentType<any>>(
   factory: () => Promise<{ default: T }>
 ) {
-  const load = async (): Promise<{ default: ComponentType<ComponentProps<T>> }> => {
+  type Loaded = { default: ComponentType<ComponentProps<T>> };
+  const load = async (): Promise<Loaded> => {
     try {
       return await factory();
     } catch (error) {
@@ -92,5 +97,14 @@ export function lazyWithRetry<T extends ComponentType<any>>(
     }
   };
 
-  return lazy(load);
+  let loading: Promise<Loaded> | null = null;
+  let loaded: ComponentType<ComponentProps<T>> | null = null;
+  const preload = (): Promise<Loaded> =>
+    (loading ??= load().then(module => {
+      loaded = module.default;
+      return module;
+    }));
+  const Lazy = lazy(preload);
+  const OnDemand = (props: ComponentProps<T>) => createElement(loaded ?? Lazy, props);
+  return Object.assign(OnDemand, { preload });
 }

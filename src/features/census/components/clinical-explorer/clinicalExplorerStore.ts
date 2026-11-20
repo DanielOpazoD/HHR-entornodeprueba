@@ -1,5 +1,11 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { onSessionChange } from '@/services/storage/sessionStorageTransition';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
+
+// Online-only consultation mode; it reads Eloísa, Syslab and MMRAD and never joins the precache.
+export const ClinicalExplorerView = lazyWithRetry(() =>
+  import('./ClinicalExplorerView').then(module => ({ default: module.ClinicalExplorerView }))
+);
 
 export interface ClinicalExplorerSelection {
   /** Census day the explorer was opened from. It never changes while the explorer is open. */
@@ -10,6 +16,9 @@ export interface ClinicalExplorerSelection {
 // Memory only: several people share one computer, so a reload never reopens someone else's view.
 let selection: ClinicalExplorerSelection | null = null;
 let opener: HTMLElement | null = null;
+// Settled once the view's module has loaded or failed; from then on the body renders without
+// suspending. Behind a Suspense placeholder React would hold the arrived view back 300 ms.
+let viewSettled = false;
 const listeners = new Set<() => void>();
 const emit = (): void => listeners.forEach(listener => listener());
 const subscribe = (listener: () => void) => {
@@ -20,13 +29,27 @@ const subscribe = (listener: () => void) => {
 };
 const read = (): ClinicalExplorerSelection | null => selection;
 const readServer = (): ClinicalExplorerSelection | null => null;
+const settleView = (): void => {
+  viewSettled = true;
+  emit();
+};
 
+/** Opens at once with its way back; the body follows when its module is ready. */
 export const openClinicalExplorer = (next: ClinicalExplorerSelection): void => {
   const active = typeof document === 'undefined' ? null : document.activeElement;
   opener = active instanceof HTMLElement && active !== document.body ? active : null;
   selection = next;
   emit();
+  if (!viewSettled) void ClinicalExplorerView.preload().then(settleView, settleView);
 };
+
+/** False until the view's module settles; the census shows its loading placeholder meanwhile. */
+export const useClinicalExplorerViewSettled = (): boolean =>
+  useSyncExternalStore(
+    subscribe,
+    () => viewSettled,
+    () => false
+  );
 
 const isReachable = (element: HTMLElement | null | undefined): element is HTMLElement =>
   Boolean(element?.isConnected && !element.closest('[hidden]'));

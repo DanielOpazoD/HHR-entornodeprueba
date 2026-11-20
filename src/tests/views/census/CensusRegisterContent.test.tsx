@@ -3,6 +3,11 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CensusRegisterContent } from '@/features/census/components/CensusRegisterContent';
+import {
+  ClinicalExplorerView,
+  closeClinicalExplorer,
+  openClinicalExplorer,
+} from '@/features/census/components/clinical-explorer/clinicalExplorerStore';
 import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
 
 const mockUseDailyRecordStatus = vi.fn();
@@ -67,6 +72,23 @@ vi.mock('@/features/census/components/CensusRegisterSections', () => ({
     </div>
   ),
 }));
+
+const explorerModule = vi.hoisted(() => {
+  let release!: () => void;
+  const gate = new Promise<void>(done => {
+    release = done;
+  });
+  return { gate, release };
+});
+
+vi.mock('@/features/census/components/clinical-explorer/ClinicalExplorerView', async () => {
+  await explorerModule.gate;
+  return {
+    ClinicalExplorerView: ({ bedId }: { bedId: string }) => (
+      <div data-testid="clinical-explorer">Explorador de {bedId}</div>
+    ),
+  };
+});
 
 const deferred = () => {
   let resolve!: () => void;
@@ -302,5 +324,32 @@ describe('CensusRegisterContent', () => {
       expect(screen.queryByTestId('census-register-sections')).not.toBeInTheDocument();
       expect(screen.queryByTestId('census-register-sections-loading')).not.toBeInTheDocument();
     });
+  });
+  it('opens the explorer at once with its way back, closes during the load and shows its body once the module arrives', async () => {
+    render(<CensusRegisterContent {...baseProps} />);
+    try {
+      act(() => openClinicalExplorer({ censusDate: baseProps.currentDateString, bedId: 'R1' }));
+      expect(screen.getByRole('button', { name: 'Volver al censo' })).toHaveFocus();
+      expect(screen.getByTestId('clinical-explorer-loading')).toBeInTheDocument();
+      expect(screen.getByTestId('census-table').closest('[hidden]')).not.toBeNull();
+
+      // Closing while the module loads returns to the census, and the late module opens nothing.
+      fireEvent.click(screen.getByRole('button', { name: 'Volver al censo' }));
+      await act(async () => {
+        explorerModule.release();
+        await ClinicalExplorerView.preload();
+      });
+      expect(screen.getByTestId('census-table').closest('[hidden]')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Volver al censo' })).not.toBeInTheDocument();
+
+      // With the module ready, the body opens in the same render, without the placeholder.
+      act(() => openClinicalExplorer({ censusDate: baseProps.currentDateString, bedId: 'R1' }));
+      expect(screen.getByTestId('clinical-explorer')).toHaveTextContent('Explorador de R1');
+      expect(screen.queryByTestId('clinical-explorer-loading')).not.toBeInTheDocument();
+    } finally {
+      act(() => {
+        closeClinicalExplorer();
+      });
+    }
   });
 });

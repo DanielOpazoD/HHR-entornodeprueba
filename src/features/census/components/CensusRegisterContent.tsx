@@ -29,8 +29,10 @@ import { buildCensusLaboratoryCohort } from '../controllers/censusLaboratoryCont
 import { ClinicalExplorerMenuEntry } from './clinical-explorer/ClinicalExplorerMenuEntry';
 import { ClinicalExplorerBar } from './clinical-explorer/ClinicalExplorerBar';
 import {
+  ClinicalExplorerView,
   openClinicalExplorer,
   useClinicalExplorerSelection,
+  useClinicalExplorerViewSettled,
 } from './clinical-explorer/clinicalExplorerStore';
 import { ClinicalExplorerLaunchContext } from './clinical-explorer/clinicalExplorerLaunch';
 import { listCensusExamRequestCandidates } from '@/features/census/controllers/censusExamRequestController';
@@ -40,16 +42,18 @@ import {
 } from './exam-orders/examOrderContext';
 import { CensusExamOrderLauncher } from './exam-orders/CensusExamOrderLauncher';
 
+// Shown while the explorer's online-only module loads. A plain element, not a Suspense fallback:
+// after a fallback React holds the arrived content back 300 ms.
+const explorerLoading = (
+  <div
+    className="h-40 animate-pulse rounded-xl bg-slate-100 motion-reduce:animate-none lg:col-start-2 lg:row-start-1"
+    data-testid="clinical-explorer-loading"
+  />
+);
+
 const LazyCensusRegisterSections = lazyWithRetry(() =>
   import('./CensusRegisterSections').then(module => ({
     default: module.CensusRegisterSections,
-  }))
-);
-
-// Online-only consultation mode; it reads Eloísa, Syslab and MMRAD and never joins the precache.
-const LazyClinicalExplorerView = lazyWithRetry(() =>
-  import('./clinical-explorer/ClinicalExplorerView').then(module => ({
-    default: module.ClinicalExplorerView,
   }))
 );
 
@@ -91,6 +95,7 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
   const writeStatus = useDailyRecordWriteStatus(currentDateString);
   const editingReadOnly = readOnly || writeStatus.isSyncCommit;
   const explorer = useClinicalExplorerSelection(currentDateString);
+  const explorerViewSettled = useClinicalExplorerViewSettled();
   const explorerPatients = useMemo(
     () => listClinicalExplorerPatients({ visibleBeds, beds }),
     [visibleBeds, beds]
@@ -209,21 +214,18 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
               </p>
             )}
           >
-            <Suspense
-              fallback={
-                <div
-                  className="h-40 animate-pulse rounded-xl bg-slate-100 motion-reduce:animate-none lg:col-start-2 lg:row-start-1"
-                  data-testid="clinical-explorer-loading"
-                />
-              }
-            >
-              <ClinicalDerivedDayProvider value={clinicalDerivedDay}>
-                <LazyClinicalExplorerView
-                  censusDate={currentDateString}
-                  bedId={explorer.bedId}
-                  patients={explorerPatients}
-                />
-              </ClinicalDerivedDayProvider>
+            <Suspense fallback={explorerLoading}>
+              {explorerViewSettled ? (
+                <ClinicalDerivedDayProvider value={clinicalDerivedDay}>
+                  <ClinicalExplorerView
+                    censusDate={currentDateString}
+                    bedId={explorer.bedId}
+                    patients={explorerPatients}
+                  />
+                </ClinicalDerivedDayProvider>
+              ) : (
+                explorerLoading
+              )}
             </Suspense>
           </ErrorBoundary>
         </section>
