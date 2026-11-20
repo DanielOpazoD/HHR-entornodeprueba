@@ -95,14 +95,14 @@ describe('Flicker-Free Login Flow', () => {
     'restores credential entry if session resolution ends in %s',
     async (_status, sessionState) => {
       mockUseAuthState.mockReturnValue(createAuthState());
-      const { rerender } = render(<App />);
+      const { rerender } = render(<App openingDay="2026-11-19" />);
       act(() => screen.getByTestId('login-btn').click());
       expect(
         within(screen.getByTestId('login-loading-shell')).getByRole('status')
       ).toHaveTextContent('Validando tu acceso');
 
       mockUseAuthState.mockReturnValue(createAuthState({ sessionState }));
-      await act(async () => rerender(<App />));
+      await act(async () => rerender(<App openingDay="2026-11-19" />));
 
       expect(screen.getByTestId('login-btn')).toBeVisible();
       expect(screen.queryByText('Validando tu acceso…')).not.toBeInTheDocument();
@@ -122,7 +122,7 @@ describe('Flicker-Free Login Flow', () => {
       })
     );
 
-    const { rerender } = render(<App />);
+    const { rerender } = render(<App openingDay="2026-11-19" />);
 
     const loginBtn = screen.getByTestId('login-btn');
     expect(loginBtn).toBeDefined();
@@ -157,7 +157,7 @@ describe('Flicker-Free Login Flow', () => {
     );
 
     await act(async () => {
-      rerender(<App />);
+      rerender(<App openingDay="2026-11-19" />);
     });
 
     // 5. Verify it moved past LoginPage (assuming AppInner or AppContent shows something else)
@@ -166,7 +166,7 @@ describe('Flicker-Free Login Flow', () => {
     });
 
     mockUseAuthState.mockReturnValue(createAuthState());
-    await act(async () => rerender(<App />));
+    await act(async () => rerender(<App openingDay="2026-11-19" />));
     expect(screen.getByTestId('login-btn')).toBeVisible();
   });
 });

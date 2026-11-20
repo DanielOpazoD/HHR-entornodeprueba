@@ -6,6 +6,7 @@ vi.mock('@/utils/clinicalDayUtils', () => ({
   resolveCurrentClinicalDay: () => resolveCurrentClinicalDay(),
 }));
 
+import { resolveOpeningCensusDay } from '@/app-shell/bootstrap/openingCensusDay';
 import { useDateNavigation } from '@/hooks/useDateNavigation';
 
 describe('useDateNavigation — clinical-day landing', () => {
@@ -19,13 +20,13 @@ describe('useDateNavigation — clinical-day landing', () => {
   });
 
   it('lands on the clinical day by default (not the raw calendar date)', () => {
-    const { result } = renderHook(() => useDateNavigation());
+    const { result } = renderHook(() => useDateNavigation(resolveOpeningCensusDay()));
     expect(result.current.currentDateString).toBe('2026-06-28');
   });
 
   it('still honors an explicit ?date= deep-link over the clinical day', () => {
     window.history.replaceState({}, '', '/?date=2026-03-14');
-    const { result } = renderHook(() => useDateNavigation());
+    const { result } = renderHook(() => useDateNavigation(resolveOpeningCensusDay()));
     expect(result.current.currentDateString).toBe('2026-03-14');
   });
 });

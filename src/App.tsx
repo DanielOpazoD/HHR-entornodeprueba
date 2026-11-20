@@ -70,8 +70,8 @@ const resolveLoginInitialAuthError = (
   return null;
 };
 
-function App() {
-  const bootstrapState = useAppBootstrapState();
+function App({ openingDay }: { openingDay: string }) {
+  const bootstrapState = useAppBootstrapState(openingDay);
   const [loginCompletionPending, setLoginCompletionPending] = React.useState(false);
   if (useChangedOnRender([bootstrapState.auth.sessionState])) setLoginCompletionPending(false);
   markPerf('app:first-render');
@@ -142,7 +142,7 @@ function App() {
 
   if (bootstrapState.status === 'loading') {
     if (loadingScreenMode === 'bootstrap-route-chrome') {
-      return <BootstrapRouteChrome />;
+      return <BootstrapRouteChrome day={openingDay} />;
     }
 
     return (
@@ -198,30 +198,33 @@ function App() {
 
   return (
     <VersionedAppShell>
-      <React.Suspense fallback={<BootstrapRouteChrome />}>
+      <React.Suspense
+        fallback={<BootstrapRouteChrome day={bootstrapState.dateNav.currentDateString} />}
+      >
         <AuthenticatedAppShell auth={bootstrapState.auth} dateNav={bootstrapState.dateNav} />
       </React.Suspense>
     </VersionedAppShell>
   );
 }
 
-const AppWithErrorBoundary = () => {
+const AppWithErrorBoundary = ({ openingDay }: { openingDay: string }) => {
   return (
     <GlobalErrorBoundary>
       <FunctionsRecovery />
-      <App />
+      <App openingDay={openingDay} />
     </GlobalErrorBoundary>
   );
 };
 
-export default function ProvidedApp() {
+/** `openingDay` is the census day this page opened on, fixed once in src/index.tsx. */
+export default function ProvidedApp({ openingDay }: { openingDay: string }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <DefaultRepositoryProvider>
           <UIProvider>
             <AuditProvider>
-              <AppWithErrorBoundary />
+              <AppWithErrorBoundary openingDay={openingDay} />
             </AuditProvider>
           </UIProvider>
         </DefaultRepositoryProvider>
