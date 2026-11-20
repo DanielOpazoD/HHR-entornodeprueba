@@ -64,8 +64,7 @@ vi.mock('@/context/DailyRecordContext', () => ({
 
 vi.mock('@/context/useDailyRecordScopedActions', () => ({
   useDailyRecordStaffActions: () => ({
-    updateNurse: vi.fn(),
-    updateTens: vi.fn(),
+    updateShiftStaff: vi.fn(),
     updateDetailedStaffing: vi.fn(),
   }),
 }));

@@ -212,9 +212,8 @@ export const createMockDailyRecordContext = (
   toggleBedType: vi.fn(),
   copyPatientToDate: vi.fn().mockResolvedValue(undefined),
 
-  // Nurse/TENS Management
-  updateNurse: vi.fn(),
-  updateTens: vi.fn(),
+  // Shift staff (nurse and TENS)
+  updateShiftStaff: vi.fn(),
   updateDetailedStaffing: vi.fn(),
 
   // Discharges
