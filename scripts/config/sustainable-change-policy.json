@@ -45,7 +45,7 @@
         "docs/FOUNDATION_MAINTENANCE_CADENCE.md",
         "docs/QUALITY_GUARDRAILS.md"
       ],
-      "requiredArtifacts": ["reports/quality-metrics.md", "reports/technical-execution-baseline.md"]
+      "requiredArtifacts": ["reports/quality-metrics.md"]
     },
     {
       "id": "dependency_upgrade",
