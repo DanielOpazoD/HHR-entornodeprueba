@@ -404,7 +404,9 @@ El job principal usa `ubuntu-24.04` y el instalador compartido `setup-ci-chromiu
 el E2E clínico de PR. No cambiarlo a `ubuntu-latest` sin comprobar que la versión
 fijada de Playwright admite la nueva imagen: un fallo de instalación no acredita
 ninguna de las suites nocturnas. El instalador verifica el arranque del navegador;
-su caché no omite las dependencias del sistema ni esa comprobación.
+su caché no omite las dependencias del sistema ni esa comprobación. La caché guarda los `.deb`
+que apt instaló, con su versión; cuando Ubuntu publica otros, el primer job los descarga y
+guarda una entrada nueva, y los siguientes con la misma imagen la restauran sin descargar.
 La señal observada de shards conserva la ejecución, fecha y commit del perfil leído.
 Es una observación almacenada: regenerar el informe no vuelve actuales esos tiempos.
 Para evaluar un workflow, usar su artifact `ci-runtime-telemetry`, generado al terminar
