@@ -107,7 +107,6 @@ Si una superficie cruza `near-limit`:
 Los budgets de degradación local se derivan desde `src/services/storage/indexeddb/indexedDbRecoveryBudgets.ts` y aparecen en `reports/operational-health.md`:
 
 - open timeout
-- delete timeout
 - max background recovery attempts
 - recovery retry delays
 
