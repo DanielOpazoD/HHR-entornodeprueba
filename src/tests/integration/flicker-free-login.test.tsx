@@ -51,7 +51,6 @@ describe('Flicker-Free Login Flow', () => {
       sessionState,
       currentUser,
       authorizedUser: sessionState.status === 'authorized' && currentUser ? currentUser : null,
-      user: currentUser,
       authLoading: false,
       isFirebaseConnected: !!currentUser,
       handleLogout: vi.fn(),

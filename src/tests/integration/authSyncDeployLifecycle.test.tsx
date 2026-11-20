@@ -170,7 +170,7 @@ describe('auth/sync/deploy lifecycle integration', () => {
       'manual',
       expect.any(Function)
     );
-    expect(secondRender.result.current.auth.user).toBe(null);
+    expect(secondRender.result.current.auth.currentUser).toBe(null);
 
     await act(async () => {
       await authSessionStateCallback?.({
@@ -182,6 +182,6 @@ describe('auth/sync/deploy lifecycle integration', () => {
     expect(sessionScopedStorageService.reconcileAuthorizedSessionOwner).toHaveBeenCalledWith(
       'user:user-2'
     );
-    expect(secondRender.result.current.auth.user?.uid).toBe('user-2');
+    expect(secondRender.result.current.auth.currentUser?.uid).toBe('user-2');
   });
 });

@@ -30,17 +30,16 @@ describe('HandoffView Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
-    mockUseAuthState.user = {
+    mockUseAuthState.currentUser = {
       uid: 'test-user',
       email: 'admin@hospitalhangaroa.cl',
       displayName: 'Admin Test',
       role: 'admin',
     };
-    mockUseAuthState.currentUser = mockUseAuthState.user;
-    mockUseAuthState.authorizedUser = mockUseAuthState.user;
+    mockUseAuthState.authorizedUser = mockUseAuthState.currentUser;
     mockUseAuthState.sessionState = {
       status: 'authorized',
-      user: mockUseAuthState.user,
+      user: mockUseAuthState.currentUser,
     };
     mockUseAuthState.role = 'admin';
     mockUseAuthState.isEditor = true;

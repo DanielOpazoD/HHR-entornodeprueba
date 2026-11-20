@@ -204,10 +204,6 @@ const buildBootstrapAuthContextValue = (
       ...currentUser,
       role: DEFAULT_BOOTSTRAP_ROLE,
     },
-    user: {
-      ...currentUser,
-      role: DEFAULT_BOOTSTRAP_ROLE,
-    },
     role: DEFAULT_BOOTSTRAP_ROLE,
     isLoading: true,
     isAuthenticated: true,

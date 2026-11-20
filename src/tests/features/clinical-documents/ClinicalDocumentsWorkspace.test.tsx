@@ -35,7 +35,7 @@ const { openClinicalDocumentBrowserPrintPreview } = vi.hoisted(() => ({
 }));
 
 const authState = {
-  user: { uid: 'u1', email: 'doctor@test.com', displayName: 'Doctor Test' },
+  currentUser: { uid: 'u1', email: 'doctor@test.com', displayName: 'Doctor Test' },
   role: 'doctor_urgency',
 };
 
@@ -184,7 +184,7 @@ describe('ClinicalDocumentsWorkspace', () => {
       value: vi.fn(() => true),
       configurable: true,
     });
-    authState.user = { uid: 'u1', email: 'doctor@test.com', displayName: 'Doctor Test' };
+    authState.currentUser = { uid: 'u1', email: 'doctor@test.com', displayName: 'Doctor Test' };
     authState.role = 'doctor_urgency';
 
     vi.mocked(listActiveClinicalDocumentTemplates).mockReturnValue([

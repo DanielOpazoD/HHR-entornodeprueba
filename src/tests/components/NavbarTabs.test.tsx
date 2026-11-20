@@ -11,7 +11,7 @@ import { ModuleType } from '@/constants/navigationConfig';
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({
     role: 'admin',
-    user: { email: 'admin@test.com' },
+    currentUser: { email: 'admin@test.com' },
     signOut: vi.fn(),
     isFirebaseConnected: true,
   }),

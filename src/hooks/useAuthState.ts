@@ -81,8 +81,6 @@ export interface UseAuthStateReturn {
   currentUser: AuthUser | null;
   /** Current fully authorized user; excludes anonymous access */
   authorizedUser: AuthUser | null;
-  /** @deprecated Prefer currentUser or authorizedUser */
-  user: AuthUser | null;
   /** True while authentication state is being determined */
   authLoading: boolean;
   /** True if connected to Firebase (either real or anonymous auth) */
@@ -286,7 +284,6 @@ export const useAuthState = (): UseAuthStateReturn => {
     sessionState: operationalState.sessionState,
     currentUser: operationalState.currentUser,
     authorizedUser: operationalState.authorizedUser,
-    user: operationalState.currentUser,
     authLoading: operationalState.authLoading,
     isFirebaseConnected: operationalState.isFirebaseConnected,
     remoteSyncStatus: operationalState.remoteSyncStatus,

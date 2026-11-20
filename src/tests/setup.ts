@@ -407,7 +407,6 @@ const mockAuthState = {
   },
   currentUser: mockUser,
   authorizedUser: mockUser,
-  user: mockUser,
   role: 'admin' as const,
   authLoading: false,
   isEditor: true,
@@ -479,7 +478,6 @@ vi.mock('@/application/auth/authSessionUseCases', () => ({
 const mockAuthContextValue = {
   currentUser: mockUser,
   authorizedUser: mockUser,
-  user: mockUser,
   role: 'admin' as const,
   isLoading: false,
   isAuthenticated: true,
