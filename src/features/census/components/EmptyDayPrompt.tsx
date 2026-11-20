@@ -22,15 +22,9 @@ interface EmptyDayPromptProps {
   currentDateString: string;
   previousRecordAvailable: boolean;
   previousRecordDate?: string;
-  availableDates?: string[];
-  onCreateDay: (
-    copyFromPrevious: boolean,
-    specificDate?: string,
-    options?: { forceCopyScheduleOverride?: boolean }
-  ) => Promise<boolean>;
+  onCreateDay: (sourceDate: string) => Promise<boolean>;
   onRayenBootstrapReady?: () => void;
   readOnly?: boolean;
-  allowAdminCopyOverride?: boolean;
   emptyStateDiagnostic?: CensusEmptyStateDiagnostic;
 }
 
@@ -132,11 +126,10 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
                 ? 'Se necesita el censo del día anterior para copiar.'
                 : undefined
           }
-          historical={rayenTarget.kind === 'historical'}
           copySourceDate={copySourceDate}
           onCopyPrevious={() =>
             copySourceReady && !creationLocked
-              ? onCreateDay(true, copySourceDate)
+              ? onCreateDay(copySourceDate)
               : Promise.resolve(false)
           }
           onReady={() => onRayenBootstrapReady?.()}

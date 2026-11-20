@@ -82,6 +82,8 @@ const createWrapper = () => {
   return wrapper;
 };
 
+const SOURCE_DAY = '2025-01-01';
+
 describe('Master Integration Suite', () => {
   let currentRecord: DailyRecord | null = null;
 
@@ -104,6 +106,18 @@ describe('Master Integration Suite', () => {
         currentRecord = record;
       },
     });
+    // A day is created only as a copy of another one, so the source day exists from the start.
+    const readWired = vi
+      .mocked(mockDailyRecordRepositoryPort.getForDateWithMeta)
+      .getMockImplementation() as (date: string) => Promise<{ record: DailyRecord | null }>;
+    vi.mocked(mockDailyRecordRepositoryPort.getForDateWithMeta).mockImplementation(
+      async (date: string) => {
+        const read = await readWired(date);
+        return date === SOURCE_DAY
+          ? { ...read, record: DataFactory.createMockDailyRecord(SOURCE_DAY) }
+          : read;
+      }
+    );
   });
 
   describe('Scenario 1: Full Patient Lifecycle', () => {
@@ -112,7 +126,7 @@ describe('Master Integration Suite', () => {
         wrapper: createWrapper(),
       });
       await act(async () => {
-        await result.current.createDay(false);
+        await result.current.createDay(SOURCE_DAY);
       });
       await waitFor(() => expect(result.current.record).not.toBeNull());
 
@@ -149,7 +163,7 @@ describe('Master Integration Suite', () => {
         wrapper: createWrapper(),
       });
       await act(async () => {
-        await result.current.createDay(false);
+        await result.current.createDay(SOURCE_DAY);
       });
       await waitFor(() => expect(result.current.record).not.toBeNull());
 
@@ -190,7 +204,7 @@ describe('Master Integration Suite', () => {
         wrapper: createWrapper(),
       });
       await act(async () => {
-        await result.current.createDay(false);
+        await result.current.createDay(SOURCE_DAY);
       });
       await waitFor(() => expect(result.current.record).not.toBeNull());
 
@@ -217,7 +231,7 @@ describe('Master Integration Suite', () => {
         wrapper: createWrapper(),
       });
       await act(async () => {
-        await result.current.createDay(false);
+        await result.current.createDay(SOURCE_DAY);
       });
       await waitFor(() => expect(result.current.record).not.toBeNull());
 

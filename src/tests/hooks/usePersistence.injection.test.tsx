@@ -61,19 +61,18 @@ const setup = () =>
     })
   );
 
-it.each([undefined, '2026-07-15'])(
+it.each(['2026-07-16', '2026-07-15'])(
   'uses only the injected repository when copying %s',
   async source => {
     const { result } = setup();
     let created = false;
     await act(async () => {
-      created = await result.current.createDay(true, source, { forceCopyScheduleOverride: true });
+      created = await result.current.createDay(source);
     });
-    const expectedSource = source ?? '2026-07-16';
     expect(created).toBe(true);
-    expect(mocks.repository.syncWithFirestoreDetailed).toHaveBeenCalledWith(expectedSource);
-    expect(mocks.repository.getForDateWithMeta).toHaveBeenCalledWith(expectedSource, true);
-    expect(mocks.repository.initializeDay).toHaveBeenCalledWith('2026-07-17', expectedSource);
+    expect(mocks.repository.syncWithFirestoreDetailed).toHaveBeenCalledWith(source);
+    expect(mocks.repository.getForDateWithMeta).toHaveBeenCalledWith(source, true);
+    expect(mocks.repository.initializeDay).toHaveBeenCalledWith('2026-07-17', source);
     expect(mocks.defaultRead).not.toHaveBeenCalled();
     expect(mocks.defaultSync).not.toHaveBeenCalled();
   }

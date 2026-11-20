@@ -22,7 +22,6 @@ interface CensusViewProps {
   onOpenCensusDate?: (date: string) => void;
   renderMedicalHandoffAction?: RenderCensusMedicalHandoffAction;
   readOnly?: boolean;
-  allowAdminCopyOverride?: boolean;
   accessProfile?: CensusAccessProfile;
 }
 
@@ -35,7 +34,6 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
   onOpenCensusDate: _onOpenCensusDate,
   renderMedicalHandoffAction,
   readOnly = false,
-  allowAdminCopyOverride = false,
   accessProfile = 'default',
 }) => {
   const { dayView } = useCensusViewScreenModel({
@@ -46,7 +44,6 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
     onCloseBedManagerModal,
     renderMedicalHandoffAction,
     readOnly,
-    allowAdminCopyOverride,
     accessProfile,
   });
   const sessionEpoch = useSessionEpoch();

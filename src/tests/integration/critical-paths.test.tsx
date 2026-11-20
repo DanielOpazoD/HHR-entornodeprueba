@@ -183,7 +183,7 @@ describe('Critical Integration Paths', () => {
     });
 
     await act(async () => {
-      await result.current.createDay(false);
+      await result.current.createDay('2025-01-03');
     });
 
     await waitFor(() => expect(result.current.record).not.toBeNull());
@@ -224,7 +224,7 @@ describe('Critical Integration Paths', () => {
     });
 
     await act(async () => {
-      await result.current.createDay(false);
+      await result.current.createDay('2025-01-03');
     });
 
     await waitFor(() => expect(result.current.record).not.toBeNull());
@@ -300,7 +300,7 @@ describe('Critical Integration Paths', () => {
       wrapper: createIntegrationWrapper(),
     });
     await act(async () => {
-      await result.current.createDay(false);
+      await result.current.createDay('2025-01-03');
     });
     await waitFor(() => expect(result.current.record).not.toBeNull());
 

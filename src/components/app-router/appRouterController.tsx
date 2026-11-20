@@ -24,7 +24,6 @@ import {
 } from '@/views/LazyViews';
 import {
   canAccessAppModuleRoute,
-  canForceCreateDayCopyOverride,
   canEditAppModule,
   getVisibleAppModules,
 } from '@/shared/access/operationalAccessPolicy';
@@ -63,7 +62,6 @@ export interface CoreModuleRouteRenderParams {
   onCloseBedManagerModal: () => void;
   onOpenCensusDate?: (date: string) => void;
   resolveReadOnly: (module: ModuleType) => boolean;
-  allowAdminCopyOverride: boolean;
   censusAccessProfile: AppRouterResolvedContext['censusAccessProfile'];
   canOpenMedicalHandoff: boolean;
 }
@@ -172,7 +170,6 @@ export const CORE_MODULE_ROUTE_DEFINITIONS: readonly CoreModuleRouteDefinition[]
       onCloseBedManagerModal,
       onOpenCensusDate,
       resolveReadOnly,
-      allowAdminCopyOverride,
       censusAccessProfile,
       canOpenMedicalHandoff,
     }) => (
@@ -185,7 +182,6 @@ export const CORE_MODULE_ROUTE_DEFINITIONS: readonly CoreModuleRouteDefinition[]
         onOpenCensusDate={onOpenCensusDate}
         canOpenMedicalHandoffSpreadsheet={canOpenMedicalHandoff}
         readOnly={resolveReadOnly('CENSUS')}
-        allowAdminCopyOverride={allowAdminCopyOverride}
         accessProfile={censusAccessProfile}
       />
     ),
@@ -226,9 +222,6 @@ export const resolveModuleReadOnly = ({
   module: ModuleType;
   e2eEditableOverride: boolean;
 }): boolean => !canEditAppModule(role, module) && !e2eEditableOverride;
-
-export const resolveAllowAdminCopyOverride = (role: UserRole): boolean =>
-  canForceCreateDayCopyOverride(role);
 
 export const canRenderSimpleModuleRoute = ({
   currentModule,
