@@ -13,6 +13,8 @@ interface MedicalIndicationsLibraryPanelProps {
   isLoading: boolean;
   isSaving: boolean;
   disabled: boolean;
+  /** False while the patient's record is loading or failed to load. */
+  canInsert: boolean;
   onCreateTemplate: () => void;
   onUpdateTemplate: (templateId: string, text: string) => void;
   onArchiveTemplate: (templateId: string) => void;
@@ -30,6 +32,7 @@ export const MedicalIndicationsLibraryPanel: React.FC<MedicalIndicationsLibraryP
   isLoading,
   isSaving,
   disabled,
+  canInsert,
   onCreateTemplate,
   onUpdateTemplate,
   onArchiveTemplate,
@@ -114,7 +117,7 @@ export const MedicalIndicationsLibraryPanel: React.FC<MedicalIndicationsLibraryP
                     <button
                       type="button"
                       onClick={() => onInsertTemplate(template)}
-                      disabled={isSaving}
+                      disabled={isSaving || !canInsert}
                       className="inline-flex items-center gap-1 rounded-lg bg-medical-50 px-2.5 py-1.5 text-[11px] font-semibold text-medical-700 hover:bg-medical-100 disabled:opacity-40"
                     >
                       <Plus size={12} />

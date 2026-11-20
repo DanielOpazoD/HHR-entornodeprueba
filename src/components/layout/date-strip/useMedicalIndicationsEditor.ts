@@ -1,34 +1,46 @@
 import React from 'react';
+import { executeGetLatestMedicalIndicationRecord } from '@/application/medical-indications/medicalIndicationsUseCases';
 import {
+  buildMedicalIndicationsEpisodeId,
   calculateMedicalIndicationsStayDays,
   formatMedicalIndicationsDate,
   normalizeMedicalIndicationsDateKey,
   type MedicalIndicationRecord,
   type MedicalIndicationTemplate,
-  type MedicalIndicationsKineType,
   type MedicalIndicationsPatientOption,
 } from '@/shared/contracts/medicalIndications';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
-
-const INDICATIONS_LINES = 15;
+import {
+  CLOSED_RECORD,
+  INDICATIONS_LINES,
+  addFreeText,
+  buildMedicalIndicationsRecordId,
+  moveLine,
+  padIndicationLines,
+  reduceMedicalIndicationsRecord,
+  removeLine,
+  replaceLine,
+  type MedicalIndicationsDraft,
+} from './medicalIndicationsRecordState';
 
 const defaultSelectedPatient = (patients: MedicalIndicationsPatientOption[]) => patients[0] ?? null;
 
-const buildTodayDateKey = () => getTodayISO();
-
 const resolveInitialTargetDate = (patient: MedicalIndicationsPatientOption | null): string =>
-  normalizeMedicalIndicationsDateKey(patient?.sourceDailyRecordDate || '') || buildTodayDateKey();
+  normalizeMedicalIndicationsDateKey(patient?.sourceDailyRecordDate || '') || getTodayISO();
 
-const emptyIndicationLines = () => Array.from({ length: INDICATIONS_LINES }, () => '');
-
-/** The lines with `text` in the first empty one, or `null` when every line is taken. */
-const placeInFirstEmptyLine = (lines: string[], text: string): string[] | null => {
-  const firstEmptyIndex = lines.findIndex(item => !item.trim());
-  if (firstEmptyIndex === -1) return null;
-  const next = [...lines];
-  next[firstEmptyIndex] = text;
-  return next;
+/** What the fields show while no record is ready: nothing, and nothing can be typed into it. */
+const NO_DRAFT: MedicalIndicationsDraft = {
+  reposo: '',
+  regimen: '',
+  kineType: 'ninguna',
+  kineTimes: '',
+  treatingDoctor: '',
+  pendingNotes: '',
+  lines: padIndicationLines([]),
+  freeText: '',
+  templateIds: [],
+  templateDidNotFit: false,
 };
 
 export const useMedicalIndicationsEditor = ({
@@ -39,28 +51,8 @@ export const useMedicalIndicationsEditor = ({
   patients: MedicalIndicationsPatientOption[];
 }) => {
   const [selectedBedId, setSelectedBedId] = React.useState('');
-  const [reposo, setReposo] = React.useState('');
-  const [regimen, setRegimen] = React.useState('');
-  const [kineType, setKineType] = React.useState<MedicalIndicationsKineType>('ninguna');
-  const [kineTimes, setKineTimes] = React.useState('');
-  const [treatingDoctor, setTreatingDoctor] = React.useState('');
-  const [pendingNotes, setPendingNotes] = React.useState('');
   const [targetDate, setTargetDate] = React.useState('');
-  // The free-text box, the lines and the templates they came from live in one state, so adding
-  // a draft also empties the box and a template is credited only when its text took a line.
-  const [
-    { draft: indicationDraft, lines: indications, templateIds, templateDidNotFit },
-    setIndicationsList,
-  ] = React.useState(() => ({
-    draft: '',
-    lines: emptyIndicationLines(),
-    templateIds: [] as string[],
-    templateDidNotFit: false,
-  }));
-  const setIndicationDraft = (draft: string) =>
-    setIndicationsList(current => ({ ...current, draft }));
-  const setIndications = (update: (lines: string[]) => string[]) =>
-    setIndicationsList(current => ({ ...current, lines: update(current.lines) }));
+  const [record, dispatch] = React.useReducer(reduceMedicalIndicationsRecord, CLOSED_RECORD);
   const [isEditingIndications, setIsEditingIndications] = React.useState(true);
   const [isOrderingIndications, setIsOrderingIndications] = React.useState(false);
   const [editingIndex, setEditingIndex] = React.useState<number | null>(null);
@@ -73,19 +65,62 @@ export const useMedicalIndicationsEditor = ({
     return patients.find(patient => patient.bedId === selectedBedId) ?? fallbackPatient;
   }, [patients, selectedBedId]);
 
-  if (useChangedOnRender([isOpen, selectedPatient]) && isOpen && selectedPatient) {
+  // A census refresh rebuilds the patient objects; only another episode starts on its census day.
+  const selectedEpisodeId = selectedPatient
+    ? buildMedicalIndicationsEpisodeId(selectedPatient)
+    : '';
+  if (useChangedOnRender([isOpen, selectedEpisodeId]) && isOpen && selectedPatient) {
     setSelectedBedId(current => (current ? current : selectedPatient.bedId));
-    setTreatingDoctor(selectedPatient.treatingDoctor);
     setTargetDate(resolveInitialTargetDate(selectedPatient));
   }
 
-  if (useChangedOnRender([isOpen]) && !isOpen) {
-    setIndicationsList(current => ({ ...current, templateIds: [], templateDidNotFit: false }));
+  const selectedRecordId =
+    isOpen && selectedPatient && targetDate
+      ? buildMedicalIndicationsRecordId(selectedPatient, targetDate)
+      : null;
+  if (useChangedOnRender([selectedRecordId])) {
+    dispatch({
+      type: 'select',
+      selection:
+        selectedRecordId && selectedPatient ? { patient: selectedPatient, targetDate } : null,
+    });
   }
 
+  React.useEffect(() => {
+    if (record.status !== 'loading') return;
+    const { id, patient } = record;
+    executeGetLatestMedicalIndicationRecord({ patient, targetDate: record.targetDate })
+      .then(saved => dispatch({ type: 'loaded', id, saved, patient }))
+      .catch(error =>
+        dispatch({
+          type: 'loadFailed',
+          id,
+          message:
+            error instanceof Error
+              ? error.message
+              : 'No se pudieron cargar las indicaciones aplicadas.',
+        })
+      );
+  }, [record]);
+
+  const readyId = record.status === 'ready' ? record.id : null;
+  const draft = record.status === 'ready' ? record.draft : NO_DRAFT;
+  if (useChangedOnRender([readyId])) {
+    setEditingIndex(null);
+    setEditingValue('');
+  }
+
+  const edit = (update: (current: MedicalIndicationsDraft) => MedicalIndicationsDraft) => {
+    if (readyId) dispatch({ type: 'edit', id: readyId, update });
+  };
+  const editField =
+    <Field extends keyof MedicalIndicationsDraft>(field: Field) =>
+    (value: MedicalIndicationsDraft[Field]) =>
+      edit(current => ({ ...current, [field]: value }));
+
   const activeIndications = React.useMemo(
-    () => indications.map(text => text.trim()).filter(Boolean),
-    [indications]
+    () => draft.lines.map(text => text.trim()).filter(Boolean),
+    [draft.lines]
   );
 
   const targetDateLabel = React.useMemo(
@@ -101,55 +136,6 @@ export const useMedicalIndicationsEditor = ({
     [selectedPatient, targetDate]
   );
 
-  // A template inserted after its audit lands on the latest lines and leaves the draft alone.
-  // When those lines are already full it is neither added nor credited, and the dialog says so.
-  const insertTemplate = (template: Pick<MedicalIndicationTemplate, 'id' | 'text'>) =>
-    setIndicationsList(current => {
-      const trimmed = template.text.trim();
-      if (!trimmed) return current;
-      const lines = placeInFirstEmptyLine(current.lines, trimmed);
-      if (!lines) return { ...current, templateDidNotFit: true };
-      return {
-        ...current,
-        lines,
-        templateIds: current.templateIds.includes(template.id)
-          ? current.templateIds
-          : [...current.templateIds, template.id],
-        templateDidNotFit: false,
-      };
-    });
-
-  // With every line taken the draft stays in the box, so nothing typed is lost.
-  const addIndication = () =>
-    setIndicationsList(current => {
-      const trimmed = current.draft.trim();
-      const lines = trimmed ? placeInFirstEmptyLine(current.lines, trimmed) : null;
-      return lines ? { ...current, draft: '', lines } : current;
-    });
-
-  const removeIndication = (targetIndex: number) => {
-    setIndications(current => {
-      const next = current.map(text => text.trim()).filter(Boolean);
-      next.splice(targetIndex, 1);
-      return [...next, ...Array.from({ length: INDICATIONS_LINES - next.length }, () => '')];
-    });
-  };
-
-  const moveIndication = (targetIndex: number, direction: 'up' | 'down') => {
-    setIndications(current => {
-      const active = current.map(text => text.trim()).filter(Boolean);
-      const destination = direction === 'up' ? targetIndex - 1 : targetIndex + 1;
-      if (destination < 0 || destination >= active.length) return current;
-      [active[targetIndex], active[destination]] = [active[destination], active[targetIndex]];
-      return [...active, ...Array.from({ length: INDICATIONS_LINES - active.length }, () => '')];
-    });
-  };
-
-  const startEditing = (index: number, text: string) => {
-    setEditingIndex(index);
-    setEditingValue(text);
-  };
-
   const resetEditing = () => {
     setEditingIndex(null);
     setEditingValue('');
@@ -159,78 +145,35 @@ export const useMedicalIndicationsEditor = ({
     if (editingIndex === null) return;
     const trimmed = editingValue.trim();
     if (!trimmed) return;
-    setIndications(current => {
-      const active = current.map(text => text.trim()).filter(Boolean);
-      active[editingIndex] = trimmed;
-      return [...active, ...Array.from({ length: INDICATIONS_LINES - active.length }, () => '')];
-    });
+    edit(current => replaceLine(current, editingIndex, trimmed));
     resetEditing();
   };
-
-  const hydrateFromRecord = React.useCallback((record: MedicalIndicationRecord) => {
-    setReposo(record.reposo);
-    setRegimen(record.regimen);
-    setKineType(record.kineType);
-    setKineTimes(record.kineTimes);
-    setTreatingDoctor(record.treatingDoctor);
-    setPendingNotes(record.pendingNotes);
-    const nextIndications = record.indications.slice(0, INDICATIONS_LINES);
-    setIndicationsList({
-      draft: '',
-      lines: [
-        ...nextIndications,
-        ...Array.from({ length: INDICATIONS_LINES - nextIndications.length }, () => ''),
-      ],
-      templateIds: record.generatedFromTemplateIds,
-      templateDidNotFit: false,
-    });
-    setEditingIndex(null);
-    setEditingValue('');
-  }, []);
-
-  const resetAppliedRecordDraft = React.useCallback(
-    (patient: MedicalIndicationsPatientOption | null = selectedPatient) => {
-      setReposo('');
-      setRegimen('');
-      setKineType('ninguna');
-      setKineTimes('');
-      setTreatingDoctor(patient?.treatingDoctor || '');
-      setPendingNotes('');
-      setIndicationsList({
-        draft: '',
-        lines: emptyIndicationLines(),
-        templateIds: [],
-        templateDidNotFit: false,
-      });
-      setEditingIndex(null);
-      setEditingValue('');
-    },
-    [selectedPatient]
-  );
 
   return {
     selectedBedId,
     setSelectedBedId,
     selectedPatient,
-    reposo,
-    setReposo,
-    regimen,
-    setRegimen,
-    kineType,
-    setKineType,
-    kineTimes,
-    setKineTimes,
-    treatingDoctor,
-    setTreatingDoctor,
-    pendingNotes,
-    setPendingNotes,
+    /** The record life cycle: only `ready` can be edited, saved, printed or receive a template. */
+    record,
+    reposo: draft.reposo,
+    setReposo: editField('reposo'),
+    regimen: draft.regimen,
+    setRegimen: editField('regimen'),
+    kineType: draft.kineType,
+    setKineType: editField('kineType'),
+    kineTimes: draft.kineTimes,
+    setKineTimes: editField('kineTimes'),
+    treatingDoctor: draft.treatingDoctor,
+    setTreatingDoctor: editField('treatingDoctor'),
+    pendingNotes: draft.pendingNotes,
+    setPendingNotes: editField('pendingNotes'),
     targetDate,
     setTargetDate,
     targetDateLabel,
     daysOfStayForTargetDate,
-    indicationDraft,
-    setIndicationDraft,
-    indications,
+    indicationDraft: draft.freeText,
+    setIndicationDraft: editField('freeText'),
+    indications: draft.lines,
     activeIndications,
     isEditingIndications,
     setIsEditingIndications,
@@ -241,17 +184,23 @@ export const useMedicalIndicationsEditor = ({
     setEditingValue,
     isPrinting,
     setIsPrinting,
-    templateIds,
-    templateDidNotFit,
-    insertTemplate,
-    addIndication,
-    removeIndication,
-    moveIndication,
-    startEditing,
+    templateIds: draft.templateIds,
+    templateDidNotFit: draft.templateDidNotFit,
+    /** The template audit finished; it lands only if record `id` is still the one being edited. */
+    insertTemplate: (id: string, template: Pick<MedicalIndicationTemplate, 'id' | 'text'>) =>
+      dispatch({ type: 'templateAudited', id, template }),
+    markSaved: (id: string, saved: MedicalIndicationRecord) =>
+      dispatch({ type: 'saved', id, record: saved }),
+    addIndication: () => edit(addFreeText),
+    removeIndication: (index: number) => edit(current => removeLine(current, index)),
+    moveIndication: (index: number, direction: 'up' | 'down') =>
+      edit(current => moveLine(current, index, direction)),
+    startEditing: (index: number, text: string) => {
+      setEditingIndex(index);
+      setEditingValue(text);
+    },
     resetEditing,
     saveEditedIndication,
-    hydrateFromRecord,
-    resetAppliedRecordDraft,
     maxIndications: INDICATIONS_LINES,
   };
 };

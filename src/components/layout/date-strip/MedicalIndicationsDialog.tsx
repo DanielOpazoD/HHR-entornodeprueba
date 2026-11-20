@@ -1,10 +1,7 @@
 import React from 'react';
 import { AlertCircle, ClipboardList } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import {
-  executeCreateMedicalIndicationRecord,
-  executeGetLatestMedicalIndicationRecord,
-} from '@/application/medical-indications/medicalIndicationsUseCases';
+import { executeCreateMedicalIndicationRecord } from '@/application/medical-indications/medicalIndicationsUseCases';
 import { BaseModal } from '@/components/shared/BaseModal';
 import {
   formatMedicalIndicationsDate,
@@ -18,7 +15,6 @@ import { MedicalIndicationsClinicalFields } from './MedicalIndicationsClinicalFi
 import { MedicalIndicationsFooter } from './MedicalIndicationsFooter';
 import { useMedicalIndicationsEditor } from './useMedicalIndicationsEditor';
 import { useMedicalIndicationsLibrary } from './useMedicalIndicationsLibrary';
-import { useMedicalIndicationsAppliedRecordLookup } from './medicalIndicationsAppliedRecordLookup';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
@@ -56,8 +52,7 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
   patients,
 }) => {
   const editor = useMedicalIndicationsEditor({ isOpen, patients });
-  const { hydrateFromRecord, resetAppliedRecordDraft, selectedPatient, targetDate } = editor;
-  const appliedRecordLookup = useMedicalIndicationsAppliedRecordLookup(selectedPatient, targetDate);
+  const { record } = editor;
   const authContext = useAuth();
   const currentUser = authContext.currentUser ?? authContext.user ?? null;
   const currentUserId = currentUser?.uid || '';
@@ -83,47 +78,18 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
     setIsSavingRecord(false);
   }
 
-  React.useEffect(() => {
-    if (!isOpen || !appliedRecordLookup) return;
-
-    let isCancelled = false;
-    void executeGetLatestMedicalIndicationRecord({
-      patient: appliedRecordLookup.patient,
-      targetDate: appliedRecordLookup.targetDate,
-    })
-      .then(record => {
-        if (isCancelled) return;
-        if (!record) {
-          resetAppliedRecordDraft(appliedRecordLookup.patient);
-          return;
-        }
-        hydrateFromRecord(record);
-      })
-      .catch(error => {
-        if (isCancelled) return;
-        setPrintError(
-          error instanceof Error
-            ? error.message
-            : 'No se pudieron cargar las indicaciones aplicadas.'
-        );
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [appliedRecordLookup, hydrateFromRecord, isOpen, resetAppliedRecordDraft]);
-
   if (patients.length === 0) {
     return null;
   }
 
   const persistMedicalIndicationRecord = async () => {
-    if (!editor.selectedPatient) return null;
+    if (!editor.selectedPatient || record.status !== 'ready') return null;
+    const recordId = record.id;
     if (!currentUser || !auditLabel) {
       throw new Error('No se puede guardar el registro clínico sin usuario autenticado.');
     }
 
-    return executeCreateMedicalIndicationRecord({
+    const saved = await executeCreateMedicalIndicationRecord({
       patient: editor.selectedPatient,
       targetDate: editor.targetDate,
       generatedAt: new Date().toISOString(),
@@ -142,6 +108,8 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
         indications: editor.indications,
       },
     });
+    editor.markSaved(recordId, saved);
+    return saved;
   };
 
   const handleSaveRecord = async () => {
@@ -151,8 +119,9 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
     setPrintError('');
     setSaveMessage('');
     try {
-      await persistMedicalIndicationRecord();
-      setSaveMessage('Indicaciones guardadas para este paciente.');
+      if (await persistMedicalIndicationRecord()) {
+        setSaveMessage('Indicaciones guardadas para este paciente.');
+      }
     } catch (error) {
       setPrintError(
         error instanceof Error
@@ -207,14 +176,18 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
   };
 
   const handleInsertTemplate = async (template: MedicalIndicationTemplate) => {
+    if (record.status !== 'ready') return;
     if (editor.activeIndications.length >= editor.maxIndications) {
       library.setError(NO_FREE_LINES_MESSAGE);
       return;
     }
 
+    // The audit can end after the dialog moved to another patient or day: the answer carries the
+    // record it was asked for, and the editor drops it anywhere else.
+    const requestedForRecordId = record.id;
     try {
       await library.markTemplateUsed(template);
-      editor.insertTemplate(template);
+      editor.insertTemplate(requestedForRecordId, template);
     } catch (error) {
       library.setError(
         error instanceof Error ? error.message : 'No se pudo auditar la reutilización.'
@@ -223,8 +196,12 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
   };
 
   const remainingSlots = editor.maxIndications - editor.activeIndications.length;
+  const isReady = record.status === 'ready';
   const notice =
-    printError || library.error || (editor.templateDidNotFit ? NO_FREE_LINES_MESSAGE : '');
+    printError ||
+    (record.status === 'failed' ? record.message : '') ||
+    library.error ||
+    (editor.templateDidNotFit ? NO_FREE_LINES_MESSAGE : '');
 
   return (
     <BaseModal
@@ -290,48 +267,58 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
             </div>
           )}
 
-          <MedicalIndicationsClinicalFields
-            reposo={editor.reposo}
-            setReposo={editor.setReposo}
-            regimen={editor.regimen}
-            setRegimen={editor.setRegimen}
-            pendingNotes={editor.pendingNotes}
-            setPendingNotes={editor.setPendingNotes}
-            kineType={editor.kineType}
-            setKineType={editor.setKineType}
-            kineTimes={editor.kineTimes}
-            setKineTimes={editor.setKineTimes}
-          />
+          {!isReady ? (
+            <p className="mt-5 rounded-2xl border border-slate-200/80 bg-slate-50/60 px-4 py-10 text-center text-[13px] font-medium text-slate-400">
+              {record.status === 'failed'
+                ? 'No se pudieron cargar las indicaciones de este paciente.'
+                : 'Cargando las indicaciones de este paciente…'}
+            </p>
+          ) : (
+            <>
+              <MedicalIndicationsClinicalFields
+                reposo={editor.reposo}
+                setReposo={editor.setReposo}
+                regimen={editor.regimen}
+                setRegimen={editor.setRegimen}
+                pendingNotes={editor.pendingNotes}
+                setPendingNotes={editor.setPendingNotes}
+                kineType={editor.kineType}
+                setKineType={editor.setKineType}
+                kineTimes={editor.kineTimes}
+                setKineTimes={editor.setKineTimes}
+              />
 
-          {/* Indications list - primary content */}
-          <MedicalIndicationsListSection
-            remainingSlots={remainingSlots}
-            activeIndications={editor.activeIndications}
-            maxIndications={editor.maxIndications}
-            isOrderingIndications={editor.isOrderingIndications}
-            setIsOrderingIndications={editor.setIsOrderingIndications}
-            isEditingIndications={editor.isEditingIndications}
-            setIsEditingIndications={editor.setIsEditingIndications}
-            resetEditing={editor.resetEditing}
-            indicationDraft={editor.indicationDraft}
-            setIndicationDraft={editor.setIndicationDraft}
-            addIndication={editor.addIndication}
-            editingIndex={editor.editingIndex}
-            editingValue={editor.editingValue}
-            setEditingValue={editor.setEditingValue}
-            saveEditedIndication={editor.saveEditedIndication}
-            startEditing={editor.startEditing}
-            removeIndication={editor.removeIndication}
-            moveIndication={editor.moveIndication}
-          />
+              {/* Indications list - primary content */}
+              <MedicalIndicationsListSection
+                remainingSlots={remainingSlots}
+                activeIndications={editor.activeIndications}
+                maxIndications={editor.maxIndications}
+                isOrderingIndications={editor.isOrderingIndications}
+                setIsOrderingIndications={editor.setIsOrderingIndications}
+                isEditingIndications={editor.isEditingIndications}
+                setIsEditingIndications={editor.setIsEditingIndications}
+                resetEditing={editor.resetEditing}
+                indicationDraft={editor.indicationDraft}
+                setIndicationDraft={editor.setIndicationDraft}
+                addIndication={editor.addIndication}
+                editingIndex={editor.editingIndex}
+                editingValue={editor.editingValue}
+                setEditingValue={editor.setEditingValue}
+                saveEditedIndication={editor.saveEditedIndication}
+                startEditing={editor.startEditing}
+                removeIndication={editor.removeIndication}
+                moveIndication={editor.moveIndication}
+              />
+            </>
+          )}
 
           <MedicalIndicationsFooter
             treatingDoctor={editor.treatingDoctor}
             setTreatingDoctor={editor.setTreatingDoctor}
             isSavingRecord={isSavingRecord}
             isPrinting={editor.isPrinting}
-            canSave={Boolean(editor.selectedPatient && editor.activeIndications.length > 0)}
-            canPrint={Boolean(editor.selectedPatient && editor.activeIndications.length > 0)}
+            canSave={isReady && editor.activeIndications.length > 0}
+            canPrint={isReady && editor.activeIndications.length > 0}
             onClose={onClose}
             onSave={() => void handleSaveRecord()}
             onPrint={() => void handlePrint()}
@@ -349,6 +336,7 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
           isLoading={library.isLoading}
           isSaving={library.isSaving}
           disabled={!currentUser}
+          canInsert={isReady}
           onCreateTemplate={() => void library.createTemplate()}
           onUpdateTemplate={(templateId, text) => void library.updateTemplate(templateId, text)}
           onArchiveTemplate={templateId => void library.archiveTemplate(templateId)}
