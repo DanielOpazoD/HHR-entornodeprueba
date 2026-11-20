@@ -75,7 +75,6 @@ const createAuthState = (overrides: Partial<AuthContextType> = {}): AuthContextT
     authRuntime: {} as never,
     currentUser: authorizedUser,
     authorizedUser,
-    user: authorizedUser,
     role: 'admin',
     isLoading: false,
     isAuthenticated: true,

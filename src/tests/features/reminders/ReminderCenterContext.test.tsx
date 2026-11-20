@@ -21,11 +21,6 @@ vi.mock('@/context/AuthContext', () => ({
       email: 'nurse@hospitalhangaroa.cl',
       displayName: 'Enfermera Test',
     },
-    user: {
-      uid: 'user-1',
-      email: 'nurse@hospitalhangaroa.cl',
-      displayName: 'Enfermera Test',
-    },
     role: 'nurse_hospital',
     isAuthenticated: true,
     remoteSyncStatus: mockRemoteSyncStatus,

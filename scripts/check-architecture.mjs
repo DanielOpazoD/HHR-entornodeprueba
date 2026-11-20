@@ -142,26 +142,6 @@ const collectViolations = files => {
           imported,
         });
       }
-
-      const isDailyRecordContextImport =
-        imported === 'src/context/DailyRecordContext.tsx' ||
-        imported === 'src/context/DailyRecordContext.ts';
-      const importerIsTest = importer.includes('/tests/') || importer.includes('.test.');
-      const importerIsDailyRecordContext = importer.includes('/context/DailyRecordContext.');
-      const sourceUsesMonolithicActionsHook = source.includes('useDailyRecordActions');
-
-      if (
-        isDailyRecordContextImport &&
-        sourceUsesMonolithicActionsHook &&
-        !importerIsTest &&
-        !importerIsDailyRecordContext
-      ) {
-        layerViolations.push({
-          rule: 'source-must-use-scoped-daily-record-actions',
-          importer,
-          imported,
-        });
-      }
     }
   }
 

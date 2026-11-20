@@ -487,6 +487,40 @@ describe('check-clinical-clock', () => {
     expect(output).toContain('[instant-calendar-slice] src/features/a.ts:5');
   });
 
+  it('counts every occurrence, so a second pattern on an existing line fails', () => {
+    const one = '/^\\d{4}-\\d{2}-\\d{2}$/';
+    const two = '/^\\d{4}-\\d{2}-\\d{2}\\/\\d{4}-\\d{2}-\\d{2}$/';
+    // The base holds three occurrences on two lines: one, and two on the same line.
+    const root = createRepository({
+      'src/features/a.ts': `const a = ${one};\nconst b = ${two};\n`,
+    });
+    const git = (...args: string[]) =>
+      spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' }).stdout.trim();
+    git('init', '-q');
+    git('add', '-A');
+    git(
+      '-c',
+      'user.name=synthetic',
+      '-c',
+      'user.email=synthetic@example.invalid',
+      'commit',
+      '-qm',
+      'base'
+    );
+    const env = { FOLDER_BOOK_BASE: git('rev-parse', 'HEAD') };
+    const write = (content: string) => writeFileSync(path.join(root, 'src/features/a.ts'), content);
+
+    write(`const a = ${two};\nconst b = ${two};\n`);
+    const grown = checkClinicalClock(root, env);
+    expect(grown.status).toBe(1);
+    expect(grown.stderr).toContain('4 hand-written \\d{4}-\\d{2}-\\d{2} patterns, 3 at the base');
+    // Three occurrences on three lines equal the base's three on two lines; one fewer passes too.
+    write(`const a = ${one};\nconst b = ${one};\nconst c = ${one};\n`);
+    expect(checkClinicalClock(root, env).status).toBe(0);
+    write(`const a = ${one};\nconst b = ${one};\n`);
+    expect(checkClinicalClock(root, env).status).toBe(0);
+  });
+
   it('lets hand-written date patterns only go down from the base commit', () => {
     const pattern = '/^\\d{4}-\\d{2}-\\d{2}$/.test(day);\n';
     const root = createRepository({
@@ -519,7 +553,7 @@ describe('check-clinical-clock', () => {
       const { status, stderr } = checkClinicalClock(root, env);
       expect(status).toBe(1);
       expect(stderr).toContain(
-        '[hand-date-pattern] src/ + functions/lib/ — 3 lines with a hand-written \\d{4}-\\d{2}-\\d{2} pattern, 2 at the base'
+        '[hand-date-pattern] src/ + functions/lib/ — 3 hand-written \\d{4}-\\d{2}-\\d{2} patterns, 2 at the base'
       );
       expect(stderr).toContain('isCalendarDate()');
       rmSync(path.join(root, added));

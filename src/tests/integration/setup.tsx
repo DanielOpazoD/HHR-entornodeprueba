@@ -26,12 +26,6 @@ type IntegrationAuthState = import('@/hooks/useAuthState').UseAuthStateReturn & 
 };
 
 export const mockUseAuthState: IntegrationAuthState = {
-  user: {
-    uid: 'test-user',
-    email: 'admin@hospitalhangaroa.cl',
-    displayName: 'Admin Test',
-    role: 'admin' as const,
-  },
   currentUser: {
     uid: 'test-user',
     email: 'admin@hospitalhangaroa.cl',

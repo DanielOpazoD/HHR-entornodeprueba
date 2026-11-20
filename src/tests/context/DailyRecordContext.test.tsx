@@ -8,7 +8,6 @@ import {
   useDailyRecordSync,
   useDailyRecordStatus,
   useDailyRecordStaff,
-  useDailyRecordActions,
   useDailyRecordBedActions,
   useDailyRecordCudyrActions,
   useDailyRecordDayActions,
@@ -210,16 +209,6 @@ describe('DailyRecordContext', () => {
     expect(screen.getByTestId('hook-data').textContent).toContain('idle');
   });
 
-  it('should provide actions via useDailyRecordActions', () => {
-    render(
-      <DailyRecordProvider value={mockValue}>
-        <TestComponent hook={useDailyRecordActions} />
-      </DailyRecordProvider>
-    );
-    // Should contain refresh function (serialized as empty object or similar in JSON.stringify if mock)
-    expect(screen.getByTestId('hook-data')).toBeInTheDocument();
-  });
-
   it('should provide scoped action hooks', () => {
     const dayRender = render(
       <DailyRecordProvider value={mockValue}>
@@ -289,7 +278,6 @@ describe('DailyRecordContext', () => {
       { name: 'useDailyRecordMovements', hook: useDailyRecordMovements },
       { name: 'useDailyRecordSync', hook: useDailyRecordSync },
       { name: 'useDailyRecordStaff', hook: useDailyRecordStaff },
-      { name: 'useDailyRecordActions', hook: useDailyRecordActions },
       { name: 'useDailyRecordDayActions', hook: useDailyRecordDayActions },
       { name: 'useDailyRecordBedActions', hook: useDailyRecordBedActions },
       { name: 'useDailyRecordMovementActions', hook: useDailyRecordMovementActions },

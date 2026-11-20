@@ -65,7 +65,7 @@ export const useClinicalDocumentsWorkspaceModel = ({
   bedId,
   isActive,
 }: UseClinicalDocumentsWorkspaceModelParams): ClinicalDocumentsWorkspaceModel => {
-  const { user, role } = useAuth();
+  const { currentUser: user, role } = useAuth();
   const { notifyPort, info, confirm } = useClinicalDocumentsWorkspaceNotifyPort();
   const [isImportingWithAi, setIsImportingWithAi] = useState(false);
 
