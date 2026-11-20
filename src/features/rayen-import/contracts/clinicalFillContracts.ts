@@ -98,8 +98,8 @@ export interface ClinicalFillDeps {
     censusDay: string,
     items: HistoricalCudyrBatchItem[]
   ) => Promise<HistoricalCudyrBatchItemResult[] | HistoricalCudyrBatchExecutionResult>;
-  /** Selects exactly one persistence owner for the whole fill run. */
-  persistenceStrategy: ClinicalFillPersistenceStrategy;
+  /** The run's one write: every operation goes to the server in one authoritative batch. */
+  persistBatch: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchApplyResult>;
   now: () => Date;
   createId: () => string;
   monotonicNow?: () => number;
@@ -132,12 +132,6 @@ export interface ClinicalFillBatchApplyResult {
   batch?: ClinicalFillBatchEvidence;
   /** Targets left out of the write because a field changed concurrently; they stay pending. */
   excludedTargets?: { target: ClinicalFillPatchTarget; error: Error }[];
-}
-
-/** Defers the run to one authoritative transaction. */
-export interface ClinicalFillPersistenceStrategy {
-  disposition: 'deferred';
-  persist: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchApplyResult>;
 }
 
 export interface ClinicalFillPatchTarget {

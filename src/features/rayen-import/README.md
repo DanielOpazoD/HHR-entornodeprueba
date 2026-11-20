@@ -73,59 +73,48 @@ confirmados y el trabajo durable se conservan (SAVE-01, SAVE-03); la siguiente c
 su propia sincronización. Una corrida interrumpida sin token de reintento no se reanuda
 desde su estado `applied`; requiere salir de Eloísa y ejecutar una captura nueva.
 
-La misma política global gobierna de forma independiente la persistencia clínica:
-
-- **`off`:** rollback explícito a la semántica compatible por paciente. Tras migrar la política a
-  esquema v2, cada parche sigue pasando por el callable de autoridad; no vuelve a habilitarse la
-  escritura clínica directa del navegador.
-- **`shadow`:** la ruta compatible conserva autoridad mediante el callable y el lote sólo verifica
-  paridad.
-- **`enforced`:** el lote transaccional del backend es la única autoridad. Callable ausente,
-  respuesta sin paridad o lote fuera de límite fallan cerrado y dejan los datos reintentables; nunca
-  degradan silenciosamente a escrituras por paciente.
-
-El modo del lote sólo gobierna el enriquecimiento clínico Rayen: `off` o `shadow` no pueden
-degradar una autoridad general del censo configurada de forma independiente como `enforced`.
+La persistencia clínica tiene un solo modo, `enforced`: el lote transaccional del backend
+(callable `applyRayenClinicalEnrichmentBatch`) es la única autoridad y el navegador no escribe
+campos clínicos por paciente. Callable ausente, respuesta sin paridad o lote fuera de límite fallan
+cerrado y dejan los datos reintentables. Un evento de ejecución sin política confirmada, con
+revisión 0 o con un modo de lote retirado (`off`, `shadow`) no escribe nada: el paso clínico queda
+pendiente para el reintento. El callable exige que el modo y la revisión del evento coincidan con
+la política global vigente.
 
 La política se confirma con el servidor, se versiona y queda congelada por ejecución. Caché local,
-esquemas inválidos o ausencia del evento de ejecución bloquean el paso clínico. Una política v1 sólo
-puede mostrarse como `off` y bloquea toda nueva ejecución hasta que un administrador complete su
-migración a v2;
-un evento histórico anterior al contrato clínico conserva la compatibilidad revisión 0 únicamente
-mientras la política global siga ausente. En `shadow` y `enforced`, el callable exige que el modo y
-la revisión del evento coincidan con la política global vigente.
-La política global no depende de una variable Vite del navegador. El cliente y el backend usan contrato runtime v3 (días divididos de la fase 1a),
-y la versión mínima de ambos es 3. La mínima de cliente es un aviso; en los días divididos la valla
-real es la verificación por solicitud de `clientRuntimeContractVersion` (ver
-`functions/lib/runtime/README.md`). La migración de la política a esquema v2 activa el cerco
-irreversible que bloquea las escrituras clínicas directas de clientes viejos.
-En `off` y `shadow`, cada parche individual demuestra atómicamente mediante el callable que la
-revisión congelada sigue vigente antes de tocar la caché local. Una promoción concurrente a
-`enforced` cancela los parches restantes y no deja escrituras antiguas en la cola para un replay
-posterior.
-Antes de cada intento, estos modos también comparan los campos clínicos completos con la base
-original de la lectura y el censo recién obtenido. Un tercer valor concurrente bloquea el parche
-y deja el objetivo reintentable; un valor ya persistido no se vuelve a escribir. El reintento de
-versión conserva esa base original, igual que el rebase de `enforced`.
-En `enforced`, el CUDYR de D−1 usa el mismo callable en un lote separado: modifica el documento
-histórico, pero demuestra autoridad con el `runId` congelado en el día de la sincronización. Sólo se
-admite el día inmediatamente anterior y nunca se degrada al escritor individual. Si cambia la
-revisión, el reintento reconstruye el valor completo de scores desde el documento vigente para no
-pisar Braden o Downton concurrentes.
-Cada ejecución congela además su `sourceDate`; el lote debe declarar la misma `authorityDate` y el
-backend la contrasta con el documento que contiene el evento. Administrador y enfermería hospitalizada pueden sincronizar CUDYR en el día inmediatamente
-anterior al origen; el lote histórico no admite otros campos clínicos. Los reintentos exactos se resuelven por `runId`/`mutationId` antes de
-depender del estado clínico mutable, por lo que conservan idempotencia aunque el paciente ya haya
-egresado.
-`shadow` puede dividir una observación grande porque no persiste. Si una ejecución `enforced`
-requiere varios fragmentos, falla antes de la primera mutación; la autoridad nunca acepta un lote
-clínico parcialmente aplicado. El lote toma el mismo turno de escritura por fecha que las
-ediciones manuales y la importación estructural. Las lecturas de Eloísa ocurren fuera de ese turno;
-al adquirirlo, relee la autoridad y reconstruye el delta contra la base original. Sin esa lectura
-no envía un lote antiguo. Un conflicto de revisión en el lote único reconstruye sus valores
-desde el censo canónico recién leído antes del único reintento. Un fallo transitorio reenvía el
-mismo payload y `mutationId`; no cambia de escritor ni declara guardado sin confirmación. El lote
-histórico coordina la fecha que modifica, aunque su `authorityDate` sea la del censo actual.
+esquemas inválidos o ausencia del evento de ejecución bloquean el paso clínico. La política global
+no depende de una variable Vite del navegador. El cliente y el backend usan contrato runtime v3
+(días divididos de la fase 1a), y la versión mínima de ambos es 3. La mínima de cliente es un
+aviso; en los días divididos la valla real es la verificación por solicitud de
+`clientRuntimeContractVersion` (ver `functions/lib/runtime/README.md`). La migración de la
+política a esquema v2 activó el cerco irreversible que bloquea las escrituras clínicas directas de
+clientes viejos; una política v1 sólo se acepta para migrarla y no inicia corridas.
+
+Toda la corrida va en **un solo envío**, armado una vez con el censo leído en el turno de
+escritura. Si pasa del límite del callable (32 objetivos o 500 KB), no se envía nada y los datos
+quedan pendientes; la autoridad nunca acepta un lote clínico parcialmente aplicado. El lote toma
+el mismo turno de escritura por fecha que las ediciones manuales y la importación estructural. Las
+lecturas de Eloísa ocurren fuera de ese turno; al adquirirlo, relee la autoridad y reconstruye el
+delta contra la base original. Sin esa lectura no envía un lote antiguo. Un campo que otro escritor
+cambió entretanto deja ese paciente fuera del envío y pendiente; un valor ya persistido no se
+vuelve a escribir. Un conflicto de revisión reconstruye los valores desde el censo recién leído
+antes del único reintento, conserva solo los episodios del primer envío y reutiliza su
+`mutationId`. Un fallo transitorio reenvía el mismo payload y `mutationId`; no cambia de escritor
+ni declara guardado sin confirmación. Tras confirmar, el día se lee una vez más por la lectura
+ordinaria, que deja la versión del servidor en la copia de este equipo.
+
+El CUDYR de D−1 usa el mismo callable en un lote separado: modifica el documento histórico, pero
+demuestra autoridad con el `runId` congelado en el día de la sincronización. Sólo se admite el día
+inmediatamente anterior y nunca se degrada al escritor individual. Si cambia la revisión, el
+reintento reconstruye el valor completo de scores desde el documento vigente para no pisar Braden o
+Downton concurrentes. Cada ejecución congela además su `sourceDate`; el lote debe declarar la misma
+`authorityDate` y el backend la contrasta con el documento que contiene el evento. Administrador y
+enfermería hospitalizada pueden sincronizar CUDYR en el día inmediatamente anterior al origen; el
+lote histórico no admite otros campos clínicos. Los reintentos exactos se resuelven por
+`runId`/`mutationId` antes de depender del estado clínico mutable, por lo que conservan idempotencia
+aunque el paciente ya haya egresado. El lote histórico coordina la fecha que modifica, aunque su
+`authorityDate` sea la del censo actual.
+
 Agotado el reintento por pérdida de conexión, el resultado sigue sin confirmar: un timeout no
 demuestra cancelación remota. La exclusión local termina al asentarse la llamada del cliente;
 el CAS transaccional impide que un lote tardío sobrescriba una revisión posterior y los recibos
@@ -138,8 +127,7 @@ modales ni se descartan sus borradores por una pausa temporal. La ronda puede se
 Jev; si una sincronización comienza entre confirmaciones conserva las elecciones aún no enviadas.
 Desde que la política usa esquema v2, un guardado estructural completo conserva desde Firestore los
 campos clínicos propiedad del backend —por `clinicalEpisodeId`, aun con traslado de cama— y elimina
-esos campos si el episodio todavía no ha sido aceptado por la autoridad clínica. Volver a `off` no
-desactiva este cerco.
+esos campos si el episodio todavía no ha sido aceptado por la autoridad clínica.
 
 ## Flujo contextual único
 

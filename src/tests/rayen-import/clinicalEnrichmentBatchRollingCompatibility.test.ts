@@ -42,7 +42,6 @@ describe('clinical enrichment rolling compatibility', () => {
 
     const applyPatch = vi.fn().mockResolvedValue(undefined);
     const result = await applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record,
       runId: 'run-checkpoint-only',
       operations: [operation],

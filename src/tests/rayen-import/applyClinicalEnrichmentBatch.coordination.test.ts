@@ -32,7 +32,6 @@ describe('clinical batches share the census write turn', () => {
     const refreshCommittedRecord = vi.fn().mockResolvedValue(undefined);
 
     await applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record,
       runId: 'run-committed-refresh',
       operations,
@@ -67,7 +66,6 @@ describe('clinical batches share the census write turn', () => {
     const deps = createDependencies();
     deps.refreshRecord.mockImplementation(async () => current);
     const batch = applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record: base,
       runId: 'run-after-manual',
       operations,
@@ -108,7 +106,6 @@ describe('clinical batches share the census write turn', () => {
         return record;
       });
     const batch = applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record,
       runId: 'run-before-manual',
       operations,
@@ -139,7 +136,6 @@ describe('clinical batches share the census write turn', () => {
       return respond(payload);
     });
     const batch = applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record,
       authorityDate: '2026-07-29',
       runId: 'run-historical',
@@ -179,7 +175,6 @@ describe('clinical batches share the census write turn', () => {
       }
       await expect(
         applyClinicalEnrichmentBatch({
-          mode: 'enforced',
           record: base,
           runId: 'run-invalid',
           operations,
@@ -218,7 +213,6 @@ describe('clinical batches share the census write turn', () => {
         };
       });
     const batch = applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record,
       runId: 'response-lost',
       operations,

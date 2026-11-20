@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   readDocs: vi.fn(),
   readDoc: vi.fn(),
   runClinicalFill: vi.fn(),
-  createStrategy: vi.fn(),
+  applyFillBatch: vi.fn(),
 }));
 
 vi.mock('@/services/repositories/repositoryConfig', () => ({
@@ -24,8 +24,8 @@ vi.mock('@/features/rayen-import/clinicalFillRunner', async importOriginal => ({
   ...(await importOriginal<typeof import('@/features/rayen-import/clinicalFillRunner')>()),
   runClinicalFill: mocks.runClinicalFill,
 }));
-vi.mock('@/features/rayen-import/hooks/clinicalEnrichmentPersistenceStrategy', () => ({
-  createClinicalEnrichmentPersistenceStrategy: mocks.createStrategy,
+vi.mock('@/features/rayen-import/hooks/applyClinicalEnrichmentBatch', () => ({
+  applyClinicalFillBatch: mocks.applyFillBatch,
 }));
 vi.mock('@/services/staff/eloisaStaffRegistry', () => ({ registerEloisaStaff: vi.fn() }));
 vi.mock('@/features/rayen-import/hooks/useRayenFillStatus', () => ({
@@ -143,7 +143,11 @@ const handoffOf = (confirmed: DailyRecord) =>
 const metaOf = (record: DailyRecord) => (record as unknown as { meta?: unknown }).meta;
 const motherHistory = (record: DailyRecord) => record.beds.R1.vitalSignsHistory;
 const newbornHistory = (record: DailyRecord) => record.beds.R1.clinicalCrib?.vitalSignsHistory;
-const strategyInput = () => mocks.createStrategy.mock.calls[0][0];
+/** What the fill's one batch write receives: the runner is mocked, so call it here. */
+const batchInput = async () => {
+  await mocks.runClinicalFill.mock.calls[0][2].persistBatch([]);
+  return mocks.applyFillBatch.mock.calls[0][0];
+};
 
 describe('Rayen clinical fill on a split day (D10)', () => {
   beforeEach(() => {
@@ -151,7 +155,7 @@ describe('Rayen clinical fill on a split day (D10)', () => {
     vi.clearAllMocks();
     mocks.isFirestoreEnabled.mockReturnValue(true);
     mocks.runClinicalFill.mockResolvedValue({ total: 2, patched: 0, errors: [] });
-    mocks.createStrategy.mockReturnValue({ disposition: 'immediate', persist: vi.fn() });
+    mocks.applyFillBatch.mockResolvedValue({ patientWrites: 0, historySnapshots: 0 });
   });
 
   it('overlays the reloaded day for the fill and the batch; never the audit record', async () => {
@@ -169,7 +173,7 @@ describe('Rayen clinical fill on a split day (D10)', () => {
     expect(motherHistory(filled)).toEqual(reading('doc-mother'));
     expect(newbornHistory(filled)).toBeUndefined();
     expect(metaOf(filled)).toEqual(metaOf(loaded));
-    expect(strategyInput().record).toBe(filled);
+    expect((await batchInput()).record).toBe(filled);
     // The audit completion and the retry evidence keep the day as read, without documents.
     expect(completeRun.mock.calls[0][0]).toBe(loaded);
     expect(motherHistory(loaded)).toEqual(reading('embedded-mother'));
@@ -188,7 +192,7 @@ describe('Rayen clinical fill on a split day (D10)', () => {
     await act(async () => {
       await fill(loaded);
     });
-    const current = (await strategyInput().refreshRecord()) as DailyRecord;
+    const current = (await (await batchInput()).refreshRecord()) as DailyRecord;
 
     expect(loadDailyRecord).toHaveBeenCalledTimes(2);
     expect(current).not.toBe(refreshed);
@@ -341,7 +345,7 @@ describe('Rayen clinical fill on a split day (D10)', () => {
     });
     mocks.readDocs.mockClear();
     loadDailyRecord.mockClear();
-    await strategyInput().refreshCommittedRecord();
+    await (await batchInput()).refreshCommittedRecord();
 
     expect(loadDailyRecord).toHaveBeenCalledTimes(1);
     expect(mocks.readDocs).not.toHaveBeenCalled();
@@ -355,12 +359,12 @@ describe('Rayen clinical fill on a split day (D10)', () => {
     await act(async () => {
       await fill(unmarked);
     });
-    expect(await strategyInput().refreshRecord()).toBe(unmarked);
+    expect(await (await batchInput()).refreshRecord()).toBe(unmarked);
     expect(loadDailyRecord).toHaveBeenCalledTimes(2);
     expect(mocks.readDocs).not.toHaveBeenCalled();
     expect(mocks.readDoc).not.toHaveBeenCalled();
     expect(mocks.runClinicalFill.mock.calls[0][0]).toBe(unmarked);
-    expect(strategyInput().record).toBe(unmarked);
+    expect((await batchInput()).record).toBe(unmarked);
     expect(completeRun.mock.calls[0][0]).toBe(unmarked);
   });
 });

@@ -1,13 +1,12 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 export type ClinicalEnrichmentBatchMode = 'enforced';
-export type ClinicalEnrichmentBatchModeResolution = ClinicalEnrichmentBatchMode | 'unavailable';
 
 const isImportMode = (value: unknown): value is 'preview' | 'auto' =>
   value === 'preview' || value === 'auto';
 
 export type ClinicalEnrichmentBatchPolicyResolution =
-  | { runId: string; clinicalBatchMode: 'enforced'; revision: number; sourceDate: string }
+  | { runId: string; revision: number; sourceDate: string }
   | 'unavailable';
 
 /** Resolves the immutable policy proof captured by the synchronization event. */
@@ -26,28 +25,11 @@ export const resolveClinicalEnrichmentBatchPolicyForRun = (
   ) {
     return 'unavailable';
   }
-  const clinicalBatchMode = event.policy.clinicalBatchMode;
-  if (!isImportMode(event.policy.mode) || clinicalBatchMode !== 'enforced') {
+  // A run recorded under a retired batch mode stays retryable instead of being written now.
+  if (!isImportMode(event.policy.mode) || event.policy.clinicalBatchMode !== 'enforced') {
     return 'unavailable';
   }
   const sourceDate = event.sourceDate;
   if (sourceDate !== record.date) return 'unavailable';
-  return {
-    runId,
-    clinicalBatchMode,
-    revision: event.policy.revision,
-    sourceDate,
-  };
-};
-
-/**
- * Resolves the immutable server-confirmed mode captured by the synchronization run.
- * Missing, stale or retired-mode evidence leaves the clinical pass retryable.
- */
-export const resolveClinicalEnrichmentBatchModeForRun = (
-  record: Pick<DailyRecord, 'date' | 'rayenSync' | 'rayenSyncHistory'>,
-  requestedRunId?: string
-): ClinicalEnrichmentBatchModeResolution => {
-  const policy = resolveClinicalEnrichmentBatchPolicyForRun(record, requestedRunId);
-  return policy === 'unavailable' ? policy : policy.clinicalBatchMode;
+  return { runId, revision: event.policy.revision, sourceDate };
 };

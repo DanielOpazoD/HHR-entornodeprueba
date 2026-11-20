@@ -178,10 +178,6 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
     glob: '**/assets/clinicalEnrichmentBatchPayload-*.js',
     reason: 'Same policy as the entry above.',
   },
-  {
-    glob: '**/assets/clinicalEnrichmentPersistenceStrategy-*.js',
-    reason: 'Same policy as the entry above.',
-  },
   { glob: '**/assets/replanRayenStructure-*.js', reason: 'Same policy as the entry above.' },
   {
     glob: '**/assets/RayenImportPreviewModal-*.js',

@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createClinicalEnrichmentPersistenceStrategy } from '@/features/rayen-import/hooks/clinicalEnrichmentPersistenceStrategy';
-import { applyClinicalEnrichmentBatch } from '@/features/rayen-import/hooks/applyClinicalEnrichmentBatch';
+import { applyClinicalFillBatch } from '@/features/rayen-import/hooks/applyClinicalEnrichmentBatch';
 import { persistClinicalBatch } from '@/features/rayen-import/domain/clinicalBatchPersistence';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalFillPatchOperation } from '@/features/rayen-import/contracts/clinicalFillContracts';
@@ -37,22 +36,19 @@ const operations: ClinicalFillPatchOperation[] = [
 const setup = (current: DailyRecord) => {
   const deps = createDependencies();
   deps.refreshRecord.mockResolvedValue(current);
-  const strategy = createClinicalEnrichmentPersistenceStrategy({
-    mode: 'enforced',
-    record: record(),
-    runId: 'run-recovery',
-    refreshRecord: deps.refreshRecord,
-    applyBatch: input =>
-      applyClinicalEnrichmentBatch({
-        ...input,
-        invoke: deps.invoke,
-        createMutationId: deps.createMutationId,
-      }),
-  });
+  const persistBatch = (batch: ClinicalFillPatchOperation[]) =>
+    applyClinicalFillBatch({
+      record: record(),
+      runId: 'run-recovery',
+      refreshRecord: deps.refreshRecord,
+      operations: batch,
+      invoke: deps.invoke,
+      createMutationId: deps.createMutationId,
+    });
   const persist = () =>
     persistClinicalBatch({
       operations,
-      strategy,
+      persist: persistBatch,
       applyWithMetrics: operation => operation(),
       recordRetries: vi.fn(),
       recordPersistenceEvidence: vi.fn(),
@@ -153,5 +149,25 @@ describe('clinical persistence recovery composition', () => {
     expect(deps.invoke).toHaveBeenCalledTimes(2);
     expect(deps.invoke.mock.calls[1]?.[0]).toEqual(deps.invoke.mock.calls[0]?.[0]);
     expect(deps.applyPatch).not.toHaveBeenCalled();
+  });
+
+  it('reads the day through the given post-commit read once the batch is committed', async () => {
+    const deps = createDependencies();
+    deps.refreshRecord.mockResolvedValue(record());
+    const refreshCommittedRecord = vi.fn().mockResolvedValue(undefined);
+
+    await applyClinicalFillBatch({
+      record: record(),
+      runId: 'run-recovery',
+      refreshRecord: deps.refreshRecord,
+      refreshCommittedRecord,
+      operations,
+      invoke: deps.invoke,
+      createMutationId: deps.createMutationId,
+    });
+
+    expect(deps.invoke).toHaveBeenCalledOnce();
+    expect(refreshCommittedRecord).toHaveBeenCalledOnce();
+    expect(deps.refreshRecord).toHaveBeenCalledOnce();
   });
 });

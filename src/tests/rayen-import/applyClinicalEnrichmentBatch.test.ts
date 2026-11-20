@@ -9,7 +9,6 @@ describe('applyClinicalEnrichmentBatch', () => {
   it('uses one enforced mutation and refreshes local state after success', async () => {
     const deps = createDependencies();
     const result = await applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record,
       runId: 'run-1',
       operations,
@@ -50,7 +49,6 @@ describe('applyClinicalEnrichmentBatch', () => {
     }));
 
     const result = await applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record,
       runId: 'run-1',
       operations,
@@ -83,7 +81,6 @@ describe('applyClinicalEnrichmentBatch', () => {
     }));
 
     const result = await applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record,
       runId: 'run-idempotent-pre-parity',
       operations,
@@ -104,7 +101,6 @@ describe('applyClinicalEnrichmentBatch', () => {
 
     await expect(
       applyClinicalEnrichmentBatch({
-        mode: 'enforced',
         record,
         runId: 'run-1',
         operations,
@@ -121,7 +117,6 @@ describe('applyClinicalEnrichmentBatch', () => {
 
     await expect(
       applyClinicalEnrichmentBatch({
-        mode: 'enforced',
         record,
         runId: 'run-null-response',
         operations,
@@ -148,7 +143,6 @@ describe('applyClinicalEnrichmentBatch', () => {
 
     await expect(
       applyClinicalEnrichmentBatch({
-        mode: 'enforced',
         record,
         runId: 'run-enforced-mismatch',
         operations,
@@ -162,7 +156,6 @@ describe('applyClinicalEnrichmentBatch', () => {
     const deps = createDependencies();
     deps.invoke.mockRejectedValueOnce({ code: 'functions/unavailable' });
     const result = await applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record,
       runId: 'run-1',
       operations,
@@ -201,7 +194,6 @@ describe('applyClinicalEnrichmentBatch', () => {
     });
 
     const result = await applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record,
       runId: 'run-rebuild',
       operations: [operations[0]],
@@ -241,7 +233,6 @@ describe('applyClinicalEnrichmentBatch', () => {
     });
 
     const result = await applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record,
       runId: 'run-already-current',
       operations: [operations[0]],
@@ -263,7 +254,6 @@ describe('applyClinicalEnrichmentBatch', () => {
     deps.invoke.mockRejectedValue({ code: 'functions/unavailable' });
 
     const failure = await applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record,
       runId: 'run-1',
       operations,
@@ -288,7 +278,6 @@ describe('applyClinicalEnrichmentBatch', () => {
 
     await expect(
       applyClinicalEnrichmentBatch({
-        mode: 'enforced',
         record,
         runId: 'run-1',
         operations,
@@ -306,7 +295,6 @@ describe('applyClinicalEnrichmentBatch', () => {
 
     await expect(
       applyClinicalEnrichmentBatch({
-        mode: 'enforced',
         record,
         runId: 'run-1',
         operations,
@@ -321,7 +309,6 @@ describe('applyClinicalEnrichmentBatch', () => {
   it('settles an empty enforced batch without invoking either persistence owner', async () => {
     const deps = createDependencies();
     const result = await applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record,
       runId: 'run-empty',
       operations: [],
@@ -343,7 +330,6 @@ describe('applyClinicalEnrichmentBatch', () => {
 
     await expect(
       applyClinicalEnrichmentBatch({
-        mode: 'enforced',
         record,
         runId: 'run-1',
         operations,

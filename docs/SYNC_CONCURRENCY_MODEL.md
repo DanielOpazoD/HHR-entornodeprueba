@@ -270,12 +270,11 @@ batch carries clinical patches, the enriched record and a bounded receipt list
 (`meta.clinicalEnrichmentReceipts`, 16 entries).
 `shadow` is always dry-run.
 
-The client (`applyClinicalEnrichmentBatch`) chooses one writer per run from the saved policy:
-`off` writes per patient; `shadow` writes per patient and adds a dry-run batch for parity;
-`enforced` sends one batch per census day (the day itself and, for historical CUDYR, a second
-bounded batch to D−1) and retries once with the same `mutationId`: after a version conflict it
-rebuilds the operations, after a transient error it resends them. It never changes writer in the
-middle of a run.
+The client (`applyClinicalEnrichmentBatch`) has one writer, the batch (`enforced` is the only
+mode): it builds one payload per census day (the day itself and, for historical CUDYR, a second
+bounded batch to D−1), refuses it before any write when it exceeds the callable's limit, and
+retries once with the same `mutationId`: after a version conflict it rebuilds the operations,
+after a transient error it resends them.
 
 ## Erasure guard and patient identity
 

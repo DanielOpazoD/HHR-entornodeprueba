@@ -165,7 +165,6 @@ describe('same Chrome, sequential individual HHR accounts (synthetic)', () => {
         };
         const invokedAs: Array<string | null> = [];
         const result = applyClinicalEnrichmentBatch({
-          mode: 'enforced',
           record,
           runId: 'synthetic-run-owned-by-a',
           operations: [

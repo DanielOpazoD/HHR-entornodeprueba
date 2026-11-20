@@ -67,7 +67,6 @@ describe('applyClinicalEnrichmentBatch version conflicts', () => {
     });
 
     const result = await applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record,
       runId: 'run-first-import',
       operations,
@@ -111,7 +110,6 @@ describe('applyClinicalEnrichmentBatch version conflicts', () => {
 
     await expect(
       applyClinicalEnrichmentBatch({
-        mode: 'enforced',
         record,
         runId: 'run-refresh-failed',
         operations,
@@ -149,7 +147,6 @@ describe('applyClinicalEnrichmentBatch version conflicts', () => {
 
     await expect(
       applyClinicalEnrichmentBatch({
-        mode: 'enforced',
         record,
         runId: 'run-moved-patient',
         operations,
@@ -174,7 +171,6 @@ describe('applyClinicalEnrichmentBatch version conflicts', () => {
 
     await expect(
       applyClinicalEnrichmentBatch({
-        mode: 'enforced',
         record,
         runId: 'run-policy-abort',
         operations,

@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { applyClinicalEnrichmentBatch } from '@/features/rayen-import/hooks/applyClinicalEnrichmentBatch';
-import { createClinicalEnrichmentPersistenceStrategy } from '@/features/rayen-import/hooks/clinicalEnrichmentPersistenceStrategy';
+import {
+  applyClinicalEnrichmentBatch,
+  applyClinicalFillBatch,
+} from '@/features/rayen-import/hooks/applyClinicalEnrichmentBatch';
 import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
@@ -18,7 +20,7 @@ const replaceSession = () => {
   localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-b');
   setSessionGeneration('synthetic-generation-b');
 };
-const input = () => ({ mode: 'enforced' as const, record, runId: 'synthetic-run-a', operations });
+const input = () => ({ record, runId: 'synthetic-run-a', operations });
 
 describe('clinical session ownership across waits', () => {
   it('checks the original session after waiting for another writer', async () => {
@@ -86,16 +88,14 @@ describe('clinical session ownership across waits', () => {
 
   it('honors the phase session captured before persistence is requested', async () => {
     const deps = createDependencies();
-    const strategy = createClinicalEnrichmentPersistenceStrategy({
-      ...input(),
-      ...deps,
-      checkSession: () => {
-        if (localStorage.getItem(SESSION_OWNER_KEY) !== 'user:synthetic-a')
-          throw new Error('La sesión cambió.');
-      },
-    });
+    const checkSession = () => {
+      if (localStorage.getItem(SESSION_OWNER_KEY) !== 'user:synthetic-a')
+        throw new Error('La sesión cambió.');
+    };
     replaceSession();
-    await expect(strategy.persist(operations)).rejects.toThrow('La sesión cambió.');
+    await expect(applyClinicalFillBatch({ ...input(), ...deps, checkSession })).rejects.toThrow(
+      'La sesión cambió.'
+    );
     expect(deps.invoke).not.toHaveBeenCalled();
   });
 });

@@ -46,7 +46,6 @@ export type {
   ClinicalFillError,
   ClinicalFillPatchOperation,
   ClinicalFillPatchTarget,
-  ClinicalFillPersistenceStrategy,
   ClinicalFillProgress,
   ClinicalFillSummary,
   HistoricalCudyrApplyResult,
@@ -137,7 +136,6 @@ export const runClinicalFill = async (
     performance.writeObserver,
     deps.signal
   );
-  const persistenceStrategy = deps.persistenceStrategy;
   const pendingBatch: ClinicalFillPatchOperation[] = [];
   const cudyr = cudyrPreflight.then(async ({ source, unavailableError }) => {
     if (unavailableError) summary.errors.unshift(unavailableError);
@@ -399,7 +397,7 @@ export const runClinicalFill = async (
 
   const batchPersistence = await persistClinicalBatch({
     operations: pendingBatch,
-    strategy: persistenceStrategy,
+    persist: deps.persistBatch,
     applyWithMetrics: operation => writes.applyBatch(operation, { scope: 'current' }),
     recordRetries: performance.recordRetries,
     recordPersistenceEvidence: performance.recordPersistenceEvidence,

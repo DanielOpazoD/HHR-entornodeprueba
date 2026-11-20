@@ -8,8 +8,8 @@ import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 
 /** Synthetic batch sink: exposes prepared values to the source/identity regression assertions. */
-export type ClinicalFillDeps = Omit<RunnerDeps, 'persistenceStrategy'> & {
-  persistenceStrategy?: RunnerDeps['persistenceStrategy'];
+export type ClinicalFillDeps = Omit<RunnerDeps, 'persistBatch'> & {
+  persistBatch?: RunnerDeps['persistBatch'];
   applyPatch: (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) => Promise<void>;
   applyHistoricalCudyr?: (
     episode: string,
@@ -40,9 +40,9 @@ export const runClinicalFill = (
                 }))
               )
           : undefined),
-      persistenceStrategy: deps.persistenceStrategy ?? {
-        disposition: 'deferred',
-        persist: async operations => {
+      persistBatch:
+        deps.persistBatch ??
+        (async operations => {
           let historySnapshots = 0;
           for (const operation of operations) {
             const captureHistorySnapshot =
@@ -51,8 +51,7 @@ export const runClinicalFill = (
             if (captureHistorySnapshot) historySnapshots = 1;
           }
           return { patientWrites: Number(operations.length > 0), historySnapshots };
-        },
-      },
+        }),
     },
     onProgress
   );

@@ -180,8 +180,8 @@ describe('chunkingPolicy', () => {
   it('loads online-only Rayen clinical authority through dynamic boundaries', () => {
     assertDynamicBoundary({
       sourcePath: 'src/features/rayen-import/hooks/useRayenClinicalFill.ts',
-      forbiddenStaticImport: /from ['"]\.\/clinicalEnrichmentPersistenceStrategy['"]/,
-      requiredDynamicImport: "import('./clinicalEnrichmentPersistenceStrategy')",
+      forbiddenStaticImport: /from ['"]\.\/applyClinicalEnrichmentBatch['"]/,
+      requiredDynamicImport: "import('./applyClinicalEnrichmentBatch')",
     });
     assertDynamicBoundary({
       sourcePath: 'src/features/rayen-import/hooks/useRayenClinicalFill.ts',

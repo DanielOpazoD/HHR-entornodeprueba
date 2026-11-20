@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createClinicalEnrichmentPersistenceStrategy } from '@/features/rayen-import/hooks/clinicalEnrichmentPersistenceStrategy';
-import { applyClinicalEnrichmentBatch } from '@/features/rayen-import/hooks/applyClinicalEnrichmentBatch';
+import { applyClinicalFillBatch } from '@/features/rayen-import/hooks/applyClinicalEnrichmentBatch';
 import {
   CLINICAL_BATCH_TRANSPORT_RETRY_DELAY_MS,
   persistClinicalBatch,
@@ -43,24 +42,21 @@ const operations: ClinicalFillPatchOperation[] = [
 const setup = () => {
   const deps = createDependencies();
   deps.refreshRecord.mockResolvedValue(record());
-  const strategy = createClinicalEnrichmentPersistenceStrategy({
-    mode: 'enforced',
-    record: record(),
-    runId: 'run-transport',
-    refreshRecord: deps.refreshRecord,
-    applyBatch: input =>
-      applyClinicalEnrichmentBatch({
-        ...input,
-        invoke: deps.invoke,
-        createMutationId: deps.createMutationId,
-      }),
-  });
+  const persistBatch = (batch: ClinicalFillPatchOperation[]) =>
+    applyClinicalFillBatch({
+      record: record(),
+      runId: 'run-transport',
+      refreshRecord: deps.refreshRecord,
+      operations: batch,
+      invoke: deps.invoke,
+      createMutationId: deps.createMutationId,
+    });
   const recordRetries = vi.fn();
   const wait = vi.fn(async (_ms: number, _signal?: AbortSignal): Promise<void> => undefined);
   const persist = (signal?: AbortSignal) =>
     persistClinicalBatch({
       operations,
-      strategy,
+      persist: persistBatch,
       applyWithMetrics: operation => operation(),
       recordRetries,
       recordPersistenceEvidence: vi.fn(),

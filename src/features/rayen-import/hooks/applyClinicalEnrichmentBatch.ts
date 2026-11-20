@@ -8,7 +8,7 @@ import {
   callRayenClinicalEnrichmentBatch,
   type RayenClinicalEnrichmentBatchPayload,
 } from '../bridge/rayenClinicalEnrichmentBatchClient';
-import type { ClinicalEnrichmentBatchMode } from '../domain/clinicalEnrichmentBatchMode';
+import { rebuildClinicalEnrichmentOperations } from '../domain/rebuildClinicalEnrichmentOperations';
 import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import { createSyncMutationId } from '@/services/storage/sync/syncMutationIdentity';
 import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
@@ -22,15 +22,15 @@ import {
 } from '../observability/rayenSyncDiagnostics';
 import {
   assertCommittedResponse,
-  buildBoundedClinicalBatchChunks,
+  coalesceClinicalBatchOperations,
   isClinicalBatchRetryableError,
   isClinicalBatchVersionConflict,
   markClinicalBatchTransportFailure,
-  mergeBatchEvidence,
+  operationLogicalTargetKey,
   readReportedTransactionRetries,
   readServerTransactionRetries,
   resolveClinicalPersistenceScope,
-  selectRebuiltChunkOperations,
+  selectRebuiltBatchOperations,
   withClinicalBatchRetryCount,
   withPersistenceFailureEvidence,
 } from './clinicalEnrichmentBatchExecutionSupport';
@@ -40,7 +40,6 @@ const authorityRevision = (record: DailyRecord): unknown =>
 
 interface ApplyClinicalEnrichmentBatchInput {
   checkSession?: () => void;
-  mode: ClinicalEnrichmentBatchMode;
   record: DailyRecord;
   /** Record that owns the synchronization event when the target is the previous census day. */
   authorityDate?: string;
@@ -50,16 +49,19 @@ interface ApplyClinicalEnrichmentBatchInput {
   rebuildOperations?: (record: DailyRecord) => ClinicalFillPatchOperation[];
   /** Must read server authority, without merging pending local projections. */
   refreshRecord: () => Promise<DailyRecord>;
-  /** Local refresh after a committed batch; its result is unused. Defaults to `refreshRecord`. */
+  /**
+   * Read after a committed batch. Its value is not returned, but the read itself counts: the
+   * day's ordinary read admits the server version into this device's copy. Defaults to
+   * `refreshRecord`.
+   */
   refreshCommittedRecord?: () => Promise<unknown>;
   invoke?: typeof callRayenClinicalEnrichmentBatch;
   createMutationId?: () => string;
 }
 
-/** Executes one bounded authority call; enforced never changes persistence owner mid-run. */
+/** Sends the batch as one authority call, built once from the census read at the write turn. */
 export const applyClinicalEnrichmentBatch = async ({
   checkSession,
-  mode,
   record,
   authorityDate,
   runId,
@@ -98,27 +100,21 @@ export const applyClinicalEnrichmentBatch = async ({
       if (versionChanged && !rebuildOperations) {
         throw new Error('El censo cambió y el lote clínico debe reconstruirse antes de guardarlo.');
       }
-      const currentOperations = rebuildOperations ? rebuildOperations(currentRecord) : operations;
-      const chunks = buildBoundedClinicalBatchChunks({
-        mode,
-        record: currentRecord,
-        authorityDate,
-        runId,
-        operations: currentOperations,
-        createMutationId,
-      });
-      if (chunks.length === 0) {
-        return {
-          patientWrites: 0,
-          historySnapshots: 0,
-          batch: summarizeClinicalEnrichmentSections([], [], 'enforced'),
-        };
-      }
-      if (chunks.length > 1) {
-        throw new Error(
-          'El lote clínico excede una transacción atómica segura; los datos quedaron pendientes.'
-        );
-      }
+      const currentOperations = coalesceClinicalBatchOperations(
+        rebuildOperations ? rebuildOperations(currentRecord) : operations
+      );
+      const preparePayload = (
+        source: DailyRecord,
+        batchOperations: ClinicalFillPatchOperation[],
+        mutationId: string
+      ) =>
+        prepareClinicalEnrichmentBatchPayload({
+          record: source,
+          authorityDate,
+          runId,
+          operations: batchOperations,
+          mutationId,
+        });
       let activeRecord = currentRecord;
       let patientWrites = 0;
       let historySnapshots = 0;
@@ -126,20 +122,26 @@ export const applyClinicalEnrichmentBatch = async ({
       let callableAttempts = 0;
       let transactionRetries = 0;
       let transactionEvidenceComplete = true;
-      const batchEvidence: ClinicalFillBatchEvidence[] = [];
-      const chunk = chunks[0]!;
-      let activeOperations = chunk.operations;
-      let prepared = prepareClinicalEnrichmentBatchPayload({
-        mode,
-        record: activeRecord,
-        authorityDate,
-        runId,
-        operations: activeOperations,
-        mutationId: chunk.mutationId,
-      });
+      let activeOperations = currentOperations;
+      const mutationId = createMutationId();
+      let prepared = preparePayload(activeRecord, activeOperations, mutationId);
       if (!prepared.payload) {
+        if (prepared.evidence.requestedFields === 0) {
+          return {
+            patientWrites: 0,
+            historySnapshots: 0,
+            batch: summarizeClinicalEnrichmentSections([], []),
+          };
+        }
+        // Over the callable's limit (targets or bytes) nothing is sent: the data stays pending.
+        const oneExceedsAlone = currentOperations.some(operation => {
+          const single = preparePayload(activeRecord, [operation], mutationId);
+          return !single.payload && single.evidence.requestedFields > 0;
+        });
         throw new Error(
-          'Los datos clínicos todavía no quedaron listos para guardarse. Vuelve a sincronizar.'
+          oneExceedsAlone
+            ? 'Una actualización clínica excede por sí sola el límite transaccional.'
+            : 'El lote clínico excede una transacción atómica segura; los datos quedaron pendientes.'
         );
       }
 
@@ -182,20 +184,13 @@ export const applyClinicalEnrichmentBatch = async ({
             if (!rebuildOperations) {
               throw error;
             }
-            activeOperations = selectRebuiltChunkOperations(
+            activeOperations = selectRebuiltBatchOperations(
               rebuildOperations(activeRecord),
-              chunk.operations
+              currentOperations
             );
-            prepared = prepareClinicalEnrichmentBatchPayload({
-              mode,
-              record: activeRecord,
-              authorityDate,
-              runId,
-              operations: activeOperations,
-              // A rejected authority check did not consume this identity. Reusing it also preserves
-              // idempotency if the first response was lost after a concurrent transaction retry.
-              mutationId: activePayload.mutationId,
-            });
+            // A rejected authority check did not consume this identity. Reusing it also preserves
+            // idempotency if the first response was lost after a concurrent transaction retry.
+            prepared = preparePayload(activeRecord, activeOperations, activePayload.mutationId);
             if (!prepared.payload) {
               if (prepared.evidence.requestedFields === 0) {
                 return {
@@ -242,7 +237,6 @@ export const applyClinicalEnrichmentBatch = async ({
         patientWrites += response.patientWrites ?? 1;
         historySnapshots += response.historySnapshots ?? Number(activePayload.patches.length > 0);
       }
-      batchEvidence.push(checked.batch);
 
       try {
         check();
@@ -271,9 +265,40 @@ export const applyClinicalEnrichmentBatch = async ({
               },
             }
           : {}),
-        batch: mergeBatchEvidence(batchEvidence, 'enforced'),
+        batch: checked.batch,
       };
     },
     { kind: 'clinical_sync' }
   );
+};
+
+type ApplyClinicalFillBatchInput = Omit<
+  ApplyClinicalEnrichmentBatchInput,
+  'authorityDate' | 'rebuildOperations'
+>;
+
+/**
+ * The day's clinical fill: at the write turn the batch is rebuilt from the run's base against the
+ * census read then. A target whose field changed meanwhile is left out and stays pending; it is
+ * not written even if a later rebuild in this attempt would accept it.
+ */
+export const applyClinicalFillBatch = async (
+  input: ApplyClinicalFillBatchInput
+): Promise<ClinicalFillBatchApplyResult> => {
+  const excluded = new Map<
+    string,
+    NonNullable<ClinicalFillBatchApplyResult['excludedTargets']>[number]
+  >();
+  const result = await applyClinicalEnrichmentBatch({
+    ...input,
+    rebuildOperations: currentRecord =>
+      rebuildClinicalEnrichmentOperations({
+        baseRecord: input.record,
+        currentRecord,
+        operations: input.operations,
+        onFieldConflict: (operation, error) =>
+          excluded.set(operationLogicalTargetKey(operation), { target: operation.target, error }),
+      }),
+  });
+  return excluded.size > 0 ? { ...result, excludedTargets: [...excluded.values()] } : result;
 };
