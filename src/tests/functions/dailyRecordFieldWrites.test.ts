@@ -28,7 +28,9 @@ const {
   fieldValueDigest: serverDigest,
   isStillWrittenBy,
   nextFieldWrites,
+  requestedValues,
 } = require('../../../functions/lib/dailyRecordFieldWrites.js') as {
+  requestedValues: (record: unknown, paths: string[]) => Record<string, unknown>;
   MAX_FIELD_WRITES: number;
   changedFieldPaths: (before: unknown, after: unknown) => string[];
   fieldValueDigest: (value: unknown) => string;
@@ -637,6 +639,40 @@ describe('the server’s reading of the map (a replay of an edit already stored)
       )
     ).toBe(false);
     expect(isStillWrittenBy(otherBed, ['beds.R1.pathology'], P1())).toBe(false);
+  });
+
+  it('tells an absent field from a null one (W20-C3 final recheck)', () => {
+    const path = 'beds.R1.blockedReason';
+    const withReason = (reason?: unknown) => {
+      const day = record('NEUMONIA');
+      if (reason !== undefined) (day.beds.R1 as Record<string, unknown>).blockedReason = reason;
+      return day;
+    };
+    /** Another computer then writes R2, leaving R1 as it is. */
+    const thenR2 = (day: Day) =>
+      serverWrite(
+        day,
+        { ...day, beds: { ...day.beds, R2: { pathology: 'ITU' } } },
+        ['beds.R2.pathology'],
+        3,
+        'm-P2',
+        'c-P2'
+      );
+    // P1 stores `null`; or P1's whole-day save removes the field (it was 'ANTES').
+    const nullDay = thenR2(serverWrite(undefined, withReason(null), [path], 2, 'm-P1', 'c-P1'));
+    const absentDay = thenR2(
+      serverWrite(withReason('ANTES'), withReason(), [path], 2, 'm-P1', 'c-P1')
+    );
+    const omitted = requestedValues(withReason(), [path]);
+    const nulled = requestedValues(withReason(null), [path]);
+
+    expect(isStillWrittenBy(nullDay, nulled, P1())).toBe(true);
+    expect(isStillWrittenBy(nullDay, { [path]: null }, P1())).toBe(true);
+    expect(isStillWrittenBy(nullDay, omitted, P1())).toBe(false);
+    expect(isStillWrittenBy(absentDay, omitted, P1())).toBe(true);
+    expect(isStillWrittenBy(absentDay, nulled, P1())).toBe(false);
+    expect(isStillWrittenBy(absentDay, { [path]: null }, P1())).toBe(false);
+    expect(isStillWrittenBy(absentDay, { [path]: '' }, P1())).toBe(false);
   });
 
   it('never takes two missing identities as the same', () => {

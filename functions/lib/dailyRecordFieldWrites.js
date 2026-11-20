@@ -69,6 +69,26 @@ const readValueAtPath = (record, path) =>
       record
     );
 
+/** A requested path the request leaves out: unlike `null`, it asks for no stored field at all. */
+const ABSENT = Symbol('absent path');
+
+const hasPath = (record, path) => {
+  const segments = String(path).split('.');
+  let current = record;
+  for (const segment of segments) {
+    if (current === null || typeof current !== 'object' || !Object.hasOwn(current, segment))
+      return false;
+    current = current[segment];
+  }
+  return true;
+};
+
+/** What a whole-day request asks for at each of `paths`: its value, or ABSENT when it omits it. */
+const requestedValues = (record, paths) =>
+  Object.fromEntries(
+    paths.map(path => [path, hasPath(record, path) ? readValueAtPath(record, path) : ABSENT])
+  );
+
 const isEntry = entry =>
   isPlainObject(entry) && Number.isSafeInteger(entry.revision) && entry.revision >= 0;
 
@@ -181,7 +201,8 @@ const scopeOf = path => /^beds\.[^.]+/.exec(path)?.[0] ?? path;
  * wrote them, read as the replay reads the map (fieldWriteAttribution.ts, `isLastWrittenBy`): the
  * map is at the day's revision and the day's last write was a server write; for each path, its
  * entry names a write by this edit and account, is newer than any change the map may miss, its
- * digest is both the stored value's and the requested value's, and no entry newer than it touches
+ * digest is both the stored value's and the requested value's, the field is stored exactly when
+ * the request has it (absent, `null` and empty differ: `requestedValues`), and no entry newer than it touches
  * the path's bed (any field of it: the patient may have changed) or, outside the beds, the path
  * itself (a whole-day write leaves no other entry). No paths, or `*`, never tells.
  */
@@ -224,7 +245,9 @@ const isStillWrittenBy = (day, values, { mutationId, uid, clientId } = {}) => {
       entry.revision > incompleteThrough &&
       (isBedTreePath(path) || entry.revision > outsideBedsIncompleteThrough) &&
       entry.digest === fieldValueDigest(readValueAtPath(day, path)) &&
-      entry.digest === fieldValueDigest(values[path])
+      // The digest reads an absent field as null; the request must also keep its presence.
+      hasPath(day, path) === (values[path] !== ABSENT) &&
+      entry.digest === fieldValueDigest(values[path] === ABSENT ? undefined : values[path])
     );
   });
 };
@@ -251,5 +274,6 @@ module.exports = {
   fieldValueDigest,
   isStillWrittenBy,
   nextFieldWrites,
+  requestedValues,
   wholeRecordFieldWrites,
 };

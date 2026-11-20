@@ -42,7 +42,6 @@ const {
   buildSlimHistorySnapshot,
   collectChangedPaths,
   hasAlreadyAppliedMutation,
-  readValueAtPath,
 } = require('./dailyRecordWriteRecordState');
 const {
   asSpecialtyHttpsError,
@@ -50,7 +49,7 @@ const {
   idempotentAuthority,
   recordAuthorityTelemetry,
 } = require('./dailyRecordAuthorityOutcome');
-const { changedFieldPaths } = require('./dailyRecordFieldWrites');
+const { changedFieldPaths, requestedValues } = require('./dailyRecordFieldWrites');
 
 const previousIsoDay = date =>
   Number.isFinite(calendarDayAtUtcNoon(date).getTime()) ? addCalendarDays(date, -1) : null;
@@ -140,9 +139,7 @@ const createFullSaveHandler =
           hasAlreadyAppliedMutation({
             snapshot,
             syncContract,
-            values: Object.fromEntries(
-              collectChangedPaths(syncContract).map(path => [path, readValueAtPath(record, path)])
-            ),
+            values: requestedValues(record, collectChangedPaths(syncContract)),
             uid: context.auth?.uid,
           })
         ) {
