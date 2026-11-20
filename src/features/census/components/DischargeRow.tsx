@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import type { DischargeData } from '@/types/domain/movements';
+import type { AccreditedEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import { resolveDischargeRowViewModel } from '@/features/census/controllers/dischargeRowViewController';
 import { DischargeRowView } from '@/features/census/components/DischargeRowView';
 import { buildDischargeClinicalDocumentsPatientSnapshot } from '@/features/census/controllers/movementClinicalDocumentsController';
@@ -22,7 +23,7 @@ interface DischargeRowProps {
   onDelete: (id: string) => Promise<void>;
   onConvertToCma: (id: string) => Promise<void>;
   onConvertToTransfer?: (id: string) => Promise<void>;
-  onMarkInvalid?: (item: DischargeData) => Promise<void>;
+  onMarkInvalid?: (item: DischargeData, clinicalEpisodeId: AccreditedEpisodeId) => Promise<void>;
 }
 
 export const DischargeRow: React.FC<DischargeRowProps> = React.memo(

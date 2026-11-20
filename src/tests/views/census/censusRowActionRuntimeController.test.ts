@@ -423,6 +423,8 @@ describe('censusRowActionRuntimeController', () => {
     it('refuses a patient without an Eloísa episode or with an attached crib', async () => {
       for (const [patient, code] of [
         [marked({ clinicalEpisodeId: '' }), 'EPISODE_REQUIRED'],
+        // A legacy hash can name two patients; «Limpiar» stays for it (W21-ID2).
+        [marked({ clinicalEpisodeId: 'legacy_ep_l0nbd' }), 'EPISODE_REQUIRED'],
         [
           marked({ clinicalCrib: DataFactory.createMockPatient('BOX2', { patientName: 'RN' }) }),
           'CLINICAL_CRIB_ATTACHED',
