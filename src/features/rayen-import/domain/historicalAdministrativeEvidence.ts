@@ -5,11 +5,7 @@ import type { ConflictEntry } from '../contracts/censusImportDiff';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenActiveBedAssignment, RayenEncounter } from '../contracts/rayenSnapshot';
-import {
-  hasContradictoryOfficialStamp,
-  isLaterReportEgreso,
-  reportClinicalStamp,
-} from './egresoReportPolicy';
+import { isLaterReportEgreso, reportClinicalStamp } from './egresoReportPolicy';
 import { historicalReconstructionConflict as unresolvedConflict } from './historicalReconstructionConflicts';
 import { historicalEncounterFromLocal } from './historicalEncounterFromLocal';
 import { isPavilionRecoveryLocation } from './pavilionRecoverySyncPolicy';
@@ -44,18 +40,11 @@ export const latestReportRowsByEpisode = (
   reportRows: EgresoReportRow[]
 ): Map<string, EgresoReportRow> => {
   const byEpisode = new Map<string, EgresoReportRow>();
-  // Contradictory official evidence holds the whole episode for review, whatever else arrives.
-  const contradicted = new Set(
-    reportRows
-      .filter(hasContradictoryOfficialStamp)
-      .map(row => String(row.encounterId ?? '').trim())
-  );
   for (const row of reportRows) {
     const episode = String(row.encounterId ?? '').trim();
     const stamp = reportClinicalStamp(row);
     const verifiedCrib = row.fromClinicalCrib && row.exactEpisodeVerification === 'verified';
     if (!/^\d+$/.test(episode) || (!normalizeRut(row.run) && !verifiedCrib) || !stamp) continue;
-    if (contradicted.has(episode)) continue;
     const prior = byEpisode.get(episode);
     if (!prior || isLaterReportEgreso(row, prior)) byEpisode.set(episode, row);
   }

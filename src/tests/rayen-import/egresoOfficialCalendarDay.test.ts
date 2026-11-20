@@ -175,8 +175,7 @@ describe('official egreso calendar day from the source to the movement and back'
     ]);
   });
 
-  it('leaves the egreso unconfirmed when the official calendar day contradicts its stamp', () => {
-    const unconfirmed = { correctedDay: undefined, correctedTime: undefined };
+  it('ignores an official calendar day that is impossible or outside its census shift', () => {
     const stamp = {
       fechaEgreso: '06-11-2026 08:30',
       correctedDay: '2026-11-06',
@@ -184,11 +183,17 @@ describe('official egreso calendar day from the source to the movement and back'
     };
     // Sunday 8 is outside Friday's census at 08:30; 31 November does not exist.
     for (const correctedCalendarDay of ['2026-11-08', '2026-11-31']) {
-      expect(correctedStamp({ ...stamp, correctedCalendarDay })).toEqual(unconfirmed);
-      expect(reportClinicalStamp({ ...stamp, correctedCalendarDay })).toBeNull();
+      expect(correctedStamp({ ...stamp, correctedCalendarDay })).toEqual(correctedStamp(stamp));
+      expect(reportClinicalStamp({ ...stamp, correctedCalendarDay })).toEqual(
+        reportClinicalStamp(stamp)
+      );
     }
-    // Without a calendar day the row keeps its census day and time, as before.
     expect(correctedStamp(stamp)).toEqual({ correctedDay: '2026-11-06', correctedTime: '08:30' });
+    expect(reportClinicalStamp(stamp)).toEqual({
+      iso: '2026-11-06',
+      calendarIso: '2026-11-07',
+      hhmm: '08:30',
+    });
   });
 
   it('orders two rows of one episode by calendar day and time, whichever comes first', () => {

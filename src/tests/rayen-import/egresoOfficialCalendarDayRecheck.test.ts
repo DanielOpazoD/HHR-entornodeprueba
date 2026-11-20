@@ -1,6 +1,6 @@
 // @vitest-environment node
 // Recheck probes of W20-EGR1 (PR #1819): rows of one episode are ordered by their Rapa Nui instant,
-// and contradictory official evidence holds the whole episode for review. Synthetic data only.
+// and a malformed legacy row reaches review without stopping the reconstruction. Synthetic data only.
 import 'fake-indexeddb/auto';
 import { expect, it } from 'vitest';
 import {
@@ -134,75 +134,21 @@ it.each([false, true])('dos filas heredadas sin día civil, invertir=%s', async 
   expect(facts.events).toEqual([['2026-11-07', '07:00']]);
 });
 
-it.each([false, true])(
-  'contradicción explícita con otra fila exacta, invertir=%s',
-  async reverse => {
-    const valid = row('06-11-2026 23:00');
-    const invalid = row('07-11-2026 01:00', {
-      correctedDay: census,
-      exactEpisodeVerification: 'verified',
-      correctedTime: '01:00',
-      correctedCalendarDay: '2026-11-31',
-    });
-    const rows = reverse ? [invalid, valid] : [valid, invalid];
-    const facts = await evaluate(rows);
-    const { reconstructHistoricalSnapshotAtClose } =
-      await import('@/features/rayen-import/domain/historicalSnapshotReconstruction');
-    const historical = await reconstructHistoricalSnapshotAtClose(
-      census,
-      {
-        capturedAt: ctx.now.toISOString(),
-        facilityId: 1342,
-        isComplete: true,
-        encounters: [],
-      },
-      record(),
-      rows,
-      { fetchReport: async () => ({ base64: '', error: 'sin trazabilidad adicional' }) }
-    );
-    const { replanRayenStructure } =
-      await import('@/features/rayen-import/hooks/replanRayenStructure');
-    for (const isHistoricalDay of [false, true]) {
-      const current = record();
-      const replanned = await replanRayenStructure(
-        current,
-        {
-          sourceSnapshot: {
-            capturedAt: ctx.now.toISOString(),
-            facilityId: 1342,
-            isComplete: true,
-            encounters: [{ ...episode, hasMedicalDischarge: true }],
-          },
-          egresoRows: rows,
-          reportDate: census,
-          isHistoricalDay,
-          invalidEpisodeIds: new Set(),
-        },
-        {
-          dailyRecord: {
-            getAuthoritativeForDate: async () => null,
-            getLocalForDateWithMeta: async () => ({
-              record: null,
-              hasPendingWrites: false,
-              writeState: 'none',
-            }),
-          } as unknown as import('@/application/ports/dailyRecordPort').DailyRecordRepositoryPort,
-          isAdmin: false,
-          fetchPatientFlowReport: async () => ({ base64: '', error: 'sin trazabilidad adicional' }),
-          fetchStatisticalDischarge: async () => ({ base64: '', error: 'sin informe adicional' }),
-          lookupEgresos: async () => [],
-        }
-      );
-      const saved = await reread(applyCensusImportDiff(current, replanned, ctx).record);
-      expect(movements(saved)).toHaveLength(0);
-      expect(replanned.conflicts.length).toBeGreaterThan(0);
-    }
-    expect(facts.events).toEqual([]);
-    expect(facts.conflicts).toBeGreaterThan(0);
-    expect(facts.bedOccupied).toBe(true);
-    expect(historical.conflicts.length).toBeGreaterThan(0);
-  }
-);
+it('fila heredada con mes imposible no interrumpe la reconstrucción histórica', async () => {
+  // Like main: the malformed census day is kept as is and the row reaches review.
+  const source = row('06-11-2026 23:00', { correctedDay: '2026-13-06', correctedTime: '07:00' });
+  const { reconstructHistoricalSnapshotAtClose } =
+    await import('@/features/rayen-import/domain/historicalSnapshotReconstruction');
+  const result = await reconstructHistoricalSnapshotAtClose(
+    census,
+    { capturedAt: ctx.now.toISOString(), facilityId: 1342, isComplete: true, encounters: [] },
+    record(),
+    [source],
+    { fetchReport: async () => ({ base64: '', error: 'sin trazabilidad adicional' }) }
+  );
+  expect(result.snapshot).toBeDefined();
+  expect(result.conflicts.length).toBeGreaterThan(0);
+});
 
 it.each([
   ['09-11-2026 12:00', '2026-11-09', '2026-11-09', '12:00'],

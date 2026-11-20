@@ -120,16 +120,16 @@ for (const destino of ['Domicilio', 'Traslado']) {
   });
 }
 it.each(['2026-11-31', '2026-11-08'])(
-  'día civil explícito rechazado %s conserva la cama',
+  'día civil oficial inválido %s se ignora: la fila se trata como en main',
   async bad => {
-    const { diff, saved, events } = await flow([
+    const { events, saved } = await flow([
       row('', { correctedDay: census, correctedTime: '08:30', correctedCalendarDay: bad }),
     ]);
-    // Contradictory evidence: nothing confirmed, the bed stays occupied and review is asked.
-    expect(diff.discharges).toHaveLength(0);
-    expect(diff.conflicts.length).toBeGreaterThan(0);
-    expect(events).toHaveLength(0);
-    expect(saved.beds.R2?.patientName).toBeTruthy();
+    // Census day + time with the handoff rule, exactly like a row without a calendar day.
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ movementDate: '2026-11-07', time: '08:30' });
+    expect(events[0].movementDateSource).toBeUndefined();
+    expect(saved.beds.R2?.patientName).toBeFalsy();
   }
 );
 it('legacy sin día civil conserva el resultado', async () => {

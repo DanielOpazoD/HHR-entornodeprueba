@@ -10,6 +10,7 @@ import {
   parseStatisticalEgresoInstant,
   parseStatisticalEgresoStamp,
 } from '../mapping/reportEgresoDateTime';
+import { buildSortableLocalTimestamp } from '../mapping/localTimestamp';
 import { resolveReportBedId } from '../mapping/resolveReportBed';
 import {
   documentKeyBeforeLetterRule,
@@ -186,15 +187,20 @@ type EgresoStampSource = Pick<
   'fechaEgreso' | 'correctedDay' | 'correctedTime' | 'correctedCalendarDay'
 >;
 
-const UNCONFIRMED_STAMP: CorrectedEgresoFields = {
-  correctedDay: undefined,
-  correctedTime: undefined,
+/** A real YYYY-MM-DD calendar day (no 13th month, no 31 November). */
+const isCalendarDay = (value: string | undefined): value is string => {
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? '');
+  return Boolean(
+    day && buildSortableLocalTimestamp(Number(day[1]), Number(day[2]), Number(day[3]))
+  );
 };
+const isClockTime = (value: string | undefined): value is string =>
+  /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value ?? '');
 
 /**
- * The official census day, time and calendar day of a report row. A calendar day the source gave
- * that is impossible or outside that census at that time contradicts the stamp: the egreso stays
- * unconfirmed. Rows without one keep the census day and time, or the bulk cell.
+ * The official census day, time and calendar day of a report row. The calendar day is kept only
+ * when it is real and belongs to that census at that time; otherwise it is ignored and the row is
+ * read as before (census day and time, or the bulk cell).
  */
 export const correctedStamp = ({
   fechaEgreso,
@@ -202,31 +208,14 @@ export const correctedStamp = ({
   correctedTime,
   correctedCalendarDay,
 }: EgresoStampSource): CorrectedEgresoFields => {
-  const dayMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(correctedDay || '');
-  const timeMatch = /^(\d{2}):(\d{2})$/.exec(correctedTime || '');
-  const date =
-    dayMatch &&
-    new Date(Date.UTC(Number(dayMatch[1]), Number(dayMatch[2]) - 1, Number(dayMatch[3])));
-  const isValidDay = Boolean(
-    dayMatch &&
-    date &&
-    date.getUTCFullYear() === Number(dayMatch[1]) &&
-    date.getUTCMonth() === Number(dayMatch[2]) - 1 &&
-    date.getUTCDate() === Number(dayMatch[3])
-  );
-  const isValidTime = Boolean(
-    timeMatch && Number(timeMatch[1]) <= 23 && Number(timeMatch[2]) <= 59
-  );
-  if (correctedCalendarDay !== undefined) {
-    const calendarDay =
-      isValidDay && isValidTime
-        ? officialCalendarDay(correctedDay, correctedTime, correctedCalendarDay)
-        : undefined;
-    return calendarDay
-      ? { correctedDay, correctedTime, correctedCalendarDay: calendarDay }
-      : UNCONFIRMED_STAMP;
+  if (isCalendarDay(correctedDay) && isClockTime(correctedTime)) {
+    const calendarDay = officialCalendarDay(correctedDay, correctedTime, correctedCalendarDay);
+    return {
+      correctedDay,
+      correctedTime,
+      ...(calendarDay && { correctedCalendarDay: calendarDay }),
+    };
   }
-  if (isValidDay && isValidTime) return { correctedDay, correctedTime };
   const stamp = parseStatisticalEgresoStamp(fechaEgreso);
   return stamp
     ? {
@@ -234,46 +223,34 @@ export const correctedStamp = ({
         correctedTime: stamp.hhmm,
         correctedCalendarDay: stamp.calendarIso,
       }
-    : UNCONFIRMED_STAMP;
+    : { correctedDay: undefined, correctedTime: undefined };
 };
 
-/** When a report row's egreso happened in Rapa Nui, or null when it is unknown or contradictory. */
+/**
+ * When a report row's egreso happened in Rapa Nui. A row without a valid official calendar day
+ * gets the day the movement builder deduces from its census day and time (handoff rule).
+ */
 export const reportClinicalStamp = (
   row: EgresoStampSource
 ): { iso: string; calendarIso: string; hhmm: string } | null => {
-  if (row.correctedCalendarDay !== undefined) {
-    const stamp = correctedStamp(row);
-    return stamp.correctedDay && stamp.correctedTime && stamp.correctedCalendarDay
-      ? {
-          iso: stamp.correctedDay,
-          calendarIso: stamp.correctedCalendarDay,
-          hhmm: stamp.correctedTime,
-        }
-      : null;
-  }
-  if (
-    /^\d{4}-\d{2}-\d{2}$/.test(row.correctedDay ?? '') &&
-    /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(row.correctedTime ?? '')
-  ) {
-    // Rows from before the official calendar day was carried get the day the movement builder
-    // deduces from their census day and time, so every row is ordered by its Rapa Nui instant.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(row.correctedDay ?? '') && isClockTime(row.correctedTime)) {
     const iso = row.correctedDay as string;
-    const hhmm = row.correctedTime as string;
-    return { iso, calendarIso: calendarDateForMovement(iso, hhmm), hhmm };
+    const hhmm = row.correctedTime;
+    const calendarIso =
+      officialCalendarDay(iso, hhmm, row.correctedCalendarDay) ??
+      // A malformed census day is kept as is, like before, and reaches review downstream.
+      (isCalendarDay(iso) ? calendarDateForMovement(iso, hhmm) : iso);
+    return { iso, calendarIso, hhmm };
   }
   const parsed =
     parseStatisticalEgresoStamp(row.fechaEgreso) ?? parseStatisticalEgresoInstant(row.fechaEgreso);
   return parsed ? { iso: parsed.iso, calendarIso: parsed.calendarIso, hhmm: parsed.hhmm } : null;
 };
 
-/** The source gave an official calendar day that is impossible or outside its census shift. */
-export const hasContradictoryOfficialStamp = (row: EgresoStampSource): boolean =>
-  row.correctedCalendarDay !== undefined && !reportClinicalStamp(row);
-
 /**
  * The one order of two report rows for the same egreso, used by the census and by the history:
  * the later Rapa Nui calendar day and time wins, whichever arrives first. An unreadable row
- * always wins, so its contradiction reaches review instead of being hidden by a readable one.
+ * always wins, as before, so it reaches review instead of being hidden by a readable one.
  */
 export const isLaterReportEgreso = (row: EgresoStampSource, prior: EgresoStampSource): boolean => {
   const stamp = reportClinicalStamp(row);
