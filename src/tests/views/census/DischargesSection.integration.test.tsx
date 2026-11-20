@@ -203,10 +203,14 @@ describe('DischargesSection integration', () => {
       expect(markClinicalEpisodeInvalid).not.toHaveBeenCalled();
     });
 
-    it('is not offered for an alta without an Eloísa episode', async () => {
+    it.each([
+      ['without an Eloísa episode', undefined],
+      // Two newborns saved as «RN» on the same day share this hash (W21-ID2).
+      ['whose episode is a legacy hash', 'legacy_ep_l0nbd'],
+    ])('is not offered for an alta %s', async (_case, clinicalEpisodeId) => {
       vi.mocked(useDailyRecordMovements).mockReturnValue(
         asHookValue<ReturnType<typeof useDailyRecordMovements>>({
-          discharges: [dischargeItem],
+          discharges: [{ ...dischargeItem, clinicalEpisodeId }],
           transfers: [],
           cma: [],
         })

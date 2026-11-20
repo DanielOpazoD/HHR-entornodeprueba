@@ -4,6 +4,10 @@ import { buildCensusMovementTableHeaders } from './censusMovementTableHeaders';
 import { buildMovementRowActions } from '@/features/census/controllers/censusMovementRowActionsController';
 import { canReclassifyHomeDischarge } from '@/application/census/movementTypeConversionPolicy';
 import { isClinicalCribDischarge } from '@/domain/movements/movementTombstonePolicy';
+import {
+  resolveAccreditedClinicalEpisodeId,
+  type AccreditedEpisodeId,
+} from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 export const DISCHARGES_TABLE_HEADERS = buildCensusMovementTableHeaders(['Tipo Alta', 'Estado']);
 
@@ -19,7 +23,7 @@ interface DischargeRowActionHandlers {
   deleteDischarge: (id: string) => void;
   convertDischargeToCma: (id: string) => void;
   convertDischargeToTransfer?: (id: string) => void;
-  markDischargeInvalid?: (discharge: DischargeData) => void;
+  markDischargeInvalid?: (discharge: DischargeData, clinicalEpisodeId: AccreditedEpisodeId) => void;
 }
 
 export const buildDischargeRowActions = (
@@ -71,16 +75,17 @@ export const buildDischargeRowActions = (
     });
   }
 
-  // An Eloísa episode created by mistake; a newborn's alta goes with its mother's row.
-  if (
-    handlers.markDischargeInvalid &&
-    discharge.clinicalEpisodeId?.trim() &&
-    !isClinicalCribDischarge(discharge)
-  ) {
+  // An Eloísa episode created by mistake, never a legacy hash two patients can share (ID-01); a
+  // newborn's alta goes with its mother's row (ID-03).
+  const invalidEpisodeId = isClinicalCribDischarge(discharge)
+    ? undefined
+    : resolveAccreditedClinicalEpisodeId(discharge);
+  const { markDischargeInvalid } = handlers;
+  if (markDischargeInvalid && invalidEpisodeId) {
     actions.push({
       kind: 'invalid',
       title: 'Paciente no válido',
-      onClick: () => handlers.markDischargeInvalid?.(discharge),
+      onClick: () => markDischargeInvalid(discharge, invalidEpisodeId),
     });
   }
   actions.push(deleteAction);

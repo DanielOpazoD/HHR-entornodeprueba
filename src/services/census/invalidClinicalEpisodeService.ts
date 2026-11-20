@@ -16,6 +16,7 @@ import {
   defaultFirebaseConfigRuntimeAdapter,
   type FirebaseConfigRuntimeAdapter,
 } from '@/services/firebase-runtime/firebaseConfigRuntimeAdapter';
+import type { AccreditedEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 const invalidClinicalEpisodesPath = (): string =>
   `${getHospitalPath()}/${HOSPITAL_COLLECTIONS.INVALID_CLINICAL_EPISODES}`;
@@ -52,7 +53,8 @@ export const loadInvalidClinicalEpisodeIds = async (
 };
 
 export interface InvalidClinicalEpisodeMark {
-  clinicalEpisodeId: string;
+  /** Never a legacy hash: two patients can share one, and the mark would remove both. */
+  clinicalEpisodeId: AccreditedEpisodeId;
   /** Census day on which the patient was removed. */
   censusDate: string;
   bedId: string;
@@ -70,8 +72,7 @@ export const markClinicalEpisodeInvalid = async (
   adapter: FirebaseConfigRuntimeAdapter = defaultFirebaseConfigRuntimeAdapter,
   timeoutMs = MARK_TIMEOUT_MS
 ): Promise<void> => {
-  const clinicalEpisodeId = mark.clinicalEpisodeId.trim();
-  if (!clinicalEpisodeId) throw new Error('El paciente no tiene episodio de Eloísa.');
+  const { clinicalEpisodeId } = mark;
   const seeded = readE2EInvalidClinicalEpisodeIds();
   if (seeded) {
     const marked = [...new Set([...seeded, clinicalEpisodeId])];
@@ -109,7 +110,12 @@ export const markClinicalEpisodeInvalid = async (
   }
 };
 
-export interface InvalidClinicalEpisodeRecord extends InvalidClinicalEpisodeMark {
+export interface InvalidClinicalEpisodeRecord extends Omit<
+  InvalidClinicalEpisodeMark,
+  'clinicalEpisodeId'
+> {
+  /** As stored, including marks written before episodes had to be accredited. */
+  clinicalEpisodeId: string;
   /** ISO instant the server stamped, or null while it is still pending. */
   markedAt: string | null;
   /** Uid of the editor who marked it. */
