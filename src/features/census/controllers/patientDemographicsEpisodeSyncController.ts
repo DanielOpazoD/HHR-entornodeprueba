@@ -99,8 +99,8 @@ const pickDemographicUpdates = (
   return result;
 };
 
-/** Any numeral, in any script: the field holds a document, not a marker such as `S/R`. */
-const hasDocument = (patient: PatientData): boolean => /\p{N}/u.test(patient.rut ?? '');
+/** Any text in the document field, even a marker such as `S/R` or a passport of letters only. */
+const hasDocument = (patient: PatientData): boolean => (patient.rut ?? '').trim().length > 0;
 
 /**
  * The canonical RUT of a patient declared `RUT` whose check digit is correct, written only with
@@ -117,7 +117,7 @@ const declaredValidRut = (patient: PatientData): string | null => {
  * Without the same accredited episode, an earlier day is this patient only when both are declared
  * RUT, both RUTs are valid and they are the same RUT (ID-01). A passport, a missing or different
  * type or an invalid RUT matches nothing, so a passport without an accredited episode gets no
- * correction on earlier days. The name decides only when neither side holds a document number.
+ * correction on earlier days. The name decides only when both document fields are empty.
  */
 const matchesPatientIdentity = (sourcePatient: PatientData, candidate: PatientData): boolean => {
   if (hasDocument(sourcePatient) || hasDocument(candidate)) {

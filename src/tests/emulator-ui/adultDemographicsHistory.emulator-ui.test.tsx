@@ -412,6 +412,120 @@ const scenarios: Scenario[] = [
     ),
     source: 'A',
   },
+  // With a document on either day the name never decides, even for two people with one name.
+  documentCase(
+    'current schema: letter-only passports of two people with one name',
+    passport('KLMNPQ'),
+    passport('KZXWVT'),
+    null,
+    { currentSchema: true, sameName: true }
+  ),
+  documentCase(
+    'current schema: a letter-only passport only on the earlier day, same name',
+    passport('KLMNPQ'),
+    untyped(''),
+    null,
+    { currentSchema: true, sameName: true }
+  ),
+  documentCase(
+    'current schema: a letter-only passport only on the edited row, same name',
+    untyped(''),
+    passport('KZXWVT'),
+    null,
+    { currentSchema: true, sameName: true }
+  ),
+  documentCase(
+    'current schema: a RUT only on the edited row, same name',
+    untyped(''),
+    run('123456785'),
+    null,
+    { currentSchema: true, sameName: true }
+  ),
+  documentCase(
+    'current schema: a RUT only on the earlier day, same name',
+    run('123456785'),
+    untyped(''),
+    null,
+    { currentSchema: true, sameName: true }
+  ),
+  documentCase(
+    'current schema: no document on either day, same name',
+    untyped(''),
+    untyped(''),
+    0,
+    { currentSchema: true, sameName: true }
+  ),
+  // A marker is text in the document field: the name does not decide (the review expected 0).
+  documentCase(
+    'current schema: two markers without a document, same name',
+    untyped('S/R'),
+    untyped('SIN RUT'),
+    null,
+    { currentSchema: true, sameName: true }
+  ),
+  documentCase(
+    'current schema: a valid RUT declared passport on both days',
+    passport('12.345.678-5'),
+    passport('123456785'),
+    null,
+    { currentSchema: true, sameName: true }
+  ),
+  documentCase(
+    'current schema: a full-width digit in the earlier RUT',
+    run('123４456785'),
+    run('123456785'),
+    null,
+    { currentSchema: true, sameName: true }
+  ),
+  documentCase(
+    'current schema: another numeral in the edited RUT',
+    run('123456785'),
+    run('123٤456785'),
+    null,
+    { currentSchema: true, sameName: true }
+  ),
+  documentCase(
+    'current schema: the same full-width RUT text on both days',
+    run('１２３４５６７８５'),
+    run('１２３４５６７８５'),
+    null,
+    { currentSchema: true, sameName: true }
+  ),
+  documentCase(
+    'current schema: two different valid declared RUTs',
+    run('123456785'),
+    run('12345670K'),
+    null,
+    { currentSchema: true }
+  ),
+  documentCase(
+    'current schema: the same declared RUT with a wrong check digit',
+    run('123456789'),
+    run('12.345.678-9'),
+    null,
+    { currentSchema: true }
+  ),
+  documentCase(
+    'current schema: the same valid short declared RUT',
+    run('123.456-0'),
+    run('1234560'),
+    0,
+    { currentSchema: true }
+  ),
+  documentCase(
+    'current schema: an untyped earlier document and another name',
+    untyped('123456785'),
+    run('12.345.678-5'),
+    null,
+    { currentSchema: true }
+  ),
+  documentCase(
+    'current schema: an untyped edited document and another name',
+    run('123456785'),
+    untyped('12.345.678-5'),
+    null,
+    { currentSchema: true }
+  ),
   {
     ...documentCase(
       'current schema: two different accredited episodes',
@@ -424,6 +538,24 @@ const scenarios: Scenario[] = [
     prior: ['B'],
   },
 ];
+// The same accredited episode is the same patient whatever its documents read, in every format above.
+const documentPairs = new Map(
+  scenarios.flatMap(({ documents }) => (documents ? [[JSON.stringify(documents), documents]] : []))
+);
+for (const [index, { prior, edited }] of [...documentPairs.values()].entries()) {
+  scenarios.push(
+    documentCase(
+      `current schema: the same accredited episode, format ${index + 1}`,
+      prior,
+      edited,
+      0,
+      {
+        source: 'A',
+        currentSchema: true,
+      }
+    )
+  );
+}
 
 for (const role of ['adult', 'mother'] as const) {
   for (const scenario of scenarios) {

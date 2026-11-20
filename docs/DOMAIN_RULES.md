@@ -97,14 +97,18 @@ episodio solo en el paciente que es ese episodio:
 
 1. El mismo episodio acreditado (no `legacy_ep_`) es la misma persona.
 2. Sin él, un día anterior es esa persona solo si los dos documentos están declarados RUT, ambos
-   tienen dígito verificador correcto y son el mismo RUT. El nombre decide solo cuando ningún día
-   tiene documento, y con un único candidato.
+   tienen dígito verificador correcto y son el mismo RUT. El nombre decide solo cuando el campo de
+   documento está vacío en ambos días, y con un único candidato: cualquier texto en ese campo,
+   también `S/R` o un pasaporte de solo letras, cuenta como documento.
 3. Cualquier otro caso no se escribe: un pasaporte, un tipo ausente o distinto, un RUT inválido o
    dos candidatos.
 
 Límite conocido: un pasaporte sin episodio acreditado no recibe correcciones en días anteriores,
 tampoco un día antiguo que la lectura sin versión tipó como pasaporte por su forma (`123.456-0`,
 `12.345.678/5`). Desde octubre de 2026 los días de producción tienen episodios acreditados.
+
+Límite abierto: un día guardado sin versión de esquema (todo guardado la estampa desde febrero de 2026) se lee con un tipo deducido por la forma, y para el controlador ese `RUT` deducido es igual
+a uno declarado.
 
 ### Nombres del personal
 

@@ -116,7 +116,7 @@ describe('patientDemographicsEpisodeSyncController', () => {
     expect(updatePartial).not.toHaveBeenCalled();
   });
 
-  it('treats placeholder documents as missing and falls back to the name', async () => {
+  it('never decides by name when a day holds any document text, even a marker', async () => {
     const sourcePatient = DataFactory.createMockPatient('R2', {
       patientName: 'Paciente Sin Documento',
       rut: 'S/R',
@@ -152,7 +152,8 @@ describe('patientDemographicsEpisodeSyncController', () => {
       dailyRecordWriteRepository: { updatePartial },
     });
 
-    expect(updatePartial).toHaveBeenCalledExactlyOnceWith('2026-04-09', { 'beds.R5.age': '61' });
+    // `S/R` and `SIN RUT` are text in the document field: the name no longer decides.
+    expect(updatePartial).not.toHaveBeenCalled();
   });
 
   it('falls back to patientName matching when rut is missing', async () => {
@@ -430,6 +431,16 @@ describe('patientDemographicsEpisodeSyncController', () => {
       'a document on one day and none on the other, same name',
       { ...adultWith('R1', 'RUT', '12.345.678-5'), patientName: 'MISMO NOMBRE' },
       { ...adultWith('R4', 'RUT', ''), patientName: 'MISMO NOMBRE' },
+    ],
+    [
+      'letter-only passports of two people with one name',
+      { ...adultWith('R1', 'Pasaporte', 'KZXWVT'), patientName: 'MISMO NOMBRE' },
+      { ...adultWith('R4', 'Pasaporte', 'KLMNPQ'), patientName: 'MISMO NOMBRE' },
+    ],
+    [
+      'a letter-only passport on one day and none on the other, same name',
+      { ...adultWith('R1', 'Pasaporte', 'KZXWVT'), patientName: 'MISMO NOMBRE' },
+      { ...adultWith('R4', undefined, ''), patientName: 'MISMO NOMBRE' },
     ],
     [
       'full-width K passports of two people with one name',
