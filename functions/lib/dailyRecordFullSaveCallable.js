@@ -140,6 +140,7 @@ const createFullSaveHandler =
             snapshot,
             syncContract,
             paths: collectChangedPaths(syncContract),
+            uid: context.auth?.uid,
           })
         ) {
           const remoteData = snapshot.data() || {};
@@ -302,6 +303,7 @@ const createFullSaveHandler =
           writtenPaths: snapshot.exists
             ? changedFieldPaths(remoteData, recordForPersistence)
             : ['*'],
+          writerUid: context.auth?.uid,
         });
         revision = nextMeta.revision;
         recordState = buildAuthorityRecordState({

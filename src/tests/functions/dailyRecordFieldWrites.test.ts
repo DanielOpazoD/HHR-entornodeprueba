@@ -20,7 +20,7 @@ type FieldWritesMap = {
   incompleteThrough?: number;
   outsideBedsIncompleteThrough?: number;
   fields: Record<string, { revision: number; digest: string | null }>;
-  writes: Record<string, { mutationId: string | null; clientId: string | null }>;
+  writes: Record<string, { mutationId: string | null; clientId: string | null; uid?: string }>;
 };
 const {
   MAX_FIELD_WRITES,
@@ -32,7 +32,11 @@ const {
   MAX_FIELD_WRITES: number;
   changedFieldPaths: (before: unknown, after: unknown) => string[];
   fieldValueDigest: (value: unknown) => string;
-  isStillWrittenBy: (day: unknown, paths: string[], mutationId: string | undefined) => boolean;
+  isStillWrittenBy: (
+    day: unknown,
+    paths: string[],
+    author: { mutationId?: string; uid?: string; clientId?: string }
+  ) => boolean;
   nextFieldWrites: (input: {
     previousDay?: unknown;
     paths: string[];
@@ -40,6 +44,7 @@ const {
     revision: number;
     mutationId?: string | null;
     clientId?: string | null;
+    uid?: string;
     fenced?: boolean;
   }) => FieldWritesMap;
 };
@@ -49,7 +54,10 @@ const record = (pathology: string, status = 'Estable') => ({
 });
 type Day = ReturnType<typeof record> & { lastUpdated?: unknown; meta?: Record<string, unknown> };
 
-/** The day a server write of `paths` leaves over `previous`, stamped as the server stamps it. */
+/**
+ * The day a server write of `paths` leaves over `previous`, stamped as the server stamps it; the
+ * account that sends it is `u-<clientId>` unless `uid` names another.
+ */
 const serverWrite = (
   previous: Day | undefined,
   next: ReturnType<typeof record>,
@@ -57,7 +65,8 @@ const serverWrite = (
   revision: number,
   mutationId: string,
   clientId?: string,
-  fenced = false
+  fenced = false,
+  uid = clientId && `u-${clientId}`
 ): Day => {
   const stamp = new AdminTimestamp(1_763_000_000 + revision, 0);
   return {
@@ -75,6 +84,7 @@ const serverWrite = (
         revision,
         mutationId,
         clientId,
+        uid,
         fenced,
       }),
     },
@@ -130,7 +140,7 @@ describe('the map a write leaves', () => {
     expect(first.meta?.fieldWrites).toEqual({
       revision: 2,
       fields: { 'beds.R1.pathology': { revision: 2, digest: serverDigest('NEUMONIA') } },
-      writes: { 2: { mutationId: 'm-P1', clientId: 'c-P1' } },
+      writes: { 2: { mutationId: 'm-P1', clientId: 'c-P1', uid: 'u-c-P1' } },
     });
   });
 
@@ -146,8 +156,8 @@ describe('the map a write leaves', () => {
     const map = next.meta?.fieldWrites as FieldWritesMap;
     expect(Object.keys(map.fields).sort()).toEqual(['beds.R1.pathology', 'beds.R1.status']);
     expect(map.writes).toEqual({
-      2: { mutationId: 'm-P1', clientId: 'c-P1' },
-      3: { mutationId: 'm-P2', clientId: 'c-P2' },
+      2: { mutationId: 'm-P1', clientId: 'c-P1', uid: 'u-c-P1' },
+      3: { mutationId: 'm-P2', clientId: 'c-P2', uid: 'u-c-P2' },
     });
     expect(map.incompleteThrough).toBeUndefined();
   });
@@ -405,6 +415,12 @@ describe('the replay’s reading of the map', () => {
 });
 
 describe('the server’s reading of the map (a replay of an edit already stored)', () => {
+  /** P1's account and computer resend their edit `id`. */
+  const P1 = (id = 'm-P1') => ({ mutationId: id, uid: 'u-c-P1', clientId: 'c-P1' });
+  const both = (pathology: string, r2: Record<string, unknown> = { pathology: 'ITU' }) => ({
+    ...record(pathology),
+    beds: { ...record(pathology).beds, R2: r2 as { pathology: string } },
+  });
   const first = serverWrite(
     undefined,
     record('NEUMONIA'),
@@ -413,19 +429,51 @@ describe('the server’s reading of the map (a replay of an edit already stored)
     'm-P1',
     'c-P1'
   );
-  const otherBed = serverWrite(
+  const otherBed = serverWrite(first, both('NEUMONIA'), ['beds.R2.pathology'], 3, 'm-P2', 'c-P2');
+  const sameBed = serverWrite(
     first,
-    { ...record('NEUMONIA'), beds: { ...record('NEUMONIA').beds, R2: { pathology: 'ITU' } } },
-    ['beds.R2.pathology'],
+    record('NEUMONIA', 'Grave'),
+    ['beds.R1.status'],
     3,
     'm-P2',
     'c-P2'
   );
-  const sameField = serverWrite(first, record('NEUMONIA GRAVE'), ['beds.R1.pathology'], 3, 'm-P2');
-  const wholeBed = serverWrite(first, record('NEUMONIA'), ['beds.R1'], 3, 'm-P2');
-  const below = serverWrite(first, record('NEUMONIA'), ['beds.R1.pathology.detail'], 3, 'm-P2');
+  // Another computer moves the patient to R2 and admits the next one in R1 with the same text.
+  const nextOccupant = serverWrite(
+    first,
+    both('NEUMONIA', { pathology: 'NEUMONIA' }),
+    ['beds.R1.clinicalEpisodeId', 'beds.R1.rut', 'beds.R2.pathology'],
+    3,
+    'm-P2',
+    'c-P2'
+  );
+  const crib = serverWrite(
+    first,
+    record('NEUMONIA'),
+    ['beds.R1.clinicalCrib.pathology'],
+    3,
+    'm-P2',
+    'c-P2'
+  );
+  const sameField = serverWrite(
+    first,
+    record('NEUMONIA GRAVE'),
+    ['beds.R1.pathology'],
+    3,
+    'm-P2',
+    'c-P2'
+  );
+  const wholeBed = serverWrite(first, record('NEUMONIA'), ['beds.R1'], 3, 'm-P2', 'c-P2');
+  const below = serverWrite(
+    first,
+    record('NEUMONIA'),
+    ['beds.R1.pathology.detail'],
+    3,
+    'm-P2',
+    'c-P2'
+  );
   const direct = { ...otherBed, lastUpdated: '2026-11-18T12:00:00.000Z' };
-  const afterDirect = serverWrite(direct, record('NEUMONIA'), ['beds.R2.status'], 4, 'm-P3');
+  const afterDirect = serverWrite(direct, both('NEUMONIA'), ['beds.R2.status'], 4, 'm-P3', 'c-P3');
   const changed = {
     ...otherBed,
     beds: { ...otherBed.beds, R1: { ...otherBed.beds.R1, pathology: 'OTRO' } },
@@ -441,12 +489,13 @@ describe('the server’s reading of the map (a replay of an edit already stored)
     record('NEUMONIA'),
     ['beds.R1', 'beds.R1.pathology'],
     2,
-    'm-P1'
+    'm-P1',
+    'c-P1'
   );
   // Under the Rayen fence a direct client write between two server writes stays outside the beds.
   const fenced = serverWrite(
     undefined,
-    Object.assign(record('NEUMONIA'), { night: 'NOCHE' }),
+    Object.assign(both('NEUMONIA'), { night: 'NOCHE' }),
     ['beds.R1.pathology', 'night'],
     2,
     'm-P1',
@@ -455,41 +504,124 @@ describe('the server’s reading of the map (a replay of an edit already stored)
   );
   const fencedAfterDirect = serverWrite(
     { ...fenced, lastUpdated: '2026-11-18T12:00:00.000Z' },
-    Object.assign(record('NEUMONIA', 'Grave'), { night: 'NOCHE' }),
-    ['beds.R1.status'],
+    Object.assign(both('NEUMONIA', { pathology: 'ITU', status: 'Grave' }), { night: 'NOCHE' }),
+    ['beds.R2.status'],
     3,
     'm-P2',
     'c-P2',
     true
   );
-  const days: Array<[string, Day]> = [
-    ['its value changed without the map', changed],
-    ['a server write that left the map behind', mapBehind],
-    ['a write of the bed and its field together', bedAndField],
-    ['a direct client write between two fenced writes', fencedAfterDirect],
-    ['only its own write', first],
-    ['another bed written after it', otherBed],
-    ['the same field written after it', sameField],
-    ['its bed written whole after it', wholeBed],
-    ['a field below it written after it', below],
-    ['a direct client write after it', direct],
-    ['a server write after a direct client write', afterDirect],
+  // The same edit identifier written by another account, or by P1's account on another computer.
+  const otherAccount = serverWrite(
+    undefined,
+    record('NEUMONIA'),
+    ['beds.R1.pathology'],
+    2,
+    'm-P1',
+    'c-P1',
+    false,
+    'u-other'
+  );
+  const noAccount = serverWrite(
+    undefined,
+    record('NEUMONIA'),
+    ['beds.R1.pathology'],
+    2,
+    'm-P1',
+    'c-P1',
+    false,
+    ''
+  );
+  const noComputer = serverWrite(
+    undefined,
+    record('NEUMONIA'),
+    ['beds.R1.pathology'],
+    2,
+    'm-P1',
+    undefined,
+    false,
+    'u-c-P1'
+  );
+  const later = (day: Day) =>
+    serverWrite(day, both('NEUMONIA'), ['beds.R2.pathology'], 3, 'm-P2', 'c-P2');
+
+  const days: Array<[string, Day, Record<string, boolean>]> = [
+    ['only its own write', first, { 'beds.R1.pathology': true }],
+    ['another bed written after it', otherBed, { 'beds.R1.pathology': true }],
+    ['another field of its bed written after it', sameBed, {}],
+    ['the next occupant of its bed with the same text', nextOccupant, {}],
+    ['the crib of its bed written after it', crib, {}],
+    ['the same field written after it', sameField, {}],
+    ['its bed written whole after it', wholeBed, {}],
+    ['a field below it written after it', below, {}],
+    ['a direct client write after it', direct, {}],
+    ['a server write after a direct client write', afterDirect, {}],
+    ['its value changed without the map', changed, {}],
+    ['a server write that left the map behind', mapBehind, {}],
+    ['a write of the bed and its field together', bedAndField, { 'beds.R1.pathology': true }],
+    ['a fenced write of its own', fenced, { 'beds.R1.pathology': true, night: true }],
+    [
+      'a direct client write between two fenced writes',
+      fencedAfterDirect,
+      { 'beds.R1.pathology': true },
+    ],
+    ['its identifier written by another account', later(otherAccount), {}],
+    ['an entry with no account (written before accounts were noted)', later(noAccount), {}],
+    [
+      'an entry with no computer, by the same account',
+      later(noComputer),
+      { 'beds.R1.pathology': true },
+    ],
   ];
 
-  it.each(days)('agrees with the replay for %s', (_label, day) => {
+  it.each(days)('credits exactly its own untouched fields for %s', (_label, day, credited) => {
     for (const path of ['beds.R1.pathology', 'beds.R1.status', 'beds.R2.pathology', 'night'])
-      for (const id of ['m-P1', 'm-P2'])
-        expect(isStillWrittenBy(day, [path], id)).toBe(
-          isLastWrittenBy(storedFieldWrites(day), path, [id], day)
-        );
+      for (const id of ['m-P1', 'm-P2']) {
+        const server = isStillWrittenBy(day, [path], P1(id));
+        expect(server, `${path} by ${id}`).toBe(id === 'm-P1' && credited[path] === true);
+        // Never more than the replay credits by the same map.
+        if (server) expect(isLastWrittenBy(storedFieldWrites(day), path, [id], day)).toBe(true);
+      }
   });
 
-  it('credits every path of the request or none', () => {
-    expect(isStillWrittenBy(otherBed, ['beds.R1.pathology'], 'm-P1')).toBe(true);
-    expect(isStillWrittenBy(otherBed, ['beds.R1.pathology', 'beds.R1.status'], 'm-P1')).toBe(false);
-    expect(isStillWrittenBy(otherBed, [], 'm-P1')).toBe(false);
-    expect(isStillWrittenBy(otherBed, ['*'], 'm-P1')).toBe(false);
-    expect(isStillWrittenBy(otherBed, ['beds.R1.pathology'], undefined)).toBe(false);
+  it('credits only the same account and computer, every path of the request or none', () => {
+    expect(isStillWrittenBy(otherBed, ['beds.R1.pathology'], P1())).toBe(true);
+    expect(isStillWrittenBy(otherBed, ['beds.R1.pathology'], { ...P1(), uid: 'u-c-P2' })).toBe(
+      false
+    );
+    expect(isStillWrittenBy(otherBed, ['beds.R1.pathology'], { ...P1(), uid: undefined })).toBe(
+      false
+    );
+    expect(isStillWrittenBy(otherBed, ['beds.R1.pathology'], { ...P1(), clientId: 'c-P2' })).toBe(
+      false
+    );
+    expect(
+      isStillWrittenBy(otherBed, ['beds.R1.pathology'], { ...P1(), clientId: undefined })
+    ).toBe(false);
+    expect(isStillWrittenBy(otherBed, ['beds.R1.pathology', 'beds.R1.status'], P1())).toBe(false);
+    expect(isStillWrittenBy(otherBed, [], P1())).toBe(false);
+    expect(isStillWrittenBy(otherBed, ['*'], P1())).toBe(false);
+    expect(
+      isStillWrittenBy(otherBed, ['beds.R1.pathology'], { ...P1(), mutationId: undefined })
+    ).toBe(false);
+  });
+
+  it('never takes two missing identities as the same', () => {
+    const map = otherBed.meta?.fieldWrites as FieldWritesMap;
+    const anonymous = later(noAccount);
+    expect(isStillWrittenBy(anonymous, ['beds.R1.pathology'], { ...P1(), uid: undefined })).toBe(
+      false
+    );
+    const noEdit = {
+      ...otherBed,
+      meta: {
+        ...otherBed.meta,
+        fieldWrites: { ...map, writes: { ...map.writes, 2: { uid: 'u-c-P1' } } },
+      },
+    };
+    expect(
+      isStillWrittenBy(noEdit, ['beds.R1.pathology'], { ...P1(), mutationId: undefined })
+    ).toBe(false);
   });
 
   it('never credits, and never throws, on a malformed map', () => {
@@ -510,19 +642,17 @@ describe('the server’s reading of the map (a replay of an edit already stored)
         ...otherBed,
         meta: { ...otherBed.meta, fieldWrites: { ...map, writes } },
       })),
+      ...odd.map(writer => ({
+        ...otherBed,
+        meta: { ...otherBed.meta, fieldWrites: { ...map, writes: { ...map.writes, 2: writer } } },
+      })),
       ...odd.map(entry => ({
         ...otherBed,
-        meta: {
-          ...otherBed.meta,
-          fieldWrites: {
-            ...map,
-            fields: { 'beds.R1.pathology': entry },
-          },
-        },
+        meta: { ...otherBed.meta, fieldWrites: { ...map, fields: { 'beds.R1.pathology': entry } } },
       })),
       ...odd.map(lastUpdated => ({ ...otherBed, lastUpdated })),
     ];
     for (const day of variants)
-      expect(isStillWrittenBy(day, ['beds.R1.pathology'], 'm-P1')).toBe(false);
+      expect(isStillWrittenBy(day, ['beds.R1.pathology'], P1())).toBe(false);
   });
 });

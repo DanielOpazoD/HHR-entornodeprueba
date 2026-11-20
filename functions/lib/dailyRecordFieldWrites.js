@@ -3,8 +3,8 @@
  * every patch, whole-day save and Rayen batch, naming only the fields that write changed:
  * - `fields[path]`: the day revision that last wrote the field and a digest of the value it
  *   stored (`digest` is null for `*`, a write of the whole day);
- * - `writes[revision]`: the edit (`mutationId`) and the computer (`clientId`) behind each
- *   revision a field still names;
+ * - `writes[revision]`: the edit (`mutationId`), the computer (`clientId`) and, for a patch or
+ *   whole-day save, the signed-in account (`uid`) behind each revision a field still names;
  * - `revision`: the day revision this map was last brought up to date with, and `fenced` when that
  *   write ran under the Rayen clinical fence (the rules then keep clients out of `beds` and
  *   `bedTypeOverrides`: `preservesServerOwnedClinicalState`);
@@ -113,6 +113,7 @@ const nextFieldWrites = ({
   revision,
   mutationId,
   clientId,
+  uid,
   fenced = false,
 }) => {
   const written = paths.includes('*') ? ['*'] : [...new Set(paths)];
@@ -155,7 +156,7 @@ const nextFieldWrites = ({
     [...new Set(Object.values(fields).map(entry => String(entry.revision)))].map(key => [
       key,
       key === String(revision)
-        ? { mutationId: mutationId || null, clientId: clientId || null }
+        ? { mutationId: mutationId || null, clientId: clientId || null, ...(uid ? { uid } : {}) }
         : previousWrites[key] || { mutationId: null, clientId: null },
     ])
   );
@@ -171,14 +172,20 @@ const nextFieldWrites = ({
 
 const isBedTreePath = path => /^(beds|bedTypeOverrides)(\.|$)/.test(path);
 
+/** What a later write must not have touched: a field's whole bed (its patient, crib included). */
+const scopeOf = path => /^beds\.[^.]+/.exec(path)?.[0] ?? path;
+
 /**
- * Whether the stored `day` still holds every one of `paths` as the edit `mutationId` wrote it,
- * read as the replay reads the map (fieldWriteAttribution.ts, `isLastWrittenBy`): the map is at
- * the day's revision and the day's last write was a server write; for each path, the newest entry
- * touching it is this path's own, names a write by this edit, is newer than any change the map may
- * miss, and its digest is the stored value's. No paths, or `*`, never tells.
+ * Whether the stored `day` still holds every one of `paths` as the edit `mutationId` of account
+ * `uid` (and computer `clientId`, when the entry names one) wrote it, read as the replay reads the
+ * map (fieldWriteAttribution.ts, `isLastWrittenBy`): the map is at the day's revision and the
+ * day's last write was a server write; for each path, its entry names a write by this edit and
+ * account, is newer than any change the map may miss, its digest is the stored value's, and no
+ * entry newer than it touches the path's bed (any field of it: the patient may have changed) or,
+ * outside the beds, the path itself (a whole-day write leaves no other entry). No paths, or `*`,
+ * never tells.
  */
-const isStillWrittenBy = (day, paths, mutationId) => {
+const isStillWrittenBy = (day, paths, { mutationId, uid, clientId } = {}) => {
   const meta = isPlainObject(day?.meta) ? day.meta : {};
   const map = isPlainObject(meta.fieldWrites) ? meta.fieldWrites : {};
   const fields = isPlainObject(map.fields) ? map.fields : {};
@@ -187,6 +194,7 @@ const isStillWrittenBy = (day, paths, mutationId) => {
   const stamp = stampOf(day?.lastUpdated);
   if (
     !mutationId ||
+    !uid ||
     paths.length === 0 ||
     revision === undefined ||
     revisionOf(map.revision) !== revision ||
@@ -198,17 +206,20 @@ const isStillWrittenBy = (day, paths, mutationId) => {
   const outsideBedsIncompleteThrough = revisionOf(map.outsideBedsIncompleteThrough) ?? -1;
   return paths.every(path => {
     const entry = fields[path];
-    if (!isEntry(entry)) return false;
+    const writer = isEntry(entry) ? writes[String(entry.revision)] : undefined;
+    if (!isPlainObject(writer)) return false;
+    const scope = scopeOf(path);
     const newer = Object.entries(fields).some(
       ([other, otherEntry]) =>
-        other !== path &&
-        (other === '*' || other.startsWith(`${path}.`) || path.startsWith(`${other}.`)) &&
+        (other === scope || other.startsWith(`${scope}.`) || scope.startsWith(`${other}.`)) &&
         isEntry(otherEntry) &&
         otherEntry.revision > entry.revision
     );
     return (
       !newer &&
-      writes[String(entry.revision)]?.mutationId === mutationId &&
+      writer.mutationId === mutationId &&
+      writer.uid === uid &&
+      (writer.clientId === null || writer.clientId === undefined || writer.clientId === clientId) &&
       entry.revision > incompleteThrough &&
       (isBedTreePath(path) || entry.revision > outsideBedsIncompleteThrough) &&
       entry.digest === fieldValueDigest(readValueAtPath(day, path))

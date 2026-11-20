@@ -157,8 +157,19 @@ const collectChangedPaths = syncContract =>
         .map(path => path.trim())
     : [];
 
-/** `writtenPaths`: the fields this write changes (`*`, the default: the whole day). */
-const buildNextMeta = ({ remoteData, syncContract, now, record, writtenPaths, fenced }) => {
+/**
+ * `writtenPaths`: the fields this write changes (`*`, the default: the whole day); `writerUid`: the
+ * signed-in account that sends it.
+ */
+const buildNextMeta = ({
+  remoteData,
+  syncContract,
+  now,
+  record,
+  writtenPaths,
+  fenced,
+  writerUid,
+}) => {
   const mutationId = normalizeShortString(syncContract?.mutationId);
   const clientId = normalizeShortString(syncContract?.clientId);
   const tabId = normalizeShortString(syncContract?.tabId);
@@ -179,6 +190,7 @@ const buildNextMeta = ({ remoteData, syncContract, now, record, writtenPaths, fe
       revision,
       mutationId,
       clientId,
+      uid: normalizeShortString(writerUid, 128),
       fenced,
     }),
   };
@@ -226,11 +238,12 @@ const buildAuthorityRecordState = ({ record, lastUpdated, meta }) => {
 };
 
 /**
- * Whether the stored day already holds this request's edit: the day's last write was it, or every
- * one of `paths` (the fields the request writes) is still the value that edit stored, as
- * `meta.fieldWrites` tells: another computer saved other fields after it, and its answer was lost.
+ * Whether the stored day already holds this request's edit: the day's last write was it, or, as
+ * `meta.fieldWrites` tells, the same account (`uid`) and computer wrote it, every one of `paths`
+ * (the fields the request writes) still holds the value it stored, and nothing wrote their beds
+ * since: another computer saved elsewhere after it, and its answer was lost.
  */
-const hasAlreadyAppliedMutation = ({ snapshot, syncContract, paths }) => {
+const hasAlreadyAppliedMutation = ({ snapshot, syncContract, paths, uid }) => {
   if (!snapshot.exists) {
     return false;
   }
@@ -238,7 +251,14 @@ const hasAlreadyAppliedMutation = ({ snapshot, syncContract, paths }) => {
   const remoteMutationId = normalizeShortString(snapshot.data()?.meta?.lastMutationId);
   const localMutationId = normalizeShortString(syncContract?.mutationId);
   if (remoteMutationId && localMutationId && remoteMutationId === localMutationId) return true;
-  return Array.isArray(paths) && isStillWrittenBy(snapshot.data(), paths, localMutationId);
+  return (
+    Array.isArray(paths) &&
+    isStillWrittenBy(snapshot.data(), paths, {
+      mutationId: localMutationId,
+      uid: normalizeShortString(uid, 128),
+      clientId: normalizeShortString(syncContract?.clientId),
+    })
+  );
 };
 
 module.exports = {
