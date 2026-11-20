@@ -9,13 +9,17 @@ export const calendarDateForMovement = (censusDate: string, time?: string): stri
   return minutes < nightEndMinutes ? nextDay : censusDate;
 };
 
-/** Older imports persisted the census day as movementDate. Recover only that known source defect. */
+/**
+ * Older imports persisted the census day as movementDate. Recover only that known source defect;
+ * an official calendar day equal to the census day (08:00–09:00 before a weekend) is already right.
+ */
 export const recoverImportedMovementCalendarDate = <T extends DischargeData | TransferData>(
   movement: T,
   censusDate: string
 ): T => {
   if (
     movement.movementProvenance?.source !== 'gestion_camas' ||
+    movement.movementDateSource === 'official' ||
     movement.movementDate !== censusDate
   )
     return movement;

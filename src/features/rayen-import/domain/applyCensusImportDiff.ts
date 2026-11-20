@@ -9,7 +9,7 @@ import { BEDS, OCCUPANCY_ONLY_EXTRA_BED_IDS } from '@/constants/beds';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DischargeData, TransferData, CMAData } from '@/types/domain/movements';
 import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
-import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
+import { officialCalendarDay, parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
 import { reportEgresoEntry, reportEgresoPatient } from '../mapping/reportEgresoMapping';
 import { normalizeRut } from '@/utils/rutUtils';
 import * as collisionApply from './applyBedOccupancyCollisionResolutions';
@@ -57,21 +57,26 @@ const buildRayenMovementProvenance = (
         syncRunId: ctx.syncRunId,
       });
 
-/** Altas and transfers share one date/time contract, independent of their owning census record. */
+/**
+ * Altas and transfers share one date/time contract, independent of their owning census record.
+ * The official calendar day is the movement date; only entries without it reconstruct one.
+ */
 const buildImportedMovementStamp = (
   entry: DischargeEntry,
   censusDate: string,
   now: Date,
   source: 'manual' | 'gestion_camas'
-) => {
+): Pick<DischargeData, 'time' | 'movementDate' | 'movementDateSource'> => {
   const time = entry.correctedTime || calendarStampInClinicalTimeZone(now).hhmm;
-  return {
-    time,
-    movementDate:
-      source === 'gestion_camas'
-        ? calendarDateForMovement(entry.correctedDay || censusDate, time)
-        : censusDate,
-  };
+  if (source !== 'gestion_camas') return { time, movementDate: censusDate };
+  const official = officialCalendarDay(
+    entry.correctedDay,
+    entry.correctedTime,
+    entry.correctedCalendarDay
+  );
+  return official
+    ? { time, movementDate: official, movementDateSource: 'official' }
+    : { time, movementDate: calendarDateForMovement(entry.correctedDay || censusDate, time) };
 };
 
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));

@@ -40,7 +40,12 @@ export const appendAssociatedClinicalCribDischarge = (
 ): void => {
   discharges.push(
     recordedMother
-      ? { ...associated, time: recordedMother.time, movementDate: recordedMother.movementDate }
+      ? {
+          ...associated,
+          time: recordedMother.time,
+          movementDate: recordedMother.movementDate,
+          movementDateSource: recordedMother.movementDateSource,
+        }
       : associated
   );
   const snapshot = recordedMother?.originalData;

@@ -5,7 +5,10 @@ import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egreso
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { PatientFlowReportResult } from '../bedTraceabilityResolver';
 import { parseStatisticalDischargeEvidence } from '../mapping/parseStatisticalDischargeReport';
-import { parseStatisticalEgresoInstant } from '../mapping/reportEgresoDateTime';
+import {
+  correctedEgresoFields,
+  parseStatisticalEgresoInstant,
+} from '../mapping/reportEgresoDateTime';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
 import { correctedStamp } from './egresoReportPolicy';
 import { decodePdfBase64 } from './historicalStatisticalDischargeRecovery';
@@ -251,11 +254,13 @@ const enrichFromGestionCamas = async (
             ? {
                 admissionDay: exactDay(evidence.admissionAt),
                 admissionTime: exactTime(evidence.admissionAt),
-                correctedDay: censusDay(evidence.dischargeAt),
-                correctedTime: exactTime(evidence.dischargeAt),
+                ...correctedEgresoFields(
+                  exactDay(evidence.dischargeAt),
+                  exactTime(evidence.dischargeAt)
+                ),
               }
             : lookupStamp
-              ? { correctedDay: lookupStamp.iso, correctedTime: lookupStamp.hhmm }
+              ? correctedEgresoFields(lookupStamp.calendarIso, lookupStamp.hhmm)
               : {}),
           ...('fromClinicalCrib' in target && target.fromClinicalCrib
             ? { fromClinicalCrib: true }

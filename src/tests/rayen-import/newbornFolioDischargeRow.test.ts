@@ -139,6 +139,26 @@ describe('newborn folio discharge report row', () => {
     expect(result.discharges).toEqual([]);
   });
 
+  it('recognises a Friday 08:30 discharge stored under its official Friday date', () => {
+    // 08:30 is inside Friday's census both on Friday and on Saturday (09:00 weekend handoff).
+    const fridayRow = {
+      ...folioRow(),
+      correctedDay: '2026-07-10',
+      correctedTime: '08:30',
+      correctedCalendarDay: '2026-07-10',
+    };
+    const stored = {
+      ...movement(),
+      movementDate: '2026-07-10',
+      movementDateSource: 'official' as const,
+      time: '08:30',
+    };
+    const record = { ...recorded([stored]), date: '2026-07-10' };
+    const result = applyEgresoReport(emptyDiff(), [fridayRow], record);
+    expect(result.conflicts).toEqual([]);
+    expect(result.discharges).toEqual([]);
+  });
+
   it.each([
     { patientName: 'RN de Otra Madre' },
     { run: 'AB123456', patientName: 'Adulto Pasaporte' },

@@ -1,5 +1,5 @@
 import { hasNonRutLetter, hasPassportShapeBeforeLetterRule, normalizeRut } from '@/utils/rutUtils';
-import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
+import { correctedEgresoFields } from '../mapping/reportEgresoDateTime';
 import type { RayenHospitalizationReportResult } from '../bridge/hospitalizationReportsBridge';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
@@ -144,8 +144,7 @@ export const recoverHistoricalReportEpisodes = async (
         admissionDay: evidence.admissionAt.slice(0, 10),
         // clinical-clock-allow raw-offset-clock: Statistical report admissionAt is parsed unzoned Rapa Nui wall time.
         admissionTime: evidence.admissionAt.slice(11, 16),
-        correctedDay: resolveClinicalDayForDateTime(day, time),
-        correctedTime: time,
+        ...correctedEgresoFields(day, time),
         ...(evidence.isDead === undefined
           ? {}
           : {

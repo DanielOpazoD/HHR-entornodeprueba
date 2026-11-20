@@ -4,7 +4,8 @@ import type { EgresoReportRow, ReportEgreso } from '../contracts/egresoReport';
 import { isCmaBedLabel, isCmaLocation } from '../mapping/bedMapping';
 import { mapDestinoDeAlta } from '../mapping/mapDestinoDeAlta';
 import { toTitleCaseName } from '../mapping/rayenToPatientData';
-import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
+import type { CorrectedEgresoFields } from '../mapping/reportEgresoDateTime';
+import { officialCalendarDay, parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
 import { resolveReportBedId } from '../mapping/resolveReportBed';
 import {
   documentKeyBeforeLetterRule,
@@ -97,14 +98,28 @@ export const selectReportRowsByEpisode = (
       ? `${patientKey}|${episode}`
       : (documentKey ?? `${run}|document:${byIdentity.size}`);
     const previous = byIdentity.get(key);
-    const stamp = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
+    const stamp = correctedStamp(
+      row.fechaEgreso,
+      row.correctedDay,
+      row.correctedTime,
+      row.correctedCalendarDay
+    );
     const previousStamp =
       previous &&
-      correctedStamp(previous.fechaEgreso, previous.correctedDay, previous.correctedTime);
+      correctedStamp(
+        previous.fechaEgreso,
+        previous.correctedDay,
+        previous.correctedTime,
+        previous.correctedCalendarDay
+      );
     if (
       !previous ||
-      `${stamp.correctedDay}T${stamp.correctedTime}` >
-        `${previousStamp?.correctedDay}T${previousStamp?.correctedTime}`
+      isLaterEgresoRow(
+        `${stamp.correctedDay}T${stamp.correctedTime}`,
+        stamp.correctedCalendarDay,
+        `${previousStamp?.correctedDay}T${previousStamp?.correctedTime}`,
+        previousStamp?.correctedCalendarDay
+      )
     )
       byIdentity.set(key, row);
   }
@@ -185,11 +200,25 @@ interface CmaOriginEvidence {
   location?: string;
 }
 
+/**
+ * Two rows of one egreso keep their existing order (`key`: later wins, the first stays on a tie).
+ * Only on that tie does a valid official calendar day decide: Friday and Saturday 08:30 share the
+ * Friday census and time, and the stored date must not depend on which row arrived first.
+ */
+export const isLaterEgresoRow = (
+  key: string,
+  calendarDay: string | undefined,
+  priorKey: string,
+  priorCalendarDay: string | undefined
+): boolean =>
+  key > priorKey || (key === priorKey && (calendarDay ?? '') > (priorCalendarDay ?? ''));
+
 export const correctedStamp = (
   fechaEgreso: string,
   correctedDay?: string,
-  correctedTime?: string
-): { correctedDay?: string; correctedTime?: string } => {
+  correctedTime?: string,
+  correctedCalendarDay?: string
+): CorrectedEgresoFields => {
   const dayMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(correctedDay || '');
   const timeMatch = /^(\d{2}):(\d{2})$/.exec(correctedTime || '');
   const date =
@@ -206,10 +235,21 @@ export const correctedStamp = (
     timeMatch && Number(timeMatch[1]) <= 23 && Number(timeMatch[2]) <= 59
   );
   if (isValidDay && isValidTime) {
-    return { correctedDay, correctedTime };
+    const calendarDay = officialCalendarDay(correctedDay, correctedTime, correctedCalendarDay);
+    return {
+      correctedDay,
+      correctedTime,
+      ...(calendarDay && { correctedCalendarDay: calendarDay }),
+    };
   }
   const stamp = parseStatisticalEgresoStamp(fechaEgreso);
-  return { correctedDay: stamp?.iso, correctedTime: stamp?.hhmm };
+  return stamp
+    ? {
+        correctedDay: stamp.iso,
+        correctedTime: stamp.hhmm,
+        correctedCalendarDay: stamp.calendarIso,
+      }
+    : { correctedDay: undefined, correctedTime: undefined };
 };
 
 export const hasRecordedDifferentEpisode = (
@@ -304,14 +344,21 @@ const timeFrom = (raw?: string): string | undefined => {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 };
 
+/** A report stamp: its census day, time and, when the source supplied it, its calendar day. */
+export interface ReportEgresoStamp {
+  iso: string;
+  hhmm: string;
+  calendarIso?: string;
+}
+
 export const reportPredatesAdmission = (
-  stamp: { iso: string; hhmm: string },
+  stamp: ReportEgresoStamp,
   evidence: CmaOriginEvidence
 ): boolean => {
   const admissionDay = toIsoDay(evidence.admissionDate ?? '');
   if (!admissionDay) return false;
   // The report stamp owns a census shift; admissionDate is a calendar date.
-  const dischargeCalendarDay = calendarDateForMovement(stamp.iso, stamp.hhmm);
+  const dischargeCalendarDay = stamp.calendarIso ?? calendarDateForMovement(stamp.iso, stamp.hhmm);
   if (dischargeCalendarDay !== admissionDay) return dischargeCalendarDay < admissionDay;
   const admissionTime = timeFrom(evidence.admissionTime) ?? timeFrom(evidence.admissionDate);
   return admissionTime ? stamp.hhmm < admissionTime : false;
@@ -320,7 +367,7 @@ export const reportPredatesAdmission = (
 export const reportPredatesActiveAdmission = (
   diff: CensusImportDiff,
   row: EgresoReportRow,
-  stamp: { iso: string; hhmm: string },
+  stamp: ReportEgresoStamp,
   evidence?: CmaOriginEvidence & { clinicalEpisodeId?: string }
 ): boolean => {
   if (!evidence) return false;
@@ -456,6 +503,11 @@ export const reportEgresoFromRow = (row: EgresoReportRow): ReportEgreso => {
     diagnostico: row.diagnostico,
     admissionDay: row.admissionDay,
     admissionTime: row.admissionTime,
-    ...correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime),
+    ...correctedStamp(
+      row.fechaEgreso,
+      row.correctedDay,
+      row.correctedTime,
+      row.correctedCalendarDay
+    ),
   };
 };

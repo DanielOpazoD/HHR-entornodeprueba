@@ -242,11 +242,7 @@ export const fileCrossDayCorrections = async (
   for (const egreso of diff.reportEgresos ?? []) {
     add(
       egreso.correctedDay,
-      {
-        ...reportEgresoEntry(egreso),
-        correctedDay: egreso.correctedDay,
-        correctedTime: egreso.correctedTime,
-      },
+      reportEgresoEntry(egreso),
       reportEgresoPatient(egreso),
       egreso.fromClinicalCrib === true
     );

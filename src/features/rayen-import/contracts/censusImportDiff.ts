@@ -115,6 +115,11 @@ export interface DischargeEntry {
    */
   correctedDay?: string;
   correctedTime?: string;
+  /**
+   * Official Rapa Nui calendar day of the same stamp: the movement's date. Without it the date is
+   * reconstructed from the census day and time, which is ambiguous 08:00–09:00 before a weekend.
+   */
+  correctedCalendarDay?: string;
   /** Authoritative prior-day movement already exists; only occupancy reconciliation remains. */
   historicalMovementRecorded?: boolean;
   /** Independent evidence for the three documents that participate in the discharge workflow. */
