@@ -124,7 +124,9 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
                       <button
                         type="button"
                         data-census-menu-action
-                        onClick={() => ui.setCurrentModule('CUDYR')}
+                        // The census stays until CUDYR is ready; a fallback shown first would make
+                        // React hold the view back 300 ms.
+                        onClick={() => React.startTransition(() => ui.setCurrentModule('CUDYR'))}
                         className="flex items-center gap-2 rounded-md text-teal-800"
                       >
                         <BarChart3 size={14} />

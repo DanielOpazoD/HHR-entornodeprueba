@@ -1,7 +1,8 @@
 import React, { ComponentProps } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { AppRouter } from '@/components/AppRouter';
+import { useAppState } from '@/hooks/useAppState';
 
 const mockCanAccessAppModuleRoute = vi.fn();
 const mockCanForceCreateDayCopyOverride = vi.fn();
@@ -49,8 +50,18 @@ vi.mock('@/views/LazyViews', () => ({
       />
     );
   },
-  CudyrView: ({ readOnly }: { readOnly: boolean }) => (
-    <div data-testid="cudyr-view" data-read-only={String(readOnly)} />
+  CudyrView: ({
+    readOnly,
+    ui,
+  }: {
+    readOnly: boolean;
+    ui: { setCurrentModule: (module: 'CENSUS') => void };
+  }) => (
+    <div data-testid="cudyr-view" data-read-only={String(readOnly)}>
+      <button type="button" onClick={() => ui.setCurrentModule('CENSUS')}>
+        Volver al censo
+      </button>
+    </div>
   ),
   HandoffView: ({ readOnly }: { readOnly: boolean }) => {
     if (lazyRouteState.suspendedViews.has('handoff-nursing')) {
@@ -110,6 +121,12 @@ const createProps = (overrides: Partial<AppRouterProps> = {}): AppRouterProps =>
   },
   ...overrides,
 });
+
+const AppShellWithRouter = () => {
+  const shell = createProps().shell;
+  const ui = useAppState({ date: shell.currentDateString });
+  return <AppRouter ui={ui} shell={shell} />;
+};
 
 describe('AppRouter', () => {
   beforeEach(() => {
@@ -231,5 +248,20 @@ describe('AppRouter', () => {
 
     expect(screen.queryByTestId('handoff-nursing')).not.toBeInTheDocument();
     expect(screen.queryByTestId('census-view')).not.toBeInTheDocument();
+  });
+  it('returns from CUDYR to the census of the selected day, and a reload stays in the census', () => {
+    window.history.replaceState(null, '', '/cudyr?date=2026-04-22');
+    const firstLoad = render(<AppShellWithRouter />);
+    expect(screen.getByTestId('cudyr-view')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Volver al censo' }));
+    expect(screen.getByTestId('census-view')).toBeInTheDocument();
+    expect(screen.queryByTestId('cudyr-view')).not.toBeInTheDocument();
+    expect(`${window.location.pathname}${window.location.search}`).toBe('/census?date=2026-04-22');
+
+    firstLoad.unmount();
+    render(<AppShellWithRouter />);
+    expect(screen.getByTestId('census-view')).toBeInTheDocument();
+    window.history.replaceState(null, '', '/');
   });
 });

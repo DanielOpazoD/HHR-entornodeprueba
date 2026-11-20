@@ -14,7 +14,6 @@ let generation = 0;
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordData: () => ({ record: null, bootstrapPhase: 'loading' }),
 }));
-vi.mock('@/hooks/useUIState', () => ({ useUIState: () => ({ setCurrentModule: vi.fn() }) }));
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ role: 'viewer', currentUser: { uid: 'synthetic' } }),
 }));
@@ -73,7 +72,7 @@ afterEach(clearSyntheticSession);
 describe('CUDYR explorer loading with real report and supplement hooks', () => {
   const enterFromDaily = async (data: CudyrReportDataset) => {
     vi.mocked(loadCudyrReport).mockResolvedValue(data);
-    render(<CudyrView currentDate={data.to} readOnly />);
+    render(<CudyrView currentDate={data.to} readOnly ui={{ setCurrentModule: vi.fn() }} />);
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Excel mensual' })).toBeEnabled()
     );

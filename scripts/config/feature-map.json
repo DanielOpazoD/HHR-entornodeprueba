@@ -19,6 +19,87 @@
       "rules": ["TIME-01", "TIME-02"]
     },
     {
+      "id": "census.open-day-flow",
+      "name": "Abrir el día del censo: del enlace a la lectura del servidor en pantalla",
+      "owner": "src/hooks/controllers",
+      "reach": {
+        "screen": "Censo Diario al abrir la página, con o sin ?date=, y al cambiar de día en la franja de fechas",
+        "controls": [{ "text": "Ir a hoy" }, { "text": "Volver al día de hoy" }]
+      },
+      "gate": [
+        "src/hooks/controllers/dailyRecordQueryController.ts",
+        "src/services/repositories/dailyRecordRemoteReadController.ts",
+        "src/hooks/controllers/dailyRecordPointReadPublication.ts"
+      ],
+      "flow": [
+        {
+          "at": "src/app-shell/bootstrap/openingCensusDay.ts › resolveOpeningCensusDay",
+          "decides": "Fija una sola vez por carga de página el día de apertura: un ?date= que sea una fecha real, si no el día clínico del hospital, nunca la fecha del equipo; el encabezado previo al ingreso y el censo parten de ese mismo día."
+        },
+        {
+          "at": "src/hooks/useDateNavigation.ts › useDateNavigation",
+          "decides": "Guarda el día elegido, empezando por el de apertura aunque el turno cambie mientras la app arranca; la franja de fechas lo cambia desde aquí."
+        },
+        {
+          "at": "src/app-shell/bootstrap/useAppBootstrapState.ts › buildAppBootstrapState",
+          "decides": "Mientras la sesión carga o se rehidrata no se abre el censo; solo con sesión autenticada el día elegido pasa a la aplicación."
+        },
+        {
+          "at": "src/app-shell/runtime/useAuthenticatedAppRuntime.ts › useAuthenticatedAppRuntime",
+          "decides": "Entrega el día elegido y el estado de la conexión remota al registro diario; «Ir a hoy» vuelve al día clínico del hospital."
+        },
+        {
+          "at": "src/hooks/useDailyRecordSyncQuerySupport.ts › useDeferredRemoteHydration",
+          "decides": "Si hay una copia en pantalla, aplaza la primera lectura del servidor a un momento libre; un día sin copia la pide de inmediato."
+        },
+        {
+          "at": "src/hooks/useDailyRecordQuery.ts › useDailyRecordQuery",
+          "decides": "Lee del servidor solo con la conexión lista y Firestore activo; una ausencia ya conocida se vuelve a comprobar en cada visita, y al recuperar la red siempre."
+        },
+        {
+          "at": "src/hooks/controllers/dailyRecordQueryController.ts › createDailyRecordQueryOptions",
+          "decides": "Anota lo que mostraba la pantalla antes de leer, lee el día y, al terminar, vuelve a mirar lo que hay en pantalla antes de entregar el resultado."
+        },
+        {
+          "at": "src/services/repositories/dailyRecordRepositoryReadService.ts › getForDateWithMeta",
+          "decides": "Toma la copia de este equipo como base y va al servidor solo si se pidió y Firestore está activo; si no, entrega la copia local o «no se pidió al servidor», nunca «no existe»."
+        },
+        {
+          "at": "src/services/repositories/dailyRecordRemoteReadController.ts › attemptRemoteGoldenPathRead",
+          "decides": "Ata la lectura a la sesión que la empezó; si el servidor falla, entrega la copia local por reintentar y, sin copia, el error: una lectura fallida no es un día vacío."
+        },
+        {
+          "at": "src/services/repositories/dailyRecordRemoteReadController.ts › resolveRemoteGoldenPathReadResult",
+          "decides": "Admite el día del servidor contra la base local: con escrituras pendientes lo muestra con lo pendiente encima y lo da por confirmado solo si el servidor lo compuso; si la sesión cambió, la lectura queda superada."
+        },
+        {
+          "at": "src/hooks/controllers/dailyRecordQueryResultPrecedence.ts › settleFinishedPointRead",
+          "decides": "Si una edición u otra lectura cambió la pantalla mientras se leía, conserva lo más nuevo; una lectura sin día nunca borra un día ya mostrado."
+        },
+        {
+          "at": "src/hooks/controllers/dailyRecordPointReadPublication.ts › publishDailyRecordQueryData",
+          "decides": "Al publicar en pantalla, se detiene en silencio si cambió el propietario o la generación de sesión, conserva una edición posterior y vuelve a poner encima los cambios pendientes de este equipo."
+        }
+      ],
+      "tests": [
+        "src/tests/hooks/useDateNavigation.test.ts",
+        "src/tests/integration/openingDayShiftChange.test.tsx",
+        "src/tests/app-shell/BootstrapRouteChrome.test.tsx",
+        "src/tests/app-shell/useAppBootstrapState.test.tsx",
+        "src/tests/hooks/useDailyRecordSyncQuery.test.tsx › keeps local data visible before deferred remote hydration completes",
+        "src/tests/hooks/useDailyRecordSyncQuery.test.tsx › promotes a local miss immediately without waiting for idle or duplicating recovery",
+        "src/tests/hooks/useDailyRecordQuery.test.tsx › revalidates a fresh cached absence before allowing empty UI on a new visit",
+        "src/tests/hooks/controllers/dailyRecordServerConfirmation.test.ts",
+        "src/tests/hooks/controllers/dailyRecordRemoteBaseOrdering.test.ts",
+        "src/tests/services/repositories/dailyRecordRemoteReadController.test.ts › returns a recoverable local result when the remote loader fails",
+        "src/tests/services/repositories/dailyRecordRetainedPendingProjectionRead.test.ts",
+        "src/tests/hooks/controllers/a5PointReadPublication.test.ts",
+        "src/tests/emulator-ui/pendingDayRead.emulator-ui.test.tsx",
+        "e2e/census-persistence-reload.spec.ts › keeps the selected historical day and its record across handoff reloads and day changes"
+      ],
+      "rules": ["TIME-01", "TIME-02", "SAVE-01", "SAVE-02"]
+    },
+    {
       "id": "census.edit-patient",
       "name": "Editar los datos de un paciente en su cama",
       "owner": "src/features/census",
@@ -506,6 +587,88 @@
         "e2e/rayen-mother-newborn-d1-discharge-critical.spec.ts › persiste ambos episodios históricos tras la revisión explícita"
       ],
       "rules": ["SRC-01", "CEN-01", "CUD-10", "ID-02", "RN-02", "CUD-01", "SAVE-01", "TIME-02"]
+    },
+    {
+      "id": "eloisa.discharge-time-flow",
+      "name": "Egreso desde Eloísa: del informe de altas a la fecha y hora del alta en el censo",
+      "owner": "src/features/rayen-import/mapping",
+      "reach": {
+        "screen": "Censo Diario: «Sincronizar» en la barra de Eloísa; el alta queda en la sección «Altas» con su fecha y hora",
+        "controls": [
+          { "testId": "rayen-import-button" },
+          { "text": "Sin registros para el día seleccionado." }
+        ]
+      },
+      "gate": [
+        "src/features/rayen-import/mapping/reportEgresoDateTime.ts",
+        "src/features/rayen-import/domain/egresoReportPolicy.ts",
+        "src/features/rayen-import/domain/applyCensusImportDiff.ts"
+      ],
+      "flow": [
+        {
+          "at": "extension/report-parser.js › parseRows",
+          "decides": "Lee la planilla «Lista de Pacientes con Alta Administrativa» de Gestión de Camas por nombre de columna y entrega cada egreso con su fecha y hora tal como las imprime, sin zona horaria."
+        },
+        {
+          "at": "src/features/rayen-import/hooks/prepareRayenStructuralPlan.ts › prepareRayenStructuralPlan",
+          "decides": "Quita las filas de episodios marcados como no válidos, completa las filas con el episodio exacto y fija esa evidencia para todos los replanes de la corrida."
+        },
+        {
+          "at": "src/features/rayen-import/domain/enrichReportOnlyDischarges.ts › enrichReportOnlyDischarges",
+          "decides": "Confirma la hora con la consulta o el PDF estadístico del episodio exacto (mismo RUN y episodio) y guarda en la fila el día del censo, el día civil oficial y la hora; sin prueba exacta, la fila queda como vino."
+        },
+        {
+          "at": "src/features/rayen-import/mapping/reportEgresoDateTime.ts › parseStatisticalEgresoStamp",
+          "decides": "Lee la celda masiva: hasta el 22-09-2026 con reloj continental convertido a Rapa Nui, desde el 23-09-2026 ya en hora de Rapa Nui; una fecha imposible no da hora."
+        },
+        {
+          "at": "src/features/rayen-import/mapping/reportEgresoDateTime.ts › parseStatisticalEgresoInstant",
+          "decides": "Convierte una sola vez a Rapa Nui una hora con desfase (Z, -03:00 o -0300); un día imposible deja el egreso sin confirmar."
+        },
+        {
+          "at": "src/features/rayen-import/mapping/reportEgresoDateTime.ts › officialCalendarDay",
+          "decides": "Única validación del día civil oficial: vale solo si es una fecha real y, a esa hora, corresponde a ese censo; si no, se trata como ausente."
+        },
+        {
+          "at": "src/features/rayen-import/domain/egresoReportPolicy.ts › correctedStamp",
+          "decides": "Da a cada fila su sello: el día del censo y la hora ya corregidos si son válidos, si no los de la celda masiva; sin sello, el egreso no se confirma."
+        },
+        {
+          "at": "src/features/rayen-import/domain/egresoReportPolicy.ts › selectReportRowsByEpisode",
+          "decides": "Deja una fila por episodio: la más reciente por día del censo y hora; el día civil solo desempata viernes y sábado 08:30, sin depender del orden de llegada."
+        },
+        {
+          "at": "src/features/rayen-import/domain/applyEgresoReport.ts › applyEgresoReport",
+          "decides": "Propone el alta o el traslado para la cama que ocupa ese paciente y episodio, con su sello; un documento que coincide solo en dígitos, otro episodio o un egreso anterior al ingreso quedan para revisión."
+        },
+        {
+          "at": "src/features/rayen-import/domain/applyEgresoLookupFallback.ts › applyEgresoLookupFallback",
+          "decides": "Si el informe masivo no alcanza, usa la consulta del episodio exacto, leyendo una hora sin desfase como hora de Rapa Nui; otra hospitalización del mismo RUN se ignora."
+        },
+        {
+          "at": "src/features/rayen-import/domain/applyCensusImportDiff.ts › buildImportedMovementStamp",
+          "decides": "Tras la revisión, el movimiento guarda como fecha el día civil oficial (movementDateSource «official») y la hora oficial; sin día civil válido la reconstruye desde el censo y la hora, como antes."
+        },
+        {
+          "at": "src/utils/movementCalendarDate.ts › recoverImportedMovementCalendarDate",
+          "decides": "Al leer un día, corrige la fecha de importaciones antiguas que guardaron el día del censo, sin tocar las oficiales ni las manuales y sin escribir en el servidor."
+        }
+      ],
+      "tests": [
+        "src/tests/rayen-import/enrichReportOnlyDischarges.test.ts",
+        "src/tests/rayen-import/reportEgresoDateTime.test.ts",
+        "src/tests/rayen-import/egresoReportClockCompatibility.test.ts",
+        "src/tests/rayen-import/egresoCalendarDayFieldFuzz.test.ts",
+        "src/tests/rayen-import/egresoCalendarDayRecheck4.test.ts",
+        "src/tests/rayen-import/egresoReport.test.ts",
+        "src/tests/rayen-import/egresoReportIdentityAndTiming.test.ts",
+        "src/tests/rayen-import/egresoLookupFallback.test.ts",
+        "src/tests/rayen-import/egresoOfficialCalendarDay.test.ts",
+        "src/tests/rayen-import/egresoOfficialCalendarDayFlow.test.ts › el historial y la aplicación eligen la fecha civil más reciente en ambos órdenes",
+        "src/tests/rayen-import/dischargeCalendarDate.test.ts › repairs imported legacy dates on read without changing the stored source or census day",
+        "e2e/rayen-mother-newborn-d1-discharge-critical.spec.ts › persiste ambos episodios históricos tras la revisión explícita"
+      ],
+      "rules": ["TIME-01", "TIME-02", "TIME-03", "SRC-03", "CEN-01", "ID-02"]
     },
     {
       "id": "eloisa.chart-fields",

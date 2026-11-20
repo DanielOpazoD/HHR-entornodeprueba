@@ -198,8 +198,8 @@ export const CORE_MODULE_ROUTE_DEFINITIONS: readonly CoreModuleRouteDefinition[]
   {
     module: 'CUDYR',
     sectionName: 'CUDYR',
-    render: ({ resolveReadOnly, currentDateString }) => (
-      <CudyrView readOnly={resolveReadOnly('CUDYR')} currentDate={currentDateString} />
+    render: ({ ui, resolveReadOnly, currentDateString }) => (
+      <CudyrView ui={ui} readOnly={resolveReadOnly('CUDYR')} currentDate={currentDateString} />
     ),
   },
   {
