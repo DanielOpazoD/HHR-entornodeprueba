@@ -117,7 +117,7 @@ const declaredValidRut = (patient: PatientData): string | null => {
  * Without the same accredited episode, an earlier day is this patient only when both are declared
  * RUT, both RUTs are valid and they are the same RUT (ID-01). A passport, a missing or different
  * type or an invalid RUT matches nothing, so a passport without an accredited episode gets no
- * correction on earlier days. The name decides only when neither side holds a document.
+ * correction on earlier days. The name decides only when neither side holds a document number.
  */
 const matchesPatientIdentity = (sourcePatient: PatientData, candidate: PatientData): boolean => {
   if (hasDocument(sourcePatient) || hasDocument(candidate)) {
