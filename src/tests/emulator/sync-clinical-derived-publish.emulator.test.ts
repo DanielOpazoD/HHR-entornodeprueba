@@ -19,7 +19,6 @@ import type { PatientData } from '@/types/domain/patient';
 
 vi.mock('@/firebaseConfig', () => ({ db: null, auth: null }));
 vi.mock('@/services/storage/firestore/firestoreRayenClinicalAuthorityMode', () => ({
-  resolveEffectiveDailyRecordAuthorityMode: async () => 'client_only',
   isServerClinicalWriteFenceActive: async () => false,
 }));
 

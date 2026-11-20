@@ -49,10 +49,8 @@ import {
   extractClinicalAuthorityPatch,
   isDailyRecordBedTreePath,
   STAFFING_PATH,
-  resolveAuthenticatedDailyRecordAuthorityMode,
-  shouldRouteDailyRecordSaveViaCallable,
   shouldRouteClinicalAuthorityPatch,
-  shouldRouteStructuralBedPatchViaCallable,
+  shouldRouteDailyRecordWriteViaCallable,
   type DailyRecordPartialWriteOptions,
   type DailyRecordSaveWriteOptions,
 } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
@@ -95,9 +93,7 @@ export const saveRecordToFirestore = async (
     const docRef = getRecordDocRef(record.date);
     assertDailyRecordClinicalAuthority(record);
 
-    const callableAuthorityMode = await resolveAuthenticatedDailyRecordAuthorityMode();
-    const writeFenceActive = await shouldRouteDailyRecordSaveViaCallable();
-    if (callableAuthorityMode === 'enforced' || writeFenceActive) {
+    if (await shouldRouteDailyRecordWriteViaCallable()) {
       return withRetry(
         () =>
           saveDailyRecordWithClinicalAuthorityCallable(
@@ -271,38 +267,20 @@ export const updateRecordPartial = async (
       const structuralCompanionPaths = Object.keys(sanitizedPatch).filter(
         path => !isDailyRecordBedTreePath(path) && path !== 'dateTimestamp'
       );
-      const clinicalAuthorityMode = hasClinicalAuthorityPatch
-        ? await resolveAuthenticatedDailyRecordAuthorityMode()
-        : null;
-      const structuralAuthorityMode = hasStructuralBedPatch
-        ? await resolveAuthenticatedDailyRecordAuthorityMode()
-        : null;
       const bedTreeAuthorityFenced =
-        shouldUseAuthorityCallable && (await shouldRouteStructuralBedPatchViaCallable());
-      const structuralAuthorityFenced = hasStructuralBedPatch && bedTreeAuthorityFenced;
-      const clinicalAuthorityFenced = hasClinicalAuthorityPatch && bedTreeAuthorityFenced;
-      const requiresAuthoritySeparation =
-        clinicalAuthorityMode === 'enforced' || bedTreeAuthorityFenced;
+        shouldUseAuthorityCallable && (await shouldRouteDailyRecordWriteViaCallable());
       // These three refusals choose the route, not a conflict: the day's queue task saves the edit.
-      if (requiresAuthoritySeparation && hasStructuralBedPatch && hasClinicalAuthorityPatch) {
+      if (bedTreeAuthorityFenced && hasStructuralBedPatch && hasClinicalAuthorityPatch) {
         throw createSavedByQueueRouteError(
           'La edición mezcla campos clínicos y estructurales de cama y debe guardarse por separado.'
         );
       }
-      if (
-        requiresAuthoritySeparation &&
-        hasClinicalAuthorityPatch &&
-        !isClinicalPatchForAuthority
-      ) {
+      if (bedTreeAuthorityFenced && hasClinicalAuthorityPatch && !isClinicalPatchForAuthority) {
         throw createSavedByQueueRouteError(
           'La edición mezcla cambios clínicos con otros campos y debe guardarse por separado.'
         );
       }
-      if (
-        requiresAuthoritySeparation &&
-        hasStructuralBedPatch &&
-        structuralCompanionPaths.length > 0
-      ) {
+      if (bedTreeAuthorityFenced && hasStructuralBedPatch && structuralCompanionPaths.length > 0) {
         throw createSavedByQueueRouteError(
           'La edición mezcla cambios de cama con otros campos y debe guardarse por separado.'
         );
@@ -312,23 +290,9 @@ export const updateRecordPartial = async (
         : isClinicalPatchForAuthority
           ? authorityPatch
           : structuralBedPatch;
-      const callableAuthorityMode = isClinicalPatchForAuthority
-        ? clinicalAuthorityMode === 'enforced'
-          ? 'enforced'
-          : clinicalAuthorityFenced
-            ? clinicalAuthorityMode || 'enforced'
-            : null
-        : isE2EForcedMovementPatch
-          ? 'enforced'
-          : structuralAuthorityFenced
-            ? structuralAuthorityMode || 'enforced'
-            : null;
       if (
         shouldUseAuthorityCallable &&
-        (callableAuthorityMode === 'enforced' ||
-          bedTreeAuthorityFenced ||
-          Boolean(intentionalBedClear) ||
-          Boolean(options.specialtyIntent))
+        (bedTreeAuthorityFenced || Boolean(intentionalBedClear) || Boolean(options.specialtyIntent))
       ) {
         return withRetry(
           () =>

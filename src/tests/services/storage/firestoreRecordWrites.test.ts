@@ -26,15 +26,13 @@ import {
   updateRecordPartiallyAtomically,
 } from '@/services/storage/firestore/firestoreWriteSupport';
 import { withRetry } from '@/utils/networkUtils';
+import { activateServerWriteFence } from '@/tests/support/serverWriteFence';
 
 describe('firestoreRecordWrites', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(withRetry).mockImplementation(operation => operation());
     vi.mocked(getDoc).mockResolvedValue(occupiedSnapshot() as never);
-    delete (import.meta.env as Record<string, string | undefined>)
-      .VITE_DAILY_RECORD_AUTHORITY_CALLABLE;
-    delete (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE;
     mockGetCurrentUser.mockReturnValue(null);
     mockResolveFirebaseUserRole.mockResolvedValue(null);
     mockEnsureUserRoleClaim.mockResolvedValue(undefined);
@@ -104,9 +102,7 @@ describe('firestoreRecordWrites', () => {
     expect(setDoc).not.toHaveBeenCalled();
   });
 
-  it('ignores retired shadow configuration and preserves direct full-record saves without a policy', async () => {
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'shadow';
+  it('preserves direct full-record saves without a policy', async () => {
     mockGetCurrentUser.mockReturnValue({
       uid: 'nurse-1',
       email: 'nurse@example.com',
@@ -136,9 +132,8 @@ describe('firestoreRecordWrites', () => {
     expect(result).toBeUndefined();
   });
 
-  it('routes authenticated full-record saves through the clinical authority callable when enabled', async () => {
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_CALLABLE =
-      'true';
+  it('routes authenticated full-record saves through the clinical authority callable behind the fence', async () => {
+    activateServerWriteFence();
     mockGetCurrentUser.mockReturnValue({
       uid: 'doctor-1',
       email: 'doctor@example.com',

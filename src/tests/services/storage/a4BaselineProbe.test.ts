@@ -44,7 +44,7 @@ beforeEach(async () => {
   await hospitalDB.dailyRecords.clear();
   h.remote = null;
   h.offline = false;
-  h.authorityMode = false;
+  h.writeFence = false;
   Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
 });
 afterEach(async () => {

@@ -176,8 +176,7 @@ describeEmulator('Firestore emulator atomic partial committed record', () => {
   });
 
   beforeEach(async () => {
-    // Exercises the client_only atomic transaction, not the authority callable.
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
+    // Without the server fence: exercises the direct atomic transaction, not the authority callable.
     await testEnv.clearFirestore();
     setFirestoreEnabled(true);
     activeDb = nurseDb;

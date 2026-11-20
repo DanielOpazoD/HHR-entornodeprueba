@@ -207,8 +207,6 @@ export const describeMissingRemoteDay = (
       });
     };
     const configure = async () => {
-      vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', '');
-      vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_CALLABLE', '');
       await admin.doc(policyPath).set({
         schemaVersion: 2,
         mode: 'preview',

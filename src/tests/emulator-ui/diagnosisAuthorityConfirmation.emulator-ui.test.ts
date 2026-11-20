@@ -46,7 +46,7 @@ import { isLastWrittenBy, storedFieldWrites } from '@/services/storage/sync/fiel
 
 /**
  * A diagnosis typed in the census cell, saved under the production configuration (the schema-v2
- * policy with enforced clinical batches, VITE_DAILY_RECORD_AUTHORITY_MODE left undefined): with
+ * policy with enforced clinical batches, the server fence): with
  * a normal confirmation, when the server saved it but its answer never came back, and when the
  * request never reached the server (SAVE-01, SAVE-03). Runs the shipped census reducer,
  * repository write, sync queue, callable client and transport (with its receipt read of the
@@ -377,8 +377,6 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     }, 120_000);
     beforeEach(async () => {
       // What production runs since 2026-11-07: the schema-v2 policy with enforced clinical batches.
-      vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', '');
-      vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_CALLABLE', '');
       // The queue runs only when the test says so: the browser's own wake-ups are steps here.
       vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
       Object.assign(network, { delivered: [], requestsLost: 0, answerLost: undefined, down: 0 });

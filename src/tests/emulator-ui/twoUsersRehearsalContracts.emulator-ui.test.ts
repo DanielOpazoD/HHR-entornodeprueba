@@ -61,7 +61,8 @@ const {
 const date = getTodayISO();
 const dayPath = `hospitals/hanga_roa/dailyRecords/${date}`;
 const projectId = 'demo-hhr-dos-usuarios';
-const modes = ['client_only', 'enforced'] as const;
+/** `fenced`: the schema-v2 policy, as published since 2026-11-07. `direct`: no policy. */
+const routes = ['direct', 'fenced'] as const;
 const deferred = () => {
   let resolve!: () => void;
   const promise = new Promise<void>(done => {
@@ -166,17 +167,14 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       }
     );
   };
-  // 'production': the schema-v2 policy with the variable undefined, as published since 2026-11-07.
-  const mode = async (value: (typeof modes)[number] | 'production') => {
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', value === 'production' ? '' : value);
-    if (value !== 'client_only')
-      await admin.doc('hospitals/hanga_roa/settings/rayenImportPolicy').set({
-        schemaVersion: 2,
-        mode: 'preview',
-        revision: 1,
-        clinicalBatchMode: 'enforced',
-      });
-  };
+  /** The schema-v2 policy: the server fence that routes bed edits through the authority. */
+  const fenced = () =>
+    admin.doc('hospitals/hanga_roa/settings/rayenImportPolicy').set({
+      schemaVersion: 2,
+      mode: 'preview',
+      revision: 1,
+      clinicalBatchMode: 'enforced',
+    });
   const race = async (a: DailyRecordPatch, b: DailyRecordPatch, direct: boolean) => {
     if (direct) {
       const checked = deferred();
@@ -257,7 +255,6 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     await hospitalDB.syncQueue.clear();
     localStorage.clear();
     setFirestoreEnabled(true);
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     await admin.doc(dayPath).set(baseRecord());
     bridge();
   });
@@ -272,15 +269,15 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     if (app) await deleteApp(app);
   });
 
-  for (const selected of modes) {
+  for (const selected of routes) {
     it.each([
       ['1 different beds', { 'beds.R2.pathology': 'B' }],
       ['2 different fields', { 'beds.R1.age': '51' }],
     ] as const)(`%s: retains both accepted edits (${selected})`, async (_label, b) => {
-      await mode(selected);
+      if (selected === 'fenced') await fenced();
       // A bed edit is bound to the version it read (the bed may hold another patient by then):
       // the second is refused and accepted again from a fresh base, as the app's rebase does.
-      const results = await race({ 'beds.R1.pathology': 'A' }, b, selected === 'client_only');
+      const results = await race({ 'beds.R1.pathology': 'A' }, b, selected === 'direct');
       expect(results.filter(item => item.status === 'fulfilled')).toHaveLength(1);
       expect(results.filter(item => item.status === 'rejected')).toMatchObject([
         { reason: { name: 'ConcurrencyError' } },
@@ -296,7 +293,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   }
 
   it('3 SAVE-01: under the production configuration one of two same-field writers is refused', async () => {
-    await mode('production');
+    await fenced();
     // Direct writes would be held together after their checks; production sends both to the
     // authority, whose transaction refuses the second base.
     const results = await race({ 'beds.R1.pathology': 'A' }, { 'beds.R1.pathology': 'B' }, true);
@@ -307,9 +304,9 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     expect(['A', 'B']).toContain((await read()).beds.R1.pathology);
   });
 
-  // `client_only` without the schema-v2 policy, a configuration production no longer uses (policy
-  // enforced since 2026-11-07), sends bed fields through the same transaction as plain day fields.
-  it('3 client_only without policy (not production): one of two same-field writers is refused', async () => {
+  // Without the schema-v2 policy, a configuration production no longer uses (policy since
+  // 2026-11-07), bed fields go through the same transaction as plain day fields.
+  it('3 without the server fence (not production): one of two same-field writers is refused', async () => {
     const results = await race({ 'beds.R1.pathology': 'A' }, { 'beds.R1.pathology': 'B' }, true);
     expect(results.filter(item => item.status === 'rejected')).toMatchObject([
       { reason: { name: 'ConcurrencyError' } },
@@ -318,7 +315,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   });
 
   it('4 Eloisa batch and a manual edit serialize; a fresh-base retry preserves both', async () => {
-    await mode('enforced');
+    await fenced();
     const policy = (await admin.doc('hospitals/hanga_roa/settings/rayenImportPolicy').get()).data();
     await admin.doc(dayPath).update({
       rayenSyncHistory: [
@@ -372,10 +369,9 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   });
 
   // Authority replay belongs to the active offline-edit-other-bed branch; do not duplicate it.
-  for (const selected of ['client_only'] as const) {
+  for (const selected of ['direct'] as const) {
     for (const path of ['beds.R2.pathology', 'beds.R1.pathology'] as const) {
       it(`5 offline replay after B edits ${path} (${selected})`, async () => {
-        await mode(selected);
         await hospitalDB.dailyRecords.put(baseRecord());
         setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
         const offline = await actor('A', () =>
@@ -420,7 +416,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   // Case 6 is already exercised through the real UI hook + emulator in dailyRecordSyncQuery
   // and dailyRecordServerConfirmation. Do not replace that evidence with another storage-only test.
   it('7 simultaneous staffing transaction and doctor authority patch retain accepted work', async () => {
-    await mode('enforced');
+    await fenced();
     useDoctor();
     const staffing = { nursesDayShift: ['ENFERMERA NUEVA', ''] };
     const bed = { 'beds.R1.pathology': 'MEDICO' };
@@ -439,7 +435,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   it.each(['bed-first', 'staffing-first'] as const)(
     '7 staffing CAS vs a doctor bed edit: %s preserves both after explicit conflict/reload',
     async order => {
-      await mode('enforced');
+      await fenced();
       useDoctor();
       const staffing = { nursesDayShift: ['ENFERMERA NUEVA', ''] };
       if (order === 'bed-first') {

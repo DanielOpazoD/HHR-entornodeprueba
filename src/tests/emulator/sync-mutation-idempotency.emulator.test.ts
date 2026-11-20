@@ -121,6 +121,13 @@ describeEmulator('Firestore emulator mutation idempotency', () => {
 
   beforeEach(async () => {
     await testEnv.clearFirestore();
+    // The schema-v2 policy is the server fence that routes the queue through the authority.
+    await testEnv.withSecurityRulesDisabled(context =>
+      context
+        .firestore()
+        .doc('hospitals/hanga_roa/settings/rayenImportPolicy')
+        .set({ schemaVersion: 2, clinicalBatchMode: 'enforced' })
+    );
     await clearAllRecords();
     await hospitalDB.syncQueue.clear();
     mockAuthorityCallable.mockReset();
@@ -139,14 +146,11 @@ describeEmulator('Firestore emulator mutation idempotency', () => {
         violations: [],
       })
     );
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
     setFirestoreEnabled(true);
     activeDb = nurseDb;
   });
 
   afterAll(async () => {
-    delete (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE;
     await testEnv.cleanup();
   });
 

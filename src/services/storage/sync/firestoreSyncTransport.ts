@@ -34,10 +34,7 @@ import {
   recordClinicalAuthorityTelemetry,
   recordClinicalEpisodeIdCoverageTelemetry,
 } from '@/services/repositories/dailyRecordClinicalAuthorityPolicy';
-import {
-  isServerClinicalWriteFenceActive,
-  resolveEffectiveDailyRecordAuthorityMode,
-} from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
+import { isServerClinicalWriteFenceActive } from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
 import { saveDailyRecordWithClinicalAuthorityCallable } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { recordSyncQueueTruthSelectionTelemetry } from '@/services/storage/sync/syncQueueTelemetryController';
 import {
@@ -467,9 +464,7 @@ const syncDailyRecord = async (
 
       assertResolvedClinicalAuthority(task, resolved);
 
-      const effectiveAuthorityMode = await resolveEffectiveDailyRecordAuthorityMode(runtime);
-      const writeFenceActive = await isServerClinicalWriteFenceActive(runtime);
-      if (effectiveAuthorityMode === 'enforced' || writeFenceActive) {
+      if (await isServerClinicalWriteFenceActive(runtime)) {
         const freshBase =
           !task.nursingHandoffRecovery &&
           resolved.resolution === 'merged' &&

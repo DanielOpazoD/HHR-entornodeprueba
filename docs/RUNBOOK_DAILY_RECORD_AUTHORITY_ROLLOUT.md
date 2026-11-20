@@ -6,50 +6,43 @@ PR7 permite mover las escrituras completas del censo diario desde una proteccion
 principalmente cliente hacia una autoridad transaccional en backend, sin hacer un cambio
 big-bang.
 
-## Modos
+## Una sola fuente: la cerca del servidor
 
-- `client_only`: modo por defecto. El cliente mantiene las validaciones locales y escribe
-  directo a Firestore.
-- `enforced`: las escrituras completas directas, los parches clinicos parciales y las
-  publicaciones del outbox pasan por autoridad transaccional:
-  `saveDailyRecordWithClinicalAuthority` o `patchDailyRecordWithClinicalAuthority`.
+La ruta la decide solo la política `settings/rayenImportPolicy` con `schemaVersion: 2` (la cerca,
+`isServerClinicalWriteFenceActive`), más el forzado de e2e (`hhr_e2e_force_authority_callable`).
+No hay variable de compilación: `VITE_DAILY_RECORD_AUTHORITY_MODE` y
+`VITE_DAILY_RECORD_AUTHORITY_CALLABLE` se retiraron el 2026-11-20 porque decidían lo mismo que la
+política y el informe de salud mostraba la variable (`client_only`) mientras producción guardaba
+por la autoridad.
 
-Compatibilidad: `VITE_DAILY_RECORD_AUTHORITY_CALLABLE=true` equivale a `enforced`.
-El flag recomendado para rollout nuevo es `VITE_DAILY_RECORD_AUTHORITY_MODE`. El valor `shadow`
-se retiró como modo del cliente: si aparece en la variable se ignora.
+- **Con la cerca** (producción desde el 2026-11-07): guardados completos, outbox y parches del
+  árbol de camas pasan por `saveDailyRecordWithClinicalAuthority` o
+  `patchDailyRecordWithClinicalAuthority`, siempre con `mode: 'enforced'`; las reglas de
+  Firestore rechazan escrituras directas que toquen `beds` o `bedTypeOverrides`. La dotación y los
+  demás campos del día se escriben con su transacción por campo.
+- **Sin la cerca** (emulador y desarrollo sin política): el cliente escribe directo a Firestore,
+  con las mismas validaciones locales.
+- **Si la política no se puede leer**: la ruta es directa y las reglas, que sí ven la política,
+  rechazan la escritura; la cola conserva la edición.
 
-El flag no es la única fuente del modo. `resolveEffectiveDailyRecordAuthorityMode` usa el más
-fuerte entre el flag y la política `settings/rayenImportPolicy` (`schemaVersion: 2`,
-`clinicalBatchMode`). Si esa política v2 existe, las reglas de Firestore rechazan escrituras
-directas que toquen `beds` o `bedTypeOverrides`, y el cliente envía guardados completos, outbox y
-parches de cama a los callables aunque el flag diga `client_only` (con `mode: 'shadow'`, que el
-servidor confirma igual que `enforced`; sólo `dryRun` no escribe). Ver
-[SYNC_CONCURRENCY_MODEL.md](SYNC_CONCURRENCY_MODEL.md).
+Ver [SYNC_CONCURRENCY_MODEL.md](SYNC_CONCURRENCY_MODEL.md).
 
-## Estado vigente (medido el 2026-11-12)
+## Estado vigente
 
-Producción publica con la variable sin definir (`client_only`), pero su política
-`settings/rayenImportPolicy` es v2 con `clinicalBatchMode: enforced` desde el 2026-11-07, así que
-el modo efectivo ya es `enforced`. Con dos personas guardando a la vez
-(`src/tests/emulator-ui/productionAuthorityConfiguration.emulator-ui.test.ts`, que reproduce esa
-configuración):
+Con dos personas guardando a la vez
+(`src/tests/emulator-ui/productionAuthorityConfiguration.emulator-ui.test.ts`, que reproduce la
+configuración de producción):
 
 - árbol de camas, dotación, guardado completo del día y reenvío de la cola: una de las dos se
-  rechaza y su edición queda como conflicto por resolver. Cambiar la variable no altera ninguna de
-  estas rutas;
-- los demás campos del día (novedades de entrega, camas extra) se escriben directo, con una
-  comprobación de versión previa que rechaza a quien llega con una base más antigua. Esa
-  comprobación y la escritura no son una sola operación: dos personas con la misma base, en el
-  mismo instante, reciben ambas «guardado» y prevalece la última. Las pruebas lo documentan como
-  falla esperada. El intento de cerrarlo (#1512) se descartó porque no se pudo acreditar que el
-  resto del guardado quedara igual; se reabre solo con evidencia de que ocurre.
+  rechaza y su edición queda como conflicto por resolver;
+- los demás campos del día (novedades de entrega, camas extra) se escriben en una transacción que
+  compara cada campo con la versión que leyó quien escribe.
 
 ## Secuencia para un entorno nuevo sin política v2
 
-1. Desplegar con `VITE_DAILY_RECORD_AUTHORITY_MODE=client_only`.
+1. Desplegar; sin política el cliente escribe directo.
 2. Revisar el panel admin de telemetria de Functions, seccion
-   `Autoridad censo diario`. Debe mostrar `Listo para enforced` antes de activar el modo
-   obligatorio.
+   `Autoridad censo diario`. Debe mostrar `Listo para enforced` antes de activar la cerca.
 3. Si se necesita auditoria fina, filtrar `functionsTelemetry` por:
    - `service = dailyRecordWriteAuthority`;
    - `operation = saveDailyRecordWithClinicalAuthority` o
@@ -58,11 +51,12 @@ configuración):
    - `fallbackEpisodeKeys`;
    - `degenerateFallbackEpisodeKeys`;
    - `violationCount`.
-4. Si no aparecen fallos inesperados, cambiar a `enforced`.
+4. Si no aparecen fallos inesperados, publicar la política v2 (frontera irreversible, ver
+   Rollback).
 
 ## Freshness De Pestañas Inactivas
 
-En `enforced`, una pestaña reactivada despues de inactividad no debe aceptar ediciones
+Con la cerca, una pestaña reactivada despues de inactividad no debe aceptar ediciones
 clinicas hasta confirmar Firebase. La confirmacion puede llegar por query/refresh manual,
 snapshot realtime sin `hasPendingWrites` o escritura aceptada. Durante ese intervalo solo
 se bloquean campos y acciones clinicas sensibles; lectura, navegacion de historial y
@@ -99,15 +93,13 @@ clinico antes de persistencia aceptada en altas, traslados, undo y auditoria.
 
 ## Rollback
 
-Volver a `VITE_DAILY_RECORD_AUTHORITY_MODE=client_only` deja las validaciones cliente activas
-y desactiva el uso obligatorio del callable. Si se estaba usando el flag legacy, remover
-`VITE_DAILY_RECORD_AUTHORITY_CALLABLE=true`. Con la política Rayen v2 activa, este rollback no
-devuelve la escritura directa del árbol de camas: las reglas la tratan como frontera irreversible.
+No hay rollback por configuración del cliente. Con la política Rayen v2 activa, las reglas tratan
+el árbol de camas como frontera irreversible: volver a la escritura directa exige cambiar reglas y
+política, y lo decide el responsable.
 
-Si el problema es especificamente bloqueo por frescura al reactivar pestañas, rollback
-operativo inmediato: volver a `client_only`, mantener realtime activo, limpiar cache local
-solo en usuarios afectados y revisar eventos `daily_record_resume_refresh_failed` antes de
-reintentar `enforced`.
+Si el problema es especificamente bloqueo por frescura al reactivar pestañas: mantener realtime
+activo, limpiar cache local solo en usuarios afectados y revisar eventos
+`daily_record_resume_refresh_failed`.
 
 ## Privacidad De Telemetria
 

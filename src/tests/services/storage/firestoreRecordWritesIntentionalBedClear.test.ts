@@ -104,9 +104,6 @@ import { saveHistorySnapshot } from '@/services/storage/firestore/firestoreWrite
 describe('firestoreRecordWrites intentional bed clear routing', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    delete (import.meta.env as Record<string, string | undefined>)
-      .VITE_DAILY_RECORD_AUTHORITY_CALLABLE;
-    delete (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE;
     mockGetCurrentUser.mockReturnValue(null);
     mockResolveFirebaseUserRole.mockResolvedValue(null);
     mockEnsureUserRoleClaim.mockResolvedValue(undefined);
@@ -119,8 +116,6 @@ describe('firestoreRecordWrites intentional bed clear routing', () => {
   });
 
   it('routes an intentional clear as one atomic whole-bed replacement', async () => {
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
     mockGetCurrentUser.mockReturnValue({
       uid: 'nurse-1',
       email: 'nurse@example.com',
@@ -188,8 +183,6 @@ describe('firestoreRecordWrites intentional bed clear routing', () => {
   });
 
   it('routes an intentional clinical crib clear without replacing the parent bed', async () => {
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
     mockGetCurrentUser.mockReturnValue({
       uid: 'nurse-1',
       email: 'nurse@example.com',

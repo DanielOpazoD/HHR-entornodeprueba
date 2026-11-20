@@ -512,5 +512,4 @@ describe('storage/sync pre-outbox guarantees', () => {
 });
 
 // Legacy setDoc fixture, independent of release build configuration.
-beforeEach(() => vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only'));
 afterEach(() => vi.unstubAllEnvs());

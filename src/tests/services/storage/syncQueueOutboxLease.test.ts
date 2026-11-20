@@ -532,5 +532,4 @@ describe('sync queue transactional outbox and leases', () => {
 
 // These fixtures mock Firestore setDoc, not the callable transport.
 // Pin their legacy lane even when release verification inherits enforced mode.
-beforeEach(() => vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only'));
 afterEach(() => vi.unstubAllEnvs());

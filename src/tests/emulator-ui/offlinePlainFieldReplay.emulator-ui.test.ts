@@ -195,8 +195,6 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-B');
     setFirestoreEnabled(true);
     // What production runs since 2026-11-07: the schema-v2 policy with enforced clinical batches.
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', '');
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_CALLABLE', '');
     await admin.doc('hospitals/hanga_roa/settings/rayenImportPolicy').set({
       schemaVersion: 2,
       mode: 'preview',

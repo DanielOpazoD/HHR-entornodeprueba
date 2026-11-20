@@ -481,7 +481,6 @@ export const DIRECT_SEND_CASES: Record<string, ParityCase> = {
 
 describe('write-result parity: a census edit sent directly', () => {
   beforeEach(async () => {
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     await resetParityWorld();
   });
   afterEach(() => {

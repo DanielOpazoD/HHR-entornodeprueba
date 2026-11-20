@@ -260,8 +260,6 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         .firestore(),
     };
     // What production runs since 2026-11-07: the schema-v2 policy with enforced clinical batches.
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', '');
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_CALLABLE', '');
     // The queue runs only when the test says so: the browser's own wake-ups are steps here.
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
   }, 120_000);

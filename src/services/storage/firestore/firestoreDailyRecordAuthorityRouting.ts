@@ -12,10 +12,7 @@ import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSup
 import { firestoreWriteLogger } from '@/services/storage/storageLoggers';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
-import {
-  isServerClinicalWriteFenceActive,
-  resolveEffectiveDailyRecordAuthorityMode,
-} from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
+import { isServerClinicalWriteFenceActive } from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import type {
   ClinicalCribCreateRequest,
@@ -150,48 +147,13 @@ export const extractDailyRecordBedTreePatch = (
 ): Record<string, unknown> =>
   Object.fromEntries(Object.entries(patch).filter(([path]) => isDailyRecordBedTreePath(path)));
 
-export const shouldRouteDailyRecordSaveViaCallable = async (): Promise<boolean> => {
-  const [mode, writeFenceActive] = await Promise.all([
-    resolveEffectiveDailyRecordAuthorityMode(),
-    isServerClinicalWriteFenceActive(defaultFirestoreServiceRuntime),
-  ]);
-  if (mode !== 'enforced' && !writeFenceActive) {
-    return false;
-  }
-
-  try {
-    await defaultAuthRuntime.ready;
-    const firebaseUser = defaultAuthRuntime.getCurrentUser();
-    return Boolean(firebaseUser && !firebaseUser.isAnonymous);
-  } catch (error) {
-    firestoreWriteLogger.warn('Daily record authority callable routing check failed', { error });
-    return false;
-  }
-};
-
 /**
- * `null`: no enforced mode or no signed-in user. `unavailable`: the session could not be checked.
- * Routing is advisory either way; only `'enforced'` selects the callable, and the server rules
- * still reject a fenced direct write.
+ * The one routing decision for the bed tree and whole-day saves: the schema-v2 server fence
+ * (or the e2e override) plus a signed-in, non-anonymous user selects the authority callable.
+ * Routing is advisory; with the fence unread or the session unchecked the write goes direct and
+ * the server rules still reject a fenced direct write, so the queue keeps the edit.
  */
-export const resolveAuthenticatedDailyRecordAuthorityMode = async (): Promise<
-  'enforced' | null | { kind: 'unavailable'; error: unknown }
-> => {
-  if (isE2EDailyRecordAuthorityCallableForced()) return 'enforced';
-  const mode = await resolveEffectiveDailyRecordAuthorityMode();
-  if (mode === 'client_only') return null;
-  try {
-    await defaultAuthRuntime.ready;
-    const firebaseUser = defaultAuthRuntime.getCurrentUser();
-    return firebaseUser && !firebaseUser.isAnonymous ? mode : null;
-  } catch (error) {
-    firestoreWriteLogger.warn('Daily record authority callable routing check failed', { error });
-    return { kind: 'unavailable', error };
-  }
-};
-
-/** Structural bed routing is owned by the schema-v2 server fence, never by the legacy flag. */
-export const shouldRouteStructuralBedPatchViaCallable = async (): Promise<boolean> => {
+export const shouldRouteDailyRecordWriteViaCallable = async (): Promise<boolean> => {
   if (isE2EDailyRecordAuthorityCallableForced()) return true;
   if (!(await isServerClinicalWriteFenceActive(defaultFirestoreServiceRuntime))) return false;
   try {
@@ -199,7 +161,7 @@ export const shouldRouteStructuralBedPatchViaCallable = async (): Promise<boolea
     const firebaseUser = defaultAuthRuntime.getCurrentUser();
     return Boolean(firebaseUser && !firebaseUser.isAnonymous);
   } catch (error) {
-    firestoreWriteLogger.warn('Rayen structural callable routing check failed', { error });
+    firestoreWriteLogger.warn('Daily record authority callable routing check failed', { error });
     return false;
   }
 };

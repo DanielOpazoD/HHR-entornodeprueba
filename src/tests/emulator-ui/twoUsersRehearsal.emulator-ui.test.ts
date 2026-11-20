@@ -138,16 +138,14 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       }
     );
   };
-  const mode = async (value: 'enforced') => {
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', value);
-    if (value === 'enforced')
-      await admin.doc('hospitals/hanga_roa/settings/rayenImportPolicy').set({
-        schemaVersion: 2,
-        mode: 'preview',
-        revision: 1,
-        clinicalBatchMode: 'enforced',
-      });
-  };
+  /** The schema-v2 policy: the server fence that routes the day through the authority. */
+  const fenced = () =>
+    admin.doc('hospitals/hanga_roa/settings/rayenImportPolicy').set({
+      schemaVersion: 2,
+      mode: 'preview',
+      revision: 1,
+      clinicalBatchMode: 'enforced',
+    });
   const publish = () =>
     actor('A', async () => {
       const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 20_000);
@@ -210,7 +208,6 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     await hospitalDB.syncQueue.clear();
     localStorage.clear();
     setFirestoreEnabled(true);
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     await admin.doc(dayPath).set(baseRecord());
     bridge();
   });
@@ -228,7 +225,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   it.each(['patient', 'episode'] as const)(
     'retains an equal original field after the bed changes %s',
     async change => {
-      await mode('enforced');
+      await fenced();
       const base = baseRecord();
       await hospitalDB.dailyRecords.put(base);
       setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
@@ -275,7 +272,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     'legacy',
     'race-after-read',
   ] as const)('5 authority offline replay: %s', async scenario => {
-    await mode('enforced');
+    await fenced();
     await hospitalDB.dailyRecords.put(baseRecord());
     setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
     const offline = await actor('A', () =>

@@ -25,7 +25,7 @@ como `unavailable` y conserva la posibilidad de reintento, sin iniciar el enriqu
 
 Los eventos históricos mantienen esos modos en sus esquemas de lectura y presentación.
 Functions y reglas conservan sus contratos para navegadores anteriores; retirarlos requiere
-otro cambio. `DailyRecordAuthorityMode` conserva sus opciones. La importación sólo admite
+otro cambio. La importación sólo admite
 `preview` con revisión humana; `auto` se conserva en la lectura del historial antiguo.
 
 La política global de Firestore debe estar confirmada por servidor, con revisión monotónica.

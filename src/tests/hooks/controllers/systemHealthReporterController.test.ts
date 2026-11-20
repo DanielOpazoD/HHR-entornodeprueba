@@ -121,7 +121,8 @@ describe('systemHealthReporterController', () => {
     expect(status.latestOperationalOperation).toBe('backup_handoff_pdf');
     expect(status.latestOperationalRuntimeState).toBe('recoverable');
     expect(status.appVersion).toContain('sync-batch:25');
-    expect(status.appVersion).toContain('authority:client_only');
+    // The route is the server fence's; the build no longer claims a mode it does not decide.
+    expect(status.appVersion).not.toContain('authority:');
   });
 
   it('builds recent user health events with their operational context', () => {

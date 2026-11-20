@@ -21,10 +21,10 @@ const h = harnessState();
 export const DATE = '2026-10-24';
 /** The other session's write, which this offline device has not read. */
 export const B_AT = '2026-10-24T10:15:00.000Z';
-/** Both publication modes; `enforced` is the release mode. */
+/** Both publication routes; `fenced` (the server fence) is the release route. */
 export const MODES = [
-  ['client_only', false],
-  ['enforced', true],
+  ['direct', false],
+  ['fenced', true],
 ] as const;
 
 export const local = async () => (await hospitalDB.dailyRecords.get(DATE)) as DailyRecord;
@@ -50,7 +50,7 @@ export const resetDay = async (owner: string) => {
   await hospitalDB.syncQueue.clear();
   await hospitalDB.dailyRecords.clear();
   h.offline = false;
-  h.authorityMode = false;
+  h.writeFence = false;
 };
 
 const withMeta = (record: DailyRecord, meta?: Record<string, unknown>) =>

@@ -138,7 +138,6 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
 
   beforeEach(async () => {
     // This suite exercises real legacy Firestore writes, not callable transport.
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     await testEnv.clearFirestore();
     await clearAllRecords();
     await hospitalDB.syncQueue.clear();

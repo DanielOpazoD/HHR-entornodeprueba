@@ -25,41 +25,34 @@ publish writes none.
 
 A client write is either published directly to Firestore or handed to a server callable:
 
-- **Deployment mode** — `resolveDailyRecordAuthorityMode`: `VITE_DAILY_RECORD_AUTHORITY_MODE`
-  (`client_only` | `enforced`), else `VITE_DAILY_RECORD_AUTHORITY_CALLABLE=true` →
-  `enforced`, else `client_only`. `.env.example` uses `client_only`. Production publishes with the
-  flag unset and is `enforced` through the server policy below (measured 2026-11-12; see
-  [RUNBOOK_DAILY_RECORD_AUTHORITY_ROLLOUT.md](RUNBOOK_DAILY_RECORD_AUTHORITY_ROLLOUT.md)); the value
-  another environment sets is not in the repo, so check it before extrapolating a test to it. A retired `shadow` value is treated as
-  undefined, falling back to the legacy flag or `client_only` before policy promotion.
-- **Server policy** — `resolveEffectiveDailyRecordAuthorityMode` uses the stronger of the
-  deployment mode and `settings/rayenImportPolicy` (`schemaVersion: 2`, `clinicalBatchMode`). The
-  policy can promote a client, never weaken it.
-- **Write fence** — `isServerClinicalWriteFenceActive`: the schema-v2 policy exists. Firestore
+- **Write fence** — `isServerClinicalWriteFenceActive`: the schema-v2
+  `settings/rayenImportPolicy` exists. It is the only source of the route (plus the e2e override
+  `hhr_e2e_force_authority_callable`); there is no build variable since 2026-11-20. Firestore
   rules (`isRayenClinicalWriteFenceActive`, and `isSpecialtyDecisionFenceActive` for
   `specialtyPolicies/active` v1) then deny direct client creates of `dailyRecords/{date}` and any
   direct update that touches `beds` or `bedTypeOverrides`. The rules treat the v2 boundary as
   irreversible. The client read is advisory: a failed read counts as no fence, and it does not
   look at the specialty fence. The rules stay the final boundary; a bed patch they reject is
   retried once through the authority callable (`runPartialUpdatePersistWithPermissionFallbacks`).
+- **Routing** — `shouldRouteDailyRecordWriteViaCallable`: the fence (or the e2e override) and a
+  signed-in, non-anonymous user. Full saves and bed-tree patches use it; the queue publish uses
+  the fence alone.
 
-"Callable off by default" therefore describes only a `client_only` deployment without the v2
-policy. With the fence, full saves, queue publishes and bed-tree patches go through the authority
-callables even when the deployment mode is `client_only`; they are sent as `mode: 'enforced'`,
-including when an initial policy read fails and a later read confirms authority. A lost response
-can then be recovered from a server-only receipt for the exact mutation, without another write.
-The server still accepts `shadow` from older open tabs (only `dryRun: true` skips its write).
-Without the fence, `enforced` routes full saves, queue publishes and clinical patches, but structural bed
-patches stay direct: the server rejects them unless the fence is active.
+With the fence (production since 2026-11-07), full saves, queue publishes and bed-tree patches go
+through the authority callables, sent as `mode: 'enforced'`, including when an initial policy read
+fails and a later read confirms authority. A lost response can then be recovered from a
+server-only receipt for the exact mutation, without another write. The server still accepts
+`shadow` from older open tabs (only `dryRun: true` skips its write). Without the fence (emulator,
+development) every write is direct.
 
 ## Write paths
 
-| Path                     | Entry                                           | Direct client writer (`client_only`, no fence)                                                   | Authority writer (`enforced` or fenced)                                                      |
-| ------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| **Full save**            | `saveDetailed` → `saveRecordToFirestore`        | `saveRecordAtomically`: `runTransaction`, full-replace `set` ✅                                  | `saveDailyRecordWithClinicalAuthority`: server transaction ✅                                |
-| **Partial update**       | `updatePartialDetailed` → `updateRecordPartial` | `updateRecordPartiallyAtomically` when `requireAtomicCas` ✅; otherwise `updateDoc` dot-paths ❌ | `patchDailyRecordWithClinicalAuthority` (clinical paths; bed-tree paths only when fenced) ✅ |
-| **Sync queue**           | `syncDailyRecord` (`firestoreSyncTransport.ts`) | `runTransaction` that re-resolves the task, then `transaction.set(…, { merge: true })` ✅        | `saveDailyRecordWithClinicalAuthority` with the task's `syncContract` ✅                     |
-| **Rayen clinical batch** | `applyRayenClinicalEnrichmentBatch` callable    | —                                                                                                | Server transaction, allowlisted clinical fields ✅                                           |
+| Path                     | Entry                                           | Direct client writer (no fence)                                                                  | Authority writer (fenced)                                                |
+| ------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| **Full save**            | `saveDetailed` → `saveRecordToFirestore`        | `saveRecordAtomically`: `runTransaction`, full-replace `set` ✅                                  | `saveDailyRecordWithClinicalAuthority`: server transaction ✅            |
+| **Partial update**       | `updatePartialDetailed` → `updateRecordPartial` | `updateRecordPartiallyAtomically` when `requireAtomicCas` ✅; otherwise `updateDoc` dot-paths ❌ | `patchDailyRecordWithClinicalAuthority` (clinical and bed-tree paths) ✅ |
+| **Sync queue**           | `syncDailyRecord` (`firestoreSyncTransport.ts`) | `runTransaction` that re-resolves the task, then `transaction.set(…, { merge: true })` ✅        | `saveDailyRecordWithClinicalAuthority` with the task's `syncContract` ✅ |
+| **Rayen clinical batch** | `applyRayenClinicalEnrichmentBatch` callable    | —                                                                                                | Server transaction, allowlisted clinical fields ✅                       |
 
 Other server writers (CUDYR admin adjustments, specialty policy application) also stamp `meta.lastChangedPaths`. Client direct writes never do.
 
@@ -105,12 +98,11 @@ The first matching route wins:
 
 1. **Frozen Rayen run guard** (`rayenClinicalWriteGuard`) — patch callable; the server requires the
    exact base version and creates `history/rayen-{runId}` once per run.
-2. **Clinical envelope or bed tree** — a clinical-envelope patch goes to the patch callable when
-   the effective mode is `enforced` or the v2 fence is active; a structural bed-tree patch only
-   with the fence. Either goes when the command carries `intentionalBedClear` or `specialtyIntent`.
-   Mixed patches are rejected with `ConcurrencyError` instead of being split: clinical with
-   structural or other fields under `enforced` or the fence, and bed-tree with other top-level
-   fields under the fence.
+2. **Clinical envelope or bed tree** — a clinical-envelope or structural bed-tree patch goes to
+   the patch callable with the v2 fence, or when the command carries `intentionalBedClear` or
+   `specialtyIntent`. Mixed patches are rejected under the fence with `ConcurrencyError` instead
+   of being split: clinical with structural or other fields, and bed-tree with other top-level
+   fields.
 3. **`requireAtomicCas`** (e.g. movement reclassification) — `updateRecordPartiallyAtomically`:
    exact base version, history snapshot (hourly cadence and `historyPolicy`) and `update` in one
    transaction. A command that needs a confirmed record (`requireConfirmedRecord`, passed down as
@@ -160,8 +152,8 @@ that projection instead of replacing it, and compacting an unresolved task keeps
   Known pre-existing limit: explicit discard deletes the note task after restoring the stored
   day and tasks already queued. A stale tab can later create a new whole-record save containing
   the discarded text. With no remaining note task, the replay guard cannot identify that text's
-  origin, and it may publish it. This also reproduces on main before this change, in client-only
-  and enforced modes. Preventing it requires a separate durable provenance or whole-save ownership
+  origin, and it may publish it. This also reproduces on main before this change, with and
+  without the fence. Preventing it requires a separate durable provenance or whole-save ownership
   contract; this change does not retain discarded-note tombstones or claim to close that gap.
 
   A legacy whole-record task (`*` or absent changed paths) whose base became unknown stays in
@@ -214,7 +206,7 @@ latest mutation marker does not by itself acknowledge the other mutations.
    day it holds. A recreated day uses absent stored values for the same check: a day write never
    publishes a note it did not write.
 4. **Clinical authority** — `evaluateDailyRecordClinicalAuthority` must not block.
-5. **Publish** — enforced or fenced: the save callable, whose response must carry the committed
+5. **Publish** — fenced: the save callable, whose response must carry the committed
    record. A merged task still sends its own base, so the callable refuses it while the stored day
    is newer and the task stays queued (a known limit: it is held, not lost). Otherwise `runTransaction` re-runs steps 1–4 against the transactional snapshot and
    writes with `{ merge: true }`, so beds absent from the payload are never dropped. The client
@@ -332,8 +324,8 @@ that the records never contained. Correcting a name during a move requires a sta
 - Unit: `firestoreWriteSupport.test.ts` (CAS, missing-base, erasure backstop, strict tolerance),
   `dailyRecordRemoteWriteController.test.ts` (erasure cases through `assertRemoteSaveCompatibility`
   and `assertNoPatientErasures`), `networkUtils.test.ts`.
-- Routing: `dailyRecordAuthorityMode.test.ts` (deployment flag) and
-  `firestoreRayenClinicalAuthorityMode.test.ts` (server policy and fence). Queue publish inside a
+- Routing: `firestoreRayenClinicalAuthorityMode.test.ts` (the fence) and
+  `dailyRecordAuthorityAuthFailure.test.ts` (fence plus signed-in user). Queue publish inside a
   transaction and its callable route: `syncQueueAtomicPublish.test.ts` and, against the emulator,
   `sync-atomic-publish.emulator.test.ts`.
 - Server guard: `src/tests/functions/dailyRecordErasureGuard.test.ts` (pure helper, including

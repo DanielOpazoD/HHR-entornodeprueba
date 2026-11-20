@@ -120,7 +120,6 @@ beforeEach(async () => {
   Object.defineProperty(globalThis, 'localStorage', { value: local, configurable: true });
   Object.defineProperty(globalThis, 'sessionStorage', { value: session, configurable: true });
   Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-  vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
   vi.mocked(setDoc).mockClear();
   local.clear();
   session.clear();

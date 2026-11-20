@@ -181,7 +181,6 @@ const shownNote = (client: QueryClient) =>
     ?.handoffNovedadesNightShift;
 
 beforeEach(async () => {
-  vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
   notices.length = 0;
   onlineManager.setOnline(true);
   await resetParityWorld();

@@ -37,7 +37,6 @@ vi.mock('firebase/firestore', async original => {
   };
 });
 vi.mock('@/services/storage/firestore/firestoreRayenClinicalAuthorityMode', () => ({
-  resolveEffectiveDailyRecordAuthorityMode: async () => 'client_only',
   isServerClinicalWriteFenceActive: async () => false,
 }));
 
