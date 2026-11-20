@@ -38,8 +38,7 @@ export const previousCensusEgresoIdentity = (
 };
 
 export const previousCensusEgresoRowIdentity = (row: EgresoReportRow): string => {
-  const day =
-    correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime).correctedDay ?? '';
+  const day = correctedStamp(row).correctedDay ?? '';
   return previousCensusEgresoIdentity(row.run, row.patientName, day);
 };
 
@@ -66,7 +65,7 @@ export const previousCensusEgresoCandidates = (
 ): PreviousCensusEgresoCandidate[] => {
   if (!previous || ![reportDate, previousCensusDate(reportDate)].includes(previous.date)) return [];
   const eligibleRows = rows.filter(row => {
-    const day = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime).correctedDay;
+    const day = correctedStamp(row).correctedDay;
     // A later discharge can prove yesterday's presence. This is exact-episode discovery only;
     // the movement planner still owns the discharge's actual clinical day.
     return previous.date === reportDate
@@ -158,11 +157,7 @@ export const previousCensusEgresoCandidates = (
     const row = matchingRows[0];
     const rowIdentity = previousCensusEgresoRowIdentity(row);
     if (!rowIdentity || rowIdentityCount.get(rowIdentity) !== 1) return [];
-    const dischargeDay = correctedStamp(
-      row.fechaEgreso,
-      row.correctedDay,
-      row.correctedTime
-    ).correctedDay;
+    const dischargeDay = correctedStamp(row).correctedDay;
     if (!dischargeDay) return [];
     return [
       {

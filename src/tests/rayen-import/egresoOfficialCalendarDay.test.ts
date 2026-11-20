@@ -11,13 +11,11 @@ import {
 import { reportRowFromLookup } from '@/features/rayen-import/domain/applyEgresoLookupFallback';
 import {
   correctedStamp,
+  reportClinicalStamp,
   reportEgresoFromRow,
   reportPredatesAdmission,
 } from '@/features/rayen-import/domain/egresoReportPolicy';
-import {
-  latestReportRowsByEpisode,
-  reportClinicalStamp,
-} from '@/features/rayen-import/domain/historicalAdministrativeEvidence';
+import { latestReportRowsByEpisode } from '@/features/rayen-import/domain/historicalAdministrativeEvidence';
 import { reportEgresoEntry } from '@/features/rayen-import/mapping/reportEgresoMapping';
 import {
   buildDischarge,
@@ -68,7 +66,7 @@ const row = (fechaEgreso: string, destino = 'Domicilio'): EgresoReportRow => ({
 });
 
 /** Source row → reviewed diff → applied movement → stored record read back. */
-const fileAndReread = (census: string, source: EgresoReportRow) => {
+const fileAndReread = (census: string, ...sources: EgresoReportRow[]) => {
   const current = recordFor(census);
   const snapshot: RayenCensusSnapshot = {
     capturedAt: '2026-11-07T15:00:00Z',
@@ -78,7 +76,7 @@ const fileAndReread = (census: string, source: EgresoReportRow) => {
   };
   const diff = applyEgresoReport(
     reconcileCensus(current, snapshot, { reference: REFERENCE }),
-    [source],
+    sources,
     current
   );
   const applied = applyCensusImportDiff(current, diff, ctx).record;
@@ -107,12 +105,12 @@ describe('official egreso calendar day from the source to the movement and back'
   });
 
   it('keeps the weekday 08:00 handoff: 07:59 is the previous census, 08:00 its own', () => {
-    expect(correctedStamp('10-11-2026 07:59')).toEqual({
+    expect(correctedStamp({ fechaEgreso: '10-11-2026 07:59' })).toEqual({
       correctedDay: '2026-11-09',
       correctedTime: '07:59',
       correctedCalendarDay: '2026-11-10',
     });
-    expect(correctedStamp('10-11-2026 08:00')).toEqual({
+    expect(correctedStamp({ fechaEgreso: '10-11-2026 08:00' })).toEqual({
       correctedDay: '2026-11-10',
       correctedTime: '08:00',
       correctedCalendarDay: '2026-11-10',
@@ -177,19 +175,39 @@ describe('official egreso calendar day from the source to the movement and back'
     ]);
   });
 
-  it('drops a calendar day that does not belong to the census day and time it travels with', () => {
-    expect(correctedStamp('', '2026-11-06', '08:30', '2026-11-08')).toEqual({
+  it('leaves the egreso unconfirmed when the official calendar day contradicts its stamp', () => {
+    const unconfirmed = { correctedDay: undefined, correctedTime: undefined };
+    const stamp = {
+      fechaEgreso: '06-11-2026 08:30',
       correctedDay: '2026-11-06',
       correctedTime: '08:30',
-    });
-    expect(correctedStamp('', '2026-11-06', '08:30', '2026-11-31')).toEqual({
-      correctedDay: '2026-11-06',
-      correctedTime: '08:30',
-    });
+    };
+    // Sunday 8 is outside Friday's census at 08:30; 31 November does not exist.
+    for (const correctedCalendarDay of ['2026-11-08', '2026-11-31']) {
+      expect(correctedStamp({ ...stamp, correctedCalendarDay })).toEqual(unconfirmed);
+      expect(reportClinicalStamp({ ...stamp, correctedCalendarDay })).toBeNull();
+    }
+    // Without a calendar day the row keeps its census day and time, as before.
+    expect(correctedStamp(stamp)).toEqual({ correctedDay: '2026-11-06', correctedTime: '08:30' });
+  });
+
+  it('orders two rows of one episode by calendar day and time, whichever comes first', () => {
+    const friday = row('06-11-2026 08:30');
+    const saturday = row('07-11-2026 08:30');
+    for (const rows of [
+      [friday, saturday],
+      [saturday, friday],
+    ]) {
+      expect(latestReportRowsByEpisode(rows).get('91001')).toBe(saturday);
+      expect(fileAndReread('2026-11-06', ...rows).movement).toMatchObject({
+        movementDate: '2026-11-07',
+        movementDateSource: 'official',
+      });
+    }
   });
 
   it('compares the admission and picks the latest corrected row on the official calendar day', () => {
-    const friday = correctedStamp('06-11-2026 08:30');
+    const friday = correctedStamp({ fechaEgreso: '06-11-2026 08:30' });
     expect(
       reportPredatesAdmission(
         { iso: friday.correctedDay!, hhmm: friday.correctedTime!, calendarIso: '2026-11-06' },
@@ -198,7 +216,10 @@ describe('official egreso calendar day from the source to the movement and back'
     ).toBe(true);
 
     const late = row('04-11-2026 21:30');
-    const early = { ...row('05-11-2026 00:30'), ...correctedStamp('05-11-2026 00:30') };
+    const early = {
+      ...row('05-11-2026 00:30'),
+      ...correctedStamp({ fechaEgreso: '05-11-2026 00:30' }),
+    };
     expect(reportClinicalStamp(early)).toEqual({
       iso: '2026-11-04',
       calendarIso: '2026-11-05',

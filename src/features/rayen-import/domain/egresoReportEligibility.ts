@@ -163,7 +163,7 @@ export const selectEligibleEgresoRows = (
   const runsWithUnknownBed = new Set<string>();
   for (const row of reportRows) {
     const rowRun = normalizeRut(row.run);
-    const stamped = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
+    const stamped = correctedStamp(row);
     const withinDay =
       Boolean(stamped.correctedDay && stamped.correctedTime) &&
       Boolean(recordDay && stamped.correctedDay && stamped.correctedDay <= recordDay);
@@ -204,12 +204,7 @@ export const selectEligibleEgresoRows = (
             isSameDocument(crib.patient.rut, row.run)
         )
       : findOccupiedClinicalCrib(occupiedCribs, row.run, reportedEpisode);
-    const normalized = correctedStamp(
-      row.fechaEgreso,
-      row.correctedDay,
-      row.correctedTime,
-      row.correctedCalendarDay
-    );
+    const normalized = correctedStamp(row);
     const stamp: ReportEgresoStamp | null =
       normalized.correctedDay && normalized.correctedTime
         ? {

@@ -12,7 +12,7 @@ export const eligibleExactEpisodes = (
   new Set(
     rows.flatMap(row => {
       const episode = String(row.encounterId ?? '').trim();
-      const stamp = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
+      const stamp = correctedStamp(row);
       return episode &&
         stamp.correctedDay &&
         stamp.correctedTime &&

@@ -5,7 +5,11 @@ import { isCmaBedLabel, isCmaLocation } from '../mapping/bedMapping';
 import { mapDestinoDeAlta } from '../mapping/mapDestinoDeAlta';
 import { toTitleCaseName } from '../mapping/rayenToPatientData';
 import type { CorrectedEgresoFields } from '../mapping/reportEgresoDateTime';
-import { officialCalendarDay, parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
+import {
+  officialCalendarDay,
+  parseStatisticalEgresoInstant,
+  parseStatisticalEgresoStamp,
+} from '../mapping/reportEgresoDateTime';
 import { resolveReportBedId } from '../mapping/resolveReportBed';
 import {
   documentKeyBeforeLetterRule,
@@ -98,16 +102,7 @@ export const selectReportRowsByEpisode = (
       ? `${patientKey}|${episode}`
       : (documentKey ?? `${run}|document:${byIdentity.size}`);
     const previous = byIdentity.get(key);
-    const stamp = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
-    const previousStamp =
-      previous &&
-      correctedStamp(previous.fechaEgreso, previous.correctedDay, previous.correctedTime);
-    if (
-      !previous ||
-      `${stamp.correctedDay}T${stamp.correctedTime}` >
-        `${previousStamp?.correctedDay}T${previousStamp?.correctedTime}`
-    )
-      byIdentity.set(key, row);
+    if (!previous || isLaterReportEgreso(row, previous)) byIdentity.set(key, row);
   }
   const primaryByRun = new Map<string, EgresoReportRow>();
   const exactActiveDocuments = [...byIdentity.values()]
@@ -186,12 +181,27 @@ interface CmaOriginEvidence {
   location?: string;
 }
 
-export const correctedStamp = (
-  fechaEgreso: string,
-  correctedDay?: string,
-  correctedTime?: string,
-  correctedCalendarDay?: string
-): CorrectedEgresoFields => {
+type EgresoStampSource = Pick<
+  EgresoReportRow,
+  'fechaEgreso' | 'correctedDay' | 'correctedTime' | 'correctedCalendarDay'
+>;
+
+const UNCONFIRMED_STAMP: CorrectedEgresoFields = {
+  correctedDay: undefined,
+  correctedTime: undefined,
+};
+
+/**
+ * The official census day, time and calendar day of a report row. A calendar day the source gave
+ * that is impossible or outside that census at that time contradicts the stamp: the egreso stays
+ * unconfirmed. Rows without one keep the census day and time, or the bulk cell.
+ */
+export const correctedStamp = ({
+  fechaEgreso,
+  correctedDay,
+  correctedTime,
+  correctedCalendarDay,
+}: EgresoStampSource): CorrectedEgresoFields => {
   const dayMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(correctedDay || '');
   const timeMatch = /^(\d{2}):(\d{2})$/.exec(correctedTime || '');
   const date =
@@ -207,14 +217,16 @@ export const correctedStamp = (
   const isValidTime = Boolean(
     timeMatch && Number(timeMatch[1]) <= 23 && Number(timeMatch[2]) <= 59
   );
-  if (isValidDay && isValidTime) {
-    const calendarDay = officialCalendarDay(correctedDay, correctedTime, correctedCalendarDay);
-    return {
-      correctedDay,
-      correctedTime,
-      ...(calendarDay && { correctedCalendarDay: calendarDay }),
-    };
+  if (correctedCalendarDay !== undefined) {
+    const calendarDay =
+      isValidDay && isValidTime
+        ? officialCalendarDay(correctedDay, correctedTime, correctedCalendarDay)
+        : undefined;
+    return calendarDay
+      ? { correctedDay, correctedTime, correctedCalendarDay: calendarDay }
+      : UNCONFIRMED_STAMP;
   }
+  if (isValidDay && isValidTime) return { correctedDay, correctedTime };
   const stamp = parseStatisticalEgresoStamp(fechaEgreso);
   return stamp
     ? {
@@ -222,7 +234,47 @@ export const correctedStamp = (
         correctedTime: stamp.hhmm,
         correctedCalendarDay: stamp.calendarIso,
       }
-    : { correctedDay: undefined, correctedTime: undefined };
+    : UNCONFIRMED_STAMP;
+};
+
+/** When a report row's egreso happened, or null when it is unknown or contradictory. */
+export const reportClinicalStamp = (
+  row: EgresoStampSource
+): { iso: string; calendarIso: string; hhmm: string } | null => {
+  if (row.correctedCalendarDay !== undefined) {
+    const stamp = correctedStamp(row);
+    return stamp.correctedDay && stamp.correctedTime && stamp.correctedCalendarDay
+      ? {
+          iso: stamp.correctedDay,
+          calendarIso: stamp.correctedCalendarDay,
+          hhmm: stamp.correctedTime,
+        }
+      : null;
+  }
+  if (
+    /^\d{4}-\d{2}-\d{2}$/.test(row.correctedDay ?? '') &&
+    /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(row.correctedTime ?? '')
+  ) {
+    // Rows from before the official calendar day was carried keep their census day here.
+    const iso = row.correctedDay as string;
+    return { iso, calendarIso: iso, hhmm: row.correctedTime as string };
+  }
+  const parsed =
+    parseStatisticalEgresoStamp(row.fechaEgreso) ?? parseStatisticalEgresoInstant(row.fechaEgreso);
+  return parsed ? { iso: parsed.iso, calendarIso: parsed.calendarIso, hhmm: parsed.hhmm } : null;
+};
+
+/**
+ * The one order of two report rows for the same egreso, used by the census and by the history:
+ * the later Rapa Nui calendar day and time wins, whichever arrives first. An unreadable row
+ * always wins, so its contradiction reaches review instead of being hidden by a readable one.
+ */
+export const isLaterReportEgreso = (row: EgresoStampSource, prior: EgresoStampSource): boolean => {
+  const stamp = reportClinicalStamp(row);
+  const priorStamp = reportClinicalStamp(prior);
+  if (!priorStamp) return false;
+  if (!stamp) return true;
+  return `${stamp.calendarIso}T${stamp.hhmm}` > `${priorStamp.calendarIso}T${priorStamp.hhmm}`;
 };
 
 export const hasRecordedDifferentEpisode = (
@@ -352,11 +404,7 @@ export const reportPredatesActiveAdmission = (
 export const resolveReportDischarge = (row: EgresoReportRow, evidence: CmaOriginEvidence = {}) => {
   const mapped = mapDestinoDeAlta(row.destino, row.motivo);
   mapped.status = row.dischargeStatus ?? mapped.status;
-  const dischargeDay = correctedStamp(
-    row.fechaEgreso,
-    row.correctedDay,
-    row.correctedTime
-  ).correctedDay;
+  const dischargeDay = correctedStamp(row).correctedDay;
   const hasExactCmaBed = isCmaLocation(evidence.location) || isCmaBedLabel(row.bedLabel);
   const isSameDayCma =
     mapped.kind === 'alta' &&
@@ -476,11 +524,6 @@ export const reportEgresoFromRow = (row: EgresoReportRow): ReportEgreso => {
     diagnostico: row.diagnostico,
     admissionDay: row.admissionDay,
     admissionTime: row.admissionTime,
-    ...correctedStamp(
-      row.fechaEgreso,
-      row.correctedDay,
-      row.correctedTime,
-      row.correctedCalendarDay
-    ),
+    ...correctedStamp(row),
   };
 };
