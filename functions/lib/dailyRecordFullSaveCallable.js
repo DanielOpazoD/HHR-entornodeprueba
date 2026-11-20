@@ -135,7 +135,13 @@ const createFullSaveHandler =
               hasActiveEpisodeIdentity(patient) || hasActiveEpisodeIdentity(patient?.clinicalCrib)
           );
         const priorSnapshot = isEmptyDay && priorRef ? await transaction.get(priorRef) : null;
-        if (hasAlreadyAppliedMutation({ snapshot, syncContract })) {
+        if (
+          hasAlreadyAppliedMutation({
+            snapshot,
+            syncContract,
+            paths: collectChangedPaths(syncContract),
+          })
+        ) {
           const remoteData = snapshot.data() || {};
           responseAuthority = idempotentAuthority;
           responseCoverage = collectClinicalEpisodeCoverage(remoteData);

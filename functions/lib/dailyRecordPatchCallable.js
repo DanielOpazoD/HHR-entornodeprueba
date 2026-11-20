@@ -122,7 +122,7 @@ const createPatchHandler =
 
         if (assertPatchBase) await assertPatchBase(snapshot, data, transaction);
         const remoteData = snapshot.data() || {};
-        if (hasAlreadyAppliedMutation({ snapshot, syncContract })) {
+        if (hasAlreadyAppliedMutation({ snapshot, syncContract, paths: Object.keys(patch) })) {
           authority = idempotentAuthority;
           coverage = collectClinicalEpisodeCoverage(remoteData);
           revision = resolveCurrentRevision(remoteData);

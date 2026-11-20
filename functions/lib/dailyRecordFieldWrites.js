@@ -16,7 +16,8 @@
  *   which can only have changed day fields outside the bed tree (handoff texts, staffing).
  * A queued edit replayed after a lost answer tells by it which fields its own earlier edit wrote
  * and which another computer wrote after the base it saw (src/services/storage/sync/
- * fieldWriteAttribution.ts reads it, with the same digest). An entry at or before the mark that
+ * fieldWriteAttribution.ts reads it, with the same digest), and the server answers by it a resent
+ * request whose edit is still stored (`isStillWrittenBy`). An entry at or before the mark that
  * covers its path, or whose digest no longer matches the stored value, never credits a field.
  */
 const MAX_FIELD_WRITES = 300;
@@ -168,6 +169,53 @@ const nextFieldWrites = ({
   };
 };
 
+const isBedTreePath = path => /^(beds|bedTypeOverrides)(\.|$)/.test(path);
+
+/**
+ * Whether the stored `day` still holds every one of `paths` as the edit `mutationId` wrote it,
+ * read as the replay reads the map (fieldWriteAttribution.ts, `isLastWrittenBy`): the map is at
+ * the day's revision and the day's last write was a server write; for each path, the newest entry
+ * touching it is this path's own, names a write by this edit, is newer than any change the map may
+ * miss, and its digest is the stored value's. No paths, or `*`, never tells.
+ */
+const isStillWrittenBy = (day, paths, mutationId) => {
+  const meta = isPlainObject(day?.meta) ? day.meta : {};
+  const map = isPlainObject(meta.fieldWrites) ? meta.fieldWrites : {};
+  const fields = isPlainObject(map.fields) ? map.fields : {};
+  const writes = isPlainObject(map.writes) ? map.writes : {};
+  const revision = revisionOf(meta.revision);
+  const stamp = stampOf(day?.lastUpdated);
+  if (
+    !mutationId ||
+    paths.length === 0 ||
+    revision === undefined ||
+    revisionOf(map.revision) !== revision ||
+    stamp === undefined ||
+    stamp !== stampOf(meta.updatedAt)
+  )
+    return false;
+  const incompleteThrough = revisionOf(map.incompleteThrough) ?? -1;
+  const outsideBedsIncompleteThrough = revisionOf(map.outsideBedsIncompleteThrough) ?? -1;
+  return paths.every(path => {
+    const entry = fields[path];
+    if (!isEntry(entry)) return false;
+    const newer = Object.entries(fields).some(
+      ([other, otherEntry]) =>
+        other !== path &&
+        (other === '*' || other.startsWith(`${path}.`) || path.startsWith(`${other}.`)) &&
+        isEntry(otherEntry) &&
+        otherEntry.revision > entry.revision
+    );
+    return (
+      !newer &&
+      writes[String(entry.revision)]?.mutationId === mutationId &&
+      entry.revision > incompleteThrough &&
+      (isBedTreePath(path) || entry.revision > outsideBedsIncompleteThrough) &&
+      entry.digest === fieldValueDigest(readValueAtPath(day, path))
+    );
+  });
+};
+
 /**
  * The map after a server write of the whole `record` whose meta names its revision: the fields it
  * changed from `previousDay`, `mutationId` (none: no edit of anyone's) and no computer.
@@ -188,6 +236,7 @@ module.exports = {
   MAX_FIELD_WRITES,
   changedFieldPaths,
   fieldValueDigest,
+  isStillWrittenBy,
   nextFieldWrites,
   wholeRecordFieldWrites,
 };

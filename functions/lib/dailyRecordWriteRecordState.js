@@ -2,7 +2,7 @@
 const functions = require('firebase-functions/v1');
 const { resolveCurrentRevision, toIsoTimestamp } = require('./dailyRecordWriteVersionGuards');
 const { CLINICAL_DERIVED_MOVED_FIELDS } = require('./clinicalDerivedContract');
-const { nextFieldWrites } = require('./dailyRecordFieldWrites');
+const { isStillWrittenBy, nextFieldWrites } = require('./dailyRecordFieldWrites');
 const {
   FORBIDDEN_PATCH_PATH_SEGMENTS,
   isPlainObject,
@@ -225,14 +225,20 @@ const buildAuthorityRecordState = ({ record, lastUpdated, meta }) => {
   };
 };
 
-const hasAlreadyAppliedMutation = ({ snapshot, syncContract }) => {
+/**
+ * Whether the stored day already holds this request's edit: the day's last write was it, or every
+ * one of `paths` (the fields the request writes) is still the value that edit stored, as
+ * `meta.fieldWrites` tells: another computer saved other fields after it, and its answer was lost.
+ */
+const hasAlreadyAppliedMutation = ({ snapshot, syncContract, paths }) => {
   if (!snapshot.exists) {
     return false;
   }
 
   const remoteMutationId = normalizeShortString(snapshot.data()?.meta?.lastMutationId);
   const localMutationId = normalizeShortString(syncContract?.mutationId);
-  return Boolean(remoteMutationId && localMutationId && remoteMutationId === localMutationId);
+  if (remoteMutationId && localMutationId && remoteMutationId === localMutationId) return true;
+  return Array.isArray(paths) && isStillWrittenBy(snapshot.data(), paths, localMutationId);
 };
 
 module.exports = {

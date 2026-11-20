@@ -326,6 +326,10 @@ Lectura operativa:
 - Si el ack local falló pero Firebase ya aplicó la mutación, el siguiente flush
   debe reconocer `remote.meta.lastMutationId == syncContract.mutationId` como
   éxito idempotente y drenar la tarea sin reescribir.
+- El servidor responde `idempotent` al mismo pedido reenviado también cuando otro equipo guardó
+  otros campos después: cada campo del pedido sigue anotado con esa edición en `meta.fieldWrites`
+  y conserva el valor que ella guardó. Si otro equipo cambió después uno de esos campos, no lo da
+  por aplicado y decide como cualquier escritura.
 - Si queda una tarea `direct_queue` reciente, no borrar: puede representar una
   confirmación remota pendiente o un ack local que no alcanzó a ejecutarse.
 
