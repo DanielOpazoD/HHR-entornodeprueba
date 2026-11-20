@@ -6,6 +6,7 @@ import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenActiveBedAssignment, RayenEncounter } from '../contracts/rayenSnapshot';
 import {
+  officialCalendarDay,
   parseStatisticalEgresoInstant,
   parseStatisticalEgresoStamp,
 } from '../mapping/reportEgresoDateTime';
@@ -47,7 +48,10 @@ export const reportClinicalStamp = (
     /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(row.correctedTime ?? '')
   ) {
     const iso = row.correctedDay as string;
-    return { iso, calendarIso: iso, hhmm: row.correctedTime as string };
+    const hhmm = row.correctedTime as string;
+    // Rows from before the official calendar day was carried keep their census day here.
+    const calendarIso = officialCalendarDay(iso, hhmm, row.correctedCalendarDay) ?? iso;
+    return { iso, calendarIso, hhmm };
   }
   const parsed =
     parseStatisticalEgresoStamp(row.fechaEgreso) ?? parseStatisticalEgresoInstant(row.fechaEgreso);

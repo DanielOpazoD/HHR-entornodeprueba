@@ -3,7 +3,8 @@ import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { EgresoReportRow, ReportEgreso } from '../contracts/egresoReport';
 import type { EgresoLookupResult, EgresoRecord } from '../contracts/egresoLookup';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
-import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
+import type { CorrectedEgresoFields } from '../mapping/reportEgresoDateTime';
+import { correctedEgresoFields } from '../mapping/reportEgresoDateTime';
 import { applyEgresoReport } from './applyEgresoReport';
 import { confirmHospitalDischarge } from './dischargeVerification';
 import { normalizeRut } from '@/utils/rutUtils';
@@ -30,20 +31,12 @@ const mergeReportEgresos = (
   return [...merged.values()];
 };
 
-const lookupStamp = (
-  egreso: EgresoRecord
-): { fechaEgreso: string; correctedDay?: string; correctedTime?: string } => {
+const lookupStamp = (egreso: EgresoRecord): { fechaEgreso: string } & CorrectedEgresoFields => {
   const raw = String(egreso.dateDischarge || egreso.endPeriod || '').trim();
   const local = /[T\s]\d{1,2}:\d{2}/.test(raw) ? encounterWallClockInRapaNui(raw) : null;
   if (!local) return { fechaEgreso: raw };
-  const calendarDay = local.slice(0, 10);
-  const time = local.slice(11, 16);
   // An individual API clock is not a mainland bulk-report cell. Preserve its raw evidence.
-  return {
-    fechaEgreso: raw,
-    correctedDay: resolveClinicalDayForDateTime(calendarDay, time),
-    correctedTime: time,
-  };
+  return { fechaEgreso: raw, ...correctedEgresoFields(local.slice(0, 10), local.slice(11, 16)) };
 };
 
 const lookupDestination = (egreso: EgresoRecord): string =>

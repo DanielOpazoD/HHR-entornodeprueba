@@ -5,12 +5,15 @@
 La fecha/hora del alta corresponde al egreso estadístico de Gestión de Camas,
 referencia oficial de la estadística hospitalaria, aunque su registro sea posterior
 al egreso físico. No se sustituye por la emisión de la epicrisis ni la confirmación
-de HHR. `correctedDay` identifica el censo del turno; `movementDate`
-conserva la fecha calendario real en Rapa Nui. Un egreso de madrugada D+1 se
-archiva en D y muestra D+1. Los lectores de Firebase y caché local recuperan las
-fechas de importaciones antiguas que guardaron D como fecha del movimiento,
-sin consultar Eloísa ni escribir el documento remoto al abrirlo. Los ajustes
-manuales y las fechas ya correctas se conservan.
+de HHR. `correctedDay` identifica el censo del turno; `correctedCalendarDay`, el día
+calendario oficial en Rapa Nui que la fuente ya dio, y `movementDate` lo conserva
+(`movementDateSource: 'official'`). Un egreso de madrugada D+1 se archiva en D y
+muestra D+1. El día calendario no se reconstruye del censo y la hora: antes de un fin
+de semana o feriado, viernes 08:30 y sábado 08:30 caen en el mismo censo. Los lectores
+de Firebase y caché local recuperan las fechas de importaciones antiguas que
+guardaron D como fecha del movimiento, sin consultar Eloísa ni escribir el documento
+remoto al abrirlo. Los ajustes manuales y las fechas ya correctas u oficiales se
+conservan.
 
 El ingreso conserva su fecha calendario y hora reales en Rapa Nui: los instantes UTC/con offset
 se convierten con `encounterWallClockInRapaNui`, igual que la selección del día clínico y el

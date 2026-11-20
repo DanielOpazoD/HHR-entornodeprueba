@@ -155,6 +155,7 @@ export const recoverPreviousCensusDischarges = async (
           run: patient.rut ?? '',
           exactEpisodeVerification: 'verified' as const,
           correctedDay: stamp.iso,
+          correctedCalendarDay: stamp.calendarIso,
           correctedTime: stamp.hhmm,
           admissionDay: admission,
           admissionTime: patient.admissionTime,

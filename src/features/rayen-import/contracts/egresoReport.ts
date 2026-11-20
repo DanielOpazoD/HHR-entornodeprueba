@@ -31,6 +31,8 @@ export interface EgresoReportRow {
   /** Rapa Nui stamp normalized from exact episode evidence (local or offset-bearing API/PDF). */
   correctedDay?: string;
   correctedTime?: string;
+  /** Official Rapa Nui calendar day of that stamp; absent on rows from before it was carried. */
+  correctedCalendarDay?: string;
   /** Exact admission stamp read from the per-episode statistical discharge report. */
   admissionDay?: string;
   admissionTime?: string;
@@ -66,6 +68,7 @@ export interface ReportEgreso {
   /** Normalized Rapa Nui egreso day + time exactly as printed by the statistical report. */
   correctedDay?: string;
   correctedTime?: string;
+  correctedCalendarDay?: string;
   admissionDay?: string;
   admissionTime?: string;
   /**

@@ -22,6 +22,7 @@ import {
   resolveActiveEpisode,
   toIsoDay,
   type OccupiedBedEvidence,
+  type ReportEgresoStamp,
 } from './egresoReportPolicy';
 import { appendReportConflict } from './egresoReportConflicts';
 import { resolveReportedOccupant } from './reportedOccupant';
@@ -56,7 +57,7 @@ const resolveLocalBedTurnoverEgreso = ({
   diff: CensusImportDiff;
   row: EgresoReportRow;
   current?: OccupiedBedEvidence;
-  stamp: { iso: string; hhmm: string };
+  stamp: ReportEgresoStamp;
   rowsSharingRun: number;
   cribOccupied: boolean;
 }): EgresoReportRow | null => {
@@ -203,10 +204,19 @@ export const selectEligibleEgresoRows = (
             isSameDocument(crib.patient.rut, row.run)
         )
       : findOccupiedClinicalCrib(occupiedCribs, row.run, reportedEpisode);
-    const normalized = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
-    const stamp =
+    const normalized = correctedStamp(
+      row.fechaEgreso,
+      row.correctedDay,
+      row.correctedTime,
+      row.correctedCalendarDay
+    );
+    const stamp: ReportEgresoStamp | null =
       normalized.correctedDay && normalized.correctedTime
-        ? { iso: normalized.correctedDay, hhmm: normalized.correctedTime }
+        ? {
+            iso: normalized.correctedDay,
+            hhmm: normalized.correctedTime,
+            calendarIso: normalized.correctedCalendarDay,
+          }
         : null;
     if (!stamp) {
       // Con cama conocida el conflicto se aísla a esa cama; sin cama ni episodio, la
@@ -266,7 +276,9 @@ export const selectEligibleEgresoRows = (
               movement.bedId === reportedBedId &&
               !movement.rut?.trim() &&
               // Stored under the calendar day of the event; a dawn discharge falls on the next one.
-              movement.movementDate === calendarDateForMovement(stamp.iso, stamp.hhmm) &&
+              // Movements filed before the official day was carried hold the reconstructed date.
+              ((Boolean(stamp.calendarIso) && movement.movementDate === stamp.calendarIso) ||
+                movement.movementDate === calendarDateForMovement(stamp.iso, stamp.hhmm)) &&
               movement.time === stamp.hhmm &&
               normalizedName(movement.patientName) === normalizedName(row.patientName)
           )

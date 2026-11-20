@@ -1,6 +1,10 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { parseStatisticalEgresoStamp } from '@/features/rayen-import/mapping/reportEgresoDateTime';
+import {
+  correctedEgresoFields,
+  parseStatisticalEgresoInstant,
+  parseStatisticalEgresoStamp,
+} from '@/features/rayen-import/mapping/reportEgresoDateTime';
 
 describe('parseStatisticalEgresoStamp', () => {
   it('converts the mainland report clock to Rapa Nui time', () => {
@@ -67,5 +71,56 @@ describe('parseStatisticalEgresoStamp', () => {
     expect(parseStatisticalEgresoStamp('2026-07-11')).toBeNull();
     expect(parseStatisticalEgresoStamp('31-02-2026 18:20')).toBeNull();
     expect(parseStatisticalEgresoStamp('14-07-2026 25:00')).toBeNull();
+  });
+});
+
+describe('parseStatisticalEgresoInstant', () => {
+  it.each(['2026-11-05T03:30:00Z', '2026-11-05T00:30:00-03:00', '2026-11-05T00:30:00-0300'])(
+    'reads %s as the same Rapa Nui instant',
+    value => {
+      expect(parseStatisticalEgresoInstant(value)).toEqual({
+        iso: '2026-11-04',
+        calendarIso: '2026-11-04',
+        hhmm: '22:30',
+        text: '04-11-2026 22:30',
+      });
+    }
+  );
+
+  it('keeps the calendar day of a Saturday 08:30 discharge filed on the Friday census', () => {
+    expect(parseStatisticalEgresoInstant('2026-11-07T10:30:00.000-0300')).toEqual({
+      iso: '2026-11-06',
+      calendarIso: '2026-11-07',
+      hhmm: '08:30',
+      text: '07-11-2026 08:30',
+    });
+  });
+
+  it('accepts 29 February only in a leap year', () => {
+    expect(parseStatisticalEgresoInstant('2028-02-29T15:00:00Z')).toMatchObject({
+      calendarIso: '2028-02-29',
+      hhmm: '10:00',
+    });
+    expect(parseStatisticalEgresoInstant('2027-02-29T15:00:00Z')).toBeNull();
+  });
+
+  it('leaves an impossible, unzoned or missing stamp unconfirmed instead of rolling it over', () => {
+    expect(parseStatisticalEgresoInstant('2026-02-30T18:00:00Z')).toBeNull();
+    expect(parseStatisticalEgresoInstant('2026-11-31T10:00:00-0300')).toBeNull();
+    expect(parseStatisticalEgresoInstant('2026-11-05T24:00:00Z')).toBeNull();
+    expect(parseStatisticalEgresoInstant('2026-11-05T00:30:00+1500')).toBeNull();
+    expect(parseStatisticalEgresoInstant('2026-11-05T00:30:00')).toBeNull();
+    expect(parseStatisticalEgresoInstant('')).toBeNull();
+  });
+});
+
+describe('correctedEgresoFields', () => {
+  it('carries the calendar day only when it belongs to the resolved census day', () => {
+    expect(correctedEgresoFields('2026-11-07', '08:30')).toEqual({
+      correctedDay: '2026-11-06',
+      correctedCalendarDay: '2026-11-07',
+      correctedTime: '08:30',
+    });
+    expect(correctedEgresoFields('2026-02-30', '08:30')).not.toHaveProperty('correctedCalendarDay');
   });
 });

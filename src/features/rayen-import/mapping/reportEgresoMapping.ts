@@ -32,4 +32,5 @@ export const reportEgresoEntry = (egreso: ReportEgreso): DischargeEntry => ({
   reason: 'administrative-discharge',
   correctedDay: egreso.correctedDay,
   correctedTime: egreso.correctedTime,
+  correctedCalendarDay: egreso.correctedCalendarDay,
 });

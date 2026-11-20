@@ -22,6 +22,7 @@ import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import type { ReportEgreso } from '../contracts/egresoReport';
 import { extractTime } from '../mapping/rayenToPatientData';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
+import { officialCalendarDay } from '../mapping/reportEgresoDateTime';
 import { normalizePatientRut } from './censusPatientIdentityIndex';
 
 interface RecordedOutcomeSubject {
@@ -156,14 +157,24 @@ const sparseSnapshotFields = new Set([
   'admissionDate',
   'admissionTime',
 ]);
-const isImportedCribDeparture = (row: DischargeData, date: string): boolean =>
-  row.isNested === true &&
-  recoverImportedMovementCalendarDate(row, date).movementDate ===
-    calendarDateForMovement(date, row.time) &&
-  row.movementProvenance?.source === 'gestion_camas' &&
-  Boolean(row.clinicalEpisodeId?.trim()) &&
-  row.originalData?.clinicalEpisodeId === row.clinicalEpisodeId &&
-  /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(row.time);
+const isImportedCribDeparture = (row: DischargeData, date: string): boolean => {
+  const movementDate = recoverImportedMovementCalendarDate(row, date).movementDate;
+  // An official calendar day only has to belong to this census at its time; older rows carry
+  // the date the importer reconstructed from the census day.
+  const expected =
+    row.movementDateSource === 'official'
+      ? officialCalendarDay(date, row.time, movementDate)
+      : calendarDateForMovement(date, row.time);
+  return (
+    row.isNested === true &&
+    Boolean(expected) &&
+    movementDate === expected &&
+    row.movementProvenance?.source === 'gestion_camas' &&
+    Boolean(row.clinicalEpisodeId?.trim()) &&
+    row.originalData?.clinicalEpisodeId === row.clinicalEpisodeId &&
+    /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(row.time)
+  );
+};
 const isCanonicalDeparture = (row: DischargeData): boolean =>
   bedIds.has(row.bedId) &&
   Boolean(row.admissionDate && row.originalData?.admissionDate === row.admissionDate);

@@ -13,6 +13,7 @@
 
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
+import { buildSortableLocalTimestamp, parseStrictIsoInstant } from './localTimestamp';
 
 export interface StatisticalEgresoStamp {
   /** HHR clinical census day (YYYY-MM-DD), after the 08:00/09:00 handoff rule. */
@@ -129,9 +130,53 @@ export const parseStatisticalEgresoStamp = (fechaEgreso: string): StatisticalEgr
   };
 };
 
-/** Converts an API timestamp carrying an explicit offset/UTC marker into the Rapa Nui census zone. */
+/**
+ * Converts an API timestamp carrying an explicit offset/UTC marker into the Rapa Nui census zone.
+ * The compact offset (`-0300`) is the same instant as `-03:00`; an impossible calendar day or
+ * offset is rejected by the strict parser instead of rolling over inside `Date`.
+ */
 export const parseStatisticalEgresoInstant = (value: string): StatisticalEgresoStamp | null => {
-  const normalized = (value || '').trim();
-  if (!/(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized)) return null;
-  return stampFromInstant(new Date(normalized));
+  const normalized = (value || '')
+    .trim()
+    .replace(/z$/, 'Z')
+    .replace(/([+-]\d{2})(\d{2})$/, '$1:$2');
+  const instant = parseStrictIsoInstant(normalized);
+  return instant ? stampFromInstant(instant) : null;
+};
+
+/**
+ * The official calendar day carried with a census day and time, or undefined when it is missing or
+ * does not belong to that census shift. Without it, only the census day and time are known, and
+ * the 08:00–09:00 overlap before a weekend or holiday maps two calendar days to the same pair.
+ */
+export const officialCalendarDay = (
+  correctedDay: string | undefined,
+  correctedTime: string | undefined,
+  calendarDay: string | undefined
+): string | undefined => {
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(calendarDay ?? '');
+  return day &&
+    buildSortableLocalTimestamp(Number(day[1]), Number(day[2]), Number(day[3])) &&
+    /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(correctedTime ?? '') &&
+    resolveClinicalDayForDateTime(calendarDay, correctedTime) === correctedDay
+    ? calendarDay
+    : undefined;
+};
+
+/** The official egreso as a row carries it: census day, Rapa Nui calendar day and time. */
+export interface CorrectedEgresoFields {
+  correctedDay?: string;
+  correctedCalendarDay?: string;
+  correctedTime?: string;
+}
+
+/** Builds the row fields from the official Rapa Nui calendar day and time of the egreso. */
+export const correctedEgresoFields = (calendarIso: string, hhmm: string): CorrectedEgresoFields => {
+  const correctedDay = resolveClinicalDayForDateTime(calendarIso, hhmm);
+  const correctedCalendarDay = officialCalendarDay(correctedDay, hhmm, calendarIso);
+  return {
+    correctedDay,
+    correctedTime: hhmm,
+    ...(correctedCalendarDay && { correctedCalendarDay }),
+  };
 };
