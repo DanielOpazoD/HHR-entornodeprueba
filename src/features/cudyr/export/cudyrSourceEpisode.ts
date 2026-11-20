@@ -1,3 +1,4 @@
+import { isCalendarDate } from '@/utils/clinicalDateUtils';
 import { getNextDay } from '@/utils/clinicalDayUtils';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
 import type { CudyrSupplementPatient } from '@/types/domain/cudyrSupplement';
@@ -40,15 +41,8 @@ export const cudyrSourceNonHospitalAdmission = (rows: CudyrReportRow[]) => {
   )
     return null;
   const dates = new Set(rows.map(r => r.admissionDate).filter(Boolean));
-  const date = [...dates][0];
-  if (
-    dates.size !== 1 ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-    !Number.isFinite(Date.parse(date)) ||
-    // clinical-clock-allow instant-calendar-slice: date passed the YYYY-MM-DD check; this UTC round trip rejects nonexistent calendar dates.
-    new Date(date).toISOString().slice(0, 10) !== date
-  )
-    return null;
+  const date = [...dates][0] ?? '';
+  if (dates.size !== 1 || !isCalendarDate(date)) return null;
   const times = new Set(rows.map(r => r.admissionTime).filter(Boolean));
   const time = [...times][0] || '';
   if (times.size > 1 || (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time))) return null;

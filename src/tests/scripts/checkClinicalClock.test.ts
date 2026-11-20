@@ -5,7 +5,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
-import { checkClinicalClock } from '../../../scripts/check-clinical-clock.mjs';
+import {
+  HAND_DATE_PATTERN_CEILING,
+  checkClinicalClock,
+  handDatePatternCount,
+} from '../../../scripts/check-clinical-clock.mjs';
 
 const GUARD = path.resolve('scripts/check-clinical-clock.mjs');
 const CLOCK_SOURCE = "export const CLINICAL_TIME_ZONE = 'Pacific/Easter';\n";
@@ -481,5 +485,34 @@ describe('check-clinical-clock', () => {
     expect(output).not.toContain('src/features/a.ts:2');
     expect(output).toContain('[instant-calendar-slice] src/features/a.ts:3');
     expect(output).toContain('[instant-calendar-slice] src/features/a.ts:5');
+  });
+
+  it('counts hand-written date patterns outside the calendar modules, up to the ceiling', () => {
+    const pattern = '/^\\d{4}-\\d{2}-\\d{2}$/.test(day);\n';
+    const atCeiling = pattern.repeat(HAND_DATE_PATTERN_CEILING);
+    const owners = {
+      'src/utils/clinicalDateUtils.ts': pattern.repeat(3),
+      'functions/lib/hospitalCalendarDay.js': pattern,
+      'src/tests/a.test.ts': pattern,
+      'src/features/a.test.ts': pattern,
+    };
+    expect(runGuard({ ...owners, 'src/features/a.ts': atCeiling }).status).toBe(0);
+    for (const extra of ['src/features/b.ts', 'functions/lib/b.js']) {
+      const { status, output } = runGuard({
+        ...owners,
+        'src/features/a.ts': atCeiling,
+        [extra]: pattern,
+      });
+      expect(status).toBe(1);
+      expect(output).toContain(
+        `[hand-date-pattern] src/ + functions/lib/ — ${HAND_DATE_PATTERN_CEILING + 1} hand-written`
+      );
+      expect(output).toContain('isCalendarDate()');
+    }
+  });
+
+  it('keeps the ceiling at the repository count, so a migrated pattern lowers it', () => {
+    // Lower HAND_DATE_PATTERN_CEILING in scripts/check-clinical-clock.mjs to the count shown.
+    expect(handDatePatternCount()).toBe(HAND_DATE_PATTERN_CEILING);
   });
 });

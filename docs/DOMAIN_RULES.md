@@ -193,6 +193,11 @@ hora ignorando su desfase: se convierte a Rapa Nui. Una hora continental se conv
 lee su reloj ignorando el desfase. Las excepciones locales sin desfase llevan su motivo en la
 línea anterior.
 
+Un día `YYYY-MM-DD` es válido solo si existe en el calendario (`isCalendarDate()` en la app,
+`isCalendarDay()` en Functions): 2026-02-30 no es el 2 de marzo. Una dirección cuyo `?date=` no
+es un día real de año de cuatro cifras abre el día clínico, igual en el encabezado y en el censo
+(`resolveLandingCalendarDay()`).
+
 ### Zona horaria de cada fuente de Eloísa (TIME-02)
 
 Una hora sin desfase no dice en qué zona está. Cada campo se convierte a Rapa Nui con `Intl`,

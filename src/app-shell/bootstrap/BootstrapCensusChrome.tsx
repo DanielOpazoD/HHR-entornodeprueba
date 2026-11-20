@@ -1,5 +1,6 @@
 import { BOOTSTRAP_PLACEHOLDER_UID } from '@/constants/security';
 import { UISettingsProvider } from '@/context/UISettingsContext';
+import { resolveLandingCalendarDay } from '@/utils/clinicalDateUtils';
 import { resolveCurrentClinicalDay } from '@/utils/clinicalDayUtils';
 import { CensusToolbarLoadingActions } from '@/components/layout/date-strip/CensusToolbarLoadingActions';
 import React from 'react';
@@ -152,17 +153,15 @@ const toBootstrapDate = (isoDate: string) => ({
   selectedDay: Number(isoDate.slice(8, 10)),
 });
 
-const resolveBootstrapDate = () => {
-  const rawDate =
-    typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('date');
-  // A route date with no zero part wins; otherwise land where useDateNavigation does: the
-  // hospital's clinical day, never the device date.
-  return toBootstrapDate(
-    rawDate && /^(?!0000)\d{4}-(?!00)\d{2}-(?!00)\d{2}$/.test(rawDate)
-      ? rawDate
-      : resolveCurrentClinicalDay()
+// The same landing day as useDateNavigation: a real route date, otherwise the hospital's
+// clinical day, never the device date.
+const resolveBootstrapDate = () =>
+  toBootstrapDate(
+    resolveLandingCalendarDay(
+      typeof window === 'undefined' ? '' : window.location.search,
+      resolveCurrentClinicalDay()
+    )
   );
-};
 
 const resolveDaysInMonth = (year: number, monthIndex: number) =>
   new Date(year, monthIndex + 1, 0).getDate();
