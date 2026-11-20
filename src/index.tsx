@@ -16,6 +16,7 @@ import {
 } from '@/services/auth/firebaseStartupUiPolicy';
 import { InitialLoadingScreen } from '@/components/ui/InitialLoadingScreen';
 import { BootstrapRouteChrome } from '@/app-shell/bootstrap/BootstrapCensusChrome';
+import { resolveOpeningCensusDay } from '@/app-shell/bootstrap/openingCensusDay';
 import { resolvePreMountLoadingScreenDecision } from '@/app-shell/bootstrap/appShellLoadingPolicy';
 import {
   preloadAuthenticatedRouteChunk,
@@ -32,6 +33,10 @@ if (!rootElement) {
 }
 
 markPerf('bootstrap:start');
+
+// The census day this page opens on, fixed once: the header painted before sign-in and the census
+// after it both start here, so a shift change while the app loads moves neither of them.
+const openingDay = resolveOpeningCensusDay();
 
 const root = ReactDOM.createRoot(rootElement);
 const bootLogger = createScopedLogger('Bootstrap');
@@ -77,7 +82,7 @@ const renderBootstrapLoadingScreen = () => {
   if (loadingScreenDecision.renderBootstrapRouteChrome) {
     root.render(
       <React.StrictMode>
-        <BootstrapRouteChrome />
+        <BootstrapRouteChrome day={openingDay} />
       </React.StrictMode>
     );
     return;
@@ -102,7 +107,7 @@ const renderApp = async () => {
   const { default: App } = await appModulePromise;
   root.render(
     <React.StrictMode>
-      <App />
+      <App openingDay={openingDay} />
     </React.StrictMode>
   );
 };

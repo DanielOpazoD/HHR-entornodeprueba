@@ -109,9 +109,13 @@ describe('App loading behavior', () => {
     ['/wound-care/mobile-upload/synthetic', 'unauthenticated'],
   ])('mounts one shared recovery on %s (%s)', async (pathname, status) => {
     window.location.pathname = pathname;
-    mockUseAppBootstrapState.mockReturnValue({ status, auth: createAuth() });
+    mockUseAppBootstrapState.mockReturnValue({
+      status,
+      auth: createAuth(),
+      dateNav: { currentDateString: '2026-11-19' },
+    });
     await act(async () => {
-      render(<App />);
+      render(<App openingDay="2026-11-19" />);
     });
     expect(screen.getAllByTestId('functions-recovery')).toHaveLength(1);
   });
@@ -123,7 +127,7 @@ describe('App loading behavior', () => {
       auth: createAuth('unauthenticated'),
     });
 
-    render(<App />);
+    render(<App openingDay="2026-11-19" />);
 
     expect(screen.getByTestId('login-loading-shell')).toBeInTheDocument();
     expect(screen.queryByTestId('default-loading-screen')).not.toBeInTheDocument();
@@ -138,7 +142,7 @@ describe('App loading behavior', () => {
       auth: createAuth('unauthenticated'),
     });
 
-    render(<App />);
+    render(<App openingDay="2026-11-19" />);
 
     expect(screen.getByTestId('bootstrap-route-chrome')).toBeInTheDocument();
     expect(screen.queryByTestId('silent-bootstrap-shell')).not.toBeInTheDocument();
@@ -177,7 +181,7 @@ describe('App loading behavior', () => {
       }),
     });
 
-    render(<App />);
+    render(<App openingDay="2026-11-19" />);
 
     expect(screen.getByTestId('bootstrap-route-chrome')).toBeInTheDocument();
     expect(screen.queryByTestId('default-loading-screen')).not.toBeInTheDocument();
@@ -193,7 +197,7 @@ describe('App loading behavior', () => {
       auth: createAuth('unauthenticated'),
     });
 
-    render(<App />);
+    render(<App openingDay="2026-11-19" />);
 
     await act(async () => {
       await Promise.resolve();
@@ -215,7 +219,7 @@ describe('App loading behavior', () => {
       },
     });
 
-    render(<App />);
+    render(<App openingDay="2026-11-19" />);
 
     expect(screen.getByTestId('bootstrap-route-chrome')).toBeInTheDocument();
     expect(screen.queryByTestId('default-loading-screen')).not.toBeInTheDocument();
@@ -229,7 +233,7 @@ describe('App loading behavior', () => {
       auth: createAuth('authorized'),
     });
 
-    render(<App />);
+    render(<App openingDay="2026-11-19" />);
 
     expect(screen.queryByTestId('default-loading-screen')).not.toBeInTheDocument();
     expect(screen.queryByTestId('login-loading-shell')).not.toBeInTheDocument();
@@ -253,7 +257,7 @@ describe('App loading behavior', () => {
       auth: createAuth('authorized'),
     });
 
-    render(<App />);
+    render(<App openingDay="2026-11-19" />);
 
     expect(screen.getByTestId('bootstrap-route-chrome')).toBeInTheDocument();
     expect(screen.queryByTestId('login-loading-shell')).not.toBeInTheDocument();
@@ -280,7 +284,7 @@ describe('App loading behavior', () => {
       auth: createAuth('unauthenticated'),
     });
 
-    render(<App />);
+    render(<App openingDay="2026-11-19" />);
 
     expect(screen.getByTestId('bootstrap-route-chrome')).toBeInTheDocument();
     expect(screen.queryByTestId('default-loading-screen')).not.toBeInTheDocument();
@@ -307,7 +311,7 @@ describe('App loading behavior', () => {
       auth: createAuth('authorized'),
     });
 
-    render(<App />);
+    render(<App openingDay="2026-11-19" />);
 
     expect(screen.getByTestId('bootstrap-route-chrome')).toBeInTheDocument();
     expect(screen.queryByTestId('default-loading-screen')).not.toBeInTheDocument();
@@ -333,7 +337,7 @@ describe('App loading behavior', () => {
       auth: createAuth('authorized'),
     });
 
-    render(<App />);
+    render(<App openingDay="2026-11-19" />);
 
     expect(screen.getByTestId('bootstrap-route-chrome')).toBeInTheDocument();
     expect(screen.queryByTestId('default-loading-screen')).not.toBeInTheDocument();
@@ -370,7 +374,7 @@ describe('App loading behavior', () => {
       },
     });
 
-    render(<App />);
+    render(<App openingDay="2026-11-19" />);
 
     expect(await screen.findByTestId('authenticated-shell')).toBeInTheDocument();
     expect(screen.queryByTestId('login-loading-shell')).not.toBeInTheDocument();

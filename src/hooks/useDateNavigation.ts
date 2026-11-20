@@ -1,8 +1,5 @@
 import React, { useState, useMemo } from 'react';
 
-import { resolveLandingCalendarDay } from '@/utils/clinicalDateUtils';
-import { resolveCurrentClinicalDay } from '@/utils/clinicalDayUtils';
-
 /**
  * Return type for useDateNavigation hook.
  * Provides date selection state and derived values for navigation.
@@ -35,8 +32,9 @@ export interface UseDateNavigationReturn {
  * Provides year, month, and day state with setters, plus derived values
  * like days in month and formatted date string.
  *
- * Initializes to the `?date=` day when it is real, otherwise to the clinical day.
+ * Initializes to `openingDay`, the `YYYY-MM-DD` day this page opened on.
  *
+ * @param openingDay - The `YYYY-MM-DD` day this page opened on (fixed in src/index.tsx)
  * @returns Date selection state and setters
  *
  * @example
@@ -46,21 +44,15 @@ export interface UseDateNavigationReturn {
  *     selectedMonth, setSelectedMonth,
  *     selectedDay, setSelectedDay,
  *     currentDateString
- * } = useDateNavigation();
+ * } = useDateNavigation(openingDay);
  *
  * // currentDateString = "2024-12-27"
  * ```
  */
-export const useDateNavigation = (): UseDateNavigationReturn => {
-  // Land on a real ?date= deep link, otherwise on the clinical "today" (08:00 business / 09:00
-  // weekend shift rollover), so the night shift lands on the day they are still working rather
-  // than the calendar date. The bootstrap header resolves the same day the same way.
-  const [initialDay] = useState(() =>
-    resolveLandingCalendarDay(
-      typeof window === 'undefined' ? '' : window.location.search,
-      resolveCurrentClinicalDay()
-    )
-  );
+export const useDateNavigation = (openingDay: string): UseDateNavigationReturn => {
+  // Starts on the opening day src/index.tsx fixed once for this page load: the day the header
+  // painted before sign-in showed, even if the shift changed in between.
+  const [initialDay] = useState(openingDay);
 
   // Date Selection State
   const [selectedYear, setSelectedYear] = useState(() => Number(initialDay.slice(0, 4)));
