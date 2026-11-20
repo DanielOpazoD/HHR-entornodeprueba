@@ -23,7 +23,7 @@ import {
   setFirestoreEnabled,
   setFirestoreSyncState,
 } from '@/services/repositories/repositoryConfig';
-import { processSyncQueue } from '@/services/storage/sync';
+import { processSyncQueue, retryQuarantinedSyncTask } from '@/services/storage/sync';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { resolveRecordBaseRevision } from '@/services/storage/sync/syncTaskContractPolicy';
 import {
@@ -659,6 +659,53 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       expect((await read()).beds.R1.pathology).toBe('B');
       expect(await hospitalDB.syncQueue.count()).toBe(0);
     });
+
+    // The rules refuse the whole direct write and the authority takes only bed paths, so its
+    // receipt cannot stand for the note: the whole edit stays in the queue until it is saved.
+    for (const [label, bedEdit, bedBase] of [
+      ['diagnosis', { 'beds.R1.pathology': 'DX B' }, 'BASE'],
+      ['age', { 'beds.R1.age': '52' }, '40'],
+    ] as const) {
+      it(`keeps a ${label} and handoff note edit whole when only the ${label} could be saved`, async () => {
+        await configure('production');
+        unreadablePolicy();
+        await hospitalDB.dailyRecords.put(baseRecord());
+        const edits: DailyRecordPatch = { ...bedEdit, handoffNovedadesDayShift: 'NOVEDAD B' };
+        const values = (record: DailyRecord | undefined) =>
+          Object.keys(edits).map(path => record && valueAt(record, path));
+        const expected = Object.values(edits);
+        const result = await actor('B', () =>
+          updatePartialDetailed(date, edits, {
+            authoringSession: captureAuthoringSession(),
+            baseRecord: baseRecord(),
+          })
+        );
+        expect(result.state).not.toBe('confirmed');
+        expect(shownNotice(result).map(([channel]) => channel)).not.toContain('success');
+        expect(values(await read())).toEqual([bedBase, 'NOVEDAD BASE']);
+        expect(values(await hospitalDB.dailyRecords.get(date))).toEqual(expected);
+        // The refused send stops for review with the whole edit, never only its bed part.
+        const [task] = await vi.waitFor(
+          async () => {
+            const tasks = await hospitalDB.syncQueue.toArray();
+            if (tasks.some(item => item.status === 'PROCESSING')) throw new Error('queue busy');
+            return tasks;
+          },
+          { timeout: 20_000, interval: 50 }
+        );
+        expect(await hospitalDB.syncQueue.count()).toBe(1);
+        expect(task).toMatchObject({ status: 'FAILED', lastErrorCategory: 'authorization' });
+        expect(values(task.payload as DailyRecord)).toEqual(expected);
+
+        // Once the policy reads again, «Ya revisé, reintentar» saves both fields.
+        vi.mocked(fence.isServerClinicalWriteFenceActive).mockRestore();
+        vi.mocked(fence.resolveEffectiveDailyRecordAuthorityMode).mockRestore();
+        expect(await actor('B', () => retryQuarantinedSyncTask(task.id!))).toBe(true);
+        await settleQueue();
+        expect(values(await read())).toEqual(expected);
+        expect(await hospitalDB.syncQueue.count()).toBe(0);
+      });
+    }
 
     it('refuses one of two simultaneous same-field bed writers', async () => {
       await configure('production');

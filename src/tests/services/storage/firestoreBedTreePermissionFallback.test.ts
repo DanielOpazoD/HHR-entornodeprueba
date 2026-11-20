@@ -115,4 +115,17 @@ describe('runPartialUpdatePersistWithPermissionFallbacks', () => {
     ).rejects.toMatchObject({ code: 'permission-denied' });
     expect(mocks.callable).not.toHaveBeenCalled();
   });
+
+  it('un parche de camas con un campo del día relanza el error: el callable no acreditaría la nota', async () => {
+    const original = permissionDenied();
+    await expect(
+      runPartialUpdatePersistWithPermissionFallbacks({
+        persist: vi.fn().mockRejectedValue(original),
+        date: '2026-08-31',
+        sanitizedPatch: { ...BED_PATCH, handoffNovedadesDayShift: 'Nota' },
+        tryRefreshCurrentUserRoleClaim: vi.fn().mockResolvedValue(false),
+      })
+    ).rejects.toBe(original);
+    expect(mocks.callable).not.toHaveBeenCalled();
+  });
 });

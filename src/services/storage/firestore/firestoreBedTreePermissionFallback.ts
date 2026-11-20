@@ -5,7 +5,10 @@ import {
   shouldRetryDailyRecordAuthorityError,
 } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { buildAuthorityPatchSyncContract } from '@/services/storage/firestore/firestoreRecordWritePatchPolicy';
-import { extractDailyRecordBedTreePatch } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
+import {
+  extractDailyRecordBedTreePatch,
+  isDailyRecordBedTreePath,
+} from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import {
   isPermissionDeniedError,
   unlessSessionChanged,
@@ -47,6 +50,12 @@ export const runPartialUpdatePersistWithPermissionFallbacks = async <TResult>({
 }): Promise<TResult> => {
   const retryBedTreeViaCallable = async (error: unknown): Promise<TResult | null> => {
     if (!isPermissionDeniedError(error)) return null;
+    // The callable's receipt stands for the whole patch, so it may carry only bed-tree paths and
+    // dateTimestamp, which the stored day keeps. A day field beside them keeps the original error.
+    const paths = Object.keys(sanitizedPatch);
+    if (paths.some(path => !isDailyRecordBedTreePath(path) && path !== 'dateTimestamp')) {
+      return null;
+    }
     const bedTreePatch = extractDailyRecordBedTreePatch(sanitizedPatch);
     if (Object.keys(bedTreePatch).length === 0) return null;
     firestoreWriteLogger.warn(
