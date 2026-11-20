@@ -4,8 +4,10 @@ import clsx from 'clsx';
 import { BookOpenText, ChevronRight, ClipboardList, RefreshCw } from 'lucide-react';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
-import { useClinicalPanelSnapshot, type PanelState } from '../patient-row/useClinicalPanelSnapshot';
+// Same order as the clinical drawer: their shared chunk takes its name from the module that runs
+// last, and the precache leaves out the online-only `useClinicalPanelSnapshot` chunk by that name.
 import { EvolutionCard } from '../patient-row/ClinicalPanelSections';
+import { useClinicalPanelSnapshot, type PanelState } from '../patient-row/useClinicalPanelSnapshot';
 import {
   AreaCard,
   EXPLORER_ICON_BUTTON,

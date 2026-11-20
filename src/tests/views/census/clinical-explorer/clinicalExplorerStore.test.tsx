@@ -1,12 +1,18 @@
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import { act, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   closeClinicalExplorer,
   openClinicalExplorer,
   selectClinicalExplorerBed,
   useClinicalExplorerSelection,
+  useLoadedClinicalExplorerView,
 } from '@/features/census/components/clinical-explorer/clinicalExplorerStore';
+
+const syntheticView = vi.hoisted(() => () => null);
+vi.mock('@/features/census/components/clinical-explorer/ClinicalExplorerView', () => ({
+  ClinicalExplorerView: syntheticView,
+}));
 
 const Probe = ({ censusDate }: { censusDate: string }) => {
   const selection = useClinicalExplorerSelection(censusDate);
@@ -17,6 +23,13 @@ describe('clinicalExplorerStore', () => {
   afterEach(() => {
     act(() => closeClinicalExplorer());
     act(() => setSessionGeneration(null));
+  });
+
+  it('hands the census the view itself once its module arrives, so it mounts without suspending', async () => {
+    const { result } = renderHook(() => useLoadedClinicalExplorerView());
+    expect(result.current).toBeUndefined();
+    act(() => openClinicalExplorer({ censusDate: '2026-11-04', bedId: 'R1' }));
+    await waitFor(() => expect(result.current).toBe(syntheticView));
   });
 
   it('opens, moves between beds and closes for the day it was opened from', () => {

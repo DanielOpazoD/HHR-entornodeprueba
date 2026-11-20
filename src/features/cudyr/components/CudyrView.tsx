@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useAuth } from '@/context/AuthContext';
-import { useUIState } from '@/hooks/useUIState';
+import type { UseUIStateReturn } from '@/hooks/useUIState';
 import { canCorrectCudyrDischarge } from '@/shared/access/operationalAccessPolicy';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { cudyrArchiveCoverage } from '@/services/cudyr/cudyrArchiveCoverage';
@@ -31,13 +31,15 @@ const CudyrReportExplorer = lazy(() => import('./CudyrReportExplorer'));
 export const CudyrView = ({
   readOnly = false,
   currentDate,
+  ui,
 }: {
   readOnly?: boolean;
   currentDate?: string;
+  /** The app's own navigation, never a copy: going back shows the census and its URL. */
+  ui: Pick<UseUIStateReturn, 'setCurrentModule'>;
 }) => {
   const { record, bootstrapPhase } = useDailyRecordData();
   const { role, currentUser } = useAuth();
-  const ui = useUIState();
   const date = currentDate || record?.date || getClinicalCalendarDateISO();
   const { data, busy, error, load } = useCudyrReport(
     date,

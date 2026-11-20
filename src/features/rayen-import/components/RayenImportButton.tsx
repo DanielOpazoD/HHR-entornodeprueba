@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, startTransition } from 'react';
 import { History, RefreshCw, UsersRound } from 'lucide-react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useRayenImport } from '../hooks/useRayenImport';
@@ -373,7 +373,9 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
           <button
             ref={historyTriggerRef}
             type="button"
-            onClick={() => setHistoryOpen(true)}
+            // A transition keeps the toolbar as it is until the module is ready; a fallback shown
+            // first would make React hold the dialog back 300 ms.
+            onClick={() => startTransition(() => setHistoryOpen(true))}
             aria-label={`Abrir historial de sincronización del día, ${history.length} eventos`}
             title={`Historial de sincronización · ${history.length} evento${history.length === 1 ? '' : 's'}`}
             data-testid="rayen-sync-history-button"
@@ -469,8 +471,8 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
           />
         </Suspense>
       ) : null}
-      {historyOpen ? (
-        <Suspense fallback={null}>
+      <Suspense fallback={null}>
+        {historyOpen ? (
           <LazyRayenSyncHistoryModal
             isOpen={historyOpen}
             onClose={closeHistory}
@@ -480,8 +482,8 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
             onRecoveryAction={() => void handleRecoveryAction()}
             targetDate={historyTargetDate}
           />
-        </Suspense>
-      ) : null}
+        ) : null}
+      </Suspense>
       <RayenNursingShiftProposalModal
         proposal={!isPreviewOpen && staffingReviewOpen ? staffingProposal : null}
         isBusy={isStaffingProposalBusy}
