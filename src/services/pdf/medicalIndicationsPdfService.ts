@@ -95,43 +95,46 @@ const fitTextToWidth = (
   return { fitted: fitted.trim(), rest: '' };
 };
 
-const drawIndications = (page: PDFPage, font: PDFFont, indications: string[]): void => {
-  const printableLines = Array.from(
-    { length: MEDICAL_INDICATIONS_LINE_FIELD_NAMES.length },
-    () => ''
-  );
-  let lineCursor = 0;
+const LINES_PER_SHEET = MEDICAL_INDICATIONS_LINE_FIELD_NAMES.length;
 
+/**
+ * Every indication, wrapped into the form's rows and split into sheets of 15 rows. Nothing is
+ * dropped: what does not fit on the first sheet goes on continuation sheets.
+ */
+const layoutIndicationSheets = (font: PDFFont, indications: string[]): string[][] => {
+  const lines: string[] = [];
   indications
     .map(item => item.trim())
     .filter(Boolean)
     .forEach((indication, index) => {
-      let remainingText = `${index + 1}. ${indication}`.trim();
-      while (remainingText && lineCursor < printableLines.length) {
-        const fieldName = MEDICAL_INDICATIONS_LINE_FIELD_NAMES[lineCursor];
+      let remainingText = `${index + 1}. ${indication}`;
+      while (remainingText) {
+        const fieldName = MEDICAL_INDICATIONS_LINE_FIELD_NAMES[lines.length % LINES_PER_SHEET];
         const maxWidth = MEDICAL_INDICATIONS_PDF_COORDINATES[fieldName].width;
         const { fitted, rest } = fitTextToWidth(remainingText, maxWidth, font);
-        printableLines[lineCursor] = fitted;
+        if (!fitted) {
+          throw new Error(`La indicación ${index + 1} no cabe en el formulario de indicaciones.`);
+        }
+        lines.push(fitted);
         remainingText = rest;
-        lineCursor += 1;
       }
     });
 
-  printableLines.forEach((value, index) => {
-    const fieldName = MEDICAL_INDICATIONS_LINE_FIELD_NAMES[index];
-    drawFieldText(page, font, fieldName, value);
+  const sheets: string[][] = [];
+  for (let start = 0; start < Math.max(lines.length, 1); start += LINES_PER_SHEET) {
+    sheets.push(lines.slice(start, start + LINES_PER_SHEET));
+  }
+  return sheets;
+};
+
+const drawIndicationLines = (page: PDFPage, font: PDFFont, lines: string[]): void => {
+  lines.forEach((value, index) => {
+    drawFieldText(page, font, MEDICAL_INDICATIONS_LINE_FIELD_NAMES[index], value);
   });
 };
 
-export const fillMedicalIndicationsPdf = async (
-  data: MedicalIndicationsPdfData
-): Promise<Uint8Array> => {
-  const { PDFDocument, StandardFonts } = await loadPdfLibGenerationRuntime();
-  const templateBytes = await loadMedicalIndicationsTemplateBytes();
-  const pdfDoc = await PDFDocument.load(templateBytes);
-  const page = pdfDoc.getPage(0);
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
+/** Patient identification and dates: printed on the first sheet and on every continuation. */
+const drawIdentification = (page: PDFPage, font: PDFFont, data: MedicalIndicationsPdfData) => {
   drawFieldText(page, font, 'paciente_nombre', data.paciente_nombre);
   drawFieldText(page, font, 'paciente_rut', data.paciente_rut);
   drawFieldText(page, font, 'paciente_diagnostico', data.paciente_diagnostico);
@@ -142,6 +145,24 @@ export const fillMedicalIndicationsPdf = async (
   drawFieldText(page, font, 'fecha_ingreso', formatMedicalIndicationsDate(data.fecha_ingreso));
   drawFieldText(page, font, 'fecha_actual', data.fecha_actual);
   drawFieldText(page, font, 'diasEstada', data.diasEstada);
+};
+
+const drawSheetFooter = (page: PDFPage, font: PDFFont, label: string) => {
+  if (!label) return;
+  page.drawText(label, { x: 305, y: 399, size: 8, font, maxWidth: 210 });
+};
+
+export const fillMedicalIndicationsPdf = async (
+  data: MedicalIndicationsPdfData
+): Promise<Uint8Array> => {
+  const { PDFDocument, StandardFonts } = await loadPdfLibGenerationRuntime();
+  const templateBytes = await loadMedicalIndicationsTemplateBytes();
+  const pdfDoc = await PDFDocument.load(templateBytes);
+  const page = pdfDoc.getPage(0);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const sheets = layoutIndicationSheets(font, data.indicaciones);
+
+  drawIdentification(page, font, data);
   drawFieldText(page, font, 'Reposoindicacion', data.Reposoindicacion);
   drawFieldText(page, font, 'Regimenindicacion', data.Regimenindicacion);
   drawFieldText(page, font, 'Kinemotora', data.Kinemotora);
@@ -149,17 +170,32 @@ export const fillMedicalIndicationsPdf = async (
   drawFieldText(page, font, 'Kinecantidadvecesdia', data.Kinecantidadvecesdia);
   drawFieldText(page, font, 'Pendientes', data.Pendientes);
 
-  if (data.fecha_generacion?.trim()) {
-    page.drawText(`Generado el ${data.fecha_generacion.trim()}`, {
-      x: 305,
-      y: 399,
-      size: 8,
-      font,
-      maxWidth: 210,
+  const generated = data.fecha_generacion?.trim()
+    ? `Generado el ${data.fecha_generacion.trim()}`
+    : '';
+  const footerFor = (sheetIndex: number) =>
+    sheets.length > 1
+      ? [generated, `Hoja ${sheetIndex + 1} de ${sheets.length}`].filter(Boolean).join(' · ')
+      : generated;
+
+  drawIndicationLines(page, font, sheets[0]);
+  drawSheetFooter(page, font, footerFor(0));
+
+  if (sheets.length > 1) {
+    // Continuation sheets are blank copies of the indications page, placed right after it.
+    const blankTemplate = await PDFDocument.load(templateBytes);
+    const continuations = await pdfDoc.copyPages(
+      blankTemplate,
+      sheets.slice(1).map(() => 0)
+    );
+    continuations.forEach((continuation, offset) => {
+      const sheetIndex = offset + 1;
+      pdfDoc.insertPage(sheetIndex, continuation);
+      drawIdentification(continuation, font, data);
+      drawIndicationLines(continuation, font, sheets[sheetIndex]);
+      drawSheetFooter(continuation, font, footerFor(sheetIndex));
     });
   }
-
-  drawIndications(page, font, data.indicaciones);
 
   return pdfDoc.save();
 };
