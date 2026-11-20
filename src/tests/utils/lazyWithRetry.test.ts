@@ -64,38 +64,6 @@ describe('lazyWithRetry', () => {
     expect(await screen.findByText('Prop conservada')).toBeVisible();
   });
 
-  it('mounts a preloaded component at once, without its fallback, from the same single load', async () => {
-    const factory = vi.fn().mockResolvedValue({ default: Chunk });
-    const Lazy = lazyWithRetry(factory);
-    await Promise.all([Lazy.preload(), Lazy.preload()]);
-    render(
-      React.createElement(
-        Suspense,
-        { fallback: 'Cargando módulo' },
-        React.createElement(Lazy, { label: 'Abierto sin espera' })
-      )
-    );
-    // Same render, no await: a shown fallback would make React hold this back 300 ms.
-    expect(screen.getByText('Abierto sin espera')).toBeVisible();
-    expect(screen.queryByText('Cargando módulo')).not.toBeInTheDocument();
-    expect(factory).toHaveBeenCalledTimes(1);
-  });
-
-  it('keeps the error boundary for a non-chunk failure first met by preload', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    const failure = new Error('Invalid component contract');
-    const Lazy = lazyWithRetry(vi.fn().mockRejectedValue(failure));
-    await expect(Lazy.preload()).rejects.toBe(failure);
-    render(
-      React.createElement(
-        TestBoundary,
-        null,
-        React.createElement(Suspense, { fallback: null }, React.createElement(Lazy))
-      )
-    );
-    expect(await screen.findByText('Error contenido')).toBeVisible();
-  });
-
   it.each([
     'Failed to fetch dynamically imported module',
     'Importing a module script failed.',

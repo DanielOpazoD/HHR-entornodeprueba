@@ -29,10 +29,10 @@ import { buildCensusLaboratoryCohort } from '../controllers/censusLaboratoryCont
 import { ClinicalExplorerMenuEntry } from './clinical-explorer/ClinicalExplorerMenuEntry';
 import { ClinicalExplorerBar } from './clinical-explorer/ClinicalExplorerBar';
 import {
-  ClinicalExplorerView,
+  LazyClinicalExplorerView,
   openClinicalExplorer,
   useClinicalExplorerSelection,
-  useClinicalExplorerViewSettled,
+  useLoadedClinicalExplorerView,
 } from './clinical-explorer/clinicalExplorerStore';
 import { ClinicalExplorerLaunchContext } from './clinical-explorer/clinicalExplorerLaunch';
 import { listCensusExamRequestCandidates } from '@/features/census/controllers/censusExamRequestController';
@@ -95,7 +95,7 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
   const writeStatus = useDailyRecordWriteStatus(currentDateString);
   const editingReadOnly = readOnly || writeStatus.isSyncCommit;
   const explorer = useClinicalExplorerSelection(currentDateString);
-  const explorerViewSettled = useClinicalExplorerViewSettled();
+  const loadedExplorerView = useLoadedClinicalExplorerView();
   const explorerPatients = useMemo(
     () => listClinicalExplorerPatients({ visibleBeds, beds }),
     [visibleBeds, beds]
@@ -215,16 +215,18 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
             )}
           >
             <Suspense fallback={explorerLoading}>
-              {explorerViewSettled ? (
-                <ClinicalDerivedDayProvider value={clinicalDerivedDay}>
-                  <ClinicalExplorerView
-                    censusDate={currentDateString}
-                    bedId={explorer.bedId}
-                    patients={explorerPatients}
-                  />
-                </ClinicalDerivedDayProvider>
-              ) : (
+              {loadedExplorerView === undefined ? (
                 explorerLoading
+              ) : (
+                <ClinicalDerivedDayProvider value={clinicalDerivedDay}>
+                  {/* Loaded: the module's own component, stable for the page. Failed: the lazy copy
+                      with its chunk recovery. */}
+                  {React.createElement(loadedExplorerView ?? LazyClinicalExplorerView, {
+                    censusDate: currentDateString,
+                    bedId: explorer.bedId,
+                    patients: explorerPatients,
+                  })}
+                </ClinicalDerivedDayProvider>
               )}
             </Suspense>
           </ErrorBoundary>

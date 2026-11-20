@@ -6,7 +6,7 @@ import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { reportInput, reportPatient, reportRecord } from '@/tests/services/cudyr/reportFixtures';
 const mocks = vi.hoisted(() => ({
   load: vi.fn(),
-  setModule: vi.fn(),
+  ui: { setCurrentModule: vi.fn() },
   report: vi.fn(),
   recover: vi.fn(),
   recoveryWindow: vi.fn(),
@@ -23,9 +23,6 @@ vi.mock('@/context/DailyRecordContext', () => ({
 }));
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ role: 'admin', currentUser: { uid: 'synthetic' } }),
-}));
-vi.mock('@/hooks/useUIState', () => ({
-  useUIState: () => ({ setCurrentModule: mocks.setModule }),
 }));
 vi.mock('@/features/cudyr/hooks/useCudyrReport', () => ({ useCudyrReport: () => mocks.report() }));
 vi.mock('@/features/cudyr/components/CudyrExclusionDialog', () => ({
@@ -63,7 +60,7 @@ describe('CUDYR daily control', () => {
       reused: 0,
       failures: [],
     });
-    render(<CudyrView />);
+    render(<CudyrView ui={mocks.ui} />);
     expect(screen.queryByRole('button', { name: 'Actualizar vista' })).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Completar y verificar mes' })
@@ -77,7 +74,7 @@ describe('CUDYR daily control', () => {
   });
   it('keeps an enabled Firebase retry when no night has closed', () => {
     mocks.recoveryWindow.mockReturnValue(null);
-    render(<CudyrView />);
+    render(<CudyrView ui={mocks.ui} />);
     mocks.load.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'Volver a leer datos' }));
     expect(mocks.load).toHaveBeenCalledWith('2026-10-01', '2026-10-02', false);
@@ -91,7 +88,7 @@ describe('CUDYR daily control', () => {
       state: 'found',
     };
     mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
-    render(<CudyrView />);
+    render(<CudyrView ui={mocks.ui} />);
     expect(screen.getAllByText('100%')).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: 'Fuente del CUDYR de Paciente Sintético' }));
     expect(screen.getByRole('dialog')).toHaveTextContent('Resultado válido de Eloísa');
@@ -116,7 +113,7 @@ describe('CUDYR daily control', () => {
       };
     });
     mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
-    render(<CudyrView />);
+    render(<CudyrView ui={mocks.ui} />);
     const summary = screen.getByLabelText('Estado del archivo CUDYR');
     expect(summary).toHaveTextContent('CUDYR verificados · 1/1 días');
     expect(summary).toHaveTextContent('Pacientes del censo por confirmar');
@@ -132,7 +129,7 @@ describe('CUDYR daily control', () => {
     crib.evaluation = null;
     crib.cudyrStatus = 'sin_captura';
     mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
-    render(<CudyrView />);
+    render(<CudyrView ui={mocks.ui} />);
     expect(
       within(screen.getByRole('row', { name: /Paciente Sintético/ })).getByText('No registrado')
     ).toBeInTheDocument();
@@ -158,7 +155,7 @@ describe('CUDYR daily control', () => {
       evaluation: fixture().rows[0].evaluation,
     });
     mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
-    render(<CudyrView />);
+    render(<CudyrView ui={mocks.ui} />);
     expect(
       within(screen.getByRole('row', { name: /RN sintético/ })).getByText('No aplica')
     ).toBeInTheDocument();
@@ -177,7 +174,7 @@ describe('CUDYR daily control', () => {
     ).toBeInTheDocument();
   });
   it('shows cumulative eligible compliance and read-only totals without entry or bulk deletion controls', () => {
-    render(<CudyrView />);
+    render(<CudyrView ui={mocks.ui} />);
     expect(screen.getAllByText('100%')).toHaveLength(2);
     expect(screen.getByText('Cumplimiento del día')).toBeInTheDocument();
     expect(screen.getByText('RN sintético')).toBeInTheDocument();
@@ -197,7 +194,7 @@ describe('CUDYR daily control', () => {
     pending.eligibility = 'por_revisar';
     pending.applicationPending = true;
     mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
-    render(<CudyrView />);
+    render(<CudyrView ui={mocks.ui} />);
     const row = screen.getByRole('row', { name: /Paciente Sintético/ });
     expect(within(row).getByText('Registrado')).toBeInTheDocument();
     expect(within(row).getByText('Elegibilidad pendiente')).toBeInTheDocument();
@@ -238,7 +235,7 @@ describe('CUDYR daily control', () => {
       crib,
     ];
     mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
-    render(<CudyrView />);
+    render(<CudyrView ui={mocks.ui} />);
     expect(
       within(screen.getByRole('table', { name: /Medias:/ }))
         .getAllByRole('columnheader')
@@ -261,7 +258,7 @@ describe('CUDYR daily control', () => {
     expect(screen.getByText('Pabellón-R1 CMA')).toBeInTheDocument();
   });
   it('keeps exclusions visible, allows patient review, and returns to census', () => {
-    render(<CudyrView />);
+    render(<CudyrView ui={mocks.ui} />);
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'no_elegible' } });
     expect(screen.getByText('RN sintético')).toBeInTheDocument();
     expect(screen.queryByText('Paciente Sintético')).not.toBeInTheDocument();
@@ -270,7 +267,7 @@ describe('CUDYR daily control', () => {
     );
     expect(screen.getByRole('dialog')).toHaveTextContent('RN sintético');
     fireEvent.click(screen.getByRole('button', { name: 'Volver al censo' }));
-    expect(mocks.setModule).toHaveBeenCalledWith('CENSUS');
+    expect(mocks.ui.setCurrentModule).toHaveBeenCalledWith('CENSUS');
   });
   it('blocks downloads on incomplete exclusions and keeps read-only refresh without source writes', () => {
     mocks.report.mockReturnValue({
@@ -279,7 +276,7 @@ describe('CUDYR daily control', () => {
       error: '',
       load: mocks.load,
     });
-    render(<CudyrView readOnly />);
+    render(<CudyrView ui={mocks.ui} readOnly />);
     expect(screen.getByRole('button', { name: 'Excel mensual' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Volver a leer datos' }));
     expect(mocks.load).toHaveBeenCalledWith('2026-10-01', '2026-10-02', false);
@@ -292,7 +289,7 @@ describe('CUDYR daily control', () => {
       })
     );
     mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
-    render(<CudyrView currentDate="2026-10-03" />);
+    render(<CudyrView ui={mocks.ui} currentDate="2026-10-03" />);
     expect(screen.getAllByText('100%')).toHaveLength(1);
     expect(screen.getAllByText('Pendiente de aplicación').length).toBeGreaterThan(0);
     expect(
@@ -313,7 +310,7 @@ describe('CUDYR daily control', () => {
       );
       data.coverage.find(day => day.date === failedDate)!.state = 'error';
       mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
-      render(<CudyrView currentDate="2026-10-03" />);
+      render(<CudyrView ui={mocks.ui} currentDate="2026-10-03" />);
       const download = screen.getByRole('button', { name: 'Excel mensual' });
       if (enabled) expect(download).toBeEnabled();
       else expect(download).toBeDisabled();
@@ -339,7 +336,7 @@ describe('CUDYR daily control', () => {
       eligibility: 'por_revisar',
     });
     mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
-    render(<CudyrView currentDate="2026-10-02" />);
+    render(<CudyrView ui={mocks.ui} currentDate="2026-10-02" />);
     const daily = within(screen.getByRole('group', { name: 'Cumplimiento del día' }));
     expect(daily.getByText('50%')).toBeInTheDocument();
     expect(daily.getByText('1 / 2 elegibles')).toBeInTheDocument();
@@ -355,7 +352,7 @@ describe('CUDYR daily control', () => {
     const data = fixture();
     data.rows = data.rows.filter(row => row.eligibility === 'no_elegible');
     mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
-    render(<CudyrView />);
+    render(<CudyrView ui={mocks.ui} />);
     const daily = within(screen.getByRole('group', { name: 'Cumplimiento del día' }));
     expect(daily.getByText('—')).toBeInTheDocument();
     expect(daily.getByText(/0 \/ 0 elegibles/)).toBeInTheDocument();
@@ -370,14 +367,14 @@ describe('CUDYR daily control', () => {
       eligibility: 'no_elegible',
     });
     mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
-    render(<CudyrView />);
+    render(<CudyrView ui={mocks.ui} />);
     expect(screen.queryByText('Salida confirmada')).not.toBeInTheDocument();
     expect(screen.getByText('RN sintético')).toBeInTheDocument();
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'no_elegible' } });
     expect(screen.queryByText('Salida confirmada')).not.toBeInTheDocument();
   });
   it('opens archived bed movements without loading again or changing an exclusion', () => {
-    render(<CudyrView />);
+    render(<CudyrView ui={mocks.ui} />);
     fireEvent.click(screen.getByRole('button', { name: 'Movimientos de Paciente Sintético' }));
     expect(screen.getByText('Primer ingreso registrado a Hospitalizados')).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Entrada' })).toBeInTheDocument();
@@ -386,7 +383,7 @@ describe('CUDYR daily control', () => {
   });
   it('keeps the cached table visible while verifying Firebase and disables unverified export', () => {
     mocks.report.mockReturnValue({ data: fixture(), busy: true, error: '', load: mocks.load });
-    const { rerender } = render(<CudyrView />);
+    const { rerender } = render(<CudyrView ui={mocks.ui} />);
     expect(screen.getByText('Paciente Sintético')).toBeInTheDocument();
     expect(screen.getByText('Actualizando…')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Excel mensual' })).toBeDisabled();
@@ -396,7 +393,7 @@ describe('CUDYR daily control', () => {
       error: 'Sin conexión',
       load: mocks.load,
     });
-    rerender(<CudyrView />);
+    rerender(<CudyrView ui={mocks.ui} />);
     expect(screen.getByText('Paciente Sintético')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Excel mensual' })).toBeDisabled();
   });
@@ -409,7 +406,7 @@ describe('CUDYR daily control', () => {
       if (state === 'issues') data.issues = ['Fuente pendiente'];
       if (state === 'coverage') data.coverage[0].state = 'error';
       mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
-      render(<CudyrView />);
+      render(<CudyrView ui={mocks.ui} />);
       expect(screen.getByText('Paciente Sintético')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Excel mensual' })).toBeDisabled();
     }
@@ -423,7 +420,7 @@ describe('CUDYR daily control', () => {
       riskScore: undefined,
     };
     mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
-    render(<CudyrView />);
+    render(<CudyrView ui={mocks.ui} />);
     expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2);
   });
 });
@@ -454,7 +451,7 @@ it('shows an approved reconstruction as official while retaining the original mi
       };
     });
   mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
-  render(<CudyrView />);
+  render(<CudyrView ui={mocks.ui} />);
   expect(screen.getByText('Oficial · reparado')).toBeInTheDocument();
   expect(screen.queryByText('Pacientes del censo por confirmar')).not.toBeInTheDocument();
   expect(screen.getByText('Nota del cotejo original con Eloísa')).not.toBeVisible();

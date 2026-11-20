@@ -19,7 +19,7 @@ describe('CUDYR public lazy entries', () => {
   it('renders both views through their existing outer lazy boundary and preserves props', async () => {
     render(
       <Suspense fallback="Cargando">
-        <Daily currentDate="2026-08-31" />
+        <Daily currentDate="2026-08-31" ui={{ setCurrentModule: () => {} }} />
         <Monthly date="2026-09-30" />
       </Suspense>
     );

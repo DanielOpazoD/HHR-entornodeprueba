@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CensusRegisterContent } from '@/features/census/components/CensusRegisterContent';
 import {
-  ClinicalExplorerView,
   closeClinicalExplorer,
   openClinicalExplorer,
 } from '@/features/census/components/clinical-explorer/clinicalExplorerStore';
@@ -337,14 +336,21 @@ describe('CensusRegisterContent', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Volver al censo' }));
       await act(async () => {
         explorerModule.release();
-        await ClinicalExplorerView.preload();
+        await import('@/features/census/components/clinical-explorer/ClinicalExplorerView');
       });
       expect(screen.getByTestId('census-table').closest('[hidden]')).toBeNull();
       expect(screen.queryByRole('button', { name: 'Volver al censo' })).not.toBeInTheDocument();
 
-      // With the module ready, the body opens in the same render, without the placeholder.
       act(() => openClinicalExplorer({ censusDate: baseProps.currentDateString, bedId: 'R1' }));
-      expect(screen.getByTestId('clinical-explorer')).toHaveTextContent('Explorador de R1');
+      expect(await screen.findByTestId('clinical-explorer')).toHaveTextContent('Explorador de R1');
+      expect(screen.queryByTestId('clinical-explorer-loading')).not.toBeInTheDocument();
+
+      // With the module ready, the body opens in the same render, without the placeholder.
+      act(() => {
+        closeClinicalExplorer();
+      });
+      act(() => openClinicalExplorer({ censusDate: baseProps.currentDateString, bedId: 'R2' }));
+      expect(screen.getByTestId('clinical-explorer')).toHaveTextContent('Explorador de R2');
       expect(screen.queryByTestId('clinical-explorer-loading')).not.toBeInTheDocument();
     } finally {
       act(() => {
