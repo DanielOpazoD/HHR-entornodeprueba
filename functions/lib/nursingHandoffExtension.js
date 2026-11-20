@@ -20,8 +20,8 @@ const digest = value => createHash('sha256').update(value).digest('hex');
 const validLocalKey = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 const loopbackEmulator = host => /^127\.0\.0\.1:\d+$/.test(host ?? '');
 const positiveId = value => typeof value === 'string' && /^[1-9]\d{0,15}$/.test(value);
-const fail = (code, message) => {
-  throw new functions.https.HttpsError(code, message);
+const fail = (code, message, details) => {
+  throw new functions.https.HttpsError(code, message, details);
 };
 
 function clinicalSlot(now) {
@@ -38,9 +38,8 @@ const normalizeRun = value =>
     .replace(/[.\s-]/g, '')
     .toUpperCase();
 
-function findHandoff(snapshot, episode, run) {
-  if (!snapshot.exists)
-    fail('not-found', 'El censo de esta fecha aún no está disponible en HHR Pruebas.');
+function findHandoff(snapshot, episode, run, slot) {
+  if (!snapshot.exists) fail('not-found', 'Falta este día en el censo local de pruebas.', slot);
   const record = snapshot.data();
   const matches = [];
   for (const [bed, patient] of Object.entries(record.beds ?? {})) {
@@ -51,7 +50,8 @@ function findHandoff(snapshot, episode, run) {
       if (String(item?.clinicalEpisodeId ?? '') === episode) matches.push({ path, item });
     }
   }
-  if (!matches.length) fail('not-found', 'Este episodio aún no está en el censo de HHR Pruebas.');
+  if (!matches.length)
+    fail('not-found', 'Este episodio aún no está en el censo local de pruebas.', slot);
   if (
     matches.length !== 1 ||
     normalizeRun(matches[0].item.rut) !== run ||
@@ -174,7 +174,7 @@ function createHandler({
       fail('failed-precondition', 'Cambió el turno o la fecha censal. Abre otra entrega.');
     }
     const ref = records.doc(date);
-    const select = snapshot => findHandoff(snapshot, episode, run);
+    const select = snapshot => findHandoff(snapshot, episode, run, slot);
     const current = select(await ref.get());
 
     if (action === 'read') {

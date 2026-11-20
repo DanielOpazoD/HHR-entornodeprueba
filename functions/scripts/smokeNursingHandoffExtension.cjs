@@ -21,7 +21,9 @@ const call = async data => {
     body: JSON.stringify({ data }),
   });
   const body = await res.json();
-  return res.ok ? body.result : { status: body.error?.status, message: body.error?.message };
+  return res.ok
+    ? body.result
+    : { status: body.error?.status, message: body.error?.message, details: body.error?.details };
 };
 
 function waitForBrowserSave(day, notePath) {
@@ -120,6 +122,52 @@ async function main() {
       cma: [],
     });
   };
+  const verifyNovemberRollover = async () => {
+    const thursday = day.parent.doc('2026-11-19');
+    const friday = day.parent.doc('2026-11-20');
+    let instant = new Date('2026-11-20T06:19:00Z'); // 01:19 in Rapa Nui.
+    const handler = createHandler({
+      firestore,
+      FieldValue,
+      Timestamp,
+      installationKey,
+      clinicalNow: () => instant,
+    });
+    const read = args => handler({ action: 'read', source, episode, patientRun, ...args });
+    const night = { date: thursday.id, shift: 'night' };
+    await assert.rejects(read(), { code: 'not-found', details: night });
+    await seed(thursday);
+    try {
+      const opened = await read(night);
+      assert.deepEqual({ date: opened.date, shift: opened.shift }, night);
+      instant = new Date('2026-11-20T12:59:00Z'); // 07:59.
+      assert.equal((await read(night)).version, opened.version);
+      const text = 'Guardado nocturno del jueves 19';
+      const saved = await handler({
+        action: 'save',
+        source,
+        episode,
+        patientRun,
+        ...night,
+        version: opened.version,
+        text,
+      });
+      assert.equal(saved.confirmed, true);
+      const record = await thursday.get();
+      assert.equal(record.get(noteNight), text);
+      assert.equal(record.get(noteDay), undefined);
+      instant = new Date('2026-11-20T13:00:00Z'); // 08:00.
+      await assert.rejects(read(night), { code: 'failed-precondition' });
+      await assert.rejects(read(), {
+        code: 'not-found',
+        details: { date: friday.id, shift: 'day' },
+      });
+      assert.equal((await friday.get()).exists, false);
+      console.log('OK: 01:19 y 07:59 consultan Noche del 19. A las 08:00 cambia al Día del 20.');
+    } finally {
+      await firestore.recursiveDelete(thursday);
+    }
+  };
   let ownsFixture = false;
   let ownsPolicy = false;
   try {
@@ -129,6 +177,7 @@ async function main() {
       await openSharedCensus(app, firestore);
       return;
     }
+    if (process.env.HHR_HANDOFF_LOCAL_INTERACTIVE !== '1') await verifyNovemberRollover();
     await seed(day);
     ownsFixture = true;
     if (process.env.HHR_HANDOFF_LOCAL_INTERACTIVE === '1') {
@@ -154,7 +203,8 @@ async function main() {
     assert.equal((await read({ patientRun: '22222222-2' })).status, 'FAILED_PRECONDITION');
     assert.deepEqual(await read({ episode: '901002' }), {
       status: 'NOT_FOUND',
-      message: 'Este episodio aún no está en el censo de HHR Pruebas.',
+      message: 'Este episodio aún no está en el censo local de pruebas.',
+      details: { date, shift: initial.shift },
     });
     await day.update({
       'beds.R2': { ...patient, clinicalEpisodeId: '901002', rut: '22222222-2' },
