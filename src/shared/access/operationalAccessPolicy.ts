@@ -236,6 +236,9 @@ export const canUseBookmarks = (role: SupportedRole): boolean => isAdminOrHospit
 
 export const canReportSystemHealth = (role: SupportedRole): boolean => isAdminOrHospitalNurse(role);
 
+export const canConnectNursingHandoff = (role: SupportedRole): boolean =>
+  isAdminOrHospitalNurse(role);
+
 /** Day actions (bookmarks, PDF, handoff) are hidden only from the read-only guest. */
 export const canUseDayActions = (role: SupportedRole): boolean => role !== 'viewer';
 
