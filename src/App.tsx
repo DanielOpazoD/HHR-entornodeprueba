@@ -142,7 +142,8 @@ function App({ openingDay }: { openingDay: string }) {
 
   if (bootstrapState.status === 'loading') {
     if (loadingScreenMode === 'bootstrap-route-chrome') {
-      return <BootstrapRouteChrome day={openingDay} />;
+      // The census's current day: the opening day at first, the day the user chose afterwards.
+      return <BootstrapRouteChrome day={bootstrapState.dateNav.currentDateString} />;
     }
 
     return (

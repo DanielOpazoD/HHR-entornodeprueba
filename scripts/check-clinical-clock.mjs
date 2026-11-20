@@ -44,8 +44,8 @@
  *     fixed cut) gets its own named constant behind a preceding
  *     `clinical-clock-allow shift-start-literal: <reason>`.
  *
- * 12. hand-date-pattern: the lines with a hand-written `\d{4}-\d{2}-\d{2}` pattern outside the two
- *     calendar modules, in src/ and functions/lib/, may only go down from the base commit (the
+ * 12. hand-date-pattern: the hand-written `\d{4}-\d{2}-\d{2}` patterns (every occurrence, two
+ *     on one line count twice) outside the two calendar modules, in src/ and functions/lib/, may only go down from the base commit (the
  *     pull request base CI passes as FOLDER_BOOK_BASE, or `git merge-base HEAD origin/main`). A
  *     hand copy passes 2026-02-30 or repeats the calendar check each time; isCalendarDate() (app)
  *     and isCalendarDay() (server) decide both once.
@@ -555,33 +555,31 @@ const countsHandDatePattern = file =>
   !isTestFile(file) &&
   !CALENDAR_SOURCES.has(file);
 
-/** Lines with a hand-written date pattern in the working tree, as `rg -c -F` counts them. */
-const handDatePatternLines = root =>
+/** Hand-written date patterns in the working tree, every occurrence (`rg -o -F` counts them). */
+const handDatePatterns = root =>
   [
     ...walkIn(root, 'src', countsHandDatePattern),
     ...walkIn(root, 'functions/lib', countsHandDatePattern),
   ]
     .map(file => fs.readFileSync(path.join(root, file), 'utf8'))
-    .reduce(
-      (total, source) =>
-        total + source.split('\n').filter(line => line.includes(HAND_DATE_PATTERN)).length,
-      0
-    );
+    .reduce((total, source) => total + source.split(HAND_DATE_PATTERN).length - 1, 0);
 
 /** The same count at commit `base`, or null when git cannot read it. */
-const baseHandDatePatternLines = (root, base) => {
+const baseHandDatePatterns = (root, base) => {
+  // `-o` prints one `<base>:<path>:<match>` line per occurrence, so two on one line count twice.
   const result = spawnSync(
     'git',
-    ['-C', root, 'grep', '-c', '-F', '-e', HAND_DATE_PATTERN, base, '--', 'src', 'functions/lib'],
-    { encoding: 'utf8' }
+    ['-C', root, 'grep', '-o', '-F', '-e', HAND_DATE_PATTERN, base, '--', 'src', 'functions/lib'],
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }
   );
   if (result.status === 1) return 0;
   if (result.status !== 0) return null;
+  const suffix = `:${HAND_DATE_PATTERN}`;
   return result.stdout
     .split('\n')
-    .map(line => line.slice(base.length + 1).match(/^(.+):(\d+)$/))
-    .filter(match => match && countsHandDatePattern(match[1]))
-    .reduce((total, match) => total + Number(match[2]), 0);
+    .filter(line => line.endsWith(suffix))
+    .map(line => line.slice(base.length + 1, -suffix.length))
+    .filter(countsHandDatePattern).length;
 };
 
 /** Fails when hand-written date patterns grew from the base; without a base, says so. */
@@ -593,12 +591,12 @@ const handDatePatternRatchet = (root, env) => {
       notice:
         'Aviso: sin base (falta origin/main o FOLDER_BOOK_BASE), no se comparó la cuenta de fechas escritas a mano; CI la compara con la base de la PR.\n',
     };
-  const before = baseHandDatePatternLines(root, resolved.base);
+  const before = baseHandDatePatterns(root, resolved.base);
   if (before === null) return { violation: `git grep could not read base ${resolved.base}` };
-  const now = handDatePatternLines(root);
+  const now = handDatePatterns(root);
   return now > before
     ? {
-        violation: `${now} lines with a hand-written \\d{4}-\\d{2}-\\d{2} pattern, ${before} at the base ${resolved.base.slice(0, 9)}: validate a calendar day with isCalendarDate() from src/utils/clinicalDateUtils (isCalendarDay() from functions/lib/hospitalCalendarDay on the server)`,
+        violation: `${now} hand-written \\d{4}-\\d{2}-\\d{2} patterns, ${before} at the base ${resolved.base.slice(0, 9)}: validate a calendar day with isCalendarDate() from src/utils/clinicalDateUtils (isCalendarDay() from functions/lib/hospitalCalendarDay on the server)`,
       }
     : {};
 };
