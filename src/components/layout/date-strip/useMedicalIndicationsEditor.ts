@@ -19,6 +19,17 @@ const buildTodayDateKey = () => getTodayISO();
 const resolveInitialTargetDate = (patient: MedicalIndicationsPatientOption | null): string =>
   normalizeMedicalIndicationsDateKey(patient?.sourceDailyRecordDate || '') || buildTodayDateKey();
 
+const emptyIndicationLines = () => Array.from({ length: INDICATIONS_LINES }, () => '');
+
+/** The lines with `text` in the first empty one, or `null` when every line is taken. */
+const placeInFirstEmptyLine = (lines: string[], text: string): string[] | null => {
+  const firstEmptyIndex = lines.findIndex(item => !item.trim());
+  if (firstEmptyIndex === -1) return null;
+  const next = [...lines];
+  next[firstEmptyIndex] = text;
+  return next;
+};
+
 export const useMedicalIndicationsEditor = ({
   isOpen,
   patients,
@@ -34,10 +45,14 @@ export const useMedicalIndicationsEditor = ({
   const [treatingDoctor, setTreatingDoctor] = React.useState('');
   const [pendingNotes, setPendingNotes] = React.useState('');
   const [targetDate, setTargetDate] = React.useState('');
-  const [indicationDraft, setIndicationDraft] = React.useState('');
-  const [indications, setIndications] = React.useState<string[]>(() =>
-    Array.from({ length: INDICATIONS_LINES }, () => '')
+  // The free-text box and the lines live in one state, so adding a draft also empties the box.
+  const [{ draft: indicationDraft, lines: indications }, setIndicationsList] = React.useState(
+    () => ({ draft: '', lines: emptyIndicationLines() })
   );
+  const setIndicationDraft = (draft: string) =>
+    setIndicationsList(current => ({ ...current, draft }));
+  const setIndications = (update: (lines: string[]) => string[]) =>
+    setIndicationsList(current => ({ ...current, lines: update(current.lines) }));
   const [isEditingIndications, setIsEditingIndications] = React.useState(true);
   const [isOrderingIndications, setIsOrderingIndications] = React.useState(false);
   const [editingIndex, setEditingIndex] = React.useState<number | null>(null);
@@ -74,30 +89,20 @@ export const useMedicalIndicationsEditor = ({
     [selectedPatient, targetDate]
   );
 
-  const insertIndication = (text: string): boolean => {
+  // A template inserted after its audit lands on the latest lines and leaves the draft alone.
+  const insertIndication = (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed) return false;
-
-    let inserted = false;
-    setIndications(current => {
-      const next = [...current];
-      const firstEmptyIndex = next.findIndex(item => !item.trim());
-      if (firstEmptyIndex === -1) return next;
-      next[firstEmptyIndex] = trimmed;
-      inserted = true;
-      return next;
-    });
-    return inserted;
-  };
-
-  const addIndication = () => {
-    const trimmed = indicationDraft.trim();
     if (!trimmed) return;
-
-    if (insertIndication(trimmed)) {
-      setIndicationDraft('');
-    }
+    setIndications(current => placeInFirstEmptyLine(current, trimmed) ?? current);
   };
+
+  // With every line taken the draft stays in the box, so nothing typed is lost.
+  const addIndication = () =>
+    setIndicationsList(current => {
+      const trimmed = current.draft.trim();
+      const lines = trimmed ? placeInFirstEmptyLine(current.lines, trimmed) : null;
+      return lines ? { draft: '', lines } : current;
+    });
 
   const removeIndication = (targetIndex: number) => {
     setIndications(current => {
@@ -147,11 +152,13 @@ export const useMedicalIndicationsEditor = ({
     setTreatingDoctor(record.treatingDoctor);
     setPendingNotes(record.pendingNotes);
     const nextIndications = record.indications.slice(0, INDICATIONS_LINES);
-    setIndications([
-      ...nextIndications,
-      ...Array.from({ length: INDICATIONS_LINES - nextIndications.length }, () => ''),
-    ]);
-    setIndicationDraft('');
+    setIndicationsList({
+      draft: '',
+      lines: [
+        ...nextIndications,
+        ...Array.from({ length: INDICATIONS_LINES - nextIndications.length }, () => ''),
+      ],
+    });
     setEditingIndex(null);
     setEditingValue('');
   }, []);
@@ -164,8 +171,7 @@ export const useMedicalIndicationsEditor = ({
       setKineTimes('');
       setTreatingDoctor(patient?.treatingDoctor || '');
       setPendingNotes('');
-      setIndications(Array.from({ length: INDICATIONS_LINES }, () => ''));
-      setIndicationDraft('');
+      setIndicationsList({ draft: '', lines: emptyIndicationLines() });
       setEditingIndex(null);
       setEditingValue('');
     },
