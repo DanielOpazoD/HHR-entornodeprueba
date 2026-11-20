@@ -11,6 +11,7 @@ import type { PatientRowPatientPatch } from '@/features/census/components/patien
 import { createScopedLogger, type ScopedLogger } from '@/services/utils/loggerScope';
 import { parseCalendarDateUtcNoon } from '@/utils/clinicalDateUtils';
 import { editsEloisaNameParts } from '@/utils/patientNamePartsSource';
+import { isValidRut, normalizeRut } from '@/utils/rutUtils';
 import { resolveAccreditedClinicalEpisodeId as accreditedEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 const patientDemographicsEpisodeSyncLogger = createScopedLogger('PatientDemographicsEpisodeSync');
@@ -74,15 +75,6 @@ const listEpisodeCalendarDays = (firstSeenDate: string, currentDate: string): st
   );
 };
 
-/**
- * Formatting only: `12.345.678-9` and `123456789` are one identity document, and letters stay,
- * so a passport is never reduced to the digits of a RUT (`X1234567` and `Y1234567` differ).
- * A value with no digit or K (`S/R`, `SIN RUT`) is no document: matching falls back to the name,
- * exactly as before, so this rule can only remove matches, never add them.
- */
-const normalizeDocument = (value?: string): string =>
-  /[0-9kK]/.test(value ?? '') ? (value ?? '').toUpperCase().replace(/[.\s-]/g, '') : '';
-
 const normalizePatientName = (patientName?: string): string =>
   (patientName ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
 
@@ -107,12 +99,30 @@ const pickDemographicUpdates = (
   return result;
 };
 
-const matchesPatientIdentity = (sourcePatient: PatientData, candidate: PatientData): boolean => {
-  const sourceDocument = normalizeDocument(sourcePatient.rut);
-  const candidateDocument = normalizeDocument(candidate.rut);
+/** Any text in the document field, even a marker such as `S/R` or a passport of letters only. */
+const hasDocument = (patient: PatientData): boolean => (patient.rut ?? '').trim().length > 0;
 
-  if (sourceDocument && candidateDocument) {
-    return sourceDocument === candidateDocument;
+/**
+ * The canonical RUT of a patient declared `RUT` whose check digit is correct, written only with
+ * ASCII digits (`isValidRut` would drop any other numeral); null for anything else.
+ */
+const declaredValidRut = (patient: PatientData): string | null => {
+  const value = patient.rut ?? '';
+  return patient.documentType === 'RUT' && isValidRut(value) && !/[^\P{N}0-9]/u.test(value)
+    ? normalizeRut(value)
+    : null;
+};
+
+/**
+ * Without the same accredited episode, an earlier day is this patient only when both are declared
+ * RUT, both RUTs are valid and they are the same RUT (ID-01). A passport, a missing or different
+ * type or an invalid RUT matches nothing, so a passport without an accredited episode gets no
+ * correction on earlier days. The name decides only when both document fields are empty.
+ */
+const matchesPatientIdentity = (sourcePatient: PatientData, candidate: PatientData): boolean => {
+  if (hasDocument(sourcePatient) || hasDocument(candidate)) {
+    const rut = declaredValidRut(sourcePatient);
+    return rut !== null && rut === declaredValidRut(candidate);
   }
 
   const sourceName = normalizePatientName(sourcePatient.patientName);
@@ -151,7 +161,14 @@ const findMatchingPatientPath = ({
   const candidates: Array<{ patient: PatientData; basePath: string; episode?: string }> = [];
   for (const [bedId, bedPatient] of Object.entries(recordBeds)) {
     const candidate = isClinicalCribPatient ? bedPatient.clinicalCrib : bedPatient;
-    if (!candidate || !matchesPatientIdentity(sourcePatient, candidate)) {
+    if (!candidate) {
+      continue;
+    }
+
+    // The same accredited episode is this patient even if that day's document reads otherwise.
+    const episode = accreditedEpisodeId(candidate);
+    const sameEpisode = Boolean(sourceEpisode) && episode === sourceEpisode;
+    if (!sameEpisode && !matchesPatientIdentity(sourcePatient, candidate)) {
       continue;
     }
 
@@ -159,7 +176,6 @@ const findMatchingPatientPath = ({
       continue;
     }
 
-    const episode = accreditedEpisodeId(candidate);
     if (sourceEpisode && episode && episode !== sourceEpisode) {
       continue;
     }

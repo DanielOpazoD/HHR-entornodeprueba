@@ -90,6 +90,29 @@ Un pasaporte nunca se convierte en RUT ni se compara como RUT. Un documento de E
 letra que no sea la K final es un pasaporte y se guarda como tal en los casos nuevos; un paciente
 ya guardado conserva su documento.
 
+### Corrección demográfica de días anteriores (ID-01, ID-05)
+
+Al corregir un dato demográfico desde la fila, HHR lo copia a los días anteriores del mismo
+episodio solo en el paciente que es ese episodio:
+
+1. El mismo episodio acreditado (no `legacy_ep_`) es la misma persona.
+2. Sin él, un día anterior es esa persona solo si los dos documentos están declarados RUT, ambos
+   tienen dígito verificador correcto y son el mismo RUT. El nombre decide solo cuando el campo de
+   documento está vacío en ambos días, y con un único candidato: cualquier texto en ese campo,
+   también `S/R` o un pasaporte de solo letras, cuenta como documento.
+3. Cualquier otro caso no se escribe: un pasaporte, un tipo ausente o distinto, un RUT inválido o
+   dos candidatos.
+
+Límite conocido: un pasaporte sin episodio acreditado no recibe correcciones en días anteriores,
+tampoco un día antiguo que la lectura sin versión tipó como pasaporte por su forma (`123.456-0`,
+`12.345.678/5`). Desde octubre de 2026 los días de producción tienen episodios acreditados.
+
+Límite de días antiguos: un día guardado sin `schemaVersion` puede traer un tipo deducido por la
+migración al leerlo, y ese tipo se trata como declarado; un `RUT` deducido cuenta como RUT
+declarado. Medición en producción del 19-11-2026: de 323 días guardados en 2026, 55 no tienen
+`schemaVersion`, todos con fecha igual o anterior al 2026-04-29, y ningún episodio abierto los toca
+(el más antiguo ingresó el 2026-07-08).
+
 ### Nombres del personal
 
 En los catálogos de enfermería y TENS, las variantes que solo difieren en tildes, diéresis, ñ,
