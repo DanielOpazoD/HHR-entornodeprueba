@@ -11,6 +11,8 @@ const { getAuth } = require('firebase-admin/auth');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
 const { clinicalSlot, createHandler } = require('../lib/nursingHandoffExtension');
 const { ACCESS, INDEX, digest } = require('../lib/accounts/accountPolicy');
+const { createHostedHandler } = require('../lib/nursingHandoffHosted');
+const { createAuthHelpers } = require('../lib/auth/authHelpersFactory');
 
 const port = Number(process.env.HHR_HANDOFF_FUNCTIONS_PORT ?? 5001);
 const endpoint = `http://127.0.0.1:${port}/${projectId}/southamerica-east1/nursingHandoffExtension`;
@@ -262,6 +264,77 @@ async function main() {
     const result = (await day.get()).data().beds.R1;
     assert.equal(result.handoffNoteDayShift, 'Día confirmado');
     assert.equal(result.handoffNoteNightShift, 'Noche confirmada');
+    {
+      const auth = getAuth(app);
+      const uid = 'hhrn_' + randomUUID();
+      const email = uid + '@accounts.hhr.invalid';
+      const access = firestore.collection(ACCESS).doc(uid);
+      const deviceId = randomUUID();
+      const device = firestore.collection('hhr_nursing_handoff_grants').doc(deviceId);
+      const hosted = createHostedHandler({
+        firestore,
+        auth,
+        Timestamp,
+        FieldValue,
+        resolveRoleForEmail: createAuthHelpers({ auth, firestore }).resolveRoleForEmail,
+      });
+      const proof = randomBytes(32).toString('hex');
+      const connect = { action: 'connect', deviceId, challenge: digest(proof) };
+      await auth.createUser({ uid, email });
+      try {
+        await assert.rejects(hosted(connect, {}), { code: 'unauthenticated' });
+        const context = {
+          auth: {
+            uid,
+            token: {
+              email,
+              auth_time: Math.floor(Date.now() / 1000),
+              hhrAccountVersion: 1,
+              firebase: { sign_in_provider: 'password' },
+            },
+          },
+        };
+        await access.set({ status: 'active', role: 'viewer', version: 1 });
+        await assert.rejects(hosted(connect, context), { code: 'permission-denied' });
+        await access.update({ role: 'nurse_hospital' });
+        const connection = await hosted(connect, context);
+        assert.deepEqual(Object.keys(connection), ['expiresAt']);
+        assert.equal((await device.get()).data().proofHash, digest(proof));
+        const request = { deviceId, episode, patientRun, proof };
+        const hostedRead = () => hosted({ ...request, action: 'read' }, {});
+        await assert.rejects(hosted({ ...request, action: 'read', proof: '0'.repeat(64) }, {}), {
+          code: 'unauthenticated',
+        });
+        const { date, shift, version } = await hostedRead();
+        const answer = await hosted(
+          {
+            ...request,
+            action: 'save',
+            date,
+            shift,
+            version,
+            text: 'Entrega de la cuenta HHR',
+            source: { practitionerId: '999' },
+          },
+          {}
+        );
+        assert.equal(answer.confirmed, true);
+        assert.equal((await day.get()).get('meta.lastWriterClientId'), uid);
+        await access.update({ status: 'suspended' });
+        await assert.rejects(hostedRead(), { code: 'permission-denied' });
+        await access.update({ status: 'active' });
+        const renewedProof = randomBytes(32).toString('hex');
+        await hosted({ ...connect, challenge: digest(renewedProof) }, context);
+        await assert.rejects(hostedRead(), { code: 'unauthenticated' });
+        await hosted({ deviceId, action: 'disconnect', proof: renewedProof }, {});
+        assert.equal((await device.get()).exists, false);
+        console.log('OK: autorización HHR, rol vigente, rotación, revocación y autor real.');
+      } finally {
+        await access.delete();
+        await device.delete();
+        await auth.deleteUser(uid);
+      }
+    }
     if (process.env.HHR_HANDOFF_EXTENSION_CHECKOUT) {
       const { stdout } = await promisify(execFile)(
         process.execPath,
