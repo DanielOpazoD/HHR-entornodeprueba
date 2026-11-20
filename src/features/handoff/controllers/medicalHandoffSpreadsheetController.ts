@@ -4,10 +4,6 @@ import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContract
 import type { HandoffPatientContract } from '@/domain/handoff/patientContracts';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import { resolveVisibleTreatingPhysicianName } from '@/services/staff/treatingPhysicianCatalog';
-import {
-  LEGACY_EPISODE_ID_PREFIX,
-  resolveAccreditedClinicalEpisodeId,
-} from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 export interface MedicalHandoffSpreadsheetRow {
   stableKey: string;
@@ -62,26 +58,6 @@ const buildStableKey = (patient: HandoffPatientContract, fallbackBedId: string):
   return `bed:${normalizeKeyPart(fallbackBedId)}:${normalizeKeyPart(patient.patientName)}`;
 };
 
-/**
- * A `legacy_ep_` crib id is a hash of name and admission: two newborns «RN» share it. Their
- * mothers' accredited admissions tell them apart (ID-03). Used only when the same export repeats
- * the key, so a single newborn keeps the row it had, also after «Solo Madre» moves it to the bed.
- */
-const motherSeparatedCribKey = (
-  crib: HandoffPatientContract,
-  mother: HandoffPatientContract
-): string | undefined => {
-  const episodeId = normalizeText(crib.clinicalEpisodeId);
-  const motherEpisodeId = episodeId.startsWith(LEGACY_EPISODE_ID_PREFIX)
-    ? resolveAccreditedClinicalEpisodeId({
-        clinicalEpisodeId: normalizeText(mother.clinicalEpisodeId),
-      })
-    : undefined;
-  return motherEpisodeId
-    ? `episode-h1:${hashStableKeyPart(`${motherEpisodeId}\n${episodeId}`)}`
-    : undefined;
-};
-
 const buildRow = ({
   patient,
   bedLabel,
@@ -113,7 +89,6 @@ export const buildMedicalHandoffSpreadsheetRows = (
   professionalsCatalog: ProfessionalCatalogItem[]
 ): MedicalHandoffSpreadsheetRow[] => {
   const rows: MedicalHandoffSpreadsheetRow[] = [];
-  const separatedKeys = new Map<MedicalHandoffSpreadsheetRow, string>();
 
   visibleBeds.forEach(bed => {
     const patient = record.beds[bed.id];
@@ -134,24 +109,16 @@ export const buildMedicalHandoffSpreadsheetRows = (
     // legacy presentation flag and can remain false on migrated active cribs.
     const crib = patient.clinicalCrib;
     if (crib && normalizeText(crib.patientName)) {
-      const row = buildRow({
-        patient: crib,
-        bedLabel: `Cuna RN (${bed.name || bed.id})`,
-        fallbackBedId: `${bed.id}-cuna-rn`,
-        professionalsCatalog,
-      });
-      rows.push(row);
-      const separatedKey = motherSeparatedCribKey(crib, patient);
-      if (separatedKey) separatedKeys.set(row, separatedKey);
+      rows.push(
+        buildRow({
+          patient: crib,
+          bedLabel: `Cuna RN (${bed.name || bed.id})`,
+          fallbackBedId: `${bed.id}-cuna-rn`,
+          professionalsCatalog,
+        })
+      );
     }
   });
 
-  const keyCount = new Map<string, number>();
-  rows.forEach(row => keyCount.set(row.stableKey, (keyCount.get(row.stableKey) ?? 0) + 1));
-  return rows.map(row => {
-    const separatedKey = separatedKeys.get(row);
-    return separatedKey && (keyCount.get(row.stableKey) ?? 0) > 1
-      ? { ...row, stableKey: separatedKey }
-      : row;
-  });
+  return rows;
 };
