@@ -11,6 +11,7 @@ import type { PatientRowPatientPatch } from '@/features/census/components/patien
 import { createScopedLogger, type ScopedLogger } from '@/services/utils/loggerScope';
 import { parseCalendarDateUtcNoon } from '@/utils/clinicalDateUtils';
 import { editsEloisaNameParts } from '@/utils/patientNamePartsSource';
+import { resolveAccreditedClinicalEpisodeId as accreditedEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 const patientDemographicsEpisodeSyncLogger = createScopedLogger('PatientDemographicsEpisodeSync');
 
@@ -128,6 +129,13 @@ const resolveMatchBasePath = ({
   isClinicalCribPatient: boolean;
 }): string => (isClinicalCribPatient ? `beds.${bedId}.clinicalCrib` : `beds.${bedId}`);
 
+/**
+ * The one patient of that day who is this episode (ID-02, ID-03). Same document or name is a
+ * candidate, unless both carry accredited episodes that differ (a real readmission). An equal
+ * accredited episode wins; without one, an adult's single candidate keeps updating as before,
+ * while a newborn (provisional names repeat) needs its accredited episode. More than one
+ * candidate is ambiguous: that day is not written.
+ */
 const findMatchingPatientPath = ({
   recordBeds,
   sourcePatient,
@@ -139,6 +147,8 @@ const findMatchingPatientPath = ({
   sourceFirstSeenDate: string;
   isClinicalCribPatient: boolean;
 }): { patient: PatientData; basePath: string } | null => {
+  const sourceEpisode = accreditedEpisodeId(sourcePatient);
+  const candidates: Array<{ patient: PatientData; basePath: string; episode?: string }> = [];
   for (const [bedId, bedPatient] of Object.entries(recordBeds)) {
     const candidate = isClinicalCribPatient ? bedPatient.clinicalCrib : bedPatient;
     if (!candidate || !matchesPatientIdentity(sourcePatient, candidate)) {
@@ -149,13 +159,24 @@ const findMatchingPatientPath = ({
       continue;
     }
 
-    return {
+    const episode = accreditedEpisodeId(candidate);
+    if (sourceEpisode && episode && episode !== sourceEpisode) {
+      continue;
+    }
+
+    candidates.push({
       patient: candidate,
       basePath: resolveMatchBasePath({ bedId, isClinicalCribPatient }),
-    };
+      episode,
+    });
   }
 
-  return null;
+  const accredited = sourceEpisode
+    ? candidates.filter(({ episode }) => episode === sourceEpisode)
+    : [];
+  const eligible = accredited.length > 0 ? accredited : isClinicalCribPatient ? [] : candidates;
+  const [only, ...others] = eligible;
+  return only && others.length === 0 ? { patient: only.patient, basePath: only.basePath } : null;
 };
 
 const buildDemographicsPatch = ({

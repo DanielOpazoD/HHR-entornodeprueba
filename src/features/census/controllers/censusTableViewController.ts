@@ -3,6 +3,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { BedDefinition } from '@/types/domain/beds';
 import { BedType } from '@/types/domain/beds';
 import { hasMeaningfulPatientIdentity } from '@/features/census/controllers/patientIdentityController';
+import { buildClinicalCribScopeOwner } from '@/features/census/controllers/patientRowInputController';
 
 import {
   BedTypesById,
@@ -47,6 +48,7 @@ const buildClinicalCribRows = (bed: BedDefinition, bedData: PatientData): Unifie
           bed,
           data: bedData.clinicalCrib,
           isSubRow: true,
+          saveScopeOwner: buildClinicalCribScopeOwner(bedData),
         },
       ]
     : [];

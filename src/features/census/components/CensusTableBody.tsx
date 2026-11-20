@@ -113,7 +113,8 @@ export const CensusTableBody: React.FC<CensusTableBodyProps & CensusTableBodyBad
 
         return (
           <PatientRow
-            key={row.id}
+            // A crib row is also keyed by its mother: another mother is another crib row (ID-05).
+            key={row.saveScopeOwner ? `${row.id}:${row.saveScopeOwner}` : row.id}
             bed={row.bed}
             data={row.data}
             currentDateString={currentDateString}
