@@ -1,3 +1,4 @@
+import { isCalendarDate } from '@/utils/clinicalDateUtils';
 import { hasNonRutLetter, hasPassportShapeBeforeLetterRule, normalizeRut } from '@/utils/rutUtils';
 import { correctedEgresoFields } from '../mapping/reportEgresoDateTime';
 import type { RayenHospitalizationReportResult } from '../bridge/hospitalizationReportsBridge';
@@ -16,11 +17,7 @@ export interface HistoricalReportEpisodeDependencies {
   extractText: (buffer: ArrayBuffer) => Promise<string>;
 }
 
-const validDay = (value: string | undefined): value is string =>
-  !!value &&
-  /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-  !Number.isNaN(Date.parse(`${value}T00:00:00Z`)) &&
-  new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+const validDay = (value: string | undefined): value is string => !!value && isCalendarDate(value);
 
 /**
  * A bulk administrative range discovers episodes; it does not prove presence on the chosen day.
