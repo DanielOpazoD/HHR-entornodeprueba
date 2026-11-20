@@ -2,7 +2,6 @@ import { useCallback } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 
 import { executeMoveOrCopyController } from '@/features/census/controllers/censusActionRuntimeController';
-import { buildMoveOrCopyRuntimeActions } from '@/features/census/controllers/censusActionRuntimeAdapterController';
 import {
   buildMoveOrCopyErrorNotification,
   buildMoveOrCopyUnexpectedNotification,
@@ -38,10 +37,10 @@ export const useCensusMoveOrCopyCommand = ({
             actionState: actionStateRef.current,
             record: recordRef.current,
             targetDate,
-            actions: buildMoveOrCopyRuntimeActions(
-              moveOrCopyPatientRef.current,
-              copyPatientToDateRef.current
-            ),
+            actions: {
+              moveOrCopyPatient: moveOrCopyPatientRef.current,
+              copyPatientToDate: copyPatientToDateRef.current,
+            },
           });
 
           if (!isMounted()) return;

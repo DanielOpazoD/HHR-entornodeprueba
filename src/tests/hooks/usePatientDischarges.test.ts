@@ -77,7 +77,7 @@ describe('usePatientDischarges', () => {
     const { result } = renderHook(() => usePatientDischarges(null, mockSaveAndUpdate));
 
     act(() => {
-      result.current.addDischarge('R1', 'Vivo');
+      result.current.addDischarge('R1', { status: 'Vivo', time: '' });
     });
 
     expect(mockSaveAndUpdate).not.toHaveBeenCalled();
@@ -89,7 +89,7 @@ describe('usePatientDischarges', () => {
     const { result } = renderHook(() => usePatientDischarges(mockRecord, mockSaveAndUpdate));
 
     act(() => {
-      result.current.addDischarge('R2', 'Vivo');
+      result.current.addDischarge('R2', { status: 'Vivo', time: '' });
     });
 
     expect(mockSaveAndUpdate).not.toHaveBeenCalled();
@@ -101,7 +101,7 @@ describe('usePatientDischarges', () => {
     const { result } = renderHook(() => usePatientDischarges(mockRecord, mockSaveAndUpdate));
 
     act(() => {
-      result.current.addDischarge('R1', 'Vivo', undefined, 'Alta Médica');
+      result.current.addDischarge('R1', { status: 'Vivo', type: 'Alta Médica', time: '' });
     });
 
     expect(mockSaveAndUpdate).toHaveBeenCalled();
@@ -114,7 +114,7 @@ describe('usePatientDischarges', () => {
     );
 
     act(() => {
-      result.current.addDischarge('R1', 'Vivo', undefined, 'Alta Médica');
+      result.current.addDischarge('R1', { status: 'Vivo', type: 'Alta Médica', time: '' });
     });
 
     expect(mockPatchRecord).toHaveBeenCalledTimes(1);
@@ -242,15 +242,12 @@ describe('usePatientDischarges', () => {
     const { result } = renderHook(() => usePatientDischarges(recordWithCrib, mockSaveAndUpdate));
 
     act(() => {
-      result.current.addDischarge(
-        'R1',
-        'Vivo',
-        undefined,
-        'Alta Médica',
-        undefined,
-        undefined,
-        'mother'
-      );
+      result.current.addDischarge('R1', {
+        status: 'Vivo',
+        type: 'Alta Médica',
+        time: '',
+        dischargeTarget: 'mother',
+      });
     });
 
     expect(mockSaveAndUpdate).toHaveBeenCalled();
@@ -349,7 +346,7 @@ describe('usePatientDischarges', () => {
     );
 
     act(() => {
-      result.current.addDischarge('R2', 'Vivo');
+      result.current.addDischarge('R2', { status: 'Vivo', time: '' });
     });
 
     expect(mockSaveAndUpdate).not.toHaveBeenCalled();

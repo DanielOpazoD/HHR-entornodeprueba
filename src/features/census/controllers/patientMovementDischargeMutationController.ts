@@ -3,7 +3,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { BedDefinition } from '@/types/domain/beds';
 import { DischargeData, DischargeType } from '@/types/domain/movements';
 
-import type { DischargeAddCommandPayload } from '@/features/census/domain/movements/contracts';
+import type { DischargeAddCommandPayload } from '@/types/movements';
 import {
   buildClearedBedPatient,
   clonePatientSnapshot,

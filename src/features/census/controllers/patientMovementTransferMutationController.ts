@@ -3,7 +3,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { BedDefinition } from '@/types/domain/beds';
 
 import { TransferData } from '@/types/domain/movements';
-import type { TransferCommandPayload } from '@/features/census/domain/movements/contracts';
+import type { TransferCommandPayload } from '@/types/movements';
 import {
   buildClearedBedPatient,
   clonePatientSnapshot,

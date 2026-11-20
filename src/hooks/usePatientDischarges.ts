@@ -7,11 +7,8 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { BEDS } from '@/constants/beds';
 import { useLatestRef } from '@/hooks/useLatestRef';
-import type { DischargeTarget } from '@/types/movements';
 import {
   resolveAddDischargeMovement,
-  buildAddDischargeInput,
-  buildDischargeAddCommandPayload,
   resolveDeleteDischargeMovement,
   resolveUpdateDischargeMovement,
   resolveApplyUndoDischargeRecord,
@@ -94,36 +91,16 @@ export const usePatientDischarges = (
   const executeReclassification = useMovementReclassificationExecution();
 
   const addDischarge: AddDischargeAction = useCallback(
-    (
-      bedId,
-      status,
-      cribStatus,
-      dischargeType,
-      dischargeTypeOther,
-      time,
-      target: DischargeTarget = 'both',
-      movementDate
-    ) => {
+    (bedId, payload) => {
       withCurrentRecord(currentRecord => {
-        const payload = buildDischargeAddCommandPayload({
-          status,
-          cribStatus,
-          dischargeType,
-          dischargeTypeOther,
-          time,
-          movementDate,
-          target,
+        const resolution = resolveAddDischargeMovement({
+          record: currentRecord,
+          bedId,
+          payload,
+          bedsCatalog: BEDS,
+          createEmptyPatient,
+          provenance: buildManualMovementProvenanceSeed(actor),
         });
-        const resolution = resolveAddDischargeMovement(
-          buildAddDischargeInput({
-            record: currentRecord,
-            bedId,
-            payload,
-            bedsCatalog: BEDS,
-            createEmptyPatient,
-            provenance: buildManualMovementProvenanceSeed(actor),
-          })
-        );
         void executeMovementCreation({
           kind: 'discharge',
           bedId,

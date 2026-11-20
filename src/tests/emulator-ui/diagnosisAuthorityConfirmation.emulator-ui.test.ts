@@ -25,9 +25,7 @@ import { createDailyRecordWriteAuthorityFunctions } from '@/tests/functions/dail
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import {
-  buildAddDischargeInput,
   buildAtomicPatientMovementPatch,
-  buildDischargeAddCommandPayload,
   resolveAddDischargeMovement,
   resolveAtomicPatientMovementListKey,
 } from '@/application/census/public';
@@ -1374,20 +1372,18 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       await correctWhileAnswerLost(async () => {
         // «Dar de alta» for R2, as the census row builds it.
         const record = await shownDay();
-        const resolution = resolveAddDischargeMovement(
-          buildAddDischargeInput({
-            record,
-            bedId: 'R2',
-            payload: buildDischargeAddCommandPayload({
-              status: 'Vivo',
-              dischargeType: 'Domicilio (Habitual)',
-              time: '10:00',
-              target: 'both',
-            }),
-            bedsCatalog: BEDS,
-            createEmptyPatient,
-          })
-        );
+        const resolution = resolveAddDischargeMovement({
+          record,
+          bedId: 'R2',
+          payload: {
+            status: 'Vivo',
+            type: 'Domicilio (Habitual)',
+            time: '10:00',
+            dischargeTarget: 'both',
+          },
+          bedsCatalog: BEDS,
+          createEmptyPatient,
+        });
         if (!resolution.ok) throw new Error('The census refused the discharge');
         await patchHere(
           buildAtomicPatientMovementPatch({

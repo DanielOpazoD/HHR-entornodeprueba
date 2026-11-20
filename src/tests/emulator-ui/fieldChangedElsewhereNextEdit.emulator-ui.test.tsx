@@ -20,10 +20,6 @@ import { buildClinicalCribPatch } from '@/hooks/controllers/clinicalCribControll
 import { bedManagementReducer } from '@/hooks/useBedManagementReducer';
 import { usePatientMovementCreationExecutor } from '@/hooks/usePatientMovementCreationExecutor';
 import {
-  buildAddDischargeInput,
-  buildAddTransferInput,
-  buildDischargeAddCommandPayload,
-  buildTransferCommandPayload,
   resolveAddDischargeMovement,
   resolveAddTransferMovement,
 } from '@/application/census/public';
@@ -372,34 +368,31 @@ const moveOut = async (
   const record = shown()!.record!;
   const resolution =
     kind === 'discharge'
-      ? resolveAddDischargeMovement(
-          buildAddDischargeInput({
-            record,
-            bedId: 'R4',
-            payload: buildDischargeAddCommandPayload({
-              status: 'Vivo',
-              dischargeType: 'Domicilio (Habitual)',
-              time: '10:00',
-              target: 'both',
-            }),
-            bedsCatalog: BEDS,
-            createEmptyPatient,
-          })
-        )
-      : resolveAddTransferMovement(
-          buildAddTransferInput({
-            record,
-            bedId: 'R4',
-            payload: buildTransferCommandPayload({
-              method: 'Avión comercial',
-              center: 'Hospital Salvador',
-              centerOther: '',
-              time: '10:00',
-            }),
-            bedsCatalog: BEDS,
-            createEmptyPatient,
-          })
-        );
+      ? resolveAddDischargeMovement({
+          record,
+          bedId: 'R4',
+          payload: {
+            status: 'Vivo',
+            type: 'Domicilio (Habitual)',
+            time: '10:00',
+            dischargeTarget: 'both',
+          },
+          bedsCatalog: BEDS,
+          createEmptyPatient,
+        })
+      : resolveAddTransferMovement({
+          record,
+          bedId: 'R4',
+          payload: {
+            evacuationMethod: 'Avión comercial',
+            receivingCenter: 'Hospital Salvador',
+            receivingCenterOther: '',
+            transferEscort: '',
+            time: '10:00',
+          },
+          bedsCatalog: BEDS,
+          createEmptyPatient,
+        });
   const outcomes: unknown[] = [];
   const executor = renderHook(() =>
     usePatientMovementCreationExecutor({

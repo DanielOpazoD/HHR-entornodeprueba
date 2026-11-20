@@ -3,10 +3,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { BedDefinition } from '@/types/domain/beds';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-import type {
-  DischargeAddCommandPayload,
-  TransferCommandPayload,
-} from '@/features/census/domain/movements/contracts';
+import type { DischargeAddCommandPayload, TransferCommandPayload } from '@/types/movements';
 import { ControllerError, ControllerResult, ok } from '@/shared/contracts/controllerResult';
 import { resolveMovementDisplayDate } from '@/features/census/controllers/censusMovementDatePresentationController';
 import {
