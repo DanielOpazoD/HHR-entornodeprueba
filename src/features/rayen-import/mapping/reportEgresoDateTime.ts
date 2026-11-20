@@ -138,7 +138,8 @@ export const parseStatisticalEgresoStamp = (fechaEgreso: string): StatisticalEgr
 export const parseStatisticalEgresoInstant = (value: string): StatisticalEgresoStamp | null => {
   const normalized = (value || '').trim();
   if (!/(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized)) return null;
-  const day = /^(\d{4})-(\d{2})-(\d{2})/.exec(normalized);
+  // Year, month and day as integers, so `6`, `06` and `006` are all day 6, as `Date` reads them.
+  const day = /^(\d+)-(\d+)-(\d+)/.exec(normalized);
   if (day && !buildSortableLocalTimestamp(Number(day[1]), Number(day[2]), Number(day[3])))
     return null;
   return stampFromInstant(new Date(normalized));

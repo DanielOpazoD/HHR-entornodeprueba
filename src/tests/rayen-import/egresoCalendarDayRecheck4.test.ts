@@ -263,62 +263,68 @@ it.each([false, true])(
   }
 );
 
-it.each(['2026-11-06T20:20:00Z', '2026-11-06t20:20:00z', '2026-11-06 20:20:00+00:00'])(
-  'plan completo con respuesta administrativa D-1 %s',
-  async raw => {
-    const previous = record('2026-11-05');
-    const current = { ...record(), beds: {} };
-    const iso = ctx.now.toISOString();
-    const calls: string[] = [];
-    const { diff } = await prepareRayenStructuralPlan({
-      baseRecord: current,
-      planningSnapshot: { facilityId: 1342, capturedAt: iso, isComplete: true, encounters: [] },
-      bundle: {
-        id: 'sintetico',
-        startedAt: iso,
-        completedAt: iso,
-        facilityId: 1342,
-        dateStart: census,
-        dateEnd: census,
-        fichaMedicoCapturedAt: iso,
-        gestionCamasCapturedAt: iso,
-        sourceSkewMs: 0,
-        egresoRows: [],
-      },
-      isHistoricalDay: false,
-      reportDate: census,
-      isAdmin: true,
-      invalidEpisodeIds: new Set(),
-      counters: { requests: 0, cacheHits: 0, timeouts: 0 },
-      measureEvidence: async op => op(),
-      dailyRecord: {
-        getAuthoritativeForDate: async (day: string) => (day === previous.date ? previous : null),
-        getForDate: async (day: string) => (day === previous.date ? previous : null),
-        getLocalForDateWithMeta: async () => ({
-          record: null,
-          hasPendingWrites: false,
-          writeState: 'none',
+it.each([
+  '2026-11-06T20:20:00Z',
+  '2026-11-06t20:20:00z',
+  '2026-11-06 20:20:00+00:00',
+  '2026-11-6 20:20:00+0000',
+  '2026-11-06 20:20:00+0000',
+  '2026-11-006 20:20:00+0000',
+])('plan completo con respuesta administrativa D-1 %s', async raw => {
+  const previous = record('2026-11-05');
+  const current = { ...record(), beds: {} };
+  const iso = ctx.now.toISOString();
+  const calls: string[] = [];
+  const { diff } = await prepareRayenStructuralPlan({
+    baseRecord: current,
+    planningSnapshot: { facilityId: 1342, capturedAt: iso, isComplete: true, encounters: [] },
+    bundle: {
+      id: 'sintetico',
+      startedAt: iso,
+      completedAt: iso,
+      facilityId: 1342,
+      dateStart: census,
+      dateEnd: census,
+      fichaMedicoCapturedAt: iso,
+      gestionCamasCapturedAt: iso,
+      sourceSkewMs: 0,
+      egresoRows: [],
+    },
+    isHistoricalDay: false,
+    reportDate: census,
+    isAdmin: true,
+    invalidEpisodeIds: new Set(),
+    counters: { requests: 0, cacheHits: 0, timeouts: 0 },
+    measureEvidence: async op => op(),
+    dailyRecord: {
+      getAuthoritativeForDate: async (day: string) => (day === previous.date ? previous : null),
+      getForDate: async (day: string) => (day === previous.date ? previous : null),
+      getLocalForDateWithMeta: async () => ({
+        record: null,
+        hasPendingWrites: false,
+        writeState: 'none',
+      }),
+    } as never,
+    evidenceClient: {
+      lookupEgresos: async targets =>
+        targets.flatMap(t => {
+          if (typeof t === 'string' || t.encounterId !== episode.encounterId) return [];
+          calls.push(t.encounterId);
+          return [
+            {
+              run: episode.run,
+              encounterId: episode.encounterId,
+              egreso: { id: 91001, dateDischarge: raw, hasAdministrativeDischarge: true },
+            },
+          ];
         }),
-      } as never,
-      evidenceClient: {
-        lookupEgresos: async targets =>
-          targets.flatMap(t => {
-            if (typeof t === 'string' || t.encounterId !== episode.encounterId) return [];
-            calls.push(t.encounterId);
-            return [
-              {
-                run: episode.run,
-                encounterId: episode.encounterId,
-                egreso: { id: 91001, dateDischarge: raw, hasAdministrativeDischarge: true },
-              },
-            ];
-          }),
-        lookupHospitalizations: async () => ({ ok: false }),
-        fetchPatientFlowReport: async () => ({ base64: '' }),
-        fetchStatisticalDischarge: async () => ({ base64: '' }),
-      },
-    });
-    const saved = await reread(applyCensusImportDiff(current, diff, ctx).record);
-    expect(saved.discharges[0]).toMatchObject({ movementDate: census, time: '15:20' });
-  }
-);
+      lookupHospitalizations: async () => ({ ok: false }),
+      fetchPatientFlowReport: async () => ({ base64: '' }),
+      fetchStatisticalDischarge: async () => ({ base64: '' }),
+    },
+  });
+  const saved = await reread(applyCensusImportDiff(current, diff, ctx).record);
+  expect(saved.discharges).toHaveLength(1);
+  expect(saved.discharges[0]).toMatchObject({ movementDate: census, time: '15:20' });
+  expect(diff.conflicts).toEqual([]);
+});

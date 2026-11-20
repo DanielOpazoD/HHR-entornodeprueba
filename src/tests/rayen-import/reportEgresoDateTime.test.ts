@@ -119,8 +119,14 @@ describe('parseStatisticalEgresoInstant', () => {
       '2026-11-06t20:20:00z',
       '2026-11-06 20:20:00+00:00',
       '2026-11-06T17:20:00-0300',
+      '2026-11-6 20:20:00+0000',
+      '2026-11-06 20:20:00+0000',
+      '2026-11-006 20:20:00+0000',
     ])
       expect(parseStatisticalEgresoInstant(value)).toMatchObject(expected);
+    // Read as integers, an impossible day is still rejected whatever its width.
+    expect(parseStatisticalEgresoInstant('2026-11-031 10:00:00+0000')).toBeNull();
+    expect(parseStatisticalEgresoInstant('2026-02-030T18:00:00Z')).toBeNull();
   });
 });
 

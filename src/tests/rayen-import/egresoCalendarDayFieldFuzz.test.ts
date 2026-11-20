@@ -114,6 +114,10 @@ const BASE_ROWS: [string, EgresoReportRow][] = [
   ['antigua 15:20', row('', { correctedDay: census, correctedTime: '15:20' })],
   ['masiva sábado 08:30', row('07-11-2026 08:30')],
   ['mes 13', row('06-11-2026 12:15', { correctedDay: '2026-13-06', correctedTime: '07:00' })],
+  // The same instant with the day written as 6, 06 and 006 (Date reads all three as day 6).
+  ['instante día 6', row('2026-11-6 20:20:00+0000')],
+  ['instante día 06', row('2026-11-06 20:20:00+0000')],
+  ['instante día 006', row('2026-11-006 20:20:00+0000')],
 ];
 
 // Values that are not a valid text calendar day coherent with these rows (types and formats).
@@ -182,6 +186,42 @@ const MAIN_RESULTS: Record<string, unknown> = {
     conflicts: [],
     occupied: false,
     historyConflicts: 1,
+    historyEncounters: 0,
+  },
+  'instante día 6': {
+    stamp: [null, null],
+    clinical: { iso: '2026-11-06', calendarIso: '2026-11-06', hhmm: '15:20' },
+    latest: true,
+    movements: [],
+    conflicts: [
+      'El informe de Gestión de Camas contiene una fecha/hora de egreso inválida para el RUN 123456785; no se aplicó.',
+    ],
+    occupied: true,
+    historyConflicts: 0,
+    historyEncounters: 0,
+  },
+  'instante día 06': {
+    stamp: [null, null],
+    clinical: { iso: '2026-11-06', calendarIso: '2026-11-06', hhmm: '15:20' },
+    latest: true,
+    movements: [],
+    conflicts: [
+      'El informe de Gestión de Camas contiene una fecha/hora de egreso inválida para el RUN 123456785; no se aplicó.',
+    ],
+    occupied: true,
+    historyConflicts: 0,
+    historyEncounters: 0,
+  },
+  'instante día 006': {
+    stamp: [null, null],
+    clinical: { iso: '2026-11-06', calendarIso: '2026-11-06', hhmm: '15:20' },
+    latest: true,
+    movements: [],
+    conflicts: [
+      'El informe de Gestión de Camas contiene una fecha/hora de egreso inválida para el RUN 123456785; no se aplicó.',
+    ],
+    occupied: true,
+    historyConflicts: 0,
     historyEncounters: 0,
   },
 };
