@@ -13,8 +13,10 @@ vi.mock('@/app-shell/runtime/AuthenticatedAppShell', () => ({
 }));
 
 vi.mock('@/app-shell/bootstrap/BootstrapCensusChrome', () => ({
-  BootstrapRouteChrome: () => (
-    <div data-testid="bootstrap-route-chrome">Bootstrap Route Chrome</div>
+  BootstrapRouteChrome: ({ day }: { day: string }) => (
+    <div data-testid="bootstrap-route-chrome" data-day={day}>
+      Bootstrap Route Chrome
+    </div>
   ),
 }));
 
@@ -123,6 +125,7 @@ describe('App loading behavior', () => {
   it('keeps the login shell (never the legacy spinner) on the root route while bootstrap is loading', () => {
     mockUseAppBootstrapState.mockReturnValue({
       status: 'loading',
+      dateNav: { currentDateString: '2026-11-19' },
       phase: 'bootstrapping',
       auth: createAuth('unauthenticated'),
     });
@@ -138,6 +141,7 @@ describe('App loading behavior', () => {
 
     mockUseAppBootstrapState.mockReturnValue({
       status: 'loading',
+      dateNav: { currentDateString: '2026-11-19' },
       phase: 'rehydrating',
       auth: createAuth('unauthenticated'),
     });
@@ -164,6 +168,7 @@ describe('App loading behavior', () => {
 
     mockUseAppBootstrapState.mockReturnValue({
       status: 'loading',
+      dateNav: { currentDateString: '2026-11-19' },
       phase: 'rehydrating',
       auth: createAuth('unauthenticated', {
         authRuntime: {
@@ -189,6 +194,33 @@ describe('App loading behavior', () => {
     expect(screen.queryByTestId('login-page')).not.toBeInTheDocument();
   });
 
+  it('shows the day already chosen, not the opening day, while another account is admitted', () => {
+    window.sessionStorage.setItem('hhr_logged_this_session', 'true');
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, pathname: '/census', search: '?date=2026-11-18' },
+      writable: true,
+    });
+    const chosen = { currentDateString: '2026-11-18' };
+    mockUseAppBootstrapState.mockReturnValue({
+      status: 'authenticated',
+      phase: 'authenticated',
+      auth: createAuth('authorized'),
+      dateNav: chosen,
+    });
+    const { rerender } = render(<App openingDay="2026-11-19" />);
+
+    mockUseAppBootstrapState.mockReturnValue({
+      status: 'loading',
+      phase: 'rehydrating',
+      auth: createAuth('unauthenticated'),
+      dateNav: chosen,
+    });
+    rerender(<App openingDay="2026-11-19" />);
+
+    expect(screen.getByTestId('bootstrap-route-chrome')).toHaveAttribute('data-day', '2026-11-18');
+  });
+
   it('does not suppress the real login page on the root route after a stale same-tab hint', async () => {
     window.sessionStorage.setItem('hhr_logged_this_session', 'true');
 
@@ -210,6 +242,7 @@ describe('App loading behavior', () => {
   it('avoids the login loading shell while an authenticated session is still rehydrating on the root route', () => {
     mockUseAppBootstrapState.mockReturnValue({
       status: 'loading',
+      dateNav: { currentDateString: '2026-11-19' },
       phase: 'rehydrating',
       auth: {
         sessionState: {
@@ -229,6 +262,7 @@ describe('App loading behavior', () => {
   it('keeps root-route bootstrapping visually silent once auth is already known', () => {
     mockUseAppBootstrapState.mockReturnValue({
       status: 'loading',
+      dateNav: { currentDateString: '2026-11-19' },
       phase: 'bootstrapping',
       auth: createAuth('authorized'),
     });
@@ -253,6 +287,7 @@ describe('App loading behavior', () => {
 
     mockUseAppBootstrapState.mockReturnValue({
       status: 'loading',
+      dateNav: { currentDateString: '2026-11-19' },
       phase: 'rehydrating',
       auth: createAuth('authorized'),
     });
@@ -280,6 +315,7 @@ describe('App loading behavior', () => {
 
     mockUseAppBootstrapState.mockReturnValue({
       status: 'loading',
+      dateNav: { currentDateString: '2026-11-19' },
       phase: 'rehydrating',
       auth: createAuth('unauthenticated'),
     });
@@ -307,6 +343,7 @@ describe('App loading behavior', () => {
 
     mockUseAppBootstrapState.mockReturnValue({
       status: 'loading',
+      dateNav: { currentDateString: '2026-11-19' },
       phase: 'rehydrating',
       auth: createAuth('authorized'),
     });
@@ -333,6 +370,7 @@ describe('App loading behavior', () => {
 
     mockUseAppBootstrapState.mockReturnValue({
       status: 'loading',
+      dateNav: { currentDateString: '2026-11-19' },
       phase: 'bootstrapping',
       auth: createAuth('authorized'),
     });

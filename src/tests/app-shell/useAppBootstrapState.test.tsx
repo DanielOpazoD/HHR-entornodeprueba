@@ -383,5 +383,7 @@ describe('useAppBootstrapState', () => {
 
     expect(result.status).toBe('loading');
     expect(result.phase).toBe('bootstrapping');
+    // The census day selection survives a session admission, so the header can keep showing it.
+    expect(result.status === 'loading' && result.dateNav).toBe(dateNav);
   });
 });

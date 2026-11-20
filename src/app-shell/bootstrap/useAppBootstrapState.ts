@@ -15,6 +15,8 @@ export type AppBootstrapState =
       status: 'loading';
       phase: 'bootstrapping' | 'rehydrating';
       auth: AuthContextType;
+      /** The census day selection, kept while a session is admitted so the header shows it. */
+      dateNav: UseDateNavigationReturn;
     }
   | {
       status: 'unauthenticated';
@@ -140,6 +142,7 @@ export const buildAppBootstrapState = ({
       status: 'loading',
       phase: auth.isLoading ? resolveAppLoadingPhase(auth) : 'rehydrating',
       auth,
+      dateNav,
     };
   }
 
