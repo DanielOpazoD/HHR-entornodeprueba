@@ -5,6 +5,7 @@ vi.unmock('@/hooks/useAuthState');
 
 import { useAppState } from '@/hooks/useAppState';
 import { useAuthState } from '@/hooks/useAuthState';
+import { resolveOpeningCensusDay } from '@/app-shell/bootstrap/openingCensusDay';
 import { useDateNavigation } from '@/hooks/useDateNavigation';
 import { useVersionCheck } from '@/hooks/useVersionCheck';
 import type { AuthSessionState } from '@/types/authSessionTypes';
@@ -51,7 +52,7 @@ const setOnlineStatus = (online: boolean) => {
 const useLifecycleHarness = () => {
   const auth = useAuthState();
   const app = useAppState();
-  const dateNav = useDateNavigation();
+  const dateNav = useDateNavigation(resolveOpeningCensusDay());
   useVersionCheck();
 
   return { auth, app, dateNav };

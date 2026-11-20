@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { BootstrapRouteChrome } from '@/app-shell/bootstrap/BootstrapCensusChrome';
-import { useDateNavigation } from '@/hooks/useDateNavigation';
+import { resolveOpeningCensusDay } from '@/app-shell/bootstrap/openingCensusDay';
 import { signOut as mockedAuthSessionSignOut } from '@/services/auth/authSession';
 import { clearSessionScopedClientState } from '@/services/storage/sessionScopedStorageService';
 
@@ -51,7 +51,7 @@ describe('BootstrapRouteChrome', () => {
   it('renders census chrome and preserves the route date when bootstrapping census', () => {
     window.history.replaceState({}, '', '/census?date=2026-04-22');
 
-    render(<BootstrapRouteChrome />);
+    render(<BootstrapRouteChrome day={resolveOpeningCensusDay()} />);
 
     expect(document.documentElement).toHaveClass('aesthetic-typography');
     expect(screen.getByTestId('bootstrap-navbar')).toHaveTextContent('CENSUS');
@@ -88,7 +88,7 @@ describe('BootstrapRouteChrome', () => {
       vi.setSystemTime(new Date('2027-01-01T03:30:00Z'));
       try {
         window.history.replaceState({}, '', route);
-        render(<BootstrapRouteChrome />);
+        render(<BootstrapRouteChrome day={resolveOpeningCensusDay()} />);
       } finally {
         vi.useRealTimers();
       }
@@ -124,37 +124,35 @@ describe('BootstrapRouteChrome', () => {
     ['/census?date=2026-11-006', NIGHT_SHIFT_CLINICAL_DAY],
     ['/census?date=texto', NIGHT_SHIFT_CLINICAL_DAY],
     ['/census?date=', NIGHT_SHIFT_CLINICAL_DAY],
-  ])('the header and the census open %s on the same day', (route, expectedDay) => {
+  ])('the page opens %s on one day, shown by the header', (route, expectedDay) => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-11-20T12:30:00Z'));
-    let censusDay: string;
+    let openingDay: string;
     try {
       window.history.replaceState({}, '', route);
-      render(<BootstrapRouteChrome />);
-      const census = renderHook(useDateNavigation);
-      censusDay = census.result.current.currentDateString;
-      census.unmount();
+      openingDay = resolveOpeningCensusDay();
+      render(<BootstrapRouteChrome day={openingDay} />);
     } finally {
       vi.useRealTimers();
     }
 
+    expect(openingDay).toBe(expectedDay);
     expect(mockDateStrip).toHaveBeenLastCalledWith(
       expect.objectContaining({ currentDateString: expectedDay })
     );
-    expect(censusDay).toBe(expectedDay);
   });
 
   it('honors the saved typography preference during bootstrap', () => {
     window.history.replaceState({}, '', '/census');
     window.localStorage.setItem('hhr_ui_settings', JSON.stringify({ modernTypography: false }));
-    render(<BootstrapRouteChrome />);
+    render(<BootstrapRouteChrome day={resolveOpeningCensusDay()} />);
     expect(document.documentElement).not.toHaveClass('aesthetic-typography');
   });
 
   it('renders the nursing handoff chrome for nursing-handoff refreshes', () => {
     window.history.replaceState({}, '', '/nursing-handoff');
 
-    render(<BootstrapRouteChrome />);
+    render(<BootstrapRouteChrome day={resolveOpeningCensusDay()} />);
 
     expect(screen.getByTestId('bootstrap-navbar')).toHaveTextContent('NURSING_HANDOFF');
     expect(screen.getByTestId('bootstrap-date-strip')).toHaveTextContent('NURSING_HANDOFF');
@@ -191,7 +189,7 @@ describe('BootstrapRouteChrome', () => {
     });
 
     try {
-      render(<BootstrapRouteChrome />);
+      render(<BootstrapRouteChrome day={resolveOpeningCensusDay()} />);
 
       const navbarProps = mockNavbar.mock.calls[0][0] as { onLogout: () => void };
       act(() => {

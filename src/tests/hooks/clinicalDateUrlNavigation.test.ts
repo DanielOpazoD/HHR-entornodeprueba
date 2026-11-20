@@ -1,10 +1,11 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useAppState } from '@/hooks/useAppState';
+import { resolveOpeningCensusDay } from '@/app-shell/bootstrap/openingCensusDay';
 import { useDateNavigation } from '@/hooks/useDateNavigation';
 
 const useClinicalNavigation = () => {
-  const dateNav = useDateNavigation();
+  const dateNav = useDateNavigation(resolveOpeningCensusDay());
   const ui = useAppState({ date: dateNav.currentDateString });
   return { dateNav, ui };
 };
