@@ -107,10 +107,20 @@ describe('parseStatisticalEgresoInstant', () => {
   it('leaves an impossible, unzoned or missing stamp unconfirmed instead of rolling it over', () => {
     expect(parseStatisticalEgresoInstant('2026-02-30T18:00:00Z')).toBeNull();
     expect(parseStatisticalEgresoInstant('2026-11-31T10:00:00-0300')).toBeNull();
-    expect(parseStatisticalEgresoInstant('2026-11-05T24:00:00Z')).toBeNull();
-    expect(parseStatisticalEgresoInstant('2026-11-05T00:30:00+1500')).toBeNull();
+    expect(parseStatisticalEgresoInstant('2026-02-30t18:00:00z')).toBeNull();
     expect(parseStatisticalEgresoInstant('2026-11-05T00:30:00')).toBeNull();
     expect(parseStatisticalEgresoInstant('')).toBeNull();
+  });
+
+  it('still accepts every instant main accepted: any case, a space and a compact offset', () => {
+    const expected = { iso: '2026-11-06', calendarIso: '2026-11-06', hhmm: '15:20' };
+    for (const value of [
+      '2026-11-06T20:20:00Z',
+      '2026-11-06t20:20:00z',
+      '2026-11-06 20:20:00+00:00',
+      '2026-11-06T17:20:00-0300',
+    ])
+      expect(parseStatisticalEgresoInstant(value)).toMatchObject(expected);
   });
 });
 

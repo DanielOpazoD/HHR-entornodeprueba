@@ -13,7 +13,7 @@
 
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
-import { buildSortableLocalTimestamp, parseStrictIsoInstant } from './localTimestamp';
+import { buildSortableLocalTimestamp } from './localTimestamp';
 
 export interface StatisticalEgresoStamp {
   /** HHR clinical census day (YYYY-MM-DD), after the 08:00/09:00 handoff rule. */
@@ -132,16 +132,16 @@ export const parseStatisticalEgresoStamp = (fechaEgreso: string): StatisticalEgr
 
 /**
  * Converts an API timestamp carrying an explicit offset/UTC marker into the Rapa Nui census zone.
- * The compact offset (`-0300`) is the same instant as `-03:00`; an impossible calendar day or
- * offset is rejected by the strict parser instead of rolling over inside `Date`.
+ * Accepts what `Date` reads (any case, space or `T`, compact offset), except an impossible
+ * calendar day, which `Date` would roll over (30 February → 2 March): that egreso stays unconfirmed.
  */
 export const parseStatisticalEgresoInstant = (value: string): StatisticalEgresoStamp | null => {
-  const normalized = (value || '')
-    .trim()
-    .replace(/z$/, 'Z')
-    .replace(/([+-]\d{2})(\d{2})$/, '$1:$2');
-  const instant = parseStrictIsoInstant(normalized);
-  return instant ? stampFromInstant(instant) : null;
+  const normalized = (value || '').trim();
+  if (!/(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized)) return null;
+  const day = /^(\d{4})-(\d{2})-(\d{2})/.exec(normalized);
+  if (day && !buildSortableLocalTimestamp(Number(day[1]), Number(day[2]), Number(day[3])))
+    return null;
+  return stampFromInstant(new Date(normalized));
 };
 
 /**
@@ -152,9 +152,11 @@ export const parseStatisticalEgresoInstant = (value: string): StatisticalEgresoS
 export const officialCalendarDay = (
   correctedDay: string | undefined,
   correctedTime: string | undefined,
-  calendarDay: string | undefined
+  calendarDay: unknown
 ): string | undefined => {
-  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(calendarDay ?? '');
+  // Only a text YYYY-MM-DD counts; any other value (a list, a number, null) is absent.
+  if (typeof calendarDay !== 'string') return undefined;
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(calendarDay);
   return day &&
     buildSortableLocalTimestamp(Number(day[1]), Number(day[2]), Number(day[3])) &&
     /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(correctedTime ?? '') &&
