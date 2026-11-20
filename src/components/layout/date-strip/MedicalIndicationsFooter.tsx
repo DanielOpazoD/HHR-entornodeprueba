@@ -4,6 +4,8 @@ import { Printer, Save, UserRound } from 'lucide-react';
 interface MedicalIndicationsFooterProps {
   treatingDoctor: string;
   setTreatingDoctor: (value: string) => void;
+  /** False while the patient's record is loading or failed to load. */
+  canEdit: boolean;
   isSavingRecord: boolean;
   isPrinting: boolean;
   canSave: boolean;
@@ -16,6 +18,7 @@ interface MedicalIndicationsFooterProps {
 export const MedicalIndicationsFooter: React.FC<MedicalIndicationsFooterProps> = ({
   treatingDoctor,
   setTreatingDoctor,
+  canEdit,
   isSavingRecord,
   isPrinting,
   canSave,
@@ -30,8 +33,9 @@ export const MedicalIndicationsFooter: React.FC<MedicalIndicationsFooterProps> =
       Médico tratante
     </label>
     <input
-      className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] text-slate-700 shadow-sm transition-all placeholder:text-slate-300 focus:border-medical-400 focus:outline-none focus:ring-2 focus:ring-medical-500/10"
+      className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] text-slate-700 shadow-sm transition-all placeholder:text-slate-300 focus:border-medical-400 focus:outline-none focus:ring-2 focus:ring-medical-500/10 disabled:cursor-not-allowed disabled:opacity-50"
       value={treatingDoctor}
+      disabled={!canEdit}
       onChange={event => setTreatingDoctor(event.target.value)}
     />
     <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:flex-nowrap">

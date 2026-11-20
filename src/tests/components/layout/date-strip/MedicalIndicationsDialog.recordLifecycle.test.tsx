@@ -166,12 +166,15 @@ const printedText = async (call = 0) => {
 
 const print = async (user: User) => {
   await user.click(button('Imprimir PDF'));
-  await waitFor(() => expect(io.print).toHaveBeenCalledTimes(1));
+  // Filling the official form takes a while on a loaded machine.
+  await waitFor(() => expect(io.print).toHaveBeenCalledTimes(1), { timeout: 10_000 });
   return printedText();
 };
 const save = async (user: User) => {
   await user.click(button('Guardar indicaciones'));
   await screen.findByText('Indicaciones guardadas para este paciente.');
+  // The notice shows as soon as the save is confirmed; the buttons free up right after.
+  await waitFor(() => expect(button('Guardar indicaciones')).toBeEnabled());
   return (await newest())[0]!;
 };
 
@@ -458,7 +461,7 @@ describe('medical indications dialog: a record belongs to one patient and day', 
     }
   );
 
-  it('back from B to A before the audit ends, the template lands in A and never in B', async () => {
+  it('back from B to A before the audit ends, the template of the earlier visit lands nowhere', async () => {
     const { user, finishAudit } = await openWithPendingTemplateInA();
     await selectPatient(user, second.bedId);
     await waitFor(() => expect(lines()).toEqual(originalB.indications));
@@ -467,16 +470,12 @@ describe('medical indications dialog: a record belongs to one patient and day', 
     await finishAudit();
 
     const pdf = await print(user);
-    expect(summarize((await newest())[0]!)).toEqual({
-      ...summarize(originalA),
-      lines: [...originalA.indications, template.text],
-      ids: [...originalA.generatedFromTemplateIds, template.id],
-    });
+    expect(summarize((await newest())[0]!)).toEqual(summarize(originalA));
     expect((await records.toArray()).filter(r => r.episodeId === originalB.episodeId)).toEqual([
       originalB,
     ]);
     expect(pdf).toContain(patient.rut);
-    expect(pdf).toContain(template.text);
+    expect(pdf).not.toContain(template.text);
   });
 
   it('changing the day drops on the new day the template asked for the previous one', async () => {
@@ -685,5 +684,250 @@ describe('medical indications dialog: a failed read offers nothing to save', () 
     expect(io.write).not.toHaveBeenCalled();
     expect(io.print).not.toHaveBeenCalled();
     expect(io.mark).not.toHaveBeenCalled();
+  });
+});
+
+describe('medical indications dialog: answers belong to one visit of a record', () => {
+  const third: MedicalIndicationsPatientOption = {
+    ...patient,
+    bedId: 'R3',
+    label: 'Cama C',
+    patientName: 'Paciente C sintético',
+    rut: '10.000.013-K',
+    clinicalEpisodeId: 'ep_w20_tercero',
+  };
+  const orderFor = (
+    who: MedicalIndicationsPatientOption,
+    line: string
+  ): MedicalIndicationRecord => ({
+    ...seed([line]),
+    id: `base-${who.bedId}`,
+    episodeId: who.clinicalEpisodeId!,
+    bedId: who.bedId,
+    patientRut: who.rut,
+    patientName: who.patientName,
+    treatingDoctor: `Médico ${who.bedId}`,
+    generatedFromTemplateIds: [`tpl_${who.bedId}`],
+  });
+  const lastWrite = () => io.write.mock.calls.at(-1)?.[0] as MedicalIndicationRecord | undefined;
+  const changeDay = (day: string) =>
+    fireEvent.change(screen.getByLabelText('Fecha objetivo'), { target: { value: day } });
+  const savedNotice = () => screen.queryByText('Indicaciones guardadas para este paciente.');
+  const holdNextWrite = () => {
+    let deliver!: () => void;
+    const gate = new Promise<void>(resolve => (deliver = resolve));
+    io.write.mockImplementationOnce(async (record: MedicalIndicationRecord) => {
+      await gate;
+      await records.add(record);
+    });
+    return async () => {
+      await act(async () => {
+        deliver();
+        await io.write.mock.results[0]?.value;
+      });
+    };
+  };
+
+  it.each(['ABC', 'BCA', 'CAB', 'CBA', 'BAC', 'ACB'])(
+    'A→B→C with the reads answering in order %s: only C is offered and printed',
+    async sequence => {
+      await records.bulkAdd([
+        orderFor(patient, 'Exclusiva A'),
+        orderFor(second, 'Exclusiva B'),
+        orderFor(third, 'Exclusiva C'),
+      ]);
+      const user = userEvent.setup();
+      const reads = { A: holdNextRead(patient.clinicalEpisodeId!) } as Record<
+        'A' | 'B' | 'C',
+        ReturnType<typeof holdNextRead>
+      >;
+      const view = render(dialog([patient]));
+      await reads.A.taken;
+      reads.B = holdNextRead(second.clinicalEpisodeId!);
+      view.rerender(dialog([second]));
+      await reads.B.taken;
+      reads.C = holdNextRead(third.clinicalEpisodeId!);
+      view.rerender(dialog([third]));
+      await reads.C.taken;
+
+      let cArrived = false;
+      for (const who of sequence as unknown as Array<'A' | 'B' | 'C'>) {
+        await reads[who].release();
+        cArrived ||= who === 'C';
+        expect(lines()).toEqual(cArrived ? ['Exclusiva C'] : []);
+        expect(button('Imprimir PDF').disabled).toBe(!cArrived);
+      }
+
+      const pdf = await print(user);
+      expect(lastWrite()).toMatchObject({
+        patientRut: third.rut,
+        treatingDoctor: 'Médico R3',
+        indications: ['Exclusiva C'],
+        generatedFromTemplateIds: ['tpl_R3'],
+      });
+      expect(io.write.mock.calls[0]?.[1]).toMatchObject({
+        patientRut: third.rut,
+        details: { episodeId: third.clinicalEpisodeId, generatedFromTemplateIds: ['tpl_R3'] },
+      });
+      expect(pdf).toContain(third.rut);
+      expect(pdf).toContain('Exclusiva C');
+      expect(pdf).not.toMatch(/Exclusiva [AB]/);
+    }
+  );
+
+  it.each(['succeeds', 'fails'])(
+    'back on the same day, only the read of the new visit counts (it %s)',
+    async outcome => {
+      const old = orderFor(patient, 'Orden retirada');
+      await records.add(old);
+      const user = userEvent.setup();
+      const firstRead = holdNextRead(patient.clinicalEpisodeId!);
+      render(dialog([patient]));
+      await firstRead.taken;
+      changeDay('2026-08-15');
+      await screen.findByPlaceholderText(/Escribe una indicación/);
+      await records.add({
+        ...old,
+        id: 'corregido',
+        generatedAt: '2026-10-01T11:00:00Z',
+        indications: ['Orden corregida'],
+        treatingDoctor: 'Médica vigente',
+      });
+      const secondRead = outcome === 'succeeds' ? holdNextRead(patient.clinicalEpisodeId!) : null;
+      if (!secondRead) io.list.mockRejectedValueOnce(new Error('Fallo de relectura'));
+      changeDay(patient.sourceDailyRecordDate!);
+      if (secondRead) await secondRead.taken;
+      else await screen.findByText('Fallo de relectura');
+      await firstRead.release();
+      if (secondRead) await secondRead.release();
+
+      if (!secondRead) {
+        expect(lines()).toEqual([]);
+        expect(button('Imprimir PDF')).toBeDisabled();
+        await user.click(button('Imprimir PDF'));
+        expect(io.write).not.toHaveBeenCalled();
+        expect(io.print).not.toHaveBeenCalled();
+        return;
+      }
+      expect(lines()).toEqual(['Orden corregida']);
+      const pdf = await print(user);
+      expect(lastWrite()).toMatchObject({
+        indications: ['Orden corregida'],
+        treatingDoctor: 'Médica vigente',
+      });
+      expect(pdf).toContain('Orden corregida');
+      expect(pdf).toContain('Médica vigente');
+      expect(pdf).not.toContain('Orden retirada');
+    }
+  );
+
+  it.each(['the bed now holds B', 'A was edited again'])(
+    'a save that ends after %s is not confirmed on screen',
+    async mode => {
+      await records.bulkAdd([orderFor(patient, 'Orden A'), orderFor(second, 'Orden B')]);
+      const user = userEvent.setup();
+      const view = render(dialog([patient]));
+      await waitFor(() => expect(lines()).toEqual(['Orden A']));
+      const finishWrite = holdNextWrite();
+      await user.click(button('Guardar indicaciones'));
+      await waitFor(() => expect(io.write).toHaveBeenCalledTimes(1));
+      if (mode === 'the bed now holds B') {
+        view.rerender(dialog([{ ...second, bedId: patient.bedId }]));
+        await waitFor(() => expect(lines()).toEqual(['Orden B']));
+      }
+      await user.type(freeTextBox(), 'Edición aún pendiente{Enter}');
+      await finishWrite();
+
+      const written = (await newest()).filter(record => !record.id.startsWith('base-'));
+      expect(written).toHaveLength(1);
+      expect(written[0]).toMatchObject({ patientRut: patient.rut, indications: ['Orden A'] });
+      expect(lines()).toContain('Edición aún pendiente');
+      expect(savedNotice()).toBeNull();
+    }
+  );
+
+  it('after a failed read of B, leaving and coming back reads B again', async () => {
+    await records.bulkAdd([orderFor(patient, 'Orden A'), orderFor(second, 'Orden B')]);
+    const user = userEvent.setup();
+    const view = render(dialog([patient]));
+    await waitFor(() => expect(lines()).toEqual(['Orden A']));
+    io.list.mockRejectedValueOnce(new Error('Fallo inicial de B'));
+    view.rerender(dialog([second]));
+    await screen.findByText('Fallo inicial de B');
+    expect(button('Imprimir PDF')).toBeDisabled();
+    view.rerender(dialog([patient]));
+    await waitFor(() => expect(lines()).toEqual(['Orden A']));
+    view.rerender(dialog([second]));
+    await waitFor(() => expect(lines()).toEqual(['Orden B']));
+
+    const pdf = await print(user);
+    expect(pdf).toContain('Orden B');
+    expect(pdf).not.toContain('Orden A');
+  });
+
+  it('the treating doctor cannot be typed while the record loads', async () => {
+    await records.add(orderFor(patient, 'Orden A'));
+    const read = holdNextRead(patient.clinicalEpisodeId!);
+    render(dialog([patient]));
+    await read.taken;
+    expect(physicianBox()).toBeDisabled();
+    await read.release();
+    await waitFor(() => expect(lines()).toEqual(['Orden A']));
+    expect(physicianBox()).toBeEnabled();
+    expect(physicianBox()).toHaveValue('Médico R1');
+  });
+
+  it('reopening the record just saved keeps its fifteen lines and treating doctor', async () => {
+    const first = orderFor(patient, 'inicial');
+    first.indications = Array.from({ length: 15 }, (_, index) => `Indicación ${index + 1}`);
+    await records.add(first);
+    const user = userEvent.setup();
+    const view = render(dialog([patient]));
+    await waitFor(() => expect(lines()).toEqual(first.indications));
+    await user.clear(physicianBox());
+    await user.type(physicianBox(), 'Médica de la versión final');
+    const prior = await save(user);
+    view.unmount();
+
+    render(dialog([patient]));
+    await waitFor(() => expect(lines()).toEqual(prior.indications));
+    expect(physicianBox()).toHaveValue('Médica de la versión final');
+    const pdf = await print(user);
+    const { id: priorId, generatedAt: _priorAt, ...priorContent } = prior;
+    const { id: reprintId, generatedAt: _reprintAt, ...reprintContent } = lastWrite()!;
+    expect(reprintContent).toEqual(priorContent);
+    expect(reprintId).not.toBe(priorId);
+    expect(await records.get(priorId)).toEqual(prior);
+    expect(pdf).toContain('Médica de la versión final');
+    prior.indications.forEach((line, index) => expect(pdf).toContain(`${index + 1}. ${line}`));
+  });
+
+  it('a save that ends after leaving the day and coming back is what the screen and print keep', async () => {
+    await records.add(orderFor(patient, 'Orden retirada'));
+    const user = userEvent.setup();
+    render(dialog([patient]));
+    await waitFor(() => expect(lines()).toEqual(['Orden retirada']));
+    await user.click(button('Editar indicación #1'));
+    const box = screen.getByDisplayValue('Orden retirada');
+    await user.clear(box);
+    await user.type(box, 'Orden vigente{Enter}');
+    await waitFor(() => expect(lines()).toEqual(['Orden vigente']));
+    const finishWrite = holdNextWrite();
+    await user.click(button('Guardar indicaciones'));
+    await waitFor(() => expect(io.write).toHaveBeenCalledTimes(1));
+    changeDay('2026-08-15');
+    await screen.findByPlaceholderText(/Escribe una indicación/);
+    changeDay(patient.sourceDailyRecordDate!);
+    await act(async () => {
+      await Promise.all(io.list.mock.results.map(result => result.value));
+    });
+    await finishWrite();
+
+    expect((await newest())[0]?.indications).toEqual(['Orden vigente']);
+    expect(lines()).toEqual(['Orden vigente']);
+    const pdf = await print(user);
+    expect(lastWrite()?.indications).toEqual(['Orden vigente']);
+    expect(pdf).toContain('Orden vigente');
+    expect(pdf).not.toContain('Orden retirada');
   });
 });

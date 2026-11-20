@@ -10,13 +10,15 @@ import {
 /**
  * The life cycle of the record the medical indications dialog edits, as one small state machine:
  *
- *   closed ──select──▶ loading(id) ──loaded──▶ ready(id, saved, draft)
- *                          │                       │
- *                          └──loadFailed──▶ failed(id)
+ *   closed ──select──▶ loading(visit) ──loaded──▶ ready(visit, saved, draft)
+ *                          │
+ *                          └──loadFailed──▶ failed(visit)
  *
- * `id` is the record's identity: the clinical episode (which names the patient) and the day, the
- * same pair the record is read and saved under. Every asynchronous answer (the read, a template
- * audit) carries the id that asked for it and is ignored when the dialog is on another id. Only
+ * A visit is one opening of a record: its `id` (the clinical episode, which names the patient, and
+ * the day: the pair the record is read and saved under) and a `request` number that grows with
+ * every opening, also across closing. Every asynchronous answer (the read, a template audit, a
+ * save) carries the visit that asked for it and only counts for that visit: leaving a day and
+ * coming back is a new visit with a new read, so an older answer can never replace it. Only
  * `ready` has a draft, so only `ready` can be saved, printed or receive a template.
  */
 
@@ -39,16 +41,32 @@ export interface MedicalIndicationsDraft {
   templateDidNotFit: boolean;
 }
 
+/** One opening of a record; see the module comment. */
+export interface MedicalIndicationsRecordVisit {
+  id: string;
+  request: number;
+}
+
 export type MedicalIndicationsRecordState =
-  | { status: 'closed' }
-  | { status: 'loading'; id: string; patient: MedicalIndicationsPatientOption; targetDate: string }
-  | {
+  | { status: 'closed'; request: number }
+  | (MedicalIndicationsRecordVisit & {
+      status: 'loading';
+      patient: MedicalIndicationsPatientOption;
+      targetDate: string;
+      /** A save of this record (from an earlier visit) that finished while this read runs. */
+      savedMeanwhile: MedicalIndicationRecord | null;
+    })
+  | (MedicalIndicationsRecordVisit & {
       status: 'ready';
-      id: string;
+      /** The newest version known for this record. */
       saved: MedicalIndicationRecord | null;
       draft: MedicalIndicationsDraft;
-    }
-  | { status: 'failed'; id: string; message: string };
+      /** The draft as the read left it: an untouched draft follows a newer save of the record. */
+      readDraft: MedicalIndicationsDraft;
+      /** The draft this visit saved, when the save finished with exactly it on screen. */
+      savedDraft: MedicalIndicationsDraft | null;
+    })
+  | (MedicalIndicationsRecordVisit & { status: 'failed'; message: string });
 
 export type MedicalIndicationsRecordEvent =
   /** The dialog shows this patient and day, or nothing (closed, no patient, no day). */
@@ -58,24 +76,30 @@ export type MedicalIndicationsRecordEvent =
     }
   | {
       type: 'loaded';
-      id: string;
+      visit: MedicalIndicationsRecordVisit;
       saved: MedicalIndicationRecord | null;
       patient: MedicalIndicationsPatientOption;
     }
-  | { type: 'loadFailed'; id: string; message: string }
-  | { type: 'saved'; id: string; record: MedicalIndicationRecord }
+  | { type: 'loadFailed'; visit: MedicalIndicationsRecordVisit; message: string }
+  | {
+      type: 'saved';
+      visit: MedicalIndicationsRecordVisit;
+      /** The draft that was on screen when the save was asked for. */
+      draft: MedicalIndicationsDraft;
+      record: MedicalIndicationRecord;
+    }
   | {
       type: 'templateAudited';
-      id: string;
+      visit: MedicalIndicationsRecordVisit;
       template: Pick<MedicalIndicationTemplate, 'id' | 'text'>;
     }
   | {
       type: 'edit';
-      id: string;
+      visit: MedicalIndicationsRecordVisit;
       update: (draft: MedicalIndicationsDraft) => MedicalIndicationsDraft;
     };
 
-export const CLOSED_RECORD: MedicalIndicationsRecordState = { status: 'closed' };
+export const CLOSED_RECORD: MedicalIndicationsRecordState = { status: 'closed', request: 0 };
 
 export const buildMedicalIndicationsRecordId = (
   patient: MedicalIndicationsPatientOption,
@@ -92,13 +116,13 @@ const activeLines = (lines: string[]) => lines.map(text => text.trim()).filter(B
 
 const draftFrom = (
   saved: MedicalIndicationRecord | null,
-  patient: MedicalIndicationsPatientOption
+  censusTreatingDoctor: string
 ): MedicalIndicationsDraft => ({
   reposo: saved?.reposo ?? '',
   regimen: saved?.regimen ?? '',
   kineType: saved?.kineType ?? 'ninguna',
   kineTimes: saved?.kineTimes ?? '',
-  treatingDoctor: saved ? saved.treatingDoctor : patient.treatingDoctor || '',
+  treatingDoctor: saved ? saved.treatingDoctor : censusTreatingDoctor,
   pendingNotes: saved?.pendingNotes ?? '',
   lines: padIndicationLines((saved?.indications ?? []).slice(0, INDICATIONS_LINES)),
   freeText: '',
@@ -168,8 +192,43 @@ export const replaceLine = (draft: MedicalIndicationsDraft, index: number, text:
   return { ...draft, lines: padIndicationLines(active) };
 };
 
-const isOn = (state: MedicalIndicationsRecordState, id: string) =>
-  state.status !== 'closed' && state.id === id;
+/** The newer of two versions of the same record (versions are never edited, only added). */
+const newest = (
+  left: MedicalIndicationRecord | null,
+  right: MedicalIndicationRecord | null
+): MedicalIndicationRecord | null => {
+  if (!left || !right) return left ?? right;
+  return right.generatedAt > left.generatedAt ? right : left;
+};
+
+const isVisit = (state: MedicalIndicationsRecordState, visit: MedicalIndicationsRecordVisit) =>
+  state.status !== 'closed' && state.id === visit.id && state.request === visit.request;
+
+/** A save finished for the record on screen. */
+const applySave = (
+  state: MedicalIndicationsRecordState,
+  event: Extract<MedicalIndicationsRecordEvent, { type: 'saved' }>
+): MedicalIndicationsRecordState => {
+  if (state.status === 'closed' || state.id !== event.visit.id) return state;
+  if (state.status === 'loading') {
+    return { ...state, savedMeanwhile: newest(state.savedMeanwhile, event.record) };
+  }
+  if (state.status === 'failed') return state;
+  if (state.request === event.visit.request) {
+    // Confirmed only when nothing was edited while the save was in flight.
+    return {
+      ...state,
+      saved: newest(state.saved, event.record),
+      savedDraft: state.draft === event.draft ? event.draft : state.savedDraft,
+    };
+  }
+  // Saved during an earlier visit, after this visit's read: the record moved on. An untouched
+  // draft follows it; an edited one keeps the edits (and never shows as saved).
+  if (newest(state.saved, event.record) !== event.record) return state;
+  if (state.draft !== state.readDraft) return { ...state, saved: event.record };
+  const draft = draftFrom(event.record, '');
+  return { ...state, saved: event.record, draft, readDraft: draft };
+};
 
 export const reduceMedicalIndicationsRecord = (
   state: MedicalIndicationsRecordState,
@@ -177,38 +236,51 @@ export const reduceMedicalIndicationsRecord = (
 ): MedicalIndicationsRecordState => {
   switch (event.type) {
     case 'select': {
-      if (!event.selection) return state.status === 'closed' ? state : CLOSED_RECORD;
+      if (!event.selection) {
+        return state.status === 'closed' ? state : { status: 'closed', request: state.request };
+      }
       const { patient, targetDate } = event.selection;
       const id = buildMedicalIndicationsRecordId(patient, targetDate);
       // A census refresh of the same patient and day keeps whatever is loaded or being edited.
-      if (isOn(state, id)) return state;
-      return { status: 'loading', id, patient, targetDate };
+      if (state.status !== 'closed' && state.id === id) return state;
+      return {
+        status: 'loading',
+        id,
+        request: state.request + 1,
+        patient,
+        targetDate,
+        savedMeanwhile: null,
+      };
     }
     case 'loaded': {
-      if (!isOn(state, event.id)) return state;
-      // A second answer for the same record never overwrites what is being edited.
-      if (state.status === 'ready') return { ...state, saved: event.saved };
+      if (!isVisit(state, event.visit)) return state;
+      // A second answer for the same visit never overwrites what is being edited.
+      if (state.status === 'ready') return { ...state, saved: newest(state.saved, event.saved) };
+      if (state.status !== 'loading') return state;
+      const saved = newest(event.saved, state.savedMeanwhile);
+      const draft = draftFrom(saved, event.patient.treatingDoctor || '');
       return {
         status: 'ready',
-        id: event.id,
-        saved: event.saved,
-        draft: draftFrom(event.saved, event.patient),
+        id: state.id,
+        request: state.request,
+        saved,
+        draft,
+        readDraft: draft,
+        savedDraft: null,
       };
     }
     case 'loadFailed':
-      return state.status === 'loading' && state.id === event.id
-        ? { status: 'failed', id: event.id, message: event.message }
+      return state.status === 'loading' && isVisit(state, event.visit)
+        ? { status: 'failed', id: state.id, request: state.request, message: event.message }
         : state;
     case 'saved':
-      return state.status === 'ready' && state.id === event.id
-        ? { ...state, saved: event.record }
-        : state;
+      return applySave(state, event);
     case 'templateAudited':
-      return state.status === 'ready' && state.id === event.id
+      return state.status === 'ready' && isVisit(state, event.visit)
         ? { ...state, draft: addTemplate(state.draft, event.template) }
         : state;
     case 'edit':
-      return state.status === 'ready' && state.id === event.id
+      return state.status === 'ready' && isVisit(state, event.visit)
         ? { ...state, draft: event.update(state.draft) }
         : state;
   }

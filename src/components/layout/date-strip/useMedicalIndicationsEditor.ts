@@ -22,6 +22,7 @@ import {
   removeLine,
   replaceLine,
   type MedicalIndicationsDraft,
+  type MedicalIndicationsRecordVisit,
 } from './medicalIndicationsRecordState';
 
 const defaultSelectedPatient = (patients: MedicalIndicationsPatientOption[]) => patients[0] ?? null;
@@ -88,13 +89,14 @@ export const useMedicalIndicationsEditor = ({
 
   React.useEffect(() => {
     if (record.status !== 'loading') return;
-    const { id, patient } = record;
+    const { patient } = record;
+    const visit = { id: record.id, request: record.request };
     executeGetLatestMedicalIndicationRecord({ patient, targetDate: record.targetDate })
-      .then(saved => dispatch({ type: 'loaded', id, saved, patient }))
+      .then(saved => dispatch({ type: 'loaded', visit, saved, patient }))
       .catch(error =>
         dispatch({
           type: 'loadFailed',
-          id,
+          visit,
           message:
             error instanceof Error
               ? error.message
@@ -103,15 +105,15 @@ export const useMedicalIndicationsEditor = ({
       );
   }, [record]);
 
-  const readyId = record.status === 'ready' ? record.id : null;
-  const draft = record.status === 'ready' ? record.draft : NO_DRAFT;
-  if (useChangedOnRender([readyId])) {
+  const ready = record.status === 'ready' ? record : null;
+  const draft = ready ? ready.draft : NO_DRAFT;
+  if (useChangedOnRender([ready?.id, ready?.request])) {
     setEditingIndex(null);
     setEditingValue('');
   }
 
   const edit = (update: (current: MedicalIndicationsDraft) => MedicalIndicationsDraft) => {
-    if (readyId) dispatch({ type: 'edit', id: readyId, update });
+    if (ready) dispatch({ type: 'edit', visit: { id: ready.id, request: ready.request }, update });
   };
   const editField =
     <Field extends keyof MedicalIndicationsDraft>(field: Field) =>
@@ -186,11 +188,18 @@ export const useMedicalIndicationsEditor = ({
     setIsPrinting,
     templateIds: draft.templateIds,
     templateDidNotFit: draft.templateDidNotFit,
-    /** The template audit finished; it lands only if record `id` is still the one being edited. */
-    insertTemplate: (id: string, template: Pick<MedicalIndicationTemplate, 'id' | 'text'>) =>
-      dispatch({ type: 'templateAudited', id, template }),
-    markSaved: (id: string, saved: MedicalIndicationRecord) =>
-      dispatch({ type: 'saved', id, record: saved }),
+    /** Whether what is on screen is exactly what this visit saved. */
+    isDraftSaved: Boolean(ready && ready.savedDraft === ready.draft),
+    /** The template audit finished; it lands only if `visit` is still the one on screen. */
+    insertTemplate: (
+      visit: MedicalIndicationsRecordVisit,
+      template: Pick<MedicalIndicationTemplate, 'id' | 'text'>
+    ) => dispatch({ type: 'templateAudited', visit, template }),
+    markSaved: (
+      visit: MedicalIndicationsRecordVisit,
+      savedDraft: MedicalIndicationsDraft,
+      saved: MedicalIndicationRecord
+    ) => dispatch({ type: 'saved', visit, draft: savedDraft, record: saved }),
     addIndication: () => edit(addFreeText),
     removeIndication: (index: number) => edit(current => removeLine(current, index)),
     moveIndication: (index: number, direction: 'up' | 'down') =>

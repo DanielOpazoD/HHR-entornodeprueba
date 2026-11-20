@@ -69,12 +69,10 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
   );
   const library = useMedicalIndicationsLibrary(libraryActor, isOpen);
   const [printError, setPrintError] = React.useState('');
-  const [saveMessage, setSaveMessage] = React.useState('');
   const [isSavingRecord, setIsSavingRecord] = React.useState(false);
 
   if (useChangedOnRender([isOpen]) && !isOpen) {
     setPrintError('');
-    setSaveMessage('');
     setIsSavingRecord(false);
   }
 
@@ -84,7 +82,9 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
 
   const persistMedicalIndicationRecord = async () => {
     if (!editor.selectedPatient || record.status !== 'ready') return null;
-    const recordId = record.id;
+    // What is saved is this visit's draft as it is now; the answer is credited to them only.
+    const visit = { id: record.id, request: record.request };
+    const savedDraft = record.draft;
     if (!currentUser || !auditLabel) {
       throw new Error('No se puede guardar el registro clínico sin usuario autenticado.');
     }
@@ -108,7 +108,7 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
         indications: editor.indications,
       },
     });
-    editor.markSaved(recordId, saved);
+    editor.markSaved(visit, savedDraft, saved);
     return saved;
   };
 
@@ -117,11 +117,8 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
 
     setIsSavingRecord(true);
     setPrintError('');
-    setSaveMessage('');
     try {
-      if (await persistMedicalIndicationRecord()) {
-        setSaveMessage('Indicaciones guardadas para este paciente.');
-      }
+      await persistMedicalIndicationRecord();
     } catch (error) {
       setPrintError(
         error instanceof Error
@@ -138,7 +135,6 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
 
     editor.setIsPrinting(true);
     setPrintError('');
-    setSaveMessage('');
     try {
       const record = await persistMedicalIndicationRecord();
       if (!record) return;
@@ -182,12 +178,12 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
       return;
     }
 
-    // The audit can end after the dialog moved to another patient or day: the answer carries the
-    // record it was asked for, and the editor drops it anywhere else.
-    const requestedForRecordId = record.id;
+    // The audit can end after the dialog moved to another patient or day, or came back to this
+    // one: the answer carries the visit it was asked for, and the editor drops it anywhere else.
+    const visit = { id: record.id, request: record.request };
     try {
       await library.markTemplateUsed(template);
-      editor.insertTemplate(requestedForRecordId, template);
+      editor.insertTemplate(visit, template);
     } catch (error) {
       library.setError(
         error instanceof Error ? error.message : 'No se pudo auditar la reutilización.'
@@ -261,9 +257,9 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
               <span>{notice}</span>
             </div>
           )}
-          {saveMessage && (
+          {editor.isDraftSaved && (
             <div className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] font-medium text-emerald-800">
-              {saveMessage}
+              Indicaciones guardadas para este paciente.
             </div>
           )}
 
@@ -315,6 +311,7 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
           <MedicalIndicationsFooter
             treatingDoctor={editor.treatingDoctor}
             setTreatingDoctor={editor.setTreatingDoctor}
+            canEdit={isReady}
             isSavingRecord={isSavingRecord}
             isPrinting={editor.isPrinting}
             canSave={isReady && editor.activeIndications.length > 0}
