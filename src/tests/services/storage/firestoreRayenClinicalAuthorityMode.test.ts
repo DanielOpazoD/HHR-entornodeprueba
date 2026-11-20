@@ -48,8 +48,23 @@ describe('firestoreRayenClinicalAuthorityMode', () => {
     }
   });
 
-  it('leaves the fence inactive when the policy cannot be read, so the rules decide', async () => {
+  it('reads the policy once more when the first read fails', async () => {
+    mocks.getDoc
+      .mockRejectedValueOnce(new Error('synthetic token race'))
+      .mockResolvedValueOnce(policySnapshot({ schemaVersion: 2, clinicalBatchMode: 'enforced' }));
+    await expect(isServerClinicalWriteFenceActive(runtime)).resolves.toBe(true);
+    expect(mocks.getDoc).toHaveBeenCalledTimes(2);
+  });
+
+  it('leaves the fence inactive after two failed reads, so the rules decide', async () => {
     mocks.getDoc.mockRejectedValue(new Error('offline'));
     await expect(isServerClinicalWriteFenceActive(runtime)).resolves.toBe(false);
+    expect(mocks.getDoc).toHaveBeenCalledTimes(2);
+  });
+
+  it('reads once when the first read answers', async () => {
+    mocks.getDoc.mockResolvedValue(policySnapshot(null));
+    await expect(isServerClinicalWriteFenceActive(runtime)).resolves.toBe(false);
+    expect(mocks.getDoc).toHaveBeenCalledOnce();
   });
 });

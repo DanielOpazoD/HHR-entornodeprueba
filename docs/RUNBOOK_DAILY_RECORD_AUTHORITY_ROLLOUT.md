@@ -22,8 +22,9 @@ por la autoridad.
   demás campos del día se escriben con su transacción por campo.
 - **Sin la cerca** (emulador y desarrollo sin política): el cliente escribe directo a Firestore,
   con las mismas validaciones locales.
-- **Si la política no se puede leer**: la ruta es directa y las reglas, que sí ven la política,
-  rechazan la escritura; la cola conserva la edición.
+- **Si la política no se puede leer**: se relee una vez, sin espera (main leía la política dos o
+  tres veces por guardado). Si la relectura también falla, la ruta es directa y las reglas, que sí
+  ven la política, rechazan la escritura; la cola conserva la edición.
 
 Ver [SYNC_CONCURRENCY_MODEL.md](SYNC_CONCURRENCY_MODEL.md).
 

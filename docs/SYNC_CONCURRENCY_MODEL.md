@@ -31,7 +31,8 @@ A client write is either published directly to Firestore or handed to a server c
   rules (`isRayenClinicalWriteFenceActive`, and `isSpecialtyDecisionFenceActive` for
   `specialtyPolicies/active` v1) then deny direct client creates of `dailyRecords/{date}` and any
   direct update that touches `beds` or `bedTypeOverrides`. The rules treat the v2 boundary as
-  irreversible. The client read is advisory: a failed read counts as no fence, and it does not
+  irreversible. The client read is advisory: a failed read is read once more at once (main read
+  the policy two or three times per save), two failed reads count as no fence, and it does not
   look at the specialty fence. The rules stay the final boundary; a bed patch they reject is
   retried once through the authority callable (`runPartialUpdatePersistWithPermissionFallbacks`).
 - **Routing** — `shouldRouteDailyRecordWriteViaCallable`: the fence (or the e2e override) and a
@@ -39,8 +40,8 @@ A client write is either published directly to Firestore or handed to a server c
   the fence alone.
 
 With the fence (production since 2026-11-07), full saves, queue publishes and bed-tree patches go
-through the authority callables, sent as `mode: 'enforced'`, including when an initial policy read
-fails and a later read confirms authority. A lost response can then be recovered from a
+through the authority callables, sent as `mode: 'enforced'`, including when the first policy read
+fails and the second confirms authority. A lost response can then be recovered from a
 server-only receipt for the exact mutation, without another write. The server still accepts
 `shadow` from older open tabs (only `dryRun: true` skips its write). Without the fence (emulator,
 development) every write is direct.

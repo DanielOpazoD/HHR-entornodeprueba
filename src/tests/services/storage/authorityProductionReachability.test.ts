@@ -59,15 +59,21 @@ const committed = () => ({
   cudyrLocked: true,
 });
 
-// A policy that cannot be read leaves the route direct and the rules refuse it; the emulator
-// covers that with real rules in productionAuthorityConfiguration ("cannot read the policy").
-describe('production authority route behind the server fence', () => {
+// A transient failure of one policy read is answered by the second read, as main's repeated reads
+// did; two failed reads leave the route direct and the rules refuse it (productionAuthorityConfiguration,
+// "a browser that cannot read the policy").
+describe.each([
+  ['read', false],
+  ['first read failed', true],
+])('production authority route behind the server fence (policy %s)', (_label, readFails) => {
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.policyRead.mockResolvedValue({
       exists: () => true,
       data: () => ({ schemaVersion: 2, clinicalBatchMode: 'enforced' }),
     });
+    if (readFails)
+      mocks.policyRead.mockRejectedValueOnce(new Error('Synthetic transient policy read failure'));
     mocks.invoke.mockResolvedValue({
       data: {
         success: true,
