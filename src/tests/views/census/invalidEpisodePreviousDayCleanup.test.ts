@@ -6,10 +6,11 @@ import {
 } from '@/features/census/controllers/invalidEpisodePreviousDayCleanup';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { AccreditedEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 // 13:00 in Rapa Nui on 2026-11-05: today's census day is 2026-11-05.
 const now = new Date('2026-11-05T18:00:00Z');
-const EPISODE = '900200';
+const EPISODE = '900200' as AccreditedEpisodeId;
 
 const yesterday = (overrides: Partial<DailyRecord> = {}): DailyRecord =>
   DataFactory.createMockDailyRecord('2026-11-04', {

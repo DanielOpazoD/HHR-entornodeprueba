@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 
+import { resolveLandingCalendarDay } from '@/utils/clinicalDateUtils';
 import { resolveCurrentClinicalDay } from '@/utils/clinicalDayUtils';
 
 /**
@@ -34,7 +35,7 @@ export interface UseDateNavigationReturn {
  * Provides year, month, and day state with setters, plus derived values
  * like days in month and formatted date string.
  *
- * Initializes to the current date on mount.
+ * Initializes to the `?date=` day when it is real, otherwise to the clinical day.
  *
  * @returns Date selection state and setters
  *
@@ -51,28 +52,20 @@ export interface UseDateNavigationReturn {
  * ```
  */
 export const useDateNavigation = (): UseDateNavigationReturn => {
-  // 0. Resolve initial date from URL or System
-  const [initialDate] = useState<Date>(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const dateParam = params.get('date');
-      if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
-        const [y, m, d] = dateParam.split('-').map(Number);
-        const dObj = new Date(y, m - 1, d);
-        if (!isNaN(dObj.getTime())) return dObj;
-      }
-    }
-    // Default landing = the clinical "today" (08:00 business / 09:00 weekend shift
-    // rollover), so the night shift lands on the day they are still working rather
-    // than the calendar date. An explicit ?date= deep-link above still wins.
-    const [cy, cm, cd] = resolveCurrentClinicalDay().split('-').map(Number);
-    return new Date(cy, cm - 1, cd);
-  });
+  // Land on a real ?date= deep link, otherwise on the clinical "today" (08:00 business / 09:00
+  // weekend shift rollover), so the night shift lands on the day they are still working rather
+  // than the calendar date. The bootstrap header resolves the same day the same way.
+  const [initialDay] = useState(() =>
+    resolveLandingCalendarDay(
+      typeof window === 'undefined' ? '' : window.location.search,
+      resolveCurrentClinicalDay()
+    )
+  );
 
   // Date Selection State
-  const [selectedYear, setSelectedYear] = useState<number>(initialDate.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState<number>(initialDate.getMonth()); // 0-11
-  const [selectedDay, setSelectedDay] = useState<number>(initialDate.getDate());
+  const [selectedYear, setSelectedYear] = useState(() => Number(initialDay.slice(0, 4)));
+  const [selectedMonth, setSelectedMonth] = useState(() => Number(initialDay.slice(5, 7)) - 1); // 0-11
+  const [selectedDay, setSelectedDay] = useState(() => Number(initialDay.slice(8, 10)));
 
   // Calculate days in selected month
   const daysInMonth = useMemo(() => {

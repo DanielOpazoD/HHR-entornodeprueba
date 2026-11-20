@@ -10,6 +10,7 @@ import {
   normalizeCalendarDate,
   normalizeDateOnly,
   parseCalendarDateUtcNoon,
+  resolveLandingCalendarDay,
 } from '@/utils/clinicalDateUtils';
 
 describe('clinicalDateUtils', () => {
@@ -161,5 +162,12 @@ describe('calendar-day helpers equal the hand-written anchors they replaced', ()
     for (const value of impossibleOrMalformed) expect(isCalendarDate(value)).toBe(false);
     // The lenient forms kept by fluid balance and the health panel still read 30 February as 2 March.
     expect(addCalendarDays('2026-02-30', 1)).toBe('2026-03-03');
+  });
+  it('opens a census address on its real ?date= day, otherwise on the clinical day', () => {
+    expect(resolveLandingCalendarDay('?date=2024-02-29&scope=all', '2026-11-19')).toBe(
+      '2024-02-29'
+    );
+    for (const search of ['', '?date=', '?date=2026-02-30', '?date=0050-01-01', '?day=2026-01-01'])
+      expect(resolveLandingCalendarDay(search, '2026-11-19')).toBe('2026-11-19');
   });
 });

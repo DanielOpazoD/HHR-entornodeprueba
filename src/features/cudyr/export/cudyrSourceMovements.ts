@@ -1,3 +1,4 @@
+import { isCalendarDate } from '@/utils/clinicalDateUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { CUDYR_SOURCE_COLUMNS as columns } from './cudyrSourceColumns';
 import type { Worksheet } from 'exceljs';
@@ -12,11 +13,6 @@ import {
 } from './cudyrSourceEpisode';
 
 type Marker = { date: string; time: string; kind: 'Ingreso' | 'Egreso' };
-const validDate = (date: string) =>
-  /^\d{4}-\d{2}-\d{2}$/.test(date) &&
-  Number.isFinite(Date.parse(date)) &&
-  // clinical-clock-allow instant-calendar-slice: date passed the YYYY-MM-DD check; this UTC round trip validates the report calendar day.
-  new Date(date).toISOString().slice(0, 10) === date;
 const validTime = (time: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(time);
 
 /** Use proven episode context. Never infer an admission date from the first category. */
@@ -61,7 +57,7 @@ export const markCudyrSourceMovements = (
             m.clinicalEpisodeId === episode &&
             ['discharges', 'transfers'].includes(m.section) &&
             m.source === 'gestion_camas' &&
-            validDate(m.date)
+            isCalendarDate(m.date)
         )
         .map(m => ({
           date: m.date,
@@ -75,7 +71,7 @@ export const markCudyrSourceMovements = (
     const latest = Math.max(0, ...corrections.map(c => c.revision));
     const corrected = corrections.filter(c => c.revision === latest).map(c => c.actualDischarge);
     const departures =
-      corrected.length && corrected.every(c => c && validDate(c.date))
+      corrected.length && corrected.every(c => c && isCalendarDate(c.date))
         ? corrected.map(c => ({
             date: c!.date,
             time: validTime(c!.time || '') ? c!.time! : '',

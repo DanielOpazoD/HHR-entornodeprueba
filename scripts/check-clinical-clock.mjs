@@ -44,6 +44,11 @@
  *     fixed cut) gets its own named constant behind a preceding
  *     `clinical-clock-allow shift-start-literal: <reason>`.
  *
+ * 12. hand-date-pattern: the `\d{4}-\d{2}-\d{2}` pattern written by hand outside the two calendar
+ *     modules is counted across src/ and functions/lib/, and the count may only go down to
+ *     HAND_DATE_PATTERN_CEILING. A hand copy passes 2026-02-30 or repeats the calendar check each
+ *     time; isCalendarDate() (app) and isCalendarDay() (server) decide both once.
+ *
  * `getTodayISO` / `getClinicalCalendarDateISO` / `calendarStampInClinicalTimeZone` and the
  * formatters in `src/utils/dateDisplayUtils.ts` (`formatCalendarDate`, `formatTimestamp`,
  * `readClinicalTimestamp`) are the doors. Exceptions are local and reasoned; unreviewed
@@ -61,6 +66,9 @@ const CALENDAR_SOURCES = new Set([
   'functions/lib/hospitalCalendarDay.js',
 ]);
 const SHIFT_SOURCE = 'src/utils/clinicalDayScheduleUtils.ts';
+const HAND_DATE_PATTERN = String.raw`\d{4}-\d{2}-\d{2}`;
+/** Only goes down: lower it in the change that migrates a hand-written pattern. */
+export const HAND_DATE_PATTERN_CEILING = 93;
 // '08:00', "9:00", `20:00`, or 8 * 60 minutes; 8 * 60 * 1000 is a duration, not a time of day.
 const SHIFT_START_LITERAL = /(['"`])(?:0?[89]|20):00\1|\b(?:8|9|20)\s*\*\s*60\b(?!\s*\*)/g;
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs']);
@@ -537,6 +545,24 @@ const rawOffsetClockLines = (source, relativePath) => {
   return [...lines];
 };
 
+/** Hand-written `YYYY-MM-DD` patterns in `files` of `root`, as `rg -c -F` counts them. */
+const countHandDatePatterns = (root, files) =>
+  files.reduce(
+    (total, file) =>
+      total + fs.readFileSync(path.join(root, file), 'utf8').split(HAND_DATE_PATTERN).length - 1,
+    0
+  );
+
+/** Hand-written date patterns outside the calendar modules in src/ and functions/lib/. */
+export const handDatePatternCount = (root = process.cwd()) =>
+  countHandDatePatterns(
+    root,
+    [
+      ...walkIn(root, 'src', file => !file.endsWith('.d.ts') && !isTestFile(file)),
+      ...walkIn(root, 'functions/lib', file => !isTestFile(file)),
+    ].filter(file => !CALENDAR_SOURCES.has(file))
+  );
+
 /** Checks the hospital clock rules in the repository at `root`, as the command prints and exits. */
 export const checkClinicalClock = (root = process.cwd()) => {
   const walk = (relativeDir, accept) => walkIn(root, relativeDir, accept);
@@ -663,6 +689,14 @@ export const checkClinicalClock = (root = process.cwd()) => {
         });
     }
   }
+
+  const handDatePatterns = handDatePatternCount(root);
+  if (handDatePatterns > HAND_DATE_PATTERN_CEILING)
+    violations.push({
+      rule: 'hand-date-pattern',
+      location: 'src/ + functions/lib/',
+      hint: `${handDatePatterns} hand-written \\d{4}-\\d{2}-\\d{2} patterns, ceiling ${HAND_DATE_PATTERN_CEILING}: validate a calendar day with isCalendarDate() from src/utils/clinicalDateUtils (isCalendarDay() from functions/lib/hospitalCalendarDay on the server)`,
+    });
 
   if (violations.length === 0) {
     return {

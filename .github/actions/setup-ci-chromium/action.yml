@@ -7,8 +7,9 @@ runs:
       id: browser
       shell: bash
       run: |
-        printf 'image=%s-%s\n' "${ImageOS:?}" "${ImageVersion:?}" >> "$GITHUB_OUTPUT"
-        printf 'version=%s\n' "$(node -p "require('playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
+        version=$(node -p "require('playwright-core/package.json').version")
+        printf 'key=chromium-v2-%s-%s-%s-%s-%s-%s\n' "${ImageOS:?}" "${ImageVersion:?}" "${RUNNER_OS:?}" \
+          "${RUNNER_ARCH:?}" "$version" '${{ hashFiles('.github/actions/setup-ci-chromium/action.yml') }}' >> "$GITHUB_OUTPUT"
     - name: Restore exact Chromium installation
       id: chromium
       uses: actions/cache/restore@v6.1.0
@@ -17,10 +18,15 @@ runs:
         path: |
           ~/.cache/ms-playwright
           ~/.cache/hhr-chromium-debs
-        key: chromium-v1-${{ steps.browser.outputs.image }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.browser.outputs.version }}-${{ hashFiles('.github/actions/setup-ci-chromium/action.yml') }}
+        # Saved entries end in the fingerprint of the .deb files apt installed. When Ubuntu
+        # publishes newer packages for the same image, the first job downloads them once and
+        # saves a new entry; the newest entry for this image and Playwright wins.
+        key: ${{ steps.browser.outputs.key }}
+        restore-keys: ${{ steps.browser.outputs.key }}-
     # Mandatory on hits, misses and cache outages. The cache may hold the downloaded .deb files,
     # but apt-get installs the system libraries on every run.
     - name: Prepare Playwright Chromium and system dependencies
+      id: install
       shell: bash
       run: bash "$GITHUB_ACTION_PATH/install-chromium.sh"
     - name: Verify Chromium can launch
@@ -43,11 +49,11 @@ runs:
         JS
     # Publish before any caller executes browser tests, which may mutate profiles or artifacts.
     - name: Save prepared Chromium installation
-      if: steps.chromium.outputs.cache-hit != 'true'
+      if: steps.chromium.outputs.cache-matched-key != format('{0}-{1}', steps.browser.outputs.key, steps.install.outputs.debs)
       uses: actions/cache/save@v6.1.0
       continue-on-error: true
       with:
         path: |
           ~/.cache/ms-playwright
           ~/.cache/hhr-chromium-debs
-        key: ${{ steps.chromium.outputs.cache-primary-key }}
+        key: ${{ steps.browser.outputs.key }}-${{ steps.install.outputs.debs }}

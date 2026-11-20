@@ -9,6 +9,7 @@ const action = parse(fs.readFileSync(actionPath, 'utf8'));
 const workflow = fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8');
 const assertBrowserPreparation = (candidate: typeof action) => {
   const steps = candidate.runs.steps;
+  const identify = steps.find((step: { id?: string }) => step.id === 'browser');
   const restore = steps.find((step: { id?: string }) => step.id === 'chromium');
   const install = steps.find(
     (step: { name?: string }) => step.name === 'Prepare Playwright Chromium and system dependencies'
@@ -17,15 +18,23 @@ const assertBrowserPreparation = (candidate: typeof action) => {
   const save = steps.find((step: { uses?: string }) =>
     step.uses?.startsWith('actions/cache/save@')
   );
-  expect(restore.with).not.toHaveProperty('restore-keys');
   for (const fingerprint of [
-    'steps.browser.outputs.image',
-    'runner.os',
-    'runner.arch',
-    'steps.browser.outputs.version',
+    'ImageOS',
+    'ImageVersion',
+    'RUNNER_OS',
+    'RUNNER_ARCH',
+    'playwright-core/package.json',
     actionPath,
   ])
-    expect(restore.with.key).toContain(fingerprint);
+    expect(identify.run).toContain(fingerprint);
+  // Only the suffix with the installed .deb set may differ from the browser fingerprint.
+  expect(restore.with.key).toBe('${{ steps.browser.outputs.key }}');
+  expect(restore.with['restore-keys']).toBe('${{ steps.browser.outputs.key }}-');
+  expect(save.with.key).toBe('${{ steps.browser.outputs.key }}-${{ steps.install.outputs.debs }}');
+  expect(save.if).toBe(
+    "steps.chromium.outputs.cache-matched-key != format('{0}-{1}', steps.browser.outputs.key, steps.install.outputs.debs)"
+  );
+  expect(install.id).toBe('install');
   expect(install).toBeDefined();
   expect(install.run).toBe('bash "$GITHUB_ACTION_PATH/install-chromium.sh"');
   expect(install).not.toHaveProperty('if');
@@ -40,6 +49,12 @@ const assertBrowserPreparation = (candidate: typeof action) => {
 
 it('always installs system dependencies and proves browser readiness before publishing an exact cache', () =>
   assertBrowserPreparation(action));
+it('rejects a restore that could bring a browser from another image or Playwright version', () => {
+  const mutated = structuredClone(action);
+  mutated.runs.steps.find((step: { id?: string }) => step.id === 'chromium').with['restore-keys'] =
+    'chromium-v2-';
+  expect(() => assertBrowserPreparation(mutated)).toThrow();
+});
 it('rejects a cache hit that skips mandatory browser preparation', () => {
   const mutated = structuredClone(action);
   mutated.runs.steps.find(

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { BootstrapRouteChrome } from '@/app-shell/bootstrap/BootstrapCensusChrome';
+import { useDateNavigation } from '@/hooks/useDateNavigation';
 import { signOut as mockedAuthSessionSignOut } from '@/services/auth/authSession';
 import { clearSessionScopedClientState } from '@/services/storage/sessionScopedStorageService';
 
@@ -103,6 +104,45 @@ describe('BootstrapRouteChrome', () => {
       );
     }
   );
+
+  // 07:30 on Friday 20 November 2026 in Rapa Nui: the night shift still works the 19th.
+  const NIGHT_SHIFT_CLINICAL_DAY = '2026-11-19';
+  it.each([
+    ['/census', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=2024-02-29', '2024-02-29'],
+    ['/census?date=2026-12-31', '2026-12-31'],
+    ['/census?date=2026-11-20', '2026-11-20'],
+    ['/census?date=2026-02-30', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=2025-02-29', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=2026-04-31', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=2026-00-10', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=2026-13-01', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=2026-11-00', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=0000-01-01', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=0050-01-01', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=2026-1-5', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=2026-11-006', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=texto', NIGHT_SHIFT_CLINICAL_DAY],
+    ['/census?date=', NIGHT_SHIFT_CLINICAL_DAY],
+  ])('the header and the census open %s on the same day', (route, expectedDay) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-20T12:30:00Z'));
+    let censusDay: string;
+    try {
+      window.history.replaceState({}, '', route);
+      render(<BootstrapRouteChrome />);
+      const census = renderHook(useDateNavigation);
+      censusDay = census.result.current.currentDateString;
+      census.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(mockDateStrip).toHaveBeenLastCalledWith(
+      expect.objectContaining({ currentDateString: expectedDay })
+    );
+    expect(censusDay).toBe(expectedDay);
+  });
 
   it('honors the saved typography preference during bootstrap', () => {
     window.history.replaceState({}, '', '/census');
