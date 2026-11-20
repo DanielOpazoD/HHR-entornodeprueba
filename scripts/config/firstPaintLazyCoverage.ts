@@ -119,6 +119,8 @@ const OPTIONAL_TARGETS: Record<string, string> = {
     'The backup workbook is built only after a census email is sent.',
   'src/services/firebase-runtime/authRuntime':
     'Authorization lookup for an explicit specialty action.',
+  'src/services/handoff/nursingHandoffConnectionService':
+    'HHR authorizes the extension only when the professional confirms the online connection.',
   'src/services/patient/patientHistoryService': 'History reads start on patient selection.',
   'src/services/patient/patientUpcHistoryService':
     'UPC history has an independent loading/error state.',
