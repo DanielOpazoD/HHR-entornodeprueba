@@ -68,7 +68,7 @@ describe('one hour without use on a shared computer', () => {
   });
 
   it('keeps the account visible while in use and returns to the login screen after one idle hour', async () => {
-    render(<App />);
+    render(<App openingDay="2026-11-19" />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1000);
     });

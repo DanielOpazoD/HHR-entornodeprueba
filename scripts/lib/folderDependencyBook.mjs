@@ -70,7 +70,7 @@ export const resolveBookBase = (root, env = process.env) => {
   return base
     ? { base }
     : {
-        error: `FOLDER_BOOK_BASE=${requested} no es un commit de este checkout: trae la base (fetch-depth) para comprobar que el libro solo baja.`,
+        error: `FOLDER_BOOK_BASE=${requested} no es un commit de este checkout: trae la base (fetch-depth) para comparar con ella.`,
       };
 };
 

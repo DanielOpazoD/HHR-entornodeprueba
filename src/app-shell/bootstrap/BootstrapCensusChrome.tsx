@@ -1,6 +1,5 @@
 import { BOOTSTRAP_PLACEHOLDER_UID } from '@/constants/security';
 import { UISettingsProvider } from '@/context/UISettingsContext';
-import { resolveLandingCalendarDay } from '@/utils/clinicalDateUtils';
 import { resolveCurrentClinicalDay } from '@/utils/clinicalDayUtils';
 import { CensusToolbarLoadingActions } from '@/components/layout/date-strip/CensusToolbarLoadingActions';
 import React from 'react';
@@ -153,16 +152,6 @@ const toBootstrapDate = (isoDate: string) => ({
   selectedDay: Number(isoDate.slice(8, 10)),
 });
 
-// The same landing day as useDateNavigation: a real route date, otherwise the hospital's
-// clinical day, never the device date.
-const resolveBootstrapDate = () =>
-  toBootstrapDate(
-    resolveLandingCalendarDay(
-      typeof window === 'undefined' ? '' : window.location.search,
-      resolveCurrentClinicalDay()
-    )
-  );
-
 const resolveDaysInMonth = (year: number, monthIndex: number) =>
   new Date(year, monthIndex + 1, 0).getDate();
 
@@ -237,8 +226,12 @@ const buildBootstrapAuthContextValue = (
   };
 };
 
-export const BootstrapRouteChrome: React.FC = () => {
-  const [bootstrapDate] = React.useState(resolveBootstrapDate);
+/**
+ * `day` is the census day this chrome shows: the opening day `src/index.tsx` fixed once (`resolveOpeningCensusDay`) for
+ * this page load, or the census's own selected day once it runs.
+ */
+export const BootstrapRouteChrome: React.FC<{ day: string }> = ({ day }) => {
+  const bootstrapDate = toBootstrapDate(day);
   const [bootstrapModule] = React.useState(resolveBootstrapModule);
   const [persistedUser] = React.useState(readPersistedFirebaseAuthUser);
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);

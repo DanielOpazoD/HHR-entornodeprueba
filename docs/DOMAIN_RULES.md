@@ -195,8 +195,9 @@ línea anterior.
 
 Un día `YYYY-MM-DD` es válido solo si existe en el calendario (`isCalendarDate()` en la app,
 `isCalendarDay()` en Functions): 2026-02-30 no es el 2 de marzo. Una dirección cuyo `?date=` no
-es un día real de año de cuatro cifras abre el día clínico, igual en el encabezado y en el censo
-(`resolveLandingCalendarDay()`).
+es un día real de año de cuatro cifras abre el día clínico. El día de apertura se calcula una sola
+vez al cargar la página (`resolveOpeningCensusDay()` en `src/index.tsx`) y lo reciben el
+encabezado y el censo, así que un cambio de turno mientras la app arranca no mueve a ninguno.
 
 ### Zona horaria de cada fuente de Eloísa (TIME-02)
 
