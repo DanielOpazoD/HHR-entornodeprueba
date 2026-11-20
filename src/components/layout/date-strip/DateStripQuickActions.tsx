@@ -1,7 +1,7 @@
 import React, { Suspense } from 'react';
 import { FlaskConical, Lock } from 'lucide-react';
 import { XRayIcon } from '@/components/ui/XRayIcon';
-import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
+import type { CensusQuickActionPatient } from '@/shared/contracts/censusQuickActionPatient';
 import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 import type {
@@ -13,8 +13,8 @@ const FEATURE_QUICK_ACTIONS_STARTUP_DELAY_MS = 1200;
 
 interface DateStripQuickActionsProps {
   onOpenBedManager?: () => void;
-  medicalIndicationsPatients?: MedicalIndicationsPatientOption[];
-  renderFeatureQuickActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
+  censusQuickActionPatients?: CensusQuickActionPatient[];
+  renderFeatureQuickActions?: (patients: CensusQuickActionPatient[]) => React.ReactNode;
   radiologyViewer?: DateStripRadiologyViewer;
   hideClinicalQuickActions?: boolean;
   menuLayout?: boolean;
@@ -22,7 +22,7 @@ interface DateStripQuickActionsProps {
 
 export const DateStripQuickActions: React.FC<DateStripQuickActionsProps> = ({
   onOpenBedManager,
-  medicalIndicationsPatients = [],
+  censusQuickActionPatients = [],
   renderFeatureQuickActions,
   radiologyViewer: RadiologyViewer,
   hideClinicalQuickActions = false,
@@ -51,8 +51,8 @@ export const DateStripQuickActions: React.FC<DateStripQuickActionsProps> = ({
   }, [hideClinicalQuickActions, renderFeatureQuickActions]);
 
   const quickActionPatients = React.useMemo(
-    () => medicalIndicationsPatients.filter(p => p.rut && p.patientName),
-    [medicalIndicationsPatients]
+    () => censusQuickActionPatients.filter(p => p.rut && p.patientName),
+    [censusQuickActionPatients]
   );
 
   const radiologyPatients = React.useMemo<DateStripRadiologyPatient[]>(

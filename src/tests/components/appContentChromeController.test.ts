@@ -3,7 +3,7 @@ import {
   buildDateStripProps,
   buildAppRouterShellState,
   buildNavbarProps,
-  buildMedicalIndicationsPatientOptions,
+  buildCensusQuickActionPatients,
   canUseCensusDateStripActions,
   resolveBookmarkToggleAction,
   resolveDateStripCensusActions,
@@ -15,8 +15,8 @@ describe('appContentChromeController', () => {
     vi.setSystemTime(new Date('2026-04-22T10:00:00.000Z'));
   });
 
-  it('builds medical indication options only for occupied beds', () => {
-    const result = buildMedicalIndicationsPatientOptions({
+  it('offers the quick actions only the occupied beds', () => {
+    const result = buildCensusQuickActionPatients({
       beds: {
         R1: {
           patientName: 'Ana Test',
@@ -37,8 +37,8 @@ describe('appContentChromeController', () => {
       bedId: 'R1',
       patientName: 'Ana Test',
       diagnosis: 'Diagnostico A',
+      birthDate: '02-04-1991',
       admissionDate: '20-04-2026',
-      daysOfStay: '3',
     });
   });
 
@@ -161,7 +161,7 @@ describe('appContentChromeController', () => {
     const props = buildDateStripProps({
       ui: ui as never,
       runtime: runtime as never,
-      medicalIndicationsPatients: [],
+      censusQuickActionPatients: [],
     });
 
     expect(props).toMatchObject({
@@ -292,7 +292,7 @@ describe('appContentChromeController', () => {
         handleExportExcel: vi.fn(),
         censusAccessProfile: 'default',
       } as never,
-      medicalIndicationsPatients: [],
+      censusQuickActionPatients: [],
     });
 
     expect(props.onOpenBedManager).toBeUndefined();
@@ -351,12 +351,12 @@ describe('appContentChromeController', () => {
     const nursingProps = buildDateStripProps({
       ui: { ...baseUi, currentModule: 'NURSING_HANDOFF' } as never,
       runtime: baseRuntime as never,
-      medicalIndicationsPatients: [],
+      censusQuickActionPatients: [],
     });
     const censusProps = buildDateStripProps({
       ui: { ...baseUi, currentModule: 'CENSUS' } as never,
       runtime: baseRuntime as never,
-      medicalIndicationsPatients: [],
+      censusQuickActionPatients: [],
     });
 
     expect(nursingProps.onPrintWithBrowserOptions).toBe(handlePrintWithBrowserOptions);

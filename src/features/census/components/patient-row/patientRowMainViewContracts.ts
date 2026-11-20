@@ -5,7 +5,6 @@ import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 import type { BedDefinition } from '@/types/domain/beds';
 import type { BedType } from '@/types/domain/beds';
 
-import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
 import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import type {
   ClinicalCribInputChangeHandlers,
@@ -32,7 +31,6 @@ export interface PatientMainRowActionCellProps
   showCmaAction?: boolean;
   accessProfile?: CensusAccessProfile;
   hasPatientIdentity?: boolean;
-  medicalIndicationsPatient?: MedicalIndicationsPatientOption;
   clinicalDocumentCount?: number;
   isPendingClear?: boolean;
   /** Only an Eloísa episode can be marked «paciente no válido». */

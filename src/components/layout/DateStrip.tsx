@@ -10,7 +10,7 @@ import {
   resolveMonthLandingDay,
 } from '@/components/layout/date-strip/dateStripNavigationController';
 import { DateStripDayButtons } from '@/components/layout/date-strip/DateStripDayButtons';
-import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
+import type { CensusQuickActionPatient } from '@/shared/contracts/censusQuickActionPatient';
 import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/dateStripRadiologyViewer';
 import { useDateStripWheelNavigation } from '@/components/layout/date-strip/useDateStripWheelNavigation';
 import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
@@ -128,8 +128,8 @@ export interface DateStripProps
   isBackingUp: boolean;
   currentModule: ModuleType;
   accessProfile?: CensusAccessProfile;
-  medicalIndicationsPatients?: MedicalIndicationsPatientOption[];
-  renderFeatureQuickActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
+  censusQuickActionPatients?: CensusQuickActionPatient[];
+  renderFeatureQuickActions?: (patients: CensusQuickActionPatient[]) => React.ReactNode;
   radiologyViewer?: DateStripRadiologyViewer;
   onOpenPatientSearch?: () => void;
   hideQuickActions?: boolean;
@@ -174,7 +174,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
   isBackingUp,
   currentModule,
   accessProfile = 'default',
-  medicalIndicationsPatients = [],
+  censusQuickActionPatients = [],
   renderFeatureQuickActions,
   radiologyViewer,
   onOpenPatientSearch,
@@ -392,8 +392,8 @@ export const DateStrip: React.FC<DateStripProps> = ({
                   renderFeatureQuickActions={renderFeatureQuickActions}
                   radiologyViewer={radiologyViewer}
                   hideClinicalQuickActions={isHandoffModule}
-                  medicalIndicationsPatients={
-                    currentModule === 'CENSUS' ? medicalIndicationsPatients : []
+                  censusQuickActionPatients={
+                    currentModule === 'CENSUS' ? censusQuickActionPatients : []
                   }
                 />
               </React.Suspense>

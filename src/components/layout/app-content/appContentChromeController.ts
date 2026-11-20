@@ -7,49 +7,27 @@ import { shouldShowBookmarkToggle } from '@/components/layout/app-content/appCon
 import type { DateStripProps } from '@/components/layout/DateStrip';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
 import type { AppContentRuntime } from '@/components/layout/app-content/useAppContentRuntime';
-import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
+import type { CensusQuickActionPatient } from '@/shared/contracts/censusQuickActionPatient';
 import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/dateStripRadiologyViewer';
 
-interface MedicalIndicationsPatientSourceExtras {
-  admissionTime?: string;
-  clinicalEpisodeId?: string;
-}
-
-const calculateDaysOfStay = (admissionDate?: string): string => {
-  if (!admissionDate) return '';
-  const parsed = new Date(formatDateToCL(admissionDate).split('-').reverse().join('-'));
-  if (Number.isNaN(parsed.getTime())) return '';
-  const now = new Date();
-  const days = Math.ceil((now.getTime() - parsed.getTime()) / (1000 * 60 * 60 * 24));
-  return String(Math.max(days, 1));
-};
-
-export const buildMedicalIndicationsPatientOptions = (
+export const buildCensusQuickActionPatients = (
   record: AppContentRuntime['record']
-): MedicalIndicationsPatientOption[] => {
+): CensusQuickActionPatient[] => {
   const bedsById = new Map(BEDS.map(bed => [bed.id, bed]));
 
   return Object.entries(record?.beds || {})
     .filter(([, patient]) => Boolean(patient.patientName?.trim()))
-    .map(([bedId, patient]) => {
-      const extras = patient as MedicalIndicationsPatientSourceExtras;
-      return {
-        bedId,
-        label: `${bedsById.get(bedId)?.name || bedId} · ${patient.patientName}`,
-        patientName: patient.patientName || '',
-        rut: patient.rut || '',
-        diagnosis: patient.cie10Description || patient.pathology || '',
-        age: patient.age || '',
-        birthDate: formatDateToCL(patient.birthDate || ''),
-        allergies: '',
-        admissionDate: formatDateToCL(patient.admissionDate || ''),
-        admissionTime: extras.admissionTime,
-        clinicalEpisodeId: extras.clinicalEpisodeId,
-        sourceDailyRecordDate: record?.date,
-        daysOfStay: calculateDaysOfStay(patient.admissionDate),
-        treatingDoctor: '',
-      };
-    });
+    .map(([bedId, patient]) => ({
+      bedId,
+      label: `${bedsById.get(bedId)?.name || bedId} · ${patient.patientName}`,
+      patientName: patient.patientName || '',
+      rut: patient.rut || '',
+      diagnosis: patient.cie10Description || patient.pathology || '',
+      age: patient.age || '',
+      birthDate: formatDateToCL(patient.birthDate || ''),
+      admissionDate: formatDateToCL(patient.admissionDate || ''),
+      clinicalEpisodeId: patient.clinicalEpisodeId,
+    }));
 };
 
 export const canUseCensusDateStripActions = (
@@ -136,7 +114,7 @@ export const buildAppRouterShellState = ({
 export const buildDateStripProps = ({
   ui,
   runtime,
-  medicalIndicationsPatients,
+  censusQuickActionPatients,
   renderFeatureQuickActions,
   radiologyViewer,
 }: {
@@ -162,8 +140,8 @@ export const buildDateStripProps = ({
     | 'handleExportExcel'
     | 'censusAccessProfile'
   >;
-  medicalIndicationsPatients: MedicalIndicationsPatientOption[];
-  renderFeatureQuickActions?: (patients: MedicalIndicationsPatientOption[]) => ReactNode;
+  censusQuickActionPatients: CensusQuickActionPatient[];
+  renderFeatureQuickActions?: (patients: CensusQuickActionPatient[]) => ReactNode;
   radiologyViewer?: DateStripRadiologyViewer;
 }): DateStripProps => {
   const canUseCensusActions = canUseCensusDateStripActions(
@@ -221,7 +199,7 @@ export const buildDateStripProps = ({
     onBackupPDF: runtime.exportManager.handleBackupHandoff,
     navigateDays: runtime.dateNav.navigateDays,
     accessProfile: runtime.censusAccessProfile,
-    medicalIndicationsPatients,
+    censusQuickActionPatients,
     renderFeatureQuickActions,
     radiologyViewer,
     onOpenPatientSearch: ui.patientSearchModal.open,

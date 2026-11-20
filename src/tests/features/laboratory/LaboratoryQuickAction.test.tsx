@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { LaboratoryQuickAction } from '@/features/laboratory/components/LaboratoryQuickAction';
 import { checkSyslabConnection } from '@/services/laboratory/syslabService';
-import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
+import type { CensusQuickActionPatient } from '@/shared/contracts/censusQuickActionPatient';
 
 vi.mock('@/services/laboratory/syslabService', () => ({
   checkSyslabConnection: vi.fn(),
@@ -18,7 +18,7 @@ vi.mock('@/features/laboratory/components/LabResultsViewerModal', () => ({
 
 const modalRender = vi.hoisted(() => vi.fn());
 
-const patients: MedicalIndicationsPatientOption[] = [
+const patients: CensusQuickActionPatient[] = [
   {
     bedId: 'R1',
     label: 'R1 - Paciente',
@@ -27,10 +27,7 @@ const patients: MedicalIndicationsPatientOption[] = [
     diagnosis: 'Dx',
     age: '50',
     birthDate: '1976-01-01',
-    allergies: '',
     admissionDate: '2026-04-30',
-    daysOfStay: '1',
-    treatingDoctor: '',
   },
 ];
 

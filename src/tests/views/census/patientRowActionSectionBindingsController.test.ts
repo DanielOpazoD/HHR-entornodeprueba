@@ -85,7 +85,7 @@ describe('patientRowActionSectionBindingsController', () => {
       }),
     });
 
-    expect(namedBinding.medicalIndicationsPatient?.label).toContain('Paciente Uno');
+    expect(namedBinding.hasPatientIdentity).toBe(true);
     expect(namedBinding.canMarkInvalid).toBe(false);
 
     const eloisaBinding = buildPatientActionSectionBinding({
@@ -108,7 +108,7 @@ describe('patientRowActionSectionBindingsController', () => {
       }),
     });
 
-    expect(unnamedBinding.medicalIndicationsPatient).toBeUndefined();
+    expect(unnamedBinding.hasPatientIdentity).toBe(false);
   });
 
   it('does not expose identity-driven actions for whitespace-only activation placeholders', () => {
@@ -147,8 +147,7 @@ describe('patientRowActionSectionBindingsController', () => {
     });
 
     expect(binding.hasPatientIdentity).toBe(false);
-    expect(binding.onViewMedicalIndications).toBeUndefined();
-    expect(binding.medicalIndicationsPatient).toBeUndefined();
+    expect(binding.clinicalPatient).toBeUndefined();
   });
 
   it('forwards the current clinical document count to the action cell binding', () => {

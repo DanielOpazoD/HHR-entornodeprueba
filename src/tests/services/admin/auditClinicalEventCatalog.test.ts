@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 import {
   buildBedMovementAuditDetails,
   buildDischargeUndoAuditDetails,
-  buildPatientMovementSummary,
 } from '@/services/admin/auditClinicalEventCatalog';
 
 describe('auditClinicalEventCatalog', () => {
@@ -43,24 +42,5 @@ describe('auditClinicalEventCatalog', () => {
       patientName: 'Paciente Dos',
       restoredBed: 'R3',
     });
-  });
-
-  it('summarizes patient movement details without exposing internal keys', () => {
-    expect(
-      buildPatientMovementSummary({
-        patientName: 'Paciente Uno',
-        movementKind: 'copy',
-        sourceBed: 'R1',
-        targetBed: 'R2',
-      })
-    ).toBe('Copia de paciente: Paciente Uno R1 → R2');
-
-    expect(
-      buildPatientMovementSummary({
-        patientName: 'Paciente Dos',
-        movementKind: 'undo_discharge',
-        restoredBed: 'R3',
-      })
-    ).toBe('Reversión de alta: Paciente Dos vuelve a cama R3');
   });
 });

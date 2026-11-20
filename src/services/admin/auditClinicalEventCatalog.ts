@@ -146,36 +146,3 @@ export const buildDischargeReclassificationAuditDetails = ({
   lineageId,
   clinicalEpisodeId,
 });
-
-export const buildPatientMovementSummary = (
-  details: {
-    movementKind?: unknown;
-    patientName?: string;
-    sourceBed?: string;
-    targetBed?: string;
-    restoredBed?: string;
-  },
-  fallbackEntityId: string = ''
-): string | null => {
-  const patientName = details.patientName || 'Paciente';
-
-  if (details.movementKind === 'move') {
-    return `Movimiento de cama: ${patientName} ${details.sourceBed || ''} → ${
-      details.targetBed || fallbackEntityId
-    }`;
-  }
-
-  if (details.movementKind === 'copy') {
-    return `Copia de paciente: ${patientName} ${details.sourceBed || ''} → ${
-      details.targetBed || fallbackEntityId
-    }`;
-  }
-
-  if (details.movementKind === 'undo_discharge') {
-    return `Reversión de alta: ${patientName} vuelve a cama ${
-      details.restoredBed || fallbackEntityId
-    }`;
-  }
-
-  return null;
-};

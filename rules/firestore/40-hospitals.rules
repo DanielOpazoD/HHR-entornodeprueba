@@ -50,23 +50,6 @@
         allow write: if isAdmin();
       }
 
-      match /medicalIndicationTemplates/{userId} {
-        allow read, write: if isCurrentUser(userId);
-
-        match /items/{templateId} {
-          allow read: if isCurrentUser(userId);
-          allow create, update: if isCurrentUser(userId) &&
-            request.resource.data.userId == userId;
-          allow delete: if isCurrentUser(userId);
-        }
-      }
-
-      match /medicalIndicationRecords/{recordId} {
-        allow read: if canReadClinicalData();
-        allow create: if isValidMedicalIndicationRecordCreate(recordId);
-        allow update, delete: if false;
-      }
-
       // Server-owned statistical reporting layer. Clients can inspect the
       // official reclassification applied to analytics, but writes must go
       // through setMinsalSpecialtyReclassification so admin role, IP and audit

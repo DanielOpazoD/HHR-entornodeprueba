@@ -7,7 +7,7 @@ import type { AuthContextType } from '@/context/AuthContext';
 import type { UseDateNavigationReturn } from '@/hooks/useDateNavigation';
 import { DeferredSystemHealthReporter } from '@/app-shell/runtime/DeferredSystemHealthReporter';
 import { useAuthenticatedAppRuntime } from '@/app-shell/runtime/useAuthenticatedAppRuntime';
-import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
+import type { CensusQuickActionPatient } from '@/shared/contracts/censusQuickActionPatient';
 import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/dateStripRadiologyViewer';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { markPerf } from '@/shared/runtime/perfAudit';
@@ -62,7 +62,7 @@ export const AuthenticatedAppShell = ({ auth, dateNav }: AuthenticatedAppShellPr
   }, []);
 
   const renderFeatureQuickActions = React.useCallback(
-    (patients: MedicalIndicationsPatientOption[]) => (
+    (patients: CensusQuickActionPatient[]) => (
       <>
         <React.Suspense fallback={<LaboratoryQuickActionFallback />}>
           <LaboratoryQuickAction patients={patients} />
@@ -73,7 +73,7 @@ export const AuthenticatedAppShell = ({ auth, dateNav }: AuthenticatedAppShellPr
   );
 
   const renderCensusTrailingActions = React.useCallback(
-    (patients: MedicalIndicationsPatientOption[]) => (
+    (patients: CensusQuickActionPatient[]) => (
       <React.Suspense fallback={<ClinicalLibraryToolbarFallback />}>
         <ClinicalLibraryQuickAction patients={patients} />
       </React.Suspense>

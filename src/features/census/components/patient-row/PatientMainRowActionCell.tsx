@@ -18,9 +18,7 @@ export const PatientMainRowActionCell: React.FC<PatientMainRowActionCellProps> =
   onViewClinicalDocuments,
   onViewExamRequest,
   onViewImagingRequest,
-  onViewMedicalIndications,
   onViewHistory,
-  medicalIndicationsPatient,
   isPendingClear = false,
   canMarkInvalid = false,
 }) => (
@@ -42,7 +40,6 @@ export const PatientMainRowActionCell: React.FC<PatientMainRowActionCellProps> =
         onViewClinicalDocuments={onViewClinicalDocuments}
         onViewExamRequest={onViewExamRequest}
         onViewImagingRequest={onViewImagingRequest}
-        onViewMedicalIndications={onViewMedicalIndications}
         onViewHistory={onViewHistory}
         readOnly={readOnly}
         clinicalEditingDisabled={clinicalEditingDisabled}
@@ -52,7 +49,6 @@ export const PatientMainRowActionCell: React.FC<PatientMainRowActionCellProps> =
         showCmaAction={showCmaAction}
         hasClinicalDocument={hasClinicalDocument}
         isNewAdmission={isNewAdmission}
-        medicalIndicationsPatient={medicalIndicationsPatient}
         canMarkInvalid={canMarkInvalid}
       />
     )}

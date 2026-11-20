@@ -2,41 +2,10 @@ import type { PatientMainRowViewProps } from '@/features/census/components/patie
 import type { PatientMainRowActionCellProps } from '@/features/census/components/patient-row/patientRowContracts';
 import { calculateHospitalizedDays } from '@/features/census/controllers/patientBedConfigViewController';
 import { hasMeaningfulPatientIdentity } from '@/features/census/controllers/patientIdentityController';
-import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
 import type { PatientClinicalAccessProps } from '@/features/census/components/patient-row/patientRowInputViewContracts';
 import { resolvePatientActionMenuViewState } from '@/features/census/controllers/patientActionMenuViewController';
 
 export type PatientActionSectionBinding = PatientMainRowActionCellProps;
-
-const buildMedicalIndicationsPatientOption = ({
-  data,
-  currentDateString,
-}: Pick<
-  PatientMainRowViewProps,
-  'data' | 'currentDateString'
->): MedicalIndicationsPatientOption => {
-  const daysHospitalized = calculateHospitalizedDays({
-    admissionDate: data.admissionDate,
-    currentDate: currentDateString,
-  });
-
-  return {
-    bedId: data.bedId,
-    label: `${data.bedId} - ${data.patientName || 'Paciente sin nombre'}`,
-    patientName: data.patientName || '',
-    rut: data.rut || '',
-    diagnosis: data.pathology || '',
-    age: data.age || '',
-    birthDate: data.birthDate || '',
-    allergies: '',
-    admissionDate: data.admissionDate || '',
-    admissionTime: data.admissionTime,
-    clinicalEpisodeId: data.clinicalEpisodeId,
-    sourceDailyRecordDate: currentDateString,
-    daysOfStay: String(daysHospitalized ?? ''),
-    treatingDoctor: '',
-  };
-};
 
 const resolveRowActionCallback = <TAction extends (() => void) | undefined>(
   canUseAction: boolean,
@@ -82,10 +51,6 @@ export const buildPatientActionSectionBinding = ({
     admissionDate: data.admissionDate,
     currentDate: currentDateString,
   });
-  const medicalIndicationsPatient = buildMedicalIndicationsPatientOption({
-    data,
-    currentDateString,
-  });
   const hasPatientIdentity = hasMeaningfulPatientIdentity(data);
 
   return {
@@ -112,12 +77,10 @@ export const buildPatientActionSectionBinding = ({
       mainRowViewState.rowActionsAvailability.canOpenImagingRequest,
       onOpenImagingRequest
     ),
-    onViewMedicalIndications: hasPatientIdentity ? () => undefined : undefined,
     onViewHistory: resolveRowActionCallback(
       mainRowViewState.rowActionsAvailability.canOpenHistory,
       onOpenHistory
     ),
-    medicalIndicationsPatient: hasPatientIdentity ? medicalIndicationsPatient : undefined,
     clinicalDocumentCount,
     canMarkInvalid: Boolean(data.clinicalEpisodeId?.trim()),
     clinicalPatient: !isBlocked && hasPatientIdentity ? data : undefined,

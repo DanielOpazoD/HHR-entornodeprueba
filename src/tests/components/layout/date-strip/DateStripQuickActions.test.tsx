@@ -22,17 +22,14 @@ describe('DateStripQuickActions', () => {
       diagnosis: 'Neumonia',
       age: '66',
       birthDate: '1960-01-02',
-      allergies: 'Ninguna',
       admissionDate: '2026-03-31',
-      daysOfStay: '2',
-      treatingDoctor: 'Dra. Rapa Nui',
     },
   ];
 
   it('does not mount radiology viewer until the quick action is opened', async () => {
     render(
       <DateStripQuickActions
-        medicalIndicationsPatients={patients}
+        censusQuickActionPatients={patients}
         radiologyViewer={RadiologyViewer}
       />
     );
@@ -51,7 +48,7 @@ describe('DateStripQuickActions', () => {
   });
 
   it('keeps MMRAD as a loading placeholder until the shell hands it the viewer', () => {
-    render(<DateStripQuickActions medicalIndicationsPatients={patients} />);
+    render(<DateStripQuickActions censusQuickActionPatients={patients} />);
 
     expect(screen.queryByTitle('Radiología / Imagenología')).not.toBeInTheDocument();
     expect(screen.getByTitle('MMRAD (cargando...)')).toBeDisabled();
@@ -64,7 +61,7 @@ describe('DateStripQuickActions', () => {
     try {
       render(
         <DateStripQuickActions
-          medicalIndicationsPatients={[
+          censusQuickActionPatients={[
             ...patients,
             {
               bedId: 'R2',
@@ -74,10 +71,7 @@ describe('DateStripQuickActions', () => {
               diagnosis: 'Sin nombre',
               age: '45',
               birthDate: '1981-02-03',
-              allergies: 'Ninguna',
               admissionDate: '2026-04-01',
-              daysOfStay: '1',
-              treatingDoctor: 'Dr. Kai',
             },
             {
               bedId: 'R3',
@@ -87,10 +81,7 @@ describe('DateStripQuickActions', () => {
               diagnosis: 'Sin rut',
               age: '39',
               birthDate: '1987-04-10',
-              allergies: 'Ninguna',
               admissionDate: '2026-04-02',
-              daysOfStay: '1',
-              treatingDoctor: 'Dra. Moana',
             },
           ]}
           renderFeatureQuickActions={renderFeatureQuickActions}
@@ -117,7 +108,7 @@ describe('DateStripQuickActions', () => {
     render(
       <DateStripQuickActions
         onOpenBedManager={vi.fn()}
-        medicalIndicationsPatients={patients}
+        censusQuickActionPatients={patients}
         radiologyViewer={RadiologyViewer}
         renderFeatureQuickActions={renderFeatureQuickActions}
         hideClinicalQuickActions

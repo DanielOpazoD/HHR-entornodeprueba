@@ -46,11 +46,6 @@ por «sin conflictos».
 
 ## Límites de acceso que deben conservarse en la publicación
 
-Las plantillas de indicaciones pertenecen a su usuario: puede borrarlas sin
-reenviar contenido. Una indicación archivada vincula su identificador con el
-documento y su autor con la sesión; si informa rol, debe ser el rol efectivo.
-Los registros antiguos pueden omitir ese rol. El archivo sigue siendo inmutable.
-
 En recetas fotografiadas, Enfermería puede corregir la asignación de paciente y
 el tipo de receta, con la identidad del funcionario que modifica esos campos.
 No puede sustituir la imagen original, su ruta ni su autor de carga.

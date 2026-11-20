@@ -2,7 +2,7 @@ import React from 'react';
 import { FlaskConical } from 'lucide-react';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { checkSyslabConnection } from '@/services/laboratory/syslabService';
-import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
+import type { CensusQuickActionPatient } from '@/shared/contracts/censusQuickActionPatient';
 import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
@@ -11,7 +11,7 @@ const LabResultsViewerModal = lazyWithRetry(() =>
 );
 
 interface LaboratoryQuickActionProps {
-  patients: MedicalIndicationsPatientOption[];
+  patients: CensusQuickActionPatient[];
 }
 
 export const LaboratoryQuickAction: React.FC<LaboratoryQuickActionProps> = ({ patients }) => {

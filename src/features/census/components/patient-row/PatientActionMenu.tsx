@@ -10,7 +10,6 @@ import type {
 } from './patientRowActionContracts';
 import type { RowMenuAlign } from './patientRowUiContracts';
 import { usePatientActionMenu } from './usePatientActionMenu';
-import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
 import { resolvePatientActionMenuDemographicsInteraction } from '@/features/census/controllers/patientActionMenuController';
 
 // The census row is compact on purpose: these two triggers keep their 20 px height at any
@@ -23,12 +22,6 @@ const LazyPatientActionMenuPanel = lazy(() =>
   }))
 );
 
-const LazyMedicalIndicationsDialog = lazy(() =>
-  import('@/components/layout/date-strip/MedicalIndicationsDialog').then(module => ({
-    default: module.MedicalIndicationsDialog,
-  }))
-);
-
 interface PatientActionMenuProps
   extends PatientActionMenuCallbacks, PatientActionMenuIndicators, PatientActionMenuActionFilter {
   isBlocked: boolean;
@@ -38,7 +31,6 @@ interface PatientActionMenuProps
   showCmaAction?: boolean;
   accessProfile?: CensusAccessProfile;
   hasPatientIdentity?: boolean;
-  medicalIndicationsPatient?: MedicalIndicationsPatientOption;
   /** Only an Eloísa episode can be marked «paciente no válido». */
   canMarkInvalid?: boolean;
 }
@@ -74,7 +66,6 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
   onViewClinicalDocuments,
   onViewExamRequest,
   onViewImagingRequest,
-  onViewMedicalIndications,
   onViewHistory,
   readOnly = false,
   clinicalEditingDisabled = false,
@@ -82,19 +73,16 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
   showCmaAction = true,
   accessProfile = 'default',
   hasPatientIdentity = true,
-  medicalIndicationsPatient,
   allowedActions,
   canMarkInvalid = false,
 }) => {
   const {
     isOpen,
-    isMedicalIndicationsOpen,
     menuRef,
     binding,
     utilityActions,
     toggle,
     close,
-    closeMedicalIndicationsDialog,
     handleAction,
     handleViewHistory,
   } = usePatientActionMenu({
@@ -114,7 +102,6 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
     onViewClinicalDocuments,
     onViewExamRequest,
     onViewImagingRequest,
-    onViewMedicalIndications,
     allowedActions,
   });
 
@@ -173,15 +160,6 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
             onClose={close}
             onAction={handleAction}
             onViewHistory={handleViewHistory}
-          />
-        </Suspense>
-      ) : null}
-      {isMedicalIndicationsOpen ? (
-        <Suspense fallback={null}>
-          <LazyMedicalIndicationsDialog
-            isOpen={isMedicalIndicationsOpen}
-            onClose={closeMedicalIndicationsDialog}
-            patients={medicalIndicationsPatient ? [medicalIndicationsPatient] : []}
           />
         </Suspense>
       ) : null}
