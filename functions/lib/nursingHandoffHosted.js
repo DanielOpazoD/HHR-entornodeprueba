@@ -92,6 +92,7 @@ function createHostedHandler({
     authorize,
     resolveRoleForEmail: resolveRole,
     origin: 'eloisa_nursing_handoff_hosted',
+    census: 'censo de HHR',
     clinicalNow: () => new Date(now()),
   });
 

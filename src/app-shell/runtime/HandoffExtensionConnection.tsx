@@ -27,15 +27,16 @@ export function readHandoffConnection(request: unknown): HandoffConnectionReques
     : null;
 }
 
-function fromLocation() {
-  if (window.location.pathname !== '/conectar-entrega-turno') return null;
+function readConnectionFragment() {
   return readHandoffConnection(
     Object.fromEntries(new URLSearchParams(window.location.hash.slice(1)))
   );
 }
 
 export function HandoffExtensionConnection({ auth }: { auth: AuthContextType }) {
-  const [request, setRequest] = useState(fromLocation);
+  const [request, setRequest] = useState(() =>
+    window.location.pathname === '/conectar-entrega-turno' ? readConnectionFragment() : null
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const dialog = useRef<HTMLDialogElement>(null);
@@ -47,13 +48,18 @@ export function HandoffExtensionConnection({ auth }: { auth: AuthContextType }) 
   if (!request) return null;
 
   const finish = (expiresAt?: number) => {
+    if (readConnectionFragment()?.requestId === request.requestId) {
+      const { pathname, search } = window.location;
+      window.history.replaceState(
+        window.history.state,
+        '',
+        (pathname === '/conectar-entrega-turno' ? '/' : pathname) + search
+      );
+    }
     window.postMessage(
       { type: resultType, requestId: request.requestId, expiresAt },
       window.location.origin
     );
-    if (fromLocation()?.requestId === request.requestId) {
-      window.history.replaceState(window.history.state, '', '/');
-    }
     setError('');
     setRequest(null);
   };

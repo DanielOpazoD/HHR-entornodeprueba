@@ -38,8 +38,8 @@ const normalizeRun = value =>
     .replace(/[.\s-]/g, '')
     .toUpperCase();
 
-function findHandoff(snapshot, episode, run, slot) {
-  if (!snapshot.exists) fail('not-found', 'Falta este día en el censo local de pruebas.', slot);
+function findHandoff(snapshot, episode, run, slot, census) {
+  if (!snapshot.exists) fail('not-found', 'Falta este día en el ' + census + '.', slot);
   const record = snapshot.data();
   const matches = [];
   for (const [bed, patient] of Object.entries(record.beds ?? {})) {
@@ -50,8 +50,7 @@ function findHandoff(snapshot, episode, run, slot) {
       if (String(item?.clinicalEpisodeId ?? '') === episode) matches.push({ path, item });
     }
   }
-  if (!matches.length)
-    fail('not-found', 'Este episodio aún no está en el censo local de pruebas.', slot);
+  if (!matches.length) fail('not-found', 'Este episodio aún no está en el ' + census + '.', slot);
   if (
     matches.length !== 1 ||
     normalizeRun(matches[0].item.rut) !== run ||
@@ -60,7 +59,7 @@ function findHandoff(snapshot, episode, run, slot) {
   ) {
     fail(
       'failed-precondition',
-      'HHR Pruebas encontró el episodio, pero no pudo confirmar la identidad del paciente.'
+      'El ' + census + ' encontró el episodio y falta confirmar la identidad del paciente.'
     );
   }
   const { path, item } = matches[0];
@@ -138,6 +137,7 @@ function createHandler({
   authorize = data => localActor(data.source, installationKey ?? process.env.HHR_HANDOFF_LOCAL_KEY),
   resolveRoleForEmail = () => 'nurse_hospital',
   origin = 'eloisa_nursing_handoff',
+  census = 'censo local de pruebas',
 }) {
   const records = firestore.collection('hospitals').doc(HOSPITAL_ID).collection('dailyRecords');
   const write = createPatchHandler({
@@ -176,7 +176,7 @@ function createHandler({
       fail('failed-precondition', 'Cambió el turno o la fecha censal. Abre otra entrega.');
     }
     const ref = records.doc(date);
-    const select = snapshot => findHandoff(snapshot, episode, run, slot);
+    const select = snapshot => findHandoff(snapshot, episode, run, slot, census);
     const current = select(await ref.get());
 
     if (action === 'read') {
