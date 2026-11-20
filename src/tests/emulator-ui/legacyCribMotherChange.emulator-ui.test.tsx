@@ -1,14 +1,21 @@
 /**
- * Two provisional newborns of different mothers saved without an episode share one derived
- * `legacy_ep_` id. When the second mother and her newborn reach the bed from the server while a
- * name is being typed for the first newborn, the crib row is a new row: the name is not sent
+ * A provisional newborn, then another mother (accredited episode) and her newborn in the same bed
  * (ID-03, ID-05). Real table, port, queue and authority handlers on the emulator.
+ *
+ * - The name typed for the first newborn is still in the cell when the new mother arrives: the
+ *   crib row is a new row and the name is never sent, even when both newborns are legacy and
+ *   share one derived `legacy_ep_` id.
+ * - The name has already left the cell and reaches the server after the new mother: with
+ *   accredited newborns it never reaches the new one. With legacy newborns of the same derived id
+ *   it can, once retried on the new version: the known limit of ID-05 (as in main), kept here as
+ *   an expected failure.
  */
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
 import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
+import { doc, getDocFromCache, type Firestore as ClientFirestore } from 'firebase/firestore';
 import { processSyncQueue } from '@/services/storage/sync';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -20,10 +27,34 @@ import {
 } from '@/services/storage/sessionScopedStorageService';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 vi.unmock('@/application/ports/dailyRecordPort');
-vi.unmock('@/services/repositories/dailyRecordRepositoryWriteService');
+vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', async importOriginal => {
+  const actual =
+    await importOriginal<
+      typeof import('@/services/repositories/dailyRecordRepositoryWriteService')
+    >();
+  return {
+    ...actual,
+    updatePartialDetailed: async (...args: Parameters<typeof actual.updatePartialDetailed>) => {
+      h.writesInFlight += 1;
+      try {
+        return await actual.updatePartialDetailed(...args);
+      } finally {
+        h.writesInFlight -= 1;
+      }
+    },
+  };
+});
 
 const h = vi.hoisted(() => ({
   db: undefined as unknown,
+  /** While set, a bed patch waits here before reaching the authority. */
+  holdPatch: null as Promise<void> | null,
+  patchCalls: 0,
+  /** Bed patches sent to the authority in this test, and those it accepted. */
+  sent: [] as string[],
+  accepted: [] as string[],
+  /** Census writes started and not finished (retries included). */
+  writesInFlight: 0,
 }));
 vi.mock('firebase/functions', () => ({
   httpsCallable: (_functions: unknown, name: string) => async () => {
@@ -91,8 +122,16 @@ beforeAll(async () => {
   });
   vi.spyOn(authority, 'patchDailyRecordWithClinicalAuthorityCallable').mockImplementation(
     async payload => {
+      h.patchCalls += 1;
+      h.sent.push(JSON.stringify(payload));
+      if (h.holdPatch) await h.holdPatch;
       try {
-        return await authorityApi.patchDailyRecordWithClinicalAuthority.run(payload, context());
+        const answer = await authorityApi.patchDailyRecordWithClinicalAuthority.run(
+          payload,
+          context()
+        );
+        h.accepted.push(JSON.stringify(payload));
+        return answer;
       } catch (error) {
         throw authority.normalizeDailyRecordAuthorityError(error);
       }
@@ -115,7 +154,7 @@ afterAll(async () => {
 });
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ensurePatientClinicalEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import { CensusTableBody } from '@/features/census/components/CensusTableBody';
 import { buildCensusBedRows } from '@/features/census/controllers/censusTableViewController';
@@ -147,7 +186,7 @@ vi.mock('@/context/VersionContext', () => ({
 }));
 const bed = BEDS.find(b => b.id === 'R1')!;
 const date = today;
-const provisionalNewborn = () =>
+const provisionalNewborn = (clinicalEpisodeId?: string) =>
   ensurePatientClinicalEpisodeId(
     DataFactory.createMockPatient(bed.id, {
       patientName: 'RN PROVISIONAL SINTETICO',
@@ -156,7 +195,7 @@ const provisionalNewborn = () =>
       secondLastName: '',
       rut: '',
       identityStatus: 'provisional',
-      clinicalEpisodeId: undefined,
+      clinicalEpisodeId,
       admissionDate: date,
       firstSeenDate: date,
       admissionTime: '07:20',
@@ -191,7 +230,15 @@ const Census = () => {
   );
 };
 
-it('keeps the second newborn name when another mother arrives from the server while a name is typed', async () => {
+const path = `hospitals/hanga_roa/dailyRecords/${date}`;
+const TYPED = 'NOMBRE DEL PRIMER RN';
+const SECOND_NEWBORN_NAME = 'NOMBRE DEL SEGUNDO RN';
+
+/**
+ * Bed R1 holds mother A (accredited) and her provisional newborn; `replace` puts mother B and her
+ * newborn in the bed on the server. Newborn episodes are legacy unless given.
+ */
+const renderBed = async (newbornEpisodes: { first?: string; second?: string } = {}) => {
   await env.clearFirestore();
   await clearSessionScopedClientState('manual');
   await hospitalDB.dailyRecords.clear();
@@ -200,16 +247,21 @@ it('keeps the second newborn name when another mother arrives from the server wh
   await admin
     .doc('hospitals/hanga_roa/settings/rayenImportPolicy')
     .set({ schemaVersion: 2, clinicalBatchMode: 'enforced' });
-  const path = 'hospitals/hanga_roa/dailyRecords/' + date;
+  h.patchCalls = 0;
+  h.holdPatch = null;
+  h.sent = [];
+  h.accepted = [];
+  h.writesInFlight = 0;
   const seed = DataFactory.createMockDailyRecord(date, {
     beds: {
+      ...DataFactory.createMockDailyRecord(date).beds,
       R1: DataFactory.createMockPatient('R1', {
         patientName: 'MADRE SINTETICA',
         rut: '11.111.111-1',
         clinicalEpisodeId: 'ep_madre_a',
         firstSeenDate: date,
         admissionDate: date,
-        clinicalCrib: provisionalNewborn(),
+        clinicalCrib: provisionalNewborn(newbornEpisodes.first),
       }),
     },
     lastUpdated: new Date(Date.now() - 120000).toISOString(),
@@ -232,39 +284,166 @@ it('keeps the second newborn name when another mother arrives from the server wh
       </UIProvider>
     </QueryClientProvider>
   );
+  const input = await screen.findByPlaceholderText('Nombre RN / Niño', {}, { timeout: 10000 });
+  const replacement = {
+    ...before.beds.R1,
+    patientName: 'SEGUNDA MADRE SINTETICA',
+    rut: '12.345.678-5',
+    clinicalEpisodeId: 'ep_madre_b',
+    clinicalCrib: provisionalNewborn(newbornEpisodes.second),
+  };
+  return {
+    input,
+    firstNewborn: before.beds.R1.clinicalCrib as { clinicalEpisodeId: string },
+    replacement,
+    replace: () =>
+      act(async () => {
+        await admin.doc(path).update({
+          'beds.R1': JSON.parse(JSON.stringify(replacement)),
+          lastUpdated: new Date().toISOString(),
+        });
+      }),
+    stored: async () => (await admin.doc(path).get()).data()!.beds.R1,
+    stop: () => {
+      view.unmount();
+      client.clear();
+      h.holdPatch = null;
+    },
+  };
+};
+
+/**
+ * Holds the name cell's own 350 ms pause (and only it) until `release`: the replacement then
+ * arrives, for certain, while the typed name is still in the cell. A pause the cell cancels is
+ * dropped; one still held at release runs as the cell would have run it.
+ */
+const holdCellPause = () => {
+  const realSetTimeout = globalThis.setTimeout;
+  const realClearTimeout = globalThis.clearTimeout;
+  const held = new Map<object, () => void>();
+  const setSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((
+    callback: () => void,
+    delay?: number,
+    ...args: unknown[]
+  ) => {
+    if (delay !== 350) return realSetTimeout(callback, delay, ...args);
+    const handle = {};
+    held.set(handle, callback);
+    return handle;
+  }) as typeof setTimeout);
+  const clearSpy = vi.spyOn(globalThis, 'clearTimeout').mockImplementation(((
+    handle?: Parameters<typeof clearTimeout>[0]
+  ) => {
+    if (handle && typeof handle === 'object' && held.delete(handle)) return;
+    realClearTimeout(handle);
+  }) as typeof clearTimeout);
+  return {
+    release: () => {
+      setSpy.mockRestore();
+      clearSpy.mockRestore();
+      const pending = [...held.values()];
+      held.clear();
+      act(() => pending.forEach(callback => callback()));
+      return pending.length;
+    },
+  };
+};
+
+it('keeps the second newborn name when another mother arrives from the server while a name is typed', async () => {
+  const bedView = await renderBed();
   try {
-    const input = await screen.findByPlaceholderText('Nombre RN / Niño', {}, { timeout: 10000 });
-    const replacement = {
-      ...before.beds.R1,
-      patientName: 'SEGUNDA MADRE SINTETICA',
-      rut: '22.222.222-2',
-      clinicalEpisodeId: 'ep_madre_b',
-      clinicalCrib: provisionalNewborn(),
-    };
-    expect(before.beds.R1.clinicalCrib.clinicalEpisodeId).toMatch(/^legacy_ep_/);
-    expect(replacement.clinicalCrib.clinicalEpisodeId).toBe(
-      before.beds.R1.clinicalCrib.clinicalEpisodeId
+    expect(bedView.firstNewborn.clinicalEpisodeId).toMatch(/^legacy_ep_/);
+    expect(bedView.replacement.clinicalCrib.clinicalEpisodeId).toBe(
+      bedView.firstNewborn.clinicalEpisodeId
     );
-    act(() => input.focus());
-    fireEvent.change(input, { target: { value: 'NOMBRE DEL PRIMER RN' } });
-    await act(async () => {
-      await admin.doc(path).update({
-        'beds.R1': JSON.parse(JSON.stringify(replacement)),
-        lastUpdated: new Date().toISOString(),
-      });
-    });
+    const pause = holdCellPause();
+    act(() => bedView.input.focus());
+    fireEvent.change(bedView.input, { target: { value: TYPED } });
+    await bedView.replace();
     await screen.findByText('SEGUNDA MADRE SINTETICA', {}, { timeout: 10000 });
     fireEvent.blur(screen.getByPlaceholderText('Nombre RN / Niño'));
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      await processSyncQueue();
-    });
-    const saved = (await admin.doc(path).get()).data()!.beds.R1;
-    expect(await hospitalDB.syncQueue.count()).toBe(0);
-    expect(saved.clinicalEpisodeId).toBe('ep_madre_b');
-    expect(saved.clinicalCrib.patientName).toBe('RN PROVISIONAL SINTETICO');
+    // The new crib row dropped the old cell and its pause: nothing is left to run.
+    expect(pause.release()).toBe(0);
+
+    // A name typed for the second newborn is written after anything the first cell sent (one
+    // day's writes go in order): once the server has it, nothing else is on its way.
+    const current = screen.getByPlaceholderText('Nombre RN / Niño');
+    act(() => current.focus());
+    fireEvent.change(current, { target: { value: SECOND_NEWBORN_NAME } });
+    fireEvent.blur(current);
+    await waitFor(
+      async () => {
+        await processSyncQueue();
+        const saved = await bedView.stored();
+        expect(saved.clinicalEpisodeId).toBe('ep_madre_b');
+        expect(saved.clinicalCrib.patientName).toBe(SECOND_NEWBORN_NAME);
+        expect(await hospitalDB.syncQueue.count()).toBe(0);
+      },
+      { timeout: 10000 }
+    );
+    expect(h.sent.filter(patch => patch.includes(TYPED))).toEqual([]);
   } finally {
-    view.unmount();
-    client.clear();
+    bedView.stop();
   }
 }, 30000);
+
+/**
+ * The name has left the cell (its pause ended) and its write reaches the server only after the
+ * new mother and newborn are stored there and this computer's listener has them.
+ */
+const sentBeforeBedChanges = async (newbornEpisodes?: { first?: string; second?: string }) => {
+  const bedView = await renderBed(newbornEpisodes);
+  let releasePatch!: () => void;
+  h.holdPatch = new Promise<void>(resolve => {
+    releasePatch = resolve;
+  });
+  const pause = holdCellPause();
+  try {
+    act(() => bedView.input.focus());
+    fireEvent.change(bedView.input, { target: { value: TYPED } });
+    expect(pause.release()).toBe(1);
+    await waitFor(() => expect(h.patchCalls).toBe(1), { timeout: 10000 });
+    await bedView.replace();
+    // This computer's Firestore listener has the new day (the census itself keeps its copy while
+    // the write is in flight, SAVE-01).
+    await waitFor(
+      async () => {
+        const cached = await getDocFromCache(doc(h.db as ClientFirestore, path));
+        expect(cached.data()?.beds?.R1?.clinicalEpisodeId).toBe('ep_madre_b');
+      },
+      { timeout: 10000 }
+    );
+    h.holdPatch = null;
+    releasePatch();
+
+    // The write, with any retry on the new version, has finished.
+    await waitFor(() => expect(h.writesInFlight).toBe(0), { timeout: 10000 });
+    await act(async () => {
+      await processSyncQueue();
+    });
+    const saved = await bedView.stored();
+    expect(saved.clinicalEpisodeId).toBe('ep_madre_b');
+    expect(saved.clinicalCrib.patientName).toBe('RN PROVISIONAL SINTETICO');
+    expect(h.accepted.filter(patch => patch.includes(TYPED))).toEqual([]);
+  } finally {
+    releasePatch();
+    h.holdPatch = null;
+    pause.release();
+    bedView.stop();
+  }
+};
+
+it('does not put a name already sent for an accredited newborn on the newborn of another mother', async () => {
+  await sentBeforeBedChanges({ first: 'ep_rn_a', second: 'ep_rn_b' });
+}, 30000);
+
+// ID-05 known limit, as in main: once the name has left the cell, a write retried on the new
+// version reaches the next legacy newborn with the same derived id. Production cribs carry
+// accredited episodes (Oct–Nov 2026: 26 of 26); with them the case above refuses it.
+it.fails(
+  'does not put a name already sent for a legacy newborn on the newborn of another mother',
+  async () => {
+    await sentBeforeBedChanges();
+  },
+  30000
+);
