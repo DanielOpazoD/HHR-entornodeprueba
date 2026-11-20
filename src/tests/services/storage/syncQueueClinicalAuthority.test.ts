@@ -46,6 +46,7 @@ vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
 
 import { getDoc, setDoc } from 'firebase/firestore';
 import { processSyncQueue, queueSyncTask } from '@/services/storage/sync';
+import { activateServerWriteFence } from '@/tests/support/serverWriteFence';
 
 const makeRecord = (date: string): DailyRecord =>
   ({
@@ -82,9 +83,6 @@ describe('sync queue clinical authority', () => {
         },
       },
     });
-    delete (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE;
-    delete (import.meta.env as Record<string, string | undefined>)
-      .VITE_DAILY_RECORD_AUTHORITY_CALLABLE;
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
   });
 
@@ -139,9 +137,8 @@ describe('sync queue clinical authority', () => {
     expect(task.error).toContain('clinical authority');
   });
 
-  it('publishes valid outbox daily records through the authority callable in enforced mode', async () => {
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
+  it('publishes valid outbox daily records through the authority callable behind the server fence', async () => {
+    activateServerWriteFence();
     const local = makeRecord('2025-01-17');
     local.beds.R1 = {
       bedId: 'R1',
@@ -198,9 +195,7 @@ describe('sync queue clinical authority', () => {
     );
   });
 
-  it('ignores retired shadow configuration and keeps direct outbox publish without a policy', async () => {
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'shadow';
+  it('keeps direct outbox publish without a policy', async () => {
     const local = makeRecord('2025-01-18');
     local.beds.R1 = {
       bedId: 'R1',

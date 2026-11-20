@@ -106,7 +106,7 @@ describe('a day task never writes a patient edits to the next occupant', () => {
     });
     // Same version on the server, another patient in R4: the authority accepts the base.
     h.remote = day(DATE, { R4: B(), R6: E() }, base.lastUpdated);
-    h.authorityMode = true;
+    h.writeFence = true;
     const store = createDexieSyncQueueStore();
     const transport = createFirestoreSyncTransport();
     const now = Date.now() + 60 * 60 * 1000;
@@ -240,9 +240,9 @@ describe('a day task never writes a patient edits to the next occupant', () => {
 
 describe.each(MODES)(
   'a census edit queued while another session replaces a patient (%s)',
-  (_mode, enforced) => {
+  (_route, fenced) => {
     const replay = async () => {
-      h.authorityMode = enforced;
+      h.writeFence = fenced;
       await reconnect();
     };
 
@@ -257,7 +257,7 @@ describe.each(MODES)(
       await replay();
 
       expectBInR4();
-      await expectDayEditsPublishedOrKept(enforced, { 'beds.R6.pathology': 'Dx E corregido' });
+      await expectDayEditsPublishedOrKept(fenced, { 'beds.R6.pathology': 'Dx E corregido' });
     });
 
     it('keeps an edit of the departed patient, not written on B, when it edits the same bed', async () => {
@@ -272,9 +272,9 @@ describe.each(MODES)(
 
       expectBInR4();
       expect(remote().beds.R4.pathology).not.toBe('Dx A corregido');
-      // client_only holds the departed patient's edit as its own conflict and publishes the rest;
-      // enforced keeps the whole day write queued.
-      await expectDayEditsPublishedOrKept(enforced, { 'beds.R6.pathology': 'Dx E corregido' });
+      // The direct route holds the departed patient's edit as its own conflict and publishes the rest;
+      // The fenced route keeps the whole day write queued.
+      await expectDayEditsPublishedOrKept(fenced, { 'beds.R6.pathology': 'Dx E corregido' });
       const kept = (await queue()).filter(task => task.type === 'UPDATE_DAILY_RECORD');
       expect(kept.map(task => (task.payload as DailyRecord).beds.R4.pathology)).toEqual([
         'Dx A corregido',
@@ -291,7 +291,7 @@ describe.each(MODES)(
       await replay();
 
       expectBInR4();
-      await expectDayEditsPublishedOrKept(enforced, {
+      await expectDayEditsPublishedOrKept(fenced, {
         'beds.R6.pathology': 'Dx E v2',
         'beds.R7.pathology': 'Dx F corregido',
       });
@@ -308,7 +308,7 @@ describe.each(MODES)(
       expect(remote().beds.R4.clinicalCrib).toMatchObject({ patientName: 'RN B Sintético' });
       // An older remote clock does not prove the queued base is current. Authority keeps this
       // mismatch for review, with the mother's edit intact and the new newborn untouched.
-      await expectDayEditsPublishedOrKept(enforced, { 'beds.R4.pathology': 'Dx M corregido' });
+      await expectDayEditsPublishedOrKept(fenced, { 'beds.R4.pathology': 'Dx M corregido' });
     });
 
     it('never writes a departed mother over the bed while it edits the newborn', async () => {
@@ -332,7 +332,7 @@ describe.each(MODES)(
   }
 );
 
-describe('enforced mode keeps a stale day write queued, as main does', () => {
+describe('the server fence keeps a stale day write queued, as main does', () => {
   it('never overwrites a change the edit never saw, hidden behind a later write', async () => {
     await readStored({ R4: A('R4'), R6: E(), R7: F() }, undefined, {
       revision: 5,
@@ -345,7 +345,7 @@ describe('enforced mode keeps a stale day write queued, as main does', () => {
       '2026-10-24T10:20:00.000Z',
       { revision: 7, lastChangedPaths: ['beds.R7.pathology'] }
     );
-    h.authorityMode = true;
+    h.writeFence = true;
 
     await reconnect();
 
@@ -364,7 +364,7 @@ describe('enforced mode keeps a stale day write queued, as main does', () => {
       revision: 6,
       lastChangedPaths: ['beds.R4'],
     });
-    h.authorityMode = true;
+    h.writeFence = true;
 
     await reconnect();
 

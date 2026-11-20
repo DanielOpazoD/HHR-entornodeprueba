@@ -215,8 +215,6 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         .firestore(),
     };
     setFirestoreEnabled(true);
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', '');
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_CALLABLE', '');
     // The queue runs only when the test says so.
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
   }, 120_000);
@@ -357,12 +355,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       const { field = note, base = 'NOCHE BASE', written = 'NOTA SINTETICA DE P1' } = sends[kind];
       server.dispatched = 0;
       const routing = sends[kind].staleRouting
-        ? [
-            vi.spyOn(fence, 'isServerClinicalWriteFenceActive').mockResolvedValue(false),
-            vi
-              .spyOn(fence, 'resolveEffectiveDailyRecordAuthorityMode')
-              .mockResolvedValue('client_only'),
-          ]
+        ? [vi.spyOn(fence, 'isServerClinicalWriteFenceActive').mockResolvedValue(false)]
         : [];
       await env.clearFirestore();
       await hospitalDB.dailyRecords.clear();

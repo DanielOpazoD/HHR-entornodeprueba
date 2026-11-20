@@ -133,5 +133,4 @@ describe('storage/sync authority contract', () => {
 });
 
 // This fixture exercises the legacy setDoc contract; callable acknowledgement has its own suite.
-beforeEach(() => vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only'));
 afterEach(() => vi.unstubAllEnvs());

@@ -309,7 +309,6 @@ const observeSave = async (testCase: SaveCase) => {
 
 describe('write-result parity: a whole-day save', () => {
   beforeEach(async () => {
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     await resetParityWorld();
   });
   afterEach(() => {

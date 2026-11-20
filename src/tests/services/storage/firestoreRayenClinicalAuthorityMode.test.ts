@@ -2,7 +2,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  configuredMode: 'client_only' as 'client_only' | 'enforced',
   getDoc: vi.fn(),
   doc: vi.fn((_db: unknown, path: string) => ({ path })),
 }));
@@ -12,14 +11,7 @@ vi.mock('firebase/firestore', () => ({
   getDoc: mocks.getDoc,
 }));
 
-vi.mock('@/services/storage/firestore/dailyRecordAuthorityMode', () => ({
-  resolveDailyRecordAuthorityMode: () => mocks.configuredMode,
-}));
-
-import {
-  isServerClinicalWriteFenceActive,
-  resolveEffectiveDailyRecordAuthorityMode,
-} from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
+import { isServerClinicalWriteFenceActive } from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
 
 const runtime = {
@@ -34,17 +26,8 @@ const policySnapshot = (data: Record<string, unknown> | null) => ({
 
 describe('firestoreRayenClinicalAuthorityMode', () => {
   beforeEach(() => {
-    mocks.configuredMode = 'client_only';
     mocks.getDoc.mockReset();
     mocks.doc.mockClear();
-  });
-
-  it('uses the configured deployment mode only when no authoritative policy exists', async () => {
-    mocks.configuredMode = 'enforced';
-    mocks.getDoc.mockResolvedValue(policySnapshot(null));
-
-    await expect(resolveEffectiveDailyRecordAuthorityMode(runtime)).resolves.toBe('enforced');
-    expect(mocks.getDoc).toHaveBeenCalledOnce();
   });
 
   it.each(['off', 'shadow', 'enforced'] as const)(
@@ -53,63 +36,35 @@ describe('firestoreRayenClinicalAuthorityMode', () => {
       mocks.getDoc.mockResolvedValue(policySnapshot({ schemaVersion: 2, clinicalBatchMode }));
 
       await expect(isServerClinicalWriteFenceActive(runtime)).resolves.toBe(true);
+      expect(mocks.doc).toHaveBeenCalledOnce();
+      expect(mocks.getDoc).toHaveBeenCalledOnce();
     }
   );
 
-  it('does not activate the write fence before policy schema v2 exists', async () => {
-    mocks.getDoc.mockResolvedValue(
-      policySnapshot({ schemaVersion: 1, clinicalBatchMode: 'enforced' })
-    );
-
-    await expect(isServerClinicalWriteFenceActive(runtime)).resolves.toBe(false);
-  });
-
-  it('promotes a legacy client when the schema-v2 global policy is enforced', async () => {
-    mocks.getDoc.mockResolvedValue(
-      policySnapshot({ schemaVersion: 2, clinicalBatchMode: 'enforced' })
-    );
-
-    await expect(resolveEffectiveDailyRecordAuthorityMode(runtime)).resolves.toBe('enforced');
-    expect(mocks.doc).toHaveBeenCalledOnce();
-    expect(mocks.getDoc).toHaveBeenCalledOnce();
-  });
-
-  it.each(['off', 'shadow'] as const)(
-    'does not let the schema-v2 global policy %s weaken enforced daily-record authority',
-    async clinicalBatchMode => {
-      mocks.configuredMode = 'enforced';
-      mocks.getDoc.mockResolvedValue(policySnapshot({ schemaVersion: 2, clinicalBatchMode }));
-
-      await expect(resolveEffectiveDailyRecordAuthorityMode(runtime)).resolves.toBe('enforced');
-    }
-  );
-
-  it('ignores retired shadow policy when resolving deployment authority', async () => {
-    mocks.getDoc.mockResolvedValue(
-      policySnapshot({ schemaVersion: 2, clinicalBatchMode: 'shadow' })
-    );
-
-    await expect(resolveEffectiveDailyRecordAuthorityMode(runtime)).resolves.toBe('client_only');
-  });
-
-  it('does not promote from an old, off or missing policy', async () => {
-    for (const policy of [
-      { schemaVersion: 1, clinicalBatchMode: 'enforced' },
-      { schemaVersion: 2, clinicalBatchMode: 'off' },
-      null,
-    ]) {
+  it('does not activate the write fence from an old or missing policy', async () => {
+    for (const policy of [{ schemaVersion: 1, clinicalBatchMode: 'enforced' }, null]) {
       mocks.getDoc.mockResolvedValueOnce(policySnapshot(policy));
-      await expect(resolveEffectiveDailyRecordAuthorityMode(runtime)).resolves.toBe('client_only');
-    }
-  });
-
-  it.each(['client_only', 'enforced'] as const)(
-    'preserves configured %s when the policy cannot be read',
-    async mode => {
-      mocks.configuredMode = mode;
-      mocks.getDoc.mockRejectedValue(new Error('offline'));
-      await expect(resolveEffectiveDailyRecordAuthorityMode(runtime)).resolves.toBe(mode);
       await expect(isServerClinicalWriteFenceActive(runtime)).resolves.toBe(false);
     }
-  );
+  });
+
+  it('reads the policy once more when the first read fails', async () => {
+    mocks.getDoc
+      .mockRejectedValueOnce(new Error('synthetic token race'))
+      .mockResolvedValueOnce(policySnapshot({ schemaVersion: 2, clinicalBatchMode: 'enforced' }));
+    await expect(isServerClinicalWriteFenceActive(runtime)).resolves.toBe(true);
+    expect(mocks.getDoc).toHaveBeenCalledTimes(2);
+  });
+
+  it('leaves the fence inactive after two failed reads, so the rules decide', async () => {
+    mocks.getDoc.mockRejectedValue(new Error('offline'));
+    await expect(isServerClinicalWriteFenceActive(runtime)).resolves.toBe(false);
+    expect(mocks.getDoc).toHaveBeenCalledTimes(2);
+  });
+
+  it('reads once when the first read answers', async () => {
+    mocks.getDoc.mockResolvedValue(policySnapshot(null));
+    await expect(isServerClinicalWriteFenceActive(runtime)).resolves.toBe(false);
+    expect(mocks.getDoc).toHaveBeenCalledOnce();
+  });
 });

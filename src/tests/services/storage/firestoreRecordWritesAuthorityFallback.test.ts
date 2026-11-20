@@ -108,9 +108,6 @@ import { saveHistorySnapshot } from '@/services/storage/firestore/firestoreWrite
 describe('firestoreRecordWrites authority fallback routing', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    delete (import.meta.env as Record<string, string | undefined>)
-      .VITE_DAILY_RECORD_AUTHORITY_CALLABLE;
-    delete (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE;
     mockGetCurrentUser.mockReturnValue(null);
     mockResolveFirebaseUserRole.mockResolvedValue(null);
     mockEnsureUserRoleClaim.mockResolvedValue(undefined);
@@ -123,8 +120,6 @@ describe('firestoreRecordWrites authority fallback routing', () => {
   });
 
   it('routes structural writes through the server after policy schema v2 activates the fence', async () => {
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
     mockGetDoc.mockResolvedValue({
       exists: () => true,
       data: () => ({ schemaVersion: 2, clinicalBatchMode: 'off' }),
@@ -152,8 +147,6 @@ describe('firestoreRecordWrites authority fallback routing', () => {
   });
 
   it('fails closed for mixed structural and document updates after the schema-v2 fence', async () => {
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
     mockGetDoc.mockResolvedValue({
       exists: () => true,
       data: () => ({ schemaVersion: 2, clinicalBatchMode: 'off' }),
@@ -181,8 +174,6 @@ describe('firestoreRecordWrites authority fallback routing', () => {
   });
 
   it('keeps non-clinical partial updates on the direct Firestore transaction in enforced mode', async () => {
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
     mockGetCurrentUser.mockReturnValue({
       uid: 'nurse-1',
       email: 'nurse@example.com',

@@ -55,7 +55,6 @@ describe('storage/sync public entrypoint', () => {
 
   beforeEach(async () => {
     // These setDoc fixtures intentionally exercise the legacy transport lane.
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     await hospitalDB.syncQueue.clear();
     resetSyncMutationIdentityForTests();
     vi.clearAllMocks();

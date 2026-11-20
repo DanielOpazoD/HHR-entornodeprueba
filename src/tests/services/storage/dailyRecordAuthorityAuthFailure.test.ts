@@ -1,29 +1,39 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from 'vitest';
-const auth = vi.hoisted(() => ({ user: vi.fn() }));
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+const auth = vi.hoisted(() => ({ user: vi.fn(), fence: true }));
 vi.mock('@/services/firebase-runtime/authRuntime', () => ({
   defaultAuthRuntime: { ready: Promise.resolve(), getCurrentUser: auth.user },
 }));
 vi.mock('@/services/storage/firestore/firestoreRayenClinicalAuthorityMode', () => ({
-  resolveEffectiveDailyRecordAuthorityMode: async () => 'enforced',
+  isServerClinicalWriteFenceActive: async () => auth.fence,
 }));
-import { resolveAuthenticatedDailyRecordAuthorityMode } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
+import { shouldRouteDailyRecordWriteViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 
-describe('advisory authority authentication', () => {
-  it('distinguishes unavailable authentication from an absent session', async () => {
-    const error = new Error('synthetic auth unavailable');
-    auth.user.mockImplementation(() => {
-      throw error;
-    });
-    expect(await resolveAuthenticatedDailyRecordAuthorityMode()).toEqual({
-      kind: 'unavailable',
-      error,
-    });
+describe('advisory authority routing', () => {
+  beforeEach(() => {
+    auth.fence = true;
+    auth.user.mockReset();
   });
-  it('preserves the absent-session and authenticated routing decisions', async () => {
+
+  it('writes directly when the session cannot be checked, so the rules decide', async () => {
+    auth.user.mockImplementation(() => {
+      throw new Error('synthetic auth unavailable');
+    });
+    expect(await shouldRouteDailyRecordWriteViaCallable()).toBe(false);
+  });
+
+  it('routes only a signed-in, non-anonymous user behind the server fence', async () => {
     auth.user.mockReturnValue(null);
-    expect(await resolveAuthenticatedDailyRecordAuthorityMode()).toBeNull();
+    expect(await shouldRouteDailyRecordWriteViaCallable()).toBe(false);
+    auth.user.mockReturnValue({ isAnonymous: true });
+    expect(await shouldRouteDailyRecordWriteViaCallable()).toBe(false);
     auth.user.mockReturnValue({ isAnonymous: false });
-    expect(await resolveAuthenticatedDailyRecordAuthorityMode()).toBe('enforced');
+    expect(await shouldRouteDailyRecordWriteViaCallable()).toBe(true);
+  });
+
+  it('writes directly without the server fence, whoever is signed in', async () => {
+    auth.fence = false;
+    auth.user.mockReturnValue({ isAnonymous: false });
+    expect(await shouldRouteDailyRecordWriteViaCallable()).toBe(false);
   });
 });

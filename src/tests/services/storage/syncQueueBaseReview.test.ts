@@ -20,7 +20,6 @@ const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
   set: vi.fn(),
   invoke: vi.fn(),
-  mode: 'client_only',
   fence: false,
 }));
 vi.mock('firebase/firestore', async original => ({
@@ -34,7 +33,6 @@ vi.mock('@/services/storage/firestore/firestoreShared', async original => ({
   getRecordDocRef: () => ({ id: 'synthetic-base-review' }),
 }));
 vi.mock('@/services/storage/firestore/firestoreRayenClinicalAuthorityMode', () => ({
-  resolveEffectiveDailyRecordAuthorityMode: async () => mocks.mode,
   isServerClinicalWriteFenceActive: async () => mocks.fence,
 }));
 vi.mock('firebase/functions', () => ({ httpsCallable: () => mocks.invoke }));
@@ -131,7 +129,6 @@ beforeEach(async () => {
   localStorage.setItem(SESSION_OWNER_KEY, owner);
   await hospitalDB.syncQueue.clear();
   await hospitalDB.dailyRecords.clear();
-  mocks.mode = 'client_only';
   mocks.fence = false;
   mocks.read.mockResolvedValue(snapshot(stored()));
   mocks.transaction.mockImplementation(async (_db, callback) =>
@@ -140,10 +137,13 @@ beforeEach(async () => {
 });
 
 describe('opaque daily-record base review', () => {
-  it.each(['client_only', 'enforced'])(
-    'retains the rejected base through worker, public snapshot and real panel in %s',
-    async mode => {
-      mocks.mode = mode;
+  it.each([
+    ['direct', false],
+    ['fenced', true],
+  ])(
+    'retains the rejected base through worker, public snapshot and real panel when %s',
+    async (_route, fence) => {
+      mocks.fence = fence;
       const input = task({ baseRevision: 6 });
       const [row] = await processTask(input);
       await expectDurableReview(row, input);
@@ -169,7 +169,7 @@ describe('opaque daily-record base review', () => {
       it.each([undefined, [], ['*'], [' * ', ' ', '*'], [' ']])(
         'requires durable review for opaque paths %j',
         async changedPaths => {
-          mocks.mode = 'enforced';
+          mocks.fence = true;
           mocks.invoke.mockRejectedValue({ code: 'functions/aborted', message: mismatch });
           const input = task({ changedPaths });
           const [row] = await processTask(input);
@@ -189,8 +189,7 @@ describe('opaque daily-record base review', () => {
     }
   );
 
-  it('requires review when the server fence promotes client_only to the callable', async () => {
-    mocks.mode = 'client_only';
+  it('requires review when the server fence routes the save to the callable', async () => {
     mocks.fence = true;
     mocks.invoke.mockRejectedValue({ code: 'functions/aborted', message: 'revision_mismatch' });
     const input = task();
@@ -220,7 +219,7 @@ describe('opaque daily-record base review', () => {
     onTestFinished(() => {
       vi.useRealTimers();
     });
-    mocks.mode = 'enforced';
+    mocks.fence = true;
     mocks.invoke.mockRejectedValue({ code, message });
     const input = task({ changedPaths });
     const [row] = await processTask(input);
@@ -236,7 +235,7 @@ describe('opaque daily-record base review', () => {
   });
 
   it('does not translate an omitted committed record into base review', async () => {
-    mocks.mode = 'enforced';
+    mocks.fence = true;
     mocks.invoke.mockResolvedValue({ data: { success: true } });
     const [row] = await processTask(task());
     expect(row).toMatchObject({ status: 'CONFLICT', lastErrorCode: 'unknown' });
@@ -263,7 +262,7 @@ describe('opaque daily-record base review', () => {
   });
 
   it('retains a rejected episode downgrade without automatically sending it again', async () => {
-    mocks.mode = 'enforced';
+    mocks.fence = true;
     mocks.invoke.mockRejectedValue({
       code: 'functions/failed-precondition',
       message:

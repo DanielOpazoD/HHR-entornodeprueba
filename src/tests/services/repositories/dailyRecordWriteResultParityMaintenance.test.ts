@@ -56,7 +56,6 @@ vi.mock('@/services/firebase-runtime/authRuntime', () => ({
  */
 describe('write-result parity: restoring a split day from a monthly backup', () => {
   beforeEach(async () => {
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     await resetParityWorld();
     // No server copy of the backed-up day yet: nothing to compare the restore against.
     server.remoteDay = null;

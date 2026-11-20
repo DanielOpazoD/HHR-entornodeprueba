@@ -103,9 +103,6 @@ import { saveHistorySnapshot } from '@/services/storage/firestore/firestoreWrite
 describe('firestoreRecordWrites authority patch routing', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    delete (import.meta.env as Record<string, string | undefined>)
-      .VITE_DAILY_RECORD_AUTHORITY_CALLABLE;
-    delete (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE;
     mockGetCurrentUser.mockReturnValue(null);
     mockResolveFirebaseUserRole.mockResolvedValue(null);
     mockEnsureUserRoleClaim.mockResolvedValue(undefined);
@@ -118,8 +115,6 @@ describe('firestoreRecordWrites authority patch routing', () => {
   });
 
   it('routes authenticated partial updates through the clinical authority patch callable when enabled', async () => {
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_CALLABLE =
-      'true';
     mockGetCurrentUser.mockReturnValue({
       uid: 'nurse-1',
       email: 'nurse@example.com',
@@ -168,8 +163,6 @@ describe('firestoreRecordWrites authority patch routing', () => {
   });
 
   it('routes clinical patches through the authority callable even when repository invariants add derived fields', async () => {
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
     mockGetCurrentUser.mockReturnValue({
       uid: 'nurse-1',
       email: 'nurse@example.com',
@@ -217,8 +210,6 @@ describe('firestoreRecordWrites authority patch routing', () => {
   });
 
   it('routes Qx classification patches through the clinical authority callable in enforced mode', async () => {
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
     mockGetCurrentUser.mockReturnValue({
       uid: 'nurse-1',
       email: 'nurse@example.com',
@@ -262,8 +253,6 @@ describe('firestoreRecordWrites authority patch routing', () => {
   });
 
   it('routes UPC checklist patches with derived bed type overrides through the authority callable', async () => {
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
     mockGetCurrentUser.mockReturnValue({
       uid: 'nurse-1',
       email: 'nurse@example.com',
@@ -320,8 +309,6 @@ describe('firestoreRecordWrites authority patch routing', () => {
   });
 
   it('routes structural bed edits through the preserving authority callable in enforced mode', async () => {
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
     mockGetCurrentUser.mockReturnValue({
       uid: 'nurse-1',
       email: 'nurse@example.com',
@@ -360,14 +347,9 @@ describe('firestoreRecordWrites authority patch routing', () => {
     expect(saveHistorySnapshot).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ['off', 'client_only'],
-    ['shadow', 'shadow'],
-  ] as const)(
+  it.each(['off', 'shadow'] as const)(
     'routes schema-v2 clinical patches through the preserving callable after rollback to %s',
-    async (serverMode, clientMode) => {
-      (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-        clientMode;
+    async serverMode => {
       mockGetCurrentUser.mockReturnValue({
         uid: 'nurse-1',
         email: 'nurse@example.com',
@@ -395,8 +377,6 @@ describe('firestoreRecordWrites authority patch routing', () => {
   );
 
   it('does not forward derived dateTimestamp alongside an authoritative structural bed patch', async () => {
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
     mockGetCurrentUser.mockReturnValue({
       uid: 'nurse-1',
       email: 'nurse@example.com',
@@ -421,8 +401,6 @@ describe('firestoreRecordWrites authority patch routing', () => {
   });
 
   it('fails closed when one update mixes a bed-tree edit with unrelated document fields', async () => {
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
     mockGetCurrentUser.mockReturnValue({
       uid: 'nurse-1',
       email: 'nurse@example.com',
@@ -445,8 +423,6 @@ describe('firestoreRecordWrites authority patch routing', () => {
   });
 
   it('fails closed instead of dropping either side of a mixed clinical and structural patch', async () => {
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
     mockGetCurrentUser.mockReturnValue({
       uid: 'nurse-1',
       email: 'nurse@example.com',

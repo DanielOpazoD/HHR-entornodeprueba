@@ -42,8 +42,7 @@ vi.mock('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting', asy
     typeof import('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting')
   >()),
   assertDailyRecordClinicalAuthority: () => undefined,
-  resolveAuthenticatedDailyRecordAuthorityMode: async () => null,
-  shouldRouteDailyRecordSaveViaCallable: async () => false,
+  shouldRouteDailyRecordWriteViaCallable: async () => false,
 }));
 vi.mock('@/services/storage/firestore/dailyRecordConflictSnapshotService', () => ({
   getConflictVersionSnapshot: mocks.getSnapshot,

@@ -80,9 +80,7 @@ vi.mock('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting', asy
   >('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting');
   return {
     ...actual,
-    resolveAuthenticatedDailyRecordAuthorityMode: vi.fn().mockResolvedValue(null),
-    shouldRouteDailyRecordSaveViaCallable: vi.fn().mockResolvedValue(false),
-    shouldRouteStructuralBedPatchViaCallable: vi.fn().mockResolvedValue(false),
+    shouldRouteDailyRecordWriteViaCallable: vi.fn().mockResolvedValue(false),
     shouldRouteSpecialistPatchViaCallable: vi.fn().mockResolvedValue(false),
   };
 });

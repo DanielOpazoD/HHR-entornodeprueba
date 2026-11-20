@@ -305,8 +305,6 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     setFirestoreEnabled(true);
     // `production`: the schema-v2 Rayen policy with `clinicalBatchMode: "enforced"` and the
     // variable left undefined, what the published app runs since 2026-11-07.
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', '');
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_CALLABLE', '');
     await admin.doc(policyPath).set({
       schemaVersion: 2,
       mode: 'preview',

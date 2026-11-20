@@ -31,6 +31,7 @@ import { getDoc, setDoc } from 'firebase/firestore';
 import { processSyncQueue, queueSyncTask } from '@/services/storage/sync';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { activateServerWriteFence } from '@/tests/support/serverWriteFence';
 
 const makeRecord = (date: string, marker: string): DailyRecord => ({
   date,
@@ -73,7 +74,6 @@ describe('sync queue mutation conflicts', () => {
     mockAuthorityCallable.mockImplementation(async ({ record }: { record: DailyRecord }) => ({
       recordState: { record, lastUpdated: record.lastUpdated, meta: {} },
     }));
-    delete (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE;
     vi.mocked(getDoc).mockResolvedValue({
       exists: () => false,
       data: () => undefined,
@@ -171,8 +171,7 @@ describe('sync queue mutation conflicts', () => {
       data: () => remote as unknown as Record<string, unknown>,
     } as Awaited<ReturnType<typeof getDoc>>);
 
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
+    activateServerWriteFence();
     await queueSyncTask('UPDATE_DAILY_RECORD', local, {
       contexts: ['movements', 'clinical'],
       origin: 'partial_update_retry',
@@ -227,8 +226,7 @@ describe('sync queue mutation conflicts', () => {
       data: () => remote as unknown as Record<string, unknown>,
     } as Awaited<ReturnType<typeof getDoc>>);
 
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
+    activateServerWriteFence();
     await queueSyncTask('UPDATE_DAILY_RECORD', local, {
       contexts: ['handoff'],
       origin: 'partial_update_retry',
@@ -283,8 +281,7 @@ describe('sync queue mutation conflicts', () => {
       data: () => remote as unknown as Record<string, unknown>,
     } as Awaited<ReturnType<typeof getDoc>>);
 
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
+    activateServerWriteFence();
     await queueSyncTask('UPDATE_DAILY_RECORD', local, {
       contexts: ['handoff'],
       origin: 'partial_update_retry',
@@ -339,8 +336,7 @@ describe('sync queue mutation conflicts', () => {
       data: () => remote as unknown as Record<string, unknown>,
     } as Awaited<ReturnType<typeof getDoc>>);
 
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
+    activateServerWriteFence();
     await queueSyncTask('UPDATE_DAILY_RECORD', local, {
       contexts: ['handoff'],
       origin: 'partial_update_retry',
@@ -438,8 +434,7 @@ describe('sync queue mutation conflicts', () => {
       data: () => remote as unknown as Record<string, unknown>,
     } as Awaited<ReturnType<typeof getDoc>>);
 
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
-      'enforced';
+    activateServerWriteFence();
     await queueSyncTask('UPDATE_DAILY_RECORD', local, {
       contexts: ['clinical', 'movements', 'handoff'],
       origin: 'partial_update_retry',

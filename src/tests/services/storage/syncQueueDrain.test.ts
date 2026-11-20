@@ -49,7 +49,6 @@ const writtenDates = () =>
 
 describe('sync queue drain contract', () => {
   beforeEach(async () => {
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     await hospitalDB.syncQueue.clear();
     vi.clearAllMocks();
     vi.mocked(setDoc).mockResolvedValue(undefined);

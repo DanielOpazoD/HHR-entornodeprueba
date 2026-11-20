@@ -1,7 +1,6 @@
 import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
-import type { DailyRecordAuthorityMode } from '@/services/storage/firestore/dailyRecordAuthorityMode';
 import type { IntentionalBedClearRequest } from '@/types/domain/intentionalBedClear';
 import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
@@ -48,7 +47,7 @@ export interface DailyRecordAuthorityCallablePayload {
   date: string;
   record: DailyRecord;
   expectedLastUpdated?: string;
-  mode: Exclude<DailyRecordAuthorityMode, 'client_only'>;
+  mode: 'enforced';
   origin?: string;
   syncContract?: SyncTaskContract;
   dryRun?: boolean;
@@ -57,7 +56,7 @@ export interface DailyRecordAuthorityCallablePayload {
 export interface DailyRecordAuthorityCallableResponse {
   success: boolean;
   date: string;
-  mode: Exclude<DailyRecordAuthorityMode, 'client_only'>;
+  mode: 'enforced';
   authorityStatus: 'ok' | 'blocked';
   revision?: number;
   mutationId?: string;
@@ -85,7 +84,7 @@ export interface DailyRecordAuthorityPatchCallablePayload {
   date: string;
   patch: Record<string, unknown>;
   expectedLastUpdated?: string;
-  mode: Exclude<DailyRecordAuthorityMode, 'client_only'>;
+  mode: 'enforced';
   origin?: string;
   syncContract?: SyncTaskContract;
   historyPolicy?: 'snapshot' | 'skip';

@@ -348,7 +348,6 @@ export const GUARDED_CASES: Record<string, ParityCase> = {
 
 describe('write-result parity: server-first edits, blocks and the hook result', () => {
   beforeEach(async () => {
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     await resetParityWorld();
   });
   afterEach(() => {

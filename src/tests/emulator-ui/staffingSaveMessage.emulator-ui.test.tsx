@@ -149,16 +149,14 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       }
     );
   };
-  const mode = async (value: 'enforced') => {
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', value);
-    if (value === 'enforced')
-      await admin.doc('hospitals/hanga_roa/settings/rayenImportPolicy').set({
-        schemaVersion: 2,
-        mode: 'preview',
-        revision: 1,
-        clinicalBatchMode: 'enforced',
-      });
-  };
+  /** The schema-v2 policy: the server fence that routes the day through the authority. */
+  const fenced = () =>
+    admin.doc('hospitals/hanga_roa/settings/rayenImportPolicy').set({
+      schemaVersion: 2,
+      mode: 'preview',
+      revision: 1,
+      clinicalBatchMode: 'enforced',
+    });
   beforeAll(async () => {
     const endpoint = /^(127\.0\.0\.1|localhost):(\d+)$/.exec(
       process.env.FIRESTORE_EMULATOR_HOST ?? ''
@@ -213,7 +211,6 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     await hospitalDB.syncQueue.clear();
     localStorage.clear();
     setFirestoreEnabled(true);
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     await admin.doc(dayPath).set(baseRecord());
     bridge();
   });
@@ -229,7 +226,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   });
 
   it('keeps the server fence when advisory authentication is unavailable', async () => {
-    await mode('enforced');
+    await fenced();
     const before = await read();
     vi.spyOn(defaultAuthRuntime, 'getCurrentUser').mockImplementation(() => {
       throw new Error('synthetic advisory authentication unavailable');
@@ -253,7 +250,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   });
 
   it('7 a bed-only change must not claim that another device changed staffing', async () => {
-    await mode('enforced');
+    await fenced();
     useDoctor();
     await patch('B', { 'beds.R1.pathology': 'MEDICO' });
     let failure: unknown;

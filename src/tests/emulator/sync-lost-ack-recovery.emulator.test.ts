@@ -134,12 +134,18 @@ describeEmulator('Queue recovery after a persisted remote commit loses its respo
   });
   beforeEach(async () => {
     await env.clearFirestore();
+    // The schema-v2 policy is the server fence that routes the queue through the authority.
+    await env.withSecurityRulesDisabled(context =>
+      context
+        .firestore()
+        .doc('hospitals/hanga_roa/settings/rayenImportPolicy')
+        .set({ schemaVersion: 2, clinicalBatchMode: 'enforced' })
+    );
     await hospitalDB.open();
     await hospitalDB.syncQueue.clear();
     await hospitalDB.dailyRecords.clear();
     now = Date.parse(at('10:00:00'));
     vi.spyOn(Date, 'now').mockImplementation(() => now);
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'enforced');
     authority.mockReset();
     authority.mockImplementation(
       async ({ record, syncContract }: { record: DailyRecord; syncContract: SyncTaskContract }) => {

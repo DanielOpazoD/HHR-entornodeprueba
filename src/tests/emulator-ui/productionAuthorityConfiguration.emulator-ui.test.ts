@@ -103,13 +103,6 @@ const baseRecord = () => ({
   meta: { revision: 1 },
 });
 
-/**
- * `production`: what the published app runs since 2026-11-07 — the schema-v2 Rayen policy with
- * `clinicalBatchMode: "enforced"` and VITE_DAILY_RECORD_AUTHORITY_MODE left undefined.
- * `variable_and_policy`: the same policy plus the variable set to `enforced`.
- */
-const configs = ['production', 'variable_and_policy'] as const;
-type Config = (typeof configs)[number];
 type Route = 'authority' | 'transaction';
 type Row = [label: string, route: Route, a: DailyRecordPatch, b: DailyRecordPatch, path: string];
 
@@ -259,9 +252,8 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       await together;
     };
   };
-  const configure = async (config: Config) => {
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', config === 'production' ? '' : 'enforced');
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_CALLABLE', '');
+  /** What the published app runs since 2026-11-07: the schema-v2 Rayen policy, the server fence. */
+  const configure = async () => {
     await admin.doc(policyPath).set({
       schemaVersion: 2,
       mode: 'preview',
@@ -373,72 +365,70 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     if (app) await deleteApp(app);
   });
 
-  for (const config of configs) {
-    for (const [label, route, a, b, path] of serialized) {
-      it(`${label}: the ${route} refuses one of two simultaneous writers (${config})`, async () => {
-        await configure(config);
-        const results = await race(a, b);
-        expect(routeOf()).toBe(route);
-        expect(calls.direct).toBe(0);
-        expect(results.filter(item => item.status === 'fulfilled')).toHaveLength(1);
-        expect(results.filter(item => item.status === 'rejected')).toMatchObject([
-          { reason: { name: 'ConcurrencyError' } },
-        ]);
-        const kept = results[0].status === 'fulfilled' ? a : b;
-        expect(normalize(valueAt(await read(), path))).toEqual(normalize(Object.values(kept)[0]));
-      });
-    }
-
-    it(`full-day save: the authority refuses one of two simultaneous saves (${config})`, async () => {
-      await configure(config);
-      const save = (id: 'A' | 'B', value: string) => {
-        const record = baseRecord();
-        record.beds.R1.pathology = value;
-        return actor(id, () =>
-          writes.saveRecordToFirestore(record, record.lastUpdated, {
-            syncContract: {
-              mutationId: `synthetic-${id}-save`,
-              baseRevision: resolveRecordBaseRevision(record),
-              changedPaths: ['*'],
-            },
-          })
-        );
-      };
-      const results = await Promise.allSettled([save('A', 'A'), save('B', 'B')]);
-      expect(calls.save).toBe(2);
+  for (const [label, route, a, b, path] of serialized) {
+    it(`${label}: the ${route} refuses one of two simultaneous writers`, async () => {
+      await configure();
+      const results = await race(a, b);
+      expect(routeOf()).toBe(route);
+      expect(calls.direct).toBe(0);
       expect(results.filter(item => item.status === 'fulfilled')).toHaveLength(1);
       expect(results.filter(item => item.status === 'rejected')).toMatchObject([
         { reason: { name: 'ConcurrencyError' } },
       ]);
-      expect((await read()).beds.R1.pathology).toBe(results[0].status === 'fulfilled' ? 'A' : 'B');
-    });
-
-    it(`different fields of the same day: both simultaneous writers are saved (${config})`, async () => {
-      await configure(config);
-      const results = await race(
-        { handoffNovedadesDayShift: 'NOVEDAD A' },
-        { activeExtraBeds: ['E2'] }
-      );
-      expect(routeOf()).toBe('transaction');
-      expect(results.map(item => item.status)).toEqual(['fulfilled', 'fulfilled']);
-      expect(await read()).toMatchObject({
-        handoffNovedadesDayShift: 'NOVEDAD A',
-        activeExtraBeds: ['E2'],
-      });
-    });
-
-    it(`the same value written twice at once: both writers succeed (${config})`, async () => {
-      await configure(config);
-      const same = { handoffNovedadesDayShift: 'NOVEDAD A' };
-      const results = await race(same, same);
-      expect(results.map(item => item.status)).toEqual(['fulfilled', 'fulfilled']);
-      expect((await read()).handoffNovedadesDayShift).toBe('NOVEDAD A');
+      const kept = results[0].status === 'fulfilled' ? a : b;
+      expect(normalize(valueAt(await read(), path))).toEqual(normalize(Object.values(kept)[0]));
     });
   }
 
+  it(`full-day save: the authority refuses one of two simultaneous saves`, async () => {
+    await configure();
+    const save = (id: 'A' | 'B', value: string) => {
+      const record = baseRecord();
+      record.beds.R1.pathology = value;
+      return actor(id, () =>
+        writes.saveRecordToFirestore(record, record.lastUpdated, {
+          syncContract: {
+            mutationId: `synthetic-${id}-save`,
+            baseRevision: resolveRecordBaseRevision(record),
+            changedPaths: ['*'],
+          },
+        })
+      );
+    };
+    const results = await Promise.allSettled([save('A', 'A'), save('B', 'B')]);
+    expect(calls.save).toBe(2);
+    expect(results.filter(item => item.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter(item => item.status === 'rejected')).toMatchObject([
+      { reason: { name: 'ConcurrencyError' } },
+    ]);
+    expect((await read()).beds.R1.pathology).toBe(results[0].status === 'fulfilled' ? 'A' : 'B');
+  });
+
+  it(`different fields of the same day: both simultaneous writers are saved`, async () => {
+    await configure();
+    const results = await race(
+      { handoffNovedadesDayShift: 'NOVEDAD A' },
+      { activeExtraBeds: ['E2'] }
+    );
+    expect(routeOf()).toBe('transaction');
+    expect(results.map(item => item.status)).toEqual(['fulfilled', 'fulfilled']);
+    expect(await read()).toMatchObject({
+      handoffNovedadesDayShift: 'NOVEDAD A',
+      activeExtraBeds: ['E2'],
+    });
+  });
+
+  it(`the same value written twice at once: both writers succeed`, async () => {
+    await configure();
+    const same = { handoffNovedadesDayShift: 'NOVEDAD A' };
+    const results = await race(same, same);
+    expect(results.map(item => item.status)).toEqual(['fulfilled', 'fulfilled']);
+    expect((await read()).handoffNovedadesDayShift).toBe('NOVEDAD A');
+  });
+
   // Through the app: device B's census save races device A's write of the same novedades.
   it('handoff novedades: one of two simultaneous nurses is saved, the other keeps the text', async () => {
-    await configure('production');
+    await configure();
     await hospitalDB.dailyRecords.put(baseRecord());
     holdWritesTogether();
     const [other, observed] = await Promise.allSettled([
@@ -467,7 +457,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   });
 
   it('the nurse who loses a real race is told the field changed elsewhere, not «integrated»', async () => {
-    await configure('production');
+    await configure();
     await hospitalDB.dailyRecords.put(baseRecord());
     // Both start from the same base; B's transaction opens only after A's write resolved.
     let releaseB!: () => void;
@@ -504,7 +494,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   });
 
   it('a nurse whose novedades another device replaced first is warned and keeps the text', async () => {
-    await configure('production');
+    await configure();
     await hospitalDB.dailyRecords.put(baseRecord());
     await patch('A', { handoffNovedadesDayShift: 'NOVEDAD A' });
     const result = await actor('B', () =>
@@ -534,7 +524,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   ])(
     'a nurse who writes %s after another device saved novedades is saved without a warning',
     async (_label, edit) => {
-      await configure('production');
+      await configure();
       await hospitalDB.dailyRecords.put(baseRecord());
       await patch('A', { handoffNovedadesDayShift: 'NOVEDAD A' });
       const result = await actor('B', () =>
@@ -551,7 +541,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   );
 
   it('clearing a bed and editing its patient at once: the authority refuses one', async () => {
-    await configure('production');
+    await configure();
     const base = baseRecord();
     const clear = actor('A', () =>
       writes.updateRecordPartial(
@@ -582,7 +572,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   });
 
   it('the device that loses a same-field bed edit keeps it as a conflict, never overwrites', async () => {
-    await configure('production');
+    await configure();
     await hospitalDB.dailyRecords.put(baseRecord());
     await patch('A', { 'beds.R1.pathology': 'A' });
     const result = await actor('B', () =>
@@ -602,7 +592,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   });
 
   it('an offline bed edit is queued and replayed through the authority when back online', async () => {
-    await configure('production');
+    await configure();
     await hospitalDB.dailyRecords.put(baseRecord());
     setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
     const offline = await actor('B', () =>
@@ -623,7 +613,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   });
 
   it('an offline bed edit replayed after another device changed that field stays a conflict', async () => {
-    await configure('production');
+    await configure();
     await hospitalDB.dailyRecords.put(baseRecord());
     setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
     await actor('B', () =>
@@ -643,14 +633,13 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   });
 
   describe('a browser that cannot read the policy', () => {
-    // The two advisory reads return what their catch branches return when getDoc fails.
+    // The advisory fence read returns what its catch branch returns when getDoc fails.
     const unreadablePolicy = () => {
       vi.spyOn(fence, 'isServerClinicalWriteFenceActive').mockResolvedValue(false);
-      vi.spyOn(fence, 'resolveEffectiveDailyRecordAuthorityMode').mockResolvedValue('client_only');
     };
 
     it('still saves a bed edit through the authority after the rules refuse the direct write', async () => {
-      await configure('production');
+      await configure();
       unreadablePolicy();
       await hospitalDB.dailyRecords.put(baseRecord());
       const result = await actor('B', () =>
@@ -684,7 +673,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       ['age and extra bed', { 'beds.R1.age': '52', activeExtraBeds: ['E1'] }, ['40', []]],
     ] as const) {
       it(`keeps a ${label} edit whole when only its bed part could be saved`, async () => {
-        await configure('production');
+        await configure();
         unreadablePolicy();
         await hospitalDB.dailyRecords.put(baseRecord());
         const values = (record: DailyRecord | undefined) =>
@@ -715,7 +704,6 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
 
         // Once the policy reads again, «Ya revisé, reintentar» saves both fields.
         vi.mocked(fence.isServerClinicalWriteFenceActive).mockRestore();
-        vi.mocked(fence.resolveEffectiveDailyRecordAuthorityMode).mockRestore();
         expect(await actor('B', () => retryQuarantinedSyncTask(task.id!))).toBe(true);
         await settleQueue();
         expect(values(await read())).toEqual(expected);
@@ -726,7 +714,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     // The storage writer decides by the patch it sends, not by how complete its contract is.
     for (const contract of ['complete', 'absent', 'incomplete'] as const) {
       it(`never confirms an age and handoff note patch with only the age (${contract} contract)`, async () => {
-        await configure('production');
+        await configure();
         unreadablePolicy();
         const edits = { 'beds.R1.age': '52', handoffNovedadesDayShift: 'NOVEDAD PEDIDA' };
         const changedPaths = contract === 'incomplete' ? ['beds.R1.age'] : Object.keys(edits);
@@ -749,7 +737,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     }
 
     it('saves an age edit alone when the normalizer repairs the local extra-bed list', async () => {
-      await configure('production');
+      await configure();
       unreadablePolicy();
       // A legacy local day lists R1 as an extra bed; the server already has the empty list.
       await hospitalDB.dailyRecords.put({ ...baseRecord(), activeExtraBeds: ['R1'] });
@@ -793,7 +781,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     });
 
     it('refuses one of two simultaneous same-field bed writers', async () => {
-      await configure('production');
+      await configure();
       unreadablePolicy();
       const results = await race({ 'beds.R1.pathology': 'A' }, { 'beds.R1.pathology': 'B' });
       // The authority saves the first writer. The second is refused there, or already by the

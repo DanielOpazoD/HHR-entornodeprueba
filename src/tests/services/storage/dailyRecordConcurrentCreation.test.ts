@@ -27,9 +27,9 @@ let race = false;
 beforeEach(async () => {
   await resetDay('user:synthetic-day-creation');
   h.remote = null;
-  h.authorityMode = true;
+  h.writeFence = true;
   race = false;
-  vi.spyOn(routing, 'shouldRouteDailyRecordSaveViaCallable').mockResolvedValue(true);
+  vi.spyOn(routing, 'shouldRouteDailyRecordWriteViaCallable').mockResolvedValue(true);
   vi.useFakeTimers({ toFake: ['Date'], now: new Date(stamp) });
   vi.spyOn(authority, 'saveDailyRecordWithClinicalAuthorityCallable').mockImplementation(
     async payload => {

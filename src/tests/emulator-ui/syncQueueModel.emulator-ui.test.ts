@@ -879,8 +879,6 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     };
     deviceB = { db: signedIn('synthetic-B').firestore() as unknown as typeof deviceB.db };
     // What production runs since 2026-11-07: the schema-v2 policy with enforced clinical batches.
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', '');
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_CALLABLE', '');
     // The queue runs only when a step says so: the browser's own wake-ups are steps here.
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     vi.stubGlobal('Date', ModelDate);

@@ -106,7 +106,6 @@ describeEmulator('the outbox publishes compacted offline work through Firestore'
 
   beforeEach(async () => {
     // Direct client writes and the transactional queue publish, not the authority callables.
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     await testEnv.clearFirestore();
     await clearAllRecords();
     await hospitalDB.syncQueue.clear();

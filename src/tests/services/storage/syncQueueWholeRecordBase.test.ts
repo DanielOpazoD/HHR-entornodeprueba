@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
   set: vi.fn(),
   directSet: vi.fn(),
   callable: vi.fn(),
-  mode: 'client_only',
+  fence: false,
 }));
 vi.mock('firebase/firestore', async original => ({
   ...(await original<typeof import('firebase/firestore')>()),
@@ -28,8 +28,7 @@ vi.mock('@/services/storage/firestore/firestoreShared', async original => ({
   getRecordDocRef: () => ({ id: 'synthetic-record' }),
 }));
 vi.mock('@/services/storage/firestore/firestoreRayenClinicalAuthorityMode', () => ({
-  resolveEffectiveDailyRecordAuthorityMode: async () => mocks.mode,
-  isServerClinicalWriteFenceActive: async () => false,
+  isServerClinicalWriteFenceActive: async () => mocks.fence,
 }));
 vi.mock('@/services/storage/firestore/dailyRecordAuthorityCallableClient', () => ({
   saveDailyRecordWithClinicalAuthorityCallable: mocks.callable,
@@ -97,7 +96,7 @@ const expectBlocked = async (input: SyncTask, data: unknown) => {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.mode = 'client_only';
+  mocks.fence = false;
   mocks.read.mockResolvedValue(missing());
   mocks.transactionRead.mockResolvedValue(missing());
   mocks.transaction.mockImplementation(async (_db, callback) => callback(tx()));
@@ -108,7 +107,7 @@ beforeEach(() => {
 
 describe.each(['direct', 'callable'])('opaque full-save base through %s', lane => {
   beforeEach(() => {
-    mocks.mode = lane === 'direct' ? 'client_only' : 'enforced';
+    mocks.fence = lane === 'callable';
   });
 
   it.each([

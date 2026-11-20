@@ -21,7 +21,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe.each(MODES)('ordinary clinical patch identity (%s)', (_mode, enforced) => {
+describe.each(MODES)('ordinary clinical patch identity (%s)', (_route, fenced) => {
   it.each([
     ['bed', 'patient'],
     ['bed', 'episode'],
@@ -51,7 +51,7 @@ describe.each(MODES)('ordinary clinical patch identity (%s)', (_mode, enforced) 
       '2026-10-24T10:15:00.000Z',
       { revision: 2, lastChangedPaths: [path] }
     );
-    h.authorityMode = enforced;
+    h.writeFence = fenced;
 
     await reconnect();
 
@@ -79,7 +79,7 @@ describe.each(MODES)('ordinary clinical patch identity (%s)', (_mode, enforced) 
       '2026-10-24T10:15:00.000Z',
       { revision: 2, lastChangedPaths: ['beds.R4.pathology'] }
     );
-    h.authorityMode = enforced;
+    h.writeFence = fenced;
 
     await reconnect();
 

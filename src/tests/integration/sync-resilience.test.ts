@@ -114,19 +114,8 @@ describe('Sync resilience integration', () => {
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
   });
 
-  const isAuthorityCallableMode = () =>
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE ===
-      'enforced' ||
-    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_CALLABLE ===
-      'true';
-
+  // Without the schema-v2 server fence the queue publishes with a direct write.
   const expectOnePublishAttempt = () => {
-    if (isAuthorityCallableMode()) {
-      expect(mockSaveDailyRecordWithClinicalAuthorityCallable).toHaveBeenCalledTimes(1);
-      expect(vi.mocked(setDoc)).not.toHaveBeenCalled();
-      return;
-    }
-
     expect(vi.mocked(setDoc)).toHaveBeenCalledTimes(1);
     expect(mockSaveDailyRecordWithClinicalAuthorityCallable).not.toHaveBeenCalled();
   };

@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   directSet: vi.fn(),
   transactionRead: vi.fn(),
   callable: vi.fn(),
-  mode: 'client_only',
   fence: false,
 }));
 vi.mock('firebase/firestore', async original => ({
@@ -26,7 +25,6 @@ vi.mock('@/services/storage/firestore/firestoreShared', async original => ({
   getRecordDocRef: () => ({ id: 'synthetic-record' }),
 }));
 vi.mock('@/services/storage/firestore/firestoreRayenClinicalAuthorityMode', () => ({
-  resolveEffectiveDailyRecordAuthorityMode: async () => mocks.mode,
   isServerClinicalWriteFenceActive: async () => mocks.fence,
 }));
 vi.mock('@/services/storage/firestore/dailyRecordAuthorityCallableClient', () => ({
@@ -57,7 +55,6 @@ const run = (input = task()) =>
   }).run(input);
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.mode = 'client_only';
   mocks.fence = false;
   mocks.read.mockResolvedValue(missing());
   mocks.transactionRead.mockResolvedValue(missing());
@@ -93,9 +90,8 @@ it('recognizes an already applied mutation inside the transaction without writin
   await run({ ...task(), syncContract: { mutationId: 'synthetic-mutation' } });
   expect(mocks.set).not.toHaveBeenCalled();
 });
-it.each(['enforced', 'fenced'])('retains the authoritative callable route for %s', async mode => {
-  mocks.mode = mode === 'enforced' ? 'enforced' : 'client_only';
-  mocks.fence = mode === 'fenced';
+it('retains the authoritative callable route behind the server fence', async () => {
+  mocks.fence = true;
   mocks.callable.mockResolvedValue({
     recordState: { record: local(), lastUpdated: local().lastUpdated },
   });

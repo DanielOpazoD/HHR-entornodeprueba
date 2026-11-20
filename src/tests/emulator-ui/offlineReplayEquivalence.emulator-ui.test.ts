@@ -202,7 +202,6 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     await hospitalDB.syncQueue.clear();
     localStorage.clear();
     setFirestoreEnabled(true);
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     await admin.doc(dayPath).set(baseRecord());
     bridge();
   });

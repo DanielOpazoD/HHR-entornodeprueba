@@ -174,7 +174,6 @@ export const RECOVERY_CASES: Record<string, ParityCase> = {
 };
 describe('write-result parity: recoveries left out of the first tables', () => {
   beforeEach(async () => {
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     await resetParityWorld();
   });
   afterEach(() => {

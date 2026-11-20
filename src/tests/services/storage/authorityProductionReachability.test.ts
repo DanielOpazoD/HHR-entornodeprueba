@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Firestore } from 'firebase/firestore';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
@@ -59,17 +59,21 @@ const committed = () => ({
   cudyrLocked: true,
 });
 
-describe('production authority fallback after a transient policy read failure', () => {
+// A transient failure of one policy read is answered by the second read, as main's repeated reads
+// did; two failed reads leave the route direct and the rules refuse it (productionAuthorityConfiguration,
+// "a browser that cannot read the policy").
+describe.each([
+  ['read', false],
+  ['first read failed', true],
+])('production authority route behind the server fence (policy %s)', (_label, readFails) => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', undefined);
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_CALLABLE', undefined);
-    mocks.policyRead
-      .mockResolvedValue({
-        exists: () => true,
-        data: () => ({ schemaVersion: 2, clinicalBatchMode: 'enforced' }),
-      })
-      .mockRejectedValueOnce(new Error('Synthetic transient policy read failure'));
+    mocks.policyRead.mockResolvedValue({
+      exists: () => true,
+      data: () => ({ schemaVersion: 2, clinicalBatchMode: 'enforced' }),
+    });
+    if (readFails)
+      mocks.policyRead.mockRejectedValueOnce(new Error('Synthetic transient policy read failure'));
     mocks.invoke.mockResolvedValue({
       data: {
         success: true,
@@ -83,7 +87,6 @@ describe('production authority fallback after a transient policy read failure', 
       data: committed,
     });
   });
-  afterEach(() => vi.unstubAllEnvs());
 
   const cases = [
     {
@@ -141,7 +144,7 @@ describe('production authority fallback after a transient policy read failure', 
 
       const result = await run();
 
-      expect(mocks.policyRead.mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(mocks.policyRead).toHaveBeenCalled();
       expect(mocks.invoke).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({
           mode: 'enforced',

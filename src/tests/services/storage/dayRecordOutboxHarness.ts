@@ -12,8 +12,8 @@ type Doc = Record<string, unknown>;
 const h = vi.hoisted(() => ({
   remote: null as DailyRecord | null,
   offline: false,
-  /** Day tasks publish through the real clinical authority handler instead of a direct write. */
-  authorityMode: false,
+  /** The schema-v2 server fence: day tasks publish through the real authority handler. */
+  writeFence: false,
   beforeDayTransaction: null as (() => Promise<void>) | null,
 }));
 /** Shared fake state; vi.hoisted bindings cannot be exported directly. */
@@ -61,9 +61,7 @@ vi.mock(
   '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode',
   async importOriginal => ({
     ...(await importOriginal<object>()),
-    isServerClinicalWriteFenceActive: async () => false,
-    resolveEffectiveDailyRecordAuthorityMode: async () =>
-      h.authorityMode ? 'enforced' : 'client_only',
+    isServerClinicalWriteFenceActive: async () => h.writeFence,
   })
 );
 vi.mock(
