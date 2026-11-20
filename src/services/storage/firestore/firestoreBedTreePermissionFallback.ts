@@ -50,13 +50,22 @@ export const runPartialUpdatePersistWithPermissionFallbacks = async <TResult>({
 }): Promise<TResult> => {
   const retryBedTreeViaCallable = async (error: unknown): Promise<TResult | null> => {
     if (!isPermissionDeniedError(error)) return null;
-    // The callable's receipt stands for the whole edit, so every path the person asked for must
-    // be in the bed tree (or dateTimestamp, which the stored day keeps). A day field they asked
-    // for keeps the original error; the normalizer's own repairs stay behind, as before.
-    const requested = syncContract?.changedPaths?.length
-      ? syncContract.changedPaths
-      : Object.keys(sanitizedPatch);
-    if (requested.some(path => !isDailyRecordBedTreePath(path) && path !== 'dateTimestamp')) {
+    // The callable's receipt stands for the whole patch, which may carry only bed-tree paths
+    // and companions that can stay behind: dateTimestamp, which the stored day keeps, and the
+    // normalizer's repair of activeExtraBeds when the sync contract names its requested paths
+    // without that list. Any other day field keeps the original error.
+    const requested = syncContract?.changedPaths;
+    const canStayBehind = (path: string) =>
+      path === 'dateTimestamp' ||
+      (path === 'activeExtraBeds' &&
+        Boolean(requested?.length) &&
+        !requested?.includes(path) &&
+        !requested?.includes('*'));
+    if (
+      Object.keys(sanitizedPatch).some(
+        path => !isDailyRecordBedTreePath(path) && !canStayBehind(path)
+      )
+    ) {
       return null;
     }
     const bedTreePatch = extractDailyRecordBedTreePatch(sanitizedPatch);

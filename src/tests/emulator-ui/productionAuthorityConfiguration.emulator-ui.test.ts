@@ -723,6 +723,31 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       });
     }
 
+    // The storage writer decides by the patch it sends, not by how complete its contract is.
+    for (const contract of ['complete', 'absent', 'incomplete'] as const) {
+      it(`never confirms an age and handoff note patch with only the age (${contract} contract)`, async () => {
+        await configure('production');
+        unreadablePolicy();
+        const edits = { 'beds.R1.age': '52', handoffNovedadesDayShift: 'NOVEDAD PEDIDA' };
+        const changedPaths = contract === 'incomplete' ? ['beds.R1.age'] : Object.keys(edits);
+        const write = actor('B', () =>
+          writes.updateRecordPartial(
+            date,
+            edits,
+            baseRecord().lastUpdated,
+            contract === 'absent' ? {} : { syncContract: { changedPaths } }
+          )
+        );
+        await expect(write).rejects.toMatchObject({ code: 'permission-denied' });
+        expect(calls.patch).toBe(0);
+        const server = await read();
+        expect([server.beds.R1.age, server.handoffNovedadesDayShift]).toEqual([
+          '40',
+          'NOVEDAD BASE',
+        ]);
+      });
+    }
+
     it('saves an age edit alone when the normalizer repairs the local extra-bed list', async () => {
       await configure('production');
       unreadablePolicy();
