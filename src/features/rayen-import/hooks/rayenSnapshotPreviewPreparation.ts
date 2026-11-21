@@ -1,8 +1,4 @@
-import type { Dispatch, RefObject, SetStateAction } from 'react';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
-import type { RayenSyncStage } from './rayenSyncExecutionState';
-import type { RayenImportState } from './rayenImportState';
-import { isRayenStructuralPlanChangedError } from './confirmRayenImport';
 import { toIsoReportDate } from './reportDateHelpers';
 import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 import {
@@ -62,34 +58,4 @@ export const prepareRayenSnapshotEvidence = (
         error:
           'La evidencia de Ficha Médico y Gestión de Camas no corresponde al mismo censo. Vuelve a sincronizar.',
       };
-};
-
-export const returnRayenReplanToReview = ({
-  error,
-  preparedContext,
-  preparedContextRef,
-  transition,
-  setState,
-}: {
-  error: unknown;
-  preparedContext: PreparedRayenSyncContext;
-  preparedContextRef: RefObject<PreparedRayenSyncContext | null>;
-  transition: (stage: RayenSyncStage) => void;
-  setState: Dispatch<SetStateAction<RayenImportState>>;
-}): boolean => {
-  if (!isRayenStructuralPlanChangedError(error)) return false;
-  preparedContextRef.current = { ...preparedContext, record: error.freshRecord };
-  transition(
-    error.replannedDiff.conflicts.length > 0
-      ? { type: 'needs_review', scope: 'structure' }
-      : { type: 'awaiting_review' }
-  );
-  setState({
-    diff: error.replannedDiff,
-    isPreviewOpen: true,
-    result: null,
-    hasSkippedItems: false,
-    error: error.message,
-  });
-  return true;
 };

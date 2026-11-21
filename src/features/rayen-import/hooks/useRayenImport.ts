@@ -94,7 +94,6 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     keepsPreviewOpen,
     dispatchExecution,
     setImportStateCurrent: setState,
-    transitionExecution,
     finishClinicalSync,
     startClinicalRetry,
   } = useRayenSyncExecutionController({
@@ -328,7 +327,6 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     setState,
     executionRef,
     dispatchExecution,
-    transitionExecution,
     preparedSyncContextRef,
     structuralReplanRef,
     structuralPersistenceExecutionKeysRef,

@@ -14,7 +14,6 @@ import type { ModuleType } from '@/constants/navigationConfig';
 import {
   type AppRouterShellState,
   canRenderSimpleModuleRoute,
-  resolveAllowAdminCopyOverride,
   resolveAppRouterContext,
   resolveCoreModuleRoute,
   resolveModuleReadOnly,
@@ -51,7 +50,6 @@ export const AppRouter: React.FC<AppRouterProps> = ({ ui, shell }) => {
       module,
       e2eEditableOverride,
     });
-  const allowAdminCopyOverride = resolveAllowAdminCopyOverride(role);
   const coreRoute = resolveCoreModuleRoute(currentModule);
   const simpleRoute = resolveSimpleModuleRoute(currentModule);
 
@@ -69,7 +67,6 @@ export const AppRouter: React.FC<AppRouterProps> = ({ ui, shell }) => {
               onCloseBedManagerModal,
               onOpenCensusDate,
               resolveReadOnly,
-              allowAdminCopyOverride,
               censusAccessProfile,
               canOpenMedicalHandoff: visibleModules.includes('MEDICAL_HANDOFF'),
             })}

@@ -73,7 +73,6 @@ describe('buildRayenSyncBarViewModel', () => {
     ['capturing', 'Leyendo información de Eloísa · 07-08-2026', true],
     ['planning_structure', 'Conciliando el censo · 07-08-2026', true],
     ['persisting_structure', 'Guardando cambios del censo · 07-08-2026', true],
-    ['verifying_structure', 'Confirmando el censo guardado · 07-08-2026', true],
     ['complete', 'Todo al día · 07-08-2026', false],
   ] as const)('uses the execution stage %s as the canonical status', (type, label, ariaBusy) => {
     const model = buildRayenSyncBarViewModel(

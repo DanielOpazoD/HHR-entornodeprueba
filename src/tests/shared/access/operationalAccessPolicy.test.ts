@@ -31,7 +31,6 @@ import {
   canEditAnyAppModule,
   canManageGlobalCensusEmailRecipients,
   canManageClinicalConflictCenter,
-  canForceCreateDayCopyOverride,
   canOpenClinicalDocumentsFromCensus,
   canResetOrDeleteDailyRecord,
   canTriggerCensusExports,
@@ -47,12 +46,6 @@ import {
 } from '@/shared/access/operationalAccessPolicy';
 
 describe('operationalAccessPolicy', () => {
-  it('allows only admin to force day copy override', () => {
-    expect(canForceCreateDayCopyOverride('admin')).toBe(true);
-    expect(canForceCreateDayCopyOverride('doctor_specialist')).toBe(false);
-    expect(canForceCreateDayCopyOverride('nurse_hospital')).toBe(false);
-  });
-
   it('limits clinical conflict center access to admin users', () => {
     expect(canManageClinicalConflictCenter('admin')).toBe(true);
     expect(canManageClinicalConflictCenter('nurse_hospital')).toBe(false);
@@ -203,7 +196,6 @@ describe('role × permission truth table', () => {
       .join(''),
     flags: [
       canEditAnyAppModule(role),
-      canForceCreateDayCopyOverride(role),
       canViewOrManageBackupFiles(role),
       canManageGlobalCensusEmailRecipients({ role, userId: 'user-1' }),
       canUseAdminMaintenanceActions(role),
@@ -248,7 +240,7 @@ describe('role × permission truth table', () => {
           "archiveVerify": "00000",
           "defaultModule": "CENSUS",
           "editable": "",
-          "flags": "000000000000000000",
+          "flags": "00000000000000000",
           "routes": "CENSUS",
           "sanitizedAudit": "CENSUS",
           "visible": "CENSUS",
@@ -257,7 +249,7 @@ describe('role × permission truth table', () => {
           "archiveVerify": "00000",
           "defaultModule": "CENSUS",
           "editable": "",
-          "flags": "000000000000000000",
+          "flags": "00000000000000000",
           "routes": "CENSUS",
           "sanitizedAudit": "CENSUS",
           "visible": "CENSUS",
@@ -266,7 +258,7 @@ describe('role × permission truth table', () => {
           "archiveVerify": "00000",
           "defaultModule": "CENSUS",
           "editable": "",
-          "flags": "000000000000000000",
+          "flags": "00000000000000000",
           "routes": "CENSUS",
           "sanitizedAudit": "CENSUS",
           "visible": "CENSUS",
@@ -275,7 +267,7 @@ describe('role × permission truth table', () => {
           "archiveVerify": "10100",
           "defaultModule": "CENSUS",
           "editable": "CENSUS,ANALYTICS,CUDYR,NURSING_HANDOFF,MEDICAL_HANDOFF,AUDIT,WHATSAPP,BACKUP_FILES,PATIENT_MASTER_INDEX,DATA_MAINTENANCE,DIAGNOSTICS,FUNCTIONS_TELEMETRY,CONFIGURATION,DATA,COMMUNICATIONS,ROLE_MANAGEMENT,REMINDERS,AUDIT_DOCUMENTS,ADMISSION_AUDIT",
-          "flags": "111111111111111111",
+          "flags": "11111111111111111",
           "routes": "CENSUS,ANALYTICS,CUDYR,NURSING_HANDOFF,MEDICAL_HANDOFF,AUDIT,WHATSAPP,BACKUP_FILES,PATIENT_MASTER_INDEX,DATA_MAINTENANCE,DIAGNOSTICS,FUNCTIONS_TELEMETRY,CONFIGURATION,DATA,COMMUNICATIONS,ROLE_MANAGEMENT,REMINDERS,AUDIT_DOCUMENTS,ADMISSION_AUDIT",
           "sanitizedAudit": "AUDIT",
           "visible": "CENSUS,ANALYTICS,CUDYR,NURSING_HANDOFF,MEDICAL_HANDOFF,AUDIT,WHATSAPP,PATIENT_MASTER_INDEX,DATA_MAINTENANCE,DIAGNOSTICS,FUNCTIONS_TELEMETRY,CONFIGURATION,DATA,COMMUNICATIONS,BACKUP_FILES,ROLE_MANAGEMENT,REMINDERS,AUDIT_DOCUMENTS,ADMISSION_AUDIT",
@@ -284,7 +276,7 @@ describe('role × permission truth table', () => {
           "archiveVerify": "00000",
           "defaultModule": "CENSUS",
           "editable": "MEDICAL_HANDOFF",
-          "flags": "100000000100000000",
+          "flags": "10000000100000000",
           "routes": "CENSUS,MEDICAL_HANDOFF",
           "sanitizedAudit": "CENSUS",
           "visible": "CENSUS,MEDICAL_HANDOFF",
@@ -293,7 +285,7 @@ describe('role × permission truth table', () => {
           "archiveVerify": "00000",
           "defaultModule": "CENSUS",
           "editable": "MEDICAL_HANDOFF",
-          "flags": "100000000100000001",
+          "flags": "10000000100000001",
           "routes": "CENSUS,NURSING_HANDOFF,MEDICAL_HANDOFF",
           "sanitizedAudit": "CENSUS",
           "visible": "CENSUS,NURSING_HANDOFF,MEDICAL_HANDOFF",
@@ -302,7 +294,7 @@ describe('role × permission truth table', () => {
           "archiveVerify": "10100",
           "defaultModule": "CENSUS",
           "editable": "CENSUS,CUDYR,NURSING_HANDOFF,MEDICAL_HANDOFF",
-          "flags": "101101000100000000",
+          "flags": "11101000100000000",
           "routes": "CENSUS,CUDYR,NURSING_HANDOFF,MEDICAL_HANDOFF",
           "sanitizedAudit": "CENSUS",
           "visible": "CENSUS,CUDYR,NURSING_HANDOFF,MEDICAL_HANDOFF",
@@ -311,7 +303,7 @@ describe('role × permission truth table', () => {
           "archiveVerify": "00000",
           "defaultModule": "CENSUS",
           "editable": "",
-          "flags": "000000000000000000",
+          "flags": "00000000000000000",
           "routes": "CENSUS",
           "sanitizedAudit": "CENSUS",
           "visible": "CENSUS",
@@ -320,7 +312,7 @@ describe('role × permission truth table', () => {
           "archiveVerify": "10100",
           "defaultModule": "CENSUS",
           "editable": "CENSUS,CUDYR,NURSING_HANDOFF",
-          "flags": "101101101110100001",
+          "flags": "11101101110100001",
           "routes": "CENSUS,CUDYR,NURSING_HANDOFF,MEDICAL_HANDOFF,AUDIT_DOCUMENTS",
           "sanitizedAudit": "CENSUS",
           "visible": "CENSUS,CUDYR,NURSING_HANDOFF,MEDICAL_HANDOFF,AUDIT_DOCUMENTS",
@@ -329,7 +321,7 @@ describe('role × permission truth table', () => {
           "archiveVerify": "00000",
           "defaultModule": "CENSUS",
           "editable": "",
-          "flags": "000000000000000000",
+          "flags": "00000000000000000",
           "routes": "CENSUS",
           "sanitizedAudit": "CENSUS",
           "visible": "CENSUS",
@@ -338,7 +330,7 @@ describe('role × permission truth table', () => {
           "archiveVerify": "00000",
           "defaultModule": "CENSUS",
           "editable": "",
-          "flags": "000000000000000000",
+          "flags": "00000000000000000",
           "routes": "CENSUS",
           "sanitizedAudit": "CENSUS",
           "visible": "CENSUS",

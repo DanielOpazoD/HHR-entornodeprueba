@@ -131,7 +131,6 @@ describe('capture preparation ownership', () => {
     for (const type of [
       'planning_structure',
       'persisting_structure',
-      'verifying_structure',
       'syncing_clinical',
     ] as const) {
       h.execution.dispatchExecution({ type: 'transition', runId: 'run-1', stage: { type } });

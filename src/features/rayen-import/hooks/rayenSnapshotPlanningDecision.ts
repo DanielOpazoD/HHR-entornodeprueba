@@ -25,14 +25,3 @@ export const resolveRayenSnapshotPlanningStage = (
   if (hasUnresolvedConflicts) return { type: 'needs_review', scope: 'structure' };
   return { type: 'awaiting_review' };
 };
-
-export const shouldOpenRayenSnapshotPreview = ({
-  persistenceCompleted,
-  hasUnresolvedConflicts,
-  hasNoApplicableChanges,
-}: {
-  persistenceCompleted: boolean;
-  hasUnresolvedConflicts: boolean;
-  hasNoApplicableChanges: boolean;
-}): boolean =>
-  persistenceCompleted ? hasUnresolvedConflicts : !hasNoApplicableChanges || hasUnresolvedConflicts;

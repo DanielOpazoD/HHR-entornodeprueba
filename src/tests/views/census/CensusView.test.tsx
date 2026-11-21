@@ -92,7 +92,6 @@ describe('CensusView', () => {
     beds: null,
     previousRecordAvailable: false,
     previousRecordDate: undefined,
-    availableDates: [],
     createDay: vi.fn(),
     stats: null,
     marginStyle: {},

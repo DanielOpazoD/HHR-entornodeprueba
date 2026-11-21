@@ -64,8 +64,7 @@ vi.mock('@/context/DailyRecordContext', () => ({
 
 vi.mock('@/context/useDailyRecordScopedActions', () => ({
   useDailyRecordStaffActions: () => ({
-    updateNurse: vi.fn(),
-    updateTens: vi.fn(),
+    updateShiftStaff: vi.fn(),
     updateDetailedStaffing: vi.fn(),
   }),
 }));
@@ -298,7 +297,7 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
     view.rerender(censusElement());
     await waitFor(() => expect(screen.getByTestId('census-table')).toBeInTheDocument());
     await waitForRayenToolbar();
-    expect(world.createDayCalls).toEqual([[true, '2026-09-09']]);
+    expect(world.createDayCalls).toEqual([['2026-09-09']]);
     await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1), { timeout: 10000 });
     expect(mocks.triggerImport).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
       reviewRequirement: 'day_bootstrap',
@@ -319,7 +318,7 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
 
     await waitForRayenToolbar();
     await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1), { timeout: 10000 });
-    expect(world.createDayCalls).toEqual([[true, '2026-07-08']]);
+    expect(world.createDayCalls).toEqual([['2026-07-08']]);
     expect(mocks.triggerImport).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
       reviewRequirement: 'day_bootstrap',
     });

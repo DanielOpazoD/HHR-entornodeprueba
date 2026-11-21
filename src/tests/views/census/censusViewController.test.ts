@@ -26,10 +26,8 @@ describe('censusViewController', () => {
       currentDateString: '2026-03-14',
       previousRecordAvailable: true,
       previousRecordDate: '2026-03-13',
-      availableDates: ['2026-03-13'],
       onCreateDay,
       readOnly: false,
-      allowAdminCopyOverride: true,
       emptyStateDiagnostic: {
         source: 'remote_missing',
         message: 'Firebase y la copia local no tienen registro para esta fecha.',
@@ -42,10 +40,8 @@ describe('censusViewController', () => {
       currentDateString: '2026-03-14',
       previousRecordAvailable: true,
       previousRecordDate: '2026-03-13',
-      availableDates: ['2026-03-13'],
       onCreateDay,
       readOnly: false,
-      allowAdminCopyOverride: true,
       emptyStateDiagnostic: {
         source: 'remote_missing',
         message: 'Firebase y la copia local no tienen registro para esta fecha.',
@@ -95,10 +91,8 @@ describe('censusViewController', () => {
       currentDateString: '2026-03-14',
       previousRecordAvailable: true,
       previousRecordDate: '2026-03-13',
-      availableDates: [],
       onCreateDay: vi.fn(),
       readOnly: false,
-      allowAdminCopyOverride: false,
     });
 
     // What main painted before the closed state (af579367f), measured for every combination.

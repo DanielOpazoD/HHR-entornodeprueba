@@ -99,8 +99,8 @@ describe('Staff Array Sync Integration', () => {
       nursesNightShift: ['', ''],
     };
 
-    // Simulating useNurseManagement logic
-    const updateNurse = (shift: 'day' | 'night', index: number, name: string) => {
+    // Simulating the selector's slot update
+    const selectNurse = (shift: 'day' | 'night', index: number, name: string) => {
       const field: 'nursesDayShift' | 'nursesNightShift' =
         shift === 'day' ? 'nursesDayShift' : 'nursesNightShift';
       const currentArray = [...currentRecord[field]];
@@ -109,14 +109,14 @@ describe('Staff Array Sync Integration', () => {
     };
 
     // First nurse selected
-    const patch1 = updateNurse('day', 0, 'María López');
+    const patch1 = selectNurse('day', 0, 'María López');
     expect(patch1).toEqual({ nursesDayShift: ['María López', ''] });
 
     // Apply patch
     currentRecord.nursesDayShift = patch1.nursesDayShift;
 
     // Second nurse selected
-    const patch2 = updateNurse('day', 1, 'Juan Pérez');
+    const patch2 = selectNurse('day', 1, 'Juan Pérez');
     expect(patch2).toEqual({ nursesDayShift: ['María López', 'Juan Pérez'] });
   });
 
@@ -126,7 +126,7 @@ describe('Staff Array Sync Integration', () => {
       tensNightShift: ['', '', ''],
     };
 
-    const updateTens = (shift: 'day' | 'night', index: number, name: string) => {
+    const selectTens = (shift: 'day' | 'night', index: number, name: string) => {
       const field: 'tensDayShift' | 'tensNightShift' =
         shift === 'day' ? 'tensDayShift' : 'tensNightShift';
       const currentArray = [...currentRecord[field]];
@@ -135,9 +135,9 @@ describe('Staff Array Sync Integration', () => {
     };
 
     // Add TENS in sequence
-    currentRecord.tensDayShift = updateTens('day', 0, 'TENS 1').tensDayShift;
-    currentRecord.tensDayShift = updateTens('day', 2, 'TENS 3').tensDayShift;
-    currentRecord.tensDayShift = updateTens('day', 1, 'TENS 2').tensDayShift;
+    currentRecord.tensDayShift = selectTens('day', 0, 'TENS 1').tensDayShift;
+    currentRecord.tensDayShift = selectTens('day', 2, 'TENS 3').tensDayShift;
+    currentRecord.tensDayShift = selectTens('day', 1, 'TENS 2').tensDayShift;
 
     expect(currentRecord.tensDayShift).toEqual(['TENS 1', 'TENS 2', 'TENS 3']);
   });

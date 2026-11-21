@@ -2,7 +2,11 @@ import { useMemo, useCallback } from 'react';
 import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useLatestRef } from '@/hooks/useLatestRef';
-import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
+import type {
+  DailyRecordStaffingDetailsV1,
+  DetailedStaffingRole,
+  DetailedStaffingShift,
+} from '@/types/domain/dailyRecordStaffingDetails';
 import {
   buildDetailedStaffingPatch,
   resolveDetailedStaffingState,
@@ -17,19 +21,19 @@ const settleStaffSelection = (write: Promise<void>): void => {
   void Promise.resolve(write).catch(() => {});
 };
 
-export const useNurseManagement = (
+export const useShiftStaffManagement = (
   record: DailyRecord | null,
   patchRecord: ApplyDailyRecordPatch
 ) => {
   const recordRef = useLatestRef(record);
 
-  const updateNurse = useCallback(
-    (shift: 'day' | 'night', index: number, name: string) => {
+  const updateShiftStaff = useCallback(
+    (role: DetailedStaffingRole, shift: DetailedStaffingShift, index: number, name: string) => {
       const currentRecord = recordRef.current;
       if (!currentRecord) return;
 
       const detail = resolveDetailedStaffingState(currentRecord, currentRecord.date);
-      const updatedDetail = updateDetailedStaffingStandardSlot(detail, shift, 'nurse', index, name);
+      const updatedDetail = updateDetailedStaffingStandardSlot(detail, shift, role, index, name);
       settleStaffSelection(patchRecord(buildDetailedStaffingPatch(updatedDetail)));
     },
     [patchRecord, recordRef]
@@ -37,35 +41,9 @@ export const useNurseManagement = (
 
   return useMemo(
     () => ({
-      updateNurse,
+      updateShiftStaff,
     }),
-    [updateNurse]
-  );
-};
-
-export const useTensManagement = (
-  record: DailyRecord | null,
-  patchRecord: ApplyDailyRecordPatch
-) => {
-  const recordRef = useLatestRef(record);
-
-  const updateTens = useCallback(
-    (shift: 'day' | 'night', index: number, name: string) => {
-      const currentRecord = recordRef.current;
-      if (!currentRecord) return;
-
-      const detail = resolveDetailedStaffingState(currentRecord, currentRecord.date);
-      const updatedDetail = updateDetailedStaffingStandardSlot(detail, shift, 'tens', index, name);
-      settleStaffSelection(patchRecord(buildDetailedStaffingPatch(updatedDetail)));
-    },
-    [patchRecord, recordRef]
-  );
-
-  return useMemo(
-    () => ({
-      updateTens,
-    }),
-    [updateTens]
+    [updateShiftStaff]
   );
 };
 

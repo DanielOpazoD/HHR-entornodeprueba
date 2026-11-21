@@ -109,11 +109,10 @@ export const useDailyRecordStaffActions = (): DailyRecordStaffActions => {
   const actions = useResolvedActionsContext('useDailyRecordStaffActions');
   return useMemo(
     () => ({
-      updateNurse: actions.updateNurse,
-      updateTens: actions.updateTens,
+      updateShiftStaff: actions.updateShiftStaff,
       updateDetailedStaffing: actions.updateDetailedStaffing,
     }),
-    [actions.updateDetailedStaffing, actions.updateNurse, actions.updateTens]
+    [actions.updateDetailedStaffing, actions.updateShiftStaff]
   );
 };
 

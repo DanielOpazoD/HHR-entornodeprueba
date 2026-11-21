@@ -181,10 +181,6 @@ const canonicalExecutionViewModel = (
       return active('apply', withTargetDate('Guardando cambios del censo', targetDate), {
         kind: 'indeterminate',
       });
-    case 'verifying_structure':
-      return active('apply', withTargetDate('Confirmando el censo guardado', targetDate), {
-        kind: 'indeterminate',
-      });
     case 'syncing_clinical':
       return clinicalProgress(input.fill, targetDate);
     case 'complete':

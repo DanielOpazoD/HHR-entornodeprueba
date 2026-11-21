@@ -145,7 +145,7 @@ desactiva este cerco.
 
 La ejecución visible y el historial usan una sola máquina de estados contextual:
 `preparing_context → capturing → planning_structure → awaiting_review → persisting_structure →
-verifying_structure → syncing_clinical → resultado terminal`. La barra y el modal no infieren la
+syncing_clinical → resultado terminal`. La barra y el modal no infieren la
 fase desde indicadores antiguos de captura o guardado. Por eso una respuesta tardía o un estado
 heredado de otra ejecución no puede mostrar un modal vacío ni reemplazar el resultado vigente.
 

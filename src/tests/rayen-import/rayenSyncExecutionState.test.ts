@@ -116,7 +116,6 @@ describe('rayenSyncExecutionReducer', () => {
       [
         { type: 'planning_structure' },
         { type: 'persisting_structure' },
-        { type: 'verifying_structure' },
         { type: 'syncing_clinical' },
       ] as const
     ).reduce(
@@ -256,7 +255,7 @@ describe('rayenSyncExecutionReducer', () => {
     expect(isRayenSyncPreviewStage({ type: 'failed' })).toBe(true);
   });
 
-  it.each(['persisting_structure', 'verifying_structure', 'syncing_clinical'] as const)(
+  it.each(['persisting_structure', 'syncing_clinical'] as const)(
     'devuelve al censo durante %s: el progreso vive en la barra, no en el modal',
     stage => {
       expect(isRayenSyncPreviewStage({ type: stage })).toBe(false);
@@ -270,7 +269,7 @@ describe('rayenSyncExecutionReducer', () => {
     }
   );
 
-  it.each(['persisting_structure', 'verifying_structure', 'syncing_clinical'] as const)(
+  it.each(['persisting_structure', 'syncing_clinical'] as const)(
     'keeps %s running after its presentation is dismissed',
     stage => {
       expect(isRayenSyncExecutionCancellableBeforeCommit({ type: stage })).toBe(false);

@@ -95,7 +95,7 @@ interface StaffSelectorProps {
   dayShift: string[];
   nightShift: string[];
   catalog: string[];
-  onUpdate: (shift: Shift, index: number, name: string) => void;
+  onUpdate: (role: NursingRole, shift: Shift, index: number, name: string) => void;
   shiftIndicators?: Record<Shift, ShiftIndicatorState>;
   onOpenDetailedStaffing?: () => void;
   className?: string;
@@ -192,7 +192,7 @@ export const StaffSelector: React.FC<StaffSelectorProps> = ({
                 })}
                 value={selected}
                 aria-describedby={isVacancySelection(raw[shift][idx]) ? undefined : hintId}
-                onChange={e => onUpdate(shift, idx, e.target.value)}
+                onChange={e => onUpdate(role, shift, idx, e.target.value)}
                 aria-label={label}
               >
                 {(showAllNames[key] ? options : groups.visible).map(n => (

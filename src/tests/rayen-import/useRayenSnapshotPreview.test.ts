@@ -463,6 +463,30 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     expect(harness.runClinicalStage).not.toHaveBeenCalled();
   });
 
+  it('fails the no-change route like a reviewed one, without opening the review modal', async () => {
+    mocks.prepareRayenStructuralPlan.mockResolvedValue({
+      diff: noChangeDiff,
+      replanDiff: vi.fn(),
+    });
+    const error = new Error('Missing or insufficient permissions.');
+    mocks.applyConfirmedRayenImport.mockRejectedValue(error);
+    const harness = renderPreview();
+
+    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+
+    expect(harness.dispatchExecution).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'transition', stage: { type: 'failed' } })
+    );
+    expect(harness.failRun).toHaveBeenCalledWith('apply_unauthorized', 'run-1', error);
+    expect(harness.runClinicalStage).not.toHaveBeenCalled();
+    expect(harness.preparedSyncContextRef.current).toBeNull();
+    expect(harness.structuralReplanRef.current).toBeNull();
+    expect(appliedState(harness.setState)).toMatchObject({
+      isPreviewOpen: false,
+      error: expect.any(String),
+    });
+  });
+
   it('continues a committed clinical handoff after its UI execution is superseded', async () => {
     mocks.prepareRayenStructuralPlan.mockResolvedValue({
       diff: noChangeDiff,
