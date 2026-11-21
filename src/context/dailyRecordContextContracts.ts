@@ -12,7 +12,11 @@ import type { PatientFieldValue } from '@/types/valueTypes';
 import type { PatientMovementActions } from '@/types/movements';
 import type { DailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordBootstrapController';
 import type { StabilityRules } from '@/hooks/useStabilityRules';
-import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
+import type {
+  DailyRecordStaffingDetailsV1,
+  DetailedStaffingRole,
+  DetailedStaffingShift,
+} from '@/types/domain/dailyRecordStaffingDetails';
 import type { ConfirmedBedOccupantIdentity } from '@/types/domain/intentionalBedClear';
 
 export type SyncStatus = 'idle' | 'saving' | 'saved' | 'local' | 'error';
@@ -97,8 +101,12 @@ export interface DailyRecordBedActions {
 }
 
 export interface DailyRecordStaffActions {
-  updateNurse: (shift: 'day' | 'night', index: number, name: string) => void;
-  updateTens: (shift: 'day' | 'night', index: number, name: string) => void;
+  updateShiftStaff: (
+    role: DetailedStaffingRole,
+    shift: DetailedStaffingShift,
+    index: number,
+    name: string
+  ) => void;
   updateDetailedStaffing: (detail: DailyRecordStaffingDetailsV1) => Promise<void> | void;
 }
 

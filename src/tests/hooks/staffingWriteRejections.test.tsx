@@ -2,9 +2,8 @@ import { renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   useDetailedStaffingManagement,
-  useNurseManagement,
-  useTensManagement,
-} from '@/hooks/useNurseManagement';
+  useShiftStaffManagement,
+} from '@/hooks/useShiftStaffManagement';
 import { DailyRecordFreshnessGateError } from '@/hooks/controllers/dailyRecordFreshnessGateError';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
@@ -29,30 +28,23 @@ describe('a refused staffing write', () => {
     process.off('unhandledRejection', unhandled);
   });
 
-  it.each([
-    [
-      'nurse',
-      (patch: () => Promise<void>) =>
-        renderHook(() => useNurseManagement(record, patch)).result.current.updateNurse,
-    ],
-    [
-      'TENS',
-      (patch: () => Promise<void>) =>
-        renderHook(() => useTensManagement(record, patch)).result.current.updateTens,
-    ],
-  ])('leaves no rejection behind from the %s selector and lets it retry', async (_role, build) => {
-    const patch = vi.fn<() => Promise<void>>().mockRejectedValueOnce(refusal());
-    patch.mockResolvedValue(undefined);
-    const select = build(patch);
+  it.each(['nurse', 'tens'] as const)(
+    'leaves no rejection behind from the %s selector and lets it retry',
+    async role => {
+      const patch = vi.fn<() => Promise<void>>().mockRejectedValueOnce(refusal());
+      patch.mockResolvedValue(undefined);
+      const select = renderHook(() => useShiftStaffManagement(record, patch)).result.current
+        .updateShiftStaff;
 
-    select('day', 0, 'Persona Sintética');
-    await flushRejections();
-    expect(unhandled).not.toHaveBeenCalled();
+      select(role, 'day', 0, 'Persona Sintética');
+      await flushRejections();
+      expect(unhandled).not.toHaveBeenCalled();
 
-    select('day', 0, 'Persona Sintética');
-    await flushRejections();
-    expect(patch).toHaveBeenCalledTimes(2);
-  });
+      select(role, 'day', 0, 'Persona Sintética');
+      await flushRejections();
+      expect(patch).toHaveBeenCalledTimes(2);
+    }
+  );
 
   it('still tells the staffing modal that its save failed', async () => {
     const patch = vi.fn<() => Promise<void>>().mockRejectedValue(refusal());

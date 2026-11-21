@@ -60,7 +60,7 @@ export const CensusStaffHeader = React.memo(function CensusStaffHeader({
   const staffData = useDailyRecordStaff();
   const movementsData = useDailyRecordMovements();
 
-  const { updateNurse, updateTens, updateDetailedStaffing } = useDailyRecordStaffActions();
+  const { updateShiftStaff, updateDetailedStaffing } = useDailyRecordStaffActions();
   const { nursesList, tensList, professionalsCatalog = [] } = useStaffContext();
   const [activeDetail, setActiveDetail] = React.useState<{
     role: DetailedStaffingRole;
@@ -106,7 +106,7 @@ export const CensusStaffHeader = React.memo(function CensusStaffHeader({
                 dayShift={readModel.staffSelectorsState.nursesDayShift}
                 nightShift={readModel.staffSelectorsState.nursesNightShift}
                 catalog={nursesList}
-                onUpdate={updateNurse}
+                onUpdate={updateShiftStaff}
                 shiftIndicators={readModel.staffIndicatorsState.nurseIndicators}
                 onOpenDetailedStaffing={readOnly ? undefined : () => openDetail('nurse')}
                 className={`self-stretch ${readModel.selectorsClassName}`}
@@ -116,7 +116,7 @@ export const CensusStaffHeader = React.memo(function CensusStaffHeader({
                 dayShift={readModel.staffSelectorsState.tensDayShift}
                 nightShift={readModel.staffSelectorsState.tensNightShift}
                 catalog={tensList}
-                onUpdate={updateTens}
+                onUpdate={updateShiftStaff}
                 shiftIndicators={readModel.staffIndicatorsState.tensIndicators}
                 onOpenDetailedStaffing={readOnly ? undefined : () => openDetail('tens')}
                 className={`self-stretch ${readModel.selectorsClassName}`}
