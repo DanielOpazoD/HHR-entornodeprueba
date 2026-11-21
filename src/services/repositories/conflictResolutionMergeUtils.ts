@@ -257,7 +257,7 @@ export const mergePatientData = (
     return localPatient;
   }
 
-  const merged: Record<string, unknown> = {};
+  const merged: Partial<PatientData> & Record<string, unknown> = {};
   const keys = new Set([...Object.keys(remotePatient), ...Object.keys(localPatient)]);
   const preserveLocalNarrative = shouldPreserveLocalPatientNarrative(remotePatient, localPatient);
   traceContext?.add({
@@ -366,7 +366,7 @@ export const mergePatientData = (
   filterDeviceDetailsToActiveOrRetired(merged);
 
   // Built key by key from two PatientData values; the compiler cannot follow a merge by run-time key.
-  return merged as unknown as PatientData;
+  return merged as PatientData;
 };
 
 export const mergeBeds = (

@@ -79,28 +79,46 @@ const holdersByEpisode = (record: DailyRecord): EpisodeHolders => {
 };
 
 /** `record` with `holder` in place of the one at `location`. Never mutates `record`. */
+const replaceMovementSnapshot = <T>(
+  movements: readonly T[],
+  targetIndex: number,
+  holder: PlainObject
+): T[] =>
+  movements.map((movement, index) =>
+    index === targetIndex && isPlainObject(movement)
+      ? ({ ...movement, originalData: holder } as T)
+      : movement
+  );
+
 const withHolderAt = (
   record: DailyRecord,
   location: HolderLocation,
   holder: PlainObject
 ): DailyRecord => {
-  const next: PlainObject = { ...record };
   if (location.kind === 'movement') {
-    const movements: unknown[] = record[location.list];
-    next[location.list] = movements.map((movement, index) =>
-      index === location.index && isPlainObject(movement)
-        ? { ...movement, originalData: holder }
-        : movement
-    );
-  } else {
-    const bed = record.beds[location.bedId];
-    next.beds = {
-      ...record.beds,
-      [location.bedId]: location.kind === 'bed' ? holder : { ...bed, clinicalCrib: holder },
+    if (location.list === 'discharges') {
+      return {
+        ...record,
+        discharges: replaceMovementSnapshot(record.discharges, location.index, holder),
+      };
+    }
+    if (location.list === 'transfers') {
+      return {
+        ...record,
+        transfers: replaceMovementSnapshot(record.transfers, location.index, holder),
+      };
+    }
+    return {
+      ...record,
+      cma: replaceMovementSnapshot(record.cma, location.index, holder),
     };
   }
-  // A backup is untyped JSON: only the holder at `location` was replaced, the rest is as read.
-  return next as unknown as DailyRecord;
+  const bed = record.beds[location.bedId];
+  const beds: PlainObject = {
+    ...record.beds,
+    [location.bedId]: location.kind === 'bed' ? holder : { ...bed, clinicalCrib: holder },
+  };
+  return { ...record, beds: beds as DailyRecord['beds'] };
 };
 
 const canonical = (value: unknown): string => {
