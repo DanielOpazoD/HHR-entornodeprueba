@@ -35,7 +35,13 @@ describe('useMovements', () => {
       const { result } = renderHook(() => useMovements(mockRecord, saveAndUpdate));
 
       act(() => {
-        result.current.addDischarge(bedId, 'Vivo', undefined, 'Domicilio', '', '12:00', 'mother');
+        result.current.addDischarge(bedId, {
+          status: 'Vivo',
+          type: 'Domicilio',
+          typeOther: '',
+          time: '12:00',
+          dischargeTarget: 'mother',
+        });
       });
 
       expect(saveAndUpdate).toHaveBeenCalledWith(
@@ -71,7 +77,14 @@ describe('useMovements', () => {
       const { result } = renderHook(() => useMovements(mockRecord, saveAndUpdate));
 
       act(() => {
-        result.current.addDischarge(bedId, 'Vivo', 'Vivo', 'Domicilio', '', '12:00', 'baby');
+        result.current.addDischarge(bedId, {
+          status: 'Vivo',
+          cribStatus: 'Vivo',
+          type: 'Domicilio',
+          typeOther: '',
+          time: '12:00',
+          dischargeTarget: 'baby',
+        });
       });
 
       const updatedRecord = saveAndUpdate.mock.calls[0][0];
@@ -96,7 +109,14 @@ describe('useMovements', () => {
       const { result } = renderHook(() => useMovements(mockRecord, saveAndUpdate));
 
       act(() => {
-        result.current.addDischarge(bedId, 'Vivo', 'Vivo', 'Domicilio', '', '12:00', 'both');
+        result.current.addDischarge(bedId, {
+          status: 'Vivo',
+          cribStatus: 'Vivo',
+          type: 'Domicilio',
+          typeOther: '',
+          time: '12:00',
+          dischargeTarget: 'both',
+        });
       });
 
       const updatedRecord = saveAndUpdate.mock.calls[0][0];
@@ -120,7 +140,13 @@ describe('useMovements', () => {
       const { result } = renderHook(() => useMovements(mockRecord, saveAndUpdate));
 
       act(() => {
-        result.current.addDischarge(bedId, 'Vivo', undefined, 'Domicilio', '', '12:00', 'mother');
+        result.current.addDischarge(bedId, {
+          status: 'Vivo',
+          type: 'Domicilio',
+          typeOther: '',
+          time: '12:00',
+          dischargeTarget: 'mother',
+        });
       });
 
       const updatedRecord = saveAndUpdate.mock.calls[0][0];
@@ -137,15 +163,13 @@ describe('useMovements', () => {
       const { result } = renderHook(() => useMovements(mockRecord, saveAndUpdate));
 
       act(() => {
-        result.current.addDischarge(
-          bedId,
-          'Vivo',
-          undefined,
-          'Otra',
-          'Custom Reason',
-          '12:00',
-          'mother'
-        );
+        result.current.addDischarge(bedId, {
+          status: 'Vivo',
+          type: 'Otra',
+          typeOther: 'Custom Reason',
+          time: '12:00',
+          dischargeTarget: 'mother',
+        });
       });
 
       const updatedRecord = saveAndUpdate.mock.calls[0][0];
@@ -280,7 +304,13 @@ describe('useMovements', () => {
       const { result } = renderHook(() => useMovements(mockRecord, saveAndUpdate));
 
       act(() => {
-        result.current.addTransfer(bedId, 'Ambulancia', 'Hosp A', '', 'Escort', '10:00');
+        result.current.addTransfer(bedId, {
+          evacuationMethod: 'Ambulancia',
+          receivingCenter: 'Hosp A',
+          receivingCenterOther: '',
+          transferEscort: 'Escort',
+          time: '10:00',
+        });
       });
 
       expect(saveAndUpdate).toHaveBeenCalledWith(
@@ -308,7 +338,13 @@ describe('useMovements', () => {
       const { result } = renderHook(() => useMovements(mockRecord, saveAndUpdate));
 
       act(() => {
-        result.current.addTransfer(bedId, 'Aereo', 'Hosp B', '');
+        result.current.addTransfer(bedId, {
+          evacuationMethod: 'Aereo',
+          receivingCenter: 'Hosp B',
+          receivingCenterOther: '',
+          transferEscort: '',
+          time: '',
+        });
       });
 
       const updatedRecord = saveAndUpdate.mock.calls[0][0];
@@ -383,10 +419,16 @@ describe('useMovements', () => {
       const { result } = renderHook(() => useMovements(null, saveAndUpdate));
 
       act(() => {
-        result.current.addDischarge('bed-1', 'Vivo');
+        result.current.addDischarge('bed-1', { status: 'Vivo', time: '' });
         result.current.updateDischarge('d1', 'Vivo');
         result.current.undoDischarge('d1');
-        result.current.addTransfer('bed-1', 'A', 'B', '');
+        result.current.addTransfer('bed-1', {
+          evacuationMethod: 'A',
+          receivingCenter: 'B',
+          receivingCenterOther: '',
+          transferEscort: '',
+          time: '',
+        });
         result.current.updateTransfer('t1', {});
         result.current.undoTransfer('t1');
       });
@@ -403,8 +445,14 @@ describe('useMovements', () => {
         const { result } = renderHook(() => useMovements(mockRecord, saveAndUpdate));
 
         act(() => {
-          result.current.addDischarge(bedId, 'Vivo');
-          result.current.addTransfer(bedId, 'A', 'B', '');
+          result.current.addDischarge(bedId, { status: 'Vivo', time: '' });
+          result.current.addTransfer(bedId, {
+            evacuationMethod: 'A',
+            receivingCenter: 'B',
+            receivingCenterOther: '',
+            transferEscort: '',
+            time: '',
+          });
         });
 
         expect(saveAndUpdate).not.toHaveBeenCalled();

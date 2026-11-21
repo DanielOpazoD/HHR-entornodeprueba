@@ -9,42 +9,21 @@ export const executeDischargeRuntimeCommand = (
   command: DischargeCommand,
   actions: DischargeRuntimeActions
 ): void => {
-  if (command.kind === 'updateDischarge') {
-    actions.updateDischarge(
-      command.id,
-      command.payload.status,
-      command.payload.type,
-      command.payload.typeOther,
-      command.payload.time,
-      command.payload.movementDate,
-      undefined,
-      command.payload.diagnosis
-    );
+  if (command.kind === 'addDischarge') {
+    actions.addDischarge(command.bedId, command.payload);
     return;
   }
 
-  if (command.payload.movementDate !== undefined) {
-    actions.addDischarge(
-      command.bedId,
-      command.payload.status,
-      command.payload.cribStatus,
-      command.payload.type,
-      command.payload.typeOther,
-      command.payload.time,
-      command.payload.dischargeTarget,
-      command.payload.movementDate
-    );
-    return;
-  }
-
-  actions.addDischarge(
-    command.bedId,
-    command.payload.status,
-    command.payload.cribStatus,
-    command.payload.type,
-    command.payload.typeOther,
-    command.payload.time,
-    command.payload.dischargeTarget
+  const { status, type, typeOther, time, movementDate, diagnosis } = command.payload;
+  actions.updateDischarge(
+    command.id,
+    status,
+    type,
+    typeOther,
+    time,
+    movementDate,
+    undefined,
+    diagnosis
   );
 };
 
@@ -52,30 +31,10 @@ export const executeTransferRuntimeCommand = (
   command: TransferCommand,
   actions: TransferRuntimeActions
 ): void => {
-  if (command.kind === 'updateTransfer') {
-    actions.updateTransfer(command.id, command.payload);
+  if (command.kind === 'addTransfer') {
+    actions.addTransfer(command.bedId, command.payload);
     return;
   }
 
-  if (command.payload.movementDate !== undefined) {
-    actions.addTransfer(
-      command.bedId,
-      command.payload.evacuationMethod,
-      command.payload.receivingCenter,
-      command.payload.receivingCenterOther,
-      command.payload.transferEscort,
-      command.payload.time,
-      command.payload.movementDate
-    );
-    return;
-  }
-
-  actions.addTransfer(
-    command.bedId,
-    command.payload.evacuationMethod,
-    command.payload.receivingCenter,
-    command.payload.receivingCenterOther,
-    command.payload.transferEscort,
-    command.payload.time
-  );
+  actions.updateTransfer(command.id, command.payload);
 };

@@ -1,7 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 
 import { applyDischargePatch } from '@/features/census/controllers/censusModalStateController';
-import { buildDischargeRuntimeActions } from '@/features/census/controllers/censusActionRuntimeAdapterController';
 import { executeDischargeController } from '@/features/census/controllers/censusActionRuntimeController';
 import {
   buildDischargeErrorNotification,
@@ -83,7 +82,10 @@ export const useCensusDischargeCommand = ({
         data,
         stabilityRules: stabilityRulesRef.current,
         nowTime: getCurrentTime(),
-        actions: buildDischargeRuntimeActions(addDischargeRef.current, updateDischargeRef.current),
+        actions: {
+          addDischarge: addDischargeRef.current,
+          updateDischarge: updateDischargeRef.current,
+        },
       });
 
       if (!result.ok) {

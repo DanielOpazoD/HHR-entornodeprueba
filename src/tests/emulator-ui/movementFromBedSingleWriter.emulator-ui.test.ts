@@ -20,11 +20,7 @@ import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { processSyncQueue } from '@/services/storage/sync';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import {
-  buildAddDischargeInput,
-  buildAddTransferInput,
   buildAtomicPatientMovementPatch,
-  buildDischargeAddCommandPayload,
-  buildTransferCommandPayload,
   resolveAddDischargeMovement,
   resolveAddTransferMovement,
 } from '@/application/census/public';
@@ -108,20 +104,18 @@ type Movement = 'discharges' | 'transfers' | 'cma';
 // list and the freed bed, as the census sends it.
 const movementPatch = (movement: Movement, person: Person, base: DailyRecord): DailyRecordPatch => {
   if (movement === 'discharges') {
-    const resolution = resolveAddDischargeMovement(
-      buildAddDischargeInput({
-        record: base,
-        bedId: person.bedId,
-        payload: buildDischargeAddCommandPayload({
-          status: 'Vivo',
-          dischargeType: 'Domicilio (Habitual)',
-          time: '10:00',
-          target: 'both',
-        }),
-        bedsCatalog: BEDS,
-        createEmptyPatient,
-      })
-    );
+    const resolution = resolveAddDischargeMovement({
+      record: base,
+      bedId: person.bedId,
+      payload: {
+        status: 'Vivo',
+        type: 'Domicilio (Habitual)',
+        time: '10:00',
+        dischargeTarget: 'both',
+      },
+      bedsCatalog: BEDS,
+      createEmptyPatient,
+    });
     if (!resolution.ok) throw new Error(`discharge not resolved: ${resolution.error.code}`);
     return buildAtomicPatientMovementPatch({
       updatedRecord: resolution.value.updatedRecord,
@@ -130,20 +124,19 @@ const movementPatch = (movement: Movement, person: Person, base: DailyRecord): D
     });
   }
   if (movement === 'transfers') {
-    const resolution = resolveAddTransferMovement(
-      buildAddTransferInput({
-        record: base,
-        bedId: person.bedId,
-        payload: buildTransferCommandPayload({
-          method: 'Avión comercial',
-          center: 'Hospital Salvador',
-          centerOther: '',
-          time: '10:00',
-        }),
-        bedsCatalog: BEDS,
-        createEmptyPatient,
-      })
-    );
+    const resolution = resolveAddTransferMovement({
+      record: base,
+      bedId: person.bedId,
+      payload: {
+        evacuationMethod: 'Avión comercial',
+        receivingCenter: 'Hospital Salvador',
+        receivingCenterOther: '',
+        transferEscort: '',
+        time: '10:00',
+      },
+      bedsCatalog: BEDS,
+      createEmptyPatient,
+    });
     if (!resolution.ok) throw new Error(`transfer not resolved: ${resolution.error.code}`);
     return buildAtomicPatientMovementPatch({
       updatedRecord: resolution.value.updatedRecord,

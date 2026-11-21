@@ -90,15 +90,7 @@ describe('useCensusActionsProviderModel', () => {
       result.current.commandsValue.executeDischarge();
     });
 
-    expect(addDischarge).toHaveBeenCalledWith(
-      'R1',
-      'Vivo',
-      undefined,
-      undefined,
-      undefined,
-      '07:45',
-      undefined
-    );
+    expect(addDischarge).toHaveBeenCalledWith('R1', { status: 'Vivo', time: '07:45' });
 
     act(() => {
       result.current.stateValue.setTransferState(prev => ({
@@ -113,13 +105,12 @@ describe('useCensusActionsProviderModel', () => {
       result.current.commandsValue.executeTransfer();
     });
 
-    expect(addTransfer).toHaveBeenCalledWith(
-      'R2',
-      DEFAULT_EVACUATION_METHOD,
-      DEFAULT_RECEIVING_CENTER,
-      '',
-      DEFAULT_TRANSFER_ESCORT,
-      '07:45'
-    );
+    expect(addTransfer).toHaveBeenCalledWith('R2', {
+      evacuationMethod: DEFAULT_EVACUATION_METHOD,
+      receivingCenter: DEFAULT_RECEIVING_CENTER,
+      receivingCenterOther: '',
+      transferEscort: DEFAULT_TRANSFER_ESCORT,
+      time: '07:45',
+    });
   });
 });

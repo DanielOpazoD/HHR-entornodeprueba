@@ -1,7 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 
 import { applyTransferPatch } from '@/features/census/controllers/censusModalStateController';
-import { buildTransferRuntimeActions } from '@/features/census/controllers/censusActionRuntimeAdapterController';
 import { executeTransferController } from '@/features/census/controllers/censusActionRuntimeController';
 import {
   buildTransferErrorNotification,
@@ -83,7 +82,10 @@ export const useCensusTransferCommand = ({
         data,
         stabilityRules: stabilityRulesRef.current,
         nowTime: getCurrentTime(),
-        actions: buildTransferRuntimeActions(addTransferRef.current, updateTransferRef.current),
+        actions: {
+          addTransfer: addTransferRef.current,
+          updateTransfer: updateTransferRef.current,
+        },
       });
 
       if (!result.ok) {

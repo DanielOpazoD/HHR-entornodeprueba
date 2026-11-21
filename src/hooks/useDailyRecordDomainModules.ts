@@ -32,7 +32,7 @@ export const useDailyRecordDomainModules = (
   const tensManagement = useTensManagement(record, patchRecord);
   const staffingManagement = useDetailedStaffingManagement(record, patchRecord);
   const cmaManagement = useCMA(record, patchRecord);
-  const handoffManagement = useHandoffManagement(record, saveAndUpdate, patchRecord);
+  const handoffManagement = useHandoffManagement(record, patchRecord);
 
   return {
     inventory,

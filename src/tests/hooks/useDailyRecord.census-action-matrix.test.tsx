@@ -330,7 +330,13 @@ const matrixCases: CensusActionMatrixCase[] = [
     name: 'egresar domicilio',
     failureClass: 'persistencia_local_sin_firebase',
     run: actions =>
-      actions.addDischarge('R5', 'Vivo', undefined, 'Domicilio (Habitual)', '', '12:00', 'mother'),
+      actions.addDischarge('R5', {
+        status: 'Vivo',
+        type: 'Domicilio (Habitual)',
+        typeOther: '',
+        time: '12:00',
+        dischargeTarget: 'mother',
+      }),
     expectPatch: patch => {
       expect(patch).toEqual(
         expect.objectContaining({
@@ -359,7 +365,14 @@ const matrixCases: CensusActionMatrixCase[] = [
   {
     name: 'trasladar',
     failureClass: 'persistencia_local_sin_firebase',
-    run: actions => actions.addTransfer('R5', 'Ambulancia', 'Hospital Regional', '', 'Médico'),
+    run: actions =>
+      actions.addTransfer('R5', {
+        evacuationMethod: 'Ambulancia',
+        receivingCenter: 'Hospital Regional',
+        receivingCenterOther: '',
+        transferEscort: 'Médico',
+        time: '',
+      }),
     expectPatch: patch => {
       expect(patch).toEqual(
         expect.objectContaining({

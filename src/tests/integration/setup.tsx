@@ -244,7 +244,7 @@ export const createMockDailyRecordContext = (
   // Handoff Management
   updateHandoffChecklist: vi.fn(),
   updateHandoffNovedades: vi.fn(),
-  updateHandoffStaff: vi.fn(),
+  updateHandoffReceives: vi.fn(),
 });
 
 export const createMockModal = <T = void,>(

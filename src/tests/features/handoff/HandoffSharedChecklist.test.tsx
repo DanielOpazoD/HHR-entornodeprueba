@@ -14,7 +14,7 @@ const checklistProps = {
   deliversList: [],
   receivesList: [],
   nursesList: [],
-  onUpdateStaff: vi.fn(),
+  onUpdateReceives: vi.fn(),
 };
 
 const SharedShiftHarness = () => {

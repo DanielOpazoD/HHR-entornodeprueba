@@ -76,7 +76,13 @@ describe('usePatientTransfers', () => {
     const { result } = renderHook(() => usePatientTransfers(null, mockSaveAndUpdate));
 
     act(() => {
-      result.current.addTransfer('R1', 'Ambulance', 'Hospital X', '');
+      result.current.addTransfer('R1', {
+        evacuationMethod: 'Ambulance',
+        receivingCenter: 'Hospital X',
+        receivingCenterOther: '',
+        transferEscort: '',
+        time: '',
+      });
     });
 
     expect(mockSaveAndUpdate).not.toHaveBeenCalled();
@@ -88,7 +94,13 @@ describe('usePatientTransfers', () => {
     const { result } = renderHook(() => usePatientTransfers(mockRecord, mockSaveAndUpdate));
 
     act(() => {
-      result.current.addTransfer('R2', 'Ambulance', 'Hospital X', '');
+      result.current.addTransfer('R2', {
+        evacuationMethod: 'Ambulance',
+        receivingCenter: 'Hospital X',
+        receivingCenterOther: '',
+        transferEscort: '',
+        time: '',
+      });
     });
 
     expect(mockSaveAndUpdate).not.toHaveBeenCalled();
@@ -100,7 +112,13 @@ describe('usePatientTransfers', () => {
     const { result } = renderHook(() => usePatientTransfers(mockRecord, mockSaveAndUpdate));
 
     act(() => {
-      result.current.addTransfer('R1', 'Ambulance', 'Hospital X', '');
+      result.current.addTransfer('R1', {
+        evacuationMethod: 'Ambulance',
+        receivingCenter: 'Hospital X',
+        receivingCenterOther: '',
+        transferEscort: '',
+        time: '',
+      });
     });
 
     expect(mockSaveAndUpdate).toHaveBeenCalled();
@@ -113,7 +131,13 @@ describe('usePatientTransfers', () => {
     );
 
     act(() => {
-      result.current.addTransfer('R1', 'Ambulance', 'Hospital X', '');
+      result.current.addTransfer('R1', {
+        evacuationMethod: 'Ambulance',
+        receivingCenter: 'Hospital X',
+        receivingCenterOther: '',
+        transferEscort: '',
+        time: '',
+      });
     });
 
     expect(mockPatchRecord).toHaveBeenCalledTimes(1);
@@ -476,7 +500,13 @@ describe('usePatientTransfers', () => {
     );
 
     act(() => {
-      result.current.addTransfer('R2', 'Ambulance', 'Hospital X', '');
+      result.current.addTransfer('R2', {
+        evacuationMethod: 'Ambulance',
+        receivingCenter: 'Hospital X',
+        receivingCenterOther: '',
+        transferEscort: '',
+        time: '',
+      });
     });
 
     expect(mockSaveAndUpdate).not.toHaveBeenCalled();
