@@ -172,7 +172,11 @@ describe('patient movement multi-role sync contract', () => {
         );
 
         await act(async () => {
-          result.current.addDischarge(SOURCE_BED_ID, 'Vivo', undefined, 'Alta Medica');
+          result.current.addDischarge(SOURCE_BED_ID, {
+            status: 'Vivo',
+            type: 'Alta Medica',
+            time: '',
+          });
         });
       }
 
@@ -182,7 +186,13 @@ describe('patient movement multi-role sync contract', () => {
         );
 
         await act(async () => {
-          result.current.addTransfer(SOURCE_BED_ID, 'Ambulancia', 'Hospital receptor', '');
+          result.current.addTransfer(SOURCE_BED_ID, {
+            evacuationMethod: 'Ambulancia',
+            receivingCenter: 'Hospital receptor',
+            receivingCenterOther: '',
+            transferEscort: '',
+            time: '',
+          });
         });
       }
 

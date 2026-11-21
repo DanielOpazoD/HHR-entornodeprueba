@@ -19,9 +19,7 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { processSyncQueue } from '@/services/storage/sync';
 import {
-  buildAddDischargeInput,
   buildAtomicPatientMovementPatch,
-  buildDischargeAddCommandPayload,
   resolveAddDischargeMovement,
 } from '@/application/census/public';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
@@ -249,20 +247,18 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   const writeNote = editField({ handoffNovedadesNightShift: 'NOTA SINTETICA DE P1' });
   // «Dar de alta» as the census saves it: kept here and queued, then sent by the queue.
   const dischargeThroughQueue = async (shown: DailyRecord) => {
-    const resolution = resolveAddDischargeMovement(
-      buildAddDischargeInput({
-        record: shown,
-        bedId: 'R1',
-        payload: buildDischargeAddCommandPayload({
-          status: 'Vivo',
-          dischargeType: 'Domicilio (Habitual)',
-          time: '10:00',
-          target: 'both',
-        }),
-        bedsCatalog: BEDS,
-        createEmptyPatient,
-      })
-    );
+    const resolution = resolveAddDischargeMovement({
+      record: shown,
+      bedId: 'R1',
+      payload: {
+        status: 'Vivo',
+        type: 'Domicilio (Habitual)',
+        time: '10:00',
+        dischargeTarget: 'both',
+      },
+      bedsCatalog: BEDS,
+      createEmptyPatient,
+    });
     if (!resolution.ok) throw new Error(`discharge not resolved: ${resolution.error.code}`);
     // The network is slow only once the queue sends: the census routes a movement to the queue.
     const slowOnceQueued = slowStep.next;

@@ -4,9 +4,12 @@ import type {
   CensusActionValidationErrorCode,
 } from '@/features/census/validation/censusActionValidation';
 import type {
+  DischargeAddCommandPayload,
   DischargeMovementActions,
   DischargeTarget,
+  DischargeUpdateCommandPayload,
   MovementStatus,
+  TransferCommandPayload,
   TransferMovementActions,
 } from '@/types/movements';
 
@@ -22,30 +25,6 @@ export interface DischargeExecutionInput {
 
 export interface TransferExecutionInput {
   time?: string;
-  movementDate?: string;
-  diagnosis?: string;
-}
-
-export interface DischargeUpdateCommandPayload {
-  status: MovementStatus;
-  type?: string;
-  typeOther?: string;
-  time: string;
-  movementDate?: string;
-  diagnosis?: string;
-}
-
-export interface DischargeAddCommandPayload extends DischargeUpdateCommandPayload {
-  cribStatus?: MovementStatus;
-  dischargeTarget?: DischargeTarget;
-}
-
-export interface TransferCommandPayload {
-  evacuationMethod: string;
-  receivingCenter: string;
-  receivingCenterOther: string;
-  transferEscort: string;
-  time: string;
   movementDate?: string;
   diagnosis?: string;
 }
