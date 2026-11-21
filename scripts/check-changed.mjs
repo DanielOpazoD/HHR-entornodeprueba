@@ -1,17 +1,20 @@
 #!/usr/bin/env node
-import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import { getChangedFiles } from './lib/changedFiles.mjs';
+import {
+  resolveCommandConcurrency,
+  runCommandsWithConcurrency,
+} from './lib/parallelCommandRunner.mjs';
 
 const started = Date.now();
-const run = (command, args, repair) => {
-  const start = Date.now();
-  const result = spawnSync(command, args, { stdio: 'inherit' });
+const reportOutcome = ({ task, status, error, stdout, stderr, durationMs }) => {
+  if (stdout) process.stdout.write(stdout);
+  if (stderr) process.stderr.write(stderr);
   console.log(
-    `[changed] ${command} ${args.join(' ')}: ${((Date.now() - start) / 1000).toFixed(1)} s`
+    `[changed] ${task.command} ${task.args.join(' ')}: ${(durationMs / 1000).toFixed(1)} s`
   );
-  if (result.status !== 0) {
-    console.error(`[changed] ${repair}${result.error ? ` (${result.error.message})` : ''}`);
+  if (status !== 0) {
+    console.error(`[changed] ${task.repair}${error ? ` (${error.message})` : ''}`);
     process.exitCode = 1;
   }
 };
@@ -80,27 +83,34 @@ try {
       'El analizador CUDYR del servidor quedó distinto de su fuente: ejecuta node scripts/build-cudyr-source-parser.mjs y agrega functions/lib/generated/cudyrSourceParser.cjs al commit.',
     ],
   ];
+  const tasks = [];
   for (const [name, pattern, repair] of checks) {
     if (matches(pattern) || matches(/^package(?:-lock)?\.json$/) || matches(/^scripts\//)) {
-      run('npm', ['run', '-s', `check:${name}`], repair);
+      tasks.push({ command: 'npm', args: ['run', '-s', `check:${name}`], repair });
     }
   }
   const files = [...changed].filter(file => fs.existsSync(file) && fs.statSync(file).isFile());
   for (let index = 0; index < files.length; index += 50) {
     const batch = files.slice(index, index + 50);
-    run(
-      './node_modules/.bin/prettier',
-      ['--check', '--ignore-unknown', ...batch],
-      'Ejecuta prettier --write sobre los archivos indicados.'
-    );
+    tasks.push({
+      command: './node_modules/.bin/prettier',
+      args: ['--check', '--ignore-unknown', ...batch],
+      repair: 'Ejecuta prettier --write sobre los archivos indicados.',
+    });
     const code = batch.filter(file => /\.(?:[cm]?[jt]sx?)$/.test(file));
     if (code.length) {
-      run(
-        './node_modules/.bin/eslint',
-        ['--max-warnings', '0', '--no-warn-ignored', ...code],
-        'Corrige los errores ESLint indicados.'
-      );
+      tasks.push({
+        command: './node_modules/.bin/eslint',
+        args: ['--max-warnings', '0', '--no-warn-ignored', ...code],
+        repair: 'Corrige los errores ESLint indicados.',
+      });
     }
+  }
+  const outcomes = await runCommandsWithConcurrency(tasks, {
+    concurrency: resolveCommandConcurrency(4),
+  });
+  for (const outcome of outcomes) {
+    reportOutcome(outcome);
   }
 } catch (error) {
   console.error(`[changed] ${error.message}`);
