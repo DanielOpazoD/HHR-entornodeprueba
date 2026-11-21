@@ -1,7 +1,7 @@
 // Retry and denial behaviour of direct and atomic writes on a day the server does not have. The
 // role × write-kind matrix lives in missingRemoteDay{Production,Absent}Policy; all three share
 // missingRemoteDay.test-support.ts and each uses its own emulator project.
-import { expect, it, vi } from 'vitest';
+import { expect, it } from 'vitest';
 import {
   baseRecord,
   date,
@@ -10,8 +10,6 @@ import {
   transport,
 } from './missingRemoteDay.test-support';
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
-import * as writes from '@/services/storage/firestore/firestoreRecordWrites';
-import * as guards from '@/services/storage/firestore/firestoreWriteSupport';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
@@ -61,7 +59,7 @@ describeMissingRemoteDay('demo-hhr-e8e', h => {
       ]);
     });
   }
-  it('a write the rules deny is not retried with backoff on the atomic paths', async () => {
+  it('a write the rules deny is not retried with backoff on the atomic path', async () => {
     h.clients.B = {
       uid: 'synthetic-B',
       role: 'doctor_urgency',
@@ -73,21 +71,12 @@ describeMissingRemoteDay('demo-hhr-e8e', h => {
         .firestore(),
     };
     await h.admin.doc(dayPath).set(baseRecord());
-    const save = guards.saveRecordAtomically;
-    let saves = 0;
-    vi.spyOn(guards, 'saveRecordAtomically').mockImplementation(async (...args) => {
-      saves++;
-      return save(...args);
-    });
 
     await expect(patch('B', { nursesDayShift: ['ENFERMERA NUEVA', ''] })).rejects.toMatchObject({
       code: 'permission-denied',
     });
-    await expect(
-      actor('B', () => writes.saveRecordToFirestore(baseRecord(), baseRecord().lastUpdated))
-    ).rejects.toMatchObject({ code: 'permission-denied' });
     // One attempt, then one more after the role refresh: the recovery that can succeed.
-    expect({ staffing: calls.transaction, save: saves }).toEqual({ staffing: 2, save: 2 });
+    expect(calls.transaction).toBe(2);
     expect((await h.admin.doc(dayPath).get()).data()?.nursesDayShift).toEqual(
       baseRecord().nursesDayShift
     );

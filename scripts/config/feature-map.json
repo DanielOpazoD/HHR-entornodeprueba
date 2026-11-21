@@ -185,7 +185,7 @@
         },
         {
           "at": "src/services/storage/firestore/firestoreRecordWrites.ts › updateRecordPartial",
-          "decides": "Envía por la función del servidor o escribe directo, según los campos; un cambio que mezcla campos que deben ir separados queda en la cola."
+          "decides": "Un campo de cama va siempre por la función del servidor, sin leer la política; la dotación y los demás campos del día se escriben directo; un cambio que mezcla campos que deben ir separados queda en la cola."
         },
         {
           "at": "functions/lib/dailyRecordPatchCallable.js › createPatchHandler",

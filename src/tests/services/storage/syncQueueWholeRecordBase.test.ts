@@ -1,9 +1,8 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Timestamp, type Firestore, type Transaction } from 'firebase/firestore';
+import { Timestamp, type Firestore } from 'firebase/firestore';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
-import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { UNKNOWN_SERVER_VERSION } from '@/services/storage/sync/syncTaskContractPolicy';
 import type { SyncTask, SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -11,11 +10,8 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 const mocks = vi.hoisted(() => ({
   read: vi.fn(),
   transaction: vi.fn(),
-  transactionRead: vi.fn(),
-  set: vi.fn(),
   directSet: vi.fn(),
   callable: vi.fn(),
-  fence: false,
 }));
 vi.mock('firebase/firestore', async original => ({
   ...(await original<typeof import('firebase/firestore')>()),
@@ -26,9 +22,6 @@ vi.mock('firebase/firestore', async original => ({
 vi.mock('@/services/storage/firestore/firestoreShared', async original => ({
   ...(await original<typeof import('@/services/storage/firestore/firestoreShared')>()),
   getRecordDocRef: () => ({ id: 'synthetic-record' }),
-}));
-vi.mock('@/services/storage/firestore/firestoreRayenClinicalAuthorityMode', () => ({
-  isServerClinicalWriteFenceActive: async () => mocks.fence,
 }));
 vi.mock('@/services/storage/firestore/dailyRecordAuthorityCallableClient', () => ({
   saveDailyRecordWithClinicalAuthorityCallable: mocks.callable,
@@ -69,7 +62,6 @@ const task = (contract: SyncTaskContract = {}): SyncTask => ({
 });
 const snapshot = (data: unknown) => ({ exists: () => true, data: () => data });
 const missing = () => ({ exists: () => false });
-const tx = () => ({ get: mocks.transactionRead, set: mocks.set }) as unknown as Transaction;
 const run = (input: SyncTask) =>
   createFirestoreSyncTransport({
     getDb: () => ({}) as Firestore,
@@ -77,7 +69,6 @@ const run = (input: SyncTask) =>
   }).run(input);
 const remote = (data: unknown) => {
   mocks.read.mockResolvedValue(snapshot(data));
-  mocks.transactionRead.mockResolvedValue(snapshot(data));
 };
 const expectBlocked = async (input: SyncTask, data: unknown) => {
   remote(data);
@@ -89,27 +80,20 @@ const expectBlocked = async (input: SyncTask, data: unknown) => {
   });
   expect(input).toEqual(beforeTask);
   expect(data).toEqual(beforeRemote);
-  expect(mocks.set).not.toHaveBeenCalled();
+  expect(mocks.transaction).not.toHaveBeenCalled();
   expect(mocks.directSet).not.toHaveBeenCalled();
   expect(mocks.callable).not.toHaveBeenCalled();
 };
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.fence = false;
   mocks.read.mockResolvedValue(missing());
-  mocks.transactionRead.mockResolvedValue(missing());
-  mocks.transaction.mockImplementation(async (_db, callback) => callback(tx()));
   mocks.callable.mockImplementation(async ({ record: committed }: { record: DailyRecord }) => ({
     recordState: { record: committed, lastUpdated: committed.lastUpdated },
   }));
 });
 
-describe.each(['direct', 'callable'])('opaque full-save base through %s', lane => {
-  beforeEach(() => {
-    mocks.fence = lane === 'callable';
-  });
-
+describe('opaque full-save base', () => {
   it.each([
     ['legacy timestamp', {}, stored()],
     ['revision and timestamp', { baseRevision: 7 }, stored()],
@@ -134,19 +118,13 @@ describe.each(['direct', 'callable'])('opaque full-save base through %s', lane =
     await expect(run(input)).resolves.toMatchObject({ authoritativeRecord: record() });
 
     expect(input).toEqual(before);
-    if (lane === 'direct') {
-      expect(mocks.set).toHaveBeenCalledOnce();
-      expect(mocks.set.mock.calls[0][1]).toMatchObject(record());
-      expect(mocks.callable).not.toHaveBeenCalled();
-    } else {
-      expect(mocks.callable).toHaveBeenCalledOnce();
-      expect(mocks.callable.mock.calls[0][0]).toMatchObject({
-        record: record(),
-        expectedLastUpdated: input.syncContract?.expectedVersion,
-        syncContract: input.syncContract,
-      });
-      expect(mocks.set).not.toHaveBeenCalled();
-    }
+    expect(mocks.callable).toHaveBeenCalledOnce();
+    expect(mocks.callable.mock.calls[0][0]).toMatchObject({
+      record: record(),
+      expectedLastUpdated: input.syncContract?.expectedVersion,
+      syncContract: input.syncContract,
+    });
+    expect(mocks.transaction).not.toHaveBeenCalled();
     expect(mocks.directSet).not.toHaveBeenCalled();
   });
 
@@ -242,7 +220,6 @@ describe.each(['direct', 'callable'])('opaque full-save base through %s', lane =
       name: 'ConcurrencyError',
       reason: 'semantic_conflict',
     });
-    expect(mocks.set).not.toHaveBeenCalled();
     expect(mocks.callable).not.toHaveBeenCalled();
   });
 
@@ -256,7 +233,6 @@ describe.each(['direct', 'callable'])('opaque full-save base through %s', lane =
     await expect(run(task({ expectedVersion: UNKNOWN_SERVER_VERSION }))).resolves.toMatchObject({
       authoritativeRecord: { tensDayShift: ['SINTETICO B', '', ''] },
     });
-    expect(mocks.set).not.toHaveBeenCalled();
     expect(mocks.callable).not.toHaveBeenCalled();
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
@@ -291,7 +267,6 @@ describe.each(['direct', 'callable'])('opaque full-save base through %s', lane =
     const before = structuredClone(input);
     await expect(run(input)).rejects.toThrow(/newer/);
     expect(input).toEqual(before);
-    expect(mocks.set).not.toHaveBeenCalled();
     expect(mocks.callable).not.toHaveBeenCalled();
   });
 
@@ -314,59 +289,6 @@ describe.each(['direct', 'callable'])('opaque full-save base through %s', lane =
       tensDayShift: ['SINTETICO B', '', ''],
     };
     await expect(run(input)).resolves.toMatchObject({ authoritativeRecord: expected });
-    const published =
-      lane === 'direct' ? mocks.set.mock.calls[0][1] : mocks.callable.mock.calls[0][0].record;
-    expect(published).toMatchObject(expected);
-  });
-});
-
-describe('direct full-save transaction base', () => {
-  it.each([
-    ['changed revision at the same timestamp', stored({ meta: { revision: 8 } })],
-    ['timestamp ahead with unchanged revision', stored({ lastUpdated: later })],
-    ['timestamp behind with unchanged revision', stored({ lastUpdated: earlier })],
-  ])('revalidates %s after preflight', async (_label, changed) => {
-    remote(stored());
-    mocks.transactionRead.mockResolvedValue(snapshot(changed));
-    const input = task({ baseRevision: 7 });
-    const before = structuredClone(input);
-
-    await expect(run(input)).rejects.toMatchObject({
-      name: 'ConcurrencyError',
-      reason: 'semantic_conflict',
-    });
-
-    expect(input).toEqual(before);
-    expect(mocks.transactionRead).toHaveBeenCalledOnce();
-    expect(mocks.set).not.toHaveBeenCalled();
-  });
-
-  it('revalidates the original base on every SDK retry without adopting the fresh read', async () => {
-    remote(stored());
-    const input = task({ baseRevision: 7 });
-    const before = structuredClone(input);
-    mocks.transaction.mockImplementation(async (_db, callback) => {
-      await callback(tx());
-      expect(mocks.set).toHaveBeenCalledOnce();
-      expect(mocks.set.mock.calls[0][1]).toMatchObject(record());
-      mocks.set.mockClear();
-      mocks.transactionRead.mockResolvedValue(snapshot(stored({ lastUpdated: later })));
-      return callback(tx());
-    });
-
-    await expect(run(input)).rejects.toBeInstanceOf(ConcurrencyError);
-
-    expect(input).toEqual(before);
-    expect(mocks.transactionRead).toHaveBeenCalledTimes(2);
-    expect(mocks.set).not.toHaveBeenCalled();
-    expect(mocks.callable).not.toHaveBeenCalled();
-  });
-
-  it('does not manufacture a base when another writer creates the absent day', async () => {
-    mocks.transactionRead.mockResolvedValue(snapshot(stored()));
-    await expect(run(task({ expectedVersion: '' }))).rejects.toMatchObject({
-      reason: 'semantic_conflict',
-    });
-    expect(mocks.set).not.toHaveBeenCalled();
+    expect(mocks.callable.mock.calls[0][0].record).toMatchObject(expected);
   });
 });

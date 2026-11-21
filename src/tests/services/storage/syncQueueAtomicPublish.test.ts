@@ -1,18 +1,16 @@
 // @vitest-environment node
 import { beforeEach, expect, it, vi } from 'vitest';
-import type { Firestore, Transaction } from 'firebase/firestore';
+import type { Firestore } from 'firebase/firestore';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import type { DailyRecordAuthorityCallablePayload } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 
 const mocks = vi.hoisted(() => ({
   read: vi.fn(),
   transaction: vi.fn(),
-  set: vi.fn(),
   directSet: vi.fn(),
-  transactionRead: vi.fn(),
   callable: vi.fn(),
-  fence: false,
 }));
 vi.mock('firebase/firestore', async original => ({
   ...(await original<typeof import('firebase/firestore')>()),
@@ -23,9 +21,6 @@ vi.mock('firebase/firestore', async original => ({
 vi.mock('@/services/storage/firestore/firestoreShared', async original => ({
   ...(await original<typeof import('@/services/storage/firestore/firestoreShared')>()),
   getRecordDocRef: () => ({ id: 'synthetic-record' }),
-}));
-vi.mock('@/services/storage/firestore/firestoreRayenClinicalAuthorityMode', () => ({
-  isServerClinicalWriteFenceActive: async () => mocks.fence,
 }));
 vi.mock('@/services/storage/firestore/dailyRecordAuthorityCallableClient', () => ({
   saveDailyRecordWithClinicalAuthorityCallable: mocks.callable,
@@ -39,7 +34,6 @@ const record = (lastUpdated: string) =>
 const local = () => record(date + 'T10:00:00Z');
 const missing = () => ({ exists: () => false });
 const snapshot = (data: unknown) => ({ exists: () => true, data: () => data });
-const tx = () => ({ get: mocks.transactionRead, set: mocks.set }) as unknown as Transaction;
 const task = (): SyncTask => ({
   opId: 'synthetic-op',
   type: 'UPDATE_DAILY_RECORD',
@@ -55,54 +49,29 @@ const run = (input = task()) =>
   }).run(input);
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.fence = false;
   mocks.read.mockResolvedValue(missing());
-  mocks.transactionRead.mockResolvedValue(missing());
-  mocks.transaction.mockImplementation(async (_db, callback) => callback(tx()));
+  // The authority commits what it is sent.
+  mocks.callable.mockImplementation(
+    async ({ record: sent }: DailyRecordAuthorityCallablePayload) => ({
+      recordState: { record: sent, lastUpdated: sent.lastUpdated },
+    })
+  );
 });
-it('revalidates a concurrent write that appeared after the initial read', async () => {
-  mocks.transactionRead.mockResolvedValue(snapshot(record(date + 'T10:01:00Z')));
-  await expect(run({ ...task(), syncContract: { baseRevision: 0 } })).rejects.toThrow(/newer/);
-  expect(mocks.transaction).toHaveBeenCalledOnce();
-  expect(mocks.set).not.toHaveBeenCalled();
-  expect(mocks.directSet).not.toHaveBeenCalled();
-});
-it('revalidates the original intent when Firestore retries the callback', async () => {
-  mocks.transaction.mockImplementation(async (_db, callback) => {
-    await callback(tx()); // SDK discards this candidate when its read version loses the race.
-    mocks.set.mockClear();
-    mocks.transactionRead.mockResolvedValue(snapshot(record(date + 'T10:01:00Z')));
-    return callback(tx());
-  });
-  await expect(run({ ...task(), syncContract: { baseRevision: 0 } })).rejects.toThrow(/newer/);
-  expect(mocks.transactionRead).toHaveBeenCalledTimes(2);
-  expect(mocks.set).not.toHaveBeenCalled();
-});
-it('returns the committed record and never performs an unguarded setDoc', async () => {
-  const outcome = await run();
-  expect(outcome).toMatchObject({ authoritativeRecord: local() });
-  expect(mocks.set).toHaveBeenCalledOnce();
-  expect(mocks.directSet).not.toHaveBeenCalled();
-});
-it('recognizes an already applied mutation inside the transaction without writing again', async () => {
-  const applied = { ...local(), meta: { lastMutationId: 'synthetic-mutation' } };
-  mocks.transactionRead.mockResolvedValue(snapshot(applied));
-  await run({ ...task(), syncContract: { mutationId: 'synthetic-mutation' } });
-  expect(mocks.set).not.toHaveBeenCalled();
-});
-it('retains the authoritative callable route behind the server fence', async () => {
-  mocks.fence = true;
-  mocks.callable.mockResolvedValue({
-    recordState: { record: local(), lastUpdated: local().lastUpdated },
-  });
+it('publishes through the authority callable, never a direct write', async () => {
   await expect(run()).resolves.toMatchObject({ authoritativeRecord: local() });
   expect(mocks.callable).toHaveBeenCalledOnce();
   expect(mocks.transaction).not.toHaveBeenCalled();
   expect(mocks.directSet).not.toHaveBeenCalled();
 });
+it('recognizes an already applied mutation without writing again', async () => {
+  const applied = { ...local(), meta: { lastMutationId: 'synthetic-mutation' } };
+  mocks.read.mockResolvedValue(snapshot(applied));
+  await run({ ...task(), syncContract: { mutationId: 'synthetic-mutation' } });
+  expect(mocks.callable).not.toHaveBeenCalled();
+});
 
 it.each(['unchanged', 'changed', 'same-clock', 'lost-ack'] as const)(
-  'compares the queued field base inside the transaction: %s',
+  'compares the queued field base with the stored day before publishing: %s',
   async scenario => {
     const base = {
       ...local(),
@@ -115,8 +84,7 @@ it.each(['unchanged', 'changed', 'same-clock', 'lost-ack'] as const)(
       beds: { R1: { ...base.beds.R1, pathology: scenario === 'unchanged' ? 'BASE' : 'B ONLINE' } },
       ...(scenario === 'lost-ack' ? { meta: { lastMutationId: 'queued-edit' } } : {}),
     };
-    mocks.read.mockResolvedValue(snapshot(base));
-    mocks.transactionRead.mockResolvedValue(snapshot(remote));
+    mocks.read.mockResolvedValue(snapshot(remote));
     const input = {
       ...task(),
       payload: edited,
@@ -129,11 +97,11 @@ it.each(['unchanged', 'changed', 'same-clock', 'lost-ack'] as const)(
     };
     if (scenario === 'changed' || scenario === 'same-clock') {
       await expect(run(input)).rejects.toMatchObject({ name: 'ConcurrencyError' });
-      expect(mocks.set).not.toHaveBeenCalled();
+      expect(mocks.callable).not.toHaveBeenCalled();
     } else {
       await run(input);
-      if (scenario === 'lost-ack') expect(mocks.set).not.toHaveBeenCalled();
-      else expect(mocks.set).toHaveBeenCalledOnce();
+      if (scenario === 'lost-ack') expect(mocks.callable).not.toHaveBeenCalled();
+      else expect(mocks.callable).toHaveBeenCalledOnce();
     }
   }
 );
@@ -143,8 +111,7 @@ it.each([{ names: ['NURSE'] }, { names: ['NURSE', '', ''] }])(
   async ({ names }) => {
     const base = { ...local(), tensDayShift: names };
     const edited = { ...base, tensDayShift: ['EDITED'] };
-    mocks.read.mockResolvedValue(snapshot(base));
-    mocks.transactionRead.mockResolvedValue(
+    mocks.read.mockResolvedValue(
       snapshot({ ...base, tensDayShift: ['NURSE'], lastUpdated: date + 'T10:01:00Z' })
     );
     const outcome = await run({
@@ -160,6 +127,6 @@ it.each([{ names: ['NURSE'] }, { names: ['NURSE', '', ''] }])(
     expect(outcome).toMatchObject({
       authoritativeRecord: { tensDayShift: expect.arrayContaining(['EDITED']) },
     });
-    expect(mocks.set).toHaveBeenCalledOnce();
+    expect(mocks.callable).toHaveBeenCalledOnce();
   }
 );

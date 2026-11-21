@@ -52,7 +52,6 @@ vi.mock('@/services/storage/firestore/firestoreWriteSupport', () => ({
   assertFirestoreConcurrency: vi.fn(),
   createDeletedRecordRef: vi.fn((date: string) => ({ trashRef: date })),
   saveHistorySnapshot: vi.fn(),
-  saveRecordAtomically: vi.fn(),
   updateRecordPartiallyAtomically: vi.fn(),
 }));
 vi.mock('@/services/storage/storageLoggers', () => ({
@@ -79,16 +78,10 @@ vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
     getRegionalFunctions: () => mockGetFunctions(),
   },
 }));
-import {
-  saveRecordToFirestore,
-  updateRecordPartial,
-} from '@/services/storage/firestore/firestoreRecordWrites';
-import {
-  saveRecordAtomically,
-  updateRecordPartiallyAtomically,
-} from '@/services/storage/firestore/firestoreWriteSupport';
+import { updateRecordPartial } from '@/services/storage/firestore/firestoreRecordWrites';
+import { updateRecordPartiallyAtomically } from '@/services/storage/firestore/firestoreWriteSupport';
 
-// Full saves copy the live day to history at most hourly; restores always copy first.
+// Partial writes copy the live day to history at most hourly unless historyPolicy says otherwise.
 describe('firestoreRecordWrites history policy', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -97,23 +90,6 @@ describe('firestoreRecordWrites history policy', () => {
     mockEnsureUserRoleClaim.mockResolvedValue(undefined);
     mockHttpsCallable.mockReturnValue(mockSpecialistCallable);
     mockSpecialistCallable.mockResolvedValue({ data: { success: true } });
-  });
-
-  it.each([
-    [{ historyPolicy: 'snapshot' as const }, true],
-    [{ origin: 'backup_restore' as const }, true],
-    [{ origin: 'direct_save' as const }, false],
-  ])('forces the pre-write history copy only for restores: %j', async (options, forced) => {
-    await saveRecordToFirestore({ date: '2026-03-17', beds: {} } as never, undefined, options);
-
-    expect(saveRecordAtomically).toHaveBeenCalledWith(
-      { date: '2026-03-17' },
-      expect.objectContaining({ date: '2026-03-17' }),
-      undefined,
-      expect.any(String),
-      'save',
-      expect.objectContaining({ forceHistorySnapshot: forced })
-    );
   });
 
   it.each([undefined, 'snapshot' as const, 'skip' as const])(

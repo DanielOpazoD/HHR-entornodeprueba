@@ -5,7 +5,6 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
 const mocks = vi.hoisted(() => ({
-  policyRead: vi.fn(),
   readback: vi.fn(),
   invoke: vi.fn(),
   directSave: vi.fn(),
@@ -15,9 +14,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('firebase/firestore', async original => ({
   ...(await original<typeof import('firebase/firestore')>()),
-  doc: (_db: unknown, path: string) => ({ path }),
-  getDoc: (ref: { path?: string }) =>
-    ref.path ? mocks.policyRead() : Promise.resolve({ exists: () => false }),
+  getDoc: () => Promise.resolve({ exists: () => false }),
   getDocFromServer: mocks.readback,
   runTransaction: mocks.transaction,
   updateDoc: mocks.directPatch,
@@ -37,10 +34,6 @@ vi.mock('@/services/storage/firestore/firestoreShared', async original => ({
   ...(await original<typeof import('@/services/storage/firestore/firestoreShared')>()),
   getRecordDocRef: (date: string) => ({ date }),
 }));
-vi.mock('@/services/storage/firestore/firestoreWriteSupport', async original => ({
-  ...(await original<typeof import('@/services/storage/firestore/firestoreWriteSupport')>()),
-  saveRecordAtomically: mocks.directSave,
-}));
 
 import {
   saveRecordToFirestore,
@@ -59,21 +52,10 @@ const committed = () => ({
   cudyrLocked: true,
 });
 
-// A transient failure of one policy read is answered by the second read, as main's repeated reads
-// did; two failed reads leave the route direct and the rules refuse it (productionAuthorityConfiguration,
-// "a browser that cannot read the policy").
-describe.each([
-  ['read', false],
-  ['first read failed', true],
-])('production authority route behind the server fence (policy %s)', (_label, readFails) => {
+// Every bed and whole-day write goes through the authority; nothing reads the policy first.
+describe('production authority route', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    mocks.policyRead.mockResolvedValue({
-      exists: () => true,
-      data: () => ({ schemaVersion: 2, clinicalBatchMode: 'enforced' }),
-    });
-    if (readFails)
-      mocks.policyRead.mockRejectedValueOnce(new Error('Synthetic transient policy read failure'));
     mocks.invoke.mockResolvedValue({
       data: {
         success: true,
@@ -144,7 +126,6 @@ describe.each([
 
       const result = await run();
 
-      expect(mocks.policyRead).toHaveBeenCalled();
       expect(mocks.invoke).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({
           mode: 'enforced',

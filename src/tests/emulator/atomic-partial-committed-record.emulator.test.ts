@@ -176,7 +176,7 @@ describeEmulator('Firestore emulator atomic partial committed record', () => {
   });
 
   beforeEach(async () => {
-    // Without the server fence: exercises the direct atomic transaction, not the authority callable.
+    // Day fields outside the bed tree: the direct atomic transaction (bed fields go to the authority).
     await testEnv.clearFirestore();
     setFirestoreEnabled(true);
     activeDb = nurseDb;
@@ -192,101 +192,6 @@ describeEmulator('Firestore emulator atomic partial committed record', () => {
 
   afterAll(async () => {
     await testEnv.cleanup();
-  });
-
-  it('returns the committed UPC evaluation and keeps the pre-write history copy', async () => {
-    await seed({
-      ...buildRecord(),
-      beds: {
-        R1: buildPatient('R1', {
-          upcChecklist: {
-            uciCriteria: ['uci_vmi'],
-            utiCriteria: [],
-            classification: 'UPC_UCI',
-            evaluatedAt: BASE_VERSION,
-            history: [
-              {
-                uciCriteria: ['uci_vmi'],
-                utiCriteria: [],
-                classification: 'UPC_UCI',
-                evaluatedAt: BASE_VERSION,
-              },
-            ],
-          },
-        }),
-      },
-      bedTypeOverrides: { R2: 'UCI' },
-    });
-    await attachCensusListener();
-
-    const receipt = await updateRecordPartial(
-      DATE,
-      {
-        'beds.R1.isUPC': true,
-        'beds.R1.upcChecklist': {
-          uciCriteria: [],
-          utiCriteria: ['uti_sepsis'],
-          classification: 'UPC_UTI',
-          evaluatedAt: new Date().toISOString(),
-          evaluatedForDate: DATE,
-          evaluatedBedId: 'R1',
-        },
-        'bedTypeOverrides.R1': 'UTI',
-      },
-      BASE_VERSION,
-      { requireAtomicCas: true, returnCommittedRecord: true, historyPolicy: 'snapshot' }
-    );
-
-    const record = await expectReceiptMatchesServer(receipt);
-    expect(record.beds.R1.upcChecklist).not.toHaveProperty('history');
-    expect(record.bedTypeOverrides).toEqual({ R1: 'UTI', R2: 'UCI' });
-    let historyCount = 0;
-    await testEnv.withSecurityRulesDisabled(async context => {
-      historyCount = (await context.firestore().collection(`${RECORD_PATH}/history`).get()).size;
-    });
-    expect(historyCount).toBe(1);
-  });
-
-  it.each([
-    ['null', { clinicalCrib: null }],
-    ['absent', {}],
-  ])('returns a crib created into a %s clinicalCrib', async (_label, cribState) => {
-    await seed({
-      ...buildRecord(),
-      beds: { R1: { ...buildPatient('R1', { clinicalEpisodeId: 'madre-ep' }), ...cribState } },
-    });
-    await attachCensusListener();
-
-    const receipt = await updateRecordPartial(
-      DATE,
-      {
-        'beds.R1.clinicalCrib': buildPatient('R1', {
-          bedMode: 'Cuna',
-          patientName: 'RN Sintético',
-          clinicalEpisodeId: 'rn-ep',
-          devices: ['VVP'],
-          deviceDetails: {},
-        }),
-      },
-      BASE_VERSION,
-      {
-        requireAtomicCas: true,
-        returnCommittedRecord: true,
-        historyPolicy: 'skip',
-        clinicalCribCreate: {
-          bedId: 'R1',
-          confirmedLastUpdated: BASE_VERSION,
-          confirmedParent: { clinicalEpisodeId: 'madre-ep' },
-        },
-      }
-    );
-
-    const record = await expectReceiptMatchesServer(receipt);
-    expect(record.beds.R1.clinicalEpisodeId).toBe('madre-ep');
-    expect(record.beds.R1.clinicalCrib).toMatchObject({
-      patientName: 'RN Sintético',
-      clinicalEpisodeId: 'rn-ep',
-    });
   });
 
   it('returns a Rayen checkpoint merged into a legacy rayenSync, history replaced', async () => {
@@ -322,13 +227,9 @@ describeEmulator('Firestore emulator atomic partial committed record', () => {
     expect((await readServerData()).rayenSync.legacyImportedAt).toBe('x');
   });
 
-  it('returns reclassified movement arrays and an emptied device map', async () => {
+  it('returns reclassified movement arrays', async () => {
     const discharge = { id: 'mov-1', bedId: 'R2', patientName: 'Paciente Egreso', time: '09:00' };
-    await seed({
-      ...buildRecord(),
-      beds: { R1: buildPatient('R1', { deviceDetails: { CVC: { installationDate: DATE } } }) },
-      discharges: [discharge],
-    });
+    await seed({ ...buildRecord(), discharges: [discharge] });
     await attachCensusListener();
 
     const receipt = await updateRecordPartial(
@@ -347,7 +248,6 @@ describeEmulator('Firestore emulator atomic partial committed record', () => {
             interventionType: 'Procedimiento Médico Ambulatorio',
           },
         ],
-        'beds.R1.deviceDetails': {},
       },
       BASE_VERSION,
       { requireAtomicCas: true, returnCommittedRecord: true, historyPolicy: 'skip' }
@@ -355,7 +255,7 @@ describeEmulator('Firestore emulator atomic partial committed record', () => {
 
     const record = await expectReceiptMatchesServer(receipt);
     expect(record.discharges).toEqual([]);
-    expect((await readServerData()).beds.R1.deviceDetails).toEqual({});
+    expect(record.cma).toHaveLength(1);
   });
 
   it('lets exactly one of two writers on the same base commit, with its exact record', async () => {
@@ -363,7 +263,7 @@ describeEmulator('Firestore emulator atomic partial committed record', () => {
     await attachCensusListener();
     const otherPayload = sanitizeForFirestore({
       ...prepareFirestorePartialData({
-        partialData: { 'beds.R1.pathology': 'Edición B' },
+        partialData: { handoffNovedadesDayShift: 'Edición B' },
         clinicalEventsOnlyPatch: false,
         intentionalBedClear: undefined,
       }),
@@ -371,7 +271,7 @@ describeEmulator('Firestore emulator atomic partial committed record', () => {
     }) as DocumentData;
 
     const [first, second] = await Promise.allSettled([
-      updateRecordPartial(DATE, { 'beds.R1.pathology': 'Edición A' }, BASE_VERSION, {
+      updateRecordPartial(DATE, { handoffNovedadesDayShift: 'Edición A' }, BASE_VERSION, {
         requireAtomicCas: true,
         returnCommittedRecord: true,
         historyPolicy: 'skip',
@@ -392,12 +292,12 @@ describeEmulator('Firestore emulator atomic partial committed record', () => {
     expect(loser.reason).toBeInstanceOf(ConcurrencyError);
     if (first.status === 'fulfilled') {
       const record = await expectReceiptMatchesServer(first.value);
-      expect(record.beds.R1.pathology).toBe('Edición A');
+      expect(record.handoffNovedadesDayShift).toBe('Edición A');
     } else {
       const committedBase = (second as PromiseFulfilledResult<DocumentData>).value;
       const committed = projectFirestoreUpdate(committedBase, otherPayload);
       expect(committed).toStrictEqual(await readServerData());
-      expect(committed.beds.R1.pathology).toBe('Edición B');
+      expect(committed.handoffNovedadesDayShift).toBe('Edición B');
     }
   });
 
@@ -416,14 +316,14 @@ describeEmulator('Firestore emulator atomic partial committed record', () => {
 
     const receipt = await updateRecordPartial(
       DATE,
-      { 'beds.R1.pathology': 'Dx tras reintento' },
+      { handoffNovedadesDayShift: 'Novedad tras reintento' },
       BASE_VERSION,
       { requireAtomicCas: true, returnCommittedRecord: true, historyPolicy: 'skip' }
     );
 
     expect(interleave.attempts).toBe(2);
     const record = await expectReceiptMatchesServer(receipt);
-    expect(record.beds.R1.pathology).toBe('Dx tras reintento');
+    expect(record.handoffNovedadesDayShift).toBe('Novedad tras reintento');
     expect(record.beds.R2?.patientName).toBe('Ingreso Concurrente');
   });
 });

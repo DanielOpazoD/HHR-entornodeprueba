@@ -94,7 +94,15 @@ describe('CIE-10 Copy Bug Reproduction', () => {
       status: 'missing',
       record: null,
     });
-    vi.mocked(FirestoreRecordWrites.saveRecordToFirestore).mockResolvedValue(undefined);
+    // The authority commits the day it is sent.
+    vi.mocked(FirestoreRecordWrites.saveRecordToFirestore).mockImplementation(async record => ({
+      success: true,
+      date: record.date,
+      mode: 'enforced',
+      authorityStatus: 'ok',
+      violations: [],
+      recordState: { record, lastUpdated: record.lastUpdated, meta: {} },
+    }));
     vi.mocked(IndexedDBService.saveRecord).mockResolvedValue(undefined);
     vi.mocked(IndexedDBService.saveRecordStrict).mockImplementation(async record => ({
       ok: true,
@@ -186,7 +194,15 @@ describe('CIE-10 Copy Bug Reproduction', () => {
       status: 'missing',
       record: null,
     });
-    vi.mocked(FirestoreRecordWrites.saveRecordToFirestore).mockResolvedValue(undefined);
+    // The authority commits the day it is sent.
+    vi.mocked(FirestoreRecordWrites.saveRecordToFirestore).mockImplementation(async record => ({
+      success: true,
+      date: record.date,
+      mode: 'enforced',
+      authorityStatus: 'ok',
+      violations: [],
+      recordState: { record, lastUpdated: record.lastUpdated, meta: {} },
+    }));
     vi.mocked(IndexedDBService.saveRecordStrict).mockImplementation(async record => ({
       ok: true,
       operation: 'save',

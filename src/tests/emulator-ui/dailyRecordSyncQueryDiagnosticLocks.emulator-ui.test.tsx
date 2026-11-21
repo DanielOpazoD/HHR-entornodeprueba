@@ -4,6 +4,10 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { RulesTestEnvironment, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
+import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
+import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
+import { createDailyRecordWriteAuthorityFunctions } from '@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -123,6 +127,32 @@ const buildRecord = (date: string, patientName: string, pathology: string): Dail
 describeUiEmulator('UI sync flow silent refresh with Firestore emulator', () => {
   let testEnv: RulesTestEnvironment;
   const unmounts: Array<() => void> = [];
+  let app: App;
+  let admin: Firestore;
+  let api: ReturnType<typeof createDailyRecordWriteAuthorityFunctions>;
+  // Only the callable's network hop is replaced: the shipped handler commits with the real admin
+  // transaction, as production writes bed fields through the authority.
+  const bridgeAuthority = () => {
+    const context = { auth: { uid: currentUser.uid, token: { email: currentUser.email } } };
+    vi.spyOn(authority, 'patchDailyRecordWithClinicalAuthorityCallable').mockImplementation(
+      async payload => {
+        try {
+          return await api.patchDailyRecordWithClinicalAuthority.run(payload, context);
+        } catch (error) {
+          throw authority.normalizeDailyRecordAuthorityError(error);
+        }
+      }
+    );
+    vi.spyOn(authority, 'saveDailyRecordWithClinicalAuthorityCallable').mockImplementation(
+      async payload => {
+        try {
+          return await api.saveDailyRecordWithClinicalAuthority.run(payload, context);
+        } catch (error) {
+          throw authority.normalizeDailyRecordAuthorityError(error);
+        }
+      }
+    );
+  };
 
   beforeAll(async () => {
     const rulesPath = path.resolve(__dirname, '../../../firestore.rules');
@@ -137,12 +167,30 @@ describeUiEmulator('UI sync flow silent refresh with Firestore emulator', () => 
         port: emulatorConfig.port,
       },
     });
+    app = initializeApp(
+      { projectId: 'demo-hhr-ui-sync-diagnostic-locks-test' },
+      'ui-sync-locks-authority'
+    );
+    admin = getFirestore(app);
+    admin.settings({ ignoreUndefinedProperties: true });
+    api = createDailyRecordWriteAuthorityFunctions({
+      firestore: admin,
+      Timestamp,
+      resolveRoleForEmail: async () => 'nurse_hospital',
+    });
   });
 
   beforeEach(async () => {
-    // This UI fixture uses real legacy Firestore writes, without callable mocks.
     vi.clearAllMocks();
     await testEnv.clearFirestore();
+    // The schema-v2 policy, as in production since 2026-11-07.
+    await admin.doc('hospitals/hanga_roa/settings/rayenImportPolicy').set({
+      schemaVersion: 2,
+      mode: 'preview',
+      revision: 1,
+      clinicalBatchMode: 'enforced',
+    });
+    bridgeAuthority();
     await clearAllRecords();
     resetDailyRecordFreshnessGateForTests();
     clearPendingDailyRecordPatchesForTests();
@@ -166,10 +214,13 @@ describeUiEmulator('UI sync flow silent refresh with Firestore emulator', () => 
     });
     clearPendingDailyRecordPatchesForTests();
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   afterAll(async () => {
     await testEnv.cleanup();
+    await admin?.terminate();
+    if (app) await deleteApp(app);
   });
 
   it('allows a new diagnostic group edit after a realtime snapshot confirms the refreshed record', async () => {

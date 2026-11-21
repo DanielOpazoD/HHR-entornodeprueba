@@ -22,9 +22,6 @@ vi.mock('@/services/storage/firestore/firestoreShared', async importOriginal => 
   ...(await importOriginal<typeof import('@/services/storage/firestore/firestoreShared')>()),
   getRecordDocRef: vi.fn(() => ({ id: 'synthetic-doc' })),
 }));
-vi.mock('@/services/storage/firestore/firestoreRayenClinicalAuthorityMode', () => ({
-  isServerClinicalWriteFenceActive: async () => true,
-}));
 vi.mock('@/services/storage/firestore/dailyRecordAuthorityCallableClient', () => ({
   saveDailyRecordWithClinicalAuthorityCallable: callable,
 }));

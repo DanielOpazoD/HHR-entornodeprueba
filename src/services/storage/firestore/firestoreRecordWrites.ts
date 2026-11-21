@@ -17,7 +17,6 @@ import {
   asFirestoreUpdatePayload,
   ConcurrencyError,
   saveHistorySnapshot,
-  saveRecordAtomically,
   updateRecordPartiallyAtomically,
 } from '@/services/storage/firestore/firestoreWriteSupport';
 import {
@@ -50,7 +49,6 @@ import {
   isDailyRecordBedTreePath,
   STAFFING_PATH,
   shouldRouteClinicalAuthorityPatch,
-  shouldRouteDailyRecordWriteViaCallable,
   type DailyRecordPartialWriteOptions,
   type DailyRecordSaveWriteOptions,
 } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
@@ -58,8 +56,6 @@ import {
   createDirectFirestoreWriteReceipt,
   type DirectFirestoreWriteReceipt,
 } from './firestoreDirectWriteReceipt';
-import { adoptStoredClinicalDerivedState } from '@/services/storage/clinicalDerivedWriteHygiene';
-import { runPartialUpdatePersistWithPermissionFallbacks } from '@/services/storage/firestore/firestoreBedTreePermissionFallback';
 import { stripInheritedAuthorityRepair } from '@/services/storage/firestore/firestoreInheritedRepairSeparation';
 import {
   extractE2EForcedMovementAuthorityPatch,
@@ -84,86 +80,33 @@ const shouldRetryWrite = (error: unknown): boolean =>
   !(error instanceof DataRegressionError) &&
   !PERMANENT_WRITE_ERROR_CODES.has(String((error as { code?: unknown })?.code));
 
+/** A whole-day save always goes through the authority callable: the server owns the bed tree. */
 export const saveRecordToFirestore = async (
   record: DailyRecord,
   expectedLastUpdated?: string,
   options: DailyRecordSaveWriteOptions = {}
 ) => {
   try {
-    const docRef = getRecordDocRef(record.date);
     assertDailyRecordClinicalAuthority(record);
-
-    if (await shouldRouteDailyRecordWriteViaCallable()) {
-      return withRetry(
-        () =>
-          saveDailyRecordWithClinicalAuthorityCallable(
-            {
-              date: record.date,
-              record,
-              expectedLastUpdated,
-              mode: 'enforced',
-              origin: options.origin ?? 'direct_save',
-              syncContract: options.syncContract,
-            },
-            options.assertCanPublish
-          ),
-        {
-          onRetry: (err: unknown, attempt: number) =>
-            logFirestoreWriteRetry('save', record.date, attempt, err),
-          shouldRetry: unlessSessionChanged(options, shouldRetryDailyRecordAuthorityError),
-        }
-      );
-    }
-
-    const committedAt = Timestamp.now();
-    const receipt = createDirectFirestoreWriteReceipt(record, committedAt.toDate());
-    const sanitizedRecord = sanitizeForFirestore({
-      ...receipt.recordState.record,
-      lastUpdated: committedAt,
-    }) as Record<string, unknown>;
-
-    const persist = () =>
-      withRetry(
-        () =>
-          saveRecordAtomically(
-            docRef,
-            sanitizedRecord,
+    return await withRetry(
+      () =>
+        saveDailyRecordWithClinicalAuthorityCallable(
+          {
+            date: record.date,
+            record,
             expectedLastUpdated,
-            'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
-            'save',
-            {
-              assertSafeOverwrite: options.assertSafeOverwrite,
-              forceHistorySnapshot:
-                options.historyPolicy === 'snapshot' || options.origin === 'backup_restore',
-              assertCanCommit: options.assertCanPublish,
-            }
-          ),
-        {
-          onRetry: (err: unknown, attempt: number) =>
-            logFirestoreWriteRetry('save', record.date, attempt, err),
-          shouldRetry: unlessSessionChanged(options, shouldRetryWrite),
-        }
-      );
-
-    let committed: Record<string, unknown>;
-    try {
-      committed = await persist();
-    } catch (error) {
-      if (isPermissionDeniedError(error) && (await tryRefreshCurrentUserRoleClaim(record.date))) {
-        committed = await persist();
-      } else {
-        throw error;
+            mode: 'enforced',
+            origin: options.origin ?? 'direct_save',
+            syncContract: options.syncContract,
+          },
+          options.assertCanPublish
+        ),
+      {
+        onRetry: (err: unknown, attempt: number) =>
+          logFirestoreWriteRetry('save', record.date, attempt, err),
+        shouldRetry: unlessSessionChanged(options, shouldRetryDailyRecordAuthorityError),
       }
-    }
-    if (options.returnCommittedRecord) {
-      // On a split day the transaction kept the stored marker, meta and moved fields (D9).
-      return createDirectFirestoreWriteReceipt(
-        adoptStoredClinicalDerivedState(record, committed),
-        committedAt.toDate()
-      );
-    }
-    // Plain local-first saves stay receipt-less, like the partial update below.
-    return undefined;
+    );
   } catch (error) {
     logFirestoreWriteError('save', record.date, error);
     throw error;
@@ -267,33 +210,28 @@ export const updateRecordPartial = async (
       const structuralCompanionPaths = Object.keys(sanitizedPatch).filter(
         path => !isDailyRecordBedTreePath(path) && path !== 'dateTimestamp'
       );
-      const bedTreeAuthorityFenced =
-        shouldUseAuthorityCallable && (await shouldRouteDailyRecordWriteViaCallable());
-      // These three refusals choose the route, not a conflict: the day's queue task saves the edit.
-      if (bedTreeAuthorityFenced && hasStructuralBedPatch && hasClinicalAuthorityPatch) {
-        throw createSavedByQueueRouteError(
-          'La edición mezcla campos clínicos y estructurales de cama y debe guardarse por separado.'
-        );
-      }
-      if (bedTreeAuthorityFenced && hasClinicalAuthorityPatch && !isClinicalPatchForAuthority) {
-        throw createSavedByQueueRouteError(
-          'La edición mezcla cambios clínicos con otros campos y debe guardarse por separado.'
-        );
-      }
-      if (bedTreeAuthorityFenced && hasStructuralBedPatch && structuralCompanionPaths.length > 0) {
-        throw createSavedByQueueRouteError(
-          'La edición mezcla cambios de cama con otros campos y debe guardarse por separado.'
-        );
-      }
-      const callablePatch = isE2EForcedMovementPatch
-        ? extractE2EForcedMovementAuthorityPatch(sanitizedPatch)
-        : isClinicalPatchForAuthority
-          ? authorityPatch
-          : structuralBedPatch;
-      if (
-        shouldUseAuthorityCallable &&
-        (bedTreeAuthorityFenced || Boolean(intentionalBedClear) || Boolean(options.specialtyIntent))
-      ) {
+      if (shouldUseAuthorityCallable) {
+        // These three refusals choose the route, not a conflict: the day's queue task saves the edit.
+        if (hasStructuralBedPatch && hasClinicalAuthorityPatch) {
+          throw createSavedByQueueRouteError(
+            'La edición mezcla campos clínicos y estructurales de cama y debe guardarse por separado.'
+          );
+        }
+        if (hasClinicalAuthorityPatch && !isClinicalPatchForAuthority) {
+          throw createSavedByQueueRouteError(
+            'La edición mezcla cambios clínicos con otros campos y debe guardarse por separado.'
+          );
+        }
+        if (hasStructuralBedPatch && structuralCompanionPaths.length > 0) {
+          throw createSavedByQueueRouteError(
+            'La edición mezcla cambios de cama con otros campos y debe guardarse por separado.'
+          );
+        }
+        const callablePatch = isE2EForcedMovementPatch
+          ? extractE2EForcedMovementAuthorityPatch(sanitizedPatch)
+          : isClinicalPatchForAuthority
+            ? authorityPatch
+            : structuralBedPatch;
         return withRetry(
           () =>
             patchDailyRecordWithClinicalAuthorityCallable(
@@ -361,8 +299,8 @@ export const updateRecordPartial = async (
 
       // Checked inside the transaction, so two writers can no longer both pass a read and then
       // overwrite each other. A version newer than this writer's base refuses the write only when
-      // it changed a field of this patch to a value other than the one written now. A bed field
-      // always needs its base version: the bed may hold another patient or episode by now (ID-01).
+      // it changed a field of this patch to a value other than the one written now. Bed fields
+      // never get here: the authority callable above checks them (ID-01).
       const { baseRecord } = options;
       const changedPaths = Object.keys(sanitizedPatch);
       const acceptsOtherVersion = (stored: DocumentData) => {
@@ -376,7 +314,6 @@ export const updateRecordPartial = async (
         return Boolean(
           baseRecord &&
           changedPaths.every(path => {
-            if (isDailyRecordBedTreePath(path)) return false;
             const value = getValueAtPath(current, path);
             return (
               hasSameComparableValue(value, getValueAtPath(baseRecord, path)) ||
@@ -419,15 +356,16 @@ export const updateRecordPartial = async (
     // A protected specialty decision already uses the authority callable. Its
     // rejection must never be retried as a legacy patch without that intent.
     if (options.specialtyIntent) return await persist();
-    return await runPartialUpdatePersistWithPermissionFallbacks({
-      persist,
-      date,
-      sanitizedPatch,
-      expectedLastUpdated,
-      syncContract: options.syncContract,
-      tryRefreshCurrentUserRoleClaim,
-      assertCanPublish: options.assertCanPublish,
-    });
+    try {
+      return await persist();
+    } catch (error) {
+      // A stale role claim: refreshed once, then the same write once more.
+      const refreshed =
+        isPermissionDeniedError(error) && (await tryRefreshCurrentUserRoleClaim(date));
+      options.assertCanPublish?.();
+      if (!refreshed) throw error;
+      return await persist();
+    }
   } catch (error) {
     logFirestoreWriteError('partialUpdate', date, error);
     throw error;

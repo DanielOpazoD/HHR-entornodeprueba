@@ -6,25 +6,20 @@ PR7 permite mover las escrituras completas del censo diario desde una proteccion
 principalmente cliente hacia una autoridad transaccional en backend, sin hacer un cambio
 big-bang.
 
-## Una sola fuente: la cerca del servidor
+## Una sola ruta: la autoridad del servidor
 
-La ruta la decide solo la política `settings/rayenImportPolicy` con `schemaVersion: 2` (la cerca,
-`isServerClinicalWriteFenceActive`), más el forzado de e2e (`hhr_e2e_force_authority_callable`).
-No hay variable de compilación: `VITE_DAILY_RECORD_AUTHORITY_MODE` y
-`VITE_DAILY_RECORD_AUTHORITY_CALLABLE` se retiraron el 2026-11-20 porque decidían lo mismo que la
-política y el informe de salud mostraba la variable (`client_only`) mientras producción guardaba
-por la autoridad.
+La política `settings/rayenImportPolicy` con `schemaVersion: 2` (la cerca, activa en producción
+desde el 2026-11-07) hace que las reglas de Firestore rechacen escrituras directas que creen el día
+o toquen `beds` o `bedTypeOverrides`, y las reglas la tratan como irreversible. Por eso el cliente
+ya no la lee: desde el 2026-11-20 los guardados completos, el reenvío de la cola y los parches del
+árbol de camas pasan siempre por `saveDailyRecordWithClinicalAuthority` o
+`patchDailyRecordWithClinicalAuthority`, con `mode: 'enforced'`. Antes cada guardado de cama y
+cada reenvío leía la política una vez (dos si fallaba la primera lectura), y una escritura directa
+rechazada se reintentaba por la función.
 
-- **Con la cerca** (producción desde el 2026-11-07): guardados completos, outbox y parches del
-  árbol de camas pasan por `saveDailyRecordWithClinicalAuthority` o
-  `patchDailyRecordWithClinicalAuthority`, siempre con `mode: 'enforced'`; las reglas de
-  Firestore rechazan escrituras directas que toquen `beds` o `bedTypeOverrides`. La dotación y los
-  demás campos del día se escriben con su transacción por campo.
-- **Sin la cerca** (emulador y desarrollo sin política): el cliente escribe directo a Firestore,
-  con las mismas validaciones locales.
-- **Si la política no se puede leer**: se relee una vez, sin espera (main leía la política dos o
-  tres veces por guardado). Si la relectura también falla, la ruta es directa y las reglas, que sí
-  ven la política, rechazan la escritura; la cola conserva la edición.
+La dotación y los demás campos del día se escriben directo, con su transacción por campo, como
+antes. Un `permission-denied` por un rol vencido renueva el permiso y reintenta la misma escritura
+una vez.
 
 Ver [SYNC_CONCURRENCY_MODEL.md](SYNC_CONCURRENCY_MODEL.md).
 
@@ -41,7 +36,8 @@ configuración de producción):
 
 ## Secuencia para un entorno nuevo sin política v2
 
-1. Desplegar; sin política el cliente escribe directo.
+1. Desplegar Functions y reglas: el cliente guarda camas y días completos por la autoridad aunque
+   la política no exista todavía.
 2. Revisar el panel admin de telemetria de Functions, seccion
    `Autoridad censo diario`. Debe mostrar `Listo para enforced` antes de activar la cerca.
 3. Si se necesita auditoria fina, filtrar `functionsTelemetry` por:
@@ -52,8 +48,8 @@ configuración de producción):
    - `fallbackEpisodeKeys`;
    - `degenerateFallbackEpisodeKeys`;
    - `violationCount`.
-4. Si no aparecen fallos inesperados, publicar la política v2 (frontera irreversible, ver
-   Rollback).
+4. Si no aparecen fallos inesperados, publicar la política v2 para que las reglas cierren la
+   escritura directa (frontera irreversible, ver Rollback).
 
 ## Freshness De Pestañas Inactivas
 

@@ -31,7 +31,6 @@ import { getDoc, setDoc } from 'firebase/firestore';
 import { processSyncQueue, queueSyncTask } from '@/services/storage/sync';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
-import { activateServerWriteFence } from '@/tests/support/serverWriteFence';
 
 const makeRecord = (date: string, marker: string): DailyRecord => ({
   date,
@@ -170,8 +169,6 @@ describe('sync queue mutation conflicts', () => {
       exists: () => true,
       data: () => remote as unknown as Record<string, unknown>,
     } as Awaited<ReturnType<typeof getDoc>>);
-
-    activateServerWriteFence();
     await queueSyncTask('UPDATE_DAILY_RECORD', local, {
       contexts: ['movements', 'clinical'],
       origin: 'partial_update_retry',
@@ -225,8 +222,6 @@ describe('sync queue mutation conflicts', () => {
       exists: () => true,
       data: () => remote as unknown as Record<string, unknown>,
     } as Awaited<ReturnType<typeof getDoc>>);
-
-    activateServerWriteFence();
     await queueSyncTask('UPDATE_DAILY_RECORD', local, {
       contexts: ['handoff'],
       origin: 'partial_update_retry',
@@ -280,8 +275,6 @@ describe('sync queue mutation conflicts', () => {
       exists: () => true,
       data: () => remote as unknown as Record<string, unknown>,
     } as Awaited<ReturnType<typeof getDoc>>);
-
-    activateServerWriteFence();
     await queueSyncTask('UPDATE_DAILY_RECORD', local, {
       contexts: ['handoff'],
       origin: 'partial_update_retry',
@@ -335,8 +328,6 @@ describe('sync queue mutation conflicts', () => {
       exists: () => true,
       data: () => remote as unknown as Record<string, unknown>,
     } as Awaited<ReturnType<typeof getDoc>>);
-
-    activateServerWriteFence();
     await queueSyncTask('UPDATE_DAILY_RECORD', local, {
       contexts: ['handoff'],
       origin: 'partial_update_retry',
@@ -433,8 +424,6 @@ describe('sync queue mutation conflicts', () => {
       exists: () => true,
       data: () => remote as unknown as Record<string, unknown>,
     } as Awaited<ReturnType<typeof getDoc>>);
-
-    activateServerWriteFence();
     await queueSyncTask('UPDATE_DAILY_RECORD', local, {
       contexts: ['clinical', 'movements', 'handoff'],
       origin: 'partial_update_retry',
