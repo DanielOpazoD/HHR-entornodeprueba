@@ -9,7 +9,10 @@ import {
 } from '@/shared/contracts/applicationOutcomeFactories';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 
-export type SyncDegradationReason = 'missing_remote_record' | 'remote_blocked';
+export type SyncDegradationReason =
+  | 'missing_remote_record'
+  | 'remote_blocked'
+  | 'pending_local_write';
 export type SyncConflictSeverity = 'warning' | 'error';
 export type SyncRetryStrategy = 'automatic_retry' | 'manual_retry' | 'manual_review';
 export type SyncRecoveryAction =
@@ -137,7 +140,36 @@ export const executeSyncDailyRecord = async (
       );
     }
 
-    if (runtime.availabilityState === 'confirmed_missing') {
+    const serverLacksTheDay =
+      runtime.availabilityState === 'confirmed_missing' ||
+      runtime.conflictSummary?.kind === 'remote_missing';
+    // The server has no such day yet and this computer's copy waits in the queue: pending until
+    // the queue's acknowledgement, never confirmed (SAVE-01). The queue sends it by itself.
+    if (serverLacksTheDay && record && runtime.recoveryAction === 'queue_retry') {
+      return createApplicationPartial(
+        { record, degradationReason: 'pending_local_write' },
+        [
+          {
+            kind: 'not_found',
+            message: 'El día aún no está en el servidor; la cola envía la copia de este equipo.',
+            userSafeMessage: 'La sincronización quedó pendiente.',
+            retryable: true,
+            severity: 'info',
+            telemetryTags: ['sync', 'pending_local_write'],
+          },
+        ],
+        {
+          reason: 'pending_local_write',
+          userSafeMessage: 'La sincronización quedó pendiente.',
+          retryable: true,
+          severity: 'info',
+          technicalContext: { date: input.date, syncOutcome: runtime.consistencyState },
+          telemetryTags: ['sync', 'pending_local_write'],
+        }
+      );
+    }
+
+    if (serverLacksTheDay) {
       return createApplicationPartial(
         {
           record,

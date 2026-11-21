@@ -52,6 +52,9 @@ const resolveSyncConflictAction = (
 export const presentDailyRecordRefreshOutcome = (
   outcome: ApplicationOutcome<SyncOutcome>
 ): DailyRecordRefreshOutcomePresentation => {
+  // Pending until the queue publishes this computer's copy: recoverable on its own, so silent.
+  if (outcome.data.degradationReason === 'pending_local_write') return { channel: null };
+
   if (outcome.status === 'partial' || outcome.status === 'degraded') {
     const actionLabel = resolveSyncConflictAction(outcome);
     const message = resolveApplicationOutcomeMessage(
