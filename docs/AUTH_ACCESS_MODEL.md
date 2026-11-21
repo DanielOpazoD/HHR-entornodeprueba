@@ -389,7 +389,7 @@ Efecto esperado:
 - [functions/lib/auth/authHelpersFactory.js](../functions/lib/auth/authHelpersFactory.js)
 - [netlify/functions/lib/firebase-auth.ts](../netlify/functions/lib/firebase-auth.ts)
 - [firestore.rules](../firestore.rules)
-- [Firestore Rules Critical Access Matrix](./FIRESTORE_RULES_CRITICAL_ACCESS_MATRIX.md)
+- [Firestore Rules Critical Access Matrix](architecture/FIRESTORE_RULES_CRITICAL_ACCESS_MATRIX.md)
 
 ## 12. Recovery administrativo
 

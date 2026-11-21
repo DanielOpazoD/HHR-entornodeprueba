@@ -61,7 +61,7 @@ Pilots iniciales para `discharge` y `transfer` existieron y demostraron que el
 contrato escala más allá de `admit`, pero fueron eliminados (audit
 2026-05-03) por no tener callers en producción y duplicar 65-70% del código
 con sus adoption facades. La auditoría completa con justificación está en
-[AUDIT_2026-05_PILOT_FACADE_OVERLAP.md](AUDIT_2026-05_PILOT_FACADE_OVERLAP.md).
+[AUDIT_2026-05_PILOT_FACADE_OVERLAP.md](archive/AUDIT_2026-05_PILOT_FACADE_OVERLAP.md).
 Las adoption facades que los reemplazaron tampoco llegaron a encenderse y se
 retiraron el 2026-11-17 (ver
 [ADR_CANONICAL_WRITE_ADOPTION_FACADES](ADR_CANONICAL_WRITE_ADOPTION_FACADES.md)).

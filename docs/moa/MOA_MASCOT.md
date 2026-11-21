@@ -1,7 +1,7 @@
 # Moa: mascota de HHR
 
 Moa acompaña el resumen de camas del censo. La biblioteca remota independiente añade
-las escenas publicadas en Moa-HHR: ver [integración y publicación](moa/REMOTE_CATALOG.md).
+las escenas publicadas en Moa-HHR: ver [integración y publicación](REMOTE_CATALOG.md).
 Los párrafos siguientes describen las 18 escenas locales de respaldo. La piedra gris, el contorno pixelado
 y la ola turquesa conservan su identidad. Todas las escenas, incluidos los cuatro gestos originales, utilizan
 dieciocho atlas propios, cada uno con seis fotogramas ilustrados

@@ -219,7 +219,7 @@ No se mantiene un workflow diagnóstico ni un fork de dependencias en main.
 GitHub retiró el aviso el 23-10-2026. Tras verificar la auditoría fresca se retiran
 el helper y la aceptación temporal. Los informes conservan los hallazgos y conteos
 originales; cualquier alto/crítico de raíz o Functions bloquea, también si vuelve
-a aparecer en braces. El [registro de aceptación](BRACES_TEMPORARY_RISK_ACCEPTANCE.md)
+a aparecer en braces. El [registro de aceptación](operations/BRACES_TEMPORARY_RISK_ACCEPTANCE.md)
 conserva la autorización histórica y la evidencia de cierre. Las notas históricas
 de renovación de huellas de abajo describen los PR anteriores al cierre.
 

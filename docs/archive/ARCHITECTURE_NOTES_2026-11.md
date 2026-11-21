@@ -58,7 +58,7 @@ Las escrituras clínicas tienen controles propios que sí deben conservarse:
 Los límites verificables se ejecutan con `npm run check:quality:group -- boundaries`.
 La política completa vive en [Quality Guardrails](../QUALITY_GUARDRAILS.md).
 
-La [auditoría de ingresos médicos](../ADMISSION_MEDICAL_AUDIT.md) tiene un entrypoint
+La [auditoría de ingresos médicos](../features/ADMISSION_MEDICAL_AUDIT.md) tiene un entrypoint
 lazy acotado `features/admin/admission-audit`, separado del barrel general del
 administrador. Consume la API de lectura `features/rayen-import/admission-audit`
 y el adaptador de censos confirmados por servidor. La ruta exige administrador y

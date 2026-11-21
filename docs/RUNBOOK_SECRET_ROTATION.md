@@ -89,7 +89,7 @@ Aplicar para cualquier secreto del inventario. Pasos específicos por secreto en
 
 1. En Railway: rotar `SESSION_SECRET` y credenciales de DB del bot.
 2. Verificar que `netlify/functions/whatsapp-proxy.ts` sigue apuntando al host correcto.
-3. Smoke: ping desde la app a un número de pruebas. Consultar `docs/whatsapp-deployment.md` para detalles operativos del bot.
+3. Smoke: ping desde la app a un número de pruebas. Consultar `docs/operations/whatsapp-deployment.md` para detalles operativos del bot.
 
 ### Firebase Functions admin (`FB-FUNCTIONS-ADMIN`)
 

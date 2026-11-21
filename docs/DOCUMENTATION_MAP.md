@@ -114,7 +114,7 @@ Documentos que ayudan a ejecutar trabajo, validar cambios o entender un área co
 - README por módulo en `src/`
 - [docs/DEVELOPER_COMMANDS.md](DEVELOPER_COMMANDS.md)
 - [rules/README.md](../rules/README.md)
-- [docs/TEST_MEGATEST_BACKLOG.md](TEST_MEGATEST_BACKLOG.md)
+- [docs/testing/TEST_MEGATEST_BACKLOG.md](testing/TEST_MEGATEST_BACKLOG.md)
 - [docs/architecture/NETLIFY_AUTH_ROLE_CONVERGENCE.md](architecture/NETLIFY_AUTH_ROLE_CONVERGENCE.md)
 
 ### Histórica o de trabajo
@@ -127,7 +127,7 @@ Documentos útiles para contexto, pero no fuente primaria de reglas activas.
 - `docs/MODULE_EVALUATION_*.md`
 - `docs/superpowers/plans/*.md`
 - `docs/superpowers/specs/*.md`
-- `docs/FOUNDATION_IMPROVEMENT_PLAN.md`
+- `docs/archive/FOUNDATION_IMPROVEMENT_PLAN.md`
 - [docs/FOUNDATION_TRACKER.md](FOUNDATION_TRACKER.md) — cierre histórico B01–B26
 - [docs/FOUNDATION_CONTINUATION_TRACKER.md](FOUNDATION_CONTINUATION_TRACKER.md) — ciclos cerrados
 - `docs/MAINTENANCE_ITERATION_LOG.md`

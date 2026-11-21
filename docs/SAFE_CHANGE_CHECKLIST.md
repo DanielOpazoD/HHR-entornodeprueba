@@ -84,7 +84,7 @@ La clasificación remota `docs-only` se decide en CI; no forzar ni omitir checks
 
 ### Checklist de cierre
 
-La [auditoría de ingresos médicos](ADMISSION_MEDICAL_AUDIT.md) es
+La [auditoría de ingresos médicos](features/ADMISSION_MEDICAL_AUDIT.md) es
 `architecture_contracts`: ruta de administrador, lectura histórica con cobertura
 explícita y libro HTML por autor/período. Validar denegación por rol y ruta directa,
 identidad persona/episodio, primera evolución y órdenes fuente, fechas hospitalarias,
@@ -221,7 +221,7 @@ El aviso fue retirado oficialmente el 23-10-2026 y la auditoría fresca confirm�
 su ausencia. Se elimina la aceptación temporal conforme a su criterio de cierre;
 raíz y Functions deben aprobar sin excepciones altas/críticas. Las regresiones
 del CLI conservan evidencia cruda y prueban rechazo alto/crítico, incluidos futuros
-avisos de braces. Fuente, owner e historial: [registro de aceptación](BRACES_TEMPORARY_RISK_ACCEPTANCE.md).
+avisos de braces. Fuente, owner e historial: [registro de aceptación](operations/BRACES_TEMPORARY_RISK_ACCEPTANCE.md).
 
 ### Validadores y parsers de solicitudes (2026-10-24)
 
