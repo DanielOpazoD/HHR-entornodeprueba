@@ -1,31 +1,5 @@
 {
   "globalMax": 600,
-  "allowlist": {
-    "functions/lib/clinicalDerivedStore.js": 625,
-    "functions/lib/documentScannerFunctions.js": 813,
-    "functions/lib/prescriptionAccessFunctions.js": 831,
-    "functions/lib/rayenClinicalEnrichmentPolicy.js": 735
-  },
-  "backlog": {
-    "functions/lib/clinicalDerivedStore.js": {
-      "reason": "Functions entered the 600-line check on 2026-11-16 above the cap; ceiling is its size that day until it is split.",
-      "owner": "functions",
-      "status": "active"
-    },
-    "functions/lib/documentScannerFunctions.js": {
-      "reason": "Functions entered the 600-line check on 2026-11-16 above the cap; ceiling is its size that day until it is split.",
-      "owner": "functions",
-      "status": "active"
-    },
-    "functions/lib/prescriptionAccessFunctions.js": {
-      "reason": "Functions entered the 600-line check on 2026-11-16 above the cap; ceiling is its size that day until it is split.",
-      "owner": "functions",
-      "status": "active"
-    },
-    "functions/lib/rayenClinicalEnrichmentPolicy.js": {
-      "reason": "Functions entered the 600-line check on 2026-11-16 above the cap; ceiling is its size that day until it is split.",
-      "owner": "functions",
-      "status": "active"
-    }
-  }
+  "allowlist": {},
+  "backlog": {}
 }
