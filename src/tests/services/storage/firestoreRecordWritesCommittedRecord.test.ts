@@ -57,7 +57,6 @@ vi.mock('@/services/storage/firestore/firestoreWriteSupport', () => ({
   asFirestoreUpdatePayload: vi.fn((payload: Record<string, unknown>) => payload),
   assertFirestoreConcurrency: vi.fn(),
   saveHistorySnapshot: vi.fn(),
-  saveRecordAtomically: vi.fn(),
   updateRecordPartiallyAtomically: vi.fn(),
 }));
 vi.mock('@/services/storage/storageLoggers', () => ({

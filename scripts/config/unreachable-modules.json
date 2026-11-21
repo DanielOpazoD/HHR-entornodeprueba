@@ -37,6 +37,17 @@
         "src/features/cudyr/hooks/useAdminCudyrResult.ts",
         "src/features/cudyr/report/adminCudyrResultService.ts"
       ]
+    },
+    {
+      "reason": "Sin uso en la app: solo los alcanzaba el barril @/hooks, que la entrega de turno importaba para useHandoffLogic (retirado en W22-HO-B). Su retiro, con las pruebas que solo los prueban, queda como unidad propia.",
+      "files": [
+        "src/hooks/controllers/bedOperationsAuditController.ts",
+        "src/hooks/index.ts",
+        "src/hooks/useBedOperations.ts",
+        "src/hooks/useBedOperationsController.ts",
+        "src/hooks/useClinicalCrib.ts",
+        "src/hooks/useMovements.ts"
+      ]
     }
   ]
 }

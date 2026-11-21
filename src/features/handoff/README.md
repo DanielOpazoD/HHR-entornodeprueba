@@ -21,18 +21,19 @@ WhatsApp) se retiro; un enlace viejo a `/medical-handoff` abre el censo.
 ## Contratos principales
 
 - La logica de negocio nueva entra en `domain/handoff`.
-- Los controllers de pantalla (`handoffViewController`, `handoffViewBindingsController`,
-  `clinicalEventsPanelController`) concentran wiring puro,
+- Los controllers de pantalla (`handoffViewController`, `clinicalEventsPanelController`)
+  concentran wiring puro,
   presentation policy y payload normalization; la UI no debe reabsorber esas decisiones.
 - El source productivo no debe importar el barrel `features/handoff/controllers`.
 
 ## Invariantes
 
 - Los read models de pantalla deben alimentar la UI; no reinyectar decisiones de negocio en `.tsx`.
-- `HandoffView.tsx` debe mantenerse presentacional; la coordinacion de contexts, auth, audit y
-  bindings de pantalla debe salir por hooks locales del feature como `useHandoffViewScreenModel`.
-- `useHandoffViewScreenModel` no debe volver a mezclar efectos de auditoria, `document.title`,
-  rules de read-only e inicializacion desde URL en el mismo bloque sin controller intermedio.
+- `HandoffView.tsx` debe mantenerse presentacional: lee todo su estado de un solo hook,
+  `useHandoffViewScreenModel` (registro, personal, camas visibles, nota, eventos clinicos, auditoria
+  de vista y `document.title`), que toma sus decisiones puras de `handoffViewController.ts`.
+- Quien puede abrir y editar la entrega lo decide el router con su predicado de acceso
+  (`readOnly`); la pantalla no vuelve a decidir por rol.
 - `ClinicalEventsPanel.tsx` debe limitarse a estado local de UI; sorting, defaults y normalizacion
   del formulario deben salir por `clinicalEventsPanelController.ts`.
 - Las filas de la entrega se identifican por paciente y episodio, no solo por cama: una nota escrita
@@ -55,9 +56,7 @@ protegiendo CUDYR y las correcciones de dias anteriores.
 ## Controllers activos recomendados
 
 - [handoffViewController.ts](controllers/handoffViewController.ts)
-  para frame de pantalla, audit descriptor y bindings del shell.
-- [handoffViewBindingsController.ts](controllers/handoffViewBindingsController.ts)
-  para las acciones de eventos clinicos segun permiso de edicion.
+  para titulo, audit descriptor, camas y pacientes visibles, nota de enfermeria y bindings del shell.
 - [clinicalEventsPanelController.ts](controllers/clinicalEventsPanelController.ts)
   para defaults, sorting y payload del panel de eventos clinicos.
 

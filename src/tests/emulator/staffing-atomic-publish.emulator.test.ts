@@ -34,9 +34,6 @@ vi.mock('@/services/storage/firestore/firestoreServiceRuntime', () => ({
     ready: Promise.resolve(),
   },
 }));
-vi.mock('@/services/storage/firestore/firestoreRayenClinicalAuthorityMode', () => ({
-  isServerClinicalWriteFenceActive: async () => true,
-}));
 vi.mock('firebase/firestore', async original => {
   const sdk = await original<typeof import('firebase/firestore')>();
   const afterRead = async (ref: DocumentReference) => {

@@ -1,12 +1,12 @@
 import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
-import type { BedDefinition } from '@/types/domain/beds';
+import type {
+  DailyRecordBedLayoutState,
+  DailyRecordDateRef,
+} from '@/types/domain/dailyRecordSlices';
+import type { PatientData } from '@/types/domain/patient';
 import type { ShiftType } from '@/types/domain/shift';
-import { resolveHandoffDocumentTitleLabel } from '@/shared/handoff/handoffPresentation';
 import { resolveNursingHandoffNovedadesText } from '@/shared/handoff/handoffNovedades';
-import type { HandoffClinicalEventActions } from '../components/handoffRowContracts';
-import { canEditSpecialistTodayBoundRecord } from '@/shared/access/specialistAccessPolicy';
-import { MessageSquare } from 'lucide-react';
-import type { UserRole } from '@/types/authRoleTypes';
+import { isAdmittedDuringShift } from '@/utils/clinicalDayUtils';
 import type { AuditAction } from '@/types/auditActionTypes';
 
 export const resolveHandoffTitle = (selectedShift: ShiftType): string =>
@@ -38,26 +38,6 @@ export const resolveHandoffNovedadesValue = ({
 export const shouldShowNightCudyrActions = (selectedShift: ShiftType): boolean =>
   selectedShift === 'night';
 
-interface ResolveHandoffScreenFrameParams {
-  selectedShift: ShiftType;
-  role?: UserRole;
-  readOnly: boolean;
-  recordDate?: string;
-  todayISO?: string;
-}
-
-export const resolveHandoffScreenFrame = ({
-  selectedShift,
-  readOnly,
-  recordDate,
-}: ResolveHandoffScreenFrameParams) => ({
-  title: resolveHandoffTitle(selectedShift),
-  tableHeaderClass: resolveHandoffTableHeaderClass(selectedShift),
-  documentTitle: resolveHandoffDocumentTitleLabel({ selectedShift, recordDate }),
-  effectiveReadOnly: readOnly,
-  Icon: MessageSquare,
-});
-
 export const resolveHandoffAuditDescriptor = (
   selectedShift: ShiftType
 ): {
@@ -73,33 +53,6 @@ export const resolveHandoffAuditDescriptor = (
     shift: selectedShift,
   },
 });
-
-interface HandoffScreenShellModel {
-  screenFrame: ReturnType<typeof resolveHandoffScreenFrame>;
-  auditDescriptor: ReturnType<typeof resolveHandoffAuditDescriptor>;
-  canEditClinicalEvents: boolean;
-}
-
-export const buildHandoffScreenShellModel = ({
-  selectedShift,
-  role,
-  readOnly,
-  recordDate,
-  todayISO,
-}: ResolveHandoffScreenFrameParams): HandoffScreenShellModel => {
-  const screenFrame = resolveHandoffScreenFrame({ selectedShift, readOnly, recordDate });
-
-  return {
-    screenFrame,
-    auditDescriptor: resolveHandoffAuditDescriptor(selectedShift),
-    canEditClinicalEvents: canEditSpecialistTodayBoundRecord({
-      role,
-      readOnly: screenFrame.effectiveReadOnly,
-      recordDate,
-      todayISO,
-    }),
-  };
-};
 
 interface HandoffChecklistSectionViewModel {
   showShiftSwitcher: boolean;
@@ -146,20 +99,68 @@ export const buildHandoffNovedadesBindings = ({
   onChange: value => onUpdateHandoffNovedades(selectedShift, value),
 });
 
-interface NursingHandoffContentBindings {
-  visibleBeds: BedDefinition[];
-  record: HandoffDailyRecordContract;
-  noteField: 'handoffNoteDayShift' | 'handoffNoteNightShift';
-  onNoteChange: (bedId: string, value: string, isNested: boolean) => void;
-  tableHeaderClass: string;
-  readOnly: boolean;
-  hasAnyPatients: boolean;
-  shouldShowPatient: (bedId: string) => boolean;
-  clinicalEventActions: HandoffClinicalEventActions;
-  selectedShift: ShiftType;
-  updateHandoffNovedades: (shift: ShiftType, value: string) => void;
+interface BedDescriptor {
+  id: string;
+  isExtra?: boolean;
 }
 
-export const buildNursingHandoffContentBindings = (
-  bindings: NursingHandoffContentBindings
-): NursingHandoffContentBindings => bindings;
+/** Fixed beds always; an extra bed only while the day has it active. */
+export const getVisibleHandoffBeds = <TBed extends BedDescriptor>(
+  record: DailyRecordBedLayoutState | null,
+  beds: TBed[]
+): TBed[] => {
+  if (!record) return [];
+
+  const activeExtras = record.activeExtraBeds || [];
+  return beds.filter(bed => !bed.isExtra || activeExtras.includes(bed.id));
+};
+
+/** A blocked bed always shows; an occupied bed shows when its patient was there during the shift. */
+export const shouldShowHandoffPatient = (
+  record: (DailyRecordDateRef & DailyRecordBedLayoutState) | null,
+  bedId: string,
+  selectedShift: ShiftType
+): boolean => {
+  if (!record) return false;
+
+  const patient = record.beds[bedId];
+  if (!patient) return false;
+  if (patient.isBlocked) return true;
+  if (!patient.patientName) return false;
+
+  return isAdmittedDuringShift(
+    record.date,
+    patient.admissionDate,
+    patient.admissionTime,
+    selectedShift
+  );
+};
+
+type NursingNoteField = 'handoffNoteDayShift' | 'handoffNoteNightShift';
+
+export const resolveNursingNoteField = (selectedShift: ShiftType): NursingNoteField =>
+  selectedShift === 'day' ? 'handoffNoteDayShift' : 'handoffNoteNightShift';
+
+/**
+ * The fields one nursing note edit writes. A day note is also the night's starting note, so it
+ * fills both shifts; a night note only its own. `oldNote` is the edited shift's note before it.
+ */
+export const buildNursingNoteChange = ({
+  selectedShift,
+  patient,
+  value,
+}: {
+  selectedShift: ShiftType;
+  patient: Pick<PatientData, NursingNoteField> | undefined;
+  value: string;
+}): { noteKey: NursingNoteField; fields: Partial<PatientData>; oldNote: string } => {
+  const noteKey = resolveNursingNoteField(selectedShift);
+  return {
+    noteKey,
+    fields:
+      selectedShift === 'day'
+        ? { handoffNoteDayShift: value, handoffNoteNightShift: value }
+        : { handoffNoteNightShift: value },
+    oldNote: patient?.[noteKey] || '',
+  };
+};

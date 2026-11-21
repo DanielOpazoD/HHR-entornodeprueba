@@ -84,7 +84,6 @@ beforeEach(async () => {
   await hospitalDB.dailyRecords.clear();
   h.remote = null;
   h.offline = false;
-  h.writeFence = false;
   Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 });
@@ -336,6 +335,7 @@ for (const available of [true, false])
     expect(put.mock.calls.length + bulk.mock.calls.length).toBe(0);
   });
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
+import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { runRemoteSaveIntegrityCheck } from '@/services/repositories/dailyRecordRemoteWriteController';
 import { resolveBlockingFieldShrinkages } from '@/services/repositories/dailyRecordFieldShrinkageGuard';
 for (const path of ['suscripción', 'E'] as const)
@@ -369,13 +369,11 @@ for (const path of ['suscripción', 'E'] as const)
     h.offline = false;
     const [task] = await hospitalDB.syncQueue.toArray();
     const writes: unknown[] = [];
-    vi.mocked(firebase.runTransaction).mockImplementation(async (_db, run) =>
-      run({
-        get: async () => ({ exists: () => true, data: () => clone(remote) }),
-        set: (_ref: unknown, data: unknown) => {
-          writes.push(clone(data));
-        },
-      } as never)
+    vi.spyOn(authority, 'saveDailyRecordWithClinicalAuthorityCallable').mockImplementation(
+      async ({ record }) => {
+        writes.push(clone(record));
+        return { recordState: { record, lastUpdated: record.lastUpdated } } as never;
+      }
     );
     await createFirestoreSyncTransport().run(task);
     expect(writes).toHaveLength(1);

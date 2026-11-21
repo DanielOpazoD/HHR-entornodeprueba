@@ -1,7 +1,7 @@
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /* @flake-safe: Date usage aligns emulator write-window assertions with current execution time. */
 import 'fake-indexeddb/auto';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RulesTestEnvironment, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -9,6 +9,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreRulesEmulatorConfig';
+import { createEmulatorAuthorityBridge } from '@/tests/support/emulatorAuthorityBridge';
 
 const runEmulatorTests =
   process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1' ||
@@ -89,8 +90,16 @@ describeEmulator('Firestore emulator conflict version recovery', () => {
   let nurseDb: TestFirestore;
   let adminDb: TestFirestore;
   let nonManagerDb: TestFirestore;
+  const authority = createEmulatorAuthorityBridge('demo-hhr-conflict-recovery-test', () =>
+    activeDb === adminDb
+      ? { uid: 'user_admin', email: 'daniel.opazo@hospitalhangaroa.cl', role: 'admin' }
+      : activeDb === nonManagerDb
+        ? { uid: 'user_doctor', email: 'doctor@hospitalhangaroa.cl', role: 'doctor_specialist' }
+        : { uid: 'user_nurse', email: 'hospitalizados@hospitalhangaroa.cl', role: 'nurse_hospital' }
+  );
 
   beforeAll(async () => {
+    authority.open();
     const rulesPath = path.resolve(__dirname, '../../../firestore.rules');
     const rules = fs.readFileSync(rulesPath, 'utf8');
     const emulatorConfig = resolveFirestoreRulesEmulatorConfig(process.env.FIRESTORE_EMULATOR_HOST);
@@ -124,14 +133,18 @@ describeEmulator('Firestore emulator conflict version recovery', () => {
 
   beforeEach(async () => {
     await testEnv.clearFirestore();
+    await authority.install();
     await clearAllRecords();
     await hospitalDB.syncQueue.clear();
     setFirestoreEnabled(true);
     activeDb = nurseDb;
   });
 
+  afterEach(() => vi.restoreAllMocks());
+
   afterAll(async () => {
     await testEnv.cleanup();
+    await authority.close();
   });
 
   it('captures both pre-merge versions in conflictSnapshots on auto-merge', async () => {
@@ -201,7 +214,7 @@ describeEmulator('Firestore emulator conflict version recovery', () => {
 
     // Restore is restricted to clinical conflict managers.
     activeDb = adminDb;
-    // A copy from earlier this hour would normally suppress the next one; a restore must copy anyway.
+    // A copy from earlier this hour on this device does not matter: the authority copies the live day.
     markHistorySnapshotTaken(`hospitals/hanga_roa/dailyRecords/${date}`);
     const result = await restoreDailyRecordVersion(date, snapshotId);
     expect(result.status).toBe('restored');

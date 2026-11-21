@@ -10,6 +10,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreRulesEmulatorConfig';
+import { createEmulatorAuthorityBridge } from '@/tests/support/emulatorAuthorityBridge';
 
 const runEmulatorTests =
   process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1' ||
@@ -107,8 +108,14 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
   let testEnv: RulesTestEnvironment;
   let nurseDb: TestFirestore;
   let adminDb: TestFirestore;
+  const authority = createEmulatorAuthorityBridge('demo-hhr-sync-emulator-test', () =>
+    activeDb === adminDb
+      ? { uid: 'user_admin', email: 'daniel.opazo@hospitalhangaroa.cl', role: 'admin' }
+      : { uid: 'user_nurse', email: 'hospitalizados@hospitalhangaroa.cl', role: 'nurse_hospital' }
+  );
 
   beforeAll(async () => {
+    authority.open();
     const rulesPath = path.resolve(__dirname, '../../../firestore.rules');
     const rules = fs.readFileSync(rulesPath, 'utf8');
     const emulatorConfig = resolveFirestoreRulesEmulatorConfig(process.env.FIRESTORE_EMULATOR_HOST);
@@ -137,17 +144,21 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
   });
 
   beforeEach(async () => {
-    // This suite exercises real legacy Firestore writes, not callable transport.
     await testEnv.clearFirestore();
+    await authority.install();
     await clearAllRecords();
     await hospitalDB.syncQueue.clear();
     setFirestoreEnabled(true);
     activeDb = nurseDb;
   });
-  afterEach(() => vi.unstubAllEnvs());
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
 
   afterAll(async () => {
     await testEnv.cleanup();
+    await authority.close();
   });
 
   it('throws ConcurrencyError when expectedLastUpdated is older than remote', async () => {
@@ -191,24 +202,21 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
     const local = buildRecord(date, isoAt(date, '09:00:00'));
     local.handoffNovedadesNightShift = 'local update';
 
-    await expect(saveRecordToFirestore(local, isoAt(date, '09:00:00'))).resolves.toBeUndefined();
+    await expect(saveRecordToFirestore(local, isoAt(date, '09:00:00'))).resolves.toMatchObject({
+      success: true,
+    });
 
     const persisted = await getRecordFromFirestore(date);
     expect(persisted?.handoffNovedadesNightShift).toBe('local update');
   });
 
-  it('rejects partial update on missing doc due security rules precondition', async () => {
+  it('rejects a bed patch on a missing day without creating it', async () => {
     const date = CURRENT_RECORD_DATE;
 
-    // Known emulator limitation:
-    // Firestore still reports an evaluation error for this denied update against a missing document,
-    // even though the effective contract we care about remains stable: the write is rejected with
-    // permission-denied and no document is created. See docs/FIRESTORE_RULES_COMPLEXITY_AUDIT.md.
     await expect(
       updateRecordPartial(date, { 'beds.R1.patientName': 'Paciente Fallback' })
-    ).rejects.toMatchObject({
-      code: 'permission-denied',
-    });
+    ).rejects.toThrow();
+    expect((await getDoc(getRecordDocRef(date))).exists()).toBe(false);
   });
 
   it('applies partial update when record exists and is within nurse edit window', async () => {
@@ -220,15 +228,18 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
       await context
         .firestore()
         .doc(`hospitals/hanga_roa/dailyRecords/${date}`)
-        .set(buildRecord(date, isoAt(date, '07:00:00')));
+        .set({ ...buildRecord(date, isoAt(date, '07:00:00')), beds: { R1: buildEmptyBed('R1') } });
     });
 
+    // A structural bed field alone, on the version it read (mixed with a clinical field, the
+    // edit would go to the queue).
     await expect(
-      updateRecordPartial(date, {
-        'beds.R1.patientName': 'Paciente Parcial',
-        'beds.R1.pathology': 'Dx Parcial',
-      })
-    ).resolves.toBeUndefined();
+      updateRecordPartial(
+        date,
+        { 'beds.R1.patientName': 'Paciente Parcial' },
+        isoAt(date, '07:00:00')
+      )
+    ).resolves.toMatchObject({ success: true });
 
     const snap = await getDoc(getRecordDocRef(date));
     expect(snap.exists()).toBe(true);
@@ -265,7 +276,13 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
     );
     Object.assign(remoteAssignedByAdmin, buildDetailedStaffingPatch(staffingDetail));
 
-    await adminDb.doc(`hospitals/hanga_roa/dailyRecords/${date}`).set(remoteAssignedByAdmin);
+    // Seeded as the stored day (the rules keep day creation for the authority).
+    await testEnv.withSecurityRulesDisabled(async context => {
+      await context
+        .firestore()
+        .doc(`hospitals/hanga_roa/dailyRecords/${date}`)
+        .set(remoteAssignedByAdmin);
+    });
 
     const staleNurseCache = buildRecord(date, localStaleTimestamp);
     staleNurseCache.nurses = ['', ''];

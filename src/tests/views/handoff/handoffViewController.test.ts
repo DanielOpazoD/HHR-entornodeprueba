@@ -4,15 +4,19 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   buildHandoffChecklistSectionViewModel,
   buildHandoffNovedadesBindings,
-  buildHandoffScreenShellModel,
-  buildNursingHandoffContentBindings,
+  buildNursingNoteChange,
+  getVisibleHandoffBeds,
   resolveHandoffTitle,
   resolveHandoffTableHeaderClass,
   resolveHandoffNovedadesValue,
+  resolveNursingNoteField,
+  shouldShowHandoffPatient,
   shouldShowNightCudyrActions,
   resolveHandoffAuditDescriptor,
-  resolveHandoffScreenFrame,
 } from '@/features/handoff/controllers/handoffViewController';
+import { resolveHandoffDocumentTitleLabel } from '@/shared/handoff/handoffPresentation';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { PatientData } from '@/types/domain/patient';
 
 // ---------------------------------------------------------------------------
 // resolveHandoffTitle
@@ -101,36 +105,20 @@ describe('shouldShowNightCudyrActions', () => {
 });
 
 // ---------------------------------------------------------------------------
-// resolveHandoffScreenFrame
+// Screen title, bindings and audit descriptor
 // ---------------------------------------------------------------------------
-describe('resolveHandoffScreenFrame', () => {
-  it('returns correct frame for nursing night shift', () => {
-    const frame = resolveHandoffScreenFrame({ selectedShift: 'night', readOnly: false });
-    expect(frame.title).toContain('Noche');
-    expect(frame.tableHeaderClass).toContain('bg-slate-100');
-  });
-
-  it('respects readOnly flag', () => {
-    const frame = resolveHandoffScreenFrame({ selectedShift: 'day', readOnly: true });
-    expect(frame.effectiveReadOnly).toBe(true);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Screen frame, bindings and shell (formerly src/tests/views/handoff/handoffViewController.test.ts)
-// ---------------------------------------------------------------------------
-const frameFor = (selectedShift: 'day' | 'night', recordDate?: string) =>
-  resolveHandoffScreenFrame({ selectedShift, readOnly: false, recordDate });
+const documentTitleFor = (selectedShift: 'day' | 'night', recordDate?: string) =>
+  resolveHandoffDocumentTitleLabel({ selectedShift, recordDate });
 
 describe('handoffViewController', () => {
   it('resolves the document title for each nursing shift', () => {
-    expect(frameFor('day', '2026-02-15').documentTitle).toBe('TL 15-02-2026');
-    expect(frameFor('night', '2026-02-15').documentTitle).toBe('TN 15-02-2026');
+    expect(documentTitleFor('day', '2026-02-15')).toBe('TL 15-02-2026');
+    expect(documentTitleFor('night', '2026-02-15')).toBe('TN 15-02-2026');
   });
 
   it('returns null document title for missing/invalid dates', () => {
-    expect(frameFor('day').documentTitle).toBeNull();
-    expect(frameFor('day', 'invalid').documentTitle).toBeNull();
+    expect(documentTitleFor('day')).toBeNull();
+    expect(documentTitleFor('day', 'invalid')).toBeNull();
   });
 
   it('falls back to day novedades when the night shift is an empty string', () => {
@@ -176,37 +164,9 @@ describe('handoffViewController', () => {
     expect(onUpdateHandoffNovedades).toHaveBeenCalledWith('night', 'Nueva novedad');
   });
 
-  it('returns passthrough bindings for the nursing content slice', () => {
-    const nursingBindings = buildNursingHandoffContentBindings({
-      visibleBeds: [],
-      record: { date: '2026-03-26' } as never,
-      noteField: 'handoffNoteDayShift',
-      onNoteChange: vi.fn(),
-      tableHeaderClass: 'header',
-      readOnly: false,
-      hasAnyPatients: true,
-      shouldShowPatient: vi.fn(() => true),
-      clinicalEventActions: {} as never,
-      selectedShift: 'day',
-      updateHandoffNovedades: vi.fn(),
-    });
-
-    expect(nursingBindings.selectedShift).toBe('day');
-    expect(nursingBindings.tableHeaderClass).toBe('header');
-  });
-
-  it('builds a consistent screen frame and audit descriptor', () => {
-    const frame = resolveHandoffScreenFrame({
-      selectedShift: 'day',
-      role: 'nurse_hospital',
-      readOnly: true,
-      recordDate: '2026-03-26',
-    });
-
-    expect(frame.title).toBe('Entrega Turno Enfermería - Día ');
-    expect(frame.tableHeaderClass).toContain('bg-medical-50');
-    expect(frame.documentTitle).toBe('TL 26-03-2026');
-    expect(frame.effectiveReadOnly).toBe(true);
+  it('builds a consistent title and audit descriptor', () => {
+    expect(resolveHandoffTitle('day')).toBe('Entrega Turno Enfermería - Día ');
+    expect(documentTitleFor('day', '2026-03-26')).toBe('TL 26-03-2026');
     expect(resolveHandoffAuditDescriptor('night')).toEqual({
       action: 'VIEW_NURSING_HANDOFF',
       details: {
@@ -215,19 +175,86 @@ describe('handoffViewController', () => {
       },
     });
   });
+});
 
-  it('lets clinical events be edited only when the screen is editable', () => {
-    const shellFor = (readOnly: boolean) =>
-      buildHandoffScreenShellModel({
-        selectedShift: 'day',
-        role: 'nurse_hospital',
-        readOnly,
-        recordDate: '2026-03-25',
-        todayISO: '2026-03-26',
-      });
+// ---------------------------------------------------------------------------
+// Which beds and patients the handoff shows (formerly handoffVisibilityController.test.ts)
+// ---------------------------------------------------------------------------
+describe('handoff visibility', () => {
+  const record = {
+    date: '2024-12-28',
+    beds: {
+      R1: { bedId: 'R1', patientName: 'Paciente', admissionDate: '2024-12-27' } as PatientData,
+      R2: { bedId: 'R2', patientName: '', isBlocked: true } as PatientData,
+      R3: { bedId: 'R3', patientName: '' } as PatientData,
+      R4: {
+        bedId: 'R4',
+        patientName: 'Ingresa mañana',
+        admissionDate: '2024-12-29',
+        admissionTime: '10:00',
+      } as PatientData,
+      E1: { bedId: 'E1', patientName: '' } as PatientData,
+    },
+    discharges: [],
+    transfers: [],
+    cma: [],
+    lastUpdated: '2024-12-28T08:00:00.000Z',
+    activeExtraBeds: ['E1'],
+  } as DailyRecord;
 
-    expect(shellFor(false).canEditClinicalEvents).toBe(true);
-    expect(shellFor(true).canEditClinicalEvents).toBe(false);
-    expect(shellFor(false).auditDescriptor.action).toBe('VIEW_NURSING_HANDOFF');
+  it('shows fixed beds and only the extra beds the day has active', () => {
+    const beds = [
+      { id: 'R1', isExtra: false },
+      { id: 'E1', isExtra: true },
+      { id: 'E2', isExtra: true },
+    ];
+    expect(getVisibleHandoffBeds(record, beds)).toEqual([
+      { id: 'R1', isExtra: false },
+      { id: 'E1', isExtra: true },
+    ]);
+    expect(getVisibleHandoffBeds(null, beds)).toEqual([]);
+  });
+
+  it('shows a blocked bed, hides an empty one and a patient admitted after the shift', () => {
+    expect(shouldShowHandoffPatient(record, 'R1', 'day')).toBe(true);
+    expect(shouldShowHandoffPatient(record, 'R2', 'day')).toBe(true);
+    expect(shouldShowHandoffPatient(record, 'R3', 'day')).toBe(false);
+    expect(shouldShowHandoffPatient(record, 'R4', 'night')).toBe(false);
+    expect(shouldShowHandoffPatient(record, 'missing', 'day')).toBe(false);
+    expect(shouldShowHandoffPatient(null, 'R1', 'day')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// One nursing note edit (formerly handoffNursingNoteController.test.ts)
+// ---------------------------------------------------------------------------
+describe('buildNursingNoteChange', () => {
+  const patient = {
+    handoffNoteDayShift: 'Dia actual',
+    handoffNoteNightShift: 'Noche actual',
+  };
+
+  it('writes a day note to both shifts and keeps the day note as the previous text', () => {
+    expect(buildNursingNoteChange({ selectedShift: 'day', patient, value: 'Nueva' })).toEqual({
+      noteKey: 'handoffNoteDayShift',
+      fields: { handoffNoteDayShift: 'Nueva', handoffNoteNightShift: 'Nueva' },
+      oldNote: 'Dia actual',
+    });
+  });
+
+  it('writes a night note to the night shift only', () => {
+    expect(buildNursingNoteChange({ selectedShift: 'night', patient, value: 'Nueva' })).toEqual({
+      noteKey: 'handoffNoteNightShift',
+      fields: { handoffNoteNightShift: 'Nueva' },
+      oldNote: 'Noche actual',
+    });
+  });
+
+  it('treats a missing patient or note as an empty previous text', () => {
+    expect(
+      buildNursingNoteChange({ selectedShift: 'night', patient: undefined, value: 'x' }).oldNote
+    ).toBe('');
+    expect(resolveNursingNoteField('day')).toBe('handoffNoteDayShift');
+    expect(resolveNursingNoteField('night')).toBe('handoffNoteNightShift');
   });
 });

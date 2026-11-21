@@ -185,13 +185,10 @@ Cómo cambia cada escritor del servidor:
 - **D9. Higiene en días marcados.** Un cliente nunca escribe campos movidos de su copia local:
   - El auto-merge de conflicto toma los campos movidos y el marcador solo del remoto. Si el remoto
     no los tiene, el resultado tampoco.
-  - Dos escrituras directas leen el remoto en la misma transacción: la publicación directa de la
-    cola (`firestoreSyncTransport.ts`, `merge: true`) y el guardado directo completo
-    (`saveRecordAtomically` en `firestoreWriteSupport.ts`, que también usa la restauración de
-    versiones). Quitan los campos movidos locales y llevan el marcador, `meta` y, por episodio, los
-    campos movidos del remoto.
-  - Así no borran la copia embebida de un episodio aún no dividido. Además, como las escrituras
-    directas no suben la revisión, tampoco la bajan.
+  - Desde el 2026-11-20 la publicación de la cola y el guardado completo (también el de la
+    restauración de versiones) van siempre por la autoridad, que hace esta higiene en el servidor.
+    Antes, sus rutas directas leían el remoto en la misma transacción, quitaban los campos movidos
+    locales y llevaban el marcador, `meta` y, por episodio, los campos movidos del remoto.
   - Límite conocido: la actualización parcial directa (`updateRecordPartial`; mover o copiar un
     paciente escribe `beds.<cama>` completo) no pasa por esta higiene y puede volver a incrustar
     valores locales en un día marcado. Solo agrega peso: la superposición toma el documento del

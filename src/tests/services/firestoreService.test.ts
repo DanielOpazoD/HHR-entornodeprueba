@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  saveRecordToFirestore,
   getRecordFromFirestore,
   updateRecordPartial,
   subscribeToRecord,
@@ -71,20 +70,6 @@ vi.mock('firebase/firestore', async () => {
   };
 });
 
-// Authority routing has its own focused suite. Keep these storage tests deterministic so their
-// Firestore reads model only the record/snapshot under test, not the independently-fetched Rayen
-// policy document.
-vi.mock('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting', async () => {
-  const actual = await vi.importActual<
-    typeof import('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting')
-  >('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting');
-  return {
-    ...actual,
-    shouldRouteDailyRecordWriteViaCallable: vi.fn().mockResolvedValue(false),
-    shouldRouteSpecialistPatchViaCallable: vi.fn().mockResolvedValue(false),
-  };
-});
-
 describe('firestoreService', () => {
   type PartialUpdatePatch = Parameters<typeof updateRecordPartial>[1];
   const flushAsyncSubscription = async () => {
@@ -107,22 +92,6 @@ describe('firestoreService', () => {
     vi.clearAllMocks();
     // Each test starts without a recent history copy (hourly cadence lives in localStorage).
     localStorage.clear();
-  });
-
-  it('should save a record with integrity snapshot', async () => {
-    vi.mocked(firestore.setDoc);
-    vi.mocked(firestore.getDoc).mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({ some: 'old data' }),
-      id: 'mock-id',
-    } as unknown as DocumentSnapshot<DocumentData>);
-
-    // Pass a base version: saving over an existing doc without one is now a conflict by design.
-    await saveRecordToFirestore(mockRecord, '2026-02-19T00:00:00.000Z');
-
-    // Should have called setDoc twice: once for snapshot, once for main record
-    expect(firestore.setDoc).toHaveBeenCalledTimes(2);
-    expect(firestore.doc).toHaveBeenCalled();
   });
 
   it('should return null if record does not exist', async () => {
@@ -151,7 +120,7 @@ describe('firestoreService', () => {
       .mockResolvedValueOnce(stored);
 
     await updateRecordPartial(mockDate, {
-      'beds.BED_01.patientName': 'Jane Doe',
+      handoffNovedadesDayShift: 'Novedad sintética',
     } as unknown as PartialUpdatePatch);
 
     expect(updateDocMock).toHaveBeenCalled();
@@ -176,7 +145,7 @@ describe('firestoreService', () => {
       updateRecordPartial(
         mockDate,
         {
-          'beds.BED_01.patientName': 'Jane Doe',
+          handoffNovedadesDayShift: 'Novedad sintética',
         } as unknown as PartialUpdatePatch,
         '2026-02-19T00:00:00.000Z'
       )
@@ -385,18 +354,6 @@ describe('firestoreService', () => {
       'hanga_roa',
       'deletedRecords',
       expect.stringContaining(`${mockDate}_trash_`)
-    );
-  });
-
-  it('should handle concurrency error on save', async () => {
-    const getDocMock = vi.mocked(firestore.getDoc);
-    getDocMock.mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({ lastUpdated: '2025-01-01T00:00:00Z' }),
-    } as unknown as DocumentSnapshot);
-
-    await expect(saveRecordToFirestore(mockRecord, '2024-01-01T00:00:00Z')).rejects.toThrow(
-      'El registro ha sido modificado por otro usuario'
     );
   });
 

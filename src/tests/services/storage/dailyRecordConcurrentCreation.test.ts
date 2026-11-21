@@ -5,7 +5,6 @@ import { harnessState, reconnect } from '@/tests/services/storage/dayRecordOutbo
 import { queue, remote, resetDay, DATE } from '@/tests/services/storage/dayRecordDaySupport';
 import { initializeDay } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import { buildInitializedDayRecord } from '@/services/repositories/dailyRecordInitializationSupport';
-import * as routing from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import {
   createAdminMock,
@@ -27,9 +26,7 @@ let race = false;
 beforeEach(async () => {
   await resetDay('user:synthetic-day-creation');
   h.remote = null;
-  h.writeFence = true;
   race = false;
-  vi.spyOn(routing, 'shouldRouteDailyRecordWriteViaCallable').mockResolvedValue(true);
   vi.useFakeTimers({ toFake: ['Date'], now: new Date(stamp) });
   vi.spyOn(authority, 'saveDailyRecordWithClinicalAuthorityCallable').mockImplementation(
     async payload => {

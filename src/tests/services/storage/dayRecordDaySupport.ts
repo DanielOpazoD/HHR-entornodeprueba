@@ -21,11 +21,6 @@ const h = harnessState();
 export const DATE = '2026-10-24';
 /** The other session's write, which this offline device has not read. */
 export const B_AT = '2026-10-24T10:15:00.000Z';
-/** Both publication routes; `fenced` (the server fence) is the release route. */
-export const MODES = [
-  ['direct', false],
-  ['fenced', true],
-] as const;
 
 export const local = async () => (await hospitalDB.dailyRecords.get(DATE)) as DailyRecord;
 export const remote = () => asStoredDailyRecordShape(h.remote);
@@ -50,7 +45,6 @@ export const resetDay = async (owner: string) => {
   await hospitalDB.syncQueue.clear();
   await hospitalDB.dailyRecords.clear();
   h.offline = false;
-  h.writeFence = false;
 };
 
 const withMeta = (record: DailyRecord, meta?: Record<string, unknown>) =>
@@ -121,17 +115,9 @@ export const expectBInR4 = () =>
   });
 
 /** Asserts publication or queued retention, as requested by the case. */
-export const expectDayEditsPublishedOrKept = async (
-  keepQueued: boolean,
-  edits: Record<string, unknown>
-) => {
+/** The authority keeps a stale day write queued: the edits stay in the task, not on the server. */
+export const expectDayEditsKept = async (edits: Record<string, unknown>) => {
   const tasks = await dayTasks();
-  if (!keepQueued) {
-    for (const [path, value] of Object.entries(edits))
-      expect(getValueAtPath(remote(), path)).toEqual(value);
-    expect(tasks).toEqual([]);
-    return;
-  }
   expect(tasks).toHaveLength(1);
   expect(['PENDING', 'CONFLICT']).toContain(tasks[0].status);
   for (const [path, value] of Object.entries(edits)) {

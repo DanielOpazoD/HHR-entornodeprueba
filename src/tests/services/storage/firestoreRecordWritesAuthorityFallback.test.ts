@@ -113,17 +113,10 @@ describe('firestoreRecordWrites authority fallback routing', () => {
     mockEnsureUserRoleClaim.mockResolvedValue(undefined);
     mockHttpsCallable.mockReturnValue(mockAuthorityCallable);
     mockAuthorityCallable.mockResolvedValue({ data: { success: true } });
-    mockGetDoc.mockResolvedValue({
-      exists: () => true,
-      data: () => ({ schemaVersion: 2, clinicalBatchMode: 'enforced' }),
-    });
+    mockGetDoc.mockResolvedValue({ exists: () => true, data: () => ({}) });
   });
 
-  it('routes structural writes through the server after policy schema v2 activates the fence', async () => {
-    mockGetDoc.mockResolvedValue({
-      exists: () => true,
-      data: () => ({ schemaVersion: 2, clinicalBatchMode: 'off' }),
-    });
+  it('routes structural bed writes through the server', async () => {
     mockGetCurrentUser.mockReturnValue({
       uid: 'nurse-1',
       email: 'nurse@example.com',
@@ -146,11 +139,7 @@ describe('firestoreRecordWrites authority fallback routing', () => {
     expect(mockUpdateRecordPartiallyAtomically).not.toHaveBeenCalled();
   });
 
-  it('fails closed for mixed structural and document updates after the schema-v2 fence', async () => {
-    mockGetDoc.mockResolvedValue({
-      exists: () => true,
-      data: () => ({ schemaVersion: 2, clinicalBatchMode: 'off' }),
-    });
+  it('fails closed for mixed structural and document updates', async () => {
     mockGetCurrentUser.mockReturnValue({
       uid: 'nurse-1',
       email: 'nurse@example.com',
@@ -173,7 +162,7 @@ describe('firestoreRecordWrites authority fallback routing', () => {
     expect(mockUpdateRecordPartiallyAtomically).not.toHaveBeenCalled();
   });
 
-  it('keeps non-clinical partial updates on the direct Firestore transaction in enforced mode', async () => {
+  it('keeps day fields outside the bed tree on the direct Firestore transaction', async () => {
     mockGetCurrentUser.mockReturnValue({
       uid: 'nurse-1',
       email: 'nurse@example.com',
@@ -206,7 +195,7 @@ describe('firestoreRecordWrites authority fallback routing', () => {
   it('forces the copy an automated run explicitly asks for before its first write', async () => {
     await updateRecordPartial(
       '2026-03-14',
-      { 'beds.R1.vitalSigns': { heartRate: 80 } } as never,
+      { handoffNovedadesDayShift: 'Novedad automatizada' } as never,
       '2026-03-14T10:00:00.000Z',
       { historyPolicy: 'snapshot' }
     );
@@ -215,10 +204,10 @@ describe('firestoreRecordWrites authority fallback routing', () => {
     expect(mockUpdateRecordPartiallyAtomically).toHaveBeenCalledTimes(1);
   });
 
-  it('can skip a repeated history snapshot for a serialized automated clinical patch', async () => {
+  it('can skip a repeated history snapshot for a serialized automated patch', async () => {
     await updateRecordPartial(
       '2026-03-14',
-      { 'beds.R1.vitalSigns': { heartRate: 80 } } as never,
+      { handoffNovedadesDayShift: 'Novedad automatizada' } as never,
       '2026-03-14T10:00:00.000Z',
       { historyPolicy: 'skip' }
     );

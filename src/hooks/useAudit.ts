@@ -89,23 +89,6 @@ export interface AuditLoggers {
     recordDate: string,
     authors?: string
   ) => void;
-  logMedicalHandoffModified: (
-    bedId: string,
-    patientName: string,
-    rut: string,
-    note: string,
-    oldNote: string,
-    recordDate: string
-  ) => void;
-  logNurseHandoffModified: (
-    bedId: string,
-    patientName: string,
-    rut: string,
-    shift: string,
-    note: string,
-    oldNote: string,
-    recordDate: string
-  ) => void;
   logPatientView: (
     bedId: string,
     patientName: string,
@@ -230,8 +213,7 @@ export const useAudit = (userId: string): AuditLoggers => {
     logDailyRecordCreated,
   } = usePatientLifecycleAuditLoggers(logEvent);
 
-  const { logHandoffNovedadesModified, logMedicalHandoffModified, logNurseHandoffModified } =
-    useHandoffAuditLoggers(logDebouncedEvent);
+  const { logHandoffNovedadesModified } = useHandoffAuditLoggers(logDebouncedEvent);
 
   const logViewEvent = useCallback(
     (
@@ -300,8 +282,6 @@ export const useAudit = (userId: string): AuditLoggers => {
     logDailyRecordDeleted,
     logDailyRecordCreated,
     logHandoffNovedadesModified,
-    logMedicalHandoffModified,
-    logNurseHandoffModified,
     logPatientView,
     logClinicalDocumentCreated,
     logClinicalDocumentEdited,
