@@ -1,35 +1,19 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import React from 'react';
+import {
+  createShellAuthMock,
+  createShellCensusContextMock,
+  createShellDateNavMock,
+  createShellExportManagerMock,
+  createShellReminderCenterMock,
+  createShellUiMock,
+  flushLazyBypassComponents,
+} from './appContentTestUtils';
 
-type LazyBypassProps = Record<string, unknown>;
-
-// Shared state accessible from both vi.mock factory and test code.
-const { _lazyPending, _lazyResolved } = vi.hoisted(() => ({
-  _lazyPending: [] as Promise<void>[],
-  _lazyResolved: new Map<symbol, React.ComponentType<LazyBypassProps>>(),
-}));
-
-// Bypass React.lazy so lazy-loaded components render synchronously in tests.
-vi.mock('@/utils/lazyWithRetry', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const React = require('react');
-  return {
-    lazyWithRetry: (factory: () => Promise<{ default: React.ComponentType<LazyBypassProps> }>) => {
-      const key = Symbol();
-      const p = factory().then((m: { default: React.ComponentType<LazyBypassProps> }) => {
-        _lazyResolved.set(key, m.default);
-      });
-      _lazyPending.push(p);
-      return React.forwardRef(function LazyBypass(
-        props: LazyBypassProps,
-        ref: React.ForwardedRef<unknown>
-      ) {
-        const Comp = _lazyResolved.get(key) ?? null;
-        return Comp ? React.createElement(Comp, { ...props, ref }) : null;
-      });
-    },
-  };
+vi.mock('@/utils/lazyWithRetry', async () => {
+  const { createLazyWithRetryBypass } = await import('./appContentTestUtils');
+  return createLazyWithRetryBypass();
 });
 
 import { AppContent } from '@/components/layout/AppContent';
@@ -76,30 +60,18 @@ vi.mock('@/components/AppProviders', () => ({
   ),
 }));
 
-vi.mock('@/context/ReminderCenterContext', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const React = require('react');
-  return {
-    ReminderCenterProvider: ({ children }: { children: React.ReactNode }) =>
-      React.createElement('div', { 'data-testid': 'reminder-provider' }, children),
-  };
-});
+vi.mock('@/context/ReminderCenterContext', () => ({
+  ReminderCenterProvider: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="reminder-provider">{children}</div>
+  ),
+}));
 
-vi.mock('@/components/layout/app-content/reminderCenterProviderLoader', () => {
-  return {
-    loadReminderCenterProvider: () => new Promise(() => {}),
-  };
-});
+vi.mock('@/components/layout/app-content/reminderCenterProviderLoader', () => ({
+  loadReminderCenterProvider: () => new Promise(() => {}),
+}));
 
 vi.mock('@/hooks/useReminders', () => ({
-  useReminderCenter: () => ({
-    isOpen: false,
-    unreadCount: 0,
-    hasUrgentUnread: false,
-    loading: false,
-    openCenter: vi.fn(),
-    closeCenter: vi.fn(),
-  }),
+  useReminderCenter: () => createShellReminderCenterMock(),
 }));
 
 vi.mock('@/components/reminders/ReminderModal', () => ({
@@ -130,92 +102,33 @@ vi.mock('@/hooks/useExportManager', () => ({
   useExportManager: vi.fn(),
 }));
 
-// Flush lazy component resolutions before any test renders.
-beforeAll(() => Promise.all(_lazyPending));
+beforeAll(flushLazyBypassComponents);
 
 describe('AppContent', () => {
-  type AppContentUi = React.ComponentProps<typeof AppContent>['ui'];
-  type CensusContextValue = ReturnType<typeof useCensusContext>;
-  type AuthValue = ReturnType<typeof useAuth>;
-  type ExportManagerValue = ReturnType<typeof useExportManager>;
-
-  const createModalMock = () => ({
-    isOpen: false,
-    open: vi.fn(),
-    close: vi.fn(),
-    toggle: vi.fn(),
-  });
-
-  const mockUI = {
-    currentModule: 'CENSUS' as const,
-    setCurrentModule: vi.fn(),
-    censusViewMode: 'REGISTER' as const,
-    setCensusViewMode: vi.fn(),
-    bedManagerModal: createModalMock(),
-    settingsModal: createModalMock(),
-    patientSearchModal: createModalMock(),
-    showPrintButton: true,
-    showBookmarksBar: true,
-    setShowBookmarksBar: vi.fn(),
-    isTestAgentRunning: false,
-    setIsTestAgentRunning: vi.fn(),
-    selectedShift: 'day' as const,
-    setSelectedShift: vi.fn(),
-  } as unknown as AppContentUi;
-
-  const mockCensusContext = {
-    dailyRecord: { record: {}, syncStatus: 'idle', lastSyncTime: null },
-    dateNav: {
+  const mockUI = createShellUiMock();
+  const mockCensusContext = createShellCensusContextMock({
+    dateNav: createShellDateNavMock({
       currentDateString: '2024-01-01',
       selectedYear: 2024,
       selectedMonth: 1,
       selectedDay: 1,
-      setSelectedYear: vi.fn(),
-      setSelectedMonth: vi.fn(),
-      setSelectedDay: vi.fn(),
-      daysInMonth: 31,
       existingDaysInMonth: [],
-      navigateDays: vi.fn(),
+    }),
+  });
+  const mockAuth = createShellAuthMock({
+    currentUser: {
+      uid: 'synthetic-uid',
+      email: 'test@test.com',
+      displayName: 'Test Admin',
+      role: 'admin',
     },
-    censusEmail: {
-      showEmailConfig: false,
-      setShowEmailConfig: vi.fn(),
-      sendEmail: vi.fn(),
-      status: 'idle',
-      error: null,
-      recipients: [],
-      setRecipients: vi.fn(),
-      message: '',
-      onMessageChange: vi.fn(),
-      onResetMessage: vi.fn(),
-      isAdminUser: true,
-      testModeEnabled: false,
-      setTestModeEnabled: vi.fn(),
-      testRecipient: '',
-      setTestRecipient: vi.fn(),
-    },
-    fileOps: { handleExportCSV: vi.fn(), handleImportJSON: vi.fn() },
-    nurseSignature: {},
-  };
-
-  const mockAuth = {
-    currentUser: { email: 'test@test.com' },
-    role: 'admin',
-    signOut: vi.fn(),
-    isFirebaseConnected: true,
-  };
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useCensusContext).mockReturnValue(mockCensusContext as unknown as CensusContextValue);
-    vi.mocked(useAuth).mockReturnValue(mockAuth as unknown as AuthValue);
-    vi.mocked(useExportManager).mockReturnValue({
-      handleExportPDF: vi.fn(),
-      handleBackupExcel: vi.fn(),
-      handleBackupHandoff: vi.fn(),
-      isArchived: false,
-      isBackingUp: false,
-    } as unknown as ExportManagerValue);
+    vi.mocked(useCensusContext).mockReturnValue(mockCensusContext);
+    vi.mocked(useAuth).mockReturnValue(mockAuth);
+    vi.mocked(useExportManager).mockReturnValue(createShellExportManagerMock());
   });
 
   it('renders basic layout in normal mode', () => {
@@ -235,22 +148,12 @@ describe('AppContent', () => {
   });
 
   it('hides DateStrip in the standalone statistics module', () => {
-    render(
-      <AppContent
-        ui={{
-          ...mockUI,
-          currentModule: 'ANALYTICS' as unknown as AppContentUi['currentModule'],
-        }}
-      />
-    );
+    render(<AppContent ui={{ ...mockUI, currentModule: 'ANALYTICS' }} />);
     expect(screen.queryByTestId('datestrip')).not.toBeInTheDocument();
   });
 
   it('hides BookmarkBar for non-privileged roles', () => {
-    vi.mocked(useAuth).mockReturnValue({
-      ...mockAuth,
-      role: 'doctor_urgency',
-    } as unknown as AuthValue);
+    vi.mocked(useAuth).mockReturnValue(createShellAuthMock({ role: 'doctor_urgency' }));
     render(<AppContent ui={mockUI} />);
     expect(screen.queryByTestId('bookmark-bar')).not.toBeInTheDocument();
   });
@@ -261,19 +164,9 @@ describe('AppContent', () => {
   });
 
   it('passes specialist census accessProfile to DateStrip', () => {
-    vi.mocked(useAuth).mockReturnValue({
-      ...mockAuth,
-      role: 'doctor_specialist',
-    } as unknown as AuthValue);
+    vi.mocked(useAuth).mockReturnValue(createShellAuthMock({ role: 'doctor_specialist' }));
 
-    render(
-      <AppContent
-        ui={{
-          ...mockUI,
-          currentModule: 'CENSUS',
-        }}
-      />
-    );
+    render(<AppContent ui={{ ...mockUI, currentModule: 'CENSUS' }} />);
 
     expect(mockDateStrip).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -283,10 +176,7 @@ describe('AppContent', () => {
   });
 
   it('does not allow doctor_specialist to trigger archive verification checks on census entry', () => {
-    vi.mocked(useAuth).mockReturnValue({
-      ...mockAuth,
-      role: 'doctor_specialist',
-    } as unknown as AuthValue);
+    vi.mocked(useAuth).mockReturnValue(createShellAuthMock({ role: 'doctor_specialist' }));
 
     render(<AppContent ui={{ ...mockUI, currentModule: 'CENSUS' }} />);
 
@@ -298,19 +188,9 @@ describe('AppContent', () => {
   });
 
   it('sanitizes invalid persisted modules for doctor_specialist', () => {
-    vi.mocked(useAuth).mockReturnValue({
-      ...mockAuth,
-      role: 'doctor_specialist',
-    } as unknown as AuthValue);
+    vi.mocked(useAuth).mockReturnValue(createShellAuthMock({ role: 'doctor_specialist' }));
 
-    render(
-      <AppContent
-        ui={{
-          ...mockUI,
-          currentModule: 'AUDIT' as unknown as AppContentUi['currentModule'],
-        }}
-      />
-    );
+    render(<AppContent ui={{ ...mockUI, currentModule: 'AUDIT' }} />);
 
     expect(mockUI.setCurrentModule).toHaveBeenCalledWith('CENSUS');
   });
@@ -324,8 +204,7 @@ describe('AppContent', () => {
     render(<AppContent ui={mockUI} />);
 
     act(() => {
-      const event = new CustomEvent('navigate-module', { detail: 'CUDYR' });
-      window.dispatchEvent(event);
+      window.dispatchEvent(new CustomEvent('navigate-module', { detail: 'CUDYR' }));
     });
 
     expect(mockUI.setCurrentModule).toHaveBeenCalledWith('CUDYR');
@@ -335,22 +214,14 @@ describe('AppContent', () => {
     render(<AppContent ui={mockUI} />);
 
     act(() => {
-      const event = new CustomEvent('set-shift', { detail: 'night' });
-      window.dispatchEvent(event);
+      window.dispatchEvent(new CustomEvent('set-shift', { detail: 'night' }));
     });
 
     expect(mockUI.setSelectedShift).toHaveBeenCalledWith('night');
   });
 
   it('handles DateStrip clinical actions correctly', () => {
-    const mockExportManager = {
-      handleExportPDF: vi.fn(),
-      handleBackupExcel: vi.fn(),
-      handleBackupHandoff: vi.fn(),
-      isArchived: false,
-      isBackingUp: false,
-    };
-    vi.mocked(useExportManager).mockReturnValue(mockExportManager as unknown as ExportManagerValue);
+    vi.mocked(useExportManager).mockReturnValue(createShellExportManagerMock());
 
     const { unmount } = render(<AppContent ui={{ ...mockUI, currentModule: 'CENSUS' }} />);
     expect(mockDateStrip).toHaveBeenLastCalledWith(
@@ -373,20 +244,13 @@ describe('AppContent', () => {
   });
 
   it('shows and hides global modals/panels based on UI state', async () => {
-    const uiWithModals = {
-      ...mockUI,
-      isTestAgentRunning: true,
-    };
+    const uiWithModals = { ...mockUI, isTestAgentRunning: true };
 
-    const { rerender } = render(<AppContent ui={uiWithModals as unknown as AppContentUi} />);
-    await act(async () => {
-      await Promise.all(_lazyPending);
-    });
-    rerender(<AppContent ui={uiWithModals as unknown as AppContentUi} />);
-    await act(async () => {
-      await Promise.all(_lazyPending);
-    });
-    rerender(<AppContent ui={uiWithModals as unknown as AppContentUi} />);
+    const { rerender } = render(<AppContent ui={uiWithModals} />);
+    await act(flushLazyBypassComponents);
+    rerender(<AppContent ui={uiWithModals} />);
+    await act(flushLazyBypassComponents);
+    rerender(<AppContent ui={uiWithModals} />);
 
     expect(screen.queryByTestId('reminder-modal')).not.toBeInTheDocument();
     expect(screen.getByTestId('test-agent')).toBeInTheDocument();

@@ -1,38 +1,15 @@
 import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi, beforeAll } from 'vitest';
+import {
+  createShellRuntimeMock,
+  createShellUiMock,
+  flushLazyBypassComponents,
+} from './appContentTestUtils';
 
-type LazyBypassProps = Record<string, unknown>;
-
-// Shared state accessible from both vi.mock factory and test code.
-const { _lazyPending, _lazyResolved } = vi.hoisted(() => ({
-  _lazyPending: [] as Promise<void>[],
-  _lazyResolved: new Map<symbol, React.ComponentType<LazyBypassProps>>(),
-}));
-
-// Bypass React.lazy so lazy-loaded components render synchronously in tests.
-// vi.mock'd dynamic imports resolve as micro-tasks.  We collect all pending
-// resolutions and flush them in a beforeAll so every LazyBypass wrapper has
-// its component available before the first render().
-vi.mock('@/utils/lazyWithRetry', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const React = require('react');
-  return {
-    lazyWithRetry: (factory: () => Promise<{ default: React.ComponentType<LazyBypassProps> }>) => {
-      const key = Symbol();
-      const p = factory().then((m: { default: React.ComponentType<LazyBypassProps> }) => {
-        _lazyResolved.set(key, m.default);
-      });
-      _lazyPending.push(p);
-      return React.forwardRef(function LazyBypass(
-        props: LazyBypassProps,
-        ref: React.ForwardedRef<unknown>
-      ) {
-        const Comp = _lazyResolved.get(key) ?? null;
-        return Comp ? React.createElement(Comp, { ...props, ref }) : null;
-      });
-    },
-  };
+vi.mock('@/utils/lazyWithRetry', async () => {
+  const { createLazyWithRetryBypass } = await import('./appContentTestUtils');
+  return createLazyWithRetryBypass();
 });
 
 import { AppContentChrome } from '@/components/layout/app-content/AppContentChrome';
@@ -66,69 +43,14 @@ vi.mock('@/features/census/components/global-search/GlobalPatientSearchModal', (
   GlobalPatientSearchModal: () => <div data-testid="patient-search-modal">PatientSearchModal</div>,
 }));
 
-// Flush lazy component resolutions before any test renders.
-beforeAll(() => Promise.all(_lazyPending));
+beforeAll(flushLazyBypassComponents);
 
 describe('AppContentChrome', () => {
-  const ui = {
-    currentModule: 'CENSUS',
-    setCurrentModule: vi.fn(),
-    censusViewMode: 'REGISTER',
-    setCensusViewMode: vi.fn(),
-    bedManagerModal: { isOpen: false, open: vi.fn(), close: vi.fn() },
-    settingsModal: { isOpen: false, open: vi.fn(), close: vi.fn() },
-    patientSearchModal: { isOpen: false, open: vi.fn(), close: vi.fn(), toggle: vi.fn() },
-    showPrintButton: true,
-    showBookmarksBar: true,
-    setShowBookmarksBar: vi.fn(),
-    isTestAgentRunning: false,
-    setIsTestAgentRunning: vi.fn(),
-    selectedShift: 'day',
-    setSelectedShift: vi.fn(),
-  } as const;
-
-  const runtime = {
-    auth: {
-      currentUser: { email: 'admin@hospital.cl' },
-      role: 'admin',
-      signOut: vi.fn(),
-      isFirebaseConnected: true,
-    },
-    dateNav: {
-      currentDateString: '2026-03-27',
-      selectedYear: 2026,
-      setSelectedYear: vi.fn(),
-      selectedMonth: 2,
-      setSelectedMonth: vi.fn(),
-      selectedDay: 27,
-      setSelectedDay: vi.fn(),
-      daysInMonth: 31,
-      existingDaysInMonth: [1, 4],
-      navigateDays: vi.fn(),
-    },
-    censusEmail: {
-      setShowEmailConfig: vi.fn(),
-      sendEmail: vi.fn(),
-      status: 'idle',
-      error: null,
-    },
-    fileOps: { handleExportCSV: vi.fn(), handleImportJSON: vi.fn() },
-    syncStatus: 'idle',
-    lastSyncTime: null,
-    exportManager: {
-      handleExportPDF: vi.fn(),
-      handleBackupExcel: vi.fn(),
-      handleBackupHandoff: vi.fn(),
-      isArchived: false,
-      isBackingUp: false,
-    },
-    canUseCensusExports: true,
-    handleExportExcel: vi.fn(),
-    censusAccessProfile: 'full',
-  } as const;
+  const ui = createShellUiMock();
+  const runtime = createShellRuntimeMock();
 
   it('keeps the admin conflict entry inside the options menu only', () => {
-    render(<AppContentChrome ui={ui as never} runtime={runtime as never} />);
+    render(<AppContentChrome ui={ui} runtime={runtime} />);
     const trailing = (mockDateStrip.mock.lastCall?.[0] as { trailingActions?: React.ReactNode })
       .trailingActions;
     render(<>{trailing}</>);
@@ -143,8 +65,8 @@ describe('AppContentChrome', () => {
   it('renders chrome in normal mode', () => {
     render(
       <AppContentChrome
-        ui={ui as never}
-        runtime={runtime as never}
+        ui={ui}
+        runtime={runtime}
         onOpenCensusDate={vi.fn()}
         renderModuleRouter={(_ui, shell) => (
           <div
@@ -166,7 +88,7 @@ describe('AppContentChrome', () => {
 
   it('keeps census export actions only on allowed census views', () => {
     const { rerender } = render(
-      <AppContentChrome ui={ui as never} runtime={runtime as never} onOpenCensusDate={vi.fn()} />
+      <AppContentChrome ui={ui} runtime={runtime} onOpenCensusDate={vi.fn()} />
     );
 
     expect(mockDateStrip).toHaveBeenLastCalledWith(
@@ -179,13 +101,8 @@ describe('AppContentChrome', () => {
 
     rerender(
       <AppContentChrome
-        ui={
-          {
-            ...ui,
-            currentModule: 'CUDYR',
-          } as never
-        }
-        runtime={runtime as never}
+        ui={createShellUiMock({ currentModule: 'CUDYR' })}
+        runtime={runtime}
         onOpenCensusDate={vi.fn()}
       />
     );
@@ -206,8 +123,8 @@ describe('AppContentChrome', () => {
 
     const { rerender } = render(
       <AppContentChrome
-        ui={ui as never}
-        runtime={runtime as never}
+        ui={ui}
+        runtime={runtime}
         onOpenCensusDate={vi.fn()}
         renderCensusTrailingActions={renderCensusTrailingActions}
       />
@@ -218,8 +135,8 @@ describe('AppContentChrome', () => {
 
     rerender(
       <AppContentChrome
-        ui={{ ...ui, currentModule: 'NURSING_HANDOFF' } as never}
-        runtime={runtime as never}
+        ui={createShellUiMock({ currentModule: 'NURSING_HANDOFF' })}
+        runtime={runtime}
         onOpenCensusDate={vi.fn()}
         renderCensusTrailingActions={renderCensusTrailingActions}
       />
@@ -232,8 +149,8 @@ describe('AppContentChrome', () => {
     const renderFeatureQuickActions = vi.fn(() => <button type="button">Laboratorio</button>);
     render(
       <AppContentChrome
-        ui={ui as never}
-        runtime={runtime as never}
+        ui={ui}
+        runtime={runtime}
         onOpenCensusDate={vi.fn()}
         renderFeatureQuickActions={renderFeatureQuickActions}
       />

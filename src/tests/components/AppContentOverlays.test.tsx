@@ -1,35 +1,17 @@
-import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi, beforeAll, beforeEach } from 'vitest';
+import {
+  createShellCensusEmailMock,
+  createShellModalMock,
+  createShellReminderCenterMock,
+  createShellRuntimeMock,
+  createShellUiMock,
+  flushLazyBypassComponents,
+} from './appContentTestUtils';
 
-type LazyBypassProps = Record<string, unknown>;
-
-// Shared state accessible from both vi.mock factory and test code.
-const { _lazyPending, _lazyResolved } = vi.hoisted(() => ({
-  _lazyPending: [] as Promise<void>[],
-  _lazyResolved: new Map<symbol, React.ComponentType<LazyBypassProps>>(),
-}));
-
-// Bypass React.lazy so lazy-loaded components render synchronously in tests.
-vi.mock('@/utils/lazyWithRetry', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const React = require('react');
-  return {
-    lazyWithRetry: (factory: () => Promise<{ default: React.ComponentType<LazyBypassProps> }>) => {
-      const key = Symbol();
-      const p = factory().then((m: { default: React.ComponentType<LazyBypassProps> }) => {
-        _lazyResolved.set(key, m.default);
-      });
-      _lazyPending.push(p);
-      return React.forwardRef(function LazyBypass(
-        props: LazyBypassProps,
-        ref: React.ForwardedRef<unknown>
-      ) {
-        const Comp = _lazyResolved.get(key) ?? null;
-        return Comp ? React.createElement(Comp, { ...props, ref }) : null;
-      });
-    },
-  };
+vi.mock('@/utils/lazyWithRetry', async () => {
+  const { createLazyWithRetryBypass } = await import('./appContentTestUtils');
+  return createLazyWithRetryBypass();
 });
 
 import { AppContentOverlays } from '@/components/layout/app-content/AppContentOverlays';
@@ -60,56 +42,25 @@ const overlayViews = {
   GlobalPatientSearchModal: () => <div data-testid="patient-search-modal">PatientSearchModal</div>,
 };
 
-// Flush lazy component resolutions before any test renders.
-beforeAll(() => Promise.all(_lazyPending));
+beforeAll(flushLazyBypassComponents);
 
 describe('AppContentOverlays', () => {
-  const ui = {
-    settingsModal: { isOpen: true, open: vi.fn(), close: vi.fn() },
-    patientSearchModal: { isOpen: false, open: vi.fn(), close: vi.fn(), toggle: vi.fn() },
-    isTestAgentRunning: true,
-    setIsTestAgentRunning: vi.fn(),
-  } as const;
+  const buildUi = (overrides?: Parameters<typeof createShellUiMock>[0]) =>
+    createShellUiMock({ isTestAgentRunning: true, ...overrides });
 
-  const runtime = {
-    censusEmail: {
-      showEmailConfig: true,
-      setShowEmailConfig: vi.fn(),
-      recipients: [],
-      setRecipients: vi.fn(),
-      recipientLists: [],
-      activeRecipientListId: null,
-      setActiveRecipientListId: vi.fn(),
-      createRecipientList: vi.fn(),
-      renameActiveRecipientList: vi.fn(),
-      deleteRecipientList: vi.fn(),
-      recipientsSource: 'local',
-      isRecipientsSyncing: false,
-      recipientsSyncError: null,
-      message: '',
-      onMessageChange: vi.fn(),
-      onResetMessage: vi.fn(),
-      isAdminUser: true,
-      testModeEnabled: false,
-      setTestModeEnabled: vi.fn(),
-      testRecipient: '',
-      setTestRecipient: vi.fn(),
-    },
-    dateNav: {
-      currentDateString: '2026-03-27',
-    },
-    nurseSignature: 'Night Nurse',
-    record: { date: '2026-03-27' },
-  } as const;
+  const buildRuntime = (showEmailConfig = true) =>
+    createShellRuntimeMock({
+      censusEmail: createShellCensusEmailMock({ showEmailConfig }),
+    });
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useReminderCenter).mockReturnValue({ isOpen: false } as never);
+    vi.mocked(useReminderCenter).mockReturnValue(createShellReminderCenterMock({ isOpen: false }));
   });
 
   it('mounts active shell overlays and global status components', () => {
     render(
-      <AppContentOverlays ui={ui as never} runtime={runtime as never} overlayViews={overlayViews} />
+      <AppContentOverlays ui={buildUi()} runtime={buildRuntime()} overlayViews={overlayViews} />
     );
 
     expect(screen.queryByTestId('reminder-modal')).not.toBeInTheDocument();
@@ -121,10 +72,10 @@ describe('AppContentOverlays', () => {
   });
 
   it('loads the reminder modal only when the reminder center is open', () => {
-    vi.mocked(useReminderCenter).mockReturnValue({ isOpen: true } as never);
+    vi.mocked(useReminderCenter).mockReturnValue(createShellReminderCenterMock({ isOpen: true }));
 
     render(
-      <AppContentOverlays ui={ui as never} runtime={runtime as never} overlayViews={overlayViews} />
+      <AppContentOverlays ui={buildUi()} runtime={buildRuntime()} overlayViews={overlayViews} />
     );
 
     expect(screen.getByTestId('reminder-modal')).toBeInTheDocument();
@@ -133,13 +84,8 @@ describe('AppContentOverlays', () => {
   it('loads the test agent only while it is running', () => {
     render(
       <AppContentOverlays
-        ui={
-          {
-            ...ui,
-            isTestAgentRunning: false,
-          } as never
-        }
-        runtime={runtime as never}
+        ui={buildUi({ isTestAgentRunning: false })}
+        runtime={buildRuntime()}
         overlayViews={overlayViews}
       />
     );
@@ -150,13 +96,8 @@ describe('AppContentOverlays', () => {
   it('mounts patient search only when the modal is open', () => {
     render(
       <AppContentOverlays
-        ui={
-          {
-            ...ui,
-            patientSearchModal: { ...ui.patientSearchModal, isOpen: true },
-          } as never
-        }
-        runtime={runtime as never}
+        ui={buildUi({ patientSearchModal: createShellModalMock({ isOpen: true }) })}
+        runtime={buildRuntime()}
         overlayViews={overlayViews}
       />
     );
@@ -167,13 +108,8 @@ describe('AppContentOverlays', () => {
   it('hides the census email config modal when the flag is disabled', () => {
     render(
       <AppContentOverlays
-        ui={ui as never}
-        runtime={
-          {
-            ...runtime,
-            censusEmail: { ...runtime.censusEmail, showEmailConfig: false },
-          } as never
-        }
+        ui={buildUi()}
+        runtime={buildRuntime(false)}
         overlayViews={overlayViews}
       />
     );
@@ -182,9 +118,8 @@ describe('AppContentOverlays', () => {
   });
 
   it('opens patient search with the global Ctrl/Cmd+K shortcut', () => {
-    render(
-      <AppContentOverlays ui={ui as never} runtime={runtime as never} overlayViews={overlayViews} />
-    );
+    const ui = buildUi();
+    render(<AppContentOverlays ui={ui} runtime={buildRuntime()} overlayViews={overlayViews} />);
 
     fireEvent.keyDown(document, { key: 'k', ctrlKey: true });
 
