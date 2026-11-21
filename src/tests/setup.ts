@@ -136,9 +136,7 @@ const firebaseMock = {
   mountConfigWarning: () => {},
 };
 
-// Use @ alias or absolute relative paths
 vi.mock('@/services/firebase-runtime/firebaseConfig', () => firebaseMock);
-vi.mock('../firebaseConfig', () => firebaseMock);
 
 // Mock firebase/auth module
 vi.mock('firebase/auth', () => ({
@@ -267,7 +265,6 @@ vi.mock('@/services/admin/auditSession/auditConnectionRuntime', () => ({
   markCurrentAuditConnectionOnline: vi.fn().mockResolvedValue(undefined),
   endCurrentAuditConnection: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock('../services/admin/auditService', () => mockAuditFactory());
 
 const globalCatalogRepositoryMock = {
   getNurses: vi.fn().mockResolvedValue(['Enfermero/a 1', 'Enfermero/a 2', 'Test Nurse']),
@@ -344,14 +341,6 @@ vi.mock('@/application/ports/dailyRecordPort', () => ({
   defaultDailyRecordRepositoryPort: globalDailyRecordRepositoryPortMock,
 }));
 
-// DailyRecordContext is no longer mocked globally to allow customRender to provide real context
-/*
-vi.mock('@/context/DailyRecordContext', () => ({
-    DailyRecordProvider: ({ children }: { children: React.ReactNode }) => children,
-    useDailyRecordData: () => mockDailyRecordContextValue,
-// ...
-*/
-
 // Mock StaffContext
 const mockStaffContextValue = {
   nursesList: ['Enfermera 1', 'Enfermera 2'],
@@ -368,11 +357,6 @@ vi.mock('@/context/StaffContext', () => ({
   useStaffContext: () => mockStaffContextValue,
 }));
 
-vi.mock('../context/StaffContext', () => ({
-  StaffProvider: ({ children }: { children: React.ReactNode }) => children,
-  useStaffContext: () => mockStaffContextValue,
-}));
-
 // Mock useStabilityRules hook
 const mockStabilityRules = {
   isDateLocked: false,
@@ -384,10 +368,6 @@ const mockStabilityRules = {
 };
 
 vi.mock('@/hooks/useStabilityRules', () => ({
-  useStabilityRules: () => mockStabilityRules,
-}));
-
-vi.mock('../hooks/useStabilityRules', () => ({
   useStabilityRules: () => mockStabilityRules,
 }));
 
@@ -409,10 +389,6 @@ const mockAuthState = {
 };
 
 vi.mock('@/hooks/useAuthState', () => ({
-  useAuthState: () => mockAuthState,
-}));
-
-vi.mock('../hooks/useAuthState', () => ({
   useAuthState: () => mockAuthState,
 }));
 
@@ -447,9 +423,7 @@ const mockAuthFallbackFactory = () => mockAuthFallback;
 
 vi.mock('@/services/auth/authGoogleFlow', () => mockAuthGoogleFlowFactory());
 vi.mock('@/services/auth/authSession', () => mockAuthSessionFactory());
-vi.mock('../services/auth/authSession', () => mockAuthSessionFactory());
 vi.mock('@/services/auth/authFallback', () => mockAuthFallbackFactory());
-vi.mock('../services/auth/authFallback', () => mockAuthFallbackFactory());
 
 vi.mock('@/application/auth/authSessionUseCases', () => ({
   executeGoogleSignIn: vi.fn(),
@@ -487,14 +461,6 @@ vi.mock('@/context/AuthContext', async () => ({
   useCanEdit: () => true,
 }));
 
-vi.mock('../context/AuthContext', async () => ({
-  // No provider by default: components that read the context directly see nobody signed in.
-  AuthContext: (await import('react')).createContext(undefined),
-  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
-  useAuth: () => mockAuthContextValue,
-  useCanEdit: () => true,
-}));
-
 // Mock AuditContext
 const mockAuditContextValue = {
   logPatientAdmission: vi.fn(),
@@ -520,11 +486,6 @@ vi.mock('@/context/AuditContext', () => ({
   useAuditContext: () => mockAuditContextValue,
 }));
 
-vi.mock('../context/AuditContext', () => ({
-  AuditProvider: ({ children }: { children: React.ReactNode }) => children,
-  useAuditContext: () => mockAuditContextValue,
-}));
-
 // Mock VersionContext
 const mockVersionContextValue = {
   isOutdated: false,
@@ -538,11 +499,6 @@ const mockVersionContextValue = {
 };
 
 vi.mock('@/context/VersionContext', () => ({
-  VersionProvider: ({ children }: { children: React.ReactNode }) => children,
-  useVersion: () => mockVersionContextValue,
-}));
-
-vi.mock('../context/VersionContext', () => ({
   VersionProvider: ({ children }: { children: React.ReactNode }) => children,
   useVersion: () => mockVersionContextValue,
 }));
