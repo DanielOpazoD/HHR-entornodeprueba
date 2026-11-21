@@ -88,15 +88,13 @@ export const resolveRemoteGoldenPathReadResult = async ({
           (!retained || decision?.status !== 'retained_pending' || decision.serverComposed),
         consistencyState: 'local_authoritative',
         retryability: 'automatic_retry',
+        recoveryAction: 'defer_remote_sync',
         // The server confirmed it has no such day: this copy is not the server's day (SAVE-01).
-        // With a write still holding it the queue will publish it; without one nothing will.
         ...(remote.serverConfirmed && !remote.record
           ? {
               conflictSummary: { kind: 'remote_missing' as const, sourceOfTruth: 'local' as const },
-              recoveryAction:
-                inspected?.status === 'retained_pending' ? 'queue_retry' : 'defer_remote_sync',
             }
-          : { recoveryAction: 'defer_remote_sync' as const }),
+          : {}),
       }
     );
   }

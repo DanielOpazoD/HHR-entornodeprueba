@@ -64,7 +64,6 @@ beforeEach(async () => {
   await hospitalDB.syncQueue.clear();
   await hospitalDB.dailyRecords.clear();
   h.offline = false;
-  h.writeFence = false;
 });
 
 afterEach(async () => {
