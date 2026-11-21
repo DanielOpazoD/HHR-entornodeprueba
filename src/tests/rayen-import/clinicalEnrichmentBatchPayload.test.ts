@@ -15,7 +15,6 @@ const record = asStoredDailyRecordShape({
 
 const prepare = (operations: ClinicalFillPatchOperation[]) =>
   prepareClinicalEnrichmentBatchPayload({
-    mode: 'enforced',
     record,
     runId: 'run-payload',
     mutationId: 'mutation-payload',
@@ -45,7 +44,6 @@ describe('clinicalEnrichmentBatchPayload', () => {
       meta: { revision: null },
     });
     const { payload } = prepareClinicalEnrichmentBatchPayload({
-      mode: 'enforced',
       record: recordWithoutRevision,
       runId: 'run-payload',
       mutationId: 'mutation-payload',

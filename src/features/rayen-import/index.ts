@@ -237,7 +237,6 @@ export type {
   ClinicalFillDeps,
   ClinicalFillError,
   ClinicalFillPatchOperation,
-  ClinicalFillPersistenceStrategy,
   ClinicalFillProgress,
   ClinicalFillSummary,
 } from './clinicalFillRunner';

@@ -154,7 +154,6 @@ describe('bundle budget config', () => {
         '^assets/clinicalFillRunner-.*\\.js$',
         '^assets/RayenImportButton-.*\\.js$',
         '^assets/clinicalEnrichmentBatchPayload-.*\\.js$',
-        '^assets/clinicalEnrichmentPersistenceStrategy-.*\\.js$',
         '^assets/PatientDocumentManagerDialog-.*\\.js$',
         '^assets/ClinicalPanelDrawer-.*\\.js$',
         '^assets/RayenSyncHistoryModal-.*\\.js$',

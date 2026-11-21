@@ -221,7 +221,6 @@ export const useRayenClinicalFill = ({
                 ),
               };
             }
-            const batchMode = runPolicy.clinicalBatchMode;
             const auditRunId = requestedRunId ?? freshRecord.rayenSync?.runId;
             const eligibleCount = countClinicalFillEligiblePatients(
               freshRecord,
@@ -275,8 +274,7 @@ export const useRayenClinicalFill = ({
               });
               registerRayenFillAbort(watchdog.abort, attemptId);
               try {
-                const { createClinicalEnrichmentPersistenceStrategy } =
-                  await import('./clinicalEnrichmentPersistenceStrategy');
+                const { applyClinicalFillBatch } = await import('./applyClinicalEnrichmentBatch');
                 check();
                 const { registerEloisaStaff } =
                   await import('@/services/staff/eloisaStaffRegistry');
@@ -290,15 +288,6 @@ export const useRayenClinicalFill = ({
                   check();
                   return latestView.record;
                 };
-                const persistenceStrategy = createClinicalEnrichmentPersistenceStrategy({
-                  checkSession: check,
-                  mode: batchMode,
-                  record: view,
-                  runId: runPolicy.runId,
-                  refreshRecord: refreshFillRecord,
-                  // After a committed batch the day is only refreshed, never rebuilt: no documents.
-                  refreshCommittedRecord: loadDay,
-                });
                 return await runClinicalFill(
                   view,
                   resolveClinicalFillDay(source, day),
@@ -314,7 +303,18 @@ export const useRayenClinicalFill = ({
                     pendingReads: conflictRetry ? undefined : retryRequest?.pendingReads,
                     ...createClinicalFillReaders(watchdog.signal, candidates),
                     extractDeviceItems: extractDeviceTextItems,
-                    persistenceStrategy,
+                    persistBatch: operations =>
+                      applyClinicalFillBatch({
+                        checkSession: check,
+                        record: view,
+                        runId: runPolicy.runId,
+                        operations,
+                        refreshRecord: refreshFillRecord,
+                        // After a committed batch the day's server read refreshes the Firestore
+                        // SDK cache, not HHR's local table; nothing is rebuilt from it, so no
+                        // episode documents are read.
+                        refreshCommittedRecord: loadDay,
+                      }),
                     applyHistoricalCudyrBatch: (censusDay, items) => {
                       check();
                       if (!applyHistoricalCudyrEnforcedBatch) {

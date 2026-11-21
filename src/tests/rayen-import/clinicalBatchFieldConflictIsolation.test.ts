@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createClinicalEnrichmentPersistenceStrategy } from '@/features/rayen-import/hooks/clinicalEnrichmentPersistenceStrategy';
-import { applyClinicalEnrichmentBatch } from '@/features/rayen-import/hooks/applyClinicalEnrichmentBatch';
+import { applyClinicalFillBatch } from '@/features/rayen-import/hooks/applyClinicalEnrichmentBatch';
 import { persistClinicalBatch } from '@/features/rayen-import/domain/clinicalBatchPersistence';
 import { buildRayenSyncCoverage } from '@/features/rayen-import/domain/rayenSyncHistory';
 import type { RayenClinicalEnrichmentBatchPayload } from '@/features/rayen-import/bridge/rayenClinicalEnrichmentBatchClient';
@@ -48,21 +47,18 @@ const persistAgainst = async (
   const deps = createDependencies();
   deps.refreshRecord.mockResolvedValue(current);
   prepare?.(deps);
-  const strategy = createClinicalEnrichmentPersistenceStrategy({
-    mode: 'enforced',
-    record: record(),
-    runId: 'run-field-conflict',
-    refreshRecord: deps.refreshRecord,
-    applyBatch: input =>
-      applyClinicalEnrichmentBatch({
-        ...input,
-        invoke: deps.invoke,
-        createMutationId: deps.createMutationId,
-      }),
-  });
+  const persistBatch = (batch: ClinicalFillPatchOperation[]) =>
+    applyClinicalFillBatch({
+      record: record(),
+      runId: 'run-field-conflict',
+      refreshRecord: deps.refreshRecord,
+      operations: batch,
+      invoke: deps.invoke,
+      createMutationId: deps.createMutationId,
+    });
   const result = await persistClinicalBatch({
     operations,
-    strategy,
+    persist: persistBatch,
     applyWithMetrics: operation => operation(),
     recordRetries: vi.fn(),
     recordPersistenceEvidence: vi.fn(),

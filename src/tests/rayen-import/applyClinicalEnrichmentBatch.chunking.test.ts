@@ -20,7 +20,6 @@ describe('applyClinicalEnrichmentBatch chunking', () => {
 
     await expect(
       applyClinicalEnrichmentBatch({
-        mode: 'enforced',
         record,
         runId: 'run-large',
         operations: oversized,
@@ -49,7 +48,6 @@ describe('applyClinicalEnrichmentBatch chunking', () => {
     });
     await expect(
       applyClinicalEnrichmentBatch({
-        mode: 'enforced',
         record,
         runId: 'run-chunked',
         operations: manyOperations,
@@ -75,7 +73,6 @@ describe('applyClinicalEnrichmentBatch chunking', () => {
 
     await expect(
       applyClinicalEnrichmentBatch({
-        mode: 'enforced',
         record,
         runId: 'run-duplicate-logical-target',
         operations: duplicateEpisodeOperations,
@@ -101,7 +98,6 @@ describe('applyClinicalEnrichmentBatch chunking', () => {
 
     await expect(
       applyClinicalEnrichmentBatch({
-        mode: 'enforced',
         record,
         runId: 'run-enforced-byte-chunks',
         operations: largeOperations,
@@ -138,7 +134,6 @@ describe('applyClinicalEnrichmentBatch chunking', () => {
     });
 
     const result = await applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record,
       runId: 'run-moved-bed',
       operations: [operations[0]],
@@ -200,7 +195,6 @@ describe('applyClinicalEnrichmentBatch chunking', () => {
     });
 
     const result = await applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record: baseRecord,
       runId: 'run-coalesced-rebuild',
       operations: splitOperations,
@@ -244,7 +238,6 @@ describe('applyClinicalEnrichmentBatch chunking', () => {
 
     await expect(
       applyClinicalEnrichmentBatch({
-        mode: 'enforced',
         record,
         runId: 'run-1',
         operations: invalid,
