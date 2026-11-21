@@ -31,7 +31,7 @@ vi.mock('firebase/firestore', async () => {
 });
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn() }));
 // Retries once like the real helper, so a throw inside the closure would re-run the transaction.
-vi.mock('@/utils/networkUtils', () => ({
+vi.mock('@/services/utils/networkUtils', () => ({
   withRetry: vi.fn(
     async (
       operation: () => Promise<unknown>,

@@ -1,7 +1,7 @@
 import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { describe, expect, it, vi } from 'vitest';
 import { buildInitializedDayRecord } from '@/services/repositories/dailyRecordInitializationSupport';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 vi.mock('@/features/rayen-import/domain/clinicalCarryoverVerification', () => {
   throw new Error('Synthetic verification module unavailable');

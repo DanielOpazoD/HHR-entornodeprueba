@@ -1,4 +1,4 @@
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { describe, expect, it, vi } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';

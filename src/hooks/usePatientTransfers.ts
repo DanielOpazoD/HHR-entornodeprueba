@@ -4,7 +4,7 @@ import type {
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { BEDS } from '@/constants/beds';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import {

@@ -11,7 +11,7 @@ import {
   buildRecord,
 } from '@/tests/services/repositories/dailyRecordRepositoryWriteServiceFixtures';
 import { buildAtomicPatientMovementPatch } from '@/application/census/atomicPatientMovementPatchController';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   captureLocalRecordBase: async (date: string) => ({

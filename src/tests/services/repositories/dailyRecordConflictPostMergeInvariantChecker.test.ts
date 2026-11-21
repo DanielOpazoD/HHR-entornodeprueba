@@ -6,7 +6,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { CUDYR_SCORE_FIELDS } from '@/domain/cudyr/cudyrCompletion';
 import type { CudyrScore } from '@/types/domain/cudyr';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const completeCudyr = (value = 1): CudyrScore =>
   Object.fromEntries(CUDYR_SCORE_FIELDS.map(field => [field, value])) as unknown as CudyrScore;

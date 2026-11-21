@@ -25,7 +25,7 @@ const { scope } = await vi.hoisted(async () => {
   const { AsyncLocalStorage } = await import('node:async_hooks');
   return { scope: new AsyncLocalStorage<{ db: unknown; uid: string; role: string }>() };
 });
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return scope.getStore()?.db;
   },

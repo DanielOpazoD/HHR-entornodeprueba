@@ -16,7 +16,7 @@ import {
   resetDailyRecordFreshnessGateForTests,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { clearPendingDailyRecordPatchesForTests } from '@/hooks/controllers/dailyRecordPendingPatchController';
-import { RepositoryProvider, createRepositoryContainer } from '@/services/RepositoryContext';
+import { RepositoryProvider, createRepositoryContainer } from '@/context/RepositoryContext';
 import {
   createDailyRecordQueryResult,
   createDailyRecordReadResult,

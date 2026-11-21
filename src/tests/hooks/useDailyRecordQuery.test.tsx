@@ -15,7 +15,7 @@ import {
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { useDailyRecordQuery } from '@/hooks/useDailyRecordQuery';
-import { RepositoryProvider, createRepositoryContainer } from '@/services/RepositoryContext';
+import { RepositoryProvider, createRepositoryContainer } from '@/context/RepositoryContext';
 import { createDailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { DataFactory } from '@/tests/factories/DataFactory';

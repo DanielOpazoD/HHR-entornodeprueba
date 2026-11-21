@@ -25,7 +25,7 @@ import {
   loadExecuteWriteAuditEvent,
   type WriteAuditEvent,
 } from '@/application/audit/writeAuditEventUseCaseLoader';
-import { isAnonymousActor } from '@/application/audit/auditActorPolicy';
+import { isAnonymousActor } from '@/domain/audit/auditActorPolicy';
 import {
   createApplicationDegraded,
   createApplicationFailed,

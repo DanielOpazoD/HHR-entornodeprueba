@@ -6,7 +6,7 @@ import {
   type DischargeData,
   type TransferData,
 } from '@/types/domain/movements';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import {
   getActiveCma,
   getActiveDischarges,

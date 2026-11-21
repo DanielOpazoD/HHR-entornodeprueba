@@ -17,7 +17,7 @@
 import {
   CLINICAL_DERIVED_LAYOUT_FIELD,
   CLINICAL_DERIVED_MOVED_FIELDS,
-} from '@/services/storage/clinicalDerivedConstants';
+} from '@/constants/clinicalDerived';
 import { ensurePatientClinicalEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 
 type PlainObject = Record<string, unknown>;
@@ -92,7 +92,7 @@ const findStoredHolder = (stored: StoredHolder[], local: Holder): PlainObject | 
   const key = episodeKeyOf(local.holder);
   if (!key) return undefined;
   const matches = stored.filter(candidate => !candidate.holder.isBlocked && candidate.key === key);
-  if (matches.length === 1) return matches[0].holder;
+  if (matches.length === 1) return matches[0]?.holder;
   return matches.find(candidate => candidate === sameSlot)?.holder;
 };
 

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { findManualPatientDuplicate } from '@/features/rayen-manual-import/domain/manualPatientImportPolicy';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 describe('manual Eloísa patient duplicate policy', () => {

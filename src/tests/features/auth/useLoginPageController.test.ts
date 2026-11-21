@@ -34,7 +34,7 @@ describe('useLoginPageController', () => {
   });
 
   it('keeps the login mount light and defers the post-login route preload', () => {
-    renderHook(() => useLoginPageController(vi.fn()));
+    renderHook(() => useLoginPageController(vi.fn(), null, mockPreloadDefaultPostLoginRoute));
 
     expect(mockPreloadDefaultPostLoginRoute).not.toHaveBeenCalled();
   });
@@ -83,7 +83,9 @@ describe('useLoginPageController', () => {
         },
       });
     });
-    const { result } = renderHook(() => useLoginPageController(onLoginSuccess));
+    const { result } = renderHook(() =>
+      useLoginPageController(onLoginSuccess, null, mockPreloadDefaultPostLoginRoute)
+    );
 
     await act(async () => {
       const promise = result.current.handleGoogleSignIn();

@@ -9,13 +9,13 @@
 // Hospital Configuration
 // ============================================================================
 
-import { HospitalConfigService } from '@/services/config/HospitalConfigService';
+import { getActiveHospitalId as readActiveHospitalId } from '@/constants/activeHospital';
 
 /**
  * Hospital ID - used as the root document for all hospital data.
- * Now dynamic via HospitalConfigService for multi-tenancy.
+ * Dynamic via activeHospital for multi-tenancy without pulling services into constants/.
  */
-export const getActiveHospitalId = () => HospitalConfigService.getHospitalId();
+export const getActiveHospitalId = () => readActiveHospitalId();
 
 // ============================================================================
 // Collection Names

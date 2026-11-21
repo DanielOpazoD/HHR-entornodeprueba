@@ -2,7 +2,7 @@ import { saveBackupImport } from '@/services/repositories/dailyRecordBackupImpor
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { getRecordForDateStrict } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { hasStructuralRepairs, parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
-import { CLINICAL_DERIVED_BACKUP_SECTION } from '@/services/storage/clinicalDerivedConstants';
+import { CLINICAL_DERIVED_BACKUP_SECTION } from '@/constants/clinicalDerived';
 import { jsonImportLogger } from '@/services/exporters/exporterLoggers';
 import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
 import { loadClinicalDerivedDayRestore } from '@/services/exporters/clinicalDerivedBackupSection';

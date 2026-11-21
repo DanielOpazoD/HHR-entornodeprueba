@@ -50,7 +50,7 @@ vi.mock('firebase/functions', () => ({
   httpsCallable: (...args: unknown[]) => mockHttpsCallable(...args),
 }));
 
-vi.mock('@/utils/networkUtils', () => ({
+vi.mock('@/services/utils/networkUtils', () => ({
   withRetry: vi.fn((operation: () => Promise<unknown> | unknown) => operation()),
 }));
 

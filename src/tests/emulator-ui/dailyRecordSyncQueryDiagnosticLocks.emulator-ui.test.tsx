@@ -69,7 +69,7 @@ const currentUser = {
   displayName: 'Test Nurse',
 };
 
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return activeDb;
   },

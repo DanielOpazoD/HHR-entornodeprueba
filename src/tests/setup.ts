@@ -137,7 +137,7 @@ const firebaseMock = {
 };
 
 // Use @ alias or absolute relative paths
-vi.mock('@/firebaseConfig', () => firebaseMock);
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => firebaseMock);
 vi.mock('../firebaseConfig', () => firebaseMock);
 
 // Mock firebase/auth module

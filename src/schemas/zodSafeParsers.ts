@@ -2,8 +2,8 @@ import type { BedType } from '@/types/domain/beds';
 import type { CMAData, DischargeData, TransferData } from '@/types/domain/movements';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
-import { applyDailyRecordStaffingCompatibility } from '@/services/staff/dailyRecordStaffing';
-import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
+import { applyDailyRecordStaffingCompatibility } from '@/domain/staff/dailyRecordStaffingCompatibility';
+import { emitOperationalTelemetry } from '@/shared/observability/operationalTelemetrySink';
 import type { ZodSafeParseResult } from 'zod';
 
 import { normalizeLegacyNullsDeep } from './zod/legacyNormalization';
@@ -17,7 +17,7 @@ import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import { PatientDataSchema } from './zod/patient';
 import { CMADataSchema, DischargeDataSchema, TransferDataSchema } from './zod/movements';
 import { buildFallbackPatientDataReport } from './zodFallbackBuilders';
-import { carriesClinicalDerivedLayout } from '@/services/storage/clinicalDerivedWriteHygiene';
+import { carriesClinicalDerivedLayout } from '@/domain/clinical-derived/clinicalDerivedWriteHygiene';
 import type { DailyRecordParseReport, PatientDataParseReport } from './zodParseReports';
 
 export const safeParseDailyRecord = (data: unknown): DailyRecord | null => {
@@ -25,7 +25,7 @@ export const safeParseDailyRecord = (data: unknown): DailyRecord | null => {
   const result = DailyRecordSchema.safeParse(normalized);
   if (result.success) return result.data as DailyRecord;
 
-  recordOperationalTelemetry({
+  emitOperationalTelemetry({
     category: 'sync',
     operation: 'safe_parse_daily_record',
     status: 'degraded',

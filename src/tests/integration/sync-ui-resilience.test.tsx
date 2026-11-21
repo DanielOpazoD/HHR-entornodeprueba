@@ -6,7 +6,7 @@ import { ConcurrencyError } from '@/services/storage/firestore';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { PatientStatus } from '@/types/domain/patientClassification';
 
 const mockSubscribe = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>();

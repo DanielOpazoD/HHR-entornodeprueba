@@ -22,7 +22,7 @@ vi.mock('@/services/repositories/dailyRecordRemoteWriteController', () => ({
 
 import { persistLocalAndAttemptRemoteSync } from '@/services/repositories/dailyRecordRemotePersistenceController';
 import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const buildRecord = (): DailyRecord =>
   ({

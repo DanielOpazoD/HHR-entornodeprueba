@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { PatientStatus } from '@/types/domain/patientClassification';
 
 const makeRecord = (date: string, lastUpdated: string): DailyRecord => ({

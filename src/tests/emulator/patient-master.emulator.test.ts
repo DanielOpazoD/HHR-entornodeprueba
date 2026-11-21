@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import type { Firestore } from 'firebase/firestore';
-import { HospitalConfigService } from '@/services/config/HospitalConfigService';
+import { setActiveHospitalId } from '@/constants/activeHospital';
 import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreRulesEmulatorConfig';
 import type { MasterPatient } from '@/types/domain/patientMaster';
 
-vi.mock('@/firebaseConfig', () => ({ db: null, auth: null }));
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({ db: null, auth: null }));
 import { createPatientMasterRepository } from '@/services/repositories/PatientMasterRepository';
 
 const describeEmulator = process.env.FIRESTORE_EMULATOR_HOST ? describe : describe.skip;
@@ -37,7 +37,7 @@ describeEmulator('patient master with real Firestore', () => {
     });
   });
   beforeEach(async () => {
-    HospitalConfigService.setHospitalId('hanga_roa');
+    setActiveHospitalId('hanga_roa');
     await environment.clearFirestore();
     // A fresh SDK cache must accompany the server reset between cases.
     const db = environment
@@ -49,7 +49,7 @@ describeEmulator('patient master with real Firestore', () => {
     repository = createPatientMasterRepository({ getDb: () => db as unknown as Firestore });
   });
   afterAll(async () => {
-    HospitalConfigService.setHospitalId('hanga_roa');
+    setActiveHospitalId('hanga_roa');
     await environment?.cleanup();
   });
   const seed = async (patients: MasterPatient[]) =>
@@ -75,7 +75,7 @@ describeEmulator('patient master with real Firestore', () => {
     expect(await repository.getPatientByRut('11.111.111-1')).toBeNull();
     expect(await repository.getPatientByRut('invalid')).toBeNull();
     expect(await repository.getPatientByRut('P123456785')).toBeNull();
-    HospitalConfigService.setHospitalId('synthetic-other');
+    setActiveHospitalId('synthetic-other');
     expect(await repository.getPatientByRut(target.rut)).toBeNull();
   });
   it('skips invalid identifiers without writing', async () => {

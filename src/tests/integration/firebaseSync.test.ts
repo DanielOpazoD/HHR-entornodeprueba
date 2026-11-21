@@ -54,7 +54,7 @@ vi.mock('firebase/firestore', async importOriginal => {
   };
 });
 
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   db: {},
 }));
 const authority = vi.hoisted(() => ({ save: vi.fn() }));

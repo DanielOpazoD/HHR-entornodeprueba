@@ -7,7 +7,7 @@ import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
 import type { MasterPatient } from '@/types/domain/patientMaster';
 import type { Statistics } from '@/types/domain/statistics';
 import { BEDS } from '@/constants/beds';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const FIXED_ISO_TIMESTAMP = '2026-01-01T00:00:00.000Z';
 const FIXED_DATE = '2026-01-01';

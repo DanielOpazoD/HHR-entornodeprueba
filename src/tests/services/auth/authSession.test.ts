@@ -27,7 +27,7 @@ vi.mock('firebase/auth', () => ({
   },
 }));
 
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   auth: mockAuth,
   firebaseReady: Promise.resolve(),
   getFunctionsInstance: vi.fn().mockReturnValue({}),

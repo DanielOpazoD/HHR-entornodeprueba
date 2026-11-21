@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore';
 import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreRulesEmulatorConfig';
 
-vi.mock('@/firebaseConfig', () => ({ db: null, auth: null }));
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({ db: null, auth: null }));
 
 import { sanitizeForFirestore } from '@/services/storage/firestore/firestoreShared';
 import { prepareFirestorePartialData } from '@/services/storage/firestore/firestoreRecordWritePatchPolicy';

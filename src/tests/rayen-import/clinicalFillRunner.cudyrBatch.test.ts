@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { resolveClinicalStageResult } from '@/features/rayen-import/domain/clinicalStageResolution';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const record = (): DailyRecord =>
   DataFactory.createMockDailyRecord('2026-07-16', {

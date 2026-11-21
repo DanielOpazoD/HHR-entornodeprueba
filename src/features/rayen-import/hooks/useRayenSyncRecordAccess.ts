@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { useRepositories } from '@/services/RepositoryContext';
+import type { useRepositories } from '@/context/RepositoryContext';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 type DailyRecordRepository = ReturnType<typeof useRepositories>['dailyRecord'];

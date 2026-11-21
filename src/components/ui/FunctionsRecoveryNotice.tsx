@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
+import { useFunctionsRecoveryWarmup } from '@/hooks/useFunctionsRecoveryWarmup';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import {
   getModuleReloadReason,
@@ -7,22 +7,9 @@ import {
 } from '@/services/runtime/moduleReloadRecovery';
 import { AUTH_UI_COPY } from '@/services/auth/authUiCopy';
 
-const warmFunctions = async () => {
-  if (!navigator.onLine) return;
-  await defaultFunctionsRuntime.ready;
-  if (navigator.onLine) await defaultFunctionsRuntime.getFunctions();
-};
-
 export default function FunctionsRecoveryNotice() {
   const needsReload = useSyncExternalStore(subscribeModuleRecovery, getModuleReloadReason);
-  useEffect(() => {
-    const warm = () => {
-      void warmFunctions().catch(() => {});
-    };
-    warm();
-    window.addEventListener('online', warm);
-    return () => window.removeEventListener('online', warm);
-  }, []);
+  const warmFunctions = useFunctionsRecoveryWarmup();
   return (
     <aside
       role="status"
@@ -30,12 +17,12 @@ export default function FunctionsRecoveryNotice() {
       aria-atomic="true"
       className="fixed inset-x-0 bottom-0 z-[100]"
     >
-      {needsReload ? <FunctionsRecoveryBanner /> : null}
+      {needsReload ? <FunctionsRecoveryBanner warmFunctions={warmFunctions} /> : null}
     </aside>
   );
 }
 
-function FunctionsRecoveryBanner() {
+function FunctionsRecoveryBanner({ warmFunctions }: { warmFunctions: () => Promise<void> }) {
   const reason = useSyncExternalStore(subscribeModuleRecovery, getModuleReloadReason);
   const [connected, setConnected] = useState(false);
   useEffect(() => {
@@ -73,7 +60,7 @@ function FunctionsRecoveryBanner() {
       window.removeEventListener('online', confirmConnection);
       window.removeEventListener('offline', offline);
     };
-  }, []);
+  }, [warmFunctions]);
   if (!connected) return null;
   return (
     <div className="border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900">

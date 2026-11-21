@@ -3,7 +3,7 @@ import { webcrypto } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { parseEloisaPatientCode } from '@/features/rayen-manual-import/domain/eloisaPatientCode';
 import { mapRayenInvasiveDeviceEntries, mergeReportDevices } from '@/features/rayen-import';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import '../../../extension/eloisa-patient-code-contract.js';
 
 type ExtensionContract = {

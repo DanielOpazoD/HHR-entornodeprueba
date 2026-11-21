@@ -24,7 +24,7 @@ import {
   saveHistorySnapshot,
   updateRecordPartiallyAtomically,
 } from '@/services/storage/firestore/firestoreWriteSupport';
-import { withRetry } from '@/utils/networkUtils';
+import { withRetry } from '@/services/utils/networkUtils';
 
 describe('firestoreRecordWrites', () => {
   beforeEach(() => {

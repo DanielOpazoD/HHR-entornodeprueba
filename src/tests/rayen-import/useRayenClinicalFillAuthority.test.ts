@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetRayenClinicalFillQueueForTests } from '@/features/rayen-import/domain/rayenClinicalFillQueue';
 import { useRayenClinicalFill } from '@/features/rayen-import/hooks/useRayenClinicalFill';
 import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const mocks = vi.hoisted(() => ({
   beginRayenFill: vi.fn(),

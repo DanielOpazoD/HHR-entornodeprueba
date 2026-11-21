@@ -4,7 +4,7 @@ import type { NeonatalPlacementResolution } from '../contracts/neonatalPlacement
 import { useCallback, type RefObject } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { finalizeRayenHistoricalDischarges } from './finalizeRayenHistoricalDischarges';
-import type { useRepositories } from '@/services/RepositoryContext';
+import type { useRepositories } from '@/context/RepositoryContext';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { getRayenImportErrorMessage, type RayenImportState } from './rayenImportState';
 import {

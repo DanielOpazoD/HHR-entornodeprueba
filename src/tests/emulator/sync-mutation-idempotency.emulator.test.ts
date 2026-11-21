@@ -25,7 +25,7 @@ type TestFirestore = ReturnType<
   ReturnType<RulesTestEnvironment['authenticatedContext']>['firestore']
 >;
 
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return activeDb;
   },

@@ -5,7 +5,7 @@ import {
   buildClinicalDerivedBackupSection,
   describeIncompleteClinicalDerivedBackup,
 } from '@/services/exporters/clinicalDerivedBackupSection';
-import { CLINICAL_DERIVED_BACKUP_SECTION } from '@/services/storage/clinicalDerivedConstants';
+import { CLINICAL_DERIVED_BACKUP_SECTION } from '@/constants/clinicalDerived';
 import {
   importDataJSON as importDataJSONFile,
   importDataJSONDetailed as importDataJSONDetailedFile,

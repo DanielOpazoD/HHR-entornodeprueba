@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRequire } from 'node:module';
 import { mergeClinicalDeviceRead } from '@/features/rayen-import/domain/mergeClinicalDeviceRead';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { seedClinicalCarryover } from '@/services/repositories/clinicalCarryoverSeed';
 import { parsePatientDataWithDefaults } from '@/schemas/zodSchemas';
 import { calculateDeviceDays } from '@/components/device-selector/DeviceDateConfigModal';

@@ -75,10 +75,6 @@ vi.mock('@/services/auth/authSession', () => ({
   getCurrentAuthSessionState: (...args: unknown[]) => mockGetCurrentAuthSessionState(...args),
 }));
 
-vi.mock('@/app-shell/bootstrap/authenticatedRoutePreloadController', () => ({
-  preloadDefaultPostLoginRoute: (...args: unknown[]) => mockPreloadDefaultPostLoginRoute(...args),
-}));
-
 export const setupLoginPageControllerTests = () => {
   beforeEach(() => {
     vi.clearAllMocks();

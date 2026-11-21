@@ -12,7 +12,7 @@ import {
 import { BedTypeSchema, PatientDataSchema } from './patient';
 import { DischargeDataSchema, TransferDataSchema, CMADataSchema } from './movements';
 import { RayenSyncPerformanceSchema } from './rayenSyncPerformance';
-import { applyDailyRecordStaffingCompatibility } from '@/services/staff/dailyRecordStaffing';
+import { applyDailyRecordStaffingCompatibility } from '@/domain/staff/dailyRecordStaffingCompatibility';
 import {
   CUDYR_RECOVERY_KINDS,
   MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE,

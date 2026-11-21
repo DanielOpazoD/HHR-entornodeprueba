@@ -14,7 +14,7 @@ vi.mock('@/context/AuditContext', () => ({
   useAuditContext: vi.fn(),
 }));
 
-vi.mock('@/services/factories/patientFactory', () => ({
+vi.mock('@/domain/patient/patientFactory', () => ({
   createEmptyPatient: (bedId: string) => ({
     bedId,
     patientName: '',

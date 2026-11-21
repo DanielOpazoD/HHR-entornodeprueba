@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo } from 'react';
-import { CLINICAL_DERIVED_LAYOUT_VERSION } from '@/services/storage/clinicalDerivedConstants';
+import { CLINICAL_DERIVED_LAYOUT_VERSION } from '@/constants/clinicalDerived';
 
 /**
  * The census day's clinicalDerived marker (docs/DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md,

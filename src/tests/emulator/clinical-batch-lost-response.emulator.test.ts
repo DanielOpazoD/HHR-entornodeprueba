@@ -21,7 +21,7 @@ import type { DocumentaryCudyr } from '@/domain/evaluationScales/documentaryCudy
 
 // The browser bootstrap is outside this in-process transport test. Fail closed if
 // an uninjected path tries to use a configured client instead of the local admin SDK.
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   firebaseReady: Promise.resolve(),
   firestoreReady: Promise.resolve(),
   auth: null,

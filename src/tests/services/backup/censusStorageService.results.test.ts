@@ -15,7 +15,7 @@ vi.mock('firebase/storage', () => ({
   getMetadata: vi.fn(),
 }));
 
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   storage: {} as Record<string, never>,
   getStorageInstance: vi.fn().mockResolvedValue({} as Record<string, never>),
   auth: { currentUser: null },

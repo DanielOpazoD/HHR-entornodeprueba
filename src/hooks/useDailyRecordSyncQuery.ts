@@ -25,7 +25,7 @@ import { UseDailyRecordSyncResult } from '@/context/dailyRecordContextContracts'
 import type { ApplyDailyRecordPatchOptions } from '@/application/shared/dailyRecordCoreContracts';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import { useRepositories } from '@/services/RepositoryContext';
+import { useRepositories } from '@/context/RepositoryContext';
 import { useNotification } from '@/context/UIContext';
 import { useVersion } from '@/context/VersionContext';
 import {

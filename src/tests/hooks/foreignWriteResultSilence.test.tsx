@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react
 import { renderHook, act, waitFor, cleanup } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
-import { RepositoryProvider, createRepositoryContainer } from '@/services/RepositoryContext';
+import { RepositoryProvider, createRepositoryContainer } from '@/context/RepositoryContext';
 import { buildMockDailyRecordRepository } from '@/tests/factories/dailyRecordRepositoryMock';
 import {
   setDailyRecordQueryData,

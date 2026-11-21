@@ -3,7 +3,7 @@ import {
   RepositoryProvider,
   createTestRepositoryContainer,
   type IRepositoryContainer,
-} from '@/services/RepositoryContext';
+} from '@/context/RepositoryContext';
 
 export const createRepositoryTestWrapper = (
   overrides: Partial<IRepositoryContainer> = {}

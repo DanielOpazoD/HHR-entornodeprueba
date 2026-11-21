@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { resolveUndoPatientMovement } from '@/application/census/controllers/patientMovementUndoController';
 
 describe('patientMovementUndoController', () => {

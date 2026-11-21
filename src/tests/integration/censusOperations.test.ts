@@ -10,7 +10,7 @@ import type { DischargeData, TransferData, CMAData } from '@/types/domain/moveme
 import type { PatientData } from '@/types/domain/patient';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 // Helper to create a complete mock record
 const createMockRecord = (): DailyRecord => ({

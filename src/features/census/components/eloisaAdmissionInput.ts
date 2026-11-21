@@ -1,5 +1,5 @@
 import type { AdmitPatientInput } from '@/application/daily-record/commands/admitPatientCommand';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import {
   buildEloisaPatientDisplayName,
   type EloisaManualPatientPayload,

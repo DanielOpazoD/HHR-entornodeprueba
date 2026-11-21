@@ -1,7 +1,7 @@
 import { getDoc, Timestamp, type DocumentData } from 'firebase/firestore';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import { withRetry } from '@/utils/networkUtils';
+import { withRetry } from '@/services/utils/networkUtils';
 import { DataRegressionError } from '@/utils/integrityGuard';
 import {
   docToRecord,

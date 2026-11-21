@@ -1,56 +1,20 @@
 import PasswordInput from '@/components/ui/PasswordInput';
-import {
-  isValidNursingPassword,
-  NURSING_PASSWORD_HINT,
-} from '@/services/auth/nursingPasswordPolicy';
-import React, { useState, useRef, useEffect } from 'react';
+import { NURSING_PASSWORD_HINT } from '@/services/auth/nursingPasswordPolicy';
+import { useNursingPasswordChange } from '@/hooks/useNursingPasswordChange';
 import { createPortal } from 'react-dom';
-import {
-  accountErrorMessage,
-  establishNursingSession,
-} from '@/services/auth/nursingAccountService';
 
 export default function NursingPasswordDialog({ onClose }: { onClose: () => void }) {
-  const mounted = useRef(true);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmation, setConfirmation] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (password !== confirmation) {
-      setMessage('Las claves nuevas no coinciden.');
-      return;
-    }
-    if (!isValidNursingPassword(password)) {
-      setMessage(NURSING_PASSWORD_HINT);
-      return;
-    }
-    setBusy(true);
-    setMessage('');
-    try {
-      await establishNursingSession(
-        'changeNursingPassword',
-        { currentPassword, password },
-        () => mounted.current
-      );
-      setCurrentPassword('');
-      setPassword('');
-      setConfirmation('');
-      setMessage('Clave cambiada. Las otras sesiones han quedado invalidadas.');
-    } catch (error) {
-      setMessage(accountErrorMessage(error));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const {
+    currentPassword,
+    setCurrentPassword,
+    password,
+    setPassword,
+    confirmation,
+    setConfirmation,
+    busy,
+    message,
+    submit,
+  } = useNursingPasswordChange();
   // The navbar's transform would make `fixed` relative to the bar, cutting the dialog off.
   return createPortal(
     <div

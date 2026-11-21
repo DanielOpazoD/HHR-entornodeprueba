@@ -1,4 +1,4 @@
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { describe, expect, it } from 'vitest';
 import {
   applyCensusImportDiff,

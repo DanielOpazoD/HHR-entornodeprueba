@@ -10,7 +10,7 @@ import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
 import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
-import { DefaultRepositoryProvider } from '@/services/RepositoryContext';
+import { DefaultRepositoryProvider } from '@/context/RepositoryContext';
 import { useDailyRecordQuery } from '@/hooks/useDailyRecordQuery';
 import { usePatchDailyRecordMutation } from '@/hooks/usePatchDailyRecordMutation';
 import { useBedManagement } from '@/hooks/useBedManagement';
@@ -20,7 +20,7 @@ import {
   setDailyRecordQueryData,
 } from '@/hooks/controllers/dailyRecordQueryController';
 import { useDevicesCellController } from '@/features/census/components/patient-row/useDevicesCellController';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';
 import { processSyncQueue } from '@/services/storage/sync';
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
@@ -67,7 +67,7 @@ vi.mock('firebase/functions', () => ({
     throw new Error(`unexpected callable ${name}`);
   },
 }));
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return h.db;
   },

@@ -12,7 +12,7 @@ import { updatePartialDetailed } from '@/services/repositories/dailyRecordReposi
 import { resolveRemoteWriteRecovery } from '@/services/repositories/dailyRecordRemoteWriteController';
 import { applyOptimisticDailyRecordPatch } from '@/hooks/controllers/dailyRecordQueryController';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';

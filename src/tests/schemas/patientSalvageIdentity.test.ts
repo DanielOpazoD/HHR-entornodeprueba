@@ -8,7 +8,7 @@ import {
   parsePatientDataWithDefaultsReport,
 } from '@/schemas/zodSchemas';
 import { PatientDataSchema } from '@/schemas/zod/patient';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 
 const DATE = '2026-10-24';

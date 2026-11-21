@@ -16,7 +16,7 @@ import { useDailyRecordBeds, useDailyRecordData } from '@/context/DailyRecordCon
 import { useDailyRecordBedActions } from '@/context/useDailyRecordScopedActions';
 import { ViewLoader } from '@/components/ui/ViewLoader';
 import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { resolveEmptyBedSaveAction } from '@/features/census/controllers/admitPatientGate';
 import { useAdmitPatient } from '@/hooks/useAdmitPatient';
 import { useNotification } from '@/context/UIContext';

@@ -33,7 +33,7 @@ vi.mock('firebase/firestore', () => ({
   })),
 }));
 
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   db: {},
 }));
 

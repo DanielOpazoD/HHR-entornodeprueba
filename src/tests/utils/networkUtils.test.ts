@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { withRetry } from '@/utils/networkUtils';
+import { withRetry } from '@/services/utils/networkUtils';
 
 describe('networkUtils', () => {
   it('should return result if first attempt succeeds', async () => {

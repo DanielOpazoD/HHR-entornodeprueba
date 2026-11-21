@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { buildDailyCudyrSummary, resolveVisibleCudyrBeds } from '@/services/cudyr/cudyrSummary';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 // Mock BEDS
 vi.mock('@/constants/beds', () => ({

@@ -10,7 +10,7 @@ import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestor
 import { disableNetwork } from 'firebase/firestore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
-import { DefaultRepositoryProvider } from '@/services/RepositoryContext';
+import { DefaultRepositoryProvider } from '@/context/RepositoryContext';
 import { useDailyRecordQuery } from '@/hooks/useDailyRecordQuery';
 import { usePatchDailyRecordMutation } from '@/hooks/usePatchDailyRecordMutation';
 import {
@@ -72,7 +72,7 @@ vi.mock('firebase/functions', () => ({
     throw new Error(`unexpected callable ${name}`);
   },
 }));
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return h.db;
   },

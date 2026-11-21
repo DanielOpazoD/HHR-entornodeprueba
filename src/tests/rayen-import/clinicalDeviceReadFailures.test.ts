@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { mergeClinicalDeviceRead } from '@/features/rayen-import/domain/mergeClinicalDeviceRead';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { buildInitializedDayRecord } from '@/services/repositories/dailyRecordInitializationSupport';
 import { applyPatches } from '@/utils/patchUtils';
 import type { DeviceInstance } from '@/types/domain/devices';

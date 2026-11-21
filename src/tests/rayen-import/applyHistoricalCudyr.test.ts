@@ -6,7 +6,7 @@ import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyReco
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 vi.mock('@/hooks/controllers/dailyRecordMutationFreshnessController', () => ({
   patchDailyRecordWithCompatibility: vi.fn(),

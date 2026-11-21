@@ -2,6 +2,10 @@ import { useWarmDailyRecordSavePath } from '@/hooks/useWarmDailyRecordSavePath';
 import React from 'react';
 import { FlaskConical } from 'lucide-react';
 import { AppContent } from '@/components/layout/AppContent';
+import { AppRouter } from '@/app-shell/routing/AppRouter';
+import type { AppRouterShellState } from '@/app-shell/routing/appRouterController';
+import type { UseUIStateReturn } from '@/hooks/useUIState';
+import { CensusEmailConfigModal, GlobalPatientSearchModal } from '@/views/LazyViews';
 import { CensusProvider } from '@/context/CensusContext';
 import type { AuthContextType } from '@/context/AuthContext';
 import type { UseDateNavigationReturn } from '@/hooks/useDateNavigation';
@@ -50,6 +54,15 @@ const LaboratoryQuickActionFallback = () => (
 
 import { ClinicalLibraryToolbarFallback } from '@/components/layout/date-strip/CensusToolbarLoadingActions';
 
+const AUTHENTICATED_OVERLAY_VIEWS = {
+  CensusEmailConfigModal,
+  GlobalPatientSearchModal,
+};
+
+const renderAuthenticatedModuleRouter = (ui: UseUIStateReturn, shell: AppRouterShellState) => (
+  <AppRouter ui={ui} shell={shell} />
+);
+
 interface AuthenticatedAppShellProps {
   auth: AuthContextType;
   dateNav: UseDateNavigationReturn;
@@ -88,6 +101,8 @@ export const AuthenticatedAppShell = ({ auth, dateNav }: AuthenticatedAppShellPr
       <HandoffExtensionConnection auth={auth} />
       <AppContent
         ui={ui}
+        renderModuleRouter={renderAuthenticatedModuleRouter}
+        overlayViews={AUTHENTICATED_OVERLAY_VIEWS}
         renderFeatureQuickActions={renderFeatureQuickActions}
         radiologyViewer={RadiologyViewerModal}
         renderCensusTrailingActions={renderCensusTrailingActions}

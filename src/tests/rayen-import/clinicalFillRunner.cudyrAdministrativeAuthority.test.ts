@@ -2,7 +2,7 @@ import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalF
 import { describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const record = (): DailyRecord =>
   DataFactory.createMockDailyRecord('2026-07-10', {

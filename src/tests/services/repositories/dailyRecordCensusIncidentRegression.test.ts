@@ -5,7 +5,7 @@ import { resolveConflictSnapshotRecoveryState } from '@/application/clinical-con
 import { buildConflictAuditSummary } from '@/services/repositories/conflictResolutionAuditSummary';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const makeRecord = (lastUpdated: string): DailyRecord =>
   ({

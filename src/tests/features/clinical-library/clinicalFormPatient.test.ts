@@ -1,7 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import { describe, expect, it } from 'vitest';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 import { medifValuesFromClinicalPatient } from '@/features/clinical-library/domain/forms/clinicalFormMedif';
 import { MEDIF_FIELDS } from '@/features/clinical-library/domain/medifSchema';

@@ -1,9 +1,9 @@
 import React from 'react';
-import { TerminologyConcept } from '@/services/terminology/terminologyService';
+import type { TerminologyConcept } from '@/services/terminology/terminologyService';
 import { Search, Loader2, X, Sparkles, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
 import { BaseModal } from './BaseModal';
-import { useTerminologySuggestor } from './hooks/useTerminologySuggestor';
+import { useTerminologySuggestor } from '@/hooks/useTerminologySuggestor';
 
 interface TerminologySuggestorProps {
   value: string;

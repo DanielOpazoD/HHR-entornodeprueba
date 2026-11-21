@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1216,
+  "total": 1215,
   "areas": {
     "src/application/backup-export": 4,
     "src/application/wound-care": 1,
@@ -47,7 +47,7 @@
     "src/services/records": 2,
     "src/services/repositories": 32,
     "src/services/staff": 8,
-    "src/services/storage": 33,
+    "src/services/storage": 32,
     "src/services/terminology": 2,
     "src/shared/date": 4,
     "src/types/auditLogTypes": 1,

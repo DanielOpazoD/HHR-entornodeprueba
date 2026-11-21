@@ -5,7 +5,7 @@ import {
   type QueryClientConfig,
 } from '@tanstack/react-query';
 import { type ReactElement, type ReactNode } from 'react';
-import { RepositoryProvider, createTestRepositoryContainer } from '@/services/RepositoryContext';
+import { RepositoryProvider, createTestRepositoryContainer } from '@/context/RepositoryContext';
 import { queryClient as appQueryClient } from '@/config/queryClient';
 
 interface QueryClientTestWrapperOptions {

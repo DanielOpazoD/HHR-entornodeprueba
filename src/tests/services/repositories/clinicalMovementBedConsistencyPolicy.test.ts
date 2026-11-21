@@ -5,7 +5,7 @@ import { resolveDailyRecordConflict } from '@/services/repositories/conflictReso
 import { normalizeMovementBedConsistency } from '@/services/repositories/clinicalMovementBedConsistencyPolicy';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { PatientStatus } from '@/types/domain/patientClassification';
 
 const makeRecord = (lastUpdated: string): DailyRecord =>

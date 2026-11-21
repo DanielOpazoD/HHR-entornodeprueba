@@ -2,7 +2,7 @@ import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalF
 import { describe, expect, it, vi } from 'vitest';
 import { resolveHistoricalCudyrBatchOperation } from '@/features/rayen-import/domain/historicalCudyrPatch';
 import { buildInitializedDayRecord } from '@/services/repositories/dailyRecordInitializationSupport';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { applyPatches } from '@/utils/patchUtils';
 
 describe('daily sync recovers the prior night after discharge', () => {

@@ -46,7 +46,7 @@ import {
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { subscribeToRecord } from '@/services/storage/firestore/firestoreRecordQueries';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 describe('dailyRecordRepositorySyncService', () => {
   const subscriptions: Array<() => void> = [];

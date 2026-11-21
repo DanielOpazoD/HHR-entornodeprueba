@@ -11,7 +11,7 @@ import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreR
 
 const { authority } = vi.hoisted(() => ({ authority: vi.fn() }));
 let activeDb: unknown;
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return activeDb;
   },

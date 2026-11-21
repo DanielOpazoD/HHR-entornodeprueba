@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   audit: vi.fn(),
   notify: vi.fn(),
 }));
-vi.mock('@/services/RepositoryContext', () => ({
+vi.mock('@/context/RepositoryContext', () => ({
   useRepositories: () => ({ dailyRecord: mocks.repository }),
 }));
 vi.mock('@/application/ports/dailyRecordPort', () => ({

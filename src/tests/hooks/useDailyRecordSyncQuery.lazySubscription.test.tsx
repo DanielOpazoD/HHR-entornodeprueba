@@ -10,7 +10,7 @@ import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryCont
 
 vi.unmock('@/application/ports/dailyRecordPort');
 let repository: DailyRecordRepositoryPort;
-vi.mock('@/services/RepositoryContext', () => ({
+vi.mock('@/context/RepositoryContext', () => ({
   useRepositories: () => ({ dailyRecord: repository }),
 }));
 vi.mock('@/context/UIContext', () => ({

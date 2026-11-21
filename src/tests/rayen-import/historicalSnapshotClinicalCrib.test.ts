@@ -5,7 +5,7 @@ import { planRayenCensusImport } from '@/features/rayen-import/importRayenCensus
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenCensusSnapshot } from '@/features/rayen-import/contracts/rayenSnapshot';
 import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 describe('historical mother and clinical crib reconstruction', () => {
   it.each([

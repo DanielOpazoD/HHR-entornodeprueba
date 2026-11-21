@@ -1,6 +1,6 @@
 import React from 'react';
 import { useDateNavigation } from '@/hooks/useDateNavigation';
-import { useVersionCheck } from '@/hooks/useVersionCheck';
+import { useVersionCheck } from '@/app-shell/bootstrap/useVersionCheck';
 import { useStalenessGuard } from '@/hooks/useStalenessGuard';
 import type { UseDateNavigationReturn } from '@/hooks/useDateNavigation';
 import { useStorageMigration } from '@/hooks/useStorageMigration';

@@ -10,7 +10,7 @@ import type { ConflictVersionRecoveryModel } from '@/hooks/clinical-conflicts/us
 import type { ConflictVersionSnapshot } from '@/application/ports/dailyRecordConflictRecoveryPort';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const mockRecovery = vi.hoisted(() => vi.fn<() => ConflictVersionRecoveryModel>());
 

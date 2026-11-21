@@ -18,7 +18,7 @@ import {
 } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { setDoc } from 'firebase/firestore';
 import { usePatchDailyRecordMutation } from '@/hooks/usePatchDailyRecordMutation';
-import { RepositoryProvider, createRepositoryContainer } from '@/services/RepositoryContext';
+import { RepositoryProvider, createRepositoryContainer } from '@/context/RepositoryContext';
 import { buildMockDailyRecordRepository } from '@/tests/factories/dailyRecordRepositoryMock';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';

@@ -6,7 +6,7 @@ const state = vi.hoisted(() => ({
   logger: vi.fn(),
   observe: vi.fn(),
 }));
-vi.mock('@/firebaseConfig', () => ({ db: {} }));
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({ db: {} }));
 vi.mock('@/constants/firestorePaths', () => ({
   COLLECTIONS: { HOSPITALS: 'hospitals' },
   getActiveHospitalId: () => 'hanga_roa',

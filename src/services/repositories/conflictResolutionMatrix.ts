@@ -38,8 +38,8 @@ import {
   resolveStaffingSlotArray,
 } from '@/services/repositories/conflictResolutionStaffingMergeUtils';
 import { resolvePathValueWithMatrix } from '@/services/repositories/conflictResolutionPathMatrix';
-import { CLINICAL_DERIVED_LAYOUT_FIELD } from '@/services/storage/clinicalDerivedConstants';
-import { adoptStoredClinicalDerivedState } from '@/services/storage/clinicalDerivedWriteHygiene';
+import { CLINICAL_DERIVED_LAYOUT_FIELD } from '@/constants/clinicalDerived';
+import { adoptStoredClinicalDerivedState } from '@/domain/clinical-derived/clinicalDerivedWriteHygiene';
 
 interface ConflictResolutionOptions {
   changedPaths?: string[];

@@ -8,7 +8,7 @@ import { usePatchDailyRecordMutation } from '@/hooks/usePatchDailyRecordMutation
 import { executeBedManagementAction } from '@/hooks/controllers/bedManagementDispatchController';
 import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryController';
 import { resetDailyRecordFreshnessGateForTests } from '@/hooks/controllers/dailyRecordFreshnessGateController';
-import { RepositoryProvider, createRepositoryContainer } from '@/services/RepositoryContext';
+import { RepositoryProvider, createRepositoryContainer } from '@/context/RepositoryContext';
 import { createDailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import { DataFactory } from '@/tests/factories/DataFactory';

@@ -25,7 +25,7 @@ import { resolvePrescriptionImageDownloadUrl } from '@/features/prescriptions/se
 import type { PrescriptionRecord } from '@/types/prescriptionTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const buildRecord = (
   id: string,

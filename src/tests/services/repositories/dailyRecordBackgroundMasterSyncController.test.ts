@@ -5,7 +5,7 @@ import { syncPatientsToMasterInBackground } from '@/services/repositories/dailyR
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { PatientMasterRepository } from '@/services/repositories/PatientMasterRepository';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const createRecord = (): DailyRecord => ({
   date: '2026-04-14',

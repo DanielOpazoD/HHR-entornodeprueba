@@ -2,7 +2,7 @@ import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalF
 import { describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 // What a sync run does after its clinical save and before it closes, and how long each part takes.
 const SCALE_EVENT = {

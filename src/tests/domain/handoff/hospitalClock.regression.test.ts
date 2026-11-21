@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CensusManager } from '@/domain/CensusManager';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { resolveMedicalSpecialtyDailyStatus } from '@/domain/handoff/specialty';
 import type { MedicalSpecialtyHandoffNote } from '@/types/domain/dailyRecordMedicalHandoff';
 

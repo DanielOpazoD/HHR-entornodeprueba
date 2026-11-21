@@ -1,16 +1,18 @@
 import type { DailyRecordStaffingState } from '@/types/domain/dailyRecordSlices';
+import {
+  applyDailyRecordStaffingCompatibility,
+  normalizeStaffSlots,
+  readStoredShiftSlots,
+  resolveStoredDayShiftSlots,
+  toEmptyShiftPair,
+  type DailyRecordStaffingCompatShape,
+} from '@/domain/staff/dailyRecordStaffingCompatibility';
 import { resolveDetailedStaffingState } from '@/services/staff/dailyRecordDetailedStaffing';
 import { normalizeStaffSelectionValue } from '@/services/staff/staffSelectionPresentation';
 
-type DailyRecordStaffingCompatShape = Pick<
-  DailyRecordStaffingState,
-  'nurses' | 'nurseName' | 'nursesDayShift' | 'nursesNightShift'
->;
+export { applyDailyRecordStaffingCompatibility, resolveStoredDayShiftSlots };
 
-type DailyRecordShiftStaffingShape = Pick<
-  DailyRecordStaffingState,
-  'nurses' | 'nurseName' | 'nursesDayShift' | 'nursesNightShift'
->;
+type DailyRecordShiftStaffingShape = DailyRecordStaffingCompatShape;
 
 type DailyRecordUnknownStaffingShape = Record<
   'nurses' | 'nurseName' | 'nursesDayShift' | 'nursesNightShift',
@@ -56,35 +58,8 @@ export const collectRecordedStaffNames = (record: Partial<DailyRecordStaffingSta
 const normalizeStaffList = (staff?: string[] | null): string[] =>
   Array.isArray(staff) ? staff.map(value => value?.trim() || '').filter(Boolean) : [];
 
-const normalizeStaffSlots = (staff?: string[] | null, slotCount = 0): string[] => {
-  const normalized = Array.isArray(staff) ? staff.map(value => value?.trim() || '') : [];
-  while (normalized.length < slotCount) normalized.push('');
-  return normalized.slice(0, slotCount || normalized.length);
-};
-
 const presentStaffSelectionsForExport = (staff: string[]): string[] =>
   staff.map(value => normalizeStaffSelectionValue(value));
-
-/**
- * Stored shift lists are positional: item i is grid slot i (`dailyRecordDetailedStaffing`), so
- * reading keeps an empty slot before a name. Only trailing empty slots, which hold no position,
- * are dropped.
- */
-const readStoredShiftSlots = (staff?: string[] | null): string[] => {
-  const slots = normalizeStaffSlots(staff);
-  while (slots.length > 0 && !slots[slots.length - 1]) slots.pop();
-  return slots;
-};
-
-export const resolveStoredDayShiftSlots = (record: DailyRecordShiftStaffingShape): string[] => {
-  for (const staff of [record.nursesDayShift, record.nurses]) {
-    const slots = readStoredShiftSlots(staff);
-    if (slots.length > 0) return slots;
-  }
-  return readStoredShiftSlots([record.nurseName ?? '']);
-};
-
-const toEmptyShiftPair = (staff: string[]): string[] => (staff.length > 0 ? staff : ['', '']);
 
 const resolveLegacyDayShiftNurses = (record: DailyRecordShiftStaffingShape): string[] => {
   const legacy = normalizeStaffList(record.nurses);
@@ -172,21 +147,6 @@ export const resolveNightShiftNurses = (
 ): string[] => {
   if (!record) return [];
   return normalizeStaffList(record.nursesNightShift);
-};
-
-export const applyDailyRecordStaffingCompatibility = <T extends DailyRecordStaffingCompatShape>(
-  record: T
-): T => {
-  const resolvedDayShift = toEmptyShiftPair(resolveStoredDayShiftSlots(record));
-  const resolvedNightShift = toEmptyShiftPair(readStoredShiftSlots(record.nursesNightShift));
-
-  return {
-    ...record,
-    // Legacy `nurses` is kept only as a compatibility mirror of the canonical day shift field.
-    nurses: [...resolvedDayShift],
-    nursesDayShift: [...resolvedDayShift],
-    nursesNightShift: [...resolvedNightShift],
-  };
 };
 
 export const buildCompatibleDayShiftStaffingMirror = (

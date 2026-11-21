@@ -1,5 +1,5 @@
 import { CLIENT_RUNTIME_CONTRACT_VERSION } from '@/constants/runtimeContracts';
-import { CLIENT_RUNTIME_CONTRACT_VERSION_FIELD } from '@/services/storage/clinicalDerivedConstants';
+import { CLIENT_RUNTIME_CONTRACT_VERSION_FIELD } from '@/constants/clinicalDerived';
 
 /**
  * Payload of a clinical authority callable (full save, guarded patch and the Rayen batch) with the

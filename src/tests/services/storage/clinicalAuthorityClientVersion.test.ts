@@ -18,7 +18,7 @@ import { CLIENT_RUNTIME_CONTRACT_VERSION } from '@/constants/runtimeContracts';
 import {
   CLIENT_RUNTIME_CONTRACT_VERSION_FIELD,
   CLINICAL_DERIVED_MIN_CLIENT_RUNTIME_CONTRACT_VERSION,
-} from '@/services/storage/clinicalDerivedConstants';
+} from '@/constants/clinicalDerived';
 import {
   patchDailyRecordWithClinicalAuthorityCallable as patch,
   saveDailyRecordWithClinicalAuthorityCallable as save,

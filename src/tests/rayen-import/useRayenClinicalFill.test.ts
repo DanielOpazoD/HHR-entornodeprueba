@@ -7,7 +7,7 @@ import {
 } from '@/features/rayen-import/domain/clinicalStageResolution';
 import { resetRayenClinicalFillQueueForTests } from '@/features/rayen-import/domain/rayenClinicalFillQueue';
 import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const mocks = vi.hoisted(() => ({
   beginRayenFill: vi.fn(),

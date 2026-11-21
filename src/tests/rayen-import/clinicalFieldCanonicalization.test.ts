@@ -4,7 +4,7 @@ import { buildClinicalPatientPatch } from '@/features/rayen-import/domain/clinic
 import type { PatientData } from '@/types/domain/patient';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const vital = (sourceEventId: string, heartRate: number): PatientVitalSigns => ({
   sourceEventId,

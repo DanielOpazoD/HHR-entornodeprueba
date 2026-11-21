@@ -36,6 +36,7 @@ const RULES = [
     // Tests and stories beside the code are read too; only src/tests/ is exempt.
     files: file =>
       !under(
+        'src/domain/staff/dailyRecordStaffingCompatibility.ts',
         'src/schemas/',
         'src/services/repositories/dataMigration.ts',
         'src/services/repositories/dailyRecordAggregate.ts',

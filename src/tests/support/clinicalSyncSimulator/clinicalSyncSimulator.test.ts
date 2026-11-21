@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createClinicalSyncSimulator } from './clinicalSyncSimulator';
 import { createClinicalSyncCensusRecord } from './clinicalSyncSimulatorFixtures';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { PatientStatus } from '@/types/domain/patientClassification';
 
 const makeRecord = (date = '2026-07-03'): DailyRecord =>

@@ -16,7 +16,7 @@ vi.mock('@/context/UIContext', () => ({
   }),
 }));
 
-vi.mock('@/services/RepositoryContext', () => ({
+vi.mock('@/context/RepositoryContext', () => ({
   useRepositories: () => ({
     dailyRecord: {
       getForDate: (...args: unknown[]) => mockedGetForDate(...args),

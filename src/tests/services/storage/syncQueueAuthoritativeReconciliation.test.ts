@@ -11,7 +11,7 @@ import {
 } from '@/services/storage/sync';
 import { resetSyncMutationIdentityForTests } from '@/services/storage/sync/syncMutationIdentity';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({

@@ -8,7 +8,7 @@ import { useLabViewerQuery } from '@/features/laboratory/hooks/useLabViewerQuery
 import { resolveLabPatientBirthDateFromPdf } from '@/features/laboratory/services/labPatientPdfMetadataService';
 import type { LabPatient, SyslabExamItem } from '@/types/domain/labExamTypes';
 
-vi.mock('@/firebaseConfig', () => ({ db: {} }));
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({ db: {} }));
 vi.mock('firebase/firestore', async original => ({
   ...(await original<typeof import('firebase/firestore')>()),
   doc: vi.fn(() => ({ id: 'synthetic-ref' })),

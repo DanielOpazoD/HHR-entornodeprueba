@@ -9,7 +9,7 @@ import { useCallback, useState } from 'react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { queryKeys } from '@/config/queryClient';
-import { useRepositories } from '@/services/RepositoryContext';
+import { useRepositories } from '@/context/RepositoryContext';
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
 import {
   isDailyRecordWriteRejectedResult,

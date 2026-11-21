@@ -11,7 +11,7 @@ import {
   markDailyRecordTabVisible,
   resetDailyRecordFreshnessGateForTests,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
-import { RepositoryProvider, createRepositoryContainer } from '@/services/RepositoryContext';
+import { RepositoryProvider, createRepositoryContainer } from '@/context/RepositoryContext';
 import {
   createDailyRecordQueryResult,
   createDailyRecordReadResult,

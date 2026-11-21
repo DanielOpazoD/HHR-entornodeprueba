@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import type { PatientData } from '@/types/domain/patient';
 
 describe('createEmptyPatient', () => {

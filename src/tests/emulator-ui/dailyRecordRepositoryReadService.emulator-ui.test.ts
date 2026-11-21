@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { HospitalConfigService } from '@/services/config/HospitalConfigService';
+import { setActiveHospitalId } from '@/constants/activeHospital';
 import {
   getAuthoritativeForDate,
   getForDateWithMeta,
@@ -18,7 +18,7 @@ import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 let activeDb: unknown;
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return activeDb;
   },
@@ -98,7 +98,7 @@ describeEmulator('daily record read service against the real server and local st
 
   beforeEach(async () => {
     vi.stubEnv('VITE_FIRESTORE_EMULATOR_HOST', host);
-    HospitalConfigService.setHospitalId('hanga_roa');
+    setActiveHospitalId('hanga_roa');
     setFirestoreEnabled(true);
     await environment.clearFirestore();
     await hospitalDB.dailyRecords.clear();

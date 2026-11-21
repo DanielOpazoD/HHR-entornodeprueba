@@ -2,7 +2,7 @@ import { recordOperationalTelemetry } from '@/services/observability/operational
 import {
   CLINICAL_DERIVED_LAYOUT_FIELD,
   CLINICAL_DERIVED_MOVED_FIELDS,
-} from '@/services/storage/clinicalDerivedConstants';
+} from '@/constants/clinicalDerived';
 
 /**
  * Measures how big each day's census document is and how often a device receives a new

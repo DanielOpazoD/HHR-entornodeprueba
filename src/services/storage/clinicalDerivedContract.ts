@@ -25,7 +25,7 @@ import {
   CLINICAL_DERIVED_LAYOUT_VERSION,
   CLINICAL_DERIVED_MIN_CLIENT_RUNTIME_CONTRACT_VERSION,
   CLINICAL_DERIVED_MOVED_FIELDS,
-} from '@/services/storage/clinicalDerivedConstants';
+} from '@/constants/clinicalDerived';
 
 export {
   CLIENT_RUNTIME_CONTRACT_VERSION_FIELD,
@@ -36,7 +36,7 @@ export {
   CLINICAL_DERIVED_MIN_CLIENT_RUNTIME_CONTRACT_VERSION,
   CLINICAL_DERIVED_MOVED_FIELDS,
   CLINICAL_DERIVED_TARGETS,
-} from '@/services/storage/clinicalDerivedConstants';
+} from '@/constants/clinicalDerived';
 
 export type ClinicalDerivedLayoutState =
   | { status: 'unmarked' }

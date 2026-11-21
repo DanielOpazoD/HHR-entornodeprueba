@@ -22,7 +22,7 @@ import {
   type DailyRecordWriteResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const buildManualEloisaAdmissionPatient = (input: AdmitPatientInput) => {
   const emptyPatient = createEmptyPatient(input.bedId);

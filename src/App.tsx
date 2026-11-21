@@ -8,8 +8,10 @@ import React from 'react';
 import { FunctionsRecovery } from '@/components/ui/FunctionsRecovery';
 import { LoginPage } from '@/features/auth/public';
 import { GlobalErrorBoundary } from '@/components/shared/GlobalErrorBoundary';
-// Initialize errorService so global window handlers and the ErrorBoundary crash sink are active.
+// Initialize errorService and operationalTelemetryRecorder so global handlers and sinks are active.
 import '@/services/utils/errorService';
+import '@/services/observability/operationalTelemetryRecorder';
+import { preloadDefaultPostLoginRoute } from '@/app-shell/bootstrap/authenticatedRoutePreloadController';
 import { VersionProvider } from '@/context/VersionContext';
 import { VersionMismatchOverlay } from '@/components/shared/VersionMismatchOverlay';
 import {
@@ -32,7 +34,7 @@ import { AuditProvider } from '@/context/AuditContext';
 import { AuthSessionOverlays } from '@/components/layout/AuthSessionOverlays';
 import { AuthProvider } from '@/context/AuthContext';
 import { UIProvider } from '@/context/UIContext';
-import { DefaultRepositoryProvider } from '@/services/RepositoryContext';
+import { DefaultRepositoryProvider } from '@/context/RepositoryContext';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/config/queryClient';
 import { useAppBootstrapState } from '@/app-shell/bootstrap/useAppBootstrapState';
@@ -165,6 +167,7 @@ function App({ openingDay }: { openingDay: string }) {
       <LoginPage
         onLoginSuccess={() => setLoginCompletionPending(true)}
         initialAuthError={initialAuthError}
+        onPreloadPostLoginRoute={preloadDefaultPostLoginRoute}
       />
     );
   }

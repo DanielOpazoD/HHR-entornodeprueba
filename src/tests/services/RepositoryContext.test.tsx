@@ -6,7 +6,7 @@ import {
   RepositoryProvider,
   createTestRepositoryContainer,
   useRepositories,
-} from '@/services/RepositoryContext';
+} from '@/context/RepositoryContext';
 import { defaultDailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { CatalogRepository } from '@/services/repositories/CatalogRepository';
 

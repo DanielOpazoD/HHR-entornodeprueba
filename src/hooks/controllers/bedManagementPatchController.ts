@@ -5,7 +5,7 @@ import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 
 import { BedType } from '@/types/domain/beds';
 import { PatientFieldValue } from '@/types/valueTypes';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { BEDS } from '@/constants/beds';
 import { getBedTypeForRecord } from '@/utils/bedTypeUtils';
 import { deepClone } from '@/utils/deepClone';
