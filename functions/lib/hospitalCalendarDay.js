@@ -8,7 +8,10 @@ const hospitalDayFormatter = new Intl.DateTimeFormat('en-CA', {
 const hospitalCalendarDay = (instant = new Date()) => {
   const parts = hospitalDayFormatter
     .formatToParts(instant)
-    .reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+    .reduce(
+      (result, part) => ({ ...result, [part.type]: part.value }),
+      /** @type {Record<string, string>} */ ({})
+    );
   return `${parts.year}-${parts.month}-${parts.day}`;
 };
 

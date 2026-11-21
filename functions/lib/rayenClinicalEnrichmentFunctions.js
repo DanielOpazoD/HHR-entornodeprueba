@@ -50,6 +50,7 @@ const { recordTelemetry } = require('./rayenClinicalEnrichmentTelemetry');
 const PARITY_CONTRACT_VERSION = 3;
 const UNSPLIT_PARITY_CONTRACT_VERSION = 2;
 
+/** @type {Readonly<{ mismatchTargetCount: number, mismatchFieldCount: number, mismatchDeviceFieldCount: number, mismatchScoreFieldCount: number, mismatchVitalFieldCount: number, mismatchCheckpointFieldCount: number }>} */
 const EMPTY_PARITY_DIAGNOSTICS = Object.freeze({
   mismatchTargetCount: 0,
   mismatchFieldCount: 0,

@@ -53,7 +53,7 @@ const {
 } = require('./dailyRecordAuthorityOutcome');
 
 const createPatchHandler =
-  ({ firestore, Timestamp, FieldValue, resolveRoleForEmail, assertPatchBase }) =>
+  ({ firestore, Timestamp, FieldValue, resolveRoleForEmail, assertPatchBase = undefined }) =>
   async (data, context) => {
     const startedAt = Date.now();
     const { email, role } = await assertAuthorizedDailyRecordWriter({

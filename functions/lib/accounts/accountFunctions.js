@@ -13,7 +13,12 @@ const createAccountFunctions = dependencies => {
   });
   const callable = (handler, secrets = [], regions, memory = '256MB') =>
     (regions ? functions.region(...regions) : functions)
-      .runWith({ timeoutSeconds: 60, maxInstances: 10, secrets, memory })
+      .runWith({
+        timeoutSeconds: 60,
+        maxInstances: 10,
+        secrets,
+        memory: /** @type {functions.RuntimeOptions['memory']} */ (memory),
+      })
       .https.onCall(async (data, context) => {
         try {
           return await handler(data, context);

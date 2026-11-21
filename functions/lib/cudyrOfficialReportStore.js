@@ -4,7 +4,10 @@ const { gzipSync } = require('node:zlib');
 const { monthValue } = require('./cudyrSupplementContract');
 const POLICY = 2;
 const fail = (message, code = 'failed-precondition') => {
-  throw new functions.https.HttpsError(code, message);
+  throw new functions.https.HttpsError(
+    /** @type {functions.https.FunctionsErrorCode} */ (code),
+    message
+  );
 };
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const bounds = month => {

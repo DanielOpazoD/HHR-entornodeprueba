@@ -50,7 +50,8 @@ const PIN_SCRYPT_PARAMS = Object.freeze({
   p: 1,
   keyLength: 32,
 });
-const scryptAsync = promisify(crypto.scrypt);
+/** @type {(password: string, salt: string, keylen: number, options: crypto.ScryptOptions) => Promise<Buffer>} */
+const scryptAsync = /** @type {any} */ (promisify(crypto.scrypt));
 
 const ADMIN_ALLOWED_ROLES = new Set(['admin']);
 const AUTHENTICATED_UPLOAD_ALLOWED_ROLES = new Set([

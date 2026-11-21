@@ -97,7 +97,7 @@ const applyNamedDevicePath = (nextRecord, incomingRecord, path) => {
 const preserveRayenClinicalFields = ({
   remoteRecord,
   incomingRecord,
-  fields,
+  fields = undefined,
   editedPaths = [],
 }) => {
   const preservedFields = Array.isArray(fields) && fields.length ? fields : RAYEN_CLINICAL_FIELDS;

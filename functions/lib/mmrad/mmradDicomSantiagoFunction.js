@@ -85,7 +85,7 @@ const createMmradDicomSantiagoHandler =
   ({
     verifyIdToken,
     resolveRoleForEmail,
-    fetchImpl = (...args) => fetch(...args),
+    fetchImpl = (url, init) => fetch(url, init),
     isRateLimited = createRateLimiter(),
   }) =>
   async (req, res) => {

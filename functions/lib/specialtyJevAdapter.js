@@ -4,25 +4,44 @@ const MODEL = 'jev-1.13.0';
 const ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
 const PROMPT_VERSION = 'hhr-specialty-choice-v2';
 const CHOICE_TO_SPECIALTY = Object.freeze({
-  internal_medicine: 'Med Interna', surgery: 'Cirugía',
-  traumatology: 'Traumatología', obstetrics_gynecology: 'Ginecobstetricia',
-  psychiatry: 'Psiquiatría', pediatrics: 'Pediatría', dentistry: 'Odontología',
+  internal_medicine: 'Med Interna',
+  surgery: 'Cirugía',
+  traumatology: 'Traumatología',
+  obstetrics_gynecology: 'Ginecobstetricia',
+  psychiatry: 'Psiquiatría',
+  pediatrics: 'Pediatría',
+  dentistry: 'Odontología',
   review_required: null,
 });
 const OPTIONS = Object.keys(CHOICE_TO_SPECIALTY);
 
 class JevAdapterError extends Error {
-  constructor(code) { super(code); this.name = 'JevAdapterError'; this.code = code; }
+  constructor(code) {
+    super(code);
+    this.name = 'JevAdapterError';
+    this.code = code;
+  }
 }
-const validRubrics = rubrics => rubrics && typeof rubrics === 'object' &&
-  !Array.isArray(rubrics) && Object.keys(rubrics).sort().join('|') === OPTIONS.slice().sort().join('|') &&
-  OPTIONS.every(key => typeof rubrics[key] === 'string' &&
-    rubrics[key].trim().length >= 12 && rubrics[key].length <= 500);
+const validRubrics = rubrics =>
+  rubrics &&
+  typeof rubrics === 'object' &&
+  !Array.isArray(rubrics) &&
+  Object.keys(rubrics).sort().join('|') === OPTIONS.slice().sort().join('|') &&
+  OPTIONS.every(
+    key =>
+      typeof rubrics[key] === 'string' &&
+      rubrics[key].trim().length >= 12 &&
+      rubrics[key].length <= 500
+  );
 
 const buildJevRequest = ({ code, canonicalLabel, rubrics }) => {
-  if (!/^[A-Z][0-9]{2}(?:\.[0-9A-Z]{1,4})?$/.test(code) ||
-      typeof canonicalLabel !== 'string' || !canonicalLabel.trim() ||
-      canonicalLabel.length > 160 || !validRubrics(rubrics)) {
+  if (
+    !/^[A-Z][0-9]{2}(?:\.[0-9A-Z]{1,4})?$/.test(code) ||
+    typeof canonicalLabel !== 'string' ||
+    !canonicalLabel.trim() ||
+    canonicalLabel.length > 160 ||
+    !validRubrics(rubrics)
+  ) {
     throw new JevAdapterError('JEV_NOT_CONFIGURED');
   }
   return {
@@ -31,7 +50,8 @@ const buildJevRequest = ({ code, canonicalLabel, rubrics }) => {
     questions: {
       specialty: {
         type: 'choice',
-        instructions: 'Suggest one operational specialty from this closed list using only the CIE-10 code and its catalog label when supplied. If the label only repeats the code, do not invent a diagnosis: choose review_required unless the code alone is unambiguous. Do not infer missing patient facts.',
+        instructions:
+          'Suggest one operational specialty from this closed list using only the CIE-10 code and its catalog label when supplied. If the label only repeats the code, do not invent a diagnosis: choose review_required unless the code alone is unambiguous. Do not infer missing patient facts.',
         criteria: Object.fromEntries(OPTIONS.map(key => [key, rubrics[key]])),
       },
     },
@@ -39,26 +59,43 @@ const buildJevRequest = ({ code, canonicalLabel, rubrics }) => {
 };
 
 const validateResponse = payload => {
-  if (!payload || payload.model !== MODEL || !payload.answers ||
-      Object.keys(payload.answers).join('|') !== 'specialty') {
+  if (
+    !payload ||
+    payload.model !== MODEL ||
+    !payload.answers ||
+    Object.keys(payload.answers).join('|') !== 'specialty'
+  ) {
     throw new JevAdapterError('JEV_INVALID_RESPONSE');
   }
   const answer = payload.answers.specialty;
   const probabilities = answer?.probabilities;
-  if (answer?.type !== 'choice' || !OPTIONS.includes(answer.choice) ||
-      !probabilities || typeof probabilities !== 'object' || Array.isArray(probabilities) ||
-      Object.keys(probabilities).sort().join('|') !== OPTIONS.slice().sort().join('|') ||
-      !OPTIONS.every(key => Number.isFinite(probabilities[key]) &&
-        probabilities[key] >= 0 && probabilities[key] <= 1) ||
-      Math.abs(OPTIONS.reduce((sum, key) => sum + probabilities[key], 0) - 1) > 1e-6 ||
-      !Number.isFinite(answer.confidence) || answer.confidence < 0 || answer.confidence > 1 ||
-      OPTIONS.some(key => probabilities[key] > probabilities[answer.choice] + 1e-9)) {
+  if (
+    answer?.type !== 'choice' ||
+    !OPTIONS.includes(answer.choice) ||
+    !probabilities ||
+    typeof probabilities !== 'object' ||
+    Array.isArray(probabilities) ||
+    Object.keys(probabilities).sort().join('|') !== OPTIONS.slice().sort().join('|') ||
+    !OPTIONS.every(
+      key =>
+        Number.isFinite(probabilities[key]) && probabilities[key] >= 0 && probabilities[key] <= 1
+    ) ||
+    Math.abs(OPTIONS.reduce((sum, key) => sum + probabilities[key], 0) - 1) > 1e-6 ||
+    !Number.isFinite(answer.confidence) ||
+    answer.confidence < 0 ||
+    answer.confidence > 1 ||
+    OPTIONS.some(key => probabilities[key] > probabilities[answer.choice] + 1e-9)
+  ) {
     throw new JevAdapterError('JEV_INVALID_RESPONSE');
   }
-  return { model: MODEL, promptVersion: PROMPT_VERSION,
-    choice: answer.choice, specialty: CHOICE_TO_SPECIALTY[answer.choice],
+  return {
+    model: MODEL,
+    promptVersion: PROMPT_VERSION,
+    choice: answer.choice,
+    specialty: CHOICE_TO_SPECIALTY[answer.choice],
     probabilities: Object.fromEntries(OPTIONS.map(key => [key, probabilities[key]])),
-    confidence: answer.confidence };
+    confidence: answer.confidence,
+  };
 };
 
 const readBoundedResponse = async response => {
@@ -84,7 +121,7 @@ const readBoundedResponse = async response => {
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 };
 
-const evaluateWithJev = async (request, { apiKey, fetchImpl = fetch } = {}) => {
+const evaluateWithJev = async (request, { apiKey = undefined, fetchImpl = fetch } = {}) => {
   if (!apiKey) throw new JevAdapterError('JEV_NOT_CONFIGURED');
   if (request?.model !== MODEL || !validRubrics(request?.questions?.specialty?.criteria)) {
     throw new JevAdapterError('JEV_INVALID_REQUEST');
@@ -101,8 +138,9 @@ const evaluateWithJev = async (request, { apiKey, fetchImpl = fetch } = {}) => {
     throw new JevAdapterError('JEV_UNAVAILABLE');
   }
   if (!response.ok) {
-    throw new JevAdapterError(response.status === 429 || response.status === 529
-      ? 'JEV_RATE_LIMITED' : 'JEV_PROVIDER_ERROR');
+    throw new JevAdapterError(
+      response.status === 429 || response.status === 529 ? 'JEV_RATE_LIMITED' : 'JEV_PROVIDER_ERROR'
+    );
   }
   try {
     return validateResponse(await readBoundedResponse(response));
@@ -112,5 +150,14 @@ const evaluateWithJev = async (request, { apiKey, fetchImpl = fetch } = {}) => {
   }
 };
 
-module.exports = { MODEL, PROMPT_VERSION, OPTIONS, CHOICE_TO_SPECIALTY,
-  JevAdapterError, validRubrics, buildJevRequest, validateResponse, evaluateWithJev };
+module.exports = {
+  MODEL,
+  PROMPT_VERSION,
+  OPTIONS,
+  CHOICE_TO_SPECIALTY,
+  JevAdapterError,
+  validRubrics,
+  buildJevRequest,
+  validateResponse,
+  evaluateWithJev,
+};

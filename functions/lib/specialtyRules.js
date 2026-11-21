@@ -70,7 +70,11 @@ const uniqueAssignment = matches => {
   return values.size === 1 ? { kind: 'assign', rule: matches[0] } : null;
 };
 
-const resolvePendingSpecialty = (patient, policy, { target, catalogEnabled = true } = {}) => {
+const resolvePendingSpecialty = (
+  patient,
+  policy,
+  { target = undefined, catalogEnabled = true } = {}
+) => {
   const isCrib = target === 'clinicalCrib' || patient?.bedMode === 'Cuna';
   if (!isCrib && (!catalogEnabled || !policy?.autoEnabled || !validatePolicy(policy)))
     return { kind: 'keep' };
@@ -108,7 +112,7 @@ const applyPendingSpecialtyRules = ({
   actorUid,
   mutationId,
   now,
-  eligibleBedIds,
+  eligibleBedIds = undefined,
   catalogEnabled = true,
 }) => {
   if (!text(mutationId)) return [];

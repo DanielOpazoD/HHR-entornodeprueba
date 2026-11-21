@@ -76,11 +76,11 @@ const recordAuthorityTelemetry = async ({
   syncContract,
   status,
   operation = 'saveDailyRecordWithClinicalAuthority',
-  errorCode,
-  errorMessage,
+  errorCode = undefined,
+  errorMessage = undefined,
   startedAt,
-  timings,
-  clinicalDerived,
+  timings = undefined,
+  clinicalDerived = undefined,
 }) => {
   try {
     const changedPaths = collectChangedPaths(syncContract);

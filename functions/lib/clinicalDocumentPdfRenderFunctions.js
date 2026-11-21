@@ -107,7 +107,7 @@ const renderPdfFromHtml = async html => {
 
 const createClinicalDocumentPdfRenderFunctions = ({
   resolveRoleForEmail,
-  renderPdfFromHtmlOverride,
+  renderPdfFromHtmlOverride = undefined,
 }) => ({
   renderClinicalDocumentPdfFromHtml: functions
     .runWith({
