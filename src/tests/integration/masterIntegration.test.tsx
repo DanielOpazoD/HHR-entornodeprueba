@@ -134,7 +134,7 @@ describe('Master Integration Suite', () => {
 
       // 3. Discharge
       act(() => {
-        result.current.addDischarge('R1', 'Vivo', undefined, 'Domicilio');
+        result.current.addDischarge('R1', { status: 'Vivo', type: 'Domicilio', time: '' });
       });
       await waitFor(() => {
         expect(result.current.record?.beds['R1'].patientName).toBe('');
@@ -162,7 +162,13 @@ describe('Master Integration Suite', () => {
 
       // Transfer
       act(() => {
-        result.current.addTransfer('R1', 'Ambulancia', 'Hospital Regional', '');
+        result.current.addTransfer('R1', {
+          evacuationMethod: 'Ambulancia',
+          receivingCenter: 'Hospital Regional',
+          receivingCenterOther: '',
+          transferEscort: '',
+          time: '',
+        });
       });
       await waitFor(() => {
         expect(result.current.record?.beds['R1'].patientName).toBe('');

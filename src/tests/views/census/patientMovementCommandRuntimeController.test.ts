@@ -64,16 +64,15 @@ describe('patientMovementCommandRuntimeController', () => {
     );
 
     expect(actions.updateDischarge).not.toHaveBeenCalled();
-    expect(actions.addDischarge).toHaveBeenCalledWith(
-      'R1',
-      'Vivo',
-      'Vivo',
-      'Domicilio (Habitual)',
-      '',
-      '09:30',
-      'both',
-      '2026-02-15'
-    );
+    expect(actions.addDischarge).toHaveBeenCalledWith('R1', {
+      status: 'Vivo',
+      cribStatus: 'Vivo',
+      type: 'Domicilio (Habitual)',
+      typeOther: '',
+      time: '09:30',
+      movementDate: '2026-02-15',
+      dischargeTarget: 'both',
+    });
   });
 
   it('routes update transfer command to updateTransfer action', () => {
@@ -133,14 +132,13 @@ describe('patientMovementCommandRuntimeController', () => {
     );
 
     expect(actions.updateTransfer).not.toHaveBeenCalled();
-    expect(actions.addTransfer).toHaveBeenCalledWith(
-      'R2',
-      'Avión comercial',
-      'Hospital Salvador',
-      '',
-      'Médico',
-      '16:20',
-      '2026-02-15'
-    );
+    expect(actions.addTransfer).toHaveBeenCalledWith('R2', {
+      evacuationMethod: 'Avión comercial',
+      receivingCenter: 'Hospital Salvador',
+      receivingCenterOther: '',
+      transferEscort: 'Médico',
+      time: '16:20',
+      movementDate: '2026-02-15',
+    });
   });
 });

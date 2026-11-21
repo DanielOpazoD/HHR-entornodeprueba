@@ -19,7 +19,6 @@ export * from '@/features/census/controllers/dischargeModalController';
 export * from '@/features/census/controllers/modalFormController';
 export * from '@/features/census/controllers/patientMovementCreationController';
 export * from '@/features/census/controllers/patientMovementCreationErrorPresentation';
-export * from '@/features/census/controllers/patientMovementCreationInputController';
 export * from '@/features/census/controllers/patientMovementMutationController';
 export * from '@/features/census/controllers/patientMovementRuntimeController';
 export * from '@/features/census/controllers/patientMovementSelectionController';

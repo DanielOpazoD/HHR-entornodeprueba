@@ -147,15 +147,7 @@ describe('censusActionRuntimeController', () => {
         },
       },
     });
-    expect(addDischarge).toHaveBeenCalledWith(
-      'R1',
-      'Vivo',
-      undefined,
-      undefined,
-      undefined,
-      '11:20',
-      undefined
-    );
+    expect(addDischarge).toHaveBeenCalledWith('R1', { status: 'Vivo', time: '11:20' });
     expect(updateDischarge).not.toHaveBeenCalled();
   });
 
