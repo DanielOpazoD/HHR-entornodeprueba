@@ -2,7 +2,7 @@ import { readAuthorizationHeader } from './lib/authorization-header';
 import { safeErrorLog, safeErrorMessage } from './lib/safe-error-message';
 import { reserveCensusEmailDiagnoses } from '../../src/services/exporters/censusEmailDiagnosisPrivacy';
 import { generateCensusPassword } from '../../src/services/security/passwordGenerator';
-import { sendCensusEmail } from '../../src/services/email/gmailClient';
+import { sendCensusEmail } from './lib/gmailClient';
 import { getFirebaseServer } from './lib/firebase-server';
 import { CENSUS_DEFAULT_RECIPIENTS } from '../../src/constants/email';
 import {

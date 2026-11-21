@@ -6,7 +6,7 @@ const authorizeRoleRequestMock = vi.fn();
 const extractBearerTokenMock = vi.fn();
 const getFirebaseServerMock = vi.fn();
 
-vi.mock('@/services/email/gmailClient', () => ({
+vi.mock('../../../netlify/functions/lib/gmailClient', () => ({
   sendCensusEmail: (...args: unknown[]) => sendCensusEmailMock(...args),
 }));
 

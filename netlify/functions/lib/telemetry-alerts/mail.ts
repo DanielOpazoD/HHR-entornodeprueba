@@ -1,4 +1,4 @@
-import { DEFAULT_GMAIL_SENDER, sendCensusEmail } from '../../../../src/services/email/gmailClient';
+import { DEFAULT_GMAIL_SENDER, sendCensusEmail } from '../gmailClient';
 import {
   buildOperationalTelemetryAlert,
   type SanitizedOperationalTelemetryEvent,
