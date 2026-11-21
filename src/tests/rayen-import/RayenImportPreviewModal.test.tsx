@@ -16,7 +16,7 @@ const diff: CensusImportDiff = {
   discharges: [
     {
       bedId: 'H2C1',
-      rut: '22.025.389-9',
+      rut: '10.000.134-9',
       patientName: 'Paciente Egresado',
       kind: 'alta',
       status: 'Vivo',
@@ -31,7 +31,7 @@ const diff: CensusImportDiff = {
   pendingAdministrativeDischarges: [
     {
       bedId: 'H5C1',
-      rut: '29.335.605-K',
+      rut: '10.000.108-K',
       patientName: 'Paciente Pendiente',
       signal: 'clinical-closure',
       encounterId: '141705',
@@ -93,13 +93,13 @@ describe('Rayen synchronization decisions and pulse', () => {
           patient: {
             ...EMPTY_PATIENT,
             bedId: 'H4C1',
-            patientName: 'Maeva Elisabet Maria Tuki Garcia',
-            rut: '17.059.646-3',
+            patientName: 'Miduc Enudovur Mopef Tinu Genavi',
+            rut: '10.000.106-3',
             clinicalCrib: {
               ...EMPTY_PATIENT,
               bedId: 'H4C1',
               bedMode: 'Cuna',
-              patientName: 'RN de Maeva Tuki Garcia',
+              patientName: 'RN de Miduc Tinu Genavi',
               clinicalEpisodeId: '143101',
             },
           },
@@ -129,14 +129,14 @@ describe('Rayen synchronization decisions and pulse', () => {
       screen.getByText(
         (_content, element) =>
           element?.tagName === 'DIV' &&
-          element.textContent === 'H4C1 — Maeva Elisabet Maria Tuki Garcia'
+          element.textContent === 'H4C1 — Miduc Enudovur Mopef Tinu Genavi'
       )
     ).toBeVisible();
     expect(
       screen.getByText(
         (_content, element) =>
           element?.tagName === 'DIV' &&
-          element.textContent === '↳ Cuna RN — RN de Maeva Tuki Garcia'
+          element.textContent === '↳ Cuna RN — RN de Miduc Tinu Genavi'
       )
     ).toBeVisible();
   });
@@ -147,10 +147,10 @@ describe('Rayen synchronization decisions and pulse', () => {
       discharges: [
         {
           ...diff.discharges[0],
-          patientName: 'Maeva Tuki Garcia',
+          patientName: 'Miduc Tinu Genavi',
           associatedClinicalCrib: {
             clinicalEpisodeId: '143101',
-            patientName: 'RN de Maeva Tuki Garcia',
+            patientName: 'RN de Miduc Tinu Genavi',
             rut: '',
           },
         },
@@ -169,7 +169,7 @@ describe('Rayen synchronization decisions and pulse', () => {
       />
     );
 
-    expect(screen.getByText(/Alta asociada — RN de Maeva Tuki Garcia/)).toBeVisible();
+    expect(screen.getByText(/Alta asociada — RN de Miduc Tinu Genavi/)).toBeVisible();
     expect(screen.getByText('(cuna RN)')).toBeVisible();
     expect(screen.queryByText(/no suma egreso/)).not.toBeInTheDocument();
   });
@@ -349,7 +349,7 @@ describe('Rayen synchronization decisions and pulse', () => {
       conflicts: [
         {
           bedId: 'H2C1',
-          rut: '22.025.389-9',
+          rut: '10.000.134-9',
           patientName: 'Paciente en conflicto',
           reason: 'La cama tiene dos identidades diferentes.',
         },
@@ -466,7 +466,7 @@ describe('Rayen synchronization decisions and pulse', () => {
         proposal={{
           censusDate: '2026-07-21',
           day: {
-            names: ['Camila Leiva'],
+            names: ['Camila Litus'],
             candidates: [],
             ignoredBoundaryRecords: 0,
             ambiguous: false,

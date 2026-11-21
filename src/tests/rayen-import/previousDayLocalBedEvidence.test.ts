@@ -83,7 +83,7 @@ describe('previous-day local bed evidence', () => {
         fetchReport,
         extractText: async () =>
           [
-            `Paciente: Maeva Tuki RUN: ${admission.source?.run}`,
+            `Paciente: Miduc Tuki RUN: ${admission.source?.run}`,
             '26/07/2026 03:27:00 Servicio Habitación 4 Básica H4C1',
           ].join('\n'),
         loadHistoricalRecord: async () => {
@@ -120,7 +120,7 @@ describe('previous-day local bed evidence', () => {
         fetchReport,
         extractText: async () =>
           [
-            `Paciente: Maeva Tuki RUN: ${admission.source?.run}`,
+            `Paciente: Miduc Tuki RUN: ${admission.source?.run}`,
             '26/07/2026 03:27:00 Servicio Habitación 4 Básica H4C1',
           ].join('\n'),
         loadHistoricalRecord: async () => previousEpisodeRecord,

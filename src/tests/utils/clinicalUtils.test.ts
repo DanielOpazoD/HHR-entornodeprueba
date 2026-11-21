@@ -6,10 +6,10 @@ import { splitPatientName, calculateAge, formatDateToCL } from '@/utils/clinical
 describe('clinicalUtils', () => {
   describe('splitPatientName', () => {
     it('should split standard names correctly', () => {
-      const [nombres, apPaterno, apMaterno] = splitPatientName('Marcelo Valdes Avila');
-      expect(nombres).toBe('Marcelo');
-      expect(apPaterno).toBe('Valdes');
-      expect(apMaterno).toBe('Avila');
+      const [nombres, apPaterno, apMaterno] = splitPatientName('Munilep Vecasu Acese');
+      expect(nombres).toBe('Munilep');
+      expect(apPaterno).toBe('Vecasu');
+      expect(apMaterno).toBe('Acese');
     });
 
     it('should handle composite first names', () => {
@@ -20,8 +20,8 @@ describe('clinicalUtils', () => {
     });
 
     it('should handle single name', () => {
-      const [nombres, apPaterno, apMaterno] = splitPatientName('Marcelo');
-      expect(nombres).toBe('Marcelo');
+      const [nombres, apPaterno, apMaterno] = splitPatientName('Munilep');
+      expect(nombres).toBe('Munilep');
       expect(apPaterno).toBe('');
       expect(apMaterno).toBe('');
     });

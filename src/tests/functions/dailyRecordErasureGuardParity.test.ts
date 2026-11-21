@@ -91,29 +91,29 @@ const fixtures: { name: string; remote: DailyRecord; local: DailyRecord }[] = [
   },
   {
     name: 'internal move: relocated patient (by name) is not an erasure',
-    remote: record({ R4: bed('Kevin') }),
-    local: record({ R3: bed('Kevin') }),
+    remote: record({ R4: bed('Kisib') }),
+    local: record({ R3: bed('Kisib') }),
   },
   {
     name: 'internal move: relocated patient (by stable episode) is not an erasure',
     remote: record({
       R4: {
-        patientName: 'Kevin V.',
-        rut: '20.189.620-7',
+        patientName: 'Kisib V.',
+        rut: '10.000.118-7',
         clinicalEpisodeId: 'ep_same_admission',
       } as never,
     }),
     local: record({
       R3: {
-        patientName: 'Kevin Villagran',
-        rut: '20189620-7',
+        patientName: 'Kisib Vodamavit',
+        rut: '10000118-7',
         clinicalEpisodeId: 'ep_same_admission',
       } as never,
     }),
   },
   {
     name: 'real erasure still flags when a different patient reused the census',
-    remote: record({ R4: bed('Kevin') }),
+    remote: record({ R4: bed('Kisib') }),
     local: record({ R3: bed('Otro') }),
   },
 ];

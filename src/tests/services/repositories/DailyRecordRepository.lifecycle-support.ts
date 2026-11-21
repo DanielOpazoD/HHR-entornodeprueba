@@ -15,7 +15,6 @@ import {
 import { deleteDailyRecordAcrossStores as deleteDay } from '@/services/repositories/dailyRecordDeletionService';
 import { isFirestoreEnabled, setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { save, updatePartial } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { syncWithFirestore } from '@/services/repositories/dailyRecordRepositorySyncService';
 import {
   getAvailableDates,
   getForDate,
@@ -165,7 +164,6 @@ export const Repository = {
   isFirestoreEnabled,
   save,
   setFirestoreEnabled,
-  syncWithFirestore,
   updatePartial,
   CatalogRepository,
 };

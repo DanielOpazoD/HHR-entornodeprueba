@@ -364,8 +364,8 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     const current = buildRecord('2026-05-08');
     current.beds = {
       NEO1: {
-        ...buildPatient('NEO1', 'Nayeli Hereveri Martinez'),
-        rut: '24.029.332-3',
+        ...buildPatient('NEO1', 'Nadufo Hisabufe Mimasuve'),
+        rut: '10.000.137-3',
         firstSeenDate: '2026-05-08',
         admissionDate: '2026-05-01',
       },
@@ -411,7 +411,7 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     const current = buildRecord('2026-05-08');
     current.beds = {
       R2: {
-        ...buildPatient('R2', 'Daniel S Damiani'),
+        ...buildPatient('R2', 'Degaro S Doliceg'),
         rut: '17.752.753-K',
         firstSeenDate: '2026-05-03',
         admissionDate: '2026-05-01',

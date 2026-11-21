@@ -13,7 +13,7 @@ const pendingOnlyDiff: CensusImportDiff = {
   pendingAdministrativeDischarges: [
     {
       bedId: 'H5C1',
-      rut: '29.335.605-K',
+      rut: '10.000.108-K',
       patientName: 'Paciente Pendiente',
       signal: 'clinical-closure',
       encounterId: '141705',

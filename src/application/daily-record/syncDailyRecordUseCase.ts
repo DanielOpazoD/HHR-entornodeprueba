@@ -1,5 +1,6 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
+import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import {
   createApplicationDegraded,
   createApplicationFailed,
@@ -7,11 +8,6 @@ import {
   createApplicationSuccess,
 } from '@/shared/contracts/applicationOutcomeFactories';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
-
-import {
-  defaultDailyRecordSyncPort,
-  type DailyRecordSyncPort,
-} from '@/application/ports/dailyRecordPort';
 
 export type SyncDegradationReason = 'missing_remote_record' | 'remote_blocked';
 export type SyncConflictSeverity = 'warning' | 'error';
@@ -32,14 +28,14 @@ export interface SyncConflictDescriptor {
 
 export interface SyncOutcome {
   record: DailyRecord | null;
-  sync: SyncDailyRecordResult | null;
   degradationReason?: SyncDegradationReason;
   conflict?: SyncConflictDescriptor;
 }
 
 export interface SyncDailyRecordInput {
   date: string;
-  repository?: DailyRecordSyncPort;
+  /** One remote read of the day, published where the census shows it. */
+  read: (date: string) => Promise<DailyRecordQueryResult>;
 }
 
 const buildSyncConflict = (kind: SyncConflictDescriptor['kind']): SyncConflictDescriptor => {
@@ -75,15 +71,11 @@ const buildSyncConflict = (kind: SyncConflictDescriptor['kind']): SyncConflictDe
 export const executeSyncDailyRecord = async (
   input: SyncDailyRecordInput
 ): Promise<ApplicationOutcome<SyncOutcome>> => {
-  const repository = input.repository || defaultDailyRecordSyncPort;
   try {
-    const sync = await repository.syncWithFirestoreDetailed(input.date);
-
-    if (!sync) {
+    if (!isFirestoreEnabled()) {
       return createApplicationPartial(
         {
           record: null,
-          sync: null,
           degradationReason: 'missing_remote_record',
           conflict: buildSyncConflict('missing_remote_record'),
         },
@@ -110,11 +102,12 @@ export const executeSyncDailyRecord = async (
       );
     }
 
-    if (sync.consistencyState === 'blocked') {
+    const { record, runtime } = await input.read(input.date);
+
+    if (!runtime.serverConfirmed) {
       return createApplicationDegraded(
         {
-          record: sync.record,
-          sync,
+          record,
           degradationReason: 'remote_blocked',
           conflict: buildSyncConflict('remote_blocked'),
         },
@@ -137,18 +130,22 @@ export const executeSyncDailyRecord = async (
           severity: 'warning',
           technicalContext: {
             date: input.date,
-            syncOutcome: sync.consistencyState,
+            syncOutcome: runtime.consistencyState,
           },
           telemetryTags: ['sync', 'remote_blocked'],
         }
       );
     }
 
-    if (sync.consistencyState === 'missing_remote') {
+    // The server confirmed it has no such day, whether or not this computer keeps a copy or a
+    // queued write for it: the copy and the queue stay as they are (SAVE-01).
+    if (
+      runtime.availabilityState === 'confirmed_missing' ||
+      runtime.conflictSummary?.kind === 'remote_missing'
+    ) {
       return createApplicationPartial(
         {
-          record: sync.record,
-          sync,
+          record,
           degradationReason: 'missing_remote_record',
           conflict: buildSyncConflict('missing_remote_record'),
         },
@@ -169,22 +166,18 @@ export const executeSyncDailyRecord = async (
           severity: 'warning',
           technicalContext: {
             date: input.date,
-            syncOutcome: sync.consistencyState,
+            syncOutcome: runtime.consistencyState,
           },
           telemetryTags: ['sync', 'missing_remote_record'],
         }
       );
     }
 
-    return createApplicationSuccess({
-      record: sync.record,
-      sync,
-    });
+    return createApplicationSuccess({ record });
   } catch (error) {
     return createApplicationFailed(
       {
         record: null,
-        sync: null,
         conflict: buildSyncConflict('sync_failed'),
       },
       [

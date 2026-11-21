@@ -22,7 +22,6 @@ import {
   type RemoteSyncRuntimeStatus,
 } from '@/services/repositories/repositoryConfig';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
-import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { markDailyRecordRemoteConfirmed } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { didDailyRecordFreshnessHydrateNewerRemote } from '@/hooks/controllers/dailyRecordFreshnessHydrationController';
 import {
@@ -67,7 +66,7 @@ const createQueryResultFromRecord = (
 
 const createRuntimeFromResult = (
   date: string,
-  result: DailyRecordReadResult | SyncDailyRecordResult
+  result: DailyRecordReadResult
 ): DailyRecordQueryRuntime => {
   const {
     consistencyState,
@@ -77,14 +76,9 @@ const createRuntimeFromResult = (
     serverConfirmed,
     conflictSummary,
   } = result;
-  const isSync = 'outcome' in result;
-  const recoverable = isSync
-    ? consistencyState === 'local_kept' || consistencyState === 'blocked'
-    : retryability !== 'not_applicable' || sourceOfTruth === 'local';
-  const unavailable = isSync ? consistencyState === 'blocked' : consistencyState === 'unavailable';
-  const missing = isSync
-    ? consistencyState === 'missing_remote'
-    : conflictSummary?.kind === 'remote_missing';
+  const recoverable = retryability !== 'not_applicable' || sourceOfTruth === 'local';
+  const unavailable = consistencyState === 'unavailable';
+  const missing = conflictSummary?.kind === 'remote_missing';
   return {
     date,
     serverConfirmed,
@@ -329,11 +323,8 @@ export const createDailyRecordSubscription = (
       });
   };
 
-  const handleResolvedRealtimeResult = (
-    result: DailyRecordQueryResult,
-    hasPendingWrites: boolean
-  ) => {
-    if (!isSubscriptionActive || hasPendingWrites) {
+  const handleResolvedRealtimeResult = (result: DailyRecordQueryResult) => {
+    if (!isSubscriptionActive) {
       return;
     }
 
@@ -362,10 +353,9 @@ export const createDailyRecordSubscription = (
 
   const stop = dailyRecord.subscribeDetailed(
     date,
-    (result, hasPendingWrites) => {
+    result => {
       handleResolvedRealtimeResult(
-        createDailyRecordQueryResult(result.record, createRuntimeFromResult(date, result)),
-        hasPendingWrites
+        createDailyRecordQueryResult(result.record, createRuntimeFromResult(date, result))
       );
     },
     result => {
@@ -393,6 +383,17 @@ export const prefetchPreviousDailyRecord = (
   queryClient.prefetchQuery({
     ...createDailyRecordQueryOptions(dailyRecord, addCalendarDays(date, -1), queryClient),
     staleTime: 5 * 60 * 1000,
+  });
+
+/** One remote read of the day, published through its query: what a refresh or a recovery needs. */
+export const fetchRemoteDailyRecordQuery = (
+  queryClient: QueryClient,
+  dailyRecord: DailyRecordReader,
+  date: string
+): Promise<DailyRecordQueryResult> =>
+  queryClient.fetchQuery({
+    ...createDailyRecordQueryOptions(dailyRecord, date, queryClient, true),
+    staleTime: 0,
   });
 
 /** Publishes a server read after a rejected command without acknowledging pending writes. */

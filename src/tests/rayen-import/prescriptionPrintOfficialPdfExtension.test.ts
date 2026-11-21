@@ -13,7 +13,7 @@ describe('extension prescription operations', () => {
     document.text('Prescriptor:', 20, 50);
     document.text('RUN:', 20, 65);
     document.text('Fecha:', 120, 50);
-    document.text('Daniel Opazo', 60, 50);
+    document.text('Degaro Opisu', 60, 50);
     document.text('17.752.753-K', 60, 65);
 
     const metadata = await prescriptionPrint.extractOfficialPrescriptionMetadata(
@@ -23,7 +23,7 @@ describe('extension prescription operations', () => {
     expect(metadata).toEqual({
       folio: '012D5533',
       emissionDateTime: '14-07-2026 21:45',
-      professional: 'Daniel Opazo',
+      professional: 'Degaro Opisu',
       professionalRun: '17.752.753-K',
     });
     expect(prescriptionPrint.formatRun('17752753K')).toBe('17.752.753-K');
@@ -75,7 +75,7 @@ describe('extension prescription operations', () => {
     document.text('Nombres:', 20, 110);
     document.text('Paciente Prueba', 70, 110);
     document.text('RUN:', 20, 130);
-    document.text('8.932.066-6', 90, 130);
+    document.text('1.000.122-6', 90, 130);
     document.text('Sexo:', 180, 130);
     document.text('Mujer', 220, 130);
     document.text('Edad:', 310, 130);
@@ -112,7 +112,8 @@ describe('extension prescription operations', () => {
 
     const buffer = document.output('arraybuffer');
     const source = new TextDecoder('latin1').decode(new Uint8Array(buffer));
-    const streamExpression = /<<(?:.|\r|\n)*?\/Filter\s*(?:\/FlateDecode|\[\s*\/FlateDecode\s*\])(?:.|\r|\n)*?>>\s*stream\r?\n/g;
+    const streamExpression =
+      /<<(?:.|\r|\n)*?\/Filter\s*(?:\/FlateDecode|\[\s*\/FlateDecode\s*\])(?:.|\r|\n)*?>>\s*stream\r?\n/g;
     const expectedStreamCount = [...source.matchAll(streamExpression)].length;
     const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'DecompressionStream');
     const NativeDecompressionStream = globalThis.DecompressionStream;
@@ -155,9 +156,9 @@ describe('extension prescription operations', () => {
     document.text('Simón Paoa N°S/N', 100, 56);
     document.text('Folio: D292620E', 500, 80);
     document.text('Nombres:', 20, 110);
-    document.text('Ines Leiva Riroroko', 70, 110);
+    document.text('Isut Litus Rebolesu', 70, 110);
     document.text('RUN:', 20, 130);
-    document.text('8.932.066-6', 90, 130);
+    document.text('1.000.122-6', 90, 130);
     document.text('Sexo:', 180, 130);
     document.text('Mujer', 220, 130);
     document.text('Edad:', 310, 130);
@@ -201,8 +202,8 @@ describe('extension prescription operations', () => {
 
     expect(content).toMatchObject({
       patient: {
-        name: 'Ines Leiva Riroroko',
-        run: '8.932.066-6',
+        name: 'Isut Litus Rebolesu',
+        run: '1.000.122-6',
         sex: 'Mujer',
         age: '59 año(s)',
         bed: 'H6C1',
@@ -246,7 +247,7 @@ describe('extension prescription operations', () => {
     document.text('Nombres:', 20, 110);
     document.text('Paciente Prueba', 70, 110);
     document.text('RUN:', 20, 130);
-    document.text('8.932.066-6', 90, 130);
+    document.text('1.000.122-6', 90, 130);
     document.text('Sexo:', 180, 130);
     document.text('Mujer', 220, 130);
     document.text('Edad:', 310, 130);
@@ -326,7 +327,7 @@ describe('extension prescription operations', () => {
     document.text('Nombres:', 20, 110);
     document.text('Paciente Prueba', 70, 110);
     document.text('RUN:', 20, 130);
-    document.text('8.932.066-6', 90, 130);
+    document.text('1.000.122-6', 90, 130);
     document.text('Sexo:', 180, 130);
     document.text('Mujer', 220, 130);
     document.text('Edad:', 310, 130);
@@ -355,7 +356,7 @@ describe('extension prescription operations', () => {
     document.text('Nombres:', 20, 110);
     document.text('Paciente Prueba', 70, 110);
     document.text('RUN:', 20, 130);
-    document.text('8.932.066-6', 90, 130);
+    document.text('1.000.122-6', 90, 130);
     document.text('Cama:', 20, 150);
     document.text('H6C1', 70, 150);
     document.text('Sala:', 190, 150);
@@ -421,7 +422,7 @@ describe('extension prescription operations', () => {
     document.text('Nombres:', 20, 110);
     document.text('Paciente Prueba', 70, 110);
     document.text('RUN:', 20, 130);
-    document.text('8.932.066-6', 90, 130);
+    document.text('1.000.122-6', 90, 130);
     document.text('Sexo:', 180, 130);
     document.text('Mujer', 220, 130);
     document.text('Edad:', 310, 130);

@@ -19,7 +19,7 @@ import { replanRayenStructure } from '@/features/rayen-import/hooks/replanRayenS
 //     confirma el episodio activo: el conflicto «no identifica el episodio activo»
 //     sobrevivía al egreso → redundante, se descarta.
 
-const MOTHER_RUN = '28.106.852-0';
+const MOTHER_RUN = '10.000.116-0';
 
 const patient = (overrides: Partial<DailyRecord['beds'][string]>): DailyRecord['beds'][string] =>
   ({ ...EMPTY_PATIENT, ...overrides }) as DailyRecord['beds'][string];
@@ -27,7 +27,7 @@ const patient = (overrides: Partial<DailyRecord['beds'][string]>): DailyRecord['
 const motherWithCrib = (): DailyRecord['beds'][string] =>
   patient({
     bedId: 'H5C1',
-    patientName: 'Tania Cristina Valencia Ladino',
+    patientName: 'Torol Corivama Vovipevi Linava',
     rut: MOTHER_RUN,
     clinicalEpisodeId: '1001',
     admissionDate: '2026-08-31',
@@ -36,7 +36,7 @@ const motherWithCrib = (): DailyRecord['beds'][string] =>
     clinicalCrib: patient({
       bedId: 'H5C1',
       bedMode: 'Cuna',
-      patientName: 'Rn De Tania Valencia Ladino',
+      patientName: 'Rn De Torol Vovipevi Linava',
       rut: MOTHER_RUN,
       clinicalEpisodeId: '1002',
       admissionDate: '2026-08-31',
@@ -58,9 +58,9 @@ const makeRecord = (beds: DailyRecord['beds'], extra: Partial<DailyRecord> = {})
 const encounter = (overrides: Partial<RayenEncounter>): RayenEncounter => ({
   encounterId: '1001',
   run: MOTHER_RUN,
-  firstGivenName: 'Tania Cristina',
-  firstFamilyName: 'Valencia',
-  secondFamilyName: 'Ladino',
+  firstGivenName: 'Torol Corivama',
+  firstFamilyName: 'Vovipevi',
+  secondFamilyName: 'Linava',
   birthDate: '2000-01-01',
   administrativeSex: 'Mujer',
   service: 'Área Médico Quirúrgica Indiferenciada',
@@ -71,7 +71,7 @@ const encounter = (overrides: Partial<RayenEncounter>): RayenEncounter => ({
   ...overrides,
 });
 
-const cribEncounter = (encounterId: string, firstGivenName = 'Rn De Tania'): RayenEncounter =>
+const cribEncounter = (encounterId: string, firstGivenName = 'Rn De Torol'): RayenEncounter =>
   encounter({
     encounterId,
     firstGivenName,
@@ -156,7 +156,7 @@ describe('replanRayenStructure — cierre seguro ante conflicto de cuna', () => 
     const snapshot = snapshotOf([
       closed(encounter({})),
       cribEncounter('1002'),
-      cribEncounter('1003', 'Rn 2 De Tania'),
+      cribEncounter('1003', 'Rn 2 De Torol'),
     ]);
 
     const diff = await runPipeline(record, snapshot, [], ['1001']);
@@ -171,7 +171,7 @@ describe('replanRayenStructure — cierre seguro ante conflicto de cuna', () => 
     expect(blocked[0]).toMatchObject({ bedId: 'H5C1', rut: MOTHER_RUN });
 
     const applied = applyCensusImportDiff(record, diff, applyCtx());
-    expect(applied.record.beds.H5C1?.patientName).toBe('Tania Cristina Valencia Ladino');
+    expect(applied.record.beds.H5C1?.patientName).toBe('Torol Corivama Vovipevi Linava');
     expect(applied.record.beds.H5C1?.clinicalCrib?.clinicalEpisodeId).toBe('1002');
     expect(applied.record.discharges).toEqual([]);
     expect(blocked[0]?.code).toBe('crib-conflict-blocks-discharge');
@@ -184,12 +184,12 @@ describe('replanRayenStructure — cierre seguro ante conflicto de cuna', () => 
     const snapshot = snapshotOf([
       encounter({ bed: 'C2' }),
       cribEncounter('1002'),
-      cribEncounter('1003', 'Rn 2 De Tania'),
+      cribEncounter('1003', 'Rn 2 De Torol'),
     ]);
     const verifiedMotherRow: EgresoReportRow = {
       encounterId: '1001',
       run: MOTHER_RUN,
-      patientName: 'Tania Cristina Valencia Ladino',
+      patientName: 'Torol Corivama Vovipevi Linava',
       bedLabel: 'H5C2',
       servicio: 'Ginecobstetricia',
       edad: '18',

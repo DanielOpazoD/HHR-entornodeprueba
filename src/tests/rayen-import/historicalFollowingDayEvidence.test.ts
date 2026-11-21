@@ -12,14 +12,14 @@ it('uses following-day mother/RN discharges only to establish their presence at 
   const day = '2026-08-12';
   const mother = DataFactory.createMockPatient('H4C2', {
     patientName: 'Madre Sintética',
-    rut: '8.260.364-6',
+    rut: '1.000.119-6',
     clinicalEpisodeId: '1001',
     admissionDate: day,
     admissionTime: '14:04',
     clinicalCrib: DataFactory.createMockPatient('H4C2', {
       patientName: 'RN de Madre Sintética',
       rut: '',
-      neonatalMaternalRut: '8.260.364-6',
+      neonatalMaternalRut: '1.000.119-6',
       clinicalEpisodeId: '1002',
       admissionDate: day,
       admissionTime: '15:00',
@@ -46,7 +46,7 @@ it('uses following-day mother/RN discharges only to establish their presence at 
   const reports: Record<string, string> = {
     '1001': `Informe Estadístico de Egreso Hospitalario
 1.RUN:
-8 2 6 0 3 6 4 - 6
+1 0 0 0 1 1 9 - 6
 24 INGRESO 1 4 - 0 4 1 2 - 0 8 - 2 6 Área Médico Quirúrgico Cuidados Medios 4 0 4
 29 EGRESO 1 4 - 2 8 1 3 - 0 8 - 2 6 Domicilio 4 0 4`,
     '1002': `Informe Estadístico de Egreso Hospitalario
@@ -56,7 +56,7 @@ it('uses following-day mother/RN discharges only to establish their presence at 
 -
 No de Pasaporte u otro documento
 1. Masculino
-8 2 6 0 3 6 4 6 54 IDENTIDAD DE GÉNERO 01
+1 0 0 0 1 1 9 6 54 IDENTIDAD DE GÉNERO 01
 24 INGRESO 1 5 - 0 0 1 2 - 0 8 - 2 6 Área Médico Quirúrgico Cuidados Medios 4 0 4
 29 EGRESO 1 4 - 2 8 1 3 - 0 8 - 2 6 Domicilio 4 0 4`,
   };
@@ -87,7 +87,7 @@ No de Pasaporte u otro documento
     {
       fetchReport: async () => ({ base64: 'QQ==' }),
       extractText: async () =>
-        'Flujo del Paciente RUN: 82603646\n12/08/2026 14:04:00 Servicio Estación Habitación 4 Básica C2',
+        'Flujo del Paciente RUN: 10001196\n12/08/2026 14:04:00 Servicio Estación Habitación 4 Básica C2',
     }
   );
   expect(reconstruction.conflicts).toEqual([]);

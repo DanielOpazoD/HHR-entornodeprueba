@@ -32,7 +32,6 @@ const { mockDailyRecordPorts } = vi.hoisted(() => ({
     updatePartial: vi.fn(),
     updatePartialDetailed: vi.fn(),
     subscribeDetailed: vi.fn(() => vi.fn()),
-    syncWithFirestoreDetailed: vi.fn(),
     deleteDay: vi.fn(),
     copyPatientToDateDetailed: vi.fn(),
   },
@@ -44,9 +43,6 @@ vi.mock('@/application/ports/dailyRecordPort', () => ({
     updatePartial: mockDailyRecordPorts.updatePartialDetailed,
     save: mockDailyRecordPorts.saveDetailed,
     delete: mockDailyRecordPorts.deleteDay,
-  },
-  defaultDailyRecordSyncPort: {
-    syncWithFirestoreDetailed: mockDailyRecordPorts.syncWithFirestoreDetailed,
   },
   defaultDailyRecordRepositoryPort: mockDailyRecordPorts,
 }));
@@ -450,11 +446,6 @@ describe('useDailyRecord census action matrix', () => {
     mockDailyRecordPorts.getMonthRecords.mockResolvedValue([]);
     mockDailyRecordPorts.initializeDay.mockResolvedValue(null);
     mockDailyRecordPorts.deleteDay.mockResolvedValue(undefined);
-    mockDailyRecordPorts.syncWithFirestoreDetailed.mockResolvedValue({
-      date,
-      outcome: 'clean',
-      record: null,
-    });
     mockDailyRecordPorts.copyPatientToDateDetailed.mockResolvedValue({
       sourceDate: date,
       targetDate: '2026-05-18',

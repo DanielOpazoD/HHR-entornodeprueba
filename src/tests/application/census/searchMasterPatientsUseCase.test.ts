@@ -25,30 +25,30 @@ describe('searchMasterPatientsUseCase', () => {
       { rut: '1-9', fullName: 'Paciente', createdAt: 1, updatedAt: 1 },
     ]);
 
-    const outcome = await searchMasterPatients('  ines leiva  ', 25);
+    const outcome = await searchMasterPatients('  isut litus  ', 25);
 
     expect(outcome.status).toBe('success');
     expect(outcome.data).toEqual([
       { rut: '1-9', fullName: 'Paciente', createdAt: 1, updatedAt: 1 },
     ]);
-    expect(mockSearchPatients).toHaveBeenCalledWith('ines leiva', 25);
+    expect(mockSearchPatients).toHaveBeenCalledWith('isut litus', 25);
   });
 
   it('uses the default limit when no limit is provided', async () => {
     mockSearchPatients.mockResolvedValueOnce([]);
 
-    const outcome = await searchMasterPatients('ines');
+    const outcome = await searchMasterPatients('isut');
 
     expect(outcome.status).toBe('success');
     expect(outcome.data).toEqual([]);
-    expect(mockSearchPatients).toHaveBeenCalledWith('ines', 20);
+    expect(mockSearchPatients).toHaveBeenCalledWith('isut', 20);
   });
 
   it('clamps out-of-range limit values before querying the repository', async () => {
     mockSearchPatients.mockResolvedValueOnce([]);
 
-    await searchMasterPatients('ines', 9999);
-    expect(mockSearchPatients).toHaveBeenCalledWith('ines', 100);
+    await searchMasterPatients('isut', 9999);
+    expect(mockSearchPatients).toHaveBeenCalledWith('isut', 100);
   });
 
   it('returns a validation failure when the search query exceeds maximum length', async () => {
@@ -69,7 +69,7 @@ describe('searchMasterPatientsUseCase', () => {
   it('returns a failed outcome with user-safe messaging when repository search fails', async () => {
     mockSearchPatients.mockRejectedValueOnce(new Error('firestore unavailable'));
 
-    const outcome = await searchMasterPatients('ines');
+    const outcome = await searchMasterPatients('isut');
 
     expect(outcome.status).toBe('failed');
     expect(outcome.data).toEqual([]);

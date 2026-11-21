@@ -164,7 +164,7 @@ describe('explicit RN placement review', () => {
   });
   it('rejects a mother replaced by another episode in the same bed after review', () => {
     const { record, child } = prepare();
-    const replacement = encounter({ encounterId: 'OTHER_MOTHER', run: '144700554' });
+    const replacement = encounter({ encounterId: 'OTHER_MOTHER', run: '100001314' });
     const fresh = { ...record, beds: { H5C1: seed(replacement) } };
     const replanned = reconcileCensus(fresh, snapshotOf([replacement, child]), {
       reference: REFERENCE,

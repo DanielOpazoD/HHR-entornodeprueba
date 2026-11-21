@@ -56,8 +56,8 @@ const buildDailyRecord = (): DailyRecord =>
         isBlocked: false,
         bedMode: 'Cama',
         hasCompanionCrib: false,
-        patientName: 'Carina Pate Lillo',
-        rut: '14.470.055-4',
+        patientName: 'Cogube Paci Lateb',
+        rut: '10.000.131-4',
         age: '60',
         pathology: '—',
       },
@@ -116,7 +116,7 @@ describe('PrescriptionBedGridView', () => {
 
     renderGrid(<PrescriptionBedGridView records={[]} dayIso="2026-05-05" />);
 
-    expect(await screen.findByText('Carina Pate Lillo')).toBeInTheDocument();
+    expect(await screen.findByText('Cogube Paci Lateb')).toBeInTheDocument();
     expect(screen.getByText(/censo del día previo/i)).toBeInTheDocument();
     expect(getRecordFromFirestore).toHaveBeenCalledWith('2026-05-05');
     expect(getRecordFromFirestore).toHaveBeenCalledWith('2026-05-04');
@@ -203,8 +203,8 @@ describe('PrescriptionBedGridView', () => {
             isBlocked: false,
             bedMode: 'Cama',
             hasCompanionCrib: false,
-            patientName: 'Luis Pate Tuki',
-            rut: '6.451.632-9',
+            patientName: 'Legi Paci Tinu',
+            rut: '1.000.126-9',
             age: '55',
             pathology: '—',
           },
@@ -214,8 +214,8 @@ describe('PrescriptionBedGridView', () => {
     const movedPatientPrescription = buildRecord('rx-moved-bed', {
       assignmentScope: 'patient',
       bedId: 'R1',
-      patientName: 'Luis Pate Tuki',
-      patientRut: '6.451.632-9',
+      patientName: 'Legi Paci Tinu',
+      patientRut: '1.000.126-9',
       prescriptionType: 'comun',
     });
 
@@ -223,7 +223,7 @@ describe('PrescriptionBedGridView', () => {
       <PrescriptionBedGridView records={[movedPatientPrescription]} dayIso="2026-05-04" />
     );
 
-    expect(await screen.findByText('Luis Pate Tuki')).toBeInTheDocument();
+    expect(await screen.findByText('Legi Paci Tinu')).toBeInTheDocument();
     expect(screen.queryByText('Egreso')).not.toBeInTheDocument();
     expect(screen.getByTestId('prescription-bed-cell-H6C1-comun')).toBeInTheDocument();
     expect(screen.queryByTestId('prescription-bed-cell-R1-comun')).not.toBeInTheDocument();
@@ -248,7 +248,7 @@ describe('PrescriptionBedGridView', () => {
     const select = (await screen.findByRole('combobox')) as HTMLSelectElement;
     fireEvent.change(select, {
       target: {
-        value: (screen.getByRole('option', { name: /H1C2 · Carina/ }) as HTMLOptionElement).value,
+        value: (screen.getByRole('option', { name: /H1C2 · Cogube/ }) as HTMLOptionElement).value,
       },
     });
     fireEvent.click(screen.getByRole('button', { name: /guardar/i }));
@@ -256,8 +256,8 @@ describe('PrescriptionBedGridView', () => {
     await waitFor(() => expect(onReassign).toHaveBeenCalledTimes(1));
     expect(onReassign).toHaveBeenCalledWith(expect.objectContaining({ id: 'rx-change-bed' }), {
       bedId: 'H1C2',
-      patientName: 'Carina Pate Lillo',
-      patientRut: '14.470.055-4',
+      patientName: 'Cogube Paci Lateb',
+      patientRut: '10.000.131-4',
       clear: false,
     });
   });
@@ -282,7 +282,7 @@ describe('PrescriptionBedGridView', () => {
     const select = (await screen.findByRole('combobox')) as HTMLSelectElement;
     fireEvent.change(select, {
       target: {
-        value: (screen.getByRole('option', { name: /H1C2 · Carina/ }) as HTMLOptionElement).value,
+        value: (screen.getByRole('option', { name: /H1C2 · Cogube/ }) as HTMLOptionElement).value,
       },
     });
     fireEvent.click(screen.getByRole('button', { name: /guardar/i }));
@@ -325,8 +325,8 @@ describe('PrescriptionBedGridView', () => {
       expect.objectContaining({ id: 'rx-drag' }),
       expect.objectContaining({
         bedId: 'H1C2',
-        patientName: 'Carina Pate Lillo',
-        patientRut: '14.470.055-4',
+        patientName: 'Cogube Paci Lateb',
+        patientRut: '10.000.131-4',
       })
     );
   });
@@ -365,14 +365,14 @@ describe('PrescriptionBedGridView', () => {
     const user = userEvent.setup();
     const first = buildRecord('rx-first', {
       bedId: 'H1C2',
-      patientName: 'Carina Pate Lillo',
-      patientRut: '14.470.055-4',
+      patientName: 'Cogube Paci Lateb',
+      patientRut: '10.000.131-4',
       prescriptionType: 'comun',
     });
     const second = buildRecord('rx-second', {
       bedId: 'H1C2',
-      patientName: 'Carina Pate Lillo',
-      patientRut: '14.470.055-4',
+      patientName: 'Cogube Paci Lateb',
+      patientRut: '10.000.131-4',
       prescriptionType: 'psicotropicos',
     });
 
@@ -395,14 +395,14 @@ describe('PrescriptionBedGridView', () => {
     const user = userEvent.setup();
     const first = buildRecord('rx-first', {
       bedId: 'H1C2',
-      patientName: 'Carina Pate Lillo',
-      patientRut: '14.470.055-4',
+      patientName: 'Cogube Paci Lateb',
+      patientRut: '10.000.131-4',
       prescriptionType: 'comun',
     });
     const second = buildRecord('rx-second', {
       bedId: 'H1C2',
-      patientName: 'Carina Pate Lillo',
-      patientRut: '14.470.055-4',
+      patientName: 'Cogube Paci Lateb',
+      patientRut: '10.000.131-4',
       prescriptionType: 'psicotropicos',
     });
     const secondImage = createDeferred<string>();
@@ -437,8 +437,8 @@ describe('PrescriptionBedGridView', () => {
   it('confirms and deletes the selected prescription from the image viewer', async () => {
     const record = buildRecord('rx-delete', {
       bedId: 'H1C2',
-      patientName: 'Carina Pate Lillo',
-      patientRut: '14.470.055-4',
+      patientName: 'Cogube Paci Lateb',
+      patientRut: '10.000.131-4',
     });
     const onDelete = vi.fn(async () => undefined);
 

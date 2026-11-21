@@ -272,7 +272,7 @@ describe('cudyrUpcAnalysisController', () => {
         }),
         R2: createPatient('R2', {
           patientName: '',
-          rut: '14.747.062-2',
+          rut: '10.000.132-2',
           isUPC: true,
           cudyr: createCudyrScore('B', '3'),
         }),

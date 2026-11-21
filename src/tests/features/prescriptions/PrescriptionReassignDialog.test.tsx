@@ -55,8 +55,8 @@ const buildPopulatedDay = (): DailyRecord =>
         isBlocked: false,
         bedMode: 'Cama',
         hasCompanionCrib: false,
-        patientName: 'Carina Pate Lillo',
-        rut: '14.470.055-4',
+        patientName: 'Cogube Paci Lateb',
+        rut: '10.000.131-4',
         age: '60',
         pathology: '—',
       },
@@ -115,7 +115,7 @@ describe('PrescriptionReassignDialog', () => {
 
     // Wait for the fallback to resolve and the dropdown to appear with H1C2.
     await waitFor(() =>
-      expect(screen.getByText(/H1C2 · Carina Pate Lillo \(14\.470\.055-4\)/)).toBeTruthy()
+      expect(screen.getByText(/H1C2 · Cogube Paci Lateb \(10\.000\.131-4\)/)).toBeTruthy()
     );
 
     // Notice text indicating fallback day was used.
@@ -139,7 +139,7 @@ describe('PrescriptionReassignDialog', () => {
     const select = (await screen.findByRole('combobox')) as HTMLSelectElement;
     fireEvent.change(select, {
       target: {
-        value: (screen.getByRole('option', { name: /H1C2 · Carina/ }) as HTMLOptionElement).value,
+        value: (screen.getByRole('option', { name: /H1C2 · Cogube/ }) as HTMLOptionElement).value,
       },
     });
 
@@ -149,8 +149,8 @@ describe('PrescriptionReassignDialog', () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(onSubmit).toHaveBeenCalledWith({
       bedId: 'H1C2',
-      patientName: 'Carina Pate Lillo',
-      patientRut: '14.470.055-4',
+      patientName: 'Cogube Paci Lateb',
+      patientRut: '10.000.131-4',
       clear: false,
     });
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
@@ -169,7 +169,7 @@ describe('PrescriptionReassignDialog', () => {
     );
 
     await screen.findByRole('combobox');
-    expect(screen.getByRole('option', { name: /H1C2.*Carina Pate Lillo.*Activo/i })).toBeTruthy();
+    expect(screen.getByRole('option', { name: /H1C2.*Cogube Paci Lateb.*Activo/i })).toBeTruthy();
     expect(
       screen.getByRole('option', { name: /H2C3.*Paciente Alta.*Alta \(egreso\)/i })
     ).toBeTruthy();

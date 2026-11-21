@@ -93,12 +93,12 @@ describe('applyEgresoReport', () => {
   });
 
   it('creates the definitive movement for an occupied patient and removes provisional Ficha plans', () => {
-    const current = makeRecord({ R2: patient('28.663.707-8', 'Isidora Soto') });
+    const current = makeRecord({ R2: patient('10.000.112-8', 'Isidora Soto') });
     const diff = makeDiff({
       updates: [
         {
           bedId: 'R2',
-          rut: '28.663.707-8',
+          rut: '10.000.112-8',
           patientName: 'Isidora Soto',
           changes: [],
           patient: current.beds.R2,
@@ -108,7 +108,7 @@ describe('applyEgresoReport', () => {
       pendingAdministrativeDischarges: [
         {
           bedId: 'R2',
-          rut: '28.663.707-8',
+          rut: '10.000.112-8',
           patientName: 'Isidora Soto',
           signal: 'clinical-closure',
           encounterId: '141704',
@@ -122,7 +122,7 @@ describe('applyEgresoReport', () => {
     });
     const enriched = applyEgresoReport(
       diff,
-      [row({ run: '28663707-8', destino: 'Traslado a otro hospital' })],
+      [row({ run: '10000112-8', destino: 'Traslado a otro hospital' })],
       current
     );
 
@@ -137,7 +137,7 @@ describe('applyEgresoReport', () => {
   });
 
   it('removes an administratively discharged patient from the unchanged aggregate', () => {
-    const current = makeRecord({ R2: patient('28.663.707-8', 'Isidora Soto') });
+    const current = makeRecord({ R2: patient('10.000.112-8', 'Isidora Soto') });
     const enriched = applyEgresoReport(
       makeDiff({
         unchangedCount: 1,
@@ -151,7 +151,7 @@ describe('applyEgresoReport', () => {
           unchanged: 1,
         },
       }),
-      [row({ run: '28663707-8', destino: 'Domicilio' })],
+      [row({ run: '10000112-8', destino: 'Domicilio' })],
       current
     );
 
@@ -165,7 +165,7 @@ describe('applyEgresoReport', () => {
     bedLabel => {
       const current = makeRecord({
         R2: {
-          ...patient('28.663.707-8', 'Isidora Soto'),
+          ...patient('10.000.112-8', 'Isidora Soto'),
           admissionDate: '2026-07-14',
         },
       });
@@ -173,7 +173,7 @@ describe('applyEgresoReport', () => {
         makeDiff(),
         [
           row({
-            run: '28663707-8',
+            run: '10000112-8',
             bedLabel,
             destino: 'Domicilio',
             fechaEgreso: '14-07-2026  12:00',
@@ -193,7 +193,7 @@ describe('applyEgresoReport', () => {
   it('classifies CMA from the Eloísa source location even when the report prints physical bed R1', () => {
     const current = makeRecord({
       R1: {
-        ...patient('28.663.707-8', 'Isidora Soto'),
+        ...patient('10.000.112-8', 'Isidora Soto'),
         bedId: 'R1',
         admissionDate: '2026-07-14',
         location: 'Área quirúrgica indiferenciada / CMA R1 / CMA R1',
@@ -201,7 +201,7 @@ describe('applyEgresoReport', () => {
     });
     const enriched = applyEgresoReport(
       makeDiff(),
-      [row({ run: '28663707-8', bedLabel: 'R1', destino: 'Domicilio' })],
+      [row({ run: '10000112-8', bedLabel: 'R1', destino: 'Domicilio' })],
       current
     );
 
@@ -211,7 +211,7 @@ describe('applyEgresoReport', () => {
   it('does not confuse ordinary R1 with CMA R1', () => {
     const current = makeRecord({
       R1: {
-        ...patient('28.663.707-8', 'Isidora Soto'),
+        ...patient('10.000.112-8', 'Isidora Soto'),
         bedId: 'R1',
         admissionDate: '2026-07-14',
         location: 'Área Médico Quirúrgica Indiferenciada / Recuperación 1 / R1',
@@ -219,7 +219,7 @@ describe('applyEgresoReport', () => {
     });
     const enriched = applyEgresoReport(
       makeDiff(),
-      [row({ run: '28663707-8', bedLabel: 'R1', destino: 'Domicilio' })],
+      [row({ run: '10000112-8', bedLabel: 'R1', destino: 'Domicilio' })],
       current
     );
 
@@ -229,13 +229,13 @@ describe('applyEgresoReport', () => {
   it('keeps a CMA-bed discharge as a regular alta when the admission was on a previous day', () => {
     const current = makeRecord({
       R2: {
-        ...patient('28.663.707-8'),
+        ...patient('10.000.112-8'),
         admissionDate: '2026-07-13',
       },
     });
     const enriched = applyEgresoReport(
       makeDiff(),
-      [row({ run: '28663707-8', bedLabel: 'CMA R2', destino: 'Domicilio' })],
+      [row({ run: '10000112-8', bedLabel: 'CMA R2', destino: 'Domicilio' })],
       current
     );
 
@@ -245,13 +245,13 @@ describe('applyEgresoReport', () => {
   it('preserves an explicit transfer from a CMA bed instead of hiding it as CMA', () => {
     const current = makeRecord({
       R2: {
-        ...patient('28.663.707-8'),
+        ...patient('10.000.112-8'),
         admissionDate: '2026-07-14',
       },
     });
     const enriched = applyEgresoReport(
       makeDiff(),
-      [row({ run: '28663707-8', bedLabel: 'CMA R2', destino: 'Traslado a otro hospital' })],
+      [row({ run: '10000112-8', bedLabel: 'CMA R2', destino: 'Traslado a otro hospital' })],
       current
     );
 
@@ -261,7 +261,7 @@ describe('applyEgresoReport', () => {
   it('preserves a death from a CMA bed instead of classifying it as ambulatory CMA', () => {
     const current = makeRecord({
       R2: {
-        ...patient('28.663.707-8'),
+        ...patient('10.000.112-8'),
         admissionDate: '2026-07-14',
       },
     });
@@ -269,7 +269,7 @@ describe('applyEgresoReport', () => {
       makeDiff(),
       [
         row({
-          run: '28663707-8',
+          run: '10000112-8',
           bedLabel: 'CMA R2',
           destino: 'Domicilio',
           motivo: 'Fallecido',
@@ -286,8 +286,8 @@ describe('applyEgresoReport', () => {
       makeDiff(),
       [
         row({
-          run: '11.044.046-4',
-          patientName: 'LORENA  LOPEZ ALVARADO',
+          run: '10.000.128-4',
+          patientName: 'LESUVU  LEMEF APEGIVUC',
           bedLabel: 'Neo2',
           destino: 'Domicilio',
         }),
@@ -295,7 +295,7 @@ describe('applyEgresoReport', () => {
       makeRecord()
     );
     expect(enriched.reportEgresos?.[0]).toMatchObject({
-      patientName: 'Lorena Lopez Alvarado',
+      patientName: 'Lesuvu Lemef Apegivuc',
       bedLabel: 'NEO2',
       kind: 'alta',
     });
@@ -305,7 +305,7 @@ describe('applyEgresoReport', () => {
   it('normalizes an Urgencias box in the administrative egreso report', () => {
     const enriched = applyEgresoReport(
       makeDiff(),
-      [row({ run: '11.044.046-4', patientName: 'Paciente Box', bedLabel: 'B1UEA' })],
+      [row({ run: '10.000.128-4', patientName: 'Paciente Box', bedLabel: 'B1UEA' })],
       makeRecord()
     );
 
@@ -313,10 +313,10 @@ describe('applyEgresoReport', () => {
   });
 
   it('does not duplicate a RUN already represented by a movement', () => {
-    const current = makeRecord({}, { discharges: [{ rut: '11.044.046-4' } as never] });
+    const current = makeRecord({}, { discharges: [{ rut: '10.000.128-4' } as never] });
     const enriched = applyEgresoReport(
       makeDiff(),
-      [row({ run: '11.044.046-4', destino: 'Domicilio' })],
+      [row({ run: '10.000.128-4', destino: 'Domicilio' })],
       current
     );
     expect(enriched.discharges).toHaveLength(0);
@@ -324,10 +324,10 @@ describe('applyEgresoReport', () => {
   });
 
   it('does not let a legacy movement suppress a later exact episode', () => {
-    const current = makeRecord({}, { discharges: [{ rut: '11.044.046-4' } as never] });
+    const current = makeRecord({}, { discharges: [{ rut: '10.000.128-4' } as never] });
     const enriched = applyEgresoReport(
       makeDiff(),
-      [row({ run: '11.044.046-4', encounterId: 'NEW-EPISODE', destino: 'Domicilio' })],
+      [row({ run: '10.000.128-4', encounterId: 'NEW-EPISODE', destino: 'Domicilio' })],
       current
     );
 
@@ -393,7 +393,7 @@ describe('applyEgresoReport', () => {
 
   it('removes a planned operation by exact episode even when report RUN differs', () => {
     const exactPatient = {
-      ...patient('11.044.046-4', 'Paciente Exacto'),
+      ...patient('10.000.128-4', 'Paciente Exacto'),
       clinicalEpisodeId: 'EXACT-EPISODE',
     };
     const enriched = applyEgresoReport(
@@ -422,7 +422,7 @@ describe('applyEgresoReport', () => {
     const enriched = applyEgresoReport(
       makeDiff(),
       [
-        row({ run: '11.044.046-4', encounterId: 'EXACT-EPISODE', destino: 'Domicilio' }),
+        row({ run: '10.000.128-4', encounterId: 'EXACT-EPISODE', destino: 'Domicilio' }),
         row({ run: '22-5', encounterId: 'EXACT-EPISODE', destino: 'Domicilio' }),
       ],
       makeRecord()
@@ -434,7 +434,7 @@ describe('applyEgresoReport', () => {
 
   it('prefers one exact row over an episode-less row for the same occupied RUN', () => {
     const exactPatient = {
-      ...patient('11.044.046-4', 'Paciente Exacto'),
+      ...patient('10.000.128-4', 'Paciente Exacto'),
       clinicalEpisodeId: 'EXACT-EPISODE',
     };
     const enriched = applyEgresoReport(
@@ -453,7 +453,7 @@ describe('applyEgresoReport', () => {
 
   it('keeps an episode-less active discharge beside an older exact episode', () => {
     const active = {
-      ...patient('11.044.046-4', 'Paciente Readmitido'),
+      ...patient('10.000.128-4', 'Paciente Readmitido'),
       clinicalEpisodeId: 'ACTIVE-EPISODE',
     };
     const enriched = applyEgresoReport(

@@ -95,7 +95,7 @@ clinical-attachments/{hospitalId}/{patientRutKey}/{episodeKey}/{attachmentId}/{s
 Donde:
 
 - `hospitalId`: hospital activo, por ejemplo `hhr`.
-- `patientRutKey`: RUT normalizado para path, sin puntos, guion seguro, por ejemplo `13545665-9`.
+- `patientRutKey`: RUT normalizado para path, sin puntos, guion seguro, por ejemplo `10000117-9`.
 - `episodeKey`: el mismo identificador usado por documentos clinicos.
 - `attachmentId`: UUID o id generado por el cliente.
 - `safeFileName`: nombre sanitizado, conservando extension.
@@ -103,7 +103,7 @@ Donde:
 Ejemplo:
 
 ```text
-clinical-attachments/hhr/13545665-9/13545665-9__2026-04-15/att_01hv.../ecografia-abdominal.pdf
+clinical-attachments/hhr/10000117-9/10000117-9__2026-04-15/att_01hv.../ecografia-abdominal.pdf
 ```
 
 Esta ruta permite:

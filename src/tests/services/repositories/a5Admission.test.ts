@@ -8,7 +8,6 @@ import * as patchPreparation from '@/services/repositories/dailyRecordPatchPersi
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
-import { syncWithFirestoreDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { initializeDayDetailed } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 const wire = vi.hoisted(() => ({ fail: false, changeOwner: false }));
 vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled: () => true }));
@@ -92,11 +91,10 @@ for (const path of ['P', 'B', 'I'] as const) {
     });
   }
 }
-it('E does not admit after owner changes during network', async () => {
+it('a remote read does not admit after owner changes during network', async () => {
   wire.changeOwner = true;
-  const result = await syncWithFirestoreDetailed(date);
+  await expect(getForDateWithMeta(date, true)).rejects.toThrow('La sesión o la observación cambió');
   expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
-  expect(result?.serverConfirmed).toBe(false);
 });
 it('I rejects failed remote evidence instead of creating a day', async () => {
   wire.fail = true;

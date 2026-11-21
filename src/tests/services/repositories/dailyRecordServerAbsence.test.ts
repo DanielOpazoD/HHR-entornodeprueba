@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { setImmediate } from 'node:timers/promises';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 
 const server = vi.hoisted(() => ({ read: vi.fn() }));
 
@@ -120,8 +120,8 @@ describe('a day reported missing is confirmed with the server before it can be c
 
   describe('realtime listener', () => {
     const listen = () => {
-      const onResult = vi.fn<(result: SyncDailyRecordResult, pending: boolean) => void>();
-      const onFailure = vi.fn<(result: SyncDailyRecordResult) => void>();
+      const onResult = vi.fn<(result: DailyRecordReadResult) => void>();
+      const onFailure = vi.fn<(result: DailyRecordReadResult) => void>();
       vi.mocked(subscribeToRecord).mockReturnValue(() => undefined);
       const stop = subscribeDetailed(date, onResult, onFailure);
       const next = vi.mocked(subscribeToRecord).mock.calls.at(-1)![1];
@@ -137,7 +137,11 @@ describe('a day reported missing is confirmed with the server before it can be c
 
       expect(onResult).not.toHaveBeenCalled();
       expect(onFailure).toHaveBeenCalledWith(
-        expect.objectContaining({ outcome: 'blocked', record: null, serverConfirmed: false })
+        expect.objectContaining({
+          consistencyState: 'unavailable',
+          record: null,
+          serverConfirmed: false,
+        })
       );
     });
 
@@ -150,8 +154,11 @@ describe('a day reported missing is confirmed with the server before it can be c
 
       expect(onFailure).not.toHaveBeenCalled();
       expect(onResult).toHaveBeenCalledWith(
-        expect.objectContaining({ outcome: 'missing', serverConfirmed: true, record: null }),
-        false
+        expect.objectContaining({
+          serverConfirmed: true,
+          record: null,
+          conflictSummary: expect.objectContaining({ kind: 'remote_missing' }),
+        })
       );
     });
   });

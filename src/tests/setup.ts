@@ -327,11 +327,6 @@ const globalDailyRecordRepositoryPortMock = {
     state: 'confirmed',
     localCopy: 'current',
   }),
-  syncWithFirestoreDetailed: vi.fn().mockResolvedValue({
-    date: '2026-01-01',
-    outcome: 'clean',
-    record: null,
-  }),
 } satisfies Record<keyof DailyRecordRepositoryPort, ReturnType<typeof vi.fn>>;
 
 vi.mock('@/services/repositories/CatalogRepository', () => ({
@@ -345,9 +340,6 @@ vi.mock('@/application/ports/dailyRecordPort', () => ({
     updatePartial: globalDailyRecordRepositoryPortMock.updatePartialDetailed,
     save: globalDailyRecordRepositoryPortMock.saveDetailed,
     delete: globalDailyRecordRepositoryPortMock.deleteDay,
-  },
-  defaultDailyRecordSyncPort: {
-    syncWithFirestoreDetailed: globalDailyRecordRepositoryPortMock.syncWithFirestoreDetailed,
   },
   defaultDailyRecordRepositoryPort: globalDailyRecordRepositoryPortMock,
 }));

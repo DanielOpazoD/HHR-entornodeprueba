@@ -23,7 +23,6 @@ import {
   initializeDay,
   initializeDayDetailed,
 } from '@/services/repositories/dailyRecordRepositoryInitializationService';
-import { syncWithFirestore } from '@/services/repositories/dailyRecordRepositorySyncService';
 import * as idbCatalogService from '@/services/storage/indexeddb/indexedDbCatalogService';
 import * as idbRecordService from '@/services/storage/indexeddb/indexedDbRecordService';
 import * as firestoreService from '@/services/storage/firestore';
@@ -138,7 +137,6 @@ const Repository = {
   isFirestoreEnabled,
   save,
   setFirestoreEnabled,
-  syncWithFirestore,
   updatePartial,
 };
 
@@ -289,10 +287,10 @@ describe('DailyRecordRepository reads', () => {
     expect(result?.date).toBe('2024-12-31');
   });
 
-  it('pulls from firestore and saves locally during sync', async () => {
+  it('pulls from firestore and saves locally on a remote read', async () => {
     vi.mocked(firestoreService.getRecordFromFirestore).mockResolvedValueOnce(mockRecord);
 
-    const result = await Repository.syncWithFirestore(mockDate);
+    const result = await Repository.getForDate(mockDate);
 
     expect(result).toMatchObject({
       ...mockRecord,
@@ -304,7 +302,7 @@ describe('DailyRecordRepository reads', () => {
   it('returns null when remote Firestore record is missing', async () => {
     vi.mocked(firestoreService.getRecordFromFirestore).mockResolvedValueOnce(null);
 
-    const result = await Repository.syncWithFirestore(mockDate);
+    const result = await Repository.getForDate(mockDate);
 
     expect(result).toBeNull();
   });
@@ -324,7 +322,7 @@ describe('DailyRecordRepository reads', () => {
     );
     vi.mocked(firestoreService.getRecordFromFirestore).mockResolvedValueOnce(olderRemoteRecord);
 
-    const result = await Repository.syncWithFirestore(mockDate);
+    const result = await Repository.getForDate(mockDate);
 
     expect(result?.lastUpdated).toBe(`${mockDate}T08:00:00.000Z`);
   });

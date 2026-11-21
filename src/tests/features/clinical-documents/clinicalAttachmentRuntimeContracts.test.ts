@@ -9,14 +9,14 @@ import {
 const buildRecord = () => ({
   id: 'att_1',
   hospitalId: 'hhr',
-  patientRut: '13.545.665-9',
-  patientRutKey: '13545665-9',
+  patientRut: '10.000.117-9',
+  patientRutKey: '10000117-9',
   patientName: 'Paciente Test',
-  episodeKey: '13.545.665-9__2026-04-15',
+  episodeKey: '10.000.117-9__2026-04-15',
   documentId: 'doc_1',
   documentType: 'epicrisis',
   sectionId: 'annexes',
-  storagePath: 'clinical-attachments/hhr/13545665-9/episode/att_1/informe.pdf',
+  storagePath: 'clinical-attachments/hhr/10000117-9/episode/att_1/informe.pdf',
   downloadUrl: 'https://storage.test/informe.pdf',
   originalFileName: 'informe.pdf',
   displayName: 'Informe PDF',
@@ -44,7 +44,7 @@ describe('clinicalAttachmentRuntimeContracts', () => {
   it('parses a valid clinical attachment record', () => {
     expect(parseClinicalAttachmentRecord(buildRecord())).toMatchObject({
       id: 'att_1',
-      patientRutKey: '13545665-9',
+      patientRutKey: '10000117-9',
       fileKind: 'pdf',
       status: 'active',
     });

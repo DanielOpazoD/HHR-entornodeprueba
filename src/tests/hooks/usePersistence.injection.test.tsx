@@ -4,13 +4,11 @@ import { usePersistence } from '@/hooks/usePersistence';
 
 const mocks = vi.hoisted(() => ({
   repository: {
-    syncWithFirestoreDetailed: vi.fn(),
     getForDateWithMeta: vi.fn(),
     initializeDay: vi.fn(),
     deleteDay: vi.fn(),
   },
   defaultRead: vi.fn(),
-  defaultSync: vi.fn(),
   defaultDelete: vi.fn(),
   audit: vi.fn(),
   notify: vi.fn(),
@@ -20,7 +18,6 @@ vi.mock('@/services/RepositoryContext', () => ({
 }));
 vi.mock('@/application/ports/dailyRecordPort', () => ({
   defaultDailyRecordReadPort: { getForDateWithMeta: mocks.defaultRead },
-  defaultDailyRecordSyncPort: { syncWithFirestoreDetailed: mocks.defaultSync },
   defaultDailyRecordWritePort: { delete: mocks.defaultDelete },
 }));
 vi.mock('@/context/UIContext', () => ({
@@ -70,11 +67,11 @@ it.each(['2026-07-16', '2026-07-15'])(
       created = await result.current.createDay(source);
     });
     expect(created).toBe(true);
-    expect(mocks.repository.syncWithFirestoreDetailed).toHaveBeenCalledWith(source);
+    // One remote read of the source day: it admits the server's day and returns it.
+    expect(mocks.repository.getForDateWithMeta).toHaveBeenCalledTimes(1);
     expect(mocks.repository.getForDateWithMeta).toHaveBeenCalledWith(source, true);
     expect(mocks.repository.initializeDay).toHaveBeenCalledWith('2026-07-17', source);
     expect(mocks.defaultRead).not.toHaveBeenCalled();
-    expect(mocks.defaultSync).not.toHaveBeenCalled();
   }
 );
 it('deletes through the injected repository only after successful audit', async () => {

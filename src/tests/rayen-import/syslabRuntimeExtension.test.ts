@@ -137,7 +137,7 @@ describe('Syslab background runtime', () => {
     const { runtime } = createHarness(sendMessage);
 
     await expect(
-      runtime.search({ rutBody: '29219852-3', sender: { tab: { id: 44 } } })
+      runtime.search({ rutBody: '10000140-3', sender: { tab: { id: 44 } } })
     ).resolves.toEqual({
       error: 'HHR no informó un RUT válido, sin dígito verificador, para Syslab.',
     });
@@ -271,7 +271,7 @@ describe('Syslab background runtime', () => {
               link: '/syslab/report/43091284',
               date: '24/08/2026',
               time: '08:30',
-              patientName: 'María Pérez',
+              patientName: 'Mopéf Pérez',
               origin: 'HHR',
               exams: ['Hemograma'],
             },
@@ -300,7 +300,7 @@ describe('Syslab background runtime', () => {
 
     const job = Object.entries(stored).find(([key]) => key.startsWith('hhr-pdf-print-'))?.[1];
     expect(job).toMatchObject({
-      filename: 'Laboratorio HHR 24-08-2026, María Pérez, 12.345.678-5.pdf',
+      filename: 'Laboratorio HHR 24-08-2026, Mopéf Pérez, 12.345.678-5.pdf',
     });
   });
 

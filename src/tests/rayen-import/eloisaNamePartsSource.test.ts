@@ -233,7 +233,7 @@ describe('Eloísa name parts source', () => {
   });
 
   describe('newborn names kept from HHR', () => {
-    const mother = encounter({ encounterId: 'MOTHER', run: '144700554', room: 'H5', bed: 'C1' });
+    const mother = encounter({ encounterId: 'MOTHER', run: '100001314', room: 'H5', bed: 'C1' });
     // No RUN yet: the sync keeps the name typed in HHR for the same episode.
     const child = (placement: Partial<RayenEncounter>): RayenEncounter =>
       encounter({

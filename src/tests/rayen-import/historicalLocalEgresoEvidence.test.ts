@@ -7,19 +7,19 @@ const occupant = {
   isClinicalCrib: false,
   encounter: {
     encounterId: '142083',
-    run: '6.321.880-4',
+    run: '1.000.106-4',
     firstGivenName: 'Paciente',
     firstFamilyName: 'Ejemplo',
   },
 };
 
 describe('historical local egreso evidence', () => {
-  const officialText = `1.RUN: 6321880 - 4
+  const officialText = `1.RUN: 1000106 - 4
 24 INGRESO 1 6 - 4 1 2 4 - 0 7 - 2 6 Cuidados Medios
 29 EGRESO 1 4 - 2 8 2 5 - 0 7 - 2 6`;
   const sparseLookup = async () => [
     {
-      run: '63218804',
+      run: '10001064',
       encounterId: '142083',
       egreso: { id: 142083, endPeriod: '2026-07-25T14:28:17-06:00' },
     },
@@ -42,9 +42,9 @@ describe('historical local egreso evidence', () => {
   });
 
   it.each([
-    ['another RUN', officialText.replace('6321880 - 4', '11111111 - 1')],
+    ['another RUN', officialText.replace('1000106 - 4', '11111111 - 1')],
     ['different discharge minute', officialText.replace('1 4 - 2 8', '1 4 - 2 9')],
-    ['incomplete PDF', '1.RUN: 6321880 - 4'],
+    ['incomplete PDF', '1.RUN: 1000106 - 4'],
   ])('does not verify sparse metadata with %s', async (_label, text) => {
     const result = await verifyLocalOccupantsByExactEgreso([occupant], sparseLookup, {
       fetchDischargeReport: async () => ({ base64: 'QQ==' }),
@@ -76,7 +76,7 @@ describe('historical local egreso evidence', () => {
   it('requires an explicit administrative discharge before verifying the interval', async () => {
     const incomplete = await verifyLocalOccupantsByExactEgreso([occupant], async () => [
       {
-        run: '63218804',
+        run: '10001064',
         encounterId: '142083',
         egreso: { id: 142083, dateDischarge: '2026-07-25T14:28:00' },
       },
@@ -89,7 +89,7 @@ describe('historical local egreso evidence', () => {
   it('accepts an exact episode and RUN with a confirmed administrative discharge', async () => {
     const result = await verifyLocalOccupantsByExactEgreso([occupant], async () => [
       {
-        run: '63218804',
+        run: '10001064',
         encounterId: '142083',
         egreso: {
           id: 142083,

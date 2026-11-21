@@ -50,7 +50,7 @@ import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
 import { applyPatches } from '@/utils/patchUtils';
-import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 
 vi.unmock('@/application/ports/dailyRecordPort');
 vi.unmock('@/services/repositories/dailyRecordRepositoryWriteService');
@@ -258,7 +258,7 @@ it.each([
     setFirestoreEnabled(false);
     await c.edit(night, 'pendiente');
     setFirestoreEnabled(true);
-    const events: SyncDailyRecordResult[] = [];
+    const events: DailyRecordReadResult[] = [];
     const stop = subscribeDetailed(date, result => {
       if (result.serverConfirmed) events.push(result);
     });
@@ -512,13 +512,19 @@ const { createRayenClinicalEnrichmentFunctions } = createRequire(import.meta.url
   '../../../functions/lib/rayenClinicalEnrichmentFunctions.js'
 );
 const readLive = async () => {
-  let delivered: SyncDailyRecordResult | undefined;
+  const delivered: DailyRecordReadResult[] = [];
   const stop = subscribeDetailed(date, result => {
-    if (result.outcome === 'clean') delivered = result;
+    if (result.record && result.publication !== 'superseded') delivered.push(result);
   });
   try {
-    await waitFor(() => expect(delivered?.record).toBeTruthy(), { timeout: 10000 });
-    return delivered!;
+    // The listener answers from the SDK cache first and then from the server, through the same
+    // admission as a point read; once the answers settle, the last one is the server's.
+    await waitFor(() => expect(delivered.length).toBeGreaterThan(0), { timeout: 10000 });
+    for (let seen = 0; seen !== delivered.length; ) {
+      seen = delivered.length;
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    return delivered.at(-1)!;
   } finally {
     stop();
   }

@@ -129,8 +129,8 @@ describe('clinicalConflictCenterController', () => {
           bedName: 'H2',
           bedId: 'H2',
           bedType: 'Cama',
-          patientName: 'Bernardo Orrego',
-          rut: '17.274.300-5',
+          patientName: 'Budegutu Osimap',
+          rut: '10.000.105-5',
           diagnosis: 'Alta clinica',
           time: '13:24',
           status: 'Vivo',
@@ -174,8 +174,8 @@ describe('clinicalConflictCenterController', () => {
           bedName: 'H1',
         }),
         expect.objectContaining({
-          patientName: 'Bernardo Orrego',
-          rut: '17.274.300-5',
+          patientName: 'Budegutu Osimap',
+          rut: '10.000.105-5',
           bedName: 'H2',
         }),
       ])

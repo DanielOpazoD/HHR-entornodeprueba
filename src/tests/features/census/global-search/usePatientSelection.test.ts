@@ -20,8 +20,8 @@ vi.mock('@/application/ports/clinicalDocumentPort', () => ({
 import { usePatientSelection } from '@/features/census/components/global-search/usePatientSelection';
 
 const basePatient: MasterPatient = {
-  rut: '8.932.066-6',
-  fullName: 'Ines Riroroko Leiva',
+  rut: '1.000.122-6',
+  fullName: 'Isut Rebolesu Litus',
   forecast: 'Fonasa',
   gender: 'Femenino',
   birthDate: '1966-09-03',
@@ -145,7 +145,7 @@ describe('usePatientSelection', () => {
 
   it('finds clinical documents when the search episode date is one day before the clinical document key', async () => {
     mockListClinicalDocumentsByEpisode.mockImplementation(async (episodeKey: string) =>
-      episodeKey === '13.545.665-9__2026-04-16'
+      episodeKey === '10.000.117-9__2026-04-16'
         ? [
             {
               id: 'doc-epicrisis-1',
@@ -154,7 +154,7 @@ describe('usePatientSelection', () => {
               audit: {
                 createdAt: '2026-04-22T10:00:00.000Z',
                 updatedAt: '2026-04-22T10:30:00.000Z',
-                createdBy: { displayName: 'Daniel' },
+                createdBy: { displayName: 'Degaro' },
               },
             },
           ]
@@ -164,26 +164,26 @@ describe('usePatientSelection', () => {
     const { result } = renderHook(() => usePatientSelection());
 
     act(() => {
-      result.current.loadEpisodeDocuments('13.545.665-9__2026-04-15');
+      result.current.loadEpisodeDocuments('10.000.117-9__2026-04-15');
     });
 
     await waitFor(() =>
-      expect(result.current.episodeDocuments['13.545.665-9__2026-04-15']?.docs).toHaveLength(1)
+      expect(result.current.episodeDocuments['10.000.117-9__2026-04-15']?.docs).toHaveLength(1)
     );
 
-    expect(mockListClinicalDocumentsByEpisode).toHaveBeenCalledWith('13.545.665-9__2026-04-16');
-    expect(result.current.episodeDocuments['13.545.665-9__2026-04-15']?.docs[0]).toMatchObject({
+    expect(mockListClinicalDocumentsByEpisode).toHaveBeenCalledWith('10.000.117-9__2026-04-16');
+    expect(result.current.episodeDocuments['10.000.117-9__2026-04-15']?.docs[0]).toMatchObject({
       id: 'doc-epicrisis-1',
-      episodeKey: '13.545.665-9__2026-04-16',
+      episodeKey: '10.000.117-9__2026-04-16',
       documentType: 'epicrisis',
       status: 'draft',
-      createdBy: 'Daniel',
+      createdBy: 'Degaro',
     });
   });
   it('reports a failed document read as a failure, never as an episode without documents', async () => {
     mockListClinicalDocumentsByEpisode.mockRejectedValueOnce(new Error('synthetic read failure'));
     const { result } = renderHook(() => usePatientSelection());
-    const key = '13.545.665-9__2026-04-15';
+    const key = '10.000.117-9__2026-04-15';
 
     act(() => {
       result.current.loadEpisodeDocuments(key);

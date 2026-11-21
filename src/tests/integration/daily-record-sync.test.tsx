@@ -10,7 +10,6 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import React from 'react';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
 import { UIProvider } from '@/context/UIContext';
-import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
@@ -28,7 +27,6 @@ import type { DailyRecordWriteResult } from '@/services/repositories/contracts/d
 
 // Mock Repository
 const mockSubscribe = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>();
-const mockSyncWithFirestore = vi.fn();
 const mockSave = vi.fn();
 const mockUpdatePartial = vi.fn();
 const mockGetForDate = vi.fn();
@@ -41,7 +39,6 @@ const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
     updatePartial: vi.fn(),
     updatePartialDetailed: vi.fn(),
     subscribeDetailed: vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(),
-    syncWithFirestoreDetailed: vi.fn(),
     initializeDay: vi.fn(),
     deleteDay: vi.fn(),
     getPreviousDay: vi.fn(),
@@ -58,9 +55,6 @@ vi.mock('@/application/ports/dailyRecordPort', () => ({
     updatePartial: mockDailyRecordRepositoryPort.updatePartialDetailed,
     save: mockDailyRecordRepositoryPort.saveDetailed,
     delete: mockDailyRecordRepositoryPort.deleteDay,
-  },
-  defaultDailyRecordSyncPort: {
-    syncWithFirestoreDetailed: mockDailyRecordRepositoryPort.syncWithFirestoreDetailed,
   },
   defaultDailyRecordRepositoryPort: mockDailyRecordRepositoryPort,
 }));
@@ -157,7 +151,6 @@ describe('DailyRecord Sync Integration', () => {
     stopTimingOwner = startDailyActionTiming();
     vi.clearAllMocks();
     mockGetForDate.mockReturnValue(null);
-    mockSyncWithFirestore.mockResolvedValue(null);
     const persisted: DailyRecordWriteResult = {
       date: '2024-12-28',
       savedHere: true,
@@ -188,9 +181,6 @@ describe('DailyRecord Sync Integration', () => {
       mockSubscribe(date, cb);
       return () => {};
     });
-    mockDailyRecordRepositoryPort.syncWithFirestoreDetailed.mockImplementation((date: string) =>
-      mockSyncWithFirestore(date)
-    );
   });
 
   it('should load local record on mount', async () => {
@@ -242,80 +232,13 @@ describe('DailyRecord Sync Integration', () => {
 
     await act(async () => {
       subscribeCallback(
-        createUnconfirmedDailyRecordSubscriptionResult(remoteRecord.date, remoteRecord),
-        false
-      ); // hasPendingWrites = false
+        createUnconfirmedDailyRecordSubscriptionResult(remoteRecord.date, remoteRecord)
+      );
     });
 
     await waitFor(() => {
       expect(result.current.record).toEqual(remoteRecord);
     });
-  });
-
-  it('should ignore remote echo while local pending writes are flagged', async () => {
-    const localRecord = createMockRecord('2024-12-28');
-    localRecord.beds = {
-      R1: {
-        bedId: 'R1',
-        isBlocked: false,
-        bedMode: 'Cama',
-        hasCompanionCrib: false,
-        patientName: 'Cambio local',
-        rut: '',
-        age: '',
-        pathology: '',
-        specialty: Specialty.MEDICINA,
-        status: PatientStatus.ESTABLE,
-        admissionDate: '',
-        hasWristband: false,
-        devices: [],
-        surgicalComplication: false,
-        isUPC: false,
-      },
-    };
-    mockGetForDate.mockResolvedValue(localRecord);
-
-    const { result } = renderHook(() => useDailyRecordSyncQuery('2024-12-28', 'ready'), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.record).toEqual(localRecord));
-
-    await waitFor(() => {
-      expect(mockSubscribe).toHaveBeenCalledWith('2024-12-28', expect.any(Function));
-    });
-
-    const subscribeCallback = mockSubscribe.mock.calls[0][1];
-
-    await act(async () => {
-      subscribeCallback(
-        createUnconfirmedDailyRecordSubscriptionResult('2024-12-28', {
-          ...createMockRecord('2024-12-28'),
-          beds: {
-            R1: {
-              bedId: 'R1',
-              isBlocked: false,
-              bedMode: 'Cama',
-              hasCompanionCrib: false,
-              patientName: 'Eco remoto',
-              rut: '',
-              age: '',
-              pathology: '',
-              specialty: Specialty.MEDICINA,
-              status: PatientStatus.ESTABLE,
-              admissionDate: '',
-              hasWristband: false,
-              devices: [],
-              surgicalComplication: false,
-              isUPC: false,
-            },
-          },
-        }),
-        true
-      );
-    });
-
-    expect(result.current.record?.beds.R1.patientName).toBe('Cambio local');
   });
 
   it('should save and update state on saveAndUpdate call', async () => {

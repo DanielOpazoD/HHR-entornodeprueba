@@ -52,7 +52,7 @@ describe('historical pavilion recovery and active episode evidence', () => {
           encounterId: '150001',
           run: '18.658.570-4',
           firstGivenName: 'Tamarii',
-          firstFamilyName: 'Tuki Hey',
+          firstFamilyName: 'Tinu Hey',
           admissionDatetime: '2026-07-30T07:00:00-06:00',
           service: 'Recuperación Pabellón',
           room: 'Pabellón-R1',
@@ -74,7 +74,7 @@ describe('historical pavilion recovery and active episode evidence', () => {
       beds: {
         R1: {
           ...createEmptyPatient('R1'),
-          patientName: 'Tamarii Tuki Hey',
+          patientName: 'Tamarii Tinu Hey',
           rut: '18.658.570-4',
           clinicalEpisodeId: '150001',
           location: 'Área quirúrgica indiferenciada / Pabellón-R1 / P-R1',
@@ -250,7 +250,7 @@ Flujo del Paciente RUN: 123456785
           patientName: 'Reina Haoa',
           firstName: 'Reina',
           lastName: 'Haoa',
-          rut: '6.560.789-1',
+          rut: '1.000.102-1',
           clinicalEpisodeId: '150003',
           admissionDate: '2026-07-29',
           location: 'Área Médico Quirúrgica Indiferenciada / Recuperación 2 / R2',
@@ -265,7 +265,7 @@ Flujo del Paciente RUN: 123456785
       activeBedAssignments: [{ encounterId: '150003', bedId: 'R2' }],
     };
     const reinaFlow = `
-Flujo del Paciente RUN: 65607891
+Flujo del Paciente RUN: 10001021
 29/07/2026 16:00:00 Servicio Estación CMA R2 Intermedia R2
 30/07/2026 07:00:00 Servicio Estación Recuperación 2 Intermedia R2
 `;

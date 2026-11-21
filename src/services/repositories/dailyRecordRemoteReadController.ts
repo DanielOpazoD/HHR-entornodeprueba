@@ -1,4 +1,3 @@
-import { prepareDailyRecordForPersistence } from './dailyRecordPersistencePreparation';
 import { admitRemoteDailyRecords } from './dailyRecordLocalCachePersistence';
 import {
   captureLocalRecordBase,
@@ -16,6 +15,7 @@ import {
 } from './dailyRecordReadResultController';
 import {
   createDailyRecordReadResult,
+  createUnavailableDailyRecordReadResult,
   type DailyRecordReadResult,
 } from './contracts/dailyRecordQueries';
 import type { DailyRecordRemoteLoadResult } from './dailyRecordRemoteLoader';
@@ -23,18 +23,24 @@ import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 
 interface ResolveRemoteGoldenPathReadResultInput {
   date: string;
-  localCandidate?: LocalRuntimeReadCandidate | null;
   remoteReadResult: DailyRecordRemoteLoadResult;
   base?: LocalRecordBase;
   isCurrent?: () => boolean;
 }
+/**
+ * What the server answered for one day, admitted against this computer's copy. The only resolver
+ * of a server observation: the point read and the listener both pass through it, so this computer
+ * keeps the server's day exactly as the server has it (migrated only), whichever channel brought
+ * it. A copy prepared here would differ from the server and give the next edit a base the server
+ * never had (SAVE-02); writes prepare the day themselves.
+ */
 export const resolveRemoteGoldenPathReadResult = async ({
   date,
   remoteReadResult: remote,
   base = remote.issuedAgainst,
   isCurrent,
 }: ResolveRemoteGoldenPathReadResultInput): Promise<DailyRecordReadResult> => {
-  const candidate = remote.record ? prepareDailyRecordForPersistence(remote.record, date) : null;
+  const candidate = remote.record;
   const decision =
     candidate && !remote.hasPendingWrites
       ? (
@@ -83,6 +89,12 @@ export const resolveRemoteGoldenPathReadResult = async ({
         consistencyState: 'local_authoritative',
         retryability: 'automatic_retry',
         recoveryAction: 'defer_remote_sync',
+        // The server confirmed it has no such day: this copy is not the server's day (SAVE-01).
+        ...(remote.serverConfirmed && !remote.record
+          ? {
+              conflictSummary: { kind: 'remote_missing' as const, sourceOfTruth: 'local' as const },
+            }
+          : {}),
       }
     );
   }
@@ -95,20 +107,8 @@ export const resolveRemoteGoldenPathReadResult = async ({
       consistencyState: 'remote_authoritative',
       sourceOfTruth: 'remote',
     });
-  if (!remote.serverConfirmed)
-    return createDailyRecordReadResult(date, null, 'not_found', {
-      consistencyState: 'unavailable',
-      sourceOfTruth: 'none',
-      retryability: 'automatic_retry',
-      recoveryAction: 'defer_remote_sync',
-    });
-  return {
-    ...createNotFoundDailyRecordReadResult(
-      date,
-      remote.serverConfirmed ? 'missing' : 'not_requested'
-    ),
-    serverConfirmed: remote.serverConfirmed,
-  };
+  if (!remote.serverConfirmed) return createUnavailableDailyRecordReadResult(date);
+  return { ...createNotFoundDailyRecordReadResult(date, 'missing'), serverConfirmed: true };
 };
 export const attemptRemoteGoldenPathRead = async ({
   date,

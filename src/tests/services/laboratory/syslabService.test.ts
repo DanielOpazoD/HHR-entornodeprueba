@@ -65,7 +65,7 @@ describe('cleanRutForSyslab', () => {
   });
 
   it('handles RUT with K check digit', () => {
-    expect(cleanRutForSyslab('5.600.574-K')).toBe('5600574');
+    expect(cleanRutForSyslab('1.000.109-K')).toBe('1000109');
   });
 
   it('returns numeric body when already clean', () => {
@@ -77,11 +77,11 @@ describe('cleanRutForSyslab', () => {
   });
 
   it('handles dots and dash together', () => {
-    expect(cleanRutForSyslab('5.600.574-9')).toBe('5600574');
+    expect(cleanRutForSyslab('1.000.109-9')).toBe('1000109');
   });
 
   it('removes the verifier from the selected HHR patient RUT', () => {
-    expect(cleanRutForSyslab('29.219.852-3')).toBe('29219852');
+    expect(cleanRutForSyslab('10.000.140-3')).toBe('10000140');
   });
 });
 
@@ -197,11 +197,11 @@ describe('searchSyslabExams', () => {
       json: () => Promise.resolve({ success: true, data: [] }),
     });
 
-    await searchSyslabExams('5.600.574-9');
+    await searchSyslabExams('1.000.109-9');
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const calledUrl = mockFetch.mock.calls[0][0] as string;
-    expect(calledUrl).toContain('rut=5600574');
+    expect(calledUrl).toContain('rut=1000109');
     expect(calledUrl).not.toContain('.');
     expect(calledUrl).not.toContain('-');
   });
@@ -217,10 +217,10 @@ describe('searchSyslabExams', () => {
       json: () => Promise.resolve({ success: true, data: [] }),
     });
 
-    await searchSyslabExams('5.600.574-9');
+    await searchSyslabExams('1.000.109-9');
 
     const calledUrl = mockFetch.mock.calls[0][0] as string;
-    expect(calledUrl).toContain('/.netlify/functions/syslab-proxy?action=search&rut=5600574');
+    expect(calledUrl).toContain('/.netlify/functions/syslab-proxy?action=search&rut=1000109');
   });
 
   it('returns parsed JSON on success', async () => {

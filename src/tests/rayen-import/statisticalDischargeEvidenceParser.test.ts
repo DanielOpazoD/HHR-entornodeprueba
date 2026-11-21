@@ -9,7 +9,7 @@ import {
 const report = `
 Informe Estadístico de Egreso Hospitalario
 1.RUN:
-6 3 2 1 8 8 0 - 4
+1 0 0 0 1 0 6 - 4
 24 INGRESO 1 6 - 4 1 2 4 - 0 7 - 2 6 Área Médico Quirúrgico Cuidados Medios 4 0 4
 25 1er TRASLADO - - -
 26 2° TRASLADO - - -
@@ -68,7 +68,7 @@ describe('statistical discharge evidence parser', () => {
     const evidence = parseStatisticalDischargeEvidence(report);
 
     expect(evidence).toEqual({
-      run: '63218804',
+      run: '10001064',
       admissionAt: '2026-07-24T16:41:00',
       admissionUnit: 'Área Médico Quirúrgico Cuidados Medios',
       dischargeAt: '2026-07-25T14:28:00',
@@ -82,11 +82,11 @@ describe('statistical discharge evidence parser', () => {
       '1.RUN:',
       '1.RUN: 6. Número de identificador FONASA\nTexto del formulario\n1.RUN:'
     );
-    expect(parseStatisticalDischargeEvidence(extractedLikePdf)?.run).toBe('63218804');
+    expect(parseStatisticalDischargeEvidence(extractedLikePdf)?.run).toBe('10001064');
   });
 
   it('accepts a valid short Chilean RUN and still checks its verifier', () => {
-    const shortRunReport = report.replace('6 3 2 1 8 8 0 - 4', '1 2 3 4 5 6 - 0');
+    const shortRunReport = report.replace('1 0 0 0 1 0 6 - 4', '1 2 3 4 5 6 - 0');
     expect(parseStatisticalDischargeEvidence(shortRunReport)?.run).toBe('1234560');
     expect(
       parseStatisticalDischargeEvidence(
@@ -111,7 +111,7 @@ describe('statistical discharge evidence parser', () => {
   });
 
   it('fails closed when identity or interval fields are incomplete', () => {
-    expect(parseStatisticalDischargeEvidence(report.replace('6 3 2 1 8 8 0 - 4', ''))).toBeNull();
+    expect(parseStatisticalDischargeEvidence(report.replace('1 0 0 0 1 0 6 - 4', ''))).toBeNull();
     expect(parseStatisticalDischargeEvidence(report.replace('29 EGRESO', 'EGRESO'))).toBeNull();
   });
 
@@ -138,7 +138,7 @@ describe('statistical discharge evidence parser', () => {
 });
 
 const maternalReport = report.replace(
-  '1.RUN:\n6 3 2 1 8 8 0 - 4',
+  '1.RUN:\n1 0 0 0 1 0 6 - 4',
   `IDENTIFICACIÓN F=Femenino
 5 2 6 SEXO M
 2. RUN Materno/progenitor(a) M=Masculino
@@ -147,7 +147,7 @@ DE LA PERSONA
 -
 No de Pasaporte u otro documento
 1. Masculino
-6 3 2 1 8 8 0 4 54 IDENTIDAD DE GÉNERO 01
+1 0 0 0 1 0 6 4 54 IDENTIDAD DE GÉNERO 01
 2. Femenina`
 );
 
@@ -156,7 +156,7 @@ it('reads the maternal identifier only when explicitly enabled for an exact newb
   expect(
     parseStatisticalDischargeEvidence(maternalReport, { allowMaternalIdentifier: true })
   ).toMatchObject({
-    run: '63218804',
+    run: '10001064',
     identifierKind: 'maternal',
     dischargeAt: '2026-07-25T14:28:00',
   });
@@ -167,7 +167,7 @@ it('reads the maternal identifier only when explicitly enabled for an exact newb
   ).toBeNull();
   expect(
     parseStatisticalDischargeEvidence(
-      maternalReport.replace('6 3 2 1 8 8 0 4 54', '6 3 2 1 8 8 0 5 54'),
+      maternalReport.replace('1 0 0 0 1 0 6 4 54', '1 0 0 0 1 0 6 5 54'),
       { allowMaternalIdentifier: true }
     )
   ).toBeNull();

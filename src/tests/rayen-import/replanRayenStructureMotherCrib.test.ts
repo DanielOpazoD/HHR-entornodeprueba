@@ -12,12 +12,12 @@ import { replanRayenStructure } from '@/features/rayen-import/hooks/replanRayenS
 // el lookup exacto por episodio. Un test unitario de la elegibilidad no puede ver
 // ese orden: aquí se ejecuta el pipeline completo con las dependencias simuladas.
 
-const RUN = '28.106.852-0';
+const RUN = '10.000.116-0';
 
 const motherWithCrib = (): DailyRecord['beds'][string] => ({
   ...EMPTY_PATIENT,
   bedId: 'H5C1',
-  patientName: 'Tania Cristina Valencia Ladino',
+  patientName: 'Torol Corivama Vovipevi Linava',
   rut: RUN,
   clinicalEpisodeId: '1001',
   admissionDate: '2026-08-31',
@@ -26,7 +26,7 @@ const motherWithCrib = (): DailyRecord['beds'][string] => ({
     ...EMPTY_PATIENT,
     bedId: 'H5C1',
     bedMode: 'Cuna',
-    patientName: 'Rn De Tania Valencia Ladino',
+    patientName: 'Rn De Torol Vovipevi Linava',
     rut: RUN,
     clinicalEpisodeId: '1002',
     admissionDate: '2026-08-31',
@@ -56,10 +56,10 @@ const baseRow: EgresoReportRow = {
   fechaEgreso: '02-09-2026 10:00',
   exactEpisodeVerification: 'unverified',
 };
-const motherRow: EgresoReportRow = { ...baseRow, patientName: 'Tania Cristina Valencia Ladino' };
+const motherRow: EgresoReportRow = { ...baseRow, patientName: 'Torol Corivama Vovipevi Linava' };
 const cribRow: EgresoReportRow = {
   ...baseRow,
-  patientName: 'Rn De Tania Valencia Ladino',
+  patientName: 'Rn De Torol Vovipevi Linava',
   edad: '0',
 };
 
@@ -193,7 +193,7 @@ describe('replanRayenStructure — madre + RN bajo el mismo RUN (caso vivo 02-09
   });
 
   it('gemelos: tres filas con el RUN de la madre superan lo que la cama explica y conservan la revisión', async () => {
-    const twinRow: EgresoReportRow = { ...cribRow, patientName: 'Rn 2 De Tania Valencia Ladino' };
+    const twinRow: EgresoReportRow = { ...cribRow, patientName: 'Rn 2 De Torol Vovipevi Linava' };
     const diff = await runPipeline([motherRow, cribRow, twinRow], ['1001']);
 
     expect(diff.discharges).toHaveLength(1);

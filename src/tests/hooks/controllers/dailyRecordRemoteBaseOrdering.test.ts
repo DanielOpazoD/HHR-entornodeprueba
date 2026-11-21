@@ -5,11 +5,8 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import {
   createDailyRecordReadResult,
   type DailyRecordQueryResult,
+  type DailyRecordReadResult,
 } from '@/services/repositories/contracts/dailyRecordQueries';
-import {
-  createSyncDailyRecordResult,
-  type SyncDailyRecordResult,
-} from '@/services/repositories/contracts/dailyRecordResults';
 import {
   createDailyRecordSubscription,
   createDailyRecordQueryOptions,
@@ -37,7 +34,7 @@ afterEach(() => {
 describe.each(['query', 'null-recovery', 'null-recovery-error'] as const)(
   'remote census base with independent pending edits through %s',
   recovery => {
-    it.each(['remote_authoritative', 'remote_applied', 'up_to_date'] as const)(
+    it.each(['remote_authoritative'] as const)(
       'preserves the %s occupant across repeated local reads and an older remote snapshot',
       async consistencyState => {
         const date = '2026-10-27';
@@ -56,7 +53,7 @@ describe.each(['query', 'null-recovery', 'null-recovery-error'] as const)(
           'beds.R2.pathology': 'Accepted pending diagnosis',
         });
         const reader = { getForDateWithMeta: vi.fn() };
-        let publish!: (result: SyncDailyRecordResult, pending: boolean) => void;
+        let publish!: (result: DailyRecordReadResult) => void;
         const stop = createDailyRecordSubscription(
           {
             ...reader,
@@ -73,14 +70,10 @@ describe.each(['query', 'null-recovery', 'null-recovery-error'] as const)(
             setAuthoritativeDailyRecordRead(client, date, remote);
           } else {
             publish(
-              createSyncDailyRecordResult({
-                date,
-                record: remote,
-                outcome: 'clean',
+              createDailyRecordReadResult(date, remote, 'firestore', {
                 consistencyState,
                 serverConfirmed: true,
-              }),
-              false
+              })
             );
           }
           const read = () => client.getQueryData<DailyRecordQueryResult>(key)!;
@@ -116,7 +109,7 @@ describe.each(['query', 'null-recovery', 'null-recovery-error'] as const)(
               reader.getForDateWithMeta.mockRejectedValueOnce(new Error('Synthetic read failure'));
             }
             const previous = client.getQueryState(key);
-            publish(createSyncDailyRecordResult({ date, record: null, outcome: 'missing' }), false);
+            publish(createDailyRecordReadResult(date, null, 'not_found'));
             await vi.waitFor(() => expect(client.getQueryState(key)).not.toBe(previous));
           }
           if (recovery !== 'null-recovery-error') {

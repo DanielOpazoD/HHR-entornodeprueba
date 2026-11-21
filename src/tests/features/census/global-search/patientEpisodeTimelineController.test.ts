@@ -4,8 +4,8 @@ import type { MasterPatient } from '@/types/domain/patientMaster';
 import type { PatientHistoryResult } from '@/services/patient/patientHistoryService';
 
 const basePatient: MasterPatient = {
-  rut: '8.932.066-6',
-  fullName: 'Ines Riroroko Leiva',
+  rut: '1.000.122-6',
+  fullName: 'Isut Rebolesu Litus',
   forecast: 'Fonasa',
   gender: 'Femenino',
   birthDate: '1966-09-03',
@@ -72,8 +72,8 @@ describe('buildPatientEpisodeTimelineState', () => {
       lastDischarge: undefined,
     };
     const history: PatientHistoryResult = {
-      patientName: 'Tipanie Carossi Pakomio',
-      rut: '18.781.542-8',
+      patientName: 'Tisigef Cunonoc Pagorim',
+      rut: '10.000.109-8',
       totalDays: 3,
       firstSeen: '2026-02-02',
       lastSeen: '2026-02-05',
@@ -122,8 +122,8 @@ describe('buildPatientEpisodeTimelineState', () => {
   it('uses movement history as truth when the master index only has the latest hospitalization', () => {
     const patientWithPartialIndex: MasterPatient = {
       ...basePatient,
-      rut: '18.781.542-8',
-      fullName: 'Tipanie Carossi Pakomio',
+      rut: '10.000.109-8',
+      fullName: 'Tisigef Cunonoc Pagorim',
       hospitalizations: [
         {
           id: 'latest',

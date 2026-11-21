@@ -45,7 +45,7 @@ Flujo del Paciente RUN: 111111111
 
 const statisticalDischargeText = `
 1.RUN:
-6321880 - 4
+1000106 - 4
 24 INGRESO 1 6 - 4 1 2 4 - 0 7 - 2 6 Área Médico Quirúrgico Cuidados Medios 4 0 4
 25 1er TRASLADO - - -
 26 2° TRASLADO - - -
@@ -350,7 +350,7 @@ Flujo del Paciente RUN: 222222222
         NEO1: {
           ...createEmptyPatient('NEO1'),
           patientName: 'Paciente Egresado',
-          rut: '6.321.880-4',
+          rut: '1.000.106-4',
           clinicalEpisodeId: '142083',
           admissionDate: '2026-07-24',
           admissionTime: '16:41',
@@ -361,7 +361,7 @@ Flujo del Paciente RUN: 222222222
     const fetchDischargeReport = vi.fn(async () => ({ base64: 'QQ==' }));
     const lookupEgresos = vi.fn(async () => [
       {
-        run: '63218804',
+        run: '10001064',
         encounterId: '142083',
         egreso: {
           id: 142083,
@@ -384,7 +384,7 @@ Flujo del Paciente RUN: 222222222
       }
     );
 
-    expect(lookupEgresos).toHaveBeenCalledWith([{ run: '6.321.880-4', encounterId: '142083' }]);
+    expect(lookupEgresos).toHaveBeenCalledWith([{ run: '1.000.106-4', encounterId: '142083' }]);
     expect(fetchReport).toHaveBeenCalledWith('142083');
     expect(fetchDischargeReport).toHaveBeenCalledWith('142083');
     expect(result.conflicts).toEqual([]);
@@ -406,7 +406,7 @@ Flujo del Paciente RUN: 222222222
         NEO1: {
           ...createEmptyPatient('NEO1'),
           patientName: 'Paciente Egresado Temprano',
-          rut: '6.321.880-4',
+          rut: '1.000.106-4',
           clinicalEpisodeId: '142083',
           admissionDate: '2026-07-24',
           admissionTime: '16:41',
@@ -424,7 +424,7 @@ Flujo del Paciente RUN: 222222222
         fetchReport,
         lookupEgresos: async () => [
           {
-            run: '63218804',
+            run: '10001064',
             encounterId: '142083',
             egreso: {
               id: 142083,
@@ -447,7 +447,7 @@ Flujo del Paciente RUN: 222222222
         NEO1: {
           ...createEmptyPatient('NEO1'),
           patientName: 'Paciente Trasladado',
-          rut: '6.321.880-4',
+          rut: '1.000.106-4',
           clinicalEpisodeId: '142083',
           admissionDate: '2026-07-24',
         },
@@ -468,7 +468,7 @@ Flujo del Paciente RUN: 222222222
         fetchDischargeReport: async () => ({ base64: 'QQ==' }),
         lookupEgresos: async () => [
           {
-            run: '63218804',
+            run: '10001064',
             encounterId: '142083',
             egreso: {
               id: 142083,
