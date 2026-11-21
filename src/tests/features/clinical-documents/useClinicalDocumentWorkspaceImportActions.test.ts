@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 
-import { buildClinicalDocumentJsonExport } from '@/application/clinical-documents/clinicalDocumentJsonUseCases';
+import { buildClinicalDocumentJsonExport } from '@/features/clinical-documents/use-cases/clinicalDocumentJsonUseCases';
 import * as clinicalDocumentUseCases from '@/application/clinical-documents/clinicalDocumentUseCases';
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
 import { useClinicalDocumentWorkspaceImportActions } from '@/features/clinical-documents/hooks/useClinicalDocumentWorkspaceImportActions';

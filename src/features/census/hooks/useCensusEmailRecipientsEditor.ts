@@ -6,7 +6,7 @@ import {
   resolveSafeRecipients,
   resolveUpdateRecipient,
   resolveVisibleRecipients,
-} from '@/features/census/controllers/censusEmailRecipientsController';
+} from '@/application/census/controllers/censusEmailRecipientsController';
 import {
   buildCensusEmailRecipientsBulkEditorState,
   buildCensusEmailRecipientsEditorResetState,

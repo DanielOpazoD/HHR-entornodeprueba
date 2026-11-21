@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { buildEloisaAdmissionInput } from '@/application/census/eloisaAdmissionInput';
+import { buildEloisaAdmissionInput } from '@/features/census/components/eloisaAdmissionInput';
 import type { EloisaManualPatientPayload } from '@/features/rayen-manual-import';
 
 const payload: EloisaManualPatientPayload = {

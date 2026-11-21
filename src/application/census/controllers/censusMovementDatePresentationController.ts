@@ -1,5 +1,5 @@
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
-import { resolveMovementDateForRecordShift } from '@/features/census/controllers/clinicalShiftCalendarController';
+import { resolveMovementDateForRecordShift } from '@/application/census/controllers/clinicalShiftCalendarController';
 
 export const MOVEMENT_TIME_FALLBACK = '--:--';
 

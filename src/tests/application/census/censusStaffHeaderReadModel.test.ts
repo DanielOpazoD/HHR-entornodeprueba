@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildCensusStaffHeaderReadModel } from '@/application/census/censusStaffHeaderReadModel';
+import { buildCensusStaffHeaderReadModel } from '@/features/census/controllers/censusStaffHeaderReadModel';
 
 describe('buildCensusStaffHeaderReadModel', () => {
   it('deriva staff, movimientos y visibilidad del summary desde un solo punto', () => {

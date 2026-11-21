@@ -10,21 +10,6 @@ const { publicImportPatterns, publicModulesByFeature } = JSON.parse(
 const extensions = ['.ts', '.tsx', '.js', '.jsx'];
 export const GOVERNED_APPLICATION_PUBLIC_IMPORTS = new Set([
   '@/features/census/components/global-search/globalSearchContracts',
-  '@/features/census/controllers/bedManagerGridItemsController',
-  '@/features/census/controllers/bedManagerModalController',
-  '@/features/census/controllers/censusEmailRecipientsController',
-  '@/features/census/controllers/clinicalShiftCalendarController',
-  '@/features/census/controllers/dischargeModalController',
-  '@/features/census/controllers/modalFormController',
-  '@/features/census/controllers/patientMovementCreationController',
-  '@/features/census/controllers/patientMovementCreationErrorPresentation',
-  '@/features/census/controllers/patientMovementMutationController',
-  '@/features/census/controllers/patientMovementRuntimeController',
-  '@/features/census/controllers/patientMovementSelectionController',
-  '@/features/census/controllers/patientMovementUndoController',
-  '@/features/census/controllers/patientMovementUndoErrorPresentation',
-  '@/features/census/controllers/patientMovementUndoMutationController',
-  '@/features/census/controllers/transferModalController',
 ]);
 
 // Resolve only existing files, in the same order as the former source checks.

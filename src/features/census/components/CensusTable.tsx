@@ -34,7 +34,7 @@ import {
   findManualPatientDuplicate,
   type EloisaManualPatientPayload,
 } from '@/features/rayen-manual-import';
-import { buildEloisaAdmissionInput } from '@/application/census/eloisaAdmissionInput';
+import { buildEloisaAdmissionInput } from '@/features/census/components/eloisaAdmissionInput';
 import { useCensusBedDeepLinkFocus } from '@/features/census/hooks/useCensusBedDeepLinkFocus';
 const censusTableAdmitLogger = createScopedLogger('CensusTableAdmit');
 export type { DiagnosisMode } from '@/features/census/types/censusTableTypes';

@@ -5,7 +5,7 @@ import { useClinicalAttachments } from '@/features/clinical-documents/hooks/useC
 import type { ClinicalAttachmentRecord } from '@/shared/clinical-documents/clinicalAttachmentContracts';
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 
-vi.mock('@/application/clinical-documents/clinicalAttachmentUseCases', () => ({
+vi.mock('@/features/clinical-documents/use-cases/clinicalAttachmentUseCases', () => ({
   executeListClinicalAttachmentsByEpisode: vi.fn(),
   executeListClinicalAttachmentsByPatient: vi.fn(),
   executeUploadClinicalAttachment: vi.fn(),
@@ -19,7 +19,7 @@ import {
   executeListClinicalAttachmentsByEpisode,
   executeListClinicalAttachmentsByPatient,
   executeUploadClinicalAttachment,
-} from '@/application/clinical-documents/clinicalAttachmentUseCases';
+} from '@/features/clinical-documents/use-cases/clinicalAttachmentUseCases';
 
 const user = {
   uid: 'u1',

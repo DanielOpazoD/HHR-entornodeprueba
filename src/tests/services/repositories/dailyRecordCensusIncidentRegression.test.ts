@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildMovePatientPatches } from '@/hooks/controllers/bedManagementPatchController';
-import { buildDischargeEntries } from '@/features/census/controllers/patientMovementDischargeMutationController';
+import { buildDischargeEntries } from '@/application/census/controllers/patientMovementDischargeMutationController';
 import { resolveConflictSnapshotRecoveryState } from '@/application/clinical-conflicts/conflictSnapshotRecoveryPresentation';
 import { buildConflictAuditSummary } from '@/services/repositories/conflictResolutionAuditSummary';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';

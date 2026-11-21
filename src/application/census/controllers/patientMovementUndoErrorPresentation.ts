@@ -1,4 +1,4 @@
-import { UndoPatientMovementErrorCode } from '@/features/census/controllers/patientMovementUndoController';
+import { UndoPatientMovementErrorCode } from '@/application/census/controllers/patientMovementUndoController';
 
 export type UndoMovementKind = 'discharge' | 'transfer';
 

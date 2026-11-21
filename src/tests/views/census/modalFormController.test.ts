@@ -4,7 +4,7 @@ import {
   clearModalFieldErrors,
   hasModalFieldErrors,
   submitModalForm,
-} from '@/features/census/controllers/modalFormController';
+} from '@/application/census/controllers/modalFormController';
 
 describe('modalFormController', () => {
   it('detects field errors only when values contain messages', () => {

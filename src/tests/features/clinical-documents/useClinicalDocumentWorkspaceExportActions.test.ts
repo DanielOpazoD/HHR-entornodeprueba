@@ -6,7 +6,7 @@ import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entitie
 import { useClinicalDocumentWorkspaceExportActions } from '@/features/clinical-documents/hooks/useClinicalDocumentWorkspaceExportActions';
 import { httpsCallable } from 'firebase/functions';
 import { generateClinicalDocumentPdfBlob } from '@/features/clinical-documents/services/clinicalDocumentPdfService';
-import * as printOpenUseCase from '@/application/clinical-documents/clinicalDocumentPrintOpenUseCase';
+import * as printOpenUseCase from '@/features/clinical-documents/use-cases/clinicalDocumentPrintOpenUseCase';
 
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn() }));
 vi.mock('@/features/clinical-documents/services/clinicalDocumentPdfService', () => ({
@@ -16,10 +16,10 @@ vi.mock('@/features/clinical-documents/services/clinicalDocumentPdfService', () 
 const recordCriticalClinicalAction = vi.hoisted(() => vi.fn());
 const logEvent = vi.hoisted(() => vi.fn());
 
-vi.mock('@/application/clinical-documents/clinicalDocumentPrintOpenUseCase', async () => {
+vi.mock('@/features/clinical-documents/use-cases/clinicalDocumentPrintOpenUseCase', async () => {
   const actual = await vi.importActual<
-    typeof import('@/application/clinical-documents/clinicalDocumentPrintOpenUseCase')
-  >('@/application/clinical-documents/clinicalDocumentPrintOpenUseCase');
+    typeof import('@/features/clinical-documents/use-cases/clinicalDocumentPrintOpenUseCase')
+  >('@/features/clinical-documents/use-cases/clinicalDocumentPrintOpenUseCase');
   return {
     ...actual,
     executeOpenClinicalDocumentPrint: vi.fn(),

@@ -4,7 +4,7 @@ import type { Dispatch, MutableRefObject } from 'react';
 import {
   resolveClinicalDocumentDraftLoad,
   type ClinicalDocumentDraftLoadResolution,
-} from '@/application/clinical-documents/clinicalDocumentEditorUseCases';
+} from '@/features/clinical-documents/use-cases/clinicalDocumentEditorUseCases';
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import {
   resolveClinicalDocumentDraftLoadAction,

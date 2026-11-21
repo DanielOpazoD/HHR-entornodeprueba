@@ -18,7 +18,7 @@ import {
 import { buildClinicalDocumentEpisodeContext } from '@/features/clinical-documents/controllers/clinicalDocumentEpisodeController';
 import type { ClinicalAttachmentRecord } from '@/shared/clinical-documents/clinicalAttachmentContracts';
 import { ClinicalDocumentRepository } from '@/services/repositories/ClinicalDocumentRepository';
-import * as attachments from '@/application/clinical-documents/clinicalAttachmentUseCases';
+import * as attachments from '@/features/clinical-documents/use-cases/clinicalAttachmentUseCases';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 vi.mock('@/context/AuthContext', () => ({
@@ -36,7 +36,7 @@ vi.mock('@/services/repositories/ClinicalDocumentRepository', () => ({
 vi.mock('@/features/clinical-documents/services/clinicalDocumentSignatureProfileService', () => ({
   clinicalDocumentSignatureProfileService: { getProfile: vi.fn(async () => null) },
 }));
-vi.mock('@/application/clinical-documents/clinicalAttachmentUseCases', () => ({
+vi.mock('@/features/clinical-documents/use-cases/clinicalAttachmentUseCases', () => ({
   executeListClinicalAttachmentsByEpisode: vi.fn(),
   executeListClinicalAttachmentsByPatient: vi.fn(),
   executeUploadClinicalAttachment: vi.fn(),

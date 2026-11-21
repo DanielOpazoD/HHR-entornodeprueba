@@ -11,12 +11,12 @@ import { buildDischarge } from '@/features/rayen-import/domain/applyCensusImport
 import {
   resolveAddDischargeMovement,
   resolveAddTransferMovement,
-} from '@/features/census/controllers/patientMovementCreationController';
-import { resolveUndoPatientMovement } from '@/features/census/controllers/patientMovementUndoController';
+} from '@/application/census/controllers/patientMovementCreationController';
+import { resolveUndoPatientMovement } from '@/application/census/controllers/patientMovementUndoController';
 import {
   resolveApplyUndoDischargeRecord,
   resolveApplyUndoTransferRecord,
-} from '@/features/census/controllers/patientMovementUndoMutationController';
+} from '@/application/census/controllers/patientMovementUndoMutationController';
 import { getActiveMovements } from '@/domain/movements/movementTombstonePolicy';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DischargeData, TransferData } from '@/types/domain/movements';

@@ -4,12 +4,12 @@ import {
   EVACUATION_METHOD_OTHER,
 } from '@/constants/clinicalMovementConstants';
 import type { EvacuationMethod, ReceivingCenter } from '@/constants/clinicalMovementConstants';
-import { validateTransferExecutionInput } from '@/features/census/validation/censusActionValidation';
+import { validateTransferExecutionInput } from '@/shared/census/censusActionValidation';
 import {
   resolveMovementDateTimeValidationError,
   resolveMovementEditorInitialDate,
-} from '@/features/census/controllers/clinicalShiftCalendarController';
-import { resolveValidHourMinuteOrFallback } from '@/features/census/controllers/timeInputController';
+} from '@/application/census/controllers/clinicalShiftCalendarController';
+import { resolveValidHourMinuteOrFallback } from '@/application/census/controllers/timeInputController';
 
 export interface TransferModalFieldErrors {
   time?: string;

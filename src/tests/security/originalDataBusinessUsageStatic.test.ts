@@ -23,8 +23,8 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   // snapshot of the person who leaves so that row can be undone. It never reads it back.
   'src/application/census/movementRowBuilder.ts',
   'src/features/census/controllers/movementClinicalDocumentsController.ts',
-  'src/features/census/controllers/patientMovementSelectionController.ts',
-  'src/features/census/controllers/patientMovementUndoController.ts',
+  'src/application/census/controllers/patientMovementSelectionController.ts',
+  'src/application/census/controllers/patientMovementUndoController.ts',
   'src/features/census/controllers/censusCmaController.ts',
   // Rayen census import builds discharge/transfer movements that carry the pre-movement
   // patient snapshot in originalData for the undo/audit machinery, through the row

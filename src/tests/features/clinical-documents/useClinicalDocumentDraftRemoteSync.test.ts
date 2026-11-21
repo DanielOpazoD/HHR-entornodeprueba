@@ -1,14 +1,14 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { resolveClinicalDocumentDraftLoad } from '@/application/clinical-documents/clinicalDocumentEditorUseCases';
+import { resolveClinicalDocumentDraftLoad } from '@/features/clinical-documents/use-cases/clinicalDocumentEditorUseCases';
 import {
   resolveClinicalDocumentDraftLoadAction,
   shouldApplyClinicalDocumentPendingRemoteUpdate,
 } from '@/features/clinical-documents/controllers/clinicalDocumentDraftRemoteSyncController';
 import { useClinicalDocumentDraftRemoteSync } from '@/features/clinical-documents/hooks/useClinicalDocumentDraftRemoteSync';
 
-vi.mock('@/application/clinical-documents/clinicalDocumentEditorUseCases', () => ({
+vi.mock('@/features/clinical-documents/use-cases/clinicalDocumentEditorUseCases', () => ({
   resolveClinicalDocumentDraftLoad: vi.fn(),
 }));
 

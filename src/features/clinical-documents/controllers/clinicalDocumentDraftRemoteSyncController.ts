@@ -1,4 +1,4 @@
-import type { ClinicalDocumentDraftLoadResolution } from '@/application/clinical-documents/clinicalDocumentEditorUseCases';
+import type { ClinicalDocumentDraftLoadResolution } from '@/features/clinical-documents/use-cases/clinicalDocumentEditorUseCases';
 import type {
   ClinicalDocumentDraftAction,
   ClinicalDocumentDraftBaseState,

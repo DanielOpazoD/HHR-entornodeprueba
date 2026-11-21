@@ -1,16 +1,16 @@
-import { createCensusDialogRuntime } from '@/features/census/controllers/censusBrowserRuntimeAdapter';
-import { patientMovementRuntimeLogger } from '@/hooks/controllers/hookControllerLoggers';
+import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
+import { createScopedLogger } from '@/services/utils/loggerScope';
+
+const patientMovementRuntimeLogger = createScopedLogger('PatientMovementRuntime');
 
 export interface PatientMovementRuntime {
   alert: (message: string) => void;
   warn?: (message: string) => void;
 }
 
-const censusDialogRuntime = createCensusDialogRuntime();
-
 export const patientMovementBrowserRuntime: PatientMovementRuntime = {
   alert: (message: string) => {
-    censusDialogRuntime.alert(message);
+    defaultBrowserWindowRuntime.alert(message);
   },
   warn: (message: string) => {
     patientMovementRuntimeLogger.warn(message);

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   isValidHourMinute,
   resolveValidHourMinuteOrFallback,
-} from '@/features/census/controllers/timeInputController';
+} from '@/application/census/controllers/timeInputController';
 
 describe('timeInputController', () => {
   it('validates canonical HH:mm values', () => {

@@ -4,7 +4,7 @@ import type { Dispatch, MutableRefObject } from 'react';
 import {
   executePersistClinicalDocumentEditorDraft,
   resolveClinicalDocumentAutosaveCommit,
-} from '@/application/clinical-documents/clinicalDocumentEditorUseCases';
+} from '@/features/clinical-documents/use-cases/clinicalDocumentEditorUseCases';
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import { useAuditContext } from '@/context/AuditContext';
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
