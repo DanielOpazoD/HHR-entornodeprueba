@@ -6,14 +6,11 @@ import { DischargeData, DischargeType } from '@/types/domain/movements';
 import type { DischargeAddCommandPayload } from '@/types/movements';
 import {
   buildClearedBedPatient,
-  clonePatientSnapshot,
   type MovementAuditEntry,
 } from '@/features/census/controllers/patientMovementCreationSharedController';
 import { ensurePatientClinicalEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
-import {
-  buildMovementProvenance,
-  type MovementProvenanceSeed,
-} from '@/application/census/movementProvenancePolicy';
+import type { MovementProvenanceSeed } from '@/application/census/movementProvenancePolicy';
+import { buildMovementRow } from '@/application/census/movementRowBuilder';
 
 interface BuildDischargeEntriesParams {
   patient: PatientData;
@@ -47,91 +44,53 @@ export const buildDischargeEntries = ({
   } = payload;
   const discharges: DischargeData[] = [];
   const auditEntries: MovementAuditEntry[] = [];
-
-  if (target === 'mother' || target === 'both') {
-    const patientWithEpisodeId = ensurePatientClinicalEpisodeId(patient);
+  const stamp = { movementDate: resolvedMovementDate, time: time || '' };
+  const crib = patient.clinicalCrib;
+  const cribLeaves =
+    (target === 'baby' || target === 'both') && !!crib?.patientName && !!cribStatus;
+  const recordDischarge = (
+    person: PatientData,
+    isNested: boolean,
+    personStatus: DischargeData['status']
+  ) => {
     const movementId = createId();
-    discharges.push({
-      id: movementId,
-      movementDate: resolvedMovementDate,
-      admissionDate: patientWithEpisodeId.admissionDate,
-      clinicalEpisodeId: patientWithEpisodeId.clinicalEpisodeId,
-      bedName: bedDef?.name || bedId,
-      bedId,
-      bedType: bedDef?.type || '',
-      patientName: patientWithEpisodeId.patientName,
-      rut: patientWithEpisodeId.rut,
-      diagnosis: patientWithEpisodeId.pathology,
-      specialty: patientWithEpisodeId.specialty,
-      time: time || '',
-      status,
-      dischargeType: status === 'Vivo' ? (dischargeType as DischargeType) : undefined,
+    const subtype = {
+      dischargeType: personStatus === 'Vivo' ? (dischargeType as DischargeType) : undefined,
       dischargeTypeOther: dischargeType === 'Otra' ? dischargeTypeOther : undefined,
-      age: patientWithEpisodeId.age,
-      insurance: patientWithEpisodeId.insurance,
-      origin: patientWithEpisodeId.origin,
-      isRapanui: patientWithEpisodeId.isRapanui,
-      originalData: clonePatientSnapshot(patientWithEpisodeId),
-      isNested: false,
-      movementProvenance: provenance
-        ? buildMovementProvenance({ movementId, ...provenance })
-        : undefined,
+    };
+    discharges.push({
+      ...buildMovementRow({
+        id: movementId,
+        patient: person,
+        bedId,
+        bedDef,
+        stamp,
+        isNested,
+        provenance,
+      }),
+      status: personStatus,
+      ...(isNested ? {} : subtype),
     });
     auditEntries.push({
       movementId,
       bedId,
-      patientName: patient.patientName,
-      rut: patient.rut,
-      status,
-      diagnosis: patientWithEpisodeId.pathology,
-      movementDate: resolvedMovementDate,
-      time: time || '',
-      dischargeType: status === 'Vivo' ? dischargeType : undefined,
-      dischargeTypeOther: dischargeType === 'Otra' ? dischargeTypeOther : undefined,
-      clinicalEpisodeId: patientWithEpisodeId.clinicalEpisodeId,
+      patientName: person.patientName,
+      rut: person.rut,
+      status: personStatus,
+      diagnosis: person.pathology,
+      ...stamp,
+      ...subtype,
+      clinicalEpisodeId: person.clinicalEpisodeId,
     });
+  };
+
+  // A manual discharge undoes the mother together with her crib, so her copy keeps it.
+  if (target === 'mother' || target === 'both') {
+    recordDischarge(ensurePatientClinicalEpisodeId(patient), false, status);
   }
 
-  if ((target === 'baby' || target === 'both') && patient.clinicalCrib?.patientName && cribStatus) {
-    const cribWithEpisodeId = ensurePatientClinicalEpisodeId(patient.clinicalCrib);
-    const movementId = createId();
-    discharges.push({
-      id: movementId,
-      movementDate: resolvedMovementDate,
-      admissionDate: cribWithEpisodeId.admissionDate,
-      clinicalEpisodeId: cribWithEpisodeId.clinicalEpisodeId,
-      bedName: `${bedDef?.name || bedId} (Cuna)`,
-      bedId,
-      bedType: 'Cuna',
-      patientName: cribWithEpisodeId.patientName,
-      rut: cribWithEpisodeId.rut,
-      diagnosis: cribWithEpisodeId.pathology,
-      specialty: cribWithEpisodeId.specialty,
-      time: time || '',
-      status: cribStatus,
-      age: cribWithEpisodeId.age,
-      insurance: patient.insurance,
-      origin: patient.origin,
-      isRapanui: patient.isRapanui,
-      originalData: clonePatientSnapshot(cribWithEpisodeId),
-      isNested: true,
-      movementProvenance: provenance
-        ? buildMovementProvenance({ movementId, ...provenance })
-        : undefined,
-    });
-    auditEntries.push({
-      movementId,
-      bedId,
-      patientName: patient.clinicalCrib.patientName,
-      rut: patient.clinicalCrib.rut,
-      status: cribStatus,
-      diagnosis: cribWithEpisodeId.pathology,
-      movementDate: resolvedMovementDate,
-      time: time || '',
-      dischargeType: cribStatus === 'Vivo' ? dischargeType : undefined,
-      dischargeTypeOther: dischargeType === 'Otra' ? dischargeTypeOther : undefined,
-      clinicalEpisodeId: cribWithEpisodeId.clinicalEpisodeId,
-    });
+  if (cribLeaves && crib && cribStatus) {
+    recordDischarge(ensurePatientClinicalEpisodeId(crib), true, cribStatus);
   }
 
   return {
