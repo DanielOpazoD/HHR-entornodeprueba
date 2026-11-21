@@ -1,418 +1,39 @@
 import js from '@eslint/js';
-import { publicImportBoundaryRule } from './scripts/lib/publicImportBoundaryRule.mjs';
 import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import react from 'eslint-plugin-react';
 import tseslint from 'typescript-eslint';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-// One AST rule owns cross-feature imports, including relative and dynamic imports.
-const readJson = relativePath =>
-  JSON.parse(readFileSync(new URL(relativePath, import.meta.url), 'utf8'));
-const FEATURE_ROOT = path.dirname(fileURLToPath(import.meta.url));
-const FEATURE_MATRIX = readJson('./scripts/feature-dependency-matrix.json');
-const featurePublicPaths = feature => [
-  ...FEATURE_MATRIX.publicImportPatterns.map(pattern => pattern.replace('{feature}', feature)),
-  ...(FEATURE_MATRIX.publicModulesByFeature[feature] ?? []),
-];
-const featureOf = importer => importer.match(/^src\/features\/([^/]+)\//)?.[1];
-const FEATURE_BOUNDARY_RULE = {
-  meta: {
-    type: 'problem',
-    schema: [
-      {
-        type: 'object',
-        properties: { checkDynamicImports: { type: 'boolean' }, checkPorts: { type: 'boolean' } },
-        additionalProperties: false,
-      },
-    ],
-    messages: {
-      port: 'Accede a «{{target}}» por su puerto de aplicación.',
-      dependency:
-        '«{{from}}» no depende de «{{to}}» en scripts/feature-dependency-matrix.json. Agrega la dependencia allí o resuelve la necesidad en otra capa.',
-      public: '{{target}}: Importa «{{to}}» por su superficie pública: {{paths}}.',
-    },
-  },
-  create(context) {
-    const importer = path.relative(FEATURE_ROOT, context.filename).split(path.sep).join('/');
-    const from = featureOf(importer);
-    const check = source => {
-      if (!source || typeof source.value !== 'string') return;
-      const raw = source.value;
-      const target = raw.startsWith('.')
-        ? path.posix
-            .normalize(path.posix.join(path.posix.dirname(importer), raw))
-            .replace(/^src\/features\//, '@/features/')
-        : raw;
-      const service = (
-        raw.startsWith('.')
-          ? path.posix.normalize(path.posix.join(path.posix.dirname(importer), raw))
-          : raw.replace(/^@\//, 'src/')
-      ).replace(/\.[cm]?[jt]sx?$/, '');
-      if (
-        context.options[0]?.checkPorts &&
-        [
-          'src/services/repositories/ClinicalDocumentRepository',
-          'src/services/integrations/censusEmailService',
-        ].includes(service)
-      )
-        context.report({ node: source, messageId: 'port', data: { target: raw } });
-      if (!from || !target.startsWith('@/features/')) return;
-      const to = target.slice('@/features/'.length).split('/')[0];
-      if (to === from) return;
-      const allowed = FEATURE_MATRIX.features[from]?.includes(to);
-      if (allowed && featurePublicPaths(to).includes(target)) return;
-      context.report({
-        node: source,
-        messageId: allowed ? 'public' : 'dependency',
-        data: { from, to, target: raw, paths: featurePublicPaths(to).join(', ') },
-      });
-    };
-    return {
-      ImportDeclaration: node => check(node.source),
-      ExportNamedDeclaration: node => check(node.source),
-      ExportAllDeclaration: node => check(node.source),
-      ImportExpression: node => {
-        if (context.options[0]?.checkDynamicImports !== false) check(node.source);
-      },
-      TSImportEqualsDeclaration: node => check(node.moduleReference.expression),
-      CallExpression(node) {
-        if (node.callee.type === 'Identifier' && node.callee.name === 'require') {
-          check(node.arguments[0]);
-        }
-      },
-    };
-  },
-};
+import { publicImportBoundaryRule } from './scripts/lib/publicImportBoundaryRule.mjs';
+import { featureBoundaryRule } from './scripts/lib/eslint/featureBoundaryRule.mjs';
+import { remoteAdmissionRule } from './scripts/lib/eslint/remoteAdmissionRule.mjs';
+import { QUEUE_REMOVAL_HOMES, queueRemovalRule } from './scripts/lib/eslint/queueRemovalRule.mjs';
+import { sessionRawReadRule } from './scripts/lib/eslint/sessionRawReadRule.mjs';
+import { unknownCastRule } from './scripts/lib/eslint/unknownCastRule.mjs';
+import {
+  ADMIN_TABS_FRAME_RESTRICTION,
+  AUDIT_CONTRACT_RESTRICTION,
+  BASE_MODAL_ENTRYPOINT_RESTRICTION,
+  CUDYR_FUNCTIONS_DOOR_RESTRICTION,
+  DATA_ACCESS_RESTRICTION,
+  DAY_WINDOW_RESTRICTION,
+  EPISODE_KEY_BUILD_RESTRICTION,
+  EPISODE_KEY_PARSE_RESTRICTION,
+  FEATURES_WITHOUT_DIRECT_DATA_ACCESS,
+  REEXPORT_ONLY_RESTRICTION,
+  ROLE_RESTRICTIONS,
+  RUT_REGEX_RESTRICTION,
+  SESSION_MESSAGE_RESTRICTION,
+  TEST_DAILY_RECORD_DOUBLE_CAST_RESTRICTION,
+  syntaxRestrictions,
+} from './scripts/lib/eslint/syntaxRestrictions.mjs';
 
 const HHR_PLUGIN = {
   rules: {
-    'feature-boundaries': FEATURE_BOUNDARY_RULE,
+    'feature-boundaries': featureBoundaryRule,
     'public-import-boundaries': publicImportBoundaryRule,
   },
 };
 
-const REMOTE_ADMISSION_RULE = {
-  meta: {
-    type: 'problem',
-    schema: [],
-    messages: {
-      admission:
-        'Las lecturas remotas deben entrar por admitRemoteDailyRecords y usar su fila devuelta; no abras ni escribas el almacén directamente.',
-    },
-  },
-  create(context) {
-    const report = node => context.report({ node, messageId: 'admission' });
-    const check = (source, declaration) => {
-      if (!source || typeof source.value !== 'string') return;
-      const raw = source.value;
-      const target = (
-        raw.startsWith('.')
-          ? path.posix.normalize(
-              path.posix.join(
-                path.posix.dirname(path.relative(FEATURE_ROOT, context.filename)),
-                raw
-              )
-            )
-          : raw.replace(/^@\//, 'src/')
-      ).replace(/\.[cm]?[jt]sx?$/, '');
-      if (target === 'src/services/storage/indexeddb/indexedDbRecordService') {
-        const allowed =
-          /^(get|captureLocalRecordBase$|inspectLocalRecordAdmission$|admitLocalRecords$)/;
-        if (!declaration || declaration.type !== 'ImportDeclaration') return report(source);
-        for (const specifier of declaration.specifiers) {
-          if (declaration.importKind === 'type' || specifier.importKind === 'type') continue;
-          if (
-            specifier.type !== 'ImportSpecifier' ||
-            !allowed.test(specifier.imported.name ?? specifier.imported.value)
-          )
-            report(specifier);
-        }
-        return;
-      }
-      if (
-        /^dexie(?:\/|$)/.test(target) ||
-        /^src\/services\/storage\/(indexeddb|localpersistence|localstorage)\//.test(target)
-      )
-        report(source);
-    };
-    return {
-      ImportDeclaration: node => check(node.source, node),
-      ExportNamedDeclaration: node => check(node.source),
-      ExportAllDeclaration: node => check(node.source),
-      ImportExpression: node => check(node.source),
-      TSImportEqualsDeclaration: node => check(node.moduleReference.expression),
-      CallExpression(node) {
-        if (node.callee.type === 'Identifier' && node.callee.name === 'require')
-          check(node.arguments[0]);
-      },
-      Identifier(node) {
-        if (node.name !== 'indexedDB') return;
-        if (
-          node.parent.type === 'MemberExpression' &&
-          node.parent.property === node &&
-          !node.parent.computed
-        )
-          return;
-        report(node);
-      },
-      MemberExpression(node) {
-        const name = node.computed ? node.property.value : node.property.name;
-        if (name === 'indexedDB') report(node);
-      },
-    };
-  },
-};
-
-// SAVE-03: queue rows and the local database are removed only in the modules whose tests prove when.
-const QUEUE_REMOVAL_HOMES = [
-  'src/services/storage/sync/dexieSyncQueueStore.ts',
-  'src/services/storage/sync/dexieSyncQueueAuthorityAck.ts',
-  'src/services/storage/sync/dexieSyncQueueQuarantine.ts',
-  'src/services/storage/indexeddb/indexedDbDeleteController.ts',
-];
-const QUEUE_REMOVAL_RULE = {
-  meta: {
-    type: 'problem',
-    schema: [],
-    messages: {
-      removal:
-        'Solo dexieSyncQueueStore, dexieSyncQueueAuthorityAck, dexieSyncQueueQuarantine e indexedDbDeleteController borran tareas de la cola o la base local (SAVE-03). Llama a sus funciones; nada borra la cola sin confirmación explícita.',
-    },
-  },
-  create(context) {
-    const nameOf = node =>
-      node?.type === 'MemberExpression'
-        ? node.computed
-          ? node.property.value
-          : node.property.name
-        : undefined;
-    const unwrap = node =>
-      [
-        'ChainExpression',
-        'TSNonNullExpression',
-        'TSAsExpression',
-        'TSSatisfiesExpression',
-      ].includes(node?.type)
-        ? unwrap(node.expression)
-        : node;
-    // const names bound to the queue table: `const q = db.syncQueue`, `const { syncQueue } = db`,
-    // `const t = db.table('syncQueue')`, and const aliases of those, resolved through the scope.
-    // Not followed: let/reassignment, parameters, return values and collections.
-    const aliases = new Set();
-    const variableOf = node => {
-      for (let scope = context.sourceCode.getScope(node); scope; scope = scope.upper) {
-        const variable = scope.set.get(node.name);
-        if (variable) return variable;
-      }
-      return undefined;
-    };
-    const reachesSyncQueue = node => {
-      for (let current = unwrap(node); current; ) {
-        if (current.type === 'Identifier') return aliases.has(variableOf(current));
-        if (current.type === 'MemberExpression') {
-          if (nameOf(current) === 'syncQueue') return true;
-          current = unwrap(current.object);
-        } else if (current.type === 'CallExpression') {
-          const callee = unwrap(current.callee);
-          if (nameOf(callee) === 'table' && current.arguments[0]?.value === 'syncQueue')
-            return true;
-          current = callee;
-        } else return false;
-      }
-      return false;
-    };
-    const bindings = [];
-    const removals = [];
-    const bind = (target, value) => {
-      if (!target || !value) return;
-      if (target.type === 'AssignmentPattern') return bind(target.left, value);
-      if (target.type === 'Identifier') return void bindings.push([target, value]);
-      if (target.type !== 'ObjectPattern') return;
-      for (const property of target.properties) {
-        const key = property.type === 'Property' && !property.computed ? property.key : undefined;
-        if (key?.name === 'syncQueue' || key?.value === 'syncQueue')
-          bind(property.value, {
-            type: 'MemberExpression',
-            computed: true,
-            property: { value: 'syncQueue' },
-          });
-      }
-    };
-    return {
-      // Only const bindings: they cannot be reassigned, so an alias needs no flow analysis.
-      VariableDeclarator: node => node.parent.kind === 'const' && bind(node.id, node.init),
-      CallExpression(node) {
-        const callee = unwrap(node.callee);
-        const method = nameOf(callee);
-        const object = unwrap(callee?.object);
-        if (
-          method === 'deleteDatabase' ||
-          (method === 'delete' && ['Dexie', 'hospitalDB'].includes(object?.name))
-        )
-          context.report({ node, messageId: 'removal' });
-        else if (['delete', 'bulkDelete', 'clear'].includes(method)) removals.push([node, object]);
-      },
-      'Program:exit'() {
-        // First every const alias of the file, in any order (a closure may use one declared later).
-        for (let size = -1; size !== aliases.size; ) {
-          size = aliases.size;
-          for (const [target, value] of bindings) {
-            const variable = variableOf(target);
-            if (variable && reachesSyncQueue(value)) aliases.add(variable);
-          }
-        }
-        for (const [node, object] of removals) {
-          if (reachesSyncQueue(object)) context.report({ node, messageId: 'removal' });
-        }
-      },
-    };
-  },
-};
-
-// One session gate: an operation that waits asks guardAuthoringSession() whether the person who
-// started it is still signed in, instead of comparing the owner and generation by hand (the same
-// block was copied ~30 times, W17-S1). Owners and the ledger of files still to migrate live in
-// one JSON; a ledger row goes once its file no longer imports a raw reader.
-const SESSION_RAW_READ_LEDGER_PATH = 'scripts/config/session-raw-read-ledger.json';
-const SESSION_RAW_READ_LEDGER = readJson(`./${SESSION_RAW_READ_LEDGER_PATH}`);
-const SESSION_RAW_READERS = new Set([
-  'getStoredSessionOwnerKey',
-  'getSessionGeneration',
-  'getSessionEpoch',
-]);
-const isSessionOwner = file =>
-  Object.keys(SESSION_RAW_READ_LEDGER.owners).some(owner =>
-    owner.endsWith('/') ? file.startsWith(owner) : file === owner
-  );
-const SESSION_RAW_READ_RULE = {
-  meta: {
-    type: 'problem',
-    schema: [],
-    messages: {
-      raw: 'No compares la sesión a mano con {{name}}(): usa guardAuthoringSession() (src/services/storage/authoringSession.ts) si la operación escribe, guarda o lee datos compartidos después de una espera, y authoringSessionScope() como clave de lo guardado por persona; sessionEpochGuard() si el resultado solo se muestra en esta pestaña; useSessionEpoch() como clave de React (AGENTS.md, sesión).',
-      stale:
-        'Este archivo ya no lee la sesión cruda: quita su fila de «pending» en ' +
-        SESSION_RAW_READ_LEDGER_PATH +
-        ' y baja LEDGER_SIZE en src/tests/build/sessionRawReadLint.test.ts.',
-    },
-  },
-  create(context) {
-    const file = path.relative(FEATURE_ROOT, context.filename).split(path.sep).join('/');
-    if (isSessionOwner(file)) return {};
-    const pending = Object.hasOwn(SESSION_RAW_READ_LEDGER.pending, file);
-    let rawReads = 0;
-    const read = (node, name) => {
-      if (!SESSION_RAW_READERS.has(name)) return;
-      rawReads += 1;
-      if (!pending) context.report({ node, messageId: 'raw', data: { name } });
-    };
-    // Every way to reach a module's export: a named import or re-export, a namespace import, and
-    // import() awaited, destructured or passed to then(). Only names bound to a module count, so an
-    // injected port (the queue's `runtime.getSessionGeneration`) is not a raw read.
-    const modules = new Set();
-    const nameOf = node =>
-      node?.type === 'Identifier' ? node.name : node?.type === 'Literal' ? node.value : undefined;
-    const unwrap = node => (node?.type === 'AwaitExpression' ? node.argument : node);
-    const isModule = node => {
-      const value = unwrap(node);
-      return (
-        value?.type === 'ImportExpression' ||
-        (value?.type === 'Identifier' && modules.has(value.name))
-      );
-    };
-    const bindModule = target => {
-      if (target?.type === 'Identifier') modules.add(target.name);
-      else if (target?.type === 'ObjectPattern')
-        for (const property of target.properties)
-          if (property.type === 'Property' && !property.computed)
-            read(property.key, nameOf(property.key));
-    };
-    return {
-      ImportSpecifier: node => read(node, nameOf(node.imported)),
-      ImportNamespaceSpecifier: node => modules.add(node.local.name),
-      ExportSpecifier(node) {
-        if (node.parent.source) read(node, nameOf(node.local));
-      },
-      VariableDeclarator(node) {
-        if (isModule(node.init)) bindModule(node.id);
-      },
-      CallExpression(node) {
-        const { callee } = node;
-        if (callee.type === 'MemberExpression' && nameOf(callee.property) === 'then')
-          if (unwrap(callee.object)?.type === 'ImportExpression')
-            bindModule(node.arguments[0]?.params?.[0]);
-      },
-      MemberExpression(node) {
-        if (!isModule(node.object)) return;
-        const property = node.computed
-          ? node.property.type === 'Literal'
-            ? node.property.value
-            : undefined
-          : node.property.name;
-        read(node.property, property);
-      },
-      'Program:exit'(program) {
-        if (pending && rawReads === 0) context.report({ node: program, messageId: 'stale' });
-      },
-    };
-  },
-};
-
-// `x as unknown as T` converts anything into anything, like an explicit `any`. Each production
-// file keeps at most the count it had; the ceilings only go down.
-const UNKNOWN_CAST_CEILINGS_PATH = 'scripts/config/unknown-cast-ceilings.json';
-const UNKNOWN_CAST_CEILINGS = readJson(`./${UNKNOWN_CAST_CEILINGS_PATH}`).files;
-const UNKNOWN_CAST_RULE = {
-  meta: {
-    type: 'problem',
-    schema: [],
-    messages: {
-      grown:
-        '«as unknown as» convierte cualquier valor en cualquier tipo sin comprobarlo. Este archivo tiene {{now}} y su techo es {{ceiling}} en ' +
-        UNKNOWN_CAST_CEILINGS_PATH +
-        '. Modela el tipo: un solo `as` si TypeScript lo acepta, una guarda de tipo, un tipo estrecho con nombre propio o el tipo que exporta la librería.',
-      lower:
-        'Este archivo bajó a {{now}} «as unknown as» (techo {{ceiling}}). Baja su techo en ' +
-        UNKNOWN_CAST_CEILINGS_PATH +
-        '; si llega a 0, quita la entrada.',
-    },
-  },
-  create(context) {
-    const file = path.relative(FEATURE_ROOT, context.filename).split(path.sep).join('/');
-    const ceiling = UNKNOWN_CAST_CEILINGS[file] ?? 0;
-    const isUnknownCast = node =>
-      ['TSAsExpression', 'TSTypeAssertion'].includes(node.type) &&
-      node.typeAnnotation.type === 'TSUnknownKeyword';
-    const casts = [];
-    const visit = node => isUnknownCast(node.expression) && casts.push(node);
-    return {
-      TSAsExpression: visit,
-      TSTypeAssertion: visit,
-      'Program:exit'(program) {
-        const data = { now: casts.length, ceiling };
-        if (casts.length > ceiling)
-          casts.forEach(node => context.report({ node, messageId: 'grown', data }));
-        else if (casts.length < ceiling)
-          context.report({ node: program, messageId: 'lower', data });
-      },
-    };
-  },
-};
-
-// cudyr and handoff also keep data access behind controllers/use-cases/ports.
-const DATA_ACCESS_RESTRICTION = {
-  group: [
-    '@/services/repositories/*',
-    '@/services/RepositoryContext',
-    '@/services/infrastructure/*',
-  ],
-  message:
-    'Usa controllers/use-cases/ports para acceder a datos. No importes repositorios ni infraestructura directo desde UI/feature shell.',
-};
-const FEATURES_WITHOUT_DIRECT_DATA_ACCESS = new Set(['cudyr', 'handoff']);
 const FEATURE_BOUNDARY_CONFIGS = [
   {
     files: ['src/features/**/*.{ts,tsx,js,jsx}'],
@@ -427,142 +48,6 @@ const FEATURE_BOUNDARY_CONFIGS = [
     rules: { 'no-restricted-imports': ['error', { patterns: [DATA_ACCESS_RESTRICTION] }] },
   })),
 ];
-
-// Glossary enforcement — only terms with zero current usage are banned (see docs/GLOSSARY.md).
-// Adding new ones requires first migrating all legitimate uses; otherwise the rule produces noise
-// instead of signal.
-const GLOSSARY_SYNTAX_RESTRICTIONS = [
-  {
-    selector: 'Identifier[name="intake"]',
-    message: 'Use "admission" / "admisión" instead of "intake" — see docs/GLOSSARY.md',
-  },
-  {
-    selector: 'Identifier[name="swap"]',
-    message: 'Use "moveOrCopy" / "bedMovement" instead of "swap" — see docs/GLOSSARY.md',
-  },
-];
-
-// One session scope: the sender in sessionStorageTransition notifies every listener
-// synchronously. Listening to the window message elsewhere brought back reads of the
-// previous person twice (clinical explorer, 2026-11-05).
-const SESSION_MESSAGE_RESTRICTION = {
-  selector: 'Literal[value="HHR_RAYEN_SESSION_CHANGED"]',
-  message:
-    'Observa el cambio de sesión con onSessionChange() o useSessionEpoch(), no con el mensaje HHR_RAYEN_SESSION_CHANGED (AGENTS.md).',
-};
-
-// A copy of the RUT cleaner compares a passport by its digits as if it were a RUT. The helpers
-// that know the difference live in one module.
-const RUT_REGEX_RESTRICTION = {
-  selector: 'Literal[regex.pattern=/\\[\\^0-9(kK|Kk|k|K)\\]/]',
-  message:
-    'No copies la expresión de RUT: usa normalizeRut(), isSameRut(), isSameDocument() o documentIdentityKey() de src/utils/rutUtils.ts (AGENTS.md).',
-};
-
-// Identity is patient plus episode (ID-01): only the clinical-episode resolver builds or reads the
-// legacy `rut__admission` episode key.
-const EPISODE_KEY_BUILD_RESTRICTION = {
-  selector: "TemplateElement[value.raw='__'][tail=false]:not(:first-child)",
-  message:
-    'No armes una clave `${a}__${b}` a mano: la clave de episodio sale de buildClinicalEpisodeKey() en src/domain/clinical-episode/clinicalEpisode.ts. Si la clave no es clínica, exime el archivo junto a reminderShared.ts en eslint.config.js.',
-};
-const EPISODE_KEY_PARSE_RESTRICTION = {
-  selector:
-    "CallExpression[callee.property.name=/^(split|includes)$/][arguments.0.value='__']:matches([callee.object.name='episodeKey'], [callee.object.property.name='episodeKey'])",
-  message:
-    'Lee una clave de episodio antigua con isLegacyClinicalEpisodeKey() o parseLegacyClinicalEpisodeKey() de src/domain/clinical-episode/clinicalEpisode.ts.',
-};
-// The audit loggers are one contract (`AuditLoggers` in src/hooks/useAudit.ts): `AuditContext`
-// declared a second copy of it, ~100 lines that drifted apart (2026-11-18).
-const AUDIT_LOGGER_NAME =
-  '/^log(Event|DebouncedEvent|ViewEvent|PatientCleared|DailyRecord(Created|Deleted)|CudyrModified|HandoffNovedadesModified|MedicalHandoffModified|NurseHandoffModified|ClinicalDocument(Created|Edited|Deleted))$/';
-const AUDIT_CONTRACT_RESTRICTION = {
-  selector: `:matches(TSMethodSignature[key.name=${AUDIT_LOGGER_NAME}], TSPropertySignature[key.name=${AUDIT_LOGGER_NAME}] > TSTypeAnnotation > TSFunctionType)`,
-  message:
-    "No escribas a mano la firma de un registrador de auditoría: tómala de AuditLoggers en src/hooks/useAudit.ts (p. ej. `logEvent: AuditLoggers['logEvent']`).",
-};
-// The admin pages with tabs share one frame. Four pages had copied its ~40 lines of title bar
-// and tab buttons (2026-11-18); a copy starts with the tab button's classes.
-const ADMIN_TABS_FRAME_RESTRICTION = {
-  selector:
-    "Literal[value='px-3 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1.5']",
-  message:
-    'No copies la barra de pestañas de administración: usa AdminTabsShell (src/features/admin/components/internal/AdminTabsShell.tsx) y pásale las pestañas como datos.',
-};
-// One owner of role decisions (W17-R1): a role compared or listed by hand drifted into copies
-// (prescriptions in three files, admin plus nursing in four). A capability is a named predicate in
-// src/shared/access, checked by the role truth table.
-const ROLE_NAME = '/^(admin|nurse_hospital|editor|viewer|doctor_urgency|doctor_specialist)$/';
-const ROLE_DECISION_MESSAGE =
-  'No compares ni listes roles a mano: usa un predicado de src/shared/access/operationalAccessPolicy.ts (p. ej. isAdminAppRole, canEditPrescriptions, canAccessAppModuleRoute) o una columna de roleAccessMatrix.ts, o agrega uno con su columna en la tabla de verdad de src/tests/shared/access/operationalAccessPolicy.test.ts (AGENTS.md).';
-const ROLE_LITERAL_RESTRICTION = {
-  selector: `BinaryExpression[operator=/^[!=]==$/] > Literal[value=${ROLE_NAME}]`,
-  message: ROLE_DECISION_MESSAGE,
-};
-const ROLE_LIST_RESTRICTION = {
-  selector: `ArrayExpression > Literal[value=${ROLE_NAME}]`,
-  message: ROLE_DECISION_MESSAGE,
-};
-const ROLE_RESTRICTIONS = [ROLE_LITERAL_RESTRICTION, ROLE_LIST_RESTRICTION];
-// «¿Puede escribir este día?» is one predicate per operation (W17-D1): the census and Rayen
-// corrections free the administrator, the invalid-episode cleanup binds every role. The window
-// itself is computed once, and only those predicates read it.
-const DAY_WINDOW_RESTRICTION = {
-  selector: "ImportSpecifier[imported.name='isWithinNurseEditingWindow']",
-  message:
-    'No uses la ventana de 48 h directamente: elige el predicado de la operación en src/shared/access/censusDayWriteAccessPolicy.ts (canWriteCensusDay, canCleanInvalidEpisodeDay, canApplyPreviousDayCudyr…) o agrega uno ahí; la limpieza de episodio inválido respeta las 48 h también para el administrador (SAVE-04).',
-};
-// W17-EXIT: CUDYR work leaves for its Functions through one door that asks the operation's
-// session guard right before sending; a second transport would skip it.
-const CUDYR_FUNCTIONS_DOOR_RESTRICTION = {
-  selector: ":matches(ImportDeclaration, ImportExpression)[source.value='firebase/functions']",
-  message:
-    'Un llamado CUDYR a Functions sale por callCudyrFunction() de src/services/cudyr/cudyrFunctionsCall.ts, con el guard que la operación capturó al empezar (AGENTS.md: cambio de propietario).',
-};
-const SOURCE_SYNTAX_RESTRICTIONS = [
-  ...GLOSSARY_SYNTAX_RESTRICTIONS,
-  SESSION_MESSAGE_RESTRICTION,
-  RUT_REGEX_RESTRICTION,
-  EPISODE_KEY_BUILD_RESTRICTION,
-  EPISODE_KEY_PARSE_RESTRICTION,
-  AUDIT_CONTRACT_RESTRICTION,
-  ADMIN_TABS_FRAME_RESTRICTION,
-  ...ROLE_RESTRICTIONS,
-  DAY_WINDOW_RESTRICTION,
-];
-// One rule option per file: a later config replaces the whole list, so homes omit only their own.
-const syntaxRestrictions = ({ omit = [], add = [] } = {}) => [
-  'warn',
-  ...SOURCE_SYNTAX_RESTRICTIONS.filter(restriction => !omit.includes(restriction)),
-  ...add,
-];
-
-// A test day cast through `unknown` keeps compiling when `DailyRecord` changes, so the test can stay
-// green with data the app no longer produces.
-const DOUBLE_CAST =
-  "TSAsExpression[expression.type='TSAsExpression'][expression.typeAnnotation.type='TSUnknownKeyword']";
-const TEST_DAILY_RECORD_DOUBLE_CAST_RESTRICTION = {
-  selector: [
-    `${DOUBLE_CAST} > TSTypeReference[typeName.name='DailyRecord']`,
-    `${DOUBLE_CAST} > TSArrayType > TSTypeReference[typeName.name='DailyRecord']`,
-    `${DOUBLE_CAST} > TSIndexedAccessType TSTypeReference[typeName.name='DailyRecord']`,
-  ].join(', '),
-  message:
-    '«as unknown as DailyRecord» deja la prueba en verde aunque cambie el tipo. Arma el día con DataFactory.createMockDailyRecord (src/tests/factories/DataFactory.ts); si la prueba necesita a propósito un dato incompleto o antiguo, usa asStoredDailyRecordShape.',
-};
-
-// Public entrypoints over focused modules: the code lives in those modules, not here again.
-const REEXPORT_ONLY_RESTRICTION = {
-  selector: 'Program > :not(ExportNamedDeclaration[source], ExportAllDeclaration)',
-  message:
-    'Esta entrada pública solo reexporta (`export … from`): escribe el código o el tipo en su módulo enfocado y reexpórtalo aquí.',
-};
-const BASE_MODAL_ENTRYPOINT_RESTRICTION = {
-  selector:
-    "ImportSpecifier[imported.name='createPortal'], TSInterfaceDeclaration, TSTypeAliasDeclaration",
-  message:
-    'BaseModal es la entrada pública: los tipos van en baseModalContracts.ts y el portal en baseModalContent.tsx.',
-};
 
 export default tseslint.config(
   {
@@ -865,8 +350,8 @@ export default tseslint.config(
     files: ['src/**/*.{ts,tsx}'],
     ignores: ['**/*.d.ts', '**/tests/**', '**/*.test.*', '**/*.spec.*'],
     plugins: {
-      types: { rules: { 'unknown-cast-ceiling': UNKNOWN_CAST_RULE } },
-      session: { rules: { 'raw-read': SESSION_RAW_READ_RULE } },
+      types: { rules: { 'unknown-cast-ceiling': unknownCastRule } },
+      session: { rules: { 'raw-read': sessionRawReadRule } },
     },
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
@@ -886,13 +371,13 @@ export default tseslint.config(
       'src/services/repositories/dailyRecord*Initialization*.ts',
       'src/services/repositories/dailyRecordLocalCachePersistence.ts',
     ],
-    plugins: { admission: { rules: { 'remote-reads': REMOTE_ADMISSION_RULE } } },
+    plugins: { admission: { rules: { 'remote-reads': remoteAdmissionRule } } },
     rules: { 'admission/remote-reads': 'error' },
   },
   {
     files: ['src/**/*.{ts,tsx,js,jsx}'],
     ignores: ['**/*.d.ts', '**/tests/**', '**/*.test.*', '**/*.spec.*', ...QUEUE_REMOVAL_HOMES],
-    plugins: { queue: { rules: { 'removal-home': QUEUE_REMOVAL_RULE } } },
+    plugins: { queue: { rules: { 'removal-home': queueRemovalRule } } },
     rules: { 'queue/removal-home': 'error' },
   }
 );
