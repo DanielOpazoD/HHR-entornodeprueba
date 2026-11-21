@@ -25,8 +25,6 @@ const bedActions = {
     .fn<BedActions['updateClinicalCribMultiple']>()
     .mockResolvedValue(true),
   toggleBedType: vi.fn<BedActions['toggleBedType']>(),
-  updateClinicalCribCudyr: vi.fn<BedActions['updateClinicalCribCudyr']>(),
-  updateCudyr: vi.fn<BedActions['updateCudyr']>(),
   clearAllBeds: vi.fn<BedActions['clearAllBeds']>(),
   moveOrCopyPatient: vi.fn<BedActions['moveOrCopyPatient']>(),
   toggleBlockBed: vi.fn<BedActions['toggleBlockBed']>(),

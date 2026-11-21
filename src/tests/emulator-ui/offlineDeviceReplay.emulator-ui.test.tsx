@@ -54,7 +54,6 @@ vi.unmock('@/services/repositories/dailyRecordRepositoryWriteService');
 // The bed manager's audit trail is out of scope; it never decides what is saved.
 vi.mock('@/context/AuditContext', () => ({
   useAuditContext: () => ({
-    logCudyrModified: vi.fn(),
     logDebouncedEvent: vi.fn(),
     logEvent: vi.fn(),
     logPatientAdmission: vi.fn(),

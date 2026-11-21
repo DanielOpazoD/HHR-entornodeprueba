@@ -8,14 +8,6 @@ import type {
   DailyRecordStaffActions,
 } from '@/context/dailyRecordContextContracts';
 import { useRequiredDailyRecordActionsContext } from '@/context/dailyRecordActionsContext';
-type DailyRecordCudyrActions = Pick<
-  DailyRecordActionsContextType,
-  | 'updateCudyr'
-  | 'updateCudyrMultiple'
-  | 'updateCudyrBatch'
-  | 'updateClinicalCribCudyr'
-  | 'updateClinicalCribCudyrMultiple'
->;
 
 const useResolvedActionsContext = (hookName: string): DailyRecordActionsContextType => {
   return useRequiredDailyRecordActionsContext(hookName);
@@ -41,10 +33,6 @@ export const useDailyRecordBedActions = (): DailyRecordBedActions => {
       updatePatientMultiple: actions.updatePatientMultiple,
       updateClinicalCrib: actions.updateClinicalCrib,
       updateClinicalCribMultiple: actions.updateClinicalCribMultiple,
-      updateClinicalCribCudyr: actions.updateClinicalCribCudyr,
-      updateClinicalCribCudyrMultiple: actions.updateClinicalCribCudyrMultiple,
-      updateCudyr: actions.updateCudyr,
-      updateCudyrMultiple: actions.updateCudyrMultiple,
       clearPatient: actions.clearPatient,
       clearAllBeds: actions.clearAllBeds,
       moveOrCopyPatient: actions.moveOrCopyPatient,
@@ -64,11 +52,7 @@ export const useDailyRecordBedActions = (): DailyRecordBedActions => {
       actions.toggleExtraBed,
       actions.updateBlockedReason,
       actions.updateClinicalCrib,
-      actions.updateClinicalCribCudyr,
-      actions.updateClinicalCribCudyrMultiple,
       actions.updateClinicalCribMultiple,
-      actions.updateCudyr,
-      actions.updateCudyrMultiple,
       actions.updatePatient,
       actions.updatePatientMultiple,
     ]
@@ -125,31 +109,10 @@ export const useDailyRecordStaffActions = (): DailyRecordStaffActions => {
   const actions = useResolvedActionsContext('useDailyRecordStaffActions');
   return useMemo(
     () => ({
-      updateNurse: actions.updateNurse,
-      updateTens: actions.updateTens,
+      updateShiftStaff: actions.updateShiftStaff,
       updateDetailedStaffing: actions.updateDetailedStaffing,
     }),
-    [actions.updateDetailedStaffing, actions.updateNurse, actions.updateTens]
-  );
-};
-
-export const useDailyRecordCudyrActions = (): DailyRecordCudyrActions => {
-  const actions = useResolvedActionsContext('useDailyRecordCudyrActions');
-  return useMemo(
-    () => ({
-      updateCudyr: actions.updateCudyr,
-      updateCudyrMultiple: actions.updateCudyrMultiple,
-      updateCudyrBatch: actions.updateCudyrBatch,
-      updateClinicalCribCudyr: actions.updateClinicalCribCudyr,
-      updateClinicalCribCudyrMultiple: actions.updateClinicalCribCudyrMultiple,
-    }),
-    [
-      actions.updateClinicalCribCudyr,
-      actions.updateClinicalCribCudyrMultiple,
-      actions.updateCudyr,
-      actions.updateCudyrBatch,
-      actions.updateCudyrMultiple,
-    ]
+    [actions.updateDetailedStaffing, actions.updateShiftStaff]
   );
 };
 

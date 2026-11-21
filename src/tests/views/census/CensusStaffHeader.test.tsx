@@ -100,8 +100,7 @@ describe('CensusStaffHeader', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedUseDailyRecordStaffActions.mockReturnValue({
-      updateNurse: vi.fn(),
-      updateTens: vi.fn(),
+      updateShiftStaff: vi.fn(),
       updateDetailedStaffing: vi.fn(),
     });
     mockedUseDailyRecordStaff.mockReturnValue({
@@ -209,7 +208,7 @@ describe('CensusStaffHeader', () => {
     expect(await screen.findByText('tens 2026-02-16')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Guardar detalle' }));
     expect(mockedUseDailyRecordStaffActions().updateDetailedStaffing).toHaveBeenCalledTimes(1);
-    expect(mockedUseDailyRecordStaffActions().updateNurse).not.toHaveBeenCalled();
+    expect(mockedUseDailyRecordStaffActions().updateShiftStaff).not.toHaveBeenCalled();
     rerender(<CensusStaffHeader stats={null} accessProfile="specialist" />);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     rerender(<CensusStaffHeader stats={null} />);

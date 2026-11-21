@@ -66,8 +66,6 @@ describe('bedManagementDispatchController', () => {
     };
     const bedAudit: BedManagementAuditPort = {
       auditPatientChange: vi.fn(),
-      auditCudyrChange: vi.fn(),
-      auditCribCudyrChange: vi.fn(),
       auditPatientCleared: vi.fn(),
       auditPatientModified: vi.fn(),
       auditPatientMovement: vi.fn(),
@@ -98,8 +96,6 @@ describe('bedManagementDispatchController', () => {
     };
     const bedAudit: BedManagementAuditPort = {
       auditPatientChange,
-      auditCudyrChange: vi.fn(),
-      auditCribCudyrChange: vi.fn(),
       auditPatientCleared: vi.fn(),
       auditPatientModified: vi.fn(),
       auditPatientMovement: vi.fn(),
@@ -145,8 +141,6 @@ describe('bedManagementDispatchController', () => {
     };
     const bedAudit: BedManagementAuditPort = {
       auditPatientChange,
-      auditCudyrChange: vi.fn(),
-      auditCribCudyrChange: vi.fn(),
       auditPatientCleared: vi.fn(),
       auditPatientModified: vi.fn(),
       auditPatientMovement: vi.fn(),
@@ -187,8 +181,6 @@ describe('bedManagementDispatchController', () => {
     };
     const bedAudit: BedManagementAuditPort = {
       auditPatientChange,
-      auditCudyrChange: vi.fn(),
-      auditCribCudyrChange: vi.fn(),
       auditPatientCleared: vi.fn(),
       auditPatientModified: vi.fn(),
       auditPatientMovement: vi.fn(),
@@ -226,8 +218,6 @@ describe('bedManagementDispatchController', () => {
     };
     const bedAudit: BedManagementAuditPort = {
       auditPatientChange: vi.fn(),
-      auditCudyrChange: vi.fn(),
-      auditCribCudyrChange: vi.fn(),
       auditPatientCleared: vi.fn(),
       auditPatientModified: vi.fn(),
       auditPatientMovement: vi.fn(),
@@ -284,8 +274,6 @@ describe('bedManagementDispatchController', () => {
     };
     const bedAudit: BedManagementAuditPort = {
       auditPatientChange,
-      auditCudyrChange: vi.fn(),
-      auditCribCudyrChange: vi.fn(),
       auditPatientCleared: vi.fn(),
       auditPatientModified: vi.fn(),
       auditPatientMovement: vi.fn(),
@@ -329,8 +317,6 @@ describe('bedManagementDispatchController', () => {
     };
     const bedAudit: BedManagementAuditPort = {
       auditPatientChange: vi.fn(),
-      auditCudyrChange: vi.fn(),
-      auditCribCudyrChange: vi.fn(),
       auditPatientCleared,
       auditPatientModified: vi.fn(),
       auditPatientMovement: vi.fn(),
@@ -418,8 +404,6 @@ describe('bedManagementDispatchController', () => {
       },
       bedAudit: {
         auditPatientChange: vi.fn(),
-        auditCudyrChange: vi.fn(),
-        auditCribCudyrChange: vi.fn(),
         auditPatientCleared,
         auditPatientModified: vi.fn(),
         auditPatientMovement: vi.fn(),
@@ -474,8 +458,6 @@ describe('bedManagementDispatchController', () => {
       },
       bedAudit: {
         auditPatientChange: vi.fn(),
-        auditCudyrChange: vi.fn(),
-        auditCribCudyrChange: vi.fn(),
         auditPatientCleared: vi.fn(),
         auditPatientModified: vi.fn(),
         auditPatientMovement: vi.fn(),

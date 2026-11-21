@@ -22,7 +22,6 @@ import {
   type ViewThrottleState,
 } from '@/services/admin/auditViewThrottle';
 import { useClinicalDocumentAuditLoggers } from '@/hooks/controllers/useClinicalDocumentAuditLoggers';
-import { useCudyrAuditLoggers } from '@/hooks/controllers/useCudyrAuditLoggers';
 import { useHandoffAuditLoggers } from '@/hooks/controllers/useHandoffAuditLoggers';
 import { usePatientLifecycleAuditLoggers } from '@/hooks/controllers/usePatientLifecycleAuditLoggers';
 import { loadWriteAuditEventUseCase } from '@/application/audit/writeAuditEventUseCaseLoader';
@@ -83,16 +82,6 @@ export interface AuditLoggers {
   logPatientCleared: (bedId: string, patientName: string, rut: string, recordDate: string) => void;
   logDailyRecordDeleted: (date: string) => void;
   logDailyRecordCreated: (date: string, copiedFrom?: string) => void;
-  logCudyrModified: (
-    bedId: string,
-    patientName: string,
-    rut: string,
-    field: string,
-    value: number,
-    oldValue: number,
-    recordDate: string,
-    authors?: string
-  ) => void;
   logHandoffNovedadesModified: (
     shift: string,
     content: string,
@@ -294,7 +283,6 @@ export const useAudit = (userId: string): AuditLoggers => {
 
   const { logClinicalDocumentCreated, logClinicalDocumentEdited, logClinicalDocumentDeleted } =
     useClinicalDocumentAuditLoggers(logEvent);
-  const { logCudyrModified } = useCudyrAuditLoggers(logDebouncedEvent);
 
   const fetchLogs = useCallback(async (limit: number = 100): Promise<AuditLogEntry[]> => {
     const { executeFetchAuditLogs } = await loadFetchAuditLogsUseCase();
@@ -311,7 +299,6 @@ export const useAudit = (userId: string): AuditLoggers => {
     logPatientCleared,
     logDailyRecordDeleted,
     logDailyRecordCreated,
-    logCudyrModified,
     logHandoffNovedadesModified,
     logMedicalHandoffModified,
     logNurseHandoffModified,

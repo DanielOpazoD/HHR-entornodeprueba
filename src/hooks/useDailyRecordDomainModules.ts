@@ -9,9 +9,8 @@ import { usePatientDischarges } from '@/hooks/usePatientDischarges';
 import { usePatientTransfers } from '@/hooks/usePatientTransfers';
 import {
   useDetailedStaffingManagement,
-  useNurseManagement,
-  useTensManagement,
-} from '@/hooks/useNurseManagement';
+  useShiftStaffManagement,
+} from '@/hooks/useShiftStaffManagement';
 import { useCMA } from '@/hooks/useCMA';
 import { useHandoffManagement } from '@/hooks/useHandoffManagement';
 import { useInventory } from '@/hooks/useInventory';
@@ -28,8 +27,7 @@ export const useDailyRecordDomainModules = (
   const bedManagement = useBedManagement(record, patchRecord, ensureStaleDayEditAllowed);
   const dischargeManagement = usePatientDischarges(record, saveAndUpdate, undefined, patchRecord);
   const transferManagement = usePatientTransfers(record, saveAndUpdate, undefined, patchRecord);
-  const nurseManagement = useNurseManagement(record, patchRecord);
-  const tensManagement = useTensManagement(record, patchRecord);
+  const shiftStaffManagement = useShiftStaffManagement(record, patchRecord);
   const staffingManagement = useDetailedStaffingManagement(record, patchRecord);
   const cmaManagement = useCMA(record, patchRecord);
   const handoffManagement = useHandoffManagement(record, patchRecord);
@@ -40,8 +38,7 @@ export const useDailyRecordDomainModules = (
     bedManagement,
     dischargeManagement,
     transferManagement,
-    nurseManagement,
-    tensManagement,
+    shiftStaffManagement,
     staffingManagement,
     cmaManagement,
     handoffManagement,

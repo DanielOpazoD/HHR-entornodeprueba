@@ -6,7 +6,7 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { updatePartial } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { StaffProvider } from '@/context/StaffContext';
 import { useNursesQuery, useTensQuery } from '@/hooks/useStaffQuery';
-import { useNurseManagement, useTensManagement } from '@/hooks/useNurseManagement';
+import { useShiftStaffManagement } from '@/hooks/useShiftStaffManagement';
 import { StaffSelector } from '@/features/census/components/StaffSelector';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
@@ -49,8 +49,7 @@ const persistPatch = (patch: DailyRecordPatch) => {
 function Staffing({ role }: { role: 'nurses' | 'tens' }) {
   const nurses = useNursesQuery();
   const tens = useTensQuery();
-  const nurse = useNurseManagement(record, persistPatch);
-  const technician = useTensManagement(record, persistPatch);
+  const { updateShiftStaff } = useShiftStaffManagement(record, persistPatch);
   const query = role === 'nurses' ? nurses : tens;
   return (
     <StaffProvider>
@@ -63,7 +62,7 @@ function Staffing({ role }: { role: 'nurses' | 'tens' }) {
           catalog={query.data}
           dayShift={record.nursesDayShift ?? []}
           nightShift={[]}
-          onUpdate={nurse.updateNurse}
+          onUpdate={updateShiftStaff}
         />
       ) : (
         <StaffSelector
@@ -71,7 +70,7 @@ function Staffing({ role }: { role: 'nurses' | 'tens' }) {
           catalog={query.data}
           dayShift={record.tensDayShift ?? []}
           nightShift={[]}
-          onUpdate={technician.updateTens}
+          onUpdate={updateShiftStaff}
         />
       )}
     </StaffProvider>

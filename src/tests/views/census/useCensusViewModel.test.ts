@@ -15,7 +15,6 @@ describe('useCensusViewModel', () => {
   it('returns empty visible beds when record does not exist', () => {
     vi.mocked(useCensusLogic).mockReturnValue({
       beds: null,
-      movements: { discharges: [], transfers: [], cma: [] },
       staff: {
         nursesDayShift: [],
         nursesNightShift: [],
@@ -23,19 +22,10 @@ describe('useCensusViewModel', () => {
         tensNightShift: [],
         activeExtraBeds: [],
       },
-      nursesList: [],
-      tensList: [],
       stats: null,
       previousRecordAvailable: false,
       previousRecordDate: undefined,
       createDay: vi.fn(),
-      resetDay: vi.fn(),
-      updateNurse: vi.fn(),
-      updateTens: vi.fn(),
-      undoDischarge: vi.fn(),
-      deleteDischarge: vi.fn(),
-      undoTransfer: vi.fn(),
-      deleteTransfer: vi.fn(),
     } as ReturnType<typeof useCensusLogic>);
     vi.mocked(useTableConfig).mockReturnValue({ config: { pageMargin: 24 } } as ReturnType<
       typeof useTableConfig
@@ -50,7 +40,6 @@ describe('useCensusViewModel', () => {
   it('builds visible beds from active extra beds', () => {
     vi.mocked(useCensusLogic).mockReturnValue({
       beds: {},
-      movements: { discharges: [], transfers: [], cma: [] },
       staff: {
         nursesDayShift: [],
         nursesNightShift: [],
@@ -58,19 +47,10 @@ describe('useCensusViewModel', () => {
         tensNightShift: [],
         activeExtraBeds: ['E1'],
       },
-      nursesList: [],
-      tensList: [],
       stats: null,
       previousRecordAvailable: false,
       previousRecordDate: undefined,
       createDay: vi.fn(),
-      resetDay: vi.fn(),
-      updateNurse: vi.fn(),
-      updateTens: vi.fn(),
-      undoDischarge: vi.fn(),
-      deleteDischarge: vi.fn(),
-      undoTransfer: vi.fn(),
-      deleteTransfer: vi.fn(),
     } as ReturnType<typeof useCensusLogic>);
     vi.mocked(useTableConfig).mockReturnValue({ config: { pageMargin: 20 } } as ReturnType<
       typeof useTableConfig

@@ -44,8 +44,6 @@ describe('manual specialty precedence across structural edits', () => {
       validation: { processFieldValue: vi.fn((_field, value) => ({ valid: true, value })) },
       bedAudit: {
         auditPatientChange: vi.fn(),
-        auditCudyrChange: vi.fn(),
-        auditCribCudyrChange: vi.fn(),
         auditPatientCleared: vi.fn(),
         auditPatientModified: vi.fn(),
         auditPatientMovement: vi.fn(),
@@ -69,8 +67,6 @@ describe('manual specialty precedence across structural edits', () => {
       validation: { processFieldValue: vi.fn((_field, value) => ({ valid: true, value })) },
       bedAudit: {
         auditPatientChange: vi.fn(),
-        auditCudyrChange: vi.fn(),
-        auditCribCudyrChange: vi.fn(),
         auditPatientCleared: vi.fn(),
         auditPatientModified: vi.fn(),
         auditPatientMovement: vi.fn(),

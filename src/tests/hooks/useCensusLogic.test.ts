@@ -22,11 +22,6 @@ const POPULATED_BEDS = {
 // Mock contexts with correct hook names
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordStatus: () => ({ bootstrapPhase: contextState.bootstrapPhase }),
-  useDailyRecordMovements: () => ({
-    discharges: [],
-    transfers: [],
-    cma: [],
-  }),
   useDailyRecordBeds: () => contextState.beds,
   useDailyRecordStaff: () => ({ activeExtraBeds: [] }),
 }));
@@ -35,24 +30,6 @@ vi.mock('@/context/useDailyRecordScopedActions', () => ({
   useDailyRecordDayActions: () => ({
     createDay: vi.fn(),
     resetDay: vi.fn(),
-  }),
-  useDailyRecordStaffActions: () => ({
-    updateNurse: vi.fn(),
-    updateTens: vi.fn(),
-    updateDetailedStaffing: vi.fn(),
-  }),
-  useDailyRecordMovementActions: () => ({
-    undoDischarge: vi.fn(),
-    deleteDischarge: vi.fn(),
-    undoTransfer: vi.fn(),
-    deleteTransfer: vi.fn(),
-  }),
-}));
-
-vi.mock('@/context/StaffContext', () => ({
-  useStaffContext: () => ({
-    nursesList: ['Nurse A', 'Nurse B'],
-    tensList: ['Tens A', 'Tens B'],
   }),
 }));
 
@@ -84,14 +61,7 @@ describe('useCensusLogic', () => {
       const { result } = renderHook(() => useCensusLogic('2025-01-10'));
 
       expect(result.current.beds).toBe(POPULATED_BEDS);
-      expect(result.current.movements).toEqual({ discharges: [], transfers: [], cma: [] });
-    });
-
-    it('should return staff lists from context', () => {
-      const { result } = renderHook(() => useCensusLogic('2025-01-10'));
-
-      expect(result.current.nursesList).toEqual(['Nurse A', 'Nurse B']);
-      expect(result.current.tensList).toEqual(['Tens A', 'Tens B']);
+      expect(result.current.staff).toEqual({ activeExtraBeds: [] });
     });
 
     it('should calculate stats from record', () => {
@@ -163,23 +133,6 @@ describe('useCensusLogic', () => {
       const { result } = renderHook(() => useCensusLogic('2025-01-10'));
 
       expect(typeof result.current.createDay).toBe('function');
-    });
-
-    it('should expose resetDay action', () => {
-      const { result } = renderHook(() => useCensusLogic('2025-01-10'));
-
-      expect(typeof result.current.resetDay).toBe('function');
-    });
-
-    it('should expose all CRUD actions', () => {
-      const { result } = renderHook(() => useCensusLogic('2025-01-10'));
-
-      expect(typeof result.current.updateNurse).toBe('function');
-      expect(typeof result.current.updateTens).toBe('function');
-      expect(typeof result.current.undoDischarge).toBe('function');
-      expect(typeof result.current.deleteDischarge).toBe('function');
-      expect(typeof result.current.undoTransfer).toBe('function');
-      expect(typeof result.current.deleteTransfer).toBe('function');
     });
   });
 });

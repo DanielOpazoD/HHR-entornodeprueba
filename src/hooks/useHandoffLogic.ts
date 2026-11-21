@@ -20,8 +20,7 @@
  * **DO NOT** create separate handoff-specific staff lists (e.g., `handoffDayDelivers`).
  * Any such fields should be considered deprecated.
  *
- * @see useNurseManagement - Manages staff updates in the Census
- * @see useTensManagement - Manages TENS updates in the Census
+ * @see useShiftStaffManagement - Manages nurse and TENS updates in the Census
  */
 
 import { useCallback, useMemo } from 'react';

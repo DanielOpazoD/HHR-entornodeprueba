@@ -3,15 +3,9 @@ import type { PatientData } from '@/types/domain/patient';
 import { useCallback, useMemo, useRef, useEffect } from 'react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-import type { CudyrScore } from '@/types/domain/cudyr';
 import { PatientFieldValue } from '@/types/valueTypes';
 import { useAuditContext } from '@/context/AuditContext';
-import { getAttributedAuthors } from '@/services/admin/attributionService';
-import {
-  buildCribCudyrAuditDetails,
-  buildCudyrAuditDetails,
-  resolvePatientChangeAudit,
-} from '@/hooks/controllers/bedAuditController';
+import { resolvePatientChangeAudit } from '@/hooks/controllers/bedAuditController';
 
 export const PATIENT_CLINICAL_AUDIT_DEBOUNCE_MS = 1500;
 
@@ -21,8 +15,7 @@ export const PATIENT_CLINICAL_AUDIT_DEBOUNCE_MS = 1500;
  * Handles all auditing and logging for bed and patient modifications.
  */
 export const useBedAudit = (record: DailyRecord | null) => {
-  const { logCudyrModified, logDebouncedEvent, logEvent, logPatientAdmission, userId } =
-    useAuditContext();
+  const { logDebouncedEvent, logEvent, logPatientAdmission } = useAuditContext();
   const recordRef = useRef(record);
 
   useEffect(() => {
@@ -110,50 +103,6 @@ export const useBedAudit = (record: DailyRecord | null) => {
     [logDebouncedEvent, logEvent, logPatientAdmission]
   );
 
-  const auditCudyrChange = useCallback(
-    (bedId: string, field: keyof CudyrScore, value: number) => {
-      const currentRecord = recordRef.current;
-      if (!currentRecord) return;
-      const payload = buildCudyrAuditDetails(currentRecord, bedId, field, value);
-      if (!payload) return;
-      const authors = getAttributedAuthors(userId, currentRecord);
-
-      logCudyrModified(
-        bedId,
-        payload.patientName,
-        payload.patientRut || '',
-        String(payload.details.field),
-        Number(payload.details.value),
-        Number(payload.details.oldValue),
-        currentRecord.date,
-        authors
-      );
-    },
-    [logCudyrModified, userId]
-  );
-
-  const auditCribCudyrChange = useCallback(
-    (bedId: string, field: keyof CudyrScore, value: number) => {
-      const currentRecord = recordRef.current;
-      if (!currentRecord) return;
-      const payload = buildCribCudyrAuditDetails(currentRecord, bedId, field, value);
-      if (!payload) return;
-      const authors = getAttributedAuthors(userId, currentRecord);
-
-      logCudyrModified(
-        String(payload.details.bedId),
-        payload.patientName,
-        payload.patientRut || '',
-        String(payload.details.field),
-        Number(payload.details.value),
-        Number(payload.details.oldValue),
-        currentRecord.date,
-        authors
-      );
-    },
-    [logCudyrModified, userId]
-  );
-
   const auditPatientCleared = useCallback(
     (bedId: string, patientName: string, rut?: string) => {
       const currentRecord = recordRef.current;
@@ -214,19 +163,10 @@ export const useBedAudit = (record: DailyRecord | null) => {
   return useMemo(
     () => ({
       auditPatientChange,
-      auditCudyrChange,
-      auditCribCudyrChange,
       auditPatientCleared,
       auditPatientModified,
       auditPatientMovement,
     }),
-    [
-      auditPatientChange,
-      auditCudyrChange,
-      auditCribCudyrChange,
-      auditPatientCleared,
-      auditPatientModified,
-      auditPatientMovement,
-    ]
+    [auditPatientChange, auditPatientCleared, auditPatientModified, auditPatientMovement]
   );
 };

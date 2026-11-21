@@ -103,7 +103,7 @@ describe.each(roles)(
       expect(screen.getAllByRole('option', { name: 'Berta Poco' })).toHaveLength(1);
       expect(update).not.toHaveBeenCalled();
       fireEvent.change(screen.getByLabelText(dayLabel), { target: { value: 'Berta Poco' } });
-      expect(update).toHaveBeenCalledWith('day', 0, 'Berta Poco');
+      expect(update).toHaveBeenCalledWith(role, 'day', 0, 'Berta Poco');
       fireEvent.click(
         screen.getByRole('button', { name: `Ocultar nombres menos usados de ${dayLabel}` })
       );
@@ -128,7 +128,7 @@ describe.each(roles)(
       fireEvent.change(screen.getByLabelText(dayLabel), {
         target: { value: 'Ana Maria Soto Rojas' },
       });
-      expect(update).toHaveBeenCalledWith('day', 0, 'Ana Maria Soto Rojas');
+      expect(update).toHaveBeenCalledWith(role, 'day', 0, 'Ana Maria Soto Rojas');
     });
 
     it('shows an Eloísa alias against a ñ catalog spelling as before the join', () => {
@@ -186,9 +186,9 @@ describe.each(roles)(
       expect(screen.getAllByRole('option', { name: 'Luz Pena' })).toHaveLength(slots * 2);
       expect(screen.getAllByRole('option', { name: 'Luz Peña' })).toHaveLength(slots * 2);
       fireEvent.change(screen.getByLabelText(dayLabel), { target: { value: 'Luz Pena' } });
-      expect(update).toHaveBeenLastCalledWith('day', 0, 'Luz Pena');
+      expect(update).toHaveBeenLastCalledWith(role, 'day', 0, 'Luz Pena');
       fireEvent.change(screen.getByLabelText(dayLabel), { target: { value: 'Luz Peña' } });
-      expect(update).toHaveBeenLastCalledWith('day', 0, 'Luz Peña');
+      expect(update).toHaveBeenLastCalledWith(role, 'day', 0, 'Luz Peña');
       // Reopened, the saved choice shows as itself, never as the other person; case and
       // spacing do not tell people apart («LUZ  PENA» is the option «Luz Pena»).
       for (const [saved, shown] of [

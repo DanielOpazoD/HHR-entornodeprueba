@@ -1,7 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import { useCallback, useMemo } from 'react';
-import type { CudyrBatchUpdate, CudyrScore, CudyrScorePatch } from '@/types/domain/cudyr';
 
 import type { PatientFieldValue } from '@/types/valueTypes';
 import type { BedAction } from '@/hooks/contracts/bedManagementActionContracts';
@@ -37,33 +36,6 @@ export const useBedManagementActionCreators = (
         fields,
       });
       return Promise.resolve(false);
-    },
-    [dispatch, dispatchAndWait]
-  );
-
-  const updateCudyr = useCallback(
-    (bedId: string, field: keyof CudyrScore, value: number) => {
-      dispatch({ type: 'UPDATE_CUDYR', bedId, field, value });
-    },
-    [dispatch]
-  );
-
-  const updateCudyrMultiple = useCallback(
-    (bedId: string, fields: CudyrScorePatch) => {
-      dispatch({ type: 'UPDATE_CUDYR_MULTIPLE', bedId, fields });
-    },
-    [dispatch]
-  );
-
-  const updateCudyrBatch = useCallback(
-    (changes: CudyrBatchUpdate): Promise<boolean> => {
-      const action: BedAction = { type: 'UPDATE_CUDYR_BATCH', changes };
-      if (dispatchAndWait) {
-        return dispatchAndWait(action);
-      }
-
-      dispatch(action);
-      return Promise.resolve(true);
     },
     [dispatch, dispatchAndWait]
   );
@@ -118,20 +90,6 @@ export const useBedManagementActionCreators = (
       return Promise.resolve(false);
     },
     [dispatch, dispatchAndWait]
-  );
-
-  const updateClinicalCribCudyr = useCallback(
-    (bedId: string, field: keyof CudyrScore, value: number) => {
-      dispatch({ type: 'UPDATE_CLINICAL_CRIB_CUDYR', bedId, field, value });
-    },
-    [dispatch]
-  );
-
-  const updateClinicalCribCudyrMultiple = useCallback(
-    (bedId: string, fields: CudyrScorePatch) => {
-      dispatch({ type: 'UPDATE_CLINICAL_CRIB_CUDYR_MULTIPLE', bedId, fields });
-    },
-    [dispatch]
   );
 
   const clearPatient = useCallback(
@@ -207,11 +165,6 @@ export const useBedManagementActionCreators = (
       updatePatientMultiple,
       updateClinicalCrib,
       updateClinicalCribMultiple,
-      updateClinicalCribCudyr,
-      updateClinicalCribCudyrMultiple,
-      updateCudyr,
-      updateCudyrBatch,
-      updateCudyrMultiple,
       clearPatient,
       clearAllBeds,
       moveOrCopyPatient,
@@ -229,12 +182,7 @@ export const useBedManagementActionCreators = (
       toggleExtraBed,
       updateBlockedReason,
       updateClinicalCrib,
-      updateClinicalCribCudyr,
-      updateClinicalCribCudyrMultiple,
       updateClinicalCribMultiple,
-      updateCudyr,
-      updateCudyrBatch,
-      updateCudyrMultiple,
       updatePatient,
       updatePatientMultiple,
     ]

@@ -9,7 +9,6 @@ import {
   useDailyRecordStatus,
   useDailyRecordStaff,
   useDailyRecordBedActions,
-  useDailyRecordCudyrActions,
   useDailyRecordDayActions,
   useDailyRecordHandoffActions,
   useDailyRecordMovementActions,
@@ -56,8 +55,6 @@ describe('DailyRecordContext', () => {
     updatePatientMultiple: vi.fn(),
     updateClinicalCrib: vi.fn(),
     updateClinicalCribMultiple: vi.fn(),
-    updateClinicalCribCudyr: vi.fn(),
-    updateCudyr: vi.fn(),
     clearPatient: vi.fn(),
     clearAllBeds: vi.fn(),
     moveOrCopyPatient: vi.fn(),
@@ -80,8 +77,7 @@ describe('DailyRecordContext', () => {
     updateCMA: vi.fn(),
     undoCMA: vi.fn(),
     convertCmaToHomeDischarge: vi.fn(),
-    updateNurse: vi.fn(),
-    updateTens: vi.fn(),
+    updateShiftStaff: vi.fn(),
     updateDetailedStaffing: vi.fn(),
     updateHandoffChecklist: vi.fn(),
     updateHandoffNovedades: vi.fn(),
@@ -242,14 +238,6 @@ describe('DailyRecordContext', () => {
     expect(staffRender.getByTestId('hook-data')).toBeInTheDocument();
     staffRender.unmount();
 
-    const cudyrRender = render(
-      <DailyRecordProvider value={mockValue}>
-        <TestComponent hook={useDailyRecordCudyrActions} />
-      </DailyRecordProvider>
-    );
-    expect(cudyrRender.getByTestId('hook-data')).toBeInTheDocument();
-    cudyrRender.unmount();
-
     const handoffRender = render(
       <DailyRecordProvider value={mockValue}>
         <TestComponent hook={useDailyRecordHandoffActions} />
@@ -282,7 +270,6 @@ describe('DailyRecordContext', () => {
       { name: 'useDailyRecordBedActions', hook: useDailyRecordBedActions },
       { name: 'useDailyRecordMovementActions', hook: useDailyRecordMovementActions },
       { name: 'useDailyRecordStaffActions', hook: useDailyRecordStaffActions },
-      { name: 'useDailyRecordCudyrActions', hook: useDailyRecordCudyrActions },
       { name: 'useDailyRecordHandoffActions', hook: useDailyRecordHandoffActions },
     ];
 
