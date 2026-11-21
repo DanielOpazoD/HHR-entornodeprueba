@@ -21,28 +21,6 @@ vi.mock('../../hooks/usePatientValidation', () => ({
   }),
 }));
 
-vi.mock('../../hooks/useBedOperations', () => ({
-  useBedOperations: () => ({
-    clearPatient: vi.fn(),
-    clearAllBeds: vi.fn(),
-    moveOrCopyPatient: vi.fn(),
-    toggleBlockBed: vi.fn(),
-    updateBlockedReason: vi.fn(),
-    toggleExtraBed: vi.fn(),
-  }),
-}));
-
-vi.mock('../../hooks/useClinicalCrib', () => ({
-  useClinicalCrib: () => ({
-    createCrib: vi.fn(),
-    removeCrib: vi.fn(),
-    updateCribField: vi.fn(),
-    updateCribMultiple: vi.fn(),
-    updateCribCudyr: vi.fn(),
-    updateCribMultipleFields: vi.fn(),
-  }),
-}));
-
 describe('Identity-based Diagnosis Clearing', () => {
   let mockRecord: DailyRecord;
   let patchRecord: ApplyDailyRecordPatch;

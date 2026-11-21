@@ -10,8 +10,6 @@ import { preparePatientForCarryover } from '@/services/repositories/dailyRecordC
 import { parsePatientDataWithDefaults } from '@/schemas/zodSchemas';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { buildMovePatientPatches } from '@/hooks/controllers/bedManagementPatchController';
-import { buildMoveOrCopyPatch } from '@/hooks/useBedOperationsController';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const checklist: UpcChecklistRecord = {
   uciCriteria: [],
@@ -119,18 +117,14 @@ describe('UPC daily and movement review policy', () => {
     expect(moved.clinicalCrib.upcChecklist.evaluatedBy.uid).toBe('crib-account');
     expect(moved.upcChecklist.evaluatedBy?.uid).toBe('test');
   });
-  it.each([
-    buildMovePatientPatches,
-    (record: DailyRecord, from: string, to: string) =>
-      buildMoveOrCopyPatch(record, 'move', from, to),
-  ])('invalidates through each manual movement entry point', build => {
+  it('invalidates the UPC review when a patient is moved manually', () => {
     const record = DataFactory.createMockDailyRecord('2026-09-04');
     record.beds.R1 = DataFactory.createMockPatient('R1', {
       patientName: 'Paciente de prueba',
       upcChecklist: checklist,
     });
     record.beds.R2 = DataFactory.createMockPatient('R2', { patientName: '' });
-    const patch = build(record, 'R1', 'R2');
+    const patch = buildMovePatientPatches(record, 'R1', 'R2');
     expect(patch?.['beds.R2']).toMatchObject({
       bedId: 'R2',
       upcChecklist: { reviewRequired: true },

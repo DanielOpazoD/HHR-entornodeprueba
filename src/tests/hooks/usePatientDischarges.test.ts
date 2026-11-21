@@ -139,6 +139,88 @@ describe('usePatientDischarges', () => {
     await waitFor(() => expect(mockLogPatientDischarge).toHaveBeenCalled());
   });
 
+  describe('what the form sends reaches the save (moved from useMovements.test.ts)', () => {
+    const recordWithMotherAndNewborn = (): DailyRecord =>
+      DataFactory.createMockDailyRecord('2024-12-28', {
+        beds: {
+          R1: {
+            bedId: 'R1',
+            patientName: 'Madre Sintética',
+            rut: '11.111.111-1',
+            clinicalEpisodeId: 'ep_mother',
+            location: 'Room 1',
+            clinicalCrib: {
+              bedId: 'R1',
+              patientName: 'RN Sintético',
+              rut: '12.345.678-5',
+              clinicalEpisodeId: 'ep_baby',
+            } as PatientData,
+          } as PatientData,
+        },
+        discharges: [],
+        transfers: [],
+        cma: [],
+      });
+
+    it('discharges only the newborn: one discharge, and the mother stays without the crib (ID-03)', async () => {
+      const record = recordWithMotherAndNewborn();
+      const { result } = renderHook(() =>
+        usePatientDischarges(record, mockSaveAndUpdate, undefined, mockPatchRecord)
+      );
+
+      act(() => {
+        result.current.addDischarge('R1', {
+          status: 'Vivo',
+          cribStatus: 'Vivo',
+          type: 'Domicilio (Habitual)',
+          time: '12:00',
+          dischargeTarget: 'baby',
+        });
+      });
+
+      expect(mockPatchRecord).toHaveBeenCalledTimes(1);
+      const patch = vi.mocked(mockPatchRecord).mock.calls[0][0] as Record<string, unknown>;
+      const discharges = patch.discharges as Array<Record<string, unknown>>;
+      expect(discharges).toHaveLength(1);
+      expect(discharges[0]).toMatchObject({
+        rut: '12.345.678-5',
+        clinicalEpisodeId: 'ep_baby',
+        isNested: true,
+      });
+      expect(patch['beds.R1']).toMatchObject({
+        patientName: 'Madre Sintética',
+        rut: '11.111.111-1',
+        clinicalEpisodeId: 'ep_mother',
+      });
+      expect((patch['beds.R1'] as PatientData).clinicalCrib).toBeUndefined();
+      await waitFor(() => expect(mockLogPatientDischarge).toHaveBeenCalled());
+    });
+
+    it('sends the description written for an «Otra» discharge', async () => {
+      const record = recordWithMotherAndNewborn();
+      const { result } = renderHook(() =>
+        usePatientDischarges(record, mockSaveAndUpdate, undefined, mockPatchRecord)
+      );
+
+      act(() => {
+        result.current.addDischarge('R1', {
+          status: 'Vivo',
+          type: 'Otra',
+          typeOther: 'Motivo sintético',
+          time: '12:00',
+          dischargeTarget: 'mother',
+        });
+      });
+
+      const patch = vi.mocked(mockPatchRecord).mock.calls[0][0] as Record<string, unknown>;
+      expect((patch.discharges as Array<Record<string, unknown>>)[0]).toMatchObject({
+        dischargeType: 'Otra',
+        dischargeTypeOther: 'Motivo sintético',
+      });
+      await waitFor(() => expect(mockLogPatientDischarge).toHaveBeenCalled());
+    });
+  });
+
   it('should update discharge', () => {
     const recordWithDischarge = asStoredDailyRecordShape({
       ...mockRecord,
