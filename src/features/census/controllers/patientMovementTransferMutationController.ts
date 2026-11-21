@@ -4,15 +4,9 @@ import { BedDefinition } from '@/types/domain/beds';
 
 import { TransferData } from '@/types/domain/movements';
 import type { TransferCommandPayload } from '@/types/movements';
-import {
-  buildClearedBedPatient,
-  clonePatientSnapshot,
-} from '@/features/census/controllers/patientMovementCreationSharedController';
-import { ensurePatientClinicalEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
-import {
-  buildMovementProvenance,
-  type MovementProvenanceSeed,
-} from '@/application/census/movementProvenancePolicy';
+import { buildClearedBedPatient } from '@/features/census/controllers/patientMovementCreationSharedController';
+import type { MovementProvenanceSeed } from '@/application/census/movementProvenancePolicy';
+import { buildMovementRow } from '@/application/census/movementRowBuilder';
 
 interface BuildTransferEntriesParams {
   patient: PatientData;
@@ -40,70 +34,27 @@ export const buildTransferEntries = ({
     transferEscort: escort,
     time,
   } = payload;
-  const patientWithEpisodeId = ensurePatientClinicalEpisodeId(patient);
-
-  const primaryMovementId = createId();
-  const transfers: TransferData[] = [
-    {
-      id: primaryMovementId,
-      movementDate: resolvedMovementDate,
-      admissionDate: patientWithEpisodeId.admissionDate,
-      clinicalEpisodeId: patientWithEpisodeId.clinicalEpisodeId,
-      bedName: bedDef?.name || bedId,
+  const stamp = { movementDate: resolvedMovementDate, time: time || '' };
+  const crib = patient.clinicalCrib?.patientName ? patient.clinicalCrib : undefined;
+  const transferRow = (person: PatientData, isNested: boolean): TransferData => ({
+    ...buildMovementRow({
+      id: createId(),
+      patient: person,
       bedId,
-      bedType: bedDef?.type || '',
-      patientName: patientWithEpisodeId.patientName,
-      rut: patientWithEpisodeId.rut,
-      diagnosis: patientWithEpisodeId.pathology,
-      specialty: patientWithEpisodeId.specialty,
-      time: time || '',
-      evacuationMethod: method,
-      receivingCenter: center,
-      receivingCenterOther: centerOther,
-      transferEscort: escort,
-      age: patientWithEpisodeId.age,
-      insurance: patientWithEpisodeId.insurance,
-      origin: patientWithEpisodeId.origin,
-      isRapanui: patientWithEpisodeId.isRapanui,
-      originalData: clonePatientSnapshot(patientWithEpisodeId),
-      isNested: false,
-      movementProvenance: provenance
-        ? buildMovementProvenance({ movementId: primaryMovementId, ...provenance })
-        : undefined,
-    },
-  ];
+      bedDef,
+      stamp,
+      isNested,
+      provenance,
+    }),
+    evacuationMethod: method,
+    receivingCenter: center,
+    receivingCenterOther: centerOther,
+    transferEscort: escort,
+  });
 
-  if (patient.clinicalCrib?.patientName) {
-    const cribWithEpisodeId = ensurePatientClinicalEpisodeId(patient.clinicalCrib);
-    const cribMovementId = createId();
-    transfers.push({
-      id: cribMovementId,
-      movementDate: resolvedMovementDate,
-      admissionDate: cribWithEpisodeId.admissionDate,
-      clinicalEpisodeId: cribWithEpisodeId.clinicalEpisodeId,
-      bedName: `${bedDef?.name || bedId} (Cuna)`,
-      bedId,
-      bedType: 'Cuna',
-      patientName: cribWithEpisodeId.patientName,
-      rut: cribWithEpisodeId.rut,
-      diagnosis: cribWithEpisodeId.pathology,
-      specialty: cribWithEpisodeId.specialty,
-      time: time || '',
-      evacuationMethod: method,
-      receivingCenter: center,
-      receivingCenterOther: centerOther,
-      transferEscort: escort,
-      age: cribWithEpisodeId.age,
-      insurance: patient.insurance,
-      origin: patient.origin,
-      isRapanui: patient.isRapanui,
-      originalData: clonePatientSnapshot(cribWithEpisodeId),
-      isNested: true,
-      movementProvenance: provenance
-        ? buildMovementProvenance({ movementId: cribMovementId, ...provenance })
-        : undefined,
-    });
-  }
+  // The newborn travels in its own reversible row, so the mother's snapshot leaves the crib out.
+  const transfers = [transferRow(crib ? { ...patient, clinicalCrib: undefined } : patient, false)];
+  if (crib) transfers.push(transferRow(crib, true));
 
   return transfers;
 };

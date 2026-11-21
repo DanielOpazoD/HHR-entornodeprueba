@@ -1,7 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
 /** Applies a reviewed census diff without overwriting occupied beds; pure and deterministic. */
-import { buildMovementUndoSnapshot } from '@/utils/movementUndoSnapshot';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { CensusManager } from '@/domain/CensusManager';
@@ -29,7 +28,11 @@ import { applyClinicalCribDischargeRepairs } from './clinicalCribDischargeRepair
 import { applyReviewedPatientChanges, patientAfterBedMove } from './patientSyncPolicy';
 import { newbornOwnRut } from './clinicalCribMaternalAssociation';
 import { calendarDateForMovement } from '@/utils/movementCalendarDate';
-import { buildMovementProvenance } from '@/application/census/movementProvenancePolicy';
+import {
+  buildMovementProvenance,
+  type MovementProvenanceSeed,
+} from '@/application/census/movementProvenancePolicy';
+import { buildMovementRow, type MovementStamp } from '@/application/census/movementRowBuilder';
 
 interface MovementProvenanceContext {
   now: Date;
@@ -37,25 +40,13 @@ interface MovementProvenanceContext {
   syncRunId: string;
 }
 
-const buildRayenMovementProvenance = (
-  id: string,
+const rayenProvenanceSeed = (
   ctx: MovementProvenanceContext,
   source: 'manual' | 'gestion_camas'
-) =>
+): MovementProvenanceSeed =>
   source === 'manual'
-    ? buildMovementProvenance({
-        movementId: id,
-        source,
-        actor: ctx.actor,
-        at: ctx.now.toISOString(),
-      })
-    : buildMovementProvenance({
-        movementId: id,
-        source,
-        actor: ctx.actor,
-        at: ctx.now.toISOString(),
-        syncRunId: ctx.syncRunId,
-      });
+    ? { source, actor: ctx.actor, at: ctx.now.toISOString() }
+    : { source, actor: ctx.actor, at: ctx.now.toISOString(), syncRunId: ctx.syncRunId };
 
 /**
  * Altas and transfers share one date/time contract, independent of their owning census record.
@@ -66,7 +57,7 @@ const buildImportedMovementStamp = (
   censusDate: string,
   now: Date,
   source: 'manual' | 'gestion_camas'
-): Pick<DischargeData, 'time' | 'movementDate' | 'movementDateSource'> => {
+): MovementStamp => {
   const time = entry.correctedTime || calendarStampInClinicalTimeZone(now).hhmm;
   if (source !== 'gestion_camas') return { time, movementDate: censusDate };
   const official = officialCalendarDay(
@@ -79,15 +70,11 @@ const buildImportedMovementStamp = (
     : { time, movementDate: calendarDateForMovement(entry.correctedDay || censusDate, time) };
 };
 
-const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
-const BED_TYPE = new Map<string, string>(BEDS.map(bed => [bed.id, bed.type]));
+const BED_DEF = new Map(BEDS.map(bed => [bed.id, bed]));
 export const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
   !!patient && !!patient.patientName?.trim() && !patient.isBlocked;
 
 const hhmm = (now: Date): string => calendarStampInClinicalTimeZone(now).hhmm;
-
-const asSpecialty = (value: PatientData['specialty']): string =>
-  typeof value === 'string' ? value : String(value);
 
 /** The record's own day as ISO (accepts ISO or DD/MM/YYYY), for comparing against a corrected day. */
 const isoDayOf = (date: string): string => {
@@ -146,33 +133,19 @@ export const buildDischarge = (
   ctx: ResolvedApplyContext,
   isNested = false,
   provenanceSource: 'manual' | 'gestion_camas' = 'gestion_camas'
-): DischargeData => {
-  const id = ctx.idFactory();
-  return {
-    id,
-    ...buildImportedMovementStamp(entry, record.date, ctx.now, provenanceSource),
-    admissionDate: patient.admissionDate || undefined,
-    bedName: isNested
-      ? `${BED_NAME.get(entry.bedId) ?? entry.bedId} (Cuna RN)`
-      : (BED_NAME.get(entry.bedId) ?? entry.bedId),
+): DischargeData => ({
+  ...buildMovementRow({
+    id: ctx.idFactory(),
+    patient,
     bedId: entry.bedId,
-    bedType: isNested ? 'Cuna' : (BED_TYPE.get(entry.bedId) ?? ''),
-    patientName: patient.patientName,
-    rut: patient.rut,
-    diagnosis: patient.pathology,
-    specialty: asSpecialty(patient.specialty),
-    status: entry.status,
-    dischargeType: !isNested && entry.status === 'Vivo' ? 'Domicilio (Habitual)' : undefined,
-    age: patient.age || undefined,
-    insurance: patient.insurance,
-    origin: patient.origin,
-    isRapanui: patient.isRapanui,
-    originalData: buildMovementUndoSnapshot(patient),
-    clinicalEpisodeId: patient.clinicalEpisodeId,
+    bedDef: BED_DEF.get(entry.bedId),
+    stamp: buildImportedMovementStamp(entry, record.date, ctx.now, provenanceSource),
     isNested,
-    movementProvenance: buildRayenMovementProvenance(id, ctx, provenanceSource),
-  };
-};
+    provenance: rayenProvenanceSeed(ctx, provenanceSource),
+  }),
+  status: entry.status,
+  dischargeType: !isNested && entry.status === 'Vivo' ? 'Domicilio (Habitual)' : undefined,
+});
 
 const matchesAssociatedCrib = (patient: PatientData, entry: DischargeEntry): boolean => {
   const expectedEpisode = entry.associatedClinicalCrib?.clinicalEpisodeId;
@@ -185,30 +158,19 @@ export const buildTransfer = (
   record: DailyRecord,
   ctx: ResolvedApplyContext,
   provenanceSource: 'manual' | 'gestion_camas' = 'gestion_camas'
-): TransferData => {
-  const id = ctx.idFactory();
-  return {
-    id,
-    ...buildImportedMovementStamp(entry, record.date, ctx.now, provenanceSource),
-    admissionDate: patient.admissionDate || undefined,
-    bedName: BED_NAME.get(entry.bedId) ?? entry.bedId,
+): TransferData => ({
+  ...buildMovementRow({
+    id: ctx.idFactory(),
+    patient,
     bedId: entry.bedId,
-    bedType: BED_TYPE.get(entry.bedId) ?? '',
-    patientName: patient.patientName,
-    rut: patient.rut,
-    diagnosis: patient.pathology,
-    specialty: asSpecialty(patient.specialty),
-    evacuationMethod: '',
-    receivingCenter: '',
-    age: patient.age || undefined,
-    insurance: patient.insurance,
-    origin: patient.origin,
-    isRapanui: patient.isRapanui,
-    originalData: buildMovementUndoSnapshot(patient),
-    clinicalEpisodeId: patient.clinicalEpisodeId,
-    movementProvenance: buildRayenMovementProvenance(id, ctx, provenanceSource),
-  };
-};
+    bedDef: BED_DEF.get(entry.bedId),
+    stamp: buildImportedMovementStamp(entry, record.date, ctx.now, provenanceSource),
+    isNested: false,
+    provenance: rayenProvenanceSeed(ctx, provenanceSource),
+  }),
+  evacuationMethod: '',
+  receivingCenter: '',
+});
 
 export const buildCma = (
   patient: PatientData,
@@ -222,7 +184,10 @@ export const buildCma = (
     timestamp: ctx.now.toISOString(),
     dischargeTime: entry.correctedTime || hhmm(ctx.now),
     clinicalEpisodeId: patient.clinicalEpisodeId,
-    movementProvenance: buildRayenMovementProvenance(id, ctx, 'gestion_camas'),
+    movementProvenance: buildMovementProvenance({
+      movementId: id,
+      ...rayenProvenanceSeed(ctx, 'gestion_camas'),
+    }),
   };
 };
 
