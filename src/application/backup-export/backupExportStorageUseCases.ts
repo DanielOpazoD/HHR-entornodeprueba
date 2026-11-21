@@ -13,7 +13,7 @@ import {
   lookupBackupArchiveStatus,
   resolveBackupStorageListServices,
 } from '@/application/backup-export/backupStorageResolvers';
-import { MONTH_NAMES } from '@/services/backup/baseStorageService';
+import { findMonthIndexByName } from '@/constants/export';
 
 const EMPTY_STORAGE_LIST_REPORT: StorageListReport = {
   skippedNotFound: 0,
@@ -24,7 +24,7 @@ const EMPTY_STORAGE_LIST_REPORT: StorageListReport = {
 };
 
 const monthNameToNumber = (name: string): string => {
-  const index = MONTH_NAMES.indexOf(name);
+  const index = findMonthIndexByName(name);
   return String(index + 1).padStart(2, '0');
 };
 

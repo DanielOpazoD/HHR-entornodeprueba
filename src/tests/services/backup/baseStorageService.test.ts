@@ -6,12 +6,13 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
+import { findMonthIndexByName, MONTH_NAMES } from '@/constants/export';
 import * as BaseStorage from '@/services/backup/baseStorageService';
 import type { BaseStoredFile } from '@/types/backupArtifacts';
 import { ListResult, FullMetadata } from 'firebase/storage';
 
 describe('baseStorageService', () => {
-  const { MONTH_NAMES, formatFileSize } = BaseStorage;
+  const { formatFileSize } = BaseStorage;
 
   describe('MONTH_NAMES', () => {
     it('contains 12 months', () => {
@@ -38,6 +39,9 @@ describe('baseStorageService', () => {
       expect(MONTH_NAMES[parseInt('01') - 1]).toBe('Enero');
       // Month "12" should map to December (index 11)
       expect(MONTH_NAMES[parseInt('12') - 1]).toBe('Diciembre');
+      expect(findMonthIndexByName('Enero')).toBe(0);
+      expect(findMonthIndexByName('Diciembre')).toBe(11);
+      expect(findMonthIndexByName('Inexistente')).toBe(-1);
     });
   });
 

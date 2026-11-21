@@ -28,8 +28,8 @@ import {
   loadClinicalDerivedDayRestore,
   type ClinicalDerivedBackupSection,
 } from '@/services/exporters/clinicalDerivedBackupSection';
+import { MONTH_NAMES } from '@/constants/export';
 import {
-  DATA_MAINTENANCE_MONTH_NAMES,
   downloadJsonBackup,
   hydrateRangeRecords,
   resolveMonthDateRange,
@@ -166,7 +166,7 @@ const exportMonthRecordsInternal = async (
       ...(clinicalDerived ? { clinicalDerived } : {}),
     };
 
-    const monthName = DATA_MAINTENANCE_MONTH_NAMES[month - 1];
+    const monthName = MONTH_NAMES[month - 1];
     const fileName = `Respaldo HHR ${monthName} ${year}.json`;
     await downloadJsonBackup(backup, fileName);
 

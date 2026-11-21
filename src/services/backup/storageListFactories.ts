@@ -10,13 +10,13 @@ import {
 import { measureStorageOperation } from '@/services/backup/storageObservability';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
+import { MONTH_NAMES } from '@/constants/export';
 import {
   createStorageListReport,
   DEFAULT_FILE_INFO_CONCURRENCY,
   DEFAULT_FILES_TIMEOUT_MS,
   DEFAULT_LIST_TIMEOUT_MS,
   mapWithConcurrency,
-  MONTH_NAMES,
 } from './storageListSupport';
 import type { ListFilesConfig, MonthInfo, StorageListResult } from './storageListSupport';
 import type { BaseStoredFile } from '@/types/backupArtifacts';

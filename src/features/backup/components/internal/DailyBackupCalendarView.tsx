@@ -8,7 +8,7 @@ import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { Calendar, FileText } from 'lucide-react';
 import type { BaseStoredFile } from '@/types/backupArtifacts';
 import { generateDateRange } from '@/utils/dateRangeUtils';
-import { MONTH_NAMES } from '@/types/backupArtifacts';
+import { findMonthIndexByName } from '@/constants/export';
 import { formatBackupDisplayDate } from '@/shared/backup/backupPresentation';
 import { BackupFileCell } from './BackupFileCell';
 
@@ -34,7 +34,7 @@ export const DailyBackupCalendarView: React.FC<DailyBackupCalendarViewProps> = (
   formatSize,
 }) => {
   // 1. Convert month name to number
-  const monthNumber = MONTH_NAMES.indexOf(monthName) + 1;
+  const monthNumber = findMonthIndexByName(monthName) + 1;
 
   // 2. Determine if we should limit to today
   const [currentYear, currentMonth] = getClinicalCalendarDateISO().split('-').map(Number);

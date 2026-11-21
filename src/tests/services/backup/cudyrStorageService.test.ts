@@ -31,7 +31,6 @@ vi.mock('firebase/storage', () => ({
 
 // Mock baseStorageService helpers
 vi.mock('@/services/backup/baseStorageService', () => ({
-  MONTH_NAMES: [],
   createListYears: vi.fn(() => vi.fn()),
   createListMonths: vi.fn(() => vi.fn()),
   createListFilesInMonthWithReport: vi.fn(() => vi.fn()),
