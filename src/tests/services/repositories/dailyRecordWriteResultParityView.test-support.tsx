@@ -11,7 +11,7 @@ import {
   setDailyRecordQueryData,
 } from '@/hooks/controllers/dailyRecordQueryController';
 import { resolveDailyRecordSyncStatus } from '@/hooks/controllers/dailyRecordSyncStatusController';
-import { RepositoryProvider, createRepositoryContainer } from '@/services/RepositoryContext';
+import { RepositoryProvider, createRepositoryContainer } from '@/context/RepositoryContext';
 import { createDailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
 import { resolvePatchErrorFeedback } from '@/hooks/controllers/dailyRecordSyncNotificationController';

@@ -24,7 +24,7 @@ import type { ClinicalFillError } from '@/features/rayen-import/contracts/clinic
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const PATIENT = 'Paciente Sintético Uno';
 const RUT = '11.111.111-1';

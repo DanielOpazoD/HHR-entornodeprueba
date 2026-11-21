@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildBedOptions } from '@/features/prescriptions/components/prescriptionReassignDialogSupport';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
   getRecordFromFirestore: vi.fn(),

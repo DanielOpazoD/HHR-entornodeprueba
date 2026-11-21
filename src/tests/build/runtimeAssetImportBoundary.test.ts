@@ -43,7 +43,7 @@ const findsRuntimeImport = (source: string, moduleName: string): boolean => {
 describe('runtime asset import boundary', () => {
   it('keeps heic2any behind the shared image runtime loader', () => {
     const allowedImporters = new Set([
-      path.resolve(ROOT, 'src/shared/images/heicConverterLoader.ts'),
+      path.resolve(ROOT, 'src/services/images/heicConverterLoader.ts'),
     ]);
 
     const offenders = productionFiles()

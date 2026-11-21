@@ -15,7 +15,7 @@ const runEmulatorTests =
 const describeEmulator = runEmulatorTests ? describe : describe.skip;
 
 let activeDb: unknown;
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return activeDb;
   },

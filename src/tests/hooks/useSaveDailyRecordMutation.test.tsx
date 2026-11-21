@@ -13,7 +13,7 @@ import {
   getDailyRecordLastRemoteConfirmedAt,
   resetDailyRecordFreshnessGateForTests,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
-import { RepositoryProvider, createRepositoryContainer } from '@/services/RepositoryContext';
+import { RepositoryProvider, createRepositoryContainer } from '@/context/RepositoryContext';
 import { type DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { DailyRecord } from '@/types/domain/dailyRecord';

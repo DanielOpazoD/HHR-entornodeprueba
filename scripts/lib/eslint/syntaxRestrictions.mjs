@@ -2,7 +2,7 @@
 export const DATA_ACCESS_RESTRICTION = {
   group: [
     '@/services/repositories/*',
-    '@/services/RepositoryContext',
+    '@/context/RepositoryContext',
     '@/services/infrastructure/*',
   ],
   message:

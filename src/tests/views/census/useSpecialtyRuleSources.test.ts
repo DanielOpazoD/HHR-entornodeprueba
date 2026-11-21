@@ -3,7 +3,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 const query = vi.hoisted(() => vi.fn());
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
   getRecordFromFirestoreDetailed: query,

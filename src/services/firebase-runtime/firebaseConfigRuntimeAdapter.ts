@@ -4,7 +4,7 @@ import type { Firestore } from 'firebase/firestore';
 import type { Functions } from 'firebase/functions';
 import type { FirebaseStorage } from 'firebase/storage';
 
-import * as firebaseConfig from '@/firebaseConfig';
+import * as firebaseConfig from '@/services/firebase-runtime/firebaseConfig';
 
 export interface FirebaseConfigRuntimeAdapter {
   ready: Promise<unknown>;

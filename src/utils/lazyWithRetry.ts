@@ -9,7 +9,7 @@
 import { createElement, lazy, type ComponentProps, type ComponentType } from 'react';
 import { isChunkLoadError } from '@/utils/chunkLoadError';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
-import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
+import { emitOperationalTelemetry } from '@/shared/observability/operationalTelemetrySink';
 
 export const reloadAfterChunkLoadFailure = () => {
   if (
@@ -68,7 +68,7 @@ export function lazyWithRetry<T extends ComponentType<any>>(
     } catch (error) {
       if (isChunkLoadError(error)) {
         if (isBrowserOffline()) {
-          recordOperationalTelemetry({
+          emitOperationalTelemetry({
             category: 'integration',
             operation: 'chunk_load_recovery',
             status: 'degraded',
@@ -79,7 +79,7 @@ export function lazyWithRetry<T extends ComponentType<any>>(
           return load();
         }
 
-        recordOperationalTelemetry({
+        emitOperationalTelemetry({
           category: 'integration',
           operation: 'chunk_load_recovery',
           status: 'failed',

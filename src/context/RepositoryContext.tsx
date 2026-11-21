@@ -3,7 +3,7 @@ import {
   defaultDailyRecordRepositoryPort,
   type DailyRecordRepositoryPort,
 } from '@/application/ports/dailyRecordPort';
-import { ICatalogRepository, CatalogRepository } from './repositories/CatalogRepository';
+import { ICatalogRepository, CatalogRepository } from '@/services/repositories/CatalogRepository';
 
 /**
  * Interface defining the set of repositories available in the application.

@@ -2,7 +2,7 @@ import type { PatientData } from '@/types/domain/patient';
 
 import type { CMAData, DischargeData } from '@/types/domain/movements';
 
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const applyMovementEpisodeId = <T extends PatientData>(
   patient: T,

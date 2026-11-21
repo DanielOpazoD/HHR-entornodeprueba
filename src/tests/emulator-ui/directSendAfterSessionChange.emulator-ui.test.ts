@@ -21,7 +21,7 @@ import {
   buildAtomicPatientMovementPatch,
   resolveAddDischargeMovement,
 } from '@/application/census/public';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { BEDS } from '@/constants/beds';
 import {
   clearSessionScopedClientState,
@@ -52,7 +52,7 @@ const { scope } = await vi.hoisted(async () => {
   const { AsyncLocalStorage } = await import('node:async_hooks');
   return { scope: new AsyncLocalStorage<{ db: unknown; uid: string; role: string }>() };
 });
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return scope.getStore()?.db;
   },

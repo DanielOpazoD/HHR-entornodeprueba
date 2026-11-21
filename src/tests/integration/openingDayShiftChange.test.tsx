@@ -38,7 +38,7 @@ vi.mock('@/context/AuditContext', async importOriginal => ({
 vi.mock('@/components/shared/VersionMismatchOverlay', () => ({
   VersionMismatchOverlay: () => null,
 }));
-vi.mock('@/hooks/useVersionCheck', () => ({ useVersionCheck: () => {} }));
+vi.mock('@/app-shell/bootstrap/useVersionCheck', () => ({ useVersionCheck: () => {} }));
 vi.mock('@/hooks/useStorageMigration', () => ({ useStorageMigration: () => {} }));
 vi.mock('@/hooks/useStalenessGuard', () => ({ useStalenessGuard: () => {} }));
 vi.mock('@/hooks/useWarmDailyRecordSavePath', () => ({ useWarmDailyRecordSavePath: () => {} }));

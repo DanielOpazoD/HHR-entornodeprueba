@@ -5,7 +5,7 @@ import { mapHistoryScalesPayload } from '@/features/rayen-import/bridge/patientC
 import { readClinicalPatientSources } from '@/features/rayen-import/domain/clinicalPatientReaders';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const SCALE_EVENT = {
   publishDatetime: '2026-07-10T10:00:00',

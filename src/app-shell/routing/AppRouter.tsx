@@ -18,7 +18,7 @@ import {
   resolveCoreModuleRoute,
   resolveModuleReadOnly,
   resolveSimpleModuleRoute,
-} from '@/components/app-router/appRouterController';
+} from '@/app-shell/routing/appRouterController';
 
 interface AppRouterProps {
   /** Global UI state */

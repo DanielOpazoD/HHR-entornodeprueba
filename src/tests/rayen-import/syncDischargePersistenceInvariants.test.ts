@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BEDS } from '@/constants/beds';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { applyCensusImportDiff } from '@/features/rayen-import/domain/applyCensusImportDiff';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { PatientData } from '@/types/domain/patient';

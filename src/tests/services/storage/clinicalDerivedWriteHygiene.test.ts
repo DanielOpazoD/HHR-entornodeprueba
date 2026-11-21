@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import {
   adoptStoredClinicalDerivedState,
   carriesClinicalDerivedLayout,
-} from '@/services/storage/clinicalDerivedWriteHygiene';
+} from '@/domain/clinical-derived/clinicalDerivedWriteHygiene';
 import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
 import { ensureDailyRecordClinicalEpisodeIds } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 

@@ -9,9 +9,14 @@ export interface LoginPageProps {
     message: string;
     code?: string | null;
   } | null;
+  onPreloadPostLoginRoute?: () => Promise<unknown>;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, initialAuthError }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({
+  onLoginSuccess,
+  initialAuthError,
+  onPreloadPostLoginRoute,
+}) => {
   const [individualBusy, setIndividualBusy] = useState(false);
   const {
     error,
@@ -22,7 +27,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, initialAut
     canRetryGoogleSignIn,
     handleGoogleSignIn,
     toggleBackgroundMode,
-  } = useLoginPageController(onLoginSuccess, initialAuthError);
+  } = useLoginPageController(onLoginSuccess, initialAuthError, onPreloadPostLoginRoute);
   return (
     <LoginScreenLayout
       mode={isDayGradient ? 'day' : 'night'}

@@ -13,7 +13,7 @@ import {
 import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 /** A structural save confirmed by the server, unless `write` says what else it left. */
 const buildResult = (write: Partial<DailyRecordWriteResult> = {}): DailyRecordWriteResult =>

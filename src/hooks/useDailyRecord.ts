@@ -7,7 +7,7 @@ import { usePersistence } from './usePersistence';
 import { useDailyRecordSyncQuery } from './useDailyRecordSyncQuery';
 
 // Domain hooks
-import { useRepositories } from '@/services/RepositoryContext';
+import { useRepositories } from '@/context/RepositoryContext';
 import { useNotification } from '@/context/UIContext';
 import { useDailyRecordDomainModules } from '@/hooks/useDailyRecordDomainModules';
 import type { StaleDayEditGuard } from '@/hooks/useStaleDayEditGuard';

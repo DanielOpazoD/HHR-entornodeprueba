@@ -25,7 +25,7 @@ vi.mock('firebase/firestore', async () => {
   };
 });
 
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   db: {},
 }));
 

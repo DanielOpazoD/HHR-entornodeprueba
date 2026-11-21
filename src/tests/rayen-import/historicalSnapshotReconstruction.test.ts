@@ -5,7 +5,7 @@ import type { RayenCensusSnapshot } from '@/features/rayen-import/contracts/raye
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { EgresoReportRow } from '@/features/rayen-import/contracts/egresoReport';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const emptyRecord = { date: '2026-07-24', beds: {} } as DailyRecord;
 

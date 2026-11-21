@@ -1,6 +1,6 @@
 import type { ZodIssue } from 'zod';
 import type { PatientData } from '@/types/domain/patient';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { CudyrScoreSchema, PatientDataSchema } from '@/schemas/zod/patient';
 import { UpcChecklistSchema } from '@/schemas/zod/upc';
 import { resolveEffectiveUpcState } from '@/shared/census/upcBedPolicy';

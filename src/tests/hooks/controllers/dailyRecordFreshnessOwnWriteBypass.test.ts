@@ -8,7 +8,7 @@ import {
   resetDailyRecordFreshnessGateForTests,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { assertHydratedRemotePatchCanProceed } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { getSyncClientId } from '@/services/storage/sync/syncMutationIdentity';
 import { DataFactory } from '@/tests/factories/DataFactory';

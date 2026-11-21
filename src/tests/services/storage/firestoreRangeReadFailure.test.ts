@@ -17,7 +17,7 @@ vi.mock('firebase/firestore', async () => {
   };
 });
 
-vi.mock('@/firebaseConfig', () => ({ db: {} }));
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({ db: {} }));
 
 vi.mock('@/constants/firestorePaths', () => ({
   COLLECTIONS: { HOSPITALS: 'hospitals' },

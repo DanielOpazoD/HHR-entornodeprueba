@@ -24,7 +24,7 @@ const race = vi.hoisted(() => ({
   firstCommitted: Promise.resolve(),
   commitFirst: () => {},
 }));
-vi.mock('@/firebaseConfig', () => ({ db: null, auth: null }));
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({ db: null, auth: null }));
 vi.mock('@/services/storage/firestore/firestoreServiceRuntime', () => ({
   defaultFirestoreServiceRuntime: {
     getDb: () => {

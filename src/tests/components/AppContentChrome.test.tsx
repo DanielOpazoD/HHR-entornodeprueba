@@ -58,19 +58,6 @@ vi.mock('@/components/bookmarks/BookmarkBar', () => ({
   BookmarkBar: () => <div data-testid="bookmark-bar">BookmarkBar</div>,
 }));
 
-vi.mock('@/components/AppRouter', () => ({
-  AppRouter: (props: unknown) => (
-    <div
-      data-testid="app-router"
-      data-has-open-date={String(
-        Boolean((props as { shell?: { onOpenCensusDate?: unknown } }).shell?.onOpenCensusDate)
-      )}
-    >
-      AppRouter
-    </div>
-  ),
-}));
-
 vi.mock('@/components/clinical-conflicts/CensusConflictQuickAction', () => ({
   CensusConflictQuickAction: () => <button data-census-menu-action>Conflictos HHR</button>,
 }));
@@ -155,7 +142,19 @@ describe('AppContentChrome', () => {
 
   it('renders chrome in normal mode', () => {
     render(
-      <AppContentChrome ui={ui as never} runtime={runtime as never} onOpenCensusDate={vi.fn()} />
+      <AppContentChrome
+        ui={ui as never}
+        runtime={runtime as never}
+        onOpenCensusDate={vi.fn()}
+        renderModuleRouter={(_ui, shell) => (
+          <div
+            data-testid="app-router"
+            data-has-open-date={String(Boolean(shell.onOpenCensusDate))}
+          >
+            AppRouter
+          </div>
+        )}
+      />
     );
 
     expect(screen.getByTestId('navbar')).toBeInTheDocument();

@@ -9,7 +9,7 @@ import {
   resetDailyRecordFreshnessGateForTests,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryController';
-import { RepositoryProvider, createRepositoryContainer } from '@/services/RepositoryContext';
+import { RepositoryProvider, createRepositoryContainer } from '@/context/RepositoryContext';
 import {
   createDailyRecordQueryResult,
   createDailyRecordReadResult,

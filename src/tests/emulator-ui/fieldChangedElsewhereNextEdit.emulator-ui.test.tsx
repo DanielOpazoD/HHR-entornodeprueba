@@ -9,7 +9,7 @@ import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
 import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { DefaultRepositoryProvider } from '@/services/RepositoryContext';
+import { DefaultRepositoryProvider } from '@/context/RepositoryContext';
 import { useDailyRecordQuery } from '@/hooks/useDailyRecordQuery';
 import { usePatchDailyRecordMutation } from '@/hooks/usePatchDailyRecordMutation';
 import {
@@ -23,7 +23,7 @@ import {
   resolveAddDischargeMovement,
   resolveAddTransferMovement,
 } from '@/application/census/public';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { BEDS } from '@/constants/beds';
 import {
   getSyncQueueTelemetry,
@@ -62,7 +62,7 @@ vi.mock('firebase/functions', () => ({
     throw new Error(`unexpected callable ${name}`);
   },
 }));
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return h.db;
   },

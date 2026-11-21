@@ -6,7 +6,7 @@ import {
   makeRecord,
   makeCanonicalEmptyBed,
 } from '@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { sanitizeForFirestore } from '@/services/storage/firestore/firestoreShared';
 
 const executeClear = async ({

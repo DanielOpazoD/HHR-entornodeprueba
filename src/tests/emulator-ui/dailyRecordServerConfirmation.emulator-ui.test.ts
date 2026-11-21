@@ -28,7 +28,7 @@ import type { DailyRecordQueryResult } from '@/services/repositories/contracts/d
 import { getTodayISO } from '@/utils/dateCoreUtils';
 
 let activeDb: unknown;
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return activeDb;
   },

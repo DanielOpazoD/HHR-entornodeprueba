@@ -14,7 +14,7 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 vi.unmock('@/application/ports/dailyRecordPort');
 const mocks = vi.hoisted(() => ({ subscribe: vi.fn(), getLocal: vi.fn(async () => null) }));
 let repository: DailyRecordRepositoryPort;
-vi.mock('@/services/RepositoryContext', () => ({
+vi.mock('@/context/RepositoryContext', () => ({
   useRepositories: () => ({ dailyRecord: repository }),
 }));
 vi.mock('@/context/UIContext', () => ({

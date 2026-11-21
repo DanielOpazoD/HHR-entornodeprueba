@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { usePatientMovementUndoExecutor } from '@/hooks/usePatientMovementUndoExecutor';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 describe('usePatientMovementUndoExecutor', () => {

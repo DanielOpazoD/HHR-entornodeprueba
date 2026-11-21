@@ -33,7 +33,7 @@ vi.mock('@/services/calculations/minsalStatsCalculator', () => ({
   getDateRangeFromPreset: (...args: unknown[]) => mockGetDateRangeFromPreset(...args),
 }));
 
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   getFunctionsInstance: (...args: unknown[]) => mockGetFunctionsInstance(...args),
 }));
 

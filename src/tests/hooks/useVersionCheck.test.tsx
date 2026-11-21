@@ -17,7 +17,7 @@ vi.mock('@/app-shell/bootstrap/bootstrapAppRuntime', () => ({
   reconcileBootstrapRuntime: (...args: unknown[]) => mockReconcileBootstrapRuntime(...args),
 }));
 
-import { VERSION_RELOAD_IDLE_MS, useVersionCheck } from '@/hooks/useVersionCheck';
+import { VERSION_RELOAD_IDLE_MS, useVersionCheck } from '@/app-shell/bootstrap/useVersionCheck';
 
 describe('useVersionCheck', () => {
   beforeEach(() => {

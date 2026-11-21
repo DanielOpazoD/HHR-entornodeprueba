@@ -7,7 +7,7 @@ import { useAppState } from '@/hooks/useAppState';
 import { useAuthState } from '@/hooks/useAuthState';
 import { resolveOpeningCensusDay } from '@/app-shell/bootstrap/openingCensusDay';
 import { useDateNavigation } from '@/hooks/useDateNavigation';
-import { useVersionCheck } from '@/hooks/useVersionCheck';
+import { useVersionCheck } from '@/app-shell/bootstrap/useVersionCheck';
 import type { AuthSessionState } from '@/types/authSessionTypes';
 import type { AuthUser } from '@/types/authRoleTypes';
 import * as authSession from '@/services/auth/authSession';

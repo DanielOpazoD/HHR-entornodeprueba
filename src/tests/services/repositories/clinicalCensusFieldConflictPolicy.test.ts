@@ -5,7 +5,7 @@ import { resolveDailyRecordConflictWithTrace } from '@/services/repositories/con
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const makeRecord = (date: string, lastUpdated: string): DailyRecord =>
   ({

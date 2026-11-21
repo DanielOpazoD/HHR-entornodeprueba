@@ -4,7 +4,6 @@ import { Navbar } from '@/components/layout/Navbar';
 import { DateStrip } from '@/components/layout/DateStrip';
 import { CensusStaleDayBanner } from '@/components/layout/app-content/CensusStaleDayBanner';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
-import { AppRouter } from '@/components/AppRouter';
 import { Search, BarChart3 } from 'lucide-react';
 import { CensusToolbarMenuTargetContext } from '@/shared/ui/CensusToolbarMenuTargetContext';
 import { CensusOptionsMenu } from '@/components/layout/date-strip/CensusOptionsMenu';
@@ -39,6 +38,7 @@ import {
   buildCensusQuickActionPatients,
 } from '@/components/layout/app-content/appContentChromeController';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
+import type { AppRouterShellState } from '@/app-shell/routing/appRouterController';
 import type { AppContentRuntime } from '@/components/layout/app-content/useAppContentRuntime';
 import type { CensusQuickActionPatient } from '@/shared/contracts/censusQuickActionPatient';
 import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/dateStripRadiologyViewer';
@@ -47,6 +47,7 @@ export interface AppContentChromeProps {
   ui: UseUIStateReturn;
   runtime: AppContentRuntime;
   onOpenCensusDate?: (date: string) => void;
+  renderModuleRouter?: (ui: UseUIStateReturn, shell: AppRouterShellState) => React.ReactNode;
   renderFeatureQuickActions?: (patients: CensusQuickActionPatient[]) => React.ReactNode;
   radiologyViewer?: DateStripRadiologyViewer;
   renderCensusTrailingActions?: (patients: CensusQuickActionPatient[]) => React.ReactNode;
@@ -56,6 +57,7 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
   ui,
   runtime,
   onOpenCensusDate,
+  renderModuleRouter,
   renderFeatureQuickActions,
   radiologyViewer,
   renderCensusTrailingActions,
@@ -170,7 +172,7 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
       </div>
       <main className="max-w-screen-2xl mx-auto px-4 pt-4 pb-20 flex-1 w-full print:p-0 print:pb-0 print:max-w-none">
         <CensusToolbarMenuTargetContext.Provider value={handoffTarget}>
-          <AppRouter ui={ui} shell={appRouterShellState} />
+          {renderModuleRouter?.(ui, appRouterShellState)}
         </CensusToolbarMenuTargetContext.Provider>
       </main>
     </>

@@ -77,8 +77,8 @@ vi.mock('@/application/ports/dailyRecordPort', () => ({
   },
   defaultDailyRecordRepositoryPort: port,
 }));
-vi.mock('@/services/RepositoryContext', async importOriginal => ({
-  ...(await importOriginal<typeof import('@/services/RepositoryContext')>()),
+vi.mock('@/context/RepositoryContext', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/context/RepositoryContext')>()),
   useRepositories: () => ({ dailyRecord: port }),
 }));
 vi.mock('@/context/UIContext', async importOriginal => {

@@ -4,7 +4,7 @@ import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 import {
   CLINICAL_DERIVED_DOC_SCHEMA_VERSION,
   CLINICAL_DERIVED_TARGETS,
-} from '@/services/storage/clinicalDerivedConstants';
+} from '@/constants/clinicalDerived';
 import { DATE_REGEX, StringSchema } from './helpers';
 import { ClinicalSyncCheckpointSchema } from './patient';
 

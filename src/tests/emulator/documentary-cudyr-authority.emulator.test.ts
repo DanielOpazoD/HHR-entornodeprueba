@@ -5,7 +5,7 @@ import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestor
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { sanitizeForFirestore } from '@/services/storage/firestore/firestoreShared';
 import { makeContext } from '@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support';
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   firebaseReady: Promise.resolve(),
   firestoreReady: Promise.resolve(),
   auth: null,

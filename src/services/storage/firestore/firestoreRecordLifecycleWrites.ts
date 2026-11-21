@@ -1,6 +1,6 @@
 import { deleteDoc, setDoc, Timestamp } from 'firebase/firestore';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { withRetry } from '@/utils/networkUtils';
+import { withRetry } from '@/services/utils/networkUtils';
 import {
   getRecordDocRef,
   sanitizeForFirestore,

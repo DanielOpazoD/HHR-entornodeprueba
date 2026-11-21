@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { RayenCudyrCategoriesResponse } from '@/features/rayen-import/contracts/rayenCudyr';
 import { buildImportedCudyr } from '@/domain/evaluationScales/importedCudyr';
 import { buildInitializedDayRecord } from '@/services/repositories/dailyRecordInitializationSupport';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const episode = 'synthetic-discharged-episode';
 const row = {

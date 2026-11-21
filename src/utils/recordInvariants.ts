@@ -1,7 +1,7 @@
 import type { DailyRecordBedLayoutState } from '@/types/domain/dailyRecordSlices';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { BEDS, EXTRA_BEDS } from '@/constants/beds';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 export const normalizeDailyRecordInvariants = <T extends DailyRecordBedLayoutState>(
   record: T

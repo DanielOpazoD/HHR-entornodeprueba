@@ -2,7 +2,7 @@ import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalF
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RayenPatientClinicalBundle } from '@/features/rayen-import/contracts/patientClinicalBundle';
 import { buildInitializedDayRecord } from '@/services/repositories/dailyRecordInitializationSupport';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const DAY = '2026-09-21';
 const READ_MS = 25;

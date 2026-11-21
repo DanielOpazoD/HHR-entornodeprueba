@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { BEDS } from '@/constants/beds';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import type { PatientData } from '@/types/domain/patient';
 import {

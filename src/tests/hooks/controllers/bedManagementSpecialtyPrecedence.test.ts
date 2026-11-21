@@ -4,7 +4,7 @@ import { executeBedManagementAction } from '@/hooks/controllers/bedManagementDis
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import { featureFlags } from '@/services/utils/featureFlags';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 describe('manual specialty precedence across structural edits', () => {
   afterEach(() => featureFlags.reset('SPECIALTY_EPISODE_ASSIGNMENT'));

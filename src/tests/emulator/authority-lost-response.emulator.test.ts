@@ -7,7 +7,7 @@ import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreR
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
 let activeDb: unknown;
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return activeDb;
   },

@@ -6,7 +6,7 @@ import {
   resolveClinicalStageResult,
 } from '@/features/rayen-import/domain/clinicalStageResolution';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const record = DataFactory.createMockDailyRecord('2026-10-15', {
   beds: {

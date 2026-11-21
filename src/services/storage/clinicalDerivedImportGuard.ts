@@ -3,8 +3,8 @@
  * apart from the write hygiene so the eager write paths do not carry it: only the JSON import and
  * the admin backup restore, both loaded on demand, use it.
  */
-import { CLINICAL_DERIVED_LAYOUT_FIELD } from '@/services/storage/clinicalDerivedConstants';
-import { carriesClinicalDerivedLayout } from '@/services/storage/clinicalDerivedWriteHygiene';
+import { CLINICAL_DERIVED_LAYOUT_FIELD } from '@/constants/clinicalDerived';
+import { carriesClinicalDerivedLayout } from '@/domain/clinical-derived/clinicalDerivedWriteHygiene';
 
 type PlainObject = Record<string, unknown>;
 

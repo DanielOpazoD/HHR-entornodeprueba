@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { buildBedPatchFailureTelemetryEvent } from '@/hooks/controllers/bedManagementHealthTelemetry';
 import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const record = DataFactory.createMockDailyRecord('2026-01-01', {
   ...DataFactory.createMockDailyRecord('2026-05-21'),

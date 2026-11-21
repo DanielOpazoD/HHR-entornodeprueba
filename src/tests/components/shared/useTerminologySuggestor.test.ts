@@ -7,7 +7,7 @@ import {
 } from '@/services/terminology/terminologyService';
 import { cacheAIResults } from '@/services/terminology/aiResultsCache';
 import { checkAIAvailability } from '@/services/terminology/cie10AISearch';
-import { useTerminologySuggestor } from '@/components/shared/hooks/useTerminologySuggestor';
+import { useTerminologySuggestor } from '@/hooks/useTerminologySuggestor';
 
 vi.mock('@/services/terminology/terminologyService', () => ({
   searchDiagnoses: vi.fn().mockResolvedValue([]),

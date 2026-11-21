@@ -2,7 +2,7 @@ import { isAuthoringSessionCurrent } from '@/services/storage/authoringSession';
 import { loadDailyRecordSavePersistence } from '@/hooks/useWarmDailyRecordSavePath';
 import { mutationOptions, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../config/queryClient';
-import { useRepositories } from '@/services/RepositoryContext';
+import { useRepositories } from '@/context/RepositoryContext';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   createDailyRecordQueryOptions,

@@ -3,7 +3,7 @@ import { resolveHistoricalCudyrBatchOperation } from '@/features/rayen-import/do
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const official: ImportedCudyr = {
   category: 'C1',

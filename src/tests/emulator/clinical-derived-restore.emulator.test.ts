@@ -39,7 +39,7 @@ vi.mock('@/services/admin/utils/auditUtils', () => ({
 }));
 // The restore confirms the saved day with the real client reader: an administrator reading the
 // emulator under the real rules, never a configured Firebase project.
-vi.mock('@/firebaseConfig', () => ({ db: null, auth: null }));
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({ db: null, auth: null }));
 vi.mock('@/services/storage/firestore/firestoreServiceRuntime', () => ({
   defaultFirestoreServiceRuntime: { ready: Promise.resolve(), getDb: () => boundary.clientDb },
 }));

@@ -13,7 +13,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useAuth } from '@/context/AuthContext';
 import * as dailyRecordQuery from '@/hooks/useDailyRecordQuery';
-import { useRepositories } from '@/services/RepositoryContext';
+import { useRepositories } from '@/context/RepositoryContext';
 import { isAdminAppRole } from '@/shared/access/operationalAccessPolicy';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { resolveRayenPolicyBlockMessage, useRayenImportMode } from './useRayenImportMode';

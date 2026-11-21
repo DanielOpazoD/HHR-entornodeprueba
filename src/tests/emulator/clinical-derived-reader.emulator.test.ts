@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { HospitalConfigService } from '@/services/config/HospitalConfigService';
+import { setActiveHospitalId } from '@/constants/activeHospital';
 import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreRulesEmulatorConfig';
 
 const { recordOperationalTelemetry } = vi.hoisted(() => ({ recordOperationalTelemetry: vi.fn() }));
@@ -8,7 +8,7 @@ vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry,
 }));
 let activeDb: unknown;
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return activeDb;
   },
@@ -58,7 +58,7 @@ describeEmulator('clinical derived reader against real Firestore', () => {
   });
   beforeEach(async () => {
     vi.clearAllMocks();
-    HospitalConfigService.setHospitalId('hanga_roa');
+    setActiveHospitalId('hanga_roa');
     await environment.clearFirestore();
   });
   afterAll(async () => {

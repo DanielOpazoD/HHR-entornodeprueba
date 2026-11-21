@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { BEDS } from '@/constants/beds';
 import { formatDateToCL } from '@/utils/clinicalUtils';
 import type { NavbarProps } from '@/components/layout/Navbar';
-import type { AppRouterShellState } from '@/components/app-router/appRouterController';
+import type { AppRouterShellState } from '@/app-shell/routing/appRouterController';
 import { shouldShowBookmarkToggle } from '@/components/layout/app-content/appContentVisibilityController';
 import type { DateStripProps } from '@/components/layout/DateStrip';
 import type { UseUIStateReturn } from '@/hooks/useUIState';

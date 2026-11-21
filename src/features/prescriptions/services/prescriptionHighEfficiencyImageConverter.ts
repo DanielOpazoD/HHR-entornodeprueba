@@ -3,4 +3,4 @@ export {
   buildHighEfficiencyImageDecodeError,
   convertHighEfficiencyImageToJpeg,
   withJpegExtension,
-} from '@/shared/images/highEfficiencyImageConverter';
+} from '@/services/images/highEfficiencyImageConverter';

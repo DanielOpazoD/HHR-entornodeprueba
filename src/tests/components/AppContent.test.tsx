@@ -70,10 +70,6 @@ vi.mock('@/components/security/PinLockScreen', () => ({
   PinLockScreen: () => <div data-testid="pin-lock">PinLockScreen</div>,
 }));
 
-vi.mock('@/components/AppRouter', () => ({
-  AppRouter: () => <div data-testid="app-router">AppRouter</div>,
-}));
-
 vi.mock('@/components/AppProviders', () => ({
   AppProviders: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="app-providers">{children}</div>
@@ -104,11 +100,6 @@ vi.mock('@/hooks/useReminders', () => ({
     openCenter: vi.fn(),
     closeCenter: vi.fn(),
   }),
-}));
-
-vi.mock('@/views/LazyViews', () => ({
-  CensusEmailConfigModal: () => <div data-testid="email-modal">EmailModal</div>,
-  GlobalPatientSearchModal: () => <div data-testid="patient-search-modal">PatientSearchModal</div>,
 }));
 
 vi.mock('@/components/reminders/ReminderModal', () => ({
@@ -228,7 +219,12 @@ describe('AppContent', () => {
   });
 
   it('renders basic layout in normal mode', () => {
-    render(<AppContent ui={mockUI} />);
+    render(
+      <AppContent
+        ui={mockUI}
+        renderModuleRouter={() => <div data-testid="app-router">AppRouter</div>}
+      />
+    );
 
     expect(screen.getByTestId('navbar')).toBeInTheDocument();
     expect(screen.getByTestId('datestrip')).toBeInTheDocument();

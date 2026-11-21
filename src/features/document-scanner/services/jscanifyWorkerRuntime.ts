@@ -1,5 +1,5 @@
 import hashJs from 'hash.js';
-import { convertHighEfficiencyImageToJpeg } from '@/shared/images/highEfficiencyImageConverter';
+import { convertHighEfficiencyImageToJpeg } from '@/services/images/highEfficiencyImageConverter';
 import type { DocumentScanCorners, JscanifyDocumentPage } from './documentScannerTypes';
 import type { DocumentScanFilterMode } from './documentFilterProfiles';
 

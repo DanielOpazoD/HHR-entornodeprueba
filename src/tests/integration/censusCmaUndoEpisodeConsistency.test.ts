@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { buildUndoCmaPatch } from '@/application/census/cmaUndoPatchUseCase';
 import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';
 

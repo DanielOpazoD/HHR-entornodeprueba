@@ -8,7 +8,7 @@ vi.unmock('../../services/admin/auditService');
 import { setDoc } from 'firebase/firestore';
 import { logThrottledViewEvent } from '@/services/admin/auditService';
 import { defaultAuditPort } from '@/application/ports/auditPort';
-import { auth } from '@/firebaseConfig';
+import { auth } from '@/services/firebase-runtime/firebaseConfig';
 
 // Mock Firestore
 vi.mock('firebase/firestore', async importOriginal => {

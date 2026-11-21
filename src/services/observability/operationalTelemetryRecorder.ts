@@ -15,6 +15,7 @@ import {
   OPERATIONAL_TELEMETRY_DEFAULT_WINDOW_MS,
 } from '@/services/observability/operationalTelemetrySupport';
 import { createScopedLogger } from '@/services/utils/loggerScope';
+import { registerOperationalTelemetrySink } from '@/shared/observability/operationalTelemetrySink';
 
 const operationalTelemetryLogger = createScopedLogger('OperationalTelemetry');
 
@@ -53,6 +54,8 @@ export const recordOperationalTelemetry = (
   });
   void dispatchOperationalTelemetryExternally(event);
 };
+
+registerOperationalTelemetrySink(recordOperationalTelemetry);
 
 export const getOperationalTelemetryEvents = (): OperationalTelemetryEvent[] =>
   readOperationalTelemetryEventsSafely();

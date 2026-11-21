@@ -7,7 +7,7 @@ import type {
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientClinicalAlert } from '@/types/domain/clinicalAlerts';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const STORED: PatientClinicalAlert = {
   id: 'alert-stored',

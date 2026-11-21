@@ -17,7 +17,7 @@ import { fetchExistingDaysInMonth } from '@/services/records/recordQueryService'
 import { auditAdmissionDateBackfill } from '@/services/admin/admissionDateBackfillService';
 
 let activeDb: unknown;
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return activeDb;
   },

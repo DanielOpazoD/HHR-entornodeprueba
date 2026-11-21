@@ -28,7 +28,7 @@ vi.mock('@/hooks/useDateNavigation', () => ({
   useDateNavigation: () => mockUseDateNavigation(),
 }));
 
-vi.mock('@/hooks/useVersionCheck', () => ({
+vi.mock('@/app-shell/bootstrap/useVersionCheck', () => ({
   useVersionCheck: () => mockUseVersionCheck(),
 }));
 

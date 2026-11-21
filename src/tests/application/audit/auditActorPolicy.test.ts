@@ -5,7 +5,7 @@ import {
   CLINICAL_AUDIT_ACTIONS,
   isAnonymousActor,
   isClinicalAuditAction,
-} from '@/application/audit/auditActorPolicy';
+} from '@/domain/audit/auditActorPolicy';
 import type { AuditAction } from '@/types/auditActionTypes';
 
 describe('isAnonymousActor', () => {

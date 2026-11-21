@@ -1,6 +1,8 @@
-import { loadExecuteWriteAuditEvent } from '@/application/audit/writeAuditEventUseCaseLoader';
+import { isAnonymousActor, isClinicalAuditAction } from '@/domain/audit/auditActorPolicy';
 import { getCurrentUserEmail } from '@/services/admin/utils/auditUtils';
 import type { DailyRecordRestoreImpactAnalysis } from '@/services/repositories/dailyRecordRestoreImpactAnalyzer';
+import type { AuditAction } from '@/types/auditActionTypes';
+import type { AuditLogEntry } from '@/types/auditLogTypes';
 
 // A type alias, not an interface: audit details travel as Record<string, unknown>.
 export type ConflictAuditDetails = {
@@ -58,6 +60,27 @@ export const setRepositoryConflictLogger = (logger: ConflictLoggerFn | null): vo
   customConflictLogger = logger;
 };
 
+const writeRepositoryAuditEvent = async (
+  action: AuditAction,
+  entityType: AuditLogEntry['entityType'],
+  date: string,
+  details: Record<string, unknown>,
+  fallbackErrorMessage: string
+): Promise<void> => {
+  const userId = getCurrentUserEmail();
+  if (isClinicalAuditAction(action) && isAnonymousActor(userId)) {
+    throw new Error(
+      `No se persistió evento clínico ${action} (entidad ${date}): el actor de auditoría no es atribuible a un usuario autenticado.`
+    );
+  }
+
+  const { logAuditEvent } = await import('@/services/admin/auditService');
+  const delivery = await logAuditEvent(userId, action, entityType, date, details, undefined, date);
+  if (delivery === 'rejected' || delivery === 'failed') {
+    throw new Error(fallbackErrorMessage);
+  }
+};
+
 export const logRepositoryConflictAutoMerged = async (
   date: string,
   details: ConflictAuditDetails
@@ -67,25 +90,16 @@ export const logRepositoryConflictAutoMerged = async (
     return;
   }
 
-  const executeWriteAuditEvent = await loadExecuteWriteAuditEvent();
-  const outcome = await executeWriteAuditEvent({
-    userId: getCurrentUserEmail(),
-    action: 'CONFLICT_AUTO_MERGED',
-    entityType: 'dailyRecord',
-    entityId: date,
+  // Surface a failed audit outcome. The caller decides the posture: auto-merge is
+  // best-effort-observable (see scripts/clinical-mutation-audit-policy.json), so it telemeters
+  // rather than aborting — but the failure must not be silently dropped.
+  await writeRepositoryAuditEvent(
+    'CONFLICT_AUTO_MERGED',
+    'dailyRecord',
+    date,
     details,
-    recordDate: date,
-  });
-  // Surface a failed audit outcome (executeWriteAuditEvent never throws). The caller decides the
-  // posture: auto-merge is best-effort-observable (see scripts/clinical-mutation-audit-policy.json),
-  // so it telemeters rather than aborting — but the failure must not be silently dropped.
-  if (outcome.status !== 'success') {
-    throw new Error(
-      outcome.issues[0]?.message ??
-        outcome.userSafeMessage ??
-        'No se pudo registrar la auditoría de auto-merge de conflicto.'
-    );
-  }
+    'No se pudo registrar la auditoría de auto-merge de conflicto.'
+  );
 };
 
 // A type alias, not an interface: audit details travel as Record<string, unknown>.
@@ -155,23 +169,13 @@ export const logRepositoryConflictVersionRestored = async (
   date: string,
   details: ConflictVersionRestoreAuditDetails
 ): Promise<void> => {
-  // executeWriteAuditEvent never throws: it returns a failed ApplicationOutcome for an anonymous
-  // clinical actor or an underlying write error. Surface that as a throw so the restore caller can
-  // fail closed instead of silently overwriting the record without an audit row.
-  const executeWriteAuditEvent = await loadExecuteWriteAuditEvent();
-  const outcome = await executeWriteAuditEvent({
-    userId: getCurrentUserEmail(),
-    action: 'CONFLICT_VERSION_RESTORED',
-    entityType: 'dailyRecord',
-    entityId: date,
+  // Surface an anonymous actor rejection or underlying write failure as a throw so the restore
+  // caller can fail closed instead of silently overwriting the record without an audit row.
+  await writeRepositoryAuditEvent(
+    'CONFLICT_VERSION_RESTORED',
+    'dailyRecord',
+    date,
     details,
-    recordDate: date,
-  });
-  if (outcome.status !== 'success') {
-    throw new Error(
-      outcome.issues[0]?.message ??
-        outcome.userSafeMessage ??
-        'No se pudo registrar la auditoría de restauración de versión en conflicto.'
-    );
-  }
+    'No se pudo registrar la auditoría de restauración de versión en conflicto.'
+  );
 };

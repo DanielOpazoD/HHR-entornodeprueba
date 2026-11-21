@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { addCudyrTable } from '@/services/pdf/handoffPdfCudyrSection';
 import { HANDOFF_PDF_PAGE_LAYOUT } from '@/services/pdf/handoffPdfPageLayout';
 import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const createDocMock = () =>
   ({

@@ -11,7 +11,7 @@ import {
   uploadPdfWithResult,
 } from '@/services/backup/pdfStorageService';
 
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   storage: {},
   getStorageInstance: vi.fn().mockResolvedValue({}),
   auth: { currentUser: { email: 'test@example.com' } },

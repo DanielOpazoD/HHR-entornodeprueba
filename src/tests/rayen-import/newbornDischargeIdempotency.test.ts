@@ -6,7 +6,7 @@ import {
 } from '@/features/rayen-import';
 import { getStatisticalDischarges } from '@/domain/movements/movementTombstonePolicy';
 import { resolveUndoPatientMovement } from '@/application/census/controllers/patientMovementUndoController';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';

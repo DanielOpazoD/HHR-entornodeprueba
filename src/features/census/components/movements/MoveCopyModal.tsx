@@ -5,7 +5,7 @@ import { BEDS } from '@/constants/beds';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useNotification } from '@/context/UIContext';
 import { BaseModal } from '@/components/shared/BaseModal';
-import { useRepositories } from '@/services/RepositoryContext';
+import { useRepositories } from '@/context/RepositoryContext';
 import {
   resolveMoveCopyBedOptions,
   resolveMoveCopySourceBedName,

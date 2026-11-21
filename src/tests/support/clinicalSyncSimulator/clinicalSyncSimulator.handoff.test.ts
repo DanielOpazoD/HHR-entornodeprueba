@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createClinicalSyncSimulator } from './clinicalSyncSimulator';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { PatientStatus } from '@/types/domain/patientClassification';
 
 const actor = {

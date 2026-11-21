@@ -6,7 +6,7 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 describe('rebasePendingDailyRecordWrite', () => {
   it.each(['replaced', 'removed'] as const)(

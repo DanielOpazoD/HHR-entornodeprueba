@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   isPopupCancellationAuthError,
   isPopupOpenFailureAuthError,
@@ -17,7 +17,6 @@ import {
   markGoogleLoginAttemptHint,
 } from '@/services/auth/authStorageHints';
 import { createScopedLogger } from '@/services/utils/loggerScope';
-import { preloadDefaultPostLoginRoute } from '@/app-shell/bootstrap/authenticatedRoutePreloadController';
 import { getGoogleLoginLockStatus } from '@/services/auth/googleLoginLock';
 import {
   type LoginBackgroundMode,
@@ -38,8 +37,9 @@ const POPUP_RECOVERY_POLL_MS = 100;
 const POPUP_CANCELLATION_SETTLE_MS = 500;
 const loginPageLogger = createScopedLogger('LoginPage');
 
-const warmDefaultPostLoginRoute = () => {
-  void preloadDefaultPostLoginRoute().catch(err => {
+const runPostLoginRoutePreload = (preload?: () => Promise<unknown>) => {
+  if (!preload) return;
+  void preload().catch(err => {
     loginPageLogger.warn('Default post-login preload failed', err);
   });
 };
@@ -96,7 +96,8 @@ export interface LoginPageInitialAuthError {
 
 export const useLoginPageController = (
   onLoginSuccess: () => void,
-  initialAuthError?: LoginPageInitialAuthError | null
+  initialAuthError?: LoginPageInitialAuthError | null,
+  onPreloadPostLoginRoute?: () => Promise<unknown>
 ): LoginPageControllerState => {
   const [error, setError] = useState<string | null>(initialAuthError?.message ?? null);
   const [errorCode, setErrorCode] = useState<string | null>(initialAuthError?.code ?? null);
@@ -104,6 +105,10 @@ export const useLoginPageController = (
   const [backgroundMode, setBackgroundMode] = useState<LoginBackgroundMode>(
     resolveInitialLoginBackgroundMode
   );
+  const preloadPostLoginRouteRef = useRef(onPreloadPostLoginRoute);
+  useEffect(() => {
+    preloadPostLoginRouteRef.current = onPreloadPostLoginRoute;
+  }, [onPreloadPostLoginRoute]);
 
   useEffect(() => {
     // Warm Firebase auth while the user reads the login screen. Functions
@@ -113,6 +118,8 @@ export const useLoginPageController = (
     // Prefetch the post-login shell/route chunks on idle time so the
     // transition into the app after a successful login is instant, without
     // competing with the login screen's own first paint.
+    const warmDefaultPostLoginRoute = () =>
+      runPostLoginRoutePreload(preloadPostLoginRouteRef.current);
     const idleWindow = window as Window & {
       requestIdleCallback?: (callback: () => void) => number;
       cancelIdleCallback?: (handle: number) => void;
@@ -191,7 +198,7 @@ export const useLoginPageController = (
       if (outcome.status === 'success') {
         finishAuthPerfAttempt(outcome.data.status === 'authorized' ? 'authorized' : 'failed');
         clearGoogleLoginAttemptHint();
-        warmDefaultPostLoginRoute();
+        runPostLoginRoutePreload(preloadPostLoginRouteRef.current);
         onLoginSuccess();
         return;
       }

@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { HospitalConfigService } from '@/services/config/HospitalConfigService';
+import { setActiveHospitalId } from '@/constants/activeHospital';
 import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreRulesEmulatorConfig';
 
 let activeDb: unknown;
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return activeDb;
   },
@@ -50,7 +50,7 @@ describeEmulator('record queries against the real server', () => {
     });
   });
   beforeEach(async () => {
-    HospitalConfigService.setHospitalId('hanga_roa');
+    setActiveHospitalId('hanga_roa');
     await environment.clearFirestore();
   });
   beforeAll(() => {
@@ -160,10 +160,10 @@ describeEmulator('record queries against the real server', () => {
     try {
       for await (const page of getRecordPagesFromFirestore()) {
         pages.push(page);
-        HospitalConfigService.setHospitalId('synthetic-other-hospital');
+        setActiveHospitalId('synthetic-other-hospital');
       }
     } finally {
-      HospitalConfigService.setHospitalId('hanga_roa');
+      setActiveHospitalId('hanga_roa');
     }
     expect(pages.map(page => page.length)).toEqual([20, 1]);
     expect(pages.flat().map(row => row.lastUpdated)).toEqual(

@@ -7,7 +7,7 @@ import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestor
 import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { DefaultRepositoryProvider } from '@/services/RepositoryContext';
+import { DefaultRepositoryProvider } from '@/context/RepositoryContext';
 import { useDailyRecordQuery } from '@/hooks/useDailyRecordQuery';
 import { usePatchDailyRecordMutation } from '@/hooks/usePatchDailyRecordMutation';
 import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryController';
@@ -44,7 +44,7 @@ const { scope } = await vi.hoisted(async () => {
   const { AsyncLocalStorage } = await import('node:async_hooks');
   return { scope: new AsyncLocalStorage<{ db: unknown; uid: string; role: string }>() };
 });
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return scope.getStore()?.db;
   },

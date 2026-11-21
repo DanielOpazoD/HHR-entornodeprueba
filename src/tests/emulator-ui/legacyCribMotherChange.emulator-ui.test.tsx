@@ -61,7 +61,7 @@ vi.mock('firebase/functions', () => ({
     throw new Error(`unexpected callable ${name}`);
   },
 }));
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return h.db;
   },
@@ -159,7 +159,7 @@ import { ensurePatientClinicalEpisodeId } from '@/domain/clinical-episode/clinic
 import { CensusTableBody } from '@/features/census/components/CensusTableBody';
 import { buildCensusBedRows } from '@/features/census/controllers/censusTableViewController';
 import { DEFAULT_COLUMN_WIDTHS } from '@/services/storage/tableConfigService';
-import { DefaultRepositoryProvider } from '@/services/RepositoryContext';
+import { DefaultRepositoryProvider } from '@/context/RepositoryContext';
 import { DailyRecordProvider } from '@/context/DailyRecordContext';
 import { UIProvider } from '@/context/UIContext';
 import { AuditProvider } from '@/context/AuditContext';

@@ -2,7 +2,7 @@ import type { PatientData } from '@/types/domain/patient';
 
 /** Applies a reviewed census diff without overwriting occupied beds; pure and deterministic. */
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { CensusManager } from '@/domain/CensusManager';
 import { BEDS, OCCUPANCY_ONLY_EXTRA_BED_IDS } from '@/constants/beds';
 import type { DailyRecord } from '@/types/domain/dailyRecord';

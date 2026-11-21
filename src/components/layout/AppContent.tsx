@@ -12,6 +12,8 @@ import {
 } from '@/components/layout/app-content/reminderCenterProviderLoader';
 import type { CensusQuickActionPatient } from '@/shared/contracts/censusQuickActionPatient';
 import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/dateStripRadiologyViewer';
+import type { AppRouterShellState } from '@/app-shell/routing/appRouterController';
+import type { AppContentOverlayViews } from '@/components/layout/app-content/AppContentOverlays';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import {
   ReminderCenterContext,
@@ -28,6 +30,8 @@ const AppContentOverlays = lazyWithRetry(() =>
 
 interface AppContentProps {
   ui: UseUIStateReturn;
+  renderModuleRouter?: (ui: UseUIStateReturn, shell: AppRouterShellState) => React.ReactNode;
+  overlayViews?: AppContentOverlayViews;
   renderFeatureQuickActions?: (patients: CensusQuickActionPatient[]) => React.ReactNode;
   radiologyViewer?: DateStripRadiologyViewer;
   /** Acciones visibles al extremo derecho de la barra de fechas del censo (p. ej. «Documentos»). */
@@ -80,6 +84,8 @@ const DeferredReminderCenterProvider: ReminderCenterProviderComponent = ({ child
 
 export const AppContent: React.FC<AppContentProps> = ({
   ui,
+  renderModuleRouter,
+  overlayViews,
   renderFeatureQuickActions,
   radiologyViewer,
   renderCensusTrailingActions,
@@ -123,12 +129,18 @@ export const AppContent: React.FC<AppContentProps> = ({
             ui={ui}
             runtime={runtime}
             onOpenCensusDate={openCensusDate}
+            renderModuleRouter={renderModuleRouter}
             renderFeatureQuickActions={renderFeatureQuickActions}
             radiologyViewer={radiologyViewer}
             renderCensusTrailingActions={renderCensusTrailingActions}
           />
           <React.Suspense fallback={null}>
-            <AppContentOverlays ui={ui} runtime={runtime} onOpenCensusDate={openCensusDate} />
+            <AppContentOverlays
+              ui={ui}
+              runtime={runtime}
+              onOpenCensusDate={openCensusDate}
+              overlayViews={overlayViews}
+            />
           </React.Suspense>
         </div>
       </DeferredReminderCenterProvider>

@@ -2,12 +2,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const auditMocks = vi.hoisted(() => ({
-  executeWriteAuditEvent: vi.fn(),
+  logAuditEvent: vi.fn(),
   getCurrentUserEmail: vi.fn(() => 'doctor@hospital.cl'),
 }));
 
-vi.mock('@/application/audit/writeAuditEventUseCase', () => ({
-  executeWriteAuditEvent: auditMocks.executeWriteAuditEvent,
+vi.mock('@/services/admin/auditService', () => ({
+  logAuditEvent: auditMocks.logAuditEvent,
 }));
 
 vi.mock('@/services/admin/utils/auditUtils', () => ({
@@ -23,7 +23,8 @@ import {
 describe('repositoryAuditPort', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    auditMocks.executeWriteAuditEvent.mockResolvedValue({ status: 'success', data: null });
+    auditMocks.getCurrentUserEmail.mockReturnValue('doctor@hospital.cl');
+    auditMocks.logAuditEvent.mockResolvedValue('queued');
     setRepositoryConflictLogger(null);
   });
 
@@ -49,9 +50,10 @@ describe('repositoryAuditPort', () => {
     });
 
     expect(logger).toHaveBeenCalledTimes(1);
+    expect(auditMocks.logAuditEvent).not.toHaveBeenCalled();
   });
 
-  it('writes conflict auto-merge events through the modern audit use case', async () => {
+  it('writes conflict auto-merge events through the audit service', async () => {
     const details = {
       changedPaths: ['beds.R1.pathology'],
       policyVersion: '2026-02-v2',
@@ -71,22 +73,19 @@ describe('repositoryAuditPort', () => {
 
     await logRepositoryConflictAutoMerged('2026-02-19', details);
 
-    expect(auditMocks.executeWriteAuditEvent).toHaveBeenCalledWith({
-      userId: 'doctor@hospital.cl',
-      action: 'CONFLICT_AUTO_MERGED',
-      entityType: 'dailyRecord',
-      entityId: '2026-02-19',
+    expect(auditMocks.logAuditEvent).toHaveBeenCalledWith(
+      'doctor@hospital.cl',
+      'CONFLICT_AUTO_MERGED',
+      'dailyRecord',
+      '2026-02-19',
       details,
-      recordDate: '2026-02-19',
-    });
+      undefined,
+      '2026-02-19'
+    );
   });
 
-  it('throws when the auto-merge audit outcome is not successful (no longer silently dropped)', async () => {
-    auditMocks.executeWriteAuditEvent.mockResolvedValueOnce({
-      status: 'failed',
-      data: null,
-      issues: [{ kind: 'unknown', message: 'audit write failed' }],
-    });
+  it('throws when the auto-merge audit delivery fails (no longer silently dropped)', async () => {
+    auditMocks.logAuditEvent.mockResolvedValueOnce('failed');
 
     await expect(
       logRepositoryConflictAutoMerged('2026-02-19', {
@@ -105,10 +104,10 @@ describe('repositoryAuditPort', () => {
           remoteProtectedPaths: [],
         },
       })
-    ).rejects.toThrow('audit write failed');
+    ).rejects.toThrow('No se pudo registrar la auditoría de auto-merge de conflicto.');
   });
 
-  it('writes conflict version restore events through the modern audit use case', async () => {
+  it('writes conflict version restore events through the audit service', async () => {
     await logRepositoryConflictVersionRestored('2026-02-19', {
       snapshotId: 'cid__remote_premerge',
       origin: 'remote_premerge',
@@ -135,12 +134,12 @@ describe('repositoryAuditPort', () => {
       },
     });
 
-    expect(auditMocks.executeWriteAuditEvent).toHaveBeenCalledWith({
-      userId: 'doctor@hospital.cl',
-      action: 'CONFLICT_VERSION_RESTORED',
-      entityType: 'dailyRecord',
-      entityId: '2026-02-19',
-      details: {
+    expect(auditMocks.logAuditEvent).toHaveBeenCalledWith(
+      'doctor@hospital.cl',
+      'CONFLICT_VERSION_RESTORED',
+      'dailyRecord',
+      '2026-02-19',
+      {
         snapshotId: 'cid__remote_premerge',
         origin: 'remote_premerge',
         conflictId: 'cid',
@@ -150,22 +149,20 @@ describe('repositoryAuditPort', () => {
           selectedVersionLabel: 'Versión en la nube',
         }),
       },
-      recordDate: '2026-02-19',
-    });
+      undefined,
+      '2026-02-19'
+    );
   });
 
-  it('throws when the restore audit outcome is not successful (fail-closed signal)', async () => {
-    auditMocks.executeWriteAuditEvent.mockResolvedValueOnce({
-      status: 'failed',
-      data: null,
-      issues: [{ kind: 'anonymous_clinical_audit_rejection', message: 'Actor anónimo' }],
-    });
+  it('throws fail-closed when the clinical actor is anonymous', async () => {
+    auditMocks.getCurrentUserEmail.mockReturnValueOnce('anon');
 
     await expect(
       logRepositoryConflictVersionRestored('2026-02-19', {
         snapshotId: 's1',
         origin: 'incoming_premerge',
       })
-    ).rejects.toThrow('Actor anónimo');
+    ).rejects.toThrow(/CONFLICT_VERSION_RESTORED/);
+    expect(auditMocks.logAuditEvent).not.toHaveBeenCalled();
   });
 });

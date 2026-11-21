@@ -18,7 +18,7 @@ import { PrescriptionReassignDialog } from '@/features/prescriptions/components/
 import type { PrescriptionRecord } from '@/types/prescriptionTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 const baseRecord: PrescriptionRecord = {
   id: 'rx-1',

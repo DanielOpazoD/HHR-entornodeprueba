@@ -35,7 +35,7 @@ const { scope } = await vi.hoisted(async () => {
   const { AsyncLocalStorage } = await import('node:async_hooks');
   return { scope: new AsyncLocalStorage<{ db: unknown; uid: string; role: string }>() };
 });
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return scope.getStore()?.db;
   },
@@ -61,8 +61,8 @@ vi.mock('@/firebaseConfig', () => ({
   mountConfigWarning: vi.fn(),
 }));
 // The shipped retry loop (attempts, `shouldRetry`, `onRetry`) without its 1 + 2 + 4 s waits.
-vi.mock('@/utils/networkUtils', async importOriginal => {
-  const actual = await importOriginal<typeof import('@/utils/networkUtils')>();
+vi.mock('@/services/utils/networkUtils', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/utils/networkUtils')>();
   return {
     ...actual,
     withRetry: <T>(fn: () => Promise<T>, options: Parameters<typeof actual.withRetry>[1] = {}) =>

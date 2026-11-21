@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { reconstructHistoricalSnapshotAtClose } from '@/features/rayen-import/domain/historicalSnapshotReconstruction';
 import type { RayenCensusSnapshot } from '@/features/rayen-import/contracts/rayenSnapshot';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 describe('historical pavilion recovery and active episode evidence', () => {
   const encodedReport = (text: string): string =>

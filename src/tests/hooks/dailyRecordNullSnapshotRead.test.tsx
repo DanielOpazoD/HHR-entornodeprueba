@@ -5,7 +5,7 @@ import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { usePatchDailyRecordMutation, useDailyRecordQuery } from '@/hooks/useDailyRecordQuery';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
-import { RepositoryProvider, createRepositoryContainer } from '@/services/RepositoryContext';
+import { RepositoryProvider, createRepositoryContainer } from '@/context/RepositoryContext';
 import { createDailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { createUnconfirmedDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';

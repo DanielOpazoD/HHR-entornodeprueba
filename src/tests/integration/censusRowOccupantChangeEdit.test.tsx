@@ -3,7 +3,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { CensusTableBody } from '@/features/census/components/CensusTableBody';
 import { buildCensusBedRows } from '@/features/census/controllers/censusTableViewController';
 import { DailyRecordProvider } from '@/context/DailyRecordContext';
-import { DefaultRepositoryProvider } from '@/services/RepositoryContext';
+import { DefaultRepositoryProvider } from '@/context/RepositoryContext';
 import { BEDS } from '@/constants/beds';
 import { useDailyRecord } from '@/hooks/useDailyRecord';
 import {

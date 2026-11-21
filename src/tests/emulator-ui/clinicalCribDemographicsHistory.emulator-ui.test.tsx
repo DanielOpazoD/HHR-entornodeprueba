@@ -30,7 +30,7 @@ vi.mock('firebase/functions', () => ({
     throw new Error(`unexpected callable ${name}`);
   },
 }));
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   get db() {
     return h.db;
   },

@@ -5,7 +5,7 @@ import FunctionsRecoveryNotice from '@/components/ui/FunctionsRecoveryNotice';
 import { useWarmDailyRecordSavePath } from '@/hooks/useWarmDailyRecordSavePath';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createDefaultRepositoryContainer, RepositoryProvider } from '@/services/RepositoryContext';
+import { createDefaultRepositoryContainer, RepositoryProvider } from '@/context/RepositoryContext';
 import {
   useSaveDailyRecordMutation,
   usePatchDailyRecordMutation,

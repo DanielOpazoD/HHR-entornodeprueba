@@ -31,7 +31,7 @@ vi.mock('firebase/auth', () => ({
   signOut: () => mockFirebaseSignOut(),
 }));
 
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   auth: mockAuth,
   firebaseReady: Promise.resolve(),
 }));

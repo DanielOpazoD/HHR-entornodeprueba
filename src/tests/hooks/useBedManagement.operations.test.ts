@@ -6,7 +6,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
 import { mockAuditContextValue } from '../setup';
 
-vi.mock('@/services/factories/patientFactory', () => ({
+vi.mock('@/domain/patient/patientFactory', () => ({
   createEmptyPatient: vi.fn((bedId: string) => ({
     bedId,
     patientName: '',

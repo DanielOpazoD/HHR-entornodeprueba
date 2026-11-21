@@ -92,7 +92,7 @@ vi.mock('firebase/functions', () => ({
     throw new Error(`Synthetic harness: unexpected callable ${name}`);
   },
 }));
-vi.mock('@/utils/networkUtils', async importOriginal => ({
+vi.mock('@/services/utils/networkUtils', async importOriginal => ({
   ...(await importOriginal<object>()),
   withRetry: (operation: () => unknown) => operation(),
 }));

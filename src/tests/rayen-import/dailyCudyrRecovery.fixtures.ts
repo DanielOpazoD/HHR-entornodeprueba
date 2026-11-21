@@ -4,7 +4,7 @@ import type { CapturedCudyrMonthlyReport } from '@/services/cudyr/cudyrMonthlyRe
 import { utils, write } from 'xlsx';
 import { parseCudyrSupplementBinary } from '@/services/cudyr/cudyrSupplementBinary';
 import { buildInitializedDayRecord } from '@/services/repositories/dailyRecordInitializationSupport';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 export const now = () => new Date('2026-10-27T20:00:00-05:00');
 export const patient = () => ({

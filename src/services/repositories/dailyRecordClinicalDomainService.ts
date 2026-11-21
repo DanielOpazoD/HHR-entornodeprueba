@@ -4,7 +4,7 @@ import { BEDS } from '@/constants/beds';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 
-import { clonePatient, createEmptyPatient } from '@/services/factories/patientFactory';
+import { clonePatient, createEmptyPatient } from '@/domain/patient/patientFactory';
 import { parsePatientDataWithDefaults } from '@/schemas/zodSchemas';
 import { mapPatientToFhir } from '@/services/utils/fhirMappers';
 import { createDailyRecordAggregate } from '@/services/repositories/dailyRecordAggregate';

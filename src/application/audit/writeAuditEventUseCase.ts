@@ -5,7 +5,7 @@ import {
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 
 import { defaultAuditPort, type AuditPort } from '@/application/ports/auditPort';
-import { isAnonymousActor, isClinicalAuditAction } from '@/application/audit/auditActorPolicy';
+import { isAnonymousActor, isClinicalAuditAction } from '@/domain/audit/auditActorPolicy';
 import type { AuditAction } from '@/types/auditActionTypes';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
 

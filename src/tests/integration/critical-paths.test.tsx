@@ -57,7 +57,7 @@ vi.mock('@/application/ports/dailyRecordPort', () => ({
   defaultDailyRecordRepositoryPort: mockDailyRecordRepositoryPort,
 }));
 
-vi.mock('@/firebaseConfig', () => ({
+vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   auth: {
     onAuthStateChanged: vi.fn(cb => {
       cb({ uid: 'test-user-123', email: 'hospitalizados@hospitalhangaroa.cl' });

@@ -1,7 +1,7 @@
 import React, { ComponentProps } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { AppRouter } from '@/components/AppRouter';
+import { AppRouter } from '@/app-shell/routing/AppRouter';
 import { useAppState } from '@/hooks/useAppState';
 
 const mockCanAccessAppModuleRoute = vi.fn();

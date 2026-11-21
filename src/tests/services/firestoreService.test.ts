@@ -18,7 +18,7 @@ import {
 import * as firestore from 'firebase/firestore';
 import { DocumentSnapshot, QuerySnapshot, Timestamp, DocumentData } from 'firebase/firestore';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 // Mock the modular Firestore SDK
 vi.mock('firebase/firestore', async () => {

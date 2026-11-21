@@ -3,7 +3,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { PatientRow } from '@/features/census/components/PatientRow';
 import { usePatientRowRuntime } from '@/features/census/components/patient-row/usePatientRowRuntime';
 import { DailyRecordProvider } from '@/context/DailyRecordContext';
-import { DefaultRepositoryProvider } from '@/services/RepositoryContext';
+import { DefaultRepositoryProvider } from '@/context/RepositoryContext';
 import { BEDS } from '@/constants/beds';
 import { useDailyRecord } from '@/hooks/useDailyRecord';
 import {

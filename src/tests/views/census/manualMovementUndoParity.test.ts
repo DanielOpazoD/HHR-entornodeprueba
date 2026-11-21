@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { BEDS } from '@/constants/beds';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
 import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';

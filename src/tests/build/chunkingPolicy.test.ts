@@ -455,8 +455,8 @@ describe('chunkingPolicy', () => {
     const compressionServiceSource = readSource(
       'src/features/prescriptions/services/prescriptionImageCompressionService.ts'
     );
-    const heicConverterSource = readSource('src/shared/images/highEfficiencyImageConverter.ts');
-    const heicLoaderSource = readSource('src/shared/images/heicConverterLoader.ts');
+    const heicConverterSource = readSource('src/services/images/highEfficiencyImageConverter.ts');
+    const heicLoaderSource = readSource('src/services/images/heicConverterLoader.ts');
 
     expect(compressionServiceSource).not.toContain("import('heic2any')");
     expect(compressionServiceSource).toContain(

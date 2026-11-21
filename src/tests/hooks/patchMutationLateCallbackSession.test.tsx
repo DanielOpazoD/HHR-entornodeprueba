@@ -14,7 +14,7 @@ import {
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { clearPendingDailyRecordPatchesForTests } from '@/hooks/controllers/dailyRecordPendingPatchController';
 import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
-import { RepositoryProvider, createRepositoryContainer } from '@/services/RepositoryContext';
+import { RepositoryProvider, createRepositoryContainer } from '@/context/RepositoryContext';
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,

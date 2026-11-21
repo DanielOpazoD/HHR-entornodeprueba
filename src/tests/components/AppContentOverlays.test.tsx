@@ -55,10 +55,10 @@ vi.mock('@/hooks/useReminders', () => ({
   useReminderCenter: vi.fn(),
 }));
 
-vi.mock('@/views/LazyViews', () => ({
+const overlayViews = {
   CensusEmailConfigModal: () => <div data-testid="email-modal">EmailModal</div>,
   GlobalPatientSearchModal: () => <div data-testid="patient-search-modal">PatientSearchModal</div>,
-}));
+};
 
 // Flush lazy component resolutions before any test renders.
 beforeAll(() => Promise.all(_lazyPending));
@@ -108,7 +108,9 @@ describe('AppContentOverlays', () => {
   });
 
   it('mounts active shell overlays and global status components', () => {
-    render(<AppContentOverlays ui={ui as never} runtime={runtime as never} />);
+    render(
+      <AppContentOverlays ui={ui as never} runtime={runtime as never} overlayViews={overlayViews} />
+    );
 
     expect(screen.queryByTestId('reminder-modal')).not.toBeInTheDocument();
     expect(screen.getByTestId('test-agent')).toBeInTheDocument();
@@ -121,7 +123,9 @@ describe('AppContentOverlays', () => {
   it('loads the reminder modal only when the reminder center is open', () => {
     vi.mocked(useReminderCenter).mockReturnValue({ isOpen: true } as never);
 
-    render(<AppContentOverlays ui={ui as never} runtime={runtime as never} />);
+    render(
+      <AppContentOverlays ui={ui as never} runtime={runtime as never} overlayViews={overlayViews} />
+    );
 
     expect(screen.getByTestId('reminder-modal')).toBeInTheDocument();
   });
@@ -136,6 +140,7 @@ describe('AppContentOverlays', () => {
           } as never
         }
         runtime={runtime as never}
+        overlayViews={overlayViews}
       />
     );
 
@@ -152,6 +157,7 @@ describe('AppContentOverlays', () => {
           } as never
         }
         runtime={runtime as never}
+        overlayViews={overlayViews}
       />
     );
 
@@ -168,6 +174,7 @@ describe('AppContentOverlays', () => {
             censusEmail: { ...runtime.censusEmail, showEmailConfig: false },
           } as never
         }
+        overlayViews={overlayViews}
       />
     );
 
@@ -175,7 +182,9 @@ describe('AppContentOverlays', () => {
   });
 
   it('opens patient search with the global Ctrl/Cmd+K shortcut', () => {
-    render(<AppContentOverlays ui={ui as never} runtime={runtime as never} />);
+    render(
+      <AppContentOverlays ui={ui as never} runtime={runtime as never} overlayViews={overlayViews} />
+    );
 
     fireEvent.keyDown(document, { key: 'k', ctrlKey: true });
 
