@@ -1,6 +1,7 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { AuthoringSessionGuard } from '@/services/storage/authoringSession';
 import type { RayenApplyFailureReason, RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import { raceWithTimeout } from '../domain/raceWithTimeout';
 import { defaultMonotonicNow } from '../domain/rayenSyncPerformance';
@@ -123,6 +124,11 @@ export type RayenStructuralWritePlan = Pick<
 interface PersistRayenStructureThenClinicalInput {
   identity: RayenSyncExecutionIdentity;
   /**
+   * The session that began this run. If it changes (another person, or a new generation), the run
+   * stops in silence: nothing more is written, no clinical stage starts, no history is closed.
+   */
+  session: AuthoringSessionGuard;
+  /**
    * A person confirmed the plan in the review modal. The modal closes while saving, stays closed
    * after the commit, and reopens to explain a failure. Without review it never opens to explain a
    * failure, and after the commit it stays open only for conflicts that remain to review.
@@ -156,6 +162,7 @@ interface PersistRayenStructureThenClinicalInput {
  */
 export const persistRayenStructureThenClinical = async ({
   identity,
+  session,
   afterReview,
   applyPreviousDays,
   preparePlan,
@@ -178,7 +185,8 @@ export const persistRayenStructureThenClinical = async ({
   monotonicNow = defaultMonotonicNow,
 }: PersistRayenStructureThenClinicalInput): Promise<void> => {
   const { runId } = identity;
-  const isCurrent = () => isRayenSyncExecutionCurrent(executionRef.current, identity);
+  const isCurrent = () =>
+    session.isCurrent() && isRayenSyncExecutionCurrent(executionRef.current, identity);
   const isDateVisible = () => !selectedDateRef || selectedDateRef.current === identity.selectedDate;
   const transition = (stage: RayenSyncStage) =>
     dispatchExecution({ type: 'transition', ...identity, stage });
@@ -189,6 +197,9 @@ export const persistRayenStructureThenClinical = async ({
     outcome: CommittedRayenStructuralPersistenceOutcome
   ): Promise<void> => {
     structureCommitted = true;
+    // What is committed stays committed (its `applied` event included); the new session neither
+    // continues A's run nor closes it.
+    if (!session.isCurrent()) return;
     if (isCurrent()) {
       dispatchExecution({
         type: 'record_outcome',
@@ -216,8 +227,8 @@ export const persistRayenStructureThenClinical = async ({
       }
       transition({ type: 'syncing_clinical' });
     }
-    // The structural CAS already committed. Even if its UI execution was superseded while the
-    // write was in flight, enqueue the handoff; the clinical queue revalidates run authority
+    // The structural CAS already committed. Even if its UI execution was superseded (same session)
+    // while the write was in flight, enqueue the handoff; the clinical queue revalidates run authority
     // before any patch and discards an obsolete run without touching the newer census.
     await runClinicalStage(outcome.commit.clinicalHandoff);
   };
