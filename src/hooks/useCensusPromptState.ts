@@ -23,8 +23,6 @@ const readYesterday = (currentDateString: string) => {
     .then(record => record ?? readServer(), readServer);
 };
 
-const NO_LISTED_DATES = async (): Promise<string[]> => [];
-
 export const useCensusPromptState = (
   currentDateString: string,
   enabled = true
@@ -65,7 +63,6 @@ export const useCensusPromptState = (
       const nextPromptState = await executeLoadCensusPromptDataController({
         currentDateString,
         getPreviousDay: readYesterday,
-        getAvailableDates: NO_LISTED_DATES,
       });
 
       if (isDisposed || requestId !== requestIdRef.current) {

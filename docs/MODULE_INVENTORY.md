@@ -44,7 +44,6 @@ Estos son los módulos que más sentido tiene evaluar uno por uno primero.
 ### 3. Entrega de turno médico
 
 - **Feature principal:** [src/features/handoff](../src/features/handoff)
-- **Application relacionada:** [src/application/handoff](../src/application/handoff)
 - Incluye:
   - handoff médico general
   - observaciones médicas

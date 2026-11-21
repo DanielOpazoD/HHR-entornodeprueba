@@ -16,16 +16,14 @@ WhatsApp) se retiro; un enlace viejo a `/medical-handoff` abre el censo.
 - `components/`: shell visual y vistas de handoff.
 - `hooks/`: screen models/runtime hooks para aislar wiring grande de las vistas.
 - `controllers/`: policies de pantalla y adapters internos del feature.
-- `application/handoff`: use cases y read models del contexto.
 - `domain/handoff`: reglas puras de management, checklist y contratos de registro y paciente.
 
 ## Contratos principales
 
-- La logica de negocio nueva entra en `application/handoff` o `domain/handoff`.
+- La logica de negocio nueva entra en `domain/handoff`.
 - Los controllers de pantalla (`handoffViewController`, `handoffViewBindingsController`,
   `clinicalEventsPanelController`) concentran wiring puro,
   presentation policy y payload normalization; la UI no debe reabsorber esas decisiones.
-- Los resultados operativos de gestion deben salir como `ApplicationOutcome`.
 - El source productivo no debe importar el barrel `features/handoff/controllers`.
 
 ## Invariantes
@@ -50,7 +48,7 @@ protegiendo CUDYR y las correcciones de dias anteriores.
 
 ## Entry points recomendados
 
-- `src/application/handoff`
+- `src/hooks/useHandoffManagement.ts`
 - `src/domain/handoff/management.ts`
 - `src/features/handoff/public.ts`
 
@@ -77,7 +75,7 @@ presentan como registro válido. Esto aplica CUD-02/CUD-07 sólo en el límite d
 
 ## Checks recomendados
 
-- `npm exec -- vitest run src/tests/application/handoff src/tests/domain/handoff src/tests/hooks/controllers`
+- `npm exec -- vitest run src/tests/hooks/useHandoffManagement.test.ts src/tests/domain/handoff`
 - `npx vitest run src/tests/views/handoff`
 - `npm run check:quality`
 - `npm run typecheck`

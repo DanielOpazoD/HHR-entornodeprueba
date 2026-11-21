@@ -16,7 +16,6 @@ interface UseCensusViewRouteModelParams {
   onCloseBedManagerModal: () => void;
   renderMedicalHandoffAction?: RenderCensusMedicalHandoffAction;
   readOnly: boolean;
-  allowAdminCopyOverride: boolean;
   accessProfile: CensusAccessProfile;
 }
 
@@ -28,7 +27,6 @@ export const useCensusViewRouteModel = ({
   onCloseBedManagerModal,
   renderMedicalHandoffAction,
   readOnly,
-  allowAdminCopyOverride,
   accessProfile,
 }: UseCensusViewRouteModelParams) => {
   const viewModel = useCensusViewModel(currentDateString);
@@ -52,19 +50,15 @@ export const useCensusViewRouteModel = ({
       currentDateString,
       previousRecordAvailable: viewModel.previousRecordAvailable,
       previousRecordDate: viewModel.previousRecordDate,
-      availableDates: viewModel.availableDates,
       onCreateDay: viewModel.createDay,
       readOnly,
-      allowAdminCopyOverride,
     });
   }, [
     branch,
-    allowAdminCopyOverride,
     currentDateString,
     readOnly,
     selectedDay,
     selectedMonth,
-    viewModel.availableDates,
     viewModel.createDay,
     viewModel.previousRecordAvailable,
     viewModel.previousRecordDate,

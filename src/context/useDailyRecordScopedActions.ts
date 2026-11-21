@@ -159,8 +159,8 @@ export const useDailyRecordHandoffActions = (): DailyRecordHandoffActions => {
     () => ({
       updateHandoffChecklist: actions.updateHandoffChecklist,
       updateHandoffNovedades: actions.updateHandoffNovedades,
-      updateHandoffStaff: actions.updateHandoffStaff,
+      updateHandoffReceives: actions.updateHandoffReceives,
     }),
-    [actions.updateHandoffChecklist, actions.updateHandoffNovedades, actions.updateHandoffStaff]
+    [actions.updateHandoffChecklist, actions.updateHandoffNovedades, actions.updateHandoffReceives]
   );
 };

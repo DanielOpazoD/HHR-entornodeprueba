@@ -194,7 +194,7 @@ export const useDailyRecordFragmentedValues = (
         convertCmaToTransfer: value?.convertCmaToTransfer,
         updateHandoffChecklist: value?.updateHandoffChecklist,
         updateHandoffNovedades: value?.updateHandoffNovedades,
-        updateHandoffStaff: value?.updateHandoffStaff,
+        updateHandoffReceives: value?.updateHandoffReceives,
         copyPatientToDate: value?.copyPatientToDate,
       }) as DailyRecordActionsContextType,
     [
@@ -240,7 +240,7 @@ export const useDailyRecordFragmentedValues = (
       value?.convertCmaToTransfer,
       value?.updateHandoffChecklist,
       value?.updateHandoffNovedades,
-      value?.updateHandoffStaff,
+      value?.updateHandoffReceives,
       value?.copyPatientToDate,
     ]
   );

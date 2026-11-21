@@ -56,7 +56,6 @@ export const useCensusLogic = (currentDateString: string) => {
     stats,
     previousRecordAvailable: promptState.previousRecordAvailable,
     previousRecordDate: promptState.previousRecordDate,
-    availableDates: promptState.availableDates,
 
     // Actions
     createDay,

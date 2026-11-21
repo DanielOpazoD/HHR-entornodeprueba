@@ -25,9 +25,7 @@ import { createDailyRecordWriteAuthorityFunctions } from '@/tests/functions/dail
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import {
-  buildAddDischargeInput,
   buildAtomicPatientMovementPatch,
-  buildDischargeAddCommandPayload,
   resolveAddDischargeMovement,
   resolveAtomicPatientMovementListKey,
 } from '@/application/census/public';
@@ -36,10 +34,7 @@ import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { FIELD_CHANGED_ELSEWHERE_MESSAGE } from '@/services/storage/syncErrorCatalog';
 import { applyPatches } from '@/utils/patchUtils';
 import { updateRecordPartial } from '@/services/storage/firestore/firestoreRecordWrites';
-import {
-  executeUpdateHandoffNovedades,
-  executeUpdateHandoffStaff,
-} from '@/application/handoff/handoffManagementUseCases';
+import { buildHandoffReceivesPatch, buildNovedadesPatch } from '@/domain/handoff/management';
 import { PatientStatus } from '@/types/domain/patientClassification';
 import { resolveRecordBaseRevision } from '@/services/storage/sync/syncTaskContractPolicy';
 import { isLastWrittenBy, storedFieldWrites } from '@/services/storage/sync/fieldWriteAttribution';
@@ -809,27 +804,16 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
                 .firestore(),
             };
             const shown = await readServer();
-            const persist = {
-              record: shown,
-              patchRecord: async (patch: DailyRecordPatch) => {
-                await updateRecordPartial(date, patch, shown.lastUpdated, { baseRecord: shown });
-              },
-              saveRecord: () => {
-                throw new Error('The handoff screen saves this field by patch');
-              },
-            };
+            // The handoff screen's patches: the night text, and «Recibe» of the day shift.
+            const patch: DailyRecordPatch =
+              writer === 'the night handoff text'
+                ? buildNovedadesPatch('night', 'NOCHE P2')
+                : buildHandoffReceivesPatch('day', ['ENFERMERA SINTETICA']);
             const down = network.down;
             network.down = 0;
             try {
               await scope.run(nurse, () =>
-                writer === 'the night handoff text'
-                  ? executeUpdateHandoffNovedades({ ...persist, shift: 'night', value: 'NOCHE P2' })
-                  : executeUpdateHandoffStaff({
-                      ...persist,
-                      shift: 'night',
-                      type: 'delivers',
-                      staffList: ['ENFERMERA SINTETICA'],
-                    })
+                updateRecordPartial(date, patch, shown.lastUpdated, { baseRecord: shown })
               );
             } finally {
               network.down = down;
@@ -1374,20 +1358,18 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       await correctWhileAnswerLost(async () => {
         // «Dar de alta» for R2, as the census row builds it.
         const record = await shownDay();
-        const resolution = resolveAddDischargeMovement(
-          buildAddDischargeInput({
-            record,
-            bedId: 'R2',
-            payload: buildDischargeAddCommandPayload({
-              status: 'Vivo',
-              dischargeType: 'Domicilio (Habitual)',
-              time: '10:00',
-              target: 'both',
-            }),
-            bedsCatalog: BEDS,
-            createEmptyPatient,
-          })
-        );
+        const resolution = resolveAddDischargeMovement({
+          record,
+          bedId: 'R2',
+          payload: {
+            status: 'Vivo',
+            type: 'Domicilio (Habitual)',
+            time: '10:00',
+            dischargeTarget: 'both',
+          },
+          bedsCatalog: BEDS,
+          createEmptyPatient,
+        });
         if (!resolution.ok) throw new Error('The census refused the discharge');
         await patchHere(
           buildAtomicPatientMovementPatch({

@@ -18,7 +18,6 @@ export const GOVERNED_APPLICATION_PUBLIC_IMPORTS = new Set([
   '@/features/census/controllers/modalFormController',
   '@/features/census/controllers/patientMovementCreationController',
   '@/features/census/controllers/patientMovementCreationErrorPresentation',
-  '@/features/census/controllers/patientMovementCreationInputController',
   '@/features/census/controllers/patientMovementMutationController',
   '@/features/census/controllers/patientMovementRuntimeController',
   '@/features/census/controllers/patientMovementSelectionController',

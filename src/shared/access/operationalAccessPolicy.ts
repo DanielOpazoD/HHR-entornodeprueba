@@ -44,9 +44,6 @@ export const canEditAppModule = (role: SupportedRole, module: ModuleType): boole
 export const canEditAnyAppModule = (role: SupportedRole): boolean =>
   getVisibleAppModules(role).some(module => canEditAppModule(role, module));
 
-export const canForceCreateDayCopyOverride = (role: SupportedRole): boolean =>
-  isAdmin(knownRole(role));
-
 export const canVerifyPassiveBackupForRole = (
   role: SupportedRole,
   moduleType: ModuleType | string

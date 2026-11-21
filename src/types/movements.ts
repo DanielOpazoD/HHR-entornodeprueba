@@ -4,16 +4,31 @@ export type DischargeTarget = 'mother' | 'baby' | 'both';
 
 export type MovementStatus = DischargeData['status'];
 
-export type AddDischargeAction = (
-  bedId: string,
-  status: MovementStatus,
-  cribStatus?: MovementStatus,
-  dischargeType?: string,
-  dischargeTypeOther?: string,
-  time?: string,
-  target?: DischargeTarget,
-  movementDate?: string
-) => void;
+export interface DischargeUpdateCommandPayload {
+  status: MovementStatus;
+  type?: string;
+  typeOther?: string;
+  time: string;
+  movementDate?: string;
+  diagnosis?: string;
+}
+
+export interface DischargeAddCommandPayload extends DischargeUpdateCommandPayload {
+  cribStatus?: MovementStatus;
+  dischargeTarget?: DischargeTarget;
+}
+
+export interface TransferCommandPayload {
+  evacuationMethod: string;
+  receivingCenter: string;
+  receivingCenterOther: string;
+  transferEscort: string;
+  time: string;
+  movementDate?: string;
+  diagnosis?: string;
+}
+
+export type AddDischargeAction = (bedId: string, payload: DischargeAddCommandPayload) => void;
 
 export type UpdateDischargeAction = (
   id: string,
@@ -31,15 +46,7 @@ export type UndoDischargeAction = (id: string) => void;
 export type ConvertDischargeToCmaAction = (id: string) => void;
 export type ConvertDischargeToTransferAction = (id: string) => void;
 
-export type AddTransferAction = (
-  bedId: string,
-  method: string,
-  center: string,
-  centerOther: string,
-  escort?: string,
-  time?: string,
-  movementDate?: string
-) => void;
+export type AddTransferAction = (bedId: string, payload: TransferCommandPayload) => void;
 
 export type UpdateTransferAction = (
   id: string,

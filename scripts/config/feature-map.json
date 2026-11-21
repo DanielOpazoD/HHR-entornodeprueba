@@ -427,7 +427,7 @@
     },
     {
       "id": "eloisa.copy-and-sync",
-      "name": "Copiar censo y sincronizar (día sin censo)",
+      "name": "Copiar censo y sincronizar: el único modo de crear un día sin censo",
       "owner": "src/features/rayen-import",
       "reach": {
         "screen": "Censo Diario, día vacío",
@@ -441,31 +441,14 @@
         "src/features/census/components/EmptyDayPrompt.tsx"
       ],
       "tests": [
-        "src/tests/rayen-import/RayenDayBootstrapButton.test.tsx",
-        "src/tests/views/census/censusEloisaBootstrap.integration.test.tsx",
-        "e2e/eloisa-day-bootstrap-critical.spec.ts › waits for a confirmed empty day and keeps the previous census available"
-      ],
-      "rules": ["CEN-01", "CEN-02"]
-    },
-    {
-      "id": "eloisa.create-day",
-      "name": "Crear el día desde Eloísa",
-      "owner": "src/features/rayen-import",
-      "reach": {
-        "screen": "Censo Diario, día vacío sin censo anterior",
-        "controls": [{ "testId": "create-from-rayen-btn" }, { "text": "Crear desde Eloísa" }]
-      },
-      "gate": [
-        "src/features/rayen-import/components/RayenDayBootstrapButton.tsx",
-        "src/features/census/components/EmptyDayPrompt.tsx"
-      ],
-      "tests": [
         "src/tests/views/census/EmptyDayPrompt.test.tsx",
-        "src/tests/rayen-import/RayenImportButton.bootstrap.test.tsx",
         "src/tests/rayen-import/RayenDayBootstrapButton.test.tsx",
+        "src/tests/rayen-import/RayenImportButton.bootstrap.test.tsx",
+        "src/tests/views/census/censusEloisaBootstrap.integration.test.tsx",
+        "e2e/eloisa-day-bootstrap-critical.spec.ts › waits for a confirmed empty day and keeps the previous census available",
         "e2e/eloisa-day-bootstrap-critical.spec.ts › does not let extension readiness bypass the remote census check"
       ],
-      "rules": ["CEN-01", "SRC-01", "SAVE-01"]
+      "rules": ["CEN-01", "CEN-02", "SRC-01", "SAVE-01"]
     },
     {
       "id": "eloisa.sync-history",

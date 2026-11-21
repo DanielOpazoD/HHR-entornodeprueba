@@ -9,9 +9,7 @@ import { getTodayISO } from '@/utils/dateCoreUtils';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import { bedManagementReducer } from '@/hooks/useBedManagementReducer';
 import {
-  buildAddDischargeInput,
   buildAtomicPatientMovementPatch,
-  buildDischargeAddCommandPayload,
   resolveAddDischargeMovement,
 } from '@/application/census/public';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
@@ -140,20 +138,18 @@ const changes = {
       value: DIAGNOSIS,
     }) ?? {},
   discharge: (record: DailyRecord): DailyRecordPatch => {
-    const resolution = resolveAddDischargeMovement(
-      buildAddDischargeInput({
-        record,
-        bedId: 'R1',
-        payload: buildDischargeAddCommandPayload({
-          status: 'Vivo',
-          dischargeType: 'Domicilio (Habitual)',
-          time: '10:00',
-          target: 'both',
-        }),
-        bedsCatalog: BEDS,
-        createEmptyPatient,
-      })
-    );
+    const resolution = resolveAddDischargeMovement({
+      record,
+      bedId: 'R1',
+      payload: {
+        status: 'Vivo',
+        type: 'Domicilio (Habitual)',
+        time: '10:00',
+        dischargeTarget: 'both',
+      },
+      bedsCatalog: BEDS,
+      createEmptyPatient,
+    });
     if (!resolution.ok) throw new Error(`discharge not resolved: ${resolution.error.code}`);
     return buildAtomicPatientMovementPatch({
       updatedRecord: resolution.value.updatedRecord,

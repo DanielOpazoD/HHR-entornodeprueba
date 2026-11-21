@@ -16,7 +16,6 @@ import {
 } from '@/hooks/controllers/createDayCopyAvailabilityController';
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
-import { getPreviousDay as getPreviousCalendarDay } from '@/utils/clinicalDayUtils';
 import { executeDeleteDailyRecord } from '@/application/daily-record/commands/deleteDailyRecordCommand';
 import { getCurrentUserEmail } from '@/services/admin/utils/auditUtils';
 
@@ -40,81 +39,45 @@ export const usePersistence = ({
   const { logDailyRecordCreated } = useAuditContext();
 
   /**
-   * Creates a new daily record for the current date.
+   * Creates the current date as a copy of `sourceDate`, the only way the empty day offers.
    */
   const createDay = useCallback(
-    async (
-      copyFromPrevious: boolean,
-      specificDate?: string,
-      options?: { forceCopyScheduleOverride?: boolean }
-    ) => {
-      let prevDate: string | undefined = undefined;
-      let copySourceMeta: {
-        compatibilityIntensity: string;
-        migrationRulesApplied: string[];
-      } | null = null;
-
+    async (sourceDate: string) => {
       try {
-        if (copyFromPrevious) {
-          const copyAvailability = resolveCreateDayCopyAvailability(currentDateString, new Date());
-          if (copyAvailability.isCopyLocked && !options?.forceCopyScheduleOverride) {
-            recordOperationalTelemetry({
-              category: 'create_day',
-              status: 'degraded',
-              operation: 'copy_day_locked_by_schedule',
-              date: currentDateString,
-              issues: ['La copia del día previo aún no está habilitada por horario.'],
-              context: { targetDate: currentDateString },
-            });
-            warning(
-              'Copia con observaciones',
-              `La copia del día previo aún no está disponible. ${buildCopyUnlockDescription(currentDateString, new Date())}`
-            );
-            return false;
-          }
+        if (resolveCreateDayCopyAvailability(currentDateString, new Date()).isCopyLocked) {
+          recordOperationalTelemetry({
+            category: 'create_day',
+            status: 'degraded',
+            operation: 'copy_day_locked_by_schedule',
+            date: currentDateString,
+            issues: ['La copia del día previo aún no está habilitada por horario.'],
+            context: { targetDate: currentDateString },
+          });
+          warning(
+            'Copia con observaciones',
+            `La copia del día previo aún no está disponible. ${buildCopyUnlockDescription(currentDateString, new Date())}`
+          );
+          return false;
         }
 
-        if (copyFromPrevious) {
-          const defaultPreviousDate = getPreviousCalendarDay(currentDateString);
-          const requestedSourceDate = specificDate || defaultPreviousDate;
-
-          if (requestedSourceDate) {
-            await dailyRecord.syncWithFirestoreDetailed(requestedSourceDate);
-          }
-
-          if (specificDate) {
-            const source = await dailyRecord.getForDateWithMeta(requestedSourceDate, true);
-            if (!source.record) {
-              warning(
-                'No se encontró registro anterior',
-                'No hay datos del día seleccionado para copiar.'
-              );
-              return false;
-            }
-            prevDate = requestedSourceDate;
-            copySourceMeta = source;
-          } else {
-            const prevRecord = await dailyRecord.getForDateWithMeta(requestedSourceDate, true);
-            if (!prevRecord.record) {
-              warning(
-                'No se encontró registro anterior',
-                'No hay datos sincronizados del día previo para copiar.'
-              );
-              return false;
-            }
-            prevDate = requestedSourceDate;
-            copySourceMeta = prevRecord;
-          }
+        await dailyRecord.syncWithFirestoreDetailed(sourceDate);
+        const copySourceMeta = await dailyRecord.getForDateWithMeta(sourceDate, true);
+        if (!copySourceMeta.record) {
+          warning(
+            'No se encontró registro anterior',
+            'No hay datos del día seleccionado para copiar.'
+          );
+          return false;
         }
 
         const initOutcome = await executeInitializeDailyRecord({
           date: currentDateString,
-          copyFromDate: prevDate,
+          copyFromDate: sourceDate,
           repository: dailyRecord,
         });
         recordOperationalOutcome('create_day', 'initialize_daily_record', initOutcome, {
           date: currentDateString,
-          context: { copyFromPrevious, sourceDate: prevDate || null },
+          context: { sourceDate },
           allowSuccess: true,
         });
         const initResult = initOutcome.data?.initialization;
@@ -127,7 +90,7 @@ export const usePersistence = ({
             operation: 'initialize_daily_record',
             date: currentDateString,
             issues: [failureNotice.message || failureNotice.title],
-            context: { copyFromPrevious, sourceDate: prevDate || null, reason: initOutcome.reason },
+            context: { sourceDate, reason: initOutcome.reason },
           });
           notifyError(failureNotice.title, failureNotice.message);
           return false;
@@ -136,7 +99,7 @@ export const usePersistence = ({
         setRecord(newRecord);
 
         const notifications = buildCreateDayNotifications({
-          sourceDate: prevDate,
+          sourceDate,
           outcome: initResult.outcome,
           hasCriticalLegacyRepair:
             hasCriticalLegacyRepairSignal(copySourceMeta) ||
@@ -150,10 +113,7 @@ export const usePersistence = ({
           }
         }
 
-        logDailyRecordCreated(
-          currentDateString,
-          copyFromPrevious ? specificDate || 'previous_day' : 'blank'
-        );
+        logDailyRecordCreated(currentDateString, sourceDate);
         return true;
       } catch (error) {
         recordOperationalTelemetry({
@@ -162,7 +122,7 @@ export const usePersistence = ({
           operation: 'initialize_daily_record',
           date: currentDateString,
           issues: [getUserFriendlyErrorMessage(error)],
-          context: { copyFromPrevious, sourceDate: prevDate || null },
+          context: { sourceDate },
         });
         notifyError('No se pudo crear el día', getUserFriendlyErrorMessage(error));
         return false;

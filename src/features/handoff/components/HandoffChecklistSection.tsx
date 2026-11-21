@@ -16,11 +16,7 @@ interface HandoffChecklistSectionProps {
   receivesList: string[];
   nursesList: string[];
   readOnly: boolean;
-  onUpdateStaff: (
-    shift: 'day' | 'night',
-    type: 'delivers' | 'receives' | 'tens',
-    list: string[]
-  ) => void;
+  onUpdateReceives: (shift: 'day' | 'night', list: string[]) => void;
   onUpdateChecklist: (
     shift: 'day' | 'night' | 'shared',
     field: string,
@@ -36,7 +32,7 @@ export const HandoffChecklistSection: React.FC<HandoffChecklistSectionProps> = (
   receivesList,
   nursesList,
   readOnly,
-  onUpdateStaff,
+  onUpdateReceives,
   onUpdateChecklist,
 }) => {
   const checklistSectionViewModel = buildHandoffChecklistSectionViewModel({
@@ -66,7 +62,7 @@ export const HandoffChecklistSection: React.FC<HandoffChecklistSectionProps> = (
             bgClass=""
             selectedNurses={receivesList}
             availableNurses={nursesList}
-            onUpdate={list => onUpdateStaff(selectedShift, 'receives', list)}
+            onUpdate={list => onUpdateReceives(selectedShift, list)}
             readOnly={false}
             compact
           />

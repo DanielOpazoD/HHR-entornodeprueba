@@ -13,33 +13,22 @@ vi.mock('@/services/repositories/dailyRecordOperationalTelemetry', () => ({
 vi.mock('@/features/rayen-import/public', async importOriginal => ({
   ...(await importOriginal<typeof import('@/features/rayen-import/public')>()),
   RayenDayBootstrapButton: ({
-    historical,
     disabled,
-    onCreateBlank,
     onReady,
     copySourceDate,
     onCopyPrevious,
   }: {
-    historical?: boolean;
     disabled?: boolean;
-    onCreateBlank: () => Promise<boolean>;
     onReady: () => void;
-    copySourceDate?: string;
-    onCopyPrevious?: () => Promise<boolean>;
+    copySourceDate: string;
+    onCopyPrevious: () => Promise<boolean>;
   }) => (
     <button
       type="button"
       disabled={disabled}
-      onClick={() => {
-        if (copySourceDate) void onCopyPrevious?.().then(copied => copied && onReady());
-        else void onCreateBlank().then(onReady);
-      }}
+      onClick={() => void onCopyPrevious().then(copied => copied && onReady())}
     >
-      {copySourceDate
-        ? `Copiar pacientes del ${Number(copySourceDate.slice(-2))}`
-        : historical
-          ? 'Reconstruir desde Eloísa'
-          : 'Crear desde Eloísa'}
+      {`Copiar pacientes del ${Number(copySourceDate.slice(-2))}`}
     </button>
   ),
 }));
@@ -94,7 +83,6 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
       await Promise.resolve();
     });
     expect(screen.getByRole('button')).toBeDisabled();
-    expect(screen.queryByText(/Crear desde|Reconstruir desde/)).not.toBeInTheDocument();
     expect(onCreateDay).not.toHaveBeenCalled();
     expect(onReady).not.toHaveBeenCalled();
   });
@@ -114,7 +102,7 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Copiar pacientes del 23' }));
     });
-    expect(onCreateDay).toHaveBeenCalledWith(true, '2026-09-23');
+    expect(onCreateDay).toHaveBeenCalledWith('2026-09-23');
     expect(onReady).toHaveBeenCalledOnce();
   });
 
@@ -157,7 +145,7 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Copiar pacientes del 19' }));
     });
-    expect(onCreateDay).toHaveBeenCalledWith(true, '2026-09-19');
+    expect(onCreateDay).toHaveBeenCalledWith('2026-09-19');
   });
 
   it('keeps the copy-only label when an open tab ages', () => {
@@ -170,7 +158,6 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
       vi.advanceTimersByTime(60_000);
     });
     expect(screen.getByRole('button', { name: 'Copiar pacientes del 23' })).toBeDisabled();
-    expect(screen.queryByRole('button', { name: 'Crear desde Eloísa' })).not.toBeInTheDocument();
   });
 
   it('does not create an empty day while the remote check is pending or unavailable', () => {

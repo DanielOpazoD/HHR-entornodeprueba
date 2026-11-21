@@ -9,8 +9,6 @@ import { BEDS } from '@/constants/beds';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import {
   resolveAddTransferMovement,
-  buildAddTransferInput,
-  buildTransferCommandPayload,
   resolveDeleteTransferMovement,
   resolveUpdateTransferMovement,
   resolveApplyUndoTransferRecord,
@@ -87,26 +85,16 @@ export const usePatientTransfers = (
   const executeReclassification = useMovementReclassificationExecution();
 
   const addTransfer: AddTransferAction = useCallback(
-    (bedId, method, center, centerOther, escort, time, movementDate) => {
+    (bedId, payload) => {
       withCurrentRecord(currentRecord => {
-        const payload = buildTransferCommandPayload({
-          method,
-          center,
-          centerOther,
-          escort,
-          time,
-          movementDate,
+        const resolution = resolveAddTransferMovement({
+          record: currentRecord,
+          bedId,
+          payload,
+          bedsCatalog: BEDS,
+          createEmptyPatient,
+          provenance: buildManualMovementProvenanceSeed(actor),
         });
-        const resolution = resolveAddTransferMovement(
-          buildAddTransferInput({
-            record: currentRecord,
-            bedId,
-            payload,
-            bedsCatalog: BEDS,
-            createEmptyPatient,
-            provenance: buildManualMovementProvenanceSeed(actor),
-          })
-        );
         void executeMovementCreation({
           kind: 'transfer',
           bedId,

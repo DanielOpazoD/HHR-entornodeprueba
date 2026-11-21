@@ -183,7 +183,7 @@ describe('Critical Integration Paths', () => {
     });
 
     await act(async () => {
-      await result.current.createDay(false);
+      await result.current.createDay('2025-01-03');
     });
 
     await waitFor(() => expect(result.current.record).not.toBeNull());
@@ -224,7 +224,7 @@ describe('Critical Integration Paths', () => {
     });
 
     await act(async () => {
-      await result.current.createDay(false);
+      await result.current.createDay('2025-01-03');
     });
 
     await waitFor(() => expect(result.current.record).not.toBeNull());
@@ -245,14 +245,11 @@ describe('Critical Integration Paths', () => {
 
     // 1. Execute Discharge
     await act(async () => {
-      await result.current.addDischarge(
-        'bed-1',
-        'Vivo',
-        undefined,
-        'Domicilio',
-        undefined,
-        '12:00'
-      );
+      await result.current.addDischarge('bed-1', {
+        status: 'Vivo',
+        type: 'Domicilio',
+        time: '12:00',
+      });
     });
 
     // 2. Verify Bed Cleared
@@ -300,7 +297,7 @@ describe('Critical Integration Paths', () => {
       wrapper: createIntegrationWrapper(),
     });
     await act(async () => {
-      await result.current.createDay(false);
+      await result.current.createDay('2025-01-03');
     });
     await waitFor(() => expect(result.current.record).not.toBeNull());
 

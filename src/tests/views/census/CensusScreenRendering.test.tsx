@@ -34,7 +34,6 @@ describe('census screen subscription boundary', () => {
         showBedManagerModal: false,
         onCloseBedManagerModal: close,
         readOnly: false,
-        allowAdminCopyOverride: false,
         accessProfile: 'default',
       });
       renderCount();

@@ -33,7 +33,6 @@ export * from './controllers/censusEmailRecipientsController';
 export * from './controllers/dischargeModalController';
 export * from './controllers/patientMovementCreationController';
 export * from './controllers/patientMovementCreationErrorPresentation';
-export * from './controllers/patientMovementCreationInputController';
 export * from './controllers/patientMovementMutationController';
 export * from './controllers/patientMovementRuntimeController';
 export * from './controllers/patientMovementSelectionController';
