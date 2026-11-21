@@ -1,10 +1,9 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
-import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import type { RayenApplyFailureReason, RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
-import type { ConfirmedRayenCensusApplyResult } from './useRayenCensusDiffApplication';
+import type { ApplyRayenCensusDiff } from './useRayenCensusDiffApplication';
 import type { ClinicalFillRequest, ClinicalStageResult } from '../contracts/clinicalStageResult';
 import type { RayenImportState } from './rayenImportState';
 import type { PreparedRayenSyncContext } from './rayenSyncTemporalContext';
@@ -21,11 +20,7 @@ export interface UseRayenSnapshotPreviewInput {
   executionRef: RefObject<RayenSyncExecutionState>;
   selectedDateRef?: RefObject<string | undefined>;
   clearSyncTimeout: () => void;
-  applyDiff: (
-    record: DailyRecord,
-    diff: CensusImportDiff,
-    clinicalDay?: string
-  ) => Promise<ConfirmedRayenCensusApplyResult>;
+  applyDiff: ApplyRayenCensusDiff;
   runClinicalStage: (source: ClinicalFillRequest) => Promise<ClinicalStageResult>;
   /** La causa se clasifica desde el error real (permisos / conflicto / genérica). */
   failRun: (reason: RayenApplyFailureReason, runId?: string, applyError?: unknown) => Promise<void>;

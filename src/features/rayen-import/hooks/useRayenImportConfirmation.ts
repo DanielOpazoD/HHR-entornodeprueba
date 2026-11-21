@@ -28,6 +28,7 @@ import type {
 } from '../contracts/censusImportDiff';
 import { resolveBedOccupancyCollisions } from '../domain/bedOccupancyCollisionPolicy';
 import { persistRayenStructureThenClinical } from './rayenSnapshotPersistenceExecution';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import { defaultMonotonicNow } from '../domain/rayenSyncPerformance';
 
 type ExecutionController = ReturnType<typeof useRayenSyncExecutionController>;
@@ -88,6 +89,8 @@ export const useRayenImportConfirmation = ({
       neonatalResolutions: NeonatalPlacementResolution[] = [],
       neonatalSourceAcknowledgements: string[] = []
     ) => {
+      // The confirmation belongs to the session that pressed it; a later change stops it.
+      const session = guardAuthoringSession();
       const base =
         preparedSyncContextRef.current?.record ?? currentRecordRef.current ?? currentRecord;
       if (!base || !state.diff) return;
@@ -133,6 +136,7 @@ export const useRayenImportConfirmation = ({
       }
       await persistRayenStructureThenClinical({
         identity: executionIdentity,
+        session,
         afterReview: true,
         applyPreviousDays,
         preparePlan: () => {
