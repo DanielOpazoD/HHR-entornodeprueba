@@ -274,7 +274,18 @@ export const resolveUnsentDayBase = async (
   };
 };
 
-const IDENTITY_FIELDS = new Set(['patientName', 'rut', 'documentType', 'clinicalEpisodeId']);
+const IDENTITY_FIELDS = new Set([
+  'patientName',
+  'firstName',
+  'lastName',
+  'secondLastName',
+  'rut',
+  'documentType',
+  'clinicalEpisodeId',
+]);
+/** Values main merges item by item or by specialty: a field write would drop the other side's. */
+const MERGED_VALUE_PATH =
+  /^(medicalHandoff|beds\.[^.]+\.(clinicalCrib\.)?(medicalHandoffEntries|medicalHandoffNote|medicalHandoffAudit|clinicalEvents)(\.|$))/;
 
 /** The bed or crib whose patient a path names (`beds.R1`, `beds.R1.clinicalCrib`), if it does. */
 const identitySlotOf = (path: string): string | undefined => {
@@ -285,35 +296,67 @@ const identitySlotOf = (path: string): string | undefined => {
   return IDENTITY_FIELDS.has(field ?? '') ? `beds.${bedId}` : undefined;
 };
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
+
 /**
- * ID-01, as the same edit made online checks it before it is rebased: an edit of who a bed or crib
- * holds (an admission, a name or document correction) goes on only while the stored slot still
- * holds the patient and episode the edit was written over (`patchBaseContext`), or already the one
- * it writes. Edits of other fields leave for their patient on their own
- * (`detachStaleOccupantPaths`). Otherwise the task keeps the whole-day publish, as before.
+ * Whether writing `next` field by field (the write flattens a map into its keys) leaves the same
+ * value as replacing `previous` whole: no key of `previous` with a value is missing in `next`. A
+ * renamed device key, for one, is not.
  */
-export const keepsEditedOccupants = (
+const keepsEveryKey = (next: unknown, previous: unknown): boolean =>
+  !isPlainObject(previous) ||
+  !isPlainObject(next) ||
+  Object.entries(previous).every(
+    ([key, value]) =>
+      value === null ||
+      value === undefined ||
+      (Object.hasOwn(next, key) && keepsEveryKey(next[key], value))
+  );
+
+/**
+ * Whether these fields resend as the same edit made online (W22-SAVE-B, after its review): each
+ * value is replaced whole (a scalar, a list or a map that loses no key), none is merged item by
+ * item in main (handoff entries and notes), the bed fields are of one route (structural or
+ * clinical, a single authority write), and staffing never goes with a bed field (its write needs
+ * the exact version the bed write moves). An edit of who a bed or crib holds goes on only as an
+ * admission: that slot was empty when the edit was written (`patchBaseContext`) and still is
+ * (ID-01). Otherwise the task keeps the whole-day publish, as in main.
+ */
+export const canReplayByField = (
   task: SyncTask,
+  paths: string[],
   queued: DailyRecord,
   stored: DailyRecord
 ): boolean => {
-  const slots = new Set(
-    normalizeChangedPaths(task.syncContract?.changedPaths).flatMap(path => {
-      const slot = identitySlotOf(path);
-      return slot ? [slot] : [];
-    })
-  );
   const context = task.patchBaseContext;
-  if (!slots.size) return true;
-  if (!context) return false;
-  return [...slots].every(slot => {
-    const base: Partial<PatientData> = Object.fromEntries(
-      [...IDENTITY_FIELDS].map(field => [field, context[`${slot}.${field}`]])
+  const bedPaths = paths.filter(isDailyRecordBedTreePath);
+  const clinical = bedPaths.filter(isClinicalAuthorityCallablePatchPath).length;
+  if (clinical > 0 && clinical < bedPaths.length) return false;
+  if (bedPaths.length && paths.some(path => STAFFING_PATH.test(path))) return false;
+  const emptyAt = (slot: string, source: (field: string) => unknown) =>
+    hasSameBedOccupant(
+      Object.fromEntries(
+        [...IDENTITY_FIELDS].map(field => [field, source(field)])
+      ) as Partial<PatientData> as PatientData,
+      undefined
     );
-    const now = getValueAtPath(stored, slot) as PatientData | undefined;
+  return paths.every(path => {
+    const value = getValueAtPath(queued, path);
+    if (MERGED_VALUE_PATH.test(path)) return false;
+    if (
+      !keepsEveryKey(value, getValueAtPath(stored, path)) ||
+      !keepsEveryKey(value, task.patchBaseValues?.[path])
+    )
+      return false;
+    const slot = identitySlotOf(path);
     return (
-      hasSameBedOccupant(base as PatientData, now) ||
-      hasSameBedOccupant(getValueAtPath(queued, slot) as PatientData | undefined, now)
+      !slot ||
+      Boolean(
+        context &&
+        emptyAt(slot, field => context[`${slot}.${field}`]) &&
+        emptyAt(slot, field => getValueAtPath(stored, `${slot}.${field}`))
+      )
     );
   });
 };
@@ -322,14 +365,17 @@ const valuesAt = (source: DailyRecord, paths: string[]): DailyRecordPatch =>
   Object.fromEntries(paths.map(path => [path, getValueAtPath(source, path)])) as DailyRecordPatch;
 
 /**
- * Resends these fields of a queued day write as the same edit made online saves them (W22-SAVE-B):
- * its day fields and staffing through their direct write, then its bed fields through the
- * authority patch, structural before clinical, each with the fields a normal save derives from
- * them on that patient (name parts, episode, FHIR). The replay has just checked each field against
- * `storedData`, so every write is made over that day and its revision: one that changed meanwhile
- * refuses it and the task stays whole. Only the last write carries the task's mutation id, so an
- * earlier part never acknowledges the rest; a part already stored is recognized next time by its
- * stored value. A changed owner or session generation stops every write (no write, no notice).
+ * Resends these fields of a queued day write as the same edit made online saves them (W22-SAVE-B),
+ * once `canReplayByField` admits them. The replay has just checked each field against its base in
+ * `storedData`, and every write is made over that same read, never over a version a write of this
+ * task returned: first the bed fields, through the authority patch on that read's time and
+ * revision, with the fields a normal save derives from them on that patient (name parts, episode,
+ * FHIR); then the day fields and staffing, through their direct write, whose transaction accepts
+ * a newer version only while each field still holds that read's value or the queued one. A day
+ * that changed in between refuses the write and the task stays as it is. Only a last write carries
+ * the task's mutation id, so an earlier part never acknowledges the rest; a part already stored
+ * is recognized next time by its stored value. A changed owner or session generation stops every
+ * write (no write, no notice).
  */
 export const replayTaskFields = async (
   task: SyncTask,
@@ -340,12 +386,9 @@ export const replayTaskFields = async (
   assertCanPublish?: () => void
 ): Promise<SyncTransportResult> => {
   const { date } = record;
-  let stored = docToRecord(storedData, date);
-  const dayPaths = paths.filter(path => !isDailyRecordBedTreePath(path));
+  const stored = docToRecord(storedData, date);
   const bedPaths = paths.filter(isDailyRecordBedTreePath);
-  const clinicalPaths = bedPaths.filter(isClinicalAuthorityCallablePatchPath);
-  // As the census sends an edit of both: structural first (it anchors the episode), then clinical.
-  const mixed = clinicalPaths.length > 0 && clinicalPaths.length < bedPaths.length;
+  const dayPaths = paths.filter(path => !isDailyRecordBedTreePath(path));
   const slotOf = (path: string) => path.split('.').slice(0, 2).join('.');
   const slots = new Set(bedPaths.map(slotOf));
   const bedPatch = Object.fromEntries(
@@ -353,39 +396,31 @@ export const replayTaskFields = async (
       bedPaths.length
         ? preparePatchedRecordPersistence(stored, date, valuesAt(record, bedPaths)).mergedPatches
         : {}
-    ).filter(
-      ([path]) =>
-        isBedFieldReplayPath(path) &&
-        slots.has(slotOf(path)) &&
-        !(mixed && clinicalPaths.includes(path))
-    )
+    ).filter(([path]) => isBedFieldReplayPath(path) && slots.has(slotOf(path)))
   ) as DailyRecordPatch;
-  const parts = [
-    valuesAt(record, dayPaths),
-    bedPatch,
-    mixed ? valuesAt(record, clinicalPaths) : {},
-  ].filter(part => Object.keys(part).length > 0);
+  const parts = [bedPatch, valuesAt(record, dayPaths)].filter(part => Object.keys(part).length > 0);
   const mutationId = task.syncContract?.mutationId ?? task.opId;
-  let committed: DailyRecord | undefined;
+  let receipt: Awaited<ReturnType<typeof updateRecordPartial>> | undefined;
   for (const [index, part] of parts.entries()) {
-    const receipt = await updateRecordPartial(date, part, stored.lastUpdated, {
+    const last = index === parts.length - 1;
+    receipt = await updateRecordPartial(date, part, stored.lastUpdated, {
       baseRecord: stored,
       syncContract: {
         ...task.syncContract,
         changedPaths: Object.keys(part).filter(path => paths.includes(path)),
         expectedVersion: stored.lastUpdated,
         baseRevision: resolveRecordBaseRevision(stored),
-        mutationId: index === parts.length - 1 ? mutationId : `${mutationId}:part-${index}`,
-        mutationIds: index === parts.length - 1 ? task.syncContract?.mutationIds : undefined,
+        mutationId: last ? mutationId : `${mutationId}:part-${index}`,
+        mutationIds: last ? task.syncContract?.mutationIds : undefined,
       },
       returnCommittedRecord: true,
       assertCanPublish,
     });
-    // Without a projectable receipt, the stored day after the commit is the committed record.
-    committed =
-      receipt?.recordState?.record ??
-      docToRecord((await getDoc(getRecordDocRef(date, runtime))).data() ?? {}, date);
-    stored = committed;
   }
-  return { authoritativeRecord: committed ?? stored };
+  // Without a projectable receipt, the stored day after the commit is the committed record.
+  return {
+    authoritativeRecord:
+      receipt?.recordState?.record ??
+      docToRecord((await getDoc(getRecordDocRef(date, runtime))).data() ?? {}, date),
+  };
 };

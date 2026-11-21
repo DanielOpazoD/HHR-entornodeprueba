@@ -45,7 +45,7 @@ import {
   fieldReplayPaths,
   holdOutPlainDayFieldsChangedElsewhere,
   keepPlainDayFieldsHeld,
-  keepsEditedOccupants,
+  canReplayByField,
   replayTaskFields,
   type PlainDayFieldsHeldOut,
 } from './taskFieldReplay';
@@ -275,9 +275,9 @@ const resolveRecordForSyncTask = async (
     );
   }
   // Checked field by field just above: resent as the same edit made online (replayTaskFields).
-  const fieldPaths = keepsEditedOccupants(task, record, remoteRecord)
-    ? fieldReplayPaths(task)?.filter(path => !applied.includes(path))
-    : undefined;
+  const replayable = fieldReplayPaths(task)?.filter(path => !applied.includes(path));
+  const fieldPaths =
+    replayable && canReplayByField(task, replayable, record, remoteRecord) ? replayable : undefined;
   if (fieldPaths)
     return {
       record,

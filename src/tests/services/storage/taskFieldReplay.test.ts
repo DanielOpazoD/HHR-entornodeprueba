@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { fieldReplayPaths, keepsEditedOccupants } from '@/services/storage/sync/taskFieldReplay';
+import { canReplayByField, fieldReplayPaths } from '@/services/storage/sync/taskFieldReplay';
 import { UNKNOWN_SERVER_VERSION } from '@/services/storage/sync/syncTaskContractPolicy';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
@@ -85,47 +85,73 @@ describe('which queued day writes resend as the same edit made online', () => {
   });
 });
 
-describe('an edit of who a bed or crib holds resends by field only for that same patient', () => {
+describe('which fields resend by field once checked against the stored day', () => {
+  const day = (beds: Record<string, object>, extra: object = {}) => ({ beds, ...extra }) as never;
   const newborn = (clinicalEpisodeId: string, patientName = 'RN PROVISIONAL SINTETICO') => ({
     patientName,
     rut: '',
     documentType: 'RUT',
     clinicalEpisodeId,
   });
-  const dayWith = (crib: object) =>
-    ({ beds: { R1: { patientName: 'MADRE SINTETICA', clinicalCrib: crib } } }) as never;
-  const nameTask = dayTask(
-    { 'beds.R1.clinicalCrib.patientName': 'RN PROVISIONAL SINTETICO' },
-    {
+  const check = (changes: Record<string, unknown>, queued: never, stored: never, extra = {}) => {
+    const task = dayTask(changes, extra);
+    return canReplayByField(task, Object.keys(changes), queued, stored);
+  };
+
+  it('takes a scalar of a bed, a day field and staffing alone', () => {
+    const bed = day({ R1: { pathology: 'B' } });
+    expect(check({ 'beds.R1.pathology': 'A' }, bed, bed)).toBe(true);
+    expect(check({ 'beds.R1.pathology': 'A', handoffNovedadesDayShift: '' }, bed, bed)).toBe(true);
+    expect(check({ nursesDayShift: [], tensDayShift: [] }, bed, bed)).toBe(true);
+  });
+
+  it('keeps one authority write: never structural with clinical, nor staffing with a bed', () => {
+    const bed = day({ R1: { pathology: 'B', age: '40' } });
+    expect(check({ 'beds.R1.pathology': 'A', 'beds.R1.age': '41' }, bed, bed)).toBe(false);
+    expect(check({ 'beds.R1.age': '41', nursesDayShift: [] }, bed, bed)).toBe(false);
+  });
+
+  // Review of #1859: main merges these item by item; a field write would drop the other side's.
+  it.each([
+    ['handoff entries', 'beds.R1.medicalHandoffEntries'],
+    ['a crib handoff note', 'beds.R1.clinicalCrib.medicalHandoffNote'],
+    ['clinical events', 'beds.R1.clinicalEvents'],
+    ['the medical summary', 'medicalHandoffNovedades'],
+    ['a specialty summary', 'medicalHandoffBySpecialty.cirugia'],
+  ])('leaves %s to the whole-day publish', (_label, path) => {
+    const bed = day({ R1: {} });
+    expect(check({ [path]: [] }, bed, bed)).toBe(false);
+  });
+
+  // Review of #1859: the field write flattens a map, so a renamed key would stay.
+  it('takes a map only when it loses no key', () => {
+    const details = (keys: string[]) =>
+      day({ R1: { deviceDetails: Object.fromEntries(keys.map(key => [key, { note: key }])) } });
+    const renamed = details(['CVC', 'Drenaje pleural derecho']);
+    const before = details(['CVC', 'Drenaje derecho']);
+    const path = 'beds.R1.deviceDetails';
+    expect(check({ [path]: {} }, renamed, before)).toBe(false);
+    expect(check({ [path]: {} }, details(['CVC', 'Drenaje derecho', 'SNG']), before)).toBe(true);
+  });
+
+  // ID-01 (review of #1859): the same provisional name and derived id are not the same newborn.
+  it('takes an edit of who a slot holds only as an admission into a slot still empty', () => {
+    const path = 'beds.R1.clinicalCrib.patientName';
+    const crib = day({ R1: { patientName: 'MADRE', clinicalCrib: newborn('legacy_ep_rn') } });
+    const context = (episode: string) => ({
       patchBaseContext: Object.fromEntries(
-        Object.entries(newborn('ep_rn_a')).map(([field, value]) => [
+        Object.entries(newborn(episode)).map(([field, value]) => [
           `beds.R1.clinicalCrib.${field}`,
           value,
         ])
       ),
-    }
-  );
-  const queued = dayWith(newborn('ep_rn_a', 'NOMBRE DEL PRIMER RN'));
-
-  it('takes a name correction while the crib holds the newborn it was written for', () => {
-    expect(keepsEditedOccupants(nameTask, queued, dayWith(newborn('ep_rn_a')))).toBe(true);
-  });
-
-  // ID-01: the same provisional name is not the same newborn.
-  it('leaves it to the whole-day publish once the crib holds another newborn', () => {
-    expect(keepsEditedOccupants(nameTask, queued, dayWith(newborn('ep_rn_b')))).toBe(false);
-  });
-
-  it('takes an admission while the bed stays empty, and an edit of another field as it is', () => {
-    const admission = dayTask(
-      { 'beds.R1.patientName': '', 'beds.R1.rut': '' },
-      { patchBaseContext: {} }
-    );
-    const empty = { beds: { R1: { patientName: '', rut: '' } } } as never;
-    expect(keepsEditedOccupants(admission, empty, empty)).toBe(true);
-    expect(keepsEditedOccupants(dayTask({ 'beds.R1.age': '40' }), queued, empty)).toBe(true);
-    expect(keepsEditedOccupants({ ...nameTask, patchBaseContext: undefined }, queued, queued)).toBe(
-      false
-    );
+    });
+    expect(check({ [path]: 'RN' }, crib, crib, context('legacy_ep_rn'))).toBe(false);
+    const empty = day({ R1: { patientName: '', rut: '' } });
+    const admitted = day({ R1: { patientName: 'NUEVO', rut: '11.111.111-1' } });
+    const admission = { 'beds.R1.patientName': '', 'beds.R1.rut': '' };
+    expect(check(admission, admitted, empty, { patchBaseContext: {} })).toBe(true);
+    expect(check(admission, admitted, admitted, { patchBaseContext: {} })).toBe(false);
+    expect(check(admission, admitted, empty)).toBe(false);
   });
 });

@@ -116,18 +116,29 @@ directas del cliente y los escritores del servidor que no actualizan el mapa no 
 campo: mientras son la última escritura se leen por su `meta`, y después `incompleteThrough` impide
 atribuir a la tarea un valor anterior a ellas, aunque vuelva a ser el mismo texto.
 
-Una tarea parcial (sin `*`) cuyos campos son datos del día, dotación o campos sueltos de una cama
-o cuna, cada uno con su valor base y una versión conocida, se reenvía como la misma edición hecha en
-línea (`replayTaskFields`, en `taskFieldReplay.ts`). Tras comparar cada campo con su base contra el
-día recién leído, los datos del día y la dotación van por su escritura directa
-(`updateRecordPartial`) y los campos de cama por el parche de la función, primero los estructurales
-y después los clínicos, con lo que un guardado normal deriva en ese paciente (partes del nombre,
-episodio, FHIR). Cada escritura va sobre la hora y la revisión de esa lectura: si el día cambió entre
-medio, el servidor la rechaza y la tarea queda completa. Solo la última lleva el identificador de la
-tarea, y una parte ya guardada se reconoce en el siguiente intento por su valor guardado. Así, la nota
-directa de otro equipo, que solo mueve la hora del día, no hace conflicto a una tarea de cama, y un
-campo distinto de la misma cama que otro escritor cambió se conserva. Las tareas con listas de
-movimientos, una cama o cuna entera, o un campo sin base siguen publicando el día completo.
+Una tarea parcial (sin `*`) se reenvía como la misma edición hecha en línea
+(`replayTaskFields`, en `taskFieldReplay.ts`) cuando sus campos son datos del día, dotación o
+campos sueltos de una cama o cuna, cada uno con su valor base y una versión conocida, y además
+(`canReplayByField`):
+
+- cada valor se reemplaza entero: un escalar, una lista o un mapa que no pierde claves (un
+  dispositivo renombrado sí las pierde);
+- ninguno se fusiona por elemento en main (entradas y notas de la entrega médica, eventos clínicos);
+- los campos de cama son de una sola vía (estructurales o clínicos) y no van con dotación;
+- un cambio de quién ocupa la cama o cuna solo es un ingreso: el lugar estaba vacío al editar y
+  sigue vacío.
+
+Tras comparar cada campo con su base contra el día recién leído, la cama va primero por el parche
+de la función, sobre la hora y la revisión de esa lectura, con lo que un guardado normal deriva en
+ese paciente (partes del nombre, episodio, FHIR); después los datos del día y la dotación por su
+escritura directa, cuya transacción acepta una versión más nueva solo si cada campo conserva el
+valor de esa lectura o ya el pendiente. Nunca se toma como base la versión que devolvió una
+escritura anterior de la misma tarea. Si el día cambió entre medio, el servidor rechaza y la tarea
+queda como estaba. Solo la última escritura lleva el identificador de la tarea, y una parte ya
+guardada se reconoce en el siguiente intento por su valor guardado. Así, la nota directa de otro
+equipo, que solo mueve la hora del día, no hace conflicto a una tarea de cama, y un campo distinto
+de la misma cama que otro escritor cambió se conserva. Todo lo demás sigue publicando el día
+completo, como en main.
 
 Bajo la cerca, una escritura directa del cliente no llega al árbol de camas: una entrada del mapa de
 escrituras de una cama sigue acreditando a su edición aunque después otro equipo escriba un dato del
