@@ -5,7 +5,6 @@ import {
   type DailyRecordConsistencyMetadata,
   type DailyRecordReadConsistencyState,
   type DailyRecordSourceOfTruth,
-  type DailyRecordSyncConsistencyState,
 } from '@/services/repositories/contracts/dailyRecordConsistency';
 
 type RemoteAvailability = 'resolved' | 'missing' | 'unavailable' | 'not_requested';
@@ -20,15 +19,6 @@ interface ResolveReadConsistencyInput {
 
 interface ResolveReadConsistencyResult extends DailyRecordConsistencyMetadata<DailyRecordReadConsistencyState> {
   shouldHydrateLocal: boolean;
-}
-
-interface ResolveSyncConsistencyInput {
-  localRecord: DailyRecord | null;
-  remoteRecord: DailyRecord | null;
-  selectedRecord: DailyRecord | null;
-  remoteAvailability: Exclude<RemoteAvailability, 'not_requested'>;
-  /** Cache hydration kept a projection whose local writes are still unsynced. */
-  pendingLocalWritesRetained?: boolean;
 }
 
 const buildConflictSummary = (
@@ -226,106 +216,4 @@ export const resolveDailyRecordReadConsistency = ({
     }),
     shouldHydrateLocal: false,
   };
-};
-
-export const resolveDailyRecordSyncConsistency = ({
-  localRecord,
-  remoteRecord,
-  selectedRecord,
-  remoteAvailability,
-  pendingLocalWritesRetained = false,
-}: ResolveSyncConsistencyInput): DailyRecordConsistencyMetadata<DailyRecordSyncConsistencyState> => {
-  if (remoteAvailability === 'unavailable') {
-    return createConsistencyMetadata({
-      consistencyState: 'blocked',
-      sourceOfTruth: selectedRecord ? 'local' : 'none',
-      retryability: 'automatic_retry',
-      recoveryAction: 'defer_remote_sync',
-      conflictSummary: buildConflictSummary(
-        'remote_unavailable',
-        selectedRecord ? 'local' : 'none',
-        localRecord,
-        remoteRecord,
-        undefined,
-        'La sincronización remota quedó bloqueada; se mantiene la copia local.'
-      ),
-      observabilityTags: ['daily_record', 'sync', 'blocked'],
-      userSafeMessage: 'La copia local se mantuvo porque la sincronización remota quedó bloqueada.',
-      repairApplied: false,
-    });
-  }
-
-  if (!remoteRecord) {
-    return createConsistencyMetadata({
-      consistencyState: 'missing_remote',
-      sourceOfTruth: selectedRecord ? 'local' : 'none',
-      retryability: 'manual_retry',
-      recoveryAction: 'defer_remote_sync',
-      conflictSummary: buildConflictSummary(
-        'remote_missing',
-        selectedRecord ? 'local' : 'none',
-        localRecord,
-        remoteRecord,
-        undefined,
-        'No existe registro remoto para este día.'
-      ),
-      observabilityTags: ['daily_record', 'sync', 'missing_remote'],
-      userSafeMessage: 'No existe registro remoto para este día.',
-      repairApplied: false,
-    });
-  }
-
-  if (
-    selectedRecord !== remoteRecord &&
-    (pendingLocalWritesRetained || isLocalNewer(localRecord, remoteRecord))
-  ) {
-    return createConsistencyMetadata({
-      consistencyState: 'local_kept',
-      sourceOfTruth: 'local',
-      retryability: 'automatic_retry',
-      recoveryAction: 'defer_remote_sync',
-      conflictSummary: buildConflictSummary(
-        'remote_stale',
-        'local',
-        localRecord,
-        remoteRecord,
-        undefined,
-        'La copia local se mantuvo porque es más reciente.'
-      ),
-      observabilityTags: ['daily_record', 'sync', 'local_kept'],
-      userSafeMessage: 'La copia local se mantuvo porque es más reciente.',
-      repairApplied: false,
-    });
-  }
-
-  if (selectedRecord === remoteRecord && localRecord) {
-    return createConsistencyMetadata({
-      consistencyState: 'remote_applied',
-      sourceOfTruth: 'remote',
-      retryability: 'not_applicable',
-      recoveryAction: 'none',
-      conflictSummary: buildConflictSummary(
-        'hydrated_from_remote',
-        'remote',
-        localRecord,
-        remoteRecord,
-        undefined,
-        'La copia remota actualizó el estado local.'
-      ),
-      observabilityTags: ['daily_record', 'sync', 'remote_applied'],
-      userSafeMessage: undefined,
-      repairApplied: false,
-    });
-  }
-
-  return createConsistencyMetadata({
-    consistencyState: 'up_to_date',
-    sourceOfTruth: remoteRecord ? 'remote' : 'none',
-    retryability: 'not_applicable',
-    recoveryAction: 'none',
-    conflictSummary: null,
-    observabilityTags: ['daily_record', 'sync', 'up_to_date'],
-    userSafeMessage: undefined,
-    repairApplied: false,
-  });
 };

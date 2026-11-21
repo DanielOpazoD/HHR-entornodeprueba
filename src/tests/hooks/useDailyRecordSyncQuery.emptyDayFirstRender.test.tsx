@@ -100,7 +100,6 @@ const openDay = async (
         ? createNotFoundDailyRecordReadResult(date, 'not_requested')
         : remoteRead()
     ),
-    syncWithFirestoreDetailed: vi.fn(async () => null),
   } as DailyRecordRepositoryPort;
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity } },

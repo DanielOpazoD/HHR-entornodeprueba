@@ -5,10 +5,7 @@ import { A, day, clone, harnessState } from './dayRecordOutboxHarness';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
-import {
-  subscribeDetailed,
-  syncWithFirestoreDetailed,
-} from '@/services/repositories/dailyRecordRepositorySyncService';
+import { subscribeDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { syncRecordsRange } from '@/services/records/recordQueryService';
 import { hydrateRangeRecords } from '@/services/admin/dataMaintenanceSupport';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
@@ -68,7 +65,7 @@ afterEach(async () => {
   await hospitalDB.syncQueue.clear();
   vi.restoreAllMocks();
 });
-for (const path of ['S', 'E', 'P', 'R', 'M'] as const)
+for (const path of ['S', 'P', 'R', 'M'] as const)
   for (const pending of path === 'R' || path === 'M' ? [false, true] : [false])
     it(`${path} cached/pending=${pending} keeps durable and returns local`, async () => {
       const metadata = { fromCache: !pending, hasPendingWrites: pending };
@@ -84,27 +81,25 @@ for (const path of ['S', 'E', 'P', 'R', 'M'] as const)
         bulk = vi.spyOn(hospitalDB.dailyRecords, 'bulkPut');
       let record;
       if (path === 'S') {
-        const r = await new Promise<Awaited<ReturnType<typeof syncWithFirestoreDetailed>>>(
-          resolve => {
-            const stop = subscribeDetailed(DATE, r => {
-              stop();
-              resolve(r);
-            });
-            wire.emit!(clone(remote), pending, metadata);
-          }
-        );
+        const r = await new Promise<Awaited<ReturnType<typeof getForDateWithMeta>>>(resolve => {
+          const stop = subscribeDetailed(DATE, r => {
+            stop();
+            resolve(r);
+          });
+          wire.emit!(clone(remote), pending, metadata);
+        });
         expect.soft(r).toMatchObject({
           serverConfirmed: false,
           sourceOfTruth: 'local',
-          consistencyState: 'blocked',
+          consistencyState: 'local_authoritative',
         });
         record = r?.record;
-      } else if (path === 'E' || path === 'P') {
-        const r = await (path === 'E' ? syncWithFirestoreDetailed(DATE) : getForDateWithMeta(DATE));
+      } else if (path === 'P') {
+        const r = await getForDateWithMeta(DATE);
         expect.soft(r).toMatchObject({
           serverConfirmed: false,
           sourceOfTruth: 'local',
-          consistencyState: path === 'P' ? 'local_authoritative' : 'blocked',
+          consistencyState: 'local_authoritative',
         });
         record = r?.record;
       } else
@@ -115,26 +110,26 @@ for (const path of ['S', 'E', 'P', 'R', 'M'] as const)
       expect(bulk).not.toHaveBeenCalled();
       expect(event).not.toHaveBeenCalled();
     });
-for (const path of ['S', 'E', 'P'] as const)
+for (const path of ['S', 'P'] as const)
   it(`${path} cached absence without local is unavailable`, async () => {
     await hospitalDB.dailyRecords.clear();
     const metadata = { fromCache: true, hasPendingWrites: false };
     vi.mocked(sdk.getDoc).mockResolvedValue({ exists: () => false, metadata } as never);
     const r =
       path === 'S'
-        ? await new Promise<Awaited<ReturnType<typeof syncWithFirestoreDetailed>>>(resolve => {
+        ? await new Promise<Awaited<ReturnType<typeof getForDateWithMeta>>>(resolve => {
             const stop = subscribeDetailed(DATE, r => {
               stop();
               resolve(r);
             });
             wire.emit!(null, false, metadata);
           })
-        : await (path === 'E' ? syncWithFirestoreDetailed(DATE) : getForDateWithMeta(DATE));
+        : await getForDateWithMeta(DATE);
     expect.soft(r).toMatchObject({
       record: null,
       serverConfirmed: false,
       sourceOfTruth: 'none',
-      consistencyState: path === 'P' ? 'unavailable' : 'blocked',
+      consistencyState: 'unavailable',
     });
     expect(event).not.toHaveBeenCalled();
   });
@@ -203,7 +198,7 @@ it.each([syncRecordsRange, hydrateRangeRecords])(
   }
 );
 
-for (const path of ['S', 'E', 'P'] as const)
+for (const path of ['S', 'P'] as const)
   it(`${path} adopts cache without local and allows offline edit after logout`, async () => {
     const { clearSessionDailyRecords } =
       await import('@/services/storage/sessionSyncQueuePreservation');
@@ -218,14 +213,14 @@ for (const path of ['S', 'E', 'P'] as const)
     } as never);
     const r =
       path === 'S'
-        ? await new Promise<Awaited<ReturnType<typeof syncWithFirestoreDetailed>>>(resolve => {
+        ? await new Promise<Awaited<ReturnType<typeof getForDateWithMeta>>>(resolve => {
             const stop = subscribeDetailed(DATE, r => {
               stop();
               resolve(r);
             });
             wire.emit!(clone(remote), false, metadata);
           })
-        : await (path === 'E' ? syncWithFirestoreDetailed(DATE) : getForDateWithMeta(DATE));
+        : await getForDateWithMeta(DATE);
     expect(r?.serverConfirmed).toBe(false);
     expect(await hospitalDB.dailyRecords.count()).toBe(1);
     expect(r?.record?.nursesDayShift).toEqual(remote.nursesDayShift);
@@ -254,7 +249,7 @@ for (const path of ['S', 'E', 'P'] as const)
     expect(tasks).toHaveLength(1);
     expect(tasks[0].status).toBe('PENDING');
   });
-for (const path of ['S', 'E', 'P'] as const)
+for (const path of ['S', 'P'] as const)
   it(`${path} confirmed document still replaces local after cache was ignored`, async () => {
     const run = async (confirmed: boolean) => {
       const metadata = { fromCache: !confirmed, hasPendingWrites: false };
@@ -263,9 +258,8 @@ for (const path of ['S', 'E', 'P'] as const)
         data: () => clone(remote),
         metadata,
       } as never);
-      if (path !== 'S')
-        return path === 'E' ? syncWithFirestoreDetailed(DATE) : getForDateWithMeta(DATE);
-      return new Promise<Awaited<ReturnType<typeof syncWithFirestoreDetailed>>>(resolve => {
+      if (path !== 'S') return getForDateWithMeta(DATE);
+      return new Promise<Awaited<ReturnType<typeof getForDateWithMeta>>>(resolve => {
         const stop = subscribeDetailed(DATE, r => {
           stop();
           resolve(r);

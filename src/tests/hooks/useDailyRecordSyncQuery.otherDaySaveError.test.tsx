@@ -98,7 +98,6 @@ describe('opening a day without census after a save of another day failed', () =
         // The server has not answered for the empty day yet.
         return new Promise<DailyRecordReadResult>(() => {});
       }),
-      syncWithFirestoreDetailed: vi.fn(async () => null),
     } as DailyRecordRepositoryPort;
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false, gcTime: Infinity } },

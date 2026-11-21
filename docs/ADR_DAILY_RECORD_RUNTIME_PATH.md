@@ -71,6 +71,8 @@ The most fragile boundary in the app is the intersection of TanStack Query cache
   - `src/services/repositories/dailyRecordRepositorySyncService.ts`
 - Read path and typed outcomes: `src/services/repositories/contracts/dailyRecordQueries.ts`
 - Canonical local/remote precedence: `src/services/repositories/dailyRecordPersistenceGoldenPath.ts`
+- One admission of the server's day, for the point read and the subscription:
+  `src/services/repositories/dailyRecordRemoteReadController.ts` (`resolveRemoteGoldenPathReadResult`)
 - Subscription and reconciliation: `src/services/repositories/dailyRecordRepositorySyncService.ts`
 - Query/controller consumers:
   - `src/hooks/controllers/dailyRecordQueryController.ts`

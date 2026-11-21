@@ -12,7 +12,10 @@ Existían respuestas heterogéneas (`clean`, `blocked`, `missing`, `null`, excep
 
 ## Consecuencia
 
-- `syncWithFirestoreDetailed` sigue siendo contrato de repositorio.
+- Lo que el servidor respondió para un día se admite en un solo lugar
+  (`resolveRemoteGoldenPathReadResult`), para la lectura puntual y para la suscripción. Un
+  refresco es una lectura puntual publicada en la consulta del censo
+  (`fetchRemoteDailyRecordQuery`), y `executeSyncDailyRecord` traduce su resultado.
 - La UI consume preferentemente use-cases que traducen esos resultados a `ApplicationOutcome`.
 - Los mensajes de degradación y fallback se centralizan mejor y son más testeables.
 

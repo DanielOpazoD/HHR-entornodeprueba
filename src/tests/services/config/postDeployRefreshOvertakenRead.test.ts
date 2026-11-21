@@ -15,10 +15,11 @@ vi.mock('@/services/repositories/dailyRecordRemoteLoader', () => ({
   loadRemoteRecordWithFallback,
 }));
 
+import { QueryClient } from '@tanstack/react-query';
 import { executeSyncDailyRecord } from '@/application/daily-record/syncDailyRecordUseCase';
-import type { DailyRecordSyncPort } from '@/application/ports/dailyRecordPort';
 import { executePostDeployRecentRecordRefresh } from '@/services/config/postDeployRecentRecordRefresh';
-import { syncWithFirestoreDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
+import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
+import { fetchRemoteDailyRecordQuery } from '@/hooks/controllers/dailyRecordQueryController';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -40,11 +41,16 @@ const run = (clearMarker = vi.fn()) =>
     todayDateString: today,
     readMarker: () => marker,
     clearMarker,
-    // The real use case over the real repository service; the shared test setup replaces the port.
+    // The real use case over the real read through the census query.
     syncRemoteRecord: date =>
       executeSyncDailyRecord({
         date,
-        repository: { syncWithFirestoreDetailed } as unknown as DailyRecordSyncPort,
+        read: readDate =>
+          fetchRemoteDailyRecordQuery(
+            new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+            { getForDateWithMeta },
+            readDate
+          ),
       }),
   }).then(result => ({ result, clearMarker }));
 

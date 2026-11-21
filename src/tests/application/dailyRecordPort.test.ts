@@ -9,7 +9,10 @@ import {
   defaultDailyRecordRepositoryPort,
   defaultDailyRecordWritePort,
 } from '@/application/ports/dailyRecordPort';
-import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import {
+  createDailyRecordReadResult,
+  createUnavailableDailyRecordReadResult,
+} from '@/services/repositories/contracts/dailyRecordQueries';
 
 const readService = {
   getAuthoritativeForDate: vi.fn(),
@@ -38,7 +41,6 @@ const deletionService = {
 };
 
 const syncService = {
-  syncWithFirestoreDetailed: vi.fn(),
   subscribeDetailed: vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(),
 };
 
@@ -136,15 +138,14 @@ describe('dailyRecordPort lazy facade', () => {
     const unsubscribe = vi.fn();
     const onRecord = vi.fn();
     syncService.subscribeDetailed.mockImplementationOnce((date, callback) => {
-      callback(createSyncDailyRecordResult({ date, record: null, outcome: 'missing' }), false);
+      callback(createDailyRecordReadResult(date, null, 'not_found', { serverConfirmed: true }));
       return unsubscribe;
     });
 
     const stop = defaultDailyRecordRepositoryPort.subscribeDetailed('2026-04-10', onRecord);
     await vi.waitFor(() => {
       expect(onRecord).toHaveBeenCalledExactlyOnceWith(
-        expect.objectContaining({ date: '2026-04-10', record: null, outcome: 'missing' }),
-        false
+        expect.objectContaining({ date: '2026-04-10', record: null, serverConfirmed: true })
       );
     });
 
@@ -154,11 +155,7 @@ describe('dailyRecordPort lazy facade', () => {
   });
 
   it('forwards a subscription failure through the lazy repository port', async () => {
-    const failure = createSyncDailyRecordResult({
-      date: '2026-04-10',
-      record: null,
-      outcome: 'blocked',
-    });
+    const failure = createUnavailableDailyRecordReadResult('2026-04-10');
     const unsubscribe = vi.fn();
     const onFailure = vi.fn();
     const onRecord = vi.fn();

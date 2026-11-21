@@ -1,21 +1,22 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
-  createSyncDailyRecordResult,
-  type SyncDailyRecordResult,
-} from '@/services/repositories/contracts/dailyRecordResults';
+  createDailyRecordReadResult,
+  type DailyRecordReadResult,
+} from '@/services/repositories/contracts/dailyRecordQueries';
 
+/** A listener answer from the Firestore cache: not proof of the server's day nor of its absence. */
 export const createUnconfirmedDailyRecordSubscriptionResult = (
   date: string,
   record: DailyRecord | null
-): SyncDailyRecordResult =>
-  createSyncDailyRecordResult({
-    date,
-    record,
-    outcome: record ? 'clean' : 'missing',
-    consistencyState: record ? 'up_to_date' : 'missing_remote',
-    sourceOfTruth: record ? 'local' : 'none',
+): DailyRecordReadResult =>
+  createDailyRecordReadResult(date, record, record ? 'indexeddb' : 'not_found', {
     serverConfirmed: false,
-    retryability: 'not_applicable',
-    recoveryAction: 'none',
-    conflictSummary: null,
   });
+
+/** A listener answer carrying the server's day (`serverConfirmed: false` = served from cache). */
+export const createServerDailyRecordSubscriptionResult = (
+  date: string,
+  record: DailyRecord,
+  serverConfirmed = true
+): DailyRecordReadResult =>
+  createDailyRecordReadResult(date, record, 'firestore', { serverConfirmed });

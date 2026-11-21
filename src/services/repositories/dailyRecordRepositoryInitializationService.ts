@@ -125,7 +125,6 @@ const loadRemoteInitializationSeed = async (
   }
   const result = await resolveRemoteGoldenPathReadResult({
     date,
-    localCandidate: null,
     remoteReadResult: remoteResult,
     base: remoteResult.issuedAgainst ?? base,
     isCurrent,

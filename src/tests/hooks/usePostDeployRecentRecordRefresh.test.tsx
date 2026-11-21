@@ -26,24 +26,20 @@ it.each(['failed', 'interrupted', 'skipped_queue_not_empty', 'skipped_queue_unav
     execute
       .mockResolvedValueOnce({ status, dates: [], marker: null })
       .mockResolvedValue({ status: 'completed', dates: [], marker: null });
-    const refetch = vi.fn(async () => undefined);
     const runRemoteSync = vi.fn(async () => ({ status: 'success' as const }));
     const { rerender } = renderHook(
       ({ ready }) =>
         usePostDeployRecentRecordRefresh({
           remoteSyncStatus: ready ? 'ready' : 'local_only',
-          refetch,
           runRemoteSync,
         }),
       { initialProps: { ready: true } }
     );
     await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
-    expect(refetch).not.toHaveBeenCalled();
     rerender({ ready: false });
     expect(execute).toHaveBeenCalledTimes(1);
     rerender({ ready: true });
-    await waitFor(() => expect(refetch).toHaveBeenCalledTimes(1));
-    expect(execute).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(2));
     rerender({ ready: true });
     expect(execute).toHaveBeenCalledTimes(2);
   }
@@ -60,18 +56,15 @@ it('evaluates a retained marker in a fresh session and ignores the old completio
         })
     )
     .mockResolvedValue({ status: 'completed', dates: [], marker: null });
-  const refetch = vi.fn(async () => undefined);
   const runRemoteSync = vi.fn(async () => ({ status: 'success' as const }));
-  renderHook(() =>
-    usePostDeployRecentRecordRefresh({ remoteSyncStatus: 'ready', refetch, runRemoteSync })
-  );
+  renderHook(() => usePostDeployRecentRecordRefresh({ remoteSyncStatus: 'ready', runRemoteSync }));
   await act(async () => {
     setSessionGeneration('synthetic-B');
   });
-  await waitFor(() => expect(refetch).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(execute).toHaveBeenCalledTimes(2));
   await act(async () => {
     finish?.({ status: 'interrupted', dates: [], marker: null });
   });
+  // The old session's interruption does not start another attempt.
   expect(execute).toHaveBeenCalledTimes(2);
-  expect(refetch).toHaveBeenCalledTimes(1);
 });

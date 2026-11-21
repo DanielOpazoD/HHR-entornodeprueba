@@ -27,6 +27,31 @@ export interface DailyRecordRemoteLoadResult {
   hasPendingWrites?: boolean;
 }
 
+/**
+ * One observation of the day from Firestore, described the same way for the point read and the
+ * listener: a confirmed absence is recorded, and a document is migrated before admission.
+ */
+export const describeRemoteDailyRecord = async (
+  date: string,
+  record: DailyRecord | null,
+  observation: Pick<
+    DailyRecordRemoteLoadResult,
+    'serverConfirmed' | 'issuedAgainst' | 'hasPendingWrites'
+  >
+): Promise<DailyRecordRemoteLoadResult> => {
+  if (!record && observation.serverConfirmed) await confirmDailyRecordMissingOnServer(date);
+  const migrated = record ? migrateLegacyDataWithReport(record, date) : null;
+  return {
+    ...observation,
+    record: migrated?.record ?? null,
+    source: record ? 'firestore' : 'not_found',
+    compatibilityTier: record ? 'current_firestore' : 'none',
+    compatibilityIntensity: migrated?.compatibilityIntensity ?? 'none',
+    migrationRulesApplied: migrated?.appliedRules ?? [],
+    cachedLocally: false,
+  };
+};
+
 const remoteLoadInFlight = new Map<string, Promise<DailyRecordRemoteLoadResult>>();
 
 interface DailyRecordRemoteLoadOptions {
@@ -55,24 +80,11 @@ export const loadRemoteRecordWithFallback = async (
       if (remoteRead.status === 'failed') {
         throw remoteRead.error ?? new Error(`Remote Firestore read failed for ${date}`);
       }
-      if (!remoteRead.record && remoteRead.serverConfirmed) {
-        await confirmDailyRecordMissingOnServer(date);
-      }
-
-      const migrated = remoteRead.record
-        ? migrateLegacyDataWithReport(remoteRead.record, date)
-        : null;
-      return {
-        record: migrated?.record ?? null,
+      return describeRemoteDailyRecord(date, remoteRead.record, {
         issuedAgainst,
-        source: remoteRead.record ? 'firestore' : 'not_found',
-        compatibilityTier: remoteRead.record ? 'current_firestore' : 'none',
-        compatibilityIntensity: migrated?.compatibilityIntensity ?? 'none',
-        migrationRulesApplied: migrated?.appliedRules ?? [],
-        cachedLocally: false,
         hasPendingWrites: remoteRead.hasPendingWrites,
         serverConfirmed: remoteRead.serverConfirmed,
-      } satisfies DailyRecordRemoteLoadResult;
+      });
     },
     { thresholdMs: 220, context: date }
   ).finally(() => {

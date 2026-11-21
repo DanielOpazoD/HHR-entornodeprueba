@@ -9,13 +9,17 @@ import {
 import { resolveInitialDayHandoff } from '@/services/repositories/dailyRecordHandoffDomainService';
 import { createRecordDateTimestamp } from '@/services/repositories/dailyRecordMetadataDomainService';
 import { resolveInheritedDailyRecordStaffing } from '@/services/repositories/dailyRecordStaffingDomainService';
+import { normalizeMovementBedConsistency } from '@/services/repositories/clinicalMovementBedConsistencyPolicy';
 
 export { preparePatientForCarryover };
 
 export const buildInitializedDayRecord = (
   date: string,
-  prevRecord: DailyRecord | null
+  sourceRecord: DailyRecord | null
 ): DailyRecord => {
+  // The source is the server's day as read. A bed still holding a patient whose episode that day
+  // discharged or transferred is emptied before copying, as every write of the day would do.
+  const prevRecord = sourceRecord && normalizeMovementBedConsistency(sourceRecord).record;
   const initialBeds = buildEmptyClinicalBeds();
   const inheritedStaff = resolveInheritedDailyRecordStaffing(prevRecord);
   const beds = prevRecord

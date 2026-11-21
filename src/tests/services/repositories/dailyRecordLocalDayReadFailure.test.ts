@@ -33,7 +33,7 @@ import { computePreviousDayEdits } from '@/features/rayen-import/domain/previous
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
@@ -235,8 +235,8 @@ describe('a local day that could not be read is unknown, never absent', () => {
       });
 
     const listen = () => {
-      const delivered: SyncDailyRecordResult[] = [];
-      const failed: SyncDailyRecordResult[] = [];
+      const delivered: DailyRecordReadResult[] = [];
+      const failed: DailyRecordReadResult[] = [];
       const stop = subscribeDetailed(
         date,
         result => delivered.push(result),
@@ -256,7 +256,7 @@ describe('a local day that could not be read is unknown, never absent', () => {
       stop();
       reads.mockRestore();
       expect(delivered).toEqual([]);
-      expect(failed).toMatchObject([{ outcome: 'blocked', record: null }]);
+      expect(failed).toMatchObject([{ consistencyState: 'unavailable', record: null }]);
       expect(await hospitalDB.dailyRecords.get(date)).toEqual(local());
     });
 
@@ -284,7 +284,10 @@ describe('a local day that could not be read is unknown, never absent', () => {
       expect(failed).toEqual([]);
       expect(delivered).toHaveLength(1);
       expect(delivered[0].record?.beds.R1.pathology).toBe('COPIA REMOTA');
-      expect(delivered[0].sourceOfTruth).toBe('remote');
+      // A cached copy is kept here as this computer's copy until the server confirms it,
+      // exactly as a point read keeps it.
+      expect(delivered[0].sourceOfTruth).toBe('local');
+      expect(delivered[0].serverConfirmed).toBe(false);
     });
   });
 });

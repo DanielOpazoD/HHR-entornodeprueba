@@ -2,11 +2,16 @@
 import { setImmediate } from 'node:timers/promises';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/storage/indexeddb/indexedDbRecordService')>()),
   getRecordForDateStrict: vi.fn(),
+  // The listener's local read: the copy this snapshot is admitted against.
+  captureLocalRecordBase: async (day: string) => ({
+    kind: 'stored',
+    record: await getRecordForDateStrict(day),
+  }),
   saveRecordStrict: vi.fn(),
   admitLocalRecords: async (
     candidates: Array<{ record: DailyRecord; isCurrent?: () => boolean }>
@@ -36,7 +41,8 @@ vi.mock('@/services/storage/sync/dailyRecordSyncQueueReadService', async importO
   getPendingDailyRecordProjection: vi.fn(),
 }));
 
-vi.mock('@/services/repositories/dailyRecordRemoteLoader', () => ({
+vi.mock('@/services/repositories/dailyRecordRemoteLoader', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/repositories/dailyRecordRemoteLoader')>()),
   loadRemoteRecordWithFallback: vi.fn(),
 }));
 
@@ -56,11 +62,9 @@ const confirmedMetadata = { fromCache: false, hasPendingWrites: false };
 const privateConsumerDetail = 'Synthetic private consumer detail';
 const blockedFailure = {
   date,
-  outcome: 'blocked',
-  consistencyState: 'blocked',
+  consistencyState: 'unavailable',
   record: null,
   serverConfirmed: false,
-  retryability: 'manual_retry',
 };
 
 const recordFor = (revision: 'A' | 'B'): DailyRecord =>
@@ -127,8 +131,8 @@ describe('daily record realtime subscription lifecycle', () => {
   };
 
   const start = () => {
-    const onResult = vi.fn<(result: SyncDailyRecordResult, pending: boolean) => void>();
-    const onFailure = vi.fn<(result: SyncDailyRecordResult) => void>();
+    const onResult = vi.fn<(result: DailyRecordReadResult) => void>();
+    const onFailure = vi.fn<(result: DailyRecordReadResult) => void>();
     const stop = subscribeDetailed(date, onResult, onFailure);
     stops.push(stop);
     return { ...listener(), onResult, onFailure, stop };
@@ -178,11 +182,10 @@ describe('daily record realtime subscription lifecycle', () => {
     expect(onResult.mock.calls).toEqual([
       [
         expect.objectContaining({
-          outcome: 'clean',
+          consistencyState: 'remote_authoritative',
           serverConfirmed: true,
           record: expect.objectContaining({ nursesDayShift: ['SYNTHETIC B'] }),
         }),
-        false,
       ],
     ]);
     expect(vi.mocked(saveRecordStrict).mock.calls).toEqual([
@@ -209,7 +212,6 @@ describe('daily record realtime subscription lifecycle', () => {
         expect.objectContaining({
           record: expect.objectContaining({ nursesDayShift: ['SYNTHETIC B'] }),
         }),
-        false,
       ],
     ]);
     expect(onFailure.mock.calls).toEqual([]);
@@ -259,11 +261,10 @@ describe('daily record realtime subscription lifecycle', () => {
       expect(onResult.mock.calls).toEqual([
         [
           expect.objectContaining({
-            outcome: 'clean',
+            consistencyState: 'remote_authoritative',
             serverConfirmed: true,
             record: expect.objectContaining({ nursesDayShift: ['SYNTHETIC B'] }),
           }),
-          false,
         ],
       ]);
       expect(onFailure.mock.calls).toEqual([[expect.objectContaining(blockedFailure)]]);
@@ -299,7 +300,12 @@ describe('daily record realtime subscription lifecycle', () => {
     await setImmediate();
 
     expect(onResult.mock.calls).toEqual([
-      [expect.objectContaining({ outcome: 'clean', serverConfirmed: true }), false],
+      [
+        expect.objectContaining({
+          consistencyState: 'remote_authoritative',
+          serverConfirmed: true,
+        }),
+      ],
     ]);
     expect(onFailure.mock.calls).toEqual([]);
     expectSafeDiagnostic();

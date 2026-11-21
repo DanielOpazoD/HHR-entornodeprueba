@@ -9,7 +9,6 @@ import type {
   DailyRecordRecoveryAction,
   DailyRecordRetryability,
   DailyRecordSourceOfTruth,
-  DailyRecordSyncConsistencyState,
 } from '@/services/repositories/contracts/dailyRecordConsistency';
 import type { DailyRecordQueuedWriteState } from '@/services/storage/syncQueueTypes';
 
@@ -67,7 +66,7 @@ export interface DailyRecordQueryRuntime {
   baseSource?: DailyRecordSourceOfTruth;
   date: string;
   availabilityState: DailyRecordQueryAvailabilityState;
-  consistencyState: DailyRecordReadConsistencyState | DailyRecordSyncConsistencyState;
+  consistencyState: DailyRecordReadConsistencyState;
   sourceOfTruth: DailyRecordSourceOfTruth;
   retryability: DailyRecordRetryability;
   recoveryAction: DailyRecordRecoveryAction;
@@ -170,6 +169,15 @@ export const createDailyRecordReadResult = (
     repairApplied: options.repairApplied || false,
   };
 };
+
+/** The day could not be read: neither a copy nor proof that it is absent (SAVE-01). */
+export const createUnavailableDailyRecordReadResult = (date: string): DailyRecordReadResult =>
+  createDailyRecordReadResult(date, null, 'not_found', {
+    consistencyState: 'unavailable',
+    sourceOfTruth: 'none',
+    retryability: 'automatic_retry',
+    recoveryAction: 'defer_remote_sync',
+  });
 
 export const createDailyRecordQueryResult = (
   record: DailyRecord | null,

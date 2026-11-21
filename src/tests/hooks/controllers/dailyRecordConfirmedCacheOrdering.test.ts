@@ -1,4 +1,6 @@
 import { createDailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
+import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
+import { createServerDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';
 import { describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -66,7 +68,7 @@ describe('confirmed cache ordering across query and subscription', () => {
     it('counts a server read as confirming that version, keeping its remote provenance', () => {
       const previous = queryResult(shown, 'remote', {
         serverConfirmed: true,
-        consistencyState: 'remote_applied',
+        consistencyState: 'remote_authoritative',
       });
 
       const result = reconcileDailyRecordQueryResult(previous, localCopy(true));
@@ -219,14 +221,7 @@ describe('confirmed cache ordering across query and subscription', () => {
         },
       ],
     };
-    let publishDelayedSubscription!: (
-      result: Parameters<
-        NonNullable<Parameters<typeof createDailyRecordSubscription>[0]['subscribeDetailed']>
-      >[1] extends (result: infer Result, pending: boolean) => void
-        ? Result
-        : never,
-      pending: boolean
-    ) => void;
+    let publishDelayedSubscription!: (result: DailyRecordReadResult) => void;
     createDailyRecordSubscription(
       {
         getForDateWithMeta: vi.fn(),
@@ -267,22 +262,7 @@ describe('confirmed cache ordering across query and subscription', () => {
       await postAckRead()
     );
 
-    publishDelayedSubscription(
-      {
-        serverConfirmed: true,
-        date,
-        outcome: 'clean',
-        record: staleRecord,
-        consistencyState: 'remote_applied',
-        sourceOfTruth: 'remote',
-        retryability: 'not_applicable',
-        recoveryAction: 'none',
-        conflictSummary: null,
-        observabilityTags: ['daily_record', 'sync'],
-        repairApplied: false,
-      },
-      false
-    );
+    publishDelayedSubscription(createServerDailyRecordSubscriptionResult(date, staleRecord));
 
     expect(
       queryClient.getQueryData<DailyRecordQueryResult>(getDailyRecordQueryKey(date))?.record

@@ -1,40 +1,63 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { executeSyncDailyRecord } from '@/application/daily-record/syncDailyRecordUseCase';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import type {
+  DailyRecordQueryResult,
+  DailyRecordQueryRuntime,
+} from '@/services/repositories/contracts/dailyRecordQueries';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+
+const firestore = vi.hoisted(() => ({ enabled: true }));
+vi.mock('@/services/repositories/repositoryConfig', () => ({
+  isFirestoreEnabled: () => firestore.enabled,
+}));
+
+const DATE = '2026-03-05';
+const readOf =
+  (record: DailyRecord | null, runtime: Partial<DailyRecordQueryRuntime>) =>
+  async (): Promise<DailyRecordQueryResult> => ({
+    record,
+    runtime: {
+      date: DATE,
+      serverConfirmed: true,
+      availabilityState: record ? 'resolved' : 'confirmed_missing',
+      consistencyState: record ? 'remote_authoritative' : 'missing',
+      sourceOfTruth: record ? 'remote' : 'none',
+      retryability: 'not_applicable',
+      recoveryAction: 'none',
+      conflictSummary: null,
+      observabilityTags: [],
+      repairApplied: false,
+      ...runtime,
+    },
+  });
 
 describe('syncDailyRecordUseCase', () => {
-  it('returns success for clean sync', async () => {
-    const record = DataFactory.createMockDailyRecord('2026-03-05');
-    const repository = {
-      syncWithFirestoreDetailed: vi.fn().mockResolvedValue({
-        date: '2026-03-05',
-        consistencyState: 'clean',
-        record,
-      }),
-    };
+  beforeEach(() => {
+    firestore.enabled = true;
+  });
 
-    const outcome = await executeSyncDailyRecord({
-      date: '2026-03-05',
-      repository,
-    });
+  it('returns success for a day the server confirmed', async () => {
+    const record = DataFactory.createMockDailyRecord(DATE);
+
+    const outcome = await executeSyncDailyRecord({ date: DATE, read: readOf(record, {}) });
 
     expect(outcome.status).toBe('success');
     expect(outcome.data.record).toBe(record);
   });
 
-  it('returns degraded for blocked sync', async () => {
-    const record = DataFactory.createMockDailyRecord('2026-03-05');
-    const repository = {
-      syncWithFirestoreDetailed: vi.fn().mockResolvedValue({
-        date: '2026-03-05',
-        consistencyState: 'blocked',
-        record,
-      }),
-    };
+  it('returns degraded when only this computer’s copy could be shown', async () => {
+    const record = DataFactory.createMockDailyRecord(DATE);
 
     const outcome = await executeSyncDailyRecord({
-      date: '2026-03-05',
-      repository,
+      date: DATE,
+      read: readOf(record, {
+        serverConfirmed: false,
+        availabilityState: 'recoverable_local',
+        consistencyState: 'local_authoritative',
+        sourceOfTruth: 'local',
+        retryability: 'automatic_retry',
+      }),
     });
 
     expect(outcome.status).toBe('degraded');
@@ -50,18 +73,10 @@ describe('syncDailyRecordUseCase', () => {
     expect(outcome.retryable).toBe(true);
   });
 
-  it('returns partial for missing remote data', async () => {
-    const repository = {
-      syncWithFirestoreDetailed: vi.fn().mockResolvedValue({
-        date: '2026-03-05',
-        consistencyState: 'missing_remote',
-        record: null,
-      }),
-    };
-
+  it('returns partial when the server confirmed the day is absent', async () => {
     const outcome = await executeSyncDailyRecord({
-      date: '2026-03-05',
-      repository,
+      date: DATE,
+      read: readOf(null, { conflictSummary: { kind: 'remote_missing', sourceOfTruth: 'none' } }),
     });
 
     expect(outcome.status).toBe('partial');
@@ -76,28 +91,24 @@ describe('syncDailyRecordUseCase', () => {
     expect(outcome.userSafeMessage).toContain('registro remoto');
   });
 
-  it('returns partial when the repository has no remote source', async () => {
-    const repository = { syncWithFirestoreDetailed: vi.fn().mockResolvedValue(null) };
+  it('returns partial without reading when there is no remote source', async () => {
+    firestore.enabled = false;
+    const read = vi.fn();
 
-    const outcome = await executeSyncDailyRecord({ date: '2026-03-05', repository });
+    const outcome = await executeSyncDailyRecord({ date: DATE, read });
 
+    expect(read).not.toHaveBeenCalled();
     expect(outcome.status).toBe('partial');
     expect(outcome.data).toEqual(
-      expect.objectContaining({
-        record: null,
-        sync: null,
-        degradationReason: 'missing_remote_record',
-      })
+      expect.objectContaining({ record: null, degradationReason: 'missing_remote_record' })
     );
     expect(outcome.userSafeMessage).toBe('No hay fuente remota disponible para este día.');
   });
 
-  it('returns failed with an automatic retry when the repository throws', async () => {
-    const repository = {
-      syncWithFirestoreDetailed: vi.fn().mockRejectedValue(new Error('network down')),
-    };
+  it('returns failed with an automatic retry when the read throws', async () => {
+    const read = vi.fn().mockRejectedValue(new Error('network down'));
 
-    const outcome = await executeSyncDailyRecord({ date: '2026-03-05', repository });
+    const outcome = await executeSyncDailyRecord({ date: DATE, read });
 
     expect(outcome.status).toBe('failed');
     expect(outcome.data.record).toBeNull();
