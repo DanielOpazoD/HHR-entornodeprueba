@@ -100,6 +100,9 @@ it.each([
     await waitFor(() => expect(reads.length).toBeGreaterThan(0), { timeout: 10_000 });
 
     expect([...new Set(reads)]).toEqual([expectedDay]);
-    expect(new URL(window.location.href).searchParams.get('date')).toBe(expectedDay);
+    // The URL is written by an effect after the render that asks for the day: wait for it.
+    await waitFor(() =>
+      expect(new URL(window.location.href).searchParams.get('date')).toBe(expectedDay)
+    );
   }
 );
