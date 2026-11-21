@@ -1,6 +1,5 @@
 import React from 'react';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
-import { SyncWatcher } from '@/components/shared/SyncWatcher';
 import StorageStatusBadge from '@/components/layout/StorageStatusBadge';
 import { PinLockScreen } from '@/components/security/PinLockScreen';
 import { CensusEmailConfigModal, GlobalPatientSearchModal } from '@/views/LazyViews';
@@ -75,7 +74,6 @@ export const AppContentOverlays: React.FC<AppContentOverlaysProps> = ({
         </React.Suspense>
       )}
 
-      <SyncWatcher />
       <PinLockScreen />
       <StorageStatusBadge />
     </>
