@@ -46,32 +46,30 @@ Qué impone hoy un control y qué queda como objetivo:
   **criterio** no usarlo para código (hoy no hay ninguno).
 - **Hoy:** la capa 0 se define por carpeta, no por contenido: que no haga I/O ni use React es
   **objetivo** (por ejemplo `shared/ui` todavía tiene hooks de React con almacenamiento).
-- **Hoy:** las relaciones que ya subían están en el libro de la matriz (`exceptions`), una por
-  relación de archivo a archivo, con su motivo. El libro solo baja: falla una relación nueva,
-  falla una entrada que el código ya no tiene, y falla una entrada que no está en el libro de la
-  base de la PR (`FOLDER_BOOK_BASE` en CI, `git merge-base HEAD origin/main` en local; sin base,
-  el control solo avisa). Agregar una entrada es decisión del responsable.
+- **Hoy:** el libro de excepciones de la matriz (`exceptions` y `dataAccess.exceptions`) está
+  vacío: no hay relaciones hacia arriba en ejecución ni lecturas de datos desde `components/`.
+  El control sigue actuando como trinquete (falla cualquier relación nueva hacia arriba o
+  entrada que no exista en `FOLDER_BOOK_BASE` / `git merge-base HEAD origin/main`). Agregar una
+  excepción es decisión del responsable.
 - **Hoy:** la UI compartida no abre datos (`dataAccess` en la matriz). `components/` no carga
   un módulo de `services/` que use un paquete de datos (Firestore, Storage, Dexie), el global
   `indexedDB` o un lector declarado en `dataAccess.modules` (el lector REST de Firestore y el
-  respaldo local del registro diario), directamente o a través de otros servicios. Las lecturas
-  que ya existían están en `dataAccess.exceptions`, con su motivo.
+  respaldo local del registro diario), directamente o a través de otros servicios.
 - **Hoy, criterio:** el control es una guía y no ve todos los caminos a los datos. No ve una
   llamada a Functions (`firebase/functions`), un `fetch` propio, Cache Storage ni
   `localStorage`. Tampoco ve un worker de un área que entra al interior de otra, y cuenta como
   valor un import que solo se usa como tipo si no lleva `import type`. Esos casos los decide
   quien revisa.
 - **Hoy:** entre áreas mandan ESLint `hhr/feature-boundaries` y `hhr/public-import-boundaries`
-  (regla 1). `application/census/public.ts` todavía reexporta controladores internos del censo
-  (`GOVERNED_APPLICATION_PUBLIC_IMPORTS` en `scripts/lib/publicImportBoundaryRule.mjs`); esas
-  relaciones están en el libro.
+  (regla 1). Los controladores compartidos del censo viven en `application/census/controllers/`;
+  `GOVERNED_APPLICATION_PUBLIC_IMPORTS` (`scripts/lib/publicImportBoundaryRule.mjs`) conserva
+  solo el contrato de tipos de búsqueda global.
 - **Hoy:** no hay ciclos de imports en ejecución (`npm run check:import-cycles`).
 - **Hoy:** `eslint-plugin-boundaries` está retirado: solo veía imports relativos con `.ts`
   explícito, y lo que prohibía con razón lo cubre `check:folder-dependencies`.
-- **Objetivo:** vaciar el libro (los puertos de `application/` que importan los servicios, a
-  un contrato de servicios; correo del censo y fachada del censo a su área; `shared/` repartido
-  en núcleo, servicios y UI; `views/` y `config/` a `app-shell/`), y que ningún módulo de las
-  capas 0 a 4 alcance un área en ejecución.
+- **Objetivo:** mantener vacío el libro de `folder-dependency-matrix.json`, terminar de sacar
+  React/almacenamiento de capa 0 (`shared/ui`), y que cada área componga sus propias acciones
+  sin inflar `hooks/useDailyRecordDomainModules.ts`.
 
 ## Reglas
 
