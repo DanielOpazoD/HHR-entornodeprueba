@@ -5,7 +5,6 @@ import { AppRouter } from '@/components/AppRouter';
 import { useAppState } from '@/hooks/useAppState';
 
 const mockCanAccessAppModuleRoute = vi.fn();
-const mockCanForceCreateDayCopyOverride = vi.fn();
 const mockGetVisibleAppModules = vi.fn();
 const mockResolveSpecialistCensusAccessProfile = vi.fn();
 const mockIsE2EEditableRecordOverrideEnabled = vi.fn();
@@ -89,7 +88,6 @@ vi.mock('@/views/LazyViews', () => ({
 vi.mock('@/shared/access/operationalAccessPolicy', () => ({
   canAccessAppModuleRoute: (...args: unknown[]) => mockCanAccessAppModuleRoute(...args),
   canEditAppModule: (...args: unknown[]) => mockCanEditAppModule(...args),
-  canForceCreateDayCopyOverride: (...args: unknown[]) => mockCanForceCreateDayCopyOverride(...args),
   getVisibleAppModules: (...args: unknown[]) => mockGetVisibleAppModules(...args),
 }));
 
@@ -142,7 +140,6 @@ describe('AppRouter', () => {
       'DIAGNOSTICS',
     ]);
     mockCanAccessAppModuleRoute.mockReturnValue(true);
-    mockCanForceCreateDayCopyOverride.mockReturnValue(true);
     mockIsE2EEditableRecordOverrideEnabled.mockReturnValue(false);
     mockCanEditAppModule.mockReturnValue(true);
   });
@@ -164,7 +161,6 @@ describe('AppRouter', () => {
         selectedMonth: 3,
         currentDateString: '2026-04-22',
         readOnly: false,
-        allowAdminCopyOverride: true,
         accessProfile: 'default',
       })
     );

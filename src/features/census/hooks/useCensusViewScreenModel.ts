@@ -18,7 +18,6 @@ interface UseCensusViewScreenModelParams {
   onCloseBedManagerModal: () => void;
   renderMedicalHandoffAction?: RenderCensusMedicalHandoffAction;
   readOnly: boolean;
-  allowAdminCopyOverride: boolean;
   accessProfile: CensusAccessProfile;
 }
 
@@ -30,7 +29,6 @@ export const useCensusViewScreenModel = ({
   onCloseBedManagerModal,
   renderMedicalHandoffAction,
   readOnly,
-  allowAdminCopyOverride,
   accessProfile,
 }: UseCensusViewScreenModelParams) => {
   const auth = useAuth();
@@ -44,7 +42,6 @@ export const useCensusViewScreenModel = ({
     onCloseBedManagerModal,
     renderMedicalHandoffAction,
     readOnly,
-    allowAdminCopyOverride,
     accessProfile,
   });
   // Absence is a repository result, never a grace-period deadline.

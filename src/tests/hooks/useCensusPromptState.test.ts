@@ -44,7 +44,6 @@ describe('census prompt reads only yesterday, on demand', () => {
     await waitFor(() => expect(view.result.current.previousRecordAvailable).toBe(true));
     expect(dates).not.toHaveBeenCalled();
     expect(previous).not.toHaveBeenCalled();
-    expect(view.result.current.availableDates).toEqual([]);
   });
 
   it('answers from the device when yesterday is local, without a server read', async () => {

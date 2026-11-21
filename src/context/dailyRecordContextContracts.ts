@@ -54,11 +54,7 @@ export interface DailyRecordDataContextType {
 }
 
 export interface DailyRecordDayActions {
-  createDay: (
-    copyFromPrevious: boolean,
-    specificDate?: string,
-    options?: { forceCopyScheduleOverride?: boolean }
-  ) => Promise<boolean>;
+  createDay: (sourceDate: string) => Promise<boolean>;
   resetDay: () => Promise<void>;
   refresh: () => void;
 }

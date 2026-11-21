@@ -20,14 +20,8 @@ export interface BuildEmptyDayPromptPropsParams {
   currentDateString: string;
   previousRecordAvailable: boolean;
   previousRecordDate: string | undefined;
-  availableDates: string[];
-  onCreateDay: (
-    copyFromPrevious: boolean,
-    specificDate?: string,
-    options?: { forceCopyScheduleOverride?: boolean }
-  ) => Promise<boolean>;
+  onCreateDay: (sourceDate: string) => Promise<boolean>;
   readOnly: boolean;
-  allowAdminCopyOverride: boolean;
   emptyStateDiagnostic?: CensusEmptyStateDiagnostic;
 }
 
@@ -54,10 +48,8 @@ export const buildEmptyDayPromptProps = ({
   currentDateString,
   previousRecordAvailable,
   previousRecordDate,
-  availableDates,
   onCreateDay,
   readOnly,
-  allowAdminCopyOverride,
   emptyStateDiagnostic,
 }: BuildEmptyDayPromptPropsParams) => ({
   selectedDay,
@@ -65,10 +57,8 @@ export const buildEmptyDayPromptProps = ({
   currentDateString,
   previousRecordAvailable,
   previousRecordDate,
-  availableDates,
   onCreateDay,
   readOnly,
-  allowAdminCopyOverride,
   ...(emptyStateDiagnostic ? { emptyStateDiagnostic } : {}),
 });
 

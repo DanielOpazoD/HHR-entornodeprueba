@@ -76,7 +76,6 @@ describe('useCensusLogic', () => {
     vi.mocked(censusPromptStateHook.useCensusPromptState).mockReturnValue({
       previousRecordAvailable: true,
       previousRecordDate: '2025-01-09',
-      availableDates: ['2025-01-08', '2025-01-09'],
     });
   });
 
@@ -138,7 +137,6 @@ describe('useCensusLogic', () => {
       vi.mocked(censusPromptStateHook.useCensusPromptState).mockReturnValueOnce({
         previousRecordAvailable: false,
         previousRecordDate: undefined,
-        availableDates: ['2025-01-08'],
       });
 
       const { result } = renderHook(() => useCensusLogic('2025-01-10'));
@@ -147,33 +145,11 @@ describe('useCensusLogic', () => {
     });
   });
 
-  describe('Available Dates', () => {
-    it('should filter out current date from available dates', () => {
-      const { result } = renderHook(() => useCensusLogic('2025-01-10'));
-
-      expect(result.current.availableDates).not.toContain('2025-01-10');
-      expect(result.current.availableDates).toContain('2025-01-08');
-      expect(result.current.availableDates).toContain('2025-01-09');
-    });
-
-    it('should fallback to empty available dates when repository call fails', () => {
-      vi.mocked(censusPromptStateHook.useCensusPromptState).mockReturnValueOnce({
-        previousRecordAvailable: false,
-        previousRecordDate: undefined,
-        availableDates: [],
-      });
-      const { result } = renderHook(() => useCensusLogic('2025-01-10'));
-
-      expect(result.current.availableDates).toEqual([]);
-    });
-  });
-
   describe('Error Resilience', () => {
     it('should fallback to no previous record when previous day lookup fails', () => {
       vi.mocked(censusPromptStateHook.useCensusPromptState).mockReturnValueOnce({
         previousRecordAvailable: false,
         previousRecordDate: undefined,
-        availableDates: [],
       });
       const { result } = renderHook(() => useCensusLogic('2025-01-10'));
 
