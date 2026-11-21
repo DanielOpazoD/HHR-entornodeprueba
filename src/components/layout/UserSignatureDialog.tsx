@@ -1,12 +1,8 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { ImagePlus, PenLine, Trash2 } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
-import { useUserSignatureImage } from '@/hooks/useUserSignatureImage';
-import {
-  describeUserSignatureFileProblem,
-  userSignatureService,
-  type UserSignatureService,
-} from '@/services/user-profile/userSignatureService';
+import { useUserSignatureEditor } from '@/hooks/useUserSignatureImage';
+import type { UserSignatureService } from '@/services/user-profile/userSignatureService';
 
 interface UserSignatureDialogProps {
   uid: string;
@@ -15,39 +11,16 @@ interface UserSignatureDialogProps {
 }
 
 /** Where a person keeps the signature printed on their own requests. Only they can see it. */
-export default function UserSignatureDialog({
-  uid,
-  onClose,
-  service = userSignatureService,
-}: UserSignatureDialogProps) {
+export default function UserSignatureDialog({ uid, onClose, service }: UserSignatureDialogProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [reloadToken, setReloadToken] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const signature = useUserSignatureImage(uid, reloadToken, service);
-
-  const run = async (operation: () => Promise<void>, failure: string) => {
-    setBusy(true);
-    setMessage(null);
-    try {
-      await operation();
-      setReloadToken(token => token + 1);
-    } catch {
-      setMessage(failure);
-    } finally {
-      setBusy(false);
-    }
-  };
+  const { signature, busy, message, saveFile, removeSignature } = useUserSignatureEditor(
+    uid,
+    service
+  );
 
   const handleFile = (file: File | undefined) => {
     if (inputRef.current) inputRef.current.value = '';
-    if (!file) return;
-    const problem = describeUserSignatureFileProblem(file);
-    if (problem) {
-      setMessage(problem);
-      return;
-    }
-    void run(() => service.save(uid, file), 'No se pudo guardar la firma.');
+    saveFile(file);
   };
 
   return (
@@ -115,7 +88,7 @@ export default function UserSignatureDialog({
           </button>
           <button
             type="button"
-            onClick={() => void run(() => service.remove(uid), 'No se pudo eliminar la firma.')}
+            onClick={removeSignature}
             disabled={busy || signature.status !== 'ready'}
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-600 shadow-sm transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-45"
           >

@@ -3,13 +3,9 @@ import type { AuthContextType } from '@/context/AuthContext';
 import type { CensusContextType } from '@/context/CensusContext';
 import { useCensusContext } from '@/context/CensusContext';
 import { useAuth } from '@/context/AuthContext';
-import { useNotification } from '@/context/UIContext';
 import { useExportManager, type UseExportManagerReturn } from '@/hooks/useExportManager';
-import {
-  prepareRecordExport,
-  waitForExportReadiness,
-} from '@/hooks/controllers/exportReadinessController';
-import { createScopedLogger } from '@/services/utils/loggerScope';
+import { useCensusMasterExcelExport } from '@/hooks/useCensusMasterExcelExport';
+import { waitForExportReadiness } from '@/hooks/controllers/exportReadinessController';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
 import {
   resolveSpecialistCapabilities,
@@ -20,13 +16,6 @@ import {
   canTriggerCensusExports,
   canVerifyPassiveBackupForRole,
 } from '@/shared/access/operationalAccessPolicy';
-
-const censusMasterExportFlowLogger = createScopedLogger('CensusMasterExportFlow');
-
-const loadCensusMasterExcelExporter = async () =>
-  import('@/services/exporters/censusMasterExport').then(
-    module => module.generateCensusMasterExcel
-  );
 
 export interface AppContentRuntime {
   auth: AuthContextType;
@@ -87,9 +76,6 @@ const resolveExportManagerParams = (
   canVerifyArchiveStatus,
 });
 
-const resolveExcelExportDateArgs = (dateNav: CensusContextType['dateNav']) =>
-  [dateNav.selectedYear, dateNav.selectedMonth, dateNav.selectedDay] as const;
-
 export const useAppContentRuntime = ({ ui }: UseAppContentRuntimeParams): AppContentRuntime => {
   const {
     dailyRecord: dailyRecordHook,
@@ -99,7 +85,6 @@ export const useAppContentRuntime = ({ ui }: UseAppContentRuntimeParams): AppCon
     nurseSignature,
   } = useCensusContext();
   const auth = useAuth();
-  const { error: notifyError, info: notifyInfo, warning } = useNotification();
   const { record, syncStatus, hasSaveException, lastSyncTime } = dailyRecordHook;
   const syncStatusRef = React.useRef({ syncStatus, hasSaveException });
   const recordRef = React.useRef(record);
@@ -154,36 +139,16 @@ export const useAppContentRuntime = ({ ui }: UseAppContentRuntimeParams): AppCon
     )
   );
 
-  const handleExportExcel = React.useCallback(async () => {
-    const prepared = await prepareRecordExport({
-      expectedDate: dateNav.currentDateString,
-      flushBeforeExport,
-      readRecord: () => recordRef.current,
-      warning,
-      allowEmptyRecord: true,
-    });
-    if (!prepared) return;
-    const generateCensusMasterExcel = await loadCensusMasterExcelExporter();
-    const result = await generateCensusMasterExcel(...resolveExcelExportDateArgs(dateNav));
-    if (result.outcome === 'no_data') {
-      notifyInfo('Sin datos para exportar', result.userSafeMessage);
-      return;
-    }
-    if (result.outcome === 'failed') {
-      censusMasterExportFlowLogger.error(`Census master export failed: ${result.reason}`);
-      notifyError('No se pudo exportar el censo', result.userSafeMessage);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- dateNav is an unstable context object; tracking only its date parts keeps the callback stable
-  }, [
-    dateNav.selectedDay,
-    dateNav.selectedMonth,
-    dateNav.selectedYear,
-    dateNav.currentDateString,
+  const readRecord = React.useCallback(() => recordRef.current, []);
+
+  const handleExportExcel = useCensusMasterExcelExport({
+    currentDateString: dateNav.currentDateString,
+    selectedYear: dateNav.selectedYear,
+    selectedMonth: dateNav.selectedMonth,
+    selectedDay: dateNav.selectedDay,
     flushBeforeExport,
-    notifyError,
-    notifyInfo,
-    warning,
-  ]);
+    readRecord,
+  });
 
   return React.useMemo(
     () => ({

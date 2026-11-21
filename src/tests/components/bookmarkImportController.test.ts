@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   isFileReaderTextResult,
   resolveBookmarkImportAlertMessage,
-} from '@/components/bookmarks/controllers/bookmarkImportController';
+} from '@/hooks/bookmarks/bookmarkImportController';
 
 describe('bookmarkImportController', () => {
   it('returns user-facing messages by outcome', () => {

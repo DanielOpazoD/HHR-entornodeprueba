@@ -12,6 +12,7 @@ import {
   buildDefaultErrorServiceSinks,
   runErrorServiceSinks,
 } from '@/services/utils/errorServiceSinks';
+import { registerRenderCrashReporter } from '@/shared/observability/renderCrashReporter';
 
 export type { ErrorLog, ErrorSeverity, LogLevel, RetryConfig };
 
@@ -32,8 +33,21 @@ class ErrorService {
   private maxLocalErrors = 100; // Keep last 100 errors locally
 
   private constructor() {
-    // Set up global error handlers
+    // Set up global error handlers and register the ErrorBoundary crash sink.
     this.setupGlobalHandlers();
+    registerRenderCrashReporter((error, errorInfo) => {
+      this.logError({
+        // `${error}` keeps the class (`TypeError: …`), which telemetry reports as a code.
+        message: `React Error Boundary: ${error}`,
+        severity: 'critical',
+        error,
+        stack: errorInfo.componentStack || undefined,
+        context: {
+          componentStack: errorInfo.componentStack || undefined,
+          errorInfo,
+        },
+      });
+    });
   }
 
   static getInstance(): ErrorService {

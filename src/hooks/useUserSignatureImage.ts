@@ -1,8 +1,9 @@
-import { useContext, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import { AuthContext } from '@/context/AuthContext';
 import { BOOTSTRAP_PLACEHOLDER_UID } from '@/constants/security';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import {
+  describeUserSignatureFileProblem,
   userSignatureService,
   type UserSignatureService,
 } from '@/services/user-profile/userSignatureService';
@@ -59,4 +60,52 @@ export const useUserSignatureImage = (
 export const useCurrentUserSignatureImage = (): UserSignatureImage => {
   const uid = useContext(AuthContext)?.currentUser?.uid;
   return useUserSignatureImage(uid && uid !== BOOTSTRAP_PLACEHOLDER_UID ? uid : null);
+};
+
+export const useUserSignatureEditor = (
+  uid: string,
+  service: UserSignatureService = userSignatureService
+) => {
+  const [reloadToken, setReloadToken] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const signature = useUserSignatureImage(uid, reloadToken, service);
+
+  const run = useCallback(async (operation: () => Promise<void>, failure: string) => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      await operation();
+      setReloadToken(token => token + 1);
+    } catch {
+      setMessage(failure);
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  const saveFile = useCallback(
+    (file: File | undefined) => {
+      if (!file) return;
+      const problem = describeUserSignatureFileProblem(file);
+      if (problem) {
+        setMessage(problem);
+        return;
+      }
+      void run(() => service.save(uid, file), 'No se pudo guardar la firma.');
+    },
+    [run, service, uid]
+  );
+
+  const removeSignature = useCallback(() => {
+    void run(() => service.remove(uid), 'No se pudo eliminar la firma.');
+  }, [run, service, uid]);
+
+  return {
+    signature,
+    busy,
+    message,
+    saveFile,
+    removeSignature,
+  };
 };

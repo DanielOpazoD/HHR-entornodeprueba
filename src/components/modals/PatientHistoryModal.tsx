@@ -5,20 +5,13 @@
  * Shows admissions, internal moves, discharges, and transfers.
  */
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Clock, Loader2, MapPin, LogOut, Ambulance, ArrowRight, Home } from 'lucide-react';
 import clsx from 'clsx';
 import { BaseModal } from '@/components/shared/BaseModal';
-import {
-  getPatientMovementHistoryDetailed,
-  PatientHistoryResult,
-  MovementType,
-} from '@/services/patient/patientHistoryService';
-import { createScopedLogger } from '@/services/utils/loggerScope';
+import type { MovementType } from '@/services/patient/patientHistoryService';
 import { formatHandoffVerboseDate } from '@/shared/handoff/handoffPresentation';
-import { useChangedOnRender } from '@/hooks/useChangedOnRender';
-
-const patientHistoryLogger = createScopedLogger('PatientHistoryModal');
+import { usePatientMovementHistory } from '@/hooks/usePatientMovementHistory';
 
 interface PatientHistoryModalProps {
   isOpen: boolean;
@@ -79,64 +72,21 @@ export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
   admissionDate,
   throughDate,
 }) => {
-  const [history, setHistory] = useState<PatientHistoryResult | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const [isPartial, setIsPartial] = useState(false);
-  const [retry, setRetry] = useState(0);
-
-  const [fullHistoryContext, setFullHistoryContext] = useState<string | null>(null);
-  const contextKey = JSON.stringify([patientRut, admissionDate, throughDate]);
-  const showFullHistory = fullHistoryContext === contextKey;
-  const hasPeriod = Boolean(admissionDate && throughDate);
-
-  if (
-    useChangedOnRender([isOpen, patientRut, retry, admissionDate, throughDate, showFullHistory])
-  ) {
-    if (!isOpen) setFullHistoryContext(null);
-    if (isOpen && patientRut) {
-      setIsLoading(true);
-      setError(null);
-      setHistory(null);
-      setIsPartial(false);
-    }
-  }
-  useEffect(() => {
-    let active = true;
-    if (isOpen && patientRut) {
-      const loadData = async () => {
-        try {
-          const result = await getPatientMovementHistoryDetailed(patientRut, {
-            ...(admissionDate && throughDate && !showFullHistory
-              ? { dateRange: { startDate: admissionDate, endDate: throughDate } }
-              : { forceFullRemoteHydration: true }),
-          });
-          if (!active) return;
-          setHistory(result.history);
-          setIsPartial(result.source === 'local');
-          if (!result.history) {
-            setError(
-              result.source === 'local'
-                ? 'No se pudo comprobar el historial en el servidor. No hay movimientos disponibles localmente.'
-                : 'No se encontró historial para este paciente.'
-            );
-          }
-        } catch (err) {
-          if (!active) return;
-          patientHistoryLogger.warn('Error fetching patient history', err);
-          setError('Error al cargar el historial.');
-        } finally {
-          if (active) setIsLoading(false);
-        }
-      };
-
-      loadData();
-    }
-    return () => {
-      active = false;
-    };
-  }, [isOpen, patientRut, retry, admissionDate, throughDate, showFullHistory]);
+  const {
+    history,
+    isLoading,
+    error,
+    isPartial,
+    hasPeriod,
+    showFullHistory,
+    toggleFullHistory,
+    retry,
+  } = usePatientMovementHistory({
+    isOpen,
+    patientRut,
+    admissionDate,
+    throughDate,
+  });
 
   return (
     <BaseModal
@@ -185,7 +135,7 @@ export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
             </span>
             <button
               type="button"
-              onClick={() => setFullHistoryContext(showFullHistory ? null : contextKey)}
+              onClick={toggleFullHistory}
               className="font-semibold text-blue-700 underline"
             >
               {showFullHistory ? 'Ver período del censo' : 'Ver historial completo'}
@@ -204,11 +154,7 @@ export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
                 disponibles localmente.
               </p>
             )}
-            <button
-              type="button"
-              onClick={() => setRetry(value => value + 1)}
-              className="mt-2 font-semibold underline"
-            >
+            <button type="button" onClick={retry} className="mt-2 font-semibold underline">
               Reintentar consulta
             </button>
           </div>

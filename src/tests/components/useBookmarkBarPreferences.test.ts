@@ -10,7 +10,7 @@ vi.mock('@/services/bookmarks/bookmarkService', () => ({
   saveBookmarkPreferences: (...args: unknown[]) => mockSaveBookmarkPreferences(...args),
 }));
 
-import { useBookmarkBarPreferences } from '@/components/bookmarks/hooks/useBookmarkBarPreferences';
+import { useBookmarkBarPreferences } from '@/hooks/bookmarks/useBookmarkBarPreferences';
 
 describe('useBookmarkBarPreferences', () => {
   beforeEach(() => {

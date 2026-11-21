@@ -9,9 +9,9 @@ import {
   shouldAttemptStorageAutoRecovery,
   shouldShowStorageFallbackUi,
 } from '@/services/storage/storageFallbackUiPolicy';
-import { resetLocalDatabase } from '@/services/storage/indexeddb/indexedDbMaintenanceService';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import { useDatabaseFallbackStatus } from '@/hooks/useDatabaseFallbackStatus';
+import { useLocalDatabaseReset } from '@/hooks/useLocalDatabaseReset';
 
 /**
  * StorageStatusBadge
@@ -21,6 +21,7 @@ import { useDatabaseFallbackStatus } from '@/hooks/useDatabaseFallbackStatus';
  */
 const StorageStatusBadge: React.FC = () => {
   const isFallback = useDatabaseFallbackStatus();
+  const handleResetLocalDatabase = useLocalDatabaseReset();
   const [isVisible, setIsVisible] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
   const shouldShowBanner = shouldShowStorageFallbackUi(isFallback);
@@ -84,7 +85,7 @@ const StorageStatusBadge: React.FC = () => {
               </button>
               {showDetails ? (
                 <button
-                  onClick={resetLocalDatabase}
+                  onClick={() => void handleResetLocalDatabase()}
                   className="text-[11px] bg-white border border-amber-300 text-amber-700 hover:bg-amber-50 px-3 py-1.5 rounded-md flex items-center gap-1 transition-colors"
                 >
                   <Database className="w-3 h-3" /> {copy.advancedActionLabel}

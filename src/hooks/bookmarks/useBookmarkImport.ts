@@ -5,7 +5,7 @@ import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRunti
 import {
   isFileReaderTextResult,
   resolveBookmarkImportAlertMessage,
-} from '@/components/bookmarks/controllers/bookmarkImportController';
+} from '@/hooks/bookmarks/bookmarkImportController';
 
 interface UseBookmarkImportResult {
   fileInputRef: RefObject<HTMLInputElement | null>;
