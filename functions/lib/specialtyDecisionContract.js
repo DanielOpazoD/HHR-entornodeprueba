@@ -125,14 +125,14 @@ const eachTarget = (record, fn) => {
  */
 const protectSpecialtyDecisions = ({
   remoteRecord,
-  priorRecord,
+  priorRecord = undefined,
   candidate,
-  intent,
-  patch,
-  actorUid,
-  mutationId,
-  now,
-  aiDecision,
+  intent = undefined,
+  patch = undefined,
+  actorUid = undefined,
+  mutationId = undefined,
+  now = undefined,
+  aiDecision = undefined,
   guardScalarChanges = true,
 }) => {
   const restoredRecord = movementRestoreRecord(remoteRecord, candidate);

@@ -6,7 +6,10 @@ const functions = require('firebase-functions/v1');
 const { digest, monthValue, verifySupplementBytes } = require('./cudyrSupplementContract');
 const { addCalendarDays } = require('./hospitalCalendarDay');
 const fail = (message = 'Invalid verified CUDYR context.', code = 'invalid-argument') => {
-  throw new functions.https.HttpsError(code, message);
+  throw new functions.https.HttpsError(
+    /** @type {functions.https.FunctionsErrorCode} */ (code),
+    message
+  );
 };
 const str = (value, max, optional = false) => {
   if (typeof value !== 'string' || value.length > max || (!optional && !value.trim())) fail();

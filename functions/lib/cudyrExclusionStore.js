@@ -4,6 +4,7 @@ const { FieldPath } = require('firebase-admin/firestore');
 const { dateOnly, text, invalid } = require('./cudyrDischargeContract');
 const { episodeContext } = require('./cudyrHistoryContext');
 const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+/** @returns {{ date: string, clinicalEpisodeId: string, dischargeId?: string, expectedRevision: number, operationId: string, reason: string | null, note: string }} */
 const parseExclusion = data => {
   if (
     !data ||

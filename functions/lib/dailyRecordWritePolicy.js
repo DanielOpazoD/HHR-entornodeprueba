@@ -266,7 +266,7 @@ const assertClinicalAuthority = record => {
 const assertAuthorizedDailyRecordWriter = async ({
   context,
   resolveRoleForEmail,
-  requiredRole,
+  requiredRole = undefined,
 }) => {
   const email = requireAuthenticatedEmail(context);
   const resolvedRole = await resolveRoleForEmail(email, context);

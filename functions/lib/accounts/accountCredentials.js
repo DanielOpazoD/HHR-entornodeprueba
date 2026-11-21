@@ -105,7 +105,7 @@ const createAccountCredentials = ({
       const account = (await tx.get(accessRef)).data();
       const privateData = (await tx.get(firestore.collection(PRIVATE).doc(invite.uid))).data();
       if (normalizeRut(data?.rut) !== privateData?.rut) throw genericFailure();
-      assertPassword(data?.password, privateData?.rut);
+      assertPassword(data?.password);
       if (account?.status !== 'pending' || account.version !== invite.version)
         throw genericFailure();
       tx.update(inviteRef, { status: 'consumed', consumedAt: now() });
@@ -160,8 +160,7 @@ const createAccountCredentials = ({
     const ref = firestore.collection(ACCESS).doc(uid);
     const account = (await ref.get()).data();
     if (!hasCurrentAccountSession(account, context, now())) throw genericFailure();
-    const privateData = (await firestore.collection(PRIVATE).doc(uid).get()).data();
-    assertPassword(data?.password, privateData?.rut);
+    assertPassword(data?.password);
     const verifiedUid = await passwordVerifier({
       auth,
       email: `${uid}@accounts.hhr.invalid`,

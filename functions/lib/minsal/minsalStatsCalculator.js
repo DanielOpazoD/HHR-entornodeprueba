@@ -306,7 +306,8 @@ const calculateMinsalStatistics = ({
   const totalStayDays = sumStayDurations(totalStayDurations);
   const promedioDiasEstada =
     totalStayDurations.length > 0 ? totalStayDays / totalStayDurations.length : 0;
-  const totalDaysInRange = (new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24) + 1;
+  const totalDaysInRange =
+    (new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24) + 1;
   const avgAvailableBeds =
     records.length > 0 ? totalDiasCamaDisponibles / records.length : hospitalCapacity;
   const indiceRotacion =

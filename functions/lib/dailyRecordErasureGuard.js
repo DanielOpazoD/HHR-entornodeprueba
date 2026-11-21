@@ -88,10 +88,11 @@ const collectPatients = record =>
  * @returns {{ bedId: string, remotePatientName: string }[]}
  */
 const findPatientErasures = (remote, local) => {
+  const asArray = value => (Array.isArray(value) ? value : []);
   const movements = [
-    ...((local && local.discharges) || []),
-    ...((local && local.transfers) || []),
-    ...((local && local.cma) || []),
+    ...asArray(local && local.discharges),
+    ...asArray(local && local.transfers),
+    ...asArray(local && local.cma),
   ];
 
   const remoteBeds = (remote && remote.beds) || {};

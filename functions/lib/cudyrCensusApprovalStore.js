@@ -1,7 +1,10 @@
 const functions = require('firebase-functions/v1');
 const { digest, monthValue } = require('./cudyrSupplementContract');
 const fail = (message, code = 'invalid-argument') => {
-  throw new functions.https.HttpsError(code, message);
+  throw new functions.https.HttpsError(
+    /** @type {functions.https.FunctionsErrorCode} */ (code),
+    message
+  );
 };
 const parseCensusApproval = data => {
   const month = monthValue(data.month);

@@ -2,7 +2,10 @@ const functions = require('firebase-functions/v1');
 const { FieldPath } = require('firebase-admin/firestore');
 const { digest, monthValue } = require('./cudyrSupplementContract');
 const fail = (code = 'invalid-argument', message = 'Invalid CUDYR review.') => {
-  throw new functions.https.HttpsError(code, message);
+  throw new functions.https.HttpsError(
+    /** @type {functions.https.FunctionsErrorCode} */ (code),
+    message
+  );
 };
 const text = (value, max, required = true) => {
   if (typeof value !== 'string' || value.length > max || (required && !value.trim())) fail();

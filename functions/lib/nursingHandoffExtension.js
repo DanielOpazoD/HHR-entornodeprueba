@@ -128,6 +128,19 @@ function localActor(source, expectedKey) {
   return { auth: { uid, token: { email: uid + '@example.test' } } };
 }
 
+/**
+ * @param {{
+ *   firestore: any,
+ *   Timestamp: any,
+ *   FieldValue: any,
+ *   installationKey?: string,
+ *   clinicalNow?: () => Date,
+ *   authorize?: (data: any) => any,
+ *   resolveRoleForEmail?: (email: any, context?: any) => any,
+ *   origin?: string,
+ *   census?: string,
+ * }} deps
+ */
 function createHandler({
   firestore,
   Timestamp,

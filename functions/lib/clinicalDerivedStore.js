@@ -84,7 +84,7 @@ const isClinicalDerivedSplitDay = record => readClinicalDerivedLayout(record).st
 const failedPrecondition = (reason, message) => {
   const error = new functions.https.HttpsError('failed-precondition', `${reason}: ${message}`);
   // Closed enum for functionsTelemetry (e.g. `client_outdated`); the message never goes there.
-  error.clinicalDerivedRejection = reason.replace(/^clinical_derived_/, '');
+  Object.assign(error, { clinicalDerivedRejection: reason.replace(/^clinical_derived_/, '') });
   return error;
 };
 
@@ -122,7 +122,7 @@ const assertClientVersion = data => {
 };
 
 /** Runs after the idempotency classification, so a confirmed retry never reaches it. */
-const assertSplitWriteAccepted = ({ state, data, fieldContractVersion }) => {
+const assertSplitWriteAccepted = ({ state, data, fieldContractVersion = undefined }) => {
   assertLayoutSupported(state);
   assertClientVersion(data);
   // The v1 recursive merge would need the combined value as its base; v3 clients send v2.
@@ -134,7 +134,7 @@ const assertSplitWriteAccepted = ({ state, data, fieldContractVersion }) => {
   }
 };
 
-const createClinicalDerivedStore = ({ FieldValue } = {}) => {
+const createClinicalDerivedStore = ({ FieldValue = undefined } = {}) => {
   const deleteField = () => {
     if (typeof FieldValue?.delete !== 'function') {
       throw new Error('clinicalDerived split writes require FieldValue from the factory.');

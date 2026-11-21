@@ -18,7 +18,7 @@ const recordTelemetry = async ({
   transactionAttempts,
   serverTimingsMs,
   transactionTimingsMs,
-  error,
+  error = undefined,
 }) => {
   try {
     await firestore
