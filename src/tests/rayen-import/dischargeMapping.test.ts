@@ -3,7 +3,7 @@ import { resolveDischargeIntent, type RayenEncounter } from '@/features/rayen-im
 
 const encounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => ({
   encounterId: 'E1',
-  run: '144700554',
+  run: '100001314',
   firstGivenName: 'Ana',
   firstFamilyName: 'Perez',
   ...overrides,

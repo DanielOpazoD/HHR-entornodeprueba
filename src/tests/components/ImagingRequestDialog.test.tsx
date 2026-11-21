@@ -24,7 +24,7 @@ const mockPatient: PatientData = {
   isBlocked: false,
   bedMode: 'Cama',
   hasCompanionCrib: false,
-  patientName: 'MARCELO VALDES AVILA',
+  patientName: 'MUNILEP VECASU ACESE',
   rut: '12.345.678-9',
   age: '30',
   birthDate: '1996-01-01',
@@ -44,7 +44,7 @@ describe('ImagingRequestDialog', () => {
 
     expect(screen.getByText(/Solicitud de Imágenes/i)).toBeInTheDocument();
     // Dialog header, patient summary and the form preview's single name line.
-    expect(screen.getAllByText(/MARCELO VALDES AVILA/i)).toHaveLength(3);
+    expect(screen.getAllByText(/MUNILEP VECASU ACESE/i)).toHaveLength(3);
   });
 
   it('should switch between documents', () => {

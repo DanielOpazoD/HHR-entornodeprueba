@@ -85,13 +85,13 @@ describe('labFirestoreService', () => {
   it('downgrades permission-denied cache writes to a warning', async () => {
     setDoc.mockRejectedValue({ code: 'permission-denied' });
 
-    await saveLabResults('9.376.707-1', 'Raul Araki', details, exams);
+    await saveLabResults('1.000.116-1', 'Raul Araki', details, exams);
 
     expect(loggerMocks.warn).toHaveBeenCalledWith(
       'Lab results persisted only in memory because Firestore rejected the cache write',
       expect.objectContaining({
         code: 'permission-denied',
-        rut: '9376707-1',
+        rut: '1000116-1',
       })
     );
     expect(loggerMocks.error).not.toHaveBeenCalledWith(

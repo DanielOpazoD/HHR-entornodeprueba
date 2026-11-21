@@ -25,9 +25,9 @@ export const DemographicsHeader: React.FC<DemographicsHeaderProps> = ({
   const fillDemoPatient = () => {
     setLocalData(prev => ({
       ...prev,
-      firstName: 'Daniel',
-      lastName: 'Opazo',
-      secondLastName: 'Damiani',
+      firstName: 'Degaro',
+      lastName: 'Opisu',
+      secondLastName: 'Doliceg',
       provisionalName: '',
       identityStatus: 'official',
       documentType: 'RUT',

@@ -57,7 +57,7 @@ const boxSnapshot = (): RayenCensusSnapshot => ({
   encounters: [
     {
       encounterId: 'BOX-EPISODE',
-      run: '144700554',
+      run: '100001314',
       firstGivenName: 'Paciente',
       firstFamilyName: 'Prueba',
       birthDate: '1980-01-01',

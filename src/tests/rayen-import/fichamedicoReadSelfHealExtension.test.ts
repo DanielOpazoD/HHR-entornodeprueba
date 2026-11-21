@@ -27,7 +27,7 @@ const clinicalResolver =
     const parsed = new URL(url);
     if (parsed.pathname === LIST_PATH) return listBehavior(parsed);
     if (parsed.pathname.includes('/patientHeaderData/')) {
-      return { preferredIdentifierCode: '17.764.680-6', firstGivenName: 'Jennifer' };
+      return { preferredIdentifierCode: '10.000.113-6', firstGivenName: 'Jennifer' };
     }
     if (parsed.pathname.includes('/diagnosisEntry/')) return [];
     if (parsed.pathname.includes('/physician')) return [];
@@ -74,7 +74,7 @@ describe('Ficha Médico · lectura ante fallo de red', () => {
         requested.push(url.toString());
         if (url.searchParams.get('stale') === '1') throw networkFailure();
         return url.searchParams.get('filterType') === '3'
-          ? [{ id: 142070, patientName: 'Jennifer Lopez' }]
+          ? [{ id: 142070, patientName: 'Jennifer Lemef' }]
           : [];
       })
     );
@@ -109,11 +109,11 @@ describe('Ficha Médico · lectura ante fallo de red', () => {
       const url = new URL(rawUrl);
       if (url.pathname === LIST_PATH) {
         return url.searchParams.get('filterType') === '3'
-          ? [{ id: 142070, patientName: 'Jennifer Lopez' }]
+          ? [{ id: 142070, patientName: 'Jennifer Lemef' }]
           : [];
       }
       if (url.pathname.includes('/patientHeaderData/')) {
-        return { preferredIdentifierCode: '17.764.680-6', firstGivenName: 'Jennifer' };
+        return { preferredIdentifierCode: '10.000.113-6', firstGivenName: 'Jennifer' };
       }
       if (url.pathname.includes('/diagnosisEntry/')) {
         diagnosisCalls += 1;
@@ -136,11 +136,11 @@ describe('Ficha Médico · lectura ante fallo de red', () => {
       const url = new URL(rawUrl);
       if (url.pathname === LIST_PATH) {
         return url.searchParams.get('filterType') === '3'
-          ? [{ id: 142070, patientName: 'Jennifer Lopez' }]
+          ? [{ id: 142070, patientName: 'Jennifer Lemef' }]
           : [];
       }
       if (url.pathname.includes('/patientHeaderData/')) {
-        return { preferredIdentifierCode: '17.764.680-6', firstGivenName: 'Jennifer' };
+        return { preferredIdentifierCode: '10.000.113-6', firstGivenName: 'Jennifer' };
       }
       if (url.pathname.includes('/diagnosisEntry/')) throw new Error('diagnosis unavailable');
       return [];
@@ -169,7 +169,7 @@ describe('Ficha Médico · lectura ante fallo de red', () => {
       clinicalResolver(url => {
         if (failing) throw networkFailure();
         return url.searchParams.get('filterType') === '3'
-          ? [{ id: 142070, patientName: 'Jennifer Lopez' }]
+          ? [{ id: 142070, patientName: 'Jennifer Lemef' }]
           : [];
       })
     );

@@ -34,7 +34,7 @@ describe('census laboratory cohort', () => {
       {
         R1: patient('R1', {
           clinicalCrib: patient('R1', {
-            rut: '5.844.865-6',
+            rut: '1.000.105-6',
             clinicalEpisodeId: 'newborn',
             patientName: 'RN SINTÉTICO',
           }),
@@ -51,7 +51,7 @@ describe('census laboratory cohort', () => {
       },
       '2026-11-07'
     );
-    expect(cohort.patients.map(p => p.rutBody)).toEqual(['12345678', '5844865']);
+    expect(cohort.patients.map(p => p.rutBody)).toEqual(['12345678', '1000105']);
     expect(cohort.excluded).toBe(4);
     expect(cohort.patients[1].bedLabel).toContain('Cuna');
   });

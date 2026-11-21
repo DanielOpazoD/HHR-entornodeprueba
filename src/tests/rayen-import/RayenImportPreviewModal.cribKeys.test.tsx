@@ -11,14 +11,14 @@ describe('RayenImportPreviewModal Cuna RN identity', () => {
     const mother = {
       ...EMPTY_PATIENT,
       bedId: 'H4C1',
-      patientName: 'Serena Vai Mahani Teao Atan',
+      patientName: 'Serimi Vibe Muvapu Tode Acid',
     };
     const diff: CensusImportDiff = {
       admissions: [],
       updates: [
         {
           bedId: 'H4C1',
-          rut: '21.083.458-3',
+          rut: '10.000.123-3',
           patientName: mother.patientName,
           changes: [{ field: 'pathology', from: '', to: 'Parto único espontáneo' }],
           patient: mother,
@@ -26,8 +26,8 @@ describe('RayenImportPreviewModal Cuna RN identity', () => {
         },
         {
           bedId: 'H4C1',
-          rut: '21.083.458-3',
-          patientName: 'RN de Serena Teao Atan',
+          rut: '10.000.123-3',
+          patientName: 'RN de Serimi Tode Acid',
           changes: [
             {
               field: 'pathology',
@@ -37,7 +37,7 @@ describe('RayenImportPreviewModal Cuna RN identity', () => {
             {
               field: 'clinicalCrib',
               from: undefined,
-              to: { ...EMPTY_PATIENT, patientName: 'RN de Serena Teao Atan' },
+              to: { ...EMPTY_PATIENT, patientName: 'RN de Serimi Tode Acid' },
             },
           ],
           patient: mother,
@@ -71,8 +71,8 @@ describe('RayenImportPreviewModal Cuna RN identity', () => {
         />
       );
 
-      expect(screen.getByText(/Serena Vai Mahani Teao Atan:/)).toBeVisible();
-      expect(screen.getByText(/RN de Serena Teao Atan:/)).toBeVisible();
+      expect(screen.getByText(/Serimi Vibe Muvapu Tode Acid:/)).toBeVisible();
+      expect(screen.getByText(/RN de Serimi Tode Acid:/)).toBeVisible();
       expect(consoleError.mock.calls.some(call => String(call[0]).includes('same key'))).toBe(
         false
       );

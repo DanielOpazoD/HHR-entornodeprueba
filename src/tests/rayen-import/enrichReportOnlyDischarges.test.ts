@@ -3,7 +3,7 @@ import { enrichReportOnlyDischarges } from '@/features/rayen-import/domain/enric
 import type { EgresoReportRow } from '@/features/rayen-import/contracts/egresoReport';
 
 const row: EgresoReportRow = {
-  run: '8.260.364-6',
+  run: '1.000.119-6',
   patientName: 'Paciente de prueba',
   bedLabel: 'H4C2',
   servicio: 'Área Médico Quirúrgica',
@@ -17,7 +17,7 @@ const row: EgresoReportRow = {
 const statisticalText = `
 Informe Estadístico de Egreso Hospitalario
 1.RUN:
-8 2 6 0 3 6 4 - 6
+1 0 0 0 1 1 9 - 6
 24 INGRESO 1 4 - 0 4 1 3 - 0 8 - 2 6 Área Médico Quirúrgico Cuidados Medios 4 0 4
 29 EGRESO 2 0 - 2 9 1 3 - 0 8 - 2 6 Domicilio 4 0 4
 30 DÍAS ESTADIA 0 0 0 1 31 1) VIVO 2) FALLECIDO 2
@@ -79,7 +79,7 @@ describe('report-only short-stay enrichment', () => {
   it('uses the range report only for discovery and persists the exact episode interval', async () => {
     const lookupEgresos = vi
       .fn()
-      .mockResolvedValue([{ run: '82603646', encounterId: '143322', egreso: { id: 143322 } }]);
+      .mockResolvedValue([{ run: '10001196', encounterId: '143322', egreso: { id: 143322 } }]);
     const result = await enrichReportOnlyDischarges([row], '2026-08-13', {
       lookupEgresos,
       fetchStatisticalDischarge: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
@@ -104,7 +104,7 @@ describe('report-only short-stay enrichment', () => {
     const applied = { ...row, run: '11.111.111-1', patientName: 'Ya Egresado' };
     const lookupEgresos = vi
       .fn()
-      .mockResolvedValue([{ run: '82603646', encounterId: '143322', egreso: { id: 143322 } }]);
+      .mockResolvedValue([{ run: '10001196', encounterId: '143322', egreso: { id: 143322 } }]);
     const result = await enrichReportOnlyDischarges([applied, row], '2026-08-13', {
       lookupEgresos,
       fetchStatisticalDischarge: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
@@ -165,8 +165,8 @@ describe('report-only short-stay enrichment', () => {
       edad: '0 días',
     };
     const lookupEgresos = vi.fn().mockResolvedValue([
-      { run: '82603646', encounterId: '143322', egreso: { id: 143322 } },
-      { run: '82603646', encounterId: '143323', egreso: { id: 143323 } },
+      { run: '10001196', encounterId: '143322', egreso: { id: 143322 } },
+      { run: '10001196', encounterId: '143323', egreso: { id: 143323 } },
     ]);
     const result = await enrichReportOnlyDischarges([row, newborn], '2026-08-13', {
       lookupEgresos,
@@ -340,7 +340,7 @@ describe('report-only short-stay enrichment', () => {
       fetchStatisticalDischarge: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
       extractText: vi
         .fn()
-        .mockResolvedValue(statisticalText.replace('8 2 6 0 3 6 4 - 6', '1 9 3 3 8 5 4 1 - 9')),
+        .mockResolvedValue(statisticalText.replace('1 0 0 0 1 1 9 - 6', '1 0 0 0 0 1 2 0 - 9')),
       previousCensusCandidates: [
         {
           run: row.run,
@@ -402,7 +402,7 @@ describe('report-only short-stay enrichment', () => {
   it('does not import genuine D+1 rows from the source compensation window', async () => {
     const lookupEgresos = vi
       .fn()
-      .mockResolvedValue([{ run: '82603646', encounterId: '143323', egreso: { id: 143323 } }]);
+      .mockResolvedValue([{ run: '10001196', encounterId: '143323', egreso: { id: 143323 } }]);
     const result = await enrichReportOnlyDischarges(
       [{ ...row, fechaEgreso: '14-08-2026 01:00' }],
       '2026-08-13',
@@ -423,14 +423,14 @@ describe('report-only short-stay enrichment', () => {
 it('reads the exact neonatal maternal form rather than the shifted API clock', async () => {
   const text = statisticalText
     .replace(
-      '1.RUN:\n8 2 6 0 3 6 4 - 6',
+      '1.RUN:\n1 0 0 0 1 1 9 - 6',
       `5 2 6 SEXO M
 2. RUN Materno/progenitor(a)
 1.RUN:
 -
 No de Pasaporte u otro documento
 1. Masculino
-8 2 6 0 3 6 4 6 54 IDENTIDAD DE GÉNERO 01`
+1 0 0 0 1 1 9 6 54 IDENTIDAD DE GÉNERO 01`
     )
     .replace('29 EGRESO 2 0 - 2 9 1 3 - 0 8 - 2 6', '29 EGRESO 0 0 - 1 9 1 4 - 0 8 - 2 6');
   const result = await enrichReportOnlyDischarges([row], '2026-08-13', {

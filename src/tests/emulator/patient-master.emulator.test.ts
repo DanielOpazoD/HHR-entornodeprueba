@@ -18,7 +18,7 @@ const patient = (i: number): MasterPatient => ({
 });
 const target: MasterPatient = {
   rut: '12.345.678-5',
-  fullName: 'Inés Riroroko Leiva',
+  fullName: 'Isút Rebolesu Litus',
   createdAt: 1,
   updatedAt: 0,
   lastClinicalEpisodeId: 'synthetic-episode-a',
@@ -134,7 +134,7 @@ describeEmulator('patient master with real Firestore', () => {
   });
   it('scans beyond 250 rows for accent insensitive multi word matches', async () => {
     await seed([...Array.from({ length: 250 }, (_, i) => patient(i + 1)), target]);
-    expect(await repository.searchPatients('  Ines leiva  ')).toEqual([target]);
+    expect(await repository.searchPatients('  Isut litus  ')).toEqual([target]);
     expect(await repository.searchPatients('   ')).toEqual([]);
     expect(await repository.searchPatients(target.rut)).toEqual([target]);
   });

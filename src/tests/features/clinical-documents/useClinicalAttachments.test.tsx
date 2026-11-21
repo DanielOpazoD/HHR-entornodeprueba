@@ -34,7 +34,7 @@ const document = {
   id: 'doc_1',
   hospitalId: 'hhr',
   documentType: 'epicrisis',
-  patientRut: '13.545.665-9',
+  patientRut: '10.000.117-9',
   patientName: 'Paciente Test',
   episodeKey: 'episode-1',
   admissionDate: '2026-04-15',
@@ -81,7 +81,7 @@ describe('useClinicalAttachments', () => {
       hospitalId: 'hhr',
     });
     expect(executeListClinicalAttachmentsByPatient).toHaveBeenCalledWith({
-      patientRut: '13.545.665-9',
+      patientRut: '10.000.117-9',
       hospitalId: 'hhr',
     });
   });
@@ -172,7 +172,7 @@ describe('useClinicalAttachments', () => {
     expect(executeUploadClinicalAttachment).toHaveBeenCalledWith(
       expect.objectContaining({
         hospitalId: 'hhr',
-        patientRut: '13.545.665-9',
+        patientRut: '10.000.117-9',
         episodeKey: 'episode-1',
         documentId: 'doc_1',
         actor: expect.objectContaining({ uid: 'u1', role: 'doctor_urgency' }),

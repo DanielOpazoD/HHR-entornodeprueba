@@ -12,7 +12,7 @@ import { resolveNeonatalPlacements } from '@/features/rayen-import/domain/neonat
 const now = new Date('2026-07-08T20:00:00-06:00');
 const mother: RayenEncounter = {
   encounterId: 'synthetic-mother',
-  run: '144700554',
+  run: '100001314',
   firstGivenName: 'Ana',
   firstFamilyName: 'Perez',
   birthDate: '1980-01-01',

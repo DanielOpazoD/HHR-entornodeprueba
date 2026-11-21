@@ -9,7 +9,7 @@ import {
 
 // Mismo criterio de nombre que el mapeo del censo: sin él, una entrada de
 // conflicto mostraba el relleno y los marcadores administrativos de Rayen
-// («Jorge  Urgencias Aroca») mientras el censo ya mostraba el nombre limpio.
+// («Janor  Urgencias Aluce») mientras el censo ya mostraba el nombre limpio.
 const encounterPatientName = (encounter: RayenEncounter): string =>
   [
     composeRayenGivenNames(encounter.firstGivenName, encounter.nextGivenNames),

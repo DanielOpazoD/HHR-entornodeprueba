@@ -72,7 +72,7 @@ describe('Gestión de Camas clinical-crib mapping', () => {
       const reference = new Date('2026-07-08T12:00:00-06:00');
       const mother: RayenEncounter = {
         encounterId: '900001',
-        run: '144700554',
+        run: '100001314',
         firstGivenName: 'Madre',
         firstFamilyName: 'Prueba',
         birthDate: '1980-01-01',

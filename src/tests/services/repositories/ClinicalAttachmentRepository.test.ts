@@ -42,9 +42,9 @@ const buildRuntime = (): ClinicalAttachmentStorageRuntime =>
 const buildUploadInput = () => ({
   id: 'att_1',
   hospitalId: 'hhr',
-  patientRut: '13.545.665-9',
+  patientRut: '10.000.117-9',
   patientName: 'Paciente Test',
-  episodeKey: '13.545.665-9__2026-04-15',
+  episodeKey: '10.000.117-9__2026-04-15',
   documentId: 'doc_1',
   documentType: 'epicrisis' as const,
   sectionId: 'annexes',
@@ -66,14 +66,14 @@ describe('ClinicalAttachmentRepository', () => {
     const result = await repository.upload(buildUploadInput());
 
     expect(runtime.uploadBytes).toHaveBeenCalledWith(
-      { path: 'clinical-attachments/hhr/13545665-9/13545665-9__2026-04-15/att_1/informe.pdf' },
+      { path: 'clinical-attachments/hhr/10000117-9/10000117-9__2026-04-15/att_1/informe.pdf' },
       expect.any(File),
       expect.objectContaining({
         contentType: 'application/pdf',
         customMetadata: expect.objectContaining({
           hospitalId: 'hhr',
-          patientRut: '13.545.665-9',
-          episodeKey: '13.545.665-9__2026-04-15',
+          patientRut: '10.000.117-9',
+          episodeKey: '10.000.117-9__2026-04-15',
           module: 'clinical-attachments',
         }),
       })
@@ -83,7 +83,7 @@ describe('ClinicalAttachmentRepository', () => {
       'att_1',
       expect.objectContaining({
         id: 'att_1',
-        patientRutKey: '13545665-9',
+        patientRutKey: '10000117-9',
         fileKind: 'pdf',
         status: 'active',
       })
@@ -113,7 +113,7 @@ describe('ClinicalAttachmentRepository', () => {
     await expect(repository.upload(buildUploadInput())).rejects.toThrow('firestore down');
 
     expect(runtime.deleteObject).toHaveBeenCalledWith({
-      path: 'clinical-attachments/hhr/13545665-9/13545665-9__2026-04-15/att_1/informe.pdf',
+      path: 'clinical-attachments/hhr/10000117-9/10000117-9__2026-04-15/att_1/informe.pdf',
     });
   });
 
@@ -129,22 +129,22 @@ describe('ClinicalAttachmentRepository', () => {
     db.getDocs.mockResolvedValue([deletedRecord, activeRecord]);
     const repository = createClinicalAttachmentRepository({ db, storageRuntime: buildRuntime() });
 
-    await expect(repository.listByEpisode('13.545.665-9__2026-04-15', 'hhr')).resolves.toEqual({
+    await expect(repository.listByEpisode('10.000.117-9__2026-04-15', 'hhr')).resolves.toEqual({
       records: [expect.objectContaining({ id: 'att_1' })],
       omittedCount: 0,
     });
     expect(db.getDocs).toHaveBeenCalledWith('hospitals/hhr/clinicalAttachments', {
-      where: [{ field: 'episodeKey', operator: '==', value: '13.545.665-9__2026-04-15' }],
+      where: [{ field: 'episodeKey', operator: '==', value: '10.000.117-9__2026-04-15' }],
     });
 
     db.getDocs.mockClear();
     db.getDocs.mockResolvedValue([activeRecord]);
-    await expect(repository.listByPatient('13.545.665-9', 'hhr')).resolves.toEqual({
+    await expect(repository.listByPatient('10.000.117-9', 'hhr')).resolves.toEqual({
       records: [expect.objectContaining({ id: 'att_1' })],
       omittedCount: 0,
     });
     expect(db.getDocs).toHaveBeenCalledWith('hospitals/hhr/clinicalAttachments', {
-      where: [{ field: 'patientRutKey', operator: '==', value: '13545665-9' }],
+      where: [{ field: 'patientRutKey', operator: '==', value: '10000117-9' }],
     });
   });
 
@@ -190,7 +190,7 @@ describe('ClinicalAttachmentRepository', () => {
               { repository }
             )
           : await executeListClinicalAttachmentsByPatient(
-              { patientRut: '13.545.665-9', hospitalId: 'hhr' },
+              { patientRut: '10.000.117-9', hospitalId: 'hhr' },
               { repository }
             );
       expect(outcome.status).toBe('failed');
@@ -203,7 +203,7 @@ describe('ClinicalAttachmentRepository', () => {
     const repository = createClinicalAttachmentRepository({ db, storageRuntime: buildRuntime() });
     await expect(
       executeListClinicalAttachmentsByPatient(
-        { patientRut: '13.545.665-9', hospitalId: 'hhr' },
+        { patientRut: '10.000.117-9', hospitalId: 'hhr' },
         { repository }
       )
     ).resolves.toMatchObject({ status: 'success', data: [], issues: [] });
@@ -215,7 +215,7 @@ describe('ClinicalAttachmentRepository', () => {
     const repository = createClinicalAttachmentRepository({ db, storageRuntime: buildRuntime() });
     await expect(
       executeListClinicalAttachmentsByPatient(
-        { patientRut: '13.545.665-9', hospitalId: 'hhr' },
+        { patientRut: '10.000.117-9', hospitalId: 'hhr' },
         { repository }
       )
     ).resolves.toMatchObject({

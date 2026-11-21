@@ -29,7 +29,7 @@ describe('EpisodeBlockCard', () => {
     render(
       <EpisodeBlockCard
         episode={closedEpisode}
-        rut="18.781.542-8"
+        rut="10.000.109-8"
         episodeDocuments={{}}
         onLoadDocuments={vi.fn()}
         onDownloadPdf={vi.fn()}
@@ -46,11 +46,11 @@ describe('EpisodeBlockCard', () => {
 
   it('says the documents could not be loaded and lets the person retry', () => {
     const onLoadDocuments = vi.fn();
-    const episodeKey = '18.781.542-8__2026-04-12';
+    const episodeKey = '10.000.109-8__2026-04-12';
     render(
       <EpisodeBlockCard
         episode={closedEpisode}
-        rut="18.781.542-8"
+        rut="10.000.109-8"
         episodeDocuments={{
           [episodeKey]: { episodeKey, docs: [], isLoading: false, loadFailed: true },
         }}
@@ -79,21 +79,21 @@ describe('EpisodeBlockCard', () => {
     const onOpenClinicalDocument = vi.fn();
     const doc = {
       id: 'doc-1',
-      episodeKey: '18.781.542-8__2026-04-12',
+      episodeKey: '10.000.109-8__2026-04-12',
       documentType: 'epicrisis_traslado',
       status: 'draft',
       createdAt: '2026-04-22T10:00:00.000Z',
-      createdBy: 'Daniel',
+      createdBy: 'Degaro',
       updatedAt: '2026-04-22T10:30:00.000Z',
     };
 
     render(
       <EpisodeBlockCard
         episode={closedEpisode}
-        rut="18.781.542-8"
+        rut="10.000.109-8"
         episodeDocuments={{
-          '18.781.542-8__2026-04-12': {
-            episodeKey: '18.781.542-8__2026-04-12',
+          '10.000.109-8__2026-04-12': {
+            episodeKey: '10.000.109-8__2026-04-12',
             docs: [doc],
             isLoading: false,
           },

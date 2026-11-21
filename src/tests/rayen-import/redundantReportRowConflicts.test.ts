@@ -7,7 +7,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 type Conflict = CensusImportDiff['conflicts'][number];
 type Discharge = CensusImportDiff['discharges'][number];
 
-const RUN = '28.106.852-0';
+const RUN = '10.000.116-0';
 
 const makeRecord = (withCrib: boolean): DailyRecord => ({
   date: '2026-09-02',
@@ -15,7 +15,7 @@ const makeRecord = (withCrib: boolean): DailyRecord => ({
     H5C1: {
       ...EMPTY_PATIENT,
       bedId: 'H5C1',
-      patientName: 'Tania Valencia',
+      patientName: 'Torol Vovipevi',
       rut: RUN,
       clinicalEpisodeId: '1001',
       admissionDate: '2026-08-31',
@@ -25,7 +25,7 @@ const makeRecord = (withCrib: boolean): DailyRecord => ({
             ...EMPTY_PATIENT,
             bedId: 'H5C1',
             bedMode: 'Cuna',
-            patientName: 'Rn De Tania Valencia',
+            patientName: 'Rn De Torol Vovipevi',
             rut: RUN,
             clinicalEpisodeId: '1002',
             admissionDate: '2026-08-31',
@@ -43,17 +43,17 @@ const makeRecord = (withCrib: boolean): DailyRecord => ({
 const unverifiedConflict = (overrides: Partial<Conflict> = {}): Conflict => ({
   bedId: 'H5C1',
   rut: RUN,
-  patientName: 'Tania Valencia',
+  patientName: 'Torol Vovipevi',
   code: 'unverified-report-row',
   reason:
-    'El alta administrativa de Tania Valencia quedó sin vincular a un episodio clínico exacto; no se aplicó.',
+    'El alta administrativa de Torol Vovipevi quedó sin vincular a un episodio clínico exacto; no se aplicó.',
   ...overrides,
 });
 
 const discharge = (overrides: Partial<Discharge> = {}): Discharge => ({
   bedId: 'H5C1',
   rut: RUN,
-  patientName: 'Tania Valencia',
+  patientName: 'Torol Vovipevi',
   kind: 'alta',
   status: 'Vivo',
   reason: 'administrative-discharge',
@@ -63,7 +63,7 @@ const discharge = (overrides: Partial<Discharge> = {}): Discharge => ({
 
 const attachedCrib = {
   clinicalEpisodeId: '1002',
-  patientName: 'Rn De Tania Valencia',
+  patientName: 'Rn De Torol Vovipevi',
   rut: RUN,
 };
 
@@ -129,7 +129,7 @@ describe('dropRedundantUnverifiedReportConflicts', () => {
     record.beds.H5C1!.clinicalCrib!.rut = '27.999.999-9';
     const newbornConflict = unverifiedConflict({
       rut: '27.999.999-9',
-      patientName: 'Rn De Tania Valencia',
+      patientName: 'Rn De Torol Vovipevi',
     });
     const motherDischarge = discharge({
       associatedClinicalCrib: { ...attachedCrib, rut: '27.999.999-9' },
@@ -152,12 +152,12 @@ describe('dropRedundantUnverifiedReportConflicts', () => {
     const episodeLess = unverifiedConflict({
       code: 'episode-less-report-row',
       reason:
-        'El informe de Gestión de Camas no identifica el episodio activo de Tania Valencia; se requiere revisión antes de egresar.',
+        'El informe de Gestión de Camas no identifica el episodio activo de Torol Vovipevi; se requiere revisión antes de egresar.',
     });
     const predates = unverifiedConflict({
       code: 'report-predates-admission',
       reason:
-        'El egreso informado para Tania Valencia es anterior a su ingreso activo; no se desocupó la cama.',
+        'El egreso informado para Torol Vovipevi es anterior a su ingreso activo; no se desocupó la cama.',
     });
     const bedConflict = unverifiedConflict({ code: 'occupied-local-bed', reason: 'ocupada' });
     expect(

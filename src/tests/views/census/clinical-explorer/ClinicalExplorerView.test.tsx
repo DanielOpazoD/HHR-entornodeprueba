@@ -94,7 +94,7 @@ const patients = listClinicalExplorerPatients({
     }),
     H1C1: DataFactory.createMockPatient('H1C1', {
       patientName: 'SEGUNDO SINTÉTICO',
-      rut: '5.844.865-6',
+      rut: '1.000.105-6',
       clinicalEpisodeId: 'ep-h1c1',
     }),
   },
@@ -432,7 +432,7 @@ describe('ClinicalExplorerView', () => {
     // Opened for this patient, with the census patients it may add as further orders.
     // Orders are keyed by patient and episode: they follow a move and never pass to another person.
     expect(within(dialog).getByTestId('exam-request-scope')).toHaveTextContent(
-      '123456785:ep-r1 de 123456785:ep-r1,58448656:ep-h1c1'
+      '123456785:ep-r1 de 123456785:ep-r1,10001056:ep-h1c1'
     );
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByText('Censo visible')).toBeNull();

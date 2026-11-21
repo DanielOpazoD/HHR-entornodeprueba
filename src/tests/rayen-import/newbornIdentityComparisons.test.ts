@@ -16,14 +16,14 @@ const RUT = '12.345.678-5';
 describe.each(['P123456785', '12A3456785'])('neonatal identity collision: %s', passport => {
   const association = (foreignMother: boolean) => {
     const child = { ...newborn(), run: RUT };
-    const mother = encounter({ run: foreignMother ? RUT : '144700554' });
+    const mother = encounter({ run: foreignMother ? RUT : '100001314' });
     return associateClinicalCribsWithMothers(
       [{ encounter: child, mapped: rayenToPatientData(child, REFERENCE) }],
       () => undefined,
       () => ({
         episodeId: foreignMother ? 'REVIEWED-MOTHER' : mother.encounterId,
         bedId: 'H5C1',
-        rut: '14.470.055-4',
+        rut: '10.000.131-4',
         reviewed: true,
         sourceRun: passport,
         sourceRunIsMaternal: true,

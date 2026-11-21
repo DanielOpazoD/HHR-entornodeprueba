@@ -89,7 +89,7 @@ export const resolveAuditTrailActor = (log: AuditLogEntry): AuditTrailActor => {
 
 /**
  * One display name per staff member: the name used most often in the loaded period (Google
- * profiles and account names differ, e.g. "Daniel Opazo" and "Daniel Opazo Damiani").
+ * profiles and account names differ, e.g. "Degaro Opisu" and "Degaro Opisu Doliceg").
  */
 export const unifyAuditTrailActorNames = (events: AuditTrailEvent[]): AuditTrailEvent[] => {
   const tallies = new Map<string, Map<string, number>>();

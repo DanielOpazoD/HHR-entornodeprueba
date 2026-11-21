@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { readHistoricalPatientFlow } from '@/features/rayen-import/domain/historicalFlowAuthorizationRecovery';
 const encounter = {
   encounterId: '1001',
-  run: '8.260.364-6',
+  run: '1.000.119-6',
   firstGivenName: 'Paciente',
   firstFamilyName: 'Sintético',
 };

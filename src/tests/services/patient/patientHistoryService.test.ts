@@ -83,8 +83,8 @@ describe('patientHistoryService', () => {
       '2026-04-07': buildRecord('2026-04-07', {
         beds: {
           H1C1: {
-            rut: '8.932.066-6',
-            patientName: 'Ines Riroroko Leiva',
+            rut: '1.000.122-6',
+            patientName: 'Isut Rebolesu Litus',
             admissionDate: '2026-04-07',
             admissionTime: '09:00',
             admissionOrigin: 'Urgencias',
@@ -95,14 +95,14 @@ describe('patientHistoryService', () => {
 
     getRecordsRangeFromFirestore.mockResolvedValue([
       buildRecord('2026-04-07', {
-        beds: { H1C1: { rut: '8.932.066-6', admissionDate: '2026-04-07' } as never },
+        beds: { H1C1: { rut: '1.000.122-6', admissionDate: '2026-04-07' } as never },
       }),
       buildRecord('2026-04-15', {
         discharges: [
           {
             id: 'd-1',
-            rut: '8.932.066-6',
-            patientName: 'Ines Riroroko Leiva',
+            rut: '1.000.122-6',
+            patientName: 'Isut Rebolesu Litus',
             bedId: 'H1C1',
             bedName: 'H1C1',
             bedType: 'MEDIA',
@@ -115,7 +115,7 @@ describe('patientHistoryService', () => {
       }),
     ]);
 
-    const history = await getPatientMovementHistory('8.932.066-6', {
+    const history = await getPatientMovementHistory('1.000.122-6', {
       hospitalizationHints,
       lastAdmission: '2026-04-07',
     });
@@ -162,7 +162,7 @@ describe('patientHistoryService', () => {
     getAllRecords.mockResolvedValue({});
     getRecordsRangeFromFirestore.mockResolvedValue([]);
 
-    await getPatientMovementHistory('8.932.066-6', {
+    await getPatientMovementHistory('1.000.122-6', {
       hospitalizationHints,
       lastAdmission: '2026-04-07',
     });
@@ -178,8 +178,8 @@ describe('patientHistoryService', () => {
       '2026-02-02': buildRecord('2026-02-02', {
         beds: {
           R3: {
-            rut: '18.781.542-8',
-            patientName: 'Tipanie Carossi Pakomio',
+            rut: '10.000.109-8',
+            patientName: 'Tisigef Cunonoc Pagorim',
             admissionDate: '2026-02-02',
             admissionTime: '14:00',
             admissionOrigin: 'Urgencias',
@@ -189,9 +189,9 @@ describe('patientHistoryService', () => {
       '2026-02-05': buildRecord('2026-02-05', {
         discharges: [
           {
-            id: 'd-tipanie',
-            rut: '18.781.542-8',
-            patientName: 'Tipanie Carossi Pakomio',
+            id: 'd-tisigef',
+            rut: '10.000.109-8',
+            patientName: 'Tisigef Cunonoc Pagorim',
             bedId: 'R3',
             bedName: 'R3',
             bedType: 'MEDIA',
@@ -204,7 +204,7 @@ describe('patientHistoryService', () => {
       }),
     });
 
-    const history = await getPatientMovementHistory('18.781.542-8');
+    const history = await getPatientMovementHistory('10.000.109-8');
 
     expect(getRecordsRangeFromFirestore).not.toHaveBeenCalled();
     expect(readServerHistory).toHaveBeenCalledTimes(1);
@@ -212,7 +212,7 @@ describe('patientHistoryService', () => {
     expect(history?.movements.map(movement => movement.type)).toEqual(['admission', 'discharge']);
     expect(history).toEqual(
       expect.objectContaining({
-        patientName: 'Tipanie Carossi Pakomio',
+        patientName: 'Tisigef Cunonoc Pagorim',
         firstSeen: '2026-02-02',
         lastSeen: '2026-02-05',
       })
@@ -225,8 +225,8 @@ describe('patientHistoryService', () => {
       '2026-03-26': buildRecord('2026-03-26', {
         beds: {
           H3C1: {
-            rut: '18.781.542-8',
-            patientName: 'Tipanie Carossi Pakomio',
+            rut: '10.000.109-8',
+            patientName: 'Tisigef Cunonoc Pagorim',
             admissionDate: '2026-03-26',
             admissionTime: '14:00',
             admissionOrigin: 'Urgencias',
@@ -236,9 +236,9 @@ describe('patientHistoryService', () => {
       '2026-04-06': buildRecord('2026-04-06', {
         discharges: [
           {
-            id: 'd-tipanie-1',
-            rut: '18.781.542-8',
-            patientName: 'Tipanie Carossi Pakomio',
+            id: 'd-tisigef-1',
+            rut: '10.000.109-8',
+            patientName: 'Tisigef Cunonoc Pagorim',
             bedId: 'H4C1',
             bedName: 'H4C1',
             bedType: 'MEDIA',
@@ -252,8 +252,8 @@ describe('patientHistoryService', () => {
       '2026-04-12': buildRecord('2026-04-12', {
         beds: {
           H2C2: {
-            rut: '18.781.542-8',
-            patientName: 'Tipanie Carossi Pakomio',
+            rut: '10.000.109-8',
+            patientName: 'Tisigef Cunonoc Pagorim',
             admissionDate: '2026-04-12',
             admissionTime: '09:00',
             admissionOrigin: 'Urgencias',
@@ -263,9 +263,9 @@ describe('patientHistoryService', () => {
       '2026-04-24': buildRecord('2026-04-24', {
         discharges: [
           {
-            id: 'd-tipanie-2',
-            rut: '18.781.542-8',
-            patientName: 'Tipanie Carossi Pakomio',
+            id: 'd-tisigef-2',
+            rut: '10.000.109-8',
+            patientName: 'Tisigef Cunonoc Pagorim',
             bedId: 'H2C2',
             bedName: 'H2C2',
             bedType: 'MEDIA',
@@ -278,7 +278,7 @@ describe('patientHistoryService', () => {
       }),
     });
 
-    const history = await getPatientMovementHistory('18.781.542-8', {
+    const history = await getPatientMovementHistory('10.000.109-8', {
       forceFullRemoteHydration: true,
       hospitalizationHints: [
         {
@@ -324,8 +324,8 @@ describe('patientHistoryService', () => {
       '2026-04-07': buildRecord('2026-04-07', {
         beds: {
           H1C1: {
-            rut: '8.932.066-6',
-            patientName: 'Ines Riroroko Leiva',
+            rut: '1.000.122-6',
+            patientName: 'Isut Rebolesu Litus',
             admissionDate: '2026-04-07',
             admissionTime: '09:00',
             admissionOrigin: 'Urgencias',
@@ -336,8 +336,8 @@ describe('patientHistoryService', () => {
         transfers: [
           {
             id: 't-1',
-            rut: '8.932.066-6',
-            patientName: 'Ines Riroroko Leiva',
+            rut: '1.000.122-6',
+            patientName: 'Isut Rebolesu Litus',
             bedId: 'H1C1',
             bedName: 'H1C1',
             bedType: 'MEDIA',
@@ -350,7 +350,7 @@ describe('patientHistoryService', () => {
       }),
     });
 
-    const history = await getPatientMovementHistory('8.932.066-6');
+    const history = await getPatientMovementHistory('1.000.122-6');
 
     expect(getRecordsRangeFromFirestore).not.toHaveBeenCalled();
     expect(history?.movements).toEqual(
@@ -369,8 +369,8 @@ describe('patientHistoryService', () => {
       buildRecord('2026-04-07', {
         beds: {
           H1C1: {
-            rut: '8.932.066-6',
-            patientName: 'Ines Riroroko Leiva',
+            rut: '1.000.122-6',
+            patientName: 'Isut Rebolesu Litus',
             admissionDate: '2026-04-07',
             admissionTime: '09:00',
           } as never,
@@ -379,7 +379,7 @@ describe('patientHistoryService', () => {
     ]);
     getRecordsRangeFromFirestore.mockRejectedValue(new Error('offline'));
 
-    const history = await getPatientMovementHistory('8.932.066-6', {
+    const history = await getPatientMovementHistory('1.000.122-6', {
       hospitalizationHints: [
         {
           id: 'ing-1',

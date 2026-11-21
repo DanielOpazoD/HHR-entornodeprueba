@@ -85,7 +85,7 @@ const buildRecordWithDischarge = (): DailyRecord =>
         bedId: 'H2',
         bedType: 'Cama',
         patientName: 'Alta Posterior',
-        rut: '17.274.300-5',
+        rut: '10.000.105-5',
         diagnosis: 'Alta posterior',
         time: '15:00',
         status: 'Vivo',

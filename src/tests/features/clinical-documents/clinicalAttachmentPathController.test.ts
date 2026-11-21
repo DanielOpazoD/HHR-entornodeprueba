@@ -9,7 +9,7 @@ import {
 
 describe('clinicalAttachmentPathController', () => {
   it('normalizes RUTs for stable Storage paths', () => {
-    expect(normalizeClinicalAttachmentRutKey('13.545.665-9')).toBe('13545665-9');
+    expect(normalizeClinicalAttachmentRutKey('10.000.117-9')).toBe('10000117-9');
     expect(normalizeClinicalAttachmentRutKey('  9.876.543-K ')).toBe('9876543-k');
   });
 
@@ -24,13 +24,13 @@ describe('clinicalAttachmentPathController', () => {
     expect(
       buildClinicalAttachmentStoragePath({
         hospitalId: 'hhr',
-        patientRut: '13.545.665-9',
-        episodeKey: '13.545.665-9__2026-04-15',
+        patientRut: '10.000.117-9',
+        episodeKey: '10.000.117-9__2026-04-15',
         attachmentId: 'att_123',
         fileName: 'Informe externo.pdf',
       })
     ).toBe(
-      'clinical-attachments/hhr/13545665-9/13545665-9__2026-04-15/att_123/Informe-externo.pdf'
+      'clinical-attachments/hhr/10000117-9/10000117-9__2026-04-15/att_123/Informe-externo.pdf'
     );
   });
 });

@@ -117,7 +117,7 @@ describe('previous-day admission Ficha fallback', () => {
       fetchReport: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
       extractText: vi
         .fn()
-        .mockResolvedValue(['RUN: 17.059.646-3', '26/07/2026 10:00:00 Habitación 4 C2'].join('\n')),
+        .mockResolvedValue(['RUN: 10.000.106-3', '26/07/2026 10:00:00 Habitación 4 C2'].join('\n')),
     });
 
     expect(verified.admissions[0].source?.verifiedBedPlacement).toBeUndefined();
@@ -142,7 +142,7 @@ describe('previous-day admission Ficha fallback', () => {
         .fn()
         .mockResolvedValue(
           [
-            'RUN: 17.059.646-3',
+            'RUN: 10.000.106-3',
             '26/07/2026 03:30:00 Recuperacion Pabellon P-R1',
             '26/07/2026 10:00:00 Habitación 4 C2',
           ].join('\n')
@@ -177,7 +177,7 @@ describe('previous-day admission Ficha fallback', () => {
         extractText: vi
           .fn()
           .mockResolvedValue(
-            ['RUN: 17.059.646-3', '31/02/2026 03:30:00 Habitación 4 C2'].join('\n')
+            ['RUN: 10.000.106-3', '31/02/2026 03:30:00 Habitación 4 C2'].join('\n')
           ),
       }
     );

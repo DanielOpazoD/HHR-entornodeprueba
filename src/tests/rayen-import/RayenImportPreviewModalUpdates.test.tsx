@@ -65,7 +65,7 @@ describe('RayenImportPreviewModal update presentation', () => {
         {
           bedId: 'H1C2',
           rut: '14.700.554-4',
-          patientName: 'Carina Pate Lillo',
+          patientName: 'Cogube Paci Lateb',
           patient: { ...EMPTY_PATIENT, bedId: 'H1C2' },
           changes: [
             { field: 'treatingPhysicianId', from: undefined, to: '7947' },
@@ -75,8 +75,8 @@ describe('RayenImportPreviewModal update presentation', () => {
         },
         {
           bedId: 'H2C1',
-          rut: '5.925.970-9',
-          patientName: 'Maria Morales Duarte',
+          rut: '1.000.112-9',
+          patientName: 'Mopef Marevev Dinila',
           patient: { ...EMPTY_PATIENT, bedId: 'H2C1' },
           changes: [
             { field: 'pathology', from: 'Diagnóstico anterior', to: 'Diagnóstico actualizado' },
@@ -112,8 +112,8 @@ describe('RayenImportPreviewModal update presentation', () => {
 
     expect(screen.queryByText(/treatingPhysician/)).not.toBeInTheDocument();
     expect(screen.queryByText(/clinicalEpisodeId/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Carina Pate Lillo/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Maria Morales Duarte/)).toBeVisible();
+    expect(screen.queryByText(/Cogube Paci Lateb/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Mopef Marevev Dinila/)).toBeVisible();
     expect(screen.getByText(/diagnóstico, diagnóstico CIE-10/)).toBeVisible();
     expect(screen.getAllByText('Actualizaciones')[0]).toHaveTextContent('1 Actualizaciones');
   });

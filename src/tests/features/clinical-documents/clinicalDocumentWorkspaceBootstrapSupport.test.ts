@@ -84,14 +84,14 @@ describe('clinicalDocumentWorkspaceBootstrapSupport', () => {
     const oldPatientDocument = {
       ...buildDocument('old-patient-doc'),
       episodeKey: 'ep_stale_bed_episode',
-      patientRut: '17.444.506-0',
-      patientName: 'Carla Walker Rapu',
+      patientRut: '10.000.102-0',
+      patientName: 'Cuten Wenuli Ruso',
     };
     const currentPatientDocument = {
       ...buildDocument('current-patient-doc'),
       episodeKey: 'ep_stale_bed_episode',
-      patientRut: '14.161.042-2',
-      patientName: 'Rodrigo Valenzuela Navarro',
+      patientRut: '10.000.129-2',
+      patientName: 'Ricicog Vugocofeta Nerolar',
     };
 
     expect(
@@ -99,7 +99,7 @@ describe('clinicalDocumentWorkspaceBootstrapSupport', () => {
         documents: [oldPatientDocument, currentPatientDocument],
         currentEpisodeKey: 'ep_stale_bed_episode',
         allowedEpisodeKeys: ['ep_stale_bed_episode'],
-        currentPatientRut: '14.161.042-2',
+        currentPatientRut: '10.000.129-2',
       }).map(document => document.id)
     ).toEqual(['current-patient-doc']);
   });

@@ -23,7 +23,7 @@ const makeRecord = (beds: Record<string, PatientData>): DailyRecord => ({
 
 const makeEncounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => ({
   encounterId: 'MOTHER',
-  run: '144700554',
+  run: '100001314',
   firstGivenName: 'Ana',
   firstFamilyName: 'Perez',
   birthDate: '1980-01-01',

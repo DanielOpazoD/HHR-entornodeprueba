@@ -33,7 +33,7 @@ describe('useLabViewerPdfDownload', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockDownloadCombinedSyslabPdf.mockResolvedValue({
-      filename: 'Laboratorio HHR 01-03-2026 a 06-04-2026, Paciente, 14.125.562-2.pdf',
+      filename: 'Laboratorio HHR 01-03-2026 a 06-04-2026, Paciente, 10.000.115-2.pdf',
       reportCount: 2,
       pageCount: 4,
     });
@@ -45,7 +45,7 @@ describe('useLabViewerPdfDownload', () => {
       useLabViewerPdfDownload({
         examList: exams,
         selectedExamIds: new Set(['second', 'first']),
-        selectedRut: '14.125.562-2',
+        selectedRut: '10.000.115-2',
         setError,
       })
     );
@@ -53,7 +53,7 @@ describe('useLabViewerPdfDownload', () => {
     await act(() => result.current.downloadSelectedPdfs());
 
     expect(mockDownloadCombinedSyslabPdf).toHaveBeenCalledWith(
-      expect.objectContaining({ exams, rut: '14.125.562-2', onProgress: expect.any(Function) })
+      expect.objectContaining({ exams, rut: '10.000.115-2', onProgress: expect.any(Function) })
     );
     expect(result.current.isDownloadingSelectedPdfs).toBe(false);
     expect(result.current.pdfDownloadStatus).toMatchObject({
@@ -69,7 +69,7 @@ describe('useLabViewerPdfDownload', () => {
       useLabViewerPdfDownload({
         examList: [exams[0], { ...exams[1], link: '' }],
         selectedExamIds: new Set(['first', 'second']),
-        selectedRut: '14.125.562-2',
+        selectedRut: '10.000.115-2',
         setError,
       })
     );
@@ -93,7 +93,7 @@ describe('useLabViewerPdfDownload', () => {
       useLabViewerPdfDownload({
         examList: exams,
         selectedExamIds: new Set(['first', 'second']),
-        selectedRut: '14.125.562-2',
+        selectedRut: '10.000.115-2',
         setError: vi.fn(),
       })
     );
@@ -118,7 +118,7 @@ describe('useLabViewerPdfDownload', () => {
       useLabViewerPdfDownload({
         examList: exams,
         selectedExamIds: new Set(['first']),
-        selectedRut: '14.125.562-2',
+        selectedRut: '10.000.115-2',
         setError,
       })
     );

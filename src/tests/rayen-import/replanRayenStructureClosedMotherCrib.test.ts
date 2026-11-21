@@ -18,7 +18,7 @@ import { replanRayenStructure } from '@/features/rayen-import/hooks/replanRayenS
 // madre en la misma cama: alta duplicada en la estadística, RN sin egreso y conflicto
 // «quedó sin vincular» conservado.
 
-const MOTHER_RUN = '28.106.852-0';
+const MOTHER_RUN = '10.000.116-0';
 
 const patient = (overrides: Partial<DailyRecord['beds'][string]>): DailyRecord['beds'][string] =>
   ({ ...EMPTY_PATIENT, ...overrides }) as DailyRecord['beds'][string];
@@ -26,7 +26,7 @@ const patient = (overrides: Partial<DailyRecord['beds'][string]>): DailyRecord['
 const motherWithCrib = (): DailyRecord['beds'][string] =>
   patient({
     bedId: 'H5C1',
-    patientName: 'Tania Cristina Valencia Ladino',
+    patientName: 'Torol Corivama Vovipevi Linava',
     rut: MOTHER_RUN,
     clinicalEpisodeId: '1001',
     admissionDate: '2026-08-31',
@@ -35,7 +35,7 @@ const motherWithCrib = (): DailyRecord['beds'][string] =>
     clinicalCrib: patient({
       bedId: 'H5C1',
       bedMode: 'Cuna',
-      patientName: 'Rn De Tania Valencia Ladino',
+      patientName: 'Rn De Torol Vovipevi Linava',
       rut: MOTHER_RUN,
       clinicalEpisodeId: '1002',
       admissionDate: '2026-08-31',
@@ -56,9 +56,9 @@ const makeRecord = (beds: DailyRecord['beds']): DailyRecord =>
 const encounter = (overrides: Partial<RayenEncounter>): RayenEncounter => ({
   encounterId: '1001',
   run: MOTHER_RUN,
-  firstGivenName: 'Tania Cristina',
-  firstFamilyName: 'Valencia',
-  secondFamilyName: 'Ladino',
+  firstGivenName: 'Torol Corivama',
+  firstFamilyName: 'Vovipevi',
+  secondFamilyName: 'Linava',
   birthDate: '2000-01-01',
   administrativeSex: 'Mujer',
   service: 'Área Médico Quirúrgica Indiferenciada',
@@ -72,7 +72,7 @@ const encounter = (overrides: Partial<RayenEncounter>): RayenEncounter => ({
 const cribEncounter = (): RayenEncounter =>
   encounter({
     encounterId: '1002',
-    firstGivenName: 'Rn De Tania',
+    firstGivenName: 'Rn De Torol',
     birthDate: '2026-08-31',
     room: 'Cunas',
     bed: 'CH5C1',
@@ -105,10 +105,10 @@ const baseRow: EgresoReportRow = {
   fechaEgreso: '02-09-2026 10:00',
   exactEpisodeVerification: 'unverified',
 };
-const motherRow: EgresoReportRow = { ...baseRow, patientName: 'Tania Cristina Valencia Ladino' };
+const motherRow: EgresoReportRow = { ...baseRow, patientName: 'Torol Corivama Vovipevi Linava' };
 const cribRow: EgresoReportRow = {
   ...baseRow,
-  patientName: 'Rn De Tania Valencia Ladino',
+  patientName: 'Rn De Torol Vovipevi Linava',
   edad: '0',
 };
 

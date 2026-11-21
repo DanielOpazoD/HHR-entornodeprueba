@@ -17,7 +17,7 @@ import type { PatientData } from '@/types/domain/patient';
 const now = new Date('2026-11-07T12:00:00-05:00');
 const mother = (): RayenEncounter => ({
   encounterId: 'MOTHER',
-  run: '144700554',
+  run: '100001314',
   firstGivenName: 'Ana',
   firstFamilyName: 'Perez',
   birthDate: '1990-01-01',
@@ -103,10 +103,10 @@ describe('a newborn folio leaves every record the sync keeps', () => {
     expect(saved.record.beds.H5C1.clinicalCrib?.rut).toBe('');
     expect((await recover(saved.record)).mock.calls[0]).toEqual([
       'NEWBORN',
-      '144700554',
+      '100001314',
       now.toISOString(),
       'maternal',
-      '144700554',
+      '100001314',
     ]);
   });
   it('independent same-bed active folio cleanup sends maternal RUN', async () => {
@@ -114,7 +114,7 @@ describe('a newborn folio leaves every record the sync keeps', () => {
     const current = record({ NEO1: { ...seed(child), neonatalMaternalRut: seed(mother()).rut } });
     const saved = sync(current, [child]);
     expect(saved.record.beds.NEO1.rut).toBe('');
-    expect((await recover(saved.record)).mock.calls[0]?.[1]).toBe('144700554');
+    expect((await recover(saved.record)).mock.calls[0]?.[1]).toBe('100001314');
   });
   it('independent moved newborn must drop stored folio', async () => {
     const child = independent();
@@ -123,7 +123,7 @@ describe('a newborn folio leaves every record the sync keeps', () => {
     const saved = sync(current, [moved]);
     expect(saved.diff.conflicts).toEqual([]);
     expect(saved.applied.moves).toBe(1);
-    expect((await recover(saved.record)).mock.calls[0]?.[1]).toBe('144700554');
+    expect((await recover(saved.record)).mock.calls[0]?.[1]).toBe('100001314');
     expect(saved.record.beds.NEO2.rut).toBe('');
   });
   it('independent clinically closed newborn must drop stored folio', async () => {
@@ -133,7 +133,7 @@ describe('a newborn folio leaves every record the sync keeps', () => {
     const saved = sync(current, [closed]);
     expect(saved.diff.conflicts).toEqual([]);
     expect(saved.diff.pendingAdministrativeDischarges).toHaveLength(1);
-    expect((await recover(saved.record)).mock.calls[0]?.[1]).toBe('144700554');
+    expect((await recover(saved.record)).mock.calls[0]?.[1]).toBe('100001314');
     expect(saved.record.beds.NEO1.rut).toBe('');
   });
   it('does not reinstate the same source number two days after birth', () => {
@@ -193,7 +193,7 @@ describe('a newborn folio leaves every record the sync keeps', () => {
     });
     expect(saved.record.discharges).toHaveLength(1);
     expect(saved.record.discharges[0].clinicalEpisodeId).toBe('NEWBORN');
-    expect((await recover(saved.record)).mock.calls[0]?.[1]).toBe('144700554');
+    expect((await recover(saved.record)).mock.calls[0]?.[1]).toBe('100001314');
     expect(saved.record.discharges[0].rut).toBe('');
     expect(buildMovementsSummaryTables(saved.record)[0].rows[0][1]).not.toContain('790.695-3');
   });
@@ -242,16 +242,16 @@ describe('newborn identity guards around the folio rule', () => {
   it('keeps mother and child separate when the child uses the maternal RUN', async () => {
     const child = newborn(mother().run);
     const saved = sync(record({ H5C1: seed(mother()) }), [mother(), child]);
-    expect(saved.record.beds.H5C1.rut).toBe('14.470.055-4');
+    expect(saved.record.beds.H5C1.rut).toBe('10.000.131-4');
     expect(saved.record.beds.H5C1.clinicalEpisodeId).toBe('MOTHER');
     expect(saved.record.beds.H5C1.clinicalCrib?.rut).toBe('');
     expect(saved.record.beds.H5C1.clinicalCrib?.clinicalEpisodeId).toBe('NEWBORN');
     expect((await recover(saved.record)).mock.calls[0]).toEqual([
       'NEWBORN',
-      '144700554',
+      '100001314',
       now.toISOString(),
       'maternal',
-      '144700554',
+      '100001314',
     ]);
   });
   it('does not reinterpret an adult invalid-DV document as a newborn folio', () => {

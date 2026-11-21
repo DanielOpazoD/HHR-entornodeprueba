@@ -157,7 +157,7 @@ describe('ClinicalDocumentLabInsertDialog', () => {
 
     render(
       <ClinicalDocumentLabInsertDialog
-        patientRut="10.096.004-4"
+        patientRut="10.000.114-4"
         onInsert={vi.fn()}
         onClose={vi.fn()}
       />

@@ -58,7 +58,7 @@ describe('combined Syslab PDF download', () => {
     });
     await downloadCombinedSyslabPdf({
       exams: selectedExams.map((exam, index) => ({ ...exam, link: links[index] })),
-      rut: '14.125.562-2',
+      rut: '10.000.115-2',
     });
 
     expect(mockDownloadExtensionBundle).toHaveBeenCalledWith(links, undefined);
@@ -79,16 +79,16 @@ describe('combined Syslab PDF download', () => {
     const onProgress = vi.fn();
     const result = await downloadCombinedSyslabPdf({
       exams: selectedExams,
-      rut: '14.125.562-2',
+      rut: '10.000.115-2',
       onProgress,
     });
 
     expect(mockDownloadBlob).toHaveBeenCalledWith(
       expect.any(Blob),
-      'Laboratorio HHR 17-08-2026 a 24-08-2026, Paciente Syslab, 14.125.562-2.pdf'
+      'Laboratorio HHR 17-08-2026 a 24-08-2026, Paciente Syslab, 10.000.115-2.pdf'
     );
     expect(result).toEqual({
-      filename: 'Laboratorio HHR 17-08-2026 a 24-08-2026, Paciente Syslab, 14.125.562-2.pdf',
+      filename: 'Laboratorio HHR 17-08-2026 a 24-08-2026, Paciente Syslab, 10.000.115-2.pdf',
       reportCount: 2,
       pageCount: 3,
     });
@@ -119,7 +119,7 @@ describe('combined Syslab PDF download', () => {
           },
           selectedExams[1],
         ],
-        rut: '14.125.562-2',
+        rut: '10.000.115-2',
       })
     ).rejects.toThrow('orígenes distintos');
     expect(mockFetchSyslabPdfArrayBuffer).not.toHaveBeenCalled();

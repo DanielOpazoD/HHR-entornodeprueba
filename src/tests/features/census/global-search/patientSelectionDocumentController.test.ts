@@ -7,8 +7,8 @@ import {
 
 describe('patientSelectionDocumentController', () => {
   it('parses composite episode keys with optional admission time', () => {
-    expect(parsePatientSelectionEpisodeLookupKey('13.545.665-9__2026-04-15__08:30')).toEqual({
-      rut: '13.545.665-9',
+    expect(parsePatientSelectionEpisodeLookupKey('10.000.117-9__2026-04-15__08:30')).toEqual({
+      rut: '10.000.117-9',
       admissionDate: '2026-04-15',
       admissionTime: '08:30',
     });
@@ -18,16 +18,16 @@ describe('patientSelectionDocumentController', () => {
   it('builds de-duplicated document episode candidates around the admission date', () => {
     expect(
       buildPatientSelectionDocumentLookupKeys({
-        rut: '13.545.665-9',
+        rut: '10.000.117-9',
         admissionDate: '2026-04-15',
       })
     ).toEqual([
-      '13.545.665-9__2026-04-15',
-      '13545665-9__2026-04-15',
-      '13.545.665-9__2026-04-16',
-      '13545665-9__2026-04-16',
-      '13.545.665-9__2026-04-14',
-      '13545665-9__2026-04-14',
+      '10.000.117-9__2026-04-15',
+      '10000117-9__2026-04-15',
+      '10.000.117-9__2026-04-16',
+      '10000117-9__2026-04-16',
+      '10.000.117-9__2026-04-14',
+      '10000117-9__2026-04-14',
     ]);
   });
 

@@ -193,7 +193,7 @@ describe('useClinicalDocumentPresenceByBed', () => {
         {
           status: 'draft',
           episodeKey: '1-9__2026-03-05',
-          patientRut: '17.444.506-0',
+          patientRut: '10.000.102-0',
         },
       ] as never,
       issues: [],

@@ -14,10 +14,10 @@ const REFERENCE = new Date('2026-07-08T12:00:00-06:00'); // Hospital calendar da
 
 const baseEncounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => ({
   encounterId: '141119',
-  run: '144700554',
-  firstGivenName: 'Carina Aranceli',
-  firstFamilyName: 'Pate',
-  secondFamilyName: 'Lillo',
+  run: '100001314',
+  firstGivenName: 'Cogube Alabedil',
+  firstFamilyName: 'Paci',
+  secondFamilyName: 'Lateb',
   birthDate: '1974-05-18T00:00:00',
   administrativeSex: 'Mujer',
   gender: 'Femenina',
@@ -32,7 +32,7 @@ const baseEncounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter 
 
 describe('helpers', () => {
   it('formatRun formats a raw RUN with dots and dash', () => {
-    expect(formatRun('144700554')).toBe('14.470.055-4');
+    expect(formatRun('100001314')).toBe('10.000.131-4');
     expect(formatRun('12345678K')).toBe('12.345.678-K');
   });
 
@@ -80,14 +80,14 @@ describe('helpers', () => {
 
   it('toTitleCaseName capitalizes each word regardless of input casing', () => {
     expect(toTitleCaseName('JUAN PÉREZ')).toBe('Juan Pérez');
-    expect(toTitleCaseName('maría-josé del pino')).toBe('María-José Del Pino');
+    expect(toTitleCaseName('mopéf-josé del pino')).toBe('Mopéf-José Del Pino');
     expect(toTitleCaseName(undefined)).toBe('');
   });
 
   it('toTitleCaseName colapsa los espacios internos del relleno de Rayen', () => {
-    // El doble espacio del caso real («Jorge  Urgencias Aroca») venía de unir
+    // El doble espacio del caso real («Janor  Urgencias Aluce») venía de unir
     // dos campos donde uno traía relleno; trim() solo limpiaba los extremos.
-    expect(toTitleCaseName('  JORGE   AROCA  ')).toBe('Jorge Aroca');
+    expect(toTitleCaseName('  JANOR   ALUCE  ')).toBe('Janor Aluce');
   });
 
   it('treats Rayen missing-name placeholders as an empty optional name', () => {
@@ -105,11 +105,11 @@ describe('rayenToPatientData', () => {
     expect(isCma).toBe(false);
     expect(patient.bedId).toBe('H1C2');
     expect(patient.clinicalEpisodeId).toBe('141119');
-    expect(patient.rut).toBe('14.470.055-4');
-    expect(patient.patientName).toBe('Carina Aranceli Pate Lillo');
-    expect(patient.firstName).toBe('Carina Aranceli');
-    expect(patient.lastName).toBe('Pate');
-    expect(patient.secondLastName).toBe('Lillo');
+    expect(patient.rut).toBe('10.000.131-4');
+    expect(patient.patientName).toBe('Cogube Alabedil Paci Lateb');
+    expect(patient.firstName).toBe('Cogube Alabedil');
+    expect(patient.lastName).toBe('Paci');
+    expect(patient.secondLastName).toBe('Lateb');
     expect(patient.birthDate).toBe('1974-05-18');
     expect(patient.age).toBe('52');
     expect(patient.biologicalSex).toBe('Femenino');
@@ -121,23 +121,23 @@ describe('rayenToPatientData', () => {
   });
 
   it('no arrastra al censo el marcador de urgencias que Rayen deja entre los nombres', () => {
-    // Caso real (01-09, cama H2C2): Rayen entregaba «Jorge  Urgencias» como
-    // nombres del paciente y el censo mostraba «Jorge Urgencias Aroca
-    // Benavides» en vez de «Jorge Aroca Benavides».
+    // Caso real (01-09, cama H2C2): Rayen entregaba «Janor  Urgencias» como
+    // nombres del paciente y el censo mostraba «Janor Urgencias Aluce
+    // Bibipobef» en vez de «Janor Aluce Bibipobef».
     const { patient } = rayenToPatientData(
       baseEncounter({
-        firstGivenName: 'JORGE ',
+        firstGivenName: 'JANOR ',
         nextGivenNames: 'URGENCIAS',
-        firstFamilyName: 'AROCA',
-        secondFamilyName: 'BENAVIDES',
+        firstFamilyName: 'ALUCE',
+        secondFamilyName: 'BIBIPOBEF',
       }),
       REFERENCE
     );
 
-    expect(patient.patientName).toBe('Jorge Aroca Benavides');
-    expect(patient.firstName).toBe('Jorge');
-    expect(patient.lastName).toBe('Aroca');
-    expect(patient.secondLastName).toBe('Benavides');
+    expect(patient.patientName).toBe('Janor Aluce Bibipobef');
+    expect(patient.firstName).toBe('Janor');
+    expect(patient.lastName).toBe('Aluce');
+    expect(patient.secondLastName).toBe('Bibipobef');
   });
 
   it('si TODOS los nombres de pila son marcadores, quedan vacíos y el paciente se identifica por apellidos', () => {
@@ -149,15 +149,15 @@ describe('rayenToPatientData', () => {
       baseEncounter({
         firstGivenName: 'URGENCIAS',
         nextGivenNames: '',
-        firstFamilyName: 'AROCA',
-        secondFamilyName: 'BENAVIDES',
+        firstFamilyName: 'ALUCE',
+        secondFamilyName: 'BIBIPOBEF',
       }),
       REFERENCE
     );
 
     expect(patient.firstName).toBe('');
-    expect(patient.patientName).toBe('Aroca Benavides');
-    expect(patient.lastName).toBe('Aroca');
+    expect(patient.patientName).toBe('Aluce Bibipobef');
+    expect(patient.lastName).toBe('Aluce');
   });
 
   it('solo poda la palabra completa: nunca mutila un nombre real que la contenga', () => {
@@ -274,14 +274,14 @@ describe('rayenToPatientData', () => {
     const { patient } = rayenToPatientData(
       baseEncounter({
         firstGivenName: 'LAURADELCARMEN',
-        firstFamilyName: 'TUKI',
+        firstFamilyName: 'TINU',
         secondFamilyName: 'Noinformado',
       }),
       REFERENCE
     );
 
     expect(patient.secondLastName).toBe('');
-    expect(patient.patientName).toBe('Lauradelcarmen Tuki');
+    expect(patient.patientName).toBe('Lauradelcarmen Tinu');
   });
 
   it('defaults a synced patient to status "Estable"', () => {

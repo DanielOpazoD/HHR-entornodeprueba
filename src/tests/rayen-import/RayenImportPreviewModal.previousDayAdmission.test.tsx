@@ -11,7 +11,7 @@ describe('RayenImportPreviewModal previous-day admissions', () => {
       admissions: [
         {
           bedId: 'H4C1',
-          patient: { ...EMPTY_PATIENT, bedId: 'H4C1', patientName: 'Maeva' },
+          patient: { ...EMPTY_PATIENT, bedId: 'H4C1', patientName: 'Miduc' },
           isCma: false,
         },
       ],
@@ -25,7 +25,7 @@ describe('RayenImportPreviewModal previous-day admissions', () => {
         {
           day: '2026-07-25',
           reason: 'admission-night-shift-correction',
-          patientNames: ['Maeva Elisabet Maria Tuki Garcia', 'RN de Maeva Tuki Garcia'],
+          patientNames: ['Miduc Enudovur Mopef Tinu Genavi', 'RN de Miduc Tinu Genavi'],
           recordExists: true,
           withinEditingWindow: true,
           isSigned: false,
@@ -54,7 +54,7 @@ describe('RayenImportPreviewModal previous-day admissions', () => {
 
     expect(screen.getByText('Ingreso turno noche:')).toBeVisible();
     expect(
-      screen.getByText(/Maeva Elisabet Maria Tuki Garcia, RN de Maeva Tuki Garcia/)
+      screen.getByText(/Miduc Enudovur Mopef Tinu Genavi, RN de Miduc Tinu Genavi/)
     ).toBeVisible();
     expect(screen.getByLabelText('Acepto modificar los días previos indicados')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar solo censo seleccionado' }));
@@ -80,7 +80,7 @@ describe('RayenImportPreviewModal previous-day admissions', () => {
         {
           day: '2026-07-25',
           reason: 'admission-night-shift-correction',
-          patientNames: ['Maeva Elisabet Maria Tuki Garcia'],
+          patientNames: ['Miduc Enudovur Mopef Tinu Genavi'],
           recordExists: true,
           withinEditingWindow: true,
           isSigned: true,

@@ -208,8 +208,8 @@ describe('groupEpisodesAsBlocks', () => {
       createEvent({ type: 'Ingreso', date: '2026-04-07', diagnosis: 'ICC', bedName: 'H1C1' }),
     ]);
     const history: PatientHistoryResult = {
-      patientName: 'Ines',
-      rut: '8.932.066-6',
+      patientName: 'Isut',
+      rut: '1.000.122-6',
       totalDays: 8,
       firstSeen: '2026-04-07',
       lastSeen: '2026-04-15',
@@ -245,8 +245,8 @@ describe('groupEpisodesAsBlocks', () => {
       createEvent({ type: 'Ingreso', date: '2026-04-07', diagnosis: 'ICC', bedName: 'H1C1' }),
     ]);
     const history: PatientHistoryResult = {
-      patientName: 'Ines',
-      rut: '8.932.066-6',
+      patientName: 'Isut',
+      rut: '1.000.122-6',
       totalDays: 3,
       firstSeen: '2026-04-07',
       lastSeen: '2026-04-10',
@@ -281,8 +281,8 @@ describe('groupEpisodesAsBlocks', () => {
       createEvent({ type: 'Ingreso', date: '2026-04-07', diagnosis: 'Sepsis', bedName: 'H1C1' }),
     ]);
     const history: PatientHistoryResult = {
-      patientName: 'Ines',
-      rut: '8.932.066-6',
+      patientName: 'Isut',
+      rut: '1.000.122-6',
       totalDays: 5,
       firstSeen: '2026-04-07',
       lastSeen: '2026-04-12',
@@ -317,8 +317,8 @@ describe('groupEpisodesAsBlocks', () => {
       createEvent({ type: 'Ingreso', date: '2026-04-07', diagnosis: 'ICC', bedName: 'H1C1' }),
     ]);
     const history: PatientHistoryResult = {
-      patientName: 'Ines',
-      rut: '8.932.066-6',
+      patientName: 'Isut',
+      rut: '1.000.122-6',
       totalDays: 4,
       firstSeen: '2026-04-07',
       lastSeen: '2026-04-11',
