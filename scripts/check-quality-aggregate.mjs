@@ -9,6 +9,12 @@ import {
   selectQualitySteps,
   writeQualityProfileFiles,
 } from './qualityAggregateSupport.mjs';
+import {
+  resolveCommandConcurrency,
+  runCommandsWithConcurrency,
+} from './lib/parallelCommandRunner.mjs';
+
+const SEQUENTIAL_QUALITY_GROUPS = new Set(['governance-inputs', 'governance']);
 
 const ROOT = process.cwd();
 const GOVERNANCE_CONFIG_PATH = path.join(ROOT, 'scripts/config/guardrail-governance.json');
@@ -75,27 +81,55 @@ if (requestedGroup) {
 const failures = [];
 const advisoryFailures = [];
 const results = [];
+const outcomesByIndex = new Array(selectedSteps.length);
 const startedAt = new Date().toISOString();
 
-for (const entry of selectedSteps) {
+const indexedSteps = selectedSteps.map((entry, index) => ({ entry, index }));
+const sequentialSteps = indexedSteps.filter(({ entry }) =>
+  SEQUENTIAL_QUALITY_GROUPS.has(entry.group)
+);
+const parallelSteps = indexedSteps.filter(
+  ({ entry }) => !SEQUENTIAL_QUALITY_GROUPS.has(entry.group)
+);
+
+const runSequentialSteps = async () => {
+  for (const { entry, index } of sequentialSteps) {
+    const [outcome] = await runCommandsWithConcurrency(
+      [{ command: 'npm', args: ['run', entry.id] }],
+      { concurrency: 1, cwd: ROOT }
+    );
+    outcomesByIndex[index] = outcome;
+  }
+};
+
+const runParallelSteps = async () => {
+  if (parallelSteps.length === 0) return;
+  const outcomes = await runCommandsWithConcurrency(
+    parallelSteps.map(({ entry }) => ({ command: 'npm', args: ['run', entry.id] })),
+    { concurrency: resolveCommandConcurrency(4), cwd: ROOT }
+  );
+  parallelSteps.forEach(({ index }, offset) => {
+    outcomesByIndex[index] = outcomes[offset];
+  });
+};
+
+await Promise.all([runSequentialSteps(), runParallelSteps()]);
+
+selectedSteps.forEach((entry, index) => {
   const step = entry.id;
   const isReportOnly = entry.reportOnly === true;
   const label = isReportOnly ? `${step} (advisory)` : step;
+  const outcome = outcomesByIndex[index];
   console.log(`\n[quality] Running ${label}`);
-  const stepStartedAt = Date.now();
-  const result = spawnSync('npm', ['run', step], {
-    cwd: ROOT,
-    stdio: 'inherit',
-    shell: process.platform === 'win32',
-  });
-  const durationMs = Date.now() - stepStartedAt;
-  const status = result.status === 0 ? 'passed' : 'failed';
+  if (outcome.stdout) process.stdout.write(outcome.stdout);
+  if (outcome.stderr) process.stderr.write(outcome.stderr);
 
+  const status = outcome.status === 0 ? 'passed' : 'failed';
   results.push({
     id: step,
     group: entry.group,
     status,
-    durationMs,
+    durationMs: outcome.durationMs,
     reportOnly: isReportOnly,
   });
 
@@ -106,7 +140,7 @@ for (const entry of selectedSteps) {
       failures.push(step);
     }
   }
-}
+});
 
 if (advisoryFailures.length > 0) {
   console.warn('\n[quality] Advisory (non-blocking) steps reporting issues:');
