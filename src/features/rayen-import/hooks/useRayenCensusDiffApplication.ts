@@ -27,12 +27,24 @@ import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordP
 import type { QueryClient } from '@tanstack/react-query';
 import { setRemoteConfirmedDailyRecordQueryData } from '@/hooks/controllers/dailyRecordConfirmedCacheController';
 import { markDailyRecordRemoteConfirmed } from '@/hooks/controllers/dailyRecordFreshnessGateController';
+import type { AuthoringSessionGuard } from '@/services/storage/authoringSession';
 
 export interface ConfirmedRayenCensusApplyResult extends ApplyResult {
   confirmedHandoff: ConfirmedRayenCensusHandoff;
   structuralStage: StructuralStageResult;
   deferredHistoricalDischarges?: readonly DischargeEntry[];
 }
+
+/**
+ * Applies a structural diff on behalf of the session that began the sync run. The day's write turn
+ * may wait for another edit; each send happens only while that session still holds this tab.
+ */
+export type ApplyRayenCensusDiff = (
+  record: DailyRecord,
+  diff: CensusImportDiff,
+  clinicalDay: string | undefined,
+  session: AuthoringSessionGuard
+) => Promise<ConfirmedRayenCensusApplyResult>;
 
 interface RayenCensusDiffApplicationInput {
   ensureRun: () => RayenSyncRun;
@@ -60,13 +72,9 @@ export const useRayenCensusDiffApplication = ({
   loadAuthoritativeRecord,
   loadLocalRecord,
   recordRunPerformance,
-}: RayenCensusDiffApplicationInput) =>
-  useCallback(
-    async (
-      record: DailyRecord,
-      diff: CensusImportDiff,
-      clinicalDay: string = record.date
-    ): Promise<ConfirmedRayenCensusApplyResult> =>
+}: RayenCensusDiffApplicationInput): ApplyRayenCensusDiff =>
+  useCallback<ApplyRayenCensusDiff>(
+    async (record, diff, clinicalDay = record.date, session) =>
       runExclusiveDailyRecordWrite(
         record.date,
         async writeLease => {
@@ -124,6 +132,7 @@ export const useRayenCensusDiffApplication = ({
             // (for example, when a previous failed run was recorded). Stamp the current run onto the
             // fresh server base so the metadata patch cannot overwrite newer history or use stale CAS.
             const checkpointStamped = applyRunToRecord(authoritativeCheckpointBase, diff).record;
+            session.check();
             const checkpointResult = await checkpointRepository.updatePartialDetailed(
               persistenceBase.date,
               {
@@ -170,6 +179,7 @@ export const useRayenCensusDiffApplication = ({
               );
             }
           } else {
+            session.check();
             persistence = await saveDailyRecord(
               stamped,
               record.lastUpdated,

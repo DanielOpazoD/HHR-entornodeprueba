@@ -206,6 +206,7 @@ export const useRayenSnapshotPreview = ({
       if (hasNoApplicableChanges) {
         await persistRayenStructureThenClinical({
           identity: executionIdentity,
+          session,
           afterReview: false,
           applyPreviousDays: false,
           preparePlan: () => ({

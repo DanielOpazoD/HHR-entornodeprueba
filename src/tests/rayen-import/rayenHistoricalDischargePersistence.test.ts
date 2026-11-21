@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
@@ -114,7 +115,7 @@ const setup = async (emptyCrib = false) => {
   );
   let applied!: Awaited<ReturnType<typeof hook.result.current>>;
   await act(async () => {
-    applied = await hook.result.current(remote, diff);
+    applied = await hook.result.current(remote, diff, undefined, guardAuthoringSession());
   });
   const history = buildRecord(entry.correctedDay);
   history.discharges = [
