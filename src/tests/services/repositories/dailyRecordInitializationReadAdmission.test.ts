@@ -5,16 +5,14 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { getRecordForDateStrict } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { initializeDayDetailed } from '@/services/repositories/dailyRecordRepositoryInitializationService';
-import { getForDate } from '@/services/repositories/dailyRecordRepositoryReadService';
-import { loadRemoteRecordWithFallback } from '@/services/repositories/dailyRecordRemoteLoader';
+import {
+  loadRemoteRecordWithFallback,
+  type DailyRecordRemoteLoadResult,
+} from '@/services/repositories/dailyRecordRemoteLoader';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { save } from '@/services/repositories/dailyRecordRepositoryWriteService';
 
-vi.mock('@/services/repositories/dailyRecordRepositoryReadService', () => ({
-  getForDate: vi.fn(),
-  getForDateWithMeta: vi.fn(),
-}));
 vi.mock('@/services/repositories/dailyRecordRemoteLoader', () => ({
   loadRemoteRecordWithFallback: vi.fn(),
 }));
@@ -37,7 +35,19 @@ const deferred = <T>() => {
   });
   return { promise, resolve };
 };
+// The server's answer for one day, confirmed: the day, or its confirmed absence.
+const confirmed = (record: DailyRecord | null): DailyRecordRemoteLoadResult => ({
+  record,
+  serverConfirmed: true,
+  source: record ? 'firestore' : 'not_found',
+  compatibilityTier: record ? 'current_firestore' : 'none',
+  compatibilityIntensity: 'none',
+  migrationRulesApplied: [],
+  cachedLocally: false,
+});
 
+// Creating a day reads it once through the ordinary read, which admits the server's answer
+// against this computer's copy; only the server is simulated here.
 describe('initialization return value after a superseded remote read', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -75,7 +85,6 @@ describe('initialization return value after a superseded remote read', () => {
       }
       const beforeRows = await hospitalDB.dailyRecords.toArray();
       const beforeTasks = await hospitalDB.syncQueue.toArray();
-      vi.mocked(getForDate).mockResolvedValue(null);
       const started = deferred<void>();
       const response = deferred<DailyRecord>();
       vi.mocked(loadRemoteRecordWithFallback).mockImplementation(async () => {
@@ -104,17 +113,17 @@ describe('initialization return value after a superseded remote read', () => {
   );
 
   it.each(['owner', 'generation'])(
-    'does not restart initialization when %s changes in its first read',
+    'does not restart initialization when %s changes during its read',
     async change => {
       localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-initial');
       setSessionGeneration('synthetic-initial');
-      vi.mocked(getForDate).mockImplementationOnce(async () => {
+      vi.mocked(loadRemoteRecordWithFallback).mockImplementationOnce(async () => {
         if (change === 'owner') localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-next');
         else setSessionGeneration('synthetic-next');
-        return null;
+        return confirmed(null);
       });
       await expect(initializeDayDetailed(date)).rejects.toThrow('La sesión cambió');
-      expect(loadRemoteRecordWithFallback).not.toHaveBeenCalled();
+      expect(loadRemoteRecordWithFallback).toHaveBeenCalledOnce();
       expect(save).not.toHaveBeenCalled();
       expect(await hospitalDB.dailyRecords.count()).toBe(0);
     }
@@ -122,16 +131,7 @@ describe('initialization return value after a superseded remote read', () => {
 
   it('hydrates only the admitted remote row without creating a day or queue task', async () => {
     const remote = DataFactory.createMockDailyRecord(date);
-    vi.mocked(getForDate).mockResolvedValue(null);
-    vi.mocked(loadRemoteRecordWithFallback).mockResolvedValue({
-      record: remote,
-      serverConfirmed: true,
-      source: 'firestore',
-      compatibilityTier: 'current_firestore',
-      compatibilityIntensity: 'none',
-      migrationRulesApplied: [],
-      cachedLocally: false,
-    });
+    vi.mocked(loadRemoteRecordWithFallback).mockResolvedValue(confirmed(remote));
     const settings = await hospitalDB.settings.toArray();
     const result = await initializeDayDetailed(date);
     expect(await hospitalDB.dailyRecords.toArray()).toEqual([result.record]);
@@ -143,7 +143,6 @@ describe('initialization return value after a superseded remote read', () => {
 
   it('propagates a failed remote lookup without creating a day', async () => {
     const failure = new Error('Synthetic remote lookup failed');
-    vi.mocked(getForDate).mockResolvedValue(null);
     vi.mocked(loadRemoteRecordWithFallback).mockRejectedValue(failure);
 
     await expect(
@@ -156,7 +155,6 @@ describe('initialization return value after a superseded remote read', () => {
 
   it('does not create a day requiring confirmed absence when Firestore is disabled', async () => {
     vi.mocked(isFirestoreEnabled).mockReturnValue(false);
-    vi.mocked(getForDate).mockResolvedValue(null);
 
     await expect(
       initializeDayDetailed(date, undefined, { requireConfirmedAbsence: true })
@@ -169,18 +167,9 @@ describe('initialization return value after a superseded remote read', () => {
   it('preserves a failed initial lookup during offline copy requiring confirmed absence', async () => {
     const failure = new Error('Synthetic initial lookup failed');
     const source = DataFactory.createMockDailyRecord(copyDate, { beds: {} });
-    vi.mocked(getForDate).mockImplementation(async requested => {
+    vi.mocked(loadRemoteRecordWithFallback).mockImplementation(async requested => {
       if (requested === date) throw failure;
-      return source;
-    });
-    vi.mocked(loadRemoteRecordWithFallback).mockResolvedValue({
-      record: null,
-      serverConfirmed: true,
-      source: 'not_found',
-      compatibilityTier: 'none',
-      compatibilityIntensity: 'none',
-      migrationRulesApplied: [],
-      cachedLocally: false,
+      return confirmed(source);
     });
     const online = navigator.onLine;
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
@@ -198,18 +187,9 @@ describe('initialization return value after a superseded remote read', () => {
 
   it('copies offline with enabled runtime even when the SDK returns cached absence', async () => {
     const source = DataFactory.createMockDailyRecord(copyDate, { beds: {} });
-    vi.mocked(getForDate).mockImplementation(async requested =>
-      requested === copyDate ? source : null
+    vi.mocked(loadRemoteRecordWithFallback).mockImplementation(async requested =>
+      requested === copyDate ? confirmed(source) : { ...confirmed(null), serverConfirmed: false }
     );
-    vi.mocked(loadRemoteRecordWithFallback).mockResolvedValue({
-      record: null,
-      serverConfirmed: false,
-      source: 'not_found',
-      compatibilityTier: 'none',
-      compatibilityIntensity: 'none',
-      migrationRulesApplied: [],
-      cachedLocally: false,
-    });
     const online = navigator.onLine;
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
     try {
@@ -232,12 +212,10 @@ describe('initialization return value after a superseded remote read', () => {
     'returns the intervening local day: copy $copy, missing remote $missing',
     async ({ copy, missing }) => {
       const copySource = DataFactory.createMockDailyRecord(copyDate, { beds: {} });
-      vi.mocked(getForDate).mockImplementation(async requested =>
-        requested === copyDate ? copySource : null
-      );
       const started = deferred<void>();
       const remote = deferred<DailyRecord | null>();
       vi.mocked(loadRemoteRecordWithFallback).mockImplementation(async requested => {
+        if (requested === copyDate) return confirmed(copySource);
         const issuedAgainst = {
           kind: 'stored' as const,
           record: await getRecordForDateStrict(requested),
@@ -280,12 +258,10 @@ describe('initialization return value after a superseded remote read', () => {
     'fails opening instead of creating a day when local admission fails: copy %s',
     async copy => {
       const copySource = DataFactory.createMockDailyRecord(copyDate, { beds: {} });
-      vi.mocked(getForDate).mockImplementation(async requested =>
-        requested === copyDate ? copySource : null
-      );
       const started = deferred<void>();
       const remote = deferred<DailyRecord>();
       vi.mocked(loadRemoteRecordWithFallback).mockImplementation(async requested => {
+        if (requested === copyDate) return confirmed(copySource);
         const issuedAgainst = {
           kind: 'stored' as const,
           record: await getRecordForDateStrict(requested),

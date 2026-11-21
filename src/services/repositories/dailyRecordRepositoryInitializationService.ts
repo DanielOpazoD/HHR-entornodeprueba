@@ -7,17 +7,10 @@ import {
   getForDateWithMeta,
 } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { save, updatePartial } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { loadRemoteRecordWithFallback } from '@/services/repositories/dailyRecordRemoteLoader';
 import {
   buildInitializedDayRecord,
   preparePatientForCarryover,
 } from '@/services/repositories/dailyRecordInitializationSupport';
-import {
-  createCopySourceInitializationSeed,
-  createFreshInitializationSeed,
-  DailyRecordInitializationSeed,
-  shouldReturnSeedRecord,
-} from '@/services/repositories/dailyRecordInitializationSeed';
 import { createCopyPatientToDateCommand } from '@/services/repositories/contracts/dailyRecordLifecycleCommands';
 import { measureRepositoryOperation } from '@/services/repositories/repositoryPerformance';
 import { migrateLegacyDataWithReport } from '@/services/repositories/dataMigration';
@@ -25,8 +18,6 @@ import {
   createCopyPatientResult,
   createInitializeDayResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
-import { resolveRemoteGoldenPathReadResult } from './dailyRecordRemoteReadController';
-import { captureLocalRecordBase } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
@@ -62,11 +53,6 @@ export interface CopyPatientToDateResult {
   sourceMigrationRulesApplied: string[];
 }
 
-const loadCopySourceRecord = async (copyFromDate?: string): Promise<DailyRecord | null> => {
-  if (!copyFromDate) return null;
-  return getForDate(copyFromDate);
-};
-
 const buildCopySourceMeta = (
   copySourceRecord: DailyRecord | null,
   copyFromDate?: string
@@ -99,120 +85,66 @@ const captureInitializationSession = () => {
   const assertCurrentSession = () => {
     if (!isCurrent()) throw new ConcurrencyError('La sesión cambió durante la apertura del censo.');
   };
-  return { isCurrent, assertCurrentSession, authoringSession: captureAuthoringSession() };
+  return { assertCurrentSession, authoringSession: captureAuthoringSession() };
 };
 
-const loadRemoteInitializationSeed = async (
+type InitializationSession = ReturnType<typeof captureInitializationSession>;
+
+/**
+ * The one read that decides whether a day must be created. A day found here, on the server or
+ * still only on this computer, is returned as it is. Absence counts only when the server
+ * confirmed it, or for a copy made while this computer is offline (CEN-01, SAVE-01).
+ */
+const readDayBeforeCreation = async (
   date: string,
-  allowOfflineCopy: boolean
-): Promise<DailyRecordInitializationSeed | null> => {
-  const { isCurrent, assertCurrentSession } = captureInitializationSession();
-  const base = await captureLocalRecordBase(date);
-  let remoteResult: Awaited<ReturnType<typeof loadRemoteRecordWithFallback>>;
+  { requireConfirmedAbsence }: DailyRecordInitializationOptions,
+  allowOfflineCopy: boolean,
+  { assertCurrentSession }: InitializationSession
+): Promise<DailyRecord | null> => {
+  const offlineCopy = () =>
+    allowOfflineCopy &&
+    !requireConfirmedAbsence &&
+    typeof navigator !== 'undefined' &&
+    !navigator.onLine;
+  let read: Awaited<ReturnType<typeof getForDateWithMeta>>;
   try {
-    remoteResult = await loadRemoteRecordWithFallback(date, { base });
+    read = await getForDateWithMeta(date);
   } catch (error) {
     assertCurrentSession();
-    if (allowOfflineCopy && typeof navigator !== 'undefined' && !navigator.onLine) return null;
+    if (offlineCopy()) return null;
     throw error;
   }
   assertCurrentSession();
-  if (!remoteResult.record && !remoteResult.serverConfirmed) {
-    if (allowOfflineCopy && typeof navigator !== 'undefined' && !navigator.onLine) return null;
-    throw new Error(
-      'No se pudo confirmar la ausencia del día con el servidor. Reintente con conexión.'
-    );
-  }
-  const result = await resolveRemoteGoldenPathReadResult({
-    date,
-    remoteReadResult: remoteResult,
-    base: remoteResult.issuedAgainst ?? base,
-    isCurrent,
-  });
-  assertCurrentSession();
-  if (result.publication === 'superseded' && !result.record)
+  if (read.record) return read.record;
+  if (read.publication === 'superseded')
     throw new ConcurrencyError('El censo cambió durante su apertura. Vuelva a abrir el día.');
-  return result.record
-    ? {
-        record: result.record,
-        source: 'local_current',
-        compatibilityTier: result.compatibilityTier,
-        compatibilityIntensity: result.compatibilityIntensity,
-      }
-    : null;
+  const absenceConfirmed = isFirestoreEnabled() ? read.serverConfirmed : !requireConfirmedAbsence;
+  if (absenceConfirmed || offlineCopy()) return null;
+  throw new Error(
+    'No se pudo confirmar la ausencia del día con el servidor. Reintente con conexión.'
+  );
 };
-
-const resolveInitializationSeed = async (
-  date: string,
-  copySourceRecord: DailyRecord | null,
-  options: DailyRecordInitializationOptions,
-  allowOfflineCopy: boolean
-): Promise<DailyRecordInitializationSeed> => {
-  if (isFirestoreEnabled()) {
-    const remoteSeed = await loadRemoteInitializationSeed(
-      date,
-      allowOfflineCopy && !options.requireConfirmedAbsence
-    );
-    if (remoteSeed?.record) {
-      return remoteSeed;
-    }
-  } else if (options.requireConfirmedAbsence) {
-    throw new Error(
-      'No se pudo confirmar la ausencia del día con el servidor. Reintente con conexión.'
-    );
-  }
-
-  if (copySourceRecord) {
-    return createCopySourceInitializationSeed(copySourceRecord);
-  }
-
-  return createFreshInitializationSeed();
-};
-
-const loadExistingDailyRecord = async (date: string): Promise<DailyRecord | null> =>
-  getForDate(date);
 
 const resolveTargetRecordForCopy = async (targetDate: string): Promise<DailyRecord> => {
-  const targetRecord = await getForDate(targetDate).catch(error => {
-    if (typeof navigator !== 'undefined' && !navigator.onLine) return null;
-    throw error;
-  });
-  return targetRecord ?? initializeMissingDay(targetDate, undefined, undefined, {}, true);
+  const session = captureInitializationSession();
+  const targetRecord = await readDayBeforeCreation(targetDate, {}, true, session);
+  return targetRecord ?? initializeMissingDay(targetDate, null, session);
 };
 
+/** Builds a day the caller already confirmed missing, from the source day as read, and saves it. */
 const initializeMissingDay = async (
   date: string,
-  copyFromDate?: string,
-  copySourceRecordOverride?: DailyRecord | null,
-  options: DailyRecordInitializationOptions = {},
-  allowOfflineCopy = false
+  copySourceRecord: DailyRecord | null,
+  { assertCurrentSession, authoringSession }: InitializationSession
 ): Promise<DailyRecord> => {
-  const { assertCurrentSession, authoringSession } = captureInitializationSession();
-  const copySourceRecord =
-    copySourceRecordOverride === undefined
-      ? await loadCopySourceRecord(copyFromDate)
-      : copySourceRecordOverride;
-  assertCurrentSession();
-  const initializationSeed = await resolveInitializationSeed(
-    date,
-    copySourceRecord,
-    options,
-    allowOfflineCopy
-  );
-
-  assertCurrentSession();
-  if (shouldReturnSeedRecord(initializationSeed)) {
-    return initializationSeed.record;
-  }
-
   // Built field by field from the source: the new day never inherits the source's marker.
-  let newRecord = buildInitializedDayRecord(date, initializationSeed.record);
-  if (initializationSeed.record) {
+  let newRecord = buildInitializedDayRecord(date, copySourceRecord);
+  if (copySourceRecord) {
     const { applyClinicalDayCarryover, readClinicalCarryoverSource } =
       await import('./clinicalDayCarryover');
     newRecord = applyClinicalDayCarryover(
       newRecord,
-      await readClinicalCarryoverSource(date, initializationSeed.record)
+      await readClinicalCarryoverSource(date, copySourceRecord)
     );
   }
 
@@ -221,31 +153,29 @@ const initializeMissingDay = async (
   return newRecord;
 };
 
+/**
+ * The copy source is the source day's date, read here only when the day is missing, or the source
+ * day its caller has already read, which is then not read again.
+ */
+type CopySource = string | DailyRecord;
+
 export const initializeDay = async (
   date: string,
-  copyFromDate?: string,
+  copySource?: CopySource,
   options: DailyRecordInitializationOptions = {}
-): Promise<DailyRecord> => (await initializeDayDetailed(date, copyFromDate, options)).record;
+): Promise<DailyRecord> => (await initializeDayDetailed(date, copySource, options)).record;
 
 export const initializeDayDetailed = async (
   date: string,
-  copyFromDate?: string,
+  copySource?: CopySource,
   options: DailyRecordInitializationOptions = {}
-): Promise<DailyRecordInitializationResult> =>
-  measureRepositoryOperation(
+): Promise<DailyRecordInitializationResult> => {
+  const copyFromDate = typeof copySource === 'string' ? copySource : copySource?.date;
+  return measureRepositoryOperation(
     'dailyRecord.initializeDay',
     async () => {
-      const { assertCurrentSession } = captureInitializationSession();
-      const offlineCopy =
-        Boolean(copyFromDate) &&
-        !options.requireConfirmedAbsence &&
-        typeof navigator !== 'undefined' &&
-        !navigator.onLine;
-      const existing = await loadExistingDailyRecord(date).catch(error => {
-        if (offlineCopy) return null;
-        throw error;
-      });
-      assertCurrentSession();
+      const session = captureInitializationSession();
+      const existing = await readDayBeforeCreation(date, options, Boolean(copySource), session);
       if (existing) {
         return {
           record: existing,
@@ -255,17 +185,12 @@ export const initializeDayDetailed = async (
         };
       }
 
-      const copySourceRecord = copyFromDate ? await loadCopySourceRecord(copyFromDate) : null;
-      assertCurrentSession();
+      const copySourceRecord =
+        typeof copySource === 'string' ? await getForDate(copySource) : (copySource ?? null);
+      session.assertCurrentSession();
       const copyMeta = buildCopySourceMeta(copySourceRecord, copyFromDate);
-      const record = await initializeMissingDay(
-        date,
-        copyFromDate,
-        copySourceRecord,
-        options,
-        offlineCopy
-      );
-      assertCurrentSession();
+      const record = await initializeMissingDay(date, copySourceRecord, session);
+      session.assertCurrentSession();
       return {
         record,
         ...createInitializeDayResult({
@@ -278,6 +203,7 @@ export const initializeDayDetailed = async (
     },
     { thresholdMs: 180, context: `${date}${copyFromDate ? `<-${copyFromDate}` : ''}` }
   );
+};
 
 export const copyPatientToDate = async (
   sourceDate: string,

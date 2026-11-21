@@ -14,7 +14,8 @@ import {
 
 export interface InitializeDailyRecordInput {
   date: string;
-  copyFromDate?: string;
+  /** The source day as its caller read it: initialization does not read it again. */
+  copySource?: DailyRecord;
   repository?: Pick<DailyRecordReadPort, 'initializeDay'>;
 }
 
@@ -67,7 +68,7 @@ export const executeInitializeDailyRecord = async (
   const repository = input.repository || defaultDailyRecordReadPort;
   try {
     const initialization = normalizeInitializationResult(
-      (await repository.initializeDay(input.date, input.copyFromDate)) as
+      (await repository.initializeDay(input.date, input.copySource)) as
         | DailyRecordInitializationResult
         | DailyRecord
     );

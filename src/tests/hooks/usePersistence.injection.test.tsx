@@ -39,10 +39,11 @@ vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
 }));
 
+const sourceDay = { date: '2026-07-16', beds: {} };
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.repository.getForDateWithMeta.mockResolvedValue({
-    record: { date: '2026-07-16', beds: {} },
+    record: sourceDay,
     compatibilityIntensity: 'none',
     migrationRulesApplied: [],
   });
@@ -67,10 +68,10 @@ it.each(['2026-07-16', '2026-07-15'])(
       created = await result.current.createDay(source);
     });
     expect(created).toBe(true);
-    // One remote read of the source day: it admits the server's day and returns it.
+    // One remote read of the source day per click: initialization receives the day it returned.
     expect(mocks.repository.getForDateWithMeta).toHaveBeenCalledTimes(1);
     expect(mocks.repository.getForDateWithMeta).toHaveBeenCalledWith(source, true);
-    expect(mocks.repository.initializeDay).toHaveBeenCalledWith('2026-07-17', source);
+    expect(mocks.repository.initializeDay).toHaveBeenCalledWith('2026-07-17', sourceDay);
     expect(mocks.defaultRead).not.toHaveBeenCalled();
   }
 );

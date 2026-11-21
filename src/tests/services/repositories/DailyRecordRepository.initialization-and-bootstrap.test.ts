@@ -118,15 +118,9 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
     indexedDbFacadeMock.getRecordForDateStrict.mockImplementation(async date =>
       date === '2024-12-31' ? copySourceRecord : null
     );
-    let mockDateFetchCount = 0;
-    firestoreMock.getRecordFromFirestore.mockImplementation(async date => {
-      if (date === '2024-12-31') return null;
-      if (date === mockDate) {
-        mockDateFetchCount += 1;
-        return mockDateFetchCount >= 2 ? remoteRecord : null;
-      }
-      return null;
-    });
+    firestoreMock.getRecordFromFirestore.mockImplementation(async date =>
+      date === mockDate ? remoteRecord : null
+    );
 
     const result = await Repository.initializeDay(mockDate, '2024-12-31');
 
@@ -187,6 +181,37 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
 
     expect(result.beds.R1.patientName).toBe('Patient X');
     expect(result.beds.R1.cudyr).toBeUndefined();
+  });
+
+  // «Copiar censo y sincronizar» hands over the source day createDay already read; the email
+  // path passes its date. Either way the new day is looked up once and the source at most once.
+  it.each([
+    { given: 'the source date', sourceLookups: 1 },
+    { given: 'the source day already read', sourceLookups: 0 },
+  ])('looks the new day up once when given $given', async ({ given, sourceLookups }) => {
+    const prevRecord = {
+      ...mockRecord,
+      date: '2024-12-31',
+      beds: { R1: buildPatient({ patientName: 'Patient X', admissionDate: '2024-12-30' }) },
+    };
+    firestoreMock.getRecordFromFirestore.mockImplementation(async date =>
+      date === '2024-12-31' ? prevRecord : null
+    );
+
+    const result = await Repository.initializeDayDetailed(
+      mockDate,
+      given === 'the source date' ? '2024-12-31' : prevRecord
+    );
+
+    // Lookups only: the save's own integrity guard reads through getRecordFromFirestore directly.
+    const lookups = (day: string) =>
+      firestoreMock.getRecordFromFirestoreDetailed.mock.calls.filter(([date]) => date === day)
+        .length;
+    expect(result.record.date).toBe(mockDate);
+    expect(result.record.beds.R1.patientName).toBe('Patient X');
+    expect(result.sourceDate).toBe('2024-12-31');
+    expect(lookups(mockDate)).toBe(1);
+    expect(lookups('2024-12-31')).toBe(sourceLookups);
   });
 
   it('rejects invalid date format on initializeDay copyFromDate', async () => {

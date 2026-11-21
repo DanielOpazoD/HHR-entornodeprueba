@@ -193,11 +193,11 @@ export const defaultDailyRecordReadPort: DailyRecordReadPort = {
   getLocalForDate: date => withReadService(service => service.getLocalForDate(date)),
   getLocalForDateWithMeta: date =>
     withReadService(service => service.getLocalForDateWithMeta(date)),
-  initializeDay: (date, copyFromDate, options) =>
+  initializeDay: (date, copySource, options) =>
     withInitializationService(service =>
       options
-        ? service.initializeDay(date, copyFromDate, options)
-        : service.initializeDay(date, copyFromDate)
+        ? service.initializeDay(date, copySource, options)
+        : service.initializeDay(date, copySource)
     ),
   getPreviousDayWithMeta: date => withReadService(service => service.getPreviousDayWithMeta(date)),
 };

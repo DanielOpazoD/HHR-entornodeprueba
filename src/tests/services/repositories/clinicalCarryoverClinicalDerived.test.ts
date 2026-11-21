@@ -8,8 +8,8 @@ const mocks = vi.hoisted(() => ({
   readDocs: vi.fn(),
   readDoc: vi.fn(),
   getForDate: vi.fn(),
+  getForDateWithMeta: vi.fn(),
   save: vi.fn(),
-  loadRemote: vi.fn(),
   recordOperationalTelemetry: vi.fn(),
 }));
 
@@ -22,14 +22,11 @@ vi.mock('@/services/storage/firestore/clinicalDerivedEpisodeReader', () => ({
 }));
 vi.mock('@/services/repositories/dailyRecordRepositoryReadService', () => ({
   getForDate: mocks.getForDate,
-  getForDateWithMeta: vi.fn(),
+  getForDateWithMeta: mocks.getForDateWithMeta,
 }));
 vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
   save: mocks.save,
   updatePartial: vi.fn(),
-}));
-vi.mock('@/services/repositories/dailyRecordRemoteLoader', () => ({
-  loadRemoteRecordWithFallback: mocks.loadRemote,
 }));
 vi.mock('@/services/repositories/dailyRecordLocalCachePersistence', () => ({
   persistHydratedRecordToLocalCache: vi.fn(),
@@ -129,7 +126,8 @@ describe('client day creation from a split source day (D10)', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(NOW);
     mocks.isFirestoreEnabled.mockReturnValue(true);
-    mocks.loadRemote.mockResolvedValue({ record: null, serverConfirmed: true });
+    // The one lookup of the new day: the server confirms it does not exist yet.
+    mocks.getForDateWithMeta.mockResolvedValue({ record: null, serverConfirmed: true });
     mocks.save.mockResolvedValue(undefined);
   });
   afterEach(() => vi.useRealTimers());

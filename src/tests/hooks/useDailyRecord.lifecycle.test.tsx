@@ -259,9 +259,10 @@ describe('useDailyRecord lifecycle', () => {
     });
 
     expect(created).toBe(true);
+    // The source day read by createDay is the copy; initialization does not read it again.
     expect(defaultDailyRecordRepositoryPort.initializeDay).toHaveBeenCalledWith(
       targetDate,
-      sourceDate
+      recordsMap[sourceDate]
     );
 
     vi.useRealTimers();

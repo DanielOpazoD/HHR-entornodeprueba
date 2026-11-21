@@ -38,7 +38,7 @@ describe('initializeDailyRecordUseCase', () => {
 
     const outcome = await executeInitializeDailyRecord({
       date: '2026-03-05',
-      copyFromDate: '2026-03-04',
+      copySource: DataFactory.createMockDailyRecord('2026-03-04'),
       repository,
     });
 

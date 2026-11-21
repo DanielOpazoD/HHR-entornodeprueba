@@ -69,9 +69,10 @@ export const usePersistence = ({
           return false;
         }
 
+        // The source day read above is the copy: initialization does not read it again.
         const initOutcome = await executeInitializeDailyRecord({
           date: currentDateString,
-          copyFromDate: sourceDate,
+          copySource: copySourceMeta.record,
           repository: dailyRecord,
         });
         recordOperationalOutcome('create_day', 'initialize_daily_record', initOutcome, {
