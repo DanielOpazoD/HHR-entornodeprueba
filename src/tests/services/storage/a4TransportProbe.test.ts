@@ -3,13 +3,12 @@ import 'fake-indexeddb/auto';
 import { QueryClient } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { A, B, clone, day, harnessState } from './dayRecordOutboxHarness';
-import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import {
-  syncWithFirestoreDetailed,
   adoptAuthoritativeRecord,
   subscribeDetailed,
 } from '@/services/repositories/dailyRecordRepositorySyncService';
@@ -143,7 +142,7 @@ async function prepare(situation: Situation) {
 }
 
 async function read(path: Path, remote: DailyRecord): Promise<DailyRecord | null | undefined> {
-  if (path === 'E') return (await syncWithFirestoreDetailed(DATE))?.record;
+  if (path === 'E') return (await getForDateWithMeta(DATE, true))?.record;
   if (path === 'A') return adoptAuthoritativeRecord(remote);
   if (path === 'puntual') {
     return (
@@ -160,8 +159,8 @@ async function read(path: Path, remote: DailyRecord): Promise<DailyRecord | null
             subscribeDetailed: (date, listener, failure) =>
               subscribeDetailed(
                 date,
-                (result, pending) => {
-                  listener(result, pending);
+                result => {
+                  listener(result);
                   resolve();
                 },
                 result => {
@@ -239,7 +238,7 @@ for (const first of ['suscripción', 'E'] as const)
       const { remote } = await prepare('limpia');
       await read(first, remote);
       const result =
-        second === 'E' ? await syncWithFirestoreDetailed(DATE) : await getForDateWithMeta(DATE);
+        second === 'E' ? await getForDateWithMeta(DATE, true) : await getForDateWithMeta(DATE);
       expect(result?.serverConfirmed).toBe(true);
     });
 for (const delayed of ['puntual', 'E'] as const)
@@ -262,7 +261,7 @@ for (const delayed of ['puntual', 'E'] as const)
       await gate;
       return original(...args);
     });
-    const pending = delayed === 'E' ? syncWithFirestoreDetailed(DATE) : getForDateWithMeta(DATE);
+    const pending = delayed === 'E' ? getForDateWithMeta(DATE, true) : getForDateWithMeta(DATE);
     await vi.waitFor(() => expect(started).toBe(true));
     await read('suscripción', remote);
     release();
@@ -305,8 +304,8 @@ for (const path of ['suscripción', 'E', 'rango', 'mantenimiento'] as const)
 for (const path of ['suscripción', 'E'] as const)
   it(`daily holder ${path}`, async () => {
     const { remote } = await prepare('diaria');
-    let result: SyncDailyRecordResult | null | undefined;
-    if (path === 'E') result = await syncWithFirestoreDetailed(DATE);
+    let result: DailyRecordReadResult | null | undefined;
+    if (path === 'E') result = await getForDateWithMeta(DATE, true);
     else {
       const stop = subscribeDetailed(DATE, r => (result = r));
       wire.emit!(remote, false, { fromCache: false, hasPendingWrites: false });
@@ -318,7 +317,7 @@ for (const path of ['suscripción', 'E'] as const)
     expect(result).toMatchObject({
       serverConfirmed: false,
       sourceOfTruth: 'local',
-      consistencyState: 'local_kept',
+      consistencyState: 'local_authoritative',
     });
   });
 for (const available of [true, false])
@@ -330,7 +329,7 @@ for (const available of [true, false])
       vi.mocked(firebase.getDoc).mockRejectedValueOnce(new Error('Synthetic unavailable'));
     const put = vi.spyOn(hospitalDB.dailyRecords, 'put'),
       bulk = vi.spyOn(hospitalDB.dailyRecords, 'bulkPut');
-    const result = await syncWithFirestoreDetailed(DATE);
+    const result = await getForDateWithMeta(DATE, true);
     expect(result?.record).toEqual(await hospitalDB.dailyRecords.get(DATE));
     expect(put.mock.calls.length + bulk.mock.calls.length).toBe(0);
   });
@@ -390,7 +389,7 @@ for (const available of [true, false])
     h.remote = null;
     const put = vi.spyOn(hospitalDB.dailyRecords, 'put'),
       bulk = vi.spyOn(hospitalDB.dailyRecords, 'bulkPut');
-    let result: SyncDailyRecordResult | null | undefined;
+    let result: DailyRecordReadResult | null | undefined;
     const stop = subscribeDetailed(DATE, r => (result = r));
     wire.emit!(null as never, false, { fromCache: !available, hasPendingWrites: false });
     await vi.waitFor(() => expect(result).toBeDefined());

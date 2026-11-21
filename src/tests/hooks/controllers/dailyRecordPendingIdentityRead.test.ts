@@ -6,10 +6,11 @@ import {
   createDailyRecordReadResult,
   type DailyRecordQueryResult,
 } from '@/services/repositories/contracts/dailyRecordQueries';
+import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import {
-  createSyncDailyRecordResult,
-  type SyncDailyRecordResult,
-} from '@/services/repositories/contracts/dailyRecordResults';
+  createServerDailyRecordSubscriptionResult,
+  createUnconfirmedDailyRecordSubscriptionResult,
+} from '@/tests/factories/dailyRecordSubscriptionResult';
 import {
   createDailyRecordSubscription,
   createDailyRecordQueryOptions,
@@ -45,7 +46,7 @@ const setup = () => {
   incoming.beds.R2.pathology = '';
   setDailyRecordQueryData(client, date, previous);
   const reader = { getForDateWithMeta: vi.fn() };
-  let publish!: (result: SyncDailyRecordResult, pending: boolean) => void;
+  let publish!: (result: DailyRecordReadResult) => void;
   const stop = createDailyRecordSubscription(
     {
       ...reader,
@@ -78,34 +79,14 @@ afterEach(() => {
   clearPendingDailyRecordPatchesForTests();
 });
 
-it('keeps blocked-sync details visible while retaining the pending episode reference', () => {
+it('retains the pending episode reference against an unconfirmed listener answer', () => {
   const { incoming, publish, read } = setup();
   cleanups.push(registerPendingDailyRecordPatch(date, { 'beds.R1.pathology': 'Pending A' }));
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    publish(
-      createSyncDailyRecordResult({
-        date,
-        record: incoming,
-        outcome: 'blocked',
-        consistencyState: 'blocked',
-        serverConfirmed: false,
-        retryability: 'manual_review',
-        recoveryAction: 'block_and_surface',
-        conflictSummary: { kind: 'local_persistence_failed', sourceOfTruth: 'local' },
-        userSafeMessage: 'Fallo sintético de persistencia',
-      }),
-      false
-    );
+    publish(createUnconfirmedDailyRecordSubscriptionResult(date, incoming));
     expect(read().record?.beds.R1.clinicalEpisodeId).toBe('ep_synthetic_original');
     expect(read().record?.beds.R1.pathology).toBe('Pending A');
-    expect(read().runtime).toMatchObject({
-      serverConfirmed: false,
-      consistencyState: 'blocked',
-      retryability: 'manual_review',
-      recoveryAction: 'block_and_surface',
-      conflictSummary: { kind: 'local_persistence_failed' },
-      userSafeMessage: 'Fallo sintético de persistencia',
-    });
+    expect(read().runtime.serverConfirmed).toBe(false);
   }
 });
 
@@ -114,16 +95,7 @@ it('ignores a confirmed replacement delivered after unsubscribing', () => {
   cleanups.push(registerPendingDailyRecordPatch(date, { 'beds.R1.pathology': 'Pending A' }));
   const before = read();
   stop?.();
-  publish(
-    createSyncDailyRecordResult({
-      date,
-      record: incoming,
-      outcome: 'clean',
-      consistencyState: 'remote_applied',
-      serverConfirmed: true,
-    }),
-    false
-  );
+  publish(createServerDailyRecordSubscriptionResult(date, incoming));
   expect(read()).toBe(before);
   const raw = structuredClone(previous);
   raw.beds.R1.pathology = '';
@@ -159,24 +131,12 @@ describe.each(['subscription', 'query', 'null-recovery', 'unavailable'] as const
         };
         for (let attempt = 0; attempt < 2; attempt += 1) {
           if (source === 'subscription') {
-            publish(
-              createSyncDailyRecordResult({
-                date,
-                record: incoming,
-                outcome: 'clean',
-                consistencyState: 'remote_applied',
-                serverConfirmed: false,
-              }),
-              false
-            );
+            publish(createServerDailyRecordSubscriptionResult(date, incoming, false));
           } else {
             const recovery = Promise.resolve(candidate);
             reader.getForDateWithMeta.mockReturnValueOnce(recovery);
             if (source === 'null-recovery') {
-              publish(
-                createSyncDailyRecordResult({ date, record: null, outcome: 'missing' }),
-                false
-              );
+              publish(createUnconfirmedDailyRecordSubscriptionResult(date, null));
               await recovery;
             } else await client.fetchQuery(options);
           }
@@ -221,16 +181,7 @@ it.each(['none', 'another-date', 'another-bed'] as const)(
         )
       );
     }
-    publish(
-      createSyncDailyRecordResult({
-        date,
-        record: incoming,
-        outcome: 'clean',
-        consistencyState: 'remote_applied',
-        serverConfirmed: false,
-      }),
-      false
-    );
+    publish(createServerDailyRecordSubscriptionResult(date, incoming, false));
     expect(read().record?.beds.R1.clinicalEpisodeId).toBe('ep_synthetic_replacement');
     expect(read().record?.beds.R1.pathology).toBe('');
     if (pending === 'another-bed') expect(read().record?.beds.R2.pathology).toBe('Pending value');

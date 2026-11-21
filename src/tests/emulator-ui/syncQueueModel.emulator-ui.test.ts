@@ -13,7 +13,7 @@ import * as writes from '@/services/storage/firestore/firestoreRecordWrites';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { getAuthoritativeForDate } from '@/services/repositories/dailyRecordRepositoryReadService';
-import { syncWithFirestoreDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
+import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
@@ -362,7 +362,7 @@ const readServer = async (): Promise<DailyRecord> => {
   );
 };
 const loadDay = (m: Model) =>
-  m.online && m.person ? onB(m.person, () => syncWithFirestoreDetailed(date)) : undefined;
+  m.online && m.person ? onB(m.person, () => getForDateWithMeta(date, true)) : undefined;
 const admit = async (m: Model, person: Person) => {
   await onB(person, () => reconcileAuthorizedSessionOwner(ownerOf(person)));
   m.person = person;

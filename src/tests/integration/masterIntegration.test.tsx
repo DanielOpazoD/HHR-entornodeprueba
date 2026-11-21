@@ -26,7 +26,6 @@ const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
     subscribeDetailed: vi.fn(() => vi.fn()),
     updatePartial: vi.fn().mockResolvedValue(undefined),
     updatePartialDetailed: vi.fn().mockResolvedValue(undefined),
-    syncWithFirestoreDetailed: vi.fn().mockResolvedValue(null),
     getAvailableDates: vi.fn(),
     getMonthRecords: vi.fn(),
     copyPatientToDateDetailed: vi.fn(),
@@ -39,9 +38,6 @@ vi.mock('@/application/ports/dailyRecordPort', () => ({
     updatePartial: mockDailyRecordRepositoryPort.updatePartialDetailed,
     save: mockDailyRecordRepositoryPort.saveDetailed,
     delete: mockDailyRecordRepositoryPort.deleteDay,
-  },
-  defaultDailyRecordSyncPort: {
-    syncWithFirestoreDetailed: mockDailyRecordRepositoryPort.syncWithFirestoreDetailed,
   },
   defaultDailyRecordRepositoryPort: mockDailyRecordRepositoryPort,
 }));

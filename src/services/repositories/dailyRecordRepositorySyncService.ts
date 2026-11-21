@@ -1,28 +1,20 @@
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
-import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import {
-  captureLocalRecordBase,
-  inspectLocalRecordAdmission,
-  type LocalRecordBase,
-  getRecordForDateStrict,
-} from '@/services/storage/indexeddb/indexedDbRecordService';
+import { captureLocalRecordBase } from '@/services/storage/indexeddb/indexedDbRecordService';
 import {
   subscribeToRecord,
   isServerConfirmedSnapshot,
 } from '@/services/storage/firestore/firestoreRecordQueries';
-import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
-import { migrateLegacyData } from '@/services/repositories/dataMigration';
-import { loadRemoteRecordWithFallback } from '@/services/repositories/dailyRecordRemoteLoader';
-import { confirmDailyRecordMissingOnServer } from '@/services/repositories/dailyRecordServerAbsence';
-import { measureRepositoryOperation } from '@/services/repositories/repositoryPerformance';
-import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import { describeRemoteDailyRecord } from '@/services/repositories/dailyRecordRemoteLoader';
+import { resolveRemoteGoldenPathReadResult } from '@/services/repositories/dailyRecordRemoteReadController';
+import {
+  createUnavailableDailyRecordReadResult,
+  type DailyRecordReadResult,
+} from '@/services/repositories/contracts/dailyRecordQueries';
 import { dailyRecordSyncLogger } from '@/services/repositories/repositoryLoggers';
-import { resolveDailyRecordSyncConsistency } from '@/services/repositories/dailyRecordConsistencyPolicy';
 import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLocalCachePersistence';
-import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { buildDailyRecordSyncContract } from '@/services/storage/sync/syncTaskContractPolicy';
 import {
   getValueAtPath,
@@ -36,128 +28,15 @@ import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyR
 import { buildPendingDailyRecordReplacementTask } from '@/services/storage/sync/syncQueuePendingDailyRecordReplacement';
 import type { DailyRecord as StoredDailyRecord } from '@/types/domain/dailyRecord';
 
-const resolveSubscriptionResult = async (
-  date: string,
-  remoteRecord: DailyRecord | null,
-  serverConfirmed: boolean,
-  localRecord?: DailyRecord | null,
-  isCurrent: () => boolean = () => true,
-  pointReadBase?: LocalRecordBase,
-  hasPendingWrites = false
-): Promise<SyncDailyRecordResult> => {
-  localRecord = localRecord === undefined ? await getRecordForDateStrict(date) : localRecord;
-  if (!serverConfirmed && remoteRecord && !hasPendingWrites) {
-    const stored = await getRecordForDateStrict(date);
-    if (stored) {
-      return createSyncDailyRecordResult({
-        date,
-        record: stored,
-        serverConfirmed: false,
-        outcome: 'blocked',
-        sourceOfTruth: 'local',
-        consistencyState: 'blocked',
-        retryability: 'automatic_retry',
-        recoveryAction: 'defer_remote_sync',
-      });
-    }
-  }
-  if (serverConfirmed && remoteRecord) {
-    const [admission] = await admitRemoteDailyRecords([
-      {
-        record: remoteRecord,
-        remoteRecord,
-        expectedBase: pointReadBase,
-        isCurrent,
-      },
-    ]);
-    if (!admission) throw new Error('No existe una decisión de admisión para el día.');
-    if (admission.status === 'superseded') {
-      return createSyncDailyRecordResult({
-        date,
-        outcome: 'blocked',
-        record: admission.record,
-        serverConfirmed: false,
-        publication: 'superseded',
-        sourceOfTruth: admission.record ? 'local' : 'none',
-        retryability: 'automatic_retry',
-        recoveryAction: 'defer_remote_sync',
-      });
-    }
-    const retained =
-      admission.status === 'retained_pending' ||
-      !arePatchValuesDeepEqual(admission.record, remoteRecord);
-    return createSyncDailyRecordResult({
-      date,
-      outcome: 'clean',
-      record: admission.record,
-      // A day kept under pending writes is confirmed only as the server's day with them (SAVE-01).
-      serverConfirmed: admission.status !== 'retained_pending' || admission.serverComposed,
-      sourceOfTruth: retained ? 'local' : 'remote',
-      consistencyState: retained ? 'local_kept' : 'remote_applied',
-      retryability: 'not_applicable',
-      recoveryAction: 'none',
-    });
-  }
-  // Missing evidence never selects between competing clinical documents.
-  if (remoteRecord && !localRecord && !hasPendingWrites) {
-    const [result] = await admitRemoteDailyRecords([
-      {
-        record: remoteRecord,
-        remoteRecord: null,
-        serverConfirmed: false,
-        expectedBase: pointReadBase ?? { kind: 'stored', record: null },
-        isCurrent,
-      },
-    ]);
-    if (!result) throw new Error('No existe una decisión de admisión para el día.');
-    if (result.status !== 'superseded')
-      return createSyncDailyRecordResult({
-        date,
-        record: result.record,
-        serverConfirmed: false,
-        outcome: 'clean',
-        sourceOfTruth: 'remote',
-        consistencyState: 'remote_applied',
-      });
-    localRecord = result.record;
-  }
-  const admission = await inspectLocalRecordAdmission(
-    date,
-    pointReadBase ?? { kind: 'stored', record: localRecord },
-    null
-  );
-  if (admission.status === 'superseded') {
-    return createSyncDailyRecordResult({
-      date,
-      record: admission.stored,
-      outcome: 'blocked',
-      serverConfirmed: false,
-      publication: 'superseded',
-      sourceOfTruth: admission.stored ? 'local' : 'none',
-      retryability: 'automatic_retry',
-      recoveryAction: 'defer_remote_sync',
-    });
-  }
-  const record = admission.record;
-  const consistency = resolveDailyRecordSyncConsistency({
-    localRecord: record,
-    remoteRecord: null,
-    selectedRecord: record,
-    remoteAvailability: serverConfirmed ? 'missing' : 'unavailable',
-  });
-  return createSyncDailyRecordResult({
-    date,
-    serverConfirmed,
-    record,
-    outcome: serverConfirmed ? 'missing' : 'blocked',
-    ...consistency,
-  });
-};
-
+/**
+ * The day as the listener sees it. Each server snapshot goes through the same admission as a point
+ * read (`resolveRemoteGoldenPathReadResult`), so one server day is kept here in one form whichever
+ * channel brought it. A snapshot with pending writes is this tab's own echo and is not resolved.
+ */
 export const subscribeDetailed = (
   date: string,
-  callback: (result: SyncDailyRecordResult, hasPendingWrites: boolean) => void,
-  onFailure?: (result: SyncDailyRecordResult) => void
+  callback: (result: DailyRecordReadResult) => void,
+  onFailure?: (result: DailyRecordReadResult) => void
 ): (() => void) => {
   let active = true;
   let issued = 0;
@@ -177,45 +56,28 @@ export const subscribeDetailed = (
       reportFailure('consumer');
     }
   };
-  const fail = () =>
-    deliver(() =>
-      onFailure?.(
-        createSyncDailyRecordResult({
-          date,
-          outcome: 'blocked',
-          record: null,
-          retryability: 'manual_retry',
-        })
-      )
-    );
+  const fail = () => deliver(() => onFailure?.(createUnavailableDailyRecordReadResult(date)));
 
   const unsubscribe = subscribeToRecord(
     date,
     (record, hasPendingWrites, metadata) => {
       if (!active) return;
       const revision = ++issued;
+      if (hasPendingWrites) return;
       void (async () => {
-        const migrated = record ? migrateLegacyData(record, date) : null;
-        const serverConfirmed = isServerConfirmedSnapshot(metadata);
-        if (!migrated && !hasPendingWrites && serverConfirmed) {
-          await confirmDailyRecordMissingOnServer(date);
-        }
-        return hasPendingWrites
-          ? createSyncDailyRecordResult({
-              date,
-              outcome: migrated ? 'clean' : 'blocked',
-              record: migrated,
-              sourceOfTruth: migrated ? 'local' : 'none',
-              retryability: 'not_applicable',
-              recoveryAction: 'none',
-              observabilityTags: ['daily_record', 'sync', 'subscription_pending_write'],
-            })
-          : resolveSubscriptionResult(date, migrated, serverConfirmed, undefined, () =>
-              isCurrent(revision)
-            );
+        const base = await captureLocalRecordBase(date);
+        const remoteReadResult = await describeRemoteDailyRecord(date, record, {
+          serverConfirmed: isServerConfirmedSnapshot(metadata),
+        });
+        return resolveRemoteGoldenPathReadResult({
+          date,
+          remoteReadResult,
+          base,
+          isCurrent: () => isCurrent(revision),
+        });
       })().then(
         result => {
-          if (isCurrent(revision)) deliver(() => callback(result, hasPendingWrites));
+          if (isCurrent(revision)) deliver(() => callback(result));
         },
         () => {
           if (!isCurrent(revision)) return;
@@ -235,48 +97,6 @@ export const subscribeDetailed = (
     active = false;
     unsubscribe();
   };
-};
-
-export const syncWithFirestoreDetailed = async (date: string) => {
-  if (!isFirestoreEnabled()) return null;
-
-  return measureRepositoryOperation(
-    'dailyRecord.syncWithFirestore',
-    async () => {
-      const owner = getStoredSessionOwnerKey();
-      const epoch = getSessionEpoch();
-      const isCurrent = () => owner === getStoredSessionOwnerKey() && epoch === getSessionEpoch();
-      const base = await captureLocalRecordBase(date);
-      const localRecord = base.kind === 'stored' ? base.record : null;
-      try {
-        const remoteResult = await loadRemoteRecordWithFallback(date, { base });
-        return await resolveSubscriptionResult(
-          date,
-          remoteResult.record,
-          remoteResult.serverConfirmed,
-          localRecord,
-          isCurrent,
-          remoteResult.issuedAgainst ?? base,
-          remoteResult.hasPendingWrites
-        );
-      } catch (err) {
-        dailyRecordSyncLogger.warn(`Sync failed for ${date}`, err);
-        const consistency = resolveDailyRecordSyncConsistency({
-          localRecord,
-          remoteRecord: null,
-          selectedRecord: localRecord,
-          remoteAvailability: 'unavailable',
-        });
-        return createSyncDailyRecordResult({
-          date,
-          outcome: 'blocked',
-          record: localRecord,
-          ...consistency,
-        });
-      }
-    },
-    { thresholdMs: 200, context: date }
-  );
 };
 
 /**
@@ -366,9 +186,4 @@ export const adoptAuthoritativeRecord = async (
     );
   }
   return adoption.record;
-};
-
-export const syncWithFirestore = async (date: string): Promise<DailyRecord | null> => {
-  const result = await syncWithFirestoreDetailed(date);
-  return result?.record ?? null;
 };

@@ -4,6 +4,10 @@ import * as remoteConfirmation from '@/hooks/controllers/dailyRecordRemoteConfir
 import { QueryClient } from '@tanstack/react-query';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import {
+  createDailyRecordReadResult,
+  type DailyRecordReadResult,
+} from '@/services/repositories/contracts/dailyRecordQueries';
+import {
   createDailyRecordSubscription,
   getDailyRecordQueryKey,
 } from '@/hooks/controllers/dailyRecordQueryController';
@@ -25,24 +29,7 @@ describe('dailyRecordQueryController subscription freshness', () => {
     const confirmation = vi.spyOn(remoteConfirmation, 'applyDailyRecordRemoteConfirmation');
     const queryClient = new QueryClient();
     const record = DataFactory.createMockDailyRecord('2025-01-08');
-    let emit:
-      | ((
-          result: {
-            serverConfirmed: boolean;
-            date: string;
-            outcome: 'clean';
-            record: typeof record;
-            consistencyState: 'remote_applied';
-            sourceOfTruth: 'local';
-            retryability: 'not_applicable';
-            recoveryAction: 'none';
-            conflictSummary: null;
-            observabilityTags: string[];
-            repairApplied: false;
-          },
-          hasPendingWrites: boolean
-        ) => void)
-      | undefined;
+    let emit: ((result: DailyRecordReadResult) => void) | undefined;
     const subscribeDetailed = vi.fn((_date, callback) => {
       emit = callback;
       return vi.fn();
@@ -59,20 +46,10 @@ describe('dailyRecordQueryController subscription freshness', () => {
     );
 
     emit?.(
-      {
-        date: '2025-01-08',
+      createDailyRecordReadResult('2025-01-08', record, 'firestore', {
         serverConfirmed: true,
-        outcome: 'clean',
-        record,
-        consistencyState: 'remote_applied',
         sourceOfTruth: 'local',
-        retryability: 'not_applicable',
-        recoveryAction: 'none',
-        conflictSummary: null,
-        observabilityTags: ['daily_record', 'sync'],
-        repairApplied: false,
-      },
-      false
+      })
     );
 
     expect(getDailyRecordFreshnessStatus('2025-01-08')).toBe('fresh_remote_confirmed');
@@ -112,29 +89,7 @@ describe('dailyRecordQueryController subscription freshness', () => {
       },
     });
 
-    let emit:
-      | ((
-          result: {
-            serverConfirmed: boolean;
-            date: string;
-            outcome: 'clean';
-            record: typeof remoteRecord;
-            consistencyState: 'remote_applied';
-            sourceOfTruth: 'remote';
-            retryability: 'not_applicable';
-            recoveryAction: 'none';
-            conflictSummary: {
-              kind: 'hydrated_from_remote';
-              sourceOfTruth: 'remote';
-              localTimestamp: string;
-              remoteTimestamp: string;
-            };
-            observabilityTags: string[];
-            repairApplied: false;
-          },
-          hasPendingWrites: boolean
-        ) => void)
-      | undefined;
+    let emit: ((result: DailyRecordReadResult) => void) | undefined;
     const subscribeDetailed = vi.fn((_date, callback) => {
       emit = callback;
       return vi.fn();
@@ -150,25 +105,15 @@ describe('dailyRecordQueryController subscription freshness', () => {
     );
 
     emit?.(
-      {
-        date: '2025-01-08',
+      createDailyRecordReadResult('2025-01-08', remoteRecord, 'firestore', {
         serverConfirmed: true,
-        outcome: 'clean',
-        record: remoteRecord,
-        consistencyState: 'remote_applied',
-        sourceOfTruth: 'remote',
-        retryability: 'not_applicable',
-        recoveryAction: 'none',
         conflictSummary: {
           kind: 'hydrated_from_remote',
           sourceOfTruth: 'remote',
           localTimestamp: previousRecord.lastUpdated,
           remoteTimestamp: remoteRecord.lastUpdated,
         },
-        observabilityTags: ['daily_record', 'sync'],
-        repairApplied: false,
-      },
-      false
+      })
     );
 
     expect(getDailyRecordFreshnessStatus('2025-01-08')).toBe('fresh_remote_confirmed');

@@ -60,7 +60,6 @@ export const usePersistence = ({
           return false;
         }
 
-        await dailyRecord.syncWithFirestoreDetailed(sourceDate);
         const copySourceMeta = await dailyRecord.getForDateWithMeta(sourceDate, true);
         if (!copySourceMeta.record) {
           warning(

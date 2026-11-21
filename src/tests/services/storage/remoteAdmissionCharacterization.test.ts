@@ -156,8 +156,8 @@ async function read(path: Path, remote: DailyRecord): Promise<DailyRecord | null
             subscribeDetailed: (date, listener, failure) =>
               subscribeDetailed(
                 date,
-                (result, pending) => {
-                  listener(result, pending);
+                result => {
+                  listener(result);
                   resolve();
                 },
                 result => {

@@ -11,10 +11,8 @@ import {
   resetDailyRecordFreshnessGateForTests,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
-import {
-  createSyncDailyRecordResult,
-  type SyncDailyRecordResult,
-} from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
+import { createServerDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { PatientData } from '@/types/domain/patient';
@@ -32,7 +30,6 @@ const { ports } = vi.hoisted(() => ({
     updatePartialDetailed: vi.fn(),
     saveDetailed: vi.fn(),
     subscribeDetailed: vi.fn(),
-    syncWithFirestoreDetailed: vi.fn(),
     deleteDay: vi.fn(),
     copyPatientToDateDetailed: vi.fn(),
   },
@@ -45,7 +42,6 @@ vi.mock('@/application/ports/dailyRecordPort', () => ({
     save: ports.saveDetailed,
     delete: ports.deleteDay,
   },
-  defaultDailyRecordSyncPort: { syncWithFirestoreDetailed: ports.syncWithFirestoreDetailed },
   defaultDailyRecordRepositoryPort: ports,
 }));
 vi.mock('@/hooks/useScrollLock', () => ({ useScrollLock: () => {}, default: () => {} }));
@@ -70,18 +66,8 @@ const readResult = (record: DailyRecord) => ({
   repairApplied: false,
 });
 
-const serverSnapshot = (record: DailyRecord): SyncDailyRecordResult =>
-  createSyncDailyRecordResult({
-    date,
-    record,
-    outcome: 'clean',
-    consistencyState: 'up_to_date',
-    sourceOfTruth: 'remote',
-    serverConfirmed: true,
-    retryability: 'not_applicable',
-    recoveryAction: 'none',
-    conflictSummary: null,
-  });
+const serverSnapshot = (record: DailyRecord): DailyRecordReadResult =>
+  createServerDailyRecordSubscriptionResult(date, record);
 
 const provisionalNewborn = (episode: string, patientName: string) =>
   DataFactory.createMockPatient(bed.id, {
@@ -176,7 +162,7 @@ const renderCensusWithNewborn = async (
     },
   });
   const patches: DailyRecordPatch[] = [];
-  let pushServerSnapshot: ((result: SyncDailyRecordResult, pending: boolean) => void) | null = null;
+  let pushServerSnapshot: ((result: DailyRecordReadResult) => void) | null = null;
   ports.getForDate.mockImplementation(async () => stored);
   ports.getAuthoritativeForDate.mockImplementation(async () => stored);
   ports.getForDateWithMeta.mockImplementation(async () => readResult(stored));
@@ -216,7 +202,7 @@ const renderCensusWithNewborn = async (
       lastUpdated: '2026-05-17T15:00:00.000Z',
     };
     await act(async () => {
-      pushServerSnapshot!(serverSnapshot(stored), false);
+      pushServerSnapshot!(serverSnapshot(stored));
     });
     // The row now shows the new newborn (its name label; a focused input keeps its own text).
     await screen.findByText('RN OTRO EPISODIO');
@@ -249,7 +235,7 @@ const renderCensusWithNewborn = async (
       lastUpdated: '2026-05-17T15:00:00.000Z',
     };
     await act(async () => {
-      pushServerSnapshot!(serverSnapshot(stored), false);
+      pushServerSnapshot!(serverSnapshot(stored));
     });
     await screen.findByText('SEGUNDA MADRE SINTETICA');
   };
@@ -266,7 +252,7 @@ const renderCensusWithNewborn = async (
       lastUpdated: '2026-05-17T16:00:00.000Z',
     };
     await act(async () => {
-      pushServerSnapshot!(serverSnapshot(stored), false);
+      pushServerSnapshot!(serverSnapshot(stored));
     });
   };
   return {

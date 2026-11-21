@@ -4,7 +4,7 @@ import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordP
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import { createServerDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { PatientStatus } from '@/types/domain/patientClassification';
 import {
@@ -70,10 +70,7 @@ describe('daily record pending status episode hydration', () => {
 
     const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
       (_date, callback) => {
-        callback(
-          createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', incomingRecord),
-          false
-        );
+        callback(createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', incomingRecord));
         return vi.fn();
       }
     );
@@ -153,16 +150,7 @@ describe('daily record pending status episode hydration', () => {
     const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
       (_date, callback) => {
         for (const record of [firstIncomingRecord, secondIncomingRecord]) {
-          callback(
-            createSyncDailyRecordResult({
-              date: '2025-01-08',
-              record,
-              outcome: 'clean',
-              consistencyState: 'remote_applied',
-              serverConfirmed: true,
-            }),
-            false
-          );
+          callback(createServerDailyRecordSubscriptionResult('2025-01-08', record));
         }
         return vi.fn();
       }

@@ -114,9 +114,9 @@ describeEmulator('server confirmation with real Firestore cache metadata', () =>
         subscribeDetailed: (day, callback, onFailure) =>
           subscribeDetailed(
             day,
-            (result, pending) => {
+            result => {
               onDelivery?.(result.serverConfirmed);
-              callback(result, pending);
+              callback(result);
             },
             onFailure
           ),

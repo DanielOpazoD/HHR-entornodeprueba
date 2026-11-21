@@ -41,9 +41,7 @@ export const resolveDailyRecordBootstrapPhase = ({
   }
 
   const sameDate = !currentDateString || runtime?.date === currentDateString;
-  const authoritativeAbsence =
-    runtime?.conflictSummary?.kind === 'remote_missing' ||
-    runtime?.consistencyState === 'missing_remote';
+  const authoritativeAbsence = runtime?.conflictSummary?.kind === 'remote_missing';
   if (
     remoteSyncStatus === 'ready' &&
     sameDate &&

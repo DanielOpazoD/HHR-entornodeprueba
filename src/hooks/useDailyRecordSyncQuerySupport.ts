@@ -5,7 +5,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryClient';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { DailyRecordSyncPort } from '@/application/ports/dailyRecordPort';
+import type { DailyRecordReadPort } from '@/application/ports/dailyRecordPort';
+import { fetchRemoteDailyRecordQuery } from '@/hooks/controllers/dailyRecordQueryController';
 import type { RemoteSyncRuntimeStatus } from '@/services/repositories/repositoryConfig';
 import type { DailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordBootstrapController';
 import { shouldAttemptTodayEmptyRecovery } from '@/hooks/controllers/dailyRecordBootstrapController';
@@ -85,24 +86,28 @@ export const useDeferredRemoteHydration = (
   return shouldDeferRemoteHydration ? 'local_only' : remoteSyncStatus;
 };
 
-export const useRemoteDailyRecordSync = (dailyRecord: DailyRecordSyncPort) =>
-  useCallback(
+/** Reads one day from the server once, through its query, and says how the read went. */
+export const useRemoteDailyRecordSync = (
+  dailyRecord: Pick<DailyRecordReadPort, 'getForDateWithMeta'>
+) => {
+  const queryClient = useQueryClient();
+  return useCallback(
     async (date: string) => {
       const { executeSyncDailyRecord } = await loadSyncDailyRecordUseCase();
       return executeSyncDailyRecord({
         date,
-        repository: dailyRecord,
+        read: readDate => fetchRemoteDailyRecordQuery(queryClient, dailyRecord, readDate),
       });
     },
-    [dailyRecord]
+    [dailyRecord, queryClient]
   );
+};
 
 interface UseTodayEmptyDailyRecordRecoveryParams {
   bootstrapPhase: DailyRecordBootstrapPhase;
   isFetching?: boolean;
   currentDateString: string;
   record: DailyRecord | null;
-  refetch: () => Promise<unknown>;
   runRemoteSync: (date: string) => Promise<OperationalOutcomeLike>;
 }
 
@@ -111,7 +116,6 @@ export const useTodayEmptyDailyRecordRecovery = ({
   isFetching = false,
   currentDateString,
   record,
-  refetch,
   runRemoteSync,
 }: UseTodayEmptyDailyRecordRecoveryParams) => {
   const todayNullRecoveryAttemptedRef = useRef<string | null>(null);
@@ -145,27 +149,18 @@ export const useTodayEmptyDailyRecordRecovery = ({
 
     todayNullRecoveryAttemptedRef.current = currentDateString;
 
-    let cancelled = false;
-
+    // The read publishes the day through its query, so the census needs no second read. Its
+    // outcome is recorded even after the day appears, which re-runs this effect.
     void runRemoteSync(currentDateString)
       .then(outcome => {
-        if (cancelled) {
-          return;
-        }
-
         dailyRecordObservability.recordOutcome('recover_today_empty_daily_record', outcome, {
           date: currentDateString,
           context: {
             source: 'useDailyRecordSyncQuery',
           },
         });
-        void refetch();
       })
       .catch(error => {
-        if (cancelled) {
-          return;
-        }
-
         dailyRecordObservability.recordError(
           'recover_today_empty_daily_record',
           error,
@@ -184,22 +179,16 @@ export const useTodayEmptyDailyRecordRecovery = ({
           }
         );
       });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [bootstrapPhase, isFetching, currentDateString, record, refetch, runRemoteSync]);
+  }, [bootstrapPhase, isFetching, currentDateString, record, runRemoteSync]);
 };
 
 interface UsePostDeployRecentRecordRefreshParams {
   remoteSyncStatus: RemoteSyncRuntimeStatus;
-  refetch: () => Promise<unknown>;
   runRemoteSync: (date: string) => Promise<OperationalOutcomeLike>;
 }
 
 export const usePostDeployRecentRecordRefresh = ({
   remoteSyncStatus,
-  refetch,
   runRemoteSync,
 }: UsePostDeployRecentRecordRefreshParams) => {
   const sessionEpoch = useSessionEpoch();
@@ -221,8 +210,7 @@ export const usePostDeployRecentRecordRefresh = ({
     }
 
     attemptedMarkerSignatureRef.current = markerSignature;
-    let cancelled = false;
-
+    // Each day is read once through its query, so the census shows it without another read.
     void executePostDeployRecentRecordRefresh({
       readMarker: () => marker,
       syncRemoteRecord: runRemoteSync,
@@ -233,15 +221,6 @@ export const usePostDeployRecentRecordRefresh = ({
       ) {
         attemptedMarkerSignatureRef.current = null;
       }
-      if (cancelled || result.status !== 'completed') {
-        return;
-      }
-
-      void refetch();
     });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [refetch, remoteSyncStatus, runRemoteSync, sessionEpoch]);
+  }, [remoteSyncStatus, runRemoteSync, sessionEpoch]);
 };

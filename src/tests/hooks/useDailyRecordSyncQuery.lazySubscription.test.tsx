@@ -58,13 +58,11 @@ describe('persistent lazy subscription load failure in the recovery owner', () =
       const record = loaded ? DataFactory.createMockDailyRecord(date) : null;
       const read = createDailyRecordReadResult(date, record, 'indexeddb');
       const getForDateWithMeta = vi.fn().mockResolvedValue(read);
-      const sync = vi.fn(port.syncWithFirestoreDetailed);
       const subscribe = vi.fn(port.subscribeDetailed);
       repository = {
         ...port,
         getForDateWithMeta,
         subscribeDetailed: subscribe,
-        syncWithFirestoreDetailed: sync,
       };
       const client = new QueryClient({
         defaultOptions: { queries: { retry: false, gcTime: Infinity } },
@@ -98,15 +96,15 @@ describe('persistent lazy subscription load failure in the recovery owner', () =
           expect.objectContaining({
             runtime: expect.objectContaining({
               availabilityState: 'temporarily_unavailable',
-              consistencyState: 'blocked',
+              consistencyState: 'unavailable',
               serverConfirmed: false,
             }),
           }),
         ])
       );
       expect(subscribe).toHaveBeenCalledTimes(1);
-      expect(sync).toHaveBeenCalledTimes(loaded ? 0 : 1);
-      expect(loads).toBe(loaded ? 1 : 2);
+      // The recovery reads through the census query; it no longer loads the listener's module.
+      expect(loads).toBe(1);
       const reads = getForDateWithMeta.mock.calls.length;
       // A mounted empty day owns only one recovery attempt, even through repeated renders and elapsed time.
       for (let minute = 0; minute < 60; minute++) {
@@ -115,9 +113,8 @@ describe('persistent lazy subscription load failure in the recovery owner', () =
           await vi.advanceTimersByTimeAsync(60_000);
         });
       }
-      expect(loads).toBe(loaded ? 1 : 2);
+      expect(loads).toBe(1);
       expect(subscribe).toHaveBeenCalledTimes(1);
-      expect(sync).toHaveBeenCalledTimes(loaded ? 0 : 1);
       expect(getForDateWithMeta).toHaveBeenCalledTimes(reads);
       stopObserving();
       unmount();
