@@ -38,7 +38,6 @@ describe('useAudit', () => {
     expect(typeof result.current.logPatientCleared).toBe('function');
     expect(typeof result.current.logDailyRecordDeleted).toBe('function');
     expect(typeof result.current.logDailyRecordCreated).toBe('function');
-    expect(typeof result.current.logCudyrModified).toBe('function');
     expect(typeof result.current.logHandoffNovedadesModified).toBe('function');
     expect(typeof result.current.logMedicalHandoffModified).toBe('function');
     expect(typeof result.current.logNurseHandoffModified).toBe('function');
@@ -205,25 +204,29 @@ describe('useAudit', () => {
     });
   });
 
-  it('coalesces CUDYR clicks on one bed into a single before/after event', async () => {
+  it('coalesces edits on one bed into a single before/after event', async () => {
     vi.useFakeTimers();
     const { result } = renderHook(() => useAudit(testUserId));
-    const score = (field: string, value: number, oldValue: number) =>
-      result.current.logCudyrModified(
+    const edit = (field: string, value: string, oldValue: string) =>
+      result.current.logDebouncedEvent(
+        'PATIENT_MODIFIED',
+        'patient',
         'R1',
-        'John Doe',
-        '12345678-9',
-        field,
-        value,
-        oldValue,
+        {
+          patientName: 'John Doe',
+          bedId: 'R1',
+          changes: { [field]: { old: oldValue, new: value } },
+        },
+        '12.345.678-5',
         '2024-12-28',
-        'Author 1'
+        'Author 1',
+        60_000
       );
 
     act(() => {
-      score('mobilization', 3, 1);
-      score('mobilization', 2, 3);
-      score('feeding', 4, 2);
+      edit('pathology', 'Neumonía grave', 'Neumonía');
+      edit('pathology', 'Neumonía leve', 'Neumonía grave');
+      edit('status', 'GRAVE', 'ESTABLE');
     });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(59_000);
@@ -240,18 +243,18 @@ describe('useAudit', () => {
     expect(writeAuditUseCase.executeWriteAuditEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: testUserId,
-        action: 'CUDYR_MODIFIED',
+        action: 'PATIENT_MODIFIED',
         entityType: 'patient',
         entityId: 'R1',
         details: {
           patientName: 'John Doe',
           bedId: 'R1',
           changes: {
-            mobilization: { old: 1, new: 2 },
-            feeding: { old: 2, new: 4 },
+            pathology: { old: 'Neumonía', new: 'Neumonía leve' },
+            status: { old: 'ESTABLE', new: 'GRAVE' },
           },
         },
-        patientRut: '12345678-9',
+        patientRut: '12.345.678-5',
         recordDate: '2024-12-28',
         authors: 'Author 1',
       })
@@ -263,7 +266,14 @@ describe('useAudit', () => {
     const { result } = renderHook(() => useAudit(testUserId));
 
     act(() => {
-      result.current.logCudyrModified('R2', 'Jane Doe', '1-9', 'feeding', 3, 1, '2024-12-28');
+      result.current.logDebouncedEvent(
+        'PATIENT_MODIFIED',
+        'patient',
+        'R2',
+        { patientName: 'Jane Doe', changes: { pathology: { old: 'Neumonía', new: 'Asma' } } },
+        '11.111.111-1',
+        '2024-12-28'
+      );
     });
     const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
     act(() => {

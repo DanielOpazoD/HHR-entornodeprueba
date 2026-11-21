@@ -14,8 +14,6 @@ export type DailyRecordBedLayoutState = Pick<
 
 export type DailyRecordCriticalValidationState = Pick<DailyRecord, 'beds' | 'activeExtraBeds'>;
 
-export type DailyRecordBedAuditState = Pick<DailyRecord, 'date' | 'beds'>;
-
 export type DailyRecordMovementState = Pick<
   DailyRecord,
   'date' | 'beds' | 'discharges' | 'transfers' | 'cma'

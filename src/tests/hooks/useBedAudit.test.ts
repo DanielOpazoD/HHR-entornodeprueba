@@ -2,7 +2,6 @@ import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PATIENT_CLINICAL_AUDIT_DEBOUNCE_MS, useBedAudit } from '@/hooks/useBedAudit';
 import { useAuditContext } from '@/context/AuditContext';
-import { getAttributedAuthors } from '@/services/admin/attributionService';
 import type { CudyrScore } from '@/types/domain/cudyr';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
@@ -12,15 +11,10 @@ vi.mock('../../context/AuditContext', () => ({
   useAuditContext: vi.fn(),
 }));
 
-vi.mock('../../services/admin/attributionService', () => ({
-  getAttributedAuthors: vi.fn(),
-}));
-
 describe('useBedAudit', () => {
   const mockLogDebouncedEvent = vi.fn();
   const mockLogEvent = vi.fn();
   const mockLogPatientAdmission = vi.fn();
-  const mockLogCudyrModified = vi.fn();
   const buildCudyr = (overrides: Partial<CudyrScore> = {}): CudyrScore => ({
     changeClothes: 0,
     mobilization: 0,
@@ -88,7 +82,6 @@ describe('useBedAudit', () => {
       logDebouncedEvent: mockLogDebouncedEvent,
       logEvent: mockLogEvent,
       logPatientAdmission: mockLogPatientAdmission,
-      logCudyrModified: mockLogCudyrModified,
       userId: 'user123',
     } as unknown as ReturnType<typeof useAuditContext>);
   });
@@ -223,42 +216,6 @@ describe('useBedAudit', () => {
       }),
       '123-4',
       '2026-01-19'
-    );
-  });
-
-  it('should log CUDYR changes with attributed authors', () => {
-    vi.mocked(getAttributedAuthors).mockReturnValue('Author 1');
-    const { result } = renderHook(() => useBedAudit(mockRecord));
-
-    result.current.auditCudyrChange('B1', 'mobilization', 3);
-
-    expect(mockLogCudyrModified).toHaveBeenCalledWith(
-      'B1',
-      'John Doe',
-      '123-4',
-      'mobilization',
-      3,
-      1,
-      '2026-01-19',
-      'Author 1'
-    );
-  });
-
-  it('should log Crib CUDYR changes', () => {
-    vi.mocked(getAttributedAuthors).mockReturnValue('Author 1');
-    const { result } = renderHook(() => useBedAudit(mockRecord));
-
-    result.current.auditCribCudyrChange('B2', 'feeding', 5);
-
-    expect(mockLogCudyrModified).toHaveBeenCalledWith(
-      'B2-crib',
-      'Baby Doe',
-      '567-8',
-      'feeding',
-      5,
-      2,
-      '2026-01-19',
-      'Author 1'
     );
   });
 });

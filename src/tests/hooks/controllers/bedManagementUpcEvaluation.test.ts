@@ -39,8 +39,6 @@ const setup = () => {
     validation: { processFieldValue: vi.fn((_field, value) => ({ valid: true, value })) },
     bedAudit: {
       auditPatientChange: vi.fn(),
-      auditCudyrChange: vi.fn(),
-      auditCribCudyrChange: vi.fn(),
       auditPatientCleared: vi.fn(),
       auditPatientModified: vi.fn(),
       auditPatientMovement: vi.fn(),

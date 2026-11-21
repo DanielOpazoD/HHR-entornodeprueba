@@ -1,8 +1,5 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import type { CudyrScore } from '@/types/domain/cudyr';
-import type { DailyRecordBedAuditState } from '@/types/domain/dailyRecordSlices';
-
 import type { PatientFieldValue } from '@/types/valueTypes';
 import type { AuditDeviceChange, AuditDeviceChangesMap } from '@/types/auditDetailTypes';
 
@@ -151,64 +148,6 @@ export const resolvePatientChangeAudit = (
     details: {
       patientName: oldPatient.patientName,
       changes: { [field]: { old: oldValue, new: newValue } },
-    },
-  };
-};
-
-export const buildCudyrAuditDetails = (
-  record: DailyRecordBedAuditState,
-  bedId: string,
-  field: keyof CudyrScore,
-  value: number
-) => {
-  const patient = record.beds[bedId];
-  if (!patient?.patientName) {
-    return null;
-  }
-
-  const oldValue = patient.cudyr?.[field] || 0;
-  if (oldValue === value) {
-    return null;
-  }
-
-  return {
-    patientName: patient.patientName,
-    patientRut: patient.rut,
-    details: {
-      patientName: patient.patientName,
-      bedId,
-      field,
-      value,
-      oldValue,
-    },
-  };
-};
-
-export const buildCribCudyrAuditDetails = (
-  record: DailyRecordBedAuditState,
-  bedId: string,
-  field: keyof CudyrScore,
-  value: number
-) => {
-  const crib = record.beds[bedId]?.clinicalCrib;
-  if (!crib?.patientName) {
-    return null;
-  }
-
-  const oldValue = crib.cudyr?.[field] || 0;
-  if (oldValue === value) {
-    return null;
-  }
-
-  return {
-    patientName: crib.patientName,
-    patientRut: crib.rut,
-    details: {
-      patientName: crib.patientName,
-      bedId: `${bedId}-crib`,
-      field,
-      value,
-      oldValue,
     },
   };
 };
