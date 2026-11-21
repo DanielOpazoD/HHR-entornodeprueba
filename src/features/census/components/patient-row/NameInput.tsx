@@ -30,8 +30,7 @@ export const NameInput: React.FC<NameInputProps> = ({
   const handlePatientNameChange = canEditInlineName ? onChange('patientName') : () => undefined;
 
   const hasValidationError =
-    !PatientInputSchema.pick({ patientName: true }).safeParse({ patientName: fullName }).success &&
-    !!fullName;
+    Boolean(fullName) && !PatientInputSchema.shape.patientName.safeParse(fullName).success;
 
   return (
     <td className="py-0.5 px-1 border-r border-slate-200 w-[180px]">

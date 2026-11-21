@@ -107,10 +107,9 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   const examOrderSelected = useIsExamOrderPatientSelected(examOrderDate, examOrderKey);
 
   const hasNameValidationError =
-    !PatientInputSchema.pick({ patientName: true }).safeParse({ patientName: fullName }).success &&
-    !!fullName;
+    Boolean(fullName) && !PatientInputSchema.shape.patientName.safeParse(fullName).success;
   const hasAgeValidationError =
-    !PatientInputSchema.pick({ age: true }).safeParse({ age: data.age }).success && !!data.age;
+    Boolean(data.age) && !PatientInputSchema.shape.age.safeParse(data.age).success;
 
   const documentType = data.documentType || 'RUT';
   const rutValue = (data.rut || '').trim();
