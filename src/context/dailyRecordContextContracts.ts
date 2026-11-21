@@ -6,7 +6,6 @@ import type {
 } from '@/application/shared/dailyRecordCoreContracts';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-import type { CudyrBatchUpdate, CudyrScore, CudyrScorePatch } from '@/types/domain/cudyr';
 import type { CMAData } from '@/types/domain/movements';
 import type { PatientFieldValue } from '@/types/valueTypes';
 import type { PatientMovementActions } from '@/types/movements';
@@ -80,11 +79,6 @@ export interface DailyRecordBedActions {
     bedId: string,
     fields: Partial<PatientData>
   ) => void | Promise<boolean | void>;
-  updateClinicalCribCudyr: (bedId: string, field: keyof CudyrScore, value: number) => void;
-  updateClinicalCribCudyrMultiple?: (bedId: string, fields: CudyrScorePatch) => void;
-  updateCudyr: (bedId: string, field: keyof CudyrScore, value: number) => void;
-  updateCudyrMultiple?: (bedId: string, fields: CudyrScorePatch) => void;
-  updateCudyrBatch?: (changes: CudyrBatchUpdate) => Promise<boolean>;
   clearPatient: (
     bedId: string,
     confirmedLastUpdated?: string,

@@ -136,7 +136,6 @@ export const useDailyRecordOverrides = () => {
 
 export {
   useDailyRecordBedActions,
-  useDailyRecordCudyrActions,
   useDailyRecordDayActions,
   useDailyRecordHandoffActions,
   useDailyRecordMovementActions,

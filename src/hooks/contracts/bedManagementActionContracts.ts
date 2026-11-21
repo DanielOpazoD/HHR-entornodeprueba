@@ -1,6 +1,5 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import type { CudyrBatchUpdate, CudyrScore, CudyrScorePatch } from '@/types/domain/cudyr';
 import type { PatientFieldValue } from '@/types/valueTypes';
 
 import type { ConfirmedBedOccupantIdentity } from '@/types/domain/intentionalBedClear';
@@ -12,9 +11,6 @@ export type BedAction =
       bedId: string;
       fields: Partial<PatientData>;
     }
-  | { type: 'UPDATE_CUDYR'; bedId: string; field: keyof CudyrScore; value: number }
-  | { type: 'UPDATE_CUDYR_MULTIPLE'; bedId: string; fields: CudyrScorePatch }
-  | { type: 'UPDATE_CUDYR_BATCH'; changes: CudyrBatchUpdate }
   | {
       type: 'CLEAR_PATIENT';
       bedId: string;
@@ -46,6 +42,4 @@ export type BedAction =
       bedId: string;
       fields: Partial<PatientData>;
     }
-  | { type: 'UPDATE_CLINICAL_CRIB_CUDYR'; bedId: string; field: keyof CudyrScore; value: number }
-  | { type: 'UPDATE_CLINICAL_CRIB_CUDYR_MULTIPLE'; bedId: string; fields: CudyrScorePatch }
   | { type: 'TOGGLE_BED_TYPE'; bedId: string };

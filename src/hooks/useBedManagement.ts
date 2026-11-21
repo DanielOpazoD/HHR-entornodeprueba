@@ -4,7 +4,6 @@ import { useCallback, useRef, useEffect } from 'react';
 import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-import type { CudyrBatchUpdate, CudyrScore, CudyrScorePatch } from '@/types/domain/cudyr';
 import { PatientFieldValue } from '@/types/valueTypes';
 import { usePatientValidation } from './usePatientValidation';
 import { useBedAudit } from './useBedAudit';
@@ -30,13 +29,6 @@ export interface BedManagementActions {
   updatePatientMultiple: (bedId: string, fields: Partial<PatientData>) => Promise<boolean>;
 
   /**
-   * Updates a specific field in the CUDYR score for a patient.
-   */
-  updateCudyr: (bedId: string, field: keyof CudyrScore, value: number) => void;
-  updateCudyrMultiple: (bedId: string, fields: CudyrScorePatch) => void;
-  updateCudyrBatch: (changes: CudyrBatchUpdate) => Promise<boolean>;
-
-  /**
    * Manages clinical crib operations (create, remove, or update fields).
    */
   updateClinicalCrib: (
@@ -51,12 +43,6 @@ export interface BedManagementActions {
    * Updates multiple clinical crib fields atomically.
    */
   updateClinicalCribMultiple: (bedId: string, fields: Partial<PatientData>) => Promise<boolean>;
-
-  /**
-   * Updates a specific field in the CUDYR score for a clinical crib.
-   */
-  updateClinicalCribCudyr: (bedId: string, field: keyof CudyrScore, value: number) => void;
-  updateClinicalCribCudyrMultiple: (bedId: string, fields: CudyrScorePatch) => void;
 
   /**
    * Clears patient data from a bed (Discharge/Cleanup).

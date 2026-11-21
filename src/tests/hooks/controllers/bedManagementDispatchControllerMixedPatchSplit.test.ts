@@ -60,8 +60,6 @@ describe('bedManagementDispatchController · split de patches mezclados', () => 
     };
     const bedAudit: BedManagementAuditPort = {
       auditPatientChange: vi.fn(),
-      auditCudyrChange: vi.fn(),
-      auditCribCudyrChange: vi.fn(),
       auditPatientCleared: vi.fn(),
       auditPatientModified: vi.fn(),
       auditPatientMovement: vi.fn(),
@@ -114,8 +112,6 @@ describe('bedManagementDispatchController · split de patches mezclados', () => 
     };
     const bedAudit: BedManagementAuditPort = {
       auditPatientChange: vi.fn(),
-      auditCudyrChange: vi.fn(),
-      auditCribCudyrChange: vi.fn(),
       auditPatientCleared: vi.fn(),
       auditPatientModified: vi.fn(),
       auditPatientMovement: vi.fn(),
@@ -157,8 +153,6 @@ describe('bedManagementDispatchController · split de patches mezclados', () => 
     const auditPatientChange = vi.fn();
     const bedAudit: BedManagementAuditPort = {
       auditPatientChange,
-      auditCudyrChange: vi.fn(),
-      auditCribCudyrChange: vi.fn(),
       auditPatientCleared: vi.fn(),
       auditPatientModified: vi.fn(),
       auditPatientMovement: vi.fn(),
@@ -193,8 +187,6 @@ describe('bedManagementDispatchController · split de patches mezclados', () => 
     };
     const bedAudit: BedManagementAuditPort = {
       auditPatientChange: vi.fn(),
-      auditCudyrChange: vi.fn(),
-      auditCribCudyrChange: vi.fn(),
       auditPatientCleared: vi.fn(),
       auditPatientModified: vi.fn(),
       auditPatientMovement: vi.fn(),

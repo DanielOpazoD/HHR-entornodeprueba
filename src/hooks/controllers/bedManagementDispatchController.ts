@@ -4,7 +4,6 @@ import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCore
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 
-import type { CudyrScore } from '@/types/domain/cudyr';
 import type { PatientFieldValue } from '@/types/valueTypes';
 import { BEDS } from '@/constants/beds';
 import { getBedTypeForRecord } from '@/utils/bedTypeUtils';
@@ -31,8 +30,6 @@ export interface BedManagementAuditPort {
     oldPatient: PatientData,
     newValue: PatientFieldValue
   ) => void;
-  auditCudyrChange: (bedId: string, field: keyof CudyrScore, value: number) => void;
-  auditCribCudyrChange: (bedId: string, field: keyof CudyrScore, value: number) => void;
   auditPatientCleared: (bedId: string, patientName: string, rut?: string) => void;
   auditPatientModified: (bedId: string, details: Record<string, unknown>) => void;
   auditPatientMovement: (bedId: string, details: Record<string, unknown>, rut?: string) => void;
@@ -164,34 +161,6 @@ const auditActionIntent = (
       });
       break;
     }
-    case 'UPDATE_CUDYR':
-      bedAudit.auditCudyrChange(action.bedId, action.field, action.value);
-      break;
-    case 'UPDATE_CUDYR_MULTIPLE':
-      Object.entries(action.fields).forEach(([field, value]) => {
-        bedAudit.auditCudyrChange(action.bedId, field as keyof CudyrScore, Number(value));
-      });
-      break;
-    case 'UPDATE_CUDYR_BATCH':
-      Object.entries(action.changes.beds ?? {}).forEach(([bedId, fields]) => {
-        Object.entries(fields).forEach(([field, value]) => {
-          bedAudit.auditCudyrChange(bedId, field as keyof CudyrScore, Number(value));
-        });
-      });
-      Object.entries(action.changes.clinicalCribs ?? {}).forEach(([bedId, fields]) => {
-        Object.entries(fields).forEach(([field, value]) => {
-          bedAudit.auditCribCudyrChange(bedId, field as keyof CudyrScore, Number(value));
-        });
-      });
-      break;
-    case 'UPDATE_CLINICAL_CRIB_CUDYR':
-      bedAudit.auditCribCudyrChange(action.bedId, action.field, action.value);
-      break;
-    case 'UPDATE_CLINICAL_CRIB_CUDYR_MULTIPLE':
-      Object.entries(action.fields).forEach(([field, value]) => {
-        bedAudit.auditCribCudyrChange(action.bedId, field as keyof CudyrScore, Number(value));
-      });
-      break;
     case 'CLEAR_PATIENT': {
       const bed = currentRecord.beds[action.bedId];
       if (bed.patientName) {

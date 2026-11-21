@@ -511,7 +511,6 @@ const mockAuditContextValue = {
   logPatientCleared: vi.fn(),
   logDailyRecordDeleted: vi.fn(),
   logDailyRecordCreated: vi.fn(),
-  logCudyrModified: vi.fn(),
   logHandoffNovedadesModified: vi.fn(),
   logMedicalHandoffModified: vi.fn(),
   logNurseHandoffModified: vi.fn(),

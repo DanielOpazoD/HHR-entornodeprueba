@@ -16,8 +16,7 @@ type AuditLogger = (
 /**
  * Patient + DailyRecord lifecycle audit emitters, extracted out of useAudit
  * to keep the hook under the 400-LOC module-size guardrail and to mirror the
- * pattern used by useClinicalDocumentAuditLoggers, useCudyrAuditLoggers and
- * useHandoffAuditLoggers (one feature surface, one tightly scoped logger
+ * pattern used by useClinicalDocumentAuditLoggers and useHandoffAuditLoggers (one feature surface, one tightly scoped logger
  * group). Each callback is a thin shape adapter over the canonical logEvent
  * provided by useAudit.
  */
