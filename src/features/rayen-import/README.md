@@ -100,8 +100,9 @@ cambió entretanto deja ese paciente fuera del envío y pendiente; un valor ya p
 vuelve a escribir. Un conflicto de revisión reconstruye los valores desde el censo recién leído
 antes del único reintento, conserva solo los episodios del primer envío y reutiliza su
 `mutationId`. Un fallo transitorio reenvía el mismo payload y `mutationId`; no cambia de escritor
-ni declara guardado sin confirmación. Tras confirmar, el día se lee una vez más por la lectura
-ordinaria, que deja la versión del servidor en la copia de este equipo.
+ni declara guardado sin confirmación. Tras confirmar, el día se lee una vez más desde el
+servidor: esa lectura actualiza la caché del SDK de Firestore con la versión confirmada, pero no
+escribe la tabla propia de HHR (`HangaRoaDB.dailyRecords`).
 
 El CUDYR de D−1 usa el mismo callable en un lote separado: modifica el documento histórico, pero
 demuestra autoridad con el `runId` congelado en el día de la sincronización. Sólo se admite el día

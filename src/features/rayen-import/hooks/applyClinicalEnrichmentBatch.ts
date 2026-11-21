@@ -51,8 +51,8 @@ interface ApplyClinicalEnrichmentBatchInput {
   refreshRecord: () => Promise<DailyRecord>;
   /**
    * Read after a committed batch. Its value is not returned, but the read itself counts: the
-   * day's ordinary read admits the server version into this device's copy. Defaults to
-   * `refreshRecord`.
+   * day's server read refreshes the Firestore SDK cache with the committed version. It does not
+   * write HHR's own local table (`HangaRoaDB.dailyRecords`). Defaults to `refreshRecord`.
    */
   refreshCommittedRecord?: () => Promise<unknown>;
   invoke?: typeof callRayenClinicalEnrichmentBatch;

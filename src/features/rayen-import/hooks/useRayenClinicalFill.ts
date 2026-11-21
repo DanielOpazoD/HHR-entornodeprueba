@@ -310,8 +310,9 @@ export const useRayenClinicalFill = ({
                         runId: runPolicy.runId,
                         operations,
                         refreshRecord: refreshFillRecord,
-                        // After a committed batch the day's read hydrates this device's copy; it
-                        // is never rebuilt from it, so no episode documents are read.
+                        // After a committed batch the day's server read refreshes the Firestore
+                        // SDK cache, not HHR's local table; nothing is rebuilt from it, so no
+                        // episode documents are read.
                         refreshCommittedRecord: loadDay,
                       }),
                     applyHistoricalCudyrBatch: (censusDay, items) => {
