@@ -19,15 +19,16 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   // Email privacy only: historical specialty can require redaction, never reveal a diagnosis.
   // The export copy is masked; the source snapshot and clinical/statistical truth are unchanged.
   'src/services/exporters/censusEmailDiagnosisPrivacy.ts',
-  'src/features/census/controllers/patientMovementDischargeMutationController.ts',
+  // Undo only: the one discharge/transfer row constructor (manual and Rayen) writes the
+  // snapshot of the person who leaves so that row can be undone. It never reads it back.
+  'src/application/census/movementRowBuilder.ts',
   'src/features/census/controllers/movementClinicalDocumentsController.ts',
-  'src/features/census/controllers/patientMovementTransferMutationController.ts',
   'src/features/census/controllers/patientMovementSelectionController.ts',
   'src/features/census/controllers/patientMovementUndoController.ts',
   'src/features/census/controllers/censusCmaController.ts',
   // Rayen census import builds discharge/transfer movements that carry the pre-movement
-  // patient snapshot in originalData for the undo/audit machinery, same as the movement
-  // controllers above. Its recorded-outcome matcher also reads that snapshot only as a
+  // patient snapshot in originalData for the undo/audit machinery, through the row
+  // constructor above. Its recorded-outcome matcher also reads that snapshot only as a
   // legacy fallback when an older movement lacks clinicalEpisodeId.
   'src/features/rayen-import/domain/applyCensusImportDiff.ts',
   'src/features/rayen-import/domain/associatedClinicalCribDischarge.ts',
