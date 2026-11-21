@@ -13,7 +13,6 @@ export {
   DEFAULT_FILE_INFO_CONCURRENCY,
   DEFAULT_FILES_TIMEOUT_MS,
   DEFAULT_LIST_TIMEOUT_MS,
-  MONTH_NAMES,
 } from './storageListSupport';
 // Single canonical file-size formatter (was duplicated in storageListSupport).
 export { formatFileSize } from '@/types/backupArtifacts';

@@ -8,7 +8,7 @@ import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { Sun, Moon, Calendar } from 'lucide-react';
 import type { StoredPdfFile } from '@/types/backupArtifacts';
 import { generateDateRange } from '@/utils/dateRangeUtils';
-import { MONTH_NAMES } from '@/types/backupArtifacts';
+import { findMonthIndexByName } from '@/constants/export';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { BackupFileCell } from './BackupFileCell';
 
@@ -41,7 +41,7 @@ export const HandoffCalendarView: React.FC<HandoffCalendarViewProps> = ({
   formatSize,
 }) => {
   // 1. Convert month name to number
-  const monthNumber = MONTH_NAMES.indexOf(monthName) + 1;
+  const monthNumber = findMonthIndexByName(monthName) + 1;
 
   if (monthNumber < 1) {
     return null;

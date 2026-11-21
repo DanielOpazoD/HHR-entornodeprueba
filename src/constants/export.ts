@@ -56,3 +56,6 @@ export const MONTH_NAMES = [
   'Noviembre',
   'Diciembre',
 ] as const;
+
+export const findMonthIndexByName = (monthName: string): number =>
+  MONTH_NAMES.findIndex(name => name === monthName);

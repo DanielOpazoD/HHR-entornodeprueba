@@ -4,22 +4,8 @@ import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLoca
 import * as firestoreService from '@/services/storage/firestore';
 import { UnconfirmedDailyRecordRangeError } from '@/services/storage/firestore/firestoreRecordQueries';
 import { getTodayISO } from '@/utils/dateCoreUtils';
+import { MONTH_NAMES } from '@/constants/export';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
-
-export const DATA_MAINTENANCE_MONTH_NAMES = [
-  'Enero',
-  'Febrero',
-  'Marzo',
-  'Abril',
-  'Mayo',
-  'Junio',
-  'Julio',
-  'Agosto',
-  'Septiembre',
-  'Octubre',
-  'Noviembre',
-  'Diciembre',
-] as const;
 
 const sortRecordsAscending = (records: DailyRecord[]): DailyRecord[] =>
   [...records].sort((left, right) => left.date.localeCompare(right.date));
@@ -110,7 +96,7 @@ export const resolveYearToDateFileSuffix = (year: number, now: Date = new Date()
     return 'anual_completo';
   }
 
-  return `${DATA_MAINTENANCE_MONTH_NAMES[Number(endDate.slice(5, 7)) - 1]}_${endDate.slice(8, 10)}`;
+  return `${MONTH_NAMES[Number(endDate.slice(5, 7)) - 1]}_${endDate.slice(8, 10)}`;
 };
 
 export const downloadJsonBackup = async (payload: unknown, fileName: string): Promise<void> => {

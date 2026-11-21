@@ -22,21 +22,6 @@ export interface StorageListResult<T> {
   report: StorageListReport;
 }
 
-export const MONTH_NAMES = [
-  'Enero',
-  'Febrero',
-  'Marzo',
-  'Abril',
-  'Mayo',
-  'Junio',
-  'Julio',
-  'Agosto',
-  'Septiembre',
-  'Octubre',
-  'Noviembre',
-  'Diciembre',
-];
-
 export const DEFAULT_LIST_TIMEOUT_MS = 5000;
 export const DEFAULT_FILES_TIMEOUT_MS = 15000;
 export const DEFAULT_FILE_INFO_CONCURRENCY = 6;

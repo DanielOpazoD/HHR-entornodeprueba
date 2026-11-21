@@ -1,7 +1,7 @@
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import type { BackupFolder } from '@/hooks/backupFileBrowserContracts';
 import type { BaseStoredFile, StoredPdfFile } from '@/types/backupArtifacts';
-import { MONTH_NAMES } from '@/types/backupArtifacts';
+import { MONTH_NAMES } from '@/constants/export';
 import { canUseAdminMaintenanceActions } from '@/shared/access/operationalAccessPolicy';
 
 export type BackupBrowserType = 'handoff' | 'census' | 'cudyr';
