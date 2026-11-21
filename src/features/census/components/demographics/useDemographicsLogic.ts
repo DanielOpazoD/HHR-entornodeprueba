@@ -109,9 +109,7 @@ export const useDemographicsLogic = ({
     }
 
     if (localData.birthDate) {
-      const birthDateValidation = PatientInputSchema.pick({ birthDate: true }).safeParse({
-        birthDate: localData.birthDate,
-      });
+      const birthDateValidation = PatientInputSchema.shape.birthDate.safeParse(localData.birthDate);
       if (!birthDateValidation.success) {
         setError(birthDateValidation.error.issues[0].message);
         return;
@@ -122,9 +120,7 @@ export const useDemographicsLogic = ({
 
     if (isProvisionalRnMode) {
       const provisionalName = normalizeNameSpacing(localData.provisionalName);
-      const nameValidation = PatientInputSchema.pick({ patientName: true }).safeParse({
-        patientName: provisionalName,
-      });
+      const nameValidation = PatientInputSchema.shape.patientName.safeParse(provisionalName);
       if (!nameValidation.success) {
         setError(nameValidation.error.issues[0].message);
         return;
@@ -159,9 +155,7 @@ export const useDemographicsLogic = ({
       localData.secondLastName
     );
     if (fullName) {
-      const nameValidation = PatientInputSchema.pick({ patientName: true }).safeParse({
-        patientName: fullName,
-      });
+      const nameValidation = PatientInputSchema.shape.patientName.safeParse(fullName);
       if (!nameValidation.success) {
         setError(nameValidation.error.issues[0].message);
         return;

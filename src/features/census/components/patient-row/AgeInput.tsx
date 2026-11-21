@@ -20,7 +20,7 @@ export const AgeInput: React.FC<AgeInputProps> = ({
   readOnly: _readOnly = false,
 }) => {
   const hasValidationError =
-    !PatientInputSchema.pick({ age: true }).safeParse({ age: data.age }).success && !!data.age;
+    Boolean(data.age) && !PatientInputSchema.shape.age.safeParse(data.age).success;
 
   if (isEmpty && !isSubRow) {
     return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 w-14 relative" />;

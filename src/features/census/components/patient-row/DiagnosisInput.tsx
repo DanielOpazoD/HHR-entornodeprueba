@@ -78,8 +78,8 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
         ? 'pr-16'
         : undefined;
   const hasPathologyError =
-    !PatientInputSchema.pick({ pathology: true }).safeParse({ pathology: data.pathology })
-      .success && !!data.pathology;
+    Boolean(data.pathology) &&
+    !PatientInputSchema.shape.pathology.safeParse(data.pathology).success;
 
   if (isEmpty && !isSubRow) {
     return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 min-w-[160px]" />;

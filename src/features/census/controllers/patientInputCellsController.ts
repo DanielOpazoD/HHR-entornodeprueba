@@ -44,5 +44,5 @@ export const resolvePatientRutValidationError = ({
     return false;
   }
 
-  return !PatientInputSchema.pick({ rut: true }).safeParse({ rut }).success;
+  return !PatientInputSchema.shape.rut.safeParse(rut).success;
 };
