@@ -22,8 +22,8 @@ const baseRecord: PrescriptionRecord = {
   hospitalId: 'hhr',
   prescriptionType: 'comun',
   bedId: 'H1C2',
-  patientName: 'Carina Pate Lillo',
-  patientRut: '14.470.055-4',
+  patientName: 'Cogube Paci Lateb',
+  patientRut: '10.000.131-4',
   image: {
     storagePath: 'prescriptions/hhr/rx-1/full.jpg',
     thumbnailStoragePath: 'prescriptions/hhr/rx-1/thumb.jpg',

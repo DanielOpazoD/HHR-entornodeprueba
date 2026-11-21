@@ -37,7 +37,7 @@ describe('PatientMasterRepository transport failures', () => {
   const failure = new Error('synthetic unavailable');
   const target: MasterPatient = {
     rut: '12.345.678-5',
-    fullName: 'Inés Riroroko Leiva',
+    fullName: 'Isút Rebolesu Litus',
     createdAt: 1,
     updatedAt: 1,
   };

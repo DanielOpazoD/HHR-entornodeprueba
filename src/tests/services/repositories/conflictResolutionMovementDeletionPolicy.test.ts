@@ -28,7 +28,7 @@ describe('conflict resolution movement deletion policy', () => {
         id: 'discharge-local-just-created',
         bedId: 'H2C2',
         patientName: 'Paciente Alta Local',
-        rut: '17.274.300-5',
+        rut: '10.000.105-5',
         diagnosis: 'Diagnóstico de egreso',
       },
     ]);

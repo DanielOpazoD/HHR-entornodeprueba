@@ -21,7 +21,7 @@ describe('epicrisis PDF extension', () => {
         headerBottomY: 520,
         headerItems: [
           { x: 35, y: 700, text: 'DATOS DEL PACIENTE' },
-          { x: 35, y: 670, text: 'RUN: 15.066.726-7 ' },
+          { x: 35, y: 670, text: 'RUN: 10.000.104-7 ' },
         ],
         recipeParts: [
           {
@@ -41,7 +41,7 @@ describe('epicrisis PDF extension', () => {
           pageIndex: 2,
           headerItems: [
             { x: 35, y: 700, text: 'DATOS DEL PACIENTE' },
-            { x: 35, y: 670, text: 'RUN: 15.066.726-7' },
+            { x: 35, y: 670, text: 'RUN: 10.000.104-7' },
           ],
           items: [
             { x: 35, y: 360, text: 'PRÓXIMO CONTROL' },
@@ -72,7 +72,7 @@ describe('epicrisis PDF extension', () => {
       await source.save(),
       helper,
       await import('pdf-lib'),
-      { expectedPatientRun: '15.066.726-7' }
+      { expectedPatientRun: '10.000.104-7' }
     );
     const result = await PDFDocument.load(corrected);
     expect(result.getPageCount()).toBe(4);
@@ -91,7 +91,7 @@ describe('epicrisis PDF extension', () => {
         headerBottomY: 520,
         headerItems: [
           { x: 35, y: 700, text: 'DATOS DEL PACIENTE' },
-          { x: 35, y: 670, text: 'RUN: 15.066.726-7' },
+          { x: 35, y: 670, text: 'RUN: 10.000.104-7' },
         ],
         recipeParts: [
           {
@@ -134,7 +134,7 @@ describe('epicrisis PDF extension', () => {
       await source.save(),
       helper,
       await import('pdf-lib'),
-      { expectedPatientRun: '15.066.726-7' }
+      { expectedPatientRun: '10.000.104-7' }
     );
     const result = await PDFDocument.load(corrected);
     expect(result.getPageCount()).toBeGreaterThanOrEqual(4);
@@ -169,7 +169,7 @@ describe('epicrisis PDF extension', () => {
     ).HhrEpicrisisPdf;
     await expect(
       api.correctEpicrisisPrescriptionPages(await source.save(), helper, await import('pdf-lib'), {
-        expectedPatientRun: '15.066.726-7',
+        expectedPatientRun: '10.000.104-7',
       })
     ).rejects.toThrow('no corresponde al paciente seleccionado');
   });
@@ -185,7 +185,7 @@ describe('epicrisis PDF extension', () => {
         headerBottomY: 520,
         headerItems: [
           { x: 35, y: 670, text: 'RUN:' },
-          { x: 130, y: 670, text: '15.066.726-7' },
+          { x: 130, y: 670, text: '10.000.104-7' },
         ],
         recipeParts: [{ items: [{ x: 35, y: 100, text: 'Medicamento' }], lines: [] }],
         control: null,

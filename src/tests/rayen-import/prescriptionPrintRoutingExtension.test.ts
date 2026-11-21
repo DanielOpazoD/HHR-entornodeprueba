@@ -58,8 +58,8 @@ describe('extension prescription operations', () => {
       {
         publishDatetime: '2026-07-09T09:03:00',
         patientPharmaIndicationResume: [
-          { PUBLISH_DATETIME: '2026-07-09T09:03:00', HCP_NAME: 'Daniel Opazo' },
-          { PUBLISH_DATETIME: '2026-07-09T09:03:00', HCP_NAME: 'Daniel Opazo' },
+          { PUBLISH_DATETIME: '2026-07-09T09:03:00', HCP_NAME: 'Degaro Opisu' },
+          { PUBLISH_DATETIME: '2026-07-09T09:03:00', HCP_NAME: 'Degaro Opisu' },
           { PUBLISH_DATETIME: '2026-07-09T09:03:00', ARCHIVED: true },
         ],
       },
@@ -80,7 +80,7 @@ describe('extension prescription operations', () => {
         date: '2026-07-09',
         label: '09-07-2026',
         count: 2,
-        prescribers: ['Daniel Opazo'],
+        prescribers: ['Degaro Opisu'],
       },
     ]);
   });
@@ -268,10 +268,10 @@ describe('extension prescription operations', () => {
         },
         {
           encounterId: '141437',
-          firstGivenName: 'Ines',
-          nextGivenNames: 'Leiva',
-          firstFamilyName: 'Riroroko',
-          run: '8.932.066-6',
+          firstGivenName: 'Isut',
+          nextGivenNames: 'Litus',
+          firstFamilyName: 'Rebolesu',
+          run: '1.000.122-6',
           service: 'Cirugía',
           room: 'Sala 1',
           bed: 'C1',
@@ -283,15 +283,15 @@ describe('extension prescription operations', () => {
 
     expect(patients.map(patient => patient.encounterId)).toEqual(['141437', '141438']);
     expect(patients[0]).toMatchObject({
-      name: 'Ines Leiva Riroroko',
-      run: '8.932.066-6',
+      name: 'Isut Litus Rebolesu',
+      run: '1.000.122-6',
       bed: 'C1',
     });
   });
 
   it('summarizes medication count, date/time and prescriber for bulk selection', () => {
     const summary = prescriptionPrint.buildHospitalizedPrescriptionSummary(
-      { encounterId: '141437', name: 'Ines Leiva Riroroko', bed: 'H6C1' },
+      { encounterId: '141437', name: 'Isut Litus Rebolesu', bed: 'H6C1' },
       [
         {
           professional: 'Elena Díaz',
@@ -300,7 +300,7 @@ describe('extension prescription operations', () => {
           validationDateTime: '2026-07-14T22:34:00-04:00',
         },
         {
-          professional: 'Daniel Opazo',
+          professional: 'Degaro Opisu',
           professionalRun: '16.111.222-3',
           count: 3,
           latestDateTime: '2026-07-13T08:15:00-04:00',

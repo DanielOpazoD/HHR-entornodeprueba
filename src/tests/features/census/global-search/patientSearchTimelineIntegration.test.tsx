@@ -13,8 +13,8 @@ vi.mock('@/services/patient/patientHistoryService', () => ({
 }));
 
 const patientWithPartialMasterIndex: MasterPatient = {
-  rut: '18.781.542-8',
-  fullName: 'Tipanie Carossi Pakomio',
+  rut: '10.000.109-8',
+  fullName: 'Tisigef Cunonoc Pagorim',
   birthDate: '1994-03-09',
   gender: 'Femenino',
   forecast: 'Fonasa',

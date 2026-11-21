@@ -25,10 +25,10 @@ describe('historical mother and clinical crib reconstruction', () => {
     const emptyRecord = { date: testCase.censusDay, beds: {} } as DailyRecord;
     const mother = {
       encounterId: '143100',
-      run: '17.059.646-3',
-      firstGivenName: 'Maeva Elisabet Maria',
-      firstFamilyName: 'Tuki',
-      secondFamilyName: 'Garcia',
+      run: '10.000.106-3',
+      firstGivenName: 'Miduc Enudovur Mopef',
+      firstFamilyName: 'Tinu',
+      secondFamilyName: 'Genavi',
       admissionDatetime: `${testCase.admissionDay}T03:27:00-06:00`,
       administrativeSex: 'Mujer',
       room: 'H4',
@@ -36,10 +36,10 @@ describe('historical mother and clinical crib reconstruction', () => {
     };
     const newborn = {
       encounterId: '143101',
-      run: '17.059.646-3',
-      firstGivenName: 'RN de Maeva',
-      firstFamilyName: 'Tuki',
-      secondFamilyName: 'Garcia',
+      run: '10.000.106-3',
+      firstGivenName: 'RN de Miduc',
+      firstFamilyName: 'Tinu',
+      secondFamilyName: 'Genavi',
       admissionDatetime: `${testCase.admissionDay}T05:10:00-06:00`,
       administrativeSex: 'Hombre',
       room: 'CH4',
@@ -54,7 +54,7 @@ describe('historical mother and clinical crib reconstruction', () => {
       encounters: [newborn, mother],
     };
     const motherFlow = `
-Flujo del Paciente RUN: 170596463
+Flujo del Paciente RUN: 100001063
 ${testCase.flowDay} 03:27:00 Servicio Estación Habitación 4 Básica C1
 `;
     const fetchReport = vi.fn().mockResolvedValue({ base64: 'QQ==' });
@@ -92,9 +92,9 @@ ${testCase.flowDay} 03:27:00 Servicio Estación Habitación 4 Básica C1
     expect(diff.admissions[0]).toMatchObject({
       bedId: 'H4C1',
       patient: {
-        patientName: 'Maeva Elisabet Maria Tuki Garcia',
+        patientName: 'Miduc Enudovur Mopef Tinu Genavi',
         clinicalCrib: {
-          patientName: 'Rn De Maeva Tuki Garcia',
+          patientName: 'Rn De Miduc Tinu Genavi',
           clinicalEpisodeId: '143101',
         },
       },
@@ -108,7 +108,7 @@ it('preserves a known historical crib after both exact episodes leave the live c
     ...EMPTY_PATIENT,
     bedId: 'H4C1',
     patientName: 'Madre sintética',
-    rut: '17.059.646-3',
+    rut: '10.000.106-3',
     clinicalEpisodeId: '143100',
     admissionDate: '2026-07-24',
     admissionTime: '14:00',
@@ -161,7 +161,7 @@ it('preserves a known historical crib after both exact episodes leave the live c
     {
       fetchReport: vi.fn().mockResolvedValue({ base64: 'QQ==' }),
       extractText: async () =>
-        `Flujo del Paciente RUN: 170596463\n24/07/2026 14:00:00 Servicio Estación Habitación 4 Básica C1`,
+        `Flujo del Paciente RUN: 100001063\n24/07/2026 14:00:00 Servicio Estación Habitación 4 Básica C1`,
     }
   );
   expect(result.conflicts).toEqual([]);
@@ -192,7 +192,7 @@ it('preserves a known historical crib after both exact episodes leave the live c
     {
       fetchReport: vi.fn().mockResolvedValue({ base64: 'QQ==' }),
       extractText: async () =>
-        `Flujo del Paciente RUN: 170596463\n24/07/2026 14:00:00 Servicio Estación Habitación 4 Básica C1`,
+        `Flujo del Paciente RUN: 100001063\n24/07/2026 14:00:00 Servicio Estación Habitación 4 Básica C1`,
     }
   );
   expect(rejected.conflicts).toEqual(
@@ -210,7 +210,7 @@ it('keeps filed mother and crib departures out of occupancy after their own cens
     ...EMPTY_PATIENT,
     patientName: 'Madre sintética',
     clinicalEpisodeId: '143100',
-    rut: '17.059.646-3',
+    rut: '10.000.106-3',
   };
   const child = {
     ...EMPTY_PATIENT,

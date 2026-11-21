@@ -5,11 +5,11 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { EgresoReportRow } from '@/features/rayen-import/contracts/egresoReport';
 import { previousCensusEgresoCandidates } from '@/features/rayen-import/domain/previousCensusEgresoCandidates';
 
-const RUN = '28.106.852-0';
+const RUN = '10.000.116-0';
 const reportDate = '2026-09-13';
 const baseRow: EgresoReportRow = {
   run: RUN,
-  patientName: 'Tania Cristina Valencia Ladino',
+  patientName: 'Torol Corivama Vovipevi Linava',
   bedLabel: 'H5C1',
   servicio: 'Ginecobstetricia',
   edad: '18 años',
@@ -34,7 +34,7 @@ const previousRecord = (): DailyRecord =>
           ...EMPTY_PATIENT,
           bedId: 'H5C1',
           bedMode: 'Cuna',
-          patientName: 'Rn De Tania Valencia Ladino',
+          patientName: 'Rn De Torol Vovipevi Linava',
           rut: RUN,
           clinicalEpisodeId: '1002',
           admissionDate: '2026-09-12',
@@ -51,7 +51,7 @@ const previousRecord = (): DailyRecord =>
 
 const newbornRow: EgresoReportRow = {
   ...baseRow,
-  patientName: 'Rn De Tania Valencia Ladino',
+  patientName: 'Rn De Torol Vovipevi Linava',
   edad: '0 días',
 };
 

@@ -50,11 +50,11 @@ describe('Ficha Medico session continuity', () => {
         const parsed = new URL(url);
         if (parsed.pathname === '/encounter/list/filter') {
           return parsed.searchParams.get('filterType') === '3'
-            ? [{ id: 142070, patientName: 'Jennifer Lopez', isIsolated: true }]
+            ? [{ id: 142070, patientName: 'Jennifer Lemef', isIsolated: true }]
             : [];
         }
         if (parsed.pathname.includes('/patientHeaderData/')) {
-          return { preferredIdentifierCode: '17.764.680-6', firstGivenName: 'Jennifer' };
+          return { preferredIdentifierCode: '10.000.113-6', firstGivenName: 'Jennifer' };
         }
         if (parsed.pathname.includes('/diagnosisEntry/')) return [];
         if (parsed.pathname.endsWith('/142070/isolationEncounter/0/getAll')) {
@@ -163,12 +163,12 @@ describe('Ficha Medico session continuity', () => {
           ].includes(url.pathname)
         ) {
           return url.pathname.includes('noveltyNurseList')
-            ? [{ id: 142070, patientName: 'Jennifer Lopez' }]
+            ? [{ id: 142070, patientName: 'Jennifer Lemef' }]
             : [];
         }
         if (url.pathname === '/api/encounter/incomeNurseList/1342') return [];
         if (url.pathname.includes('/patientHeaderData/')) {
-          return { preferredIdentifierCode: '17.764.680-6', firstGivenName: 'Jennifer' };
+          return { preferredIdentifierCode: '10.000.113-6', firstGivenName: 'Jennifer' };
         }
         if (url.pathname.includes('/diagnosisEntry/')) return [];
         throw new Error(`Unexpected nursing clinical request: ${rawUrl}`);

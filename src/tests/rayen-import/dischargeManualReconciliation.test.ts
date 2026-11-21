@@ -17,7 +17,7 @@ const patient = {
   ...EMPTY_PATIENT,
   bedId: 'R2',
   patientName: 'Paciente Sintético',
-  rut: '8.260.364-6',
+  rut: '1.000.119-6',
   clinicalEpisodeId: '1001',
   admissionDate: '2026-08-13',
   admissionTime: '14:04',
@@ -61,12 +61,12 @@ const row: EgresoReportRow = {
   diagnostico: 'Diagnóstico A',
 };
 const statisticalText = `Informe Estadístico de Egreso Hospitalario
-1.RUN: 8 2 6 0 3 6 4 - 6
+1.RUN: 1 0 0 0 1 1 9 - 6
 24 INGRESO 1 4 - 0 4 1 3 - 0 8 - 2 6 Área Médico Quirúrgico Cuidados Medios 4 0 4
 29 EGRESO 2 0 - 2 9 1 3 - 0 8 - 2 6 Domicilio 4 0 4
 30 DÍAS ESTADIA 0 0 0 1 31 1) VIVO 2) FALLECIDO 1`;
 const lookup = {
-  run: '82603646',
+  run: '10001196',
   encounterId: '1001',
   egreso: {
     id: 1001,

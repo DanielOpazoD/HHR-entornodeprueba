@@ -23,7 +23,7 @@ vi.mock('@/hooks/controllers/dailyRecordSavePersistenceController', () => ({
 const setup = (recoverChild: boolean) => {
   const mother = DataFactory.createMockPatient('R4', {
     patientName: 'Madre Sintética',
-    rut: '8.260.364-6',
+    rut: '1.000.119-6',
     clinicalEpisodeId: '1001',
     admissionDate: '2026-10-14',
     admissionTime: '10:00',

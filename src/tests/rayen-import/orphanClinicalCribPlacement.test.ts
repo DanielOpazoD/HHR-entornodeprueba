@@ -78,7 +78,7 @@ describe('orphan clinical crib placement', () => {
   it('keeps the newborn nested when Eloisa also reports a mother in NEO1', () => {
     const mother = makeEncounter({
       encounterId: 'MOTHER-NEO1',
-      run: '144700554',
+      run: '100001314',
       firstGivenName: 'Camila',
       firstFamilyName: 'Soto',
       birthDate: '1990-01-01',

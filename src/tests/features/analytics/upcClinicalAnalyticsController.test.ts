@@ -133,7 +133,7 @@ describe('upcClinicalAnalyticsController', () => {
     const rutOnly = {
       ...patient('R2', 'UPC_UTI', 'rut-only'),
       patientName: '',
-      rut: '14.747.062-2',
+      rut: '10.000.132-2',
     };
 
     const analysis = buildUpcClinicalAnalytics([
@@ -148,6 +148,6 @@ describe('upcClinicalAnalyticsController', () => {
       uciObservations: 0,
     });
     expect(analysis.details).toHaveLength(1);
-    expect(analysis.details[0]).toMatchObject({ rut: '14.747.062-2', patientName: '' });
+    expect(analysis.details[0]).toMatchObject({ rut: '10.000.132-2', patientName: '' });
   });
 });

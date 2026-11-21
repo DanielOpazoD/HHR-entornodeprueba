@@ -70,8 +70,8 @@ describe('extension prescription print content flow', () => {
           }
           callback({
             patient: {
-              name: 'Inés Leiva Riroroko',
-              run: '8.932.066-6',
+              name: 'Isút Litus Rebolesu',
+              run: '1.000.122-6',
               bed: 'H6C1',
               room: 'H6',
               service: 'Área Médico Quirúrgica',
@@ -241,10 +241,10 @@ describe('extension prescription print content flow', () => {
     expect(tabPanel?.getAttribute('role')).toBe('tabpanel');
     expect(tabPanel?.getAttribute('aria-labelledby')).toBe('hhr-rx-tab-current');
     expect(document.querySelector('.hhr-rx-patient-context')?.textContent).toContain(
-      'Inés Leiva Riroroko'
+      'Isút Litus Rebolesu'
     );
     expect(document.querySelector('.hhr-rx-patient-context')?.textContent).toContain(
-      'RUN 8.932.066-6'
+      'RUN 1.000.122-6'
     );
     expect(document.querySelector('.hhr-rx-list')?.textContent).toContain('validación 15-07-2026');
     expect(document.querySelector('.hhr-rx-list')?.textContent).not.toContain(
@@ -312,7 +312,7 @@ describe('extension prescription print content flow', () => {
     document.querySelector<HTMLButtonElement>('[data-rx-module="recipes"]')?.click();
     await vi.waitFor(() => {
       expect(document.querySelector('.hhr-rx-patient-context')?.textContent).toContain(
-        'Inés Leiva Riroroko'
+        'Isút Litus Rebolesu'
       );
       expect(document.getElementById('hhr-prescription-print-modal')).toBe(centerRoot);
     });
@@ -332,7 +332,7 @@ describe('extension prescription print content flow', () => {
       .fn()
       .mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia;
     document.body.innerHTML = `
-      <table><tbody><tr><td><span>Paciente prueba · Alta médica</span><p aria-label="15.066.726-7">RUN : 15.066.726-7</p></td><td>80 a</td><td><button id="open-actions" aria-expanded="true">⋮</button></td></tr></tbody></table>
+      <table><tbody><tr><td><span>Paciente prueba · Alta médica</span><p aria-label="10.000.104-7">RUN : 10.000.104-7</p></td><td>80 a</td><td><button id="open-actions" aria-expanded="true">⋮</button></td></tr></tbody></table>
       <table><tbody><tr><td>Paciente sin identificador</td><td><button id="open-actions-without-run" aria-expanded="false">⋮</button></td></tr></tbody></table>
       <div role="menu"><button id="native-print-1" type="button"><span class="MuiListItemIcon-root"><svg data-testid="LocalPrintshopRoundedIcon"></svg></span><span class="MuiListItemText-primary">Imprimir Alta Médica</span></button></div>
       <div role="menu" hidden><button id="native-print-2" type="button">Imprimir Alta Médica</button></div>
@@ -396,7 +396,7 @@ describe('extension prescription print content flow', () => {
         message => message.type === 'RAYEN_EPICRISIS_CORRECTED_PRINT_REQUEST'
       );
       expect(correctedMessages).toHaveLength(1);
-      expect(correctedMessages[0]?.patientRun).toBe('15.066.726-7');
+      expect(correctedMessages[0]?.patientRun).toBe('10.000.104-7');
       expect(captureArmCount).toBe(1);
     });
     (document.getElementById('open-actions') as HTMLButtonElement).setAttribute(
@@ -432,7 +432,7 @@ describe('extension prescription print content flow', () => {
     window.history.replaceState({}, '', '/dashboard/encounter-list-nurse?tab=3');
     document.body.innerHTML = `
       <table><tbody><tr role="row">
-        <td><a href="/dashboard/encounter-list-nurse/141987">Paciente egresado</a><p>RUN: 15.066.726-7</p></td>
+        <td><a href="/dashboard/encounter-list-nurse/141987">Paciente egresado</a><p>RUN: 10.000.104-7</p></td>
         <td><button id="nursing-actions" aria-expanded="true">⋮</button></td>
       </tr></tbody></table>
       <div role="menu" id="unrelated-menu"><button type="button">Configuración</button></div>
@@ -484,7 +484,7 @@ describe('extension prescription print content flow', () => {
       const request = messages.find(
         message => message.type === 'RAYEN_NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST'
       );
-      expect(request?.patientRun).toBe('15.066.726-7');
+      expect(request?.patientRun).toBe('10.000.104-7');
       expect(request?.encId).toBe('141987');
       expect(
         document.querySelector('#unrelated-menu [data-hhr-nursing-medical-epicrisis]')

@@ -25,7 +25,7 @@ describe('isRayenCensusSnapshot', () => {
     capturedAt: '2026-07-08T20:00:00-06:00',
     facilityId: 1342,
     encounters: [
-      { encounterId: 'E1', run: '144700554', firstGivenName: 'Ana', firstFamilyName: 'Perez' },
+      { encounterId: 'E1', run: '100001314', firstGivenName: 'Ana', firstFamilyName: 'Perez' },
     ],
   };
 
@@ -410,15 +410,15 @@ describe('administrative-discharge report bridge', () => {
 describe('exact-episode egreso lookup bridge', () => {
   it('sends both the normalized compatibility RUN list and the exact hospitalization target', async () => {
     const postMessage = vi.spyOn(window, 'postMessage');
-    const pending = requestEgresoLookup([{ run: '22.025.389-9', encounterId: '141704' }], 1000);
+    const pending = requestEgresoLookup([{ run: '10.000.134-9', encounterId: '141704' }], 1000);
     const request = postMessage.mock.calls[0]?.[0] as {
       reqId: string;
       runs: string[];
       targets: Array<{ run: string; encounterId: string }>;
     };
 
-    expect(request.runs).toEqual(['22.025.389-9']);
-    expect(request.targets).toEqual([{ run: '22.025.389-9', encounterId: '141704' }]);
+    expect(request.runs).toEqual(['10.000.134-9']);
+    expect(request.targets).toEqual([{ run: '10.000.134-9', encounterId: '141704' }]);
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
@@ -426,13 +426,13 @@ describe('exact-episode egreso lookup bridge', () => {
         data: {
           type: RAYEN_EGRESO_LOOKUP_RESULT_TYPE,
           reqId: request.reqId,
-          results: [{ run: '220253899', encounterId: '141704', egreso: { id: 141704 } }],
+          results: [{ run: '100001349', encounterId: '141704', egreso: { id: 141704 } }],
         },
       })
     );
 
     await expect(pending).resolves.toEqual([
-      { run: '220253899', encounterId: '141704', egreso: { id: 141704 } },
+      { run: '100001349', encounterId: '141704', egreso: { id: 141704 } },
     ]);
     postMessage.mockRestore();
   });

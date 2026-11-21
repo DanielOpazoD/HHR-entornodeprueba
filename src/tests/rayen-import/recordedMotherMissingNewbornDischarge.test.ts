@@ -18,7 +18,7 @@ const mother = {
   ...EMPTY_PATIENT,
   bedId: 'R4',
   patientName: 'Madre sintética',
-  rut: '14.470.055-4',
+  rut: '10.000.131-4',
   clinicalEpisodeId: 'synthetic-mother',
   admissionDate: '2026-07-07',
   admissionTime: '10:00',

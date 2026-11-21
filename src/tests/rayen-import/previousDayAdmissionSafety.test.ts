@@ -40,7 +40,7 @@ describe('previous clinical-day admission evidence and safety', () => {
       fetchReport,
       extractText: vi
         .fn()
-        .mockResolvedValue(['RUN: 17.059.646-3', '26/07/2026 03:30:00 Habitación 4 C1'].join('\n')),
+        .mockResolvedValue(['RUN: 10.000.106-3', '26/07/2026 03:30:00 Habitación 4 C1'].join('\n')),
     });
 
     expect(fetchReport).toHaveBeenCalledWith('143100');
@@ -81,7 +81,7 @@ describe('previous clinical-day admission evidence and safety', () => {
       fetchReport: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
       extractText: vi
         .fn()
-        .mockResolvedValue(['RUN: 17.059.646-3', '26/07/2026 03:30:00 Habitación 4 C1'].join('\n')),
+        .mockResolvedValue(['RUN: 10.000.106-3', '26/07/2026 03:30:00 Habitación 4 C1'].join('\n')),
     });
 
     expect(retried.admissions[0].source?.verifiedBedPlacement).toEqual(
@@ -132,7 +132,7 @@ describe('previous clinical-day admission evidence and safety', () => {
       ...admission.source!,
       encounterId: '143101',
       run: '',
-      firstGivenName: 'RN de Maeva',
+      firstGivenName: 'RN de Miduc',
       admissionDatetime: '2026-07-26T05:10:00-06:00',
       clinicalCribParentBedId: 'H4C1',
       verifiedBedPlacement: undefined,
@@ -176,7 +176,7 @@ describe('previous clinical-day admission evidence and safety', () => {
       fetchReport: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
       extractText: vi
         .fn()
-        .mockResolvedValue(['RUN: 17.059.646-3', '26/07/2026 03:30:00 Habitación 4 C1'].join('\n')),
+        .mockResolvedValue(['RUN: 10.000.106-3', '26/07/2026 03:30:00 Habitación 4 C1'].join('\n')),
     });
     const plan = await computePreviousDayEdits(repository, verified, '2026-07-26', false);
 
@@ -185,8 +185,8 @@ describe('previous clinical-day admission evidence and safety', () => {
       expect.objectContaining({
         bedId: 'H4C1',
         patient: expect.objectContaining({
-          patientName: 'Maeva Elisabet Maria Tuki Garcia',
-          clinicalCrib: expect.objectContaining({ patientName: 'RN de Maeva Tuki Garcia' }),
+          patientName: 'Miduc Enudovur Mopef Tinu Genavi',
+          clinicalCrib: expect.objectContaining({ patientName: 'RN de Miduc Tinu Genavi' }),
         }),
         source: expect.objectContaining({
           encounterId: '143100',
@@ -197,7 +197,7 @@ describe('previous clinical-day admission evidence and safety', () => {
     expect(verified.conflicts).toEqual([]);
     expect(plan.edits).toEqual([
       expect.objectContaining({
-        patientNames: ['Maeva Elisabet Maria Tuki Garcia', 'RN de Maeva Tuki Garcia'],
+        patientNames: ['Miduc Enudovur Mopef Tinu Genavi', 'RN de Miduc Tinu Genavi'],
         admissionSubjects: [
           expect.objectContaining({ kind: 'principal' }),
           expect.objectContaining({ kind: 'clinical-crib' }),
@@ -223,7 +223,7 @@ describe('previous clinical-day admission evidence and safety', () => {
         .fn()
         .mockResolvedValue(
           [
-            'RUN: 17.059.646-3',
+            'RUN: 10.000.106-3',
             '26/07/2026 03:30:00 Habitación 4 C1',
             '26/07/2026 09:00:00 Habitación 4 C2',
           ].join('\n')
@@ -422,7 +422,7 @@ describe('previous clinical-day admission evidence and safety', () => {
           .fn()
           .mockResolvedValue(
             [
-              'RUN: 17.059.646-3',
+              'RUN: 10.000.106-3',
               `26/07/2026 03:30:00 ${bedId.replace(/^H(\d+)C(\d+)$/, 'Habitación $1 C$2')}`,
             ].join('\n')
           ),
@@ -435,7 +435,7 @@ describe('previous clinical-day admission evidence and safety', () => {
       }
       expect(plan.edits).toEqual([
         expect.objectContaining({
-          patientNames: ['RN de Maeva Tuki Garcia'],
+          patientNames: ['RN de Miduc Tinu Genavi'],
           admissionSubjects: [expect.objectContaining({ kind: 'clinical-crib', bedId })],
         }),
       ]);

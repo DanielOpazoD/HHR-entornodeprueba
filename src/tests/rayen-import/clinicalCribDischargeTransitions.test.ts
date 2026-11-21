@@ -16,7 +16,7 @@ const REFERENCE = new Date('2026-07-08T12:00:00-06:00');
 
 const encounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => ({
   encounterId: 'MOTHER',
-  run: '144700554',
+  run: '100001314',
   firstGivenName: 'Ana',
   firstFamilyName: 'Perez',
   birthDate: '1980-01-01',

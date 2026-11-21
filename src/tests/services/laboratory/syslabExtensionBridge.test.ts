@@ -107,13 +107,13 @@ describe('Syslab extension page bridge', () => {
       if (request.type === 'HHR_RAYEN_SYSLAB_STATUS_REQUEST') return { connected: true };
       expect(request).toMatchObject({
         type: 'HHR_RAYEN_SYSLAB_SEARCH_REQUEST',
-        rutBody: '14470055',
-        rutDisplay: '14.470.055-4',
+        rutBody: '10000131',
+        rutDisplay: '10.000.131-4',
       });
       return {
         ok: true,
         batchId: BATCH_ID,
-        rutBody: '14470055',
+        rutBody: '10000131',
         exams: [
           {
             id: '43091284',
@@ -127,7 +127,7 @@ describe('Syslab extension page bridge', () => {
       };
     });
 
-    await expect(searchSyslabThroughExtension('14.470.055-4')).resolves.toEqual({
+    await expect(searchSyslabThroughExtension('10.000.131-4')).resolves.toEqual({
       bridgeAvailable: true,
       data: {
         success: true,
@@ -174,7 +174,7 @@ describe('Syslab extension page bridge', () => {
           }
     );
 
-    await expect(searchSyslabThroughExtension('14.470.055-4')).resolves.toEqual({
+    await expect(searchSyslabThroughExtension('10.000.131-4')).resolves.toEqual({
       bridgeAvailable: true,
       error: 'Syslab no confirmó que los resultados correspondan al RUT seleccionado.',
     });
@@ -260,7 +260,7 @@ describe('Syslab extension page bridge', () => {
       return {
         ok: true,
         downloadId: 42,
-        filename: 'Laboratorio HHR 21-07-2026, Paciente Syslab, 14.470.055-4.pdf',
+        filename: 'Laboratorio HHR 21-07-2026, Paciente Syslab, 10.000.131-4.pdf',
         reportCount: 2,
         pageCount: 4,
       };
@@ -269,7 +269,7 @@ describe('Syslab extension page bridge', () => {
     await expect(
       downloadSyslabPdfBundleThroughExtension([OPAQUE_LINK, secondLink])
     ).resolves.toEqual({
-      filename: 'Laboratorio HHR 21-07-2026, Paciente Syslab, 14.470.055-4.pdf',
+      filename: 'Laboratorio HHR 21-07-2026, Paciente Syslab, 10.000.131-4.pdf',
       reportCount: 2,
       pageCount: 4,
     });

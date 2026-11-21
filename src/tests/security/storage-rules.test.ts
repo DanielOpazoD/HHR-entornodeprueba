@@ -26,7 +26,7 @@ const parseStorageEmulatorHost = (): { host: string; port: number } => {
   return { host, port };
 };
 
-const storagePath = 'clinical-attachments/hhr/13545665-9/135456659__2026-04-15/att_1/informe.pdf';
+const storagePath = 'clinical-attachments/hhr/10000117-9/100001179__2026-04-15/att_1/informe.pdf';
 
 const uploadClinicalAttachment = (
   storage: ReturnType<ReturnType<RulesTestEnvironment['authenticatedContext']>['storage']>,

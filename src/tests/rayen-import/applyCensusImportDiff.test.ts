@@ -38,7 +38,7 @@ const makeRecord = (beds: Record<string, PatientData>): DailyRecord => ({
 
 const makeEncounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => ({
   encounterId: 'E1',
-  run: '144700554',
+  run: '100001314',
   firstGivenName: 'Ana',
   firstFamilyName: 'Perez',
   birthDate: '1980-01-01',
@@ -146,18 +146,18 @@ describe('applyCensusImportDiff', () => {
   });
 
   it('applies a chained move (A→B while B→C) without losing either patient', () => {
-    // Carina H6C2→H1C2 and Teresa H1C2→H1C1: H1C2 is both a target and a source. Sources are
+    // Cogube H6C2→H1C2 and Teresa H1C2→H1C1: H1C2 is both a target and a source. Sources are
     // captured from the ORIGINAL record before any placement, so the chain resolves cleanly.
     const [, base] = seedBed(makeEncounter());
     const teresa = { ...base, patientName: 'Teresa', rut: '1-1', bedId: 'H1C2' };
-    const carina = { ...base, patientName: 'Carina', rut: '2-2', bedId: 'H6C2' };
+    const cogube = { ...base, patientName: 'Cogube', rut: '2-2', bedId: 'H6C2' };
     const diff = makeDiff({
       moves: [
         {
           fromBedId: 'H6C2',
           toBedId: 'H1C2',
           rut: '2-2',
-          patientName: 'Carina',
+          patientName: 'Cogube',
           source: makeEncounter(),
         },
         {
@@ -171,12 +171,12 @@ describe('applyCensusImportDiff', () => {
       summary: { ...makeDiff().summary, moves: 2 },
     });
     const result = applyCensusImportDiff(
-      makeRecord({ H1C2: teresa, H6C2: carina }),
+      makeRecord({ H1C2: teresa, H6C2: cogube }),
       diff,
       makeCtx()
     );
     expect(result.applied.moves).toBe(2);
-    expect(result.record.beds.H1C2?.patientName).toBe('Carina');
+    expect(result.record.beds.H1C2?.patientName).toBe('Cogube');
     expect(result.record.beds.H1C1?.patientName).toBe('Teresa');
     expect(result.record.beds.H6C2).toEqual(createEmptyPatient('H6C2'));
   });
@@ -366,9 +366,9 @@ describe('applyCensusImportDiff', () => {
     const diff = makeDiff({
       reportEgresos: [
         {
-          run: '11.044.046-4',
+          run: '10.000.128-4',
           encounterId: 'report-only-episode',
-          patientName: 'Lorena Lopez Alvarado',
+          patientName: 'Lesuvu Lemef Apegivuc',
           bedLabel: 'R2',
           destino: 'Domicilio',
           fechaEgreso: '09-07-2026  19:11',
@@ -387,8 +387,8 @@ describe('applyCensusImportDiff', () => {
     expect(result.record.beds.R2.patientName).toBe('Otro Paciente');
     expect(result.record.discharges).toHaveLength(1);
     expect(result.record.discharges[0]).toMatchObject({
-      patientName: 'Lorena Lopez Alvarado',
-      rut: '11.044.046-4',
+      patientName: 'Lesuvu Lemef Apegivuc',
+      rut: '10.000.128-4',
       clinicalEpisodeId: 'report-only-episode',
       admissionDate: '2026-07-09',
       diagnosis: 'Herida de la pierna',
@@ -400,19 +400,19 @@ describe('applyCensusImportDiff', () => {
   });
 
   it('vacates the bed but skips the movement when the egreso belongs to an earlier island day', () => {
-    // Haggen was in a bed (carried over) but the official report says he left on 07-07, before this
+    // Hamifu was in a bed (carried over) but the official report says he left on 07-07, before this
     // 07-08 census. The bed is freed here; the discharge record is filed on 07-07 (cross-day writer).
     const occupant = {
       ...EMPTY_PATIENT,
-      patientName: 'Haggen',
-      rut: '19.338.541-9',
+      patientName: 'Hamifu',
+      rut: '10.000.120-9',
     } as PatientData;
     const diff = makeDiff({
       discharges: [
         {
           bedId: 'NEO1',
-          rut: '19.338.541-9',
-          patientName: 'Haggen',
+          rut: '10.000.120-9',
+          patientName: 'Hamifu',
           kind: 'alta',
           status: 'Vivo',
           reason: 'administrative-discharge',

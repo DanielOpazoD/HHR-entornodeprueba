@@ -348,10 +348,10 @@ describe('patientMovementCreationController', () => {
   it('returns discharge audit entries with enough movement metadata to reconstruct the daily discharge row', () => {
     const record = DataFactory.createMockDailyRecord('2025-01-01');
     record.beds.R1 = DataFactory.createMockPatient('R1', {
-      patientName: 'Bernardo Orrego Llanos',
-      rut: '17.274.300-5',
+      patientName: 'Budegutu Osimap Lupeba',
+      rut: '10.000.105-5',
       pathology: 'Neumonía adquirida en la comunidad',
-      clinicalEpisodeId: 'episode-bernardo',
+      clinicalEpisodeId: 'episode-budegutu',
     });
 
     const result = resolveAddDischargeMovement({
@@ -366,23 +366,23 @@ describe('patientMovementCreationController', () => {
       },
       bedsCatalog: BEDS,
       createEmptyPatient,
-      createId: () => 'discharge-bernardo',
+      createId: () => 'discharge-budegutu',
     });
 
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.auditEntries).toEqual([
         expect.objectContaining({
-          movementId: 'discharge-bernardo',
+          movementId: 'discharge-budegutu',
           bedId: 'R1',
-          patientName: 'Bernardo Orrego Llanos',
-          rut: '17.274.300-5',
+          patientName: 'Budegutu Osimap Lupeba',
+          rut: '10.000.105-5',
           status: 'Vivo',
           diagnosis: 'Neumonía adquirida en la comunidad',
           movementDate: '2025-01-02',
           time: '13:24',
           dischargeType: 'Domicilio (Habitual)',
-          clinicalEpisodeId: 'episode-bernardo',
+          clinicalEpisodeId: 'episode-budegutu',
         }),
       ]);
     }

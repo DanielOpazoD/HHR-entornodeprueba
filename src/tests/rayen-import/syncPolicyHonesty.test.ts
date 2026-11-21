@@ -84,7 +84,7 @@ describe('sincronización · honestidad ante sesión sin permisos', () => {
         id: 'run-1',
         startedAt: '2026-09-01T13:53:08.549Z',
         completedAt: '2026-09-01T13:53:22.150Z',
-        by: 'Daniel Opazo Damiani',
+        by: 'Degaro Opisu Doliceg',
         status: 'failed',
         failureReason,
       }) as RayenSyncEvent;

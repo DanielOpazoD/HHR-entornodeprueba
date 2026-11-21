@@ -16,7 +16,7 @@ it('keeps one set of print actions when changing patient and returning', () => {
       }),
       H1C1: DataFactory.createMockPatient('H1C1', {
         patientName: 'SEGUNDA SINTÉTICA',
-        rut: '5844865-6',
+        rut: '1000105-6',
         clinicalEpisodeId: 'ep-two',
       }),
     },

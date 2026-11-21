@@ -66,7 +66,7 @@ describe('applyEgresoReport', () => {
   it('does not attribute an unverified report at an unknown bed solely by shared RUN', () => {
     const current = makeRecord({
       R2: {
-        ...patient('11.044.046-4', 'Paciente con episodio activo'),
+        ...patient('10.000.128-4', 'Paciente con episodio activo'),
         clinicalEpisodeId: 'ACTIVE-EPISODE',
       },
     });
@@ -74,7 +74,7 @@ describe('applyEgresoReport', () => {
       makeDiff(),
       [
         row({
-          run: '11.044.046-4',
+          run: '10.000.128-4',
           destino: 'Domicilio',
           exactEpisodeVerification: 'unverified',
         }),
@@ -95,7 +95,7 @@ describe('applyEgresoReport', () => {
 
   it('persists the verified occupant RUN when an exact report carries a stale RUN', () => {
     const exactPatient = {
-      ...patient('11.044.046-4', 'Paciente Exacto'),
+      ...patient('10.000.128-4', 'Paciente Exacto'),
       clinicalEpisodeId: 'EXACT-EPISODE',
     };
     const enriched = applyEgresoReport(
@@ -104,7 +104,7 @@ describe('applyEgresoReport', () => {
       makeRecord({ R2: exactPatient })
     );
 
-    expect(enriched.discharges[0]).toMatchObject({ rut: '11.044.046-4' });
+    expect(enriched.discharges[0]).toMatchObject({ rut: '10.000.128-4' });
   });
 
   it('retains a collision when an exact egreso cannot identify the legacy occupant', () => {
@@ -134,7 +134,7 @@ describe('applyEgresoReport', () => {
   });
 
   it('retains a crib conflict when the nested legacy newborn has no identity', () => {
-    const mother = patient('11.044.046-4', 'Madre');
+    const mother = patient('10.000.128-4', 'Madre');
     const legacyNewborn = patient('', 'RN de Madre');
     const enriched = applyEgresoReport(
       makeDiff({
@@ -161,12 +161,12 @@ describe('applyEgresoReport', () => {
 
   it('still discharges an occupied readmission even if the RUN has a prior movement that day', () => {
     const current = makeRecord(
-      { R2: patient('11.044.046-4', 'Paciente Reingresado') },
-      { discharges: [{ rut: '11.044.046-4' } as never] }
+      { R2: patient('10.000.128-4', 'Paciente Reingresado') },
+      { discharges: [{ rut: '10.000.128-4' } as never] }
     );
     const enriched = applyEgresoReport(
       makeDiff(),
-      [row({ run: '11.044.046-4', destino: 'Domicilio' })],
+      [row({ run: '10.000.128-4', destino: 'Domicilio' })],
       current
     );
     expect(enriched.discharges).toEqual([
@@ -304,7 +304,7 @@ describe('applyEgresoReport', () => {
   it('marks the administrative document as not detected after an empty report', () => {
     const pending = {
       bedId: 'H2C1',
-      rut: '22.025.389-9',
+      rut: '10.000.134-9',
       patientName: 'Paciente',
       signal: 'clinical-closure' as const,
       encounterId: '141704',

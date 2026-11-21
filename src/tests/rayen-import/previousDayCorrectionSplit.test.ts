@@ -27,7 +27,7 @@ const mixedDiff = (): CensusImportDiff => ({
   discharges: [
     {
       bedId: 'H2C1',
-      rut: '22.025.389-9',
+      rut: '10.000.134-9',
       patientName: 'Paciente Egresado',
       kind: 'alta',
       status: 'Vivo',
@@ -60,7 +60,7 @@ describe('fileCrossDayCorrections · escrituras puras por día', () => {
             ...EMPTY_PATIENT,
             bedId: 'H2C1',
             patientName: 'Paciente Egresado',
-            rut: '22.025.389-9',
+            rut: '10.000.134-9',
           },
         },
       },
@@ -279,7 +279,7 @@ describe('fileCrossDayCorrections · escrituras puras por día', () => {
           ...EMPTY_PATIENT,
           bedId: 'H4C1',
           patientName: 'Ocupante Histórica Real',
-          rut: '3.827.053-2',
+          rut: '1.000.107-2',
           clinicalEpisodeId: 'occupant-ep',
         },
       },

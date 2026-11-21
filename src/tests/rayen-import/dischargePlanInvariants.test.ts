@@ -14,7 +14,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 type Discharge = CensusImportDiff['discharges'][number];
 
-const RUN = '28.106.852-0';
+const RUN = '10.000.116-0';
 
 const record: DailyRecord = {
   date: '2026-09-02',
@@ -22,7 +22,7 @@ const record: DailyRecord = {
     H5C1: {
       ...EMPTY_PATIENT,
       bedId: 'H5C1',
-      patientName: 'Tania Valencia',
+      patientName: 'Torol Vovipevi',
       rut: RUN,
       clinicalEpisodeId: '1001',
       admissionDate: '2026-08-31',
@@ -31,7 +31,7 @@ const record: DailyRecord = {
         ...EMPTY_PATIENT,
         bedId: 'H5C1',
         bedMode: 'Cuna',
-        patientName: 'Rn De Tania Valencia',
+        patientName: 'Rn De Torol Vovipevi',
         rut: RUN,
         clinicalEpisodeId: '1002',
         admissionDate: '2026-08-31',
@@ -51,7 +51,7 @@ const occupiedCribs = occupiedClinicalCribsByRun(record);
 const discharge = (overrides: Partial<Discharge>): Discharge => ({
   bedId: 'H5C1',
   rut: RUN,
-  patientName: 'Tania Valencia',
+  patientName: 'Torol Vovipevi',
   kind: 'alta',
   status: 'Vivo',
   reason: 'administrative-discharge',
@@ -76,7 +76,7 @@ describe('resolveReportedOccupant', () => {
         H5C2: {
           ...EMPTY_PATIENT,
           bedId: 'H5C2',
-          patientName: 'Rn De Tania Valencia',
+          patientName: 'Rn De Torol Vovipevi',
           rut: RUN,
           clinicalEpisodeId: '1002',
           admissionDate: '2026-08-31',

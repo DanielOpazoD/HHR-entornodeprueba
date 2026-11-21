@@ -211,7 +211,7 @@ describe('applyConfirmedRayenImport', () => {
         {
           day: '2026-07-25',
           reason: 'admission-night-shift-correction',
-          patientNames: ['Maeva Elisabet Maria Tuki Garcia', 'RN de Maeva Tuki Garcia'],
+          patientNames: ['Miduc Enudovur Mopef Tinu Genavi', 'RN de Miduc Tinu Genavi'],
           recordExists: true,
           withinEditingWindow: true,
           isSigned: false,
@@ -287,7 +287,7 @@ describe('applyConfirmedRayenImport', () => {
         {
           day: '2026-07-25',
           reason: 'admission-night-shift-correction',
-          patientNames: ['Maeva Elisabet Maria Tuki Garcia'],
+          patientNames: ['Miduc Enudovur Mopef Tinu Genavi'],
           recordExists: true,
           withinEditingWindow: true,
           isSigned: false,
@@ -347,7 +347,7 @@ describe('applyConfirmedRayenImport', () => {
         {
           day: '2026-07-25',
           reason: 'admission-night-shift-correction',
-          patientNames: ['Maeva Elisabet Maria Tuki Garcia'],
+          patientNames: ['Miduc Enudovur Mopef Tinu Genavi'],
           recordExists: true,
           withinEditingWindow: true,
           isSigned: false,
@@ -404,7 +404,7 @@ describe('applyConfirmedRayenImport', () => {
         {
           day: '2026-07-25',
           reason: 'admission-night-shift-correction',
-          patientNames: ['Maeva Elisabet Maria Tuki Garcia'],
+          patientNames: ['Miduc Enudovur Mopef Tinu Genavi'],
           recordExists: true,
           withinEditingWindow: true,
           isSigned: false,
@@ -457,7 +457,7 @@ describe('applyConfirmedRayenImport', () => {
         {
           day: '2026-07-25',
           reason: 'admission-night-shift-correction',
-          patientNames: ['Maeva Elisabet Maria Tuki Garcia', 'RN de Maeva Tuki Garcia'],
+          patientNames: ['Miduc Enudovur Mopef Tinu Genavi', 'RN de Miduc Tinu Genavi'],
           recordExists: true,
           withinEditingWindow: true,
           isSigned: false,

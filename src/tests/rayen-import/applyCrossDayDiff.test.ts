@@ -25,19 +25,19 @@ const makeRecord = (date: string, over: Partial<DailyRecord> = {}): DailyRecord 
   ...over,
 });
 
-const haggen = (over: Partial<PatientData> = {}): PatientData =>
+const hamifu = (over: Partial<PatientData> = {}): PatientData =>
   ({
     ...EMPTY_PATIENT,
-    patientName: 'Haggen Estefanis Roe',
-    rut: '19.338.541-9',
+    patientName: 'Hamifu Etuduvupo Ralu',
+    rut: '10.000.120-9',
     pathology: 'Dx',
     ...over,
   }) as PatientData;
 
 const entry = (over: Partial<DischargeEntry> = {}): DischargeEntry => ({
   bedId: 'NEO1',
-  rut: '19.338.541-9',
-  patientName: 'Haggen Estefanis Roe',
+  rut: '10.000.120-9',
+  patientName: 'Hamifu Etuduvupo Ralu',
   kind: 'alta',
   status: 'Vivo',
   reason: 'administrative-discharge',
@@ -50,19 +50,19 @@ describe('applyCrossDayDiff', () => {
   it('files the discharge on the previous day with the corrected island time + deterministic id', () => {
     const result = applyCrossDayDiff(
       makeRecord('2026-07-11'),
-      [{ entry: entry(), patient: haggen() }],
+      [{ entry: entry(), patient: hamifu() }],
       ctx
     );
     expect(result.applied).toBe(1);
     expect(result.record.discharges).toHaveLength(1);
     expect(result.record.discharges[0]).toMatchObject({
-      id: 'rayen-egreso:193385419:2026-07-11',
+      id: 'rayen-egreso:100001209:2026-07-11',
       movementDate: '2026-07-11',
       time: '20:54',
-      patientName: 'Haggen Estefanis Roe',
+      patientName: 'Hamifu Etuduvupo Ralu',
       movementProvenance: {
         source: 'gestion_camas',
-        lineageId: 'rayen-egreso:193385419:2026-07-11',
+        lineageId: 'rayen-egreso:100001209:2026-07-11',
         classifiedAt: NOW.toISOString(),
         syncRunId: 'cross-day-run-1',
       },
@@ -76,8 +76,8 @@ describe('applyCrossDayDiff', () => {
     // one, so id-only dedup would append a SECOND egreso for the same patient.
     const alreadyDischarged = DataFactory.createMockDischarge({
       id: 'manual-abc',
-      rut: '19.338.541-9',
-      patientName: 'Haggen Estefanis Roe',
+      rut: '10.000.120-9',
+      patientName: 'Hamifu Etuduvupo Ralu',
       movementDate: '2026-07-11',
       time: '18:00',
       dischargeType: 'Domicilio (Habitual)',
@@ -86,7 +86,7 @@ describe('applyCrossDayDiff', () => {
     });
     const result = applyCrossDayDiff(
       makeRecord('2026-07-11', { discharges: [alreadyDischarged] }),
-      [{ entry: entry(), patient: haggen() }],
+      [{ entry: entry(), patient: hamifu() }],
       ctx
     );
     expect(result.applied).toBe(0);
@@ -96,10 +96,10 @@ describe('applyCrossDayDiff', () => {
   it('is idempotent — re-applying the same egreso does not duplicate (same deterministic id)', () => {
     const first = applyCrossDayDiff(
       makeRecord('2026-07-11'),
-      [{ entry: entry(), patient: haggen() }],
+      [{ entry: entry(), patient: hamifu() }],
       ctx
     );
-    const second = applyCrossDayDiff(first.record, [{ entry: entry(), patient: haggen() }], ctx);
+    const second = applyCrossDayDiff(first.record, [{ entry: entry(), patient: hamifu() }], ctx);
     expect(second.applied).toBe(0);
     expect(second.record.discharges).toHaveLength(1);
   });
@@ -110,10 +110,10 @@ describe('applyCrossDayDiff', () => {
     const result = applyCrossDayDiff(
       makeRecord('2026-07-11'),
       [
-        { entry: entry({ rut: '', bedId: 'NEO1' }), patient: haggen({ rut: '' }) },
+        { entry: entry({ rut: '', bedId: 'NEO1' }), patient: hamifu({ rut: '' }) },
         {
           entry: entry({ rut: '', bedId: 'NEO2' }),
-          patient: haggen({ rut: '', patientName: 'Otro' }),
+          patient: hamifu({ rut: '', patientName: 'Otro' }),
         },
       ],
       ctx
@@ -128,7 +128,7 @@ describe('applyCrossDayDiff', () => {
   it('routes a traslado into transfers[] with the corrected time', () => {
     const result = applyCrossDayDiff(
       makeRecord('2026-07-11'),
-      [{ entry: entry({ kind: 'traslado', correctedTime: '18:00' }), patient: haggen() }],
+      [{ entry: entry({ kind: 'traslado', correctedTime: '18:00' }), patient: hamifu() }],
       ctx
     );
     expect(result.record.transfers).toHaveLength(1);
@@ -137,11 +137,11 @@ describe('applyCrossDayDiff', () => {
   });
 
   it('files an associated RUN-less newborn on the same historical day without adding an egreso count', () => {
-    const patient = haggen({
+    const patient = hamifu({
       clinicalCrib: {
         ...EMPTY_PATIENT,
         bedId: 'NEO1',
-        patientName: 'RN de Haggen',
+        patientName: 'RN de Hamifu',
         rut: '',
         clinicalEpisodeId: 'NEWBORN-EPISODE',
       },
@@ -152,7 +152,7 @@ describe('applyCrossDayDiff', () => {
         {
           entry: entry({
             associatedClinicalCrib: {
-              patientName: 'RN de Haggen',
+              patientName: 'RN de Hamifu',
               rut: '',
               clinicalEpisodeId: 'NEWBORN-EPISODE',
             },
@@ -165,10 +165,10 @@ describe('applyCrossDayDiff', () => {
 
     expect(result.applied).toBe(1);
     expect(result.record.discharges).toEqual([
-      expect.objectContaining({ id: 'rayen-egreso:193385419:2026-07-11', isNested: false }),
+      expect.objectContaining({ id: 'rayen-egreso:100001209:2026-07-11', isNested: false }),
       expect.objectContaining({
         id: 'rayen-egreso:episode-NEWBORN-EPISODE:2026-07-11',
-        patientName: 'RN de Haggen',
+        patientName: 'RN de Hamifu',
         isNested: true,
       }),
     ]);
@@ -181,11 +181,11 @@ describe('applyCrossDayDiff', () => {
       [
         {
           entry: entry({ rut: '123', bedId: 'NEO1' }),
-          patient: haggen({ rut: '123', patientName: 'Paciente con RUT' }),
+          patient: hamifu({ rut: '123', patientName: 'Paciente con RUT' }),
         },
         {
           entry: entry({ rut: '', encounterId: '123', bedId: 'NEO2' }),
-          patient: haggen({ rut: '', patientName: 'Paciente sin RUT', clinicalEpisodeId: '123' }),
+          patient: hamifu({ rut: '', patientName: 'Paciente sin RUT', clinicalEpisodeId: '123' }),
         },
       ],
       ctx
@@ -203,7 +203,7 @@ describe('applyCrossDayDiff', () => {
       id: 'rayen-egreso:bed-NEO1:2026-07-11',
       clinicalEpisodeId: 'NEWBORN-EPISODE',
       rut: '',
-      patientName: 'RN de Haggen',
+      patientName: 'RN de Hamifu',
       bedId: 'NEO1',
       movementDate: '2026-07-11',
     });
@@ -212,7 +212,7 @@ describe('applyCrossDayDiff', () => {
       [
         {
           entry: entry({ rut: '', encounterId: 'NEWBORN-EPISODE' }),
-          patient: haggen({ rut: '', clinicalEpisodeId: 'NEWBORN-EPISODE' }),
+          patient: hamifu({ rut: '', clinicalEpisodeId: 'NEWBORN-EPISODE' }),
         },
       ],
       ctx
@@ -227,16 +227,16 @@ describe('applyCrossDayDiff', () => {
       id: 'manual-newborn-discharge',
       clinicalEpisodeId: 'NEWBORN-EPISODE',
       rut: '',
-      patientName: 'RN de Haggen',
+      patientName: 'RN de Hamifu',
       bedId: 'NEO1',
       movementDate: '2026-07-11',
       isNested: true,
     });
-    const patient = haggen({
+    const patient = hamifu({
       clinicalCrib: {
         ...EMPTY_PATIENT,
         bedId: 'NEO1',
-        patientName: 'RN de Haggen',
+        patientName: 'RN de Hamifu',
         rut: '',
         clinicalEpisodeId: 'NEWBORN-EPISODE',
       },
@@ -247,7 +247,7 @@ describe('applyCrossDayDiff', () => {
         {
           entry: entry({
             associatedClinicalCrib: {
-              patientName: 'RN de Haggen',
+              patientName: 'RN de Hamifu',
               rut: '',
               clinicalEpisodeId: 'NEWBORN-EPISODE',
             },
@@ -269,17 +269,17 @@ describe('applyCrossDayDiff', () => {
     const existingMother = asStoredDailyRecordShape<DailyRecord['discharges'][number]>({
       id: 'manual-maternal-discharge',
       clinicalEpisodeId: 'MOTHER-EPISODE',
-      rut: '19.338.541-9',
-      patientName: 'Haggen Estefanis Roe',
+      rut: '10.000.120-9',
+      patientName: 'Hamifu Etuduvupo Ralu',
       bedId: 'NEO1',
       movementDate: '2026-07-11',
     });
-    const patient = haggen({
+    const patient = hamifu({
       clinicalEpisodeId: 'MOTHER-EPISODE',
       clinicalCrib: {
         ...EMPTY_PATIENT,
         bedId: 'NEO1',
-        patientName: 'RN de Haggen',
+        patientName: 'RN de Hamifu',
         rut: '',
         clinicalEpisodeId: 'NEWBORN-EPISODE',
       },
@@ -291,7 +291,7 @@ describe('applyCrossDayDiff', () => {
           entry: entry({
             encounterId: 'MOTHER-EPISODE',
             associatedClinicalCrib: {
-              patientName: 'RN de Haggen',
+              patientName: 'RN de Hamifu',
               rut: '',
               clinicalEpisodeId: 'NEWBORN-EPISODE',
             },
@@ -344,7 +344,7 @@ describe('planPreviousDayEdits', () => {
     const edits = planPreviousDayEdits(
       diff({
         discharges: [
-          entry({ correctedDay: '2026-07-11', patientName: 'Haggen' }), // earlier → included
+          entry({ correctedDay: '2026-07-11', patientName: 'Hamifu' }), // earlier → included
           entry({ rut: '2-7', correctedDay: '2026-07-12', patientName: 'Hoy' }), // same day → excluded
           entry({ rut: '3-5', correctedDay: undefined, patientName: 'SinFecha' }), // no day → excluded
         ],
@@ -356,7 +356,7 @@ describe('planPreviousDayEdits', () => {
     expect(edits[0]).toMatchObject({
       day: '2026-07-11',
       reason: 'discharge-day-correction',
-      patientNames: ['Haggen'],
+      patientNames: ['Hamifu'],
       withinEditingWindow: true,
       isSigned: false,
     });
@@ -366,12 +366,12 @@ describe('planPreviousDayEdits', () => {
     const edits = planPreviousDayEdits(
       diff({
         discharges: [
-          entry({ rut: '19.338.541-9', correctedDay: '2026-07-11', patientName: 'YaEgresado' }),
+          entry({ rut: '10.000.120-9', correctedDay: '2026-07-11', patientName: 'YaEgresado' }),
           entry({ rut: '5-2', correctedDay: '2026-07-11', patientName: 'Falta' }),
         ],
       }),
       '2026-07-12',
-      { ...probes, alreadyDischarged: (_day, rut) => rut === '19.338.541-9' }
+      { ...probes, alreadyDischarged: (_day, rut) => rut === '10.000.120-9' }
     );
     // Only the still-missing patient survives; the already-recorded one is dropped from the message.
     expect(edits).toHaveLength(1);
@@ -442,7 +442,7 @@ describe('planPreviousDayEdits', () => {
       diff({
         reportEgresos: [
           {
-            run: '18.658.566-6',
+            run: '10.000.127-6',
             patientName: 'Koarahi Castillo',
             bedLabel: 'H1C1',
             destino: 'Domicilio',

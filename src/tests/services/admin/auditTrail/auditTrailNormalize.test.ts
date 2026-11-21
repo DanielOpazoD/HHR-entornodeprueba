@@ -349,16 +349,16 @@ describe('audit trail normalization', () => {
 
   it('uses one display name per staff member and drops duplicate documents', () => {
     const events = normalizeAuditTrailEvents([
-      auditLog({ id: 'a', userDisplayName: 'Daniel Opazo' }),
-      auditLog({ id: 'b', userDisplayName: 'Daniel Opazo Damiani' }),
-      auditLog({ id: 'c', userDisplayName: 'Daniel Opazo Damiani' }),
-      auditLog({ id: 'c', userDisplayName: 'Daniel Opazo Damiani' }),
+      auditLog({ id: 'a', userDisplayName: 'Degaro Opisu' }),
+      auditLog({ id: 'b', userDisplayName: 'Degaro Opisu Doliceg' }),
+      auditLog({ id: 'c', userDisplayName: 'Degaro Opisu Doliceg' }),
+      auditLog({ id: 'c', userDisplayName: 'Degaro Opisu Doliceg' }),
       auditLog({ id: 'd', userId: 'mobile-qr-upload', userDisplayName: undefined }),
     ]);
 
     expect(events).toHaveLength(4);
     expect(new Set(events.slice(0, 3).map(event => event.actor.name))).toEqual(
-      new Set(['Daniel Opazo Damiani'])
+      new Set(['Degaro Opisu Doliceg'])
     );
     expect(events.find(event => event.id === 'd')?.actor.name).toBe('Carga móvil QR');
   });

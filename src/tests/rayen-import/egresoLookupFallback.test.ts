@@ -11,7 +11,7 @@ const makeDiff = (): CensusImportDiff => ({
   pendingAdministrativeDischarges: [
     {
       bedId: 'R2',
-      rut: '22.025.389-9',
+      rut: '10.000.134-9',
       patientName: 'Paciente Egresado',
       signal: 'missing-from-ficha',
       encounterId: '141704',
@@ -41,7 +41,7 @@ const makeRecord = (): DailyRecord => ({
     R2: {
       ...EMPTY_PATIENT,
       bedId: 'R2',
-      rut: '22.025.389-9',
+      rut: '10.000.134-9',
       patientName: 'Paciente Egresado',
       clinicalEpisodeId: '141704',
       admissionDate: '2026-07-18',
@@ -66,7 +66,7 @@ describe('applyEgresoLookupFallback', () => {
       makeDiff(),
       [
         {
-          run: '220253899',
+          run: '100001349',
           encounterId: '141704',
           egreso: { dateDischarge, hasAdministrativeDischarge: true },
         },
@@ -87,7 +87,7 @@ describe('applyEgresoLookupFallback', () => {
       makeDiff(),
       [
         {
-          run: '220253899',
+          run: '100001349',
           encounterId: '141704',
           egreso: {
             endPeriod: '2026-07-20T00:26:00',
@@ -109,7 +109,7 @@ describe('applyEgresoLookupFallback', () => {
       makeDiff(),
       [
         {
-          run: '220253899',
+          run: '100001349',
           encounterId: '141704',
           egreso: {
             hasAdministrativeDischarge: true,
@@ -132,7 +132,7 @@ describe('applyEgresoLookupFallback', () => {
       makeDiff(),
       [
         {
-          run: '220253899',
+          run: '100001349',
           encounterId: '141704',
           egreso: {
             id: 141704,
@@ -195,7 +195,7 @@ describe('applyEgresoLookupFallback', () => {
       diff,
       [
         {
-          run: '220253899',
+          run: '100001349',
           encounterId: '141704',
           egreso: {
             id: 141704,
@@ -217,7 +217,7 @@ describe('applyEgresoLookupFallback', () => {
       diff,
       [
         {
-          run: '220253899',
+          run: '100001349',
           encounterId: '120001',
           egreso: { id: 120001, endPeriod: '2025-01-02T10:00:00-03:00' },
         },
@@ -241,7 +241,7 @@ describe('applyEgresoLookupFallback', () => {
       diff,
       [
         {
-          run: '220253899',
+          run: '100001349',
           encounterId: '141704',
           egreso: {
             id: 141704,
@@ -264,7 +264,7 @@ describe('applyEgresoLookupFallback', () => {
       diff,
       [
         {
-          run: '220253899',
+          run: '100001349',
           encounterId: '141704',
           egreso: {
             id: 141704,

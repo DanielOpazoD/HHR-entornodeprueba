@@ -45,7 +45,7 @@ const record = (a: PatientData, b?: PatientData, targetOccupied = true): DailyRe
     {
       ...encounter,
       encounterId: 'MOTHER',
-      run: '144700554',
+      run: '100001314',
       birthDate: '1980-01-01',
       firstGivenName: 'Madre sintética',
       room: 'H5',

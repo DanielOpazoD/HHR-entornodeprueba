@@ -240,9 +240,9 @@ describe('DemographicsModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Rellenar paciente ficticio' }));
 
-    expect(screen.getByPlaceholderText('Nombre')).toHaveValue('Daniel');
-    expect(screen.getByPlaceholderText('Apellido paterno')).toHaveValue('Opazo');
-    expect(screen.getByPlaceholderText('Apellido materno')).toHaveValue('Damiani');
+    expect(screen.getByPlaceholderText('Nombre')).toHaveValue('Degaro');
+    expect(screen.getByPlaceholderText('Apellido paterno')).toHaveValue('Opisu');
+    expect(screen.getByPlaceholderText('Apellido materno')).toHaveValue('Doliceg');
     expect(screen.getByPlaceholderText('12.345.678-9')).toHaveValue('17.752.753-K');
 
     const birthDateInput = document.querySelector('input[type="date"]');
@@ -267,10 +267,10 @@ describe('DemographicsModal', () => {
 
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
-        firstName: 'Daniel',
-        lastName: 'Opazo',
-        secondLastName: 'Damiani',
-        patientName: 'Daniel Opazo Damiani',
+        firstName: 'Degaro',
+        lastName: 'Opisu',
+        secondLastName: 'Doliceg',
+        patientName: 'Degaro Opisu Doliceg',
         rut: '17.752.753-K',
         birthDate: '1990-11-15',
       })

@@ -324,7 +324,7 @@ describe('RayenImportButton feedback', () => {
         updates: [
           {
             bedId: 'H2C1',
-            rut: '22.025.389-9',
+            rut: '10.000.134-9',
             patientName: 'Paciente prueba',
             changes: [],
             patient: {},
@@ -360,7 +360,7 @@ describe('RayenImportButton feedback', () => {
       staffingProposal: {
         censusDate: '2026-07-21',
         day: {
-          names: ['Camila Leiva'],
+          names: ['Camila Litus'],
           candidates: [],
           ignoredBoundaryRecords: 0,
           ambiguous: false,
@@ -381,7 +381,7 @@ describe('RayenImportButton feedback', () => {
       id,
       startedAt,
       completedAt: startedAt,
-      by: 'Daniel Opazo',
+      by: 'Degaro Opisu',
       status: 'complete' as const,
       coverage: { total: 8, completed: 8, errors: 0, sourceErrors: 0, completedAt: startedAt },
       changes: { admissions: 0, updates: 0, moves: 0, discharges: 0, unchanged: 8 },
@@ -416,7 +416,7 @@ describe('RayenImportButton feedback', () => {
     const appliedEvent = (id: string, startedAt: string) => ({
       id,
       startedAt,
-      by: 'Daniel Opazo',
+      by: 'Degaro Opisu',
       status: 'applied' as const,
       changes: { admissions: 0, updates: 0, moves: 0, discharges: 0, unchanged: 8 },
       source: {
@@ -427,7 +427,7 @@ describe('RayenImportButton feedback', () => {
     });
     mocks.useDailyRecordData.mockReturnValue({
       record: {
-        rayenSync: { at: '2026-07-14T13:00:00.000Z', by: 'Daniel Opazo', status: 'applied' },
+        rayenSync: { at: '2026-07-14T13:00:00.000Z', by: 'Degaro Opisu', status: 'applied' },
         rayenSyncHistory: [
           appliedEvent('applied-2', '2026-07-14T13:00:00.000Z'),
           appliedEvent('applied-1', '2026-07-14T12:00:00.000Z'),
@@ -446,7 +446,7 @@ describe('RayenImportButton feedback', () => {
 
   it('does not expose a second last-sync information control in the toolbar', () => {
     mocks.useDailyRecordData.mockReturnValue({
-      record: { rayenSync: { at: '2026-07-13T18:32:00.000Z', by: 'Daniel Opazo' } },
+      record: { rayenSync: { at: '2026-07-13T18:32:00.000Z', by: 'Degaro Opisu' } },
     });
 
     render(<RayenImportButton />);

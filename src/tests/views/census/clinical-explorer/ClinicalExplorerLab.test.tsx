@@ -225,7 +225,7 @@ describe('ClinicalExplorerLab', () => {
     const other = {
       ...patient!,
       episodeId: 'ep-2',
-      data: { ...patient!.data, rut: '5.844.865-6' },
+      data: { ...patient!.data, rut: '1.000.105-6' },
     };
     view.switchTo(other);
     const next = await screen.findByRole('region', { name: 'Laboratorio' });
