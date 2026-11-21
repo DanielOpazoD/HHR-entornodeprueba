@@ -3,7 +3,7 @@
 Servicios con I/O compartidos: repositorios del registro diario (`repositories/`),
 almacenamiento local, Firestore y cola (`storage/`), autenticación (`auth/`), telemetría
 (`observability/`), Firebase (`firebase-runtime/`), exportación, PDF, correo e integraciones
-externas. La inyección de repositorios en la aplicación vive en `RepositoryContext.tsx`. Aquí
+externas. La inyección de repositorios en la aplicación vive en `src/context/RepositoryContext.tsx`. Aquí
 no van componentes, hooks de UI ni lógica de presentación; un servicio que usa una sola área
 va en esa área.
 

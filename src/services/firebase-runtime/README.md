@@ -7,6 +7,7 @@ sin repartir la inicialización por hooks, servicios o features.
 
 ## Piezas principales
 
+- `firebaseConfig.ts`: bootstrap del SDK cliente (app, auth, Firestore y servicios diferidos).
 - `firebaseConfigLoader.ts`: carga config y aplica policy de entorno.
 - `firebaseServiceBootstrap.ts`: inicializa `app`, `auth` y `db`, con fallback controlado de persistencia.
 - `firebaseConfigRuntimeAdapter.ts`: adapter canónico que entrega instancias listas o diferidas.
