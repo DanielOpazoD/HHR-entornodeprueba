@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildMoveOrCopyPatch } from '@/hooks/useBedOperationsController';
+import { buildMovePatientPatches } from '@/hooks/controllers/bedManagementPatchController';
 import { buildDischargeEntries } from '@/features/census/controllers/patientMovementDischargeMutationController';
 import { resolveConflictSnapshotRecoveryState } from '@/application/clinical-conflicts/conflictSnapshotRecoveryPresentation';
 import { buildConflictAuditSummary } from '@/services/repositories/conflictResolutionAuditSummary';
@@ -39,7 +39,7 @@ describe('daily record census incident regression', () => {
       },
     };
 
-    const movePatch = buildMoveOrCopyPatch(pierreJeanRecord, 'move', 'H2C1', 'H2C2');
+    const movePatch = buildMovePatientPatches(pierreJeanRecord, 'H2C1', 'H2C2');
 
     expect(movePatch?.['beds.H2C2']).toEqual(
       expect.objectContaining({
