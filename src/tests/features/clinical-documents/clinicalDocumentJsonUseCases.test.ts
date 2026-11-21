@@ -5,7 +5,7 @@ import {
   buildClinicalDocumentJsonExport,
   buildClinicalDocumentJsonFileName,
   prepareClinicalDocumentJsonImportDraft,
-} from '@/application/clinical-documents/clinicalDocumentJsonUseCases';
+} from '@/features/clinical-documents/use-cases/clinicalDocumentJsonUseCases';
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
 import type { ClinicalDocumentAuditActor } from '@/domain/clinical-documents/entities';
 

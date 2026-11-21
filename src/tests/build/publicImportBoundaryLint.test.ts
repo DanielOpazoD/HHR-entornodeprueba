@@ -75,7 +75,7 @@ describe('public imports in ESLint', () => {
             feature === 'laboratory'
               ? 'hooks/useSyslabAccess'
               : feature === 'census'
-                ? 'controllers/bedManagerModalController'
+                ? 'controllers/censusCmaController'
                 : 'internal';
           // internal is a governed public module for clinical-documents; explicit extension is not.
           const target = `${feature}/${module}.ts`;
@@ -96,7 +96,7 @@ describe('public imports in ESLint', () => {
           expect(
             await errors(
               `src/${layer}/Probe.${extension}`,
-              code('@/features/census/controllers/bedManagerModalController')
+              code('@/features/census/controllers/censusCmaController')
             )
           ).toHaveLength(1);
         }
@@ -170,8 +170,8 @@ describe('public imports in ESLint', () => {
     }
   });
   it('keeps no census shim or overlay exception', async () => {
-    const target = '@/features/census/controllers/bedManagerModalController';
-    const file = 'src/hooks/controllers/bedManagerModalController.ts';
+    const target = '@/features/census/controllers/censusCmaController';
+    const file = 'src/hooks/controllers/censusCmaController.ts';
     expect(await errors(file, `export * from '${target}';`)).toHaveLength(1);
     expect(await errors(file, `import('${target}');`)).toHaveLength(1);
     // The overlay import is a public surface; the folder rule rejects it from components

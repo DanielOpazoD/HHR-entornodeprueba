@@ -59,15 +59,15 @@ describe('census startup payload', () => {
     const consumers = [
       'StatisticalDischargeProvenanceBadge.tsx',
       'usePatientHospitalizationReports.ts',
+      'eloisaAdmissionInput.ts',
     ].map(file => `src/features/census/components/${file}`);
-    consumers.push('src/application/census/eloisaAdmissionInput.ts');
     for (const file of consumers) {
       const source = read(file);
       expect(source).toContain('@/features/rayen-import/census-status');
       expect(source).not.toMatch(/from '@\/features\/rayen-import'/);
     }
     const table = read('src/features/census/components/CensusTable.tsx');
-    expect(table).toContain('@/application/census/eloisaAdmissionInput');
+    expect(table).toContain('@/features/census/components/eloisaAdmissionInput');
     expect(table).not.toMatch(/from '@\/features\/rayen-import'/);
     // The narrow surface must stay narrow: re-exporting the barrel would undo the split.
     expect(read('src/features/rayen-import/census-status.ts')).not.toMatch(

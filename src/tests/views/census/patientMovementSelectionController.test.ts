@@ -4,7 +4,7 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import {
   selectDischargeUndoMovement,
   selectTransferUndoMovement,
-} from '@/features/census/controllers/patientMovementSelectionController';
+} from '@/application/census/controllers/patientMovementSelectionController';
 
 describe('patientMovementSelectionController', () => {
   it('selects discharge movement by id', () => {

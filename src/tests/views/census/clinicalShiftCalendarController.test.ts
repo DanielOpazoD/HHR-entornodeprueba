@@ -9,7 +9,7 @@ import {
   resolveMovementDateTimeValidationError,
   resolveMovementEditorInitialDate,
   resolveMovementTimeInputMax,
-} from '@/features/census/controllers/clinicalShiftCalendarController';
+} from '@/application/census/controllers/clinicalShiftCalendarController';
 
 describe('clinicalShiftCalendarController', () => {
   it('infers next day for madrugada movement time', () => {

@@ -8,20 +8,23 @@ import { useClinicalDocumentWorkspaceDraft } from '@/features/clinical-documents
 const executePersistClinicalDocumentEditorDraft = vi.fn();
 const resolveClinicalDocumentAutosaveCommit = vi.fn();
 
-vi.mock('@/application/clinical-documents/clinicalDocumentEditorUseCases', async importOriginal => {
-  const actual =
-    await importOriginal<
-      typeof import('@/application/clinical-documents/clinicalDocumentEditorUseCases')
-    >();
+vi.mock(
+  '@/features/clinical-documents/use-cases/clinicalDocumentEditorUseCases',
+  async importOriginal => {
+    const actual =
+      await importOriginal<
+        typeof import('@/features/clinical-documents/use-cases/clinicalDocumentEditorUseCases')
+      >();
 
-  return {
-    ...actual,
-    executePersistClinicalDocumentEditorDraft: (...args: unknown[]) =>
-      executePersistClinicalDocumentEditorDraft(...args),
-    resolveClinicalDocumentAutosaveCommit: (...args: unknown[]) =>
-      resolveClinicalDocumentAutosaveCommit(...args),
-  };
-});
+    return {
+      ...actual,
+      executePersistClinicalDocumentEditorDraft: (...args: unknown[]) =>
+        executePersistClinicalDocumentEditorDraft(...args),
+      resolveClinicalDocumentAutosaveCommit: (...args: unknown[]) =>
+        resolveClinicalDocumentAutosaveCommit(...args),
+    };
+  }
+);
 
 const buildDraft = (id: string, content: string): ClinicalDocumentRecord => {
   const draft = createClinicalDocumentDraft({

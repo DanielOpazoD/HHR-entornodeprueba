@@ -7,7 +7,7 @@ import {
   executeRegenerateClinicalAttachmentAccess,
   executeRenameClinicalAttachment,
   executeUploadClinicalAttachment,
-} from '@/application/clinical-documents/clinicalAttachmentUseCases';
+} from '@/features/clinical-documents/use-cases/clinicalAttachmentUseCases';
 
 const actor = {
   uid: 'u1',

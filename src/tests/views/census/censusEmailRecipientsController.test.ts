@@ -11,7 +11,7 @@ import {
   resolveStoredRecipients,
   resolveUpdateRecipient,
   resolveVisibleRecipients,
-} from '@/features/census/controllers/censusEmailRecipientsController';
+} from '@/application/census/controllers/censusEmailRecipientsController';
 
 describe('censusEmailRecipientsController', () => {
   it('normalizes and sanitizes recipients safely', () => {

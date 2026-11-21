@@ -13,7 +13,7 @@ import {
   serializeClinicalDocument,
 } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
 import { executeCreateClinicalDocumentDraft } from '@/application/clinical-documents/clinicalDocumentUseCases';
-import { prepareClinicalDocumentJsonImportDraft } from '@/application/clinical-documents/clinicalDocumentJsonUseCases';
+import { prepareClinicalDocumentJsonImportDraft } from '@/features/clinical-documents/use-cases/clinicalDocumentJsonUseCases';
 import { extractClinicalDocumentAiImportFileText } from '@/features/clinical-documents/services/clinicalDocumentAiFileTextService';
 import { transformClinicalDocumentAiImportText } from '@/features/clinical-documents/services/clinicalDocumentAiImportService';
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';

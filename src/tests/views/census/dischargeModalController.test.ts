@@ -7,7 +7,7 @@ import {
   mapDischargeValidationErrors,
   shouldShowBabyStatus,
   shouldShowMotherStatus,
-} from '@/features/census/controllers/dischargeModalController';
+} from '@/application/census/controllers/dischargeModalController';
 
 describe('dischargeModalController', () => {
   it('builds initial state with defaults when no initial data exists', () => {

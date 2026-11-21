@@ -4,7 +4,7 @@ import {
   resolveMovementDisplayDate,
   resolveMovementDisplayDateLabel,
   resolveMovementDateTimeDisplayValue,
-} from '@/features/census/controllers/censusMovementDatePresentationController';
+} from '@/application/census/controllers/censusMovementDatePresentationController';
 
 describe('censusMovementDatePresentationController', () => {
   it('returns record date when movement time is missing', () => {

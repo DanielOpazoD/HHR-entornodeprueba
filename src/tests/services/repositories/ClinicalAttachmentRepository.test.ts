@@ -4,7 +4,7 @@ import { createClinicalAttachmentRepository } from '@/services/repositories/Clin
 import {
   executeListClinicalAttachmentsByEpisode,
   executeListClinicalAttachmentsByPatient,
-} from '@/application/clinical-documents/clinicalAttachmentUseCases';
+} from '@/features/clinical-documents/use-cases/clinicalAttachmentUseCases';
 import type { ClinicalAttachmentRecord } from '@/shared/clinical-documents/clinicalAttachmentContracts';
 import type { ClinicalAttachmentStorageRuntime } from '@/services/firebase-runtime/clinicalAttachmentRuntime';
 

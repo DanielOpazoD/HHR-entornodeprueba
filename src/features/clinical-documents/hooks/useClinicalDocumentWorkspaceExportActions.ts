@@ -4,7 +4,7 @@ import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entitie
 import {
   buildClinicalDocumentJsonFileName,
   stringifyClinicalDocumentJsonExport,
-} from '@/application/clinical-documents/clinicalDocumentJsonUseCases';
+} from '@/features/clinical-documents/use-cases/clinicalDocumentJsonUseCases';
 import type { ClinicalDocumentAnnexPrintMode } from '@/features/clinical-documents/services/clinicalDocumentPrintSupport';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { recordCriticalClinicalAction } from '@/services/observability/criticalClinicalActionRecorder';
@@ -26,7 +26,7 @@ interface UseClinicalDocumentWorkspaceExportActionsParams {
 }
 
 const loadClinicalDocumentPrintUseCase = async () =>
-  import('@/application/clinical-documents/clinicalDocumentPrintOpenUseCase').then(
+  import('@/features/clinical-documents/use-cases/clinicalDocumentPrintOpenUseCase').then(
     module => module.executeOpenClinicalDocumentPrint
   );
 

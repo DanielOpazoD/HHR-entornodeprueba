@@ -15,7 +15,7 @@ import {
 } from '@/context/DailyRecordContext';
 import { useDailyRecordStaffActions } from '@/context/useDailyRecordScopedActions';
 import { useStaffContext } from '@/context/StaffContext';
-import { buildCensusStaffHeaderReadModel } from '@/application/census/censusStaffHeaderReadModel';
+import { buildCensusStaffHeaderReadModel } from '@/features/census/controllers/censusStaffHeaderReadModel';
 import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import type { DetailedStaffingRole } from '@/types/domain/dailyRecordStaffingDetails';
 // Keep the first paint responsive and recover interrupted panel downloads without

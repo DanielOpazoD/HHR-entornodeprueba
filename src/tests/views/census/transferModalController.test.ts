@@ -11,7 +11,7 @@ import {
   buildTransferValidationErrors,
   resolveTransferInitialTime,
   resolveTransferMethodChangeEffects,
-} from '@/features/census/controllers/transferModalController';
+} from '@/application/census/controllers/transferModalController';
 
 describe('transferModalController', () => {
   it('resolves transfer time preferring initial time', () => {

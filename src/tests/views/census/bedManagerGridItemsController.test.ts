@@ -4,7 +4,7 @@ import { BEDS } from '@/constants/beds';
 import {
   resolveBlockedBedsGridItems,
   resolveExtraBedsGridItems,
-} from '@/features/census/controllers/bedManagerGridItemsController';
+} from '@/application/census/controllers/bedManagerGridItemsController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
 

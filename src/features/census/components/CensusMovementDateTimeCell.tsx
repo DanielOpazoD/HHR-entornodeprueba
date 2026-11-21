@@ -1,6 +1,6 @@
 import React from 'react';
 import { Clock3 } from 'lucide-react';
-import { resolveMovementDateTimeDisplayValue } from '@/features/census/controllers/censusMovementDatePresentationController';
+import { resolveMovementDateTimeDisplayValue } from '@/application/census/controllers/censusMovementDatePresentationController';
 
 interface CensusMovementDateTimeCellProps {
   recordDate: string;

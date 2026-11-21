@@ -6,7 +6,7 @@ import {
   EVACUATION_METHOD_COMMERCIAL,
 } from '@/constants/clinicalMovementConstants';
 import { useTransferModalForm } from '@/hooks/useTransferModalForm';
-import { MOVEMENT_DATE_TIME_OUT_OF_RANGE_ERROR } from '@/features/census/controllers/clinicalShiftCalendarController';
+import { MOVEMENT_DATE_TIME_OUT_OF_RANGE_ERROR } from '@/application/census/controllers/clinicalShiftCalendarController';
 
 describe('useTransferModalForm', () => {
   it('applies evacuation side effects and clears dependent fields', () => {

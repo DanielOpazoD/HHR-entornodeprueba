@@ -7,7 +7,7 @@ import type { DischargeAddCommandPayload } from '@/types/movements';
 import {
   buildClearedBedPatient,
   type MovementAuditEntry,
-} from '@/features/census/controllers/patientMovementCreationSharedController';
+} from '@/application/census/controllers/patientMovementCreationSharedController';
 import { ensurePatientClinicalEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import type { MovementProvenanceSeed } from '@/application/census/movementProvenancePolicy';
 import { buildMovementRow } from '@/application/census/movementRowBuilder';

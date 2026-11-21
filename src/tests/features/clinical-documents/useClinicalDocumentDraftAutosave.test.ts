@@ -14,7 +14,7 @@ const auditContextMocks = vi.hoisted(() => ({
   recordCriticalClinicalAction: vi.fn(),
 }));
 
-vi.mock('@/application/clinical-documents/clinicalDocumentEditorUseCases', () => ({
+vi.mock('@/features/clinical-documents/use-cases/clinicalDocumentEditorUseCases', () => ({
   executePersistClinicalDocumentEditorDraft: (...args: unknown[]) =>
     executePersistClinicalDocumentEditorDraft(...args),
   resolveClinicalDocumentAutosaveCommit: (...args: unknown[]) =>

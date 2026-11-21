@@ -8,7 +8,7 @@ import {
   executeRenameClinicalAttachment,
   executeSuggestClinicalAttachmentDisplayName,
   executeUploadClinicalAttachment,
-} from '@/application/clinical-documents/clinicalAttachmentUseCases';
+} from '@/features/clinical-documents/use-cases/clinicalAttachmentUseCases';
 import {
   resolveClinicalAttachmentFilePolicy,
   type ClinicalAttachmentFilePolicyAction,

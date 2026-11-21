@@ -5,8 +5,8 @@ import type { ClinicalDocumentDraftBaseState } from '@/features/clinical-documen
 import {
   resolveClinicalDocumentAutosaveCommit,
   resolveClinicalDocumentDraftLoad,
-} from '@/application/clinical-documents/clinicalDocumentEditorUseCases';
-import { executeOpenClinicalDocumentPrint } from '@/application/clinical-documents/clinicalDocumentPrintOpenUseCase';
+} from '@/features/clinical-documents/use-cases/clinicalDocumentEditorUseCases';
+import { executeOpenClinicalDocumentPrint } from '@/features/clinical-documents/use-cases/clinicalDocumentPrintOpenUseCase';
 import { openClinicalDocumentBrowserPrintPreview } from '@/features/clinical-documents/services/clinicalDocumentPrintPdfService';
 
 vi.mock('@/features/clinical-documents/services/clinicalDocumentPrintPdfService', () => ({
