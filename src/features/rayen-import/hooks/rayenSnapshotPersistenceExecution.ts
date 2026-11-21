@@ -27,7 +27,10 @@ import {
   type RayenSyncStage,
 } from './rayenSyncExecutionState';
 import type { PreparedRayenSyncContext } from './rayenSyncTemporalContext';
-import type { ConfirmedRayenCensusApplyResult } from './useRayenCensusDiffApplication';
+import type {
+  ApplyRayenCensusDiff,
+  ConfirmedRayenCensusApplyResult,
+} from './useRayenCensusDiffApplication';
 
 export type CommittedRayenStructuralPersistenceOutcome = Exclude<
   RayenStructuralPersistenceOutcome,
@@ -148,7 +151,7 @@ interface PersistRayenStructureThenClinicalInput {
   dailyRecord: DailyRecordRepositoryPort;
   isAdmin: boolean;
   ensureRun: ConfirmedRayenImportInput['ensureRun'];
-  applyDiff: ConfirmedRayenImportInput['applyDiff'];
+  applyDiff: ApplyRayenCensusDiff;
   loadAuthoritativeStructuralRecord: (date: string) => Promise<DailyRecord>;
   recordRunPerformance: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
   failRun: (reason: RayenApplyFailureReason, runId?: string, applyError?: unknown) => Promise<void>;
@@ -304,7 +307,8 @@ export const persistRayenStructureThenClinical = async ({
           dailyRecord,
           isAdmin,
           ensureRun,
-          applyDiff,
+          // The day's write turn may wait for another edit; the send re-checks this run's session.
+          applyDiff: (record, diff, clinicalDay) => applyDiff(record, diff, clinicalDay, session),
           getFreshRecord: () => loadAuthoritativeStructuralRecord(writePlan.base.date),
           createId: () => crypto.randomUUID(),
           onRetry: () =>

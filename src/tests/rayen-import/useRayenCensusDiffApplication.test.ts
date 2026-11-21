@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import { describe, expect, it, vi } from 'vitest';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -96,7 +97,7 @@ describe('useRayenCensusDiffApplication', () => {
     );
 
     await act(async () => {
-      await result.current(baseRecord, diff);
+      await result.current(baseRecord, diff, undefined, guardAuthoringSession());
     });
 
     const [savedRecord, expectedLastUpdated] = saveDailyRecord.mock.calls[0];
@@ -168,7 +169,7 @@ describe('useRayenCensusDiffApplication', () => {
 
     let applied: Awaited<ReturnType<typeof result.current>> | undefined;
     await act(async () => {
-      applied = await result.current(baseRecord, diff);
+      applied = await result.current(baseRecord, diff, undefined, guardAuthoringSession());
     });
 
     expect(applied?.record.lastUpdated).toBe(confirmedAt);
@@ -245,7 +246,7 @@ describe('useRayenCensusDiffApplication', () => {
 
     let applied: Awaited<ReturnType<typeof result.current>> | undefined;
     await act(async () => {
-      applied = await result.current(baseRecord, diff);
+      applied = await result.current(baseRecord, diff, undefined, guardAuthoringSession());
     });
 
     expect(loadAuthoritativeRecord).toHaveBeenCalledTimes(2);
@@ -331,7 +332,7 @@ describe('useRayenCensusDiffApplication', () => {
     );
 
     await act(async () => {
-      await result.current(baseRecord, diff);
+      await result.current(baseRecord, diff, undefined, guardAuthoringSession());
     });
 
     const [, patch, options] = checkpointDailyRecord.mock.calls[0];
@@ -378,7 +379,7 @@ describe('useRayenCensusDiffApplication', () => {
     let rejection: unknown;
     await act(async () => {
       try {
-        await result.current(baseRecord, diff);
+        await result.current(baseRecord, diff, undefined, guardAuthoringSession());
       } catch (error) {
         rejection = error;
       }
@@ -444,7 +445,7 @@ describe('useRayenCensusDiffApplication', () => {
     );
 
     await act(async () => {
-      await result.current(baseRecord, diff);
+      await result.current(baseRecord, diff, undefined, guardAuthoringSession());
     });
 
     expect(saveDailyRecord).toHaveBeenCalledTimes(1);
@@ -507,7 +508,7 @@ describe('useRayenCensusDiffApplication', () => {
     );
 
     await act(async () => {
-      await result.current(baseRecord, diff);
+      await result.current(baseRecord, diff, undefined, guardAuthoringSession());
     });
 
     expect(saveDailyRecord).toHaveBeenCalledTimes(1);

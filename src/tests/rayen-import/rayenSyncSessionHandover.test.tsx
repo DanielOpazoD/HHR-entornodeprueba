@@ -16,6 +16,7 @@ import { INITIAL_RAYEN_IMPORT_STATE } from '@/features/rayen-import/hooks/rayenI
 import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
 import {
   captureFor,
   emptyRecordFor,
@@ -128,7 +129,13 @@ const sessionLabel = () => {
 };
 
 type Route = 'automatic' | 'reviewed';
-type Handover = 'none' | 'owner' | 'generation' | 'after-commit';
+type Handover =
+  | 'none'
+  | 'owner'
+  | 'generation'
+  | 'day-turn-owner'
+  | 'day-turn-generation'
+  | 'after-commit';
 
 const runSync = async (route: Route, handover: Handover) => {
   const base = emptyRecordFor(date, { beds: route === 'reviewed' ? { H1C1: patient } : {} });
@@ -143,6 +150,8 @@ const runSync = async (route: Route, handover: Handover) => {
   const queueEntered = deferred();
   const committed = deferred();
   const releaseAfterCommit = deferred();
+  const dayTurnBusy = deferred();
+  const dayTurnRequested = deferred();
   const queryClient = new QueryClient();
   if (handover === 'after-commit') {
     // Pause after the structural write, while the census cache is still being refreshed.
@@ -235,7 +244,10 @@ const runSync = async (route: Route, handover: Handover) => {
       ensureRun: audit.ensureRun,
       failRun: (...args: Parameters<typeof audit.failRun>) =>
         queue.run(() => audit.failRun(...args)),
-      applyDiff,
+      applyDiff: (...args: Parameters<typeof applyDiff>) => {
+        dayTurnRequested.resolve();
+        return applyDiff(...args);
+      },
       runSerializedPersistence: <T,>(operation: () => Promise<T>) => {
         queueEntered.resolve();
         return queue.run(operation);
@@ -288,6 +300,10 @@ const runSync = async (route: Route, handover: Handover) => {
       );
     }
     const blocker = queue.run(() => queueBusy.promise);
+    // Another edit of the same day holds its write turn while the run leaves the Eloísa queue.
+    const dayEdit = handover.startsWith('day-turn')
+      ? runExclusiveDailyRecordWrite(date, () => dayTurnBusy.promise)
+      : Promise.resolve();
     let work!: Promise<void>;
     await act(async () => {
       work = route === 'reviewed' ? hook.result.current.confirm() : preview();
@@ -310,6 +326,12 @@ const runSync = async (route: Route, handover: Handover) => {
       expect(startedBy.isCurrent()).toBe(false);
     }
     queueBusy.resolve();
+    if (handover === 'day-turn-owner' || handover === 'day-turn-generation') {
+      await dayTurnRequested.promise;
+      hook.unmount();
+      admit(handover === 'day-turn-owner' ? 'owner-B' : 'owner-A', 'second');
+      dayTurnBusy.resolve();
+    }
     if (handover === 'after-commit') {
       await committed.promise;
       hook.unmount();
@@ -318,6 +340,7 @@ const runSync = async (route: Route, handover: Handover) => {
     }
     await act(async () => {
       await blocker;
+      await dayEdit;
       await work;
       await queue.run(async () => undefined);
     });
@@ -329,6 +352,7 @@ const runSync = async (route: Route, handover: Handover) => {
     };
   } finally {
     queueBusy.resolve();
+    dayTurnBusy.resolve();
     releaseAfterCommit.resolve();
     hook.unmount();
     await db.delete();
@@ -367,6 +391,22 @@ describe('Eloísa sync stops when the session changes while it waits for the wri
     ['reviewed', 'generation'],
   ] as const)(
     '%s route, %s change: writes nothing and enters no clinical stage',
+    async (route, handover) => {
+      await expect(runSync(route, handover)).resolves.toEqual({
+        writes: [],
+        history: [],
+        discharges: 0,
+      });
+    }
+  );
+
+  it.each([
+    ['automatic', 'day-turn-owner'],
+    ['automatic', 'day-turn-generation'],
+    ['reviewed', 'day-turn-owner'],
+    ['reviewed', 'day-turn-generation'],
+  ] as const)(
+    '%s route, change (%s) while another edit holds the day: writes nothing',
     async (route, handover) => {
       await expect(runSync(route, handover)).resolves.toEqual({
         writes: [],
