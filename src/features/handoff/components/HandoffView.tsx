@@ -1,14 +1,12 @@
 import React from 'react';
+import { MessageSquare } from 'lucide-react';
 import './nursingHandoff.css';
 import { HandoffChecklistSection } from './HandoffChecklistSection';
 import { HandoffCudyrPrint } from './HandoffCudyrPrint';
 import { HandoffPrintHeader } from './HandoffPrintHeader';
 import { HandoffNursingContent } from './HandoffNursingContent';
 import { useUIState, UseUIStateReturn } from '@/hooks/useUIState';
-import {
-  buildNursingHandoffContentBindings,
-  shouldShowNightCudyrActions,
-} from '@/features/handoff/controllers/handoffViewController';
+import { shouldShowNightCudyrActions } from '@/features/handoff/controllers/handoffViewController';
 import { useHandoffViewScreenModel } from '@/features/handoff/hooks/useHandoffViewScreenModel';
 interface HandoffViewProps {
   readOnly?: boolean;
@@ -23,10 +21,6 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
   readOnly = false,
   ui: handoffUi,
 }) => {
-  const screenModel = useHandoffViewScreenModel({
-    readOnly,
-    ui: handoffUi,
-  });
   const {
     record,
     title,
@@ -49,8 +43,7 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
     updateHandoffNovedades,
     updateHandoffReceives,
     tableHeaderClass,
-    Icon,
-  } = screenModel;
+  } = useHandoffViewScreenModel({ readOnly, ui: handoffUi });
   if (!record) {
     return (
       <div className="p-8 text-center text-slate-500 font-sans">
@@ -59,25 +52,12 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
     );
   }
 
-  const nursingContentBindings = buildNursingHandoffContentBindings({
-    visibleBeds,
-    record,
-    noteField,
-    onNoteChange: handleNursingNoteChange,
-    tableHeaderClass,
-    readOnly: effectiveReadOnly,
-    hasAnyPatients,
-    shouldShowPatient,
-    clinicalEventActions,
-    selectedShift,
-    updateHandoffNovedades,
-  });
   return (
     <div className="nursing-handoff space-y-3 print:space-y-2 animate-fade-in pb-20 font-sans max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 print:max-w-none print:w-full print:px-0 print:pb-0">
       <HandoffPrintHeader
         title={title}
         dateString={formatPrintDate()}
-        Icon={Icon}
+        Icon={MessageSquare}
         schedule={schedule}
         selectedShift={selectedShift}
         deliversList={deliversList}
@@ -97,7 +77,19 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
         onUpdateReceives={updateHandoffReceives}
         onUpdateChecklist={updateHandoffChecklist}
       />
-      <HandoffNursingContent {...nursingContentBindings} />
+      <HandoffNursingContent
+        visibleBeds={visibleBeds}
+        record={record}
+        noteField={noteField}
+        onNoteChange={handleNursingNoteChange}
+        tableHeaderClass={tableHeaderClass}
+        readOnly={effectiveReadOnly}
+        hasAnyPatients={hasAnyPatients}
+        shouldShowPatient={shouldShowPatient}
+        clinicalEventActions={clinicalEventActions}
+        selectedShift={selectedShift}
+        updateHandoffNovedades={updateHandoffNovedades}
+      />
       {shouldShowNightCudyrActions(selectedShift) && (
         <div className="print:break-before-page">
           <HandoffCudyrPrint />

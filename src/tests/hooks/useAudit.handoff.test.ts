@@ -14,6 +14,40 @@ vi.mock('@/application/audit/writeAuditEventUseCase', () => ({
 
 const writes = () => vi.mocked(writeAuditUseCase.executeWriteAuditEvent).mock.calls;
 
+type AuditHook = { current: ReturnType<typeof useAudit> };
+
+/** The nursing note audit exactly as the handoff screen sends it (30 s bursts). */
+const logNurseNote = (
+  result: AuditHook,
+  bedId: string,
+  patientName: string,
+  rut: string,
+  shift: 'day' | 'night',
+  note: string,
+  oldNote: string,
+  recordDate: string
+) =>
+  result.current.logDebouncedEvent(
+    'NURSE_HANDOFF_MODIFIED',
+    'patient',
+    bedId,
+    {
+      patientName,
+      shift,
+      note,
+      changes: {
+        [shift === 'day' ? 'handoffNoteDayShift' : 'handoffNoteNightShift']: {
+          old: oldNote,
+          new: note,
+        },
+      },
+    },
+    rut,
+    recordDate,
+    undefined,
+    30_000
+  );
+
 const settle = async (milliseconds = 60_000) => {
   await act(async () => {
     await vi.advanceTimersByTimeAsync(milliseconds);
@@ -55,26 +89,25 @@ describe('useAudit handoff loggers', () => {
     });
   });
 
-  it('records one medical handoff event per editing burst', async () => {
+  it('records one nursing note event per editing burst', async () => {
     const { result } = renderHook(() => useAudit('test-user-123'));
 
     act(() => {
-      result.current.logMedicalHandoffModified('R1', 'Paciente', '1-9', 'Nota 2', 'Nota 1', 'd');
-      result.current.logMedicalHandoffModified('R1', 'Paciente', '1-9', 'Nota 3', 'Nota 2', 'd');
+      logNurseNote(result, 'R1', 'Paciente', '1-9', 'day', 'Nota 2', 'Nota 1', 'd');
+      logNurseNote(result, 'R1', 'Paciente', '1-9', 'day', 'Nota 3', 'Nota 2', 'd');
     });
-    await settle(30_000);
+    await settle(15_000);
     expect(writes()).toHaveLength(0);
-    await settle(30_000);
+    await settle(15_000);
 
     expect(writes()).toHaveLength(1);
     expect(writes()[0][0]).toMatchObject({
-      action: 'MEDICAL_HANDOFF_MODIFIED',
+      action: 'NURSE_HANDOFF_MODIFIED',
       entityId: 'R1',
       details: {
         patientName: 'Paciente',
-        bedId: 'R1',
-        rut: '1-9',
-        changes: { medicalHandoffNote: { old: 'Nota 1', new: 'Nota 3' } },
+        shift: 'day',
+        changes: { handoffNoteDayShift: { old: 'Nota 1', new: 'Nota 3' } },
       },
       patientRut: '1-9',
     });
@@ -84,8 +117,8 @@ describe('useAudit handoff loggers', () => {
     const { result } = renderHook(() => useAudit('test-user-123'));
 
     act(() => {
-      result.current.logNurseHandoffModified('R2', 'Paciente', '2-7', 'day', 'D2', 'D1', 'd');
-      result.current.logNurseHandoffModified('R2', 'Paciente', '2-7', 'night', 'N2', 'N1', 'd');
+      logNurseNote(result, 'R2', 'Paciente', '2-7', 'day', 'D2', 'D1', 'd');
+      logNurseNote(result, 'R2', 'Paciente', '2-7', 'night', 'N2', 'N1', 'd');
     });
     await settle();
 
@@ -102,15 +135,15 @@ describe('useAudit handoff loggers', () => {
     const { result } = renderHook(() => useAudit('test-user-123'));
 
     act(() => {
-      result.current.logMedicalHandoffModified('R1', 'Primera', '1-9', 'B', 'A', 'd');
-      result.current.logMedicalHandoffModified('R1', 'Primera', '1-9', 'A', 'B', 'd');
-      result.current.logMedicalHandoffModified('R1', 'Segunda', '2-7', 'Nueva', '', 'd');
+      logNurseNote(result, 'R1', 'Primera', '1-9', 'day', 'B', 'A', 'd');
+      logNurseNote(result, 'R1', 'Primera', '1-9', 'day', 'A', 'B', 'd');
+      logNurseNote(result, 'R1', 'Segunda', '2-7', 'day', 'Nueva', '', 'd');
     });
     await settle();
 
     const byPatient = Object.fromEntries(writes().map(([input]) => [input.patientRut, input]));
     expect(Object.keys(byPatient).sort()).toEqual(['1-9', '2-7']);
-    expect(byPatient['1-9'].details).toMatchObject({ reverted: ['medicalHandoffNote'] });
+    expect(byPatient['1-9'].details).toMatchObject({ reverted: ['handoffNoteDayShift'] });
     expect(byPatient['1-9'].details).not.toHaveProperty('changes');
     expect(byPatient['2-7'].details).not.toHaveProperty('reverted');
   });
@@ -119,14 +152,14 @@ describe('useAudit handoff loggers', () => {
     const { result } = renderHook(() => useAudit('test-user-123'));
 
     act(() => {
-      result.current.logMedicalHandoffModified('R1', 'Paciente', '1-9', 'Nota 2', 'Nota 1', 'd');
-      result.current.logMedicalHandoffModified('R1', 'Paciente', '1-9', 'Nota 2', 'Nota 2', 'd');
+      logNurseNote(result, 'R1', 'Paciente', '1-9', 'day', 'Nota 2', 'Nota 1', 'd');
+      logNurseNote(result, 'R1', 'Paciente', '1-9', 'day', 'Nota 2', 'Nota 2', 'd');
     });
     await settle();
 
     expect(writes()).toHaveLength(1);
     expect(writes()[0][0].details).toMatchObject({
-      changes: { medicalHandoffNote: { old: 'Nota 1', new: 'Nota 2' } },
+      changes: { handoffNoteDayShift: { old: 'Nota 1', new: 'Nota 2' } },
     });
     expect(writes()[0][0].details).not.toHaveProperty('reverted');
   });
@@ -136,18 +169,18 @@ describe('useAudit handoff loggers', () => {
       initialProps: { userId: 'ana@hospital.test' },
     });
     act(() => {
-      result.current.logMedicalHandoffModified('R1', 'Paciente', '1-9', 'Nota 2', 'Nota 1', 'd');
+      logNurseNote(result, 'R1', 'Paciente', '1-9', 'day', 'Nota 2', 'Nota 1', 'd');
     });
     // Ana's session ended without the usual logout; Luis signs in and edits the same note.
     rerender({ userId: 'luis@hospital.test' });
     act(() => {
-      result.current.logMedicalHandoffModified('R1', 'Paciente', '1-9', 'Nota 3', 'Nota 2', 'd');
+      logNurseNote(result, 'R1', 'Paciente', '1-9', 'day', 'Nota 3', 'Nota 2', 'd');
     });
     await settle();
 
     expect(writes().map(([input]) => [input.userId, input.details.changes])).toEqual([
-      ['ana@hospital.test', { medicalHandoffNote: { old: 'Nota 1', new: 'Nota 2' } }],
-      ['luis@hospital.test', { medicalHandoffNote: { old: 'Nota 2', new: 'Nota 3' } }],
+      ['ana@hospital.test', { handoffNoteDayShift: { old: 'Nota 1', new: 'Nota 2' } }],
+      ['luis@hospital.test', { handoffNoteDayShift: { old: 'Nota 2', new: 'Nota 3' } }],
     ]);
   });
 
@@ -155,7 +188,7 @@ describe('useAudit handoff loggers', () => {
     const { result } = renderHook(() => useAudit('test-user-123'));
 
     act(() => {
-      result.current.logMedicalHandoffModified('R1', 'Paciente', '1-9', 'Nota 2', 'Nota 1', 'd');
+      logNurseNote(result, 'R1', 'Paciente', '1-9', 'day', 'Nota 2', 'Nota 1', 'd');
     });
     await act(async () => {
       await flushPendingAuditEvents();

@@ -39,8 +39,6 @@ describe('useAudit', () => {
     expect(typeof result.current.logDailyRecordDeleted).toBe('function');
     expect(typeof result.current.logDailyRecordCreated).toBe('function');
     expect(typeof result.current.logHandoffNovedadesModified).toBe('function');
-    expect(typeof result.current.logMedicalHandoffModified).toBe('function');
-    expect(typeof result.current.logNurseHandoffModified).toBe('function');
     expect(typeof result.current.logPatientView).toBe('function');
     expect(typeof result.current.logClinicalDocumentCreated).toBe('function');
     expect(typeof result.current.logClinicalDocumentEdited).toBe('function');

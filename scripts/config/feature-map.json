@@ -703,7 +703,7 @@
     {
       "id": "handoff.nursing",
       "name": "Entrega de turno de enfermería",
-      "owner": "src/hooks",
+      "owner": "src/features/handoff",
       "reach": {
         "screen": "Pestaña «Entrega Turno Enfermería»",
         "controls": [
@@ -713,13 +713,13 @@
         ]
       },
       "gate": [
-        "src/hooks/useHandoffLogic.ts",
+        "src/features/handoff/hooks/useHandoffViewScreenModel.ts",
         "src/features/handoff/components/HandoffView.tsx",
         "src/features/handoff/components/HandoffNursingContent.tsx"
       ],
       "tests": [
         "src/tests/views/handoff/HandoffView.test.tsx",
-        "src/tests/hooks/useHandoffLogic.nursing-and-events.test.ts",
+        "src/tests/views/handoff/useHandoffViewScreenModel.test.ts",
         "e2e/release-role-smoke.spec.ts › hospital nurse can reach census and nursing handoff without hidden modules",
         "e2e/handoff-shift-export-smoke.spec.ts › exports the active nursing handoff as a local PDF artifact"
       ],

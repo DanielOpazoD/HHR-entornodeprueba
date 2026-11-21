@@ -47,9 +47,6 @@ export {
 export { useBackupFilesQuery } from './useBackupFilesQuery';
 export { useFileOperations } from './useFileOperations';
 
-// Email
-export { useHandoffLogic } from './useHandoffLogic';
-
 // Exam Request
 export { useExamRequestOrders } from './useExamRequestOrders';
 

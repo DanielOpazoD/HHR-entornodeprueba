@@ -34,12 +34,11 @@ type SmokeUser = {
   role: 'admin' | 'nurse_hospital' | 'doctor_specialist';
 };
 
-// The specialist medical handoff is editable only when the seeded record's date equals the
-// app's clinical "today" (see canEditSpecialistTodayBoundRecord). The clinical day rolls over
-// at 08:00 on weekdays but 09:00 on weekends/holidays (resolveClinicalDayBounds), so the smoke
-// seed date MUST come from the app's own resolver. A hardcoded cutoff here drifts out of sync
-// and made this flow fail on weekend/holiday mornings (08:00–08:59), when the app still
-// considered the previous day "today" but the seed had already rolled over.
+// The seeded record must be the app's clinical "today", the day the app opens. The clinical
+// day rolls over at 08:00 on weekdays but 09:00 on weekends/holidays (resolveClinicalDayBounds),
+// so the smoke seed date MUST come from the app's own resolver. A hardcoded cutoff here drifts
+// out of sync and made this flow fail on weekend/holiday mornings (08:00–08:59), when the app
+// still considered the previous day "today" but the seed had already rolled over.
 const resolveCurrentSmokeClinicalDay = (): string => resolveCurrentClinicalDay();
 
 const buildRoleSmokeRecord = (date: string) => {

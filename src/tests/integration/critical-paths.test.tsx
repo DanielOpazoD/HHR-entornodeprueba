@@ -115,7 +115,6 @@ vi.mock('@/services/utils/errorService', () => ({
 vi.mock('@/services/admin/auditService', () => ({
   logPatientAdmission: vi.fn(),
   logPatientDischarge: vi.fn(),
-  logMedicalHandoffModified: vi.fn(),
   logEvent: vi.fn(),
   logDebouncedEvent: vi.fn(),
 }));
