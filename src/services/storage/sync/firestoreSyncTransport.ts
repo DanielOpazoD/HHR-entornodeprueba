@@ -42,13 +42,13 @@ import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import type { DetachedOccupantWork } from './dayTaskOccupantDetach';
 import { nursingHandoffPaths } from './nursingHandoffTasks';
 import {
+  fieldReplayPaths,
   holdOutPlainDayFieldsChangedElsewhere,
   keepPlainDayFieldsHeld,
-  plainDayFieldReplayPaths,
-  replayPlainDayFields,
-  withoutUnchangedPlainDayFields,
+  keepsEditedOccupants,
+  replayTaskFields,
   type PlainDayFieldsHeldOut,
-} from './plainDayFieldReplay';
+} from './taskFieldReplay';
 import {
   resolveOptionalBaseRevision,
   resolveRecordBaseRevision,
@@ -159,15 +159,14 @@ interface ResolvedSyncRecordForTask {
   detached?: DetachedOccupantWork;
   /** Plain day fields another computer changed, left out and kept held in the day task. */
   heldOut?: PlainDayFieldsHeldOut;
+  /** The fields resent as the same edit made online saves them, without those already stored. */
+  fieldPaths?: string[];
 }
 
 /** The day task's occupant and replay checks, loaded with the outbox. */
 type ReplayChecks = Pick<
   typeof import('./dexieDailyRecordOutbox'),
-  | 'detachStaleOccupantPaths'
-  | 'hasOtherOccupantInUntouchedBed'
-  | 'hasUnchangedPatchBase'
-  | 'keepStoredNoteFields'
+  'detachStaleOccupantPaths' | 'hasOtherOccupantInUntouchedBed' | 'keepStoredNoteFields'
 >;
 
 const resolveRecordForSyncTask = async (
@@ -275,23 +274,22 @@ const resolveRecordForSyncTask = async (
       ) as DailyRecordPatch
     );
   }
-  // Its write compares each field with its base inside its transaction (replayPlainDayFields).
-  if (plainDayFieldReplayPaths(task))
+  // Checked field by field just above: resent as the same edit made online (replayTaskFields).
+  const fieldPaths = keepsEditedOccupants(task, record, remoteRecord)
+    ? fieldReplayPaths(task)?.filter(path => !applied.includes(path))
+    : undefined;
+  if (fieldPaths)
     return {
       record,
       resolution: 'accepted',
       acceptedVersion: remoteLastUpdated,
       storedData: remoteData,
+      detached,
       heldOut,
+      fieldPaths,
     };
-  const rebasedPart = withoutUnchangedPlainDayFields(ownTask, remoteRecord, queuedRecord);
   // Without the fields another computer changed, the rest was just checked field by field.
-  const canRebasePatch =
-    !detached &&
-    (Boolean(heldOut) ||
-      Boolean(
-        rebasedPart && checks?.hasUnchangedPatchBase(rebasedPart, remoteRecord, queuedRecord)
-      ));
+  const canRebasePatch = !detached && Boolean(heldOut);
   if (task.nursingHandoffRecovery) {
     record = resolveDailyRecordConflict(remoteRecord, record, {
       changedPaths: task.syncContract?.changedPaths,
@@ -435,12 +433,12 @@ const syncDailyRecord = async (
         return { authoritativeRecord: resolved.record };
       }
       const recordToWrite = resolved.record;
-      const plainPaths = plainDayFieldReplayPaths(publishTask);
-      if (plainPaths && resolved.storedData) {
-        const replayed = await replayPlainDayFields(
+      if (resolved.fieldPaths && resolved.storedData) {
+        const replayed = await replayTaskFields(
           publishTask,
           recordToWrite,
-          plainPaths,
+          resolved.fieldPaths,
+          resolved.storedData,
           runtime,
           assertCanPublish
         );

@@ -278,9 +278,23 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     const beforePublish = (await admin.doc(dayPath).get()).data();
     setFirestoreEnabled(true);
     await publish();
-    if (['same-value', 'pending-whitespace'].includes(scenario))
+    if (['same-value', 'pending-whitespace', 'whitespace'].includes(scenario))
       expect((await admin.doc(dayPath).get()).data()).toEqual(beforePublish);
     const tasks = await hospitalDB.syncQueue.toArray();
+    // Another computer saved this very field after it was read here, even to an equivalent text:
+    // the server records that write, and it counts as a change, like a restored original value
+    // (pathsChangedElsewhere). The edit waits whole for review.
+    if (scenario === 'whitespace') {
+      expect(tasks).toMatchObject([
+        {
+          status: 'CONFLICT',
+          payload: pending.payload,
+          patchBaseValues: pending.patchBaseValues,
+          syncContract: pending.syncContract,
+        },
+      ]);
+      return;
+    }
     expect(tasks).toHaveLength(0);
     if (!objectCase)
       expect((await read()).beds.R1.pathology).toBe(
@@ -303,14 +317,11 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     'legacy',
     'metadata',
     'twice',
+    'mixed',
+    'whitespace',
+    'null-object',
+    'object-order',
   ])('replay equivalence %s', replayEquivalence);
-  // Known limit in production since 2026-11-07, measured the same on main with the schema-v2
-  // policy: the authority keeps these replays held (CONFLICT, nothing lost) where the retired
-  // direct route recognized the applied value and published the rest. W22-SAVE-B.
-  it.fails.each(['mixed', 'whitespace', 'null-object', 'object-order'])(
-    'replay equivalence %s',
-    replayEquivalence
-  );
 
   it.each([
     'lost-ack',
@@ -381,10 +392,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     }
   });
 
-  // Known limit in production since 2026-11-07, measured the same on main with the schema-v2
-  // policy: the authority keeps this replay held (CONFLICT, nothing lost) where the retired
-  // direct route recognized the applied value and published the rest. W22-SAVE-B.
-  it.fails('replay durability captured device null leaf', async () => {
+  it('replay durability captured device null leaf', async () => {
     const base = baseRecord();
     base.beds.R1.deviceDetails = { CVC: { installationDate: date } };
     await admin.doc(dayPath).set(base);
@@ -490,11 +498,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       expect(after?.beds.R2.pathology).toBe(scenario === 'compacted' ? 'LAST' : 'SECOND');
     }
   };
-  it.each(['conflict', 'three-fields'])('RECHECK mixed %s', recheckMixed);
-  // Known limit in production since 2026-11-07, measured the same on main with the schema-v2
-  // policy: the authority keeps these replays held (CONFLICT, nothing lost) where the retired
-  // direct route recognized the applied value and published the rest. W22-SAVE-B.
-  it.fails.each(['missing', 'stamped', 'compacted', 'occupant', 'unrelated'])(
+  it.each(['conflict', 'three-fields', 'missing', 'stamped', 'compacted', 'occupant', 'unrelated'])(
     'RECHECK mixed %s',
     recheckMixed
   );
@@ -565,15 +569,5 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       },
     ]);
   };
-  it.each(semanticCases.filter(([label]) => label !== 'empty-absent'))(
-    'RECHECK semantic %s',
-    recheckSemantic
-  );
-  // Known limit in production since 2026-11-07, measured the same on main with the schema-v2
-  // policy: the authority keeps this replay held (CONFLICT, nothing lost) where the retired
-  // direct route recognized the applied value and published the rest. W22-SAVE-B.
-  it.fails.each(semanticCases.filter(([label]) => label === 'empty-absent'))(
-    'RECHECK semantic %s',
-    recheckSemantic
-  );
+  it.each(semanticCases)('RECHECK semantic %s', recheckSemantic);
 });

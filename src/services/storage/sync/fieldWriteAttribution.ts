@@ -14,10 +14,11 @@ export interface FieldWrite {
   /** Digest of the value that write stored (none for `*`, the whole day). */
   digest?: string;
   /**
-   * Whether this entry can credit a field to its edit: the day's last write was a server write
-   * (it stamps `meta.updatedAt` with the day's `lastUpdated`), and no change the map may miss came
-   * after it (the map is at the day's revision and the entry is newer than `incompleteThrough`,
-   * and, outside the bed tree, than `outsideBedsIncompleteThrough`).
+   * Whether this entry can credit a field to its edit: no change the map may miss came after it.
+   * The map is at the day's revision and the entry is newer than `incompleteThrough`; outside the
+   * bed tree, the day's last write was also a server write (it stamps `meta.updatedAt` with the
+   * day's `lastUpdated`) and the entry is newer than `outsideBedsIncompleteThrough`. A direct
+   * client write moves only the day's time and never reaches the bed tree (the fence).
    */
   credible: boolean;
 }
@@ -109,10 +110,9 @@ export const storedFieldWrites = (remoteData: Record<string, unknown>): FieldWri
           clientId: isRecord(writer) ? textOf(writer.clientId) : undefined,
           digest: textOf(entry.digest),
           credible:
-            serverStamped &&
             current &&
             written > incompleteThrough &&
-            (isBedTreePath(path) || written > outsideBedsIncompleteThrough),
+            (isBedTreePath(path) || (serverStamped && written > outsideBedsIncompleteThrough)),
         },
       ];
     }
@@ -132,7 +132,7 @@ export const storedFieldWrites = (remoteData: Record<string, unknown>): FieldWri
       mutationId: inherited ? undefined : lastMutationId,
       clientId: textOf(meta.lastWriterClientId),
       digest: fieldValueDigest(getValueAtPath(remoteData, path)),
-      credible: serverStamped,
+      credible: serverStamped || isBedTreePath(path),
     }));
   return [...recorded, ...lastWrite];
 };

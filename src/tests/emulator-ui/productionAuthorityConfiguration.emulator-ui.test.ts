@@ -605,8 +605,8 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     expect(await hospitalDB.syncQueue.count()).toBe(1);
     setFirestoreEnabled(true);
     await settleQueue();
-    expect(calls.save).toBeGreaterThan(0);
-    expect(calls.direct).toBe(0);
+    // Resent as the same edit made online: the authority patch, never a whole-day save.
+    expect(calls).toMatchObject({ patch: 1, save: 0, direct: 0 });
     expect(await hospitalDB.syncQueue.count()).toBe(0);
     expect((await read()).beds.R1.pathology).toBe('B OFFLINE');
   });
@@ -669,8 +669,9 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       }
     });
     await actor('B', () => settleQueue());
-    // The queue saves the day through the authority, with the age and the repaired list.
-    expect(calls).toMatchObject({ patch: 0, save: 1, direct: 0 });
+    // The queue resends the age as the edit made online, through the authority patch; the
+    // server keeps its own list.
+    expect(calls).toMatchObject({ patch: 1, save: 0, direct: 0 });
     const server = await read();
     expect(server.beds.R1.age).toBe('52');
     expect(server.activeExtraBeds).toEqual([]);

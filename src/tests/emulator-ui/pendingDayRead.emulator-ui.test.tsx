@@ -371,14 +371,14 @@ it.each([false, true])(
           task => (task.payload as DailyRecord).beds.R4.devices
         )
       ).toEqual([['CVC']]);
-      // The resend meets the patient another computer changed and is held as a conflict, as it is
-      // without any read in between (evidence/W14/H1B/recheck3): out of this unit. What this unit
-      // owns is that neither edit is lost from the send.
+      // The resend publishes both edits as they would save online, and keeps the age another
+      // computer changed in the same patient (different fields keep both, W22-SAVE-B).
       if (followup) {
         await replay();
-        const [held] = await hospitalDB.syncQueue.toArray();
-        expect((held.payload as DailyRecord).beds.R4.devices).toEqual(['CVC']);
-        expect((held.payload as DailyRecord)[night]).toBe('segunda edición');
+        const server = (await admin.doc(dayPath).get()).data();
+        expect(server?.beds.R4).toMatchObject({ devices: ['CVC'], age: '52' });
+        expect(server?.[night]).toBe('segunda edición');
+        expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
       }
     } finally {
       c.hook.unmount();

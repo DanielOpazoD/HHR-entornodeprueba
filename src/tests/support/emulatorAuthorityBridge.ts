@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
-import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
+import { FieldValue, getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { createDailyRecordWriteAuthorityFunctions } from '@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support';
 
@@ -13,7 +13,8 @@ export interface AuthorityActor {
 /**
  * Production writes bed fields and whole days through the authority callables. Against the
  * Firestore emulator (which runs no Functions) this replaces only the callable's network hop: the
- * shipped handler commits with a real admin transaction, as the person `actor()` returns.
+ * client's publish check (owner and session generation) runs first, as in the real call, and the shipped handler
+ * commits with a real admin transaction, as the person `actor()` returns.
  */
 export const createEmulatorAuthorityBridge = (projectId: string, actor: () => AuthorityActor) => {
   let app: App | undefined;
@@ -25,7 +26,9 @@ export const createEmulatorAuthorityBridge = (projectId: string, actor: () => Au
   };
   const call =
     (handler: 'patchDailyRecordWithClinicalAuthority' | 'saveDailyRecordWithClinicalAuthority') =>
-    async (payload: unknown) => {
+    async (payload: unknown, assertCanPublish?: () => void) => {
+      // The publish check the real client runs before its network hop (invokeAuthority).
+      assertCanPublish?.();
       try {
         return await api[handler].run(payload, context());
       } catch (error) {
@@ -40,6 +43,7 @@ export const createEmulatorAuthorityBridge = (projectId: string, actor: () => Au
       api = createDailyRecordWriteAuthorityFunctions({
         firestore: admin,
         Timestamp,
+        FieldValue,
         resolveRoleForEmail: async () => actor().role,
       });
     },

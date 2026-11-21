@@ -116,11 +116,22 @@ directas del cliente y los escritores del servidor que no actualizan el mapa no 
 campo: mientras son la última escritura se leen por su `meta`, y después `incompleteThrough` impide
 atribuir a la tarea un valor anterior a ellas, aunque vuelva a ser el mismo texto.
 
-Los datos simples del día (fuera de camas, dotación y movimientos), con el valor base de cada
-campo y una versión conocida, se reenvían con la misma escritura que una edición directa
-(`updateRecordPartial`, en `plainDayFieldReplay.ts`): su transacción acepta una versión más nueva
-solo si cada campo de la tarea conserva su base o ya tiene el valor pendiente. Si no, la tarea
-queda completa en `CONFLICT`, sin escritura (SAVE-02).
+Una tarea parcial (sin `*`) cuyos campos son datos del día, dotación o campos sueltos de una cama
+o cuna, cada uno con su valor base y una versión conocida, se reenvía como la misma edición hecha en
+línea (`replayTaskFields`, en `taskFieldReplay.ts`). Tras comparar cada campo con su base contra el
+día recién leído, los datos del día y la dotación van por su escritura directa
+(`updateRecordPartial`) y los campos de cama por el parche de la función, primero los estructurales
+y después los clínicos, con lo que un guardado normal deriva en ese paciente (partes del nombre,
+episodio, FHIR). Cada escritura va sobre la hora y la revisión de esa lectura: si el día cambió entre
+medio, el servidor la rechaza y la tarea queda completa. Solo la última lleva el identificador de la
+tarea, y una parte ya guardada se reconoce en el siguiente intento por su valor guardado. Así, la nota
+directa de otro equipo, que solo mueve la hora del día, no hace conflicto a una tarea de cama, y un
+campo distinto de la misma cama que otro escritor cambió se conserva. Las tareas con listas de
+movimientos, una cama o cuna entera, o un campo sin base siguen publicando el día completo.
+
+Bajo la cerca, una escritura directa del cliente no llega al árbol de camas: una entrada del mapa de
+escrituras de una cama sigue acreditando a su edición aunque después otro equipo escriba un dato del
+día (`storedFieldWrites`).
 
 La publicación vuelve a comparar cada campo con su valor base capturado, antes de
 aceptar el registro y dentro de cada intento de la transacción existente. No depende

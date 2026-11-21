@@ -1239,6 +1239,50 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
   }, 60_000);
 
+  // W21-Q2 case 146 (W22-SAVE-B). Another computer's night note moves only the day's time; it
+  // cannot touch a bed. The admission made here without network over the bed this computer
+  // cleared once never reached the server: its replay published the whole day and took that note,
+  // and this computer's own clear, for a change of the bed. It now travels as its own bed fields.
+  it('admits offline in a bed cleared here after another computer wrote the night note', async () => {
+    const m = await resetWorld();
+    await clearBedOnB.run(m, {});
+    expect(m.log.at(-1)).toBe('limpiar la cama (limpiada)');
+    await network(false).run(m, {});
+    await writeOnA('handoffNovedadesNightShift').run(m, {});
+    await admitOnB.run(m, {});
+    await checkSettledAfterDrain(m);
+    expect((await readServer()).beds[BED]).toMatchObject({ rut: '11111111-1', pathology: '' });
+    expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
+  }, 60_000);
+
+  // W21-Q2 case 166 (W22-SAVE-B). The diagnosis B1 is saved but its answer is lost; the offline
+  // correction B2 joins its task, and another computer then writes the night note. That note was
+  // taken for a change of the bed: «El campo cambió en otro equipo» with nobody else on the field.
+  it('saves an offline correction after a lost answer and another computer’s night note', async () => {
+    const m = await resetWorld();
+    await loseAnswer.run(m, {});
+    await editOnB(BED_PATH).run(m, {});
+    await writeOnA('handoffNovedadesNightShift').run(m, {});
+    await checkSettledAfterDrain(m);
+    expect((await readServer()).beds[BED].pathology).toBe('B2');
+    expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
+  }, 60_000);
+
+  // Nightly of 2026-11-20 (seed -1453057925, path "27:3:4:3"), shrunk (W22-SAVE-B): a lost answer
+  // on the diagnosis, a day note edited without network that joins its task, and another
+  // computer's night note. Different fields: all three stay.
+  it('saves an offline day note joined to a diagnosis whose answer was lost, after another night note', async () => {
+    const m = await resetWorld();
+    await loseAnswer.run(m, {});
+    expect(await editIn(m, 'handoffNovedadesDayShift')).toBe('editar B2 en DayShift sin red');
+    await writeOnA('handoffNovedadesNightShift').run(m, {});
+    await checkSettledAfterDrain(m);
+    const server = await readServer();
+    expect([server.beds[BED].pathology, server.handoffNovedadesDayShift]).toEqual(['B1', 'B2']);
+    expect(server.handoffNovedadesNightShift).toBe('A3');
+    expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
+  }, 60_000);
+
   it.each([
     ['only the lost answer', [loseAnswer]],
     ['a different field written immediately afterwards', [loseAnswer, otherFieldAfterLoss]],

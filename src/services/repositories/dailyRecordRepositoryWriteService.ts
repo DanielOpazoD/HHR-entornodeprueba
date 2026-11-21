@@ -58,7 +58,7 @@ import {
 } from '@/services/repositories/dailyRecordGuardedCommandPolicy';
 import { adoptAuthoritativeRecord } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
-import { resolveUnsentDayBase } from '@/services/storage/sync/plainDayFieldReplay';
+import { resolveUnsentDayBase } from '@/services/storage/sync/taskFieldReplay';
 import { isValidRemoteAuthorityRecord } from '@/services/repositories/dailyRecordRemotePersistenceState';
 import { assertAuthoringSessionCurrent } from '@/services/storage/authoringSession';
 

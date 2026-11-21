@@ -594,14 +594,21 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       expectDelivered([DIAGNOSIS]);
     });
 
-    it('holds the correction when a later write kept the first edit’s identifier', async () => {
-      // A write that leaves the day's meta as it was (a direct client write does) puts the same
-      // text: the stored day is no longer the version the first edit produced.
+    // W21-Q2 case 166 (W22-SAVE-B). A write that leaves the day's meta as it was is a direct
+    // client write, and under the fence it never reaches the bed tree: it moves only the day's
+    // time. The first edit is still this task's own, and the correction is saved after it. Every
+    // server writer moves the revision (the cases above and below).
+    it('saves the correction when another computer’s direct write moved only the day’s time', async () => {
       await correctWhileAnswerLost(() =>
-        admin.doc(dayPath).update({ 'beds.R1.pathology': DIAGNOSIS, lastUpdated: Timestamp.now() })
+        admin
+          .doc(dayPath)
+          .update({ handoffNovedadesNightShift: 'NOTA DIRECTA', lastUpdated: Timestamp.now() })
       );
-      await expectCorrectionHeld(DIAGNOSIS, 2);
-      expectDelivered([DIAGNOSIS]);
+      await expectClinicalOutcome({ diagnosis: CORRECTED, history: [BASE, DIAGNOSIS] });
+      expectDelivered([DIAGNOSIS, CORRECTED]);
+      expect((await admin.doc(dayPath).get()).data()?.handoffNovedadesNightShift).toBe(
+        'NOTA DIRECTA'
+      );
     });
 
     // Found 2026-11-18 (review of W14-ACK1), fixed in W16-ABA1: another computer puts the original

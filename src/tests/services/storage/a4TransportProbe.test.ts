@@ -335,6 +335,8 @@ for (const available of [true, false])
   });
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
+import { applyPatches } from '@/utils/patchUtils';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { runRemoteSaveIntegrityCheck } from '@/services/repositories/dailyRecordRemoteWriteController';
 import { resolveBlockingFieldShrinkages } from '@/services/repositories/dailyRecordFieldShrinkageGuard';
 for (const path of ['suscripción', 'E'] as const)
@@ -368,19 +370,20 @@ for (const path of ['suscripción', 'E'] as const)
     h.offline = false;
     const [task] = await hospitalDB.syncQueue.toArray();
     const writes: unknown[] = [];
-    vi.spyOn(authority, 'saveDailyRecordWithClinicalAuthorityCallable').mockImplementation(
-      async ({ record }) => {
-        writes.push(clone(record));
+    vi.spyOn(authority, 'patchDailyRecordWithClinicalAuthorityCallable').mockImplementation(
+      async ({ patch }) => {
+        writes.push(clone(patch));
+        const record = applyPatches(remote, patch as DailyRecordPatch);
         return { recordState: { record, lastUpdated: record.lastUpdated } } as never;
       }
     );
     await createFirestoreSyncTransport().run(task);
+    // Resent as the edit made online: only that bed's fields, never a key the server lacks.
     expect(writes).toHaveLength(1);
+    expect(writes[0]).toMatchObject({ 'beds.R4.pathology': 'Diagnóstico editado sintético' });
     expect(
-      Object.keys(writes[0] as Record<string, unknown>).filter(key => !(key in remote))
+      Object.keys(writes[0] as Record<string, unknown>).filter(key => !key.startsWith('beds.R4.'))
     ).toEqual([]);
-    expect(writes[0]).not.toHaveProperty('rayenSyncHistory');
-    expect(writes[0]).not.toHaveProperty('rayenBedCollisionResolutions');
   });
 
 for (const available of [true, false])

@@ -349,9 +349,11 @@ describe('the replay’s reading of the map', () => {
   });
 
   it('does not credit a field after a write the map may have missed, even with the same text', () => {
-    // A direct client write puts another text and the first one back; then a server write.
+    // A direct client write moves only the day's time: under the fence it never reaches the bed
+    // tree (W22-SAVE-B), so the bed field keeps its credit until the next server write.
     const direct = { ...stored(), lastUpdated: '2026-11-18T12:00:00.000Z' };
-    expect(credited(direct)).toBe(false);
+    expect(credited(direct)).toBe(true);
+    // A server write that finds such a gap marks it: from then on the map may have missed a change.
     const next = serverWrite(direct, record('NEUMONIA', 'Estable'), ['beds.R1.status'], 4, 'm-P3');
     expect(credited(next)).toBe(false);
     // A later edit of P1 is credible again.
@@ -412,7 +414,17 @@ describe('the replay’s reading of the map', () => {
       },
     ]);
     expect(credited(day)).toBe(true);
-    expect(credited({ ...day, lastUpdated: '2026-11-18T12:00:00.000Z' })).toBe(false);
+    // A direct client write after it (fenced: outside the bed tree) leaves the bed field credited,
+    // not a day field the same last write named.
+    const direct = { ...day, lastUpdated: '2026-11-18T12:00:00.000Z' };
+    expect(credited(direct)).toBe(true);
+    const dayField = {
+      ...direct,
+      handoffNovedadesDayShift: 'NOTA',
+      meta: { ...day.meta, lastChangedPaths: ['handoffNovedadesDayShift'] },
+    };
+    expect(credited(dayField, 'handoffNovedadesDayShift')).toBe(false);
+    expect(credited({ ...dayField, lastUpdated: stamp }, 'handoffNovedadesDayShift')).toBe(true);
   });
 });
 

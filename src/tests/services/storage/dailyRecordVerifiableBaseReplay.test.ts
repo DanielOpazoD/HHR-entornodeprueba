@@ -18,7 +18,6 @@ import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLoca
 import { updateRecordPartial } from '@/services/storage/firestore/firestoreRecordWrites';
 import { extractClinicalAuthorityPatch } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import { normalizeDailyRecordAuthorityError } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
-import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { retryQuarantinedSyncTask } from '@/services/storage/sync';
 
 // Local repository and durable queue are real. Execute the production server handler at the
@@ -120,7 +119,7 @@ it('publishes a patch whose writer keeps the actual stored version', async () =>
 });
 
 it.each([false, true])(
-  'retains a conflicting base even when the remote clock moved backwards (revision: %s)',
+  'publishes an edit of another bed even when the remote clock moved backwards (revision: %s)',
   async withRevision => {
     await readStored(
       { R4: A('R4'), R6: E() },
@@ -137,11 +136,11 @@ it.each([false, true])(
 
     await reconnect();
 
-    expect(remote().beds.R6.pathology).toBe('Dx E');
+    // Another patient's field changed: both edits stay (W22-SAVE-B), whatever the remote clock.
+    expect(pending.syncContract?.changedPaths).toEqual(['beds.R6.pathology']);
+    expect(remote().beds.R6.pathology).toBe('PENDIENTE SINTETICO');
     expect(remote().beds.R4.pathology).toBe('OTRA EDICION REMOTA');
-    expect(await queue()).toMatchObject([
-      { id: pending.id, status: 'CONFLICT', payload: pending.payload },
-    ]);
+    expect(await queue()).toEqual([]);
   }
 );
 
@@ -149,17 +148,18 @@ it('retains the task when the remote changes after the read even at the same tim
   await readStored({ R4: A('R4'), R6: E() }, undefined, { revision: 1 });
   await writeDay({ 'beds.R6.pathology': 'PENDIENTE SINTETICO' });
   const [pending] = await queue();
-  const commit = authority.saveDailyRecordWithClinicalAuthorityCallable;
-  vi.spyOn(authority, 'saveDailyRecordWithClinicalAuthorityCallable').mockImplementationOnce(
-    async payload => {
-      expect(payload.expectedLastUpdated).toBe('2026-10-24T10:00:00.000Z');
-      expect(payload.syncContract?.baseRevision).toBe(1);
+  const commit = vi.mocked(updateRecordPartial).getMockImplementation()!;
+  vi.mocked(updateRecordPartial).mockImplementationOnce(
+    async (date, patch, expectedLastUpdated, options) => {
+      // Resent over the day it just read, with that day's revision.
+      expect(expectedLastUpdated).toBe('2026-10-24T10:00:00.000Z');
+      expect(options?.syncContract?.baseRevision).toBe(1);
       remoteWrite(
         { R4: A('R4', { pathology: 'GANADOR DE LA CARRERA' }), R6: E() },
         '2026-10-24T10:00:00.000Z',
         { revision: 2 }
       );
-      return commit(payload);
+      return commit(date, patch, expectedLastUpdated, options);
     }
   );
 

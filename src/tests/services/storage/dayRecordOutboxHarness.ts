@@ -55,32 +55,38 @@ vi.mock('@/services/storage/firestore/firestoreShared', async importOriginal => 
   ...(await importOriginal<typeof import('@/services/storage/firestore/firestoreShared')>()),
   getRecordDocRef: () => ({}),
 }));
-vi.mock(
-  '@/services/storage/firestore/dailyRecordAuthorityCallableClient',
-  async importOriginal => ({
-    ...(await importOriginal<object>()),
-    saveDailyRecordWithClinicalAuthorityCallable: async (payload: unknown) => {
+vi.mock('@/services/storage/firestore/dailyRecordAuthorityCallableClient', async importOriginal => {
+  const original =
+    await importOriginal<
+      typeof import('@/services/storage/firestore/dailyRecordAuthorityCallableClient')
+    >();
+  /** The shipped handler over the fake day, under the schema-v2 fence, as an administrator. */
+  const run =
+    (handler: 'saveDailyRecordWithClinicalAuthority' | 'patchDailyRecordWithClinicalAuthority') =>
+    async (payload: unknown) => {
       const { createAdminMock, createDailyRecordWriteAuthorityFunctions, makeContext } =
         await import('@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support');
-      const { admin } = createAdminMock({ remoteData: clone(h.remote) as unknown as Doc });
-      const response = await createDailyRecordWriteAuthorityFunctions({
+      const { admin } = createAdminMock({
+        remoteData: clone(h.remote) as unknown as Doc,
+        policyData: { schemaVersion: 2, mode: 'preview', clinicalBatchMode: 'enforced' },
+      });
+      const api = createDailyRecordWriteAuthorityFunctions({
         firestore: admin.firestore(),
         Timestamp: admin.firestore.Timestamp,
         resolveRoleForEmail: async () => 'admin',
-      })
-        .saveDailyRecordWithClinicalAuthority.run(payload, makeContext())
-        .catch(async (error: unknown) => {
-          const { normalizeDailyRecordAuthorityError } =
-            await importOriginal<
-              typeof import('@/services/storage/firestore/dailyRecordAuthorityCallableClient')
-            >();
-          throw normalizeDailyRecordAuthorityError(error);
-        });
+      });
+      const response = await api[handler].run(payload, makeContext()).catch((error: unknown) => {
+        throw original.normalizeDailyRecordAuthorityError(error);
+      });
       h.remote = clone(response.recordState.record);
       return response;
-    },
-  })
-);
+    };
+  return {
+    ...original,
+    saveDailyRecordWithClinicalAuthorityCallable: run('saveDailyRecordWithClinicalAuthority'),
+    patchDailyRecordWithClinicalAuthorityCallable: run('patchDailyRecordWithClinicalAuthority'),
+  };
+});
 vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
   defaultFunctionsRuntime: {
     getFunctions: async () => ({}),

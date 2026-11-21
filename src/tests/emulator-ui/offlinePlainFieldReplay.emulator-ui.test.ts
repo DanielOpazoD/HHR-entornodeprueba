@@ -331,15 +331,20 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     expect((await read()).lastUpdated).toBe(writtenByA.lastUpdated);
   });
 
-  it('still sends a bed field with its base version, never by the per-field check', async () => {
+  // Another device's note moves only the day's time and cannot touch a bed (the fence): the bed
+  // field is resent through the authority patch, as online, and both changes stay (W22-SAVE-B).
+  it('sends a bed field through the authority after another device wrote a day note', async () => {
     await offlineEditThenReconnect([{ 'beds.R1.age': '41' }], {
       handoffNovedadesNightShift: 'NOCHE A',
     });
 
     expect(calls.fieldTransaction).toBe(0);
     expect(calls.authority).toBeGreaterThan(0);
-    expect((await read()).beds.R1.age).toBe('40');
-    expect((await queue()).map(task => task.status)).toEqual(['CONFLICT']);
+    expect(await read()).toMatchObject({
+      beds: { R1: { age: '41' } },
+      handoffNovedadesNightShift: 'NOCHE A',
+    });
+    expect(await queue()).toEqual([]);
   });
 
   // Another person signs in on this computer while B's edit is on its way (shared computers).

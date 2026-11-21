@@ -10,7 +10,9 @@ const mocks = vi.hoisted(() => ({
   read: vi.fn(),
   transaction: vi.fn(),
   directSet: vi.fn(),
+  directUpdate: vi.fn(),
   callable: vi.fn(),
+  patch: vi.fn(),
 }));
 vi.mock('firebase/firestore', async original => ({
   ...(await original<typeof import('firebase/firestore')>()),
@@ -22,8 +24,14 @@ vi.mock('@/services/storage/firestore/firestoreShared', async original => ({
   ...(await original<typeof import('@/services/storage/firestore/firestoreShared')>()),
   getRecordDocRef: () => ({ id: 'synthetic-record' }),
 }));
+vi.mock('@/services/storage/firestore/firestoreWriteSupport', async original => ({
+  ...(await original<typeof import('@/services/storage/firestore/firestoreWriteSupport')>()),
+  updateRecordPartiallyAtomically: mocks.directUpdate,
+}));
 vi.mock('@/services/storage/firestore/dailyRecordAuthorityCallableClient', () => ({
   saveDailyRecordWithClinicalAuthorityCallable: mocks.callable,
+  patchDailyRecordWithClinicalAuthorityCallable: mocks.patch,
+  shouldRetryDailyRecordAuthorityError: () => false,
 }));
 const date = '2026-07-17';
 const record = (lastUpdated: string) =>
@@ -56,6 +64,13 @@ beforeEach(() => {
       recordState: { record: sent, lastUpdated: sent.lastUpdated },
     })
   );
+  // A partial task resends as the same edit made online: the patch commits over the read day.
+  mocks.patch.mockImplementation(async () => {
+    const stored = (await mocks.read()).data();
+    return { recordState: { record: stored, lastUpdated: stored.lastUpdated } };
+  });
+  // Staffing and day fields keep their direct write: it commits over the day it read.
+  mocks.directUpdate.mockImplementation(async () => (await mocks.read()).data());
 });
 it('publishes through the authority callable, never a direct write', async () => {
   await expect(run()).resolves.toMatchObject({ authoritativeRecord: local() });
@@ -97,12 +112,20 @@ it.each(['unchanged', 'changed', 'same-clock', 'lost-ack'] as const)(
     };
     if (scenario === 'changed' || scenario === 'same-clock') {
       await expect(run(input)).rejects.toMatchObject({ name: 'ConcurrencyError' });
-      expect(mocks.callable).not.toHaveBeenCalled();
+      expect(mocks.patch).not.toHaveBeenCalled();
     } else {
       await run(input);
-      if (scenario === 'lost-ack') expect(mocks.callable).not.toHaveBeenCalled();
-      else expect(mocks.callable).toHaveBeenCalledOnce();
+      if (scenario === 'lost-ack') expect(mocks.patch).not.toHaveBeenCalled();
+      else
+        expect(mocks.patch).toHaveBeenCalledWith(
+          expect.objectContaining({
+            patch: { 'beds.R1.pathology': 'A OFFLINE' },
+            expectedLastUpdated: remote.lastUpdated,
+          }),
+          undefined
+        );
     }
+    expect(mocks.callable).not.toHaveBeenCalled();
   }
 );
 
@@ -127,6 +150,15 @@ it.each([{ names: ['NURSE'] }, { names: ['NURSE', '', ''] }])(
     expect(outcome).toMatchObject({
       authoritativeRecord: { tensDayShift: expect.arrayContaining(['EDITED']) },
     });
-    expect(mocks.callable).toHaveBeenCalledOnce();
+    // Staffing keeps its own direct write, over the day just read, as online.
+    expect(mocks.directUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ tensDayShift: ['EDITED'] }),
+      date + 'T10:01:00Z',
+      expect.any(String),
+      'staffing update',
+      expect.anything()
+    );
+    expect(mocks.callable).not.toHaveBeenCalled();
   }
 );

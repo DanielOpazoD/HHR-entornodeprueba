@@ -3,24 +3,32 @@ import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { SyncTransportResult } from '@/services/storage/sync/syncQueuePorts';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import type { PatientData } from '@/types/domain/patient';
 import { docToRecord, getRecordDocRef } from '@/services/storage/firestore/firestoreShared';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
 import { updateRecordPartial } from '@/services/storage/firestore/firestoreRecordWrites';
-import { isPlainDayFieldPath } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
+import {
+  isDailyRecordBedTreePath,
+  isPlainDayFieldPath,
+  STAFFING_PATH,
+} from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
+import { isClinicalAuthorityCallablePatchPath } from '@/services/storage/dailyRecordAuthorityContract';
 import {
   getValueAtPath,
   hasSameComparableValue,
   normalizeChangedPaths,
 } from '@/services/repositories/conflictResolutionUtils';
 import { resolveItemId } from '@/services/repositories/conflictResolutionMovementMergePolicy';
+import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';
 import { applyPatches } from '@/utils/patchUtils';
 import { hospitalDB, isDatabaseInFallbackMode } from '@/services/storage/indexeddb/indexedDbCore';
 import { createFieldChangedElsewhereError } from '@/services/storage/syncErrorCatalog';
+import { hasSameBedOccupant } from './bedOccupantIdentity';
 import { holdsDailyRecordProjection } from './dexieSyncQueueQuarantine';
 import { pathsChangedElsewhere } from './firestoreSyncConflictPolicy';
 import { resolveHeldConflictState } from './syncQueueFailurePolicy';
 import { clearSyncTaskRuntimeState } from './syncQueueTaskFactory';
-import { UNKNOWN_SERVER_VERSION } from './syncTaskContractPolicy';
+import { resolveRecordBaseRevision, UNKNOWN_SERVER_VERSION } from './syncTaskContractPolicy';
 
 const MOVEMENT_LIST_PATH = /^(discharges|transfers|cma)(\.|$)/;
 
@@ -28,23 +36,35 @@ const MOVEMENT_LIST_PATH = /^(discharges|transfers|cma)(\.|$)/;
 const isPlainDayFieldReplayPath = (path: string): boolean =>
   path !== '*' && isPlainDayFieldPath(path) && !MOVEMENT_LIST_PATH.test(path);
 
+/** One field of a bed or crib, or a bed's type: never a whole bed or crib. */
+const isBedFieldReplayPath = (path: string): boolean => {
+  const [root, bedId, field, nested] = path.split('.');
+  if (root === 'bedTypeOverrides') return Boolean(bedId) && field === undefined;
+  return root === 'beds' && Boolean(bedId && field) && (field !== 'clinicalCrib' || !!nested);
+};
+
 /**
- * The changed paths of a day write of plain fields only, each with its captured base and a known
- * server version: no bed, staffing or movement list, which keep their own version checks. A
- * direct edit of these fields commits through updateRecordPartial, and so does their replay.
+ * The changed paths of a queued day write that resends as the same edit made online would save
+ * (W22-SAVE-B): each with its captured base and a known server version, and each a day field,
+ * staffing or one field of a bed. Undefined for a whole-day write, a movement list, a whole bed or
+ * crib, or a field without its base: those keep the whole-day publish.
  */
-export const plainDayFieldReplayPaths = (task: SyncTask): string[] | undefined => {
+export const fieldReplayPaths = (task: SyncTask): string[] | undefined => {
   const paths = normalizeChangedPaths(task.syncContract?.changedPaths);
   const base = task.patchBaseValues;
   const version = task.syncContract?.expectedVersion;
-  const plain =
+  const byField =
     !task.nursingHandoffRecovery &&
     base &&
     version !== UNKNOWN_SERVER_VERSION &&
     Number.isFinite(Date.parse(version ?? '')) &&
     paths.length > 0 &&
-    paths.every(path => isPlainDayFieldReplayPath(path) && Object.hasOwn(base, path));
-  return plain ? paths : undefined;
+    paths.every(
+      path =>
+        Object.hasOwn(base, path) &&
+        (isPlainDayFieldReplayPath(path) || STAFFING_PATH.test(path) || isBedFieldReplayPath(path))
+    );
+  return byField ? paths : undefined;
 };
 
 /** Whether the stored day holds, at a captured field, its base or already the queued value. */
@@ -57,31 +77,6 @@ const holdsBaseOrQueuedValue =
       hasSameComparableValue(value, getValueAtPath(queued, path))
     );
   };
-
-/**
- * A day write that also holds a bed's diagnosis or status, both unsent edits of this computer, is
- * rebased as each part alone would be: its plain day fields must still hold, in the stored day,
- * their base or already the queued value, and the rest keeps its own check. The write without
- * those plain fields, or undefined when another computer changed one of them.
- */
-export const withoutUnchangedPlainDayFields = (
-  task: SyncTask,
-  stored: DailyRecord,
-  queued: DailyRecord
-): SyncTask | undefined => {
-  const paths = normalizeChangedPaths(task.syncContract?.changedPaths);
-  const plain = paths.filter(isPlainDayFieldReplayPath);
-  const holds = holdsBaseOrQueuedValue(task, stored, queued);
-  if (!plain.every(path => Object.hasOwn(task.patchBaseValues ?? {}, path) && holds(path)))
-    return undefined;
-  return {
-    ...task,
-    syncContract: {
-      ...task.syncContract,
-      changedPaths: paths.filter(path => !plain.includes(path)),
-    },
-  };
-};
 
 /** The rest of a day write, published without the plain day fields another computer changed. */
 export interface PlainDayFieldsHeldOut {
@@ -279,42 +274,118 @@ export const resolveUnsentDayBase = async (
   };
 };
 
+const IDENTITY_FIELDS = new Set(['patientName', 'rut', 'documentType', 'clinicalEpisodeId']);
+
+/** The bed or crib whose patient a path names (`beds.R1`, `beds.R1.clinicalCrib`), if it does. */
+const identitySlotOf = (path: string): string | undefined => {
+  const [root, bedId, field, nested] = path.split('.');
+  if (root !== 'beds' || !bedId) return undefined;
+  if (field === 'clinicalCrib')
+    return IDENTITY_FIELDS.has(nested ?? '') ? `beds.${bedId}.clinicalCrib` : undefined;
+  return IDENTITY_FIELDS.has(field ?? '') ? `beds.${bedId}` : undefined;
+};
+
 /**
- * The same write as a direct edit of these fields (SAVE-02): inside its transaction, a newer
- * version is refused only when one of them holds neither its base nor the queued value, and that
- * refusal leaves the task whole as a conflict. `record` already carries the server's own text for
- * the fields it held as wanted.
+ * ID-01, as the same edit made online checks it before it is rebased: an edit of who a bed or crib
+ * holds (an admission, a name or document correction) goes on only while the stored slot still
+ * holds the patient and episode the edit was written over (`patchBaseContext`), or already the one
+ * it writes. Edits of other fields leave for their patient on their own
+ * (`detachStaleOccupantPaths`). Otherwise the task keeps the whole-day publish, as before.
  */
-export const replayPlainDayFields = async (
+export const keepsEditedOccupants = (
+  task: SyncTask,
+  queued: DailyRecord,
+  stored: DailyRecord
+): boolean => {
+  const slots = new Set(
+    normalizeChangedPaths(task.syncContract?.changedPaths).flatMap(path => {
+      const slot = identitySlotOf(path);
+      return slot ? [slot] : [];
+    })
+  );
+  const context = task.patchBaseContext;
+  if (!slots.size) return true;
+  if (!context) return false;
+  return [...slots].every(slot => {
+    const base: Partial<PatientData> = Object.fromEntries(
+      [...IDENTITY_FIELDS].map(field => [field, context[`${slot}.${field}`]])
+    );
+    const now = getValueAtPath(stored, slot) as PatientData | undefined;
+    return (
+      hasSameBedOccupant(base as PatientData, now) ||
+      hasSameBedOccupant(getValueAtPath(queued, slot) as PatientData | undefined, now)
+    );
+  });
+};
+
+const valuesAt = (source: DailyRecord, paths: string[]): DailyRecordPatch =>
+  Object.fromEntries(paths.map(path => [path, getValueAtPath(source, path)])) as DailyRecordPatch;
+
+/**
+ * Resends these fields of a queued day write as the same edit made online saves them (W22-SAVE-B):
+ * its day fields and staffing through their direct write, then its bed fields through the
+ * authority patch, structural before clinical, each with the fields a normal save derives from
+ * them on that patient (name parts, episode, FHIR). The replay has just checked each field against
+ * `storedData`, so every write is made over that day and its revision: one that changed meanwhile
+ * refuses it and the task stays whole. Only the last write carries the task's mutation id, so an
+ * earlier part never acknowledges the rest; a part already stored is recognized next time by its
+ * stored value. A changed owner or session generation stops every write (no write, no notice).
+ */
+export const replayTaskFields = async (
   task: SyncTask,
   record: DailyRecord,
   paths: string[],
+  storedData: Record<string, unknown>,
   runtime: FirestoreServiceRuntimePort,
   assertCanPublish?: () => void
 ): Promise<SyncTransportResult> => {
-  const base = new Map(Object.entries(task.patchBaseValues ?? {}));
-  const patchAt = (valueAt: (path: string) => unknown) =>
-    Object.fromEntries(paths.map(path => [path, valueAt(path)])) as DailyRecordPatch;
-  const receipt = await updateRecordPartial(
-    record.date,
-    patchAt(path => getValueAtPath(record, path)),
-    task.syncContract?.expectedVersion,
-    {
-      // Only these fields' base values matter to the check.
-      baseRecord: applyPatches(
-        record,
-        patchAt(path => base.get(path))
-      ),
-      syncContract: task.syncContract,
+  const { date } = record;
+  let stored = docToRecord(storedData, date);
+  const dayPaths = paths.filter(path => !isDailyRecordBedTreePath(path));
+  const bedPaths = paths.filter(isDailyRecordBedTreePath);
+  const clinicalPaths = bedPaths.filter(isClinicalAuthorityCallablePatchPath);
+  // As the census sends an edit of both: structural first (it anchors the episode), then clinical.
+  const mixed = clinicalPaths.length > 0 && clinicalPaths.length < bedPaths.length;
+  const slotOf = (path: string) => path.split('.').slice(0, 2).join('.');
+  const slots = new Set(bedPaths.map(slotOf));
+  const bedPatch = Object.fromEntries(
+    Object.entries(
+      bedPaths.length
+        ? preparePatchedRecordPersistence(stored, date, valuesAt(record, bedPaths)).mergedPatches
+        : {}
+    ).filter(
+      ([path]) =>
+        isBedFieldReplayPath(path) &&
+        slots.has(slotOf(path)) &&
+        !(mixed && clinicalPaths.includes(path))
+    )
+  ) as DailyRecordPatch;
+  const parts = [
+    valuesAt(record, dayPaths),
+    bedPatch,
+    mixed ? valuesAt(record, clinicalPaths) : {},
+  ].filter(part => Object.keys(part).length > 0);
+  const mutationId = task.syncContract?.mutationId ?? task.opId;
+  let committed: DailyRecord | undefined;
+  for (const [index, part] of parts.entries()) {
+    const receipt = await updateRecordPartial(date, part, stored.lastUpdated, {
+      baseRecord: stored,
+      syncContract: {
+        ...task.syncContract,
+        changedPaths: Object.keys(part).filter(path => paths.includes(path)),
+        expectedVersion: stored.lastUpdated,
+        baseRevision: resolveRecordBaseRevision(stored),
+        mutationId: index === parts.length - 1 ? mutationId : `${mutationId}:part-${index}`,
+        mutationIds: index === parts.length - 1 ? task.syncContract?.mutationIds : undefined,
+      },
       returnCommittedRecord: true,
-      // A changed owner or session generation stops the write at every step (no write, no notice).
       assertCanPublish,
-    }
-  );
-  // Without a projectable receipt, the stored day after the commit is the committed record.
-  return {
-    authoritativeRecord:
+    });
+    // Without a projectable receipt, the stored day after the commit is the committed record.
+    committed =
       receipt?.recordState?.record ??
-      docToRecord((await getDoc(getRecordDocRef(record.date, runtime))).data() ?? {}, record.date),
-  };
+      docToRecord((await getDoc(getRecordDocRef(date, runtime))).data() ?? {}, date);
+    stored = committed;
+  }
+  return { authoritativeRecord: committed ?? stored };
 };

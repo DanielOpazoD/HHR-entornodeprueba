@@ -81,6 +81,12 @@ describeEmulator('the outbox publishes compacted offline work through Firestore'
     });
     return data;
   };
+  /** The staffing each durable task holds: nurses and TENS of the day shift. */
+  const heldStaffing = async () =>
+    (await hospitalDB.syncQueue.toArray()).map(task => {
+      const payload = task.payload as DailyRecord;
+      return [payload.nursesDayShift, payload.tensDayShift];
+    });
   /** Runs the real queue once the pre-outbox holds of the queued writes have expired. */
   const publishQueue = async () => {
     const later = Date.now() + 10_000;
@@ -129,10 +135,7 @@ describeEmulator('the outbox publishes compacted offline work through Firestore'
     await authority.close();
   });
 
-  // Known limit in production since 2026-11-07, measured the same on main with the schema-v2
-  // policy: the authority keeps this replay held (nothing lost) where the retired direct route
-  // published it. W22-SAVE-B.
-  it.fails('keeps a remote edit made between two offline edits of the same day', async () => {
+  it('keeps a remote edit made between two offline edits of the same day', async () => {
     setFirestoreEnabled(false);
     await updatePartialDetailed(
       DATE,
@@ -151,6 +154,8 @@ describeEmulator('the outbox publishes compacted offline work through Firestore'
       { tensDayShift: ['SINTETICO B'] },
       { authoringSession: captureAuthoringSession(), baseRecord: afterFirstEdit }
     );
+    // Both offline edits wait durably in one task until the server holds them.
+    expect(await heldStaffing()).toEqual([[['SINTETICA A'], ['SINTETICO B']]]);
 
     setFirestoreEnabled(true);
     await publishQueue();
@@ -163,10 +168,7 @@ describeEmulator('the outbox publishes compacted offline work through Firestore'
     expect(await hospitalDB.syncQueue.count()).toBe(0);
   });
 
-  // Known limit in production since 2026-11-07, measured the same on main with the schema-v2
-  // policy: the authority keeps this replay held (nothing lost) where the retired direct route
-  // published it. W22-SAVE-B.
-  it.fails('publishes offline A after the direct ACK and remote mutation marker of B', async () => {
+  it('publishes offline A after the direct ACK and remote mutation marker of B', async () => {
     setFirestoreEnabled(false);
     await updatePartialDetailed(
       DATE,
@@ -179,6 +181,7 @@ describeEmulator('the outbox publishes compacted offline work through Firestore'
       { tensDayShift: ['SINTETICO DIRECTO'] },
       { authoringSession: captureAuthoringSession(), baseRecord: await localRecord() }
     );
+    expect(await heldStaffing()).toEqual([[['SINTETICA SIN RED'], ['SINTETICO DIRECTO']]]);
 
     await publishQueue();
 

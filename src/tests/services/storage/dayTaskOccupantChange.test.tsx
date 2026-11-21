@@ -14,6 +14,7 @@ import {
   dayTasks,
   expectBInR4,
   expectDayEditsKept,
+  expectDayEditsPublished,
   local,
   queue,
   readStored,
@@ -233,7 +234,7 @@ describe('a day task never writes a patient edits to the next occupant', () => {
 describe('a census edit queued while another session replaces a patient', () => {
   const replay = reconnect;
 
-  it('keeps an edit of another bed, and keeps B', async () => {
+  it('publishes an edit of another bed, and keeps B', async () => {
     const read = await readStored({ R4: A('R4'), R6: E() });
     await writeDay({ 'beds.R6.pathology': 'Dx E corregido' });
     expect((await dayTasks()).map(task => task.syncContract?.expectedVersion)).toEqual([
@@ -244,7 +245,7 @@ describe('a census edit queued while another session replaces a patient', () => 
     await replay();
 
     expectBInR4();
-    await expectDayEditsKept({ 'beds.R6.pathology': 'Dx E corregido' });
+    await expectDayEditsPublished({ 'beds.R6.pathology': 'Dx E corregido' });
   });
 
   it('keeps an edit of the departed patient, not written on B, when it edits the same bed', async () => {
@@ -259,9 +260,8 @@ describe('a census edit queued while another session replaces a patient', () => 
 
     expectBInR4();
     expect(remote().beds.R4.pathology).not.toBe('Dx A corregido');
-    // The direct route holds the departed patient's edit as its own conflict and publishes the rest;
-    // The authority keeps the whole day write queued.
-    await expectDayEditsKept({ 'beds.R6.pathology': 'Dx E corregido' });
+    // The departed patient's edit is held as its own conflict and the rest is published.
+    await expectDayEditsPublished({ 'beds.R6.pathology': 'Dx E corregido' });
     const kept = (await queue()).filter(task => task.type === 'UPDATE_DAILY_RECORD');
     expect(kept.map(task => (task.payload as DailyRecord).beds.R4.pathology)).toEqual([
       'Dx A corregido',
@@ -278,7 +278,7 @@ describe('a census edit queued while another session replaces a patient', () => 
     await replay();
 
     expectBInR4();
-    await expectDayEditsKept({
+    await expectDayEditsPublished({
       'beds.R6.pathology': 'Dx E v2',
       'beds.R7.pathology': 'Dx F corregido',
     });
@@ -293,9 +293,9 @@ describe('a census edit queued while another session replaces a patient', () => 
     await replay();
 
     expect(remote().beds.R4.clinicalCrib).toMatchObject({ patientName: 'RN B Sintético' });
-    // An older remote clock does not prove the queued base is current. Authority keeps this
-    // mismatch for review, with the mother's edit intact and the new newborn untouched.
-    await expectDayEditsKept({ 'beds.R4.pathology': 'Dx M corregido' });
+    // The mother's edit is checked field by field, whatever the remote clock says, and the new
+    // newborn stays untouched.
+    await expectDayEditsPublished({ 'beds.R4.pathology': 'Dx M corregido' });
   });
 
   it('never writes a departed mother over the bed while it edits the newborn', async () => {

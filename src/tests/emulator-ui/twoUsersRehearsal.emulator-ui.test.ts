@@ -301,13 +301,14 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     if (scenario === 'legacy')
       await hospitalDB.syncQueue.update(pending.id!, { patchBaseValues: undefined });
     if (scenario === 'race-after-read') {
-      const save = authority.saveDailyRecordWithClinicalAuthorityCallable;
-      vi.spyOn(authority, 'saveDailyRecordWithClinicalAuthorityCallable').mockImplementationOnce(
-        async (...args) => {
-          await patch('B', { 'beds.R1.pathology': 'B CONCURRENT' }, await read());
-          return save(...args);
-        }
-      );
+      // B writes between the replay's read and its patch: the patch is refused on that read's
+      // revision and the edit waits whole.
+      const send = vi.mocked(authority.patchDailyRecordWithClinicalAuthorityCallable);
+      const deliver = send.getMockImplementation()!;
+      send.mockImplementationOnce(async (...args) => {
+        await patch('B', { 'beds.R1.pathology': 'B CONCURRENT' }, await read());
+        return deliver(...args);
+      });
     }
     setFirestoreEnabled(true);
     await publish();

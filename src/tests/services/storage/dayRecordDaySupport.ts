@@ -114,7 +114,13 @@ export const expectBInR4 = () =>
     clinicalEpisodeId: 'ep-B',
   });
 
-/** Asserts publication or queued retention, as requested by the case. */
+/** Published as the same edits made online: on the server, and no day write left queued. */
+export const expectDayEditsPublished = async (edits: Record<string, unknown>) => {
+  for (const [path, value] of Object.entries(edits))
+    expect(getValueAtPath(remote(), path)).toEqual(value);
+  expect(await dayTasks()).toEqual([]);
+};
+
 /** The authority keeps a stale day write queued: the edits stay in the task, not on the server. */
 export const expectDayEditsKept = async (edits: Record<string, unknown>) => {
   const tasks = await dayTasks();
