@@ -1,3 +1,5 @@
+import { requestViaBridgeChannel } from '@/services/transport/extensionRequestChannel';
+
 /**
  * Read-only navigation bridge from an HHR patient row to the matching Ficha Médico encounter.
  * The browser extension owns tab navigation; HHR only sends the already-synced encounter id and
@@ -17,54 +19,31 @@ export const requestRayenEncounterNavigation = (
   clinicalEpisodeId: string,
   timeoutMs = 8000,
   routeHint?: 'medical' | 'nurse'
-): Promise<RayenEncounterNavigationResult> =>
-  new Promise(resolve => {
-    const encounterId = clinicalEpisodeId.trim();
-    if (typeof window === 'undefined' || !encounterId) {
-      resolve({
-        ok: false,
-        reused: false,
-        error: 'El paciente no tiene un episodio Eloísa válido.',
-      });
-      return;
-    }
+): Promise<RayenEncounterNavigationResult> => {
+  const encounterId = clinicalEpisodeId.trim();
+  if (typeof window === 'undefined' || !encounterId) {
+    return Promise.resolve({
+      ok: false,
+      reused: false,
+      error: 'El paciente no tiene un episodio Eloísa válido.',
+    });
+  }
 
-    const reqId = `open-encounter-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-    let settled = false;
-    // eslint-disable-next-line prefer-const -- assigned once below, but read earlier by cleanup() (forward ref)
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    const cleanup = (): void => {
-      if (settled) return;
-      settled = true;
-      if (timeoutId !== undefined) clearTimeout(timeoutId);
-      window.removeEventListener('message', onMessage);
-    };
-
-    const onMessage = (event: MessageEvent): void => {
-      if (event.origin !== window.location.origin) return;
-      const data = event.data;
-      if (!data || data.type !== RAYEN_OPEN_ENCOUNTER_RESULT_TYPE || data.reqId !== reqId) return;
-      cleanup();
-      resolve({
-        ok: data.ok === true,
-        reused: data.reused === true,
-        error: typeof data.error === 'string' ? data.error : undefined,
-      });
-    };
-
-    window.addEventListener('message', onMessage);
-    window.postMessage(
-      { type: RAYEN_OPEN_ENCOUNTER_REQUEST_TYPE, reqId, encId: encounterId, routeHint },
-      window.location.origin
-    );
-
-    timeoutId = setTimeout(() => {
-      cleanup();
-      resolve({
-        ok: false,
-        reused: false,
-        error: 'La extensión Eloísa no respondió. Recárgala y vuelve a intentarlo.',
-      });
-    }, timeoutMs);
+  return requestViaBridgeChannel<RayenEncounterNavigationResult>({
+    prefix: 'open-encounter',
+    requestType: RAYEN_OPEN_ENCOUNTER_REQUEST_TYPE,
+    resultType: RAYEN_OPEN_ENCOUNTER_RESULT_TYPE,
+    payload: { encId: encounterId, routeHint },
+    timeoutMs,
+    onTimeout: () => ({
+      ok: false,
+      reused: false,
+      error: 'La extensión Eloísa no respondió. Recárgala y vuelve a intentarlo.',
+    }),
+    mapResult: data => ({
+      ok: data.ok === true,
+      reused: data.reused === true,
+      error: typeof data.error === 'string' ? data.error : undefined,
+    }),
   });
+};

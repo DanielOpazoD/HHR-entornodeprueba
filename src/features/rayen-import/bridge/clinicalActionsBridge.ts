@@ -1,3 +1,4 @@
+import { requestViaBridgeChannel } from '@/services/transport/extensionRequestChannel';
 import {
   decodeClinicalAntecedentDetail,
   type ClinicalAntecedentDetail,
@@ -28,60 +29,60 @@ export interface ClinicalActionResult {
   auth?: ClinicalDauAuth;
 }
 
+const decodeEntries = (raw: unknown): ClinicalAntecedentEntry[] | undefined => {
+  if (!Array.isArray(raw)) return undefined;
+  return raw
+    .filter(
+      (row: unknown): row is ClinicalAntecedentEntry =>
+        Boolean(row) &&
+        typeof row === 'object' &&
+        ['id', 'source', 'date', 'diagnosis', 'facility', 'type'].every(
+          key => typeof (row as Record<string, unknown>)[key] === 'string'
+        )
+    )
+    .map(row => ({
+      ...row,
+      windowEnd:
+        typeof row.windowEnd === 'string' && /^\d{8}$/.test(row.windowEnd)
+          ? row.windowEnd
+          : undefined,
+    }));
+};
+
 export const requestClinicalAction = (
   encId: string,
   operation: 'prescription' | 'list' | 'detail' | 'attachment' | 'urgency' | 'dau',
   entryId?: string,
   signal?: AbortSignal,
   beforeDate?: string
-): Promise<ClinicalActionResult> =>
-  new Promise(resolve => {
-    if (!/^\d+$/.test(encId) || signal?.aborted) {
-      resolve({ ok: false, error: 'Consulta clínica cancelada o episodio inválido.' });
-      return;
-    }
-    const reqId = `clinical-action-${crypto.randomUUID()}`;
-    let settled = false;
-    // eslint-disable-next-line prefer-const -- cleanup can run before timer assignment
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const finish = (result: ClinicalActionResult): void => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      window.removeEventListener('message', onMessage);
-      signal?.removeEventListener('abort', onAbort);
-      resolve(result);
-    };
-    const onAbort = (): void => finish({ ok: false, error: 'Consulta cancelada.' });
-    const onMessage = (event: MessageEvent): void => {
-      if (
-        event.source !== window ||
-        event.origin !== window.location.origin ||
-        event.data?.type !== 'HHR_RAYEN_CLINICAL_ACTION_RESULT' ||
-        event.data.reqId !== reqId
-      )
-        return;
-      const data = event.data;
-      const entries = Array.isArray(data.entries)
-        ? data.entries.filter(
-            (row: unknown): row is ClinicalAntecedentEntry =>
-              Boolean(row) &&
-              typeof row === 'object' &&
-              ['id', 'source', 'date', 'diagnosis', 'facility', 'type'].every(
-                key => typeof (row as Record<string, unknown>)[key] === 'string'
-              )
-          )
-        : undefined;
-      const safeEntries = entries?.map((row: ClinicalAntecedentEntry) => ({
-        ...row,
-        windowEnd:
-          typeof row.windowEnd === 'string' && /^\d{8}$/.test(row.windowEnd)
-            ? row.windowEnd
-            : undefined,
-      }));
+): Promise<ClinicalActionResult> => {
+  if (typeof window === 'undefined' || !/^\d+$/.test(encId) || signal?.aborted) {
+    return Promise.resolve({
+      ok: false,
+      error: 'Consulta clínica cancelada o episodio inválido.',
+    });
+  }
+
+  return requestViaBridgeChannel<ClinicalActionResult>({
+    prefix: 'clinical-action',
+    requestType: 'HHR_RAYEN_CLINICAL_ACTION_REQUEST',
+    resultType: 'HHR_RAYEN_CLINICAL_ACTION_RESULT',
+    payload: { encId, operation, entryId, beforeDate },
+    timeoutMs: 90_000,
+    signal,
+    onAbort: () => ({ ok: false, error: 'Consulta cancelada.' }),
+    onTimeout: () => ({
+      ok: false,
+      error: 'La extensión no respondió a la consulta clínica. Revisa tu conexión con Eloísa.',
+    }),
+    onDispatchError: () => ({
+      ok: false,
+      error: 'No se pudo consultar la extensión Eloísa.',
+    }),
+    mapResult: data => {
       const detail = decodeClinicalAntecedentDetail(data.detail);
       const invalidDetail = data.detail !== undefined && !detail;
-      finish({
+      return {
         ok: data.ok === true && !invalidDetail,
         opened: data.opened === true,
         error:
@@ -90,11 +91,11 @@ export const requestClinicalAction = (
             : invalidDetail
               ? 'El detalle clínico tiene un formato inválido. Actualiza la extensión y reintenta.'
               : undefined,
-        entries: safeEntries,
+        entries: decodeEntries(data.entries),
         detail,
         auth: operation === 'dau' ? decodeClinicalDauAuth(data.auth) : undefined,
         warnings: Array.isArray(data.warnings)
-          ? data.warnings.filter((value: unknown) => typeof value === 'string')
+          ? data.warnings.filter((value: unknown): value is string => typeof value === 'string')
           : undefined,
         unavailableSources: Array.isArray(data.unavailableSources)
           ? data.unavailableSources.filter(
@@ -115,24 +116,7 @@ export const requestClinicalAction = (
           (typeof data.nextBeforeDate === 'string' && /^\d{8}$/.test(data.nextBeforeDate))
             ? data.nextBeforeDate
             : undefined,
-      });
-    };
-    window.addEventListener('message', onMessage);
-    signal?.addEventListener('abort', onAbort, { once: true });
-    timer = setTimeout(
-      () =>
-        finish({
-          ok: false,
-          error: 'La extensión no respondió a la consulta clínica. Revisa tu conexión con Eloísa.',
-        }),
-      90000
-    );
-    try {
-      window.postMessage(
-        { type: 'HHR_RAYEN_CLINICAL_ACTION_REQUEST', reqId, encId, operation, entryId, beforeDate },
-        window.location.origin
-      );
-    } catch {
-      finish({ ok: false, error: 'No se pudo consultar la extensión Eloísa.' });
-    }
+      };
+    },
   });
+};

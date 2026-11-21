@@ -5,6 +5,8 @@
  * panel is fetched on demand when the drawer opens, so the clinical text never enters Firestore.
  */
 
+import { requestViaBridgeChannel } from '@/services/transport/extensionRequestChannel';
+
 export const RAYEN_CLINICAL_PANEL_REQUEST_TYPE = 'HHR_RAYEN_CLINICAL_PANEL_REQUEST';
 export const RAYEN_CLINICAL_PANEL_RESULT_TYPE = 'HHR_RAYEN_CLINICAL_PANEL_RESULT';
 export const RAYEN_PATIENT_DOCUMENT_OPEN_REQUEST_TYPE = 'HHR_RAYEN_PATIENT_DOCUMENT_OPEN_REQUEST';
@@ -65,107 +67,73 @@ const EMPTY_CARE_PLAN: RayenClinicalPanelCarePlan = {
  * `error` message) if the extension / Ficha Médico tab is unavailable or times out, so the drawer
  * degrades to its error state instead of hanging.
  */
+const panelFailure = (error: string): RayenClinicalPanelResult => ({
+  events: [],
+  carePlan: EMPTY_CARE_PLAN,
+  error,
+});
+
+const decodeCarePlan = (value: unknown): RayenClinicalPanelCarePlan => {
+  if (!value || typeof value !== 'object') return EMPTY_CARE_PLAN;
+  const candidate = value as Record<string, unknown>;
+  return {
+    carePlanHeaders: Array.isArray(candidate.carePlanHeaders) ? candidate.carePlanHeaders : [],
+    medicationStates: Array.isArray(candidate.medicationStates) ? candidate.medicationStates : [],
+  };
+};
+
 export const requestClinicalPanel = (
   encId: string,
   timeoutMs = 30000,
   signal?: AbortSignal,
   options?: { historyFrom: string }
-): Promise<RayenClinicalPanelResult> =>
-  new Promise(resolve => {
-    const failure = (error: string): RayenClinicalPanelResult => ({
-      events: [],
-      carePlan: EMPTY_CARE_PLAN,
-      error,
-    });
-    if (signal?.aborted) {
-      resolve(failure('Consulta del panel clínico cancelada.'));
-      return;
-    }
-    if (typeof window === 'undefined' || !encId.trim()) {
-      resolve(failure('No hay un episodio válido para consultar el panel clínico.'));
-      return;
-    }
-    const reqId = `clinical-panel-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-    let settled = false;
-    // eslint-disable-next-line prefer-const -- assigned once below, but read earlier by cleanup() (forward ref)
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    const cleanup = (): void => {
-      if (settled) return;
-      settled = true;
-      if (timeoutId !== undefined) clearTimeout(timeoutId);
-      window.removeEventListener('message', onMessage);
-      signal?.removeEventListener('abort', onAbort);
-    };
-
+): Promise<RayenClinicalPanelResult> => {
+  if (signal?.aborted) {
+    return Promise.resolve(panelFailure('Consulta del panel clínico cancelada.'));
+  }
+  if (typeof window === 'undefined' || !encId.trim()) {
+    return Promise.resolve(
+      panelFailure('No hay un episodio válido para consultar el panel clínico.')
+    );
+  }
+  return requestViaBridgeChannel<RayenClinicalPanelResult>({
+    prefix: 'clinical-panel',
+    requestType: RAYEN_CLINICAL_PANEL_REQUEST_TYPE,
+    resultType: RAYEN_CLINICAL_PANEL_RESULT_TYPE,
+    payload: { encId, ...(options ? { historyFrom: options.historyFrom } : {}) },
+    timeoutMs,
+    signal,
     // Cancels the HHR wait; the extension may finish its read in the background.
-    const onAbort = (): void => {
-      cleanup();
-      resolve(failure('Consulta del panel clínico cancelada.'));
-    };
-
-    const onMessage = (event: MessageEvent): void => {
-      if (settled || event.source !== window || event.origin !== window.location.origin) return;
-      const data = event.data;
-      if (!data || data.type !== RAYEN_CLINICAL_PANEL_RESULT_TYPE || data.reqId !== reqId) return;
-      cleanup();
-      resolve({
-        historyFrom: typeof data.historyFrom === 'string' ? data.historyFrom : undefined,
-        forms: Array.isArray(data.forms) ? data.forms : undefined,
-        formError: typeof data.formError === 'string' ? data.formError : undefined,
-        events: Array.isArray(data.events) ? (data.events as RayenClinicalPanelEvent[]) : [],
-        carePlan:
-          data.carePlan && typeof data.carePlan === 'object'
-            ? {
-                carePlanHeaders: Array.isArray(data.carePlan.carePlanHeaders)
-                  ? data.carePlan.carePlanHeaders
-                  : [],
-                medicationStates: Array.isArray(data.carePlan.medicationStates)
-                  ? data.carePlan.medicationStates
-                  : [],
-              }
-            : EMPTY_CARE_PLAN,
-        error: typeof data.error === 'string' ? data.error : undefined,
-        documents: Array.isArray(data.documents)
-          ? data.documents.filter((item: unknown): item is RayenPatientDocument => {
-              if (!item || typeof item !== 'object') return false;
-              const row = item as Record<string, unknown>;
-              return [
-                'id',
-                'classification',
-                'fileName',
-                'name',
-                'attachedBy',
-                'facility',
-                'createdAt',
-              ].every(field => typeof row[field] === 'string');
-            })
-          : undefined,
-        documentError: typeof data.documentError === 'string' ? data.documentError : undefined,
-      });
-    };
-
-    window.addEventListener('message', onMessage);
-    signal?.addEventListener('abort', onAbort, { once: true });
-    timeoutId = setTimeout(() => {
-      cleanup();
-      resolve(failure('Tiempo de espera agotado bajando el panel clínico.'));
-    }, timeoutMs);
-    try {
-      window.postMessage(
-        {
-          type: RAYEN_CLINICAL_PANEL_REQUEST_TYPE,
-          reqId,
-          encId,
-          ...(options ? { historyFrom: options.historyFrom } : {}),
-        },
-        window.location.origin
-      );
-    } catch {
-      cleanup();
-      resolve(failure('No se pudo consultar el panel clínico mediante la extensión.'));
-    }
+    onAbort: () => panelFailure('Consulta del panel clínico cancelada.'),
+    onTimeout: () => panelFailure('Tiempo de espera agotado bajando el panel clínico.'),
+    onDispatchError: () =>
+      panelFailure('No se pudo consultar el panel clínico mediante la extensión.'),
+    mapResult: data => ({
+      historyFrom: typeof data.historyFrom === 'string' ? data.historyFrom : undefined,
+      forms: Array.isArray(data.forms) ? data.forms : undefined,
+      formError: typeof data.formError === 'string' ? data.formError : undefined,
+      events: Array.isArray(data.events) ? (data.events as RayenClinicalPanelEvent[]) : [],
+      carePlan: decodeCarePlan(data.carePlan),
+      error: typeof data.error === 'string' ? data.error : undefined,
+      documents: Array.isArray(data.documents)
+        ? data.documents.filter((item: unknown): item is RayenPatientDocument => {
+            if (!item || typeof item !== 'object') return false;
+            const row = item as Record<string, unknown>;
+            return [
+              'id',
+              'classification',
+              'fileName',
+              'name',
+              'attachedBy',
+              'facility',
+              'createdAt',
+            ].every(field => typeof row[field] === 'string');
+          })
+        : undefined,
+      documentError: typeof data.documentError === 'string' ? data.documentError : undefined,
+    }),
   });
+};
 
 export interface RayenPatientDocumentOpenResult {
   ok: boolean;
@@ -177,51 +145,34 @@ export const requestPatientDocumentOpen = (
   encId: string,
   documentId: string,
   timeoutMs = 20000
-): Promise<RayenPatientDocumentOpenResult> =>
-  new Promise(resolve => {
-    if (typeof window === 'undefined' || !encId.trim() || !documentId.trim()) {
-      resolve({ ok: false, opened: false, error: 'El archivo seleccionado no es válido.' });
-      return;
-    }
-    const reqId = `patient-document-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-    let settled = false;
-    const finish = (result: RayenPatientDocumentOpenResult): void => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeoutId);
-      window.removeEventListener('message', onMessage);
-      resolve(result);
-    };
-    const onMessage = (event: MessageEvent): void => {
-      if (event.origin !== window.location.origin || event.source !== window) return;
-      const data = event.data;
-      if (!data || data.type !== RAYEN_PATIENT_DOCUMENT_OPEN_RESULT_TYPE || data.reqId !== reqId) {
-        return;
-      }
-      finish({
-        ok: data.ok === true,
-        opened: data.opened === true,
-        error: typeof data.error === 'string' ? data.error : undefined,
-      });
-    };
-    const timeoutId = setTimeout(() => {
-      finish({
-        ok: false,
-        opened: false,
-        error: 'La extensión no respondió al abrir el archivo.',
-      });
-    }, timeoutMs);
-    window.addEventListener('message', onMessage);
-    try {
-      window.postMessage(
-        { type: RAYEN_PATIENT_DOCUMENT_OPEN_REQUEST_TYPE, reqId, encId, documentId },
-        window.location.origin
-      );
-    } catch {
-      finish({
-        ok: false,
-        opened: false,
-        error: 'No se pudo abrir el archivo mediante la extensión.',
-      });
-    }
+): Promise<RayenPatientDocumentOpenResult> => {
+  if (typeof window === 'undefined' || !encId.trim() || !documentId.trim()) {
+    return Promise.resolve({
+      ok: false,
+      opened: false,
+      error: 'El archivo seleccionado no es válido.',
+    });
+  }
+  return requestViaBridgeChannel<RayenPatientDocumentOpenResult>({
+    prefix: 'patient-document',
+    requestType: RAYEN_PATIENT_DOCUMENT_OPEN_REQUEST_TYPE,
+    resultType: RAYEN_PATIENT_DOCUMENT_OPEN_RESULT_TYPE,
+    payload: { encId, documentId },
+    timeoutMs,
+    onTimeout: () => ({
+      ok: false,
+      opened: false,
+      error: 'La extensión no respondió al abrir el archivo.',
+    }),
+    onDispatchError: () => ({
+      ok: false,
+      opened: false,
+      error: 'No se pudo abrir el archivo mediante la extensión.',
+    }),
+    mapResult: data => ({
+      ok: data.ok === true,
+      opened: data.opened === true,
+      error: typeof data.error === 'string' ? data.error : undefined,
+    }),
   });
+};

@@ -438,6 +438,7 @@ describe('chunkingPolicy', () => {
       'src/services/runtime/createCachedRuntimeLoader.ts',
       'src/services/pdf/pdfJsTextRuntime.ts',
       'src/services/pdf/pdfTextExtractionRuntime.ts',
+      'src/services/transport/extensionRequestChannel.ts',
       'src/utils/eloisaPersonName.ts',
     ]) {
       expect(chunkForModule(`/repo/${shared}`), shared).toBe('shared-runtime-loaders');

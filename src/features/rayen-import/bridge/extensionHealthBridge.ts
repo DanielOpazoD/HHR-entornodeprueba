@@ -6,6 +6,8 @@
  * currently open Ficha Médico and Gestión de Camas tabs.
  */
 
+import { requestViaBridgeChannel } from '@/services/transport/extensionRequestChannel';
+
 export const RAYEN_EXTENSION_HEALTH_REQUEST_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST';
 export const RAYEN_EXTENSION_HEALTH_RESULT_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_RESULT';
 export const RAYEN_EXTENSION_HEALTH_PUSH_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_PUSH';
@@ -147,60 +149,33 @@ export const subscribeToRayenExtensionHealthPush = (
 export const requestRayenExtensionHealth = (
   timeoutMs = RAYEN_EXTENSION_PASSIVE_HEALTH_TIMEOUT_MS,
   options: { verifySessions?: boolean } = {}
-): Promise<RayenExtensionHealthCheck> =>
-  new Promise(resolve => {
-    if (typeof window === 'undefined') {
-      resolve({ report: null, error: 'El diagnóstico Eloísa requiere el navegador.' });
-      return;
-    }
+): Promise<RayenExtensionHealthCheck> => {
+  if (typeof window === 'undefined') {
+    return Promise.resolve({
+      report: null,
+      error: 'El diagnóstico Eloísa requiere el navegador.',
+    });
+  }
 
-    const reqId = `health-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-    let settled = false;
-    // eslint-disable-next-line prefer-const -- assigned after listener setup, read by cleanup first
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    const cleanup = (): void => {
-      if (settled) return;
-      settled = true;
-      if (timeoutId !== undefined) clearTimeout(timeoutId);
-      window.removeEventListener('message', onMessage);
-    };
-
-    const onMessage = (event: MessageEvent): void => {
-      if (event.source !== window || event.origin !== window.location.origin) return;
-      const data = event.data;
-      if (!data || data.type !== RAYEN_EXTENSION_HEALTH_RESULT_TYPE || data.reqId !== reqId) {
-        return;
-      }
-      cleanup();
-      if (isRayenExtensionHealthReport(data.report)) {
-        resolve({ report: data.report });
-        return;
-      }
-      resolve({
-        report: null,
-        error:
-          typeof data.error === 'string'
-            ? data.error
-            : 'La extensión Eloísa respondió con un diagnóstico no reconocido.',
-      });
-    };
-
-    window.addEventListener('message', onMessage);
-    window.postMessage(
-      {
-        type: RAYEN_EXTENSION_HEALTH_REQUEST_TYPE,
-        reqId,
-        ...(options.verifySessions ? { verifySessions: true } : {}),
-      },
-      window.location.origin
-    );
-
-    timeoutId = setTimeout(() => {
-      cleanup();
-      resolve({
-        report: null,
-        error: 'La extensión Eloísa no respondió. Recárgala desde Chrome y vuelve a comprobar.',
-      });
-    }, timeoutMs);
+  return requestViaBridgeChannel<RayenExtensionHealthCheck>({
+    prefix: 'health',
+    requestType: RAYEN_EXTENSION_HEALTH_REQUEST_TYPE,
+    resultType: RAYEN_EXTENSION_HEALTH_RESULT_TYPE,
+    payload: options.verifySessions ? { verifySessions: true } : {},
+    timeoutMs,
+    onTimeout: () => ({
+      report: null,
+      error: 'La extensión Eloísa no respondió. Recárgala desde Chrome y vuelve a comprobar.',
+    }),
+    mapResult: data =>
+      isRayenExtensionHealthReport(data.report)
+        ? { report: data.report }
+        : {
+            report: null,
+            error:
+              typeof data.error === 'string'
+                ? data.error
+                : 'La extensión Eloísa respondió con un diagnóstico no reconocido.',
+          },
   });
+};

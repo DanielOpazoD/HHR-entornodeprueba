@@ -29,6 +29,7 @@ describe('connectionRepairChannel', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: {
           type: RAYEN_CONNECTION_REPAIR_RESULT_TYPE,
           reqId: `${payload.reqId}-antiguo`,
@@ -39,6 +40,7 @@ describe('connectionRepairChannel', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: {
           type: RAYEN_CONNECTION_REPAIR_RESULT_TYPE,
           reqId: payload.reqId,
@@ -65,6 +67,7 @@ describe('connectionRepairChannel', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: {
           type: RAYEN_CONNECTION_REPAIR_RESULT_TYPE,
           reqId: payload.reqId,

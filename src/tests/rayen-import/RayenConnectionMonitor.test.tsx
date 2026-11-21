@@ -190,6 +190,7 @@ describe('RayenConnectionMonitor', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: {
           type: RAYEN_GC_CONNECT_RESULT_TYPE,
           reqId: payload?.reqId,
@@ -329,6 +330,7 @@ describe('RayenConnectionMonitor', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: {
           type: RAYEN_CONNECTION_REPAIR_RESULT_TYPE,
           reqId: payload?.reqId,

@@ -1,10 +1,9 @@
 /**
  * Ciclo de vida compartido de los canales request/response del bridge hacia la
- * extensión: correlación por `reqId`, un único listener que se retira al
- * resolver, timer de timeout siempre cancelado (sin fugas) y degradación
- * explícita cuando la extensión no responde. Los seis canales de lectura de
- * `rayenImportBridge` difieren sólo en su payload y en cómo mapean la
- * respuesta.
+ * extensión: correlación por `reqId`, verificación de mismo origen y ventana,
+ * un único listener que se retira al resolver, timer de timeout siempre
+ * cancelado (sin fugas) y degradación explícita ante timeout, cancelación o
+ * error de envío.
  */
 export const requestViaBridgeChannel = <T>({
   prefix,
@@ -15,6 +14,8 @@ export const requestViaBridgeChannel = <T>({
   onTimeout,
   mapResult,
   signal,
+  onAbort,
+  onDispatchError,
 }: {
   prefix: string;
   requestType: string;
@@ -24,6 +25,8 @@ export const requestViaBridgeChannel = <T>({
   onTimeout: () => T;
   mapResult: (data: Record<string, unknown>) => T;
   signal?: AbortSignal;
+  onAbort?: () => T;
+  onDispatchError?: (error: unknown) => T;
 }): Promise<T> =>
   new Promise((resolve, reject) => {
     const reqId = `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
@@ -34,7 +37,7 @@ export const requestViaBridgeChannel = <T>({
       if (settled) return;
       settled = true;
       window.removeEventListener('message', onMessage);
-      signal?.removeEventListener('abort', onAbort);
+      signal?.removeEventListener('abort', handleAbort);
       if (timeoutId) clearTimeout(timeoutId);
     };
 
@@ -48,8 +51,12 @@ export const requestViaBridgeChannel = <T>({
       }
     };
 
-    const onAbort = (): void => {
+    const handleAbort = (): void => {
       if (settled) return;
+      if (onAbort) {
+        finish(onAbort);
+        return;
+      }
       cleanup();
       reject(signal?.reason ?? new DOMException('Clinical read cancelled', 'AbortError'));
     };
@@ -63,15 +70,19 @@ export const requestViaBridgeChannel = <T>({
     };
 
     if (signal?.aborted) {
-      onAbort();
+      handleAbort();
       return;
     }
     window.addEventListener('message', onMessage);
-    signal?.addEventListener('abort', onAbort, { once: true });
+    signal?.addEventListener('abort', handleAbort, { once: true });
     timeoutId = setTimeout(() => finish(onTimeout), timeoutMs);
     try {
       window.postMessage({ type: requestType, reqId, ...payload }, window.location.origin);
     } catch (error) {
+      if (onDispatchError) {
+        finish(() => onDispatchError(error));
+        return;
+      }
       cleanup();
       reject(error);
     }

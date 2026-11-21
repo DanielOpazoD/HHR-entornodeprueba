@@ -112,13 +112,14 @@ export const chunkForModule = (
   const inNodeModules = normalizedId.includes('/node_modules/');
   const has = (fragment: string): boolean => normalizedId.includes(fragment);
 
-  // Small runtime loaders shared by PDF, image and CUDYR tools. Left to Rollup they
-  // landed inside the online-only Rayen reconstruction chunk, so prescriptions, the
-  // scanner and every PDF tool depended on it offline. Keep them in their own chunk.
+  // Small runtime loaders and the shared extension bridge channel. Left to Rollup they
+  // landed inside the online-only Rayen reconstruction chunk, so offline precached chunks
+  // depended on it. Keep them in their own tiny shared chunk.
   if (
     has('/src/services/runtime/createCachedRuntimeLoader.ts') ||
     has('/src/services/pdf/pdfJsTextRuntime.ts') ||
     has('/src/services/pdf/pdfTextExtractionRuntime.ts') ||
+    has('/src/services/transport/extensionRequestChannel.ts') ||
     has('/src/utils/eloisaPersonName.ts')
   ) {
     return 'shared-runtime-loaders';
