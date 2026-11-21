@@ -36,7 +36,7 @@ describe('sync execution transition graph', () => {
         RAYEN_SYNC_STAGE_TRANSITIONS[stage as keyof typeof RAYEN_SYNC_STAGE_TRANSITIONS]
       ).toEqual([]);
     }
-    const postCommit = ['verifying_structure', 'syncing_clinical'] as const;
+    const postCommit = ['syncing_clinical'] as const;
     const preCommit = [
       'capturing',
       'planning_structure',
@@ -55,7 +55,6 @@ describe('sync execution transition graph', () => {
     for (const stage of [
       { type: 'planning_structure' },
       { type: 'persisting_structure' },
-      { type: 'verifying_structure' },
       { type: 'syncing_clinical' },
     ] as const) {
       dispatchExecution({ type: 'transition', ...identity, stage });

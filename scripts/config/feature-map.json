@@ -517,6 +517,10 @@
           "decides": "Compara el censo con la lectura y propone ingresos, egresos, traslados, movimientos y conflictos."
         },
         {
+          "at": "src/features/rayen-import/hooks/rayenSnapshotPersistenceExecution.ts › persistRayenStructureThenClinical",
+          "decides": "Único camino tras confirmar, con revisión o sin ella: guarda la estructura y sigue a la etapa clínica, vuelve a revisión si el plan cambió o marca la corrida fallida con su causa."
+        },
+        {
           "at": "src/features/rayen-import/hooks/confirmRayenImport.ts › applyConfirmedRayenImport",
           "decides": "Tras la revisión, vuelve a planificar si el censo cambió y aplica solo un plan equivalente al revisado."
         },
