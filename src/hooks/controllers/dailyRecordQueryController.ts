@@ -5,10 +5,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { hasSamePatientEpisodeIdentity } from '@/domain/clinical-episode/patientEpisodeIdentityPolicy';
 import { applyPatches } from '@/utils/patchUtils';
-import {
-  applyPendingExplicitCensusPatch,
-  releaseConfirmedPendingDailyRecordPatches,
-} from '@/hooks/controllers/dailyRecordPendingPatchController';
+import { applyPendingExplicitCensusPatch } from '@/hooks/controllers/dailyRecordPendingPatchController';
 import {
   createDailyRecordQueryResult,
   createGetDailyRecordQuery,
@@ -25,6 +22,7 @@ import { dailyRecordObservability } from '@/services/repositories/dailyRecordOpe
 import { markDailyRecordRemoteConfirmed } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { didDailyRecordFreshnessHydrateNewerRemote } from '@/hooks/controllers/dailyRecordFreshnessHydrationController';
 import {
+  isServerConfirmedRead,
   reconcileDailyRecordQueryResult,
   settleFinishedPointRead,
 } from '@/hooks/controllers/dailyRecordQueryResultPrecedence';
@@ -104,18 +102,12 @@ const createRuntimeFromResult = (
 
 const confirmAcceptedDailyRecordRead = (
   date: string,
-  { record, runtime }: DailyRecordQueryResult,
+  accepted: DailyRecordQueryResult,
   previousRecord: DailyRecord | null | undefined,
   source: 'query' | 'subscription'
 ) => {
-  if (
-    !record ||
-    !runtime.serverConfirmed ||
-    runtime.consistencyState === 'unavailable' ||
-    runtime.conflictSummary?.kind === 'remote_unavailable'
-  ) {
-    return;
-  }
+  const { record, runtime } = accepted;
+  if (!record || !isServerConfirmedRead(accepted)) return;
   markDailyRecordRemoteConfirmed(date, {
     source,
     ...(runtime.sourceOfTruth === 'remote'
@@ -191,38 +183,26 @@ export const createDailyRecordSubscription = (
   const applyResolvedQueryResult = (result: DailyRecordQueryResult) =>
     queryClient.setQueryData(queryKey, result);
 
-  const applyResolvedRecord = (
+  // A read goes on screen through the point read's own publication: the same pending-edit
+  // overlay, release of edits the server holds, and confirmation, whichever channel brought it.
+  const publishResolvedRecord = (
     result: DailyRecordQueryResult,
     previousResult: DailyRecordQueryResult | undefined,
-    remoteCandidate?: DailyRecordQueryResult
+    confirms: boolean,
+    confirm: (accepted: DailyRecordQueryResult) => void = () => {}
   ) => {
-    const { record, runtime } = result;
-    if (
-      remoteCandidate?.record &&
-      remoteCandidate.runtime.serverConfirmed &&
-      remoteCandidate.runtime.sourceOfTruth === 'remote'
-    ) {
-      releaseConfirmedPendingDailyRecordPatches(
-        date,
-        remoteCandidate.record,
-        previousResult?.record ?? undefined
-      );
-    }
-    const resolvedRecord = record
-      ? applyPendingExplicitCensusPatch(date, record, previousResult?.record ?? undefined)
-      : record;
-    applyResolvedQueryResult({
-      ...result,
-      record: resolvedRecord,
-      runtime:
-        resolvedRecord === record
-          ? runtime
-          : {
-              ...runtime,
-              baseSource: runtime.baseSource ?? runtime.sourceOfTruth,
-              sourceOfTruth: 'local',
-            },
-    });
+    const publication = createPointReadPublication(
+      result,
+      previousResult,
+      () => queryClient.getQueryData<DailyRecordQueryResult>(queryKey),
+      confirm,
+      confirms,
+      previousResult?.record ?? null
+    );
+    queryClient.setQueryData<DailyRecordQueryResult>(
+      queryKey,
+      current => publishDailyRecordQueryData(current, publication) as DailyRecordQueryResult
+    );
   };
 
   const reconcileNullRealtimeRecord = (previousResult: DailyRecordQueryResult) => {
@@ -266,11 +246,9 @@ export const createDailyRecordSubscription = (
             // Retaining cached data is not an acknowledgement of pending edits.
             applyResolvedQueryResult(resolved);
           } else {
-            applyResolvedRecord(
-              resolved,
-              previousResult,
-              resolved === recovered ? recovered : undefined
-            );
+            // As before, the recovery never confirms freshness; it releases pending edits only
+            // when the recovered read itself is published.
+            publishResolvedRecord(resolved, previousResult, resolved === recovered);
           }
           return;
         }
@@ -335,8 +313,9 @@ export const createDailyRecordSubscription = (
       if (reconciled === previousResult) {
         return;
       }
-      applyResolvedRecord(reconciled, previousResult, reconciled === result ? result : undefined);
-      confirmAcceptedDailyRecordRead(date, reconciled, previousResult?.record, 'subscription');
+      publishResolvedRecord(reconciled, previousResult, true, accepted =>
+        confirmAcceptedDailyRecordRead(date, accepted, previousResult?.record, 'subscription')
+      );
       return;
     }
 

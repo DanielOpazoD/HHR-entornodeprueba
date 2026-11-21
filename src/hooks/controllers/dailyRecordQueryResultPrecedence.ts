@@ -2,10 +2,15 @@ import type { DailyRecordQueryResult } from '@/services/repositories/contracts/d
 import { toRecordTimestamp } from '@/services/repositories/dailyRecordConsistencyPolicy';
 import { wouldReplacePendingDailyRecordIdentity } from './dailyRecordPendingPatchController';
 
-const mustSurfaceIncomingRuntime = ({ runtime }: DailyRecordQueryResult): boolean =>
+/** The read could not reach the day: its failure is shown, never taken as data or absence. */
+const isUnavailableRead = ({ runtime }: DailyRecordQueryResult): boolean =>
   runtime.availabilityState === 'temporarily_unavailable' ||
   runtime.consistencyState === 'unavailable' ||
   runtime.conflictSummary?.kind === 'remote_unavailable';
+
+/** The one meaning of «confirmed by the server»: the server answered this read and it is usable. */
+export const isServerConfirmedRead = (result: DailyRecordQueryResult): boolean =>
+  result.runtime.serverConfirmed && !isUnavailableRead(result);
 
 const retainUnconfirmedResult = (result: DailyRecordQueryResult): DailyRecordQueryResult =>
   result.runtime.serverConfirmed
@@ -60,7 +65,7 @@ export const reconcileDailyRecordQueryResult = (
     !runtime.serverConfirmed &&
     wouldReplacePendingDailyRecordIdentity(runtime.date, record, previousRecord);
   if (
-    mustSurfaceIncomingRuntime(incoming) &&
+    isUnavailableRead(incoming) &&
     (retainsPendingIdentity ||
       !record ||
       toRecordTimestamp(previousRecord.lastUpdated) >= toRecordTimestamp(record.lastUpdated))
@@ -80,7 +85,7 @@ export const reconcileDailyRecordQueryResult = (
   if (retainsPendingIdentity) return retainUnconfirmedResult(previous);
   if (
     !record ||
-    mustSurfaceIncomingRuntime(incoming) ||
+    isUnavailableRead(incoming) ||
     (baseSource(previous) === 'local' && baseSource(incoming) !== 'local')
   ) {
     return incoming;

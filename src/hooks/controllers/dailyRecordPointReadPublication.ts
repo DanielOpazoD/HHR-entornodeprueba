@@ -1,7 +1,11 @@
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
 import { CancelledError } from '@tanstack/react-query';
-import { applyPendingExplicitCensusPatch } from './dailyRecordPendingPatchController';
+import {
+  applyPendingExplicitCensusPatch,
+  releaseConfirmedPendingDailyRecordPatches,
+} from './dailyRecordPendingPatchController';
+import { isServerConfirmedRead } from './dailyRecordQueryResultPrecedence';
 import { replaceEqualDeep } from '@tanstack/react-query';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
@@ -52,7 +56,22 @@ class PointReadPublication implements DailyRecordQueryResult {
       return current;
     }
     const accepted = replaceEqualDeep(current, { record: this.record, runtime: this.runtime });
-    if (this.#mayConfirm) this.#confirm(accepted);
+    if (this.#mayConfirm) {
+      this.#confirm(accepted);
+      // The server now holds these edits: their copies stop being laid over later reads.
+      if (
+        accepted.record &&
+        this.#patchBase &&
+        accepted.runtime.sourceOfTruth === 'remote' &&
+        isServerConfirmedRead(accepted)
+      ) {
+        releaseConfirmedPendingDailyRecordPatches(
+          accepted.runtime.date,
+          accepted.record,
+          this.#patchBase
+        );
+      }
+    }
     const record = accepted.record
       ? applyPendingExplicitCensusPatch(
           accepted.runtime.date,

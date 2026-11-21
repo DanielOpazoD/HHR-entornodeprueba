@@ -14,6 +14,7 @@ import {
   shouldUseDailyRecordRealtimeSync,
 } from '@/hooks/controllers/dailyRecordQueryController';
 import { setAcknowledgedDailyRecordQueryData } from '@/hooks/controllers/dailyRecordConfirmedCacheController';
+import { isServerConfirmedRead } from '@/hooks/controllers/dailyRecordQueryResultPrecedence';
 import {
   markDailyRecordRemoteConfirmed,
   markDailyRecordStaleBaseline,
@@ -83,11 +84,7 @@ export const useDailyRecordQuery = (
   });
 
   const hasConfirmedRemoteRead =
-    query.isFetchedAfterMount &&
-    query.data?.record &&
-    query.data.runtime.serverConfirmed &&
-    query.data.runtime.consistencyState !== 'unavailable' &&
-    query.data.runtime.conflictSummary?.kind !== 'remote_unavailable';
+    query.isFetchedAfterMount && !!query.data?.record && isServerConfirmedRead(query.data);
 
   useEffect(() => {
     const didRemoteSyncJustBecomeReady =
