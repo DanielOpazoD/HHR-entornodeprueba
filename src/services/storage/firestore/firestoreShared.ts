@@ -114,7 +114,7 @@ export const docToRecord = (docData: Record<string, unknown>, docId: string): Da
   });
 
   // Stored data is untyped; migrateLegacyData is what turns it into a DailyRecord.
-  return migrateLegacyData(rawData as unknown as DailyRecord, docId);
+  return migrateLegacyData(rawData, docId);
 };
 
 export const readStringCatalogFromSnapshot = (
