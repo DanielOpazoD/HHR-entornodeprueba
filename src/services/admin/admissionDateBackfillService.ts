@@ -75,11 +75,8 @@ export const applyAdmissionDateBackfill = async (
     for (let index = 0; index < plan.records.length; index += 1) {
       const item = plan.records[index];
       try {
-        // A bulk rewrite of past days keeps each day's previous state in history.
-        await saveDailyRecordDetailed(item.record, undefined, {
-          historyPolicy: 'snapshot',
-          authoringSession,
-        });
+        // The authority keeps each day's previous state in history.
+        await saveDailyRecordDetailed(item.record, undefined, { authoringSession });
         appliedRecords += 1;
       } catch (error) {
         failedRecords += 1;

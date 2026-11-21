@@ -54,7 +54,6 @@ vi.mock('@/services/storage/firestore/firestoreRecordWrites', async importOrigin
 const h = harnessState();
 beforeEach(async () => {
   await resetDay('user:synthetic-r04-replay');
-  h.writeFence = true;
   vi.mocked(updateRecordPartial).mockClear();
 });
 afterEach(() => {

@@ -8,7 +8,6 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
-import * as fence from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
 import { createDailyRecordWriteAuthorityFunctions } from '@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support';
 import {
   saveDetailed,
@@ -43,9 +42,9 @@ import type { DailyRecordWriteResult } from '@/services/repositories/contracts/d
  * and inside its transaction, as the queue's resend does, so the edit stays in its author's queue
  * instead of reaching the server inside the next person's session (W12-SC2, rule «nada se publica
  * a nombre de una sesión que ya no es la vigente»). The held step stands for a slow or returning
- * network: the read before a field edit or before its history copy, the transaction of a full-day
- * save, or the permission refresh after the rules refuse a bed edit. Everything else is the
- * shipped code against the Firestore emulator.
+ * network: the read before a field edit or before its history copy, or the call to the authority
+ * of a full-day save or a queued day. Everything else is the shipped code against the Firestore
+ * emulator.
  */
 
 // One SDK per person, bound to the async chain that writes, as in syncQueueModel.
@@ -80,8 +79,8 @@ vi.mock('@/firebaseConfig', () => ({
 }));
 
 // The armed step answers only when the test says so (a slow network): a read of one document
-// (after `skip` earlier reads of it), the next transaction, or the next permission refresh.
-type HeldStep = { read: string; skip?: number } | 'transaction' | 'role refresh';
+// (after `skip` earlier reads of it), or the next call to the authority.
+type HeldStep = { read: string; skip?: number } | 'authority';
 const slowStep = vi.hoisted(() => {
   const state = {
     next: undefined as
@@ -106,22 +105,8 @@ vi.mock('firebase/firestore', async importOriginal => {
       await slowStep.hold(step => typeof step === 'object' && step.read === args[0].path);
       return actual.getDoc(...args);
     },
-    runTransaction: async (...args: Parameters<typeof actual.runTransaction>) => {
-      await slowStep.hold(step => step === 'transaction');
-      return actual.runTransaction(...args);
-    },
   };
 });
-// The permission refresh that follows a refused write waits, then fails (a token race).
-vi.mock('@/services/storage/firestore/firestoreRecordWriteUtilities', async importOriginal => ({
-  ...(await importOriginal<
-    typeof import('@/services/storage/firestore/firestoreRecordWriteUtilities')
-  >()),
-  tryRefreshCurrentUserRoleClaim: async () => {
-    await slowStep.hold(step => step === 'role refresh');
-    return false;
-  },
-}));
 
 // Only the callable's network hop is replaced: the shipped client and its session checks run,
 // then the shipped authority handler commits with the real admin transaction.
@@ -139,6 +124,7 @@ vi.mock('@/services/storage/firestore/dailyRecordAuthorityTransport', async () =
     await import('@/services/storage/firestore/dailyRecordAuthorityCallableClient');
   return {
     invokeAuthority: async (operation: 'save' | 'patch', payload: unknown, check: () => void) => {
+      await slowStep.hold(step => step === 'authority');
       check();
       server.dispatched++;
       const uid = scope.getStore()?.uid;
@@ -290,9 +276,6 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   const sends: Record<
     string,
     {
-      fence: boolean;
-      /** The routing reads miss the fence, as on a token race at startup. */
-      staleRouting?: boolean;
       held: HeldStep;
       send: (
         shown: DailyRecord
@@ -303,41 +286,28 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     }
   > = {
     // A field edit: the read of the day before its transaction waits for the network.
-    'field edit': { fence: true, held: { read: dayPath }, send: writeNote },
+    'field edit': { held: { read: dayPath }, send: writeNote },
     // The same edit, with the read of its history copy waiting for the network.
     'field edit and its history copy': {
-      fence: true,
       held: { read: dayPath, skip: 1 },
       send: editField(
         { handoffNovedadesNightShift: 'NOTA SINTETICA DE P1' },
         { historyPolicy: 'snapshot' }
       ),
     },
-    // A bed edit written directly: the rules refuse it, and the permission refresh that would let
-    // it go on through the authority waits for the network.
-    'bed edit refused while permissions refresh': {
-      fence: true,
-      staleRouting: true,
-      held: 'role refresh',
+    // A bed edit: its call to the authority waits for the network.
+    'bed edit through the authority': {
+      held: 'authority',
       send: editField({ 'beds.R1.pathology': 'DIAGNOSTICO SINTETICO DE P1' }),
       field: diagnosis,
       base: 'DIAGNOSTICO BASE',
       written: 'DIAGNOSTICO SINTETICO DE P1',
     },
-    // A full-day save with the server's write fence on, as in production: the routing read
-    // before the authority call waits for the network.
-    'full-day save through the authority': {
-      fence: true,
-      held: { read: policyPath },
-      send: saveDay,
-    },
-    // A full-day save without the fence: its transaction waits for the network.
-    'full-day save in a transaction': { fence: false, held: 'transaction', send: saveDay },
-    // «Dar de alta» sent by the queue: the queue's read of the server's write policy, right
-    // before the send, waits for the network.
+    // A full-day save, as in production: the call to the authority waits for the network.
+    'full-day save through the authority': { held: 'authority', send: saveDay },
+    // «Dar de alta» sent by the queue: its call to the authority waits for the network.
     '«Dar de alta» sent by the queue': {
-      fence: true,
-      held: { read: policyPath },
+      held: 'authority',
       send: dischargeThroughQueue,
       field: discharged,
       base: '',
@@ -350,20 +320,16 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     async kind => {
       const { field = note, base = 'NOCHE BASE', written = 'NOTA SINTETICA DE P1' } = sends[kind];
       server.dispatched = 0;
-      const routing = sends[kind].staleRouting
-        ? [vi.spyOn(fence, 'isServerClinicalWriteFenceActive').mockResolvedValue(false)]
-        : [];
       await env.clearFirestore();
       await hospitalDB.dailyRecords.clear();
       await hospitalDB.syncQueue.clear();
       localStorage.clear();
-      if (sends[kind].fence)
-        await admin.doc(policyPath).set({
-          schemaVersion: 2,
-          mode: 'preview',
-          revision: 7,
-          clinicalBatchMode: 'enforced',
-        });
+      await admin.doc(policyPath).set({
+        schemaVersion: 2,
+        mode: 'preview',
+        revision: 7,
+        clinicalBatchMode: 'enforced',
+      });
       const day = DataFactory.createMockDailyRecord(date, {
         lastUpdated: '2026-01-01T00:00:00.000Z',
         dateTimestamp: Date.parse(`${date}T00:00:00.000Z`),
@@ -408,7 +374,6 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       // The server answers.
       release();
       const result = await edit;
-      routing.forEach(spy => spy.mockRestore());
       const history = (await countHistory()) - historyBeforeChange;
       const retained = (await hospitalDB.syncQueue.toArray()).map(task => ({
         owner: task.ownerKey,

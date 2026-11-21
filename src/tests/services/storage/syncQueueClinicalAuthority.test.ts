@@ -46,7 +46,6 @@ vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
 
 import { getDoc, setDoc } from 'firebase/firestore';
 import { processSyncQueue, queueSyncTask } from '@/services/storage/sync';
-import { activateServerWriteFence } from '@/tests/support/serverWriteFence';
 
 const makeRecord = (date: string): DailyRecord =>
   ({
@@ -137,8 +136,7 @@ describe('sync queue clinical authority', () => {
     expect(task.error).toContain('clinical authority');
   });
 
-  it('publishes valid outbox daily records through the authority callable behind the server fence', async () => {
-    activateServerWriteFence();
+  it('publishes valid outbox daily records through the authority callable', async () => {
     const local = makeRecord('2025-01-17');
     local.beds.R1 = {
       bedId: 'R1',
@@ -193,48 +191,5 @@ describe('sync queue clinical authority', () => {
         }),
       })
     );
-  });
-
-  it('keeps direct outbox publish without a policy', async () => {
-    const local = makeRecord('2025-01-18');
-    local.beds.R1 = {
-      bedId: 'R1',
-      patientName: 'Paciente Shadow',
-      rut: '66.666.666-6',
-      age: '61a',
-      pathology: 'Diagnostico local',
-      specialty: 'Medicina',
-      status: 'Estable',
-      admissionDate: '2025-01-18',
-      admissionTime: '08:00',
-      clinicalEpisodeId: 'ep-shadow-outbox',
-      isBlocked: false,
-      bedMode: 'Cama',
-      hasCompanionCrib: false,
-      hasWristband: true,
-      devices: [],
-      surgicalComplication: false,
-      isUPC: false,
-    } as DailyRecord['beds'][string];
-
-    await queueSyncTask('UPDATE_DAILY_RECORD', local, {
-      contexts: ['clinical'],
-      origin: 'full_save_retry',
-      syncContract: {
-        expectedVersion: '2025-01-18T10:00:00.000Z',
-        changedPaths: ['beds.R1.pathology'],
-      },
-    });
-
-    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
-    await processSyncQueue();
-
-    expect(mockAuthorityCallable).not.toHaveBeenCalled();
-    expect(setDoc).toHaveBeenCalledWith(
-      { id: 'sync-authority-doc-ref' },
-      expect.objectContaining({ date: '2025-01-18' }),
-      { merge: true }
-    );
-    expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
   });
 });

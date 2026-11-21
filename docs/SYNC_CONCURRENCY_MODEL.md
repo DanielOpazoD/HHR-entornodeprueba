@@ -14,46 +14,36 @@ concurrency token; writes made by the server authority also keep `meta.revision`
 `meta.lastMutationId` and `meta.lastChangedPaths`. `beds` is a map of bed-id → patient (each
 bed may also carry a nested `clinicalCrib` patient). Earlier versions go to the `history`
 subcollection, but not on every path. Client writes copy at most once per hour per document and
-device (`historySnapshotCadence`): `saveRecordAtomically` and `updateRecordPartiallyAtomically`
-inside their transaction, a plain `updateDoc` just before. `historyPolicy: 'snapshot'` always
-copies (version restores, backup restores, structural Rayen imports, the admission-date backfill
-and the first write of an automated run) and `'skip'` never does. A copy the rules deny (roles
+device (`historySnapshotCadence`): `updateRecordPartiallyAtomically` inside its transaction, a
+plain `updateDoc` just before. On these partial writes `historyPolicy: 'snapshot'` always copies
+and `'skip'` never does. A copy the rules deny (roles
 without history access) also waits an hour instead of re-reading the day on every save. The authority callables write a slim snapshot after the commit, and the direct queue
 publish writes none.
 
 ## Who writes: authority routing
 
-A client write is either published directly to Firestore or handed to a server callable:
+The schema-v2 `settings/rayenImportPolicy` (the write fence, production since 2026-11-07) makes the
+Firestore rules (`isRayenClinicalWriteFenceActive`, and `isSpecialtyDecisionFenceActive` for
+`specialtyPolicies/active` v1) deny direct client creates of `dailyRecords/{date}` and any direct
+update that touches `beds` or `bedTypeOverrides`. The rules treat the v2 boundary as irreversible,
+so the client does not read the policy: since 2026-11-20 full saves, queue publishes and bed-tree
+patches always go through the authority callables, sent as `mode: 'enforced'`. Until then every
+bed save and every queue publish read the policy first, and a bed patch the rules refused was
+retried through the callable. Staffing and the other day fields are written directly, as before.
 
-- **Write fence** — `isServerClinicalWriteFenceActive`: the schema-v2
-  `settings/rayenImportPolicy` exists. It is the only source of the route (plus the e2e override
-  `hhr_e2e_force_authority_callable`); there is no build variable since 2026-11-20. Firestore
-  rules (`isRayenClinicalWriteFenceActive`, and `isSpecialtyDecisionFenceActive` for
-  `specialtyPolicies/active` v1) then deny direct client creates of `dailyRecords/{date}` and any
-  direct update that touches `beds` or `bedTypeOverrides`. The rules treat the v2 boundary as
-  irreversible. The client read is advisory: a failed read is read once more at once (main read
-  the policy two or three times per save), two failed reads count as no fence, and it does not
-  look at the specialty fence. The rules stay the final boundary; a bed patch they reject is
-  retried once through the authority callable (`runPartialUpdatePersistWithPermissionFallbacks`).
-- **Routing** — `shouldRouteDailyRecordWriteViaCallable`: the fence (or the e2e override) and a
-  signed-in, non-anonymous user. Full saves and bed-tree patches use it; the queue publish uses
-  the fence alone.
-
-With the fence (production since 2026-11-07), full saves, queue publishes and bed-tree patches go
-through the authority callables, sent as `mode: 'enforced'`, including when the first policy read
-fails and the second confirms authority. A lost response can then be recovered from a
-server-only receipt for the exact mutation, without another write. The server still accepts
-`shadow` from older open tabs (only `dryRun: true` skips its write). Without the fence (emulator,
-development) every write is direct.
+A lost response can be recovered from a server-only receipt for the exact mutation, without
+another write. The server still accepts `shadow` from older open tabs (only `dryRun: true` skips
+its write). Tests that use the emulator without Functions stand in for the callables
+(`createDailyRecordWriteAuthorityFunctions`).
 
 ## Write paths
 
-| Path                     | Entry                                           | Direct client writer (no fence)                                                                  | Authority writer (fenced)                                                |
-| ------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| **Full save**            | `saveDetailed` → `saveRecordToFirestore`        | `saveRecordAtomically`: `runTransaction`, full-replace `set` ✅                                  | `saveDailyRecordWithClinicalAuthority`: server transaction ✅            |
-| **Partial update**       | `updatePartialDetailed` → `updateRecordPartial` | `updateRecordPartiallyAtomically` when `requireAtomicCas` ✅; otherwise `updateDoc` dot-paths ❌ | `patchDailyRecordWithClinicalAuthority` (clinical and bed-tree paths) ✅ |
-| **Sync queue**           | `syncDailyRecord` (`firestoreSyncTransport.ts`) | `runTransaction` that re-resolves the task, then `transaction.set(…, { merge: true })` ✅        | `saveDailyRecordWithClinicalAuthority` with the task's `syncContract` ✅ |
-| **Rayen clinical batch** | `applyRayenClinicalEnrichmentBatch` callable    | —                                                                                                | Server transaction, allowlisted clinical fields ✅                       |
+| Path                     | Entry                                           | Writer                                                                                                                            |
+| ------------------------ | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Full save**            | `saveDetailed` → `saveRecordToFirestore`        | `saveDailyRecordWithClinicalAuthority`: server transaction ✅                                                                     |
+| **Partial update**       | `updatePartialDetailed` → `updateRecordPartial` | bed tree: `patchDailyRecordWithClinicalAuthority` ✅; otherwise `updateRecordPartiallyAtomically` or the per-field transaction ✅ |
+| **Sync queue**           | `syncDailyRecord` (`firestoreSyncTransport.ts`) | `saveDailyRecordWithClinicalAuthority` with the task's `syncContract` ✅; plain day fields: their per-field transaction ✅        |
+| **Rayen clinical batch** | `applyRayenClinicalEnrichmentBatch` callable    | Server transaction, allowlisted clinical fields ✅                                                                                |
 
 Other server writers (CUDYR admin adjustments, specialty policy application) also stamp `meta.lastChangedPaths`. Client direct writes never do.
 
@@ -69,25 +59,16 @@ which ends the attribution of day fields only. The queue replay reads it per fie
 
 ## Guards, by path
 
-### Full save — direct: `saveRecordAtomically` (`firestoreWriteSupport.ts`)
+### Full save — `saveRecordToFirestore` → the save callable
 
-The transaction body runs these checks, in order, against the freshly-read remote snapshot:
-
-1. **Missing-base guard** — `snap.exists() && !expectedLastUpdated` → `ConcurrencyError`.
-   We refuse to full-replace an existing doc with no base version, because the CAS below
-   cannot run and we cannot prove we are not clobbering a newer remote.
-2. **CAS (optimistic lock)** — remote `lastUpdated` newer than `expectedLastUpdated` →
-   `ConcurrencyError`. Strict: any positive drift is a conflict (no tolerance window).
-3. **Erasure backstop** — `assertSafeOverwrite(remoteData)` runs `assertNoPatientErasures`
-   against the in-transaction remote. Catches a _content_ erasure (the local record dropped
-   a bed/crib the remote still has, with no movement accounting for it) even when the version
-   is current — i.e. local data loss, not just stale-version. Throws `DataRegressionError`.
-4. **History snapshot**, then the record `set`.
+The server transaction (`functions/lib/dailyRecordFullSaveCallable.js`) checks the base version
+and revision, runs the erasure guard (`assertNoPatientErasures`) against the stored day and writes
+the history copy.
 
 A **pre-write** check also runs in `saveDetailed` (`runRemoteSaveIntegrityCheck` →
 `assertRemoteSaveCompatibility`): schema version, mass density regression, and the same erasure
 check. It produces the good user-facing UX (block + auto-merge recovery), but proceeds if the read
-itself fails. The in-transaction guard #3 is the _atomic_ backstop that closes the TOCTOU window
+itself fails. The server's erasure guard is the _atomic_ backstop that closes the TOCTOU window
 between that pre-check and the commit.
 
 `ConcurrencyError` and `DataRegressionError` are excluded from `withRetry` — a blocked write
@@ -100,9 +81,8 @@ The first matching route wins:
 1. **Frozen Rayen run guard** (`rayenClinicalWriteGuard`) — patch callable; the server requires the
    exact base version and creates `history/rayen-{runId}` once per run.
 2. **Clinical envelope or bed tree** — a clinical-envelope or structural bed-tree patch goes to
-   the patch callable with the v2 fence, or when the command carries `intentionalBedClear` or
-   `specialtyIntent`. Mixed patches are rejected under the fence with `ConcurrencyError` instead
-   of being split: clinical with structural or other fields, and bed-tree with other top-level
+   the patch callable. Mixed patches are rejected with `ConcurrencyError` (the queue keeps them)
+   instead of being split: clinical with structural or other fields, and bed-tree with other top-level
    fields.
 3. **`requireAtomicCas`** (e.g. movement reclassification) — `updateRecordPartiallyAtomically`:
    exact base version, history snapshot (hourly cadence and `historyPolicy`) and `update` in one
@@ -207,11 +187,10 @@ latest mutation marker does not by itself acknowledge the other mutations.
    day it holds. A recreated day uses absent stored values for the same check: a day write never
    publishes a note it did not write.
 4. **Clinical authority** — `evaluateDailyRecordClinicalAuthority` must not block.
-5. **Publish** — fenced: the save callable, whose response must carry the committed
-   record. A merged task still sends its own base, so the callable refuses it while the stored day
-   is newer and the task stays queued (a known limit: it is held, not lost). Otherwise `runTransaction` re-runs steps 1–4 against the transactional snapshot and
-   writes with `{ merge: true }`, so beds absent from the payload are never dropped. The client
-   no longer sends shadow dry-run validations.
+5. **Publish** — the save callable, whose response must carry the committed record. A merged
+   task still sends its own base, so the callable refuses it while the stored day is newer and the
+   task stays queued (a known limit: it is held, not lost). The client no longer sends shadow
+   dry-run validations.
 6. **Acknowledge** — `completeClaimedSyncTask` writes any detached conflict, deletes the task and,
    when no other task for that date is unresolved, adopts the authoritative record into IndexedDB,
    all in the same Dexie transaction.
@@ -325,10 +304,8 @@ that the records never contained. Correcting a name during a move requires a sta
 - Unit: `firestoreWriteSupport.test.ts` (CAS, missing-base, erasure backstop, strict tolerance),
   `dailyRecordRemoteWriteController.test.ts` (erasure cases through `assertRemoteSaveCompatibility`
   and `assertNoPatientErasures`), `networkUtils.test.ts`.
-- Routing: `firestoreRayenClinicalAuthorityMode.test.ts` (the fence) and
-  `dailyRecordAuthorityAuthFailure.test.ts` (fence plus signed-in user). Queue publish inside a
-  transaction and its callable route: `syncQueueAtomicPublish.test.ts` and, against the emulator,
-  `sync-atomic-publish.emulator.test.ts`.
+- Routing: `bedSavePolicyReads.test.ts` (bed saves and queue publishes read no policy) and
+  `syncQueueAtomicPublish.test.ts` (the queue publishes through the callable).
 - Server guard: `src/tests/functions/dailyRecordErasureGuard.test.ts` (pure helper, including
   relocation) and `dailyRecordWriteAuthorityErasure.test.ts` (handler blocks the write);
   client/server parity is enforced by `dailyRecordErasureGuardParity.test.ts`. The schema-v2
@@ -496,11 +473,10 @@ deben leer con `source: 'server'`.
 
 Higiene de escritura del cliente (P4, D9): ningún cliente escribe desde su copia local los campos
 movidos de un día marcado ni crea un día con marcador. El auto-merge de conflicto
-(`conflictResolutionMatrix.ts`, también en la base estructural de Rayen), la publicación directa de
-la cola (`firestoreSyncTransport.ts`, `merge: true`) y el guardado directo completo
-(`saveRecordAtomically`, que también usa la restauración de versiones) pasan el registro por
-`adoptStoredClinicalDerivedState` (`clinicalDerivedWriteHygiene.ts`) con el día remoto leído en la
-misma transacción:
+(`conflictResolutionMatrix.ts`, también en la base estructural de Rayen) pasa el registro por
+`adoptStoredClinicalDerivedState` (`clinicalDerivedWriteHygiene.ts`) con el día remoto leído.
+Desde el 2026-11-20 el guardado completo y la publicación de la cola van siempre por la autoridad,
+que separa los campos movidos en el servidor (`clinicalDerivedStore`):
 
 - el marcador sale siempre del remoto; al crear o recrear un día (desde la cola, IndexedDB o un
   JSON) se quita, porque la regla de creación lo niega y la cola nunca se purga. Como en las
@@ -510,12 +486,9 @@ misma transacción:
   aún no dividido se conserva y una copia local nunca la reemplaza. El episodio es
   `clinicalEpisodeId` o, si falta, el id heredado que le da cada guardado del cliente; una cama
   bloqueada no cuenta como episodio activo;
-- como `merge: true` conserva lo que el payload omite, la publicación de la cola borra
-  (`deleteField()`) los campos movidos que otro episodio dejó en esa cama: si el remoto no los
-  tiene para ese episodio, el resultado tampoco;
 - sin marcador en ningún lado el registro y el payload pasan igual que antes.
 
-El recibo del guardado directo refleja lo confirmado. La importación JSON local y la de respaldos
+La importación JSON local y la de respaldos
 del administrador no reemplazan un día local marcado por una copia sin marcador, o con el de otra
 generación, que no sea más nueva; si el día local no se puede leer, tampoco. La importación JSON
 omite esa fecha y la de respaldos la cuenta como fallida. La recuperación de una cama dañada de un

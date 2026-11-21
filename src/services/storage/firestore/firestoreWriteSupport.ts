@@ -20,7 +20,6 @@ import {
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
-import { adoptStoredClinicalDerivedState } from '@/services/storage/clinicalDerivedWriteHygiene';
 
 export { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 
@@ -113,130 +112,6 @@ export const assertFirestoreConcurrency = async (
       throw error;
     }
   }
-};
-
-/**
- * Writes a daily record using an atomic Firestore transaction that:
- *   1. Reads the current server state (never cache)
- *   2. Throws ConcurrencyError if the remote is newer than expectedLastUpdated
- *   3. Writes a history snapshot of the pre-write state, at most hourly (historySnapshotCadence)
- *   4. Commits the new record, with the stored split-day state (D9): the stored marker, meta and
- *      moved fields on a marked day, and never a marker on a create
- *
- * Resolves with the record as committed. This replaces the previous assertFirestoreConcurrency +
- * saveHistorySnapshot + setDoc three-step sequence, which had a TOCTOU race and could fail open
- * on network errors.
- */
-export const saveRecordAtomically = async (
-  docRef: DocumentReference,
-  record: Record<string, unknown>,
-  expectedLastUpdated: string | undefined,
-  conflictMessage: string,
-  contextLabel: string,
-  {
-    assertSafeOverwrite,
-    forceHistorySnapshot = false,
-    assertCanCommit,
-  }: {
-    assertSafeOverwrite?: (remoteData: Record<string, unknown>) => void;
-    /** Restores overwrite live data, so they always keep the previous state. */
-    forceHistorySnapshot?: boolean;
-    /** Runs in each attempt right before it writes; a throw aborts the write. */
-    assertCanCommit?: () => void;
-  } = {},
-  runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
-): Promise<Record<string, unknown>> => {
-  const db = runtime.getDb();
-  const captureHistory = forceHistorySnapshot || isHistorySnapshotDue(docRef.path);
-  let historyWritten = false;
-  let committedRecord = record;
-
-  await runTransaction(db, async transaction => {
-    historyWritten = false;
-    const snap = await transaction.get(docRef);
-
-    // Refuse to full-replace an existing document without a base version: with no
-    // expectedLastUpdated the optimistic CAS below cannot run, so we cannot prove this write is not
-    // clobbering a newer remote. Surface it as a conflict so the caller reloads and retries.
-    if (snap.exists() && !expectedLastUpdated) {
-      recordOperationalErrorTelemetry(
-        'firestore',
-        'atomic_save_concurrency',
-        createOperationalError({
-          code: 'firestore_concurrency_conflict',
-          message: conflictMessage,
-          severity: 'warning',
-          userSafeMessage: conflictMessage,
-          context: { contextLabel, reason: 'missing_base_version' },
-        }),
-        {
-          code: 'firestore_concurrency_conflict',
-          message: conflictMessage,
-          severity: 'warning',
-          userSafeMessage: conflictMessage,
-        }
-      );
-      throw new ConcurrencyError(conflictMessage);
-    }
-
-    if (snap.exists() && expectedLastUpdated) {
-      const remoteLastUpdated = getRemoteLastUpdatedIso(snap.data() as Record<string, unknown>);
-      if (remoteLastUpdated) {
-        const drift =
-          new Date(remoteLastUpdated).getTime() - new Date(expectedLastUpdated).getTime();
-        if (drift > 0) {
-          recordOperationalErrorTelemetry(
-            'firestore',
-            'atomic_save_concurrency',
-            createOperationalError({
-              code: 'firestore_concurrency_conflict',
-              message: conflictMessage,
-              severity: 'warning',
-              userSafeMessage: conflictMessage,
-              context: {
-                contextLabel,
-                remoteLastUpdated,
-                expectedLastUpdated,
-                driftSeconds: Math.round(drift / 1000),
-              },
-            }),
-            {
-              code: 'firestore_concurrency_conflict',
-              message: conflictMessage,
-              severity: 'warning',
-              userSafeMessage: conflictMessage,
-            }
-          );
-          throw new ConcurrencyError(conflictMessage);
-        }
-      }
-    }
-
-    if (snap.exists()) {
-      // Atomic erasure backstop: validate the new record against the freshly-read remote state
-      // INSIDE the transaction. This holds even when expectedLastUpdated is absent (CAS skipped)
-      // and closes the TOCTOU window between the pre-write integrity check and this commit.
-      assertSafeOverwrite?.(snap.data() as Record<string, unknown>);
-
-      if (captureHistory) {
-        const historyRef = doc(collection(docRef, 'history'), new Date().toISOString());
-        transaction.set(historyRef, {
-          ...(snap.data() as Record<string, unknown>),
-          snapshotTimestamp: Timestamp.now(),
-        });
-        historyWritten = true;
-      }
-    }
-
-    assertCanCommit?.();
-    committedRecord = adoptStoredClinicalDerivedState(
-      record,
-      snap.exists() ? (snap.data() as Record<string, unknown>) : undefined
-    );
-    transaction.set(docRef, committedRecord);
-  });
-  if (historyWritten) markHistorySnapshotTaken(docRef.path);
-  return committedRecord;
 };
 
 /**

@@ -1,4 +1,3 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /* @flake-safe: Today's synthetic census satisfies the real rules' hospital write window. */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -12,13 +11,8 @@ import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import * as writes from '@/services/storage/firestore/firestoreRecordWrites';
 import * as guards from '@/services/storage/firestore/firestoreWriteSupport';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
-import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import {
-  setFirestoreEnabled,
-  setFirestoreSyncState,
-} from '@/services/repositories/repositoryConfig';
-import { processSyncQueue } from '@/services/storage/sync';
+import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { resolveRecordBaseRevision } from '@/services/storage/sync/syncTaskContractPolicy';
 import { createDailyRecordWriteAuthorityFunctions } from '@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -61,15 +55,6 @@ const {
 const date = getTodayISO();
 const dayPath = `hospitals/hanga_roa/dailyRecords/${date}`;
 const projectId = 'demo-hhr-dos-usuarios';
-/** `fenced`: the schema-v2 policy, as published since 2026-11-07. `direct`: no policy. */
-const routes = ['direct', 'fenced'] as const;
-const deferred = () => {
-  let resolve!: () => void;
-  const promise = new Promise<void>(done => {
-    resolve = done;
-  });
-  return { promise, resolve };
-};
 const baseRecord = () => ({
   ...DataFactory.createMockDailyRecord(date, {
     lastUpdated: '2026-01-01T00:00:00.000Z',
@@ -175,30 +160,9 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       revision: 1,
       clinicalBatchMode: 'enforced',
     });
-  const race = async (a: DailyRecordPatch, b: DailyRecordPatch, direct: boolean) => {
-    if (direct) {
-      const checked = deferred();
-      let arrivals = 0;
-      const check = guards.assertFirestoreConcurrency;
-      vi.spyOn(guards, 'assertFirestoreConcurrency').mockImplementation(async (...args) => {
-        await check(...args);
-        if (++arrivals === 2) checked.resolve();
-        await checked.promise;
-      });
-    }
-    // A version check by a read before the write is held until both writers passed it, so a
-    // reopened gap shows up as two successes; the transaction checks when committing.
-    return Promise.allSettled([patch('A', a), patch('B', b)]);
-  };
-  const publish = () =>
-    actor('A', async () => {
-      const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 20_000);
-      try {
-        await processSyncQueue();
-      } finally {
-        clock.mockRestore();
-      }
-    });
+  // Both writers send at once; the authority's transaction checks each base when committing.
+  const race = (a: DailyRecordPatch, b: DailyRecordPatch) =>
+    Promise.allSettled([patch('A', a), patch('B', b)]);
 
   beforeAll(async () => {
     const endpoint = /^(127\.0\.0\.1|localhost):(\d+)$/.exec(
@@ -269,49 +233,36 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     if (app) await deleteApp(app);
   });
 
-  for (const selected of routes) {
-    it.each([
-      ['1 different beds', { 'beds.R2.pathology': 'B' }],
-      ['2 different fields', { 'beds.R1.age': '51' }],
-    ] as const)(`%s: retains both accepted edits (${selected})`, async (_label, b) => {
-      if (selected === 'fenced') await fenced();
-      // A bed edit is bound to the version it read (the bed may hold another patient by then):
-      // the second is refused and accepted again from a fresh base, as the app's rebase does.
-      const results = await race({ 'beds.R1.pathology': 'A' }, b, selected === 'direct');
-      expect(results.filter(item => item.status === 'fulfilled')).toHaveLength(1);
-      expect(results.filter(item => item.status === 'rejected')).toMatchObject([
-        { reason: { name: 'ConcurrencyError' } },
-      ]);
-      if (results[0].status === 'rejected')
-        await patch('A', { 'beds.R1.pathology': 'A' }, await read());
-      else await patch('B', b, await read());
-      const stored = await read();
-      expect(stored.beds.R1.pathology).toBe('A');
-      if ('beds.R2.pathology' in b) expect(stored.beds.R2.pathology).toBe('B');
-      else expect(stored.beds.R1.age).toBe('51');
-    });
-  }
+  it.each([
+    ['1 different beds', { 'beds.R2.pathology': 'B' }],
+    ['2 different fields', { 'beds.R1.age': '51' }],
+  ] as const)('%s: retains both accepted edits', async (_label, b) => {
+    await fenced();
+    // A bed edit is bound to the version it read (the bed may hold another patient by then):
+    // the second is refused and accepted again from a fresh base, as the app's rebase does.
+    const results = await race({ 'beds.R1.pathology': 'A' }, b);
+    expect(results.filter(item => item.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter(item => item.status === 'rejected')).toMatchObject([
+      { reason: { name: 'ConcurrencyError' } },
+    ]);
+    if (results[0].status === 'rejected')
+      await patch('A', { 'beds.R1.pathology': 'A' }, await read());
+    else await patch('B', b, await read());
+    const stored = await read();
+    expect(stored.beds.R1.pathology).toBe('A');
+    if ('beds.R2.pathology' in b) expect(stored.beds.R2.pathology).toBe('B');
+    else expect(stored.beds.R1.age).toBe('51');
+  });
 
   it('3 SAVE-01: under the production configuration one of two same-field writers is refused', async () => {
     await fenced();
-    // Direct writes would be held together after their checks; production sends both to the
-    // authority, whose transaction refuses the second base.
-    const results = await race({ 'beds.R1.pathology': 'A' }, { 'beds.R1.pathology': 'B' }, true);
+    // Both go to the authority, whose transaction refuses the second base.
+    const results = await race({ 'beds.R1.pathology': 'A' }, { 'beds.R1.pathology': 'B' });
     expect(results.filter(item => item.status === 'fulfilled')).toHaveLength(1);
     expect(results.filter(item => item.status === 'rejected')).toMatchObject([
       { reason: { name: 'ConcurrencyError' } },
     ]);
     expect(['A', 'B']).toContain((await read()).beds.R1.pathology);
-  });
-
-  // Without the schema-v2 policy, a configuration production no longer uses (policy since
-  // 2026-11-07), bed fields go through the same transaction as plain day fields.
-  it('3 without the server fence (not production): one of two same-field writers is refused', async () => {
-    const results = await race({ 'beds.R1.pathology': 'A' }, { 'beds.R1.pathology': 'B' }, true);
-    expect(results.filter(item => item.status === 'rejected')).toMatchObject([
-      { reason: { name: 'ConcurrencyError' } },
-    ]);
-    expect((await read()).beds.R1.pathology).toBe(results[0].status === 'fulfilled' ? 'A' : 'B');
   });
 
   it('4 Eloisa batch and a manual edit serialize; a fresh-base retry preserves both', async () => {
@@ -367,51 +318,6 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     expect((await read()).beds.R2.pathology).toBe('MEDICO');
     expect((await admin.doc(dayPath).get()).data()?.beds.R1.vitalSigns.temperature).toBe(36.7);
   });
-
-  // Authority replay belongs to the active offline-edit-other-bed branch; do not duplicate it.
-  for (const selected of ['direct'] as const) {
-    for (const path of ['beds.R2.pathology', 'beds.R1.pathology'] as const) {
-      it(`5 offline replay after B edits ${path} (${selected})`, async () => {
-        await hospitalDB.dailyRecords.put(baseRecord());
-        setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
-        const offline = await actor('A', () =>
-          updatePartialDetailed(
-            date,
-            { 'beds.R1.pathology': 'A OFFLINE' },
-            { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
-          )
-        );
-        expect(offline).toMatchObject({ savedHere: true, state: 'local', cause: 'stored' });
-        const [pending] = await hospitalDB.syncQueue.toArray();
-        expect(pending.payload).toMatchObject({ beds: { R1: { pathology: 'A OFFLINE' } } });
-        await patch(
-          'B',
-          path === 'beds.R1.pathology'
-            ? { 'beds.R1.pathology': 'B ONLINE' }
-            : { 'beds.R2.pathology': 'B ONLINE' }
-        );
-        setFirestoreEnabled(true);
-        await publish();
-        const stored = await read();
-        const tasks = await hospitalDB.syncQueue.toArray();
-        if (path === 'beds.R2.pathology') {
-          if (tasks.length) {
-            expect(tasks).toMatchObject([{ status: 'CONFLICT', payload: pending.payload }]);
-            expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.pathology).toBe('A OFFLINE');
-            expect(stored.beds.R2.pathology).toBe('B ONLINE');
-          }
-          expect(tasks).toHaveLength(0);
-          expect(stored.beds.R1.pathology).toBe('A OFFLINE');
-          expect(stored.beds.R2.pathology).toBe('B ONLINE');
-        } else {
-          // SAVE-01: do not silently replace the other device's confirmed same-field edit.
-          expect(stored.beds.R1.pathology).toBe('B ONLINE');
-          expect(tasks).toMatchObject([{ status: 'CONFLICT', payload: pending.payload }]);
-          expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.pathology).toBe('A OFFLINE');
-        }
-      });
-    }
-  }
 
   // Case 6 is already exercised through the real UI hook + emulator in dailyRecordSyncQuery
   // and dailyRecordServerConfirmation. Do not replace that evidence with another storage-only test.

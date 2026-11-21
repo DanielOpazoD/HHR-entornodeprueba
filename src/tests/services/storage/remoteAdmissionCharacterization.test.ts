@@ -73,7 +73,6 @@ beforeEach(async () => {
   await hospitalDB.dailyRecords.clear();
   h.remote = null;
   h.offline = false;
-  h.writeFence = false;
   Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 });

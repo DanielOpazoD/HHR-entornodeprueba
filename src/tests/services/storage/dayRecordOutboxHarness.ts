@@ -1,6 +1,6 @@
 /**
  * Synthetic end-to-end harness: the real write service, queue engine, transport and server
- * handler. Only Firestore, Functions and the network state are faked.
+ * handler (day tasks publish through it). Only Firestore, Functions and the network state are faked.
  */
 import { vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -12,8 +12,6 @@ type Doc = Record<string, unknown>;
 const h = vi.hoisted(() => ({
   remote: null as DailyRecord | null,
   offline: false,
-  /** The schema-v2 server fence: day tasks publish through the real authority handler. */
-  writeFence: false,
   beforeDayTransaction: null as (() => Promise<void>) | null,
 }));
 /** Shared fake state; vi.hoisted bindings cannot be exported directly. */
@@ -57,13 +55,6 @@ vi.mock('@/services/storage/firestore/firestoreShared', async importOriginal => 
   ...(await importOriginal<typeof import('@/services/storage/firestore/firestoreShared')>()),
   getRecordDocRef: () => ({}),
 }));
-vi.mock(
-  '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode',
-  async importOriginal => ({
-    ...(await importOriginal<object>()),
-    isServerClinicalWriteFenceActive: async () => h.writeFence,
-  })
-);
 vi.mock(
   '@/services/storage/firestore/dailyRecordAuthorityCallableClient',
   async importOriginal => ({
