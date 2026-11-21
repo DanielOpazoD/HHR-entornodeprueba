@@ -96,4 +96,35 @@ describe('CIE-10 local provider loading', () => {
     await request;
     expect(generateContent).not.toHaveBeenCalled();
   });
+
+  it('delegates Anthropic local fallback through callLocalAI with browser access header and signal', async () => {
+    vi.stubEnv('VITE_LOCAL_AI_PROVIDER', 'anthropic');
+    vi.stubEnv('VITE_LOCAL_ANTHROPIC_API_KEY', 'test-anthropic-key');
+    fetchMock.mockResolvedValueOnce(serverlessResponse(false)).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify([{ code: 'J18.9', description: 'Neumonía' }]),
+          },
+        ],
+      }),
+    } as Response);
+
+    const { searchCIE10WithAI } = await import('@/services/terminology/cie10AISearch');
+    const controller = new AbortController();
+    const results = await searchCIE10WithAI('neumonia', controller.signal);
+
+    expect(results).toEqual([{ code: 'J18.9', description: 'Neumonía', category: 'IA' }]);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      'https://api.anthropic.com/v1/messages',
+      expect.objectContaining({
+        signal: controller.signal,
+        headers: expect.objectContaining({
+          'anthropic-dangerous-direct-browser-access': 'true',
+        }),
+      })
+    );
+  });
 });

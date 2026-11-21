@@ -49,26 +49,40 @@ export const getLocalDevProviderConfig = (): LocalAIProviderConfig | null => {
  */
 export const isLocalAIAvailable = (): boolean => !!getLocalDevProviderConfig();
 
+export interface CallLocalAIOptions {
+  signal?: AbortSignal;
+  systemPrompt?: string;
+  onError?: (error: unknown) => void;
+}
+
 /**
  * Calls a local AI provider with a prompt and returns the raw text response.
  * Supports Gemini, OpenAI, and Anthropic APIs.
  *
  * @param prompt - The full prompt text to send.
+ * @param options - Optional abort signal, system prompt override, and error callback.
  * @returns Raw text response from the AI provider, or empty string on failure.
  */
-export const callLocalAI = async (prompt: string): Promise<string> => {
+export const callLocalAI = async (
+  prompt: string,
+  options: CallLocalAIOptions = {}
+): Promise<string> => {
   // A build-time guard keeps local-only providers out of the production bundle.
   if (!import.meta.env.DEV) return '';
+  const { signal, systemPrompt = 'Responde solo con JSON válido.', onError } = options;
+  signal?.throwIfAborted();
   const config = getLocalDevProviderConfig();
   if (!config) return '';
 
   try {
     if (config.provider === 'gemini') {
       const { GoogleGenAI } = await import('@google/genai');
+      signal?.throwIfAborted();
       const ai = new GoogleGenAI({ apiKey: config.apiKey });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
+        ...(signal ? { config: { abortSignal: signal } } : {}),
       });
       return response.text?.trim() ?? '';
     }
@@ -85,18 +99,22 @@ export const callLocalAI = async (prompt: string): Promise<string> => {
           temperature: 0.2,
           max_tokens: 700,
           messages: [
-            { role: 'system', content: 'Responde solo con JSON válido.' },
+            { role: 'system', content: systemPrompt },
             { role: 'user', content: prompt },
           ],
         }),
+        signal,
       });
       if (!response.ok) return '';
       const payload = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
+        choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }>;
       };
-      return typeof payload.choices?.[0]?.message?.content === 'string'
-        ? payload.choices[0].message.content
-        : '';
+      const content = payload.choices?.[0]?.message?.content;
+      if (typeof content === 'string') return content;
+      if (Array.isArray(content)) {
+        return content.map(item => item.text || '').join('\n');
+      }
+      return '';
     }
 
     // Anthropic
@@ -112,9 +130,10 @@ export const callLocalAI = async (prompt: string): Promise<string> => {
         model: 'claude-sonnet-4-5-20250514',
         max_tokens: 700,
         temperature: 0.2,
-        system: 'Responde solo con JSON válido.',
+        system: systemPrompt,
         messages: [{ role: 'user', content: prompt }],
       }),
+      signal,
     });
     if (!response.ok) return '';
     const payload = (await response.json()) as {
@@ -126,7 +145,9 @@ export const callLocalAI = async (prompt: string): Promise<string> => {
         .join('\n')
         .trim() || ''
     );
-  } catch {
+  } catch (error) {
+    signal?.throwIfAborted();
+    onError?.(error);
     return '';
   }
 };
