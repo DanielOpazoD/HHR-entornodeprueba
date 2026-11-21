@@ -211,8 +211,16 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       },
     });
     // Only the callable transport is replaced: the shipped handler runs its real admin transaction.
+    // Without network the call never reaches it, as a real callable fails offline.
+    const reachable = () => {
+      if (!navigator.onLine)
+        throw Object.assign(new Error('Synthetic offline callable'), {
+          code: 'functions/unavailable',
+        });
+    };
     vi.spyOn(authority, 'patchDailyRecordWithClinicalAuthorityCallable').mockImplementation(
       async payload => {
+        reachable();
         calls.authority++;
         try {
           return await api.patchDailyRecordWithClinicalAuthority.run(payload, context());
@@ -223,6 +231,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     );
     vi.spyOn(authority, 'saveDailyRecordWithClinicalAuthorityCallable').mockImplementation(
       async payload => {
+        reachable();
         calls.authority++;
         try {
           return await api.saveDailyRecordWithClinicalAuthority.run(payload, context());

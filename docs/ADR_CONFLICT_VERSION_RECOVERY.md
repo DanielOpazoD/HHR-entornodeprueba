@@ -22,7 +22,7 @@ registro de que el conflicto ocurrió.
 
 ## Motivo
 
-La escritura atómica (`saveRecordAtomically`) evita el clobber silencioso y el guard de
+El guardado completo por la autoridad (`saveDailyRecordWithClinicalAuthority`, transacción del servidor) evita el clobber silencioso y el guard de
 borrado evita perder pacientes. Pero el **auto-merge sigue siendo heurístico** (decide campo
 por campo con la matriz de políticas) y hoy es **irreversible**:
 
@@ -78,7 +78,7 @@ historial permanente. Cada documento (id `{conflictId}__{origin}`) lleva:
 
 En `attemptConflictAutoMergeRecovery` se persisten `remote_premerge` + `incoming_premerge`
 (atómicamente, best-effort) **antes** de resolver el merge, cubriendo toda ruta de conflicto. El
-`history/` existente (los `pre_write` de `saveRecordAtomically` y el estado previo que se snapshotea
+`history/` existente (las copias previas que escribe la autoridad y el estado previo que se snapshotea
 al restaurar) queda **separado y permanente**. La colección `conflictSnapshots/` es **append-only**.
 
 ## Retención y expiración (TTL ~48 h)
@@ -121,9 +121,9 @@ el campo `expireAt`):
   dejaría duplicados activos, la restauración queda **bloqueada**. Impactos no bloqueantes
   (por ejemplo handoff enfermería/médico posterior) quedan visibles como `review_required` y se
   registran en auditoría.
-- Luego, **full-save atómico** del `record` (reusa `saveRecordAtomically`): el CAS corre contra el
-  remoto actual y la restauración pide `historyPolicy: 'snapshot'`, así que el estado vivo se copia a
-  `history` aunque ya exista otra copia en la última hora — **nunca destructivo**.
+- Luego, **full-save** del `record` por la autoridad (`saveRecordToFirestore`): el CAS corre contra
+  el remoto actual y el servidor copia el estado vivo a `history` antes de escribir — **nunca
+  destructivo**.
 - El estado restaurado queda como **una nueva versión** en el historial; nada se pierde.
 - Idempotente / reentrante.
 

@@ -57,6 +57,11 @@ vi.mock('firebase/firestore', async importOriginal => {
 vi.mock('@/firebaseConfig', () => ({
   db: {},
 }));
+const authority = vi.hoisted(() => ({ save: vi.fn() }));
+vi.mock('@/services/storage/firestore/dailyRecordAuthorityCallableClient', async original => ({
+  ...(await original<object>()),
+  saveDailyRecordWithClinicalAuthorityCallable: authority.save,
+}));
 
 // Test helpers
 const createMockRecord = (date: string): DailyRecord => ({
@@ -87,18 +92,15 @@ describe('Firebase Sync Integration', () => {
 
   describe('DailyRecord Sync', () => {
     it('should include nurse and TENS fields when saving record', async () => {
-      const { setDoc } = await import('firebase/firestore');
       const { saveRecordToFirestore } = await import('@/services/storage/firestore');
 
       const record = createMockRecord('2025-12-13');
 
       await saveRecordToFirestore(record);
 
-      // Verify setDoc was called with the record
-      expect(setDoc).toHaveBeenCalled();
-
-      // Get the data that was passed to setDoc
-      const [, savedData] = (setDoc as ReturnType<typeof vi.fn>).mock.calls[0];
+      // The record the authority received
+      expect(authority.save).toHaveBeenCalled();
+      const savedData = authority.save.mock.calls[0][0].record;
 
       // Verify nurse/TENS fields are included
       expect(savedData.nursesDayShift).toEqual(['Nurse A', 'Nurse B']);

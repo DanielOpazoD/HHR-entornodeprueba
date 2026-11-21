@@ -4,6 +4,10 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { RulesTestEnvironment, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
+import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
+import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
+import { createDailyRecordWriteAuthorityFunctions } from '@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -22,7 +26,7 @@ import {
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { clearPendingDailyRecordPatchesForTests } from '@/hooks/controllers/dailyRecordPendingPatchController';
 import { getTodayISO } from '@/utils/dateCoreUtils';
-import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const runEmulatorUiTests =
   process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1' ||
@@ -91,7 +95,10 @@ vi.mock('@/firebaseConfig', () => ({
 const buildRecord = (date: string, patientName: string, pathology: string): DailyRecord =>
   asStoredDailyRecordShape({
     date,
+    // Every canonical bed is stored, as on a real day; only R1 is occupied. Firestore stores no
+    // undefined value.
     beds: {
+      ...JSON.parse(JSON.stringify(DataFactory.createMockDailyRecord(date).beds)),
       R1: {
         bedId: 'R1',
         isBlocked: false,
@@ -129,6 +136,32 @@ const buildRecord = (date: string, patientName: string, pathology: string): Dail
 describeUiEmulator('UI sync flow with Firestore emulator', () => {
   let testEnv: RulesTestEnvironment;
   const unmounts: Array<() => void> = [];
+  let app: App;
+  let admin: Firestore;
+  let api: ReturnType<typeof createDailyRecordWriteAuthorityFunctions>;
+  // Only the callable's network hop is replaced: the shipped handler commits with the real admin
+  // transaction, as production writes bed fields through the authority.
+  const bridgeAuthority = () => {
+    const context = { auth: { uid: currentUser.uid, token: { email: currentUser.email } } };
+    vi.spyOn(authority, 'patchDailyRecordWithClinicalAuthorityCallable').mockImplementation(
+      async payload => {
+        try {
+          return await api.patchDailyRecordWithClinicalAuthority.run(payload, context);
+        } catch (error) {
+          throw authority.normalizeDailyRecordAuthorityError(error);
+        }
+      }
+    );
+    vi.spyOn(authority, 'saveDailyRecordWithClinicalAuthorityCallable').mockImplementation(
+      async payload => {
+        try {
+          return await api.saveDailyRecordWithClinicalAuthority.run(payload, context);
+        } catch (error) {
+          throw authority.normalizeDailyRecordAuthorityError(error);
+        }
+      }
+    );
+  };
 
   beforeAll(async () => {
     const rulesPath = path.resolve(__dirname, '../../../firestore.rules');
@@ -143,12 +176,27 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
         port: emulatorConfig.port,
       },
     });
+    app = initializeApp({ projectId: 'demo-hhr-ui-sync-emulator-test' }, 'ui-sync-authority');
+    admin = getFirestore(app);
+    admin.settings({ ignoreUndefinedProperties: true });
+    api = createDailyRecordWriteAuthorityFunctions({
+      firestore: admin,
+      Timestamp,
+      resolveRoleForEmail: async () => 'nurse_hospital',
+    });
   });
 
   beforeEach(async () => {
-    // This UI fixture uses real legacy Firestore writes, without callable mocks.
     vi.clearAllMocks();
     await testEnv.clearFirestore();
+    // The schema-v2 policy, as in production since 2026-11-07.
+    await admin.doc('hospitals/hanga_roa/settings/rayenImportPolicy').set({
+      schemaVersion: 2,
+      mode: 'preview',
+      revision: 1,
+      clinicalBatchMode: 'enforced',
+    });
+    bridgeAuthority();
     await clearAllRecords();
     resetDailyRecordFreshnessGateForTests();
     clearPendingDailyRecordPatchesForTests();
@@ -164,6 +212,8 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
 
   afterAll(async () => {
     await testEnv.cleanup();
+    await admin?.terminate();
+    if (app) await deleteApp(app);
   });
 
   afterEach(async () => {
@@ -176,6 +226,7 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
     });
     clearPendingDailyRecordPatchesForTests();
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   it('loads record from emulator and reflects remote updates via subscription', async () => {

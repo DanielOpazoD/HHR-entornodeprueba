@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RulesTestEnvironment, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -7,6 +7,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus } from '@/types/domain/patientClassification';
 import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreRulesEmulatorConfig';
+import { createEmulatorAuthorityBridge } from '@/tests/support/emulatorAuthorityBridge';
 
 const runEmulatorTests =
   process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1' ||
@@ -72,8 +73,14 @@ const isoAt = (date: string, time: string): string => `${date}T${time}.000Z`;
 describeEmulator('Firestore emulator CMA specialty readback', () => {
   let testEnv: RulesTestEnvironment;
   let nurseDb: TestFirestore;
+  const authority = createEmulatorAuthorityBridge('demo-hhr-cma-specialty-emulator-test', () => ({
+    uid: 'user_nurse',
+    email: 'hospitalizados@hospitalhangaroa.cl',
+    role: 'nurse_hospital',
+  }));
 
   beforeAll(async () => {
+    authority.open();
     const rulesPath = path.resolve(__dirname, '../../../firestore.rules');
     const rules = fs.readFileSync(rulesPath, 'utf8');
     const emulatorConfig = resolveFirestoreRulesEmulatorConfig(process.env.FIRESTORE_EMULATOR_HOST);
@@ -97,13 +104,17 @@ describeEmulator('Firestore emulator CMA specialty readback', () => {
 
   beforeEach(async () => {
     await testEnv.clearFirestore();
+    await authority.install();
     await clearAllRecords();
     setFirestoreEnabled(true);
     activeDb = nurseDb;
   });
 
+  afterEach(() => vi.restoreAllMocks());
+
   afterAll(async () => {
     await testEnv.cleanup();
+    await authority.close();
   });
 
   it('preserves CMA movements with free-text specialty through Firestore readback', async () => {
@@ -126,7 +137,7 @@ describeEmulator('Firestore emulator CMA specialty readback', () => {
       },
     ];
 
-    await expect(saveRecordToFirestore(record)).resolves.toBeUndefined();
+    await expect(saveRecordToFirestore(record)).resolves.toMatchObject({ success: true });
 
     const persisted = await getRecordFromFirestore(date);
     expect(persisted?.cma).toHaveLength(1);

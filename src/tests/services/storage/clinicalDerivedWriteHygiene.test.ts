@@ -9,7 +9,6 @@ import { describe, expect, it } from 'vitest';
 import {
   adoptStoredClinicalDerivedState,
   carriesClinicalDerivedLayout,
-  withClearedStoredMovedFields,
 } from '@/services/storage/clinicalDerivedWriteHygiene';
 import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
 import { ensureDailyRecordClinicalEpisodeIds } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
@@ -274,80 +273,6 @@ describe('adoptStoredClinicalDerivedState · a pre-split local copy over a split
     expect(written.clinicalDerivedLayout).toBeNull();
     expect(written.meta).toEqual(stored.meta);
     expect('vitalSignsHistory' in bed(written, 'R1')).toBe(false);
-  });
-});
-
-// Firestore set-merge semantics: nested maps merge key by key, CLEAR deletes, anything else
-// replaces the stored value.
-const CLEAR = { clear: 'synthetic-delete-sentinel' };
-const applyMerge = (stored: unknown, payload: Holder): Holder => {
-  const result: Holder = { ...(stored as Holder) };
-  Object.entries(payload).forEach(([key, value]) => {
-    if (value === CLEAR) delete result[key];
-    else if (value && typeof value === 'object' && !Array.isArray(value)) {
-      const current = result[key];
-      result[key] = applyMerge(
-        current && typeof current === 'object' && !Array.isArray(current) ? current : {},
-        value as Holder
-      );
-    } else result[key] = value;
-  });
-  return result;
-};
-
-describe('withClearedStoredMovedFields · merge: true ends as a full set would', () => {
-  const stored = day(
-    {
-      R1: patient('ep_a', 'stored-a', { clinicalSyncCheckpoint: undefined }),
-      R2: { ...patient('ep_mother', 'stored-mother'), clinicalCrib: patient('ep_nb', 'stored-nb') },
-      R3: patient('ep_c', 'stored-c'),
-      R7: patient('ep_gone', 'stored-gone'),
-    },
-    { clinicalDerivedLayout: marker, meta: { revision: 7 } }
-  );
-  const local = day(
-    {
-      R1: patient('ep_a', 'local-a'),
-      R2: { ...patient('ep_mother', 'local-mother'), clinicalCrib: patient('ep_nb2', 'local-nb2') },
-      // ep_c moved to R4; a new episode took R3 and the stored R7 patient left.
-      R3: patient('ep_new', 'local-new'),
-      R4: patient('ep_c', 'local-c'),
-      R7: { patientName: '', rut: '' },
-    },
-    { meta: { revision: 3 } }
-  );
-
-  it('removes what another episode left in the slot and keeps each episode’s stored copy', () => {
-    const payload = adoptStoredClinicalDerivedState(local, stored);
-    const merged = applyMerge(
-      stored,
-      withClearedStoredMovedFields(payload, stored, () => CLEAR)
-    ) as Day;
-
-    expect(bed(merged, 'R3')).not.toHaveProperty('vitalSignsHistory');
-    expect(bed(merged, 'R3')).not.toHaveProperty('clinicalSyncCheckpoint');
-    expect(bed(merged, 'R7')).not.toHaveProperty('vitalSignsHistory');
-    expect(crib(merged, 'R2')).not.toHaveProperty('vitalSignsHistory');
-    expect(bed(merged, 'R4').vitalSignsHistory).toEqual(moved('stored-c').vitalSignsHistory);
-    expect(bed(merged, 'R2').vitalSignsHistory).toEqual(moved('stored-mother').vitalSignsHistory);
-    // Split episode: its document holds the data; nothing embedded stays nothing.
-    expect(bed(merged, 'R1').vitalSignsHistory).toEqual(moved('stored-a').vitalSignsHistory);
-    expect(bed(merged, 'R1').clinicalSyncCheckpoint).toBeUndefined();
-    // Every holder ends with exactly the moved fields of the adopted payload.
-    Object.keys(local.beds).forEach(bedId => {
-      ['clinicalSyncCheckpoint', 'vitalSignsHistory'].forEach(field => {
-        expect(bed(merged, bedId)[field]).toEqual(bed(payload, bedId)[field]);
-      });
-    });
-  });
-
-  it('returns the very same payload on an unmarked or missing stored day, or with nothing to clear', () => {
-    const payload = { ...local } as Holder;
-    const clear = () => CLEAR;
-    expect(withClearedStoredMovedFields(payload, day(stored.beds), clear)).toBe(payload);
-    expect(withClearedStoredMovedFields(payload, undefined, clear)).toBe(payload);
-    const adopted = adoptStoredClinicalDerivedState(day({ R3: patient('ep_c', 'x') }), stored);
-    expect(withClearedStoredMovedFields(adopted, stored, clear)).toBe(adopted);
   });
 });
 

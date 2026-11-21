@@ -1,4 +1,4 @@
-import { deleteField, getDoc, runTransaction, type Transaction } from 'firebase/firestore';
+import { getDoc } from 'firebase/firestore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type {
   SyncTransportPort,
@@ -7,11 +7,7 @@ import type {
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { measureRepositoryOperation } from '@/services/repositories/repositoryPerformance';
-import {
-  docToRecord,
-  sanitizeForFirestore,
-  getRecordDocRef,
-} from '@/services/storage/firestore/firestoreShared';
+import { docToRecord, getRecordDocRef } from '@/services/storage/firestore/firestoreShared';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
 import {
@@ -34,7 +30,6 @@ import {
   recordClinicalAuthorityTelemetry,
   recordClinicalEpisodeIdCoverageTelemetry,
 } from '@/services/repositories/dailyRecordClinicalAuthorityPolicy';
-import { isServerClinicalWriteFenceActive } from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
 import { saveDailyRecordWithClinicalAuthorityCallable } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { recordSyncQueueTruthSelectionTelemetry } from '@/services/storage/sync/syncQueueTelemetryController';
 import {
@@ -59,10 +54,6 @@ import {
   resolveRecordBaseRevision,
   UNKNOWN_SERVER_VERSION,
 } from './syncTaskContractPolicy';
-import {
-  adoptStoredClinicalDerivedState,
-  withClearedStoredMovedFields,
-} from '@/services/storage/clinicalDerivedWriteHygiene';
 import { applyPatches } from '@/utils/patchUtils';
 
 const STRICT_REMOTE_DRIFT_TOLERANCE_MS = 0;
@@ -183,13 +174,12 @@ const resolveRecordForSyncTask = async (
   queuedTask: SyncTask,
   queuedRecord: DailyRecord,
   runtime: FirestoreServiceRuntimePort,
-  transaction?: Transaction,
   checks?: ReplayChecks
 ): Promise<ResolvedSyncRecordForTask> => {
   let task = queuedTask;
   let record = queuedRecord;
   const docRef = getRecordDocRef(record.date, runtime);
-  const remoteSnap = await (transaction ? transaction.get(docRef) : getDoc(docRef));
+  const remoteSnap = await getDoc(docRef);
   if (!remoteSnap.exists()) {
     if (task.nursingHandoffRecovery)
       throw new ConcurrencyError('La entrega retenida requiere revisar el censo que falta.');
@@ -432,7 +422,7 @@ const syncDailyRecord = async (
   const result = await measureRepositoryOperation(
     'syncQueue.writeDailyRecord',
     async (): Promise<SyncTransportResult> => {
-      const resolved = await resolveRecordForSyncTask(task, record, runtime, undefined, occupants);
+      const resolved = await resolveRecordForSyncTask(task, record, runtime, occupants);
       ({ detached, heldOut } = resolved);
       // The part this replay publishes: never the fields left out of it.
       const publishTask = heldOut?.task ?? detached?.task ?? task;
@@ -464,98 +454,56 @@ const syncDailyRecord = async (
 
       assertResolvedClinicalAuthority(task, resolved);
 
-      if (await isServerClinicalWriteFenceActive(runtime)) {
-        const freshBase =
-          !task.nursingHandoffRecovery &&
-          resolved.resolution === 'merged' &&
-          resolved.storedData &&
-          resolved.canRebasePatch
-            ? {
-                expectedVersion: getRemoteLastUpdated(resolved.storedData),
-                baseRevision: resolveRecordBaseRevision(
-                  docToRecord(resolved.storedData, recordToWrite.date)
-                ),
-              }
-            : undefined;
-        assertCanPublish?.();
-        const response = await saveDailyRecordWithClinicalAuthorityCallable(
-          {
-            date: recordToWrite.date,
-            record: recordToWrite,
-            expectedLastUpdated: freshBase?.expectedVersion ?? task.syncContract?.expectedVersion,
-            mode: 'enforced',
-            origin: task.origin,
-            syncContract: { ...publishTask.syncContract, ...freshBase },
-          },
-          assertCanPublish
-        ).catch(error => {
-          if (
-            error instanceof ConcurrencyError &&
-            error.reason === 'version_mismatch' &&
-            isWholeRecordTask(task)
-          ) {
-            throw createDailyRecordBaseReviewError(error.message);
-          }
-          throw error;
-        });
-        const authoritativeRecord = response.recordState?.record;
+      const freshBase =
+        !task.nursingHandoffRecovery &&
+        resolved.resolution === 'merged' &&
+        resolved.storedData &&
+        resolved.canRebasePatch
+          ? {
+              expectedVersion: getRemoteLastUpdated(resolved.storedData),
+              baseRevision: resolveRecordBaseRevision(
+                docToRecord(resolved.storedData, recordToWrite.date)
+              ),
+            }
+          : undefined;
+      assertCanPublish?.();
+      const response = await saveDailyRecordWithClinicalAuthorityCallable(
+        {
+          date: recordToWrite.date,
+          record: recordToWrite,
+          expectedLastUpdated: freshBase?.expectedVersion ?? task.syncContract?.expectedVersion,
+          mode: 'enforced',
+          origin: task.origin,
+          syncContract: { ...publishTask.syncContract, ...freshBase },
+        },
+        assertCanPublish
+      ).catch(error => {
         if (
-          !authoritativeRecord ||
-          authoritativeRecord.date !== recordToWrite.date ||
-          authoritativeRecord.lastUpdated !== response.recordState?.lastUpdated
+          error instanceof ConcurrencyError &&
+          error.reason === 'version_mismatch' &&
+          isWholeRecordTask(task)
         ) {
-          throw new ConcurrencyError(
-            `Sync queue: authority omitted the committed record for ${recordToWrite.date}.`
-          );
+          throw createDailyRecordBaseReviewError(error.message);
         }
-        recordSyncQueueTruthSelectionTelemetry(task, {
-          resolution: resolved.resolution,
-          acceptedVersion: authoritativeRecord.lastUpdated,
-          acceptedRevision: response?.revision,
-          selectedTruth: 'authority_intent_invariants',
-        });
-        return { authoritativeRecord };
+        throw error;
+      });
+      const authoritativeRecord = response.recordState?.record;
+      if (
+        !authoritativeRecord ||
+        authoritativeRecord.date !== recordToWrite.date ||
+        authoritativeRecord.lastUpdated !== response.recordState?.lastUpdated
+      ) {
+        throw new ConcurrencyError(
+          `Sync queue: authority omitted the committed record for ${recordToWrite.date}.`
+        );
       }
-
-      const committed = await runTransaction(runtime.getDb(), async transaction => {
-        // Re-evaluate the original intent against the snapshot protected by this transaction.
-        // Firestore reruns this callback if another writer changes the document before commit.
-        const current = await resolveRecordForSyncTask(
-          task,
-          record,
-          runtime,
-          transaction,
-          occupants
-        );
-        ({ detached, heldOut } = current);
-        if (current.resolution === 'already_applied') return current;
-        assertResolvedClinicalAuthority(task, current);
-        assertCanPublish?.();
-        // D9: the stored day keeps its split-day marker, meta and moved fields, and a create
-        // never carries the marker (the rule would deny this entry forever; queues are never
-        // purged). merge: true keeps omitted keys, so a moved field another episode left in the
-        // slot is deleted. The same record and payload on unmarked days.
-        const committedRecord = adoptStoredClinicalDerivedState(current.record, current.storedData);
-        transaction.set(
-          getRecordDocRef(committedRecord.date, runtime),
-          withClearedStoredMovedFields(
-            sanitizeForFirestore(committedRecord) as Record<string, unknown>,
-            current.storedData,
-            () => deleteField()
-          ),
-          { merge: true }
-        );
-        return { ...current, record: committedRecord };
-      });
       recordSyncQueueTruthSelectionTelemetry(task, {
-        resolution: committed.resolution,
-        acceptedVersion: committed.acceptedVersion,
-        selectedTruth:
-          committed.resolution === 'already_applied'
-            ? 'remote_already_applied'
-            : 'legacy_direct_publish',
+        resolution: resolved.resolution,
+        acceptedVersion: authoritativeRecord.lastUpdated,
+        acceptedRevision: response?.revision,
+        selectedTruth: 'authority_intent_invariants',
       });
-      return { authoritativeRecord: committed.record };
+      return { authoritativeRecord };
     },
     { thresholdMs: 180, context: record.date }
   );

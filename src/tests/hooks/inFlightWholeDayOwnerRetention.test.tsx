@@ -46,6 +46,11 @@ vi.mock('firebase/firestore', async importOriginal => {
     await import('@/tests/services/storage/singleAttemptFirestoreTransactionMock');
   return { ...actual, ...createSingleAttemptFirestoreMock() };
 });
+vi.mock('@/services/storage/firestore/dailyRecordAuthorityCallableClient', async () =>
+  (
+    await import('@/tests/services/storage/singleAttemptFirestoreTransactionMock')
+  ).createAuthorityCallableMock()
+);
 vi.mock('@/services/storage/firestore/firestoreShared', async importOriginal => {
   const actual =
     await importOriginal<typeof import('@/services/storage/firestore/firestoreShared')>();

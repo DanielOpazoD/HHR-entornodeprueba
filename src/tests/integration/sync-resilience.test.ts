@@ -108,16 +108,22 @@ const buildRecord = (date: string): DailyRecord => ({
 describe('Sync resilience integration', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
-    mockSaveDailyRecordWithClinicalAuthorityCallable.mockResolvedValue({ success: true });
+    // The authority commits the day it is sent.
+    mockSaveDailyRecordWithClinicalAuthorityCallable.mockImplementation(
+      async ({ record }: { record: DailyRecord }) => ({
+        success: true,
+        recordState: { record, lastUpdated: record.lastUpdated },
+      })
+    );
     await clearAllRecords();
     await hospitalDB.syncQueue.clear();
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
   });
 
-  // Without the schema-v2 server fence the queue publishes with a direct write.
+  // The queue publishes a day through the authority callable, never a direct write.
   const expectOnePublishAttempt = () => {
-    expect(vi.mocked(setDoc)).toHaveBeenCalledTimes(1);
-    expect(mockSaveDailyRecordWithClinicalAuthorityCallable).not.toHaveBeenCalled();
+    expect(mockSaveDailyRecordWithClinicalAuthorityCallable).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(setDoc)).not.toHaveBeenCalled();
   };
 
   it('queues while offline and flushes successfully when back online', async () => {
@@ -128,7 +134,7 @@ describe('Sync resilience integration', () => {
 
     let telemetry = await getSyncQueueTelemetry();
     expect(telemetry.pending).toBe(1);
-    expect(vi.mocked(setDoc)).not.toHaveBeenCalled();
+    expect(mockSaveDailyRecordWithClinicalAuthorityCallable).not.toHaveBeenCalled();
 
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
     await processSyncQueue();
@@ -140,10 +146,6 @@ describe('Sync resilience integration', () => {
   });
 
   it('marks permission-denied as FAILED without retry loop', async () => {
-    vi.mocked(setDoc).mockRejectedValue({
-      code: 'permission-denied',
-      message: 'Missing or insufficient permissions',
-    });
     mockSaveDailyRecordWithClinicalAuthorityCallable.mockRejectedValue({
       code: 'permission-denied',
       message: 'Missing or insufficient permissions',

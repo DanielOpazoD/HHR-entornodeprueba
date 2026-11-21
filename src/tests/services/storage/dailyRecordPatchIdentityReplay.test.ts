@@ -1,9 +1,8 @@
 // @vitest-environment node
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { A, E, harnessState, reconnect } from './dayRecordOutboxHarness';
+import { A, E, reconnect } from './dayRecordOutboxHarness';
 import {
-  MODES,
   local,
   queue,
   readStored,
@@ -14,14 +13,13 @@ import {
 } from './dayRecordDaySupport';
 import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
 
-const h = harnessState();
 beforeEach(() => resetDay('user:synthetic-patch-identity'));
 afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
-describe.each(MODES)('ordinary clinical patch identity (%s)', (_route, fenced) => {
+describe('ordinary clinical patch identity', () => {
   it.each([
     ['bed', 'patient'],
     ['bed', 'episode'],
@@ -51,7 +49,6 @@ describe.each(MODES)('ordinary clinical patch identity (%s)', (_route, fenced) =
       '2026-10-24T10:15:00.000Z',
       { revision: 2, lastChangedPaths: [path] }
     );
-    h.writeFence = fenced;
 
     await reconnect();
 
@@ -79,7 +76,6 @@ describe.each(MODES)('ordinary clinical patch identity (%s)', (_route, fenced) =
       '2026-10-24T10:15:00.000Z',
       { revision: 2, lastChangedPaths: ['beds.R4.pathology'] }
     );
-    h.writeFence = fenced;
 
     await reconnect();
 

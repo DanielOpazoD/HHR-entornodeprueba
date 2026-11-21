@@ -105,9 +105,7 @@ export const restoreDailyRecordVersion = async (
   });
 
   try {
-    await saveRecordToFirestore(restoredRecord, current?.lastUpdated, {
-      historyPolicy: 'snapshot',
-    });
+    await saveRecordToFirestore(restoredRecord, current?.lastUpdated);
   } catch (saveError) {
     // The audit row is already written but the save failed (rare): a "phantom" restore audit.
     // Surface it for reconciliation; the authorized reviewer still sees the failure via the rethrow.

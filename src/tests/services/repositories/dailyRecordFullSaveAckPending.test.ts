@@ -2,9 +2,8 @@ import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { saveRecordToFirestore } from '@/services/storage/firestore/firestoreRecordWrites';
 
-const remote = vi.hoisted(() => ({ save: vi.fn<typeof saveRecordToFirestore>(), read: vi.fn() }));
+const remote = vi.hoisted(() => ({ save: vi.fn(), read: vi.fn() }));
 vi.mock('@/services/storage/firestore/firestoreRecordWrites', () => ({
   saveRecordToFirestore: remote.save,
   updateRecordPartial: vi.fn(),
@@ -44,7 +43,7 @@ const beginSave = async (requireConfirmedRecord = true) => {
   });
   await hospitalDB.dailyRecords.put(base);
   const entered = deferred<void>();
-  const response = deferred<Awaited<ReturnType<typeof saveRecordToFirestore>>>();
+  const response = deferred<unknown>();
   remote.save.mockImplementation(() => {
     entered.resolve();
     return response.promise;

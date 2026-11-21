@@ -9,17 +9,12 @@ import {
   isClinicalAuthorityCallablePatchPath,
 } from '@/services/storage/dailyRecordAuthorityContract';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
-import { firestoreWriteLogger } from '@/services/storage/storageLoggers';
-import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
-import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
-import { isServerClinicalWriteFenceActive } from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import type {
   ClinicalCribCreateRequest,
   IntentionalBedClearRequest,
 } from '@/types/domain/intentionalBedClear';
 import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
-import { isE2EDailyRecordAuthorityCallableForced } from '@/shared/runtime/e2eRuntime';
 
 export interface DailyRecordPartialWriteOptions {
   syncContract?: SyncTaskContract;
@@ -54,21 +49,9 @@ export interface DailyRecordPartialWriteOptions {
 
 export interface DailyRecordSaveWriteOptions {
   syncContract?: SyncTaskContract;
-  /** Returns the exact submitted record only after the direct Firestore transaction commits. */
-  returnCommittedRecord?: boolean;
-  /**
-   * Optional guard invoked inside the save transaction with the freshly-read remote document.
-   * It may throw (e.g. DataRegressionError) to abort the commit atomically.
-   */
-  assertSafeOverwrite?: (remoteData: Record<string, unknown>) => void;
   /** Intent reported to the clinical authority; `backup_restore` recreates a day with its clinical fields. */
   origin?: 'direct_save' | 'backup_restore';
-  /**
-   * 'snapshot' always copies the live document to `history` before overwriting it, as restores
-   * need. Otherwise copies follow the hourly cadence (historySnapshotCadence).
-   */
-  historyPolicy?: 'snapshot';
-  /** The writer's session check: before each attempt and retry, and inside the transaction. */
+  /** The writer's session check: before each attempt and retry. */
   assertCanPublish?: () => void;
 }
 
@@ -124,8 +107,8 @@ export const shouldRouteClinicalAuthorityPatch = (patch: Record<string, unknown>
 };
 
 /**
- * Firestore fences the complete patient tree once the server owns Rayen clinical fields.
- * Structural edits that share that tree must therefore use the preserving authority callable too.
+ * Firestore fences the complete patient tree: the server owns Rayen clinical fields (schema-v2
+ * policy, irreversible by rules). Structural edits that share that tree use the authority callable too.
  */
 export const isDailyRecordBedTreePath = (path: string): boolean => {
   const [root] = path.split('.');
@@ -146,25 +129,6 @@ export const extractDailyRecordBedTreePatch = (
   patch: Record<string, unknown>
 ): Record<string, unknown> =>
   Object.fromEntries(Object.entries(patch).filter(([path]) => isDailyRecordBedTreePath(path)));
-
-/**
- * The one routing decision for the bed tree and whole-day saves: the schema-v2 server fence
- * (or the e2e override) plus a signed-in, non-anonymous user selects the authority callable.
- * Routing is advisory; with the fence unread or the session unchecked the write goes direct and
- * the server rules still reject a fenced direct write, so the queue keeps the edit.
- */
-export const shouldRouteDailyRecordWriteViaCallable = async (): Promise<boolean> => {
-  if (isE2EDailyRecordAuthorityCallableForced()) return true;
-  if (!(await isServerClinicalWriteFenceActive(defaultFirestoreServiceRuntime))) return false;
-  try {
-    await defaultAuthRuntime.ready;
-    const firebaseUser = defaultAuthRuntime.getCurrentUser();
-    return Boolean(firebaseUser && !firebaseUser.isAnonymous);
-  } catch (error) {
-    firestoreWriteLogger.warn('Daily record authority callable routing check failed', { error });
-    return false;
-  }
-};
 
 export const assertDailyRecordClinicalAuthority = (record: DailyRecord): void => {
   const authority = evaluateDailyRecordClinicalAuthority(record, {

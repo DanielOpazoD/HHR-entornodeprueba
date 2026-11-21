@@ -20,6 +20,7 @@ vi.mock('firebase/firestore', async () => {
     runTransaction: (db: unknown, fn: (tx: unknown) => Promise<unknown>) =>
       mockRunTransaction(db, fn),
     setDoc: vi.fn(),
+    updateDoc: vi.fn(),
     Timestamp: MockTimestamp,
   };
 });
@@ -67,7 +68,6 @@ vi.mock('@/services/storage/firestore/firestoreServiceRuntime', () => ({
 import { getDoc, setDoc } from 'firebase/firestore';
 import {
   saveHistorySnapshot,
-  saveRecordAtomically,
   updateRecordPartiallyAtomically,
 } from '@/services/storage/firestore/firestoreWriteSupport';
 
@@ -142,106 +142,6 @@ describe('firestoreWriteSupport history cadence', () => {
       get: vi.fn().mockResolvedValue(snap),
       set: vi.fn(),
       update: vi.fn(),
-    });
-
-    it('copies the previous state at most once per hour per document', async () => {
-      const tx = makeTx({
-        exists: () => true,
-        data: () => ({ lastUpdated: '2026-02-20T10:00:00.000Z', beds: {} }),
-      });
-      mockRunTransaction.mockImplementation((_db: unknown, fn: (tx: unknown) => Promise<void>) =>
-        fn(tx)
-      );
-      const day = { kind: 'docRef', path: 'hospitals/h/dailyRecords/2026-02-20' };
-      const otherDay = { kind: 'docRef', path: 'hospitals/h/dailyRecords/2026-02-19' };
-      const save = (docRef: object) =>
-        saveRecordAtomically(
-          docRef as never,
-          { data: 'new' },
-          '2026-02-20T10:00:00.000Z',
-          'conflict',
-          'save'
-        );
-      const historyCopies = () =>
-        tx.set.mock.calls.filter(([target]) => (target as { kind: string }).kind === 'doc').length;
-
-      vi.useFakeTimers();
-      try {
-        vi.setSystemTime(new Date('2026-02-20T10:00:00.000Z'));
-        await save(day);
-        vi.setSystemTime(new Date('2026-02-20T10:30:00.000Z'));
-        await save(day);
-        expect(historyCopies()).toBe(1);
-        expect(tx.set).toHaveBeenCalledTimes(3);
-
-        await save(otherDay);
-        expect(historyCopies()).toBe(2);
-
-        vi.setSystemTime(new Date('2026-02-20T11:00:00.000Z'));
-        await save(day);
-        expect(historyCopies()).toBe(3);
-      } finally {
-        vi.useRealTimers();
-      }
-    });
-
-    it('always copies when the caller forces it, as restores do', async () => {
-      const tx = makeTx({
-        exists: () => true,
-        data: () => ({ lastUpdated: '2026-02-20T10:00:00.000Z', beds: {} }),
-      });
-      mockRunTransaction.mockImplementation((_db: unknown, fn: (tx: unknown) => Promise<void>) =>
-        fn(tx)
-      );
-      const day = { kind: 'docRef', path: 'hospitals/h/dailyRecords/2026-02-22' };
-      const save = (forceHistorySnapshot: boolean) =>
-        saveRecordAtomically(
-          day as never,
-          { data: 'restored' },
-          '2026-02-20T10:00:00.000Z',
-          'conflict',
-          'restore',
-          { forceHistorySnapshot }
-        );
-
-      await save(false);
-      await save(true);
-      await save(false);
-
-      const historyCopies = tx.set.mock.calls.filter(
-        ([target]) => (target as { kind: string }).kind === 'doc'
-      ).length;
-      expect(historyCopies).toBe(2);
-    });
-
-    it('does not count a copy whose transaction failed to commit', async () => {
-      const tx = makeTx({
-        exists: () => true,
-        data: () => ({ lastUpdated: '2026-02-20T10:00:00.000Z', beds: {} }),
-      });
-      const day = { kind: 'docRef', path: 'hospitals/h/dailyRecords/2026-02-21' };
-      mockRunTransaction.mockImplementationOnce(
-        async (_db: unknown, fn: (tx: unknown) => Promise<void>) => {
-          await fn(tx);
-          throw new Error('synthetic commit failure');
-        }
-      );
-      await expect(
-        saveRecordAtomically(day as never, { data: 'new' }, '2026-02-20T10:00:00.000Z', 'c', 's')
-      ).rejects.toThrow('synthetic commit failure');
-
-      mockRunTransaction.mockImplementation((_db: unknown, fn: (tx: unknown) => Promise<void>) =>
-        fn(tx)
-      );
-      tx.set.mockClear();
-      await saveRecordAtomically(
-        day as never,
-        { data: 'new' },
-        '2026-02-20T10:00:00.000Z',
-        'c',
-        's'
-      );
-      expect(tx.set).toHaveBeenCalledTimes(2);
     });
 
     it('applies the same cadence to multi-field partial updates', async () => {
@@ -331,39 +231,28 @@ describe('firestoreWriteSupport history cadence', () => {
     });
 
     it('marks only what the attempt that committed wrote when Firestore retries', async () => {
-      const day = { kind: 'docRef', path: 'hospitals/h/dailyRecords/2026-02-28' };
-      const existing = makeTx({
-        exists: () => true,
-        data: () => ({ lastUpdated: '2026-02-20T10:00:00.000Z', beds: {} }),
-      });
+      const day = { kind: 'docRef', path: 'hospitals/h/dailyRecords/2026-02-28' } as never;
+      const existing = partialTx();
       const gone = makeTx({ exists: () => false });
+      const update = () =>
+        updateRecordPartiallyAtomically(day, { discharges: [] }, undefined, 'c', 's', {
+          acceptsOtherVersion: () => true,
+        });
       // First attempt copies, then the retry finds no document and commits without a copy.
       mockRunTransaction.mockImplementationOnce(
-        async (_db: unknown, fn: (tx: unknown) => Promise<void>) => {
+        async (_db: unknown, fn: (tx: unknown) => Promise<unknown>) => {
           await fn(existing);
-          await fn(gone);
+          return fn(gone);
         }
       );
-      await saveRecordAtomically(
-        day as never,
-        { data: 'new' },
-        '2026-02-20T10:00:00.000Z',
-        'c',
-        's'
-      );
+      await update();
 
       mockRunTransaction.mockImplementation((_db: unknown, fn: (tx: unknown) => Promise<void>) =>
         fn(existing)
       );
       existing.set.mockClear();
-      await saveRecordAtomically(
-        day as never,
-        { data: 'new' },
-        '2026-02-20T10:00:00.000Z',
-        'c',
-        's'
-      );
-      expect(existing.set).toHaveBeenCalledTimes(2);
+      await update();
+      expect(existing.set).toHaveBeenCalledTimes(1);
     });
   });
 });

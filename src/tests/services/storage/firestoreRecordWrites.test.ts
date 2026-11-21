@@ -22,11 +22,9 @@ import {
   assertFirestoreConcurrency,
   createDeletedRecordRef,
   saveHistorySnapshot,
-  saveRecordAtomically,
   updateRecordPartiallyAtomically,
 } from '@/services/storage/firestore/firestoreWriteSupport';
 import { withRetry } from '@/utils/networkUtils';
-import { activateServerWriteFence } from '@/tests/support/serverWriteFence';
 
 describe('firestoreRecordWrites', () => {
   beforeEach(() => {
@@ -38,30 +36,6 @@ describe('firestoreRecordWrites', () => {
     mockEnsureUserRoleClaim.mockResolvedValue(undefined);
     mockHttpsCallable.mockReturnValue(mockCallable);
     mockCallable.mockResolvedValue({ data: { success: true } });
-  });
-
-  it('saves full records after concurrency and history checks', async () => {
-    const result = await saveRecordToFirestore(
-      { date: '2026-03-14', beds: {} } as never,
-      undefined,
-      { returnCommittedRecord: true }
-    );
-
-    expect(saveRecordAtomically).toHaveBeenCalledWith(
-      { date: '2026-03-14' },
-      expect.objectContaining({ date: '2026-03-14' }),
-      undefined,
-      'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
-      'save',
-      { assertSafeOverwrite: undefined, forceHistorySnapshot: false }
-    );
-    expect(setDoc).not.toHaveBeenCalled();
-    expect(result).toMatchObject({
-      recordState: {
-        lastUpdated: '2026-03-14T12:34:56.789Z',
-        record: { date: '2026-03-14', lastUpdated: '2026-03-14T12:34:56.789Z' },
-      },
-    });
   });
 
   it('blocks full-record writes that violate clinical episode authority', async () => {
@@ -102,44 +76,7 @@ describe('firestoreRecordWrites', () => {
     expect(setDoc).not.toHaveBeenCalled();
   });
 
-  it('preserves direct full-record saves without a policy', async () => {
-    mockGetCurrentUser.mockReturnValue({
-      uid: 'nurse-1',
-      email: 'nurse@example.com',
-      isAnonymous: false,
-    });
-
-    const result = await saveRecordToFirestore(
-      {
-        date: '2026-03-16',
-        beds: {},
-        discharges: [],
-        transfers: [],
-        cma: [],
-      } as never,
-      '2026-03-16T10:00:00.000Z'
-    );
-
-    expect(mockCallable).not.toHaveBeenCalled();
-    expect(saveRecordAtomically).toHaveBeenCalledWith(
-      { date: '2026-03-16' },
-      expect.objectContaining({ date: '2026-03-16' }),
-      '2026-03-16T10:00:00.000Z',
-      'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
-      'save',
-      { assertSafeOverwrite: undefined, forceHistorySnapshot: false }
-    );
-    expect(result).toBeUndefined();
-  });
-
-  it('routes authenticated full-record saves through the clinical authority callable behind the fence', async () => {
-    activateServerWriteFence();
-    mockGetCurrentUser.mockReturnValue({
-      uid: 'doctor-1',
-      email: 'doctor@example.com',
-      isAnonymous: false,
-    });
-
+  it('routes full-record saves through the clinical authority callable', async () => {
     await saveRecordToFirestore(
       {
         date: '2026-03-14',
@@ -202,7 +139,7 @@ describe('firestoreRecordWrites', () => {
 
     vi.mocked(updateRecordPartiallyAtomically).mockRejectedValueOnce({ code: 'not-found' });
     await expect(
-      updateRecordPartial('2026-03-15', { 'beds.R1.pathology': 'EDITED' } as never)
+      updateRecordPartial('2026-03-15', { status: 'EDITED' } as never)
     ).rejects.toMatchObject({ code: 'not-found' });
     expect(setDoc).not.toHaveBeenCalled();
   });
@@ -285,7 +222,7 @@ describe('firestoreRecordWrites', () => {
     );
   });
 
-  it('writes a doctor_specialist clinical-events patch directly, never through a note callable', async () => {
+  it('sends a doctor_specialist clinical-events patch through the patch authority', async () => {
     mockGetCurrentUser.mockReturnValue({
       uid: 'specialist-2',
       email: 'specialist@example.com',
@@ -297,9 +234,13 @@ describe('firestoreRecordWrites', () => {
       'beds.R4.clinicalEvents': [{ id: 'event-1', name: 'Procedimiento', date: '2026-03-21' }],
     } as never);
 
-    expect(mockGetFunctions).not.toHaveBeenCalled();
-    expect(mockCallable).not.toHaveBeenCalled();
-    expect(updateRecordPartiallyAtomically).toHaveBeenCalledTimes(1);
+    expect(mockHttpsCallable).toHaveBeenCalledWith(
+      { name: 'functions-runtime' },
+      'patchDailyRecordWithClinicalAuthority',
+      { timeout: 45_000 }
+    );
+    expect(mockCallable).toHaveBeenCalledOnce();
+    expect(updateRecordPartiallyAtomically).not.toHaveBeenCalled();
   });
 
   it('rethrows write failures that are not recoverable', async () => {
@@ -308,7 +249,7 @@ describe('firestoreRecordWrites', () => {
       'boom'
     );
 
-    vi.mocked(saveRecordAtomically).mockRejectedValueOnce(new Error('save failed'));
+    mockCallable.mockRejectedValueOnce(new Error('save failed'));
     await expect(
       saveRecordToFirestore(
         {
@@ -386,7 +327,7 @@ describe('firestoreRecordWrites', () => {
     await updateRecordPartial('2026-03-19', { status: 'ok' } as never);
     await deleteRecordFromFirestore('2026-03-19');
 
-    expect(saveRecordAtomically).toHaveBeenCalled();
+    expect(mockCallable).toHaveBeenCalled();
     expect(updateRecordPartiallyAtomically).toHaveBeenCalled();
     expect(deleteDoc).toHaveBeenCalled();
     expect(firestoreWriteLoggerWarn).toHaveBeenCalledWith(

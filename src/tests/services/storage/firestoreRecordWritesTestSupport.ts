@@ -52,7 +52,6 @@ vi.mock('@/services/storage/firestore/firestoreWriteSupport', async () => ({
   assertFirestoreConcurrency: vi.fn(),
   createDeletedRecordRef: vi.fn((date: string) => ({ trashRef: date })),
   saveHistorySnapshot: vi.fn(),
-  saveRecordAtomically: vi.fn(),
   updateRecordPartiallyAtomically: vi.fn(),
 }));
 vi.mock('@/services/storage/storageLoggers', () => ({

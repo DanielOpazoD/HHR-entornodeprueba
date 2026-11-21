@@ -38,9 +38,6 @@ vi.mock('@/services/storage/firestore/firestoreShared', async original => ({
   ...(await original<typeof import('@/services/storage/firestore/firestoreShared')>()),
   getRecordDocRef: () => ({ id: 'synthetic-record' }),
 }));
-vi.mock('@/services/storage/firestore/firestoreRayenClinicalAuthorityMode', () => ({
-  isServerClinicalWriteFenceActive: async () => false,
-}));
 
 const DATE = '2026-07-03';
 const BASE_VERSION = '2026-07-03T08:00:00.000Z';

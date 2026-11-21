@@ -9,7 +9,6 @@ import {
   updateRecordPartial as updateRecordPartialToFirestore,
 } from '@/services/storage/firestore/firestoreRecordWrites';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
-import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import {
   createPartialUpdateDailyRecordCommand,
@@ -27,10 +26,7 @@ import {
 } from '@/services/storage/sync';
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
 import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';
-import {
-  assertNoPatientErasures,
-  runRemoteSaveIntegrityCheck,
-} from '@/services/repositories/dailyRecordRemoteWriteController';
+import { runRemoteSaveIntegrityCheck } from '@/services/repositories/dailyRecordRemoteWriteController';
 import { attemptConflictAutoMergeRecovery } from '@/services/repositories/dailyRecordConflictAutoMergeController';
 import { syncPatientsToMasterInBackground } from '@/services/repositories/dailyRecordBackgroundMasterSyncController';
 import { resolveBlockingFieldShrinkages } from '@/services/repositories/dailyRecordFieldShrinkageGuard';
@@ -207,14 +203,7 @@ const saveDetailedWithinLock = async (
       remoteWrite: () =>
         saveRecordToFirestore(validatedRecord, command.expectedLastUpdated, {
           syncContract,
-          returnCommittedRecord: options.requireConfirmedRecord,
           origin: options.writeOrigin,
-          // An automated structural import overwrites the day: keep the state it replaces.
-          ...(options.rayenStructuralWriteGuard || options.historyPolicy === 'snapshot'
-            ? { historyPolicy: 'snapshot' as const }
-            : {}),
-          assertSafeOverwrite: remoteData =>
-            assertNoPatientErasures(docToRecord(remoteData, command.date), validatedRecord),
           assertCanPublish: () => assertAuthoringSessionCurrent(options.authoringSession),
         }),
       readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
