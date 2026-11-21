@@ -113,6 +113,19 @@ describe('tooling-only repository policy', () => {
     ).toBe('tooling-only');
   });
 
+  it('classifies module README updates under src/ alongside docs/ as docs-only', () => {
+    expect(
+      classify([
+        changed('docs/architecture.md'),
+        changed('src/context/README.md'),
+        changed('src/services/firebase-runtime/README.md'),
+      ]).scope
+    ).toBe('docs-only');
+    expect(
+      classify([changed('src/context/README.md'), changed('src/context/AuthContext.tsx')]).scope
+    ).toBe('full');
+  });
+
   it.each([
     [changed('scripts/check-bundle-budget.mjs')],
     [changed('scripts/check-rayen-extension-release.mjs')],

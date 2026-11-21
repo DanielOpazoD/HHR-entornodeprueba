@@ -2,7 +2,7 @@
   "version": 1,
   "maxFiles": 50,
   "docsOnly": {
-    "directories": ["docs/**"],
+    "directories": ["docs/**", "src/**/README.md"],
     "rootFiles": [
       "ARCHITECTURE.md",
       "CHANGELOG.md",
