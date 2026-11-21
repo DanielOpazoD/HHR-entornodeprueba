@@ -1,5 +1,5 @@
 import { auth, gmail } from 'googleapis/build/src/apis/gmail/index.js';
-import { buildCensusEmailBody, buildCensusEmailSubject } from '@/constants/email';
+import { buildCensusEmailBody, buildCensusEmailSubject } from '../../../src/constants/email';
 
 interface SendCensusEmailParams {
   date: string;

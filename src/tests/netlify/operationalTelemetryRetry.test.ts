@@ -4,14 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import retry, { config } from '../../../netlify/functions/operational-telemetry-retry';
 import { createRuntimeAlertQueue } from '../../../netlify/functions/lib/telemetry-alerts/runtime';
 import { getRuntimeAlertLedgerStore } from '../../../netlify/functions/lib/telemetry-alerts/store';
-import { sendCensusEmail } from '../../../src/services/email/gmailClient';
+import { sendCensusEmail } from '../../../netlify/functions/lib/gmailClient';
 import { createAlertTestStore } from './support/alertTestStore';
 
 // Keep the entrypoint, runtime, queue and mail classifier real; replace only external I/O.
 vi.mock('../../../netlify/functions/lib/telemetry-alerts/store', () => ({
   getRuntimeAlertLedgerStore: vi.fn(),
 }));
-vi.mock('../../../src/services/email/gmailClient', () => ({
+vi.mock('../../../netlify/functions/lib/gmailClient', () => ({
   sendCensusEmail: vi.fn(),
   DEFAULT_GMAIL_SENDER: { name: 'Synthetic guard', email: 'sender@example.invalid' },
 }));

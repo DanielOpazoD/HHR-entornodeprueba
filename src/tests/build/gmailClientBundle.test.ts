@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 describe('server-side Gmail bundle', () => {
   it('includes Gmail without bundling clients for unrelated Google APIs', async () => {
     const result = await build({
-      entryPoints: [path.resolve('src/services/email/gmailClient.ts')],
+      entryPoints: [path.resolve('netlify/functions/lib/gmailClient.ts')],
       tsconfig: path.resolve('tsconfig.json'),
       bundle: true,
       platform: 'node',

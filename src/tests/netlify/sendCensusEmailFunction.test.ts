@@ -15,7 +15,7 @@ vi.mock('@/services/security/passwordGenerator', () => ({
   generateCensusPassword: vi.fn(() => 'PIN-123'),
 }));
 
-vi.mock('@/services/email/gmailClient', () => ({
+vi.mock('../../../netlify/functions/lib/gmailClient', () => ({
   sendCensusEmail: (...args: unknown[]) => sendCensusEmailMock(...args),
 }));
 

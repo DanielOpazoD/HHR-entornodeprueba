@@ -1,7 +1,7 @@
 import { readAuthorizationHeader } from './lib/authorization-header';
 import { safeErrorMessage } from './lib/safe-error-message';
 import * as z from 'zod';
-import { sendCensusEmail } from '../../src/services/email/gmailClient';
+import { sendCensusEmail } from './lib/gmailClient';
 import { getFirebaseServer } from './lib/firebase-server';
 import {
   buildCorsHeaders,

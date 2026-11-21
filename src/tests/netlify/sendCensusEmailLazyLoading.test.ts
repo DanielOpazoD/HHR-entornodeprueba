@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => {
 vi.mock('@/services/security/passwordGenerator', () => ({
   generateCensusPassword: () => 'PIN-123',
 }));
-vi.mock('@/services/email/gmailClient', () => ({ sendCensusEmail: mocks.send }));
+vi.mock('../../../netlify/functions/lib/gmailClient', () => ({ sendCensusEmail: mocks.send }));
 vi.mock('@/services/exporters/censusMasterWorkbook', () => {
   mocks.workbookInitialized();
   return {

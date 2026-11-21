@@ -5,7 +5,7 @@ import {
   createAlertMailer,
   resolveAlertMailbox,
 } from '../../../netlify/functions/lib/telemetry-alerts/mail';
-import { sendCensusEmail } from '../../../src/services/email/gmailClient';
+import { sendCensusEmail } from '../../../netlify/functions/lib/gmailClient';
 import type { SanitizedOperationalTelemetryEvent } from '../../../src/services/observability/operationalTelemetryIngestPolicy';
 const mocks = vi.hoisted(() => ({ send: vi.fn() }));
 vi.mock('googleapis/build/src/apis/gmail/index.js', () => ({

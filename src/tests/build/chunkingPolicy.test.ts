@@ -481,18 +481,14 @@ describe('chunkingPolicy', () => {
 
   it('keeps server-only Google APIs out of browser-facing source imports', () => {
     const sourceFiles = collectProductionSourceFiles(path.resolve(process.cwd(), 'src'));
-    const allowedGoogleApisImporters = new Set([
-      path.resolve(process.cwd(), 'src/services/email/gmailClient.ts'),
-    ]);
 
     const offenders = sourceFiles
-      .filter(file => !allowedGoogleApisImporters.has(file))
       .filter(file => {
         const source = readSource(path.relative(process.cwd(), file));
         return (
           /from ['"]googleapis(?:\/[^'"]+)?['"]/.test(source) ||
           /import\(['"]googleapis(?:\/[^'"]+)?['"]\)/.test(source) ||
-          source.includes('@/services/email/gmailClient')
+          source.includes('gmailClient')
         );
       })
       .map(file => path.relative(process.cwd(), file));
