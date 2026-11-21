@@ -7,7 +7,6 @@ describe('applyClinicalEnrichmentBatch telemetry compatibility', () => {
   it('labels a previous-day authority call as historical', async () => {
     const deps = createDependencies();
     const result = await applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record,
       authorityDate: '2026-07-29',
       runId: 'run-historical',
@@ -46,7 +45,6 @@ describe('applyClinicalEnrichmentBatch telemetry compatibility', () => {
       }));
 
     const result = await applyClinicalEnrichmentBatch({
-      mode: 'enforced',
       record,
       runId: 'run-old-callable-retry',
       operations,

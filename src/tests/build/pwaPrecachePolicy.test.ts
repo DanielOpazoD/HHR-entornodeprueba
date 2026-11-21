@@ -286,7 +286,6 @@ describe('PWA precache policy', () => {
     expect(viteConfig).toContain('**/assets/applyHistoricalCudyr-*.js');
     expect(viteConfig).toContain('**/assets/clinicalFillRunner-*.js');
     expect(viteConfig).toContain('**/assets/clinicalEnrichmentBatchPayload-*.js');
-    expect(viteConfig).toContain('**/assets/clinicalEnrichmentPersistenceStrategy-*.js');
     expect(viteConfig).toContain('**/assets/PatientDocumentManagerDialog-*.js');
     expect(viteConfig).toContain('**/assets/ClinicalPanelDrawer-*.js');
   });
@@ -380,9 +379,6 @@ describe('PWA precache policy', () => {
     );
     expect(bundleBudgetConfig.precacheIgnoredAssetPatterns).toContain(
       '^assets/clinicalEnrichmentBatchPayload-.*\\.js$'
-    );
-    expect(bundleBudgetConfig.precacheIgnoredAssetPatterns).toContain(
-      '^assets/clinicalEnrichmentPersistenceStrategy-.*\\.js$'
     );
     expect(bundleBudgetConfig.precacheIgnoredAssetPatterns).toContain(
       '^assets/PatientDocumentManagerDialog-.*\\.js$'

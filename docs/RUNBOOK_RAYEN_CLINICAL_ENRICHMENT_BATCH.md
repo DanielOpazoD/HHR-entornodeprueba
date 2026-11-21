@@ -169,10 +169,9 @@ Desde `DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md`, `clinicalSyncCheckpoint`
 ## Invariantes
 
 - Máximo 32 pacientes/cunas y 500 KB por lote; censo, snapshot y documentos de episodio se
-  rechazan antes de escribir si su representación supera 900 KB, dejando margen para el overhead de Firestore. `shadow` puede
-  dividir la observación porque nunca persiste. En `enforced`, si la ejecución completa requiere
-  varios fragmentos, el cliente falla antes de la primera mutación: así el lote aplicado conserva
-  atomicidad y nunca deja un enriquecimiento clínico parcial.
+  rechazan antes de escribir si su representación supera 900 KB, dejando margen para el overhead de Firestore. El
+  cliente arma la corrida en un solo envío; si pasa del límite, falla antes de la primera mutación:
+  así el lote aplicado conserva atomicidad y nunca deja un enriquecimiento clínico parcial.
 - Una sola lectura del documento de censo destino dentro de una transacción; el lote histórico
   añade únicamente la lectura del día origen que contiene el evento autoritativo del `runId`.
 - Coincidencia exacta de `clinicalEpisodeId` en la cama o cuna indicada.
@@ -203,7 +202,7 @@ Desde `DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md`, `clinicalSyncCheckpoint`
   encuentra un campo concurrente diferente o un episodio ausente, el cliente deja el lote pendiente
   sin invocar el callable ni el escritor individual. Sólo un fallo de la lectura permite enviar la
   base original, protegida por las validaciones del servidor y el único reintento por versión.
-  La prueba de composición `clinicalEnrichmentPersistenceStrategy.recovery.test.ts` cubre estos
+  La prueba de composición `applyClinicalFillBatch.recovery.test.ts` cubre estos
   caminos con los módulos reales del cliente y E/S sustituida; no acredita transporte ni persistencia
   remota. También comprueba el movimiento por episodio, valores ya confirmados y respuesta perdida.
 - Ningún dato demográfico o valor clínico en telemetría.

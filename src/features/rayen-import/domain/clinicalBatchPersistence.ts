@@ -3,7 +3,6 @@ import type {
   ClinicalFillBatchEvidence,
   ClinicalFillError,
   ClinicalFillPatchOperation,
-  ClinicalFillPersistenceStrategy,
   ClinicalPersistenceEvidence,
 } from '../contracts/clinicalFillContracts';
 import {
@@ -18,7 +17,7 @@ import {
 
 interface PersistClinicalBatchInput {
   operations: ClinicalFillPatchOperation[];
-  strategy: ClinicalFillPersistenceStrategy;
+  persist: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchApplyResult>;
   applyWithMetrics: (
     operation: () => Promise<ClinicalFillBatchApplyResult>
   ) => Promise<ClinicalFillBatchApplyResult>;
@@ -72,7 +71,7 @@ const patchError = (operation: ClinicalFillPatchOperation, error: unknown): Clin
 /** Completes optional batch persistence without coupling its outcome mapping to the fill runner. */
 export const persistClinicalBatch = async ({
   operations,
-  strategy,
+  persist,
   applyWithMetrics,
   recordRetries,
   recordPersistenceEvidence,
@@ -80,7 +79,7 @@ export const persistClinicalBatch = async ({
   wait = waitFor,
 }: PersistClinicalBatchInput): Promise<PersistClinicalBatchResult> => {
   if (operations.length > 0) {
-    const attempt = () => applyWithMetrics(() => strategy.persist(operations));
+    const attempt = () => applyWithMetrics(() => persist(operations));
     try {
       let result: ClinicalFillBatchApplyResult;
       try {

@@ -157,7 +157,6 @@ describeEmulator('clinical batch client recovers a lost committed response', () 
       const applyPatch = vi.fn();
       const createMutationId = vi.fn(() => 'synthetic-clinical-mutation');
       const result = await applyClinicalEnrichmentBatch({
-        mode: 'enforced',
         record: await refreshRecord(),
         runId: 'synthetic-run',
         operations: [
@@ -347,7 +346,6 @@ describeEmulator('clinical batch client recovers a lost committed response', () 
     const execute = () =>
       currentScope
         ? applyClinicalEnrichmentBatch({
-            mode: 'enforced',
             record: baseRecord,
             runId: 'synthetic-run',
             operations,
@@ -392,7 +390,6 @@ describeEmulator('clinical batch client recovers a lost committed response', () 
         recordedAt: `${date}T15:00:00-05:00`,
       };
       await applyClinicalEnrichmentBatch({
-        mode: 'enforced',
         record: reread,
         runId: 'synthetic-run',
         operations: [
@@ -409,7 +406,6 @@ describeEmulator('clinical batch client recovers a lost committed response', () 
       const withAdjacentScale = await read();
       await expect(
         applyClinicalEnrichmentBatch({
-          mode: 'enforced',
           record: withAdjacentScale,
           runId: 'synthetic-run',
           operations: [

@@ -1,9 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import {
-  resolveClinicalEnrichmentBatchModeForRun,
-  resolveClinicalEnrichmentBatchPolicyForRun,
-} from '@/features/rayen-import/domain/clinicalEnrichmentBatchMode';
+import { resolveClinicalEnrichmentBatchPolicyForRun } from '@/features/rayen-import/domain/clinicalEnrichmentBatchMode';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 describe('clinicalEnrichmentBatchMode', () => {
@@ -37,15 +34,11 @@ describe('clinicalEnrichmentBatchMode', () => {
   });
 
   it('uses the server policy frozen for the requested run', () => {
-    expect(resolveClinicalEnrichmentBatchModeForRun(record('enforced'), 'older-run')).toBe(
+    expect(resolveClinicalEnrichmentBatchPolicyForRun(record('enforced'), 'older-run')).toBe(
       'unavailable'
-    );
-    expect(resolveClinicalEnrichmentBatchModeForRun(record('enforced'), 'latest-run')).toBe(
-      'enforced'
     );
     expect(resolveClinicalEnrichmentBatchPolicyForRun(record('enforced'), 'latest-run')).toEqual({
       runId: 'latest-run',
-      clinicalBatchMode: 'enforced',
       revision: 8,
       sourceDate: '2026-08-04',
     });
@@ -64,13 +57,13 @@ describe('clinicalEnrichmentBatchMode', () => {
   );
 
   it('rejects legacy events and missing run evidence', () => {
-    expect(resolveClinicalEnrichmentBatchModeForRun(record(undefined), 'latest-run')).toBe(
+    expect(resolveClinicalEnrichmentBatchPolicyForRun(record(undefined), 'latest-run')).toBe(
       'unavailable'
     );
-    expect(resolveClinicalEnrichmentBatchModeForRun(record('enforced'), 'unknown-run')).toBe(
+    expect(resolveClinicalEnrichmentBatchPolicyForRun(record('enforced'), 'unknown-run')).toBe(
       'unavailable'
     );
-    expect(resolveClinicalEnrichmentBatchModeForRun({ date: '2026-08-04' })).toBe('unavailable');
+    expect(resolveClinicalEnrichmentBatchPolicyForRun({ date: '2026-08-04' })).toBe('unavailable');
   });
 
   it.each(['off', 'shadow', undefined] as const)(

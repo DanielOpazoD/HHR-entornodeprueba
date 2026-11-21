@@ -1,10 +1,5 @@
 import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  type ClinicalFillBatchApplyResult,
-  type ClinicalFillPatchOperation,
-  type ClinicalFillPersistenceStrategy,
-} from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { logger } from '@/services/utils/loggerService';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
@@ -54,10 +49,6 @@ const deps = (overrides: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
   createId: () => 'device-id',
   ...overrides,
 });
-
-const deferredPersistence = (
-  persist: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchApplyResult>
-): ClinicalFillPersistenceStrategy => ({ disposition: 'deferred', persist });
 
 describe('runClinicalFill performance pipeline', () => {
   afterEach(() => {
@@ -190,7 +181,7 @@ describe('runClinicalFill performance pipeline', () => {
       '2026-07-10',
       deps({
         monotonicNow: () => 0,
-        persistenceStrategy: deferredPersistence(applyBatch),
+        persistBatch: applyBatch,
       })
     );
 
@@ -228,7 +219,7 @@ describe('runClinicalFill performance pipeline', () => {
       historySnapshots: 1,
       retries: 1,
     });
-    const dependencies = deps({ persistenceStrategy: deferredPersistence(applyBatch) });
+    const dependencies = deps({ persistBatch: applyBatch });
 
     const summary = await runClinicalFill(record(5), '2026-07-10', dependencies);
 
@@ -258,7 +249,7 @@ describe('runClinicalFill performance pipeline', () => {
     const summary = await runClinicalFill(
       record(2),
       '2026-07-10',
-      deps({ persistenceStrategy: deferredPersistence(applyBatch) })
+      deps({ persistBatch: applyBatch })
     );
 
     expect(summary).toMatchObject({

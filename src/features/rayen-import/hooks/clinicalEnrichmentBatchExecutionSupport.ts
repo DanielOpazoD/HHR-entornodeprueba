@@ -1,4 +1,3 @@
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type {
   ClinicalFillBatchEvidence,
   ClinicalFillPatchOperation,
@@ -8,11 +7,7 @@ import {
   callRayenClinicalEnrichmentBatch,
   type RayenClinicalEnrichmentBatchPayload,
 } from '../bridge/rayenClinicalEnrichmentBatchClient';
-import type { ClinicalEnrichmentBatchMode } from '../domain/clinicalEnrichmentBatchMode';
-import {
-  clinicalEnrichmentTargetKey,
-  prepareClinicalEnrichmentBatchPayload,
-} from './clinicalEnrichmentBatchPayload';
+import { clinicalEnrichmentTargetKey } from './clinicalEnrichmentBatchPayload';
 
 const errorCode = (error: unknown): string =>
   String((error as { code?: unknown })?.code || '')
@@ -170,22 +165,18 @@ export const assertCommittedResponse = (
   };
 };
 
-export interface BoundedClinicalBatchChunk {
-  operations: ClinicalFillPatchOperation[];
-  mutationId: string;
-}
-
 export const operationTargetKey = (operation: ClinicalFillPatchOperation): string =>
   clinicalEnrichmentTargetKey(operation.target);
 
 export const operationLogicalTargetKey = (operation: ClinicalFillPatchOperation): string =>
   `${operation.target.clinicalEpisodeId}|${operation.target.clinicalCrib ? 'crib' : 'patient'}`;
 
-export const selectRebuiltChunkOperations = (
+/** After a version conflict the batch keeps only the episodes it was first sent with. */
+export const selectRebuiltBatchOperations = (
   rebuiltOperations: ClinicalFillPatchOperation[],
-  originalChunkOperations: ClinicalFillPatchOperation[]
+  originalOperations: ClinicalFillPatchOperation[]
 ): ClinicalFillPatchOperation[] => {
-  const expectedKeys = new Set(originalChunkOperations.map(operationLogicalTargetKey));
+  const expectedKeys = new Set(originalOperations.map(operationLogicalTargetKey));
   const selectedKeys = new Set<string>();
   return rebuiltOperations.filter(operation => {
     const key = operationLogicalTargetKey(operation);
@@ -198,7 +189,11 @@ export const selectRebuiltChunkOperations = (
   });
 };
 
-const coalesceOperationsByTarget = (
+/**
+ * One operation per bed target, the shape the callable takes: several sources for one bed are
+ * merged, and an episode that reaches the batch from two beds is refused before any write.
+ */
+export const coalesceClinicalBatchOperations = (
   operations: ClinicalFillPatchOperation[]
 ): ClinicalFillPatchOperation[] => {
   const byTarget = new Map<string, ClinicalFillPatchOperation>();
@@ -224,70 +219,9 @@ const coalesceOperationsByTarget = (
       checkpointChanged: previous.checkpointChanged || operation.checkpointChanged,
     });
   });
-  return [...byTarget.values()];
-};
-
-export const mergeBatchEvidence = (
-  items: ClinicalFillBatchEvidence[],
-  mode: ClinicalFillBatchEvidence['mode']
-): ClinicalFillBatchEvidence => {
-  const parity = items.some(item => item.parity === 'mismatch')
-    ? 'mismatch'
-    : items.length > 0 && items.every(item => item.parity === 'matched')
-      ? 'matched'
-      : 'unavailable';
-  const backendTargets = items.every(item => item.backendTargets !== undefined)
-    ? items.reduce((total, item) => total + (item.backendTargets ?? 0), 0)
-    : undefined;
-  const backendFields = items.every(item => item.backendFields !== undefined)
-    ? items.reduce((total, item) => total + (item.backendFields ?? 0), 0)
-    : undefined;
-  return {
-    mode,
-    parity,
-    clinicalTargets: items.reduce((total, item) => total + item.clinicalTargets, 0),
-    checkpointTargets: items.reduce((total, item) => total + item.checkpointTargets, 0),
-    checkpointOnlyTargets: items.reduce((total, item) => total + item.checkpointOnlyTargets, 0),
-    requestedFields: items.reduce((total, item) => total + item.requestedFields, 0),
-    ...(backendTargets !== undefined ? { backendTargets } : {}),
-    ...(backendFields !== undefined ? { backendFields } : {}),
-  };
-};
-
-export const buildBoundedClinicalBatchChunks = ({
-  mode,
-  record,
-  authorityDate,
-  runId,
-  operations,
-  createMutationId,
-}: {
-  mode: ClinicalEnrichmentBatchMode;
-  record: DailyRecord;
-  authorityDate?: string;
-  runId: string;
-  operations: ClinicalFillPatchOperation[];
-  createMutationId: () => string;
-}): BoundedClinicalBatchChunk[] => {
-  const chunks: BoundedClinicalBatchChunk[] = [];
-  const usedMutationIds = new Set<string>();
-  let mutationSequence = 0;
-  const allocateMutationId = (): string => {
-    const generated = createMutationId();
-    if (!usedMutationIds.has(generated)) {
-      usedMutationIds.add(generated);
-      return generated;
-    }
-    mutationSequence += 1;
-    const suffix = `-part-${mutationSequence + 1}`;
-    const unique = `${generated.slice(0, Math.max(1, 160 - suffix.length))}${suffix}`;
-    usedMutationIds.add(unique);
-    return unique;
-  };
-
-  const coalescedOperations = coalesceOperationsByTarget(operations);
+  const coalesced = [...byTarget.values()];
   const logicalTargets = new Set<string>();
-  coalescedOperations.forEach(operation => {
+  coalesced.forEach(operation => {
     const key = operationLogicalTargetKey(operation);
     if (logicalTargets.has(key)) {
       throw new Error(
@@ -296,48 +230,5 @@ export const buildBoundedClinicalBatchChunks = ({
     }
     logicalTargets.add(key);
   });
-
-  let currentOperations: ClinicalFillPatchOperation[] = [];
-  let currentMutationId = allocateMutationId();
-  for (const operation of coalescedOperations) {
-    const candidateOperations = [...currentOperations, operation];
-    const candidate = prepareClinicalEnrichmentBatchPayload({
-      mode,
-      record,
-      authorityDate,
-      runId,
-      operations: candidateOperations,
-      mutationId: currentMutationId,
-    });
-    if (candidate.payload) {
-      currentOperations = candidateOperations;
-      continue;
-    }
-    if (currentOperations.length > 0) {
-      chunks.push({ operations: currentOperations, mutationId: currentMutationId });
-      currentOperations = [operation];
-      currentMutationId = allocateMutationId();
-      const single = prepareClinicalEnrichmentBatchPayload({
-        mode,
-        record,
-        authorityDate,
-        runId,
-        operations: currentOperations,
-        mutationId: currentMutationId,
-      });
-      if (single.payload) continue;
-      if (single.evidence.requestedFields === 0) {
-        currentOperations = [];
-        continue;
-      }
-      throw new Error('Una actualización clínica excede por sí sola el límite transaccional.');
-    }
-    if (candidate.evidence.requestedFields > 0) {
-      throw new Error('Una actualización clínica excede por sí sola el límite transaccional.');
-    }
-  }
-  if (currentOperations.length > 0) {
-    chunks.push({ operations: currentOperations, mutationId: currentMutationId });
-  }
-  return chunks;
+  return coalesced;
 };

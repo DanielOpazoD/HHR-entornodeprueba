@@ -56,7 +56,6 @@ const operations = (
 
 const prepare = (targets: number, padding: number, options?: Parameters<typeof operations>[2]) =>
   prepareClinicalEnrichmentBatchPayload({
-    mode: 'enforced',
     record,
     runId: 'synthetic-run',
     mutationId: 'synthetic-mutation',

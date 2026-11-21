@@ -124,7 +124,7 @@ describe('overlapping clinical reads', () => {
     readers.signal = controller.signal;
     readers.applyHistoricalCudyrBatch = vi.fn().mockResolvedValue([]);
     const persist = vi.fn().mockResolvedValue({ patientWrites: 1, historySnapshots: 1 });
-    readers.persistenceStrategy = { disposition: 'deferred', persist };
+    readers.persistBatch = persist;
     vi.mocked(readers.fetchHistoryScales).mockImplementation(() => delay(60, { events: [scale] }));
     vi.mocked(readers.fetchCudyrCategories).mockImplementation(() =>
       delay(80, {

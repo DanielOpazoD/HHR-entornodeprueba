@@ -15,7 +15,6 @@ import {
 } from '../bridge/rayenClinicalEnrichmentBatchClient';
 import type { PatientEvaluationScores } from '@/types/domain/evaluationScores';
 import { CUDYR_DOCUMENTARY_SOURCE } from '@/domain/evaluationScales/documentaryCudyr';
-import type { ClinicalEnrichmentBatchMode } from '../domain/clinicalEnrichmentBatchMode';
 
 const CHECKPOINT_FIELD = 'clinicalSyncCheckpoint';
 const allowedFields = new Set<string>(RAYEN_CLINICAL_ENRICHMENT_FIELDS);
@@ -84,15 +83,13 @@ const splitOperation = (
 
 export const summarizeClinicalEnrichmentSections = (
   patches: RayenClinicalEnrichmentTarget[],
-  checkpoints: RayenClinicalCheckpointTarget[],
-  mode: ClinicalFillBatchEvidence['mode'],
-  parity: ClinicalFillBatchEvidence['parity'] = 'unavailable'
+  checkpoints: RayenClinicalCheckpointTarget[]
 ): ClinicalFillBatchEvidence => {
   const clinicalKeys = new Set(patches.map(clinicalEnrichmentTargetKey));
   const checkpointKeys = new Set(checkpoints.map(clinicalEnrichmentTargetKey));
   return {
-    mode,
-    parity,
+    mode: 'enforced',
+    parity: 'unavailable',
     clinicalTargets: clinicalKeys.size,
     checkpointTargets: checkpointKeys.size,
     checkpointOnlyTargets: [...checkpointKeys].filter(key => !clinicalKeys.has(key)).length,
@@ -103,14 +100,12 @@ export const summarizeClinicalEnrichmentSections = (
 };
 
 export const prepareClinicalEnrichmentBatchPayload = ({
-  mode,
   record,
   authorityDate = record.date,
   runId,
   operations,
   mutationId,
 }: {
-  mode: ClinicalEnrichmentBatchMode;
   record: DailyRecord;
   authorityDate?: string;
   runId: string;
@@ -127,7 +122,7 @@ export const prepareClinicalEnrichmentBatchPayload = ({
     const cudyr = (target.fields.evaluationScores as PatientEvaluationScores | undefined)?.cudyr;
     return cudyr?.source === CUDYR_DOCUMENTARY_SOURCE || cudyr?.documentaryEvidence;
   });
-  const evidence = summarizeClinicalEnrichmentSections(patches, checkpoints, mode);
+  const evidence = summarizeClinicalEnrichmentSections(patches, checkpoints);
   const targetCount = new Set([...patches, ...checkpoints].map(clinicalEnrichmentTargetKey)).size;
   const sectionsPayload = { patches, ...(checkpoints.length > 0 ? { checkpoints } : {}) };
 
@@ -158,7 +153,7 @@ export const prepareClinicalEnrichmentBatchPayload = ({
       ...(revision !== undefined && Number.isInteger(revision) && revision >= 0
         ? { baseRevision: revision }
         : {}),
-      mode: mode,
+      mode: 'enforced',
       ...sectionsPayload,
     },
     evidence,

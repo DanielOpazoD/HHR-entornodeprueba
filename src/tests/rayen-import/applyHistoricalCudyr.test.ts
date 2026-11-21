@@ -123,7 +123,6 @@ describe('applyHistoricalCudyr', () => {
       expect(repository.getAuthoritativeForDate).toHaveBeenCalledOnce();
       expect(applyBatch).toHaveBeenCalledWith(
         expect.objectContaining({
-          mode: 'enforced',
           record: historicalRecord,
           authorityDate: '2026-07-30',
           runId: 'run-authoritative',

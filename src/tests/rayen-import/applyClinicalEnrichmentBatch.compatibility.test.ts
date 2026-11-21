@@ -58,7 +58,6 @@ describe('applyClinicalEnrichmentBatch rolling compatibility', () => {
 
     await expect(
       applyClinicalEnrichmentBatch({
-        mode: 'enforced',
         record,
         runId: 'run-old-enforced-response',
         operations,
@@ -79,7 +78,6 @@ describe('applyClinicalEnrichmentBatch rolling compatibility', () => {
 
     await expect(
       applyClinicalEnrichmentBatch({
-        mode: 'enforced',
         record,
         runId: 'run-old-enforced-incomplete-response',
         operations,

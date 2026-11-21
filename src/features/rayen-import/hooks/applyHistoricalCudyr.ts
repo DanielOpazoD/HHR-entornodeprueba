@@ -20,7 +20,7 @@ const uniqueBatchItems = (items: HistoricalCudyrBatchItem[]): HistoricalCudyrBat
 /**
  * Persists the previous census day's CUDYR values through the same authoritative callable used
  * for the current day. The target record owns the clinical mutation while sourceRecord proves the
- * user-initiated synchronization run; no per-record writer participates in enforced mode.
+ * user-initiated synchronization run; no per-record writer participates.
  */
 export const applyHistoricalCudyrBatchAuthoritatively = async ({
   checkSession,
@@ -130,7 +130,6 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
     check();
     const batchResult = await authoritativeApplyBatch({
       checkSession: check,
-      mode: 'enforced',
       record: historicalView.day,
       authorityDate: sourceRecord.date,
       runId,
