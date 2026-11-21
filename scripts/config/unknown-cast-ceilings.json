@@ -1,12 +1,6 @@
 {
   "files": {
-    "src/schemas/zod/clinicalDerived.ts": 1,
-    "src/services/ExcelParsingService.ts": 1,
-    "src/services/exporters/clinicalDerivedBackupRestore.ts": 1,
-    "src/services/repositories/conflictResolutionMergeUtils.ts": 1,
-    "src/services/storage/firestore/firestoreShared.ts": 1,
     "src/services/storage/indexeddb/indexedDbDatabaseLifecycle.ts": 1,
-    "src/services/storage/indexeddb/indexedDbMockFactory.ts": 1,
-    "src/services/transfers/transferSerializationController.ts": 1
+    "src/services/storage/indexeddb/indexedDbMockFactory.ts": 1
   }
 }

@@ -11,15 +11,22 @@ export interface SchemaMigrationPlan {
   disposition: 'current' | 'migrate' | 'forward_incompatible' | 'legacy_bridge';
 }
 
-export interface SchemaMigrationResult {
-  record: DailyRecord;
+export type SchemaMigrationInput = Partial<DailyRecord>;
+
+export interface SchemaMigrationResult<
+  TRecord extends SchemaMigrationInput = SchemaMigrationInput,
+> {
+  record: TRecord;
   plan: SchemaMigrationPlan;
 }
 
-type SchemaMigrator = (record: DailyRecord, date: string) => DailyRecord;
+type SchemaMigrator = <TRecord extends SchemaMigrationInput>(
+  record: TRecord,
+  date: string
+) => TRecord;
 
 const schemaMigrators: Record<number, SchemaMigrator> = {
-  0: (record: DailyRecord) => ({
+  0: record => ({
     ...record,
     schemaVersion: 1,
   }),
@@ -88,10 +95,10 @@ export const resolveSchemaVersion = (record: Partial<DailyRecord> | null | undef
   return Math.floor(rawVersion);
 };
 
-export const migrateRecordSchemaToCurrent = (
-  record: DailyRecord,
+export const migrateRecordSchemaToCurrent = <TRecord extends SchemaMigrationInput = DailyRecord>(
+  record: TRecord,
   date: string
-): SchemaMigrationResult => {
+): SchemaMigrationResult<TRecord> => {
   const compatibility = assessSchemaCompatibility(record);
   const sourceVersion = compatibility.sourceVersion;
 

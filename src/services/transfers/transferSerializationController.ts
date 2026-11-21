@@ -26,16 +26,26 @@ const normalizeRequestDate = (value: unknown): string => {
   return String(value || '');
 };
 
+const readString = (value: unknown): string => (typeof value === 'string' ? value : '');
+
 export const transferDocToEntity = (
   docData: TransferFirestoreDoc,
   docId: string
 ): TransferRequest => {
   const status = normalizeLegacyTransferStatus(docData.status as string | undefined);
+  const raw = docData as TransferFirestoreDoc & Partial<TransferRequest>;
 
   return {
-    // Firestore data is untyped; the fields normalized below are the ones read defensively.
-    ...(docData as unknown as TransferRequest),
+    ...raw,
     id: docId,
+    patientId: readString(raw.patientId),
+    bedId: readString(raw.bedId),
+    patientSnapshot: raw.patientSnapshot as TransferRequest['patientSnapshot'],
+    destinationHospital: readString(raw.destinationHospital),
+    transferReason: readString(raw.transferReason),
+    requestingDoctor: readString(raw.requestingDoctor),
+    customFields: (raw.customFields as Record<string, string>) || {},
+    createdBy: readString(raw.createdBy),
     status,
     statusHistory: ((docData.statusHistory as StatusChange[]) || []).map(history => ({
       ...history,

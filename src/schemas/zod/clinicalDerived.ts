@@ -16,9 +16,14 @@ import { ClinicalSyncCheckpointSchema } from './patient';
 
 // The day's embedded copy is not validated beyond this either: readers sort and show readings by
 // these two keys and render whatever measurements each one carries.
-const VitalSignsHistorySchema = z
-  .array(z.object({ recordedDate: StringSchema, recordedAt: StringSchema }).passthrough())
-  .transform(readings => readings as unknown as PatientVitalSigns[]);
+const isVitalSignsReading = (value: unknown): value is PatientVitalSigns =>
+  typeof value === 'object' &&
+  value !== null &&
+  !Array.isArray(value) &&
+  typeof (value as Record<string, unknown>).recordedDate === 'string' &&
+  typeof (value as Record<string, unknown>).recordedAt === 'string';
+
+const VitalSignsHistorySchema = z.array(z.custom<PatientVitalSigns>(isVitalSignsReading));
 
 /**
  * Server-written episode document. Moved fields are nullable without turning null into undefined:

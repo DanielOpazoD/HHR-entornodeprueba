@@ -30,7 +30,9 @@ import {
   resolveLegacyNameParts,
 } from '@/schemas/zod/helpers';
 
-type LegacyDailyRecordShape = DailyRecord & {
+type LegacyDailyRecordInput = DailyRecord | Record<string, unknown>;
+
+type LegacyDailyRecordShape = Partial<DailyRecord> & {
   nurseName?: string;
   tens?: string[];
 };
@@ -218,14 +220,14 @@ const classifyCompatibilityIntensity = (
  * @returns Fully migrated and validated DailyRecord
  */
 export const migrateLegacyDataWithReport = (
-  record: DailyRecord,
+  record: LegacyDailyRecordInput,
   date: string
 ): DailyRecordMigrationResult => {
   const normalizedRecord = record as LegacyDailyRecordShape;
   const appliedRules: LegacyMigrationRule[] = [];
   const recoveredIssues: string[] = [];
-  const schemaMigration = migrateRecordSchemaToCurrent(record, date);
-  const compatibilityAssessment = assessSchemaCompatibility(record);
+  const schemaMigration = migrateRecordSchemaToCurrent(normalizedRecord, date);
+  const compatibilityAssessment = assessSchemaCompatibility(normalizedRecord);
 
   // 1. Initial pass through Zod to apply defaults and recover basic structure
   const schemaParse = parseDailyRecordWithDefaultsReport(
@@ -275,5 +277,5 @@ export const migrateLegacyDataWithReport = (
   };
 };
 
-export const migrateLegacyData = (record: DailyRecord, date: string): DailyRecord =>
+export const migrateLegacyData = (record: LegacyDailyRecordInput, date: string): DailyRecord =>
   migrateLegacyDataWithReport(record, date).record;
