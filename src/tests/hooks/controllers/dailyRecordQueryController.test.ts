@@ -1,7 +1,9 @@
 // @vitest-environment node
-import { createUnconfirmedDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';
+import {
+  createServerDailyRecordSubscriptionResult,
+  createUnconfirmedDailyRecordSubscriptionResult,
+} from '@/tests/factories/dailyRecordSubscriptionResult';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
-import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import {
   createDailyRecordReadResult,
   type DailyRecordQueryResult,
@@ -77,13 +79,12 @@ describe('dailyRecordQueryController', () => {
     expect(updated.lastUpdated).not.toBe(previous.lastUpdated);
   });
 
-  it('creates subscriptions that ignore local echoes', () => {
+  it('creates subscriptions that publish what the listener resolved', () => {
     const queryClient = new QueryClient();
     const record = DataFactory.createMockDailyRecord('2025-01-08');
     const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
       (_date, callback) => {
-        callback(createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', record), true);
-        callback(createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', record), false);
+        callback(createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', record));
         return vi.fn();
       }
     );
@@ -98,7 +99,7 @@ describe('dailyRecordQueryController', () => {
     expect(queryClient.getQueryData(getDailyRecordQueryKey('2025-01-08'))).toMatchObject({
       record,
       runtime: {
-        availabilityState: 'resolved',
+        availabilityState: 'recoverable_local',
         sourceOfTruth: 'local',
         serverConfirmed: false,
       },
@@ -122,7 +123,7 @@ describe('dailyRecordQueryController', () => {
 
     const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
       (_date, callback) => {
-        callback(createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', null), false);
+        callback(createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', null));
         return vi.fn();
       }
     );
@@ -184,10 +185,7 @@ describe('dailyRecordQueryController', () => {
 
     const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
       (_date, callback) => {
-        callback(
-          createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', staleRealtimeRecord),
-          false
-        );
+        callback(createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', staleRealtimeRecord));
         return vi.fn();
       }
     );
@@ -224,22 +222,7 @@ describe('dailyRecordQueryController', () => {
 
     const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
       (_date, callback) => {
-        callback(
-          {
-            date: '2025-01-08',
-            outcome: 'clean',
-            serverConfirmed: false,
-            record: remoteRecord,
-            consistencyState: 'remote_applied',
-            sourceOfTruth: 'remote',
-            retryability: 'not_applicable',
-            recoveryAction: 'none',
-            conflictSummary: null,
-            observabilityTags: ['daily_record', 'sync'],
-            repairApplied: false,
-          },
-          false
-        );
+        callback(createServerDailyRecordSubscriptionResult('2025-01-08', remoteRecord, false));
         return vi.fn();
       }
     );
@@ -303,10 +286,7 @@ describe('dailyRecordQueryController', () => {
 
     const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
       (_date, callback) => {
-        callback(
-          createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', incomingRecord),
-          false
-        );
+        callback(createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', incomingRecord));
         return vi.fn();
       }
     );
@@ -364,16 +344,7 @@ describe('dailyRecordQueryController', () => {
 
     const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
       (_date, callback) => {
-        callback(
-          createSyncDailyRecordResult({
-            date: '2025-01-08',
-            record: incomingRecord,
-            outcome: 'clean',
-            consistencyState: 'remote_applied',
-            serverConfirmed: true,
-          }),
-          false
-        );
+        callback(createServerDailyRecordSubscriptionResult('2025-01-08', incomingRecord));
         return vi.fn();
       }
     );
@@ -412,7 +383,7 @@ describe('dailyRecordQueryController', () => {
     const stop = vi.fn();
     const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
       (_date, callback) => {
-        callback(createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', null), false);
+        callback(createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', null));
         return stop;
       }
     );

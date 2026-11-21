@@ -7,7 +7,6 @@ import type {
   DailyRecordReadResult,
   DailyRecordQueryResult,
 } from '@/services/repositories/contracts/dailyRecordQueries';
-import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { createDailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 
@@ -113,7 +112,7 @@ describe('daily census after a terminal SDK listener failure', () => {
   });
 
   const start = () => {
-    const results: SyncDailyRecordResult[] = [];
+    const results: DailyRecordReadResult[] = [];
     const getForDateWithMeta = vi
       .fn<() => Promise<DailyRecordReadResult>>()
       .mockRejectedValue(new Error('Unexpected fallback point read'));
@@ -123,9 +122,9 @@ describe('daily census after a terminal SDK listener failure', () => {
         subscribeDetailed: (subscriptionDate, callback, onFailure) =>
           subscribeDetailed(
             subscriptionDate,
-            (result, pending) => {
+            result => {
               results.push(result);
-              callback(result, pending);
+              callback(result);
             },
             result => {
               results.push(result);
@@ -145,7 +144,7 @@ describe('daily census after a terminal SDK listener failure', () => {
     return { listener, visible, results, getForDateWithMeta, stop };
   };
 
-  it('preserves the confirmed census and reports blocked runtime after an SDK error', async () => {
+  it('preserves the confirmed census and reports unavailable runtime after an SDK error', async () => {
     const record = confirmedRecord();
     await hospitalDB.dailyRecords.put(record);
     const { listener, visible, results, getForDateWithMeta } = start();
@@ -157,7 +156,10 @@ describe('daily census after a terminal SDK listener failure', () => {
     });
     const before = visible();
     expect(before?.record?.beds.R1.patientName).toBe('PACIENTE SINTETICO REALTIME');
-    expect(results.at(-1)).toMatchObject({ outcome: 'clean', serverConfirmed: true });
+    expect(results.at(-1)).toMatchObject({
+      consistencyState: 'remote_authoritative',
+      serverConfirmed: true,
+    });
 
     listener.error({ code: 'unavailable', message: 'Synthetic terminal listener failure' });
 
@@ -166,12 +168,15 @@ describe('daily census after a terminal SDK listener failure', () => {
         expect(visible()?.record).toBe(before?.record);
         expect(visible()?.runtime).toMatchObject({
           serverConfirmed: false,
-          consistencyState: 'blocked',
+          consistencyState: 'unavailable',
         });
       },
       { timeout: 500, interval: 10 }
     );
-    expect(results.at(-1)).toMatchObject({ outcome: 'blocked', serverConfirmed: false });
+    expect(results.at(-1)).toMatchObject({
+      consistencyState: 'unavailable',
+      serverConfirmed: false,
+    });
     expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.patientName).toBe(
       'PACIENTE SINTETICO REALTIME'
     );
@@ -223,9 +228,9 @@ describe('daily census after a terminal SDK listener failure', () => {
     expect(visible()?.record).toBe(before?.record);
     expect(visible()?.runtime).toMatchObject({
       serverConfirmed: false,
-      consistencyState: 'blocked',
+      consistencyState: 'unavailable',
       sourceOfTruth: before?.runtime.sourceOfTruth,
-      retryability: 'manual_retry',
+      retryability: 'automatic_retry',
     });
     expect(getForDateWithMeta).not.toHaveBeenCalled();
     expect(storm).not.toHaveBeenCalled();
@@ -244,7 +249,7 @@ describe('daily census after a terminal SDK listener failure', () => {
       record: null,
       runtime: {
         serverConfirmed: false,
-        consistencyState: 'blocked',
+        consistencyState: 'unavailable',
         availabilityState: 'temporarily_unavailable',
       },
     });
@@ -278,7 +283,7 @@ describe('daily census after a terminal SDK listener failure', () => {
     expect(visible()).toBe(failed);
     expect(visible()?.record).toBe(before?.record);
     expect(visible()?.runtime.serverConfirmed).toBe(false);
-    expect(visible()?.runtime.consistencyState).toBe('blocked');
+    expect(visible()?.runtime.consistencyState).toBe('unavailable');
     expect(getForDateWithMeta).toHaveBeenCalledTimes(1);
   });
 

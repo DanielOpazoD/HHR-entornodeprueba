@@ -13,7 +13,7 @@ import {
   saveDetailed,
   updatePartialDetailed,
 } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { syncWithFirestoreDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
+import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { processSyncQueue } from '@/services/storage/sync';
@@ -343,7 +343,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       await admin.doc(dayPath).set({ ...day, meta: { revision: 1 } });
       // P1 is signed in on this computer and has the day open.
       await as('P1', () => reconcileAuthorizedSessionOwner(ownerOf('P1')));
-      await as('P1', () => syncWithFirestoreDetailed(date));
+      await as('P1', () => getForDateWithMeta(date, true));
       const shown = (await hospitalDB.dailyRecords.get(date)) as DailyRecord;
 
       // P1 writes the night shift note; the server is slow to answer.

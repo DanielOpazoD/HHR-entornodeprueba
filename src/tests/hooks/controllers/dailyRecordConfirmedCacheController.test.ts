@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { createServerDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';
 import { createUnconfirmedDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -66,22 +67,7 @@ describe('dailyRecordConfirmedCacheController', () => {
     await setRemoteConfirmedDailyRecordQueryData(queryClient, date, confirmedRecord);
     const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
       (_date, callback) => {
-        callback(
-          {
-            serverConfirmed: true,
-            date,
-            outcome: 'clean',
-            record: staleRecord,
-            consistencyState: 'remote_applied',
-            sourceOfTruth: 'remote',
-            retryability: 'not_applicable',
-            recoveryAction: 'none',
-            conflictSummary: null,
-            observabilityTags: ['daily_record', 'sync'],
-            repairApplied: false,
-          },
-          false
-        );
+        callback(createServerDailyRecordSubscriptionResult(date, staleRecord));
         return vi.fn();
       }
     );
@@ -212,10 +198,7 @@ describe('dailyRecordConfirmedCacheController', () => {
         getForDateWithMeta: vi.fn(),
         subscribeDetailed: vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
           (_date, callback) => {
-            callback(
-              createUnconfirmedDailyRecordSubscriptionResult(date, laterRemoteRecord),
-              false
-            );
+            callback(createUnconfirmedDailyRecordSubscriptionResult(date, laterRemoteRecord));
             return vi.fn();
           }
         ),
@@ -271,8 +254,7 @@ describe('dailyRecordConfirmedCacheController', () => {
         subscribeDetailed: vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
           (_date, callback) => {
             callback(
-              createUnconfirmedDailyRecordSubscriptionResult(date, intermediateRemoteRecord),
-              false
+              createUnconfirmedDailyRecordSubscriptionResult(date, intermediateRemoteRecord)
             );
             return vi.fn();
           }

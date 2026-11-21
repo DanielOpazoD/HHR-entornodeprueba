@@ -1,5 +1,4 @@
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
-import { createUnconfirmedDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
@@ -32,7 +31,6 @@ const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
     getAvailableDates: vi.fn(),
     getMonthRecords: vi.fn(),
     copyPatientToDateDetailed: vi.fn(),
-    syncWithFirestoreDetailed: vi.fn(),
   },
 }));
 
@@ -42,9 +40,6 @@ vi.mock('@/application/ports/dailyRecordPort', () => ({
     updatePartial: mockDailyRecordRepositoryPort.updatePartialDetailed,
     save: mockDailyRecordRepositoryPort.saveDetailed,
     delete: mockDailyRecordRepositoryPort.deleteDay,
-  },
-  defaultDailyRecordSyncPort: {
-    syncWithFirestoreDetailed: mockDailyRecordRepositoryPort.syncWithFirestoreDetailed,
   },
   defaultDailyRecordRepositoryPort: mockDailyRecordRepositoryPort,
 }));
@@ -136,32 +131,6 @@ describe('Sync UI Resilience Integration', () => {
       mockSubscribe(requestDate, callback);
       return () => {};
     });
-  });
-
-  it('ignores remote echo updates while hasPendingWrites is true', async () => {
-    const localRecord = buildRecord(date, 'Paciente Local');
-    const remoteEcho = buildRecord(date, 'Paciente Remoto');
-    mockGetForDate.mockResolvedValue(localRecord);
-
-    const { result } = renderHook(() => useDailyRecordSyncQuery(date, 'ready'), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => {
-      expect(result.current.record?.beds.R1.patientName).toBe('Paciente Local');
-    });
-
-    await waitFor(() => {
-      expect(mockSubscribe).toHaveBeenCalledWith(date, expect.any(Function));
-    });
-
-    const subscribeCallback = mockSubscribe.mock.calls[0][1];
-
-    await act(async () => {
-      subscribeCallback(createUnconfirmedDailyRecordSubscriptionResult(date, remoteEcho), true);
-    });
-
-    expect(result.current.record?.beds.R1.patientName).toBe('Paciente Local');
   });
 
   it('reports ConcurrencyError and schedules automatic refetch', async () => {

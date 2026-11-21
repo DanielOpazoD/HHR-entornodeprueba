@@ -1,11 +1,4 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type {
-  DailyRecordConflictSummary,
-  DailyRecordRecoveryAction,
-  DailyRecordRetryability,
-  DailyRecordSourceOfTruth,
-  DailyRecordSyncConsistencyState,
-} from '@/services/repositories/contracts/dailyRecordConsistency';
 import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -43,25 +36,6 @@ export type DailyRecordWriteResult = {
   | { state: 'not_saved'; reason: 'blocked' | 'session_changed' | 'local_failed' }
 );
 
-export interface SyncDailyRecordResult {
-  publication?: 'superseded';
-  serverConfirmed: boolean;
-  date: string;
-  outcome: 'clean' | 'missing' | 'blocked';
-  record: DailyRecord | null;
-  consistencyState: DailyRecordSyncConsistencyState;
-  sourceOfTruth: DailyRecordSourceOfTruth;
-  retryability: DailyRecordRetryability;
-  recoveryAction: DailyRecordRecoveryAction;
-  conflictSummary: DailyRecordConflictSummary | null;
-  observabilityTags: string[];
-  userSafeMessage?: string;
-  repairApplied: boolean;
-}
-
-type SyncDailyRecordResultInput = Pick<SyncDailyRecordResult, 'date' | 'outcome' | 'record'> &
-  Partial<Omit<SyncDailyRecordResult, 'date' | 'outcome' | 'record'>>;
-
 export interface InitializeDayResult {
   date: string;
   outcome: 'clean' | 'repaired';
@@ -73,41 +47,6 @@ export interface CopyPatientResult {
   targetDate: string;
   outcome: 'clean' | 'repaired';
 }
-
-export const createSyncDailyRecordResult = (
-  input: SyncDailyRecordResultInput
-): SyncDailyRecordResult => {
-  assertDate(input.date, 'sync result');
-  return {
-    ...input,
-    serverConfirmed: input.serverConfirmed ?? false,
-    conflictSummary: input.conflictSummary || null,
-    observabilityTags: Array.from(new Set(input.observabilityTags || ['daily_record', 'sync'])),
-    repairApplied: input.repairApplied || false,
-    sourceOfTruth: input.sourceOfTruth || (input.record ? 'remote' : 'none'),
-    consistencyState:
-      input.consistencyState ||
-      (input.outcome === 'missing'
-        ? 'missing_remote'
-        : input.outcome === 'blocked'
-          ? 'blocked'
-          : 'up_to_date'),
-    retryability:
-      input.retryability ||
-      (input.outcome === 'missing'
-        ? 'manual_retry'
-        : input.outcome === 'blocked'
-          ? 'automatic_retry'
-          : 'not_applicable'),
-    recoveryAction:
-      input.recoveryAction ||
-      (input.outcome === 'missing'
-        ? 'defer_remote_sync'
-        : input.outcome === 'blocked'
-          ? 'defer_remote_sync'
-          : 'none'),
-  };
-};
 
 export const createInitializeDayResult = (input: InitializeDayResult): InitializeDayResult => {
   assertDate(input.date, 'initializeDay result');

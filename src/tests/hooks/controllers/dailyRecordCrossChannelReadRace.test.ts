@@ -42,10 +42,7 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import { DailyRecordSchema } from '@/schemas/zod/dailyRecord';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
-import {
-  subscribeDetailed,
-  syncWithFirestoreDetailed,
-} from '@/services/repositories/dailyRecordRepositorySyncService';
+import { subscribeDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import {
   createDailyRecordSubscription,
@@ -220,7 +217,7 @@ describe('confirmed manual read A completing after confirmed realtime B', () => 
     startRealtime().next(confirmedDocument(recordB, 11));
     await vi.waitFor(() => expect(visible()?.record?.nursesDayShift).toEqual(STAFF.B));
     const reads = vi.spyOn(hospitalDB.dailyRecords, 'get');
-    const sync = syncWithFirestoreDetailed(date);
+    const sync = getForDateWithMeta(date, true);
     await vi.waitFor(() => expect(reads).toHaveResolvedTimes(1));
     expect(sdk.pointReads).toHaveLength(1);
     sdk.pointReads[0].resolve(confirmedDocument(recordA, 10));

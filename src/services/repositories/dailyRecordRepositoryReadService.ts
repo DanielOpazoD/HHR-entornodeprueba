@@ -158,7 +158,6 @@ export const getForDateWithMeta = async (
         dailyRecordReadLogger.warn(`Using E2E override record for ${query.date}`);
         return resolveRemoteGoldenPathReadResult({
           date: query.date,
-          localCandidate,
           remoteReadResult: {
             record: e2eOverride,
             serverConfirmed: true,

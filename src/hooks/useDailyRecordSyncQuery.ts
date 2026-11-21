@@ -132,13 +132,11 @@ export const useDailyRecordSyncQuery = (
     isFetching: isRecordPending,
     currentDateString,
     record,
-    refetch,
     runRemoteSync,
   });
 
   usePostDeployRecentRecordRefresh({
     remoteSyncStatus: effectiveRemoteSyncStatus,
-    refetch,
     runRemoteSync,
   });
 
@@ -316,7 +314,6 @@ export const useDailyRecordSyncQuery = (
           success,
           warning,
         });
-        void refetch();
       })
       .catch(error => {
         if (!isMountedRef.current || requestId !== refreshRequestIdRef.current) {
@@ -342,7 +339,7 @@ export const useDailyRecordSyncQuery = (
           'No fue posible completar la sincronización remota. Se mantuvo la copia local actual.'
         );
       });
-  }, [currentDateString, notifyError, refetch, runRemoteSync, success, warning]);
+  }, [currentDateString, notifyError, runRemoteSync, success, warning]);
 
   return {
     record: record ?? null,

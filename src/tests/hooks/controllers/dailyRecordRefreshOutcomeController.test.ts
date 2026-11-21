@@ -12,7 +12,6 @@ import type { SyncOutcome } from '@/application/daily-record/syncDailyRecordUseC
 
 const emptySyncOutcome: SyncOutcome = {
   record: null,
-  sync: null,
 };
 
 describe('dailyRecordRefreshOutcomeController', () => {

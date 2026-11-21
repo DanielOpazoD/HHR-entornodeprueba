@@ -70,7 +70,7 @@
         },
         {
           "at": "src/services/repositories/dailyRecordRemoteReadController.ts › resolveRemoteGoldenPathReadResult",
-          "decides": "Admite el día del servidor contra la base local: con escrituras pendientes lo muestra con lo pendiente encima y lo da por confirmado solo si el servidor lo compuso; si la sesión cambió, la lectura queda superada."
+          "decides": "Admite el día del servidor contra la base local, igual para la lectura puntual y la suscripción y tal como lo tiene el servidor: con escrituras pendientes lo muestra con lo pendiente encima y lo da por confirmado solo si el servidor lo compuso; si la sesión cambió, la lectura queda superada."
         },
         {
           "at": "src/hooks/controllers/dailyRecordQueryResultPrecedence.ts › settleFinishedPointRead",

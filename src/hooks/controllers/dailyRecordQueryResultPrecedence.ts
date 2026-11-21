@@ -5,7 +5,6 @@ import { wouldReplacePendingDailyRecordIdentity } from './dailyRecordPendingPatc
 const mustSurfaceIncomingRuntime = ({ runtime }: DailyRecordQueryResult): boolean =>
   runtime.availabilityState === 'temporarily_unavailable' ||
   runtime.consistencyState === 'unavailable' ||
-  runtime.consistencyState === 'blocked' ||
   runtime.conflictSummary?.kind === 'remote_unavailable';
 
 const retainUnconfirmedResult = (result: DailyRecordQueryResult): DailyRecordQueryResult =>

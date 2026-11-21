@@ -25,11 +25,6 @@ const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
       state: 'confirmed',
       localCopy: 'current',
     }),
-    syncWithFirestoreDetailed: vi.fn().mockResolvedValue({
-      date: '2025-12-27',
-      outcome: 'clean',
-      record: null,
-    }),
     initializeDay: vi.fn(),
     deleteDay: vi.fn(),
     getPreviousDay: vi.fn(),
@@ -54,9 +49,6 @@ vi.mock('@/application/ports/dailyRecordPort', () => ({
     updatePartial: mockDailyRecordRepositoryPort.updatePartialDetailed,
     save: mockDailyRecordRepositoryPort.saveDetailed,
     delete: mockDailyRecordRepositoryPort.deleteDay,
-  },
-  defaultDailyRecordSyncPort: {
-    syncWithFirestoreDetailed: mockDailyRecordRepositoryPort.syncWithFirestoreDetailed,
   },
   defaultDailyRecordRepositoryPort: mockDailyRecordRepositoryPort,
 }));
@@ -284,9 +276,15 @@ describe('useDailyRecordSyncQuery', () => {
     );
   });
 
-  it('refreshes through detailed sync before refetching', async () => {
+  it('refreshes with one remote read of the day, published through its query', async () => {
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
       buildReadResult(mockRecord)
+    );
+    mockExecuteSyncDailyRecord.mockImplementationOnce(
+      async ({ date, read }: { date: string; read: (date: string) => Promise<unknown> }) => {
+        await read(date);
+        return { status: 'success', data: { record: mockRecord }, issues: [] };
+      }
     );
 
     const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
@@ -294,66 +292,25 @@ describe('useDailyRecordSyncQuery', () => {
     });
 
     await waitFor(() => expect(result.current.record).not.toBeNull());
+    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockClear();
 
     result.current.refresh();
 
     await waitFor(() => {
       expect(mockExecuteSyncDailyRecord).toHaveBeenCalledWith(
-        expect.objectContaining({ date: mockDate })
+        expect.objectContaining({ date: mockDate, read: expect.any(Function) })
       );
     });
-  });
-
-  it('keeps the newest refresh result when an older sync resolves later', async () => {
-    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
-      buildReadResult(mockRecord)
+    await waitFor(() =>
+      expect(defaultDailyRecordRepositoryPort.getForDateWithMeta).toHaveBeenCalledTimes(1)
     );
-
-    const firstRefresh = createDeferred<{ success: boolean; data: unknown }>();
-    const secondRefresh = createDeferred<{ success: boolean; data: unknown }>();
-
-    mockExecuteSyncDailyRecord
-      .mockImplementationOnce(() => firstRefresh.promise)
-      .mockImplementationOnce(() => secondRefresh.promise);
-
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.record).not.toBeNull());
-    mockExecuteSyncDailyRecord.mockClear();
-    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockClear();
-
-    result.current.refresh();
-    result.current.refresh();
-
-    await waitFor(() => {
-      expect(mockExecuteSyncDailyRecord).toHaveBeenCalledTimes(2);
-    });
-
-    secondRefresh.resolve({
-      success: true,
-      data: { date: mockDate, outcome: 'clean', record: mockRecord },
-    });
-
-    await waitFor(() => {
-      expect(defaultDailyRecordRepositoryPort.getForDateWithMeta).toHaveBeenCalled();
-    });
-    await Promise.resolve();
-    const refetchCallsAfterNewestRefresh = vi.mocked(
-      defaultDailyRecordRepositoryPort.getForDateWithMeta
-    ).mock.calls.length;
-
-    firstRefresh.resolve({
-      success: true,
-      data: { date: mockDate, outcome: 'clean', record: mockRecord },
-    });
-
-    await waitFor(() => {
-      expect(defaultDailyRecordRepositoryPort.getForDateWithMeta).toHaveBeenCalledTimes(
-        refetchCallsAfterNewestRefresh
-      );
-    });
+    await new Promise(resolve => setTimeout(resolve, 20));
+    // No second read after the refresh: its read already reached the census.
+    expect(defaultDailyRecordRepositoryPort.getForDateWithMeta).toHaveBeenCalledTimes(1);
+    expect(defaultDailyRecordRepositoryPort.getForDateWithMeta).toHaveBeenCalledWith(
+      mockDate,
+      true
+    );
   });
 
   it('ignores a refresh resolution after the hook unmounts', async () => {

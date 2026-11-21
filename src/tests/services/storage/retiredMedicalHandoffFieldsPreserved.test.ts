@@ -19,7 +19,7 @@ import {
   writeDay,
 } from './dayRecordDaySupport';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import { syncWithFirestoreDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
+import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { exportDataJSONWithResult } from '@/services/exporters/exportService';
 import { importDataJSONDetailed } from '@/services/exporters/exportImportJson';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -94,7 +94,7 @@ it('keeps the fields when the day is read from the server', async () => {
   Object.assign(remote(), clone(OLD_DAY_FIELDS));
   Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
 
-  const result = await syncWithFirestoreDetailed(DATE);
+  const result = await getForDateWithMeta(DATE, true);
 
   expect(medicalFields(result?.record)).toEqual(EXPECTED);
   expect(medicalFields(await local())).toEqual(EXPECTED);

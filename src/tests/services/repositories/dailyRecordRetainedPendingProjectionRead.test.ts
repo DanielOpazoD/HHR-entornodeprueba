@@ -1,4 +1,5 @@
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -18,7 +19,8 @@ vi.mock('@/services/repositories/repositoryConfig', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/repositories/repositoryConfig')>()),
   isFirestoreEnabled: () => firestoreEnabled.value,
 }));
-vi.mock('@/services/repositories/dailyRecordRemoteLoader', () => ({
+vi.mock('@/services/repositories/dailyRecordRemoteLoader', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/repositories/dailyRecordRemoteLoader')>()),
   loadRemoteRecordWithFallback: loadRemote,
 }));
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOriginal => ({
@@ -38,13 +40,9 @@ vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOrigi
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
 import { resolveRemoteGoldenPathReadResult } from '@/services/repositories/dailyRecordRemoteReadController';
-import { createLocalRuntimeReadCandidate } from '@/services/repositories/dailyRecordReadResultController';
-import {
-  subscribeDetailed,
-  syncWithFirestoreDetailed,
-} from '@/services/repositories/dailyRecordRepositorySyncService';
+import { subscribeDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 
 const date = '2026-10-24';
 const base = (): DailyRecord =>
@@ -88,7 +86,6 @@ describe('a read that meets a pending local edit publishes the retained projecti
 
     const result = await resolveRemoteGoldenPathReadResult({
       date,
-      localCandidate: createLocalRuntimeReadCandidate(date, localBeforeRead),
       remoteReadResult: remoteLoad(newerRemote()),
     });
 
@@ -108,10 +105,10 @@ describe('a read that meets a pending local edit publishes the retained projecti
     });
     loadRemote.mockResolvedValue(remoteLoad(newerRemote()));
 
-    const result = await syncWithFirestoreDetailed(date);
+    const result = await getForDateWithMeta(date, true);
 
     expect(result?.record?.tensDayShift).toEqual(['SINTETICO PENDIENTE']);
-    expect(result?.consistencyState).toBe('local_kept');
+    expect(result?.consistencyState).toBe('local_authoritative');
     expect(result?.sourceOfTruth).toBe('local');
   });
 
@@ -119,7 +116,7 @@ describe('a read that meets a pending local edit publishes the retained projecti
     await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit(), undefined, {
       authoringSession: captureAuthoringSession(),
     });
-    const published = new Promise<SyncDailyRecordResult>(resolve => {
+    const published = new Promise<DailyRecordReadResult>(resolve => {
       subscribeDetailed(date, result => resolve(result));
     });
 
@@ -127,7 +124,7 @@ describe('a read that meets a pending local edit publishes the retained projecti
     const result = await published;
 
     expect(result.record?.tensDayShift).toEqual(['SINTETICO PENDIENTE']);
-    expect(result.consistencyState).toBe('local_kept');
+    expect(result.consistencyState).toBe('local_authoritative');
     expect(result.sourceOfTruth).toBe('local');
   });
 });
@@ -156,7 +153,6 @@ describe('a read never publishes another copy over a pending local edit', () => 
 
     const result = await resolveRemoteGoldenPathReadResult({
       date,
-      localCandidate: createLocalRuntimeReadCandidate(date, localBeforeRead),
       remoteReadResult: remoteLoad(newerRemote()),
     });
 
@@ -177,7 +173,7 @@ describe('a read never publishes another copy over a pending local edit', () => 
       return remoteLoad(base());
     });
 
-    const result = await syncWithFirestoreDetailed(date);
+    const result = await getForDateWithMeta(date, true);
 
     expect((await hospitalDB.dailyRecords.get(date))?.tensDayShift).toEqual([
       'SINTETICO PENDIENTE',
@@ -195,7 +191,6 @@ describe('a read never publishes another copy over a pending local edit', () => 
 
     const result = await resolveRemoteGoldenPathReadResult({
       date,
-      localCandidate: createLocalRuntimeReadCandidate(date, localBeforeRead),
       remoteReadResult: { ...remoteLoad(base()), record: null },
     });
 
@@ -203,7 +198,7 @@ describe('a read never publishes another copy over a pending local edit', () => 
     expect(result.sourceOfTruth).toBe('local');
   });
 
-  it('a manual sync with a missing remote keeps the in-flight edit and the missing outcome', async () => {
+  it('a manual sync with a missing remote keeps the in-flight edit', async () => {
     firestoreEnabled.value = true;
     await hospitalDB.dailyRecords.put(base());
     loadRemote.mockImplementation(async () => {
@@ -213,14 +208,13 @@ describe('a read never publishes another copy over a pending local edit', () => 
       return { ...remoteLoad(base()), record: null };
     });
 
-    const result = await syncWithFirestoreDetailed(date);
+    const result = await getForDateWithMeta(date, true);
 
     expect(result?.record).toEqual(await hospitalDB.dailyRecords.get(date));
     expect(result?.record?.tensDayShift).toEqual(['SINTETICO PENDIENTE']);
     expect(result?.sourceOfTruth).toBe('local');
-    expect(result?.outcome).toBe('missing');
-    expect(result?.consistencyState).toBe('missing_remote');
-    expect(result?.conflictSummary?.kind).toBe('remote_missing');
+    expect(result?.serverConfirmed).toBe(true);
+    expect(result?.consistencyState).toBe('local_authoritative');
   });
 });
 
@@ -232,11 +226,10 @@ it('a missing read cannot confirm a row replaced during the request without a ho
     await hospitalDB.dailyRecords.put(pendingEdit());
     return { ...remoteLoad(base()), record: null };
   });
-  const result = await syncWithFirestoreDetailed(date);
+  const result = await getForDateWithMeta(date, true);
   expect(result).toMatchObject({
     serverConfirmed: false,
     publication: 'superseded',
-    outcome: 'blocked',
   });
   expect(result?.record).toEqual(await hospitalDB.dailyRecords.get(date));
 });

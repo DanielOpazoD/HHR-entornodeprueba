@@ -28,7 +28,6 @@ import { setSessionGeneration } from '@/services/storage/sessionStorageTransitio
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
 import { saveDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { syncWithFirestoreDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
 import * as rebase from '@/services/repositories/dailyRecordPendingWriteRebase';
 import {
   retireReviewedDailyRecordTask,
@@ -684,7 +683,7 @@ it.each([
     }
     const attempts = vi.spyOn(rebase, 'overlayPendingDailyRecordWrite');
     const first = await getForDateWithMeta(closedDay);
-    const second = await syncWithFirestoreDetailed(closedDay);
+    const second = await getForDateWithMeta(closedDay, true);
     const count = attempts.mock.calls.length;
     const repeated = await getForDateWithMeta(closedDay);
     const triedAgain = attempts.mock.calls.length > count;
@@ -770,7 +769,7 @@ it('shows another person’s correction with this computer’s pending edit, con
     .update({ handoffNovedadesDayShift: CORRECTION, lastUpdated: Timestamp.now() });
 
   const read = await getForDateWithMeta(today);
-  const synced = await syncWithFirestoreDetailed(today);
+  const synced = await getForDateWithMeta(today, true);
 
   expect(read.record?.handoffNovedadesDayShift).toBe(CORRECTION);
   expect(read.record?.[night]).toBe(NOTE);

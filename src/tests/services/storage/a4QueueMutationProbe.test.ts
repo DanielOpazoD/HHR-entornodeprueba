@@ -1,13 +1,11 @@
 import 'fake-indexeddb/auto';
+import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { A, clone, day, harnessState } from './dayRecordOutboxHarness';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import {
-  subscribeDetailed,
-  syncWithFirestoreDetailed,
-} from '@/services/repositories/dailyRecordRepositorySyncService';
-import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import { subscribeDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
+import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 
 const wire = vi.hoisted(() => ({
   emit: undefined as
@@ -47,10 +45,10 @@ afterEach(async () => {
   wire.emit = undefined;
   vi.restoreAllMocks();
 });
-async function read(path: 'S' | 'E', remote: DailyRecord): Promise<SyncDailyRecordResult> {
+async function read(path: 'S' | 'E', remote: DailyRecord): Promise<DailyRecordReadResult> {
   h.remote = clone(remote);
   if (path === 'E') {
-    const result = await syncWithFirestoreDetailed(DATE);
+    const result = await getForDateWithMeta(DATE, true);
     if (!result) throw new Error('Missing explicit read');
     return result;
   }

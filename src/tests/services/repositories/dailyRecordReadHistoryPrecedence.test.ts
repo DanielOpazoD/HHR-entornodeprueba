@@ -14,7 +14,7 @@ import {
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { subscribeToRecord } from '@/services/storage/firestore/firestoreRecordQueries';
 import type { DailyRecordRemoteLoadResult } from '@/services/repositories/dailyRecordRemoteLoader';
-import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
@@ -73,10 +73,8 @@ const remoteLoad = (remote: DailyRecord): DailyRecordRemoteLoadResult => ({
 
 const read = async (mode: (typeof readModes)[number], remote: DailyRecord) => {
   if (mode === 'ordinary') {
-    const local = await getRecordForDateStrict(date);
     return resolveRemoteGoldenPathReadResult({
       date,
-      localCandidate: local ? createLocalRuntimeReadCandidate(date, local) : null,
       remoteReadResult: remoteLoad(structuredClone(remote)),
     });
   }
@@ -86,7 +84,7 @@ const read = async (mode: (typeof readModes)[number], remote: DailyRecord) => {
     return () => {};
   });
   let stop = () => {};
-  const delivered = new Promise<SyncDailyRecordResult>(resolve => {
+  const delivered = new Promise<DailyRecordReadResult>(resolve => {
     stop = subscribeDetailed(date, result => resolve(result));
   });
   try {
@@ -232,9 +230,7 @@ describe.each(readModes)('daily record history through %s reads and real cache h
         record({ lastUpdated: laterTime, rayenSyncHistory: history })
       );
       expect(result.sourceOfTruth).toBe('remote');
-      expect(result.consistencyState).toBe(
-        mode === 'ordinary' ? 'remote_authoritative' : 'remote_applied'
-      );
+      expect(result.consistencyState).toBe('remote_authoritative');
 
       expect(result.serverConfirmed).toBe(true);
     }
@@ -419,7 +415,6 @@ it('keeps original audit source records and arrays unchanged', async () => {
   try {
     const result = await resolveRemoteGoldenPathReadResult({
       date,
-      localCandidate: local,
       remoteReadResult: remoteLoad(remote),
     });
     expect(result.record?.rayenSyncHistory).toEqual([reviewedEvent()]);

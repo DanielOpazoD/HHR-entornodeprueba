@@ -6,7 +6,7 @@ import {
   createDailyRecordReadResult,
   type DailyRecordQueryResult,
 } from '@/services/repositories/contracts/dailyRecordQueries';
-import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import { createServerDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';
 import {
   createDailyRecordSubscription,
   createDailyRecordQueryOptions,
@@ -78,17 +78,7 @@ describe('point read publication at the QueryClient boundary', () => {
           const result = reconciledQuery(context);
           if (concurrent) {
             void result.then(() => {
-              deliver(
-                createSyncDailyRecordResult({
-                  date,
-                  record: recordB,
-                  outcome: 'clean',
-                  serverConfirmed: true,
-                  sourceOfTruth: 'remote',
-                  consistencyState: 'remote_applied',
-                }),
-                false
-              );
+              deliver(createServerDailyRecordSubscriptionResult(date, recordB));
               deliveredB = true;
             });
           }
