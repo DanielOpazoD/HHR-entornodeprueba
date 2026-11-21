@@ -11,7 +11,7 @@
 
 ### Notas de incidentes del encabezado
 
-El [experimento de aislamiento E2E](../E2E_ISOLATION_EXPERIMENT.md) es exclusivamente
+El [experimento de aislamiento E2E](E2E_ISOLATION_EXPERIMENT.md) es exclusivamente
 manual. Conserva el CI obligatorio y compara corpus, estabilidad, espera y coste
 antes de proponer cambios en sus carriles.
 
@@ -737,7 +737,7 @@ independiente y CI. Solo retirar APIs cuyo árbol de consumidores esté vacío.
 
 La entrega se valida con `test:accounts:emulator:ci` (Auth/Firestore/Storage y UI
 sintéticos) y los gates de runtime crítico. El correo se sustituye en emuladores;
-no acredita entrega real. Ver [operación y publicación](../RUT_PASSWORD_RECOVERY.md).
+no acredita entrega real. Ver [operación y publicación](../operations/RUT_PASSWORD_RECOVERY.md).
 
 El monitor de cuentas RUT debe conservar todos los roles administrables que
 confirma el servidor, incluido Administrador. Probar el control inicial y periódico,

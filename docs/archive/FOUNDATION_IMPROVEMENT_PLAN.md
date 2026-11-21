@@ -1,6 +1,6 @@
 # Foundation Improvement Plan
 
-Plan iterativo de mejoras de cimientos basado en [REPO_PRINCIPLES.md](./REPO_PRINCIPLES.md).
+Plan iterativo de mejoras de cimientos basado en [REPO_PRINCIPLES.md](../REPO_PRINCIPLES.md).
 
 La idea no es abrir una re-arquitectura. La idea es bajar complejidad real por bloques pequeños, con checks objetivos y valor operativo visible.
 

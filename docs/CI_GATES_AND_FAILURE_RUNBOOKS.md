@@ -532,7 +532,7 @@ Salida esperada:
    - reintentar el workflow
    - no marcar la app como segura por ausencia de reporte
 7. si root app o `functions` quedan con hallazgos `low`/`moderate` pero sin `high` ni `critical`:
-   - revisar [docs/FUNCTIONS_DEPENDENCY_ACCEPTANCE.md](./FUNCTIONS_DEPENDENCY_ACCEPTANCE.md)
+   - revisar [docs/operations/FUNCTIONS_DEPENDENCY_ACCEPTANCE.md](operations/FUNCTIONS_DEPENDENCY_ACCEPTANCE.md)
    - confirmar que no aparecieron `high`, `critical` ni nuevos hallazgos directos fuera del árbol aceptado
    - tratar el estado como deuda aceptada temporalmente, no como bloqueo inmediato ni como limpieza automática vía overrides inseguros
 
@@ -1004,5 +1004,5 @@ GHSA-vfj7-8cjw-p6xm del 23-10-2026 y la auditoría fresca sin ese aviso.
 críticos de ambos paquetes bloquean, un futuro aviso de braces también, y los
 hallazgos moderados e informes originales siguen visibles. No renovar huellas
 ni suprimir nuevos avisos para recuperar el verde. El
-[registro de cierre](BRACES_TEMPORARY_RISK_ACCEPTANCE.md) conserva la fuente y
+[registro de cierre](operations/BRACES_TEMPORARY_RISK_ACCEPTANCE.md) conserva la fuente y
 la autorización histórica.

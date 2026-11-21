@@ -25,7 +25,7 @@ Este runbook complementa `docs/RUNBOOK_SYNC_RESILIENCE.md` con una pauta más op
 4. Registrar incidentes abiertos/cerrados del día.
 5. Revisar `reports/operational-health.md` antes de cambios manuales.
 6. Si el cambio o incidente afecta `Censo Diario`, usar también:
-   - [docs/CENSUS_OPERATIONAL_VALIDATION_CHECKLIST.md](./CENSUS_OPERATIONAL_VALIDATION_CHECKLIST.md)
+   - [docs/operations/CENSUS_OPERATIONAL_VALIDATION_CHECKLIST.md](operations/CENSUS_OPERATIONAL_VALIDATION_CHECKLIST.md)
 
 ## Controles Nuevos (Auth)
 
@@ -267,7 +267,7 @@ una página y respuesta tardía. Aplicar merge gate y controles blocking de rele
 
 La entrega se valida con `test:accounts:emulator:ci` (Auth/Firestore/Storage y UI
 sintéticos) y los gates de runtime crítico. El correo se sustituye en emuladores;
-no acredita entrega real. Ver [operación y publicación](RUT_PASSWORD_RECOVERY.md).
+no acredita entrega real. Ver [operación y publicación](operations/RUT_PASSWORD_RECOVERY.md).
 
 ### Acceso RUT aceptado seguido de cierre inmediato
 

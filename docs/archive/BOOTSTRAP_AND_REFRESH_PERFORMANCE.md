@@ -5,11 +5,11 @@ el código, los contratos y los scripts del checkout son la fuente de verdad.
 
 ## Contratos y responsables
 
-- [Comportamientos del sistema](./system-behaviors.md): contrato de login y F5.
-- [Modelo de acceso](./AUTH_ACCESS_MODEL.md): sesión, roles y autorización.
-- [Recuperación de auth](./ADR_AUTH_RUNTIME_RECOVERY.md): estados y recuperación.
-- [Recuperación operativa](./RUNBOOK_INDEX.md): elegir el procedimiento del incidente.
-- [Gates y fallos](./CI_GATES_AND_FAILURE_RUNBOOKS.md): validación según el cambio.
+- [Comportamientos del sistema](../system-behaviors.md): contrato de login y F5.
+- [Modelo de acceso](../AUTH_ACCESS_MODEL.md): sesión, roles y autorización.
+- [Recuperación de auth](../ADR_AUTH_RUNTIME_RECOVERY.md): estados y recuperación.
+- [Recuperación operativa](../RUNBOOK_INDEX.md): elegir el procedimiento del incidente.
+- [Gates y fallos](../CI_GATES_AND_FAILURE_RUNBOOKS.md): validación según el cambio.
 
 Para seguir el arranque en código:
 
@@ -39,13 +39,13 @@ No comparar tiempos de sesiones distintas como si fueran una prueba controlada.
   El segundo usa el build existente y verifica presupuesto, grafo y preview.
 - Medición sintética de flujos: `npm run test:e2e:flow-performance:gate`.
 - Cierre de un cambio de arranque: seguir el gate y las pruebas de login/F5 de
-  [SAFE_CHANGE_CHECKLIST.md](./SAFE_CHANGE_CHECKLIST.md), sin repetir sus etapas.
+  [SAFE_CHANGE_CHECKLIST.md](../SAFE_CHANGE_CHECKLIST.md), sin repetir sus etapas.
 
 No aumentar presupuestos, reintentos o timeouts para ocultar una regresión.
 El trozo de arranque mantiene holgura medida
 (autorización 2026-11-11): repetir la comparación del censo al superar ~97 %
 de uso, conservando NEAR-LIMIT. Evidencia y reversión en
-[BUNDLE_RISK_LEDGER.md](./BUNDLE_RISK_LEDGER.md).
+[BUNDLE_RISK_LEDGER.md](../BUNDLE_RISK_LEDGER.md).
 No trasladar código de snapshots antiguos sin revisar el contrato vigente.
 
 ## Referencia histórica
@@ -130,7 +130,7 @@ not release-budget evidence.
 El responsable midió en producción 2,4–3 s hasta ver filas después de F5, con
 0,7–0,8 s bloqueados por `checkUserRole`. La decisión aprobada permite usar la
 confirmación de la misma cuenta durante la recarga y comprobarla en segundo plano;
-ver [el contrato de acceso](AUTH_ACCESS_MODEL.md). Sin confirmación vigente se
+ver [el contrato de acceso](../AUTH_ACCESS_MODEL.md). Sin confirmación vigente se
 mantiene la espera. No se usa el caché histórico por correo para admitir una cuenta.
 
 Estas cifras son la evidencia de entrada aportada por el responsable, no resultados

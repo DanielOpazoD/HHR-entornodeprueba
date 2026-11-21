@@ -383,10 +383,10 @@ Estos documentos conservan la mecánica y evidencia de cada área, sin reemplaza
 
 - [Verdad compartida del censo](ADR_DAILY_CENSUS_TRUTH_CONTRACT.md).
 - [Recuperación del censo y ubicación neonatal](RUNBOOK_DAILY_CENSUS_RECOVERY.md).
-- [Control diario CUDYR](CUDYR_DAILY_CONTROL.md).
-- [Fuentes y conciliación histórica](CUDYR_HISTORICAL_METHOD.md).
-- [Conciliación por episodio y turno](CUDYR_CLINICAL_DAY_RECONCILIATION.md).
-- [Cierre mensual oficial](CUDYR_OFFICIAL_MONTH.md).
+- [Control diario CUDYR](features/cudyr/CUDYR_DAILY_CONTROL.md).
+- [Fuentes y conciliación histórica](features/cudyr/CUDYR_HISTORICAL_METHOD.md).
+- [Conciliación por episodio y turno](features/cudyr/CUDYR_CLINICAL_DAY_RECONCILIATION.md).
+- [Cierre mensual oficial](features/cudyr/CUDYR_OFFICIAL_MONTH.md).
 
 Si aparece un comportamiento no cubierto, documentar primero la duda y su evidencia.
 No completar este contrato inventando reglas para módulos aún no revisados.
