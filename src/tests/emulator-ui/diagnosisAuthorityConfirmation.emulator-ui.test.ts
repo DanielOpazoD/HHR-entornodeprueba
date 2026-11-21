@@ -844,7 +844,10 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     // Found by the review of W17-ATT1: a writer that leaves the record of field writes as it was
     // (a direct client write, a restore) may change the field and put the first edit's text back.
     // The next server write marks the record incomplete up to there, so the first edit no longer
-    // credits the field and the replay decides by its values, as before the record.
+    // credits the field and the replay decides by its values, as before the record. Since
+    // W22-SAVE-B the day text waits behind the diagnosis, and another computer's text there is a
+    // change of that field: it is held; the diagnosis, credited to the task's own bed write, is
+    // published.
     it.each([
       ['another text', false],
       ['the first edit’s text put back', true],
@@ -864,13 +867,17 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
             )
           );
         };
-        // Saved without network; the queue publishes it and its answer is lost.
+        // Saved without network; the queue resends it as the edit made online: the diagnosis
+        // first, whose answer is lost, so the day text still waits in the task (W22-SAVE-B).
         setFirestoreEnabled(false);
         await typeHere('NOCHE P1', DIAGNOSIS);
         setFirestoreEnabled(true);
         network.answerLost = { downAfterCut: Infinity };
         await runQueue();
-        expect((await readServer())[night]).toBe('NOCHE P1');
+        expect(await readServer()).toMatchObject({
+          [night]: 'NOCHE BASE',
+          beds: { R1: { pathology: DIAGNOSIS } },
+        });
         // Another person's direct writes of the day text, through the real rules.
         const other = env
           .authenticatedContext('synthetic-P2', {

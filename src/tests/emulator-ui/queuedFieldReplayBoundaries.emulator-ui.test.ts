@@ -293,8 +293,8 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     it('keeps a handoff entry another computer stored, and this one', async () => {
       const path = 'beds.R1.medicalHandoffEntries';
       const entry = (id: string) => ({ id, specialty: 'Medicina Interna', note: `NOTA ${id}` });
-      await queue({ [path]: [entry('local')] });
-      await patch('B', { [path]: [entry('peer')] });
+      await queue({ [path]: [entry('local')] } as never);
+      await patch('B', { [path]: [entry('peer')] } as never);
       const { server, tasks } = await drain();
       const ids = (entries: { id: string }[] | undefined) => (entries ?? []).map(item => item.id);
       expect(ids(server.beds.R1.medicalHandoffEntries)).toContain('peer');

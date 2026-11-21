@@ -334,7 +334,7 @@ export const canReplayByField = (
   const clinical = bedPaths.filter(isClinicalAuthorityCallablePatchPath).length;
   if (clinical > 0 && clinical < bedPaths.length) return false;
   if (bedPaths.length && paths.some(path => STAFFING_PATH.test(path))) return false;
-  const emptyAt = (slot: string, source: (field: string) => unknown) =>
+  const emptyAt = (source: (field: string) => unknown) =>
     hasSameBedOccupant(
       Object.fromEntries(
         [...IDENTITY_FIELDS].map(field => [field, source(field)])
@@ -354,8 +354,8 @@ export const canReplayByField = (
       !slot ||
       Boolean(
         context &&
-        emptyAt(slot, field => context[`${slot}.${field}`]) &&
-        emptyAt(slot, field => getValueAtPath(stored, `${slot}.${field}`))
+        emptyAt(field => context[`${slot}.${field}`]) &&
+        emptyAt(field => getValueAtPath(stored, `${slot}.${field}`))
       )
     );
   });

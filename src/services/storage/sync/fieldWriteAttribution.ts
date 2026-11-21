@@ -137,6 +137,14 @@ export const storedFieldWrites = (remoteData: Record<string, unknown>): FieldWri
   return [...recorded, ...lastWrite];
 };
 
+/**
+ * Whether a recorded write is one of `ids`: a field replay writes the bed part of a task under
+ * `<id>:part-<n>` (taskFieldReplay), which is still that task's edit.
+ */
+const isOneOf = (mutationId: string | undefined, ids: string[]): boolean =>
+  mutationId !== undefined &&
+  (ids.includes(mutationId) || ids.includes(mutationId.replace(/:part-\d+$/, '')));
+
 const overlaps = (written: string, path: string): boolean =>
   written === '*' ||
   written === path ||
@@ -159,9 +167,7 @@ export const isLastWrittenBy = (
   const last = touching.filter(write => write.revision === newest);
   return (
     last.length > 0 &&
-    last.every(
-      write => write.credible && write.mutationId !== undefined && ids.includes(write.mutationId)
-    ) &&
+    last.every(write => write.credible && isOneOf(write.mutationId, ids)) &&
     last.some(
       write =>
         write.path === path && write.digest === fieldValueDigest(getValueAtPath(remoteData, path))
@@ -186,6 +192,6 @@ export const isWrittenElsewhereSince = (
     write =>
       (write.path === path || write.path.startsWith(`${path}.`)) &&
       write.revision > seen &&
-      !(write.mutationId !== undefined && ids.includes(write.mutationId)) &&
+      !isOneOf(write.mutationId, ids) &&
       !(clientId !== undefined && write.clientId === clientId)
   );
