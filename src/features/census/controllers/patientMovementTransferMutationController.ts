@@ -5,6 +5,7 @@ import { BedDefinition } from '@/types/domain/beds';
 import { TransferData } from '@/types/domain/movements';
 import type { TransferCommandPayload } from '@/types/movements';
 import { buildClearedBedPatient } from '@/features/census/controllers/patientMovementCreationSharedController';
+import { ensurePatientClinicalEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import type { MovementProvenanceSeed } from '@/application/census/movementProvenancePolicy';
 import { buildMovementRow } from '@/application/census/movementRowBuilder';
 
@@ -52,9 +53,9 @@ export const buildTransferEntries = ({
     transferEscort: escort,
   });
 
-  // The newborn travels in its own reversible row, so the mother's snapshot leaves the crib out.
-  const transfers = [transferRow(crib ? { ...patient, clinicalCrib: undefined } : patient, false)];
-  if (crib) transfers.push(transferRow(crib, true));
+  // A manual transfer undoes the mother together with her crib, so her copy keeps it.
+  const transfers = [transferRow(ensurePatientClinicalEpisodeId(patient), false)];
+  if (crib) transfers.push(transferRow(ensurePatientClinicalEpisodeId(crib), true));
 
   return transfers;
 };

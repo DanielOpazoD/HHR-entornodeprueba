@@ -15,7 +15,10 @@ export interface MovementStamp {
 
 interface MovementRowInput {
   id: string;
-  /** The person who leaves. A mother whose crib gets its own row comes without `clinicalCrib`. */
+  /**
+   * The person who leaves, exactly as undo must restore them; the caller decides. A manual mother
+   * keeps her crib (undo brings both back); Eloísa passes her without a crib that has its own row.
+   */
   patient: PatientData;
   bedId: string;
   bedDef?: Pick<BedDefinition, 'name' | 'type'>;
@@ -27,8 +30,8 @@ interface MovementRowInput {
 
 /**
  * The fields every discharge and transfer row shares, manual or from Eloísa. The row describes
- * the person who leaves with their own data, keeps their episode id as stored (never derives
- * one) and carries a snapshot of exactly that person so each row undoes on its own.
+ * the person who leaves with their own data (a newborn is «(Cuna RN)» with its own insurance and
+ * origin, ID-03) and carries the undo snapshot of exactly the patient it is given.
  */
 export const buildMovementRow = ({
   id,

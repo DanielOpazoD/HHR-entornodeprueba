@@ -8,6 +8,7 @@ import {
   buildClearedBedPatient,
   type MovementAuditEntry,
 } from '@/features/census/controllers/patientMovementCreationSharedController';
+import { ensurePatientClinicalEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import type { MovementProvenanceSeed } from '@/application/census/movementProvenancePolicy';
 import { buildMovementRow } from '@/application/census/movementRowBuilder';
 
@@ -83,14 +84,13 @@ export const buildDischargeEntries = ({
     });
   };
 
+  // A manual discharge undoes the mother together with her crib, so her copy keeps it.
   if (target === 'mother' || target === 'both') {
-    // The newborn gets its own reversible row, so the mother's snapshot leaves the crib out:
-    // otherwise undoing either row first would make the other fail (ID-03).
-    recordDischarge(cribLeaves ? { ...patient, clinicalCrib: undefined } : patient, false, status);
+    recordDischarge(ensurePatientClinicalEpisodeId(patient), false, status);
   }
 
   if (cribLeaves && crib && cribStatus) {
-    recordDischarge(crib, true, cribStatus);
+    recordDischarge(ensurePatientClinicalEpisodeId(crib), true, cribStatus);
   }
 
   return {

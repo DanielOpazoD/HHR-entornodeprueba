@@ -9,7 +9,6 @@ import {
   resolveAddDischargeMovement,
   resolveAddTransferMovement,
 } from '@/features/census/controllers/patientMovementCreationController';
-import { resolveUndoPatientMovement } from '@/features/census/controllers/patientMovementUndoController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DischargeData } from '@/types/domain/movements';
 
@@ -463,19 +462,11 @@ describe('patientMovementCreationController', () => {
       return { record: result.value.updatedRecord, mother, crib };
     };
 
-    const undo = (bed: PatientData, movement: DischargeData) =>
-      resolveUndoPatientMovement({
-        bedData: bed,
-        bedId: 'R1',
-        isNested: movement.isNested,
-        originalData: movement.originalData,
-        createEmptyPatient,
-      });
-
     it('records the newborn as its own person, as Eloísa does', () => {
       const { mother, crib } = dischargeBoth();
 
-      expect(mother.originalData?.clinicalCrib).toBeUndefined();
+      // As before: undoing the mother's manual discharge brings her crib back with her.
+      expect(mother.originalData?.clinicalCrib?.patientName).toBe('RN Sintético');
       expect(crib).toMatchObject({
         bedName: `${BEDS.find(bed => bed.id === 'R1')?.name} (Cuna RN)`,
         bedType: 'Cuna',
@@ -487,25 +478,7 @@ describe('patientMovementCreationController', () => {
       });
     });
 
-    it('undoes the mother and then the crib, restoring both people in the bed', () => {
-      const { record, mother, crib } = dischargeBoth();
-
-      const motherBack = undo(record.beds.R1, mother);
-      expect(motherBack.ok).toBe(true);
-      if (!motherBack.ok) return;
-      expect(motherBack.value.updatedBed.clinicalCrib).toBeUndefined();
-
-      const cribBack = undo(motherBack.value.updatedBed, crib);
-      expect(cribBack.ok).toBe(true);
-      if (!cribBack.ok) return;
-      expect(cribBack.value.updatedBed).toMatchObject({
-        patientName: 'Madre Sintética',
-        clinicalEpisodeId: 'ep-mother',
-        clinicalCrib: { patientName: 'RN Sintético', clinicalEpisodeId: 'ep-baby' },
-      });
-    });
-
-    it('keeps the crib out of the mother transfer snapshot', () => {
+    it('records the transferred newborn as its own person, mother copy unchanged', () => {
       const result = resolveAddTransferMovement({
         record: recordWithMotherAndCrib(),
         bedId: 'R1',
@@ -523,7 +496,7 @@ describe('patientMovementCreationController', () => {
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       const [mother, crib] = result.value.updatedRecord.transfers;
-      expect(mother.originalData?.clinicalCrib).toBeUndefined();
+      expect(mother.originalData?.clinicalCrib?.patientName).toBe('RN Sintético');
       expect(crib).toMatchObject({ bedType: 'Cuna', isNested: true, insurance: 'Particular' });
       expect(crib.bedName.endsWith(' (Cuna RN)')).toBe(true);
     });
