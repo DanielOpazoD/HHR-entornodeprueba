@@ -34,10 +34,7 @@ import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { FIELD_CHANGED_ELSEWHERE_MESSAGE } from '@/services/storage/syncErrorCatalog';
 import { applyPatches } from '@/utils/patchUtils';
 import { updateRecordPartial } from '@/services/storage/firestore/firestoreRecordWrites';
-import {
-  executeUpdateHandoffNovedades,
-  executeUpdateHandoffStaff,
-} from '@/application/handoff/handoffManagementUseCases';
+import { buildHandoffReceivesPatch, buildNovedadesPatch } from '@/domain/handoff/management';
 import { PatientStatus } from '@/types/domain/patientClassification';
 import { resolveRecordBaseRevision } from '@/services/storage/sync/syncTaskContractPolicy';
 import { isLastWrittenBy, storedFieldWrites } from '@/services/storage/sync/fieldWriteAttribution';
@@ -807,27 +804,16 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
                 .firestore(),
             };
             const shown = await readServer();
-            const persist = {
-              record: shown,
-              patchRecord: async (patch: DailyRecordPatch) => {
-                await updateRecordPartial(date, patch, shown.lastUpdated, { baseRecord: shown });
-              },
-              saveRecord: () => {
-                throw new Error('The handoff screen saves this field by patch');
-              },
-            };
+            // The handoff screen's patches: the night text, and «Recibe» of the day shift.
+            const patch: DailyRecordPatch =
+              writer === 'the night handoff text'
+                ? buildNovedadesPatch('night', 'NOCHE P2')
+                : buildHandoffReceivesPatch('day', ['ENFERMERA SINTETICA']);
             const down = network.down;
             network.down = 0;
             try {
               await scope.run(nurse, () =>
-                writer === 'the night handoff text'
-                  ? executeUpdateHandoffNovedades({ ...persist, shift: 'night', value: 'NOCHE P2' })
-                  : executeUpdateHandoffStaff({
-                      ...persist,
-                      shift: 'night',
-                      type: 'delivers',
-                      staffList: ['ENFERMERA SINTETICA'],
-                    })
+                updateRecordPartial(date, patch, shown.lastUpdated, { baseRecord: shown })
               );
             } finally {
               network.down = down;

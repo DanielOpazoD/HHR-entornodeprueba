@@ -122,11 +122,7 @@ export interface DailyRecordHandoffActions {
     value: boolean | string
   ) => void;
   updateHandoffNovedades: (shift: 'day' | 'night', value: string) => void;
-  updateHandoffStaff: (
-    shift: 'day' | 'night',
-    type: 'delivers' | 'receives' | 'tens',
-    staffList: string[]
-  ) => void;
+  updateHandoffReceives: (shift: 'day' | 'night', staffList: string[]) => void;
 }
 
 export interface DailyRecordActionsContextType

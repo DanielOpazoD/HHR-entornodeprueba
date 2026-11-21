@@ -182,10 +182,7 @@ describe('HandoffView Component', () => {
     fireEvent.change(selects[0], { target: { value: 'Test Nurse' } });
 
     await waitFor(() => {
-      expect(mockContext.updateHandoffStaff).toHaveBeenCalledWith('night', 'receives', [
-        'Test Nurse',
-        '',
-      ]);
+      expect(mockContext.updateHandoffReceives).toHaveBeenCalledWith('night', ['Test Nurse', '']);
     });
   });
 

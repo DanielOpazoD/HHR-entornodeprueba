@@ -47,7 +47,7 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
     handleNursingNoteChange,
     updateHandoffChecklist,
     updateHandoffNovedades,
-    updateHandoffStaff,
+    updateHandoffReceives,
     tableHeaderClass,
     Icon,
   } = screenModel;
@@ -94,7 +94,7 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
         receivesList={receivesList}
         nursesList={nursesList}
         readOnly={effectiveReadOnly}
-        onUpdateStaff={updateHandoffStaff}
+        onUpdateReceives={updateHandoffReceives}
         onUpdateChecklist={updateHandoffChecklist}
       />
       <HandoffNursingContent {...nursingContentBindings} />

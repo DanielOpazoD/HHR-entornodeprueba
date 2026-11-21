@@ -23,7 +23,7 @@ export const useHandoffViewScreenModel = ({
   ui,
 }: UseHandoffViewScreenModelParams) => {
   const { record } = useDailyRecordData();
-  const { updateHandoffChecklist, updateHandoffNovedades, updateHandoffStaff } =
+  const { updateHandoffChecklist, updateHandoffNovedades, updateHandoffReceives } =
     useDailyRecordHandoffActions();
   const { nursesList } = useStaffContext();
   const { success } = useNotification();
@@ -141,7 +141,7 @@ export const useHandoffViewScreenModel = ({
     handleNursingNoteChange,
     updateHandoffChecklist,
     updateHandoffNovedades,
-    updateHandoffStaff,
+    updateHandoffReceives,
     tableHeaderClass: screenFrame.tableHeaderClass,
     Icon: screenFrame.Icon,
   };

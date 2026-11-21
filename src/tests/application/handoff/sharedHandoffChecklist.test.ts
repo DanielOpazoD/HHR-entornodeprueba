@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import { renderHook } from '@testing-library/react';
 import { jsPDF } from 'jspdf';
-import { executeUpdateHandoffChecklist } from '@/application/handoff';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { buildInitializedDayRecord } from '@/services/repositories/dailyRecordInitializationSupport';
@@ -9,6 +9,14 @@ import { addStaffAndChecklist, addNovedadesSection } from '@/services/pdf/handof
 import { createConflictResolutionTraceContext } from '@/services/repositories/conflictResolutionTrace';
 import { mergeRecordObjectFields } from '@/services/repositories/conflictResolutionRecordObjectMergeUtils';
 
+const notifyError = vi.hoisted(() => vi.fn());
+vi.mock('@/context/UIContext', () => ({ useNotification: () => ({ error: notifyError }) }));
+vi.mock('@/context/AuditContext', () => ({
+  useAuditContext: () => ({ logHandoffNovedadesModified: vi.fn(), userId: 'synthetic-user' }),
+}));
+
+import { useHandoffManagement } from '@/hooks/useHandoffManagement';
+
 const createDailyRecordFixture = (overrides: Partial<DailyRecord> = {}) =>
   DataFactory.createMockDailyRecord(overrides.date ?? '2026-10-29', overrides);
 
@@ -16,83 +24,43 @@ const shared = { crashCartReviewDate: '2026-10-29', crashCartCode: '00123456' };
 const createRecord = () =>
   createDailyRecordFixture({ date: '2026-10-31', handoffSharedChecklist: { ...shared } });
 
+const editShared = (field: string, value: boolean | string) => {
+  const patchRecord = vi.fn().mockResolvedValue(undefined);
+  const { result } = renderHook(() => useHandoffManagement(createRecord(), patchRecord));
+  notifyError.mockClear();
+  result.current.updateHandoffChecklist('shared', field, value);
+  return patchRecord;
+};
+
 describe('shared nursing handoff checklist', () => {
-  it('patches only the edited shared field, preserving the date and shift checklists', async () => {
-    const record = createRecord();
-    const patchRecord = vi.fn().mockResolvedValue(undefined);
-    const saveRecord = vi.fn();
-    const result = await executeUpdateHandoffChecklist({
-      record,
-      patchRecord,
-      saveRecord,
-      shift: 'shared',
-      field: 'crashCartCode',
-      value: '00000001',
-    });
-    expect(result.status).toBe('success');
-    expect(patchRecord).toHaveBeenCalledWith({
-      'handoffSharedChecklist.crashCartCode': '00000001',
-    });
-    expect(saveRecord).not.toHaveBeenCalled();
-    expect(result.data?.updatedRecord.handoffSharedChecklist).toEqual({
-      ...shared,
-      crashCartCode: '00000001',
-    });
-    expect(result.data?.updatedRecord.handoffDayChecklist).toEqual(record.handoffDayChecklist);
-    expect(record.handoffSharedChecklist).toEqual(shared);
+  it('patches only the edited shared field, leaving the date and shift checklists alone', () => {
+    expect(editShared('crashCartCode', '00000001').mock.calls).toEqual([
+      [{ 'handoffSharedChecklist.crashCartCode': '00000001' }],
+    ]);
   });
 
-  it('preserves the code on a full-save date update and supports explicitly clearing a field', async () => {
-    const saveRecord = vi.fn().mockResolvedValue(undefined);
-    const result = await executeUpdateHandoffChecklist({
-      record: createRecord(),
-      saveRecord,
-      shift: 'shared',
-      field: 'crashCartReviewDate',
-      value: '',
-    });
-    expect(result.status).toBe('success');
-    expect(saveRecord.mock.calls[0][0].handoffSharedChecklist).toEqual({
-      ...shared,
-      crashCartReviewDate: '',
-    });
+  it('clears the review date explicitly without touching the code', () => {
+    expect(editShared('crashCartReviewDate', '').mock.calls).toEqual([
+      [{ 'handoffSharedChecklist.crashCartReviewDate': '' }],
+    ]);
   });
 
   it.each(['1234567', '123456789', '1234abcd', true])(
     'rejects an invalid code (%s) without writing',
-    async value => {
-      const patchRecord = vi.fn();
-      const saveRecord = vi.fn();
-      const result = await executeUpdateHandoffChecklist({
-        record: createRecord(),
-        patchRecord,
-        saveRecord,
-        shift: 'shared',
-        field: 'crashCartCode',
-        value,
-      });
-      expect(result.status).toBe('failed');
-      expect(patchRecord).not.toHaveBeenCalled();
-      expect(saveRecord).not.toHaveBeenCalled();
+    value => {
+      expect(editShared('crashCartCode', value)).not.toHaveBeenCalled();
+      expect(notifyError).toHaveBeenCalledWith(
+        'Error al guardar',
+        'Revise la fecha del carro de paro y use un código de 8 dígitos.'
+      );
     }
   );
 
   it.each(['2026-99-99', '2025-02-29', '2026-04-31', '29-10-2026'])(
     'rejects an impossible review date: %s',
-    async value => {
-      const patchRecord = vi.fn();
-      const saveRecord = vi.fn();
-      const outcome = await executeUpdateHandoffChecklist({
-        record: createRecord(),
-        patchRecord,
-        saveRecord,
-        shift: 'shared',
-        field: 'crashCartReviewDate',
-        value,
-      });
-      expect(outcome.status).toBe('failed');
-      expect(patchRecord).not.toHaveBeenCalled();
-      expect(saveRecord).not.toHaveBeenCalled();
+    value => {
+      expect(editShared('crashCartReviewDate', value)).not.toHaveBeenCalled();
+      expect(notifyError).toHaveBeenCalledTimes(1);
       expect(
         safeParseDailyRecord({
           ...createRecord(),

@@ -14,6 +14,6 @@ Reglas que se mantienen aquí: un hook no importa implementaciones de componente
 servicio concreto, y sus pruebas simulan el caso de uso o el puerto (regla
 `hook-tests-mock-ports` del control de patrones de `src/`, en `check:quality`); si cambia el camino de arranque o
 inicio de sesión, el hook afectado gana una prueba directa además de la de integración. La
-persistencia de la entrega usa los casos de uso de `application/handoff`
+entrega guarda con parches de `domain/handoff/management.ts` desde `useHandoffManagement.ts`
 ([contrato de entrega](../../docs/ADR_HANDOFF_RUNTIME_SURFACES.md)). Referencia de hooks:
 [docs/hooks-reference.md](../../docs/hooks-reference.md).
