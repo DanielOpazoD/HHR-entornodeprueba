@@ -1,6 +1,6 @@
 import { executeSyncDailyRecord } from '@/application/daily-record/syncDailyRecordUseCase';
-import { defaultDailyRecordSyncPort } from '@/application/ports/dailyRecordPort';
-import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import { createNotFoundDailyRecordReadResult } from '@/services/repositories/dailyRecordReadResultController';
+import { createDailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
@@ -163,11 +163,8 @@ describe('truthful session-bound recent recovery', () => {
       syncRemoteRecord: date =>
         executeSyncDailyRecord({
           date,
-          repository: {
-            ...defaultDailyRecordSyncPort,
-            syncWithFirestoreDetailed: async () => {
-              throw new Error('synthetic offline');
-            },
+          read: async () => {
+            throw new Error('synthetic offline');
           },
         }),
     });
@@ -201,10 +198,13 @@ describe('truthful session-bound recent recovery', () => {
       syncRemoteRecord: date =>
         executeSyncDailyRecord({
           date,
-          repository: {
-            ...defaultDailyRecordSyncPort,
-            syncWithFirestoreDetailed: async () =>
-              createSyncDailyRecordResult({ date, outcome: 'missing', record: null }),
+          read: async () => {
+            const absent = { ...createNotFoundDailyRecordReadResult(date, 'missing') };
+            return createDailyRecordQueryResult(null, {
+              ...absent,
+              serverConfirmed: true,
+              availabilityState: 'confirmed_missing',
+            });
           },
         }),
     });

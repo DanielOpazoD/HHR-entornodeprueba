@@ -67,8 +67,8 @@ describe('dailyRecordErasureGuard.findPatientErasures (server mirror of the clie
   it('does NOT flag a patient relocated to another bed (internal move, no movement record)', () => {
     // An internal bed move (R4 → R3) carries no discharge/transfer/CMA; the vacated bed is
     // accounted for because the SAME patient still occupies another bed in the incoming record.
-    const remote = { beds: { R4: bed('Kevin Villagran') } };
-    const local = { beds: { R3: bed('Kevin Villagran') }, discharges: [], transfers: [], cma: [] };
+    const remote = { beds: { R4: bed('Kisib Vodamavit') } };
+    const local = { beds: { R3: bed('Kisib Vodamavit') }, discharges: [], transfers: [], cma: [] };
 
     expect(findPatientErasures(remote, local)).toEqual([]);
   });
@@ -77,8 +77,8 @@ describe('dailyRecordErasureGuard.findPatientErasures (server mirror of the clie
     const remote = {
       beds: {
         R4: {
-          patientName: 'Kevin V.',
-          rut: '20.189.620-7',
+          patientName: 'Kisib V.',
+          rut: '10.000.118-7',
           clinicalEpisodeId: 'ep_same_admission',
         },
       },
@@ -86,8 +86,8 @@ describe('dailyRecordErasureGuard.findPatientErasures (server mirror of the clie
     const local = {
       beds: {
         R3: {
-          patientName: 'Kevin Villagran',
-          rut: '20189620-7',
+          patientName: 'Kisib Vodamavit',
+          rut: '10000118-7',
           clinicalEpisodeId: 'ep_same_admission',
         },
       },
@@ -97,11 +97,11 @@ describe('dailyRecordErasureGuard.findPatientErasures (server mirror of the clie
   });
 
   it('still flags a real erasure when a DIFFERENT patient reused the census (no identity match)', () => {
-    const remote = { beds: { R4: bed('Kevin Villagran') } };
+    const remote = { beds: { R4: bed('Kisib Vodamavit') } };
     const local = { beds: { R3: bed('Otra Persona') }, discharges: [], transfers: [], cma: [] };
 
     expect(findPatientErasures(remote, local)).toEqual([
-      { bedId: 'R4', remotePatientName: 'Kevin Villagran' },
+      { bedId: 'R4', remotePatientName: 'Kisib Vodamavit' },
     ]);
   });
 });

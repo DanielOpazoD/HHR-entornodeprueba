@@ -11,7 +11,7 @@ import { replanRayenStructure } from '@/features/rayen-import/hooks/replanRayenS
 
 const encounter: RayenEncounter = {
   encounterId: 'episode-1',
-  run: '144700554',
+  run: '100001314',
   firstGivenName: 'Ana',
   firstFamilyName: 'Perez',
   birthDate: '1980-01-01',

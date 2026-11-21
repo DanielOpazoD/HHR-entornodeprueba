@@ -101,13 +101,13 @@ const buildOfficialRequestPdf = (
   at('2. Establecimiento', 300, 662.41);
   at('Hospital Hanga Roa (Isla De Pascua)', 302, 647.41);
   at('Primer Apellido', 20, 591.66);
-  at('Pakarati', 20, 604.2);
+  at('Pibucumo', 20, 604.2);
   at('Segundo Apellido', 200, 591.66);
-  at('Arevalo', 200, 604.2);
+  at('Aderimi', 200, 604.2);
   at('Nombres', 400, 590.66);
-  at('Osvaldo Santiago', 400, 604.2);
+  at('Ovifuli Saginepo', 400, 604.2);
   at('RUN', 20, 556.41);
-  at('11.736.986-2', 20, 573.91);
+  at('10.000.101-2', 20, 573.91);
   at('Previsión', 20, 528.66);
   at('Fonasa C', 20, 541.2);
   at('Sexo', 20, 500.66);
@@ -141,7 +141,7 @@ const buildOfficialRequestPdf = (
   at('Nombres', 400, 151.66);
   at('Valeria', 400, 165.2);
   at('RUN', 20, 117.66);
-  at('17.723.202-5', 20, 130.2);
+  at('10.000.119-5', 20, 130.2);
   return document.output('arraybuffer');
 };
 
@@ -277,9 +277,9 @@ describe('integrated laboratory-request extension', () => {
       folio: 'ELO-27241',
       requestDate: '15-07-2026',
       requiredDate: '15-07-2026',
-      patient: { name: 'Osvaldo Santiago Pakarati Arevalo', run: '11.736.986-2' },
+      patient: { name: 'Ovifuli Saginepo Pibucumo Aderimi', run: '10.000.101-2' },
       clinical: { diagnosis: 'INSUFICIENCIA CARDIACA DESCOMPENSADA', ges: 'NO' },
-      professional: { name: 'Valeria Salfate', run: '17.723.202-5' },
+      professional: { name: 'Valeria Salfate', run: '10.000.119-5' },
     });
     expect(extracted?.tests).toEqual([
       { code: '302013', name: 'Bilirrubina Directa' },
@@ -357,7 +357,7 @@ describe('integrated laboratory-request extension', () => {
       jsPDF
     );
     const differingProfessionalText = (await extractText(differingProfessionalOutput)).join(' ');
-    expect(differingProfessionalText).toContain('Solicitante: Valeria Salfate - RUN 17.723.202-5');
+    expect(differingProfessionalText).toContain('Solicitante: Valeria Salfate - RUN 10.000.119-5');
     expect(differingProfessionalText).toContain(
       'Solicitante: Segundo Profesional - RUN 9.999.999-9'
     );
@@ -407,7 +407,7 @@ describe('integrated laboratory-request extension', () => {
     const pages = await extractText(output);
 
     expect(pages.length).toBeGreaterThan(1);
-    pages.forEach(page => expect(page.replace(/\s+/g, ' ')).toContain('RUN 11.736.986-2'));
+    pages.forEach(page => expect(page.replace(/\s+/g, ' ')).toContain('RUN 10.000.101-2'));
     expect(pages.join(' ')).toContain('300069');
     pages
       .filter(page => page.includes('300035'))

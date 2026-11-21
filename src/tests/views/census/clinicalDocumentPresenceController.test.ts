@@ -84,14 +84,14 @@ describe('clinicalDocumentPresenceController', () => {
           bedId: 'R1',
           episodeKey: 'ep_stale_bed_episode',
           episodeKeys: ['ep_stale_bed_episode'],
-          currentPatientRut: '14.161.042-2',
+          currentPatientRut: '10.000.129-2',
         },
       ];
       const contaminatedRecords = [
         {
           status: 'draft',
           episodeKey: 'ep_stale_bed_episode',
-          patientRut: '17.444.506-0',
+          patientRut: '10.000.102-0',
         },
       ];
       expect(
@@ -117,19 +117,19 @@ describe('clinicalDocumentPresenceController', () => {
           bedId: 'R1',
           episodeKey: 'ep_stale_bed_episode',
           episodeKeys: ['ep_stale_bed_episode'],
-          currentPatientRut: '14.161.042-2',
+          currentPatientRut: '10.000.129-2',
         },
       ];
       const contaminatedRecords = [
         {
           status: 'draft',
           episodeKey: 'ep_stale_bed_episode',
-          patientRut: '17.444.506-0',
+          patientRut: '10.000.102-0',
         },
         {
           status: 'published',
           episodeKey: 'ep_stale_bed_episode',
-          patientRut: '14.161.042-2',
+          patientRut: '10.000.129-2',
         },
       ];
 

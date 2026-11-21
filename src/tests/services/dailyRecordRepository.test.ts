@@ -8,7 +8,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { getForDate } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { initializeDay } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import { save, updatePartial } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { syncWithFirestore } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { deleteDailyRecordAcrossStores as deleteDay } from '@/services/repositories/dailyRecordDeletionService';
 import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
@@ -434,11 +433,11 @@ describe('DailyRecordRepository (Expanded)', () => {
       expect(await getForDate(date, false)).toBeNull();
     });
 
-    it('syncs from firestore and saves locally', async () => {
+    it('reads from firestore and saves locally', async () => {
       const remote = createMockRecord('2024-12-28');
       firestoreMock.getRecordFromFirestore.mockResolvedValueOnce(remote);
 
-      const result = await syncWithFirestore('2024-12-28');
+      const result = await getForDate('2024-12-28');
       expect(result).toMatchObject(remote);
       expect(firestoreMock.getRecordFromFirestoreDetailed).toHaveBeenCalledWith('2024-12-28', {
         source: 'default',

@@ -10,7 +10,7 @@
 1. Traslado de cama podía hacer que el diagnóstico pareciera desaparecer.
    - Caso reportado: Pierre-jean, documento `25DF52626`.
 2. Alta registrada en observabilidad podía no aparecer en altas del día.
-   - Caso reportado: Bernardo Orrego Llanos, RUT `17.274.300-5`.
+   - Caso reportado: Budegutu Osimap Lupeba, RUT `10.000.105-5`.
 3. Conflicto auto-resuelto podía quedar visible en observabilidad, pero sin explicación suficiente ni
    versiones recuperables claras en el panel del censo.
 

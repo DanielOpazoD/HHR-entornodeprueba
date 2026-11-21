@@ -308,8 +308,8 @@ describe('egreso report eligibility', () => {
         H5C1: {
           ...EMPTY_PATIENT,
           bedId: 'H5C1',
-          patientName: 'Tania Valencia',
-          rut: '28.106.852-0',
+          patientName: 'Torol Vovipevi',
+          rut: '10.000.116-0',
           clinicalEpisodeId: '1001',
           admissionDate: '2026-08-31',
           admissionTime: '10:00',
@@ -323,8 +323,8 @@ describe('egreso report eligibility', () => {
     };
     const base = {
       encounterId: '',
-      run: '28.106.852-0',
-      patientName: 'Tania Valencia',
+      run: '10.000.116-0',
+      patientName: 'Torol Vovipevi',
       bedLabel: 'H5C1',
       servicio: 'Ginecobstetricia',
       edad: '18',
@@ -351,8 +351,8 @@ describe('egreso report eligibility', () => {
         H5C1: {
           ...EMPTY_PATIENT,
           bedId: 'H5C1',
-          patientName: 'Tania Valencia',
-          rut: '28.106.852-0',
+          patientName: 'Torol Vovipevi',
+          rut: '10.000.116-0',
           clinicalEpisodeId: '1001',
           admissionDate: '2026-08-31',
           admissionTime: '10:00',
@@ -361,7 +361,7 @@ describe('egreso report eligibility', () => {
             bedId: 'H5C1',
             bedMode: 'Cuna',
             patientName: 'Rn 1',
-            rut: '28.106.852-0',
+            rut: '10.000.116-0',
             clinicalEpisodeId: '1002',
             admissionDate: '2026-08-31',
           },
@@ -375,7 +375,7 @@ describe('egreso report eligibility', () => {
     };
     const base = {
       encounterId: '',
-      run: '28.106.852-0',
+      run: '10.000.116-0',
       bedLabel: 'H5C1',
       servicio: 'Ginecobstetricia',
       edad: '0',
@@ -385,7 +385,7 @@ describe('egreso report eligibility', () => {
       exactEpisodeVerification: 'unverified' as const,
     };
     const rows = [
-      { ...base, patientName: 'Tania Valencia', edad: '18' },
+      { ...base, patientName: 'Torol Vovipevi', edad: '18' },
       { ...base, patientName: 'Rn 1' },
       { ...base, patientName: 'Rn 2' },
     ];

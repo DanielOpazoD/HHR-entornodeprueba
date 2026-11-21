@@ -24,7 +24,7 @@ import { hasNonRutLetter, hasPassportShapeBeforeLetterRule, normalizeRut } from 
 const isSourcePassport = (raw?: string): boolean =>
   hasNonRutLetter(raw ?? '') || hasPassportShapeBeforeLetterRule(raw ?? '');
 
-/** Format a RUN as "14.470.055-4" from raw ("144700554") or already-formatted input. */
+/** Format a RUN as "10.000.131-4" from raw ("100001314") or already-formatted input. */
 export const formatRun = (raw?: string): string => {
   if (isSourcePassport(raw)) return (raw ?? '').trim().toUpperCase();
   const cleaned = normalizeRut(raw);

@@ -189,4 +189,33 @@ describe('dailyRecordInitializationSupport', () => {
     expect(result.beds.BOX1.patientName).toBe('Paciente');
     expect(result.beds.BOX2.patientName).toBe('');
   });
+
+  // The source is the server's day as read (not prepared): a day still listing a patient beside
+  // that same episode's discharge must not carry the discharged patient into the next census.
+  it.each([
+    ['the same episode', 'episode-r4', ''],
+    ['another episode', 'episode-r4-previous', 'Paciente'],
+  ])('copies a bed beside a discharge of %s accordingly', (_label, dischargedEpisode, kept) => {
+    const previous = buildRecord('2026-09-23');
+    previous.beds.R4 = buildPatient('R4', { clinicalEpisodeId: 'episode-r4' });
+    previous.discharges = [
+      {
+        id: 'discharge-r4',
+        bedId: 'R4',
+        bedName: 'R4',
+        bedType: 'Cama',
+        patientName: 'Paciente',
+        rut: '11.111.111-1',
+        diagnosis: 'Diagnostico',
+        time: '10:00',
+        status: 'Vivo',
+        clinicalEpisodeId: dischargedEpisode,
+      },
+    ];
+
+    const copied = buildInitializedDayRecord('2026-09-24', previous);
+
+    expect(copied.beds.R4.patientName).toBe(kept);
+    expect(previous.beds.R4.patientName).toBe('Paciente');
+  });
 });

@@ -86,7 +86,7 @@ describe('LabViewerExamList', () => {
           completed: 1,
           total: 1,
           pageCount: 3,
-          filename: 'Laboratorio HHR 08-04-2026, Test, 14.125.562-2.pdf',
+          filename: 'Laboratorio HHR 08-04-2026, Test, 10.000.115-2.pdf',
         }}
       />
     );
@@ -94,7 +94,7 @@ describe('LabViewerExamList', () => {
       'PDF creado correctamente · 1 informe · 3 páginas'
     );
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Laboratorio HHR 08-04-2026, Test, 14.125.562-2.pdf'
+      'Laboratorio HHR 08-04-2026, Test, 10.000.115-2.pdf'
     );
   });
 

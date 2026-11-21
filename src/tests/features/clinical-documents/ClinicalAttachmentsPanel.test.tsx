@@ -16,8 +16,8 @@ const buildAttachment = (
 ): ClinicalAttachmentRecord => ({
   id: 'att_1',
   hospitalId: 'hhr',
-  patientRut: '13.545.665-9',
-  patientRutKey: '13545665-9',
+  patientRut: '10.000.117-9',
+  patientRutKey: '10000117-9',
   patientName: 'Paciente Test',
   episodeKey: 'episode-1',
   storagePath: 'clinical-attachments/hhr/rut/episode/att_1/informe.pdf',

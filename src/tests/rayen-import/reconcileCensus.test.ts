@@ -35,7 +35,7 @@ const hhrDischarge = (rut: string, episodeId: string): DailyRecord['discharges']
 
 const makeEncounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => ({
   encounterId: 'E1',
-  run: '144700554',
+  run: '100001314',
   firstGivenName: 'Ana',
   firstFamilyName: 'Perez',
   birthDate: '1980-01-01',
@@ -331,7 +331,7 @@ describe('reconcileCensus', () => {
   it('restores a readmitted patient when only an older episode has an HHR movement', () => {
     const encounter = makeEncounter({
       encounterId: 'READMISSION',
-      run: '14.470.055-4',
+      run: '10.000.131-4',
       room: 'Recuperacion 2',
       bed: 'R2',
     });

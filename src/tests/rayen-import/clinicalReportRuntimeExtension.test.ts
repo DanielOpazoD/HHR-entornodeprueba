@@ -191,18 +191,18 @@ describe('clinical report runtime owner', () => {
           JSON.stringify([
             {
               encounterId: 100,
-              patientIdentifier: '29335605K',
+              patientIdentifier: '10000108K',
               startPeriod: '2026-07-16T18:00:00.000Z',
               endPeriod: '2026-07-17T18:00:00.000Z',
             },
             {
               encounterId: 200,
-              patientIdentifier: '29.335.605-K',
+              patientIdentifier: '10.000.108-K',
               endPeriod: '2026-07-20T18:00:00.000Z',
             },
             {
               encounterId: 150,
-              patientIdentifier: '29335605K',
+              patientIdentifier: '10000108K',
               startPeriod: '2026-07-10T18:00:00.000Z',
               endPeriod: '2026-07-18T18:00:00.000Z',
             },
@@ -228,7 +228,7 @@ describe('clinical report runtime owner', () => {
     );
 
     const result = await runtime.handleNursingMedicalEpicrisisPrintRequest({
-      patientRun: '29.335.605-K',
+      patientRun: '10.000.108-K',
       censusDate: '2026-07-19',
       delivery: 'download',
     });

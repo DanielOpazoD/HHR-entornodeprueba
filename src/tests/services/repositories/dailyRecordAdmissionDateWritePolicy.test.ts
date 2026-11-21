@@ -9,8 +9,8 @@ import type { PatientData } from '@/types/domain/patient';
 
 const buildPatient = (bedId: string, overrides: Partial<PatientData> = {}): PatientData =>
   DataFactory.createMockPatient(bedId, {
-    patientName: 'Nayeli Hereveri Martinez',
-    rut: '24.029.332-3',
+    patientName: 'Nadufo Hisabufe Mimasuve',
+    rut: '10.000.137-3',
     firstSeenDate: '2026-05-08',
     admissionDate: '2026-05-01',
     location: bedId,
@@ -180,14 +180,14 @@ describe('dailyRecordAdmissionDateWritePolicy carryover episodes', () => {
 
   it('does not compare a diagnosis patch against another bed with the same RUT', () => {
     const mariaH5C2 = buildPatient('H5C2', {
-      patientName: 'Maria Nahoe Calderon',
-      rut: '12.957.666-9',
+      patientName: 'Mopef Nifig Cilomuso',
+      rut: '10.000.103-9',
       firstSeenDate: '2026-07-01',
       admissionDate: '2026-07-01',
     });
     const mariaR3 = buildPatient('R3', {
-      patientName: 'Maria Nahoe Calderon',
-      rut: '12.957.666-9',
+      patientName: 'Mopef Nifig Cilomuso',
+      rut: '10.000.103-9',
       firstSeenDate: '2026-07-01',
       admissionDate: '2026-07-02',
       pathology: 'Diagnostico anterior',
@@ -213,14 +213,14 @@ describe('dailyRecordAdmissionDateWritePolicy carryover episodes', () => {
 
   it('does not let a non-bed handoff patch surface unrelated admission-date debt', () => {
     const mariaH5C2 = buildPatient('H5C2', {
-      patientName: 'Maria Nahoe Calderon',
-      rut: '12.957.666-9',
+      patientName: 'Mopef Nifig Cilomuso',
+      rut: '10.000.103-9',
       firstSeenDate: '2026-07-01',
       admissionDate: '2026-07-01',
     });
     const mariaR3 = buildPatient('R3', {
-      patientName: 'Maria Nahoe Calderon',
-      rut: '12.957.666-9',
+      patientName: 'Mopef Nifig Cilomuso',
+      rut: '10.000.103-9',
       firstSeenDate: '2026-07-01',
       admissionDate: '2026-07-02',
     });

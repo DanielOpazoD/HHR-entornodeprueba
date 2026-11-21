@@ -18,9 +18,9 @@ describe('imagingRequestPdfService', () => {
 
   describe('Name Splitter Logic', () => {
     it('should handle two words (Nombre Apellido)', () => {
-      const [nombres, apPaterno, apMaterno] = splitPatientName('Marcelo Valdes');
-      expect(nombres).toBe('Marcelo');
-      expect(apPaterno).toBe('Valdes');
+      const [nombres, apPaterno, apMaterno] = splitPatientName('Munilep Vecasu');
+      expect(nombres).toBe('Munilep');
+      expect(apPaterno).toBe('Vecasu');
       expect(apMaterno).toBe('');
     });
   });

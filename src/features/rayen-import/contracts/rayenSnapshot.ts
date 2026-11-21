@@ -12,7 +12,7 @@
 export interface RayenEncounter {
   /** Rayen `encId` — stable episode id. Maps to `PatientData.clinicalEpisodeId`. */
   encounterId: string;
-  /** Patient RUN. May arrive raw ("144700554") or formatted ("14.470.055-4"). */
+  /** Patient RUN. May arrive raw ("100001314") or formatted ("10.000.131-4"). */
   run: string;
   /** Given name(s) — Rayen `firstGivenName`. */
   firstGivenName: string;

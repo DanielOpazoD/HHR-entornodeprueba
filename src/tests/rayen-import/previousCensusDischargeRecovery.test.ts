@@ -27,7 +27,7 @@ const patient = {
   ...EMPTY_PATIENT,
   bedId: 'H6C2',
   patientName: 'Paciente Sintético',
-  rut: '8.260.364-6',
+  rut: '1.000.119-6',
   clinicalEpisodeId: '1001',
   admissionDate: '2026-10-01',
   admissionTime: '10:00',
@@ -361,7 +361,7 @@ describe('D-1 departure absent from both live census and bulk report', () => {
 -
 No de Pasaporte u otro documento
 1. Masculino
-8 2 6 0 3 6 4 6 54 IDENTIDAD DE GÉNERO 01
+1 0 0 0 1 1 9 6 54 IDENTIDAD DE GÉNERO 01
 24 INGRESO 1 0 - 0 0 0 1 - 1 0 - 2 6 Unidad
 29 EGRESO 0 0 - 1 7 0 2 - 1 0 - 2 6`);
     const mother = { ...patient, clinicalEpisodeId: '2002', patientName: 'Madre Sintética' };
@@ -489,7 +489,7 @@ it('uses preserved maternal identity and the exact PDF after the mother has alre
 -
 No de Pasaporte u otro documento
 1. Masculino
-8 2 6 0 3 6 4 6 54 IDENTIDAD DE GÉNERO 01
+1 0 0 0 1 1 9 6 54 IDENTIDAD DE GÉNERO 01
 24 INGRESO 1 0 - 0 0 0 1 - 1 0 - 2 6 Unidad
 29 EGRESO 0 0 - 1 9 0 2 - 1 0 - 2 6`);
   const { diff } = await prepare();
@@ -513,7 +513,7 @@ it('rejects a type-1 maternal report returned for a blank-RUN newborn', async ()
   };
   fetchStatisticalDischarge.mockResolvedValue({ base64: 'cGRm', error: undefined });
   extractText.mockResolvedValue(`1.RUN:
-8 2 6 0 3 6 4 - 6
+1 0 0 0 1 1 9 - 6
 24 INGRESO 1 0 - 0 0 0 1 - 1 0 - 2 6 Unidad
 29 EGRESO 0 0 - 1 9 0 2 - 1 0 - 2 6`);
   const { diff } = await prepare();

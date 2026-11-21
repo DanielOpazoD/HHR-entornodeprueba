@@ -33,7 +33,7 @@ describe('clinicalAttachmentUseCases', () => {
     const outcome = await executeUploadClinicalAttachment(
       {
         hospitalId: 'hhr',
-        patientRut: '13.545.665-9',
+        patientRut: '10.000.117-9',
         episodeKey: 'episode-1',
         file: new File([new Uint8Array(8)], 'informe.pdf', { type: 'application/pdf' }),
         actor,
@@ -58,7 +58,7 @@ describe('clinicalAttachmentUseCases', () => {
     const outcome = await executeUploadClinicalAttachment(
       {
         hospitalId: 'hhr',
-        patientRut: '13.545.665-9',
+        patientRut: '10.000.117-9',
         episodeKey: 'episode-1',
         file: new File([new Uint8Array(8)], 'informe.pdf', { type: 'application/pdf' }),
         actor,
@@ -88,7 +88,7 @@ describe('clinicalAttachmentUseCases', () => {
     const outcome = await executeUploadClinicalAttachment(
       {
         hospitalId: 'hhr',
-        patientRut: '13.545.665-9',
+        patientRut: '10.000.117-9',
         episodeKey: 'episode-1',
         file: originalFile,
         actor,
@@ -125,7 +125,7 @@ describe('clinicalAttachmentUseCases', () => {
     const outcome = await executeUploadClinicalAttachment(
       {
         hospitalId: 'hhr',
-        patientRut: '13.545.665-9',
+        patientRut: '10.000.117-9',
         episodeKey: 'episode-1',
         file: originalFile,
         actor,
@@ -161,7 +161,7 @@ describe('clinicalAttachmentUseCases', () => {
     ).resolves.toMatchObject({ status: 'success', data: [{ id: 'att_1' }] });
     await expect(
       executeListClinicalAttachmentsByPatient(
-        { patientRut: '13.545.665-9', hospitalId: 'hhr' },
+        { patientRut: '10.000.117-9', hospitalId: 'hhr' },
         { repository }
       )
     ).resolves.toMatchObject({ status: 'success', data: [{ id: 'att_1' }, { id: 'att_2' }] });

@@ -39,7 +39,7 @@ describe('previous clinical-day admission corrections', () => {
             bedId: 'R1',
             bedType: 'Básica',
             patientName: 'Paciente pendiente',
-            rut: '19.338.541-9',
+            rut: '10.000.120-9',
             diagnosis: '',
             time: '20:54',
             status: 'Vivo',
@@ -57,7 +57,7 @@ describe('previous clinical-day admission corrections', () => {
       discharges: [
         {
           bedId: 'R1',
-          rut: '19.338.541-9',
+          rut: '10.000.120-9',
           patientName: 'Paciente pendiente',
           kind: 'alta',
           status: 'Vivo',
@@ -87,7 +87,7 @@ describe('previous clinical-day admission corrections', () => {
               bedId: 'R1',
               bedType: 'Básica',
               patientName: 'Paciente pendiente',
-              rut: '19.338.541-9',
+              rut: '10.000.120-9',
               diagnosis: '',
               time: '20:54',
               status: 'Vivo',
@@ -105,7 +105,7 @@ describe('previous clinical-day admission corrections', () => {
         discharges: [
           {
             bedId: 'R1',
-            rut: '19.338.541-9',
+            rut: '10.000.120-9',
             patientName: 'Paciente pendiente',
             kind: 'alta',
             status: 'Vivo',
@@ -135,7 +135,7 @@ describe('previous clinical-day admission corrections', () => {
       expect.objectContaining({
         day: '2026-07-25',
         reason: 'admission-night-shift-correction',
-        patientNames: ['Maeva Elisabet Maria Tuki Garcia', 'RN de Maeva Tuki Garcia'],
+        patientNames: ['Miduc Enudovur Mopef Tinu Genavi', 'RN de Miduc Tinu Genavi'],
         recordExists: true,
         withinEditingWindow: true,
       }),
@@ -192,7 +192,7 @@ describe('previous clinical-day admission corrections', () => {
     expect(plan.edits).toEqual([
       expect.objectContaining({
         day: '2026-07-25',
-        patientNames: ['Maeva Elisabet Maria Tuki Garcia'],
+        patientNames: ['Miduc Enudovur Mopef Tinu Genavi'],
         admissionSubjects: [expect.objectContaining({ kind: 'principal' })],
       }),
     ]);
@@ -241,7 +241,7 @@ describe('previous clinical-day admission corrections', () => {
 
     expect(plan.edits).toEqual([
       expect.objectContaining({
-        patientNames: ['RN de Maeva Tuki Garcia'],
+        patientNames: ['RN de Miduc Tinu Genavi'],
         admissionSubjects: [expect.objectContaining({ kind: 'clinical-crib' })],
       }),
     ]);
@@ -387,7 +387,7 @@ describe('previous clinical-day admission corrections', () => {
 
     expect(plan.edits).toEqual([
       expect.objectContaining({
-        patientNames: ['Maeva Elisabet Maria Tuki Garcia'],
+        patientNames: ['Miduc Enudovur Mopef Tinu Genavi'],
         admissionSubjects: [expect.objectContaining({ kind: 'principal' })],
       }),
     ]);

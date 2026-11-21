@@ -35,7 +35,7 @@ const record = () =>
       }),
       R2: DataFactory.createMockPatient('R2', {
         patientName: 'Paciente Dos',
-        rut: '5.844.865-6',
+        rut: '1.000.105-6',
         clinicalEpisodeId: '102',
         admissionDate: DATE,
         admissionTime: '08:00',
@@ -53,7 +53,7 @@ const source = (encId: string) => ({
           id: encId,
           OBE_NOTES: `Ingreso de ${encId}`,
           HCPR_NAME: 'Médico',
-          HCP_FGN: encId === '101' ? 'Ana' : 'Luis',
+          HCP_FGN: encId === '101' ? 'Ana' : 'Legi',
           HCP_FFN: 'Prueba',
           OBE_PUBLISH_DATETIME: `${DATE}T08:10`,
         },
@@ -116,7 +116,7 @@ describe('admission audit administrator panel', () => {
     render(<AdmissionAuditView />);
     query();
     await screen.findByRole('button', { name: /Ana Prueba/ });
-    fireEvent.click(screen.getByRole('button', { name: /Luis Prueba/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Legi Prueba/ }));
     expect(screen.getByRole('heading', { name: 'Paciente Dos' })).toBeVisible();
     expect(screen.queryByRole('heading', { name: 'Paciente Uno' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Descargar libro HTML' }));

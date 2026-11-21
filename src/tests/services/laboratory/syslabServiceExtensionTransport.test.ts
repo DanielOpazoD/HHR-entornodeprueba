@@ -109,10 +109,10 @@ describe('Syslab service extension transport', () => {
     });
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
-    const result = await searchSyslabExams('14.470.055-4');
+    const result = await searchSyslabExams('10.000.131-4');
 
     expect(result.data[0].link).toBe(OPAQUE_LINK);
-    expect(bridgeMocks.search).toHaveBeenCalledWith('14.470.055-4');
+    expect(bridgeMocks.search).toHaveBeenCalledWith('10.000.131-4');
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -263,7 +263,7 @@ describe('Syslab service extension transport', () => {
   it('requires the extension when no explicit legacy proxy is configured', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
-    await expect(searchSyslabExams('14.470.055-4')).rejects.toThrow(
+    await expect(searchSyslabExams('10.000.131-4')).rejects.toThrow(
       'El acceso web directo a Syslab no está configurado'
     );
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -278,12 +278,12 @@ describe('Syslab service extension transport', () => {
       })
     );
 
-    await expect(searchSyslabExams('14.470.055-4')).resolves.toEqual({
+    await expect(searchSyslabExams('10.000.131-4')).resolves.toEqual({
       success: true,
       data: [],
     });
     expect(fetchSpy).toHaveBeenCalledWith(
-      '/.netlify/functions/syslab-proxy?action=search&rut=14470055',
+      '/.netlify/functions/syslab-proxy?action=search&rut=10000131',
       expect.any(Object)
     );
   });
@@ -297,7 +297,7 @@ describe('Syslab service extension transport', () => {
       })
     );
 
-    await expect(searchSyslabExams('14.470.055-4')).rejects.toThrow(
+    await expect(searchSyslabExams('10.000.131-4')).rejects.toThrow(
       'Syslab respondió con una página web en vez de datos'
     );
   });
@@ -314,7 +314,7 @@ describe('Syslab service extension transport', () => {
       )
     );
 
-    await expect(searchSyslabExams('14.470.055-4')).rejects.toThrow(
+    await expect(searchSyslabExams('10.000.131-4')).rejects.toThrow(
       'Syslab solicitó iniciar sesión'
     );
   });

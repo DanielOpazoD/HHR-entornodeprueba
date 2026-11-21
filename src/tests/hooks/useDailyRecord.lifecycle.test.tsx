@@ -29,11 +29,6 @@ const { mockDailyRecordPorts } = vi.hoisted(() => ({
     }),
     initializeDay: vi.fn().mockResolvedValue(null),
     deleteDay: vi.fn().mockResolvedValue(undefined),
-    syncWithFirestoreDetailed: vi.fn().mockResolvedValue({
-      date: '2025-01-01',
-      outcome: 'clean',
-      record: null,
-    }),
     getPreviousDay: vi.fn().mockResolvedValue(null),
     getAvailableDates: vi.fn().mockResolvedValue([]),
     getMonthRecords: vi.fn().mockResolvedValue([]),
@@ -64,9 +59,6 @@ vi.mock('@/application/ports/dailyRecordPort', () => ({
   defaultDailyRecordWritePort: {
     delete: mockDailyRecordPorts.delete,
   },
-  defaultDailyRecordSyncPort: {
-    syncWithFirestoreDetailed: mockDailyRecordPorts.syncWithFirestoreDetailed,
-  },
   defaultDailyRecordRepositoryPort: {
     getForDate: mockDailyRecordPorts.getForDate,
     getForDateWithMeta: mockDailyRecordPorts.getForDateWithMeta,
@@ -80,7 +72,6 @@ vi.mock('@/application/ports/dailyRecordPort', () => ({
     updatePartial: mockDailyRecordPorts.updatePartial,
     updatePartialDetailed: mockDailyRecordPorts.updatePartialDetailed,
     subscribeDetailed: vi.fn(() => vi.fn()),
-    syncWithFirestoreDetailed: mockDailyRecordPorts.syncWithFirestoreDetailed,
     deleteDay: mockDailyRecordPorts.delete,
     copyPatientToDateDetailed: mockDailyRecordPorts.copyPatientToDateDetailed,
   },

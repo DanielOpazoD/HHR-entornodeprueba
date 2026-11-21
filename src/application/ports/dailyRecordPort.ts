@@ -1,17 +1,14 @@
 import { authoredOptions, type PublicWriteOptions } from '@/services/storage/authoringSession';
 import { createRecoverableRuntimeLoader } from '@/services/runtime/createRecoverableRuntimeLoader';
-import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { CopyPatientToDateResult } from '@/services/repositories/dailyRecordRepositoryInitializationService';
-import type {
-  DailyRecordWriteResult,
-  SyncDailyRecordResult,
-} from '@/services/repositories/contracts/dailyRecordResults';
-import type {
-  DailyRecordReadResult,
-  LocalDailyRecordReadResult,
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
+import {
+  createUnavailableDailyRecordReadResult,
+  type DailyRecordReadResult,
+  type LocalDailyRecordReadResult,
 } from '@/services/repositories/contracts/dailyRecordQueries';
 import type {
   PartialUpdateDailyRecordOptions,
@@ -72,8 +69,8 @@ const withDeletionService = <T>(
 
 const createLazySubscription = (
   date: string,
-  callback: (result: SyncDailyRecordResult, hasPendingWrites: boolean) => void,
-  onFailure?: (result: SyncDailyRecordResult) => void
+  callback: (result: DailyRecordReadResult) => void,
+  onFailure?: (result: DailyRecordReadResult) => void
 ): (() => void) => {
   let active = true;
   let unsubscribe = () => {};
@@ -85,8 +82,8 @@ const createLazySubscription = (
       }
       unsubscribe = service.subscribeDetailed(
         date,
-        (result, pending) => {
-          if (active) callback(result, pending);
+        result => {
+          if (active) callback(result);
         },
         result => {
           if (active) onFailure?.(result);
@@ -94,15 +91,7 @@ const createLazySubscription = (
       );
     })
     .catch(() => {
-      if (active)
-        onFailure?.(
-          createSyncDailyRecordResult({
-            date,
-            outcome: 'blocked',
-            record: null,
-            retryability: 'manual_retry',
-          })
-        );
+      if (active) onFailure?.(createUnavailableDailyRecordReadResult(date));
     });
 
   return () => {
@@ -132,9 +121,6 @@ const saveDailyRecord = (
 const deleteDailyRecord = (date: string): Promise<void> =>
   withDeletionService(service => service.deleteDailyRecordAcrossStores(date));
 
-const syncDailyRecordWithFirestore = (date: string): Promise<SyncDailyRecordResult | null> =>
-  withSyncService(service => service.syncWithFirestoreDetailed(date));
-
 const adoptAuthoritativeDailyRecord = (
   record: DailyRecord,
   alreadyAppliedPatch?: DailyRecordPatch
@@ -163,10 +149,6 @@ export interface DailyRecordWritePort {
   delete: (date: string) => Promise<void>;
 }
 
-export interface DailyRecordSyncPort {
-  syncWithFirestoreDetailed: (date: string) => Promise<SyncDailyRecordResult | null>;
-}
-
 export type DailyRecordAnalysisPort = Pick<
   DailyRecordReadPort & DailyRecordWritePort,
   'getAvailableDates' | 'getForDate' | 'updatePartial'
@@ -176,8 +158,7 @@ export type DailyRecordAnalysisPort = Pick<
  * Canonical repository-shaped port for UI/runtime consumers that still expect a
  * single `dailyRecord` dependency instead of separate read/write/sync ports.
  */
-export interface DailyRecordRepositoryPort
-  extends DailyRecordReadPort, DailyRecordWritePort, DailyRecordSyncPort {
+export interface DailyRecordRepositoryPort extends DailyRecordReadPort, DailyRecordWritePort {
   /** Persist a record already confirmed by server authority without issuing another remote write. */
   adoptAuthoritativeRecord: (
     record: DailyRecord,
@@ -187,8 +168,8 @@ export interface DailyRecordRepositoryPort
   updatePartialDetailed: typeof updatePartialDailyRecord;
   subscribeDetailed: (
     date: string,
-    callback: (result: SyncDailyRecordResult, hasPendingWrites: boolean) => void,
-    onFailure?: (result: SyncDailyRecordResult) => void
+    callback: (result: DailyRecordReadResult) => void,
+    onFailure?: (result: DailyRecordReadResult) => void
   ) => () => void;
   deleteDay: (date: string) => Promise<void>;
   copyPatientToDateDetailed: (
@@ -227,10 +208,6 @@ export const defaultDailyRecordWritePort: DailyRecordWritePort = {
   delete: deleteDailyRecord,
 };
 
-export const defaultDailyRecordSyncPort: DailyRecordSyncPort = {
-  syncWithFirestoreDetailed: syncDailyRecordWithFirestore,
-};
-
 export const defaultDailyRecordAnalysisPort: DailyRecordAnalysisPort = {
   getAvailableDates: defaultDailyRecordReadPort.getAvailableDates,
   getForDate: defaultDailyRecordReadPort.getForDate,
@@ -240,7 +217,6 @@ export const defaultDailyRecordAnalysisPort: DailyRecordAnalysisPort = {
 export const defaultDailyRecordRepositoryPort: DailyRecordRepositoryPort = {
   ...defaultDailyRecordReadPort,
   ...defaultDailyRecordWritePort,
-  ...defaultDailyRecordSyncPort,
   adoptAuthoritativeRecord: adoptAuthoritativeDailyRecord,
   saveDetailed: saveDailyRecord,
   updatePartialDetailed: updatePartialDailyRecord,

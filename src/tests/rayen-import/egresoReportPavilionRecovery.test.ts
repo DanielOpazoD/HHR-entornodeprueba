@@ -40,7 +40,7 @@ const makeDiff = (over: Partial<CensusImportDiff> = {}): CensusImportDiff => ({
 });
 
 const reportRow = (bedLabel: string): EgresoReportRow => ({
-  run: '11.044.046-4',
+  run: '10.000.128-4',
   patientName: 'Paciente recuperación',
   bedLabel,
   servicio: 'Recuperación Pabellón',
@@ -54,7 +54,7 @@ const patient = (bedId: string): PatientData => ({
   ...EMPTY_PATIENT,
   bedId,
   patientName: 'Paciente existente',
-  rut: '18.384.545-4',
+  rut: '10.000.145-4',
 });
 
 describe('administrative egreso pavilion recovery policy', () => {

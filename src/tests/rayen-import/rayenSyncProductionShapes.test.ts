@@ -28,7 +28,7 @@ const DAY = '2026-11-07';
 
 const encounter = (overrides: Partial<RayenEncounter> & { encounterId: string }) =>
   ({
-    run: '144700554',
+    run: '100001314',
     firstGivenName: 'Paciente',
     firstFamilyName: 'Sintética',
     birthDate: '1990-01-01',
@@ -155,7 +155,7 @@ const recoverBedHistory = async (record: DailyRecord, episode: string, flowRepor
 
 describe('Eloísa sync, production shapes of 2026-11-02 to 2026-11-08', () => {
   describe('(a) a newborn admitted at birth, known only by its delivery-receipt folio', () => {
-    // Mother RUN 14.470.055-4. The folio 7906953 fails the RUT check digit.
+    // Mother RUN 10.000.131-4. The folio 7906953 fails the RUT check digit.
     const MOTHER = '920001';
     const NEWBORN = '920002';
     const FOLIO_SHAPES = ['7906953', '790.695-3'];
@@ -205,15 +205,15 @@ Sexo: Hombre Edad: 0 año(s)
       expectNoFolio(crib);
       expect(crib?.identityStatus).toBe('provisional');
       expect(saved.record.beds.H5C1?.clinicalEpisodeId).toBe(MOTHER);
-      expect(saved.record.beds.H5C1?.rut).toBe('14.470.055-4');
+      expect(saved.record.beds.H5C1?.rut).toBe('10.000.131-4');
 
       const history = await recoverBedHistory(saved.record, NEWBORN, birthReceiptFlowReport);
       expect(history.recover).toHaveBeenCalledWith(
         NEWBORN,
-        '144700554',
+        '100001314',
         NOW.toISOString(),
         'maternal',
-        '144700554'
+        '100001314'
       );
       // A failed read would surface as a `bed_history` coverage issue on the sync.
       expect(history.errors).toEqual([]);

@@ -9,6 +9,8 @@ import {
   resolveAddDischargeMovement,
   resolveAddTransferMovement,
 } from '@/features/census/controllers/patientMovementCreationController';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DischargeData } from '@/types/domain/movements';
 
 const expectAvailableCensusBed = (patient: PatientData): void => {
   expect(patient).toEqual(
@@ -348,10 +350,10 @@ describe('patientMovementCreationController', () => {
   it('returns discharge audit entries with enough movement metadata to reconstruct the daily discharge row', () => {
     const record = DataFactory.createMockDailyRecord('2025-01-01');
     record.beds.R1 = DataFactory.createMockPatient('R1', {
-      patientName: 'Bernardo Orrego Llanos',
-      rut: '17.274.300-5',
+      patientName: 'Budegutu Osimap Lupeba',
+      rut: '10.000.105-5',
       pathology: 'Neumonía adquirida en la comunidad',
-      clinicalEpisodeId: 'episode-bernardo',
+      clinicalEpisodeId: 'episode-budegutu',
     });
 
     const result = resolveAddDischargeMovement({
@@ -366,23 +368,23 @@ describe('patientMovementCreationController', () => {
       },
       bedsCatalog: BEDS,
       createEmptyPatient,
-      createId: () => 'discharge-bernardo',
+      createId: () => 'discharge-budegutu',
     });
 
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.auditEntries).toEqual([
         expect.objectContaining({
-          movementId: 'discharge-bernardo',
+          movementId: 'discharge-budegutu',
           bedId: 'R1',
-          patientName: 'Bernardo Orrego Llanos',
-          rut: '17.274.300-5',
+          patientName: 'Budegutu Osimap Lupeba',
+          rut: '10.000.105-5',
           status: 'Vivo',
           diagnosis: 'Neumonía adquirida en la comunidad',
           movementDate: '2025-01-02',
           time: '13:24',
           dischargeType: 'Domicilio (Habitual)',
-          clinicalEpisodeId: 'episode-bernardo',
+          clinicalEpisodeId: 'episode-budegutu',
         }),
       ]);
     }
@@ -415,5 +417,88 @@ describe('patientMovementCreationController', () => {
       expect(result.value.updatedRecord.transfers).toHaveLength(1);
       expect(result.value.updatedRecord.transfers[0].movementDate).toBe('2025-01-02');
     }
+  });
+
+  describe('mother and clinical crib leave together', () => {
+    const recordWithMotherAndCrib = (): DailyRecord => {
+      const record = DataFactory.createMockDailyRecord('2025-01-01');
+      record.beds.R1 = DataFactory.createMockPatient('R1', {
+        patientName: 'Madre Sintética',
+        rut: '12.345.678-5',
+        clinicalEpisodeId: 'ep-mother',
+        insurance: 'Fonasa',
+        origin: 'Residente',
+        isRapanui: true,
+        clinicalCrib: DataFactory.createMockPatient('R1', {
+          patientName: 'RN Sintético',
+          rut: '11.111.111-1',
+          clinicalEpisodeId: 'ep-baby',
+          insurance: 'Particular',
+          origin: 'Turista Nacional',
+          isRapanui: false,
+        }),
+      });
+      return record;
+    };
+
+    const dischargeBoth = (): {
+      record: DailyRecord;
+      mother: DischargeData;
+      crib: DischargeData;
+    } => {
+      const result = resolveAddDischargeMovement({
+        record: recordWithMotherAndCrib(),
+        bedId: 'R1',
+        payload: { status: 'Vivo', cribStatus: 'Vivo', time: '10:00', dischargeTarget: 'both' },
+        bedsCatalog: BEDS,
+        createEmptyPatient,
+        createId: (() => {
+          let n = 0;
+          return () => `id-${++n}`;
+        })(),
+      });
+      if (!result.ok) throw new Error(result.error.message);
+      const [mother, crib] = result.value.updatedRecord.discharges;
+      return { record: result.value.updatedRecord, mother, crib };
+    };
+
+    it('records the newborn as its own person, as Eloísa does', () => {
+      const { mother, crib } = dischargeBoth();
+
+      // As before: undoing the mother's manual discharge brings her crib back with her.
+      expect(mother.originalData?.clinicalCrib?.patientName).toBe('RN Sintético');
+      expect(crib).toMatchObject({
+        bedName: `${BEDS.find(bed => bed.id === 'R1')?.name} (Cuna RN)`,
+        bedType: 'Cuna',
+        isNested: true,
+        patientName: 'RN Sintético',
+        insurance: 'Particular',
+        origin: 'Turista Nacional',
+        isRapanui: false,
+      });
+    });
+
+    it('records the transferred newborn as its own person, mother copy unchanged', () => {
+      const result = resolveAddTransferMovement({
+        record: recordWithMotherAndCrib(),
+        bedId: 'R1',
+        payload: {
+          evacuationMethod: 'Ambulancia',
+          receivingCenter: 'Hospital Base',
+          receivingCenterOther: '',
+          transferEscort: '',
+          time: '10:00',
+        },
+        bedsCatalog: BEDS,
+        createEmptyPatient,
+      });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const [mother, crib] = result.value.updatedRecord.transfers;
+      expect(mother.originalData?.clinicalCrib?.patientName).toBe('RN Sintético');
+      expect(crib).toMatchObject({ bedType: 'Cuna', isNested: true, insurance: 'Particular' });
+      expect(crib.bedName.endsWith(' (Cuna RN)')).toBe(true);
+    });
   });
 });

@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import {
+  createDailyRecordReadResult,
+  createUnavailableDailyRecordReadResult,
+} from '@/services/repositories/contracts/dailyRecordQueries';
 
 vi.unmock('@/application/ports/dailyRecordPort');
 const date = '2026-11-10';
@@ -23,14 +26,7 @@ describe('lazy daily record subscription', () => {
     const stop = port.subscribeDetailed(date, callback, onFailure);
     await flush();
     expect(onFailure).toHaveBeenCalledTimes(1);
-    expect(onFailure).toHaveBeenCalledWith(
-      createSyncDailyRecordResult({
-        date,
-        outcome: 'blocked',
-        record: null,
-        retryability: 'manual_retry',
-      })
-    );
+    expect(onFailure).toHaveBeenCalledWith(createUnavailableDailyRecordReadResult(date));
     expect(callback).not.toHaveBeenCalled();
     expect(() => stop()).not.toThrow();
   });
@@ -52,10 +48,10 @@ describe('lazy daily record subscription', () => {
       expect.any(Function),
       expect.any(Function)
     );
-    const result = createSyncDailyRecordResult({ date, outcome: 'clean', record: null });
-    subscribeDetailed.mock.calls[0]?.[1]?.(result, false);
+    const result = createDailyRecordReadResult(date, null, 'not_found');
+    subscribeDetailed.mock.calls[0]?.[1]?.(result);
     subscribeDetailed.mock.calls[0]?.[2]?.(result);
-    expect(callback).toHaveBeenCalledWith(result, false);
+    expect(callback).toHaveBeenCalledWith(result);
     expect(onFailure).toHaveBeenCalledWith(result);
   });
 
@@ -103,8 +99,8 @@ describe('lazy daily record subscription', () => {
     const stop = port.subscribeDetailed(date, callback, onFailure);
     await flush();
     stop();
-    const result = createSyncDailyRecordResult({ date, outcome: 'clean', record: null });
-    subscribeDetailed.mock.calls[0]?.[1](result, false);
+    const result = createDailyRecordReadResult(date, null, 'not_found');
+    subscribeDetailed.mock.calls[0]?.[1](result);
     subscribeDetailed.mock.calls[0]?.[2]?.(result);
     expect(callback).not.toHaveBeenCalled();
     expect(onFailure).not.toHaveBeenCalled();

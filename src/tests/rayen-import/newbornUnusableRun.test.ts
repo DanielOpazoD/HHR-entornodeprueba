@@ -15,7 +15,7 @@ const REFERENCE = new Date('2026-11-07T08:30:00-06:00');
 
 const mother = (): RayenEncounter => ({
   encounterId: 'MOTHER',
-  run: '144700554',
+  run: '100001314',
   firstGivenName: 'Ana',
   firstFamilyName: 'Perez',
   birthDate: '1990-01-01',

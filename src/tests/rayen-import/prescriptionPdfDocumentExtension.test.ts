@@ -81,8 +81,8 @@ describe('extension prescription operations', () => {
     const buffer = prescriptionPdf.generateProfessionalPrescriptionPdf(
       {
         patient: {
-          name: 'Kevin Villagran Iturra',
-          run: '20.189.620-7',
+          name: 'Kisib Vodamavit Ivorut',
+          run: '10.000.118-7',
           sex: 'Masculino',
           age: '35 años, 11 meses, 29 días',
           bed: 'R3',
@@ -149,7 +149,7 @@ describe('extension prescription operations', () => {
     const second = prescriptionPdf.generateProfessionalPrescriptionPdf(
       {
         patient: { name: 'Paciente dos' },
-        professional: 'Daniel Opazo',
+        professional: 'Degaro Opisu',
         validationDate: '2026-07-15',
         emissionDateTime: '15-07-2026 08:10',
         medications: [{ medication: 'Losartán', posology: '1 al día' }],

@@ -49,16 +49,16 @@ describe('daily record census incident regression', () => {
       })
     );
 
-    const bernardo = {
+    const budegutu = {
       ...createEmptyPatient('H2C2'),
-      patientName: 'Bernardo Orrego Llanos',
-      rut: '17.274.300-5',
+      patientName: 'Budegutu Osimap Lupeba',
+      rut: '10.000.105-5',
       pathology: 'Diagnóstico de egreso',
       admissionDate: '2026-06-28',
       location: 'Sala Hospitalizados',
     };
     const { discharges } = buildDischargeEntries({
-      patient: bernardo,
+      patient: budegutu,
       bedId: 'H2C2',
       payload: {
         status: 'Vivo',
@@ -67,7 +67,7 @@ describe('daily record census incident regression', () => {
         dischargeTarget: 'mother',
       },
       resolvedMovementDate: '2026-07-01',
-      createId: () => 'discharge-bernardo-2026-07-01',
+      createId: () => 'discharge-budegutu-2026-07-01',
     });
 
     const remote = makeRecord('2026-07-01T13:30:00.000Z');
@@ -80,9 +80,9 @@ describe('daily record census incident regression', () => {
     expect(resolved.discharges).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: 'discharge-bernardo-2026-07-01',
-          patientName: 'Bernardo Orrego Llanos',
-          rut: '17.274.300-5',
+          id: 'discharge-budegutu-2026-07-01',
+          patientName: 'Budegutu Osimap Lupeba',
+          rut: '10.000.105-5',
           diagnosis: 'Diagnóstico de egreso',
         }),
       ])

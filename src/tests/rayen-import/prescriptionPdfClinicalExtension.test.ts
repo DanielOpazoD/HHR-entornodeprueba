@@ -41,7 +41,7 @@ describe('extension prescription operations', () => {
           patients: [
             {
               name: 'Paciente de prueba',
-              run: '8.932.066-6',
+              run: '1.000.122-6',
               bed: 'H6C1',
               braden: {
                 total: 12,
@@ -132,7 +132,7 @@ describe('extension prescription operations', () => {
           patients: [
             {
               name: 'Paciente de prueba',
-              run: '8.932.066-6',
+              run: '1.000.122-6',
               service: 'AMQI',
               room: 'H6',
               bed: 'H6C1',

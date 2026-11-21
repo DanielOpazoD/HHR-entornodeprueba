@@ -23,7 +23,7 @@ export const [patient, otherPatient] = listClinicalExplorerPatients({
     }),
     R2: DataFactory.createMockPatient('R2', {
       patientName: 'OTRO SINTÉTICO',
-      rut: '5.844.865-6',
+      rut: '1.000.105-6',
       clinicalEpisodeId: 'ep-2',
       admissionDate: '2026-11-03',
     }),

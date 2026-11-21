@@ -34,7 +34,7 @@ const makeRecord = (beds: Record<string, PatientData>): DailyRecord => ({
 
 const enc = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => ({
   encounterId: 'E1',
-  run: '144700554',
+  run: '100001314',
   firstGivenName: 'Ana',
   firstFamilyName: 'Perez',
   birthDate: '1980-01-01',
@@ -57,7 +57,7 @@ describe('produced DailyRecord validity (fix #2)', () => {
     const encA = enc();
     const encB = enc({
       encounterId: 'ECMA',
-      run: '89320666',
+      run: '10001226',
       firstGivenName: 'Ines',
       firstFamilyName: 'Leiva',
       service: 'Área quirúrgica indiferenciada',

@@ -8,19 +8,19 @@ import {
 describe('searchMasterPatientsContracts', () => {
   it('trims search terms and preserves valid limits', () => {
     const result = normalizeSearchMasterPatientsInput({
-      searchTerm: '  ines leiva  ',
+      searchTerm: '  isut litus  ',
       limitCount: 25,
     });
 
     expect(result).toEqual({
-      searchTerm: 'ines leiva',
+      searchTerm: 'isut litus',
       limitCount: 25,
     });
   });
 
   it('falls back to default limit when limit is not finite', () => {
     const result = normalizeSearchMasterPatientsInput({
-      searchTerm: 'ines',
+      searchTerm: 'isut',
       limitCount: Number.NaN,
     });
 
@@ -30,14 +30,14 @@ describe('searchMasterPatientsContracts', () => {
   it('clamps limits into supported bounds', () => {
     expect(
       normalizeSearchMasterPatientsInput({
-        searchTerm: 'ines',
+        searchTerm: 'isut',
         limitCount: -5,
       }).limitCount
     ).toBe(1);
 
     expect(
       normalizeSearchMasterPatientsInput({
-        searchTerm: 'ines',
+        searchTerm: 'isut',
         limitCount: 9999,
       }).limitCount
     ).toBe(100);

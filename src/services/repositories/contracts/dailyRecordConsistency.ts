@@ -22,14 +22,6 @@ export type DailyRecordReadConsistencyState =
   | 'missing'
   | 'unavailable';
 
-export type DailyRecordSyncConsistencyState =
-  | 'up_to_date'
-  | 'remote_applied'
-  | 'local_kept'
-  | 'conflict_auto_merged'
-  | 'missing_remote'
-  | 'blocked';
-
 export type DailyRecordConflictKind =
   | 'remote_missing'
   | 'remote_unavailable'

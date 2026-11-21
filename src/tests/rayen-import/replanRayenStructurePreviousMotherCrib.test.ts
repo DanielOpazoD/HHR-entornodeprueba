@@ -12,12 +12,12 @@ import { replanRayenStructure } from '@/features/rayen-import/hooks/replanRayenS
 
 const TODAY = '2026-09-13';
 const YESTERDAY = '2026-09-12';
-const RUN = '28.106.852-0';
+const RUN = '10.000.116-0';
 
 const mother: PatientData = {
   ...EMPTY_PATIENT,
   bedId: 'H5C1',
-  patientName: 'Tania Cristina Valencia Ladino',
+  patientName: 'Torol Corivama Vovipevi Linava',
   rut: RUN,
   clinicalEpisodeId: '1001',
   admissionDate: YESTERDAY,
@@ -26,7 +26,7 @@ const mother: PatientData = {
     ...EMPTY_PATIENT,
     bedId: 'H5C1',
     bedMode: 'Cuna',
-    patientName: 'Rn De Tania Valencia Ladino',
+    patientName: 'Rn De Torol Vovipevi Linava',
     rut: RUN,
     clinicalEpisodeId: '1002',
     admissionDate: YESTERDAY,

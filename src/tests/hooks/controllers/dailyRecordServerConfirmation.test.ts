@@ -80,8 +80,8 @@ const openSubscription = () => {
     {
       getForDateWithMeta: vi.fn(),
       subscribeDetailed: (requestedDate, callback) =>
-        subscribeDetailed(requestedDate, (result, pending) => {
-          callback(result, pending);
+        subscribeDetailed(requestedDate, result => {
+          callback(result);
           delivered();
         }),
     },
@@ -94,10 +94,12 @@ const openSubscription = () => {
   });
   return {
     read: () => client.getQueryData<DailyRecordQueryResult>(getDailyRecordQueryKey(date)),
+    // A snapshot of this tab's own pending writes is never resolved, so nothing is delivered.
     emit: (...args: Parameters<typeof sdkEmit>) =>
       new Promise<void>(resolve => {
         delivered = resolve;
         sdkEmit(...args);
+        if (args[1]) setTimeout(resolve, 20);
       }),
   };
 };
