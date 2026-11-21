@@ -1,9 +1,6 @@
-import { cudyrReportIsVerified } from '@/services/cudyr/cudyrReportCache';
 import { monthlyRecoveryWindow } from '@/features/cudyr/recovery/cudyrMonthlyRecoveryPlan';
 import { CudyrNightStaff } from './CudyrNightStaff';
 import { CudyrExclusionSummary } from './CudyrExclusionSummary';
-import { cudyrCensusAccepted } from '@/services/cudyr/cudyrCensusApproval';
-import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { lazy, Suspense, useState } from 'react';
 import {
   ArrowLeft,
@@ -19,8 +16,10 @@ import { useAuth } from '@/context/AuthContext';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
 import { canCorrectCudyrDischarge } from '@/shared/access/operationalAccessPolicy';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
-import { cudyrArchiveCoverage } from '@/services/cudyr/cudyrArchiveCoverage';
-import { cudyrReportTotals } from '@/services/cudyr/cudyrReportModel';
+import {
+  buildCudyrRecordVersion,
+  buildCudyrViewModel,
+} from '../controllers/cudyrViewModelController';
 import { useCudyrReport } from '../hooks/useCudyrReport';
 import { CudyrArchiveStatus } from './CudyrArchiveStatus';
 import { CudyrMonthlyRecovery } from './CudyrMonthlyRecovery';
@@ -44,15 +43,7 @@ export const CudyrView = ({
   const { data, busy, error, load } = useCudyrReport(
     date,
     undefined,
-    {
-      date,
-      version:
-        record?.date === date
-          ? `present:${record.lastUpdated || ''}:${record.rayenSync?.at || ''}:${record.cudyrUpdatedAt || ''}`
-          : !record && bootstrapPhase === 'confirmed_empty'
-            ? 'missing'
-            : '',
-    },
+    buildCudyrRecordVersion({ date, record, bootstrapPhase }),
     true
   );
   const [exploring, setExploring] = useState(false);
@@ -60,53 +51,28 @@ export const CudyrView = ({
   const [filter, setFilter] = useState('all');
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState('');
-  const rows = data?.rows.filter(row => row.date === date && !row.resolvedSystemDeparture) || [];
-  const visible = rows.filter(row => filter === 'all' || row.eligibility === filter);
-  const totals = cudyrReportTotals(data?.rows || []);
-  const asOf = data?.generatedAt ? new Date(data.generatedAt) : new Date();
-  const archiveDays = data ? cudyrArchiveCoverage(data, asOf) : [];
-  const archivePending = archiveDays.filter(day => day.state === 'pending').length;
-  const censusPending = archiveDays.filter(
-    day =>
-      day.state !== 'open' && !cudyrCensusAccepted(data?.coverage.find(d => d.date === day.date))
-  ).length;
-  const dayPending = resolveCudyrPendingStatus(date, asOf).phase !== 'overdue';
-  const dayHasEnded = date < getClinicalCalendarDateISO(asOf);
-  const daily = cudyrReportTotals(rows, { includePendingApplication: dayHasEnded });
-  const dailyProvisional =
-    dayHasEnded &&
-    Boolean(
-      dayPending ||
-      !cudyrCensusAccepted(data?.coverage.find(day => day.date === date)) ||
-      archiveDays.find(day => day.date === date)?.state === 'pending' ||
-      daily.review ||
-      data?.issues.length ||
-      data?.coverage.find(day => day.date === date)?.state !== 'disponible'
-    );
-  const evaluatedCoverage =
-    data?.coverage.filter(day => resolveCudyrPendingStatus(day.date, asOf).phase === 'overdue') ||
-    [];
-  const lastEvaluated = evaluatedCoverage.at(-1)?.date;
-  const dailyPercentage =
-    dayHasEnded && daily.eligible
-      ? Math.round((100 * daily.categorized) / daily.eligible) + '%'
-      : '—';
-  const percentage = totals.eligible
-    ? Math.round((100 * totals.categorized) / totals.eligible) + '%'
-    : '—';
-  const partial = Boolean(
-    data &&
-    (archivePending ||
-      censusPending ||
-      data.issues.length ||
-      evaluatedCoverage.some(day => day.state !== 'disponible') ||
-      totals.review)
-  );
-  const canExport = cudyrReportIsVerified(data, busy, error, evaluatedCoverage);
-  const selectedRow =
-    !busy &&
-    !data?.readViewSnapshot &&
-    data?.rows.find(row => row.key === selected && row.date === date);
+  const {
+    visibleRows,
+    totals,
+    daily,
+    dayPending,
+    dayHasEnded,
+    dailyProvisional,
+    lastEvaluated,
+    dailyPercentage,
+    percentage,
+    partial,
+    isOfficialRepaired,
+    canExport,
+    selectedRow,
+  } = buildCudyrViewModel({
+    data,
+    date,
+    filter,
+    selectedRowKey: selected,
+    busy,
+    error,
+  });
   const refresh = (reuseConfirmedRecovery = false) => {
     setSelected('');
     setExportError('');
@@ -228,9 +194,7 @@ export const CudyrView = ({
             <p className="text-xs text-slate-500">Cumplimiento acumulado · {date.slice(0, 7)}</p>
             <p className="text-xl font-semibold tabular-nums text-slate-800">
               {busy && !data ? '…' : percentage}
-              {!partial &&
-              data?.coverage.length &&
-              data.coverage.every(d => d.reconstructionApproval) ? (
+              {isOfficialRepaired ? (
                 <span className="ml-2 rounded bg-teal-50 px-1.5 py-0.5 align-middle text-[10px] font-medium text-teal-800">
                   Oficial · reparado
                 </span>
@@ -312,7 +276,7 @@ export const CudyrView = ({
           Leyendo información guardada en HHR…
         </p>
       ) : (
-        data && <CudyrDailyTable rows={visible} onReview={setSelected} />
+        data && <CudyrDailyTable rows={visibleRows} onReview={setSelected} />
       )}
       <footer className="flex flex-wrap items-start gap-x-5 gap-y-2 text-[11px] text-slate-500">
         <ul className="flex flex-wrap gap-x-5 gap-y-1">
