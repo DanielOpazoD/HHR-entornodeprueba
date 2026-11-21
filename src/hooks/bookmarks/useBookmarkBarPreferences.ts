@@ -8,7 +8,7 @@ import {
   BookmarkBarAlignment,
   clampBookmarkBarOffset,
   resolveBookmarkBarAlignmentClass,
-} from '@/components/bookmarks/controllers/bookmarkBarPreferencesController';
+} from '@/hooks/bookmarks/bookmarkBarPreferencesController';
 
 const SAVE_DEBOUNCE_MS = 500;
 

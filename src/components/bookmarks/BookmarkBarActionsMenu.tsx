@@ -10,7 +10,7 @@ import {
   SlidersHorizontal,
   Upload,
 } from 'lucide-react';
-import type { BookmarkBarAlignment } from '@/components/bookmarks/controllers/bookmarkBarPreferencesController';
+import type { BookmarkBarAlignment } from '@/hooks/bookmarks/bookmarkBarPreferencesController';
 
 interface BookmarkBarActionsMenuProps {
   bookmarksCount: number;

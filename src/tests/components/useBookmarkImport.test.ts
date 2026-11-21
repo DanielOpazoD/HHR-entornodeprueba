@@ -21,7 +21,7 @@ vi.mock('@/shared/runtime/browserWindowRuntimeCore', async () => {
   };
 });
 
-import { useBookmarkImport } from '@/components/bookmarks/hooks/useBookmarkImport';
+import { useBookmarkImport } from '@/hooks/bookmarks/useBookmarkImport';
 
 describe('useBookmarkImport', () => {
   beforeEach(() => {

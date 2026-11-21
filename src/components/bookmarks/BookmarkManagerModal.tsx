@@ -3,7 +3,7 @@ import { Bookmark } from '@/types/bookmarks';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import { ChevronUp, ChevronDown, Trash2, Edit2, GripVertical, Save } from 'lucide-react';
-import { reorderBookmarks, deleteBookmark } from '@/services/bookmarks/bookmarkService';
+import { useBookmarkManagerActions } from '@/hooks/bookmarks/useBookmarkManagerActions';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import { bookmarkLogger } from '@/services/bookmarks/bookmarkLoggers';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
@@ -21,6 +21,7 @@ export const BookmarkManagerModal: React.FC<BookmarkManagerModalProps> = ({
   bookmarks: initialBookmarks,
   onEdit,
 }) => {
+  const { saveBookmarkOrder, removeBookmark } = useBookmarkManagerActions();
   const [localBookmarks, setLocalBookmarks] = useState<Bookmark[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -47,7 +48,7 @@ export const BookmarkManagerModal: React.FC<BookmarkManagerModalProps> = ({
   const handleSaveOrder = async () => {
     setIsSaving(true);
     try {
-      await reorderBookmarks(localBookmarks);
+      await saveBookmarkOrder(localBookmarks);
       setHasChanges(false);
       onClose();
     } catch (error) {
@@ -60,7 +61,7 @@ export const BookmarkManagerModal: React.FC<BookmarkManagerModalProps> = ({
 
   const handleDelete = async (id: string) => {
     if (defaultBrowserWindowRuntime.confirm('¿Eliminar este marcador?')) {
-      await deleteBookmark(id);
+      await removeBookmark(id);
     }
   };
 

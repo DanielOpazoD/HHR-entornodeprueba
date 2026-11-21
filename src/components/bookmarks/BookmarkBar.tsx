@@ -1,21 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Bookmark, BookmarkInput } from '@/types/bookmarks';
-import {
-  subscribeToBookmarks,
-  addBookmark,
-  updateBookmark,
-  exportBookmarksToJson,
-} from '@/services/bookmarks/bookmarkService';
 import { Plus, Edit2 } from 'lucide-react';
 import { BookmarkEditorModal } from './BookmarkEditorModal';
 import { BookmarkManagerModal } from './BookmarkManagerModal';
 import { BookmarkBarActionsMenu } from './BookmarkBarActionsMenu';
 import clsx from 'clsx';
-import { useBookmarkBarPreferences } from '@/components/bookmarks/hooks/useBookmarkBarPreferences';
-import { useBookmarkImport } from '@/components/bookmarks/hooks/useBookmarkImport';
+import { useBookmarks } from '@/hooks/bookmarks/useBookmarks';
+import { useBookmarkBarPreferences } from '@/hooks/bookmarks/useBookmarkBarPreferences';
+import { useBookmarkImport } from '@/hooks/bookmarks/useBookmarkImport';
 
 export const BookmarkBar: React.FC = () => {
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const { bookmarks, saveBookmark, exportBookmarks } = useBookmarks();
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isManagerOpen, setIsManagerOpen] = useState(false);
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | undefined>();
@@ -30,18 +25,8 @@ export const BookmarkBar: React.FC = () => {
   } = useBookmarkBarPreferences();
   const { fileInputRef, handleFileChange, openFilePicker } = useBookmarkImport();
 
-  // Subscribe to bookmarks
-  useEffect(() => {
-    const unsubscribe = subscribeToBookmarks(setBookmarks);
-    return () => unsubscribe();
-  }, []);
-
   const handleSave = async (input: BookmarkInput) => {
-    if (editingBookmark) {
-      await updateBookmark(editingBookmark.id, input);
-    } else {
-      await addBookmark(input, bookmarks.length);
-    }
+    await saveBookmark(input, editingBookmark);
   };
 
   const handleEdit = (bookmark: Bookmark) => {
@@ -121,7 +106,7 @@ export const BookmarkBar: React.FC = () => {
           }}
           onImport={openFilePicker}
           onExport={() => {
-            exportBookmarksToJson();
+            exportBookmarks();
             setIsActionsMenuOpen(false);
           }}
           onAlignmentChange={setAlignmentPreference}

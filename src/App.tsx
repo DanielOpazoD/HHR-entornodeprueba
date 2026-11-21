@@ -8,6 +8,8 @@ import React from 'react';
 import { FunctionsRecovery } from '@/components/ui/FunctionsRecovery';
 import { LoginPage } from '@/features/auth/public';
 import { GlobalErrorBoundary } from '@/components/shared/GlobalErrorBoundary';
+// Initialize errorService so global window handlers and the ErrorBoundary crash sink are active.
+import '@/services/utils/errorService';
 import { VersionProvider } from '@/context/VersionContext';
 import { VersionMismatchOverlay } from '@/components/shared/VersionMismatchOverlay';
 import {

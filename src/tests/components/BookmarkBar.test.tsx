@@ -16,7 +16,7 @@ vi.mock('@/services/bookmarks/bookmarkService', () => ({
   exportBookmarksToJson: (...args: unknown[]) => mockExportBookmarksToJson(...args),
 }));
 
-vi.mock('@/components/bookmarks/hooks/useBookmarkBarPreferences', () => ({
+vi.mock('@/hooks/bookmarks/useBookmarkBarPreferences', () => ({
   useBookmarkBarPreferences: () => ({
     alignment: 'left',
     customOffset: 50,
@@ -27,7 +27,7 @@ vi.mock('@/components/bookmarks/hooks/useBookmarkBarPreferences', () => ({
   }),
 }));
 
-vi.mock('@/components/bookmarks/hooks/useBookmarkImport', () => ({
+vi.mock('@/hooks/bookmarks/useBookmarkImport', () => ({
   useBookmarkImport: () => ({
     fileInputRef: { current: null },
     handleFileChange: mockHandleFileChange,

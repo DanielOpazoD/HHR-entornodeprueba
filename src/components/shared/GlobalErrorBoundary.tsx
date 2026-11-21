@@ -1,6 +1,9 @@
 import React, { Component, ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { errorService } from '@/services/utils/errorService';
+import {
+  reportRenderCrash,
+  type RenderCrashReporter,
+} from '@/shared/observability/renderCrashReporter';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import {
   getNavigatorUserAgent,
@@ -13,6 +16,7 @@ const logger = createScopedLogger('GlobalErrorBoundary');
 interface Props {
   children: ReactNode;
   fallbackComponent?: ReactNode;
+  onError?: RenderCrashReporter;
 }
 
 interface State {
@@ -40,18 +44,11 @@ export class GlobalErrorBoundary extends Component<Props, State> {
   }
 
   override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Log error to error service
-    errorService.logError({
-      // `${error}` keeps the class (`TypeError: …`), which telemetry reports as a code.
-      message: `React Error Boundary: ${error}`,
-      severity: 'critical',
-      error,
-      stack: errorInfo.componentStack || undefined,
-      context: {
-        componentStack: errorInfo.componentStack || undefined,
-        errorInfo,
-      },
-    });
+    if (this.props.onError) {
+      this.props.onError(error, errorInfo);
+    } else {
+      reportRenderCrash(error, errorInfo);
+    }
 
     this.setState({
       error,

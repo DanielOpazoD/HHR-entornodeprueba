@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   clampBookmarkBarOffset,
   resolveBookmarkBarAlignmentClass,
-} from '@/components/bookmarks/controllers/bookmarkBarPreferencesController';
+} from '@/hooks/bookmarks/bookmarkBarPreferencesController';
 
 describe('bookmarkBarPreferencesController', () => {
   it('resolves alignment classes', () => {
