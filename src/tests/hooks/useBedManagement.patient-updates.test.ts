@@ -250,8 +250,10 @@ describe('useBedManagement patient updates', () => {
   });
 
   describe('clinical crib helpers', () => {
-    it('handles updateClinicalCrib create', () => {
-      const record = createMockRecord({ R1: createMockPatient('R1') });
+    it('creates the newborn as its own person: no maternal RUN and its own episode (ID-03)', () => {
+      const record = createMockRecord({
+        R1: createMockPatient('R1', { clinicalEpisodeId: 'ep_mother' }),
+      });
       const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       act(() => {
@@ -264,10 +266,16 @@ describe('useBedManagement patient updates', () => {
             bedMode: 'Cuna',
             patientName: 'RN de Test Patient',
             identityStatus: 'provisional',
+            rut: '',
+            clinicalEpisodeId: expect.stringMatching(/^ep_/),
           }),
         }),
         expect.objectContaining({ clinicalCribCreate: expect.objectContaining({ bedId: 'R1' }) })
       );
+      const crib = vi.mocked(mockPatchRecord).mock.calls[0][0][
+        'beds.R1.clinicalCrib'
+      ] as PatientData;
+      expect(crib.clinicalEpisodeId).not.toBe('ep_mother');
     });
 
     it('updates multiple clinical crib fields', () => {
