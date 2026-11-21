@@ -14,6 +14,7 @@ import { DailyRecordFreshnessGateError } from '@/hooks/controllers/dailyRecordFr
 import { applyDailyRecordRemoteConfirmation } from '@/hooks/controllers/dailyRecordRemoteConfirmationController';
 import { didDailyRecordFreshnessHydrateNewerRemote } from '@/hooks/controllers/dailyRecordFreshnessHydrationController';
 import { retainedPointReadPublication } from '@/hooks/controllers/dailyRecordPointReadPublication';
+import { isServerConfirmedRead } from '@/hooks/controllers/dailyRecordQueryResultPrecedence';
 
 export { DailyRecordFreshnessGateError } from '@/hooks/controllers/dailyRecordFreshnessGateError';
 
@@ -202,10 +203,6 @@ const requiresRemoteFreshness = (date: string): boolean => {
   return state.confirmedResumeEpoch !== resumeEpoch;
 };
 
-const isRemoteUnavailableRead = (result: DailyRecordQueryResult): boolean =>
-  result.runtime.consistencyState === 'unavailable' ||
-  result.runtime.conflictSummary?.kind === 'remote_unavailable';
-
 export const ensureDailyRecordRemoteFreshness = ({
   date,
   queryClient,
@@ -275,11 +272,7 @@ export const ensureDailyRecordRemoteFreshness = ({
         !requiresRemoteFreshness(date) &&
         typeof state.lastRemoteConfirmedAt === 'number' &&
         getNow() - state.lastRemoteConfirmedAt < DAILY_RECORD_RESUME_STALE_THRESHOLD_MS;
-      if (
-        !result.runtime.serverConfirmed ||
-        isRemoteUnavailableRead(result) ||
-        (retained && !retainsFreshConfirmation)
-      ) {
+      if (!isServerConfirmedRead(result) || (retained && !retainsFreshConfirmation)) {
         setFreshnessStatus(state, 'blocked_until_remote_check');
         const blockedForMs = recordClinicalInputsBlockFailed(
           date,

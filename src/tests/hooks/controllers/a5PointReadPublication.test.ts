@@ -12,6 +12,7 @@ import {
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import {
+  applyPendingExplicitCensusPatch,
   registerPendingDailyRecordPatch,
   clearPendingDailyRecordPatchesForTests,
 } from '@/hooks/controllers/dailyRecordPendingPatchController';
@@ -63,3 +64,22 @@ it('reapplies a patch only to publication and confirms the pure observation', as
   expect(record).toEqual(original);
   expect(confirm).toHaveBeenCalledWith(result);
 });
+it.each([true, false])(
+  'a server-confirmed read that holds a pending edit releases it (confirmed %s)',
+  serverConfirmed => {
+    const base = DataFactory.createMockDailyRecord(date, {
+      beds: { R1: DataFactory.createMockPatient('R1', { clinicalEpisodeId: 'ep_synthetic' }) },
+    });
+    const server = structuredClone(base);
+    server.beds.R1.pathology = 'Synthetic saved edit';
+    registerPendingDailyRecordPatch(date, { 'beds.R1.pathology': 'Synthetic saved edit' });
+    const previous = createDailyRecordQueryResult(base, { ...runtime, serverConfirmed: false });
+    const result = createDailyRecordQueryResult(server, { ...runtime, serverConfirmed });
+    const incoming = createPointReadPublication(result, previous, () => previous, vi.fn(), true);
+    publishDailyRecordQueryData(previous, incoming);
+    // A later copy without the edit only shows it again while the edit is still pending.
+    expect(applyPendingExplicitCensusPatch(date, base, server).beds.R1.pathology).toBe(
+      serverConfirmed ? base.beds.R1.pathology : 'Synthetic saved edit'
+    );
+  }
+);
