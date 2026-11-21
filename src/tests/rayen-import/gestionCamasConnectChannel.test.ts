@@ -26,12 +26,14 @@ describe('gestionCamasConnectChannel', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: { type: RAYEN_GC_CONNECT_RESULT_TYPE, reqId: `${payload.reqId}-otro`, ok: false },
       })
     );
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: { type: RAYEN_GC_CONNECT_RESULT_TYPE, reqId: payload.reqId, ok: true },
       })
     );
@@ -46,6 +48,7 @@ describe('gestionCamasConnectChannel', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: {
           type: RAYEN_GC_CONNECT_RESULT_TYPE,
           reqId: payload.reqId,

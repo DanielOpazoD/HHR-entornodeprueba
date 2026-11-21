@@ -28,6 +28,7 @@ describe('encounterNavigationBridge', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: {
           type: RAYEN_OPEN_ENCOUNTER_RESULT_TYPE,
           reqId: payload.reqId,
@@ -52,6 +53,7 @@ describe('encounterNavigationBridge', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: {
           type: RAYEN_OPEN_ENCOUNTER_RESULT_TYPE,
           reqId: payload.reqId,

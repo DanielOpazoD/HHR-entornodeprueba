@@ -1,5 +1,6 @@
 /** Privacy-preserving bridge for official Eloisa hospitalization reports. */
 
+import { requestViaBridgeChannel } from '@/services/transport/extensionRequestChannel';
 import { hasNonRutLetter, normalizeRut } from '@/utils/rutUtils';
 
 export const RAYEN_HOSPITALIZATION_REPORT_REQUEST_TYPE = 'HHR_RAYEN_EPICRISIS_DOWNLOAD_REQUEST';
@@ -63,76 +64,50 @@ const parseEpisode = (value: unknown): RayenHospitalizationEpisode | null => {
 const requestHospitalizationReport = (
   request: RayenHospitalizationReportRequest,
   timeoutMs: number
-): Promise<RayenHospitalizationReportResult> =>
-  new Promise(resolve => {
-    const patientRun = hasNonRutLetter(request.patientRun) ? '' : normalizeRut(request.patientRun);
-    const clinicalEpisodeId = request.clinicalEpisodeId?.trim() || '';
-    const hasValidRun = /^[0-9]{6,8}[0-9K]$/.test(patientRun);
-    const hasValidEpisode = /^\d+$/.test(clinicalEpisodeId);
-    if (typeof window === 'undefined' || (!hasValidRun && !hasValidEpisode)) {
-      resolve({
-        ok: false,
-        error: 'El paciente no tiene un RUN ni un episodio válido para buscar informes.',
-      });
-      return;
-    }
+): Promise<RayenHospitalizationReportResult> => {
+  const patientRun = hasNonRutLetter(request.patientRun) ? '' : normalizeRut(request.patientRun);
+  const clinicalEpisodeId = request.clinicalEpisodeId?.trim() || '';
+  const hasValidRun = /^[0-9]{6,8}[0-9K]$/.test(patientRun);
+  const hasValidEpisode = /^\d+$/.test(clinicalEpisodeId);
+  if (typeof window === 'undefined' || (!hasValidRun && !hasValidEpisode)) {
+    return Promise.resolve({
+      ok: false,
+      error: 'El paciente no tiene un RUN ni un episodio válido para buscar informes.',
+    });
+  }
 
-    const reqId = `hospitalization-report-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-    let settled = false;
-    // eslint-disable-next-line prefer-const -- cleanup reads the timer before its assignment below
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    const cleanup = (): void => {
-      if (settled) return;
-      settled = true;
-      if (timeoutId !== undefined) clearTimeout(timeoutId);
-      window.removeEventListener('message', onMessage);
-    };
-
-    const onMessage = (event: MessageEvent): void => {
-      if (event.origin !== window.location.origin) return;
-      const data = event.data;
-      if (!data || data.type !== RAYEN_HOSPITALIZATION_REPORT_RESULT_TYPE || data.reqId !== reqId) {
-        return;
-      }
-      cleanup();
-      const rawEpisodes: unknown[] = Array.isArray(data.episodes) ? data.episodes : [];
+  return requestViaBridgeChannel<RayenHospitalizationReportResult>({
+    prefix: 'hospitalization-report',
+    requestType: RAYEN_HOSPITALIZATION_REPORT_REQUEST_TYPE,
+    resultType: RAYEN_HOSPITALIZATION_REPORT_RESULT_TYPE,
+    payload: {
+      operation: request.operation,
+      documentType: request.documentType,
+      encId: clinicalEpisodeId || undefined,
+      patientRun,
+      admissionDate: request.admissionDate,
+      censusDate: request.censusDate,
+    },
+    timeoutMs,
+    onTimeout: () => ({
+      ok: false,
+      error: 'La extensión Eloísa no respondió. Recárgala y vuelve a intentarlo.',
+    }),
+    mapResult: data => {
       const episodes = Array.isArray(data.episodes)
-        ? rawEpisodes
+        ? data.episodes
             .map(parseEpisode)
             .filter((episode): episode is RayenHospitalizationEpisode => episode !== null)
         : undefined;
-      resolve({
+      return {
         ok: data.ok === true,
         episodes,
         opened: data.opened === true,
         error: typeof data.error === 'string' ? data.error : undefined,
-      });
-    };
-
-    window.addEventListener('message', onMessage);
-    window.postMessage(
-      {
-        type: RAYEN_HOSPITALIZATION_REPORT_REQUEST_TYPE,
-        reqId,
-        operation: request.operation,
-        documentType: request.documentType,
-        encId: clinicalEpisodeId || undefined,
-        patientRun,
-        admissionDate: request.admissionDate,
-        censusDate: request.censusDate,
-      },
-      window.location.origin
-    );
-
-    timeoutId = setTimeout(() => {
-      cleanup();
-      resolve({
-        ok: false,
-        error: 'La extensión Eloísa no respondió. Recárgala y vuelve a intentarlo.',
-      });
-    }, timeoutMs);
+      };
+    },
   });
+};
 
 export const requestRayenHospitalizationEpisodes = (
   request: Pick<
@@ -154,52 +129,28 @@ export const requestRayenHospitalizationDocument = (
 export const requestRayenStatisticalDischargeReport = (
   clinicalEpisodeId: string,
   timeoutMs = 30000
-): Promise<RayenHospitalizationReportResult> =>
-  new Promise(resolve => {
-    const encId = clinicalEpisodeId.trim();
-    if (typeof window === 'undefined' || !/^\d+$/.test(encId)) {
-      resolve({
-        ok: false,
-        error: 'El alta no tiene un episodio válido para descargar su informe.',
-      });
-      return;
-    }
+): Promise<RayenHospitalizationReportResult> => {
+  const encId = clinicalEpisodeId.trim();
+  if (typeof window === 'undefined' || !/^\d+$/.test(encId)) {
+    return Promise.resolve({
+      ok: false,
+      error: 'El alta no tiene un episodio válido para descargar su informe.',
+    });
+  }
 
-    const reqId = `statistical-discharge-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-    let settled = false;
-    const cleanup = (): void => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeoutId);
-      window.removeEventListener('message', onMessage);
-    };
-    const onMessage = (event: MessageEvent): void => {
-      if (event.origin !== window.location.origin) return;
-      const data = event.data;
-      if (
-        !data ||
-        data.type !== RAYEN_STATISTICAL_DISCHARGE_REPORT_RESULT_TYPE ||
-        data.reqId !== reqId
-      ) {
-        return;
-      }
-      cleanup();
-      resolve({
-        ok: data.ok === true,
-        error: typeof data.error === 'string' ? data.error : undefined,
-      });
-    };
-
-    window.addEventListener('message', onMessage);
-    const timeoutId = setTimeout(() => {
-      cleanup();
-      resolve({
-        ok: false,
-        error: 'La extensión Eloísa no respondió. Recárgala y vuelve a intentarlo.',
-      });
-    }, timeoutMs);
-    window.postMessage(
-      { type: RAYEN_STATISTICAL_DISCHARGE_REPORT_REQUEST_TYPE, reqId, encId },
-      window.location.origin
-    );
+  return requestViaBridgeChannel<RayenHospitalizationReportResult>({
+    prefix: 'statistical-discharge',
+    requestType: RAYEN_STATISTICAL_DISCHARGE_REPORT_REQUEST_TYPE,
+    resultType: RAYEN_STATISTICAL_DISCHARGE_REPORT_RESULT_TYPE,
+    payload: { encId },
+    timeoutMs,
+    onTimeout: () => ({
+      ok: false,
+      error: 'La extensión Eloísa no respondió. Recárgala y vuelve a intentarlo.',
+    }),
+    mapResult: data => ({
+      ok: data.ok === true,
+      error: typeof data.error === 'string' ? data.error : undefined,
+    }),
   });
+};

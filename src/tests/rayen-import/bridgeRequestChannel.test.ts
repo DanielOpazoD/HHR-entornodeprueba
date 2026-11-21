@@ -110,4 +110,28 @@ describe('clinical read channel lifecycle', () => {
     expect(mapResult).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it('resolves via onAbort and onDispatchError when callers opt into non-throwing degradation', async () => {
+    const controller = new AbortController();
+    const { post, options } = setup(controller.signal);
+    const pending = requestViaBridgeChannel({
+      ...options,
+      onAbort: () => 'cancelled-gracefully',
+    });
+    controller.abort();
+    await expect(pending).resolves.toBe('cancelled-gracefully');
+    expect(vi.getTimerCount()).toBe(0);
+
+    post.mockImplementation(() => {
+      throw new Error('relay closed');
+    });
+    await expect(
+      requestViaBridgeChannel({
+        ...options,
+        signal: undefined,
+        onDispatchError: () => 'dispatch-failed-gracefully',
+      })
+    ).resolves.toBe('dispatch-failed-gracefully');
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });

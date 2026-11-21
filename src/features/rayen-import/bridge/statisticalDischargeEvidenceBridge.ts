@@ -1,3 +1,4 @@
+import { requestViaBridgeChannel } from '@/services/transport/extensionRequestChannel';
 import type { PatientFlowBridgeResult } from './patientFlowBridge';
 
 export const RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_REQUEST_TYPE =
@@ -9,43 +10,23 @@ export const RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_RESULT_TYPE =
 export const requestStatisticalDischargeEvidence = (
   encId: string,
   timeoutMs = 15000
-): Promise<PatientFlowBridgeResult> =>
-  new Promise(resolve => {
-    if (typeof window === 'undefined' || !/^\d+$/.test(encId)) {
-      resolve({ base64: '', error: 'El episodio clínico no es válido.' });
-      return;
-    }
-    const reqId = `statistical-evidence-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-    let settled = false;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    const cleanup = (): void => {
-      if (settled) return;
-      settled = true;
-      window.removeEventListener('message', onMessage);
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-    const onMessage = (event: MessageEvent): void => {
-      if (event.source !== window || event.origin !== window.location.origin) return;
-      const data = event.data;
-      if (
-        !data ||
-        data.type !== RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_RESULT_TYPE ||
-        data.reqId !== reqId
-      )
-        return;
-      cleanup();
-      resolve({
-        base64: typeof data.base64 === 'string' ? data.base64 : '',
-        error: typeof data.error === 'string' ? data.error : undefined,
-      });
-    };
-    window.addEventListener('message', onMessage);
-    window.postMessage(
-      { type: RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_REQUEST_TYPE, reqId, encId },
-      window.location.origin
-    );
-    timeoutId = setTimeout(() => {
-      cleanup();
-      resolve({ base64: '', error: 'Tiempo de espera agotado leyendo el egreso individual.' });
-    }, timeoutMs);
+): Promise<PatientFlowBridgeResult> => {
+  if (typeof window === 'undefined' || !/^\d+$/.test(encId)) {
+    return Promise.resolve({ base64: '', error: 'El episodio clínico no es válido.' });
+  }
+  return requestViaBridgeChannel<PatientFlowBridgeResult>({
+    prefix: 'statistical-evidence',
+    requestType: RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_REQUEST_TYPE,
+    resultType: RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_RESULT_TYPE,
+    payload: { encId },
+    timeoutMs,
+    onTimeout: () => ({
+      base64: '',
+      error: 'Tiempo de espera agotado leyendo el egreso individual.',
+    }),
+    mapResult: data => ({
+      base64: typeof data.base64 === 'string' ? data.base64 : '',
+      error: typeof data.error === 'string' ? data.error : undefined,
+    }),
   });
+};
