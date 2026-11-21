@@ -8,7 +8,7 @@
 
 import { CIE10Entry } from './cie10SpanishDatabase';
 import { aiRequestManager } from '../ai/aiRequestManager';
-import { getLocalDevProviderConfig } from '../ai/aiProviderConfig';
+import { callLocalAI, getLocalDevProviderConfig } from '../ai/aiProviderConfig';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import {
@@ -129,105 +129,30 @@ Ejemplo:
 ]
 `;
 
+const reportLocalFallbackFailure = (error: unknown): void => {
+  recordOperationalErrorTelemetry('integration', 'cie10_ai_local_fallback', error, {
+    code: 'cie10_ai_local_fallback_failed',
+    message: 'Fallo el fallback local de IA para CIE-10.',
+    severity: 'warning',
+    userSafeMessage: 'La busqueda IA local no esta disponible en este momento.',
+    context: { devMode: import.meta.env.DEV },
+  });
+};
+
 async function searchWithLocalDevAPI(query: string, signal?: AbortSignal): Promise<CIE10Entry[]> {
-  // A build-time guard also removes the local SDK import from production assets.
   if (!import.meta.env.DEV) return [];
   signal?.throwIfAborted();
-  const providerConfig = getLocalDevProviderConfig();
-  if (!providerConfig) return [];
-
+  const rawText = await callLocalAI(buildLocalPrompt(query), {
+    signal,
+    systemPrompt: 'Eres un codificador experto CIE-10. Responde solo con JSON válido.',
+    onError: reportLocalFallbackFailure,
+  });
+  signal?.throwIfAborted();
+  if (!rawText) return [];
   try {
-    if (providerConfig.provider === 'gemini') {
-      const { GoogleGenAI } = await import('@google/genai');
-      signal?.throwIfAborted();
-      const ai = new GoogleGenAI({ apiKey: providerConfig.apiKey });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: buildLocalPrompt(query),
-        config: { abortSignal: signal },
-      });
-
-      return parseAIResults(response.text || '');
-    }
-
-    if (providerConfig.provider === 'openai') {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${providerConfig.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          temperature: 0.2,
-          max_tokens: 700,
-          messages: [
-            {
-              role: 'system',
-              content: 'Eres un codificador experto CIE-10. Responde solo con JSON válido.',
-            },
-            { role: 'user', content: buildLocalPrompt(query) },
-          ],
-        }),
-        signal,
-      });
-
-      if (!response.ok) {
-        return [];
-      }
-
-      const payload = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }>;
-      };
-      const content = payload.choices?.[0]?.message?.content;
-      const text =
-        typeof content === 'string'
-          ? content
-          : Array.isArray(content)
-            ? content.map(item => item.text || '').join('\n')
-            : '';
-      return parseAIResults(text);
-    }
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': providerConfig.apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-sonnet-latest',
-        max_tokens: 700,
-        temperature: 0.2,
-        system: 'Eres un codificador experto CIE-10. Responde solo con JSON válido.',
-        messages: [{ role: 'user', content: buildLocalPrompt(query) }],
-      }),
-      signal,
-    });
-
-    if (!response.ok) {
-      return [];
-    }
-
-    const payload = (await response.json()) as {
-      content?: Array<{ type?: string; text?: string }>;
-    };
-    const text =
-      payload.content
-        ?.map(item => (item.type === 'text' ? item.text || '' : ''))
-        .join('\n')
-        .trim() || '';
-    return parseAIResults(text);
+    return parseAIResults(rawText);
   } catch (error) {
-    signal?.throwIfAborted();
-    recordOperationalErrorTelemetry('integration', 'cie10_ai_local_fallback', error, {
-      code: 'cie10_ai_local_fallback_failed',
-      message: 'Fallo el fallback local de IA para CIE-10.',
-      severity: 'warning',
-      userSafeMessage: 'La busqueda IA local no esta disponible en este momento.',
-      context: { devMode: import.meta.env.DEV },
-    });
+    reportLocalFallbackFailure(error);
     return [];
   }
 }
