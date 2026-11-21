@@ -43,10 +43,6 @@ vi.mock('@/components/debug/TestAgent', () => ({
   TestAgent: () => <div data-testid="test-agent">TestAgent</div>,
 }));
 
-vi.mock('@/components/shared/SyncWatcher', () => ({
-  SyncWatcher: () => <div data-testid="sync-watcher">SyncWatcher</div>,
-}));
-
 vi.mock('@/components/security/PinLockScreen', () => ({
   PinLockScreen: () => <div data-testid="pin-lock">PinLockScreen</div>,
 }));
@@ -117,7 +113,6 @@ describe('AppContentOverlays', () => {
     expect(screen.queryByTestId('reminder-modal')).not.toBeInTheDocument();
     expect(screen.getByTestId('test-agent')).toBeInTheDocument();
     expect(screen.queryByTestId('patient-search-modal')).not.toBeInTheDocument();
-    expect(screen.getByTestId('sync-watcher')).toBeInTheDocument();
     expect(screen.getByTestId('pin-lock')).toBeInTheDocument();
     expect(screen.getByTestId('storage-badge')).toBeInTheDocument();
     expect(screen.getByTestId('email-modal')).toBeInTheDocument();

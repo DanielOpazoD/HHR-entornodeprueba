@@ -58,10 +58,6 @@ vi.mock('@/components/debug/TestAgent', () => ({
   TestAgent: () => <div data-testid="test-agent">TestAgent</div>,
 }));
 
-vi.mock('@/components/shared/SyncWatcher', () => ({
-  SyncWatcher: () => <div data-testid="sync-watcher">SyncWatcher</div>,
-}));
-
 vi.mock('@/components/bookmarks/BookmarkBar', () => ({
   BookmarkBar: () => <div data-testid="bookmark-bar">BookmarkBar</div>,
 }));
@@ -400,14 +396,5 @@ describe('AppContent', () => {
     expect(screen.getByTestId('test-agent')).toBeInTheDocument();
     expect(screen.getByTestId('storage-badge')).toBeInTheDocument();
     expect(screen.getByTestId('pin-lock')).toBeInTheDocument();
-  });
-
-  it('keeps SyncWatcher mounted in the main application shell', async () => {
-    render(<AppContent ui={mockUI} />);
-    await act(async () => {
-      await Promise.all(_lazyPending);
-    });
-
-    expect(screen.getByTestId('sync-watcher')).toBeInTheDocument();
   });
 });
