@@ -510,10 +510,8 @@ test.describe('Production Preview Bootstrap', () => {
       await expect(utility).toBeFocused();
 
       if (width >= 768) {
-        const save = page.getByTitle('Opciones de guardado');
-        await save.click();
-        await page.getByRole('button', { name: /Descargar Excel/ }).click({ trial: true });
-        await save.click();
+        const save = page.getByTitle('Descargar Excel');
+        await save.click({ trial: true });
         const email = page.getByTitle('Enviar censo');
         await email.click();
         // The synthetic session has no configured recipients. Validate the menu
@@ -874,7 +872,7 @@ test.describe('Production Preview Bootstrap', () => {
       timeZone: 'UTC',
     }).format(new Date(`${PREVIEW_BOOTSTRAP_DATE}T12:00:00Z`));
     await expect(page.getByRole('button', { name: selectedDateLabel })).toBeVisible();
-    await expect(page.getByTitle('Opciones de guardado')).toHaveClass(/bg-white/);
+    await expect(page.getByTitle('Descargar Excel')).toHaveClass(/bg-white/);
     await expect(page.getByTitle('Enviar censo')).toHaveClass(/bg-teal-600/);
     runtimeCollector.detach();
   });

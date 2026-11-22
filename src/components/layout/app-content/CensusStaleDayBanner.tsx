@@ -8,8 +8,6 @@ interface CensusStaleDayBannerProps {
   currentDateString: string;
   /** Active clinical day (YYYY-MM-DD, 08:00/09:00 shift rollover). */
   clinicalToday: string;
-  /** Jump the selection back to the clinical day. */
-  onGoToToday: () => void;
 }
 
 /**
@@ -24,7 +22,6 @@ interface CensusStaleDayBannerProps {
 export const CensusStaleDayBanner: React.FC<CensusStaleDayBannerProps> = ({
   currentDateString,
   clinicalToday,
-  onGoToToday,
 }) => {
   if (!clinicalToday || currentDateString === clinicalToday) {
     return null;
@@ -44,12 +41,6 @@ export const CensusStaleDayBanner: React.FC<CensusStaleDayBannerProps> = ({
         Estás viendo el <span className="font-semibold">{viewedLabel}</span>. El día de hoy es{' '}
         <span className="font-semibold">{todayLabel}</span>.
       </p>
-      <button
-        onClick={onGoToToday}
-        className="shrink-0 rounded-md border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800"
-      >
-        Ir a hoy
-      </button>
     </div>
   );
 };

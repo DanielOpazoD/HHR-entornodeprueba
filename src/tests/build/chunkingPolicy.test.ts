@@ -237,12 +237,6 @@ describe('chunkingPolicy', () => {
         "import('@/features/census/email/controllers/censusEmailDeliveryRuntime')",
     },
     {
-      label: 'DateStrip SaveDropdown',
-      sourcePath: 'src/components/layout/DateStrip.tsx',
-      forbiddenStaticImport: /from ['"]\.\/date-strip\/actions\/SaveDropdown['"]/,
-      requiredDynamicImport: "import('./date-strip/actions/SaveDropdown')",
-    },
-    {
       label: 'DateStrip HandoffSaveDropdown',
       sourcePath: 'src/components/layout/DateStrip.tsx',
       forbiddenStaticImport: /from ['"]\.\/date-strip\/actions\/HandoffSaveDropdown['"]/,

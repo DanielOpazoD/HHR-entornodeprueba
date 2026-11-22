@@ -13,7 +13,6 @@ describe('DateStrip', () => {
   beforeAll(async () => {
     // Test real controls without including Vite's cold module transform in UI readiness waits.
     await Promise.all([
-      import('@/components/layout/date-strip/actions/SaveDropdown'),
       import('@/components/layout/date-strip/actions/HandoffSaveDropdown'),
       import('@/components/layout/date-strip/actions/EmailDropdown'),
       import('@/components/layout/date-strip/actions/PdfButtons'),
@@ -66,7 +65,7 @@ describe('DateStrip', () => {
     expect(bar).toHaveAttribute('inert');
     expect(bar).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByTitle('Enviar censo')).toBeVisible();
-    expect(screen.getByTitle('Opciones de guardado')).toBeVisible();
+    expect(screen.getByTitle('Descargar Excel')).toBeVisible();
     expect(screen.getByText('Febrero')).toBeVisible();
     expect(screen.queryByTitle('Descargar PDF (rápido)')).not.toBeInTheDocument();
     const labels = screen.getAllByRole('button', { hidden: true }).map(button => button.outerHTML);
@@ -110,7 +109,7 @@ describe('DateStrip', () => {
     render(<DateStrip {...defaultProps} />);
 
     await waitFor(() => expect(screen.getByTitle('Descargar PDF (rápido)')).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByTitle('Opciones de guardado')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTitle('Descargar Excel')).toBeInTheDocument());
     expect(screen.queryByText('Guardar')).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByTitle('Bloqueo de camas')).toBeInTheDocument());
     await waitFor(() => expect(screen.getByTitle('Enviar censo')).toBeInTheDocument());
@@ -120,10 +119,10 @@ describe('DateStrip', () => {
     render(<DateStrip {...defaultProps} />);
 
     await screen.findByTitle('Enviar censo');
-    await screen.findByTitle('Opciones de guardado');
+    await screen.findByTitle('Descargar Excel');
     const buttons = screen.getAllByRole('button');
     const sendIndex = buttons.indexOf(screen.getByTitle('Enviar censo'));
-    const saveIndex = buttons.indexOf(screen.getByTitle('Opciones de guardado'));
+    const saveIndex = buttons.indexOf(screen.getByTitle('Descargar Excel'));
 
     expect(sendIndex).toBeGreaterThan(-1);
     expect(saveIndex).toBe(sendIndex - 1);
@@ -173,25 +172,24 @@ describe('DateStrip', () => {
     expect(defaultProps.onSendEmail).toHaveBeenCalledTimes(1);
   });
 
-  it('shows sync status indicators in SaveDropdown', async () => {
-    // Sync status is actually reflected in SaveDropdown 'isArchived' and 'isBackingUp' props
+  it('shows sync status indicators on the direct census Excel export button', async () => {
     const { rerender } = render(<DateStrip {...defaultProps} isBackingUp={true} />);
-    const savingButton = await screen.findByTitle('Opciones de guardado');
+    const savingButton = await screen.findByTitle('Descargar Excel');
     expect(savingButton).toHaveAttribute('aria-label', 'Guardando…');
     expect(savingButton).toHaveAttribute('data-save-status', 'loading');
 
     rerender(<DateStrip {...defaultProps} isArchived={true} />);
-    const archivedButton = await screen.findByTitle('Opciones de guardado');
+    const archivedButton = await screen.findByTitle('Descargar Excel');
     expect(archivedButton).toHaveAttribute('aria-label', 'Sincronizado');
     expect(archivedButton).toHaveAttribute('data-save-status', 'archived');
   });
 
-  it('hides firebase backup option in census save menu', async () => {
+  it('exports census Excel directly on one click without opening a single-item dropdown', async () => {
     render(<DateStrip {...defaultProps} currentModule="CENSUS" />);
 
-    await clickReadyControl('Opciones de guardado');
+    await clickReadyControl('Descargar Excel');
 
-    expect(screen.getByText('Descargar Excel')).toBeInTheDocument();
+    expect(defaultProps.onExportExcel).toHaveBeenCalledTimes(1);
     expect(screen.queryByText('Respaldo en Firebase')).not.toBeInTheDocument();
   });
 

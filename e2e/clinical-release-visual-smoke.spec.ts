@@ -238,10 +238,11 @@ const verifyRefreshLoginResilience = async (page: Page) => {
 const verifyCensusExcelDownload = async (page: Page, testInfo: TestInfo) => {
   await clearCapturedDownload(page);
 
-  const saveButton = page.getByRole('button', { name: /Guardar|Guardado|Archivado/i }).first();
-  await expect(saveButton).toBeVisible({ timeout: 10_000 });
-  await saveButton.evaluate((element: HTMLElement) => element.click());
-  await page.getByRole('button', { name: /Descargar Excel/i }).click();
+  const downloadExcelButton = page
+    .getByRole('button', { name: /Descargar Excel|Archivado/i })
+    .first();
+  await expect(downloadExcelButton).toBeVisible({ timeout: 10_000 });
+  await downloadExcelButton.click();
 
   await expectCapturedExcelDownload(
     page,
@@ -261,7 +262,7 @@ const verifyUtilityMenuVisualSmoke = async (page: Page, testInfo: TestInfo) => {
   const utilityMenu = page.getByTestId('navbar-utility-menu');
   await expect(utilityMenu).toBeVisible({ timeout: 10_000 });
   await expect(utilityMenu.getByText('Estadísticas')).toBeVisible();
-  await expect(utilityMenu.getByText('Archivos')).toBeVisible();
+  await expect(utilityMenu.getByText('Documentos para auditoría')).toBeVisible();
   await expectNoHorizontalOverflow(page);
   await attachViewportEvidence(page, testInfo, 'clinical-release-utility-menu');
 };

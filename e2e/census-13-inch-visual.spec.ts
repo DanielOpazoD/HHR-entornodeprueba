@@ -360,7 +360,8 @@ test('keeps the stale-day banner readable above the sticky table header while sc
   // The header sticks right under the banner instead of covering it.
   expect(headerBox!.y).toBeGreaterThanOrEqual(bannerBox!.y + bannerBox!.height - 1);
   expect(headerBox!.y).toBeLessThanOrEqual(bannerBox!.y + bannerBox!.height + 2);
-  await expect(banner.getByRole('button', { name: 'Ir a hoy' })).toBeVisible();
+  await expect(banner.getByRole('button', { name: 'Ir a hoy' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Ir a hoy' })).toBeVisible();
 });
 
 test('marks every patient chosen for a laboratory order alike, with or without the pointer', async ({

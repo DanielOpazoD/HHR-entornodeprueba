@@ -1,42 +1,42 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { SaveDropdown } from '@/components/layout/date-strip/actions/SaveDropdown';
+import { HandoffSaveDropdown } from '@/components/layout/date-strip/actions/HandoffSaveDropdown';
 import { EmailDropdown } from '@/components/layout/date-strip/actions/EmailDropdown';
 
 describe('Date strip action panels', () => {
   it('renders outside the scrolling toolbar and preserves clicks inside the portal', () => {
-    const onExportExcel = vi.fn();
+    const onExportPDF = vi.fn();
     const { container } = render(
       <div style={{ overflowX: 'auto' }}>
-        <SaveDropdown
-          onExportExcel={onExportExcel}
+        <HandoffSaveDropdown
+          onExportPDF={onExportPDF}
           isBackingUp={false}
           showFirebaseBackupOption={false}
         />
       </div>
     );
-    const trigger = screen.getByTitle('Opciones de guardado');
+    const trigger = screen.getByTitle('Opciones de guardado (PDF/Nube)');
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(trigger);
     const panel = screen.getByRole('group', { name: 'Opciones de guardado' });
     expect(container).not.toContainElement(panel);
     expect(document.body).toContainElement(panel);
     expect(trigger).toHaveAttribute('aria-controls', panel.id);
-    const exportAction = screen.getByRole('button', { name: /Descargar Excel/ });
+    const exportAction = screen.getByRole('button', { name: /Descargar PDF/ });
     expect(exportAction).toHaveFocus();
     fireEvent.mouseDown(exportAction);
     expect(panel).toBeInTheDocument();
     fireEvent.click(exportAction);
-    expect(onExportExcel).toHaveBeenCalledTimes(1);
+    expect(onExportPDF).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('group', { name: 'Opciones de guardado' })).not.toBeInTheDocument();
   });
 
   it('returns focus to the trigger on Escape and dismisses on an outside click', () => {
-    render(<SaveDropdown onExportExcel={vi.fn()} isBackingUp={false} />);
-    const trigger = screen.getByTitle('Opciones de guardado');
+    render(<HandoffSaveDropdown onExportPDF={vi.fn()} isBackingUp={false} />);
+    const trigger = screen.getByTitle('Opciones de guardado (PDF/Nube)');
     trigger.focus();
     fireEvent.click(trigger);
-    fireEvent.keyDown(screen.getByRole('button', { name: /Descargar Excel/ }), { key: 'Escape' });
+    fireEvent.keyDown(screen.getByRole('button', { name: /Descargar PDF/ }), { key: 'Escape' });
     expect(screen.queryByRole('group', { name: 'Opciones de guardado' })).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
     expect(trigger).toHaveAttribute('aria-expanded', 'false');

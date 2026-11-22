@@ -1,7 +1,6 @@
 import {
   LayoutList,
   MessageSquare,
-  FolderArchive,
   FileDown,
   BarChart3,
   Settings,
@@ -96,16 +95,6 @@ export const NAVIGATION_CONFIG: NavItemConfig[] = [
     actionType: 'MODULE_CHANGE',
     isUtility: true,
     requiredModule: 'AUDIT_DOCUMENTS',
-  },
-  {
-    id: 'backup-files',
-    label: 'Archivos',
-    icon: FolderArchive,
-    module: 'BACKUP_FILES',
-    actionType: 'MODULE_CHANGE',
-    isUtility: true,
-    adminOnly: true,
-    requiredModule: 'BACKUP_FILES',
   },
 
   // --- System / Brand Menu Items (NavbarMenu) ---

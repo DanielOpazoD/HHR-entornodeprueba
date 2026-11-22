@@ -10,14 +10,12 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTableConfig } from '@/context/TableConfigContext';
-import { useUISettings } from '@/context/UISettingsContext';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { AccessRestricted } from './internal/AccessRestricted';
 import { AdminTabsShell } from './internal/AdminTabsShell';
 import RoleManagementView from './RoleManagementView';
 import { ClinicalAIProviderRoutingPanel } from './ClinicalAIProviderRoutingPanel';
 import {
-  SettingsVisualTab,
   SettingsSecurityTab,
   SettingsTableTab,
 } from '@/features/admin/components/SettingsModalTabs';
@@ -42,7 +40,6 @@ export const ConfigurationView: React.FC = () => {
     setEditMode,
     updatePageMargin,
   } = useTableConfig();
-  const { settings, updateSetting } = useUISettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!canAccessAppModuleRoute({ role, module: 'CONFIGURATION' })) {
@@ -99,11 +96,10 @@ export const ConfigurationView: React.FC = () => {
           icon: Sparkles,
           color: 'text-fuchsia-400',
           content: (
-            <>
-              <SettingsVisualTab settings={settings} updateSetting={updateSetting} />
+            <div className="space-y-4">
               <CensusNursingScalesSetting />
               <VitalSignsVisualRangesSettings />
-            </>
+            </div>
           ),
         },
         {
