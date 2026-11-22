@@ -32,9 +32,9 @@ import type { PatientData } from '@/types/domain/patient';
 
 import type { PDFFont } from 'pdf-lib';
 
-import { openPdfPrintDialog } from './pdfBase';
+import { openPdfPrintDialog } from '@/services/pdf/pdfBase';
 import { FIELD_COORDS, mapInsurance, mapSex, mapProcedencia } from './ieehPdfCoordinates';
-import { loadPdfLibGenerationRuntime } from './pdfLibRuntime';
+import { loadPdfLibGenerationRuntime } from '@/services/pdf/pdfLibRuntime';
 import type { DischargeFormData } from './ieehPdfContracts';
 import {
   buildIEEHFileName,

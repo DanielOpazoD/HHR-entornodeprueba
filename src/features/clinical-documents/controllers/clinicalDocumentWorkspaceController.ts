@@ -1,7 +1,7 @@
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import type { ConfirmOptions } from '@/context/uiContracts';
 import { getClinicalDocumentDefinition } from '@/domain/clinical-documents/definitions';
-import { formatClinicalDocumentDateTime as formatClinicalDocumentDateTimePresentation } from '@/shared/clinical-documents/clinicalDocumentPresentation';
+import { formatClinicalDocumentDateTime as formatClinicalDocumentDateTimePresentation } from '@/features/clinical-documents/domain/clinicalDocumentPresentation';
 
 /** Serializes a clinical document record to JSON, returning empty string for null. */
 export const serializeClinicalDocument = (record: ClinicalDocumentRecord | null): string =>

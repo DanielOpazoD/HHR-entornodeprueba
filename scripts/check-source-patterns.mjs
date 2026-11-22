@@ -70,6 +70,7 @@ const RULES = [
       'src/services/admin/',
       'src/features/admin/services/',
       'src/features/analytics/services/',
+      'src/features/clinical-documents/services/',
       'src/features/wound-care/services/',
       'src/services/storage/sync/',
       'src/features/rayen-import/'

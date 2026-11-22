@@ -3,7 +3,7 @@
 export type {
   ClinicalAttachmentRecord,
   ClinicalAttachmentFileKind,
-} from '@/shared/clinical-documents/clinicalAttachmentContracts';
+} from '@/features/clinical-documents/contracts/clinicalAttachmentContracts';
 export type {
   ClinicalDocumentAuditActor,
   ClinicalDocumentPdfMeta,

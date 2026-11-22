@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 import { formatClinicalDocumentDateTime } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
-import type { ClinicalAttachmentRecord } from '@/shared/clinical-documents/clinicalAttachmentContracts';
+import type { ClinicalAttachmentRecord } from '@/features/clinical-documents/contracts/clinicalAttachmentContracts';
 
 const formatAttachmentSize = (sizeBytes: number): string => {
   if (sizeBytes >= 1024 * 1024) {

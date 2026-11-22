@@ -14,7 +14,7 @@ import {
   type ClinicalAttachmentFilePolicyAction,
 } from '@/features/clinical-documents/controllers/clinicalAttachmentFilePolicy';
 import { buildClinicalDocumentActor } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
-import type { ClinicalAttachmentRecord } from '@/shared/clinical-documents/clinicalAttachmentContracts';
+import type { ClinicalAttachmentRecord } from '@/features/clinical-documents/contracts/clinicalAttachmentContracts';
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import { useLatestRef } from '@/hooks/useLatestRef';
 

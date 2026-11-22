@@ -26,5 +26,5 @@ time in the census.
 - [ClinicalDocumentIeehFormBody.tsx](../../src/features/clinical-documents/components/ClinicalDocumentIeehFormBody.tsx): form fields and discharge-condition options.
 - [clinicalDocumentIeehController.ts](../../src/features/clinical-documents/controllers/clinicalDocumentIeehController.ts): pure draft creation and panel state.
 - [clinicalDocumentIeehPrintController.ts](../../src/features/clinical-documents/controllers/clinicalDocumentIeehPrintController.ts): builds the printable patient and discharge data from the epicrisis.
-- [ieehPdfService.ts](../../src/services/pdf/ieehPdfService.ts): PDF mapping over the official coordinates.
+- [ieehPdfService.ts](../../src/features/clinical-documents/services/ieehPdfService.ts): PDF mapping over the official coordinates.
 - [pdfBase.ts](../../src/services/pdf/pdfBase.ts): print-opening and save fallback runtime.

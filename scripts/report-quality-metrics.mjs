@@ -56,7 +56,6 @@ const FEATURE_PUBLIC_BOUNDARIES = [
       file.startsWith('src/features/clinical-documents/') ||
       file.startsWith('src/application/clinical-documents/') ||
       file === 'src/application/ports/clinicalDocumentPort.ts' ||
-      file.startsWith('src/shared/clinical-documents/') ||
       file.startsWith('src/tests/'),
   },
 ];

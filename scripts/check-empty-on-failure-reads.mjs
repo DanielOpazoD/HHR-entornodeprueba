@@ -13,6 +13,7 @@ import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
 const AREAS = [
+  'src/features/clinical-documents/services/ClinicalAttachmentRepository.ts',
   'src/features/laboratory/services/labFirestoreService.ts',
   'src/features/wound-care/services',
   'src/services/repositories',

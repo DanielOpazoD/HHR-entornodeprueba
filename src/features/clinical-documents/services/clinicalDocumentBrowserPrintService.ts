@@ -1,4 +1,4 @@
-import type { ClinicalDocumentIeehDraft } from '@/application/shared/ieehContracts';
+import type { ClinicalDocumentIeehDraft } from '@/features/clinical-documents/contracts/ieehContracts';
 import type { ClinicalDocumentType } from '@/domain/clinical-documents/entities';
 import { getClinicalDocumentDefinition } from '@/domain/clinical-documents/definitions';
 import { escapeHtml } from '@/utils/htmlEscape';

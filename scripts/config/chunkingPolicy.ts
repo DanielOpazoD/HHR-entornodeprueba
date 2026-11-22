@@ -47,11 +47,11 @@ const clinicalDocumentsWorkspaceModules = new Set([
   '/src/features/clinical-documents/services/clinicalDocumentPrintSupport.ts',
   '/src/features/clinical-documents/styles/clinicalDocumentSheet.css',
   '/src/features/clinical-documents/styles/clinicalDocumentSheet.css?raw',
-  '/src/services/firebase-runtime/clinicalAttachmentRuntime.ts',
-  '/src/services/repositories/ClinicalAttachmentRepository.ts',
-  '/src/shared/clinical-documents/clinicalAttachmentFilePolicy.ts',
-  '/src/shared/clinical-documents/clinicalAttachmentPathController.ts',
-  '/src/shared/clinical-documents/clinicalAttachmentRuntimeContracts.ts',
+  '/src/features/clinical-documents/services/clinicalAttachmentRuntime.ts',
+  '/src/features/clinical-documents/services/ClinicalAttachmentRepository.ts',
+  '/src/features/clinical-documents/controllers/clinicalAttachmentFilePolicy.ts',
+  '/src/features/clinical-documents/controllers/clinicalAttachmentPathController.ts',
+  '/src/features/clinical-documents/contracts/clinicalAttachmentRuntimeContracts.ts',
 ]);
 
 // Rollup also moves into a manual chunk every static dependency no other rule names. The

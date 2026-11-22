@@ -11,12 +11,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, PencilLine, Search, Sparkles, X } from 'lucide-react';
 
-import type { FonasaEntry, FonasaCatalog } from '@/services/terminology/fonasaService';
+import type {
+  FonasaEntry,
+  FonasaCatalog,
+} from '@/features/clinical-documents/services/fonasaService';
 import {
   searchFonasa,
   searchFonasaAI,
   isFonasaAIAvailable,
-} from '@/services/terminology/fonasaService';
+} from '@/features/clinical-documents/services/fonasaService';
 
 // ---------------------------------------------------------------------------
 // Constants

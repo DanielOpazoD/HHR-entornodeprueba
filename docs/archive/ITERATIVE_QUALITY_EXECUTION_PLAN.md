@@ -186,7 +186,7 @@ Eliminar los ciclos reportados por `check:architecture` sin introducir facades c
 - `src/features/clinical-documents/hooks/useClinicalDocumentWorkspaceExportActions.ts`
 - `src/features/clinical-documents/hooks/useClinicalDocumentWorkspaceBootstrap.ts`
 - `src/features/clinical-documents/controllers/clinicalDocumentWorkspaceController.ts`
-- `src/shared/clinical-documents/clinicalDocumentPresentation.ts`
+- `src/features/clinical-documents/domain/clinicalDocumentPresentation.ts`
 - `src/features/admin/patient-flow/patientAnalysisEngine.ts`
 - `src/features/admin/patient-flow/patientAnalysisSupport.ts`
 

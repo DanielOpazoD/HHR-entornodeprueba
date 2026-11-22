@@ -6,14 +6,14 @@ const searchFonasaMock = vi.fn();
 const searchFonasaAIMock = vi.fn();
 const isFonasaAIAvailableMock = vi.fn();
 
-vi.mock('@/services/terminology/fonasaService', () => ({
+vi.mock('@/features/clinical-documents/services/fonasaService', () => ({
   searchFonasa: (...args: unknown[]) => searchFonasaMock(...args),
   searchFonasaAI: (...args: unknown[]) => searchFonasaAIMock(...args),
   isFonasaAIAvailable: () => isFonasaAIAvailableMock(),
 }));
 
 import { FonasaSearchInput } from '@/features/clinical-documents/components/FonasaSearchInput';
-import type { FonasaEntry } from '@/services/terminology/fonasaService';
+import type { FonasaEntry } from '@/features/clinical-documents/services/fonasaService';
 
 const baseEntries: FonasaEntry[] = [
   { code: '0101001', description: 'Consulta medicina interna' },

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fillIEEHForm } from '../../../services/pdf/ieehPdfService';
+import { fillIEEHForm } from '@/features/clinical-documents/services/ieehPdfService';
 import type { PatientData } from '../../../types/domain/patient';
 import { PatientStatus, Specialty } from '../../../types/domain/patientClassification';
 
