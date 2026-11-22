@@ -129,6 +129,14 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
     [saveProfessionals, professionals]
   );
 
+  const retryNursesCatalog = useCallback(() => {
+    void refetchNurses();
+  }, [refetchNurses]);
+
+  const retryTensCatalog = useCallback(() => {
+    void refetchTens();
+  }, [refetchTens]);
+
   const value = useMemo<StaffContextType>(
     () => ({
       staffIdentities,
@@ -138,17 +146,13 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
       setNursesList,
       nursesLoading,
       nursesCatalogUnavailable: nursesReadError && reconciledNurses.length === 0,
-      retryNursesCatalog: () => {
-        void refetchNurses();
-      },
+      retryNursesCatalog,
       tensList: tens,
       tensSaved,
       setTensList,
       tensLoading,
       tensCatalogUnavailable: tensReadError && tens.length === 0,
-      retryTensCatalog: () => {
-        void refetchTens();
-      },
+      retryTensCatalog,
       professionalsCatalog: professionals,
       setProfessionalsCatalog,
       professionalsLoading,
@@ -165,13 +169,13 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
       setNursesList,
       nursesLoading,
       nursesReadError,
-      refetchNurses,
+      retryNursesCatalog,
       tens,
       tensSaved,
       setTensList,
       tensLoading,
       tensReadError,
-      refetchTens,
+      retryTensCatalog,
       professionals,
       setProfessionalsCatalog,
       professionalsLoading,
