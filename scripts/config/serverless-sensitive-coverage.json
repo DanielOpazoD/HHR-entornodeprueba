@@ -70,6 +70,15 @@
       ]
     },
     {
+      "id": "nursing_handoff_rayen",
+      "functionFile": "functions/lib/nursingHandoffRayen.js",
+      "endpoint": "nursingHandoffRayen",
+      "testFiles": [
+        "src/tests/functions/nursingHandoffRayen.test.ts",
+        "src/tests/emulator/nursing-handoff-rayen.emulator.test.ts"
+      ]
+    },
+    {
       "id": "nursing_createNursingAccount",
       "functionFile": "functions/lib/accounts/accountFunctions.js",
       "endpoint": "createNursingAccount",
