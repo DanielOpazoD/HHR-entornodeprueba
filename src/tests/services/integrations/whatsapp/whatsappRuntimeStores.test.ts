@@ -26,19 +26,19 @@ vi.mock('firebase/firestore', async importOriginal => {
   };
 });
 
-import { createWhatsAppShiftStore } from '@/services/integrations/whatsapp/whatsappShiftStore';
+import { createWhatsAppShiftStore } from '@/features/whatsapp/services/whatsappShiftStore';
 import {
   createWhatsAppTemplatesStore,
   getDefaultTemplates,
   WHATSAPP_TEMPLATES_READ_ERROR,
   WHATSAPP_TEMPLATES_SAVE_ERROR,
-} from '@/services/integrations/whatsapp/whatsappTemplatesStore';
+} from '@/features/whatsapp/services/whatsappTemplatesStore';
 import {
   createWhatsAppConfigStore,
   WHATSAPP_CONFIG_READ_ERROR,
   WHATSAPP_CONFIG_SAVE_ERROR,
-} from '@/services/integrations/whatsapp/whatsappConfigStore';
-import { createWhatsAppLoggingStore } from '@/services/integrations/whatsapp/whatsappLogging';
+} from '@/features/whatsapp/services/whatsappConfigStore';
+import { createWhatsAppLoggingStore } from '@/features/whatsapp/services/whatsappLogging';
 
 describe('whatsapp runtime stores', () => {
   const runtime = {

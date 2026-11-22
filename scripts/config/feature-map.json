@@ -965,15 +965,15 @@
     {
       "id": "backup.files",
       "name": "Archivos de respaldo (administrador)",
-      "owner": "src/hooks",
+      "owner": "src/features/backup",
       "reach": {
         "screen": "Menú de utilidades, «Archivos»",
         "controls": [{ "text": "Archivos" }, { "testId": "backup-files-view" }]
       },
       "gate": [
-        "src/hooks/useBackupFileBrowser.ts",
+        "src/features/backup/hooks/useBackupFileBrowser.ts",
         "src/features/backup/components/BackupFilesView.tsx",
-        "src/hooks/useBackupFilesQuery.ts"
+        "src/features/backup/hooks/useBackupFilesQuery.ts"
       ],
       "tests": [
         "src/tests/hooks/useBackupFilesQuery.test.tsx",

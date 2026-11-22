@@ -15,7 +15,7 @@ vi.mock('@/features/prescriptions/services/prescriptionStorageImageService', () 
 
 import { PrescriptionDetailModal } from '@/features/prescriptions/components/PrescriptionDetailModal';
 import { UIProvider } from '@/context/UIContext';
-import type { PrescriptionRecord } from '@/types/prescriptionTypes';
+import type { PrescriptionRecord } from '@/features/prescriptions/types/prescriptionTypes';
 
 const baseRecord: PrescriptionRecord = {
   id: 'rx-1',

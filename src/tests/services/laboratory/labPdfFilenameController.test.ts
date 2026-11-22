@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { buildLabPdfFilename } from '@/services/laboratory/labPdfFilenameController';
+import { buildLabPdfFilename } from '@/features/laboratory/services/labPdfFilenameController';
 import type { SyslabExamItem } from '@/types/domain/labExamTypes';
 
 const exam = (date: string, patientName = 'Mopéf José Pérez Soto'): SyslabExamItem => ({

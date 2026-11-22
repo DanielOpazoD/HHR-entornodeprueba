@@ -7,8 +7,11 @@
 import {
   defaultPrescriptionPort,
   type PrescriptionPort,
-} from '@/application/ports/prescriptionPort';
-import type { PrescriptionRecord, PrescriptionType } from '@/types/prescriptionTypes';
+} from '@/features/prescriptions/use-cases/prescriptionPort';
+import type {
+  PrescriptionRecord,
+  PrescriptionType,
+} from '@/features/prescriptions/types/prescriptionTypes';
 
 export interface UpdatePrescriptionTypeInput {
   prescriptionId: string;

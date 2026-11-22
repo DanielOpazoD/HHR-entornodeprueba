@@ -2,7 +2,7 @@ import React from 'react';
 import { createReminderUseCases } from '@/application/reminders/reminderUseCases';
 import { useAuth } from '@/context/AuthContext';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
-import { type ReminderDraftInput } from '@/domain/reminders/reminderValidation';
+import { type ReminderDraftInput } from '@/features/reminders/domain/reminderValidation';
 import { resolveReminderAdminErrorMessage } from '@/services/reminders/reminderErrorPolicy';
 import {
   executeReminderAdminSave,

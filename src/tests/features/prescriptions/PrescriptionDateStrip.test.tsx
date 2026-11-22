@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { PrescriptionDateStrip } from '@/features/prescriptions/components/PrescriptionDateStrip';
-import type { PrescriptionRecord } from '@/types/prescriptionTypes';
+import type { PrescriptionRecord } from '@/features/prescriptions/types/prescriptionTypes';
 
 const record: PrescriptionRecord = {
   id: 'fake-prescription',

@@ -8,12 +8,14 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { ParsedCell } from '@/services/ExcelParsingService';
+import type { ParsedCell } from '@/features/backup/services/ExcelParsingService';
 import { excelParserLogger } from '@/hooks/hookLoggers';
 export type { ParsedCell };
 
 const loadExcelParsingService = async () =>
-  import('@/services/ExcelParsingService').then(module => module.ExcelParsingService);
+  import('@/features/backup/services/ExcelParsingService').then(
+    module => module.ExcelParsingService
+  );
 
 export interface UseExcelParserReturn {
   // Data

@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { PrescriptionUploadReadonlyViewer } from '@/features/prescriptions/components/PrescriptionUploadReadonlyViewer';
 import { buildPrescriptionUploadViewerDayOptions } from '@/features/prescriptions/components/prescriptionUploadReadonlyViewerSupport';
-import type { PrescriptionRecord } from '@/types/prescriptionTypes';
+import type { PrescriptionRecord } from '@/features/prescriptions/types/prescriptionTypes';
 
 const mockListPrescriptionUploadReadonlyRecords = vi.fn();
 

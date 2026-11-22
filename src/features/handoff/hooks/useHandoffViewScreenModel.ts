@@ -20,13 +20,13 @@ import type { UseUIStateReturn } from '@/hooks/useUIState';
 import {
   buildClinicalEventAuditPayload,
   buildClinicalEventSuccessFeedback,
-} from '@/hooks/controllers/clinicalEventFeedbackController';
+} from '@/features/handoff/controllers/clinicalEventFeedbackController';
 import {
   appendClinicalEvent,
   buildAddedClinicalEvent,
   removeClinicalEventFromList,
   updateClinicalEventList,
-} from '@/hooks/controllers/clinicalEventMutationController';
+} from '@/features/handoff/controllers/clinicalEventMutationController';
 import { getAttributedAuthors } from '@/services/admin/attributionService';
 import { resolveHandoffShiftStaff } from '@/services/staff/dailyRecordStaffing';
 import { resolveHandoffDocumentTitleLabel } from '@/shared/handoff/handoffPresentation';

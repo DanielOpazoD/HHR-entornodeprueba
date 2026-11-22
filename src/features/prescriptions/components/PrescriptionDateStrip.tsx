@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import clsx from 'clsx';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { addCalendarDays, calendarDayAtUtcNoon } from '@/utils/clinicalDateUtils';
-import type { PrescriptionRecord } from '@/types/prescriptionTypes';
+import type { PrescriptionRecord } from '@/features/prescriptions/types/prescriptionTypes';
 
 interface PrescriptionDateStripProps {
   /** ISO yyyy-mm-dd of the currently selected day, or null for "all days". */

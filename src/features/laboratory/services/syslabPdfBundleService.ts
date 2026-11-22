@@ -3,8 +3,8 @@ import { loadPdfLibGenerationRuntime } from '@/services/pdf/pdfLibRuntime';
 import {
   downloadSyslabPdfBundleThroughExtension,
   isSyslabExtensionLink,
-} from './syslabExtensionBridge';
-import { fetchSyslabPdfArrayBuffer } from './syslabService';
+} from '@/services/laboratory/syslabExtensionBridge';
+import { fetchSyslabPdfArrayBuffer } from '@/services/laboratory/syslabService';
 import { buildLabPdfFilename } from './labPdfFilenameController';
 import type {
   SyslabExamItem,

@@ -16,7 +16,7 @@ import {
   getDailyRecordQueryKey,
   setDailyRecordQueryData,
 } from '@/hooks/controllers/dailyRecordQueryController';
-import { buildSyncQueueStats } from '@/hooks/controllers/syncQueueMonitorController';
+import { buildSyncQueueStats } from '@/features/rayen-import/hooks/syncQueueMonitorController';
 import { bedManagementReducer } from '@/hooks/useBedManagementReducer';
 import { RayenSyncQueueDetails } from '@/features/rayen-import/components/RayenSyncQueueDetails';
 import {

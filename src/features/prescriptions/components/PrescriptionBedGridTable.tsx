@@ -3,7 +3,7 @@ import {
   PRESCRIPTION_TYPE_LABELS,
   type PrescriptionRecord,
   type PrescriptionType,
-} from '@/types/prescriptionTypes';
+} from '@/features/prescriptions/types/prescriptionTypes';
 import { PrescriptionBedRow } from '@/features/prescriptions/components/PrescriptionBedRow';
 import {
   PRESCRIPTION_TYPES,

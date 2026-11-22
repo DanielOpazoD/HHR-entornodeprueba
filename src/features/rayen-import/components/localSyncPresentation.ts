@@ -3,7 +3,10 @@ import {
   isClosedNurseWindowRefusal,
   requiresDailyRecordBaseReview,
 } from '@/services/storage/sync/dailyRecordBaseReview';
-import type { SyncQueueOperation, SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
+import type {
+  SyncQueueOperation,
+  SyncQueueStats,
+} from '@/features/rayen-import/hooks/useSyncQueueMonitor';
 import type { SyncToneLevel } from './syncTone';
 import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 

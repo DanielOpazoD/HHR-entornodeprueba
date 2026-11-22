@@ -20,7 +20,7 @@ vi.mock('@/context/AuthContext', () => ({
   }),
 }));
 
-vi.mock('@/hooks/useBackupFilesQuery', () => ({
+vi.mock('@/features/backup/hooks/useBackupFilesQuery', () => ({
   useBackupFilesQuery: vi.fn().mockReturnValue({
     data: [],
     storageReport: {
@@ -48,7 +48,7 @@ vi.mock('@/services/backup/cudyrStorageService', () => ({
   deleteCudyrFile: vi.fn(),
 }));
 
-import { useBackupFileBrowser } from '@/hooks/useBackupFileBrowser';
+import { useBackupFileBrowser } from '@/features/backup/hooks/useBackupFileBrowser';
 
 describe('useBackupFileBrowser', () => {
   beforeEach(() => {

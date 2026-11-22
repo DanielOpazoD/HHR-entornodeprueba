@@ -9,12 +9,12 @@ vi.mock('@/context/UIContext', () => ({
   useConfirmDialog: () => ({ confirm: vi.fn().mockResolvedValue(true) }),
 }));
 
-vi.mock('@/services/integrations/whatsapp/whatsappService', () => ({
+vi.mock('@/features/whatsapp/services/whatsappService', () => ({
   getMessageTemplates: (...args: unknown[]) => mockGetMessageTemplates(...args),
   saveMessageTemplates: (...args: unknown[]) => mockSaveMessageTemplates(...args),
 }));
 
-vi.mock('@/hooks/useWhatsAppQuery', () => ({
+vi.mock('@/features/whatsapp/hooks/useWhatsAppQuery', () => ({
   useWhatsAppConfigQuery: () => mockConfigQuery(),
   useWhatsAppHealthQuery: () => ({ data: 'connected', isLoading: false, refetch: vi.fn() }),
   useWhatsAppGroupsQuery: () => ({ data: [], isLoading: false }),

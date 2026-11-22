@@ -4,7 +4,7 @@ import { useLabViewerPdfDownload } from '@/features/laboratory/hooks/useLabViewe
 import type { SyslabExamItem } from '@/types/domain/labExamTypes';
 
 const mockDownloadCombinedSyslabPdf = vi.fn();
-vi.mock('@/services/laboratory/syslabPdfBundleService', () => ({
+vi.mock('@/features/laboratory/services/syslabPdfBundleService', () => ({
   downloadCombinedSyslabPdf: (...args: unknown[]) => mockDownloadCombinedSyslabPdf(...args),
 }));
 

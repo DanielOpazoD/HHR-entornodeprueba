@@ -10,7 +10,7 @@ import {
   getMessageTemplates,
   saveMessageTemplates,
   type MessageTemplate,
-} from '@/services/integrations/whatsapp/whatsappService';
+} from '@/features/whatsapp/services/whatsappService';
 import { useConfirmDialog } from '@/context/UIContext';
 
 const errorMessage = (error: unknown, fallback: string): string =>

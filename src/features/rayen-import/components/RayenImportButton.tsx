@@ -8,7 +8,7 @@ import { RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS } from '../bridge/extensionHealt
 import { RayenImportFlowStatus } from './RayenImportFlowStatus';
 import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal';
 import { RayenConnectionMonitor } from './RayenConnectionMonitor';
-import { useSyncQueueMonitor } from '@/hooks/useSyncQueueMonitor';
+import { useSyncQueueMonitor } from '@/features/rayen-import/hooks/useSyncQueueMonitor';
 import { localSyncAttentionLevel } from './localSyncPresentation';
 import { highestSyncTone, SYNC_TONE, SYNC_TONE_INFO_VARIANT } from './syncTone';
 import { RayenSyncStatusLine } from './RayenSyncStatusLine';

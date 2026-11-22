@@ -20,7 +20,7 @@ vi.mock('@/context/UIContext', () => ({
   }),
 }));
 
-vi.mock('@/services/integrations/whatsapp/whatsappService', () => ({
+vi.mock('@/features/whatsapp/services/whatsappService', () => ({
   getWhatsAppConfig: (...args: unknown[]) => mockGetWhatsAppConfig(...args),
   getMessageTemplates: (...args: unknown[]) => mockGetMessageTemplates(...args),
   saveMessageTemplates: (...args: unknown[]) => mockSaveMessageTemplates(...args),
@@ -37,7 +37,7 @@ vi.mock('@/services/integrations/whatsapp/whatsappService', () => ({
   logWhatsAppOperation: vi.fn(),
 }));
 
-vi.mock('@/hooks/useWhatsAppQuery', () => ({
+vi.mock('@/features/whatsapp/hooks/useWhatsAppQuery', () => ({
   useWhatsAppConfigQuery: vi.fn(() => ({
     data: {
       enabled: true,
@@ -69,7 +69,7 @@ vi.mock('@/hooks/useWhatsAppQuery', () => ({
   whatsappKeys: { all: ['whatsapp'], config: () => ['whatsapp', 'config'] },
 }));
 
-vi.mock('@/hooks/useShiftPanel', () => ({
+vi.mock('@/features/whatsapp/hooks/useShiftPanel', () => ({
   useShiftPanel: vi.fn(() => ({
     shift: null,
     loading: false,
@@ -88,7 +88,7 @@ vi.mock('@/hooks/useShiftPanel', () => ({
   })),
 }));
 
-import { useShiftPanel } from '@/hooks/useShiftPanel';
+import { useShiftPanel } from '@/features/whatsapp/hooks/useShiftPanel';
 import { WhatsAppIntegrationView } from '@/features/whatsapp/components/WhatsAppIntegrationView';
 import { ShiftPanelView } from '@/features/whatsapp/components/ShiftPanelView';
 import { ImportModal } from '@/features/whatsapp/components/internal/ImportModal';

@@ -15,7 +15,7 @@ import {
 import {
   defaultPrescriptionPort,
   type PrescriptionPort,
-} from '@/application/ports/prescriptionPort';
+} from '@/features/prescriptions/use-cases/prescriptionPort';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 
 export interface DeletePrescriptionInput {

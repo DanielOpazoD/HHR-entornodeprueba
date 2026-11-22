@@ -31,7 +31,7 @@ import { updatePartialDetailed } from '@/services/repositories/dailyRecordReposi
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
 import { RayenSyncQueueDetails } from '@/features/rayen-import/components/RayenSyncQueueDetails';
-import type { SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
+import type { SyncQueueStats } from '@/features/rayen-import/hooks/useSyncQueueMonitor';
 import type { DailyRecord, DailyRecordPatch } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 

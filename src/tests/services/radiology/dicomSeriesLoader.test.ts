@@ -1,6 +1,6 @@
 import { DICOM_DEFAULT_DOWNLOADS } from '@/features/radiology/services/dicomDownloadLimits';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { planDicomVolume } from '@/domain/radiology/dicomGeometry';
+import { planDicomVolume } from '@/features/radiology/domain/dicomGeometry';
 import { createDicomReviewCache } from '@/features/radiology/services/dicomReviewCache';
 import { createDicomStudyPrefetch } from '@/features/radiology/services/dicomStudyPrefetch';
 import { startDicomSeries } from '@/features/radiology/services/dicomSeriesLoader';

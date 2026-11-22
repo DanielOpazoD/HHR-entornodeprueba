@@ -6,7 +6,7 @@ vi.mock('@/services/auth/authRequestHeaders', () => ({
   resolveCurrentUserAuthHeaders: () => resolveCurrentUserAuthHeadersMock(),
 }));
 
-import { buildBotUrl, fetchBotJson } from '@/services/integrations/whatsapp/whatsappBotRuntime';
+import { buildBotUrl, fetchBotJson } from '@/features/whatsapp/services/whatsappBotRuntime';
 
 describe('whatsappBotRuntime', () => {
   beforeEach(() => {

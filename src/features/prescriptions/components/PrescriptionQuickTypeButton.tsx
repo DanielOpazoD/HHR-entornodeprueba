@@ -5,7 +5,7 @@ import {
   PRESCRIPTION_TYPES,
   PRESCRIPTION_TYPE_LABELS,
   type PrescriptionType,
-} from '@/types/prescriptionTypes';
+} from '@/features/prescriptions/types/prescriptionTypes';
 
 interface PrescriptionQuickTypeButtonProps {
   currentType: PrescriptionType;

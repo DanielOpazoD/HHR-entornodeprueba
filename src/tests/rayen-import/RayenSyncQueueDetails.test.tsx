@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { RayenSyncQueueDetails } from '@/features/rayen-import/components/RayenSyncQueueDetails';
-import type { SyncQueueOperation } from '@/hooks/useSyncQueueMonitor';
+import type { SyncQueueOperation } from '@/features/rayen-import/hooks/useSyncQueueMonitor';
 import { discardQuarantinedSyncTask, retryQuarantinedSyncTask } from '@/services/storage/sync';
 
 vi.mock('@/services/storage/sync', () => ({

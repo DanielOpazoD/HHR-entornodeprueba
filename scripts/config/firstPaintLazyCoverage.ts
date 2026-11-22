@@ -58,7 +58,8 @@ const OPTIONAL_TARGETS: Record<string, string> = {
   'src/features/radiology/dicom-viewer/DicomViewerDialog':
     'DICOM viewer opens on request from the clinical explorer and needs online images.',
   'src/components/reminders/ReminderModal': 'Reminder editor opens on request.',
-  'src/components/shared/ExcelViewerModal': 'Shared census export preview opens on request.',
+  'src/features/backup/components/ExcelViewerModal':
+    'Shared census export preview opens on request.',
   'src/context/ReminderCenterContext':
     'Deferred reminder provider has a local fallback if unavailable.',
   'src/features/census/components/FugaNotificationModal':

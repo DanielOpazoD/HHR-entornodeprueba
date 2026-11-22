@@ -9,7 +9,7 @@ import {
   PRESCRIPTION_TYPES,
   type PrescriptionAssignmentScope,
   type PrescriptionType,
-} from '@/types/prescriptionTypes';
+} from '@/features/prescriptions/types/prescriptionTypes';
 import {
   compressPrescriptionImage,
   releaseCompressedPrescriptionImagePreview,

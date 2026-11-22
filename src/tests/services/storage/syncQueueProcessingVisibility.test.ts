@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { buildSyncQueueTelemetryFromRows } from '@/services/storage/sync/syncQueueTelemetryController';
-import { buildSyncQueueStats } from '@/hooks/controllers/syncQueueMonitorController';
+import { buildSyncQueueStats } from '@/features/rayen-import/hooks/syncQueueMonitorController';
 import { hasLocalSyncAttention } from '@/features/rayen-import/components/localSyncPresentation';
 import { RayenSyncQueueDetails } from '@/features/rayen-import/components/RayenSyncQueueDetails';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';

@@ -4,13 +4,13 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { PrescriptionRepository } from '@/services/repositories/PrescriptionRepository';
+import { PrescriptionRepository } from '@/features/prescriptions/services/PrescriptionRepository';
 import {
   PRESCRIPTION_TYPES,
   resolvePrescriptionAssignmentScope,
   type PrescriptionRecord,
   type PrescriptionType,
-} from '@/types/prescriptionTypes';
+} from '@/features/prescriptions/types/prescriptionTypes';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 

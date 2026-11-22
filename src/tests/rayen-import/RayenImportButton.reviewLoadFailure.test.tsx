@@ -24,7 +24,7 @@ vi.mock('@/features/rayen-import/hooks/useRayenFillStatus', () => ({
 vi.mock('@/features/rayen-import/hooks/useRayenExtensionHealth', () => ({
   useRayenExtensionHealth: () => ({ connection: 'ready', canSync: true, refresh: vi.fn() }),
 }));
-vi.mock('@/hooks/useSyncQueueMonitor', () => ({
+vi.mock('@/features/rayen-import/hooks/useSyncQueueMonitor', () => ({
   useSyncQueueMonitor: () => ({ stats: {}, operations: [], refresh: vi.fn() }),
 }));
 vi.mock('@/features/rayen-import/components/RayenConnectionMonitor', () => ({

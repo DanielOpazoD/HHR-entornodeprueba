@@ -1,6 +1,6 @@
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useSyncQueueMonitor } from '@/hooks/useSyncQueueMonitor';
+import { useSyncQueueMonitor } from '@/features/rayen-import/hooks/useSyncQueueMonitor';
 const mocks = vi.hoisted(() => ({ telemetry: vi.fn(), operations: vi.fn() }));
 vi.mock('@/services/storage/sync', () => ({
   getSyncQueueTelemetry: mocks.telemetry,

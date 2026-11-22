@@ -8,18 +8,18 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render } from '@testing-library/react';
 
-vi.mock('@/services/repositories/PrescriptionRepository', () => ({
+vi.mock('@/features/prescriptions/services/PrescriptionRepository', () => ({
   PrescriptionRepository: {
     subscribeToList: vi.fn(),
   },
 }));
 
-import { PrescriptionRepository } from '@/services/repositories/PrescriptionRepository';
+import { PrescriptionRepository } from '@/features/prescriptions/services/PrescriptionRepository';
 import {
   usePrescriptionListController,
   type PrescriptionListControllerHandle,
 } from '@/features/prescriptions/hooks/usePrescriptionListController';
-import type { PrescriptionRecord } from '@/types/prescriptionTypes';
+import type { PrescriptionRecord } from '@/features/prescriptions/types/prescriptionTypes';
 
 const buildRecord = (
   id: string,

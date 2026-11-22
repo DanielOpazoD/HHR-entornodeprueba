@@ -14,7 +14,7 @@ import {
   exportMonthlyPrescriptionsPdf,
 } from '@/features/prescriptions/services/prescriptionMonthlyPdfService';
 import { resolvePrescriptionImageDownloadUrl } from '@/features/prescriptions/services/prescriptionStorageImageService';
-import type { PrescriptionRecord } from '@/types/prescriptionTypes';
+import type { PrescriptionRecord } from '@/features/prescriptions/types/prescriptionTypes';
 
 const buildRecord = (
   id: string,

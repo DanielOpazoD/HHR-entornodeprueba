@@ -237,7 +237,11 @@
       }
     },
     "src/features/handoff": {
-      "tests": "src/tests/views/handoff",
+      "tests": [
+        "src/tests/views/handoff",
+        "src/tests/hooks/controllers/clinicalEventFeedbackController.test.ts",
+        "src/tests/hooks/controllers/clinicalEventMutationController.test.ts"
+      ],
       "coverageBaseline": {
         "lines": 82.5,
         "functions": 76.5,

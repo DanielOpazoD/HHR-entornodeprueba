@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { planDicomVolume, type SliceGeometry } from '@/domain/radiology/dicomGeometry';
-import { resampleDicomVolume } from '@/domain/radiology/dicomResampling';
+import { planDicomVolume, type SliceGeometry } from '@/features/radiology/domain/dicomGeometry';
+import { resampleDicomVolume } from '@/features/radiology/domain/dicomResampling';
 
 const mixed = (): SliceGeometry[] =>
   [0, 1, 2].map(i => ({

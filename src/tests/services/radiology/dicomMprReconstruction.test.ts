@@ -11,7 +11,7 @@ vi.mock('@cornerstonejs/core', () => ({
   },
 }));
 import { createMprReconstruction } from '@/features/radiology/services/dicomMprReconstruction';
-import { planDicomVolume } from '@/domain/radiology/dicomGeometry';
+import { planDicomVolume } from '@/features/radiology/domain/dicomGeometry';
 const plan = planDicomVolume(
   Array.from({ length: 10 }, (_, z) => ({
     imageId: `s-${z}`,

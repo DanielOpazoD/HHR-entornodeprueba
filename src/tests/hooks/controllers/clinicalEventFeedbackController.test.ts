@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildClinicalEventAuditPayload,
   buildClinicalEventSuccessFeedback,
-} from '@/hooks/controllers/clinicalEventFeedbackController';
+} from '@/features/handoff/controllers/clinicalEventFeedbackController';
 
 describe('clinicalEventFeedbackController', () => {
   it('builds a debounced audit payload for clinical event mutations', () => {

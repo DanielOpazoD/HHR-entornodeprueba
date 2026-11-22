@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useExcelParser } from '@/hooks/useExcelParser';
-import { ExcelParsingService } from '@/services/ExcelParsingService';
+import { useExcelParser } from '@/features/backup/hooks/useExcelParser';
+import { ExcelParsingService } from '@/features/backup/services/ExcelParsingService';
 import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 
 // Mock ExcelParsingService
-vi.mock('@/services/ExcelParsingService', () => ({
+vi.mock('@/features/backup/services/ExcelParsingService', () => ({
   ExcelParsingService: {
     parseBlob: vi.fn(),
   },

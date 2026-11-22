@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { SyslabExamItem, SyslabPdfDownloadStatus } from '@/types/domain/labExamTypes';
-import { downloadCombinedSyslabPdf } from '@/services/laboratory/syslabPdfBundleService';
+import { downloadCombinedSyslabPdf } from '@/features/laboratory/services/syslabPdfBundleService';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface UseLabViewerPdfDownloadParams {

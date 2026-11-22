@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
+import type { SyncQueueStats } from '@/features/rayen-import/hooks/useSyncQueueMonitor';
 import { RAYEN_SYNC_FAILURE_REASONS, type RayenSyncEvent } from '@/types/domain/rayenSync';
 import type { RayenExtensionConnectionState } from '@/features/rayen-import/hooks/useRayenExtensionHealth';
 import type { RayenSyncStage } from '@/features/rayen-import/hooks/rayenSyncExecutionState';

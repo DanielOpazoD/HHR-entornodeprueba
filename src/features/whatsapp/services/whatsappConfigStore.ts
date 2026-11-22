@@ -1,7 +1,7 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
-import type { WhatsAppConfig } from '@/types/whatsapp';
+import type { WhatsAppConfig } from '@/features/whatsapp/types/whatsapp';
 import { whatsappConfigLogger } from '@/services/integrations/integrationLoggers';
 
 export const WHATSAPP_CONFIG_READ_ERROR =

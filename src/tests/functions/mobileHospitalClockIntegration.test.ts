@@ -2,7 +2,7 @@
 import { createRequire } from 'node:module';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildPrescriptionUploadViewerDayOptions } from '@/features/prescriptions/components/prescriptionUploadReadonlyViewerSupport';
-import { listPatientOptionsWithPrescriptionPin } from '@/services/document-intake/qrDocumentAccessService';
+import { listPatientOptionsWithPrescriptionPin } from '@/features/document-scanner/services/qrDocumentAccessService';
 import { submitScannedDocument } from '@/features/document-scanner/services/documentScannerQueueService';
 import {
   buildAdminHarness,

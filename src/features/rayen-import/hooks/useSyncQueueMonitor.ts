@@ -8,7 +8,7 @@ import {
   hasSyncQueueIssues,
   type SyncQueueOperation,
   type SyncQueueStats,
-} from '@/hooks/controllers/syncQueueMonitorController';
+} from '@/features/rayen-import/hooks/syncQueueMonitorController';
 
 export const SYNC_QUEUE_POLL_INTERVAL_MS = 4000;
 

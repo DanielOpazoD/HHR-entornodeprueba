@@ -5,7 +5,7 @@ import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import {
   SYSLAB_LIST_RETENTION_MS,
   SYSLAB_LIST_REUSE_MS,
-} from '@/services/laboratory/syslabLinkPolicy';
+} from '@/features/laboratory/services/syslabLinkPolicy';
 import {
   cleanRutForSyslab,
   fetchSyslabExamDetails,

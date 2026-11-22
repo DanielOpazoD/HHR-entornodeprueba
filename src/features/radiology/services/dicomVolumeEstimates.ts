@@ -1,4 +1,4 @@
-import type { SliceGeometry } from '@/domain/radiology/dicomGeometry';
+import type { SliceGeometry } from '@/features/radiology/domain/dicomGeometry';
 
 type Vec3 = readonly [number, number, number];
 
