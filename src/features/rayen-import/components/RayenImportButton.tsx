@@ -1,18 +1,20 @@
-import React, { Suspense, lazy, startTransition } from 'react';
+import React, { startTransition } from 'react';
 import { History, RefreshCw, UsersRound } from 'lucide-react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useRayenImport } from '../hooks/useRayenImport';
 import { useRayenFillProgress } from '../hooks/useRayenFillStatus';
 import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
+import { useRayenAutoStartSync } from '../hooks/useRayenAutoStartSync';
 import { RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS } from '../bridge/extensionHealthBridge';
 import { RayenImportFlowStatus } from './RayenImportFlowStatus';
 import { RayenConnectionMonitor } from './RayenConnectionMonitor';
+import { RayenImportToolbarModals } from './RayenImportToolbarModals';
 import { useSyncQueueMonitor } from '@/features/rayen-import/hooks/useSyncQueueMonitor';
 import { localSyncAttentionLevel } from './localSyncPresentation';
 import { highestSyncTone, SYNC_TONE, SYNC_TONE_INFO_VARIANT } from './syncTone';
 import { RayenSyncStatusLine } from './RayenSyncStatusLine';
 import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
-import { rayenPrimaryActionLabel } from './rayenSyncPresentation';
+import { formatRayenLastSync, rayenPrimaryActionLabel } from './rayenSyncPresentation';
 import { presentRayenSyncRecovery } from './rayenSyncRecoveryPresentation';
 import type {
   RayenImportCaptureOptions,
@@ -22,46 +24,11 @@ import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 import { rayenSyncExecutionDate } from '../hooks/rayenSyncExecutionState';
 import { buildRayenSyncBarViewModel } from './rayenSyncBarViewModel';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
-import type { RayenSyncMeta } from '@/types/domain/dailyRecord';
-import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
-
-/** Last-sync instant formatted in island time (Pacific/Easter), e.g. "12-07-2026 · 14:32 h". */
-const formatLastSync = (meta: RayenSyncMeta): string | null => {
-  const when = new Date(meta.at);
-  if (Number.isNaN(when.getTime())) return null;
-  const parts = new Intl.DateTimeFormat('es-CL', {
-    timeZone: CLINICAL_TIME_ZONE,
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(when);
-  const get = (type: string): string => parts.find(part => part.type === type)?.value ?? '';
-  return `${get('day')}-${get('month')}-${get('year')} · ${get('hour')}:${get('minute')} h`;
-};
 
 // The sync history is an on-demand panel that only matters while Eloísa is connected, so its
 // sections and technical metrics stay out of the census view and the PWA precache.
 const RayenSyncQueueDetails = lazyWithRetry(() =>
   import('./RayenSyncQueueDetails').then(module => ({ default: module.RayenSyncQueueDetails }))
-);
-
-const LazyRayenSyncHistoryModal = lazy(() =>
-  import('./RayenSyncHistoryModal').then(module => ({ default: module.RayenSyncHistoryModal }))
-);
-
-// Review is opened after a capture; it contains no writes and confirmation remains explicit.
-const RayenImportPreviewModal = lazyWithRetry(() =>
-  import('./RayenImportPreviewModal').then(module => ({ default: module.RayenImportPreviewModal }))
-);
-
-// Staffing review opens only when the operator clicks «Dotación» and Eloísa returns a proposal.
-const RayenNursingShiftProposalModal = lazyWithRetry(() =>
-  import('./RayenNursingShiftProposalModal').then(module => ({
-    default: module.RayenNursingShiftProposalModal,
-  }))
 );
 
 const SYNC_QUEUE_PAGE_SIZE = 12;
@@ -102,8 +69,6 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
   const [staffingReviewOpen, setStaffingReviewOpen] = React.useState(false);
   const historyTriggerRef = React.useRef<HTMLButtonElement>(null);
   const syncPreflightInFlightRef = React.useRef(false);
-  const autoStartHandledRef = React.useRef<number | null>(null);
-  const autoStartInFlightRef = React.useRef<number | null>(null);
   const {
     policyStatus,
     policyBlockReason,
@@ -144,7 +109,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
   const historyTargetDate = recordForSelectedDate?.date ?? selectedDate ?? targetDate;
 
   const lastSync = recordForSelectedDate?.rayenSync
-    ? formatLastSync(recordForSelectedDate.rayenSync)
+    ? formatRayenLastSync(recordForSelectedDate.rayenSync)
     : null;
   const flowStatus = {
     diff,
@@ -213,56 +178,15 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
     [policyReady, refreshExtension, triggerImport]
   );
 
-  const bootstrapRecordReady = Boolean(recordForSelectedDate);
-  const canAutoStart = extension.canSync;
-  // The fill store outlives the day: a synchronization of another day can still be reading.
-  // Same condition under which `resetRayenFillProgress` makes the capture refuse, except a hung
-  // reading: once its watchdog deadline passes, the next capture releases it, so the request
-  // stops waiting and attempts (also when the deadline had already passed on mount).
-  const fillStaleAtMs = fill.running && typeof fill.staleAtMs === 'number' ? fill.staleAtMs : null;
-  const [expiredFillDeadline, setExpiredFillDeadline] = React.useState<number | null>(null);
-  React.useEffect(() => {
-    if (autoStartRequestId === undefined || fillStaleAtMs === null) return undefined;
-    const timer = window.setTimeout(
-      () => setExpiredFillDeadline(fillStaleAtMs),
-      Math.max(0, fillStaleAtMs - Date.now())
-    );
-    return () => window.clearTimeout(timer);
-  }, [autoStartRequestId, fillStaleAtMs]);
-  const hungFillReleasable = fillStaleAtMs !== null && expiredFillDeadline === fillStaleAtMs;
-  const earlierFillBusy =
-    (fill.running && !hungFillReleasable) || fill.staffingOutcome === 'applying';
-  React.useEffect(() => {
-    if (
-      autoStartRequestId === undefined ||
-      autoStartHandledRef.current === autoStartRequestId ||
-      autoStartInFlightRef.current === autoStartRequestId
-    ) {
-      return;
-    }
-    // La solicitud sobrevive a la espera: sólo se marca como atendida cuando la captura dejó
-    // evidencia (un run, aunque falle). Cada condición que hace rechazar la captura sin registrar
-    // nada (fuentes, política, censo, lectura clínica anterior) se espera aquí, porque sólo un
-    // cambio de estas dependencias vuelve a evaluar la solicitud.
-    if (!policyReady || !bootstrapRecordReady || !canAutoStart || earlierFillBusy) return;
-    autoStartInFlightRef.current = autoStartRequestId;
-    // The census did not exist a moment ago; this first import defines the whole day, so it is
-    // reviewed by a human, with the requirement recorded for this attempt.
-    void handleSync({ reviewRequirement: 'day_bootstrap' }).then(outcome => {
-      autoStartInFlightRef.current = null;
-      if (outcome === 'blocked') return;
-      autoStartHandledRef.current = autoStartRequestId;
-      onAutoStartHandled?.(autoStartRequestId);
-    });
-  }, [
+  useRayenAutoStartSync({
     autoStartRequestId,
-    bootstrapRecordReady,
-    canAutoStart,
-    earlierFillBusy,
-    handleSync,
-    onAutoStartHandled,
     policyReady,
-  ]);
+    bootstrapRecordReady: Boolean(recordForSelectedDate),
+    canAutoStart: extension.canSync,
+    fill,
+    onAutoStart: handleSync,
+    onAutoStartHandled,
+  });
   const pendingChangeCount = diff
     ? diff.summary.admissions +
       diff.summary.updates +
@@ -463,44 +387,29 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
         </div>
       </div>
 
-      {isPreviewOpen ? (
-        <Suspense fallback={null}>
-          <RayenImportPreviewModal
-            isOpen={isPreviewOpen}
-            diff={diff}
-            stage={execution?.stage}
-            error={error}
-            isApplied={Boolean(result)}
-            targetDate={targetDate}
-            onConfirm={confirm}
-            onCancel={cancel}
-          />
-        </Suspense>
-      ) : null}
-      <Suspense fallback={null}>
-        {historyOpen ? (
-          <LazyRayenSyncHistoryModal
-            isOpen={historyOpen}
-            onClose={closeHistory}
-            history={history}
-            recovery={recovery}
-            recoveryBusy={working}
-            onRecoveryAction={() => void handleRecoveryAction()}
-            targetDate={historyTargetDate}
-          />
-        ) : null}
-      </Suspense>
-      {!isPreviewOpen && staffingReviewOpen && staffingProposal ? (
-        <Suspense fallback={null}>
-          <RayenNursingShiftProposalModal
-            proposal={staffingProposal}
-            isBusy={isStaffingProposalBusy}
-            error={staffingProposalError}
-            onConfirm={() => void handleConfirmStaffingProposal()}
-            onCancel={handleDismissStaffingProposal}
-          />
-        </Suspense>
-      ) : null}
+      <RayenImportToolbarModals
+        isPreviewOpen={isPreviewOpen}
+        diff={diff}
+        stage={execution?.stage}
+        error={error}
+        isApplied={Boolean(result)}
+        targetDate={targetDate}
+        onConfirmPreview={confirm}
+        onCancelPreview={cancel}
+        historyOpen={historyOpen}
+        onCloseHistory={closeHistory}
+        history={history}
+        recovery={recovery}
+        recoveryBusy={working}
+        onRecoveryAction={() => void handleRecoveryAction()}
+        historyTargetDate={historyTargetDate}
+        staffingReviewOpen={staffingReviewOpen}
+        staffingProposal={staffingProposal}
+        isStaffingProposalBusy={isStaffingProposalBusy}
+        staffingProposalError={staffingProposalError}
+        onConfirmStaffingProposal={() => void handleConfirmStaffingProposal()}
+        onCancelStaffingProposal={handleDismissStaffingProposal}
+      />
     </div>
   );
 };
