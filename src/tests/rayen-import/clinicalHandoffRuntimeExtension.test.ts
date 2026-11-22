@@ -9,13 +9,25 @@ const runtimeSource = readFileSync(path.resolve('extension/clinical-handoff-runt
 const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
 const readmeSource = readFileSync(path.resolve('extension/README.md'), 'utf8');
 
-type RuntimeDependencies = Record<string, any>;
+interface ShiftChangeEntry {
+  id?: string | number;
+  kind?: string;
+  startDateTime?: string;
+  dateTime?: string;
+  author?: string;
+}
+
+interface ClinicalWriteLockGuard {
+  beginWrite: () => Promise<{ ok: boolean }>;
+}
+
+type RuntimeDependencies = Record<string, unknown>;
 type RuntimeApi = {
-  handleOptionsRequest: (request: Record<string, unknown>) => Promise<any>;
-  handleSaveRequest: (request: Record<string, unknown>) => Promise<any>;
-  handleReportRequest: (request: Record<string, unknown>) => Promise<any>;
-  readRecoveryReview: (request: Record<string, unknown>) => Promise<any>;
-  readBatch: (batchId: string, encId: string) => Promise<any>;
+  handleOptionsRequest: (request: Record<string, unknown>) => Promise<unknown>;
+  handleSaveRequest: (request: Record<string, unknown>) => Promise<unknown>;
+  handleReportRequest: (request: Record<string, unknown>) => Promise<unknown>;
+  readRecoveryReview: (request: Record<string, unknown>) => Promise<unknown>;
+  readBatch: (batchId: string, encId: string) => Promise<unknown>;
 };
 
 const loadFactory = () => {
@@ -92,7 +104,7 @@ const createDependencies = (overrides: RuntimeDependencies = {}) => {
   });
   const prescriptionPrint = {
     handoffEncounterEventTypeId: vi.fn((kind: string) => (kind === 'medical' ? 1 : 2)),
-    deriveLatestShiftChange: vi.fn((entries: any[], options: { kind: string }) => {
+    deriveLatestShiftChange: vi.fn((entries: ShiftChangeEntry[], options: { kind: string }) => {
       const latest = [...entries]
         .reverse()
         .find(entry => !entry.kind || entry.kind === options.kind);
@@ -105,7 +117,7 @@ const createDependencies = (overrides: RuntimeDependencies = {}) => {
         : null;
     }),
     entryMatchesHandoffKind: vi.fn(
-      (entry: any, kind: string) => !entry.kind || entry.kind === kind
+      (entry: ShiftChangeEntry, kind: string) => !entry.kind || entry.kind === kind
     ),
   };
   return {
@@ -121,15 +133,18 @@ const createDependencies = (overrides: RuntimeDependencies = {}) => {
       patients: [{ encounterId: '901', firstGivenName: 'Ana' }],
     })),
     mapWithConcurrency: vi.fn(
-      async (items: unknown[], _limit: number, worker: (item: any) => Promise<unknown>) =>
+      async (items: unknown[], _limit: number, worker: (item: unknown) => Promise<unknown>) =>
         Promise.all(items.map(worker))
     ),
     serializeClinicalWriteProtection: vi.fn(async () => ({ phase: 'idle' })),
-    withClinicalWriteLock: vi.fn(async (_key: string, task: (guard: any) => Promise<any>) =>
-      task({ beginWrite: vi.fn(async () => ({ ok: true })) })
+    withClinicalWriteLock: vi.fn(
+      async (_key: string, task: (guard: ClinicalWriteLockGuard) => Promise<unknown>) =>
+        task({ beginWrite: vi.fn(async () => ({ ok: true })) })
     ),
     verifyEncounterStillHospitalized: vi.fn(async () => ({ ok: true })),
-    clinicalRecordKey: vi.fn((_kind: string, row: any) => String(row.id || 'baseline')),
+    clinicalRecordKey: vi.fn((_kind: string, row: ShiftChangeEntry) =>
+      String(row.id || 'baseline')
+    ),
     collectClinicalTimestampBaseline: vi.fn(() => ({ maxTimestampMs: 0 })),
     hasNewClinicalTimestamp: vi.fn(() => true),
     fetchOfficialPdf: vi.fn(async () => ({ buffer: new ArrayBuffer(4) })),
@@ -141,7 +156,10 @@ const createDependencies = (overrides: RuntimeDependencies = {}) => {
   };
 };
 
-const seedBatch = (dependencies: RuntimeDependencies, overrides = {}) => {
+const seedBatch = (
+  dependencies: { records: Map<string, unknown> },
+  overrides: Record<string, unknown> = {}
+) => {
   dependencies.records.set(`hhr-handoff-batch-${BATCH_ID}`, {
     allowedEncounterIds: ['901'],
     createdAt: TEST_NOW,
@@ -243,8 +261,9 @@ describe('clinical handoff runtime owner', () => {
 
   it('writes once, verifies the read-back and confirms the matching FinishRegister event', async () => {
     const beginWrite = vi.fn(async () => ({ ok: true }));
-    const withClinicalWriteLock = vi.fn(async (_key: string, task: (guard: any) => Promise<any>) =>
-      task({ beginWrite })
+    const withClinicalWriteLock = vi.fn(
+      async (_key: string, task: (guard: ClinicalWriteLockGuard) => Promise<unknown>) =>
+        task({ beginWrite })
     );
     let shiftReads = 0;
     const fetchWithTimeout = vi.fn(async (url: string, options?: RequestInit) => {

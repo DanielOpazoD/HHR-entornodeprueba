@@ -8,6 +8,24 @@ const {
   parseVerifiedContext,
   saveCudyrVerifiedContext,
 } = require('../../../functions/lib/cudyrVerifiedContextStore.js');
+
+interface FakeDocRef {
+  path: string;
+  audit?: boolean;
+  collection: (name: string) => { doc: (id: string) => FakeDocRef };
+}
+
+interface FakeTransaction {
+  get: (ref: FakeDocRef) => Promise<{ exists: boolean; data?: () => unknown }>;
+  set?: (ref: FakeDocRef, value: unknown) => void;
+  create?: (ref: FakeDocRef, value: unknown) => void;
+}
+
+const makeRef = (path: string): FakeDocRef => ({
+  path,
+  collection: (name: string) => ({ doc: (id: string) => makeRef(`${path}/${name}/${id}`) }),
+});
+
 const input = () => {
   const bytes = Buffer.from(JSON.stringify({ source: 'synthetic documentary evidence' }));
   return {
@@ -60,7 +78,7 @@ describe('verified context archive boundary', () => {
     'reversed-stay',
     'revision',
   ])('rejects invalid %s', kind => {
-    const request: any = input();
+    const request: Record<string, unknown> & ReturnType<typeof input> = input();
     if (kind === 'hospital') request.hospitalId = 'other';
     if (kind === 'confirmation') request.confirmed = false;
     if (kind === 'evidence') request.files = [];
@@ -86,40 +104,42 @@ describe('verified context archive boundary', () => {
   });
   it('fails closed on absent monthly evidence without writing', async () => {
     const paths: string[] = [];
-    const ref = (path: string): any => ({
-      path,
-      collection: (n: string) => ({ doc: (id: string) => ref(`${path}/${n}/${id}`) }),
-    });
-    const hospital = ref('hospital');
-    const tx = {
+    const hospital = makeRef('hospital');
+    const tx: FakeTransaction = {
       get: async () => ({ exists: false }),
-      set: () => paths.push('set'),
-      create: () => paths.push('create'),
+      set: () => {
+        paths.push('set');
+      },
+      create: () => {
+        paths.push('create');
+      },
     };
     await expect(
       saveCudyrVerifiedContext({
         hospital,
         data: input(),
         actor: { uid: 'reviewer' },
-        runTransaction: (f: any) => f(tx),
+        runTransaction: (f: (transaction: FakeTransaction) => Promise<unknown>) => f(tx),
       })
     ).rejects.toThrow('Monthly source is missing');
     expect(paths).toEqual([]);
   });
   it('uses revision checks before writing and supports idempotent receipts', async () => {
-    const hospital: any = {
-      collection: () => ({ doc: () => ({ collection: () => ({ doc: () => ({ audit: true }) }) }) }),
+    const hospital = {
+      collection: () => ({
+        doc: () => ({ collection: () => ({ doc: () => ({ path: 'audit', audit: true }) }) }),
+      }),
     };
-    const tx = {
-      get: async (ref: any) =>
-        ref.audit ? { exists: false } : { exists: true, data: () => ({ revision: 2 }) },
+    const tx: FakeTransaction = {
+      get: async (docRef: FakeDocRef) =>
+        docRef.audit ? { exists: false } : { exists: true, data: () => ({ revision: 2 }) },
     };
     await expect(
       saveCudyrVerifiedContext({
         hospital,
         data: input(),
         actor: { uid: 'reviewer' },
-        runTransaction: (f: any) => f(tx),
+        runTransaction: (f: (transaction: FakeTransaction) => Promise<unknown>) => f(tx),
       })
     ).rejects.toThrow('recargue');
   });
@@ -132,7 +152,7 @@ it('persists evidence and auditable revision atomically; retries do not create a
   const fileHash = createHash('sha256')
     .update(Buffer.from(source.file.base64, 'base64'))
     .digest('hex');
-  const db = new Map<string, any>([
+  const db = new Map<string, unknown>([
     [
       'h/cudyrMonthlySupplements/' + request.entries[0].reportId,
       {
@@ -143,17 +163,17 @@ it('persists evidence and auditable revision atomically; retries do not create a
     ],
     ['h/cudyrSupplementFiles/' + fileHash, { base64: source.file.base64 }],
   ]);
-  const ref = (path: string): any => ({
-    path,
-    collection: (name: string) => ({ doc: (id: string) => ref(path + '/' + name + '/' + id) }),
-  });
-  const hospital = ref('h');
-  const runTransaction = async (f: any) => {
-    const staged = new Map<string, any>();
+  const hospital = makeRef('h');
+  const runTransaction = async (f: (transaction: FakeTransaction) => Promise<unknown>) => {
+    const staged = new Map<string, unknown>();
     const result = await f({
-      get: async (r: any) => ({ exists: db.has(r.path), data: () => db.get(r.path) }),
-      set: (r: any, v: any) => staged.set(r.path, v),
-      create: (r: any, v: any) => staged.set(r.path, v),
+      get: async (r: FakeDocRef) => ({ exists: db.has(r.path), data: () => db.get(r.path) }),
+      set: (r: FakeDocRef, v: unknown) => {
+        staged.set(r.path, v);
+      },
+      create: (r: FakeDocRef, v: unknown) => {
+        staged.set(r.path, v);
+      },
     });
     staged.forEach((v, k) => db.set(k, v));
     return result;
@@ -166,7 +186,9 @@ it('persists evidence and auditable revision atomically; retries do not create a
   };
   expect(await saveCudyrVerifiedContext(args)).toEqual({ persisted: true, revision: 1 });
   expect(await saveCudyrVerifiedContext(args)).toEqual({ persisted: true, revision: 1 });
-  expect(db.get('h/cudyrVerifiedContexts/2026-10').reviewedBy.uid).toBe('reviewer');
+  expect(
+    (db.get('h/cudyrVerifiedContexts/2026-10') as { reviewedBy: { uid: string } }).reviewedBy.uid
+  ).toBe('reviewer');
   expect([...db.keys()].filter(k => k.includes('/revisions/'))).toHaveLength(1);
   await expect(
     saveCudyrVerifiedContext({
@@ -218,26 +240,29 @@ describe('reviewed absent identity in a complete official report', () => {
     'missing name',
     'missing document',
   ])('validates original report bytes before persisting: %s', async kind => {
-    const request: any = input();
+    const request = input();
     const source = supplementRequest();
-    const e = request.entries[0];
-    e.sourceRow = null;
-    e.basis = 'reviewed_report_absence';
-    e.patientName = 'Synthetic missing patient';
-    if (kind === 'document present') e.document = source.report.patients[0].document;
-    if (kind === 'name present') e.patientName = source.report.patients[0].patientName;
-    if (kind === 'missing name') delete e.patientName;
-    if (kind === 'missing document') e.document = '';
+    const entry: Record<string, unknown> = {
+      ...request.entries[0],
+      sourceRow: null,
+      basis: 'reviewed_report_absence',
+      patientName: 'Synthetic missing patient',
+    };
+    if (kind === 'document present') entry.document = source.report.patients[0].document;
+    if (kind === 'name present') entry.patientName = source.report.patients[0].patientName;
+    if (kind === 'missing name') delete entry.patientName;
+    if (kind === 'missing document') entry.document = '';
     if (kind === 'wrong month') {
       request.month = '2026-11';
-      e.date = '2026-11-02';
+      entry.date = '2026-11-02';
     }
+    const payload = { ...request, entries: [entry] };
     const fileHash = createHash('sha256')
       .update(Buffer.from(source.file.base64, 'base64'))
       .digest('hex');
-    const db = new Map<string, any>([
+    const db = new Map<string, unknown>([
       [
-        'h/cudyrMonthlySupplements/' + e.reportId,
+        'h/cudyrMonthlySupplements/' + String(entry.reportId),
         {
           report: source.report,
           file: { sha256: fileHash },
@@ -246,20 +271,20 @@ describe('reviewed absent identity in a complete official report', () => {
       ],
       ['h/cudyrSupplementFiles/' + fileHash, { base64: source.file.base64 }],
     ]);
-    const ref = (path: string): any => ({
-      path,
-      collection: (n: string) => ({ doc: (id: string) => ref(path + '/' + n + '/' + id) }),
-    });
     const writes: string[] = [];
     const action = saveCudyrVerifiedContext({
-      hospital: ref('h'),
-      data: request,
+      hospital: makeRef('h'),
+      data: payload,
       actor: { uid: 'reviewer' },
-      runTransaction: (f: any) =>
+      runTransaction: (f: (transaction: FakeTransaction) => Promise<unknown>) =>
         f({
-          get: async (r: any) => ({ exists: db.has(r.path), data: () => db.get(r.path) }),
-          set: (r: any) => writes.push(r.path),
-          create: (r: any) => writes.push(r.path),
+          get: async (r: FakeDocRef) => ({ exists: db.has(r.path), data: () => db.get(r.path) }),
+          set: (r: FakeDocRef) => {
+            writes.push(r.path);
+          },
+          create: (r: FakeDocRef) => {
+            writes.push(r.path);
+          },
         }),
     });
     if (kind === 'accepted') {
@@ -273,8 +298,8 @@ describe('reviewed absent identity in a complete official report', () => {
 });
 
 it('restricts maternal identity exceptions to documentary RN absence reviews', () => {
-  const request: any = input();
-  request.entries[0] = {
+  const request = input();
+  const maternalEntry: Record<string, unknown> = {
     ...request.entries[0],
     sourceRow: null,
     basis: 'reviewed_report_absence',
@@ -283,8 +308,10 @@ it('restricts maternal identity exceptions to documentary RN absence reviews', (
     modality: 'cuna',
     group: 'sin_grupo',
   };
-  expect(parseVerifiedContext(request).entries[0].maternalSourceRow).toBe(7);
-  request.entries[0].modality = 'hospitalizacion';
-  request.entries[0].group = 'media';
-  expect(() => parseVerifiedContext(request)).toThrow();
+  expect(
+    parseVerifiedContext({ ...request, entries: [maternalEntry] }).entries[0].maternalSourceRow
+  ).toBe(7);
+  maternalEntry.modality = 'hospitalizacion';
+  maternalEntry.group = 'media';
+  expect(() => parseVerifiedContext({ ...request, entries: [maternalEntry] })).toThrow();
 });

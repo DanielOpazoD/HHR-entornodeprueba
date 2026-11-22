@@ -77,7 +77,13 @@ describe('historical census archive boundary', () => {
       parsed = parseCensusSource(raw);
     const report = { ...parsed, date: parsed.source.date };
     let exists = true;
-    const q: any = {
+    interface FakeQuery {
+      where: () => FakeQuery;
+      orderBy: () => FakeQuery;
+      limit: () => FakeQuery;
+      get: () => Promise<{ size: number; docs: Array<{ data: () => unknown }> }>;
+    }
+    const q: FakeQuery = {
       where: () => q,
       orderBy: () => q,
       limit: () => q,
@@ -114,12 +120,12 @@ describe('historical census archive boundary', () => {
     'mismatched name',
     'mismatched flag',
   ])('rejects invalid %s', kind => {
-    const data: any = input();
+    const data: Record<string, unknown> & ReturnType<typeof input> = input();
     if (kind === 'hospital') data.hospitalId = 'other';
     if (kind === 'confirmation') data.confirmed = false;
     if (kind === 'date') data.source.date = '2026-02-30';
     if (kind === 'timestamp') data.observedAt = 'bad';
-    if (kind === 'flags') data.source.patients[0].discharged = 'NO';
+    if (kind === 'flags') Reflect.set(data.source.patients[0], 'discharged', 'NO');
     if (kind === 'mismatched name') data.source.patients[0].name = 'Another';
     if (kind === 'mismatched flag') data.source.patients[0].discharged = true;
     if (kind === 'file') data.base64 = 'AA==';

@@ -369,10 +369,17 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.stories.{ts,tsx}', '**/*.test.{ts,tsx}'],
+    files: ['**/*.stories.{ts,tsx}'],
     rules: {
       'no-console': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+  {
+    files: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'no-console': 'off',
+      '@typescript-eslint/no-explicit-any': 'error',
     },
   },
   {

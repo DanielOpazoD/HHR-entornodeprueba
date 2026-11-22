@@ -6,9 +6,16 @@ import '../../../extension/census-sync-horizon-runtime.js';
 import '../../../extension/capture-read-recovery.js';
 import '../../../extension/rayen-sync-bundle-runtime.js';
 
+interface SyncBundleCaptureResult {
+  ok?: boolean;
+  error?: string;
+  snapshot?: Record<string, unknown>;
+  bundle?: Record<string, unknown> & { captureTimingsMs?: Record<string, number> };
+}
+
 interface SyncBundleRuntime {
   MAX_SOURCE_SKEW_MS: number;
-  capture: (input: Record<string, unknown>) => Promise<Record<string, any>>;
+  capture: (input: Record<string, unknown>) => Promise<SyncBundleCaptureResult>;
 }
 
 const runtime = (globalThis as typeof globalThis & { HhrRayenSyncBundleRuntime: SyncBundleRuntime })
@@ -244,7 +251,7 @@ describe('Rayen synchronized source bundle', () => {
     });
     expect(result.ok).toBe(true);
     expect(result.snapshot).not.toHaveProperty('capturePhasesMs');
-    expect(result.bundle.captureTimingsMs).toMatchObject({
+    expect(result.bundle?.captureTimingsMs).toMatchObject({
       fichaContext: 4,
       fichaListsAndCatalog: 10,
       fichaPatientReads: 72,

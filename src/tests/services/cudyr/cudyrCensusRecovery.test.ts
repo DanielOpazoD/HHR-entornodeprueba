@@ -3,7 +3,41 @@ import { describe, it, expect } from 'vitest';
 import { createCudyrRecoveredRow } from '@/services/cudyr/cudyrRecoveredRow';
 import { applyCudyrCensusContinuity } from '@/services/cudyr/cudyrCensusContinuity';
 import { applyCudyrFirstNightRecovery } from '@/services/cudyr/cudyrFirstNightRecovery';
-import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
+import type { CudyrReportDataset, CudyrReportMovement } from '@/types/domain/cudyrReport';
+import type { CudyrActualDischarge, CudyrDischargeCorrection } from '@/types/domain/cudyrDischarge';
+
+const dischargeCorrection = (actualDischarge: CudyrActualDischarge): CudyrDischargeCorrection => ({
+  schemaVersion: 1,
+  clinicalEpisodeId: '123',
+  revision: 1,
+  operationId: 'op-synthetic-1',
+  actualDischarge,
+  reason: 'Corrección documental sintética',
+  authorityDate: actualDischarge.date,
+  admissionDate: '2026-09-16',
+  sourceContexts: [],
+  updatedAt: '2026-09-18T12:00:00Z',
+  updatedBy: { uid: 'u1', email: 'u1@example.com', name: 'Synthetic', role: 'admin' },
+});
+
+const movement = (
+  overrides: Partial<CudyrReportMovement> & Pick<CudyrReportMovement, 'section' | 'date' | 'time'>
+): CudyrReportMovement => ({
+  clinicalEpisodeId: '123',
+  censusDate: overrides.date,
+  id: 'mov-1',
+  bedId: 'R1',
+  bedName: 'R1',
+  service: 'Medicina',
+  modality: 'hospitalizacion',
+  recordedAt: '',
+  source: 'hhr_daily',
+  lineageId: '',
+  medicalEpicrisisStatus: '',
+  nursingEpicrisisStatus: '',
+  epicrisisRegisteredAt: '',
+  ...overrides,
+});
 const row = (date: string) => ({
   ...createCudyrRecoveredRow(date, 'Paciente Ejemplo', '11111111-1'),
   clinicalEpisodeId: '123',
@@ -71,7 +105,11 @@ describe('bounded historical census recovery', () => {
   });
   it.each([0, 1])('does not bridge a manual actual discharge on endpoint %s', endpoint => {
     const d = dataset([row('2026-09-16'), row('2026-09-20')]);
-    d.rows[endpoint].correction = { actualDischarge: { date: '2026-09-18', time: '12:00' } } as any;
+    d.rows[endpoint].correction = dischargeCorrection({
+      date: '2026-09-18',
+      time: '12:00',
+      timeZone: 'Pacific/Easter',
+    });
     expect(applyCudyrCensusContinuity(d).rows).toHaveLength(2);
   });
   it('does not bridge different beds, resolved departures, or daily manual exceptions', () => {
@@ -205,8 +243,17 @@ describe('bounded historical census recovery', () => {
     if (kind === 'unresolved context') d.rows[0].eligibility = 'por_revisar';
     if (kind === 'bed transition')
       d.rows[0].bedHistory = [
-        { bed: 'H1C1', status: 'finalizada', modality: 'hospitalizacion' },
-      ] as any;
+        {
+          key: 'bed-transition-1',
+          bed: 'H1C1',
+          service: 'Medicina',
+          status: 'finalizada',
+          modality: 'hospitalizacion',
+          startAt: '',
+          endAt: '',
+          observedAt: '',
+        },
+      ];
     d.rows.push(source);
     if (kind === 'duplicate') d.rows.push({ ...source, key: 'second-source-row' });
     const result = applyCudyrFirstNightRecovery(d, []);
@@ -218,9 +265,11 @@ describe('bounded historical census recovery', () => {
       ...row('2026-09-17'),
       captureId: 'next-day-capture',
       evaluationCapturedAt: '2026-09-18T04:00:00-05:00',
-      correction: {
-        actualDischarge: { date: '2026-09-16', time: '23:00', timeZone: 'Pacific/Easter' },
-      } as any,
+      correction: dischargeCorrection({
+        date: '2026-09-16',
+        time: '23:00',
+        timeZone: 'Pacific/Easter',
+      }) as CudyrDischargeCorrection | undefined,
     };
     const source = {
       ...createCudyrRecoveredRow('2026-09-16', 'Paciente Ejemplo', '11111111-1'),
@@ -248,8 +297,8 @@ describe('bounded historical census recovery', () => {
     expect(first.captureId).toBe('');
     expect(first.evaluationCapturedAt).toBeUndefined();
     expect(first.evaluation?.category).toBe('C2');
-    context.correction = undefined as any;
-    context.movements = [{ section: 'discharges', date: '2026-09-17', time: '00:30' }] as any;
+    context.correction = undefined;
+    context.movements = [movement({ section: 'discharges', date: '2026-09-17', time: '00:30' })];
     const resolved = dataset([context]);
     resolved.rows.push(source);
     const hidden = applyCudyrFirstNightRecovery(resolved, []).rows.find(

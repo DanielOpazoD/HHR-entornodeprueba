@@ -9,7 +9,7 @@ import '../../../extension/rayen-sync-bundle-runtime.js';
 const runtime = (
   globalThis as typeof globalThis & {
     HhrRayenSyncBundleRuntime: {
-      capture: (input: Record<string, unknown>) => Promise<Record<string, any>>;
+      capture: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
     };
   }
 ).HhrRayenSyncBundleRuntime;
