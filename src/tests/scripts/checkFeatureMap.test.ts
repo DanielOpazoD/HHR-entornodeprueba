@@ -216,8 +216,13 @@ describe('check-feature-map', () => {
     expect(withFlow.map((entry: { id: string }) => entry.id)).toEqual([
       'census.open-day-flow',
       'census.cell-save-flow',
+      'census.discharge',
+      'census.transfer',
       'eloisa.sync-flow',
       'eloisa.discharge-time-flow',
+      'cudyr.monthly-report',
+      'labs.census-update',
+      'imaging.mmrad',
     ]);
     const renamed = withFlow[1].flow[1];
     renamed.at = `${renamed.at}Renamed`;

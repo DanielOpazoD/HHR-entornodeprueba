@@ -236,6 +236,28 @@
         "src/hooks/usePatientDischarges.ts",
         "src/features/census/components/movements/DischargeModal.tsx"
       ],
+      "flow": [
+        {
+          "at": "src/features/census/components/movements/DischargeModal.tsx › DischargeModal",
+          "decides": "Recoge tipo, estado (vivo/fallecido), hora, fecha en edición y alcance madre/RN antes de confirmar el alta."
+        },
+        {
+          "at": "src/features/census/controllers/censusDischargeCommandController.ts › resolveDischargeCommand",
+          "decides": "Comprueba reglas de estabilidad y bloqueo, valida los campos requeridos y decide entre crear (addDischarge) o actualizar (updateDischarge) el alta."
+        },
+        {
+          "at": "src/hooks/usePatientDischarges.ts › usePatientDischarges",
+          "decides": "Toma el registro vigente y el actor de auditoría para ejecutar la creación, edición, anulación o reclasificación del alta."
+        },
+        {
+          "at": "src/application/census/controllers/patientMovementCreationController.ts › resolveAddDischargeMovement",
+          "decides": "Valida la cama ocupada, resuelve la fecha del movimiento, construye las entradas de alta (madre y/o cuna) y actualiza la ocupación de la cama."
+        },
+        {
+          "at": "src/hooks/usePatientMovementCreationExecutor.ts › usePatientMovementCreationExecutor",
+          "decides": "Persiste atómicamente la cama actualizada junto con la lista discharges y dispara la auditoría solo si el guardado fue exitoso."
+        }
+      ],
       "tests": [
         "src/tests/components/DischargeModal.test.tsx",
         "src/tests/views/census/useDischargeModalForm.test.ts",
@@ -254,6 +276,28 @@
         "src/features/census/controllers/censusTransferCommandController.ts",
         "src/hooks/usePatientTransfers.ts",
         "src/features/census/components/movements/TransferModal.tsx"
+      ],
+      "flow": [
+        {
+          "at": "src/features/census/components/movements/TransferModal.tsx › TransferModal",
+          "decides": "Recoge medio de evacuación, centro receptor (precargando el destino abierto en gestión de traslados si existe), acompañante y hora antes de confirmar."
+        },
+        {
+          "at": "src/features/census/controllers/censusTransferCommandController.ts › resolveTransferCommand",
+          "decides": "Comprueba reglas de estabilidad y bloqueo, valida los campos obligatorios del traslado y decide entre crear (addTransfer) o actualizar (updateTransfer)."
+        },
+        {
+          "at": "src/hooks/usePatientTransfers.ts › usePatientTransfers",
+          "decides": "Ejecuta creación, edición, anulación o reclasificación sobre el registro vigente y dispara la auditoría correspondiente."
+        },
+        {
+          "at": "src/application/census/controllers/patientMovementCreationController.ts › resolveAddTransferMovement",
+          "decides": "Valida la cama ocupada, construye las entradas de traslado con su fecha y libera la cama asociada."
+        },
+        {
+          "at": "src/hooks/usePatientMovementCreationExecutor.ts › usePatientMovementCreationExecutor",
+          "decides": "Persiste atómicamente la cama liberada y la lista transfers, registrando la auditoría solo tras confirmar el guardado."
+        }
       ],
       "tests": [
         "src/tests/components/TransferModal.test.tsx",
@@ -776,6 +820,28 @@
         ]
       },
       "gate": ["src/features/cudyr/components/CudyrReportExplorer.tsx"],
+      "flow": [
+        {
+          "at": "src/features/cudyr/components/CudyrReportExplorer.tsx › CudyrReportExplorer",
+          "decides": "Fija el período, muestra los totales verificados, habilita correcciones solo para roles autorizados y bloquea la exportación Excel si la lectura no está verificada."
+        },
+        {
+          "at": "src/features/cudyr/hooks/useCudyrReport.ts › useCudyrReport",
+          "decides": "Aísla el caché por sesión, revalida la lectura al expirar o refrescar y conserva la última copia verificada ante un fallo del servidor."
+        },
+        {
+          "at": "src/services/cudyr/cudyrReportLoader.ts › loadCudyrReport",
+          "decides": "Valida el rango (máximo 32 días), ata la consulta a la sesión activa y lee únicamente datos persistidos en HHR."
+        },
+        {
+          "at": "src/services/cudyr/cudyrReportModel.ts › buildCudyrReport",
+          "decides": "Reconstruye cada fila paciente-día aplicando la política oficial CUDYR, continuidad censal, estados de captura y totales del período."
+        },
+        {
+          "at": "src/services/cudyr/cudyrReportWorkbook.ts › downloadCudyrReport",
+          "decides": "Genera y descarga el libro Excel bajo demanda solo cuando el reporte y sus suplementos están verificados."
+        }
+      ],
       "tests": [
         "src/tests/views/cudyr/CudyrExplorerCache.test.tsx",
         "e2e/cudyr-flow-critical.spec.ts › explores the saved period, preserves group totals in Excel and audits a confirmed actual discharge",
@@ -841,6 +907,32 @@
         "src/features/laboratory/controllers/censusLaboratoryPeriod.ts",
         "src/features/census/controllers/censusLaboratoryController.ts"
       ],
+      "flow": [
+        {
+          "at": "src/features/census/controllers/censusLaboratoryController.ts › buildCensusLaboratoryCohort",
+          "decides": "Construye la cohorte por identidad (RUN y episodio), manteniendo cada cuna como persona propia y excluyendo pasaportes, provisionales o RUN inválidos."
+        },
+        {
+          "at": "src/features/laboratory/controllers/censusLaboratoryPeriod.ts › censusLaboratoryPeriodProblem",
+          "decides": "Valida el rango personalizado Desde/Hasta contra el reloj de Rapa Nui sin superar el día actual, independiente del día censal abierto."
+        },
+        {
+          "at": "src/features/laboratory/components/CensusLaboratoryInbox.tsx › CensusLaboratoryInbox",
+          "decides": "Monta una bandeja aislada por persona, rol, época de sesión, cohorte y período para revisar resultados nuevos o lanzar actualizaciones."
+        },
+        {
+          "at": "src/features/laboratory/hooks/useCensusLaboratoryInbox.ts › useCensusLaboratoryInbox",
+          "decides": "Consulta el estado de la cola, sondea cada 5 s solo mientras haya trabajos en curso y limpia la caché al cambiar la sesión."
+        },
+        {
+          "at": "src/services/laboratory/syslabJobs.ts › requestSyslabJob",
+          "decides": "Envía solicitudes autenticadas con límite de 15 s y guardia de sesión hacia syslab-proxy, gestionando reintentos 429 sin mezclar sesiones."
+        },
+        {
+          "at": "netlify/functions/syslab-proxy.ts › createSyslabProxyHandler",
+          "decides": "Autoriza el rol y el operador, deriva el propietario hash de la cola y reenvía el trabajo al servidor del Mac mini con telemetría."
+        }
+      ],
       "tests": [
         "src/tests/features/laboratory/censusLaboratoryPeriod.test.ts",
         "src/tests/views/census/censusLaboratoryController.test.ts",
@@ -887,6 +979,24 @@
         "src/features/radiology/services/mmradService.ts",
         "src/features/radiology/components/RadiologyViewerModal.tsx",
         "netlify/functions/mmrad-search.ts"
+      ],
+      "flow": [
+        {
+          "at": "src/features/radiology/components/RadiologyViewerModal.tsx › RadiologyViewerModal",
+          "decides": "Selecciona paciente y rango de fechas, pinta de inmediato la lista recordada en sesión y muestra errores de refresco sin borrar exámenes ya visibles."
+        },
+        {
+          "at": "src/features/radiology/controllers/mmradStudySearch.ts › searchMmradStudies",
+          "decides": "Ejecuta en paralelo la búsqueda exacta por RUT y la variante por dígito verificador con nombre censal, descartando respuestas obsoletas si cambió la consulta."
+        },
+        {
+          "at": "src/features/radiology/services/mmradService.ts › searchMMRADExams",
+          "decides": "Autentica contra /.netlify/functions/mmrad-search y propaga errores de sesión o red sin interpretar un fallo como «sin exámenes»."
+        },
+        {
+          "at": "netlify/functions/mmrad-search.ts › createMMRADSearchHandler",
+          "decides": "Autoriza el rol, inicia sesión en el portal RIS MMRAD, combina resultados exactos y de dígito verificador e hidrata informes estructurados de TC."
+        }
       ],
       "tests": [
         "src/tests/components/modals/RadiologyViewerModal.test.tsx",
