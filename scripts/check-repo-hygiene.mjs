@@ -21,7 +21,6 @@ const FEATURE_PUBLIC_BOUNDARIES = [
     description:
       'Code outside src/features/census must import census only from "@/features/census"; internal subpaths are reserved for the feature itself.',
     allowBypass: file =>
-      file === 'src/application/census/public.ts' ||
       file.startsWith('src/features/census/') ||
       file.startsWith('src/tests/') ||
       // Storybook stories are dev-only artifacts (never bundled into the app), like
@@ -70,11 +69,7 @@ const FEATURE_PUBLIC_BOUNDARIES = [
     description:
       'Code outside src/features/clinical-documents must import clinical documents only from "@/features/clinical-documents"; internal subpaths are reserved for the feature itself.',
     allowBypass: file =>
-      file.startsWith('src/features/clinical-documents/') ||
-      file.startsWith('src/application/clinical-documents/') ||
-      file === 'src/application/ports/clinicalDocumentPort.ts' ||
-      file.startsWith('src/shared/clinical-documents/') ||
-      file.startsWith('src/tests/'),
+      file.startsWith('src/features/clinical-documents/') || file.startsWith('src/tests/'),
   },
 ];
 

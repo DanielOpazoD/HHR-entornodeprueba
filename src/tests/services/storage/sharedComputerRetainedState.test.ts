@@ -10,8 +10,8 @@ import {
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+} from '@/services/session/sessionScopedStorageService';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import {
   appendOperationalTelemetryEvent,
   persistOperationalTelemetryEvents,

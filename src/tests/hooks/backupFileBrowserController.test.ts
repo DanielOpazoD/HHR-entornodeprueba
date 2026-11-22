@@ -6,7 +6,7 @@ import {
   filterBackupBrowserItems,
   resolveBackupModuleLabel,
   resolveCanRunMagicBackfill,
-} from '@/hooks/backupFileBrowserController';
+} from '@/features/backup/hooks/backupFileBrowserController';
 
 describe('backupFileBrowserController', () => {
   it('builds the initial browser path from the current month', () => {

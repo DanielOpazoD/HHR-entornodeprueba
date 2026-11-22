@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { formatClinicalDocumentDateTime } from '@/shared/clinical-documents/clinicalDocumentPresentation';
+import { formatClinicalDocumentDateTime } from '@/features/clinical-documents/domain/clinicalDocumentPresentation';
 
 describe('clinicalDocumentPresentation', () => {
   it('formatea fechas clinicas para modal y sidebar', () => {

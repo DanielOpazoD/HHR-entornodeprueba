@@ -1,7 +1,7 @@
 import { requestViaBridgeChannel } from '@/services/transport/extensionRequestChannel';
 import { CudyrReportUnreadableError, readCudyrSupplementFile } from './cudyrSupplementFile';
 import { importCudyrSupplement } from './cudyrSupplementService';
-import type { AuthoringSessionGuard } from '@/services/storage/authoringSession';
+import type { AuthoringSessionGuard } from '@/services/session/authoringSession';
 
 type SourceReport = { month: string; base64: string; capturedAt: string };
 export const fetchCudyrMonthlyReport = (month: string, signal: AbortSignal, censusDate?: string) =>

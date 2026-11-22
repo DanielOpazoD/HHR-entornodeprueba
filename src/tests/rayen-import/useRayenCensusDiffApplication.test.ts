@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import { describe, expect, it, vi } from 'vitest';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';

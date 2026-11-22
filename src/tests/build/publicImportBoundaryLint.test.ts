@@ -3,7 +3,6 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { ESLint } from 'eslint';
 import ts from 'typescript';
-import { GOVERNED_APPLICATION_PUBLIC_IMPORTS } from '../../../scripts/lib/publicImportBoundaryRule.mjs';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 const ROOT = path.resolve(__dirname, '../../../');
@@ -76,8 +75,7 @@ describe('public imports in ESLint', () => {
               ? 'hooks/useSyslabAccess'
               : feature === 'census'
                 ? 'controllers/censusCmaController'
-                : 'internal';
-          // internal is a governed public module for clinical-documents; explicit extension is not.
+                : 'controllers/clinicalDocumentWorkspaceController';
           const target = `${feature}/${module}.ts`;
           for (const prefix of ['@/features/', '../features/']) {
             expect(
@@ -159,15 +157,10 @@ describe('public imports in ESLint', () => {
           expect(await errors('src/views/Probe.ts', code(target))).toEqual([]);
       }
   });
-  it('keeps all governed census facade imports live and scoped to that facade', async () => {
-    const file = 'src/application/census/public.ts';
-    const targets = realImports(file);
-    const stale = [...GOVERNED_APPLICATION_PUBLIC_IMPORTS].filter(target => !targets.has(target));
-    expect(stale).toEqual([]);
-    for (const target of GOVERNED_APPLICATION_PUBLIC_IMPORTS) {
-      expect(await errors(file, forms[0](target))).toEqual([]);
-      expect(await errors('src/views/Probe.ts', forms[0](target))).toHaveLength(1);
-    }
+  it('keeps no feature-internal bypass on the census application facade', async () => {
+    const target = '@/features/census/components/global-search/globalSearchContracts';
+    expect(await errors('src/application/census/public.ts', forms[0](target))).toHaveLength(1);
+    expect(await errors('src/views/Probe.ts', forms[0](target))).toHaveLength(1);
   });
   it('keeps no census shim or overlay exception', async () => {
     const target = '@/features/census/controllers/censusCmaController';

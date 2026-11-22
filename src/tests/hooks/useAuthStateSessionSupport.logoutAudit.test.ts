@@ -5,7 +5,7 @@ import {
 } from '@/hooks/useAuthStateSessionSupport';
 import { registerPendingAuditFlush } from '@/services/admin/auditPendingEvents';
 import { defaultAuditPort } from '@/application/ports/auditPort';
-import { clearSessionScopedClientState } from '@/services/storage/sessionScopedStorageService';
+import { clearSessionScopedClientState } from '@/services/session/sessionScopedStorageService';
 import { waitForPendingLogout } from '@/services/auth/authLogoutState';
 
 vi.mock('@/application/ports/auditPort', () => ({
@@ -16,7 +16,7 @@ vi.mock('@/config/queryClient', () => ({ clearQueryCache: vi.fn() }));
 
 vi.mock('@/services/auth/authBroadcastChannel', () => ({ broadcastLogout: vi.fn() }));
 
-vi.mock('@/services/storage/sessionScopedStorageService', () => ({
+vi.mock('@/services/session/sessionScopedStorageService', () => ({
   clearSessionScopedClientState: vi.fn(async (_reason: string, close?: () => Promise<void>) => {
     await close?.();
   }),

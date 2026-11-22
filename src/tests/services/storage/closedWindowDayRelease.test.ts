@@ -9,7 +9,7 @@ import { isClosedNurseWindowRefusal } from '@/services/storage/sync/dailyRecordB
 import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLocalCachePersistence';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import { clinicalWallClockToDate } from '@/utils/clinicalWallClock';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';

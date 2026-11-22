@@ -4,7 +4,7 @@ import {
   deriveConsentDisplayState,
   consentStatusLabel,
 } from '@/features/wound-care/controllers/consentStatusController';
-import { groupPhotosByDate } from '@/application/wound-care/woundCarePhotoTime';
+import { groupPhotosByDate } from '@/features/wound-care/use-cases/woundCarePhotoTime';
 import {
   formatSessionDate,
   formatPhotoTime,

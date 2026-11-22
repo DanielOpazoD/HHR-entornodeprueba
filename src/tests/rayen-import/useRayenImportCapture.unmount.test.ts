@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createExecutionHarness } from './support/executionHarness';
 import { useRayenImportCapture } from '@/features/rayen-import/hooks/useRayenImportCapture';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 vi.mock('@/features/rayen-import/bridge/rayenSnapshotBridge', () => ({

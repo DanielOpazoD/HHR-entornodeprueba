@@ -3,7 +3,7 @@ import {
   runExclusiveDailyRecordWrite,
   type DailyRecordWriteLease,
 } from './dailyRecordWriteCoordinator';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { saveDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';

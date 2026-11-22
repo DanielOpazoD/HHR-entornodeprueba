@@ -1,4 +1,4 @@
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import type { IntentionalBedClearRequest } from '@/types/domain/intentionalBedClear';

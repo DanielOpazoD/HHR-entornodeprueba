@@ -14,7 +14,7 @@ import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreRulesEmulatorConfig';
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 let activeDb: unknown;

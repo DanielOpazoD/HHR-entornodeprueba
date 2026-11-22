@@ -2,7 +2,7 @@ import React, { Suspense } from 'react';
 import type { Statistics } from '@/types/domain/statistics';
 import { StaffSelector } from './StaffSelector';
 import { BaseModal } from '@/components/shared/BaseModal';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 const StaffShiftDetailsModal = lazyWithRetry(() =>
   import('./StaffShiftDetailsModal').then(module => ({ default: module.StaffShiftDetailsModal }))
 );

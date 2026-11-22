@@ -7,7 +7,7 @@ import { getRecordForDateStrict } from '@/services/storage/indexeddb/indexedDbRe
 import { initializeDayDetailed } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import { getForDate } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { loadRemoteRecordWithFallback } from '@/services/repositories/dailyRecordRemoteLoader';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { save } from '@/services/repositories/dailyRecordRepositoryWriteService';
 

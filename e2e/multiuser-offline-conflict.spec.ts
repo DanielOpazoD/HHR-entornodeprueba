@@ -13,7 +13,7 @@ import {
 import { waitForPersistedBedFields } from './fixtures/censusPersistence';
 import { installDailyRecordAuthorityRoute } from './fixtures/dailyRecordAuthorityRoute';
 import { installSyncQueueTransportHarness } from './fixtures/syncQueueTransportHarness';
-import { SESSION_OWNER_KEY } from '../src/services/storage/sessionOwnerKey';
+import { SESSION_OWNER_KEY } from '../src/services/session/sessionOwnerKey';
 import { getTodayISO } from '../src/utils/dateCoreUtils';
 import type { SyncTask } from '../src/services/storage/syncQueueTypes';
 

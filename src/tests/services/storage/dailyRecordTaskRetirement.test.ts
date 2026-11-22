@@ -1,13 +1,13 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
-import { clearSessionDailyRecords } from '@/services/storage/sessionSyncQueuePreservation';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
+import { clearSessionDailyRecords } from '@/services/session/sessionSyncQueuePreservation';
 import {
   SESSION_GENERATION_KEY,
   setSessionGeneration,
-} from '@/services/storage/sessionStorageTransition';
+} from '@/services/session/sessionStorageTransition';
 import {
   getDailyRecordReviewBackup,
   getDiscardedDailyRecordBackup,

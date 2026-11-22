@@ -10,7 +10,7 @@
  */
 
 const CHANNEL_NAME = 'hhr_auth_channel';
-import { getLogoutGeneration } from '@/services/storage/sessionStorageTransition';
+import { getLogoutGeneration } from '@/services/session/sessionStorageTransition';
 
 export type AuthChannelMessage =
   | { type: 'ACTIVITY'; userId: string; at: number; tabId: string }

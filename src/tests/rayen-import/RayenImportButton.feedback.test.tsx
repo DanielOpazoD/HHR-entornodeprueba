@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RayenImportButton } from '@/features/rayen-import/components/RayenImportButton';
 import { RAYEN_EXTENSION_PROTOCOL_VERSION } from '@/features/rayen-import/bridge/extensionHealthBridge';
 import { buildSyncQueueTelemetryFromRows } from '@/services/storage/sync/syncQueueTelemetryController';
-import { buildSyncQueueStats } from '@/hooks/controllers/syncQueueMonitorController';
+import { buildSyncQueueStats } from '@/features/rayen-import/hooks/syncQueueMonitorController';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
 const mocks = vi.hoisted(() => ({
@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
   useRayenFillProgress: vi.fn(),
 }));
 
-vi.mock('@/hooks/useSyncQueueMonitor', () => ({
+vi.mock('@/features/rayen-import/hooks/useSyncQueueMonitor', () => ({
   useSyncQueueMonitor: (options: unknown) => mocks.useSyncQueueMonitor(options),
 }));
 

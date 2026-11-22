@@ -1,8 +1,8 @@
 import ExcelJS from 'exceljs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { DailyStatsSnapshot, MinsalStatistics } from '@/types/minsalTypes';
-import { exportMinsalToExcel } from '@/services/exporters/minsalExcelExporter';
+import type { DailyStatsSnapshot, MinsalStatistics } from '@/features/analytics/types/minsalTypes';
+import { exportMinsalToExcel } from '@/features/analytics/services/minsalExcelExporter';
 
 const mockDownloadWorkbookFile = vi.fn();
 

@@ -4,7 +4,7 @@ import {
   executeCreateWoundCareMobileUploadSession,
   executeRevokeWoundCareMobileUploadSession,
   executeValidateWoundCareMobileUploadSession,
-} from '@/application/wound-care/woundCareMobileUploadSessionUseCases';
+} from '@/features/wound-care/use-cases/woundCareMobileUploadSessionUseCases';
 import type { WoundCareAuditActor, WoundCareMobileUploadSession } from '@/types/domain/woundCare';
 
 describe('woundCareMobileUploadSessionUseCases', () => {

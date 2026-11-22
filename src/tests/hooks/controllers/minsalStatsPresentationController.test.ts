@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { resolveDisplayedMinsalStats } from '@/hooks/controllers/minsalStatsPresentationController';
-import type { MinsalStatistics } from '@/types/minsalTypes';
+import { resolveDisplayedMinsalStats } from '@/features/analytics/controllers/minsalStatsPresentationController';
+import type { MinsalStatistics } from '@/features/analytics/types/minsalTypes';
 
 const buildStats = (overrides: Partial<MinsalStatistics> = {}): MinsalStatistics => ({
   periodStart: '2026-03-01',

@@ -1,14 +1,14 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { focusManager } from '@tanstack/react-query';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { useMinsalStats } from '@/hooks/useMinsalStats';
+import { useMinsalStats } from '@/features/analytics/hooks/useMinsalStats';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 import {
   createQueryClientTestWrapper,
   alwaysRefetchDefaults,
 } from '@/tests/utils/queryClientTestUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { MinsalStatistics } from '@/types/minsalTypes';
+import type { MinsalStatistics } from '@/features/analytics/types/minsalTypes';
 
 const mockFetchRecordsRangeSorted = vi.fn();
 const mockSyncRecordsRange = vi.fn();
@@ -26,7 +26,7 @@ vi.mock('@/services/records/recordQueryService', () => ({
   syncRecordsRange: (...args: unknown[]) => mockSyncRecordsRange(...args),
 }));
 
-vi.mock('@/services/calculations/minsalStatsCalculator', () => ({
+vi.mock('@/features/analytics/services/minsalStatsCalculator', () => ({
   calculateMinsalStats: (...args: unknown[]) => mockCalculateMinsalStats(...args),
   filterRecordsByDateRange: (...args: unknown[]) => mockFilterRecordsByDateRange(...args),
   generateDailyTrend: (...args: unknown[]) => mockGenerateDailyTrend(...args),
@@ -41,7 +41,7 @@ vi.mock('firebase/functions', () => ({
   httpsCallable: () => mockCallable,
 }));
 
-vi.mock('@/services/analytics/analyticsSpecialtyReclassificationService', () => ({
+vi.mock('@/features/analytics/services/analyticsSpecialtyReclassificationService', () => ({
   fetchAnalyticsSpecialtyReclassifications: (...args: unknown[]) =>
     mockFetchReclassifications(...args),
   saveAnalyticsSpecialtyReclassification: (...args: unknown[]) => mockSaveReclassification(...args),

@@ -3,7 +3,7 @@ import { CalendarDays, Eye, Loader2 } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { PrescriptionDetailModal } from '@/features/prescriptions/components/PrescriptionDetailModal';
 import { PrescriptionListItem } from '@/features/prescriptions/components/PrescriptionListItem';
-import type { PrescriptionRecord } from '@/types/prescriptionTypes';
+import type { PrescriptionRecord } from '@/features/prescriptions/types/prescriptionTypes';
 import { listPrescriptionUploadReadonlyRecords } from '@/features/prescriptions/services/prescriptionAccessService';
 import {
   buildPrescriptionUploadViewerDayOptions,

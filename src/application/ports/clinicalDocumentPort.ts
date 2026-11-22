@@ -1,5 +1,5 @@
 import { ClinicalDocumentRepository } from '@/services/repositories/ClinicalDocumentRepository';
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/internal';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 
 export interface ClinicalDocumentPort {
   get: (documentId: string, hospitalId?: string) => Promise<ClinicalDocumentRecord | null>;

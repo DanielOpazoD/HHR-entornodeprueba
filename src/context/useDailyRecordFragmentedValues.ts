@@ -64,6 +64,11 @@ const DEFAULT_LOCKED_STABILITY: StabilityRules = {
   canPerformActions: false,
 };
 
+const EMPTY_OVERRIDES: Record<string, string> = {};
+const DEFAULT_NURSES_SHIFT: string[] = ['', ''];
+const DEFAULT_TENS_SHIFT: string[] = ['', '', ''];
+const EMPTY_EXTRA_BEDS: string[] = [];
+
 export const useDailyRecordFragmentedValues = (
   value: DailyRecordContextType
 ): UseDailyRecordFragmentedValuesResult => {
@@ -107,12 +112,12 @@ export const useDailyRecordFragmentedValues = (
     if (!hasRecord) return null;
     return {
       date,
-      nursesDayShift: nursesDayShift || ['', ''],
-      nursesNightShift: nursesNightShift || ['', ''],
-      tensDayShift: tensDayShift || ['', '', ''],
-      tensNightShift: tensNightShift || ['', '', ''],
+      nursesDayShift: nursesDayShift || DEFAULT_NURSES_SHIFT,
+      nursesNightShift: nursesNightShift || DEFAULT_NURSES_SHIFT,
+      tensDayShift: tensDayShift || DEFAULT_TENS_SHIFT,
+      tensNightShift: tensNightShift || DEFAULT_TENS_SHIFT,
       staffingDetailsV1,
-      activeExtraBeds: activeExtraBeds || [],
+      activeExtraBeds: activeExtraBeds || EMPTY_EXTRA_BEDS,
     };
   }, [
     hasRecord,
@@ -126,7 +131,7 @@ export const useDailyRecordFragmentedValues = (
   ]);
 
   const overridesValue = useMemo(
-    () => value?.record?.bedTypeOverrides || {},
+    () => value?.record?.bedTypeOverrides || EMPTY_OVERRIDES,
     [value?.record?.bedTypeOverrides]
   );
 

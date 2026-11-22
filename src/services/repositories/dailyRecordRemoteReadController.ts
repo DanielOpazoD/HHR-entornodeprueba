@@ -4,7 +4,7 @@ import {
   inspectLocalRecordAdmission,
   type LocalRecordBase,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import {
   createLocalRuntimeReadCandidate,
   createLocalRuntimeReadResult,

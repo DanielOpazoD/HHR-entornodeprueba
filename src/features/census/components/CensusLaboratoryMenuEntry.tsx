@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import { useCensusToolbarMenuTarget } from '@/context/CensusToolbarMenuTargetContext';
 import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import type { CensusLabPatient } from '@/features/laboratory/census-inbox';
 import type { CensusLabDateRange } from '@/shared/contracts/censusLaboratory';
 

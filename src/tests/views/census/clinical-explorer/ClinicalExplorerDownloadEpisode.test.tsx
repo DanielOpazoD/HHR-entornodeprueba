@@ -48,7 +48,7 @@ vi.mock('@/services/pdf/pdfLibRuntime', () => ({
 }));
 
 import { ClinicalExplorerHeader } from '@/features/census/components/clinical-explorer/ClinicalExplorerHeader';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 
 import {
   HISTORY_NAME,

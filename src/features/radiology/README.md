@@ -10,10 +10,11 @@ El contrato del visor, la descarga y los anexos está en [MMRAD_DICOM.md](../../
 | `components/`   | El visor de imágenes MMRAD (`RadiologyViewerModal`) y su contenido.                          |
 | `controllers/`  | Búsqueda de estudios, memoria de la lista de exámenes y reglas puras del visor MMRAD.        |
 | `dicom-viewer/` | El visor DICOM: pantallas, controles, hojas de estilo y sus hooks.                           |
+| `domain/`       | Geometría, reconstrucción y remuestreo DICOM exclusivos del visor.                           |
 | `services/`     | Cliente MMRAD, sello de fecha, entrega de PDF y el motor DICOM (carga, medidas, MPR, video). |
 
 Lo puro que también compila Netlify vive en `src/domain/radiology`: `dicomTypes.ts` (contratos de
-transporte y captura) y `mmradReportSupport.ts` (lectura del informe), junto a la geometría DICOM.
+transporte y captura) y `mmradReportSupport.ts` (lectura del informe).
 
 ## Puertas
 

@@ -173,5 +173,14 @@ describe.each(['Pacific/Easter', 'America/Santiago', 'UTC', 'Pacific/Auckland'])
       passTime(HOUR_MS);
       expect(renders()).toBe(rendersWhenOpened);
     });
+
+    it('keeps the same StabilityRules reference when a new record object arrives for the same date', async () => {
+      process.env.TZ = timezone;
+      const { view } = await openCensusAt(10 * HOUR_MS, { date: DAY });
+      const initialRules = view.result.current;
+
+      view.rerender({ current: { date: DAY } });
+      expect(view.result.current).toBe(initialRules);
+    });
   }
 );

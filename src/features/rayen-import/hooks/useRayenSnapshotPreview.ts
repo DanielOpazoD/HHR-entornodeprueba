@@ -1,7 +1,7 @@
 import { useCallback, type Dispatch } from 'react';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import { describeRayenPlanningFailure, type RayenImportState } from './rayenImportState';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import { logError } from '@/services/utils/errorService';
 import { defaultMonotonicNow, elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 import { useTreatingPhysicianCatalogSync } from './useTreatingPhysicianCatalogSync';

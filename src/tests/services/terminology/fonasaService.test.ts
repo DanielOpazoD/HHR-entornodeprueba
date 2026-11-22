@@ -3,7 +3,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { searchFonasa, expandQueryTokens } from '@/services/terminology/fonasaService';
+import {
+  searchFonasa,
+  expandQueryTokens,
+} from '@/features/clinical-documents/services/fonasaService';
 
 // ---------------------------------------------------------------------------
 // expandQueryTokens (abbreviation expansion)

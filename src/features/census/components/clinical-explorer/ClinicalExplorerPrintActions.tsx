@@ -7,7 +7,7 @@ import {
   requestClinicalPanel,
 } from '@/features/rayen-import/clinical-panel';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
-import { onSessionChange, sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
+import { onSessionChange, sessionEpochGuard } from '@/services/session/sessionStorageTransition';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { buildIndicationsPrintHtml, printHtmlDocument } from './clinicalExplorerPrint';

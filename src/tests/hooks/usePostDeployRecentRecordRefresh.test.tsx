@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { usePostDeployRecentRecordRefresh } from '@/hooks/useDailyRecordSyncQuerySupport';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { executePostDeployRecentRecordRefresh } from '@/services/config/postDeployRecentRecordRefresh';
 
 vi.mock('@/services/config/postDeployRecentRecordRefresh', () => ({

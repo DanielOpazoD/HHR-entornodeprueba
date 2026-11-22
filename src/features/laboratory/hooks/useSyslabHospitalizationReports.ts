@@ -5,13 +5,13 @@ import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import {
   SYSLAB_LIST_RETENTION_MS,
   SYSLAB_LIST_REUSE_MS,
-} from '@/services/laboratory/syslabLinkPolicy';
+} from '@/features/laboratory/services/syslabLinkPolicy';
 import {
   cleanRutForSyslab,
   fetchSyslabExamDetails,
   searchSyslabExams,
 } from '@/services/laboratory/syslabService';
-import { onSessionChange } from '@/services/storage/sessionStorageTransition';
+import { onSessionChange } from '@/services/session/sessionStorageTransition';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 import type { SyslabExamItem } from '@/types/domain/labExamTypes';
 import { buildAnalysisData } from '../controllers/labAnalyticsController';

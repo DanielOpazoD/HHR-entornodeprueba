@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useClinicalAttachments } from '@/features/clinical-documents/hooks/useClinicalAttachments';
-import type { ClinicalAttachmentRecord } from '@/shared/clinical-documents/clinicalAttachmentContracts';
+import type { ClinicalAttachmentRecord } from '@/features/clinical-documents/contracts/clinicalAttachmentContracts';
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 
 vi.mock('@/features/clinical-documents/use-cases/clinicalAttachmentUseCases', () => ({

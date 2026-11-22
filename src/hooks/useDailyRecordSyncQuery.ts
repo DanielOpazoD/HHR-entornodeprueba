@@ -2,7 +2,7 @@ import {
   captureAuthoringSession,
   type AuthoringSession,
   isAuthoringSessionCurrent,
-} from '@/services/storage/authoringSession';
+} from '@/services/session/authoringSession';
 import {
   useCensusBootstrapPerf,
   useCensusDayChangeTiming,

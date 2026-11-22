@@ -8,11 +8,11 @@ import {
   getDiscardedDailyRecordBackup,
   listDiscardedDailyRecordTasks,
 } from '@/services/storage/sync/dailyRecordTaskRetirement';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import {
   SESSION_GENERATION_KEY,
   setSessionGeneration,
-} from '@/services/storage/sessionStorageTransition';
+} from '@/services/session/sessionStorageTransition';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
@@ -22,7 +22,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbCore', async () => {
   return { hospitalDB, ensureDbReady: () => hospitalDB.open() };
 });
 vi.mock('@/services/storage/sync/browserSyncRuntime', async () => {
-  const { getStoredSessionOwnerKey } = await import('@/services/storage/sessionOwnerKey');
+  const { getStoredSessionOwnerKey } = await import('@/services/session/sessionOwnerKey');
   return {
     createBrowserSyncRuntime: () => ({
       getOwnerKey: getStoredSessionOwnerKey,

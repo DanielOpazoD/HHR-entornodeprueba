@@ -1,3 +1,4 @@
+import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import {
@@ -5,6 +6,8 @@ import {
   useDailyRecordData,
   useDailyRecordBeds,
   useDailyRecordMovements,
+  useDailyRecordOverrides,
+  useDailyRecordStability,
   useDailyRecordSync,
   useDailyRecordStatus,
   useDailyRecordStaff,
@@ -257,6 +260,78 @@ describe('DailyRecordContext', () => {
     expect(screen.getByTestId('movement-conversion-actions')).toHaveTextContent(
       'function:function'
     );
+  });
+
+  it('preserves referential stability for status and empty overrides across unrelated provider updates', () => {
+    const statusRefs: ReturnType<typeof useDailyRecordStatus>[] = [];
+    const overrideRefs: ReturnType<typeof useDailyRecordOverrides>[] = [];
+
+    const StabilityProbe = () => {
+      statusRefs.push(useDailyRecordStatus());
+      overrideRefs.push(useDailyRecordOverrides());
+      return null;
+    };
+
+    const { rerender } = render(
+      <DailyRecordProvider value={mockValue}>
+        <StabilityProbe />
+      </DailyRecordProvider>
+    );
+
+    rerender(
+      <DailyRecordProvider value={{ ...mockValue }}>
+        <StabilityProbe />
+      </DailyRecordProvider>
+    );
+
+    expect(statusRefs).toHaveLength(2);
+    expect(statusRefs[0]).toBe(statusRefs[1]);
+    expect(overrideRefs).toHaveLength(2);
+    expect(overrideRefs[0]).toBe(overrideRefs[1]);
+  });
+
+  it('isolates beds, staff, and stability consumers from syncStatus updates', () => {
+    let bedsRenders = 0;
+    let staffRenders = 0;
+    let stabilityRenders = 0;
+
+    const BedsProbe = React.memo(function BedsProbe() {
+      bedsRenders += 1;
+      useDailyRecordBeds();
+      return null;
+    });
+    const StaffProbe = React.memo(function StaffProbe() {
+      staffRenders += 1;
+      useDailyRecordStaff();
+      return null;
+    });
+    const StabilityProbe = React.memo(function StabilityProbe() {
+      stabilityRenders += 1;
+      useDailyRecordStability();
+      return null;
+    });
+
+    const stableChildren = (
+      <>
+        <BedsProbe />
+        <StaffProbe />
+        <StabilityProbe />
+      </>
+    );
+
+    const { rerender } = render(
+      <DailyRecordProvider value={mockValue}>{stableChildren}</DailyRecordProvider>
+    );
+
+    rerender(
+      <DailyRecordProvider value={{ ...mockValue, syncStatus: 'saving' }}>
+        {stableChildren}
+      </DailyRecordProvider>
+    );
+
+    expect(bedsRenders).toBe(1);
+    expect(staffRenders).toBe(1);
+    expect(stabilityRenders).toBe(1);
   });
 
   it('should throw error when hooks are used outside provider', () => {

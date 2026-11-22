@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { PrescriptionPort } from '@/application/ports/prescriptionPort';
-import { executeReassignPrescriptionPatient } from '@/application/prescriptions/reassignPrescriptionPatientUseCase';
-import { executeDeletePrescription } from '@/application/prescriptions/deletePrescriptionUseCase';
-import { executeUpdatePrescriptionType } from '@/application/prescriptions/updatePrescriptionTypeUseCase';
-import type { PrescriptionRecord } from '@/types/prescriptionTypes';
+import type { PrescriptionPort } from '@/features/prescriptions/use-cases/prescriptionPort';
+import { executeReassignPrescriptionPatient } from '@/features/prescriptions/use-cases/reassignPrescriptionPatientUseCase';
+import { executeDeletePrescription } from '@/features/prescriptions/use-cases/deletePrescriptionUseCase';
+import { executeUpdatePrescriptionType } from '@/features/prescriptions/use-cases/updatePrescriptionTypeUseCase';
+import type { PrescriptionRecord } from '@/features/prescriptions/types/prescriptionTypes';
 
 const buildPort = (overrides: Partial<PrescriptionPort> = {}): PrescriptionPort => ({
   list: vi.fn(async () => []),

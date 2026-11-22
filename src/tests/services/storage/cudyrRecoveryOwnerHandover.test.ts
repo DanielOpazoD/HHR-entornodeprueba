@@ -3,13 +3,13 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { recoverCudyrArchivesAfterClinicalSync } from '@/features/rayen-import/hooks/recoverCudyrArchivesAfterClinicalSync';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
-import { SESSION_GENERATION_KEY } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
+import { SESSION_GENERATION_KEY } from '@/services/session/sessionStorageTransition';
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
-import { SESSION_CLEANUP_PENDING_KEY, SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+} from '@/services/session/sessionScopedStorageService';
+import { SESSION_CLEANUP_PENDING_KEY, SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import { requeueQuarantinedTask } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
@@ -99,7 +99,7 @@ const runRecoveryAcross = async (rowOwner: string, during: () => Promise<void>) 
 /** Another tab of this browser signs a person in; this document keeps its own admission. */
 const otherTabAdmits = async (owner: string) => {
   vi.resetModules();
-  const otherTab = await import('@/services/storage/sessionScopedStorageService');
+  const otherTab = await import('@/services/session/sessionScopedStorageService');
   await otherTab.reconcileAuthorizedSessionOwner(owner);
 };
 
@@ -158,11 +158,11 @@ describe('CUDYR archive recovery stays with the person whose sync began it', () 
   it('after a reload, the same person’s next run revives the archive kept in the queue', async () => {
     await hospitalDB.syncQueue.add(blockedArchive(A));
     vi.resetModules();
-    const reloaded = await import('@/services/storage/sessionScopedStorageService');
+    const reloaded = await import('@/services/session/sessionScopedStorageService');
     await reloaded.reconcileAuthorizedSessionOwner(A);
     const { recoverCudyrArchivesAfterClinicalSync: recover } =
       await import('@/features/rayen-import/hooks/recoverCudyrArchivesAfterClinicalSync');
-    const { guardAuthoringSession: guard } = await import('@/services/storage/authoringSession');
+    const { guardAuthoringSession: guard } = await import('@/services/session/authoringSession');
     await recover({ status: 'complete' }, enforced, 3, guard());
     const [row] = await hospitalDB.syncQueue.toArray();
     expect({ owner: row.ownerKey, status: row.status }).toEqual({ owner: A, status: 'PENDING' });

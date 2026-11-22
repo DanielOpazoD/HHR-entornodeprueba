@@ -4,7 +4,7 @@ import { searchSyslabExams } from '@/services/laboratory/syslabService';
 import {
   SYSLAB_LIST_RETENTION_MS,
   SYSLAB_LIST_REUSE_MS,
-} from '@/services/laboratory/syslabLinkPolicy';
+} from '@/features/laboratory/services/syslabLinkPolicy';
 import { queryKeys } from '@/config/queryClient';
 import type { LabPatient, SyslabExamItem } from '@/types/domain/labExamTypes';
 import {

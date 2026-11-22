@@ -2,7 +2,7 @@
  * Lazy-loaded view components
  * Loaded on-demand when the user navigates to them
  */
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 
 // Census route entrypoint. Keep it narrower than the modal-heavy
 // public-components barrel so /censo can show the table sooner.

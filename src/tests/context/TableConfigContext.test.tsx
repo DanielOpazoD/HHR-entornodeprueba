@@ -1,5 +1,5 @@
 import React from 'react';
-import { renderHook } from '@testing-library/react';
+import { render, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TableConfigProvider, useTableConfig } from '@/context/TableConfigContext';
@@ -66,4 +66,24 @@ describe('TableConfigProvider', () => {
     expect(result.current.isLoading).toBe(false);
     expect(result.current.config.columns.name).toBe(96);
   });
+
+  it.each(['ready', 'local_only'] as const)(
+    'does not broadcast a new context object on parent re-renders when remoteSyncStatus is %s',
+    remoteSyncStatus => {
+      mockUseAuth.mockReturnValue({ remoteSyncStatus });
+      let consumerRenders = 0;
+      const Consumer = React.memo(function TableConfigConsumer() {
+        consumerRenders += 1;
+        useTableConfig();
+        return null;
+      });
+      const stableChild = <Consumer />;
+      const { rerender } = render(<TableConfigProvider>{stableChild}</TableConfigProvider>);
+
+      expect(consumerRenders).toBe(1);
+      rerender(<TableConfigProvider>{stableChild}</TableConfigProvider>);
+      rerender(<TableConfigProvider>{stableChild}</TableConfigProvider>);
+      expect(consumerRenders).toBe(1);
+    }
+  );
 });

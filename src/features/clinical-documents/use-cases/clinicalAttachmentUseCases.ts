@@ -1,14 +1,14 @@
 import type {
-  ClinicalAttachmentRecord,
   ClinicalDocumentAuditActor,
   ClinicalDocumentRecord,
   ClinicalDocumentType,
-} from '@/features/clinical-documents/internal';
+} from '@/domain/clinical-documents/entities';
+import type { ClinicalAttachmentRecord } from '../contracts/clinicalAttachmentContracts';
+import { resolveClinicalAttachmentFilePolicy } from '../controllers/clinicalAttachmentFilePolicy';
 import {
   compressClinicalAttachmentImage,
-  resolveClinicalAttachmentFilePolicy,
   type ClinicalAttachmentImageCompressionResult,
-} from '@/features/clinical-documents/internal';
+} from '../controllers/clinicalAttachmentImageCompressionController';
 import {
   createApplicationFailed,
   createApplicationSuccess,
@@ -18,7 +18,7 @@ import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTy
 import {
   ClinicalAttachmentRepository,
   type createClinicalAttachmentRepository,
-} from '@/services/repositories/ClinicalAttachmentRepository';
+} from '@/features/clinical-documents/services/ClinicalAttachmentRepository';
 import { suggestClinicalAttachmentDisplayName } from './clinicalAttachmentNameSuggestionService';
 
 type ClinicalAttachmentRepositoryPort = ReturnType<typeof createClinicalAttachmentRepository>;

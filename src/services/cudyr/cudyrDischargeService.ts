@@ -1,4 +1,4 @@
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import { callCudyrFunction, type CudyrFunctionEndpoint } from './cudyrFunctionsCall';
 import { normalizeDailyRecordAuthorityError } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import type {

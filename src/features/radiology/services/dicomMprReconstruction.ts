@@ -1,7 +1,7 @@
 import type { createMprTools, DicomReference } from './dicomMprTools';
 import { Enums, type RenderingEngine, type VolumeViewport, type Types } from '@cornerstonejs/core';
 import type { CrosshairsTool } from '@cornerstonejs/tools';
-import type { DicomVolumePlan } from '@/domain/radiology/dicomGeometry';
+import type { DicomVolumePlan } from '@/features/radiology/domain/dicomGeometry';
 import {
   defaultMprSettings,
   validateMprSettings,
@@ -9,7 +9,7 @@ import {
   isObliqueNormal,
   slabLabels,
   type MprSettings,
-} from '@/domain/radiology/dicomReconstruction';
+} from '@/features/radiology/domain/dicomReconstruction';
 
 export interface MprReconstructionState extends MprSettings {
   planes: Array<{ oblique: boolean; label: string; clipped: boolean }>;

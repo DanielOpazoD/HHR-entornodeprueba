@@ -12,7 +12,7 @@ import * as auditConnectionRuntime from '@/services/admin/auditSession/auditConn
 import { setFirestoreSyncState } from '@/services/repositories/repositoryConfig';
 import type { AuthSessionState } from '@/types/authSessionTypes';
 import type { AuthUser, UserRole } from '@/types/authRoleTypes';
-import * as sessionScopedStorageService from '@/services/storage/sessionScopedStorageService';
+import * as sessionScopedStorageService from '@/services/session/sessionScopedStorageService';
 
 vi.mock('@/services/auth/authSession', () => ({
   onAuthSessionStateChange: vi.fn(),
@@ -28,7 +28,7 @@ vi.mock('@/application/auth/authSessionUseCases', () => ({
   executeResolvedCurrentAuthSessionState: vi.fn(),
 }));
 
-vi.mock('@/services/storage/sessionScopedStorageService', () => ({
+vi.mock('@/services/session/sessionScopedStorageService', () => ({
   clearSessionScopedClientState: vi.fn(async (_reason: string, close?: () => Promise<void>) => {
     await close?.();
   }),

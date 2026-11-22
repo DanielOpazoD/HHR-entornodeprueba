@@ -1,7 +1,7 @@
 // @vitest-environment node
 /**
  * Static drift guard between the prescription constants declared in TS
- * (`src/types/prescriptionTypes.ts`) and the parallel constants used by
+ * (`src/features/prescriptions/types/prescriptionTypes.ts`) and the parallel constants used by
  * the Cloud Functions (`functions/lib/prescriptionAccessFunctions.js`).
  *
  * The two layers can't share a module (Node CommonJS in functions/ vs
@@ -18,7 +18,7 @@ import {
   PRESCRIPTION_RETENTION_DAYS,
   PRESCRIPTION_RETENTION_DAYS_BY_TYPE,
   PRESCRIPTION_TYPES,
-} from '@/types/prescriptionTypes';
+} from '@/features/prescriptions/types/prescriptionTypes';
 
 const readProjectFile = (relativePath: string): string => {
   const absolutePath = path.resolve(__dirname, '../../../', relativePath);

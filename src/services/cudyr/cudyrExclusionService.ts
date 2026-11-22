@@ -1,5 +1,5 @@
 import type { CudyrDailyExclusion, SaveCudyrExclusionRequest } from '@/types/domain/cudyrExclusion';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import { callCudyrFunction, type CudyrFunctionEndpoint } from './cudyrFunctionsCall';
 
 /** Each call is its own operation, begun when the person acts: the guard is taken here. */

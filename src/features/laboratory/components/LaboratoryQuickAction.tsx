@@ -1,6 +1,6 @@
 import React from 'react';
 import { FlaskConical } from 'lucide-react';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { checkSyslabConnection } from '@/services/laboratory/syslabService';
 import type { CensusQuickActionPatient } from '@/shared/contracts/censusQuickActionPatient';
 import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';

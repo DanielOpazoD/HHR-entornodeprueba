@@ -69,8 +69,8 @@
 
 **Files:**
 
-- Create: `src/services/firebase-runtime/clinicalAttachmentRuntime.ts`
-- Create: `src/services/repositories/ClinicalAttachmentRepository.ts`
+- Create: `src/features/clinical-documents/services/clinicalAttachmentRuntime.ts`
+- Create: `src/features/clinical-documents/services/ClinicalAttachmentRepository.ts`
 - Create: `src/application/clinical-documents/clinicalAttachmentUseCases.ts`
 - Test: `src/tests/services/repositories/ClinicalAttachmentRepository.test.ts`
 - Test: `src/tests/application/clinical-documents/clinicalAttachmentUseCases.test.ts`
@@ -97,7 +97,7 @@
 
   ```bash
   npx vitest run src/tests/services/repositories/ClinicalAttachmentRepository.test.ts src/tests/application/clinical-documents/clinicalAttachmentUseCases.test.ts
-  git add src/services/firebase-runtime/clinicalAttachmentRuntime.ts src/services/repositories/ClinicalAttachmentRepository.ts src/application/clinical-documents/clinicalAttachmentUseCases.ts src/tests/services/repositories/ClinicalAttachmentRepository.test.ts src/tests/application/clinical-documents/clinicalAttachmentUseCases.test.ts
+  git add src/features/clinical-documents/services/clinicalAttachmentRuntime.ts src/features/clinical-documents/services/ClinicalAttachmentRepository.ts src/application/clinical-documents/clinicalAttachmentUseCases.ts src/tests/services/repositories/ClinicalAttachmentRepository.test.ts src/tests/application/clinical-documents/clinicalAttachmentUseCases.test.ts
   git commit -m "feat: persist clinical attachments"
   ```
 

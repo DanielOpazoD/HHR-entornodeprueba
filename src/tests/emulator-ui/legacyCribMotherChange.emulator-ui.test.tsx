@@ -24,7 +24,7 @@ import { createDailyRecordWriteAuthorityFunctions } from '@/tests/functions/dail
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
+} from '@/services/session/sessionScopedStorageService';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 vi.unmock('@/application/ports/dailyRecordPort');
 vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', async importOriginal => {

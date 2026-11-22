@@ -1,4 +1,4 @@
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useRayenSyncAudit } from '@/features/rayen-import/hooks/useRayenSyncAudit';

@@ -9,7 +9,7 @@ import * as authFallback from '@/services/auth/authFallback';
 import * as authUseCases from '@/application/auth/authSessionUseCases';
 import { setFirestoreSyncState } from '@/services/repositories/repositoryConfig';
 import type { AuthSessionState } from '@/types/authSessionTypes';
-import * as sessionScopedStorageService from '@/services/storage/sessionScopedStorageService';
+import * as sessionScopedStorageService from '@/services/session/sessionScopedStorageService';
 
 vi.mock('@/services/auth/authSession', () => ({
   onAuthSessionStateChange: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('@/application/auth/authSessionUseCases', () => ({
   executeResolvedCurrentAuthSessionState: vi.fn(),
 }));
 
-vi.mock('@/services/storage/sessionScopedStorageService', () => ({
+vi.mock('@/services/session/sessionScopedStorageService', () => ({
   clearSessionScopedClientState: vi.fn(async (_reason: string, close?: () => Promise<void>) => {
     await close?.();
   }),

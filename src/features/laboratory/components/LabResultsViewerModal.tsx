@@ -13,7 +13,7 @@ import { LabViewerControls } from './LabViewerControls';
 import { LabViewerProgress } from './LabViewerProgress';
 import { LabViewerExamList } from './LabViewerExamList';
 import { LabViewerAnalyzeBar } from './LabViewerAnalyzeBar';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { LabViewerEmptyState } from './LabViewerEmptyState';
 import { SyslabAccessPrompt } from './SyslabAccessPrompt';
 import { useSyslabAccess } from '../hooks/useSyslabAccess';

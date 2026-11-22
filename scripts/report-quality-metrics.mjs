@@ -40,11 +40,7 @@ const ALLOWED_SKIP_FILES = new Set(['src/tests/security/firestore-rules.test.ts'
 const FEATURE_PUBLIC_BOUNDARIES = [
   {
     importPrefix: '@/features/census/',
-    allowBypass: file =>
-      file.startsWith('src/features/census/') ||
-      file === 'src/application/census/public.ts' ||
-      file.startsWith('src/tests/') ||
-      file.startsWith('src/hooks/controllers/'),
+    allowBypass: file => file.startsWith('src/features/census/') || file.startsWith('src/tests/'),
   },
   {
     importPrefix: '@/features/handoff/',
@@ -53,11 +49,7 @@ const FEATURE_PUBLIC_BOUNDARIES = [
   {
     importPrefix: '@/features/clinical-documents/',
     allowBypass: file =>
-      file.startsWith('src/features/clinical-documents/') ||
-      file.startsWith('src/application/clinical-documents/') ||
-      file === 'src/application/ports/clinicalDocumentPort.ts' ||
-      file.startsWith('src/shared/clinical-documents/') ||
-      file.startsWith('src/tests/'),
+      file.startsWith('src/features/clinical-documents/') || file.startsWith('src/tests/'),
   },
 ];
 const DEPRECATED_IMPORTS = [

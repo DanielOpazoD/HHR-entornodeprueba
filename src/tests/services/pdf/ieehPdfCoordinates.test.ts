@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { PDFDocument } from 'pdf-lib';
 import { beforeAll, describe, it, expect } from 'vitest';
-import { FIELD_COORDS } from '@/services/pdf/ieehPdfCoordinates';
+import { FIELD_COORDS } from '@/features/clinical-documents/services/ieehPdfCoordinates';
 
 const REQUIRED_FIELDS = [
   'primerApellido',

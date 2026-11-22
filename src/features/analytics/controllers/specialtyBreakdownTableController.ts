@@ -1,4 +1,4 @@
-import type { PatientTraceability, SpecialtyStats } from '@/types/minsalTypes';
+import type { PatientTraceability, SpecialtyStats } from '@/features/analytics/types/minsalTypes';
 import { calculateDischargeStayDays } from '@/utils/clinicalDayUtils';
 
 export type SpecialtyBreakdownSortKey =

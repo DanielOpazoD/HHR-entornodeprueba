@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useConfirmDialog } from '@/context/UIContext';
-import type { PrescriptionRecord } from '@/types/prescriptionTypes';
+import type { PrescriptionRecord } from '@/features/prescriptions/types/prescriptionTypes';
 import { PrescriptionImageLightbox } from '@/features/prescriptions/components/PrescriptionImageLightbox';
 import { resolvePrescriptionImageDownloadUrl } from '@/features/prescriptions/services/prescriptionStorageImageService';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';

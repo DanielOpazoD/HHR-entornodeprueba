@@ -3,14 +3,14 @@ import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { RayenSyncQueueDetails } from '@/features/rayen-import/components/RayenSyncQueueDetails';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import {
   SESSION_GENERATION_KEY,
   setSessionGeneration,
-} from '@/services/storage/sessionStorageTransition';
+} from '@/services/session/sessionStorageTransition';
 import { buildSyncQueueTelemetryFromRows } from '@/services/storage/sync/syncQueueTelemetryController';
 import { toSyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueOperationSnapshot';
-import { buildSyncQueueStats } from '@/hooks/controllers/syncQueueMonitorController';
+import { buildSyncQueueStats } from '@/features/rayen-import/hooks/syncQueueMonitorController';
 import { downloadBlob } from '@/services/exporters/exportDownload';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 

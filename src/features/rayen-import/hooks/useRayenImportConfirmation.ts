@@ -28,7 +28,7 @@ import type {
 } from '../contracts/censusImportDiff';
 import { resolveBedOccupancyCollisions } from '../domain/bedOccupancyCollisionPolicy';
 import { persistRayenStructureThenClinical } from './rayenSnapshotPersistenceExecution';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import { defaultMonotonicNow } from '../domain/rayenSyncPerformance';
 
 type ExecutionController = ReturnType<typeof useRayenSyncExecutionController>;

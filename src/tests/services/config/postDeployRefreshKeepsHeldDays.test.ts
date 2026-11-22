@@ -7,7 +7,7 @@ vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
 import { executePostDeployRecentRecordRefresh } from '@/services/config/postDeployRecentRecordRefresh';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { getSyncQueueTelemetry } from '@/services/storage/sync/publicSyncQueue';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 

@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
 import { syncPatientsToMasterInBackground } from '@/services/repositories/dailyRecordBackgroundMasterSyncController';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { PatientMasterRepository } from '@/services/repositories/PatientMasterRepository';
 import { createEmptyPatient } from '@/domain/patient/patientFactory';
 

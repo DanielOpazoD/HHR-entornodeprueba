@@ -3,7 +3,7 @@ import {
   importCudyrSupplement,
   loadCudyrSupplements,
 } from '@/services/cudyr/cudyrSupplementService';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import { admitSyntheticSession, clearSyntheticSession } from '@/tests/utils/syntheticSession';
 const { request, runtime } = vi.hoisted(() => ({ request: vi.fn(), runtime: vi.fn() }));
 vi.mock('firebase/functions', () => ({ httpsCallable: () => request }));

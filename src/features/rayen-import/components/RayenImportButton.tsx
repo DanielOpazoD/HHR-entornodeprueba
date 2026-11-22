@@ -6,13 +6,12 @@ import { useRayenFillProgress } from '../hooks/useRayenFillStatus';
 import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
 import { RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS } from '../bridge/extensionHealthBridge';
 import { RayenImportFlowStatus } from './RayenImportFlowStatus';
-import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal';
 import { RayenConnectionMonitor } from './RayenConnectionMonitor';
-import { useSyncQueueMonitor } from '@/hooks/useSyncQueueMonitor';
+import { useSyncQueueMonitor } from '@/features/rayen-import/hooks/useSyncQueueMonitor';
 import { localSyncAttentionLevel } from './localSyncPresentation';
 import { highestSyncTone, SYNC_TONE, SYNC_TONE_INFO_VARIANT } from './syncTone';
 import { RayenSyncStatusLine } from './RayenSyncStatusLine';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { rayenPrimaryActionLabel } from './rayenSyncPresentation';
 import { presentRayenSyncRecovery } from './rayenSyncRecoveryPresentation';
 import type {
@@ -56,6 +55,13 @@ const LazyRayenSyncHistoryModal = lazy(() =>
 // Review is opened after a capture; it contains no writes and confirmation remains explicit.
 const RayenImportPreviewModal = lazyWithRetry(() =>
   import('./RayenImportPreviewModal').then(module => ({ default: module.RayenImportPreviewModal }))
+);
+
+// Staffing review opens only when the operator clicks «Dotación» and Eloísa returns a proposal.
+const RayenNursingShiftProposalModal = lazyWithRetry(() =>
+  import('./RayenNursingShiftProposalModal').then(module => ({
+    default: module.RayenNursingShiftProposalModal,
+  }))
 );
 
 const SYNC_QUEUE_PAGE_SIZE = 12;
@@ -484,13 +490,17 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
           />
         ) : null}
       </Suspense>
-      <RayenNursingShiftProposalModal
-        proposal={!isPreviewOpen && staffingReviewOpen ? staffingProposal : null}
-        isBusy={isStaffingProposalBusy}
-        error={staffingProposalError}
-        onConfirm={() => void handleConfirmStaffingProposal()}
-        onCancel={handleDismissStaffingProposal}
-      />
+      {!isPreviewOpen && staffingReviewOpen && staffingProposal ? (
+        <Suspense fallback={null}>
+          <RayenNursingShiftProposalModal
+            proposal={staffingProposal}
+            isBusy={isStaffingProposalBusy}
+            error={staffingProposalError}
+            onConfirm={() => void handleConfirmStaffingProposal()}
+            onCancel={handleDismissStaffingProposal}
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 };

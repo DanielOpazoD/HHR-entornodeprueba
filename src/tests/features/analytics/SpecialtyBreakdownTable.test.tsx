@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { SpecialtyBreakdownTable } from '@/features/analytics/components/internal/SpecialtyBreakdownTable';
-import type { MinsalStatistics } from '@/types/minsalTypes';
+import type { MinsalStatistics } from '@/features/analytics/types/minsalTypes';
 
 const summary: MinsalStatistics = {
   periodStart: '2026-03-01',

@@ -1,11 +1,9 @@
 import type {
   ClinicalDocumentAuditActor,
   ClinicalDocumentRecord,
-} from '@/features/clinical-documents/internal';
-import {
-  duplicateClinicalDocumentDraft,
-  safeParseClinicalDocumentRecord,
-} from '@/features/clinical-documents/internal';
+} from '@/domain/clinical-documents/entities';
+import { safeParseClinicalDocumentRecord } from '@/domain/clinical-documents/runtimeContracts';
+import { duplicateClinicalDocumentDraft } from '../domain/factories';
 import { hydrateClinicalDocumentRecord } from '@/domain/clinical-documents/compatibility';
 import {
   createApplicationFailed,

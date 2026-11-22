@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import type { SliceGeometry } from '@/domain/radiology/dicomGeometry';
+import type { SliceGeometry } from '@/features/radiology/domain/dicomGeometry';
 import {
   comparisonPlane,
   comparisonReferenceLine,

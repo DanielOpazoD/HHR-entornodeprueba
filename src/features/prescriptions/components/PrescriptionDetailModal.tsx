@@ -10,7 +10,7 @@ import {
   resolvePrescriptionAssignmentScope,
   type PrescriptionRecord,
   type PrescriptionType,
-} from '@/types/prescriptionTypes';
+} from '@/features/prescriptions/types/prescriptionTypes';
 import { resolvePrescriptionImageDownloadUrl } from '@/features/prescriptions/services/prescriptionStorageImageService';
 import { PrescriptionReassignDialog } from '@/features/prescriptions/components/PrescriptionReassignDialog';
 import { PrescriptionImageLightbox } from '@/features/prescriptions/components/PrescriptionImageLightbox';

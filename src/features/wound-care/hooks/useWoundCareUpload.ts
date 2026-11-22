@@ -10,13 +10,13 @@ import { useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
 import type { WoundCareAuditActor } from '@/types/domain/woundCare';
-import type { EpisodeContext } from '@/application/wound-care/woundCareUseCases';
+import type { EpisodeContext } from '@/features/wound-care/use-cases/woundCareUseCases';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import {
   executeUploadWoundCareConsent,
   executeUploadWoundCarePhoto,
   executeDeleteWoundCarePhoto,
-} from '@/application/wound-care/woundCareUseCases';
+} from '@/features/wound-care/use-cases/woundCareUseCases';
 import {
   validatePhotoForUpload,
   validateConsentForUpload,

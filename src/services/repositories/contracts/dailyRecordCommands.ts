@@ -1,7 +1,7 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { DailyRecordWriteLease } from '@/services/repositories/dailyRecordWriteCoordinator';
-import type { AuthoringSession } from '@/services/storage/authoringSession';
+import type { AuthoringSession } from '@/services/session/authoringSession';
 import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
 import type {
   ClinicalCribCreateRequest,

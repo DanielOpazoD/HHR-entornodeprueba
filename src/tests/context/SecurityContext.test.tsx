@@ -1,3 +1,4 @@
+import React from 'react';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
@@ -140,5 +141,49 @@ describe('SecurityContext', () => {
 
   it('should clamp huge inactivity timeout to avoid timer overflow', async () => {
     expect(resolveSecurityIdleTimeoutMs(99_999_999)).toBe(2147483647);
+  });
+
+  it('reads localStorage once on mount and preserves sequential config updates in the same tick', () => {
+    localStorage.setItem(
+      'hhr_security_config',
+      JSON.stringify({ pin: '4321', lockOnStartup: false, inactivityTimeoutMinutes: 0 })
+    );
+    const getItemSpy = vi.spyOn(localStorage, 'getItem');
+
+    let securityApi: ReturnType<typeof useSecurity> | undefined;
+    let consumerRenders = 0;
+    const Consumer = React.memo(function SecurityConsumer() {
+      const current = useSecurity();
+      React.useLayoutEffect(() => {
+        consumerRenders += 1;
+        securityApi = current;
+      });
+      return null;
+    });
+    const stableChild = <Consumer />;
+
+    const { rerender } = render(<SecurityProvider>{stableChild}</SecurityProvider>);
+    expect(getItemSpy).toHaveBeenCalledTimes(1);
+    expect(consumerRenders).toBe(1);
+
+    rerender(<SecurityProvider>{stableChild}</SecurityProvider>);
+    expect(consumerRenders).toBe(1);
+
+    act(() => {
+      securityApi?.setPin('9876');
+      securityApi?.setLockOnStartup(true);
+    });
+
+    expect(securityApi?.config).toEqual({
+      pin: '9876',
+      lockOnStartup: true,
+      inactivityTimeoutMinutes: 0,
+    });
+    expect(JSON.parse(localStorage.getItem('hhr_security_config')!)).toEqual({
+      pin: '9876',
+      lockOnStartup: true,
+      inactivityTimeoutMinutes: 0,
+    });
+    getItemSpy.mockRestore();
   });
 });

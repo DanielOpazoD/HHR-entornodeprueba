@@ -5,7 +5,7 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { createCudyrPolicyBlockedRecovery } from '@/services/storage/sync/cudyrPolicyBlockedRecovery';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import { isAuthoringSessionCurrent } from '@/services/storage/authoringSession';
+import { isAuthoringSessionCurrent } from '@/services/session/authoringSession';
 import { admitSyntheticSession, clearSyntheticSession } from '@/tests/utils/syntheticSession';
 
 const blocked = (overrides: Partial<SyncTask> = {}): SyncTask => ({

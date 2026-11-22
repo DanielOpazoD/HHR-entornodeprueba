@@ -10,9 +10,9 @@ import * as authUseCases from '@/application/auth/authSessionUseCases';
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
+} from '@/services/session/sessionScopedStorageService';
 import type { AuthChannelMessage } from '@/services/auth/authBroadcastChannel';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { registerPendingAuditFlush } from '@/services/admin/auditPendingEvents';
 import { waitForPendingLogout } from '@/services/auth/authLogoutState';
 
@@ -36,7 +36,7 @@ vi.mock('@/application/auth/authSessionUseCases', () => ({
     .mockResolvedValue({ status: 'success', data: null, issues: [] }),
 }));
 
-vi.mock('@/services/storage/sessionScopedStorageService', () => ({
+vi.mock('@/services/session/sessionScopedStorageService', () => ({
   clearSessionScopedClientState: vi.fn(async (_reason: string, close?: () => Promise<void>) => {
     await close?.();
   }),

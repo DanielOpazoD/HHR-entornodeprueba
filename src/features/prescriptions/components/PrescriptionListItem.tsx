@@ -5,7 +5,7 @@ import {
   PRESCRIPTION_TYPE_LABELS,
   resolvePrescriptionAssignmentScope,
   type PrescriptionRecord,
-} from '@/types/prescriptionTypes';
+} from '@/features/prescriptions/types/prescriptionTypes';
 import { resolvePrescriptionImageDownloadUrl } from '@/features/prescriptions/services/prescriptionStorageImageService';
 import { formatDateTimeCL } from '@/utils/dateDisplayUtils';
 

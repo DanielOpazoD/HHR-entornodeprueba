@@ -177,7 +177,7 @@ export default tseslint.config(
   },
   {
     // The sender of the session message.
-    files: ['src/services/storage/sessionStorageTransition.ts'],
+    files: ['src/services/session/sessionStorageTransition.ts'],
     rules: { 'no-restricted-syntax': syntaxRestrictions({ omit: [SESSION_MESSAGE_RESTRICTION] }) },
   },
   {
@@ -288,6 +288,42 @@ export default tseslint.config(
     },
   },
   {
+    // Layer 0 (pure core) never imports React; React wrappers belong in hooks/, components/, or a feature.
+    files: ['src/{types,domain,utils,constants,schemas,shared}/**/*.{ts,tsx}'],
+    ignores: ['**/*.d.ts', '**/*.test.*', '**/*.spec.*'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['react', 'react/*', 'react-dom', 'react-dom/*'],
+              message:
+                'La capa 0 (núcleo puro) no importa React; mueve el módulo React a hooks/, components/ o su feature.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // With `"jsx": "react-jsx"`, a `.tsx` file in Layer 0 would silently inject `react/jsx-runtime`
+    // without an explicit React import. Reject JSX elements and fragments in Layer 0 directly.
+    files: ['src/{types,domain,utils,constants,schemas,shared}/**/*.tsx'],
+    ignores: ['**/*.d.ts', '**/*.test.*', '**/*.spec.*'],
+    rules: {
+      'no-restricted-syntax': syntaxRestrictions({
+        add: [
+          {
+            selector: 'JSXElement, JSXFragment',
+            message:
+              'La capa 0 (núcleo puro) no usa JSX ni React; mueve el componente a components/, hooks/ o su feature.',
+          },
+        ],
+      }),
+    },
+  },
+  {
     files: ['src/components/layout/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': ['error', { patterns: [DATA_ACCESS_RESTRICTION] }],
@@ -361,7 +397,7 @@ export default tseslint.config(
   },
   {
     // Critical services also cover spec and story files, as the critical scanner did.
-    files: ['src/services/{storage,repositories,admin}/**/*.{ts,tsx}'],
+    files: ['src/services/{storage,session,repositories,admin}/**/*.{ts,tsx}'],
     ignores: ['**/*.d.ts', '**/tests/**', '**/*.test.*'],
     rules: { '@typescript-eslint/no-explicit-any': 'error' },
   },

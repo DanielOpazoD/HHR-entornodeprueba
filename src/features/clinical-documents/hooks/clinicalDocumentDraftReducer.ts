@@ -61,7 +61,7 @@ export type ClinicalDocumentDraftAction =
   | { type: 'CLEAR_ANNEX_CONTENT' }
   | {
       type: 'PATCH_IEEH_DRAFT';
-      draft: import('@/application/shared/ieehContracts').ClinicalDocumentIeehDraft;
+      draft: import('@/features/clinical-documents/contracts/ieehContracts').ClinicalDocumentIeehDraft;
     }
   | { type: 'CLEAR_IEEH_DRAFT' }
   | { type: 'PATCH_UPDATE_DATE'; sectionId: string; date: string }

@@ -6,7 +6,7 @@
  * 📘 GUÍA DE ESTILO: Para elegir el hook correcto y evitar problemas de performance,
  * consulta «El registro diario» en docs/architecture.md
  */
-import React, { useContext } from 'react';
+import React, { useContext, useMemo } from 'react';
 import { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
 import { DailyRecordProviderTree } from '@/context/dailyRecordProviderTree';
 import { buildDailyRecordStatusModel } from '@/context/dailyRecordStatusController';
@@ -21,6 +21,8 @@ import {
   DailyRecordStabilityContext,
   DailyRecordSyncContext,
 } from './dailyRecordProviderTree';
+
+const EMPTY_OVERRIDES: Record<string, string> = {};
 
 const useRequiredContextValue = <T,>(
   context: React.Context<T | undefined>,
@@ -106,11 +108,15 @@ export const useDailyRecordSync = () => {
  */
 export const useDailyRecordStatus = () => {
   const { syncStatus, lastSyncTime, bootstrapPhase } = useDailyRecordSync();
-  return buildDailyRecordStatusModel({
-    syncStatus,
-    lastSyncTime,
-    bootstrapPhase,
-  });
+  return useMemo(
+    () =>
+      buildDailyRecordStatusModel({
+        syncStatus,
+        lastSyncTime,
+        bootstrapPhase,
+      }),
+    [syncStatus, lastSyncTime, bootstrapPhase]
+  );
 };
 
 /**
@@ -131,7 +137,10 @@ export const useDailyRecordStaff = () => {
  * Access bed type overrides.
  */
 export const useDailyRecordOverrides = () => {
-  return useRequiredContextValue(DailyRecordOverridesContext, 'useDailyRecordOverrides') || {};
+  return (
+    useRequiredContextValue(DailyRecordOverridesContext, 'useDailyRecordOverrides') ||
+    EMPTY_OVERRIDES
+  );
 };
 
 export {

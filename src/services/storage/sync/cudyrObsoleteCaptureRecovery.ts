@@ -1,6 +1,6 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { SyncQueueStorePort } from './syncQueuePorts';
-import type { AuthoringSession } from '@/services/storage/authoringSession';
+import type { AuthoringSession } from '@/services/session/authoringSession';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CudyrArchiveOutboxPayload } from '@/types/domain/cudyrHistory';
 import { collectCudyrDailyFacts } from '@/services/cudyr/cudyrReportFacts';

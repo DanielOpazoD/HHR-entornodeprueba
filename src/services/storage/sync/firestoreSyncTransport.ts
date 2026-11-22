@@ -20,11 +20,6 @@ import {
   hasSameValuesAtPaths,
   normalizeChangedPaths,
 } from '@/services/repositories/conflictResolutionUtils';
-import { evaluateDailyRecordConflictPostMergeInvariants } from '@/services/repositories/dailyRecordConflictPostMergeInvariantChecker';
-import {
-  applyDailyRecordClinicalConsistencyCheck,
-  recordClinicalConsistencyTelemetry,
-} from '@/services/repositories/dailyRecordClinicalConsistencyCheck';
 import {
   evaluateDailyRecordClinicalAuthority,
   recordClinicalAuthorityTelemetry,
@@ -38,9 +33,7 @@ import {
   hasRemoteAppliedMutation,
   withOwnEarlierWriteAsBase,
 } from '@/services/storage/sync/firestoreSyncConflictPolicy';
-import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import type { DetachedOccupantWork } from './dayTaskOccupantDetach';
-import { nursingHandoffPaths } from './nursingHandoffTasks';
 import {
   holdOutPlainDayFieldsChangedElsewhere,
   keepPlainDayFieldsHeld,
@@ -49,103 +42,20 @@ import {
   withoutUnchangedPlainDayFields,
   type PlainDayFieldsHeldOut,
 } from './plainDayFieldReplay';
-import {
-  resolveOptionalBaseRevision,
-  resolveRecordBaseRevision,
-  UNKNOWN_SERVER_VERSION,
-} from './syncTaskContractPolicy';
+import { resolveRecordBaseRevision } from './syncTaskContractPolicy';
 import { applyPatches } from '@/utils/patchUtils';
-
-const STRICT_REMOTE_DRIFT_TOLERANCE_MS = 0;
-
-const runE2ESyncTransport = async (task: SyncTask): Promise<boolean> => {
-  if (!isE2ERuntimeEnabled() || typeof window === 'undefined') return false;
-  const handler = (
-    window as Window & {
-      __HHR_E2E_RUN_SYNC_TASK__?: (task: SyncTask) => Promise<void>;
-    }
-  ).__HHR_E2E_RUN_SYNC_TASK__;
-  if (!handler) return false;
-  await handler(task);
-  return true;
-};
-
-/**
- * Blocks writes when the remote record is newer than the local copy. Without
- * client/tab metadata, the outbox cannot prove a rapid write came from the same
- * session, so even short drifts must be treated as real concurrency.
- */
-const toMillis = (value: string | undefined): number => {
-  if (!value) return 0;
-  const millis = new Date(value).getTime();
-  return Number.isFinite(millis) ? millis : 0;
-};
-
-const getRemoteLastUpdated = (remoteData: Record<string, unknown>): string | undefined =>
-  remoteData?.lastUpdated instanceof Object && 'toDate' in remoteData.lastUpdated
-    ? (remoteData.lastUpdated as { toDate: () => Date }).toDate().toISOString()
-    : typeof remoteData?.lastUpdated === 'string'
-      ? remoteData.lastUpdated
-      : undefined;
-
-const assertSyncQueueConcurrency = (
-  record: DailyRecord,
-  remoteLastUpdated: string | undefined
-): void => {
-  const localLastUpdated = record.lastUpdated;
-  if (!localLastUpdated) return;
-  if (!remoteLastUpdated) return;
-
-  const drift = toMillis(remoteLastUpdated) - toMillis(localLastUpdated);
-  if (drift > STRICT_REMOTE_DRIFT_TOLERANCE_MS) {
-    throw new ConcurrencyError(
-      `Sync queue: remote record for ${record.date} is newer ` +
-        `(remote=${remoteLastUpdated}, local=${localLastUpdated}, drift=${Math.round(drift / 1000)}s). ` +
-        `Skipping stale write to prevent data loss.`
-    );
-  }
-};
-
-const shouldRevalidateAgainstRemote = (
-  remoteLastUpdated: string | undefined,
-  expectedVersion: string | undefined
-): boolean => {
-  if (!remoteLastUpdated || !expectedVersion) return false;
-  return toMillis(remoteLastUpdated) > toMillis(expectedVersion);
-};
-
-const isWholeRecordTask = (task: SyncTask): boolean => {
-  const paths = normalizeChangedPaths(task.syncContract?.changedPaths);
-  return !paths.length || paths.includes('*');
-};
-
-const assertKnownWholeRecordBase = (task: SyncTask, remoteData?: Record<string, unknown>): void => {
-  if (!isWholeRecordTask(task)) return;
-
-  const expectedVersion = task.syncContract?.expectedVersion;
-  let knownBase = expectedVersion !== UNKNOWN_SERVER_VERSION;
-  if (knownBase && remoteData) {
-    const revision = resolveOptionalBaseRevision(task.syncContract?.baseRevision);
-    const remoteRevision = Number(
-      (remoteData.meta as { revision?: unknown } | undefined)?.revision
-    );
-    const currentRevision =
-      Number.isFinite(remoteRevision) && remoteRevision >= 0 ? remoteRevision : 0;
-    const expectedMillis = Date.parse(expectedVersion ?? '');
-    const matchingVersion =
-      Number.isFinite(expectedMillis) &&
-      expectedMillis === Date.parse(getRemoteLastUpdated(remoteData) ?? '');
-    knownBase =
-      revision !== undefined
-        ? revision === currentRevision && (expectedVersion === undefined || matchingVersion)
-        : matchingVersion;
-  }
-  if (!knownBase) {
-    throw createDailyRecordBaseReviewError(
-      'El censo cambió o su base no es verificable. Conservamos los cambios para revisión.'
-    );
-  }
-};
+import {
+  assertKnownWholeRecordBase,
+  assertNursingHandoffRecoveryBase,
+  assertSyncQueueConcurrency,
+  buildFreshRebaseBase,
+  getRemoteLastUpdated,
+  isWholeRecordTask,
+  mergeRevalidatedRecord,
+  prepareNursingHandoffRecoveryTask,
+  runE2ESyncTransport,
+  shouldRevalidateAgainstRemote,
+} from './firestoreSyncTransportGuards';
 
 interface ResolvedSyncRecordForTask {
   record: DailyRecord;
@@ -228,23 +138,7 @@ const resolveRecordForSyncTask = async (
   ) {
     return alreadyApplied(detached);
   }
-  if (task.nursingHandoffRecovery) {
-    // A released snapshot has no local projection to support a whole-day publish. Only its
-    // nursing paths are replayed, against the exact original version, including equal-time revisions.
-    const paths = nursingHandoffPaths(task);
-    const base = task.syncContract;
-    if (
-      !paths.length ||
-      !base?.expectedVersion ||
-      base.expectedVersion !== remoteLastUpdated ||
-      (base.baseRevision !== undefined &&
-        base.baseRevision !==
-          resolveOptionalBaseRevision(
-            (remoteData.meta as { revision?: unknown } | undefined)?.revision
-          ))
-    )
-      throw new ConcurrencyError('El censo cambió. La entrega retenida se conserva para revisión.');
-  }
+  assertNursingHandoffRecoveryBase(task, remoteData, remoteLastUpdated);
   // A confirmed mutation can be acknowledged above. An opaque legacy snapshot without a
   // trustworthy base cannot prove what it owns, so keep it for review instead of replaying it.
   assertKnownWholeRecordBase(task, remoteData);
@@ -320,42 +214,16 @@ const resolveRecordForSyncTask = async (
 
   if (!canRebasePatch)
     assertNoSamePathRemoteMutation(task, remoteData, remoteRecord, record, applied);
-  const mergedRecord = resolveDailyRecordConflict(remoteRecord, record, {
-    changedPaths: task.syncContract?.changedPaths,
-  });
-  const postMergeInvariants = evaluateDailyRecordConflictPostMergeInvariants({
-    remote: remoteRecord,
-    local: record,
-    resolved: mergedRecord,
-    context: {
-      date: record.date,
-      phase: 'sync_publish',
-    },
-  });
-
-  if (postMergeInvariants.status === 'blocked') {
-    throw new ConcurrencyError(
-      `Sync queue: post-merge invariants blocked stale task for ${record.date}: ` +
-        postMergeInvariants.violations.map(violation => violation.path).join(', ')
-    );
-  }
-
-  const consistency = applyDailyRecordClinicalConsistencyCheck(postMergeInvariants.record, {
-    date: record.date,
-    phase: 'sync_publish',
-  });
-  recordClinicalConsistencyTelemetry(consistency);
-
-  if (consistency.status === 'blocked') {
-    throw new ConcurrencyError(
-      `Sync queue: stale task for ${record.date} was revalidated but still has blocked clinical consistency.`
-    );
-  }
+  const revalidatedRecord = mergeRevalidatedRecord(
+    remoteRecord,
+    record,
+    task.syncContract?.changedPaths
+  );
 
   return {
-    record: consistency.record,
+    record: revalidatedRecord,
     resolution: 'merged',
-    acceptedVersion: consistency.record.lastUpdated,
+    acceptedVersion: revalidatedRecord.lastUpdated,
     storedData: remoteData,
     detached,
     canRebasePatch,
@@ -390,32 +258,13 @@ const assertResolvedClinicalAuthority = (
 };
 
 const syncDailyRecord = async (
-  task: SyncTask,
+  queuedTask: SyncTask,
   record: DailyRecord,
   runtime: FirestoreServiceRuntimePort,
   assertCanPublish?: () => void
 ): Promise<SyncTransportResult | void> => {
-  if (await runE2ESyncTransport(task)) return;
-  if (task.nursingHandoffRecovery) {
-    const paths = nursingHandoffPaths(task);
-    const mutationId = task.syncContract?.mutationId ?? task.opId;
-    task = {
-      ...task,
-      syncContract: {
-        ...task.syncContract,
-        changedPaths: paths,
-        // A subset cannot acknowledge the other fields of a compacted/original mutation.
-        mutationId:
-          paths.length === task.syncContract?.changedPaths?.length
-            ? mutationId
-            : `${mutationId}:nursing-recovery`,
-        mutationIds:
-          paths.length === task.syncContract?.changedPaths?.length
-            ? task.syncContract?.mutationIds
-            : undefined,
-      },
-    };
-  }
+  if (await runE2ESyncTransport(queuedTask)) return;
+  const task = prepareNursingHandoffRecoveryTask(queuedTask);
   const occupants: ReplayChecks = await import('./dexieDailyRecordOutbox');
   let detached: DetachedOccupantWork | undefined;
   let heldOut: PlainDayFieldsHeldOut | undefined;
@@ -454,18 +303,13 @@ const syncDailyRecord = async (
 
       assertResolvedClinicalAuthority(task, resolved);
 
-      const freshBase =
-        !task.nursingHandoffRecovery &&
-        resolved.resolution === 'merged' &&
-        resolved.storedData &&
-        resolved.canRebasePatch
-          ? {
-              expectedVersion: getRemoteLastUpdated(resolved.storedData),
-              baseRevision: resolveRecordBaseRevision(
-                docToRecord(resolved.storedData, recordToWrite.date)
-              ),
-            }
-          : undefined;
+      const freshBase = buildFreshRebaseBase(
+        task,
+        resolved.resolution,
+        resolved.storedData,
+        resolved.canRebasePatch,
+        recordToWrite.date
+      );
       assertCanPublish?.();
       const response = await saveDailyRecordWithClinicalAuthorityCallable(
         {

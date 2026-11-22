@@ -1,4 +1,4 @@
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { HospitalizationEvent } from '@/types/domain/patientMaster';
 import { PatientMasterRepository } from '@/services/repositories/PatientMasterRepository';

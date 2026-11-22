@@ -9,7 +9,16 @@
       }
     },
     "src/features/clinical-documents": {
-      "tests": "src/tests/features/clinical-documents",
+      "tests": [
+        "src/tests/features/clinical-documents",
+        "src/tests/services/pdf/ieehPdfCoordinates.test.ts",
+        "src/tests/services/pdf/ieehPdfRealTemplate.test.ts",
+        "src/tests/services/pdf/ieehPdfService.test.ts",
+        "src/tests/services/pdf/ieehPdfSupport.test.ts",
+        "src/tests/services/repositories/ClinicalAttachmentRepository.test.ts",
+        "src/tests/services/terminology/fonasaService.test.ts",
+        "src/tests/shared/clinical-documents/clinicalDocumentPresentation.test.ts"
+      ],
       "coverageBaseline": {
         "lines": 83.0,
         "functions": 80.0,
@@ -228,7 +237,11 @@
       }
     },
     "src/features/handoff": {
-      "tests": "src/tests/views/handoff",
+      "tests": [
+        "src/tests/views/handoff",
+        "src/tests/hooks/controllers/clinicalEventFeedbackController.test.ts",
+        "src/tests/hooks/controllers/clinicalEventMutationController.test.ts"
+      ],
       "coverageBaseline": {
         "lines": 82.5,
         "functions": 76.5,

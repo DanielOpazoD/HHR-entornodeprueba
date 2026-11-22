@@ -9,11 +9,11 @@ import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
 import { toSyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueOperationSnapshot';
 import { buildSyncQueueTelemetryFromRows } from '@/services/storage/sync/syncQueueTelemetryController';
-import { buildSyncQueueStats } from '@/hooks/controllers/syncQueueMonitorController';
+import { buildSyncQueueStats } from '@/features/rayen-import/hooks/syncQueueMonitorController';
 import { listQuarantinedOperations } from '@/features/rayen-import/components/localSyncPresentation';
 import { RayenSyncQueueDetails } from '@/features/rayen-import/components/RayenSyncQueueDetails';
 import type { SyncTask, SyncTaskContract } from '@/services/storage/syncQueueTypes';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 
 const mocks = vi.hoisted(() => ({
   read: vi.fn(),

@@ -21,7 +21,7 @@ import {
   recordDailyActionTiming,
   startDailyActionTiming,
 } from '@/services/observability/dailyActionTiming';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { useCensusDayChangeTiming } from '@/hooks/useCensusRecordPerf';
 
 const envelope = (event: unknown) => JSON.stringify({ source: 'hhr_operational_telemetry', event });

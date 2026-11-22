@@ -13,9 +13,9 @@ import { useRayenSyncAudit } from '@/features/rayen-import/hooks/useRayenSyncAud
 import { useRayenSyncExecutionController } from '@/features/rayen-import/hooks/useRayenSyncExecutionController';
 import { createRayenSyncPersistenceQueue } from '@/features/rayen-import/hooks/rayenSyncPersistenceQueue';
 import { INITIAL_RAYEN_IMPORT_STATE } from '@/features/rayen-import/hooks/rayenImportState';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
 import {
   captureFor,

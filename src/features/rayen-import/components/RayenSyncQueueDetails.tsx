@@ -1,9 +1,12 @@
 import React from 'react';
-import type { SyncQueueOperation, SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
+import type {
+  SyncQueueOperation,
+  SyncQueueStats,
+} from '@/features/rayen-import/hooks/useSyncQueueMonitor';
 import { discardQuarantinedSyncTask, retryQuarantinedSyncTask } from '@/services/storage/sync';
 import { isPolicyBlockedCudyrArchive } from '@/services/storage/sync/cudyrPolicyBlockedRecovery';
 import { listQuarantinedOperations, targetLabelFromKey } from './localSyncPresentation';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { SYNC_TONE, SYNC_TONE_ICON } from './syncTone';
 
 const DailyRecordTaskRecovery = lazyWithRetry(() => import('./DailyRecordTaskRecovery'));

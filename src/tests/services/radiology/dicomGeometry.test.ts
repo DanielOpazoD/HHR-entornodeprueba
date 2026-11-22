@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { planDicomVolume, type SliceGeometry } from '@/domain/radiology/dicomGeometry';
+import { planDicomVolume, type SliceGeometry } from '@/features/radiology/domain/dicomGeometry';
 
 const volumeImageOrder = (images: SliceGeometry[]): string[] =>
   planDicomVolume(images).slices.map(slice => slice.imageId);

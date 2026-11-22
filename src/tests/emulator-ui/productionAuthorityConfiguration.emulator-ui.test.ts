@@ -13,7 +13,7 @@ import { usePatchDailyRecordMutation } from '@/hooks/usePatchDailyRecordMutation
 import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryController';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { getTodayISO } from '@/utils/dateCoreUtils';
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import * as writes from '@/services/storage/firestore/firestoreRecordWrites';
 import * as guards from '@/services/storage/firestore/firestoreWriteSupport';
@@ -30,7 +30,7 @@ import {
   setFirestoreSyncState,
 } from '@/services/repositories/repositoryConfig';
 import { processSyncQueue } from '@/services/storage/sync';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import { resolveRecordBaseRevision } from '@/services/storage/sync/syncTaskContractPolicy';
 import {
   createDailyRecordWriteAuthorityFunctions,

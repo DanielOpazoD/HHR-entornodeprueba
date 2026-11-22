@@ -8,7 +8,7 @@ import {
   listPatientOptionsWithPrescriptionPin,
   type QrDocumentPatientOption,
   type QrDocumentPatientOptionsResult,
-} from '@/services/document-intake/qrDocumentAccessService';
+} from '@/features/document-scanner/services/qrDocumentAccessService';
 import {
   createDocumentScanPdf,
   createDocumentScanUploadImages,

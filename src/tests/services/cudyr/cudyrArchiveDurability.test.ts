@@ -9,12 +9,12 @@ const h = vi.hoisted(() => {
   return { archive: vi.fn() };
 });
 vi.mock('@/services/cudyr/cudyrHistoryService', () => ({ archiveCudyrHistory: h.archive }));
-vi.mock('@/services/storage/sessionOwnerKey', async importOriginal => ({
-  ...(await importOriginal<typeof import('@/services/storage/sessionOwnerKey')>()),
+vi.mock('@/services/session/sessionOwnerKey', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/session/sessionOwnerKey')>()),
   getStoredSessionOwnerKey: () => 'user:synthetic',
 }));
-vi.mock('@/services/storage/sessionStorageTransition', async importOriginal => ({
-  ...(await importOriginal<typeof import('@/services/storage/sessionStorageTransition')>()),
+vi.mock('@/services/session/sessionStorageTransition', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/session/sessionStorageTransition')>()),
   getSessionGeneration: () => 'session-test',
 }));
 vi.mock('firebase/firestore', async importOriginal => ({
@@ -32,7 +32,7 @@ import { persistCudyrArchivePart } from '@/services/cudyr/cudyrArchiveQueue';
 import { processSyncQueue } from '@/services/storage/sync/publicSyncQueue';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { enqueueStandaloneSyncTask } from '@/services/storage/sync/enqueueStandaloneSyncTask';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 
 const request: ArchiveCudyrHistoryRequest = {
   schemaVersion: 1,

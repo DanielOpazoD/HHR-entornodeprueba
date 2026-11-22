@@ -5,7 +5,7 @@ import {
   resolvePrescriptionAssignmentScope,
   type PrescriptionRecord,
   type PrescriptionType,
-} from '@/types/prescriptionTypes';
+} from '@/features/prescriptions/types/prescriptionTypes';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { formatCalendarDate } from '@/utils/dateDisplayUtils';
 

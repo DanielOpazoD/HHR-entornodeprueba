@@ -5,8 +5,8 @@ import {
   buildAnalyticsDataQualityIssues,
   buildMinsalComparisonSummary,
   resolvePreviousMinsalPeriod,
-} from '@/services/calculations/minsal/minsalStatsInsights';
-import type { MinsalStatistics } from '@/types/minsalTypes';
+} from '@/features/analytics/services/minsal/minsalStatsInsights';
+import type { MinsalStatistics } from '@/features/analytics/types/minsalTypes';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const buildStats = (overrides: Partial<MinsalStatistics>): MinsalStatistics => ({

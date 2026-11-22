@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRayenStaffingProposalReview } from '@/features/rayen-import/hooks/useRayenStaffingProposalReview';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const mocks = vi.hoisted(() => ({

@@ -32,7 +32,7 @@ vi.mock('@/services/storage/sync/publicSyncQueue', () => ({
 
 import { persistCudyrArchivePart } from '@/services/cudyr/cudyrArchiveQueue';
 import type { ArchiveCudyrHistoryRequest } from '@/types/domain/cudyrHistory';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 
 /** A sync run's archive part, with the guard the run captured when it began. */
 const persist = (signal?: AbortSignal) =>

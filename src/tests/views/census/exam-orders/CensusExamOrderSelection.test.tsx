@@ -13,7 +13,7 @@ import {
 } from '@/features/census/components/exam-orders/examOrderContext';
 import { clearExamOrderSelection } from '@/features/census/components/exam-orders/examOrderSelectionStore';
 import { listCensusExamRequestCandidates } from '@/features/census/controllers/censusExamRequestController';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 
 const printMock = vi.hoisted(() => vi.fn());
 vi.mock('@/features/census/components/exam-request/examRequestPrintController', () => ({

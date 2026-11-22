@@ -6,7 +6,7 @@ export {
   PRESCRIPTION_RETENTION_DAYS,
   type PrescriptionRecord,
   type PrescriptionType,
-} from '@/types/prescriptionTypes';
+} from '@/features/prescriptions/types/prescriptionTypes';
 export { PrescriptionUploadView } from '@/features/prescriptions/components/PrescriptionUploadView';
 export { PrescriptionVisorView } from '@/features/prescriptions/components/PrescriptionVisorView';
 export { PrescriptionAdminView } from '@/features/prescriptions/components/PrescriptionAdminView';

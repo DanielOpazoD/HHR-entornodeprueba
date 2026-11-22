@@ -3,7 +3,11 @@ import type { DailyRecordDateRef } from '@/types/domain/dailyRecordSlices';
 import { useAuth } from '@/context/AuthContext';
 import { isAdminAppRole } from '@/shared/access/operationalAccessPolicy';
 import { nurseEditingWindowClosesAt } from '@/utils/clinicalWallClock';
-import { buildStabilityRules, type StabilityRules } from './stabilityRulesController';
+import {
+  buildStabilityRules,
+  resolveStabilityDateLocked,
+  type StabilityRules,
+} from './stabilityRulesController';
 import { isE2EEditableRecordOverrideEnabled } from '@/shared/runtime/e2eRuntime';
 export type { StabilityRules } from './stabilityRulesController';
 
@@ -67,18 +71,29 @@ export const useStabilityRules = (record: DailyRecordDateRef | null): StabilityR
   const e2eEditableOverride = isE2EEditableRecordOverrideEnabled();
   const isAdmin = isAdminAppRole(role) || e2eEditableOverride;
   const canEdit = isEditor || e2eEditableOverride;
-  const [windowClosedAt, setWindowClosedAt] = useState<number | null>(null);
+  const recordDate = record ? record.date : null;
+  const [, setWindowClosedAt] = useState<number | null>(null);
+
+  // Recompute lock status on the hospital clock each render so a timer wake or clock correction
+  // flips isDateLockedNow without rebuilding rules on unrelated edits to the same day's record.
+  const isDateLockedNow = resolveStabilityDateLocked(
+    recordDate !== null ? { date: recordDate } : null,
+    { isAdmin, isEditor: canEdit }
+  );
 
   const rules = useMemo(
-    () => buildStabilityRules(record, { isAdmin, isEditor: canEdit }),
-    // windowClosedAt is not read: its change re-reads the lock on the hospital clock.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [record, isAdmin, canEdit, windowClosedAt]
+    () =>
+      buildStabilityRules(recordDate !== null ? { date: recordDate } : null, {
+        isAdmin,
+        isEditor: canEdit,
+        isDateLocked: isDateLockedNow,
+      }),
+    [recordDate, isAdmin, canEdit, isDateLockedNow]
   );
 
   // Only a day still open to a nurse has a window left to close.
   useNurseWindowCloseTimer(
-    record && !isAdmin && !rules.isDateLocked ? record.date : null,
+    recordDate !== null && !isAdmin && !rules.isDateLocked ? recordDate : null,
     setWindowClosedAt
   );
 

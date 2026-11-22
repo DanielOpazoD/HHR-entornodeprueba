@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Reminder, ReminderVisibilityContext } from '@/types/reminders';
-import type { ReminderDraftInput } from '@/domain/reminders/reminderValidation';
+import type { ReminderDraftInput } from '@/features/reminders/domain/reminderValidation';
 import {
   validateReminderDraft,
   buildReminderFromDraft,
-} from '@/domain/reminders/reminderValidation';
+} from '@/features/reminders/domain/reminderValidation';
 import {
   isReminderVisible,
   filterVisibleReminders,

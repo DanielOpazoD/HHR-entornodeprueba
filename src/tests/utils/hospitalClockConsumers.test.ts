@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { todayDateString } from '@/application/wound-care/woundCareUseCaseHelpers';
+import { todayDateString } from '@/features/wound-care/use-cases/woundCareUseCaseHelpers';
 import { resolveMMRADDatePresetRange } from '@/features/radiology/controllers/radiologyViewerModalController';
 import { buildDeviceHistoryTimestamp } from '@/features/census/controllers/deviceHistoryController';
 import {
@@ -10,7 +10,7 @@ import {
 import { collectMonthlyPrescriptionExport } from '@/features/prescriptions/services/prescriptionMonthlyPdfService';
 import { getTodayFormatted } from '@/features/census/components/imaging-request/pdfBrowserUtils';
 import { getCurrentShift } from '@/utils/clinicalDayUtils';
-import type { PrescriptionRecord } from '@/types/prescriptionTypes';
+import type { PrescriptionRecord } from '@/features/prescriptions/types/prescriptionTypes';
 
 // 23:30 on Oct 31 in Rapa Nui (UTC-5) is already Nov 1 both in UTC (04:30) and on the
 // mainland devices the tests emulate (Santiago, 01:30). Every "now" must stay on Oct 31.

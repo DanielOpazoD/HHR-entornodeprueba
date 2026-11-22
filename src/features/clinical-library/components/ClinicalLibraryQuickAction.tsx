@@ -1,6 +1,6 @@
 import React, { Suspense, useCallback, useRef, useState } from 'react';
 import { FolderOpen } from 'lucide-react';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { DATE_STRIP_TRAILING_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
 import type { LibraryPatientOption } from '../domain/libraryCatalogTypes';
 

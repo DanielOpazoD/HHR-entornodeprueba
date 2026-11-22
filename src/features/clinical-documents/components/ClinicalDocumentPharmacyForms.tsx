@@ -1,6 +1,6 @@
 import React, { Suspense, useRef, useState } from 'react';
 import { Pill } from 'lucide-react';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import type { LibraryToolId } from '@/features/clinical-library/public';
 
 const ClinicalLibraryDrawer = lazyWithRetry(() =>

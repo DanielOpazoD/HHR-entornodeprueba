@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createClinicalAttachmentRepository } from '@/services/repositories/ClinicalAttachmentRepository';
+import { createClinicalAttachmentRepository } from '@/features/clinical-documents/services/ClinicalAttachmentRepository';
 import {
   executeListClinicalAttachmentsByEpisode,
   executeListClinicalAttachmentsByPatient,
 } from '@/features/clinical-documents/use-cases/clinicalAttachmentUseCases';
-import type { ClinicalAttachmentRecord } from '@/shared/clinical-documents/clinicalAttachmentContracts';
-import type { ClinicalAttachmentStorageRuntime } from '@/services/firebase-runtime/clinicalAttachmentRuntime';
+import type { ClinicalAttachmentRecord } from '@/features/clinical-documents/contracts/clinicalAttachmentContracts';
+import type { ClinicalAttachmentStorageRuntime } from '@/features/clinical-documents/services/clinicalAttachmentRuntime';
 
 const actor = {
   uid: 'u1',

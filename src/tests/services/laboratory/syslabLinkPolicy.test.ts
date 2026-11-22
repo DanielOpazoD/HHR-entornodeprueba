@@ -4,7 +4,7 @@ import {
   SYSLAB_LINK_LIFETIME_MS,
   SYSLAB_LIST_REUSE_MS,
   SYSLAB_LIST_RETENTION_MS,
-} from '@/services/laboratory/syslabLinkPolicy';
+} from '@/features/laboratory/services/syslabLinkPolicy';
 
 describe('Syslab link policy', () => {
   it('renews a list before its links expire, with a margin for the report reads', () => {

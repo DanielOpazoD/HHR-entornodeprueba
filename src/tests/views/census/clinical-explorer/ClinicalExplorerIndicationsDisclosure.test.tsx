@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PanelState } from '@/features/census/components/patient-row/useClinicalPanelSnapshot';
 import { ClinicalExplorerNotes } from '@/features/census/components/clinical-explorer/ClinicalExplorerNotes';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { parseClinicalPanel } from '@/features/rayen-import/clinical-panel';
 import { panelResult } from '../clinicalPanelDrawer.fixture';
 

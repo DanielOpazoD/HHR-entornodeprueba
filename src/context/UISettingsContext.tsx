@@ -3,7 +3,14 @@
  * Manages visual preferences across the application.
  */
 
-import React, { createContext, useContext, useState, useLayoutEffect } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react';
 import {
   UISettings,
   loadUISettings,
@@ -46,19 +53,20 @@ export const UISettingsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     saveUISettings(settings);
   }, [settings]);
 
-  const updateSetting = (key: keyof UISettings, value: boolean) => {
+  const updateSetting = useCallback((key: keyof UISettings, value: boolean) => {
     setSettings(prev => ({ ...prev, [key]: value }));
-  };
+  }, []);
 
-  const resetSettings = () => {
+  const resetSettings = useCallback(() => {
     setSettings(DEFAULT_UI_SETTINGS);
-  };
+  }, []);
 
-  return (
-    <UISettingsContext.Provider value={{ settings, updateSetting, resetSettings }}>
-      {children}
-    </UISettingsContext.Provider>
+  const contextValue = useMemo<UISettingsContextType>(
+    () => ({ settings, updateSetting, resetSettings }),
+    [settings, updateSetting, resetSettings]
   );
+
+  return <UISettingsContext.Provider value={contextValue}>{children}</UISettingsContext.Provider>;
 };
 
 export const useUISettings = () => {

@@ -10,7 +10,7 @@ import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync/publicSyncQueue';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 // Local-only reads against the real Dexie store (fake-indexeddb). Reads that involve Firestore

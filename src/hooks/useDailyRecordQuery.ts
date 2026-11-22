@@ -1,4 +1,4 @@
-import { isAuthoringSessionCurrent } from '@/services/storage/authoringSession';
+import { isAuthoringSessionCurrent } from '@/services/session/authoringSession';
 import { loadDailyRecordSavePersistence } from '@/hooks/useWarmDailyRecordSavePath';
 import { mutationOptions, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../config/queryClient';

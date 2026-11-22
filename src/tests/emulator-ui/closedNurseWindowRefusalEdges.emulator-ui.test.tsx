@@ -30,7 +30,7 @@ import {
   applyPendingExplicitCensusPatch,
   registerPendingDailyRecordPatch,
 } from '@/hooks/controllers/dailyRecordPendingPatchController';
-import { buildSyncQueueStats } from '@/hooks/controllers/syncQueueMonitorController';
+import { buildSyncQueueStats } from '@/features/rayen-import/hooks/syncQueueMonitorController';
 import { bedManagementReducer } from '@/hooks/useBedManagementReducer';
 import { RayenSyncQueueDetails } from '@/features/rayen-import/components/RayenSyncQueueDetails';
 import {
@@ -53,7 +53,7 @@ import { createDailyRecordWriteAuthorityFunctions } from '@/tests/functions/dail
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
+} from '@/services/session/sessionScopedStorageService';
 import {
   setFirestoreEnabled,
   setFirestoreSyncState,

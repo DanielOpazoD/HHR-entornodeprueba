@@ -16,6 +16,7 @@ interface BuildStabilityRulesOptions {
   isEditor: boolean;
   todayISO?: string;
   now?: Date;
+  isDateLocked?: boolean;
 }
 
 const DAY_SHIFT_FIELD_PREFIXES = [
@@ -38,6 +39,23 @@ const NIGHT_SHIFT_FIELD_PREFIXES = [
 const startsWithAny = (value: string, prefixes: readonly string[]): boolean =>
   prefixes.some(prefix => value.startsWith(prefix));
 
+export const resolveStabilityDateLocked = (
+  record: DailyRecordDateRef | null,
+  {
+    isAdmin,
+    isEditor,
+    todayISO = resolveCurrentClinicalDay(),
+    now = new Date(),
+  }: Omit<BuildStabilityRulesOptions, 'isDateLocked'>
+): boolean => {
+  if (!record || !isEditor) {
+    return true;
+  }
+  // A past day closes for nurses with the server's window, on the hospital clock (SAVE-04).
+  const isHistorical = record.date < todayISO;
+  return isHistorical && !canWriteCensusDay(record.date, isAdmin, now.getTime());
+};
+
 export const buildStabilityRules = (
   record: DailyRecordDateRef | null,
   {
@@ -45,6 +63,7 @@ export const buildStabilityRules = (
     isEditor,
     todayISO = resolveCurrentClinicalDay(),
     now = new Date(),
+    isDateLocked: precomputedDateLocked,
   }: BuildStabilityRulesOptions
 ): StabilityRules => {
   if (!record || !isEditor) {
@@ -58,9 +77,9 @@ export const buildStabilityRules = (
     };
   }
 
-  // A past day closes for nurses with the server's window, on the hospital clock (SAVE-04).
-  const isHistorical = record.date < todayISO;
-  const isDateLocked = isHistorical && !canWriteCensusDay(record.date, isAdmin, now.getTime());
+  const isDateLocked =
+    precomputedDateLocked ??
+    resolveStabilityDateLocked(record, { isAdmin, isEditor, todayISO, now });
 
   // Manual shift locks are currently disabled at product level.
   const isDayShiftLocked = false;

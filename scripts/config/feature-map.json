@@ -617,7 +617,7 @@
           "decides": "Única validación del día civil oficial: vale solo si es una fecha real y, a esa hora, corresponde a ese censo; si no, se trata como ausente."
         },
         {
-          "at": "src/features/rayen-import/domain/egresoReportPolicy.ts › correctedStamp",
+          "at": "src/features/rayen-import/domain/egresoReportStamps.ts › correctedStamp",
           "decides": "Da a cada fila su sello: el día del censo y la hora ya corregidos si son válidos, si no los de la celda masiva; sin sello, el egreso no se confirma."
         },
         {
@@ -965,15 +965,15 @@
     {
       "id": "backup.files",
       "name": "Archivos de respaldo (administrador)",
-      "owner": "src/hooks",
+      "owner": "src/features/backup",
       "reach": {
         "screen": "Menú de utilidades, «Archivos»",
         "controls": [{ "text": "Archivos" }, { "testId": "backup-files-view" }]
       },
       "gate": [
-        "src/hooks/useBackupFileBrowser.ts",
+        "src/features/backup/hooks/useBackupFileBrowser.ts",
         "src/features/backup/components/BackupFilesView.tsx",
-        "src/hooks/useBackupFilesQuery.ts"
+        "src/features/backup/hooks/useBackupFilesQuery.ts"
       ],
       "tests": [
         "src/tests/hooks/useBackupFilesQuery.test.tsx",

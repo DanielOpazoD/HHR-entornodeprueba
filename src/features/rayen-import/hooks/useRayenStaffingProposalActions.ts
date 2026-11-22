@@ -1,4 +1,4 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';

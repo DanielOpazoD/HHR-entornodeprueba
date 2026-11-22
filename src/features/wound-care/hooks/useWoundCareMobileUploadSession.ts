@@ -5,7 +5,7 @@ import {
   executeCreateWoundCareMobileUploadSession,
   executeRevokeWoundCareMobileUploadSession,
   type EpisodeContext,
-} from '@/application/wound-care/woundCareUseCases';
+} from '@/features/wound-care/use-cases/woundCareUseCases';
 import type { WoundCareAuditActor, WoundCareMobileUploadSession } from '@/types/domain/woundCare';
 
 const buildActor = (

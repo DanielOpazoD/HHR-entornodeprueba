@@ -11,7 +11,7 @@ vi.mock('@/components/shared/BaseModal', () => ({
     </div>
   ),
 }));
-vi.mock('@/services/laboratory/exalabService', () => ({
+vi.mock('@/features/laboratory/services/exalabService', () => ({
   exalabStatus: vi.fn(),
   autoConnectExalab: vi.fn(),
   connectExalab: vi.fn(),
@@ -34,7 +34,7 @@ import {
   searchExalab,
   fetchExalabPdf,
   ExalabRequestError,
-} from '@/services/laboratory/exalabService';
+} from '@/features/laboratory/services/exalabService';
 const exam = {
   id: '123',
   rut: '12345678-5',

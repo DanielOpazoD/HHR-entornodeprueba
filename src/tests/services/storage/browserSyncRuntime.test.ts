@@ -5,12 +5,12 @@ const state = vi.hoisted(() => ({
   admitted: null as string | null,
   epoch: 0,
 }));
-vi.mock('@/services/storage/sessionOwnerKey', () => ({
+vi.mock('@/services/session/sessionOwnerKey', () => ({
   getStoredSessionOwnerKey: () => state.owner,
   hasSessionCleanupFailed: vi.fn(() => false),
   isSessionCleanupPending: vi.fn(() => false),
 }));
-vi.mock('@/services/storage/sessionStorageTransition', () => ({
+vi.mock('@/services/session/sessionStorageTransition', () => ({
   getSessionGeneration: () => state.generation,
   getSessionOwner: () => state.admitted,
   getSessionEpoch: () => state.epoch,

@@ -1,7 +1,7 @@
 import type {
   ClinicalDocumentAuditActor,
   ClinicalDocumentRecord,
-} from '@/features/clinical-documents/internal';
+} from '@/domain/clinical-documents/entities';
 import {
   buildClinicalDocumentVersionSectionSnapshots,
   resolveClinicalDocumentVersionChangedSectionIds,

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { Check, Copy, QrCode, RefreshCw, XCircle } from 'lucide-react';
 import { useTransientFlag } from '@/hooks/useTransientFlag';
-import type { EpisodeContext } from '@/application/wound-care/woundCareUseCases';
+import type { EpisodeContext } from '@/features/wound-care/use-cases/woundCareUseCases';
 import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { useWoundCareMobileUploadSession } from '../hooks/useWoundCareMobileUploadSession';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';

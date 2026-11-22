@@ -1,15 +1,9 @@
-// Public census application API. This stays as an explicit governed facade over
-// a small set of feature-level controllers used across shared layers, instead
-// of re-exporting the full feature surface wholesale.
+// Public census application API. Exposes census use cases and shared movement
+// controllers owned by src/application/census without reaching upward into
+// feature internals.
 
 export { searchMasterPatients } from './searchMasterPatientsUseCase';
 export { buildUndoCmaPatch } from './cmaUndoPatchUseCase';
-export type {
-  ClinicalDocSummary,
-  EpisodeDocuments,
-  SelectedPatientDetail,
-  UseGlobalPatientSearchReturn,
-} from '@/features/census/components/global-search/globalSearchContracts';
 export * from './atomicPatientMovementPatchController';
 export * from '@/application/census/controllers/bedManagerGridItemsController';
 export * from '@/application/census/controllers/bedManagerModalController';

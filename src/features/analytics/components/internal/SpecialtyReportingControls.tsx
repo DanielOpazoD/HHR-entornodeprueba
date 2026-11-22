@@ -1,7 +1,7 @@
 import React from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import { SPECIALTY_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
-import type { SpecialtyGroupingMode } from '@/types/minsalTypes';
+import type { SpecialtyGroupingMode } from '@/features/analytics/types/minsalTypes';
 import type { AnalyticsMovementReclassificationRow } from '@/features/analytics/controllers/analyticsSpecialtyReclassificationController';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 

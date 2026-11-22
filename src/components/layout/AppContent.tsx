@@ -14,7 +14,7 @@ import type { CensusQuickActionPatient } from '@/shared/contracts/censusQuickAct
 import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/dateStripRadiologyViewer';
 import type { AppRouterShellState } from '@/app-shell/routing/appRouterController';
 import type { AppContentOverlayViews } from '@/components/layout/app-content/AppContentOverlays';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import {
   ReminderCenterContext,
   unavailableReminderCenterValue,

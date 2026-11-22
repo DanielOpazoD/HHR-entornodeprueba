@@ -123,7 +123,7 @@ const formerBoundaryCases: {
   {
     name: 'servicios → servicios (otra subcarpeta)',
     from: 'src/services/admin/probe.ts',
-    to: 'src/services/storage/sessionOwnerKey.ts',
+    to: 'src/services/session/sessionOwnerKey.ts',
     now: 'allowed',
   },
   {
@@ -147,14 +147,14 @@ const formerBoundaryCases: {
   {
     name: 'components/<sub> → servicios sin datos',
     from: 'src/components/layout/probe.tsx',
-    to: 'src/services/storage/sessionOwnerKey.ts',
+    to: 'src/services/session/sessionOwnerKey.ts',
     now: 'allowed',
   },
   // Kept on purpose, now in every spelling: shared UI opens no data (dataAccess).
   {
     name: 'components/<sub> → servicio de datos',
     from: 'src/components/layout/probe.tsx',
-    to: 'src/services/repositories/WoundCarePhotoRepository.ts',
+    to: 'src/services/repositories/PatientMasterRepository.ts',
     content: "import { getFirestore } from 'firebase/firestore';\nexport const x = getFirestore;",
     now: 'rejected',
   },

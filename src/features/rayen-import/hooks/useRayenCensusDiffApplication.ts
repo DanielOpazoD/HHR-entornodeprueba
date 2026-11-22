@@ -1,13 +1,11 @@
 import { useCallback } from 'react';
 import type { ApplyResult } from '../domain/applyCensusImportDiff';
-import { applyCensusImportDiff } from '../domain/applyCensusImportDiff';
 import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import type { LocalDailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
-import { buildRayenStructuralPersistenceBase } from '../domain/rayenStructuralPersistenceBase';
 import {
   runExclusiveDailyRecordWrite,
   type DailyRecordWriteLease,
@@ -27,7 +25,7 @@ import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordP
 import type { QueryClient } from '@tanstack/react-query';
 import { setRemoteConfirmedDailyRecordQueryData } from '@/hooks/controllers/dailyRecordConfirmedCacheController';
 import { markDailyRecordRemoteConfirmed } from '@/hooks/controllers/dailyRecordFreshnessGateController';
-import type { AuthoringSessionGuard } from '@/services/storage/authoringSession';
+import type { AuthoringSessionGuard } from '@/services/session/authoringSession';
 
 export interface ConfirmedRayenCensusApplyResult extends ApplyResult {
   confirmedHandoff: ConfirmedRayenCensusHandoff;
@@ -74,12 +72,21 @@ export const useRayenCensusDiffApplication = ({
   recordRunPerformance,
 }: RayenCensusDiffApplicationInput): ApplyRayenCensusDiff =>
   useCallback<ApplyRayenCensusDiff>(
-    async (record, diff, clinicalDay = record.date, session) =>
-      runExclusiveDailyRecordWrite(
+    async (record, diff, clinicalDay = record.date, session) => {
+      // Download the structural apply modules before acquiring the exclusive per-date write lease
+      // so slow connections never stall unrelated saves for the same day.
+      const [{ buildRayenStructuralPersistenceBase }, { applyCensusImportDiff }] =
+        await Promise.all([
+          import('../domain/rayenStructuralPersistenceBase'),
+          import('../domain/applyCensusImportDiff'),
+        ]);
+      session.check();
+      return runExclusiveDailyRecordWrite(
         record.date,
         async writeLease => {
           const run = ensureRun();
           const localResult = await loadLocalRecord(record.date);
+          session.check();
           const persistenceBase = buildRayenStructuralPersistenceBase(
             record,
             localResult.record,
@@ -240,7 +247,8 @@ export const useRayenCensusDiffApplication = ({
           };
         },
         { kind: 'structural_sync' }
-      ),
+      );
+    },
     [
       applyRunToRecord,
       checkpointRepository,

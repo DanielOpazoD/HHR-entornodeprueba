@@ -47,7 +47,7 @@ vi.mock('@/features/document-scanner/services/jscanifyDocumentScannerService', (
   rotateDocumentScanPage: scannerMocks.rotatePage,
 }));
 
-vi.mock('@/services/document-intake/qrDocumentAccessService', () => ({
+vi.mock('@/features/document-scanner/services/qrDocumentAccessService', () => ({
   listPatientOptionsWithPrescriptionPin: scannerMocks.listPatientOptions,
 }));
 

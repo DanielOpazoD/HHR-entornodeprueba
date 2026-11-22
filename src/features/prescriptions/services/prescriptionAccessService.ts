@@ -10,7 +10,7 @@ import type {
   PrescriptionAssignmentScope,
   PrescriptionRecord,
   PrescriptionType,
-} from '@/types/prescriptionTypes';
+} from '@/features/prescriptions/types/prescriptionTypes';
 
 interface ValidatePinPayload {
   pin: string;

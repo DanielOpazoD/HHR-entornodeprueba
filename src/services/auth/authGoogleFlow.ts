@@ -1,5 +1,5 @@
 import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'firebase/auth';
-import { runSessionStorageTransition } from '@/services/storage/sessionStorageTransition';
+import { runSessionStorageTransition } from '@/services/session/sessionStorageTransition';
 import { waitForPendingLogout } from '@/services/auth/authLogoutState';
 
 import type { AuthUser } from '@/types/authRoleTypes';

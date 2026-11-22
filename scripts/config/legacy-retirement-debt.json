@@ -30,10 +30,7 @@
         "sourceRoots": ["src"],
         "markers": ["normalizeLegacyAuditActors", "LEGACY_AUDIT_ACTOR_DEFAULTS"],
         "includePathPatterns": ["^src/(application|domain|features|services)/"],
-        "excludePathPatterns": [
-          "\\.test\\.",
-          "^src/features/clinical-documents/(public|internal)\\.ts$"
-        ]
+        "excludePathPatterns": ["\\.test\\.", "^src/features/clinical-documents/public\\.ts$"]
       },
       "guardrails": ["test:clinical-documents", "lint", "check:runtime-contracts"],
       "evidenceReports": ["reports/runtime-contracts.md", "reports/legacy-retirement-debt.md"],

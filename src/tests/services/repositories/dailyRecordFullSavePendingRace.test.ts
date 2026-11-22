@@ -1,4 +1,4 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 

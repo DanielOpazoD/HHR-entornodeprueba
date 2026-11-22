@@ -1,4 +1,4 @@
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import { liveQuery } from 'dexie';
 import { ensureDbReady, hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {

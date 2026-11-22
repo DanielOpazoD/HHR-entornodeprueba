@@ -5,7 +5,7 @@ import {
   getSessionEpoch,
   onSessionChange,
   setSessionGeneration,
-} from '@/services/storage/sessionStorageTransition';
+} from '@/services/session/sessionStorageTransition';
 
 const Probe = () => <output>{useSessionEpoch()}</output>;
 

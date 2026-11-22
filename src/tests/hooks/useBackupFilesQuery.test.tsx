@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { onlineManager } from '@tanstack/react-query';
 import { queryClient as appQueryClient } from '@/config/queryClient';
-import { useBackupFilesQuery } from '@/hooks/useBackupFilesQuery';
+import { useBackupFilesQuery } from '@/features/backup/hooks/useBackupFilesQuery';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import type { BackupFolder } from '@/hooks/backupFileBrowserContracts';
 import * as backupExportStorageUseCases from '@/application/backup-export/backupExportStorageUseCases';

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Calendar } from 'lucide-react';
 
-import type { PatientTraceability } from '@/types/minsalTypes';
+import type { PatientTraceability } from '@/features/analytics/types/minsalTypes';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 
 export const TraceabilityCmaHeader: React.FC = () => (
