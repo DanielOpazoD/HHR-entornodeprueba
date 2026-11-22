@@ -74,16 +74,16 @@ export const useWoundCareHistory = ({
     () => ({ patientRut, photoPort, consentPort }),
     [patientRut, photoPort, consentPort]
   );
+  const [loadKey, setLoadKey] = useState(0);
   const [result, setResult] = useState<{
     scope: typeof scope;
+    loadKey: number;
     photos: WoundCarePhoto[];
     consents: WoundCareConsent[];
-    isLoading: boolean;
   } | null>(null);
   const allPhotos = result?.scope === scope ? result.photos : [];
   const allConsents = result?.scope === scope ? result.consents : [];
-  const isLoading = Boolean(patientRut) && (result?.scope !== scope || result.isLoading);
-  const [loadKey, setLoadKey] = useState(0);
+  const isLoading = Boolean(patientRut) && (result?.scope !== scope || result.loadKey !== loadKey);
 
   const reload = useCallback(() => setLoadKey(k => k + 1), []);
 
@@ -91,13 +91,6 @@ export const useWoundCareHistory = ({
     if (!scope.patientRut) return;
 
     let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset loading for new fetch
-    setResult(previous => ({
-      scope,
-      photos: previous?.scope === scope ? previous.photos : [],
-      consents: previous?.scope === scope ? previous.consents : [],
-      isLoading: true,
-    }));
 
     Promise.all([
       scope.photoPort.listByPatientRut(scope.patientRut),
@@ -105,14 +98,17 @@ export const useWoundCareHistory = ({
     ])
       .then(([photos, consents]) => {
         if (cancelled) return;
-        setResult({ scope, photos, consents, isLoading: false });
+        setResult({ scope, loadKey, photos, consents });
       })
       .catch(error => {
         if (cancelled) return;
         woundCareHistoryLogger.error('Error loading wound care history', error);
-        setResult(previous =>
-          previous?.scope === scope ? { ...previous, isLoading: false } : previous
-        );
+        setResult(previous => ({
+          scope,
+          loadKey,
+          photos: previous?.scope === scope ? previous.photos : [],
+          consents: previous?.scope === scope ? previous.consents : [],
+        }));
       });
 
     return () => {

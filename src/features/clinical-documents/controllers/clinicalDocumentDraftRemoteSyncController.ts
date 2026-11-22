@@ -8,8 +8,16 @@ type ClinicalDocumentDraftRemoteSyncAction =
   | { kind: 'noop' }
   | { kind: 'dispatch'; action: ClinicalDocumentDraftAction };
 
-const hasPendingRemoteSnapshot = (pendingRemoteState: ClinicalDocumentDraftBaseState): boolean =>
-  Boolean(pendingRemoteState.document && pendingRemoteState.snapshot);
+type ClinicalDocumentPendingRemoteSnapshot = Pick<
+  ClinicalDocumentDraftBaseState,
+  'document' | 'snapshot'
+> & {
+  updatedAt?: string;
+};
+
+const hasPendingRemoteSnapshot = (
+  pendingRemoteState: ClinicalDocumentPendingRemoteSnapshot
+): boolean => Boolean(pendingRemoteState.document && pendingRemoteState.snapshot);
 
 export const resolveClinicalDocumentDraftLoadAction = (
   resolution: ClinicalDocumentDraftLoadResolution
@@ -49,7 +57,7 @@ export const resolveClinicalDocumentDraftLoadAction = (
 interface ResolveApplyPendingRemoteUpdateInput {
   hasPendingRemoteUpdate: boolean;
   hasLocalDraftChanges: boolean;
-  pendingRemoteState: ClinicalDocumentDraftBaseState;
+  pendingRemoteState: ClinicalDocumentPendingRemoteSnapshot;
 }
 
 export const shouldApplyClinicalDocumentPendingRemoteUpdate = ({
