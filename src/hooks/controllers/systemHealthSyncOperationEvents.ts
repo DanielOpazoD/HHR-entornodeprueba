@@ -82,6 +82,7 @@ const getClinicalDateFromSyncKey = (key: string | undefined): string | undefined
 const getFieldLabelFromPath = (fieldPath: string | undefined): string | undefined => {
   if (!fieldPath) return undefined;
   const [fieldKey] = fieldPath.split('.');
+  if (!fieldKey) return undefined;
   return SYNC_FIELD_LABELS[fieldKey] || fieldKey;
 };
 

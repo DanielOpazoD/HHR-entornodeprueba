@@ -118,9 +118,9 @@ export const addCudyrTable = (
       const depScore = imported ? (imported.dependencyScore ?? '-') : calculated.depScore;
       const riskScore = imported ? (imported.riskScore ?? '-') : calculated.riskScore;
       const finalCat = imported?.category || calculated.finalCat;
-      const nameParts = rowPatient.patientName.split(' ');
+      const [firstPart = '', secondPart] = rowPatient.patientName.split(' ');
       const shortNameBase =
-        nameParts.length > 1 ? `${nameParts[0]} ${nameParts[1].charAt(0)}.` : nameParts[0];
+        secondPart !== undefined ? `${firstPart} ${secondPart.charAt(0)}.` : firstPart;
       const shortName = isEligible ? shortNameBase : `${shortNameBase} (Bloq.)`;
 
       body.push([

@@ -103,10 +103,11 @@ export const resolveNurseIdentity = (
   authorIdentity?: NurseAuthorIdentityParts
 ): NurseCatalogIdentity | null => {
   const remoteTokens = tokens(author);
-  if (remoteTokens.length < 2) return null;
+  const firstToken = remoteTokens[0];
+  if (remoteTokens.length < 2 || !firstToken) return null;
   // A few Eloísa fields concatenate "date - time - author - role". If an old
   // extension sends that label unparsed, it must never become a fake nurse.
-  if (/^\d{1,4}[-/]/.test(remoteTokens[0])) return null;
+  if (/^\d{1,4}[-/]/.test(firstToken)) return null;
   const remoteKey = normalizeIdentityText(author);
   // The same written row first; a spelling that folds like two rows is neither of them.
   const sameKey = catalog.filter(candidate => candidate.key === remoteKey);
@@ -127,7 +128,7 @@ export const resolveNurseIdentity = (
         candidateTokens[0] === firstGivenName && candidateTokens.slice(1).includes(firstSurname)
       );
     });
-    if (compatibleCatalogIdentities.length === 1) return compatibleCatalogIdentities[0];
+    if (compatibleCatalogIdentities.length === 1) return compatibleCatalogIdentities[0] ?? null;
     if (compatibleCatalogIdentities.length > 1) return null;
   }
   const displayName = normalizeDisplayName(author);

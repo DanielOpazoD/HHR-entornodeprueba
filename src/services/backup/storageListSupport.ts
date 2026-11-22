@@ -35,14 +35,11 @@ export const mapWithConcurrency = async <TInput, TOutput>(
 
   const workers = Math.max(1, Math.min(concurrency, items.length));
   const results = new Array<TOutput>(items.length);
-  let cursor = 0;
+  const iterator = items.entries();
 
   const runWorker = async () => {
-    while (true) {
-      const index = cursor;
-      cursor += 1;
-      if (index >= items.length) return;
-      results[index] = await mapper(items[index], index);
+    for (const [index, item] of iterator) {
+      results[index] = await mapper(item, index);
     }
   };
 

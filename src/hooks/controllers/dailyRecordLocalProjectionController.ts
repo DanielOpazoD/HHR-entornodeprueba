@@ -33,6 +33,7 @@ const canProjectPathOntoRecord = (
   const match = BED_SCOPED_PATH.exec(path);
   if (!match) return !path.startsWith('beds');
   const [, bedId, clinicalCrib] = match;
+  if (!bedId) return false;
   const confirmedBed = confirmedRecord.beds[bedId];
   const newerBed = newerRecord.beds[bedId];
   if (!hasSamePatientEpisodeIdentity(confirmedBed, newerBed)) return false;

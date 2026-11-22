@@ -32,26 +32,24 @@ export const normalizeDailyRecordClinicalField = (field: string): string =>
 export const parseDailyRecordBedPatchPath = (
   path: string
 ): ParsedDailyRecordBedPatchPath | null => {
-  const bedMatch = path.match(/^beds\.([^.]+)$/);
-  if (bedMatch) {
-    return { bedId: bedMatch[1] };
+  const [, directBedId] = path.match(/^beds\.([^.]+)$/) ?? [];
+  if (directBedId) {
+    return { bedId: directBedId };
   }
 
-  const clinicalCribMatch = path.match(/^beds\.([^.]+)\.clinicalCrib\.([^.]+)/);
-  if (clinicalCribMatch) {
-    const [, bedId, field] = clinicalCribMatch;
+  const [, cribBedId, cribField] = path.match(/^beds\.([^.]+)\.clinicalCrib\.([^.]+)/) ?? [];
+  if (cribBedId && cribField) {
     return {
-      bedId,
-      field: `clinicalCrib.${field}`,
+      bedId: cribBedId,
+      field: `clinicalCrib.${cribField}`,
       canonicalPath: path,
     };
   }
 
-  const fieldMatch = path.match(/^beds\.([^.]+)\.([^.]+)/);
-  if (!fieldMatch) {
+  const [, bedId, field] = path.match(/^beds\.([^.]+)\.([^.]+)/) ?? [];
+  if (!bedId || !field) {
     return null;
   }
-  const [, bedId, field] = fieldMatch;
   return {
     bedId,
     field,

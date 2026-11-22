@@ -42,6 +42,17 @@ const getDiagnosisValue = (patient: PatientData): string =>
   patient.pathology || patient.cie10Description || '';
 
 type FieldCoords = { x: number; y: number; maxWidth: number };
+type ImagingDateFieldKey = 'fechaSolicitud' | 'fecha';
+interface ImagingTemplateFieldCoords {
+  nombreCompleto: FieldCoords;
+  rut: FieldCoords;
+  edad: FieldCoords;
+  diagnostico: FieldCoords;
+  medicoTratante: FieldCoords;
+  fechaNacimiento?: FieldCoords;
+  fechaSolicitud?: FieldCoords;
+  fecha?: FieldCoords;
+}
 type DrawText = (text: string, coords: FieldCoords, options?: { shrinkToFit?: boolean }) => void;
 
 const fillImagingPatientIdentity = ({
@@ -52,15 +63,17 @@ const fillImagingPatientIdentity = ({
 }: {
   drawText: DrawText;
   patient: PatientData;
-  coords: Record<string, FieldCoords>;
+  coords: ImagingTemplateFieldCoords;
   includeBirthDate?: boolean;
 }) => {
   // One measured line: separate name columns let long given names run into the surnames.
-  drawText(formatPatientDisplayName(patient), coords.nombreCompleto, { shrinkToFit: true });
+  drawText(formatPatientDisplayName(patient), coords.nombreCompleto, {
+    shrinkToFit: true,
+  });
   drawText(patient.rut || '', coords.rut);
   drawText(calculateAge(patient.birthDate), coords.edad);
 
-  if (includeBirthDate && 'fechaNacimiento' in coords) {
+  if (includeBirthDate && coords.fechaNacimiento) {
     drawText(formatDate(patient.birthDate), coords.fechaNacimiento);
   }
 };
@@ -75,13 +88,16 @@ const fillPhysicianAndDiagnosis = ({
   drawText: DrawText;
   patient: PatientData;
   requestingPhysician: string;
-  coords: Record<string, FieldCoords>;
-  includeDateField?: string;
+  coords: ImagingTemplateFieldCoords;
+  includeDateField?: ImagingDateFieldKey;
 }) => {
   drawText(getDiagnosisValue(patient), coords.diagnostico);
 
   if (includeDateField) {
-    drawText(getTodayFormatted(), coords[includeDateField]);
+    const dateCoords = coords[includeDateField];
+    if (dateCoords) {
+      drawText(getTodayFormatted(), dateCoords);
+    }
   }
 
   if (requestingPhysician) {
@@ -99,12 +115,12 @@ const fillImagingTemplate = async ({
   includeDateField,
 }: {
   templatePath: string;
-  coords: Record<string, { x: number; y: number; maxWidth: number }>;
+  coords: ImagingTemplateFieldCoords;
   patient: PatientData;
   requestingPhysician: string;
   marks: CustomMark[];
   includeBirthDate?: boolean;
-  includeDateField?: string;
+  includeDateField?: ImagingDateFieldKey;
 }): Promise<Uint8Array> => {
   const pdfDoc = await loadPdfTemplate(templatePath);
   const font = await embedHelvetica(pdfDoc);

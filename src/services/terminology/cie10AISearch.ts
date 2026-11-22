@@ -38,8 +38,8 @@ const parseAIResults = (rawText: string): CIE10Entry[] => {
 
   let jsonText = text;
   if (text.startsWith('```')) {
-    const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-    jsonText = match ? match[1].trim() : text;
+    const [, fenced] = text.match(/```(?:json)?\s*([\s\S]*?)```/) ?? [];
+    jsonText = fenced !== undefined ? fenced.trim() : text;
   }
 
   const parsed = JSON.parse(jsonText);

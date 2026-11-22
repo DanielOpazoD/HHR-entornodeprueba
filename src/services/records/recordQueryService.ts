@@ -19,14 +19,16 @@ const hasPatientData = (dayRecord: DailyRecord | undefined): boolean => {
 export const fetchExistingDaysInMonth = async (year: number, month: number): Promise<number[]> => {
   const records = await getRecordsForMonth(year, month);
 
-  return records.filter(hasPatientData).map(d => parseInt(d.date.split('-')[2]));
+  return records.filter(hasPatientData).map(d => parseInt(d.date.split('-')[2] ?? ''));
 };
 
 /** True when every given day is stored on this device and still has a patient. */
 export const doStoredDaysHavePatientData = async (dates: string[]): Promise<boolean> => {
-  if (dates.length === 0) return true;
   const ordered = [...dates].sort();
-  const records = await getRecordsRange(ordered[0], ordered[ordered.length - 1]);
+  const firstDate = ordered[0];
+  const lastDate = ordered[ordered.length - 1];
+  if (!firstDate || !lastDate) return true;
+  const records = await getRecordsRange(firstDate, lastDate);
   const byDate = new Map(records.map(record => [record.date, record]));
   return dates.every(date => hasPatientData(byDate.get(date)));
 };

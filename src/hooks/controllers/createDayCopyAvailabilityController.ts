@@ -56,7 +56,7 @@ export const buildCopyUnlockDescription = (
   now: Date = new Date()
 ): string => {
   const availability = resolveCreateDayCopyAvailability(currentDateString, now);
-  const [, , day] = currentDateString.split('-');
+  const [, , day = '1'] = currentDateString.split('-');
   const capitalizedMonthName = formatCensusMonthName(currentDateString);
   const formattedDate = `${parseInt(day, 10)} de ${capitalizedMonthName}`;
 

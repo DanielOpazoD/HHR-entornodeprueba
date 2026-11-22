@@ -117,9 +117,9 @@ export const useBackupFileBrowserActions = ({
       return;
     }
 
-    const year = Number(path[0]);
-    const monthName = path[1];
-    const monthNumber = findMonthIndexByName(monthName) + 1;
+    const [yearRaw, monthName] = path;
+    const year = Number(yearRaw);
+    const monthNumber = monthName ? findMonthIndexByName(monthName) + 1 : 0;
 
     if (!Number.isInteger(year) || monthNumber < 1) {
       notifications.error('No se pudo interpretar el mes seleccionado');

@@ -82,11 +82,13 @@ export const usePatientAnalysis = (dependencies?: Partial<PatientAnalysisDepende
     const consumeSuppressedHarmonizationSave = (
       detail: DailyRecordStoreChangedEventDetail | undefined
     ): boolean => {
-      if (detail?.operation !== 'save' || !detail.dates || detail.dates.length !== 1) {
+      const savedDate =
+        detail?.operation === 'save' && detail.dates?.length === 1 ? detail.dates[0] : undefined;
+      if (!savedDate) {
         return false;
       }
 
-      const suppressedIndex = suppressedHarmonizationSaveDatesRef.current.indexOf(detail.dates[0]);
+      const suppressedIndex = suppressedHarmonizationSaveDatesRef.current.indexOf(savedDate);
       if (suppressedIndex === -1) {
         return false;
       }

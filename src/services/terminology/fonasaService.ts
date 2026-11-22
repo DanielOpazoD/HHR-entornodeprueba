@@ -310,8 +310,8 @@ const parseAIRawText = (text: string): FonasaEntry[] => {
 
   let jsonText = text;
   if (text.startsWith('```')) {
-    const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-    jsonText = match ? match[1].trim() : text;
+    const [, fenced] = text.match(/```(?:json)?\s*([\s\S]*?)```/) ?? [];
+    jsonText = fenced !== undefined ? fenced.trim() : text;
   }
 
   try {

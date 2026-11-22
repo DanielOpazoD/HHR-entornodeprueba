@@ -218,8 +218,7 @@ const runMonthlyBackfillTasks = async ({
   const errors: string[] = [];
   const total = tasks.length;
 
-  for (let index = 0; index < tasks.length; index += 1) {
-    const task = tasks[index];
+  for (const [index, task] of tasks.entries()) {
     onProgress?.({
       completed: index,
       total,

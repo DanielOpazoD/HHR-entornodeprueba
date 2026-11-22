@@ -30,5 +30,5 @@ export const formatStaffDisplayName = (
     )
     .map(alias => (isSpellingOf(alias, fullName) ? preferredStaffName(fullName, alias) : alias));
   // Without structured evidence, the second word could be another given name.
-  return shortAliases.length === 1 ? shortAliases[0] : fullName;
+  return shortAliases.length === 1 ? (shortAliases[0] ?? fullName) : fullName;
 };

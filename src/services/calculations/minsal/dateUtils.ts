@@ -17,7 +17,7 @@ export function getDateRangeFromPreset(
   });
 
   // clinical-clock-allow instant-calendar-slice: Preset bounds are calendar days anchored at UTC noon, not event instants.
-  const formatDate = (d: Date): string => d.toISOString().split('T')[0];
+  const formatDate = (d: Date): string => d.toISOString().slice(0, 10);
 
   switch (preset) {
     case 'today':

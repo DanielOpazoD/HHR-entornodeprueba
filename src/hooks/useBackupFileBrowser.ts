@@ -32,7 +32,9 @@ export const useBackupFileBrowser = (initialBackupType: BackupType = 'handoff') 
     }
 
     if (folderData.type === 'month') {
-      setPath(currentPath => [currentPath[0], folderData.name]);
+      setPath(currentPath =>
+        currentPath[0] ? [currentPath[0], folderData.name] : [folderData.name]
+      );
     }
   }, []);
 
