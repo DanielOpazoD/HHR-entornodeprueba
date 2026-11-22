@@ -166,6 +166,25 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
     glob: '**/assets/cudyrReportFacts-*.js',
     reason: 'Shared report facts and recovery require a verified Firebase/Eloisa read.',
   },
+  {
+    glob: '**/assets/cudyrRecoveryWorkbook-*.js',
+    reason:
+      'Optional CUDYR recovery workbook opened on demand from the online CudyrReportExplorer.',
+  },
+  {
+    glob: '**/assets/cudyrWorkbookSummary-*.js',
+    reason:
+      'Shared summary formatter imported exclusively by the online-only CUDYR Excel workbooks.',
+  },
+  {
+    glob: '**/assets/documentaryCudyr-*.js',
+    reason:
+      'Shared documentary CUDYR helper imported exclusively by online Eloisa enrichment chunks.',
+  },
+  {
+    glob: '**/assets/cudyrArchiveQueue-*.js',
+    reason: 'Online CUDYR archive queueing helper imported exclusively by RayenImportButton.',
+  },
   { glob: '**/assets/publicCudyrPolicyRecovery-*.js', reason: 'Same policy as the entry above.' },
   {
     glob: '**/assets/applyClinicalEnrichmentBatch-*.js',
@@ -175,10 +194,65 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
   { glob: '**/assets/applyHistoricalCudyr-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/clinicalFillRunner-*.js', reason: 'Same policy as the entry above.' },
   {
+    glob: '**/assets/parseVitalSigns-*.js',
+    reason:
+      'Vital signs text parser imported exclusively by online clinicalFillRunner and admission-audit.',
+  },
+  {
+    glob: '**/assets/rayenClinicalEnrichmentBatchClient-*.js',
+    reason: 'Callable batch client imported exclusively by online Eloisa enrichment chunks.',
+  },
+  {
     glob: '**/assets/clinicalEnrichmentBatchPayload-*.js',
     reason: 'Same policy as the entry above.',
   },
   { glob: '**/assets/replanRayenStructure-*.js', reason: 'Same policy as the entry above.' },
+  {
+    glob: '**/assets/importRayenCensusUseCase-*.js',
+    reason:
+      'Online Eloisa census import use case imported exclusively by RayenImportButton and replanRayenStructure.',
+  },
+  {
+    glob: '**/assets/invalidClinicalEpisodePolicy-*.js',
+    reason:
+      'Invalid-episode filter imported exclusively by online RayenImportButton and replanRayenStructure.',
+  },
+  {
+    glob: '**/assets/recoverPreviousCensusDischarges-*.js',
+    reason: 'Previous-day discharge recovery imported exclusively by online RayenImportButton.',
+  },
+  {
+    glob: '**/assets/applyEgresoReport-*.js',
+    reason:
+      'Eloisa discharge report reconciliation imported exclusively by online RayenImportButton and replanRayenStructure.',
+  },
+  {
+    glob: '**/assets/applyEgresoLookupFallback-*.js',
+    reason:
+      'Eloisa discharge lookup fallback imported exclusively by online replanRayenStructure and discharge recovery.',
+  },
+  {
+    glob: '**/assets/associatedClinicalCribDischarge-*.js',
+    reason:
+      'Clinical crib discharge reconciliation imported exclusively by online Eloisa diff and egreso chunks.',
+  },
+  {
+    glob: '**/assets/neonatalPlacementReviewPlan-*.js',
+    reason:
+      'Neonatal placement review planning imported exclusively by online Eloisa census import chunks.',
+  },
+  {
+    glob: '**/assets/EloisaLinksRing-*.js',
+    reason: 'Online Eloisa portal shortcuts rendered exclusively inside RayenImportButton.',
+  },
+  {
+    glob: '**/assets/RayenExtensionDownloadDetails-*.js',
+    reason: 'Extension installation instructions rendered exclusively inside RayenImportButton.',
+  },
+  {
+    glob: '**/assets/policyServerRead-*.js',
+    reason: 'Server policy read helper imported exclusively by online RayenImportButton.',
+  },
   {
     glob: '**/assets/applyCensusImportDiff-*.js',
     reason:
@@ -239,6 +313,19 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
   },
   { glob: '**/assets/ClinicalPanelDrawer-*.js', reason: 'Same policy as the entry above.' },
   {
+    glob: '**/assets/ClinicalPanelAntecedents-*.js',
+    reason: 'Patient antecedents section loaded on demand inside the online ClinicalPanelDrawer.',
+  },
+  {
+    glob: '**/assets/clinical-panel-*.js',
+    reason: 'Online clinical-panel surface imported exclusively by CudyrReportExplorer.',
+  },
+  {
+    glob: '**/assets/labComparisonTableController-*.js',
+    reason:
+      'Laboratory comparison table controller imported exclusively by online lab analysis and explorer chunks.',
+  },
+  {
     glob: '**/assets/ClinicalExplorerLabTrends-*.js',
     reason:
       'Laboratory charts are requested by expanding trends in the online explorer; they must not download during PWA installation or census startup.',
@@ -286,9 +373,19 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
     reason:
       'Radiology controller and the shared MMRAD study search; every importer (imaging modal, DICOM viewer, explorer) is online-only.',
   },
+  {
+    glob: '**/assets/mmradPdfDelivery-*.js',
+    reason:
+      'MMRAD PDF delivery helper imported exclusively by online radiology, DICOM and explorer chunks.',
+  },
   { glob: '**/assets/Dicom*-*', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/dicom*-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/decodeImageFrameWorker-*.js', reason: 'Same policy as the entry above.' },
+  {
+    glob: '**/assets/lossless-*.js',
+    reason:
+      'DICOM lossless JPEG decoder imported exclusively by the online decodeImageFrameWorker.',
+  },
   { glob: '**/assets/computeWorker-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/jpeg-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/*.wasm', reason: 'Same policy as the entry above.', pattern: '^assets/.*\\.wasm$' },
