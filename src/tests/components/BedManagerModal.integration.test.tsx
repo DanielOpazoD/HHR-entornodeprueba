@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { BedManagerModal } from '@/features/census/components/bed-manager/BedManagerModal';
 
-const mockedUseDailyRecordData = vi.fn();
+const mockedUseDailyRecordBeds = vi.fn();
+const mockedUseDailyRecordStaff = vi.fn();
 const mockedUseDailyRecordBedActions = vi.fn();
 
 vi.mock('@/context/DailyRecordContext', () => ({
-  useDailyRecordData: () => mockedUseDailyRecordData(),
+  useDailyRecordBeds: () => mockedUseDailyRecordBeds(),
+  useDailyRecordStaff: () => mockedUseDailyRecordStaff(),
 }));
 
 vi.mock('@/context/useDailyRecordScopedActions', () => ({
@@ -35,14 +37,12 @@ describe('BedManagerModal integration', () => {
       toggleExtraBed,
     });
 
-    mockedUseDailyRecordData.mockReturnValue({
-      record: {
-        beds: {
-          R1: { isBlocked: true, blockedReason: 'Mantención inicial' },
-          R2: { isBlocked: false },
-        },
-        activeExtraBeds: ['E1'],
-      },
+    mockedUseDailyRecordBeds.mockReturnValue({
+      R1: { isBlocked: true, blockedReason: 'Mantención inicial' },
+      R2: { isBlocked: false },
+    });
+    mockedUseDailyRecordStaff.mockReturnValue({
+      activeExtraBeds: ['E1'],
     });
 
     render(<BedManagerModal isOpen={true} onClose={vi.fn()} />);

@@ -6,7 +6,7 @@ import type { ClinicalEvent } from '@/types/domain/clinicalEvents';
 import { AlertCircle } from 'lucide-react';
 import clsx from 'clsx';
 import { calculateOperationalHospitalizedDays } from '@/utils/clinicalDayUtils';
-import { useDailyRecordData } from '@/context/DailyRecordContext';
+import { useDailyRecordStability } from '@/context/DailyRecordContext';
 import { HandoffBedCell } from './HandoffBedCell';
 import { HandoffPatientCell } from './HandoffPatientCell';
 import { HandoffDiagnosisCell } from './HandoffDiagnosisCell';
@@ -38,7 +38,9 @@ interface HandoffRowProps {
   clinicalEventActions?: HandoffRowClinicalEventActions;
 }
 
-export const HandoffRow: React.FC<HandoffRowProps> = ({
+const DENY_ALL_FIELDS = () => false;
+
+export const HandoffRow: React.FC<HandoffRowProps> = React.memo(function HandoffRow({
   bedName,
   patient,
   reportDate,
@@ -48,8 +50,8 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
   readOnly = false,
   forcedExpand = false,
   clinicalEventActions,
-}) => {
-  const { stabilityRules } = useDailyRecordData();
+}) {
+  const stabilityRules = useDailyRecordStability();
   const [showEvents, setShowEvents] = useState(false);
 
   // Sync with global expansion
@@ -85,7 +87,7 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
   const isFieldReadOnly = resolveHandoffRowReadOnly({
     readOnly,
     noteField,
-    canEditField: stabilityRules.canEditField,
+    canEditField: stabilityRules?.canEditField ?? DENY_ALL_FIELDS,
   });
 
   return (
@@ -121,4 +123,4 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
       />
     </tr>
   );
-};
+});
