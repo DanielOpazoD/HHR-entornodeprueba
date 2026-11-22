@@ -145,7 +145,8 @@ vi.mock('@/services/exporters/clinicalDerivedBackupSection', () => ({
 vi.mock('file-saver', () => ({ saveAs: vi.fn() }));
 
 it('MINSAL can calculate from the retained local range without admitting SDK cache', async () => {
-  const { calculateMinsalStats } = await import('@/services/calculations/minsalStatsCalculator');
+  const { calculateMinsalStats } =
+    await import('@/features/analytics/services/minsalStatsCalculator');
   vi.mocked(sdk.getDocs).mockResolvedValue({
     docs: [],
     metadata: { fromCache: true, hasPendingWrites: false },

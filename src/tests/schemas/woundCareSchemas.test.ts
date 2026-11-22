@@ -6,7 +6,7 @@ import {
   WoundCarePhotoSchema,
   safeParseWoundCareConsent,
   safeParseWoundCarePhoto,
-} from '@/schemas/zod/woundCare';
+} from '@/features/wound-care/schemas/woundCare';
 
 const validActor = {
   uid: 'user-1',

@@ -4,7 +4,7 @@
  * Pure presentation helpers for the wound care photo gallery.
  */
 
-import { resolvePhotoWallClock } from '@/application/wound-care/woundCarePhotoTime';
+import { resolvePhotoWallClock } from '@/features/wound-care/use-cases/woundCarePhotoTime';
 import type { WoundCarePhoto, WoundCarePhotoSession } from '@/types/domain/woundCare';
 
 /**

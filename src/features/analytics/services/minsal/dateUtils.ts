@@ -1,6 +1,6 @@
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { addCalendarDays, calendarDayAtUtcNoon } from '@/utils/clinicalDateUtils';
-import { DateRangePreset } from '@/types/minsalTypes';
+import { DateRangePreset } from '@/features/analytics/types/minsalTypes';
 
 /** Calculate date range from preset. */
 export function getDateRangeFromPreset(

@@ -5,7 +5,7 @@ import {
   groupPhotosByDate,
   hospitalTakenAt,
   resolvePhotoWallClock,
-} from '@/application/wound-care/woundCarePhotoTime';
+} from '@/features/wound-care/use-cases/woundCarePhotoTime';
 import type { WoundCarePhoto } from '@/types/domain/woundCare';
 
 // Tests run on a mainland (Santiago) device clock; the hospital is in Rapa Nui (UTC-5 in March).

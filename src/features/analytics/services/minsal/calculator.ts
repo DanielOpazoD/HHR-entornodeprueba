@@ -7,11 +7,11 @@ import {
   MinsalStatistics,
   PatientTraceability,
   SpecialtyStats,
-} from '@/types/minsalTypes';
+} from '@/features/analytics/types/minsalTypes';
 import { isFachEvacuationMethod } from './normalization';
 import { countOccupiedBeds, countBlockedBeds, calculateDailySnapshot } from './snapshot';
 import { calculateDischargeStayDays } from '@/utils/clinicalDayUtils';
-import { createEpisodeAdmissionTracker } from './episodeTracker';
+import { createEpisodeAdmissionTracker } from '@/services/calculations/minsal/episodeTracker';
 import type { DailyRecordMovementState as MinsalDailyRecord } from '@/types/domain/dailyRecordSlices';
 import { normalizeMovementReportingSnapshot } from './movementCompatibility';
 import {

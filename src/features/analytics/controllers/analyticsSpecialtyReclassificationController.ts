@@ -3,13 +3,16 @@ import {
   getActiveDischarges,
   getActiveTransfers,
 } from '@/domain/movements/movementTombstonePolicy';
-import { MinsalMovementKind, SpecialtyReclassification } from '@/types/minsalTypes';
+import {
+  MinsalMovementKind,
+  SpecialtyReclassification,
+} from '@/features/analytics/types/minsalTypes';
 import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
-import { resolveReportingSpecialty } from '@/services/calculations/minsal/specialtyReporting';
+import { resolveReportingSpecialty } from '@/features/analytics/services/minsal/specialtyReporting';
 import {
   normalizeMovementReportingSnapshot,
   type ReportingMovementSnapshot,
-} from '@/services/calculations/minsal/movementCompatibility';
+} from '@/features/analytics/services/minsal/movementCompatibility';
 
 export interface AnalyticsMovementReclassificationRow {
   key: string;

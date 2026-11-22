@@ -14,7 +14,7 @@ import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTy
 import {
   defaultWoundCarePhotoPort,
   defaultWoundCareStoragePort,
-} from '@/application/ports/woundCarePort';
+} from '@/features/wound-care/use-cases/woundCarePort';
 import type { WoundCareAuditActor, WoundCarePhoto } from '@/types/domain/woundCare';
 import { compressImage, generateThumbnail } from '@/utils/imageCompression';
 import {

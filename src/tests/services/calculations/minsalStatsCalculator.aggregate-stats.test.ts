@@ -5,7 +5,7 @@ import { BEDS } from '@/constants/beds';
 import {
   buildSpecialtyTraceability,
   calculateMinsalStats,
-} from '@/services/calculations/minsalStatsCalculator';
+} from '@/features/analytics/services/minsalStatsCalculator';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 
 import { createMockRecord } from './minsalStatsCalculatorTestSupport';

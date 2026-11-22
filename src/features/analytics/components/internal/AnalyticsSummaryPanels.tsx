@@ -6,7 +6,7 @@ import type {
   MinsalComparisonMetric,
   MinsalComparisonSummary,
   SpecialtyReclassification,
-} from '@/types/minsalTypes';
+} from '@/features/analytics/types/minsalTypes';
 
 const formatDelta = (value: number | null): string =>
   value === null ? '--' : `${value > 0 ? '+' : ''}${value.toFixed(1)}`;

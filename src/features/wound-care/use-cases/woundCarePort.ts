@@ -5,16 +5,16 @@
  * and storage operations. Default wiring to concrete repositories.
  */
 
-import { WoundCareConsentRepository } from '@/services/repositories/WoundCareConsentRepository';
-import { WoundCarePhotoRepository } from '@/services/repositories/WoundCarePhotoRepository';
-import { woundCareStorageService } from '@/services/backup/woundCareStorageService';
+import { WoundCareConsentRepository } from '@/features/wound-care/services/WoundCareConsentRepository';
+import { WoundCarePhotoRepository } from '@/features/wound-care/services/WoundCarePhotoRepository';
+import { woundCareStorageService } from '@/features/wound-care/services/woundCareStorageService';
 import type {
   WoundCareConsent,
   WoundCareAuditActor,
   WoundCareMobileUploadSession,
   WoundCarePhoto,
 } from '@/types/domain/woundCare';
-import { WoundCareMobileUploadSessionRepository } from '@/services/repositories/WoundCareMobileUploadSessionRepository';
+import { WoundCareMobileUploadSessionRepository } from '@/features/wound-care/services/WoundCareMobileUploadSessionRepository';
 import type { BackupStorageMutationResult } from '@/services/backup/backupStorageRuntimeSupport';
 
 // ============================================================================

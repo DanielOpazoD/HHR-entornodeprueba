@@ -3,7 +3,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DischargeData } from '@/types/domain/movements';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
-import { calculateMinsalStats } from '@/services/calculations/minsalStatsCalculator';
+import { calculateMinsalStats } from '@/features/analytics/services/minsalStatsCalculator';
 
 const {
   mockGetAvailableDates,

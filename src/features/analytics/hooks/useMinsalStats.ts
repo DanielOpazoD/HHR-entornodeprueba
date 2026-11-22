@@ -11,19 +11,19 @@ import {
   fetchAnalyticsSpecialtyReclassifications,
   saveAnalyticsSpecialtyReclassification,
   type SaveAnalyticsSpecialtyReclassificationRequest,
-} from '@/services/analytics/analyticsSpecialtyReclassificationService';
+} from '@/features/analytics/services/analyticsSpecialtyReclassificationService';
 import {
   calculateMinsalStats as calculateMinsalStatsLocal,
   filterRecordsByDateRange,
   generateDailyTrend,
   getDateRangeFromPreset,
-} from '@/services/calculations/minsalStatsCalculator';
-import { resolveDisplayedMinsalStats } from '@/hooks/controllers/minsalStatsPresentationController';
+} from '@/features/analytics/services/minsalStatsCalculator';
+import { resolveDisplayedMinsalStats } from '@/features/analytics/controllers/minsalStatsPresentationController';
 import {
   buildAnalyticsDataQualityIssues,
   buildMinsalComparisonSummary,
   resolvePreviousMinsalPeriod,
-} from '@/services/calculations/minsal/minsalStatsInsights';
+} from '@/features/analytics/services/minsal/minsalStatsInsights';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
 import {
   AnalyticsDataQualityIssue,
@@ -34,7 +34,7 @@ import {
   MinsalComparisonSummary,
   MinsalStatistics,
   SpecialtyReclassification,
-} from '@/types/minsalTypes';
+} from '@/features/analytics/types/minsalTypes';
 import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import {

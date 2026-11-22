@@ -1,6 +1,6 @@
 import React from 'react';
 import { Activity, ClipboardList } from 'lucide-react';
-import type { CmaStatistics, PatientTraceability } from '@/types/minsalTypes';
+import type { CmaStatistics, PatientTraceability } from '@/features/analytics/types/minsalTypes';
 import { TraceabilityModal } from './TraceabilityModal';
 
 interface CmaStatsSectionProps {

@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Bed, TrendingUp, Calendar, Users, Activity, RefreshCw } from 'lucide-react';
-import { MinsalStatistics } from '@/types/minsalTypes';
+import { MinsalStatistics } from '@/features/analytics/types/minsalTypes';
 import { resolveAnalyticsPresentationCopy } from '@/features/analytics/controllers/minsalAnalyticsPresentationController';
 
 interface MinsalKPICardsProps {

@@ -11,7 +11,7 @@
 import { firestoreDb } from '@/services/storage/firestore';
 import { getActiveHospitalId, getWoundCarePhotosPath } from '@/constants/firestorePaths';
 import type { WoundCareAuditActor, WoundCarePhoto } from '@/types/domain/woundCare';
-import { safeParseWoundCarePhoto } from '@/schemas/zod/woundCare';
+import { safeParseWoundCarePhoto } from '@/features/wound-care/schemas/woundCare';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 
 // ============================================================================

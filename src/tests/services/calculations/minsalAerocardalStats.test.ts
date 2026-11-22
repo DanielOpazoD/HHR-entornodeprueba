@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { calculateMinsalStats } from '@/services/calculations/minsalStatsCalculator';
+import { calculateMinsalStats } from '@/features/analytics/services/minsalStatsCalculator';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';

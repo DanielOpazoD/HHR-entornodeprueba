@@ -6,7 +6,7 @@ import {
   DailyStatsSnapshot,
   SpecialtyTraceabilityType,
   PatientTraceability,
-} from '@/types/minsalTypes';
+} from '@/features/analytics/types/minsalTypes';
 import type { DailyRecordMovementState as MinsalDailyRecord } from '@/types/domain/dailyRecordSlices';
 
 // Re-exports

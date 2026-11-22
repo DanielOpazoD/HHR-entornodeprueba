@@ -154,7 +154,7 @@ const formerBoundaryCases: {
   {
     name: 'components/<sub> → servicio de datos',
     from: 'src/components/layout/probe.tsx',
-    to: 'src/services/repositories/WoundCarePhotoRepository.ts',
+    to: 'src/features/wound-care/services/WoundCarePhotoRepository.ts',
     content: "import { getFirestore } from 'firebase/firestore';\nexport const x = getFirestore;",
     now: 'rejected',
   },

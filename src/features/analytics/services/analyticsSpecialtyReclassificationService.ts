@@ -9,7 +9,7 @@ import type {
   AnalyticsSpecialtyReclassificationRecord,
   MinsalMovementKind,
   SpecialtyReclassification,
-} from '@/types/minsalTypes';
+} from '@/features/analytics/types/minsalTypes';
 
 export interface SaveAnalyticsSpecialtyReclassificationRequest {
   date: string;

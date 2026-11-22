@@ -6,12 +6,12 @@ import {
   executeRevokeWoundCareConsent,
   executeListWoundCarePhotos,
   executeDeleteWoundCarePhoto,
-} from '@/application/wound-care/woundCareUseCases';
+} from '@/features/wound-care/use-cases/woundCareUseCases';
 import type {
   WoundCareConsentPort,
   WoundCarePhotoPort,
   WoundCareStoragePort,
-} from '@/application/ports/woundCarePort';
+} from '@/features/wound-care/use-cases/woundCarePort';
 import type {
   WoundCareAuditActor,
   WoundCareConsent,

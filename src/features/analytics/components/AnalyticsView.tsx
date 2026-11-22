@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Loader2, Download, BarChart3, RefreshCw } from 'lucide-react';
-import { useMinsalStats } from '@/hooks/useMinsalStats';
+import { useMinsalStats } from '@/features/analytics/hooks/useMinsalStats';
 import { useAuth } from '@/context/AuthContext';
 import { DateRangeSelector } from './internal/DateRangeSelector';
 import { MinsalKPICards } from './internal/MinsalKPICards';
@@ -28,7 +28,7 @@ import { resolveAnalyticsPresentationCopy } from '@/features/analytics/controlle
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { useNotification } from '@/context/UIContext';
 import { createScopedLogger } from '@/services/utils/loggerScope';
-import type { SpecialtyGroupingMode } from '@/types/minsalTypes';
+import type { SpecialtyGroupingMode } from '@/features/analytics/types/minsalTypes';
 import { isAdminAppRole } from '@/shared/access/operationalAccessPolicy';
 
 interface AnalyticsViewProps {
@@ -117,7 +117,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
   const handleExportExcel = async () => {
     if (!stats) return;
     try {
-      const { exportMinsalToExcel } = await import('@/services/exporters/minsalExcelExporter');
+      const { exportMinsalToExcel } =
+        await import('@/features/analytics/services/minsalExcelExporter');
       const result = await exportMinsalToExcel(stats, trendData);
       if (result.outcome === 'failed') {
         analyticsViewLogger.error(`MINSAL Excel rejected by validation: ${result.reason}`);

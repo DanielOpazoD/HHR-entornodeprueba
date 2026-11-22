@@ -1,7 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import { BEDS, HOSPITAL_CAPACITY } from '@/constants/beds';
-import { DailyStatsSnapshot } from '@/types/minsalTypes';
+import { DailyStatsSnapshot } from '@/features/analytics/types/minsalTypes';
 import type { DailyRecordMovementState as MinsalDailyRecord } from '@/types/domain/dailyRecordSlices';
 import {
   getStatisticalDischarges,
