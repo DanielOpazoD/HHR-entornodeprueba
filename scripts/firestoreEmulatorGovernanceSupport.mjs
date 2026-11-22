@@ -58,7 +58,8 @@ export const collectFirestoreEmulatorGovernanceIssues = (root = process.cwd()) =
   requireScript(scripts, 'test', 'npm run test:rules:ci', issues);
   requireScript(scripts, 'test', 'npm run test:storage-rules:ci', issues);
   requireScript(scripts, 'test:storage-rules', 'RUN_STORAGE_RULES_TESTS=1', issues);
-  requireScript(scripts, 'test:storage-rules', 'vitest.storage-rules.config.ts', issues);
+  requireScript(scripts, 'test:storage-rules', 'vitest.rules.config.ts', issues);
+  requireScript(scripts, 'test:storage-rules', 'src/tests/security/storage-rules.test.ts', issues);
   requireScript(scripts, 'test:storage-rules:ci', 'scripts/run-storage-rules-ci.sh', issues);
   requireScript(scripts, 'test', 'npm run test:emulator:sync:ci', issues);
   requireScript(scripts, 'test:rules', 'RUN_FIRESTORE_RULES_TESTS=1', issues);

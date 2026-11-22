@@ -5,7 +5,10 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
-    include: ['src/tests/security/firestore-rules.test.ts'],
+    include: [
+      'src/tests/security/firestore-rules.test.ts',
+      'src/tests/security/storage-rules.test.ts',
+    ],
     exclude: ['stories/**/*', 'node_modules/**/*'],
     testTimeout: 30000,
     hookTimeout: 30000,
