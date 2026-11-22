@@ -78,8 +78,6 @@ updates:
       media-runtime-minor:
         patterns:
           - '@fontsource/*'
-          - '@types/file-saver'
-          - file-saver
           - heic2any
           - html2canvas
           - qrcode

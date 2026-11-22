@@ -1,6 +1,7 @@
 import type { Worksheet } from 'exceljs';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import { generateDateRange } from '@/utils/dateRangeUtils';
+import { downloadBlob } from '@/utils/downloadBlob';
 import { recordE2EDownloadArtifact } from '@/shared/runtime/e2eRuntime';
 import { XLSX_MIME_TYPE, validateExcelExport } from '@/services/exporters/excelValidation';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
@@ -175,8 +176,7 @@ export const downloadCudyrEssential = async (data: CudyrReportDataset) => {
   const { workbook, fileName } = await buildCudyrEssentialWorkbook(data, sources);
   const buffer = await workbook.xlsx.writeBuffer();
   if (!validateExcelExport(buffer, fileName).valid) throw new Error('Excel no válido.');
-  const { saveAs } = await import('file-saver');
   const blob = new Blob([buffer], { type: XLSX_MIME_TYPE });
   recordE2EDownloadArtifact({ filename: fileName, blobSize: blob.size, blobType: blob.type });
-  saveAs(blob, fileName);
+  downloadBlob(blob, fileName);
 };

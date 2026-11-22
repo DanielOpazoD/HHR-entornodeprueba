@@ -1,5 +1,5 @@
 import { createWorkbook } from '@/services/exporters/excelUtils';
-import { saveAs } from 'file-saver';
+import { downloadBlob } from '@/utils/downloadBlob';
 import { addCudyrDataSheet } from '@/services/cudyr/cudyrDataSheet';
 import {
   CUDYR_RECOVERY_LABELS,
@@ -101,7 +101,7 @@ export const downloadCudyrRecoveryPlan = async (
 ) => {
   const workbook = await buildCudyrRecoveryWorkbook(data, selected);
   const buffer = await workbook.xlsx.writeBuffer();
-  saveAs(
+  downloadBlob(
     new Blob([buffer], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     }),

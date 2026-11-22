@@ -3,6 +3,7 @@ import type { PharmacyActDraft } from '../../../domain/pharmacy/pharmacyTypes';
 import { validatePharmacyDraft } from '../../../domain/pharmacy/pharmacyDraft';
 import { generatePharmacyActPdf } from '../../../services/pharmacyActPdf';
 import { printLibraryDocument } from '../../../services/libraryDocumentActions';
+import { downloadBlob } from '@/utils/downloadBlob';
 import { useLatestRef } from '@/hooks/useLatestRef';
 
 interface PreparedPharmacyPdf {
@@ -79,9 +80,8 @@ export const usePharmacyActPdf = (
       const result = currentPdf;
       if (!result) return;
       try {
-        const { saveAs } = await import('file-saver');
         if (latest.current !== result.fingerprint) return;
-        saveAs(
+        downloadBlob(
           new Blob([new Uint8Array(result.bytes)], { type: 'application/pdf' }),
           `acta-${draft.kind === 'return' ? 'devolucion-farmacos' : 'entrega-eliminados'}-${draft.date}.pdf`
         );

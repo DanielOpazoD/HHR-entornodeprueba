@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import type { AuditTrailEvent, AuditTrailSession } from '@/features/admin/types/auditTrailTypes';
 import type { AuditTrailPeriod } from '@/features/admin/services/auditTrail/auditTrailPeriod';
 import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
+import { downloadBlob } from '@/utils/downloadBlob';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 
 const auditExportLogger = createScopedLogger('AuditTrailExport');
@@ -36,8 +37,7 @@ export const useAuditTrailExport = ({
       const blob = new Blob([new Uint8Array(buffer)], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
-      const { saveAs } = await import('file-saver');
-      saveAs(blob, `auditoria_${fileLabel(period)}.xlsx`);
+      downloadBlob(blob, `auditoria_${fileLabel(period)}.xlsx`);
       onExported({
         startDate: period.startDate,
         endDate: period.endDate,

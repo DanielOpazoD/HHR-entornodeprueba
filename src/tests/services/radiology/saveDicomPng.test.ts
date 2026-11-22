@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { saveAs } from 'file-saver';
+import { downloadBlob } from '@/utils/downloadBlob';
 import { saveDicomPng } from '@/features/radiology/services/saveDicomPng';
 import type { DicomCapture } from '@/domain/radiology/dicomTypes';
-vi.mock('file-saver', () => ({ saveAs: vi.fn() }));
+vi.mock('@/utils/downloadBlob', () => ({ downloadBlob: vi.fn() }));
 const capture = vi.fn().mockResolvedValue({ png: new Uint8Array([1, 2, 3]) } as DicomCapture);
 describe('DICOM capture download', () => {
   afterEach(() => {
@@ -25,7 +25,7 @@ describe('DICOM capture download', () => {
   });
   it('uses a normal browser download when the picker is unavailable and respects cancellation', async () => {
     await saveDicomPng(capture);
-    expect(saveAs).toHaveBeenCalledWith(expect.any(Blob), 'captura-dicom.png');
+    expect(downloadBlob).toHaveBeenCalledWith(expect.any(Blob), 'captura-dicom.png');
     capture.mockClear();
     Object.assign(window, {
       showSaveFilePicker: vi.fn().mockRejectedValue(new DOMException('cancel', 'AbortError')),

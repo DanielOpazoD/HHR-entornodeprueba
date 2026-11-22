@@ -142,7 +142,7 @@ vi.mock('@/services/exporters/clinicalDerivedBackupSection', () => ({
   buildClinicalDerivedBackupSection: vi.fn(),
   describeIncompleteClinicalDerivedBackup: vi.fn(),
 }));
-vi.mock('file-saver', () => ({ saveAs: vi.fn() }));
+vi.mock('@/utils/downloadBlob', () => ({ downloadBlob: vi.fn() }));
 
 it('MINSAL can calculate from the retained local range without admitting SDK cache', async () => {
   const { calculateMinsalStats } =
@@ -163,8 +163,8 @@ it.each(['month', 'year'])(
   async scope => {
     const { exportMonthRecordsWithOutcome, exportYearToDateRecordsWithOutcome } =
       await import('@/features/admin/services/dataMaintenanceService');
-    const { saveAs } = await import('file-saver');
-    vi.mocked(saveAs).mockClear();
+    const { downloadBlob } = await import('@/utils/downloadBlob');
+    vi.mocked(downloadBlob).mockClear();
     vi.mocked(sdk.getDocs).mockResolvedValue({
       docs: [],
       metadata: { fromCache: true, hasPendingWrites: false },
@@ -173,7 +173,7 @@ it.each(['month', 'year'])(
       ? exportMonthRecordsWithOutcome(2026, 10)
       : exportYearToDateRecordsWithOutcome(2026));
     expect(result.status).toBe('success');
-    const blob = vi.mocked(saveAs).mock.calls[0][0];
+    const blob = vi.mocked(downloadBlob).mock.calls[0][0];
     expect(blob).toBeInstanceOf(Blob);
     const text = await new Promise<string>(resolve => {
       const reader = new FileReader();

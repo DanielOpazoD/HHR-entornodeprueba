@@ -5,7 +5,7 @@ import { useClinicalFormPdf } from '@/features/clinical-library/components/tools
 import { getClinicalForm } from '@/features/clinical-library/domain/forms/clinicalFormCatalog';
 
 const { saveAs, print } = vi.hoisted(() => ({ saveAs: vi.fn(), print: vi.fn() }));
-vi.mock('file-saver', () => ({ saveAs }));
+vi.mock('@/utils/downloadBlob', () => ({ downloadBlob: saveAs }));
 vi.mock('@/features/clinical-library/services/libraryDocumentActions', () => ({
   printLibraryDocument: print,
 }));

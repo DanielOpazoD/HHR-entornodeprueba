@@ -5,7 +5,7 @@ import { createPharmacyDraft } from '@/features/clinical-library/domain/pharmacy
 import type { PharmacyActDraft } from '@/features/clinical-library/domain/pharmacy/pharmacyTypes';
 
 const { saveAs, print } = vi.hoisted(() => ({ saveAs: vi.fn(), print: vi.fn() }));
-vi.mock('file-saver', () => ({ saveAs }));
+vi.mock('@/utils/downloadBlob', () => ({ downloadBlob: saveAs }));
 vi.mock('@/features/clinical-library/services/libraryDocumentActions', () => ({
   printLibraryDocument: print,
 }));

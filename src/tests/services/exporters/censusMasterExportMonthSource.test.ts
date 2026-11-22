@@ -24,7 +24,7 @@ vi.mock('@/services/exporters/excelValidation', () => ({
   validateExcelExport: () => ({ valid: true }),
   XLSX_MIME_TYPE: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 }));
-vi.mock('file-saver', () => ({ saveAs: mocks.saveAs }));
+vi.mock('@/utils/downloadBlob', () => ({ downloadBlob: mocks.saveAs }));
 vi.mock('@/shared/runtime/e2eRuntime', () => ({
   isE2ERuntimeEnabled: () => false,
   recordE2EDownloadArtifact: vi.fn(),

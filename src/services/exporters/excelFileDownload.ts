@@ -2,6 +2,7 @@ import type { Workbook } from 'exceljs';
 
 import { validateExcelExport, XLSX_MIME_TYPE } from './excelValidation';
 import { excelFileDownloadLogger } from '@/services/exporters/exporterLoggers';
+import { downloadBlob } from '@/utils/downloadBlob';
 
 export interface DownloadWorkbookOptions {
   workbook: Workbook;
@@ -40,8 +41,7 @@ export const downloadWorkbookFile = async ({
   }
 
   const blob = new Blob([buffer], { type: XLSX_MIME_TYPE });
-  const { saveAs } = await import('file-saver');
-  saveAs(blob, filename);
+  downloadBlob(blob, filename);
 
   if (successLogMessage) {
     excelFileDownloadLogger.info(successLogMessage(buffer.byteLength));

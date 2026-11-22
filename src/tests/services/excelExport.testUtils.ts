@@ -7,8 +7,8 @@ export const FIXED_ISO_TIMESTAMP = '2026-01-15T10:30:00.000Z';
 export const readSource = (relativePath: string): string =>
   fs.readFileSync(path.resolve(process.cwd(), relativePath), 'utf8');
 
-vi.mock('file-saver', () => ({
-  saveAs: vi.fn(),
+vi.mock('@/utils/downloadBlob', () => ({
+  downloadBlob: vi.fn(),
 }));
 
 vi.mock('@/services/repositories/dailyRecordRepositoryReadService', () => ({

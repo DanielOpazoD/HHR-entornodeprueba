@@ -4,6 +4,7 @@ import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLoca
 import * as firestoreService from '@/services/storage/firestore';
 import { UnconfirmedDailyRecordRangeError } from '@/services/storage/firestore/firestoreRecordQueries';
 import { getTodayISO } from '@/utils/dateCoreUtils';
+import { downloadBlob } from '@/utils/downloadBlob';
 import { MONTH_NAMES } from '@/constants/export';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 
@@ -101,6 +102,5 @@ export const resolveYearToDateFileSuffix = (year: number, now: Date = new Date()
 
 export const downloadJsonBackup = async (payload: unknown, fileName: string): Promise<void> => {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const { saveAs } = await import('file-saver');
-  saveAs(blob, fileName);
+  downloadBlob(blob, fileName);
 };

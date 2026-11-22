@@ -16,6 +16,7 @@ import { buildCensusMasterBinary, getCensusMasterFilename } from './censusMaster
 import { validateExcelExport, XLSX_MIME_TYPE } from './excelValidation';
 import { censusMasterExportLogger } from '@/services/exporters/exporterLoggers';
 import { isE2ERuntimeEnabled, recordE2EDownloadArtifact } from '@/shared/runtime/e2eRuntime';
+import { downloadBlob } from '@/utils/downloadBlob';
 
 /**
  * Outcome of the Census Master export. Services do not render UI: failure
@@ -111,8 +112,7 @@ export const generateCensusMasterExcel = async (
       blobSize: blob.size,
       blobType: blob.type,
     });
-    const { saveAs } = await import('file-saver');
-    saveAs(blob, filename);
+    downloadBlob(blob, filename);
     censusMasterExportLogger.info(
       `📥 Archivo descargado: ${filename} (${binary.byteLength} bytes)`
     );

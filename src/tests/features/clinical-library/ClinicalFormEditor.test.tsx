@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { saveAs } from 'file-saver';
+import { downloadBlob } from '@/utils/downloadBlob';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClinicalFormEditor } from '@/features/clinical-library/components/tools/forms/ClinicalFormEditor';
@@ -9,7 +9,7 @@ import type {
   ClinicalFormPatientOption,
 } from '@/features/clinical-library/domain/forms/clinicalFormTypes';
 
-vi.mock('file-saver', () => ({ saveAs: vi.fn() }));
+vi.mock('@/utils/downloadBlob', () => ({ downloadBlob: vi.fn() }));
 
 const source = (name: string, key = name): ClinicalFormPatientOption => ({
   key,
@@ -62,7 +62,7 @@ describe('clinical forms editor', () => {
     localStorage.clear();
     generate.mockClear();
     generateDocx.mockClear();
-    vi.mocked(saveAs).mockClear();
+    vi.mocked(downloadBlob).mockClear();
     URL.createObjectURL = vi.fn(() => 'blob:clinical-form-test');
     URL.revokeObjectURL = vi.fn();
   });
@@ -170,11 +170,13 @@ describe('clinical forms editor', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Mostrar Nombre y apellidos' }));
     fireEvent.click(screen.getByRole('button', { name: 'Variables y preferencias' }));
     fireEvent.click(screen.getByRole('button', { name: 'Word (.docx)' }));
-    await waitFor(() => expect(saveAs).toHaveBeenCalledOnce());
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalledOnce());
     expect(generateDocx.mock.calls[0][0].id).toBe('informe-traslado-hospital-salvador');
     expect(generateDocx.mock.calls[0][1].paciente_nombre_completo).toBe('ALFA');
     expect(generateDocx.mock.calls[0][2]).toContain('paciente_nombre_completo');
-    expect(vi.mocked(saveAs).mock.calls[0][1]).toBe('informe-traslado-hospital-salvador.docx');
+    expect(vi.mocked(downloadBlob).mock.calls[0][1]).toBe(
+      'informe-traslado-hospital-salvador.docx'
+    );
   });
 
   it('discards Word if the source changes during generation', async () => {
@@ -196,7 +198,7 @@ describe('clinical forms editor', () => {
     await waitFor(() =>
       expect(screen.getByRole('status')).toHaveTextContent('Los datos cambiaron')
     );
-    expect(saveAs).not.toHaveBeenCalled();
+    expect(downloadBlob).not.toHaveBeenCalled();
   });
 
   it('requires a deliberate replacement before changing patients or starting a blank manual form', () => {
