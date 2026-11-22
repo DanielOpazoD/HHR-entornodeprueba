@@ -12,7 +12,7 @@ import {
   buildDefaultErrorServiceSinks,
   runErrorServiceSinks,
 } from '@/services/utils/errorServiceSinks';
-import { registerRenderCrashReporter } from '@/shared/observability/renderCrashReporter';
+import { registerRenderCrashReporter } from '@/services/observability/renderCrashReporter';
 
 export type { ErrorLog, ErrorSeverity, LogLevel, RetryConfig };
 

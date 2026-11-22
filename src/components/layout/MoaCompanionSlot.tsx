@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
-import { hideMoaAndRestoreFocus, useMoaVisibility } from '@/shared/ui/useMoaVisibility';
+import { hideMoaAndRestoreFocus, useMoaVisibility } from '@/hooks/useMoaVisibility';
 import { reloadMoaHelp } from './navbar/moaHelpRecovery';
 
 const loadCompanion = () => import('./MoaCompanion');

@@ -1,6 +1,6 @@
 import { MoaIcon } from './MoaIcon';
 import type { ModuleType } from '@/constants/navigationConfig';
-import { setMoaVisible, useMoaVisibility } from '@/shared/ui/useMoaVisibility';
+import { setMoaVisible, useMoaVisibility } from '@/hooks/useMoaVisibility';
 
 export const MoaHelpButton = ({ currentModule }: { currentModule?: ModuleType }) => {
   const visible = useMoaVisibility();

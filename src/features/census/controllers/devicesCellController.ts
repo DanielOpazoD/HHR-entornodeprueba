@@ -8,7 +8,9 @@ import {
   syncDeviceHistoryForDetails,
   syncDeviceHistoryForSelection,
 } from '@/features/census/controllers/deviceHistoryController';
-import { DateProvider, systemDateProvider } from '@/features/census/controllers/dateProvider';
+export type DateProvider = () => Date;
+
+export const systemDateProvider: DateProvider = () => new Date();
 
 interface BuildSelectionChangeResultParams {
   previousDevices: string[];

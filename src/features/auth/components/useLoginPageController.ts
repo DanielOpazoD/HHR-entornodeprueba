@@ -22,7 +22,7 @@ import {
   type LoginBackgroundMode,
   persistLoginBackgroundMode,
   resolveInitialLoginBackgroundMode,
-} from '@/shared/ui/loginBackgroundModeController';
+} from '@/hooks/controllers/loginBackgroundModeController';
 import { clearRecentAuthRoleLookups } from '@/services/auth/authRoleLookup';
 import { markPerf } from '@/shared/runtime/perfAudit';
 import {

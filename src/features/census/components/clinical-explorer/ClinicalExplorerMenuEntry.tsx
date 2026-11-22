@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { Compass } from 'lucide-react';
-import { useCensusToolbarMenuTarget } from '@/shared/ui/CensusToolbarMenuTargetContext';
+import { useCensusToolbarMenuTarget } from '@/context/CensusToolbarMenuTargetContext';
 import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
 import type { ClinicalExplorerPatient } from '@/features/census/controllers/clinicalExplorerController';
 import { openClinicalExplorer } from './clinicalExplorerStore';

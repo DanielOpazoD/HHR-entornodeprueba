@@ -3,7 +3,7 @@ import { Loader2, MoonStar, SunMedium } from 'lucide-react';
 import {
   type LoginBackgroundMode,
   resolveLoginBackgroundImage,
-} from '@/shared/ui/loginBackgroundModeController';
+} from '@/hooks/controllers/loginBackgroundModeController';
 
 export const LOGIN_INPUT_CLASS =
   'mt-1.5 min-h-12 w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-base text-slate-950 shadow-[0_2px_4px_-2px_rgba(23,62,58,0.12)] outline-none transition-[border-color,box-shadow,background-color] duration-200 placeholder:text-stone-600 enabled:hover:border-stone-400 focus:border-teal-700 focus:ring-4 focus:ring-teal-700/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-500 motion-reduce:transition-none';

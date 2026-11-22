@@ -5,7 +5,7 @@ import {
   resolveInitialLoginBackgroundMode,
   resolveLoginBackgroundImage,
   resolveTimeBasedLoginBackgroundMode,
-} from '@/shared/ui/loginBackgroundModeController';
+} from '@/hooks/controllers/loginBackgroundModeController';
 
 describe('shared loginBackgroundModeController', () => {
   beforeEach(() => {

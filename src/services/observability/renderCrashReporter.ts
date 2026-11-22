@@ -6,7 +6,7 @@ let registeredRenderCrashReporter: RenderCrashReporter | null = null;
 
 /**
  * Registers the runtime sink that receives unhandled React ErrorBoundary crashes.
- * Kept in the pure shared layer so `GlobalErrorBoundary` does not import storage-backed services.
+ * Kept free of storage/data imports so `GlobalErrorBoundary` can report crashes without opening data services.
  */
 export const registerRenderCrashReporter = (reporter: RenderCrashReporter): void => {
   registeredRenderCrashReporter = reporter;

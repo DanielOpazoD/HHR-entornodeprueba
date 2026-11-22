@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MoaHelpButton } from '@/components/layout/navbar/MoaHelpButton';
 import { MoaCompanionSlot } from '@/components/layout/MoaCompanionSlot';
-import { setMoaVisible } from '@/shared/ui/useMoaVisibility';
+import { setMoaVisible } from '@/hooks/useMoaVisibility';
 import { moaScenes } from '@/components/layout/MoaSequence';
 
 const renderMoa = () =>

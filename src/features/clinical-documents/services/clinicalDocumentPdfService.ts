@@ -1,6 +1,6 @@
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import { formatDateToCL } from '@/utils/clinicalUtils';
-import { generateClinicalDocumentPrintStyledPdfBlob } from '@/features/clinical-documents/services/clinicalDocumentPrintPdfService';
+import { generateClinicalDocumentPrintStyledPdfBlob } from '@/features/clinical-documents/services/clinicalDocumentPdfRenderService';
 import { stripClinicalDocumentHtml } from '@/features/clinical-documents/controllers/clinicalDocumentRichTextController';
 import { clinicalDocumentPdfLogger } from '@/features/clinical-documents/services/clinicalDocumentLoggers';
 import type { ClinicalDocumentAnnexPrintMode } from '@/features/clinical-documents/services/clinicalDocumentPrintSupport';

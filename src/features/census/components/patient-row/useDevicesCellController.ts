@@ -8,8 +8,9 @@ import {
   buildDetailsChangeResult,
   buildModalSaveResult,
   buildSelectionChangeResult,
+  systemDateProvider,
+  type DateProvider,
 } from '@/features/census/controllers/devicesCellController';
-import { DateProvider, systemDateProvider } from '@/features/census/controllers/dateProvider';
 import { resolveDeviceHistoryOwner } from '@/features/census/controllers/deviceHistoryController';
 
 interface UseDevicesCellControllerParams {

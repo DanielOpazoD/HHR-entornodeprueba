@@ -7,9 +7,9 @@ import {
   resolveClinicalDocumentDraftLoad,
 } from '@/features/clinical-documents/use-cases/clinicalDocumentEditorUseCases';
 import { executeOpenClinicalDocumentPrint } from '@/features/clinical-documents/use-cases/clinicalDocumentPrintOpenUseCase';
-import { openClinicalDocumentBrowserPrintPreview } from '@/features/clinical-documents/services/clinicalDocumentPrintPdfService';
+import { openClinicalDocumentBrowserPrintPreview } from '@/features/clinical-documents/services/clinicalDocumentBrowserPrintService';
 
-vi.mock('@/features/clinical-documents/services/clinicalDocumentPrintPdfService', () => ({
+vi.mock('@/features/clinical-documents/services/clinicalDocumentBrowserPrintService', () => ({
   openClinicalDocumentBrowserPrintPreview: vi.fn(async () => true),
 }));
 
