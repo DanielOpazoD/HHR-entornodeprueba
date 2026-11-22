@@ -31,6 +31,9 @@ import { collectCudyrDailyFacts } from './cudyrReportFacts';
 import type { CudyrHistoryCursor } from '@/types/domain/cudyrHistory';
 import type { DailyRecordCudyrExportState } from '@/types/domain/dailyRecordSlices';
 import { authoringSessionScope, guardAuthoringSession } from '@/services/session/authoringSession';
+import { createScopedLogger } from '@/services/utils/loggerScope';
+
+const cudyrReportLoaderLogger = createScopedLogger('CudyrReportLoader');
 
 export const cudyrReportDates = (from: string, to: string): string[] => {
   const span = diffCalendarDays(from, to);
@@ -359,7 +362,7 @@ export const loadCudyrReport = async (
       )
         throw error;
       // Clinical reads remain usable if this account cannot publish a derived report.
-      console.warn(
+      cudyrReportLoaderLogger.warn(
         'CUDYR: no se pudo guardar la copia mensual oficial.',
         error instanceof Error ? error.name : 'error'
       );

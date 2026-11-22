@@ -22,7 +22,7 @@ export default defineConfig({
     globals: true,
     include: ['src/tests/emulator/**/*.test.ts'],
     setupFiles: ['./src/tests/emulator/setup.ts'],
-    exclude: ['stories/**/*', 'node_modules/**/*'],
+    exclude: ['node_modules/**/*'],
     testTimeout: 30000,
     hookTimeout: 30000,
     teardownTimeout: 10000,
