@@ -23,7 +23,7 @@
  * ```
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 
 import { useManagedTimeout } from '@/hooks/useManagedTimeout';
 
@@ -70,13 +70,16 @@ export function useModal<T = void>(): UseModalReturn<T> {
     }
   }, [isOpen, open, close]);
 
-  return {
-    isOpen,
-    data,
-    open,
-    close,
-    toggle,
-  };
+  return useMemo(
+    () => ({
+      isOpen,
+      data,
+      open,
+      close,
+      toggle,
+    }),
+    [isOpen, data, open, close, toggle]
+  );
 }
 
 export default useModal;

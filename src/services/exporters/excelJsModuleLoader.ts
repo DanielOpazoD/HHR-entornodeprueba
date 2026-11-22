@@ -38,25 +38,29 @@ const loadExcelJsFromRuntimeAsset = async (): Promise<ExcelJSModuleType> => {
         'script[data-hhr-exceljs-runtime="true"]'
       );
 
-      const resolveFromWindow = () => {
+      const resolveFromWindow = (scriptElement?: HTMLScriptElement) => {
         if (window.ExcelJS?.Workbook) {
           resolve(window.ExcelJS);
           return;
         }
+        scriptElement?.remove();
         browserExcelModulePromise = null;
         reject(new Error('ExcelJS runtime asset loaded without exposing window.ExcelJS'));
       };
 
-      const rejectLoad = () => {
+      const rejectLoad = (scriptElement?: HTMLScriptElement) => {
+        scriptElement?.remove();
         browserExcelModulePromise = null;
         reject(new Error('Failed to load ExcelJS runtime asset'));
       };
 
       if (existingScript) {
-        existingScript.addEventListener('load', resolveFromWindow, { once: true });
-        existingScript.addEventListener('error', rejectLoad, { once: true });
+        existingScript.addEventListener('load', () => resolveFromWindow(existingScript), {
+          once: true,
+        });
+        existingScript.addEventListener('error', () => rejectLoad(existingScript), { once: true });
         if (existingScript.dataset.loaded === 'true') {
-          resolveFromWindow();
+          resolveFromWindow(existingScript);
         }
         return;
       }
@@ -69,11 +73,11 @@ const loadExcelJsFromRuntimeAsset = async (): Promise<ExcelJSModuleType> => {
         'load',
         () => {
           script.dataset.loaded = 'true';
-          resolveFromWindow();
+          resolveFromWindow(script);
         },
         { once: true }
       );
-      script.addEventListener('error', rejectLoad, { once: true });
+      script.addEventListener('error', () => rejectLoad(script), { once: true });
       document.head.appendChild(script);
     });
   }
@@ -104,15 +108,8 @@ export const resolveExcelWorkbookConstructor = (
     return excelModule.Workbook;
   }
 
-  if (excelModule.default && 'Workbook' in excelModule.default) {
+  if (excelModule.default && 'Workbook' in excelModule.default && excelModule.default.Workbook) {
     return excelModule.default.Workbook;
-  }
-
-  if (typeof excelModule.default === 'object' && excelModule.default !== null) {
-    const defaultObj = excelModule.default as { Workbook?: typeof import('exceljs').Workbook };
-    if (defaultObj.Workbook) {
-      return defaultObj.Workbook;
-    }
   }
 
   throw new Error('ExcelJS runtime asset could not be loaded correctly.');

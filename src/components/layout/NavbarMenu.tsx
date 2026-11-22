@@ -70,6 +70,8 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
   const canSeePrescriptionsConfig = canConfigurePrescriptions(auth.role);
 
   const { systemItems } = useNavbarNavigation(currentModule, visibleModules, censusViewMode);
+  const hasPrescriptionLinks = canSeePrescriptionsVisor || canSeePrescriptionsConfig;
+  const hasMenuItems = systemItems.length > 0 || hasPrescriptionLinks;
 
   const handleItemClick = (item: NavItemConfig) => {
     const actionResolution = resolveNavbarMenuAction({ item });
@@ -84,10 +86,13 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
   return (
     <div className="relative shrink-0" ref={menuRef}>
       <button
-        onClick={toggle}
+        type="button"
+        onClick={hasMenuItems ? toggle : undefined}
+        aria-haspopup={hasMenuItems ? 'menu' : undefined}
+        aria-expanded={hasMenuItems ? isOpen : undefined}
         className={clsx(
           'hhr-navbar-brand flex items-center gap-2 sm:gap-3 py-1 px-2 sm:px-3 rounded-xl transition-all duration-200',
-          'hover:bg-white/[0.07]'
+          hasMenuItems ? 'hover:bg-white/[0.07]' : 'cursor-default'
         )}
       >
         <div className="bg-white/[0.1] p-1.5 rounded-xl backdrop-blur-sm ring-1 ring-white/[0.08]">
@@ -98,16 +103,18 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
             Hospital Hanga Roa
           </h1>
         </div>
-        <ChevronDown
-          size={16}
-          className={clsx(
-            'hidden sm:block text-white/30 transition-transform ml-1',
-            isOpen && 'rotate-180'
-          )}
-        />
+        {hasMenuItems && (
+          <ChevronDown
+            size={16}
+            className={clsx(
+              'hidden sm:block text-white/30 transition-transform ml-1',
+              isOpen && 'rotate-180'
+            )}
+          />
+        )}
       </button>
 
-      {isOpen && (
+      {isOpen && hasMenuItems && (
         <>
           {/* Backdrop */}
           <div className="fixed inset-0 z-40" onClick={close} />
@@ -115,7 +122,6 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
           {/* Menu */}
           <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 ring-1 ring-black/[0.04] z-50 overflow-hidden">
             <div className="py-1">
-              {systemItems.length > 0 && <div className="h-px bg-slate-200 my-1" />}
               {systemItems.map(item => (
                 <MenuItem
                   key={item.id}
@@ -124,9 +130,9 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
                   onClick={() => handleItemClick(item)}
                 />
               ))}
-              {(canSeePrescriptionsVisor || canSeePrescriptionsConfig) && (
+              {hasPrescriptionLinks && (
                 <>
-                  <div className="h-px bg-slate-200 my-1" />
+                  {systemItems.length > 0 && <div className="h-px bg-slate-200 my-1" />}
                   {canSeePrescriptionsVisor && (
                     <MenuLink
                       icon={FileUp}

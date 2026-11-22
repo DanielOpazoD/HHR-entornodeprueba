@@ -134,7 +134,7 @@ describe('global patient search timeline integration', () => {
       )
     );
 
-    await screen.findByText('Episodios de hospitalizacion (2)');
+    await screen.findByText('Episodios de hospitalización (2)');
 
     expect(screen.getByTestId('patient-search-detail')).toHaveClass('gap-2');
     expect(screen.getByTestId('episode-list')).not.toHaveClass('overflow-y-auto');
@@ -159,7 +159,7 @@ describe('global patient search timeline integration', () => {
     render(<PatientSelectionHarness patient={patientWithPartialMasterIndex} />);
     expect(await screen.findByText(/Historial parcial/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar consulta' }));
-    await screen.findByText('Episodios de hospitalizacion (2)');
+    await screen.findByText('Episodios de hospitalización (2)');
     expect(mockGetPatientMovementHistory).toHaveBeenCalledTimes(2);
     expect(screen.queryByText(/Historial parcial/)).not.toBeInTheDocument();
   });

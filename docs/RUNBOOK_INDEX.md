@@ -48,7 +48,7 @@ copia previa para deshacer, límites atómicos y recuperación gestionada a una 
 
 Usa cuando:
 
-- cambias `firestore.rules` o `storage.rules`
+- cambias fragmentos de reglas en `rules/` (las salidas raíz `firestore.rules` y `storage.rules` se regeneran)
 - falla `check:security`, `test:rules:ci` o el emulador
 - necesitas regenerar outputs raíz desde fragmentos
 

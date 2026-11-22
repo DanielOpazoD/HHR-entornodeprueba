@@ -1,14 +1,15 @@
-import React, { lazy, Suspense, useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { DataMaintenancePanel } from './internal/DataMaintenancePanel';
-import { Database } from 'lucide-react';
+import { AlertTriangle, Database, History } from 'lucide-react';
 import { useCensusContext } from '@/context/CensusContext';
 import { canUseAdminMaintenanceActions } from '@/shared/access/operationalAccessPolicy';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 
-const DailyRecordRestorePanel = lazy(() =>
+const DailyRecordRestorePanel = lazyWithRetry(() =>
   import('./DailyRecordRestorePanel').then(module => ({ default: module.DailyRecordRestorePanel }))
 );
-const InvalidClinicalEpisodesPanel = lazy(() =>
+const InvalidClinicalEpisodesPanel = lazyWithRetry(() =>
   import('./InvalidClinicalEpisodesPanel').then(module => ({
     default: module.InvalidClinicalEpisodesPanel,
   }))
@@ -41,30 +42,34 @@ export const DataMaintenanceView: React.FC = () => {
       </div>
 
       {canUseAdminMaintenance && (
-        <div className="mb-6">
-          <button
-            className="rounded border bg-white p-3"
-            onClick={() => setShowRestore(value => !value)}
-          >
-            {showRestore ? 'Cerrar restauración' : 'Abrir restauración de un día'}
-          </button>
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
+              onClick={() => setShowRestore(value => !value)}
+            >
+              <History size={16} className="text-emerald-700" aria-hidden="true" />
+              {showRestore ? 'Cerrar restauración' : 'Abrir restauración de un día'}
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
+              onClick={() => setShowInvalidEpisodes(value => !value)}
+            >
+              <AlertTriangle size={16} className="text-amber-600" aria-hidden="true" />
+              {showInvalidEpisodes ? 'Cerrar pacientes no válidos' : 'Ver pacientes no válidos'}
+            </button>
+          </div>
           {showRestore && (
-            <Suspense fallback={<p>Cargando restauración…</p>}>
+            <Suspense fallback={<p className="text-sm text-slate-500">Cargando restauración…</p>}>
               <DailyRecordRestorePanel />
             </Suspense>
           )}
-        </div>
-      )}
-      {canUseAdminMaintenance && (
-        <div className="mb-6">
-          <button
-            className="rounded border bg-white p-3"
-            onClick={() => setShowInvalidEpisodes(value => !value)}
-          >
-            {showInvalidEpisodes ? 'Cerrar pacientes no válidos' : 'Ver pacientes no válidos'}
-          </button>
           {showInvalidEpisodes && (
-            <Suspense fallback={<p>Cargando pacientes no válidos…</p>}>
+            <Suspense
+              fallback={<p className="text-sm text-slate-500">Cargando pacientes no válidos…</p>}
+            >
               <InvalidClinicalEpisodesPanel />
             </Suspense>
           )}
@@ -79,7 +84,7 @@ export const DataMaintenanceView: React.FC = () => {
           input.onchange = e => {
             const target = e.target as HTMLInputElement;
             if (target.files && target.files[0]) {
-              fileOps.handleImportFile(target.files[0]);
+              void fileOps.handleImportFile(target.files[0]);
             }
           };
           input.click();

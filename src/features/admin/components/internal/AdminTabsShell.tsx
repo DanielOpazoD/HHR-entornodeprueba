@@ -32,7 +32,7 @@ export const AdminTabsShell: React.FC<AdminTabsShellProps> = ({
 
   return (
     <div className="animate-fade-in font-sans pb-16">
-      <div className="bg-white border-b border-slate-200 px-6 py-3 shadow-sm sticky top-0 z-10">
+      <div className="bg-white border-b border-slate-200 px-6 py-3 shadow-sm sticky top-[var(--hhr-navbar-height)] z-20">
         <div className="max-w-[1400px] mx-auto flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2 pr-4 border-r border-slate-200">
             <TitleIcon size={16} className="text-slate-500" />

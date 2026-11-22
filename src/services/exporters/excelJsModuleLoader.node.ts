@@ -22,15 +22,8 @@ export const resolveExcelWorkbookConstructor = (
     return excelModule.Workbook;
   }
 
-  if (excelModule.default && 'Workbook' in excelModule.default) {
+  if (excelModule.default && 'Workbook' in excelModule.default && excelModule.default.Workbook) {
     return excelModule.default.Workbook;
-  }
-
-  if (typeof excelModule.default === 'object' && excelModule.default !== null) {
-    const defaultObj = excelModule.default as { Workbook?: typeof import('exceljs').Workbook };
-    if (defaultObj.Workbook) {
-      return defaultObj.Workbook;
-    }
   }
 
   throw new Error('ExcelJS module could not be loaded correctly.');

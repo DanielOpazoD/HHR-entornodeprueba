@@ -66,7 +66,7 @@ const resolveLoginInitialAuthError = (
     return {
       message:
         auth.sessionState.reason ||
-        'Tu cuenta no tiene autorizacion para ingresar a esta aplicacion.',
+        'Tu cuenta no tiene autorización para ingresar a esta aplicación.',
       code: 'auth/unauthorized',
     };
   }

@@ -92,16 +92,6 @@ const isClientsClaimRaceError = (error: unknown): boolean => {
 // shadow cache that could serve stale versioned files after a new deploy,
 // causing load-order crashes (e.g. vendor-react missing → createContext error).
 
-// Google Fonts - Cache First
-registerRoute(
-  ({ url }) =>
-    url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com',
-  new CacheFirst({
-    cacheName: `fonts-${CACHE_VERSION}`,
-    plugins: [new CacheableResponsePlugin({ statuses: [0, 200] })],
-  })
-);
-
 // Images - Cache First
 registerRoute(
   ({ url, request }) => url.origin === self.location.origin && request.destination === 'image',

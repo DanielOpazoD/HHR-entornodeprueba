@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Download,
-  MousePointer2,
   Move,
   PanelsTopLeft,
   RotateCcw,
@@ -30,13 +29,6 @@ const aestheticOptions = [
     desc: 'Transiciones suaves al navegar y editar',
     icon: Move,
     iconClassName: 'bg-fuchsia-50 text-fuchsia-600',
-  },
-  {
-    id: 'hoverEffects',
-    label: 'Efectos hover',
-    desc: 'Resaltes al pasar el mouse por controles',
-    icon: MousePointer2,
-    iconClassName: 'bg-rose-50 text-rose-600',
   },
   {
     id: 'modernTypography',
@@ -69,7 +61,7 @@ export const SettingsVisualTab: React.FC<VisualTabProps> = ({ settings, updateSe
           </p>
         </div>
         <div className="hidden rounded-full bg-blue-100 px-2 py-1 text-[10px] font-bold text-blue-700 sm:block">
-          4 ajustes
+          3 ajustes
         </div>
       </div>
 

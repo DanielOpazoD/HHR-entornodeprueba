@@ -10,8 +10,23 @@ export const createMockDatabase = (): IndexedDbDatabaseLike => {
     syncQueue: new Map<string, unknown>(),
   };
 
+  const compareValues = (a: unknown, b: unknown): number => {
+    if (a === b) return 0;
+    if (a === undefined || a === null) return -1;
+    if (b === undefined || b === null) return 1;
+    if (typeof a === 'number' && typeof b === 'number') return a - b;
+    return String(a).localeCompare(String(b));
+  };
+
   const createMockTable = (tableName: keyof typeof memoryStore) => {
     const store = memoryStore[tableName];
+    const getSortedEntries = (keyPath: string) =>
+      Array.from(store.entries()).sort(([, a], [, b]) =>
+        compareValues(
+          (a as Record<string, unknown>)[keyPath],
+          (b as Record<string, unknown>)[keyPath]
+        )
+      );
     return {
       toArray: () => Promise.resolve(Array.from(store.values())),
       get: (key: string) => Promise.resolve(store.get(key) || null),
@@ -53,15 +68,31 @@ export const createMockDatabase = (): IndexedDbDatabaseLike => {
         store.set(id, newItem);
         return Promise.resolve(id);
       },
-      orderBy: (_keyPath: string) => ({
+      orderBy: (keyPath: string) => ({
         reverse: () => ({
           limit: (n: number) => ({
-            toArray: () => Promise.resolve(Array.from(store.values()).slice(0, n)),
+            toArray: () =>
+              Promise.resolve(
+                getSortedEntries(keyPath)
+                  .reverse()
+                  .slice(0, n)
+                  .map(([, value]) => value)
+              ),
           }),
-          keys: () => Promise.resolve(Array.from(store.keys())),
-          toArray: () => Promise.resolve(Array.from(store.values())),
+          keys: () =>
+            Promise.resolve(
+              getSortedEntries(keyPath)
+                .reverse()
+                .map(([key]) => key)
+            ),
+          toArray: () =>
+            Promise.resolve(
+              getSortedEntries(keyPath)
+                .reverse()
+                .map(([, value]) => value)
+            ),
         }),
-        toArray: () => Promise.resolve(Array.from(store.values())),
+        toArray: () => Promise.resolve(getSortedEntries(keyPath).map(([, value]) => value)),
       }),
       where: (keyName: string) => ({
         below: (val: string) => ({
@@ -74,7 +105,12 @@ export const createMockDatabase = (): IndexedDbDatabaseLike => {
           }),
         }),
         equals: (val: unknown) => ({
-          first: () => Promise.resolve(store.get(val as string) || null),
+          first: () =>
+            Promise.resolve(
+              Array.from(store.values()).find(
+                item => (item as Record<string, unknown>)[keyName] === val
+              ) ?? null
+            ),
           count: () =>
             Promise.resolve(
               Array.from(store.values()).filter(

@@ -1,5 +1,13 @@
 import React from 'react';
-import { CheckCircle2, ExternalLink, FileText, Loader2, RefreshCcw, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  ExternalLink,
+  FileText,
+  Loader2,
+  RefreshCcw,
+  Trash2,
+} from 'lucide-react';
 import {
   confirmScannedDocumentUploaded,
   listScannedDocuments,
@@ -73,6 +81,12 @@ export const DocumentScannerQueueView: React.FC = () => {
       <div className="mx-auto max-w-4xl space-y-5">
         <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex sm:items-center sm:justify-between">
           <div>
+            <a
+              href="/"
+              className="mb-3 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
+            >
+              <ArrowLeft size={14} aria-hidden="true" /> Volver al censo diario
+            </a>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-700">
               HHR · Gestor documental
             </p>
@@ -107,7 +121,7 @@ export const DocumentScannerQueueView: React.FC = () => {
           <div className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white p-10 text-slate-600">
             <Loader2 size={22} className="animate-spin" /> Cargando documentos…
           </div>
-        ) : documents.length === 0 ? (
+        ) : errorMessage && documents.length === 0 ? null : documents.length === 0 ? (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-8 text-center">
             <CheckCircle2 size={36} className="mx-auto text-emerald-700" />
             <p className="mt-3 font-bold text-emerald-900">No hay documentos pendientes</p>

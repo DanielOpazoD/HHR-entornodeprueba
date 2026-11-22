@@ -16,7 +16,12 @@ import {
 const escapeCsvValue = (value: unknown): string => {
   if (value === null || value === undefined) return '';
   const stringValue = String(value);
-  if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+  if (
+    stringValue.includes(',') ||
+    stringValue.includes('"') ||
+    stringValue.includes('\n') ||
+    stringValue.includes('\r')
+  ) {
     return `"${stringValue.replace(/"/g, '""')}"`;
   }
   return stringValue;
@@ -26,15 +31,13 @@ const resolveNurseField = (record: DailyRecordCsvExportState): string =>
   resolveExportableNursesText(record);
 
 const generatePatientRow = (
-  record: DailyRecordCsvExportState,
+  nurseField: string,
   bedId: string,
   bedName: string,
   bedType: string,
   patient: PatientData,
   locationOverride?: string
 ): string => {
-  const nurseField = resolveNurseField(record);
-
   return [
     escapeCsvValue(bedId),
     escapeCsvValue(bedName),
@@ -92,14 +95,14 @@ const generateDischargeRows = (discharges: DischargeData[]): string[] => {
     'Cama,Tipo,Paciente,RUT,Diagnóstico,Estado,Edad,Previsión',
     ...discharges.map(discharge =>
       [
-        discharge.bedName,
-        discharge.bedType,
+        escapeCsvValue(discharge.bedName),
+        escapeCsvValue(discharge.bedType),
         escapeCsvValue(discharge.patientName),
-        discharge.rut,
+        escapeCsvValue(discharge.rut),
         escapeCsvValue(discharge.diagnosis),
-        discharge.status,
-        discharge.age || '',
-        discharge.insurance || '',
+        escapeCsvValue(discharge.status),
+        escapeCsvValue(discharge.age || ''),
+        escapeCsvValue(discharge.insurance || ''),
       ].join(',')
     ),
   ];
@@ -121,16 +124,16 @@ const generateTransferRows = (transfers: TransferData[]): string[] => {
         transfer.evacuationMethod === 'Aerocardal' ? '' : transfer.transferEscort || '';
 
       return [
-        transfer.bedName,
-        transfer.bedType,
+        escapeCsvValue(transfer.bedName),
+        escapeCsvValue(transfer.bedType),
         escapeCsvValue(transfer.patientName),
-        transfer.rut,
+        escapeCsvValue(transfer.rut),
         escapeCsvValue(transfer.diagnosis),
-        transfer.evacuationMethod,
+        escapeCsvValue(transfer.evacuationMethod),
         escapeCsvValue(center),
         escapeCsvValue(escort),
-        transfer.age || '',
-        transfer.insurance || '',
+        escapeCsvValue(transfer.age || ''),
+        escapeCsvValue(transfer.insurance || ''),
       ].join(',');
     }),
   ];
@@ -138,6 +141,7 @@ const generateTransferRows = (transfers: TransferData[]): string[] => {
 
 export const buildDailyRecordCsv = (record: DailyRecordCsvExportState): string => {
   const rows = [CSV_HEADERS.join(',')];
+  const nurseField = resolveNurseField(record);
 
   BEDS.forEach(bed => {
     const patient = record.beds[bed.id];
@@ -152,13 +156,13 @@ export const buildDailyRecordCsv = (record: DailyRecordCsvExportState): string =
     }
 
     if (patient.isBlocked || isMainOccupied) {
-      rows.push(generatePatientRow(record, bed.id, bed.name, bed.type, patient));
+      rows.push(generatePatientRow(nurseField, bed.id, bed.name, bed.type, patient));
     }
 
     if (patient.clinicalCrib?.patientName) {
       rows.push(
         generatePatientRow(
-          record,
+          nurseField,
           `${bed.id}-C`,
           `${bed.name} (Cuna RN)`,
           'Cuna',

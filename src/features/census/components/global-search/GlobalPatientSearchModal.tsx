@@ -6,9 +6,10 @@
  */
 import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
 
-import React, { lazy, Suspense, useRef, useEffect, useCallback, useState } from 'react';
+import React, { Suspense, useRef, useEffect, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, X, Loader2, Users } from 'lucide-react';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { useGlobalPatientSearch } from '@/features/census/components/global-search/useGlobalPatientSearch';
 import { PatientSearchResultItem } from '@/features/census/components/global-search/PatientSearchResultItem';
 import { PatientEpisodeTimeline } from '@/features/census/components/global-search/PatientEpisodeTimeline';
@@ -17,7 +18,7 @@ import type { ClinicalDocSummary } from '@/features/census/components/global-sea
 import type { ClinicalDocumentsWorkspacePatientContract } from '@/features/clinical-documents';
 import { resolveAdmissionDateFromClinicalEpisodeKey } from '@/domain/clinical-episode/clinicalEpisode';
 
-const LazyClinicalDocumentsModal = lazy(() =>
+const LazyClinicalDocumentsModal = lazyWithRetry(() =>
   import('@/features/clinical-documents').then(module => ({
     default: module.ClinicalDocumentsModal,
   }))
@@ -197,9 +198,7 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
         </div>
 
         {/* Content area */}
-        <div
-          className={search.selectedPatient ? 'flex-1 overflow-hidden' : 'flex-1 overflow-y-auto'}
-        >
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {/* Detail view when a patient is selected */}
           {search.selectedPatient && (
             <div className="p-3">

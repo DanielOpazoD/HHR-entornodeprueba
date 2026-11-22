@@ -66,9 +66,9 @@ emulador activo y fallará con `ECONNREFUSED 127.0.0.1:8080` si no se lanza dent
 Si el `webServer` de Playwright falla con `Timed out waiting 120000ms from config.webServer`, es porque `npm run dev` no arrancó a tiempo. Lo suelen gatillar:
 
 - Primera ejecución post `npm install` (caché Vite frío).
-- Puerto 3000 ocupado por otro proceso (`lsof -i :3000`).
+- Puerto 3100 ocupado por otro proceso (`lsof -i :3100`; 4173 en modo `PLAYWRIGHT_USE_PREVIEW=1`).
 
-Correr `npm run dev -- --host 127.0.0.1 --port 3000` una vez manualmente y matarlo; el caché queda calentado.
+Correr `npm run dev -- --host 127.0.0.1 --port 3100` una vez manualmente y matarlo; el caché queda calentado.
 
 ## Correr sólo el flow-performance spec
 

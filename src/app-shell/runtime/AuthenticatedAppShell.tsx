@@ -17,6 +17,7 @@ import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/da
 import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { markPerf } from '@/shared/runtime/perfAudit';
 import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
+import { ClinicalLibraryToolbarFallback } from '@/components/layout/date-strip/CensusToolbarLoadingActions';
 
 const LaboratoryQuickAction = lazyWithRetry(() =>
   import('@/features/laboratory/quick-action').then(module => ({
@@ -30,9 +31,7 @@ const ClinicalLibraryQuickAction = lazyWithRetry(() =>
   }))
 );
 
-// The date strip's MMRAD viewer. Plain React.lazy, as the date strip loaded it before the viewer
-// moved to its feature.
-const RadiologyViewerModal: DateStripRadiologyViewer = React.lazy(() =>
+const RadiologyViewerModal: DateStripRadiologyViewer = lazyWithRetry(() =>
   import('@/features/radiology/components/RadiologyViewerModal').then(module => ({
     default: module.RadiologyViewerModal,
   }))
@@ -51,8 +50,6 @@ const LaboratoryQuickActionFallback = () => (
     <span className="hidden sm:inline">Lab</span>
   </button>
 );
-
-import { ClinicalLibraryToolbarFallback } from '@/components/layout/date-strip/CensusToolbarLoadingActions';
 
 const AUTHENTICATED_OVERLAY_VIEWS = {
   CensusEmailConfigModal,

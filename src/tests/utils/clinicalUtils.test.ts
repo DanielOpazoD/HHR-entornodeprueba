@@ -41,6 +41,10 @@ describe('clinicalUtils', () => {
     it('should return empty for invalid', () => {
       expect(calculateAge(undefined)).toBe('');
       expect(calculateAge('invalid')).toBe('');
+      expect(calculateAge('2026-99-99')).toBe('');
+      expect(calculateAge('abcd-ef-gh')).toBe('');
+      expect(calculateAge('2026-02-31')).toBe('');
+      expect(calculateAge('31-02-1990')).toBe('');
     });
   });
 

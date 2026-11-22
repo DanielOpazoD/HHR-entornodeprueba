@@ -40,9 +40,9 @@ export const ClinicalDocumentsModal: React.FC<ClinicalDocumentsModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={
-        <div>
-          <h2 className="text-base font-bold text-slate-800 leading-tight">Documentos Clínicos</h2>
-        </div>
+        <span className="block text-base font-bold text-slate-800 leading-tight">
+          Documentos Clínicos
+        </span>
       }
       icon={<FileText size={18} className="text-medical-600" />}
       size="full"

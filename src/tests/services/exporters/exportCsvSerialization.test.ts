@@ -169,4 +169,56 @@ describe('exportCsvSerialization', () => {
 
     expect(values[nursesColumn]).toBe('Enf Base & Vacante');
   });
+
+  it('escapes commas, quotes, and carriage returns across discharge and transfer columns', () => {
+    const record = {
+      date: '2026-04-18',
+      beds: {},
+      discharges: [
+        {
+          id: 'd1',
+          bedName: 'Sala, 1',
+          bedId: 'R1',
+          bedType: 'MEDIA',
+          patientName: 'Paciente "Uno"',
+          rut: '12.345.678-9',
+          diagnosis: 'Dolor\ragudo',
+          time: '10:00',
+          status: 'Vivo, estable',
+          age: '40',
+          insurance: 'Fonasa, B',
+        },
+      ],
+      transfers: [
+        {
+          id: 't1',
+          bedName: 'Sala, 2',
+          bedId: 'R2',
+          bedType: 'UCI',
+          patientName: 'Paciente Dos',
+          rut: '11.111.111-1',
+          diagnosis: 'Control',
+          time: '12:00',
+          evacuationMethod: 'Avión, comercial',
+          receivingCenter: 'Hospital Salvador',
+          transferEscort: 'Enfermera',
+          age: '50',
+          insurance: 'Isapre, X',
+        },
+      ],
+      cma: [],
+      nurses: [],
+      nursesDayShift: [],
+      nursesNightShift: [],
+    } as unknown as DailyRecordCsvExportState;
+
+    const csv = buildDailyRecordCsv(record);
+
+    expect(csv).toContain(
+      '"Sala, 1",MEDIA,"Paciente ""Uno""",12.345.678-9,"Dolor\ragudo","Vivo, estable",40,"Fonasa, B"'
+    );
+    expect(csv).toContain(
+      '"Sala, 2",UCI,Paciente Dos,11.111.111-1,Control,"Avión, comercial",Hospital Salvador,Enfermera,50,"Isapre, X"'
+    );
+  });
 });

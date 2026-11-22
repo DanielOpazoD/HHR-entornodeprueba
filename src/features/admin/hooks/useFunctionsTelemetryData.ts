@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   buildDailyRecordAuthorityRolloutSummary,
   buildRayenClinicalEnrichmentRolloutSummary,
@@ -34,17 +34,27 @@ export const useFunctionsTelemetryData = (limit: number = DEFAULT_LIMIT) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<FunctionsTelemetryFilters>({});
+  const requestIdRef = useRef(0);
 
-  const showEntries = useCallback(
-    (read: Promise<FunctionsTelemetryEntry[]>) =>
-      read
-        .then(setEntries, (err: unknown) => {
+  const showEntries = useCallback((read: Promise<FunctionsTelemetryEntry[]>) => {
+    const requestId = ++requestIdRef.current;
+    return read
+      .then(
+        nextEntries => {
+          if (requestId !== requestIdRef.current) return;
+          setEntries(nextEntries);
+        },
+        (err: unknown) => {
+          if (requestId !== requestIdRef.current) return;
           setError(err instanceof Error ? err.message : 'Error cargando telemetría.');
           setEntries([]);
-        })
-        .finally(() => setLoading(false)),
-    []
-  );
+        }
+      )
+      .finally(() => {
+        if (requestId !== requestIdRef.current) return;
+        setLoading(false);
+      });
+  }, []);
   const refresh = useCallback(() => {
     setLoading(true);
     setError(null);
@@ -57,6 +67,9 @@ export const useFunctionsTelemetryData = (limit: number = DEFAULT_LIMIT) => {
   }
   useEffect(() => {
     void showEntries(fetchFunctionsTelemetry(limit));
+    return () => {
+      requestIdRef.current += 1;
+    };
   }, [limit, showEntries]);
 
   const filteredEntries = useMemo(

@@ -36,7 +36,7 @@ export const ReminderAdminView: React.FC = () => {
         </div>
         <h1 className="text-2xl font-black tracking-tight text-slate-900">Acceso restringido</h1>
         <p className="mt-3 text-sm font-medium text-slate-500">
-          Solo jefatura o administracion puede gestionar avisos al personal.
+          Solo jefatura o administración puede gestionar avisos al personal.
         </p>
       </div>
     );
@@ -56,7 +56,7 @@ export const ReminderAdminView: React.FC = () => {
           </div>
           <p className="max-w-2xl text-sm font-medium leading-snug text-slate-500 md:text-[15px]">
             Jefatura puede publicar recordatorios segmentados por rol, turno y vigencia, con
-            confirmacion de lectura por usuario.
+            confirmación de lectura por usuario.
           </p>
         </div>
 

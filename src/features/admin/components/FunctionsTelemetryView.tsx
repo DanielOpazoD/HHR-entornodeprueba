@@ -38,8 +38,8 @@ export const FunctionsTelemetryView: React.FC = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-800">Telemetría de Servicios</h1>
           <p className="text-xs text-slate-500">
-            Observabilidad de Netlify Functions (Gmail, Gemini, MMRAD, FHIR, WhatsApp, Syslab).
-            Append-only.
+            Observabilidad de servicios Netlify Functions (correo, IA, MMRAD, WhatsApp y Syslab).
+            Solo lectura (append-only).
           </p>
         </div>
       </header>

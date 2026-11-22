@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useConfirmDialog } from '@/context/UIContext';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { defaultCensusEmailBrowserRuntime } from '@/features/census/email/controllers/censusEmailBrowserRuntimeController';
@@ -149,32 +149,67 @@ export const useCensusEmail = ({
     alert,
   });
 
-  return {
-    showEmailConfig: activeShowEmailConfig,
-    setShowEmailConfig: setEnabledShowEmailConfig,
-    recipients,
-    setRecipients,
-    recipientLists,
-    activeRecipientListId,
-    setActiveRecipientListId,
-    createRecipientList,
-    renameActiveRecipientList,
-    deleteRecipientList,
-    recipientsSource,
-    isRecipientsSyncing,
-    recipientsSyncError,
-    message,
-    onMessageChange,
-    onResetMessage,
-    status,
-    error,
-    emailBlockedReason: resolveUpcEmailBlockReason(record, currentDateString),
-    resetStatus,
-    sendEmail,
-    testModeEnabled,
-    setTestModeEnabled,
-    testRecipient,
-    setTestRecipient,
-    isAdminUser,
-  };
+  const emailBlockedReason = useMemo(
+    () => resolveUpcEmailBlockReason(record, currentDateString),
+    [record, currentDateString]
+  );
+
+  return useMemo(
+    () => ({
+      showEmailConfig: activeShowEmailConfig,
+      setShowEmailConfig: setEnabledShowEmailConfig,
+      recipients,
+      setRecipients,
+      recipientLists,
+      activeRecipientListId,
+      setActiveRecipientListId,
+      createRecipientList,
+      renameActiveRecipientList,
+      deleteRecipientList,
+      recipientsSource,
+      isRecipientsSyncing,
+      recipientsSyncError,
+      message,
+      onMessageChange,
+      onResetMessage,
+      status,
+      error,
+      emailBlockedReason,
+      resetStatus,
+      sendEmail,
+      testModeEnabled,
+      setTestModeEnabled,
+      testRecipient,
+      setTestRecipient,
+      isAdminUser,
+    }),
+    [
+      activeShowEmailConfig,
+      setEnabledShowEmailConfig,
+      recipients,
+      setRecipients,
+      recipientLists,
+      activeRecipientListId,
+      setActiveRecipientListId,
+      createRecipientList,
+      renameActiveRecipientList,
+      deleteRecipientList,
+      recipientsSource,
+      isRecipientsSyncing,
+      recipientsSyncError,
+      message,
+      onMessageChange,
+      onResetMessage,
+      status,
+      error,
+      emailBlockedReason,
+      resetStatus,
+      sendEmail,
+      testModeEnabled,
+      setTestModeEnabled,
+      testRecipient,
+      setTestRecipient,
+      isAdminUser,
+    ]
+  );
 };

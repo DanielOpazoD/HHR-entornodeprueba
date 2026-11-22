@@ -11,7 +11,7 @@
  * ```
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useModal, UseModalReturn } from './useModal';
 import type { ModuleType } from '@/constants/navigationConfig';
 import {
@@ -101,34 +101,46 @@ export function useAppState(options: UseAppStateOptions = {}): UseAppStateReturn
     syncModuleToUrl({ module: currentModule, date });
   }, [currentModule, syncUrl, date]);
 
-  return {
-    // Module navigation
-    currentModule,
-    setCurrentModule,
+  return useMemo(
+    () => ({
+      // Module navigation
+      currentModule,
+      setCurrentModule,
 
-    // View modes
-    censusViewMode,
-    setCensusViewMode,
+      // View modes
+      censusViewMode,
+      setCensusViewMode,
 
-    // Modals
-    bedManagerModal,
-    patientSearchModal,
+      // Modals
+      bedManagerModal,
+      patientSearchModal,
 
-    // Feature flags
-    isTestAgentRunning,
-    setIsTestAgentRunning,
+      // Feature flags
+      isTestAgentRunning,
+      setIsTestAgentRunning,
 
-    // Shift
-    selectedShift,
-    setSelectedShift,
+      // Shift
+      selectedShift,
+      setSelectedShift,
 
-    // Derived
-    showPrintButton,
+      // Derived
+      showPrintButton,
 
-    // Bookmarks
-    showBookmarksBar,
-    setShowBookmarksBar,
-  };
+      // Bookmarks
+      showBookmarksBar,
+      setShowBookmarksBar,
+    }),
+    [
+      currentModule,
+      censusViewMode,
+      bedManagerModal,
+      patientSearchModal,
+      isTestAgentRunning,
+      selectedShift,
+      showPrintButton,
+      showBookmarksBar,
+    ]
+  );
 }
 
 export default useAppState;

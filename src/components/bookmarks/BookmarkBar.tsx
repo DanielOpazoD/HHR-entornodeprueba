@@ -37,7 +37,7 @@ export const BookmarkBar: React.FC = () => {
 
   return (
     <div
-      className="w-full bg-white/95 backdrop-blur-md border-b border-slate-100 sticky top-[100px] z-[30] print:hidden h-9 flex items-center px-4 overflow-visible group"
+      className="w-full bg-white/95 backdrop-blur-md border-b border-slate-100 sticky top-[var(--hhr-chrome-height)] z-[30] print:hidden h-9 flex items-center px-4 overflow-visible group"
       style={{ transform: 'translateZ(0)' }}
     >
       <div

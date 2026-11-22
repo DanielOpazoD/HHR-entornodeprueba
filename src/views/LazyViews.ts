@@ -37,94 +37,88 @@ export const CudyrView = lazyWithRetry(() =>
   }))
 );
 
-// Handoff module (prefetch)
+// Handoff module
 export const HandoffView = lazyWithRetry(() =>
-  import(/* webpackPrefetch: true */ '@/features/handoff').then(module => ({
+  import('@/features/handoff').then(module => ({
     default: module.HandoffView,
   }))
 );
 
 // Admin modules
 export const AuditView = lazyWithRetry(() =>
-  import(/* webpackChunkName: "audit" */ '@/features/admin').then(module => ({
+  import('@/features/admin').then(module => ({
     default: module.AuditView,
   }))
 );
 
 export const FunctionsTelemetryView = lazyWithRetry(() =>
-  import(/* webpackChunkName: "functions-telemetry" */ '@/features/admin').then(module => ({
+  import('@/features/admin').then(module => ({
     default: module.FunctionsTelemetryView,
   }))
 );
 
 export const ConfigurationView = lazyWithRetry(() =>
-  import(/* webpackChunkName: "configuration" */ '@/features/admin').then(module => ({
+  import('@/features/admin').then(module => ({
     default: module.ConfigurationView,
   }))
 );
 
 export const DataView = lazyWithRetry(() =>
-  import(/* webpackChunkName: "data" */ '@/features/admin').then(module => ({
+  import('@/features/admin').then(module => ({
     default: module.DataView,
   }))
 );
 
 export const CommunicationsView = lazyWithRetry(() =>
-  import(/* webpackChunkName: "communications" */ '@/features/admin').then(module => ({
+  import('@/features/admin').then(module => ({
     default: module.CommunicationsView,
   }))
 );
 
 export const WoundCareMobileUploadView = lazyWithRetry(() =>
-  import(/* webpackChunkName: "wound-care-mobile-upload" */ '@/features/wound-care').then(
-    module => ({
-      default: module.WoundCareMobileUploadView,
-    })
-  )
+  import('@/features/wound-care').then(module => ({
+    default: module.WoundCareMobileUploadView,
+  }))
 );
 
 export const PrescriptionUploadView = lazyWithRetry(() =>
-  import(/* webpackChunkName: "prescriptions-upload" */ '@/features/prescriptions').then(
-    module => ({
-      default: module.PrescriptionUploadView,
-    })
-  )
+  import('@/features/prescriptions').then(module => ({
+    default: module.PrescriptionUploadView,
+  }))
 );
 
 export const DocumentScannerDemoView = lazyWithRetry(() =>
-  import(/* webpackChunkName: "document-scanner-demo" */ '@/features/document-scanner').then(
-    module => ({
-      default: module.DocumentScannerDemoView,
-    })
-  )
+  import('@/features/document-scanner').then(module => ({
+    default: module.DocumentScannerDemoView,
+  }))
 );
 
 export const DocumentScannerQueueView = lazyWithRetry(() =>
-  import(/* webpackChunkName: "document-scanner-queue" */ '@/features/document-scanner').then(
-    module => ({ default: module.DocumentScannerQueueView })
-  )
+  import('@/features/document-scanner').then(module => ({
+    default: module.DocumentScannerQueueView,
+  }))
 );
 
 export const DocumentScannerLocalQueueView = lazyWithRetry(() =>
-  import(/* webpackChunkName: "document-scanner-local-queue" */ '@/features/document-scanner').then(
-    module => ({ default: module.DocumentScannerLocalQueueView })
-  )
+  import('@/features/document-scanner').then(module => ({
+    default: module.DocumentScannerLocalQueueView,
+  }))
 );
 
 export const PrescriptionVisorView = lazyWithRetry(() =>
-  import(/* webpackChunkName: "prescriptions-visor" */ '@/features/prescriptions').then(module => ({
+  import('@/features/prescriptions').then(module => ({
     default: module.PrescriptionVisorView,
   }))
 );
 
 export const PrescriptionAdminView = lazyWithRetry(() =>
-  import(/* webpackChunkName: "prescriptions-admin" */ '@/features/prescriptions').then(module => ({
+  import('@/features/prescriptions').then(module => ({
     default: module.PrescriptionAdminView,
   }))
 );
 
 export const BackupFilesView = lazyWithRetry(() =>
-  import(/* webpackChunkName: "backup" */ '@/features/backup/public').then(module => ({
+  import('@/features/backup/public').then(module => ({
     default: module.BackupFilesView,
   }))
 );
@@ -151,7 +145,7 @@ export const RoleManagementView = lazyWithRetry(() =>
   }))
 );
 export const AuditDocumentsView = lazyWithRetry(() =>
-  import(/* webpackChunkName: "audit-documents" */ '@/features/audit-documents').then(module => ({
+  import('@/features/audit-documents').then(module => ({
     default: module.AuditDocumentsView,
   }))
 );
@@ -163,7 +157,7 @@ export const ReminderAdminView = lazyWithRetry(() =>
 
 // WhatsApp module
 export const WhatsAppIntegrationView = lazyWithRetry(() =>
-  import(/* webpackChunkName: "whatsapp" */ '@/features/whatsapp/public').then(m => ({
+  import('@/features/whatsapp/public').then(m => ({
     default: m.WhatsAppIntegrationView,
   }))
 );

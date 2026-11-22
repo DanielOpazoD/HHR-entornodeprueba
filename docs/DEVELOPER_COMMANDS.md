@@ -83,7 +83,7 @@ Después de un merge a `main`, usar `npm run postmerge:evidence` para generar `r
 
 ### Si tocas reglas, runbooks o documentación operativa
 
-1. Si cambias `firestore.rules` o `storage.rules`: `npm run build:rules-assets`
+1. Si editas fragmentos de reglas en `rules/` (nunca `firestore.rules` ni `storage.rules` directamente): `npm run build:rules-assets`
 2. `npm run check:security`
 3. `npm run check:docs-drift`
 4. `npm run check:operational-runbooks`
