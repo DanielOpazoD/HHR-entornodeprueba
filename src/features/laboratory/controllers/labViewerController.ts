@@ -107,12 +107,12 @@ export const resolveLabExamSelectionByDays = ({
 }): Set<string> => new Set(resolveLabExamIdsByDays({ examList, days, now }));
 
 const parseLabExamCalendarDate = (value: string): Date | null => {
-  const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (!match) {
+  const [, day, month, year] = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/) ?? [];
+  if (!day || !month || !year) {
     return null;
   }
 
-  return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
+  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
 };
 
 /** A `YYYY-MM-DD` day at the same local midnight that `parseLabExamCalendarDate` gives an exam. */

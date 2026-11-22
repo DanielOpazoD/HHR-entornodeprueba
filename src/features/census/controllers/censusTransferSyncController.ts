@@ -107,9 +107,9 @@ export const syncCensusTransferRequest = async ({
   createFinalizedTransferRequestWithResult,
   completeTransferWithResult,
 }: SyncCensusTransferRequestParams): Promise<void> => {
-  const requestDate = (data?.movementDate || recordDate || getClinicalCalendarDateISO()).split(
-    'T'
-  )[0];
+  const fallbackRequestDate = getClinicalCalendarDateISO();
+  const requestDate =
+    (data?.movementDate || recordDate || fallbackRequestDate).split('T')[0] || fallbackRequestDate;
   const linkedRequest = await getLatestOpenTransferRequestByBedId(bedId, {
     referenceDate: requestDate,
   });

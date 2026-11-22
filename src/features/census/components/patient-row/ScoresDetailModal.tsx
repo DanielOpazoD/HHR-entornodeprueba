@@ -87,6 +87,7 @@ export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
                           ? 2
                           : (index + (event.key === 'ArrowRight' ? 1 : -1) + 3) % 3
                     ];
+                  if (!next) return;
                   setActive(next);
                   document.getElementById(`${id}-${next}`)?.focus();
                 }}

@@ -87,7 +87,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
     const result = StaffNameSchema.safeParse(trimmed);
 
     if (!result.success) {
-      setValidationError(result.error.issues[0].message);
+      setValidationError(result.error.issues[0]?.message ?? 'Nombre inválido.');
       return;
     }
 
@@ -113,7 +113,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
     const trimmed = editValue.trim();
     const result = StaffNameSchema.safeParse(trimmed);
     if (!result.success) {
-      setValidationError(result.error.issues[0].message);
+      setValidationError(result.error.issues[0]?.message ?? 'Nombre inválido.');
       return;
     }
 

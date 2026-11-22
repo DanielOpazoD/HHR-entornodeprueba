@@ -102,6 +102,9 @@ export const DemographicsOriginSection: React.FC<DemographicsOriginSectionProps>
     }
 
     const [, hour, minute] = match;
+    if (!hour || !minute) {
+      return;
+    }
     const nextAdmissionTime = resolveAdmissionTimeValue({ hour, minute });
 
     setDraftAdmissionTime({ hour, minute });

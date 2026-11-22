@@ -134,12 +134,13 @@ export const useCensusEmailRecipientsEditor = ({
 
   const startEditRecipient = useCallback(
     (index: number) => {
-      if (index < 0 || index >= safeRecipients.length) {
+      const recipient = safeRecipients[index];
+      if (recipient === undefined) {
         return;
       }
 
       setEditingIndex(index);
-      setEditingValue(safeRecipients[index]);
+      setEditingValue(recipient);
       setError(null);
     },
     [safeRecipients]

@@ -22,7 +22,11 @@ export const buildMovementRowActions = <TItem extends { id: string }>(
   item: TItem,
   handlers: MovementRowActionHandlers<TItem>,
   titles: MovementRowActionTitles = DEFAULT_ACTION_TITLES
-): CensusMovementActionDescriptor[] => [
+): [
+  CensusMovementActionDescriptor,
+  CensusMovementActionDescriptor,
+  CensusMovementActionDescriptor,
+] => [
   {
     kind: 'undo',
     title: titles.undo,

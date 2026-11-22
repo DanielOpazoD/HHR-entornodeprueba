@@ -85,7 +85,7 @@ const isValidCalendarDay = (year: number, month: number, day: number): boolean =
   if (month < 1 || month > 12 || day < 1) return false;
   const isLeapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
   const daysInMonth = [31, isLeapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  return day <= daysInMonth[month - 1];
+  return day <= (daysInMonth[month - 1] ?? 0);
 };
 
 const absoluteMomentFromRecordedAt = (recordedAt?: string): string => {
@@ -116,7 +116,8 @@ const localClockFromRecordedAt = (recordedAt?: string): string => {
   const raw = (recordedAt ?? '').trim();
 
   const match = raw.match(/(?:^|[T\s])(\d{1,2}):(\d{2})/);
-  return match ? `${match[1].padStart(2, '0')}:${match[2]}` : '';
+  const [, hour, minute] = match ?? [];
+  return hour && minute ? `${hour.padStart(2, '0')}:${minute}` : '';
 };
 
 const formatRecordedMoment = (recordedDate: string, recordedAt?: string): string => {

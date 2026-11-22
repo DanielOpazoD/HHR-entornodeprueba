@@ -71,7 +71,7 @@ export const useLabViewerAnalysis = ({
   }, [progress]);
 
   if (useChangedOnRender([isLoading, isAnalyzing]) && !isAnalyzing && isLoading) {
-    setProgress(SEARCH_STEPS[0]);
+    setProgress(SEARCH_STEPS[0] ?? null);
   }
   useEffect(() => {
     if (isAnalyzing) return;
@@ -91,8 +91,9 @@ export const useLabViewerAnalysis = ({
     let stepIndex = 1;
 
     const intervalId = setInterval(() => {
-      if (stepIndex < steps.length) {
-        setProgress(steps[stepIndex]);
+      const nextStep = steps[stepIndex];
+      if (nextStep) {
+        setProgress(nextStep);
         stepIndex += 1;
         return;
       }

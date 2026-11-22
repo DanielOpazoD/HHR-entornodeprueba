@@ -133,13 +133,17 @@ export const useSpecialtyRound = (date: string, disabled: boolean) => {
           setResult(key, { state: 'outdated' });
           continue;
         }
+        const canonicalLabel = labels[key];
+        if (!canonicalLabel) {
+          continue;
+        }
         const requestId = resultsRef.current[key]?.requestId ?? crypto.randomUUID();
         setResult(key, { state: 'consulting', requestId });
         setProgress(`Consultando Jev ${index + 1} de ${pending.length}…`);
         try {
           const suggestion = await service.requestSpecialtySuggestion(scope, requestId, {
             code: cie10Code,
-            canonicalLabel: labels[key]!,
+            canonicalLabel,
           });
           if (!activeRef.current) break;
           if (
@@ -148,13 +152,14 @@ export const useSpecialtyRound = (date: string, disabled: boolean) => {
           ) {
             setResult(key, { state: 'outdated' });
           } else {
+            const suggestedSpecialty = suggestion.specialty;
             setResult(key, {
-              state: suggestion.specialty ? 'ready' : 'review',
+              state: suggestedSpecialty ? 'ready' : 'review',
               requestId,
               suggestion,
             });
-            if (suggestion.specialty) {
-              setChoices(current => ({ ...current, [key]: suggestion.specialty! }));
+            if (suggestedSpecialty) {
+              setChoices(current => ({ ...current, [key]: suggestedSpecialty }));
             }
           }
         } catch (error) {
@@ -205,6 +210,9 @@ export const useSpecialtyRound = (date: string, disabled: boolean) => {
           continue;
         }
         const choice = choices[candidate.key];
+        if (!choice) {
+          continue;
+        }
         const previous = resultsRef.current[candidate.key];
         try {
           if (

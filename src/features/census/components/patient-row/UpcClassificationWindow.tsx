@@ -130,7 +130,7 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
 
   const toggleDraftUci = useCallback(
     (row: UpcClassificationRow) => (id: string) => {
-      episodeSnapshots.current[row.key] ??= row.episodeIdentity;
+      const episodeIdentity = (episodeSnapshots.current[row.key] ??= row.episodeIdentity);
       invalidateRecords();
       setCriteriaDrafts(current => {
         const draft = current[row.key] ?? criteriaOf(row);
@@ -139,7 +139,7 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
           : [...draft.uci, id];
         return {
           ...current,
-          [row.key]: { uci, uti: draft.uti, episodeIdentity: episodeSnapshots.current[row.key] },
+          [row.key]: { uci, uti: draft.uti, episodeIdentity },
         };
       });
     },
@@ -148,7 +148,7 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
 
   const toggleDraftUti = useCallback(
     (row: UpcClassificationRow) => (id: string) => {
-      episodeSnapshots.current[row.key] ??= row.episodeIdentity;
+      const episodeIdentity = (episodeSnapshots.current[row.key] ??= row.episodeIdentity);
       invalidateRecords();
       setCriteriaDrafts(current => {
         const draft = current[row.key] ?? criteriaOf(row);
@@ -157,7 +157,7 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
           : [...draft.uti, id];
         return {
           ...current,
-          [row.key]: { uci: draft.uci, uti, episodeIdentity: episodeSnapshots.current[row.key] },
+          [row.key]: { uci: draft.uci, uti, episodeIdentity },
         };
       });
     },

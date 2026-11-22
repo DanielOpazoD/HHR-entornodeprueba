@@ -25,7 +25,7 @@ export const resolveClinicalPanelNavigation = (
 
   if (currentIndex < 0) return { previous: null, next: null };
   return {
-    previous: currentIndex > 0 ? keys[currentIndex - 1] : null,
-    next: currentIndex < keys.length - 1 ? keys[currentIndex + 1] : null,
+    previous: currentIndex > 0 ? (keys[currentIndex - 1] ?? null) : null,
+    next: currentIndex < keys.length - 1 ? (keys[currentIndex + 1] ?? null) : null,
   };
 };

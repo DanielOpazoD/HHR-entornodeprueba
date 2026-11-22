@@ -82,7 +82,7 @@ export const summarizeCurrentDiagnoses = (
   return [...entries.values()]
     .map(({ specialties, ...entry }) => ({
       ...entry,
-      suggestedSpecialty: specialties.size === 1 ? [...specialties][0] : '',
+      suggestedSpecialty: specialties.size === 1 ? ([...specialties][0] ?? '') : '',
     }))
     .sort((a, b) => a.code.localeCompare(b.code));
 };

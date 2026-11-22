@@ -28,18 +28,20 @@ export const parseLabPatientBirthDateFromPdfText = (text: string): string | null
     .replace(/\p{Diacritic}/gu, '')
     .replace(/\s+/g, ' ');
 
-  const slashMatch = normalized.match(
-    /(?:Fecha\s*(?:de\s*)?Nac(?:imiento)?\.?|F\.\s*Nac\.?|Nacimiento)\s*:?\s*(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/i
-  );
-  if (slashMatch) {
-    return toIsoBirthDate(slashMatch[1], slashMatch[2], slashMatch[3]);
+  const [, slashDay, slashMonth, slashYear] =
+    normalized.match(
+      /(?:Fecha\s*(?:de\s*)?Nac(?:imiento)?\.?|F\.\s*Nac\.?|Nacimiento)\s*:?\s*(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/i
+    ) ?? [];
+  if (slashDay && slashMonth && slashYear) {
+    return toIsoBirthDate(slashDay, slashMonth, slashYear);
   }
 
-  const isoMatch = normalized.match(
-    /(?:Fecha\s*(?:de\s*)?Nac(?:imiento)?\.?|F\.\s*Nac\.?|Nacimiento)\s*:?\s*(\d{4})-(\d{1,2})-(\d{1,2})/i
-  );
-  if (isoMatch) {
-    return toIsoBirthDate(isoMatch[3], isoMatch[2], isoMatch[1]);
+  const [, isoYear, isoMonth, isoDay] =
+    normalized.match(
+      /(?:Fecha\s*(?:de\s*)?Nac(?:imiento)?\.?|F\.\s*Nac\.?|Nacimiento)\s*:?\s*(\d{4})-(\d{1,2})-(\d{1,2})/i
+    ) ?? [];
+  if (isoYear && isoMonth && isoDay) {
+    return toIsoBirthDate(isoDay, isoMonth, isoYear);
   }
 
   return null;

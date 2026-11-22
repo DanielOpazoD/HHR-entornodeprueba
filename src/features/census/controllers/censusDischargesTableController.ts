@@ -1,6 +1,7 @@
 import { hasNonRutLetter, normalizeRut } from '@/utils/rutUtils';
 import type { DischargeData } from '@/types/domain/movements';
 import { buildCensusMovementTableHeaders } from './censusMovementTableHeaders';
+import type { CensusMovementActionDescriptor } from '@/features/census/types/censusMovementActionTypes';
 import { buildMovementRowActions } from '@/features/census/controllers/censusMovementRowActionsController';
 import { canReclassifyHomeDischarge } from '@/application/census/movementTypeConversionPolicy';
 import { isClinicalCribDischarge } from '@/domain/movements/movementTombstonePolicy';
@@ -29,7 +30,7 @@ interface DischargeRowActionHandlers {
 export const buildDischargeRowActions = (
   discharge: DischargeData,
   handlers: DischargeRowActionHandlers
-): ReturnType<typeof buildMovementRowActions> => {
+): CensusMovementActionDescriptor[] => {
   const [undoAction, editAction, deleteAction] = buildMovementRowActions(discharge, {
     onUndo: handlers.undoDischarge,
     onEdit: handlers.editDischarge,

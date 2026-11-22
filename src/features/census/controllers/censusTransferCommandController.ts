@@ -51,8 +51,8 @@ export const resolveTransferCommand = ({
     transferEscort,
     time,
   });
-  if (transferValidationErrors.length > 0) {
-    const [firstError] = transferValidationErrors;
+  const [firstError] = transferValidationErrors;
+  if (firstError) {
     return fail(firstError);
   }
 

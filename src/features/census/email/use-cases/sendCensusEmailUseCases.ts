@@ -119,7 +119,7 @@ export const executeSendCensusEmail = async (
     let missingAny = false;
     for (let index = 0; index < integrityDates.length; index += 1) {
       const date = integrityDates[index];
-      if (presentDates.has(date)) continue;
+      if (!date || presentDates.has(date)) continue;
       missingAny = true;
       const previousDate = index > 0 ? integrityDates[index - 1] : undefined;
       try {
