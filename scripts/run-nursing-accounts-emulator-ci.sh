@@ -15,5 +15,7 @@ const ports = await pickEmulatorPorts(['auth', 'firestore', 'storage', 'hub', 'l
 for (const [name, port] of Object.entries(ports)) emulators[name] = { host: '127.0.0.1', port };
 fs.writeFileSync(process.argv[2], JSON.stringify({ firestore: { rules: path.resolve('firestore.rules') }, storage: { rules: path.resolve('storage.rules') }, emulators }));
 NODE
+"$firebase_bin" emulators:exec --config "$config" --project demo-hhr-nursing-handoff --only auth,firestore \
+  'npx vitest run -c vitest.emulator.config.ts src/tests/emulator/nursing-handoff-device.emulator.test.ts --maxWorkers=1'
 "$firebase_bin" emulators:exec --config "$config" --project demo-hhr-nursing-accounts --only auth,firestore,storage \
   'npx vitest run -c vitest.emulator.config.ts src/tests/emulator/nursing-accounts.emulator.test.ts --maxWorkers=1 && npx playwright test -c playwright.accounts.config.ts'

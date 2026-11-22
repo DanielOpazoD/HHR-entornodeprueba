@@ -137,6 +137,7 @@ function localActor(source, expectedKey) {
  *   clinicalNow?: () => Date,
  *   authorize?: (data: any) => any,
  *   resolveRoleForEmail?: (email: any, context?: any) => any,
+ *   assertWriteAccess?: (actor: any, transaction: any) => Promise<void>,
  *   origin?: string,
  *   census?: string,
  * }} deps
@@ -149,6 +150,7 @@ function createHandler({
   clinicalNow = () => new Date(),
   authorize = data => localActor(data.source, installationKey ?? process.env.HHR_HANDOFF_LOCAL_KEY),
   resolveRoleForEmail = () => 'nurse_hospital',
+  assertWriteAccess,
   origin = 'eloisa_nursing_handoff',
   census = 'censo local de pruebas',
 }) {
@@ -158,7 +160,8 @@ function createHandler({
     Timestamp,
     FieldValue,
     resolveRoleForEmail,
-    assertPatchBase(snapshot, data) {
+    async assertPatchBase(snapshot, data, transaction, actor) {
+      await assertWriteAccess?.(actor, transaction);
       const slot = clinicalSlot(clinicalNow());
       if (slot.date !== data.date || slot.shift !== data.shift) {
         fail('failed-precondition', 'Cambió el turno. Abre otra entrega.');

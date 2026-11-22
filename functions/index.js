@@ -42,11 +42,13 @@ const { createMmradDicomSantiagoFunction } = require('./lib/mmrad/mmradDicomSant
 
 const { createNursingHandoffDemoFunctions } = require('./lib/nursingHandoffExtension');
 const { createHostedNursingHandoff } = require('./lib/nursingHandoffHosted');
+const { createNursingHandoffDeviceFunctions } = require('./lib/nursingHandoffDevice');
 
 const authHelpers = createAuthHelpers({ auth, firestore });
 
 module.exports = {
   ...createNursingHandoffDemoFunctions({ firestore, Timestamp, FieldValue }),
+  ...createNursingHandoffDeviceFunctions({ firestore, auth, Timestamp, FieldValue }),
   nursingHandoffHosted: createHostedNursingHandoff({
     firestore,
     auth,

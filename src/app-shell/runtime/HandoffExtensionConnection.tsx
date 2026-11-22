@@ -11,18 +11,19 @@ export interface HandoffConnectionRequest {
   requestId: string;
   deviceId: string;
   challenge: string;
+  registerDevice: boolean;
 }
 
 export function readHandoffConnection(request: unknown): HandoffConnectionRequest | null {
   if (!request || typeof request !== 'object') return null;
-  const { requestId, deviceId, challenge } = request as Record<string, unknown>;
+  const { requestId, deviceId, challenge, registerDevice } = request as Record<string, unknown>;
   return typeof requestId === 'string' &&
     uuid.test(requestId) &&
     typeof deviceId === 'string' &&
     uuid.test(deviceId) &&
     typeof challenge === 'string' &&
     validChallenge.test(challenge)
-    ? { requestId, deviceId, challenge }
+    ? { requestId, deviceId, challenge, registerDevice: registerDevice === '1' }
     : null;
 }
 
@@ -46,7 +47,7 @@ export function HandoffExtensionConnection({ auth }: { auth: AuthContextType }) 
   }, [request]);
   if (!request) return null;
 
-  const finish = (expiresAt?: number) => {
+  const finish = (result?: { expiresAt: number } | { registered: true }) => {
     if (readConnectionFragment()?.requestId === request.requestId) {
       const { pathname, search } = window.location;
       window.history.replaceState(
@@ -56,7 +57,7 @@ export function HandoffExtensionConnection({ auth }: { auth: AuthContextType }) 
       );
     }
     window.postMessage(
-      { type: resultType, requestId: request.requestId, expiresAt },
+      { type: resultType, requestId: request.requestId, ...result },
       window.location.origin
     );
     setError('');
@@ -69,19 +70,30 @@ export function HandoffExtensionConnection({ auth }: { auth: AuthContextType }) 
     try {
       await defaultAuthRuntime.ready;
       if (defaultAuthRuntime.getCurrentUser()?.uid !== user.uid) throw new Error('session changed');
-      const { connectNursingHandoff } =
+      const { connectNursingHandoff, registerNursingHandoffDevice } =
         await import('@/services/handoff/nursingHandoffConnectionService');
       if (defaultAuthRuntime.getCurrentUser()?.uid !== user.uid) throw new Error('session changed');
-      const expiresAt = await connectNursingHandoff(request.deviceId, request.challenge);
-      if (
-        defaultAuthRuntime.getCurrentUser()?.uid !== user.uid ||
-        !Number.isFinite(expiresAt) ||
-        expiresAt <= Date.now()
-      )
-        throw new Error('session changed');
-      finish(expiresAt);
+      if (request.registerDevice) {
+        await registerNursingHandoffDevice(request.deviceId, request.challenge);
+        if (defaultAuthRuntime.getCurrentUser()?.uid !== user.uid)
+          throw new Error('session changed');
+        finish({ registered: true });
+      } else {
+        const expiresAt = await connectNursingHandoff(request.deviceId, request.challenge);
+        if (
+          defaultAuthRuntime.getCurrentUser()?.uid !== user.uid ||
+          !Number.isFinite(expiresAt) ||
+          expiresAt <= Date.now()
+        )
+          throw new Error('session changed');
+        finish({ expiresAt });
+      }
     } catch {
-      setError('No se pudo conectar. Comprueba tu sesión de HHR e inténtalo de nuevo.');
+      setError(
+        request.registerDevice
+          ? 'No se pudo registrar este equipo. Verifica tu cuenta individual de enfermería.'
+          : 'No se pudo conectar. Comprueba tu sesión de HHR e inténtalo de nuevo.'
+      );
     } finally {
       setBusy(false);
     }
@@ -102,7 +114,9 @@ export function HandoffExtensionConnection({ auth }: { auth: AuthContextType }) 
       </h1>
       {allowed && user ? (
         <p className="mt-2 text-sm text-slate-600">
-          Las entregas que guardes desde Eloísa quedarán a nombre de{' '}
+          {request.registerDevice
+            ? 'Este equipo quedará registrado para '
+            : 'Las entregas que guardes desde Eloísa quedarán a nombre de '}
           <strong>{user.displayName || user.email}</strong>.
         </p>
       ) : (
@@ -131,7 +145,13 @@ export function HandoffExtensionConnection({ auth }: { auth: AuthContextType }) 
             disabled={busy}
             onClick={() => void connect()}
           >
-            {busy ? 'Conectando…' : 'Conectar'}
+            {request.registerDevice
+              ? busy
+                ? 'Registrando…'
+                : 'Registrar equipo'
+              : busy
+                ? 'Conectando…'
+                : 'Conectar'}
           </button>
         )}
       </div>

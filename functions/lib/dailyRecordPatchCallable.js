@@ -120,7 +120,7 @@ const createPatchHandler =
           );
         }
 
-        if (assertPatchBase) await assertPatchBase(snapshot, data, transaction);
+        if (assertPatchBase) await assertPatchBase(snapshot, data, transaction, context);
         const remoteData = snapshot.data() || {};
         if (
           hasAlreadyAppliedMutation({

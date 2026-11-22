@@ -70,6 +70,24 @@
       ]
     },
     {
+      "id": "nursing_handoff_device",
+      "functionFile": "functions/lib/nursingHandoffDevice.js",
+      "endpoint": "nursingHandoffDevice",
+      "testFiles": [
+        "src/tests/functions/nursingHandoffDevice.test.ts",
+        "src/tests/emulator/nursing-handoff-device.emulator.test.ts"
+      ]
+    },
+    {
+      "id": "nursing_handoff_device_registration",
+      "functionFile": "functions/lib/nursingHandoffDevice.js",
+      "endpoint": "registerNursingHandoffDevice",
+      "testFiles": [
+        "src/tests/functions/nursingHandoffDevice.test.ts",
+        "src/tests/emulator/nursing-handoff-device.emulator.test.ts"
+      ]
+    },
+    {
       "id": "nursing_createNursingAccount",
       "functionFile": "functions/lib/accounts/accountFunctions.js",
       "endpoint": "createNursingAccount",
