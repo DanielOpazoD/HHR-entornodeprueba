@@ -44,8 +44,11 @@ const OPTIONAL_TARGETS: Record<string, string> = {
     'Handoff toolbar belongs to another route.',
   'src/features/census/components/demographics/DemographicsModal':
     'Demographics dialog opens on request.',
-  'src/components/modals/ExamRequestModal': 'Exam form opens on request.',
-  'src/components/modals/ImagingRequestDialog': 'Imaging form opens on request.',
+  'src/features/census/components/exam-request/ExamRequestModal': 'Exam form opens on request.',
+  'src/features/census/components/imaging-request/ImagingRequestDialog':
+    'Imaging form opens on request.',
+  'src/features/census/components/imaging-request/imagingRequestPdfService':
+    'Imaging request PDF generation loads only when printing or exporting an imaging request.',
   'src/components/modals/PatientHistoryModal': 'History opens on request.',
   'src/features/radiology/components/RadiologyViewerModal':
     'Imaging viewer opens on request and needs online images.',

@@ -1,14 +1,14 @@
 import React from 'react';
 import { FileText, Printer, UserRound } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
-import { ImagingRequestDialogProps } from './imaging/types';
-import { useImagingLogic } from './imaging/useImagingLogic';
-import { ImagingSidebar } from './imaging/ImagingSidebar';
-import { ImagingViewer } from './imaging/ImagingViewer';
+import { ImagingRequestDialogProps } from './types';
+import { useImagingLogic } from './useImagingLogic';
+import { ImagingSidebar } from './ImagingSidebar';
+import { ImagingViewer } from './ImagingViewer';
 import {
   buildImagingDialogShellModel,
   IMAGING_DOCUMENT_OPTIONS,
-} from './controllers/imagingRequestDialogController';
+} from './imagingRequestDialogController';
 
 export const ImagingRequestDialog: React.FC<ImagingRequestDialogProps> = ({
   isOpen,

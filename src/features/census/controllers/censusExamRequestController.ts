@@ -2,11 +2,11 @@ import type { PatientData } from '@/types/domain/patient';
 
 import type { BedDefinition } from '@/types/domain/beds';
 
-import type { ExamRequestCandidate } from '@/hooks/useExamRequestOrders';
+import type { ExamRequestCandidate } from '@/features/census/components/exam-request/useExamRequestOrders';
 import {
   hasExamRequestRecordIdentity,
   resolveExamRequestPatientIdentity,
-} from '@/components/modals/controllers/examRequestPatientIdentity';
+} from '@/features/census/components/exam-request/examRequestPatientIdentity';
 import { buildCensusBedRows } from './censusTableViewController';
 
 interface ListCensusExamRequestCandidatesParams {

@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import type { ExamRequestCandidate } from '@/hooks/useExamRequestOrders';
+import type { ExamRequestCandidate } from '@/features/census/components/exam-request/useExamRequestOrders';
 
 /**
  * Census day on which Shift + click on a name chooses patients for a laboratory order; null where

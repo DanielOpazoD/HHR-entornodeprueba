@@ -9,13 +9,13 @@ import type { PatientData } from '@/types/domain/patient';
 
 import { useCallback, useMemo, useState } from 'react';
 
-import { runExamRequestPrint } from '@/hooks/controllers/examRequestPrintController';
+import { runExamRequestPrint } from '@/features/census/components/exam-request/examRequestPrintController';
 import {
   buildExamRequestOpenState,
   toggleExamRequestSelection,
   type ExamRequestFreeTextField,
   type ExamRequestOpenState,
-} from '@/hooks/controllers/examRequestController';
+} from '@/features/census/components/exam-request/examRequestController';
 
 export interface ExamRequestCandidate {
   /** Who the order is for: bed and episode, never the bed alone (a bed is a place). */

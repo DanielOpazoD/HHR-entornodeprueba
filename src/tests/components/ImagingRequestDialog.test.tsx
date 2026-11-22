@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ImagingRequestDialog } from '@/components/modals/ImagingRequestDialog';
+import { ImagingRequestDialog } from '@/features/census/components/imaging-request/ImagingRequestDialog';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 
 // Mock the PDF service functions
-vi.mock('@/services/pdf/imagingRequestPdfService', () => ({
+vi.mock('@/features/census/components/imaging-request/imagingRequestPdfService', () => ({
   printImagingRequestForm: vi.fn(),
   printImagingEncuestaForm: vi.fn(),
   ENCUESTA_TEMPLATE_PATH: '/docs/encuesta-contraste.pdf',

@@ -17,7 +17,7 @@ vi.mock(
     return { ...actual, printHtmlDocument: (html: string) => mocks.print(html) };
   }
 );
-vi.mock('@/components/modals/ExamRequestModal', () => ({
+vi.mock('@/features/census/components/exam-request/ExamRequestModal', () => ({
   ExamRequestModal: ({
     patient,
     candidates,
@@ -35,7 +35,7 @@ vi.mock('@/components/modals/ExamRequestModal', () => ({
     </div>
   ),
 }));
-vi.mock('@/components/modals/ImagingRequestDialog', () => ({
+vi.mock('@/features/census/components/imaging-request/ImagingRequestDialog', () => ({
   ImagingRequestDialog: () => <div role="dialog" aria-label="Orden de imágenes" />,
 }));
 vi.mock('@/features/clinical-documents', () => ({

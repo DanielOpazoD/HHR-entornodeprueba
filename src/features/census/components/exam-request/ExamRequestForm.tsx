@@ -11,12 +11,12 @@ import type { PatientData } from '@/types/domain/patient';
 import type {
   ExamRequestFreeText,
   ExamRequestFreeTextField,
-} from '@/hooks/controllers/examRequestController';
+} from '@/features/census/components/exam-request/examRequestController';
 import {
   buildExamRequestFooterFields,
   buildExamRequestFooterSection,
   buildExamRequestFormColumns,
-} from '@/components/modals/controllers/examRequestModalController';
+} from '@/features/census/components/exam-request/examRequestModalController';
 import { ExamCheckbox } from './ExamCheckbox';
 import { ExamFormHeader } from './ExamFormHeader';
 import { ExamPatientInfo } from './ExamPatientInfo';

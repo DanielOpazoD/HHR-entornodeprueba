@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { DeviceSelector } from '@/components/DeviceSelector';
+import { DeviceSelector } from '@/features/census/components/device-selector/DeviceSelector';
 
 describe('DeviceSelector keyboard access', () => {
   it.each(['{Enter}', ' '])(

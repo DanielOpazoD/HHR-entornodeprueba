@@ -1,5 +1,5 @@
 import { useSyncExternalStore, type MouseEvent } from 'react';
-import type { ExamRequestCandidate } from '@/hooks/useExamRequestOrders';
+import type { ExamRequestCandidate } from '@/features/census/components/exam-request/useExamRequestOrders';
 import { onSessionChange } from '@/services/storage/sessionStorageTransition';
 
 interface ExamOrderSelection {

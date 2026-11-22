@@ -11,7 +11,7 @@ import { ClinicalExplorerPrintActions } from './ClinicalExplorerPrintActions';
 import { StatusDot, EXPLORER_ACTION_BUTTON, EXPLORER_ICON_BUTTON } from './clinicalExplorerUi';
 
 const LazyImagingRequestDialog = lazy(() =>
-  import('@/components/modals/ImagingRequestDialog').then(module => ({
+  import('@/features/census/components/imaging-request/ImagingRequestDialog').then(module => ({
     default: module.ImagingRequestDialog,
   }))
 );

@@ -4,8 +4,8 @@ import {
   captureExamRequestPrintSnapshot,
   restoreExamRequestPrintSnapshot,
   runExamRequestPrint,
-} from '@/hooks/controllers/examRequestPrintController';
-import { EXAM_REQUEST_PRINT_STYLES } from '@/components/modals/examRequestPrintStyles';
+} from '@/features/census/components/exam-request/examRequestPrintController';
+import { EXAM_REQUEST_PRINT_STYLES } from '@/features/census/components/exam-request/examRequestPrintStyles';
 
 describe('examRequestPrintController', () => {
   beforeEach(() => {

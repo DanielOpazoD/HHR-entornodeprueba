@@ -7,7 +7,7 @@ vi.mock('@/features/rayen-import/clinical-panel', async importOriginal => {
   const actual = await importOriginal<typeof import('@/features/rayen-import/clinical-panel')>();
   return { ...actual, requestClinicalPanel: (...args: unknown[]) => mocks.request(...args) };
 });
-vi.mock('@/components/modals/ImagingRequestDialog', () => ({
+vi.mock('@/features/census/components/imaging-request/ImagingRequestDialog', () => ({
   ImagingRequestDialog: () => <div role="dialog" aria-label="Orden de imágenes" />,
 }));
 vi.mock('@/features/clinical-documents', () => ({

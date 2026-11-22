@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { DeviceBadge } from '@/components/device-selector/DeviceBadge';
+import { DeviceBadge } from '@/features/census/components/device-selector/DeviceBadge';
 
 describe('DeviceBadge layout', () => {
   it('preserves installation details without an out-of-flow tooltip extending the table', () => {

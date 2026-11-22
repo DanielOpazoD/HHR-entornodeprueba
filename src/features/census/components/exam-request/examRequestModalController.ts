@@ -1,6 +1,9 @@
-import { getExamCategoryById, type ExamCategory } from '@/constants/examCategories';
+import {
+  getExamCategoryById,
+  type ExamCategory,
+} from '@/features/census/components/exam-request/examCategories';
 import type { PatientData } from '@/types/domain/patient';
-import type { ExamRequestFreeTextField } from '@/hooks/controllers/examRequestController';
+import type { ExamRequestFreeTextField } from '@/features/census/components/exam-request/examRequestController';
 
 interface ExamRequestSectionModel {
   title: string;

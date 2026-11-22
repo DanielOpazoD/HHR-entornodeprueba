@@ -2,8 +2,8 @@ import type { PDFDocument, PDFFont, PDFPage } from 'pdf-lib';
 
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 
-import { injectPrintScript } from './pdfBase';
-import { loadPdfLibGenerationRuntime } from './pdfLibRuntime';
+import { injectPrintScript } from '@/services/pdf/pdfBase';
+import { loadPdfLibGenerationRuntime } from '@/services/pdf/pdfLibRuntime';
 import type { CustomMark } from './pdfMarkTypes';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';

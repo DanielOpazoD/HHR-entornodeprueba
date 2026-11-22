@@ -12,18 +12,21 @@ import React, { useId, useMemo, useState } from 'react';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import { Printer, FlaskConical, UserRound } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
-import { useExamRequestOrders, type ExamRequestCandidate } from '@/hooks/useExamRequestOrders';
+import {
+  useExamRequestOrders,
+  type ExamRequestCandidate,
+} from '@/features/census/components/exam-request/useExamRequestOrders';
 import { useCurrentUserSignatureImage } from '@/hooks/useUserSignatureImage';
 import type { PatientData } from '@/types/domain/patient';
-import { EXAM_REQUEST_PRINT_STYLES } from '@/components/modals/examRequestPrintStyles';
-import { buildExamRequestModalShellModel } from '@/components/modals/controllers/examRequestModalController';
-import { resolveExamRequestPatientIdentity } from '@/components/modals/controllers/examRequestPatientIdentity';
-import { ExamRequestForm } from '@/components/exam-request/ExamRequestForm';
+import { EXAM_REQUEST_PRINT_STYLES } from '@/features/census/components/exam-request/examRequestPrintStyles';
+import { buildExamRequestModalShellModel } from '@/features/census/components/exam-request/examRequestModalController';
+import { resolveExamRequestPatientIdentity } from '@/features/census/components/exam-request/examRequestPatientIdentity';
+import { ExamRequestForm } from '@/features/census/components/exam-request/ExamRequestForm';
 import {
   ExamRequestPatientTabs,
   examRequestPanelId,
   examRequestTabId,
-} from '@/components/exam-request/ExamRequestPatientTabs';
+} from '@/features/census/components/exam-request/ExamRequestPatientTabs';
 
 interface ExamRequestModalProps {
   isOpen: boolean;

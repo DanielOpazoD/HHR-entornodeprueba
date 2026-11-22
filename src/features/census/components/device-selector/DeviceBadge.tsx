@@ -1,5 +1,5 @@
 import React from 'react';
-import { calculateDeviceDays } from './DeviceDateConfigModal';
+import { calculateDeviceDays } from '@/components/device-selector/DeviceDateConfigModal';
 import type { DeviceDetails } from '@/types/domain/devices';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { isNasogastricDevice } from '@/constants/clinicalDeviceConstants';

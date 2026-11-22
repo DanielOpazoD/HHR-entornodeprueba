@@ -12,7 +12,7 @@ import {
   fillConsentimientoForm,
   fillImagingEncuestaForm,
   fillImagingRequestForm,
-} from '@/services/pdf/imagingRequestPdfService';
+} from '@/features/census/components/imaging-request/imagingRequestPdfService';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 const standardFontDataUrl = path.resolve('node_modules/pdfjs-dist/standard_fonts') + path.sep;

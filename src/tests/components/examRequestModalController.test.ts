@@ -5,7 +5,7 @@ import {
   buildExamRequestFooterSection,
   buildExamRequestFormColumns,
   buildExamRequestModalShellModel,
-} from '@/components/modals/controllers/examRequestModalController';
+} from '@/features/census/components/exam-request/examRequestModalController';
 import type { PatientData } from '@/types/domain/patient';
 
 const mockPatient = {
