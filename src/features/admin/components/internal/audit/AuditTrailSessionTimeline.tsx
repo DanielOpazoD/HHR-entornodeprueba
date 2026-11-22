@@ -1,11 +1,11 @@
 import React from 'react';
 import clsx from 'clsx';
-import type { AuditTrailSession } from '@/types/auditTrailTypes';
+import type { AuditTrailSession } from '@/features/admin/types/auditTrailTypes';
 import {
   AUDIT_TRAIL_SESSION_END_LABELS,
   resolveAuditTrailSessionDurationMs,
-} from '@/services/admin/auditTrail/auditTrailSessions';
-import { formatAuditTrailDuration } from '@/services/admin/auditTrail/auditTrailValues';
+} from '@/features/admin/services/auditTrail/auditTrailSessions';
+import { formatAuditTrailDuration } from '@/features/admin/services/auditTrail/auditTrailValues';
 import {
   addClinicalDays,
   clinicalDayStartEpochMs,

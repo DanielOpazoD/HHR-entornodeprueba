@@ -29,7 +29,7 @@ vi.mock('@/features/census/components/global-search/usePatientSelection', () => 
     resetSelection: vi.fn(),
   }),
 }));
-vi.mock('@/hooks/usePatientAnalysis', () => ({ usePatientAnalysis: () => ({}) }));
+vi.mock('@/features/admin/hooks/usePatientAnalysis', () => ({ usePatientAnalysis: () => ({}) }));
 vi.mock('@/features/admin/components/internal/SyncPanel', () => ({ SyncPanel: () => null }));
 vi.mock('@/features/admin/components/internal/ConflictPanel', () => ({
   ConflictPanel: () => null,

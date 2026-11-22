@@ -1,4 +1,4 @@
-import type { AuditTrailCounts } from '@/types/auditTrailTypes';
+import type { AuditTrailCounts } from '@/features/admin/types/auditTrailTypes';
 import { formatClinicalClock, formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 
 export const pluralize = (count: number, singular: string, plural: string): string =>

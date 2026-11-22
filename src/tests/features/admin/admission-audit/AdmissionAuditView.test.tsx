@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   download: vi.fn(),
 }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ currentUser: mocks.user }) }));
-vi.mock('@/services/admin/admissionAuditCensus', () => ({
+vi.mock('@/features/admin/services/admissionAuditCensus', () => ({
   readAdmissionAuditCensus: (...args: unknown[]) => mocks.read(...args),
 }));
 vi.mock('@/services/exporters/exportDownload', () => ({

@@ -1,12 +1,12 @@
 import type { Workbook, Worksheet } from 'exceljs';
-import type { AuditTrailEvent, AuditTrailSession } from '@/types/auditTrailTypes';
-import { createWorkbook } from './excelUtils';
+import type { AuditTrailEvent, AuditTrailSession } from '@/features/admin/types/auditTrailTypes';
+import { createWorkbook } from '@/services/exporters/excelUtils';
 import {
   AUDIT_TRAIL_EVENT_EXPORT_HEADERS,
   AUDIT_TRAIL_SESSION_EXPORT_HEADERS,
   buildAuditTrailEventExportRows,
   buildAuditTrailSessionExportRows,
-} from '@/services/admin/auditTrail/auditTrailExportRows';
+} from '@/features/admin/services/auditTrail/auditTrailExportRows';
 
 const addTable = (sheet: Worksheet, headers: string[], rows: string[][]): void => {
   const header = sheet.addRow(headers);

@@ -3,12 +3,12 @@ import { saveDetailed as saveDailyRecordDetailed } from '@/services/repositories
 import { logAuditEvent } from '@/services/admin/auditService';
 import { getCurrentUserEmail } from '@/services/admin/utils/auditUtils';
 import { dataMaintenanceLogger } from '@/services/admin/adminLoggers';
-import { buildAdmissionDateBackfillPlan } from '@/services/admin/admissionDateBackfillPlanner';
-import type { AdmissionDateBackfillResult } from '@/services/admin/admissionDateBackfillTypes';
+import { buildAdmissionDateBackfillPlan } from '@/features/admin/services/admissionDateBackfillPlanner';
+import type { AdmissionDateBackfillResult } from '@/features/admin/services/admissionDateBackfillTypes';
 export type {
   AdmissionDateBackfillResult,
   AdmissionDateBackfillSample,
-} from '@/services/admin/admissionDateBackfillTypes';
+} from '@/features/admin/services/admissionDateBackfillTypes';
 
 const summarizeBackfillPlan = (
   plan: Awaited<ReturnType<typeof buildAdmissionDateBackfillPlan>>

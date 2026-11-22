@@ -3,7 +3,7 @@ import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { Search, UploadCloud, AlertTriangle } from 'lucide-react';
 import { PatientMasterRepository } from '@/services/repositories/PatientMasterRepository';
 import type { MasterPatient } from '@/types/domain/patientMaster';
-import { usePatientAnalysis } from '@/hooks/usePatientAnalysis';
+import { usePatientAnalysis } from '@/features/admin/hooks/usePatientAnalysis';
 import { PatientExplorer } from './PatientExplorer';
 import { SyncPanel } from './SyncPanel';
 import { ConflictPanel } from './ConflictPanel';

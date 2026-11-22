@@ -12,8 +12,8 @@ vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
 }));
 
 import { reportRayenSyncTerminal } from '@/features/rayen-import/observability/rayenSyncDiagnostics';
-import { buildServiceSummaries } from '@/services/admin/functionsTelemetryService';
-import type { FunctionsTelemetryEntry } from '@/types/functionsTelemetry';
+import { buildServiceSummaries } from '@/features/admin/services/functionsTelemetryService';
+import type { FunctionsTelemetryEntry } from '@/features/admin/types/functionsTelemetry';
 
 const run = { id: 'run-42', startedAt: '2026-09-10T12:33:35.000Z' };
 

@@ -24,7 +24,7 @@ import {
   exportMonthRecordsWithOutcome,
   exportYearToDateRecordsWithOutcome,
   importRecordsFromBackup,
-} from '@/services/admin/dataMaintenanceService';
+} from '@/features/admin/services/dataMaintenanceService';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({

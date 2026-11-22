@@ -11,7 +11,7 @@
 import type {
   PatientAnalysisPatientContract,
   PatientAnalysisRecordContract,
-} from '@/application/patient-flow/patientAnalysisContracts';
+} from '@/features/admin/patient-flow/patientAnalysisContracts';
 import type { MasterPatient } from '@/types/domain/patientMaster';
 import { formatRut, isValidRut } from '@/utils/rutUtils';
 

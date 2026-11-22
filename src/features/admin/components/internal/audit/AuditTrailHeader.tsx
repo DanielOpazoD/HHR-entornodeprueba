@@ -9,7 +9,7 @@ import {
   shiftAuditTrailPeriod,
   type AuditTrailPeriod,
   type AuditTrailPeriodKind,
-} from '@/services/admin/auditTrail/auditTrailPeriod';
+} from '@/features/admin/services/auditTrail/auditTrailPeriod';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { FOCUS_RING } from './auditTrailDisplay';
 

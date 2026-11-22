@@ -9,7 +9,7 @@ import {
   type DailyRestorePreview,
   type DailyRestoreResult,
   type DailyRestoreSummary,
-} from '@/services/admin/dailyRecordRestoreService';
+} from '@/features/admin/services/dailyRecordRestoreService';
 import { canUseAdminMaintenanceActions } from '@/shared/access/operationalAccessPolicy';
 
 type State =

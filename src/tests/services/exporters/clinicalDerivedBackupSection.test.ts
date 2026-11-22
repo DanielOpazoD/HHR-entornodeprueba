@@ -61,7 +61,7 @@ import {
   importRecordsFromBackup,
   type MonthBackup,
   type YearToDateBackup,
-} from '@/services/admin/dataMaintenanceService';
+} from '@/features/admin/services/dataMaintenanceService';
 
 const GENERATION = 'gen_synthetic_a';
 

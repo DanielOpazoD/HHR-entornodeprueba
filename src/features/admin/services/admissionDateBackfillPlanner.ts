@@ -16,7 +16,7 @@ import type {
   AdmissionDateBackfillPlan,
   AdmissionDateBackfillSample,
   BackfillTarget,
-} from '@/services/admin/admissionDateBackfillTypes';
+} from '@/features/admin/services/admissionDateBackfillTypes';
 
 const normalizeRutKey = (rut: string): string =>
   rut

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { summarizeBackupImportOutcome } from '@/hooks/controllers/backupImportFeedbackController';
+import { summarizeBackupImportOutcome } from '@/features/admin/hooks/backupImportFeedbackController';
 
 describe('backupImportFeedbackController', () => {
   it('summarizes repaired and partial imports', () => {

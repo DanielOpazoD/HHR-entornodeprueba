@@ -29,7 +29,7 @@ vi.mock('@/services/admin/utils/auditUtils', () => ({
   getCurrentUserEmail: () => 'admin@example.invalid',
 }));
 
-import { importRecordsFromBackup } from '@/services/admin/dataMaintenanceService';
+import { importRecordsFromBackup } from '@/features/admin/services/dataMaintenanceService';
 vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
   saveDetailed: mocks.saveRemote,
 }));

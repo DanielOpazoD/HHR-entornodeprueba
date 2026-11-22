@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { generateAuditWorkbook } from '@/services/exporters/auditWorkbook';
-import { normalizeAuditTrailEvents } from '@/services/admin/auditTrail/auditTrailNormalize';
-import { buildAuditTrailSessions } from '@/services/admin/auditTrail/auditTrailSessions';
+import { generateAuditWorkbook } from '@/features/admin/services/auditWorkbook';
+import { normalizeAuditTrailEvents } from '@/features/admin/services/auditTrail/auditTrailNormalize';
+import { buildAuditTrailSessions } from '@/features/admin/services/auditTrail/auditTrailSessions';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
 
 const logs: AuditLogEntry[] = [

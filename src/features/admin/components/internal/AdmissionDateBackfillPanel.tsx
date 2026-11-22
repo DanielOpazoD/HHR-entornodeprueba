@@ -1,7 +1,7 @@
 import React from 'react';
 import { AlertCircle, Search, Wrench } from 'lucide-react';
 import clsx from 'clsx';
-import type { AdmissionDateBackfillResult } from '@/services/admin/admissionDateBackfillService';
+import type { AdmissionDateBackfillResult } from '@/features/admin/services/admissionDateBackfillService';
 
 interface AdmissionDateBackfillPanelProps {
   isAuditing: boolean;

@@ -2,7 +2,7 @@ import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeader
 import {
   CLINICAL_AI_PROVIDERS,
   type ClinicalAIProvider,
-} from '@/shared/ai/clinicalAIProviderRouting';
+} from '@/features/admin/domain/clinicalAIProviderRouting';
 
 export interface ClinicalAIProviderStatus {
   provider: ClinicalAIProvider;

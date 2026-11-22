@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildDailyRecordAuthorityRolloutSummary,
   buildRayenClinicalEnrichmentRolloutSummary,
-} from '@/services/admin/functionsTelemetryService';
-import type { FunctionsTelemetryEntry } from '@/types/functionsTelemetry';
+} from '@/features/admin/services/functionsTelemetryService';
+import type { FunctionsTelemetryEntry } from '@/features/admin/types/functionsTelemetry';
 
 const makeEntry = (
   id: string,

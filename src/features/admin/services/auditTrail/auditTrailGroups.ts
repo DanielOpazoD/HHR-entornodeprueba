@@ -5,7 +5,7 @@ import type {
   AuditTrailGrouping,
   AuditTrailLine,
   AuditTrailSession,
-} from '@/types/auditTrailTypes';
+} from '@/features/admin/types/auditTrailTypes';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 

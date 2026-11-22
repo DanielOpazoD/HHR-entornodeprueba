@@ -1,28 +1,28 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { normalizeAuditTrailEvents } from '@/services/admin/auditTrail/auditTrailNormalize';
+import { normalizeAuditTrailEvents } from '@/features/admin/services/auditTrail/auditTrailNormalize';
 import {
   buildAuditTrailActorOptions,
   filterAuditTrailEvents,
   summarizeAuditTrail,
   type AuditTrailFilters,
-} from '@/services/admin/auditTrail/auditTrailFilters';
+} from '@/features/admin/services/auditTrail/auditTrailFilters';
 import {
   buildAuditTrailPeriod,
   buildAuditTrailRange,
   formatAuditTrailPeriod,
   resolveAuditTrailQueryRange,
   shiftAuditTrailPeriod,
-} from '@/services/admin/auditTrail/auditTrailPeriod';
+} from '@/features/admin/services/auditTrail/auditTrailPeriod';
 import {
   DEFAULT_AUDIT_TRAIL_VIEW,
   parseAuditTrailViewPreferences,
   serializeAuditTrailViewPreferences,
-} from '@/services/admin/auditTrail/auditTrailPreferences';
+} from '@/features/admin/services/auditTrail/auditTrailPreferences';
 import {
   AUDIT_TRAIL_EVENT_EXPORT_HEADERS,
   buildAuditTrailEventExportRows,
-} from '@/services/admin/auditTrail/auditTrailExportRows';
+} from '@/features/admin/services/auditTrail/auditTrailExportRows';
 import { auditLog, patientDetails } from './auditTrailFixtures';
 
 const events = normalizeAuditTrailEvents([

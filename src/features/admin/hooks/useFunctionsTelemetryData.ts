@@ -4,11 +4,11 @@ import {
   buildRayenClinicalEnrichmentRolloutSummary,
   buildServiceSummaries,
   fetchFunctionsTelemetry,
-} from '@/services/admin/functionsTelemetryService';
+} from '@/features/admin/services/functionsTelemetryService';
 import type {
   FunctionsTelemetryEntry,
   FunctionsTelemetryFilters,
-} from '@/types/functionsTelemetry';
+} from '@/features/admin/types/functionsTelemetry';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const DEFAULT_LIMIT = 500;

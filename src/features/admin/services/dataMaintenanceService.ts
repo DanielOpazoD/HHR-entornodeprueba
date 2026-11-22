@@ -8,8 +8,8 @@ import { captureAuthoringSession } from '@/services/storage/authoringSession';
 
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { saveDetailed as saveDailyRecordDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { logAuditEvent } from './auditService';
-import { getCurrentUserEmail } from './utils/auditUtils';
+import { logAuditEvent } from '@/services/admin/auditService';
+import { getCurrentUserEmail } from '@/services/admin/utils/auditUtils';
 import { hasStructuralRepairs, parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
 import { dataMaintenanceLogger } from '@/services/admin/adminLoggers';
 import { getRecordForDateStrict } from '@/services/storage/indexeddb/indexedDbRecordService';
@@ -35,7 +35,7 @@ import {
   resolveMonthDateRange,
   resolveYearToDateFileSuffix,
   resolveYearToDateRange,
-} from '@/services/admin/dataMaintenanceSupport';
+} from '@/features/admin/services/dataMaintenanceSupport';
 
 export interface MonthBackup {
   version: string;

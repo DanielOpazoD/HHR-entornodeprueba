@@ -1,5 +1,5 @@
-import type { AuditAction } from './auditActionTypes';
-import type { AuditLogEntry } from './auditLogTypes';
+import type { AuditAction } from '@/types/auditActionTypes';
+import type { AuditLogEntry } from '@/types/auditLogTypes';
 
 /** What an audit event records: a clinical change, an access, a connection or a system step. */
 export type AuditTrailCategory = 'change' | 'access' | 'connection' | 'system';

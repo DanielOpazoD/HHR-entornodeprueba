@@ -9,32 +9,32 @@ import type {
   AuditTrailEvent,
   AuditTrailGroup,
   AuditTrailSession,
-} from '@/types/auditTrailTypes';
-import { AUDIT_TRAIL_CATEGORY_ORDER } from '@/services/admin/auditTrail/auditTrailCatalog';
-import { normalizeAuditTrailEvents } from '@/services/admin/auditTrail/auditTrailNormalize';
+} from '@/features/admin/types/auditTrailTypes';
+import { AUDIT_TRAIL_CATEGORY_ORDER } from '@/features/admin/services/auditTrail/auditTrailCatalog';
+import { normalizeAuditTrailEvents } from '@/features/admin/services/auditTrail/auditTrailNormalize';
 import {
   buildAuditTrailSessions,
   resolveAuditTrailBoundaryIds,
-} from '@/services/admin/auditTrail/auditTrailSessions';
-import { buildAuditTrailGroups } from '@/services/admin/auditTrail/auditTrailGroups';
+} from '@/features/admin/services/auditTrail/auditTrailSessions';
+import { buildAuditTrailGroups } from '@/features/admin/services/auditTrail/auditTrailGroups';
 import {
   buildAuditTrailActorOptions,
   filterAuditTrailEvents,
   summarizeAuditTrail,
   type AuditTrailActorOption,
   type AuditTrailSummary,
-} from '@/services/admin/auditTrail/auditTrailFilters';
+} from '@/features/admin/services/auditTrail/auditTrailFilters';
 import {
   buildAuditTrailPeriod,
   resolveAuditTrailQueryRange,
   type AuditTrailPeriod,
-} from '@/services/admin/auditTrail/auditTrailPeriod';
+} from '@/features/admin/services/auditTrail/auditTrailPeriod';
 import {
   AUDIT_TRAIL_VIEW_STORAGE_KEY,
   parseAuditTrailViewPreferences,
   serializeAuditTrailViewPreferences,
   type AuditTrailViewPreferences,
-} from '@/services/admin/auditTrail/auditTrailPreferences';
+} from '@/features/admin/services/auditTrail/auditTrailPreferences';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 
 /** Upper bound per period; the screen says so when it is reached. */

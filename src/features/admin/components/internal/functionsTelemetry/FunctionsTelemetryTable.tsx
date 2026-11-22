@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Timer } from 'lucide-react';
-import type { FunctionsTelemetryEntry } from '@/types/functionsTelemetry';
+import type { FunctionsTelemetryEntry } from '@/features/admin/types/functionsTelemetry';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 interface Props {

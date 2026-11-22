@@ -3,7 +3,7 @@ import { AlertTriangle, Gauge, ShieldCheck } from 'lucide-react';
 import type {
   RayenClinicalEnrichmentRolloutRecommendation,
   RayenClinicalEnrichmentRolloutSummary,
-} from '@/types/functionsTelemetry';
+} from '@/features/admin/types/functionsTelemetry';
 
 interface Props {
   summary: RayenClinicalEnrichmentRolloutSummary;

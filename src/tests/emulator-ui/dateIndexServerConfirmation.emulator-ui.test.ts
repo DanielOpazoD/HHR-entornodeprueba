@@ -14,7 +14,7 @@ import {
 } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { copyPatientToDateDetailed } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import { fetchExistingDaysInMonth } from '@/services/records/recordQueryService';
-import { auditAdmissionDateBackfill } from '@/services/admin/admissionDateBackfillService';
+import { auditAdmissionDateBackfill } from '@/features/admin/services/admissionDateBackfillService';
 
 let activeDb: unknown;
 vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({

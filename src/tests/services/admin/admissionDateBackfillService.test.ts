@@ -13,7 +13,7 @@ const { mockGetAvailableDates, mockGetForDate, mockSaveDetailed, mockLogAuditEve
 import {
   auditAdmissionDateBackfill,
   applyAdmissionDateBackfill,
-} from '@/services/admin/admissionDateBackfillService';
+} from '@/features/admin/services/admissionDateBackfillService';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 vi.mock('@/services/repositories/dailyRecordRepositoryReadService', () => ({

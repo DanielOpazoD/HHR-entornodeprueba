@@ -4,7 +4,7 @@ import type {
   DailyRecordWritePort,
 } from '@/application/ports/dailyRecordPort';
 import type { AuditPort } from '@/application/ports/auditPort';
-import type { PatientAnalysisRecordContract } from '@/application/patient-flow/patientAnalysisContracts';
+import type { PatientAnalysisRecordContract } from '@/features/admin/patient-flow/patientAnalysisContracts';
 import type { MasterPatient } from '@/types/domain/patientMaster';
 import {
   type Conflict,

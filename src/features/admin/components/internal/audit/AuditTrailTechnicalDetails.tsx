@@ -1,7 +1,7 @@
 import React from 'react';
 import clsx from 'clsx';
 import { Copy } from 'lucide-react';
-import type { AuditTrailEvent } from '@/types/auditTrailTypes';
+import type { AuditTrailEvent } from '@/features/admin/types/auditTrailTypes';
 import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { formatClinicalClock, formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 import { FOCUS_RING } from './auditTrailDisplay';
