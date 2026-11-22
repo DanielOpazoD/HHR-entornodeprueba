@@ -1,5 +1,4 @@
 import React, { lazy, Suspense } from 'react';
-import type { DragEvent } from 'react';
 import {
   AlignJustify,
   ArrowDown,
@@ -11,7 +10,6 @@ import {
 } from 'lucide-react';
 
 import { ClinicalDocumentIndicationsPanel } from '@/features/clinical-documents/components/ClinicalDocumentIndicationsPanel';
-import type { ClinicalDocumentIeehDraft } from '@/application/shared/ieehContracts';
 
 const ClinicalDocumentIeehPanel = lazy(() =>
   import('@/features/clinical-documents/components/ClinicalDocumentIeehPanel').then(m => ({
@@ -29,107 +27,31 @@ import {
   resolveClinicalDocumentPlanSectionLayout,
 } from '@/features/clinical-documents/controllers/clinicalDocumentPlanSectionController';
 import type {
-  ClinicalDocumentSheetEditorApi,
-  ClinicalDocumentSheetProps,
+  ClinicalDocumentSheetEditorState,
+  ClinicalDocumentSheetIeehBinding,
+  ClinicalDocumentSheetIndicationsBinding,
+  ClinicalDocumentSheetSectionActions,
 } from '@/features/clinical-documents/components/clinicalDocumentSheetShared';
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
-import type { ClinicalDocumentPlanSubsectionId } from '@/features/clinical-documents/controllers/clinicalDocumentPlanSectionController';
-import type { ClinicalDocumentIndicationSpecialtyId } from '@/features/clinical-documents/controllers/clinicalDocumentIndicationsController';
 
 interface ClinicalDocumentSectionListProps {
   document: ClinicalDocumentRecord;
   visibleSections: ClinicalDocumentRecord['sections'];
   canEdit: boolean;
-  activeTitleTarget: string | null;
-  activeEditorSectionId: string | null;
-  draggedSectionId: string | null;
-  dragOverSectionId: string | null;
-  activePlanSubsectionId: ClinicalDocumentPlanSubsectionId;
-  activeIndicationsSpecialtyId: ClinicalDocumentIndicationSpecialtyId;
-  isIndicationsPanelOpen: boolean;
-  indicationsCatalog: ClinicalDocumentSheetProps['indicationsCatalog'];
-  isSavingCustomIndication: boolean;
-  customIndicationError: string | null;
-  onSetActiveTitleTarget: React.Dispatch<React.SetStateAction<string | null>>;
-  onPatchSectionTitle: (sectionId: string, title: string) => void;
-  onPatchSection: (sectionId: string, content: string) => void;
-  onSetSectionLayout: ClinicalDocumentSheetProps['setSectionLayout'];
-  onSetSectionVisibility: (sectionId: string, visible: boolean) => void;
-  onMoveSection: (sectionId: string, direction: 'up' | 'down') => void;
-  onReorderSection: (sourceSectionId: string, targetSectionId: string) => void;
-  onAddSection: (referenceSectionId: string, position: 'above' | 'below') => void;
-  onEditorActivate: (activeSectionId: string, editorApi: ClinicalDocumentSheetEditorApi) => void;
-  onEditorDeactivate: (sectionId: string) => void;
-  onUploadPastedImage: ClinicalDocumentSheetProps['onUploadPastedImage'];
-  onImagePasteRejected: (message: string) => void;
-  onPatchIeehDraft: (draft: ClinicalDocumentIeehDraft) => void;
-  onClearIeehDraft: () => void;
-  /** Workspace patient data (provides birthDate for IEEH printing). */
-  workspacePatient?: { birthDate?: string };
-  onSetActivePlanSubsectionId: (subsectionId: ClinicalDocumentPlanSubsectionId) => void;
-  onSetActiveIndicationsSpecialtyId: (specialtyId: ClinicalDocumentIndicationSpecialtyId) => void;
-  onToggleIndicationsPanel: () => void;
-  onCreateIndicationsTab: ClinicalDocumentSheetProps['createIndicationsTab'];
-  onRenameIndicationsTab: ClinicalDocumentSheetProps['renameIndicationsTab'];
-  onDeleteIndicationsTab: ClinicalDocumentSheetProps['deleteIndicationsTab'];
-  onReorderIndicationsTab: ClinicalDocumentSheetProps['reorderIndicationsTab'];
-  onAddCustomIndication: ClinicalDocumentSheetProps['addCustomIndication'];
-  onUpdateIndication: ClinicalDocumentSheetProps['updateIndication'];
-  onDeleteIndication: ClinicalDocumentSheetProps['deleteIndication'];
-  onImportIndicationsCatalog: ClinicalDocumentSheetProps['importIndicationsCatalog'];
-  onPatchUpdateDate?: (sectionId: string, date: string) => void;
-  onPatchUpdateTime?: (sectionId: string, time: string) => void;
-  dragHandlers: {
-    onDragStart: (event: DragEvent<HTMLButtonElement>, sectionId: string) => void;
-    onDragOver: (event: DragEvent<HTMLElement>, sectionId: string, canInteract: boolean) => void;
-    onDragLeave: (sectionId: string) => void;
-    onDragEnd: () => void;
-  };
+  sectionActions: ClinicalDocumentSheetSectionActions;
+  editorState: ClinicalDocumentSheetEditorState;
+  indications: ClinicalDocumentSheetIndicationsBinding;
+  ieeh: ClinicalDocumentSheetIeehBinding;
 }
 
 export const ClinicalDocumentSectionList: React.FC<ClinicalDocumentSectionListProps> = ({
   document,
   visibleSections,
   canEdit,
-  activeTitleTarget,
-  activeEditorSectionId,
-  draggedSectionId,
-  dragOverSectionId,
-  activePlanSubsectionId,
-  activeIndicationsSpecialtyId,
-  isIndicationsPanelOpen,
-  indicationsCatalog,
-  isSavingCustomIndication,
-  customIndicationError,
-  onSetActiveTitleTarget,
-  onPatchSectionTitle,
-  onPatchSection,
-  onSetSectionLayout,
-  onSetSectionVisibility,
-  onMoveSection,
-  onReorderSection,
-  onAddSection,
-  onEditorActivate,
-  onEditorDeactivate,
-  onUploadPastedImage,
-  onImagePasteRejected,
-  onPatchIeehDraft,
-  onClearIeehDraft,
-  workspacePatient,
-  onSetActivePlanSubsectionId,
-  onSetActiveIndicationsSpecialtyId,
-  onToggleIndicationsPanel,
-  onCreateIndicationsTab,
-  onRenameIndicationsTab,
-  onDeleteIndicationsTab,
-  onReorderIndicationsTab,
-  onAddCustomIndication,
-  onUpdateIndication,
-  onDeleteIndication,
-  onImportIndicationsCatalog,
-  onPatchUpdateDate,
-  onPatchUpdateTime,
-  dragHandlers,
+  sectionActions,
+  editorState,
+  indications,
+  ieeh,
 }) => {
   const [insertMenuSectionId, setInsertMenuSectionId] = React.useState<string | null>(null);
 
@@ -143,22 +65,23 @@ export const ClinicalDocumentSectionList: React.FC<ClinicalDocumentSectionListPr
             key={section.id}
             data-clinical-section-id={section.id}
             className={`block clinical-document-section-block${
-              dragOverSectionId === section.id ? ' is-drag-over' : ''
-            }${activeTitleTarget === `section:${section.id}` ? ' is-title-active' : ''}${
-              activeEditorSectionId === section.id ? ' is-editor-active' : ''
+              editorState.dragOverSectionId === section.id ? ' is-drag-over' : ''
+            }${editorState.activeTitleTarget === `section:${section.id}` ? ' is-title-active' : ''}${
+              editorState.activeEditorSectionId === section.id ? ' is-editor-active' : ''
             }`}
             onDragOver={event =>
-              dragHandlers.onDragOver(event, section.id, canEdit && !document.isLocked)
+              editorState.dragHandlers.onDragOver(event, section.id, canEdit && !document.isLocked)
             }
-            onDragLeave={() => dragHandlers.onDragLeave(section.id)}
+            onDragLeave={() => editorState.dragHandlers.onDragLeave(section.id)}
             onDrop={event => {
               if (!canEdit || document.isLocked) return;
               event.preventDefault();
-              const sourceSectionId = event.dataTransfer.getData('text/plain') || draggedSectionId;
+              const sourceSectionId =
+                event.dataTransfer.getData('text/plain') || editorState.draggedSectionId;
               if (sourceSectionId && sourceSectionId !== section.id) {
-                onReorderSection(sourceSectionId, section.id);
+                sectionActions.reorderSection(sourceSectionId, section.id);
               }
-              dragHandlers.onDragEnd();
+              editorState.dragHandlers.onDragEnd();
             }}
           >
             {/* Drag handle removed — sections are reordered via arrow buttons */}
@@ -167,10 +90,10 @@ export const ClinicalDocumentSectionList: React.FC<ClinicalDocumentSectionListPr
                 <div className="clinical-document-field-label-row clinical-document-section-header-row relative">
                   <InlineEditableTitle
                     value={section.title}
-                    onChange={title => onPatchSectionTitle(section.id, title)}
-                    onActivate={() => onSetActiveTitleTarget(`section:${section.id}`)}
+                    onChange={title => sectionActions.patchSectionTitle(section.id, title)}
+                    onActivate={() => editorState.onSetActiveTitleTarget(`section:${section.id}`)}
                     onDeactivate={() =>
-                      onSetActiveTitleTarget(current =>
+                      editorState.onSetActiveTitleTarget(current =>
                         current === `section:${section.id}` ? null : current
                       )
                     }
@@ -184,8 +107,8 @@ export const ClinicalDocumentSectionList: React.FC<ClinicalDocumentSectionListPr
                       date={section.updateDate}
                       time={section.updateTime}
                       canEdit={canEdit && !document.isLocked}
-                      onPatchDate={onPatchUpdateDate}
-                      onPatchTime={onPatchUpdateTime}
+                      onPatchDate={sectionActions.patchUpdateDate}
+                      onPatchTime={sectionActions.patchUpdateTime}
                     />
                   )}
                   {document.documentType === 'epicrisis' &&
@@ -198,8 +121,8 @@ export const ClinicalDocumentSectionList: React.FC<ClinicalDocumentSectionListPr
                         onMouseDown={event => event.preventDefault()}
                         onClick={() => {
                           const nextLayout = planLayout === 'unified' ? 'structured' : 'unified';
-                          onSetSectionLayout(section.id, nextLayout);
-                          onPatchSection(
+                          sectionActions.setSectionLayout(section.id, nextLayout);
+                          sectionActions.patchSection(
                             section.id,
                             nextLayout === 'unified'
                               ? buildUnifiedClinicalDocumentPlanSectionContent(section.content)
@@ -224,36 +147,36 @@ export const ClinicalDocumentSectionList: React.FC<ClinicalDocumentSectionListPr
                     section.id === 'plan' &&
                     !document.isLocked && (
                       <ClinicalDocumentIndicationsPanel
-                        isOpen={isIndicationsPanelOpen}
+                        isOpen={indications.isPanelOpen}
                         canEdit={canEdit && !document.isLocked}
-                        catalog={indicationsCatalog}
-                        isSavingCustomIndication={isSavingCustomIndication}
-                        customIndicationError={customIndicationError}
-                        onToggle={onToggleIndicationsPanel}
+                        catalog={indications.catalog}
+                        isSavingCustomIndication={indications.isSavingCustomIndication}
+                        customIndicationError={indications.customIndicationError}
+                        onToggle={indications.onTogglePanel}
                         onInsertIndication={text =>
-                          onPatchSection(
+                          sectionActions.patchSection(
                             section.id,
                             planLayout === 'unified'
                               ? appendClinicalDocumentUnifiedPlanText(section.content, text)
                               : appendClinicalDocumentPlanSubsectionText(
                                   section.content,
-                                  activePlanSubsectionId,
+                                  editorState.activePlanSubsectionId,
                                   text
                                 )
                           )
                         }
-                        onCreateTab={onCreateIndicationsTab}
-                        onRenameTab={onRenameIndicationsTab}
-                        onDeleteTab={onDeleteIndicationsTab}
-                        onAddCustomIndication={onAddCustomIndication}
-                        onUpdateIndication={onUpdateIndication}
-                        onDeleteIndication={onDeleteIndication}
-                        onImportCatalog={onImportIndicationsCatalog}
+                        onCreateTab={indications.onCreateTab}
+                        onRenameTab={indications.onRenameTab}
+                        onDeleteTab={indications.onDeleteTab}
+                        onAddCustomIndication={indications.onAddCustomIndication}
+                        onUpdateIndication={indications.onUpdateIndication}
+                        onDeleteIndication={indications.onDeleteIndication}
+                        onImportCatalog={indications.onImportCatalog}
                       />
                     )}
                   {canEdit &&
                     !document.isLocked &&
-                    activeTitleTarget === `section:${section.id}` && (
+                    editorState.activeTitleTarget === `section:${section.id}` && (
                       <>
                         <button
                           type="button"
@@ -278,7 +201,7 @@ export const ClinicalDocumentSectionList: React.FC<ClinicalDocumentSectionListPr
                               type="button"
                               className="w-full px-3 py-1.5 text-left text-[11px] font-medium text-slate-600 hover:bg-slate-50 flex items-center gap-2"
                               onClick={() => {
-                                onAddSection(section.id, 'above');
+                                sectionActions.addSection(section.id, 'above');
                                 setInsertMenuSectionId(null);
                               }}
                             >
@@ -288,7 +211,7 @@ export const ClinicalDocumentSectionList: React.FC<ClinicalDocumentSectionListPr
                               type="button"
                               className="w-full px-3 py-1.5 text-left text-[11px] font-medium text-slate-600 hover:bg-slate-50 flex items-center gap-2"
                               onClick={() => {
-                                onAddSection(section.id, 'below');
+                                sectionActions.addSection(section.id, 'below');
                                 setInsertMenuSectionId(null);
                               }}
                             >
@@ -301,9 +224,9 @@ export const ClinicalDocumentSectionList: React.FC<ClinicalDocumentSectionListPr
                           className="clinical-document-inline-action"
                           onMouseDown={event => event.preventDefault()}
                           onClick={() => {
-                            onMoveSection(section.id, 'up');
+                            sectionActions.moveSection(section.id, 'up');
                             // Keep title active after move so buttons remain visible
-                            onSetActiveTitleTarget(`section:${section.id}`);
+                            editorState.onSetActiveTitleTarget(`section:${section.id}`);
                           }}
                           aria-label={`Subir sección ${section.title}`}
                           title="Subir sección"
@@ -316,9 +239,9 @@ export const ClinicalDocumentSectionList: React.FC<ClinicalDocumentSectionListPr
                           className="clinical-document-inline-action"
                           onMouseDown={event => event.preventDefault()}
                           onClick={() => {
-                            onMoveSection(section.id, 'down');
+                            sectionActions.moveSection(section.id, 'down');
                             // Keep title active after move so buttons remain visible
-                            onSetActiveTitleTarget(`section:${section.id}`);
+                            editorState.onSetActiveTitleTarget(`section:${section.id}`);
                           }}
                           aria-label={`Bajar sección ${section.title}`}
                           title="Bajar sección"
@@ -330,7 +253,7 @@ export const ClinicalDocumentSectionList: React.FC<ClinicalDocumentSectionListPr
                           type="button"
                           className="clinical-document-inline-action clinical-document-inline-action--danger"
                           onMouseDown={event => event.preventDefault()}
-                          onClick={() => onSetSectionVisibility(section.id, false)}
+                          onClick={() => sectionActions.setSectionVisibility(section.id, false)}
                           aria-label={`Eliminar sección ${section.title}`}
                           title="Eliminar sección"
                         >
@@ -343,28 +266,12 @@ export const ClinicalDocumentSectionList: React.FC<ClinicalDocumentSectionListPr
                   document,
                   section,
                   canEdit,
-                  activePlanSubsectionId,
-                  setActivePlanSubsectionId: onSetActivePlanSubsectionId,
-                  onPatchSection,
-                  onEditorActivate,
-                  onEditorDeactivate,
-                  onUploadPastedImage,
-                  onImagePasteRejected,
-                  indicationsCatalog,
-                  isSavingCustomIndication,
-                  customIndicationError,
-                  activeIndicationsSpecialtyId,
-                  setActiveIndicationsSpecialtyId: onSetActiveIndicationsSpecialtyId,
-                  isIndicationsPanelOpen,
-                  onToggleIndicationsPanel,
-                  createIndicationsTab: onCreateIndicationsTab,
-                  renameIndicationsTab: onRenameIndicationsTab,
-                  deleteIndicationsTab: onDeleteIndicationsTab,
-                  reorderIndicationsTab: onReorderIndicationsTab,
-                  addCustomIndication: onAddCustomIndication,
-                  updateIndication: onUpdateIndication,
-                  deleteIndication: onDeleteIndication,
-                  importIndicationsCatalog: onImportIndicationsCatalog,
+                  setActivePlanSubsectionId: editorState.onSetActivePlanSubsectionId,
+                  onPatchSection: sectionActions.patchSection,
+                  onEditorActivate: editorState.onEditorActivate,
+                  onEditorDeactivate: editorState.onEditorDeactivate,
+                  onUploadPastedImage: editorState.onUploadPastedImage,
+                  onImagePasteRejected: editorState.onImagePasteRejected,
                 })}
 
                 {/* IEEH panel: only for epicrisis, below "diagnósticos" section */}
@@ -372,11 +279,11 @@ export const ClinicalDocumentSectionList: React.FC<ClinicalDocumentSectionListPr
                   <Suspense fallback={null}>
                     <ClinicalDocumentIeehPanel
                       document={document}
-                      workspacePatient={workspacePatient}
+                      workspacePatient={ieeh.workspacePatient}
                       draft={document.ieehDraft}
                       canEdit={canEdit && !document.isLocked}
-                      onPatchDraft={onPatchIeehDraft}
-                      onClearDraft={onClearIeehDraft}
+                      onPatchDraft={ieeh.onPatchDraft}
+                      onClearDraft={ieeh.onClearDraft}
                     />
                   </Suspense>
                 )}

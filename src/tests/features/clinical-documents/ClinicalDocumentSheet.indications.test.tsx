@@ -5,7 +5,7 @@ import { ClinicalDocumentSheet } from '@/features/clinical-documents/components/
 import {
   buildDocument,
   buildPersonalIndicationsCatalog,
-  buildToolbar,
+  buildSheetProps,
   defaultHandlers,
   resetDefaultHandlers,
 } from './ClinicalDocumentSheet.testSupport';
@@ -32,16 +32,11 @@ describe('ClinicalDocumentSheet personal indications', () => {
 
     render(
       <ClinicalDocumentSheet
-        selectedDocument={document}
-        canEdit={true}
-        isSaving={false}
-        validationIssues={[]}
-        indicationsCatalog={personalCatalog}
-        isSavingCustomIndication={false}
-        customIndicationError={null}
-        {...defaultHandlers}
-        isIndicationsPanelOpen={true}
-        toolbar={buildToolbar(defaultHandlers)}
+        {...buildSheetProps({
+          selectedDocument: document,
+          indicationsCatalog: personalCatalog,
+          isIndicationsPanelOpen: true,
+        })}
       />
     );
 
@@ -71,16 +66,11 @@ describe('ClinicalDocumentSheet personal indications', () => {
 
     render(
       <ClinicalDocumentSheet
-        selectedDocument={document}
-        canEdit={true}
-        isSaving={false}
-        validationIssues={[]}
-        indicationsCatalog={personalCatalog}
-        isSavingCustomIndication={false}
-        customIndicationError={null}
-        {...defaultHandlers}
-        isIndicationsPanelOpen={true}
-        toolbar={buildToolbar(defaultHandlers)}
+        {...buildSheetProps({
+          selectedDocument: document,
+          indicationsCatalog: personalCatalog,
+          isIndicationsPanelOpen: true,
+        })}
       />
     );
 
@@ -144,16 +134,11 @@ describe('ClinicalDocumentSheet personal indications', () => {
 
     render(
       <ClinicalDocumentSheet
-        selectedDocument={document}
-        canEdit={true}
-        isSaving={false}
-        validationIssues={[]}
-        indicationsCatalog={personalCatalog}
-        isSavingCustomIndication={false}
-        customIndicationError={null}
-        {...defaultHandlers}
-        isIndicationsPanelOpen={true}
-        toolbar={buildToolbar(defaultHandlers)}
+        {...buildSheetProps({
+          selectedDocument: document,
+          indicationsCatalog: personalCatalog,
+          isIndicationsPanelOpen: true,
+        })}
       />
     );
 
@@ -191,16 +176,11 @@ describe('ClinicalDocumentSheet personal indications', () => {
 
     render(
       <ClinicalDocumentSheet
-        selectedDocument={document}
-        canEdit={true}
-        isSaving={false}
-        validationIssues={[]}
-        indicationsCatalog={personalCatalog}
-        isSavingCustomIndication={false}
-        customIndicationError={null}
-        {...defaultHandlers}
-        isIndicationsPanelOpen={true}
-        toolbar={buildToolbar(defaultHandlers)}
+        {...buildSheetProps({
+          selectedDocument: document,
+          indicationsCatalog: personalCatalog,
+          isIndicationsPanelOpen: true,
+        })}
       />
     );
 
@@ -251,16 +231,11 @@ describe('ClinicalDocumentSheet personal indications', () => {
 
     render(
       <ClinicalDocumentSheet
-        selectedDocument={unifiedDocument}
-        canEdit={true}
-        isSaving={false}
-        validationIssues={[]}
-        indicationsCatalog={personalCatalog}
-        isSavingCustomIndication={false}
-        customIndicationError={null}
-        {...defaultHandlers}
-        isIndicationsPanelOpen={true}
-        toolbar={buildToolbar(defaultHandlers)}
+        {...buildSheetProps({
+          selectedDocument: unifiedDocument,
+          indicationsCatalog: personalCatalog,
+          isIndicationsPanelOpen: true,
+        })}
       />
     );
 

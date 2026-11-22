@@ -16,70 +16,13 @@ export const ClinicalDocumentSheet: React.FC<ClinicalDocumentSheetProps> = ({
   selectedDocument,
   canEdit,
   toolbar,
-  activeTitleTarget,
-  activeEditorSectionId,
-  onSetActiveTitleTarget,
-  draggedSectionId,
-  dragOverSectionId,
-  activePlanSubsectionId,
-  activeIndicationsSpecialtyId,
-  isIndicationsPanelOpen,
-  onSetActivePlanSubsectionId,
-  onSetActiveIndicationsSpecialtyId,
-  onToggleIndicationsPanel,
-  onEditorActivate,
-  onEditorDeactivate,
-  onImagePasteRejected,
+  documentActions,
+  editorState,
+  indications,
   attachments,
-  patientAttachments,
-  isLoadingAttachments,
-  isLoadingPatientAttachments,
-  isUploadingAttachment,
-  uploadStatusMessage,
-  onUploadAttachment,
-  onDeleteAttachment,
-  onRenameAttachment,
-  onRegenerateAttachmentAccess,
-  onSuggestAttachmentName,
-  onUploadPastedImage,
-  dragHandlers,
-  patchDocumentTitle,
-  patchPatientInfoTitle,
-  patchPatientField,
-  patchPatientFieldLabel,
-  setPatientFieldVisibility,
-  patchSectionTitle,
-  patchSection,
-  setSectionLayout,
-  setSectionVisibility,
-  moveSection,
-  reorderSection,
-  addSection,
-  patchFooterLabel,
-  patchDocumentMeta,
-  signatureProfile,
-  onSaveSignatureProfile,
-  onApplySignatureProfile,
-  indicationsCatalog,
-  isSavingCustomIndication,
-  customIndicationError,
-  createIndicationsTab,
-  renameIndicationsTab,
-  deleteIndicationsTab,
-  reorderIndicationsTab,
-  addCustomIndication,
-  updateIndication,
-  deleteIndication,
-  importIndicationsCatalog,
-  patchAnnexContent,
-  setAnnexIncludedInPrint,
-  clearAnnexContent,
-  onPrintAnnex,
-  patchIeehDraft,
-  clearIeehDraft,
-  workspacePatient,
-  patchUpdateDate,
-  patchUpdateTime,
+  annex,
+  ieeh,
+  signature,
 }) => {
   if (!selectedDocument) {
     return (
@@ -117,7 +60,7 @@ export const ClinicalDocumentSheet: React.FC<ClinicalDocumentSheetProps> = ({
           title={selectedDocument.title}
           canEdit={canEdit}
           isLocked={selectedDocument.isLocked}
-          onChangeTitle={patchDocumentTitle}
+          onChangeTitle={documentActions.patchDocumentTitle}
         />
 
         {(hiddenPatientFields.length > 0 || hiddenSections.length > 0) && (
@@ -127,7 +70,7 @@ export const ClinicalDocumentSheet: React.FC<ClinicalDocumentSheetProps> = ({
                 key={field.id}
                 type="button"
                 className="clinical-document-restore-chip"
-                onClick={() => setPatientFieldVisibility(field.id, true)}
+                onClick={() => documentActions.setPatientFieldVisibility(field.id, true)}
                 disabled={!canEdit || selectedDocument.isLocked}
               >
                 <Eye size={12} />
@@ -139,7 +82,7 @@ export const ClinicalDocumentSheet: React.FC<ClinicalDocumentSheetProps> = ({
                 key={section.id}
                 type="button"
                 className="clinical-document-restore-chip"
-                onClick={() => setSectionVisibility(section.id, true)}
+                onClick={() => documentActions.setSectionVisibility(section.id, true)}
                 disabled={!canEdit || selectedDocument.isLocked}
               >
                 <Eye size={12} />
@@ -153,68 +96,33 @@ export const ClinicalDocumentSheet: React.FC<ClinicalDocumentSheetProps> = ({
           document={selectedDocument}
           visiblePatientFields={visiblePatientFields}
           canEdit={canEdit}
-          activeTitleTarget={activeTitleTarget}
-          onSetActiveTitleTarget={onSetActiveTitleTarget}
-          onPatchPatientInfoTitle={patchPatientInfoTitle}
-          onPatchPatientFieldLabel={patchPatientFieldLabel}
-          onPatchPatientField={patchPatientField}
-          onSetPatientFieldVisibility={setPatientFieldVisibility}
+          activeTitleTarget={editorState.activeTitleTarget}
+          onSetActiveTitleTarget={editorState.onSetActiveTitleTarget}
+          onPatchPatientInfoTitle={documentActions.patchPatientInfoTitle}
+          onPatchPatientFieldLabel={documentActions.patchPatientFieldLabel}
+          onPatchPatientField={documentActions.patchPatientField}
+          onSetPatientFieldVisibility={documentActions.setPatientFieldVisibility}
         />
 
         <ClinicalDocumentSectionList
           document={selectedDocument}
           visibleSections={visibleSections}
           canEdit={canEdit}
-          activeTitleTarget={activeTitleTarget}
-          activeEditorSectionId={activeEditorSectionId}
-          draggedSectionId={draggedSectionId}
-          dragOverSectionId={dragOverSectionId}
-          activePlanSubsectionId={activePlanSubsectionId}
-          activeIndicationsSpecialtyId={activeIndicationsSpecialtyId}
-          isIndicationsPanelOpen={isIndicationsPanelOpen}
-          indicationsCatalog={indicationsCatalog}
-          isSavingCustomIndication={isSavingCustomIndication}
-          customIndicationError={customIndicationError}
-          onCreateIndicationsTab={createIndicationsTab}
-          onRenameIndicationsTab={renameIndicationsTab}
-          onDeleteIndicationsTab={deleteIndicationsTab}
-          onReorderIndicationsTab={reorderIndicationsTab}
-          onSetActiveTitleTarget={onSetActiveTitleTarget}
-          onPatchSectionTitle={patchSectionTitle}
-          onPatchSection={patchSection}
-          onSetSectionLayout={setSectionLayout}
-          onSetSectionVisibility={setSectionVisibility}
-          onMoveSection={moveSection}
-          onReorderSection={reorderSection}
-          onAddSection={addSection}
-          onEditorActivate={onEditorActivate}
-          onEditorDeactivate={onEditorDeactivate}
-          onUploadPastedImage={onUploadPastedImage}
-          onImagePasteRejected={onImagePasteRejected}
-          onSetActivePlanSubsectionId={onSetActivePlanSubsectionId}
-          onSetActiveIndicationsSpecialtyId={onSetActiveIndicationsSpecialtyId}
-          onToggleIndicationsPanel={onToggleIndicationsPanel}
-          onAddCustomIndication={addCustomIndication}
-          onUpdateIndication={updateIndication}
-          onDeleteIndication={deleteIndication}
-          onImportIndicationsCatalog={importIndicationsCatalog}
-          onPatchIeehDraft={patchIeehDraft}
-          onClearIeehDraft={clearIeehDraft}
-          workspacePatient={workspacePatient}
-          onPatchUpdateDate={patchUpdateDate}
-          onPatchUpdateTime={patchUpdateTime}
-          dragHandlers={dragHandlers}
+          sectionActions={documentActions}
+          editorState={editorState}
+          indications={indications}
+          ieeh={ieeh}
         />
 
         <ClinicalDocumentFooterSection
           document={selectedDocument}
           canEdit={canEdit}
-          onPatchFooterLabel={patchFooterLabel}
-          onPatchDocumentMeta={patchDocumentMeta}
-          signatureProfile={signatureProfile}
-          onSaveSignatureProfile={onSaveSignatureProfile}
-          onApplySignatureProfile={onApplySignatureProfile}
-          onClearActiveTitleTarget={() => onSetActiveTitleTarget(null)}
+          onPatchFooterLabel={documentActions.patchFooterLabel}
+          onPatchDocumentMeta={documentActions.patchDocumentMeta}
+          signatureProfile={signature?.profile}
+          onSaveSignatureProfile={signature?.onSave}
+          onApplySignatureProfile={signature?.onApply}
+          onClearActiveTitleTarget={() => editorState.onSetActiveTitleTarget(null)}
         />
 
         {/* Annex page (printed as next page via CSS page-break) */}
@@ -226,15 +134,15 @@ export const ClinicalDocumentSheet: React.FC<ClinicalDocumentSheetProps> = ({
             patientName={selectedDocument.patientName}
             currentDateLabel={formatDateDDMMYYYY(getTodayISO())}
             includedInGlobalPrint={selectedDocument.annexIncludedInPrint ?? true}
-            isEditorActive={activeEditorSectionId === 'annexes'}
-            onChange={patchAnnexContent}
-            onToggleIncludedInGlobalPrint={setAnnexIncludedInPrint}
-            onPrintAnnex={onPrintAnnex}
-            onClear={clearAnnexContent}
-            onEditorActivate={onEditorActivate}
-            onEditorDeactivate={onEditorDeactivate}
-            onUploadPastedImage={onUploadPastedImage}
-            onImagePasteRejected={onImagePasteRejected}
+            isEditorActive={editorState.activeEditorSectionId === 'annexes'}
+            onChange={annex.onPatchContent}
+            onToggleIncludedInGlobalPrint={annex.onSetIncludedInPrint}
+            onPrintAnnex={annex.onPrint}
+            onClear={annex.onClear}
+            onEditorActivate={editorState.onEditorActivate}
+            onEditorDeactivate={editorState.onEditorDeactivate}
+            onUploadPastedImage={editorState.onUploadPastedImage}
+            onImagePasteRejected={editorState.onImagePasteRejected}
           />
         )}
       </div>
@@ -243,17 +151,17 @@ export const ClinicalDocumentSheet: React.FC<ClinicalDocumentSheetProps> = ({
         canEdit={canEdit && !selectedDocument.isLocked}
         currentDocumentId={selectedDocument.id}
         currentEpisodeKey={selectedDocument.episodeKey}
-        attachments={attachments}
-        patientAttachments={patientAttachments}
-        isLoading={isLoadingAttachments}
-        isLoadingPatientAttachments={isLoadingPatientAttachments}
-        isUploading={isUploadingAttachment}
-        uploadStatusMessage={uploadStatusMessage}
-        onUploadAttachment={onUploadAttachment}
-        onDeleteAttachment={onDeleteAttachment}
-        onRenameAttachment={onRenameAttachment}
-        onRegenerateAttachmentAccess={onRegenerateAttachmentAccess}
-        onSuggestAttachmentName={onSuggestAttachmentName}
+        attachments={attachments.items}
+        patientAttachments={attachments.patientItems}
+        isLoading={attachments.isLoading}
+        isLoadingPatientAttachments={attachments.isLoadingPatient}
+        isUploading={attachments.isUploading}
+        uploadStatusMessage={attachments.uploadStatusMessage}
+        onUploadAttachment={attachments.onUpload}
+        onDeleteAttachment={attachments.onDelete}
+        onRenameAttachment={attachments.onRename}
+        onRegenerateAttachmentAccess={attachments.onRegenerateAccess}
+        onSuggestAttachmentName={attachments.onSuggestName}
       />
     </div>
   );

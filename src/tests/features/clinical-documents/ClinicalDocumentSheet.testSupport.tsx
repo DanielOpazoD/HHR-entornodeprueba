@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 
+import type { ClinicalDocumentSheetProps } from '@/features/clinical-documents/components/clinicalDocumentSheetShared';
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
 import { getDefaultClinicalDocumentIndicationsCatalog } from '@/features/clinical-documents/services/clinicalDocumentIndicationsCatalogService';
 
@@ -84,29 +85,13 @@ export const buildPersonalIndicationsCatalog = (
 
 export const defaultHandlers = {
   onPrint: vi.fn(),
-  hasLocalDraftChanges: false,
-  flushPendingAutosave: vi.fn(),
   onRestoreTemplate: vi.fn(),
-  activeTitleTarget: null,
-  activeEditorSectionId: null,
   onSetActiveTitleTarget: vi.fn(),
-  draggedSectionId: null,
-  dragOverSectionId: null,
-  activePlanSubsectionId: 'generales' as const,
-  activeIndicationsSpecialtyId: 'tmt' as const,
-  isIndicationsPanelOpen: false,
   onSetActivePlanSubsectionId: vi.fn(),
-  onSetActiveIndicationsSpecialtyId: vi.fn(),
   onToggleIndicationsPanel: vi.fn(),
   onEditorActivate: vi.fn(),
   onEditorDeactivate: vi.fn(),
   onImagePasteRejected: vi.fn(),
-  attachments: [],
-  patientAttachments: [],
-  isLoadingAttachments: false,
-  isLoadingPatientAttachments: false,
-  isUploadingAttachment: false,
-  uploadStatusMessage: null,
   onUploadAttachment: vi.fn(async () => undefined),
   onDeleteAttachment: vi.fn(async () => undefined),
   onRenameAttachment: vi.fn(async () => undefined),
@@ -136,12 +121,10 @@ export const defaultHandlers = {
   createIndicationsTab: vi.fn(async () => true),
   renameIndicationsTab: vi.fn(async () => true),
   deleteIndicationsTab: vi.fn(async () => true),
-  reorderIndicationsTab: vi.fn(async () => true),
   addCustomIndication: vi.fn(async () => true),
   updateIndication: vi.fn(async () => true),
   deleteIndication: vi.fn(async () => true),
   importIndicationsCatalog: vi.fn(async () => true),
-  addClinicalUpdate: vi.fn(),
   patchAnnexContent: vi.fn(),
   setAnnexIncludedInPrint: vi.fn(),
   clearAnnexContent: vi.fn(),
@@ -151,6 +134,93 @@ export const defaultHandlers = {
   patchUpdateDate: vi.fn(),
   patchUpdateTime: vi.fn(),
 };
+
+export interface SheetPropsOverrides {
+  selectedDocument?: ClinicalDocumentSheetProps['selectedDocument'];
+  canEdit?: boolean;
+  toolbar?: ClinicalDocumentSheetProps['toolbar'];
+  activeTitleTarget?: string | null;
+  activeEditorSectionId?: string | null;
+  isIndicationsPanelOpen?: boolean;
+  indicationsCatalog?: ClinicalDocumentSheetProps['indications']['catalog'];
+}
+
+export const buildSheetProps = (
+  overrides: SheetPropsOverrides = {}
+): ClinicalDocumentSheetProps => ({
+  selectedDocument: overrides.selectedDocument ?? null,
+  canEdit: overrides.canEdit ?? true,
+  toolbar: overrides.toolbar ?? buildToolbar(defaultHandlers),
+  documentActions: {
+    patchDocumentTitle: defaultHandlers.patchDocumentTitle,
+    patchPatientInfoTitle: defaultHandlers.patchPatientInfoTitle,
+    patchPatientField: defaultHandlers.patchPatientField,
+    patchPatientFieldLabel: defaultHandlers.patchPatientFieldLabel,
+    setPatientFieldVisibility: defaultHandlers.setPatientFieldVisibility,
+    patchSectionTitle: defaultHandlers.patchSectionTitle,
+    patchSection: defaultHandlers.patchSection,
+    setSectionLayout: defaultHandlers.setSectionLayout,
+    setSectionVisibility: defaultHandlers.setSectionVisibility,
+    moveSection: defaultHandlers.moveSection,
+    reorderSection: defaultHandlers.reorderSection,
+    addSection: defaultHandlers.addSection,
+    patchFooterLabel: defaultHandlers.patchFooterLabel,
+    patchDocumentMeta: defaultHandlers.patchDocumentMeta,
+    patchUpdateDate: defaultHandlers.patchUpdateDate,
+    patchUpdateTime: defaultHandlers.patchUpdateTime,
+  },
+  editorState: {
+    activeTitleTarget: overrides.activeTitleTarget ?? null,
+    activeEditorSectionId: overrides.activeEditorSectionId ?? null,
+    onSetActiveTitleTarget: defaultHandlers.onSetActiveTitleTarget,
+    draggedSectionId: null,
+    dragOverSectionId: null,
+    dragHandlers: defaultHandlers.dragHandlers,
+    activePlanSubsectionId: 'generales',
+    onSetActivePlanSubsectionId: defaultHandlers.onSetActivePlanSubsectionId,
+    onEditorActivate: defaultHandlers.onEditorActivate,
+    onEditorDeactivate: defaultHandlers.onEditorDeactivate,
+    onUploadPastedImage: defaultHandlers.onUploadPastedImage,
+    onImagePasteRejected: defaultHandlers.onImagePasteRejected,
+  },
+  indications: {
+    catalog: overrides.indicationsCatalog ?? getDefaultClinicalDocumentIndicationsCatalog(),
+    isSavingCustomIndication: false,
+    customIndicationError: null,
+    isPanelOpen: overrides.isIndicationsPanelOpen ?? false,
+    onTogglePanel: defaultHandlers.onToggleIndicationsPanel,
+    onCreateTab: defaultHandlers.createIndicationsTab,
+    onRenameTab: defaultHandlers.renameIndicationsTab,
+    onDeleteTab: defaultHandlers.deleteIndicationsTab,
+    onAddCustomIndication: defaultHandlers.addCustomIndication,
+    onUpdateIndication: defaultHandlers.updateIndication,
+    onDeleteIndication: defaultHandlers.deleteIndication,
+    onImportCatalog: defaultHandlers.importIndicationsCatalog,
+  },
+  attachments: {
+    items: [],
+    patientItems: [],
+    isLoading: false,
+    isLoadingPatient: false,
+    isUploading: false,
+    uploadStatusMessage: null,
+    onUpload: defaultHandlers.onUploadAttachment,
+    onDelete: defaultHandlers.onDeleteAttachment,
+    onRename: defaultHandlers.onRenameAttachment,
+    onRegenerateAccess: defaultHandlers.onRegenerateAttachmentAccess,
+    onSuggestName: defaultHandlers.onSuggestAttachmentName,
+  },
+  annex: {
+    onPatchContent: defaultHandlers.patchAnnexContent,
+    onSetIncludedInPrint: defaultHandlers.setAnnexIncludedInPrint,
+    onClear: defaultHandlers.clearAnnexContent,
+    onPrint: defaultHandlers.onPrintAnnex,
+  },
+  ieeh: {
+    onPatchDraft: defaultHandlers.patchIeehDraft,
+    onClearDraft: defaultHandlers.clearIeehDraft,
+  },
+});
 
 export const resetDefaultHandlers = () => {
   Object.values(defaultHandlers).forEach(handler => {

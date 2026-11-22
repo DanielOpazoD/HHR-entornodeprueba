@@ -108,48 +108,51 @@ describe('ClinicalDocumentSectionList', () => {
         document={document}
         visibleSections={document.sections}
         canEdit={true}
-        activeTitleTarget="section:plan"
-        activeEditorSectionId={null}
-        draggedSectionId={null}
-        dragOverSectionId={null}
-        activePlanSubsectionId="generales"
-        activeIndicationsSpecialtyId="medicina_interna"
-        isIndicationsPanelOpen={false}
-        indicationsCatalog={getDefaultClinicalDocumentIndicationsCatalog(
-          '2026-04-04T00:00:00.000Z'
-        )}
-        isSavingCustomIndication={false}
-        customIndicationError={null}
-        onSetActiveTitleTarget={onSetActiveTitleTarget}
-        onPatchSectionTitle={onPatchSectionTitle}
-        onPatchSection={onPatchSection}
-        onSetSectionLayout={onSetSectionLayout}
-        onSetSectionVisibility={onSetSectionVisibility}
-        onMoveSection={onMoveSection}
-        onReorderSection={onReorderSection}
-        onAddSection={onAddSection}
-        onEditorActivate={vi.fn()}
-        onEditorDeactivate={vi.fn()}
-        onUploadPastedImage={vi.fn(async () => null)}
-        onImagePasteRejected={vi.fn()}
-        onPatchIeehDraft={vi.fn()}
-        onClearIeehDraft={vi.fn()}
-        onSetActivePlanSubsectionId={vi.fn()}
-        onSetActiveIndicationsSpecialtyId={vi.fn()}
-        onToggleIndicationsPanel={onToggleIndicationsPanel}
-        onCreateIndicationsTab={vi.fn()}
-        onRenameIndicationsTab={vi.fn()}
-        onDeleteIndicationsTab={vi.fn()}
-        onReorderIndicationsTab={vi.fn()}
-        onAddCustomIndication={vi.fn()}
-        onUpdateIndication={vi.fn()}
-        onDeleteIndication={vi.fn()}
-        onImportIndicationsCatalog={vi.fn()}
-        dragHandlers={{
-          onDragStart: vi.fn(),
-          onDragOver: vi.fn(),
-          onDragLeave: vi.fn(),
-          onDragEnd: vi.fn(),
+        sectionActions={{
+          patchSectionTitle: onPatchSectionTitle,
+          patchSection: onPatchSection,
+          setSectionLayout: onSetSectionLayout,
+          setSectionVisibility: onSetSectionVisibility,
+          moveSection: onMoveSection,
+          reorderSection: onReorderSection,
+          addSection: onAddSection,
+        }}
+        editorState={{
+          activeTitleTarget: 'section:plan',
+          activeEditorSectionId: null,
+          onSetActiveTitleTarget,
+          draggedSectionId: null,
+          dragOverSectionId: null,
+          dragHandlers: {
+            onDragStart: vi.fn(),
+            onDragOver: vi.fn(),
+            onDragLeave: vi.fn(),
+            onDragEnd: vi.fn(),
+          },
+          activePlanSubsectionId: 'generales',
+          onSetActivePlanSubsectionId: vi.fn(),
+          onEditorActivate: vi.fn(),
+          onEditorDeactivate: vi.fn(),
+          onUploadPastedImage: vi.fn(async () => null),
+          onImagePasteRejected: vi.fn(),
+        }}
+        indications={{
+          catalog: getDefaultClinicalDocumentIndicationsCatalog('2026-04-04T00:00:00.000Z'),
+          isSavingCustomIndication: false,
+          customIndicationError: null,
+          isPanelOpen: false,
+          onTogglePanel: onToggleIndicationsPanel,
+          onCreateTab: vi.fn(),
+          onRenameTab: vi.fn(),
+          onDeleteTab: vi.fn(),
+          onAddCustomIndication: vi.fn(),
+          onUpdateIndication: vi.fn(),
+          onDeleteIndication: vi.fn(),
+          onImportCatalog: vi.fn(),
+        }}
+        ieeh={{
+          onPatchDraft: vi.fn(),
+          onClearDraft: vi.fn(),
         }}
       />
     );
