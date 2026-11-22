@@ -28,7 +28,21 @@ export const validateMprSettings = (value: MprSettings): MprSettings => {
     throw new Error('Espesor no válido: utiliza entre 0 y 50 mm.');
   return { ...value };
 };
-const dot = (a: number[], b: number[]) => a.reduce((sum, x, i) => sum + x * b[i], 0);
+
+const AXES = [0, 1, 2] as const;
+
+const dot = (a: readonly number[], b: readonly number[]): number => {
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) {
+    const av = a[i];
+    const bv = b[i];
+    if (av !== undefined && bv !== undefined) {
+      sum += av * bv;
+    }
+  }
+  return sum;
+};
+
 export const isObliqueNormal = (normal: number[]) =>
   !normal.some(value => Math.abs(Math.abs(value) - 1) < 1e-5);
 
@@ -43,15 +57,16 @@ export const slabCoverage = (
 ) => {
   let near = -Infinity,
     far = Infinity;
-  for (let axis = 0; axis < 3; axis++) {
+  for (const axis of AXES) {
     const direction = plan.direction.slice(axis * 3, axis * 3 + 3);
     const origin = dot(
-      point.map((x, i) => x - plan.origin[i]),
+      point.map((x, i) => x - (plan.origin[i] ?? 0)),
       direction
     );
     const velocity = dot(normal, direction);
-    const lower = -plan.spacing[axis] / 2;
-    const upper = (plan.dimensions[axis] - 0.5) * plan.spacing[axis];
+    const axisSpacing = plan.spacing[axis];
+    const lower = -axisSpacing / 2;
+    const upper = (plan.dimensions[axis] - 0.5) * axisSpacing;
     if (Math.abs(velocity) < 1e-8) {
       if (origin < lower || origin > upper) return 0;
       continue;

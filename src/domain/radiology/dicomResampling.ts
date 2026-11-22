@@ -6,10 +6,34 @@ export interface DicomScalarPlane {
   intercept: number;
   preScaled: boolean;
 }
+
+type Vec2 = readonly [number, number];
+type Vec3 = readonly [number, number, number];
+
 const invalidPixels = () =>
   new Error(
     'Los píxeles o su escala no son compatibles con el remuestreo; utiliza la vista original.'
   );
+
+const readVec2 = (values: readonly number[]): Vec2 | null => {
+  const x = values[0];
+  const y = values[1];
+  return x !== undefined && y !== undefined ? [x, y] : null;
+};
+
+const readVec3 = (values: readonly number[], offset = 0): Vec3 | null => {
+  const x = values[offset];
+  const y = values[offset + 1];
+  const z = values[offset + 2];
+  return x !== undefined && y !== undefined && z !== undefined ? [x, y, z] : null;
+};
+
+const dot3 = (v: Vec3, w: Vec3): number => v[0] * w[0] + v[1] * w[1] + v[2] * w[2];
+
+const unit3 = (v: Vec3): Vec3 => {
+  const norm = Math.sqrt(dot3(v, v));
+  return [v[0] / norm, v[1] / norm, v[2] / norm];
+};
 
 /** Bilinear interpolation in patient space, in calibrated units. No z interpolation.
  * Boundary replication is limited to the acquired half-pixel footprint, never a missing FOV.
@@ -27,13 +51,16 @@ export const resampleDicomVolume = async (
     throw new Error(
       'El volumen remuestreado supera el límite de memoria; utiliza la vista original.'
     );
+  const row = readVec3(plan.direction, 0);
+  const column = readVec3(plan.direction, 3);
+  const normal = readVec3(plan.direction, 6);
+  if (!row || !column || !normal) throw invalidPixels();
+
   const output = new Float32Array(length);
-  const row = plan.direction.slice(0, 3);
-  const column = plan.direction.slice(3, 6);
-  const dot = (v: number[], w: number[]) => v.reduce((sum, x, i) => sum + x * w[i], 0);
   for (let z = 0; z < depth; z++) {
     signal.throwIfAborted();
     const slice = plan.slices[z];
+    if (!slice) throw invalidPixels();
     const source = read(slice, z);
     if (
       source.pixels.length !== slice.rows * slice.columns ||
@@ -44,25 +71,41 @@ export const resampleDicomVolume = async (
       throw invalidPixels();
     const slope = source.preScaled ? 1 : source.slope;
     const intercept = source.preScaled ? 0 : source.intercept;
+
+    const rawSourceRow = readVec3(slice.orientation, 0);
+    const second = readVec3(slice.orientation, 3);
+    const slicePosition = readVec3(slice.position, 0);
+    const sliceSpacing = readVec2(slice.spacing);
+    if (!rawSourceRow || !second || !slicePosition || !sliceSpacing) throw invalidPixels();
+
     // Project onto this source's own normalized axes, not the reference slice's axes.
-    const unit = (v: number[]) => v.map(value => value / Math.sqrt(dot(v, v)));
-    const sourceRow = unit(slice.orientation.slice(0, 3));
-    const second = slice.orientation.slice(3, 6);
-    const sourceColumn = unit(
-      second.map((value, i) => value - dot(second, sourceRow) * sourceRow[i])
-    );
-    const normal = plan.direction.slice(6, 9);
-    const distance = dot(
-      slice.position.map((value, i) => value - plan.origin[i]),
+    const sourceRow = unit3(rawSourceRow);
+    const proj = dot3(second, sourceRow);
+    const sourceColumn = unit3([
+      second[0] - proj * sourceRow[0],
+      second[1] - proj * sourceRow[1],
+      second[2] - proj * sourceRow[2],
+    ]);
+
+    const distance = dot3(
+      [
+        slicePosition[0] - plan.origin[0],
+        slicePosition[1] - plan.origin[1],
+        slicePosition[2] - plan.origin[2],
+      ],
       normal
     );
-    const delta = plan.origin.map((value, i) => value + distance * normal[i] - slice.position[i]);
-    const startX = dot(delta, sourceRow) / slice.spacing[1];
-    const startY = dot(delta, sourceColumn) / slice.spacing[0];
-    const xx = (dot(row, sourceRow) * plan.spacing[0]) / slice.spacing[1];
-    const xy = (dot(column, sourceRow) * plan.spacing[1]) / slice.spacing[1];
-    const yx = (dot(row, sourceColumn) * plan.spacing[0]) / slice.spacing[0];
-    const yy = (dot(column, sourceColumn) * plan.spacing[1]) / slice.spacing[0];
+    const delta: Vec3 = [
+      plan.origin[0] + distance * normal[0] - slicePosition[0],
+      plan.origin[1] + distance * normal[1] - slicePosition[1],
+      plan.origin[2] + distance * normal[2] - slicePosition[2],
+    ];
+    const startX = dot3(delta, sourceRow) / sliceSpacing[1];
+    const startY = dot3(delta, sourceColumn) / sliceSpacing[0];
+    const xx = (dot3(row, sourceRow) * plan.spacing[0]) / sliceSpacing[1];
+    const xy = (dot3(column, sourceRow) * plan.spacing[1]) / sliceSpacing[1];
+    const yx = (dot3(row, sourceColumn) * plan.spacing[0]) / sliceSpacing[0];
+    const yy = (dot3(column, sourceColumn) * plan.spacing[1]) / sliceSpacing[0];
     // The affine map reaches its extrema at corners. Reject missing coverage before clamping.
     for (const x of [0, width - 1])
       for (const y of [0, height - 1]) {
@@ -97,11 +140,14 @@ export const resampleDicomVolume = async (
         const b = source.pixels[y0 * slice.columns + x1];
         const c = source.pixels[y1 * slice.columns + x0];
         const d = source.pixels[y1 * slice.columns + x1];
+        if (a === undefined || b === undefined || c === undefined || d === undefined)
+          throw invalidPixels();
         const value =
           ((a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy) * slope + intercept;
         const index = (z * height + y) * width + x;
         output[index] = value;
-        if (!Number.isFinite(output[index])) throw invalidPixels();
+        const written = output[index];
+        if (written === undefined || !Number.isFinite(written)) throw invalidPixels();
       }
     }
   }

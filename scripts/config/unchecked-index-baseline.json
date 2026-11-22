@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1212,
+  "total": 1082,
   "areas": {
     "src/application/backup-export": 4,
     "src/application/wound-care": 1,
@@ -9,7 +9,6 @@
     "src/constants/email": 2,
     "src/domain/cudyr": 21,
     "src/domain/evaluationScales": 5,
-    "src/domain/radiology": 130,
     "src/features/admin": 27,
     "src/features/analytics": 2,
     "src/features/backup": 5,
