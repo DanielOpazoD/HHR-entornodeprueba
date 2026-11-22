@@ -115,9 +115,9 @@ export const createDicomVolume = async (
           metadata: {
             ...plane,
             imageOrientationPatient: plan.direction.slice(0, 6),
-            frameOfReferenceUID: plan.slices[0].frame,
+            frameOfReferenceUID: plan.slices[0]?.frame ?? '',
             imagePositionPatient: plan.origin.map(
-              (value, i) => value + z * plan.spacing[2] * plan.direction[i + 6]
+              (value, i) => value + z * plan.spacing[2] * (plan.direction[i + 6] ?? 0)
             ),
           },
         });

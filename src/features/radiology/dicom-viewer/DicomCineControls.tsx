@@ -144,6 +144,7 @@ export const DicomCineControls: React.FC<{
               disabled={job.busy}
               onChange={event => {
                 const [from, to] = event.target.value.split(',').map(Number);
+                if (from === undefined || to === undefined) return;
                 changeRange(() => {
                   setStart(from + 1);
                   setEnd(to + 1);

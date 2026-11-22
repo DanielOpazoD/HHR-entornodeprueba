@@ -55,6 +55,6 @@ export const captureDicomCanvas = async (
         ? 'original'
         : mode === '3d'
           ? '3d'
-          : (['axial', 'coronal', 'sagittal'] as const)[plane],
+          : ((['axial', 'coronal', 'sagittal'] as const)[plane] ?? 'axial'),
   };
 };

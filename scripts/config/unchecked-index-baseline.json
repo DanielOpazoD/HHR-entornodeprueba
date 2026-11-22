@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1082,
+  "total": 909,
   "areas": {
     "src/application/backup-export": 4,
     "src/application/wound-care": 1,
@@ -19,7 +19,6 @@
     "src/features/document-scanner": 6,
     "src/features/laboratory": 48,
     "src/features/prescriptions": 9,
-    "src/features/radiology": 173,
     "src/features/rayen-import": 149,
     "src/features/rayen-manual-import": 6,
     "src/features/reminders": 1,

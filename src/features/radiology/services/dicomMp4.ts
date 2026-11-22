@@ -103,8 +103,10 @@ export const exportDicomMp4 = async (
   const encodingFailure = new AbortController();
   signal = AbortSignal.any([signal, encodingFailure.signal]);
   signal.throwIfAborted();
+  const firstPosition = positions[0];
+  if (firstPosition === undefined) throw new Error('No hay cuadros para el video.');
   progress({ completed: 0, total: count, stage: 'Preparando MP4' });
-  const first = await session.frame(positions[0], signal);
+  const first = await session.frame(firstPosition, signal);
   const sourceSize = [first.canvas.width, first.canvas.height] as const;
   // Copy now: the live canvas may redraw while the encoder support check is pending.
   const snapshot = document.createElement('canvas');
@@ -163,7 +165,9 @@ export const exportDicomMp4 = async (
       signal.throwIfAborted();
       progress({ completed: index, total: count, stage: 'Preparando cuadro' });
       if (index) {
-        const frame = await session.frame(positions[index], signal);
+        const position = positions[index];
+        if (position === undefined) throw new Error('No hay cuadros para el video.');
+        const frame = await session.frame(position, signal);
         const measurements = (await session.measurements?.(signal)) ?? null;
         signal.throwIfAborted();
         if (frame.canvas.width !== sourceSize[0] || frame.canvas.height !== sourceSize[1])

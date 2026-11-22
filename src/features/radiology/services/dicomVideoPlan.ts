@@ -102,23 +102,36 @@ export const describeDicomVideoLength = (frames: number, fps: number) =>
   `${frames} ${frames === 1 ? 'cuadro' : 'cuadros'} · ${(frames / fps).toFixed(1).replace('.', ',')} s`;
 
 type Vector = [number, number, number];
-const cross = (a: readonly number[], b: readonly number[]): Vector => [
+const toVector = (value: readonly number[]): Vector => {
+  const x = value[0];
+  const y = value[1];
+  const z = value[2];
+  if (x === undefined || y === undefined || z === undefined) {
+    throw new Error('La cámara 3D no permite este giro.');
+  }
+  return [x, y, z];
+};
+const cross = (a: Vector, b: Vector): Vector => [
   a[1] * b[2] - a[2] * b[1],
   a[2] * b[0] - a[0] * b[2],
   a[0] * b[1] - a[1] * b[0],
 ];
-const unit = (value: readonly number[]): Vector => {
+const unit = (value: Vector): Vector => {
   const length = Math.hypot(value[0], value[1], value[2]);
   if (!(length > 1e-9)) throw new Error('La cámara 3D no permite este giro.');
   return [value[0] / length, value[1] / length, value[2] / length];
 };
 /** Rodrigues' rotation of a vector about a unit axis. */
-const rotate = (value: readonly number[], axis: Vector, degrees: number): Vector => {
+const rotate = (value: Vector, axis: Vector, degrees: number): Vector => {
   const angle = (degrees * Math.PI) / 180;
   const [cos, sin] = [Math.cos(angle), Math.sin(angle)];
   const turn = cross(axis, value);
   const along = axis[0] * value[0] + axis[1] * value[1] + axis[2] * value[2];
-  return [0, 1, 2].map(i => value[i] * cos + turn[i] * sin + axis[i] * along * (1 - cos)) as Vector;
+  return [
+    value[0] * cos + turn[0] * sin + axis[0] * along * (1 - cos),
+    value[1] * cos + turn[1] * sin + axis[1] * along * (1 - cos),
+    value[2] * cos + turn[2] * sin + axis[2] * along * (1 - cos),
+  ];
 };
 interface TurntableCamera {
   focalPoint: readonly number[];
@@ -135,19 +148,30 @@ export const turntableDicomCamera = (
   axis: DicomTurntableAxis,
   degrees: number
 ) => {
+  const focalPoint = toVector(camera.focalPoint);
+  const position = toVector(camera.position);
+  const viewUp = toVector(camera.viewUp);
+  const viewPlaneNormal = toVector(camera.viewPlaneNormal);
   const turn = unit(
     axis === 'vertical'
-      ? camera.viewUp
+      ? viewUp
       : axis === 'horizontal'
-        ? cross(camera.viewUp, camera.viewPlaneNormal)
+        ? cross(viewUp, viewPlaneNormal)
         : [0, 0, 1]
   );
-  const offset = camera.position.map((value, i) => value - camera.focalPoint[i]);
+  const offset: Vector = [
+    position[0] - focalPoint[0],
+    position[1] - focalPoint[1],
+    position[2] - focalPoint[2],
+  ];
+  const rotatedOffset = rotate(offset, turn, degrees);
   return {
-    focalPoint: [...camera.focalPoint] as Vector,
-    position: rotate(offset, turn, degrees).map(
-      (value, i) => value + camera.focalPoint[i]
-    ) as Vector,
-    viewUp: rotate(camera.viewUp, turn, degrees),
+    focalPoint,
+    position: [
+      rotatedOffset[0] + focalPoint[0],
+      rotatedOffset[1] + focalPoint[1],
+      rotatedOffset[2] + focalPoint[2],
+    ] as Vector,
+    viewUp: rotate(viewUp, turn, degrees),
   };
 };

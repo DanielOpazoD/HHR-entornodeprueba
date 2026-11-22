@@ -18,7 +18,7 @@ export const configureDicomViewports = (
   removeDicomViewports(engine);
   engine.setViewports(
     elements.map((element, i) => ({
-      viewportId: viewportIds[i],
+      viewportId: `${id}-${mode}-${i}`,
       element,
       type:
         mode === 'original'

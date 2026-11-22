@@ -24,9 +24,10 @@ export class DicomReferencePointTool extends BaseTool {
     const index = data.imageData.worldToIndex(world) as Types.Point3;
     const dimensions = data.dimensions;
     if (!index.every(Number.isFinite) || dimensions.some(size => size < 1)) return;
-    const bounded = index.map((value, axis) =>
-      Math.max(0, Math.min(dimensions[axis] - 1, value))
-    ) as Types.Point3;
+    const bounded = index.map((value, axis) => {
+      const dim = dimensions[axis];
+      return dim !== undefined ? Math.max(0, Math.min(dim - 1, value)) : value;
+    }) as Types.Point3;
     const point = data.imageData.indexToWorld(bounded) as Types.Point3;
     (this.configuration.movePoint as (point: Types.Point3) => void)?.(point);
   }

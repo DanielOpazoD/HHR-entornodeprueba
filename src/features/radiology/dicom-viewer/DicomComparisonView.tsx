@@ -96,10 +96,10 @@ const ComparisonPanels: React.FC<{
         <select
           aria-label="Ventana del panel activo"
           value=""
-          disabled={controlsDisabled || [primary, secondary][active].modality !== 'CT'}
+          disabled={controlsDisabled || [primary, secondary][active]?.modality !== 'CT'}
           onChange={event => {
             const [width, center] = event.target.value.split(',').map(Number);
-            session.current?.window(width, center);
+            if (width !== undefined && center !== undefined) session.current?.window(width, center);
           }}
         >
           <option value="" disabled>
@@ -151,7 +151,7 @@ const ComparisonPanels: React.FC<{
         )}
         <DicomMeasureTools
           inline
-          activeTool={tools[active]}
+          activeTool={tools[active] ?? 'window'}
           choose={chooseTool}
           undo={() => session.current?.undoMeasurement()}
           clear={() => session.current?.clearMeasurements()}
@@ -180,6 +180,10 @@ const ComparisonPanels: React.FC<{
       <div className="dicom-grid dicom-grid--compare">
         {[primary, secondary].map((series, panel) => {
           const stack = state?.stacks[panel];
+          const orientation = state?.orientations[panel];
+          const line = state?.lines[panel];
+          const lineStart = line?.[0];
+          const lineEnd = line?.[1];
           const pending = !stack || stack.pending || !!stack.error || !!failed;
           return (
             <div key={panel} className="dicom-pane" data-active={active === panel}>
@@ -237,23 +241,18 @@ const ComparisonPanels: React.FC<{
                   }
                 }}
               />
-              {!pending && state?.orientations[panel] && (
+              {!pending && orientation && (
                 <div className="dicom-orientation" aria-hidden="true">
                   {(['top', 'right', 'bottom', 'left'] as const).map(edge => (
                     <span key={edge} className={`dicom-edge-${edge}`}>
-                      {state.orientations[panel][edge]}
+                      {orientation[edge]}
                     </span>
                   ))}
                 </div>
               )}
-              {!pending && state?.lines[panel] && (
+              {!pending && lineStart && lineEnd && (
                 <svg className="dicom-reference-line" aria-label="Línea de referencia">
-                  <line
-                    x1={state.lines[panel]![0][0]}
-                    y1={state.lines[panel]![0][1]}
-                    x2={state.lines[panel]![1][0]}
-                    y2={state.lines[panel]![1][1]}
-                  />
+                  <line x1={lineStart[0]} y1={lineStart[1]} x2={lineEnd[0]} y2={lineEnd[1]} />
                 </svg>
               )}
               {pending && (

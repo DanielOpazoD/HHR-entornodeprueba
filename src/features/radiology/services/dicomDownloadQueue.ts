@@ -130,7 +130,7 @@ export const createDicomDownloadQueue = (
           slots[index] = 'ready';
           state.ready++;
           state.firstReadyMs ??= performance.now() - started;
-          pending[index].resolve(id);
+          pending[index]?.resolve(id);
           if (state.ready === total) {
             completedAt = performance.now();
             finished = true;
@@ -191,7 +191,7 @@ export const createDicomDownloadQueue = (
             state.retries++;
           } else {
             slots[index] = 'failed';
-            pending[index].reject(error);
+            pending[index]?.reject(error);
           }
         })
         .finally(() => {
@@ -222,13 +222,14 @@ export const createDicomDownloadQueue = (
     },
     request: (index: number) => {
       signal.throwIfAborted();
-      if (!Number.isInteger(index) || index < 0 || index >= total)
+      const entry = pending[index];
+      if (!Number.isInteger(index) || index < 0 || index >= total || !entry)
         throw new Error('Corte fuera de la serie.');
-      if (stopped) return pending[index].promise;
+      if (stopped) return entry.promise;
       if (index !== priority) direction = Math.sign(index - priority);
       priority = index;
       pump();
-      return pending[index].promise;
+      return entry.promise;
     },
     retryFailed: () => {
       if (stopped) return;

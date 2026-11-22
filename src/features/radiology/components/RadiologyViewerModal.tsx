@@ -143,7 +143,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
    * Simulated progress bar.
    */
   if (useChangedOnRender([isForegroundLoading])) {
-    if (isForegroundLoading) setProgress(RADIOLOGY_PROGRESS_STEPS[0]);
+    if (isForegroundLoading) setProgress(RADIOLOGY_PROGRESS_STEPS[0] ?? null);
     else if (progress) setProgress({ pct: 100, text: '¡Completado!' });
   }
   React.useEffect(() => {
@@ -159,8 +159,9 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     let step = 1;
 
     const interval = setInterval(() => {
-      if (step < steps.length) {
-        setProgress(steps[step]);
+      const nextStep = steps[step];
+      if (nextStep) {
+        setProgress(nextStep);
         step++;
       } else {
         setProgress(prev =>

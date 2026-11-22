@@ -51,9 +51,10 @@ export const measurementOverlayFor = (
       .map(item => item.annotationUID)
       .filter((uid): uid is string => Boolean(uid))
   );
-  const nodes = Object.entries(cache).flatMap(([key, entry]) =>
-    entry?.domRef?.isConnected && measured.has(key.split('::')[0]) ? [entry.domRef] : []
-  );
+  const nodes = Object.entries(cache).flatMap(([key, entry]) => {
+    const uid = key.split('::')[0];
+    return entry?.domRef?.isConnected && uid && measured.has(uid) ? [entry.domRef] : [];
+  });
   const { width, height } = layer.getBoundingClientRect();
   if (!nodes.length || !width || !height) return null;
   const svg = document.createElementNS(SVG_NS, 'svg');

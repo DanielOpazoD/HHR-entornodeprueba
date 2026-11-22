@@ -116,7 +116,11 @@ export const createMprTools = (
     owns,
     render: () => {
       try {
-        getEnabledElementByIds(viewportIds[0], engineId)?.viewport.getRenderingEngine?.()?.render();
+        const firstViewportId = viewportIds[0];
+        if (!firstViewportId) return;
+        getEnabledElementByIds(firstViewportId, engineId)
+          ?.viewport.getRenderingEngine?.()
+          ?.render();
       } catch {
         // A closing view may already have released its engine.
       }
@@ -131,7 +135,8 @@ export const createMprTools = (
       // Density changes only while HU are valid; an oblique or slab view keeps the last value.
       if (!kind || ((kind === 'probe' || kind === 'ellipse') && !measurements.quantitative()))
         return undefined;
-      if (plane < 0 && !previous) return undefined;
+      const view = plane < 0 ? previous?.view : planes[plane];
+      if (!view) return undefined;
       const stats = Object.values(
         (item.data.cachedStats ?? {}) as Record<string, Record<string, unknown>>
       ).find(value => Object.values(value).some(Number.isFinite));
@@ -142,8 +147,8 @@ export const createMprTools = (
         seriesUid: series.uid,
         seriesNumber: series.number,
         modality: series.modality,
-        view: plane < 0 ? previous!.view : planes[plane],
-        oblique: plane < 0 ? previous!.oblique : measurements.oblique(plane),
+        view,
+        oblique: plane < 0 ? (previous?.oblique ?? false) : measurements.oblique(plane),
         slice: typeof sliceIndex === 'number' ? sliceIndex : (previous?.slice ?? 0),
         instanceUid: dicomImageInfo(metadata.referencedImageId)?.instanceUid,
         value: readDicomMeasurement(kind, stats, 'hu'),
@@ -224,8 +229,9 @@ export const createMprTools = (
     focus: (id: string) => {
       const item = store.get(id);
       const live = annotation.state.getAnnotation(id);
-      const viewport = item
-        ? (getEnabledElementByIds(viewportIds[planes.indexOf(item.view)], engineId)?.viewport as
+      const targetViewportId = item ? viewportIds[planes.indexOf(item.view)] : undefined;
+      const viewport = targetViewportId
+        ? (getEnabledElementByIds(targetViewportId, engineId)?.viewport as
             | Types.IVolumeViewport
             | undefined)
         : undefined;
@@ -236,11 +242,14 @@ export const createMprTools = (
       const dot = (a: Types.Point3, b: Types.Point3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
       if (!focalPoint || !position || !normal || Math.abs(dot(drawn, normal)) < 0.999) return false;
       const shift = dot(
-        [0, 1, 2].map(axis => point[axis] - focalPoint[axis]) as Types.Point3,
+        [point[0] - focalPoint[0], point[1] - focalPoint[1], point[2] - focalPoint[2]],
         normal
       );
-      const move = (from: Types.Point3) =>
-        from.map((value, axis) => value + shift * normal[axis]) as Types.Point3;
+      const move = (from: Types.Point3): Types.Point3 => [
+        from[0] + shift * normal[0],
+        from[1] + shift * normal[1],
+        from[2] + shift * normal[2],
+      ];
       viewport.setCamera({ focalPoint: move(focalPoint), position: move(position) });
       viewport.render();
       return true;

@@ -28,13 +28,20 @@ export const dicomProjectionCalibration = (
     DistanceSourceToPatient: attributes.sourceToPatient,
   } as Parameters<typeof utilities.getPixelSpacingInformation>[0]);
   const spacing = result?.PixelSpacing as number[] | undefined;
+  const rowSpacing = spacing?.[0];
+  const colSpacing = spacing?.[1];
   if (
     !result?.isProjection ||
     spacing?.length !== 2 ||
-    !spacing.every(value => Number.isFinite(value) && value > 0)
+    rowSpacing === undefined ||
+    colSpacing === undefined ||
+    !Number.isFinite(rowSpacing) ||
+    !Number.isFinite(colSpacing) ||
+    rowSpacing <= 0 ||
+    colSpacing <= 0
   )
     return undefined;
-  return { spacing: [spacing[0], spacing[1]], type: result.type };
+  return { spacing: [rowSpacing, colSpacing], type: result.type };
 };
 
 type Projection = { spacing: [number, number]; calibration: Types.IImageCalibration };

@@ -82,18 +82,21 @@ export const createDicomComparison = (
   let stopCursor: (() => void) | undefined;
   let cursorListener: ((value: number | null) => void) | undefined;
   const applyTool = (panel: number) => {
-    const group = ToolGroupManager.getToolGroup(groups[panel]);
-    if (!group) return;
+    const groupId = groups[panel];
+    const group = groupId ? ToolGroupManager.getToolGroup(groupId) : undefined;
+    const tool = selectedTools[panel];
+    if (!group || !tool) return;
     [...Object.values(navigation), ...dicomStackTools].forEach(item =>
       group.setToolPassive(item.toolName)
     );
-    const tool = selectedTools[panel];
-    group.setToolActive(
+    const toolName =
       tool in navigation
         ? navigation[tool as keyof typeof navigation].toolName
-        : dicomStackToolName(tool)!,
-      { bindings: [{ mouseButton: ToolEnums.MouseBindings.Primary }] }
-    );
+        : dicomStackToolName(tool);
+    if (!toolName) return;
+    group.setToolActive(toolName, {
+      bindings: [{ mouseButton: ToolEnums.MouseBindings.Primary }],
+    });
   };
   const releaseTools = () => {
     stopCursor?.();
@@ -134,13 +137,16 @@ export const createDicomComparison = (
     const from = slice(active),
       other = 1 - active;
     let positionStatus = links.position ? 'Geometría pendiente' : 'Posición independiente';
-    if (links.position && from && loaded[other]) {
-      const index = nearestComparisonSlice(from, loaded[other]!.geometry);
+    const otherLoaded = loaded[other];
+    const activeStack = stacks[active];
+    const otherStack = stacks[other];
+    if (links.position && from && otherLoaded && activeStack && otherStack) {
+      const index = nearestComparisonSlice(from, otherLoaded.geometry);
       positionStatus = index === null ? 'Sin correspondencia geométrica' : 'Posición vinculada';
-      const key = `${active}:${stacks[active].state().current}:${index}`;
+      const key = `${active}:${activeStack.state().current}:${index}`;
       if (index !== null && key !== lastPosition) {
         lastPosition = key;
-        if (stacks[other].state().requested !== index) stacks[other].select(index);
+        if (otherStack.state().requested !== index) otherStack.select(index);
       }
     }
     const lines = views.map((viewport, index) => {
@@ -178,6 +184,7 @@ export const createDicomComparison = (
     try {
       const from = views[active],
         to = views[1 - active];
+      if (!from || !to) return;
       if (links.zoom) to.setCamera({ parallelScale: from.getCamera().parallelScale });
       if (links.window && canWindow()) {
         const { voiRange, invert } = from.getProperties();
@@ -252,24 +259,26 @@ export const createDicomComparison = (
         view.element.addEventListener(event, update);
         viewRemovers.push(() => view.element.removeEventListener(event, update));
       });
-      viewRemovers.push(
-        stacks[panel].subscribe(() => {
-          applyLinks();
-          emit();
-        })
-      );
+      const panelStack = stacks[panel];
+      if (panelStack) {
+        viewRemovers.push(
+          panelStack.subscribe(() => {
+            applyLinks();
+            emit();
+          })
+        );
+      }
     });
     // Both panels share one measurement session: the same series shows its drawings in each.
-    stackTools = createDicomStackTools(
-      id,
-      views.map((view, panel) => ({
-        viewportId: view.id,
-        group: ToolGroupManager.getToolGroup(groups[panel])!,
-        element: elements[panel],
-      })),
-      measurements,
-      [...new Set([primary.uid, secondary.uid])]
-    );
+    const toolPanels = views.flatMap((view, panel) => {
+      const groupId = groups[panel];
+      const group = groupId ? ToolGroupManager.getToolGroup(groupId) : undefined;
+      const element = elements[panel];
+      return group && element ? [{ viewportId: view.id, group, element }] : [];
+    });
+    stackTools = createDicomStackTools(id, toolPanels, measurements, [
+      ...new Set([primary.uid, secondary.uid]),
+    ]);
     views.forEach((_, panel) => applyTool(panel));
     stopCursor = watchDicomCursorHu(
       id,
@@ -281,7 +290,9 @@ export const createDicomComparison = (
 
     await Promise.all(
       views.map((view, panel) => {
-        return stacks[panel].show(view).then(() => {
+        const panelStack = stacks[panel];
+        if (!panelStack) return Promise.resolve();
+        return panelStack.show(view).then(() => {
           if (disposed || childSignal.aborted) return;
           if (!initialized && same && panel === 1 && primary.modality === 'CT') {
             view.setProperties({ voiRange: { lower: -1350, upper: 150 } });
@@ -355,12 +366,11 @@ export const createDicomComparison = (
           emit();
         });
     }
-    stacks = [
-      createProgressiveStack(source, primary.instances.length),
-      createProgressiveStack(second ?? source, secondary.instances.length),
-    ];
-    stacks[0].select(initialIndex);
-    if (same) stacks[1].select(initialIndex);
+    const primaryStack = createProgressiveStack(source, primary.instances.length);
+    const secondaryStack = createProgressiveStack(second ?? source, secondary.instances.length);
+    stacks = [primaryStack, secondaryStack];
+    primaryStack.select(initialIndex);
+    if (same) secondaryStack.select(initialIndex);
     void continuity.show('comparison', elements, build).catch(() => {
       if (!disposed) {
         error ||= 'No se pudo preparar la comparación.';
@@ -389,13 +399,13 @@ export const createDicomComparison = (
     select: (panel: number, index: number) => {
       if (!error && !disposed) {
         active = panel;
-        stacks[panel].select(index);
+        stacks[panel]?.select(index);
       }
     },
     step: (panel: number, delta: number) => {
       if (!error && !disposed) {
         active = panel;
-        stacks[panel].step(delta);
+        stacks[panel]?.step(delta);
       }
     },
     retry: () => second?.loading.retryFailed(),
@@ -418,7 +428,7 @@ export const createDicomComparison = (
             : -1;
       if (panel < 0) return -1;
       active = panel;
-      stacks[panel].select(item.slice);
+      stacks[panel]?.select(item.slice);
       return panel;
     },
     onCursorHu: (listener: (value: number | null) => void) => {
@@ -428,15 +438,19 @@ export const createDicomComparison = (
       };
     },
     window: (width: number, center: number) => {
-      views[active].setProperties({
+      const activeView = views[active];
+      if (!activeView) return;
+      activeView.setProperties({
         voiRange: { lower: center - width / 2, upper: center + width / 2 },
       });
       applyLinks();
-      views[active].render();
+      activeView.render();
     },
     reset: () => {
-      views[active].resetCamera();
-      views[active].render();
+      const activeView = views[active];
+      if (!activeView) return;
+      activeView.resetCamera();
+      activeView.render();
     },
   };
 };
