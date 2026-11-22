@@ -1,5 +1,5 @@
 import React from 'react';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import StorageStatusBadge from '@/components/layout/StorageStatusBadge';
 import { PinLockScreen } from '@/components/security/PinLockScreen';
 import type { UseUIStateReturn } from '@/hooks/useUIState';

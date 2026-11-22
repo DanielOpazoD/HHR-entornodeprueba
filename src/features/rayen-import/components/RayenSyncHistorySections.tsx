@@ -7,7 +7,7 @@ import {
   presentRayenCoverageIssue,
   presentRayenLegacyCoverageGap,
 } from './rayenSyncPresentation';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 
 const RayenSyncTechnicalMetricsPanel = lazyWithRetry(() =>
   import('./RayenSyncTechnicalMetricsPanel').then(module => ({

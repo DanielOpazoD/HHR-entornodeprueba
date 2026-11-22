@@ -7,7 +7,7 @@ import {
   flushLazyBypassComponents,
 } from './appContentTestUtils';
 
-vi.mock('@/utils/lazyWithRetry', async () => {
+vi.mock('@/components/ui/lazyWithRetry', async () => {
   const { createLazyWithRetryBypass } = await import('./appContentTestUtils');
   return createLazyWithRetryBypass();
 });

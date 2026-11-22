@@ -12,7 +12,7 @@ import { useSyncQueueMonitor } from '@/features/rayen-import/hooks/useSyncQueueM
 import { localSyncAttentionLevel } from './localSyncPresentation';
 import { highestSyncTone, SYNC_TONE, SYNC_TONE_INFO_VARIANT } from './syncTone';
 import { RayenSyncStatusLine } from './RayenSyncStatusLine';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { rayenPrimaryActionLabel } from './rayenSyncPresentation';
 import { presentRayenSyncRecovery } from './rayenSyncRecoveryPresentation';
 import type {

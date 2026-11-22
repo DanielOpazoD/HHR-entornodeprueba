@@ -167,7 +167,7 @@ describe('chunkingPolicy', () => {
       /import\s+\{[^}]*UserAvatarModal[^}]*\}\s+from ['"]\.\/UserAvatarModal['"]/
     );
     expect(navbarSource).toContain("import('./UserAvatarModal')");
-    expect(navbarSource).toContain("from '@/utils/lazyWithRetry'");
+    expect(navbarSource).toContain("from '@/components/ui/lazyWithRetry'");
   });
 
   it('keeps user avatar image processing helpers out of the static authenticated shell import graph', () => {

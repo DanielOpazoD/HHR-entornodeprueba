@@ -1,7 +1,7 @@
 import React, { Suspense, useId, useMemo, useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { parseDateDDMMYYYY } from '@/features/laboratory';
 import { ChevronDown, FlaskConical } from 'lucide-react';
 import type { ClinicalExplorerPatient } from '@/features/census/controllers/clinicalExplorerController';

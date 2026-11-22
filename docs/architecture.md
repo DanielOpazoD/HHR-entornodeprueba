@@ -44,8 +44,8 @@ Qué impone hoy un control y qué queda como objetivo:
   libres. `?raw` y `?url` traen texto o una URL, no código, y no son dependencias; el control
   tampoco sigue `?inline`, aunque para un módulo `.ts` Vite sí compila su código: es
   **criterio** no usarlo para código (hoy no hay ninguno).
-- **Hoy:** la capa 0 se define por carpeta, no por contenido: que no haga I/O ni use React es
-  **objetivo** (por ejemplo `shared/ui` todavía tiene hooks de React con almacenamiento).
+- **Hoy:** la capa 0 (`types`, `domain`, `utils`, `constants`, `schemas`, `shared`) no importa
+  React (ESLint `no-restricted-imports`); evitar I/O directo en esa capa sigue siendo **criterio**.
 - **Hoy:** el libro de excepciones de la matriz (`exceptions` y `dataAccess.exceptions`) está
   vacío: no hay relaciones hacia arriba en ejecución ni lecturas de datos desde `components/`.
   El control sigue actuando como trinquete (falla cualquier relación nueva hacia arriba o
@@ -67,9 +67,9 @@ Qué impone hoy un control y qué queda como objetivo:
 - **Hoy:** no hay ciclos de imports en ejecución (`npm run check:import-cycles`).
 - **Hoy:** `eslint-plugin-boundaries` está retirado: solo veía imports relativos con `.ts`
   explícito, y lo que prohibía con razón lo cubre `check:folder-dependencies`.
-- **Objetivo:** mantener vacío el libro de `folder-dependency-matrix.json`, terminar de sacar
-  React/almacenamiento de capa 0 (`shared/ui`), y que cada área componga sus propias acciones
-  sin inflar `hooks/useDailyRecordDomainModules.ts`.
+- **Objetivo:** mantener vacío el libro de `folder-dependency-matrix.json`, dar hogar propio a la
+  sesión en `services/session/`, y que cada área componga sus propias acciones sin inflar
+  `hooks/useDailyRecordDomainModules.ts`.
 
 ## Reglas
 

@@ -288,6 +288,42 @@ export default tseslint.config(
     },
   },
   {
+    // Layer 0 (pure core) never imports React; React wrappers belong in hooks/, components/, or a feature.
+    files: ['src/{types,domain,utils,constants,schemas,shared}/**/*.{ts,tsx}'],
+    ignores: ['**/*.d.ts', '**/*.test.*', '**/*.spec.*'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['react', 'react/*', 'react-dom', 'react-dom/*'],
+              message:
+                'La capa 0 (núcleo puro) no importa React; mueve el módulo React a hooks/, components/ o su feature.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // With `"jsx": "react-jsx"`, a `.tsx` file in Layer 0 would silently inject `react/jsx-runtime`
+    // without an explicit React import. Reject JSX elements and fragments in Layer 0 directly.
+    files: ['src/{types,domain,utils,constants,schemas,shared}/**/*.tsx'],
+    ignores: ['**/*.d.ts', '**/*.test.*', '**/*.spec.*'],
+    rules: {
+      'no-restricted-syntax': syntaxRestrictions({
+        add: [
+          {
+            selector: 'JSXElement, JSXFragment',
+            message:
+              'La capa 0 (núcleo puro) no usa JSX ni React; mueve el componente a components/, hooks/ o su feature.',
+          },
+        ],
+      }),
+    },
+  },
+  {
     files: ['src/components/layout/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': ['error', { patterns: [DATA_ACCESS_RESTRICTION] }],
