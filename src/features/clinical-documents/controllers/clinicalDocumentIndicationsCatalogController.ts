@@ -91,6 +91,9 @@ export const applyClinicalDocumentIndicationsReorderTab = (
 
   const nextTabs = [...catalog.tabs];
   const [tab] = nextTabs.splice(currentIndex, 1);
+  if (!tab) {
+    return catalog;
+  }
   nextTabs.splice(targetIndex, 0, tab);
   return withClinicalDocumentIndicationsActiveItems({
     ...catalog,

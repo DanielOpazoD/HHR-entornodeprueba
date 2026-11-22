@@ -56,7 +56,7 @@ const customDilution = (
 };
 
 export const InfusionCalculatorTool: React.FC<ToolComponentProps> = ({ onBack, onClose }) => {
-  const [presetId, setPresetId] = useState<string>(INFUSION_PRESETS[0].id);
+  const [presetId, setPresetId] = useState<string>(INFUSION_PRESETS[0]?.id ?? CUSTOM_PRESET_ID);
   const [dilutionIndex, setDilutionIndex] = useState(0);
   const [customAmount, setCustomAmount] = useState('');
   const [customMassUnit, setCustomMassUnit] = useState<MassUnit>('mg');
@@ -65,7 +65,7 @@ export const InfusionCalculatorTool: React.FC<ToolComponentProps> = ({ onBack, o
   const [mode, setMode] = useState<InfusionMode>('dose');
   const [doseText, setDoseText] = useState('');
   const [rateText, setRateText] = useState('');
-  const [unit, setUnit] = useState<DoseUnitId>(INFUSION_PRESETS[0].defaultUnit);
+  const [unit, setUnit] = useState<DoseUnitId>(INFUSION_PRESETS[0]?.defaultUnit ?? 'mg/h');
 
   const preset = resolvePreset(presetId);
   const presetDilution = preset ? (preset.dilutions[dilutionIndex] ?? preset.dilutions[0]) : null;

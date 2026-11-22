@@ -158,21 +158,33 @@ export const MedifPreferencesPanel: React.FC<Props> = ({
       <div className="space-y-3">
         {MEDIF_SECTIONS.map(section => {
           const rows = section.groups
-            .flatMap(group =>
-              group.type === 'choice'
-                ? [
-                    {
-                      id: getMedifGroupFieldIds(group)[0],
-                      label: group.label,
-                      count: getMedifGroupFieldIds(group).length,
-                    },
-                  ]
-                : group.fields.map(id => ({
-                    id,
-                    label: MEDIF_FIELD_BY_ID[id].shortLabel,
-                    count: 1,
-                  }))
-            )
+            .flatMap(group => {
+              if (group.type === 'choice') {
+                const groupFieldIds = getMedifGroupFieldIds(group);
+                const firstFieldId = groupFieldIds[0];
+                return firstFieldId
+                  ? [
+                      {
+                        id: firstFieldId,
+                        label: group.label,
+                        count: groupFieldIds.length,
+                      },
+                    ]
+                  : [];
+              }
+              return group.fields.flatMap(id => {
+                const field = MEDIF_FIELD_BY_ID[id];
+                return field
+                  ? [
+                      {
+                        id,
+                        label: field.shortLabel,
+                        count: 1,
+                      },
+                    ]
+                  : [];
+              });
+            })
             .filter(row => !isMedifFixedField(row.id))
             .filter(row =>
               `${section.title} ${row.label} ${row.id}`

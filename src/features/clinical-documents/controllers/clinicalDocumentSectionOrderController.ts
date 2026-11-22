@@ -29,6 +29,9 @@ export const reorderClinicalDocumentVisibleSections = (
 
   const reorderedVisibleSections = [...visibleSections];
   const [movedSection] = reorderedVisibleSections.splice(sourceIndex, 1);
+  if (!movedSection) {
+    return sections;
+  }
   reorderedVisibleSections.splice(targetIndex, 0, movedSection);
 
   const nextVisibleSections = reorderedVisibleSections.map((section, index) => ({

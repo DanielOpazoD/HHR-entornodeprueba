@@ -8,6 +8,10 @@ import { MEDIF_TEXT_SIZE, clinicalFormGlyphBounds } from './clinicalFormTypograp
 export type MedifPdfMode = 'print' | 'editable';
 export const MEDIF_TEMPLATE_URL = '/docs/biblioteca/medif-latam-rellenable.pdf';
 const textPadding = (field: MedifField): number => (field.kind === 'mark' ? 0.1 : 0.5);
+const rectDimensions = (field: MedifField): { width: number; height: number } => {
+  const [x0 = 0, y0 = 0, x1 = 0, y1 = 0] = field.rect;
+  return { width: x1 - x0, height: y1 - y0 };
+};
 const MARK_FONT_SIZE = 7.5;
 // Helvetica's full FontBBox includes uppercase accents above its usual 718 ascent.
 // Text must reserve that space; an X has neither accents nor descenders.
@@ -25,11 +29,12 @@ const layoutText = async (
   const { layoutMultilineText, layoutSinglelineText, TextAlignment } =
     await loadPdfLibGenerationRuntime();
   const padding = textPadding(field);
+  const { width: fieldWidth, height: fieldHeight } = rectDimensions(field);
   const bounds = {
     x: padding,
     y: padding,
-    width: field.rect[2] - field.rect[0] - padding * 2,
-    height: field.rect[3] - field.rect[1] - padding * 2,
+    width: fieldWidth - padding * 2,
+    height: fieldHeight - padding * 2,
   };
   const alignment = field.kind === 'mark' ? TextAlignment.Center : TextAlignment.Left;
   const options = { font, fontSize: size, alignment, bounds };
@@ -63,8 +68,7 @@ const textForPdf = (field: MedifField, value: string, font: PDFFont): string => 
 /** No truncation: reject values that cannot fit at the smallest legible size. */
 const fittingFontSize = async (field: MedifField, text: string, font: PDFFont): Promise<number> => {
   if (!text) return field.kind === 'mark' ? MARK_FONT_SIZE : MEDIF_TEXT_SIZE;
-  const width = field.rect[2] - field.rect[0];
-  const height = field.rect[3] - field.rect[1];
+  const { width, height } = rectDimensions(field);
   const padding = textPadding(field);
   const bounds = {
     x: padding,
@@ -134,12 +138,13 @@ export const createMedifPdf = async (
       widget.setDefaultAppearance(appearance);
     }
     const textLines = await layoutText(field, text, font, fontSize);
+    const { width, height } = rectDimensions(field);
     pdfField.updateAppearances(font, () =>
       drawTextField({
         x: 0,
         y: 0,
-        width: field.rect[2] - field.rect[0],
-        height: field.rect[3] - field.rect[1],
+        width,
+        height,
         borderWidth: 0,
         borderColor: undefined,
         color: undefined,

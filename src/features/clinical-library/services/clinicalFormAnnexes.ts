@@ -65,12 +65,14 @@ export const appendClinicalFormAnnexes = (
   const rels = parse('word/_rels/document.xml.rels');
   const types = parse('[Content_Types].xml');
   const body = document.getElementsByTagNameNS(W, 'body')[0];
+  if (!body) throw new Error('La plantilla Word no contiene el cuerpo esperado.');
   const section = Array.from(body.children).find(
     item => item.namespaceURI === W && item.localName === 'sectPr'
   );
   if (!section) throw new Error('La plantilla Word no define el tamaño de página.');
   const page = section.getElementsByTagNameNS(W, 'pgSz')[0];
   const margin = section.getElementsByTagNameNS(W, 'pgMar')[0];
+  if (!page || !margin) throw new Error('La plantilla Word no define el tamaño de página.');
   const size = (element: Element, key: string) => Number(element.getAttributeNS(W, key));
   const maxWidth = (size(page, 'w') - size(margin, 'left') - size(margin, 'right')) * 635;
   const maxHeight = (size(page, 'h') - size(margin, 'top') - size(margin, 'bottom') - 2400) * 635;

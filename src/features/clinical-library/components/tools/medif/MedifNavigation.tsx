@@ -39,9 +39,10 @@ export const MedifTabs: React.FC<{ value: MedifTabId; onChange: (tab: MedifTabId
                     : event.key === 'End'
                       ? TABS.length - 1
                       : null;
-            if (next !== null) {
+            const nextTab = next !== null ? TABS[next] : undefined;
+            if (next !== null && nextTab) {
               event.preventDefault();
-              onChange(TABS[next].id);
+              onChange(nextTab.id);
               refs.current[next]?.focus();
             }
           }}

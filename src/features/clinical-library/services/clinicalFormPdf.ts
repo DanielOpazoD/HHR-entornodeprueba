@@ -66,7 +66,7 @@ export const createClinicalFormPdf = async (
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   for (const field of form.fields) {
     for (const target of field.targets) {
-      const text = targetText(target, values[field.id]);
+      const text = targetText(target, values[field.id] ?? null);
       if (!text) continue;
       const page = pdf.getPage(target.page);
       const [x, y, width, height] = target.rect;

@@ -130,7 +130,9 @@ export const MEDIF_DUPLICATE_FIELD_IDS: readonly string[] = MEDIF_FIELD_ALIASES.
 export const getMedifFormBlockIdForField = (fieldId: string): string | undefined => {
   const canonicalId = getMedifCanonicalFieldId(fieldId);
   const groupId = MEDIF_FIELD_BY_ID[canonicalId]?.groupId;
-  return MEDIF_FORM_BLOCKS.find(block => block.groupIds.includes(groupId))?.id;
+  return groupId
+    ? MEDIF_FORM_BLOCKS.find(block => block.groupIds.includes(groupId))?.id
+    : undefined;
 };
 
 const GROUP_LABELS: Readonly<Record<string, string>> = {

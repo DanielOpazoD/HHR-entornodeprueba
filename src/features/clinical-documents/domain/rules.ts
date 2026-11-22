@@ -76,7 +76,9 @@ export const CLINICAL_DOCUMENT_EVOLUTION_SECTIONS: ClinicalDocumentSectionTempla
   { id: 'plan', title: 'Plan', order: 3, required: true, visible: true },
 ] as const;
 
-export const CLINICAL_DOCUMENT_TEMPLATES: Record<string, ClinicalDocumentTemplate> = {
+export const CLINICAL_DOCUMENT_TEMPLATES: Record<string, ClinicalDocumentTemplate> & {
+  epicrisis: ClinicalDocumentTemplate;
+} = {
   epicrisis: {
     id: 'epicrisis',
     documentType: 'epicrisis',
