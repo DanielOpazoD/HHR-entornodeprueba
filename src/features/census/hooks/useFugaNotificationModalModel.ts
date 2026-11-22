@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useDailyRecordStaff } from '@/context/DailyRecordContext';
 import { useUI } from '@/context/UIContext';
 import { resolveShiftNurseSignature } from '@/services/staff/dailyRecordStaffing';
-import { sendFugaNotification } from '@/services/integrations/fugaNotificationService';
+import { sendFugaNotification } from '@/features/census/services/fugaNotificationService';
 import {
   buildDefaultFugaAutomaticMessage,
   resolveFugaRecipients,

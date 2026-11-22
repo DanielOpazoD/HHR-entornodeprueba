@@ -7,7 +7,9 @@ import { dailyRecordObservability } from '@/services/repositories/dailyRecordOpe
 import { RayenDayBootstrapButton, resolveCensusSyncTarget } from '@/features/rayen-import/public';
 import { ErrorBoundary } from 'react-error-boundary';
 const CensusEmptyMoa = lazy(() =>
-  import('@/components/layout/MoaCompanion').then(module => ({ default: module.CensusEmptyMoa }))
+  import('@/features/census/components/moa/MoaCompanion').then(module => ({
+    default: module.CensusEmptyMoa,
+  }))
 );
 const moaPlaceholder = <span className="mb-4 h-[168px] w-72 max-w-full" aria-hidden="true" />;
 import {

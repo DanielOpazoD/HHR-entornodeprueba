@@ -11,7 +11,7 @@ import {
 } from '@/application/census/public';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import type { TransferModalConfirmPayload } from '@/types/movements';
-import type { TransferUpdateField } from '@/hooks/types/censusActionModalContracts';
+import type { TransferUpdateField } from '@/features/census/types/censusActionModalContracts';
 import { useModalFormFlow } from '@/hooks/useModalFormFlow';
 
 interface UseTransferModalFormParams {

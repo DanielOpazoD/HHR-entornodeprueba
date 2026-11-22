@@ -1,6 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import { observeCensusTable } from '@/shared/runtime/observeCensusTable';
+import { observeCensusTable } from '@/features/census/hooks/observeCensusTable';
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTableConfig } from '@/context/TableConfigContext';
 import { NursingScalesVisibleContext } from '@/features/census/hooks/useNursingScalesVisible';
@@ -23,7 +23,7 @@ import { useNotification } from '@/context/UIContext';
 import { isFeatureEnabled } from '@/services/utils/featureFlags';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 
-import { useDailyRecordFreshnessUi } from '@/hooks/useDailyRecordFreshnessUi';
+import { useDailyRecordFreshnessUi } from '@/features/census/hooks/useDailyRecordFreshnessUi';
 import { Eye } from 'lucide-react';
 import {
   filterCensusRowsByAttention,

@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useCensusPromptState } from '@/hooks/useCensusPromptState';
+import { useCensusPromptState } from '@/features/census/hooks/useCensusPromptState';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 
 const { local, remote, previous, dates } = vi.hoisted(() => ({

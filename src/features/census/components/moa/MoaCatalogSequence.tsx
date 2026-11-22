@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MoaMascot } from '../navbar/MoaMascot';
+import { MoaMascot } from './MoaMascot';
 import { fetchMoaAtlas, type MoaCatalogScene } from './moaCatalog';
 
 export function moaKeyframes(scene: MoaCatalogScene, reduced: boolean): Keyframe[] {

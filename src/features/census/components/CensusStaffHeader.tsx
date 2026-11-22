@@ -7,7 +7,7 @@ const StaffShiftDetailsModal = lazyWithRetry(() =>
   import('./StaffShiftDetailsModal').then(module => ({ default: module.StaffShiftDetailsModal }))
 );
 import { CensusSummarySwitcher } from './CensusSummarySwitcher';
-import { MoaCompanionSlot } from '@/components/layout/MoaCompanionSlot';
+import { MoaCompanionSlot } from '@/features/census/components/moa/MoaCompanionSlot';
 import {
   useDailyRecordBeds,
   useDailyRecordStaff,

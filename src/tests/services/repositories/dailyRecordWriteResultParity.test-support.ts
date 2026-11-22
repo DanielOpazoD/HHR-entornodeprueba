@@ -14,7 +14,7 @@ import {
 } from '@/hooks/controllers/dailyRecordSyncNotificationController';
 import { assertDailyRecordWriteAccepted } from '@/hooks/controllers/dailyRecordWriteOutcomeGuard';
 import { createDailyRecordAdmitPatientPort } from '@/services/daily-record/dailyRecordAdmitPatientPort';
-import { assignSpecialtyManually } from '@/services/specialty/specialtyJevClient';
+import { assignSpecialtyManually } from '@/features/census/services/specialtyJevClient';
 import {
   isHistoricalPatchOnlyQueued,
   persistHistoricalOccupancyCorrection,

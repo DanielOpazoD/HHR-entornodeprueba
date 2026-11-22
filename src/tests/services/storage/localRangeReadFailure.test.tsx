@@ -7,7 +7,7 @@ import {
   doStoredDaysHavePatientData,
   fetchRecordsRangeSorted,
 } from '@/services/records/recordQueryService';
-import { loadPatientUpcHistory } from '@/services/patient/patientUpcHistoryService';
+import { loadPatientUpcHistory } from '@/features/census/services/patientUpcHistoryService';
 import { loadPatientHistoryRecords } from '@/services/patient/patientHistoryRecordLoader';
 import { useExistingDaysQuery } from '@/hooks/useExistingDaysQuery';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';

@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react';
-import { MoaMascot } from './navbar/MoaMascot';
+import { MoaMascot } from './MoaMascot';
 
 export const moaScenes = [
   'drink',

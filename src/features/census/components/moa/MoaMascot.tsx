@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MoaIcon } from './MoaIcon';
+import { MoaIcon } from '@/components/layout/navbar/MoaIcon';
 
 /** Decorative only; the surrounding control supplies its accessible name. */
 export const MoaMascot = ({ className }: { className: string }) => {

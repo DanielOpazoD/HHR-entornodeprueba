@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { hideMoaAndRestoreFocus } from '@/hooks/useMoaVisibility';
-import { MoaMascot } from './navbar/MoaMascot';
+import { MoaMascot } from './MoaMascot';
 import { MoaSequence, moaScenes } from './MoaSequence';
 import './moaCompanion.css';
-import { useMoaCatalog } from './moa/useMoaCatalog';
-import { MoaCatalogSequence } from './moa/MoaCatalogSequence';
-import type { MoaCatalogScene } from './moa/moaCatalog';
+import { useMoaCatalog } from './useMoaCatalog';
+import { MoaCatalogSequence } from './MoaCatalogSequence';
+import type { MoaCatalogScene } from './moaCatalog';
 
 const gestures = moaScenes;
 type Gesture = string;
@@ -100,4 +100,4 @@ const MoaCompanion = () => {
 export default MoaCompanion;
 
 // Both decorative hosts share one on-demand module, never the clinical startup bundle.
-export { CensusEmptyMoa } from './moa/CensusEmptyMoa';
+export { CensusEmptyMoa } from './CensusEmptyMoa';

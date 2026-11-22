@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
-import { buildMovementSummaryModel } from '@/components/layout/controllers/movementSummaryController';
+import { buildMovementSummaryModel } from '@/features/census/components/movementSummaryController';
 import type { DischargeData, TransferData } from '@/types/domain/movements';
 
 describe('movementSummaryController', () => {

@@ -93,7 +93,7 @@
 | [src/hooks/useBedManagementReducer.ts](../src/hooks/useBedManagementReducer.ts)                                                                     | Estado/patches de camas        | `156` líneas; ya mucho mejor, pero sensible.                                         |
 | [src/features/census/controllers/patientRowBindingsController.ts](../src/features/census/controllers/patientRowBindingsController.ts)               | Wiring de fila                 | `282` líneas; punto central del costo cognitivo de `PatientRow`.                     |
 | [src/features/census/controllers/patientRowBindingSectionsController.ts](../src/features/census/controllers/patientRowBindingSectionsController.ts) | Secciones de binding por fila  | `156` líneas; importante para mantener separación.                                   |
-| [src/hooks/useCensusLogic.ts](../src/hooks/useCensusLogic.ts)                                                                                       | Orquestación general del censo | Relativamente chico (`64` líneas), pero representa el punto de entrada del módulo.   |
+| [src/features/census/hooks/useCensusLogic.ts](../src/features/census/hooks/useCensusLogic.ts)                                                                                       | Orquestación general del censo | Relativamente chico (`64` líneas), pero representa el punto de entrada del módulo.   |
 
 Además, el scorecard marca:
 

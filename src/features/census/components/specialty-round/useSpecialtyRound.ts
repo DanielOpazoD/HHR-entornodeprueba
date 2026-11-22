@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDailyRecordBeds, useDailyRecordData } from '@/context/DailyRecordContext';
-import { useDailyRecordWriteStatus } from '@/hooks/useDailyRecordWriteStatus';
+import { useDailyRecordWriteStatus } from '@/features/census/hooks/useDailyRecordWriteStatus';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { getDailyRecordWriteState } from '@/services/repositories/dailyRecordWriteCoordinator';
 import {
@@ -8,8 +8,11 @@ import {
   isCurrentSpecialtyCandidate,
   resolveSpecialtyRoundRule,
 } from './specialtyRoundModel';
-import { resolveSpecialtyJevLabel } from '@/services/specialty/specialtyJevClient';
-import type { JevSuggestion, SpecialtyRoundSetup } from '@/services/specialty/specialtyJevClient';
+import { resolveSpecialtyJevLabel } from '@/features/census/services/specialtyJevClient';
+import type {
+  JevSuggestion,
+  SpecialtyRoundSetup,
+} from '@/features/census/services/specialtyJevClient';
 
 type RoundResult = {
   state: 'consulting' | 'ready' | 'review' | 'failed' | 'outdated' | 'saved';
@@ -47,7 +50,7 @@ export const useSpecialtyRound = (date: string, disabled: boolean) => {
   }, []);
 
   useEffect(() => {
-    void import('@/services/specialty/specialtyJevClient')
+    void import('@/features/census/services/specialtyJevClient')
       .then(service => service.loadSpecialtyRoundSetup())
       .then(next => {
         if (!activeRef.current) return;
@@ -71,7 +74,7 @@ export const useSpecialtyRound = (date: string, disabled: boolean) => {
       })
       .catch(async error => {
         if (!activeRef.current) return;
-        const service = await import('@/services/specialty/specialtyJevClient');
+        const service = await import('@/features/census/services/specialtyJevClient');
         if (!activeRef.current) return;
         setCatalogError(
           `${service.describeSpecialtySetupError(error)} La asignación manual sigue disponible.`
@@ -115,7 +118,7 @@ export const useSpecialtyRound = (date: string, disabled: boolean) => {
     setBusy(true);
     setProgress('Preparando consultas…');
     try {
-      const service = await import('@/services/specialty/specialtyJevClient');
+      const service = await import('@/features/census/services/specialtyJevClient');
       const pending = eligible.filter(
         candidate =>
           !['ready', 'review', 'saved'].includes(resultsRef.current[candidate.key]?.state ?? '') &&
@@ -194,7 +197,7 @@ export const useSpecialtyRound = (date: string, disabled: boolean) => {
     if (!selected.length) return;
     setBusy(true);
     try {
-      const service = await import('@/services/specialty/specialtyJevClient');
+      const service = await import('@/features/census/services/specialtyJevClient');
       for (const [index, candidate] of selected.entries()) {
         // A brief commit pause preserves unsent choices for the next confirmation.
         if (!activeRef.current || hasActiveSyncCommit(date)) break;

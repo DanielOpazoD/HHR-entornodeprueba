@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EmptyDayPrompt } from '@/features/census/components/EmptyDayPrompt';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
 
-vi.mock('@/components/layout/MoaCompanion', () => ({
+vi.mock('@/features/census/components/moa/MoaCompanion', () => ({
   CensusEmptyMoa: () => <span data-testid="census-empty-moa" />,
 }));
 

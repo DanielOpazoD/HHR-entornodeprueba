@@ -1,4 +1,4 @@
-import type { SpecialtyCatalogRule } from '@/services/specialty/specialtyJevClient';
+import type { SpecialtyCatalogRule } from '@/features/census/services/specialtyJevClient';
 import { normalizeDiagnosisCode } from './specialtyRulesHistoryModel';
 
 /** One decision per normalized diagnosis, even across repeated clicks. */

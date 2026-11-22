@@ -1,4 +1,7 @@
-import { beginCensusTableObservation, recordCensusTableMilestone } from './censusStartupPerf';
+import {
+  beginCensusTableObservation,
+  recordCensusTableMilestone,
+} from '@/shared/runtime/censusStartupPerf';
 
 /** Double rAF is a foreground paint opportunity, NOT proof of pixels presented by the GPU. */
 export function observeCensusTable(key: string, element: HTMLElement | null): () => void {

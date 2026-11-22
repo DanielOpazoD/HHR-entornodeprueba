@@ -28,7 +28,7 @@ const LazyImagingRequestDialog = lazy(() =>
 );
 
 const LazyPatientHistoryModal = lazy(() =>
-  import('@/components/modals/PatientHistoryModal').then(module => ({
+  import('@/features/census/components/PatientHistoryModal').then(module => ({
     default: module.PatientHistoryModal,
   }))
 );

@@ -1,5 +1,5 @@
 import { useMemo, type CSSProperties } from 'react';
-import { useCensusLogic } from '@/hooks/useCensusLogic';
+import { useCensusLogic } from '@/features/census/hooks/useCensusLogic';
 import { useTableConfig } from '@/context/TableConfigContext';
 import { BEDS } from '@/constants/beds';
 import { buildVisibleBeds } from '@/features/census/controllers/censusTableViewController';

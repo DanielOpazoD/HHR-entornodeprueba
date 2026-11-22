@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { CombinedSummaryCard, SummaryCard } from '@/components/layout/SummaryCard';
+import { CombinedSummaryCard, SummaryCard } from '@/features/census/components/SummaryCard';
 import type { DischargeData } from '@/types/domain/movements';
 import type { Statistics } from '@/types/domain/statistics';
 

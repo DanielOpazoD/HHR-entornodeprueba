@@ -5,7 +5,7 @@ import {
   downloadAntecedentPrescriptionCopy,
   renderAntecedentPrescriptionCopy,
   type AntecedentPrescriptionCopy,
-} from '@/services/pdf/antecedentPrescriptionPdf';
+} from '@/features/census/services/antecedentPrescriptionPdf';
 
 const copy: AntecedentPrescriptionCopy = {
   id: '123',

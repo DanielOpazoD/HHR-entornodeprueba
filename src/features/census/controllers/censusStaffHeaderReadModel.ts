@@ -1,5 +1,5 @@
 import type { Statistics } from '@/types/domain/statistics';
-import type { CensusHeaderPatientContract } from '@/application/census/censusStaffHeaderContracts';
+import type { CensusHeaderPatientContract } from '@/features/census/contracts/censusStaffHeaderContracts';
 import {
   type CensusAccessProfile,
   isSpecialistCensusAccessProfile,

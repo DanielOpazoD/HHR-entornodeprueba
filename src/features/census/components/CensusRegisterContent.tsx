@@ -17,7 +17,7 @@ import {
   ClinicalDerivedDayProvider,
   useCensusClinicalDerivedDay,
 } from './patient-row/clinicalDerivedDayContext';
-import { useDailyRecordWriteStatus } from '@/hooks/useDailyRecordWriteStatus';
+import { useDailyRecordWriteStatus } from '@/features/census/hooks/useDailyRecordWriteStatus';
 import { resolveCensusOperationalState } from '@/features/census/controllers/censusOperationalStateController';
 import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';

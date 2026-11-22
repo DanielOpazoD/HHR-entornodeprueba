@@ -6,7 +6,7 @@ import type {
   DischargeModalProps,
   MoveCopyModalProps,
   TransferModalProps,
-} from '@/hooks/types/censusActionModalContracts';
+} from '@/features/census/types/censusActionModalContracts';
 
 type CensusModalsHandlersModel = ReturnType<typeof useCensusModalsHandlers>;
 

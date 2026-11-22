@@ -11,7 +11,7 @@ import clsx from 'clsx';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { MovementType } from '@/services/patient/patientHistoryService';
 import { formatHandoffVerboseDate } from '@/shared/handoff/handoffPresentation';
-import { usePatientMovementHistory } from '@/hooks/usePatientMovementHistory';
+import { usePatientMovementHistory } from '@/features/census/hooks/usePatientMovementHistory';
 
 interface PatientHistoryModalProps {
   isOpen: boolean;

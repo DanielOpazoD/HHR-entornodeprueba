@@ -10,8 +10,8 @@ import { DischargeTypeSelector } from '@/features/census/components/movements/di
 import { MovementFinalStateNotice } from '@/features/census/components/movements/shared/MovementFinalStateNotice';
 import type { DischargeTarget } from '@/types/movements';
 import { shouldShowBabyStatus, shouldShowMotherStatus } from '@/application/census/public';
-import { useDischargeModalForm } from '@/hooks/useDischargeModalForm';
-import type { DischargeModalProps } from '@/hooks/types/censusActionModalContracts';
+import { useDischargeModalForm } from '@/features/census/components/movements/useDischargeModalForm';
+import type { DischargeModalProps } from '@/features/census/types/censusActionModalContracts';
 
 export const DischargeModal: React.FC<DischargeModalProps> = ({
   isOpen,

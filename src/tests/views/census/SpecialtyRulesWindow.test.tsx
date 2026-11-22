@@ -21,7 +21,7 @@ vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
   getRecordsRangeFromFirestore: service.history,
   getRecordFromFirestoreDetailed: service.current,
 }));
-vi.mock('@/services/specialty/specialtyJevClient', () => ({
+vi.mock('@/features/census/services/specialtyJevClient', () => ({
   loadSpecialtyRoundSetup: service.load,
   saveSpecialtyRules: service.save,
   describeSpecialtySetupError: (error: unknown) => String(error),

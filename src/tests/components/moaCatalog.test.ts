@@ -12,8 +12,8 @@ import {
   parseMoaCatalog,
   readBoundedBody,
   readCachedMoaCatalog,
-} from '@/components/layout/moa/moaCatalog';
-import { moaKeyframes } from '@/components/layout/moa/MoaCatalogSequence';
+} from '@/features/census/components/moa/moaCatalog';
+import { moaKeyframes } from '@/features/census/components/moa/MoaCatalogSequence';
 
 const clone = () => structuredClone(catalogFixture);
 beforeEach(() => {

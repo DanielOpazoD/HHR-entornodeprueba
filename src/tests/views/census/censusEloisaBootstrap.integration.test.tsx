@@ -108,7 +108,7 @@ vi.mock('@/features/census/components/CensusRegisterSections', () => ({
 vi.mock('@/features/census/components/StaffSelector', () => ({
   StaffSelector: ({ role }: { role: 'nurse' | 'tens' }) => <div data-testid={`${role}-selector`} />,
 }));
-vi.mock('@/components/layout/SummaryCard', () => ({
+vi.mock('@/features/census/components/SummaryCard', () => ({
   CombinedSummaryCard: () => null,
 }));
 
