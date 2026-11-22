@@ -1,15 +1,9 @@
-import { extensionDownloadPlugin } from './scripts/config/extensionDownloadPlugin';
 /// <reference types="vitest" />
 import fs from 'node:fs';
 import path from 'node:path';
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
-
-import { pinTestTimeZone } from './scripts/config/testTimeZone';
-
-pinTestTimeZone();
-import { minsalSharedInteropPlugin } from './scripts/config/minsalSharedInteropPlugin';
+import { defineConfig } from 'vitest/config';
+import base from './vitest.config';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const criticalCoverageConfigPath = path.join(
@@ -33,47 +27,19 @@ const criticalCoverageInclude = [
 ];
 
 export default defineConfig({
-  plugins: [extensionDownloadPlugin(dirname), minsalSharedInteropPlugin(dirname), react()],
-  resolve: {
-    alias: {
-      '@/services/exporters/excelJsModuleLoader': path.resolve(
-        dirname,
-        'src/services/exporters/excelJsModuleLoader.node.ts'
-      ),
-      '@': path.resolve(dirname, 'src'),
-    },
-  },
+  ...base,
   test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: ['./src/tests/setup.ts'],
-    include: ['src/tests/**/*.test.ts', 'src/tests/**/*.test.tsx'],
-    exclude: [
-      'stories/**/*',
-      'node_modules/**/*',
-      'src/tests/services/storage/syncQueueLoad.test.ts',
-    ],
+    ...base.test,
+    exclude: [...(base.test?.exclude ?? []), 'src/tests/services/storage/syncQueueLoad.test.ts'],
     maxWorkers: 4,
-    testTimeout: 30000,
-    hookTimeout: 30000,
-    teardownTimeout: 10000,
     coverage: {
+      ...base.test?.coverage,
       enabled: true,
-      provider: 'v8',
       all: true,
       include: criticalCoverageInclude,
       reporter: ['text-summary', 'json', 'json-summary'],
       reportsDirectory: 'coverage/critical',
-      exclude: [
-        'node_modules/',
-        'dist/',
-        'src/tests/setup.ts',
-        '**/*.d.ts',
-        '**/*.test.ts',
-        '**/*.test.tsx',
-        '**/*.stories.tsx',
-        '.storybook/',
-      ],
+      thresholds: undefined,
     },
   },
 });
