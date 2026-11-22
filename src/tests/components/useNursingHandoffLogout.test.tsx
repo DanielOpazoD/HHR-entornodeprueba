@@ -4,8 +4,9 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useNursingHandoffLogout } from '@/hooks/useNursingHandoffLogout';
 import NursingHandoffLogoutDialog from '@/components/layout/NursingHandoffLogoutDialog';
 import NursingHandoffSessionNotice from '@/components/layout/NursingHandoffSessionNotice';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import { SESSION_CLEANUP_PENDING_KEY, SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { admitSyntheticSession, replaceStoredSessionOwner } from '@/tests/utils/syntheticSession';
 import type { AuthUser } from '@/types/authRoleTypes';
 
 const { attempt, backup, resume } = vi.hoisted(() => ({
@@ -217,6 +218,28 @@ it('cannot close B after the admitted identity changes while A waits', async () 
     await operation;
   });
   expect(close).not.toHaveBeenCalled();
+});
+
+it('still closes the session when a prior logout cleanup was left pending', async () => {
+  admitSyntheticSession('user:synthetic-A', 'synthetic-generation');
+  localStorage.setItem(SESSION_CLEANUP_PENDING_KEY, '1');
+  const { result } = renderHook(() => useNursingHandoffLogout(user, close));
+  await act(async () => {
+    await result.current.handleLogout('manual');
+  });
+  expect(close).toHaveBeenCalledWith('manual');
+  expect(attempt).not.toHaveBeenCalled();
+});
+
+it('does not close B when another tab already replaced A before logout is triggered', async () => {
+  admitSyntheticSession('user:synthetic-A', 'synthetic-generation');
+  replaceStoredSessionOwner('user:synthetic-B');
+  const { result } = renderHook(() => useNursingHandoffLogout(user, close));
+  await act(async () => {
+    await result.current.handleLogout('manual');
+  });
+  expect(close).not.toHaveBeenCalled();
+  expect(attempt).not.toHaveBeenCalled();
 });
 
 it('B sees one dismissible staff-only notice containing no handoff content', async () => {

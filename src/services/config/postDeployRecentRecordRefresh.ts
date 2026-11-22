@@ -1,5 +1,4 @@
-import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import type { OperationalOutcomeLike } from '@/services/observability/operationalTelemetryContracts';
 import type { SyncQueueTelemetry } from '@/services/storage/sync';
@@ -193,10 +192,8 @@ export const executePostDeployRecentRecordRefresh = async ({
   deleteLocalRecord = deleteUnheldRecord,
   syncRemoteRecord,
 }: ExecutePostDeployRecentRecordRefreshParams): Promise<PostDeployRecentRecordRefreshResult> => {
-  const owner = getStoredSessionOwnerKey();
-  const epoch = getSessionEpoch();
-  const isCurrentSession = () =>
-    epoch === getSessionEpoch() && owner === getStoredSessionOwnerKey();
+  const session = guardAuthoringSession();
+  const isCurrentSession = () => session.isCurrent();
   const marker = readMarker();
   const dates = resolvePostDeployRecentRecordRefreshDates(todayDateString);
 

@@ -1,21 +1,19 @@
 import { ensureDbReady, hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import {
-  getSessionGeneration,
-  SESSION_GENERATION_KEY,
-} from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { SESSION_GENERATION_KEY } from '@/services/storage/sessionStorageTransition';
 import { clearSyncTaskRuntimeState } from './syncQueueTaskFactory';
 import { hasPendingNursingHandoff } from './nursingHandoffTasks';
 import { downloadBlob } from '@/services/exporters/exportDownload';
 import { serializeDailyRecordTaskBackup } from './dailyRecordTaskRetirement';
 
 const captureSession = (owner: string) => {
-  const generation = getSessionGeneration();
+  const guard = guardAuthoringSession({ message: 'La sesión cambió.' });
+  const { generation } = guard.session;
   return () => {
     if (
       !generation ||
-      owner !== getStoredSessionOwnerKey() ||
-      generation !== getSessionGeneration() ||
+      guard.session.ownerKey !== owner ||
+      !guard.isCurrent() ||
       generation !== localStorage.getItem(SESSION_GENERATION_KEY)
     )
       throw new Error('La sesión cambió.');

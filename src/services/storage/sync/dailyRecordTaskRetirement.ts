@@ -1,9 +1,9 @@
 import { ensureDbReady, hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import {
-  getSessionGeneration,
-  SESSION_GENERATION_KEY,
-} from '@/services/storage/sessionStorageTransition';
+  captureAuthoringSession,
+  isAuthoringSessionCurrent,
+} from '@/services/storage/authoringSession';
+import { SESSION_GENERATION_KEY } from '@/services/storage/sessionStorageTransition';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { matchesOwner } from './dexieSyncQueueQuarantine';
 
@@ -17,8 +17,7 @@ export const serializeDailyRecordTaskBackup = (task: SyncTask): string =>
   JSON.stringify({ schemaVersion: 1, remotelyConfirmed: false, task }, null, 2);
 
 const sessionMatches = (owner: string, generation: string): boolean =>
-  owner === getStoredSessionOwnerKey() &&
-  generation === getSessionGeneration() &&
+  isAuthoringSessionCurrent({ ownerKey: owner, generation }) &&
   generation === localStorage.getItem(SESSION_GENERATION_KEY);
 
 const requireDurableDatabase = async () => {
@@ -43,9 +42,8 @@ const isWholeDayTask = (task: SyncTask): boolean => {
 export const reviewBlockedDailyRecordTask = async (
   taskId: number
 ): Promise<DailyRecordTaskReview | null> => {
-  const owner = getStoredSessionOwnerKey();
-  const generation = getSessionGeneration();
-  if (!owner || !generation) return null;
+  const { ownerKey: owner, generation } = captureAuthoringSession();
+  if (!owner || !generation || !sessionMatches(owner, generation)) return null;
   await requireDurableDatabase();
   const task = await hospitalDB.syncQueue.get(taskId);
   if (
@@ -91,9 +89,8 @@ export const retireReviewedDailyRecordTask = async (
 
 /** Backups are read only on demand, scoped to the current session, and never requeued. */
 export const listDiscardedDailyRecordTasks = async (): Promise<SyncTask[]> => {
-  const owner = getStoredSessionOwnerKey();
-  const generation = getSessionGeneration();
-  if (!owner || !generation) return [];
+  const { ownerKey: owner, generation } = captureAuthoringSession();
+  if (!owner || !generation || !sessionMatches(owner, generation)) return [];
   await requireDurableDatabase();
   const rows = await hospitalDB.syncQueue
     .where('status')

@@ -7,6 +7,7 @@ import {
 } from '@/features/radiology/controllers/radiologyExamListMemory';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { admitSyntheticSession, replaceStoredSessionOwner } from '@/tests/utils/syntheticSession';
 
 // Synthetic exams only.
 const exam = (overrides: Partial<MMRADExam>): MMRADExam => ({
@@ -151,6 +152,17 @@ describe('session exam list memory', () => {
     // Same document generation; the shared owner key alone changed.
     localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-B');
     expect(readRememberedMMRADExams(query)).toBeUndefined();
+  });
+
+  it('forgets every list and drops in-flight replies when another tab replaces this tab’s admitted owner', () => {
+    admitSyntheticSession('user:synthetic-A', 'admitted-generation-a');
+    const memory = openMMRADExamListMemory(query);
+    memory.remember(reply([chest]));
+    expect(readRememberedMMRADExams(query)?.examenes).toEqual([chest]);
+
+    replaceStoredSessionOwner('user:synthetic-B');
+    expect(readRememberedMMRADExams(query)).toBeUndefined();
+    expect(memory.remember(reply([abdomen]))).toBeNull();
   });
 
   it('forgets on the session signal even if the same owner and generation come back', async () => {

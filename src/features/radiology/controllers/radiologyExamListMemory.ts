@@ -1,8 +1,8 @@
 import { buildMMRADExamKey } from './radiologyViewerModalController';
 import { normalizeDicomPatientId } from '@/domain/radiology/dicomTypes';
 import type { MMRADExam, MMRADSearchResult } from '../services/mmradService';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionGeneration, onSessionChange } from '@/services/storage/sessionStorageTransition';
+import { authoringSessionScope } from '@/services/storage/authoringSession';
+import { onSessionChange } from '@/services/storage/sessionStorageTransition';
 
 export interface MMRADExamListQuery {
   rut: string;
@@ -61,11 +61,7 @@ const remembered = new Map<string, MMRADSearchResult>();
 let rememberedScope: string | null = null;
 let epoch = 0;
 
-const readSessionScope = (): string | null => {
-  const owner = getStoredSessionOwnerKey();
-  const generation = getSessionGeneration();
-  return owner && generation ? JSON.stringify([owner, generation]) : null;
-};
+const readSessionScope = (): string | null => authoringSessionScope() || null;
 
 const forget = () => {
   remembered.clear();

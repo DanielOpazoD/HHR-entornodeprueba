@@ -4,8 +4,7 @@ import {
   inspectLocalRecordAdmission,
   type LocalRecordBase,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import {
   createLocalRuntimeReadCandidate,
   createLocalRuntimeReadResult,
@@ -126,9 +125,7 @@ export const attemptRemoteGoldenPathRead = async ({
   ) => Promise<DailyRecordRemoteLoadResult>;
   onRemoteFetchFailure?: (error: unknown, date: string) => void;
 }): Promise<DailyRecordReadResult> => {
-  const owner = getStoredSessionOwnerKey();
-  const epoch = getSessionEpoch();
-  const isCurrent = () => owner === getStoredSessionOwnerKey() && epoch === getSessionEpoch();
+  const { isCurrent } = guardAuthoringSession();
   base ??= await captureLocalRecordBase(date);
   let remote: DailyRecordRemoteLoadResult;
   try {
