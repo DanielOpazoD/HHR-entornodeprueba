@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
 
 interface SecurityConfig {
   pin: string | null;
@@ -41,50 +49,52 @@ export const resolveSecurityIdleTimeoutMs = (inactivityTimeoutMinutes: number): 
 
 const SecurityContext = createContext<SecurityContextType | undefined>(undefined);
 
-export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Load config from localStorage (Initial state for speed)
-  const [config, setConfig] = useState<SecurityConfig>(() => {
-    if (typeof window === 'undefined') return DEFAULT_CONFIG;
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : DEFAULT_CONFIG;
-  });
+const readInitialSecurityConfig = (): SecurityConfig => {
+  if (typeof window === 'undefined') return DEFAULT_CONFIG;
+  const saved = localStorage.getItem(STORAGE_KEY);
+  return saved ? (JSON.parse(saved) as SecurityConfig) : DEFAULT_CONFIG;
+};
 
-  // Determine initial lock state
-  const [isLocked, setIsLocked] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    const saved = localStorage.getItem(STORAGE_KEY);
-    const parsedConfig = saved ? JSON.parse(saved) : DEFAULT_CONFIG;
-    return !!parsedConfig.pin && parsedConfig.lockOnStartup;
-  });
+export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Load config once from localStorage (Initial state for speed)
+  const [config, setConfig] = useState<SecurityConfig>(readInitialSecurityConfig);
+  const configRef = useRef(config);
+
+  // Determine initial lock state from the already-parsed config
+  const [isLocked, setIsLocked] = useState<boolean>(() =>
+    Boolean(config.pin && config.lockOnStartup)
+  );
 
   // This privacy lock is intentionally device-local UX.
   // It does not participate in auth, RBAC, or server-side permission checks.
-  const updateConfig = useCallback((newConfig: SecurityConfig) => {
-    setConfig(newConfig);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
+  const patchConfig = useCallback((patch: Partial<SecurityConfig>) => {
+    const nextConfig: SecurityConfig = { ...configRef.current, ...patch };
+    configRef.current = nextConfig;
+    setConfig(nextConfig);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextConfig));
   }, []);
 
   const idleTimeoutMs = resolveSecurityIdleTimeoutMs(config.inactivityTimeoutMinutes);
 
   const setPin = useCallback(
     (pin: string) => {
-      updateConfig({ ...config, pin });
+      patchConfig({ pin });
     },
-    [config, updateConfig]
+    [patchConfig]
   );
 
   const setLockOnStartup = useCallback(
     (enabled: boolean) => {
-      updateConfig({ ...config, lockOnStartup: enabled });
+      patchConfig({ lockOnStartup: enabled });
     },
-    [config, updateConfig]
+    [patchConfig]
   );
 
   const setInactivityTimeout = useCallback(
     (minutes: number) => {
-      updateConfig({ ...config, inactivityTimeoutMinutes: minutes });
+      patchConfig({ inactivityTimeoutMinutes: minutes });
     },
-    [config, updateConfig]
+    [patchConfig]
   );
 
   const unlock = useCallback(

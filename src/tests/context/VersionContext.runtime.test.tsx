@@ -1,4 +1,5 @@
-import { act, cleanup, renderHook } from '@testing-library/react';
+import React from 'react';
+import { act, cleanup, render, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CURRENT_SCHEMA_VERSION, LEGACY_SCHEMA_VERSION } from '@/constants/version';
 import {
@@ -125,5 +126,22 @@ describe('runtime contract provider lifecycle', () => {
       await vi.advanceTimersByTimeAsync(300_000);
     });
     expect(fetchContract).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not broadcast a new context object on parent re-renders when version state is unchanged', async () => {
+    let consumerRenders = 0;
+    const Consumer = React.memo(function VersionConsumer() {
+      consumerRenders += 1;
+      useVersion();
+      return null;
+    });
+    const stableChild = <Consumer />;
+    const { rerender } = render(<VersionProvider>{stableChild}</VersionProvider>);
+    await act(async () => undefined);
+
+    const settledRenders = consumerRenders;
+    rerender(<VersionProvider>{stableChild}</VersionProvider>);
+    rerender(<VersionProvider>{stableChild}</VersionProvider>);
+    expect(consumerRenders).toBe(settledRenders);
   });
 });

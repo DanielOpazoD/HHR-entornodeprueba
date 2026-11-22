@@ -3,7 +3,15 @@
  * Manages table column widths with Firebase sync
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
 import {
   TableConfig,
   TableColumnConfig,
@@ -174,32 +182,40 @@ export const TableConfigProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setIsEditMode(enabled);
   }, []);
 
+  const defaultConfig = useMemo(() => getDefaultConfig(), []);
   const visibleConfig =
-    remoteSyncStatus === 'ready' || remoteSyncStatus === 'bootstrapping'
-      ? config
-      : getDefaultConfig();
+    remoteSyncStatus === 'ready' || remoteSyncStatus === 'bootstrapping' ? config : defaultConfig;
   const isLoading =
     !remoteTableConfigDisabled &&
     (remoteSyncStatus === 'bootstrapping' ||
       (remoteSyncStatus === 'ready' && !hasRemoteConfigSnapshot));
 
-  return (
-    <TableConfigContext.Provider
-      value={{
-        config: visibleConfig,
-        isEditMode,
-        isLoading,
-        setEditMode,
-        updateColumnWidth,
-        updatePageMargin,
-        resetToDefaults,
-        exportConfig,
-        importConfig: handleImportConfig,
-      }}
-    >
-      {children}
-    </TableConfigContext.Provider>
+  const contextValue = useMemo<TableConfigContextType>(
+    () => ({
+      config: visibleConfig,
+      isEditMode,
+      isLoading,
+      setEditMode,
+      updateColumnWidth,
+      updatePageMargin,
+      resetToDefaults,
+      exportConfig,
+      importConfig: handleImportConfig,
+    }),
+    [
+      visibleConfig,
+      isEditMode,
+      isLoading,
+      setEditMode,
+      updateColumnWidth,
+      updatePageMargin,
+      resetToDefaults,
+      exportConfig,
+      handleImportConfig,
+    ]
   );
+
+  return <TableConfigContext.Provider value={contextValue}>{children}</TableConfigContext.Provider>;
 };
 
 // ============================================================================

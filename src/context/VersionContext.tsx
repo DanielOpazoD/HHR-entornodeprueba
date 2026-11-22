@@ -3,6 +3,7 @@ import React, {
   useContext,
   useState,
   useCallback,
+  useMemo,
   ReactNode,
   useEffect,
   useRef,
@@ -131,22 +132,29 @@ export const VersionProvider: React.FC<{ children: ReactNode }> = ({ children })
     };
   }, [checkRuntimeContract]);
 
-  return (
-    <VersionContext.Provider
-      value={{
-        isOutdated,
-        appVersion: CURRENT_SCHEMA_VERSION,
-        remoteVersion,
-        updateReason,
-        runtimeContract,
-        checkVersion,
-        checkRuntimeContract,
-        forceUpdate,
-      }}
-    >
-      {children}
-    </VersionContext.Provider>
+  const contextValue = useMemo<VersionContextType>(
+    () => ({
+      isOutdated,
+      appVersion: CURRENT_SCHEMA_VERSION,
+      remoteVersion,
+      updateReason,
+      runtimeContract,
+      checkVersion,
+      checkRuntimeContract,
+      forceUpdate,
+    }),
+    [
+      isOutdated,
+      remoteVersion,
+      updateReason,
+      runtimeContract,
+      checkVersion,
+      checkRuntimeContract,
+      forceUpdate,
+    ]
   );
+
+  return <VersionContext.Provider value={contextValue}>{children}</VersionContext.Provider>;
 };
 
 export const useVersion = () => {
