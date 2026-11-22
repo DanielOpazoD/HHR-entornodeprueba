@@ -110,7 +110,11 @@ describe('FeatureFlags', () => {
     expect(featureFlags.isEnabled('SPECIALTY_RULES_MEMORY')).toBe(true);
   });
 
-  it('keeps environment overrides separate from localStorage and preserves them on reset', async () => {
+  it('keeps environment overrides separate from localStorage, overrides stale storage on boot, and preserves them on reset', async () => {
+    localStorage.setItem(
+      'hhr_feature_flags',
+      JSON.stringify({ SPECIALTY_EPISODE_ASSIGNMENT: false })
+    );
     vi.stubEnv('MODE', 'production');
     vi.stubEnv('VITE_HHR_SPECIALTY_EPISODE_ASSIGNMENT', 'enabled');
 

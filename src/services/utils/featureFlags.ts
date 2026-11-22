@@ -121,6 +121,7 @@ class FeatureFlagsService {
       import.meta.env.VITE_HHR_SPECIALTY_EPISODE_ASSIGNMENT === 'enabled'
     ) {
       this.envOverrides.SPECIALTY_EPISODE_ASSIGNMENT = true;
+      delete this.overrides.SPECIALTY_EPISODE_ASSIGNMENT;
     }
     // This public build flag is set only for the hhr-pruebas pilot builds.
     // The Jev client independently verifies the Firebase project before consulting.
@@ -130,6 +131,8 @@ class FeatureFlagsService {
     ) {
       this.envOverrides.SPECIALTY_EPISODE_ASSIGNMENT = true;
       this.envOverrides.SPECIALTY_JEV_CONSULTATION = true;
+      delete this.overrides.SPECIALTY_EPISODE_ASSIGNMENT;
+      delete this.overrides.SPECIALTY_JEV_CONSULTATION;
     }
   }
 
