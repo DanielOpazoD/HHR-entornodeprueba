@@ -1,8 +1,8 @@
 import { buildMMRADExamKey } from './radiologyViewerModalController';
 import { normalizeDicomPatientId } from '@/domain/radiology/dicomTypes';
 import type { MMRADExam, MMRADSearchResult } from '../services/mmradService';
-import { authoringSessionScope } from '@/services/storage/authoringSession';
-import { onSessionChange } from '@/services/storage/sessionStorageTransition';
+import { authoringSessionScope, guardAuthoringSession } from '@/services/storage/authoringSession';
+import { onSessionChange, sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
 
 export interface MMRADExamListQuery {
   rut: string;
@@ -92,11 +92,15 @@ export const readRememberedMMRADExams = (
  * session remembers and returns what to show; null means the session changed and the reply is void.
  */
 export const openMMRADExamListMemory = (query: MMRADExamListQuery) => {
+  const session = guardAuthoringSession();
+  const sameEpoch = sessionEpochGuard();
   const scope = currentScope();
   const openedEpoch = epoch;
+  const hasAdmittedSession = Boolean(session.session.generation);
   return {
     remembered: scope ? remembered.get(entryKey(scope, query)) : undefined,
     remember: (result: MMRADSearchResult): MMRADSearchResult | null => {
+      if (hasAdmittedSession ? !session.isCurrent() : !sameEpoch()) return null;
       if (!scope) return result;
       if (currentScope() !== scope || epoch !== openedEpoch) return null;
       if (normalizeDicomPatientId(result.rut) !== normalizeDicomPatientId(query.rut)) return result;

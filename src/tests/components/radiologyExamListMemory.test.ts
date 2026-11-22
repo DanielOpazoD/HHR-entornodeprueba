@@ -154,15 +154,20 @@ describe('session exam list memory', () => {
     expect(readRememberedMMRADExams(query)).toBeUndefined();
   });
 
-  it('forgets every list and drops in-flight replies when another tab replaces this tab’s admitted owner', () => {
+  it('forgets every list and drops replies both in flight and opened after another tab replaces this tab’s admitted owner', () => {
     admitSyntheticSession('user:synthetic-A', 'admitted-generation-a');
-    const memory = openMMRADExamListMemory(query);
-    memory.remember(reply([chest]));
+    const inFlightMemory = openMMRADExamListMemory(query);
+    inFlightMemory.remember(reply([chest]));
     expect(readRememberedMMRADExams(query)?.examenes).toEqual([chest]);
 
     replaceStoredSessionOwner('user:synthetic-B');
     expect(readRememberedMMRADExams(query)).toBeUndefined();
-    expect(memory.remember(reply([abdomen]))).toBeNull();
+    expect(inFlightMemory.remember(reply([abdomen]))).toBeNull();
+
+    const reopenedMemory = openMMRADExamListMemory(query);
+    expect(reopenedMemory.remembered).toBeUndefined();
+    expect(reopenedMemory.remember(reply([chest]))).toBeNull();
+    expect(readRememberedMMRADExams(query)).toBeUndefined();
   });
 
   it('forgets on the session signal even if the same owner and generation come back', async () => {
