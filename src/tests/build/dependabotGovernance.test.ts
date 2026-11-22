@@ -25,7 +25,6 @@ describe('Dependabot governance', () => {
       'cloud-api-runtime-minor',
       'ui-runtime-minor',
       'media-runtime-minor',
-      'storybook-toolchain-minor',
       'vitest-toolchain-minor',
       'vite-toolchain-minor',
       'lint-toolchain-minor',
@@ -45,14 +44,8 @@ describe('Dependabot governance', () => {
     );
   });
 
-  it('holds incompatible Vite and Vitest majors in the root npm block', () => {
-    expect(rootNpm).toContain('dependency-name: vite');
-    expect(rootNpm).toContain("'>=8.0.0 <9.0.0'");
-    for (const dependency of ['@vitest/browser-playwright', '@vitest/coverage-v8', 'vitest']) {
-      expect(rootNpm).toMatch(
-        new RegExp(`dependency-name: ['"]?${dependency.replace('/', '\\/')}['"]?`)
-      );
-    }
-    expect(rootNpm).toContain("'>=5.0.0 <6.0.0'");
+  it('does not retain retired Storybook grouping or Storybook-only major holds', () => {
+    expect(rootNpm).not.toContain('storybook-toolchain-minor:');
+    expect(rootNpm).not.toContain('storybook');
   });
 });

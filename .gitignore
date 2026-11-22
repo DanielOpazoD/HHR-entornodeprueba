@@ -32,8 +32,6 @@ tmp
 *.sln
 *.sw?
 
-*storybook.log
-storybook-static
 GitHUBHHR
 
 # Testing

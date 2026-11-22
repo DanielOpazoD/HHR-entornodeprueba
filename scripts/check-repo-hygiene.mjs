@@ -20,12 +20,7 @@ const FEATURE_PUBLIC_BOUNDARIES = [
     ruleId: 'census-public-api-boundary',
     description:
       'Code outside src/features/census must import census only from "@/features/census"; internal subpaths are reserved for the feature itself.',
-    allowBypass: file =>
-      file.startsWith('src/features/census/') ||
-      file.startsWith('src/tests/') ||
-      // Storybook stories are dev-only artifacts (never bundled into the app), like
-      // src/tests/ above; they may reference feature internals for isolated review.
-      file.startsWith('stories/'),
+    allowBypass: file => file.startsWith('src/features/census/') || file.startsWith('src/tests/'),
     // Sanctioned heavy-component barrel, kept separate from @/features/census
     // so the authenticated-shell chunk does not pull CensusView through the
     // light public surface. Listed callers must load it via dynamic import.

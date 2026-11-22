@@ -7,8 +7,6 @@
 # - github-actions kept on its own schedule; CI workflows change less often.
 # - Group non-breaking updates by runtime surface so one incompatible package
 #   does not block unrelated upgrades. Majors remain individually reviewable.
-# - Pause known-incompatible majors until the Storybook peer range supports
-#   them, with the unblock condition recorded beside each rule.
 
 version: 2
 updates:
@@ -89,14 +87,6 @@ updates:
         update-types:
           - patch
           - minor
-      storybook-toolchain-minor:
-        patterns:
-          - storybook
-          - '@storybook/*'
-          - '@chromatic-com/*'
-        update-types:
-          - patch
-          - minor
       vitest-toolchain-minor:
         patterns:
           - vitest
@@ -174,22 +164,6 @@ updates:
         update-types:
           - patch
           - minor
-    ignore:
-      # Storybook 10.2 accepts Vite only through v7. Remove after Storybook is
-      # upgraded to a release whose peer range includes Vite 8.
-      - dependency-name: vite
-        versions:
-          - '>=8.0.0 <9.0.0'
-      # Storybook's addon-vitest currently requires Vitest 4.x.
-      - dependency-name: '@vitest/browser-playwright'
-        versions:
-          - '>=5.0.0 <6.0.0'
-      - dependency-name: '@vitest/coverage-v8'
-        versions:
-          - '>=5.0.0 <6.0.0'
-      - dependency-name: vitest
-        versions:
-          - '>=5.0.0 <6.0.0'
 
   # Firebase Cloud Functions (Node.js 22 runtime, separate npm workspace)
   - package-ecosystem: npm
