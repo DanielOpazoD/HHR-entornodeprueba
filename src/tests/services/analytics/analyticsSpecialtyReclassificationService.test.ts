@@ -19,7 +19,7 @@ vi.mock('@/shared/runtime/e2eRuntime', () => ({
 import {
   fetchAnalyticsSpecialtyReclassifications,
   saveAnalyticsSpecialtyReclassification,
-} from '@/services/analytics/analyticsSpecialtyReclassificationService';
+} from '@/features/analytics/services/analyticsSpecialtyReclassificationService';
 
 describe('analyticsSpecialtyReclassificationService', () => {
   beforeEach(() => {

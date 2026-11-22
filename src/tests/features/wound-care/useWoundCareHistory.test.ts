@@ -1,7 +1,10 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useWoundCareHistory } from '@/features/wound-care/hooks/useWoundCareHistory';
-import type { WoundCareConsentPort, WoundCarePhotoPort } from '@/application/ports/woundCarePort';
+import type {
+  WoundCareConsentPort,
+  WoundCarePhotoPort,
+} from '@/features/wound-care/use-cases/woundCarePort';
 
 const { mockWoundCareHistoryLogger } = vi.hoisted(() => ({
   mockWoundCareHistoryLogger: vi.fn(),

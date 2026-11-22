@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { BEDS } from '@/constants/beds';
-import { calculateMinsalStats } from '@/services/calculations/minsalStatsCalculator';
+import { calculateMinsalStats } from '@/features/analytics/services/minsalStatsCalculator';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 

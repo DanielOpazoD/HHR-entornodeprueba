@@ -1,10 +1,14 @@
 import React from 'react';
-import { MinsalStatistics, PatientTraceability, SpecialtyStats } from '@/types/minsalTypes';
+import {
+  MinsalStatistics,
+  PatientTraceability,
+  SpecialtyStats,
+} from '@/features/analytics/types/minsalTypes';
 import { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import {
   buildSpecialtyTraceability,
   SpecialtyTraceabilityType,
-} from '@/services/calculations/minsalStatsCalculator';
+} from '@/features/analytics/services/minsalStatsCalculator';
 import { TraceabilityModal } from './TraceabilityModal';
 import {
   calculateStayAverageFromTraceability,

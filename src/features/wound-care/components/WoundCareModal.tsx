@@ -4,7 +4,7 @@ import { BaseModal } from '@/components/shared/BaseModal';
 import {
   executeUpdatePhotoDescription,
   type EpisodeContext,
-} from '@/application/wound-care/woundCareUseCases';
+} from '@/features/wound-care/use-cases/woundCareUseCases';
 import { useWoundCareHistory, type EpisodePhotoGroup } from '../hooks/useWoundCareHistory';
 import { useWoundCareUpload } from '../hooks/useWoundCareUpload';
 import { ConsentStatus } from './ConsentStatus';

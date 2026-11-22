@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { WoundCarePhotoRepository } from '@/services/repositories/WoundCarePhotoRepository';
+import { WoundCarePhotoRepository } from '@/features/wound-care/services/WoundCarePhotoRepository';
 import { logger } from '@/services/utils/loggerService';
 
 const POLL_INTERVAL_MS = 5 * 60_000;

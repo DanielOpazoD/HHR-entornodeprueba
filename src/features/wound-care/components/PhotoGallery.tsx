@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Trash2, ImageOff } from 'lucide-react';
 import type { WoundCarePhoto } from '@/types/domain/woundCare';
-import { groupPhotosByDate } from '@/application/wound-care/woundCarePhotoTime';
+import { groupPhotosByDate } from '@/features/wound-care/use-cases/woundCarePhotoTime';
 import {
   formatSessionDate,
   formatPhotoTime,

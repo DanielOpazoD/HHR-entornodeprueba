@@ -4,7 +4,7 @@ import {
   getWoundCareMobileUploadSessionsPath,
 } from '@/constants/firestorePaths';
 import type { WoundCareAuditActor, WoundCareMobileUploadSession } from '@/types/domain/woundCare';
-import { safeParseWoundCareMobileUploadSession } from '@/schemas/zod/woundCare';
+import { safeParseWoundCareMobileUploadSession } from '@/features/wound-care/schemas/woundCare';
 
 const sanitizeForFirestore = <T>(value: T): T => {
   if (Array.isArray(value)) {

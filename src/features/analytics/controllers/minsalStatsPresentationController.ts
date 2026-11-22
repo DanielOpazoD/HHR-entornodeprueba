@@ -1,4 +1,4 @@
-import type { MinsalStatistics } from '@/types/minsalTypes';
+import type { MinsalStatistics } from '@/features/analytics/types/minsalTypes';
 
 interface ResolveDisplayedMinsalStatsParams {
   localStats: MinsalStatistics | null;

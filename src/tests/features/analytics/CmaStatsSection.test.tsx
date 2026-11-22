@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { CmaStatsSection } from '@/features/analytics/components/internal/CmaStatsSection';
-import type { CmaStatistics } from '@/types/minsalTypes';
+import type { CmaStatistics } from '@/features/analytics/types/minsalTypes';
 
 const cma: CmaStatistics = {
   total: 2,

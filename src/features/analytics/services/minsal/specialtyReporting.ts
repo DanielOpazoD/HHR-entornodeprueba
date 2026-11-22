@@ -3,7 +3,7 @@ import type {
   MinsalCalculationOptions,
   MinsalMovementKind,
   PatientTraceability,
-} from '@/types/minsalTypes';
+} from '@/features/analytics/types/minsalTypes';
 import { normalizeSpecialty } from './normalization';
 
 const KNOWN_REPORTING_SPECIALTIES = new Set<string>(

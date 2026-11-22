@@ -16,7 +16,7 @@ vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
 }));
 
 import { firestoreDb } from '@/services/storage/firestore';
-import { WoundCarePhotoRepository } from '@/services/repositories/WoundCarePhotoRepository';
+import { WoundCarePhotoRepository } from '@/features/wound-care/services/WoundCarePhotoRepository';
 
 const buildPhoto = (id: string, uploadedAt: string): WoundCarePhoto => ({
   id,

@@ -3,9 +3,12 @@
  * Exports hospital statistics to Excel format compatible with DEIS reporting
  */
 
-import { MinsalStatistics, DailyStatsSnapshot } from '@/types/minsalTypes';
-import { createWorkbook } from './excelUtils';
-import { downloadWorkbookFile, type DownloadWorkbookOutcome } from './excelFileDownload';
+import { MinsalStatistics, DailyStatsSnapshot } from '@/features/analytics/types/minsalTypes';
+import { createWorkbook } from '@/services/exporters/excelUtils';
+import {
+  downloadWorkbookFile,
+  type DownloadWorkbookOutcome,
+} from '@/services/exporters/excelFileDownload';
 
 /**
  * Export MINSAL statistics to Excel workbook

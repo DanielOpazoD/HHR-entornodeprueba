@@ -6,7 +6,7 @@
 
 import { validatePhotoFile, validateConsentFile } from '../domain/woundCareValidation';
 import type { FileValidationResult } from '../domain/woundCareValidation';
-import { hospitalTakenAt } from '@/application/wound-care/woundCarePhotoTime';
+import { hospitalTakenAt } from '@/features/wound-care/use-cases/woundCarePhotoTime';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 
 export interface UploadProgress {

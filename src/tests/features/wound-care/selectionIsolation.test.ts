@@ -8,7 +8,7 @@ import type {
 import {
   defaultWoundCarePhotoPort,
   defaultWoundCareConsentPort,
-} from '@/application/ports/woundCarePort';
+} from '@/features/wound-care/use-cases/woundCarePort';
 import { useWoundCareHistory } from '@/features/wound-care/hooks/useWoundCareHistory';
 
 const buildPhoto = (id: string, uploadedAt: string): WoundCarePhoto => ({

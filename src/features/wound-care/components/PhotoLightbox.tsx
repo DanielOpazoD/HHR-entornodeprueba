@@ -19,7 +19,7 @@ import {
 import type { WoundCarePhoto } from '@/types/domain/woundCare';
 import { formatFileSize, formatCompressionRatio } from '../controllers/photoUploadController';
 import { usePhotoLightboxZoom } from '../hooks/usePhotoLightboxZoom';
-import { resolvePhotoWallClock } from '@/application/wound-care/woundCarePhotoTime';
+import { resolvePhotoWallClock } from '@/features/wound-care/use-cases/woundCarePhotoTime';
 import { formatDateTimeCL } from '@/utils/dateDisplayUtils';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 

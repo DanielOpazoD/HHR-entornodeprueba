@@ -6,7 +6,7 @@ import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTy
 import {
   defaultWoundCareMobileUploadSessionPort,
   type WoundCareMobileUploadSessionPort,
-} from '@/application/ports/woundCarePort';
+} from '@/features/wound-care/use-cases/woundCarePort';
 import type { WoundCareAuditActor, WoundCareMobileUploadSession } from '@/types/domain/woundCare';
 import type { EpisodeContext } from './woundCareUseCaseHelpers';
 

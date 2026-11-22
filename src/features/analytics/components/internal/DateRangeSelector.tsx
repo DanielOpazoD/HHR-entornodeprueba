@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { Calendar, ChevronDown } from 'lucide-react';
-import { DateRangePreset, DATE_RANGE_LABELS } from '@/types/minsalTypes';
+import { DateRangePreset, DATE_RANGE_LABELS } from '@/features/analytics/types/minsalTypes';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 
 interface DateRangeSelectorProps {

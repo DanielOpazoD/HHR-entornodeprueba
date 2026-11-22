@@ -15,11 +15,11 @@
 **Files:**
 
 - Modify: `src/types/domain/woundCare.ts`
-- Modify: `src/schemas/zod/woundCare.ts`
-- Create: `src/services/repositories/WoundCareMobileUploadSessionRepository.ts`
-- Modify: `src/application/ports/woundCarePort.ts`
-- Create: `src/application/wound-care/woundCareMobileUploadSessionUseCases.ts`
-- Modify: `src/application/wound-care/woundCareUseCases.ts`
+- Modify: `src/features/wound-care/schemas/woundCare.ts`
+- Create: `src/features/wound-care/services/WoundCareMobileUploadSessionRepository.ts`
+- Modify: `src/features/wound-care/use-cases/woundCarePort.ts`
+- Create: `src/features/wound-care/use-cases/woundCareMobileUploadSessionUseCases.ts`
+- Modify: `src/features/wound-care/use-cases/woundCareUseCases.ts`
 - Modify: `src/constants/firestorePaths.ts`
 - Test: `src/tests/application/wound-care/woundCareMobileUploadSessionUseCases.test.ts`
 

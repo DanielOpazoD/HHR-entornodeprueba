@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MinsalKPICards } from '@/features/analytics/components/internal/MinsalKPICards';
-import type { MinsalStatistics } from '@/types/minsalTypes';
+import type { MinsalStatistics } from '@/features/analytics/types/minsalTypes';
 
 const stats: MinsalStatistics = {
   periodStart: '2026-03-01',

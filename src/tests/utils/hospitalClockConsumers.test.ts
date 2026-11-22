@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { todayDateString } from '@/application/wound-care/woundCareUseCaseHelpers';
+import { todayDateString } from '@/features/wound-care/use-cases/woundCareUseCaseHelpers';
 import { resolveMMRADDatePresetRange } from '@/features/radiology/controllers/radiologyViewerModalController';
 import { buildDeviceHistoryTimestamp } from '@/features/census/controllers/deviceHistoryController';
 import {

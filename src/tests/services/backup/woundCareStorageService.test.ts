@@ -33,7 +33,7 @@ vi.mock('@/services/firebase-runtime/backupRuntime', () => ({
 }));
 
 import { uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { createWoundCareStorageService } from '@/services/backup/woundCareStorageService';
+import { createWoundCareStorageService } from '@/features/wound-care/services/woundCareStorageService';
 import { logger } from '@/services/utils/loggerService';
 
 // ============================================================================

@@ -4,7 +4,7 @@ import {
   uploadWoundCareMobilePhoto,
   validateWoundCareMobileUploadSession,
   type WoundCareMobileUploadSessionPayload,
-} from '@/services/wound-care/woundCareMobileUploadService';
+} from '@/features/wound-care/services/woundCareMobileUploadService';
 import { compressImage, generateThumbnail } from '@/utils/imageCompression';
 import {
   formatReadonlyUploadDateTime,

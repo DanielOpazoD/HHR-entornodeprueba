@@ -13,7 +13,7 @@ import {
   defaultWoundCareConsentPort,
   type WoundCarePhotoPort,
   type WoundCareConsentPort,
-} from '@/application/ports/woundCarePort';
+} from '@/features/wound-care/use-cases/woundCarePort';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 
 /**

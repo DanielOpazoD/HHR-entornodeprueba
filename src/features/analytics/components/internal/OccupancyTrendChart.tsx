@@ -14,7 +14,7 @@ import {
   CartesianGrid,
   ReferenceLine,
 } from 'recharts';
-import { DailyStatsSnapshot } from '@/types/minsalTypes';
+import { DailyStatsSnapshot } from '@/features/analytics/types/minsalTypes';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { resolveAnalyticsPresentationCopy } from '@/features/analytics/controllers/minsalAnalyticsPresentationController';
 

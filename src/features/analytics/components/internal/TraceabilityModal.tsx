@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { BaseModal } from '@/components/shared/BaseModal';
-import { PatientTraceability } from '@/types/minsalTypes';
+import { PatientTraceability } from '@/features/analytics/types/minsalTypes';
 import { Users, Calendar, BedDouble } from 'lucide-react';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { calculateDischargeStayDays } from '@/utils/clinicalDayUtils';

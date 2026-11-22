@@ -3,11 +3,11 @@ import type {
   MinsalCalculationOptions,
   MinsalComparisonSummary,
   MinsalStatistics,
-} from '@/types/minsalTypes';
+} from '@/features/analytics/types/minsalTypes';
 import type { DailyRecordMovementState as MinsalDailyRecord } from '@/types/domain/dailyRecordSlices';
 import { Specialty } from '@/types/domain/patientClassification';
 import { calculateDischargeStayDays } from '@/utils/clinicalDayUtils';
-import { normalizeSpecialty } from '@/services/calculations/minsal/normalization';
+import { normalizeSpecialty } from '@/features/analytics/services/minsal/normalization';
 
 export const resolvePreviousMinsalPeriod = (
   startDate: string,

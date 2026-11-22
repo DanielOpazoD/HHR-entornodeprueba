@@ -9,7 +9,7 @@ import type {
   WoundCareConsentPort,
   WoundCarePhotoPort,
   WoundCareStoragePort,
-} from '@/application/ports/woundCarePort';
+} from '@/features/wound-care/use-cases/woundCarePort';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 
 export interface EpisodeContext {

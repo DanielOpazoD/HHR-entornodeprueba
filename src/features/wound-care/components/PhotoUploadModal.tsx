@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Camera, Upload, Calendar } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
-import type { EpisodeContext } from '@/application/wound-care/woundCareUseCases';
+import type { EpisodeContext } from '@/features/wound-care/use-cases/woundCareUseCases';
 import { useWoundCareUpload } from '../hooks/useWoundCareUpload';
 import { BODY_LOCATION_OPTIONS } from '../domain/woundCareValidation';
 import {

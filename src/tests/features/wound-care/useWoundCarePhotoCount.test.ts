@@ -2,10 +2,10 @@ import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WoundCarePhoto } from '@/types/domain/woundCare';
 import { useWoundCarePhotoCount } from '@/features/wound-care/hooks/useWoundCarePhotoCount';
-import { WoundCarePhotoRepository } from '@/services/repositories/WoundCarePhotoRepository';
+import { WoundCarePhotoRepository } from '@/features/wound-care/services/WoundCarePhotoRepository';
 import { logger } from '@/services/utils/loggerService';
 
-vi.mock('@/services/repositories/WoundCarePhotoRepository', () => ({
+vi.mock('@/features/wound-care/services/WoundCarePhotoRepository', () => ({
   WoundCarePhotoRepository: { listByEpisode: vi.fn() },
 }));
 

@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { ShieldCheck, Upload, FileText, Image as ImageIcon } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
-import type { EpisodeContext } from '@/application/wound-care/woundCareUseCases';
+import type { EpisodeContext } from '@/features/wound-care/use-cases/woundCareUseCases';
 import type { WoundCareConsent } from '@/types/domain/woundCare';
 import { useWoundCareUpload } from '../hooks/useWoundCareUpload';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';

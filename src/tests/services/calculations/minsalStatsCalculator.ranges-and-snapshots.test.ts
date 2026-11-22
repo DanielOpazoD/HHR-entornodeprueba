@@ -7,7 +7,7 @@ import {
   filterRecordsByDateRange,
   generateDailyTrend,
   getDateRangeFromPreset,
-} from '@/services/calculations/minsalStatsCalculator';
+} from '@/features/analytics/services/minsalStatsCalculator';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 

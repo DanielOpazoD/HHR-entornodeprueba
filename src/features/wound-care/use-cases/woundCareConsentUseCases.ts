@@ -14,7 +14,7 @@ import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTy
 import {
   defaultWoundCareConsentPort,
   defaultWoundCareStoragePort,
-} from '@/application/ports/woundCarePort';
+} from '@/features/wound-care/use-cases/woundCarePort';
 import type { WoundCareAuditActor, WoundCareConsent } from '@/types/domain/woundCare';
 import {
   buildConsentStoragePath,

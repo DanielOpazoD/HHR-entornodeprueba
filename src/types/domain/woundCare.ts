@@ -76,7 +76,7 @@ export interface WoundCarePhoto {
   /**
    * Hospital wall-clock time of the photo as `YYYY-MM-DDTHH:mm:00.000Z` (the `Z` is not UTC).
    * Equal to `uploadedAt` when the photo was saved without a time of its own; read it through
-   * `resolvePhotoWallClock` in `application/wound-care/woundCarePhotoTime`.
+   * `resolvePhotoWallClock` in `features/wound-care/use-cases/woundCarePhotoTime`.
    */
   takenAt: string;
   uploadedAt: string;

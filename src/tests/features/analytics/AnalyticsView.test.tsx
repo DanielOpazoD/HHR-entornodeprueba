@@ -22,7 +22,7 @@ vi.mock('@/context/AuthContext', () => ({
   }),
 }));
 
-vi.mock('@/hooks/useMinsalStats', () => ({
+vi.mock('@/features/analytics/hooks/useMinsalStats', () => ({
   useMinsalStats: () => ({
     stats: {
       periodStart: '2026-03-01',
