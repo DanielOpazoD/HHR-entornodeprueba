@@ -61,9 +61,9 @@ Qué impone hoy un control y qué queda como objetivo:
   valor un import que solo se usa como tipo si no lleva `import type`. Esos casos los decide
   quien revisa.
 - **Hoy:** entre áreas mandan ESLint `hhr/feature-boundaries` y `hhr/public-import-boundaries`
-  (regla 1). Los controladores compartidos del censo viven en `application/census/controllers/`;
-  `GOVERNED_APPLICATION_PUBLIC_IMPORTS` (`scripts/lib/publicImportBoundaryRule.mjs`) conserva
-  solo el contrato de tipos de búsqueda global.
+  (regla 1). Los controladores compartidos del censo viven en `application/census/controllers/`, y
+  la fachada `application/census/public.ts` ya no mantiene excepciones hacia módulos internos de
+  `features/`.
 - **Hoy:** no hay ciclos de imports en ejecución (`npm run check:import-cycles`).
 - **Hoy:** `eslint-plugin-boundaries` está retirado: solo veía imports relativos con `.ts`
   explícito, y lo que prohibía con razón lo cubre `check:folder-dependencies`.
