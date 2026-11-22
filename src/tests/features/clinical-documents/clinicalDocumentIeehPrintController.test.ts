@@ -9,7 +9,7 @@ import {
   parseDoctorName,
 } from '@/features/clinical-documents/controllers/clinicalDocumentIeehPrintController';
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
-import type { ClinicalDocumentIeehDraft } from '@/application/shared/ieehContracts';
+import type { ClinicalDocumentIeehDraft } from '@/features/clinical-documents/contracts/ieehContracts';
 
 /** Builds a minimal typed IEEH draft for tests. */
 const buildDraft = (

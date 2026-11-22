@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
-import { calculateDaysOfStay } from '@/services/pdf/ieehPdfSupport';
+import { calculateDaysOfStay } from '@/features/clinical-documents/services/ieehPdfSupport';
 
 describe('ieehPdfSupport.calculateDaysOfStay', () => {
   it('uses the official discharge stay rule for IEEH', () => {

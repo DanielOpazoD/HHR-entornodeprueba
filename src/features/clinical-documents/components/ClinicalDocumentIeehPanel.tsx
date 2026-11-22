@@ -14,7 +14,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, ClipboardList } from 'lucide-react';
 import clsx from 'clsx';
 
-import type { ClinicalDocumentIeehDraft } from '@/application/shared/ieehContracts';
+import type { ClinicalDocumentIeehDraft } from '@/features/clinical-documents/contracts/ieehContracts';
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import {
   createEmptyIeehDraft,
@@ -220,7 +220,8 @@ export const ClinicalDocumentIeehPanel: React.FC<ClinicalDocumentIeehPanelProps>
     if (!canPrintIeeh) return;
     setIsPrinting(true);
     try {
-      const { printIEEHForm } = await import('@/services/pdf/ieehPdfService');
+      const { printIEEHForm } =
+        await import('@/features/clinical-documents/services/ieehPdfService');
       const currentIeehDocument = {
         ...epicrisisDoc,
         ieehDraft: localDraft,

@@ -4,18 +4,18 @@ import type {
   ClinicalAttachmentDocumentType as ClinicalDocumentType,
   ClinicalAttachmentFileKind,
   ClinicalAttachmentRecord,
-} from '@/shared/clinical-documents/clinicalAttachmentContracts';
+} from '@/features/clinical-documents/contracts/clinicalAttachmentContracts';
 import {
   buildClinicalAttachmentStoragePath,
   normalizeClinicalAttachmentRutKey,
-} from '@/shared/clinical-documents/clinicalAttachmentPathController';
-import { parseClinicalAttachmentRecord } from '@/shared/clinical-documents/clinicalAttachmentRuntimeContracts';
-import { resolveClinicalAttachmentFilePolicy } from '@/shared/clinical-documents/clinicalAttachmentFilePolicy';
+} from '@/features/clinical-documents/controllers/clinicalAttachmentPathController';
+import { parseClinicalAttachmentRecord } from '@/features/clinical-documents/contracts/clinicalAttachmentRuntimeContracts';
+import { resolveClinicalAttachmentFilePolicy } from '@/features/clinical-documents/controllers/clinicalAttachmentFilePolicy';
 import { firestoreDb, type IDatabaseProvider } from '@/services/storage/firestore';
 import {
   defaultClinicalAttachmentStorageRuntime,
   type ClinicalAttachmentStorageRuntime,
-} from '@/services/firebase-runtime/clinicalAttachmentRuntime';
+} from '@/features/clinical-documents/services/clinicalAttachmentRuntime';
 
 const getClinicalAttachmentsCollectionPath = (hospitalId: string = getActiveHospitalId()): string =>
   `hospitals/${hospitalId}/clinicalAttachments`;

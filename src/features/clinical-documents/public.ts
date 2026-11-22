@@ -5,7 +5,7 @@ export { ClinicalDocumentsWorkspace } from './components/ClinicalDocumentsWorksp
 export type {
   ClinicalAttachmentFileKind,
   ClinicalAttachmentRecord,
-} from '@/shared/clinical-documents/clinicalAttachmentContracts';
+} from '@/features/clinical-documents/contracts/clinicalAttachmentContracts';
 export type {
   ClinicalDocumentAuditActor,
   ClinicalDocumentPdfMeta,

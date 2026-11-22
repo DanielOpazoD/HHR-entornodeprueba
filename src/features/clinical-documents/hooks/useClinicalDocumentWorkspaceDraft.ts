@@ -66,7 +66,7 @@ export interface ClinicalDocumentWorkspaceDraftState {
   setAnnexIncludedInPrint: (included: boolean) => void;
   clearAnnexContent: () => void;
   patchIeehDraft: (
-    draft: import('@/application/shared/ieehContracts').ClinicalDocumentIeehDraft
+    draft: import('@/features/clinical-documents/contracts/ieehContracts').ClinicalDocumentIeehDraft
   ) => void;
   clearIeehDraft: () => void;
   patchUpdateDate: (sectionId: string, date: string) => void;

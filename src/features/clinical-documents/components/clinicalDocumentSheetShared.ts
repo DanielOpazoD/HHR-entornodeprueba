@@ -1,9 +1,9 @@
-import type { ClinicalDocumentIeehDraft } from '@/application/shared/ieehContracts';
+import type { ClinicalDocumentIeehDraft } from '@/features/clinical-documents/contracts/ieehContracts';
 import type {
   ClinicalDocumentRecord,
   ClinicalDocumentSectionLayout,
 } from '@/domain/clinical-documents/entities';
-import type { ClinicalAttachmentRecord } from '@/shared/clinical-documents/clinicalAttachmentContracts';
+import type { ClinicalAttachmentRecord } from '@/features/clinical-documents/contracts/clinicalAttachmentContracts';
 import type { ClinicalDocumentSignatureProfile } from '@/features/clinical-documents/services/clinicalDocumentSignatureProfileService';
 import type { ClinicalDocumentPlanSubsectionId } from '@/features/clinical-documents/controllers/clinicalDocumentPlanSectionController';
 import type { ClinicalDocumentIndicationsCatalog } from '@/features/clinical-documents/services/clinicalDocumentIndicationsCatalogService';

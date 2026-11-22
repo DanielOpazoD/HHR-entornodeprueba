@@ -18,7 +18,7 @@ import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTy
 import {
   ClinicalAttachmentRepository,
   type createClinicalAttachmentRepository,
-} from '@/services/repositories/ClinicalAttachmentRepository';
+} from '@/features/clinical-documents/services/ClinicalAttachmentRepository';
 import { suggestClinicalAttachmentDisplayName } from './clinicalAttachmentNameSuggestionService';
 
 type ClinicalAttachmentRepositoryPort = ReturnType<typeof createClinicalAttachmentRepository>;

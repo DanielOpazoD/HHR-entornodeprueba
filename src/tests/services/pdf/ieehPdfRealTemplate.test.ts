@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fillIEEHForm } from '@/services/pdf/ieehPdfService';
+import { fillIEEHForm } from '@/features/clinical-documents/services/ieehPdfService';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 const patient = DataFactory.createMockPatient('R1', {

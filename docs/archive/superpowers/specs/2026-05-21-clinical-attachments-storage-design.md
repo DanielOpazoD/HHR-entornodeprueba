@@ -447,13 +447,13 @@ components/ClinicalAttachmentsViewer.tsx
 Repositorio compartido o servicio:
 
 ```text
-src/services/repositories/ClinicalAttachmentRepository.ts
+src/features/clinical-documents/services/ClinicalAttachmentRepository.ts
 ```
 
 Runtime Storage:
 
 ```text
-src/services/firebase-runtime/clinicalAttachmentRuntime.ts
+src/features/clinical-documents/services/clinicalAttachmentRuntime.ts
 ```
 
 La UI no debe importar Firebase directo. Debe consumir hooks/use-cases con outcomes tipados.

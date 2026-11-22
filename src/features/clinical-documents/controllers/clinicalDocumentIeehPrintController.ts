@@ -11,7 +11,7 @@
  */
 
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
-import type { DischargeFormData } from '@/services/pdf/ieehPdfContracts';
+import type { DischargeFormData } from '@/features/clinical-documents/services/ieehPdfContracts';
 import { normalizeCalendarDate } from '@/utils/clinicalDateUtils';
 
 // ---------------------------------------------------------------------------

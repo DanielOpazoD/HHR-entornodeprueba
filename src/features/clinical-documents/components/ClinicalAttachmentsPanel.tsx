@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { FolderOpen, Upload } from 'lucide-react';
 
-import type { ClinicalAttachmentRecord } from '@/shared/clinical-documents/clinicalAttachmentContracts';
+import type { ClinicalAttachmentRecord } from '@/features/clinical-documents/contracts/clinicalAttachmentContracts';
 import { ClinicalAttachmentRow } from '@/features/clinical-documents/components/ClinicalAttachmentRow';
 
 interface ClinicalAttachmentsPanelProps {
