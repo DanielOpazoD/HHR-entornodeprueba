@@ -1,6 +1,5 @@
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { ApplyResult } from '../domain/applyCensusImportDiff';
-import { fileCrossDayCorrections } from '../domain/previousDayCorrections';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import type { CensusImportDiff, CmaAdmissionResolution } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -198,6 +197,7 @@ export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult
   const writesPreviousDays = applyPreviousDays || Boolean(historicalDiff.previousDayEdits?.length);
   if (writesPreviousDays) {
     const run = ensureRun();
+    const { fileCrossDayCorrections } = await import('../domain/previousDayCorrections');
     let lastHistoricalConflict: unknown;
     for (let attempt = 0; attempt <= MAX_FRESH_RECORD_RETRIES; attempt += 1) {
       try {

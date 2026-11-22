@@ -180,6 +180,35 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
   },
   { glob: '**/assets/replanRayenStructure-*.js', reason: 'Same policy as the entry above.' },
   {
+    glob: '**/assets/applyCensusImportDiff-*.js',
+    reason:
+      'Structural Eloisa diff application loads on demand only while confirming an online sync.',
+  },
+  {
+    glob: '**/assets/rayenStructuralPersistenceBase-*.js',
+    reason: 'Structural Eloisa persistence base loads on demand with the online diff application.',
+  },
+  {
+    glob: '**/assets/previousDayCorrections-*.js',
+    reason:
+      'Cross-day Eloisa corrections load on demand only when an online sync writes previous-day movements.',
+  },
+  {
+    glob: '**/assets/collectNursingStaffingProposal-*.js',
+    reason:
+      'Nursing staffing inference queries live Eloisa history only when the operator clicks «Dotación».',
+  },
+  {
+    glob: '**/assets/concurrencyGate-*.js',
+    reason:
+      'Shared concurrency helper imported exclusively by online Eloisa clinical-fill and staffing chunks.',
+  },
+  {
+    glob: '**/assets/RayenNursingShiftProposalModal-*.js',
+    reason:
+      'Staffing review modal opens on demand only after an online «Dotación» read returns a proposal.',
+  },
+  {
     glob: '**/assets/RayenImportPreviewModal-*.js',
     reason: 'Eloisa review opens after an online capture and requires explicit confirmation.',
   },

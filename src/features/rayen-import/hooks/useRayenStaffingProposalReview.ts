@@ -9,7 +9,6 @@ import {
 } from '../domain/applyNursingShiftProposal';
 import { isNursingStaffingCollectionContextCurrent } from '../domain/nursingStaffingCollectionContext';
 import { canWriteCensusDay } from '@/shared/access/censusDayWriteAccessPolicy';
-import { collectNursingStaffingProposal } from '../domain/collectNursingStaffingProposal';
 import { requestHistoryScales } from '../bridge/rayenImportBridge';
 import { getRayenImportErrorMessage } from './rayenImportState';
 import { reportRayenStaffingOutcome } from './useRayenFillStatus';
@@ -80,6 +79,9 @@ export const useRayenStaffingProposalReview = ({
     setStaffingProposalError(null);
     try {
       const freshRecord = await loadFreshClinicalRecord(base.date);
+      assertCurrent();
+      const { collectNursingStaffingProposal } =
+        await import('../domain/collectNursingStaffingProposal');
       assertCurrent();
       const proposal = await collectNursingStaffingProposal(freshRecord, {
         fetchHistory: (encounterId, censusDate) => {
