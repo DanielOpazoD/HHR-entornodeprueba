@@ -24,7 +24,7 @@ describe('InitialLoadingScreen', () => {
     expect(resolveInitialLoadingScreenVariant('/nursing-handoff')).toBe('default');
     expect(resolveInitialLoadingScreenVariant('/medical-handoff')).toBe('default');
     expect(resolveInitialLoadingScreenVariant('/transfer-management')).toBe('default');
-    expect(resolveInitialLoadingScreenVariant('/whatsapp')).toBe('default');
+    expect(resolveInitialLoadingScreenVariant('/diagnostics')).toBe('default');
   });
 
   it('renders the shared access progress panel for the root route', () => {
@@ -58,7 +58,7 @@ describe('InitialLoadingScreen', () => {
   });
 
   it('renders the default loading screen for non-census routes', () => {
-    render(<InitialLoadingScreen pathname="/whatsapp" />);
+    render(<InitialLoadingScreen pathname="/diagnostics" />);
 
     expect(screen.getByTestId('default-loading-screen')).toBeInTheDocument();
   });

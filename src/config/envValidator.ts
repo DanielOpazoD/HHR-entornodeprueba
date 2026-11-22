@@ -54,9 +54,6 @@ const clientEnvSchema = z.object({
   VITE_DEBUG_REPOSITORY: optionalStr,
   VITE_E2E_MODE: optionalStr,
 
-  /* ── Integrations ───────────────────────────────────────────────── */
-  VITE_WHATSAPP_BOT_URL: optionalStr,
-
   /* ── Telemetry ──────────────────────────────────────────────────── */
   VITE_OPERATIONAL_TELEMETRY_ENDPOINT: optionalStr,
   VITE_OPERATIONAL_TELEMETRY_SAMPLE_RATE: optionalStr,
@@ -116,7 +113,6 @@ export function validateClientEnv(): ClientEnvValidationResult {
     VITE_AUTH_AUTO_REDIRECT_FALLBACK: import.meta.env.VITE_AUTH_AUTO_REDIRECT_FALLBACK,
     VITE_DEBUG_REPOSITORY: import.meta.env.VITE_DEBUG_REPOSITORY,
     VITE_E2E_MODE: import.meta.env.VITE_E2E_MODE,
-    VITE_WHATSAPP_BOT_URL: import.meta.env.VITE_WHATSAPP_BOT_URL,
     VITE_OPERATIONAL_TELEMETRY_ENDPOINT: import.meta.env.VITE_OPERATIONAL_TELEMETRY_ENDPOINT,
     VITE_OPERATIONAL_TELEMETRY_SAMPLE_RATE: import.meta.env.VITE_OPERATIONAL_TELEMETRY_SAMPLE_RATE,
   };

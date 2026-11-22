@@ -20,7 +20,6 @@ import {
   ReminderAdminView,
   RoleManagementView,
   SystemDiagnosticsView,
-  WhatsAppIntegrationView,
 } from '@/views/LazyViews';
 import {
   canAccessAppModuleRoute,
@@ -108,11 +107,6 @@ export const SIMPLE_MODULE_ROUTE_DEFINITIONS: readonly SimpleModuleRouteDefiniti
     sectionName: 'Comunicación',
     requiresAccessCheck: true,
     render: () => <CommunicationsView />,
-  },
-  {
-    module: 'WHATSAPP',
-    sectionName: 'Integración WhatsApp',
-    render: () => <WhatsAppIntegrationView />,
   },
   {
     module: 'DIAGNOSTICS',

@@ -191,7 +191,6 @@ esta tabla.
 | [`rayen-import/`](../src/features/rayen-import/README.md)             | Sincroniza el censo con Eloísa mediante la extensión; los cambios de camas se aplican tras confirmarlos     |
 | `rayen-manual-import/`                                                | Ingresa en una cama vacía un paciente copiado de Eloísa con un código, avisando si ya está en el censo      |
 | [`reminders/`](../src/features/reminders/README.md)                   | Avisos que jefatura o administración publican para el personal clínico                                      |
-| `whatsapp/`                                                           | WhatsApp: turnos de pabellón, plantillas de mensajes y configuración                                        |
 | [`wound-care/`](../src/features/wound-care/README.md)                 | Registro fotográfico de curaciones de heridas, con consentimiento, desde la entrega de enfermería           |
 
 Dentro de un área se usan, según haga falta, `components/`, `hooks/`, `controllers/` (lógica
