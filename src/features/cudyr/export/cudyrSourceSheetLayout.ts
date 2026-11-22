@@ -26,6 +26,7 @@ export const fitCudyrSourceSheet = (
   const spans = new Map<string, { first: number; last: number }>();
   layout.merges.forEach(merge => {
     const [start, end = start] = merge.split(':');
+    if (!start || !end) return;
     spans.set(start, {
       first: Number(sheet.getCell(start).col),
       last: Number(sheet.getCell(end).col),

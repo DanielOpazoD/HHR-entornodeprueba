@@ -32,8 +32,10 @@ export const resolveCudyrDailyEligibility = (
 ): CudyrDailyEligibility => {
   const modalities = new Set(input.placements.map(cudyrModality));
   const groups = new Set(input.placements.map(placement => cudyrStatisticalGroup(placement.bedId)));
-  const modality = modalities.size === 1 ? [...modalities][0] : 'desconocida';
-  const group = groups.size === 1 ? [...groups][0] : 'sin_grupo';
+  const modality: CudyrModality =
+    modalities.size === 1 ? ([...modalities][0] ?? 'desconocida') : 'desconocida';
+  const group: CudyrStatisticalGroup =
+    groups.size === 1 ? ([...groups][0] ?? 'sin_grupo') : 'sin_grupo';
   const result = (eligibility: CudyrEligibility, reason: string): CudyrDailyEligibility => ({
     eligibility,
     modality,

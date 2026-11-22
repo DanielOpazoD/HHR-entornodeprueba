@@ -27,7 +27,7 @@ export const cudyrSourceAdmissionInstant = (rows: CudyrReportRow[]): number | nu
     )
   );
   const instant = [...instants][0];
-  return instants.size === 1 && Number.isFinite(instant) ? instant : null;
+  return instants.size === 1 && instant !== undefined && Number.isFinite(instant) ? instant : null;
 };
 
 /** CMA/UEA have an episode admission even when no hospital-stay admission exists. */
@@ -115,14 +115,15 @@ export const resolveCudyrSourceEpisode = (
       return null;
   }
   const episodes = new Set(candidates.map(r => r.clinicalEpisodeId));
+  const firstCandidate = candidates[0];
   if (
-    !candidates.length ||
+    !firstCandidate ||
     episodes.size !== 1 ||
     episodes.has('') ||
     candidates.some(r => r.monthlyEvidence?.state === 'conflict')
   )
     return null;
-  const episode = candidates[0].clinicalEpisodeId;
+  const episode = firstCandidate.clinicalEpisodeId;
   if (
     rows.some(
       r =>

@@ -16,11 +16,13 @@ export const buildCudyrBedHistory = (
     groups.set(key, [...(groups.get(key) || []), item]);
   }
   return [...groups]
-    .map(([key, values]): CudyrBedHistoryEntry => {
+    .flatMap(([key, values]): CudyrBedHistoryEntry[] => {
       const sorted = [...values].sort(
         (a, b) => (Date.parse(b.observedAt) || 0) - (Date.parse(a.observedAt) || 0)
       );
-      const { placement: p, observedAt } = sorted[0];
+      const latest = sorted[0];
+      if (!latest) return [];
+      const { placement: p, observedAt } = latest;
       const closed = values.filter(x => cudyrSourceInstant(x.placement.sourceEndAt) !== null);
       const closureConflict =
         new Set(closed.map(x => cudyrSourceInstant(x.placement.sourceEndAt))).size > 1 ||
@@ -45,22 +47,24 @@ export const buildCudyrBedHistory = (
             sourceCudyrModality(x.placement) !== sourceCudyrModality(p)
         );
       const endAt = cudyrSourceInstant(p.sourceEndAt) !== null ? p.sourceEndAt : '';
-      return {
-        key,
-        bed: p.sourceBedLabel || p.bedId || 'Cama no informada',
-        service: p.sourceDepartmentLabel,
-        modality: sourceCudyrModality(p),
-        startAt: cudyrSourceInstant(p.sourceStartAt) !== null ? p.sourceStartAt : '',
-        endAt,
-        observedAt,
-        status: values.some(x => x.placement.isDeleted)
-          ? 'anulada'
-          : contradictory
-            ? 'contradictoria'
-            : endAt
-              ? 'finalizada'
-              : 'observada',
-      };
+      return [
+        {
+          key,
+          bed: p.sourceBedLabel || p.bedId || 'Cama no informada',
+          service: p.sourceDepartmentLabel,
+          modality: sourceCudyrModality(p),
+          startAt: cudyrSourceInstant(p.sourceStartAt) !== null ? p.sourceStartAt : '',
+          endAt,
+          observedAt,
+          status: values.some(x => x.placement.isDeleted)
+            ? 'anulada'
+            : contradictory
+              ? 'contradictoria'
+              : endAt
+                ? 'finalizada'
+                : 'observada',
+        },
+      ];
     })
     .sort(
       (a, b) =>

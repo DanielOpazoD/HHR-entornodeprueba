@@ -6,6 +6,7 @@ import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 export const monthlyRecoveryPeriod = (month: string) => {
   if (!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)) throw new Error('Mes inválido.');
   const [year, number] = month.split('-').map(Number);
+  if (year === undefined || number === undefined) throw new Error('Mes inválido.');
   const last = new Date(Date.UTC(year, number, 0)).toISOString().slice(0, 10);
   const next = getNextDay(last);
   return { month, from: `${month}-01`, last, next, reportMonths: [month, next.slice(0, 7)] };

@@ -83,27 +83,27 @@ export const compareCudyrMonth = (
         (sourceIdentities.get(identityKey(p.document, p.patientName)) || 0) > 1;
       let status: CudyrComparisonStatus;
       let reason: string;
+      const primaryCandidate = candidates[0];
       if (ambiguous) {
         status = 'identity_review';
         reason =
           'Documento compartido, filas fuente repetidas, nombre discordante, episodio ausente o varios candidatos. No se asignó el registro.';
-      } else if (!candidates.length) {
+      } else if (!primaryCandidate) {
         status = 'no_hhr_candidate';
         reason =
           'No hay contexto HHR compatible para esta fecha dentro de la lectura. No prueba ausencia de hospitalización.';
       } else if (!timed.length) {
-        status = candidates[0].evaluation ? 'date_review' : 'no_hhr_result';
+        status = primaryCandidate.evaluation ? 'date_review' : 'no_hhr_result';
         reason =
           'El día del informe Eloísa no equivale automáticamente al día censal HHR. Una ausencia no acredita incumplimiento.';
       } else {
-        const row = candidates[0];
         status =
-          day.category && row.evaluation?.category === day.category
+          day.category && primaryCandidate.evaluation?.category === day.category
             ? 'compatible'
             : 'category_difference';
         reason =
           'Cotejo por documento, nombre y fecha literal de aplicación; el informe no acredita episodio, hora ni autor. Se conserva el día censal HHR.';
-        compared.add(row.key);
+        compared.add(primaryCandidate.key);
       }
       result.push({
         key: `category:${p.sourceRow}:${day.sourceDay}`,

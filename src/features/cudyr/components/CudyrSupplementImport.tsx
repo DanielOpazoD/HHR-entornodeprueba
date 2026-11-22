@@ -78,6 +78,7 @@ const CudyrSupplementImportSession = ({
       if (current()) setBusy(false);
     }
   };
+  const samplePatient = preview?.report.patients[0];
   return (
     <div className="mt-4 space-y-3 border-t pt-4 text-sm">
       <label className="block font-medium">
@@ -120,11 +121,13 @@ const CudyrSupplementImportSession = ({
             celdas con categoría
           </p>
           <p>{preview.report.generatedLabel || 'Impresión sin fecha informada'}</p>
-          <p className="text-xs">
-            Ejemplo fuente: {preview.report.patients[0].patientName} ·{' '}
-            {preview.report.patients[0].document || 'Sin documento'} ·{' '}
-            {preview.report.patients[0].diagnosis || 'Sin diagnóstico'}
-          </p>
+          {samplePatient && (
+            <p className="text-xs">
+              Ejemplo fuente: {samplePatient.patientName} ·{' '}
+              {samplePatient.document || 'Sin documento'} ·{' '}
+              {samplePatient.diagnosis || 'Sin diagnóstico'}
+            </p>
+          )}
           <label className="flex items-start gap-2">
             <input
               type="checkbox"

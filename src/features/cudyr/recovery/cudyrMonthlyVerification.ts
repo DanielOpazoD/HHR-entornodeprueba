@@ -93,11 +93,12 @@ export const verifyCudyrMonthlySources = (
               identity(p.document, p.patientName) ===
               identity(patient.document, patient.patientName)
           ).length > 1;
+        const singleContext = context.length === 1 ? context[0] : undefined;
         const reviewedLink =
-          context.length === 1 &&
-          (context[0].verifiedContext ||
-            context[0].monthlyEvidence?.linkMethod === 'episode_timeline') &&
-          context[0].monthlyEvidence?.state === 'absent';
+          Boolean(singleContext) &&
+          (singleContext?.verifiedContext ||
+            singleContext?.monthlyEvidence?.linkMethod === 'episode_timeline') &&
+          singleContext?.monthlyEvidence?.state === 'absent';
         const ambiguous =
           !reviewedLink &&
           (context.some(r => r.monthlyEvidence?.state === 'conflict') ||

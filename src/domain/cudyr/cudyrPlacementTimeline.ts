@@ -13,6 +13,15 @@ export const cudyrSourceInstant = (value: string): number | null => {
     /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.exec(value);
   if (!match) return null;
   const [year, month, day, hour, minute, second] = match.slice(1).map(Number);
+  if (
+    year === undefined ||
+    month === undefined ||
+    day === undefined ||
+    hour === undefined ||
+    minute === undefined ||
+    second === undefined
+  )
+    return null;
   const calendar = new Date(Date.UTC(year, month - 1, day));
   if (
     year < 1900 ||

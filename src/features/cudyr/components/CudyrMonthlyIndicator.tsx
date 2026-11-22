@@ -86,7 +86,7 @@ const History = ({ initial, months, now }: { initial: string; months: string[]; 
   const background = annualMonths.find(
     value => value !== month && (!reads[value] || reads[value].busy)
   );
-  const settled = Object.keys(reads).filter(value => !reads[value].busy);
+  const settled = Object.keys(reads).filter(value => !reads[value]?.busy);
   const reading = new Set([...settled, month, ...(background ? [background] : [])]);
   const current = reads[month];
   const summary = current?.summary;
@@ -101,7 +101,10 @@ const History = ({ initial, months, now }: { initial: string; months: string[]; 
           type="button"
           aria-label="Mes anterior"
           disabled={index <= 0}
-          onClick={() => setMonth(months[index - 1])}
+          onClick={() => {
+            const previousMonth = months[index - 1];
+            if (previousMonth) setMonth(previousMonth);
+          }}
           className="rounded px-1 text-teal-700 hover:bg-teal-50 disabled:opacity-30"
         >
           ‹
@@ -122,7 +125,10 @@ const History = ({ initial, months, now }: { initial: string; months: string[]; 
           type="button"
           aria-label="Mes siguiente"
           disabled={index === months.length - 1}
-          onClick={() => setMonth(months[index + 1])}
+          onClick={() => {
+            const nextMonth = months[index + 1];
+            if (nextMonth) setMonth(nextMonth);
+          }}
           className="rounded px-1 text-teal-700 hover:bg-teal-50 disabled:opacity-30"
         >
           ›

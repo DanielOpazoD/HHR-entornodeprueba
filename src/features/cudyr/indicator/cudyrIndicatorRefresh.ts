@@ -34,8 +34,8 @@ export const cudyrIndicatorFirstSync = (
   }
   if (!remembered.months[month] && valid(completedAt)) {
     remembered.months[month] = completedAt;
-    if (Object.keys(remembered.months).length > 12)
-      delete remembered.months[Object.keys(remembered.months)[0]];
+    const monthKeys = Object.keys(remembered.months);
+    if (monthKeys.length > 12 && monthKeys[0] !== undefined) delete remembered.months[monthKeys[0]];
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(remembered));
     } catch {
