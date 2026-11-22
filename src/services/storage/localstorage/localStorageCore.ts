@@ -36,5 +36,5 @@ export const getClosestPreviousRecord = (
     }
   }
 
-  return closestDate ? records[closestDate] : null;
+  return closestDate ? (records[closestDate] ?? null) : null;
 };

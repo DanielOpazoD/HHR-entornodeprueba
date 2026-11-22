@@ -64,10 +64,11 @@ export const detachStaleOccupantPaths = (
       !group.changesOccupant &&
       !hasSameBedOccupant(occupantOf(record, group), occupantOf(remote, group))
   );
-  if (!stale.length) return null;
+  const firstStale = stale[0];
+  if (!firstStale) return null;
   // A held conflict retried while its patient is still gone stays that same conflict.
   if (/^daily:[^:]+:detached:/.test(task.key ?? ''))
-    throw new ConcurrencyError(heldMessage(record, stale[0]), 'semantic_conflict');
+    throw new ConcurrencyError(heldMessage(record, firstStale), 'semantic_conflict');
   const detached = stale.flatMap(group => group.paths);
   // Its own mutation id: the day task's publish never acknowledges the held edits.
   const { mutationIds: _compacted, ...contract } = task.syncContract ?? {};

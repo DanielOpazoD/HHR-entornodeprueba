@@ -49,6 +49,7 @@ const hasSamePatientOwnerAtPath = (
   const match = BED_SCOPED_PATH.exec(path);
   if (!match) return !path.startsWith('beds');
   const [, bedId, clinicalCrib] = match;
+  if (!bedId) return false;
   const segments = path.split('.');
   if (!clinicalCrib && segments[2] && BED_SLOT_METADATA_FIELDS.has(segments[2])) return true;
   const pendingBed = pendingRecord.beds[bedId];
@@ -85,19 +86,19 @@ const buildSafePendingPatch = ({
       );
     }
     const pendingValue = readPath(pendingTask.record, path);
-    const rootBedMatch = /^beds\.([^.]+)$/.exec(path);
+    const rootBedId = /^beds\.([^.]+)$/.exec(path)?.[1];
     if (
-      rootBedMatch &&
+      rootBedId &&
       isObject(pendingValue) &&
-      isAffectedByAppliedPatch(`beds.${rootBedMatch[1]}.clinicalCrib`, appliedPaths) &&
+      isAffectedByAppliedPatch(`beds.${rootBedId}.clinicalCrib`, appliedPaths) &&
       !hasSamePatientEpisodeIdentity(
-        pendingTask.record.beds[rootBedMatch[1]]?.clinicalCrib,
-        authoritativeRecord.beds[rootBedMatch[1]]?.clinicalCrib
+        pendingTask.record.beds[rootBedId]?.clinicalCrib,
+        authoritativeRecord.beds[rootBedId]?.clinicalCrib
       )
     ) {
       patch[path] = {
         ...pendingValue,
-        clinicalCrib: authoritativeRecord.beds[rootBedMatch[1]]?.clinicalCrib,
+        clinicalCrib: authoritativeRecord.beds[rootBedId]?.clinicalCrib,
       };
       return patch;
     }

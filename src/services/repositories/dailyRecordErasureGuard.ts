@@ -96,10 +96,12 @@ export const findPatientErasures = (
   const stillPresentLocally = (patient: PatientData | undefined): boolean => {
     if (!patient) return false;
     const matches = localPatients.filter(candidate => sameRelocatedEpisode(patient, candidate));
+    const [singleMatch] = matches;
     // One surviving occupant must not account for two remote people with ambiguous legacy data.
     return (
       matches.length === 1 &&
-      remotePatients.filter(candidate => sameRelocatedEpisode(candidate, matches[0])).length === 1
+      singleMatch !== undefined &&
+      remotePatients.filter(candidate => sameRelocatedEpisode(candidate, singleMatch)).length === 1
     );
   };
 

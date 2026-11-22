@@ -51,10 +51,11 @@ export const seedClinicalCarryover = (
     const active = history.filter(
       item => item.type === type && item.status === 'Active' && !item.removalDate
     );
-    if (active.length === 1) {
+    const [singleActive] = active;
+    if (active.length === 1 && singleActive) {
       result.deviceDetails[type] = {
-        installationDate: active[0].installationDate,
-        ...(active[0].note ? { note: active[0].note } : {}),
+        installationDate: singleActive.installationDate,
+        ...(singleActive.note ? { note: singleActive.note } : {}),
       };
     } else if (active.length > 1) {
       // Preserve all instances without assigning one installation to the whole type.

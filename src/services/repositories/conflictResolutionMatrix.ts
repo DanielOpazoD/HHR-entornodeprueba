@@ -209,7 +209,7 @@ const resolveByChangedPaths = (
       return resolveWholeRecord(remote, local, traceContext);
     }
 
-    const [root, second, third] = path.split('.');
+    const [root = '', second, third] = path.split('.');
 
     if (root === 'beds') {
       if (!second) {

@@ -103,7 +103,7 @@ const configureSummaryHeaders = (sheet: Worksheet) => {
       value: header,
       font: { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } },
       alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
-      fill: solidFill(SUMMARY_HEADER_COLORS[index]),
+      fill: solidFill(SUMMARY_HEADER_COLORS[index] ?? '#2E75B6'),
     });
   });
 };

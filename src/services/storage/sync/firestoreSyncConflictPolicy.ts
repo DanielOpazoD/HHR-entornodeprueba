@@ -79,7 +79,7 @@ const extractMedicalHandoffSpecialties = (paths: string[]): Set<string> =>
     paths
       .filter(path => path.startsWith(MEDICAL_HANDOFF_SPECIALTY_PREFIX))
       .map(path => path.slice(MEDICAL_HANDOFF_SPECIALTY_PREFIX.length).split('.')[0])
-      .filter(Boolean)
+      .filter((specialty): specialty is string => Boolean(specialty))
   );
 
 const hasSpecialtyOverlap = (left: Set<string>, right: Set<string>): boolean => {

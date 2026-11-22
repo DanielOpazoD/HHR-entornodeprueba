@@ -156,7 +156,7 @@ export const createRoleService = (
 
         // Also clean up any truncated/nested garbage if it exists
         const truncated = cleanEmail.split('.')[0];
-        if (updatedRoles[truncated]) delete updatedRoles[truncated];
+        if (truncated && updatedRoles[truncated]) delete updatedRoles[truncated];
 
         for (const [emailKey, configuredRole] of Object.entries(updatedRoles)) {
           const { role: normalizedRole, migratedLegacyRole } =

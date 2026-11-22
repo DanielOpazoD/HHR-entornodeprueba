@@ -56,8 +56,9 @@ export const applyClinicalDayCarryover = (
     const matches = candidates.filter(previous =>
       canCarryClinicalEvidence(previous, patient, source.date, destination.date)
     );
-    return matches.length === 1
-      ? seedClinicalCarryover(matches[0], patient, source.date, destination.date)
+    const [singleMatch] = matches;
+    return matches.length === 1 && singleMatch
+      ? seedClinicalCarryover(singleMatch, patient, source.date, destination.date)
       : patient;
   };
   for (const [bedId, patient] of Object.entries(destination.beds)) {

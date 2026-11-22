@@ -1,7 +1,7 @@
 import type { IndexedDbDatabaseLike } from '@/services/storage/indexeddb/indexedDbContracts';
 
 export const createMockDatabase = (): IndexedDbDatabaseLike => {
-  const memoryStore: Record<string, Map<string, unknown>> = {
+  const memoryStore = {
     dailyRecords: new Map<string, unknown>(),
     catalogs: new Map<string, unknown>(),
     errorLogs: new Map<string, unknown>(),
@@ -10,108 +10,111 @@ export const createMockDatabase = (): IndexedDbDatabaseLike => {
     syncQueue: new Map<string, unknown>(),
   };
 
-  const createMockTable = (tableName: string) => ({
-    toArray: () => Promise.resolve(Array.from(memoryStore[tableName].values())),
-    get: (key: string) => Promise.resolve(memoryStore[tableName].get(key) || null),
-    put: (item: Record<string, unknown>) => {
-      const key = (item.date as string) || (item.id as string) || 'default';
-      memoryStore[tableName].set(key, item);
-      return Promise.resolve(key);
-    },
-    delete: (key: string) => {
-      memoryStore[tableName].delete(key);
-      return Promise.resolve();
-    },
-    clear: () => {
-      memoryStore[tableName].clear();
-      return Promise.resolve();
-    },
-    bulkPut: (items: Record<string, unknown>[]) => {
-      items.forEach(item => {
+  const createMockTable = (tableName: keyof typeof memoryStore) => {
+    const store = memoryStore[tableName];
+    return {
+      toArray: () => Promise.resolve(Array.from(store.values())),
+      get: (key: string) => Promise.resolve(store.get(key) || null),
+      put: (item: Record<string, unknown>) => {
         const key = (item.date as string) || (item.id as string) || 'default';
-        memoryStore[tableName].set(key, item);
-      });
-      return Promise.resolve('');
-    },
-    update: (id: string, changes: Record<string, unknown>) => {
-      const existing = Array.from(memoryStore[tableName].values()).find(item => {
-        const currentItem = item as Record<string, unknown>;
-        return (currentItem.id || currentItem.date) === id;
-      }) as Record<string, unknown> | undefined;
+        store.set(key, item);
+        return Promise.resolve(key);
+      },
+      delete: (key: string) => {
+        store.delete(key);
+        return Promise.resolve();
+      },
+      clear: () => {
+        store.clear();
+        return Promise.resolve();
+      },
+      bulkPut: (items: Record<string, unknown>[]) => {
+        items.forEach(item => {
+          const key = (item.date as string) || (item.id as string) || 'default';
+          store.set(key, item);
+        });
+        return Promise.resolve('');
+      },
+      update: (id: string, changes: Record<string, unknown>) => {
+        const existing = Array.from(store.values()).find(item => {
+          const currentItem = item as Record<string, unknown>;
+          return (currentItem.id || currentItem.date) === id;
+        }) as Record<string, unknown> | undefined;
 
-      if (existing) {
-        Object.assign(existing, changes);
-      }
+        if (existing) {
+          Object.assign(existing, changes);
+        }
 
-      return Promise.resolve(existing ? 1 : 0);
-    },
-    add: (item: Record<string, unknown>) => {
-      const id = (item.id as string) || Math.random().toString();
-      const newItem = { ...item, id };
-      memoryStore[tableName].set(id, newItem);
-      return Promise.resolve(id);
-    },
-    orderBy: (_keyPath: string) => ({
-      reverse: () => ({
-        limit: (n: number) => ({
-          toArray: () => Promise.resolve(Array.from(memoryStore[tableName].values()).slice(0, n)),
-        }),
-        keys: () => Promise.resolve(Array.from(memoryStore[tableName].keys())),
-        toArray: () => Promise.resolve(Array.from(memoryStore[tableName].values())),
-      }),
-      toArray: () => Promise.resolve(Array.from(memoryStore[tableName].values())),
-    }),
-    where: (keyName: string) => ({
-      below: (val: string) => ({
+        return Promise.resolve(existing ? 1 : 0);
+      },
+      add: (item: Record<string, unknown>) => {
+        const id = (item.id as string) || Math.random().toString();
+        const newItem = { ...item, id };
+        store.set(id, newItem);
+        return Promise.resolve(id);
+      },
+      orderBy: (_keyPath: string) => ({
         reverse: () => ({
-          first: () => {
-            const sortedKeys = Array.from(memoryStore[tableName].keys()).sort();
-            const targetKey = sortedKeys.reverse().find(k => k < val);
-            return Promise.resolve(targetKey ? memoryStore[tableName].get(targetKey) : null);
-          },
+          limit: (n: number) => ({
+            toArray: () => Promise.resolve(Array.from(store.values()).slice(0, n)),
+          }),
+          keys: () => Promise.resolve(Array.from(store.keys())),
+          toArray: () => Promise.resolve(Array.from(store.values())),
+        }),
+        toArray: () => Promise.resolve(Array.from(store.values())),
+      }),
+      where: (keyName: string) => ({
+        below: (val: string) => ({
+          reverse: () => ({
+            first: () => {
+              const sortedKeys = Array.from(store.keys()).sort();
+              const targetKey = sortedKeys.reverse().find(k => k < val);
+              return Promise.resolve(targetKey ? store.get(targetKey) : null);
+            },
+          }),
+        }),
+        equals: (val: unknown) => ({
+          first: () => Promise.resolve(store.get(val as string) || null),
+          count: () =>
+            Promise.resolve(
+              Array.from(store.values()).filter(
+                item => (item as Record<string, unknown>)[keyName] === val
+              ).length
+            ),
+          toArray: () =>
+            Promise.resolve(
+              Array.from(store.values()).filter(
+                item => (item as Record<string, unknown>)[keyName] === val
+              )
+            ),
+          sortBy: (sortKey: string) =>
+            Promise.resolve(
+              Array.from(store.values())
+                .filter(item => (item as Record<string, unknown>)[keyName] === val)
+                .sort((a, b) => {
+                  const valueA = (a as Record<string, unknown>)[sortKey];
+                  const valueB = (b as Record<string, unknown>)[sortKey];
+                  if (typeof valueA === 'string' && typeof valueB === 'string') {
+                    return valueA.localeCompare(valueB);
+                  }
+                  if (typeof valueA === 'number' && typeof valueB === 'number') {
+                    return valueA - valueB;
+                  }
+                  return 0;
+                })
+            ),
+        }),
+        startsWith: (prefix: string) => ({
+          toArray: () =>
+            Promise.resolve(
+              Array.from(store.values()).filter(item =>
+                String((item as Record<string, unknown>)[keyName] || '').startsWith(prefix)
+              )
+            ),
         }),
       }),
-      equals: (val: unknown) => ({
-        first: () => Promise.resolve(memoryStore[tableName].get(val as string) || null),
-        count: () =>
-          Promise.resolve(
-            Array.from(memoryStore[tableName].values()).filter(
-              item => (item as Record<string, unknown>)[keyName] === val
-            ).length
-          ),
-        toArray: () =>
-          Promise.resolve(
-            Array.from(memoryStore[tableName].values()).filter(
-              item => (item as Record<string, unknown>)[keyName] === val
-            )
-          ),
-        sortBy: (sortKey: string) =>
-          Promise.resolve(
-            Array.from(memoryStore[tableName].values())
-              .filter(item => (item as Record<string, unknown>)[keyName] === val)
-              .sort((a, b) => {
-                const valueA = (a as Record<string, unknown>)[sortKey];
-                const valueB = (b as Record<string, unknown>)[sortKey];
-                if (typeof valueA === 'string' && typeof valueB === 'string') {
-                  return valueA.localeCompare(valueB);
-                }
-                if (typeof valueA === 'number' && typeof valueB === 'number') {
-                  return valueA - valueB;
-                }
-                return 0;
-              })
-          ),
-      }),
-      startsWith: (prefix: string) => ({
-        toArray: () =>
-          Promise.resolve(
-            Array.from(memoryStore[tableName].values()).filter(item =>
-              String((item as Record<string, unknown>)[keyName] || '').startsWith(prefix)
-            )
-          ),
-      }),
-    }),
-  });
+    };
+  };
 
   return {
     dailyRecords: createMockTable('dailyRecords'),

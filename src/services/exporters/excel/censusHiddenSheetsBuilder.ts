@@ -30,7 +30,9 @@ export const addCensusHiddenSheets = async (
   if (snapshotSheets.length === 0) return;
 
   const logicalSheets = buildLogicalSnapshotSheets(snapshotSheets);
-  const monthContext = getMonthContext(logicalSheets[logicalSheets.length - 1].record.date);
+  const lastSheet = logicalSheets[logicalSheets.length - 1];
+  if (!lastSheet) return;
+  const monthContext = getMonthContext(lastSheet.record.date);
   const summaryRows = buildSummaryRows(logicalSheets);
   const upcPatients = buildUpcPatients(logicalSheets);
 

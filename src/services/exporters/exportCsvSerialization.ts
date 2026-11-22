@@ -141,6 +141,9 @@ export const buildDailyRecordCsv = (record: DailyRecordCsvExportState): string =
 
   BEDS.forEach(bed => {
     const patient = record.beds[bed.id];
+    if (!patient) {
+      return;
+    }
     const isMainOccupied = patient.patientName && patient.patientName.trim() !== '';
     const isClinicalCribOccupied = patient.clinicalCrib?.patientName;
 

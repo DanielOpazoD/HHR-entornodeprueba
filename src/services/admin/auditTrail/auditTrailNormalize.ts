@@ -137,7 +137,9 @@ const resolveLabel = (
     return movementLabel;
   }
   // "Edad: 40 → 41" says it all; the generic "Edición" only remains for several fields.
-  if (log.action === 'PATIENT_MODIFIED' && changes.length === 1) return changes[0].field;
+  if (log.action === 'PATIENT_MODIFIED' && changes.length === 1 && changes[0]) {
+    return changes[0].field;
+  }
   if (log.action === 'USER_LOGIN' && details.start === 'resume') return 'Reconexión';
   if (log.action === 'USER_LOGOUT') {
     return LOGOUT_LABELS[asAuditText(details.reason)] ?? baseLabel;

@@ -93,31 +93,37 @@ const groupByPatient = (events: AuditTrailEvent[]): AuditTrailGroup[] =>
       event => event.patient?.key ?? NO_PATIENT_GROUPS[event.category].key
     ).entries(),
   ]
-    .map(([key, groupEvents]) => {
+    .flatMap(([key, groupEvents]) => {
+      const firstEvent = groupEvents[0];
+      if (!firstEvent) return [];
       const patient = groupEvents.find(event => event.patient)?.patient;
       if (!patient) {
-        const title = NO_PATIENT_GROUPS[groupEvents[0].category].title;
-        return buildGroup(key, 'patient', title, groupEvents);
+        const title = NO_PATIENT_GROUPS[firstEvent.category].title;
+        return [buildGroup(key, 'patient', title, groupEvents)];
       }
       const document =
         groupEvents.find(event => event.patient?.document && !event.patient.document.includes('*'))
           ?.patient?.document ?? patient.document;
       const beds = joinDistinct(groupEvents.map(event => event.patient?.bedId));
-      return buildGroup(
-        key,
-        'patient',
-        patient.name,
-        groupEvents,
-        [document, beds].filter(Boolean).join(' · ') || undefined
-      );
+      return [
+        buildGroup(
+          key,
+          'patient',
+          patient.name,
+          groupEvents,
+          [document, beds].filter(Boolean).join(' · ') || undefined
+        ),
+      ];
     })
     .sort(byLatestActivity);
 
 const groupByActor = (events: AuditTrailEvent[]): AuditTrailGroup[] =>
   [...bucket(events, event => event.actor.key).entries()]
-    .map(([key, groupEvents]) =>
-      buildGroup(key, 'actor', groupEvents[0].actor.name, groupEvents, groupEvents[0].actor.email)
-    )
+    .flatMap(([key, groupEvents]) => {
+      const firstEvent = groupEvents[0];
+      if (!firstEvent) return [];
+      return [buildGroup(key, 'actor', firstEvent.actor.name, groupEvents, firstEvent.actor.email)];
+    })
     .sort(byLatestActivity);
 
 const groupBySession = (
@@ -174,6 +180,7 @@ export const buildAuditTrailGroups = (
 
 const canMerge = (line: AuditTrailLine, event: AuditTrailEvent): boolean => {
   const last = line.events[line.events.length - 1];
+  if (!last) return false;
   if (last.actor.key !== event.actor.key) return false;
   if (last.patient?.key !== event.patient?.key) return false;
   if (last.category !== event.category) return false;
