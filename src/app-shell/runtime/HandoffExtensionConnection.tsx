@@ -91,7 +91,7 @@ export function HandoffExtensionConnection({ auth }: { auth: AuthContextType }) 
     } catch {
       setError(
         request.registerDevice
-          ? 'No se pudo registrar este equipo. Verifica tu cuenta individual de enfermería.'
+          ? 'No se pudo registrar el equipo. Comprueba que usas tu cuenta personal habilitada en HHR.'
           : 'No se pudo conectar. Comprueba tu sesión de HHR e inténtalo de nuevo.'
       );
     } finally {

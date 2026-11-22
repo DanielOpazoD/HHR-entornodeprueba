@@ -33,8 +33,11 @@ it.skipIf(!enabled)(
     const firestore = getFirestore(app);
     const run = '22222222-2';
     const uid = 'hhrn_' + randomUUID();
+    const adminUid = randomUUID();
+    const adminRun = '33333333-3';
+    const adminEmail = 'daniel.opazo@hospitalhangaroa.cl';
     const hospital = firestore.collection('hospitals').doc('hanga_roa');
-    const instant = Date.now();
+    const instant = Date.now() + 60_000;
     const { date, shift } = clinicalSlot(new Date(instant));
     const day = hospital.collection('dailyRecords').doc(date);
     const policy = hospital.collection('settings').doc('rayenImportPolicy');
@@ -52,7 +55,7 @@ it.skipIf(!enabled)(
       now: () => instant,
     });
     const created: DocumentReference[] = [];
-    let authUserCreated = false;
+    const authUsers: string[] = [];
     async function create(ref: DocumentReference, data: Record<string, unknown>) {
       await ref.create(data);
       created.push(ref);
@@ -63,7 +66,7 @@ it.skipIf(!enabled)(
     const proof = randomBytes(32).toString('hex');
     try {
       await auth.createUser({ uid, email: uid + '@accounts.hhr.invalid' });
-      authUserCreated = true;
+      authUsers.push(uid);
       await create(policy, { schemaVersion: 2, mode: 'preview', clinicalBatchMode: 'enforced' });
       await create(day, {
         date,
@@ -94,6 +97,12 @@ it.skipIf(!enabled)(
             patientName: 'Paciente sintético con pasaporte alfabético',
             documentType: 'Pasaporte',
           },
+          H2C2: {
+            clinicalEpisodeId: '902002',
+            rut: '88888888-8',
+            patientName: 'Segundo paciente sintético',
+            documentType: 'RUT',
+          },
         },
         discharges: [],
         transfers: [],
@@ -111,7 +120,7 @@ it.skipIf(!enabled)(
           uid,
           token: {
             hhrAccountVersion: 1,
-            auth_time: Math.floor(instant / 1000),
+            auth_time: Math.floor(Date.now() / 1000) + 1,
             firebase: { sign_in_provider: 'password' },
           },
         },
@@ -199,7 +208,74 @@ it.skipIf(!enabled)(
         code: 'failed-precondition',
       });
       await day.update({ 'beds.H1C1': FieldValue.delete() });
+      await auth.createUser({ uid: adminUid, email: adminEmail, emailVerified: true });
+      authUsers.push(adminUid);
+      await auth.updateUser(adminUid, {
+        providerToLink: { providerId: 'google.com', uid: randomUUID(), email: adminEmail },
+      });
+      const roles = firestore.doc('config/roles');
+      await create(roles, { [adminEmail]: 'admin' });
+      await create(firestore.collection(PRIVATE).doc('nursingHandoffAdministrator'), {
+        runHash: digest(adminRun),
+      });
+      const adminDevice = randomUUID();
+      const adminProof = randomBytes(32).toString('hex');
+      await expect(
+        register(
+          { deviceId: adminDevice, challenge: digest(adminProof) },
+          {
+            auth: {
+              uid: adminUid,
+              token: {
+                email: adminEmail,
+                email_verified: true,
+                auth_time: Math.floor(Date.now() / 1000) + 1,
+                firebase: { sign_in_provider: 'google.com' },
+              },
+            },
+          }
+        )
+      ).resolves.toEqual({ registered: true });
+      created.push(firestore.collection('hhr_nursing_handoff_devices').doc(adminDevice));
+      const adminRequest = {
+        ...request,
+        deviceId: adminDevice,
+        proof: adminProof,
+        professionalRun: adminRun,
+        episode: '902002',
+        patientRun: '88888888-8',
+      };
+      const adminView = await handler({ ...adminRequest, action: 'read' });
+      const adminSaved = await handler({
+        ...adminRequest,
+        ...adminView,
+        action: 'save',
+        text: 'Entrega de administrador',
+      });
+      expect(adminSaved).toMatchObject({ confirmed: true });
+      expect((await day.get()).get('meta.lastWriterClientId')).toBe(adminUid);
+
       const runTransaction = firestore.runTransaction.bind(firestore);
+      const roleChanged = vi
+        .spyOn(firestore, 'runTransaction')
+        .mockImplementationOnce(async update => {
+          await roles.set({ [adminEmail]: 'viewer' });
+          return runTransaction(update);
+        });
+      try {
+        await expect(
+          handler({
+            ...adminRequest,
+            ...adminSaved,
+            action: 'save',
+            text: 'Edición con rol revocado',
+          })
+        ).rejects.toMatchObject({ code: 'permission-denied' });
+      } finally {
+        roleChanged.mockRestore();
+      }
+      const activeField = shift === 'day' ? 'handoffNoteDayShift' : 'handoffNoteNightShift';
+      expect((await day.get()).get('beds.H2C2.' + activeField)).toBe('Entrega de administrador');
       const spy = vi.spyOn(firestore, 'runTransaction').mockImplementationOnce(async update => {
         await account.update({ status: 'suspended' });
         return runTransaction(update);
@@ -221,7 +297,7 @@ it.skipIf(!enabled)(
       try {
         await Promise.all([
           ...created.map(ref => ref.delete()),
-          ...(authUserCreated ? [auth.deleteUser(uid)] : []),
+          ...authUsers.map(uid => auth.deleteUser(uid)),
         ]);
       } finally {
         vi.unstubAllEnvs();

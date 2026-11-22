@@ -3,6 +3,9 @@ const { https, region } = require('firebase-functions/v1');
 const {
   ACCESS,
   PRIVATE,
+  POLICY,
+  PROTECTED,
+  protectedRole,
   digest,
   normalizeRut,
   hasCurrentAccountSession,
@@ -41,64 +44,50 @@ function createDeviceHandoffHandlers({ firestore, auth, Timestamp, FieldValue, n
   const devices = firestore.collection(collection);
   const accounts = firestore.collection(ACCESS);
 
-  async function register({ deviceId, challenge }, context) {
-    if (
-      typeof deviceId !== 'string' ||
-      !uuid.test(deviceId) ||
-      typeof challenge !== 'string' ||
-      !hex.test(challenge)
-    ) {
-      throw new https.HttpsError('invalid-argument', 'Registro de equipo inválido.');
-    }
-    const uid = context.auth?.uid;
-    if (typeof uid !== 'string' || !uid.startsWith('hhrn_')) throw denied();
+  const accountPolicy = firestore.doc(POLICY);
+  const legacyRoles = firestore.collection('config').doc('roles');
+  const administratorIdentity = firestore.collection(PRIVATE).doc('nursingHandoffAdministrator');
+  const read = ref => ref.get();
+
+  async function loadUser(uid) {
     const user = await auth.getUser(uid).catch(error => {
       if (error.code === 'auth/user-not-found') throw denied();
       throw error;
     });
+    if (user.disabled || !user.email) throw denied();
+    return user;
+  }
+
+  async function administratorRunHash(user, uid, get) {
+    const email = user.email.toLowerCase();
     if (
-      user.disabled ||
-      context.auth.token?.auth_time * 1000 < Date.parse(user.tokensValidAfterTime)
+      PROTECTED[email] !== 'admin' ||
+      !user.emailVerified ||
+      !user.providerData?.some(
+        provider => provider.providerId === 'google.com' && provider.email?.toLowerCase() === email
+      )
     ) {
       throw denied();
     }
-    return firestore.runTransaction(async tx => {
-      const ref = devices.doc(deviceId);
-      const [access, privateData, existing] = await Promise.all([
-        tx.get(accounts.doc(uid)),
-        tx.get(firestore.collection(PRIVATE).doc(uid)),
-        tx.get(ref),
-      ]);
-      const account = access.data();
-      if (
-        !hasCurrentAccountSession(account, context, now()) ||
-        account.role !== 'nurse_hospital' ||
-        account.hospitalId !== HOSPITAL_ID
-      )
-        throw denied();
-      const runHash = normalizedRunHash(privateData.data()?.rut);
-      const grant = existing.data();
-      if (grant) {
-        if (
-          grant.uid === uid &&
-          grant.version === account.version &&
-          compareHash(grant.proofHash, challenge)
-        )
-          return { registered: true };
-        throw enrollmentError();
-      }
-      tx.create(ref, {
-        uid,
-        version: account.version,
-        runHash,
-        proofHash: challenge,
-        issuedAt: now(),
-      });
-      return { registered: true };
-    });
+    const [policySnapshot, identity] = await Promise.all([
+      get(accountPolicy),
+      get(administratorIdentity),
+    ]);
+    const policy = policySnapshot.data();
+    const role = policy?.enabled
+      ? protectedRole(policy, {
+          auth: {
+            uid,
+            token: { email, email_verified: true, firebase: { sign_in_provider: 'google.com' } },
+          },
+        })
+      : (await get(legacyRoles)).data()?.[email];
+    const runHash = identity.data()?.runHash;
+    if (role !== 'admin' || typeof runHash !== 'string' || !hex.test(runHash)) throw denied();
+    return runHash;
   }
 
-  function assertAccount(account, version) {
+  function assertNurse(account, version) {
     if (
       account?.status !== 'active' ||
       account.credentialOperation ||
@@ -107,6 +96,103 @@ function createDeviceHandoffHandlers({ firestore, auth, Timestamp, FieldValue, n
     )
       throw denied();
     if (account.version !== version) throw disconnected();
+  }
+
+  function validAuthorizationTime(authenticatedAt, user) {
+    if (!Number.isFinite(authenticatedAt)) return false;
+    const revokedAt = Date.parse(user.tokensValidAfterTime);
+    return !Number.isFinite(revokedAt) || Math.floor(authenticatedAt / 1000) > revokedAt / 1000;
+  }
+
+  function isGrantCurrent(grant, user) {
+    return validAuthorizationTime(grant.authenticatedAt ?? grant.issuedAt, user);
+  }
+
+  async function assertGrantAccess(uid, user, grant, get) {
+    if (grant.role === 'admin') {
+      const runHash = await administratorRunHash(user, uid, get);
+      if (!compareHash(grant.runHash, runHash)) throw disconnected();
+      return;
+    }
+    const account = (await get(accounts.doc(uid))).data();
+    assertNurse(account, grant.version);
+  }
+
+  async function register(data, context) {
+    const { deviceId, challenge } = data ?? {};
+    if (
+      typeof deviceId !== 'string' ||
+      !uuid.test(deviceId) ||
+      typeof challenge !== 'string' ||
+      !hex.test(challenge)
+    ) {
+      throw new https.HttpsError('invalid-argument', 'Registro de equipo inválido.');
+    }
+    const { uid, token } = context.auth ?? {};
+    if (typeof uid !== 'string' || !Number.isSafeInteger(token?.auth_time) || token.auth_time <= 0)
+      throw denied();
+    const managed = uid.startsWith('hhrn_');
+    const user = await loadUser(uid);
+    const authTime = token.auth_time * 1000;
+    if (
+      authTime > now() + 60_000 ||
+      !validAuthorizationTime(authTime, user) ||
+      (!managed &&
+        (token.firebase?.sign_in_provider !== 'google.com' ||
+          token.email_verified !== true ||
+          token.email?.toLowerCase() !== user.email.toLowerCase()))
+    ) {
+      throw denied();
+    }
+    return firestore.runTransaction(async tx => {
+      const ref = devices.doc(deviceId);
+      const registration = managed
+        ? await nursingRegistration(uid, context, tx)
+        : await administratorRegistration(uid, user, tx);
+      const grant = (await tx.get(ref)).data();
+      if (grant) {
+        if (
+          grant.uid === uid &&
+          isGrantCurrent(grant, user) &&
+          grant.role === registration.role &&
+          grant.version === registration.version &&
+          compareHash(grant.runHash, registration.runHash) &&
+          compareHash(grant.proofHash, challenge)
+        )
+          return { registered: true };
+        throw enrollmentError();
+      }
+      tx.create(ref, {
+        uid,
+        ...registration,
+        proofHash: challenge,
+        authenticatedAt: authTime,
+        issuedAt: now(),
+      });
+      return { registered: true };
+    });
+  }
+
+  async function nursingRegistration(uid, context, tx) {
+    const [access, identity] = await Promise.all([
+      tx.get(accounts.doc(uid)),
+      tx.get(firestore.collection(PRIVATE).doc(uid)),
+    ]);
+    const account = access.data();
+    if (!hasCurrentAccountSession(account, context, now())) throw denied();
+    assertNurse(account, account.version);
+    return { version: account.version, runHash: normalizedRunHash(identity.data()?.rut) };
+  }
+
+  async function administratorRegistration(uid, user, tx) {
+    const runHash = await administratorRunHash(user, uid, ref => tx.get(ref));
+    return { role: 'admin', runHash };
+  }
+
+  async function loadGrantUser(grant) {
+    const user = await loadUser(grant.uid);
+    if (!isGrantCurrent(grant, user)) throw denied();
+    return user;
   }
 
   async function authorize(data) {
@@ -128,20 +214,13 @@ function createDeviceHandoffHandlers({ firestore, auth, Timestamp, FieldValue, n
       !compareHash(grant.runHash, runHash)
     )
       throw disconnected();
-    const { uid, version } = grant;
-    const account = (await accounts.doc(uid).get()).data();
-    assertAccount(account, version);
-    const user = await auth.getUser(uid).catch(error => {
-      if (error.code === 'auth/user-not-found') throw denied();
-      throw error;
-    });
-    if (user.disabled || !user.email || grant.issuedAt < Date.parse(user.tokensValidAfterTime)) {
-      throw denied();
-    }
+    const { uid } = grant;
+    const user = await loadGrantUser(grant);
+    await assertGrantAccess(uid, user, grant, read);
     return {
       auth: { uid, token: { email: user.email } },
       deviceId,
-      version,
+      grant,
       proofHash: nowProofHash,
     };
   }
@@ -152,19 +231,18 @@ function createDeviceHandoffHandlers({ firestore, auth, Timestamp, FieldValue, n
     FieldValue,
     authorize,
     async assertWriteAccess(actor, tx) {
-      const [access, key] = await Promise.all([
-        tx.get(accounts.doc(actor.auth.uid)),
-        tx.get(devices.doc(actor.deviceId)),
-      ]);
-      assertAccount(access.data(), actor.version);
-      const grant = key.data();
+      const grant = (await tx.get(devices.doc(actor.deviceId))).data();
       if (
         !grant ||
         grant.uid !== actor.auth.uid ||
-        grant.version !== actor.version ||
+        grant.role !== actor.grant.role ||
+        grant.version !== actor.grant.version ||
+        !compareHash(grant.runHash, actor.grant.runHash) ||
         !compareHash(grant.proofHash, actor.proofHash)
       )
         throw disconnected();
+      const user = await loadGrantUser(grant);
+      await assertGrantAccess(actor.auth.uid, user, grant, ref => tx.get(ref));
     },
     clinicalNow: () => new Date(now()),
     origin: 'eloisa_nursing_handoff_device',
