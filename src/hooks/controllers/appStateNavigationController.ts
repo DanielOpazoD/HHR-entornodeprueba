@@ -8,7 +8,6 @@ const MODULES_FROM_URL: readonly ModuleType[] = [
   'CUDYR',
   'NURSING_HANDOFF',
   'AUDIT',
-  'WHATSAPP',
   'BACKUP_FILES',
   'PATIENT_MASTER_INDEX',
   'DATA_MAINTENANCE',
@@ -30,7 +29,6 @@ export const MODULE_PATH_SEGMENTS: Record<ModuleType, string> = {
   NURSING_HANDOFF: 'nursing-handoff',
   MEDICAL_HANDOFF: 'census', // no screen: see MODULES_FROM_URL
   AUDIT: 'audit',
-  WHATSAPP: 'whatsapp',
   BACKUP_FILES: 'backup-files',
   PATIENT_MASTER_INDEX: 'patient-master-index',
   DATA_MAINTENANCE: 'data-maintenance',

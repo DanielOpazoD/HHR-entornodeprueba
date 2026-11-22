@@ -139,7 +139,7 @@ describe('Permissions System (RBAC)', () => {
       expect(getVisibleModules(role).includes('CENSUS')).toBe(true);
       expect(getVisibleModules(role).includes('CUDYR')).toBe(true);
       expect(getVisibleModules(role).includes('AUDIT')).toBe(true);
-      expect(getVisibleModules(role).includes('WHATSAPP')).toBe(true);
+      expect(getVisibleModules(role).includes('COMMUNICATIONS')).toBe(true);
     });
 
     it('should be allowed to perform critical admin actions', () => {
@@ -158,9 +158,9 @@ describe('Permissions System (RBAC)', () => {
       expect(getVisibleModules(role).includes('NURSING_HANDOFF')).toBe(true);
     });
 
-    it('should NOT have access to AUDIT or WHATSAPP config', () => {
+    it('should NOT have access to AUDIT or COMMUNICATIONS config', () => {
       expect(getVisibleModules(role).includes('AUDIT')).toBe(false);
-      expect(getVisibleModules(role).includes('WHATSAPP')).toBe(false);
+      expect(getVisibleModules(role).includes('COMMUNICATIONS')).toBe(false);
     });
 
     it('should be allowed to delete records but NOT read audit logs', () => {

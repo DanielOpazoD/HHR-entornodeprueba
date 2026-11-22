@@ -55,7 +55,6 @@ export const ACTIONS = {
   // Handoff
   HANDOFF_NURSING_EDIT: 'handoff:nursing:edit',
   HANDOFF_MEDICAL_SIGN: 'handoff:medical:sign',
-  HANDOFF_SEND_WHATSAPP: 'handoff:send:whatsapp',
 
   // Export & Reports
   EXPORT_EXCEL: 'export:excel',
@@ -87,7 +86,6 @@ const ACTION_PERMISSIONS: Partial<Record<UserRole, ActionPermission[]>> = {
     ACTIONS.CUDYR_EDIT,
     ACTIONS.HANDOFF_NURSING_EDIT,
     ACTIONS.HANDOFF_MEDICAL_SIGN,
-    ACTIONS.HANDOFF_SEND_WHATSAPP,
     ACTIONS.EXPORT_EXCEL,
     ACTIONS.EXPORT_PDF,
     ACTIONS.AUDIT_READ,
@@ -106,7 +104,6 @@ const ACTION_PERMISSIONS: Partial<Record<UserRole, ActionPermission[]>> = {
     ACTIONS.RECORD_COPY_PREVIOUS,
     ACTIONS.CUDYR_EDIT,
     ACTIONS.HANDOFF_NURSING_EDIT,
-    ACTIONS.HANDOFF_SEND_WHATSAPP,
     ACTIONS.EXPORT_EXCEL,
     ACTIONS.EXPORT_PDF,
   ],

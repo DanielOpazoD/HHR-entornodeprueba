@@ -90,7 +90,7 @@ describe('shared layers import no feature in runtime', () => {
     ['public surface without permission', '@/features/census/public'],
   ])('rejects a feature import the matrix does not allow (%s)', async (_spelling, target) => {
     const rules = await boundaryRules(
-      'src/features/whatsapp/public.ts',
+      'src/features/reminders/public.ts',
       `import * as probe from '${target}';\nexport const __probe = probe;\n`
     );
     expect(rules).toContain('hhr/feature-boundaries');

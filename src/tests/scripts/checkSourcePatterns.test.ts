@@ -51,7 +51,7 @@ const rejected: Array<[rule: string, file: string, source: string]> = [
   ['core-console', 'src/services/pdf/a.ts', 'console.warn("x");'],
   ['core-console', 'src/features/rayen-import/x/a.tsx', 'console.log ( 1 )'],
   ['lazy-view-entrypoints', LAZY_VIEWS, "lazy(() => import('@/features/census/internal/x'));"],
-  ['lazy-view-entrypoints', LAZY_VIEWS, "lazy(() => import('@/features/whatsapp/internal/x'));"],
+  ['lazy-view-entrypoints', LAZY_VIEWS, "lazy(() => import('@/features/reminders/internal/x'));"],
   ['lazy-view-entrypoints', LAZY_VIEWS, "lazy(() => import('@/features/census/public/deep'));"],
   [
     'lazy-view-entrypoints',
@@ -118,7 +118,7 @@ const accepted: Array<[why: string, file: string, source: string]> = [
   ],
   ['console outside core folders', 'src/services/other/a.ts', 'console.warn("x");'],
   ['a sanctioned lazy subpath', LAZY_VIEWS, "lazy(() => import('@/features/census/census-view'));"],
-  ["a feature's public entry", LAZY_VIEWS, "lazy(() => import('@/features/whatsapp/public'));"],
+  ["a feature's public entry", LAZY_VIEWS, "lazy(() => import('@/features/reminders/public'));"],
   [
     'the census adapter',
     `${CONTROLLERS}censusBrowserRuntimeAdapter.ts`,
