@@ -183,7 +183,7 @@ describe('feature boundaries in ESLint (from scripts/feature-dependency-matrix.j
     expect(
       await boundaryMessages(
         'src/features/census/components/Probe.tsx',
-        "import { a } from '@/features/clinical-documents/internal';\nexport const c = a;\n"
+        "import { a } from '@/features/laboratory/quick-action';\nexport const c = a;\n"
       )
     ).toEqual([]);
   });

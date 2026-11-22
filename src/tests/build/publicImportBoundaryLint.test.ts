@@ -76,8 +76,7 @@ describe('public imports in ESLint', () => {
               ? 'hooks/useSyslabAccess'
               : feature === 'census'
                 ? 'controllers/censusCmaController'
-                : 'internal';
-          // internal is a governed public module for clinical-documents; explicit extension is not.
+                : 'controllers/clinicalDocumentWorkspaceController';
           const target = `${feature}/${module}.ts`;
           for (const prefix of ['@/features/', '../features/']) {
             expect(

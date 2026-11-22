@@ -1,9 +1,9 @@
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import {
   buildClinicalDocumentActor,
   serializeClinicalDocument,
-  type ClinicalDocumentDraftBaseState,
-  type ClinicalDocumentRecord,
-} from '@/features/clinical-documents/internal';
+} from '../controllers/clinicalDocumentWorkspaceController';
+import type { ClinicalDocumentDraftBaseState } from '../hooks/clinicalDocumentDraftReducer';
 import { executePersistClinicalDocumentDraft } from '@/application/clinical-documents/clinicalDocumentUseCases';
 import { hydrateClinicalDocumentRecord } from '@/domain/clinical-documents/compatibility';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
