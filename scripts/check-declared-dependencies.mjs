@@ -5,8 +5,8 @@
  *
  * A package that is imported but not declared ("phantom dependency") only works because another
  * package happens to install it. When that parent upgrades or drops it, the import breaks or
- * silently changes version. Covers the app, its tests, Netlify functions, e2e specs, scripts,
- * Storybook stories and root configs; `functions/` is a separate npm workspace with its own
+ * silently changes version. Covers the app, its tests, Netlify functions, e2e specs, scripts
+ * and root configs; `functions/` is a separate npm workspace with its own
  * package.json and is not covered here.
  */
 
@@ -15,7 +15,7 @@ import { builtinModules } from 'node:module';
 import path from 'node:path';
 
 const ROOT = process.cwd();
-const AREAS = ['src', 'netlify', 'e2e', 'scripts', '.storybook'];
+const AREAS = ['src', 'netlify', 'e2e', 'scripts'];
 const EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
 // import/export statements, import(), require() and vi.mock(); a call preceded by a quote is
 // test fixture text, not code.
@@ -29,11 +29,7 @@ const walk = relativeDir => {
   if (!fs.existsSync(absoluteDir)) return [];
   const files = [];
   for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
-    if (
-      entry.name === 'node_modules' ||
-      (entry.name.startsWith('.') && entry.name !== '.storybook')
-    )
-      continue;
+    if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
     const relativePath = toPosix(path.join(relativeDir, entry.name));
     if (entry.isDirectory()) files.push(...walk(relativePath));
     else if (EXTENSIONS.has(path.extname(entry.name))) files.push(relativePath);

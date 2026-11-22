@@ -58,7 +58,6 @@ export default tseslint.config(
       'coverage',
       'dev-dist',
       'dist',
-      'storybook-static',
       // Explicit extension vendors. Every other extension/*.js file is authored code and linted.
       'extension/jspdf.umd.min.js',
       'extension/pdf-lib.min.js',
@@ -366,13 +365,6 @@ export default tseslint.config(
     rules: {
       'no-console': 'off',
       'no-unused-vars': 'off',
-    },
-  },
-  {
-    files: ['**/*.stories.{ts,tsx}'],
-    rules: {
-      'no-console': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
   {

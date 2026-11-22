@@ -757,15 +757,14 @@ una aserción clínica o transacción fallida; no atribuir ambos automáticament
 ## Actualizaciones de dependencias
 
 Dependabot agrupa parches y versiones menores por superficie: React, documentos,
-datos, APIs cloud, UI, medios, Storybook, Vitest, PWA, Vite, lint, pruebas de navegador,
+datos, APIs cloud, UI, medios, Vitest, PWA, Vite, lint, pruebas de navegador,
 Firebase, CSS, TypeScript/documentación y tooling del repositorio. Una dependencia
 sin grupo recibe un PR individual. Los cambios mayores siguen separados.
 
-Vite 8 permanece pausado hasta que Storybook instalado admita ese peer; Vitest 5
-permanece pausado mientras `@storybook/addon-vitest` requiera Vitest 4. Al retirar una
-pausa, actualizar el toolchain relacionado en conjunto y exigir `npm ci`, los gates
-enfocados del área y CI `full`. El workspace de Functions conserva su grupo menor
-independiente. Los manifiestos de Functions siempre disparan `full`.
+Al actualizar un mayor de toolchain (como Vite o Vitest), actualizar el conjunto
+relacionado y exigir `npm ci`, los gates enfocados del área y CI `full`. El
+workspace de Functions conserva su grupo menor independiente. Los manifiestos de
+Functions siempre disparan `full`.
 
 ## Superseded pull-request runs
 

@@ -38,7 +38,7 @@ try {
     ],
     [
       'declared-dependencies',
-      /^(src\/|netlify\/|e2e\/|scripts\/|\.storybook\/|[^/]+\.(?:[cm]?[jt]sx?|json)$)/,
+      /^(src\/|netlify\/|e2e\/|scripts\/|[^/]+\.(?:[cm]?[jt]sx?|json)$)/,
       'Declara cada paquete importado en package.json.',
     ],
     [

@@ -196,7 +196,6 @@ export default defineConfig(({ mode }) => {
       precacheGraph.plugin,
       // PWA plugin configuration
       VitePWA({
-        disable: process.env.STORYBOOK === 'true',
         strategies: 'injectManifest',
         srcDir: 'src',
         filename: 'service-worker.js',
