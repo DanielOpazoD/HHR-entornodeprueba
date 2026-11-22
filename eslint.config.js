@@ -295,30 +295,32 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
-          paths: [
+          patterns: [
             {
-              name: 'react',
-              message:
-                'La capa 0 (núcleo puro) no importa React; mueve el módulo React a hooks/, components/ o su feature.',
-            },
-            {
-              name: 'react-dom',
-              message:
-                'La capa 0 (núcleo puro) no importa React; mueve el módulo React a hooks/, components/ o su feature.',
-            },
-            {
-              name: 'react-dom/client',
-              message:
-                'La capa 0 (núcleo puro) no importa React; mueve el módulo React a hooks/, components/ o su feature.',
-            },
-            {
-              name: 'react/jsx-runtime',
+              group: ['react', 'react/*', 'react-dom', 'react-dom/*'],
               message:
                 'La capa 0 (núcleo puro) no importa React; mueve el módulo React a hooks/, components/ o su feature.',
             },
           ],
         },
       ],
+    },
+  },
+  {
+    // With `"jsx": "react-jsx"`, a `.tsx` file in Layer 0 would silently inject `react/jsx-runtime`
+    // without an explicit React import. Reject JSX elements and fragments in Layer 0 directly.
+    files: ['src/{types,domain,utils,constants,schemas,shared}/**/*.tsx'],
+    ignores: ['**/*.d.ts', '**/*.test.*', '**/*.spec.*'],
+    rules: {
+      'no-restricted-syntax': syntaxRestrictions({
+        add: [
+          {
+            selector: 'JSXElement, JSXFragment',
+            message:
+              'La capa 0 (núcleo puro) no usa JSX ni React; mueve el componente a components/, hooks/ o su feature.',
+          },
+        ],
+      }),
     },
   },
   {
