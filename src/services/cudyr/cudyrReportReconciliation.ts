@@ -37,9 +37,10 @@ export const cudyrCaptureState = (
         : notObserved
           ? 'sin_captura'
           : 'sin_registro_observado';
-    const representative = [...parts].sort(
-      (a, b) => b.receivedAt.localeCompare(a.receivedAt) || a.id.localeCompare(b.id)
-    )[0];
+    const representative =
+      [...parts].sort(
+        (a, b) => b.receivedAt.localeCompare(a.receivedAt) || a.id.localeCompare(b.id)
+      )[0] ?? latest;
     return {
       latest: representative,
       status,
@@ -60,6 +61,7 @@ export const cudyrCaptureState = (
       a.latest.id.localeCompare(b.latest.id)
   );
   const selected = states[0];
+  if (!selected) return { status: 'sin_captura', warnings: [] };
   return {
     latest: selected.latest,
     status: selected.status,

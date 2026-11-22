@@ -97,8 +97,8 @@ var parseCudyrSupplementMatrix = ({
   const periods = all.filter((value) => fold(value).startsWith("mes consultado:"));
   const periodValues = new Set(periods.map(fold));
   const period = periods[0] && fold(periods[0]).match(/^mes consultado:\s*([a-z]+) de (\d{4})$/);
-  const monthIndex = period ? months.indexOf(period[1]) : -1;
-  const year = period ? Number(period[2]) : 0;
+  const monthIndex = period?.[1] ? months.indexOf(period[1]) : -1;
+  const year = period?.[2] ? Number(period[2]) : 0;
   if (periodValues.size !== 1 || monthIndex < 0 || year < 2e3 || year > 2100)
     issue(0, 0, "period", "No se pudo identificar un \xFAnico mes consultado.");
   const establishments = all.filter((value) => /^hospital\s/i.test(value));
@@ -121,11 +121,15 @@ var parseCudyrSupplementMatrix = ({
   const ordinals = /* @__PURE__ */ new Set();
   for (let r = 0; r < values.length; r += 1) {
     const row = values[r];
+    if (!row) continue;
     const folded = row.map(fold);
     if (folded.includes(fold("Nombre Paciente"))) {
       headerRow = r;
       headerCount += 1;
-      header = columns.map((label) => folded.indexOf(fold(label)));
+      const [c0 = -1, c1 = -1, c2 = -1, c3 = -1, c4 = -1, c5 = -1, c6 = -1, c7 = -1] = columns.map(
+        (label) => folded.indexOf(fold(label))
+      );
+      header = [c0, c1, c2, c3, c4, c5, c6, c7];
       dayColumns = folded.flatMap((value, index) => {
         const match = value.match(/^dia (\d+)$/);
         return match ? [{ day: Number(match[1]), index }] : [];
@@ -164,8 +168,14 @@ var parseCudyrSupplementMatrix = ({
       continue;
     }
     ordinals.add(ordinal);
-    const fields = header.map((index) => row[index] || "");
-    if (!fields[1]) issue(r + 1, header[1] + 1, "value", "Paciente sin nombre informado.");
+    const patientName = row[header[1]] || "";
+    const clinicalRecord = row[header[2]] || "";
+    const document = row[header[3]] || "";
+    const diagnosis = row[header[4]] || "";
+    const hospitalDays = row[header[5]] || "";
+    const service = row[header[6]] || "";
+    const dischargeCondition = row[header[7]] || "";
+    if (!patientName) issue(r + 1, header[1] + 1, "value", "Paciente sin nombre informado.");
     const days = [];
     for (const { day, index } of dayColumns) {
       const originalValue = row[index] || "";
@@ -190,13 +200,13 @@ var parseCudyrSupplementMatrix = ({
     patients.push({
       sourceRow: r + 1,
       ordinal,
-      patientName: fields[1],
-      clinicalRecord: fields[2],
-      document: fields[3],
-      diagnosis: fields[4],
-      hospitalDays: fields[5],
-      service: fields[6],
-      dischargeCondition: fields[7],
+      patientName,
+      clinicalRecord,
+      document,
+      diagnosis,
+      hospitalDays,
+      service,
+      dischargeCondition,
       days: days.sort((a, b) => a.sourceDay - b.sourceDay)
     });
   }
@@ -255,9 +265,11 @@ var readCudyrWorkbookMatrix = (buffer, normalizeDateEpoch = false) => {
     cellNF: normalizeDateEpoch,
     sheetRows: 5001
   });
-  const names = book.SheetNames.filter((name) => book.Sheets[name]["!ref"]);
-  if (names.length !== 1) throw new Error("El informe debe contener una sola hoja con datos.");
-  const sheet = book.Sheets[names[0]];
+  const names = book.SheetNames.filter((name) => book.Sheets[name]?.["!ref"]);
+  const sheetName = names[0];
+  const sheet = sheetName ? book.Sheets[sheetName] : void 0;
+  if (names.length !== 1 || !sheetName || !sheet)
+    throw new Error("El informe debe contener una sola hoja con datos.");
   const range = import_xlsx.utils.decode_range(sheet["!fullref"] || sheet["!ref"] || "A1");
   if (range.e.r >= 5e3 || range.e.c >= 100)
     throw new Error("El informe supera el l\xEDmite de filas o columnas.");
@@ -284,7 +296,7 @@ var readCudyrWorkbookMatrix = (buffer, normalizeDateEpoch = false) => {
     blankrows: true
   });
   return {
-    sheet: names[0],
+    sheet: sheetName,
     rows,
     formats: Object.fromEntries(
       Object.entries(sheet).filter(([key, cell]) => !key.startsWith("!") && cell?.z).map(([key, cell]) => [key, cell.z])
@@ -312,6 +324,7 @@ var parseCudyrCensusSource = (matrix) => {
     throw new Error("Formato de censo Elo\xEDsa no reconocido.");
   const date = `${d[3]}-${d[2]}-${d[1]}`;
   const h = rows[headerIndex];
+  if (!h) throw new Error("Formato de censo Elo\xEDsa no reconocido.");
   const nonempty = rows.slice(headerIndex + 1).filter((r) => r.some((v) => String(v ?? "").trim()));
   const body = nonempty.filter((r) => {
     if (String(r[h.indexOf("NOMBRES Y APELLIDOS")] || "").trim() === "TOTALES" && !r[0])

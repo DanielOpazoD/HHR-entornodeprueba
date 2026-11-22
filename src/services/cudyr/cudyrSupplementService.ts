@@ -40,7 +40,9 @@ export const supplementMonths = (from: string, to: string) => {
   let current = from.slice(0, 7);
   while (current <= to.slice(0, 7) && months.length < 3) {
     months.push(current);
-    const [year, month] = current.split('-').map(Number);
+    const [yearStr, monthStr] = current.split('-');
+    const year = Number(yearStr);
+    const month = Number(monthStr);
     current = `${month === 12 ? year + 1 : year}-${String(month === 12 ? 1 : month + 1).padStart(2, '0')}`;
   }
   return months;

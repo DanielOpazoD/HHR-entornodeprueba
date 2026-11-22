@@ -15,6 +15,7 @@ export const parseCudyrCensusSource = (matrix: CudyrSupplementMatrix): CudyrCens
     throw new Error('Formato de censo Eloísa no reconocido.');
   const date = `${d[3]}-${d[2]}-${d[1]}`;
   const h = rows[headerIndex];
+  if (!h) throw new Error('Formato de censo Eloísa no reconocido.');
   const nonempty = rows.slice(headerIndex + 1).filter(r => r.some(v => String(v ?? '').trim()));
   const body = nonempty.filter(r => {
     if (String(r[h.indexOf('NOMBRES Y APELLIDOS')] || '').trim() === 'TOTALES' && !r[0])

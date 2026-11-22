@@ -198,7 +198,8 @@ const monthlyCellDay = (pass: MonthlySourcePass, id: string, cell: CudyrSuppleme
       pass.identity(r.rut, r.patientName) === id &&
       cudyrApplicationSourceDate(r.evaluation?.recordedAt) === cell.sourceDate
   );
-  const date = matching.length === 1 ? matching[0].date : previousCensusIsoDay(cell.sourceDate);
+  const matchedRow = matching.length === 1 ? matching[0] : undefined;
+  const date = matchedRow ? matchedRow.date : previousCensusIsoDay(cell.sourceDate);
   return { matching, date };
 };
 
@@ -206,13 +207,17 @@ const monthlyCellDay = (pass: MonthlySourcePass, id: string, cell: CudyrSuppleme
 const blankBelongsToOtherStay = (
   { archive, repeatedLinks, cell }: MonthlyCell,
   candidates: CudyrReportRow[]
-) =>
-  candidates.length === 1 &&
-  archive.report.patients.some(
-    other =>
-      repeatedLinks.get(other.sourceRow) === candidates[0].clinicalEpisodeId &&
-      other.days.some(day => day.sourceDate === cell.sourceDate && day.category)
+) => {
+  const single = candidates.length === 1 ? candidates[0] : undefined;
+  return Boolean(
+    single &&
+    archive.report.patients.some(
+      other =>
+        repeatedLinks.get(other.sourceRow) === single.clinicalEpisodeId &&
+        other.days.some(day => day.sourceDate === cell.sourceDate && day.category)
+    )
   );
+};
 
 /** ID-02: a repeated report identity resolves only through its own episode timeline. */
 const isResolvedRepeat = (
@@ -220,9 +225,8 @@ const isResolvedRepeat = (
   candidates: CudyrReportRow[]
 ) => {
   const linkedEpisode = cell.category ? repeatedLinks.get(patient.sourceRow) : undefined;
-  return Boolean(
-    linkedEpisode && candidates.length === 1 && candidates[0].clinicalEpisodeId === linkedEpisode
-  );
+  const single = candidates.length === 1 ? candidates[0] : undefined;
+  return Boolean(linkedEpisode && single && single.clinicalEpisodeId === linkedEpisode);
 };
 
 /** CUD-10: a row whose recorded application belongs to another source day keeps its own evidence. */

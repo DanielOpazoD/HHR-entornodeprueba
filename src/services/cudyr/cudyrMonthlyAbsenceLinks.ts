@@ -52,8 +52,12 @@ export const applyCudyrMonthlyAbsenceLinks = (
         )
       );
       if (anchors.some(matches => matches.length !== 1)) continue;
-      const episodes = new Set(anchors.map(matches => matches[0].clinicalEpisodeId));
-      if (episodes.size === 1) bindings.set(patient.sourceRow, [...episodes][0]);
+      const episodes = new Set(
+        anchors.flatMap(matches => (matches[0] ? [matches[0].clinicalEpisodeId] : []))
+      );
+      const [onlyEpisode] = episodes;
+      if (episodes.size === 1 && onlyEpisode !== undefined)
+        bindings.set(patient.sourceRow, onlyEpisode);
     }
     for (const patient of source.report.patients) {
       const episode = bindings.get(patient.sourceRow);

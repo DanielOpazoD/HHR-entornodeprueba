@@ -35,8 +35,9 @@ export const resolveRepeatedMonthlyEpisodes = (
     groups.set(key, [...(groups.get(key) || []), patient]);
   }
   for (const [identity, patients] of groups) {
-    if (patients.length < 2 || !patients[0].document.trim()) continue;
-    const document = cudyrDocumentKey(patients[0].document);
+    const firstPatient = patients[0];
+    if (patients.length < 2 || !firstPatient || !firstPatient.document.trim()) continue;
+    const document = cudyrDocumentKey(firstPatient.document);
     // Shared maternal documents / conflicting identities need explicit evidence.
     if (
       original.some(
@@ -70,6 +71,7 @@ export const resolveRepeatedMonthlyEpisodes = (
       const admissions = new Set(rows.map(r => `${r.admissionDate}T${r.admissionTime}`));
       const first = rows[0];
       if (
+        !first ||
         admissions.size !== 1 ||
         !/^\d{4}-\d{2}-\d{2}$/.test(first.admissionDate) ||
         !/^([01]\d|2[0-3]):[0-5]\d$/.test(first.admissionTime)
@@ -77,12 +79,15 @@ export const resolveRepeatedMonthlyEpisodes = (
         return [];
       const start = resolveClinicalDayForDateTime(first.admissionDate, first.admissionTime);
       const dates = rows.map(r => r.date).sort();
+      const firstDate = dates[0];
+      const lastDate = dates[dates.length - 1];
       const departures = rows
         .filter(r => r.resolvedSystemDeparture)
         .map(r => r.date)
         .sort();
-      const end = departures[0] || dates[dates.length - 1];
-      if (!start || start > dates[0] || end < dates[dates.length - 1]) return [];
+      const end = departures[0] || lastDate;
+      if (!start || !firstDate || !lastDate || !end || start > firstDate || end < lastDate)
+        return [];
       return [{ episode, start, end, rows }];
     });
     const proposed = new Map<number, string>();
@@ -91,7 +96,8 @@ export const resolveRepeatedMonthlyEpisodes = (
         .filter(d => d.category)
         .map(cell => {
           const exact = own.filter(r => recordedDay(r) === cell.sourceDate);
-          return exact.length === 1 ? exact[0].date : previousCensusIsoDay(cell.sourceDate);
+          const exactRow = exact.length === 1 ? exact[0] : undefined;
+          return exactRow ? exactRow.date : previousCensusIsoDay(cell.sourceDate);
         })
         .filter(date => date >= data.from && date <= data.to);
       if (!dates.length) continue;
@@ -100,8 +106,8 @@ export const resolveRepeatedMonthlyEpisodes = (
           dates.every(date => date >= t.start && date <= t.end) &&
           dates.some(date => t.rows.some(r => r.date === date))
       );
-      if (candidates.length !== 1) continue;
-      const candidate = candidates[0];
+      const candidate = candidates.length === 1 ? candidates[0] : undefined;
+      if (!candidate) continue;
       // Any competing episode observed on a target day invalidates the inferred link.
       if (
         dates.some(date =>
