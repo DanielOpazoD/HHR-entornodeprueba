@@ -19,7 +19,7 @@ import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { useAuth } from '@/context/AuthContext';
 import { useCensusActionCommands } from '@/features/census/context/censusActionContexts';
 import { CensusTable } from '@/features/census/components/CensusTable';
-import { CensusToolbarMenuTargetContext } from '@/shared/ui/CensusToolbarMenuTargetContext';
+import { CensusToolbarMenuTargetContext } from '@/context/CensusToolbarMenuTargetContext';
 import { DataFactory } from '../../factories/DataFactory';
 import {
   ensureDailyRecordRemoteFreshness,

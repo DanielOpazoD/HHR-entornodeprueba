@@ -56,7 +56,7 @@ vi.mock('@/constants/firestorePaths', async importOriginal => {
   };
 });
 
-vi.mock('@/features/clinical-documents/services/clinicalDocumentPrintPdfService', () => ({
+vi.mock('@/features/clinical-documents/services/clinicalDocumentBrowserPrintService', () => ({
   openClinicalDocumentBrowserPrintPreview,
 }));
 

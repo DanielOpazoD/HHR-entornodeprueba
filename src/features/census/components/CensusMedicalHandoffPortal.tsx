@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
-import { useCensusToolbarMenuTarget } from '@/shared/ui/CensusToolbarMenuTargetContext';
+import { useCensusToolbarMenuTarget } from '@/context/CensusToolbarMenuTargetContext';
 import type {
   CensusMedicalHandoffActionContext,
   RenderCensusMedicalHandoffAction,

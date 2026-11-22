@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { CensusResetDayMenuEntry } from '@/features/census/components/CensusResetDayMenuEntry';
 import { resolveResetDayMenuEntryState } from '@/features/census/controllers/censusResetDayController';
-import { CensusToolbarMenuTargetContext } from '@/shared/ui/CensusToolbarMenuTargetContext';
+import { CensusToolbarMenuTargetContext } from '@/context/CensusToolbarMenuTargetContext';
 
 let menu: HTMLElement | null = null;
 const renderEntry = (props: {

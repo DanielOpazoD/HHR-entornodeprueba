@@ -1,6 +1,6 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
-import { resolveInitialLoginBackgroundMode } from '@/shared/ui/loginBackgroundModeController';
+import { resolveInitialLoginBackgroundMode } from '@/hooks/controllers/loginBackgroundModeController';
 
 import {
   LoginCardFrame,

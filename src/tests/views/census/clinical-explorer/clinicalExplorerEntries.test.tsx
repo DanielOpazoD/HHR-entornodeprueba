@@ -22,7 +22,7 @@ import {
 } from '@/features/census/components/clinical-explorer/clinicalExplorerStore';
 import { ClinicalPanelDrawer } from '@/features/census/components/patient-row/ClinicalPanelDrawer';
 import { listClinicalExplorerPatients } from '@/features/census/controllers/clinicalExplorerController';
-import { CensusToolbarMenuTargetContext } from '@/shared/ui/CensusToolbarMenuTargetContext';
+import { CensusToolbarMenuTargetContext } from '@/context/CensusToolbarMenuTargetContext';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 const DATE = '2026-11-04';

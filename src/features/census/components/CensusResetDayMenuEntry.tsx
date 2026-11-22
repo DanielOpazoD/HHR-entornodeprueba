@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { Trash2 } from 'lucide-react';
-import { useCensusToolbarMenuTarget } from '@/shared/ui/CensusToolbarMenuTargetContext';
+import { useCensusToolbarMenuTarget } from '@/context/CensusToolbarMenuTargetContext';
 import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
 import { resolveResetDayMenuEntryState } from '@/features/census/controllers/censusResetDayController';
 

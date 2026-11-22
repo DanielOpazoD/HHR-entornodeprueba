@@ -7,7 +7,7 @@ import { generateClinicalDocumentPdfBlob } from '@/features/clinical-documents/s
 const generatePrintStyledPdfBlobMock = vi.fn();
 const pdfTextCalls: string[] = [];
 
-vi.mock('@/features/clinical-documents/services/clinicalDocumentPrintPdfService', () => ({
+vi.mock('@/features/clinical-documents/services/clinicalDocumentPdfRenderService', () => ({
   generateClinicalDocumentPrintStyledPdfBlob: (...args: unknown[]) =>
     generatePrintStyledPdfBlobMock(...args),
 }));

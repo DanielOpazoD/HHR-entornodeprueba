@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import { hideMoaAndRestoreFocus } from '@/shared/ui/useMoaVisibility';
+import { hideMoaAndRestoreFocus } from '@/hooks/useMoaVisibility';
 import { MoaMascot } from './navbar/MoaMascot';
 import { MoaSequence, moaScenes } from './MoaSequence';
 import './moaCompanion.css';

@@ -5,7 +5,7 @@ import { DateStrip } from '@/components/layout/DateStrip';
 import { CensusStaleDayBanner } from '@/components/layout/app-content/CensusStaleDayBanner';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { Search, BarChart3 } from 'lucide-react';
-import { CensusToolbarMenuTargetContext } from '@/shared/ui/CensusToolbarMenuTargetContext';
+import { CensusToolbarMenuTargetContext } from '@/context/CensusToolbarMenuTargetContext';
 import { CensusOptionsMenu } from '@/components/layout/date-strip/CensusOptionsMenu';
 import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import {

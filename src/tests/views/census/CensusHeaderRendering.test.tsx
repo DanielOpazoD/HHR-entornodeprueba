@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DailyRecordProvider } from '@/context/DailyRecordContext';
 import type { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
 import { CensusStaffHeader } from '@/features/census/components/CensusStaffHeader';
-import { CensusToolbarMenuTargetContext } from '@/shared/ui/CensusToolbarMenuTargetContext';
+import { CensusToolbarMenuTargetContext } from '@/context/CensusToolbarMenuTargetContext';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 const calls = vi.hoisted(() => ({ nurse: vi.fn() }));

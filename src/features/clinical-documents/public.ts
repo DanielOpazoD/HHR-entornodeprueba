@@ -31,5 +31,5 @@ export {
 export { resolveClinicalAttachmentFilePolicy } from './controllers/clinicalAttachmentFilePolicy';
 export { parseClinicalAttachmentRecord } from './contracts/clinicalAttachmentRuntimeContracts';
 export { generateClinicalDocumentPdfBlob } from './services/clinicalDocumentPdfService';
-export { openClinicalDocumentBrowserPrintPreview } from './services/clinicalDocumentPrintPdfService';
+export { openClinicalDocumentBrowserPrintPreview } from './services/clinicalDocumentBrowserPrintService';
 export type { ClinicalDocumentAnnexPrintMode } from './services/clinicalDocumentPrintSupport';

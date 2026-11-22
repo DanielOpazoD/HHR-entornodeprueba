@@ -3,7 +3,7 @@ import { AlertTriangle } from 'lucide-react';
 import {
   reportRenderCrash,
   type RenderCrashReporter,
-} from '@/shared/observability/renderCrashReporter';
+} from '@/services/observability/renderCrashReporter';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import {
   getNavigatorUserAgent,
