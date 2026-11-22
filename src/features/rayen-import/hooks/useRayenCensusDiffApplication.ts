@@ -72,17 +72,20 @@ export const useRayenCensusDiffApplication = ({
   recordRunPerformance,
 }: RayenCensusDiffApplicationInput): ApplyRayenCensusDiff =>
   useCallback<ApplyRayenCensusDiff>(
-    async (record, diff, clinicalDay = record.date, session) =>
-      runExclusiveDailyRecordWrite(
+    async (record, diff, clinicalDay = record.date, session) => {
+      // Download the structural apply modules before acquiring the exclusive per-date write lease
+      // so slow connections never stall unrelated saves for the same day.
+      const [{ buildRayenStructuralPersistenceBase }, { applyCensusImportDiff }] =
+        await Promise.all([
+          import('../domain/rayenStructuralPersistenceBase'),
+          import('../domain/applyCensusImportDiff'),
+        ]);
+      session.check();
+      return runExclusiveDailyRecordWrite(
         record.date,
         async writeLease => {
           const run = ensureRun();
-          const [localResult, { buildRayenStructuralPersistenceBase }, { applyCensusImportDiff }] =
-            await Promise.all([
-              loadLocalRecord(record.date),
-              import('../domain/rayenStructuralPersistenceBase'),
-              import('../domain/applyCensusImportDiff'),
-            ]);
+          const localResult = await loadLocalRecord(record.date);
           session.check();
           const persistenceBase = buildRayenStructuralPersistenceBase(
             record,
@@ -244,7 +247,8 @@ export const useRayenCensusDiffApplication = ({
           };
         },
         { kind: 'structural_sync' }
-      ),
+      );
+    },
     [
       applyRunToRecord,
       checkpointRepository,
