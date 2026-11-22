@@ -127,8 +127,10 @@ const constrainToVacancies = (
   if (names.length <= vacancies) return { names, ambiguous: suggestion.ambiguous };
   const score = (name: string): number | undefined =>
     suggestion.candidates.find(candidate => candidate.name === name)?.score;
-  const cutoffScore = score(names[vacancies - 1]);
-  const nextScore = score(names[vacancies]);
+  const cutoffName = names[vacancies - 1];
+  const nextName = names[vacancies];
+  const cutoffScore = cutoffName !== undefined ? score(cutoffName) : undefined;
+  const nextScore = nextName !== undefined ? score(nextName) : undefined;
   if (cutoffScore != null && cutoffScore === nextScore) {
     return { names: names.slice(0, Math.max(0, vacancies - 1)), ambiguous: true };
   }
@@ -299,12 +301,14 @@ export const buildNursingShiftProposalPatch = (
     let suggestionIndex = 0;
     for (let slot = 0; slot < target.slots && suggestionIndex < constrained.length; slot += 1) {
       if (!isStaffingSlotVacant(currentNames[slot])) continue;
+      const nextName = constrained[suggestionIndex];
+      if (nextName === undefined) break;
       detail = updateDetailedStaffingStandardSlot(
         detail,
         target.shift,
         target.role,
         slot,
-        constrained[suggestionIndex]
+        nextName
       );
       suggestionIndex += 1;
       changed = true;

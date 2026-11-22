@@ -19,8 +19,9 @@ const flowInstant = (local: string): string => {
       const stamp = calendarStampInClinicalTimeZone(new Date(value));
       return `${stamp.iso}T${stamp.hhmm}` === local.slice(0, 16);
     });
-  if (candidates.length !== 1) throw new Error('Hora de movimiento ambigua.');
-  return candidates[0];
+  const resolved = candidates.length === 1 ? candidates[0] : undefined;
+  if (!resolved) throw new Error('Hora de movimiento ambigua.');
+  return resolved;
 };
 
 /** Preserve complete episode evidence, never confuse Urgencias/CMA with a hospital entry. */

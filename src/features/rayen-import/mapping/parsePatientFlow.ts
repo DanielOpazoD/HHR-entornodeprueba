@@ -53,9 +53,9 @@ const parsePatientFlowRows = (text: string): PatientFlowParseResult => {
   for (const rawLine of String(text || '').split(/\r?\n/)) {
     const line = rawLine.replace(/\s+/g, ' ').trim();
     const row = /^(\d{1,2}\/\d{1,2}\/\d{4})\s+(\d{2}:\d{2}:\d{2})\s+(.+)$/.exec(line);
-    if (!row) continue;
+    const [, dateRaw, timeRaw, sourceLocation] = row ?? [];
+    if (!dateRaw || !timeRaw || !sourceLocation) continue;
 
-    const sourceLocation = row[3];
     // Jasper prints the entire bed name (e.g. "BOX 4 UEA") in its final column.
     // Match only that suffix: an earlier room label cannot replace an unknown final bed.
     const sourceBedLabel =
@@ -63,7 +63,7 @@ const parsePatientFlowRows = (text: string): PatientFlowParseResult => {
       /\bBOX\s*\d+(?:\s*UEA)?$/i.exec(sourceLocation)?.[0] ??
       sourceLocation.split(' ').at(-1) ??
       '';
-    const changedAt = toSortableLocalTimestamp(row[1], row[2]);
+    const changedAt = toSortableLocalTimestamp(dateRaw, timeRaw);
     if (!changedAt) {
       hasMalformedMovementRow = true;
       continue;
@@ -128,8 +128,9 @@ export const latestPatientFlowPlacement = (
       row.bedId ? `bed:${row.bedId}` : `external:${row.sourceBedLabel.trim().toUpperCase()}`
     )
   );
-  if (distinctPlacements.size !== 1) return null;
-  const { changedAt, bedId, sourceBedLabel } = latestRows[0];
+  const latestRow = latestRows[0];
+  if (distinctPlacements.size !== 1 || !latestRow) return null;
+  const { changedAt, bedId, sourceBedLabel } = latestRow;
   return { changedAt, bedId, sourceBedLabel };
 };
 
@@ -161,7 +162,7 @@ export const patientRunFromFlowReport = (text: string): string => {
       .map(match => normalizeRut(match[1]))
       .filter(Boolean)
   );
-  return runs.size === 1 ? [...runs][0] : '';
+  return runs.size === 1 ? ([...runs][0] ?? '') : '';
 };
 
 /** Read the complete personal identifier, including numeric passports, from explicit headers. */
@@ -171,9 +172,9 @@ export const patientIdentifierFromFlowReport = (text: string): string => {
       ...String(text || '').matchAll(
         /\b(?:N[uú]mero de Identificaci[oó]n|Pasaporte|RUN)\s*:\s*([A-Za-z0-9.-]+)/gi
       ),
-    ].map(match => match[1].replace(/[.-]/g, '').toUpperCase())
+    ].map(match => (match[1] ?? '').replace(/[.-]/g, '').toUpperCase())
   );
-  return values.size === 1 ? [...values][0] : '';
+  return values.size === 1 ? ([...values][0] ?? '') : '';
 };
 
 /** Complete movement rows, including excluded/unknown locations: never bridge across them. */
@@ -200,5 +201,5 @@ export const maternalRunFromFlowReport = (text: string): string => {
       .map(match => normalizeRut(match[1]))
       .filter(Boolean)
   );
-  return runs.size === 1 ? [...runs][0] : '';
+  return runs.size === 1 ? ([...runs][0] ?? '') : '';
 };

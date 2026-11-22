@@ -163,7 +163,10 @@ export const associateClinicalCribsWithMothers = (
         mapped: { ...candidate.mapped, bedId, patient: { ...candidate.mapped.patient, bedId } },
       };
     }
-    const bedId = matches[0].mapped.bedId!;
+    const matchedMother = matches[0];
+    if (!matchedMother?.mapped.bedId)
+      return { ...candidate, maternalAssociationConflict: 'unmatched' };
+    const bedId = matchedMother.mapped.bedId;
     const sourcePlacement = mapRayenBed(candidate.encounter);
     if (sourcePlacement.bedId && sourcePlacement.bedId !== bedId)
       return {

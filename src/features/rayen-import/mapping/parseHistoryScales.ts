@@ -162,6 +162,7 @@ export const parseHistoryScales = (rawEvents: unknown): EvaluationScale[] => {
       }
 
       const first = formCampos[0];
+      if (!first) continue;
       const professional = publishedProfessional(
         first.PUBLISH_DATE_HCP_NAME,
         first.PRACTITIONER_ROLE

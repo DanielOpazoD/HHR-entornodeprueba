@@ -89,14 +89,16 @@ export const recoverHistoricalReportEpisodes = async (
           name.every((token, i) => token === full[i])
         );
       });
+      const prefixEpisode = prefixMatches.length === 1 ? prefixMatches[0] : undefined;
       return matches.length === 0 &&
-        prefixMatches.length === 1 &&
-        prefixMatches[0].startDate > cutoff.slice(0, 10) &&
+        prefixEpisode !== undefined &&
+        prefixEpisode.startDate > cutoff.slice(0, 10) &&
         !isClinicalCrib
         ? null
         : row;
     }
     const episode = matches[0];
+    if (!episode) return row;
     // Date-only metadata cannot exclude an admission during the following madrugada.
     if (episode.startDate > cutoff.slice(0, 10)) return null;
     // A historical RN in a physical crib still needs its independently verified maternal link.
@@ -158,7 +160,8 @@ export const recoverHistoricalReportEpisodes = async (
     Array.from({ length: Math.min(2, rows.length) }, async () => {
       while (cursor < rows.length) {
         const index = cursor++;
-        results[index] = await recover(rows[index]);
+        const row = rows[index];
+        results[index] = row ? await recover(row) : null;
       }
     })
   );

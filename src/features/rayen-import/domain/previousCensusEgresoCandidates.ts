@@ -154,8 +154,8 @@ export const previousCensusEgresoCandidates = (
       row =>
         `${normalizePatientRut(row.run)}|${normalizedName(row.patientName)}` === patientIdentity
     );
-    if (matchingRows.length !== 1) return [];
-    const row = matchingRows[0];
+    const row = matchingRows.length === 1 ? matchingRows[0] : undefined;
+    if (!row) return [];
     const rowIdentity = previousCensusEgresoRowIdentity(row);
     if (!rowIdentity || rowIdentityCount.get(rowIdentity) !== 1) return [];
     const dischargeDay = correctedStamp(

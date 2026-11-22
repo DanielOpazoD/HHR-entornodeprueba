@@ -47,11 +47,12 @@ interface LocalStamp {
 const parseLocalStamp = (observation: RayenNursingActivity): LocalStamp | null => {
   const hospital = fichaMedicoActivityStampInRapaNui(observation.recordedAt, observation.source);
   const match = hospital?.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):\d{2}$/);
-  if (!match) return null;
-  const hour = Number(match[2]);
-  const minute = Number(match[3]);
+  const [, day, hourRaw, minuteRaw] = match ?? [];
+  if (!day || !hourRaw || !minuteRaw) return null;
+  const hour = Number(hourRaw);
+  const minute = Number(minuteRaw);
   if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
-  return { day: match[1], minutes: hour * 60 + minute, hour };
+  return { day, minutes: hour * 60 + minute, hour };
 };
 
 type Shift = 'day' | 'night';

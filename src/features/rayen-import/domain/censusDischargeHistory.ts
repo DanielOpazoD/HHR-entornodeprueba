@@ -236,8 +236,8 @@ export const planClinicalCribDischargeRepairs = (
         normalizeRut(row.rut) === normalizeRut(duplicate.rut) &&
         (!duplicate.diagnosis?.trim() || duplicate.diagnosis.trim() === row.diagnosis?.trim())
     );
-    if (keepers.length !== 1 || !duplicate.id || !keepers[0].id) continue;
-    const kept = keepers[0];
+    const kept = keepers.length === 1 ? keepers[0] : undefined;
+    if (!kept || !duplicate.id || !kept.id) continue;
     if (
       [kept.id, duplicate.id].some(
         id => record.discharges.filter(row => row.id === id).length !== 1

@@ -35,19 +35,22 @@ const uniqueEpisodePlacements = (
   remaining: ActivePrincipalPlacement[];
   conflicts: ConflictEntry[];
 } => {
-  const byEpisode = new Map<string, ActivePrincipalPlacement[]>();
+  const byEpisode = new Map<string, [ActivePrincipalPlacement, ...ActivePrincipalPlacement[]]>();
   for (const item of placements) {
     const id = item.encounter.encounterId;
-    byEpisode.set(id, [...(byEpisode.get(id) ?? []), item]);
+    const existing = byEpisode.get(id);
+    if (existing) existing.push(item);
+    else byEpisode.set(id, [item]);
   }
   const remaining: ActivePrincipalPlacement[] = [];
   const conflicts: ConflictEntry[] = [];
   for (const aliases of byEpisode.values()) {
     const medical = aliases.filter(item => !item.mapped.isCma);
-    const candidates =
-      medical.length &&
-      aliases.every(item => item.mapped.bedId?.replace(/^CMA_/, '') === medical[0].mapped.bedId)
-        ? medical
+    const firstMedical = medical[0];
+    const candidates: [ActivePrincipalPlacement, ...ActivePrincipalPlacement[]] =
+      firstMedical &&
+      aliases.every(item => item.mapped.bedId?.replace(/^CMA_/, '') === firstMedical.mapped.bedId)
+        ? [firstMedical, ...medical.slice(1)]
         : aliases;
     const destinations = new Set(candidates.map(item => item.mapped.bedId));
     if (destinations.size === 1) {

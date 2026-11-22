@@ -77,16 +77,16 @@ export const groupEvaluationScaleApplications = (
         }
       });
     } else if (!hasCompleteOccurrenceMapping) {
-      groupIndex = scoreAnchors.reduce(
-        (nearest, anchor, anchorIndex) =>
+      groupIndex = scoreAnchors.reduce((nearest, anchor, anchorIndex) => {
+        const nearestAnchor = scoreAnchors[nearest];
+        return nearestAnchor === undefined ||
           Math.abs(anchor.sourceIndex - sourceIndex) <
-          Math.abs(scoreAnchors[nearest].sourceIndex - sourceIndex)
-            ? anchorIndex
-            : nearest,
-        0
-      );
+            Math.abs(nearestAnchor.sourceIndex - sourceIndex)
+          ? anchorIndex
+          : nearest;
+      }, 0);
     }
-    groups[groupIndex].push(campo);
+    groups[groupIndex]?.push(campo);
   });
 
   return groups.filter(group => group.length > 0);

@@ -66,13 +66,14 @@ export const targetLabelFromKey = (
   // daily:<date>:detached:<task>:[bed, target, documentType, rut, patientName, episode]
   const named = key?.match(/^daily:([^:]*):detached:[^:]*:(.*)$/);
   if (named) {
+    const [, rawDay = '', rawPayload = ''] = named;
     let name = 'paciente';
     try {
-      name = (JSON.parse(named[2]) as string[])[4] ?? '';
+      name = (JSON.parse(rawPayload) as string[])[4] ?? '';
     } catch {
       // Keep the generic label for a malformed key.
     }
-    return `Cambios de ${name} · ${named[1].split('-').reverse().join('-')}`;
+    return `Cambios de ${name} · ${rawDay.split('-').reverse().join('-')}`;
   }
   const date = key?.startsWith('daily:') ? key.slice('daily:'.length) : null;
   if (!date) return 'Registro del censo';

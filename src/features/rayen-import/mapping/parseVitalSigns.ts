@@ -54,6 +54,7 @@ const measurementEpoch = (raw: string, recordedEpoch: number | null): number | n
     );
   if (!m) return null;
   const [, dd, mm, yyyy, hh, mi, ss, off] = m;
+  if (!dd || !mm || !yyyy || !hh || !mi) return null;
   const offset =
     !off || off === 'Z' ? '+00:00' : off.includes(':') ? off : `${off.slice(0, 3)}:${off.slice(3)}`;
   const epoch = Date.parse(

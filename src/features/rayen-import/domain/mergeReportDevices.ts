@@ -141,13 +141,13 @@ export const mergeReportDevices = (
     }
     activeTypes.add(device.type);
     const note = buildNote(device);
-    deviceDetails[device.type] = {
+    const detail = {
       ...(deviceDetails[device.type] ?? {}),
       installationDate: device.installationDate || deviceDetails[device.type]?.installationDate,
       note: note || deviceDetails[device.type]?.note,
     };
-
-    delete deviceDetails[device.type].removalDate;
+    delete detail.removalDate;
+    deviceDetails[device.type] = detail;
     const activeIdx = matching
       ? history.indexOf(matching)
       : history.findIndex(
@@ -160,17 +160,17 @@ export const mergeReportDevices = (
             !patient.clinicalCarryover &&
             (!item.clinicalEpisodeId || owned(item))
         );
-    if (activeIdx >= 0) {
-      const current = history[activeIdx];
+    const current = activeIdx >= 0 ? history[activeIdx] : undefined;
+    if (current) {
       const refreshed = {
-        ...history[activeIdx],
+        ...current,
         // A dated source row proves an unmarked instance came from Eloísa.
         ...(matches[0] && !current.source ? { source: 'eloisa' as const } : {}),
         status: 'Active' as const,
-        installationDate: device.installationDate || history[activeIdx].installationDate,
-        installationTime: device.installationTime || history[activeIdx].installationTime,
-        location: device.location || history[activeIdx].location,
-        note: note || history[activeIdx].note,
+        installationDate: device.installationDate || current.installationDate,
+        installationTime: device.installationTime || current.installationTime,
+        location: device.location || current.location,
+        note: note || current.note,
       };
       if (reactivating) {
         delete refreshed.removalDate;

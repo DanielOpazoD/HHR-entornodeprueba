@@ -153,8 +153,9 @@ const parseRayenDateTime = (raw: string): ParsedStamp | null => {
   );
   if (!m) return null;
   const [, dd, mm, yyyy, hh, mi, ss, offH, offM] = m;
+  if (!dd || !mm || !yyyy) return null;
   const printedIso = `${yyyy}-${pad2(mm)}-${pad2(dd)}`;
-  if (offH == null) return { printedIso, epoch: null };
+  if (offH == null || !hh || !mi || !ss) return { printedIso, epoch: null };
   const epoch = Date.parse(`${printedIso}T${pad2(hh)}:${mi}:${ss}${offH}:${offM ?? '00'}`);
   return { printedIso, epoch: Number.isNaN(epoch) ? null : epoch };
 };
@@ -211,7 +212,8 @@ const orderingKeyForApplication = (
   if (!/^\d{8}$/.test(day)) return (Number(form.encounterEventId) || 0) + applicationIndex;
   // clinical-clock-allow raw-offset-clock: Scale report application clocks are unzoned Rapa Nui local time.
   const clock = when.raw.match(/(?:^|[T ])(\d{1,2}):(\d{2}):(\d{2})/);
-  const timestamp = `${day}${clock ? `${pad2(clock[1])}${clock[2]}${clock[3]}` : '000000'}`;
+  const [, ch, cm, cs] = clock ?? [];
+  const timestamp = `${day}${ch && cm && cs ? `${pad2(ch)}${cm}${cs}` : '000000'}`;
   const key = Number(timestamp);
   return Number.isSafeInteger(key) && key > 0
     ? key

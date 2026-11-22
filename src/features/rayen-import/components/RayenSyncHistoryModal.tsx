@@ -85,7 +85,7 @@ const quietRunSignature = (event: RayenSyncEvent): string =>
 
 type HistoryListItem =
   | { kind: 'event'; event: RayenSyncEvent }
-  | { kind: 'quiet'; events: RayenSyncEvent[] };
+  | { kind: 'quiet'; events: [RayenSyncEvent, ...RayenSyncEvent[]] };
 
 const groupHistory = (history: RayenSyncEvent[]): HistoryListItem[] => {
   const items: HistoryListItem[] = [];
@@ -107,7 +107,9 @@ const groupHistory = (history: RayenSyncEvent[]): HistoryListItem[] => {
   return items;
 };
 
-const QuietHistoryGroup: React.FC<{ events: RayenSyncEvent[] }> = ({ events }) => {
+const QuietHistoryGroup: React.FC<{ events: [RayenSyncEvent, ...RayenSyncEvent[]] }> = ({
+  events,
+}) => {
   const newest = events[0];
   const oldest = events.at(-1) ?? newest;
   const timeLabel =

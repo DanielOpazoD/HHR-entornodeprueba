@@ -198,8 +198,9 @@ export const dedupeEquivalentScaleApplications = (
     const duplicateIndex = deduped.findIndex(candidate =>
       areEquivalentScaleApplications(candidate, scale, options)
     );
-    if (duplicateIndex < 0) deduped.push(scale);
-    else deduped[duplicateIndex] = mergeEquivalentScaleApplications(deduped[duplicateIndex], scale);
+    const existing = duplicateIndex >= 0 ? deduped[duplicateIndex] : undefined;
+    if (!existing) deduped.push(scale);
+    else deduped[duplicateIndex] = mergeEquivalentScaleApplications(existing, scale);
   }
   return deduped;
 };

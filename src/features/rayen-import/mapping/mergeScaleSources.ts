@@ -75,10 +75,15 @@ interface FlowEdge {
 }
 
 const addFlowEdge = (graph: FlowEdge[][], from: number, to: number, cost: number): FlowEdge => {
-  const forward: FlowEdge = { to, reverse: graph[to].length, capacity: 1, cost };
-  const backward: FlowEdge = { to: from, reverse: graph[from].length, capacity: 0, cost: -cost };
-  graph[from].push(forward);
-  graph[to].push(backward);
+  const fromEdges = graph[from];
+  const toEdges = graph[to];
+  if (!fromEdges || !toEdges) {
+    throw new RangeError(`Invalid flow graph node (${from} -> ${to}).`);
+  }
+  const forward: FlowEdge = { to, reverse: toEdges.length, capacity: 1, cost };
+  const backward: FlowEdge = { to: from, reverse: fromEdges.length, capacity: 0, cost: -cost };
+  fromEdges.push(forward);
+  toEdges.push(backward);
   return forward;
 };
 
@@ -127,10 +132,12 @@ const matchSummaryApplications = (
     for (let pass = 0; pass < graph.length - 1; pass += 1) {
       let changed = false;
       graph.forEach((edges, node) => {
-        if (!Number.isFinite(distance[node])) return;
+        const nodeDistance = distance[node];
+        if (nodeDistance === undefined || !Number.isFinite(nodeDistance)) return;
         edges.forEach((edge, edgeIndex) => {
-          const nextDistance = distance[node] + edge.cost;
-          if (edge.capacity > 0 && nextDistance < distance[edge.to]) {
+          const nextDistance = nodeDistance + edge.cost;
+          const targetDistance = distance[edge.to];
+          if (edge.capacity > 0 && targetDistance !== undefined && nextDistance < targetDistance) {
             distance[edge.to] = nextDistance;
             previous[edge.to] = { node, edge: edgeIndex };
             changed = true;
@@ -154,9 +161,11 @@ const matchSummaryApplications = (
     // matches and stop without partially mutating this path.
     if (node !== source) break;
     for (const { node: pathNode, step } of path) {
-      const edge = graph[step.node][step.edge];
+      const edge = graph[step.node]?.[step.edge];
+      if (!edge) continue;
       edge.capacity -= 1;
-      graph[pathNode][edge.reverse].capacity += 1;
+      const reverseEdge = graph[pathNode]?.[edge.reverse];
+      if (reverseEdge) reverseEdge.capacity += 1;
     }
   }
 
@@ -182,11 +191,8 @@ export const mergeScaleSources = (
   const merged: EvaluationScale[] = [];
   history.forEach((historyScale, historyIndex) => {
     const summaryIndex = summaryByHistory.get(historyIndex);
-    merged.push(
-      summaryIndex == null
-        ? historyScale
-        : mergeDuplicate(historyScale, unmatchedSummary[summaryIndex])
-    );
+    const matched = summaryIndex != null ? unmatchedSummary[summaryIndex] : undefined;
+    merged.push(matched ? mergeDuplicate(historyScale, matched) : historyScale);
   });
   unmatchedSummary.forEach((summaryScale, summaryIndex) => {
     if (!matchedSummary.has(summaryIndex)) merged.push(summaryScale);

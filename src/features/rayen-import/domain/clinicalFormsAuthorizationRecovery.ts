@@ -35,8 +35,9 @@ export const createClinicalFormsAuthorizationRecovery = (
     const pending = (async () => {
       signal.throwIfAborted();
       const matches = candidates.filter(item => item.patient.clinicalEpisodeId === encounterId);
-      if (!/^\d+$/.test(encounterId) || matches.length !== 1) return false;
-      const patient = matches[0].patient;
+      const matchedCandidate = matches.length === 1 ? matches[0] : undefined;
+      if (!/^\d+$/.test(encounterId) || !matchedCandidate) return false;
+      const patient = matchedCandidate.patient;
       const passport =
         patient.documentType === 'Pasaporte' && patient.identityStatus !== 'provisional';
       const ownRun =
@@ -51,10 +52,12 @@ export const createClinicalFormsAuthorizationRecovery = (
         const snapshot = await freshSnapshot;
         signal.throwIfAborted();
         const live = snapshot?.encounters.filter(item => item.encounterId === encounterId) ?? [];
+        const singleLive = live.length === 1 ? live[0] : undefined;
         // A changed identity is a contradiction, not permission to fall back to the old patient.
         if (live.length)
           return (
-            live.length === 1 && canonicalRun(live[0].run, passport) === canonicalRun(run, passport)
+            singleLive !== undefined &&
+            canonicalRun(singleLive.run, passport) === canonicalRun(run, passport)
           );
       }
       // The older lookup queries RUN/maternal RUN only. A passport needs live source proof.

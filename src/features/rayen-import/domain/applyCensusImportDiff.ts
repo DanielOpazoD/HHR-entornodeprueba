@@ -81,7 +81,8 @@ const isoDayOf = (date: string): string => {
   const iso = (date ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
   const dmy = (date ?? '').match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
-  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+  const [, day, month, year] = dmy ?? [];
+  if (day && month && year) return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   return date ?? '';
 };
 
@@ -357,9 +358,10 @@ export const applyCensusImportDiff = (
   }
 
   // 2) Moves: capture sources from the ORIGINAL record, free them, then place targets.
-  const moveOps = effectiveDiff.moves
-    .map(move => ({ move, source: current.beds[move.fromBedId] }))
-    .filter(op => isOccupied(op.source));
+  const moveOps = effectiveDiff.moves.flatMap(move => {
+    const source = current.beds[move.fromBedId];
+    return isOccupied(source) ? [{ move, source }] : [];
+  });
   for (const { move } of moveOps) delete nextBeds[move.fromBedId];
   for (const { move, source } of moveOps) {
     if (isOccupied(nextBeds[move.toBedId])) {

@@ -16,7 +16,8 @@ export const toIsoCensusDay = (raw: string | undefined): string => {
   const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
   const dmy = value.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
-  return dmy ? `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}` : '';
+  const [, day, month, year] = dmy ?? [];
+  return day && month && year ? `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}` : '';
 };
 
 /** Clinical nursing day that owns the encounter admission in the Rapa Nui wall clock. */

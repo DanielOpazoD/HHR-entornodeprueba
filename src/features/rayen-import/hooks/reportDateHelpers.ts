@@ -32,7 +32,10 @@ export const toIsoReportDate = (record: DailyRecord): string => {
 
 /** The ISO day after `iso` (YYYY-MM-DD), computed in UTC to avoid host-tz drift. */
 export const nextIsoDay = (iso: string): string => {
-  const [y, m, d] = iso.split('-').map(Number);
+  const [yStr, mStr, dStr] = iso.split('-');
+  const y = Number(yStr);
+  const m = Number(mStr);
+  const d = Number(dStr);
   const next = new Date(Date.UTC(y, (m || 1) - 1, (d || 1) + 1));
   return `${next.getUTCFullYear()}-${pad(next.getUTCMonth() + 1)}-${pad(next.getUTCDate())}`;
 };

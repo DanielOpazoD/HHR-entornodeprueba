@@ -41,7 +41,7 @@ export const resolveNeonatalPlacements = (
     if (!review || review.existingKind !== 'mother' || !review.existingBedId) continue;
     const nestedParent = current.beds[review.existingBedId];
     const existing = nestedParent?.clinicalCrib;
-    if (existing?.clinicalEpisodeId !== choice.episodeId)
+    if (!nestedParent || existing?.clinicalEpisodeId !== choice.episodeId)
       throw new Error('La asociación del RN cambió; vuelve a revisar.');
     {
       const parentBed =
@@ -173,8 +173,8 @@ export const resolveNeonatalPlacements = (
       : undefined;
     const maternalRut = mother
       ? selectedMaternal?.rut
-      : distinctMaternalEpisodes.size === 1 && maternalMatches.length
-        ? maternalMatches[0].rut
+      : distinctMaternalEpisodes.size === 1
+        ? maternalMatches[0]?.rut
         : undefined;
     decision.sourceRunIsMaternal = Boolean(
       (maternalMatches.length > 0 &&

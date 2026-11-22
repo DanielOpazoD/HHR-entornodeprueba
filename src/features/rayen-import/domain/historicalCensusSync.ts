@@ -32,7 +32,10 @@ export interface CensusSyncTarget {
 
 const isoDayNumber = (iso: string): number | null => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
-  const [year, month, day] = iso.split('-').map(Number);
+  const [yearStr, monthStr, dayStr] = iso.split('-');
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
   const timestamp = Date.UTC(year, month - 1, day);
   if (new Date(timestamp).toISOString().slice(0, 10) !== iso) return null;
   return timestamp / MILLISECONDS_PER_DAY;

@@ -38,11 +38,12 @@ export const filterRecordedOutcomeActions = (
     const activeCandidates = collision.candidates.filter(
       candidate => !operationWasResolved(candidate)
     );
-    if (activeCandidates.length !== 1) return [];
+    const soleActive = activeCandidates.length === 1 ? activeCandidates[0] : undefined;
+    if (!soleActive) return [];
     return [
       {
         collisionId: collision.id,
-        selectedEpisodeId: activeCandidates[0].clinicalEpisodeId,
+        selectedEpisodeId: soleActive.clinicalEpisodeId,
         // The other episode already has its manually recorded outcome. Removing only its stale
         // bed representation avoids duplicating that alta, traslado or CMA movement.
         otherDisposition: { kind: 'remove' as const },

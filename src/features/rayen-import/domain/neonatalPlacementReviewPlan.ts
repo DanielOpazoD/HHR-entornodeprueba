@@ -42,14 +42,16 @@ export const prepareNeonatalPlacementReviews = (
         isMaternalCandidatePatient(c.mapped.patient) &&
         !diff.conflicts.some(f => f.bedId === c.mapped.bedId && f.scope !== 'clinical-crib')
     )
-    .map(c => ({
-      bedId: c.mapped.bedId!,
-      episodeId: c.encounter.encounterId,
-      name: c.mapped.patient.patientName,
-      ...(current.beds[c.mapped.bedId!]?.clinicalCrib?.clinicalEpisodeId
-        ? { occupiedByEpisodeId: current.beds[c.mapped.bedId!].clinicalCrib!.clinicalEpisodeId }
-        : {}),
-    }));
+    .map(c => {
+      const bedId = c.mapped.bedId!;
+      const occupiedByEpisodeId = current.beds[bedId]?.clinicalCrib?.clinicalEpisodeId;
+      return {
+        bedId,
+        episodeId: c.encounter.encounterId,
+        name: c.mapped.patient.patientName,
+        ...(occupiedByEpisodeId ? { occupiedByEpisodeId } : {}),
+      };
+    });
   const existingIndependent = candidates.flatMap(c => {
     const match = Object.entries(current.beds).find(
       ([, p]) =>
@@ -190,15 +192,16 @@ export const prepareNeonatalPlacementReviews = (
         m.bedId === candidate?.maternalAssociationBedId &&
         (!m.occupiedByEpisodeId || m.occupiedByEpisodeId === review.episodeId)
     );
+    const soleMother = mothers.length === 1 ? mothers[0] : undefined;
     return candidate?.maternalAssociationConflict === 'location-mismatch' &&
       candidate.mapped.isClinicalCrib &&
       review.patient.bedMode === 'Cuna' &&
       review.existingKind !== 'independent' &&
-      mothers.length === 1 &&
+      soleMother !== undefined &&
       candidates.filter(
-        c => c.originatedAsClinicalCrib && c.maternalAssociationBedId === mothers[0].bedId
+        c => c.originatedAsClinicalCrib && c.maternalAssociationBedId === soleMother.bedId
       ).length === 1
-      ? { ...review, automaticMother: { bedId: mothers[0].bedId, episodeId: mothers[0].episodeId } }
+      ? { ...review, automaticMother: { bedId: soleMother.bedId, episodeId: soleMother.episodeId } }
       : review;
   });
   const automatic = new Set(planned.filter(r => r.automaticMother).map(r => r.episodeId));

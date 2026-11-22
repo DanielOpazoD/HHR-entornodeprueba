@@ -34,15 +34,19 @@ export const summarizeSyncMeasurements = (values: number[]) => {
   const sorted = values.filter(validNumber).sort((a, b) => a - b);
   if (!sorted.length) return null;
   const middle = Math.floor(sorted.length / 2);
+  const middleValue = sorted[middle];
+  const lowerMiddle = sorted[middle - 1];
+  const max = sorted.at(-1);
+  if (middleValue === undefined || max === undefined) return null;
   return {
     samples: sorted.length,
     median:
-      sorted.length % 2
-        ? sorted[middle]
-        : sorted[middle - 1] + (sorted[middle] - sorted[middle - 1]) / 2,
-    max: sorted.at(-1)!,
+      sorted.length % 2 || lowerMiddle === undefined
+        ? middleValue
+        : lowerMiddle + (middleValue - lowerMiddle) / 2,
+    max,
     // A handful of sessions is insufficient to present a tail percentile.
-    p95: sorted.length >= 20 ? sorted[Math.ceil(sorted.length * 0.95) - 1] : null,
+    p95: sorted.length >= 20 ? (sorted[Math.ceil(sorted.length * 0.95) - 1] ?? null) : null,
   };
 };
 

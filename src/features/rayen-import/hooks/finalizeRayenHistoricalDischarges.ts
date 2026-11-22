@@ -86,11 +86,12 @@ export const finalizeRayenHistoricalDischarges = async (
             ([, patient]) => patient.patientName && matchesDischargeSubject(patient, entry)
           );
           if (occupied.length > 1) throw conflict();
-          if (occupied.length === 0) return;
+          const matched = occupied[0];
+          if (!matched) return;
           if ((fresh as DailyRecord & { medicalSignature?: unknown }).medicalSignature) {
             throw new Error('El censo histórico fue firmado después de la revisión.');
           }
-          const [bedId, patient] = occupied[0];
+          const [bedId, patient] = matched;
           if (
             patient.clinicalCrib &&
             hasCribOccupant(patient.clinicalCrib) &&
