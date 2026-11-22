@@ -84,7 +84,9 @@ Para usar Entrega de turno, la función HTTP recibe `data` con la operación
 acceso a la nota únicamente si la llave y el RUN coinciden y la cuenta sigue
 habilitada. Las operaciones de guardado vuelven a verificar el equipo y la cuenta
 dentro de la transacción de Firestore. Leer y guardar reutilizan los controles
-de paciente, episodio, turno y versión. Desconectar revoca el registro del equipo.
+de paciente, episodio, turno y versión. El campo compatible `patientRun` conserva el
+documento original de Eloísa. El único episodio coincidente del censo determina
+el tipo, y debe coincidir el documento completo, incluidas las letras del pasaporte. Desconectar revoca el registro del equipo.
 El token de Rayen permanece en el navegador.
 
 Para el piloto se necesita el ZIP «Equipo de enfermería (pruebas)» de la extensión,

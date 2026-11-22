@@ -42,6 +42,8 @@ it.skipIf(!enabled)(
     const identity = firestore.collection(PRIVATE).doc(uid);
     const episode = '901001';
     const patientRun = '11111111-1';
+    const passport = 'XZ1739001';
+    const passportEpisode = '901002';
     const { register, operate: handler } = createDeviceHandoffHandlers({
       firestore,
       auth,
@@ -73,6 +75,24 @@ it.skipIf(!enabled)(
             rut: patientRun,
             patientName: 'Paciente sintético',
             documentType: 'RUT',
+          },
+          R2: {
+            clinicalEpisodeId: passportEpisode,
+            rut: passport,
+            patientName: 'Paciente sintético con pasaporte',
+            documentType: 'Pasaporte',
+          },
+          R3: {
+            clinicalEpisodeId: '901003',
+            rut: '173900100',
+            patientName: 'Paciente sintético con pasaporte numérico',
+            documentType: 'Pasaporte',
+          },
+          R4: {
+            clinicalEpisodeId: '901004',
+            rut: 'XYZABC',
+            patientName: 'Paciente sintético con pasaporte alfabético',
+            documentType: 'Pasaporte',
           },
         },
         discharges: [],
@@ -129,6 +149,56 @@ it.skipIf(!enabled)(
         );
       }
       expect(persisted.get('meta.lastWriterClientId')).toBe(uid);
+      const passportRequest = { ...request, episode: passportEpisode, patientRun: 'xz 1739001' };
+      const passportView = await handler({ ...passportRequest, action: 'read' });
+      await expect(
+        handler({
+          ...passportRequest,
+          ...passportView,
+          action: 'save',
+          text: 'Entrega con pasaporte',
+        })
+      ).resolves.toMatchObject({ confirmed: true, text: 'Entrega con pasaporte' });
+      const afterPassport = await day.get();
+      expect(afterPassport.get('beds.R2.handoffNoteNightShift')).toBe('Entrega con pasaporte');
+      expect(afterPassport.get('beds.R1.handoffNoteNightShift')).toBe(
+        'Entrega desde el equipo registrado'
+      );
+      expect(afterPassport.get('meta.lastWriterClientId')).toBe(uid);
+      for (const attempt of [
+        { ...passportRequest, patientRun },
+        { ...passportRequest, patientRun: 'XZ1739002' },
+        { ...passportRequest, episode },
+      ]) {
+        await expect(handler({ ...attempt, action: 'read' })).rejects.toMatchObject({
+          code: 'failed-precondition',
+        });
+      }
+
+      for (const [episode, patientRun] of [
+        ['901003', '173900100'],
+        ['901004', 'xyzabc'],
+      ]) {
+        await expect(
+          handler({ ...request, episode, patientRun, action: 'read' })
+        ).resolves.toMatchObject({ date, shift });
+      }
+      await expect(
+        handler({ ...request, episode: '901003', patientRun: 'XZ173900100', action: 'read' })
+      ).rejects.toMatchObject({
+        code: 'failed-precondition',
+      });
+      await day.update({
+        'beds.H1C1': {
+          clinicalEpisodeId: passportEpisode,
+          rut: passport,
+          documentType: 'Pasaporte',
+        },
+      });
+      await expect(handler({ ...passportRequest, action: 'read' })).rejects.toMatchObject({
+        code: 'failed-precondition',
+      });
+      await day.update({ 'beds.H1C1': FieldValue.delete() });
       const runTransaction = firestore.runTransaction.bind(firestore);
       const spy = vi.spyOn(firestore, 'runTransaction').mockImplementationOnce(async update => {
         await account.update({ status: 'suspended' });

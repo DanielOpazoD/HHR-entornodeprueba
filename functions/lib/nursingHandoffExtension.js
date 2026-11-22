@@ -33,12 +33,12 @@ function clinicalSlot(now) {
   return { date, shift: date === calendarDate && Number(parts.hour) < 20 ? 'day' : 'night' };
 }
 
-const normalizeRun = value =>
+const normalizeDocumentCode = value =>
   String(value ?? '')
     .replace(/[.\s-]/g, '')
     .toUpperCase();
 
-function findHandoff(snapshot, episode, run, slot, census) {
+function findHandoff(snapshot, episode, code, slot, census) {
   if (!snapshot.exists) fail('not-found', 'Falta este día en el ' + census + '.', slot);
   const record = snapshot.data();
   const matches = [];
@@ -51,18 +51,21 @@ function findHandoff(snapshot, episode, run, slot, census) {
     }
   }
   if (!matches.length) fail('not-found', 'Este episodio aún no está en el ' + census + '.', slot);
+  const { path, item } = matches[0];
+  const type = item.documentType || 'RUT';
+  // The confirmed census episode determines the kind, including numeric passports.
+  const validDocument = type === 'Pasaporte' || (type === 'RUT' && /^\d{6,9}[\dK]$/.test(code));
   if (
     matches.length !== 1 ||
-    normalizeRun(matches[0].item.rut) !== run ||
-    matches[0].item.documentType === 'Pasaporte' ||
-    matches[0].item.isBlocked === true
+    !validDocument ||
+    normalizeDocumentCode(item.rut) !== code ||
+    item.isBlocked === true
   ) {
     fail(
       'failed-precondition',
       'El ' + census + ' encontró el episodio y falta confirmar la identidad del paciente.'
     );
   }
-  const { path, item } = matches[0];
   return {
     path,
     day: item[DAY] ?? item.handoffNote ?? '',
@@ -179,10 +182,11 @@ function createHandler({
     }
     const actor = await authorize(data);
 
-    const { episode, patientRun } = data;
-    const run = normalizeRun(patientRun);
-    if (!/^[1-9]\d{0,15}$/.test(episode ?? '') || !/^\d{6,9}[\dK]$/.test(run)) {
-      fail('invalid-argument', 'Se necesita el RUN propio del paciente y un episodio verificado.');
+    const { episode } = data;
+    // Older extension builds already send the original document in patientRun.
+    const code = normalizeDocumentCode(data.patientRun);
+    if (!positiveId(episode) || !/^[\p{L}0-9]{2,64}$/u.test(code)) {
+      fail('invalid-argument', 'Se necesita el RUN o pasaporte propio y un episodio verificado.');
     }
     const slot = clinicalSlot(clinicalNow());
     // Keep each open editor pinned, including after a shift or census-day rollover.
@@ -192,7 +196,7 @@ function createHandler({
       fail('failed-precondition', 'Cambió el turno o la fecha censal. Abre otra entrega.');
     }
     const ref = records.doc(date);
-    const select = snapshot => findHandoff(snapshot, episode, run, slot, census);
+    const select = snapshot => findHandoff(snapshot, episode, code, slot, census);
     const current = select(await ref.get());
 
     if (action === 'read') {
