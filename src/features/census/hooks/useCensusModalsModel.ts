@@ -1,5 +1,5 @@
 import { useStaffContext } from '@/context/StaffContext';
-import { useDailyRecordData } from '@/context/DailyRecordContext';
+import { useDailyRecordStaff } from '@/context/DailyRecordContext';
 import { useCensusActions } from '@/features/census/context/censusActionContexts';
 import { useCensusActionModalProps } from '@/features/census/hooks/useCensusActionModalProps';
 import { useCensusModalBindings } from '@/features/census/hooks/useCensusModalBindings';
@@ -7,7 +7,7 @@ import { useCensusModalsHandlers } from '@/features/census/hooks/useCensusModals
 
 export const useCensusModalsModel = () => {
   const staffContext = useStaffContext();
-  const { record } = useDailyRecordData();
+  const staff = useDailyRecordStaff();
   const {
     actionState,
     setActionState,
@@ -29,7 +29,7 @@ export const useCensusModalsModel = () => {
   const actionModalProps = useCensusActionModalProps({
     modalBindings,
     modalHandlers,
-    recordDate: record?.date || '',
+    recordDate: staff?.date || '',
     actionCommands: {
       executeMoveOrCopy,
       executeDischarge,

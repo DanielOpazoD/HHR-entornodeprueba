@@ -1,7 +1,7 @@
 import React from 'react';
 import { Lock } from 'lucide-react';
 import { BEDS } from '@/constants/beds';
-import { useDailyRecordData } from '@/context/DailyRecordContext';
+import { useDailyRecordBeds, useDailyRecordStaff } from '@/context/DailyRecordContext';
 import { useDailyRecordBedActions } from '@/context/useDailyRecordScopedActions';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { ModalSection } from '@/components/shared/baseModalSection';
@@ -20,7 +20,8 @@ interface BedManagerModalProps {
 }
 
 export const BedManagerModal: React.FC<BedManagerModalProps> = ({ isOpen, onClose }) => {
-  const { record } = useDailyRecordData();
+  const beds = useDailyRecordBeds();
+  const staff = useDailyRecordStaff();
   const { toggleBlockBed, updateBlockedReason, toggleExtraBed } = useDailyRecordBedActions();
   const {
     blockingBedId,
@@ -41,10 +42,10 @@ export const BedManagerModal: React.FC<BedManagerModalProps> = ({ isOpen, onClos
     updateBlockedReason,
   });
 
-  if (!record) return null;
+  if (!beds || !staff) return null;
 
-  const regularBeds = resolveBlockedBedsGridItems(BEDS, record.beds);
-  const extraBeds = resolveExtraBedsGridItems(BEDS, record.activeExtraBeds);
+  const regularBeds = resolveBlockedBedsGridItems(BEDS, beds);
+  const extraBeds = resolveExtraBedsGridItems(BEDS, staff.activeExtraBeds);
 
   return (
     <>
