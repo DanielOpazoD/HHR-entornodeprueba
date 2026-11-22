@@ -326,7 +326,6 @@
         "src/tests/features/clinical-documents/ClinicalDocumentsContainers.test.tsx",
         "src/tests/features/clinical-documents/FonasaSearchInput.test.tsx",
         "src/tests/features/conflicts/ClinicalConflictCenterControl.test.tsx",
-        "src/tests/features/cudyr/AdminCudyrResultEditor.test.tsx",
         "src/tests/features/cudyr/CudyrRecoveryPanel.test.tsx",
         "src/tests/features/cudyr/CudyrReportInteractions.test.tsx",
         "src/tests/features/document-scanner/DocumentScannerEditorControls.test.tsx",

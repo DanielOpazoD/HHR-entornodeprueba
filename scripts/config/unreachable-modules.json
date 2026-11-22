@@ -26,17 +26,6 @@
         "src/features/census/components/patient-row/useBedActiveTransferQuery.ts",
         "src/features/census/controllers/admissionInputController.ts"
       ]
-    },
-    {
-      "reason": "Corrección manual de CUDYR del administrador (setAdminCudyrResult) y retiro en lote de resultados importados. El responsable decidió conservarlas (2026-11-10); hoy ninguna pantalla las muestra.",
-      "files": [
-        "src/domain/cudyr/adminCudyrResult.ts",
-        "src/features/cudyr/components/AdminCudyrBulkRemovalToolbar.tsx",
-        "src/features/cudyr/components/AdminCudyrResultEditor.tsx",
-        "src/features/cudyr/hooks/useAdminCudyrBulkRemoval.ts",
-        "src/features/cudyr/hooks/useAdminCudyrResult.ts",
-        "src/features/cudyr/report/adminCudyrResultService.ts"
-      ]
     }
   ]
 }
