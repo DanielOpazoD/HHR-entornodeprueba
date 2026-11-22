@@ -278,8 +278,7 @@ export const importRecordsFromBackup = async (
   const clinicalDerivedIncompleteDates: string[] = [];
   const restoreClinicalDerivedDay = await loadClinicalDerivedDayRestore(backup.clinicalDerived);
 
-  for (let i = 0; i < backup.records.length; i++) {
-    const record = backup.records[i];
+  for (const [i, record] of backup.records.entries()) {
     try {
       const parsed = parseDailyRecordWithDefaultsReport(record, record.date);
       const hadRepairs = hasStructuralRepairs(parsed.report);

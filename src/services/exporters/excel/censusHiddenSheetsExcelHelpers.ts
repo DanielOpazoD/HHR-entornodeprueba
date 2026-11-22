@@ -46,7 +46,7 @@ export const setMergedTitle = ({
   rowHeight?: number;
 }) => {
   sheet.mergeCells(range);
-  const cell = sheet.getCell(range.split(':')[0]);
+  const cell = sheet.getCell(range.split(':')[0] ?? range);
   cell.value = value;
   cell.font = font;
   cell.alignment = alignment;

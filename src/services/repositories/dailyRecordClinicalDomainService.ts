@@ -82,12 +82,16 @@ export const buildClinicalBedsFromPreviousRecord = (
     if (shouldClonePreviousPatient(prevPatient)) {
       nextBeds[bed.id] = preparePatientForCarryover(prevPatient);
     } else {
-      nextBeds[bed.id].bedMode = prevPatient.bedMode || nextBeds[bed.id].bedMode;
-      nextBeds[bed.id].hasCompanionCrib = prevPatient.hasCompanionCrib || false;
+      const currentBed = nextBeds[bed.id];
+      if (currentBed) {
+        currentBed.bedMode = prevPatient.bedMode || currentBed.bedMode;
+        currentBed.hasCompanionCrib = prevPatient.hasCompanionCrib || false;
+      }
     }
 
-    if (prevPatient.location && bed.isExtra) {
-      nextBeds[bed.id].location = prevPatient.location;
+    const targetBed = nextBeds[bed.id];
+    if (prevPatient.location && bed.isExtra && targetBed) {
+      targetBed.location = prevPatient.location;
     }
   });
 
@@ -166,7 +170,12 @@ export const isClinicalEventsOnlyDailyRecordPatch = (patch: DailyRecordPatch): b
     return false;
   }
 
-  return touchedBedIds.length == 1 && isClinicalEventsOnlyBedPatch(patch, touchedBedIds[0]);
+  const [singleBedId] = touchedBedIds;
+  return (
+    touchedBedIds.length === 1 &&
+    singleBedId !== undefined &&
+    isClinicalEventsOnlyBedPatch(patch, singleBedId)
+  );
 };
 
 export const addClinicalFhirPatchesForTouchedBeds = (

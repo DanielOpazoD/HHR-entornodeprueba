@@ -91,7 +91,9 @@ const buildDemographicNameRebasedPatch = (
       const rebasedPatient = applyPatches(freshRemoteRecord, rebasedPatch as DailyRecordPatch).beds[
         bedId
       ];
-      rebasedPatch[fhirPath] = mapPatientToFhir(rebasedPatient);
+      if (rebasedPatient) {
+        rebasedPatch[fhirPath] = mapPatientToFhir(rebasedPatient);
+      }
     }
   });
 

@@ -85,11 +85,13 @@ const splitPatchPath = (path: string): string[] =>
 /** `beds.<bedId>.<campo clínico>` — exactamente 3 segmentos, escalar de cama. */
 export const isClinicalAuthorityBedScalarPath = (path: string): boolean => {
   const parts = splitPatchPath(path);
+  const [root, bedId, field] = parts;
   return (
     parts.length === 3 &&
-    parts[0] === 'beds' &&
-    Boolean(parts[1]) &&
-    CLINICAL_AUTHORITY_BED_FIELD_SET.has(parts[2])
+    root === 'beds' &&
+    Boolean(bedId) &&
+    field !== undefined &&
+    CLINICAL_AUTHORITY_BED_FIELD_SET.has(field)
   );
 };
 

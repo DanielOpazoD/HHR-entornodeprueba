@@ -41,17 +41,24 @@ const toInterruption = (event: AuditTrailEvent): AuditTrailInterruption => {
   return { from: timeFrom(details.offlineFrom) ?? to - durationMs, to };
 };
 
-const buildSession = (id: string, events: AuditTrailEvent[], now: number): AuditTrailSession => {
+const buildSession = (
+  id: string,
+  events: AuditTrailEvent[],
+  now: number
+): AuditTrailSession | null => {
   const chronological = [...events].sort((a, b) => a.at - b.at);
+  const firstEvent = chronological[0];
+  if (!firstEvent) return null;
   const login = chronological.find(event => event.action === 'USER_LOGIN');
   const logout = [...chronological].reverse().find(event => event.action === 'USER_LOGOUT');
   const logoutDetails = logout ? detailsOf(logout) : {};
   const activity = chronological.filter(event => event.action !== 'USER_LOGOUT');
-  const reference = login ?? chronological[0];
+  const reference = login ?? firstEvent;
 
-  const startedAt = login?.at ?? timeFrom(logoutDetails.startedAt) ?? chronological[0].at;
+  const startedAt = login?.at ?? timeFrom(logoutDetails.startedAt) ?? firstEvent.at;
   const endedAt = logout ? (timeFrom(logoutDetails.endedAt) ?? logout.at) : undefined;
-  const lastSeenAt = activity.length > 0 ? activity[activity.length - 1].at : startedAt;
+  const lastActivity = activity[activity.length - 1];
+  const lastSeenAt = lastActivity ? lastActivity.at : startedAt;
   const unendedState = now - lastSeenAt <= OPEN_SESSION_WINDOW_MS ? 'open' : 'unknown';
 
   return {
@@ -84,7 +91,10 @@ export const buildAuditTrailSessions = (
   });
 
   return [...bySession.entries()]
-    .map(([id, sessionEvents]) => buildSession(id, sessionEvents, now))
+    .flatMap(([id, sessionEvents]) => {
+      const session = buildSession(id, sessionEvents, now);
+      return session ? [session] : [];
+    })
     .sort((a, b) => b.startedAt - a.startedAt);
 };
 

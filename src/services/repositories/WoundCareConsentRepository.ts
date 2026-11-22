@@ -77,9 +77,10 @@ export const WoundCareConsentRepository = {
       }
     );
 
-    if (documents.length === 0) return null;
+    const first = documents[0];
+    if (!first) return null;
 
-    return validateReadConsent(documents[0]);
+    return validateReadConsent(first);
   },
 
   /**
@@ -102,11 +103,10 @@ export const WoundCareConsentRepository = {
       }
     );
 
-    if (documents.length === 0) return null;
-
     // Prefer signed over other statuses
     const signed = documents.find(d => d.status === 'signed');
     const record = signed ?? documents[0];
+    if (!record) return null;
     return validateReadConsent(record);
   },
 
@@ -202,12 +202,12 @@ export const WoundCareConsentRepository = {
       getWoundCareConsentsPath(hospitalId),
       { where: [{ field: 'episodeKey', operator: '==', value: episodeKey }] },
       docs => {
-        if (docs.length === 0) {
+        const signed = docs.find(d => d.status === 'signed');
+        const record = signed ?? docs[0];
+        if (!record) {
           callback(null);
           return;
         }
-        const signed = docs.find(d => d.status === 'signed');
-        const record = signed ?? docs[0];
         callback(validateReadConsent(record));
       }
     );

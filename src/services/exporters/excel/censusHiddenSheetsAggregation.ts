@@ -47,18 +47,18 @@ const formatSegment = (bedCode: string, startDate: string, endDate: string): str
 };
 
 const buildBedHistory = (dailyRecords: Array<{ date: string; bedCode: string }>) => {
-  if (dailyRecords.length === 0) {
+  const ordered = sortByDate(dailyRecords);
+  const first = ordered[0];
+  if (!first) {
     return { history: '', changedBed: false };
   }
 
-  const ordered = sortByDate(dailyRecords);
   const segments: string[] = [];
-  let currentBed = ordered[0].bedCode;
-  let segmentStart = ordered[0].date;
-  let previousDate = ordered[0].date;
+  let currentBed = first.bedCode;
+  let segmentStart = first.date;
+  let previousDate = first.date;
 
-  for (let index = 1; index < ordered.length; index += 1) {
-    const current = ordered[index];
+  for (const current of ordered.slice(1)) {
     const shouldExtend =
       current.bedCode === currentBed && areConsecutiveDates(previousDate, current.date);
 
@@ -113,7 +113,7 @@ const collectRealPatients = (record: CensusExportRecord): ExtractedPatientRow[] 
 };
 
 export const getMonthContext = (date: string): CensusHiddenSheetMonthContext => {
-  const [year, month] = date.split('-');
+  const [year = '', month = ''] = date.split('-');
   const monthIndex = Number(month) - 1;
 
   return {

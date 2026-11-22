@@ -10,6 +10,12 @@ export const buildFieldShrinkageBlockedPartialUpdateResult = (
   shrinkages: FieldShrinkage[]
 ) => {
   const firstShrinkage = shrinkages[0];
+  if (!firstShrinkage) {
+    return buildBlockedWriteResult(
+      date,
+      'Se bloqueó una reducción sospechosa de texto clínico. Recarga antes de reintentar para evitar pérdida de información.'
+    );
+  }
   const error = new DataRegressionError(
     `Se bloqueó una reducción sospechosa de texto clínico (${firstShrinkage.prevLength} -> ${firstShrinkage.nextLength} caracteres). Recarga antes de reintentar para evitar pérdida de información.`,
     firstShrinkage.nextLength,

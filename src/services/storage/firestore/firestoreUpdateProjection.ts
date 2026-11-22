@@ -87,7 +87,11 @@ export const projectFirestoreUpdate = (base: DocumentData, payload: DocumentData
       if (!isPlainMap(cursor[segment])) cursor[segment] = {};
       cursor = cursor[segment] as Record<string, unknown>;
     }
-    cursor[segments[segments.length - 1]] = stored;
+    const leafSegment = segments[segments.length - 1];
+    if (!leafSegment) {
+      throw new UnsupportedFirestoreUpdateProjectionError(path);
+    }
+    cursor[leafSegment] = stored;
   }
   return projected;
 };

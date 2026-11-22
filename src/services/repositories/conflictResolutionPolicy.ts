@@ -101,9 +101,8 @@ export const decideScalarByPolicy = (
     return { value: remote, winner: 'remote', reason: 'metadata_remote_priority' };
   }
 
-  const parts = path.split('.');
-  if (parts[0] === 'beds' && parts.length >= 3) {
-    const patientField = parts[2];
+  const [root, , patientField] = path.split('.');
+  if (root === 'beds' && patientField) {
     if (isClinicalCensusRemotePriorityField(patientField)) {
       if (isEmptyClinicalValue(local) && !isEmptyClinicalValue(remote)) {
         return {

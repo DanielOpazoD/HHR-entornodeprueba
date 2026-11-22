@@ -176,8 +176,9 @@ export const getPreviousRecordDateFromFirestore = async (date: string): Promise<
   try {
     const from = shiftIsoDate(date, -RECENT_CENSUS_WINDOW_DAYS);
     const windowDates = await readCensusDateWindow(from, date);
-    if (windowDates.length > 0) {
-      return windowDates[windowDates.length - 1];
+    const latestWindowDate = windowDates[windowDates.length - 1];
+    if (latestWindowDate) {
+      return latestWindowDate;
     }
   } catch (error) {
     logFirestoreQueryError('getPreviousRecordDate', error);

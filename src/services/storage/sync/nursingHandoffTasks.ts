@@ -15,9 +15,13 @@ const NURSING_ROOTS = new Set([
   'tensNightShift',
 ]);
 
-export const isNursingHandoffPath = (path: string): boolean =>
-  NURSING_ROOTS.has(path.split('.')[0]) ||
-  /^beds\.[^.]+\.(clinicalCrib\.)?handoffNote(?:DayShift|NightShift)?$/.test(path);
+export const isNursingHandoffPath = (path: string): boolean => {
+  const root = path.split('.')[0];
+  return (
+    (root !== undefined && NURSING_ROOTS.has(root)) ||
+    /^beds\.[^.]+\.(clinicalCrib\.)?handoffNote(?:DayShift|NightShift)?$/.test(path)
+  );
+};
 
 export const nursingHandoffPaths = (task: SyncTask): string[] =>
   task.type === 'UPDATE_DAILY_RECORD'

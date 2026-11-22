@@ -67,8 +67,7 @@ const SERVICE_ACTOR_NAMES: Record<string, string> = {
 };
 
 const nameFromEmail = (email: string): string =>
-  email
-    .split('@')[0]
+  (email.split('@')[0] ?? '')
     .split(/[._-]+/)
     .filter(Boolean)
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))
@@ -101,10 +100,10 @@ export const unifyAuditTrailActorNames = (events: AuditTrailEvent[]): AuditTrail
 
   const preferred = new Map<string, string>();
   tallies.forEach((names, key) => {
-    const [name] = [...names.entries()].sort(
+    const topEntry = [...names.entries()].sort(
       ([nameA, countA], [nameB, countB]) => countB - countA || nameB.length - nameA.length
     )[0];
-    preferred.set(key, name);
+    if (topEntry) preferred.set(key, topEntry[0]);
   });
 
   return events.map(event => {
@@ -140,13 +139,14 @@ export const attachNamelessPatients = (events: AuditTrailEvent[]): AuditTrailEve
     const names = namesByDocument.get(normalizeDocument(patient.document));
     if (!names || names.size !== 1) return event;
     const [named] = names.values();
+    if (!named) return event;
     return { ...event, patient: { ...named, bedId: patient.bedId ?? named.bedId } };
   });
 };
 
 /** The visible characters of a masked document: `12.345.***-*` → `12345`. */
 const visibleDocumentPrefix = (document: string): string =>
-  normalizeDocument(document).split('*')[0];
+  normalizeDocument(document).split('*')[0] ?? '';
 
 /** The one full document a (possibly masked) document belongs to, if any. */
 const resolveDocumentOwner = (

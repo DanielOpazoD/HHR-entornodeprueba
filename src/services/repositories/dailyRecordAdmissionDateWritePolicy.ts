@@ -131,11 +131,11 @@ export const assertAdmissionDatePersistencePolicy = (
     });
   }
 
-  if (violations.length === 0) {
+  const [firstViolation] = violations;
+  if (!firstViolation) {
     return;
   }
 
-  const [firstViolation] = violations;
   throw new AdmissionDatePolicyViolationError(
     `${firstViolation.message} (${firstViolation.patientName} · ${firstViolation.rut})`,
     violations

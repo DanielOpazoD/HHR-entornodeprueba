@@ -58,9 +58,11 @@ export const assertFullSaveNoteBase = (
     )
       continue;
     const bases = basePatients.filter(other => hasSameBedOccupant(patient, other));
+    const [singleBase] = bases;
     if (
       bases.length !== 1 ||
-      NOTE_FIELDS.some(field => !hasSameNoteBase(bases[0][field], patient[field]))
+      !singleBase ||
+      NOTE_FIELDS.some(field => !hasSameNoteBase(singleBase[field], patient[field]))
     )
       throw staleDailyRecordError('La entrega del paciente cambió');
   }
@@ -77,10 +79,14 @@ export const assertFullSaveNoteBase = (
     }
     for (const field of NOTE_FIELDS) {
       if (matches.every(other => hasSameNoteBase(patient[field], other[field]))) continue;
+      const [singleMatch] = matches;
+      const [singleBase] = bases;
       if (
         matches.length !== 1 ||
         bases.length !== 1 ||
-        !hasSameNoteBase(bases[0][field], matches[0][field])
+        !singleMatch ||
+        !singleBase ||
+        !hasSameNoteBase(singleBase[field], singleMatch[field])
       )
         throw staleDailyRecordError('Esta nota cambió desde su lectura');
     }
@@ -97,8 +103,9 @@ export const assertSameOccupantAtPath = (
   projection: DailyRecord
 ): void => {
   const match = BED_FIELD_PATH.exec(path);
-  if (!match || BED_SLOT_FIELDS.has(match[2])) return;
+  if (!match) return;
   const [, bedId, field] = match;
+  if (!bedId || (field && BED_SLOT_FIELDS.has(field))) return;
   const writtenBed = writtenFor.beds?.[bedId];
   const projectedBed = projection.beds?.[bedId];
   if (
