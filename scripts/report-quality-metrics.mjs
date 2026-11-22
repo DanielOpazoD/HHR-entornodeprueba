@@ -40,11 +40,7 @@ const ALLOWED_SKIP_FILES = new Set(['src/tests/security/firestore-rules.test.ts'
 const FEATURE_PUBLIC_BOUNDARIES = [
   {
     importPrefix: '@/features/census/',
-    allowBypass: file =>
-      file.startsWith('src/features/census/') ||
-      file === 'src/application/census/public.ts' ||
-      file.startsWith('src/tests/') ||
-      file.startsWith('src/hooks/controllers/'),
+    allowBypass: file => file.startsWith('src/features/census/') || file.startsWith('src/tests/'),
   },
   {
     importPrefix: '@/features/handoff/',
