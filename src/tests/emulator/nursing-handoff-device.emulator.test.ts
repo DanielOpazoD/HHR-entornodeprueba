@@ -28,7 +28,7 @@ it.skipIf(!enabled)(
     ]) {
       expect(address).toMatch(/^(127\.0\.0\.1|localhost):\d+$/);
     }
-    const app = initializeApp({ projectId: 'demo-hhr-nursing-accounts' }, randomUUID());
+    const app = initializeApp({ projectId: 'demo-hhr-nursing-handoff' }, randomUUID());
     const auth = getAuth(app);
     const firestore = getFirestore(app);
     const run = '22222222-2';
