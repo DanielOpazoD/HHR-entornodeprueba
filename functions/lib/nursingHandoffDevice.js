@@ -105,7 +105,7 @@ function createDeviceHandoffHandlers({ firestore, auth, Timestamp, FieldValue, n
   }
 
   function isGrantCurrent(grant, user) {
-    return validAuthorizationTime(grant.authenticatedAt ?? grant.issuedAt, user);
+    return validAuthorizationTime(grant.authenticatedAt, user);
   }
 
   async function assertGrantAccess(uid, user, grant, get) {
@@ -191,7 +191,7 @@ function createDeviceHandoffHandlers({ firestore, auth, Timestamp, FieldValue, n
 
   async function loadGrantUser(grant) {
     const user = await loadUser(grant.uid);
-    if (!isGrantCurrent(grant, user)) throw denied();
+    if (!isGrantCurrent(grant, user)) throw disconnected();
     return user;
   }
 

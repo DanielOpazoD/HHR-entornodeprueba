@@ -81,7 +81,9 @@ o la cuenta Google institucional y verificada del administrador protegido de HHR
 La autorización del administrador se revalida contra el UID protegido cuando se
 activa la política individual, y durante la transición contra el mapa vigente de
 roles. La llave solo concede acceso a Entrega de turno. Firebase conserva el
-hash de la llave y el identificador y versión de la cuenta. La extensión valida
+hash de la llave, el instante de autenticación y el identificador y versión de
+la cuenta. Los registros piloto sin instante de autenticación se renuevan una
+vez. La extensión valida
 que el RUN de Eloísa coincide con el registro antes de conservar la llave en el
 almacenamiento privado del equipo.
 

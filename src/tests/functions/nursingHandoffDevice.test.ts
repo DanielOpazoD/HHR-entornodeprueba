@@ -96,6 +96,11 @@ describe('llave individual de enfermería', () => {
     await expect(operate({ ...status, professionalRun: '11.111.111-1' })).resolves.toEqual({
       authorized: true,
     });
+    const grantRef = 'hhr_nursing_handoff_devices/' + deviceId;
+    const grant = documents.get(grantRef) as { authenticatedAt: number };
+    documents.set(grantRef, { ...grant, authenticatedAt: undefined });
+    await expect(operate(status)).rejects.toMatchObject({ code: 'unauthenticated' });
+    documents.set(grantRef, grant);
     for (const attempt of [{ proof: 'b'.repeat(64) }, { professionalRun: '22222222-2' }]) {
       await expect(operate({ ...status, ...attempt })).rejects.toMatchObject({
         code: 'unauthenticated',
@@ -149,7 +154,7 @@ describe('llave individual de enfermería', () => {
       ...googleUser,
       tokensValidAfterTime: new Date(instant - 2000).toISOString(),
     });
-    await expect(operate(status)).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(operate(status)).rejects.toMatchObject({ code: 'unauthenticated' });
     await expect(
       register(enrollment, {
         auth: { ...admin.auth, token: { ...admin.auth.token, auth_time: instant / 1000 } },
