@@ -4,7 +4,7 @@ import { useDailyRecordBeds } from '@/context/DailyRecordContext';
 import type {
   SpecialtyCatalogRule,
   SpecialtyRoundSetup,
-} from '@/services/specialty/specialtyJevClient';
+} from '@/features/census/services/specialtyJevClient';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import {
   isValidDiagnosisCode,
@@ -50,7 +50,7 @@ export const useSpecialtyRulesEditor = (date: string) => {
 
   useEffect(() => {
     mountedRef.current = true;
-    void import('@/services/specialty/specialtyJevClient')
+    void import('@/features/census/services/specialtyJevClient')
       .then(service => service.loadSpecialtyRoundSetup())
       .then(next => {
         if (!mountedRef.current) return;
@@ -61,7 +61,7 @@ export const useSpecialtyRulesEditor = (date: string) => {
       })
       .catch(async error => {
         if (!mountedRef.current) return;
-        const service = await import('@/services/specialty/specialtyJevClient');
+        const service = await import('@/features/census/services/specialtyJevClient');
         if (!mountedRef.current) return;
         setError(service.describeSpecialtySetupError(error));
       });
@@ -204,7 +204,7 @@ export const useSpecialtyRulesEditor = (date: string) => {
     setError('');
     setMessage('');
     try {
-      const service = await import('@/services/specialty/specialtyJevClient');
+      const service = await import('@/features/census/services/specialtyJevClient');
       const result = await service.saveSpecialtyRules(
         setup.policy,
         rules,

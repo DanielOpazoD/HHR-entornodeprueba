@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { UpcEvaluationHistoryPanel } from '@/features/census/components/patient-row/UpcEvaluationHistoryPanel';
-import { loadPatientUpcHistory } from '@/services/patient/patientUpcHistoryService';
+import { loadPatientUpcHistory } from '@/features/census/services/patientUpcHistoryService';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { UpcEvaluationSnapshot } from '@/domain/upc/upcContracts';
 
-vi.mock('@/services/patient/patientUpcHistoryService', () => ({ loadPatientUpcHistory: vi.fn() }));
+vi.mock('@/features/census/services/patientUpcHistoryService', () => ({
+  loadPatientUpcHistory: vi.fn(),
+}));
 const entries: UpcEvaluationSnapshot[] = Array.from({ length: 6 }, (_, index) => ({
   evaluationId: String(index),
   evaluatedAt: `2026-09-04T1${8 - index}:00:00Z`,

@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import crypto from 'node:crypto';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
-import { moaScenes } from '@/components/layout/MoaSequence';
+import { moaScenes } from '@/features/census/components/moa/MoaSequence';
 
 describe('Moa illustrated scene assets', () => {
   it('provides six distinct transparent retina frames per scene within a bounded payload', async () => {

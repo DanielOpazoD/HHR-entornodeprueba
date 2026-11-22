@@ -60,7 +60,7 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   'src/features/admin/admission-audit/admissionAuditModel.ts',
   // Read-only historical audit: recover signed UPC evaluations from the patient
   // snapshot preserved in a completed movement, matched by patient and episode.
-  'src/services/patient/patientUpcHistoryService.ts',
+  'src/features/census/services/patientUpcHistoryService.ts',
   // Read-only CUDYR audit of completed movements; reject snapshots of another episode.
   // This retained context is never evidence of continuing hospitalization.
   'src/services/cudyr/cudyrReportFacts.ts',

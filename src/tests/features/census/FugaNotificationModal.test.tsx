@@ -7,7 +7,7 @@ const sendFugaNotificationMock = vi.fn();
 const useAuthStateMock = vi.fn();
 const confirmMock = vi.fn();
 
-vi.mock('@/services/integrations/fugaNotificationService', () => ({
+vi.mock('@/features/census/services/fugaNotificationService', () => ({
   sendFugaNotification: (...args: unknown[]) => sendFugaNotificationMock(...args),
 }));
 

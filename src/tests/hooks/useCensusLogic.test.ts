@@ -5,9 +5,9 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useCensusLogic } from '@/hooks/useCensusLogic';
+import { useCensusLogic } from '@/features/census/hooks/useCensusLogic';
 import * as statsCalculator from '@/services/calculations/statsCalculator';
-import * as censusPromptStateHook from '@/hooks/useCensusPromptState';
+import * as censusPromptStateHook from '@/features/census/hooks/useCensusPromptState';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 const contextState = vi.hoisted(() => ({
@@ -34,7 +34,7 @@ vi.mock('@/context/useDailyRecordScopedActions', () => ({
 }));
 
 vi.mock('@/services/calculations/statsCalculator');
-vi.mock('@/hooks/useCensusPromptState', () => ({
+vi.mock('@/features/census/hooks/useCensusPromptState', () => ({
   useCensusPromptState: vi.fn(),
 }));
 

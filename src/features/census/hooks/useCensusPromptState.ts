@@ -3,7 +3,7 @@ import {
   executeLoadCensusPromptDataController,
   INITIAL_CENSUS_PROMPT_STATE,
   type CensusPromptState,
-} from '@/hooks/controllers/censusPromptController';
+} from '@/features/census/hooks/censusPromptController';
 import { defaultDailyRecordReadPort } from '@/application/ports/dailyRecordPort';
 import { getPreviousDay } from '@/utils/clinicalDayUtils';
 import {

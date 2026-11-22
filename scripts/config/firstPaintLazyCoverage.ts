@@ -29,12 +29,15 @@ const GUARDED_TARGETS: Record<string, string> = {
 
 // Exact targets only. A new mount must declare its offline root or explain why it is optional.
 const OPTIONAL_TARGETS: Record<string, string> = {
+  'firebase/functions':
+    'Firebase Functions SDK loads only for explicit online census actions with their own error fallback.',
+  jspdf: 'PDF generator loads only when exporting an antecedent prescription on request.',
   'src/application/clinical-documents/clinicalDocumentUseCases':
     'Document presence lookup has its own loading/error state.',
   'src/application/ports/clinicalDocumentPort':
     'Document history reads start on patient selection.',
   'src/components/debug/TestAgent': 'Debug panel opens only on request.',
-  'src/components/layout/MoaCompanion':
+  'src/features/census/components/moa/MoaCompanion':
     'Moa has an isolated error boundary and explicit recovery action.',
   'src/components/layout/NursingPasswordDialog': 'Password dialog opens from the user menu.',
   'src/components/layout/UserAvatarModal': 'Avatar editor opens on request.',
@@ -49,7 +52,7 @@ const OPTIONAL_TARGETS: Record<string, string> = {
     'Imaging form opens on request.',
   'src/features/census/components/imaging-request/imagingRequestPdfService':
     'Imaging request PDF generation loads only when printing or exporting an imaging request.',
-  'src/components/modals/PatientHistoryModal': 'History opens on request.',
+  'src/features/census/components/PatientHistoryModal': 'History opens on request.',
   'src/features/radiology/components/RadiologyViewerModal':
     'Imaging viewer opens on request and needs online images.',
   'src/features/radiology/dicom-viewer/DicomViewerDialog':
@@ -125,12 +128,12 @@ const OPTIONAL_TARGETS: Record<string, string> = {
   'src/services/handoff/nursingHandoffConnectionService':
     'HHR authorizes the extension only when the professional confirms the online connection.',
   'src/services/patient/patientHistoryService': 'History reads start on patient selection.',
-  'src/services/patient/patientUpcHistoryService':
+  'src/features/census/services/patientUpcHistoryService':
     'UPC history has an independent loading/error state.',
-  'src/services/pdf/antecedentPrescriptionPdf': 'PDF export starts only on request.',
+  'src/features/census/services/antecedentPrescriptionPdf': 'PDF export starts only on request.',
   'src/services/repositories/dailyRecordClinicalDerivedReadService':
     'Vitals history has its own loading/error state.',
-  'src/services/specialty/specialtyJevClient':
+  'src/features/census/services/specialtyJevClient':
     'Online specialty dialog retains its manual assignment fallback.',
   'src/services/staff/recoverCensusStaff':
     'Staff recovery loads only when the button is pressed and shows its own retry message.',
@@ -174,11 +177,11 @@ export const assertFirstPaintLazyCoverage = (sources: readonly FirstPaintSource[
       return targets;
     };
     const classify = (target: string, node: ts.Node) => {
-      const resolved = path.posix.normalize(
-        target.startsWith('@/')
-          ? `src/${target.slice(2)}`
-          : path.posix.join(path.posix.dirname(file), target)
-      );
+      const resolved = target.startsWith('@/')
+        ? path.posix.normalize(`src/${target.slice(2)}`)
+        : target.startsWith('.')
+          ? path.posix.normalize(path.posix.join(path.posix.dirname(file), target))
+          : target;
       const root = GUARDED_TARGETS[resolved];
       if (root && OFFLINE_BOOT_CHUNKS.includes(root)) return;
       if (OPTIONAL_TARGETS[resolved]?.trim()) return;

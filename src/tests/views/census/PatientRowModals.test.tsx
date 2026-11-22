@@ -39,7 +39,7 @@ vi.mock('@/features/census/components/imaging-request/ImagingRequestDialog', () 
   ImagingRequestDialog: () => <div>Imaging Request</div>,
 }));
 
-vi.mock('@/components/modals/PatientHistoryModal', () => ({
+vi.mock('@/features/census/components/PatientHistoryModal', () => ({
   PatientHistoryModal: () => <div>Patient History</div>,
 }));
 

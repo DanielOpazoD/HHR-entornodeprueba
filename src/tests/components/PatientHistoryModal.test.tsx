@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 
-import { PatientHistoryModal } from '@/components/modals/PatientHistoryModal';
+import { PatientHistoryModal } from '@/features/census/components/PatientHistoryModal';
 import type { PatientHistoryResult } from '@/services/patient/patientHistoryService';
 import { getPatientMovementHistoryDetailed } from '@/services/patient/patientHistoryService';
 

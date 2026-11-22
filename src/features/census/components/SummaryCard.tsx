@@ -2,7 +2,7 @@ import React from 'react';
 import type { Statistics } from '@/types/domain/statistics';
 import { DischargeData, TransferData } from '@/types/domain/movements';
 import { Activity, Bed } from 'lucide-react';
-import { buildMovementSummaryModel } from '@/components/layout/controllers/movementSummaryController';
+import { buildMovementSummaryModel } from '@/features/census/components/movementSummaryController';
 
 interface SummaryCardProps {
   stats: Statistics;

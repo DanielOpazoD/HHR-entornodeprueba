@@ -3,8 +3,8 @@ import { getTodayISO } from '@/utils/dateCoreUtils';
 import {
   buildMoveCopyDateOptions,
   resolveMoveCopyBaseDate,
-} from '@/hooks/controllers/moveCopyModalController';
-import type { MoveCopyModalProps } from '@/hooks/types/censusActionModalContracts';
+} from '@/features/census/components/movements/moveCopyModalController';
+import type { MoveCopyModalProps } from '@/features/census/types/censusActionModalContracts';
 
 interface UseMoveCopyModalStateParams {
   isOpen: boolean;

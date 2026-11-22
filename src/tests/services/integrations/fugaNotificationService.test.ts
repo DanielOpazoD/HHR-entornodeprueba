@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { sendFugaNotification } from '@/services/integrations/fugaNotificationService';
+import { sendFugaNotification } from '@/features/census/services/fugaNotificationService';
 
 const resolveCurrentUserAuthHeadersMock = vi.fn();
 

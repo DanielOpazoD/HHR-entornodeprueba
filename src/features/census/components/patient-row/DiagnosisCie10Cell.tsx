@@ -1,7 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import clsx from 'clsx';
-import { TerminologySuggestor } from '@/components/shared/TerminologySuggestor';
+import { TerminologySuggestor } from '@/features/census/components/TerminologySuggestor';
 import { getCIE10Description } from '@/services/terminology/terminologyService';
 import { ClinicalInitialBlockEditor } from './ClinicalInitialBlockEditor';
 import { DiagnosisCodeBadge } from './DiagnosisCodeBadge';

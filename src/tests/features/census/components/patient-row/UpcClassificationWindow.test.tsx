@@ -31,7 +31,7 @@ vi.mock('@/context/AuthContext', () => ({
     currentUser: { uid: 'uid-1', displayName: 'Enfermera A', email: 'a@example.com' },
   }),
 }));
-vi.mock('@/services/patient/patientUpcHistoryService', () => ({
+vi.mock('@/features/census/services/patientUpcHistoryService', () => ({
   loadPatientUpcHistory: mocks.loadPatientUpcHistory,
 }));
 

@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { useMoveCopyTargetRecord } from '@/hooks/useMoveCopyTargetRecord';
+import { useMoveCopyTargetRecord } from '@/features/census/components/movements/useMoveCopyTargetRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 

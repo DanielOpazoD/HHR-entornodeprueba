@@ -15,7 +15,7 @@ vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordBeds: () => state.beds,
   useDailyRecordData: () => ({ record: { date: '2026-09-24' } }),
 }));
-vi.mock('@/services/specialty/specialtyJevClient', () => ({
+vi.mock('@/features/census/services/specialtyJevClient', () => ({
   loadSpecialtyRoundSetup: service.load,
   resolveSpecialtyJevLabel: (labels: Record<string, string>, code: string) =>
     labels[code] || (/^[A-Z][0-9]{2}(?:\.[0-9A-Z]{1,4})?$/.test(code) ? `CIE-10 ${code}` : null),

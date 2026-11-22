@@ -1,5 +1,5 @@
 import type { DischargeData, TransferData } from '@/types/domain/movements';
-import type { CensusHeaderPatientContract } from '@/application/census/censusStaffHeaderContracts';
+import type { CensusHeaderPatientContract } from '@/features/census/contracts/censusStaffHeaderContracts';
 import { classifyPatientMovementForRecord } from '@/domain/clinical-episode/clinicalEpisode';
 import {
   resolveDetailedStaffingState,

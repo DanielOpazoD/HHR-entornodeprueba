@@ -2,8 +2,8 @@ import React from 'react';
 import type { TerminologyConcept } from '@/services/terminology/terminologyService';
 import { Search, Loader2, X, Sparkles, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
-import { BaseModal } from './BaseModal';
-import { useTerminologySuggestor } from '@/hooks/useTerminologySuggestor';
+import { BaseModal } from '@/components/shared/BaseModal';
+import { useTerminologySuggestor } from '@/features/census/hooks/useTerminologySuggestor';
 
 interface TerminologySuggestorProps {
   value: string;

@@ -122,7 +122,7 @@ El owner canónico debe seguir siendo `src/features/census/controllers`. Los wra
 - `src/hooks/controllers/clinicalShiftCalendarController.ts`
 - `src/hooks/controllers/dischargeModalController.ts`
 - `src/hooks/controllers/modalFormController.ts`
-- `src/hooks/controllers/moveCopyModalController.ts`
+- `src/features/census/components/movements/moveCopyModalController.ts`
 - `src/hooks/controllers/patientMovementCreationController.ts`
 - `src/hooks/controllers/patientMovementCreationErrorPresentation.ts`
 - `src/hooks/controllers/patientMovementCreationInputController.ts`

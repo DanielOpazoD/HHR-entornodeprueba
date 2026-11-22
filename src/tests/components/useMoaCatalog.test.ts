@@ -1,15 +1,15 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useMoaCatalog } from '@/components/layout/moa/useMoaCatalog';
+import { useMoaCatalog } from '@/features/census/components/moa/useMoaCatalog';
 import {
   fetchMoaCatalog,
   parseMoaCatalog,
   readCachedMoaCatalog,
   type MoaCatalog,
-} from '@/components/layout/moa/moaCatalog';
+} from '@/features/census/components/moa/moaCatalog';
 import fixture from '../fixtures/moa/catalog.json';
-vi.mock('@/components/layout/moa/moaCatalog', async importOriginal => ({
-  ...(await importOriginal<typeof import('@/components/layout/moa/moaCatalog')>()),
+vi.mock('@/features/census/components/moa/moaCatalog', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/census/components/moa/moaCatalog')>()),
   fetchMoaCatalog: vi.fn(),
   readCachedMoaCatalog: vi.fn(),
 }));

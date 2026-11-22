@@ -4,7 +4,7 @@ vi.mock('@/shared/runtime/censusStartupPerf', () => ({
   beginCensusTableObservation: mocks.begin,
   recordCensusTableMilestone: mocks.mark,
 }));
-import { observeCensusTable } from '@/shared/runtime/observeCensusTable';
+import { observeCensusTable } from '@/features/census/hooks/observeCensusTable';
 let callbacks: Map<number, FrameRequestCallback>;
 let next: number;
 const frame = () => {

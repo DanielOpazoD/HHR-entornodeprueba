@@ -46,7 +46,7 @@ export const UpcEvaluationHistoryPanel = ({
   }
   useEffect(() => {
     let cancelled = false;
-    void import('@/services/patient/patientUpcHistoryService')
+    void import('@/features/census/services/patientUpcHistoryService')
       .then(service => service.loadPatientUpcHistory(patient, date))
       .then(result => {
         if (!cancelled) {

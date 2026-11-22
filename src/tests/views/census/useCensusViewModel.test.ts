@@ -1,10 +1,10 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCensusViewModel } from '@/features/census/hooks/useCensusViewModel';
-import { useCensusLogic } from '@/hooks/useCensusLogic';
+import { useCensusLogic } from '@/features/census/hooks/useCensusLogic';
 import { useTableConfig } from '@/context/TableConfigContext';
 
-vi.mock('@/hooks/useCensusLogic');
+vi.mock('@/features/census/hooks/useCensusLogic');
 vi.mock('@/context/TableConfigContext');
 
 describe('useCensusViewModel', () => {

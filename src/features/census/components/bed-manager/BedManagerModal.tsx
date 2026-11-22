@@ -12,7 +12,7 @@ import {
   resolveBlockedBedsGridItems,
   resolveExtraBedsGridItems,
 } from '@/application/census/public';
-import { useBedManagerModalModel } from '@/hooks/useBedManagerModalModel';
+import { useBedManagerModalModel } from '@/features/census/hooks/useBedManagerModalModel';
 
 interface BedManagerModalProps {
   isOpen: boolean;

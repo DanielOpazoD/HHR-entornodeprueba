@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { TerminologySuggestor } from '@/components/shared/TerminologySuggestor';
+import { TerminologySuggestor } from '@/features/census/components/TerminologySuggestor';
 
 vi.mock('@/services/terminology/terminologyService', () => ({
   searchDiagnoses: vi.fn().mockResolvedValue([]),

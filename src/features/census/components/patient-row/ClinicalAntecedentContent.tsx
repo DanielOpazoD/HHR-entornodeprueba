@@ -29,7 +29,7 @@ const PrescriptionCopy = ({
     setError('');
     try {
       const { downloadAntecedentPrescriptionCopy } =
-        await import('@/services/pdf/antecedentPrescriptionPdf');
+        await import('@/features/census/services/antecedentPrescriptionPdf');
       await downloadAntecedentPrescriptionCopy(
         {
           ...recipe,

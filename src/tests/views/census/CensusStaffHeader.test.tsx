@@ -74,7 +74,7 @@ vi.mock('@/features/census/components/StaffSelector', () => ({
   ),
 }));
 
-vi.mock('@/components/layout/SummaryCard', () => ({
+vi.mock('@/features/census/components/SummaryCard', () => ({
   CombinedSummaryCard: (props: {
     discharges: unknown[];
     transfers: unknown[];

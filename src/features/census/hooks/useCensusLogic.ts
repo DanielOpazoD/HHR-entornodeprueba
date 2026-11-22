@@ -6,7 +6,7 @@ import {
 } from '@/context/DailyRecordContext';
 import { useDailyRecordDayActions } from '@/context/useDailyRecordScopedActions';
 import { calculateStats } from '@/services/calculations/statsCalculator';
-import { useCensusPromptState } from '@/hooks/useCensusPromptState';
+import { useCensusPromptState } from '@/features/census/hooks/useCensusPromptState';
 
 /**
  * Custom hook to manage the logic for the Census View.
