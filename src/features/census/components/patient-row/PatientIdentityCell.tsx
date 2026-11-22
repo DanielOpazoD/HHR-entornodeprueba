@@ -7,10 +7,7 @@ import { buildPatientRowSaveScopeKey } from '@/features/census/controllers/patie
  *   solo es editable (input real) para cuna RN provisional y camas
  *   vacías (el selector de activación necesita input[name="patientName"]).
  * - Fila 2: RUT en letra pequeña gris, solo lectura, con check de validación
- *   y copia al portapapeles (comportamiento heredado de RutPassportInput).
- *
- * Los componentes NameInput / RutPassportInput / AgeInput se conservan en el
- * repositorio para reactivación futura de las columnas separadas.
+ *   y copia al portapapeles.
  */
 
 import React, { useContext, useEffect, useState } from 'react';

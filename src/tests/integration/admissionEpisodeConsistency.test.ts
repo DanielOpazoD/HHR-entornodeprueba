@@ -4,7 +4,6 @@ import type { DischargeData } from '@/types/domain/movements';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import { calculateMinsalStats } from '@/services/calculations/minsalStatsCalculator';
-import { resolveAdmissionDateIsEditable } from '@/features/census/controllers/admissionInputController';
 
 const {
   mockGetAvailableDates,
@@ -148,23 +147,6 @@ describe('admission episode consistency integration', () => {
       '2026-03-03',
       buildRecord('2026-03-03', buildEmptyBed(), [buildDischarge('2025-01-01', '2026-03-03')])
     );
-
-    expect(
-      resolveAdmissionDateIsEditable({
-        recordDate: '2026-03-01',
-        firstSeenDate: '2026-03-01',
-        hasPatient: true,
-        isNewAdmission: true,
-      })
-    ).toBe(true);
-    expect(
-      resolveAdmissionDateIsEditable({
-        recordDate: '2026-03-02',
-        firstSeenDate: '2026-03-01',
-        hasPatient: true,
-        isNewAdmission: false,
-      })
-    ).toBe(false);
 
     const audit = await auditAdmissionDateBackfill();
     expect(audit).toMatchObject({

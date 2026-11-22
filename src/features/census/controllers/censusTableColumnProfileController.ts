@@ -5,9 +5,8 @@ import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessPro
 /**
  * Columnas ocultas para todos los perfiles (rediseño censo 2026):
  * - rut / age: integradas a la columna única "Paciente" (PatientIdentityCell).
- * - cqx: oculta sin borrar el campo surgicalComplication ni su CheckboxCell.
- * - type: "Tipo de cama" oculta; su lugar lo ocupa ahora el Estado clínico (círculo). El
- *   componente PatientMainRowBedTypeCell se conserva para reactivación futura.
+ * - cqx: oculta sin borrar el campo surgicalComplication del registro.
+ * - type: "Tipo de cama" oculta; su lugar lo ocupa ahora el Estado clínico (círculo).
  * Las claves siguen existiendo en TableColumnConfig para no romper configuraciones
  * guardadas ni fixtures; solo dejan de renderizarse y aportan ancho 0.
  */

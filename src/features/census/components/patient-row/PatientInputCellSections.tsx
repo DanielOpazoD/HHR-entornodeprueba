@@ -20,8 +20,7 @@ import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessProfile';
 /**
  * Rediseño censo 2026: la identidad se renderiza en una sola celda "Paciente"
- * (nombre + edad + RUT). Los componentes NameInput / RutPassportInput / AgeInput
- * se conservan intactos para reactivación futura de las columnas separadas.
+ * (nombre + edad + RUT).
  */
 export const PatientInputIdentitySection: React.FC<
   PatientInputIdentitySectionBindings & { parentBedId?: string }
@@ -118,7 +117,7 @@ export const PatientInputFlowSection: React.FC<
     <>
       {/* Rediseño censo 2026 "centro de vigilancia": la columna de Ingreso se reutiliza para los
           SIGNOS VITALES (PA·FC·SAT·T°). La fecha de ingreso se muestra junto al RUT en la celda
-          "Paciente" (PatientIdentityCell). AdmissionInput se conserva para reactivación futura. */}
+          "Paciente" (PatientIdentityCell). */}
       <VitalsCell
         data={shared.data}
         isSubRow={shared.isSubRow}
@@ -163,24 +162,7 @@ export const PatientInputFlagsSection: React.FC<PatientInputFlagsSectionBindings
 
   return (
     <>
-      {/*
-        Columna C.QX oculta (rediseño censo 2026). El campo surgicalComplication y el
-        componente CheckboxCell se conservan; para reactivar, restaurar el bloque:
-
-        <CheckboxCell
-          data={shared.data}
-          isSubRow={shared.isSubRow}
-          isEmpty={shared.isEmpty}
-          readOnly={baseClinicalReadOnly}
-          field="surgicalComplication"
-          onChange={onChange.check}
-          title="Comp. Qx"
-          colorClass="text-red-600"
-        />
-
-        (reimportar CheckboxCell desde './CheckboxCell' y reponer la columna cqx en
-        censusTableHeaderController / HIDDEN_CENSUS_COLUMNS / tableConfigService).
-      */}
+      {/* Columna C.QX oculta (rediseño censo 2026); el campo surgicalComplication sigue en el modelo. */}
       <UpcChecklistCell
         key={`${shared.currentDateString}:${shared.data.bedId}:${shared.data.clinicalEpisodeId || shared.data.rut}:${shared.data.admissionDate}`}
         data={shared.data}

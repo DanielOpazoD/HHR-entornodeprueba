@@ -25,10 +25,6 @@ vi.mock('@/features/census/components/patient-row/PatientBedConfig', () => ({
   PatientBedConfig: () => <td data-testid="bed-config" />,
 }));
 
-vi.mock('@/features/census/components/patient-row/PatientMainRowBedTypeCell', () => ({
-  PatientMainRowBedTypeCell: () => <td data-testid="bed-type-cell" />,
-}));
-
 vi.mock('@/features/census/components/patient-row/PatientMainRowBlockedCell', () => ({
   PatientMainRowBlockedCell: () => <td data-testid="blocked-cell" />,
 }));

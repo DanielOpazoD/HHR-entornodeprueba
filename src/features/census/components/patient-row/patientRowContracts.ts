@@ -21,7 +21,6 @@ export type PatientRowStateContract = Pick<
 export type {
   PatientBedConfigProps,
   PatientInputCellsProps,
-  PatientMainRowBedTypeCellProps,
   PatientMainRowBlockedCellProps,
 } from './patientRowInputViewContracts';
 export type {

@@ -65,7 +65,6 @@ describe('patientMainRowSectionsController', () => {
 
     expect(sections.action).toBe(action);
     expect(sections.bedConfig.bed).toBe(props.bed);
-    expect(sections.bedType.bedId).toBe(props.bed.id);
     expect(sections.inputCells.data).toBe(props.data);
     expect(sections.blocked.blockedReason).toBe(props.data.blockedReason);
   });
