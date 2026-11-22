@@ -261,7 +261,7 @@ const verifyUtilityMenuVisualSmoke = async (page: Page, testInfo: TestInfo) => {
   const utilityMenu = page.getByTestId('navbar-utility-menu');
   await expect(utilityMenu).toBeVisible({ timeout: 10_000 });
   await expect(utilityMenu.getByText('Estadísticas')).toBeVisible();
-  await expect(utilityMenu.getByText('Archivos')).toBeVisible();
+  await expect(utilityMenu.getByText('Documentos para auditoría')).toBeVisible();
   await expectNoHorizontalOverflow(page);
   await attachViewportEvidence(page, testInfo, 'clinical-release-utility-menu');
 };

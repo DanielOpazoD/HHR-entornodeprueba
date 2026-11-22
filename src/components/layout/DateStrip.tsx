@@ -27,11 +27,6 @@ import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import type { ModuleType } from '@/constants/navigationConfig';
 import { canUseDayActions } from '@/shared/access/operationalAccessPolicy';
 
-const SaveDropdown = React.lazy(() =>
-  import('./date-strip/actions/SaveDropdown').then(module => ({
-    default: module.SaveDropdown,
-  }))
-);
 const HandoffSaveDropdown = React.lazy(() =>
   import('./date-strip/actions/HandoffSaveDropdown').then(module => ({
     default: module.HandoffSaveDropdown,
@@ -157,7 +152,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
   onPrintWithBrowserOptions,
   onOpenBedManager,
   onExportExcel,
-  onBackupExcel,
+  onBackupExcel: _onBackupExcel,
   onBackupPDF,
   isArchived = false,
   onConfigureEmail,
@@ -259,22 +254,12 @@ export const DateStrip: React.FC<DateStripProps> = ({
               </React.Suspense>
             )}
 
-            {currentModule === 'CENSUS' && canShowRoleRestrictedActions && (
-              <React.Suspense
-                fallback={
-                  onExportExcel || onBackupExcel ? (
-                    <SaveButton disabled isArchived={isArchived} isBackingUp={isBackingUp} />
-                  ) : null
-                }
-              >
-                <SaveDropdown
-                  onExportExcel={onExportExcel}
-                  onBackupExcel={onBackupExcel}
-                  isArchived={isArchived}
-                  isBackingUp={isBackingUp}
-                  showFirebaseBackupOption={false}
-                />
-              </React.Suspense>
+            {currentModule === 'CENSUS' && canShowRoleRestrictedActions && onExportExcel && (
+              <SaveButton
+                onClick={onExportExcel}
+                isArchived={isArchived}
+                isBackingUp={isBackingUp}
+              />
             )}
 
             {canShowRoleRestrictedActions && (

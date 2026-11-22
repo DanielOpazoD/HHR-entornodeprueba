@@ -14,7 +14,6 @@ const GUARDED_TARGETS: Record<string, string> = {
   'src/components/layout/date-strip/DateStripYearNavigator': 'DateStripYearNavigator',
   'src/components/layout/date-strip/actions/EmailDropdown': 'EmailDropdown',
   'src/components/layout/date-strip/actions/PdfButtons': 'PdfButtons',
-  'src/components/layout/date-strip/actions/SaveDropdown': 'SaveDropdown',
   'src/components/layout/navbar/MoaHelpButton': 'MoaHelpButton',
   'src/components/reminders/ReminderBadge': 'ReminderBadge',
   'src/components/ui/FunctionsRecoveryNotice': 'FunctionsRecoveryNotice',

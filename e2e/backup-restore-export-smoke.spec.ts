@@ -82,10 +82,6 @@ test.describe('Backup restore export smoke', () => {
     await openSeededCensus(page);
     await expect.poll(() => readStoredR1PatientName(page)).toBe(PATIENT_NAME);
 
-    const saveButton = page.getByRole('button', { name: /guardar|guardado|archivado/i }).first();
-    await expect(saveButton).toBeVisible({ timeout: 10000 });
-    await saveButton.click();
-
     const localExportAction = page.getByRole('button', { name: /descargar excel/i }).first();
     await expect(localExportAction).toBeVisible({ timeout: 10000 });
     await localExportAction.click();

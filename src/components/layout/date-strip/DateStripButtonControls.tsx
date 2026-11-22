@@ -12,17 +12,14 @@ export const SaveButton = ({
   disabled,
   isBackingUp = false,
   isArchived = false,
-  isOpen = false,
-  controlsId,
 }: {
   onClick?: () => void;
   disabled?: boolean;
   isBackingUp?: boolean;
   isArchived?: boolean;
-  isOpen?: boolean;
-  controlsId?: string;
 }) => {
   const uiState = resolveSaveButtonUiState({ isArchived, isBackingUp, variant: 'census' });
+  const label = isBackingUp ? uiState.label : isArchived ? uiState.label : 'Descargar Excel';
   return (
     <button
       type="button"
@@ -33,10 +30,8 @@ export const SaveButton = ({
         uiState.buttonClassName,
         uiState.widthClassName
       )}
-      title="Opciones de guardado"
-      aria-label={uiState.label}
-      aria-expanded={isOpen}
-      aria-controls={isOpen ? controlsId : undefined}
+      title="Descargar Excel"
+      aria-label={label}
       data-save-status={isBackingUp ? 'loading' : isArchived ? 'archived' : 'idle'}
     >
       {uiState.iconKind === 'loading' && (

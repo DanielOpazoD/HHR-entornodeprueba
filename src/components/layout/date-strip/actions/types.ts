@@ -1,13 +1,5 @@
 export type EmailStatus = 'idle' | 'loading' | 'success' | 'error';
 
-export interface SaveDropdownProps {
-  onExportExcel?: () => void;
-  onBackupExcel?: () => Promise<void>;
-  isArchived?: boolean;
-  isBackingUp: boolean;
-  showFirebaseBackupOption?: boolean;
-}
-
 export interface HandoffSaveDropdownProps {
   onExportPDF?: () => void;
   onPrintWithBrowserOptions?: () => void;

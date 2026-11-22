@@ -60,7 +60,8 @@ describe('NavbarTabs', () => {
 
     fireEvent.click(screen.getByTitle('Más módulos'));
 
-    expect(screen.getByText('Archivos').closest('.overflow-x-auto')).toBeNull();
+    expect(screen.getByText('Estadísticas').closest('.overflow-x-auto')).toBeNull();
+    expect(screen.queryByText('Archivos')).not.toBeInTheDocument();
   });
 
   it('does not render hidden tabs', () => {
@@ -137,7 +138,13 @@ describe('NavbarTabs', () => {
   });
 
   it('shows active utility menu state', () => {
-    const { rerender } = render(<NavbarTabs {...defaultProps} currentModule="BACKUP_FILES" />);
+    const { rerender } = render(
+      <NavbarTabs
+        {...defaultProps}
+        visibleModules={[...defaultProps.visibleModules, 'AUDIT_DOCUMENTS']}
+        currentModule="AUDIT_DOCUMENTS"
+      />
+    );
     const menuBtn = screen.getByTitle('Más módulos');
     expect(menuBtn.className).toContain('bg-white/[0.16]');
 

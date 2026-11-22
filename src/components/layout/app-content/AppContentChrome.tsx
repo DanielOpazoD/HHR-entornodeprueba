@@ -148,16 +148,12 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
           />
         )}
 
-        {showDateStrip &&
-          ui.currentModule === 'CENSUS' &&
-          dateStripProps.clinicalToday &&
-          dateStripProps.goToClinicalToday && (
-            <CensusStaleDayBanner
-              currentDateString={dateStripProps.currentDateString}
-              clinicalToday={dateStripProps.clinicalToday}
-              onGoToToday={dateStripProps.goToClinicalToday}
-            />
-          )}
+        {showDateStrip && ui.currentModule === 'CENSUS' && dateStripProps.clinicalToday && (
+          <CensusStaleDayBanner
+            currentDateString={dateStripProps.currentDateString}
+            clinicalToday={dateStripProps.clinicalToday}
+          />
+        )}
 
         {shouldRenderBookmarkBar({
           currentModule: ui.currentModule,

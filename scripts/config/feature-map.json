@@ -941,19 +941,15 @@
     },
     {
       "id": "backup.excel-export",
-      "name": "Descargar el censo en Excel y respaldo en Firebase",
+      "name": "Descargar el censo en Excel",
       "owner": "src/hooks",
       "reach": {
-        "screen": "Censo Diario, «Opciones de guardado»",
-        "controls": [
-          { "text": "Opciones de guardado" },
-          { "text": "Descargar Excel" },
-          { "text": "Respaldo en Firebase" }
-        ]
+        "screen": "Censo Diario, «Descargar Excel»",
+        "controls": [{ "text": "Descargar Excel" }]
       },
       "gate": [
         "src/hooks/useExportManager.ts",
-        "src/components/layout/date-strip/actions/SaveDropdown.tsx"
+        "src/components/layout/date-strip/DateStripButtonControls.tsx"
       ],
       "tests": [
         "src/tests/hooks/useExportManager.test.ts",
@@ -967,8 +963,8 @@
       "name": "Archivos de respaldo (administrador)",
       "owner": "src/features/backup",
       "reach": {
-        "screen": "Menú de utilidades, «Archivos»",
-        "controls": [{ "text": "Archivos" }, { "testId": "backup-files-view" }]
+        "screen": "Menú principal → Datos → Respaldos",
+        "controls": [{ "text": "Respaldos" }, { "testId": "backup-files-view" }]
       },
       "gate": [
         "src/features/backup/hooks/useBackupFileBrowser.ts",

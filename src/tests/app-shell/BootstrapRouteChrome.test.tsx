@@ -53,7 +53,6 @@ describe('BootstrapRouteChrome', () => {
 
     render(<BootstrapRouteChrome day={resolveOpeningCensusDay()} />);
 
-    expect(document.documentElement).toHaveClass('aesthetic-typography');
     expect(screen.getByTestId('bootstrap-navbar')).toHaveTextContent('CENSUS');
     expect(screen.getByTestId('bootstrap-date-strip')).toHaveTextContent('CENSUS');
     expect(mockNavbar).toHaveBeenCalledWith(
@@ -140,13 +139,6 @@ describe('BootstrapRouteChrome', () => {
     expect(mockDateStrip).toHaveBeenLastCalledWith(
       expect.objectContaining({ currentDateString: expectedDay })
     );
-  });
-
-  it('honors the saved typography preference during bootstrap', () => {
-    window.history.replaceState({}, '', '/census');
-    window.localStorage.setItem('hhr_ui_settings', JSON.stringify({ modernTypography: false }));
-    render(<BootstrapRouteChrome day={resolveOpeningCensusDay()} />);
-    expect(document.documentElement).not.toHaveClass('aesthetic-typography');
   });
 
   it('renders the nursing handoff chrome for nursing-handoff refreshes', () => {

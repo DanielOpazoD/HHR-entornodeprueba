@@ -56,7 +56,6 @@ export const OFFLINE_BOOT_CHUNKS = [
   'quick-action',
   'DateStripYearNavigator',
   'DateStripMonthNavigator',
-  'SaveDropdown',
   'EmailDropdown',
   'PdfButtons',
   'MoaHelpButton',

@@ -1,105 +1,16 @@
 import React from 'react';
 import {
   Download,
-  Move,
   PanelsTopLeft,
   RotateCcw,
   Shield,
   SlidersHorizontal,
-  Sparkles,
   TableProperties,
-  Type,
   Upload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/base/Button';
 import { ModalSection } from '@/components/shared/baseModalSection';
 import { SecuritySettings } from './SecuritySettings';
-
-const aestheticOptions = [
-  {
-    id: 'glassmorphism',
-    label: 'Glassmorphism',
-    desc: 'Cristal, profundidad y capas flotantes',
-    icon: Sparkles,
-    iconClassName: 'bg-blue-50 text-blue-600',
-  },
-  {
-    id: 'animations',
-    label: 'Micro-interacciones',
-    desc: 'Transiciones suaves al navegar y editar',
-    icon: Move,
-    iconClassName: 'bg-fuchsia-50 text-fuchsia-600',
-  },
-  {
-    id: 'modernTypography',
-    label: 'Tipografía moderna',
-    desc: 'Usar fuente "Plus Jakarta Sans"',
-    icon: Type,
-    iconClassName: 'bg-emerald-50 text-emerald-600',
-  },
-] as const;
-
-interface VisualTabProps {
-  settings: Record<(typeof aestheticOptions)[number]['id'], boolean>;
-  updateSetting: (setting: (typeof aestheticOptions)[number]['id'], value: boolean) => void;
-}
-
-export const SettingsVisualTab: React.FC<VisualTabProps> = ({ settings, updateSetting }) => (
-  <ModalSection
-    title="Estética Premium"
-    icon={<Sparkles size={16} />}
-    description="Controles visuales agrupados en una sola vista compacta para evitar paneles interminables."
-    variant="info"
-    className="min-h-[360px]"
-  >
-    <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-slate-50 p-3">
-      <div className="mb-3 flex items-start justify-between gap-3 rounded-xl border border-white/70 bg-white/80 p-3 shadow-sm">
-        <div>
-          <p className="text-sm font-bold text-slate-800">Perfiles visuales</p>
-          <p className="text-xs text-slate-500">
-            Active solo lo que realmente quiera notar al usar el sistema.
-          </p>
-        </div>
-        <div className="hidden rounded-full bg-blue-100 px-2 py-1 text-[10px] font-bold text-blue-700 sm:block">
-          3 ajustes
-        </div>
-      </div>
-
-      <div className="grid gap-2.5">
-        {aestheticOptions.map(item => (
-          <div
-            key={item.id}
-            className="flex items-center justify-between rounded-xl border border-slate-100 bg-white/90 p-3 shadow-sm"
-          >
-            <div className="flex min-w-0 items-center gap-3">
-              <div className={`rounded-lg p-2 ${item.iconClassName}`}>
-                <item.icon size={18} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-700">{item.label}</p>
-                <p className="text-[11px] text-slate-500">{item.desc}</p>
-              </div>
-            </div>
-            <button
-              onClick={() => updateSetting(item.id, !settings[item.id])}
-              className={`relative h-6 w-12 rounded-full transition-all ${
-                settings[item.id] ? 'bg-medical-600' : 'bg-slate-300'
-              }`}
-              aria-pressed={settings[item.id]}
-              aria-label={`Alternar ${item.label}`}
-            >
-              <div
-                className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-all ${
-                  settings[item.id] ? 'left-7' : 'left-1'
-                }`}
-              />
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  </ModalSection>
-);
 
 interface TableTabProps {
   pageMargin: number;

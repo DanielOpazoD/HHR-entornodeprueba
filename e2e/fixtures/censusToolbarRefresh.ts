@@ -14,7 +14,7 @@ const holdChunk = async (page: Page, pattern: RegExp) => {
 };
 
 const TOOLBAR_CONTROLS = [
-  '[title="Opciones de guardado"]',
+  '[title="Descargar Excel"]',
   '[title="Enviar censo"]',
   '[aria-label="Documentos"]',
   '[aria-label="Más opciones del censo"]',
