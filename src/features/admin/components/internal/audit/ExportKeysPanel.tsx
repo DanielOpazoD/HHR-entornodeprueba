@@ -37,7 +37,7 @@ export const ExportKeysPanel: React.FC = () => {
   }, []);
 
   const formatDateDisplay = (dateStr: string): string => {
-    const [year, month, day] = dateStr.split('-');
+    const [year = '', month = '', day = ''] = dateStr.split('-');
     const monthNames = [
       'Ene',
       'Feb',

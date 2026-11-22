@@ -21,7 +21,7 @@ export const DateStripMonthNavigator: React.FC<DateStripMonthNavigatorProps> = (
   return (
     <DateStripPeriodControl
       kind="month"
-      label={MONTH_NAMES[selectedMonth]}
+      label={MONTH_NAMES[selectedMonth] ?? ''}
       onPrevious={() => onChangeMonth(-1)}
       onNext={() => onChangeMonth(1)}
       onToggle={toggle}

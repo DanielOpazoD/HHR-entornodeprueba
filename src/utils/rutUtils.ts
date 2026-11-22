@@ -40,7 +40,9 @@ export const calculateRutVerifier = (rutBody: string): string => {
   let multiplier = 2;
 
   for (let i = cleaned.length - 1; i >= 0; i--) {
-    sum += parseInt(cleaned[i]) * multiplier;
+    const digit = cleaned[i];
+    if (digit === undefined) continue;
+    sum += parseInt(digit, 10) * multiplier;
     multiplier = multiplier === 7 ? 2 : multiplier + 1;
   }
 

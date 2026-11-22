@@ -136,6 +136,7 @@ export const DailyRecordRestorePanel = () => {
             if (backupId) {
               void preview({ date, backupId });
             } else {
+              if (!day || !time) throw new Error('invalid hospital time');
               const instant = clinicalWallClockToDate(day, time);
               const shown = calendarStampInClinicalTimeZone(instant);
               if (shown.iso !== day || shown.hhmm !== time)

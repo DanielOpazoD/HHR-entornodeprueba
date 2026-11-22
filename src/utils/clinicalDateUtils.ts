@@ -6,7 +6,7 @@ export const normalizeDateOnly = (value?: string): string | undefined => {
 export const normalizeCalendarDate = (value?: string): string | undefined => {
   if (!value) return undefined;
 
-  const datePart = value.split('T')[0].trim();
+  const datePart = (value.split('T')[0] ?? '').trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
     return datePart;
   }
@@ -24,7 +24,12 @@ export const parseCalendarDateUtcNoon = (value?: string): number | null => {
   if (!normalized) return null;
 
   const [year, month, day] = normalized.split('-').map(Number);
-  if ([year, month, day].some(part => Number.isNaN(part))) {
+  if (
+    year === undefined ||
+    month === undefined ||
+    day === undefined ||
+    [year, month, day].some(part => Number.isNaN(part))
+  ) {
     return null;
   }
 
@@ -66,7 +71,7 @@ export const addCalendarDays = (dateString: string, days: number): string => {
   const date = calendarDayAtUtcNoon(dateString);
   date.setUTCDate(date.getUTCDate() + days);
   // clinical-clock-allow instant-calendar-slice: date represents the input calendar day shifted from noon; it is not an event instant.
-  return date.toISOString().split('T')[0];
+  return date.toISOString().split('T')[0] ?? dateString;
 };
 
 export const diffCalendarDays = (startDate?: string, endDate?: string): number | null => {

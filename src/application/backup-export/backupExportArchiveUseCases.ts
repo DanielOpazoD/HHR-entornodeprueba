@@ -319,7 +319,9 @@ export const executeBackupHandoffPdf = async (
     try {
       const { generateCudyrMonthlyExcelBlob } = await import('@/services/cudyr/cudyrExportService');
       const { uploadCudyrExcelWithResult } = await import('@/services/backup/cudyrStorageService');
-      const [year, month] = normalizedInput.record.date.split('-').map(Number);
+      const [year = Number.NaN, month = Number.NaN] = normalizedInput.record.date
+        .split('-')
+        .map(Number);
       const cudyrBlob = await generateCudyrMonthlyExcelBlob(
         year,
         month,

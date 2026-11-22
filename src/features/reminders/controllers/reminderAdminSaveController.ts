@@ -74,9 +74,9 @@ export const executeReminderAdminSave = async (
   submission: ReminderAdminSaveSubmission,
   context: ReminderAdminSaveContext
 ): Promise<ReminderAdminSaveOutcome> => {
-  const issues = validateReminderDraft(submission.draft);
-  if (issues.length > 0) {
-    return { kind: 'invalid', message: issues[0].message };
+  const [firstIssue] = validateReminderDraft(submission.draft);
+  if (firstIssue) {
+    return { kind: 'invalid', message: firstIssue.message };
   }
 
   const { reminderId, formReminder, currentUser, useCases, now } = context;

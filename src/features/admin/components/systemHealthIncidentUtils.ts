@@ -141,7 +141,7 @@ export const buildSystemHealthIncidentGroups = (
   });
 
   return Array.from(groups.entries())
-    .map(([id, groupIncidents]) => {
+    .flatMap(([id, groupIncidents]) => {
       const orderedByTime = [...groupIncidents].sort(
         (a, b) => toMs(a.timestamp) - toMs(b.timestamp)
       );
@@ -149,6 +149,9 @@ export const buildSystemHealthIncidentGroups = (
         (a, b) => severityRank(a.severity) - severityRank(b.severity)
       );
       const representative = orderedBySeverity[0];
+      if (!representative) {
+        return [];
+      }
       const userLabels = Array.from(new Set(groupIncidents.map(incident => incident.userLabel)));
       const hasOpen = groupIncidents.some(incident => incident.status === 'open');
       const allResolved = groupIncidents.every(incident => incident.status === 'resolved');
@@ -159,23 +162,26 @@ export const buildSystemHealthIncidentGroups = (
             ? 'resolved'
             : representative.status;
 
-      return {
-        id,
-        title: representative.title,
-        categoryLabel: representative.categoryLabel,
-        originLabel: representative.originLabel,
-        actionLabel: representative.actionLabel,
-        routeLabel: representative.routeLabel,
-        severity: representative.severity,
-        status,
-        statusLabel:
-          status === 'recurrent' ? 'Recurrente' : labelFor(STATUS_LABELS, status, 'Abierto'),
-        occurrenceCount: groupIncidents.length,
-        affectedUsers: userLabels.length,
-        firstSeenAt: orderedByTime[0]?.timestamp || representative.timestamp,
-        lastSeenAt: orderedByTime[orderedByTime.length - 1]?.timestamp || representative.timestamp,
-        userLabels,
-      };
+      return [
+        {
+          id,
+          title: representative.title,
+          categoryLabel: representative.categoryLabel,
+          originLabel: representative.originLabel,
+          actionLabel: representative.actionLabel,
+          routeLabel: representative.routeLabel,
+          severity: representative.severity,
+          status,
+          statusLabel:
+            status === 'recurrent' ? 'Recurrente' : labelFor(STATUS_LABELS, status, 'Abierto'),
+          occurrenceCount: groupIncidents.length,
+          affectedUsers: userLabels.length,
+          firstSeenAt: orderedByTime[0]?.timestamp || representative.timestamp,
+          lastSeenAt:
+            orderedByTime[orderedByTime.length - 1]?.timestamp || representative.timestamp,
+          userLabels,
+        },
+      ];
     })
     .sort((a, b) => {
       const statusDelta =

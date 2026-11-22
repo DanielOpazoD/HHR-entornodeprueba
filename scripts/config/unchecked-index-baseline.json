@@ -1,28 +1,5 @@
 {
   "version": 1,
-  "total": 115,
-  "areas": {
-    "src/application/backup-export": 4,
-    "src/application/wound-care": 1,
-    "src/components/bookmarks": 2,
-    "src/components/layout": 13,
-    "src/constants/email": 2,
-    "src/features/admin": 27,
-    "src/features/analytics": 2,
-    "src/features/backup": 5,
-    "src/features/document-scanner": 6,
-    "src/features/prescriptions": 9,
-    "src/features/rayen-manual-import": 6,
-    "src/features/reminders": 1,
-    "src/features/wound-care": 7,
-    "src/shared/date": 4,
-    "src/types/auditLogTypes": 1,
-    "src/utils/clinicalDateUtils": 4,
-    "src/utils/clinicalTimeFormat": 5,
-    "src/utils/clinicalUtils": 8,
-    "src/utils/clinicalWallClock": 2,
-    "src/utils/dateDisplayUtils": 2,
-    "src/utils/patchUtils": 3,
-    "src/utils/rutUtils": 1
-  }
+  "total": 0,
+  "areas": {}
 }

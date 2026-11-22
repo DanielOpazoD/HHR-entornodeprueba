@@ -24,7 +24,7 @@ const STATUS_BADGES = {
 } as const;
 
 const Statement: React.FC<{ event: AuditTrailEvent; repeat: number }> = ({ event, repeat }) => {
-  const singleField = event.changes.length === 1 ? event.changes[0].field : undefined;
+  const singleField = event.changes.length === 1 ? event.changes[0]?.field : undefined;
   return (
     <div>
       <span className="font-medium text-slate-800">{event.label}</span>
@@ -55,6 +55,7 @@ export const AuditTrailLineRow: React.FC<AuditTrailLineRowProps> = ({
 }) => {
   const [technicalOpen, setTechnicalOpen] = React.useState(false);
   const [first] = line.events;
+  if (!first) return null;
   const isAccessBurst = first.category === 'access' && line.events.length > 1;
   const status = line.events.find(event => event.status === 'review')?.status ?? first.status;
   const patient = first.patient;

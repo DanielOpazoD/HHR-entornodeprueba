@@ -18,7 +18,7 @@ export const formatPrescriptionUploadViewerDate = (isoDate: string): string => {
 
 export const buildPrescriptionUploadViewerDayOptions = (
   now = new Date()
-): PrescriptionUploadViewerDayOption[] => {
+): [PrescriptionUploadViewerDayOption, PrescriptionUploadViewerDayOption] => {
   const todayIso = getClinicalCalendarDateISO(now);
   const yesterdayIso = addCalendarDays(todayIso, -1);
 

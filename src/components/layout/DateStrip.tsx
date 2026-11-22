@@ -319,7 +319,11 @@ export const DateStrip: React.FC<DateStripProps> = ({
 
           <React.Suspense
             fallback={
-              <DateStripPeriodControl disabled kind="month" label={MONTH_NAMES[selectedMonth]} />
+              <DateStripPeriodControl
+                disabled
+                kind="month"
+                label={MONTH_NAMES[selectedMonth] ?? ''}
+              />
             }
           >
             <DateStripMonthNavigator

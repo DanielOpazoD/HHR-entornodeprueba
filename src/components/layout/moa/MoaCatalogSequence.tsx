@@ -14,7 +14,10 @@ export function moaKeyframes(scene: MoaCatalogScene, reduced: boolean): Keyframe
     elapsed += hold;
     return frame;
   });
-  frames.push({ ...frames[frames.length - 1], offset: 1 });
+  const lastFrame = frames[frames.length - 1];
+  if (lastFrame) {
+    frames.push({ ...lastFrame, offset: 1 });
+  }
   return frames;
 }
 

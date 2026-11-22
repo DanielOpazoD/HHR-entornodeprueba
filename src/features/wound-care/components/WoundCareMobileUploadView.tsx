@@ -19,7 +19,8 @@ const blobToBase64 = (blob: Blob): Promise<string> =>
     const reader = new FileReader();
     reader.onload = () => {
       const result = typeof reader.result === 'string' ? reader.result : '';
-      resolve(result.includes(',') ? result.split(',')[1] : result);
+      const commaIndex = result.indexOf(',');
+      resolve(commaIndex >= 0 ? result.slice(commaIndex + 1) : result);
     };
     reader.onerror = () => reject(new Error('No fue posible leer la imagen.'));
     reader.readAsDataURL(blob);

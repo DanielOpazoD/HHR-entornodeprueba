@@ -15,9 +15,10 @@ import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 export const splitPatientName = (fullName: string | undefined): [string, string, string] => {
   if (!fullName) return ['', '', ''];
   const parts = fullName.trim().split(/\s+/);
-  if (parts.length === 1) return [parts[0], '', ''];
-  if (parts.length === 2) return [parts[0], parts[1], ''];
-  if (parts.length === 3) return [parts[0], parts[1], parts[2]];
+  const [first = '', second = '', third = ''] = parts;
+  if (parts.length === 1) return [first, '', ''];
+  if (parts.length === 2) return [first, second, ''];
+  if (parts.length === 3) return [first, second, third];
 
   // 4 or more words: assume last two words are surnames
   const secApe = parts.pop() || '';
@@ -34,11 +35,12 @@ export const calculateAge = (birthDate: string | undefined): string => {
   try {
     const [day = ''] = birthDate.split('T');
     const parts = day.includes('-') ? day.split('-').map(part => part.padStart(2, '0')) : [];
+    const [part0, part1, part2] = parts;
     let birth: Date;
-    if (parts.length === 3 && parts[0].length === 4) {
-      birth = new Date(`${parts[0]}-${parts[1]}-${parts[2]}`);
-    } else if (parts.length === 3 && parts[2].length === 4) {
-      birth = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+    if (parts.length === 3 && part0 && part1 && part2 && part0.length === 4) {
+      birth = new Date(`${part0}-${part1}-${part2}`);
+    } else if (parts.length === 3 && part0 && part1 && part2 && part2.length === 4) {
+      birth = new Date(`${part2}-${part1}-${part0}`);
     } else {
       return '';
     }

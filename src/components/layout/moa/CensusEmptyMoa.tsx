@@ -60,7 +60,7 @@ export const CensusEmptyMoa: React.FC = () => {
         setPending(false);
       }
     }, 10_000);
-    candidate.src = `/images/moa/moa-${moaScenes[next]}-v2.png`;
+    candidate.src = `/images/moa/moa-${moaScenes[next] ?? 'wave'}-v2.png`;
   };
   return (
     <button
@@ -75,7 +75,7 @@ export const CensusEmptyMoa: React.FC = () => {
     >
       <MoaSequence
         key={index}
-        scene={moaScenes[index]}
+        scene={moaScenes[index] ?? 'wave'}
         initiallyReady={preloaded}
         onComplete={() => {
           /* Keep the local placeholder on asset errors. */

@@ -114,8 +114,10 @@ export const executeListBackupFiles = async ({
       });
     }
 
-    if (path.length === 1) {
-      const months = await service.listMonths(path[0]);
+    const [yearSegment, monthSegment] = path;
+
+    if (path.length === 1 && yearSegment !== undefined) {
+      const months = await service.listMonths(yearSegment);
       return createApplicationSuccess({
         items: months.map(month => ({
           type: 'folder',
@@ -125,10 +127,10 @@ export const executeListBackupFiles = async ({
       });
     }
 
-    if (path.length === 2) {
+    if (path.length === 2 && yearSegment !== undefined && monthSegment !== undefined) {
       const filesResult = await service.listFilesInMonthWithReport(
-        path[0],
-        monthNameToNumber(path[1])
+        yearSegment,
+        monthNameToNumber(monthSegment)
       );
       const data = {
         items: filesResult.files.map(file => ({
