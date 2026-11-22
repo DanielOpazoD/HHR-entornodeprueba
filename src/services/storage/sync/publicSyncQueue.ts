@@ -1,7 +1,6 @@
 import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
 import { createCudyrArchiveQueue } from './publicCudyrArchiveQueue';
 import { ensureDbReady } from '@/services/storage/indexeddb/indexedDbCore';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { createBrowserSyncRuntime } from '@/services/storage/sync/browserSyncRuntime';
@@ -41,9 +40,12 @@ const getSyncOwnerKey = (): string | null => syncRuntime.getOwnerKey();
 
 const captureReadSession = (): (() => void) => {
   const ownerKey = getSyncOwnerKey();
-  const generation = getSessionGeneration();
+  const generation = syncRuntime.getSessionGeneration?.() ?? null;
   return () => {
-    if (ownerKey !== getSyncOwnerKey() || generation !== getSessionGeneration()) {
+    if (
+      ownerKey !== getSyncOwnerKey() ||
+      generation !== (syncRuntime.getSessionGeneration?.() ?? null)
+    ) {
       throw new Error('La sesión cambió durante la lectura de pendientes.');
     }
   };

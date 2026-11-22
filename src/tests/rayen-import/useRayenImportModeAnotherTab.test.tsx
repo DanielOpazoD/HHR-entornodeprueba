@@ -31,14 +31,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// The listener reports the policy missing, so the hook confirms it with a REST read (W18-S2b review).
-it.each(['in its own session', 'after B signed in in another tab'])(
-  'a valid server answer enables Rayen: %s',
-  async situation => {
-    listener.next = null;
-    admitSyntheticSession('user:synthetic-reader-a', 'generation-a');
-    if (situation !== 'in its own session') replaceStoredSessionOwner('user:synthetic-reader-b');
-    const fetch = vi.fn(
+// The listener reports the policy missing, so the hook confirms it with a REST read only while
+// this tab still owns the shared browser session; once B signs in in another tab, tab A stands down.
+it('enables Rayen from the server read in its own session and stands down after B signs in elsewhere', async () => {
+  const createFetch = () =>
+    vi.fn(
       async () =>
         new Response(
           JSON.stringify({
@@ -54,23 +51,49 @@ it.each(['in its own session', 'after B signed in in another tab'])(
           { status: 200 }
         )
     );
-    vi.stubGlobal('fetch', fetch);
-    const { result, unmount } = renderHook(() => useRayenImportMode());
-    try {
-      await waitFor(() => expect(listener.next).not.toBeNull());
-      await act(async () =>
-        listener.next!({
-          exists: () => false,
-          data: () => undefined,
-          metadata: { fromCache: false, hasPendingWrites: false },
-        })
-      );
-      await waitFor(() => expect(result.current.status).not.toBe('loading'));
-      expect(fetch).toHaveBeenCalledTimes(1);
-      expect(result.current.status).toBe('ready');
-      expect(result.current.policy.revision).toBe(7);
-    } finally {
-      unmount();
-    }
+
+  // Own active session: REST confirmation succeeds.
+  listener.next = null;
+  admitSyntheticSession('user:synthetic-reader-a', 'generation-a');
+  const ownFetch = createFetch();
+  vi.stubGlobal('fetch', ownFetch);
+  const ownHook = renderHook(() => useRayenImportMode());
+  try {
+    await waitFor(() => expect(listener.next).not.toBeNull());
+    await act(async () =>
+      listener.next!({
+        exists: () => false,
+        data: () => undefined,
+        metadata: { fromCache: false, hasPendingWrites: false },
+      })
+    );
+    await waitFor(() => expect(ownHook.result.current.status).not.toBe('loading'));
+    expect(ownFetch).toHaveBeenCalledTimes(1);
+    expect(ownHook.result.current.status).toBe('ready');
+    expect(ownHook.result.current.policy.revision).toBe(7);
+  } finally {
+    ownHook.unmount();
   }
-);
+
+  // After B replaced the browser owner in another tab: tab A never fetches or enables Rayen.
+  listener.next = null;
+  replaceStoredSessionOwner('user:synthetic-reader-b');
+  const staleFetch = createFetch();
+  vi.stubGlobal('fetch', staleFetch);
+  const staleHook = renderHook(() => useRayenImportMode());
+  try {
+    await waitFor(() => expect(listener.next).not.toBeNull());
+    await act(async () =>
+      listener.next!({
+        exists: () => false,
+        data: () => undefined,
+        metadata: { fromCache: false, hasPendingWrites: false },
+      })
+    );
+    await waitFor(() => expect(staleHook.result.current.status).not.toBe('loading'));
+    expect(staleFetch).not.toHaveBeenCalled();
+    expect(staleHook.result.current.status).toBe('fallback');
+  } finally {
+    staleHook.unmount();
+  }
+});

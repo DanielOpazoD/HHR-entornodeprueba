@@ -1,5 +1,4 @@
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { captureLocalRecordBase } from '@/services/storage/indexeddb/indexedDbRecordService';
@@ -40,13 +39,8 @@ export const subscribeDetailed = (
 ): (() => void) => {
   let active = true;
   let issued = 0;
-  const owner = getStoredSessionOwnerKey();
-  const epoch = getSessionEpoch();
-  const isCurrent = (revision: number) =>
-    active &&
-    revision === issued &&
-    owner === getStoredSessionOwnerKey() &&
-    epoch === getSessionEpoch();
+  const session = guardAuthoringSession();
+  const isCurrent = (revision: number) => active && revision === issued && session.isCurrent();
   const reportFailure = (stage: 'consumer' | 'resolution') =>
     dailyRecordSyncLogger.warn('Daily record subscription failed', { date, stage });
   const deliver = (notify: () => void) => {

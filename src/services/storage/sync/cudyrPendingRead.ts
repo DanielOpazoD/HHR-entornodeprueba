@@ -1,19 +1,20 @@
 import { ensureDbReady } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDexieSyncQueueStore } from './dexieSyncQueueStore';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import { resolveCudyrOwningCensusDay } from '@/domain/evaluationScales/importedCudyr';
 import type { CudyrArchiveOutboxPayload } from '@/types/domain/cudyrHistory';
 
 /** A read-only, owner-scoped snapshot. Opening a report must never drain or start synchronization. */
 export const readPendingCudyrEpisodes = async () => {
-  const owner = getStoredSessionOwnerKey();
-  const generation = getSessionGeneration();
+  const session = guardAuthoringSession({
+    message: 'La sesión cambió durante la lectura de pendientes.',
+  });
+  const { ownerKey: owner, generation } = session.session;
   if (!owner || !generation) return [];
+  session.check();
   await ensureDbReady();
   const rows = await createDexieSyncQueueStore().listAll(owner);
-  if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
-    throw new Error('La sesión cambió durante la lectura de pendientes.');
+  session.check();
   return rows
     .filter(
       row => row.ownerKey === owner && row.type === 'ARCHIVE_CUDYR' && row.status !== 'RETIRED'

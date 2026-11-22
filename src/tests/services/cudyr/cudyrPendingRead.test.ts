@@ -9,10 +9,12 @@ vi.mock('@/services/storage/indexeddb/indexedDbCore', () => ({ ensureDbReady: vi
 vi.mock('@/services/storage/sync/dexieSyncQueueStore', () => ({
   createDexieSyncQueueStore: () => ({ listAll: mocks.listAll }),
 }));
-vi.mock('@/services/storage/sessionOwnerKey', () => ({
+vi.mock('@/services/storage/sessionOwnerKey', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/storage/sessionOwnerKey')>()),
   getStoredSessionOwnerKey: mocks.owner,
 }));
-vi.mock('@/services/storage/sessionStorageTransition', () => ({
+vi.mock('@/services/storage/sessionStorageTransition', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/storage/sessionStorageTransition')>()),
   getSessionGeneration: mocks.generation,
 }));
 describe('read-only pending CUDYR view', () => {

@@ -1,5 +1,4 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { waitFor } from '@testing-library/react';
 import { QueryClient } from '@tanstack/react-query';
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { readFileSync } from 'node:fs';
@@ -50,9 +49,9 @@ const recordPath = `hospitals/hanga_roa/dailyRecords/${date}`;
 const a = 'user:synthetic-tab-a';
 const b = 'user:synthetic-tab-b';
 
-// B signs in in another tab while this tab still has A admitted. Reads and subscriptions A starts
-// afterwards keep working, and a day A creates offline stays retained in A's name (W18-S2b review).
-describeEmulator('this tab keeps working for A after B signs in in another tab', () => {
+// B signs in in another tab while this tab still has A admitted. Once B holds the shared browser,
+// stale tab A stops reading, receiving updates, or creating days in B's shared storage.
+describeEmulator('this tab stops acting for A after B signs in in another tab', () => {
   let environment: RulesTestEnvironment;
   const cleanups: Array<() => void> = [];
 
@@ -133,37 +132,33 @@ describeEmulator('this tab keeps working for A after B signs in in another tab',
     expect(getSessionOwner()).toBe(a);
   };
 
-  it('a subscription A opens afterwards delivers the confirmed day and its next change', async () => {
+  it('a subscription A opens afterwards neither delivers nor caches shared server updates', async () => {
     admitAThenReplaceWithB();
     await seedRecord();
     const read = watchRecord();
-    await updateShift(['SYNTHETIC UPDATE SEEN BY A']);
-    await waitFor(
-      () => expect(read()?.record?.nursesDayShift).toEqual(['SYNTHETIC UPDATE SEEN BY A']),
-      { timeout: 5000 }
-    );
-    expect(read()?.runtime.serverConfirmed).toBe(true);
+    await updateShift(['SYNTHETIC UPDATE HIDDEN FROM STALE TAB A']);
+    await new Promise(resolve => setTimeout(resolve, 600));
+    expect(read()).toBeUndefined();
+    expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
   });
 
-  it('a point read A starts afterwards returns the server-confirmed day', async () => {
+  it('a point read A starts afterwards is refused without touching IndexedDB', async () => {
     admitAThenReplaceWithB();
-    const day = await seedRecord();
-    const shown = await readDailyRecordQuery({ getForDateWithMeta }, date);
-    expect(shown.record?.nursesDayShift).toEqual(day.nursesDayShift);
-    expect(shown.runtime.serverConfirmed).toBe(true);
+    await seedRecord();
+    await expect(readDailyRecordQuery({ getForDateWithMeta }, date)).rejects.toThrow();
+    expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
   });
 
-  it('a day A creates offline afterwards is retained in the queue in A’s name', async () => {
+  it('a day A attempts to create offline afterwards is rejected without mutating storage or queue', async () => {
     admitAThenReplaceWithB();
     setFirestoreEnabled(false);
-    await initializeDay(date).catch(() => undefined);
-    const tasks = await hospitalDB.syncQueue.toArray();
-    expect(tasks.map(task => task.ownerKey)).toEqual([a]);
-    expect(tasks[0].key).toBe(`daily:${date}`);
+    await expect(initializeDay(date)).rejects.toThrow('La sesión cambió');
+    expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
+    expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
   });
 
   // Last: it loads a second copy of the session modules, as another tab would have.
-  it('after a real sign-in of B in another tab, A opens the day and receives its change', async () => {
+  it('after a real sign-in of B in another tab, stale tab A stands down instead of reading B’s day', async () => {
     await reconcileAuthorizedSessionOwner(a);
     vi.resetModules();
     const otherTab = await import('@/services/storage/sessionScopedStorageService');
@@ -174,11 +169,9 @@ describeEmulator('this tab keeps working for A after B signs in in another tab',
     expect(getSessionOwner()).toBe(a);
     await seedRecord();
     const read = watchRecord();
-    await updateShift(['SYNTHETIC UPDATE STILL VISIBLE TO A']);
-    await waitFor(
-      () => expect(read()?.record?.nursesDayShift).toEqual(['SYNTHETIC UPDATE STILL VISIBLE TO A']),
-      { timeout: 5000 }
-    );
-    expect(read()?.runtime.serverConfirmed).toBe(true);
+    await updateShift(['SYNTHETIC UPDATE HIDDEN AFTER REAL B SIGN-IN']);
+    await new Promise(resolve => setTimeout(resolve, 600));
+    expect(read()).toBeUndefined();
+    expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
   });
 });

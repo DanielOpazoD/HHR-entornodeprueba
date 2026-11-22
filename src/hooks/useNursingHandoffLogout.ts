@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AuthUser } from '@/types/authRoleTypes';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { getTabOwnerKey, guardAuthoringSession } from '@/services/storage/authoringSession';
+import { isSessionCleanupPending } from '@/services/storage/sessionOwnerKey';
 
 type Choice = 'retry' | 'download' | 'cancel' | 'automatic';
 export interface NursingLogoutPrompt {
@@ -51,12 +51,14 @@ export const useNursingHandoffLogout = (
         return inFlight.current;
       }
       if (!user) return logout(reason);
-      if (!getStoredSessionOwnerKey()) return logout(reason);
-      automatic.current = reason === 'automatic';
       const owner = `user:${user.uid}`;
-      const generation = getSessionGeneration();
-      const isCurrent = () =>
-        owner === getStoredSessionOwnerKey() && generation === getSessionGeneration();
+      const session = guardAuthoringSession();
+      if (!session.session.ownerKey) return logout(reason);
+      if (isSessionCleanupPending()) {
+        return getTabOwnerKey() === owner ? logout(reason) : Promise.resolve();
+      }
+      automatic.current = reason === 'automatic';
+      const isCurrent = () => session.session.ownerKey === owner && session.isCurrent();
       const run = async () => {
         const load = () => import('@/services/storage/sync/nursingHandoffSession');
         const attempt = async () => {
