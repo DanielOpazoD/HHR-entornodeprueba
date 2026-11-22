@@ -16,7 +16,7 @@ import { listCensusExamRequestCandidates } from '@/features/census/controllers/c
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 
 const printMock = vi.hoisted(() => vi.fn());
-vi.mock('@/hooks/controllers/examRequestPrintController', () => ({
+vi.mock('@/features/census/components/exam-request/examRequestPrintController', () => ({
   runExamRequestPrint: printMock,
 }));
 vi.mock('@/hooks/useScrollLock', () => ({ useScrollLock: () => {}, default: () => {} }));
@@ -131,7 +131,7 @@ const examCheckbox = (form: HTMLElement, exam: string): HTMLInputElement => {
 describe('census laboratory orders for several patients', () => {
   // The request loads on demand; load it once so the tests wait for people, not for the module.
   beforeAll(async () => {
-    await import('@/components/modals/ExamRequestModal');
+    await import('@/features/census/components/exam-request/ExamRequestModal');
   });
 
   afterEach(() => {

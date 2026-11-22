@@ -1,14 +1,14 @@
 import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import { useState, useEffect } from 'react';
 import type { PatientData } from '@/types/domain/patient';
-import type { CustomMark } from '@/services/pdf/imagingRequestPdfService';
+import type { CustomMark } from '@/features/census/components/imaging-request/imagingRequestPdfService';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import { DocumentOption, ActiveTextMark } from './types';
 import {
   buildImagingClosedState,
   resolveImagingCanvasIntent,
   runImagingPrintAction,
-} from '../controllers/imagingRequestDialogController';
+} from './imagingRequestDialogController';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface UseImagingLogicProps {
@@ -19,7 +19,7 @@ interface UseImagingLogicProps {
 const imagingDialogLogger = createScopedLogger('ImagingDialog');
 
 const loadImagingPdfService = createCachedRuntimeLoader(
-  () => import('@/services/pdf/imagingRequestPdfService')
+  () => import('@/features/census/components/imaging-request/imagingRequestPdfService')
 );
 
 export const useImagingLogic = ({ isOpen, patient }: UseImagingLogicProps) => {

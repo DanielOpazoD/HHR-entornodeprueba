@@ -1,7 +1,7 @@
 import React from 'react';
 import { Target, Type, Undo2 } from 'lucide-react';
 import { DocumentOption, DocumentTypeOption } from './types';
-import type { CustomMark } from '@/services/pdf/imagingRequestPdfService';
+import type { CustomMark } from '@/features/census/components/imaging-request/imagingRequestPdfService';
 
 interface ImagingSidebarProps {
   documents: DocumentTypeOption[];

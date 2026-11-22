@@ -4,11 +4,11 @@
 
 - **Módulo:** Solicitud de imágenes
 - **Ruta(s) principal(es):**
-  - [src/components/modals/ImagingRequestDialog.tsx](../src/components/modals/ImagingRequestDialog.tsx)
-  - [src/components/modals/imaging/useImagingLogic.ts](../src/components/modals/imaging/useImagingLogic.ts)
-  - [src/components/modals/imaging/ImagingSidebar.tsx](../src/components/modals/imaging/ImagingSidebar.tsx)
-  - [src/components/modals/imaging/ImagingViewer.tsx](../src/components/modals/imaging/ImagingViewer.tsx)
-  - [src/services/pdf/imagingRequestPdfService.ts](../src/services/pdf/imagingRequestPdfService.ts)
+  - [src/features/census/components/imaging-request/ImagingRequestDialog.tsx](../src/features/census/components/imaging-request/ImagingRequestDialog.tsx)
+  - [src/features/census/components/imaging-request/useImagingLogic.ts](../src/features/census/components/imaging-request/useImagingLogic.ts)
+  - [src/features/census/components/imaging-request/ImagingSidebar.tsx](../src/features/census/components/imaging-request/ImagingSidebar.tsx)
+  - [src/features/census/components/imaging-request/ImagingViewer.tsx](../src/features/census/components/imaging-request/ImagingViewer.tsx)
+  - [src/features/census/components/imaging-request/imagingRequestPdfService.ts](../src/features/census/components/imaging-request/imagingRequestPdfService.ts)
 - **Fecha de evaluación:** 2026-04-15
 - **Evaluador:** Codex
 - **Estado general:** verde
@@ -49,7 +49,7 @@
   - autocompletar datos del paciente
   - imprimir el PDF oficial
 - Usa carga lazy del servicio pesado de PDF dentro de:
-  - [useImagingLogic.ts](../src/components/modals/imaging/useImagingLogic.ts)
+  - [useImagingLogic.ts](../src/features/census/components/imaging-request/useImagingLogic.ts)
 - El servicio PDF está bien organizado alrededor de templates y coordenadas.
 
 ---
@@ -58,12 +58,12 @@
 
 - La experiencia general del módulo sigue siendo buena y coherente.
 - El principal peso técnico sigue estando en:
-  - [imagingRequestPdfService.ts](../src/services/pdf/imagingRequestPdfService.ts)
+  - [imagingRequestPdfService.ts](../src/features/census/components/imaging-request/imagingRequestPdfService.ts)
 - Pero ya quedó mejor repartido entre:
-  - [imagingRequestDialogController.ts](../src/components/modals/controllers/imagingRequestDialogController.ts)
-  - [imagingViewerController.ts](../src/components/modals/controllers/imagingViewerController.ts)
-  - [useImagingLogic.ts](../src/components/modals/imaging/useImagingLogic.ts)
-  - [ImagingViewer.tsx](../src/components/modals/imaging/ImagingViewer.tsx)
+  - [imagingRequestDialogController.ts](../src/features/census/components/imaging-request/imagingRequestDialogController.ts)
+  - [imagingViewerController.ts](../src/features/census/components/imaging-request/imagingViewerController.ts)
+  - [useImagingLogic.ts](../src/features/census/components/imaging-request/useImagingLogic.ts)
+  - [ImagingViewer.tsx](../src/features/census/components/imaging-request/ImagingViewer.tsx)
 - `ImagingViewer.tsx` ya no mantiene el branching grande por documento dentro del JSX.
 - `imagingRequestPdfService.ts` sigue siendo el hotspot principal, aunque quedó algo más lineal en sus helpers internos.
 
@@ -90,13 +90,13 @@
 
 | Archivo                                                                                                                                       | Rol                            | Riesgo / observación                                                                               |
 | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------- |
-| [src/services/pdf/imagingRequestPdfService.ts](../src/services/pdf/imagingRequestPdfService.ts)                                               | Servicio PDF                   | `266` líneas; sigue siendo el hotspot más sensible por templates, coordenadas e impresión directa. |
-| [src/components/modals/imaging/ImagingViewer.tsx](../src/components/modals/imaging/ImagingViewer.tsx)                                         | Visor interactivo principal    | `114` líneas; ya bastante más declarativo gracias al controller del viewer.                        |
-| [src/components/modals/controllers/imagingViewerController.ts](../src/components/modals/controllers/imagingViewerController.ts)               | View-model del visor           | `120` líneas; seam útil que ahora concentra overlays y assets por documento.                       |
-| [src/components/modals/controllers/imagingRequestDialogController.ts](../src/components/modals/controllers/imagingRequestDialogController.ts) | Shell/runtime policy del modal | `125` líneas; concentra catálogo, shell del paciente, canvas intent y print routing.               |
-| [src/components/modals/ImagingRequestDialog.tsx](../src/components/modals/ImagingRequestDialog.tsx)                                           | Shell del modal                | `130` líneas; más limpio y con menos catálogo/configuración inline.                                |
-| [src/components/modals/imaging/ImagingSidebar.tsx](../src/components/modals/imaging/ImagingSidebar.tsx)                                       | Sidebar de herramientas        | `151` líneas; clara, aunque más visual que modelada.                                               |
-| [src/components/modals/imaging/useImagingLogic.ts](../src/components/modals/imaging/useImagingLogic.ts)                                       | Runtime del modal              | `114` líneas; más lineal, ya sin routing de impresión ni canvas intent inline.                     |
+| [src/features/census/components/imaging-request/imagingRequestPdfService.ts](../src/features/census/components/imaging-request/imagingRequestPdfService.ts)                                               | Servicio PDF                   | `266` líneas; sigue siendo el hotspot más sensible por templates, coordenadas e impresión directa. |
+| [src/features/census/components/imaging-request/ImagingViewer.tsx](../src/features/census/components/imaging-request/ImagingViewer.tsx)                                         | Visor interactivo principal    | `114` líneas; ya bastante más declarativo gracias al controller del viewer.                        |
+| [src/features/census/components/imaging-request/imagingViewerController.ts](../src/features/census/components/imaging-request/imagingViewerController.ts)               | View-model del visor           | `120` líneas; seam útil que ahora concentra overlays y assets por documento.                       |
+| [src/features/census/components/imaging-request/imagingRequestDialogController.ts](../src/features/census/components/imaging-request/imagingRequestDialogController.ts) | Shell/runtime policy del modal | `125` líneas; concentra catálogo, shell del paciente, canvas intent y print routing.               |
+| [src/features/census/components/imaging-request/ImagingRequestDialog.tsx](../src/features/census/components/imaging-request/ImagingRequestDialog.tsx)                                           | Shell del modal                | `130` líneas; más limpio y con menos catálogo/configuración inline.                                |
+| [src/features/census/components/imaging-request/ImagingSidebar.tsx](../src/features/census/components/imaging-request/ImagingSidebar.tsx)                                       | Sidebar de herramientas        | `151` líneas; clara, aunque más visual que modelada.                                               |
+| [src/features/census/components/imaging-request/useImagingLogic.ts](../src/features/census/components/imaging-request/useImagingLogic.ts)                                       | Runtime del modal              | `114` líneas; más lineal, ya sin routing de impresión ni canvas intent inline.                     |
 
 ---
 

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { useExamRequestOrders, type ExamRequestCandidate } from '@/hooks/useExamRequestOrders';
+import {
+  useExamRequestOrders,
+  type ExamRequestCandidate,
+} from '@/features/census/components/exam-request/useExamRequestOrders';
 import type { PatientData } from '@/types/domain/patient';
 
 const candidate = (key: string, name: string, insurance?: string): ExamRequestCandidate => ({

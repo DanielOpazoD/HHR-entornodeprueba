@@ -31,7 +31,7 @@ import {
 import {
   hasExamRequestRecordIdentity,
   resolveExamRequestPatientIdentity,
-} from '@/components/modals/controllers/examRequestPatientIdentity';
+} from '@/features/census/components/exam-request/examRequestPatientIdentity';
 import { CensusExamOrderDateContext } from '../exam-orders/examOrderContext';
 import {
   EXAM_ORDER_NAME_ATTRIBUTE,

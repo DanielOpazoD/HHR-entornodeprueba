@@ -5,8 +5,8 @@
 - **Módulo:** Solicitud de exámenes de laboratorio
 - **Ruta(s) principal(es):**
   - [src/hooks/useExamRequest.ts](../src/hooks/useExamRequest.ts)
-  - [src/components/modals/ExamRequestModal.tsx](../src/components/modals/ExamRequestModal.tsx)
-  - [src/components/modals/examRequestPrintStyles.ts](../src/components/modals/examRequestPrintStyles.ts)
+  - [src/features/census/components/exam-request/ExamRequestModal.tsx](../src/features/census/components/exam-request/ExamRequestModal.tsx)
+  - [src/features/census/components/exam-request/examRequestPrintStyles.ts](../src/features/census/components/exam-request/examRequestPrintStyles.ts)
 - **Fecha de evaluación:** 2026-04-15
 - **Evaluador:** Codex
 - **Estado general:** verde
@@ -52,12 +52,12 @@
 
 - Es un módulo más chico y directo que otros del sistema.
 - La mayor parte del peso sigue estando en:
-  - [ExamRequestModal.tsx](../src/components/modals/ExamRequestModal.tsx)
+  - [ExamRequestModal.tsx](../src/features/census/components/exam-request/ExamRequestModal.tsx)
 - Pero ya quedó mejor repartido entre:
   - [useExamRequest.ts](../src/hooks/useExamRequest.ts)
-  - [examRequestController.ts](../src/hooks/controllers/examRequestController.ts)
-  - [examRequestPrintController.ts](../src/hooks/controllers/examRequestPrintController.ts)
-  - [examRequestModalController.ts](../src/components/modals/controllers/examRequestModalController.ts)
+  - [examRequestController.ts](../src/features/census/components/exam-request/examRequestController.ts)
+  - [examRequestPrintController.ts](../src/features/census/components/exam-request/examRequestPrintController.ts)
+  - [examRequestModalController.ts](../src/features/census/components/exam-request/examRequestModalController.ts)
 - La lógica de impresión sigue siendo sensible por definición, pero ya no vive mezclada con el resto del hook.
 - No se ve deuda roja; el módulo quedó bastante bien consolidado para su tamaño.
 
@@ -84,11 +84,11 @@
 
 | Archivo                                                                                                                               | Rol                            | Riesgo / observación                                                                 |
 | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------ |
-| [src/components/modals/ExamRequestModal.tsx](../src/components/modals/ExamRequestModal.tsx)                                           | Modal principal del formulario | `254` líneas; ya más declarativo, aunque sigue siendo el shell grande del módulo.    |
+| [src/features/census/components/exam-request/ExamRequestModal.tsx](../src/features/census/components/exam-request/ExamRequestModal.tsx)                                           | Modal principal del formulario | `254` líneas; ya más declarativo, aunque sigue siendo el shell grande del módulo.    |
 | [src/hooks/useExamRequest.ts](../src/hooks/useExamRequest.ts)                                                                         | Estado del formulario          | `77` líneas; más lineal y sin mezclar ya el flujo de impresión.                      |
-| [src/components/modals/controllers/examRequestModalController.ts](../src/components/modals/controllers/examRequestModalController.ts) | View-model del modal           | `107` líneas; seam útil que ahora concentra shell y agrupación del formulario.       |
-| [src/hooks/controllers/examRequestPrintController.ts](../src/hooks/controllers/examRequestPrintController.ts)                         | Runtime de impresión           | `68` líneas; encapsula el snapshot/apply/restore del print flow.                     |
-| [src/components/modals/examRequestPrintStyles.ts](../src/components/modals/examRequestPrintStyles.ts)                                 | Contrato visual de impresión   | `100` líneas; sigue siendo sensible por paridad con el formulario real y el impreso. |
+| [src/features/census/components/exam-request/examRequestModalController.ts](../src/features/census/components/exam-request/examRequestModalController.ts) | View-model del modal           | `107` líneas; seam útil que ahora concentra shell y agrupación del formulario.       |
+| [src/features/census/components/exam-request/examRequestPrintController.ts](../src/features/census/components/exam-request/examRequestPrintController.ts)                         | Runtime de impresión           | `68` líneas; encapsula el snapshot/apply/restore del print flow.                     |
+| [src/features/census/components/exam-request/examRequestPrintStyles.ts](../src/features/census/components/exam-request/examRequestPrintStyles.ts)                                 | Contrato visual de impresión   | `100` líneas; sigue siendo sensible por paridad con el formulario real y el impreso. |
 
 ---
 

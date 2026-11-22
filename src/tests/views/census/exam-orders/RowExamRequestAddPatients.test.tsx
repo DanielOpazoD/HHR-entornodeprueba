@@ -14,7 +14,7 @@ import { closeExamOrderRequest } from '@/features/census/components/exam-orders/
 import { listCensusExamRequestCandidates } from '@/features/census/controllers/censusExamRequestController';
 import { resolvePatientRowCapabilities } from '@/features/census/controllers/patientRowCapabilitiesController';
 
-vi.mock('@/hooks/controllers/examRequestPrintController', () => ({
+vi.mock('@/features/census/components/exam-request/examRequestPrintController', () => ({
   runExamRequestPrint: vi.fn(),
 }));
 vi.mock('@/hooks/useScrollLock', () => ({ useScrollLock: () => {}, default: () => {} }));
@@ -103,7 +103,7 @@ const openFromAnaRow = async () => {
 
 describe('laboratory request opened from one census row', () => {
   beforeAll(async () => {
-    await import('@/components/modals/ExamRequestModal');
+    await import('@/features/census/components/exam-request/ExamRequestModal');
   });
 
   afterEach(() => {

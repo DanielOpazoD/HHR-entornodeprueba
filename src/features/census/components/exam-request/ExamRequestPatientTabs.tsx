@@ -7,7 +7,10 @@
 import React, { useRef, useState } from 'react';
 import clsx from 'clsx';
 import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
-import type { ExamRequestCandidate, ExamRequestOrder } from '@/hooks/useExamRequestOrders';
+import type {
+  ExamRequestCandidate,
+  ExamRequestOrder,
+} from '@/features/census/components/exam-request/useExamRequestOrders';
 
 /** Ids that tie each tab to the form it shows; the dialog gives the same ids to the forms. */
 export const examRequestTabId = (prefix: string, index: number): string => `${prefix}-tab-${index}`;

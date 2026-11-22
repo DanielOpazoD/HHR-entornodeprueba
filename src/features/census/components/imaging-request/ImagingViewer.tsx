@@ -1,8 +1,8 @@
 import React from 'react';
 import { DocumentOption, ActiveTextMark } from './types';
-import type { CustomMark } from '@/services/pdf/imagingRequestPdfService';
+import type { CustomMark } from '@/features/census/components/imaging-request/imagingRequestPdfService';
 import type { PatientData } from '@/types/domain/patient';
-import { buildImagingViewerDocumentModel } from '../controllers/imagingViewerController';
+import { buildImagingViewerDocumentModel } from './imagingViewerController';
 import { FittedOverlayText } from './FittedOverlayText';
 import { useManagedTimeout } from '@/hooks/useManagedTimeout';
 

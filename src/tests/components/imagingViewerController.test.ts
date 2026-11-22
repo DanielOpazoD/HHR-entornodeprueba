@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildImagingViewerDocumentModel,
   fitFontSizePx,
-} from '@/components/modals/controllers/imagingViewerController';
+} from '@/features/census/components/imaging-request/imagingViewerController';
 import type { PatientData } from '@/types/domain/patient';
 
 const mockPatient = {

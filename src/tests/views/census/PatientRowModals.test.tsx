@@ -29,13 +29,13 @@ vi.mock('@/features/census/components/demographics/DemographicsModal', () => ({
   ),
 }));
 
-vi.mock('@/components/modals/ExamRequestModal', () => ({
+vi.mock('@/features/census/components/exam-request/ExamRequestModal', () => ({
   ExamRequestModal: ({ recordDate }: { recordDate?: string }) => (
     <div>Exam Request {recordDate}</div>
   ),
 }));
 
-vi.mock('@/components/modals/ImagingRequestDialog', () => ({
+vi.mock('@/features/census/components/imaging-request/ImagingRequestDialog', () => ({
   ImagingRequestDialog: () => <div>Imaging Request</div>,
 }));
 

@@ -1,7 +1,7 @@
 import { ClipboardList, FileText, ShieldCheck } from 'lucide-react';
 import type { PatientData } from '@/types/domain/patient';
-import type { CustomMark } from '@/services/pdf/imagingRequestPdfService';
-import type { ActiveTextMark, DocumentOption, DocumentTypeOption } from '../imaging/types';
+import type { CustomMark } from '@/features/census/components/imaging-request/imagingRequestPdfService';
+import type { ActiveTextMark, DocumentOption, DocumentTypeOption } from './types';
 
 interface ImagingDialogShellModel {
   title: string;

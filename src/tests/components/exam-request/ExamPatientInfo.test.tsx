@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ExamPatientInfo } from '@/components/exam-request/ExamPatientInfo';
+import { ExamPatientInfo } from '@/features/census/components/exam-request/ExamPatientInfo';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 

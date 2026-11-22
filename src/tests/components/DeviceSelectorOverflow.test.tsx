@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { DeviceSelector } from '@/components/DeviceSelector';
+import { DeviceSelector } from '@/features/census/components/device-selector/DeviceSelector';
 
 const FOUR_DEVICES = ['TET', 'VVP#1', 'VVP#2', 'VVP#3'];
 

@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef } from 'react';
-import { fitFontSizePx } from '../controllers/imagingViewerController';
+import { fitFontSizePx } from './imagingViewerController';
 
 interface FittedOverlayTextProps {
   text: string;

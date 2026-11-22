@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { resolveDeviceMenuPosition } from '@/components/device-selector/deviceMenuPositionController';
+import { resolveDeviceMenuPosition } from '@/features/census/components/device-selector/deviceMenuPositionController';
 
 describe('deviceMenuPositionController', () => {
   it('positions menu below anchor when there is enough space', () => {

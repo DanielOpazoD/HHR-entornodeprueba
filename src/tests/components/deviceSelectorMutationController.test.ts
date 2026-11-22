@@ -4,7 +4,7 @@ import {
   buildDeviceConfigMutation,
   buildRetireDeviceMutation,
   resolveRetiringDeviceLabel,
-} from '@/components/device-selector/deviceSelectorMutationController';
+} from '@/features/census/components/device-selector/deviceSelectorMutationController';
 
 describe('deviceSelectorMutationController', () => {
   it('builds retire mutation with updated details and filtered active devices', () => {

@@ -8,7 +8,7 @@ import {
   getCurrentTimeValue,
 } from '@/features/clinical-documents/controllers/clinicalDocumentEpisodeController';
 import { collectMonthlyPrescriptionExport } from '@/features/prescriptions/services/prescriptionMonthlyPdfService';
-import { getTodayFormatted } from '@/services/pdf/pdfBrowserUtils';
+import { getTodayFormatted } from '@/features/census/components/imaging-request/pdfBrowserUtils';
 import { getCurrentShift } from '@/utils/clinicalDayUtils';
 import type { PrescriptionRecord } from '@/types/prescriptionTypes';
 

@@ -1,7 +1,7 @@
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ExamRequestModal } from '@/components/modals/ExamRequestModal';
+import { ExamRequestModal } from '@/features/census/components/exam-request/ExamRequestModal';
 import { AuthContext, type AuthContextType } from '@/context/AuthContext';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type { PatientData } from '@/types/domain/patient';

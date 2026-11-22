@@ -1,5 +1,5 @@
 import type { PatientData } from '@/types/domain/patient';
-import type { DocumentOption } from '../imaging/types';
+import type { DocumentOption } from './types';
 import { calculateAge, formatDateToCL as formatDate } from '@/utils/clinicalUtils';
 import { formatPatientDisplayName } from '@/utils/patientNameDisplayUtils';
 import { getTodayISO } from '@/utils/dateCoreUtils';
@@ -8,7 +8,7 @@ import {
   CONSENTIMIENTO_FIELD_COORDS,
   ENCUESTA_FIELD_COORDS,
   SOLICITUD_FIELD_COORDS,
-} from '@/services/pdf/imagingRequestPdfCoordinates';
+} from '@/features/census/components/imaging-request/imagingRequestPdfCoordinates';
 
 interface ImagingViewerOverlay {
   text: string;

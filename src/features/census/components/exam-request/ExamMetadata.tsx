@@ -6,7 +6,10 @@
 import React from 'react';
 import { Check } from 'lucide-react';
 import clsx from 'clsx';
-import { PROCEDENCIA_OPTIONS, FONASA_LEVELS } from '@/constants/examCategories';
+import {
+  PROCEDENCIA_OPTIONS,
+  FONASA_LEVELS,
+} from '@/features/census/components/exam-request/examCategories';
 
 interface ExamMetadataProps {
   procedencia: string;
