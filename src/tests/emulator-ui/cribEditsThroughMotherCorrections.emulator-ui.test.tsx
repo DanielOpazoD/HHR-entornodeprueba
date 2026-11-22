@@ -275,7 +275,7 @@ async function settle(expected: {
   mother?: Record<string, unknown>;
   newborn: Record<string, unknown>;
 }) {
-  let saved: Record<string, any> | undefined;
+  let saved: (Record<string, unknown> & { clinicalCrib: Record<string, unknown> }) | undefined;
   await waitFor(
     async () => {
       await processSyncQueue();

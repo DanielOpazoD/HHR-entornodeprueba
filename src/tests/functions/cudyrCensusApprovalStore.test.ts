@@ -44,6 +44,26 @@ it('requires a complete, closed month and rejects clinical payloads', () => {
     vi.useRealTimers();
   }
 });
+interface FakeDocRef {
+  path: string;
+  collection: (name: string) => { doc: (id: string) => FakeDocRef };
+}
+
+interface FakeTransaction {
+  get: (
+    ref: FakeDocRef
+  ) => Promise<{ exists: boolean; data: () => Record<string, unknown> | undefined }>;
+  set: (ref: FakeDocRef, data: Record<string, unknown>) => void;
+  create: (ref: FakeDocRef, data: Record<string, unknown>) => void;
+}
+
+const makeRef = (path: string): FakeDocRef => ({
+  path,
+  collection: (name: string) => ({
+    doc: (id: string) => makeRef(`${path}/${name}/${id}`),
+  }),
+});
+
 it('preserves documentary reconstruction, audits approval, and checks revisions and retries', async () => {
   const prior = {
     revision: 2,
@@ -53,34 +73,34 @@ it('preserves documentary reconstruction, audits approval, and checks revisions 
     reviewedBy: { name: 'Original' },
     updatedAt: 'original-time',
   };
-  const db = new Map<string, any>([['h/cudyrVerifiedContexts/2026-08', prior]]);
-  const ref = (path: string): any => ({
-    path,
-    collection: (name: string) => ({
-      doc: (id: string) => ref(`${path}/${name}/${id}`),
-    }),
-  });
-  const tx = {
-    get: async (r: any) => ({
+  const db = new Map<string, Record<string, unknown>>([['h/cudyrVerifiedContexts/2026-08', prior]]);
+  const tx: FakeTransaction = {
+    get: async (r: FakeDocRef) => ({
       exists: db.has(r.path),
       data: () => db.get(r.path),
     }),
-    set: (r: any, d: any) => db.set(r.path, d),
-    create: (r: any, d: any) => db.set(r.path, d),
+    set: (r: FakeDocRef, d: Record<string, unknown>) => {
+      db.set(r.path, d);
+    },
+    create: (r: FakeDocRef, d: Record<string, unknown>) => {
+      db.set(r.path, d);
+    },
   };
   const args = {
-    hospital: ref('h'),
+    hospital: makeRef('h'),
     actor: { uid: 'reviewer', name: 'Reviewer', role: 'admin' },
     data: request(),
-    runTransaction: (f: any) => f(tx),
+    runTransaction: (f: (transaction: FakeTransaction) => Promise<unknown>) => f(tx),
   };
   expect(await saveCudyrCensusApproval(args)).toEqual({
     persisted: true,
     revision: 3,
   });
-  const saved = db.get('h/cudyrVerifiedContexts/2026-08');
-  for (const key of ['entries', 'files', 'reviewedBy', 'updatedAt'])
-    expect(saved[key]).toEqual((prior as any)[key]);
+  const saved = db.get('h/cudyrVerifiedContexts/2026-08') as Record<string, unknown> & {
+    censusApproval: { days: unknown[] };
+  };
+  for (const key of ['entries', 'files', 'reviewedBy', 'updatedAt'] as const)
+    expect(saved[key]).toEqual(prior[key]);
   expect(saved.censusApproval.days).toHaveLength(31);
   expect(await saveCudyrCensusApproval(args)).toEqual({
     persisted: true,
@@ -100,22 +120,22 @@ it('preserves documentary reconstruction, audits approval, and checks revisions 
   ).rejects.toThrow('permission');
 });
 it('creates the month at revision 0 without claiming a documentary review', async () => {
-  const db = new Map<string, any>();
-  const ref = (path: string): any => ({
-    path,
-    collection: (name: string) => ({ doc: (id: string) => ref(`${path}/${name}/${id}`) }),
-  });
-  const tx = {
-    get: async (r: any) => ({ exists: db.has(r.path), data: () => db.get(r.path) }),
-    set: (r: any, d: any) => db.set(r.path, d),
-    create: (r: any, d: any) => db.set(r.path, d),
+  const db = new Map<string, Record<string, unknown>>();
+  const tx: FakeTransaction = {
+    get: async (r: FakeDocRef) => ({ exists: db.has(r.path), data: () => db.get(r.path) }),
+    set: (r: FakeDocRef, d: Record<string, unknown>) => {
+      db.set(r.path, d);
+    },
+    create: (r: FakeDocRef, d: Record<string, unknown>) => {
+      db.set(r.path, d);
+    },
   };
   const save = (data: object) =>
     saveCudyrCensusApproval({
-      hospital: ref('h'),
+      hospital: makeRef('h'),
       actor: { uid: 'reviewer', name: 'Reviewer', role: 'nurse_hospital' },
       data: { ...request(), ...data },
-      runTransaction: (f: any) => f(tx),
+      runTransaction: (f: (transaction: FakeTransaction) => Promise<unknown>) => f(tx),
     });
   await expect(save({ expectedRevision: 1 })).rejects.toThrow('recargue');
   expect(await save({ expectedRevision: 0 })).toEqual({ persisted: true, revision: 1 });

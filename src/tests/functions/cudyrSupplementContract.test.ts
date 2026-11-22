@@ -26,7 +26,13 @@ describe('documentary supplement boundary', () => {
       report: request.report,
       file: { sha256: parsed.fileHash },
     };
-    const query: any = {
+    interface FakeQuery {
+      where: () => FakeQuery;
+      orderBy: () => FakeQuery;
+      limit: () => FakeQuery;
+      get: () => Promise<{ size: number; docs: Array<{ data: () => unknown }> }>;
+    }
+    const query: FakeQuery = {
       where: () => query,
       orderBy: () => query,
       limit: () => query,

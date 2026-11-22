@@ -114,7 +114,7 @@ describe('clinicalConflictCenterController', () => {
       lastUpdated: '2026-07-01T10:05:00.000Z',
       beds: {
         H1: {
-          ...(buildRecord({}).beds.H1 as any),
+          ...buildRecord({}).beds.H1!,
           pathology: 'ICC',
           handoffNoteDayShift: 'Control estable, avisar fiebre',
           medicalHandoffEntries: [

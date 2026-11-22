@@ -2,7 +2,7 @@
 import { ESLint } from 'eslint';
 import { expect, it } from 'vitest';
 
-it('rejects explicit any in production source as an error', async () => {
+it('rejects explicit any in production source and test suites as an error', async () => {
   const eslint = new ESLint({ cwd: process.cwd() });
   for (const file of [
     'src/services/storage/probe.ts',
@@ -10,6 +10,8 @@ it('rejects explicit any in production source as an error', async () => {
     'src/services/admin/probe.spec.ts',
     'src/utils/probe.ts',
     'src/features/census/components/Probe.tsx',
+    'src/tests/probe.test.ts',
+    'src/tests/components/Probe.test.tsx',
   ]) {
     const config = await eslint.calculateConfigForFile(file);
     expect(config.rules['@typescript-eslint/no-explicit-any'][0], file).toBe(2);
