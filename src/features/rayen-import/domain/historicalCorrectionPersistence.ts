@@ -1,4 +1,4 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';

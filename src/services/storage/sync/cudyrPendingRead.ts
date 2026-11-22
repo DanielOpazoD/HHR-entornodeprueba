@@ -1,6 +1,6 @@
 import { ensureDbReady } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDexieSyncQueueStore } from './dexieSyncQueueStore';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import { resolveCudyrOwningCensusDay } from '@/domain/evaluationScales/importedCudyr';
 import type { CudyrArchiveOutboxPayload } from '@/types/domain/cudyrHistory';
 

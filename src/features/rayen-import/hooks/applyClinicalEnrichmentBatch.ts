@@ -9,7 +9,7 @@ import {
   type RayenClinicalEnrichmentBatchPayload,
 } from '../bridge/rayenClinicalEnrichmentBatchClient';
 import { rebuildClinicalEnrichmentOperations } from '../domain/rebuildClinicalEnrichmentOperations';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import { createSyncMutationId } from '@/services/storage/sync/syncMutationIdentity';
 import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
 import {

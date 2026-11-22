@@ -8,7 +8,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbCore', async importOriginal => ({
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { STORAGE_KEY } from '@/services/storage/localstorage/localStorageCore';
 import { localPersistence } from '@/services/storage/localpersistence/localPersistenceService';
-import { clearSessionDailyRecords } from '@/services/storage/sessionSyncQueuePreservation';
+import { clearSessionDailyRecords } from '@/services/session/sessionSyncQueuePreservation';
 import { matchesTaskClaim } from '@/services/storage/sync/syncQueueTaskFactory';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';

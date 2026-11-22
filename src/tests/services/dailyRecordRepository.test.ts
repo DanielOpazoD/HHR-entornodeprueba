@@ -1,4 +1,4 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 /**
  * DailyRecordRepository Tests (Expanded)
  * Updated to support Async/IndexedDB architecture.

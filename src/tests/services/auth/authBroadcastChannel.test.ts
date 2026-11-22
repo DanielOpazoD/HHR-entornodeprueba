@@ -85,7 +85,7 @@ describe('authBroadcastChannel', () => {
   it.each(['manual', 'automatic'] as const)(
     'broadcasts %s logout with the admitted generation',
     async reason => {
-      const { setSessionGeneration } = await import('@/services/storage/sessionStorageTransition');
+      const { setSessionGeneration } = await import('@/services/session/sessionStorageTransition');
       setSessionGeneration('synthetic-generation');
 
       api.broadcastLogout(reason);

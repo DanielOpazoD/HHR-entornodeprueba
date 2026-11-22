@@ -18,7 +18,7 @@ const messages = async (code: string, filePath: string) =>
   );
 
 const RAW_IMPORT = (name: string) =>
-  `import { ${name} } from '@/services/storage/sessionStorageTransition';\nexport const read = ${name};`;
+  `import { ${name} } from '@/services/session/sessionStorageTransition';\nexport const read = ${name};`;
 
 describe('a session decision goes through the session gate', () => {
   it.each(['getStoredSessionOwnerKey', 'getSessionGeneration', 'getSessionEpoch'])(
@@ -34,13 +34,13 @@ describe('a session decision goes through the session gate', () => {
   it('catches a renamed import and accepts the gate itself', async () => {
     expect(
       await messages(
-        "import { getSessionGeneration as generation } from '@/services/storage/sessionStorageTransition';\nexport const g = generation;",
+        "import { getSessionGeneration as generation } from '@/services/session/sessionStorageTransition';\nexport const g = generation;",
         'src/services/staff/newProbe.ts'
       )
     ).toHaveLength(1);
     expect(
       await messages(
-        "import { guardAuthoringSession } from '@/services/storage/authoringSession';\nexport const g = guardAuthoringSession;",
+        "import { guardAuthoringSession } from '@/services/session/authoringSession';\nexport const g = guardAuthoringSession;",
         'src/services/staff/newProbe.ts'
       )
     ).toEqual([]);
@@ -49,31 +49,31 @@ describe('a session decision goes through the session gate', () => {
   it.each([
     [
       'a namespace import',
-      "import * as session from '@/services/storage/sessionStorageTransition';\nexport const e = () => session.getSessionEpoch();",
+      "import * as session from '@/services/session/sessionStorageTransition';\nexport const e = () => session.getSessionEpoch();",
     ],
     [
       'a namespace import read by a computed name',
-      "import * as owner from '@/services/storage/sessionOwnerKey';\nexport const o = () => owner['getStoredSessionOwnerKey']();",
+      "import * as owner from '@/services/session/sessionOwnerKey';\nexport const o = () => owner['getStoredSessionOwnerKey']();",
     ],
     [
       'an awaited import()',
-      "export const g = async () => (await import('@/services/storage/sessionStorageTransition')).getSessionGeneration();",
+      "export const g = async () => (await import('@/services/session/sessionStorageTransition')).getSessionGeneration();",
     ],
     [
       'an import() kept in a variable',
-      "export const g = async () => { const session = await import('@/services/storage/sessionStorageTransition'); return session.getSessionGeneration(); };",
+      "export const g = async () => { const session = await import('@/services/session/sessionStorageTransition'); return session.getSessionGeneration(); };",
     ],
     [
       'an import() destructured',
-      "export const e = async () => { const { getSessionEpoch } = await import('@/services/storage/sessionStorageTransition'); return getSessionEpoch(); };",
+      "export const e = async () => { const { getSessionEpoch } = await import('@/services/session/sessionStorageTransition'); return getSessionEpoch(); };",
     ],
     [
       'an import() read in then()',
-      "export const e = () => import('@/services/storage/sessionStorageTransition').then(session => session.getSessionEpoch());",
+      "export const e = () => import('@/services/session/sessionStorageTransition').then(session => session.getSessionEpoch());",
     ],
     [
       'a re-export',
-      "export { getSessionEpoch } from '@/services/storage/sessionStorageTransition';",
+      "export { getSessionEpoch } from '@/services/session/sessionStorageTransition';",
     ],
   ])('rejects the same read through %s', async (_way, code) => {
     const found = await messages(code, 'src/features/rayen-import/newProbe.ts');
@@ -92,7 +92,7 @@ describe('a session decision goes through the session gate', () => {
 
   it('lets the owners read the session', async () => {
     for (const file of [
-      'src/services/storage/authoringSession.ts',
+      'src/services/session/authoringSession.ts',
       'src/services/auth/authSession.ts',
     ]) {
       expect(await messages(RAW_IMPORT('getSessionGeneration'), file), file).toEqual([]);

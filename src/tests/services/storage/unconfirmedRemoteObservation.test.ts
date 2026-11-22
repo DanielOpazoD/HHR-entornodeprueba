@@ -1,4 +1,4 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import 'fake-indexeddb/auto';
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
 import { A, day, clone, harnessState } from './dayRecordOutboxHarness';
@@ -202,7 +202,7 @@ it.each([syncRecordsRange, hydrateRangeRecords])(
 for (const path of ['S', 'P'] as const)
   it(`${path} adopts cache without local and allows offline edit after logout`, async () => {
     const { clearSessionDailyRecords } =
-      await import('@/services/storage/sessionSyncQueuePreservation');
+      await import('@/services/session/sessionSyncQueuePreservation');
     await clearSessionDailyRecords('user:review3');
     expect(await hospitalDB.dailyRecords.count()).toBe(0);
     event.mockClear();

@@ -1,4 +1,4 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@/services/repositories/repositoryConfig', async importOriginal => ({

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AuthUser } from '@/types/authRoleTypes';
-import { getTabOwnerKey, guardAuthoringSession } from '@/services/storage/authoringSession';
-import { isSessionCleanupPending } from '@/services/storage/sessionOwnerKey';
+import { getTabOwnerKey, guardAuthoringSession } from '@/services/session/authoringSession';
+import { isSessionCleanupPending } from '@/services/session/sessionOwnerKey';
 
 type Choice = 'retry' | 'download' | 'cancel' | 'automatic';
 export interface NursingLogoutPrompt {

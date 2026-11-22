@@ -1,4 +1,4 @@
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRayenClinicalFill } from '@/features/rayen-import/hooks/useRayenClinicalFill';

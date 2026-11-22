@@ -1,4 +1,4 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';

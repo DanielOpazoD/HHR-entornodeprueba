@@ -5,7 +5,7 @@ import { downloadBlob } from '@/services/exporters/exportDownload';
 import { buildMMRADReportClipboardText } from '@/domain/radiology/mmradReportSupport';
 import type { MMRADExam } from '@/features/radiology/services/mmradService';
 import { deliverMmradPdf } from '@/features/radiology/services/mmradPdfDelivery';
-import { onSessionChange, sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
+import { onSessionChange, sessionEpochGuard } from '@/services/session/sessionStorageTransition';
 import { writePrivateClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { EXPLORER_ICON_BUTTON } from './clinicalExplorerUi';
 

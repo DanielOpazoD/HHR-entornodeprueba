@@ -2,7 +2,7 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { clearSyncTaskRuntimeState } from '@/services/storage/sync/syncQueueTaskFactory';
 import { requiresDailyRecordBaseReview } from '@/services/storage/sync/dailyRecordBaseReview';
-import { isAdmittedOwner } from '@/services/storage/authoringSession';
+import { isAdmittedOwner } from '@/services/session/authoringSession';
 
 /**
  * Estados de cuarentena de la cola y sus operaciones de recuperación.

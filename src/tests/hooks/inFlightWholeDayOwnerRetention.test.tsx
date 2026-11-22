@@ -1,7 +1,7 @@
-import { authoredOptions } from '@/services/storage/authoringSession';
+import { authoredOptions } from '@/services/session/authoringSession';
 import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryController';
 import { defaultDailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { sessionClosedTaskState } from '@/services/storage/sync/syncQueueTaskFactory';
 import { processSyncQueue } from '@/services/storage/sync';
 import { useSaveDailyRecordMutation } from '@/hooks/useDailyRecordQuery';
@@ -29,12 +29,12 @@ import { resetDailyRecordFreshnessGateForTests } from '@/hooks/controllers/daily
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
+} from '@/services/session/sessionScopedStorageService';
 import {
   SESSION_GENERATION_KEY,
   setSessionGeneration,
-} from '@/services/storage/sessionStorageTransition';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+} from '@/services/session/sessionStorageTransition';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import * as pending from '@/hooks/controllers/dailyRecordPendingPatchController';
 
 vi.mock('@/services/firebase-runtime/authRuntime', () => ({

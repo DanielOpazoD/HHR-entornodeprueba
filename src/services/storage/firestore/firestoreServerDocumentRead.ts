@@ -1,6 +1,6 @@
 import type { Firestore } from 'firebase/firestore';
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 
 export type FirestoreRestValue = {
   stringValue?: string;

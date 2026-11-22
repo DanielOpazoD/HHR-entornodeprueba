@@ -11,7 +11,7 @@ import {
 import { buildSyncQueueTelemetryFromRows } from '@/services/storage/sync/syncQueueTelemetryController';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { isAuthoringSessionCurrent } from '@/services/storage/authoringSession';
+import { isAuthoringSessionCurrent } from '@/services/session/authoringSession';
 import {
   admitSyntheticSession,
   clearSyntheticSession,

@@ -11,7 +11,7 @@ import type { AuthSessionState } from '@/types/authSessionTypes';
 import type { AuthUser } from '@/types/authRoleTypes';
 import { safeJsonParse } from '@/utils/jsonUtils';
 import { authStateLogger } from '@/hooks/hookLoggers';
-import { clearSessionScopedClientState } from '@/services/storage/sessionScopedStorageService';
+import { clearSessionScopedClientState } from '@/services/session/sessionScopedStorageService';
 import { clearQueryCache } from '@/config/queryClient';
 import { broadcastLogout } from '@/services/auth/authBroadcastChannel';
 import { clearCachedUserAvatarProfiles } from '@/services/user-profile/userAvatarProfileCache';

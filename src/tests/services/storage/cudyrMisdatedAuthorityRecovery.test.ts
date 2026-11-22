@@ -7,7 +7,7 @@ import { createMisdatedCudyrAuthorityRecovery } from '@/services/storage/sync/cu
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { CudyrArchiveOutboxPayload } from '@/types/domain/cudyrHistory';
-import { isAuthoringSessionCurrent } from '@/services/storage/authoringSession';
+import { isAuthoringSessionCurrent } from '@/services/session/authoringSession';
 import {
   admitSyntheticSession,
   clearSyntheticSession,

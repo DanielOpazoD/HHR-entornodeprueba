@@ -8,7 +8,7 @@ import {
   type CensusLabEntry,
   type CensusLabInput,
 } from '@/services/laboratory/syslabJobs';
-import { onSessionChange } from '@/services/storage/sessionStorageTransition';
+import { onSessionChange } from '@/services/session/sessionStorageTransition';
 import { queryClient as appQueryClient } from '@/config/queryClient';
 
 const INBOX_KEY = ['laboratory', 'census-inbox'] as const;

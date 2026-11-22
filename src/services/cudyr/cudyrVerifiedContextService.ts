@@ -4,7 +4,7 @@ import type { CudyrVerifiedContext } from './cudyrVerifiedContext';
 import {
   guardAuthoringSession,
   type AuthoringSessionGuard,
-} from '@/services/storage/authoringSession';
+} from '@/services/session/authoringSession';
 export const loadCudyrVerifiedContexts = async (from: string, to: string, signal: AbortSignal) => {
   const guard = guardAuthoringSession({ signal });
   const result: CudyrVerifiedContext[] = [];

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { getSessionEpoch, onSessionChange } from '@/services/storage/sessionStorageTransition';
+import { getSessionEpoch, onSessionChange } from '@/services/session/sessionStorageTransition';
 
 const subscribe = (notify: () => void): (() => void) => onSessionChange(notify);
 const serverEpoch = (): number => 0;

@@ -3,7 +3,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { BootstrapRouteChrome } from '@/app-shell/bootstrap/BootstrapCensusChrome';
 import { resolveOpeningCensusDay } from '@/app-shell/bootstrap/openingCensusDay';
 import { signOut as mockedAuthSessionSignOut } from '@/services/auth/authSession';
-import { clearSessionScopedClientState } from '@/services/storage/sessionScopedStorageService';
+import { clearSessionScopedClientState } from '@/services/session/sessionScopedStorageService';
 
 const mockNavbar = vi.fn();
 const mockDateStrip = vi.fn();
@@ -33,7 +33,7 @@ vi.mock('@/components/ui/ViewLoader', () => ({
   ViewLoader: () => <div data-testid="view-loader">Loading</div>,
 }));
 
-vi.mock('@/services/storage/sessionScopedStorageService', () => ({
+vi.mock('@/services/session/sessionScopedStorageService', () => ({
   clearSessionScopedClientState: vi.fn(async (_reason: string, close?: () => Promise<void>) => {
     await close?.();
   }),

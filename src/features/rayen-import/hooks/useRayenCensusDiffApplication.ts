@@ -27,7 +27,7 @@ import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordP
 import type { QueryClient } from '@tanstack/react-query';
 import { setRemoteConfirmedDailyRecordQueryData } from '@/hooks/controllers/dailyRecordConfirmedCacheController';
 import { markDailyRecordRemoteConfirmed } from '@/hooks/controllers/dailyRecordFreshnessGateController';
-import type { AuthoringSessionGuard } from '@/services/storage/authoringSession';
+import type { AuthoringSessionGuard } from '@/services/session/authoringSession';
 
 export interface ConfirmedRayenCensusApplyResult extends ApplyResult {
   confirmedHandoff: ConfirmedRayenCensusHandoff;

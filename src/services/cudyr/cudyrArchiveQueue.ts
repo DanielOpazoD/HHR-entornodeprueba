@@ -7,7 +7,7 @@ import {
 } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { queueCudyrArchiveTask, processSyncQueue } from '@/services/storage/sync/publicSyncQueue';
-import type { AuthoringSessionGuard } from '@/services/storage/authoringSession';
+import type { AuthoringSessionGuard } from '@/services/session/authoringSession';
 
 export type CudyrArchiveDisposition = 'persisted' | 'queued' | 'failed';
 

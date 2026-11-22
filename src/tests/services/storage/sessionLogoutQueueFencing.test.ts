@@ -1,4 +1,4 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 /* Synthetic only: a closed session's unsent work must stop competing for the day and the queue. */
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,16 +14,16 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
+} from '@/services/session/sessionScopedStorageService';
 import {
   hasSessionCleanupFailed,
   SESSION_OWNER_KEY,
   setSessionCleanupFailed,
-} from '@/services/storage/sessionOwnerKey';
+} from '@/services/session/sessionOwnerKey';
 import {
   SESSION_GENERATION_KEY,
   setSessionGeneration,
-} from '@/services/storage/sessionStorageTransition';
+} from '@/services/session/sessionStorageTransition';
 import { createBrowserSyncRuntime } from '@/services/storage/sync/browserSyncRuntime';
 import { reviewBlockedDailyRecordTask } from '@/services/storage/sync/dailyRecordTaskRetirement';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';

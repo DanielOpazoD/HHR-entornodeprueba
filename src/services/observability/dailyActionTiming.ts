@@ -14,7 +14,7 @@
  * the failures that local diagnostics and the system health report depend on.
  * Successful Eloísa syncs are not repeated here; their stages live in `rayenSyncHistory.performance`.
  */
-import { onSessionChange } from '@/services/storage/sessionStorageTransition';
+import { onSessionChange } from '@/services/session/sessionStorageTransition';
 import { dispatchOperationalTelemetryExternally } from './operationalTelemetryExternalAdapter';
 import type { OperationalTelemetryCategory } from './operationalTelemetryTypes';
 import type { DailyAction } from './dailyActionSummaryContract';

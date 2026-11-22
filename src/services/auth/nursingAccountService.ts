@@ -21,7 +21,7 @@ import { captureSessionProfessionalIdentity } from '@/services/user-profile/sess
 import {
   runSessionStorageTransition,
   SESSION_GENERATION_KEY,
-} from '@/services/storage/sessionStorageTransition';
+} from '@/services/session/sessionStorageTransition';
 
 export interface NursingAccount {
   uid: string;

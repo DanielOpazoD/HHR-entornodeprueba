@@ -14,7 +14,7 @@ import {
   describeMMRADRegisteredPatient,
   type MMRADExam,
 } from '@/features/radiology/services/mmradService';
-import { onSessionChange, sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
+import { onSessionChange, sessionEpochGuard } from '@/services/session/sessionStorageTransition';
 import { deliverMmradPdf } from '@/features/radiology/services/mmradPdfDelivery';
 import {
   asMmradDateBound,

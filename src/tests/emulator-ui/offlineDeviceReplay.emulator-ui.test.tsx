@@ -23,7 +23,7 @@ import { useDevicesCellController } from '@/features/census/components/patient-r
 import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';
 import { processSyncQueue } from '@/services/storage/sync';
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -32,7 +32,7 @@ import { resolveCurrentClinicalDay } from '@/utils/clinicalDayAdmissionUtils';
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
+} from '@/services/session/sessionScopedStorageService';
 import {
   setFirestoreEnabled,
   setFirestoreSyncState,

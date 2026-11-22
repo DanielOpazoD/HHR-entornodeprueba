@@ -1,5 +1,5 @@
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
-import type { AuthoringSessionGuard } from '@/services/storage/authoringSession';
+import type { AuthoringSessionGuard } from '@/services/session/authoringSession';
 import { callCudyrFunction } from './cudyrFunctionsCall';
 import { cudyrArchiveCoverage } from './cudyrArchiveCoverage';
 

@@ -74,6 +74,7 @@ const RULES = [
       'src/features/prescriptions/services/',
       'src/features/wound-care/services/',
       'src/services/storage/sync/',
+      'src/services/session/',
       'src/features/rayen-import/'
     ),
     patterns: [/\bconsole\.(?:log|info|debug|warn|error)\s*\(/g],

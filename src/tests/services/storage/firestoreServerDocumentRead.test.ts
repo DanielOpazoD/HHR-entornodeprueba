@@ -6,8 +6,8 @@ const session = vi.hoisted(() => ({ owner: 'user:synthetic-a' }));
 vi.mock('@/services/auth/authRequestHeaders', () => ({
   resolveCurrentUserAuthHeaders: async () => ({ Authorization: 'Bearer synthetic-token' }),
 }));
-vi.mock('@/services/storage/sessionOwnerKey', async importOriginal => ({
-  ...(await importOriginal<typeof import('@/services/storage/sessionOwnerKey')>()),
+vi.mock('@/services/session/sessionOwnerKey', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/session/sessionOwnerKey')>()),
   getStoredSessionOwnerKey: () => session.owner,
 }));
 

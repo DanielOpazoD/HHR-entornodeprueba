@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { AdmissionAuditView } from '@/features/admin/admission-audit/AdmissionAuditView';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { canAccessAppModuleRoute } from '@/shared/access/operationalAccessPolicy';
 const mocks = vi.hoisted(() => ({
   user: { uid: 'synthetic-admin', role: 'admin' },

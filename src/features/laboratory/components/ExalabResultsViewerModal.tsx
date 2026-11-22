@@ -7,7 +7,7 @@ import {
   calendarStampInClinicalTimeZone,
   getClinicalCalendarDateISO,
 } from '@/utils/clinicalTimeZone';
-import { sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
+import { sessionEpochGuard } from '@/services/session/sessionStorageTransition';
 import { onExalabSessionAvailable } from '@/features/laboratory/services/exalabExtensionBridge';
 import {
   autoConnectExalab,

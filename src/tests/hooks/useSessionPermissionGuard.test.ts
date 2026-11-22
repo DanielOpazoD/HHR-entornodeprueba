@@ -13,7 +13,7 @@ import {
 import type { AuthSessionState } from '@/types/authSessionTypes';
 import type { AuthUser } from '@/types/authRoleTypes';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 
 const probe = vi.hoisted(() => ({
   outcome: 'denied' as 'readable' | 'denied' | 'timeout' | 'failed',

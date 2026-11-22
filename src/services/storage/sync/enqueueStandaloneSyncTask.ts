@@ -12,7 +12,7 @@ import {
   resolveSyncTaskNextAttemptAt,
   type SyncQueueEnqueueOptions,
 } from './syncQueueEnqueuePolicy';
-import { isAuthoringSessionCurrent } from '@/services/storage/authoringSession';
+import { isAuthoringSessionCurrent } from '@/services/session/authoringSession';
 
 /** Standalone immutable payload enqueue is loaded only when needed, outside clinical startup. */
 const enqueueWithinTransaction = async (

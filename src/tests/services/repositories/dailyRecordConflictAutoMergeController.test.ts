@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { attemptConflictAutoMergeRecovery } from '@/services/repositories/dailyRecordConflictAutoMergeController';
 import { DataFactory } from '@/tests/factories/DataFactory';

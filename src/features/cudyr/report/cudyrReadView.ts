@@ -1,4 +1,4 @@
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import { callCudyrFunction } from '@/services/cudyr/cudyrFunctionsCall';
 

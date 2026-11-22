@@ -1,4 +1,4 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 /* @flake-safe: The emulator read window requires today's synthetic census date. */
 import 'fake-indexeddb/auto';
 import { readFileSync } from 'node:fs';

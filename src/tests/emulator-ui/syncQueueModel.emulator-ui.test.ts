@@ -7,7 +7,7 @@ import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
 import { FieldValue, getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { getTodayISO } from '@/utils/dateCoreUtils';
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import * as writes from '@/services/storage/firestore/firestoreRecordWrites';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
@@ -24,11 +24,11 @@ import { getSyncQueueTelemetry, processSyncQueue } from '@/services/storage/sync
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
+} from '@/services/session/sessionScopedStorageService';
 import {
   getSessionGeneration,
   setSessionGeneration,
-} from '@/services/storage/sessionStorageTransition';
+} from '@/services/session/sessionStorageTransition';
 import { resolveRecordBaseRevision } from '@/services/storage/sync/syncTaskContractPolicy';
 import { bedManagementReducer, type BedAction } from '@/hooks/useBedManagementReducer';
 import { splitMixedClinicalStructuralPatch } from '@/hooks/controllers/bedManagementDispatchController';
@@ -924,17 +924,17 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         await import('@/services/storage/sync/dexieDailyRecordOutbox'),
       '@/services/storage/sync/dexieSyncQueueAuthorityAck':
         await import('@/services/storage/sync/dexieSyncQueueAuthorityAck'),
-      '@/services/storage/sessionSyncQueuePreservation':
-        await import('@/services/storage/sessionSyncQueuePreservation'),
+      '@/services/session/sessionSyncQueuePreservation':
+        await import('@/services/session/sessionSyncQueuePreservation'),
     };
     vi.resetModules();
     for (const [id, module] of Object.entries(shared)) vi.doMock(id, () => module);
     const second = {
       repo: await import('@/services/repositories/dailyRecordRepositoryWriteService'),
-      session: await import('@/services/storage/authoringSession'),
+      session: await import('@/services/session/authoringSession'),
       sync: await import('@/services/storage/sync'),
-      scoped: await import('@/services/storage/sessionScopedStorageService'),
-      transition: await import('@/services/storage/sessionStorageTransition'),
+      scoped: await import('@/services/session/sessionScopedStorageService'),
+      transition: await import('@/services/session/sessionStorageTransition'),
       config: await import('@/services/repositories/repositoryConfig'),
       authority: await import('@/services/storage/firestore/dailyRecordAuthorityCallableClient'),
       writes: await import('@/services/storage/firestore/firestoreRecordWrites'),

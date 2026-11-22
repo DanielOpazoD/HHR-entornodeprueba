@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resolveConcurrencyRemoteWriteRecovery } from '@/services/repositories/dailyRecordWriteConcurrencyRecoveryController';
 import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';

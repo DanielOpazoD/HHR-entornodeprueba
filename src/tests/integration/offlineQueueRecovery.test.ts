@@ -1,5 +1,5 @@
-import * as sessionOwner from '@/services/storage/sessionOwnerKey';
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import * as sessionOwner from '@/services/session/sessionOwnerKey';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';

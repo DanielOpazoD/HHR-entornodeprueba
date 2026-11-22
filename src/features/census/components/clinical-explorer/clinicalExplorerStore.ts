@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { onSessionChange } from '@/services/storage/sessionStorageTransition';
+import { onSessionChange } from '@/services/session/sessionStorageTransition';
 import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import type { ClinicalExplorerView } from './ClinicalExplorerView';
 

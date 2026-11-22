@@ -8,7 +8,7 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import { bedManagementReducer } from '@/hooks/useBedManagementReducer';
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import {
@@ -18,7 +18,7 @@ import {
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { getSyncQueueTelemetry } from '@/services/storage/sync';
-import { reconcileAuthorizedSessionOwner } from '@/services/storage/sessionScopedStorageService';
+import { reconcileAuthorizedSessionOwner } from '@/services/session/sessionScopedStorageService';
 import { createDailyRecordWriteAuthorityFunctions } from '@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 /**

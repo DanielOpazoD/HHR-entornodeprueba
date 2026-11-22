@@ -1,4 +1,4 @@
-import type { PublicWriteOptions } from '@/services/storage/authoringSession';
+import type { PublicWriteOptions } from '@/services/session/authoringSession';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { PatientData } from '@/types/domain/patient';
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';

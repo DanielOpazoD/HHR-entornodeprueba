@@ -2,7 +2,7 @@ import {
   assertAuthoringSessionCurrent,
   isAuthoringSessionCurrent,
   type AuthoringSession,
-} from '@/services/storage/authoringSession';
+} from '@/services/session/authoringSession';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { saveRecordStrict as saveToIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';

@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 
 afterEach(() => {
   setSessionGeneration(null);

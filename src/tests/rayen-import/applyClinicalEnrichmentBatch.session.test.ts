@@ -4,8 +4,8 @@ import {
   applyClinicalFillBatch,
 } from '@/features/rayen-import/hooks/applyClinicalEnrichmentBatch';
 import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { createDependencies, operations, record } from './applyClinicalEnrichmentBatch.fixtures';
 
 beforeEach(() => {

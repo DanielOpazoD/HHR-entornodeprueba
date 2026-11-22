@@ -16,7 +16,7 @@ import { createDailyRecordQueryResult } from '@/services/repositories/contracts/
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
 import { resolvePatchErrorFeedback } from '@/hooks/controllers/dailyRecordSyncNotificationController';
 import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
-import { authoredOptions, captureAuthoringSession } from '@/services/storage/authoringSession';
+import { authoredOptions, captureAuthoringSession } from '@/services/session/authoringSession';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import * as writeService from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { buildMockDailyRecordRepository } from '@/tests/factories/dailyRecordRepositoryMock';

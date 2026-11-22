@@ -21,9 +21,9 @@ import {
   clearSyntheticSession,
   replaceStoredSessionOwner,
 } from '@/tests/utils/syntheticSession';
-import { reconcileAuthorizedSessionOwner } from '@/services/storage/sessionScopedStorageService';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionOwner } from '@/services/storage/sessionStorageTransition';
+import { reconcileAuthorizedSessionOwner } from '@/services/session/sessionScopedStorageService';
+import { getStoredSessionOwnerKey } from '@/services/session/sessionOwnerKey';
+import { getSessionOwner } from '@/services/session/sessionStorageTransition';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 
 let activeDb: unknown;
@@ -161,8 +161,8 @@ describeEmulator('this tab stops acting for A after B signs in in another tab', 
   it('after a real sign-in of B in another tab, stale tab A stands down instead of reading B’s day', async () => {
     await reconcileAuthorizedSessionOwner(a);
     vi.resetModules();
-    const otherTab = await import('@/services/storage/sessionScopedStorageService');
-    const otherTabSession = await import('@/services/storage/sessionStorageTransition');
+    const otherTab = await import('@/services/session/sessionScopedStorageService');
+    const otherTabSession = await import('@/services/session/sessionStorageTransition');
     await otherTab.reconcileAuthorizedSessionOwner(b);
     expect(otherTabSession.getSessionOwner()).toBe(b);
     expect(getStoredSessionOwnerKey()).toBe(b);

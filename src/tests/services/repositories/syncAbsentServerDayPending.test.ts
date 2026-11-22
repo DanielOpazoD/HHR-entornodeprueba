@@ -9,7 +9,7 @@ import {
   reconnect,
 } from '@/tests/services/storage/dayRecordOutboxHarness';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { executeSyncDailyRecord } from '@/application/daily-record/syncDailyRecordUseCase';

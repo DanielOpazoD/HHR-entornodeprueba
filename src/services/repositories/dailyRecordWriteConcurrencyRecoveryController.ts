@@ -1,4 +1,4 @@
-import type { AuthoringSession } from '@/services/storage/authoringSession';
+import type { AuthoringSession } from '@/services/session/authoringSession';
 import { attemptConflictAutoMergeRecovery } from '@/services/repositories/dailyRecordConflictAutoMergeController';
 import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import {

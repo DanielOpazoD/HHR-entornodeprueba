@@ -1,6 +1,6 @@
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { dispatchOperationalTelemetryExternally } from '@/services/observability/operationalTelemetryExternalAdapter';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   recordOperationalErrorTelemetry,

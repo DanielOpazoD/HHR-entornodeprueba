@@ -1,4 +1,4 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { mockGetAvailableDates, mockGetForDate, mockSaveDetailed, mockLogAuditEvent } = vi.hoisted(

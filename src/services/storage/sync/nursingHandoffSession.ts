@@ -1,6 +1,6 @@
 import { ensureDbReady, hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
-import { SESSION_GENERATION_KEY } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
+import { SESSION_GENERATION_KEY } from '@/services/session/sessionStorageTransition';
 import { clearSyncTaskRuntimeState } from './syncQueueTaskFactory';
 import { hasPendingNursingHandoff } from './nursingHandoffTasks';
 import { downloadBlob } from '@/services/exporters/exportDownload';

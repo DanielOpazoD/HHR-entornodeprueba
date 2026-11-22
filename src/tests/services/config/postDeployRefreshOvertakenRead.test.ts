@@ -21,7 +21,7 @@ import { executePostDeployRecentRecordRefresh } from '@/services/config/postDepl
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { fetchRemoteDailyRecordQuery } from '@/hooks/controllers/dailyRecordQueryController';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 const today = '2026-10-29';

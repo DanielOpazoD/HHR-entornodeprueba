@@ -1,4 +1,4 @@
-import { isAuthoringSessionCurrent } from '@/services/storage/authoringSession';
+import { isAuthoringSessionCurrent } from '@/services/session/authoringSession';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ErrorSeverity } from '@/services/logging/errorLogTypes';
 import { logError } from '@/services/utils/errorService';

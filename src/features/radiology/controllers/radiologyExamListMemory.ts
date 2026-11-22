@@ -1,8 +1,8 @@
 import { buildMMRADExamKey } from './radiologyViewerModalController';
 import { normalizeDicomPatientId } from '@/domain/radiology/dicomTypes';
 import type { MMRADExam, MMRADSearchResult } from '../services/mmradService';
-import { authoringSessionScope, guardAuthoringSession } from '@/services/storage/authoringSession';
-import { onSessionChange, sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
+import { authoringSessionScope, guardAuthoringSession } from '@/services/session/authoringSession';
+import { onSessionChange, sessionEpochGuard } from '@/services/session/sessionStorageTransition';
 
 export interface MMRADExamListQuery {
   rut: string;

@@ -1,4 +1,4 @@
-import { authoredOptions } from '@/services/storage/authoringSession';
+import { authoredOptions } from '@/services/session/authoringSession';
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import { renderHook, act, waitFor, cleanup } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -25,12 +25,12 @@ import {
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
+} from '@/services/session/sessionScopedStorageService';
 import {
   setSessionGeneration,
   SESSION_GENERATION_KEY,
-} from '@/services/storage/sessionStorageTransition';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+} from '@/services/session/sessionStorageTransition';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 vi.unmock('@/application/ports/dailyRecordPort');
 const remote = vi.hoisted(() => ({

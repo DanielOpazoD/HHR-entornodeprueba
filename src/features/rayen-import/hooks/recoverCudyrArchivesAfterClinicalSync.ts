@@ -1,6 +1,6 @@
 import type { RayenSyncExecutionState } from './rayenSyncExecutionState';
 import { useLayoutEffect, useRef } from 'react';
-import type { AuthoringSessionGuard } from '@/services/storage/authoringSession';
+import type { AuthoringSessionGuard } from '@/services/session/authoringSession';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import {
   isClinicalRetryToken,

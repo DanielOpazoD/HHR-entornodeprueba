@@ -3,7 +3,7 @@ import type { SyncQueueTelemetryRow } from '@/services/storage/sync/syncQueueTel
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/pendingDailyRecordSyncTask';
-import type { AuthoringSession } from '@/services/storage/authoringSession';
+import type { AuthoringSession } from '@/services/session/authoringSession';
 
 /** `retained_for_owner`: the session changed first, so the task waits for its author, off the day. */
 export type SyncQueueTaskWriteMode = 'created' | 'reused' | 'retained_for_owner';

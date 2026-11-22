@@ -2,7 +2,7 @@ import {
   authoredOptions,
   isAuthoringSessionCurrent,
   type PublicWriteOptions,
-} from '@/services/storage/authoringSession';
+} from '@/services/session/authoringSession';
 import { isClinicalEventsOnlyDailyRecordPatch } from '@/services/repositories/dailyRecordClinicalDomainService';
 import { mutationOptions, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';

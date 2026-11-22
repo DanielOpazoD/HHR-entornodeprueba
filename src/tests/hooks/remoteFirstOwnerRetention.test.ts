@@ -1,4 +1,4 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { afterAll, beforeEach, afterEach, expect, it, vi } from 'vitest';
@@ -12,12 +12,12 @@ import {
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
+} from '@/services/session/sessionScopedStorageService';
 import {
   setSessionGeneration,
   SESSION_GENERATION_KEY,
-} from '@/services/storage/sessionStorageTransition';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+} from '@/services/session/sessionStorageTransition';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import {
   resolvePatchErrorFeedback,
   resolvePatchOutcomeFeedback,

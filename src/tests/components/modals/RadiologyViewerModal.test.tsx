@@ -1,8 +1,8 @@
 import { act, render, waitFor, screen, fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MMRADExam, MMRADSearchResult } from '@/features/radiology/services/mmradService';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 
 const mmradMocks = vi.hoisted(() => ({
   search: vi.fn(),

@@ -4,8 +4,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useNursingHandoffLogout } from '@/hooks/useNursingHandoffLogout';
 import NursingHandoffLogoutDialog from '@/components/layout/NursingHandoffLogoutDialog';
 import NursingHandoffSessionNotice from '@/components/layout/NursingHandoffSessionNotice';
-import { SESSION_CLEANUP_PENDING_KEY, SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { SESSION_CLEANUP_PENDING_KEY, SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { admitSyntheticSession, replaceStoredSessionOwner } from '@/tests/utils/syntheticSession';
 import type { AuthUser } from '@/types/authRoleTypes';
 

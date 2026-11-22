@@ -19,7 +19,7 @@ import {
 import {
   isAuthoringSessionCurrent,
   type AuthoringSession,
-} from '@/services/storage/authoringSession';
+} from '@/services/session/authoringSession';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import {
   discardQuarantinedTask,

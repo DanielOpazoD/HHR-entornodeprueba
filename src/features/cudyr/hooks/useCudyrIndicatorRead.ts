@@ -6,7 +6,7 @@ import { cudyrIndicatorFirstSync } from '@/features/cudyr/indicator/cudyrIndicat
 import type { CudyrIndicatorRead } from '@/features/cudyr/indicator/cudyrIndicatorHistory';
 import { getNextDay } from '@/utils/clinicalDayUtils';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
-import { authoringSessionScope } from '@/services/storage/authoringSession';
+import { authoringSessionScope } from '@/services/session/authoringSession';
 
 /** Daily indicator snapshot. The detailed report keeps its interactive freshness policy. */
 export const useCudyrIndicatorRead = (

@@ -30,7 +30,7 @@ import { buildCudyrReport, type CudyrReportInput } from './cudyrReportModel';
 import { collectCudyrDailyFacts } from './cudyrReportFacts';
 import type { CudyrHistoryCursor } from '@/types/domain/cudyrHistory';
 import type { DailyRecordCudyrExportState } from '@/types/domain/dailyRecordSlices';
-import { authoringSessionScope, guardAuthoringSession } from '@/services/storage/authoringSession';
+import { authoringSessionScope, guardAuthoringSession } from '@/services/session/authoringSession';
 
 export const cudyrReportDates = (from: string, to: string): string[] => {
   const span = diffCalendarDays(from, to);

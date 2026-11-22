@@ -18,12 +18,12 @@ import { RepositoryProvider, createRepositoryContainer } from '@/context/Reposit
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
+} from '@/services/session/sessionScopedStorageService';
 import {
   SESSION_GENERATION_KEY,
   setSessionGeneration,
-} from '@/services/storage/sessionStorageTransition';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+} from '@/services/session/sessionStorageTransition';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import { buildMockDailyRecordRepository } from '@/tests/factories/dailyRecordRepositoryMock';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';

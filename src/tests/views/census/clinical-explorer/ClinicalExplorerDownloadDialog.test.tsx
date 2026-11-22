@@ -50,8 +50,8 @@ vi.mock('@/services/pdf/pdfLibRuntime', () => ({
 
 import { ClinicalExplorerHeader } from '@/features/census/components/clinical-explorer/ClinicalExplorerHeader';
 import { openMMRADExamListMemory } from '@/features/radiology/controllers/radiologyExamListMemory';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 
 import {
   HISTORY_NAME,

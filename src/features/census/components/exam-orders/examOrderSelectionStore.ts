@@ -1,6 +1,6 @@
 import { useSyncExternalStore, type MouseEvent } from 'react';
 import type { ExamRequestCandidate } from '@/features/census/components/exam-request/useExamRequestOrders';
-import { onSessionChange } from '@/services/storage/sessionStorageTransition';
+import { onSessionChange } from '@/services/session/sessionStorageTransition';
 
 interface ExamOrderSelection {
   /** Census day the patients were chosen on; another day starts with nothing chosen. */

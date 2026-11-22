@@ -9,7 +9,7 @@ import {
   describeMissingRemoteDay,
   transport,
 } from './missingRemoteDay.test-support';
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
