@@ -70,12 +70,21 @@
       ]
     },
     {
-      "id": "nursing_handoff_rayen",
-      "functionFile": "functions/lib/nursingHandoffRayen.js",
-      "endpoint": "nursingHandoffRayen",
+      "id": "nursing_handoff_device",
+      "functionFile": "functions/lib/nursingHandoffDevice.js",
+      "endpoint": "nursingHandoffDevice",
       "testFiles": [
-        "src/tests/functions/nursingHandoffRayen.test.ts",
-        "src/tests/emulator/nursing-handoff-rayen.emulator.test.ts"
+        "src/tests/functions/nursingHandoffDevice.test.ts",
+        "src/tests/emulator/nursing-handoff-device.emulator.test.ts"
+      ]
+    },
+    {
+      "id": "nursing_handoff_device_registration",
+      "functionFile": "functions/lib/nursingHandoffDevice.js",
+      "endpoint": "registerNursingHandoffDevice",
+      "testFiles": [
+        "src/tests/functions/nursingHandoffDevice.test.ts",
+        "src/tests/emulator/nursing-handoff-device.emulator.test.ts"
       ]
     },
     {

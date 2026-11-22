@@ -66,37 +66,34 @@ reemplaza el día y su auditoría en una sola transacción. Procedimiento:
 arbitrarias, valida claves estables y envía la carga únicamente a una URL institucional
 de Apps Script configurada en el backend. El secreto compartido nunca se expone al navegador.
 
-### Entrega de turno con una credencial de Eloísa
+### Entrega de turno con un equipo registrado
 
-`nursingHandoffRayen` es una función HTTP de `southamerica-east1` reservada a `hhr-pruebas`.
-Solo se exporta cuando el proyecto de Firebase y el del runtime coinciden con ese destino
-y están presentes las cuatro variables de configuración.
+`registerNursingHandoffDevice` y `nursingHandoffDevice` se exportan en
+`southamerica-east1` solo para `hhr-pruebas` con
+`HHR_NURSING_HANDOFF_DEVICE_ORIGIN` igual al origen de la extensión de pruebas.
 
-- `HHR_RAYEN_HANDOFF_ISSUER` y `HHR_RAYEN_HANDOFF_JWKS_URL` fijan el emisor HTTPS y el
-  juego de claves públicas autorizado.
-- `HHR_RAYEN_HANDOFF_FACILITY_ID` fija el establecimiento que debe figurar en la credencial.
-- `HHR_RAYEN_HANDOFF_EXTENSION_ORIGIN` fija el origen de la instalación de pruebas.
+El callable de registro recibe `deviceId` y el SHA-256 de una llave aleatoria de
+256 bits que conserva la extensión. Exige una sesión vigente de HHR, una cuenta
+individual activa de enfermería y un RUN registrado en HHR. Firebase conserva el
+hash de la llave y el identificador y versión de la cuenta. La extensión valida
+que el RUN de Eloísa coincide con el registro antes de conservar la llave en el
+almacenamiento privado del equipo.
 
-El cliente envía `POST` con `Content-Type: application/json` y un objeto `data`.
-La respuesta usa un objeto `result` o `error` según el estado HTTP.
-Cada solicitud requiere `data.assertion`, un JWT RS256 de propósito `hhr-nursing-handoff+jwt`
-con audiencia exclusiva `urn:hhr-pruebas:nursing-handoff` y los campos firmados
-`iss`, `sub`, `iat`, `exp`, `run` y `facilityId`. El `kid` del encabezado protegido
-identifica la clave en el JWKS y `facilityId` se envía como texto. Su vigencia máxima
-es de cinco minutos.
-El RUN firmado se resuelve contra el índice de HHR y la cuenta debe ser activa, del hospital
-y con rol `nurse_hospital`. La respuesta `status` indica autorización sin devolver
-la identidad. La lectura (`read`) y el guardado (`save`) usan el escritor de Entrega de turno
-con validación de paciente, episodio, turno y versión. El autor sale de la cuenta HHR. La
-credencial, el RUN profesional y los detalles de verificación no se guardan ni registran.
+Para usar Entrega de turno, la función HTTP recibe `data` con la operación
+(`status`, `read`, `save` o `disconnect`), `deviceId`, `proof` y
+`professionalRun`. La función toma el autor del registro del equipo y concede
+acceso a la nota únicamente si la llave y el RUN coinciden y la cuenta sigue
+habilitada. Las operaciones de guardado vuelven a verificar el equipo y la cuenta
+dentro de la transacción de Firestore. Leer y guardar reutilizan los controles
+de paciente, episodio, turno y versión. Desconectar revoca el registro del equipo.
+El token de Rayen permanece en el navegador.
 
-El contrato del JWT es para acordarlo con el emisor antes de habilitar la función.
-Para el primer despliegue, la instalación de pruebas debe recibir esos cuatro valores
-y un administrador debe habilitar la invocación HTTP del endpoint, según el flujo de IAM
-descrito en `.github/workflows/deploy-functions.yml`. La función valida la credencial
-de Eloísa en cada operación y el cliente debe obtener una credencial de ese emisor. La
-prueba de emulador `nursing-handoff-rayen.emulator.test.ts` usa Auth y Firestore locales
-con claves sintéticas.
+Para el piloto se necesita el ZIP «Equipo de enfermería (pruebas)» de la extensión,
+el deploy preview de HHR y los dos endpoints en el Firebase de pruebas. Un
+administrador debe habilitar su invocación HTTP según el flujo descrito en
+`.github/workflows/deploy-functions.yml`; registrar y usar el equipo exige sus
+credenciales de aplicación respectivas. El test `nursing-handoff-device.emulator.test.ts`
+usa Firebase Auth y Firestore emulados y datos sintéticos.
 
 ## Historial CUDYR
 
