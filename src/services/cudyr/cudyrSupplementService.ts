@@ -1,7 +1,7 @@
 import {
   guardAuthoringSession,
   type AuthoringSessionGuard,
-} from '@/services/storage/authoringSession';
+} from '@/services/session/authoringSession';
 import { callCudyrFunction } from './cudyrFunctionsCall';
 import type { CudyrSupplementReport } from '@/types/domain/cudyrSupplement';
 export interface ArchivedCudyrSupplement {

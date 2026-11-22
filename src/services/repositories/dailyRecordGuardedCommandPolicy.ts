@@ -3,7 +3,7 @@ import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { PatientData } from '@/types/domain/patient';
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
 import type { ClinicalCribCreateRequest } from '@/types/domain/intentionalBedClear';
-import { assertAuthoringSessionCurrent } from '@/services/storage/authoringSession';
+import { assertAuthoringSessionCurrent } from '@/services/session/authoringSession';
 import type { DailyRecordPartialWriteOptions } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';

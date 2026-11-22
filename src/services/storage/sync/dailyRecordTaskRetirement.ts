@@ -2,8 +2,8 @@ import { ensureDbReady, hospitalDB } from '@/services/storage/indexeddb/indexedD
 import {
   captureAuthoringSession,
   isAuthoringSessionCurrent,
-} from '@/services/storage/authoringSession';
-import { SESSION_GENERATION_KEY } from '@/services/storage/sessionStorageTransition';
+} from '@/services/session/authoringSession';
+import { SESSION_GENERATION_KEY } from '@/services/session/sessionStorageTransition';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { matchesOwner } from './dexieSyncQueueQuarantine';
 

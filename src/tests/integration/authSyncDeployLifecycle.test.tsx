@@ -13,7 +13,7 @@ import type { AuthUser } from '@/types/authRoleTypes';
 import * as authSession from '@/services/auth/authSession';
 import * as authFallback from '@/services/auth/authFallback';
 import * as authUseCases from '@/application/auth/authSessionUseCases';
-import * as sessionScopedStorageService from '@/services/storage/sessionScopedStorageService';
+import * as sessionScopedStorageService from '@/services/session/sessionScopedStorageService';
 import * as bootstrapAppRuntime from '@/app-shell/bootstrap/bootstrapAppRuntime';
 
 vi.mock('@/services/auth/authSession', () => ({
@@ -30,7 +30,7 @@ vi.mock('@/application/auth/authSessionUseCases', () => ({
   executeResolvedCurrentAuthSessionState: vi.fn(),
 }));
 
-vi.mock('@/services/storage/sessionScopedStorageService', () => ({
+vi.mock('@/services/session/sessionScopedStorageService', () => ({
   clearSessionScopedClientState: vi.fn(async (_reason: string, close?: () => Promise<void>) => {
     await close?.();
   }),

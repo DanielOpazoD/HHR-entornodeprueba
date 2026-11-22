@@ -1,18 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHandleLogout } from '@/hooks/useAuthStateSessionSupport';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
+import { getStoredSessionOwnerKey } from '@/services/session/sessionScopedStorageService';
 import {
   getSessionGeneration,
   SESSION_GENERATION_KEY,
   setSessionGeneration,
-} from '@/services/storage/sessionStorageTransition';
-import { clearSessionDailyRecords } from '@/services/storage/sessionSyncQueuePreservation';
+} from '@/services/session/sessionStorageTransition';
+import { clearSessionDailyRecords } from '@/services/session/sessionSyncQueuePreservation';
 
 vi.mock('@/application/ports/auditPort', () => ({
   defaultAuditPort: { logUserLogout: vi.fn().mockResolvedValue(undefined) },
 }));
 vi.mock('@/config/queryClient', () => ({ clearQueryCache: vi.fn() }));
-vi.mock('@/services/storage/sessionSyncQueuePreservation', () => ({
+vi.mock('@/services/session/sessionSyncQueuePreservation', () => ({
   clearSessionDailyRecords: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({

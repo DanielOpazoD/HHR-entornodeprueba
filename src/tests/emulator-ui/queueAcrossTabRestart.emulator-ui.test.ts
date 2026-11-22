@@ -177,9 +177,9 @@ const openTab = async () => {
   vi.resetModules();
   const { hospitalDB } = await import('@/services/storage/indexeddb/indexedDbCore');
   const repo = await import('@/services/repositories/dailyRecordRepositoryWriteService');
-  const session = await import('@/services/storage/authoringSession');
+  const session = await import('@/services/session/authoringSession');
   const sync = await import('@/services/storage/sync');
-  const scoped = await import('@/services/storage/sessionScopedStorageService');
+  const scoped = await import('@/services/session/sessionScopedStorageService');
   const config = await import('@/services/repositories/repositoryConfig');
   return {
     hospitalDB,

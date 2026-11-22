@@ -298,7 +298,7 @@ decisión rechazada ni inventa ausencia local.
   ni avisos de sesión. Al cambiar de sesión solo se recupera la entrega de turno de enfermería;
   las sincronizaciones salen de Eloísa y se detienen.
 - Una operación que espera pregunta si sigue la misma persona con `guardAuthoringSession()`
-  (`src/services/storage/authoringSession.ts`): captura la sesión una vez y corta tras cada espera
+  (`src/services/session/authoringSession.ts`): captura la sesión una vez y corta tras cada espera
   si cambió el propietario guardado o la generación admitida, o si hay un cierre de sesión a medio
   limpiar. Salir y volver a entrar con la misma persona y generación también cuenta como cambio
   (la guarda incluye la época de la pestaña). Lo guardado por persona se indexa con `authoringSessionScope()`; lo que solo se muestra
@@ -326,7 +326,7 @@ decisión rechazada ni inventa ausencia local.
 - La edición local en vuelo conserva propietario, base y contexto en reposo, aunque la cola activa
   siguiente esté llena; revierte la vista sin avisar a la sesión siguiente.
 - El cambio de sesión de Eloísa se observa solo con `onSessionChange` o `useSessionEpoch`
-  (`src/services/storage/sessionStorageTransition.ts`). Nadie escucha el mensaje
+  (`src/services/session/sessionStorageTransition.ts`). Nadie escucha el mensaje
   `HHR_RAYEN_SESSION_CHANGED` en la app: lo que recuerda algo por persona lo olvida ahí, esté o no
   montado.
 - La atribución del diagnóstico local usa el propietario admitido en memoria por esta pestaña,

@@ -60,7 +60,7 @@ import { adoptAuthoritativeRecord } from '@/services/repositories/dailyRecordRep
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { resolveUnsentDayBase } from '@/services/storage/sync/plainDayFieldReplay';
 import { isValidRemoteAuthorityRecord } from '@/services/repositories/dailyRecordRemotePersistenceState';
-import { assertAuthoringSessionCurrent } from '@/services/storage/authoringSession';
+import { assertAuthoringSessionCurrent } from '@/services/session/authoringSession';
 
 /** Stored here with its queue task, which sends it by itself. */
 const queuedHereResult = (

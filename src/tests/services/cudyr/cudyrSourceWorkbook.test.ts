@@ -19,8 +19,8 @@ vi.mock('@/services/cudyr/cudyrSupplementService', () => ({
 vi.mock('@/services/cudyr/cudyrFunctionsCall', () => ({
   callCudyrFunction: mocks.call,
 }));
-vi.mock('@/services/storage/sessionStorageTransition', async importOriginal => ({
-  ...(await importOriginal<typeof import('@/services/storage/sessionStorageTransition')>()),
+vi.mock('@/services/session/sessionStorageTransition', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/session/sessionStorageTransition')>()),
   getSessionGeneration: () => mocks.generation,
 }));
 const archive = (id = 'first', month = '2026-10'): ArchivedCudyrSupplement => ({

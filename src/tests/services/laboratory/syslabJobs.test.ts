@@ -5,7 +5,7 @@ import {
   readRemoteSyslabDetailsJob,
   requestSyslabJob,
 } from '@/services/laboratory/syslabJobs';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 
 vi.mock('@/services/auth/authRequestHeaders', () => ({
   resolveCurrentUserAuthHeaders: vi.fn(async () => ({ Authorization: 'Bearer synthetic' })),

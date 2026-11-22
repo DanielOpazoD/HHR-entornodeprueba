@@ -1,5 +1,5 @@
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
-import type { AuthoringSessionGuard } from '@/services/storage/authoringSession';
+import type { AuthoringSessionGuard } from '@/services/session/authoringSession';
 
 /** Where each CUDYR Function runs, and its client timeout (undefined: the SDK's default). */
 const ENDPOINTS = {

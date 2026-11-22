@@ -24,7 +24,7 @@ import {
   clearPersistedFirebaseAuthState,
   clearRecentAuthenticatedSessionHint,
 } from '@/services/auth/authStorageHints';
-import { clearSessionScopedClientState } from '@/services/storage/sessionScopedStorageService';
+import { clearSessionScopedClientState } from '@/services/session/sessionScopedStorageService';
 
 const FIREBASE_AUTH_STORAGE_PREFIX = 'firebase:authUser:';
 const DEFAULT_BOOTSTRAP_ROLE: UserRole = 'admin';

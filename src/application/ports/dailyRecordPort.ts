@@ -1,4 +1,4 @@
-import { authoredOptions, type PublicWriteOptions } from '@/services/storage/authoringSession';
+import { authoredOptions, type PublicWriteOptions } from '@/services/session/authoringSession';
 import { createRecoverableRuntimeLoader } from '@/services/runtime/createRecoverableRuntimeLoader';
 import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import type { DailyRecord } from '@/types/domain/dailyRecord';

@@ -5,7 +5,7 @@ import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { loadCudyrReport } from '@/services/cudyr/cudyrReportLoader';
 import { cudyrReportCache, cudyrReportReadIncomplete } from '@/services/cudyr/cudyrReportCache';
-import { authoringSessionScope } from '@/services/storage/authoringSession';
+import { authoringSessionScope } from '@/services/session/authoringSession';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 
 const dailyReadIsFresh = (

@@ -1,5 +1,5 @@
 import type { RayenOwnedClinicalField as RayenClinicalEnrichmentField } from '@/types/domain/rayenClinicalFields';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { withClientRuntimeContractVersion } from '@/services/storage/clinicalAuthorityClientVersion';
 import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields';

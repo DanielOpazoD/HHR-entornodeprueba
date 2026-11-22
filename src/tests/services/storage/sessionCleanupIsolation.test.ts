@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearSessionDailyRecords } from '@/services/storage/sessionSyncQueuePreservation';
+import { clearSessionDailyRecords } from '@/services/session/sessionSyncQueuePreservation';
 import {
   clearSessionScopedClientState,
   getStoredSessionOwnerKey,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
+} from '@/services/session/sessionScopedStorageService';
 import {
   getSessionGeneration,
   setSessionGeneration,
-} from '@/services/storage/sessionStorageTransition';
+} from '@/services/session/sessionStorageTransition';
 import { AUDIT_CONNECTION_OUTBOX_PREFIX } from '@/services/admin/auditSession/auditConnectionOutbox';
 
-vi.mock('@/services/storage/sessionSyncQueuePreservation', () => ({
+vi.mock('@/services/session/sessionSyncQueuePreservation', () => ({
   clearSessionDailyRecords: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
@@ -176,9 +176,9 @@ describe('session cleanup isolation', () => {
     });
     vi.stubGlobal('navigator', { locks: { request } });
     vi.resetModules();
-    const tabA = await import('@/services/storage/sessionScopedStorageService');
+    const tabA = await import('@/services/session/sessionScopedStorageService');
     vi.resetModules();
-    const tabB = await import('@/services/storage/sessionScopedStorageService');
+    const tabB = await import('@/services/session/sessionScopedStorageService');
     await tabA.reconcileAuthorizedSessionOwner('user:old');
     const closureStarted = createSignal();
     let finish!: () => void;

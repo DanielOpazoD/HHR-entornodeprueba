@@ -1,4 +1,4 @@
-import { authoringSessionScope, guardAuthoringSession } from '@/services/storage/authoringSession';
+import { authoringSessionScope, guardAuthoringSession } from '@/services/session/authoringSession';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';

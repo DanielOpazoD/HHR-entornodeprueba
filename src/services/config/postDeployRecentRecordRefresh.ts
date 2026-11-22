@@ -1,4 +1,4 @@
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import type { OperationalOutcomeLike } from '@/services/observability/operationalTelemetryContracts';
 import type { SyncQueueTelemetry } from '@/services/storage/sync';

@@ -1,4 +1,4 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 /**
  * Synthetic-only helpers for a census day edited offline while another session writes it. The
  * device clock moves forward between the read (T0, 10:00), the other session's write (10:15) and

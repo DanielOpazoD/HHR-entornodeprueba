@@ -1,4 +1,4 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { useAudit } from '@/hooks/useAudit';
 import FunctionsRecoveryNotice from '@/components/ui/FunctionsRecoveryNotice';

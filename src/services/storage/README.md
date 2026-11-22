@@ -8,10 +8,9 @@ Capa de persistencia concreta: IndexedDB, localStorage, Firestore y sincronizaci
 
 Desde fuera de esta carpeta se entra por `@/services/storage/firestore` (lectura y escritura
 remota de registros y catálogos) y `@/services/storage/sync` (cola, reintentos, métricas y
-telemetría de sincronización). La sesión (`sessionStorageTransition.ts`,
-`authoringSession.ts`), la copia local (`indexeddb/`, `localstorage/`, `localpersistence/`) y
-la configuración de tablas e interfaz tienen cada una su archivo; la raíz no tiene barril
-`index.ts`.
+telemetría de sincronización). La sesión vive aparte en `src/services/session/`; la copia local
+(`indexeddb/`, `localstorage/`, `localpersistence/`) y la configuración de tablas e interfaz tienen
+cada una su archivo; la raíz no tiene barril `index.ts`.
 
 `storage/firestore` es el entrypoint remoto soportado.
 La construcción de rangos mensuales y helpers de escritura sigue viviendo en

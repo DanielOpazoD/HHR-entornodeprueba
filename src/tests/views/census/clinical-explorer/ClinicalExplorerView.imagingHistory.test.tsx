@@ -37,7 +37,7 @@ vi.mock('@/features/laboratory/hooks/useSyslabAccess', () => ({
   }),
 }));
 
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { panelResult } from '../clinicalPanelDrawer.fixture';
 import { BEDS } from '@/constants/beds';
 import { ClinicalExplorerView } from '@/features/census/components/clinical-explorer/ClinicalExplorerView';

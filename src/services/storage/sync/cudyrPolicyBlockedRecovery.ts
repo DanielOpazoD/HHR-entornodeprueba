@@ -1,6 +1,6 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { SyncQueueStorePort } from './syncQueuePorts';
-import type { AuthoringSession } from '@/services/storage/authoringSession';
+import type { AuthoringSession } from '@/services/session/authoringSession';
 
 const POLICY_REJECTION = 'Clinical enrichment is not authorized by the current global policy.';
 export const isPolicyBlockedCudyrArchive = (

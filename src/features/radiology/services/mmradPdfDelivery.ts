@@ -1,5 +1,5 @@
 import { fetchMMRADPdfBlob } from './mmradService';
-import { onSessionChange, sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
+import { onSessionChange, sessionEpochGuard } from '@/services/session/sessionStorageTransition';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 
 type PdfTarget = { print: boolean } | { download: (blob: Blob) => void };

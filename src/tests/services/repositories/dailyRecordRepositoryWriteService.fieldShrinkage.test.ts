@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import type {
   LocalRecordAdmissionCandidate,
   LocalRecordBase,

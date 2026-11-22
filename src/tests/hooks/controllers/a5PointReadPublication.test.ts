@@ -10,7 +10,7 @@ import {
   type DailyRecordQueryRuntime,
 } from '@/services/repositories/contracts/dailyRecordQueries';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import {
   applyPendingExplicitCensusPatch,
   registerPendingDailyRecordPatch,

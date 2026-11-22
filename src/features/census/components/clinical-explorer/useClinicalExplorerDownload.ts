@@ -4,7 +4,7 @@ import { searchMmradStudies } from '@/features/radiology/controllers/mmradStudyS
 import type { ClinicalExplorerPatient } from '@/features/census/controllers/clinicalExplorerController';
 import { downloadBlob } from '@/services/exporters/exportDownload';
 import { fetchMMRADPdfBlob, type MMRADExam } from '@/features/radiology/services/mmradService';
-import { onSessionChange, sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
+import { onSessionChange, sessionEpochGuard } from '@/services/session/sessionStorageTransition';
 import {
   calendarStampInClinicalTimeZone,
   getClinicalCalendarDateISO,

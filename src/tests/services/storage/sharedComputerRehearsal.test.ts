@@ -4,9 +4,9 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+} from '@/services/session/sessionScopedStorageService';
+import { getStoredSessionOwnerKey } from '@/services/session/sessionOwnerKey';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { createBrowserSyncRuntime } from '@/services/storage/sync/browserSyncRuntime';
 import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';

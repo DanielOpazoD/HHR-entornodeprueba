@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 
 vi.unmock('@/application/ports/dailyRecordPort');
 vi.mock('@/services/repositories/repositoryConfig', () => ({
@@ -42,7 +42,7 @@ beforeEach(async () => {
   Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
   local.clear();
   session.clear();
-  const { setSessionGeneration } = await import('@/services/storage/sessionStorageTransition');
+  const { setSessionGeneration } = await import('@/services/session/sessionStorageTransition');
   setSessionGeneration('synthetic-A');
   local.setItem(SESSION_OWNER_KEY, 'user:synthetic-A');
   await hospitalDB.open();
@@ -81,8 +81,8 @@ it.each([
   async ({ captureAtEntry, change }) => {
     const { defaultDailyRecordWritePort: port } =
       await import('@/application/ports/dailyRecordPort');
-    const { captureAuthoringSession } = await import('@/services/storage/authoringSession');
-    const { setSessionGeneration } = await import('@/services/storage/sessionStorageTransition');
+    const { captureAuthoringSession } = await import('@/services/session/authoringSession');
+    const { setSessionGeneration } = await import('@/services/session/sessionStorageTransition');
     const options = captureAtEntry ? { authoringSession: captureAuthoringSession() } : undefined;
     const nextRecord = {
       ...base,

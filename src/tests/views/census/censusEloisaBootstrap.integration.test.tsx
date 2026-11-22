@@ -8,7 +8,7 @@ import {
   getRayenFillAttemptId,
   resetRayenFillProgress,
 } from '@/features/rayen-import/hooks/useRayenFillStatus';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 
 /**
  * Costura real del arranque desde Eloísa.

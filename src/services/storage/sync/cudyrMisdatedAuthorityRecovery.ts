@@ -2,7 +2,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { addCalendarDays, isCalendarDate } from '@/utils/clinicalDateUtils';
 import type { CudyrArchiveOutboxPayload } from '@/types/domain/cudyrHistory';
 import type { SyncQueueStorePort } from './syncQueuePorts';
-import type { AuthoringSession } from '@/services/storage/authoringSession';
+import type { AuthoringSession } from '@/services/session/authoringSession';
 import { isPolicyBlockedCudyrArchive } from './cudyrPolicyBlockedRecovery';
 
 /** Repairs the former clinical-day/authority-day mix-up only when the original run

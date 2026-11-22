@@ -1,7 +1,7 @@
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import type { CudyrSourceSheet } from './cudyrSourceTypes';
 import { getNextDay } from '@/utils/clinicalDayUtils';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import {
   loadCudyrSupplements,
   type ArchivedCudyrSupplement,

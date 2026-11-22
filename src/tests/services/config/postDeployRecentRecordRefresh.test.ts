@@ -1,8 +1,8 @@
 import { executeSyncDailyRecord } from '@/application/daily-record/syncDailyRecordUseCase';
 import { createNotFoundDailyRecordReadResult } from '@/services/repositories/dailyRecordReadResultController';
 import { createDailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),

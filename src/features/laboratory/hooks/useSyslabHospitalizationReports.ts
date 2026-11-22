@@ -11,7 +11,7 @@ import {
   fetchSyslabExamDetails,
   searchSyslabExams,
 } from '@/services/laboratory/syslabService';
-import { onSessionChange } from '@/services/storage/sessionStorageTransition';
+import { onSessionChange } from '@/services/session/sessionStorageTransition';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 import type { SyslabExamItem } from '@/types/domain/labExamTypes';
 import { buildAnalysisData } from '../controllers/labAnalyticsController';

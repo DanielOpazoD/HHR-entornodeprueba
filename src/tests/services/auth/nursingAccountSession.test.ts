@@ -30,7 +30,7 @@ vi.mock('@/services/auth/authRoleLookup', () => ({
   rememberConfirmedAuthRole: mocks.rememberRole,
 }));
 import { establishNursingSession } from '@/services/auth/nursingAccountService';
-import { runSessionStorageTransition } from '@/services/storage/sessionStorageTransition';
+import { runSessionStorageTransition } from '@/services/session/sessionStorageTransition';
 import { beginPendingLogout } from '@/services/auth/authLogoutState';
 describe('individual login respects session replacement', () => {
   beforeEach(() => {

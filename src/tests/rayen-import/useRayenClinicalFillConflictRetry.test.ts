@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as runner from '@/features/rayen-import/clinicalFillRunner';
 import { useRayenClinicalFill } from '@/features/rayen-import/hooks/useRayenClinicalFill';
 import { resetRayenClinicalFillQueueForTests } from '@/features/rayen-import/domain/rayenClinicalFillQueue';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import type {
   ClinicalFillError,
   ClinicalFillSummary,

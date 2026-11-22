@@ -26,7 +26,7 @@ export const sessionRawReadRule = {
     type: 'problem',
     schema: [],
     messages: {
-      raw: 'No compares la sesión a mano con {{name}}(): usa guardAuthoringSession() (src/services/storage/authoringSession.ts) si la operación escribe, guarda o lee datos compartidos después de una espera, y authoringSessionScope() como clave de lo guardado por persona; sessionEpochGuard() si el resultado solo se muestra en esta pestaña; useSessionEpoch() como clave de React (AGENTS.md, sesión).',
+      raw: 'No compares la sesión a mano con {{name}}(): usa guardAuthoringSession() (src/services/session/authoringSession.ts) si la operación escribe, guarda o lee datos compartidos después de una espera, y authoringSessionScope() como clave de lo guardado por persona; sessionEpochGuard() si el resultado solo se muestra en esta pestaña; useSessionEpoch() como clave de React (AGENTS.md, sesión).',
       stale:
         'Este archivo ya no lee la sesión cruda: quita su fila de «pending» en ' +
         SESSION_RAW_READ_LEDGER_PATH +

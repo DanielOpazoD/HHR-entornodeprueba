@@ -10,7 +10,7 @@ vi.unmock('@/hooks/useAuthState');
 vi.unmock('@/context/AuthContext');
 vi.unmock('../../context/AuthContext');
 
-vi.mock('@/services/storage/sessionScopedStorageService', () => ({
+vi.mock('@/services/session/sessionScopedStorageService', () => ({
   clearSessionScopedClientState: vi.fn(async (_reason: string, close?: () => Promise<void>) => {
     await close?.();
   }),

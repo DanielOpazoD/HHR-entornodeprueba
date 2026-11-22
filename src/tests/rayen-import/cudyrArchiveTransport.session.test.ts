@@ -1,8 +1,8 @@
 import { patchDailyRecordWithClinicalAuthorityCallable } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { archiveCudyrHistory } from '@/services/cudyr/cudyrHistoryService';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 const h = vi.hoisted(() => ({ runtime: vi.fn(), invoke: vi.fn(), callable: vi.fn() }));
 vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
   defaultFunctionsRuntime: { getRegionalFunctions: h.runtime },

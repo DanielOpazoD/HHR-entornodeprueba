@@ -14,12 +14,12 @@ import { dispatchOperationalTelemetryExternally } from '@/services/observability
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
+} from '@/services/session/sessionScopedStorageService';
 import type { ApplyDailyRecordPatchOptions } from '@/application/shared/dailyRecordCoreContracts';
 import * as freshness from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import * as writeService from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
-import { authoredOptions } from '@/services/storage/authoringSession';
+import { authoredOptions } from '@/services/session/authoringSession';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import {

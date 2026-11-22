@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getSessionOwner } from '@/services/storage/sessionStorageTransition';
+import { getSessionOwner } from '@/services/session/sessionStorageTransition';
 import { CudyrSupplementImport } from '@/features/cudyr/components/CudyrSupplementImport';
 import { CudyrCensusApprovalButton } from '@/features/cudyr/components/CudyrCensusApprovalButton';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';

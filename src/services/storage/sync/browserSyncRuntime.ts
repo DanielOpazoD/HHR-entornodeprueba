@@ -1,12 +1,12 @@
-import { getSessionGeneration, getSessionOwner } from '@/services/storage/sessionStorageTransition';
+import { getSessionGeneration, getSessionOwner } from '@/services/session/sessionStorageTransition';
 import { startBrowserSyncWakeup } from './browserSyncWakeup';
 import type { SyncRuntimePort } from '@/services/storage/sync/syncQueuePorts';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import {
   hasSessionCleanupFailed,
   isSessionCleanupPending,
-} from '@/services/storage/sessionOwnerKey';
-import { getTabOwnerKey } from '@/services/storage/authoringSession';
+} from '@/services/session/sessionOwnerKey';
+import { getTabOwnerKey } from '@/services/session/authoringSession';
 
 export const createBrowserSyncRuntime = (): SyncRuntimePort => {
   let onlineListenerRegistered = false;

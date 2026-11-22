@@ -1,10 +1,10 @@
-import { authoredOptions, captureAuthoringSession } from '@/services/storage/authoringSession';
+import { authoredOptions, captureAuthoringSession } from '@/services/session/authoringSession';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
   SESSION_GENERATION_KEY,
   setSessionGeneration,
-} from '@/services/storage/sessionStorageTransition';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+} from '@/services/session/sessionStorageTransition';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import * as writeService from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { assertDailyRecordRepositoryWriteAccepted } from '@/services/repositories/dailyRecordRepositoryWriteOutcome';
 import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';

@@ -1,6 +1,6 @@
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
-import { authoredOptions } from '@/services/storage/authoringSession';
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { authoredOptions } from '@/services/session/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import 'fake-indexeddb/auto';
 import type { ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';

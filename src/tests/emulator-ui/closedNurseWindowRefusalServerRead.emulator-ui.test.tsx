@@ -23,9 +23,9 @@ import { processSyncQueue } from '@/services/storage/sync';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
 import { saveDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import * as rebase from '@/services/repositories/dailyRecordPendingWriteRebase';
@@ -41,7 +41,7 @@ import { createDailyRecordWriteAuthorityFunctions } from '@/tests/functions/dail
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
+} from '@/services/session/sessionScopedStorageService';
 import {
   setFirestoreEnabled,
   setFirestoreSyncState,

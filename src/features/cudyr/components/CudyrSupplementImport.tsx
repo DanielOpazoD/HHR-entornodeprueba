@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { readCudyrSupplementFile } from '@/services/cudyr/cudyrSupplementFile';
 import { importCudyrSupplement, supplementMonths } from '@/services/cudyr/cudyrSupplementService';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 
 type Preview = Awaited<ReturnType<typeof readCudyrSupplementFile>>;
 const CudyrSupplementImportSession = ({

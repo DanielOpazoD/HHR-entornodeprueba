@@ -1,7 +1,7 @@
 import {
   captureAuthoringSession,
   guardAuthoringSession,
-} from '@/services/storage/authoringSession';
+} from '@/services/session/authoringSession';
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';

@@ -3,12 +3,12 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
-import { clearSessionDailyRecords } from '@/services/storage/sessionSyncQueuePreservation';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import { clearSessionDailyRecords } from '@/services/session/sessionSyncQueuePreservation';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import {
   SESSION_GENERATION_KEY,
   setSessionGeneration,
-} from '@/services/storage/sessionStorageTransition';
+} from '@/services/session/sessionStorageTransition';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import {

@@ -1,4 +1,4 @@
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

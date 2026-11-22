@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildGuardedDailyRecordPatchPolicy,

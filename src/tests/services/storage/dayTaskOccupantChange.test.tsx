@@ -1,4 +1,4 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 /**
  * Synthetic-only: a census edit queued offline while another session replaces the bed's patient,
  * the crib's newborn or the mother. Real write service, queue engine, transport and clinical

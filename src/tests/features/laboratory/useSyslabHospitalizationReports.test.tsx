@@ -24,7 +24,7 @@ vi.mock('@/features/laboratory/hooks/useSyslabAccess', () => ({
 }));
 
 import { useSyslabHospitalizationReports } from '@/features/laboratory/hospitalization-reports';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import { buildDetail, buildExam, buildFinding } from './labAnalyticsController.testSupport';
 

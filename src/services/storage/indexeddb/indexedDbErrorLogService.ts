@@ -1,5 +1,5 @@
 import type { UserRole } from '@/types/authRoleTypes';
-import { getSessionOwner, sessionEpochGuard } from '../sessionStorageTransition';
+import { getSessionOwner, sessionEpochGuard } from '../../session/sessionStorageTransition';
 import { ErrorLog } from '@/services/logging/errorLogTypes';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 

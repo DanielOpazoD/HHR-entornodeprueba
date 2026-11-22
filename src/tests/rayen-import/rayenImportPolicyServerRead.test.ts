@@ -10,12 +10,12 @@ const session = vi.hoisted(() => ({
 vi.mock('@/services/auth/authRequestHeaders', () => ({
   resolveCurrentUserAuthHeaders: session.headers,
 }));
-vi.mock('@/services/storage/sessionOwnerKey', async importOriginal => ({
-  ...(await importOriginal<typeof import('@/services/storage/sessionOwnerKey')>()),
+vi.mock('@/services/session/sessionOwnerKey', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/session/sessionOwnerKey')>()),
   getStoredSessionOwnerKey: () => session.owner,
 }));
-vi.mock('@/services/storage/sessionStorageTransition', async importOriginal => ({
-  ...(await importOriginal<typeof import('@/services/storage/sessionStorageTransition')>()),
+vi.mock('@/services/session/sessionStorageTransition', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/session/sessionStorageTransition')>()),
   getSessionGeneration: () => session.generation,
 }));
 

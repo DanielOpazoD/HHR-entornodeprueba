@@ -4,7 +4,7 @@ import { ensureDbReady } from '@/services/storage/indexeddb/indexedDbCore';
 import {
   isAuthoringSessionCurrent,
   type AuthoringSession,
-} from '@/services/storage/authoringSession';
+} from '@/services/session/authoringSession';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { createObsoleteCudyrCaptureRecovery } from './cudyrObsoleteCaptureRecovery';
 import { getDocFromServer } from 'firebase/firestore';

@@ -5,13 +5,13 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
-import { getSessionOwner } from '@/services/storage/sessionStorageTransition';
-import { isSessionCleanupPending } from '@/services/storage/sessionOwnerKey';
+} from '@/services/session/sessionScopedStorageService';
+import { getSessionOwner } from '@/services/session/sessionStorageTransition';
+import { isSessionCleanupPending } from '@/services/session/sessionOwnerKey';
 import {
   captureAuthoringSession,
   guardAuthoringSession,
-} from '@/services/storage/authoringSession';
+} from '@/services/session/authoringSession';
 import {
   discardQuarantinedSyncTask,
   ensureSyncQueueOnlineListener,

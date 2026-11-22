@@ -11,7 +11,7 @@ import {
   visibleErrorTechnicalDetail,
   type RayenImportState,
 } from '@/features/rayen-import/hooks/rayenImportState';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { errorService } from '@/services/utils/errorService';
 import { rayenToPatientData } from '@/features/rayen-import/mapping/rayenToPatientData';
 import { useRayenSnapshotPreview } from '@/features/rayen-import/hooks/useRayenSnapshotPreview';

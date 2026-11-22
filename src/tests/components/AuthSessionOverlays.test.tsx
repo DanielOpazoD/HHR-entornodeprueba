@@ -4,8 +4,8 @@ import { AuthProvider } from '@/context/AuthContext';
 import { AuthSessionOverlays } from '@/components/layout/AuthSessionOverlays';
 import { resolveNormalizedAuthOperationalState } from '@/services/auth/authOperationalState';
 import { useNursingHandoffLogout } from '@/hooks/useNursingHandoffLogout';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import type { AuthUser } from '@/types/authRoleTypes';
 
 vi.unmock('@/context/AuthContext');

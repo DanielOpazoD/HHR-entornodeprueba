@@ -6,14 +6,14 @@ import { saveErrorLog, getErrorLogs } from '@/services/storage/indexeddb/indexed
 import {
   reconcileAuthorizedSessionOwner,
   clearSessionScopedClientState,
-} from '@/services/storage/sessionScopedStorageService';
+} from '@/services/session/sessionScopedStorageService';
 import {
   getSessionGeneration,
   setSessionGeneration,
   onSessionChange,
   SESSION_GENERATION_KEY,
-} from '@/services/storage/sessionStorageTransition';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+} from '@/services/session/sessionStorageTransition';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import {
   recordOperationalTelemetry,
   getOperationalTelemetryEvents,

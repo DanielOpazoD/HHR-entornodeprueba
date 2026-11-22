@@ -27,7 +27,7 @@ import { resolveCurrentClinicalDay } from '@/utils/clinicalDayAdmissionUtils';
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
+} from '@/services/session/sessionScopedStorageService';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 
@@ -47,7 +47,7 @@ import { useDevicesCellController } from '@/features/census/components/patient-r
 import { buildToggleExtraBedPatches } from '@/hooks/controllers/bedManagementPatchController';
 import { updateRecordPartial } from '@/services/storage/firestore/firestoreRecordWrites';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
 import { applyPatches } from '@/utils/patchUtils';
 import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';

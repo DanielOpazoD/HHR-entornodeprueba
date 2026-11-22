@@ -1,5 +1,5 @@
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
-import { sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
+import { sessionEpochGuard } from '@/services/session/sessionStorageTransition';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   dailyActionNow,

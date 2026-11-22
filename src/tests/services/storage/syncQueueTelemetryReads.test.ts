@@ -2,8 +2,8 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { getSyncQueueStats, getSyncQueueTelemetry } from '@/services/storage/sync/publicSyncQueue';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
 const events = vi.hoisted(() => vi.fn());
@@ -13,7 +13,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbCore', async () => {
   return { hospitalDB, ensureDbReady: () => hospitalDB.open() };
 });
 vi.mock('@/services/storage/sync/browserSyncRuntime', async () => {
-  const { getStoredSessionOwnerKey } = await import('@/services/storage/sessionOwnerKey');
+  const { getStoredSessionOwnerKey } = await import('@/services/session/sessionOwnerKey');
   return {
     createBrowserSyncRuntime: () => ({
       getOwnerKey: getStoredSessionOwnerKey,

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   setSessionGeneration,
   getSessionGeneration,
-} from '@/services/storage/sessionStorageTransition';
+} from '@/services/session/sessionStorageTransition';
 import { publishSharedStaffCatalog } from '@/services/staff/sharedEloisaStaffCatalog';
 const h = vi.hoisted(() => ({
   ready: Promise.resolve(),

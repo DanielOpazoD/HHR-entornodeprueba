@@ -177,7 +177,7 @@ export default tseslint.config(
   },
   {
     // The sender of the session message.
-    files: ['src/services/storage/sessionStorageTransition.ts'],
+    files: ['src/services/session/sessionStorageTransition.ts'],
     rules: { 'no-restricted-syntax': syntaxRestrictions({ omit: [SESSION_MESSAGE_RESTRICTION] }) },
   },
   {
@@ -397,7 +397,7 @@ export default tseslint.config(
   },
   {
     // Critical services also cover spec and story files, as the critical scanner did.
-    files: ['src/services/{storage,repositories,admin}/**/*.{ts,tsx}'],
+    files: ['src/services/{storage,session,repositories,admin}/**/*.{ts,tsx}'],
     ignores: ['**/*.d.ts', '**/tests/**', '**/*.test.*'],
     rules: { '@typescript-eslint/no-explicit-any': 'error' },
   },

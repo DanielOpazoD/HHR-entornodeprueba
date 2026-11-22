@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 
 import { ExamRequestModal } from '@/features/census/components/exam-request/ExamRequestModal';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import type { PatientData } from '@/types/domain/patient';
 
 const printMock = vi.hoisted(() => vi.fn());

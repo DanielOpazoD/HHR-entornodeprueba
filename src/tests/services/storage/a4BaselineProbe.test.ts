@@ -210,7 +210,7 @@ it('D1 emits one content-free occurrence only for a newer unheld local row after
   expect(telemetry).not.toHaveBeenCalled();
   expect(await hospitalDB.settings.toArray()).toEqual([]);
   const { clearSessionDailyRecords } =
-    await import('@/services/storage/sessionSyncQueuePreservation');
+    await import('@/services/session/sessionSyncQueuePreservation');
   await clearSessionDailyRecords('user:synthetic-admission');
   hospitalDB.close();
   await hospitalDB.open();

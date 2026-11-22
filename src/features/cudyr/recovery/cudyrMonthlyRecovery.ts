@@ -12,7 +12,7 @@ import {
   readCudyrCensusFile,
 } from '@/services/cudyr/cudyrCensusSourceService';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
-import { authoringSessionScope, guardAuthoringSession } from '@/services/storage/authoringSession';
+import { authoringSessionScope, guardAuthoringSession } from '@/services/session/authoringSession';
 import {
   loadCudyrSupplements,
   type ArchivedCudyrSupplement,

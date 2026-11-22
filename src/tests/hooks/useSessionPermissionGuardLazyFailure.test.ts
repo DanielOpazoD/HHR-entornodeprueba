@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { useSessionPermissionGuard } from '@/hooks/useSessionPermissionGuard';
 import { reportBasicReadPermissionDenied } from '@/services/auth/sessionPermissionStormDetector';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import type { AuthUser } from '@/types/authRoleTypes';
 

@@ -9,7 +9,7 @@ import {
 } from '@/services/auth/sessionPermissionStormDetector';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { SESSION_PERMISSION_STORM_CAUSE } from '@/hooks/controllers/authBootstrapController';
-import { sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
+import { sessionEpochGuard } from '@/services/session/sessionStorageTransition';
 import type { SessionPermissionStormVerdict } from '@/services/auth/sessionPermissionStormVerdict';
 
 /**

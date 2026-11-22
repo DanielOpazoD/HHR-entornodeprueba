@@ -1,4 +1,4 @@
-import { getTabOwnerKey } from '@/services/storage/authoringSession';
+import { getTabOwnerKey } from '@/services/session/authoringSession';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import {
   getLogoutGeneration,

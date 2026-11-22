@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { authoringSessionScope, guardAuthoringSession } from '@/services/storage/authoringSession';
+import { authoringSessionScope, guardAuthoringSession } from '@/services/session/authoringSession';
 import {
   getStoredSessionOwnerKey,
   SESSION_CLEANUP_PENDING_KEY,
-} from '@/services/storage/sessionOwnerKey';
+} from '@/services/session/sessionOwnerKey';
 import {
   getSessionEpoch,
   getSessionGeneration,
   sessionEpochGuard,
-} from '@/services/storage/sessionStorageTransition';
+} from '@/services/session/sessionStorageTransition';
 import {
   admitSyntheticSession,
   clearSyntheticSession,

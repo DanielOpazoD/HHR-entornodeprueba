@@ -46,7 +46,7 @@ import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
   resolveSessionOwnerKey,
-} from '@/services/storage/sessionScopedStorageService';
+} from '@/services/session/sessionScopedStorageService';
 import {
   resolveNormalizedAuthOperationalState,
   type NormalizedAuthOperationalState,

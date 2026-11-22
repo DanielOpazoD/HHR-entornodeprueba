@@ -1,4 +1,4 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getForDate } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { initializeDay } from '@/services/repositories/dailyRecordRepositoryInitializationService';

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClinicalExplorerReportActions } from '@/features/census/components/clinical-explorer/ClinicalExplorerReportActions';
 import { downloadBlob } from '@/services/exporters/exportDownload';
 import type { MMRADExam } from '@/features/radiology/services/mmradService';
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 
 vi.unmock('@/features/radiology/services/mmradService');
 vi.mock('@/services/auth/authRequestHeaders', () => ({

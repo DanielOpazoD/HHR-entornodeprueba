@@ -14,7 +14,7 @@ import {
 } from '@/services/storage/sync/syncQueueEngine';
 import type { SyncQueueEnqueueResult } from '@/services/storage/sync/syncQueueEngineContracts';
 import type { SyncQueueEnqueueOptions } from '@/services/storage/sync/syncQueueEnqueuePolicy';
-import { authoredOptions, type PublicWriteOptions } from '@/services/storage/authoringSession';
+import { authoredOptions, type PublicWriteOptions } from '@/services/session/authoringSession';
 import type { SyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueOperationSnapshot';
 import {
   buildSyncQueueDomainMetrics,

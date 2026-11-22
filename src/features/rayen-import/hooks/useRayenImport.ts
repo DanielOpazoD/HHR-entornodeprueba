@@ -1,7 +1,7 @@
 import {
   captureAuthoringSession,
   guardAuthoringSession,
-} from '@/services/storage/authoringSession';
+} from '@/services/session/authoringSession';
 import {
   recoverCudyrArchivesAfterClinicalSync,
   isCurrentRayenClinicalRun,

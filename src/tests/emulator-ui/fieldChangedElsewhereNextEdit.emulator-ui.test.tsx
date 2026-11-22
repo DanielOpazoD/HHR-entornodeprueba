@@ -39,7 +39,7 @@ import { resolveCurrentClinicalDay } from '@/utils/clinicalDayAdmissionUtils';
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
+} from '@/services/session/sessionScopedStorageService';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';

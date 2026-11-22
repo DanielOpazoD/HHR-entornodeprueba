@@ -5,7 +5,7 @@ import { getRecordDocRef } from '@/services/storage/firestore/firestoreShared';
 import { archiveCudyrHistory } from '@/services/cudyr/cudyrHistoryService';
 import { assertCudyrArchiveAcknowledged } from '@/services/cudyr/cudyrArchiveAcknowledgement';
 import type { CudyrArchiveOutboxPayload } from '@/types/domain/cudyrHistory';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 
 export const replayCudyrArchive = async (
   task: SyncTask,

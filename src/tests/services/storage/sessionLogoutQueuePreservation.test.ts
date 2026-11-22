@@ -4,12 +4,12 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
-} from '@/services/storage/sessionScopedStorageService';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+} from '@/services/session/sessionScopedStorageService';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import {
   SESSION_GENERATION_KEY,
   setSessionGeneration,
-} from '@/services/storage/sessionStorageTransition';
+} from '@/services/session/sessionStorageTransition';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { requeueQuarantinedTask } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 import { getDiscardedDailyRecordBackup } from '@/services/storage/sync/dailyRecordTaskRetirement';

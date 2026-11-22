@@ -1,5 +1,5 @@
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
-import { sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
+import { sessionEpochGuard } from '@/services/session/sessionStorageTransition';
 import type { ExalabExam } from '@/types/domain/labExamTypes';
 import {
   askExalabAutoConnect,

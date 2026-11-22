@@ -10,7 +10,7 @@ import { recoverCudyrArchivesAfterClinicalSync as recoverWithPolicy } from '@/fe
 import type { ClinicalStageResult } from '@/features/rayen-import/contracts/clinicalStageResult';
 import type { RayenImportPolicyStatus } from '@/features/rayen-import/hooks/useRayenImportMode';
 import type { ClinicalEnrichmentBatchMode } from '@/features/rayen-import/settings/rayenImportSettings';
-import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import { admitSyntheticSession, clearSyntheticSession } from '@/tests/utils/syntheticSession';
 
 const OWNER = 'user:synthetic-a';

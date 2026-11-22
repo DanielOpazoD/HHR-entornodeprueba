@@ -51,7 +51,7 @@ it('loads an approved month and reuses its known version without decoding again'
 
 it('removes optional undefined fields before callable transport so approval hashes stay identical', async () => {
   const service = await import('@/services/cudyr/cudyrFunctionsCall');
-  const { guardAuthoringSession } = await import('@/services/storage/authoringSession');
+  const { guardAuthoringSession } = await import('@/services/session/authoringSession');
   const { saveOfficialCudyrReport } = await import('@/services/cudyr/cudyrOfficialReport');
   const report = buildCudyrReport(confirmedReportInput());
   report.from = '2026-08-01';

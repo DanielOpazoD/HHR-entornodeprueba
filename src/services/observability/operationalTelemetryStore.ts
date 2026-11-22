@@ -1,4 +1,4 @@
-import { getSessionOwner } from '@/services/storage/sessionStorageTransition';
+import { getSessionOwner } from '@/services/session/sessionStorageTransition';
 import type { OperationalTelemetryEvent } from '@/services/observability/operationalTelemetryTypes';
 import {
   canUseOperationalTelemetryLocalStorage,

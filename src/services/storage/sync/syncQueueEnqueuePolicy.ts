@@ -1,7 +1,7 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecordPatchWrite } from '@/services/storage/sync/syncQueuePorts';
-import type { AuthoringSession } from '@/services/storage/authoringSession';
+import type { AuthoringSession } from '@/services/session/authoringSession';
 
 export interface SyncQueueEnqueueOptions {
   deferProcessing?: boolean;

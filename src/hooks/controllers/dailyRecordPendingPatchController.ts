@@ -6,7 +6,7 @@ import {
   isSameEpisodeForExplicitCensusPatch,
 } from '@/services/repositories/explicitLocalCensusPatchPolicy';
 import { buildSyncMutationIdentity } from '@/services/storage/sync/syncMutationIdentity';
-import { onSessionChange } from '@/services/storage/sessionStorageTransition';
+import { onSessionChange } from '@/services/session/sessionStorageTransition';
 import {
   DAILY_RECORD_STORE_CHANGED_EVENT,
   type DailyRecordStoreChangedEventDetail,

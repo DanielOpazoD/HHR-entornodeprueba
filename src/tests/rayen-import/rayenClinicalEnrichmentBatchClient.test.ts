@@ -1,4 +1,4 @@
-import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CLIENT_RUNTIME_CONTRACT_VERSION } from '@/constants/runtimeContracts';
 import {
