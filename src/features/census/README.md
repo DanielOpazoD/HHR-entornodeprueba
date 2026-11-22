@@ -200,17 +200,14 @@ al cambiar de paciente; el reintento no modifica datos clínicos ni el protocolo
 
 ### Fuentes para copiar un día vacío
 
-El recorrido activo es `useCensusViewModel` → `src/hooks/useCensusLogic.ts` →
-`src/hooks/useCensusPromptState.ts` → `src/hooks/controllers/censusPromptController.ts`.
-Este flujo histórico conserva su owner actual; no requiere otra API pública ni una
-segunda implementación dentro de la feature. Las copias antiguas `hooks/useCensusPromptState`
-y `controllers/censusLogicController` de esta feature no tenían consumidores productivos
-y se retiraron. Sus pruebas ahora ejercitan el owner activo: el hook con los lectores
-como puertos simulados, y el controller puro en su suite propia.
+El recorrido activo es `useCensusViewModel` → `src/features/census/hooks/useCensusLogic.ts` →
+`src/features/census/hooks/useCensusPromptState.ts` → `src/features/census/hooks/censusPromptController.ts`.
+Este flujo vive en una única implementación dentro de la feature; sus pruebas ejercitan
+el hook con los lectores como puertos simulados y el controller puro en su suite propia.
 
 ### Disponibilidad al mover o copiar
 
-El modal usa `src/hooks/useMoveCopyTargetRecord.ts` como único owner. Para el día
+El modal usa `src/features/census/components/movements/useMoveCopyTargetRecord.ts` como único owner. Para el día
 actual proyecta directamente el registro vigente: no conserva una copia local de
 las camas ni consulta almacenamiento. Para otra fecha mantiene la lectura asíncrona
 y descarta respuestas obsoletas. Los cambios del objeto del día actual no vuelven
@@ -219,11 +216,10 @@ de ser visible, Confirmar se deshabilita; las protecciones de persistencia se co
 
 ### Formularios de alta y traslado
 
-Las pantallas `DischargeModal` y `TransferModal` usan los hooks de `src/hooks`, que
-comparten `src/hooks/useModalFormFlow.ts`. Las reglas de validación y payload siguen
-en los controllers existentes, a través de sus superficies actuales. Las pruebas de
-formulario importan esos mismos hooks productivos; no se mantiene una segunda copia
-en esta feature. Se conserva la inicialización al abrir, limpieza de errores por
+Las pantallas `DischargeModal` y `TransferModal` usan los hooks colocados en
+`src/features/census/components/movements/`, que comparten `src/hooks/useModalFormFlow.ts`.
+Las reglas de validación y payload siguen en los controllers existentes, a través de sus
+superficies actuales. Se conserva la inicialización al abrir, limpieza de errores por
 campo, callbacks actualizados y validación de fecha/turno antes de confirmar.
 
 ### Ejecución de movimientos
@@ -237,7 +233,7 @@ los controllers y contratos de aplicación conservan sus responsabilidades actua
 ### Estado de los modales de camas
 
 `BedManagerModal` y `MoveCopyModal` mantienen su estado en
-`src/hooks/useBedManagerModalModel.ts` y `src/hooks/useMoveCopyModalState.ts`.
+`src/features/census/hooks/useBedManagerModalModel.ts` y `src/features/census/components/movements/useMoveCopyModalState.ts`.
 Los tests del modelo apuntan a esas mismas implementaciones, junto con las pruebas
 del modal. Los controllers de transición y las reglas de bloqueo, selección y
 confirmación permanecen en sus capas actuales.

@@ -2,7 +2,7 @@ import React, { lazy, Suspense, useContext, useEffect, useRef } from 'react';
 import { buildPatientRowModalRenderModel } from '@/features/census/controllers/patientRowModalRenderController';
 import type { PatientRowModalsProps } from '@/features/census/components/patient-row/patientRowContracts';
 import { hasMeaningfulDemographicSubset } from '@/features/census/components/demographics/utils';
-import { resolveExamRequestPatientIdentity } from '@/components/modals/controllers/examRequestPatientIdentity';
+import { resolveExamRequestPatientIdentity } from '@/features/census/components/exam-request/examRequestPatientIdentity';
 import {
   CensusExamOrderDateContext,
   CensusExamRequestCandidatesContext,
@@ -16,19 +16,19 @@ const LazyDemographicsModal = lazy(() =>
 );
 
 const LazyExamRequestModal = lazy(() =>
-  import('@/components/modals/ExamRequestModal').then(module => ({
+  import('@/features/census/components/exam-request/ExamRequestModal').then(module => ({
     default: module.ExamRequestModal,
   }))
 );
 
 const LazyImagingRequestDialog = lazy(() =>
-  import('@/components/modals/ImagingRequestDialog').then(module => ({
+  import('@/features/census/components/imaging-request/ImagingRequestDialog').then(module => ({
     default: module.ImagingRequestDialog,
   }))
 );
 
 const LazyPatientHistoryModal = lazy(() =>
-  import('@/components/modals/PatientHistoryModal').then(module => ({
+  import('@/features/census/components/PatientHistoryModal').then(module => ({
     default: module.PatientHistoryModal,
   }))
 );

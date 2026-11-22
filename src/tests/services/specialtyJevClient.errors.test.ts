@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   describeSpecialtySetupError,
   JevSuggestionUnavailableError,
-} from '@/services/specialty/specialtyJevClient';
+} from '@/features/census/services/specialtyJevClient';
 
 describe('specialty catalog error messages', () => {
   afterEach(() => vi.restoreAllMocks());

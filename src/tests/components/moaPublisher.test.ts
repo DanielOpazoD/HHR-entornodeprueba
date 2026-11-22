@@ -5,7 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import sharp from 'sharp';
 import { exportCatalog, serializeCatalog } from '../../../scripts/moa/publish-catalog.mjs';
-import { parseMoaCatalog } from '@/components/layout/moa/moaCatalog';
+import { parseMoaCatalog } from '@/features/census/components/moa/moaCatalog';
 let root: string;
 let scene: Record<string, unknown>;
 beforeEach(async () => {

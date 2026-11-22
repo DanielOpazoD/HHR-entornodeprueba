@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ExamFormHeader } from '@/components/exam-request/ExamFormHeader';
+import { ExamFormHeader } from '@/features/census/components/exam-request/ExamFormHeader';
 
 describe('ExamFormHeader', () => {
   describe('Institutional Branding', () => {

@@ -8,12 +8,12 @@ import { TransferEvacuationSection } from '@/features/census/components/movement
 import { TransferReceivingSection } from '@/features/census/components/movements/transfer/TransferReceivingSection';
 import { TransferTimeField } from '@/features/census/components/movements/transfer/TransferTimeField';
 import { MovementFinalStateNotice } from '@/features/census/components/movements/shared/MovementFinalStateNotice';
-import { useTransferModalForm } from '@/hooks/useTransferModalForm';
-import type { TransferModalProps } from '@/hooks/types/censusActionModalContracts';
+import { useTransferModalForm } from '@/features/census/components/movements/useTransferModalForm';
+import type { TransferModalProps } from '@/features/census/types/censusActionModalContracts';
 import { getLatestOpenTransferRequestByBedId } from '@/services/transfers/transferService';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 
-export type { TransferUpdateField } from '@/hooks/types/censusActionModalContracts';
+export type { TransferUpdateField } from '@/features/census/types/censusActionModalContracts';
 
 const transferModalLogger = createScopedLogger('TransferModal');
 

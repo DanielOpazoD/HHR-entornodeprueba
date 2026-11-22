@@ -42,7 +42,7 @@ const ALLOWED_COMPATIBILITY_REFERENCES = [
   'functions/lib/auth/authHelpersFactory.js',
   'netlify/functions/lib/firebase-auth.ts',
   'scripts/config/compatibility-governance.json',
-  'src/services/admin/roleService.ts',
+  'src/features/admin/services/roleService.ts',
 ];
 
 const toPosix = (value: string): string => value.split(path.sep).join('/');

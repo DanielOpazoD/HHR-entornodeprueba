@@ -4,7 +4,7 @@ import {
   executeLoadCensusPromptDataController,
   INITIAL_CENSUS_PROMPT_STATE,
   resolvePreviousDayState,
-} from '@/hooks/controllers/censusPromptController';
+} from '@/features/census/hooks/censusPromptController';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 describe('censusPromptController', () => {

@@ -11,7 +11,7 @@ import {
   FONASA_LEVELS,
   ExamCategory,
   getExamCategoryById,
-} from '@/constants/examCategories';
+} from '@/features/census/components/exam-request/examCategories';
 
 describe('EXAM_CATEGORIES', () => {
   it('should have 10 categories', () => {

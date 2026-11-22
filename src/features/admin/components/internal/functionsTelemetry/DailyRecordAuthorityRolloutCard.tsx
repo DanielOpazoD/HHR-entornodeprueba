@@ -3,7 +3,7 @@ import { AlertTriangle, CheckCircle2, ShieldCheck } from 'lucide-react';
 import type {
   DailyRecordAuthorityRolloutRecommendation,
   DailyRecordAuthorityRolloutSummary,
-} from '@/types/functionsTelemetry';
+} from '@/features/admin/types/functionsTelemetry';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 interface Props {

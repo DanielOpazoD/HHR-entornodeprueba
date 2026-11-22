@@ -60,11 +60,11 @@ vi.mock('file-saver', () => ({ saveAs: rangeStorage.download }));
 import { getDocs, getDocsFromServer } from 'firebase/firestore';
 import { getRecordsRangeFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { syncRecordsRange } from '@/services/records/recordQueryService';
-import { hydrateRangeRecords } from '@/services/admin/dataMaintenanceSupport';
+import { hydrateRangeRecords } from '@/features/admin/services/dataMaintenanceSupport';
 import {
   exportMonthRecordsWithOutcome,
   exportYearToDateRecordsWithOutcome,
-} from '@/services/admin/dataMaintenanceService';
+} from '@/features/admin/services/dataMaintenanceService';
 
 const localDay = { date: '2026-04-02', beds: {}, lastUpdated: '2026-04-02T12:00:00Z' };
 

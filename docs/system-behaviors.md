@@ -465,7 +465,7 @@ El PIN local funciona como una barrera de privacidad visual del puesto de trabaj
 ### Archivos Relacionados
 
 - `src/context/SecurityContext.tsx`
-- `src/components/modals/SecuritySettings.tsx`
+- `src/features/admin/components/SecuritySettings.tsx`
 - `src/components/security/PinLockScreen.tsx`
 
 ---

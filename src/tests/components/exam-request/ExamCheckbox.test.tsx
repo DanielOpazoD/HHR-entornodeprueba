@@ -5,7 +5,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ExamCheckbox } from '@/components/exam-request/ExamCheckbox';
+import { ExamCheckbox } from '@/features/census/components/exam-request/ExamCheckbox';
 
 describe('ExamCheckbox', () => {
   const defaultProps = {

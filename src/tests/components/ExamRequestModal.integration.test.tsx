@@ -2,12 +2,12 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 
-import { ExamRequestModal } from '@/components/modals/ExamRequestModal';
+import { ExamRequestModal } from '@/features/census/components/exam-request/ExamRequestModal';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type { PatientData } from '@/types/domain/patient';
 
 const printMock = vi.hoisted(() => vi.fn());
-vi.mock('@/hooks/controllers/examRequestPrintController', () => ({
+vi.mock('@/features/census/components/exam-request/examRequestPrintController', () => ({
   runExamRequestPrint: printMock,
 }));
 

@@ -5,7 +5,7 @@ import * as core from '@/services/storage/indexeddb/indexedDbCore';
 import { getAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { exportDataJSONWithResult } from '@/services/exporters/exportService';
 import { useFileOperations } from '@/hooks/useFileOperations';
-import { PatientHistoryModal } from '@/components/modals/PatientHistoryModal';
+import { PatientHistoryModal } from '@/features/census/components/PatientHistoryModal';
 import { RecoverCensusStaffButton } from '@/features/census/components/staff-catalog/RecoverCensusStaffButton';
 
 const mocks = vi.hoisted(() => ({

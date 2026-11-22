@@ -1,7 +1,7 @@
 import { Suspense, useState } from 'react';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { Bed, ChartNoAxesCombined } from 'lucide-react';
-import { CombinedSummaryCard } from '@/components/layout/SummaryCard';
+import { CombinedSummaryCard } from '@/features/census/components/SummaryCard';
 import type { ComponentProps } from 'react';
 import { SectionErrorBoundary } from '@/components/shared/SectionErrorBoundary';
 

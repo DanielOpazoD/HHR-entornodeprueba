@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { SummaryCard } from '@/components/layout/SummaryCard';
+import { SummaryCard } from '@/features/census/components/SummaryCard';
 import type { Statistics } from '@/types/domain/statistics';
 
 const meta: Meta<typeof SummaryCard> = {

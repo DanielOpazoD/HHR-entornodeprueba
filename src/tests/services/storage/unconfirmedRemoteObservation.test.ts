@@ -7,7 +7,7 @@ import { updatePartialDetailed } from '@/services/repositories/dailyRecordReposi
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { subscribeDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { syncRecordsRange } from '@/services/records/recordQueryService';
-import { hydrateRangeRecords } from '@/services/admin/dataMaintenanceSupport';
+import { hydrateRangeRecords } from '@/features/admin/services/dataMaintenanceSupport';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 import * as sdk from 'firebase/firestore';
 import * as shared from '@/services/storage/firestore/firestoreShared';
@@ -161,7 +161,7 @@ it.each(['month', 'year'])(
   '%s backup still downloads the local records for an unconfirmed batch',
   async scope => {
     const { exportMonthRecordsWithOutcome, exportYearToDateRecordsWithOutcome } =
-      await import('@/services/admin/dataMaintenanceService');
+      await import('@/features/admin/services/dataMaintenanceService');
     const { saveAs } = await import('file-saver');
     vi.mocked(saveAs).mockClear();
     vi.mocked(sdk.getDocs).mockResolvedValue({

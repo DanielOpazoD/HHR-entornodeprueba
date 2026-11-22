@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { resolveSpecialtyRoundRule } from '@/features/census/components/specialty-round/specialtyRoundModel';
-import type { SpecialtyCatalogRule } from '@/services/specialty/specialtyJevClient';
+import type { SpecialtyCatalogRule } from '@/features/census/services/specialtyJevClient';
 const assign = (id: string, specialty: string): SpecialtyCatalogRule => ({
   id,
   kind: 'assign',

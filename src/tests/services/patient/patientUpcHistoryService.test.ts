@@ -5,7 +5,7 @@ import {
   collectPatientUpcHistory,
   isSameUpcHistoryEpisode,
   loadPatientUpcHistory,
-} from '@/services/patient/patientUpcHistoryService';
+} from '@/features/census/services/patientUpcHistoryService';
 import { getRecordsRange } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { getRecordsRangeFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';

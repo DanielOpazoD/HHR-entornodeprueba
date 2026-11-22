@@ -2,7 +2,7 @@ import React, { lazy, Suspense, useState } from 'react';
 const NursingAccountsPanel = lazy(() => import('./NursingAccountsPanel'));
 import { X, CheckCircle2, AlertCircle, RefreshCw, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useRoleManagement } from '@/hooks/useRoleManagement';
+import { useRoleManagement } from '@/features/admin/hooks/useRoleManagement';
 import { AccessRestricted } from './internal/AccessRestricted';
 import { RoleAccessPreview } from './internal/RoleAccessPreview';
 import { RoleForm } from './internal/RoleForm';

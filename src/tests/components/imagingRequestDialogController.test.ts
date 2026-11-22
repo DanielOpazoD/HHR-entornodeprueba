@@ -5,7 +5,7 @@ import {
   IMAGING_DOCUMENT_OPTIONS,
   resolveImagingCanvasIntent,
   runImagingPrintAction,
-} from '@/components/modals/controllers/imagingRequestDialogController';
+} from '@/features/census/components/imaging-request/imagingRequestDialogController';
 import type { PatientData } from '@/types/domain/patient';
 
 const mockPatient = {

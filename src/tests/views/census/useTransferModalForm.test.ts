@@ -5,7 +5,7 @@ import {
   EVACUATION_METHOD_AEROCARDAL,
   EVACUATION_METHOD_COMMERCIAL,
 } from '@/constants/clinicalMovementConstants';
-import { useTransferModalForm } from '@/hooks/useTransferModalForm';
+import { useTransferModalForm } from '@/features/census/components/movements/useTransferModalForm';
 import { MOVEMENT_DATE_TIME_OUT_OF_RANGE_ERROR } from '@/application/census/controllers/clinicalShiftCalendarController';
 
 describe('useTransferModalForm', () => {

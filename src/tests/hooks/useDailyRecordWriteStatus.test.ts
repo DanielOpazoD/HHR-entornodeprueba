@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { useDailyRecordWriteStatus } from '@/hooks/useDailyRecordWriteStatus';
+import { useDailyRecordWriteStatus } from '@/features/census/hooks/useDailyRecordWriteStatus';
 import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
 
 const deferred = () => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { DeviceSelector } from '@/components/DeviceSelector';
+import { DeviceSelector } from '@/features/census/components/device-selector/DeviceSelector';
 import { BaseCellProps, DeviceHandlers } from './inputCellTypes';
 import { History } from 'lucide-react';
 import { DeviceHistoryModal } from './DeviceHistoryModal';

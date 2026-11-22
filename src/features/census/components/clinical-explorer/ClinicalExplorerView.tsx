@@ -16,7 +16,7 @@ import { ClinicalExplorerPatientPanel } from './ClinicalExplorerPatientPanel';
 import { EXPLORER_TABS, type ClinicalExplorerTab } from './clinicalExplorerUi';
 
 const LazyExamRequestModal = lazy(() =>
-  import('@/components/modals/ExamRequestModal').then(module => ({
+  import('@/features/census/components/exam-request/ExamRequestModal').then(module => ({
     default: module.ExamRequestModal,
   }))
 );

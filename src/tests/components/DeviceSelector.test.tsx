@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { DeviceSelector } from '@/components/DeviceSelector';
+import { DeviceSelector } from '@/features/census/components/device-selector/DeviceSelector';
 
 describe('DeviceSelector', () => {
   const mockOnChange = vi.fn();

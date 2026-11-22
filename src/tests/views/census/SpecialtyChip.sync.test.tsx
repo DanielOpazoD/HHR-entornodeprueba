@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SpecialtyChip } from '@/features/census/components/patient-row/SpecialtyChip';
-import { useDailyRecordWriteStatus } from '@/hooks/useDailyRecordWriteStatus';
+import { useDailyRecordWriteStatus } from '@/features/census/hooks/useDailyRecordWriteStatus';
 import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
 
 const fixture = vi.hoisted(() => ({
@@ -29,14 +29,14 @@ vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ role: 'admin' }) }))
 vi.mock('@/hooks/useFeatureFlag', () => ({
   useFeatureFlag: (name: string) => name !== 'SPECIALTY_RULES_MEMORY',
 }));
-vi.mock('@/hooks/useDailyRecordFreshnessUi', () => ({
+vi.mock('@/features/census/hooks/useDailyRecordFreshnessUi', () => ({
   useDailyRecordFreshnessUi: () => ({ isClinicalEditingBlocked: false }),
 }));
 vi.mock('@/utils/clinicalTimeZone', async importOriginal => ({
   ...(await importOriginal<typeof import('@/utils/clinicalTimeZone')>()),
   getClinicalCalendarDateISO: () => fixture.date,
 }));
-vi.mock('@/services/specialty/specialtyJevClient', () => ({
+vi.mock('@/features/census/services/specialtyJevClient', () => ({
   loadSpecialtyRoundSetup: fixture.load,
   assignSpecialtyManually: fixture.assign,
   saveSpecialtyRules: fixture.saveRules,

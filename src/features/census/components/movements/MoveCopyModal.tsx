@@ -9,10 +9,10 @@ import { useRepositories } from '@/context/RepositoryContext';
 import {
   resolveMoveCopyBedOptions,
   resolveMoveCopySourceBedName,
-} from '@/hooks/controllers/moveCopyModalController';
-import { useMoveCopyTargetRecord } from '@/hooks/useMoveCopyTargetRecord';
-import { useMoveCopyModalState } from '@/hooks/useMoveCopyModalState';
-import type { MoveCopyModalProps } from '@/hooks/types/censusActionModalContracts';
+} from '@/features/census/components/movements/moveCopyModalController';
+import { useMoveCopyTargetRecord } from '@/features/census/components/movements/useMoveCopyTargetRecord';
+import { useMoveCopyModalState } from '@/features/census/components/movements/useMoveCopyModalState';
+import type { MoveCopyModalProps } from '@/features/census/types/censusActionModalContracts';
 
 export const MoveCopyModal: React.FC<MoveCopyModalProps> = ({
   isOpen,

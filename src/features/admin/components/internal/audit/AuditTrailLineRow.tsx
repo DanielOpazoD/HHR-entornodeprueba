@@ -1,9 +1,9 @@
 import React from 'react';
 import clsx from 'clsx';
 import { Braces } from 'lucide-react';
-import type { AuditTrailEvent, AuditTrailLine } from '@/types/auditTrailTypes';
-import type { AuditTrailViewPreferences } from '@/services/admin/auditTrail/auditTrailPreferences';
-import { AUDIT_TRAIL_STATUS_LABELS } from '@/services/admin/auditTrail/auditTrailCatalog';
+import type { AuditTrailEvent, AuditTrailLine } from '@/features/admin/types/auditTrailTypes';
+import type { AuditTrailViewPreferences } from '@/features/admin/services/auditTrail/auditTrailPreferences';
+import { AUDIT_TRAIL_STATUS_LABELS } from '@/features/admin/services/auditTrail/auditTrailCatalog';
 import { AuditTrailChanges } from './AuditTrailChanges';
 import { AuditTrailTechnicalDetails } from './AuditTrailTechnicalDetails';
 import { FOCUS_RING, formatAuditTrailMoment } from './auditTrailDisplay';

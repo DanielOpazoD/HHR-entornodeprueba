@@ -1,6 +1,6 @@
 import React, { lazy, Suspense, useEffect } from 'react';
 import { FlaskConical, X } from 'lucide-react';
-import type { ExamRequestCandidate } from '@/hooks/useExamRequestOrders';
+import type { ExamRequestCandidate } from '@/features/census/components/exam-request/useExamRequestOrders';
 import {
   clearExamOrderSelection,
   closeExamOrderRequest,
@@ -11,7 +11,7 @@ import {
 } from './examOrderSelectionStore';
 
 const LazyExamRequestModal = lazy(() =>
-  import('@/components/modals/ExamRequestModal').then(module => ({
+  import('@/features/census/components/exam-request/ExamRequestModal').then(module => ({
     default: module.ExamRequestModal,
   }))
 );

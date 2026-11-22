@@ -53,14 +53,14 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   // It never supplies current occupancy; explicit Cama and normal statistical rules prevail.
   'src/domain/movements/movementTombstonePolicy.ts',
   'src/domain/CensusManager.ts',
-  'src/services/admin/admissionDateBackfillPlanner.ts',
+  'src/features/admin/services/admissionDateBackfillPlanner.ts',
   // Read-only admission audit cohort: a completed movement supplies only the historical person,
   // episode and admission metadata. Notes, vital signs and orders are fetched from Eloísa,
   // never from this snapshot; it is not evidence of current occupancy or a write target.
   'src/features/admin/admission-audit/admissionAuditModel.ts',
   // Read-only historical audit: recover signed UPC evaluations from the patient
   // snapshot preserved in a completed movement, matched by patient and episode.
-  'src/services/patient/patientUpcHistoryService.ts',
+  'src/features/census/services/patientUpcHistoryService.ts',
   // Read-only CUDYR audit of completed movements; reject snapshots of another episode.
   // This retained context is never evidence of continuing hospitalization.
   'src/services/cudyr/cudyrReportFacts.ts',

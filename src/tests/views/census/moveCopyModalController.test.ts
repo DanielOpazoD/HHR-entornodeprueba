@@ -6,7 +6,7 @@ import {
   resolveMoveCopyBedOptions,
   resolveMoveCopyBaseDate,
   resolveMoveCopySourceBedName,
-} from '@/hooks/controllers/moveCopyModalController';
+} from '@/features/census/components/movements/moveCopyModalController';
 import { BEDS } from '@/constants/beds';
 import { DataFactory } from '@/tests/factories/DataFactory';
 

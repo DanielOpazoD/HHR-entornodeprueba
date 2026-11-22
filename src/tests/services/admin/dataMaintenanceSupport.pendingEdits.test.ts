@@ -2,11 +2,11 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { hydrateRangeRecords } from '@/services/admin/dataMaintenanceSupport';
+import { hydrateRangeRecords } from '@/features/admin/services/dataMaintenanceSupport';
 import {
   exportMonthRecordsWithOutcome,
   exportYearToDateRecordsWithOutcome,
-} from '@/services/admin/dataMaintenanceService';
+} from '@/features/admin/services/dataMaintenanceService';
 
 const mocks = vi.hoisted(() => ({ remote: vi.fn(), enabled: vi.fn(), download: vi.fn() }));
 vi.mock('@/services/storage/firestore', () => ({

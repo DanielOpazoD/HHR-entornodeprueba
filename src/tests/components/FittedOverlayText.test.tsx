@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { FittedOverlayText } from '@/components/modals/imaging/FittedOverlayText';
+import { FittedOverlayText } from '@/features/census/components/imaging-request/FittedOverlayText';
 
 const NAME = 'Ana María Josefa Valentina Del Sagrado Corazón de la Fuente';
 

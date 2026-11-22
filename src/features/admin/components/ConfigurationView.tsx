@@ -20,7 +20,7 @@ import {
   SettingsVisualTab,
   SettingsSecurityTab,
   SettingsTableTab,
-} from '@/components/modals/SettingsModalTabs';
+} from '@/features/admin/components/SettingsModalTabs';
 import { TreatingPhysiciansSettings } from './TreatingPhysiciansSettings';
 import { VitalSignsVisualRangesSettings } from './VitalSignsVisualRangesSettings';
 import { CensusNursingScalesSetting } from './CensusNursingScalesSetting';

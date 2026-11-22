@@ -1,7 +1,7 @@
 import React from 'react';
 import { Activity } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useFunctionsTelemetryData } from '@/hooks/useFunctionsTelemetryData';
+import { useFunctionsTelemetryData } from '@/features/admin/hooks/useFunctionsTelemetryData';
 import { AccessRestricted } from './internal/AccessRestricted';
 import { DailyRecordAuthorityRolloutCard } from './internal/functionsTelemetry/DailyRecordAuthorityRolloutCard';
 import { FunctionsTelemetrySummaryCards } from './internal/functionsTelemetry/FunctionsTelemetrySummaryCards';

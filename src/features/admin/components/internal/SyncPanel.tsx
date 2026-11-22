@@ -1,6 +1,6 @@
 import React from 'react';
 import { RefreshCw, Activity, UploadCloud, CheckCircle } from 'lucide-react';
-import { AnalysisResult } from '@/hooks/usePatientAnalysis';
+import { AnalysisResult } from '@/features/admin/hooks/usePatientAnalysis';
 
 interface SyncPanelProps {
   analysis: AnalysisResult | null;

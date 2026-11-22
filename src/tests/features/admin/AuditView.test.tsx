@@ -8,7 +8,7 @@ import {
   executeFetchAuditLogsByIds,
 } from '@/application/audit/fetchAuditLogsUseCase';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
-import { AUDIT_TRAIL_VIEW_STORAGE_KEY } from '@/services/admin/auditTrail/auditTrailPreferences';
+import { AUDIT_TRAIL_VIEW_STORAGE_KEY } from '@/features/admin/services/auditTrail/auditTrailPreferences';
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: vi.fn(),

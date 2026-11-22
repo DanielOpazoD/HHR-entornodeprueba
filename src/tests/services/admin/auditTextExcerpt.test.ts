@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { excerptAroundChange } from '@/services/admin/auditTextExcerpt';
 import { compactAuditDetails } from '@/services/admin/auditDetailsCompaction';
-import { normalizeAuditTrailEvent } from '@/services/admin/auditTrail/auditTrailNormalize';
+import { normalizeAuditTrailEvent } from '@/features/admin/services/auditTrail/auditTrailNormalize';
 
 const note = (length: number) =>
   Array.from({ length }, (_, index) => 'Paciente estable sin fiebre. '[index % 29]).join('');

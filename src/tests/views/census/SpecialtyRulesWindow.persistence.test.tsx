@@ -13,7 +13,7 @@ vi.mock('@/context/DailyRecordContext', () => ({
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
   getRecordFromFirestoreDetailed: mocks.current,
 }));
-vi.mock('@/services/specialty/specialtyJevClient', () => ({
+vi.mock('@/features/census/services/specialtyJevClient', () => ({
   loadSpecialtyRoundSetup: mocks.load,
   saveSpecialtyRules: mocks.save,
   describeSpecialtySetupError: () => 'Error sintético',

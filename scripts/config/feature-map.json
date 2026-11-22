@@ -310,13 +310,13 @@
     {
       "id": "census.extra-beds-and-blocking",
       "name": "Camas extras y bloqueo de camas",
-      "owner": "src/hooks",
+      "owner": "src/features/census",
       "reach": {
         "screen": "Censo Diario, «Más opciones del censo»",
         "controls": [{ "text": "Bloqueo de camas" }, { "text": "Camas Extras" }]
       },
       "gate": [
-        "src/hooks/useBedManagerModalModel.ts",
+        "src/features/census/hooks/useBedManagerModalModel.ts",
         "src/features/census/components/bed-manager/BedManagerModal.tsx",
         "src/features/census/components/bed-manager/ExtraBedsGrid.tsx"
       ],

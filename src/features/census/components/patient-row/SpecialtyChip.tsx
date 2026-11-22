@@ -24,7 +24,7 @@ import clsx from 'clsx';
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import { usePortalPopoverRuntime } from '@/hooks/usePortalPopoverRuntime';
 import type { SpecialtyDecisionMeta } from '@/types/domain/specialtyDecision';
-import type { SpecialtyTarget } from '@/services/specialty/specialtyJevClient';
+import type { SpecialtyTarget } from '@/features/census/services/specialtyJevClient';
 import { SpecialtyBadge, SpecialtyMemoryControls } from './SpecialtyActionControls';
 import {
   SPECIALTY_OPTIONS,
@@ -180,7 +180,8 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
     setMessage('');
     setMessageTone('error');
     try {
-      const { publishSpecialtyMemory } = await import('@/services/specialty/specialtyJevClient');
+      const { publishSpecialtyMemory } =
+        await import('@/features/census/services/specialtyJevClient');
       await publishSpecialtyMemory(
         scope,
         trimmed,

@@ -32,7 +32,7 @@ Estos son los módulos que más sentido tiene evaluar uno por uno primero.
 ### 2. Censo diario
 
 - **Feature principal:** [src/features/census](../src/features/census)
-- **Application relacionada:** [src/application/census](../src/application/census), [src/application/daily-record](../src/application/daily-record), [src/application/patient-flow](../src/application/patient-flow)
+- **Application relacionada:** [src/application/census](../src/application/census), [src/application/daily-record](../src/application/daily-record), [src/features/admin/patient-flow](../src/features/admin/patient-flow)
 - Incluye:
   - tabla principal
   - ingreso / traslado / egreso
@@ -170,7 +170,7 @@ Estos no son “módulos de negocio” en sentido estricto, pero sí conviene ev
 
 ### 20. Patient flow / episodio clínico
 
-- **Application:** [src/application/patient-flow](../src/application/patient-flow)
+- **Application:** [src/features/admin/patient-flow](../src/features/admin/patient-flow)
 - Base conceptual para censo, búsqueda, traslados y continuidad clínica.
 
 ---

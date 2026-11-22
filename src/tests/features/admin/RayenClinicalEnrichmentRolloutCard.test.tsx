@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { RayenClinicalEnrichmentRolloutCard } from '@/features/admin/components/internal/functionsTelemetry/RayenClinicalEnrichmentRolloutCard';
-import type { RayenClinicalEnrichmentRolloutSummary } from '@/types/functionsTelemetry';
+import type { RayenClinicalEnrichmentRolloutSummary } from '@/features/admin/types/functionsTelemetry';
 
 const makeSummary = (
   overrides: Partial<RayenClinicalEnrichmentRolloutSummary> = {}

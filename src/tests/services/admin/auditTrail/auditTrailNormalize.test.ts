@@ -5,7 +5,7 @@ import {
   normalizeAuditTrailEvent,
   normalizeAuditTrailEvents,
   parseAuditTrailTimestamp,
-} from '@/services/admin/auditTrail/auditTrailNormalize';
+} from '@/features/admin/services/auditTrail/auditTrailNormalize';
 import { compactAuditDetails } from '@/services/admin/auditDetailsCompaction';
 import { auditLog, patientDetails } from './auditTrailFixtures';
 

@@ -4,8 +4,8 @@ import { DailyRecordRestorePanel } from '@/features/admin/components/DailyRecord
 import {
   previewDailyRecordRestore,
   restoreDailyRecord,
-} from '@/services/admin/dailyRecordRestoreService';
-vi.mock('@/services/admin/dailyRecordRestoreService', () => ({
+} from '@/features/admin/services/dailyRecordRestoreService';
+vi.mock('@/features/admin/services/dailyRecordRestoreService', () => ({
   previewDailyRecordRestore: vi.fn(),
   restoreDailyRecord: vi.fn(),
 }));

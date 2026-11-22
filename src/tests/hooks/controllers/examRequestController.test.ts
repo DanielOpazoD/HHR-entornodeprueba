@@ -4,7 +4,7 @@ import {
   buildExamRequestOpenState,
   resolveExamRequestPrevision,
   toggleExamRequestSelection,
-} from '@/hooks/controllers/examRequestController';
+} from '@/features/census/components/exam-request/examRequestController';
 
 describe('examRequestController', () => {
   it('builds the open state with normalized insurance', () => {

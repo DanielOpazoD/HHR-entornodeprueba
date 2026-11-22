@@ -1,6 +1,6 @@
 import React from 'react';
 import { Search, UserPlus, Edit2, Trash2 } from 'lucide-react';
-import { UserRoleMap } from '@/services/admin/roleService';
+import { UserRoleMap } from '@/features/admin/services/roleService';
 import { resolveRoleAccess } from '@/shared/access/roleAccessMatrix';
 
 interface RoleTableProps {

@@ -4,7 +4,7 @@ import { ListChecks, Sparkles, Settings2 } from 'lucide-react';
 import { useDailyRecordBeds } from '@/context/DailyRecordContext';
 import { useAuth } from '@/context/AuthContext';
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
-import { useDailyRecordFreshnessUi } from '@/hooks/useDailyRecordFreshnessUi';
+import { useDailyRecordFreshnessUi } from '@/features/census/hooks/useDailyRecordFreshnessUi';
 import { buildSpecialtyRoundCandidates } from './specialtyRoundModel';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { canPublishSpecialtyDecision } from '@/shared/access/operationalAccessPolicy';

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import { onSessionChange, sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
-import { readAdmissionAuditCensus } from '@/services/admin/admissionAuditCensus';
+import { readAdmissionAuditCensus } from '@/features/admin/services/admissionAuditCensus';
 import {
   parseAdmissionVitalSigns,
   requestClinicalPanel,

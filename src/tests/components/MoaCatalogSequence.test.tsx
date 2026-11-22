@@ -1,13 +1,13 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MoaCatalogSequence } from '@/components/layout/moa/MoaCatalogSequence';
-import { fetchMoaAtlas, parseMoaCatalog } from '@/components/layout/moa/moaCatalog';
+import { MoaCatalogSequence } from '@/features/census/components/moa/MoaCatalogSequence';
+import { fetchMoaAtlas, parseMoaCatalog } from '@/features/census/components/moa/moaCatalog';
 import fixture from '../fixtures/moa/catalog.json';
-vi.mock('@/components/layout/moa/moaCatalog', async importOriginal => ({
-  ...(await importOriginal<typeof import('@/components/layout/moa/moaCatalog')>()),
+vi.mock('@/features/census/components/moa/moaCatalog', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/census/components/moa/moaCatalog')>()),
   fetchMoaAtlas: vi.fn(),
 }));
-vi.mock('@/components/layout/navbar/MoaMascot', () => ({
+vi.mock('@/features/census/components/moa/MoaMascot', () => ({
   MoaMascot: () => <span data-testid="portrait" />,
 }));
 const scene = parseMoaCatalog(fixture).scenes.find(s => s.id === 'E08')!;

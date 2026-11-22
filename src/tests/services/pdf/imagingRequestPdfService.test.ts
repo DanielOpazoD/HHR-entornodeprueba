@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import {
   SOLICITUD_FIELD_COORDS,
   ENCUESTA_FIELD_COORDS,
-} from '@/services/pdf/imagingRequestPdfService';
+} from '@/features/census/components/imaging-request/imagingRequestPdfService';
 import { calculateAge, splitPatientName } from '@/utils/clinicalUtils';
 
 // We mock standard functions to just test data transforms and constants

@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Reducir complejidad mecánica en `src/services/admin/admissionDateBackfillService.ts`
+Reducir complejidad mecánica en `src/features/admin/services/admissionDateBackfillService.ts`
 sin tocar la política clínica de episodio ni el contrato público del servicio.
 
 ## Alcance

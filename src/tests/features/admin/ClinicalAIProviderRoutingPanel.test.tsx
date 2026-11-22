@@ -6,7 +6,7 @@ import { ClinicalAIProviderRoutingPanel } from '@/features/admin/components/Clin
 import {
   createDefaultClinicalAIProviderRoutingDocument,
   type ClinicalAIProviderRoutingDocument,
-} from '@/shared/ai/clinicalAIProviderRouting';
+} from '@/features/admin/domain/clinicalAIProviderRouting';
 
 const setRoutingMock = vi.fn();
 const saveMock = vi.fn();
@@ -38,7 +38,7 @@ vi.mock('@/features/admin/hooks/useClinicalAIProviderRouting', () => ({
   }),
 }));
 
-vi.mock('@/services/admin/clinicalAIProviderStatusService', () => ({
+vi.mock('@/features/admin/services/clinicalAIProviderStatusService', () => ({
   getClinicalAIProviderStatuses: () => getStatusesMock(),
   testClinicalAIProvider: (...args: unknown[]) => testProviderMock(...args),
 }));

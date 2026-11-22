@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildDischargeDiagnosisChangeAuditDetails } from '@/services/admin/auditClinicalEventCatalog';
-import { normalizeAuditTrailEvent } from '@/services/admin/auditTrail/auditTrailNormalize';
+import { normalizeAuditTrailEvent } from '@/features/admin/services/auditTrail/auditTrailNormalize';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
 
 describe('clinical discharge diagnosis audit', () => {

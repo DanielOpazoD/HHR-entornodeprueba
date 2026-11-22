@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { readAdmissionAuditCensus } from '@/services/admin/admissionAuditCensus';
+import { readAdmissionAuditCensus } from '@/features/admin/services/admissionAuditCensus';
 
 const read = vi.hoisted(() => vi.fn());
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({

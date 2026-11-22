@@ -21,7 +21,7 @@ describe('census startup payload', () => {
   it('keeps the CIE-10 catalogue out of the table cell that every row renders', () => {
     const cell = read(`${rowDir}/DiagnosisInput.tsx`);
     expect(cell).not.toContain('@/services/terminology/terminologyService');
-    expect(cell).not.toContain('@/components/shared/TerminologySuggestor');
+    expect(cell).not.toContain('@/features/census/components/TerminologySuggestor');
     expect(cell).toContain("React.lazy(() => import('./DiagnosisCie10Cell'))");
   });
 

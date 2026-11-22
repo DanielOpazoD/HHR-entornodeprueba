@@ -3,12 +3,12 @@ import { Download, FileJson, Info, Upload } from 'lucide-react';
 import {
   exportMonthRecordsWithOutcome,
   exportYearToDateRecordsWithOutcome,
-} from '@/services/admin/dataMaintenanceService';
+} from '@/features/admin/services/dataMaintenanceService';
 import {
   auditAdmissionDateBackfill,
   applyAdmissionDateBackfill,
   type AdmissionDateBackfillResult,
-} from '@/services/admin/admissionDateBackfillService';
+} from '@/features/admin/services/admissionDateBackfillService';
 import { DataImportModal } from './DataImportModal';
 import { DataMaintenanceExportCard } from './DataMaintenanceExportCard';
 import { DataMaintenanceImportCard } from './DataMaintenanceImportCard';

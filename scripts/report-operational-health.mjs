@@ -16,7 +16,9 @@ import { getGitReportState } from './gitReportState.mjs';
 const workspaceRoot = process.cwd();
 const read = relativePath => fs.readFileSync(path.join(workspaceRoot, relativePath), 'utf8');
 
-const systemHealthBudgetContent = read('src/services/admin/systemHealthOperationalBudgets.ts');
+const systemHealthBudgetContent = read(
+  'src/features/admin/services/systemHealthOperationalBudgets.ts'
+);
 const syncDomainPolicyContent = read('src/services/storage/sync/syncDomainPolicy.ts');
 const conflictDomainContent = read('src/services/repositories/conflictResolutionDomainPolicy.ts');
 const authConfigContent = read('functions/lib/auth/authConfig.js');

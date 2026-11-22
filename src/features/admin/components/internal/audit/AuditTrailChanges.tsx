@@ -1,5 +1,5 @@
 import React from 'react';
-import type { AuditTrailChange } from '@/types/auditTrailTypes';
+import type { AuditTrailChange } from '@/features/admin/types/auditTrailTypes';
 
 const LONG_VALUE = 120;
 /** Longer lists show their first lines; the rest one click away (export always has all). */

@@ -1,0 +1,414 @@
+/**
+ * DeviceSelector Component
+ * Main component for selecting and managing patient devices.
+ */
+
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Plus } from 'lucide-react';
+import type { DeviceDetails, DeviceInfo } from '@/types/domain/devices';
+import { useLatestRef } from '@/hooks/useLatestRef';
+import { usePortalPopoverRuntime } from '@/hooks/usePortalPopoverRuntime';
+import { DeviceDateConfigModal } from '@/components/device-selector/DeviceDateConfigModal';
+import { DeviceBadge } from './DeviceBadge';
+import { DeviceMenu } from './DeviceMenu';
+import { DeviceOverflowButton } from './DeviceOverflowButton';
+import { DeviceRetireModal } from './DeviceRetireModal';
+import {
+  resolveDeviceMenuPosition,
+  type DeviceMenuPosition,
+} from '@/features/census/components/device-selector/deviceMenuPositionController';
+import {
+  normalizeSelectedDevices,
+  resolveDeviceToggleOutcome,
+  resolveVvpDevices,
+} from '@/components/device-selector/deviceSelectorController';
+import {
+  buildDeviceConfigMutation,
+  buildRetireDeviceMutation,
+  resolveRetiringDeviceLabel,
+} from '@/features/census/components/device-selector/deviceSelectorMutationController';
+
+// A census row never grows past three device lines; the rest wait behind «+N».
+const MAX_VISIBLE_DEVICES = 3;
+
+interface DeviceSelectorProps {
+  devices: string[];
+  deviceDetails?: DeviceDetails;
+  onChange: (newDevices: string[]) => void;
+  onDetailsChange?: (details: DeviceDetails) => void;
+  onConfigChange?: (
+    newDevices: string[] | null,
+    details: DeviceDetails,
+    options?: { renamedDevice?: { from: string; to: string } | null }
+  ) => void;
+  onRetireChange?: (newDevices: string[], details: DeviceDetails) => void;
+  disabled?: boolean;
+  currentDate?: string;
+}
+
+interface DeviceDraftState {
+  devices: string[];
+  details: DeviceDetails;
+  externalSnapshot: string;
+}
+
+export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
+  devices = [],
+  deviceDetails = {},
+  onChange,
+  onDetailsChange,
+  onConfigChange,
+  onRetireChange,
+  disabled,
+  currentDate,
+}) => {
+  const [showMenu, setShowMenu] = useState(false);
+  const [editingDevice, setEditingDevice] = useState<string | null>(null);
+  const [pendingAddition, setPendingAddition] = useState<string | null>(null);
+  const [retiringDevice, setRetiringDevice] = useState<string | null>(null);
+  const externalSnapshot = JSON.stringify({ devices, deviceDetails });
+  const [draftState, setDraftState] = useState<DeviceDraftState>(() => ({
+    devices,
+    details: deviceDetails,
+    externalSnapshot,
+  }));
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const labelId = useId();
+  const menuRef = useRef<HTMLDivElement>(null);
+  const onChangeRef = useLatestRef(onChange);
+  const onDetailsChangeRef = useLatestRef(onDetailsChange);
+  const onConfigChangeRef = useLatestRef(onConfigChange);
+  const onRetireChangeRef = useLatestRef(onRetireChange);
+
+  // ========================================================================
+  // Logic
+  // ========================================================================
+  const isEditingDevices = showMenu || Boolean(editingDevice || pendingAddition || retiringDevice);
+  const draftSnapshot = JSON.stringify({
+    devices: draftState.devices,
+    deviceDetails: draftState.details,
+  });
+
+  if (
+    draftState.externalSnapshot !== externalSnapshot ||
+    (!isEditingDevices && draftSnapshot !== externalSnapshot)
+  ) {
+    setDraftState({
+      devices,
+      details: deviceDetails,
+      externalSnapshot,
+    });
+  }
+
+  const draftDevices =
+    draftState.externalSnapshot === externalSnapshot ? draftState.devices : devices;
+  const draftDetails =
+    draftState.externalSnapshot === externalSnapshot ? draftState.details : deviceDetails;
+  const normalizedDevices = useMemo(() => normalizeSelectedDevices(draftDevices), [draftDevices]);
+  const vvpDevices = useMemo(() => resolveVvpDevices(normalizedDevices), [normalizedDevices]);
+  const vvpCount = vvpDevices.length;
+
+  // ========================================================================
+  // Event Handlers
+  // ========================================================================
+
+  const handleRetireDevice = useCallback(
+    (data: { removalDate: string; note: string }) => {
+      if (!retiringDevice) {
+        return;
+      }
+
+      const mutation = buildRetireDeviceMutation({
+        retiringDevice,
+        normalizedDevices,
+        deviceDetails: draftDetails,
+        removalDate: data.removalDate,
+        note: data.note,
+      });
+
+      setDraftState(previous => ({
+        ...previous,
+        devices: mutation.nextDevices,
+        details: mutation.nextDetails,
+      }));
+
+      if (onRetireChangeRef.current) {
+        onRetireChangeRef.current(mutation.nextDevices, mutation.nextDetails);
+      } else {
+        if (onDetailsChangeRef.current) {
+          onDetailsChangeRef.current(mutation.nextDetails);
+        }
+        if (onChangeRef.current) {
+          onChangeRef.current(mutation.nextDevices);
+        }
+      }
+
+      setRetiringDevice(null);
+    },
+    [
+      retiringDevice,
+      draftDetails,
+      normalizedDevices,
+      onChangeRef,
+      onDetailsChangeRef,
+      onRetireChangeRef,
+      setDraftState,
+      setRetiringDevice,
+    ]
+  );
+
+  const toggleDevice = useCallback(
+    (device: string) => {
+      const outcome = resolveDeviceToggleOutcome({
+        requestedDevice: device,
+        normalizedDevices,
+      });
+
+      if (outcome.kind === 'pendingAddition') {
+        setPendingAddition(outcome.device);
+      }
+      if (outcome.kind === 'retire') {
+        setRetiringDevice(outcome.device);
+      }
+    },
+    [normalizedDevices, setPendingAddition, setRetiringDevice]
+  );
+
+  const addCustomDevice = useCallback(
+    (device: string) => {
+      if (!normalizedDevices.includes(device)) {
+        setPendingAddition(device);
+      }
+    },
+    [normalizedDevices, setPendingAddition]
+  );
+
+  const removeDevice = useCallback(
+    (device: string) => {
+      setRetiringDevice(device);
+    },
+    [setRetiringDevice]
+  );
+
+  const handleDeviceConfigSave = useCallback(
+    (info: DeviceInfo, nextDeviceName?: string) => {
+      const mutation = buildDeviceConfigMutation({
+        pendingAddition,
+        editingDevice,
+        nextDeviceName,
+        normalizedDevices,
+        deviceDetails: draftDetails,
+        info,
+      });
+
+      if (!mutation.operatedDevice) {
+        return;
+      }
+
+      const nextDevices = mutation.nextDevices;
+      if (nextDevices) {
+        setDraftState(previous => ({
+          ...previous,
+          devices: nextDevices,
+          details: mutation.nextDetails ?? previous.details,
+        }));
+      }
+      if (mutation.nextDetails && !mutation.nextDevices) {
+        setDraftState(previous => ({
+          ...previous,
+          details: mutation.nextDetails ?? previous.details,
+        }));
+      }
+
+      if (mutation.nextDetails && onConfigChangeRef.current) {
+        if (mutation.renamedDevice) {
+          onConfigChangeRef.current(mutation.nextDevices, mutation.nextDetails, {
+            renamedDevice: mutation.renamedDevice,
+          });
+        } else {
+          onConfigChangeRef.current(mutation.nextDevices, mutation.nextDetails);
+        }
+      } else {
+        if (mutation.nextDevices && onChangeRef.current) {
+          onChangeRef.current(mutation.nextDevices);
+        }
+
+        if (mutation.nextDetails && onDetailsChangeRef.current) {
+          onDetailsChangeRef.current(mutation.nextDetails);
+        }
+      }
+
+      setPendingAddition(null);
+      setEditingDevice(null);
+    },
+    [
+      editingDevice,
+      pendingAddition,
+      draftDetails,
+      normalizedDevices,
+      onChangeRef,
+      onConfigChangeRef,
+      onDetailsChangeRef,
+      setDraftState,
+      setEditingDevice,
+      setPendingAddition,
+    ]
+  );
+
+  // ========================================================================
+  // Menu Position
+  // ========================================================================
+
+  const closeMenu = useCallback(() => {
+    setShowMenu(false);
+    anchorRef.current?.querySelector('button')?.focus({ preventScroll: true });
+  }, [setShowMenu]);
+
+  useEffect(() => {
+    if (showMenu) menuRef.current?.querySelector('button')?.focus({ preventScroll: true });
+  }, [showMenu]);
+
+  const resolveMenuPosition = useCallback((): DeviceMenuPosition | null => {
+    if (!anchorRef.current) return null;
+    return resolveDeviceMenuPosition({
+      anchorRect: anchorRef.current.getBoundingClientRect(),
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    });
+  }, []);
+
+  const { position: menuPosition, updatePosition: updateMenuPosition } = usePortalPopoverRuntime({
+    isOpen: showMenu,
+    anchorRef,
+    popoverRef: menuRef,
+    initialPosition: { top: 0, left: 0, placement: 'bottom' as const },
+    resolvePosition: resolveMenuPosition,
+    onClose: closeMenu,
+  });
+
+  // ========================================================================
+  // Render
+  // ========================================================================
+
+  const hiddenCount = Math.max(0, normalizedDevices.length - MAX_VISIBLE_DEVICES);
+  // Past the third, a badge only prints: on screen «+N» stands in for it.
+  const renderBadges = (focusable = true) =>
+    normalizedDevices.map((dev, index) => {
+      const badge = (
+        <DeviceBadge
+          key={dev}
+          id={focusable ? undefined : `${labelId}-${index}`}
+          focusable={focusable}
+          device={dev}
+          deviceDetails={draftDetails}
+          currentDate={currentDate}
+        />
+      );
+      return index < MAX_VISIBLE_DEVICES ? (
+        badge
+      ) : (
+        <span key={dev} className="hidden print:contents">
+          {badge}
+        </span>
+      );
+    });
+  const overflow =
+    hiddenCount > 0 ? (
+      <DeviceOverflowButton
+        devices={normalizedDevices}
+        hiddenCount={hiddenCount}
+        deviceDetails={draftDetails}
+        currentDate={currentDate}
+      />
+    ) : null;
+
+  if (disabled) {
+    return (
+      <div
+        className={`relative flex min-h-[26px] flex-wrap items-center justify-start gap-0.5 rounded border border-transparent p-0.5 ${hiddenCount > 0 ? 'pr-5' : ''}`}
+      >
+        {normalizedDevices.length === 0 && <span className="text-slate-300 text-xs">-</span>}
+        {renderBadges()}
+        {overflow}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div ref={anchorRef} className="relative">
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          aria-expanded={showMenu}
+          aria-labelledby={[
+            labelId,
+            ...normalizedDevices.map((_, index) => `${labelId}-${index}`),
+          ].join(' ')}
+          className={`relative flex w-full min-h-[26px] cursor-pointer flex-wrap items-center justify-start gap-0.5 rounded border border-transparent p-0.5 transition-colors hover:border-slate-200 hover:bg-slate-50 ${hiddenCount > 0 ? 'pr-5' : ''}`}
+          onClick={() => {
+            if (!showMenu) {
+              updateMenuPosition();
+            }
+            setShowMenu(previous => !previous);
+          }}
+        >
+          <span id={labelId} className="sr-only">
+            {normalizedDevices.length ? 'Editar dispositivos:' : 'Agregar dispositivo'}
+          </span>
+          {normalizedDevices.length === 0 && (
+            <span className="text-slate-300 mx-auto flex items-center justify-center w-full opacity-50">
+              <Plus size={14} />
+            </span>
+          )}
+          {renderBadges(false)}
+        </button>
+        {overflow}
+      </div>
+
+      {showMenu && typeof document !== 'undefined'
+        ? createPortal(
+            <DeviceMenu
+              devices={normalizedDevices}
+              deviceDetails={draftDetails}
+              vvpCount={vvpCount}
+              vvpDevices={vvpDevices}
+              menuPosition={menuPosition}
+              menuRef={menuRef}
+              onClose={closeMenu}
+              onToggleDevice={toggleDevice}
+              onAddCustomDevice={addCustomDevice}
+              onRemoveDevice={removeDevice}
+              onConfigureDevice={setEditingDevice}
+            />,
+            document.body
+          )
+        : null}
+
+      {(editingDevice || pendingAddition) && (
+        <DeviceDateConfigModal
+          device={editingDevice || pendingAddition || ''}
+          deviceInfo={pendingAddition ? {} : draftDetails[editingDevice || ''] || {}}
+          currentDate={currentDate}
+          reservedDeviceNames={normalizedDevices.filter(device => device !== editingDevice)}
+          onSave={handleDeviceConfigSave}
+          onClose={() => {
+            setEditingDevice(null);
+            setPendingAddition(null);
+          }}
+        />
+      )}
+
+      {retiringDevice && (
+        <DeviceRetireModal
+          deviceLabel={resolveRetiringDeviceLabel(retiringDevice)}
+          installationDate={draftDetails[retiringDevice]?.installationDate}
+          currentDate={currentDate}
+          onConfirm={handleRetireDevice}
+          onClose={() => setRetiringDevice(null)}
+        />
+      )}
+    </>
+  );
+};

@@ -47,7 +47,7 @@ describe('clinicalDerived readers chunking', () => {
     'src/features/rayen-import/hooks/useRayenClinicalFill.ts',
     'src/services/repositories/dailyRecordRepositoryInitializationService.ts',
     'src/services/exporters/exportService.ts',
-    'src/services/admin/dataMaintenanceService.ts',
+    'src/features/admin/services/dataMaintenanceService.ts',
   ])('%s never imports the read path statically', sourcePath => {
     const source = readSource(sourcePath);
     expect(source).not.toMatch(STATIC_READ_PATH);

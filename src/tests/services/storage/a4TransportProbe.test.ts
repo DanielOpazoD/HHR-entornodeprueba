@@ -13,7 +13,7 @@ import {
   subscribeDetailed,
 } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { syncRecordsRange } from '@/services/records/recordQueryService';
-import { hydrateRangeRecords } from '@/services/admin/dataMaintenanceSupport';
+import { hydrateRangeRecords } from '@/features/admin/services/dataMaintenanceSupport';
 import { importDataJSONDetailed } from '@/services/exporters/exportImportJson';
 import { migrateFromLocalStorage } from '@/services/storage/indexeddb/indexedDbMigrationService';
 import {

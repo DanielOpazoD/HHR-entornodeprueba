@@ -122,7 +122,7 @@ El owner canónico debe seguir siendo `src/features/census/controllers`. Los wra
 - `src/hooks/controllers/clinicalShiftCalendarController.ts`
 - `src/hooks/controllers/dischargeModalController.ts`
 - `src/hooks/controllers/modalFormController.ts`
-- `src/hooks/controllers/moveCopyModalController.ts`
+- `src/features/census/components/movements/moveCopyModalController.ts`
 - `src/hooks/controllers/patientMovementCreationController.ts`
 - `src/hooks/controllers/patientMovementCreationErrorPresentation.ts`
 - `src/hooks/controllers/patientMovementCreationInputController.ts`
@@ -187,8 +187,8 @@ Eliminar los ciclos reportados por `check:architecture` sin introducir facades c
 - `src/features/clinical-documents/hooks/useClinicalDocumentWorkspaceBootstrap.ts`
 - `src/features/clinical-documents/controllers/clinicalDocumentWorkspaceController.ts`
 - `src/shared/clinical-documents/clinicalDocumentPresentation.ts`
-- `src/application/patient-flow/patientAnalysisEngine.ts`
-- `src/application/patient-flow/patientAnalysisSupport.ts`
+- `src/features/admin/patient-flow/patientAnalysisEngine.ts`
+- `src/features/admin/patient-flow/patientAnalysisSupport.ts`
 
 ### Trabajo esperado
 
@@ -276,7 +276,7 @@ Hacer explícito en código, UI y documentación que el PIN local solo protege p
 ### Archivos objetivo
 
 - `src/context/SecurityContext.tsx`
-- `src/components/modals/SecuritySettings.tsx`
+- `src/features/admin/components/SecuritySettings.tsx`
 - `src/components/security/PinLockScreen.tsx`
 - `src/tests/context/SecurityContext.test.tsx`
 - `src/tests/components/PinLockScreen.test.tsx`
