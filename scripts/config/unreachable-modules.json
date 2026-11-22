@@ -13,19 +13,6 @@
     {
       "reason": "Cargador de ExcelJS para Node: lo activa el alias de vitest.config.ts en lugar del cargador del navegador.",
       "files": ["src/services/exporters/excelJsModuleLoader.node.ts"]
-    },
-    {
-      "reason": "Columnas del censo ocultas en julio de 2026. El responsable decidió conservarlas (2026-11-10) para poder reactivarlas.",
-      "files": [
-        "src/features/census/components/patient-row/AdmissionInput.tsx",
-        "src/features/census/components/patient-row/AgeInput.tsx",
-        "src/features/census/components/patient-row/CheckboxCell.tsx",
-        "src/features/census/components/patient-row/NameInput.tsx",
-        "src/features/census/components/patient-row/PatientMainRowBedTypeCell.tsx",
-        "src/features/census/components/patient-row/RutPassportInput.tsx",
-        "src/features/census/components/patient-row/useBedActiveTransferQuery.ts",
-        "src/features/census/controllers/admissionInputController.ts"
-      ]
     }
   ]
 }

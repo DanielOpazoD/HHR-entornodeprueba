@@ -83,10 +83,10 @@ describe('shared layers import no feature in runtime', () => {
   // The feature to feature rows of the former boundaries spelling table (W15-A1): ESLint still
   // owns them, in every spelling, after the boundaries plugin left.
   it.each([
-    ['alias', '@/features/census/controllers/admissionInputController'],
-    ['alias .ts', '@/features/census/controllers/admissionInputController.ts'],
-    ['relativa', '../census/controllers/admissionInputController'],
-    ['relativa .ts', '../census/controllers/admissionInputController.ts'],
+    ['alias', '@/features/census/controllers/patientMainRowSectionsController'],
+    ['alias .ts', '@/features/census/controllers/patientMainRowSectionsController.ts'],
+    ['relativa', '../census/controllers/patientMainRowSectionsController'],
+    ['relativa .ts', '../census/controllers/patientMainRowSectionsController.ts'],
     ['public surface without permission', '@/features/census/public'],
   ])('rejects a feature import the matrix does not allow (%s)', async (_spelling, target) => {
     const rules = await boundaryRules(

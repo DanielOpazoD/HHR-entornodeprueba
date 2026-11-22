@@ -2,7 +2,6 @@ import type { PatientData } from '@/types/domain/patient';
 
 import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 import type { BedDefinition } from '@/types/domain/beds';
-import type { BedType } from '@/types/domain/beds';
 
 import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import type {
@@ -52,15 +51,6 @@ export interface PatientBedConfigProps extends PatientBedConfigCallbacks {
   onTextChange: EventTextHandler;
   readOnly?: boolean;
   align?: RowMenuAlign;
-}
-
-export interface PatientMainRowBedTypeCellProps {
-  bedId: string;
-  patientRut?: string | null;
-  bedType: BedType;
-  hasPatient: boolean;
-  canToggleBedType: boolean;
-  onToggleBedType: () => void;
 }
 
 export interface PatientMainRowBlockedCellProps {

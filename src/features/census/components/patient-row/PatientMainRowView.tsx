@@ -2,7 +2,6 @@ import React from 'react';
 import { PatientBedConfig } from './PatientBedConfig';
 import { PatientInputCells } from './PatientInputCells';
 import { PatientMainRowActionCell } from './PatientMainRowActionCell';
-// PatientMainRowBedTypeCell conservado para reactivación futura de la columna "Tipo de cama".
 import { PatientMainRowBlockedCell } from './PatientMainRowBlockedCell';
 import type { PatientMainRowViewProps } from './patientRowContracts';
 import { usePatientMainRowSectionsModel } from './usePatientMainRowSectionsModel';
@@ -87,8 +86,7 @@ export const PatientMainRowView: React.FC<PatientMainRowViewProps> = ({
       <PatientBedConfig {...sections.bedConfig} />
 
       {/* Columna "Tipo de cama" oculta (rediseño 2026): el estado clínico ocupa ahora este lugar,
-          renderizado como primera celda de PatientInputCells. PatientMainRowBedTypeCell se conserva
-          para reactivación futura (quitar 'type' de HIDDEN_CENSUS_COLUMNS y reponer la celda aquí). */}
+          renderizado como primera celda de PatientInputCells. */}
 
       {mainRowViewState.showBlockedContent ? (
         <PatientMainRowBlockedCell {...sections.blocked} />

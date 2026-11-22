@@ -2,7 +2,6 @@ import type {
   PatientInputCellsProps,
   PatientBedConfigProps,
   PatientMainRowViewProps,
-  PatientMainRowBedTypeCellProps,
   PatientMainRowBlockedCellProps,
 } from '@/features/census/components/patient-row/patientRowContracts';
 import {
@@ -13,7 +12,6 @@ import {
 export interface PatientMainRowSections {
   action: PatientActionSectionBinding;
   bedConfig: PatientBedConfigProps;
-  bedType: PatientMainRowBedTypeCellProps;
   blocked: PatientMainRowBlockedCellProps;
   inputCells: PatientInputCellsProps;
 }
@@ -38,14 +36,6 @@ export const buildPatientMainRowSections = (
     onUpdateClinicalCrib: props.onUpdateClinicalCrib,
     readOnly: props.readOnly || props.clinicalEditingDisabled,
     align: props.actionMenuAlign,
-  },
-  bedType: {
-    bedId: props.bed.id,
-    patientRut: props.data.rut || '',
-    bedType: props.bedType,
-    hasPatient: Boolean(props.data.patientName),
-    canToggleBedType: props.mainRowViewState.canToggleBedType && !props.clinicalEditingDisabled,
-    onToggleBedType: props.onToggleBedType,
   },
   blocked: {
     blockedReason: props.data.blockedReason,
