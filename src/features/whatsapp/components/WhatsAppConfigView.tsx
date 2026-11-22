@@ -22,8 +22,8 @@ import {
   useWhatsAppHealthQuery,
   useWhatsAppGroupsQuery,
   useUpdateWhatsAppConfigMutation,
-} from '@/hooks/useWhatsAppQuery';
-import type { WhatsAppConfig } from '@/types/whatsapp';
+} from '@/features/whatsapp/hooks/useWhatsAppQuery';
+import type { WhatsAppConfig } from '@/features/whatsapp/types/whatsapp';
 
 export const WhatsAppConfigView: React.FC = () => {
   // 1. Data Queries

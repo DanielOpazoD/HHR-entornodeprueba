@@ -71,6 +71,7 @@ const RULES = [
       'src/features/admin/services/',
       'src/features/analytics/services/',
       'src/features/clinical-documents/services/',
+      'src/features/prescriptions/services/',
       'src/features/wound-care/services/',
       'src/services/storage/sync/',
       'src/features/rayen-import/'

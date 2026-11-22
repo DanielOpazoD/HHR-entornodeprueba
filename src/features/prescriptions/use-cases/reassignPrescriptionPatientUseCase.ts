@@ -11,8 +11,11 @@
 import {
   defaultPrescriptionPort,
   type PrescriptionPort,
-} from '@/application/ports/prescriptionPort';
-import type { PrescriptionAssignmentScope, PrescriptionRecord } from '@/types/prescriptionTypes';
+} from '@/features/prescriptions/use-cases/prescriptionPort';
+import type {
+  PrescriptionAssignmentScope,
+  PrescriptionRecord,
+} from '@/features/prescriptions/types/prescriptionTypes';
 
 export interface ReassignPrescriptionPatientInput {
   prescriptionId: string;

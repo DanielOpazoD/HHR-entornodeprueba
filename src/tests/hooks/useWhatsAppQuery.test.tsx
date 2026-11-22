@@ -5,13 +5,13 @@ import {
   useWhatsAppHealthQuery,
   useWhatsAppGroupsQuery,
   useUpdateWhatsAppConfigMutation,
-} from '@/hooks/useWhatsAppQuery';
-import * as whatsappService from '@/services/integrations/whatsapp/whatsappService';
+} from '@/features/whatsapp/hooks/useWhatsAppQuery';
+import * as whatsappService from '@/features/whatsapp/services/whatsappService';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
-import type { WhatsAppConfig } from '@/types/whatsapp';
+import type { WhatsAppConfig } from '@/features/whatsapp/types/whatsapp';
 
 // Mock dependencies
-vi.mock('@/services/integrations/whatsapp/whatsappService');
+vi.mock('@/features/whatsapp/services/whatsappService');
 
 const createWrapper = () => createQueryClientTestWrapper().wrapper;
 

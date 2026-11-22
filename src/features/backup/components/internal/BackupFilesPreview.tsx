@@ -1,11 +1,11 @@
 import React from 'react';
 
-import { PdfViewerModal } from '@/components/shared/PdfViewerModal';
+import { PdfViewerModal } from '@/features/backup/components/PdfViewerModal';
 import type { BackupType } from '@/hooks/backupFileBrowserContracts';
 import type { BaseStoredFile, StoredPdfFile } from '@/types/backupArtifacts';
 
 const ExcelViewerModal = React.lazy(() =>
-  import('@/components/shared/ExcelViewerModal').then(module => ({
+  import('@/features/backup/components/ExcelViewerModal').then(module => ({
     default: module.ExcelViewerModal,
   }))
 );

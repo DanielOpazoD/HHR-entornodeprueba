@@ -1,5 +1,5 @@
 import type { DicomOrientation } from '@/domain/radiology/dicomTypes';
-import type { MprSettings } from '@/domain/radiology/dicomReconstruction';
+import type { MprSettings } from '@/features/radiology/domain/dicomReconstruction';
 import type { MprReconstructionState } from './dicomMprReconstruction';
 import type { createDicomComparison } from './dicomComparison';
 import type { DicomSeries } from '@/domain/radiology/dicomTypes';

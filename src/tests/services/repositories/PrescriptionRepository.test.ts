@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PrescriptionRecord } from '@/types/prescriptionTypes';
+import type { PrescriptionRecord } from '@/features/prescriptions/types/prescriptionTypes';
 
 vi.mock('@/services/storage/firestore', () => ({
   firestoreDb: {
@@ -19,7 +19,7 @@ vi.mock('@/services/repositories/repositoryConfig', () => ({
 
 import { firestoreDb } from '@/services/storage/firestore';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
-import { PrescriptionRepository } from '@/services/repositories/PrescriptionRepository';
+import { PrescriptionRepository } from '@/features/prescriptions/services/PrescriptionRepository';
 
 const buildRecord = (
   id: string,

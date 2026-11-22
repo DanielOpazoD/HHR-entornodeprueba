@@ -4,7 +4,7 @@ import { imageLoader, cache } from '@cornerstonejs/core';
 import { wadouri } from '@cornerstonejs/dicom-image-loader';
 import { fetchDicomInstance } from './mmradDicomService';
 import { type DicomSeries, type DicomStudy } from '@/domain/radiology/dicomTypes';
-import type { SliceGeometry } from '@/domain/radiology/dicomGeometry';
+import type { SliceGeometry } from '@/features/radiology/domain/dicomGeometry';
 import { validateDicomInstanceIdentity } from './dicomInstanceIdentity';
 import { supportsDicomResampling } from './dicomPixelMapping';
 import { hasDicomHuCalibration } from './dicomQuantitative';

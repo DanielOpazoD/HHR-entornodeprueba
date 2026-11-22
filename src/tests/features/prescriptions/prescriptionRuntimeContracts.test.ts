@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest';
 import {
   prescriptionRecordSchema,
   safeParsePrescriptionRecord,
-} from '@/schemas/prescriptionSchemas';
-import type { PrescriptionRecord } from '@/types/prescriptionTypes';
+} from '@/features/prescriptions/schemas/prescriptionSchemas';
+import type { PrescriptionRecord } from '@/features/prescriptions/types/prescriptionTypes';
 
 const validRecord = (overrides: Partial<PrescriptionRecord> = {}): PrescriptionRecord => ({
   id: 'rx-1',

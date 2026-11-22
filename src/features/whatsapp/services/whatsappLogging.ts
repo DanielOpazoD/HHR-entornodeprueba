@@ -1,7 +1,7 @@
 import { addDoc, collection, Timestamp } from 'firebase/firestore';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
-import type { WhatsAppLog } from '@/types/whatsapp';
+import type { WhatsAppLog } from '@/features/whatsapp/types/whatsapp';
 import { whatsappLoggingLogger } from '@/services/integrations/integrationLoggers';
 
 export const createWhatsAppLoggingStore = (

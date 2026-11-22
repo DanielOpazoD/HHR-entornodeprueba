@@ -1,12 +1,12 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
-import { planDicomVolume } from '@/domain/radiology/dicomGeometry';
+import { planDicomVolume } from '@/features/radiology/domain/dicomGeometry';
 import {
   defaultMprSettings,
   validateMprSettings,
   slabCoverage,
   isObliqueNormal,
-} from '@/domain/radiology/dicomReconstruction';
+} from '@/features/radiology/domain/dicomReconstruction';
 
 const plan = planDicomVolume(
   Array.from({ length: 5 }, (_, z) => ({

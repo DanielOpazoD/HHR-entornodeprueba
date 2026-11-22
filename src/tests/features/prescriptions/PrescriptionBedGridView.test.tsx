@@ -22,7 +22,7 @@ vi.mock('@/features/prescriptions/services/prescriptionStorageImageService', () 
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { PrescriptionBedGridView } from '@/features/prescriptions/components/PrescriptionBedGridView';
 import { resolvePrescriptionImageDownloadUrl } from '@/features/prescriptions/services/prescriptionStorageImageService';
-import type { PrescriptionRecord } from '@/types/prescriptionTypes';
+import type { PrescriptionRecord } from '@/features/prescriptions/types/prescriptionTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { createEmptyPatient } from '@/domain/patient/patientFactory';

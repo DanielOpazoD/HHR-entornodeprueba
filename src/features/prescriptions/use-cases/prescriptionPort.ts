@@ -1,9 +1,9 @@
-import { PrescriptionRepository } from '@/services/repositories/PrescriptionRepository';
+import { PrescriptionRepository } from '@/features/prescriptions/services/PrescriptionRepository';
 import type {
   PrescriptionAssignmentScope,
   PrescriptionRecord,
   PrescriptionType,
-} from '@/types/prescriptionTypes';
+} from '@/features/prescriptions/types/prescriptionTypes';
 
 /**
  * Port that decouples application use cases from the concrete Firestore

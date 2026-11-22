@@ -4,7 +4,7 @@ import {
   PRESCRIPTION_TYPE_LABELS,
   type PrescriptionRecord,
   type PrescriptionType,
-} from '@/types/prescriptionTypes';
+} from '@/features/prescriptions/types/prescriptionTypes';
 import { PrescriptionThumbnail } from '@/features/prescriptions/components/PrescriptionThumbnail';
 import { PrescriptionQuickTypeButton } from '@/features/prescriptions/components/PrescriptionQuickTypeButton';
 

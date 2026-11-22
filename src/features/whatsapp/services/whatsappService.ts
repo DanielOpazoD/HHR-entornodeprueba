@@ -6,23 +6,23 @@
  * to smaller internal modules.
  */
 
-import type { WeeklyShift } from '@/types/whatsapp';
-import { fetchBotJson } from '@/services/integrations/whatsapp/whatsappBotRuntime';
-import { logWhatsAppOperation } from '@/services/integrations/whatsapp/whatsappLogging';
+import type { WeeklyShift } from '@/features/whatsapp/types/whatsapp';
+import { fetchBotJson } from '@/features/whatsapp/services/whatsappBotRuntime';
+import { logWhatsAppOperation } from '@/features/whatsapp/services/whatsappLogging';
 import {
   getWhatsAppConfig,
   updateWhatsAppConfig,
-} from '@/services/integrations/whatsapp/whatsappConfigStore';
+} from '@/features/whatsapp/services/whatsappConfigStore';
 import {
   getDefaultTemplates,
   getMessageTemplates,
   saveMessageTemplates,
-} from '@/services/integrations/whatsapp/whatsappTemplatesStore';
-import type { MessageTemplate } from '@/services/integrations/whatsapp/whatsappTemplatesStore';
+} from '@/features/whatsapp/services/whatsappTemplatesStore';
+import type { MessageTemplate } from '@/features/whatsapp/services/whatsappTemplatesStore';
 import {
   saveManualShift,
   subscribeToCurrentShift,
-} from '@/services/integrations/whatsapp/whatsappShiftStore';
+} from '@/features/whatsapp/services/whatsappShiftStore';
 import { whatsappServiceLogger } from '@/services/integrations/integrationLoggers';
 import * as z from 'zod';
 

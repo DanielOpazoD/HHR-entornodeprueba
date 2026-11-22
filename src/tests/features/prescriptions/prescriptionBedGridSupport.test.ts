@@ -8,7 +8,7 @@ import {
   prescriptionBedRowKey,
 } from '@/features/prescriptions/components/prescriptionBedGridSupport';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { PrescriptionRecord } from '@/types/prescriptionTypes';
+import type { PrescriptionRecord } from '@/features/prescriptions/types/prescriptionTypes';
 
 const buildPrescription = (
   id: string,

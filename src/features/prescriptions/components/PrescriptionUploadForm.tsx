@@ -17,7 +17,7 @@ import {
   PRESCRIPTION_TYPES,
   type PrescriptionAssignmentScope,
   type PrescriptionType,
-} from '@/types/prescriptionTypes';
+} from '@/features/prescriptions/types/prescriptionTypes';
 import { PrescriptionUploadReadonlyViewer } from '@/features/prescriptions/components/PrescriptionUploadReadonlyViewer';
 import { PrescriptionUploadSuccessState } from '@/features/prescriptions/components/PrescriptionUploadSuccessState';
 import type { PrescriptionUploadControllerHandle } from '@/features/prescriptions/hooks/usePrescriptionUploadController';

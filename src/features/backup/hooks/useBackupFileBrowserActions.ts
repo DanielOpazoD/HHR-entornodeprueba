@@ -3,7 +3,7 @@ import { findMonthIndexByName } from '@/constants/export';
 import type { BaseStoredFile, StoredPdfFile } from '@/types/backupArtifacts';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import type { BackupType } from '@/hooks/backupFileBrowserContracts';
-import { resolveBackupModuleLabel } from '@/hooks/backupFileBrowserController';
+import { resolveBackupModuleLabel } from '@/features/backup/hooks/backupFileBrowserController';
 import type { ConfirmOptions } from '@/context/uiContracts';
 import { executeDeleteBackupFile } from '@/application/backup-export/backupExportStorageUseCases';
 import { executeRunMonthlyBackfill } from '@/application/backup-export/backupExportMaintenanceUseCases';

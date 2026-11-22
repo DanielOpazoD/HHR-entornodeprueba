@@ -3,8 +3,8 @@ import {
   subscribeToCurrentShift,
   saveManualShift,
   fetchShiftsFromGroup,
-} from '@/services/integrations/whatsapp/whatsappService';
-import type { WeeklyShift } from '@/types/whatsapp';
+} from '@/features/whatsapp/services/whatsappService';
+import type { WeeklyShift } from '@/features/whatsapp/types/whatsapp';
 
 export const useShiftPanel = () => {
   const [shift, setShift] = useState<WeeklyShift | null>(null);

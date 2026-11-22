@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@/services/auth/authRequestHeaders', () => ({
   resolveCurrentUserAuthHeaders: vi.fn(async () => ({ Authorization: 'Bearer synthetic' })),
 }));
-import { autoConnectExalab, disconnectExalab } from '@/services/laboratory/exalabService';
-import { onExalabSessionAvailable } from '@/services/laboratory/exalabExtensionBridge';
+import { autoConnectExalab, disconnectExalab } from '@/features/laboratory/services/exalabService';
+import { onExalabSessionAvailable } from '@/features/laboratory/services/exalabExtensionBridge';
 
 const pair = 'P'.repeat(43);
 type Reply = (message: { type: string; reqId: string; pair?: string }) => unknown;

@@ -12,7 +12,7 @@ import {
   PRESCRIPTION_ASSIGNMENT_SCOPES,
   PRESCRIPTION_TYPES,
   type PrescriptionRecord,
-} from '@/types/prescriptionTypes';
+} from '@/features/prescriptions/types/prescriptionTypes';
 
 const prescriptionTypeSchema = z.enum(
   PRESCRIPTION_TYPES as readonly [string, ...string[]] as readonly [

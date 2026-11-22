@@ -10,7 +10,7 @@ import {
 } from '@/services/storage/sessionStorageTransition';
 import { buildSyncQueueTelemetryFromRows } from '@/services/storage/sync/syncQueueTelemetryController';
 import { toSyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueOperationSnapshot';
-import { buildSyncQueueStats } from '@/hooks/controllers/syncQueueMonitorController';
+import { buildSyncQueueStats } from '@/features/rayen-import/hooks/syncQueueMonitorController';
 import { downloadBlob } from '@/services/exporters/exportDownload';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 

@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { Loader2 } from 'lucide-react';
-import { useBackupFileBrowser } from '@/hooks/useBackupFileBrowser';
+import { useBackupFileBrowser } from '@/features/backup/hooks/useBackupFileBrowser';
 import type { BackupType } from '@/hooks/backupFileBrowserContracts';
 import { BackupFilesToolbar } from './internal/BackupFilesToolbar';
 import { BackupFilesContent } from './internal/BackupFilesContent';

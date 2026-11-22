@@ -9,8 +9,8 @@ import {
   updateWhatsAppConfig,
   checkBotHealth,
   getWhatsAppGroups,
-} from '@/services/integrations/whatsapp/whatsappService';
-import { WhatsAppConfig } from '@/types/whatsapp';
+} from '@/features/whatsapp/services/whatsappService';
+import { WhatsAppConfig } from '@/features/whatsapp/types/whatsapp';
 
 export const whatsappKeys = {
   all: ['whatsapp'] as const,

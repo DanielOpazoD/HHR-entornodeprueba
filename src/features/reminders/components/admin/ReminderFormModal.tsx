@@ -3,7 +3,7 @@ import { BellRing, ImagePlus } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import type { Reminder } from '@/types/reminders';
-import type { ReminderDraftInput } from '@/domain/reminders/reminderValidation';
+import type { ReminderDraftInput } from '@/features/reminders/domain/reminderValidation';
 import {
   REMINDER_ROLE_OPTIONS,
   REMINDER_SHIFT_OPTIONS,

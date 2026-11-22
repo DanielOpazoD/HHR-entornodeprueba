@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2, Pencil, Save } from 'lucide-react';
 import { documentIdentityKey } from '@/utils/rutUtils';
-import type { PrescriptionRecord } from '@/types/prescriptionTypes';
+import type { PrescriptionRecord } from '@/features/prescriptions/types/prescriptionTypes';
 import {
   FALLBACK_DAYS_BACK,
   formatDayLabel,

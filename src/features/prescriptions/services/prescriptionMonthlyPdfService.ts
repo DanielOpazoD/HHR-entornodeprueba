@@ -1,5 +1,5 @@
 import { resolvePrescriptionImageDownloadUrl } from '@/features/prescriptions/services/prescriptionStorageImageService';
-import { type PrescriptionRecord } from '@/types/prescriptionTypes';
+import { type PrescriptionRecord } from '@/features/prescriptions/types/prescriptionTypes';
 import {
   createPrescriptionMonthlyPrintDocument,
   PRESCRIPTION_MONTHLY_PRINT_ROOT_ID,

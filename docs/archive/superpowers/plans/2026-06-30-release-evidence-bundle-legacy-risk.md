@@ -16,7 +16,7 @@
 
 - Create: `src/application/audit/writeAuditEventUseCaseLoader.ts`
 - Modify: `src/hooks/useAudit.ts`
-- Modify: `src/application/prescriptions/deletePrescriptionUseCase.ts`
+- Modify: `src/features/prescriptions/use-cases/deletePrescriptionUseCase.ts`
 - Modify: `src/application/medical-indications/medicalIndicationsUseCases.ts`
 - Modify: `src/application/clinical-documents/clinicalDocumentUseCases.ts`
 - Modify: `src/application/daily-record/commands/admitPatientCommand.ts`

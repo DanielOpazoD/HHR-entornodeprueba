@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNotification, useConfirmDialog } from '@/context/UIContext';
-import { useBackupFilesQuery } from '@/hooks/useBackupFilesQuery';
+import { useBackupFilesQuery } from '@/features/backup/hooks/useBackupFilesQuery';
 import { useAuth } from '@/context/AuthContext';
-import { useBackupFileBrowserActions } from '@/hooks/useBackupFileBrowserActions';
+import { useBackupFileBrowserActions } from '@/features/backup/hooks/useBackupFileBrowserActions';
 import { canUseAdminMaintenanceActions } from '@/shared/access/operationalAccessPolicy';
 import {
   buildInitialBackupBrowserPath,
   filterBackupBrowserItems,
   resolveCanRunMagicBackfill,
-} from '@/hooks/backupFileBrowserController';
+} from '@/features/backup/hooks/backupFileBrowserController';
 import { presentBackupListingOutcome } from '@/hooks/controllers/backupStorageOutcomeController';
 import type { BackupFolder, BackupType } from '@/hooks/backupFileBrowserContracts';
 import type { BaseStoredFile, StoredPdfFile } from '@/types/backupArtifacts';

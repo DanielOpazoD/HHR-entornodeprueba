@@ -8,7 +8,7 @@ import {
   getMessageTemplates,
   getDefaultTemplates,
   saveManualShift,
-} from '@/services/integrations/whatsapp/whatsappService';
+} from '@/features/whatsapp/services/whatsappService';
 import { getDoc, setDoc, addDoc } from 'firebase/firestore';
 
 // Mock Firebase

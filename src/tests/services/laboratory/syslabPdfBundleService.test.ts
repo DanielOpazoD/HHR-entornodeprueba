@@ -40,7 +40,7 @@ vi.mock('@/services/exporters/exportDownload', () => ({
   downloadBlob: (...args: unknown[]) => mockDownloadBlob(...args),
 }));
 
-import { downloadCombinedSyslabPdf } from '@/services/laboratory/syslabPdfBundleService';
+import { downloadCombinedSyslabPdf } from '@/features/laboratory/services/syslabPdfBundleService';
 
 describe('combined Syslab PDF download', () => {
   beforeEach(() => vi.clearAllMocks());

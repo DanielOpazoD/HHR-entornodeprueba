@@ -5,7 +5,10 @@ import {
   LOCAL_SYNC_PENDING_VISIBILITY_MS,
   type QuarantinedOperationView,
 } from '@/features/rayen-import/components/localSyncPresentation';
-import type { SyncQueueOperation, SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
+import type {
+  SyncQueueOperation,
+  SyncQueueStats,
+} from '@/features/rayen-import/hooks/useSyncQueueMonitor';
 
 const makeStats = (overrides: Partial<SyncQueueStats> = {}): SyncQueueStats => ({
   pending: 0,

@@ -1,10 +1,13 @@
 import React, { useCallback, useState } from 'react';
 import { ArrowLeft, FileDown, Grid3x3, Inbox, List, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { executeReassignPrescriptionPatient } from '@/application/prescriptions/reassignPrescriptionPatientUseCase';
-import { executeDeletePrescription } from '@/application/prescriptions/deletePrescriptionUseCase';
-import { executeUpdatePrescriptionType } from '@/application/prescriptions/updatePrescriptionTypeUseCase';
-import { type PrescriptionRecord, type PrescriptionType } from '@/types/prescriptionTypes';
+import { executeReassignPrescriptionPatient } from '@/features/prescriptions/use-cases/reassignPrescriptionPatientUseCase';
+import { executeDeletePrescription } from '@/features/prescriptions/use-cases/deletePrescriptionUseCase';
+import { executeUpdatePrescriptionType } from '@/features/prescriptions/use-cases/updatePrescriptionTypeUseCase';
+import {
+  type PrescriptionRecord,
+  type PrescriptionType,
+} from '@/features/prescriptions/types/prescriptionTypes';
 import { usePrescriptionListController } from '@/features/prescriptions/hooks/usePrescriptionListController';
 import {
   exportMonthlyPrescriptionsPdf,

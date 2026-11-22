@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getDefaultTemplates } from '@/services/integrations/whatsapp/whatsappTemplatesStore';
+import { getDefaultTemplates } from '@/features/whatsapp/services/whatsappTemplatesStore';
 
 describe('getDefaultTemplates', () => {
   it('returns at least one default template', () => {

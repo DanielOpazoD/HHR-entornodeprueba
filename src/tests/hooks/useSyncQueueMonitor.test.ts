@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useSyncQueueMonitor } from '@/hooks/useSyncQueueMonitor';
+import { useSyncQueueMonitor } from '@/features/rayen-import/hooks/useSyncQueueMonitor';
 
 const mockGetSyncQueueTelemetry = vi.fn();
 const mockListRecentSyncQueueOperations = vi.fn();

@@ -10,15 +10,15 @@
 
 import { firestoreDb } from '@/services/storage/firestore';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
-import { getPrescriptionsCollectionPath } from '@/constants/prescriptionPaths';
+import { getPrescriptionsCollectionPath } from '@/features/prescriptions/constants/prescriptionPaths';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
-import { safeParsePrescriptionRecord } from '@/schemas/prescriptionSchemas';
+import { safeParsePrescriptionRecord } from '@/features/prescriptions/schemas/prescriptionSchemas';
 import type {
   PrescriptionAssignmentScope,
   PrescriptionRecord,
   PrescriptionType,
-} from '@/types/prescriptionTypes';
+} from '@/features/prescriptions/types/prescriptionTypes';
 
 const sortByCreatedAtDesc = (records: PrescriptionRecord[]): PrescriptionRecord[] =>
   [...records].sort((left, right) => right.createdAt.localeCompare(left.createdAt));

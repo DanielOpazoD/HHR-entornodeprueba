@@ -1,7 +1,7 @@
 import { collection, doc, limit, onSnapshot, orderBy, query, setDoc } from 'firebase/firestore';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
-import type { WeeklyShift } from '@/types/whatsapp';
+import type { WeeklyShift } from '@/features/whatsapp/types/whatsapp';
 import { whatsappShiftLogger } from '@/services/integrations/integrationLoggers';
 
 const TURNO_KEYWORDS = ['turno pabellon', 'turno pabellón', 'envío turno', 'envio turno'];

@@ -1,6 +1,6 @@
 import { cache, metaData, utilities, volumeLoader, type Types } from '@cornerstonejs/core';
-import { planDicomVolume, type SliceGeometry } from '@/domain/radiology/dicomGeometry';
-import { resampleDicomVolume } from '@/domain/radiology/dicomResampling';
+import { planDicomVolume, type SliceGeometry } from '@/features/radiology/domain/dicomGeometry';
+import { resampleDicomVolume } from '@/features/radiology/domain/dicomResampling';
 
 export interface DicomVolumeHandle {
   resampled: boolean;

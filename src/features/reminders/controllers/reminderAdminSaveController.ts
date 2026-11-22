@@ -21,7 +21,7 @@ import {
   buildReminderFromDraft,
   validateReminderDraft,
   type ReminderDraftInput,
-} from '@/domain/reminders/reminderValidation';
+} from '@/features/reminders/domain/reminderValidation';
 import type { Reminder } from '@/types/reminders';
 import type { createReminderUseCases } from '@/application/reminders/reminderUseCases';
 

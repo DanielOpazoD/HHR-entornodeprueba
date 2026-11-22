@@ -15,7 +15,7 @@ vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
 
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { PrescriptionReassignDialog } from '@/features/prescriptions/components/PrescriptionReassignDialog';
-import type { PrescriptionRecord } from '@/types/prescriptionTypes';
+import type { PrescriptionRecord } from '@/features/prescriptions/types/prescriptionTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 import { createEmptyPatient } from '@/domain/patient/patientFactory';

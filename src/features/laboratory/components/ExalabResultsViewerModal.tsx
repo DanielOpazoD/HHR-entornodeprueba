@@ -8,7 +8,7 @@ import {
   getClinicalCalendarDateISO,
 } from '@/utils/clinicalTimeZone';
 import { sessionEpochGuard } from '@/services/storage/sessionStorageTransition';
-import { onExalabSessionAvailable } from '@/services/laboratory/exalabExtensionBridge';
+import { onExalabSessionAvailable } from '@/features/laboratory/services/exalabExtensionBridge';
 import {
   autoConnectExalab,
   connectExalab,
@@ -18,7 +18,7 @@ import {
   searchExalab,
   ExalabRequestError,
   type ExalabSessionStatus,
-} from '@/services/laboratory/exalabService';
+} from '@/features/laboratory/services/exalabService';
 import { type ExalabExam } from '@/types/domain/labExamTypes';
 import { useLatestRef } from '@/hooks/useLatestRef';
 
