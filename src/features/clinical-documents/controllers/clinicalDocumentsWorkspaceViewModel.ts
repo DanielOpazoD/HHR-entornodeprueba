@@ -1,5 +1,14 @@
 import type { ConfirmOptions } from '@/context/uiContracts';
-import type { ClinicalDocumentSheetProps } from '@/features/clinical-documents/components/clinicalDocumentSheetShared';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
+import type {
+  ClinicalDocumentSheetAnnexBinding,
+  ClinicalDocumentSheetAttachmentsBinding,
+  ClinicalDocumentSheetDocumentActions,
+  ClinicalDocumentSheetIeehBinding,
+  ClinicalDocumentSheetIndicationsCatalogBinding,
+  ClinicalDocumentSheetSignatureBinding,
+  ClinicalDocumentUploadPastedImage,
+} from '@/features/clinical-documents/components/clinicalDocumentSheetShared';
 import type { ClinicalDocumentsSidebarProps } from '@/features/clinical-documents/contracts/clinicalDocumentsSidebarContracts';
 import {
   executeClinicalDocumentTemplateRestore,
@@ -7,24 +16,28 @@ import {
   toggleClinicalDocumentAnnex,
 } from '@/features/clinical-documents/controllers/clinicalDocumentsWorkspaceActionController';
 
-type ClinicalDocumentsWorkspaceSheetModelProps = Omit<
-  ClinicalDocumentSheetProps,
-  | 'toolbar'
-  | 'activeTitleTarget'
-  | 'activeEditorSectionId'
-  | 'onSetActiveTitleTarget'
-  | 'draggedSectionId'
-  | 'dragOverSectionId'
-  | 'activePlanSubsectionId'
-  | 'activeIndicationsSpecialtyId'
-  | 'isIndicationsPanelOpen'
-  | 'onSetActivePlanSubsectionId'
-  | 'onSetActiveIndicationsSpecialtyId'
-  | 'onToggleIndicationsPanel'
-  | 'onEditorActivate'
-  | 'onEditorDeactivate'
-  | 'dragHandlers'
->;
+export interface ClinicalDocumentsWorkspaceChromeModel {
+  isSaving: boolean;
+  lastSavedAt?: string;
+  hasLocalDraftChanges: boolean;
+  flushPendingAutosave: () => void;
+  onPrint: () => void;
+  onRestoreTemplate: () => void;
+}
+
+export interface ClinicalDocumentsWorkspaceSheetModel {
+  selectedDocument: ClinicalDocumentRecord | null;
+  canEdit: boolean;
+  chrome: ClinicalDocumentsWorkspaceChromeModel;
+  documentActions: ClinicalDocumentSheetDocumentActions;
+  indicationsCatalog: ClinicalDocumentSheetIndicationsCatalogBinding;
+  attachments: ClinicalDocumentSheetAttachmentsBinding;
+  annex: ClinicalDocumentSheetAnnexBinding;
+  ieeh: ClinicalDocumentSheetIeehBinding;
+  signature: ClinicalDocumentSheetSignatureBinding;
+  onUploadPastedImage: ClinicalDocumentUploadPastedImage;
+  onImagePasteRejected: (message: string) => void;
+}
 
 interface NotificationHelpers {
   info: (title: string, message?: string) => void;
@@ -42,7 +55,7 @@ interface BuildSidebarPropsParams {
   selectedTemplateId: string;
   selectedDocumentId: string | null;
   documents: ClinicalDocumentsSidebarProps['documents'];
-  draft: ClinicalDocumentsWorkspaceSheetModelProps['selectedDocument'];
+  draft: ClinicalDocumentRecord | null;
   setSelectedTemplateId: (templateId: string) => void;
   setSelectedDocumentId: (documentId: string | null) => void;
   createDocument: () => Promise<void>;
@@ -56,75 +69,31 @@ interface BuildSidebarPropsParams {
   handleImportJson: (file: File) => Promise<void>;
   handleImportWithAi: (file: File) => Promise<void>;
   isImportingWithAi: boolean;
-  addClinicalUpdate: ClinicalDocumentsWorkspaceSheetModelProps['addClinicalUpdate'];
-  patchAnnexContent: ClinicalDocumentsWorkspaceSheetModelProps['patchAnnexContent'];
-  patchSectionTitle: ClinicalDocumentsWorkspaceSheetModelProps['patchSectionTitle'];
-  patchSection: ClinicalDocumentsWorkspaceSheetModelProps['patchSection'];
+  addClinicalUpdate: () => void;
+  patchAnnexContent: ClinicalDocumentSheetAnnexBinding['onPatchContent'];
+  patchSectionTitle: ClinicalDocumentSheetDocumentActions['patchSectionTitle'];
+  patchSection: ClinicalDocumentSheetDocumentActions['patchSection'];
   scrollToAnnex: () => void;
 }
 
-interface BuildSheetPropsParams {
-  selectedDocument: ClinicalDocumentsWorkspaceSheetModelProps['selectedDocument'];
+interface BuildSheetModelParams {
+  selectedDocument: ClinicalDocumentRecord | null;
   canEdit: boolean;
   isSaving: boolean;
   lastSavedAt?: string;
   hasLocalDraftChanges: boolean;
-  flushPendingAutosave: ClinicalDocumentsWorkspaceSheetModelProps['flushPendingAutosave'];
-  validationIssues: ClinicalDocumentsWorkspaceSheetModelProps['validationIssues'];
-  attachments: ClinicalDocumentsWorkspaceSheetModelProps['attachments'];
-  patientAttachments: ClinicalDocumentsWorkspaceSheetModelProps['patientAttachments'];
-  isLoadingAttachments: boolean;
-  isLoadingPatientAttachments: boolean;
-  isUploadingAttachment: boolean;
-  uploadStatusMessage: string | null;
-  uploadAttachment: ClinicalDocumentsWorkspaceSheetModelProps['onUploadAttachment'];
-  deleteAttachment: ClinicalDocumentsWorkspaceSheetModelProps['onDeleteAttachment'];
-  renameAttachment: ClinicalDocumentsWorkspaceSheetModelProps['onRenameAttachment'];
-  regenerateAttachmentAccess: ClinicalDocumentsWorkspaceSheetModelProps['onRegenerateAttachmentAccess'];
-  suggestAttachmentName: ClinicalDocumentsWorkspaceSheetModelProps['onSuggestAttachmentName'];
-  uploadPastedImage: ClinicalDocumentsWorkspaceSheetModelProps['onUploadPastedImage'];
+  flushPendingAutosave: () => void;
+  attachments: ClinicalDocumentSheetAttachmentsBinding;
+  uploadPastedImage: ClinicalDocumentUploadPastedImage;
   handlePrint: () => Promise<void>;
-  draft: ClinicalDocumentsWorkspaceSheetModelProps['selectedDocument'];
-  restoreTemplateContent: ClinicalDocumentsWorkspaceSheetModelProps['onRestoreTemplate'];
+  draft: ClinicalDocumentRecord | null;
+  restoreTemplateContent: () => void;
   notifications: NotificationHelpers;
-  patchDocumentTitle: ClinicalDocumentsWorkspaceSheetModelProps['patchDocumentTitle'];
-  patchPatientInfoTitle: ClinicalDocumentsWorkspaceSheetModelProps['patchPatientInfoTitle'];
-  patchPatientField: ClinicalDocumentsWorkspaceSheetModelProps['patchPatientField'];
-  patchPatientFieldLabel: ClinicalDocumentsWorkspaceSheetModelProps['patchPatientFieldLabel'];
-  setPatientFieldVisibility: ClinicalDocumentsWorkspaceSheetModelProps['setPatientFieldVisibility'];
-  patchSectionTitle: ClinicalDocumentsWorkspaceSheetModelProps['patchSectionTitle'];
-  patchSection: ClinicalDocumentsWorkspaceSheetModelProps['patchSection'];
-  setSectionLayout: ClinicalDocumentsWorkspaceSheetModelProps['setSectionLayout'];
-  setSectionVisibility: ClinicalDocumentsWorkspaceSheetModelProps['setSectionVisibility'];
-  moveSection: ClinicalDocumentsWorkspaceSheetModelProps['moveSection'];
-  reorderSection: ClinicalDocumentsWorkspaceSheetModelProps['reorderSection'];
-  addSection: ClinicalDocumentsWorkspaceSheetModelProps['addSection'];
-  patchFooterLabel: ClinicalDocumentsWorkspaceSheetModelProps['patchFooterLabel'];
-  patchDocumentMeta: ClinicalDocumentsWorkspaceSheetModelProps['patchDocumentMeta'];
-  signatureProfile: ClinicalDocumentsWorkspaceSheetModelProps['signatureProfile'];
-  onSaveSignatureProfile: ClinicalDocumentsWorkspaceSheetModelProps['onSaveSignatureProfile'];
-  onApplySignatureProfile: ClinicalDocumentsWorkspaceSheetModelProps['onApplySignatureProfile'];
-  indicationsCatalog: ClinicalDocumentsWorkspaceSheetModelProps['indicationsCatalog'];
-  isSavingCustomIndication: boolean;
-  customIndicationError: string | null;
-  createIndicationsTab: ClinicalDocumentsWorkspaceSheetModelProps['createIndicationsTab'];
-  renameIndicationsTab: ClinicalDocumentsWorkspaceSheetModelProps['renameIndicationsTab'];
-  deleteIndicationsTab: ClinicalDocumentsWorkspaceSheetModelProps['deleteIndicationsTab'];
-  reorderIndicationsTab: ClinicalDocumentsWorkspaceSheetModelProps['reorderIndicationsTab'];
-  addCustomIndication: ClinicalDocumentsWorkspaceSheetModelProps['addCustomIndication'];
-  updateIndication: ClinicalDocumentsWorkspaceSheetModelProps['updateIndication'];
-  deleteIndication: ClinicalDocumentsWorkspaceSheetModelProps['deleteIndication'];
-  importCatalog: ClinicalDocumentsWorkspaceSheetModelProps['importIndicationsCatalog'];
-  addClinicalUpdate: ClinicalDocumentsWorkspaceSheetModelProps['addClinicalUpdate'];
-  patchAnnexContent: ClinicalDocumentsWorkspaceSheetModelProps['patchAnnexContent'];
-  setAnnexIncludedInPrint: ClinicalDocumentsWorkspaceSheetModelProps['setAnnexIncludedInPrint'];
-  clearAnnexContent: ClinicalDocumentsWorkspaceSheetModelProps['clearAnnexContent'];
-  handlePrintAnnex: () => Promise<void>;
-  patchIeehDraft: ClinicalDocumentsWorkspaceSheetModelProps['patchIeehDraft'];
-  clearIeehDraft: ClinicalDocumentsWorkspaceSheetModelProps['clearIeehDraft'];
-  workspacePatient: ClinicalDocumentsWorkspaceSheetModelProps['workspacePatient'];
-  patchUpdateDate: ClinicalDocumentsWorkspaceSheetModelProps['patchUpdateDate'];
-  patchUpdateTime: ClinicalDocumentsWorkspaceSheetModelProps['patchUpdateTime'];
+  documentActions: ClinicalDocumentSheetDocumentActions;
+  signature: ClinicalDocumentSheetSignatureBinding;
+  indicationsCatalog: ClinicalDocumentSheetIndicationsCatalogBinding;
+  annex: ClinicalDocumentSheetAnnexBinding;
+  ieeh: ClinicalDocumentSheetIeehBinding;
 }
 
 export const scrollToClinicalDocumentAnnex = () => {
@@ -203,137 +172,48 @@ export const buildClinicalDocumentsWorkspaceSidebarProps = ({
       : undefined,
 });
 
-export const buildClinicalDocumentsWorkspaceSheetProps = ({
+export const buildClinicalDocumentsWorkspaceSheetModel = ({
   selectedDocument,
   canEdit,
   isSaving,
   lastSavedAt,
   hasLocalDraftChanges,
   flushPendingAutosave,
-  validationIssues,
   attachments,
-  patientAttachments,
-  isLoadingAttachments,
-  isLoadingPatientAttachments,
-  isUploadingAttachment,
-  uploadStatusMessage,
-  uploadAttachment,
-  deleteAttachment,
-  renameAttachment,
-  regenerateAttachmentAccess,
-  suggestAttachmentName,
   uploadPastedImage,
   handlePrint,
   draft,
   restoreTemplateContent,
   notifications,
-  patchDocumentTitle,
-  patchPatientInfoTitle,
-  patchPatientField,
-  patchPatientFieldLabel,
-  setPatientFieldVisibility,
-  patchSectionTitle,
-  patchSection,
-  setSectionLayout,
-  setSectionVisibility,
-  moveSection,
-  reorderSection,
-  addSection,
-  patchFooterLabel,
-  patchDocumentMeta,
-  signatureProfile,
-  onSaveSignatureProfile,
-  onApplySignatureProfile,
+  documentActions,
+  signature,
   indicationsCatalog,
-  isSavingCustomIndication,
-  customIndicationError,
-  createIndicationsTab,
-  renameIndicationsTab,
-  deleteIndicationsTab,
-  reorderIndicationsTab,
-  addCustomIndication,
-  updateIndication,
-  deleteIndication,
-  importCatalog,
-  addClinicalUpdate,
-  patchAnnexContent,
-  setAnnexIncludedInPrint,
-  clearAnnexContent,
-  handlePrintAnnex,
-  patchIeehDraft,
-  clearIeehDraft,
-  workspacePatient,
-  patchUpdateDate,
-  patchUpdateTime,
-}: BuildSheetPropsParams): ClinicalDocumentsWorkspaceSheetModelProps => ({
+  annex,
+  ieeh,
+}: BuildSheetModelParams): ClinicalDocumentsWorkspaceSheetModel => ({
   selectedDocument,
   canEdit,
-  isSaving,
-  lastSavedAt,
-  hasLocalDraftChanges,
-  flushPendingAutosave,
-  validationIssues,
-  attachments,
-  currentDocumentId: selectedDocument?.id ?? null,
-  patientAttachments,
-  isLoadingAttachments,
-  isLoadingPatientAttachments,
-  isUploadingAttachment,
-  uploadStatusMessage,
-  onUploadAttachment: uploadAttachment,
-  onDeleteAttachment: deleteAttachment,
-  onRenameAttachment: renameAttachment,
-  onRegenerateAttachmentAccess: regenerateAttachmentAccess,
-  onSuggestAttachmentName: suggestAttachmentName,
-  onUploadPastedImage: uploadPastedImage,
-  onPrint: handlePrint,
-  onRestoreTemplate: () =>
-    void executeClinicalDocumentTemplateRestore({
-      draft,
-      canEdit,
-      confirm: notifications.confirm,
-      restoreTemplateContent,
-      info: notifications.info,
-    }),
-  onImagePasteRejected: message => notifications.info('Imagen no insertada', message),
-  patchDocumentTitle,
-  patchPatientInfoTitle,
-  patchPatientField,
-  patchPatientFieldLabel,
-  setPatientFieldVisibility,
-  patchSectionTitle,
-  patchSection,
-  setSectionLayout,
-  setSectionVisibility,
-  moveSection,
-  reorderSection,
-  addSection,
-  patchFooterLabel,
-  patchDocumentMeta,
-  signatureProfile,
-  onSaveSignatureProfile,
-  onApplySignatureProfile,
+  chrome: {
+    isSaving,
+    lastSavedAt,
+    hasLocalDraftChanges,
+    flushPendingAutosave,
+    onPrint: handlePrint,
+    onRestoreTemplate: () =>
+      void executeClinicalDocumentTemplateRestore({
+        draft,
+        canEdit,
+        confirm: notifications.confirm,
+        restoreTemplateContent,
+        info: notifications.info,
+      }),
+  },
+  documentActions,
   indicationsCatalog,
-  isSavingCustomIndication,
-  customIndicationError,
-  createIndicationsTab,
-  renameIndicationsTab,
-  deleteIndicationsTab,
-  reorderIndicationsTab,
-  addCustomIndication,
-  updateIndication,
-  deleteIndication,
-  importIndicationsCatalog: importCatalog,
-  addClinicalUpdate,
-  patchAnnexContent,
-  setAnnexIncludedInPrint,
-  clearAnnexContent,
-  onPrintAnnex: handlePrintAnnex,
-  patchIeehDraft,
-  clearIeehDraft,
-  workspacePatient,
-  patchUpdateDate,
-  patchUpdateTime,
+  attachments,
+  annex,
+  ieeh,
+  signature,
+  onUploadPastedImage: uploadPastedImage,
+  onImagePasteRejected: message => notifications.info('Imagen no insertada', message),
 });
-
-export type { ClinicalDocumentsWorkspaceSheetModelProps };

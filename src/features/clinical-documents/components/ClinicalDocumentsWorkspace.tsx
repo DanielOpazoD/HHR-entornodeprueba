@@ -51,14 +51,14 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
   isActive = true,
   headerActionsContainerId,
 }) => {
-  const { canRead, episodeKey, sidebarProps, sheetProps } = useClinicalDocumentsWorkspaceModel({
+  const { canRead, episodeKey, sidebarProps, sheetModel } = useClinicalDocumentsWorkspaceModel({
     patient,
     currentDateString,
     bedId,
     isActive,
   });
-  const sheetState = useClinicalDocumentSheetState(sheetProps.selectedDocument);
-  const { flushPendingAutosave } = sheetProps;
+  const sheetState = useClinicalDocumentSheetState(sheetModel.selectedDocument);
+  const { flushPendingAutosave } = sheetModel.chrome;
   const { handleEditorDeactivate: deactivateEditor } = sheetState;
   const [zoom, setZoom] = useState(ZOOM_DEFAULT);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -66,8 +66,8 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
   const zoomBeforeSidebarCollapseRef = useRef(ZOOM_DEFAULT);
   const [externalDialog, setExternalDialog] = useState<ExternalDialogSelection | null>(null);
   const externalDialogContextKey =
-    isActive && canRead && sheetProps.canEdit && patient.rut && sheetProps.selectedDocument
-      ? JSON.stringify([patient.rut, episodeKey, sheetProps.selectedDocument.id])
+    isActive && canRead && sheetModel.canEdit && patient.rut && sheetModel.selectedDocument
+      ? JSON.stringify([patient.rut, episodeKey, sheetModel.selectedDocument.id])
       : null;
   const visibleExternalDialog =
     externalDialog?.contextKey === externalDialogContextKey ? externalDialog : null;
@@ -83,14 +83,14 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
       if (insertedAtCursor) return;
 
       const insertTarget = resolveClinicalDocumentInsertTarget({
-        document: sheetProps.selectedDocument,
+        document: sheetModel.selectedDocument,
         activeEditorSectionId: sheetState.activeEditorSectionId,
         text,
       });
-      if (!insertTarget || !sheetProps.patchSection) return;
-      sheetProps.patchSection(insertTarget.sectionId, insertTarget.content);
+      if (!insertTarget) return;
+      sheetModel.documentActions.patchSection(insertTarget.sectionId, insertTarget.content);
     },
-    [sheetProps, sheetState]
+    [sheetModel, sheetState]
   );
 
   const handleToggleSidebar = useCallback(() => {
@@ -135,16 +135,16 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
     );
   }
 
-  const toolbarNode = sheetProps.selectedDocument ? (
+  const toolbarNode = sheetModel.selectedDocument ? (
     <ClinicalDocumentFormattingToolbar
-      selectedDocument={sheetProps.selectedDocument}
-      canEdit={sheetProps.canEdit}
-      formattingDisabled={sheetState.formattingDisabled || !sheetProps.canEdit}
+      selectedDocument={sheetModel.selectedDocument}
+      canEdit={sheetModel.canEdit}
+      formattingDisabled={sheetState.formattingDisabled || !sheetModel.canEdit}
       isFormattingOpen={sheetState.isFormattingOpen}
       canUndo={sheetState.activeEditorHistoryState.canUndo}
       canRedo={sheetState.activeEditorHistoryState.canRedo}
-      onPrint={sheetProps.onPrint}
-      onRestoreTemplate={sheetProps.onRestoreTemplate}
+      onPrint={sheetModel.chrome.onPrint}
+      onRestoreTemplate={sheetModel.chrome.onRestoreTemplate}
       onToggleFormatting={() => sheetState.setIsFormattingOpen(prev => !prev)}
       onApplyFormatting={sheetState.applyFormatting}
       onInsertHtml={sheetState.insertHtml}
@@ -154,11 +154,11 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
     />
   ) : null;
 
-  const statusNode = sheetProps.selectedDocument ? (
+  const statusNode = sheetModel.selectedDocument ? (
     <ClinicalDocumentStatusBar
-      isSaving={sheetProps.isSaving}
-      lastSavedAt={sheetProps.lastSavedAt}
-      hasLocalDraftChanges={sheetProps.hasLocalDraftChanges}
+      isSaving={sheetModel.chrome.isSaving}
+      lastSavedAt={sheetModel.chrome.lastSavedAt}
+      hasLocalDraftChanges={sheetModel.chrome.hasLocalDraftChanges}
     />
   ) : null;
 
@@ -230,25 +230,36 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
           style={{ transform: `scale(${effectiveZoom / 100})`, transformOrigin: 'top center' }}
         >
           <ClinicalDocumentSheet
-            key={sheetProps.selectedDocument?.id ?? 'no-document'}
-            {...sheetProps}
+            key={sheetModel.selectedDocument?.id ?? 'no-document'}
+            selectedDocument={sheetModel.selectedDocument}
+            canEdit={sheetModel.canEdit}
             toolbar={
               headerContent && (!headerActionsContainer || isCompactViewport) ? headerContent : null
             }
-            activeTitleTarget={sheetState.activeTitleTarget}
-            activeEditorSectionId={sheetState.activeEditorSectionId}
-            onSetActiveTitleTarget={sheetState.setActiveTitleTarget}
-            draggedSectionId={sheetState.draggedSectionId}
-            dragOverSectionId={sheetState.dragOverSectionId}
-            activePlanSubsectionId={sheetState.activePlanSubsectionId}
-            activeIndicationsSpecialtyId={sheetState.activeIndicationsSpecialtyId}
-            isIndicationsPanelOpen={sheetState.isIndicationsPanelOpen}
-            onSetActivePlanSubsectionId={sheetState.setActivePlanSubsectionId}
-            onSetActiveIndicationsSpecialtyId={sheetState.setActiveIndicationsSpecialtyId}
-            onToggleIndicationsPanel={() => sheetState.setIsIndicationsPanelOpen(prev => !prev)}
-            onEditorActivate={sheetState.handleEditorActivate}
-            onEditorDeactivate={handleEditorDeactivate}
-            dragHandlers={sheetState.sectionDragHandlers}
+            documentActions={sheetModel.documentActions}
+            editorState={{
+              activeTitleTarget: sheetState.activeTitleTarget,
+              activeEditorSectionId: sheetState.activeEditorSectionId,
+              onSetActiveTitleTarget: sheetState.setActiveTitleTarget,
+              draggedSectionId: sheetState.draggedSectionId,
+              dragOverSectionId: sheetState.dragOverSectionId,
+              dragHandlers: sheetState.sectionDragHandlers,
+              activePlanSubsectionId: sheetState.activePlanSubsectionId,
+              onSetActivePlanSubsectionId: sheetState.setActivePlanSubsectionId,
+              onEditorActivate: sheetState.handleEditorActivate,
+              onEditorDeactivate: handleEditorDeactivate,
+              onUploadPastedImage: sheetModel.onUploadPastedImage,
+              onImagePasteRejected: sheetModel.onImagePasteRejected,
+            }}
+            indications={{
+              ...sheetModel.indicationsCatalog,
+              isPanelOpen: sheetState.isIndicationsPanelOpen,
+              onTogglePanel: () => sheetState.setIsIndicationsPanelOpen(prev => !prev),
+            }}
+            attachments={sheetModel.attachments}
+            annex={sheetModel.annex}
+            ieeh={sheetModel.ieeh}
+            signature={sheetModel.signature}
           />
         </div>
       </section>

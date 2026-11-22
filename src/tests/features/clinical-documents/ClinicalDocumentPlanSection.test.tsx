@@ -61,9 +61,6 @@ const makeProps = (
     >[0]['document'],
     section,
     canEdit: true,
-    activePlanSubsectionId: 'analisis' as Parameters<
-      typeof ClinicalDocumentPlanSection
-    >[0]['activePlanSubsectionId'],
     setActivePlanSubsectionId: vi.fn(),
     onPatchSection: vi.fn(),
     onEditorActivate: vi.fn(),

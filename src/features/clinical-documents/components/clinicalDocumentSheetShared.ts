@@ -1,7 +1,10 @@
-import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
+import type { ClinicalDocumentIeehDraft } from '@/application/shared/ieehContracts';
+import type {
+  ClinicalDocumentRecord,
+  ClinicalDocumentSectionLayout,
+} from '@/domain/clinical-documents/entities';
 import type { ClinicalAttachmentRecord } from '@/shared/clinical-documents/clinicalAttachmentContracts';
 import type { ClinicalDocumentSignatureProfile } from '@/features/clinical-documents/services/clinicalDocumentSignatureProfileService';
-import type { ClinicalDocumentIndicationSpecialtyId } from '@/features/clinical-documents/controllers/clinicalDocumentIndicationsController';
 import type { ClinicalDocumentPlanSubsectionId } from '@/features/clinical-documents/controllers/clinicalDocumentPlanSectionController';
 import type { ClinicalDocumentIndicationsCatalog } from '@/features/clinical-documents/services/clinicalDocumentIndicationsCatalogService';
 import type { DragEvent, ReactNode, SetStateAction } from 'react';
@@ -26,132 +29,137 @@ export interface ClinicalDocumentSheetEditorApi {
   insertHtml: (html: string) => void;
 }
 
-export interface ClinicalDocumentSheetProps {
-  selectedDocument: ClinicalDocumentRecord | null;
-  canEdit: boolean;
-  isSaving: boolean;
-  lastSavedAt?: string;
-  hasLocalDraftChanges: boolean;
-  flushPendingAutosave: () => void;
-  toolbar?: ReactNode;
-  activeTitleTarget: string | null;
-  activeEditorSectionId: string | null;
-  onSetActiveTitleTarget: React.Dispatch<SetStateAction<string | null>>;
-  draggedSectionId: string | null;
-  dragOverSectionId: string | null;
-  activePlanSubsectionId: ClinicalDocumentPlanSubsectionId;
-  activeIndicationsSpecialtyId: ClinicalDocumentIndicationSpecialtyId;
-  isIndicationsPanelOpen: boolean;
-  onSetActivePlanSubsectionId: (subsectionId: ClinicalDocumentPlanSubsectionId) => void;
-  onSetActiveIndicationsSpecialtyId: (specialtyId: ClinicalDocumentIndicationSpecialtyId) => void;
-  onToggleIndicationsPanel: () => void;
-  onEditorActivate: (activeSectionId: string, editorApi: ClinicalDocumentSheetEditorApi) => void;
-  onEditorDeactivate: (sectionId: string) => void;
-  onImagePasteRejected: (message: string) => void;
-  attachments: ClinicalAttachmentRecord[];
-  currentDocumentId?: string | null;
-  currentEpisodeKey?: string | null;
-  patientAttachments: ClinicalAttachmentRecord[];
-  isLoadingAttachments: boolean;
-  isLoadingPatientAttachments: boolean;
-  isUploadingAttachment: boolean;
-  uploadStatusMessage: string | null;
-  onUploadAttachment: (file: File) => Promise<void> | void;
-  onDeleteAttachment: (attachment: ClinicalAttachmentRecord) => Promise<void> | void;
-  onRenameAttachment: (
-    attachment: ClinicalAttachmentRecord,
-    displayName: string
-  ) => Promise<void> | void;
-  onRegenerateAttachmentAccess: (attachment: ClinicalAttachmentRecord) => Promise<void> | void;
-  onSuggestAttachmentName: (attachment: ClinicalAttachmentRecord) => Promise<string | null>;
-  onUploadPastedImage: (file: File) => Promise<{
-    attachmentId: string;
-    imageUrl: string;
-    storagePath: string;
-  } | null>;
-  dragHandlers: {
-    onDragStart: (event: DragEvent<HTMLButtonElement>, sectionId: string) => void;
-    onDragOver: (event: DragEvent<HTMLElement>, sectionId: string, canInteract: boolean) => void;
-    onDragLeave: (sectionId: string) => void;
-    onDragEnd: () => void;
-  };
-  validationIssues: Array<{ message: string }>;
-  onPrint: () => void;
+export interface ClinicalDocumentUploadedPastedImage {
+  attachmentId: string;
+  imageUrl: string;
+  storagePath: string;
+}
+
+export type ClinicalDocumentUploadPastedImage = (
+  file: File
+) => Promise<ClinicalDocumentUploadedPastedImage | null>;
+
+export interface ClinicalDocumentSectionDragHandlers {
+  onDragStart: (event: DragEvent<HTMLButtonElement>, sectionId: string) => void;
+  onDragOver: (event: DragEvent<HTMLElement>, sectionId: string, canInteract: boolean) => void;
+  onDragLeave: (sectionId: string) => void;
+  onDragEnd: () => void;
+}
+
+export interface ClinicalDocumentSheetSectionActions {
+  patchSectionTitle: (sectionId: string, title: string) => void;
+  patchSection: (sectionId: string, content: string) => void;
+  setSectionLayout: (sectionId: string, layout: ClinicalDocumentSectionLayout) => void;
+  setSectionVisibility: (sectionId: string, visible: boolean) => void;
+  moveSection: (sectionId: string, direction: 'up' | 'down') => void;
+  reorderSection: (sourceSectionId: string, targetSectionId: string) => void;
+  addSection: (referenceSectionId: string, position: 'above' | 'below') => void;
+  patchUpdateDate?: (sectionId: string, date: string) => void;
+  patchUpdateTime?: (sectionId: string, time: string) => void;
+}
+
+export interface ClinicalDocumentSheetDocumentActions extends ClinicalDocumentSheetSectionActions {
   patchDocumentTitle: (title: string) => void;
   patchPatientInfoTitle: (title: string) => void;
   patchPatientField: (fieldId: string, value: string) => void;
   patchPatientFieldLabel: (fieldId: string, label: string) => void;
   setPatientFieldVisibility: (fieldId: string, visible: boolean) => void;
-  patchSectionTitle: (sectionId: string, title: string) => void;
-  patchSection: (sectionId: string, content: string) => void;
-  setSectionLayout: (
-    sectionId: string,
-    layout: import('@/domain/clinical-documents/entities').ClinicalDocumentSectionLayout
-  ) => void;
-  setSectionVisibility: (sectionId: string, visible: boolean) => void;
-  moveSection: (sectionId: string, direction: 'up' | 'down') => void;
-  reorderSection: (sourceSectionId: string, targetSectionId: string) => void;
-  addSection: (referenceSectionId: string, position: 'above' | 'below') => void;
   patchFooterLabel: (kind: 'medico' | 'especialidad', title: string) => void;
   patchDocumentMeta: (
     patch: Partial<
       Pick<ClinicalDocumentRecord, 'medico' | 'especialidad' | 'includePatientSignature'>
     >
   ) => void;
-  signatureProfile?: ClinicalDocumentSignatureProfile | null;
-  onSaveSignatureProfile?: () => void;
-  onApplySignatureProfile?: () => void;
-  indicationsCatalog: ClinicalDocumentIndicationsCatalog;
+}
+
+export interface ClinicalDocumentSheetEditorState {
+  activeTitleTarget: string | null;
+  activeEditorSectionId: string | null;
+  onSetActiveTitleTarget: React.Dispatch<SetStateAction<string | null>>;
+  draggedSectionId: string | null;
+  dragOverSectionId: string | null;
+  dragHandlers: ClinicalDocumentSectionDragHandlers;
+  activePlanSubsectionId: ClinicalDocumentPlanSubsectionId;
+  onSetActivePlanSubsectionId: (subsectionId: ClinicalDocumentPlanSubsectionId) => void;
+  onEditorActivate: (activeSectionId: string, editorApi: ClinicalDocumentSheetEditorApi) => void;
+  onEditorDeactivate: (sectionId: string) => void;
+  onUploadPastedImage: ClinicalDocumentUploadPastedImage;
+  onImagePasteRejected: (message: string) => void;
+}
+
+export interface ClinicalDocumentSheetIndicationsCatalogBinding {
+  catalog: ClinicalDocumentIndicationsCatalog;
   isSavingCustomIndication: boolean;
   customIndicationError: string | null;
-  createIndicationsTab: (label: string) => Promise<boolean>;
-  renameIndicationsTab: (tabId: string, label: string) => Promise<boolean>;
-  deleteIndicationsTab: (tabId: string) => Promise<boolean>;
-  reorderIndicationsTab: (tabId: string, direction: 'left' | 'right') => Promise<boolean>;
-  addCustomIndication: (tabId: string, text: string) => Promise<boolean>;
-  updateIndication: (tabId: string, itemId: string, text: string) => Promise<boolean>;
-  deleteIndication: (tabId: string, itemId: string) => Promise<boolean>;
-  importIndicationsCatalog: (catalog: unknown) => Promise<boolean>;
-  onRestoreTemplate: () => void;
-  addClinicalUpdate: () => void;
-  patchAnnexContent: (content: string) => void;
-  setAnnexIncludedInPrint: (included: boolean) => void;
-  clearAnnexContent: () => void;
-  onPrintAnnex: () => void;
-  patchIeehDraft: (
-    draft: import('@/application/shared/ieehContracts').ClinicalDocumentIeehDraft
-  ) => void;
-  clearIeehDraft: () => void;
+  onCreateTab: (label: string) => Promise<boolean>;
+  onRenameTab: (tabId: string, label: string) => Promise<boolean>;
+  onDeleteTab: (tabId: string) => Promise<boolean>;
+  onAddCustomIndication: (tabId: string, text: string) => Promise<boolean>;
+  onUpdateIndication: (tabId: string, itemId: string, text: string) => Promise<boolean>;
+  onDeleteIndication: (tabId: string, itemId: string) => Promise<boolean>;
+  onImportCatalog: (catalog: unknown) => Promise<boolean>;
+}
+
+export interface ClinicalDocumentSheetIndicationsBinding extends ClinicalDocumentSheetIndicationsCatalogBinding {
+  isPanelOpen: boolean;
+  onTogglePanel: () => void;
+}
+
+export interface ClinicalDocumentSheetAttachmentsBinding {
+  items: ClinicalAttachmentRecord[];
+  patientItems: ClinicalAttachmentRecord[];
+  isLoading: boolean;
+  isLoadingPatient: boolean;
+  isUploading: boolean;
+  uploadStatusMessage: string | null;
+  onUpload: (file: File) => Promise<void> | void;
+  onDelete: (attachment: ClinicalAttachmentRecord) => Promise<void> | void;
+  onRename: (attachment: ClinicalAttachmentRecord, displayName: string) => Promise<void> | void;
+  onRegenerateAccess: (attachment: ClinicalAttachmentRecord) => Promise<void> | void;
+  onSuggestName: (attachment: ClinicalAttachmentRecord) => Promise<string | null>;
+}
+
+export interface ClinicalDocumentSheetAnnexBinding {
+  onPatchContent: (content: string) => void;
+  onSetIncludedInPrint: (included: boolean) => void;
+  onClear: () => void;
+  onPrint: () => void;
+}
+
+export interface ClinicalDocumentSheetIeehBinding {
+  onPatchDraft: (draft: ClinicalDocumentIeehDraft) => void;
+  onClearDraft: () => void;
   /** Workspace patient data (provides birthDate for IEEH printing). */
   workspacePatient?: { birthDate?: string };
-  patchUpdateDate: (sectionId: string, date: string) => void;
-  patchUpdateTime: (sectionId: string, time: string) => void;
+}
+
+export interface ClinicalDocumentSheetSignatureBinding {
+  profile?: ClinicalDocumentSignatureProfile | null;
+  onSave?: () => void;
+  onApply?: () => void;
+}
+
+export interface ClinicalDocumentSheetProps {
+  selectedDocument: ClinicalDocumentRecord | null;
+  canEdit: boolean;
+  toolbar?: ReactNode;
+  documentActions: ClinicalDocumentSheetDocumentActions;
+  editorState: ClinicalDocumentSheetEditorState;
+  indications: ClinicalDocumentSheetIndicationsBinding;
+  attachments: ClinicalDocumentSheetAttachmentsBinding;
+  annex: ClinicalDocumentSheetAnnexBinding;
+  ieeh: ClinicalDocumentSheetIeehBinding;
+  signature?: ClinicalDocumentSheetSignatureBinding;
 }
 
 export interface ClinicalDocumentSpecialSectionRendererProps {
   document: ClinicalDocumentRecord;
   section: ClinicalDocumentRecord['sections'][number];
   canEdit: boolean;
-  activePlanSubsectionId: ClinicalDocumentPlanSubsectionId;
   setActivePlanSubsectionId: (subsectionId: ClinicalDocumentPlanSubsectionId) => void;
   onPatchSection: (sectionId: string, content: string) => void;
   onEditorActivate: (activeSectionId: string, editorApi: ClinicalDocumentSheetEditorApi) => void;
   onEditorDeactivate: (sectionId: string) => void;
-  onUploadPastedImage: ClinicalDocumentSheetProps['onUploadPastedImage'];
+  onUploadPastedImage: ClinicalDocumentUploadPastedImage;
   onImagePasteRejected: (message: string) => void;
-  indicationsCatalog: ClinicalDocumentIndicationsCatalog;
-  isSavingCustomIndication: boolean;
-  customIndicationError: string | null;
-  activeIndicationsSpecialtyId: ClinicalDocumentIndicationSpecialtyId;
-  setActiveIndicationsSpecialtyId: (specialtyId: ClinicalDocumentIndicationSpecialtyId) => void;
-  isIndicationsPanelOpen: boolean;
-  onToggleIndicationsPanel: () => void;
-  createIndicationsTab: (label: string) => Promise<boolean>;
-  renameIndicationsTab: (tabId: string, label: string) => Promise<boolean>;
-  deleteIndicationsTab: (tabId: string) => Promise<boolean>;
-  reorderIndicationsTab: (tabId: string, direction: 'left' | 'right') => Promise<boolean>;
-  addCustomIndication: (tabId: string, text: string) => Promise<boolean>;
-  updateIndication: (tabId: string, itemId: string, text: string) => Promise<boolean>;
-  deleteIndication: (tabId: string, itemId: string) => Promise<boolean>;
-  importIndicationsCatalog: (catalog: unknown) => Promise<boolean>;
 }

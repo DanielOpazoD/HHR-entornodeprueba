@@ -2,11 +2,10 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import { ClinicalDocumentSheet } from '@/features/clinical-documents/components/ClinicalDocumentSheet';
-import { getDefaultClinicalDocumentIndicationsCatalog } from '@/features/clinical-documents/services/clinicalDocumentIndicationsCatalogService';
 import {
   buildDocument,
   buildPersonalIndicationsCatalog,
-  buildToolbar,
+  buildSheetProps,
   defaultHandlers,
   resetDefaultHandlers,
 } from './ClinicalDocumentSheet.testSupport';
@@ -17,19 +16,7 @@ describe('ClinicalDocumentSheet', () => {
   });
 
   it('shows empty state when there is no selected document', () => {
-    render(
-      <ClinicalDocumentSheet
-        selectedDocument={null}
-        canEdit={true}
-        isSaving={false}
-        validationIssues={[]}
-        indicationsCatalog={getDefaultClinicalDocumentIndicationsCatalog()}
-        isSavingCustomIndication={false}
-        customIndicationError={null}
-        {...defaultHandlers}
-        toolbar={buildToolbar(defaultHandlers)}
-      />
-    );
+    render(<ClinicalDocumentSheet {...buildSheetProps({ selectedDocument: null })} />);
 
     expect(
       screen.getByText(/selecciona o crea un documento clínico para comenzar/i)
@@ -51,17 +38,12 @@ describe('ClinicalDocumentSheet', () => {
     });
     render(
       <ClinicalDocumentSheet
-        selectedDocument={document}
-        canEdit={true}
-        isSaving={false}
-        validationIssues={[{ message: 'Falta completar diagnóstico.' }]}
-        indicationsCatalog={personalCatalog}
-        isSavingCustomIndication={false}
-        customIndicationError={null}
-        {...defaultHandlers}
-        activeTitleTarget="section:antecedentes"
-        isIndicationsPanelOpen={true}
-        toolbar={buildToolbar(defaultHandlers)}
+        {...buildSheetProps({
+          selectedDocument: document,
+          indicationsCatalog: personalCatalog,
+          activeTitleTarget: 'section:antecedentes',
+          isIndicationsPanelOpen: true,
+        })}
       />
     );
 
@@ -119,17 +101,7 @@ describe('ClinicalDocumentSheet', () => {
   it('places episode files after the document sheet so they read as global episode context', () => {
     const document = buildDocument();
     const { container } = render(
-      <ClinicalDocumentSheet
-        selectedDocument={document}
-        canEdit={true}
-        isSaving={false}
-        validationIssues={[]}
-        indicationsCatalog={getDefaultClinicalDocumentIndicationsCatalog()}
-        isSavingCustomIndication={false}
-        customIndicationError={null}
-        {...defaultHandlers}
-        toolbar={buildToolbar(defaultHandlers)}
-      />
+      <ClinicalDocumentSheet {...buildSheetProps({ selectedDocument: document })} />
     );
 
     const sheet = container.querySelector('#clinical-document-sheet');
@@ -149,16 +121,10 @@ describe('ClinicalDocumentSheet', () => {
 
     render(
       <ClinicalDocumentSheet
-        selectedDocument={clinicalDocument}
-        canEdit={true}
-        isSaving={false}
-        validationIssues={[]}
-        indicationsCatalog={getDefaultClinicalDocumentIndicationsCatalog()}
-        isSavingCustomIndication={false}
-        customIndicationError={null}
-        {...defaultHandlers}
-        activeEditorSectionId="annexes"
-        toolbar={buildToolbar(defaultHandlers)}
+        {...buildSheetProps({
+          selectedDocument: clinicalDocument,
+          activeEditorSectionId: 'annexes',
+        })}
       />
     );
 
@@ -173,19 +139,7 @@ describe('ClinicalDocumentSheet', () => {
     const clinicalDocument = buildDocument();
     clinicalDocument.annexContent = '<p>Anexo activo</p>';
 
-    render(
-      <ClinicalDocumentSheet
-        selectedDocument={clinicalDocument}
-        canEdit={true}
-        isSaving={false}
-        validationIssues={[]}
-        indicationsCatalog={getDefaultClinicalDocumentIndicationsCatalog()}
-        isSavingCustomIndication={false}
-        customIndicationError={null}
-        {...defaultHandlers}
-        toolbar={buildToolbar(defaultHandlers)}
-      />
-    );
+    render(<ClinicalDocumentSheet {...buildSheetProps({ selectedDocument: clinicalDocument })} />);
 
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: /imprimir solo anexo/i }));
@@ -203,16 +157,10 @@ describe('ClinicalDocumentSheet', () => {
 
     render(
       <ClinicalDocumentSheet
-        selectedDocument={document}
-        canEdit={true}
-        isSaving={false}
-        validationIssues={[]}
-        indicationsCatalog={getDefaultClinicalDocumentIndicationsCatalog()}
-        isSavingCustomIndication={false}
-        customIndicationError={null}
-        {...defaultHandlers}
-        isIndicationsPanelOpen={true}
-        toolbar={buildToolbar(defaultHandlers)}
+        {...buildSheetProps({
+          selectedDocument: document,
+          isIndicationsPanelOpen: true,
+        })}
       />
     );
 

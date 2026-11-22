@@ -7,10 +7,10 @@ import { getActiveHospitalId } from '@/constants/firestorePaths';
 
 import type { ClinicalDocumentsSidebarProps } from '@/features/clinical-documents/contracts/clinicalDocumentsSidebarContracts';
 import {
-  buildClinicalDocumentsWorkspaceSheetProps,
+  buildClinicalDocumentsWorkspaceSheetModel,
   buildClinicalDocumentsWorkspaceSidebarProps,
   scrollToClinicalDocumentAnnex,
-  type ClinicalDocumentsWorkspaceSheetModelProps,
+  type ClinicalDocumentsWorkspaceSheetModel,
 } from '@/features/clinical-documents/controllers/clinicalDocumentsWorkspaceViewModel';
 import { useClinicalDocumentIndicationsCatalog } from '@/features/clinical-documents/hooks/useClinicalDocumentIndicationsCatalog';
 import { useClinicalAttachments } from '@/features/clinical-documents/hooks/useClinicalAttachments';
@@ -50,13 +50,11 @@ interface UseClinicalDocumentsWorkspaceModelParams {
   isActive: boolean;
 }
 
-type ClinicalDocumentsWorkspaceSheetProps = ClinicalDocumentsWorkspaceSheetModelProps;
-
 interface ClinicalDocumentsWorkspaceModel {
   canRead: boolean;
   episodeKey: string;
   sidebarProps: ClinicalDocumentsSidebarProps;
-  sheetProps: ClinicalDocumentsWorkspaceSheetProps;
+  sheetModel: ClinicalDocumentsWorkspaceSheetModel;
 }
 
 export const useClinicalDocumentsWorkspaceModel = ({
@@ -104,7 +102,6 @@ export const useClinicalDocumentsWorkspaceModel = ({
     setDraft,
     isSaving,
     lastSavedAt,
-    validationIssues,
     lastPersistedSnapshotRef,
     flushPendingAutosave,
     patchPatientField,
@@ -198,7 +195,6 @@ export const useClinicalDocumentsWorkspaceModel = ({
     createTab,
     renameTab,
     deleteTab,
-    reorderTab,
     addCustomIndication,
     updateIndication,
     deleteIndication,
@@ -322,68 +318,77 @@ export const useClinicalDocumentsWorkspaceModel = ({
       patchSection,
       scrollToAnnex,
     }),
-    sheetProps: buildClinicalDocumentsWorkspaceSheetProps({
+    sheetModel: buildClinicalDocumentsWorkspaceSheetModel({
       selectedDocument,
       canEdit,
       isSaving,
       lastSavedAt,
       hasLocalDraftChanges,
       flushPendingAutosave,
-      validationIssues,
-      attachments,
-      patientAttachments,
-      isLoadingAttachments,
-      isLoadingPatientAttachments,
-      isUploadingAttachment,
-      uploadStatusMessage,
-      uploadAttachment,
-      deleteAttachment,
-      renameAttachment,
-      regenerateAttachmentAccess,
-      suggestAttachmentName,
+      attachments: {
+        items: attachments,
+        patientItems: patientAttachments,
+        isLoading: isLoadingAttachments,
+        isLoadingPatient: isLoadingPatientAttachments,
+        isUploading: isUploadingAttachment,
+        uploadStatusMessage,
+        onUpload: uploadAttachment,
+        onDelete: deleteAttachment,
+        onRename: renameAttachment,
+        onRegenerateAccess: regenerateAttachmentAccess,
+        onSuggestName: suggestAttachmentName,
+      },
       uploadPastedImage,
       handlePrint,
       draft,
       restoreTemplateContent,
       notifications: { info, confirm },
-      patchDocumentTitle,
-      patchPatientInfoTitle,
-      patchPatientField,
-      patchPatientFieldLabel,
-      setPatientFieldVisibility,
-      patchSectionTitle,
-      patchSection,
-      setSectionLayout,
-      setSectionVisibility,
-      moveSection,
-      reorderSection,
-      addSection,
-      patchFooterLabel,
-      patchDocumentMeta,
-      signatureProfile,
-      onSaveSignatureProfile: handleSaveSignatureProfile,
-      onApplySignatureProfile: handleApplySignatureProfile,
-      indicationsCatalog,
-      isSavingCustomIndication,
-      customIndicationError,
-      createIndicationsTab: createTab,
-      renameIndicationsTab: renameTab,
-      deleteIndicationsTab: deleteTab,
-      reorderIndicationsTab: reorderTab,
-      addCustomIndication,
-      updateIndication,
-      deleteIndication,
-      importCatalog,
-      addClinicalUpdate,
-      patchAnnexContent,
-      setAnnexIncludedInPrint,
-      clearAnnexContent,
-      handlePrintAnnex,
-      patchIeehDraft,
-      clearIeehDraft,
-      workspacePatient: patient,
-      patchUpdateDate,
-      patchUpdateTime,
+      documentActions: {
+        patchDocumentTitle,
+        patchPatientInfoTitle,
+        patchPatientField,
+        patchPatientFieldLabel,
+        setPatientFieldVisibility,
+        patchSectionTitle,
+        patchSection,
+        setSectionLayout,
+        setSectionVisibility,
+        moveSection,
+        reorderSection,
+        addSection,
+        patchFooterLabel,
+        patchDocumentMeta,
+        patchUpdateDate,
+        patchUpdateTime,
+      },
+      signature: {
+        profile: signatureProfile,
+        onSave: handleSaveSignatureProfile,
+        onApply: handleApplySignatureProfile,
+      },
+      indicationsCatalog: {
+        catalog: indicationsCatalog,
+        isSavingCustomIndication,
+        customIndicationError,
+        onCreateTab: createTab,
+        onRenameTab: renameTab,
+        onDeleteTab: deleteTab,
+        onAddCustomIndication: addCustomIndication,
+        onUpdateIndication: updateIndication,
+        onDeleteIndication: deleteIndication,
+        onImportCatalog: importCatalog,
+      },
+      annex: {
+        onPatchContent: patchAnnexContent,
+        onSetIncludedInPrint: setAnnexIncludedInPrint,
+        onClear: clearAnnexContent,
+        onPrint: handlePrintAnnex,
+      },
+      ieeh: {
+        onPatchDraft: patchIeehDraft,
+        onClearDraft: clearIeehDraft,
+        workspacePatient: patient,
+      },
     }),
   };
 };

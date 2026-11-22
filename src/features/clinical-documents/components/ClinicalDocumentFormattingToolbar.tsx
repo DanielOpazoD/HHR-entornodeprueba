@@ -36,17 +36,15 @@ import {
   TOOLBAR_ICON_SIZE,
 } from '@/features/clinical-documents/components/clinicalDocumentFormattingToolbarShared';
 
-import type {
-  ClinicalDocumentFormattingCommand,
-  ClinicalDocumentSheetProps,
-} from '@/features/clinical-documents/components/clinicalDocumentSheetShared';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
+import type { ClinicalDocumentFormattingCommand } from '@/features/clinical-documents/components/clinicalDocumentSheetShared';
 
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 export interface ClinicalDocumentFormattingToolbarProps {
-  selectedDocument: NonNullable<ClinicalDocumentSheetProps['selectedDocument']>;
+  selectedDocument: ClinicalDocumentRecord;
   canEdit: boolean;
   formattingDisabled: boolean;
   isFormattingOpen: boolean;
