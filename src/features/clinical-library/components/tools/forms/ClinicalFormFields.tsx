@@ -108,7 +108,7 @@ export const ClinicalFormFields: React.FC<Props> = ({ form, values, hidden, quer
         return (
           <fieldset key={section} className="clinical-form-section">
             <legend>{section}</legend>
-            {items[0].row ? (
+            {items[0]?.row ? (
               <Matrix fields={items} values={values} onChange={onChange} />
             ) : (
               <div

@@ -65,6 +65,7 @@ export const createClinicalFormDocx = async (
     if ([...text].some(character => character.charCodeAt(0) < 32 && !'\t\n\r'.includes(character)))
       throw new Error(`«${field.label}» contiene caracteres no compatibles con Word.`);
     const paragraph = paragraphs[index];
+    if (!paragraph) throw new Error('La estructura Word no coincide con la plantilla verificada.');
     const paragraphProperties =
       paragraph.getElementsByTagNameNS(WORD_NS, 'pPr')[0] ??
       paragraph.insertBefore(document.createElementNS(WORD_NS, 'w:pPr'), paragraph.firstChild);
@@ -95,16 +96,16 @@ export const createClinicalFormDocx = async (
     const properties = originalProperties
       ? (originalProperties.cloneNode(true) as Element)
       : document.createElementNS(WORD_NS, 'w:rPr');
-    for (const [name, value] of [
+    for (const [name, attrValue] of [
       ['b', '0'],
       ['bCs', '0'],
       ['sz', String(CLINICAL_FORM_TEXT_SIZE * 2)],
       ['szCs', String(CLINICAL_FORM_TEXT_SIZE * 2)],
-    ]) {
+    ] as const) {
       const property =
         properties.getElementsByTagNameNS(WORD_NS, name)[0] ??
         properties.appendChild(document.createElementNS(WORD_NS, `w:${name}`));
-      property.setAttributeNS(WORD_NS, 'w:val', value);
+      property.setAttributeNS(WORD_NS, 'w:val', attrValue);
     }
     run.appendChild(properties);
     if (newLine && !paragraph.getElementsByTagNameNS(WORD_NS, 'br').length)

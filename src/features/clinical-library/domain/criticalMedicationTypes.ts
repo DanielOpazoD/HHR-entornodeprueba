@@ -21,7 +21,7 @@ export interface CriticalMedication {
   id: string;
   name: string;
   group: 'vasoactivo' | 'sedoanalgesia' | 'electrolitos' | 'otros';
-  presentations: ReadonlyArray<CriticalMedicationPresentation>;
+  presentations: readonly [CriticalMedicationPresentation, ...CriticalMedicationPresentation[]];
   vvp: RouteAllowance;
   vvpNote?: string;
   cvc: RouteAllowance;

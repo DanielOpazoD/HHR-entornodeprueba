@@ -44,8 +44,12 @@ export const useClinicalFormAnnexes = (context: string, patientId: string) => {
         const next = [...current];
         const index = next.findIndex(image => image.id === id);
         const to = index + delta;
-        if (index >= 0 && to >= 0 && to < next.length)
-          [next[index], next[to]] = [next[to], next[index]];
+        const source = index >= 0 ? next[index] : undefined;
+        const target = to >= 0 ? next[to] : undefined;
+        if (source && target) {
+          next[index] = target;
+          next[to] = source;
+        }
         return next;
       }),
   };

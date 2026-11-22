@@ -28,15 +28,16 @@ export const formatClinicalDocumentAuthorName = (value?: string | null): string 
   }
 
   const tokens = normalized.split(' ').filter(Boolean);
+  const [firstToken = '', secondToken = ''] = tokens;
   if (tokens.length === 1) {
-    return tokens[0];
+    return firstToken;
   }
 
   if (tokens.length === 2) {
-    return `${tokens[0]} ${tokens[1]}`;
+    return `${firstToken} ${secondToken}`;
   }
 
-  return `${tokens[0]} ${tokens[tokens.length - 2]}`;
+  return `${firstToken} ${tokens[tokens.length - 2] ?? ''}`;
 };
 
 /** Resolves the display label for a patient field, applying definition overrides if present. */

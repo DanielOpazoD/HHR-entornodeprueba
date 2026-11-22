@@ -76,7 +76,7 @@ const isBackspaceAtListBoundary = (editor: HTMLDivElement): boolean => {
   const items = list.querySelectorAll(':scope > li');
   if (items.length === 0) return false;
   const firstItem = items[0];
-  if (!firstItem.contains(range.startContainer)) return false;
+  if (!firstItem || !firstItem.contains(range.startContainer)) return false;
   // Caret at offset 0 of an empty/start position inside the first <li>.
   if (range.startOffset !== 0) return false;
   if (range.startContainer === firstItem) return true;

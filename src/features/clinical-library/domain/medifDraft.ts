@@ -30,7 +30,7 @@ export const setMedifFieldValue = (
   value: string
 ): MedifValues => {
   if (!isMedifFieldId(fieldId)) throw new Error('El campo MEDIF no existe.');
-  if (MEDIF_FIELD_BY_ID[fieldId].kind === 'mark' && value !== '' && value !== 'X') {
+  if (MEDIF_FIELD_BY_ID[fieldId]?.kind === 'mark' && value !== '' && value !== 'X') {
     throw new Error('Los casilleros MEDIF solo admiten X o una respuesta vacía.');
   }
   value = MEDIF_FIXED_ROUTE[fieldId] ?? value;
@@ -63,7 +63,7 @@ export const validateMedifValues = (value: unknown): MedifValues => {
     if (!isMedifFieldId(fieldId) || typeof fieldValue !== 'string') {
       throw new Error('El borrador contiene campos desconocidos o valores que no son texto.');
     }
-    if (MEDIF_FIELD_BY_ID[fieldId].kind === 'mark' && fieldValue !== '' && fieldValue !== 'X') {
+    if (MEDIF_FIELD_BY_ID[fieldId]?.kind === 'mark' && fieldValue !== '' && fieldValue !== 'X') {
       throw new Error('Los casilleros MEDIF solo admiten X o una respuesta vacía.');
     }
     result[fieldId] = fieldValue;
@@ -85,20 +85,24 @@ export const validateMedifValues = (value: unknown): MedifValues => {
   // Legacy drafts may contain just one physician name. Datos del médico is authoritative.
   const [physicianId] = MEDIF_PHYSICIAN_ALIASES;
   const physicianNames = [
-    ...new Set(MEDIF_PHYSICIAN_ALIASES.map(id => result[id]).filter(name => name.trim())),
+    ...new Set(
+      MEDIF_PHYSICIAN_ALIASES.map(id => result[id]).filter((name): name is string =>
+        Boolean(name?.trim())
+      )
+    ),
   ];
-  if (!result[physicianId].trim() && physicianNames.length > 1) {
+  const primaryPhysician = result[physicianId] ?? '';
+  if (!primaryPhysician.trim() && physicianNames.length > 1) {
     throw new Error(
       'El borrador contiene nombres de médico diferentes. Revisa los datos del médico.'
     );
   }
-  const physicianName = result[physicianId].trim()
-    ? result[physicianId]
-    : (physicianNames[0] ?? '');
+  const physicianName = primaryPhysician.trim() ? primaryPhysician : (physicianNames[0] ?? '');
   for (const id of MEDIF_PHYSICIAN_ALIASES) result[id] = physicianName;
-  const declarationDate = result[MEDIF_DECLARATION_DATE_ALIASES[0]].trim()
-    ? result[MEDIF_DECLARATION_DATE_ALIASES[0]]
-    : result[MEDIF_DECLARATION_DATE_ALIASES[1]];
+  const primaryDeclarationDate = result[MEDIF_DECLARATION_DATE_ALIASES[0]] ?? '';
+  const declarationDate = primaryDeclarationDate.trim()
+    ? primaryDeclarationDate
+    : (result[MEDIF_DECLARATION_DATE_ALIASES[1]] ?? '');
   for (const id of MEDIF_DECLARATION_DATE_ALIASES) result[id] = declarationDate;
   return { ...result, ...MEDIF_FIXED_ROUTE };
 };

@@ -141,15 +141,15 @@ export const getDefaultClinicalDocumentIndicationsCatalog = (
   now: string = new Date().toISOString(),
   owner: ClinicalDocumentIndicationsCatalogOwner = {}
 ): ClinicalDocumentIndicationsCatalog => {
-  const tabs = [buildDefaultClinicalDocumentIndicationsTab()];
+  const defaultTab = buildDefaultClinicalDocumentIndicationsTab();
   return {
     version: 1,
     uid: String(owner.uid || '').trim(),
     email: String(owner.email || '').trim(),
     updatedAt: now,
     activeTabId: DEFAULT_CLINICAL_DOCUMENT_INDICATIONS_TAB_ID,
-    tabs,
-    items: tabs[0].items,
+    tabs: [defaultTab],
+    items: defaultTab.items,
   };
 };
 

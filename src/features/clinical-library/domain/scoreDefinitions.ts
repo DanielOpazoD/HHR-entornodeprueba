@@ -14,7 +14,7 @@ import { QSOFA } from './scores/qsofa';
 import { SAS } from './scores/sas';
 import { WELLS_PE } from './scores/wellsPe';
 
-export const SCORE_DEFINITIONS: ReadonlyArray<ScoreDefinition> = [
+export const SCORE_DEFINITIONS: readonly [ScoreDefinition, ...ScoreDefinition[]] = [
   NEWS2,
   QSOFA,
   GLASGOW,

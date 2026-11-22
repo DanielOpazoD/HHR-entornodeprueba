@@ -153,15 +153,17 @@ export const createPharmacyActPdf = async (
     y -= 6;
   };
 
+  const widthAt = (index: number): number => widths[index] ?? 0;
+
   const tableHeader = (): void => {
     const headLines = headers.map((text, index) =>
-      wrapPharmacyPdfText(text, widths[index] - 10, 8, bold)
+      wrapPharmacyPdfText(text, widthAt(index) - 10, 8, bold)
     );
     const groupHeight = draft.kind === 'disposal' ? 18 : 0;
     const height = Math.max(...headLines.map(lines => lines.length)) * 10 + 12;
     if (y - height - groupHeight - 24 < BOTTOM) page = addPage();
     if (groupHeight) {
-      const causeX = MARGIN + widths[0] + widths[1] + widths[2];
+      const causeX = MARGIN + widthAt(0) + widthAt(1) + widthAt(2);
       page.drawRectangle({
         x: MARGIN,
         y: y - groupHeight,
@@ -181,18 +183,19 @@ export const createPharmacyActPdf = async (
     page.drawRectangle({ x: MARGIN, y: y - height, width: contentWidth, height, color: fill });
     let x = MARGIN;
     headLines.forEach((lines, index) => {
+      const columnWidth = widthAt(index);
       lines.forEach((line, offset) =>
         page.drawText(line, { x: x + 5, y: y - 12 - offset * 10, font: bold, size: 8, color: ink })
       );
       page.drawRectangle({
         x,
         y: y - height,
-        width: widths[index],
+        width: columnWidth,
         height,
         borderColor: rule,
         borderWidth: 0.5,
       });
-      x += widths[index];
+      x += columnWidth;
     });
     y -= height;
   };
@@ -211,7 +214,7 @@ export const createPharmacyActPdf = async (
   tableHeader();
   draft.lines.forEach((line, rowIndex) => {
     const cells = (draft.kind === 'return' ? returnCells(line) : disposalCells(line)).map(
-      (text, index) => wrapPharmacyPdfText(text, widths[index] - 10, FONT_SIZE, font)
+      (text, index) => wrapPharmacyPdfText(text, widthAt(index) - 10, FONT_SIZE, font)
     );
     const totalLines = Math.max(...cells.map(cell => cell.length));
     let offset = 0;
@@ -231,6 +234,7 @@ export const createPharmacyActPdf = async (
       const height = Math.max(30, count * LINE_HEIGHT + 12);
       let x = MARGIN;
       cells.forEach((cell, index) => {
+        const columnWidth = widthAt(index);
         cell.slice(offset, offset + count).forEach((text, row) => {
           page.drawText(text, {
             x: x + 5,
@@ -243,12 +247,12 @@ export const createPharmacyActPdf = async (
         page.drawRectangle({
           x,
           y: y - height,
-          width: widths[index],
+          width: columnWidth,
           height,
           borderColor: rule,
           borderWidth: 0.5,
         });
-        x += widths[index];
+        x += columnWidth;
       });
       y -= height;
       offset += count;

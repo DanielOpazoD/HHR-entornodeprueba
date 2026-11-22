@@ -6,7 +6,7 @@ import type {
   LibraryToolEntry,
 } from './libraryCatalogTypes';
 
-export const LIBRARY_CATEGORIES: ReadonlyArray<LibraryCategory> = [
+export const LIBRARY_CATEGORIES: readonly [LibraryCategory, ...LibraryCategory[]] = [
   { id: 'forms', label: 'Formularios', emptyTitle: 'Sin formularios para esta búsqueda' },
   { id: 'protocols', label: 'Protocolos', emptyTitle: 'Aún no hay protocolos publicados' },
   { id: 'infographics', label: 'Infografías', emptyTitle: 'Aún no hay infografías publicadas' },

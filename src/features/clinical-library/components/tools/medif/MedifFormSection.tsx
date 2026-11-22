@@ -159,21 +159,26 @@ export const MedifFormSection: React.FC<Props> = ({ block, values, preferences, 
               >
                 {group.fields
                   .filter(id => !isMedifFieldHidden(preferences, id))
-                  .map(id => (
-                    <FieldInput
-                      key={id}
-                      field={MEDIF_FIELD_BY_ID[id]}
-                      label={
-                        id === 'p1_itinerario_1_fecha'
-                          ? 'Fecha del vuelo'
-                          : group.fields.length === 1
-                            ? label
-                            : undefined
-                      }
-                      value={values[id] ?? ''}
-                      onChange={value => onChange(id, value)}
-                    />
-                  ))}
+                  .flatMap(id => {
+                    const field = MEDIF_FIELD_BY_ID[id];
+                    return field
+                      ? [
+                          <FieldInput
+                            key={id}
+                            field={field}
+                            label={
+                              id === 'p1_itinerario_1_fecha'
+                                ? 'Fecha del vuelo'
+                                : group.fields.length === 1
+                                  ? label
+                                  : undefined
+                            }
+                            value={values[id] ?? ''}
+                            onChange={value => onChange(id, value)}
+                          />,
+                        ]
+                      : [];
+                  })}
               </div>
             </fieldset>
           );

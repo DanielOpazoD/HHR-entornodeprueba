@@ -36,32 +36,34 @@ export interface ParsedDoctorName {
  */
 export const parseDoctorName = (fullName: string): ParsedDoctorName => {
   const parts = (fullName || '').trim().split(/\s+/);
-  if (parts.length === 0 || (parts.length === 1 && !parts[0])) {
+  const [first = '', second = ''] = parts;
+  if (parts.length === 0 || (parts.length === 1 && !first)) {
     return { apellido1: '', apellido2: '', nombre: '' };
   }
   if (parts.length === 1) {
-    return { apellido1: parts[0], apellido2: '', nombre: '' };
+    return { apellido1: first, apellido2: '', nombre: '' };
   }
   if (parts.length === 2) {
-    return { apellido1: parts[0], apellido2: '', nombre: parts[1] };
+    return { apellido1: first, apellido2: '', nombre: second };
   }
   return {
-    apellido1: parts[0],
-    apellido2: parts[1],
+    apellido1: first,
+    apellido2: second,
     nombre: parts.slice(2).join(' '),
   };
 };
 
 const parseNameFirstDoctorName = (fullName: string): ParsedDoctorName => {
   const parts = (fullName || '').trim().split(/\s+/).filter(Boolean);
+  const [first = '', second = ''] = parts;
   if (parts.length === 0) {
     return { apellido1: '', apellido2: '', nombre: '' };
   }
   if (parts.length === 1) {
-    return { apellido1: '', apellido2: '', nombre: parts[0] };
+    return { apellido1: '', apellido2: '', nombre: first };
   }
   if (parts.length === 2) {
-    return { apellido1: parts[1], apellido2: '', nombre: parts[0] };
+    return { apellido1: second, apellido2: '', nombre: first };
   }
 
   return {

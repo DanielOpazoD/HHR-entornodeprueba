@@ -37,7 +37,7 @@ const cloneSections = (template: ClinicalDocumentTemplate): ClinicalDocumentSect
   }));
 
 export const getClinicalDocumentTemplate = (templateId?: string): ClinicalDocumentTemplate =>
-  CLINICAL_DOCUMENT_TEMPLATES[templateId || DEFAULT_CLINICAL_DOCUMENT_TEMPLATE_ID] ||
+  CLINICAL_DOCUMENT_TEMPLATES[templateId || DEFAULT_CLINICAL_DOCUMENT_TEMPLATE_ID] ??
   CLINICAL_DOCUMENT_TEMPLATES[DEFAULT_CLINICAL_DOCUMENT_TEMPLATE_ID];
 
 /**

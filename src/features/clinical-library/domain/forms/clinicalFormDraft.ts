@@ -36,7 +36,7 @@ export const storedClinicalFormValues = (
 ): ClinicalFormValues => {
   const next = { ...values };
   if (Object.hasOwn(next, documentVariable)) {
-    next[`${formId}::${documentVariable}`] = next[documentVariable];
+    next[`${formId}::${documentVariable}`] = next[documentVariable] ?? null;
     delete next[documentVariable];
   }
   return next;

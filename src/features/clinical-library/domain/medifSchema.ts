@@ -77,19 +77,19 @@ export const getMedifGroupFieldIds = (group: MedifGroup): string[] =>
   group.type === 'choice' ? group.options.map(option => option.fieldId) : [...group.fields];
 
 /** Patient identity appears on both parts. */
-export const MEDIF_IDENTITY_ALIASES: readonly (readonly string[])[] = [
+export const MEDIF_IDENTITY_ALIASES: readonly (readonly [string, string])[] = [
   ['p1_nombre_pasajero', 'p2_nombre_paciente'],
   ['p1_edad', 'p2_edad'],
 ];
 
 /** The physician's name is entered in Datos del médico and copied to both declarations. */
-export const MEDIF_PHYSICIAN_ALIASES: readonly string[] = [
+export const MEDIF_PHYSICIAN_ALIASES: readonly [string, string, string] = [
   'p2_nombre_medico',
   'p1_medico_autorizado',
   'p3_medico_declaracion',
 ];
 
-export const MEDIF_DECLARATION_DATE_ALIASES: readonly string[] = [
+export const MEDIF_DECLARATION_DATE_ALIASES: readonly [string, string] = [
   'p3_fecha_declaracion',
   'p1_declaracion_fecha',
 ];
