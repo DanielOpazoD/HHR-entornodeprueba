@@ -8,9 +8,6 @@ const { publicImportPatterns, publicModulesByFeature } = JSON.parse(
   fs.readFileSync(new URL('../feature-dependency-matrix.json', import.meta.url), 'utf8')
 );
 const extensions = ['.ts', '.tsx', '.js', '.jsx'];
-export const GOVERNED_APPLICATION_PUBLIC_IMPORTS = new Set([
-  '@/features/census/components/global-search/globalSearchContracts',
-]);
 
 // Resolve only existing files, in the same order as the former source checks.
 const resolve = (importer, raw) => {
@@ -53,11 +50,6 @@ export const publicImportBoundaryRule = {
         ...(publicModulesByFeature[feature] ?? []),
       ];
       if (publicPaths.includes(target)) return;
-      if (
-        importer === 'src/application/census/public.ts' &&
-        GOVERNED_APPLICATION_PUBLIC_IMPORTS.has(target)
-      )
-        return;
       context.report({
         node,
         messageId: 'public',
