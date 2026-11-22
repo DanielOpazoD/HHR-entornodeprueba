@@ -142,10 +142,9 @@ Estos tal vez no ameriten evaluación independiente al principio, pero sí deben
 - **Feature:** [src/features/reminders](../src/features/reminders)
 - **Application:** [src/application/reminders](../src/application/reminders)
 
-### 16. WhatsApp / compartir
+### 16. WhatsApp / compartir (retirado)
 
-- **Feature:** [src/features/whatsapp](../src/features/whatsapp)
-- También se cruza con handoff y entrega de información.
+- Integración retirada por completo de la aplicación (sin vistas, servicios ni proxy serverless activos).
 
 ### 17. Analítica y paneles administrativos
 

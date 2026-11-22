@@ -319,7 +319,6 @@ describe('PWA precache policy', () => {
       'handoffPdfGenerator',
       'backupExportArchiveUseCases',
       'exportService',
-      'whatsappService',
       'censusRecipientListUseCases',
       'vendor-firebase-firestore',
       'vendor-localdb',

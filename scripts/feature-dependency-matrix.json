@@ -1,6 +1,6 @@
 {
   "features": {
-    "admin": ["backup", "rayen-import", "reminders", "whatsapp"],
+    "admin": ["backup", "rayen-import", "reminders"],
     "analytics": [],
     "audit-documents": [],
     "auth": [],
@@ -25,7 +25,6 @@
     "rayen-import": [],
     "rayen-manual-import": [],
     "reminders": [],
-    "whatsapp": [],
     "wound-care": []
   },
   "publicImportPatterns": [

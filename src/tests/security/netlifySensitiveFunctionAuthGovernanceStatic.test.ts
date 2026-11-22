@@ -12,7 +12,6 @@ const SENSITIVE_NETLIFY_FUNCTIONS = [
   'netlify/functions/send-census-email.ts',
   'netlify/functions/send-fuga-notification.ts',
   'netlify/functions/syslab-proxy.ts',
-  'netlify/functions/whatsapp-proxy.ts',
 ];
 
 describe('Netlify sensitive function auth governance', () => {

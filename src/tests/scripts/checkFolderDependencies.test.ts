@@ -128,7 +128,7 @@ const formerBoundaryCases: {
   },
   {
     name: 'feature → application',
-    from: 'src/features/whatsapp/probe.ts',
+    from: 'src/features/reminders/probe.ts',
     to: 'src/application/census/public.ts',
     now: 'allowed',
   },
@@ -468,7 +468,7 @@ describe('one direction rule between the folders of src/', () => {
 
   it('leaves feature to feature imports to the feature matrix in ESLint', () => {
     const result = check({
-      'src/features/whatsapp/probe.ts': "import { x } from '@/features/census/controllers/x';",
+      'src/features/reminders/probe.ts': "import { x } from '@/features/census/controllers/x';",
       ...target('src/features/census/controllers/x.ts'),
     });
     expect(result.status, result.output).toBe(0);
