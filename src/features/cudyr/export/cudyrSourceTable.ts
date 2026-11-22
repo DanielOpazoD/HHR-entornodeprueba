@@ -83,13 +83,13 @@ export const prepareCudyrSourceTable = (
       );
     return true;
   });
-  const days = report.patients[0].days.filter(d => !excerpt || d.sourceDay === 1);
+  const days = (report.patients[0]?.days ?? []).filter(d => !excerpt || d.sourceDay === 1);
   const monthName = new Intl.DateTimeFormat('es-CL', { month: 'long', timeZone: 'UTC' }).format(
     new Date(`${source.month}-01T00:00:00Z`)
   );
   const label = excerpt
     ? `Día incluido: 01-${source.month.slice(5)}-${source.month.slice(0, 4)}`
-    : `${monthName[0].toUpperCase()}${monthName.slice(1)} ${source.month.slice(0, 4)}`;
+    : `${monthName.charAt(0).toUpperCase()}${monthName.slice(1)} ${source.month.slice(0, 4)}`;
   const reasonsLabel = (sourceRow: number) => {
     const reason = [...new Set(exclusionReasons.get(sourceRow)?.values())].join('; ');
     return reason ? `${exclusionLabels.get(sourceRow)}: ${reason}` : '';

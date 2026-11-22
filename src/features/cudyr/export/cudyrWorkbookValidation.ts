@@ -34,7 +34,7 @@ export const validateCudyrWorkbookTotals = (
     )
       fail();
     CATEGORIES.forEach((category, index) => {
-      const expected = totals.categories[category];
+      const expected = totals.categories[category] ?? { intermedia: 0, media: 0 };
       if (
         (number(sheet, `B${index + 4}`) ?? 0) !== expected.intermedia ||
         (number(sheet, `C${index + 4}`) ?? 0) !== expected.media ||
@@ -43,10 +43,13 @@ export const validateCudyrWorkbookTotals = (
         fail();
     });
     const intermedia = CATEGORIES.reduce(
-      (sum, category) => sum + totals.categories[category].intermedia,
+      (sum, category) => sum + (totals.categories[category]?.intermedia ?? 0),
       0
     );
-    const media = CATEGORIES.reduce((sum, category) => sum + totals.categories[category].media, 0);
+    const media = CATEGORIES.reduce(
+      (sum, category) => sum + (totals.categories[category]?.media ?? 0),
+      0
+    );
     if (
       (number(sheet, 'B16') ?? 0) !== intermedia ||
       (number(sheet, 'C16') ?? 0) !== media ||

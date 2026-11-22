@@ -32,22 +32,25 @@ export const reviewedNeonatalHospitalPlacement = (
       Date.parse(d.effectiveAt) <= Date.parse(referenceAt)
     );
   });
+  const first = matches[0];
+  const decision = first?.neonatalPlacementDecision;
   if (
-    !matches.length ||
+    !first ||
+    !decision ||
     new Set(matches.map(p => JSON.stringify(p.neonatalPlacementDecision))).size !== 1 ||
-    placements.some(p => p.section === 'crib' || p.bedId !== matches[0].bedId)
+    placements.some(p => p.section === 'crib' || p.bedId !== first.bedId)
   )
     return;
   return {
     context: {
-      bedId: matches[0].bedId,
+      bedId: first.bedId,
       section: 'census',
       bedMode: 'Cama',
       modality: 'hospitalizacion',
     },
-    admissionAt: matches[0].neonatalPlacementDecision!.effectiveAt,
-    sourceService: matches[0].neonatalPlacementDecision!.sourceService,
-    sourcePlacementKey: matches[0].neonatalPlacementDecision!.sourcePlacementKey,
+    admissionAt: decision.effectiveAt,
+    sourceService: decision.sourceService,
+    sourcePlacementKey: decision.sourcePlacementKey,
   };
 };
 

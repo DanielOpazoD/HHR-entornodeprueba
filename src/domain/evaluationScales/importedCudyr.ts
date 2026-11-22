@@ -29,7 +29,7 @@ const rapaNuiDateTimeFormatter = new Intl.DateTimeFormat('en-CA', {
 });
 
 export const previousCensusIsoDay = (isoDay: string): string => {
-  const [year, month, day] = isoDay.split('-').map(Number);
+  const [year = NaN, month = NaN, day = NaN] = isoDay.split('-').map(Number);
   const previous = new Date(Date.UTC(year, month - 1, day - 1));
   return previous.toISOString().slice(0, 10);
 };

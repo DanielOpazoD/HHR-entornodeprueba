@@ -44,8 +44,9 @@ const censusAdmission = (
     if (stamp.iso === admission.date && stamp.hhmm === admission.time)
       matches.push(candidate.toISOString());
   }
-  if (matches.length !== 1 || Date.parse(matches[0]) > reference) return null;
-  return { at: matches[0], source: 'Censo HHR · ingreso registrado en Datos demográficos.' };
+  const [uniqueMatch] = matches;
+  if (matches.length !== 1 || !uniqueMatch || Date.parse(uniqueMatch) > reference) return null;
+  return { at: uniqueMatch, source: 'Censo HHR · ingreso registrado en Datos demográficos.' };
 };
 
 /** An assignment start proves entry into that service. Neither episode time nor a prior closure is required. */

@@ -31,7 +31,7 @@ export const cudyrReferenceInstant = (censusDate: string): string | null => {
     const stamp = calendarStampInClinicalTimeZone(candidate);
     if (stamp.iso === nextDay && stamp.hhmm === '01:00') matches.push(candidate.toISOString());
   }
-  return matches.length === 1 ? matches[0] : null;
+  return matches.length === 1 ? (matches[0] ?? null) : null;
 };
 
 export interface CudyrDailyPlacementInput extends CudyrDailyEligibilityInput {

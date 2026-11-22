@@ -3,14 +3,14 @@ import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementSe
 export const supplementDocumentKey = (value: string) => {
   const trimmed = value.trim().toUpperCase();
   const rut = trimmed.replace(/\./g, '');
-  const match = rut.match(/^(\d{7,8})-?([\dK])$/);
-  if (match) {
+  const [, body, checkDigit] = rut.match(/^(\d{7,8})-?([\dK])$/) ?? [];
+  if (body && checkDigit) {
     let sum = 0;
-    for (const [index, digit] of [...match[1]].reverse().entries())
+    for (const [index, digit] of [...body].reverse().entries())
       sum += Number(digit) * (2 + (index % 6));
     const remainder = 11 - (sum % 11);
     const verifier = remainder === 11 ? '0' : remainder === 10 ? 'K' : String(remainder);
-    if (match[2] === verifier) return match[1] + verifier;
+    if (checkDigit === verifier) return body + verifier;
   }
   return ''; // Unknown/free-text document formats cannot establish identity here.
 };

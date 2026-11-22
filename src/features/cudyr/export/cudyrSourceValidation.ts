@@ -23,7 +23,7 @@ export const validateCudyrSourceSheet = (
   const patients = parsed.report.patients.filter(
     p => !excerpt || p.days.some(d => d.sourceDay === 1 && d.originalValue)
   );
-  const days = excerpt ? 1 : parsed.report.patients[0].days.length;
+  const days = excerpt ? 1 : (parsed.report.patients[0]?.days.length ?? 0);
   if (sheet.rowCount !== patients.length + 6 || sheet.columnCount !== 8 + days) fail();
   patients.forEach((patient, index) => {
     const row = sheet.getRow(index + 2);

@@ -32,6 +32,13 @@ export const buildCudyrEssentialWorkbook = async (
   if (data.issues.length || data.coverage.some(day => day.state === 'error'))
     throw new Error('No se completó la lectura. Actualice antes de descargar.');
   const [year, month] = data.from.split('-').map(Number);
+  if (
+    year === undefined ||
+    month === undefined ||
+    !Number.isFinite(year) ||
+    !Number.isFinite(month)
+  )
+    throw new Error('Seleccione un período dentro del mismo mes.');
   const dates = generateDateRange(year, month).filter(date => date >= data.from && date <= data.to);
   if (!dates.length || data.from.slice(0, 7) !== data.to.slice(0, 7))
     throw new Error('Seleccione un período dentro del mismo mes.');

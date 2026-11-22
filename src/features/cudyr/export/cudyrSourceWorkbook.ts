@@ -22,7 +22,7 @@ export const addCudyrSourceSheets = (
       'Informe original de Eloísa no guardado para este período.';
     return;
   }
-  const [year, month] = reportMonth.split('-').map(Number);
+  const [year = NaN, month = NaN] = reportMonth.split('-').map(Number);
   const nextMonth = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 7);
   sources.forEach((original, index) => {
     const excerpt = original.month === nextMonth;

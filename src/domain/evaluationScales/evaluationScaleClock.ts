@@ -40,16 +40,16 @@ const mainlandInstant = (stamp: string): number => {
 /** Rapa Nui wall clock (`YYYY-MM-DDTHH:MM:SS`) of a stored application, or null. */
 export const evaluationScaleStampInRapaNui = (recordedAt: string | undefined): string | null => {
   const value = (recordedAt ?? '').trim();
-  const report = /^(\d{2})-(\d{2})-(\d{4}) (\d{1,2}):(\d{2}:\d{2}) ?([+-]\d{2}):?(\d{2})$/.exec(
-    value
-  );
-  const naive = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.\d+)?$/.exec(value);
-  const instant = report
-    ? Date.parse(
-        `${report[3]}-${report[2]}-${report[1]}T${report[4].padStart(2, '0')}:${report[5]}${report[6]}:${report[7]}`
-      )
-    : naive
-      ? mainlandInstant(naive[1])
-      : NaN;
+  const [, repDay, repMonth, repYear, repHour, repMinSec, repSignHr, repTzMin] =
+    /^(\d{2})-(\d{2})-(\d{4}) (\d{1,2}):(\d{2}:\d{2}) ?([+-]\d{2}):?(\d{2})$/.exec(value) ?? [];
+  const [, naiveStamp] = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.\d+)?$/.exec(value) ?? [];
+  const instant =
+    repDay && repMonth && repYear && repHour && repMinSec && repSignHr && repTzMin
+      ? Date.parse(
+          `${repYear}-${repMonth}-${repDay}T${repHour.padStart(2, '0')}:${repMinSec}${repSignHr}:${repTzMin}`
+        )
+      : naiveStamp
+        ? mainlandInstant(naiveStamp)
+        : NaN;
   return Number.isFinite(instant) ? format(RAPA_NUI, instant) : null;
 };

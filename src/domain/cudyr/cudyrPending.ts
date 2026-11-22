@@ -13,7 +13,7 @@ const CUDYR_WAITING_LABEL = 'Programado · turno noche';
 
 const rapaNuiClock = (now: Date): { day: string; minutes: number } => {
   const { iso, hhmm } = calendarStampInClinicalTimeZone(now);
-  const [hours, minutes] = hhmm.split(':').map(Number);
+  const [hours = 0, minutes = 0] = hhmm.split(':').map(Number);
   return { day: iso, minutes: hours * 60 + minutes };
 };
 

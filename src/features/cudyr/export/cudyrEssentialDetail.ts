@@ -73,14 +73,12 @@ export const addCudyrEssentialDetail = (sheet: Worksheet, rows: CudyrReportRow[]
       let lines = 1;
       detail.eachCell((cell, column) => {
         const text = String(cell.value ?? '');
+        const colWidth = widths[column - 1] ?? 12;
         lines = Math.max(
           lines,
           text
             .split('\n')
-            .reduce(
-              (sum, line) => sum + Math.max(1, Math.ceil(line.length / (widths[column - 1] - 2))),
-              0
-            )
+            .reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length / (colWidth - 2))), 0)
         );
       });
       detail.height = Math.max(36, lines * 15 + 8);

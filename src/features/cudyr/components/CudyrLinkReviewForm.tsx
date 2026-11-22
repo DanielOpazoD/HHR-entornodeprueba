@@ -97,12 +97,16 @@ export const CudyrLinkReviewForm = ({
               }}
             >
               <option value="">Seleccionar explícitamente</option>
-              {candidates.map(c => (
-                <option key={c.episodeId} value={c.episodeId}>
-                  {c.rows[0].patientName} · {c.episodeId} · censos {c.rows[0].date} a{' '}
-                  {c.rows[c.rows.length - 1].date}
-                </option>
-              ))}
+              {candidates.map(c => {
+                const firstRow = c.rows[0];
+                const lastRow = c.rows[c.rows.length - 1];
+                if (!firstRow || !lastRow) return null;
+                return (
+                  <option key={c.episodeId} value={c.episodeId}>
+                    {firstRow.patientName} · {c.episodeId} · censos {firstRow.date} a {lastRow.date}
+                  </option>
+                );
+              })}
             </select>
           </label>
           <p className="text-xs text-amber-900">

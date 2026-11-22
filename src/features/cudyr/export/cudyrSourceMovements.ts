@@ -81,7 +81,8 @@ export const markCudyrSourceMovements = (
           ? []
           : discharges;
     const unique = new Map(departures.map(m => [`${m.date}|${m.time}`, m]));
-    if (unique.size === 1) markers.push([...unique.values()][0]);
+    const [uniqueDeparture] = unique.values();
+    if (unique.size === 1 && uniqueDeparture) markers.push(uniqueDeparture);
     for (const day of patient.days.filter(d => !excerpt || d.sourceDay === 1)) {
       const matches = markers.filter(m => m.date === day.sourceDate);
       if (!matches.length) continue;
