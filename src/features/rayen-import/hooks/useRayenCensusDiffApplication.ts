@@ -1,13 +1,11 @@
 import { useCallback } from 'react';
 import type { ApplyResult } from '../domain/applyCensusImportDiff';
-import { applyCensusImportDiff } from '../domain/applyCensusImportDiff';
 import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import type { LocalDailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
-import { buildRayenStructuralPersistenceBase } from '../domain/rayenStructuralPersistenceBase';
 import {
   runExclusiveDailyRecordWrite,
   type DailyRecordWriteLease,
@@ -79,7 +77,13 @@ export const useRayenCensusDiffApplication = ({
         record.date,
         async writeLease => {
           const run = ensureRun();
-          const localResult = await loadLocalRecord(record.date);
+          const [localResult, { buildRayenStructuralPersistenceBase }, { applyCensusImportDiff }] =
+            await Promise.all([
+              loadLocalRecord(record.date),
+              import('../domain/rayenStructuralPersistenceBase'),
+              import('../domain/applyCensusImportDiff'),
+            ]);
+          session.check();
           const persistenceBase = buildRayenStructuralPersistenceBase(
             record,
             localResult.record,
