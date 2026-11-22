@@ -30,6 +30,8 @@ interface HandoffPatientTableProps {
   clinicalEventActions?: HandoffClinicalEventActions;
 }
 
+type HandoffNoteField = 'handoffNoteDayShift' | 'handoffNoteNightShift';
+
 interface HandoffTableBedRowProps {
   bedId: string;
   bedName: string;
@@ -37,13 +39,19 @@ interface HandoffTableBedRowProps {
   patient: PatientData;
   reportDate: string;
   isNested: boolean;
-  noteField: 'handoffNoteDayShift' | 'handoffNoteNightShift';
+  noteField: HandoffNoteField;
   readOnly: boolean;
   forcedExpand?: boolean;
   hasEventAdd: boolean;
   hasEventUpdate: boolean;
   hasEventDelete: boolean;
-  onBedNoteChange: (bedId: string, isNested: boolean, patient: PatientData, value: string) => void;
+  onBedNoteChange: (
+    bedId: string,
+    isNested: boolean,
+    patient: PatientData,
+    capturedScopeKey: string,
+    value: string
+  ) => void;
   onEventAdd: (bedId: string, event: Omit<ClinicalEvent, 'id' | 'createdAt'>) => void;
   onEventUpdate: (bedId: string, eventId: string, data: Partial<ClinicalEvent>) => void;
   onEventDelete: (bedId: string, eventId: string) => void;
@@ -68,8 +76,9 @@ const HandoffTableBedRow = React.memo(function HandoffTableBedRow({
   onEventDelete,
 }: HandoffTableBedRowProps) {
   const handleNoteChange = useCallback(
-    (value: string) => onBedNoteChange(bedId, isNested, patient, value),
-    [bedId, isNested, onBedNoteChange, patient]
+    (value: string) =>
+      onBedNoteChange(bedId, isNested, patient, `${reportDate}::${noteField}`, value),
+    [bedId, isNested, noteField, onBedNoteChange, patient, reportDate]
   );
 
   const rowClinicalEventActions = useMemo(
@@ -115,20 +124,30 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
   const [allEventsExpanded, setAllEventsExpanded] = useState(false);
 
   const currentRecord = useRef(record);
-  const onNoteChangeRef = useRef(onNoteChange);
+  // Keep one note-change handler per date+shift scope so a pending debounced edit started
+  // before a shift or date switch (e.g. set-shift without blur) still saves to its original scope.
+  const onNoteChangeByScopeRef = useRef<Record<string, HandoffPatientTableProps['onNoteChange']>>(
+    {}
+  );
   const clinicalEventActionsRef = useRef(clinicalEventActions);
   useLayoutEffect(() => {
     currentRecord.current = record;
-    onNoteChangeRef.current = onNoteChange;
+    onNoteChangeByScopeRef.current[`${record.date}::${noteField}`] = onNoteChange;
     clinicalEventActionsRef.current = clinicalEventActions;
-  }, [record, onNoteChange, clinicalEventActions]);
+  }, [record, noteField, onNoteChange, clinicalEventActions]);
 
   const handleBedNoteChange = useCallback(
-    (bedId: string, isNested: boolean, patient: PatientData, value: string) => {
+    (
+      bedId: string,
+      isNested: boolean,
+      patient: PatientData,
+      capturedScopeKey: string,
+      value: string
+    ) => {
       const bed = currentRecord.current.beds[bedId];
       const current = isNested ? bed?.clinicalCrib : bed;
       if (current && handoffPatientKey(current) === handoffPatientKey(patient)) {
-        onNoteChangeRef.current(bedId, value, isNested);
+        onNoteChangeByScopeRef.current[capturedScopeKey]?.(bedId, value, isNested);
       }
     },
     []

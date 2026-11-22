@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import '../../setup';
 import { describe, it, expect, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { HandoffRow } from '@/features/handoff/components/HandoffRow';
 import { HandoffPatientTable } from '@/features/handoff/components/HandoffPatientTable';
 import { DailyRecordProvider } from '@/context/DailyRecordContext';
@@ -215,5 +215,68 @@ describe('HandoffRow', () => {
     expect(spy).toHaveBeenCalledTimes(1);
 
     spy.mockRestore();
+  });
+
+  it('saves a pending debounced note to its original shift if the shift changes before debounce fires', () => {
+    vi.useFakeTimers();
+    try {
+      const beds: BedDefinition[] = [{ id: 'R1', name: 'R1', type: BedType.UTI, isCuna: false }];
+      const patientR1 = createMockPatient({
+        bedId: 'R1',
+        patientName: 'Paciente Uno',
+        rut: '11.111.111-1',
+        handoffNoteDayShift: '',
+        handoffNoteNightShift: 'Nota nocturna existente',
+      });
+      const record = createMockRecord('2026-11-22');
+      record.beds = { R1: patientR1 };
+      const stableRules = buildStabilityRules(
+        { date: record.date },
+        { isAdmin: false, isEditor: true, todayISO: record.date }
+      );
+      const onDayNoteChange = vi.fn();
+      const onNightNoteChange = vi.fn();
+      const shouldShowPatient = () => true;
+
+      const renderShift = (
+        noteField: 'handoffNoteDayShift' | 'handoffNoteNightShift',
+        onNoteChange: (bedId: string, value: string, isNested: boolean) => void
+      ) => (
+        <DailyRecordProvider
+          value={{
+            ...createMockDailyRecordContext(record),
+            stabilityRules: stableRules,
+          }}
+        >
+          <HandoffPatientTable
+            visibleBeds={beds}
+            record={record}
+            noteField={noteField}
+            onNoteChange={onNoteChange}
+            tableHeaderClass="bg-slate-50"
+            readOnly={false}
+            hasAnyPatients={true}
+            shouldShowPatient={shouldShowPatient}
+          />
+        </DailyRecordProvider>
+      );
+
+      const { rerender } = render(renderShift('handoffNoteDayShift', onDayNoteChange));
+      const textarea = screen.getByLabelText('Observaciones del paciente');
+      fireEvent.focus(textarea);
+      fireEvent.change(textarea, { target: { value: 'Nota turno día pendiente' } });
+
+      // Shift switches to night before the 1500ms debounce timer fires (without blur).
+      rerender(renderShift('handoffNoteNightShift', onNightNoteChange));
+
+      act(() => {
+        vi.advanceTimersByTime(1500);
+      });
+
+      expect(onDayNoteChange).toHaveBeenCalledWith('R1', 'Nota turno día pendiente', false);
+      expect(onNightNoteChange).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
