@@ -20,10 +20,10 @@ const collectBilirubinFinding = (
     return;
   }
 
-  if (!bilirubinByCol[colKey]) bilirubinByCol[colKey] = {};
-  if (lowerAnalysis.includes('total')) bilirubinByCol[colKey].total = result;
-  else if (lowerAnalysis.includes('indirecta')) bilirubinByCol[colKey].indirecta = result;
-  else if (lowerAnalysis.includes('directa')) bilirubinByCol[colKey].directa = result;
+  const colEntry = (bilirubinByCol[colKey] ??= {});
+  if (lowerAnalysis.includes('total')) colEntry.total = result;
+  else if (lowerAnalysis.includes('indirecta')) colEntry.indirecta = result;
+  else if (lowerAnalysis.includes('directa')) colEntry.directa = result;
 };
 
 const collectComparisonFinding = (
@@ -47,8 +47,8 @@ const collectComparisonFinding = (
   }
 
   seenComparison.add(compKey);
-  if (!comparison[finding.analysis]) comparison[finding.analysis] = {};
-  comparison[finding.analysis][colKey] = finding;
+  const compRow = (comparison[finding.analysis] ??= {});
+  compRow[colKey] = finding;
 };
 
 const collectTrendFinding = (
@@ -77,9 +77,9 @@ const collectTrendFinding = (
     return;
   }
 
-  if (!trendMap[finding.analysis]) trendMap[finding.analysis] = [];
+  const trendSeries = (trendMap[finding.analysis] ??= []);
   const range = parseRefRange(finding.refValue, finding);
-  trendMap[finding.analysis].push({
+  trendSeries.push({
     date: colKey,
     isoDate,
     value: measurement.value,

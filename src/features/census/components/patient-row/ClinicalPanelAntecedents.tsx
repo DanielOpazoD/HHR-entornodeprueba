@@ -138,9 +138,10 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<AntecedentsProps> = ({
       }
       setOlderPages(pages => {
         const existing = pages.findIndex(page => page.requestedEnd === nextBeforeDate);
+        const existingPage = existing < 0 ? undefined : pages[existing];
         const next = {
           requestedEnd: nextBeforeDate,
-          data: mergePartialResult(existing < 0 ? null : pages[existing].data, value),
+          data: mergePartialResult(existingPage?.data ?? null, value),
         };
         return existing < 0
           ? [...pages, next]

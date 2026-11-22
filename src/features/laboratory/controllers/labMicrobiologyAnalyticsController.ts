@@ -78,11 +78,7 @@ export const resolveMicrobiologyCategoryForFinding = (
     .filter(entry => entry.score > 0)
     .sort((a, b) => b.score - a.score);
 
-  if (scoredCategories.length > 0) {
-    return scoredCategories[0].category;
-  }
-
-  return null;
+  return scoredCategories[0]?.category ?? null;
 };
 
 export const collectMicrobiologyFinding = (

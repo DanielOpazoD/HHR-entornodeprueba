@@ -51,8 +51,8 @@ export const resolveDischargeCommand = ({
     typeOther,
     time,
   });
-  if (dischargeValidationErrors.length > 0) {
-    const [firstError] = dischargeValidationErrors;
+  const [firstError] = dischargeValidationErrors;
+  if (firstError) {
     return fail(firstError);
   }
 

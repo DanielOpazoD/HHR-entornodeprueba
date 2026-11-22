@@ -47,9 +47,10 @@ export const SpecialtyRulesTabs = ({
                     : event.key === 'End'
                       ? tabs.length - 1
                       : null;
-            if (next === null) return;
+            const nextTab = next !== null ? tabs[next] : undefined;
+            if (next === null || !nextTab) return;
             event.preventDefault();
-            onChange(tabs[next][0]);
+            onChange(nextTab[0]);
             refs.current[next]?.focus();
           }}
           className={`border-b-2 px-3 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 ${

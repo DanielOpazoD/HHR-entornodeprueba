@@ -48,10 +48,9 @@ export const parseLabMeasurement = (
   context: Pick<LabResultRow, 'unit' | 'refValue'>
 ): ParsedLabMeasurement | null => {
   const compact = String(rawValue || '').replace(/\s+/g, '');
-  const match = compact.match(/^([<>]=?|[≤≥])?([+-]?\d[\d.,]*)$/);
-  if (!match) return null;
+  const [, comparatorRaw = '', numeric] = compact.match(/^([<>]=?|[≤≥])?([+-]?\d[\d.,]*)$/) ?? [];
+  if (!numeric) return null;
 
-  const numeric = match[2];
   const unsignedNumeric = numeric.replace(/^[+-]/, '');
   let normalized = numeric;
   let format: LabNumberFormat = 'integer';
@@ -79,5 +78,5 @@ export const parseLabMeasurement = (
 
   const value = Number(normalized);
   if (!Number.isFinite(value)) return null;
-  return { comparator: normalizeComparator(match[1]), value, format };
+  return { comparator: normalizeComparator(comparatorRaw), value, format };
 };

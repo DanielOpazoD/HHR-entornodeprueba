@@ -21,7 +21,7 @@ const parsePdfRatioFinding = (
     return null;
   }
 
-  const [analysis, ...resultParts] = line.split(':');
+  const [analysis = '', ...resultParts] = line.split(':');
   const normalizedAnalysis = analysis.replace(/\s+/g, ' ').trim();
   const normalizedResult = resultParts.join(':').replace(/\s+/g, ' ').trim();
   const analysisToken = normalizedAnalysis
@@ -40,7 +40,7 @@ const parsePdfRatioFinding = (
   }
 
   const resultMatch = normalizedResult.match(/-?\d[\d.,]*/);
-  if (!resultMatch) {
+  if (!resultMatch || resultMatch.index === undefined) {
     return null;
   }
 
@@ -49,7 +49,7 @@ const parsePdfRatioFinding = (
     analysis: normalizedAnalysis,
     result: resultMatch[0],
     unit: '',
-    refValue: normalizedResult.slice(resultMatch.index! + resultMatch[0].length).trim(),
+    refValue: normalizedResult.slice(resultMatch.index + resultMatch[0].length).trim(),
   };
 };
 
@@ -138,12 +138,12 @@ export const enrichUrineRatioDetailsFromPdf = async (
   Promise.all(
     details.map(async detail => {
       const exam = examList.find(candidate => candidate.link === detail.url);
-      if (!exam || !shouldFetchUrineRatioPdfFallback(exam, detail)) {
+      if (!exam?.link || !shouldFetchUrineRatioPdfFallback(exam, detail)) {
         return detail;
       }
 
       try {
-        const buffer = await fetchSyslabPdfArrayBuffer(exam.link!);
+        const buffer = await fetchSyslabPdfArrayBuffer(exam.link);
         const pdfText = await extractPdfText(buffer);
         const ratioFindings = parseUrineRatioFindingsFromPdfText(pdfText);
         if (ratioFindings.length === 0) {

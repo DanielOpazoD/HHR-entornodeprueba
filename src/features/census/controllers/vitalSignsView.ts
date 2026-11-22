@@ -190,7 +190,8 @@ const dayLabel = (isoDay: string): string => {
 };
 const timeLabel = (recordedAt: string): string => {
   const m = recordedAt.match(/(\d{1,2}):(\d{2})/);
-  return m ? `${m[1].padStart(2, '0')}:${m[2]}` : '';
+  const [, hour, minute] = m ?? [];
+  return hour && minute ? `${hour.padStart(2, '0')}:${minute}` : '';
 };
 
 /** Build table rows (most-recent-first, as given) for the vitals history view. */

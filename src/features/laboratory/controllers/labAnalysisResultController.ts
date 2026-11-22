@@ -25,7 +25,8 @@ const findTrendGroup = (analysis: string): string | null => {
 const comparisonSortIndex = (name: string): number => {
   const lower = name.toLowerCase();
   for (let i = 0; i < COMPARISON_ORDER.length; i++) {
-    if (lower.includes(COMPARISON_ORDER[i].toLowerCase())) return i;
+    const entry = COMPARISON_ORDER[i];
+    if (entry && lower.includes(entry.toLowerCase())) return i;
   }
   return COMPARISON_ORDER.length + 1;
 };
@@ -35,14 +36,14 @@ export const mergeBilirrubinas = (
   comparison: Record<string, Record<string, LabResultRow>>,
   bilirubinByCol: BilirubinByColumn
 ): void => {
-  const cols = Object.keys(bilirubinByCol);
-  if (cols.length === 0) return;
+  const entries = Object.entries(bilirubinByCol);
+  if (entries.length === 0) return;
 
-  comparison['Bilirrubinas (T/D/I)'] = {};
-  for (const col of cols) {
-    const b = bilirubinByCol[col];
+  const row: Record<string, LabResultRow> = {};
+  comparison['Bilirrubinas (T/D/I)'] = row;
+  for (const [col, b] of entries) {
     const merged = [b.total || '-', b.directa || '-', b.indirecta || '-'].join(' / ');
-    comparison['Bilirrubinas (T/D/I)'][col] = {
+    row[col] = {
       section: 'PERFIL HEPATICO',
       analysis: 'Bilirrubinas (T/D/I)',
       result: merged,
@@ -78,7 +79,8 @@ const sortComparison = (
     (a, b) => comparisonSortIndex(a) - comparisonSortIndex(b)
   );
   for (const key of sortedKeys) {
-    sorted[key] = comparison[key];
+    const row = comparison[key];
+    if (row) sorted[key] = row;
   }
   return sorted;
 };

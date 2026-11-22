@@ -94,5 +94,5 @@ export const resolveSpecialtyRoundRule = (
         .filter((value): value is string => Boolean(value))
     ),
   ];
-  return values.length === 1 ? values[0] : null;
+  return values.length === 1 ? (values[0] ?? null) : null;
 };

@@ -15,7 +15,7 @@ const parseColonPairs = (lines: string[]): Array<{ analysis: string; result: str
   const pairs: Array<{ analysis: string; result: string }> = [];
   for (const line of lines) {
     if (!line.includes(':')) continue;
-    const [analysis, ...resultParts] = line.split(':');
+    const [analysis = '', ...resultParts] = line.split(':');
     const normalizedAnalysis = analysis.replace(/\s+/g, ' ').trim();
     const normalizedResult = resultParts.join(':').replace(/\s+/g, ' ').trim();
     if (!normalizedAnalysis || !normalizedResult) continue;
@@ -180,12 +180,12 @@ export const enrichMicrobiologyDetailsFromPdf = async (
   const enriched = await Promise.all(
     details.map(async detail => {
       const exam = examList.find(candidate => candidate.link === detail.url);
-      if (!exam || !shouldFetchMicrobiologyPdfFallback(exam, detail)) {
+      if (!exam?.link || !shouldFetchMicrobiologyPdfFallback(exam, detail)) {
         return detail;
       }
 
       try {
-        const buffer = await fetchSyslabPdfArrayBuffer(exam.link!);
+        const buffer = await fetchSyslabPdfArrayBuffer(exam.link);
         const text = await extractPdfText(buffer);
         const fallbackFindings = parseMicrobiologyFindingsFromPdfText(text);
         if (fallbackFindings.length === 0) return detail;

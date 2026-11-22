@@ -231,9 +231,10 @@ export const syncDeviceHistoryForSelection = ({
     const activeIdx = history.findIndex(
       item => item.type === oldDevice && item.status === 'Active'
     );
-    if (activeIdx !== -1) {
+    const activeEntry = activeIdx !== -1 ? history[activeIdx] : undefined;
+    if (activeEntry) {
       history[activeIdx] = {
-        ...history[activeIdx],
+        ...activeEntry,
         status: 'Removed',
         removalSource: 'manual',
         removalDate: timestamp.date,
@@ -314,14 +315,12 @@ export const syncDeviceHistoryForDetails = ({
     const activeIdx = history.findIndex(
       item => item.type === deviceType && item.status === 'Active'
     );
+    const activeEntry = activeIdx !== -1 ? history[activeIdx] : undefined;
 
-    if (activeIdx !== -1) {
-      if (
-        detail.installationDate &&
-        history[activeIdx].installationDate !== detail.installationDate
-      ) {
+    if (activeEntry) {
+      if (detail.installationDate && activeEntry.installationDate !== detail.installationDate) {
         history[activeIdx] = {
-          ...history[activeIdx],
+          ...activeEntry,
           installationDate: detail.installationDate,
           source: 'manual',
           updatedAt: timestamp.nowMs,

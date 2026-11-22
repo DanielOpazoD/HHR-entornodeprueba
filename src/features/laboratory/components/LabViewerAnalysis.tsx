@@ -64,9 +64,10 @@ export const LabViewerAnalysis: React.FC<LabViewerAnalysisProps> = ({
     // Build summary text for each exam date using comparison data
     const lines: string[] = [];
     for (const dateKey of data.examDates) {
-      const findings = Object.entries(data.comparison)
-        .filter(([, dateMap]) => dateMap[dateKey])
-        .map(([, dateMap]) => dateMap[dateKey]);
+      const findings = Object.values(data.comparison).flatMap(dateMap => {
+        const finding = dateMap[dateKey];
+        return finding ? [finding] : [];
+      });
       if (findings.length === 0) continue;
       const datePart = dateKey.substring(0, 10);
       const timePart = dateKey.substring(11) || '00:00';

@@ -21,8 +21,8 @@ export const formatLabTrendValue = (value: number): string => labNumberFormatter
 
 /** Month/year on the axis; the tooltip retains the full date and time. */
 export const formatLabTrendAxisDate = (date: string): string => {
-  const match = date.match(/^\d{1,2}\/(\d{1,2})\/(\d{4})(?:\s|$)/);
-  return match ? `${Number(match[1])}/${match[2].slice(-2)}` : date;
+  const [, month, year] = date.match(/^\d{1,2}\/(\d{1,2})\/(\d{4})(?:\s|$)/) ?? [];
+  return month && year ? `${Number(month)}/${year.slice(-2)}` : date;
 };
 
 /** A shared band is valid only when every plotted variable has the same reference range. */
@@ -40,8 +40,8 @@ export const resolveSharedReferenceBand = (
         : null
     )
   );
-  if (ranges.length === 0 || ranges.some(range => range == null)) return null;
-  const first = ranges[0]!;
+  const first = ranges[0];
+  if (!first || ranges.some(range => range == null)) return null;
   return ranges.every(range => range?.min === first.min && range.max === first.max) ? first : null;
 };
 
@@ -64,17 +64,19 @@ const clusterByMagnitude = (
   sortedItems: VariableMagnitudeEntry[],
   ratio: number
 ): VariableMagnitudeEntry[][] => {
-  const clusters: VariableMagnitudeEntry[][] = [[]];
+  let currentCluster: VariableMagnitudeEntry[] = [];
+  const clusters: VariableMagnitudeEntry[][] = [currentCluster];
   let clusterMin = sortedItems[0]?.mag || 1;
 
   for (const item of sortedItems) {
     const r = (item.mag || 1) / (clusterMin || 1);
-    if (r > ratio && clusters[clusters.length - 1].length > 0) {
-      clusters.push([]);
+    if (r > ratio && currentCluster.length > 0) {
+      currentCluster = [];
+      clusters.push(currentCluster);
       clusterMin = item.mag || 1;
     }
 
-    clusters[clusters.length - 1].push(item);
+    currentCluster.push(item);
     if (item.mag < clusterMin) clusterMin = item.mag;
   }
 
@@ -96,9 +98,9 @@ export const groupVariablesByScale = (
       const unit = normalizeLabUnit(point.unit || '')
         .toLowerCase()
         .replace(/\s/g, '');
-      if (!byUnit[unit]) byUnit[unit] = {};
-      if (!byUnit[unit][name]) byUnit[unit][name] = [];
-      byUnit[unit][name].push(point);
+      const unitGroup = (byUnit[unit] ??= {});
+      const varPoints = (unitGroup[name] ??= []);
+      varPoints.push(point);
     }
   }
 

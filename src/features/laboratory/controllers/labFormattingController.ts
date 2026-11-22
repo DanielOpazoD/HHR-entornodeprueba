@@ -25,10 +25,10 @@ export const parseScientificValue = (
   result: string,
   unit: string
 ): { multiplied: number; unitSuffix: string } | null => {
-  const match = unit.match(/x10\^(\d+)(.*)/);
-  if (!match) return null;
-  const exponent = parseInt(match[1], 10);
-  const unitSuffix = match[2]?.replace(/^\//, '') || '';
+  const [, exponentRaw, suffixRaw] = unit.match(/x10\^(\d+)(.*)/) ?? [];
+  if (!exponentRaw) return null;
+  const exponent = parseInt(exponentRaw, 10);
+  const unitSuffix = suffixRaw?.replace(/^\//, '') || '';
   const num = parseLocalizedNumber(result);
   if (isNaN(num)) return null;
   return { multiplied: Math.round(num * Math.pow(10, exponent)), unitSuffix };
@@ -44,15 +44,15 @@ export const parseRefRange = (
   refValue: string,
   context?: Pick<LabResultRow, 'unit'>
 ): { min: number; max: number } | null => {
-  const match = refValue.match(/([\d.,]+)\s*[-–]\s*([\d.,]+)/);
-  if (!match) return null;
+  const [, minRaw, maxRaw] = refValue.match(/([\d.,]+)\s*[-–]\s*([\d.,]+)/) ?? [];
+  if (!minRaw || !maxRaw) return null;
   const measurementContext = context ? { unit: context.unit, refValue } : null;
   const min = measurementContext
-    ? parseLabMeasurement(match[1], measurementContext)?.value
-    : parseLocalizedNumber(match[1]);
+    ? parseLabMeasurement(minRaw, measurementContext)?.value
+    : parseLocalizedNumber(minRaw);
   const max = measurementContext
-    ? parseLabMeasurement(match[2], measurementContext)?.value
-    : parseLocalizedNumber(match[2]);
+    ? parseLabMeasurement(maxRaw, measurementContext)?.value
+    : parseLocalizedNumber(maxRaw);
   if (min == null || max == null) return null;
   if (isNaN(min) || isNaN(max)) return null;
   return { min, max };
@@ -63,9 +63,9 @@ export const parseRefRange = (
  * @example parseDateDDMMYYYY("06/04/2026") // "2026-04-06"
  */
 export const parseDateDDMMYYYY = (date: string): string => {
-  const match = date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (!match) return date;
-  return `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`;
+  const [, day, month, year] = date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/) ?? [];
+  if (!day || !month || !year) return date;
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 };
 
 /**
@@ -210,12 +210,12 @@ export const formatLabResult = (
  */
 export const bedSortKey = (bedId: string): number => {
   const upper = bedId.toUpperCase().replace(/\s+/g, '');
-  const rMatch = upper.match(/^R(\d+)$/);
-  if (rMatch) return parseInt(rMatch[1], 10);
-  const neoMatch = upper.match(/^NEO(\d+)$/);
-  if (neoMatch) return 4 + parseInt(neoMatch[1], 10);
-  const hMatch = upper.match(/^H(\d+)C(\d+)$/);
-  if (hMatch) return 10 + (parseInt(hMatch[1], 10) - 1) * 2 + (parseInt(hMatch[2], 10) - 1);
+  const rBed = upper.match(/^R(\d+)$/)?.[1];
+  if (rBed) return parseInt(rBed, 10);
+  const neoBed = upper.match(/^NEO(\d+)$/)?.[1];
+  if (neoBed) return 4 + parseInt(neoBed, 10);
+  const [, hRoom, hBed] = upper.match(/^H(\d+)C(\d+)$/) ?? [];
+  if (hRoom && hBed) return 10 + (parseInt(hRoom, 10) - 1) * 2 + (parseInt(hBed, 10) - 1);
   return 100;
 };
 

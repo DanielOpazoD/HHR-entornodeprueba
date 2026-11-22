@@ -37,7 +37,8 @@ export const isExcludedFromComparison = (analysis: string): boolean => {
 export const comparisonSortIndex = (name: string): number => {
   const lower = name.toLowerCase();
   for (let i = 0; i < COMPARISON_ORDER.length; i++) {
-    if (lower.includes(COMPARISON_ORDER[i].toLowerCase())) return i;
+    const entry = COMPARISON_ORDER[i];
+    if (entry && lower.includes(entry.toLowerCase())) return i;
   }
   return COMPARISON_ORDER.length + 1;
 };

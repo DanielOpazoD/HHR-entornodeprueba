@@ -125,7 +125,7 @@ export const CensusTableBody: React.FC<CensusTableBodyProps & CensusTableBodyBad
             actionMenuAlign={resolved.actionMenuAlign}
             diagnosisMode={diagnosisMode}
             isSubRow={row.isSubRow}
-            bedType={bedTypes[row.bed.id]}
+            bedType={bedTypes[row.bed.id] ?? row.bed.type}
             role={role}
             accessProfile={accessProfile}
             indicators={resolved.indicators}

@@ -166,8 +166,11 @@ export const UnitSubChart: React.FC<{
             {varNames.map((name, index) => {
               const colorIndex = (index + colorOffset) % LINE_COLORS.length;
               const dash = DASH_PATTERNS[index % DASH_PATTERNS.length];
-              const labelConfig = LABEL_OFFSETS[index % LABEL_OFFSETS.length];
-              const color = LINE_COLORS[colorIndex];
+              const labelConfig = LABEL_OFFSETS[index % LABEL_OFFSETS.length] ?? {
+                position: 'top' as const,
+                dy: -10,
+              };
+              const color = LINE_COLORS[colorIndex] ?? '#0f766e';
 
               return (
                 <Line

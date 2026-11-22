@@ -280,8 +280,9 @@ export const dedupeScoreHistory = (entries: EvaluationScoreEntry[]): EvaluationS
     const duplicateIndex = deduped.findIndex(candidate =>
       sameCrossSourceApplication(candidate, entry)
     );
-    if (duplicateIndex < 0) deduped.push(entry);
-    else deduped[duplicateIndex] = mergeHistoryCopies(deduped[duplicateIndex], entry);
+    const existing = duplicateIndex >= 0 ? deduped[duplicateIndex] : undefined;
+    if (!existing) deduped.push(entry);
+    else deduped[duplicateIndex] = mergeHistoryCopies(existing, entry);
   }
   return deduped;
 };

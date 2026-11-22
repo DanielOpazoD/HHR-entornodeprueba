@@ -8,11 +8,23 @@ export interface PatientRowResolvedIndicators {
 
 // Four immutable value combinations keep React.memo effective when another bed's
 // document presence changes. No per-patient cache or custom row comparator.
-const INDICATOR_VALUES = [false, true].flatMap(hasClinicalDocument =>
-  [false, true].map(isNewAdmission => Object.freeze({ hasClinicalDocument, isNewAdmission }))
-);
-const stableIndicators = (hasClinicalDocument: boolean, isNewAdmission: boolean) =>
-  INDICATOR_VALUES[Number(hasClinicalDocument) * 2 + Number(isNewAdmission)];
+const INDICATOR_VALUES = {
+  none: Object.freeze({ hasClinicalDocument: false, isNewAdmission: false }),
+  newOnly: Object.freeze({ hasClinicalDocument: false, isNewAdmission: true }),
+  docOnly: Object.freeze({ hasClinicalDocument: true, isNewAdmission: false }),
+  both: Object.freeze({ hasClinicalDocument: true, isNewAdmission: true }),
+} as const;
+const stableIndicators = (
+  hasClinicalDocument: boolean,
+  isNewAdmission: boolean
+): PatientRowResolvedIndicators =>
+  hasClinicalDocument
+    ? isNewAdmission
+      ? INDICATOR_VALUES.both
+      : INDICATOR_VALUES.docOnly
+    : isNewAdmission
+      ? INDICATOR_VALUES.newOnly
+      : INDICATOR_VALUES.none;
 
 export const EMPTY_PATIENT_ROW_INDICATORS: PatientRowResolvedIndicators = stableIndicators(
   false,

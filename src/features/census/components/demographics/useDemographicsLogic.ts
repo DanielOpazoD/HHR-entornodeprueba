@@ -111,7 +111,7 @@ export const useDemographicsLogic = ({
     if (localData.birthDate) {
       const birthDateValidation = PatientInputSchema.shape.birthDate.safeParse(localData.birthDate);
       if (!birthDateValidation.success) {
-        setError(birthDateValidation.error.issues[0].message);
+        setError(birthDateValidation.error.issues[0]?.message ?? 'Fecha de nacimiento inválida.');
         return;
       }
     }
@@ -122,7 +122,7 @@ export const useDemographicsLogic = ({
       const provisionalName = normalizeNameSpacing(localData.provisionalName);
       const nameValidation = PatientInputSchema.shape.patientName.safeParse(provisionalName);
       if (!nameValidation.success) {
-        setError(nameValidation.error.issues[0].message);
+        setError(nameValidation.error.issues[0]?.message ?? 'Nombre inválido.');
         return;
       }
 
@@ -157,7 +157,7 @@ export const useDemographicsLogic = ({
     if (fullName) {
       const nameValidation = PatientInputSchema.shape.patientName.safeParse(fullName);
       if (!nameValidation.success) {
-        setError(nameValidation.error.issues[0].message);
+        setError(nameValidation.error.issues[0]?.message ?? 'Nombre inválido.');
         return;
       }
     }
