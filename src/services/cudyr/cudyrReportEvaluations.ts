@@ -72,8 +72,11 @@ const fromObservation = (item: CudyrHistoryObservation): CudyrReportEvaluation =
 
 const commonReferenceAt = (values: string[]): string | undefined => {
   const instants = values.map(value => Date.parse(value));
-  return instants.length && instants.every(Number.isFinite) && new Set(instants).size === 1
-    ? new Date(instants[0]).toISOString()
+  const firstInstant = instants[0];
+  return firstInstant !== undefined &&
+    instants.every(Number.isFinite) &&
+    new Set(instants).size === 1
+    ? new Date(firstInstant).toISOString()
     : undefined;
 };
 

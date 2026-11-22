@@ -8,10 +8,10 @@ export const cudyrWorkbookSummary = (rows: CudyrReportRow[]) => {
   // Adapter for the original workbook formula layout only. "uti" is not a classification rule.
   const counts: CategoryCounts = {
     uti: Object.fromEntries(
-      CATEGORIES.map(cat => [cat, totals.categories[cat].intermedia])
+      CATEGORIES.map(cat => [cat, totals.categories[cat]?.intermedia ?? 0])
     ) as CategoryCounts['uti'],
     media: Object.fromEntries(
-      CATEGORIES.map(cat => [cat, totals.categories[cat].media])
+      CATEGORIES.map(cat => [cat, totals.categories[cat]?.media ?? 0])
     ) as CategoryCounts['media'],
   };
   return {

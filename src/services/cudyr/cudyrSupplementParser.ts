@@ -99,8 +99,8 @@ export const parseCudyrSupplementMatrix = ({
   const periods = all.filter(value => fold(value).startsWith('mes consultado:'));
   const periodValues = new Set(periods.map(fold));
   const period = periods[0] && fold(periods[0]).match(/^mes consultado:\s*([a-z]+) de (\d{4})$/);
-  const monthIndex = period ? months.indexOf(period[1]) : -1;
-  const year = period ? Number(period[2]) : 0;
+  const monthIndex = period?.[1] ? months.indexOf(period[1]) : -1;
+  const year = period?.[2] ? Number(period[2]) : 0;
   if (periodValues.size !== 1 || monthIndex < 0 || year < 2000 || year > 2100)
     issue(0, 0, 'period', 'No se pudo identificar un único mes consultado.');
   const establishments = all.filter(value => /^hospital\s/i.test(value));
@@ -118,7 +118,8 @@ export const parseCudyrSupplementMatrix = ({
   if (issues.length) return { ok: false, issues };
   const month = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
   const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
-  let header: number[] | null = null;
+  type HeaderColumns = readonly [number, number, number, number, number, number, number, number];
+  let header: HeaderColumns | null = null;
   let headerRow = -1;
   let headerCount = 0;
   let dayColumns: Array<{ day: number; index: number }> = [];
@@ -126,11 +127,15 @@ export const parseCudyrSupplementMatrix = ({
   const ordinals = new Set<number>();
   for (let r = 0; r < values.length; r += 1) {
     const row = values[r];
+    if (!row) continue;
     const folded = row.map(fold);
     if (folded.includes(fold('Nombre Paciente'))) {
       headerRow = r;
       headerCount += 1;
-      header = columns.map(label => folded.indexOf(fold(label)));
+      const [c0 = -1, c1 = -1, c2 = -1, c3 = -1, c4 = -1, c5 = -1, c6 = -1, c7 = -1] = columns.map(
+        label => folded.indexOf(fold(label))
+      );
+      header = [c0, c1, c2, c3, c4, c5, c6, c7];
       dayColumns = folded.flatMap((value, index) => {
         const match = value.match(/^dia (\d+)$/);
         return match ? [{ day: Number(match[1]), index }] : [];
@@ -195,8 +200,14 @@ export const parseCudyrSupplementMatrix = ({
       continue;
     }
     ordinals.add(ordinal);
-    const fields = header.map(index => row[index] || '');
-    if (!fields[1]) issue(r + 1, header[1] + 1, 'value', 'Paciente sin nombre informado.');
+    const patientName = row[header[1]] || '';
+    const clinicalRecord = row[header[2]] || '';
+    const document = row[header[3]] || '';
+    const diagnosis = row[header[4]] || '';
+    const hospitalDays = row[header[5]] || '';
+    const service = row[header[6]] || '';
+    const dischargeCondition = row[header[7]] || '';
+    if (!patientName) issue(r + 1, header[1] + 1, 'value', 'Paciente sin nombre informado.');
     const days: CudyrSupplementDay[] = [];
     for (const { day, index } of dayColumns) {
       const originalValue = row[index] || '';
@@ -221,13 +232,13 @@ export const parseCudyrSupplementMatrix = ({
     patients.push({
       sourceRow: r + 1,
       ordinal,
-      patientName: fields[1],
-      clinicalRecord: fields[2],
-      document: fields[3],
-      diagnosis: fields[4],
-      hospitalDays: fields[5],
-      service: fields[6],
-      dischargeCondition: fields[7],
+      patientName,
+      clinicalRecord,
+      document,
+      diagnosis,
+      hospitalDays,
+      service,
+      dischargeCondition,
       days: days.sort((a, b) => a.sourceDay - b.sourceDay),
     });
   }

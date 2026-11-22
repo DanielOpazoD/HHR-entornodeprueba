@@ -200,14 +200,11 @@ export const recoverDailyCudyrGap = (
     return { kind: 'attribution_unreliable' };
   if (answering.length > 1) return { kind: 'attribution_unreliable' };
   const row = answering[0] ?? rows[0];
+  if (!row) return withoutCategory();
   const cells = row.days.filter(d => d.sourceDate === sourceDate);
-  const category = cells[0]?.category;
-  if (
-    !category ||
-    cells.length !== 1 ||
-    cells[0].state !== 'category' ||
-    !/^[A-D][1-3]$/.test(category)
-  )
+  const cell = cells.length === 1 ? cells[0] : undefined;
+  const category = cell?.category;
+  if (!cell || !category || cell.state !== 'category' || !/^[A-D][1-3]$/.test(category))
     return withoutCategory();
   return {
     kind: 'recovered',

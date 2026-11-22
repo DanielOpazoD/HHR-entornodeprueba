@@ -145,15 +145,19 @@ const reviewedAbsenceIsCorroborated = (
   archive: ArchivedCudyrSupplement,
   sourceDate: string,
   targets: CudyrReportRow[]
-) =>
-  entry.sourceRow === null &&
-  Boolean(entry.document) &&
-  Boolean(entry.patientName) &&
-  archive.report.month === sourceDate.slice(0, 7) &&
-  monthlySourceIsFinal(archive, entry.date, pass.now) &&
-  targets.length === 1 &&
-  cudyrDocumentKey(targets[0].rut) === cudyrDocumentKey(entry.document) &&
-  compactNameKey(targets[0].patientName) === compactNameKey(entry.patientName!);
+) => {
+  const firstTarget = targets.length === 1 ? targets[0] : undefined;
+  return (
+    entry.sourceRow === null &&
+    Boolean(entry.document) &&
+    Boolean(entry.patientName) &&
+    archive.report.month === sourceDate.slice(0, 7) &&
+    monthlySourceIsFinal(archive, entry.date, pass.now) &&
+    firstTarget !== undefined &&
+    cudyrDocumentKey(firstTarget.rut) === cudyrDocumentKey(entry.document) &&
+    compactNameKey(firstTarget.patientName) === compactNameKey(entry.patientName || '')
+  );
+};
 
 /** ID-03: a cradle RN may cite its mother's source row, never as the same person. */
 const isMaternalSourceRow = (
@@ -205,7 +209,11 @@ const applyReviewedAbsence = (
     seeded = true;
     targets.push(target);
   }
-  if (!archive || !reviewedAbsenceIsCorroborated(pass, entry, archive, sourceDate, targets)) {
+  if (
+    !archive ||
+    !target ||
+    !reviewedAbsenceIsCorroborated(pass, entry, archive, sourceDate, targets)
+  ) {
     pass.issues.push(`Verificación ${entry.date}: falta corroborar identidad o informe completo.`);
     return;
   }
@@ -268,9 +276,10 @@ const rowsHoldingSourceCell = (
         cudyrIdentity(p.document, p.patientName) ===
         cudyrIdentity(patient.document, patient.patientName)
     );
+    const candidate = candidates.length === 1 ? candidates[0] : undefined;
     return (
-      candidates.length === 1 &&
-      candidates[0].sourceRow === r.monthlyEvidence.sourceRow &&
+      candidate !== undefined &&
+      candidate.sourceRow === r.monthlyEvidence.sourceRow &&
       r.monthlyEvidence.sourceDate === cell.sourceDate
     );
   });

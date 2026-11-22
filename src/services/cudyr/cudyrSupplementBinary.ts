@@ -46,9 +46,11 @@ export const readCudyrWorkbookMatrix = (buffer: ArrayBuffer, normalizeDateEpoch 
     cellNF: normalizeDateEpoch,
     sheetRows: 5001,
   });
-  const names = book.SheetNames.filter(name => book.Sheets[name]['!ref']);
-  if (names.length !== 1) throw new Error('El informe debe contener una sola hoja con datos.');
-  const sheet = book.Sheets[names[0]];
+  const names = book.SheetNames.filter(name => book.Sheets[name]?.['!ref']);
+  const sheetName = names[0];
+  const sheet = sheetName ? book.Sheets[sheetName] : undefined;
+  if (names.length !== 1 || !sheetName || !sheet)
+    throw new Error('El informe debe contener una sola hoja con datos.');
   const range = utils.decode_range(sheet['!fullref'] || sheet['!ref'] || 'A1');
   if (range.e.r >= 5000 || range.e.c >= 100)
     throw new Error('El informe supera el límite de filas o columnas.');
@@ -86,7 +88,7 @@ export const readCudyrWorkbookMatrix = (buffer: ArrayBuffer, normalizeDateEpoch 
         blankrows: true,
       });
   return {
-    sheet: names[0],
+    sheet: sheetName,
     rows,
     formats: Object.fromEntries(
       Object.entries(sheet)

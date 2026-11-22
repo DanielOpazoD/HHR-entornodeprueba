@@ -18,7 +18,9 @@ export const buildCudyrReportWorkbook = async (
   supplements?: ArchivedCudyrSupplement[],
   mode: CudyrReportExportMode = 'statistics'
 ) => {
-  const [year, month] = data.from.split('-').map(Number);
+  const [yearStr, monthStr] = data.from.split('-');
+  const year = Number(yearStr);
+  const month = Number(monthStr);
   const dates = [
     ...new Set([
       ...data.coverage.filter(d => d.state === 'disponible').map(d => d.date),
@@ -83,7 +85,8 @@ export const buildCudyrReportWorkbook = async (
     sheet.mergeCells('A2:D2');
     sheet.getCell('A2').font = { bold: true, color: { argb: 'FF92400E' } };
   });
-  workbook.worksheets[0].getCell('A1').value = `CUDYR · ${data.from} a ${data.to}`;
+  const firstSheet = workbook.worksheets[0];
+  if (firstSheet) firstSheet.getCell('A1').value = `CUDYR · ${data.from} a ${data.to}`;
   if (mode === 'audit' && data.exclusions?.length) {
     addCudyrDataSheet(
       workbook,

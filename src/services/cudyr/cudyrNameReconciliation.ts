@@ -184,6 +184,7 @@ export const createCudyrIdentityResolver = (
         )
       )
       .sort()[0];
+    if (canonical === undefined) continue;
     for (const name of names) aliases.set(cudyrOrderedIdentity(document, name), canonical);
   }
   // Pure per (document, name): projections ask for the same pair once per row and source cell.

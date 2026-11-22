@@ -50,9 +50,11 @@ export const parseCudyrDischargeReport = (matrix: CudyrSupplementMatrix): CudyrD
     throw new Error('No se reconoce el informe de altas administrativas.');
   const periods = [...new Set(heading.filter(v => /^Desde:/.test(v)))];
   const period = periods[0]?.match(/^Desde:\s*(\d{2}-\d{2}-\d{4})\s+Hasta:\s*(\d{2}-\d{2}-\d{4})$/);
-  if (periods.length !== 1 || !period) throw new Error('Período de altas no verificable.');
-  const from = iso(period[1]),
-    to = iso(period[2]);
+  const [, fromRaw, toRaw] = period ?? [];
+  if (periods.length !== 1 || !fromRaw || !toRaw)
+    throw new Error('Período de altas no verificable.');
+  const from = iso(fromRaw),
+    to = iso(toRaw);
   if (from > to) throw new Error('Período de altas invertido.');
   const generatedLabel = heading.find(v => fold(v).startsWith('fecha hora impresion:')) || '';
   const report: CudyrDischargeReport = { from, to, generatedLabel, rows: [] };
@@ -66,21 +68,23 @@ export const parseCudyrDischargeReport = (matrix: CudyrSupplementMatrix): CudyrD
       return;
     }
     if (!columns.length) throw new Error('Falta encabezado de altas.');
-    const values = columns.map(i => row[i] || '');
-    const at = /^(\d{2}-\d{2}-\d{4})\s+((?:[01]\d|2[0-3]):[0-5]\d)$/.exec(values[4]);
-    if (!values[2] || !at)
+    const [service = '', bed = '', patientName = '', document = '', dateTime = '', diagnosis = ''] =
+      columns.map(i => row[i] || '');
+    const at = /^(\d{2}-\d{2}-\d{4})\s+((?:[01]\d|2[0-3]):[0-5]\d)$/.exec(dateTime);
+    const [, dateRaw, timeRaw] = at ?? [];
+    if (!patientName || !dateRaw || !timeRaw)
       throw new Error(`Fila ${firstHeader + offset + 1}: alta sin nombre o fecha/hora válida.`);
-    const date = iso(at[1]);
+    const date = iso(dateRaw);
     if (date < from || date > to) throw new Error('Alta fuera del período declarado.');
     report.rows.push({
       sourceRow: firstHeader + offset + 1,
-      service: values[0],
-      bed: values[1],
-      patientName: values[2],
-      document: values[3],
+      service,
+      bed,
+      patientName,
+      document,
       date,
-      time: at[2],
-      diagnosis: values[5],
+      time: timeRaw,
+      diagnosis,
     });
   });
   if (!report.rows.length) throw new Error('El archivo no contiene altas reconocibles.');

@@ -70,13 +70,15 @@ const officialSourcePatient = (
     : patient;
 
 /** Prefer the daily census identity, and in it a census or crib placement. */
-const primaryContext = (entries: CudyrReportFact[]) => {
+const primaryContext = (entries: [CudyrReportFact, ...CudyrReportFact[]]) => {
   const daily = entries.filter(item => item.contextIsDaily);
   const contexts = daily.length ? daily : entries;
   const first =
     contexts.find(
       item => item.placement.section === 'census' || item.placement.section === 'crib'
-    ) || contexts[0];
+    ) ||
+    contexts[0] ||
+    entries[0];
   return { daily, contexts, first };
 };
 
@@ -267,7 +269,7 @@ const withDailyExclusion = (
 const buildCudyrReportRow = (
   sources: CudyrRowSources,
   key: string,
-  entries: CudyrReportFact[]
+  entries: [CudyrReportFact, ...CudyrReportFact[]]
 ): CudyrReportRow => {
   const { input } = sources;
   // Prefer the daily census identity. Conflicting snapshots remain visible as a review warning.
@@ -372,10 +374,14 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
   const known = new Set(facts.map(fact => fact.key));
   const archived = collectCudyrArchiveFacts(input.observations, input.captures);
   facts.push(...archived.filter(fact => !known.has(fact.key)));
-  const groups = new Map<string, CudyrReportFact[]>();
+  const groups = new Map<string, [CudyrReportFact, ...CudyrReportFact[]]>();
   facts
     .filter(fact => fact.date >= input.from && fact.date <= input.to)
-    .forEach(fact => groups.set(fact.key, [...(groups.get(fact.key) || []), fact]));
+    .forEach(fact => {
+      const existing = groups.get(fact.key);
+      if (existing) existing.push(fact);
+      else groups.set(fact.key, [fact]);
+    });
   // Every placement reader filters by its own episode first, so each row reads only that list.
   const placementsByEpisode = new Map<string, ObservedCudyrPlacement[]>();
   for (const receipt of input.captures)

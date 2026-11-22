@@ -40,6 +40,7 @@ export const applyCudyrFirstNightRecovery = (
         return [];
       const context = next[0];
       if (
+        !context ||
         !context.hospitalAdmissionAt ||
         context.eligibility === 'por_revisar' ||
         context.bedHistory?.some(

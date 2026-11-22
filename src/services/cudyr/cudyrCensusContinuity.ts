@@ -22,6 +22,7 @@ export const applyCudyrCensusContinuity = (
     for (let i = 1; i < sorted.length; i++) {
       const before = sorted[i - 1],
         after = sorted[i];
+      if (!before || !after) continue;
       const gap = (Date.parse(after.date) - Date.parse(before.date)) / 86400000;
       if (
         gap < 2 ||
