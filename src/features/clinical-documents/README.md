@@ -100,8 +100,8 @@
 ## Runtime boundaries
 
 - El consumo externo UI debe entrar por `@/features/clinical-documents` o `@/features/clinical-documents/public`.
-- `application` y `shared` pueden usar `@/features/clinical-documents/internal` cuando necesiten
-  contratos o helpers del feature sin reingresar por componentes UI.
+- Los contratos y entidades compartidos con `application` y `services` viven directamente en
+  `src/domain/clinical-documents/*` (capa 0), sin puente `internal.ts`.
 - Los deep imports hacia `components/`, `services/`, `hooks/` o `controllers/` desde fuera de la
   feature están prohibidos y quedan cubiertos por tests de gobernanza estática.
 - La hoja principal no debe recuperar `if` especiales por `documentType`; la extensibilidad entra por definiciones/section renderers.
