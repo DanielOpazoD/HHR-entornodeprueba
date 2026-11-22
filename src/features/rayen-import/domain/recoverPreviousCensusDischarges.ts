@@ -81,8 +81,8 @@ export const recoverPreviousCensusDischarges = async (
           result.encounterId === patient.clinicalEpisodeId &&
           normalizeRut(result.run) === normalizeRut(lookupRun)
       );
-      if (matches.length !== 1) return [];
-      const result = matches[0];
+      const result = matches.length === 1 ? matches[0] : undefined;
+      if (!result) return [];
       const egreso = result.egreso;
       if (
         result.error ||

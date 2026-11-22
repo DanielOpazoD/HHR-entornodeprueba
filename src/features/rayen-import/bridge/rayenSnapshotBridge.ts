@@ -107,13 +107,26 @@ const isClinicalCoverage = (
     return false;
   }
   // All counters were checked as nonnegative safe integers above.
-  const counts = coverage as Record<string, number>;
+  const total = coverage.total;
+  const completed = coverage.completed;
+  const errors = coverage.errors;
+  const headerErrors = coverage.headerErrors;
+  const diagnosisErrors = coverage.diagnosisErrors;
+  const isolationErrors = coverage.isolationErrors;
+  if (
+    typeof total !== 'number' ||
+    typeof completed !== 'number' ||
+    typeof errors !== 'number' ||
+    typeof headerErrors !== 'number' ||
+    typeof diagnosisErrors !== 'number' ||
+    typeof isolationErrors !== 'number'
+  ) {
+    return false;
+  }
   return (
-    counts.completed + counts.errors === counts.total &&
-    ['headerErrors', 'diagnosisErrors', 'isolationErrors'].every(
-      field => counts[field] <= counts.errors
-    ) &&
-    (!isComplete || (counts.errors === 0 && counts.total === encounterCount))
+    completed + errors === total &&
+    [headerErrors, diagnosisErrors, isolationErrors].every(count => count <= errors) &&
+    (!isComplete || (errors === 0 && total === encounterCount))
   );
 };
 

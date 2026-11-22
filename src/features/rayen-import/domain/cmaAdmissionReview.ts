@@ -78,8 +78,14 @@ export const applyCmaAdmissionResolutions = (
     return [
       {
         ...edit,
-        patientNames: keptIndexes.map(index => edit.patientNames[index]).filter(Boolean),
-        admissionSubjects: keptIndexes.map(index => admissionSubjects[index]),
+        patientNames: keptIndexes.flatMap(index => {
+          const name = edit.patientNames[index];
+          return name ? [name] : [];
+        }),
+        admissionSubjects: keptIndexes.flatMap(index => {
+          const subject = admissionSubjects[index];
+          return subject ? [subject] : [];
+        }),
       },
     ];
   });

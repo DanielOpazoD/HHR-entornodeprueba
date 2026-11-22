@@ -50,14 +50,15 @@ const mapWithConcurrency = async <T, R>(
   worker: (value: T) => Promise<R>
 ): Promise<R[]> => {
   const results = new Array<R>(values.length);
+  const entries = values.map((value, index) => ({ value, index }));
   let cursor = 0;
   const runners = Array.from(
     { length: Math.min(MAX_PARALLEL_REPORTS, values.length) },
     async () => {
-      while (cursor < values.length) {
-        const index = cursor;
-        cursor += 1;
-        results[index] = await worker(values[index]);
+      while (cursor < entries.length) {
+        const entry = entries[cursor++];
+        if (!entry) break;
+        results[entry.index] = await worker(entry.value);
       }
     }
   );
@@ -357,7 +358,10 @@ export const reconstructHistoricalSnapshotAtClose = async (
   for (const { candidate, currentParentBedId, knownParentEpisodeId } of eligibleClinicalCribs) {
     const { encounter } = candidate;
     const currentPrincipals = livePrincipalsByBed.get(currentParentBedId) ?? [];
-    if (!knownParentEpisodeId && currentPrincipals.length !== 1) {
+    const resolvedMotherEpisodeId =
+      knownParentEpisodeId ??
+      (currentPrincipals.length === 1 ? currentPrincipals[0]?.encounterId : undefined);
+    if (!resolvedMotherEpisodeId) {
       conflicts.push(
         unresolvedConflict(
           encounter,
@@ -366,9 +370,7 @@ export const reconstructHistoricalSnapshotAtClose = async (
       );
       continue;
     }
-    const reconstructedMother = reconstructedPrincipalsByEpisode.get(
-      knownParentEpisodeId ?? currentPrincipals[0].encounterId
-    );
+    const reconstructedMother = reconstructedPrincipalsByEpisode.get(resolvedMotherEpisodeId);
     if (!reconstructedMother) {
       conflicts.push(
         unresolvedConflict(

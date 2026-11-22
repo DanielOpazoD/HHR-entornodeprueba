@@ -39,8 +39,10 @@ const movementFromLine = (
       payload
     );
   if (!stamp) return null;
-  const fields = stamp.slice(1, 6).map(value => value.replace(/\s+/g, ''));
-  const changedAt = toTimestamp(fields[2], fields[3], fields[4], fields[0], fields[1]);
+  const [h = '', mi = '', d = '', mo = '', y = ''] = stamp
+    .slice(1, 6)
+    .map(value => (value ?? '').replace(/\s+/g, ''));
+  const changedAt = toTimestamp(d, mo, y, h, mi);
   const unit = (stamp[6] || '').replace(/\s+(?:\d\s*){3}$/, '').trim();
   return changedAt && (!requireUnit || unit) ? { changedAt, unit } : null;
 };
@@ -48,9 +50,10 @@ const movementFromLine = (
 const reportRun = (text: string): string => {
   const lines = String(text || '').split(/\r?\n/);
   for (let index = 0; index < lines.length; index += 1) {
-    const marker = /\b1\.RUN:\s*(.*)$/i.exec(lines[index]);
+    const line = lines[index] ?? '';
+    const marker = /\b1\.RUN:\s*(.*)$/i.exec(line);
     if (!marker) continue;
-    const candidates = [marker[1], lines[index + 1] ?? '', lines[index + 2] ?? ''];
+    const candidates = [marker[1] ?? '', lines[index + 1] ?? '', lines[index + 2] ?? ''];
     for (const candidate of candidates) {
       const normalized = compactBoxedDigits(candidate);
       const match = /(?:^|\s)(\d{1,8})\s*-\s*([0-9K])\b/i.exec(normalized);
@@ -74,7 +77,7 @@ const maternalReportRun = (text: string): string => {
       ? [normalizeRut(candidate)]
       : [];
   });
-  return values.length === 1 ? values[0] : '';
+  return values.length === 1 ? (values[0] ?? '') : '';
 };
 
 /** Parses only the temporal and unit evidence needed for historical census reconstruction. */
@@ -114,8 +117,8 @@ export const parseStatisticalDischargeEvidence = (
       transfer.changedAt > discharge.changedAt
     )
       return null;
-    if (transfers.length && transfer.changedAt < transfers[transfers.length - 1].changedAt)
-      return null;
+    const lastTransfer = transfers.at(-1);
+    if (lastTransfer && transfer.changedAt < lastTransfer.changedAt) return null;
     const prior = transfers.find(item => item.changedAt === transfer.changedAt);
     if (prior && prior.unit !== transfer.unit) return null;
     if (!prior) transfers.push(transfer);

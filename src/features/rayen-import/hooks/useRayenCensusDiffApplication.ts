@@ -107,7 +107,8 @@ export const useRayenCensusDiffApplication = ({
               )
           );
           for (const entry of deferredHistoricalDischarges) {
-            result.record.beds[entry.bedId] = persistenceBase.beds[entry.bedId];
+            const preserved = persistenceBase.beds[entry.bedId];
+            if (preserved) result.record.beds[entry.bedId] = preserved;
           }
           const stamped = applyRunToRecord(result.record, diff).record;
           const startedAt = Date.now();

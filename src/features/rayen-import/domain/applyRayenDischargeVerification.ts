@@ -110,7 +110,7 @@ export const applyRayenDischargeVerification = (
     const medicalEntry = ownEntries.find(
       entry => entry.verification.medicalEpicrisis === 'confirmed'
     );
-    const encounterId = (medicalEntry ?? ownEntries[0]).encounterId ?? previous?.encounterId;
+    const encounterId = (medicalEntry ?? ownEntries[0])?.encounterId ?? previous?.encounterId;
     // La fecha que informa Eloísa corresponde al alta médica, no al cierre de enfermería.
     const registeredAt =
       medicalEntry?.source?.dischargeDatetime ?? previous?.registeredAt ?? undefined;

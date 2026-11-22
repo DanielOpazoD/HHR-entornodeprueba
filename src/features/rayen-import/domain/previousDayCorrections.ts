@@ -354,6 +354,11 @@ export const fileCrossDayCorrections = async (
         const missingPatch: typeof correction.diagnosisPatch = {};
         for (const path of paths) {
           const [, bedId, field] = path.split('.');
+          if (!bedId) {
+            throw new Error(
+              'El paciente del ingreso histórico cambió antes de copiar el diagnóstico.'
+            );
+          }
           const expected =
             field === 'clinicalCrib'
               ? correction.admittedRecord.beds[bedId]?.clinicalCrib

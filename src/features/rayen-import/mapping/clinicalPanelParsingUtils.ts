@@ -88,7 +88,7 @@ export const dayKey = (value: string): string => {
   if (instant) return instant.slice(0, 10);
   // clinical-clock-allow raw-offset-clock: Offset instants returned above; a date alone or a zone-less time keeps the date Eloísa wrote, as the panel shows it.
   const written = value.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (written) return written[1];
+  if (written?.[1]) return written[1];
   const timestamp = Date.parse(value);
   if (Number.isNaN(timestamp)) return '';
   // clinical-clock-allow device-calendar-today: Date.parse reads other zone-less text on the device clock and it is read back on that clock, so it keeps the day written on every device.

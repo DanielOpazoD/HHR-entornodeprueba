@@ -19,14 +19,15 @@ const datedStamp = (raw?: string | null): { date: string; time: string } | undef
   const match = raw?.match(
     /^(\d{4}-\d{2}-\d{2})[T ]([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d(?:\.\d+)?)?(Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)?$/
   );
-  if (!match || !z.iso.date().safeParse(match[1]).success) return undefined;
-  if (match[4]) {
+  const [, date, hour, minute, zone] = match ?? [];
+  if (!date || !hour || !minute || !z.iso.date().safeParse(date).success) return undefined;
+  if (zone) {
     const instant = new Date(raw ?? '');
     if (!Number.isFinite(instant.getTime())) return undefined;
     const stamp = calendarStampInClinicalTimeZone(instant);
     return { date: stamp.iso, time: stamp.hhmm };
   }
-  return { date: match[1], time: `${match[2]}:${match[3]}` };
+  return { date, time: `${hour}:${minute}` };
 };
 
 // Instances saved before `source` existed: only the JSON import writes an ISO expiration in the note.
@@ -43,13 +44,13 @@ const reconcileDeviceRetirements = (
 ): PatientData => {
   const current = calendarStampInClinicalTimeZone(now);
   if (date !== current.iso || !patient.clinicalEpisodeId) return patient;
-  const rows = entries.map(entry => ({
-    entry,
-    installation: mapRayenInvasiveDeviceEntries([
+  const rows = entries.flatMap(entry => {
+    const installation = mapRayenInvasiveDeviceEntries([
       { ...entry, archived: false, deleted: false, removedDatetime: null },
-    ])[0],
-  }));
-  if (rows.some(row => !datedStamp(row.entry.installationDatetime))) return patient;
+    ])[0];
+    return installation ? [{ entry, installation }] : [];
+  });
+  if (entries.some(entry => !datedStamp(entry.installationDatetime))) return patient;
   const history = patient.deviceInstanceHistory ?? [];
   const changedTypes = new Set<string>();
   const nextHistory = history.map(item => {
@@ -66,11 +67,12 @@ const reconcileDeviceRetirements = (
     )
       return item;
     const matches = rows.filter(row => sameDeviceInstallation(item, row.installation));
-    const explicit =
-      matches.length === 1 ? datedStamp(matches[0].entry.removedDatetime) : undefined;
+    const matched = matches.length === 1 ? matches[0] : undefined;
+    const explicit = matched ? datedStamp(matched.entry.removedDatetime) : undefined;
     if (matches.length && !explicit) return item;
-    if (explicit) {
-      const installation = datedStamp(matches[0].entry.installationDatetime)!;
+    if (explicit && matched) {
+      const installation = datedStamp(matched.entry.installationDatetime);
+      if (!installation) return item;
       const stamp = `${explicit.date}T${explicit.time}`;
       if (
         stamp < `${installation.date}T${installation.time}` ||
@@ -82,7 +84,7 @@ const reconcileDeviceRetirements = (
         history.filter(
           other =>
             other.clinicalEpisodeId === patient.clinicalEpisodeId &&
-            sameDeviceInstallation(other, matches[0].installation)
+            sameDeviceInstallation(other, matched.installation)
         ).length !== 1
       )
         return item;
@@ -104,11 +106,12 @@ const reconcileDeviceRetirements = (
   const devices = patient.devices.filter(type => {
     if (!changedTypes.has(type)) return true;
     const active = nextHistory.filter(item => item.type === type && item.status === 'Active');
+    const soleActive = active.length === 1 ? active[0] : undefined;
     if (active.length) {
-      if (active.length === 1) {
+      if (soleActive) {
         details[type] = {
-          installationDate: active[0].installationDate,
-          ...(active[0].note ? { note: active[0].note } : {}),
+          installationDate: soleActive.installationDate,
+          ...(soleActive.note ? { note: soleActive.note } : {}),
         };
       } else delete details[type];
       return true;

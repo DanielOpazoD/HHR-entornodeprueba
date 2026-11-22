@@ -257,6 +257,7 @@ export const buildRayenStructuralPersistenceBase = (
   if (!preferLocalContent) {
     for (const [episodeId, bedId] of authoritativeEpisodes) {
       const authoritativePatient = authoritative.beds[bedId];
+      if (!authoritativePatient) continue;
       const concurrentLocalEdit = (localByEpisode.get(episodeId) ?? []).some(
         localPatient => !haveSamePatientContent(authoritativePatient, localPatient)
       );
@@ -299,6 +300,7 @@ export const buildRayenStructuralPersistenceBase = (
 
   authoritativeEpisodes.forEach((bedId, episodeId) => {
     let patient = beds[bedId];
+    if (!patient) return;
     for (const localPatient of localByEpisode.get(episodeId) ?? []) {
       if (localPatient === local.beds[bedId]) continue;
       patient = mergePatientData(

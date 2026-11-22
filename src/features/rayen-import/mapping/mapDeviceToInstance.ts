@@ -83,6 +83,7 @@ const parseInstall = (raw: string): { date: string; time: string } => {
   );
   if (!match) return { date: '', time: '' };
   const [, d, mo, y, h, mi] = match;
+  if (!d || !mo || !y) return { date: '', time: '' };
   const year = y.length === 2 ? 2000 + Number(y) : Number(y);
   const pad = (n: number | string): string => String(n).padStart(2, '0');
   return {

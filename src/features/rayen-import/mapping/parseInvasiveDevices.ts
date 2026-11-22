@@ -68,12 +68,13 @@ export const parseInvasiveDevices = (items: DeviceTextItem[]): InvasiveDeviceRow
     const joined = norm(line.cells.map(c => c.s).join(' '));
     return joined.includes('nombre') && joined.includes('fecha instalacion');
   });
-  if (headerIdx < 0) return [];
+  const headerLine = headerIdx >= 0 ? lines[headerIdx] : undefined;
+  if (!headerLine) return [];
 
   // Column x-anchors from the header cells.
   type Col = 'nombre' | 'ubicacion' | 'nro' | 'fechaInstalacion' | 'fechaExpiracion';
   const anchors: Array<[Col, number]> = [];
-  for (const cell of lines[headerIdx].cells) {
+  for (const cell of headerLine.cells) {
     const n = norm(cell.s);
     if (n.includes('nombre')) anchors.push(['nombre', cell.x]);
     else if (n.includes('ubicaci')) anchors.push(['ubicacion', cell.x]);
@@ -88,6 +89,7 @@ export const parseInvasiveDevices = (items: DeviceTextItem[]): InvasiveDeviceRow
   const devices: InvasiveDeviceRow[] = [];
   for (let i = headerIdx + 1; i < lines.length; i++) {
     const line = lines[i];
+    if (!line) continue;
     const joined = norm(line.cells.map(c => c.s).join(' '));
     if (joined.includes('signos vitales') || joined.startsWith('pag.')) break; // next section
     if (joined === 'invasivos:' || joined.startsWith('invasivos')) continue; // wrapped title label
