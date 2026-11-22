@@ -114,7 +114,7 @@ export const useAuditTrail = (): UseAuditTrailResult => {
 
   useEffect(() => {
     let cancelled = false;
-    const [startDate, endDate] = requestKey.split('|');
+    const [startDate = '', endDate = ''] = requestKey.split('|');
     const loadPeriod = async (): Promise<AuditTrailLoad> => {
       const result = await executeFetchAuditLogRange({
         ...resolveAuditTrailQueryRange({ kind: 'range', startDate, endDate }),

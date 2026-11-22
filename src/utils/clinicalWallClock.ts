@@ -8,8 +8,8 @@ import { calendarStampInClinicalTimeZone } from './clinicalTimeZone';
 const HALF_DAY_MS = 12 * 60 * 60 * 1000;
 
 const toUtcMinutes = (isoDate: string, hhmm: string): number => {
-  const [year, month, day] = isoDate.split('-').map(Number);
-  const [hour, minute] = hhmm.split(':').map(Number);
+  const [year = Number.NaN, month = Number.NaN, day = Number.NaN] = isoDate.split('-').map(Number);
+  const [hour = Number.NaN, minute = Number.NaN] = hhmm.split(':').map(Number);
   return Date.UTC(year, month - 1, day, hour, minute);
 };
 

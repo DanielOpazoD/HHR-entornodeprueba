@@ -26,6 +26,7 @@ export const formatCalendarDate = (
   const match = CALENDAR_DATE.exec(isoDate);
   if (!match) return null;
   const [, year, month, day] = match.map(Number);
+  if (year === undefined || month === undefined || day === undefined) return null;
   return new Date(Date.UTC(year, month - 1, day, 12)).toLocaleDateString(locale, {
     ...options,
     timeZone: 'UTC',

@@ -31,6 +31,7 @@ const MoaCompanion = () => {
     const alternatives = choices.filter(choice => choice.id !== lastChoice.current);
     const available = alternatives.length ? alternatives : choices;
     const choice = available[Math.floor(Math.random() * available.length)];
+    if (!choice) return;
     lastChoice.current = choice.id;
     setSelected(catalog?.scenes.find(item => item.id === choice.id) || null);
     setGesture(choice.id);

@@ -57,9 +57,10 @@ export const BackupFilesContent: React.FC<BackupFilesContentProps> = ({
     );
   }
 
-  if (path.length === 2) {
-    const currentYear = Number.parseInt(path[0], 10);
-    const currentMonthName = path[1];
+  const [yearSegment, monthSegment] = path;
+  if (path.length === 2 && yearSegment !== undefined && monthSegment !== undefined) {
+    const currentYear = Number.parseInt(yearSegment, 10);
+    const currentMonthName = monthSegment;
     const files = items
       .filter(item => item.type === 'file')
       .map(item => item.data as BaseStoredFile | StoredPdfFile);

@@ -98,11 +98,13 @@ export const usePhotoLightboxZoom = (): PhotoLightboxZoom => {
   }, []);
 
   const handleTouchMove = useCallback((e: ReactTouchEvent) => {
-    if (e.touches.length !== 2) return;
+    const firstTouch = e.touches[0];
+    const secondTouch = e.touches[1];
+    if (e.touches.length !== 2 || !firstTouch || !secondTouch) return;
     e.preventDefault();
     const dist = Math.hypot(
-      e.touches[0].clientX - e.touches[1].clientX,
-      e.touches[0].clientY - e.touches[1].clientY
+      firstTouch.clientX - secondTouch.clientX,
+      firstTouch.clientY - secondTouch.clientY
     );
     if (lastPinchDist.current !== null) {
       const delta = dist - lastPinchDist.current;

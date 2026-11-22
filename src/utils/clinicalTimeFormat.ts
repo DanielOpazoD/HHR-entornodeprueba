@@ -32,7 +32,7 @@ const clinicalWallClockAsUtc = (epochMs: number): number => {
 
 /** Instant at which the hospital calendar day `YYYY-MM-DD` starts (00:00 in Rapa Nui). */
 export const clinicalDayStartEpochMs = (dateIso: string): number => {
-  const [year, month, day] = dateIso.split('-').map(Number);
+  const [year = Number.NaN, month = Number.NaN, day = Number.NaN] = dateIso.split('-').map(Number);
   const wallMidnight = Date.UTC(year, month - 1, day);
   const firstGuess = wallMidnight - (clinicalWallClockAsUtc(wallMidnight) - wallMidnight);
   return wallMidnight - (clinicalWallClockAsUtc(firstGuess) - firstGuess);
@@ -40,7 +40,7 @@ export const clinicalDayStartEpochMs = (dateIso: string): number => {
 
 /** Shifts a hospital calendar date by whole days. */
 export const addClinicalDays = (dateIso: string, days: number): string => {
-  const [year, month, day] = dateIso.split('-').map(Number);
+  const [year = Number.NaN, month = Number.NaN, day = Number.NaN] = dateIso.split('-').map(Number);
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 };
 

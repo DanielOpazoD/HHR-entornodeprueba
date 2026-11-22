@@ -37,9 +37,12 @@ export const BookmarkManagerModal: React.FC<BookmarkManagerModalProps> = ({
 
     if (newIndex < 0 || newIndex >= newBookmarks.length) return;
 
-    const temp = newBookmarks[index];
-    newBookmarks[index] = newBookmarks[newIndex];
-    newBookmarks[newIndex] = temp;
+    const current = newBookmarks[index];
+    const target = newBookmarks[newIndex];
+    if (!current || !target) return;
+
+    newBookmarks[index] = target;
+    newBookmarks[newIndex] = current;
 
     setLocalBookmarks(newBookmarks);
     setHasChanges(true);

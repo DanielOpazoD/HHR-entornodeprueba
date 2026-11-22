@@ -31,7 +31,7 @@ interface TraceabilityModalProps {
 const resolveAdmissionDate = (dateValue?: string): string | null => {
   if (!dateValue) return null;
   const datePart = dateValue.split('T')[0];
-  return /^\d{4}-\d{2}-\d{2}$/.test(datePart) ? datePart : null;
+  return datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart) ? datePart : null;
 };
 
 const getStayDays = (patient: PatientTraceability): number | null => {

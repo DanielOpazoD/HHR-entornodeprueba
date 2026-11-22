@@ -47,7 +47,7 @@ export const buildCensusEmailBody = (
   encryptionPin?: string
 ): string => {
   // Parse date to get day, month name, year
-  const [year, month, day] = date.split('-');
+  const [year = '', month = '', day = ''] = date.split('-');
   const monthNames = [
     'enero',
     'febrero',

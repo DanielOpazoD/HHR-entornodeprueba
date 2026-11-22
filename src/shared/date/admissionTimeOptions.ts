@@ -33,7 +33,7 @@ export const resolveAdmissionTimePickerModel = ({
   admissionTime?: string;
   now?: Date;
 }): AdmissionTimePickerModel => {
-  const [currentHour, currentMinute] = calendarStampInClinicalTimeZone(now)
+  const [currentHour = 0, currentMinute = 0] = calendarStampInClinicalTimeZone(now)
     .hhmm.split(':')
     .map(Number);
   const selectedHour = parseTimePart(admissionTime, 0) ?? currentHour;

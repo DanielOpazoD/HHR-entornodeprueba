@@ -24,8 +24,8 @@ export const FALLBACK_DAYS_BACK = 7;
 export { formatDayLabel, todayIso };
 
 const shiftIsoDay = (iso: string, deltaDays: number): string => {
-  const [year, month, day] = iso.split('-').map(Number);
-  const d = new Date(year, (month ?? 1) - 1, day ?? 1);
+  const [year = Number.NaN, month = 1, day = 1] = iso.split('-').map(Number);
+  const d = new Date(year, month - 1, day);
   d.setDate(d.getDate() + deltaDays);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };

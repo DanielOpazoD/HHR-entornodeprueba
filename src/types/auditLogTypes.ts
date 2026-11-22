@@ -36,7 +36,7 @@ export interface AuditLogEntry {
 export const maskRut = (rut: string): string => {
   if (!rut || rut.length < 4) return '***';
   const parts = rut.split('-');
-  if (parts.length === 2) {
+  if (parts.length === 2 && parts[0] !== undefined) {
     const body = parts[0];
     return body.slice(0, -3) + '***-*';
   }

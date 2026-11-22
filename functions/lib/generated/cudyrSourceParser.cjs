@@ -361,7 +361,7 @@ var calendarDayAtUtcNoon = (dateString) => /* @__PURE__ */ new Date(`${dateStrin
 var addCalendarDays = (dateString, days) => {
   const date = calendarDayAtUtcNoon(dateString);
   date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().split("T")[0];
+  return date.toISOString().split("T")[0] ?? dateString;
 };
 
 // src/utils/chileanHolidays.ts

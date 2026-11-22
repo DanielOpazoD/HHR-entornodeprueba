@@ -30,17 +30,16 @@ export const applyPatches = <T extends object>(obj: T, patches: DailyRecordPatch
  * Recursively applies a path of keys to an object, cloning only the path.
  */
 function applySinglePath<T>(obj: T, parts: string[], value: unknown): T {
-  if (parts.length === 0) return value as T;
-
   const [currentPart, ...remainingParts] = parts;
+  if (currentPart === undefined) return value as T;
 
   const currentValue = getChildValue(obj, currentPart);
 
   let nextValue: unknown;
-  if (remainingParts.length === 0) {
+  const nextPart = remainingParts[0];
+  if (nextPart === undefined) {
     nextValue = value;
   } else {
-    const nextPart = remainingParts[0];
     const baseForNext =
       currentValue && typeof currentValue === 'object'
         ? currentValue

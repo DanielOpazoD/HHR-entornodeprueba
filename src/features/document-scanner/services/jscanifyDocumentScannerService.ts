@@ -194,6 +194,7 @@ export const createDocumentPageThumbnails = async (
   const thumbnailBlobs: Array<{ pageIndex: number; blob: Blob }> = [];
   for (let pageIndex = 0; pageIndex < session.pages.length; pageIndex += 1) {
     const page = session.pages[pageIndex];
+    if (!page) continue;
     const canvas = await renderFilteredPage(page, page.filterMode, 160);
     try {
       thumbnailBlobs.push({ pageIndex, blob: await canvasToBlob(canvas, 0.8) });
@@ -283,8 +284,9 @@ export const createDocumentScanPdf = async (
   const margin = 6;
 
   for (let index = 0; index < session.pages.length; index += 1) {
-    if (index > 0) pdf.addPage('a4', 'portrait');
     const page = session.pages[index];
+    if (!page) continue;
+    if (index > 0) pdf.addPage('a4', 'portrait');
     const canvas = await renderFilteredPage(page, page.filterMode);
     try {
       const scale = Math.min(
@@ -318,6 +320,7 @@ export const createDocumentScanUploadImages = async (
   let usedBytes = 0;
   for (let index = 0; index < session.pages.length; index += 1) {
     const page = session.pages[index];
+    if (!page) continue;
     const canvas = await renderFilteredPage(page, page.filterMode);
     try {
       const remainingPages = session.pages.length - index;

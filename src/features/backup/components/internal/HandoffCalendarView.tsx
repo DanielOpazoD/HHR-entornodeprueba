@@ -56,16 +56,18 @@ export const HandoffCalendarView: React.FC<HandoffCalendarViewProps> = ({
 
   // 4. Group existing files by date
   const groupedByDate = files.reduce<Record<string, DayRow>>((acc, file) => {
-    if (!acc[file.date]) {
-      acc[file.date] = {
+    let row = acc[file.date];
+    if (!row) {
+      row = {
         date: file.date,
         displayDate: formatDateDDMMYYYY(file.date),
       };
+      acc[file.date] = row;
     }
     if (file.shiftType === 'day') {
-      acc[file.date].dayFile = file;
+      row.dayFile = file;
     } else {
-      acc[file.date].nightFile = file;
+      row.nightFile = file;
     }
     return acc;
   }, {});

@@ -35,7 +35,8 @@ export const todayDateString = (): string => getTodayISO();
 
 export const extractFileExtension = (file: File): string => {
   const parts = file.name.split('.');
-  return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : 'bin';
+  const extension = parts.length > 1 ? parts[parts.length - 1] : undefined;
+  return extension !== undefined ? extension.toLowerCase() : 'bin';
 };
 
 export const buildConsentStoragePath = (

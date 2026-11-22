@@ -21,8 +21,8 @@ export interface PrescriptionBedRowData {
 export const todayIso = (): string => getTodayISO();
 
 export const previousIsoDay = (iso: string): string => {
-  const [year, month, day] = iso.split('-').map(Number);
-  const date = new Date(year, (month ?? 1) - 1, day ?? 1);
+  const [year = Number.NaN, month = 1, day = 1] = iso.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
   date.setDate(date.getDate() - 1);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
