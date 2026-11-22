@@ -46,8 +46,7 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
         if (prev) URL.revokeObjectURL(prev);
         return null;
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file]);
+  }, [file, updatePreview]);
 
   const handleUpload = async () => {
     if (!file) return;

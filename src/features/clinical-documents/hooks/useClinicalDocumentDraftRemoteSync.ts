@@ -59,24 +59,28 @@ export const useClinicalDocumentDraftRemoteSync = ({
     applyDraftLoadResolution(resolution, dispatch);
   }, [baseStateRef, dispatch, documents, draftDirtyRef, draftRef, selectedDocumentId]);
 
+  const { document: pendingRemoteDocument, snapshot: pendingRemoteSnapshot } = pendingRemoteState;
+
   useEffect(() => {
     if (
       !shouldApplyClinicalDocumentPendingRemoteUpdate({
         hasPendingRemoteUpdate,
         hasLocalDraftChanges: draftDirtyRef.current,
-        pendingRemoteState,
+        pendingRemoteState: {
+          document: pendingRemoteDocument,
+          snapshot: pendingRemoteSnapshot,
+        },
       })
     ) {
       return;
     }
 
     dispatch({ type: 'APPLY_REMOTE_UPDATE' });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- tracking the two sub-fields of pendingRemoteState keeps the effect from firing on unrelated state reshapes
   }, [
     dispatch,
     draftDirtyRef,
     hasPendingRemoteUpdate,
-    pendingRemoteState.document,
-    pendingRemoteState.snapshot,
+    pendingRemoteDocument,
+    pendingRemoteSnapshot,
   ]);
 };

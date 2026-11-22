@@ -1,7 +1,10 @@
 import { useMemo } from 'react';
 
 import { buildCensusTableLayoutBindings } from '@/features/census/controllers/censusTableLayoutController';
-import { useClinicalDocumentPresenceByBed } from '@/features/census/hooks/useClinicalDocumentPresenceByBed';
+import {
+  useClinicalDocumentPresenceByBed,
+  type ClinicalDocumentPresenceResult,
+} from '@/features/census/hooks/useClinicalDocumentPresenceByBed';
 import { useCensusTableViewModel } from '@/features/census/hooks/useCensusTableViewModel';
 import { canReadClinicalDocuments } from '@/shared/access/clinicalDocumentAccessPolicy';
 import { useDailyRecordMovements } from '@/context/DailyRecordContext';
@@ -16,6 +19,14 @@ interface UseCensusTableBindingsModelParams {
   accessProfile?: CensusAccessProfile;
 }
 
+const EMPTY_DISCHARGED_RUTS: ReadonlySet<string> = new Set();
+const EMPTY_PRESENCE_BY_BED: ClinicalDocumentPresenceResult['byBedId'] = {};
+const EMPTY_INFO_BY_BED: ClinicalDocumentPresenceResult['infoByBedId'] = {};
+const EMPTY_CLINICAL_DOCUMENT_PRESENCE: ClinicalDocumentPresenceResult = {
+  byBedId: EMPTY_PRESENCE_BY_BED,
+  infoByBedId: EMPTY_INFO_BY_BED,
+};
+
 /**
  * Builds a set of RUTs that were discharged on this census day.
  * Used to detect same-day readmissions for the new-admission badge.
@@ -23,7 +34,7 @@ interface UseCensusTableBindingsModelParams {
 const buildDischargedRuts = (
   discharges: Array<{ rut?: string }> | undefined
 ): ReadonlySet<string> => {
-  if (!discharges || discharges.length === 0) return new Set();
+  if (!discharges || discharges.length === 0) return EMPTY_DISCHARGED_RUTS;
   const ruts = new Set<string>();
   for (const d of discharges) {
     if (d.rut) ruts.add(d.rut);
@@ -43,16 +54,13 @@ export const useCensusTableBindingsModel = ({
   const canResolveClinicalDocumentPresence = useDeferredCensusEnhancement(
     Boolean(tableViewModel.beds) && canReadClinical && remoteSyncStatus === 'ready'
   );
-  const clinicalDocumentPresence = useClinicalDocumentPresenceByBed({
-    unifiedRows: tableViewModel.unifiedRows,
-    currentDateString,
-    enabled: canResolveClinicalDocumentPresence,
-  }) ?? {
-    byBedId: {},
-    infoByBedId: {},
-  };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- `?? {}` produces a stable reference across renders when byBedId is defined; memoizing it here would only add ceremony
-  const clinicalDocumentPresenceByBedId = clinicalDocumentPresence.byBedId ?? {};
+  const clinicalDocumentPresence =
+    useClinicalDocumentPresenceByBed({
+      unifiedRows: tableViewModel.unifiedRows,
+      currentDateString,
+      enabled: canResolveClinicalDocumentPresence,
+    }) ?? EMPTY_CLINICAL_DOCUMENT_PRESENCE;
+  const clinicalDocumentPresenceByBedId = clinicalDocumentPresence.byBedId ?? EMPTY_PRESENCE_BY_BED;
 
   const movements = useDailyRecordMovements();
   const dischargedRuts = useMemo(
@@ -114,6 +122,6 @@ export const useCensusTableBindingsModel = ({
   return {
     isReady: Boolean(tableViewModel.beds) && Boolean(bindings),
     bindings,
-    clinicalDocumentInfoByBedId: clinicalDocumentPresence.infoByBedId ?? {},
+    clinicalDocumentInfoByBedId: clinicalDocumentPresence.infoByBedId ?? EMPTY_INFO_BY_BED,
   };
 };
