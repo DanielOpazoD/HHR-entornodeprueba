@@ -67,16 +67,11 @@ const assertExportEntrypointIsOperational = async (page: Page) => {
   await page.goto(`/censo?date=${E2E_DATE}`);
   await expect(page.getByTestId('census-table')).toBeVisible({ timeout: 20000 });
 
-  const saveButton = page.getByRole('button', { name: /guardar|guardado|archivado/i }).first();
-  await expect(saveButton).toBeVisible({ timeout: 10000 });
-  await saveButton.evaluate((element: HTMLElement) => element.click());
-
-  const localExcelAction = page
-    .getByRole('button', { name: /descargar excel.*exportación local inmediata/i })
+  const exportExcelButton = page
+    .getByRole('button', { name: /descargar excel|archivado/i })
     .first();
-  await expect(localExcelAction).toBeVisible({ timeout: 10000 });
-
-  await localExcelAction.click();
+  await expect(exportExcelButton).toBeVisible({ timeout: 10000 });
+  await exportExcelButton.click();
   await expect(page.getByTestId('census-table')).toBeVisible({ timeout: 10000 });
 };
 

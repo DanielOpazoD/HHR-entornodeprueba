@@ -78,7 +78,7 @@ test.describe('Critical Census Flows (Firestore emulator-backed runtime)', () =>
     await page.waitForTimeout(500);
 
     await expect(page.getByTestId('census-table')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Guardar/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Descargar Excel|Archivado/i })).toBeVisible();
   });
 
   test('viewer role can reach the censo workspace without crashing', async ({ page }) => {
