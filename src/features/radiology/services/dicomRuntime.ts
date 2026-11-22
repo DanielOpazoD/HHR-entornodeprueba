@@ -9,33 +9,23 @@ import {
   createMprMemory,
   type MprReconstructionState,
 } from './dicomMprReconstruction';
-import { createDicomComparison } from './dicomComparison';
 import { createDicomComparisonOwner } from './dicomComparisonOwner';
 import type { fetchDicomInstance } from './mmradDicomService';
-import { openDicomCineSession } from './dicomCineSession';
-import {
-  DICOM_MPR_PLANE_NAMES,
-  describeDicomPlaneSlices,
-  openDicomVolumeVideo,
-} from './dicomVolumeVideo';
+import { describeDicomPlaneSlices } from './dicomVolumeVideo';
 import { initializeDicom as initialize } from './dicomInitialization';
 import {
-  getWebWorkerManager,
   RenderingEngine,
   setVolumesForViewports,
-  utilities,
-  getShouldUseCPURendering,
   type StackViewport,
   type VolumeViewport,
   type VolumeViewport3D,
 } from '@cornerstonejs/core';
 import { ToolGroupManager, CrosshairsTool } from '@cornerstonejs/tools';
-import { wadouri } from '@cornerstonejs/dicom-image-loader';
 import { captureRuntimeView } from './dicomRuntimeCapture';
 import { createMprTools, type DicomReference, type ReferenceStyle } from './dicomMprTools';
 import { applyVolumePresentation } from './dicomVolumePresentation';
 import { defaultVolumePresentation } from './dicomPresentation';
-import { createDicomVolume, type DicomVolumeHandle } from './dicomVolume';
+import type { DicomVolumeHandle } from './dicomVolume';
 import {
   startDicomSeries,
   type LoadedDicomSeries,
@@ -49,23 +39,16 @@ import { createDicomMeasurementStore, type DicomMeasurementStore } from './dicom
 import { createDicomStackTools, type DicomStackToolSession } from './dicomStackTools';
 import { dicomStackShowsHu, watchDicomCursorHu } from './dicomCursorValue';
 import { dicomSliceInterval } from './dicomVolumeEstimates';
+import {
+  ensureDicomRuntimeVolume,
+  openDicomRuntimeCine,
+  openDicomRuntimeComparison,
+  openDicomRuntimeVolumeVideo,
+  retainDicomRuntime,
+} from './dicomRuntimeLifecycle';
+
 export type { DicomTool, DicomMode, DicomOrientation, DicomRuntime } from './dicomRuntimeTypes';
-let runtimeUsers = 0;
-/** Global loader resources outlive individual series until the last session has drained. */
-const retainDicomRuntime = () => {
-  runtimeUsers++;
-  let released = false;
-  return () => {
-    if (released) return;
-    released = true;
-    if (--runtimeUsers) return;
-    if (getWebWorkerManager().workerRegistry.dicomImageLoader)
-      getWebWorkerManager().terminate('dicomImageLoader');
-    utilities.genericMetadataProvider.clear();
-    wadouri.fileManager.purge();
-    wadouri.dataSetCacheManager.purge();
-  };
-};
+
 export const createDicomRuntime = async (
   study: DicomStudy,
   series: DicomSeries,
@@ -233,36 +216,33 @@ export const createDicomRuntime = async (
     onGraphics: continuity.subscribe,
     loading: source!.loading,
     completion,
-    compare: async (secondary, elements, childSignal, notify) => {
-      await continuity.suspend();
-      return comparisons.open(async transition => {
-        await completion;
-        ensureActive();
-        const active = AbortSignal.any([signal, childSignal, transition]);
-        active.throwIfAborted();
-        mpr?.cancel();
-        // Comparar draws this series' measurements itself; Original redraws them on return.
-        stopCursor?.();
-        stackTools?.dispose();
-        stackTools = undefined;
-        resize?.disconnect();
-        await stack!.detach();
-        active.throwIfAborted();
-        return createDicomComparison(
-          study,
-          series,
-          secondary,
-          source!,
-          loaded!,
-          elements,
-          active,
-          notify,
-          fetchInstance,
-          stack!.state().requested,
-          measurements
-        );
-      });
-    },
+    compare: (secondary, elements, childSignal, notify) =>
+      openDicomRuntimeComparison({
+        study,
+        series,
+        secondary,
+        elements,
+        childSignal,
+        notify,
+        source: source!,
+        getLoaded: () => loaded,
+        stack: stack!,
+        measurements,
+        fetchInstance,
+        continuity,
+        comparisons,
+        completion,
+        signal,
+        ensureActive,
+        onBeforeOpen: () => {
+          mpr?.cancel();
+          // Comparar draws this series' measurements itself; Original redraws them on return.
+          stopCursor?.();
+          stackTools?.dispose();
+          stackTools = undefined;
+          resize?.disconnect();
+        },
+      }),
     onReconstruction: listener => {
       reconstructionListeners.add(listener);
       listener(reconstruction?.state() ?? null);
@@ -280,51 +260,33 @@ export const createDicomRuntime = async (
       if (state.rotate) [referenceEnabled, referenceStyle] = [true, 'lines'];
       activateTool(state.rotate ? 'reference' : 'window');
     },
-    openCine: options => {
-      ensureActive();
-      const firstViewportId = viewportIds[0];
-      if (mode !== 'original' || !engine || !stack || !firstViewportId)
-        throw new Error('Selecciona Original para cine.');
-      return openDicomCineSession(
-        engine.getViewport(firstViewportId) as StackViewport,
+    openCine: options =>
+      openDicomRuntimeCine({
+        engine,
         stack,
-        AbortSignal.any([signal, graphicsController.signal]),
+        mode,
+        viewportIds,
+        totalInstances: series.instances.length,
+        orientations,
+        signal,
+        graphicsSignal: graphicsController.signal,
         ensureActive,
-        {
-          total: series.instances.length,
-          orientation: () => orientations()[0],
-          restoreSlice: options?.restoreSlice,
-        }
-      );
-    },
-    openVideo: request => {
-      ensureActive();
-      const owner = engine;
-      const plane = request.kind === 'mpr' ? request.plane : 0;
-      const targetViewportId = viewportIds[plane];
-      const viewport = targetViewportId
-        ? (owner?.getViewport(targetViewportId) as VolumeViewport | undefined)
-        : undefined;
-      if (!owner || !viewport || mode !== request.kind || (mode === 'mpr' && !reconstruction))
-        throw new Error('La vista cambió. Vuelve a generar el video.');
-      const prefix = volume?.resampled ? 'Remuestreado · ' : '';
-      return openDicomVolumeVideo({
-        viewport,
+        restoreSlice: options?.restoreSlice,
+      }),
+    openVideo: request =>
+      openDicomRuntimeVolumeVideo({
+        getEngine: () => engine,
+        mode,
+        viewportIds,
+        getReconstruction: () => reconstruction,
+        resampled: Boolean(volume?.resampled),
         request,
-        lockElements: owner.getViewports().map(item => item.element.parentElement ?? item.element),
-        signal: AbortSignal.any([signal, graphicsController.signal]),
-        ensureActive: () => {
-          ensureActive();
-          if (engine !== owner) throw new Error('La vista cambió. Vuelve a generar el video.');
-        },
+        signal,
+        graphicsSignal: graphicsController.signal,
+        ensureActive,
         hold: continuity.hold,
-        edges: request.kind === 'mpr' ? orientations()[plane] : undefined,
-        describe: (position, total) =>
-          request.kind === 'mpr'
-            ? `${prefix}${DICOM_MPR_PLANE_NAMES[plane]} · ${reconstruction?.state().planes[plane]?.label ?? 'Corte fino'} · Corte ${position + 1}/${total}`
-            : `${prefix}Volumen 3D`,
-      });
-    },
+        orientations,
+      }),
     mprSlices: plane => {
       const targetViewportId = viewportIds[plane];
       return mode === 'mpr' && !disposed && engine && targetViewportId
@@ -405,28 +367,16 @@ export const createDicomRuntime = async (
         if (nextMode !== 'original') {
           await completion;
           ensureActive();
-          if (getShouldUseCPURendering())
-            throw new Error(
-              'MPR y 3D necesitan WebGL en este navegador. Utiliza la vista original.'
-            );
-          if (series.modality !== 'CT' && series.modality !== 'MR')
-            throw new Error('MPR y 3D están disponibles para series volumétricas de TAC o RM.');
-          if (!volume) {
-            const start = performance.now();
-            source!.loading.volume(true);
-            const created = await createDicomVolume(
-              volumeId,
-              loaded!.volumeGeometry,
-              series.modality,
-              loaded!.resamplingSupported,
-              signal
-            ).finally(() => source!.loading.volume(false, performance.now() - start));
-            if (disposed || signal.aborted) {
-              created.release();
-              ensureActive();
-            }
-            volume = created;
-          }
+          volume = await ensureDicomRuntimeVolume({
+            existingVolume: volume,
+            volumeId,
+            loaded: loaded!,
+            modality: series.modality,
+            signal,
+            loading: source!.loading,
+            ensureActive,
+            isDisposed: () => disposed,
+          });
         }
         await stack?.detach();
         ensureActive();
