@@ -27,14 +27,18 @@ export const applyVolumePresentation = (
   if (value.clipAxis !== 'none' && value.clipPercent > 0) {
     const axis = { x: 0, y: 1, z: 2 }[value.clipAxis];
     const bounds = actor.getBounds();
-    const fraction = value.clipPercent / 100;
-    const origin: Types.Point3 = [0, 0, 0];
-    const normal: Types.Point3 = [0, 0, 0];
-    origin[axis] = value.clipReverse
-      ? bounds[axis * 2 + 1] - (bounds[axis * 2 + 1] - bounds[axis * 2]) * fraction
-      : bounds[axis * 2] + (bounds[axis * 2 + 1] - bounds[axis * 2]) * fraction;
-    normal[axis] = value.clipReverse ? -1 : 1;
-    mapper.addClippingPlane(vtkPlane.newInstance({ origin, normal }));
+    const minBound = bounds[axis * 2];
+    const maxBound = bounds[axis * 2 + 1];
+    if (minBound !== undefined && maxBound !== undefined) {
+      const fraction = value.clipPercent / 100;
+      const origin: Types.Point3 = [0, 0, 0];
+      const normal: Types.Point3 = [0, 0, 0];
+      origin[axis] = value.clipReverse
+        ? maxBound - (maxBound - minBound) * fraction
+        : minBound + (maxBound - minBound) * fraction;
+      normal[axis] = value.clipReverse ? -1 : 1;
+      mapper.addClippingPlane(vtkPlane.newInstance({ origin, normal }));
+    }
   }
   viewport.render();
 };

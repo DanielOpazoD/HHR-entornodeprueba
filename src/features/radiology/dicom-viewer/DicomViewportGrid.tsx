@@ -55,15 +55,21 @@ export const DicomViewportGrid: React.FC<{
           data-expanded={expanded === index}
           aria-hidden={expanded !== null && expanded !== index}
         >
-          {!busy && !error && currentOrientations[index] && (
-            <div className="dicom-orientation" aria-hidden="true">
-              {(['top', 'right', 'bottom', 'left'] as const).map(edge => (
-                <span key={edge} className={`dicom-edge-${edge}`}>
-                  {currentOrientations[index][edge]}
-                </span>
-              ))}
-            </div>
-          )}
+          {!busy &&
+            !error &&
+            (() => {
+              const orientation = currentOrientations[index];
+              if (!orientation) return null;
+              return (
+                <div className="dicom-orientation" aria-hidden="true">
+                  {(['top', 'right', 'bottom', 'left'] as const).map(edge => (
+                    <span key={edge} className={`dicom-edge-${edge}`}>
+                      {orientation[edge]}
+                    </span>
+                  ))}
+                </div>
+              );
+            })()}
           <button
             type="button"
             className="dicom-plane"

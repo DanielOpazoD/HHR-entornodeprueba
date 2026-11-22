@@ -87,6 +87,7 @@ export const createDicomStackTools = (
   for (const panel of panels)
     for (const toolName of toolNames) {
       const kind = dicomStackToolKinds[toolName];
+      if (!kind) continue;
       panel.group.addTool(toolName, {
         getTextLines: dicomStackTextLines(kind),
         ...(['ellipse', 'rectangle', 'circle'].includes(kind)

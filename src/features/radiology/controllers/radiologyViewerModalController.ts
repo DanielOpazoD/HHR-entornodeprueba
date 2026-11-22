@@ -79,7 +79,7 @@ export const resolveMMRADDatePresetRange = (
   }
 
   return {
-    from: from.toISOString().split('T')[0],
+    from: from.toISOString().slice(0, 10),
     to,
   };
 };

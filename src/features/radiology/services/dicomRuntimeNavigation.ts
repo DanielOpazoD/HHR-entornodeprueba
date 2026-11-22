@@ -40,7 +40,8 @@ export const createDicomRuntimeNavigation = (
       stack?.step(delta);
       return;
     }
-    const viewport = engine.getViewport(viewportIds[plane]);
+    const viewportId = viewportIds[plane];
+    const viewport = viewportId ? engine.getViewport(viewportId) : undefined;
     if (viewport) utilities.scroll(viewport, { delta, debounceLoading: false });
   },
 });

@@ -94,9 +94,13 @@ export const createMprReconstruction = (
     reset: () => {
       settings = defaultMprSettings();
       viewports.forEach((viewport, i) => {
-        const { viewPlaneNormal, viewUp } = initial[i];
+        const camera = initial[i];
+        if (!camera?.viewPlaneNormal || !camera.viewUp) return;
         viewport.setOrientation(
-          { viewPlaneNormal: viewPlaneNormal!, viewUp: viewUp! } as Types.OrientationVectors,
+          {
+            viewPlaneNormal: camera.viewPlaneNormal,
+            viewUp: camera.viewUp,
+          } as Types.OrientationVectors,
           false
         );
       });

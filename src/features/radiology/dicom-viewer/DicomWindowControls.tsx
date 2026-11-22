@@ -16,7 +16,7 @@ export const DicomWindowControls: React.FC<{
         disabled={!runtime || disabled || mode === '3d' || modality !== 'CT'}
         onChange={e => {
           const [width, center] = e.target.value.split(',').map(Number);
-          if (width) runtime?.window(width, center);
+          if (width && center !== undefined) runtime?.window(width, center);
         }}
       >
         <option value="" disabled>

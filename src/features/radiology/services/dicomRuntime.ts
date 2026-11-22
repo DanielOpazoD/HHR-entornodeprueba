@@ -282,10 +282,11 @@ export const createDicomRuntime = async (
     },
     openCine: options => {
       ensureActive();
-      if (mode !== 'original' || !engine || !stack)
+      const firstViewportId = viewportIds[0];
+      if (mode !== 'original' || !engine || !stack || !firstViewportId)
         throw new Error('Selecciona Original para cine.');
       return openDicomCineSession(
-        engine.getViewport(viewportIds[0]) as StackViewport,
+        engine.getViewport(firstViewportId) as StackViewport,
         stack,
         AbortSignal.any([signal, graphicsController.signal]),
         ensureActive,
@@ -300,7 +301,10 @@ export const createDicomRuntime = async (
       ensureActive();
       const owner = engine;
       const plane = request.kind === 'mpr' ? request.plane : 0;
-      const viewport = owner?.getViewport(viewportIds[plane]) as VolumeViewport | undefined;
+      const targetViewportId = viewportIds[plane];
+      const viewport = targetViewportId
+        ? (owner?.getViewport(targetViewportId) as VolumeViewport | undefined)
+        : undefined;
       if (!owner || !viewport || mode !== request.kind || (mode === 'mpr' && !reconstruction))
         throw new Error('La vista cambió. Vuelve a generar el video.');
       const prefix = volume?.resampled ? 'Remuestreado · ' : '';
@@ -321,10 +325,12 @@ export const createDicomRuntime = async (
             : `${prefix}Volumen 3D`,
       });
     },
-    mprSlices: plane =>
-      mode === 'mpr' && !disposed && engine
-        ? describeDicomPlaneSlices(engine.getViewport(viewportIds[plane]) as VolumeViewport)
-        : null,
+    mprSlices: plane => {
+      const targetViewportId = viewportIds[plane];
+      return mode === 'mpr' && !disposed && engine && targetViewportId
+        ? describeDicomPlaneSlices(engine.getViewport(targetViewportId) as VolumeViewport)
+        : null;
+    },
     select: index => {
       if (mode === 'original' && !disposed) stack?.select(index);
     },
@@ -378,10 +384,11 @@ export const createDicomRuntime = async (
       };
     },
     presentation: value => {
-      if (mode === '3d' && !disposed && engine) {
+      const firstViewportId = viewportIds[0];
+      if (mode === '3d' && !disposed && engine && firstViewportId) {
         volumePresentation = value;
         applyVolumePresentation(
-          engine.getViewport(viewportIds[0]) as VolumeViewport3D,
+          engine.getViewport(firstViewportId) as VolumeViewport3D,
           value,
           series.modality
         );
@@ -435,24 +442,26 @@ export const createDicomRuntime = async (
         const configured = configureDicomViewports(engine, elements, id, nextMode);
         viewportIds = configured.viewportIds;
         group = configured.group;
-        if (nextMode === 'original')
+        const firstViewportId = viewportIds[0];
+        const firstElement = elements[0];
+        if (nextMode === 'original' && firstViewportId && firstElement)
           stackTools = createDicomStackTools(
             id,
-            [{ viewportId: viewportIds[0], group, element: elements[0] }],
+            [{ viewportId: firstViewportId, group, element: firstElement }],
             measurements,
             [series.uid]
           );
         activateTool(nextMode === '3d' ? 'rotate' : 'window');
-        if (nextMode === 'original') {
-          await stack!.show(engine.getViewport(viewportIds[0]) as StackViewport);
+        if (nextMode === 'original' && firstViewportId) {
+          await stack!.show(engine.getViewport(firstViewportId) as StackViewport);
           if (stack!.state().error) return;
-        } else {
+        } else if (nextMode !== 'original') {
           await setVolumesForViewports(engine, [{ volumeId }], viewportIds);
         }
         ensureActive();
-        if (nextMode === '3d')
+        if (nextMode === '3d' && firstViewportId)
           applyVolumePresentation(
-            engine.getViewport(viewportIds[0]) as VolumeViewport3D,
+            engine.getViewport(firstViewportId) as VolumeViewport3D,
             volumePresentation,
             series.modality
           );

@@ -65,7 +65,8 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
         setStudy(result);
         setSeriesUid(
           prioritizeDicomSeries(result.series).find(item => item.modality === 'CT')?.uid ||
-            result.series[0].uid
+            result.series[0]?.uid ||
+            ''
         );
       })
       .catch((reason: unknown) => {

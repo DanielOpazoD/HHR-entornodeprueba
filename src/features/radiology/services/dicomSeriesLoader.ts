@@ -61,8 +61,11 @@ export const startDicomSeries = (
       if (!id) continue;
       releaseDicomImage(id);
       if (cache.getImageLoadObject(id)) cache.removeImageLoadObject(id, { force: true });
-      wadouri.dataSetCacheManager.unload(id.split(':')[1]);
-      wadouri.fileManager.remove(Number(id.split(':')[1]));
+      const filePart = id.split(':')[1];
+      if (filePart !== undefined) {
+        wadouri.dataSetCacheManager.unload(filePart);
+        wadouri.fileManager.remove(Number(filePart));
+      }
     }
   };
   let resamplingSupported = true;
@@ -91,7 +94,7 @@ export const startDicomSeries = (
     seriesUid: series.uid,
     seriesNumber: series.number,
     index,
-    instanceUid: series.instances[index].uid,
+    instanceUid: series.instances[index]?.uid ?? '',
     modality: data.string('x00080060')?.trim() || series.modality,
     huCalibrated,
     color,
@@ -101,7 +104,8 @@ export const startDicomSeries = (
     try {
       return await action();
     } catch (error) {
-      if (!signal.aborted) fetchInstance.invalidate?.(series.instances[index].ticket);
+      const ticket = series.instances[index]?.ticket;
+      if (!signal.aborted && ticket) fetchInstance.invalidate?.(ticket);
       throw error;
     }
   };
@@ -111,6 +115,7 @@ export const startDicomSeries = (
     async index =>
       invalidateOnFailure(index, async () => {
         const instance = series.instances[index];
+        if (!instance) throw new Error('Corte fuera de la serie.');
         const bytes = await fetchInstance(instance.ticket, signal, (timing, transferred = 0) => {
           queue.timing(timing);
           queue.transferred(transferred);
@@ -151,16 +156,19 @@ export const startDicomSeries = (
       }),
     async (index, bytes) =>
       invalidateOnFailure(index, async () => {
-        const decoded = await imageLoader.loadAndCacheImage(ids[index]);
+        const imageId = ids[index];
+        if (!imageId) throw new Error('No se pudo preparar una imagen DICOM.');
+        const decoded = await imageLoader.loadAndCacheImage(imageId);
         signal.throwIfAborted();
         const data = parseDicom(bytes, { untilTag: 'x7fe00010' });
-        calibrated[index] = hasDicomHuCalibration(data, decoded);
+        const isCalibrated = hasDicomHuCalibration(data, decoded);
+        calibrated[index] = isCalibrated;
         registerDicomImage(
-          ids[index],
-          describeImage(index, data, calibrated[index], Boolean(decoded.color))
+          imageId,
+          describeImage(index, data, isCalibrated, Boolean(decoded.color))
         );
         progress(++decodedCount, series.instances.length);
-        return ids[index];
+        return imageId;
       }),
     error => {
       // Never propagate a decoder wrapper carrying a parsed clinical dataset.

@@ -50,8 +50,12 @@ export const normalizeVolumePresentation = (
 export const adjustTransfer = (encoded: string, stride: 2 | 4, shift: number, opacity = 1) => {
   const values = encoded.split(' ').map(Number);
   for (let i = 1; i < values.length; i += stride) {
-    values[i] += shift;
-    if (stride === 2) values[i + 1] *= opacity;
+    const x = values[i];
+    if (x !== undefined) values[i] = x + shift;
+    if (stride === 2) {
+      const y = values[i + 1];
+      if (y !== undefined) values[i + 1] = y * opacity;
+    }
   }
   return values.join(' ');
 };
