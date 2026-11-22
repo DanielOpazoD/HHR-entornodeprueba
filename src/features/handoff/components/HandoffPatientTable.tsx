@@ -1,6 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import React, { useState } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BedDefinition } from '@/types/domain/beds';
 import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 
@@ -30,6 +30,77 @@ interface HandoffPatientTableProps {
   clinicalEventActions?: HandoffClinicalEventActions;
 }
 
+interface HandoffTableBedRowProps {
+  bedId: string;
+  bedName: string;
+  bedType: string;
+  patient: PatientData;
+  reportDate: string;
+  isNested: boolean;
+  noteField: 'handoffNoteDayShift' | 'handoffNoteNightShift';
+  readOnly: boolean;
+  forcedExpand?: boolean;
+  hasEventAdd: boolean;
+  hasEventUpdate: boolean;
+  hasEventDelete: boolean;
+  onBedNoteChange: (bedId: string, isNested: boolean, patient: PatientData, value: string) => void;
+  onEventAdd: (bedId: string, event: Omit<ClinicalEvent, 'id' | 'createdAt'>) => void;
+  onEventUpdate: (bedId: string, eventId: string, data: Partial<ClinicalEvent>) => void;
+  onEventDelete: (bedId: string, eventId: string) => void;
+}
+
+const HandoffTableBedRow = React.memo(function HandoffTableBedRow({
+  bedId,
+  bedName,
+  bedType,
+  patient,
+  reportDate,
+  isNested,
+  noteField,
+  readOnly,
+  forcedExpand,
+  hasEventAdd,
+  hasEventUpdate,
+  hasEventDelete,
+  onBedNoteChange,
+  onEventAdd,
+  onEventUpdate,
+  onEventDelete,
+}: HandoffTableBedRowProps) {
+  const handleNoteChange = useCallback(
+    (value: string) => onBedNoteChange(bedId, isNested, patient, value),
+    [bedId, isNested, onBedNoteChange, patient]
+  );
+
+  const rowClinicalEventActions = useMemo(
+    () => ({
+      onAdd: hasEventAdd
+        ? (event: Omit<ClinicalEvent, 'id' | 'createdAt'>) => onEventAdd(bedId, event)
+        : undefined,
+      onUpdate: hasEventUpdate
+        ? (eventId: string, data: Partial<ClinicalEvent>) => onEventUpdate(bedId, eventId, data)
+        : undefined,
+      onDelete: hasEventDelete ? (eventId: string) => onEventDelete(bedId, eventId) : undefined,
+    }),
+    [bedId, hasEventAdd, hasEventDelete, hasEventUpdate, onEventAdd, onEventDelete, onEventUpdate]
+  );
+
+  return (
+    <HandoffRow
+      bedName={bedName}
+      bedType={bedType}
+      patient={patient}
+      reportDate={reportDate}
+      isSubRow={isNested}
+      noteField={noteField}
+      onNoteChange={handleNoteChange}
+      readOnly={readOnly}
+      forcedExpand={forcedExpand}
+      clinicalEventActions={rowClinicalEventActions}
+    />
+  );
+});
+
 export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
   visibleBeds,
   record,
@@ -43,50 +114,71 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
 }) => {
   const [allEventsExpanded, setAllEventsExpanded] = useState(false);
 
-  const currentRecord = React.useRef(record);
-  React.useLayoutEffect(() => {
+  const currentRecord = useRef(record);
+  const onNoteChangeRef = useRef(onNoteChange);
+  const clinicalEventActionsRef = useRef(clinicalEventActions);
+  useLayoutEffect(() => {
     currentRecord.current = record;
-  }, [record]);
-  const stillOccupies = (bedId: string, isNested: boolean, patient: PatientData) => {
-    const bed = currentRecord.current.beds[bedId];
-    const current = isNested ? bed?.clinicalCrib : bed;
-    return current && handoffPatientKey(current) === handoffPatientKey(patient);
-  };
-  const resolveRowClinicalEventActions = (bedId: string) => ({
-    onAdd: clinicalEventActions?.onAdd
-      ? (event: Omit<ClinicalEvent, 'id' | 'createdAt'>) =>
-          clinicalEventActions.onAdd?.(bedId, event)
-      : undefined,
-    onUpdate: clinicalEventActions?.onUpdate
-      ? (eventId: string, data: Partial<ClinicalEvent>) =>
-          clinicalEventActions.onUpdate?.(bedId, eventId, data)
-      : undefined,
-    onDelete: clinicalEventActions?.onDelete
-      ? (eventId: string) => clinicalEventActions.onDelete?.(bedId, eventId)
-      : undefined,
-  });
+    onNoteChangeRef.current = onNoteChange;
+    clinicalEventActionsRef.current = clinicalEventActions;
+  }, [record, onNoteChange, clinicalEventActions]);
+
+  const handleBedNoteChange = useCallback(
+    (bedId: string, isNested: boolean, patient: PatientData, value: string) => {
+      const bed = currentRecord.current.beds[bedId];
+      const current = isNested ? bed?.clinicalCrib : bed;
+      if (current && handoffPatientKey(current) === handoffPatientKey(patient)) {
+        onNoteChangeRef.current(bedId, value, isNested);
+      }
+    },
+    []
+  );
+
+  const handleEventAdd = useCallback(
+    (bedId: string, event: Omit<ClinicalEvent, 'id' | 'createdAt'>) => {
+      clinicalEventActionsRef.current?.onAdd?.(bedId, event);
+    },
+    []
+  );
+
+  const handleEventUpdate = useCallback(
+    (bedId: string, eventId: string, data: Partial<ClinicalEvent>) => {
+      clinicalEventActionsRef.current?.onUpdate?.(bedId, eventId, data);
+    },
+    []
+  );
+
+  const handleEventDelete = useCallback((bedId: string, eventId: string) => {
+    clinicalEventActionsRef.current?.onDelete?.(bedId, eventId);
+  }, []);
+
+  const hasEventAdd = Boolean(clinicalEventActions?.onAdd);
+  const hasEventUpdate = Boolean(clinicalEventActions?.onUpdate);
+  const hasEventDelete = Boolean(clinicalEventActions?.onDelete);
 
   const renderRow = (
     bed: BedDefinition,
     patient: PatientData,
     options: { isNested: boolean; forcedExpand?: boolean }
   ) => (
-    <HandoffRow
+    <HandoffTableBedRow
       key={`${bed.id}-${options.isNested ? 'crib' : 'main'}:${handoffPatientKey(patient)}`}
+      bedId={bed.id}
       bedName={bed.name}
       bedType={options.isNested ? 'Cuna' : bed.type}
       patient={patient}
       reportDate={record.date}
-      isSubRow={options.isNested}
+      isNested={options.isNested}
       noteField={noteField}
-      onNoteChange={value =>
-        stillOccupies(bed.id, options.isNested, patient)
-          ? onNoteChange(bed.id, value, options.isNested)
-          : undefined
-      }
       readOnly={readOnly}
       forcedExpand={options.forcedExpand}
-      clinicalEventActions={resolveRowClinicalEventActions(bed.id)}
+      hasEventAdd={hasEventAdd}
+      hasEventUpdate={hasEventUpdate}
+      hasEventDelete={hasEventDelete}
+      onBedNoteChange={handleBedNoteChange}
+      onEventAdd={handleEventAdd}
+      onEventUpdate={handleEventUpdate}
+      onEventDelete={handleEventDelete}
     />
   );
 

@@ -3,8 +3,18 @@ import '../../setup';
 import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { HandoffRow } from '@/features/handoff/components/HandoffRow';
-import { render, createMockPatient } from '../../integration/setup';
+import { HandoffPatientTable } from '@/features/handoff/components/HandoffPatientTable';
+import { DailyRecordProvider } from '@/context/DailyRecordContext';
+import { buildStabilityRules } from '@/hooks/stabilityRulesController';
+import {
+  render,
+  createMockPatient,
+  createMockRecord,
+  createMockDailyRecordContext,
+} from '../../integration/setup';
 import { PatientStatus } from '@/types/domain/patientClassification';
+import { BedType, type BedDefinition } from '@/types/domain/beds';
+import * as handoffRowController from '@/features/handoff/controllers/handoffRowController';
 
 describe('HandoffRow', () => {
   const mockPatient = createMockPatient({
@@ -129,5 +139,81 @@ describe('HandoffRow', () => {
       </table>
     );
     expect(screen.getByText('Test Event')).toBeInTheDocument();
+  });
+
+  it('skips re-rendering unchanged HandoffRows through HandoffPatientTable on sync, staff, or sibling bed updates', () => {
+    const spy = vi.spyOn(handoffRowController, 'resolveHandoffRowReadOnly');
+    const beds: BedDefinition[] = [
+      { id: 'R1', name: 'R1', type: BedType.UTI, isCuna: false },
+      { id: 'R2', name: 'R2', type: BedType.UTI, isCuna: false },
+    ];
+    const patientR1 = createMockPatient({
+      bedId: 'R1',
+      patientName: 'Paciente Uno',
+      rut: '11.111.111-1',
+      handoffNoteDayShift: 'Estable R1',
+    });
+    const patientR2 = createMockPatient({
+      bedId: 'R2',
+      patientName: 'Paciente Dos',
+      rut: '22.222.222-2',
+      handoffNoteDayShift: 'Estable R2',
+    });
+    const baseRecord = createMockRecord('2026-11-22');
+    baseRecord.beds = { R1: patientR1, R2: patientR2 };
+    const stableRules = buildStabilityRules(
+      { date: baseRecord.date },
+      { isAdmin: false, isEditor: true, todayISO: baseRecord.date }
+    );
+    const onNoteChange = vi.fn();
+    const shouldShowPatient = () => true;
+
+    const renderTree = (record: typeof baseRecord, syncStatus: 'saved' | 'saving' = 'saved') => (
+      <DailyRecordProvider
+        value={{
+          ...createMockDailyRecordContext(record),
+          syncStatus,
+          stabilityRules: stableRules,
+        }}
+      >
+        <HandoffPatientTable
+          visibleBeds={beds}
+          record={record}
+          noteField="handoffNoteDayShift"
+          onNoteChange={onNoteChange}
+          tableHeaderClass="bg-slate-50"
+          readOnly={false}
+          hasAnyPatients={true}
+          shouldShowPatient={shouldShowPatient}
+          clinicalEventActions={{ onAdd: vi.fn(), onUpdate: vi.fn(), onDelete: vi.fn() }}
+        />
+      </DailyRecordProvider>
+    );
+
+    const { rerender } = render(renderTree(baseRecord, 'saved'));
+    // Initial mount evaluates both occupied rows (useChangedOnRender settles on first render).
+    expect(spy.mock.calls.length).toBeGreaterThanOrEqual(2);
+    spy.mockClear();
+
+    // Sync tick + staff edit with unchanged beds: neither row should re-render.
+    const recordAfterStaffChange = {
+      ...baseRecord,
+      nursesDayShift: ['Enfermera A', 'Enfermera B'],
+    };
+    rerender(renderTree(recordAfterStaffChange, 'saving'));
+    expect(spy).toHaveBeenCalledTimes(0);
+
+    // Sibling bed R2 note update: only R2 re-renders; R1 stays untouched.
+    const recordAfterR2Edit = {
+      ...recordAfterStaffChange,
+      beds: {
+        ...recordAfterStaffChange.beds,
+        R2: { ...patientR2, handoffNoteDayShift: 'Nueva nota R2' },
+      },
+    };
+    rerender(renderTree(recordAfterR2Edit, 'saved'));
+    expect(spy).toHaveBeenCalledTimes(1);
+
+    spy.mockRestore();
   });
 });

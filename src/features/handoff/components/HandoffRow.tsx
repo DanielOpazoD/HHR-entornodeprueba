@@ -40,7 +40,7 @@ interface HandoffRowProps {
 
 const DENY_ALL_FIELDS = () => false;
 
-export const HandoffRow: React.FC<HandoffRowProps> = ({
+export const HandoffRow: React.FC<HandoffRowProps> = React.memo(function HandoffRow({
   bedName,
   patient,
   reportDate,
@@ -50,7 +50,7 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
   readOnly = false,
   forcedExpand = false,
   clinicalEventActions,
-}) => {
+}) {
   const stabilityRules = useDailyRecordStability();
   const [showEvents, setShowEvents] = useState(false);
 
@@ -123,4 +123,4 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
       />
     </tr>
   );
-};
+});
