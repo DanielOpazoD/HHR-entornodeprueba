@@ -56,13 +56,13 @@ export const PhotoLightbox: React.FC<PhotoLightboxProps> = ({
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [editDesc, setEditDesc] = useState('');
   const zoom = usePhotoLightboxZoom();
+  const { reset: resetZoom, zoomIn, zoomOut } = zoom;
 
   // Reset state on navigation
   if (useChangedOnRender([currentIndex])) setImageLoaded(false);
   useEffect(() => {
-    zoom.reset();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex]);
+    resetZoom();
+  }, [currentIndex, resetZoom]);
 
   const goNext = useCallback(() => {
     if (hasNext && !zoom.isZoomed) onNavigate(currentIndex + 1);
@@ -95,13 +95,13 @@ export const PhotoLightbox: React.FC<PhotoLightboxProps> = ({
           return;
         case '+':
         case '=':
-          zoom.zoomIn();
+          zoomIn();
           return;
         case '-':
-          zoom.zoomOut();
+          zoomOut();
           return;
         case '0':
-          zoom.reset();
+          resetZoom();
           return;
       }
       if (e.key !== 'Tab') return;
@@ -121,7 +121,7 @@ export const PhotoLightbox: React.FC<PhotoLightboxProps> = ({
     };
     dialog.addEventListener('keydown', handleKeyDown);
     return () => dialog.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, goNext, goPrev, zoom]);
+  }, [onClose, goNext, goPrev, zoomIn, zoomOut, resetZoom]);
 
   // Lock body scroll
   useEffect(() => {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLatestRef } from '@/hooks/useLatestRef';
 
 const isDocumentVisible = () =>
   typeof document === 'undefined' || document.visibilityState === 'visible';
@@ -10,6 +11,7 @@ const isDocumentVisible = () =>
  */
 export const useVisibleSubscription = (subscribe: () => () => void): void => {
   const [visible, setVisible] = useState(isDocumentVisible);
+  const subscribeRef = useLatestRef(subscribe);
 
   useEffect(() => {
     const sync = () => setVisible(isDocumentVisible());
@@ -19,9 +21,6 @@ export const useVisibleSubscription = (subscribe: () => () => void): void => {
 
   useEffect(() => {
     if (!visible) return;
-    return subscribe();
-    // The caller owns the identity of `subscribe`; re-running on every render would
-    // tear down and recreate the listener continuously.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]);
+    return subscribeRef.current();
+  }, [subscribeRef, visible]);
 };

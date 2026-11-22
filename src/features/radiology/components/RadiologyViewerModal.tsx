@@ -146,9 +146,10 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     if (isForegroundLoading) setProgress(RADIOLOGY_PROGRESS_STEPS[0] ?? null);
     else if (progress) setProgress({ pct: 100, text: '¡Completado!' });
   }
+  const hasProgress = progress !== null;
   React.useEffect(() => {
     if (!isForegroundLoading) {
-      if (progress) {
+      if (hasProgress) {
         const timeout = setTimeout(() => setProgress(null), 600);
         return () => clearTimeout(timeout);
       }
@@ -173,7 +174,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [isForegroundLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hasProgress, isForegroundLoading]);
 
   const patientsRef = useLatestRef(uniquePatients);
 
@@ -216,6 +217,14 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     [runSearch, selectedRut, dateFrom, dateTo]
   );
 
+  const openEffectInputsRef = useLatestRef({
+    selectedRut,
+    dateFrom,
+    dateTo,
+    autoSearchInitialPatient,
+    runSearch,
+  });
+
   // Once per open: select the initial patient, show what this session remembers for it and refresh
   // it. Without a remembered list only an auto-search request searches by itself.
   React.useEffect(() => {
@@ -226,21 +235,27 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     const openedFor = initialPatientRut || '';
     if (openedForRutRef.current === openedFor) return;
     openedForRutRef.current = openedFor;
-    const rut = initialPatientRut || selectedRut;
+    const {
+      selectedRut: currentSelectedRut,
+      dateFrom: currentDateFrom,
+      dateTo: currentDateTo,
+      autoSearchInitialPatient: shouldAutoSearch,
+      runSearch: executeSearch,
+    } = openEffectInputsRef.current;
+    const rut = initialPatientRut || currentSelectedRut;
     setSelectedRut(rut);
     setError(null);
     setRefreshError(null);
     if (
-      (autoSearchInitialPatient && initialPatientRut) ||
-      readRememberedMMRADExams({ rut, dateFrom, dateTo })
+      (shouldAutoSearch && initialPatientRut) ||
+      readRememberedMMRADExams({ rut, dateFrom: currentDateFrom, dateTo: currentDateTo })
     ) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- the request and its state start together
-      void runSearch(rut, dateFrom, dateTo);
+      void executeSearch(rut, currentDateFrom, currentDateTo);
     } else {
       setResult(null);
     }
     // Only an open or a new initial patient restarts this; later choices go through the selector.
-  }, [isOpen, initialPatientRut]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isOpen, initialPatientRut, openEffectInputsRef]);
 
   const handleCopyReport = useCallback(async (exam: MMRADExam) => {
     const reportText = exam.report
