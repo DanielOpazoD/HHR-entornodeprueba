@@ -13,7 +13,7 @@ import type {
   FunctionsTelemetryServiceSummary,
   RayenClinicalEnrichmentRolloutRecommendation,
   RayenClinicalEnrichmentRolloutSummary,
-} from '@/types/functionsTelemetry';
+} from '@/features/admin/types/functionsTelemetry';
 
 const COLLECTION_PATH = () => `hospitals/${getActiveHospitalId()}/functionsTelemetry`;
 

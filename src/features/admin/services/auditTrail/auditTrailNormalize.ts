@@ -1,7 +1,11 @@
 import type { AuditLogEntry } from '@/types/auditLogTypes';
-import type { AuditTrailChange, AuditTrailEvent, AuditTrailStatus } from '@/types/auditTrailTypes';
-import { resolveAuditTrailAction } from '@/services/admin/auditTrail/auditTrailCatalog';
-import { describeConflictAutoMerge } from '@/services/admin/auditTrail/auditTrailConflicts';
+import type {
+  AuditTrailChange,
+  AuditTrailEvent,
+  AuditTrailStatus,
+} from '@/features/admin/types/auditTrailTypes';
+import { resolveAuditTrailAction } from '@/features/admin/services/auditTrail/auditTrailCatalog';
+import { describeConflictAutoMerge } from '@/features/admin/services/auditTrail/auditTrailConflicts';
 import {
   attachNamelessPatients,
   resolveAuditTrailActor,
@@ -9,14 +13,14 @@ import {
   resolveAuditTrailPatient,
   splitPatientKeyByDocument,
   unifyAuditTrailActorNames,
-} from '@/services/admin/auditTrail/auditTrailIdentity';
+} from '@/features/admin/services/auditTrail/auditTrailIdentity';
 import {
   MAX_VALUE_LENGTH,
   asAuditText,
   formatAuditTrailDuration,
   formatAuditTrailValue,
   resolveAuditTrailFieldLabel,
-} from '@/services/admin/auditTrail/auditTrailValues';
+} from '@/features/admin/services/auditTrail/auditTrailValues';
 import { excerptAroundChange } from '@/services/admin/auditTextExcerpt';
 import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 

@@ -7,7 +7,7 @@ import { buildRayenSyncBarViewModel } from '@/features/rayen-import/components/r
 import {
   resolveYearToDateFileSuffix,
   resolveYearToDateRange,
-} from '@/services/admin/dataMaintenanceSupport';
+} from '@/features/admin/services/dataMaintenanceSupport';
 import { __testing as monthlyBackfill } from '@/services/backup/monthlyBackfillService';
 import type { SyslabExamItem } from '@/types/domain/labExamTypes';
 

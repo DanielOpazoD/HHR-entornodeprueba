@@ -20,8 +20,8 @@ vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOrigi
 
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { getAvailableDates } from '@/services/repositories/dailyRecordRepositoryReadService';
-import { auditAdmissionDateBackfill } from '@/services/admin/admissionDateBackfillService';
-import { executeAnalyzePatients } from '@/application/patient-flow/patientAnalysisUseCase';
+import { auditAdmissionDateBackfill } from '@/features/admin/services/admissionDateBackfillService';
+import { executeAnalyzePatients } from '@/features/admin/patient-flow/patientAnalysisUseCase';
 import { defaultDailyRecordAnalysisPort } from '@/application/ports/dailyRecordPort';
 
 const failure = new Error('synthetic local index unavailable');

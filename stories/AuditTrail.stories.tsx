@@ -1,20 +1,23 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
-import type { AuditTrailCategory, AuditTrailGrouping } from '@/types/auditTrailTypes';
-import { normalizeAuditTrailEvents } from '@/services/admin/auditTrail/auditTrailNormalize';
-import { buildAuditTrailSessions } from '@/services/admin/auditTrail/auditTrailSessions';
-import { buildAuditTrailGroups } from '@/services/admin/auditTrail/auditTrailGroups';
+import type {
+  AuditTrailCategory,
+  AuditTrailGrouping,
+} from '@/features/admin/types/auditTrailTypes';
+import { normalizeAuditTrailEvents } from '@/features/admin/services/auditTrail/auditTrailNormalize';
+import { buildAuditTrailSessions } from '@/features/admin/services/auditTrail/auditTrailSessions';
+import { buildAuditTrailGroups } from '@/features/admin/services/auditTrail/auditTrailGroups';
 import {
   buildAuditTrailActorOptions,
   filterAuditTrailEvents,
   summarizeAuditTrail,
-} from '@/services/admin/auditTrail/auditTrailFilters';
+} from '@/features/admin/services/auditTrail/auditTrailFilters';
 import {
   DEFAULT_AUDIT_TRAIL_VIEW,
   type AuditTrailViewPreferences,
-} from '@/services/admin/auditTrail/auditTrailPreferences';
-import { buildAuditTrailPeriod } from '@/services/admin/auditTrail/auditTrailPeriod';
-import { AUDIT_TRAIL_CATEGORY_ORDER } from '@/services/admin/auditTrail/auditTrailCatalog';
+} from '@/features/admin/services/auditTrail/auditTrailPreferences';
+import { buildAuditTrailPeriod } from '@/features/admin/services/auditTrail/auditTrailPeriod';
+import { AUDIT_TRAIL_CATEGORY_ORDER } from '@/features/admin/services/auditTrail/auditTrailCatalog';
 import type { AuditTrailScope } from '@/features/admin/hooks/useAuditTrail';
 import { AuditTrailHeader } from '@/features/admin/components/internal/audit/AuditTrailHeader';
 import { AuditTrailSummaryBar } from '@/features/admin/components/internal/audit/AuditTrailSummaryBar';

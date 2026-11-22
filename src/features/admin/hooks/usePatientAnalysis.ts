@@ -5,7 +5,7 @@ import {
   executeMigratePatients,
   executeResolvePatientConflict,
   type AnalysisResult,
-} from '@/application/patient-flow/patientAnalysisUseCase';
+} from '@/features/admin/patient-flow/patientAnalysisUseCase';
 import {
   defaultDailyRecordAnalysisPort,
   type DailyRecordAnalysisPort,
@@ -22,7 +22,10 @@ import {
   type DailyRecordStoreChangedEventDetail,
 } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 
-export type { Conflict, AnalysisResult } from '@/application/patient-flow/patientAnalysisUseCase';
+export type {
+  Conflict,
+  AnalysisResult,
+} from '@/features/admin/patient-flow/patientAnalysisUseCase';
 
 export interface PatientAnalysisDependencies {
   dailyRecordRepository: DailyRecordAnalysisPort;

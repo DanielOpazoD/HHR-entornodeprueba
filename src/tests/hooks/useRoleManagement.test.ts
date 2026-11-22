@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useRoleManagement } from '@/hooks/useRoleManagement';
-import { roleService } from '@/services/admin/roleService';
+import { useRoleManagement } from '@/features/admin/hooks/useRoleManagement';
+import { roleService } from '@/features/admin/services/roleService';
 import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 
 // Mock roleService
-vi.mock('@/services/admin/roleService', () => ({
+vi.mock('@/features/admin/services/roleService', () => ({
   roleService: {
     getRoles: vi.fn(),
     getRolesSnapshot: vi.fn(),

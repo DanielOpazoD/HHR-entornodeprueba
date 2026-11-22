@@ -1,5 +1,5 @@
 import React from 'react';
-import { Conflict } from '@/hooks/usePatientAnalysis';
+import { Conflict } from '@/features/admin/hooks/usePatientAnalysis';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { RefreshCw, History, ShieldCheck, CheckCircle, Info, Check } from 'lucide-react';
 import clsx from 'clsx';

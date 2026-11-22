@@ -2,7 +2,7 @@ import type { UserHealthStatus } from '@/services/admin/healthService';
 import {
   DEFAULT_SYSTEM_HEALTH_THRESHOLDS,
   type SystemHealthThresholds,
-} from '@/services/admin/systemHealthOperationalBudgets';
+} from '@/features/admin/services/systemHealthOperationalBudgets';
 
 export interface SystemHealthState {
   level: 'healthy' | 'warning' | 'critical';

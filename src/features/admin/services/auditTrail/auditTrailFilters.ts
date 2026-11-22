@@ -4,9 +4,9 @@ import type {
   AuditTrailCounts,
   AuditTrailEvent,
   AuditTrailSession,
-} from '@/types/auditTrailTypes';
-import { countAuditTrailEvents } from '@/services/admin/auditTrail/auditTrailGroups';
-import { normalizeAuditTrailText } from '@/services/admin/auditTrail/auditTrailValues';
+} from '@/features/admin/types/auditTrailTypes';
+import { countAuditTrailEvents } from '@/features/admin/services/auditTrail/auditTrailGroups';
+import { normalizeAuditTrailText } from '@/features/admin/services/auditTrail/auditTrailValues';
 
 export interface AuditTrailFilters {
   /** Visible categories; an empty list shows none. */

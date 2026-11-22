@@ -53,7 +53,7 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   // It never supplies current occupancy; explicit Cama and normal statistical rules prevail.
   'src/domain/movements/movementTombstonePolicy.ts',
   'src/domain/CensusManager.ts',
-  'src/services/admin/admissionDateBackfillPlanner.ts',
+  'src/features/admin/services/admissionDateBackfillPlanner.ts',
   // Read-only admission audit cohort: a completed movement supplies only the historical person,
   // episode and admission metadata. Notes, vital signs and orders are fetched from Eloísa,
   // never from this snapshot; it is not evidence of current occupancy or a write target.

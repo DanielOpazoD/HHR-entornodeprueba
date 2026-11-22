@@ -43,7 +43,7 @@ vi.mock('@/services/admin/utils/auditUtils', () => ({
 import {
   auditAdmissionDateBackfill,
   applyAdmissionDateBackfill,
-} from '@/services/admin/admissionDateBackfillService';
+} from '@/features/admin/services/admissionDateBackfillService';
 
 const BED_ID = 'R1';
 const ROUTINE_RUT = '11.111.111-1';

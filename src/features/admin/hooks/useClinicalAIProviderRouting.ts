@@ -2,11 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   createDefaultClinicalAIProviderRoutingDocument,
   type ClinicalAIProviderRoutingDocument,
-} from '@/shared/ai/clinicalAIProviderRouting';
+} from '@/features/admin/domain/clinicalAIProviderRouting';
 import {
   saveClinicalAIProviderRouting,
   subscribeToClinicalAIProviderRouting,
-} from '@/services/admin/clinicalAIProviderRoutingService';
+} from '@/features/admin/services/clinicalAIProviderRoutingService';
 
 export const useClinicalAIProviderRouting = (updatedByEmail?: string | null) => {
   const [routing, setRouting] = useState<ClinicalAIProviderRoutingDocument>(() =>

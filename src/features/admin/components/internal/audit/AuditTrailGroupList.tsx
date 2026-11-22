@@ -1,14 +1,14 @@
 import React from 'react';
 import clsx from 'clsx';
 import { ChevronRight } from 'lucide-react';
-import type { AuditTrailGroup } from '@/types/auditTrailTypes';
-import type { AuditTrailViewPreferences } from '@/services/admin/auditTrail/auditTrailPreferences';
-import { buildAuditTrailLines } from '@/services/admin/auditTrail/auditTrailGroups';
+import type { AuditTrailGroup } from '@/features/admin/types/auditTrailTypes';
+import type { AuditTrailViewPreferences } from '@/features/admin/services/auditTrail/auditTrailPreferences';
+import { buildAuditTrailLines } from '@/features/admin/services/auditTrail/auditTrailGroups';
 import {
   AUDIT_TRAIL_SESSION_END_LABELS,
   resolveAuditTrailSessionDurationMs,
-} from '@/services/admin/auditTrail/auditTrailSessions';
-import { formatAuditTrailDuration } from '@/services/admin/auditTrail/auditTrailValues';
+} from '@/features/admin/services/auditTrail/auditTrailSessions';
+import { formatAuditTrailDuration } from '@/features/admin/services/auditTrail/auditTrailValues';
 import { AuditTrailLineRow } from './AuditTrailLineRow';
 import {
   FOCUS_RING,

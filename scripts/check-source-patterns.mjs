@@ -68,6 +68,7 @@ const RULES = [
       'src/services/exporters/',
       'src/services/pdf/',
       'src/services/admin/',
+      'src/features/admin/services/',
       'src/services/storage/sync/',
       'src/features/rayen-import/'
     ),

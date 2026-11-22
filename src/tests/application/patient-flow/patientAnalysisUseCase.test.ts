@@ -3,7 +3,7 @@ import {
   executeAnalyzePatients,
   executeMigratePatients,
   executeResolvePatientConflict,
-} from '@/application/patient-flow/patientAnalysisUseCase';
+} from '@/features/admin/patient-flow/patientAnalysisUseCase';
 import type { MasterPatient } from '@/types/domain/patientMaster';
 
 describe('patientAnalysisUseCase', () => {

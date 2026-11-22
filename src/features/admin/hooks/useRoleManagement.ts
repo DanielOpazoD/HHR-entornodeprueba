@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { roleService, UserRoleMap } from '@/services/admin/roleService';
+import { roleService, UserRoleMap } from '@/features/admin/services/roleService';
 import { isManagedUserRole, type ManagedUserRole } from '@/shared/access/roleAccessMatrix';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 

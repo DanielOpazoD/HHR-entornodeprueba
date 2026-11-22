@@ -5,11 +5,11 @@ import { DataMaintenancePanel } from '@/features/admin/components/internal/DataM
 const exportMonthRecordsWithOutcome = vi.hoisted(() => vi.fn());
 const exportYearToDateRecordsWithOutcome = vi.hoisted(() => vi.fn());
 
-vi.mock('@/services/admin/dataMaintenanceService', () => ({
+vi.mock('@/features/admin/services/dataMaintenanceService', () => ({
   exportMonthRecordsWithOutcome,
   exportYearToDateRecordsWithOutcome,
 }));
-vi.mock('@/services/admin/admissionDateBackfillService', () => ({
+vi.mock('@/features/admin/services/admissionDateBackfillService', () => ({
   auditAdmissionDateBackfill: vi.fn(),
   applyAdmissionDateBackfill: vi.fn(),
 }));

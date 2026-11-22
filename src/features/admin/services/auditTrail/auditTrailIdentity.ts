@@ -1,6 +1,13 @@
 import type { AuditLogEntry } from '@/types/auditLogTypes';
-import type { AuditTrailActor, AuditTrailEvent, AuditTrailPatient } from '@/types/auditTrailTypes';
-import { asAuditText, normalizeAuditTrailText } from '@/services/admin/auditTrail/auditTrailValues';
+import type {
+  AuditTrailActor,
+  AuditTrailEvent,
+  AuditTrailPatient,
+} from '@/features/admin/types/auditTrailTypes';
+import {
+  asAuditText,
+  normalizeAuditTrailText,
+} from '@/features/admin/services/auditTrail/auditTrailValues';
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const CRIB_SUFFIX = '-crib';

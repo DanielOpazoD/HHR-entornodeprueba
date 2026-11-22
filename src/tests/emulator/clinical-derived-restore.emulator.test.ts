@@ -32,7 +32,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDateStrict: async () => null,
 }));
 // Export helpers only: they load the web Firestore runtime, which the restore does not use.
-vi.mock('@/services/admin/dataMaintenanceSupport', () => ({}));
+vi.mock('@/features/admin/services/dataMaintenanceSupport', () => ({}));
 vi.mock('@/services/admin/auditService', () => ({ logAuditEvent: async () => undefined }));
 vi.mock('@/services/admin/utils/auditUtils', () => ({
   getCurrentUserEmail: () => 'admin@example.invalid',
@@ -44,7 +44,7 @@ vi.mock('@/services/storage/firestore/firestoreServiceRuntime', () => ({
   defaultFirestoreServiceRuntime: { ready: Promise.resolve(), getDb: () => boundary.clientDb },
 }));
 
-import { importRecordsFromBackup } from '@/services/admin/dataMaintenanceService';
+import { importRecordsFromBackup } from '@/features/admin/services/dataMaintenanceService';
 import { restoreClinicalDerivedBackupDay } from '@/services/exporters/clinicalDerivedBackupRestore';
 
 type Data = FirebaseFirestore.DocumentData;

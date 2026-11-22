@@ -4,9 +4,9 @@ import type {
   AuditTrailInterruption,
   AuditTrailSession,
   AuditTrailSessionEnd,
-} from '@/types/auditTrailTypes';
-import { asAuditText } from '@/services/admin/auditTrail/auditTrailValues';
-import { parseAuditTrailTimestamp } from '@/services/admin/auditTrail/auditTrailNormalize';
+} from '@/features/admin/types/auditTrailTypes';
+import { asAuditText } from '@/features/admin/services/auditTrail/auditTrailValues';
+import { parseAuditTrailTimestamp } from '@/features/admin/services/auditTrail/auditTrailNormalize';
 
 const END_REASONS: Record<string, AuditTrailSessionEnd> = {
   manual: 'manual',

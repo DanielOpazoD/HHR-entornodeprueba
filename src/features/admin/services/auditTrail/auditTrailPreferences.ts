@@ -1,8 +1,11 @@
-import type { AuditTrailCategory, AuditTrailGrouping } from '@/types/auditTrailTypes';
+import type {
+  AuditTrailCategory,
+  AuditTrailGrouping,
+} from '@/features/admin/types/auditTrailTypes';
 import {
   AUDIT_TRAIL_CATEGORY_ORDER,
   AUDIT_TRAIL_GROUPING_ORDER,
-} from '@/services/admin/auditTrail/auditTrailCatalog';
+} from '@/features/admin/services/auditTrail/auditTrailCatalog';
 
 export type AuditTrailDensity = 'compact' | 'comfortable';
 

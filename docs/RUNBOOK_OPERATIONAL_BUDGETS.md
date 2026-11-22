@@ -12,7 +12,7 @@ Fuentes obligatorias:
 
 ## System Health
 
-Estos budgets se derivan desde `src/services/admin/systemHealthOperationalBudgets.ts`.
+Estos budgets se derivan desde `src/features/admin/services/systemHealthOperationalBudgets.ts`.
 
 | Threshold                           |  Valor |
 | ----------------------------------- | -----: |

@@ -6,7 +6,7 @@ import {
   type AuditTrailColumns,
   type AuditTrailDensity,
   type AuditTrailViewPreferences,
-} from '@/services/admin/auditTrail/auditTrailPreferences';
+} from '@/features/admin/services/auditTrail/auditTrailPreferences';
 import { FOCUS_RING } from './auditTrailDisplay';
 
 interface AuditTrailViewSettingsProps {

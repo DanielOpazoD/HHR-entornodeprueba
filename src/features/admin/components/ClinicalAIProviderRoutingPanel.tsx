@@ -9,12 +9,12 @@ import {
   type ClinicalAIActionId,
   type ClinicalAIProvider,
   type ClinicalAIProviderRoutingDocument,
-} from '@/shared/ai/clinicalAIProviderRouting';
+} from '@/features/admin/domain/clinicalAIProviderRouting';
 import {
   getClinicalAIProviderStatuses,
   testClinicalAIProvider,
   type ClinicalAIProviderStatus,
-} from '@/services/admin/clinicalAIProviderStatusService';
+} from '@/features/admin/services/clinicalAIProviderStatusService';
 
 const DEFAULT_PROVIDER_VALUE = '__netlify_default__';
 

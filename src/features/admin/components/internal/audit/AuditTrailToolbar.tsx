@@ -1,15 +1,15 @@
 import React from 'react';
 import clsx from 'clsx';
 import { Search, X } from 'lucide-react';
-import type { AuditTrailArea, AuditTrailGrouping } from '@/types/auditTrailTypes';
+import type { AuditTrailArea, AuditTrailGrouping } from '@/features/admin/types/auditTrailTypes';
 import {
   AUDIT_TRAIL_AREA_LABELS,
   AUDIT_TRAIL_AREA_ORDER,
   AUDIT_TRAIL_GROUPING_LABELS,
   AUDIT_TRAIL_GROUPING_ORDER,
-} from '@/services/admin/auditTrail/auditTrailCatalog';
-import type { AuditTrailActorOption } from '@/services/admin/auditTrail/auditTrailFilters';
-import type { AuditTrailViewPreferences } from '@/services/admin/auditTrail/auditTrailPreferences';
+} from '@/features/admin/services/auditTrail/auditTrailCatalog';
+import type { AuditTrailActorOption } from '@/features/admin/services/auditTrail/auditTrailFilters';
+import type { AuditTrailViewPreferences } from '@/features/admin/services/auditTrail/auditTrailPreferences';
 import type { AuditTrailScope } from '@/features/admin/hooks/useAuditTrail';
 import { AuditTrailViewSettings } from './AuditTrailViewSettings';
 import { FOCUS_RING } from './auditTrailDisplay';

@@ -4,7 +4,7 @@ import type {
   AuditTrailCategory,
   AuditTrailGrouping,
   AuditTrailStatus,
-} from '@/types/auditTrailTypes';
+} from '@/features/admin/types/auditTrailTypes';
 
 interface AuditTrailActionEntry {
   category: AuditTrailCategory;

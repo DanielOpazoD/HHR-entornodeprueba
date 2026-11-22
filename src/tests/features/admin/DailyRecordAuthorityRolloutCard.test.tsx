@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { DailyRecordAuthorityRolloutCard } from '@/features/admin/components/internal/functionsTelemetry/DailyRecordAuthorityRolloutCard';
-import type { DailyRecordAuthorityRolloutSummary } from '@/types/functionsTelemetry';
+import type { DailyRecordAuthorityRolloutSummary } from '@/features/admin/types/functionsTelemetry';
 
 const makeSummary = (
   overrides: Partial<DailyRecordAuthorityRolloutSummary> = {}

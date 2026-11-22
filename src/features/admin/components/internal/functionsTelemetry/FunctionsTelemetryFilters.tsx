@@ -3,7 +3,7 @@ import { RefreshCw, Search } from 'lucide-react';
 import type {
   FunctionsTelemetryFilters as FiltersShape,
   TelemetryStatus,
-} from '@/types/functionsTelemetry';
+} from '@/features/admin/types/functionsTelemetry';
 
 interface Props {
   filters: FiltersShape;

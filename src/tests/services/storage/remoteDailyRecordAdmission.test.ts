@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { syncRecordsRange } from '@/services/records/recordQueryService';
-import { hydrateRangeRecords } from '@/services/admin/dataMaintenanceSupport';
+import { hydrateRangeRecords } from '@/features/admin/services/dataMaintenanceSupport';
 import * as persistence from '@/services/repositories/dailyRecordLocalCachePersistence';
 
 const remote = vi.hoisted(() => vi.fn());

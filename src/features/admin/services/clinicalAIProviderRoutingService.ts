@@ -4,7 +4,7 @@ import {
   createDefaultClinicalAIProviderRoutingDocument,
   normalizeClinicalAIProviderRoutingDocument,
   type ClinicalAIProviderRoutingDocument,
-} from '@/shared/ai/clinicalAIProviderRouting';
+} from '@/features/admin/domain/clinicalAIProviderRouting';
 
 export const CLINICAL_AI_PROVIDER_ROUTING_DOC_ID = 'aiProviderRouting';
 

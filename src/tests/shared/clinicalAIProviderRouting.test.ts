@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createDefaultClinicalAIProviderRoutingDocument,
   normalizeClinicalAIProviderRoutingDocument,
-} from '@/shared/ai/clinicalAIProviderRouting';
+} from '@/features/admin/domain/clinicalAIProviderRouting';
 
 describe('clinicalAIProviderRouting', () => {
   it('normalizes only supported action/provider pairs', () => {

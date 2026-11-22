@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
-import type { AuditTrailEvent, AuditTrailSession } from '@/types/auditTrailTypes';
-import type { AuditTrailPeriod } from '@/services/admin/auditTrail/auditTrailPeriod';
+import type { AuditTrailEvent, AuditTrailSession } from '@/features/admin/types/auditTrailTypes';
+import type { AuditTrailPeriod } from '@/features/admin/services/auditTrail/auditTrailPeriod';
 import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 
@@ -30,7 +30,7 @@ export const useAuditTrailExport = ({
   const exportExcel = useCallback(async () => {
     setIsExporting(true);
     try {
-      const { generateAuditWorkbook } = await import('@/services/exporters/auditWorkbook');
+      const { generateAuditWorkbook } = await import('@/features/admin/services/auditWorkbook');
       const workbook = await generateAuditWorkbook({ events, sessions });
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([new Uint8Array(buffer)], {

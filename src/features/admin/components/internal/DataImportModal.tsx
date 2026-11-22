@@ -4,12 +4,12 @@ import {
   MonthBackup,
   validateBackupFile,
   importRecordsFromBackup,
-} from '@/services/admin/dataMaintenanceService';
+} from '@/features/admin/services/dataMaintenanceService';
 import { BaseModal } from '@/components/shared/BaseModal';
 import {
   summarizeBackupImportOutcome,
   type BackupImportSummary,
-} from '@/hooks/controllers/backupImportFeedbackController';
+} from '@/features/admin/hooks/backupImportFeedbackController';
 
 interface DataImportModalProps {
   isOpen: boolean;

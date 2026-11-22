@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { importRecordsFromBackup } from '@/services/admin/dataMaintenanceService';
+import { importRecordsFromBackup } from '@/features/admin/services/dataMaintenanceService';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {

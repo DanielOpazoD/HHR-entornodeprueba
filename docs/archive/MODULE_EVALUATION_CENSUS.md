@@ -7,7 +7,7 @@
   - [src/features/census](../src/features/census)
   - [src/application/census](../src/application/census)
   - [src/application/daily-record](../src/application/daily-record)
-  - [src/application/patient-flow](../src/application/patient-flow)
+  - [src/features/admin/patient-flow](../src/features/admin/patient-flow)
 - **Fecha de evaluación:** 2026-04-15
 - **Evaluador:** Codex
 - **Estado general:** verde
@@ -43,7 +43,7 @@
 - Tiene una arquitectura interna muy trabajada y explícita, especialmente para un módulo tan grande y central.
 - La documentación del feature es fuerte:
   - [src/features/census/README.md](../src/features/census/README.md)
-  - [src/application/patient-flow/README.md](../src/application/patient-flow/README.md)
+  - [src/features/admin/patient-flow/README.md](../src/features/admin/patient-flow/README.md)
 - Hay muchos invariantes clínico-operativos bien formulados:
   - fecha / turno
   - nuevo ingreso

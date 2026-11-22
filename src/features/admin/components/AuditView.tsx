@@ -2,7 +2,7 @@ import React from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useAuditContext } from '@/context/AuditContext';
-import type { AuditTrailCategory } from '@/types/auditTrailTypes';
+import type { AuditTrailCategory } from '@/features/admin/types/auditTrailTypes';
 import {
   canAccessAuditSensitivePanelsForRole,
   canAccessAuditViewForRole,

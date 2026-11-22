@@ -13,9 +13,12 @@ import {
   type AnalysisResult,
   type Conflict,
   type PatientAnalysisDailyRecordRepository,
-} from '@/application/patient-flow/patientAnalysisSupport';
+} from '@/features/admin/patient-flow/patientAnalysisSupport';
 
-export type { AnalysisResult, Conflict } from '@/application/patient-flow/patientAnalysisSupport';
+export type {
+  AnalysisResult,
+  Conflict,
+} from '@/features/admin/patient-flow/patientAnalysisSupport';
 
 interface AnalyzePatientsInput {
   dailyRecordRepository: PatientAnalysisDailyRecordRepository;

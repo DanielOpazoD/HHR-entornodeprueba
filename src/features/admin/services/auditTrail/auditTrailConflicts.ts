@@ -1,7 +1,7 @@
 import {
   asAuditText,
   resolveAuditTrailFieldLabel,
-} from '@/services/admin/auditTrail/auditTrailValues';
+} from '@/features/admin/services/auditTrail/auditTrailValues';
 
 const MAX_PATHS = 3;
 

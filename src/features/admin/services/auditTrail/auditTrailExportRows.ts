@@ -1,14 +1,14 @@
-import type { AuditTrailEvent, AuditTrailSession } from '@/types/auditTrailTypes';
+import type { AuditTrailEvent, AuditTrailSession } from '@/features/admin/types/auditTrailTypes';
 import {
   AUDIT_TRAIL_AREA_LABELS,
   AUDIT_TRAIL_CATEGORY_LABELS,
   AUDIT_TRAIL_STATUS_LABELS,
-} from '@/services/admin/auditTrail/auditTrailCatalog';
+} from '@/features/admin/services/auditTrail/auditTrailCatalog';
 import {
   AUDIT_TRAIL_SESSION_END_LABELS,
   resolveAuditTrailSessionDurationMs,
-} from '@/services/admin/auditTrail/auditTrailSessions';
-import { formatAuditTrailDuration } from '@/services/admin/auditTrail/auditTrailValues';
+} from '@/features/admin/services/auditTrail/auditTrailSessions';
+import { formatAuditTrailDuration } from '@/features/admin/services/auditTrail/auditTrailValues';
 import { formatClinicalClock, formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 
 export const AUDIT_TRAIL_EVENT_EXPORT_HEADERS = [

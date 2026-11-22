@@ -1,15 +1,15 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { normalizeAuditTrailEvents } from '@/services/admin/auditTrail/auditTrailNormalize';
+import { normalizeAuditTrailEvents } from '@/features/admin/services/auditTrail/auditTrailNormalize';
 import {
   buildAuditTrailSessions,
   resolveAuditTrailBoundaryIds,
   resolveAuditTrailSessionDurationMs,
-} from '@/services/admin/auditTrail/auditTrailSessions';
+} from '@/features/admin/services/auditTrail/auditTrailSessions';
 import {
   buildAuditTrailGroups,
   buildAuditTrailLines,
-} from '@/services/admin/auditTrail/auditTrailGroups';
+} from '@/features/admin/services/auditTrail/auditTrailGroups';
 import { auditLog, patientDetails } from './auditTrailFixtures';
 
 const at = (time: string) => `2026-10-22T${time}:00.000Z`;

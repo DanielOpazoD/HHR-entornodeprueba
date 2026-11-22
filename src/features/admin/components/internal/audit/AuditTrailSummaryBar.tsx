@@ -1,12 +1,12 @@
 import React from 'react';
 import clsx from 'clsx';
 import { AlertTriangle } from 'lucide-react';
-import type { AuditTrailCategory } from '@/types/auditTrailTypes';
+import type { AuditTrailCategory } from '@/features/admin/types/auditTrailTypes';
 import {
   AUDIT_TRAIL_CATEGORY_LABELS,
   AUDIT_TRAIL_CATEGORY_ORDER,
-} from '@/services/admin/auditTrail/auditTrailCatalog';
-import type { AuditTrailSummary } from '@/services/admin/auditTrail/auditTrailFilters';
+} from '@/features/admin/services/auditTrail/auditTrailCatalog';
+import type { AuditTrailSummary } from '@/features/admin/services/auditTrail/auditTrailFilters';
 import { FOCUS_RING, pluralize } from './auditTrailDisplay';
 
 const CATEGORY_DOTS: Record<AuditTrailCategory, string> = {

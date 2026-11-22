@@ -23,7 +23,7 @@ vi.mock('firebase/functions', () => ({
   httpsCallable: vi.fn(),
 }));
 
-import { createRoleService, roleService } from '@/services/admin/roleService';
+import { createRoleService, roleService } from '@/features/admin/services/roleService';
 
 describe('roleService', () => {
   beforeEach(() => {
