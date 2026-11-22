@@ -10,8 +10,8 @@ const fault = vi.hoisted(() => ({
   reload: vi.fn(),
 }));
 // Inject a transport failure at the existing lazy-loader port, keeping its real recovery policy.
-vi.mock('@/utils/lazyWithRetry', async importOriginal => {
-  const actual = await importOriginal<typeof import('@/utils/lazyWithRetry')>();
+vi.mock('@/components/ui/lazyWithRetry', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/components/ui/lazyWithRetry')>();
   return {
     lazyWithRetry: (factory: () => Promise<{ default: React.ComponentType }>) => {
       let attempts = 0;

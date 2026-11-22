@@ -16,7 +16,7 @@ import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { getVisibleAppModules } from '@/shared/access/operationalAccessPolicy';
 import { useUserAvatarProfile } from '@/hooks/useUserAvatarProfile';
 import { useNotification } from '@/context/UIContext';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import {
   buildUserAvatarFeedback,
   resolveVisibleUserAvatarUrl,

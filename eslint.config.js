@@ -288,6 +288,40 @@ export default tseslint.config(
     },
   },
   {
+    // Layer 0 (pure core) never imports React; React wrappers belong in hooks/, components/, or a feature.
+    files: ['src/{types,domain,utils,constants,schemas,shared}/**/*.{ts,tsx}'],
+    ignores: ['**/*.d.ts', '**/*.test.*', '**/*.spec.*'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'react',
+              message:
+                'La capa 0 (núcleo puro) no importa React; mueve el módulo React a hooks/, components/ o su feature.',
+            },
+            {
+              name: 'react-dom',
+              message:
+                'La capa 0 (núcleo puro) no importa React; mueve el módulo React a hooks/, components/ o su feature.',
+            },
+            {
+              name: 'react-dom/client',
+              message:
+                'La capa 0 (núcleo puro) no importa React; mueve el módulo React a hooks/, components/ o su feature.',
+            },
+            {
+              name: 'react/jsx-runtime',
+              message:
+                'La capa 0 (núcleo puro) no importa React; mueve el módulo React a hooks/, components/ o su feature.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['src/components/layout/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': ['error', { patterns: [DATA_ACCESS_RESTRICTION] }],

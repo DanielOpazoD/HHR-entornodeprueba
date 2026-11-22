@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { reloadAfterChunkLoadFailure } from '@/utils/lazyWithRetry';
+import { reloadAfterChunkLoadFailure } from '@/components/ui/lazyWithRetry';
 import type DiagnosisCie10Cell from './DiagnosisCie10Cell';
 
 type Cie10Cell = typeof DiagnosisCie10Cell;

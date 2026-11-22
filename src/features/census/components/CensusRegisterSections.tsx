@@ -10,7 +10,7 @@ import {
 import { useCensusMovementData } from '@/features/census/hooks/useCensusMovementData';
 import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessProfile';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 
 const LazyCensusModals = lazyWithRetry(() =>
   import('@/features/census/components/CensusModals').then(module => ({

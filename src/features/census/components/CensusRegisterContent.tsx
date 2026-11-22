@@ -20,7 +20,7 @@ import {
 import { useDailyRecordWriteStatus } from '@/features/census/hooks/useDailyRecordWriteStatus';
 import { resolveCensusOperationalState } from '@/features/census/controllers/censusOperationalStateController';
 import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import '../styles/censusLayout.css';
 import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 import { listClinicalExplorerPatients } from '@/features/census/controllers/clinicalExplorerController';

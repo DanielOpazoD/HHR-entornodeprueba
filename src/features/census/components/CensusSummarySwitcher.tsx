@@ -1,5 +1,5 @@
 import { Suspense, useState } from 'react';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { Bed, ChartNoAxesCombined } from 'lucide-react';
 import { CombinedSummaryCard } from '@/features/census/components/SummaryCard';
 import type { ComponentProps } from 'react';

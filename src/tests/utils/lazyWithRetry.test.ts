@@ -6,7 +6,7 @@ vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
 }));
 
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 
 const setOnline = (value: boolean) =>

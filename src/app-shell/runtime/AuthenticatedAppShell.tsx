@@ -14,7 +14,7 @@ import { HandoffExtensionConnection } from './HandoffExtensionConnection';
 import { useAuthenticatedAppRuntime } from '@/app-shell/runtime/useAuthenticatedAppRuntime';
 import type { CensusQuickActionPatient } from '@/shared/contracts/censusQuickActionPatient';
 import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/dateStripRadiologyViewer';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { markPerf } from '@/shared/runtime/perfAudit';
 import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
 

@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { onSessionChange } from '@/services/storage/sessionStorageTransition';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import type { ClinicalExplorerView } from './ClinicalExplorerView';
 
 export interface ClinicalExplorerSelection {
