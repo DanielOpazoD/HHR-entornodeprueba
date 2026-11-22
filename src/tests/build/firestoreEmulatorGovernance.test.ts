@@ -27,7 +27,7 @@ const createGovernanceRoot = () => {
         'RUN_FIRESTORE_RULES_TESTS=1 vitest run -c vitest.rules.config.ts src/tests/security/firestore-rules.test.ts',
       'test:rules:ci': 'bash scripts/run-firestore-rules-ci.sh',
       'test:storage-rules':
-        'RUN_STORAGE_RULES_TESTS=1 vitest run -c vitest.storage-rules.config.ts',
+        'RUN_STORAGE_RULES_TESTS=1 vitest run -c vitest.rules.config.ts src/tests/security/storage-rules.test.ts',
       'test:storage-rules:ci': 'bash scripts/run-storage-rules-ci.sh',
       'test:emulator:sync':
         'RUN_FIRESTORE_EMULATOR_TESTS=1 vitest run -c vitest.emulator.config.ts',
