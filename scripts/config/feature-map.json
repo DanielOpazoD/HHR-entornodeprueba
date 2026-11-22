@@ -930,7 +930,7 @@
         },
         {
           "at": "netlify/functions/syslab-proxy.ts › createSyslabProxyHandler",
-          "decides": "Autoriza el rol y el operador, deriva el propietario hash de la cola y reenvía el trabajo al servidor del Mac mini con telemetría."
+          "decides": "Autoriza el rol y el operador, deriva el propietario hash de la cola y reenvía el trabajo al servidor del Mac mini."
         }
       ],
       "tests": [
