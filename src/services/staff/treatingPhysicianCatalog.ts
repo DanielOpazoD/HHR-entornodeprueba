@@ -87,9 +87,10 @@ const uniqueCatalogByName = (
     grouped.set(key, [...(grouped.get(key) ?? []), item]);
   }
   return new Map(
-    [...grouped.entries()]
-      .filter(([, items]) => items.length === 1)
-      .map(([key, items]) => [key, items[0]])
+    [...grouped.entries()].flatMap(
+      ([key, items]): Array<[string, ProfessionalCatalogItem]> =>
+        items.length === 1 && items[0] ? [[key, items[0]]] : []
+    )
   );
 };
 

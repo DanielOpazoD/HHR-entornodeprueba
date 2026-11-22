@@ -74,8 +74,9 @@ export const useCMA = (record: DailyRecord | null, patchRecord: ApplyDailyRecord
       const normalizedData = normalizePatientData(data);
       const sourceBedId =
         data.originalBedId && currentRecord.beds?.[data.originalBedId] ? data.originalBedId : null;
-      const sourcePatientWithEpisodeId = sourceBedId
-        ? ensurePatientClinicalEpisodeId(currentRecord.beds[sourceBedId])
+      const sourcePatient = sourceBedId ? currentRecord.beds[sourceBedId] : undefined;
+      const sourcePatientWithEpisodeId = sourcePatient
+        ? ensurePatientClinicalEpisodeId(sourcePatient)
         : null;
 
       const id = crypto.randomUUID();

@@ -88,8 +88,9 @@ export function useExcelParser(): UseExcelParserReturn {
 
       setWorkbookData(workbookData);
       setSheetNames(sheetNames);
-      if (sheetNames.length > 0) {
-        setActiveSheet(sheetNames[0]);
+      const firstSheet = sheetNames[0];
+      if (firstSheet) {
+        setActiveSheet(firstSheet);
       }
     } catch (err) {
       excelParserLogger.error('Error parsing excel', err);

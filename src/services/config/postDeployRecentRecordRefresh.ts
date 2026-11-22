@@ -61,7 +61,7 @@ const formatIsoLocalDate = (date: Date): string => {
 };
 
 const getPreviousIsoDate = (dateString: string): string => {
-  const [year, month, day] = dateString.split('-').map(Number);
+  const [year = NaN, month = NaN, day = NaN] = dateString.split('-').map(Number);
   const date = new Date(year, month - 1, day);
   date.setDate(date.getDate() - 1);
   return formatIsoLocalDate(date);

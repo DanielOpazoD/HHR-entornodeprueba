@@ -62,20 +62,22 @@ const generatePdfPath = (date: string, shiftType: 'day' | 'night'): string => {
  */
 const parseFilePath = (path: string): { date: string; shiftType: 'day' | 'night' } | null => {
   // Try new format: DD-MM-YYYY - Turno Largo.pdf
-  const newMatch = path.match(/(\d{2})-(\d{2})-(\d{4}) - Turno (Largo|Noche)\.pdf$/);
-  if (newMatch) {
+  const [, newDay, newMonth, newYear, newShift] =
+    path.match(/(\d{2})-(\d{2})-(\d{4}) - Turno (Largo|Noche)\.pdf$/) ?? [];
+  if (newDay && newMonth && newYear && newShift) {
     return {
-      date: `${newMatch[3]}-${newMatch[2]}-${newMatch[1]}`, // Convert back to YYYY-MM-DD
-      shiftType: newMatch[4] === 'Largo' ? 'day' : 'night',
+      date: `${newYear}-${newMonth}-${newDay}`, // Convert back to YYYY-MM-DD
+      shiftType: newShift === 'Largo' ? 'day' : 'night',
     };
   }
 
   // Fallback to old format: YYYY-MM-DD_turno-largo.pdf
-  const oldMatch = path.match(/(\d{4}-\d{2}-\d{2})_(turno-largo|turno-noche)\.pdf$/);
-  if (oldMatch) {
+  const [, oldDate, oldShift] =
+    path.match(/(\d{4}-\d{2}-\d{2})_(turno-largo|turno-noche)\.pdf$/) ?? [];
+  if (oldDate && oldShift) {
     return {
-      date: oldMatch[1],
-      shiftType: oldMatch[2] === 'turno-largo' ? 'day' : 'night',
+      date: oldDate,
+      shiftType: oldShift === 'turno-largo' ? 'day' : 'night',
     };
   }
 

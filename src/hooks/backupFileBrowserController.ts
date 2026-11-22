@@ -13,7 +13,7 @@ export type BackupBrowserItem = {
 
 export const buildInitialBackupBrowserPath = (now: Date = new Date()): string[] => {
   const today = getClinicalCalendarDateISO(now);
-  return [today.slice(0, 4), MONTH_NAMES[Number(today.slice(5, 7)) - 1]];
+  return [today.slice(0, 4), MONTH_NAMES[Number(today.slice(5, 7)) - 1] ?? ''];
 };
 
 export const filterBackupBrowserItems = (

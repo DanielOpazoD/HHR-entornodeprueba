@@ -285,6 +285,9 @@ export const wouldReplacePendingDailyRecordIdentity = (
   getPendingEntriesForDate(date).some(({ patch }) =>
     Object.keys(patch).some(path => {
       const [, bedId] = path.split('.');
+      if (!bedId) {
+        return false;
+      }
       return !isSameEpisodeForExplicitCensusPatch(
         incomingRecord.beds[bedId],
         previousRecord.beds[bedId]

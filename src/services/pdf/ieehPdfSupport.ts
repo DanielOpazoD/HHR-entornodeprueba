@@ -15,15 +15,19 @@ export const parseDate = (
   if (!dateStr) return null;
   const normalized = formatDateToCL(dateStr);
   const parts = normalized.split('-');
-  if (parts.length !== 3) return null;
-  return { dia: parts[0], mes: parts[1], anio: parts[2] };
+  const [dia, mes, anio] = parts;
+  if (parts.length !== 3 || dia === undefined || mes === undefined || anio === undefined) {
+    return null;
+  }
+  return { dia, mes, anio };
 };
 
 export const parseTime = (timeStr: string | undefined): { hora: string; min: string } | null => {
   if (!timeStr) return null;
   const parts = timeStr.split(':');
-  if (parts.length < 2) return null;
-  return { hora: parts[0], min: parts[1] };
+  const [hora, min] = parts;
+  if (parts.length < 2 || hora === undefined || min === undefined) return null;
+  return { hora, min };
 };
 
 export const resolveDischargeDiagnosis = (

@@ -7,17 +7,20 @@ import { whatsappShiftLogger } from '@/services/integrations/integrationLoggers'
 const TURNO_KEYWORDS = ['turno pabellon', 'turno pabellón', 'envío turno', 'envio turno'];
 
 const parseShiftDates = (messageText: string): { startDate: string; endDate: string } | null => {
-  const dateMatch = messageText.match(
-    /del\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+hasta\s+el\s+(\d{1,2}\/\d{1,2}\/\d{4})/i
-  );
+  const [, start, end] =
+    messageText.match(
+      /del\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+hasta\s+el\s+(\d{1,2}\/\d{1,2}\/\d{4})/i
+    ) ?? [];
 
-  if (!dateMatch) {
+  if (!start || !end) {
     return null;
   }
 
-  const [, start, end] = dateMatch;
   const [startDay, startMonth, startYear] = start.split('/');
   const [endDay, endMonth, endYear] = end.split('/');
+  if (!startDay || !startMonth || !startYear || !endDay || !endMonth || !endYear) {
+    return null;
+  }
 
   return {
     startDate: `${startYear}-${startMonth.padStart(2, '0')}-${startDay.padStart(2, '0')}`,
@@ -34,12 +37,13 @@ export const createWhatsAppShiftStore = (
     const shiftsQuery = query(getShiftsCollection(), orderBy('parsedAt', 'desc'), limit(1));
 
     return onSnapshot(shiftsQuery, snapshot => {
-      if (snapshot.empty) {
+      const firstDoc = snapshot.docs[0];
+      if (snapshot.empty || !firstDoc) {
         callback(null);
         return;
       }
 
-      callback(snapshot.docs[0].data() as WeeklyShift);
+      callback(firstDoc.data() as WeeklyShift);
     });
   };
 

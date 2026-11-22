@@ -3,13 +3,14 @@ import type { SyslabExamItem } from '@/types/domain/labExamTypes';
 const MULTIPLE_SPACES = /\s+/g;
 
 const normalizedDate = (value: string): { key: string; label: string } | null => {
-  const dayFirst = value.trim().match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})/);
-  const yearFirst = value.trim().match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
-  const parts = dayFirst
-    ? { day: dayFirst[1], month: dayFirst[2], year: dayFirst[3] }
-    : yearFirst
-      ? { day: yearFirst[3], month: yearFirst[2], year: yearFirst[1] }
-      : null;
+  const [, dDay, dMonth, dYear] = value.trim().match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})/) ?? [];
+  const [, yYear, yMonth, yDay] = value.trim().match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})/) ?? [];
+  const parts =
+    dDay && dMonth && dYear
+      ? { day: dDay, month: dMonth, year: dYear }
+      : yYear && yMonth && yDay
+        ? { day: yDay, month: yMonth, year: yYear }
+        : null;
   if (!parts) return null;
 
   const day = parts.day.padStart(2, '0');
@@ -36,9 +37,11 @@ export const resolveLabPdfDateLabel = (exams: SyslabExamItem[]): string => {
     if (date) dates.set(date.key, date.label);
   });
   const ordered = [...dates.entries()].sort(([left], [right]) => left.localeCompare(right));
-  if (ordered.length === 0) return 'sin fecha';
-  if (ordered.length === 1) return ordered[0][1];
-  return `${ordered[0][1]} a ${ordered.at(-1)![1]}`;
+  const first = ordered[0];
+  const last = ordered[ordered.length - 1];
+  if (!first || !last) return 'sin fecha';
+  if (ordered.length === 1) return first[1];
+  return `${first[1]} a ${last[1]}`;
 };
 
 export const buildLabPdfFilename = (exams: SyslabExamItem[], rut: string): string => {

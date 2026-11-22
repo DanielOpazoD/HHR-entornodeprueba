@@ -23,7 +23,7 @@ export const buildUpdatePatientActionPatch = (
     [field]: value,
   } as Partial<PatientData>);
 
-  if (field === 'pathology' && value !== state.beds[bedId].pathology) {
+  if (field === 'pathology' && value !== state.beds[bedId]?.pathology) {
     patches[`beds.${bedId}.cie10Code`] = undefined;
     patches[`beds.${bedId}.cie10Description`] = undefined;
   }

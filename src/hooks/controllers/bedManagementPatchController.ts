@@ -277,7 +277,7 @@ export const buildClearAllBedsPatches = (state: DailyRecord): DailyRecordPatch =
   Object.keys(state.beds).forEach(bedId => {
     patches[`beds.${bedId}`] = buildClearedBedPatient({
       bedId,
-      location: state.beds[bedId].location,
+      location: state.beds[bedId]?.location,
     });
   });
   return patches as DailyRecordPatch;
@@ -289,16 +289,19 @@ export const buildMovePatientPatches = (
   targetBedId: string
 ): DailyRecordPatch => {
   const sourceData = state.beds[sourceBedId];
+  if (!sourceData) {
+    return {} as DailyRecordPatch;
+  }
 
   return {
     [`beds.${targetBedId}`]: buildTargetBedPatient({
       patient: sourceData,
       targetBedId,
-      targetLocation: state.beds[targetBedId].location,
+      targetLocation: state.beds[targetBedId]?.location,
     }),
     [`beds.${sourceBedId}`]: buildClearedBedPatient({
       bedId: sourceBedId,
-      location: state.beds[sourceBedId].location,
+      location: sourceData.location,
     }),
   } as DailyRecordPatch;
 };
@@ -307,14 +310,20 @@ export const buildCopyPatientPatches = (
   state: DailyRecord,
   sourceBedId: string,
   targetBedId: string
-): DailyRecordPatch =>
-  ({
+): DailyRecordPatch => {
+  const sourceData = state.beds[sourceBedId];
+  if (!sourceData) {
+    return {} as DailyRecordPatch;
+  }
+
+  return {
     [`beds.${targetBedId}`]: buildTargetBedPatient({
-      patient: deepClone(state.beds[sourceBedId]),
+      patient: deepClone(sourceData),
       targetBedId,
-      targetLocation: state.beds[targetBedId].location,
+      targetLocation: state.beds[targetBedId]?.location,
     }),
-  }) as DailyRecordPatch;
+  } as DailyRecordPatch;
+};
 
 export const buildClinicalCribMultipleFieldPatches = (
   state: DailyRecord,
@@ -342,23 +351,29 @@ export const buildUpdatePatientPatches = (
   state: DailyRecord,
   bedId: string,
   fields: Partial<PatientData>
-): DailyRecordPatch =>
-  filterUnchangedBedFieldPatches(
+): DailyRecordPatch => {
+  const currentPatient = state.beds[bedId];
+  if (!currentPatient) {
+    return {} as DailyRecordPatch;
+  }
+
+  return filterUnchangedBedFieldPatches(
     state,
     bedId,
     buildPatientFieldPatches({
       bedId,
-      currentPatient: state.beds[bedId],
+      currentPatient,
       updates: fields,
       recordDate: state.date,
     })
   ) as DailyRecordPatch;
+};
 
 export const buildClearPatientPatches = (state: DailyRecord, bedId: string): DailyRecordPatch =>
   ({
     [`beds.${bedId}`]: buildClearedBedPatient({
       bedId,
-      location: state.beds[bedId].location,
+      location: state.beds[bedId]?.location,
     }),
   }) as DailyRecordPatch;
 
@@ -367,7 +382,7 @@ export const buildToggleBlockedBedPatches = (
   bedId: string,
   reason?: string
 ): DailyRecordPatch => {
-  const newIsBlocked = !state.beds[bedId].isBlocked;
+  const newIsBlocked = !state.beds[bedId]?.isBlocked;
   return {
     [`beds.${bedId}.isBlocked`]: newIsBlocked,
     [`beds.${bedId}.blockedReason`]: newIsBlocked ? reason || '' : '',
@@ -413,11 +428,17 @@ export const buildUpdateBlockedReasonPatches = (bedId: string, reason: string): 
 export const buildCreateClinicalCribPatches = (
   state: DailyRecord,
   bedId: string
-): DailyRecordPatch =>
-  ({
-    [`beds.${bedId}.clinicalCrib`]: buildClinicalCribDraft(bedId, state.beds[bedId]),
+): DailyRecordPatch => {
+  const parentPatient = state.beds[bedId];
+  if (!parentPatient) {
+    return {} as DailyRecordPatch;
+  }
+
+  return {
+    [`beds.${bedId}.clinicalCrib`]: buildClinicalCribDraft(bedId, parentPatient),
     [`beds.${bedId}.hasCompanionCrib`]: false,
-  }) as DailyRecordPatch;
+  } as DailyRecordPatch;
+};
 
 export const buildRemoveClinicalCribPatches = (bedId: string): DailyRecordPatch =>
   ({

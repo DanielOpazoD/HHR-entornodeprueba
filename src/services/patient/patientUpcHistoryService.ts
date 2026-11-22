@@ -73,7 +73,8 @@ export const loadPatientUpcHistory = async (patient: Patient, throughDate: strin
     .filter((day): day is string => Boolean(day))
     .sort()[0];
   if (
-    !/^\d{4}-\d{2}-\d{2}$/.test(start || '') ||
+    !start ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(start) ||
     start > throughDate ||
     // Without an accredited episode, days join only by document and admission date.
     (!resolveAccreditedClinicalEpisodeId(patient) &&

@@ -35,9 +35,10 @@ export const useRoleManagement = () => {
         syncCandidates.map(({ email, role }) => roleService.forceSyncUser(email, role))
       );
 
-      const failedEmails = results.flatMap((result, index) =>
-        result.status === 'rejected' ? [syncCandidates[index].email] : []
-      );
+      const failedEmails = results.flatMap((result, index) => {
+        const candidate = syncCandidates[index];
+        return result.status === 'rejected' && candidate ? [candidate.email] : [];
+      });
 
       if (failedEmails.length > 0) {
         roleManagementLogger.warn('Legacy role claim sync warning', { failedEmails });

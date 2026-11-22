@@ -125,8 +125,8 @@ export const mergeEloisaStaff = (
         (candidate.practitionerId || candidate.name.length > entry.name.length) &&
         staffNameMatches(candidate, entry.name)
     );
-    if (targets.length !== 1) continue;
-    const target = targets[0];
+    const [target] = targets;
+    if (targets.length !== 1 || !target) continue;
     if (entry.manuallyCatalogued) target.manuallyCatalogued = true;
     target.aliases = personSpellings([...target.aliases, entry.name, ...entry.aliases]);
     records.delete(key);

@@ -120,14 +120,16 @@ const normalizeRoleAssignments = ({
       normalizedAssignment.standardSlotIndex < standardAssignments.length
     ) {
       const target = standardAssignments[normalizedAssignment.standardSlotIndex];
-      standardAssignments[normalizedAssignment.standardSlotIndex] = {
-        ...target,
-        ...normalizedAssignment,
-        id: normalizedAssignment.id,
-        name: normalizedAssignment.name || target.name,
-        standardSlotIndex: normalizedAssignment.standardSlotIndex,
-      };
-      return;
+      if (target) {
+        standardAssignments[normalizedAssignment.standardSlotIndex] = {
+          ...target,
+          ...normalizedAssignment,
+          id: normalizedAssignment.id,
+          name: normalizedAssignment.name || target.name,
+          standardSlotIndex: normalizedAssignment.standardSlotIndex,
+        };
+        return;
+      }
     }
 
     extras.push({

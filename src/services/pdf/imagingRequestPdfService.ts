@@ -44,6 +44,17 @@ const getDiagnosisValue = (patient: PatientData): string =>
 type FieldCoords = { x: number; y: number; maxWidth: number };
 type DrawText = (text: string, coords: FieldCoords, options?: { shrinkToFit?: boolean }) => void;
 
+const drawIfDefined = (
+  drawText: DrawText,
+  text: string,
+  fieldCoords: FieldCoords | undefined,
+  options?: { shrinkToFit?: boolean }
+) => {
+  if (fieldCoords) {
+    drawText(text, fieldCoords, options);
+  }
+};
+
 const fillImagingPatientIdentity = ({
   drawText,
   patient,
@@ -56,12 +67,14 @@ const fillImagingPatientIdentity = ({
   includeBirthDate?: boolean;
 }) => {
   // One measured line: separate name columns let long given names run into the surnames.
-  drawText(formatPatientDisplayName(patient), coords.nombreCompleto, { shrinkToFit: true });
-  drawText(patient.rut || '', coords.rut);
-  drawText(calculateAge(patient.birthDate), coords.edad);
+  drawIfDefined(drawText, formatPatientDisplayName(patient), coords.nombreCompleto, {
+    shrinkToFit: true,
+  });
+  drawIfDefined(drawText, patient.rut || '', coords.rut);
+  drawIfDefined(drawText, calculateAge(patient.birthDate), coords.edad);
 
-  if (includeBirthDate && 'fechaNacimiento' in coords) {
-    drawText(formatDate(patient.birthDate), coords.fechaNacimiento);
+  if (includeBirthDate) {
+    drawIfDefined(drawText, formatDate(patient.birthDate), coords.fechaNacimiento);
   }
 };
 
@@ -78,14 +91,14 @@ const fillPhysicianAndDiagnosis = ({
   coords: Record<string, FieldCoords>;
   includeDateField?: string;
 }) => {
-  drawText(getDiagnosisValue(patient), coords.diagnostico);
+  drawIfDefined(drawText, getDiagnosisValue(patient), coords.diagnostico);
 
   if (includeDateField) {
-    drawText(getTodayFormatted(), coords[includeDateField]);
+    drawIfDefined(drawText, getTodayFormatted(), coords[includeDateField]);
   }
 
   if (requestingPhysician) {
-    drawText(requestingPhysician, coords.medicoTratante);
+    drawIfDefined(drawText, requestingPhysician, coords.medicoTratante);
   }
 };
 

@@ -61,7 +61,10 @@ export const useExistingDaysQuery = (
         marked !== undefined &&
         savedDates.length > 0 &&
         queryClient.isFetching({ queryKey }) === 0 &&
-        savedDates.every(date => marked.includes(parseInt(date.split('-')[2])));
+        savedDates.every(date => {
+          const dayPart = date.split('-')[2];
+          return dayPart !== undefined && marked.includes(parseInt(dayPart));
+        });
       if (!onlyMarkedDays) {
         rescanMonth();
         return;

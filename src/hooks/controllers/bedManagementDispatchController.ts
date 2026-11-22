@@ -139,14 +139,14 @@ const auditActionIntent = (
   bedAudit: BedManagementAuditPort
 ) => {
   switch (action.type) {
-    case 'UPDATE_PATIENT':
-      bedAudit.auditPatientChange(
-        action.bedId,
-        action.field,
-        currentRecord.beds[action.bedId],
-        action.value
-      );
+    case 'UPDATE_PATIENT': {
+      const oldPatient = currentRecord.beds[action.bedId];
+      if (!oldPatient) {
+        break;
+      }
+      bedAudit.auditPatientChange(action.bedId, action.field, oldPatient, action.value);
       break;
+    }
     case 'UPDATE_PATIENT_MULTIPLE': {
       const patientSnapshot = currentRecord.beds[action.bedId];
       if (!patientSnapshot) {
@@ -163,6 +163,9 @@ const auditActionIntent = (
     }
     case 'CLEAR_PATIENT': {
       const bed = currentRecord.beds[action.bedId];
+      if (!bed) {
+        break;
+      }
       if (bed.patientName) {
         bedAudit.auditPatientCleared(action.bedId, bed.patientName, bed.rut);
       }

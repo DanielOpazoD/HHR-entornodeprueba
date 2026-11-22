@@ -71,11 +71,14 @@ export const canApplyClinicalCribCreate = (
 export const rebaseClinicalCribCreate = (
   request: ClinicalCribCreateRequest,
   candidate: DailyRecord
-): ClinicalCribCreateRequest => ({
-  ...request,
-  confirmedLastUpdated: candidate.lastUpdated,
-  confirmedParent: buildConfirmedBedOccupantIdentity(candidate.beds[request.bedId]),
-});
+): ClinicalCribCreateRequest => {
+  const parent = candidate.beds[request.bedId];
+  return {
+    ...request,
+    confirmedLastUpdated: candidate.lastUpdated,
+    confirmedParent: parent ? buildConfirmedBedOccupantIdentity(parent) : request.confirmedParent,
+  };
+};
 
 export const rebaseClinicalCribCreatePatch = (
   patch: DailyRecordPatch,

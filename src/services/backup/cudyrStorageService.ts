@@ -74,22 +74,22 @@ const generateCudyrPath = (date: string): string => {
  */
 const parseFilePath = (path: string): { date: string; year: string; month: string } | null => {
   // New format: DD-MM-YYYY - CUDYR.xlsx
-  const newMatch = path.match(/(\d{2})-(\d{2})-(\d{4}) - CUDYR\.xlsx$/);
-  if (newMatch) {
+  const [, newDay, newMonth, newYear] = path.match(/(\d{2})-(\d{2})-(\d{4}) - CUDYR\.xlsx$/) ?? [];
+  if (newDay && newMonth && newYear) {
     return {
-      date: `${newMatch[3]}-${newMatch[2]}-${newMatch[1]}`, // YYYY-MM-DD
-      year: newMatch[3],
-      month: newMatch[2],
+      date: `${newYear}-${newMonth}-${newDay}`, // YYYY-MM-DD
+      year: newYear,
+      month: newMonth,
     };
   }
 
   // Old format: CUDYR_DD-MM-YYYY.xlsx (backwards compatibility)
-  const oldMatch = path.match(/CUDYR_(\d{2})-(\d{2})-(\d{4})\.xlsx$/);
-  if (oldMatch) {
+  const [, oldDay, oldMonth, oldYear] = path.match(/CUDYR_(\d{2})-(\d{2})-(\d{4})\.xlsx$/) ?? [];
+  if (oldDay && oldMonth && oldYear) {
     return {
-      date: `${oldMatch[3]}-${oldMatch[2]}-${oldMatch[1]}`, // YYYY-MM-DD
-      year: oldMatch[3],
-      month: oldMatch[2],
+      date: `${oldYear}-${oldMonth}-${oldDay}`, // YYYY-MM-DD
+      year: oldYear,
+      month: oldMonth,
     };
   }
   return null;

@@ -103,12 +103,12 @@ function collectPatientMovementHistory(
 
   // We process records to find movements and the latest admission date
   for (const date of sortedDates) {
-    const record: PatientHistoryRecord = allRecords[date];
+    const record = allRecords[date];
+    if (!record) continue;
 
     // 1. Check active beds
-    for (const bedId of Object.keys(record.beds)) {
-      const patient = record.beds[bedId];
-      if (!patient.rut) continue;
+    for (const [bedId, patient] of Object.entries(record.beds)) {
+      if (!patient?.rut) continue;
 
       if (normalizeRut(patient.rut) === normalizedRut) {
         if (!patientName && patient.patientName) patientName = patient.patientName;
@@ -220,13 +220,14 @@ function collectPatientMovementHistory(
     }
   }
 
-  if (movements.length === 0) return null;
+  const firstMovement = movements[0];
+  if (!firstMovement) return null;
 
   // Use the official formula for totalDays (matching Census first column)
   const calculateDays = (startStr: string, endStr: string): number =>
     Math.max(diffCalendarDays(startStr, endStr) ?? 0, 0);
 
-  const firstSeenDate = movements[0].date;
+  const firstSeenDate = firstMovement.date;
   const totalDays = calculateDays(firstSeenDate, lastSeenDate);
 
   return {

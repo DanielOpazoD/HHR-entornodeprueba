@@ -19,7 +19,7 @@ export type BackupDateParts = {
 
 export const parseBackupDateParts = (date: string, context: string): BackupDateParts => {
   const parsedDate = BackupDateSchema.parse(date);
-  const [yearRaw, monthRaw, dayRaw] = parsedDate.split('-');
+  const [yearRaw = '', monthRaw = '', dayRaw = ''] = parsedDate.split('-');
   const year = Number(yearRaw);
   const month = Number(monthRaw);
   const day = Number(dayRaw);
