@@ -8,7 +8,6 @@ const APP_CONTENT_MODULES: readonly ModuleType[] = [
   'CUDYR',
   'NURSING_HANDOFF',
   'AUDIT',
-  'WHATSAPP',
   'BACKUP_FILES',
   'PATIENT_MASTER_INDEX',
   'DATA_MAINTENANCE',

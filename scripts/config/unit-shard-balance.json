@@ -354,7 +354,6 @@
         "src/tests/features/clinical-library/ClinicalLibraryQuickAction.test.tsx",
         "src/tests/features/cudyr/CudyrMonthlyReconciliation.test.tsx",
         "src/tests/features/prescriptions/PrescriptionReassignDialog.test.tsx",
-        "src/tests/features/whatsapp/whatsappViewsAndPanels.test.tsx",
         "src/tests/integration/daily-record-sync.test.tsx",
         "src/tests/rayen-import/ClinicalAntecedentFieldsUi.test.tsx",
         "src/tests/rayen-import/RayenImportFlowStatus.staffing.test.tsx",

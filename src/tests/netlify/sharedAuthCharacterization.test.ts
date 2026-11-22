@@ -33,7 +33,6 @@ import { handler as census } from '../../../netlify/functions/send-census-email'
 import { handler as fuga } from '../../../netlify/functions/send-fuga-notification';
 import { handler as syslab } from '../../../netlify/functions/syslab-proxy';
 import { handler as mmrad } from '../../../netlify/functions/mmrad-search';
-import { handler as whatsapp } from '../../../netlify/functions/whatsapp-proxy';
 
 const functions = [
   ['admin-status', status, 'GET'],
@@ -45,7 +44,6 @@ const functions = [
   ['fuga', fuga, 'POST'],
   ['syslab', syslab, 'GET'],
   ['mmrad', mmrad, 'GET'],
-  ['whatsapp', whatsapp, 'POST'],
 ] as const;
 const cases = [
   ['missing', {}, null],
@@ -63,7 +61,6 @@ let requestNumber = 0;
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv('URL', 'https://app.example.com');
-  vi.stubEnv('WHATSAPP_BOT_URL', 'https://bot.example.com');
   vi.stubEnv('SYSLAB_PROXY_URL', 'https://bridge.example.com');
   server.mockReturnValue({ db: {} });
   authorize.mockResolvedValue({
@@ -100,7 +97,7 @@ for (const [name, handler, method] of functions) {
           },
           body: '{}',
           rawQuery: 'action=unknown',
-          path: '/.netlify/functions/whatsapp-proxy/synthetic',
+          path: '/.netlify/functions/synthetic',
         };
         const response = await handler(event);
         expect(response).toMatchSnapshot();

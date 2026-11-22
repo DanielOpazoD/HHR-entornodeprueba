@@ -74,7 +74,6 @@ vi.mock('@/views/LazyViews', () => ({
   ConfigurationView: () => <div data-testid="configuration-view" />,
   DataView: () => <div data-testid="data-view" />,
   FunctionsTelemetryView: () => <div data-testid="functions-telemetry-view" />,
-  WhatsAppIntegrationView: () => <div data-testid="whatsapp-view" />,
   SystemDiagnosticsView: () => <div data-testid="system-diagnostics-view" />,
   BackupFilesView: ({ backupType }: { backupType: string }) => (
     <div data-testid="backup-files-view" data-backup-type={backupType} />
