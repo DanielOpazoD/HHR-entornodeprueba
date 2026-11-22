@@ -8,7 +8,7 @@ export const getTimeRoundedToStep = (date: Date = new Date(), stepMinutes = 5): 
 };
 
 export const getDaysInMonth = (year: number, month: number): number =>
-  new Date(year, month, 0).getDate();
+  new Date(Date.UTC(year, month, 0)).getUTCDate();
 
 export const generateDateRange = (
   year: number,

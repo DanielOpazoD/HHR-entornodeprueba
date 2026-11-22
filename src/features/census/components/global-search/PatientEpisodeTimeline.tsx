@@ -98,7 +98,7 @@ export const PatientEpisodeTimeline: React.FC<PatientEpisodeTimelineProps> = ({
       {history && <MovementTimeline movements={history.movements} />}
 
       <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-        Episodios de hospitalizacion ({timelineState.episodeCount})
+        Episodios de hospitalización ({timelineState.episodeCount})
       </h4>
 
       {!timelineState.hasEpisodes && (

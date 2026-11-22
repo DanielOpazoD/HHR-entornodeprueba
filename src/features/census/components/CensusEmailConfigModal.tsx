@@ -109,7 +109,7 @@ export const CensusEmailConfigModal: React.FC<Props> = ({
       onClose={onClose}
       title={
         <div>
-          <h2 className="text-lg font-bold text-slate-800">Envío de Correo</h2>
+          <span className="block text-lg font-bold text-slate-800">Envío de Correo</span>
           <p className="text-xs text-slate-500 font-medium">
             Personaliza destinatarios y el mensaje antes de enviar el censo.
           </p>

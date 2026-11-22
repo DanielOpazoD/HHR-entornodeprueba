@@ -69,7 +69,7 @@ Aplicar para cualquier secreto del inventario. Pasos específicos por secreto en
 1. Google Cloud Console → OAuth 2.0 Client IDs → generar nuevo client secret.
 2. Re-autorizar para obtener nuevo `GMAIL_REFRESH_TOKEN` (scope `gmail.send`).
 3. Actualizar las tres variables en Netlify.
-4. Smoke: `npm run test:send-email` o un envío controlado en staging.
+4. Smoke: un envío controlado de prueba (modo prueba del correo de censo) en staging.
 5. Revocar el client secret antiguo en Google Cloud.
 
 ### AI providers (`AI-GEMINI`, `AI-OPENAI`, `AI-ANTHROPIC`)

@@ -33,19 +33,55 @@ export const splitPatientName = (fullName: string | undefined): [string, string,
 export const calculateAge = (birthDate: string | undefined): string => {
   if (!birthDate) return '';
   try {
-    const [day = ''] = birthDate.split('T');
-    const parts = day.includes('-') ? day.split('-').map(part => part.padStart(2, '0')) : [];
+    const [day = ''] = birthDate.trim().split('T');
+    const parts = day.includes('-') ? day.split('-') : [];
     const [part0, part1, part2] = parts;
-    let birth: Date;
-    if (parts.length === 3 && part0 && part1 && part2 && part0.length === 4) {
-      birth = new Date(`${part0}-${part1}-${part2}`);
-    } else if (parts.length === 3 && part0 && part1 && part2 && part2.length === 4) {
-      birth = new Date(`${part2}-${part1}-${part0}`);
+    if (
+      parts.length !== 3 ||
+      !part0 ||
+      !part1 ||
+      !part2 ||
+      !/^\d+$/.test(part0) ||
+      !/^\d+$/.test(part1) ||
+      !/^\d+$/.test(part2)
+    ) {
+      return '';
+    }
+
+    let year: number;
+    let month: number;
+    let dayOfMonth: number;
+    if (part0.length === 4) {
+      year = Number(part0);
+      month = Number(part1);
+      dayOfMonth = Number(part2);
+    } else if (part2.length === 4) {
+      year = Number(part2);
+      month = Number(part1);
+      dayOfMonth = Number(part0);
     } else {
       return '';
     }
+
+    if (month < 1 || month > 12 || dayOfMonth < 1 || dayOfMonth > 31) {
+      return '';
+    }
+
+    const birth = new Date(Date.UTC(year, month - 1, dayOfMonth));
+    if (
+      Number.isNaN(birth.getTime()) ||
+      birth.getUTCFullYear() !== year ||
+      birth.getUTCMonth() !== month - 1 ||
+      birth.getUTCDate() !== dayOfMonth
+    ) {
+      return '';
+    }
+
     // Both are calendar days at UTC midnight read with UTC getters, so the device zone moves neither.
     const today = new Date(getClinicalCalendarDateISO());
+    if (Number.isNaN(today.getTime())) {
+      return '';
+    }
     let age = today.getUTCFullYear() - birth.getUTCFullYear();
     const m = today.getUTCMonth() - birth.getUTCMonth();
     if (m < 0 || (m === 0 && today.getUTCDate() < birth.getUTCDate())) age--;

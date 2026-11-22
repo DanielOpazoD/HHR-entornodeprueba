@@ -48,4 +48,32 @@ describe('audit memory fallback compatibility', () => {
       })
     ).toEqual([]);
   });
+
+  it('orders reversed queries by keyPath and filters where().equals().first() by field', async () => {
+    const { createMockDatabase } =
+      await import('@/services/storage/indexeddb/indexedDbMockFactory');
+    const mockDb = createMockDatabase();
+
+    await mockDb.auditLogs.put({
+      id: 'first-inserted',
+      timestamp: '2026-07-01T08:00:00Z',
+      recordDate: '2026-07-01',
+    } as never);
+    await mockDb.auditLogs.put({
+      id: 'latest-entry',
+      timestamp: '2026-07-03T12:00:00Z',
+      recordDate: '2026-07-03',
+    } as never);
+    await mockDb.auditLogs.put({
+      id: 'middle-entry',
+      timestamp: '2026-07-02T10:00:00Z',
+      recordDate: '2026-07-02',
+    } as never);
+
+    const latest = await mockDb.auditLogs.orderBy('timestamp').reverse().limit(1).toArray();
+    expect(latest.map(item => item.id)).toEqual(['latest-entry']);
+
+    const byDate = await mockDb.auditLogs.where('recordDate').equals('2026-07-02').first();
+    expect(byDate?.id).toBe('middle-entry');
+  });
 });

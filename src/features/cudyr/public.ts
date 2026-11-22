@@ -1,11 +1,12 @@
 // Public API for code outside the cudyr feature. Internal consumers should import local modules directly.
 // Keep the optional monthly reader in its own on-demand chunk.
-import { createElement, lazy } from 'react';
+import { createElement } from 'react';
 import type { ComponentProps } from 'react';
-const LazyCudyrView = lazy(() =>
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
+const LazyCudyrView = lazyWithRetry(() =>
   import('./components/CudyrView').then(module => ({ default: module.CudyrView }))
 );
-const LazyMonthlyIndicator = lazy(() =>
+const LazyMonthlyIndicator = lazyWithRetry(() =>
   import('./components/CudyrMonthlyIndicator').then(module => ({
     default: module.CudyrMonthlyIndicator,
   }))

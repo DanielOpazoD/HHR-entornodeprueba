@@ -74,7 +74,10 @@ export const AdmissionAuditView = () => {
     }
   };
   return (
-    <main className="mx-auto max-w-[1400px] p-4 md:p-6" aria-label="Auditoría de ingresos médicos">
+    <section
+      className="mx-auto max-w-[1400px] p-4 md:p-6"
+      aria-label="Auditoría de ingresos médicos"
+    >
       <header className="mb-5">
         <h1 className="text-xl font-semibold text-slate-900">Ingresos médicos</h1>
         <p className="mt-1 text-sm text-slate-500">
@@ -256,6 +259,6 @@ export const AdmissionAuditView = () => {
           </p>
         )
       )}
-    </main>
+    </section>
   );
 };

@@ -110,7 +110,8 @@ El hook de commit formatea y ejecuta ESLint sobre los archivos de código prepar
 para el commit, sin admitir advertencias. Después comprueba tipos y secretos.
 La comprobación local de tipos usa `npm run typecheck:local` y conserva su caché en
 `output/typecheck/` dentro del worktree; borrarla es seguro. CI sigue usando
-`npm run typecheck`, que comprueba ambos proyectos desde cero.
+`npm run typecheck`, que comprueba los tres proyectos (`tsconfig.json`, `tsconfig.netlify.json`
+y `functions/tsconfig.json`) desde cero.
 `check:unchecked-index` también reutiliza localmente su propia caché
 `output/typecheck/unchecked-index.tsbuildinfo`; con `CI` definido y al escribir la línea base
 (`--write-baseline`) compila desde cero. Si su resultado local difiere del de CI, borra ese archivo.

@@ -70,23 +70,27 @@ describe('NavbarMenu', () => {
     expect(screen.getByText('Comunicación')).toBeInTheDocument();
   });
 
-  it('hides admin items for non-admin users', () => {
+  it('hides admin items and does not open an empty menu for viewer users', () => {
     mockRole = 'viewer';
-    render(<NavbarMenu {...defaultProps} />);
+    render(<NavbarMenu {...defaultProps} visibleModules={['CENSUS']} />);
+    const brandButton = screen.getByRole('button', { name: /hospital hanga roa/i });
+    expect(brandButton).not.toHaveAttribute('aria-haspopup');
     openMenu();
 
+    expect(document.querySelector('.fixed.inset-0')).toBeNull();
     expect(screen.queryByText('Datos')).not.toBeInTheDocument();
     expect(screen.queryByText('Configuración')).not.toBeInTheDocument();
     expect(screen.queryByText('Observabilidad')).not.toBeInTheDocument();
   });
 
-  it('shows both prescription modules for hospital nurses', () => {
+  it('shows both prescription modules for hospital nurses without a leading divider', () => {
     mockRole = 'nurse_hospital';
-    render(<NavbarMenu {...defaultProps} />);
+    render(<NavbarMenu {...defaultProps} visibleModules={['CENSUS']} />);
     openMenu();
 
     expect(screen.getByText('Recetas — Visor')).toBeInTheDocument();
     expect(screen.getByText('Recetas — Configuración (QR/PIN)')).toBeInTheDocument();
+    expect(document.querySelector('.h-px')).toBeNull();
   });
 
   it('closes menu when backdrop is clicked', () => {

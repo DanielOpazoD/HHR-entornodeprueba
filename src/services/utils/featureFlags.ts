@@ -84,6 +84,7 @@ const persistFeatureFlagOverrides = (overrides: Partial<Record<FeatureFlag, bool
 class FeatureFlagsService {
   private static instance: FeatureFlagsService;
   private overrides: Partial<Record<FeatureFlag, boolean>> = {};
+  private envOverrides: Partial<Record<FeatureFlag, boolean>> = {};
   private listeners: Map<FeatureFlag, Set<(enabled: boolean) => void>> = new Map();
 
   private constructor() {
@@ -119,7 +120,7 @@ class FeatureFlagsService {
       import.meta.env.MODE !== 'test' &&
       import.meta.env.VITE_HHR_SPECIALTY_EPISODE_ASSIGNMENT === 'enabled'
     ) {
-      this.overrides.SPECIALTY_EPISODE_ASSIGNMENT = true;
+      this.envOverrides.SPECIALTY_EPISODE_ASSIGNMENT = true;
     }
     // This public build flag is set only for the hhr-pruebas pilot builds.
     // The Jev client independently verifies the Firebase project before consulting.
@@ -127,9 +128,13 @@ class FeatureFlagsService {
       import.meta.env.MODE !== 'test' &&
       import.meta.env.VITE_HHR_SPECIALTY_JEV_PILOT === 'enabled'
     ) {
-      this.overrides.SPECIALTY_EPISODE_ASSIGNMENT = true;
-      this.overrides.SPECIALTY_JEV_CONSULTATION = true;
+      this.envOverrides.SPECIALTY_EPISODE_ASSIGNMENT = true;
+      this.envOverrides.SPECIALTY_JEV_CONSULTATION = true;
     }
+  }
+
+  private getDefaultValue(flag: FeatureFlag): boolean {
+    return this.envOverrides[flag] ?? FEATURE_FLAGS[flag];
   }
 
   // ========================================================================
@@ -140,7 +145,7 @@ class FeatureFlagsService {
    * Check if a feature is enabled
    */
   isEnabled(flag: FeatureFlag): boolean {
-    return this.overrides[flag] ?? FEATURE_FLAGS[flag];
+    return this.overrides[flag] ?? this.getDefaultValue(flag);
   }
 
   /**
@@ -173,22 +178,23 @@ class FeatureFlagsService {
   }
 
   /**
-   * Reset a flag to its default value
+   * Reset a flag to its default value (preserving environment overrides)
    */
   reset(flag: FeatureFlag): void {
     delete this.overrides[flag];
     this.saveToStorage();
-    this.notifyListeners(flag, FEATURE_FLAGS[flag]);
+    this.notifyListeners(flag, this.getDefaultValue(flag));
   }
 
   /**
-   * Reset all flags to defaults
+   * Reset all user overrides back to defaults (preserving environment overrides)
    */
   resetAll(): void {
     this.overrides = {};
     this.saveToStorage();
     Object.keys(FEATURE_FLAGS).forEach(flag => {
-      this.notifyListeners(flag as FeatureFlag, FEATURE_FLAGS[flag as FeatureFlag]);
+      const typedFlag = flag as FeatureFlag;
+      this.notifyListeners(typedFlag, this.getDefaultValue(typedFlag));
     });
   }
 

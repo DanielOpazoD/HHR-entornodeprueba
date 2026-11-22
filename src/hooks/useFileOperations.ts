@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useNotification } from '@/context/UIContext';
 import {
@@ -52,21 +52,24 @@ export const useFileOperations = (
   const clearError = useCallback(() => setError(null), []);
 
   const { success, error: notifyError, warning } = useNotification();
-  const dispatchNotification = (notification: {
-    channel: 'success' | 'warning' | 'error';
-    title: string;
-    message?: string;
-  }) => {
-    if (notification.channel === 'success') {
-      success(notification.title, notification.message);
-    } else if (notification.channel === 'warning') {
-      warning(notification.title, notification.message);
-    } else {
-      notifyError(notification.title, notification.message);
-    }
-  };
+  const dispatchNotification = useCallback(
+    (notification: {
+      channel: 'success' | 'warning' | 'error';
+      title: string;
+      message?: string;
+    }) => {
+      if (notification.channel === 'success') {
+        success(notification.title, notification.message);
+      } else if (notification.channel === 'warning') {
+        warning(notification.title, notification.message);
+      } else {
+        notifyError(notification.title, notification.message);
+      }
+    },
+    [notifyError, success, warning]
+  );
 
-  const handleExportJSON = () => {
+  const handleExportJSON = useCallback(() => {
     void loadExportService()
       .then(exportService => exportService.exportDataJSONWithResult())
       .then(outcome => {
@@ -84,9 +87,9 @@ export const useFileOperations = (
         logger.error('JSON export failed', error);
         dispatchNotification(buildExportJsonNotification('error'));
       });
-  };
+  }, [dispatchNotification]);
 
-  const handleExportCSV = () => {
+  const handleExportCSV = useCallback(() => {
     void loadExportService()
       .then(exportService => {
         const outcome = exportService.exportDataCSVWithResult(record);
@@ -101,68 +104,77 @@ export const useFileOperations = (
         logger.error('CSV export failed', error);
         dispatchNotification(buildExportCsvNotification('error'));
       });
-  };
+  }, [dispatchNotification, record]);
 
-  const handleImportFile = async (file: File) => {
-    setError(null);
-    if (isJsonImportFile(file)) {
-      const { executeImportJsonBackup, buildJsonImportNotifications } = await loadJsonImport();
-      const outcome = await executeImportJsonBackup(file);
-      recordOperationalOutcome('backup', 'import_json_backup', outcome, {
-        context: { fileName: file.name },
-        allowSuccess: true,
-      });
-      if (outcome.status === 'success' || outcome.status === 'partial') {
-        for (const notification of buildJsonImportNotifications(outcome.data)) {
-          dispatchNotification(notification);
-        }
-        if (shouldRefreshAfterJsonImport(outcome.data)) {
-          onRefresh();
+  const handleImportFile = useCallback(
+    async (file: File) => {
+      setError(null);
+      if (isJsonImportFile(file)) {
+        const { executeImportJsonBackup, buildJsonImportNotifications } = await loadJsonImport();
+        const outcome = await executeImportJsonBackup(file);
+        recordOperationalOutcome('backup', 'import_json_backup', outcome, {
+          context: { fileName: file.name },
+          allowSuccess: true,
+        });
+        if (outcome.status === 'success' || outcome.status === 'partial') {
+          for (const notification of buildJsonImportNotifications(outcome.data)) {
+            dispatchNotification(notification);
+          }
+          if (shouldRefreshAfterJsonImport(outcome.data)) {
+            onRefresh();
+          }
+        } else {
+          const presentBackupExportOutcome = await loadBackupExportOutcomePresenter();
+          const notice = presentBackupExportOutcome(outcome, {
+            successTitle: 'Importación completada',
+            partialTitle: 'Importación completada con observaciones',
+            failedTitle: 'Error al importar',
+            fallbackErrorMessage: 'No se pudo importar el archivo JSON.',
+          });
+          const message = notice.message ? `${notice.title}: ${notice.message}` : notice.title;
+          setError(message);
+          dispatchNotification({
+            channel: notice.channel === 'info' ? 'warning' : notice.channel,
+            title: notice.title,
+            message: notice.message,
+          });
         }
       } else {
-        const presentBackupExportOutcome = await loadBackupExportOutcomePresenter();
-        const notice = presentBackupExportOutcome(outcome, {
-          successTitle: 'Importación completada',
-          partialTitle: 'Importación completada con observaciones',
-          failedTitle: 'Error al importar',
-          fallbackErrorMessage: 'No se pudo importar el archivo JSON.',
+        recordOperationalTelemetry({
+          category: 'backup',
+          status: 'failed',
+          operation: 'import_json_backup',
+          issues: ['Se intentó importar un formato no compatible.'],
+          context: { fileName: file.name, mimeType: file.type || 'unknown' },
         });
-        const message = notice.message ? `${notice.title}: ${notice.message}` : notice.title;
-        setError(message);
-        dispatchNotification({
-          channel: notice.channel === 'info' ? 'warning' : notice.channel,
-          title: notice.title,
-          message: notice.message,
-        });
+        const notification = buildImportFileErrorNotification('invalid_format');
+        setError(notification.message ?? notification.title);
+        dispatchNotification(notification);
       }
-    } else {
-      recordOperationalTelemetry({
-        category: 'backup',
-        status: 'failed',
-        operation: 'import_json_backup',
-        issues: ['Se intentó importar un formato no compatible.'],
-        context: { fileName: file.name, mimeType: file.type || 'unknown' },
-      });
-      const notification = buildImportFileErrorNotification('invalid_format');
-      setError(notification.message ?? notification.title);
-      dispatchNotification(notification);
-    }
-  };
+    },
+    [dispatchNotification, onRefresh]
+  );
 
-  const handleImportJSON = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      await handleImportFile(e.target.files[0]);
-      // Reset input
-      e.target.value = '';
-    }
-  };
+  const handleImportJSON = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+        await handleImportFile(e.target.files[0]);
+        // Reset input
+        e.target.value = '';
+      }
+    },
+    [handleImportFile]
+  );
 
-  return {
-    handleExportJSON,
-    handleExportCSV,
-    handleImportJSON,
-    handleImportFile,
-    error,
-    clearError,
-  };
+  return useMemo(
+    () => ({
+      handleExportJSON,
+      handleExportCSV,
+      handleImportJSON,
+      handleImportFile,
+      error,
+      clearError,
+    }),
+    [handleExportJSON, handleExportCSV, handleImportJSON, handleImportFile, error, clearError]
+  );
 };

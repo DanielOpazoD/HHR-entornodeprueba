@@ -93,12 +93,13 @@ const firebaseCoreBootstrapPromise = (async () => {
 export const firebaseReady = (async () => {
   firebaseConfigLogger.info('Starting Firebase ready sequence');
 
-  const timeout = new Promise((_, reject) =>
-    setTimeout(
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(
       () => reject(new Error('Firebase initialization timed out')),
       FIREBASE_READY_TIMEOUT_MS
-    )
-  );
+    );
+  });
 
   try {
     const services = (await Promise.race([firebaseCoreBootstrapPromise, timeout])) as {
@@ -111,6 +112,10 @@ export const firebaseReady = (async () => {
     const message = err instanceof Error ? err.message : String(err);
     firebaseConfigLogger.error('Critical initialization error', { message });
     throw err;
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
   }
 })();
 
@@ -130,5 +135,3 @@ void firestoreReady.catch(error => {
   const message = error instanceof Error ? error.message : String(error);
   firebaseConfigLogger.error('Firestore initialization failed', { message });
 });
-
-export default app;

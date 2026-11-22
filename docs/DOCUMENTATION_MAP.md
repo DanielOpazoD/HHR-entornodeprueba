@@ -161,7 +161,7 @@ Artefactos producidos por tooling o reportes automáticos. Son útiles para cons
 
 ## Decisión sobre `reports`
 
-- `reports/` se mantiene versionado mientras siga siendo parte del flujo local de gobernanza.
+- `reports/` no se versiona en Git (ignorado en `.gitignore`): cada corrida local o de CI genera sus propios snapshots y CI los sube como artefactos.
 - Cada reporte es un snapshot generado, no un documento narrativo de arquitectura.
 - Las decisiones activas deben resumirse en documentación canónica, no delegarse a un reporte.
 
