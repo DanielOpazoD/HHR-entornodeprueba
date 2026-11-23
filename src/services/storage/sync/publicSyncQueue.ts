@@ -1,5 +1,5 @@
 import type { OperationalTelemetryOperation } from '@/shared/observability/operationalTelemetryOperations';
-import { createCudyrArchiveQueue } from './publicCudyrArchiveQueue';
+import type { CudyrArchiveOutboxPayload } from '@/types/domain/cudyrHistory';
 import { ensureDbReady } from '@/services/storage/indexeddb/indexedDbCore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -272,7 +272,14 @@ export const queueSyncTask = async (
   }
 };
 
-export const queueCudyrArchiveTask = createCudyrArchiveQueue(syncQueueEngine.queueTask);
+/** The immutable CUDYR snapshot is the outbox payload: no separate local census write. */
+export const queueCudyrArchiveTask = async (
+  payload: CudyrArchiveOutboxPayload,
+  options: SyncQueueEnqueueOptions
+): Promise<SyncQueueEnqueueResult> => {
+  await ensureDbReady();
+  return syncQueueEngine.queueTask('ARCHIVE_CUDYR', payload, { contexts: ['clinical'] }, options);
+};
 export const queueDailyRecordSyncTaskWithLocalRecord = async (
   record: DailyRecord,
   meta: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'> | undefined,

@@ -1,11 +1,34 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { SyncQueueStorePort } from '@/services/storage/sync/syncQueuePorts';
-import { recordSyncQueueAckFailure } from '@/services/storage/sync/syncQueueAckTelemetry';
+import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { getSyncTaskKey } from '@/services/storage/sync/syncQueueTaskFactory';
 import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/pendingDailyRecordSyncTask';
 import type { DailyRecordAuthorityAdoptionResult } from '@/services/storage/sync/syncQueuePorts';
 import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
+
+const recordSyncQueueAckFailure = (
+  record: DailyRecord,
+  syncContract: SyncTask['syncContract'] | undefined,
+  error: unknown
+): void => {
+  recordOperationalTelemetry({
+    category: 'sync',
+    operation: 'sync_queue_ack_failure',
+    status: 'degraded',
+    runtimeState: 'recoverable',
+    issues: [
+      error instanceof Error && error.message.trim().length > 0
+        ? error.message
+        : 'La cola de sincronizacion no pudo confirmar una tarea ya sincronizada.',
+    ],
+    context: {
+      type: 'UPDATE_DAILY_RECORD',
+      date: record.date,
+      mutationId: syncContract?.mutationId,
+    },
+  });
+};
 
 interface DailyRecordSyncQueueActionDependencies {
   ensureReady: () => Promise<void>;
