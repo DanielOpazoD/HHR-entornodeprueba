@@ -12,10 +12,11 @@ import { ClinicalDocumentsSidebar } from '@/features/clinical-documents/componen
 import { ClinicalDocumentPharmacyForms } from '@/features/clinical-documents/components/ClinicalDocumentPharmacyForms';
 import { ClinicalDocumentSheet } from '@/features/clinical-documents/components/ClinicalDocumentSheet';
 import { ClinicalDocumentLabInsertDialog } from '@/features/clinical-documents/components/ClinicalDocumentLabInsertDialog';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import { ClinicalDocumentMMRADCopyDialog } from '@/features/clinical-documents/components/ClinicalDocumentMMRADCopyDialog';
-import { resolveClinicalDocumentInsertTarget } from '@/features/clinical-documents/controllers/clinicalDocumentExternalInsertController';
 import { useClinicalDocumentsWorkspaceModel } from '@/features/clinical-documents/hooks/useClinicalDocumentsWorkspaceModel';
 import { useClinicalDocumentSheetState } from '@/features/clinical-documents/hooks/useClinicalDocumentSheetState';
+import { escapeHtml } from '@/utils/htmlEscape';
 
 const ZOOM_STEP = 10;
 const ZOOM_MIN = 60;
@@ -28,13 +29,42 @@ interface ExternalDialogSelection {
   kind: 'lab' | 'mmrad';
 }
 
-const escapeClinicalDocumentInlineHtml = (value: string): string =>
-  value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+interface ResolveClinicalDocumentInsertTargetParams {
+  document: ClinicalDocumentRecord | null;
+  activeEditorSectionId: string | null;
+  text: string;
+}
+
+interface ClinicalDocumentInsertTarget {
+  sectionId: string;
+  content: string;
+}
+
+export const resolveClinicalDocumentInsertTarget = ({
+  document,
+  activeEditorSectionId,
+  text,
+}: ResolveClinicalDocumentInsertTargetParams): ClinicalDocumentInsertTarget | null => {
+  if (!document) {
+    return null;
+  }
+
+  const visibleSections = document.sections.filter(section => section.visible !== false);
+  const targetSection =
+    visibleSections.find(section => section.id === activeEditorSectionId) ?? visibleSections[0];
+
+  if (!targetSection) {
+    return null;
+  }
+
+  const existing = targetSection.content || '';
+  const separator = existing.trim() ? '<br>' : '';
+
+  return {
+    sectionId: targetSection.id,
+    content: `${existing}${separator}${text}`,
+  };
+};
 
 interface ClinicalDocumentsWorkspaceProps {
   patient: ClinicalDocumentsWorkspacePatientContract;
@@ -78,7 +108,7 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
   const handleInsertLabText = useCallback(
     (text: string) => {
       const insertedAtCursor = sheetState.insertHtml(
-        `${escapeClinicalDocumentInlineHtml(text).replace(/\n/g, '<br>')}<br>`
+        `${escapeHtml(text).replace(/\n/g, '<br>')}<br>`
       );
       if (insertedAtCursor) return;
 

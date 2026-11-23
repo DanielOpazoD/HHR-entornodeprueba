@@ -1,9 +1,59 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 
-import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
-import { validateClinicalDocument } from '@/features/clinical-documents/controllers/clinicalDocumentValidationController';
+import type {
+  ClinicalDocumentRecord,
+  ClinicalDocumentValidationIssue,
+} from '@/domain/clinical-documents/entities';
 import { hydrateClinicalDocumentRecord } from '@/domain/clinical-documents/compatibility';
+
+/** Validates a clinical document for required patient fields, sections, physician, and specialty. */
+export const validateClinicalDocument = (
+  record: ClinicalDocumentRecord
+): ClinicalDocumentValidationIssue[] => {
+  const issues: ClinicalDocumentValidationIssue[] = [];
+
+  const requiredPatientFields = record.patientFields.filter(
+    field => field.visible !== false && ['nombre', 'rut', 'fing', 'finf', 'hinf'].includes(field.id)
+  );
+
+  requiredPatientFields.forEach(field => {
+    if (!field.value.trim()) {
+      issues.push({
+        path: `patientFields.${field.id}`,
+        message: `${field.label} es obligatorio.`,
+      });
+    }
+  });
+
+  record.sections.forEach(section => {
+    if (section.visible === false || !section.required) {
+      return;
+    }
+    if (!section.content.trim()) {
+      issues.push({
+        path: `sections.${section.id}`,
+        message: `${section.title} es obligatorio.`,
+      });
+    }
+  });
+
+  if (!record.medico.trim()) {
+    issues.push({
+      path: 'medico',
+      message: 'Médico es obligatorio.',
+    });
+  }
+
+  if (!record.especialidad.trim()) {
+    issues.push({
+      path: 'especialidad',
+      message: 'Especialidad es obligatoria.',
+    });
+  }
+
+  return issues;
+};
 import { serializeClinicalDocument } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
 import {
   clinicalDocumentDraftReducer,
