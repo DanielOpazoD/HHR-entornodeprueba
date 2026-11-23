@@ -45,108 +45,17 @@ const {
 const { assertDocumentaryCudyrAuthority } = require('./rayenDocumentaryCudyrPolicy');
 const { answerClinicalBatchWarmup, isClinicalBatchWarmup } = require('./rayenClinicalBatchWarmup');
 const { recordTelemetry } = require('./rayenClinicalEnrichmentTelemetry');
-// v3: parity compares the combined view (episode documents over the day, phase 1a D13). Only
-// split days report it, so unmarked days keep their v2 evidence exactly as before.
-const PARITY_CONTRACT_VERSION = 3;
-const UNSPLIT_PARITY_CONTRACT_VERSION = 2;
-
-/** @type {Readonly<{ mismatchTargetCount: number, mismatchFieldCount: number, mismatchDeviceFieldCount: number, mismatchScoreFieldCount: number, mismatchVitalFieldCount: number, mismatchCheckpointFieldCount: number }>} */
-const EMPTY_PARITY_DIAGNOSTICS = Object.freeze({
-  mismatchTargetCount: 0,
-  mismatchFieldCount: 0,
-  mismatchDeviceFieldCount: 0,
-  mismatchScoreFieldCount: 0,
-  mismatchVitalFieldCount: 0,
-  mismatchCheckpointFieldCount: 0,
-});
-
-const countFields = patches =>
-  patches.reduce((total, target) => total + Object.keys(target.fields).length, 0);
-
-const correlationId = value =>
-  typeof value === 'string' && value.length > 0 ? digestValue(value).slice(0, 16) : null;
-
-const resolveTargetScope = ({ date, authorityDate }) =>
-  typeof date === 'string' && typeof authorityDate === 'string' && date !== authorityDate
-    ? 'historical'
-    : 'current';
-
-const buildPersistenceFailureDetails = (requestSummary, transactionAttempts) => ({
-  targetScope: requestSummary.targetScope,
-  transactionAttempts,
-  transactionRetries: Math.max(0, transactionAttempts - 1),
-});
-
-const summarizeRequest = data => {
-  const patches = Array.isArray(data?.patches) ? data.patches : [];
-  const checkpoints = Array.isArray(data?.checkpoints) ? data.checkpoints : [];
-  const targetKeys = new Set(
-    [...patches, ...checkpoints].map(
-      target =>
-        `${String(target?.bedId || '')}|${target?.clinicalCrib === true ? 'crib' : 'patient'}`
-    )
-  );
-  const clinicalKeys = new Set(
-    patches.map(
-      target =>
-        `${String(target?.bedId || '')}|${target?.clinicalCrib === true ? 'crib' : 'patient'}`
-    )
-  );
-  const date =
-    typeof data?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.date) ? data.date : null;
-  const mode = data?.mode === 'enforced' ? data.mode : 'invalid';
-  return {
-    date,
-    mode,
-    dryRun: false,
-    targetCount: targetKeys.size,
-    clinicalTargetCount: clinicalKeys.size,
-    checkpointTargetCount: checkpoints.length,
-    checkpointOnlyTargetCount: [...targetKeys].filter(key => !clinicalKeys.has(key)).length,
-    fieldCount:
-      patches.reduce(
-        (total, target) =>
-          total +
-          (target?.fields && typeof target.fields === 'object' && !Array.isArray(target.fields)
-            ? Object.keys(target.fields).length
-            : 0),
-        0
-      ) + checkpoints.length,
-    clinicalCribCount: patches.filter(target => target?.clinicalCrib === true).length,
-    hasExpectedVersion: typeof data?.expectedLastUpdated === 'string',
-    hasBaseRevision:
-      data?.baseRevision !== undefined && data?.baseRevision !== null && data?.baseRevision !== '',
-    fieldContractVersion: data?.fieldContractVersion === 2 ? 2 : 1,
-    versionGuardEnforced: mode === 'enforced',
-    targetScope: resolveTargetScope(data || {}),
-    runCorrelationId: correlationId(data?.runId),
-    mutationCorrelationId: correlationId(data?.mutationId),
-  };
-};
-
-const summarizePayload = payload => ({
-  date: payload.date,
-  mode: payload.mode,
-  dryRun: false,
-  targetCount: payload.targets.length,
-  clinicalTargetCount: payload.patches.length,
-  checkpointTargetCount: payload.checkpoints.length,
-  checkpointOnlyTargetCount: payload.checkpoints.filter(
-    target =>
-      !payload.patches.some(
-        patch => patch.bedId === target.bedId && patch.clinicalCrib === target.clinicalCrib
-      )
-  ).length,
-  fieldCount: countFields(payload.targets),
-  clinicalCribCount: payload.targets.filter(target => target.clinicalCrib).length,
-  hasExpectedVersion: Boolean(payload.expectedLastUpdated),
-  hasBaseRevision: payload.baseRevision !== undefined,
-  fieldContractVersion: payload.fieldContractVersion,
-  versionGuardEnforced: true,
-  targetScope: resolveTargetScope(payload),
-  runCorrelationId: correlationId(payload.runId),
-  mutationCorrelationId: correlationId(payload.mutationId),
-});
+const {
+  PARITY_CONTRACT_VERSION,
+  UNSPLIT_PARITY_CONTRACT_VERSION,
+  EMPTY_PARITY_DIAGNOSTICS,
+  countFields,
+  resolveTargetScope,
+  buildPersistenceFailureDetails,
+  summarizeRequest,
+  summarizePayload,
+  createEnrichmentTimingTracker,
+} = require('./rayenClinicalEnrichmentSummary');
 
 const createRayenClinicalEnrichmentFunctions = ({
   firestore,
@@ -161,32 +70,7 @@ const createRayenClinicalEnrichmentFunctions = ({
     }
     const startedAt = Date.now();
     const clinicalDerived = createClinicalDerivedStore({ FieldValue });
-    const handlerStartedAt = monotonicNow();
-    const elapsed = start => Math.max(0, Math.round(monotonicNow() - start));
-    const serverTimingsMs = {};
-    let transactionTimingsMs;
-    const finalizeTransactionTimings = () => {
-      if (!transactionTimingsMs) return;
-      const { callbackMs, documentReadMs, specialtyAuditMs } = transactionTimingsMs;
-      transactionTimingsMs = {
-        callbackMs: Math.round(callbackMs),
-        documentReadMs: Math.round(documentReadMs),
-        specialtyAuditMs: Math.round(specialtyAuditMs),
-        otherCallbackMs: Math.max(0, Math.round(callbackMs - documentReadMs - specialtyAuditMs)),
-        // Includes SDK commit, retries/backoff and scheduling; not a pure commit measurement.
-        outsideCallbackMs: Math.max(0, Math.round(serverTimingsMs.transactionMs - callbackMs)),
-      };
-    };
-    const measureTransactionOperation = async (key, operation) => {
-      const start = monotonicNow();
-      try {
-        return await operation();
-      } finally {
-        transactionTimingsMs[key] += Math.max(0, monotonicNow() - start);
-      }
-    };
-    let phaseStartedAt = handlerStartedAt;
-    let phase = 'authorizationMs';
+    const timing = createEnrichmentTimingTracker(monotonicNow);
     let requestSummary = summarizeRequest(data);
     let authorityStatus = 'ok';
     let resultParity = 'unavailable';
@@ -202,8 +86,7 @@ const createRayenClinicalEnrichmentFunctions = ({
         context,
         resolveRoleForEmail,
       });
-      serverTimingsMs.authorizationMs = elapsed(phaseStartedAt);
-      phase = null;
+      timing.finishPhase('authorizationMs');
       requestSummary = summarizePayload(payload);
       const batchDigest = digestValue({
         date: payload.date,
@@ -217,16 +100,14 @@ const createRayenClinicalEnrichmentFunctions = ({
       const specialtyPolicyRef = hospitalRef.collection('specialtyPolicies').doc('active');
       const docRef = hospitalRef.collection('dailyRecords').doc(payload.date);
       const authorityRef = hospitalRef.collection('dailyRecords').doc(payload.authorityDate);
-      phase = 'transactionMs';
-      phaseStartedAt = monotonicNow();
-      transactionTimingsMs = { callbackMs: 0, documentReadMs: 0, specialtyAuditMs: 0 };
+      timing.startTransaction();
       const transactionOutcome = await firestore.runTransaction(async transaction => {
         transactionAttempts += 1;
         // Split counters describe this attempt only.
         requestSummary = summarizePayload(payload);
         const callbackStartedAt = monotonicNow();
         const read = reference =>
-          measureTransactionOperation('documentReadMs', () => transaction.get(reference));
+          timing.measureTransactionOperation('documentReadMs', () => transaction.get(reference));
         try {
           const snapshot = await read(docRef);
           if (!snapshot.exists) {
@@ -342,7 +223,7 @@ const createRayenClinicalEnrichmentFunctions = ({
             effectiveTargets,
             payload.fieldContractVersion
           );
-          await measureTransactionOperation('specialtyAuditMs', () =>
+          await timing.measureTransactionOperation('specialtyAuditMs', () =>
             assertTrustedSpecialtyAssignments({
               transaction,
               hospitalRef,
@@ -367,7 +248,7 @@ const createRayenClinicalEnrichmentFunctions = ({
                   eligibleBedIds: [...new Set(effectiveTargets.map(target => target.bedId))],
                 })
               : [];
-          await measureTransactionOperation('specialtyAuditMs', () =>
+          await timing.measureTransactionOperation('specialtyAuditMs', () =>
             assertUnusedSpecialtyDecisionIds({
               transaction,
               docRef,
@@ -443,20 +324,20 @@ const createRayenClinicalEnrichmentFunctions = ({
           });
           return { historySnapshotWritten };
         } finally {
-          transactionTimingsMs.callbackMs += Math.max(0, monotonicNow() - callbackStartedAt);
+          timing.recordCallbackDuration(callbackStartedAt);
         }
       });
 
-      serverTimingsMs.transactionMs = elapsed(phaseStartedAt);
-      finalizeTransactionTimings();
-      phase = 'telemetryMs';
-      phaseStartedAt = monotonicNow();
+      timing.finishPhase('transactionMs');
+      timing.finalizeTransactionTimings();
+      timing.beginPhase('telemetryMs');
+      const transactionTimingsMs = timing.getTransactionTimings();
       await recordTelemetry({
         firestore,
         requestSummary,
         startedAt,
         status: 'success',
-        serverTimingsMs: { ...serverTimingsMs },
+        serverTimingsMs: { ...timing.serverTimingsMs },
         transactionTimingsMs,
         authorityStatus,
         resultParity,
@@ -466,11 +347,11 @@ const createRayenClinicalEnrichmentFunctions = ({
         policyRevision,
         transactionAttempts,
       });
-      serverTimingsMs.telemetryMs = elapsed(phaseStartedAt);
-      serverTimingsMs.handlerMs = elapsed(handlerStartedAt);
+      timing.finishPhase('telemetryMs');
+      timing.finishHandler();
       return {
         success: true,
-        serverTimingsMs,
+        serverTimingsMs: timing.serverTimingsMs,
         transactionTimingsMs,
         date: payload.date,
         mode: payload.mode,
@@ -489,20 +370,21 @@ const createRayenClinicalEnrichmentFunctions = ({
         transactionRetries: Math.max(0, transactionAttempts - 1),
       };
     } catch (error) {
-      if (phase) serverTimingsMs[phase] = elapsed(phaseStartedAt);
-      finalizeTransactionTimings();
+      timing.finishActivePhase();
+      timing.finalizeTransactionTimings();
+      const transactionTimingsMs = timing.getTransactionTimings();
       const handledError =
         error instanceof SpecialtyDecisionError
           ? new functions.https.HttpsError(error.code, error.message, error.details)
           : error;
       if (context.auth) {
-        phaseStartedAt = monotonicNow();
+        timing.beginPhase('telemetryMs');
         await recordTelemetry({
           firestore,
           requestSummary,
           startedAt,
           status: 'failure',
-          serverTimingsMs: { ...serverTimingsMs },
+          serverTimingsMs: { ...timing.serverTimingsMs },
           transactionTimingsMs,
           authorityStatus: 'blocked',
           resultParity,
@@ -513,12 +395,12 @@ const createRayenClinicalEnrichmentFunctions = ({
           transactionAttempts,
           error: handledError,
         });
-        serverTimingsMs.telemetryMs = elapsed(phaseStartedAt);
+        timing.finishPhase('telemetryMs');
       }
-      serverTimingsMs.handlerMs = elapsed(handlerStartedAt);
+      timing.finishHandler();
       const failureDetails = {
         ...buildPersistenceFailureDetails(requestSummary, transactionAttempts),
-        serverTimingsMs,
+        serverTimingsMs: timing.serverTimingsMs,
         ...(transactionTimingsMs ? { transactionTimingsMs } : {}),
       };
       if (handledError instanceof functions.https.HttpsError) {
