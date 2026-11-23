@@ -12,6 +12,8 @@ import {
   occupiedSnapshot,
 } from './firestoreRecordWritesTestSupport';
 import { deleteDoc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createMockDocSnapshot } from '@/tests/factories/firestoreSdkMocks';
 import {
   deleteRecordFromFirestore,
   moveRecordToTrash,
@@ -30,7 +32,7 @@ describe('firestoreRecordWrites', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(withRetry).mockImplementation(operation => operation());
-    vi.mocked(getDoc).mockResolvedValue(occupiedSnapshot() as never);
+    vi.mocked(getDoc).mockResolvedValue(createMockDocSnapshot(occupiedSnapshot().data()));
     mockGetCurrentUser.mockReturnValue(null);
     mockResolveFirebaseUserRole.mockResolvedValue(null);
     mockEnsureUserRoleClaim.mockResolvedValue(undefined);
@@ -39,17 +41,13 @@ describe('firestoreRecordWrites', () => {
   });
 
   it('blocks full-record writes that violate clinical episode authority', async () => {
-    const duplicatedPatient = {
-      bedId: 'R1',
-      isBlocked: false,
+    const duplicatedPatient = DataFactory.createMockPatient('R1', {
       bedMode: 'Cama',
       hasCompanionCrib: false,
       patientName: 'Paciente Duplicado',
       rut: '11.111.111-1',
       age: '40a',
       pathology: 'Diagnostico',
-      specialty: 'Medicina',
-      status: 'Estable',
       admissionDate: '2026-03-14',
       admissionTime: '09:00',
       hasWristband: true,
@@ -57,19 +55,17 @@ describe('firestoreRecordWrites', () => {
       surgicalComplication: false,
       isUPC: false,
       clinicalEpisodeId: 'ep-duplicado',
-    };
+    });
 
     await expect(
-      saveRecordToFirestore({
-        date: '2026-03-14',
-        beds: {
-          R1: duplicatedPatient,
-          R2: { ...duplicatedPatient, bedId: 'R2' },
-        },
-        discharges: [],
-        transfers: [],
-        cma: [],
-      } as never)
+      saveRecordToFirestore(
+        DataFactory.createMockDailyRecord('2026-03-14', {
+          beds: {
+            R1: duplicatedPatient,
+            R2: { ...duplicatedPatient, bedId: 'R2' },
+          },
+        })
+      )
     ).rejects.toThrow('clinical authority');
 
     expect(saveHistorySnapshot).not.toHaveBeenCalled();
@@ -78,13 +74,7 @@ describe('firestoreRecordWrites', () => {
 
   it('routes full-record saves through the clinical authority callable', async () => {
     await saveRecordToFirestore(
-      {
-        date: '2026-03-14',
-        beds: {},
-        discharges: [],
-        transfers: [],
-        cma: [],
-      } as never,
+      DataFactory.createMockDailyRecord('2026-03-14', { beds: {} }),
       '2026-03-14T10:00:00.000Z',
       {
         syncContract: {
@@ -124,7 +114,7 @@ describe('firestoreRecordWrites', () => {
   });
 
   it('updates existing records but never creates a day from a missing-target patch', async () => {
-    await updateRecordPartial('2026-03-14', { status: 'ok' } as never, '2026-03-14T10:00:00.000Z');
+    await updateRecordPartial('2026-03-14', { status: 'ok' }, '2026-03-14T10:00:00.000Z');
     // The version is checked when committing, not by a read before the write.
     expect(assertFirestoreConcurrency).not.toHaveBeenCalled();
     expect(updateRecordPartiallyAtomically).toHaveBeenCalledWith(
@@ -138,16 +128,16 @@ describe('firestoreRecordWrites', () => {
     expect(updateDoc).not.toHaveBeenCalled();
 
     vi.mocked(updateRecordPartiallyAtomically).mockRejectedValueOnce({ code: 'not-found' });
-    await expect(
-      updateRecordPartial('2026-03-15', { status: 'EDITED' } as never)
-    ).rejects.toMatchObject({ code: 'not-found' });
+    await expect(updateRecordPartial('2026-03-15', { status: 'EDITED' })).rejects.toMatchObject({
+      code: 'not-found',
+    });
     expect(setDoc).not.toHaveBeenCalled();
   });
 
   it('offline, fails at the reachability read instead of waiting in a transaction', async () => {
     vi.mocked(getDoc).mockRejectedValueOnce({ code: 'unavailable' });
     await expect(
-      updateRecordPartial('2026-03-14', { status: 'ok' } as never, '2026-03-14T10:00:00.000Z')
+      updateRecordPartial('2026-03-14', { status: 'ok' }, '2026-03-14T10:00:00.000Z')
     ).rejects.toMatchObject({ code: 'unavailable' });
     expect(updateRecordPartiallyAtomically).not.toHaveBeenCalled();
   });
@@ -175,14 +165,24 @@ describe('firestoreRecordWrites', () => {
   it('lets atomic partial updates perform the only authoritative concurrency check', async () => {
     await updateRecordPartial(
       '2026-03-14',
-      { rayenSync: { runId: 'run-1' } } as never,
+      {
+        rayenSync: {
+          at: '2026-03-14T10:00:00.000Z',
+          by: 'Operador HHR',
+          runId: 'run-1',
+          status: 'applied',
+        },
+      },
       '2026-03-14T10:00:00.000Z',
       { requireAtomicCas: true, historyPolicy: 'skip' }
     );
     expect(assertFirestoreConcurrency).not.toHaveBeenCalled();
     expect(updateRecordPartiallyAtomically).toHaveBeenCalledWith(
       { date: '2026-03-14' },
-      expect.objectContaining({ rayenSync: { runId: 'run-1' }, lastUpdated: expect.anything() }),
+      expect.objectContaining({
+        rayenSync: expect.objectContaining({ runId: 'run-1' }),
+        lastUpdated: expect.anything(),
+      }),
       '2026-03-14T10:00:00.000Z',
       'El egreso fue modificado por otro usuario. Recarga el censo antes de reclasificarlo.',
       'movement reclassification',
@@ -207,7 +207,7 @@ describe('firestoreRecordWrites', () => {
       })
       .mockResolvedValueOnce({});
 
-    await updateRecordPartial('2026-03-14', { status: 'ok' } as never);
+    await updateRecordPartial('2026-03-14', { status: 'ok' });
 
     expect(mockResolveFirebaseUserRole).toHaveBeenCalledWith(currentUser);
     expect(mockEnsureUserRoleClaim).toHaveBeenCalledWith(currentUser, 'doctor_specialist');
@@ -231,8 +231,15 @@ describe('firestoreRecordWrites', () => {
     mockResolveFirebaseUserRole.mockResolvedValue('doctor_specialist');
 
     await updateRecordPartial('2026-03-21', {
-      'beds.R4.clinicalEvents': [{ id: 'event-1', name: 'Procedimiento', date: '2026-03-21' }],
-    } as never);
+      'beds.R4.clinicalEvents': [
+        {
+          id: 'event-1',
+          name: 'Procedimiento',
+          date: '2026-03-21',
+          createdAt: '2026-03-21T09:00:00.000Z',
+        },
+      ],
+    });
 
     expect(mockHttpsCallable).toHaveBeenCalledWith(
       { name: 'functions-runtime' },
@@ -245,17 +252,12 @@ describe('firestoreRecordWrites', () => {
 
   it('rethrows write failures that are not recoverable', async () => {
     vi.mocked(updateRecordPartiallyAtomically).mockRejectedValueOnce(new Error('boom'));
-    await expect(updateRecordPartial('2026-03-16', { status: 'broken' } as never)).rejects.toThrow(
-      'boom'
-    );
+    await expect(updateRecordPartial('2026-03-16', { status: 'broken' })).rejects.toThrow('boom');
 
     mockCallable.mockRejectedValueOnce(new Error('save failed'));
     await expect(
       saveRecordToFirestore(
-        {
-          date: '2026-03-17',
-          beds: {},
-        } as never,
+        DataFactory.createMockDailyRecord('2026-03-17', { beds: {} }),
         '2026-03-16T10:00:00.000Z'
       )
     ).rejects.toThrow('save failed');
@@ -273,10 +275,7 @@ describe('firestoreRecordWrites', () => {
     await deleteRecordFromFirestore('2026-03-14');
     expect(deleteDoc).toHaveBeenCalledWith({ date: '2026-03-14' });
 
-    await moveRecordToTrash({
-      date: '2026-03-14',
-      beds: {},
-    } as never);
+    await moveRecordToTrash(DataFactory.createMockDailyRecord('2026-03-14', { beds: {} }));
     expect(setDoc).toHaveBeenCalledWith(
       { trashRef: '2026-03-14' },
       expect.objectContaining({
@@ -292,10 +291,7 @@ describe('firestoreRecordWrites', () => {
 
     vi.mocked(setDoc).mockRejectedValueOnce(new Error('trash failed'));
     await expect(
-      moveRecordToTrash({
-        date: '2026-03-18',
-        beds: {},
-      } as never)
+      moveRecordToTrash(DataFactory.createMockDailyRecord('2026-03-18', { beds: {} }))
     ).rejects.toThrow('trash failed');
 
     expect(createDeletedRecordRef).toHaveBeenCalledWith('2026-03-18');
@@ -320,11 +316,8 @@ describe('firestoreRecordWrites', () => {
       }
     );
 
-    await saveRecordToFirestore({
-      date: '2026-03-19',
-      beds: {},
-    } as never);
-    await updateRecordPartial('2026-03-19', { status: 'ok' } as never);
+    await saveRecordToFirestore(DataFactory.createMockDailyRecord('2026-03-19', { beds: {} }));
+    await updateRecordPartial('2026-03-19', { status: 'ok' });
     await deleteRecordFromFirestore('2026-03-19');
 
     expect(mockCallable).toHaveBeenCalled();

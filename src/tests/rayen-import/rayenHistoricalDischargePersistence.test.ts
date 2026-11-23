@@ -7,9 +7,14 @@ import {
   buildRecord,
   buildPatient,
 } from '@/tests/services/repositories/dailyRecordRepositoryWriteServiceFixtures';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createMockDailyRecordRepositoryPort } from '@/tests/factories/dailyRecordPortMocks';
+import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { PatientData } from '@/types/domain/patient';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
+import type { RayenSyncRun } from '@/features/rayen-import/domain/rayenSyncHistory';
 import { useRayenCensusDiffApplication } from '@/features/rayen-import/hooks/useRayenCensusDiffApplication';
 import { finalizeRayenHistoricalDischarges } from '@/features/rayen-import/hooks/finalizeRayenHistoricalDischarges';
 import { findPatientErasures } from '@/services/repositories/dailyRecordErasureGuard';
@@ -19,9 +24,17 @@ import { computePreviousDayEdits } from '@/features/rayen-import/domain/previous
 import { resolveHistoricalCudyrBatchOperation } from '@/features/rayen-import/domain/historicalCudyrPatch';
 import { buildDischarge } from '@/features/rayen-import/domain/applyCensusImportDiff';
 
+const makeConfirmedResult = (confirmedRecord: DailyRecord): DailyRecordWriteResult => ({
+  date: confirmedRecord.date,
+  savedHere: true,
+  state: 'confirmed',
+  localCopy: 'current',
+  confirmedRecord,
+});
+
 const setup = async (emptyCrib = false) => {
   const date = '2026-09-27';
-  const run = {
+  const run: RayenSyncRun = {
     id: 'synthetic-historical-run',
     sourceDate: date,
     startedAt: '2026-09-28T03:00:00.000Z',
@@ -81,35 +94,28 @@ const setup = async (emptyCrib = false) => {
     remote = { ...record, lastUpdated: '2026-09-28T03:01:00.000Z' };
     return {
       record: remote,
-      result: {
-        date,
-        savedHere: true,
-        state: 'confirmed',
-        localCopy: 'current',
-        confirmedRecord: remote,
-      },
+      result: makeConfirmedResult(remote),
     };
   };
   const save = vi.fn(async (record: DailyRecord) => accept(record));
-  const checkpoint = vi.fn(
-    async (_date: string, patch: object) => accept({ ...remote, ...patch }).result
+  const checkpoint = vi.fn<DailyRecordRepositoryPort['updatePartialDetailed']>(
+    async (_date, patch) => accept({ ...remote, ...patch }).result
   );
   const queryClient = new QueryClient();
   const hook = renderHook(() =>
     useRayenCensusDiffApplication({
-      ensureRun: () => run as never,
+      ensureRun: () => run,
       applyRunToRecord: stamp,
-      saveDailyRecord: save as never,
-      checkpointRepository: { updatePartialDetailed: checkpoint as never },
+      saveDailyRecord: save,
+      checkpointRepository: { updatePartialDetailed: checkpoint },
       queryClient,
       loadAuthoritativeRecord: async () => remote,
-      loadLocalRecord: async () =>
-        ({
-          record: remote,
-          writeState: 'none',
-          hasPendingWrites: false,
-          hasPendingWritesForDate: false,
-        }) as never,
+      loadLocalRecord: async () => ({
+        record: remote,
+        writeState: 'none' as const,
+        hasPendingWrites: false,
+        hasPendingWritesForDate: false,
+      }),
       recordRunPerformance: vi.fn(),
     })
   );
@@ -125,49 +131,36 @@ const setup = async (emptyCrib = false) => {
       syncRunId: run.id,
     }),
   ];
-  const patch = vi.fn(
-    async (
-      targetDate: string,
-      value: Record<string, unknown>,
-      options: { intentionalBedClear?: { confirmedOccupant: { clinicalEpisodeId?: string } } }
-    ) => {
-      expect(options.intentionalBedClear?.confirmedOccupant.clinicalEpisodeId).toBe(
+  const patch = vi.fn<DailyRecordRepositoryPort['updatePartialDetailed']>(
+    async (targetDate, value, options) => {
+      expect(options?.intentionalBedClear?.confirmedOccupant.clinicalEpisodeId).toBe(
         departed.clinicalEpisodeId
       );
       expect(Object.keys(value)).toEqual(['beds.R3']);
       const target = targetDate === history.date ? history : remote;
-      expect(value['beds.R3']).toMatchObject({
+      const bedPatch = (value as Record<string, unknown>)['beds.R3'] as PatientData;
+      expect(bedPatch).toMatchObject({
         bedMode: target.beds.R3.bedMode,
         location: target.beds.R3.location,
         patientName: '',
       });
       if (targetDate === history.date) {
-        history.beds.R3 = value['beds.R3'] as PatientData;
+        history.beds.R3 = bedPatch;
         history.lastUpdated = '2026-09-28T03:01:30.000Z';
-        return {
-          date: history.date,
-          savedHere: true,
-          state: 'confirmed',
-          localCopy: 'current',
-          confirmedRecord: history,
-        };
+        return makeConfirmedResult(history);
       }
       remote = {
         ...remote,
-        beds: { ...remote.beds, R3: value['beds.R3'] as PatientData },
+        beds: { ...remote.beds, R3: bedPatch },
         lastUpdated: '2026-09-28T03:02:00.000Z',
       };
-      return {
-        date,
-        savedHere: true,
-        state: 'confirmed',
-        localCopy: 'current',
-        confirmedRecord: remote,
-      };
+      return makeConfirmedResult(remote);
     }
   );
   const repository = {
-    getAuthoritativeForDate: vi.fn(async (day: string) => (day === date ? remote : history)),
+    getAuthoritativeForDate: vi.fn<DailyRecordRepositoryPort['getAuthoritativeForDate']>(
+      async day => (day === date ? remote : history)
+    ),
     updatePartialDetailed: patch,
   };
   return {
@@ -196,7 +189,7 @@ describe('historical discharge structural-to-clinical handoff', () => {
     expect(x.applied.confirmedHandoff.safeClinicalEpisodeIds).toEqual(['episode-active']);
     const finished = await finalizeRayenHistoricalDischarges(
       x.applied,
-      x.repository as never,
+      x.repository,
       x.queryClient
     );
     expect(x.patch).toHaveBeenCalledOnce();
@@ -219,7 +212,7 @@ describe('historical discharge structural-to-clinical handoff', () => {
       };
       const finished = await finalizeRayenHistoricalDischarges(
         x.applied,
-        x.repository as never,
+        x.repository,
         x.queryClient,
         true
       );
@@ -240,7 +233,7 @@ describe('historical discharge structural-to-clinical handoff', () => {
       const x = await setup(true);
       x.applied.record.beds.R3.clinicalCrib![field] = 'synthetic-identity';
       await expect(
-        finalizeRayenHistoricalDischarges(x.applied, x.repository as never, x.queryClient, true)
+        finalizeRayenHistoricalDischarges(x.applied, x.repository, x.queryClient, true)
       ).rejects.toThrow('cuna asociada');
       expect(x.patch).not.toHaveBeenCalled();
     }
@@ -250,20 +243,57 @@ describe('historical discharge structural-to-clinical handoff', () => {
     'respects an existing %s closing the same episode without inventing another alta',
     async kind => {
       const x = await setup(true);
-      const movement = x.history.discharges[0];
-      x.history[kind] = [movement] as never;
-      x.history.discharges = [];
-      x.history.beds.R3 = { ...x.applied.record.beds.R3 };
-      const finished = await finalizeRayenHistoricalDischarges(
-        x.applied,
-        x.repository as never,
-        x.queryClient,
-        true
-      );
-      expect(x.history[kind]).toEqual([movement]);
-      expect(x.history.discharges).toHaveLength(0);
-      expect(finished.record.discharges).toHaveLength(0);
-      expect(finished.record.beds.R3.patientName).toBe('');
+      const discharge = x.history.discharges[0];
+      if (kind === 'transfers') {
+        const transfer = DataFactory.createMockTransfer({
+          id: discharge.id,
+          bedId: discharge.bedId,
+          bedName: discharge.bedName,
+          bedType: discharge.bedType,
+          patientName: discharge.patientName,
+          rut: discharge.rut,
+          diagnosis: discharge.diagnosis,
+          time: discharge.time,
+          clinicalEpisodeId: discharge.clinicalEpisodeId,
+          movementDate: discharge.movementDate,
+        });
+        x.history.transfers = [transfer];
+        x.history.discharges = [];
+        x.history.beds.R3 = { ...x.applied.record.beds.R3 };
+        const finished = await finalizeRayenHistoricalDischarges(
+          x.applied,
+          x.repository,
+          x.queryClient,
+          true
+        );
+        expect(x.history.transfers).toEqual([transfer]);
+        expect(x.history.discharges).toHaveLength(0);
+        expect(finished.record.discharges).toHaveLength(0);
+        expect(finished.record.beds.R3.patientName).toBe('');
+      } else {
+        const cma = DataFactory.createMockCMA({
+          id: discharge.id,
+          bedName: discharge.bedName,
+          patientName: discharge.patientName,
+          rut: discharge.rut,
+          diagnosis: discharge.diagnosis,
+          clinicalEpisodeId: discharge.clinicalEpisodeId,
+          originalBedId: discharge.bedId,
+        });
+        x.history.cma = [cma];
+        x.history.discharges = [];
+        x.history.beds.R3 = { ...x.applied.record.beds.R3 };
+        const finished = await finalizeRayenHistoricalDischarges(
+          x.applied,
+          x.repository,
+          x.queryClient,
+          true
+        );
+        expect(x.history.cma).toEqual([cma]);
+        expect(x.history.discharges).toHaveLength(0);
+        expect(finished.record.discharges).toHaveLength(0);
+        expect(finished.record.beds.R3.patientName).toBe('');
+      }
     }
   );
 
@@ -276,15 +306,17 @@ describe('historical discharge structural-to-clinical handoff', () => {
         phase: 'persistence',
       }).status
     ).toBe('blocked');
+    const previousDayPort = createMockDailyRecordRepositoryPort({
+      ...x.repository,
+      getLocalForDateWithMeta: async () => ({
+        record: x.history,
+        hasPendingWrites: false,
+        hasPendingWritesForDate: false,
+        writeState: 'none',
+      }),
+    });
     const plan = await computePreviousDayEdits(
-      {
-        ...x.repository,
-        getLocalForDateWithMeta: async () => ({
-          record: x.history,
-          hasPendingWrites: false,
-          writeState: 'none',
-        }),
-      } as never,
+      previousDayPort,
       x.diff,
       x.applied.record.date,
       true
@@ -295,7 +327,7 @@ describe('historical discharge structural-to-clinical handoff', () => {
     ]);
     const finished = await finalizeRayenHistoricalDischarges(
       x.applied,
-      x.repository as never,
+      x.repository,
       x.queryClient,
       true
     );
@@ -316,14 +348,7 @@ describe('historical discharge structural-to-clinical handoff', () => {
     });
     expect(operation?.target).toMatchObject({ censusDate: '2026-09-26', bedId: 'R2' });
     const replay = await computePreviousDayEdits(
-      {
-        ...x.repository,
-        getLocalForDateWithMeta: async () => ({
-          record: x.history,
-          hasPendingWrites: false,
-          writeState: 'none',
-        }),
-      } as never,
+      previousDayPort,
       x.diff,
       x.applied.record.date,
       true
@@ -334,14 +359,14 @@ describe('historical discharge structural-to-clinical handoff', () => {
   it('preserves a historical bed reused by another episode and does not clear signed days', async () => {
     const x = await setup();
     x.history.beds.R3 = { ...x.applied.record.beds.R3, clinicalEpisodeId: 'new-episode' };
-    await finalizeRayenHistoricalDischarges(x.applied, x.repository as never, x.queryClient, true);
+    await finalizeRayenHistoricalDischarges(x.applied, x.repository, x.queryClient, true);
     expect(x.history.beds.R3.clinicalEpisodeId).toBe('new-episode');
     expect(x.patch).toHaveBeenCalledTimes(1);
     const y = await setup();
     y.history.beds = { ...y.applied.record.beds };
     Object.assign(y.history, { medicalSignature: { signedBy: 'Test' } });
     await expect(
-      finalizeRayenHistoricalDischarges(y.applied, y.repository as never, y.queryClient, true)
+      finalizeRayenHistoricalDischarges(y.applied, y.repository, y.queryClient, true)
     ).rejects.toThrow('firmado');
     expect(y.patch).not.toHaveBeenCalled();
   });
@@ -350,7 +375,7 @@ describe('historical discharge structural-to-clinical handoff', () => {
     const x = await setup();
     x.history.discharges = [];
     await expect(
-      finalizeRayenHistoricalDischarges(x.applied, x.repository as never, x.queryClient)
+      finalizeRayenHistoricalDischarges(x.applied, x.repository, x.queryClient)
     ).rejects.toThrow('aún no está confirmado');
     expect(x.patch).not.toHaveBeenCalled();
   });
@@ -365,7 +390,7 @@ describe('historical discharge structural-to-clinical handoff', () => {
       },
     });
     await expect(
-      finalizeRayenHistoricalDischarges(x.applied, x.repository as never, x.queryClient)
+      finalizeRayenHistoricalDischarges(x.applied, x.repository, x.queryClient)
     ).rejects.toMatchObject({ name: 'ConcurrencyError' });
     expect(x.patch).not.toHaveBeenCalled();
   });
@@ -381,7 +406,7 @@ describe('historical discharge structural-to-clinical handoff', () => {
     };
     x.replaceRemote(x.applied.record);
     await expect(
-      finalizeRayenHistoricalDischarges(x.applied, x.repository as never, x.queryClient)
+      finalizeRayenHistoricalDischarges(x.applied, x.repository, x.queryClient)
     ).rejects.toMatchObject({ name: 'ConcurrencyError' });
     expect(x.patch).not.toHaveBeenCalled();
   });
@@ -399,7 +424,7 @@ describe('historical discharge structural-to-clinical handoff', () => {
       },
     });
     await expect(
-      finalizeRayenHistoricalDischarges(x.applied, x.repository as never, x.queryClient)
+      finalizeRayenHistoricalDischarges(x.applied, x.repository, x.queryClient)
     ).rejects.toMatchObject({ name: 'ConcurrencyError' });
     expect(x.patch).not.toHaveBeenCalled();
   });
@@ -432,7 +457,7 @@ describe('historical discharge structural-to-clinical handoff', () => {
     x.repository.getAuthoritativeForDate.mockResolvedValueOnce(withNewborn);
     // The next authoritative read contains only the parent movement.
     await expect(
-      finalizeRayenHistoricalDischarges(x.applied, x.repository as never, x.queryClient, true)
+      finalizeRayenHistoricalDischarges(x.applied, x.repository, x.queryClient, true)
     ).rejects.toMatchObject({ name: 'ConcurrencyError' });
     expect(x.patch).not.toHaveBeenCalled();
   });
@@ -448,7 +473,7 @@ describe('historical discharge structural-to-clinical handoff', () => {
       },
     });
     await expect(
-      finalizeRayenHistoricalDischarges(x.applied, x.repository as never, x.queryClient)
+      finalizeRayenHistoricalDischarges(x.applied, x.repository, x.queryClient)
     ).rejects.toMatchObject({ name: 'ConcurrencyError' });
     expect(x.patch).not.toHaveBeenCalled();
   });
@@ -461,7 +486,7 @@ describe('historical discharge structural-to-clinical handoff', () => {
     });
     const finished = await finalizeRayenHistoricalDischarges(
       x.applied,
-      x.repository as never,
+      x.repository,
       x.queryClient
     );
     expect(x.patch).not.toHaveBeenCalled();

@@ -66,6 +66,7 @@ vi.mock('@/services/repositories/contracts/catalogContracts', async importOrigin
 }));
 
 import { getDoc, onSnapshot, setDoc } from 'firebase/firestore';
+import { createMockDocSnapshot } from '@/tests/factories/firestoreSdkMocks';
 import {
   getNurseCatalogFromFirestore,
   getProfessionalsCatalogFromFirestore,
@@ -81,20 +82,14 @@ import {
 describe('firestoreCatalogService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getDoc).mockResolvedValue({ exists: () => false, data: () => undefined } as never);
+    vi.mocked(getDoc).mockResolvedValue(createMockDocSnapshot(undefined, { exists: false }));
   });
 
   it('gets nurse and tens catalogs, propagating read errors', async () => {
-    vi.mocked(getDoc).mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({ list: ['Nurse A'] }),
-    } as never);
+    vi.mocked(getDoc).mockResolvedValueOnce(createMockDocSnapshot({ list: ['Nurse A'] }));
     await expect(getNurseCatalogFromFirestore()).resolves.toEqual(['Nurse A']);
 
-    vi.mocked(getDoc).mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({ tens: ['TENS A'] }),
-    } as never);
+    vi.mocked(getDoc).mockResolvedValueOnce(createMockDocSnapshot({ tens: ['TENS A'] }));
     await expect(getTensCatalogFromFirestore()).resolves.toEqual(['TENS A']);
 
     vi.mocked(getDoc).mockRejectedValueOnce(new Error('offline'));
@@ -121,27 +116,21 @@ describe('firestoreCatalogService', () => {
     );
 
     await saveProfessionalsCatalogToFirestore(
-      [{ name: 'Dr. A', specialty: 'Medicina' }] as never,
+      [{ name: 'Dr. A', specialty: 'Medicina', phone: '' }],
       []
     );
     expect(vi.mocked(setDoc).mock.calls[2]?.[1]).toEqual(
       expect.objectContaining({
-        list: [{ name: 'Dr. A', specialty: 'Medicina' }],
+        list: [{ name: 'Dr. A', specialty: 'Medicina', phone: '' }],
       })
     );
   });
 
   it('gets and subscribes professionals catalog, including empty/error states', async () => {
-    vi.mocked(getDoc).mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({ list: [{ name: 'Dr. A' }] }),
-    } as never);
+    vi.mocked(getDoc).mockResolvedValueOnce(createMockDocSnapshot({ list: [{ name: 'Dr. A' }] }));
     await expect(getProfessionalsCatalogFromFirestore()).resolves.toEqual([{ name: 'Dr. A' }]);
 
-    vi.mocked(getDoc).mockResolvedValueOnce({
-      exists: () => false,
-      data: () => undefined,
-    } as never);
+    vi.mocked(getDoc).mockResolvedValueOnce(createMockDocSnapshot(undefined, { exists: false }));
     await expect(getProfessionalsCatalogFromFirestore()).resolves.toEqual([]);
 
     const nurseCallback = vi.fn();
@@ -198,7 +187,7 @@ it.each([
 ])('propagates point read failures and preserves genuine absence', async read => {
   vi.mocked(getDoc).mockRejectedValueOnce(new Error('synthetic read failure'));
   await expect(read()).rejects.toThrow('synthetic read failure');
-  vi.mocked(getDoc).mockResolvedValueOnce({ exists: () => false, data: () => undefined } as never);
+  vi.mocked(getDoc).mockResolvedValueOnce(createMockDocSnapshot(undefined, { exists: false }));
   await expect(read()).resolves.toEqual([]);
 });
 
@@ -207,10 +196,7 @@ it.each([
   ['Ana Peña', 'ANA PENA'],
   ['Ana Peña', ' ANA   PEÑA '],
 ])('stores one preferred spelling for %s + %s', async (saved, incoming) => {
-  vi.mocked(getDoc).mockResolvedValueOnce({
-    exists: () => true,
-    data: () => ({ list: [saved] }),
-  } as never);
+  vi.mocked(getDoc).mockResolvedValueOnce(createMockDocSnapshot({ list: [saved] }));
   expect(await saveNurseCatalogToFirestore([saved, incoming], [saved])).toEqual(['Ana Peña']);
   expect(setDoc).toHaveBeenLastCalledWith(
     expect.anything(),

@@ -61,6 +61,7 @@ vi.mock('@/services/storage/firestore/firestoreServiceRuntime', () => ({
 }));
 
 import { collection, doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { createMockDocRef, createMockDocSnapshot } from '@/tests/factories/firestoreSdkMocks';
 import {
   asFirestoreUpdatePayload,
   assertFirestoreConcurrency,
@@ -68,6 +69,8 @@ import {
   createDeletedRecordRef,
   saveHistorySnapshot,
 } from '@/services/storage/firestore/firestoreWriteSupport';
+
+const mockDocRef = createMockDocRef('hospitals/hospital-1/dailyRecords/2026-02-20');
 
 describe('firestoreWriteSupport', () => {
   beforeEach(() => {
@@ -77,30 +80,23 @@ describe('firestoreWriteSupport', () => {
   });
 
   it('throws concurrency error when remote version is newer than expected base', async () => {
-    vi.mocked(getDoc).mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({ lastUpdated: '2026-02-20T10:00:00.000Z' }),
-    } as never);
+    vi.mocked(getDoc).mockResolvedValueOnce(
+      createMockDocSnapshot({ lastUpdated: '2026-02-20T10:00:00.000Z' })
+    );
 
     await expect(
-      assertFirestoreConcurrency(
-        {} as never,
-        '2026-02-19T10:00:00.000Z',
-        'conflict message',
-        'save'
-      )
+      assertFirestoreConcurrency(mockDocRef, '2026-02-19T10:00:00.000Z', 'conflict message', 'save')
     ).rejects.toBeInstanceOf(ConcurrencyError);
   });
 
   it('can enforce strict concurrency without the same-session tolerance window', async () => {
-    vi.mocked(getDoc).mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({ lastUpdated: '2026-02-20T10:00:01.000Z' }),
-    } as never);
+    vi.mocked(getDoc).mockResolvedValueOnce(
+      createMockDocSnapshot({ lastUpdated: '2026-02-20T10:00:01.000Z' })
+    );
 
     await expect(
       assertFirestoreConcurrency(
-        {} as never,
+        mockDocRef,
         '2026-02-20T10:00:00.000Z',
         'conflict message',
         'save',
@@ -111,36 +107,21 @@ describe('firestoreWriteSupport', () => {
 
   it('allows operation when the remote document is missing or older', async () => {
     vi.mocked(getDoc)
-      .mockResolvedValueOnce({
-        exists: () => false,
-      } as never)
-      .mockResolvedValueOnce({
-        exists: () => true,
-        data: () => ({ lastUpdated: Timestamp.now() }),
-      } as never);
+      .mockResolvedValueOnce(createMockDocSnapshot(undefined, { exists: false }))
+      .mockResolvedValueOnce(createMockDocSnapshot({ lastUpdated: Timestamp.now() }));
 
     await expect(
-      assertFirestoreConcurrency(
-        {} as never,
-        '2026-02-20T10:00:00.000Z',
-        'conflict message',
-        'save'
-      )
+      assertFirestoreConcurrency(mockDocRef, '2026-02-20T10:00:00.000Z', 'conflict message', 'save')
     ).resolves.toBeUndefined();
 
     await expect(
-      assertFirestoreConcurrency(
-        {} as never,
-        '2026-02-20T10:00:00.000Z',
-        'conflict message',
-        'save'
-      )
+      assertFirestoreConcurrency(mockDocRef, '2026-02-20T10:00:00.000Z', 'conflict message', 'save')
     ).resolves.toBeUndefined();
   });
 
   it('allows operation when expected base is missing', async () => {
     await expect(
-      assertFirestoreConcurrency({} as never, undefined, 'conflict message', 'save')
+      assertFirestoreConcurrency(mockDocRef, undefined, 'conflict message', 'save')
     ).resolves.toBeUndefined();
   });
 
@@ -148,12 +129,7 @@ describe('firestoreWriteSupport', () => {
     vi.mocked(getDoc).mockRejectedValueOnce(new Error('offline'));
 
     await expect(
-      assertFirestoreConcurrency(
-        {} as never,
-        '2026-02-20T10:00:00.000Z',
-        'conflict message',
-        'save'
-      )
+      assertFirestoreConcurrency(mockDocRef, '2026-02-20T10:00:00.000Z', 'conflict message', 'save')
     ).resolves.toBeUndefined();
 
     expect(mockCreateOperationalError).not.toHaveBeenCalled();
@@ -173,7 +149,7 @@ describe('firestoreWriteSupport', () => {
 
     await expect(
       assertFirestoreConcurrency(
-        {} as never,
+        mockDocRef,
         '2026-02-20T10:00:00.000Z',
         'conflict message',
         'partial update',
@@ -192,10 +168,7 @@ describe('firestoreWriteSupport', () => {
   });
 
   it('saves a history snapshot when the source record exists', async () => {
-    vi.mocked(getDoc).mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({ census: 'snapshot' }),
-    } as never);
+    vi.mocked(getDoc).mockResolvedValueOnce(createMockDocSnapshot({ census: 'snapshot' }));
 
     await saveHistorySnapshot('2026-03-22');
 
@@ -214,9 +187,7 @@ describe('firestoreWriteSupport', () => {
   });
 
   it('skips missing history sources and exposes helper payload builders', async () => {
-    vi.mocked(getDoc).mockResolvedValueOnce({
-      exists: () => false,
-    } as never);
+    vi.mocked(getDoc).mockResolvedValueOnce(createMockDocSnapshot(undefined, { exists: false }));
 
     await saveHistorySnapshot('2026-03-23');
     expect(setDoc).not.toHaveBeenCalled();

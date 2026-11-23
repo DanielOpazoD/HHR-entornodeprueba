@@ -88,7 +88,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
           canonicalDigest: digestPayload(payload),
         },
       ],
-    } as never;
+    };
     Object.assign(remote, {
       rayenSyncHistory: [
         {
@@ -157,7 +157,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
         recordedDate: remote.date,
         source: 'HHR · ajuste administrativo',
       },
-    } as never;
+    };
     const admin = createClinicalAdminMock(remote);
     const payload = makePayload();
     payload.patches = [
@@ -174,7 +174,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
           },
         },
       },
-    ] as never;
+    ];
 
     await expect(
       createApi(admin).applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
@@ -210,7 +210,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
         clinicalEpisodeId: 'episode-secret-1',
         fields: { evaluationScores },
       },
-    ] as never;
+    ];
 
     await expect(
       createApi(admin).applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
@@ -228,7 +228,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
         clinicalCrib: true,
         fields: { vitalSigns: { heartRate: 132 } },
       },
-    ] as never;
+    ];
 
     const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
       payload,
@@ -251,7 +251,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
   it('rejects non-allowlisted fields before reading the census', async () => {
     const admin = createClinicalAdminMock();
     const payload = makePayload();
-    payload.patches[0].fields = { patientName: 'Nombre alterado' } as never;
+    payload.patches[0].fields = { patientName: 'Nombre alterado' };
 
     await expect(
       createApi(admin).applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
@@ -274,7 +274,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
         ...payload.patches[0],
         fields: { clinicalSyncCheckpoint: { version: 2, sources: {} } },
       },
-    ] as never;
+    ];
 
     await expect(
       createApi(admin).applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
@@ -348,7 +348,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     const payload = makePayload();
     payload.patches[0].fields = {
       deviceDetails: { oversized: 'x'.repeat(510_000) },
-    } as never;
+    };
 
     await expect(
       createApi(admin).applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
@@ -365,7 +365,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
       evaluationScores: { braden: { total: 17 } },
       vitalSigns: { systolic: 120 },
       clinicalSyncCheckpoint: { version: 1, sources: {} },
-    } as never;
+    };
     const admin = createClinicalAdminMock(remote);
     const payload = {
       ...makePayload(),
@@ -395,7 +395,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
       evaluationScores: { braden: { total: 17 } },
       vitalSigns: { systolic: 120 },
       clinicalSyncCheckpoint: { version: 1, sources: {} },
-    } as never;
+    };
     const admin = createClinicalAdminMock(remote);
     const payload = {
       ...makePayload(),
