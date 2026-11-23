@@ -44,6 +44,7 @@ import {
 interface UseRayenSyncAuditInput {
   currentRecordRef: MutableRefObject<DailyRecord | null | undefined>;
   patchDailyRecord: (input: {
+    date?: string;
     partial: DailyRecordPatch;
     options: { baseRecord: DailyRecord };
   }) => Promise<unknown>;
@@ -109,6 +110,7 @@ export const useRayenSyncAudit = ({
       build: (freshRecord: DailyRecord) => { patch: DailyRecordPatch | null; value: T }
     ): Promise<T> => {
       const { check } = guardAuthoringSession();
+      const targetDate = fallbackRecord.date;
       let base = fallbackRecord;
       let lastError: unknown;
       for (let attempt = 0; attempt <= MAX_METADATA_WRITE_RETRIES; attempt += 1) {
@@ -117,7 +119,11 @@ export const useRayenSyncAudit = ({
         if (!prepared.patch) return prepared.value;
         try {
           assertMetadataPatchAccepted(
-            await patchDailyRecord({ partial: prepared.patch, options: { baseRecord: base } })
+            await patchDailyRecord({
+              date: targetDate,
+              partial: prepared.patch,
+              options: { baseRecord: base },
+            })
           );
           check();
           return prepared.value;
@@ -131,8 +137,12 @@ export const useRayenSyncAudit = ({
           ) {
             throw error;
           }
-          base = await loadDailyRecord(base.date);
+          const reloaded = await loadDailyRecord(targetDate);
           check();
+          if (reloaded.date !== targetDate) {
+            throw new Error('La lectura del censo corresponde a otra fecha.');
+          }
+          base = reloaded;
         }
       }
       throw lastError;
@@ -259,9 +269,11 @@ export const useRayenSyncAudit = ({
           }
         : {};
       const liveRecord = currentRecordRef.current;
-      const fallback = liveRecord?.rayenSyncHistory?.some(event => event.id === runId)
-        ? liveRecord
-        : recordAtApply;
+      const fallback =
+        liveRecord?.date === recordAtApply.date &&
+        liveRecord.rayenSyncHistory?.some(event => event.id === runId)
+          ? liveRecord
+          : recordAtApply;
       const buildCompletedEvent = (appliedEvent: RayenSyncEvent): RayenSyncEvent =>
         completeRayenSyncEvent(
           appliedEvent,
@@ -374,18 +386,30 @@ export const useRayenSyncAudit = ({
       const event = buildFailedRayenSyncEvent(run, reason, now().toISOString());
       const evidence = buildRayenApplyFailureEvidence(error, run.sourceDate);
       if (evidence) event.structuralReview = evidence;
-      if (record) {
+      const matchingRecord =
+        record && (!run.sourceDate || record.date === run.sourceDate) ? record : null;
+      if (matchingRecord || (run.sourceDate && loadDailyRecord)) {
         try {
-          await persistMetadataPatch(record, base => ({
-            patch: {
-              rayenSyncHistory: upsertRayenSyncEvent(base.rayenSyncHistory, event),
-            },
-            value: undefined,
-          }));
-        } catch (error) {
+          let targetRecord = matchingRecord;
+          if (!targetRecord && run.sourceDate && loadDailyRecord) {
+            const { check } = guardAuthoringSession();
+            check();
+            const loaded = await loadDailyRecord(run.sourceDate);
+            check();
+            if (loaded.date === run.sourceDate) targetRecord = loaded;
+          }
+          if (targetRecord) {
+            await persistMetadataPatch(targetRecord, base => ({
+              patch: {
+                rayenSyncHistory: upsertRayenSyncEvent(base.rayenSyncHistory, event),
+              },
+              value: undefined,
+            }));
+          }
+        } catch (persistError) {
           reportRayenSyncWarning('sync_audit_persist_failed', {
             runId: run.id,
-            errorKind: classifyRayenSyncError(error),
+            errorKind: classifyRayenSyncError(persistError),
           });
         }
       }
@@ -397,7 +421,7 @@ export const useRayenSyncAudit = ({
         event.completedAt
       );
     },
-    [currentRecordRef, lifecycle, now, persistMetadataPatch]
+    [currentRecordRef, lifecycle, loadDailyRecord, now, persistMetadataPatch]
   );
 
   const cancelRun = useCallback(() => {

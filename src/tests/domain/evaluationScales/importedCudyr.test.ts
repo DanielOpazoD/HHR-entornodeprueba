@@ -198,4 +198,46 @@ describe('buildImportedCudyr', () => {
     });
     expect(result?.history).toHaveLength(1);
   });
+
+  it('orders same-second CUDYR evaluations deterministically regardless of source order', () => {
+    const earlierId = {
+      id: '900101',
+      category: 'C1',
+      recordedAt: '2026-10-15T01:05:10-05:00',
+      author: 'Profesional sintético',
+      dependencyScore: 6,
+      riskScore: 7,
+    };
+    const laterId = {
+      id: '900102',
+      category: 'C2',
+      recordedAt: '2026-10-15T01:05:10-05:00',
+      author: 'Profesional sintético',
+      dependencyScore: 8,
+      riskScore: 7,
+    };
+
+    const forward = buildImportedCudyr(
+      {
+        crdValue: 'C2',
+        crdDateTime: '2026-10-15T01:05:10-05:00',
+        source: 'gestion_camas',
+        history: [earlierId, laterId],
+      },
+      '2026-10-14'
+    );
+    const reversed = buildImportedCudyr(
+      {
+        crdValue: 'C2',
+        crdDateTime: '2026-10-15T01:05:10-05:00',
+        source: 'gestion_camas',
+        history: [laterId, earlierId],
+      },
+      '2026-10-14'
+    );
+
+    expect(forward).toEqual(reversed);
+    expect(forward?.category).toBe('C2');
+    expect(forward?.history?.map(entry => entry.category)).toEqual(['C2', 'C1']);
+  });
 });
