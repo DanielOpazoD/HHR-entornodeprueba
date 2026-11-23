@@ -73,10 +73,10 @@ export const executeInitializeDailyRecord = async (
     );
     return mapInitializationOutcome(initialization);
   } catch (error) {
-    return createApplicationFailed(
+    return createApplicationFailed<InitializeDailyRecordOutput>(
       {
-        record: null as never,
-        initialization: null as never,
+        record: null,
+        initialization: null,
       },
       [
         {
