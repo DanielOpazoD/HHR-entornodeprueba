@@ -65,4 +65,22 @@ describe('authPolicy', () => {
     expect(mockGetDynamicRoleForEmail).toHaveBeenCalledWith('doctor@hospital.cl');
     expect(mockSaveRoleToCache).toHaveBeenCalledWith('doctor@hospital.cl', 'doctor_specialist');
   });
+
+  it('returns unauthorized and emits telemetry when no dynamic role exists', async () => {
+    mockGetDynamicRoleForEmail.mockResolvedValueOnce(null);
+
+    await expect(resolveGeneralLoginAccessForEmail('unknown@hospital.cl')).resolves.toEqual({
+      allowed: false,
+      resolution: 'unauthorized',
+    });
+
+    expect(mockEmitAuthOperationalEvent).toHaveBeenCalledWith(
+      'resolve_general_login_access',
+      'unauthorized',
+      expect.objectContaining({
+        code: 'auth_email_not_authorized',
+        context: { email: 'unknown@hospital.cl', source: 'none' },
+      })
+    );
+  });
 });

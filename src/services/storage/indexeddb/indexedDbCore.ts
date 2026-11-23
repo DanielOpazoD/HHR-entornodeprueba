@@ -1,8 +1,8 @@
 import { createIndexedDbBackgroundRecoveryScheduler } from './indexedDbBackgroundRecoveryScheduler';
 import { HangaRoaDatabase } from './indexedDbDatabase';
-import { attachIndexedDbEvents } from './indexedDbBootstrap';
+import { attachIndexedDbWarningBindings } from './indexedDbWarningBindings';
 import { recordIndexedDbRecoveryNotice } from './indexedDbRecoveryController';
-import { resolveIndexedDbOpenHealth } from './indexedDbOpenHealthController';
+import { resolveIndexedDbOpenHealth } from './indexedDbCoreSupport';
 import { getIndexedDbRecoveryBudgetSnapshot } from './indexedDbRecoveryBudgets';
 import {
   buildLocalPersistenceRuntimeSnapshot,
@@ -31,7 +31,7 @@ const backgroundRecoveryScheduler = createIndexedDbBackgroundRecoveryScheduler({
 });
 
 const attachDatabaseEvents = (database: HangaRoaDatabase) =>
-  attachIndexedDbEvents(
+  attachIndexedDbWarningBindings(
     database,
     () => ({ isUsingMock, stickyFallbackMode }),
     emittedIndexedDbWarnings

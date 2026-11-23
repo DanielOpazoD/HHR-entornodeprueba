@@ -6,14 +6,12 @@ const {
   recoverIndexedDbInitialOpenRuntimeFailureMock,
   openIndexedDbWithRetriesMock,
   waitForIndexedDbOpenResolutionMock,
-  resolveIndexedDbOpenWaitActionMock,
   createIndexedDbDatabaseOrFallbackMock,
 } = vi.hoisted(() => ({
   restoreIndexedDbFromMockFallbackMock: vi.fn(),
   recoverIndexedDbInitialOpenRuntimeFailureMock: vi.fn(),
   openIndexedDbWithRetriesMock: vi.fn(),
   waitForIndexedDbOpenResolutionMock: vi.fn(),
-  resolveIndexedDbOpenWaitActionMock: vi.fn(),
   createIndexedDbDatabaseOrFallbackMock: vi.fn(),
 }));
 
@@ -26,10 +24,6 @@ vi.mock('@/services/storage/indexeddb/indexedDbCoreSupport', () => ({
   openIndexedDbWithRetries: openIndexedDbWithRetriesMock,
   runIndexedDbOperationWithTimeout: vi.fn((fn: () => Promise<unknown>) => fn()),
   waitForIndexedDbOpenResolution: waitForIndexedDbOpenResolutionMock,
-}));
-
-vi.mock('@/services/storage/indexeddb/indexedDbOpenWaitController', () => ({
-  resolveIndexedDbOpenWaitAction: resolveIndexedDbOpenWaitActionMock,
 }));
 
 vi.mock('@/services/storage/indexeddb/indexedDbDatabaseLifecycle', () => ({
@@ -145,24 +139,24 @@ describe('runMockFallbackRecovery', () => {
 describe('runOpeningWaitFlow', () => {
   beforeEach(() => {
     waitForIndexedDbOpenResolutionMock.mockReset();
-    resolveIndexedDbOpenWaitActionMock.mockReset();
   });
 
-  it.each(['return', 'fallback', 'continue'] as const)(
-    'propagates the %s decision',
-    async decision => {
-      waitForIndexedDbOpenResolutionMock.mockResolvedValueOnce({});
-      resolveIndexedDbOpenWaitActionMock.mockReturnValueOnce(decision);
+  it.each([
+    ['opened', 'return'],
+    ['mock', 'return'],
+    ['stalled', 'fallback'],
+    ['settled', 'continue'],
+  ] as const)('maps wait outcome %s to decision %s', async (outcome, decision) => {
+    waitForIndexedDbOpenResolutionMock.mockResolvedValueOnce(outcome);
 
-      const result = await runOpeningWaitFlow({
-        isOpening: () => true,
-        isDbOpen: () => false,
-        isUsingMock: () => false,
-      });
+    const result = await runOpeningWaitFlow({
+      isOpening: () => true,
+      isDbOpen: () => false,
+      isUsingMock: () => false,
+    });
 
-      expect(result).toBe(decision);
-    }
-  );
+    expect(result).toBe(decision);
+  });
 });
 
 describe('runFreshOpenAttempt', () => {

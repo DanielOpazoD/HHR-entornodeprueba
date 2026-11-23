@@ -22,7 +22,6 @@ import {
   runIndexedDbOperationWithTimeout,
   waitForIndexedDbOpenResolution,
 } from './indexedDbCoreSupport';
-import { resolveIndexedDbOpenWaitAction } from './indexedDbOpenWaitController';
 import {
   INDEXED_DB_OPEN_TIMEOUT_MS,
   INDEXED_DB_RECOVERY_RETRY_DELAYS_MS,
@@ -81,7 +80,10 @@ export type OpeningWaitDecision = 'return' | 'fallback' | 'continue';
  */
 export const runOpeningWaitFlow = async (input: OpeningWaitInput): Promise<OpeningWaitDecision> => {
   const waitOutcome = await waitForIndexedDbOpenResolution(input);
-  return resolveIndexedDbOpenWaitAction(waitOutcome);
+  if (waitOutcome === 'opened' || waitOutcome === 'mock') {
+    return 'return';
+  }
+  return waitOutcome === 'stalled' ? 'fallback' : 'continue';
 };
 
 export interface FreshOpenAttemptInput {
