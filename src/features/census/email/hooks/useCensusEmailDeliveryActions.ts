@@ -63,7 +63,10 @@ export const useCensusEmailDeliveryActions = ({
   }, [record, currentDateString]);
   const sendEmail = useCallback(async () => {
     if (!canRunCensusEmailAction(status)) return;
-    const blockReason = resolveUpcEmailBlockReason(record, currentDateString);
+    const blockReason = resolveUpcEmailBlockReason(
+      latestContext.current.record,
+      latestContext.current.currentDateString
+    );
     if (blockReason) {
       setError(blockReason);
       setStatus('error');
@@ -105,7 +108,6 @@ export const useCensusEmailDeliveryActions = ({
     message,
     nurseSignature,
     recipients,
-    record,
     role,
     selectedDay,
     selectedMonth,

@@ -33,7 +33,6 @@ interface UseAuthenticatedAppRuntimeParams {
 }
 
 interface BuildCensusContextValueParams {
-  dailyRecordHook: DailyRecordContextType;
   dateNav: UseDateNavigationReturn;
   existingDaysInMonth: number[];
   clinicalToday: string;
@@ -44,13 +43,14 @@ interface BuildCensusContextValueParams {
 }
 
 interface BuildAuthenticatedAppRuntimeParams extends BuildCensusContextValueParams {
+  dailyRecordHook: DailyRecordContextType;
   ui: UseAppStateReturn;
+  censusContextValue?: CensusContextType;
 }
 
 export const resolveExistingDaysInMonth = (data: number[] | undefined): number[] => data ?? [];
 
 export const buildAuthenticatedCensusContextValue = ({
-  dailyRecordHook,
   dateNav,
   existingDaysInMonth,
   clinicalToday,
@@ -59,7 +59,6 @@ export const buildAuthenticatedCensusContextValue = ({
   censusEmail,
   nurseSignature,
 }: BuildCensusContextValueParams): CensusContextType => ({
-  dailyRecord: dailyRecordHook,
   dateNav: {
     ...dateNav,
     existingDaysInMonth,
@@ -81,6 +80,7 @@ export const buildAuthenticatedAppRuntime = ({
   censusEmail,
   nurseSignature,
   ui,
+  censusContextValue,
 }: BuildAuthenticatedAppRuntimeParams): AuthenticatedAppRuntime => ({
   dailyRecordHook,
   existingDaysInMonth,
@@ -88,16 +88,17 @@ export const buildAuthenticatedAppRuntime = ({
   censusEmail,
   fileOps,
   ui,
-  censusContextValue: buildAuthenticatedCensusContextValue({
-    dailyRecordHook,
-    dateNav,
-    existingDaysInMonth,
-    clinicalToday,
-    goToClinicalToday,
-    fileOps,
-    censusEmail,
-    nurseSignature,
-  }),
+  censusContextValue:
+    censusContextValue ??
+    buildAuthenticatedCensusContextValue({
+      dateNav,
+      existingDaysInMonth,
+      clinicalToday,
+      goToClinicalToday,
+      fileOps,
+      censusEmail,
+      nurseSignature,
+    }),
 });
 
 export const useAuthenticatedAppRuntime = ({
@@ -155,6 +156,30 @@ export const useAuthenticatedAppRuntime = ({
 
   const fileOps = useFileOperations(record, dailyRecordHook.refresh);
 
+  // Memoize CensusContext independently of dailyRecordHook so bed edits only notify
+  // DailyRecordContext slice subscribers, not shell/fileOps/dateNav consumers.
+  const censusContextValue = React.useMemo(
+    () =>
+      buildAuthenticatedCensusContextValue({
+        dateNav,
+        existingDaysInMonth,
+        clinicalToday,
+        goToClinicalToday,
+        fileOps,
+        censusEmail,
+        nurseSignature,
+      }),
+    [
+      censusEmail,
+      clinicalToday,
+      dateNav,
+      existingDaysInMonth,
+      fileOps,
+      goToClinicalToday,
+      nurseSignature,
+    ]
+  );
+
   return React.useMemo(
     () =>
       buildAuthenticatedAppRuntime({
@@ -167,8 +192,10 @@ export const useAuthenticatedAppRuntime = ({
         censusEmail,
         nurseSignature,
         ui,
+        censusContextValue,
       }),
     [
+      censusContextValue,
       censusEmail,
       clinicalToday,
       dailyRecordHook,

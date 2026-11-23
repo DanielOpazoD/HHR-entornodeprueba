@@ -180,11 +180,6 @@ const createShellFileOpsMock = (): CensusContextType['fileOps'] => ({
 export const createShellCensusContextMock = (
   overrides: Partial<CensusContextType> = {}
 ): CensusContextType => ({
-  dailyRecord: {
-    record: null,
-    syncStatus: 'idle',
-    lastSyncTime: null,
-  } as CensusContextType['dailyRecord'],
   dateNav: createShellDateNavMock(),
   censusEmail: createShellCensusEmailMock(),
   fileOps: createShellFileOpsMock(),
@@ -196,11 +191,6 @@ export const createShellRuntimeMock = (
   overrides: Partial<AppContentRuntime> = {}
 ): AppContentRuntime => ({
   auth: createShellAuthMock(),
-  dailyRecordHook: {
-    record: null,
-    syncStatus: 'idle',
-    lastSyncTime: null,
-  } as AppContentRuntime['dailyRecordHook'],
   record: null,
   syncStatus: 'idle',
   lastSyncTime: null,

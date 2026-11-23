@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useNotification } from '@/context/UIContext';
 import {
@@ -89,10 +89,15 @@ export const useFileOperations = (
       });
   }, [dispatchNotification]);
 
+  const recordRef = useRef(record);
+  useLayoutEffect(() => {
+    recordRef.current = record;
+  }, [record]);
+
   const handleExportCSV = useCallback(() => {
     void loadExportService()
       .then(exportService => {
-        const outcome = exportService.exportDataCSVWithResult(record);
+        const outcome = exportService.exportDataCSVWithResult(recordRef.current);
         if (outcome.status === 'success') {
           dispatchNotification(buildExportCsvNotification('success'));
           return;
@@ -104,7 +109,7 @@ export const useFileOperations = (
         logger.error('CSV export failed', error);
         dispatchNotification(buildExportCsvNotification('error'));
       });
-  }, [dispatchNotification, record]);
+  }, [dispatchNotification]);
 
   const handleImportFile = useCallback(
     async (file: File) => {

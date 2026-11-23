@@ -1,5 +1,4 @@
 import React, { createContext, useContext, ReactNode } from 'react';
-import { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
 import { UseDateNavigationReturn } from '@/hooks/useDateNavigation';
 import { UseFileOperationsReturn } from '@/hooks/useFileOperations';
 import type { GlobalEmailRecipientList } from '@/services/email/emailRecipientListService';
@@ -45,11 +44,8 @@ export interface UseCensusEmailReturn {
   isAdminUser: boolean;
 }
 
-// 1. Define the Context State Interface
+// 1. Define the Context State Interface (excludes reactive dailyRecord slices; use DailyRecordContext hooks)
 export interface CensusContextType {
-  // Core Domain Data
-  dailyRecord: DailyRecordContextType;
-
   // Time & Navigation
   dateNav: UseDateNavigationReturn & {
     existingDaysInMonth: number[]; // From useExistingDays

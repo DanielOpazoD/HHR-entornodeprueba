@@ -54,10 +54,13 @@ vi.mock('@/components/security/PinLockScreen', () => ({
   PinLockScreen: () => <div data-testid="pin-lock">PinLockScreen</div>,
 }));
 
-vi.mock('@/components/AppProviders', () => ({
-  AppProviders: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="app-providers">{children}</div>
-  ),
+vi.mock('@/context/DailyRecordContext', () => ({
+  useDailyRecordData: () => ({ record: null }),
+  useDailyRecordSync: () => ({
+    syncStatus: 'idle',
+    hasSaveException: false,
+    lastSyncTime: null,
+  }),
 }));
 
 vi.mock('@/context/ReminderCenterContext', () => ({

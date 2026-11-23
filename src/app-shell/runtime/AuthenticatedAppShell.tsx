@@ -2,6 +2,7 @@ import { useWarmDailyRecordSavePath } from '@/hooks/useWarmDailyRecordSavePath';
 import React from 'react';
 import { FlaskConical } from 'lucide-react';
 import { AppContent } from '@/components/layout/AppContent';
+import { AppProviders } from '@/components/AppProviders';
 import { AppRouter } from '@/app-shell/routing/AppRouter';
 import type { AppRouterShellState } from '@/app-shell/routing/appRouterController';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
@@ -67,7 +68,7 @@ interface AuthenticatedAppShellProps {
 
 export const AuthenticatedAppShell = ({ auth, dateNav }: AuthenticatedAppShellProps) => {
   useWarmDailyRecordSavePath();
-  const { censusContextValue, ui } = useAuthenticatedAppRuntime({ auth, dateNav });
+  const { dailyRecordHook, censusContextValue, ui } = useAuthenticatedAppRuntime({ auth, dateNav });
   React.useEffect(() => {
     markPerf('auth-shell:mounted');
   }, []);
@@ -93,17 +94,19 @@ export const AuthenticatedAppShell = ({ auth, dateNav }: AuthenticatedAppShellPr
   );
 
   return (
-    <CensusProvider value={censusContextValue}>
-      <DeferredSystemHealthReporter />
-      <HandoffExtensionConnection auth={auth} />
-      <AppContent
-        ui={ui}
-        renderModuleRouter={renderAuthenticatedModuleRouter}
-        overlayViews={AUTHENTICATED_OVERLAY_VIEWS}
-        renderFeatureQuickActions={renderFeatureQuickActions}
-        radiologyViewer={RadiologyViewerModal}
-        renderCensusTrailingActions={renderCensusTrailingActions}
-      />
-    </CensusProvider>
+    <AppProviders dailyRecordHook={dailyRecordHook}>
+      <CensusProvider value={censusContextValue}>
+        <DeferredSystemHealthReporter />
+        <HandoffExtensionConnection auth={auth} />
+        <AppContent
+          ui={ui}
+          renderModuleRouter={renderAuthenticatedModuleRouter}
+          overlayViews={AUTHENTICATED_OVERLAY_VIEWS}
+          renderFeatureQuickActions={renderFeatureQuickActions}
+          radiologyViewer={RadiologyViewerModal}
+          renderCensusTrailingActions={renderCensusTrailingActions}
+        />
+      </CensusProvider>
+    </AppProviders>
   );
 };

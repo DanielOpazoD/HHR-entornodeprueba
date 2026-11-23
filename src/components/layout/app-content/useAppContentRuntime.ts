@@ -3,6 +3,8 @@ import type { AuthContextType } from '@/context/AuthContext';
 import type { CensusContextType } from '@/context/CensusContext';
 import { useCensusContext } from '@/context/CensusContext';
 import { useAuth } from '@/context/AuthContext';
+import { useDailyRecordData, useDailyRecordSync } from '@/context/DailyRecordContext';
+import type { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
 import { useExportManager, type UseExportManagerReturn } from '@/hooks/useExportManager';
 import { useCensusMasterExcelExport } from '@/hooks/useCensusMasterExcelExport';
 import { waitForExportReadiness } from '@/hooks/controllers/exportReadinessController';
@@ -19,10 +21,9 @@ import {
 
 export interface AppContentRuntime {
   auth: AuthContextType;
-  dailyRecordHook: CensusContextType['dailyRecord'];
-  record: CensusContextType['dailyRecord']['record'];
-  syncStatus: CensusContextType['dailyRecord']['syncStatus'];
-  lastSyncTime: CensusContextType['dailyRecord']['lastSyncTime'];
+  record: DailyRecordContextType['record'];
+  syncStatus: DailyRecordContextType['syncStatus'];
+  lastSyncTime: DailyRecordContextType['lastSyncTime'];
   dateNav: CensusContextType['dateNav'];
   censusEmail: CensusContextType['censusEmail'];
   fileOps: CensusContextType['fileOps'];
@@ -63,7 +64,7 @@ const canVerifyArchiveStatusWithRuntime = (
 const resolveExportManagerParams = (
   dateNav: CensusContextType['dateNav'],
   ui: UseUIStateReturn,
-  record: CensusContextType['dailyRecord']['record'],
+  record: DailyRecordContextType['record'],
   canVerifyArchiveStatus: boolean
 ) => ({
   currentDateString: dateNav.currentDateString,
@@ -77,15 +78,10 @@ const resolveExportManagerParams = (
 });
 
 export const useAppContentRuntime = ({ ui }: UseAppContentRuntimeParams): AppContentRuntime => {
-  const {
-    dailyRecord: dailyRecordHook,
-    dateNav,
-    censusEmail,
-    fileOps,
-    nurseSignature,
-  } = useCensusContext();
+  const { dateNav, censusEmail, fileOps, nurseSignature } = useCensusContext();
+  const { record } = useDailyRecordData();
+  const { syncStatus, hasSaveException, lastSyncTime } = useDailyRecordSync();
   const auth = useAuth();
-  const { record, syncStatus, hasSaveException, lastSyncTime } = dailyRecordHook;
   const syncStatusRef = React.useRef({ syncStatus, hasSaveException });
   const recordRef = React.useRef(record);
   const selectedDateRef = React.useRef(dateNav.currentDateString);
@@ -153,7 +149,6 @@ export const useAppContentRuntime = ({ ui }: UseAppContentRuntimeParams): AppCon
   return React.useMemo(
     () => ({
       auth,
-      dailyRecordHook,
       record,
       syncStatus,
       lastSyncTime,
@@ -174,7 +169,6 @@ export const useAppContentRuntime = ({ ui }: UseAppContentRuntimeParams): AppCon
       canVerifyArchiveStatus,
       censusAccessProfile,
       censusEmail,
-      dailyRecordHook,
       dateNav,
       exportManager,
       fileOps,

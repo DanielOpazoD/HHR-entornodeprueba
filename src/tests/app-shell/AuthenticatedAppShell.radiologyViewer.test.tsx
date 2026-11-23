@@ -28,7 +28,11 @@ vi.mock('@/features/radiology/components/RadiologyViewerModal', () => ({
 }));
 
 vi.mock('@/app-shell/runtime/useAuthenticatedAppRuntime', () => ({
-  useAuthenticatedAppRuntime: () => ({ censusContextValue: {}, ui: {} }),
+  useAuthenticatedAppRuntime: () => ({ dailyRecordHook: {}, censusContextValue: {}, ui: {} }),
+}));
+
+vi.mock('@/components/AppProviders', () => ({
+  AppProviders: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 vi.mock('@/hooks/useWarmDailyRecordSavePath', () => ({

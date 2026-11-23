@@ -30,6 +30,7 @@ export const DailyRecordMovementsContext = createContext<
 export const DailyRecordSyncContext = createContext<
   | {
       syncStatus: SyncStatus;
+      hasSaveException?: boolean;
       lastSyncTime: Date | null;
       bootstrapPhase: DailyRecordBootstrapPhase;
     }

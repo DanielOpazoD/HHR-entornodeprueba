@@ -1,5 +1,4 @@
 import React from 'react';
-import { AppProviders } from '@/components/AppProviders';
 import { UseUIStateReturn } from '@/hooks/useUIState';
 import { AppContentChrome } from '@/components/layout/app-content/AppContentChrome';
 import { useAppContentRuntime } from '@/components/layout/app-content/useAppContentRuntime';
@@ -91,7 +90,7 @@ export const AppContent: React.FC<AppContentProps> = ({
   renderCensusTrailingActions,
 }) => {
   const runtime = useAppContentRuntime({ ui });
-  const { auth, dailyRecordHook, dateNav } = runtime;
+  const { auth, dateNav } = runtime;
 
   const openCensusDate = React.useMemo(
     () =>
@@ -119,31 +118,29 @@ export const AppContent: React.FC<AppContentProps> = ({
   });
 
   return (
-    <AppProviders dailyRecordHook={dailyRecordHook}>
-      <DeferredReminderCenterProvider>
-        <div
-          data-module={resolveModuleTheme(ui.currentModule)}
-          className="min-h-screen bg-slate-100 font-sans flex flex-col print:bg-white print:p-0"
-        >
-          <AppContentChrome
+    <DeferredReminderCenterProvider>
+      <div
+        data-module={resolveModuleTheme(ui.currentModule)}
+        className="min-h-screen bg-slate-100 font-sans flex flex-col print:bg-white print:p-0"
+      >
+        <AppContentChrome
+          ui={ui}
+          runtime={runtime}
+          onOpenCensusDate={openCensusDate}
+          renderModuleRouter={renderModuleRouter}
+          renderFeatureQuickActions={renderFeatureQuickActions}
+          radiologyViewer={radiologyViewer}
+          renderCensusTrailingActions={renderCensusTrailingActions}
+        />
+        <React.Suspense fallback={null}>
+          <AppContentOverlays
             ui={ui}
             runtime={runtime}
             onOpenCensusDate={openCensusDate}
-            renderModuleRouter={renderModuleRouter}
-            renderFeatureQuickActions={renderFeatureQuickActions}
-            radiologyViewer={radiologyViewer}
-            renderCensusTrailingActions={renderCensusTrailingActions}
+            overlayViews={overlayViews}
           />
-          <React.Suspense fallback={null}>
-            <AppContentOverlays
-              ui={ui}
-              runtime={runtime}
-              onOpenCensusDate={openCensusDate}
-              overlayViews={overlayViews}
-            />
-          </React.Suspense>
-        </div>
-      </DeferredReminderCenterProvider>
-    </AppProviders>
+        </React.Suspense>
+      </div>
+    </DeferredReminderCenterProvider>
   );
 };
