@@ -1,4 +1,4 @@
-import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
+import type { OperationalTelemetryOperation } from '@/shared/observability/operationalTelemetryOperations';
 import { isChunkLoadError } from '@/utils/chunkLoadError';
 import type { AppBootstrapRuntimeResult } from '@/app-shell/bootstrap/bootstrapAppRuntime.types';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';

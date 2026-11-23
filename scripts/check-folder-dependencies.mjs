@@ -91,14 +91,19 @@ const readPolicy = root => {
   }
   const exceptions = policy.exceptions ?? [];
   const dataAccess = policy.dataAccess ?? {};
+  const netlifyBoundary = policy.netlifyBoundary ?? null;
   if (!Array.isArray(dataAccess.from) || !Array.isArray(dataAccess.packages)) {
     problems.push(`${POLICY_PATH} necesita "dataAccess" con "from" y "packages".`);
   }
+  if (netlifyBoundary !== null && !Number.isInteger(netlifyBoundary.allowedMaxLayer)) {
+    problems.push(`${POLICY_PATH} necesita "netlifyBoundary.allowedMaxLayer" (entero).`);
+  }
   problems.push(
     ...validateSection(exceptions, 'exceptions'),
-    ...validateSection(dataAccess.exceptions ?? [], 'dataAccess.exceptions')
+    ...validateSection(dataAccess.exceptions ?? [], 'dataAccess.exceptions'),
+    ...validateSection(netlifyBoundary?.exceptions ?? [], 'netlifyBoundary.exceptions')
   );
-  return { problems, layerOf, nameOf, exceptions, dataAccess, policy };
+  return { problems, layerOf, nameOf, exceptions, dataAccess, netlifyBoundary, policy };
 };
 
 /** Every resolved reference of production code in `src/` and Netlify Functions. */
@@ -210,7 +215,7 @@ const findDataServices = (
 export const analyzeFolderDependencies = (root = process.cwd()) => {
   const policy = readPolicy(root);
   if (policy.problems.length > 0) return { problems: policy.problems };
-  const { layerOf, nameOf, exceptions, dataAccess } = policy;
+  const { layerOf, nameOf, exceptions, dataAccess, netlifyBoundary } = policy;
   const featureLayer = layerOf.get('features');
   const { appFiles, edges, packageReferences } = readGraph(root, dataAccess.globals ?? []);
   const problems = [];
@@ -251,6 +256,17 @@ export const analyzeFolderDependencies = (root = process.cwd()) => {
     if (!dataReads.has(relationKey(relation)))
       dataReads.set(relationKey(relation), { ...relation, edge, data: dataServices.get(edge.to) });
   }
+  const netlifyCrossings = new Map();
+  if (netlifyBoundary !== null) {
+    for (const edge of edges) {
+      if (!edge.from.startsWith(`${NETLIFY_DIR}/`) || !BOUND_KINDS.has(edge.kind)) continue;
+      const toFolder = folderOf(edge.to);
+      if (toFolder === null || layerOf.get(toFolder) <= netlifyBoundary.allowedMaxLayer) continue;
+      const relation = { from: edge.from, to: edge.to, kind: edge.kind };
+      if (!netlifyCrossings.has(relationKey(relation)))
+        netlifyCrossings.set(relationKey(relation), { ...relation, edge });
+    }
+  }
   const compare = (found, book) => {
     const listed = new Set(book.map(relationKey));
     return {
@@ -260,6 +276,7 @@ export const analyzeFolderDependencies = (root = process.cwd()) => {
   };
   const { unlisted, stale } = compare(upward, exceptions);
   const data = compare(dataReads, dataAccess.exceptions ?? []);
+  const netlify = compare(netlifyCrossings, netlifyBoundary?.exceptions ?? []);
   const consumersOf = computeConsumers(root, appFiles, edges, layerOf, featureLayer);
   const describe = file => {
     const folder = folderOf(file);
@@ -276,6 +293,10 @@ export const analyzeFolderDependencies = (root = process.cwd()) => {
     dataUnlisted: data.unlisted,
     dataStale: data.stale,
     dataServiceCount: dataServices.size,
+    netlifyCrossings: [...netlifyCrossings.values()],
+    netlifyUnlisted: netlify.unlisted,
+    netlifyStale: netlify.stale,
+    netlifyAllowedMaxLayer: netlifyBoundary?.allowedMaxLayer ?? null,
     policy: policy.policy,
     consumersOf,
     describe,
@@ -320,6 +341,15 @@ const formatDataRead = (analysis, relation) => {
   ];
 };
 
+const formatNetlifyCrossing = (analysis, relation) => {
+  const to = analysis.describe(relation.to);
+  return [
+    `- ${relation.from}:${relation.edge.line} → ${relation.to} (${KIND_LABEL[relation.kind]}, «${relation.edge.specifier}»)`,
+    `  Las funciones de Netlify solo pueden importar capa ${analysis.netlifyAllowedMaxLayer} desde src/, y ${to.folder} está en la capa ${to.layer} (${to.name}).`,
+    `  Qué hacer: mueve el contrato o la regla pura a la capa ${analysis.netlifyAllowedMaxLayer} (domain/, shared/, utils/, constants/, schemas/ o types/). Si basta el tipo, usa «import type». No la agregues a "netlifyBoundary.exceptions" en ${POLICY_PATH}: ese libro solo baja.`,
+  ];
+};
+
 const formatStale = (entries, label) =>
   entries.flatMap(entry => [
     `- ${entry.from} → ${entry.to} (${KIND_LABEL[entry.kind]})`,
@@ -354,7 +384,18 @@ export const checkFolderDependencies = (root = process.cwd(), env = process.env)
   if (analysis.problems.length > 0) {
     return { status: 1, stdout: '', stderr: `${analysis.problems.join('\n')}\n` };
   }
-  const { counts, upward, unlisted, stale, dataReads, dataUnlisted, dataStale } = analysis;
+  const {
+    counts,
+    upward,
+    unlisted,
+    stale,
+    dataReads,
+    dataUnlisted,
+    dataStale,
+    netlifyCrossings,
+    netlifyUnlisted,
+    netlifyStale,
+  } = analysis;
   const resolved = resolveBookBase(root, env);
   if (resolved.error) return { status: 1, stdout: '', stderr: `${resolved.error}\n` };
   const book = compareWithBase(root, POLICY_PATH, analysis.policy, resolved.base);
@@ -367,11 +408,19 @@ export const checkFolderDependencies = (root = process.cwd(), env = process.env)
     lines.push(`\nInterfaz compartida que abre datos (regla "dataAccess" en ${POLICY_PATH}):`);
     for (const relation of dataUnlisted) lines.push(...formatDataRead(analysis, relation));
   }
-  if (stale.length + dataStale.length > 0) {
+  if (netlifyUnlisted.length > 0) {
+    lines.push(
+      `\nFunciones de Netlify importando capas no puras de src/ (regla "netlifyBoundary" en ${POLICY_PATH}):`
+    );
+    for (const relation of netlifyUnlisted)
+      lines.push(...formatNetlifyCrossing(analysis, relation));
+  }
+  if (stale.length + dataStale.length + netlifyStale.length > 0) {
     lines.push('\nEl libro de excepciones registra relaciones que el código ya no tiene:');
     lines.push(
       ...formatStale(stale, 'exceptions'),
-      ...formatStale(dataStale, 'dataAccess.exceptions')
+      ...formatStale(dataStale, 'dataAccess.exceptions'),
+      ...formatStale(netlifyStale, 'netlifyBoundary.exceptions')
     );
   }
   if (book.added.length > 0) {
@@ -387,11 +436,15 @@ export const checkFolderDependencies = (root = process.cwd(), env = process.env)
   }
   if (lines.length > 0) return { status: 1, stdout: '', stderr: `${lines.join('\n')}\n` };
   const byKind = (relations, kind) => relations.filter(relation => relation.kind === kind).length;
+  const netlifySummary =
+    analysis.netlifyAllowedMaxLayer !== null
+      ? ` ${netlifyCrossings.length} cruces de Netlify fuera de capa ${analysis.netlifyAllowedMaxLayer}, todos en el libro.`
+      : '';
   const summary =
     `Folder dependency checks passed: ${counts.value} referencias de valor, ${counts.deferred} diferidas y ${counts.type} de tipo entre carpetas; ` +
     `${upward.length} relaciones hacia arriba, todas en el libro (${byKind(upward, 'value')} de valor, ${byKind(upward, 'deferred')} diferidas); ` +
     `${analysis.upwardTypeRelations} de tipo hacia arriba, permitidas; ` +
-    `${dataReads.length} lecturas de datos desde la interfaz compartida, todas en el libro (${analysis.dataServiceCount} módulos de services abren datos).`;
+    `${dataReads.length} lecturas de datos desde la interfaz compartida, todas en el libro (${analysis.dataServiceCount} módulos de services abren datos).${netlifySummary}`;
   return {
     status: 0,
     stdout: `${summary}\n${book.notice ? `${book.notice}\n` : ''}`,

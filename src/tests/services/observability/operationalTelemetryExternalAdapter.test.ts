@@ -4,7 +4,7 @@ import {
   dispatchOperationalTelemetryExternally,
   resolveOperationalTelemetryExternalConfig,
 } from '@/services/observability/operationalTelemetryExternalAdapter';
-import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
+import type { OperationalTelemetryOperation } from '@/shared/observability/operationalTelemetryOperations';
 
 const event = {
   category: 'sync' as const,

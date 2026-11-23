@@ -21,7 +21,7 @@ import {
   syncCensusTransferRequest,
 } from '@/features/census/controllers/censusTransferSyncController';
 import { recordCriticalClinicalAction } from '@/services/observability/criticalClinicalActionRecorder';
-import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
+import type { OperationalTelemetryOperation } from '@/shared/observability/operationalTelemetryOperations';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 
 const censusTransferCommandLogger = createScopedLogger('CensusTransferCommand');

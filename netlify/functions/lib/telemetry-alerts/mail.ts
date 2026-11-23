@@ -2,7 +2,7 @@ import { DEFAULT_GMAIL_SENDER, sendCensusEmail } from '../gmailClient';
 import {
   buildOperationalTelemetryAlert,
   type SanitizedOperationalTelemetryEvent,
-} from '../../../../src/services/observability/operationalTelemetryIngestPolicy';
+} from '../../../../src/shared/observability/operationalTelemetryIngestPolicy';
 import { getClinicalCalendarDateISO } from '../../../../src/utils/clinicalTimeZone';
 
 export type AlertMailOutcome = {

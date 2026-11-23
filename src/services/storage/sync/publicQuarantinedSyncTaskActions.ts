@@ -1,4 +1,4 @@
-import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
+import type { OperationalTelemetryOperation } from '@/shared/observability/operationalTelemetryOperations';
 import type { SyncQueueStorePort } from '@/services/storage/sync/syncQueuePorts';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 

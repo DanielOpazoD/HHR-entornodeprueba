@@ -23,7 +23,7 @@ Módulo central del producto: censo diario, acciones sobre camas/pacientes, movi
 - El correo del censo vive en `email/` (`hooks/`, `controllers/`, `use-cases/`). Su cliente de red
   (`src/services/integrations/censusEmail*`) y su puerto (`src/application/ports/censusEmailPort.ts`,
   que también usa el respaldo) quedan fuera, igual que
-  `src/services/exporters/censusEmailDiagnosisPrivacy.ts`, que compila la función `send-census-email`.
+  `src/domain/census/censusEmailDiagnosisPrivacy.ts`, que compila la función `send-census-email`.
 - Imports directos a `components/`, `hooks/`, `controllers/`, `contracts/`, `types/` o `context/` desde fuera de la feature se consideran saltos de boundary.
 - Excepción intencional: `src/tests/**` puede importar internals para testear unidades puras; `src/hooks/controllers/**` mantiene shims históricos mientras exista compatibilidad de transición.
 
@@ -76,7 +76,7 @@ egreso tipo Fuga
   -> DischargeRowView
   -> FugaNotificationModal
   -> useFugaNotificationModalModel
-  -> fugaNotificationPolicyController
+  -> fugaNotificationPolicy (src/domain/census/fugaNotificationPolicy.ts)
   -> send-fuga-notification
   -> Gmail
 ```

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
-import { generateCensusPassword, getCensusPassword } from '@/services/security/passwordGenerator';
+import { generateCensusPassword, getCensusPassword } from '@/utils/passwordGenerator';
 
 describe('passwordGenerator', () => {
   it('should generate a 4-digit numeric PIN', () => {

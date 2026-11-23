@@ -5,7 +5,7 @@ import { buildCensusMasterBinary } from '@/services/exporters/censusMasterWorkbo
 import {
   reserveCensusEmailDiagnoses,
   RESERVED_DIAGNOSIS,
-} from '@/services/exporters/censusEmailDiagnosisPrivacy';
+} from '@/domain/census/censusEmailDiagnosisPrivacy';
 import PizZip from 'pizzip';
 
 const syntheticRecord = () => {

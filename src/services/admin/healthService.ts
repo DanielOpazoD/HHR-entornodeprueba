@@ -1,6 +1,6 @@
 import { firestoreDb } from '@/services/storage/firestore';
 import { healthServiceLogger } from '@/services/admin/adminLoggers';
-import { classifyOperationalTelemetryIssue } from '@/services/observability/operationalTelemetryPrivacy';
+import { classifyOperationalTelemetryIssue } from '@/shared/observability/operationalTelemetryPrivacy';
 export type {
   SystemHealthIncidentResolution,
   SystemHealthIncidentResolutionActor,

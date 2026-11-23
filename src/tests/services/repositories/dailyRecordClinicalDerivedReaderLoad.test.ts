@@ -26,7 +26,7 @@ const loadReaderChunk = () => {
   };
 };
 
-import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
+import { sanitizeOperationalTelemetryEvent } from '@/shared/observability/operationalTelemetryPrivacy';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 

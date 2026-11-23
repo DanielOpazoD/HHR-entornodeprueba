@@ -9,7 +9,7 @@ import {
   buildDefaultFugaAutomaticMessage,
   resolveFugaRecipients,
   validateFugaNotificationRequest,
-} from '@/features/census/controllers/fugaNotificationPolicyController';
+} from '@/domain/census/fugaNotificationPolicy';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import type { DischargeData } from '@/types/domain/movements';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';

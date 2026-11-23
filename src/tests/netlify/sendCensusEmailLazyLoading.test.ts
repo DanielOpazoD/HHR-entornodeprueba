@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock('@/services/security/passwordGenerator', () => ({
+vi.mock('@/utils/passwordGenerator', () => ({
   generateCensusPassword: () => 'PIN-123',
 }));
 vi.mock('../../../netlify/functions/lib/gmailClient', () => ({ sendCensusEmail: mocks.send }));
@@ -27,7 +27,7 @@ vi.mock('@/services/exporters/censusMasterWorkbook', () => {
     getCensusMasterFilename: () => 'censo-2026-03-24.xlsx',
   };
 });
-vi.mock('@/services/exporters/excelValidation', () => ({
+vi.mock('@/utils/excelValidation', () => ({
   validateExcelBuffer: mocks.validateBuffer,
   validateExcelFilename: mocks.validateFilename,
   MIN_EXCEL_SIZE: 10,

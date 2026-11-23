@@ -3,7 +3,7 @@ import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import { generateDateRange } from '@/utils/dateRangeUtils';
 import { downloadBlob } from '@/utils/downloadBlob';
 import { recordE2EDownloadArtifact } from '@/shared/runtime/e2eRuntime';
-import { XLSX_MIME_TYPE, validateExcelExport } from '@/services/exporters/excelValidation';
+import { XLSX_MIME_TYPE, validateExcelExport } from '@/utils/excelValidation';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { cudyrCensusAccepted } from '@/services/cudyr/cudyrCensusApproval';
 import { cudyrArchiveCoverage } from '@/services/cudyr/cudyrArchiveCoverage';

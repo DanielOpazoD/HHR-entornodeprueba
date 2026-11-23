@@ -1,4 +1,4 @@
-import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
+import type { OperationalTelemetryOperation } from '@/shared/observability/operationalTelemetryOperations';
 import {
   createOperationalError,
   normalizeOperationalError,

@@ -16,7 +16,7 @@ const clinicalDocumentsWorkspaceModules = new Set([
   '/src/features/clinical-documents/components/ClinicalUpdateDateTimeHeader.tsx',
   '/src/features/clinical-documents/components/InlineEditableTitle.tsx',
   '/src/features/clinical-documents/components/clinicalDocumentSectionRendererRegistry.tsx',
-  '/src/features/clinical-documents/contracts/clinicalDocumentAiImportContract.ts',
+  '/src/shared/contracts/clinicalDocumentAiImportContract.ts',
   '/src/features/clinical-documents/controllers/clinicalDocumentEditorInsertionController.ts',
   '/src/features/clinical-documents/controllers/clinicalDocumentEmptySectionTemplateController.ts',
   '/src/features/clinical-documents/controllers/clinicalDocumentFormattingContract.ts',

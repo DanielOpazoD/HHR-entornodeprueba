@@ -1,8 +1,5 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import type {
-  SyncDomainContext,
-  SyncTaskOrigin,
-} from '@/services/storage/sync/syncDomainContracts';
+import type { SyncDomainContext, SyncTaskOrigin } from '@/shared/contracts/syncDomainContracts';
 
 export interface SyncDomainRetryProfile {
   id:

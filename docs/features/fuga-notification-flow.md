@@ -16,7 +16,7 @@ Solo `admin` puede usar `modo prueba`.
 1. Un egreso con tipo `Fuga` expone la acción `FUGA` en la fila.
 2. [FugaNotificationModal.tsx](../../src/features/census/components/FugaNotificationModal.tsx) muestra el mensaje automático y la nota opcional.
 3. [useFugaNotificationModalModel.ts](../../src/features/census/hooks/useFugaNotificationModalModel.ts) resuelve destinatarios y validación de envío.
-4. [fugaNotificationPolicyController.ts](../../src/features/census/controllers/fugaNotificationPolicyController.ts) decide si el envío es `manual`, `automatic` o `test`.
+4. [fugaNotificationPolicyController.ts](../../src/domain/census/fugaNotificationPolicy.ts) decide si el envío es `manual`, `automatic` o `test`.
 5. [send-fuga-notification.ts](../../netlify/functions/send-fuga-notification.ts) valida autenticación, rol, destinatarios efectivos y envía usando Gmail.
 
 ## Destinatarios automáticos de Psiquiatría

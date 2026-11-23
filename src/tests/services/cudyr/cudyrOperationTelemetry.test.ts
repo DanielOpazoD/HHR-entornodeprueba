@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { recordCudyrOperation } from '@/features/cudyr/report/cudyrOperationTelemetry';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
-import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
+import { sanitizeOperationalTelemetryEvent } from '@/shared/observability/operationalTelemetryPrivacy';
 
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),

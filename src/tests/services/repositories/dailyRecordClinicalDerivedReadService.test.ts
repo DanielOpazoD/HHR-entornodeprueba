@@ -20,7 +20,7 @@ import {
   ClinicalDerivedReadError,
   readDailyRecordWithClinicalDerived,
 } from '@/services/repositories/dailyRecordClinicalDerivedReadService';
-import { sanitizeOperationalTelemetryContextValues } from '@/services/observability/operationalTelemetryPrivacy';
+import { sanitizeOperationalTelemetryContextValues } from '@/shared/observability/operationalTelemetryPrivacy';
 import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';

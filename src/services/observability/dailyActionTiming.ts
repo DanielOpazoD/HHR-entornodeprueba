@@ -17,9 +17,9 @@
 import { onSessionChange } from '@/services/session/sessionStorageTransition';
 import { dispatchOperationalTelemetryExternally } from './operationalTelemetryExternalAdapter';
 import type { OperationalTelemetryCategory } from './operationalTelemetryTypes';
-import type { DailyAction } from './dailyActionSummaryContract';
+import type { DailyAction } from '../../shared/observability/dailyActionSummaryContract';
 
-export type { DailyAction } from './dailyActionSummaryContract';
+export type { DailyAction } from '../../shared/observability/dailyActionSummaryContract';
 
 const CATEGORIES: Record<DailyAction, OperationalTelemetryCategory> = {
   census_day_change_ready: 'daily_record',

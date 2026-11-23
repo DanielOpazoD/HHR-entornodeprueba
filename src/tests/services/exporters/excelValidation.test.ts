@@ -4,7 +4,7 @@ import {
   validateExcelFilename,
   validateExcelExport,
   MIN_EXCEL_SIZE,
-} from '@/services/exporters/excelValidation';
+} from '@/utils/excelValidation';
 
 describe('excelValidation', () => {
   describe('validateExcelBuffer', () => {

@@ -10,7 +10,7 @@ import {
   createBlobAlertLedgerStore,
 } from '../../../netlify/functions/lib/telemetry-alerts/store';
 import { createAlertMailer } from '../../../netlify/functions/lib/telemetry-alerts/mail';
-import { parseOperationalTelemetryBody } from '../../services/observability/operationalTelemetryIngestPolicy';
+import { parseOperationalTelemetryBody } from '../../shared/observability/operationalTelemetryIngestPolicy';
 import {
   BlobCasHttpServer,
   BLOB_PATH,

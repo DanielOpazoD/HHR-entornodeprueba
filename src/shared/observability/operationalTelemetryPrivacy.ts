@@ -25,7 +25,7 @@ import {
   RAYEN_SYNC_ISSUE_CAUSE_KEYS,
   RAYEN_SYNC_ISSUE_REASONS,
 } from '@/types/domain/rayenSync';
-import { SYNC_TASK_ORIGINS } from '@/services/storage/sync/syncDomainContracts';
+import { SYNC_TASK_ORIGINS } from '@/shared/contracts/syncDomainContracts';
 import { withErrorServiceCause } from './operationalTelemetryErrorCause';
 import { OPERATIONAL_TELEMETRY_OPERATIONS } from './operationalTelemetryOperations';
 

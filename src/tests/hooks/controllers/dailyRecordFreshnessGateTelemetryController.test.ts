@@ -18,8 +18,8 @@ import {
 import {
   parseOperationalTelemetryBody,
   shouldAlertOperationalTelemetry,
-} from '@/services/observability/operationalTelemetryIngestPolicy';
-import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
+} from '@/shared/observability/operationalTelemetryIngestPolicy';
+import { sanitizeOperationalTelemetryEvent } from '@/shared/observability/operationalTelemetryPrivacy';
 
 describe('dailyRecordFreshnessGate clinical input block telemetry', () => {
   const date = '2026-05-17';

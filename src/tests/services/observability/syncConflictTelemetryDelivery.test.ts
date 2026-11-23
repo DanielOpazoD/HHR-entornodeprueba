@@ -11,7 +11,7 @@ import { recordSyncQueueConflictTelemetry } from '@/services/storage/sync/syncQu
 import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
 import type { CreateSyncQueueEngineOptions } from '@/services/storage/sync/syncQueueEngineContracts';
 import { presentSyncOutcomeFeedback } from '@/hooks/controllers/dailyRecordSyncNotificationController';
-import { parseOperationalTelemetryBody } from '@/services/observability/operationalTelemetryIngestPolicy';
+import { parseOperationalTelemetryBody } from '@/shared/observability/operationalTelemetryIngestPolicy';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
 const beacons: Blob[] = [];

@@ -1,4 +1,4 @@
-import type { SanitizedOperationalTelemetryEvent } from '../../../../src/services/observability/operationalTelemetryIngestPolicy';
+import type { SanitizedOperationalTelemetryEvent } from '../../../../src/shared/observability/operationalTelemetryIngestPolicy';
 
 export type AlertEvent = SanitizedOperationalTelemetryEvent;
 export type AlertState = 'pending' | 'sending' | 'sent' | 'failed' | 'uncertain';

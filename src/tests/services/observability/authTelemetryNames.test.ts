@@ -28,8 +28,8 @@ import {
   recordBootstrapRuntimeError,
 } from '@/app-shell/bootstrap/bootstrapRuntimeTelemetry';
 import { resolveGeneralLoginAccessForEmail } from '@/services/auth/authPolicy';
-import { parseOperationalTelemetryBody } from '@/services/observability/operationalTelemetryIngestPolicy';
-import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
+import { parseOperationalTelemetryBody } from '@/shared/observability/operationalTelemetryIngestPolicy';
+import { sanitizeOperationalTelemetryEvent } from '@/shared/observability/operationalTelemetryPrivacy';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 
 /** What the Netlify function receives and mails: the browser payload, sanitized again on ingest. */

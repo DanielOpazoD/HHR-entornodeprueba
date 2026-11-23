@@ -18,7 +18,7 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   'src/services/integrations/censusEmailRequestPayload.ts',
   // Email privacy only: historical specialty can require redaction, never reveal a diagnosis.
   // The export copy is masked; the source snapshot and clinical/statistical truth are unchanged.
-  'src/services/exporters/censusEmailDiagnosisPrivacy.ts',
+  'src/domain/census/censusEmailDiagnosisPrivacy.ts',
   // Undo only: the one discharge/transfer row constructor (manual and Rayen) writes the
   // snapshot of the person who leaves so that row can be undone. It never reads it back.
   'src/application/census/movementRowBuilder.ts',

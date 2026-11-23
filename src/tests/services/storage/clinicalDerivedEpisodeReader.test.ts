@@ -33,7 +33,7 @@ import {
   readClinicalDerivedEpisodeDoc,
   readClinicalDerivedEpisodeDocs,
 } from '@/services/storage/firestore/clinicalDerivedEpisodeReader';
-import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
+import { sanitizeOperationalTelemetryEvent } from '@/shared/observability/operationalTelemetryPrivacy';
 
 const DATE = '2026-11-02';
 const GENERATION = 'gen_synthetic_a';

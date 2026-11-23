@@ -55,5 +55,17 @@
     ],
     "exceptions": []
   },
+  "netlifyBoundary": {
+    "rule": "Las funciones de Netlify solo importan código de src/ desde la capa 0 (núcleo puro: types, domain, utils, constants, schemas, shared), en valor y en carga diferida; los tipos (import type) pueden cruzar. Lo aplica scripts/check-folder-dependencies.mjs.",
+    "allowedMaxLayer": 0,
+    "exceptions": [
+      {
+        "from": "netlify/functions/send-census-email.ts",
+        "to": "src/services/exporters/censusMasterWorkbook.ts",
+        "kind": "deferred",
+        "reason": "El correo del censo y la descarga en el navegador comparten el mismo serializador ExcelJS protegido para garantizar paridad exacta de formato."
+      }
+    ]
+  },
   "exceptions": []
 }

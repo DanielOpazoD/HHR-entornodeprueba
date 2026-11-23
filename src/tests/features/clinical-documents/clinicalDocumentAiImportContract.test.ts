@@ -5,7 +5,7 @@ import {
   parseClinicalDocumentAiImportJson,
   sanitizeClinicalDocumentAiImportSourceText,
   validateClinicalDocumentAiImportSourceText,
-} from '@/features/clinical-documents/contracts/clinicalDocumentAiImportContract';
+} from '@/shared/contracts/clinicalDocumentAiImportContract';
 
 describe('clinicalDocumentAiImportContract', () => {
   it('is portable and sanitizes administrative identifiers before AI use', () => {
