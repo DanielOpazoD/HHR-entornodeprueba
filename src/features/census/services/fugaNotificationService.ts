@@ -1,5 +1,6 @@
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import { createScopedLogger } from '@/services/utils/loggerScope';
+import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import * as z from 'zod';
 
 const fugaNotificationResponseSchema = z.object({
@@ -11,6 +12,7 @@ const fugaNotificationResponseSchema = z.object({
 const logger = createScopedLogger('fugaNotificationService');
 
 const DEFAULT_FUGA_NOTIFICATION_ENDPOINT = '/.netlify/functions/send-fuga-notification';
+const FUGA_NOTIFICATION_TIMEOUT_MS = 20_000;
 
 export interface FugaNotificationPayload {
   patientName: string;
@@ -42,13 +44,15 @@ export const sendFugaNotification = async (
 
   const authHeaders = await resolveCurrentUserAuthHeaders();
 
-  const response = await fetch(endpoint, {
+  const response = await fetchWithTimeout(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...authHeaders,
     },
     body: JSON.stringify(payload),
+    timeoutMs: FUGA_NOTIFICATION_TIMEOUT_MS,
+    timeoutMessage: 'La notificación de fuga tardó demasiado en responder. Intente nuevamente.',
   });
 
   if (!response.ok) {
@@ -59,5 +63,12 @@ export const sendFugaNotification = async (
     throw new Error(errorText || 'No se pudo enviar la notificación.');
   }
 
-  return fugaNotificationResponseSchema.parse(await response.json());
+  let parsedBody: unknown;
+  try {
+    parsedBody = await response.json();
+  } catch {
+    throw new Error('La respuesta del servicio de notificación no es válida.');
+  }
+
+  return fugaNotificationResponseSchema.parse(parsedBody);
 };

@@ -7,6 +7,9 @@
 
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
+import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
+
+const CIE10_DATABASE_TIMEOUT_MS = 15_000;
 
 export interface CIE10Entry {
   code: string;
@@ -31,16 +34,22 @@ export const loadCIE10Database = async (): Promise<CIE10Entry[]> => {
     return fetchPromise;
   }
 
-  fetchPromise = fetch('/data/cie10_spanish.json')
+  fetchPromise = fetchWithTimeout('/data/cie10_spanish.json', {
+    timeoutMs: CIE10_DATABASE_TIMEOUT_MS,
+    timeoutMessage: 'La carga de la base CIE-10 tardó demasiado en responder.',
+  })
     .then(response => {
       if (!response.ok) {
         throw new Error(`Failed to load CIE-10 database: ${response.statusText}`);
       }
       return response.json();
     })
-    .then((data: CIE10Entry[]) => {
-      cachedDatabase = data;
-      return data;
+    .then((data: unknown) => {
+      if (!Array.isArray(data)) {
+        throw new Error('La base local CIE-10 devolvió un formato no válido.');
+      }
+      cachedDatabase = data as CIE10Entry[];
+      return cachedDatabase;
     })
     .catch(error => {
       recordOperationalErrorTelemetry('integration', 'load_cie10_database', error, {

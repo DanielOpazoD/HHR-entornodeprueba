@@ -11,6 +11,9 @@ import {
   createApplicationSuccess,
 } from '@/shared/contracts/applicationOutcomeFactories';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
+import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
+
+const AI_IMPORT_TIMEOUT_MS = 30_000;
 
 const resolveEndpoint = (): string =>
   import.meta.env.VITE_CLINICAL_DOCUMENT_AI_IMPORT_ENDPOINT ||
@@ -24,7 +27,11 @@ const isJsonResponse = (response: Response): boolean =>
 
 const readServerlessPayload = async (response: Response): Promise<unknown> => {
   if (isJsonResponse(response)) {
-    return response.json();
+    try {
+      return await response.json();
+    } catch {
+      return { error: 'No se pudo leer la respuesta del servicio de IA.' };
+    }
   }
 
   if (response.status === 404) {
@@ -54,13 +61,15 @@ export const transformClinicalDocumentAiImportText = async (
   try {
     const request = ClinicalDocumentAiImportRequestSchema.parse({ sourceText });
     const authHeaders = await resolveCurrentUserAuthHeaders();
-    const response = await fetch(resolveEndpoint(), {
+    const response = await fetchWithTimeout(resolveEndpoint(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...authHeaders,
       },
       body: JSON.stringify(request),
+      timeoutMs: AI_IMPORT_TIMEOUT_MS,
+      timeoutMessage: 'La transformación con IA tardó demasiado en responder. Intenta nuevamente.',
     });
     const payload = await readServerlessPayload(response);
 

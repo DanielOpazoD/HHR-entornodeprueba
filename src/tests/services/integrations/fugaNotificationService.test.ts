@@ -53,4 +53,22 @@ describe('fugaNotificationService', () => {
       })
     ).rejects.toThrow();
   });
+
+  it('throws a clear Spanish error when an OK response contains non-JSON body', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response('<html>unexpected</html>', { status: 200 })
+    );
+
+    await expect(
+      sendFugaNotification({
+        patientName: 'Paciente Test',
+        rut: '11.111.111-1',
+        diagnosis: 'Diagnóstico',
+        bedName: 'Cama 1',
+        recordDate: '2026-03-31',
+        time: '14:30',
+        automaticMessage: 'Mensaje',
+      })
+    ).rejects.toThrow('La respuesta del servicio de notificación no es válida.');
+  });
 });
