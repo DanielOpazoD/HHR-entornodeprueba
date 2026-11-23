@@ -5,11 +5,22 @@ export interface CensusEmailBrowserRuntime {
 }
 
 export const defaultCensusEmailBrowserRuntime: CensusEmailBrowserRuntime = {
-  getLegacyRecipients: () =>
-    typeof localStorage !== 'undefined' ? localStorage.getItem('censusEmailRecipients') : null,
+  getLegacyRecipients: () => {
+    try {
+      return typeof localStorage !== 'undefined'
+        ? localStorage.getItem('censusEmailRecipients')
+        : null;
+    } catch {
+      return null;
+    }
+  },
   clearLegacyRecipients: () => {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem('censusEmailRecipients');
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('censusEmailRecipients');
+      }
+    } catch {
+      // Storage may be unavailable in restricted browser contexts.
     }
   },
   writeClipboard: async (text: string) => {

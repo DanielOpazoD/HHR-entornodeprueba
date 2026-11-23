@@ -22,19 +22,23 @@ const buildClinicalDocumentDetails = (
 ): Record<string, unknown> => ({ documentId, templateId, documentTitle });
 
 const shouldLogClinicalDocumentEdit = (documentId: string): boolean => {
-  if (typeof sessionStorage === 'undefined') return true;
+  try {
+    if (typeof sessionStorage === 'undefined') return true;
 
-  const throttleKey = `hhr_audit_throttle_CLINICAL_DOCUMENT_EDITED_${documentId}`;
-  const lastLogged = sessionStorage.getItem(throttleKey);
-  if (lastLogged) {
-    const elapsed = Date.now() - new Date(lastLogged).getTime();
-    if (elapsed < CLINICAL_DOCUMENT_EDITED_THROTTLE_MS) {
-      return false;
+    const throttleKey = `hhr_audit_throttle_CLINICAL_DOCUMENT_EDITED_${documentId}`;
+    const lastLogged = sessionStorage.getItem(throttleKey);
+    if (lastLogged) {
+      const elapsed = Date.now() - new Date(lastLogged).getTime();
+      if (elapsed < CLINICAL_DOCUMENT_EDITED_THROTTLE_MS) {
+        return false;
+      }
     }
-  }
 
-  sessionStorage.setItem(throttleKey, new Date().toISOString());
-  return true;
+    sessionStorage.setItem(throttleKey, new Date().toISOString());
+    return true;
+  } catch {
+    return true;
+  }
 };
 
 export const useClinicalDocumentAuditLoggers = (logEvent: AuditLogger) => {
