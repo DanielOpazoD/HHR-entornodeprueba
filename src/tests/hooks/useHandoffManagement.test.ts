@@ -22,7 +22,7 @@ vi.mock('@/services/admin/attributionService', () => ({
 }));
 
 import { useHandoffManagement } from '@/hooks/useHandoffManagement';
-import { DailyRecordFreshnessGateError } from '@/hooks/controllers/dailyRecordFreshnessGateError';
+import { DailyRecordFreshnessGateError } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { DataFactory } from '@/tests/factories/DataFactory';

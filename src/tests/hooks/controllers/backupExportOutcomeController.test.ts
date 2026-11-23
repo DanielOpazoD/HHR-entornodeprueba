@@ -1,12 +1,15 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   createApplicationFailed,
   createApplicationPartial,
   createApplicationSuccess,
 } from '@/shared/contracts/applicationOutcomeFactories';
-import { presentBackupExportOutcome } from '@/hooks/controllers/backupExportOutcomeController';
+import {
+  dispatchExportManagerNotice,
+  presentBackupExportOutcome,
+} from '@/hooks/controllers/backupExportOutcomeController';
 
 describe('backupExportOutcomeController', () => {
   it('maps success to success notification', () => {
@@ -65,5 +68,16 @@ describe('backupExportOutcomeController', () => {
       state: 'blocked',
       actionRequired: true,
     });
+  });
+
+  it('dispatches each notification channel to the matching port method', () => {
+    const port = { success: vi.fn(), warning: vi.fn(), error: vi.fn() };
+    dispatchExportManagerNotice({ channel: 'success', title: 'Ok', message: 'Saved' }, port);
+    dispatchExportManagerNotice({ channel: 'warning', title: 'Warn', message: 'Partial' }, port);
+    dispatchExportManagerNotice({ channel: 'error', title: 'Err', message: 'Failed' }, port);
+
+    expect(port.success).toHaveBeenCalledWith('Ok', 'Saved');
+    expect(port.warning).toHaveBeenCalledWith('Warn', 'Partial');
+    expect(port.error).toHaveBeenCalledWith('Err', 'Failed');
   });
 });

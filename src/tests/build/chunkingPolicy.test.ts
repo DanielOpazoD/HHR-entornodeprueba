@@ -312,12 +312,8 @@ describe('chunkingPolicy', () => {
       "import('@/hooks/controllers/backupExportOutcomeController')"
     );
     expect(exportManagerSource).toContain(
-      "import('@/hooks/controllers/exportManagerNoticeController')"
-    );
-    expect(exportManagerSource).toContain(
       "import('@/hooks/controllers/exportManagerConfirmController')"
     );
-    expect(archiveStatusSource).toContain('@/hooks/controllers/backupArchiveStatusController');
     expect(archiveStatusSource).not.toMatch(
       /import\s+\{[\s\S]*presentBackupLookupOutcome[\s\S]*\}\s+from ['"]@\/hooks\/controllers\/backupStorageOutcomeController['"]/
     );

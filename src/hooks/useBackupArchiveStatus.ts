@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 
-import {
-  buildArchiveStatusState,
-  shouldCheckArchiveStatus,
-} from '@/hooks/controllers/backupArchiveStatusController';
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
+
+const shouldCheckArchiveStatus = (currentDateString: string, currentModule: string): boolean =>
+  Boolean(currentDateString) && (currentModule === 'CENSUS' || currentModule === 'NURSING_HANDOFF');
 
 const loadBackupStorageUseCases = () =>
   import('@/application/backup-export/backupExportStorageUseCases');
@@ -77,7 +76,7 @@ export const useBackupArchiveStatus = ({
         });
         setArchiveState({
           key: archiveStatusKey,
-          isArchived: buildArchiveStatusState(outcome.data.lookup),
+          isArchived: outcome.data.lookup.exists,
         });
         const presentBackupLookupOutcome = await loadBackupLookupOutcomePresenter();
         if (isDisposed) {
