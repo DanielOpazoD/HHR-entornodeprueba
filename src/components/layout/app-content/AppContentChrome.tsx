@@ -35,7 +35,7 @@ import {
   buildAppRouterShellState,
   buildDateStripProps,
   buildNavbarProps,
-  buildCensusQuickActionPatients,
+  buildCensusQuickActionPatientsFromBeds,
 } from '@/components/layout/app-content/appContentChromeController';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
 import type { AppRouterShellState } from '@/app-shell/routing/appRouterController';
@@ -65,9 +65,10 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
   const { auth } = runtime;
   const [handoffTarget, setHandoffTarget] = React.useState<HTMLDivElement | null>(null);
 
+  const recordBeds = runtime.record?.beds;
   const censusQuickActionPatients = React.useMemo<CensusQuickActionPatient[]>(() => {
-    return buildCensusQuickActionPatients(runtime.record);
-  }, [runtime.record]);
+    return buildCensusQuickActionPatientsFromBeds(recordBeds);
+  }, [recordBeds]);
   const dateStripProps = buildDateStripProps({
     ui,
     runtime,

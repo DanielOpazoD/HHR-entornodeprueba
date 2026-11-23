@@ -448,4 +448,35 @@ describe('useExportManager', () => {
     );
     expect(result.current.isArchived).toBe(true);
   });
+
+  it('preserves export manager and handler identity across record edits while still backing up the latest snapshot', async () => {
+    const { result, rerender } = renderHook(props => useExportManager(props), {
+      initialProps: { ...defaultProps, canVerifyArchiveStatus: false },
+    });
+
+    const initialReturn = result.current;
+    const initialBackupHandoff = result.current.handleBackupHandoff;
+    const updatedRecord: DailyRecord = {
+      ...mockRecord,
+      nursesDayShift: ['Updated Nurse'],
+    };
+
+    rerender({
+      ...defaultProps,
+      canVerifyArchiveStatus: false,
+      record: updatedRecord,
+    });
+
+    expect(result.current).toBe(initialReturn);
+    expect(result.current.handleBackupHandoff).toBe(initialBackupHandoff);
+
+    await act(async () => {
+      await result.current.handleBackupHandoff(true);
+    });
+
+    expect(backupExportArchiveUseCases.executeBackupHandoffPdf).toHaveBeenCalledWith({
+      record: updatedRecord,
+      selectedShift: 'day',
+    });
+  });
 });

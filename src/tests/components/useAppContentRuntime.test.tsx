@@ -241,6 +241,27 @@ describe('useAppContentRuntime', () => {
     );
   });
 
+  it('passes a referentially stable getStableRecordForExport callback across record updates', () => {
+    const firstRecord = { date: selectedDate, lastUpdated: 't1' };
+    const secondRecord = { date: selectedDate, lastUpdated: 't2' };
+    let currentRecord = firstRecord;
+    vi.mocked(useDailyRecordData).mockImplementation(
+      () => ({ record: currentRecord }) as unknown as ReturnType<typeof useDailyRecordData>
+    );
+
+    const { rerender } = renderHook(() => useAppContentRuntime({ ui }));
+    const firstGetter = vi.mocked(useExportManager).mock.calls.at(-1)?.[0].getStableRecordForExport;
+
+    currentRecord = secondRecord;
+    rerender();
+    const secondGetter = vi
+      .mocked(useExportManager)
+      .mock.calls.at(-1)?.[0].getStableRecordForExport;
+
+    expect(firstGetter).toBe(secondGetter);
+    expect(secondGetter?.()).toBe(secondRecord);
+  });
+
   it('disables passive archive verification while the authenticated runtime is local-only', () => {
     vi.mocked(useAuth).mockReturnValue(createAuthStub({ remoteSyncStatus: 'local_only' }));
 

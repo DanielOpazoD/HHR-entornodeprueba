@@ -167,4 +167,38 @@ describe('AppContentChrome', () => {
     expect(within(menu).queryByTitle('Lab (cargando...)')).not.toBeInTheDocument();
     expect(renderFeatureQuickActions).not.toHaveBeenCalled();
   });
+
+  it('preserves censusQuickActionPatients identity across non-bed record updates', () => {
+    const sharedBeds = {
+      R1: {
+        bedId: 'R1',
+        patientName: 'Paciente Sintético',
+        rut: '11.111.111-1',
+        pathology: 'Diagnóstico',
+      },
+    };
+    const record1 = {
+      date: '2026-03-27',
+      beds: sharedBeds,
+      lastUpdated: 't1',
+    } as unknown as NonNullable<typeof runtime.record>;
+    const record2 = {
+      ...record1,
+      lastUpdated: 't2',
+    };
+
+    const { rerender } = render(
+      <AppContentChrome ui={ui} runtime={createShellRuntimeMock({ record: record1 })} />
+    );
+    const firstPatients = (
+      mockDateStrip.mock.lastCall?.[0] as { censusQuickActionPatients?: unknown }
+    ).censusQuickActionPatients;
+
+    rerender(<AppContentChrome ui={ui} runtime={createShellRuntimeMock({ record: record2 })} />);
+    const secondPatients = (
+      mockDateStrip.mock.lastCall?.[0] as { censusQuickActionPatients?: unknown }
+    ).censusQuickActionPatients;
+
+    expect(firstPatients).toBe(secondPatients);
+  });
 });
