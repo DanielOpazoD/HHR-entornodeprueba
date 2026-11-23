@@ -72,15 +72,17 @@ de Apps Script configurada en el backend. El secreto compartido nunca se expone 
 La variable del repositorio `HHR_NURSING_HANDOFF_DEVICE_ORIGIN` fija el origen
 de la extensión. El documento de acceso exclusivo del servidor
 `hhr_account_private/nursingHandoffAdministrator` guarda en `runHash` el SHA-256
-del RUN normalizado del administrador (cuerpo, guion y dígito verificador
+del RUN normalizado del administrador que usa Google (cuerpo, guion y dígito verificador
 en mayúscula). El registro no acepta un RUN ingresado por el cliente.
 
 El callable de registro recibe `deviceId` y el SHA-256 de una llave aleatoria de
-256 bits que conserva la extensión. Exige una sesión vigente de HHR y una cuenta de enfermería individual activa
-o la cuenta Google institucional y verificada del administrador protegido de HHR.
-La autorización del administrador se revalida contra el UID protegido cuando se
-activa la política individual, y durante la transición contra el mapa vigente de
-roles. La llave solo concede acceso a Entrega de turno. Firebase conserva el
+256 bits que conserva la extensión. Exige una sesión vigente de HHR. Las cuentas
+individuales activas con rol de enfermería o administrador usan el RUN de su
+ficha privada y la versión vigente de su cuenta. El administrador que entra con
+Google usa una cuenta institucional verificada y el RUN configurado en el
+documento indicado arriba. Su autorización se revalida contra el UID protegido
+cuando se activa la política individual, y durante la transición contra el mapa
+vigente de roles. La llave solo concede acceso a Entrega de turno. Firebase conserva el
 hash de la llave, el instante de autenticación y el identificador y versión de
 la cuenta. Los registros piloto sin instante de autenticación se renuevan una
 vez. La extensión valida

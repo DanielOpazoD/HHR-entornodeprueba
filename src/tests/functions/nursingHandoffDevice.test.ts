@@ -71,23 +71,34 @@ function fixture() {
 }
 
 describe('llave individual de enfermería', () => {
-  it('registra solo cuentas individuales con una sesión HHR válida, sin guardar la llave', async () => {
-    const { documents, deps } = fixture();
-    const { register } = createDeviceHandoffHandlers(deps);
-    await expect(register(enrollment, {})).rejects.toMatchObject({ code: 'permission-denied' });
-    await expect(register(enrollment, context)).resolves.toEqual({ registered: true });
-    await expect(register(enrollment, context)).resolves.toEqual({ registered: true });
-    const grant = documents.get('hhr_nursing_handoff_devices/' + deviceId);
-    expect(grant).toMatchObject({
-      uid,
-      runHash: digest(professionalRun),
-      proofHash: digest(proof),
-    });
-    expect(JSON.stringify(grant)).not.toContain(proof);
-    await expect(
-      register({ ...enrollment, challenge: 'b'.repeat(64) }, context)
-    ).rejects.toMatchObject({ code: 'failed-precondition' });
-  });
+  it.each(['nurse_hospital', 'admin'])(
+    'registra la cuenta individual habilitada %s',
+    async role => {
+      const { documents, deps } = fixture();
+      documents.set(ACCESS + '/' + uid, { ...account, role });
+      const { register, operate } = createDeviceHandoffHandlers(deps);
+      await expect(register(enrollment, {})).rejects.toMatchObject({ code: 'permission-denied' });
+      await expect(register(enrollment, context)).resolves.toEqual({ registered: true });
+      await expect(register(enrollment, context)).resolves.toEqual({ registered: true });
+      const grant = documents.get('hhr_nursing_handoff_devices/' + deviceId);
+      expect(grant).toMatchObject({
+        uid,
+        runHash: digest(professionalRun),
+        proofHash: digest(proof),
+      });
+      expect(JSON.stringify(grant)).not.toContain(proof);
+      await expect(
+        register({ ...enrollment, challenge: 'b'.repeat(64) }, context)
+      ).rejects.toMatchObject({ code: 'failed-precondition' });
+      await expect(operate(status)).resolves.toEqual({ authorized: true });
+
+      documents.set(ACCESS + '/' + uid, { ...account, role: 'viewer' });
+      await expect(operate(status)).rejects.toMatchObject({ code: 'permission-denied' });
+      await expect(
+        register(enrollment, { auth: { uid, token: { ...context.auth.token, role: 'admin' } } })
+      ).rejects.toMatchObject({ code: 'permission-denied' });
+    }
+  );
 
   it('verifica la llave y el RUN y revoca el acceso por cuenta o equipo', async () => {
     const { documents, deps } = fixture();
