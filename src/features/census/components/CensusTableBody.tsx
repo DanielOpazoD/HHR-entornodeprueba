@@ -67,11 +67,6 @@ export const CensusTableBody: React.FC<CensusTableBodyProps & CensusTableBodyBad
     return map;
   }, [projectedRows, currentDateString, clinicalDocumentPresenceByBedId, dischargedRuts]);
 
-  const emptyBedActivationHandlers = React.useMemo(
-    () => new Map(projectedRows.map(row => [row.bed.id, () => onActivateEmptyBed(row.bed.id)])),
-    [projectedRows, onActivateEmptyBed]
-  );
-
   return (
     <tbody>
       {projectedRows.map(row => {
@@ -103,7 +98,7 @@ export const CensusTableBody: React.FC<CensusTableBodyProps & CensusTableBodyBad
               visibleColumnCount={visibleColumnCount}
               readOnly={readOnly || isPendingBedClear}
               isPendingClear={isPendingBedClear}
-              onClick={emptyBedActivationHandlers.get(row.bed.id)!}
+              onActivate={onActivateEmptyBed}
             />
           );
         }

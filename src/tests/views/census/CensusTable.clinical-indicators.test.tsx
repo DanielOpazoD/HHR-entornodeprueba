@@ -72,8 +72,14 @@ vi.mock('@/features/census/components/PatientRow', () => ({
 }));
 
 vi.mock('@/features/census/components/EmptyBedRow', () => ({
-  EmptyBedRow: ({ bed, onClick }: { bed: { id: string }; onClick: () => void }) => (
-    <tr data-testid="empty-bed-row" onClick={onClick}>
+  EmptyBedRow: ({
+    bed,
+    onActivate,
+  }: {
+    bed: { id: string };
+    onActivate: (bedId: string) => void;
+  }) => (
+    <tr data-testid="empty-bed-row" onClick={() => onActivate(bed.id)}>
       <td>{bed.id}</td>
     </tr>
   ),

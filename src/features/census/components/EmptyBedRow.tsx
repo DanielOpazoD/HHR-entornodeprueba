@@ -7,7 +7,7 @@ interface EmptyBedRowProps {
   bed: BedDefinition;
   columns: TableColumnConfig;
   visibleColumnCount: number;
-  onClick: () => void;
+  onActivate: (bedId: string) => void;
   readOnly?: boolean;
   isPendingClear?: boolean;
 }
@@ -16,7 +16,7 @@ const EmptyBedRowComponent: React.FC<EmptyBedRowProps> = ({
   bed,
   columns,
   visibleColumnCount,
-  onClick,
+  onActivate,
   readOnly = false,
   isPendingClear = false,
 }) => {
@@ -65,7 +65,7 @@ const EmptyBedRowComponent: React.FC<EmptyBedRowProps> = ({
           <button
             type="button"
             className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-slate-500 opacity-0 transition-all duration-150 group-hover:opacity-100 focus:opacity-100 group-focus-within:opacity-100 hover:bg-medical-50 hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700"
-            onClick={onClick}
+            onClick={() => onActivate(bed.id)}
           >
             <Plus size={12} aria-hidden="true" />
             <span>Agregar paciente</span>

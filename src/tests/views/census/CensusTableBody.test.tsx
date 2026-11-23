@@ -30,7 +30,7 @@ vi.mock('@/features/census/components/PatientRow', () => ({
 }));
 
 vi.mock('@/features/census/components/EmptyBedRow', () => ({
-  EmptyBedRow: (props: { bed: BedDefinition; onClick: () => void }) => {
+  EmptyBedRow: (props: { bed: BedDefinition; onActivate: (bedId: string) => void }) => {
     emptyBedRowSpy(props);
     return (
       <tr data-testid={`empty-bed-row-${props.bed.id}`}>
@@ -39,7 +39,7 @@ vi.mock('@/features/census/components/EmptyBedRow', () => ({
           <button
             type="button"
             data-testid={`empty-bed-button-${props.bed.id}`}
-            onClick={props.onClick}
+            onClick={() => props.onActivate(props.bed.id)}
           >
             Agregar paciente
           </button>

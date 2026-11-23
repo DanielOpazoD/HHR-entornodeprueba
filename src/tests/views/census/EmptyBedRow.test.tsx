@@ -24,7 +24,7 @@ describe('EmptyBedRow', () => {
   };
 
   it('opens only from the add-patient button, not from the row shell', () => {
-    const onClick = vi.fn();
+    const onActivate = vi.fn();
 
     render(
       <table>
@@ -33,23 +33,24 @@ describe('EmptyBedRow', () => {
             bed={{ id: 'R4', name: 'R4', type: BedType.MEDIA, isCuna: false }}
             columns={columns}
             visibleColumnCount={9}
-            onClick={onClick}
+            onActivate={onActivate}
           />
         </tbody>
       </table>
     );
 
     fireEvent.click(screen.getByText('R4'));
-    expect(onClick).not.toHaveBeenCalled();
+    expect(onActivate).not.toHaveBeenCalled();
 
     const addButton = screen.getByRole('button', { name: /agregar paciente/i });
     expect(addButton).toHaveClass('opacity-0', 'group-hover:opacity-100', 'focus:opacity-100');
     fireEvent.click(addButton);
-    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    expect(onActivate).toHaveBeenCalledWith('R4');
   });
 
   it('shows the bed as visually empty while a clear awaits remote confirmation', () => {
-    const onClick = vi.fn();
+    const onActivate = vi.fn();
 
     render(
       <table>
@@ -58,7 +59,7 @@ describe('EmptyBedRow', () => {
             bed={{ id: 'R4', name: 'R4', type: BedType.MEDIA, isCuna: false }}
             columns={columns}
             visibleColumnCount={9}
-            onClick={onClick}
+            onActivate={onActivate}
             isPendingClear
           />
         </tbody>
@@ -69,6 +70,6 @@ describe('EmptyBedRow', () => {
     expect(screen.queryByText(/Confirmando limpieza/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /agregar paciente/i })).not.toBeInTheDocument();
     expect(screen.getByRole('row')).toHaveAttribute('aria-busy', 'true');
-    expect(onClick).not.toHaveBeenCalled();
+    expect(onActivate).not.toHaveBeenCalled();
   });
 });

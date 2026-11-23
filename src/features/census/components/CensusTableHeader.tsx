@@ -14,7 +14,7 @@ import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessPro
 /** Columns the «Alertas» view replaces with one cell, as `ClinicalAlertsViewCell` spans them. */
 const ALERTS_VIEW_COLUMNS = ['admission', 'dmi', 'scores', 'upc'] as const;
 
-export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
+const CensusTableHeaderComponent: React.FC<CensusTableHeaderProps> = ({
   scoresAction,
   readOnly,
   columns,
@@ -117,3 +117,5 @@ export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
     </thead>
   );
 };
+
+export const CensusTableHeader = React.memo(CensusTableHeaderComponent);

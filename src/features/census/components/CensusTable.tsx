@@ -36,7 +36,10 @@ import {
 } from '@/features/rayen-manual-import';
 import { buildEloisaAdmissionInput } from '@/features/census/components/eloisaAdmissionInput';
 import { useCensusBedDeepLinkFocus } from '@/features/census/hooks/useCensusBedDeepLinkFocus';
+import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 const censusTableAdmitLogger = createScopedLogger('CensusTableAdmit');
+const EMPTY_BED_OPTIONS: Array<{ id: string; label: string }> = [];
+const EMPTY_UNIFIED_ROWS: UnifiedBedRow[] = [];
 export type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 const LazyDemographicsModal = lazy(() =>
   import('@/features/census/components/demographics/DemographicsModal').then(module => ({
@@ -136,13 +139,16 @@ export const CensusTable: React.FC<CensusTableProps> = ({
     setIsEloisaCodeImportOpen(true);
   }, []);
 
-  const emptyBedOptions = useMemo(
-    () =>
-      Object.entries(beds ?? {})
-        .filter(([, patient]) => !patient?.patientName?.trim() && !patient?.isBlocked)
-        .map(([bedId, patient]) => ({ id: bedId, label: patient?.bedName || bedId })),
-    [beds]
-  );
+  const closeEloisaCodeImport = useCallback(() => {
+    setIsEloisaCodeImportOpen(false);
+  }, []);
+
+  const emptyBedOptions = useMemo(() => {
+    if (!isEloisaCodeImportOpen) return EMPTY_BED_OPTIONS;
+    return Object.entries(beds ?? {})
+      .filter(([, patient]) => !patient?.patientName?.trim() && !patient?.isBlocked)
+      .map(([bedId, patient]) => ({ id: bedId, label: patient?.bedName || bedId }));
+  }, [beds, isEloisaCodeImportOpen]);
 
   const importEloisaPatient = useCallback(
     async (payload: EloisaManualPatientPayload, targetBedId: string): Promise<string | null> => {
@@ -242,14 +248,18 @@ export const CensusTable: React.FC<CensusTableProps> = ({
     ]
   );
 
+  const unifiedRows = bindings?.bodyProps.unifiedRows;
+  const filteredUnifiedRows = useMemo(
+    () =>
+      unifiedRows
+        ? filterCensusRowsByAttention(unifiedRows, currentDateString, attentionFilter)
+        : EMPTY_UNIFIED_ROWS,
+    [attentionFilter, currentDateString, unifiedRows]
+  );
+
   if (!isReady || !bindings) return <ViewLoader />;
 
   const { headerProps, bodyProps, tableStyle } = bindings;
-  const filteredUnifiedRows = filterCensusRowsByAttention(
-    bodyProps.unifiedRows,
-    currentDateString,
-    attentionFilter
-  );
   const activeAttentionLabel =
     attentionFilter === 'all' ? null : getCensusAttentionFilterLabel(attentionFilter);
 
@@ -329,7 +339,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
           <LazyEloisaPatientCodeImportModal
             isOpen
             emptyBeds={emptyBedOptions}
-            onClose={() => setIsEloisaCodeImportOpen(false)}
+            onClose={closeEloisaCodeImport}
             onConfirm={importEloisaPatient}
           />
         </Suspense>
