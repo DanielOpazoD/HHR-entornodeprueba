@@ -54,52 +54,83 @@ export const assessRemoteRuntimeContract = (
   };
 };
 
-export const fetchRemoteRuntimeContract = async (): Promise<RemoteRuntimeContract | null> => {
+const RUNTIME_CONTRACT_TIMEOUT_MS = 8_000;
+
+export interface FetchRemoteRuntimeContractOptions {
+  signal?: AbortSignal;
+  timeoutMs?: number;
+}
+
+export const fetchRemoteRuntimeContract = async (
+  options?: FetchRemoteRuntimeContractOptions
+): Promise<RemoteRuntimeContract | null> => {
   if (typeof fetch === 'undefined') {
     return null;
   }
 
-  const response = await fetch(`/.netlify/functions/runtime-contract?t=${Date.now()}`, {
-    cache: 'no-store',
-    headers: { 'Cache-Control': 'no-cache' },
-  });
+  const externalSignal = options?.signal;
+  externalSignal?.throwIfAborted();
+  const timeoutMs = options?.timeoutMs ?? RUNTIME_CONTRACT_TIMEOUT_MS;
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : undefined;
+  const onExternalAbort = () => controller?.abort(externalSignal?.reason);
+  externalSignal?.addEventListener('abort', onExternalAbort, { once: true });
+  const timeoutId =
+    controller && Number.isFinite(timeoutMs) && timeoutMs > 0
+      ? setTimeout(
+          () => controller.abort(new Error('Runtime contract request timed out')),
+          timeoutMs
+        )
+      : undefined;
 
-  if (!response.ok) {
-    if (response.status === 404) {
-      return null;
-    }
-
-    throw new Error(`Runtime contract request failed (${response.status})`);
-  }
-
-  const contentType = response.headers.get('content-type');
-  if (!isJsonContentType(contentType)) {
-    return null;
-  }
-
-  let payload: Partial<RemoteRuntimeContract>;
   try {
-    payload = (await response.json()) as Partial<RemoteRuntimeContract>;
-  } catch (error) {
-    if (error instanceof SyntaxError) {
+    const response = await fetch(`/.netlify/functions/runtime-contract?t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' },
+      ...(controller ? { signal: controller.signal } : {}),
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+
+      throw new Error(`Runtime contract request failed (${response.status})`);
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!isJsonContentType(contentType)) {
       return null;
     }
-    throw error;
-  }
 
-  if (
-    !isFiniteNumber(payload.backendRuntimeContractVersion) ||
-    !isFiniteNumber(payload.minSupportedClientRuntimeContractVersion) ||
-    !isFiniteNumber(payload.supportedSchemaVersion) ||
-    !isFiniteNumber(payload.legacySchemaFloorVersion)
-  ) {
-    throw new Error('Runtime contract response is incomplete');
-  }
+    let payload: Partial<RemoteRuntimeContract>;
+    try {
+      payload = (await response.json()) as Partial<RemoteRuntimeContract>;
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        return null;
+      }
+      throw error;
+    }
 
-  return {
-    backendRuntimeContractVersion: payload.backendRuntimeContractVersion,
-    minSupportedClientRuntimeContractVersion: payload.minSupportedClientRuntimeContractVersion,
-    supportedSchemaVersion: payload.supportedSchemaVersion,
-    legacySchemaFloorVersion: payload.legacySchemaFloorVersion,
-  };
+    if (
+      !isFiniteNumber(payload.backendRuntimeContractVersion) ||
+      !isFiniteNumber(payload.minSupportedClientRuntimeContractVersion) ||
+      !isFiniteNumber(payload.supportedSchemaVersion) ||
+      !isFiniteNumber(payload.legacySchemaFloorVersion)
+    ) {
+      throw new Error('Runtime contract response is incomplete');
+    }
+
+    return {
+      backendRuntimeContractVersion: payload.backendRuntimeContractVersion,
+      minSupportedClientRuntimeContractVersion: payload.minSupportedClientRuntimeContractVersion,
+      supportedSchemaVersion: payload.supportedSchemaVersion,
+      legacySchemaFloorVersion: payload.legacySchemaFloorVersion,
+    };
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+    externalSignal?.removeEventListener('abort', onExternalAbort);
+  }
 };

@@ -147,4 +147,52 @@ describe('runtimeContractClient', () => {
 
     await expect(fetchRemoteRuntimeContract()).resolves.toBeNull();
   });
+
+  it('aborts a stalled runtime contract request after timeoutMs', async () => {
+    vi.useFakeTimers();
+    try {
+      let receivedSignal: AbortSignal | undefined;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((_url, init?: RequestInit) => {
+          receivedSignal = init?.signal ?? undefined;
+          return new Promise((_resolve, reject) => {
+            receivedSignal?.addEventListener('abort', () => {
+              reject(new DOMException('Timed out', 'AbortError'));
+            });
+          });
+        })
+      );
+
+      const pending = fetchRemoteRuntimeContract({ timeoutMs: 250 });
+      const assertion = expect(pending).rejects.toThrow('Timed out');
+      await vi.advanceTimersByTimeAsync(250);
+      await assertion;
+      expect(receivedSignal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('forwards external AbortSignal cancellation to the underlying fetch', async () => {
+    let receivedSignal: AbortSignal | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url, init?: RequestInit) => {
+        receivedSignal = init?.signal ?? undefined;
+        return new Promise((_resolve, reject) => {
+          receivedSignal?.addEventListener('abort', () => {
+            reject(new DOMException('Cancelled', 'AbortError'));
+          });
+        });
+      })
+    );
+
+    const external = new AbortController();
+    const pending = fetchRemoteRuntimeContract({ signal: external.signal });
+    external.abort();
+
+    await expect(pending).rejects.toThrow('Cancelled');
+    expect(receivedSignal?.aborted).toBe(true);
+  });
 });
