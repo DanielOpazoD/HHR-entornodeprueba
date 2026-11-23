@@ -1,33 +1,10 @@
-import type {
-  ClinicalDocumentAuditActor,
-  ClinicalDocumentRecord,
-} from '@/domain/clinical-documents/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import { getClinicalDocumentDefinition } from '@/domain/clinical-documents/definitions';
-import {
-  CURRENT_CLINICAL_DOCUMENT_SCHEMA_VERSION,
-  LEGACY_CLINICAL_DOCUMENT_SCHEMA_VERSION,
-} from '@/domain/clinical-documents/schema';
-
-const LEGACY_AUDIT_ACTOR_DEFAULTS: ClinicalDocumentAuditActor = {
-  uid: 'legacy-unknown',
-  email: 'legacy@unknown.local',
-  displayName: 'Usuario legado',
-  role: 'legacy_unknown',
-};
+import { CURRENT_CLINICAL_DOCUMENT_SCHEMA_VERSION } from '@/domain/clinical-documents/schema';
 
 const normalizeClinicalDocumentSectionTitle = (title: string, fallback: string): string => {
   const normalized = title.trim().replace(/\s+/g, ' ');
   return normalized || fallback;
-};
-
-export const resolveClinicalDocumentSchemaVersion = (
-  record: Partial<ClinicalDocumentRecord> | null | undefined
-): number => {
-  const rawVersion = record?.schemaVersion;
-  if (typeof rawVersion !== 'number' || !Number.isFinite(rawVersion)) {
-    return LEGACY_CLINICAL_DOCUMENT_SCHEMA_VERSION;
-  }
-  return Math.max(LEGACY_CLINICAL_DOCUMENT_SCHEMA_VERSION, Math.floor(rawVersion));
 };
 
 const applyClinicalDocumentDefinitionDefaults = (
@@ -76,84 +53,10 @@ const applyClinicalDocumentDefinitionDefaults = (
   };
 };
 
-const readLegacyActorField = (
-  input: Record<string, unknown>,
-  key: keyof ClinicalDocumentAuditActor
-): string => {
-  const value = input[key];
-  return typeof value === 'string' && value.trim().length > 0
-    ? value
-    : LEGACY_AUDIT_ACTOR_DEFAULTS[key];
-};
-
-const normalizeAuditActor = (input: unknown): ClinicalDocumentAuditActor => {
-  const source =
-    input && typeof input === 'object' && !Array.isArray(input)
-      ? (input as Record<string, unknown>)
-      : {};
-
-  return {
-    uid: readLegacyActorField(source, 'uid'),
-    email: readLegacyActorField(source, 'email'),
-    displayName: readLegacyActorField(source, 'displayName'),
-    role: readLegacyActorField(source, 'role'),
-  };
-};
-
-const normalizeOptionalAuditActor = (input: unknown): ClinicalDocumentAuditActor | undefined => {
-  if (input === null || input === undefined) {
-    return undefined;
-  }
-  return normalizeAuditActor(input);
-};
-
-const normalizeLegacyAuditActors = (record: ClinicalDocumentRecord): ClinicalDocumentRecord => {
-  const audit = record.audit as ClinicalDocumentRecord['audit'] | undefined;
-  const signatureRevocations = Array.isArray(audit?.signatureRevocations)
-    ? audit.signatureRevocations.map(revocation => ({
-        ...revocation,
-        revokedBy: normalizeAuditActor(
-          (revocation as { revokedBy?: ClinicalDocumentAuditActor }).revokedBy
-        ),
-      }))
-    : [];
-
-  return {
-    ...record,
-    versionHistory: Array.isArray(record.versionHistory)
-      ? record.versionHistory.map(version => ({
-          ...version,
-          savedBy: normalizeAuditActor(version.savedBy),
-        }))
-      : record.versionHistory,
-    audit: {
-      ...record.audit,
-      createdBy: normalizeAuditActor(audit?.createdBy),
-      updatedBy: normalizeAuditActor(audit?.updatedBy),
-      signedBy: normalizeOptionalAuditActor(audit?.signedBy),
-      unsignedBy: normalizeOptionalAuditActor(audit?.unsignedBy),
-      archivedBy: normalizeOptionalAuditActor(audit?.archivedBy),
-      signatureRevocations,
-    },
-  };
-};
-
-export const hydrateClinicalDocumentV1ToCurrent = (
-  record: ClinicalDocumentRecord
-): ClinicalDocumentRecord => applyClinicalDocumentDefinitionDefaults(record);
-
-/** Brings a stored clinical document to the current shape; the only door for legacy compatibility. */
+/** Normalizes a stored clinical document to current definition defaults. */
 export const hydrateClinicalDocumentRecord = (
   record: ClinicalDocumentRecord
-): ClinicalDocumentRecord => {
-  const schemaVersion = resolveClinicalDocumentSchemaVersion(record);
-  const hydrated =
-    schemaVersion <= LEGACY_CLINICAL_DOCUMENT_SCHEMA_VERSION
-      ? hydrateClinicalDocumentV1ToCurrent(record)
-      : applyClinicalDocumentDefinitionDefaults(record);
-
-  return normalizeLegacyAuditActors(hydrated);
-};
+): ClinicalDocumentRecord => applyClinicalDocumentDefinitionDefaults(record);
 
 export const normalizeClinicalDocumentForPersistence = (
   record: ClinicalDocumentRecord

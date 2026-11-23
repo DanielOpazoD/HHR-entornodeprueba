@@ -126,12 +126,14 @@ const buildConsumerBudgetSurface = ({ surface, observedConsumersBySurface }) => 
   const observedConsumers = asArray(observedConsumersBySurface?.[surface.id]);
   const maxAuthorizedConsumers = asNumber(surface.maxAuthorizedConsumers);
   const hasConsumerBudget = hasNumericBudget(surface.maxAuthorizedConsumers);
+  const isRetiredZeroBudget =
+    surface.phase === 'retired' || (hasConsumerBudget && maxAuthorizedConsumers === 0);
   const unapprovedConsumers = observedConsumers.filter(
     consumer => !approvedConsumers.includes(consumer)
   );
   const issues = [];
 
-  if (observedConsumers.length === 0) {
+  if (observedConsumers.length === 0 && !isRetiredZeroBudget) {
     issues.push(`${surface.id} has no observed consumers from static detection`);
   }
   if (hasConsumerBudget && observedConsumers.length > maxAuthorizedConsumers) {

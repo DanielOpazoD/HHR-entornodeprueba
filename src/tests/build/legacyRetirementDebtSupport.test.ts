@@ -151,6 +151,52 @@ describe('legacyRetirementDebtSupport', () => {
     );
   });
 
+  it('locks retired consumer-budget surfaces at zero consumers and degrades if any marker returns', () => {
+    const retiredConfig = {
+      policyVersion: '2026-06-v1',
+      maxOpenSurfaces: 0,
+      surfaces: [
+        {
+          id: 'legacy-clinical-document-hydration',
+          label: 'Legacy clinical document hydration',
+          owner: 'clinical-documents',
+          phase: 'retired',
+          maxAuthorizedConsumers: 0,
+          approvedConsumers: [],
+        },
+      ],
+    };
+
+    const okReport = buildLegacyRetirementDebtReport({
+      config: retiredConfig,
+      observedConsumersBySurface: {
+        'legacy-clinical-document-hydration': [],
+      },
+    });
+    expect(okReport.status).toBe('ok');
+    expect(okReport.openSurfaceCount).toBe(0);
+    expect(okReport.surfaces[0]).toEqual(
+      expect.objectContaining({
+        status: 'ok',
+        signal: 'consumers=0/0, unapproved=0',
+      })
+    );
+
+    const regressedReport = buildLegacyRetirementDebtReport({
+      config: retiredConfig,
+      observedConsumersBySurface: {
+        'legacy-clinical-document-hydration': ['src/domain/clinical-documents/compatibility.ts'],
+      },
+    });
+    expect(regressedReport.status).toBe('degraded');
+    expect(regressedReport.surfaces[0]).toEqual(
+      expect.objectContaining({
+        status: 'degraded',
+        signal: 'consumers=1/0, unapproved=1',
+      })
+    );
+  });
+
   it('detects generic surfaces and reports when open surfaces exceed the aggregate budget', () => {
     const report = buildLegacyRetirementDebtReport({
       config: {

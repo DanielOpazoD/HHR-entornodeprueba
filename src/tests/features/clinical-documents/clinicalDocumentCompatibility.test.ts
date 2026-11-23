@@ -147,8 +147,8 @@ describe('clinical document compatibility', () => {
     expect(hydrateClinicalDocumentRecord(retiredSignatureLockDocument).isLocked).toBe(false);
   });
 
-  it('hydrates incomplete legacy audit actors for workspace compatibility', () => {
-    const legacyActor = {
+  it('preserves audit actors as stored without fabricating legacy placeholders', () => {
+    const incompleteActor = {
       uid: 'legacy-user',
       email: 'legacy@hospital.cl',
     };
@@ -156,14 +156,14 @@ describe('clinical document compatibility', () => {
       ...buildDocument(),
       audit: {
         createdAt: '2026-03-06T10:00:00.000Z',
-        createdBy: legacyActor,
+        createdBy: incompleteActor,
         updatedAt: '2026-03-06T11:00:00.000Z',
-        updatedBy: legacyActor,
+        updatedBy: incompleteActor,
         signatureRevocations: [
           {
             revokedAt: '2026-03-06T12:00:00.000Z',
-            revokedBy: legacyActor,
-            reason: 'Corrección legacy',
+            revokedBy: incompleteActor,
+            reason: 'Corrección',
           },
         ],
       },
@@ -171,7 +171,7 @@ describe('clinical document compatibility', () => {
         {
           version: 1,
           savedAt: '2026-03-06T10:30:00.000Z',
-          savedBy: legacyActor,
+          savedBy: incompleteActor,
           reason: 'manual' as const,
         },
       ],
@@ -179,23 +179,9 @@ describe('clinical document compatibility', () => {
 
     const hydrated = hydrateClinicalDocumentRecord(document);
 
-    expect(hydrated.audit.createdBy).toMatchObject({
-      uid: 'legacy-user',
-      email: 'legacy@hospital.cl',
-      displayName: 'Usuario legado',
-      role: 'legacy_unknown',
-    });
-    expect(hydrated.audit.updatedBy).toMatchObject({
-      displayName: 'Usuario legado',
-      role: 'legacy_unknown',
-    });
-    expect(hydrated.audit.signatureRevocations?.[0]?.revokedBy).toMatchObject({
-      displayName: 'Usuario legado',
-      role: 'legacy_unknown',
-    });
-    expect(hydrated.versionHistory[0]?.savedBy).toMatchObject({
-      displayName: 'Usuario legado',
-      role: 'legacy_unknown',
-    });
+    expect(hydrated.audit.createdBy).toEqual(incompleteActor);
+    expect(hydrated.audit.updatedBy).toEqual(incompleteActor);
+    expect(hydrated.audit.signatureRevocations?.[0]?.revokedBy).toEqual(incompleteActor);
+    expect(hydrated.versionHistory[0]?.savedBy).toEqual(incompleteActor);
   });
 });
