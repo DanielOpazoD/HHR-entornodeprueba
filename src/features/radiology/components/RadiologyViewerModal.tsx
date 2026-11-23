@@ -107,7 +107,14 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
   const searchSequence = useRef(0);
   const context = JSON.stringify([isOpen, selectedRut, dateFrom, dateTo]);
   const pdfOperation = useRef<AbortController | null>(null);
-  React.useEffect(() => () => pdfOperation.current?.abort(), [context]);
+  const receiptOperation = useRef<AbortController | null>(null);
+  React.useEffect(
+    () => () => {
+      pdfOperation.current?.abort();
+      receiptOperation.current?.abort();
+    },
+    [context]
+  );
   const latestContext = useLatestRef(context);
   const openedForRutRef = useRef<string | null>(null);
 
@@ -297,18 +304,30 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
   }, []);
 
   const handleOpenPortalReceipt = useCallback(async (exam: MMRADExam) => {
-    if (!exam.portal_web_receipt_url) {
+    if (!exam.portal_web_receipt_url || receiptOperation.current) {
       return;
     }
 
+    const controller = new AbortController();
+    receiptOperation.current = controller;
     try {
-      const receiptHtml = await fetchMMRADPortalReceiptHtml(exam.portal_web_receipt_url);
+      const receiptHtml = await fetchMMRADPortalReceiptHtml(
+        exam.portal_web_receipt_url,
+        controller.signal
+      );
+      if (controller.signal.aborted) return;
       setPortalReceiptPreview({
         title: 'Comprobante Portal Web paciente',
         html: buildMMRADPortalReceiptPrintHtml(receiptHtml),
       });
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Error al abrir el comprobante portal.');
+      if (!controller.signal.aborted) {
+        setError(error instanceof Error ? error.message : 'Error al abrir el comprobante portal.');
+      }
+    } finally {
+      if (receiptOperation.current === controller) {
+        receiptOperation.current = null;
+      }
     }
   }, []);
 

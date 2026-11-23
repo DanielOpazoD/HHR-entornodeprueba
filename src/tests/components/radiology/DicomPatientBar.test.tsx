@@ -93,4 +93,38 @@ describe('viewer patient header and embedded report preview', () => {
     view.unmount();
     expect(signal?.aborted).toBe(true);
   });
+
+  it('closes the open report dialog and revokes its blob URL when switching patients', async () => {
+    const create = vi.fn(() => 'blob:synthetic-report-a');
+    const revoke = vi.fn();
+    vi.stubGlobal(
+      'URL',
+      class extends URL {
+        static override createObjectURL = create;
+        static override revokeObjectURL = revoke;
+      }
+    );
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response('%PDF-1.4 synthetic', { headers: { 'Content-Type': 'application/pdf' } })
+        )
+    );
+    const view = render(
+      <DicomPatientBar patientId="PATIENT-A" reportLink="https://example.test/report-a" />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Ver informe MMRAD' }));
+    await waitFor(() =>
+      expect(screen.getByRole('dialog', { name: 'Informe MMRAD' })).toBeVisible()
+    );
+
+    view.rerender(
+      <DicomPatientBar patientId="PATIENT-B" reportLink="https://example.test/report-b" />
+    );
+
+    expect(screen.queryByRole('dialog', { name: 'Informe MMRAD' })).toBeNull();
+    expect(revoke).toHaveBeenCalledWith('blob:synthetic-report-a');
+  });
 });

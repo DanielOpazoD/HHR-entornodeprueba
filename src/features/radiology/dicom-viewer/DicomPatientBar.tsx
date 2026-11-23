@@ -1,8 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Download, FileText, X } from 'lucide-react';
-import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
-import { buildMMRADPdfUrl } from '../services/mmradService';
+import { fetchMMRADPdfBlob } from '../services/mmradService';
 import { formatDicomStudyDate } from '@/domain/radiology/dicomTypes';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const ReportPreview: React.FC<{ url: string; close: () => void }> = ({ url, close }) => {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -59,6 +59,11 @@ export const DicomPatientBar: React.FC<{
   const reportButton = useRef<HTMLButtonElement>(null);
   const request = useRef<AbortController | undefined>(undefined);
   const urls = useRef(new Set<string>());
+  if (useChangedOnRender([patientId, reportLink])) {
+    setReportUrl(null);
+    setBusy(false);
+    setError(false);
+  }
   useEffect(() => {
     const currentUrls = urls.current;
     return () => {
@@ -80,26 +85,19 @@ export const DicomPatientBar: React.FC<{
     if (reportUrl) return;
     const controller = new AbortController();
     request.current = controller;
+    const timeoutId = setTimeout(() => controller.abort(), 30_000);
     setBusy(true);
     setError(false);
     try {
-      const headers = await resolveCurrentUserAuthHeaders();
+      const blob = await fetchMMRADPdfBlob(reportLink, controller.signal, { cache: 'no-store' });
       controller.signal.throwIfAborted();
-      const response = await fetch(buildMMRADPdfUrl(reportLink), {
-        headers,
-        signal: controller.signal,
-        cache: 'no-store',
-      });
-      if (!response.ok) throw new Error('Informe no disponible');
-      const blob = await response.blob();
-      controller.signal.throwIfAborted();
-      if (!blob.type.includes('application/pdf')) throw new Error('Formato no válido');
       const url = URL.createObjectURL(blob);
       urls.current.add(url);
       setReportUrl(url);
     } catch {
       if (!controller.signal.aborted) setError(true);
     } finally {
+      clearTimeout(timeoutId);
       if (!controller.signal.aborted) setBusy(false);
     }
   };

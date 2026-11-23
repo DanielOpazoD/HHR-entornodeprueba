@@ -179,4 +179,50 @@ describe('mmradService', () => {
       })
     );
   });
+
+  it('aborts a stalled MMRAD search after timeout instead of hanging or returning empty exams', async () => {
+    vi.useFakeTimers();
+    try {
+      let receivedSignal: AbortSignal | undefined;
+      mockFetch.mockImplementationOnce((_url: string, init?: RequestInit) => {
+        receivedSignal = init?.signal ?? undefined;
+        return new Promise((_resolve, reject) => {
+          receivedSignal?.addEventListener('abort', () => {
+            reject(receivedSignal?.reason ?? new DOMException('Timed out', 'AbortError'));
+          });
+        });
+      });
+
+      const pending = searchMMRADExams({ rut: '12.345.678-9' });
+      const assertion = expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+      await vi.advanceTimersByTimeAsync(45_000);
+      await assertion;
+      expect(receivedSignal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('forwards external cancellation to portal receipt requests', async () => {
+    let receivedSignal: AbortSignal | undefined;
+    mockFetch.mockImplementationOnce((_url: string, init?: RequestInit) => {
+      receivedSignal = init?.signal ?? undefined;
+      return new Promise((_resolve, reject) => {
+        receivedSignal?.addEventListener('abort', () => {
+          reject(new DOMException('Cancelled', 'AbortError'));
+        });
+      });
+    });
+
+    const controller = new AbortController();
+    const pending = fetchMMRADPortalReceiptHtml(
+      'https://ris.mmrad.cl/web/portalpaciente/comprobante?id=1459869',
+      controller.signal
+    );
+    await Promise.resolve();
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(receivedSignal?.aborted).toBe(true);
+  });
 });

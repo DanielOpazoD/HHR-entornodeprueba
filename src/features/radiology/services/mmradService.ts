@@ -4,11 +4,42 @@
  */
 
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
+import { sessionEpochGuard } from '@/services/session/sessionStorageTransition';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import type { MMRADReportSections } from '@/domain/radiology/mmradReportSupport';
 import { formatRut } from '@/utils/rutUtils';
 
 const mmradLogger = createScopedLogger('mmradService');
+const MMRAD_SEARCH_TIMEOUT_MS = 45_000;
+const MMRAD_RECEIPT_TIMEOUT_MS = 25_000;
+const MMRAD_PDF_TIMEOUT_MS = 30_000;
+
+const createTimedAbortSignal = (
+  timeoutMs: number,
+  externalSignal?: AbortSignal
+): { signal: AbortSignal; cleanup: () => void } => {
+  const controller = new AbortController();
+  const onExternalAbort = () => controller.abort(externalSignal?.reason);
+  if (externalSignal?.aborted) {
+    controller.abort(externalSignal.reason);
+  } else {
+    externalSignal?.addEventListener('abort', onExternalAbort, { once: true });
+  }
+  const timer = setTimeout(
+    () =>
+      controller.abort(
+        new DOMException('La consulta a MMRAD superó el tiempo de espera.', 'AbortError')
+      ),
+    timeoutMs
+  );
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timer);
+      externalSignal?.removeEventListener('abort', onExternalAbort);
+    },
+  };
+};
 
 export interface MMRADExam {
   nombre_examen: string;
@@ -71,41 +102,72 @@ export const buildMMRADPdfUrl = (pdfLink: string): string =>
 export const buildMMRADPortalReceiptUrl = (receiptLink: string): string =>
   buildMMRADProxyUrl(`?action=portalReceipt&link=${encodeURIComponent(receiptLink)}`);
 
-export const fetchMMRADPdfBlob = async (pdfLink: string, signal?: AbortSignal): Promise<Blob> => {
+export const fetchMMRADPdfBlob = async (
+  pdfLink: string,
+  signal?: AbortSignal,
+  options?: { cache?: RequestCache }
+): Promise<Blob> => {
+  const isSessionShown = sessionEpochGuard();
   const authHeaders = await resolveCurrentUserAuthHeaders();
   signal?.throwIfAborted();
-  const response = await fetch(buildMMRADPdfUrl(pdfLink), {
-    headers: authHeaders,
-    signal,
-  });
+  if (!isSessionShown()) throw new DOMException('Consulta cancelada.', 'AbortError');
 
-  if (!response.ok) {
-    throw new Error('No se pudo obtener el PDF original de MMRAD.');
-  }
+  const timed = signal ? null : createTimedAbortSignal(MMRAD_PDF_TIMEOUT_MS);
+  const requestSignal = signal ?? timed?.signal;
+  try {
+    const response = await fetch(buildMMRADPdfUrl(pdfLink), {
+      headers: authHeaders,
+      signal: requestSignal,
+      ...(options?.cache ? { cache: options.cache } : {}),
+    });
 
-  const pdfBlob = await response.blob();
-  signal?.throwIfAborted();
-  if (pdfBlob.type.split(';')[0]?.trim().toLowerCase() !== 'application/pdf') {
-    throw new Error('MMRAD no devolvió un PDF original válido.');
+    if (!response.ok) {
+      throw new Error('No se pudo obtener el PDF original de MMRAD.');
+    }
+
+    const pdfBlob = await response.blob();
+    requestSignal?.throwIfAborted();
+    if (!isSessionShown()) throw new DOMException('Consulta cancelada.', 'AbortError');
+    if (pdfBlob.type.split(';')[0]?.trim().toLowerCase() !== 'application/pdf') {
+      throw new Error('MMRAD no devolvió un PDF original válido.');
+    }
+    return pdfBlob;
+  } finally {
+    timed?.cleanup();
   }
-  return pdfBlob;
 };
 
-export const fetchMMRADPortalReceiptHtml = async (receiptLink: string): Promise<string> => {
+export const fetchMMRADPortalReceiptHtml = async (
+  receiptLink: string,
+  signal?: AbortSignal
+): Promise<string> => {
+  const isSessionShown = sessionEpochGuard();
   const authHeaders = await resolveCurrentUserAuthHeaders();
-  const response = await fetch(buildMMRADPortalReceiptUrl(receiptLink), {
-    headers: authHeaders,
-  });
+  signal?.throwIfAborted();
+  if (!isSessionShown()) throw new DOMException('Consulta cancelada.', 'AbortError');
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(error => {
-      mmradLogger.warn('Failed to parse MMRAD portal receipt error response body', error);
-      return { error: 'Error de conexión' };
+  const timed = createTimedAbortSignal(MMRAD_RECEIPT_TIMEOUT_MS, signal);
+  try {
+    const response = await fetch(buildMMRADPortalReceiptUrl(receiptLink), {
+      headers: authHeaders,
+      signal: timed.signal,
     });
-    throw new Error(errorData.error || `Error ${response.status}`);
-  }
 
-  return response.text();
+    if (!response.ok) {
+      const errorData = await response.json().catch(error => {
+        mmradLogger.warn('Failed to parse MMRAD portal receipt error response body', error);
+        return { error: 'Error de conexión' };
+      });
+      throw new Error(errorData.error || `Error ${response.status}`);
+    }
+
+    const html = await response.text();
+    timed.signal.throwIfAborted();
+    if (!isSessionShown()) throw new DOMException('Consulta cancelada.', 'AbortError');
+    return html;
+  } finally {
+    timed.cleanup();
+  }
 };
 
 /**
@@ -113,15 +175,20 @@ export const fetchMMRADPortalReceiptHtml = async (receiptLink: string): Promise<
  * census name. Slower than the exact search, so the viewer asks for both at once.
  */
 export const searchMMRADCheckDigitExams = (
-  params: MMRADSearchParams & { patientName: string }
-): Promise<MMRADSearchResult> => searchMMRADExams(params, 'check-digit');
+  params: MMRADSearchParams & { patientName: string },
+  signal?: AbortSignal
+): Promise<MMRADSearchResult> => searchMMRADExams(params, 'check-digit', signal);
 
 export const searchMMRADExams = async (
   { rut, patientName, dateFrom, dateTo }: MMRADSearchParams,
-  action?: 'check-digit'
+  action?: 'check-digit',
+  signal?: AbortSignal
 ): Promise<MMRADSearchResult> => {
+  const isSessionShown = sessionEpochGuard();
   const cleanRut = rut.replace(/\./g, '').trim();
   const authHeaders = await resolveCurrentUserAuthHeaders();
+  signal?.throwIfAborted();
+  if (!isSessionShown()) throw new DOMException('Consulta cancelada.', 'AbortError');
 
   let url = buildMMRADProxyUrl(
     `?${action ? `action=${action}&` : ''}rut=${encodeURIComponent(cleanRut)}`
@@ -130,9 +197,11 @@ export const searchMMRADExams = async (
   if (dateTo) url += `&to=${encodeURIComponent(dateTo)}`;
   if (patientName?.trim()) url += `&name=${encodeURIComponent(patientName.trim())}`;
 
+  const timed = createTimedAbortSignal(MMRAD_SEARCH_TIMEOUT_MS, signal);
   try {
     const response = await fetch(url, {
       headers: authHeaders,
+      signal: timed.signal,
     });
 
     // Detect when Vite dev server returns HTML instead of JSON (Netlify Functions not available)
@@ -151,9 +220,14 @@ export const searchMMRADExams = async (
       throw new Error(resolveMmradUserFacingError(errorData.error || `Error ${response.status}`));
     }
 
-    return await response.json();
+    const result = (await response.json()) as MMRADSearchResult;
+    timed.signal.throwIfAborted();
+    if (!isSessionShown()) throw new DOMException('Consulta cancelada.', 'AbortError');
+    return result;
   } catch (error) {
     mmradLogger.error('MMRAD search failed', error);
     throw error;
+  } finally {
+    timed.cleanup();
   }
 };
