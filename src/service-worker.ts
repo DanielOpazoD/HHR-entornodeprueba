@@ -7,6 +7,7 @@ import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute, setCatchHandler } from 'workbox-routing';
 import { CacheFirst, NetworkFirst, NetworkOnly } from 'workbox-strategies';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
+import { ExpirationPlugin } from 'workbox-expiration';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import {
   isPrivateStorageObjectUrl,
@@ -73,7 +74,23 @@ cleanupOutdatedCaches();
 
 const CACHE_VERSION = 'v2.4.0';
 const OFFLINE_PAGE = '/offline.html';
+const RUNTIME_CACHE_PREFIXES = ['images-', 'firebase-', 'pages-', 'offline-'] as const;
+const ONE_DAY_SECONDS = 24 * 60 * 60;
 const serviceWorkerLogger = createScopedLogger('ServiceWorker');
+
+const cleanupOutdatedRuntimeCaches = async (cacheStorage: CacheStorage): Promise<void> => {
+  const currentSuffix = `-${CACHE_VERSION}`;
+  const cacheNames = await cacheStorage.keys();
+  await Promise.all(
+    cacheNames
+      .filter(
+        name =>
+          RUNTIME_CACHE_PREFIXES.some(prefix => name.startsWith(prefix)) &&
+          !name.endsWith(currentSuffix)
+      )
+      .map(name => cacheStorage.delete(name))
+  );
+};
 
 const isClientsClaimRaceError = (error: unknown): boolean => {
   const message = String(error);
@@ -97,7 +114,14 @@ registerRoute(
   ({ url, request }) => url.origin === self.location.origin && request.destination === 'image',
   new CacheFirst({
     cacheName: `images-${CACHE_VERSION}`,
-    plugins: [new CacheableResponsePlugin({ statuses: [0, 200] })],
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({
+        maxEntries: 60,
+        maxAgeSeconds: 30 * ONE_DAY_SECONDS,
+        purgeOnQuotaError: true,
+      }),
+    ],
   })
 );
 
@@ -121,7 +145,14 @@ registerRoute(
   new NetworkFirst({
     cacheName: `firebase-${CACHE_VERSION}`,
     networkTimeoutSeconds: 10,
-    plugins: [new CacheableResponsePlugin({ statuses: [0, 200] })],
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({
+        maxEntries: 50,
+        maxAgeSeconds: ONE_DAY_SECONDS,
+        purgeOnQuotaError: true,
+      }),
+    ],
   })
 );
 
@@ -137,7 +168,14 @@ registerRoute(
   new NetworkFirst({
     cacheName: `pages-${CACHE_VERSION}`,
     networkTimeoutSeconds: 5,
-    plugins: [new CacheableResponsePlugin({ statuses: [0, 200] })],
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({
+        maxEntries: 20,
+        maxAgeSeconds: 7 * ONE_DAY_SECONDS,
+        purgeOnQuotaError: true,
+      }),
+    ],
   })
 );
 
@@ -180,6 +218,10 @@ self.addEventListener('activate', (event: Event) => {
       // Earlier workers cached owner-only objects; drop those copies.
       purgePrivateStorageObjectsFromCaches(caches).catch(error => {
         serviceWorkerLogger.warn('private storage cache purge skipped', error);
+      }),
+      // Drop runtime caches belonging to previous CACHE_VERSION releases.
+      cleanupOutdatedRuntimeCaches(caches).catch(error => {
+        serviceWorkerLogger.warn('outdated runtime cache cleanup skipped', error);
       }),
     ])
   );
