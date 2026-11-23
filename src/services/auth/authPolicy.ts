@@ -7,7 +7,6 @@ import {
   emitAuthOperationalEvent,
 } from '@/services/auth/authOperationalTelemetry';
 import { isGeneralLoginRole } from '@/shared/access/roleAccessMatrix';
-import { resolveAllowedRoleForEmail } from '@/services/auth/authRoleResolutionController';
 export { clearRoleCacheForEmail } from '@/services/auth/authRoleCache';
 
 export interface GeneralLoginAccessResolution {
@@ -33,9 +32,7 @@ export const resolveGeneralLoginAccessForEmail = async (
       }
     }
 
-    const { role, source } = await resolveAllowedRoleForEmail(cleanEmail, {
-      getDynamicRoleForEmail,
-    });
+    const role = await getDynamicRoleForEmail(cleanEmail);
 
     if (role) {
       void saveRoleToCache(cleanEmail, role);
@@ -50,7 +47,7 @@ export const resolveGeneralLoginAccessForEmail = async (
       userSafeMessage: 'El correo no está autorizado para ingresar.',
       context: {
         email: cleanEmail,
-        source,
+        source: 'none',
       },
     });
     return { allowed: false, resolution: 'unauthorized' };

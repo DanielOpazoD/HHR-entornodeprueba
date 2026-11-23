@@ -4,6 +4,7 @@ import {
   isDatabaseClosedError,
   openIndexedDbWithRetries,
   resolveIndexedDbErrorDetails,
+  resolveIndexedDbOpenHealth,
   resolveIndexedDbRecoveryDelay,
   runIndexedDbOperationWithTimeout,
   waitForIndexedDbOpenResolution,
@@ -121,5 +122,30 @@ describe('indexedDbCoreSupport', () => {
         isUsingMock: () => false,
       })
     ).resolves.toBe('settled');
+  });
+
+  it('resolves open health across unopened, ready, closed, and non-closed errors', async () => {
+    const unopened = { isOpen: vi.fn(() => false), settings: { get: vi.fn() } };
+    await expect(resolveIndexedDbOpenHealth(unopened)).resolves.toBe('unopened');
+    expect(unopened.settings.get).not.toHaveBeenCalled();
+
+    const ready = {
+      isOpen: vi.fn(() => true),
+      settings: { get: vi.fn(() => Promise.resolve(null)) },
+    };
+    await expect(resolveIndexedDbOpenHealth(ready)).resolves.toBe('ready');
+    expect(ready.settings.get).toHaveBeenCalledWith('__health_check__');
+
+    const closed = {
+      isOpen: vi.fn(() => true),
+      settings: { get: vi.fn(() => Promise.reject({ name: 'DatabaseClosedError' })) },
+    };
+    await expect(resolveIndexedDbOpenHealth(closed)).resolves.toBe('closed');
+
+    const quota = {
+      isOpen: vi.fn(() => true),
+      settings: { get: vi.fn(() => Promise.reject({ name: 'QuotaExceededError' })) },
+    };
+    await expect(resolveIndexedDbOpenHealth(quota)).resolves.toBe('ready');
   });
 });
