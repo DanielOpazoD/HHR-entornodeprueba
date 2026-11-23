@@ -10,13 +10,20 @@ import {
   recordClinicalInputsBlockFailed,
   recordClinicalInputsBlockStarted,
 } from '@/hooks/controllers/dailyRecordFreshnessGateTelemetryController';
-import { DailyRecordFreshnessGateError } from '@/hooks/controllers/dailyRecordFreshnessGateError';
 import { applyDailyRecordRemoteConfirmation } from '@/hooks/controllers/dailyRecordRemoteConfirmationController';
 import { didDailyRecordFreshnessHydrateNewerRemote } from '@/hooks/controllers/dailyRecordFreshnessHydrationController';
 import { retainedPointReadPublication } from '@/hooks/controllers/dailyRecordPointReadPublication';
 import { isServerConfirmedRead } from '@/hooks/controllers/dailyRecordQueryResultPrecedence';
 
-export { DailyRecordFreshnessGateError } from '@/hooks/controllers/dailyRecordFreshnessGateError';
+export class DailyRecordFreshnessGateError extends Error {
+  readonly presentation: 'warning' | 'silent';
+
+  constructor(message: string, options?: { presentation?: 'warning' | 'silent' }) {
+    super(message);
+    this.name = 'DailyRecordFreshnessGateError';
+    this.presentation = options?.presentation ?? 'warning';
+  }
+}
 
 export type DailyRecordFreshnessStatus =
   | 'fresh_remote_confirmed'

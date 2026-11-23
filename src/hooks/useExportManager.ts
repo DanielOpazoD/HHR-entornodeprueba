@@ -12,17 +12,8 @@ import {
 
 const loadBackupArchiveUseCases = () =>
   import('@/application/backup-export/backupExportArchiveUseCases');
-const loadBackupExportPresentation = async () => {
-  const [{ presentBackupExportOutcome }, { dispatchExportManagerNotice }] = await Promise.all([
-    import('@/hooks/controllers/backupExportOutcomeController'),
-    import('@/hooks/controllers/exportManagerNoticeController'),
-  ]);
-
-  return {
-    presentBackupExportOutcome,
-    dispatchExportManagerNotice,
-  };
-};
+const loadBackupExportPresentation = () =>
+  import('@/hooks/controllers/backupExportOutcomeController');
 const loadBackupHandoffConfirmDescriptor = async () =>
   import('@/hooks/controllers/exportManagerConfirmController').then(
     module => module.buildBackupHandoffConfirmDescriptor

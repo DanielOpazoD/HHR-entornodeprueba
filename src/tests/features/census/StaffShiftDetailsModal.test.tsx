@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { StaffShiftDetailsModal } from '@/features/census/components/StaffShiftDetailsModal';
-import { DailyRecordFreshnessGateError } from '@/hooks/controllers/dailyRecordFreshnessGateError';
+import { DailyRecordFreshnessGateError } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
 import { mergeEloisaStaff } from '@/services/staff/eloisaStaffDiscovery';
 import type { EloisaStaffIdentity } from '@/services/staff/eloisaStaffIdentity';

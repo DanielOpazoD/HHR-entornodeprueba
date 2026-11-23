@@ -7,10 +7,6 @@ import {
   buildExportJsonPartialNotification,
   buildImportFileErrorNotification,
 } from '@/hooks/controllers/fileOperationsFeedbackController';
-import {
-  isJsonImportFile,
-  shouldRefreshAfterJsonImport,
-} from '@/hooks/controllers/fileOperationsController';
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { createScopedLogger } from '@/services/utils/loggerScope';
@@ -114,7 +110,7 @@ export const useFileOperations = (
   const handleImportFile = useCallback(
     async (file: File) => {
       setError(null);
-      if (isJsonImportFile(file)) {
+      if (file.name.endsWith('.json')) {
         const { executeImportJsonBackup, buildJsonImportNotifications } = await loadJsonImport();
         const outcome = await executeImportJsonBackup(file);
         recordOperationalOutcome('backup', 'import_json_backup', outcome, {
@@ -125,7 +121,7 @@ export const useFileOperations = (
           for (const notification of buildJsonImportNotifications(outcome.data)) {
             dispatchNotification(notification);
           }
-          if (shouldRefreshAfterJsonImport(outcome.data)) {
+          if (outcome.data.success) {
             onRefresh();
           }
         } else {

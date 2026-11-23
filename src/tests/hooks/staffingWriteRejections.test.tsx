@@ -4,7 +4,7 @@ import {
   useDetailedStaffingManagement,
   useShiftStaffManagement,
 } from '@/hooks/useShiftStaffManagement';
-import { DailyRecordFreshnessGateError } from '@/hooks/controllers/dailyRecordFreshnessGateError';
+import { DailyRecordFreshnessGateError } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
 

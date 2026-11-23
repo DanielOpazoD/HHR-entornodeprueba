@@ -2,10 +2,6 @@ import { useCallback, useRef, useState } from 'react';
 import type { ChangeEvent, RefObject } from 'react';
 import { importBookmarksFromJson } from '@/services/bookmarks/bookmarkService';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
-import {
-  isFileReaderTextResult,
-  resolveBookmarkImportAlertMessage,
-} from '@/hooks/bookmarks/bookmarkImportController';
 
 interface UseBookmarkImportResult {
   fileInputRef: RefObject<HTMLInputElement | null>;
@@ -30,14 +26,14 @@ export const useBookmarkImport = (): UseBookmarkImportResult => {
 
     try {
       const content = await file.text();
-      if (!isFileReaderTextResult(content)) {
+      if (typeof content !== 'string') {
         throw new Error('Invalid file content for bookmark import');
       }
 
       await importBookmarksFromJson(content);
-      defaultBrowserWindowRuntime.alert(resolveBookmarkImportAlertMessage('success'));
+      defaultBrowserWindowRuntime.alert('Marcadores importados con éxito');
     } catch (_error) {
-      defaultBrowserWindowRuntime.alert(resolveBookmarkImportAlertMessage('error'));
+      defaultBrowserWindowRuntime.alert('Error al importar marcadores');
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) {
