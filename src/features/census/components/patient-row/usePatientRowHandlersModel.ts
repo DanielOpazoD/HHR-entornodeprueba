@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from 'react';
 import type { PatientData } from '@/types/domain/patient';
 
 import type { PatientRowSaveResult } from './inputCellTypes';
@@ -80,14 +81,24 @@ export const usePatientRowHandlersModel = ({
     handleCribDemographicsSave: cribHandlers.handleCribDemographicsSave,
   });
 
-  return {
-    handlers,
-    modalSavers: {
-      onSaveDemographics: mainHandlers.handleDemographicsSave,
-      onSaveCribDemographics: cribHandlers.handleCribDemographicsSave,
-      onRevertEmptyDemographics: () => {
-        void clearPatient(bedId);
+  const onRevertEmptyDemographics = useCallback(() => {
+    void clearPatient(bedId);
+  }, [bedId, clearPatient]);
+
+  return useMemo(
+    () => ({
+      handlers,
+      modalSavers: {
+        onSaveDemographics: mainHandlers.handleDemographicsSave,
+        onSaveCribDemographics: cribHandlers.handleCribDemographicsSave,
+        onRevertEmptyDemographics,
       },
-    },
-  };
+    }),
+    [
+      cribHandlers.handleCribDemographicsSave,
+      handlers,
+      mainHandlers.handleDemographicsSave,
+      onRevertEmptyDemographics,
+    ]
+  );
 };

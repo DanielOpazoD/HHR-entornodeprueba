@@ -148,4 +148,16 @@ describe('usePatientRowRuntime', () => {
       updateClinicalCribMultiple: dependencies.updateClinicalCribMultiple,
     });
   });
+
+  it('keeps runtime object identity stable across rerenders when inputs are unchanged', () => {
+    const { result, rerender } = renderHook(() =>
+      usePatientRowRuntime({ bed, data, currentDateString: '2026-01-03', onAction })
+    );
+
+    const first = result.current;
+    rerender();
+
+    expect(result.current).toBe(first);
+    expect(result.current.rowState).toBe(first.rowState);
+  });
 });

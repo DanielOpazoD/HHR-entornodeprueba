@@ -71,4 +71,62 @@ describe('usePatientRowHandlersModel', () => {
     result.current.modalSavers.onRevertEmptyDemographics();
     expect(clearPatient).toHaveBeenCalledWith('R1');
   });
+
+  it('preserves runtime reference across rerenders when handler dependencies stay stable', () => {
+    const mainSave = vi.fn();
+    const cribSave = vi.fn();
+    const clearPatient = vi.fn();
+    const updatePatient = vi.fn();
+    const updatePatientMultiple = vi.fn();
+    const updateClinicalCrib = vi.fn();
+    const updateClinicalCribMultiple = vi.fn();
+    const patient = DataFactory.createMockPatient('R1');
+
+    const mainReturn = {
+      handleTextChange: vi.fn(),
+      handleCheckboxChange: vi.fn(),
+      handleDevicesChange: vi.fn(),
+      handleDeviceDetailsChange: vi.fn(),
+      handleDeviceHistoryChange: vi.fn(),
+      handleDemographicsSave: mainSave,
+      toggleDocumentType: vi.fn(),
+      handleDeliveryRouteChange: vi.fn(),
+    };
+    const cribReturn = {
+      handleCribTextChange: vi.fn(),
+      handleCribCheckboxChange: vi.fn(),
+      handleCribDevicesChange: vi.fn(),
+      handleCribDeviceDetailsChange: vi.fn(),
+      handleCribDeviceHistoryChange: vi.fn(),
+      handleCribDemographicsSave: cribSave,
+    };
+    const composedHandlers: BuildPatientRowChangeHandlersResult = {
+      mainInputChangeHandlers: {} as BuildPatientRowChangeHandlersResult['mainInputChangeHandlers'],
+      cribInputChangeHandlers: {} as BuildPatientRowChangeHandlersResult['cribInputChangeHandlers'],
+    };
+
+    vi.mocked(usePatientRowMainInputHandlers).mockReturnValue(mainReturn);
+    vi.mocked(usePatientRowCribInputHandlers).mockReturnValue(cribReturn);
+    vi.mocked(usePatientRowChangeHandlers).mockReturnValue(composedHandlers);
+
+    const { result, rerender } = renderHook(() =>
+      usePatientRowHandlersModel({
+        bedId: 'R1',
+        currentDateString: '2026-01-03',
+        data: patient,
+        cribData: undefined,
+        documentType: 'RUT',
+        updatePatient,
+        updatePatientMultiple,
+        clearPatient,
+        updateClinicalCrib,
+        updateClinicalCribMultiple,
+      })
+    );
+
+    const first = result.current;
+    rerender();
+    expect(result.current).toBe(first);
+    expect(result.current.modalSavers).toBe(first.modalSavers);
+  });
 });

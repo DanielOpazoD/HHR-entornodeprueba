@@ -1,7 +1,7 @@
 import { monthlyRecoveryWindow } from '@/features/cudyr/recovery/cudyrMonthlyRecoveryPlan';
 import { CudyrNightStaff } from './CudyrNightStaff';
 import { CudyrExclusionSummary } from './CudyrExclusionSummary';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   Download,
@@ -65,14 +65,18 @@ export const CudyrView = ({
     isOfficialRepaired,
     canExport,
     selectedRow,
-  } = buildCudyrViewModel({
-    data,
-    date,
-    filter,
-    selectedRowKey: selected,
-    busy,
-    error,
-  });
+  } = useMemo(
+    () =>
+      buildCudyrViewModel({
+        data,
+        date,
+        filter,
+        selectedRowKey: selected,
+        busy,
+        error,
+      }),
+    [busy, data, date, error, filter, selected]
+  );
   const refresh = (reuseConfirmedRecovery = false) => {
     setSelected('');
     setExportError('');

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { PatientData } from '@/types/domain/patient';
 
 import type { BedDefinition } from '@/types/domain/beds';
@@ -38,7 +39,7 @@ export const usePatientRowRuntime = ({
     confirm,
     alert,
   } = usePatientRowDependencies();
-  const rowState = derivePatientRowState(data);
+  const rowState = useMemo(() => derivePatientRowState(data), [data]);
   const runtimeHookParams = buildPatientRowRuntimeHookParams({
     bed,
     data,
@@ -63,9 +64,13 @@ export const usePatientRowRuntime = ({
     runtimeHookParams.interactionRuntimeParams
   );
 
-  return buildPatientRowRuntime({
-    rowState,
-    interactionRuntime,
-    editingRuntime,
-  });
+  return useMemo(
+    () =>
+      buildPatientRowRuntime({
+        rowState,
+        interactionRuntime,
+        editingRuntime,
+      }),
+    [editingRuntime, interactionRuntime, rowState]
+  );
 };
