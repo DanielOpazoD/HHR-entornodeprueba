@@ -144,4 +144,20 @@ describe('runtime contract provider lifecycle', () => {
     rerender(<VersionProvider>{stableChild}</VersionProvider>);
     expect(consumerRenders).toBe(settledRenders);
   });
+
+  it('aborts an in-flight runtime contract probe when the provider unmounts', async () => {
+    let passedSignal: AbortSignal | undefined;
+    const first = deferredContract();
+    fetchContract.mockImplementationOnce((options?: { signal?: AbortSignal }) => {
+      passedSignal = options?.signal;
+      return first.promise;
+    });
+
+    const view = renderHook(() => useVersion(), { wrapper: VersionProvider });
+    await act(async () => undefined);
+    expect(passedSignal?.aborted).toBe(false);
+
+    view.unmount();
+    expect(passedSignal?.aborted).toBe(true);
+  });
 });

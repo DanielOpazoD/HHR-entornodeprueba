@@ -257,4 +257,54 @@ describe('prepareClientBootstrap', () => {
     expect(mockSetLocalStorageItem).toHaveBeenCalledWith('hhr_app_version', 'deploy-002');
     expect(mockReload).toHaveBeenCalledTimes(1);
   });
+
+  it('aborts a stalled version.json probe instead of blocking startup indefinitely', async () => {
+    vi.useFakeTimers();
+    try {
+      let receivedSignal: AbortSignal | undefined;
+      vi.mocked(fetch).mockImplementationOnce((_input, init) => {
+        receivedSignal = init?.signal ?? undefined;
+        return new Promise((_resolve, reject) => {
+          receivedSignal?.addEventListener('abort', () => {
+            reject(new DOMException('Timed out', 'AbortError'));
+          });
+        });
+      });
+      mockGetLocalStorageItem.mockReturnValue('deploy-001');
+
+      const pending = prepareClientBootstrap();
+      await vi.advanceTimersByTimeAsync(5_000);
+
+      await expect(pending).resolves.toEqual({ status: 'continue', reason: null });
+      expect(receivedSignal?.aborted).toBe(true);
+      expect(mockReload).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('continues recovery cleanly when browser storage throws SecurityError', async () => {
+    const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('Blocked', 'SecurityError');
+    });
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Blocked', 'SecurityError');
+    });
+    const removeItemSpy = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new DOMException('Blocked', 'SecurityError');
+    });
+    try {
+      mockGetLocalStorageItem.mockReturnValue('deploy-001');
+
+      await expect(prepareClientBootstrap()).resolves.toEqual({
+        status: 'reload',
+        reason: 'version-change',
+      });
+      expect(mockReload).toHaveBeenCalledTimes(1);
+    } finally {
+      getItemSpy.mockRestore();
+      setItemSpy.mockRestore();
+      removeItemSpy.mockRestore();
+    }
+  });
 });

@@ -9,6 +9,7 @@ const VERSION_KEY = 'hhr_app_version';
 const FIREBASE_CONFIG_CACHE_KEY = 'hhr_firebase_config';
 export const BOOTSTRAP_RECOVERY_KEY = 'hhr_bootstrap_recovery_v1';
 const VERSION_URL = '/version.json';
+const VERSION_FETCH_TIMEOUT_MS = 5_000;
 
 export type BootstrapRecoveryReason = 'legacy-sw' | 'version-change' | 'local-dev';
 export type ClientBootstrapRecoveryStatus = 'continue' | 'reload';
@@ -51,8 +52,12 @@ const readRecoveryAttempt = (): BootstrapRecoveryReason | null => {
     return null;
   }
 
-  const raw = sessionStorage.getItem(BOOTSTRAP_RECOVERY_KEY);
-  return raw === 'legacy-sw' || raw === 'version-change' ? raw : null;
+  try {
+    const raw = sessionStorage.getItem(BOOTSTRAP_RECOVERY_KEY);
+    return raw === 'legacy-sw' || raw === 'version-change' ? raw : null;
+  } catch {
+    return null;
+  }
 };
 
 const writeRecoveryAttempt = (reason: BootstrapRecoveryReason): void => {
@@ -60,7 +65,11 @@ const writeRecoveryAttempt = (reason: BootstrapRecoveryReason): void => {
     return;
   }
 
-  sessionStorage.setItem(BOOTSTRAP_RECOVERY_KEY, reason);
+  try {
+    sessionStorage.setItem(BOOTSTRAP_RECOVERY_KEY, reason);
+  } catch {
+    // Ignore storage access failures in restricted browser contexts.
+  }
 };
 
 const clearRecoveryAttempt = (): void => {
@@ -68,7 +77,11 @@ const clearRecoveryAttempt = (): void => {
     return;
   }
 
-  sessionStorage.removeItem(BOOTSTRAP_RECOVERY_KEY);
+  try {
+    sessionStorage.removeItem(BOOTSTRAP_RECOVERY_KEY);
+  } catch {
+    // Ignore storage access failures in restricted browser contexts.
+  }
 };
 
 const isJsonResponse = (contentType: string | null): boolean =>
@@ -119,7 +132,11 @@ const clearBootstrapRuntimeCache = (): void => {
     return;
   }
 
-  localStorage.removeItem(FIREBASE_CONFIG_CACHE_KEY);
+  try {
+    localStorage.removeItem(FIREBASE_CONFIG_CACHE_KEY);
+  } catch {
+    // Ignore storage access failures in restricted browser contexts.
+  }
 };
 
 const fetchVersionInfo = async (): Promise<VersionInfo | null> => {
@@ -127,10 +144,16 @@ const fetchVersionInfo = async (): Promise<VersionInfo | null> => {
     return null;
   }
 
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : undefined;
+  const timeoutId = controller
+    ? setTimeout(() => controller.abort(), VERSION_FETCH_TIMEOUT_MS)
+    : undefined;
+
   try {
     const response = await fetch(`${VERSION_URL}?t=${Date.now()}`, {
       cache: 'no-store',
       headers: { 'Cache-Control': 'no-cache' },
+      ...(controller ? { signal: controller.signal } : {}),
     });
 
     if (!response.ok) {
@@ -156,6 +179,10 @@ const fetchVersionInfo = async (): Promise<VersionInfo | null> => {
   } catch (error) {
     bootstrapRecoveryLogger.warn('Failed to fetch version.json during bootstrap', error);
     return null;
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
   }
 };
 

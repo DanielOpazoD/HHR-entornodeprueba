@@ -47,6 +47,7 @@ export const VersionProvider: React.FC<{ children: ReactNode }> = ({ children })
   const mounted = useRef(true);
   const schemaAhead = useRef(false);
   const checkInFlight = useRef<Promise<void> | null>(null);
+  const checkController = useRef<AbortController | null>(null);
 
   const checkVersion = useCallback((remoteVersionValue: number) => {
     if (remoteVersionValue > CURRENT_SCHEMA_VERSION) {
@@ -65,11 +66,16 @@ export const VersionProvider: React.FC<{ children: ReactNode }> = ({ children })
     if (!mounted.current) return Promise.resolve();
     if (checkInFlight.current) return checkInFlight.current;
 
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    checkController.current = controller;
+
     return (checkInFlight.current = Promise.resolve()
       .then(async () => {
         if (!mounted.current) return;
         try {
-          const contract = await fetchRemoteRuntimeContract();
+          const contract = await fetchRemoteRuntimeContract(
+            controller ? { signal: controller.signal } : undefined
+          );
           if (!mounted.current || !contract) return;
 
           setRuntimeContract(contract);
@@ -102,6 +108,9 @@ export const VersionProvider: React.FC<{ children: ReactNode }> = ({ children })
         }
       })
       .finally(() => {
+        if (checkController.current === controller) {
+          checkController.current = null;
+        }
         checkInFlight.current = null;
       }));
   }, []);
@@ -126,6 +135,8 @@ export const VersionProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     return () => {
       mounted.current = false;
+      checkController.current?.abort();
+      checkController.current = null;
       window.clearInterval(interval);
       window.removeEventListener('focus', checkRuntimeContract);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
