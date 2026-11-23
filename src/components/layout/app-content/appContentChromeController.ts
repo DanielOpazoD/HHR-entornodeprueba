@@ -10,16 +10,16 @@ import type { AppContentRuntime } from '@/components/layout/app-content/useAppCo
 import type { CensusQuickActionPatient } from '@/shared/contracts/censusQuickActionPatient';
 import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/dateStripRadiologyViewer';
 
-export const buildCensusQuickActionPatients = (
-  record: AppContentRuntime['record']
-): CensusQuickActionPatient[] => {
-  const bedsById = new Map(BEDS.map(bed => [bed.id, bed]));
+const BEDS_BY_ID = new Map(BEDS.map(bed => [bed.id, bed]));
 
-  return Object.entries(record?.beds || {})
+export const buildCensusQuickActionPatientsFromBeds = (
+  beds: NonNullable<AppContentRuntime['record']>['beds'] | undefined
+): CensusQuickActionPatient[] => {
+  return Object.entries(beds || {})
     .filter(([, patient]) => Boolean(patient.patientName?.trim()))
     .map(([bedId, patient]) => ({
       bedId,
-      label: `${bedsById.get(bedId)?.name || bedId} · ${patient.patientName}`,
+      label: `${BEDS_BY_ID.get(bedId)?.name || bedId} · ${patient.patientName}`,
       patientName: patient.patientName || '',
       rut: patient.rut || '',
       diagnosis: patient.cie10Description || patient.pathology || '',
@@ -29,6 +29,10 @@ export const buildCensusQuickActionPatients = (
       clinicalEpisodeId: patient.clinicalEpisodeId,
     }));
 };
+
+export const buildCensusQuickActionPatients = (
+  record: AppContentRuntime['record']
+): CensusQuickActionPatient[] => buildCensusQuickActionPatientsFromBeds(record?.beds);
 
 export const canUseCensusDateStripActions = (
   currentModule: UseUIStateReturn['currentModule'],

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 
@@ -38,12 +38,15 @@ export const useBackupArchiveStatus = ({
     isArchived: false,
   });
   const isArchived = archiveState.key === archiveStatusKey ? archiveState.isArchived : false;
-  const setIsArchived = (nextIsArchived: boolean) => {
-    setArchiveState({
-      key: archiveStatusKey,
-      isArchived: nextIsArchived,
-    });
-  };
+  const setIsArchived = useCallback(
+    (nextIsArchived: boolean) => {
+      setArchiveState({
+        key: archiveStatusKey,
+        isArchived: nextIsArchived,
+      });
+    },
+    [archiveStatusKey]
+  );
 
   useEffect(() => {
     if (!canVerifyArchiveStatus || !shouldCheckArchiveStatus(currentDateString, currentModule)) {

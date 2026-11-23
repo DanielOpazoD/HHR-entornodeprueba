@@ -124,18 +124,18 @@ export const useAppContentRuntime = ({ ui }: UseAppContentRuntimeParams): AppCon
     });
   }, [dateNav.currentDateString]);
 
+  const readRecord = React.useCallback(() => recordRef.current, []);
+
   const exportManager = useExportManager(
     React.useMemo(
       () => ({
         ...resolveExportManagerParams(dateNav, ui, record, canVerifyArchiveStatus),
         flushBeforeExport,
-        getStableRecordForExport: () => recordRef.current,
+        getStableRecordForExport: readRecord,
       }),
-      [canVerifyArchiveStatus, dateNav, flushBeforeExport, record, ui]
+      [canVerifyArchiveStatus, dateNav, flushBeforeExport, readRecord, record, ui]
     )
   );
-
-  const readRecord = React.useCallback(() => recordRef.current, []);
 
   const handleExportExcel = useCensusMasterExcelExport({
     currentDateString: dateNav.currentDateString,

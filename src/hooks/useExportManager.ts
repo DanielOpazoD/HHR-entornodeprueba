@@ -1,4 +1,4 @@
-import { useState, useCallback, useLayoutEffect, useRef } from 'react';
+import { useState, useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
@@ -188,7 +188,9 @@ export const useExportManager = ({
 
   const handleBackupHandoff = useCallback(
     async (skipConfirmation = false) => {
-      const exportRecord = getStableRecordForExport ? getStableRecordForExport() : record;
+      const exportRecord = getStableRecordForExport
+        ? getStableRecordForExport()
+        : currentRecordRef.current.record;
       if (!exportRecord) return;
 
       if (!skipConfirmation) {
@@ -239,7 +241,6 @@ export const useExportManager = ({
       getStableRecordForExport,
       isArchived,
       notifyError,
-      record,
       selectedShift,
       setIsArchived,
       success,
@@ -247,12 +248,22 @@ export const useExportManager = ({
     ]
   );
 
-  return {
-    isArchived,
-    isBackingUp,
-    handleExportPDF,
-    handlePrintWithBrowserOptions,
-    handleBackupExcel,
-    handleBackupHandoff,
-  };
+  return useMemo(
+    () => ({
+      isArchived,
+      isBackingUp,
+      handleExportPDF,
+      handlePrintWithBrowserOptions,
+      handleBackupExcel,
+      handleBackupHandoff,
+    }),
+    [
+      handleBackupExcel,
+      handleBackupHandoff,
+      handleExportPDF,
+      handlePrintWithBrowserOptions,
+      isArchived,
+      isBackingUp,
+    ]
+  );
 };

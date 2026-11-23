@@ -67,7 +67,7 @@ export interface NavbarProps {
   hideRuntimeIndicators?: boolean;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({
+export const Navbar: React.FC<NavbarProps> = React.memo(function Navbar({
   currentModule,
   setModule,
   censusViewMode,
@@ -77,7 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
   isFirebaseConnected,
   hideRuntimeIndicators = false,
-}) => {
+}) {
   const { currentUser, role, remoteSyncStatus } = useAuth();
   const visibleModules = getVisibleAppModules(role);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -250,4 +250,4 @@ export const Navbar: React.FC<NavbarProps> = ({
       )}
     </nav>
   );
-};
+});
