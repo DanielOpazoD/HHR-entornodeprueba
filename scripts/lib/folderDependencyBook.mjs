@@ -1,5 +1,5 @@
 /**
- * The exceptions book of `check:folder-dependencies`: its two sections, their validation and the
+ * The exceptions book of `check:folder-dependencies`: its sections, their validation and the
  * guarantee that the book only shrinks.
  *
  * Each section lists relations one by one (`from`, `to`, `kind`, `reason`). Inside a tree, the
@@ -16,6 +16,11 @@ import { execFileSync } from 'node:child_process';
 export const BOOK_SECTIONS = [
   { id: 'direction', label: 'exceptions', read: policy => policy.exceptions },
   { id: 'data', label: 'dataAccess.exceptions', read: policy => policy.dataAccess?.exceptions },
+  {
+    id: 'netlify',
+    label: 'netlifyBoundary.exceptions',
+    read: policy => policy.netlifyBoundary?.exceptions,
+  },
 ];
 const BOUND_KINDS = new Set(['value', 'deferred']);
 

@@ -10,7 +10,7 @@ import type {
 import type { ClinicalFillError } from '../contracts/clinicalFillContracts';
 import { logger } from '@/services/utils/loggerService';
 
-import { sanitizeOperationalTelemetryContextValues } from '@/services/observability/operationalTelemetryPrivacy';
+import { sanitizeOperationalTelemetryContextValues } from '@/shared/observability/operationalTelemetryPrivacy';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 
 const rayenSyncLogger = logger.child('RayenSync');

@@ -10,7 +10,7 @@ vi.mock('@/services/observability/operationalTelemetryExternalAdapter', () => ({
   dispatchOperationalTelemetryExternally: mocks.external,
 }));
 
-import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
+import { sanitizeOperationalTelemetryEvent } from '@/shared/observability/operationalTelemetryPrivacy';
 import { errorService } from '@/services/utils/errorService';
 
 const reject = (reason: unknown) =>

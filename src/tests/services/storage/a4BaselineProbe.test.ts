@@ -170,7 +170,7 @@ it('D1 emits one content-free occurrence only for a newer unheld local row after
   await hospitalDB.dailyRecords.put(local);
   const Dexie = (await import('dexie')).default;
   const { parseOperationalTelemetryBody } =
-    await import('@/services/observability/operationalTelemetryIngestPolicy');
+    await import('@/shared/observability/operationalTelemetryIngestPolicy');
   telemetry.mockImplementation(event => {
     if (event.context?.reason === 'unheld_newer_local_replaced') {
       expect(Dexie.currentTransaction).toBeFalsy();

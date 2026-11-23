@@ -23,7 +23,7 @@ import {
   parseFugaRecipientConfig,
   resolveFugaRecipients,
   validateFugaNotificationRequest,
-} from '../../src/features/census/controllers/fugaNotificationPolicyController';
+} from '../../src/domain/census/fugaNotificationPolicy';
 
 const ALLOWED_ROLES = new Set(['nurse_hospital', 'admin']);
 

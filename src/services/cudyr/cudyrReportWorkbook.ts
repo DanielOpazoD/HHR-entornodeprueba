@@ -11,7 +11,7 @@ import { addCudyrReportContextTable } from './cudyrReportContextTable';
 import { addCudyrReportTables } from './cudyrReportWorkbookTables';
 import { addCudyrStatisticsTables } from './cudyrStatisticsWorkbook';
 import { addCudyrDataSheet } from './cudyrDataSheet';
-import { XLSX_MIME_TYPE, validateExcelExport } from '@/services/exporters/excelValidation';
+import { XLSX_MIME_TYPE, validateExcelExport } from '@/utils/excelValidation';
 import { recordE2EDownloadArtifact } from '@/shared/runtime/e2eRuntime';
 
 export const buildCudyrReportWorkbook = async (

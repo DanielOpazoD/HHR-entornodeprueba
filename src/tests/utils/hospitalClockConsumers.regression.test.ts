@@ -12,8 +12,8 @@ import {
 } from '@/features/admin/components/systemHealthIncidentUtils';
 import { baseStatus } from '@/tests/features/admin/systemHealthIncidentTestFixtures';
 import { serializeEloisaPatientPayload } from '@/features/rayen-manual-import/domain/eloisaPatientCode';
-import { buildOperationalTelemetryAlert } from '@/services/observability/operationalTelemetryIngestPolicy';
-import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
+import { buildOperationalTelemetryAlert } from '@/shared/observability/operationalTelemetryIngestPolicy';
+import { sanitizeOperationalTelemetryEvent } from '@/shared/observability/operationalTelemetryPrivacy';
 
 const evening = new Date('2026-10-25T04:30:00Z');
 const user = baseStatus({

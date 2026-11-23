@@ -8,7 +8,7 @@ import {
   parseFugaRecipientConfig,
   resolveFugaRecipients,
   validateFugaNotificationRequest,
-} from '@/features/census/controllers/fugaNotificationPolicyController';
+} from '@/domain/census/fugaNotificationPolicy';
 import { getUndoMovementErrorMessage } from '@/application/census/controllers/patientMovementUndoErrorPresentation';
 
 describe('criticalCoverageControllers', () => {

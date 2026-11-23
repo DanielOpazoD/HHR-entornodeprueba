@@ -11,7 +11,7 @@ import {
   type OperationalNotice,
 } from '@/shared/feedback/operationalNoticePolicy';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
-import type { OPERATIONAL_TELEMETRY_SYNC_NOTICE_KINDS } from '@/services/observability/operationalTelemetryPrivacy';
+import type { OPERATIONAL_TELEMETRY_SYNC_NOTICE_KINDS } from '@/shared/observability/operationalTelemetryPrivacy';
 
 /** Which sync notice a save or an update showed; the production log counts it by this value. */
 export type SyncNoticeKind = (typeof OPERATIONAL_TELEMETRY_SYNC_NOTICE_KINDS)[number];

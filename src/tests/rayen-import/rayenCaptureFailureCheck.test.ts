@@ -8,7 +8,7 @@ vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
 
 import { classifyRayenSnapshotError } from '@/features/rayen-import/domain/rayenSnapshotErrorClassification';
 import { reportRayenSyncTerminal } from '@/features/rayen-import/observability/rayenSyncDiagnostics';
-import { sanitizeOperationalTelemetryContextValues } from '@/services/observability/operationalTelemetryPrivacy';
+import { sanitizeOperationalTelemetryContextValues } from '@/shared/observability/operationalTelemetryPrivacy';
 
 const WRAP =
   'No se pudo leer Rayen. Recarga la pestaña de Ficha Médico (Cmd+R) para activar la extensión y reintenta. Detalle: ';

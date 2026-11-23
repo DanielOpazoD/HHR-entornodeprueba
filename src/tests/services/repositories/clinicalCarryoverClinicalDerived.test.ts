@@ -39,7 +39,7 @@ vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
 }));
 
 import { initializeDay } from '@/services/repositories/dailyRecordRepositoryInitializationService';
-import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
+import { sanitizeOperationalTelemetryEvent } from '@/shared/observability/operationalTelemetryPrivacy';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { splitEpisode } from '@/tests/factories/splitEpisode';
 

@@ -55,6 +55,12 @@ Qué impone hoy un control y qué queda como objetivo:
   un módulo de `services/` que use un paquete de datos (Firestore, Storage, Dexie), el global
   `indexedDB` o un lector declarado en `dataAccess.modules` (el lector REST de Firestore y el
   respaldo local del registro diario), directamente o a través de otros servicios.
+- **Hoy:** las funciones de Netlify solo importan código de `src/` desde la capa 0 (`netlifyBoundary`
+  en la matriz: `types`, `domain`, `utils`, `constants`, `schemas`, `shared`), en valor y en carga
+  diferida; los tipos (`import type`) cruzan libres. La única excepción registrada en el libro
+  (que solo baja) es la carga diferida de `src/services/exporters/censusMasterWorkbook.ts` desde
+  `send-census-email.ts`, para compartir el mismo serializador ExcelJS protegido entre correo y
+  descarga.
 - **Hoy, criterio:** el control es una guía y no ve todos los caminos a los datos. No ve una
   llamada a Functions (`firebase/functions`), un `fetch` propio, Cache Storage ni
   `localStorage`. Tampoco ve un worker de un área que entra al interior de otra, y cuenta como

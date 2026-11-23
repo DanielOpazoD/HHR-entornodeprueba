@@ -8,7 +8,7 @@ import {
   parseFugaRecipientConfig,
   resolveFugaRecipients,
   validateFugaNotificationRequest,
-} from '@/features/census/controllers/fugaNotificationPolicyController';
+} from '@/domain/census/fugaNotificationPolicy';
 
 describe('fugaNotificationPolicyController', () => {
   it('detects psychiatry specialties with and without accents', () => {

@@ -1,5 +1,5 @@
 import type { OperationalRuntimeState } from '@/services/observability/operationalRuntimeState';
-import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
+import type { OperationalTelemetryOperation } from '@/shared/observability/operationalTelemetryOperations';
 
 export type OperationalTelemetryCategory =
   | 'auth'

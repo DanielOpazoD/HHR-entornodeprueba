@@ -1,6 +1,6 @@
 import type { Workbook } from 'exceljs';
 
-import { validateExcelExport, XLSX_MIME_TYPE } from './excelValidation';
+import { validateExcelExport, XLSX_MIME_TYPE } from '../../utils/excelValidation';
 import { excelFileDownloadLogger } from '@/services/exporters/exporterLoggers';
 import { downloadBlob } from '@/utils/downloadBlob';
 

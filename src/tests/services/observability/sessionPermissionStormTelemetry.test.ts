@@ -1,8 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
-import { sanitizeOperationalTelemetryContextValues } from '@/services/observability/operationalTelemetryPrivacy';
-import { shouldAlertOperationalTelemetry } from '@/services/observability/operationalTelemetryIngestPolicy';
+import { sanitizeOperationalTelemetryContextValues } from '@/shared/observability/operationalTelemetryPrivacy';
+import { shouldAlertOperationalTelemetry } from '@/shared/observability/operationalTelemetryIngestPolicy';
 
 describe('permission storm telemetry', () => {
   it('a permission storm reaches the server with its counts, code and second opinion, not its labels', () => {

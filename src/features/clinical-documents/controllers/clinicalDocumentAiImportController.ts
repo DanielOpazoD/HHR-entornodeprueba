@@ -13,7 +13,7 @@ import { createClinicalDocumentHash } from '@/domain/clinical-documents/hash';
 import {
   normalizeClinicalDocumentAiImportText,
   type ClinicalDocumentAiImportPayload,
-} from '@/features/clinical-documents/contracts/clinicalDocumentAiImportContract';
+} from '@/shared/contracts/clinicalDocumentAiImportContract';
 
 export {
   CLINICAL_DOCUMENT_AI_IMPORT_MAX_FILE_BYTES,
@@ -26,7 +26,7 @@ export {
   type ClinicalDocumentAiImportParseResult,
   type ClinicalDocumentAiImportPayload,
   type ClinicalDocumentAiImportValidationResult,
-} from '@/features/clinical-documents/contracts/clinicalDocumentAiImportContract';
+} from '@/shared/contracts/clinicalDocumentAiImportContract';
 
 const escapeClinicalDocumentHtml = (value: string): string =>
   value

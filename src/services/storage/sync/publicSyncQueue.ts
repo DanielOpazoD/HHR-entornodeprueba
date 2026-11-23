@@ -1,4 +1,4 @@
-import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
+import type { OperationalTelemetryOperation } from '@/shared/observability/operationalTelemetryOperations';
 import { createCudyrArchiveQueue } from './publicCudyrArchiveQueue';
 import { ensureDbReady } from '@/services/storage/indexeddb/indexedDbCore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';

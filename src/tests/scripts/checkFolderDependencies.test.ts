@@ -16,10 +16,17 @@ const POLICY = 'scripts/folder-dependency-matrix.json';
 // hand, never derived.
 const livePolicy = JSON.parse(readFileSync(POLICY, 'utf8'));
 const liveLayers = livePolicy.layers;
-const policyText = (exceptions: Exception[] = [], dataExceptions: Exception[] = []) =>
+const policyText = (
+  exceptions: Exception[] = [],
+  dataExceptions: Exception[] = [],
+  netlifyExceptions?: Exception[]
+) =>
   JSON.stringify({
     layers: liveLayers,
     dataAccess: { ...livePolicy.dataAccess, exceptions: dataExceptions },
+    ...(netlifyExceptions !== undefined
+      ? { netlifyBoundary: { ...livePolicy.netlifyBoundary, exceptions: netlifyExceptions } }
+      : {}),
     exceptions,
   });
 // No CI base leaks into the synthetic repositories.
@@ -33,11 +40,12 @@ afterEach(() => {
 const createRepository = (
   files: Record<string, string>,
   exceptions: Exception[] = [],
-  dataExceptions: Exception[] = []
+  dataExceptions: Exception[] = [],
+  netlifyExceptions?: Exception[]
 ) => {
   const root = mkdtempSync(path.join(tmpdir(), 'hhr-folder-dependencies-'));
   roots.push(root);
-  const policy = policyText(exceptions, dataExceptions);
+  const policy = policyText(exceptions, dataExceptions, netlifyExceptions);
   for (const [relativePath, content] of Object.entries({ [POLICY]: policy, ...files })) {
     const destination = path.join(root, relativePath);
     mkdirSync(path.dirname(destination), { recursive: true });
@@ -49,10 +57,11 @@ const createRepository = (
 const check = (
   files: Record<string, string>,
   exceptions: Exception[] = [],
-  dataExceptions: Exception[] = []
+  dataExceptions: Exception[] = [],
+  netlifyExceptions?: Exception[]
 ) => {
   const result = checkFolderDependencies(
-    createRepository(files, exceptions, dataExceptions),
+    createRepository(files, exceptions, dataExceptions, netlifyExceptions),
     NO_BASE
   );
   return { ...result, output: `${result.stdout}${result.stderr}` };
@@ -800,6 +809,145 @@ describe('one direction rule between the folders of src/', () => {
         step => step.run === 'npm run check:quality'
       );
       expect(tooling?.env?.FOLDER_BOOK_BASE).toBe('${{ github.event.pull_request.base.sha }}');
+    });
+  });
+
+  describe('Netlify Functions import only Layer 0 from src/', () => {
+    const listedCrossing: Exception = {
+      from: 'netlify/functions/send-census-email.ts',
+      to: 'src/services/exporters/censusMasterWorkbook.ts',
+      kind: 'deferred',
+      reason: 'synthetic',
+    };
+
+    it('enforces netlifyBoundary with allowedMaxLayer 0 in the live matrix', () => {
+      expect(livePolicy.netlifyBoundary?.allowedMaxLayer).toBe(0);
+      expect(Array.isArray(livePolicy.netlifyBoundary?.exceptions)).toBe(true);
+    });
+
+    it.each([
+      [
+        'features (value)',
+        "import { x } from '../../src/features/census/policy';",
+        'src/features/census/policy.ts',
+      ],
+      [
+        'services (value)',
+        "import { x } from '../../src/services/exporters/helper';",
+        'src/services/exporters/helper.ts',
+      ],
+      [
+        'services (deferred)',
+        "export const load = () => import('../../src/services/exporters/helper');",
+        'src/services/exporters/helper.ts',
+      ],
+    ])('rejects a Netlify import above Layer 0: %s', (_label, code, targetFile) => {
+      const result = check(
+        {
+          'netlify/functions/probe.ts': code,
+          ...target(targetFile),
+        },
+        [],
+        [],
+        []
+      );
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('Funciones de Netlify importando capas no puras de src/');
+      expect(result.stderr).toContain(`No la agregues a "netlifyBoundary.exceptions" en ${POLICY}`);
+    });
+
+    it.each([
+      [
+        'domain',
+        "import { x } from '../../src/domain/census/policy';",
+        'src/domain/census/policy.ts',
+      ],
+      [
+        'shared',
+        "import { x } from '../../src/shared/contracts/serverless';",
+        'src/shared/contracts/serverless.ts',
+      ],
+      [
+        'utils',
+        "import { x } from '../../src/utils/excelValidation';",
+        'src/utils/excelValidation.ts',
+      ],
+      ['constants', "import { x } from '../../src/constants/email';", 'src/constants/email.ts'],
+      [
+        'type-only from services',
+        "import type { x } from '../../src/services/exporters/helper';\nexport type T = typeof x;",
+        'src/services/exporters/helper.ts',
+      ],
+    ])('accepts Layer 0 and type-only Netlify imports: %s', (_label, code, targetFile) => {
+      const result = check(
+        {
+          'netlify/functions/probe.ts': code,
+          ...target(targetFile),
+        },
+        [],
+        [],
+        []
+      );
+      expect(result.status, result.output).toBe(0);
+    });
+
+    it('accepts a listed Netlify exception and fails once the code removes it', () => {
+      const files = {
+        'netlify/functions/send-census-email.ts':
+          "export const load = () => import('../../src/services/exporters/censusMasterWorkbook');",
+        ...target('src/services/exporters/censusMasterWorkbook.ts'),
+      };
+      const listed = check(files, [], [], [listedCrossing]);
+      expect(listed.status, listed.output).toBe(0);
+      expect(listed.stdout).toContain('1 cruces de Netlify fuera de capa 0, todos en el libro.');
+
+      const gone = check(
+        target('src/services/exporters/censusMasterWorkbook.ts'),
+        [],
+        [],
+        [listedCrossing]
+      );
+      expect(gone.status).toBe(1);
+      expect(gone.stderr).toContain('Sácala de "netlifyBoundary.exceptions"');
+    });
+
+    it('rejects adding a new netlifyBoundary exception compared to the base commit', () => {
+      const gitIn = (root: string, ...args: string[]) =>
+        execFileSync('git', ['-C', root, ...args], { stdio: 'pipe', encoding: 'utf8' });
+      const root = createRepository(
+        {
+          'netlify/functions/send-census-email.ts':
+            "export const load = () => import('../../src/services/exporters/censusMasterWorkbook');",
+          ...target('src/services/exporters/censusMasterWorkbook.ts'),
+        },
+        [],
+        [],
+        [listedCrossing]
+      );
+      gitIn(root, 'init', '-q');
+      gitIn(root, 'add', '-A');
+      gitIn(root, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'base');
+      gitIn(root, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+
+      const addedCrossing: Exception = {
+        from: 'netlify/functions/other.ts',
+        to: 'src/services/other.ts',
+        kind: 'value',
+        reason: 'synthetic',
+      };
+      writeFileSync(
+        path.join(root, 'netlify/functions/other.ts'),
+        "import { x } from '../../src/services/other';\nexport { x };"
+      );
+      mkdirSync(path.join(root, 'src/services'), { recursive: true });
+      writeFileSync(path.join(root, 'src/services/other.ts'), 'export const x = 1;');
+      writeFileSync(path.join(root, POLICY), policyText([], [], [listedCrossing, addedCrossing]));
+
+      const result = checkFolderDependencies(root, NO_BASE);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        '- "netlifyBoundary.exceptions": netlify/functions/other.ts → src/services/other.ts (valor)'
+      );
     });
   });
 

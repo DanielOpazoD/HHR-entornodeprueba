@@ -23,7 +23,7 @@ import { handler } from '../../../netlify/functions/send-fuga-notification';
 import {
   buildFugaNotificationBody,
   resolveFugaRecipients,
-} from '@/features/census/controllers/fugaNotificationPolicyController';
+} from '@/domain/census/fugaNotificationPolicy';
 
 describe('send-fuga-notification netlify function', () => {
   const originalEnv = { ...process.env };

@@ -205,12 +205,16 @@ const getFolderDependencyDebtMetrics = () => {
       analysis.unlisted.length +
       analysis.stale.length +
       analysis.dataUnlisted.length +
-      analysis.dataStale.length,
+      analysis.dataStale.length +
+      analysis.netlifyUnlisted.length +
+      analysis.netlifyStale.length,
     listed:
       analysis.upward.length -
       analysis.unlisted.length +
       analysis.dataReads.length -
-      analysis.dataUnlisted.length,
+      analysis.dataUnlisted.length +
+      analysis.netlifyCrossings.length -
+      analysis.netlifyUnlisted.length,
   };
 };
 
@@ -525,7 +529,7 @@ const mdLines = [
   '## Folder Dependency Debt',
   '',
   `- Violations: ${metrics.folderDependencyDebt.violations}`,
-  `- Upward relations listed in the exceptions book: ${metrics.folderDependencyDebt.listed}`,
+  `- Relations listed in the exceptions book: ${metrics.folderDependencyDebt.listed}`,
   '',
   '## Tests',
   '',

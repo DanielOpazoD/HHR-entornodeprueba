@@ -11,7 +11,7 @@ const authorizeRoleRequestMock = vi.fn();
 const extractBearerTokenMock = vi.fn();
 const getFirebaseServerMock = vi.fn();
 
-vi.mock('@/services/security/passwordGenerator', () => ({
+vi.mock('@/utils/passwordGenerator', () => ({
   generateCensusPassword: vi.fn(() => 'PIN-123'),
 }));
 
@@ -24,7 +24,7 @@ vi.mock('@/services/exporters/censusMasterWorkbook', () => ({
   getCensusMasterFilename: vi.fn(() => 'censo-2026-03-24.xlsx'),
 }));
 
-vi.mock('@/services/exporters/excelValidation', () => ({
+vi.mock('@/utils/excelValidation', () => ({
   validateExcelBuffer: (...args: unknown[]) => validateExcelBufferMock(...args),
   validateExcelFilename: (...args: unknown[]) => validateExcelFilenameMock(...args),
   MIN_EXCEL_SIZE: 10,

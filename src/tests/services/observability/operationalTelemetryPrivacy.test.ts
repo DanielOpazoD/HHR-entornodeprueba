@@ -11,11 +11,11 @@ import {
   normalizeOperationalTelemetryOperation,
   sanitizeOperationalTelemetryContextValues,
   sanitizeOperationalTelemetryEvent,
-} from '@/services/observability/operationalTelemetryPrivacy';
+} from '@/shared/observability/operationalTelemetryPrivacy';
 import {
   buildOperationalTelemetryAlert,
   parseOperationalTelemetryBody,
-} from '@/services/observability/operationalTelemetryIngestPolicy';
+} from '@/shared/observability/operationalTelemetryIngestPolicy';
 
 const PATIENT = 'Juan Pérez';
 const RUT = '12.345.678-9';

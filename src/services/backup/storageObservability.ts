@@ -1,4 +1,4 @@
-import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
+import type { OperationalTelemetryOperation } from '@/shared/observability/operationalTelemetryOperations';
 import { createDomainObservability } from '@/services/observability/domainObservability';
 
 const backupObservability = createDomainObservability('backup', 'BackupStorage');

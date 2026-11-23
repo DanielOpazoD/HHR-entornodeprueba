@@ -40,7 +40,8 @@ const shouldSampleStatus = (status: OperationalTelemetryStatus, sampleRate: numb
  * before the beacon is built, and the server runs it again on whatever arrives.
  */
 const buildPayload = async (event: OperationalTelemetryEvent): Promise<string> => {
-  const { sanitizeOperationalTelemetryEvent } = await import('./operationalTelemetryPrivacy');
+  const { sanitizeOperationalTelemetryEvent } =
+    await import('../../shared/observability/operationalTelemetryPrivacy');
   return JSON.stringify({
     source: 'hhr_operational_telemetry',
     event: sanitizeOperationalTelemetryEvent(event),

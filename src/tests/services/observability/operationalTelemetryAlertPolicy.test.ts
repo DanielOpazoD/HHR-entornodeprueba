@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { shouldAlertOperationalTelemetry } from '@/services/observability/operationalTelemetryIngestPolicy';
+import { shouldAlertOperationalTelemetry } from '@/shared/observability/operationalTelemetryIngestPolicy';
 
 describe('who gets an email for an operational event', () => {
   it('mails a failure that needs a person', () => {

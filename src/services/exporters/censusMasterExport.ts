@@ -13,7 +13,7 @@ import { getRecordsForMonth } from '@/services/storage/indexeddb/indexedDbRecord
 import { getMonthRecordsFromFirestore } from '../storage/firestore';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { buildCensusMasterBinary, getCensusMasterFilename } from './censusMasterWorkbook';
-import { validateExcelExport, XLSX_MIME_TYPE } from './excelValidation';
+import { validateExcelExport, XLSX_MIME_TYPE } from '../../utils/excelValidation';
 import { censusMasterExportLogger } from '@/services/exporters/exporterLoggers';
 import { isE2ERuntimeEnabled, recordE2EDownloadArtifact } from '@/shared/runtime/e2eRuntime';
 import { downloadBlob } from '@/utils/downloadBlob';

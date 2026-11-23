@@ -13,7 +13,7 @@ vi.mock('@/services/observability/operationalTelemetryExternalAdapter', () => ({
 
 import { createOperationalTelemetryHandler } from '../../../../netlify/functions/operational-telemetry';
 import type { AlertQueue } from '../../../../netlify/functions/lib/telemetry-alerts/queueTypes';
-import { parseOperationalTelemetryBody } from '@/services/observability/operationalTelemetryIngestPolicy';
+import { parseOperationalTelemetryBody } from '@/shared/observability/operationalTelemetryIngestPolicy';
 import { getOperationalTelemetryEvents } from '@/services/observability/operationalTelemetryRecorder';
 import {
   DAILY_ACTION_SUMMARY_INTERVAL_MS,

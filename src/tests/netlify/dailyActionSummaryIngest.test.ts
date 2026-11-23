@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createOperationalTelemetryHandler } from '../../../netlify/functions/operational-telemetry';
 import type { AlertQueue } from '../../../netlify/functions/lib/telemetry-alerts/queueTypes';
-import { DAILY_ACTION_OPERATIONS } from '../../../src/services/observability/dailyActionSummaryContract';
+import { DAILY_ACTION_OPERATIONS } from '../../shared/observability/dailyActionSummaryContract';
 
 /** A hand-made request: the endpoint is public, so nothing here relies on the browser producer. */
 const crafted = (operation: string, status: string) =>

@@ -2,7 +2,7 @@
 import {
   parseOperationalTelemetryBody,
   shouldAlertOperationalTelemetry,
-} from '../../src/services/observability/operationalTelemetryIngestPolicy';
+} from '../../src/shared/observability/operationalTelemetryIngestPolicy';
 import {
   buildCorsHeaders,
   buildJsonResponse,

@@ -14,8 +14,8 @@ import { dispatchOperationalTelemetryExternally } from '@/services/observability
 import {
   buildOperationalTelemetryAlert,
   shouldAlertOperationalTelemetry,
-} from '@/services/observability/operationalTelemetryIngestPolicy';
-import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
+} from '@/shared/observability/operationalTelemetryIngestPolicy';
+import { sanitizeOperationalTelemetryEvent } from '@/shared/observability/operationalTelemetryPrivacy';
 import { errorService } from '@/services/utils/errorService';
 import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 

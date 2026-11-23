@@ -1,7 +1,7 @@
 import { readAuthorizationHeader } from './lib/authorization-header';
 import { safeErrorLog, safeErrorMessage } from './lib/safe-error-message';
-import { reserveCensusEmailDiagnoses } from '../../src/services/exporters/censusEmailDiagnosisPrivacy';
-import { generateCensusPassword } from '../../src/services/security/passwordGenerator';
+import { reserveCensusEmailDiagnoses } from '../../src/domain/census/censusEmailDiagnosisPrivacy';
+import { generateCensusPassword } from '../../src/utils/passwordGenerator';
 import { sendCensusEmail } from './lib/gmailClient';
 import { getFirebaseServer } from './lib/firebase-server';
 import { CENSUS_DEFAULT_RECIPIENTS } from '../../src/constants/email';
@@ -9,7 +9,7 @@ import {
   validateExcelBuffer,
   validateExcelFilename,
   MIN_EXCEL_SIZE,
-} from '../../src/services/exporters/excelValidation';
+} from '../../src/utils/excelValidation';
 import type { DailyRecord } from '../../src/types/domain/dailyRecord';
 import {
   buildCorsHeaders,

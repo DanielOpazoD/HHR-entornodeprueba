@@ -20,7 +20,7 @@ vi.mock('@/services/exporters/censusMasterWorkbook', () => ({
   buildCensusMasterBinary: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
   getCensusMasterFilename: () => 'Censo_2026-03-06.xlsx',
 }));
-vi.mock('@/services/exporters/excelValidation', () => ({
+vi.mock('@/utils/excelValidation', () => ({
   validateExcelExport: () => ({ valid: true }),
   XLSX_MIME_TYPE: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 }));

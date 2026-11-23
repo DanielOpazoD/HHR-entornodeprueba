@@ -5,7 +5,7 @@ import { createOperationalTelemetryHandler } from '../../../netlify/functions/op
 import {
   parseOperationalTelemetryBody,
   sanitizeOperationalTelemetryContext,
-} from '../../../src/services/observability/operationalTelemetryIngestPolicy';
+} from '../../shared/observability/operationalTelemetryIngestPolicy';
 
 import {
   createAlertQueue,

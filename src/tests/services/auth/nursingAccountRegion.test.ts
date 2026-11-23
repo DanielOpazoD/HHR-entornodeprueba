@@ -24,7 +24,7 @@ vi.mock('@/services/auth/authRoleLookup', () => ({ clearRecentAuthRoleLookups: v
 
 import { callAccount, accountErrorMessage } from '@/services/auth/nursingAccountService';
 import { loadFunctionsModule } from '@/services/firebase-runtime/functionsModuleLoader';
-import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
+import { sanitizeOperationalTelemetryEvent } from '@/shared/observability/operationalTelemetryPrivacy';
 
 describe('RUT callable regional rollout', () => {
   beforeEach(() => {

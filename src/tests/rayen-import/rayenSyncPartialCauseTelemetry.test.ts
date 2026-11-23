@@ -16,9 +16,9 @@ vi.mock('@/services/observability/operationalTelemetryExternalAdapter', () => ({
   dispatchOperationalTelemetryExternally: mocks.dispatch,
 }));
 
-import { parseOperationalTelemetryBody } from '@/services/observability/operationalTelemetryIngestPolicy';
+import { parseOperationalTelemetryBody } from '@/shared/observability/operationalTelemetryIngestPolicy';
 import { useRayenSyncAudit } from '@/features/rayen-import/hooks/useRayenSyncAudit';
-import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
+import { sanitizeOperationalTelemetryEvent } from '@/shared/observability/operationalTelemetryPrivacy';
 import { clearOperationalTelemetryEvents } from '@/services/observability/operationalTelemetryRecorder';
 import type { ClinicalFillError } from '@/features/rayen-import/contracts/clinicalFillContracts';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';

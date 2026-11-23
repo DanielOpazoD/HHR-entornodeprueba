@@ -13,7 +13,7 @@ import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/p
 import { exportPasswordLogger } from '@/services/security/securityLoggers';
 
 // Re-export the pure generator for convenience
-export { generateCensusPassword, getCensusPassword } from './passwordGenerator';
+export { generateCensusPassword, getCensusPassword } from '../../utils/passwordGenerator';
 
 /**
  * Interface for stored password document

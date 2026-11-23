@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { shouldAlertOperationalTelemetry } from '@/services/observability/operationalTelemetryIngestPolicy';
+import { shouldAlertOperationalTelemetry } from '@/shared/observability/operationalTelemetryIngestPolicy';
 
 const mocks = vi.hoisted(() => ({
   recordEvent: vi.fn(),

@@ -13,7 +13,7 @@ import {
   parseClinicalDocumentAiImportJson,
   sanitizeClinicalDocumentAiImportSourceText,
   validateClinicalDocumentAiImportSourceText,
-} from '../../src/features/clinical-documents/contracts/clinicalDocumentAiImportContract';
+} from '../../src/shared/contracts/clinicalDocumentAiImportContract';
 import {
   buildJsonResponse,
   buildTooManyRequestsResponse,
