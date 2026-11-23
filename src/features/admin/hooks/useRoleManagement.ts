@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { roleService, UserRoleMap } from '@/features/admin/services/roleService';
-import { isManagedUserRole, type ManagedUserRole } from '@/shared/access/roleAccessMatrix';
+import { isManagedUserRole } from '@/shared/access/roleAccessMatrix';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 
 const roleManagementLogger = createScopedLogger('RoleManagement');
@@ -20,77 +20,18 @@ export const useRoleManagement = () => {
     return emailRegex.test(email);
   }, [email]);
 
-  const syncNormalizedLegacyClaims = useCallback(
-    async (roles: UserRoleMap, migratedLegacyEntries: string[]) => {
-      const syncCandidates = migratedLegacyEntries
-        .map(migratedEmail => ({
-          email: migratedEmail,
-          role: roles[migratedEmail],
-        }))
-        .filter((candidate): candidate is { email: string; role: ManagedUserRole } =>
-          isManagedUserRole(candidate.role)
-        );
-
-      const results = await Promise.allSettled(
-        syncCandidates.map(({ email, role }) => roleService.forceSyncUser(email, role))
-      );
-
-      const failedEmails = results.flatMap((result, index) => {
-        const candidate = syncCandidates[index];
-        return result.status === 'rejected' && candidate ? [candidate.email] : [];
-      });
-
-      if (failedEmails.length > 0) {
-        roleManagementLogger.warn('Legacy role claim sync warning', { failedEmails });
-      }
-
-      return {
-        attempted: syncCandidates.length,
-        failedEmails,
-      };
-    },
-    []
-  );
-
   const loadRoles = useCallback(async () => {
     try {
       setLoading(true);
-      const snapshot = await roleService.getRolesSnapshot();
-      setRoles(snapshot.roles);
-      const syncSummary =
-        snapshot.migratedLegacyEntries.length > 0
-          ? await syncNormalizedLegacyClaims(snapshot.roles, snapshot.migratedLegacyEntries)
-          : null;
-      setMessage(currentMessage => {
-        if (currentMessage || snapshot.migratedLegacyEntries.length === 0) {
-          return currentMessage;
-        }
-
-        const normalizedCount = snapshot.migratedLegacyEntries.length;
-        if (syncSummary && syncSummary.failedEmails.length > 0) {
-          return {
-            type: 'success',
-            text:
-              `Se normalizaron ${normalizedCount} registro(s) legacy en config/roles. ` +
-              `No se pudo sincronizar el claim de ${syncSummary.failedEmails.length} usuario(s); ` +
-              'deben cerrar sesión y volver a entrar o revisar functions.',
-          };
-        }
-
-        return {
-          type: 'success',
-          text:
-            `Se normalizaron ${normalizedCount} registro(s) legacy en config/roles ` +
-            'y se reintentó sincronizar su claim de Firebase.',
-        };
-      });
+      const configuredRoles = await roleService.getRoles();
+      setRoles(configuredRoles);
     } catch (error) {
       roleManagementLogger.error('Load error', error);
       setMessage({ type: 'error', text: 'Error de conexión con Firestore.' });
     } finally {
       setLoading(false);
     }
-  }, [syncNormalizedLegacyClaims]);
+  }, []);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the first read is the same routine every role change repeats

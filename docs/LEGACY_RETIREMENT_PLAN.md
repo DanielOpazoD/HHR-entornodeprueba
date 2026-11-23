@@ -2,21 +2,19 @@
 
 Estado: activo
 Owner: architecture
-Última actualización: 2026-11-01
+Última actualización: 2026-11-23
 
 ## Scope
 
 Este plan reduce superficie legacy sin reescribir flujos clínicos estables. La prioridad es retirar o encapsular compatibilidad que todavía aparece en rutas vivas, manteniendo los guardrails actuales verdes.
 
-El puente de lectura de Firebase antiguo fue retirado. Se conservan las
-normalizaciones de documentos históricos del camino vigente.
+El puente de lectura de Firebase antiguo y el alias de rol heredado `viewer_census` fueron retirados. Se conservan las normalizaciones de documentos históricos del camino vigente mientras sigan siendo necesarias.
 
 ## Priorities
 
-1. role aliases
-   - Medir y cerrar alias heredados como `viewer_census`.
-   - Mantener autocorrección solo mientras existan cuentas/configuraciones reales con alias.
-   - Retirar write-back de canonización cuando la auditoría de roles reporte cero alias.
+1. role aliases (retirado)
+   - El alias heredado `viewer_census` y su write-back de canonización fueron retirados de reglas, Functions, Netlify auth y `roleService`.
+   - `legacyRoleAliasStatic.test.ts` y `compatibility-governance.json` (`entries: []`) mantienen el bloqueo en cero entradas.
 
 2. legacy clinical document and legacy episode hydration
    - Mantener la hidratación legacy de documentos clínicos y legacy episode keys encapsulada en controllers dedicados.

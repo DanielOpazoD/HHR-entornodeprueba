@@ -35,36 +35,31 @@ describe('roleService', () => {
     vi.mocked(httpsCallable).mockReturnValue(callableMock as never);
   });
 
-  it('normalizes legacy role aliases from config/roles and writes back the canonical map', async () => {
+  it('returns only canonical roles from config/roles and ignores retired aliases without writing back', async () => {
     getDocMock.mockResolvedValue({
       'legacy.viewer@hospital.cl': 'viewer_census',
+      'viewer@hospital.cl': 'viewer',
       'editor@hospital.cl': 'editor',
     });
 
-    await expect(roleService.getRolesSnapshot()).resolves.toEqual({
-      roles: {
-        'legacy.viewer@hospital.cl': 'viewer',
-        'editor@hospital.cl': 'editor',
-      },
-      migratedLegacyEntries: ['legacy.viewer@hospital.cl'],
-    });
-
-    expect(setDocMock).toHaveBeenCalledWith('config', 'roles', {
-      'legacy.viewer@hospital.cl': 'viewer',
+    await expect(roleService.getRoles()).resolves.toEqual({
+      'viewer@hospital.cl': 'viewer',
       'editor@hospital.cl': 'editor',
     });
+
+    expect(setDocMock).not.toHaveBeenCalled();
   });
 
-  it('canonicalizes lingering legacy aliases before persisting a managed role mutation', async () => {
+  it('persists a managed role mutation without rewriting unrelated entries in config/roles', async () => {
     getDocMock.mockResolvedValue({
-      'legacy.viewer@hospital.cl': 'viewer_census',
+      'viewer@hospital.cl': 'viewer',
       'editor@hospital.cl': 'editor',
     });
 
     await roleService.setRole('nurse@hospital.cl', 'nurse_hospital');
 
     expect(setDocMock).toHaveBeenCalledWith('config', 'roles', {
-      'legacy.viewer@hospital.cl': 'viewer',
+      'viewer@hospital.cl': 'viewer',
       'editor@hospital.cl': 'editor',
       'nurse@hospital.cl': 'nurse_hospital',
     });

@@ -11,38 +11,22 @@ import {
   type FunctionsRuntime,
 } from '@/services/firebase-runtime/functionsRuntime';
 
-const LEGACY_ROLE_ALIASES = {
-  viewer_census: 'viewer',
-} as const;
-
 export interface UserRoleMap {
   [email: string]: UserRole;
 }
 
-export interface RoleSnapshot {
-  roles: UserRoleMap;
-  migratedLegacyEntries: string[];
-}
-
-const normalizeConfiguredRole = (
-  role: unknown
-): { role: UserRole | null; migratedLegacyRole: boolean } => {
+const normalizeConfiguredRole = (role: unknown): UserRole | null => {
   if (typeof role !== 'string' || !role.trim()) {
-    return { role: null, migratedLegacyRole: false };
+    return null;
   }
 
-  const canonicalRole = LEGACY_ROLE_ALIASES[role as keyof typeof LEGACY_ROLE_ALIASES] ?? role;
-  return {
-    role: isGeneralLoginRole(canonicalRole) ? canonicalRole : null,
-    migratedLegacyRole: canonicalRole !== role,
-  };
+  return isGeneralLoginRole(role) ? role : null;
 };
 
 /**
  * Service for managing user roles dynamically via Firestore.
  */
 export interface RoleService {
-  getRolesSnapshot: () => Promise<RoleSnapshot>;
   getRoles: () => Promise<UserRoleMap>;
   setRole: (email: string, role: string) => Promise<void>;
   removeRole: (email: string) => Promise<void>;
@@ -57,53 +41,28 @@ export const createRoleService = (
   database: Pick<IDatabaseProvider, 'getDoc' | 'setDoc'> = firestoreDb,
   functionsRuntime: Pick<FunctionsRuntime, 'getFunctions'> = defaultFunctionsRuntime
 ): RoleService => ({
-  async getRolesSnapshot(): Promise<RoleSnapshot> {
+  /**
+   * Fetch all configured roles from Firestore.
+   */
+  async getRoles(): Promise<UserRoleMap> {
     try {
       const rawRoles = (await database.getDoc<Record<string, unknown>>('config', 'roles')) || {};
       const roles: UserRoleMap = {};
-      const migratedLegacyEntries: string[] = [];
-      const nextRawRoles = { ...rawRoles };
 
       for (const [email, configuredRole] of Object.entries(rawRoles)) {
-        const { role, migratedLegacyRole } = normalizeConfiguredRole(configuredRole);
+        const role = normalizeConfiguredRole(configuredRole);
         if (!role) {
           continue;
         }
 
         roles[email] = role;
-
-        if (migratedLegacyRole) {
-          nextRawRoles[email] = role;
-          migratedLegacyEntries.push(email);
-        }
       }
 
-      if (migratedLegacyEntries.length > 0) {
-        await database.setDoc('config', 'roles', nextRawRoles);
-        roleServiceLogger.warn(
-          `Normalized legacy role aliases for ${migratedLegacyEntries.length} account(s).`,
-          {
-            migratedLegacyEntries,
-          }
-        );
-      }
-
-      return {
-        roles,
-        migratedLegacyEntries,
-      };
+      return roles;
     } catch (error) {
       roleServiceLogger.error('Failed to fetch roles', error);
       throw error;
     }
-  },
-
-  /**
-   * Fetch all configured roles from Firestore.
-   */
-  async getRoles(): Promise<UserRoleMap> {
-    const snapshot = await this.getRolesSnapshot();
-    return snapshot.roles;
   },
 
   /**
@@ -121,14 +80,6 @@ export const createRoleService = (
       const currentRoles =
         (await database.getDoc<Record<string, unknown>>('config', 'roles')) || {};
       const updatedRoles = { ...currentRoles, [cleanEmail]: role };
-
-      for (const [emailKey, configuredRole] of Object.entries(updatedRoles)) {
-        const { role: normalizedRole, migratedLegacyRole } =
-          normalizeConfiguredRole(configuredRole);
-        if (migratedLegacyRole && normalizedRole) {
-          updatedRoles[emailKey] = normalizedRole;
-        }
-      }
 
       await database.setDoc('config', 'roles', updatedRoles);
       roleServiceLogger.info(`Successfully updated roles map for ${cleanEmail}`);
@@ -157,14 +108,6 @@ export const createRoleService = (
         // Also clean up any truncated/nested garbage if it exists
         const truncated = cleanEmail.split('.')[0];
         if (truncated && updatedRoles[truncated]) delete updatedRoles[truncated];
-
-        for (const [emailKey, configuredRole] of Object.entries(updatedRoles)) {
-          const { role: normalizedRole, migratedLegacyRole } =
-            normalizeConfiguredRole(configuredRole);
-          if (migratedLegacyRole && normalizedRole) {
-            updatedRoles[emailKey] = normalizedRole;
-          }
-        }
 
         await database.setDoc('config', 'roles', updatedRoles);
         roleServiceLogger.info(`Successfully removed role for ${cleanEmail}`);

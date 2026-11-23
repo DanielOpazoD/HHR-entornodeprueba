@@ -46,10 +46,6 @@ service firebase.storage {
           (!isIndividualAccessEnabled() || protectedGoogleRole() != null)));
     }
 
-    function normalizeRole(role) {
-      return role == 'viewer_census' ? 'viewer' : role;
-    }
-
     function legacyNormalizedRole() {
       let email = request.auth.token.get('email', null);
       let rolesPath = /databases/(default)/documents/config/roles;
@@ -58,7 +54,7 @@ service firebase.storage {
         : null;
       let claimRole = request.auth.token.get('role', null);
       // Explicit revocations and downgrades take precedence over an already issued token.
-      return normalizeRole(configuredRole != null ? configuredRole : claimRole);
+      return configuredRole != null ? configuredRole : claimRole;
     }
 
     function normalizedRole() {

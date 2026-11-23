@@ -60,12 +60,6 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.token.email != null;
     }
 
-    function normalizeRole(role) {
-      return role == 'viewer_census'
-        ? 'viewer'
-        : role;
-    }
-
     function getLegacyEffectiveRole() {
       // Called only after the current-session guard in getEffectiveRole.
       let email = request.auth.token.get('email', null);
@@ -73,8 +67,8 @@ service cloud.firestore {
       let configuredRole = email is string && exists(rolesPath)
         ? get(rolesPath).data.get(email.lower(), null)
         : null;
-      return normalizeRole(configuredRole != null
-        ? configuredRole : request.auth.token.get('role', null));
+      return configuredRole != null
+        ? configuredRole : request.auth.token.get('role', null);
     }
 
     function getEffectiveRole() {

@@ -8,7 +8,6 @@ import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils'
 vi.mock('@/features/admin/services/roleService', () => ({
   roleService: {
     getRoles: vi.fn(),
-    getRolesSnapshot: vi.fn(),
     setRole: vi.fn(),
     removeRole: vi.fn(),
     forceSyncUser: vi.fn(),
@@ -23,10 +22,7 @@ describe('useRoleManagement', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(roleService.getRolesSnapshot).mockResolvedValue({
-      roles: {},
-      migratedLegacyEntries: [],
-    });
+    vi.mocked(roleService.getRoles).mockResolvedValue({});
     vi.mocked(roleService.forceSyncUser).mockResolvedValue({ success: true });
     consoleSpies = suppressConsole(['error']);
   });
@@ -36,10 +32,7 @@ describe('useRoleManagement', () => {
   });
 
   it('should initialize with loading state and load roles', async () => {
-    vi.mocked(roleService.getRolesSnapshot).mockResolvedValue({
-      roles: { 'test@email.com': 'admin' },
-      migratedLegacyEntries: [],
-    });
+    vi.mocked(roleService.getRoles).mockResolvedValue({ 'test@email.com': 'admin' });
 
     const { result } = renderHook(() => useRoleManagement());
 
@@ -131,7 +124,7 @@ describe('useRoleManagement', () => {
   });
 
   it('should handle role service error gracefully', async () => {
-    vi.mocked(roleService.getRolesSnapshot).mockRejectedValue(new Error('Connection error'));
+    vi.mocked(roleService.getRoles).mockRejectedValue(new Error('Connection error'));
 
     const { result } = renderHook(() => useRoleManagement());
 
@@ -140,45 +133,6 @@ describe('useRoleManagement', () => {
     });
 
     expect(result.current.message?.type).toBe('error');
-  });
-
-  it('should surface a success message when legacy roles are normalized on load', async () => {
-    vi.mocked(roleService.getRolesSnapshot).mockResolvedValue({
-      roles: { 'viewer@hospital.cl': 'viewer' },
-      migratedLegacyEntries: ['viewer@hospital.cl'],
-    });
-
-    const { result } = renderHook(() => useRoleManagement());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    expect(result.current.message).toEqual({
-      type: 'success',
-      text: 'Se normalizaron 1 registro(s) legacy en config/roles y se reintentó sincronizar su claim de Firebase.',
-    });
-    expect(roleService.forceSyncUser).toHaveBeenCalledWith('viewer@hospital.cl', 'viewer');
-  });
-
-  it('should keep roles loaded and surface a warning when claim sync fails for normalized aliases', async () => {
-    vi.mocked(roleService.getRolesSnapshot).mockResolvedValue({
-      roles: { 'viewer@hospital.cl': 'viewer' },
-      migratedLegacyEntries: ['viewer@hospital.cl'],
-    });
-    vi.mocked(roleService.forceSyncUser).mockRejectedValue(new Error('sync failed'));
-
-    const { result } = renderHook(() => useRoleManagement());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    expect(result.current.roles).toEqual({ 'viewer@hospital.cl': 'viewer' });
-    expect(result.current.message).toEqual({
-      type: 'success',
-      text: 'Se normalizaron 1 registro(s) legacy en config/roles. No se pudo sincronizar el claim de 1 usuario(s); deben cerrar sesión y volver a entrar o revisar functions.',
-    });
   });
 
   it('should sync custom claims after saving a role', async () => {

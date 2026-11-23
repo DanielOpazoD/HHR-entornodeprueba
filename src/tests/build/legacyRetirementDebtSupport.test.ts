@@ -80,6 +80,37 @@ describe('legacyRetirementDebtSupport', () => {
     );
   });
 
+  it('reports ok and zero open surfaces when retired role-aliases has zero governed entries', () => {
+    const report = buildLegacyRetirementDebtReport({
+      config: {
+        ...baseConfig,
+        maxOpenSurfaces: 0,
+        surfaces: [
+          {
+            ...baseConfig.surfaces[0],
+            phase: 'retired',
+            maxGovernedEntries: 0,
+          },
+        ],
+      },
+      compatibilityGovernanceReport: {
+        entries: [],
+        missingEntries: [],
+      },
+    });
+
+    expect(report.status).toBe('ok');
+    expect(report.openSurfaceCount).toBe(0);
+    expect(report.surfaces[0]).toEqual(
+      expect.objectContaining({
+        id: 'role-aliases',
+        phase: 'retired',
+        status: 'ok',
+        signal: 'governedEntries=0/0, missing=0',
+      })
+    );
+  });
+
   it('degrades consumer-budget surfaces when observed consumers exceed the approved list', () => {
     const report = buildLegacyRetirementDebtReport({
       config: {

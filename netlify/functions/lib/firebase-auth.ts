@@ -109,13 +109,8 @@ export const resetFirebaseSigningKeyCacheForTests = (): void => {
   cachedFirebaseSigningKeys = null;
 };
 
-const normalizeRoleAlias = (role: unknown): string => {
-  if (role === 'viewer_census') {
-    return 'viewer';
-  }
-
-  return typeof role === 'string' && role.trim() ? role : 'unauthorized';
-};
+const normalizeConfiguredRole = (role: unknown): string =>
+  typeof role === 'string' && role.trim() ? role : 'unauthorized';
 
 const resolveFunctionsRegion = (): string => {
   const explicitRegion = String(process.env.FIREBASE_FUNCTIONS_REGION || '').trim();
@@ -134,7 +129,7 @@ const parseCallableRoleResponse = (payload: CallableEnvelope): string => {
   }
 
   const resultRole = payload?.result?.role ?? payload?.data?.role;
-  return normalizeRoleAlias(resultRole);
+  return normalizeConfiguredRole(resultRole);
 };
 
 const resolveRoleViaCanonicalCallable = async (
@@ -312,7 +307,7 @@ export const resolveRoleForEmail = async (
     const roleDoc = await getDoc(doc(db, 'config', 'roles'));
     if (roleDoc.exists()) {
       const rolesMap = (roleDoc.data() || {}) as Record<string, unknown>;
-      return normalizeRoleAlias(rolesMap[cleanEmail]);
+      return normalizeConfiguredRole(rolesMap[cleanEmail]);
     }
   } catch (error) {
     console.warn(
