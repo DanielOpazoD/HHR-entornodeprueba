@@ -1,14 +1,11 @@
 const { HttpsError } = require('firebase-functions/v2/https');
 const { createHash } = require('node:crypto');
+const { isCalendarDay } = require('./hospitalCalendarDay');
 const invalid = message => {
   throw new HttpsError('invalid-argument', message || 'Invalid CUDYR discharge correction.');
 };
 const dateOnly = value => {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value < '1900-01-01')
-    invalid();
-  const instant = new Date(`${value}T00:00:00Z`);
-  if (!Number.isFinite(instant.getTime()) || instant.toISOString().slice(0, 10) !== value)
-    invalid();
+  if (!isCalendarDay(value) || value < '1900-01-01') invalid();
   return value;
 };
 const text = (value, max = 120) => {

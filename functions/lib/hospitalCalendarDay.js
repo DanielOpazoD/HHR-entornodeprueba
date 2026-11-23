@@ -5,6 +5,17 @@ const hospitalDayFormatter = new Intl.DateTimeFormat('en-CA', {
   day: '2-digit',
 });
 
+const hospitalDateTimeFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Pacific/Easter',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+});
+
 const hospitalCalendarDay = (instant = new Date()) => {
   const parts = hospitalDayFormatter
     .formatToParts(instant)
@@ -13,6 +24,20 @@ const hospitalCalendarDay = (instant = new Date()) => {
       /** @type {Record<string, string>} */ ({})
     );
   return `${parts.year}-${parts.month}-${parts.day}`;
+};
+
+/** Hospital calendar date (`YYYY-MM-DD`), clock time (`HH:MM`) and numeric h/m/s in `Pacific/Easter`. */
+const hospitalDateTimeParts = (instant = new Date()) => {
+  const parts = Object.fromEntries(
+    hospitalDateTimeFormatter.formatToParts(instant).map(part => [part.type, part.value])
+  );
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    time: `${parts.hour}:${parts.minute}`,
+    hour: Number(parts.hour),
+    minute: Number(parts.minute),
+    second: Number(parts.second),
+  };
 };
 
 // Rapa Nui midnight falls at 05:00 UTC in summer time and at 06:00 UTC in winter time.
@@ -53,6 +78,7 @@ module.exports = {
   addCalendarDays,
   calendarDayAtUtcNoon,
   hospitalCalendarDay,
+  hospitalDateTimeParts,
   hospitalDayStart,
   isCalendarDay,
 };

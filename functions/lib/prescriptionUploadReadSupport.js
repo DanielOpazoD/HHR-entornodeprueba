@@ -1,6 +1,6 @@
 const { HttpsError } = require('firebase-functions/v2/https');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
-const { hospitalCalendarDay } = require('./hospitalCalendarDay');
+const { addCalendarDays, hospitalCalendarDay, isCalendarDay } = require('./hospitalCalendarDay');
 
 const getHospitalRef = firestore => firestore.collection('hospitals').doc(HOSPITAL_ID);
 const getPrescriptionsRef = firestore => getHospitalRef(firestore).collection('prescriptions');
@@ -14,20 +14,13 @@ const optionalString = (value, maxLength = 512) =>
 
 const resolveIsoDate = value => {
   if (value === undefined || value === null || value === '') return hospitalCalendarDay();
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+  if (!isCalendarDay(value)) {
     throw new HttpsError('invalid-argument', 'Fecha de censo inválida.');
   }
   return value;
 };
 
-const previousIsoDay = isoDate => {
-  const [year, month, day] = String(isoDate).split('-').map(Number);
-  const date = new Date(year, (month || 1) - 1, day || 1);
-  date.setDate(date.getDate() - 1);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-    date.getDate()
-  ).padStart(2, '0')}`;
-};
+const previousIsoDay = isoDate => addCalendarDays(isoDate, -1);
 
 /** Removes keys whose value is `undefined` (Firestore rejects undefined). */
 const omitUndefined = value => {

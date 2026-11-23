@@ -1,6 +1,7 @@
 const { HttpsError } = require('firebase-functions/v2/https');
 const { isDeepStrictEqual } = require('node:util');
 const { episodeContext } = require('./cudyrHistoryContext');
+const { hospitalDateTimeParts } = require('./hospitalCalendarDay');
 const {
   parseDischargeCorrection,
   dischargeKey,
@@ -9,26 +10,6 @@ const {
   timeOnly,
 } = require('./cudyrDischargeContract');
 
-const hospitalStamp = () => {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Pacific/Easter',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    })
-      .formatToParts(new Date())
-      .filter(part => part.type !== 'literal')
-      .map(part => [part.type, part.value])
-  );
-  return {
-    date: `${parts.year}-${parts.month}-${parts.day}`,
-    time: `${parts.hour}:${parts.minute}`,
-  };
-};
 const assertChronology = (payload, contexts) => {
   const dates = new Set(contexts.map(item => item.admissionDate).filter(Boolean));
   if (dates.size !== 1)
@@ -39,7 +20,7 @@ const assertChronology = (payload, contexts) => {
   const admissionDate = dateOnly([...dates][0]);
   const actual = payload.actualDischarge;
   if (!actual) return admissionDate;
-  const now = hospitalStamp();
+  const now = hospitalDateTimeParts();
   if (
     actual.date < admissionDate ||
     actual.date > now.date ||

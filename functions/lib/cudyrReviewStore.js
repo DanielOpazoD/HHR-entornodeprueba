@@ -1,6 +1,7 @@
 const { HttpsError } = require('firebase-functions/v2/https');
 const { FieldPath } = require('firebase-admin/firestore');
 const { digest, monthValue } = require('./cudyrSupplementContract');
+const { isCalendarDay } = require('./hospitalCalendarDay');
 const fail = (code = 'invalid-argument', message = 'Invalid CUDYR review.') => {
   throw new HttpsError(
     /** @type {import('firebase-functions/v2/https').FunctionsErrorCode} */ (code),
@@ -52,13 +53,7 @@ const parseReview = data => {
     to = text(evidence.to, 10);
   const sourceDate = text(evidence.sourceDate, 10);
   for (const date of [from, to, sourceDate]) {
-    if (
-      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-      !date.startsWith(month + '-') ||
-      !Number.isFinite(Date.parse(date)) ||
-      new Date(date).toISOString().slice(0, 10) !== date
-    )
-      fail();
+    if (!isCalendarDay(date) || !date.startsWith(month + '-')) fail();
   }
   if (from > to) fail();
   if (
