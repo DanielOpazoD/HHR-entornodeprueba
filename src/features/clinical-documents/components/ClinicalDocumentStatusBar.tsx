@@ -8,8 +8,36 @@
 
 import React, { useMemo } from 'react';
 import { CheckCircle2, Cloud, CloudUpload, Loader2 } from 'lucide-react';
-import { resolveAutosaveIndicatorState } from '@/features/clinical-documents/controllers/clinicalDocumentAutosaveIndicatorController';
-import type { AutosaveIndicatorPhase } from '@/features/clinical-documents/controllers/clinicalDocumentAutosaveIndicatorController';
+import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
+
+export type AutosaveIndicatorPhase = 'idle' | 'dirty' | 'saving' | 'saved';
+
+export interface AutosaveIndicatorState {
+  phase: AutosaveIndicatorPhase;
+  /** Formatted time string for the "Guardado" state (e.g., "19:17") */
+  savedAtLabel: string | null;
+}
+
+/** Resolves the autosave indicator visual state from saving status and last-saved timestamp. */
+export const resolveAutosaveIndicatorState = (
+  isSaving: boolean,
+  isDirty: boolean,
+  lastSavedAt: string | undefined
+): AutosaveIndicatorState => {
+  if (isSaving) {
+    return { phase: 'saving', savedAtLabel: null };
+  }
+
+  if (isDirty) {
+    return { phase: 'dirty', savedAtLabel: null };
+  }
+
+  if (lastSavedAt) {
+    return { phase: 'saved', savedAtLabel: readClinicalTimestamp(lastSavedAt)?.hhmm ?? '' };
+  }
+
+  return { phase: 'idle', savedAtLabel: null };
+};
 
 interface ClinicalDocumentStatusBarProps {
   isSaving: boolean;

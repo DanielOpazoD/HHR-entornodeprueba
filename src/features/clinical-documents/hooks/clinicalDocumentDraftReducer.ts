@@ -1,6 +1,15 @@
-import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
+import type {
+  ClinicalDocumentRecord,
+  ClinicalDocumentSection,
+} from '@/domain/clinical-documents/entities';
 import { normalizeClinicalDocumentContentForStorage } from '@/features/clinical-documents/controllers/clinicalDocumentRichTextController';
 import { restoreClinicalDocumentDraftTemplate } from '@/features/clinical-documents/domain/factories';
+import {
+  insertClinicalDocumentSection,
+  moveClinicalDocumentVisibleSection,
+  reorderClinicalDocumentVisibleSections,
+} from '@/features/clinical-documents/controllers/clinicalDocumentSectionOrderController';
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 
 const normalizeClinicalDocumentSectionTitle = (title: string, fallback: string): string => {
   const normalizedTitle = title.trim();
@@ -12,12 +21,27 @@ const normalizeClinicalDocumentSectionTitle = (title: string, fallback: string):
 
   return normalizedFallback.length > 0 ? normalizedFallback : 'Sección sin título';
 };
-import { createClinicalUpdateSection } from '@/features/clinical-documents/controllers/clinicalDocumentUpdateController';
-import {
-  insertClinicalDocumentSection,
-  moveClinicalDocumentVisibleSection,
-  reorderClinicalDocumentVisibleSections,
-} from '@/features/clinical-documents/controllers/clinicalDocumentSectionOrderController';
+
+/** Creates a new clinical update section stamped with the current hospital date and time. */
+export const createClinicalUpdateSection = (
+  existingSections: ClinicalDocumentSection[]
+): ClinicalDocumentSection => {
+  const stamp = calendarStampInClinicalTimeZone(new Date());
+  const maxOrder = existingSections.reduce((max, s) => Math.max(max, s.order), 0);
+  const updateCount = existingSections.filter(s => s.kind === 'clinical-update').length;
+
+  return {
+    id: `clinical-update-${updateCount + 1}-${Date.now()}`,
+    title: 'Actualización clínica',
+    content: '',
+    kind: 'clinical-update',
+    order: maxOrder + 1,
+    required: false,
+    visible: true,
+    updateDate: stamp.iso,
+    updateTime: stamp.hhmm,
+  };
+};
 
 export interface ClinicalDocumentDraftBaseState {
   document: ClinicalDocumentRecord | null;
