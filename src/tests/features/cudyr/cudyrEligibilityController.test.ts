@@ -5,7 +5,7 @@ import {
   CUDYR_NIGHT_REFERENCE_TIME,
   hasVisibleCudyrPatientName,
   resolveCudyrEligibility,
-} from '@/features/cudyr/controllers/cudyrEligibilityController';
+} from '@/domain/cudyr/cudyrEligibility';
 
 describe('cudyrEligibilityController', () => {
   const recordDate = '2026-04-12';

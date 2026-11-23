@@ -14,7 +14,7 @@
 import {
   buildHighEfficiencyImageDecodeError,
   convertHighEfficiencyImageToJpeg,
-} from '@/features/prescriptions/services/prescriptionHighEfficiencyImageConverter';
+} from '@/services/images/highEfficiencyImageConverter';
 
 export const PRESCRIPTION_FULL_IMAGE_MAX_DIMENSION = 1200;
 export const PRESCRIPTION_THUMBNAIL_IMAGE_MAX_DIMENSION = 360;

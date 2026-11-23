@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   resolvePrintableShiftLabel,
   resolvePrintableStaffList,
-} from '@/features/handoff/controllers/handoffPrintHeaderController';
+} from '@/features/handoff/components/HandoffPrintHeader';
 
 describe('handoffPrintHeaderController', () => {
   it('builds a printable shift label from schedule bounds', () => {

@@ -439,7 +439,7 @@ describe('chunkingPolicy', () => {
 
     expect(compressionServiceSource).not.toContain("import('heic2any')");
     expect(compressionServiceSource).toContain(
-      "from '@/features/prescriptions/services/prescriptionHighEfficiencyImageConverter'"
+      "from '@/services/images/highEfficiencyImageConverter'"
     );
     expect(heicConverterSource).not.toContain("import('heic2any')");
     expect(heicConverterSource).toContain("from './heicConverterLoader'");

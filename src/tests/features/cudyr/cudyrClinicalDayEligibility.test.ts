@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { canEditCudyrForDate } from '@/shared/access/operationalAccessPolicy';
 import { resolveCurrentClinicalDay } from '@/utils/clinicalDayUtils';
-import { resolveCudyrEligibility } from '@/features/cudyr/controllers/cudyrEligibilityController';
+import { resolveCudyrEligibility } from '@/domain/cudyr/cudyrEligibility';
 
 describe('CUDYR clinical-day access + patient eligibility', () => {
   it('keeps the record editable in the overnight clinical window but still blocks a same-day admission under 8 hours', () => {
