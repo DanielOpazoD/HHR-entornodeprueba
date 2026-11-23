@@ -46,10 +46,15 @@ const structuralDiff = (overrides: Partial<CensusImportDiff> = {}): CensusImport
   },
   ...overrides,
 });
+const createApplyResult = (resultRecord: DailyRecord): ApplyResult => ({
+  record: resultRecord,
+  applied: { admissions: 0, updates: 0, moves: 0, discharges: 0 },
+  skipped: [],
+});
 describe('applyConfirmedRayenImport', () => {
   it('finalizes a carried occupant even when the historical movement already exists', async () => {
     const base = record('confirmed');
-    const applied = { record: base, applied: {}, skipped: [] } as unknown as ApplyResult;
+    const applied = createApplyResult(base);
     const finalized = { ...applied, record: record('cleared') };
     const finalizeHistoricalDischarges = vi.fn().mockResolvedValue(finalized);
     const result = await applyConfirmedRayenImport({
@@ -74,7 +79,7 @@ describe('applyConfirmedRayenImport', () => {
     const fresh = record('fresh');
     const initialDiff = {} as CensusImportDiff;
     const replannedDiff = { unchangedCount: 1 } as CensusImportDiff;
-    const expected = { record: fresh, applied: {}, skipped: [] } as unknown as ApplyResult;
+    const expected = createApplyResult(fresh);
     const conflict = new Error('Remote is newer');
     conflict.name = 'ConcurrencyError';
     const applyDiff = vi.fn().mockRejectedValueOnce(conflict).mockResolvedValueOnce(expected);
@@ -115,7 +120,7 @@ describe('applyConfirmedRayenImport', () => {
     const initialDiff = {} as CensusImportDiff;
     const replannedDiff1 = { unchangedCount: 1 } as CensusImportDiff;
     const replannedDiff2 = { unchangedCount: 2 } as CensusImportDiff;
-    const expected = { record: fresh2, applied: {}, skipped: [] } as unknown as ApplyResult;
+    const expected = createApplyResult(fresh2);
     const conflict = new Error('El censo se actualizó hace un momento.');
     conflict.name = 'ConcurrencyError';
     const applyDiff = vi
@@ -222,11 +227,7 @@ describe('applyConfirmedRayenImport', () => {
         },
       ],
     } as CensusImportDiff;
-    const expected = {
-      record: historicalRecord,
-      applied: {},
-      skipped: [],
-    } as unknown as ApplyResult;
+    const expected = createApplyResult(historicalRecord);
     const applyDiff = vi.fn().mockResolvedValue(expected);
     const replanDiff = vi.fn();
     const onRetry = vi.fn();
@@ -295,11 +296,7 @@ describe('applyConfirmedRayenImport', () => {
         },
       ],
     } as CensusImportDiff;
-    const expected = {
-      record: historicalRecord,
-      applied: {},
-      skipped: [],
-    } as unknown as ApplyResult;
+    const expected = createApplyResult(historicalRecord);
 
     const caught = await applyConfirmedRayenImport({
       applyPreviousDays: true,
@@ -355,11 +352,7 @@ describe('applyConfirmedRayenImport', () => {
         },
       ],
     } as CensusImportDiff;
-    const expected = {
-      record: historicalRecord,
-      applied: {},
-      skipped: [],
-    } as unknown as ApplyResult;
+    const expected = createApplyResult(historicalRecord);
 
     const caught = await applyConfirmedRayenImport({
       applyPreviousDays: true,
@@ -412,11 +405,7 @@ describe('applyConfirmedRayenImport', () => {
         },
       ],
     } as CensusImportDiff;
-    const expected = {
-      record: historicalRecord,
-      applied: {},
-      skipped: [],
-    } as unknown as ApplyResult;
+    const expected = createApplyResult(historicalRecord);
 
     const finalizeHistoricalDischarges = vi.fn();
     const result = await applyConfirmedRayenImport({

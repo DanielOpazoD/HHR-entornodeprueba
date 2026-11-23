@@ -176,11 +176,10 @@ describe('extension heavy runtime loading', () => {
       RayenReportParser: {},
     });
     vm.runInContext(loaderSource, context);
-    const runtime = (
-      context as unknown as {
-        HhrExtensionRuntime: { ensurePdf: () => void; ensureSpreadsheet: () => void };
-      }
-    ).HhrExtensionRuntime;
+    const runtime = context.HhrExtensionRuntime as {
+      ensurePdf: () => void;
+      ensureSpreadsheet: () => void;
+    };
 
     runtime.ensurePdf();
     runtime.ensureSpreadsheet();
@@ -191,11 +190,7 @@ describe('extension heavy runtime loading', () => {
   it('fails with a reload instruction when startup registration is incomplete', () => {
     const context = vm.createContext({});
     vm.runInContext(loaderSource, context);
-    const runtime = (
-      context as unknown as {
-        HhrExtensionRuntime: { ensurePdf: () => void };
-      }
-    ).HhrExtensionRuntime;
+    const runtime = context.HhrExtensionRuntime as { ensurePdf: () => void };
 
     expect(() => runtime.ensurePdf()).toThrow(/Recarga la extensión/);
   });
@@ -255,21 +250,23 @@ describe('extension heavy runtime loading', () => {
 
     vm.runInContext(backgroundSource, context, { filename: 'background.js' });
 
-    expect((context as unknown as { jspdf?: { jsPDF?: unknown } }).jspdf?.jsPDF).toBeTypeOf(
-      'function'
-    );
-    expect(
-      (context as unknown as { PDFLib?: { PDFDocument?: unknown } }).PDFLib?.PDFDocument
-    ).toBeDefined();
-    expect(
-      (context as unknown as { HhrPrescriptionPdf?: unknown }).HhrPrescriptionPdf
-    ).toBeDefined();
-    expect(
-      (context as unknown as { HhrExamRequestPrintUi?: unknown }).HhrExamRequestPrintUi
-    ).toBeDefined();
-    expect((context as unknown as { HhrExamRequestPdf?: unknown }).HhrExamRequestPdf).toBeDefined();
-    expect((context as unknown as { HhrPdfPrint?: unknown }).HhrPdfPrint).toBeDefined();
-    expect((context as unknown as { XLSX?: unknown }).XLSX).toBeDefined();
+    const globals: {
+      jspdf?: { jsPDF?: unknown };
+      PDFLib?: { PDFDocument?: unknown };
+      HhrPrescriptionPdf?: unknown;
+      HhrExamRequestPrintUi?: unknown;
+      HhrExamRequestPdf?: unknown;
+      HhrPdfPrint?: unknown;
+      XLSX?: unknown;
+    } = context;
+
+    expect(globals.jspdf?.jsPDF).toBeTypeOf('function');
+    expect(globals.PDFLib?.PDFDocument).toBeDefined();
+    expect(globals.HhrPrescriptionPdf).toBeDefined();
+    expect(globals.HhrExamRequestPrintUi).toBeDefined();
+    expect(globals.HhrExamRequestPdf).toBeDefined();
+    expect(globals.HhrPdfPrint).toBeDefined();
+    expect(globals.XLSX).toBeDefined();
     expect(patientContextSource).toContain('firstTruthy(header.birthDate)');
     expect(patientContextSource).toContain('formatAgeLabel');
   });

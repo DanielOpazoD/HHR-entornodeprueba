@@ -23,11 +23,11 @@ vi.mock('@/shared/access/operationalAccessPolicy', () => ({
 
 vi.mock('@/constants/navigationConfig', () => ({
   NAVIGATION_CONFIG: [
-    { id: 'handoff', module: 'HANDOFF', isUtility: false, isSystem: false },
+    { id: 'handoff', module: 'NURSING_HANDOFF', isUtility: false, isSystem: false },
     { id: 'census', module: 'CENSUS', isUtility: true, isSystem: false },
-    { id: 'admin', module: 'ADMIN', isUtility: false, isSystem: true, adminOnly: true },
-    { id: 'viewer', module: 'VIEWER', excludeFromRoles: ['viewer'] },
-    { id: 'history', module: 'HISTORY', requiredModule: 'HISTORY' },
+    { id: 'admin', module: 'DATA', isUtility: false, isSystem: true, adminOnly: true },
+    { id: 'viewer', module: 'AUDIT', excludeFromRoles: ['viewer'] },
+    { id: 'history', module: 'BACKUP_FILES', requiredModule: 'BACKUP_FILES' },
   ],
   ModuleType: {},
 }));
@@ -48,8 +48,8 @@ describe('useNavbarNavigation', () => {
   it('should categorize navigation items correctly', () => {
     const { result } = renderHook(() =>
       useTestHook(
-        'HANDOFF' as unknown as CurrentModuleArg,
-        ['HANDOFF', 'CENSUS', 'ADMIN', 'HISTORY'] as unknown as VisibleModulesArg,
+        'NURSING_HANDOFF',
+        ['NURSING_HANDOFF', 'CENSUS', 'DATA', 'BACKUP_FILES'],
         'REGISTER'
       )
     );
@@ -63,11 +63,7 @@ describe('useNavbarNavigation', () => {
     authState.role = 'nurse_hospital';
     try {
       const { result } = renderHook(() =>
-        useTestHook(
-          'HANDOFF' as unknown as CurrentModuleArg,
-          ['HANDOFF', 'ADMIN'] as unknown as VisibleModulesArg,
-          'REGISTER'
-        )
+        useTestHook('NURSING_HANDOFF', ['NURSING_HANDOFF', 'DATA'], 'REGISTER')
       );
 
       expect(result.current.systemItems.map(item => item.id)).toEqual([]);
@@ -79,24 +75,16 @@ describe('useNavbarNavigation', () => {
 
   it('should detect utility active state', () => {
     const { result } = renderHook(() =>
-      useTestHook(
-        'CENSUS' as unknown as CurrentModuleArg,
-        ['HANDOFF', 'CENSUS'] as unknown as VisibleModulesArg,
-        'REGISTER'
-      )
+      useTestHook('CENSUS', ['NURSING_HANDOFF', 'CENSUS'], 'REGISTER')
     );
 
     expect(result.current.isUtilityActive).toBe(true);
   });
 
   it('should filter items based on required module', () => {
-    // Without HISTORY in visible modules
+    // Without BACKUP_FILES in visible modules
     const { result: result1 } = renderHook(() =>
-      useTestHook(
-        'HANDOFF' as unknown as CurrentModuleArg,
-        ['HANDOFF', 'CENSUS'] as unknown as VisibleModulesArg,
-        'REGISTER'
-      )
+      useTestHook('NURSING_HANDOFF', ['NURSING_HANDOFF', 'CENSUS'], 'REGISTER')
     );
 
     const historyItem1 = [
@@ -106,13 +94,9 @@ describe('useNavbarNavigation', () => {
     ].find(item => item.id === 'history');
     expect(historyItem1).toBeUndefined();
 
-    // With HISTORY in visible modules
+    // With BACKUP_FILES in visible modules
     const { result: result2 } = renderHook(() =>
-      useTestHook(
-        'HANDOFF' as unknown as CurrentModuleArg,
-        ['HANDOFF', 'CENSUS', 'HISTORY'] as unknown as VisibleModulesArg,
-        'REGISTER'
-      )
+      useTestHook('NURSING_HANDOFF', ['NURSING_HANDOFF', 'CENSUS', 'BACKUP_FILES'], 'REGISTER')
     );
 
     const historyItem2 = [

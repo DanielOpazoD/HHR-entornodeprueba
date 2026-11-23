@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { PatientInputCells } from '@/features/census/components/patient-row/PatientInputCells';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import { buildMockStabilityRules } from '@/tests/factories/censusContextMocks';
 import { useDailyRecordStability } from '@/context/DailyRecordContext';
 import { UIProvider } from '@/context/UIContext';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
@@ -28,9 +29,7 @@ const renderWithUI = (ui: ReactElement) =>
 
 describe('PatientInputCells', () => {
   it('renders flag cells hiding the C.QX checkbox (rediseño 2026)', () => {
-    vi.mocked(useDailyRecordStability).mockReturnValue({
-      canEditField: () => true,
-    } as unknown as ReturnType<typeof useDailyRecordStability>);
+    vi.mocked(useDailyRecordStability).mockReturnValue(buildMockStabilityRules());
 
     const data = DataFactory.createMockPatient('R1');
     const textHandler = vi.fn();
@@ -68,9 +67,7 @@ describe('PatientInputCells', () => {
   });
 
   it('hides specialist-restricted cells in specialist census access', () => {
-    vi.mocked(useDailyRecordStability).mockReturnValue({
-      canEditField: () => true,
-    } as unknown as ReturnType<typeof useDailyRecordStability>);
+    vi.mocked(useDailyRecordStability).mockReturnValue(buildMockStabilityRules());
 
     const data = DataFactory.createMockPatient('R1');
     const textHandler = vi.fn();
@@ -109,9 +106,7 @@ describe('PatientInputCells', () => {
   });
 
   it('uses the clinical block panel as the primary editor for diagnosis and specialty (status decoupled)', () => {
-    vi.mocked(useDailyRecordStability).mockReturnValue({
-      canEditField: () => true,
-    } as unknown as ReturnType<typeof useDailyRecordStability>);
+    vi.mocked(useDailyRecordStability).mockReturnValue(buildMockStabilityRules());
 
     const data = DataFactory.createMockPatient('R1');
     data.pathology = 'ACV';
@@ -174,9 +169,7 @@ describe('PatientInputCells', () => {
   });
 
   it('shows the clinical status as a colored dot in its own column (decoupled)', () => {
-    vi.mocked(useDailyRecordStability).mockReturnValue({
-      canEditField: () => true,
-    } as unknown as ReturnType<typeof useDailyRecordStability>);
+    vi.mocked(useDailyRecordStability).mockReturnValue(buildMockStabilityRules());
 
     const data = DataFactory.createMockPatient('R1');
     data.status = PatientStatus.DE_CUIDADO;
@@ -220,9 +213,7 @@ describe('PatientInputCells', () => {
   });
 
   it('saves the initial clinical block for a newly created patient in one patch', () => {
-    vi.mocked(useDailyRecordStability).mockReturnValue({
-      canEditField: () => true,
-    } as unknown as ReturnType<typeof useDailyRecordStability>);
+    vi.mocked(useDailyRecordStability).mockReturnValue(buildMockStabilityRules());
 
     const data = DataFactory.createMockPatient('R1', {
       patientName: 'Paciente Nuevo',
@@ -278,9 +269,7 @@ describe('PatientInputCells', () => {
   });
 
   it('shows a specialty description input when Otro is selected in the clinical block panel', () => {
-    vi.mocked(useDailyRecordStability).mockReturnValue({
-      canEditField: () => true,
-    } as unknown as ReturnType<typeof useDailyRecordStability>);
+    vi.mocked(useDailyRecordStability).mockReturnValue(buildMockStabilityRules());
 
     const data = DataFactory.createMockPatient('R1');
     data.pathology = 'Dolor abdominal';
@@ -334,9 +323,7 @@ describe('PatientInputCells', () => {
   });
 
   it('preserves ginecobstetric subtype and delivery route controls in the clinical block cells', () => {
-    vi.mocked(useDailyRecordStability).mockReturnValue({
-      canEditField: () => true,
-    } as unknown as ReturnType<typeof useDailyRecordStability>);
+    vi.mocked(useDailyRecordStability).mockReturnValue(buildMockStabilityRules());
 
     const data = DataFactory.createMockPatient('R1');
     data.patientName = 'Paciente GO';

@@ -7,7 +7,14 @@ import {
   useDailyRecordMovementActions,
 } from '@/context/useDailyRecordScopedActions';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
-import { DataFactory } from '@/tests/factories/DataFactory';
+import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import {
+  buildMockBedActions,
+  buildMockDailyRecordMovements,
+  buildMockDailyRecordStaff,
+  buildMockMovementActions,
+  buildMockUIContext,
+} from '@/tests/factories/censusContextMocks';
 
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordStaff: vi.fn(),
@@ -25,14 +32,10 @@ vi.mock('@/context/UIContext', () => ({
 }));
 
 describe('CMASection', () => {
-  type MovementActionsValue = ReturnType<typeof useDailyRecordMovementActions>;
-  type BedActionsValue = ReturnType<typeof useDailyRecordBedActions>;
   type MovementsValue = ReturnType<typeof useDailyRecordMovements>;
-  type DataValue = ReturnType<typeof useDailyRecordStaff>;
-  type ConfirmDialogValue = ReturnType<typeof useConfirmDialog>;
-  type NotificationValue = ReturnType<typeof useNotification>;
 
   const deleteCMA = vi.fn();
+  const undoCMA = vi.fn();
   const updateCMA = vi.fn();
   const convertCmaToHomeDischarge = vi.fn();
   const convertCmaToTransfer = vi.fn();
@@ -52,39 +55,28 @@ describe('CMASection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    vi.mocked(useDailyRecordMovementActions).mockReturnValue({
-      deleteCMA,
-      updateCMA,
-      convertCmaToHomeDischarge,
-      convertCmaToTransfer,
-    } as unknown as MovementActionsValue);
+    vi.mocked(useDailyRecordMovementActions).mockReturnValue(
+      buildMockMovementActions({
+        deleteCMA,
+        undoCMA,
+        updateCMA,
+        convertCmaToHomeDischarge,
+        convertCmaToTransfer,
+      })
+    );
 
-    vi.mocked(useDailyRecordBedActions).mockReturnValue({
-      updatePatientMultiple,
-    } as unknown as BedActionsValue);
+    vi.mocked(useDailyRecordBedActions).mockReturnValue(
+      buildMockBedActions({ updatePatientMultiple })
+    );
 
-    vi.mocked(useDailyRecordMovements).mockReturnValue({
-      discharges: [],
-      transfers: [],
-      cma: [],
-    } as unknown as MovementsValue);
-    vi.mocked(useDailyRecordStaff).mockReturnValue({
-      date: '2024-12-11',
-    } as unknown as DataValue);
+    vi.mocked(useDailyRecordMovements).mockReturnValue(buildMockDailyRecordMovements());
+    vi.mocked(useDailyRecordStaff).mockReturnValue(
+      buildMockDailyRecordStaff({ date: '2024-12-11' })
+    );
 
-    vi.mocked(useConfirmDialog).mockReturnValue({ confirm } as unknown as ConfirmDialogValue);
-    vi.mocked(useNotification).mockReturnValue({
-      error: notifyError,
-      warning: vi.fn(),
-      success: vi.fn(),
-      info: vi.fn(),
-      notifications: [],
-      dismiss: vi.fn(),
-      dismissAll: vi.fn(),
-      notify: vi.fn(),
-      alert: vi.fn(),
-      confirm: vi.fn(),
-    } as unknown as NotificationValue);
+    const uiContext = buildMockUIContext({ confirm, error: notifyError });
+    vi.mocked(useConfirmDialog).mockReturnValue(uiContext);
+    vi.mocked(useNotification).mockReturnValue(uiContext);
   });
 
   it('renders empty state when there are no CMA records', () => {
@@ -93,11 +85,9 @@ describe('CMASection', () => {
   });
 
   it('updates intervention type and discharge time fields', () => {
-    vi.mocked(useDailyRecordMovements).mockReturnValue({
-      discharges: [],
-      transfers: [],
-      cma: [cmaItem],
-    } as unknown as MovementsValue);
+    vi.mocked(useDailyRecordMovements).mockReturnValue(
+      buildMockDailyRecordMovements({ cma: [cmaItem] })
+    );
 
     render(<CMASection />);
 
@@ -117,18 +107,18 @@ describe('CMASection', () => {
   });
 
   it('saves CMA edit dialog changes in one atomic update', async () => {
-    vi.mocked(useDailyRecordMovements).mockReturnValue({
-      discharges: [],
-      transfers: [],
-      cma: [
-        {
-          ...cmaItem,
-          diagnosis: 'Diagnóstico original',
-          interventionType: 'Cirugía Mayor Ambulatoria',
-          dischargeTime: '12:00',
-        },
-      ],
-    } as unknown as MovementsValue);
+    vi.mocked(useDailyRecordMovements).mockReturnValue(
+      buildMockDailyRecordMovements({
+        cma: [
+          {
+            ...cmaItem,
+            diagnosis: 'Diagnóstico original',
+            interventionType: 'Cirugía Mayor Ambulatoria',
+            dischargeTime: '12:00',
+          },
+        ],
+      })
+    );
 
     render(<CMASection />);
 
@@ -151,11 +141,9 @@ describe('CMASection', () => {
 
   it('restores and deletes CMA entry when undo is confirmed', async () => {
     confirm.mockResolvedValue(true);
-    vi.mocked(useDailyRecordMovements).mockReturnValue({
-      discharges: [],
-      transfers: [],
-      cma: [cmaItem],
-    } as unknown as MovementsValue);
+    vi.mocked(useDailyRecordMovements).mockReturnValue(
+      buildMockDailyRecordMovements({ cma: [cmaItem] })
+    );
 
     render(<CMASection />);
     fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
@@ -167,24 +155,23 @@ describe('CMASection', () => {
           title: 'Deshacer Egreso CMA',
         })
       );
-      expect(updatePatientMultiple).toHaveBeenCalledWith('R1', cmaItem.originalData);
-      expect(deleteCMA).toHaveBeenCalledWith('cma-1');
+      expect(undoCMA).toHaveBeenCalledWith(cmaItem);
     });
   });
 
   it('shows informational dialog and skips restore when original data is missing', async () => {
     confirm.mockResolvedValue(true);
-    vi.mocked(useDailyRecordMovements).mockReturnValue({
-      discharges: [],
-      transfers: [],
-      cma: [
-        {
-          ...cmaItem,
-          originalBedId: undefined,
-          originalData: undefined,
-        },
-      ],
-    } as unknown as MovementsValue);
+    vi.mocked(useDailyRecordMovements).mockReturnValue(
+      buildMockDailyRecordMovements({
+        cma: [
+          {
+            ...cmaItem,
+            originalBedId: undefined,
+            originalData: undefined,
+          },
+        ],
+      })
+    );
 
     render(<CMASection />);
     fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
@@ -201,11 +188,9 @@ describe('CMASection', () => {
 
   it('notifies error when undo confirmation fails and deletes only after confirmation', async () => {
     confirm.mockRejectedValueOnce(new Error('dialog failed')).mockResolvedValueOnce(true);
-    vi.mocked(useDailyRecordMovements).mockReturnValue({
-      discharges: [],
-      transfers: [],
-      cma: [cmaItem],
-    } as unknown as MovementsValue);
+    vi.mocked(useDailyRecordMovements).mockReturnValue(
+      buildMockDailyRecordMovements({ cma: [cmaItem] })
+    );
 
     render(<CMASection />);
     fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
@@ -234,11 +219,9 @@ describe('CMASection', () => {
 
   it('converts CMA into home discharge from the shared actions menu', async () => {
     confirm.mockResolvedValue(true);
-    vi.mocked(useDailyRecordMovements).mockReturnValue({
-      discharges: [],
-      transfers: [],
-      cma: [cmaItem],
-    } as unknown as MovementsValue);
+    vi.mocked(useDailyRecordMovements).mockReturnValue(
+      buildMockDailyRecordMovements({ cma: [cmaItem] })
+    );
 
     render(<CMASection />);
     fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
@@ -255,11 +238,13 @@ describe('CMASection', () => {
   });
 
   it('returns null when cma list is null', () => {
-    vi.mocked(useDailyRecordMovements).mockReturnValue({
-      discharges: [],
-      transfers: [],
-      cma: null,
-    } as unknown as MovementsValue);
+    vi.mocked(useDailyRecordMovements).mockReturnValue(
+      asStoredDailyRecordShape<MovementsValue>({
+        discharges: [],
+        transfers: [],
+        cma: null,
+      })
+    );
 
     const { container } = render(<CMASection />);
     expect(container.firstChild).toBeNull();
@@ -267,11 +252,9 @@ describe('CMASection', () => {
 
   it('converts CMA into transfer from the shared actions menu', async () => {
     confirm.mockResolvedValue(true);
-    vi.mocked(useDailyRecordMovements).mockReturnValue({
-      discharges: [],
-      transfers: [],
-      cma: [cmaItem],
-    } as unknown as MovementsValue);
+    vi.mocked(useDailyRecordMovements).mockReturnValue(
+      buildMockDailyRecordMovements({ cma: [cmaItem] })
+    );
 
     render(<CMASection />);
     fireEvent.click(screen.getByTitle('Abrir menú de acciones'));

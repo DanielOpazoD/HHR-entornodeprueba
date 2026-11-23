@@ -7,8 +7,6 @@ import { BEDS, HOSPITAL_CAPACITY, REGULAR_BEDS } from '@/constants/beds';
 import { EMPTY_PATIENT } from '@/constants/patient';
 
 describe('statsCalculator', () => {
-  type BedValue = PatientData;
-
   const createEmptyBeds = (): Record<string, PatientData> => ({});
 
   it('counts CMA and UEA patients without consuming installed free beds a second time', () => {
@@ -71,17 +69,21 @@ describe('statsCalculator', () => {
   it('should count occupied beds and blocked beds', () => {
     const beds: Record<string, PatientData> = {
       R1: {
+        ...EMPTY_PATIENT,
+        bedId: 'R1',
         patientName: 'John',
         isBlocked: false,
         bedMode: 'Cama',
         status: PatientStatus.ESTABLE,
         specialty: Specialty.MEDICINA,
-      } as unknown as BedValue,
+      },
       R2: {
+        ...EMPTY_PATIENT,
+        bedId: 'R2',
         patientName: '',
         isBlocked: true,
         bedMode: 'Cama',
-      } as unknown as BedValue,
+      },
     };
     const stats = calculateStats(beds);
     expect(stats.occupiedBeds).toBe(1);
@@ -92,20 +94,26 @@ describe('statsCalculator', () => {
   it('should handle Cuna mode and nested clinical cribs', () => {
     const beds: Record<string, PatientData> = {
       R1: {
+        ...EMPTY_PATIENT,
+        bedId: 'R1',
         patientName: 'Mother',
         bedMode: 'Cama',
-        clinicalCrib: { patientName: 'Baby' },
+        clinicalCrib: { ...EMPTY_PATIENT, bedId: 'R1-crib', patientName: 'Baby' },
         hasCompanionCrib: true,
-      } as unknown as BedValue,
+      },
       R2: {
+        ...EMPTY_PATIENT,
+        bedId: 'R2',
         patientName: 'RN Solo',
         bedMode: 'Cuna',
-      } as unknown as BedValue,
+      },
       R3: {
+        ...EMPTY_PATIENT,
+        bedId: 'R3',
         patientName: 'Mother 2',
         bedMode: 'Cama',
         hasCompanionCrib: true,
-      } as unknown as BedValue,
+      },
     };
     const stats = calculateStats(beds);
 
@@ -124,7 +132,7 @@ describe('statsCalculator', () => {
 
   it('should count empty beds in Cuna mode as crib usage', () => {
     const beds: Record<string, PatientData> = {
-      R1: { patientName: '', bedMode: 'Cuna' } as unknown as BedValue,
+      R1: { ...EMPTY_PATIENT, bedId: 'R1', patientName: '', bedMode: 'Cuna' },
     };
     const stats = calculateStats(beds);
     expect(stats.occupiedBeds).toBe(0);

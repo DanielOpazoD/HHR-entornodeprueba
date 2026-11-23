@@ -9,9 +9,9 @@ import {
 import * as backupStorage from '@/services/repositories/dailyRecordBackupImportWriteService';
 import * as recordStorage from '@/services/storage/indexeddb/indexedDbRecordService';
 import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
+import { DataFactory } from '@/tests/factories/DataFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { DischargeData, TransferData } from '@/types/domain/movements';
-import type { PatientData } from '@/types/domain/patient';
+import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 
 // Mock dependencies
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', async importOriginal => {
@@ -29,25 +29,24 @@ vi.mock('@/services/repositories/dailyRecordBackupImportWriteService', () => ({
 }));
 
 describe('exportService', () => {
-  const mockRecord: DailyRecord = {
-    date: '2025-01-01',
+  const mockRecord: DailyRecord = DataFactory.createMockDailyRecord('2025-01-01', {
     beds: {
-      'UTI-1': {
+      'UTI-1': DataFactory.createMockPatient('UTI-1', {
         patientName: 'Test Patient',
         rut: '12345678-9',
         pathology: 'Test',
-        specialty: 'Medicina',
-        status: 'Estable',
+        specialty: Specialty.MEDICINA,
+        status: PatientStatus.ESTABLE,
         admissionDate: '2025-01-01',
         devices: [],
         isUPC: false,
         isBlocked: false,
         location: 'UTI',
         deviceDetails: {},
-      } as unknown as PatientData,
+      }),
     },
     discharges: [
-      {
+      DataFactory.createMockDischarge({
         id: 'discharge-1',
         bedId: 'UTI-1',
         bedName: 'UTI 1',
@@ -56,10 +55,10 @@ describe('exportService', () => {
         rut: '98765432-1',
         diagnosis: 'Recuperado',
         status: 'Vivo',
-      },
-    ] as unknown as DischargeData[],
+      }),
+    ],
     transfers: [
-      {
+      DataFactory.createMockTransfer({
         id: 'transfer-1',
         time: '10:00',
         bedId: 'UTI-2',
@@ -70,13 +69,13 @@ describe('exportService', () => {
         diagnosis: 'Fractura',
         evacuationMethod: 'Avión Comercial',
         receivingCenter: 'Hospital Regional',
-      },
-    ] as unknown as TransferData[],
+      }),
+    ],
     cma: [],
     nurses: [],
     lastUpdated: '2025-01-01T00:00:00.000Z',
     activeExtraBeds: [],
-  };
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -90,12 +89,11 @@ describe('exportService', () => {
 
   describe('exportDataJSONWithResult', () => {
     it('returns a typed success when exporting JSON succeeds', async () => {
-      const mockElement = { click: vi.fn() };
-      vi.spyOn(document, 'createElement').mockReturnValue(
-        mockElement as unknown as HTMLAnchorElement
-      );
-      vi.spyOn(document.body, 'appendChild').mockImplementation(node => node as unknown as Node);
-      vi.spyOn(document.body, 'removeChild').mockImplementation(node => node as unknown as Node);
+      const anchor = document.createElement('a');
+      const clickSpy = vi.spyOn(anchor, 'click').mockImplementation(() => {});
+      vi.spyOn(document, 'createElement').mockReturnValueOnce(anchor);
+      vi.spyOn(document.body, 'appendChild').mockImplementation(node => node);
+      vi.spyOn(document.body, 'removeChild').mockImplementation(node => node);
       vi.mocked(recordStorage.getAllRecords).mockResolvedValue({
         '2025-01-01': mockRecord,
       });
@@ -105,7 +103,7 @@ describe('exportService', () => {
       expect(result.status).toBe('success');
       expect(result.data.exported).toBe(true);
       expect(recordStorage.getAllRecords).toHaveBeenCalled();
-      expect(mockElement.click).toHaveBeenCalled();
+      expect(clickSpy).toHaveBeenCalled();
     });
   });
 

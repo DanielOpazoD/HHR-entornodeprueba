@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { buildDailyCudyrSummary, resolveVisibleCudyrBeds } from '@/services/cudyr/cudyrSummary';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { createEmptyPatient } from '@/domain/patient/patientFactory';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 // Mock BEDS
 vi.mock('@/constants/beds', () => ({
@@ -22,9 +23,6 @@ vi.mock('@/services/cudyr/CudyrScoreUtils', () => ({
 }));
 
 describe('cudyrSummary', () => {
-  type CudyrType = NonNullable<DailyRecord['beds'][string]['cudyr']>;
-  type BedValue = DailyRecord['beds'][string];
-
   const mockRecord: DailyRecord = {
     date: '2025-01-01',
     beds: {
@@ -35,7 +33,7 @@ describe('cudyrSummary', () => {
         isBlocked: false,
         admissionDate: '2024-12-31',
         admissionTime: '18:00',
-        cudyr: { changeClothes: 1 } as unknown as CudyrType,
+        cudyr: DataFactory.createMockCudyr({ changeClothes: 1 }),
       },
       M1: {
         ...createEmptyPatient('M1'),
@@ -44,16 +42,16 @@ describe('cudyrSummary', () => {
         isBlocked: false,
         admissionDate: '2024-12-31',
         admissionTime: '18:00',
-        cudyr: { changeClothes: 2 } as unknown as CudyrType,
+        cudyr: DataFactory.createMockCudyr({ changeClothes: 2 }),
         clinicalCrib: {
-          bedId: 'M1-crib',
+          ...createEmptyPatient('M1-crib'),
           patientName: 'Baby 1',
           rut: 'RN',
           isBlocked: false,
           admissionDate: '2024-12-31',
           admissionTime: '18:00',
-          cudyr: { changeClothes: 0 } as unknown as CudyrType,
-        } as unknown as BedValue,
+          cudyr: DataFactory.createMockCudyr({ changeClothes: 0 }),
+        },
       },
     },
     discharges: [],
@@ -62,7 +60,7 @@ describe('cudyrSummary', () => {
     nurses: [],
     activeExtraBeds: [],
     cma: [],
-  } as DailyRecord;
+  };
 
   describe('resolveVisibleCudyrBeds', () => {
     it('includes permanent beds and only active extra beds', () => {
@@ -81,7 +79,7 @@ describe('cudyrSummary', () => {
     it('should return zero counts when the record has no eligible patients', () => {
       const summary = buildDailyCudyrSummary({
         ...mockRecord,
-        beds: {} as DailyRecord['beds'],
+        beds: {},
       });
 
       expect(summary).toMatchObject({
@@ -104,7 +102,7 @@ describe('cudyrSummary', () => {
         ...mockRecord,
         beds: {
           R1: {
-            bedId: 'R1',
+            ...createEmptyPatient('R1'),
             patientName: 'Paciente importado',
             rut: '12345678-9',
             isBlocked: false,
@@ -117,8 +115,8 @@ describe('cudyrSummary', () => {
                 source: 'Eloísa · Gestión de Camas',
               },
             },
-          } as unknown as BedValue,
-        } as DailyRecord['beds'],
+          },
+        },
       };
 
       const summary = buildDailyCudyrSummary(importedRecord);
@@ -128,7 +126,7 @@ describe('cudyrSummary', () => {
     });
 
     it('does not count an imported CUDYR owned by a different census day', () => {
-      const staleRecord = {
+      const staleRecord: DailyRecord = {
         ...mockRecord,
         beds: {
           R1: {
@@ -143,7 +141,7 @@ describe('cudyrSummary', () => {
             },
           },
         },
-      } as DailyRecord;
+      };
 
       expect(buildDailyCudyrSummary(staleRecord)).toMatchObject({
         occupiedCount: 1,
@@ -152,7 +150,7 @@ describe('cudyrSummary', () => {
     });
 
     it('rejects inherited object names as imported CUDYR categories', () => {
-      const malformedRecord = {
+      const malformedRecord: DailyRecord = {
         ...mockRecord,
         beds: {
           R1: {
@@ -167,7 +165,7 @@ describe('cudyrSummary', () => {
             },
           },
         },
-      } as DailyRecord;
+      };
 
       expect(buildDailyCudyrSummary(malformedRecord).categorizedCount).toBe(0);
     });
@@ -190,13 +188,13 @@ describe('cudyrSummary', () => {
         activeExtraBeds: ['EX1'],
         beds: {
           EX1: {
-            bedId: 'EX1',
+            ...createEmptyPatient('EX1'),
             patientName: 'Extra',
             isBlocked: false,
             admissionDate: '2024-12-31',
             admissionTime: '18:00',
-            cudyr: {} as CudyrType,
-          } as unknown as BedValue,
+            cudyr: DataFactory.createMockCudyr(),
+          },
         },
       };
       expect(buildDailyCudyrSummary(recordWithExtra)).toMatchObject({
@@ -223,14 +221,14 @@ describe('cudyrSummary', () => {
         date: '2025-01-01',
         beds: {
           R1: {
-            bedId: 'R1',
+            ...createEmptyPatient('R1'),
             patientName: 'Ingreso tardio',
             rut: '11111111-1',
             isBlocked: false,
             admissionDate: '2025-01-01',
             admissionTime: '23:30',
-            cudyr: { changeClothes: 3, vitalSigns: 3 } as unknown as CudyrType,
-          } as unknown as BedValue,
+            cudyr: DataFactory.createMockCudyr({ changeClothes: 3, vitalSigns: 3 }),
+          },
         },
       };
 
