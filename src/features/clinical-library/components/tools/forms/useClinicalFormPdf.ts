@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { printLibraryDocument } from '../../../services/libraryDocumentActions';
+import { downloadBlob } from '@/utils/downloadBlob';
 import type { DicomCapture } from '@/domain/radiology/dicomTypes';
 import type {
   ClinicalFormDefinition,
@@ -132,9 +133,8 @@ export const useClinicalFormPdf = (
   };
   const saveDocument = async (attempt: number, format: 'pdf' | 'docx', bytes: Uint8Array) => {
     try {
-      const { saveAs } = await import('file-saver');
       if (!isCurrent(attempt, format)) return;
-      saveAs(
+      downloadBlob(
         new Blob([new Uint8Array(bytes)], {
           type:
             format === 'pdf'

@@ -55,7 +55,7 @@ vi.mock('@/services/exporters/clinicalDerivedBackupSection', () => ({
   buildClinicalDerivedBackupSection: vi.fn(),
   describeIncompleteClinicalDerivedBackup: vi.fn(),
 }));
-vi.mock('file-saver', () => ({ saveAs: rangeStorage.download }));
+vi.mock('@/utils/downloadBlob', () => ({ downloadBlob: rangeStorage.download }));
 
 import { getDocs, getDocsFromServer } from 'firebase/firestore';
 import { getRecordsRangeFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';

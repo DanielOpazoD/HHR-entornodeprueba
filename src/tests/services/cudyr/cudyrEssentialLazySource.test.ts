@@ -9,7 +9,7 @@ import type { CudyrSourceSheet } from '@/features/cudyr/export/cudyrSourceTypes'
 
 const mocks = vi.hoisted(() => ({ load: vi.fn(), save: vi.fn() }));
 vi.mock('@/features/cudyr/export/cudyrSourceLoader', () => ({ loadCudyrSourceSheets: mocks.load }));
-vi.mock('file-saver', () => ({ saveAs: mocks.save }));
+vi.mock('@/utils/downloadBlob', () => ({ downloadBlob: mocks.save }));
 vi.mock('@/features/cudyr/export/cudyrSourceWorkbook', () => {
   throw new Error('Source presentation unavailable');
 });

@@ -1,6 +1,7 @@
 import type { MedifValues } from '../domain/medifDraft';
 import type { MedifPreferences } from '../domain/medifPreferences';
 import { createMedifPdf, MEDIF_TEMPLATE_URL, type MedifPdfMode } from './medifPdf';
+import { downloadBlob } from '@/utils/downloadBlob';
 
 /** The cache contains only the public blank template, never patient data. */
 let templatePromise: Promise<ArrayBuffer> | undefined;
@@ -31,9 +32,7 @@ export const downloadMedifPdf = async (
   signal?.throwIfAborted();
   const bytes = await createMedifPdf(template, values, preferences, mode);
   signal?.throwIfAborted();
-  const { saveAs } = await import('file-saver');
-  signal?.throwIfAborted();
-  saveAs(
+  downloadBlob(
     new Blob([new Uint8Array(bytes)], { type: 'application/pdf' }),
     `MEDIF-${mode === 'print' ? 'imprimible' : 'editable'}.pdf`
   );

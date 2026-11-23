@@ -7,7 +7,7 @@ vi.mock('@/features/clinical-library/services/medifPdf', () => ({
   createMedifPdf: createPdf,
   MEDIF_TEMPLATE_URL: '/synthetic-medif.pdf',
 }));
-vi.mock('file-saver', () => ({ saveAs }));
+vi.mock('@/utils/downloadBlob', () => ({ downloadBlob: saveAs }));
 
 describe('MEDIF download cancellation', () => {
   beforeEach(() => {

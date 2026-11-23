@@ -26,7 +26,7 @@ vi.mock('@/services/exporters/clinicalDerivedBackupSection', () => ({
   buildClinicalDerivedBackupSection: vi.fn(),
   describeIncompleteClinicalDerivedBackup: vi.fn(),
 }));
-vi.mock('file-saver', () => ({ saveAs: mocks.download }));
+vi.mock('@/utils/downloadBlob', () => ({ downloadBlob: mocks.download }));
 
 const date = '2026-04-02';
 const record = (note: string, lastUpdated = '2026-04-02T12:00:00.000Z') =>

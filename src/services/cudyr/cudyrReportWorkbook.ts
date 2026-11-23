@@ -4,6 +4,7 @@ import type { ArchivedCudyrSupplement } from './cudyrSupplementService';
 import { addCudyrSupplementWorkbook } from './cudyrSupplementWorkbook';
 import type { CudyrReportDataset, CudyrReportExportMode } from '@/types/domain/cudyrReport';
 import { buildCudyrWorkbook } from './cudyrWorkbookBuilder';
+import { downloadBlob } from '@/utils/downloadBlob';
 import { cudyrReportTotals } from './cudyrReportModel';
 import { cudyrWorkbookSummary as summary } from './cudyrWorkbookSummary';
 import { addCudyrReportContextTable } from './cudyrReportContextTable';
@@ -212,8 +213,7 @@ export const downloadCudyrReport = async (
   mode: CudyrReportExportMode = 'statistics'
 ) => {
   const { blob, fileName } = await cudyrReportExcelBlob(data, supplements, mode);
-  const { saveAs } = await import('file-saver');
   recordE2EDownloadArtifact({ filename: fileName, blobSize: blob.size, blobType: blob.type });
-  saveAs(blob, fileName);
+  downloadBlob(blob, fileName);
   return { outcome: 'success' as const, fileName, byteLength: blob.size };
 };

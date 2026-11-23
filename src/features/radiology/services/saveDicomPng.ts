@@ -1,5 +1,5 @@
 import type { DicomCapture } from '@/domain/radiology/dicomTypes';
-import { saveAs } from 'file-saver';
+import { downloadBlob } from '@/utils/downloadBlob';
 
 interface SavePickerWindow extends Window {
   showSaveFilePicker?: (options: object) => Promise<{
@@ -27,6 +27,6 @@ export const saveDicomPng = async (capture: () => Promise<DicomCapture>): Promis
     await file.write(blob);
     await file.close();
   } else {
-    saveAs(blob, 'captura-dicom.png');
+    downloadBlob(blob, 'captura-dicom.png');
   }
 };

@@ -36,7 +36,7 @@ vi.mock('@/services/storage/firestore', () => ({
   getRecordsRangeFromFirestore: mocks.getRemoteRecordsRange,
 }));
 vi.mock('@/services/exporters/exportDownload', () => ({ downloadBlob: mocks.downloadBlob }));
-vi.mock('file-saver', () => ({ saveAs: mocks.saveAs }));
+vi.mock('@/utils/downloadBlob', () => ({ downloadBlob: mocks.saveAs }));
 vi.mock('@/services/admin/auditService', () => ({ logAuditEvent: vi.fn() }));
 vi.mock('@/services/admin/utils/auditUtils', () => ({ getCurrentUserEmail: () => 'admin@hhr' }));
 

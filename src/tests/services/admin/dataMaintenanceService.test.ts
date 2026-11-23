@@ -55,8 +55,8 @@ vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
   saveDetailed: mockRepositorySave,
 }));
 
-vi.mock('file-saver', () => ({
-  saveAs: mockSaveAs,
+vi.mock('@/utils/downloadBlob', () => ({
+  downloadBlob: mockSaveAs,
 }));
 
 describe('dataMaintenanceService', () => {

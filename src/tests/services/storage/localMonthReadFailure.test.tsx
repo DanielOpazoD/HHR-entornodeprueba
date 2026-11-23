@@ -12,7 +12,7 @@ import { localPersistence } from '@/services/storage/localpersistence/localPersi
 const mocks = vi.hoisted(() => ({ saveAs: vi.fn() }));
 vi.mock('@/services/storage/firestore', () => ({}));
 vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled: () => false }));
-vi.mock('file-saver', () => ({ saveAs: mocks.saveAs }));
+vi.mock('@/utils/downloadBlob', () => ({ downloadBlob: mocks.saveAs }));
 
 const failRead = () =>
   vi.spyOn(core.hospitalDB.dailyRecords, 'where').mockImplementation(() => {
