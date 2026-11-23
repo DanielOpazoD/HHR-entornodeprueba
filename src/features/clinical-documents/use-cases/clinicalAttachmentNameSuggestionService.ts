@@ -10,6 +10,9 @@ import {
   createApplicationSuccess,
 } from '@/shared/contracts/applicationOutcomeFactories';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
+import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
+
+const ATTACHMENT_NAME_SUGGESTION_TIMEOUT_MS = 20_000;
 
 const resolveEndpoint = (): string =>
   import.meta.env.VITE_CLINICAL_ATTACHMENT_NAME_SUGGESTION_ENDPOINT ||
@@ -20,7 +23,11 @@ const isJsonResponse = (response: Response): boolean =>
 
 const readServerlessPayload = async (response: Response): Promise<unknown> => {
   if (isJsonResponse(response)) {
-    return response.json();
+    try {
+      return await response.json();
+    } catch {
+      return { error: 'No se pudo leer la respuesta del servicio de IA.' };
+    }
   }
   if (response.status === 404) {
     return { error: 'El endpoint local de IA no está disponible.' };
@@ -46,13 +53,15 @@ export const suggestClinicalAttachmentDisplayName = async (
   try {
     const request = ClinicalAttachmentNameSuggestionRequestSchema.parse(input);
     const authHeaders = await resolveCurrentUserAuthHeaders();
-    const response = await fetch(resolveEndpoint(), {
+    const response = await fetchWithTimeout(resolveEndpoint(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...authHeaders,
       },
       body: JSON.stringify(request),
+      timeoutMs: ATTACHMENT_NAME_SUGGESTION_TIMEOUT_MS,
+      timeoutMessage: 'La sugerencia de nombre con IA tardó demasiado en responder.',
     });
     const payload = await readServerlessPayload(response);
 

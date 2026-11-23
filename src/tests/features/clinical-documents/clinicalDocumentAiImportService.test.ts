@@ -38,4 +38,20 @@ describe('clinicalDocumentAiImportService', () => {
       'El endpoint local de IA no está disponible. Reinicia el servidor de desarrollo e intenta nuevamente.'
     );
   });
+
+  it('returns a safe failure outcome when an application/json response body is truncated', async () => {
+    vi.mocked(global.fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 502,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => {
+        throw new SyntaxError('Unexpected end of JSON input');
+      },
+    } as unknown as Response);
+
+    const result = await transformClinicalDocumentAiImportText(validSourceText);
+
+    expect(result.status).toBe('failed');
+    expect(result.userSafeMessage).toBe('No se pudo leer la respuesta del servicio de IA.');
+  });
 });

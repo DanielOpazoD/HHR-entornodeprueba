@@ -2,6 +2,9 @@ import type {
   OperationalTelemetryEvent,
   OperationalTelemetryStatus,
 } from '@/services/observability/operationalTelemetryTypes';
+import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
+
+const EXTERNAL_TELEMETRY_FETCH_TIMEOUT_MS = 8_000;
 
 export interface OperationalTelemetryExternalConfig {
   enabled: boolean;
@@ -63,11 +66,12 @@ const sendWithBeacon = (endpoint: string, payload: string): boolean => {
 const sendWithFetch = async (endpoint: string, payload: string): Promise<void> => {
   if (typeof fetch !== 'function') throw new Error('telemetry_transport_unavailable');
 
-  const response = await fetch(endpoint, {
+  const response = await fetchWithTimeout(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: payload,
     keepalive: true,
+    timeoutMs: EXTERNAL_TELEMETRY_FETCH_TIMEOUT_MS,
   });
   if (!response.ok) throw new Error('telemetry_not_accepted');
 };

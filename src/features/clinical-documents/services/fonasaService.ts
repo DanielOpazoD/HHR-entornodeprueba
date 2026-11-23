@@ -19,6 +19,7 @@
 
 import { callLocalAI, isLocalAIAvailable } from '@/services/ai/aiProviderConfig';
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
+import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { removeAccents } from '@/utils/stringUtils';
 
 // ---------------------------------------------------------------------------
@@ -279,13 +280,14 @@ export const searchFonasaAI = async (
 
   try {
     const authHeaders = await resolveCurrentUserAuthHeaders();
-    const response = await fetch('/.netlify/functions/cie10-ai-search', {
+    const response = await fetchWithTimeout('/.netlify/functions/cie10-ai-search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({
         query,
         prompt: buildFonasaAIPrompt(catalog, query),
       }),
+      timeoutMs: 15_000,
     });
     if (!response.ok) return [];
 
