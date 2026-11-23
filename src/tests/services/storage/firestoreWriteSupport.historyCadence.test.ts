@@ -66,6 +66,7 @@ vi.mock('@/services/storage/firestore/firestoreServiceRuntime', () => ({
 }));
 
 import { getDoc, setDoc } from 'firebase/firestore';
+import { createMockDocRef, createMockDocSnapshot } from '@/tests/factories/firestoreSdkMocks';
 import {
   saveHistorySnapshot,
   updateRecordPartiallyAtomically,
@@ -80,10 +81,7 @@ describe('firestoreWriteSupport history cadence', () => {
   });
 
   it('copies at most once per hour per day unless the caller forces the copy', async () => {
-    vi.mocked(getDoc).mockResolvedValue({
-      exists: () => true,
-      data: () => ({ census: 'snapshot' }),
-    } as never);
+    vi.mocked(getDoc).mockResolvedValue(createMockDocSnapshot({ census: 'snapshot' }));
     vi.useFakeTimers();
     try {
       vi.setSystemTime(new Date('2026-03-22T10:00:00.000Z'));
@@ -107,7 +105,7 @@ describe('firestoreWriteSupport history cadence', () => {
   });
 
   it('keeps a separate cadence per day', async () => {
-    vi.mocked(getDoc).mockResolvedValue({ exists: () => true, data: () => ({}) } as never);
+    vi.mocked(getDoc).mockResolvedValue(createMockDocSnapshot({}));
     await saveHistorySnapshot('2026-03-22');
     await saveHistorySnapshot('2026-03-23');
     await saveHistorySnapshot('2026-03-22');
@@ -116,7 +114,7 @@ describe('firestoreWriteSupport history cadence', () => {
   });
 
   it('does not count a copy whose write failed, so the next save copies again', async () => {
-    vi.mocked(getDoc).mockResolvedValue({ exists: () => true, data: () => ({}) } as never);
+    vi.mocked(getDoc).mockResolvedValue(createMockDocSnapshot({}));
     vi.mocked(setDoc).mockRejectedValueOnce(new Error('synthetic network failure'));
     await saveHistorySnapshot('2026-03-24');
     await saveHistorySnapshot('2026-03-24');
@@ -125,7 +123,7 @@ describe('firestoreWriteSupport history cadence', () => {
   });
 
   it('stops re-reading the day for an hour when the rules deny the copy', async () => {
-    vi.mocked(getDoc).mockResolvedValue({ exists: () => true, data: () => ({}) } as never);
+    vi.mocked(getDoc).mockResolvedValue(createMockDocSnapshot({}));
     vi.mocked(setDoc).mockRejectedValueOnce(
       Object.assign(new Error('Missing or insufficient permissions.'), {
         code: 'permission-denied',
@@ -152,10 +150,10 @@ describe('firestoreWriteSupport history cadence', () => {
       mockRunTransaction.mockImplementation((_db: unknown, fn: (tx: unknown) => Promise<void>) =>
         fn(tx)
       );
-      const day = { kind: 'docRef', path: 'hospitals/h/dailyRecords/2026-02-23' };
+      const day = createMockDocRef('hospitals/h/dailyRecords/2026-02-23', { kind: 'docRef' });
       const update = () =>
         updateRecordPartiallyAtomically(
-          day as never,
+          day,
           { discharges: [] },
           '2026-02-20T10:00:00.000Z',
           'conflict',
@@ -186,7 +184,7 @@ describe('firestoreWriteSupport history cadence', () => {
       });
     const updateDay = (path: string, options?: { historyPolicy?: 'snapshot' | 'skip' }) =>
       updateRecordPartiallyAtomically(
-        { kind: 'docRef', path } as never,
+        createMockDocRef(path, { kind: 'docRef' }),
         { discharges: [] },
         '2026-02-20T10:00:00.000Z',
         'conflict',
@@ -231,7 +229,7 @@ describe('firestoreWriteSupport history cadence', () => {
     });
 
     it('marks only what the attempt that committed wrote when Firestore retries', async () => {
-      const day = { kind: 'docRef', path: 'hospitals/h/dailyRecords/2026-02-28' } as never;
+      const day = createMockDocRef('hospitals/h/dailyRecords/2026-02-28', { kind: 'docRef' });
       const existing = partialTx();
       const gone = makeTx({ exists: () => false });
       const update = () =>

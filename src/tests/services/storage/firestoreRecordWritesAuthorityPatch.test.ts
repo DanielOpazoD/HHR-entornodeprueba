@@ -123,7 +123,7 @@ describe('firestoreRecordWrites authority patch routing', () => {
 
     await updateRecordPartial(
       '2026-03-14',
-      { 'beds.R1.pathology': 'Diagnostico atomico' } as never,
+      { 'beds.R1.pathology': 'Diagnostico atomico' },
       '2026-03-14T10:00:00.000Z',
       {
         syncContract: {
@@ -175,7 +175,7 @@ describe('firestoreRecordWrites authority patch routing', () => {
         'beds.R1.pathology': 'Diagnostico atomico',
         'beds.R1.fhir_resource': { resourceType: 'Patient', id: 'R1' },
         dateTimestamp: 1773446400000,
-      } as never,
+      },
       '2026-03-14T10:00:00.000Z',
       {
         syncContract: {
@@ -218,7 +218,7 @@ describe('firestoreRecordWrites authority patch routing', () => {
 
     await updateRecordPartial(
       '2026-03-14',
-      { 'beds.R1.surgicalComplication': true } as never,
+      { 'beds.R1.surgicalComplication': true },
       '2026-03-14T10:00:00.000Z',
       {
         syncContract: {
@@ -270,7 +270,7 @@ describe('firestoreRecordWrites authority patch routing', () => {
         },
         'beds.R1.isUPC': true,
         'bedTypeOverrides.R1': 'UCI',
-      } as never,
+      },
       '2026-03-14T10:00:00.000Z',
       {
         syncContract: {
@@ -317,7 +317,7 @@ describe('firestoreRecordWrites authority patch routing', () => {
 
     await updateRecordPartial(
       '2026-03-14',
-      { 'beds.R1.patientName': 'Nombre estructural actualizado' } as never,
+      { 'beds.R1.patientName': 'Nombre estructural actualizado' },
       '2026-03-14T10:00:00.000Z',
       {
         syncContract: {
@@ -362,7 +362,7 @@ describe('firestoreRecordWrites authority patch routing', () => {
 
       await updateRecordPartial(
         '2026-03-14',
-        { 'beds.R1.pathology': 'Diagnóstico protegido por schema v2' } as never,
+        { 'beds.R1.pathology': 'Diagnóstico protegido por schema v2' },
         '2026-03-14T10:00:00.000Z'
       );
 
@@ -388,7 +388,7 @@ describe('firestoreRecordWrites authority patch routing', () => {
       {
         'beds.R1.patientName': 'Nombre estructural actualizado',
         dateTimestamp: 1773446400000,
-      } as never,
+      },
       '2026-03-14T10:00:00.000Z'
     );
 
@@ -413,7 +413,7 @@ describe('firestoreRecordWrites authority patch routing', () => {
         {
           'beds.R1.patientName': 'Nombre estructural actualizado',
           handoffNovedadesDayShift: 'Cambio no relacionado',
-        } as never,
+        },
         '2026-03-14T10:00:00.000Z'
       )
     ).rejects.toThrow('mezcla cambios de cama con otros campos');
@@ -435,7 +435,7 @@ describe('firestoreRecordWrites authority patch routing', () => {
         {
           'beds.R1.pathology': 'Diagnóstico clínico actualizado',
           'beds.R1.patientName': 'Nombre estructural actualizado',
-        } as never,
+        },
         '2026-03-14T10:00:00.000Z'
       )
     ).rejects.toThrow('mezcla campos clínicos y estructurales');

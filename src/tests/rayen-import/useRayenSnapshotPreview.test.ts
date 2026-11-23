@@ -1,13 +1,24 @@
+import type { RefObject } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
+import type { RayenSyncBundle } from '@/features/rayen-import/contracts/rayenSnapshot';
+import type { ApplyResult, SkippedOp } from '@/features/rayen-import/domain/applyCensusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenImportState } from '@/features/rayen-import/hooks/rayenImportState';
 import {
   RayenHistoricalCorrectionAfterCommitError,
   RayenStructuralPlanChangedError,
+  type ConfirmedRayenImportResult,
 } from '@/features/rayen-import/hooks/confirmRayenImport';
+import type { ApplyRayenCensusDiff } from '@/features/rayen-import/hooks/useRayenCensusDiffApplication';
+import type { PreparedRayenSyncContext } from '@/features/rayen-import/hooks/rayenSyncTemporalContext';
+import {
+  RAYEN_SYNC_TIME_ZONE,
+  type RayenSyncExecutionState,
+} from '@/features/rayen-import/hooks/rayenSyncExecutionState';
 import { useRayenSnapshotPreview } from '@/features/rayen-import/hooks/useRayenSnapshotPreview';
+import { createMockDailyRecordRepositoryPort } from '@/tests/factories/dailyRecordPortMocks';
 
 const mocks = vi.hoisted(() => ({
   applyConfirmedRayenImport: vi.fn(),
@@ -85,8 +96,10 @@ const committedResult = (
   {
     skipped = [],
     confirmedHandoff = { source: 'snapshot-commit' },
-  }: { skipped?: unknown[]; confirmedHandoff?: Record<string, unknown> } = {}
-) => ({
+  }: { skipped?: SkippedOp[]; confirmedHandoff?: Record<string, unknown> } = {}
+): ConfirmedRayenImportResult<ApplyResult> & { confirmedHandoff: Record<string, unknown> } => ({
+  record,
+  applied: { admissions: 0, updates: 0, moves: 0, discharges: 0 },
   appliedDiff: diff,
   skipped,
   historicalCorrectionsPending: false,
@@ -97,6 +110,19 @@ const snapshot = {
   capturedAt: '2026-08-25T10:00:00.000Z',
   facilityId: 1342,
   encounters: [],
+};
+
+const emptyBundle: RayenSyncBundle = {
+  id: 'bundle-1',
+  startedAt: '2026-08-25T09:59:50.000Z',
+  completedAt: '2026-08-25T10:00:00.000Z',
+  facilityId: 1342,
+  dateStart: record.date,
+  dateEnd: record.date,
+  fichaMedicoCapturedAt: '2026-08-25T10:00:00.000Z',
+  gestionCamasCapturedAt: '2026-08-25T10:00:00.000Z',
+  sourceSkewMs: 0,
+  egresoRows: [],
 };
 
 const initialState: RayenImportState = {
@@ -121,13 +147,13 @@ const renderPreview = ({
   const runClinicalStage = vi.fn().mockResolvedValue({ status: 'complete' });
   const failRun = vi.fn().mockResolvedValue(undefined);
   const recordRunPerformance = vi.fn();
-  const preparedSyncContextRef = {
+  const preparedSyncContextRef: RefObject<PreparedRayenSyncContext | null> = {
     current: {
       runId: 'run-1',
       record,
       selectedDate: record.date,
       target: {
-        kind: 'current' as const,
+        kind: 'current',
         calendarDay: record.date,
         clinicalDay: record.date,
         lookbackDays: 0,
@@ -136,12 +162,21 @@ const renderPreview = ({
       preparedAt: '2026-08-25T10:00:00.000Z',
     },
   };
-  const executionRef = {
+  const executionRef: RefObject<RayenSyncExecutionState> = {
     current: {
       context: {
         runId: 'run-1',
         requestId: 'request-1',
         selectedDate: record.date,
+        clinicalDay: record.date,
+        timeZone: RAYEN_SYNC_TIME_ZONE,
+        target: 'current',
+        lookbackDays: 0,
+        baseRevision: record.lastUpdated,
+        policy: { mode: 'preview', clinicalBatchMode: 'enforced', revision: 1 },
+        policyRevision: 1,
+        queryRange: { dateStart: record.date, dateEnd: record.date },
+        preparedAt: '2026-08-25T10:00:00.000Z',
       },
       pending: { runId: 'run-1', selectedDate: record.date },
       stage: { type: 'planning_structure' },
@@ -155,25 +190,25 @@ const renderPreview = ({
     sourceDate: record.date,
     startedAt: '2026-08-25T10:00:00.000Z',
     by: 'Operador HHR',
-    policy: { mode: 'preview', clinicalBatchMode: 'enforced', revision: 1 },
+    policy: { mode: 'preview' as const, clinicalBatchMode: 'enforced' as const, revision: 1 },
     reviewRequirement,
   };
   const hook = renderHook(() =>
     useRayenSnapshotPreview({
-      dailyRecord: {} as never,
+      dailyRecord: createMockDailyRecordRepositoryPort(),
       isAdmin: false,
       setState,
       dispatchExecution,
-      executionRef: executionRef as never,
+      executionRef,
       selectedDateRef: { current: record.date },
       clearSyncTimeout: vi.fn(),
-      applyDiff: vi.fn() as never,
+      applyDiff: vi.fn<ApplyRayenCensusDiff>(),
       runClinicalStage,
       failRun,
       ensureRun: vi.fn().mockReturnValue(run),
       getRun: vi.fn().mockReturnValue(run),
       recordRunPerformance,
-      preparedSyncContextRef: preparedSyncContextRef as never,
+      preparedSyncContextRef,
       structuralReplanRef,
       structuralPersistenceExecutionKeysRef,
       runSerializedPersistence: operation => operation(),
@@ -221,7 +256,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     });
     const harness = renderPreview();
 
-    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+    await act(async () => harness.result.current(snapshot, emptyBundle, 'run-1', 'request-1'));
 
     expect(mocks.applyConfirmedRayenImport).not.toHaveBeenCalled();
     expect(harness.runClinicalStage).not.toHaveBeenCalled();
@@ -242,7 +277,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     const marked = new Set(['900001']);
     const harness = renderPreview({ loadInvalidEpisodeIds: vi.fn().mockResolvedValue(marked) });
 
-    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+    await act(async () => harness.result.current(snapshot, emptyBundle, 'run-1', 'request-1'));
 
     expect(mocks.prepareRayenStructuralPlan).toHaveBeenCalledWith(
       expect.objectContaining({ invalidEpisodeIds: marked })
@@ -254,7 +289,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
       loadInvalidEpisodeIds: vi.fn().mockRejectedValue(new Error('unavailable')),
     });
 
-    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+    await act(async () => harness.result.current(snapshot, emptyBundle, 'run-1', 'request-1'));
 
     expect(mocks.prepareRayenStructuralPlan).not.toHaveBeenCalled();
     expect(harness.failRun).toHaveBeenCalledWith('apply_failed', 'run-1');
@@ -271,7 +306,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     });
     const harness = renderPreview({ reviewRequirement: 'day_bootstrap' });
 
-    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+    await act(async () => harness.result.current(snapshot, emptyBundle, 'run-1', 'request-1'));
 
     expect(mocks.applyConfirmedRayenImport).not.toHaveBeenCalled();
     expect(harness.dispatchExecution).not.toHaveBeenCalledWith(
@@ -293,7 +328,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     });
     const harness = renderPreview({ monotonicNow: () => 4_200 });
 
-    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+    await act(async () => harness.result.current(snapshot, emptyBundle, 'run-1', 'request-1'));
 
     expect(harness.structuralReplanRef.current).toMatchObject({ reviewStartedAtMs: 4_200 });
     expect(harness.recordRunPerformance).not.toHaveBeenCalledWith(
@@ -314,7 +349,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     const monotonicNow = vi.fn().mockReturnValueOnce(1_000).mockReturnValueOnce(1_240);
     const harness = renderPreview({ monotonicNow });
 
-    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+    await act(async () => harness.result.current(snapshot, emptyBundle, 'run-1', 'request-1'));
 
     expect(harness.recordRunPerformance).toHaveBeenCalledWith(
       { stagesMs: { structuralPersistence: 240 } },
@@ -337,7 +372,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     mocks.applyConfirmedRayenImport.mockResolvedValue(result);
     const harness = renderPreview();
 
-    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+    await act(async () => harness.result.current(snapshot, emptyBundle, 'run-1', 'request-1'));
 
     expect(mocks.applyConfirmedRayenImport).toHaveBeenCalledOnce();
     expect(harness.runClinicalStage).toHaveBeenCalledWith({ source: 'snapshot-commit' });
@@ -367,7 +402,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
       return { status: 'complete' };
     });
 
-    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+    await act(async () => harness.result.current(snapshot, emptyBundle, 'run-1', 'request-1'));
 
     expect(appliedState(harness.setState)).toMatchObject({ diff, isPreviewOpen: true });
     expect(harness.runClinicalStage).toHaveBeenCalledOnce();
@@ -379,12 +414,12 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
       replanDiff: vi.fn(),
     });
     const result = committedResult(noChangeDiff, {
-      skipped: [{ kind: 'admission', bedId: 'R1' }],
+      skipped: [{ kind: 'admission', bedId: 'R1', reason: 'occupied' }],
     });
     mocks.applyConfirmedRayenImport.mockResolvedValue(result);
     const harness = renderPreview();
 
-    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+    await act(async () => harness.result.current(snapshot, emptyBundle, 'run-1', 'request-1'));
 
     expect(harness.dispatchExecution).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'record_outcome', skippedItems: 1 })
@@ -406,13 +441,13 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
       confirmedHandoff: { source: 'committed-correction' },
     });
     const error = new RayenHistoricalCorrectionAfterCommitError(
-      result as never,
+      result,
       new Error('historical conflict')
     );
     mocks.applyConfirmedRayenImport.mockRejectedValue(error);
     const harness = renderPreview();
 
-    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+    await act(async () => harness.result.current(snapshot, emptyBundle, 'run-1', 'request-1'));
 
     expect(harness.runClinicalStage).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -444,7 +479,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     mocks.applyConfirmedRayenImport.mockRejectedValue(error);
     const harness = renderPreview();
 
-    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+    await act(async () => harness.result.current(snapshot, emptyBundle, 'run-1', 'request-1'));
 
     expect(harness.preparedSyncContextRef.current).toMatchObject({ record: freshRecord });
     expect(harness.dispatchExecution).toHaveBeenCalledWith(
@@ -472,7 +507,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     mocks.applyConfirmedRayenImport.mockRejectedValue(error);
     const harness = renderPreview();
 
-    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+    await act(async () => harness.result.current(snapshot, emptyBundle, 'run-1', 'request-1'));
 
     expect(harness.dispatchExecution).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'transition', stage: { type: 'failed' } })
@@ -500,13 +535,15 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     );
     const harness = renderPreview();
 
-    const persistence = harness.result.current(snapshot, {} as never, 'run-1', 'request-1');
+    const persistence = harness.result.current(snapshot, emptyBundle, 'run-1', 'request-1');
     await vi.waitFor(() => expect(mocks.applyConfirmedRayenImport).toHaveBeenCalledOnce());
     harness.executionRef.current = {
       ...harness.executionRef.current,
-      context: { ...harness.executionRef.current.context, requestId: 'request-2' },
+      context: harness.executionRef.current.context
+        ? { ...harness.executionRef.current.context, requestId: 'request-2' }
+        : null,
       stage: { type: 'cancelled' },
-    } as never;
+    };
     resolvePersistence(committedResult(noChangeDiff));
 
     await act(async () => persistence);

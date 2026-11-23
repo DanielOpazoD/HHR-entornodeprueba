@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { HospitalizationEvent } from '@/types/domain/patientMaster';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 const {
   getAllRecords,
@@ -82,20 +83,26 @@ describe('patientHistoryService', () => {
     getAllRecords.mockResolvedValue({
       '2026-04-07': buildRecord('2026-04-07', {
         beds: {
-          H1C1: {
+          H1C1: DataFactory.createMockPatient('H1C1', {
             rut: '1.000.122-6',
             patientName: 'Isut Rebolesu Litus',
             admissionDate: '2026-04-07',
             admissionTime: '09:00',
             admissionOrigin: 'Urgencias',
-          } as never,
+          }),
         },
       }),
     });
 
     getRecordsRangeFromFirestore.mockResolvedValue([
       buildRecord('2026-04-07', {
-        beds: { H1C1: { rut: '1.000.122-6', admissionDate: '2026-04-07' } as never },
+        beds: {
+          H1C1: DataFactory.createMockPatient('H1C1', {
+            rut: '1.000.122-6',
+            patientName: '',
+            admissionDate: '2026-04-07',
+          }),
+        },
       }),
       buildRecord('2026-04-15', {
         discharges: [
@@ -177,13 +184,13 @@ describe('patientHistoryService', () => {
     readServerHistory.mockResolvedValue({
       '2026-02-02': buildRecord('2026-02-02', {
         beds: {
-          R3: {
+          R3: DataFactory.createMockPatient('R3', {
             rut: '10.000.109-8',
             patientName: 'Tisigef Cunonoc Pagorim',
             admissionDate: '2026-02-02',
             admissionTime: '14:00',
             admissionOrigin: 'Urgencias',
-          } as never,
+          }),
         },
       }),
       '2026-02-05': buildRecord('2026-02-05', {
@@ -224,13 +231,13 @@ describe('patientHistoryService', () => {
     readServerHistory.mockResolvedValue({
       '2026-03-26': buildRecord('2026-03-26', {
         beds: {
-          H3C1: {
+          H3C1: DataFactory.createMockPatient('H3C1', {
             rut: '10.000.109-8',
             patientName: 'Tisigef Cunonoc Pagorim',
             admissionDate: '2026-03-26',
             admissionTime: '14:00',
             admissionOrigin: 'Urgencias',
-          } as never,
+          }),
         },
       }),
       '2026-04-06': buildRecord('2026-04-06', {
@@ -251,13 +258,13 @@ describe('patientHistoryService', () => {
       }),
       '2026-04-12': buildRecord('2026-04-12', {
         beds: {
-          H2C2: {
+          H2C2: DataFactory.createMockPatient('H2C2', {
             rut: '10.000.109-8',
             patientName: 'Tisigef Cunonoc Pagorim',
             admissionDate: '2026-04-12',
             admissionTime: '09:00',
             admissionOrigin: 'Urgencias',
-          } as never,
+          }),
         },
       }),
       '2026-04-24': buildRecord('2026-04-24', {
@@ -323,13 +330,13 @@ describe('patientHistoryService', () => {
     getAllRecords.mockResolvedValue({
       '2026-04-07': buildRecord('2026-04-07', {
         beds: {
-          H1C1: {
+          H1C1: DataFactory.createMockPatient('H1C1', {
             rut: '1.000.122-6',
             patientName: 'Isut Rebolesu Litus',
             admissionDate: '2026-04-07',
             admissionTime: '09:00',
             admissionOrigin: 'Urgencias',
-          } as never,
+          }),
         },
       }),
       '2026-04-08': buildRecord('2026-04-08', {
@@ -368,12 +375,12 @@ describe('patientHistoryService', () => {
     getRecordsRange.mockResolvedValue([
       buildRecord('2026-04-07', {
         beds: {
-          H1C1: {
+          H1C1: DataFactory.createMockPatient('H1C1', {
             rut: '1.000.122-6',
             patientName: 'Isut Rebolesu Litus',
             admissionDate: '2026-04-07',
             admissionTime: '09:00',
-          } as never,
+          }),
         },
       }),
     ]);
@@ -399,26 +406,28 @@ describe('patientHistoryService', () => {
     getAllRecords.mockResolvedValue({
       '2026-04-07': buildRecord('2026-04-07', {
         beds: {
-          H1C1: {
+          H1C1: DataFactory.createMockPatient('H1C1', {
             rut: 'madre-1',
-            clinicalCrib: {
+            patientName: 'Madre',
+            clinicalCrib: DataFactory.createMockPatient('H1C1-cuna', {
               rut: '12.345.678-9',
               patientName: 'Recien Nacido',
               admissionDate: '2026-04-07',
-            },
-          } as never,
+            }),
+          }),
         },
       }),
       '2026-04-08': buildRecord('2026-04-08', {
         beds: {
-          H2C1: {
+          H2C1: DataFactory.createMockPatient('H2C1', {
             rut: 'madre-1',
-            clinicalCrib: {
+            patientName: 'Madre',
+            clinicalCrib: DataFactory.createMockPatient('H2C1-cuna', {
               rut: '12.345.678-9',
               patientName: 'Recien Nacido',
               admissionDate: '2026-04-07',
-            },
-          } as never,
+            }),
+          }),
         },
       }),
       '2026-04-09': buildRecord('2026-04-09', {
@@ -430,10 +439,11 @@ describe('patientHistoryService', () => {
             bedId: 'H2C1-cuna',
             bedName: 'Cuna (H2C1)',
             bedType: 'CUNA',
-            dischargeType: 'Domicilio',
+            diagnosis: '',
+            dischargeType: 'Domicilio (Habitual)',
             status: 'Fallecido',
             time: '10:15',
-          } as never,
+          },
         ],
       }),
     });

@@ -1,13 +1,35 @@
 import { act, renderHook } from '@testing-library/react';
 import { guardAuthoringSession } from '@/services/session/authoringSession';
 import { describe, expect, it, vi } from 'vitest';
+import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
+import type { RayenSyncRun } from '@/features/rayen-import/domain/rayenSyncHistory';
+import type { RayenCensusPersistencePayload } from '@/features/rayen-import/hooks/rayenCensusPersistenceGuard';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { DailyRecordWriteLease } from '@/services/repositories/dailyRecordWriteCoordinator';
 import { useRayenCensusDiffApplication } from '@/features/rayen-import/hooks/useRayenCensusDiffApplication';
 import { QueryClient } from '@tanstack/react-query';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const queryClient = new QueryClient();
+
+type SaveDailyRecordFn = (
+  record: DailyRecord,
+  expectedLastUpdated: string,
+  writeLease: DailyRecordWriteLease,
+  baseRecord: DailyRecord
+) => Promise<RayenCensusPersistencePayload>;
+
+type CheckpointDailyRecordFn = DailyRecordRepositoryPort['updatePartialDetailed'];
+
+const makeConfirmedResult = (confirmedRecord: DailyRecord): DailyRecordWriteResult => ({
+  date: confirmedRecord.date,
+  savedHere: true,
+  state: 'confirmed',
+  localCopy: 'current',
+  confirmedRecord,
+});
 
 const baseRecord = {
   date: '2026-08-07',
@@ -40,22 +62,18 @@ const diff = {
 
 describe('useRayenCensusDiffApplication', () => {
   it('persists a historical census with the revision of its base, not its new timestamp', async () => {
-    const run = {
+    const run: RayenSyncRun = {
       id: 'run-x-minus-one',
       startedAt: '2026-08-08T01:00:00.000Z',
       by: 'Operador HHR',
       sourceDate: '2026-08-07',
     };
-    const saveDailyRecord = vi.fn(async (record: DailyRecord, _expectedLastUpdated: string) => ({
-      record,
-      result: {
-        date: record.date,
-        savedHere: true,
-        state: 'confirmed',
-        localCopy: 'current',
-        confirmedRecord: record,
-      },
-    }));
+    const saveDailyRecord = vi.fn<SaveDailyRecordFn>(
+      async (record, _expectedLastUpdated, _writeLease, _baseRecord) => ({
+        record,
+        result: makeConfirmedResult(record),
+      })
+    );
     const applyRunToRecord = vi.fn((record: DailyRecord) => ({
       record: {
         ...record,
@@ -80,10 +98,10 @@ describe('useRayenCensusDiffApplication', () => {
     }));
     const { result } = renderHook(() =>
       useRayenCensusDiffApplication({
-        ensureRun: () => run as never,
+        ensureRun: () => run,
         applyRunToRecord,
-        saveDailyRecord: saveDailyRecord as never,
-        checkpointRepository: { updatePartialDetailed: vi.fn() as never },
+        saveDailyRecord,
+        checkpointRepository: { updatePartialDetailed: vi.fn<CheckpointDailyRecordFn>() },
         queryClient,
         loadAuthoritativeRecord: vi.fn().mockResolvedValue(baseRecord),
         loadLocalRecord: vi.fn().mockResolvedValue({
@@ -107,7 +125,7 @@ describe('useRayenCensusDiffApplication', () => {
   });
 
   it('hands the server-confirmed revision to the clinical stage in the same execution', async () => {
-    const run = {
+    const run: RayenSyncRun = {
       id: 'run-first-pass-clinical',
       startedAt: '2026-08-08T01:00:00.000Z',
       by: 'Operador HHR',
@@ -136,25 +154,19 @@ describe('useRayenCensusDiffApplication', () => {
         ],
       } as DailyRecord,
     }));
-    const saveDailyRecord = vi.fn();
-    const checkpointDailyRecord = vi.fn(async (_date: string, patch: object) => {
+    const saveDailyRecord = vi.fn<SaveDailyRecordFn>();
+    const checkpointDailyRecord = vi.fn<CheckpointDailyRecordFn>(async (_date, patch) => {
       const base = baseRecord;
       const confirmedRecord = { ...base, lastUpdated: confirmedAt } as DailyRecord;
       Object.assign(confirmedRecord, patch);
-      return {
-        date: confirmedRecord.date,
-        savedHere: true,
-        state: 'confirmed',
-        localCopy: 'current',
-        confirmedRecord,
-      };
+      return makeConfirmedResult(confirmedRecord);
     });
     const { result } = renderHook(() =>
       useRayenCensusDiffApplication({
-        ensureRun: () => run as never,
+        ensureRun: () => run,
         applyRunToRecord,
-        saveDailyRecord: saveDailyRecord as never,
-        checkpointRepository: { updatePartialDetailed: checkpointDailyRecord as never },
+        saveDailyRecord,
+        checkpointRepository: { updatePartialDetailed: checkpointDailyRecord },
         queryClient,
         loadAuthoritativeRecord: vi.fn().mockResolvedValue(baseRecord),
         loadLocalRecord: vi.fn().mockResolvedValue({
@@ -181,7 +193,7 @@ describe('useRayenCensusDiffApplication', () => {
   });
 
   it('relee la versión autoritativa cuando la confirmación del checkpoint llega sin el sello del run', async () => {
-    const run = {
+    const run: RayenSyncRun = {
       id: 'run-stale-confirmation',
       startedAt: '2026-08-08T01:00:00.000Z',
       by: 'Operador HHR',
@@ -211,13 +223,9 @@ describe('useRayenCensusDiffApplication', () => {
       ...baseRecord,
       rayenSync: { runId: 'run-anterior', status: 'applied' },
     } as DailyRecord;
-    const checkpointDailyRecord = vi.fn(async () => ({
-      date: baseRecord.date,
-      savedHere: true,
-      state: 'confirmed',
-      localCopy: 'current',
-      confirmedRecord: staleConfirmation,
-    }));
+    const checkpointDailyRecord = vi.fn<CheckpointDailyRecordFn>(async () =>
+      makeConfirmedResult(staleConfirmation)
+    );
     const stampedAuthoritative = {
       ...applyRunToRecord(baseRecord).record,
       lastUpdated: confirmedAt,
@@ -228,10 +236,10 @@ describe('useRayenCensusDiffApplication', () => {
       .mockResolvedValueOnce(stampedAuthoritative);
     const { result } = renderHook(() =>
       useRayenCensusDiffApplication({
-        ensureRun: () => run as never,
+        ensureRun: () => run,
         applyRunToRecord,
-        saveDailyRecord: vi.fn() as never,
-        checkpointRepository: { updatePartialDetailed: checkpointDailyRecord as never },
+        saveDailyRecord: vi.fn<SaveDailyRecordFn>(),
+        checkpointRepository: { updatePartialDetailed: checkpointDailyRecord },
         queryClient,
         loadAuthoritativeRecord,
         loadLocalRecord: vi.fn().mockResolvedValue({
@@ -256,7 +264,7 @@ describe('useRayenCensusDiffApplication', () => {
   });
 
   it('rebases a metadata checkpoint on the latest server revision and preserves newer audit history', async () => {
-    const run = {
+    const run: RayenSyncRun = {
       id: 'run-rebased-checkpoint',
       startedAt: '2026-08-08T01:00:00.000Z',
       by: 'Operador HHR',
@@ -299,26 +307,20 @@ describe('useRayenCensusDiffApplication', () => {
         ],
       } as DailyRecord,
     }));
-    const checkpointDailyRecord = vi.fn(
-      async (_date: string, patch: object, options: { baseRecord: DailyRecord }) => ({
-        date: baseRecord.date,
-        savedHere: true,
-        state: 'confirmed',
-        localCopy: 'current',
-        confirmedRecord: {
-          ...options.baseRecord,
-          ...patch,
-          lastUpdated: '2026-08-08T01:00:05.000Z',
-        } as DailyRecord,
-      })
+    const checkpointDailyRecord = vi.fn<CheckpointDailyRecordFn>(async (_date, patch, options) =>
+      makeConfirmedResult({
+        ...(options?.baseRecord ?? baseRecord),
+        ...patch,
+        lastUpdated: '2026-08-08T01:00:05.000Z',
+      } as DailyRecord)
     );
     const loadAuthoritativeRecord = vi.fn().mockResolvedValue(authoritativeRecord);
     const { result } = renderHook(() =>
       useRayenCensusDiffApplication({
-        ensureRun: () => run as never,
+        ensureRun: () => run,
         applyRunToRecord,
-        saveDailyRecord: vi.fn() as never,
-        checkpointRepository: { updatePartialDetailed: checkpointDailyRecord as never },
+        saveDailyRecord: vi.fn<SaveDailyRecordFn>(),
+        checkpointRepository: { updatePartialDetailed: checkpointDailyRecord },
         queryClient,
         loadAuthoritativeRecord,
         loadLocalRecord: vi.fn().mockResolvedValue({
@@ -336,7 +338,7 @@ describe('useRayenCensusDiffApplication', () => {
     });
 
     const [, patch, options] = checkpointDailyRecord.mock.calls[0];
-    expect(options.baseRecord).toBe(authoritativeRecord);
+    expect(options?.baseRecord).toBe(authoritativeRecord);
     expect((patch as { rayenSyncHistory: unknown[] }).rayenSyncHistory).toEqual([
       priorEvent,
       expect.objectContaining({ id: run.id, status: 'applied' }),
@@ -351,19 +353,18 @@ describe('useRayenCensusDiffApplication', () => {
       beds: { R1: { id: 'R1', name: 'R1', status: 'available' } },
       lastUpdated: '2026-08-08T00:59:00.000Z',
     });
-    const checkpointDailyRecord = vi.fn();
+    const checkpointDailyRecord = vi.fn<CheckpointDailyRecordFn>();
     const { result } = renderHook(() =>
       useRayenCensusDiffApplication({
-        ensureRun: () =>
-          ({
-            id: 'run-stale-plan',
-            startedAt: '2026-08-08T01:00:00.000Z',
-            by: 'Operador HHR',
-            sourceDate: baseRecord.date,
-          }) as never,
+        ensureRun: (): RayenSyncRun => ({
+          id: 'run-stale-plan',
+          startedAt: '2026-08-08T01:00:00.000Z',
+          by: 'Operador HHR',
+          sourceDate: baseRecord.date,
+        }),
         applyRunToRecord: record => ({ record }),
-        saveDailyRecord: vi.fn() as never,
-        checkpointRepository: { updatePartialDetailed: checkpointDailyRecord as never },
+        saveDailyRecord: vi.fn<SaveDailyRecordFn>(),
+        checkpointRepository: { updatePartialDetailed: checkpointDailyRecord },
         queryClient,
         loadAuthoritativeRecord: vi.fn().mockResolvedValue(changedRemote),
         loadLocalRecord: vi.fn().mockResolvedValue({
@@ -390,7 +391,7 @@ describe('useRayenCensusDiffApplication', () => {
   });
 
   it('keeps the full structural save when a local write remains queued', async () => {
-    const run = {
+    const run: RayenSyncRun = {
       id: 'run-pending-local',
       startedAt: '2026-08-08T01:00:00.000Z',
       by: 'Operador HHR',
@@ -415,23 +416,17 @@ describe('useRayenCensusDiffApplication', () => {
         },
       ],
     } as DailyRecord;
-    const saveDailyRecord = vi.fn(async () => ({
+    const saveDailyRecord = vi.fn<SaveDailyRecordFn>(async () => ({
       record: stamped,
-      result: {
-        date: stamped.date,
-        savedHere: true,
-        state: 'confirmed',
-        localCopy: 'current',
-        confirmedRecord: stamped,
-      },
+      result: makeConfirmedResult(stamped),
     }));
-    const checkpointDailyRecord = vi.fn();
+    const checkpointDailyRecord = vi.fn<CheckpointDailyRecordFn>();
     const { result } = renderHook(() =>
       useRayenCensusDiffApplication({
-        ensureRun: () => run as never,
+        ensureRun: () => run,
         applyRunToRecord: () => ({ record: stamped }),
-        saveDailyRecord: saveDailyRecord as never,
-        checkpointRepository: { updatePartialDetailed: checkpointDailyRecord as never },
+        saveDailyRecord,
+        checkpointRepository: { updatePartialDetailed: checkpointDailyRecord },
         queryClient,
         loadAuthoritativeRecord: vi.fn().mockResolvedValue(baseRecord),
         loadLocalRecord: vi.fn().mockResolvedValue({
@@ -453,7 +448,7 @@ describe('useRayenCensusDiffApplication', () => {
   });
 
   it('keeps the full save when another revision for the date remains queued', async () => {
-    const run = {
+    const run: RayenSyncRun = {
       id: 'run-date-pending',
       startedAt: '2026-08-08T01:00:00.000Z',
       by: 'Operador HHR',
@@ -478,23 +473,17 @@ describe('useRayenCensusDiffApplication', () => {
         },
       ],
     } as DailyRecord;
-    const saveDailyRecord = vi.fn(async (record: DailyRecord) => ({
+    const saveDailyRecord = vi.fn<SaveDailyRecordFn>(async record => ({
       record,
-      result: {
-        date: record.date,
-        savedHere: true,
-        state: 'confirmed',
-        localCopy: 'current',
-        confirmedRecord: record,
-      },
+      result: makeConfirmedResult(record),
     }));
-    const checkpointDailyRecord = vi.fn();
+    const checkpointDailyRecord = vi.fn<CheckpointDailyRecordFn>();
     const { result } = renderHook(() =>
       useRayenCensusDiffApplication({
-        ensureRun: () => run as never,
+        ensureRun: () => run,
         applyRunToRecord: () => ({ record: stamped }),
-        saveDailyRecord: saveDailyRecord as never,
-        checkpointRepository: { updatePartialDetailed: checkpointDailyRecord as never },
+        saveDailyRecord,
+        checkpointRepository: { updatePartialDetailed: checkpointDailyRecord },
         queryClient,
         loadAuthoritativeRecord: vi.fn().mockResolvedValue(baseRecord),
         loadLocalRecord: vi.fn().mockResolvedValue({

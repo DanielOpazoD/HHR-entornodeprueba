@@ -42,7 +42,35 @@ export {
   parseClinicalEnrichmentPayload,
 };
 
-export const makeClinicalRecord = () => ({
+export interface SyntheticClinicalRecord {
+  date: string;
+  lastUpdated: string;
+  beds: Record<string, Record<string, unknown>>;
+  discharges: Record<string, unknown>[];
+  transfers: Record<string, unknown>[];
+  cma: Record<string, unknown>[];
+  meta: Record<string, unknown>;
+}
+
+export interface SyntheticClinicalEnrichmentPayload {
+  date: string;
+  authorityDate: string;
+  runId: string;
+  mutationId: string;
+  expectedLastUpdated: string;
+  baseRevision: number;
+  fieldContractVersion?: number;
+  mode: string;
+  patches: Array<{
+    bedId: string;
+    clinicalEpisodeId?: string;
+    clinicalCrib?: boolean;
+    fields: Record<string, unknown>;
+  }>;
+  checkpoints?: Record<string, unknown>[];
+}
+
+export const makeClinicalRecord = (): SyntheticClinicalRecord => ({
   date: '2026-07-28',
   lastUpdated: '2026-07-28T10:00:00.000Z',
   beds: {
@@ -66,7 +94,7 @@ export const makeClinicalRecord = () => ({
   meta: { revision: 4 },
 });
 
-export const makePayload = () => ({
+export const makePayload = (): SyntheticClinicalEnrichmentPayload => ({
   date: '2026-07-28',
   authorityDate: '2026-07-28',
   runId: 'run-1',

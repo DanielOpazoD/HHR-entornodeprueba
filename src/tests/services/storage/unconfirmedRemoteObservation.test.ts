@@ -12,6 +12,12 @@ import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/i
 import * as sdk from 'firebase/firestore';
 import * as shared from '@/services/storage/firestore/firestoreShared';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import {
+  createMockCollectionRef,
+  createMockDocSnapshot,
+  createMockQuery,
+  createMockQuerySnapshot,
+} from '@/tests/factories/firestoreSdkMocks';
 const wire = vi.hoisted(() => ({
   emit: undefined as
     | undefined
@@ -48,10 +54,10 @@ const remote = {
 };
 const event = vi.fn();
 beforeEach(async () => {
-  vi.spyOn(sdk, 'getDocs').mockResolvedValue({ docs: [] } as never);
-  vi.spyOn(sdk, 'getDocsFromServer').mockResolvedValue({ docs: [] } as never);
-  vi.spyOn(sdk, 'query').mockReturnValue({} as never);
-  vi.spyOn(shared, 'getRecordsCollection').mockReturnValue({} as never);
+  vi.spyOn(sdk, 'getDocs').mockResolvedValue(createMockQuerySnapshot([]));
+  vi.spyOn(sdk, 'getDocsFromServer').mockResolvedValue(createMockQuerySnapshot([]));
+  vi.spyOn(sdk, 'query').mockReturnValue(createMockQuery());
+  vi.spyOn(shared, 'getRecordsCollection').mockReturnValue(createMockCollectionRef());
   harnessState().offline = false;
   await hospitalDB.dailyRecords.clear();
   await hospitalDB.syncQueue.clear();
@@ -69,14 +75,12 @@ for (const path of ['S', 'P', 'R', 'M'] as const)
   for (const pending of path === 'R' || path === 'M' ? [false, true] : [false])
     it(`${path} cached/pending=${pending} keeps durable and returns local`, async () => {
       const metadata = { fromCache: !pending, hasPendingWrites: pending };
-      vi.mocked(sdk.getDoc).mockResolvedValue({
-        exists: () => true,
-        data: () => clone(remote),
-        metadata,
-      } as never);
-      const snapshot = { docs: [{ id: DATE, data: () => clone(remote) }], metadata };
-      vi.mocked(sdk.getDocs).mockResolvedValue(snapshot as never);
-      vi.mocked(sdk.getDocsFromServer).mockResolvedValue(snapshot as never);
+      vi.mocked(sdk.getDoc).mockResolvedValue(
+        createMockDocSnapshot(clone(remote), { id: DATE, metadata })
+      );
+      const snapshot = createMockQuerySnapshot([{ id: DATE, data: clone(remote) }], metadata);
+      vi.mocked(sdk.getDocs).mockResolvedValue(snapshot);
+      vi.mocked(sdk.getDocsFromServer).mockResolvedValue(snapshot);
       const put = vi.spyOn(hospitalDB.dailyRecords, 'put'),
         bulk = vi.spyOn(hospitalDB.dailyRecords, 'bulkPut');
       let record;
@@ -114,7 +118,9 @@ for (const path of ['S', 'P'] as const)
   it(`${path} cached absence without local is unavailable`, async () => {
     await hospitalDB.dailyRecords.clear();
     const metadata = { fromCache: true, hasPendingWrites: false };
-    vi.mocked(sdk.getDoc).mockResolvedValue({ exists: () => false, metadata } as never);
+    vi.mocked(sdk.getDoc).mockResolvedValue(
+      createMockDocSnapshot(undefined, { id: DATE, exists: false, metadata })
+    );
     const r =
       path === 'S'
         ? await new Promise<Awaited<ReturnType<typeof getForDateWithMeta>>>(resolve => {
@@ -147,10 +153,9 @@ vi.mock('@/utils/downloadBlob', () => ({ downloadBlob: vi.fn() }));
 it('MINSAL can calculate from the retained local range without admitting SDK cache', async () => {
   const { calculateMinsalStats } =
     await import('@/features/analytics/services/minsalStatsCalculator');
-  vi.mocked(sdk.getDocs).mockResolvedValue({
-    docs: [],
-    metadata: { fromCache: true, hasPendingWrites: false },
-  } as never);
+  vi.mocked(sdk.getDocs).mockResolvedValue(
+    createMockQuerySnapshot([], { fromCache: true, hasPendingWrites: false })
+  );
   const records = await syncRecordsRange(DATE, DATE);
   expect(calculateMinsalStats(records, DATE, DATE)).toEqual(
     calculateMinsalStats([local], DATE, DATE)
@@ -165,10 +170,9 @@ it.each(['month', 'year'])(
       await import('@/features/admin/services/dataMaintenanceService');
     const { downloadBlob } = await import('@/utils/downloadBlob');
     vi.mocked(downloadBlob).mockClear();
-    vi.mocked(sdk.getDocs).mockResolvedValue({
-      docs: [],
-      metadata: { fromCache: true, hasPendingWrites: false },
-    } as never);
+    vi.mocked(sdk.getDocs).mockResolvedValue(
+      createMockQuerySnapshot([], { fromCache: true, hasPendingWrites: false })
+    );
     const result = await (scope === 'month'
       ? exportMonthRecordsWithOutcome(2026, 10)
       : exportYearToDateRecordsWithOutcome(2026));
@@ -188,10 +192,9 @@ it.each([syncRecordsRange, hydrateRangeRecords])(
   'no local copy and unconfirmed range rejects instead of confirming emptiness (%s)',
   async read => {
     await hospitalDB.dailyRecords.clear();
-    vi.mocked(sdk.getDocs).mockResolvedValue({
-      docs: [],
-      metadata: { fromCache: true, hasPendingWrites: false },
-    } as never);
+    vi.mocked(sdk.getDocs).mockResolvedValue(
+      createMockQuerySnapshot([], { fromCache: true, hasPendingWrites: false })
+    );
     await expect(read(DATE, DATE)).rejects.toThrow(
       'No se pudo confirmar el período con el servidor'
     );
@@ -207,11 +210,9 @@ for (const path of ['S', 'P'] as const)
     expect(await hospitalDB.dailyRecords.count()).toBe(0);
     event.mockClear();
     const metadata = { fromCache: true, hasPendingWrites: false };
-    vi.mocked(sdk.getDoc).mockResolvedValue({
-      exists: () => true,
-      data: () => clone(remote),
-      metadata,
-    } as never);
+    vi.mocked(sdk.getDoc).mockResolvedValue(
+      createMockDocSnapshot(clone(remote), { id: DATE, metadata })
+    );
     const r =
       path === 'S'
         ? await new Promise<Awaited<ReturnType<typeof getForDateWithMeta>>>(resolve => {
@@ -254,11 +255,9 @@ for (const path of ['S', 'P'] as const)
   it(`${path} confirmed document still replaces local after cache was ignored`, async () => {
     const run = async (confirmed: boolean) => {
       const metadata = { fromCache: !confirmed, hasPendingWrites: false };
-      vi.mocked(sdk.getDoc).mockResolvedValue({
-        exists: () => true,
-        data: () => clone(remote),
-        metadata,
-      } as never);
+      vi.mocked(sdk.getDoc).mockResolvedValue(
+        createMockDocSnapshot(clone(remote), { id: DATE, metadata })
+      );
       if (path !== 'S') return getForDateWithMeta(DATE);
       return new Promise<Awaited<ReturnType<typeof getForDateWithMeta>>>(resolve => {
         const stop = subscribeDetailed(DATE, r => {

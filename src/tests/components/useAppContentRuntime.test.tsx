@@ -200,7 +200,7 @@ describe('useAppContentRuntime', () => {
     const blurSpy = vi.spyOn(input, 'blur');
     input.focus();
 
-    const { result } = renderHook(() => useAppContentRuntime({ ui: ui as never }));
+    const { result } = renderHook(() => useAppContentRuntime({ ui }));
 
     await act(async () => {
       await result.current.handleExportExcel();
@@ -214,7 +214,7 @@ describe('useAppContentRuntime', () => {
   });
 
   it('resolves export permissions and passes archive verification into useExportManager', () => {
-    renderHook(() => useAppContentRuntime({ ui: ui as never }));
+    renderHook(() => useAppContentRuntime({ ui }));
 
     expect(useExportManager).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -229,7 +229,7 @@ describe('useAppContentRuntime', () => {
   it('disables passive archive verification while the authenticated runtime is local-only', () => {
     vi.mocked(useAuth).mockReturnValue(createAuthStub({ remoteSyncStatus: 'local_only' }));
 
-    const { result } = renderHook(() => useAppContentRuntime({ ui: ui as never }));
+    const { result } = renderHook(() => useAppContentRuntime({ ui }));
 
     expect(result.current.canVerifyArchiveStatus).toBe(false);
     expect(useExportManager).toHaveBeenCalledWith(
@@ -244,13 +244,13 @@ describe('useAppContentRuntime', () => {
       createAuthStub({ email: 'doctor@hospital.cl', role: 'doctor_urgency' })
     );
 
-    const { result } = renderHook(() => useAppContentRuntime({ ui: ui as never }));
+    const { result } = renderHook(() => useAppContentRuntime({ ui }));
 
     expect(result.current.canUseCensusExports).toBe(false);
   });
 
   it('derives the excel export handler from the selected date', async () => {
-    const { result } = renderHook(() => useAppContentRuntime({ ui: ui as never }));
+    const { result } = renderHook(() => useAppContentRuntime({ ui }));
 
     await act(async () => {
       await result.current.handleExportExcel();
@@ -266,7 +266,7 @@ describe('useAppContentRuntime', () => {
       get: () => blurlessActiveElement,
     });
 
-    const { result } = renderHook(() => useAppContentRuntime({ ui: ui as never }));
+    const { result } = renderHook(() => useAppContentRuntime({ ui }));
 
     await act(async () => {
       await result.current.handleExportExcel();
@@ -278,7 +278,7 @@ describe('useAppContentRuntime', () => {
   it('waits for a saving census record to settle before exporting', async () => {
     vi.useFakeTimers();
     syncStatusValue = 'saving';
-    const { result, rerender } = renderHook(() => useAppContentRuntime({ ui: ui as never }));
+    const { result, rerender } = renderHook(() => useAppContentRuntime({ ui }));
 
     const exportPromise = result.current.handleExportExcel();
 
@@ -303,7 +303,7 @@ describe('useAppContentRuntime', () => {
   it('does not export a census still saving after the bounded wait', async () => {
     vi.useFakeTimers();
     syncStatusValue = 'saving';
-    const { result } = renderHook(() => useAppContentRuntime({ ui: ui as never }));
+    const { result } = renderHook(() => useAppContentRuntime({ ui }));
     const exportPromise = result.current.handleExportExcel();
 
     await act(async () => {
@@ -317,7 +317,7 @@ describe('useAppContentRuntime', () => {
   it('blocks export when a pending save fails', async () => {
     vi.useFakeTimers();
     syncStatusValue = 'saving';
-    const { result, rerender } = renderHook(() => useAppContentRuntime({ ui: ui as never }));
+    const { result, rerender } = renderHook(() => useAppContentRuntime({ ui }));
     const pending = result.current.handleExportExcel();
     syncStatusValue = 'error';
     rerender();
@@ -335,7 +335,7 @@ describe('useAppContentRuntime', () => {
   it('blocks the original action if the selected census day changes while saving', async () => {
     vi.useFakeTimers();
     syncStatusValue = 'saving';
-    const { result, rerender } = renderHook(() => useAppContentRuntime({ ui: ui as never }));
+    const { result, rerender } = renderHook(() => useAppContentRuntime({ ui }));
     const pending = result.current.handleExportExcel();
     selectedDate = '2026-03-28';
     syncStatusValue = 'saved';
@@ -353,7 +353,7 @@ describe('useAppContentRuntime', () => {
   });
   it('preserves monthly export of earlier days when the selected day is empty', async () => {
     recordAvailable = false;
-    const { result } = renderHook(() => useAppContentRuntime({ ui: ui as never }));
+    const { result } = renderHook(() => useAppContentRuntime({ ui }));
     await act(async () => {
       await result.current.handleExportExcel();
     });
@@ -368,7 +368,7 @@ describe('useAppContentRuntime', () => {
         userSafeMessage: 'Synthetic export outcome',
         reason: 'synthetic_failure',
       });
-      const { result } = renderHook(() => useAppContentRuntime({ ui: ui as never }));
+      const { result } = renderHook(() => useAppContentRuntime({ ui }));
       await act(async () => {
         await result.current.handleExportExcel();
       });

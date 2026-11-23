@@ -23,6 +23,11 @@ import { saveRecordToFirestore } from '@/services/storage/firestore/firestoreRec
 import { logRepositoryConflictVersionRestored } from '@/services/repositories/ports/repositoryAuditPort';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { restoreDailyRecordVersion } from '@/services/repositories/dailyRecordVersionRestoreController';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+
+const createRecord = (date: string, overrides: Partial<DailyRecord> = {}): DailyRecord =>
+  DataFactory.createMockDailyRecord(date, { beds: {}, ...overrides });
 
 describe('restoreDailyRecordVersion', () => {
   beforeEach(() => {
@@ -34,12 +39,13 @@ describe('restoreDailyRecordVersion', () => {
       id: 'cid__remote_premerge',
       origin: 'remote_premerge',
       conflictId: 'cid',
-      record: { date: '2026-06-26', beds: { R1: { patientName: 'Remoto' } } } as never,
+      record: createRecord('2026-06-26', {
+        beds: { R1: DataFactory.createMockPatient('R1', { patientName: 'Remoto' }) },
+      }),
     });
-    vi.mocked(getRecordFromFirestore).mockResolvedValue({
-      date: '2026-06-26',
-      lastUpdated: '2026-06-26T12:00:00.000Z',
-    } as never);
+    vi.mocked(getRecordFromFirestore).mockResolvedValue(
+      createRecord('2026-06-26', { lastUpdated: '2026-06-26T12:00:00.000Z' })
+    );
 
     const result = await restoreDailyRecordVersion('2026-06-26', 'cid__remote_premerge', {
       source: 'clinical_conflict_center',
@@ -55,7 +61,10 @@ describe('restoreDailyRecordVersion', () => {
     // Full save through the authority with the CURRENT version as base (CAS-safe); the authority
     // copies the live state to history, so the restore stays non-destructive.
     expect(saveRecordToFirestore).toHaveBeenCalledWith(
-      expect.objectContaining({ date: '2026-06-26', beds: { R1: { patientName: 'Remoto' } } }),
+      expect.objectContaining({
+        date: '2026-06-26',
+        beds: { R1: expect.objectContaining({ patientName: 'Remoto' }) },
+      }),
       '2026-06-26T12:00:00.000Z'
     );
     expect(logRepositoryConflictVersionRestored).toHaveBeenCalledWith('2026-06-26', {
@@ -84,12 +93,11 @@ describe('restoreDailyRecordVersion', () => {
     vi.mocked(getConflictVersionSnapshot).mockResolvedValue({
       id: 's1',
       origin: 'incoming_premerge',
-      record: { date: '2026-06-26', beds: {} } as never,
+      record: createRecord('2026-06-26'),
     });
-    vi.mocked(getRecordFromFirestore).mockResolvedValue({
-      date: '2026-06-26',
-      lastUpdated: '2026-06-26T12:00:00.000Z',
-    } as never);
+    vi.mocked(getRecordFromFirestore).mockResolvedValue(
+      createRecord('2026-06-26', { lastUpdated: '2026-06-26T12:00:00.000Z' })
+    );
     vi.mocked(logRepositoryConflictVersionRestored).mockRejectedValueOnce(new Error('audit down'));
 
     await expect(restoreDailyRecordVersion('2026-06-26', 's1')).rejects.toThrow('audit down');
@@ -98,33 +106,37 @@ describe('restoreDailyRecordVersion', () => {
   });
 
   it('blocks restore before audit/save when the selected snapshot would remove a current movement', async () => {
+    const patient = DataFactory.createMockPatient('R1', {
+      patientName: 'Snapshot Antiguo',
+      rut: '11.111.111-1',
+    });
     vi.mocked(getConflictVersionSnapshot).mockResolvedValue({
       id: 's1',
       origin: 'remote_premerge',
-      record: {
-        date: '2026-06-26',
-        beds: { R1: { patientName: 'Snapshot Antiguo', rut: '11.111.111-1' } },
+      record: createRecord('2026-06-26', {
+        beds: { R1: patient },
         discharges: [],
-      } as never,
+      }),
     });
-    vi.mocked(getRecordFromFirestore).mockResolvedValue({
-      date: '2026-06-26',
-      lastUpdated: '2026-06-26T18:00:00.000Z',
-      beds: { R1: { patientName: 'Snapshot Antiguo', rut: '11.111.111-1' } },
-      discharges: [
-        {
-          id: 'd-1',
-          bedName: 'R2',
-          bedId: 'R2',
-          bedType: 'Cama',
-          patientName: 'Alta Posterior',
-          rut: '22.222.222-2',
-          diagnosis: 'Alta posterior',
-          time: '15:00',
-          status: 'Vivo',
-        },
-      ],
-    } as never);
+    vi.mocked(getRecordFromFirestore).mockResolvedValue(
+      createRecord('2026-06-26', {
+        lastUpdated: '2026-06-26T18:00:00.000Z',
+        beds: { R1: patient },
+        discharges: [
+          {
+            id: 'd-1',
+            bedName: 'R2',
+            bedId: 'R2',
+            bedType: 'Cama',
+            patientName: 'Alta Posterior',
+            rut: '22.222.222-2',
+            diagnosis: 'Alta posterior',
+            time: '15:00',
+            status: 'Vivo',
+          },
+        ],
+      })
+    );
 
     const result = await restoreDailyRecordVersion('2026-06-26', 's1');
 
@@ -145,30 +157,30 @@ describe('restoreDailyRecordVersion', () => {
       id: 's1',
       origin: 'incoming_premerge',
       conflictId: 'cid',
-      record: {
-        date: '2026-06-26',
+      record: createRecord('2026-06-26', {
         beds: {
-          R1: {
+          R1: DataFactory.createMockPatient('R1', {
             patientName: 'Paciente Handoff',
             rut: '33.333.333-3',
             handoffNoteDayShift: '',
-          },
+          }),
         },
         discharges: [],
-      } as never,
+      }),
     });
-    vi.mocked(getRecordFromFirestore).mockResolvedValue({
-      date: '2026-06-26',
-      lastUpdated: '2026-06-26T18:00:00.000Z',
-      beds: {
-        R1: {
-          patientName: 'Paciente Handoff',
-          rut: '33.333.333-3',
-          handoffNoteDayShift: 'Nota posterior de enfermeria',
+    vi.mocked(getRecordFromFirestore).mockResolvedValue(
+      createRecord('2026-06-26', {
+        lastUpdated: '2026-06-26T18:00:00.000Z',
+        beds: {
+          R1: DataFactory.createMockPatient('R1', {
+            patientName: 'Paciente Handoff',
+            rut: '33.333.333-3',
+            handoffNoteDayShift: 'Nota posterior de enfermeria',
+          }),
         },
-      },
-      discharges: [],
-    } as never);
+        discharges: [],
+      })
+    );
 
     const result = await restoreDailyRecordVersion('2026-06-26', 's1', {
       source: 'clinical_conflict_center',
@@ -205,13 +217,11 @@ describe('restoreDailyRecordVersion', () => {
         const bedId = `R${index + 1}`;
         return [
           bedId,
-          {
-            bedId,
-            bedName: bedId,
+          DataFactory.createMockPatient(bedId, {
             patientName: `Paciente Handoff ${index + 1}`,
             rut: `44.444.44${index}-${index}`,
             handoffNoteDayShift: `Nota posterior ${index + 1}`,
-          },
+          }),
         ];
       })
     );
@@ -226,19 +236,19 @@ describe('restoreDailyRecordVersion', () => {
       id: 's-many-impacts',
       origin: 'incoming_premerge',
       conflictId: 'cid-many-impacts',
-      record: {
-        date: '2026-06-26',
+      record: createRecord('2026-06-26', {
         beds: selectedBeds,
         discharges: [],
         lastUpdated: '2026-06-26T10:00:00.000Z',
-      } as never,
+      }),
     });
-    vi.mocked(getRecordFromFirestore).mockResolvedValue({
-      date: '2026-06-26',
-      lastUpdated: '2026-06-26T18:00:00.000Z',
-      beds: currentBeds,
-      discharges: [],
-    } as never);
+    vi.mocked(getRecordFromFirestore).mockResolvedValue(
+      createRecord('2026-06-26', {
+        lastUpdated: '2026-06-26T18:00:00.000Z',
+        beds: currentBeds,
+        discharges: [],
+      })
+    );
 
     const result = await restoreDailyRecordVersion('2026-06-26', 's-many-impacts', {
       source: 'clinical_conflict_center',
@@ -273,7 +283,7 @@ describe('restoreDailyRecordVersion', () => {
     vi.mocked(getConflictVersionSnapshot).mockResolvedValue({
       id: 's1',
       origin: 'remote_premerge',
-      record: { date: '2026-06-26', beds: {} } as never,
+      record: createRecord('2026-06-26'),
     });
     vi.mocked(getRecordFromFirestore).mockResolvedValue(null);
     vi.mocked(saveRecordToFirestore).mockRejectedValueOnce(new Error('save down'));

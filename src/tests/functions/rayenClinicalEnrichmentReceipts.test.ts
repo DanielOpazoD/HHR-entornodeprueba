@@ -36,7 +36,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
           fieldContractVersion: 2,
         },
       ],
-    } as never;
+    };
     const admin = createClinicalAdminMock(remote, { runStatus: 'complete' });
     const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
       payload,
@@ -50,13 +50,13 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
   it('skips persistence when a new run requests clinical values already stored exactly', async () => {
     const remote = makeClinicalRecord();
     remote.lastUpdated = '2026-07-28T11:00:00.000Z';
-    remote.meta = { revision: 8 } as never;
+    remote.meta = { revision: 8 };
     remote.beds.H2C1 = {
       ...remote.beds.H2C1,
       evaluationScores: { braden: { total: 17 } },
       vitalSigns: { systolic: 120 },
       clinicalSyncCheckpoint: { version: 1, sources: {} },
-    } as never;
+    };
     const admin = createClinicalAdminMock(remote);
     const payload = {
       ...makePayload(),
@@ -90,7 +90,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
       evaluationScores: { braden: { total: 17 }, staleScore: { total: 99 } },
       vitalSigns: { systolic: 120, stalePulse: 999 },
       clinicalSyncCheckpoint: { version: 1, sources: {}, staleSource: true },
-    } as never;
+    };
     remote.meta = {
       revision: 5,
       lastMutationId: payload.mutationId,
@@ -102,7 +102,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
           appliedAt: remote.lastUpdated,
         },
       ],
-    } as never;
+    };
     const admin = createClinicalAdminMock(remote);
 
     const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
@@ -146,7 +146,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
       evaluationScores: { braden: { total: 17 } },
       vitalSigns: { systolic: 120 },
       clinicalSyncCheckpoint: { version: 1, sources: {} },
-    } as never;
+    };
     remote.meta = {
       revision: 5,
       lastMutationId: payload.mutationId,
@@ -158,7 +158,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
           appliedAt: remote.lastUpdated,
         },
       ],
-    } as never;
+    };
     const admin = createClinicalAdminMock(remote);
 
     const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
@@ -181,7 +181,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
       evaluationScores: { braden: { total: 17 }, staleScore: { total: 99 } },
       vitalSigns: { systolic: 120, stalePulse: 999 },
       clinicalSyncCheckpoint: { version: 1, sources: {}, staleSource: true },
-    } as never;
+    };
     remote.meta = {
       revision: 5,
       lastMutationId: legacyMutationId,
@@ -193,7 +193,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
           appliedAt: remote.lastUpdated,
         },
       ],
-    } as never;
+    };
     const admin = createClinicalAdminMock(remote);
 
     const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
@@ -219,7 +219,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
       evaluationScores: { braden: { total: 17 }, staleScore: { total: 99 } },
       vitalSigns: { systolic: 120, stalePulse: 999 },
       clinicalSyncCheckpoint: { version: 1, sources: {}, staleSource: true },
-    } as never;
+    };
     remote.meta = {
       revision: 6,
       lastMutationId: 'later-mutation',
@@ -231,7 +231,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
           appliedAt: '2026-07-28T10:05:00.000Z',
         },
       ],
-    } as never;
+    };
     const admin = createClinicalAdminMock(remote);
 
     await expect(
@@ -249,7 +249,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     const payload = { ...makePayload(), fieldContractVersion: undefined };
     payload.patches[0].fields = {
       clinicalSyncCheckpoint: { version: 1, sources: {} },
-    } as never;
+    };
     const parsed = parseClinicalEnrichmentPayload(payload);
     remote.meta = {
       revision: 5,
@@ -260,7 +260,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
           digest: buildLegacyClinicalEnrichmentDigest(parsed),
         },
       ],
-    } as never;
+    };
     const admin = createClinicalAdminMock(remote);
 
     const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
@@ -287,7 +287,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
           fieldContractVersion: 2,
         },
       ],
-    } as never;
+    };
     const admin = createClinicalAdminMock(remote);
 
     await expect(
@@ -305,7 +305,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
       evaluationScores: { braden: { total: 17 } },
       vitalSigns: { systolic: 120 },
       clinicalSyncCheckpoint: { version: 1, sources: {} },
-    } as never;
+    };
     committed.meta = {
       revision: 5,
       clinicalEnrichmentReceipts: [
@@ -317,7 +317,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
           fieldContractVersion: 2,
         },
       ],
-    } as never;
+    };
     const admin = createClinicalAdminMock();
     const committedWithAuthority = {
       ...committed,
@@ -374,7 +374,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
           fieldContractVersion: 2,
         },
       ],
-    } as never;
+    };
     const admin = createClinicalAdminMock(remote);
 
     const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
