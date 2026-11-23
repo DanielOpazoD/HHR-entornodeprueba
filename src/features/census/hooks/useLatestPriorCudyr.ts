@@ -23,17 +23,6 @@ const findEpisodeCudyr = (record: DailyRecord, clinicalEpisodeId: string): Impor
       return patient.clinicalCrib.evaluationScores.cudyr;
     }
   }
-  for (const movement of [
-    ...(record.discharges ?? []),
-    ...(record.transfers ?? []),
-    ...(record.cma ?? []),
-  ]) {
-    if (movement.deletedAt) continue;
-    const episodeId = movement.clinicalEpisodeId || movement.originalData?.clinicalEpisodeId;
-    if (episodeId === clinicalEpisodeId && movement.originalData?.evaluationScores?.cudyr) {
-      return movement.originalData.evaluationScores.cudyr;
-    }
-  }
   return null;
 };
 
