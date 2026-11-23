@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ShieldCheck, Upload, FileText, Image as ImageIcon } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { EpisodeContext } from '@/features/wound-care/use-cases/woundCareUseCases';
@@ -20,10 +20,26 @@ export const ConsentUploadModal: React.FC<ConsentUploadModalProps> = ({
   existingConsent,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isMountedRef = useRef(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { uploadConsent, isUploading } = useWoundCareUpload();
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -44,6 +60,7 @@ export const ConsentUploadModal: React.FC<ConsentUploadModalProps> = ({
     if (!selectedFile) return;
 
     const result = await uploadConsent(selectedFile, episodeContext);
+    if (!isMountedRef.current) return;
     if (result.success) {
       handleClose();
     } else {

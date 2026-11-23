@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { UserAvatarModal } from '@/components/layout/UserAvatarModal';
 import { USER_AVATAR_PRESETS } from '@/services/user-profile/userAvatarPresets';
+import * as avatarImageController from '@/components/layout/userAvatarImageController';
 import { existsSync } from 'node:fs';
 
 const renderModal = () => {
@@ -45,9 +46,43 @@ describe('UserAvatarModal preset icons', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('ships a file for every icon', () => {
     for (const preset of USER_AVATAR_PRESETS) {
       expect(existsSync(`public${preset.url}`)).toBe(true);
     }
+  });
+
+  it('ignores stale image preparation when the user switches to a preset before cropping finishes', async () => {
+    let resolveCropped!: (file: File) => void;
+    vi.spyOn(avatarImageController, 'createCenteredAvatarFile').mockReturnValueOnce(
+      new Promise<File>(resolve => {
+        resolveCropped = resolve;
+      })
+    );
+    const createObjectUrlSpy = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockReturnValue('blob:stale-avatar-preview');
+    const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+    const { onSelectPreset } = renderModal();
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const rawFile = new File(['raw'], 'avatar.png', { type: 'image/png' });
+
+    fireEvent.change(fileInput, { target: { files: [rawFile] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Corazón' }));
+
+    await act(async () => {
+      resolveCropped(new File(['cropped'], 'avatar-cropped.png', { type: 'image/png' }));
+    });
+
+    expect(createObjectUrlSpy).not.toHaveBeenCalled();
+    expect(revokeObjectUrlSpy).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(onSelectPreset).toHaveBeenCalledWith('corazon'));
   });
 });
