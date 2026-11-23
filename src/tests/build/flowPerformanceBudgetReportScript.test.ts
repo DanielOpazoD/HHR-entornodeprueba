@@ -113,4 +113,18 @@ describe('flow performance budget report script', () => {
     );
     expect(fs.existsSync(path.join(root, 'reports/e2e/flow-performance-budget.md'))).toBe(false);
   });
+
+  it('keeps the clinical census hard cap below two seconds', () => {
+    const config = JSON.parse(
+      fs.readFileSync(
+        path.join(process.cwd(), 'scripts/config/flow-performance-budgets.json'),
+        'utf8'
+      )
+    ) as { flows: Record<string, { enforcedMaxMs: number; targetMs: number }> };
+
+    expect(config.flows.censoVisibleMs).toMatchObject({
+      targetMs: 1500,
+      enforcedMaxMs: 2000,
+    });
+  });
 });

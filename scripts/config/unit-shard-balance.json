@@ -282,8 +282,8 @@
     {
       "id": "ci-measured-700ms",
       "globs": [
-        "src/tests/build/ciTelemetryZeroInstall.test.ts",
-        "src/tests/build/rayenClinicalRegionDeployment.test.ts",
+        "src/tests/build/ciZeroInstallJobs.test.ts",
+        "src/tests/build/firebaseFunctionRegionVerification.test.ts",
         "src/tests/components/NavbarMoaNavigation.test.tsx",
         "src/tests/components/laboratory/LabViewerComponents.test.tsx",
         "src/tests/features/analytics/AnalyticsView.test.tsx",

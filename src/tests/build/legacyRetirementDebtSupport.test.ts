@@ -233,4 +233,19 @@ describe('legacyRetirementDebtSupport', () => {
     expect(markdown).toContain('| Surface | Owner | Phase | Status | Signal | Next action |');
     expect(markdown).toContain('Role aliases');
   });
+
+  it('documents the short legacy retirement priorities and closure signals in the plan', () => {
+    const plan = fs.readFileSync(
+      path.resolve(process.cwd(), 'docs/LEGACY_RETIREMENT_PLAN.md'),
+      'utf8'
+    );
+
+    expect(plan).toContain('role aliases');
+    expect(plan).toContain('legacy clinical document');
+    expect(plan).toContain('legacy episode');
+    expect(plan).toContain('Closure signals');
+    expect(plan).toContain('Non-goals');
+    expect(plan).toContain('0 legacy role aliases detected for 2 consecutive releases');
+    expect(plan).toContain('0 legacy hydration leaks outside approved controllers');
+  });
 });

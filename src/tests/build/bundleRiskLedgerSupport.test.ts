@@ -1,4 +1,6 @@
 // @vitest-environment node
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   BUNDLE_RISK_LEDGER_GENERATED_AT,
@@ -104,5 +106,26 @@ describe('bundleRiskLedgerSupport', () => {
     expect(markdown).toContain('async only; not a blocker');
     expect(markdown).toContain('vendor-heic2any');
     expect(markdown).toContain('app-authenticated-shell');
+  });
+
+  it('documents owners, thresholds, release posture and next recommended PR in the ledger doc', () => {
+    const ledger = fs.readFileSync(path.join(process.cwd(), 'docs/BUNDLE_RISK_LEDGER.md'), 'utf8');
+
+    for (const surface of [
+      'vendor-heic2any',
+      'vendor-pdfjs',
+      'vendor-pdf-lib',
+      'app-authenticated-shell',
+    ]) {
+      expect(ledger).toContain(surface);
+    }
+
+    expect(ledger).toContain('Owner');
+    expect(ledger).toContain('Threshold');
+    expect(ledger).toContain('Release posture');
+    expect(ledger).toContain('Current signal');
+    expect(ledger).toContain('Not a release blocker');
+    expect(ledger).toContain('Next recommended PR');
+    expect(ledger).toContain('PDF generation/viewer');
   });
 });

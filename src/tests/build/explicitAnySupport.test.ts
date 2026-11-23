@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { ESLint } from 'eslint';
 import { describe, expect, it } from 'vitest';
 import { countExplicitAny } from '../../../scripts/explicitAnySupport.mjs';
 
@@ -101,5 +102,21 @@ describe('countExplicitAny', () => {
 
   it('reads JSX files', () => {
     expect(countExplicitAny('const View = (props: any) => <p>any: text</p>;', 'View.tsx')).toBe(1);
+  });
+
+  it('rejects explicit any in production source and test suites as an error', async () => {
+    const eslint = new ESLint({ cwd: process.cwd() });
+    for (const file of [
+      'src/services/storage/probe.ts',
+      'src/services/repositories/probe.ts',
+      'src/services/admin/probe.spec.ts',
+      'src/utils/probe.ts',
+      'src/features/census/components/Probe.tsx',
+      'src/tests/probe.test.ts',
+      'src/tests/components/Probe.test.tsx',
+    ]) {
+      const config = await eslint.calculateConfigForFile(file);
+      expect(config.rules['@typescript-eslint/no-explicit-any'][0], file).toBe(2);
+    }
   });
 });
