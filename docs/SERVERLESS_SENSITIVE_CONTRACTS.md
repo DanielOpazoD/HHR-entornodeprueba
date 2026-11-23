@@ -90,7 +90,7 @@ que el RUN de Eloísa coincide con el registro antes de conservar la llave en el
 almacenamiento privado del equipo.
 
 Para usar Entrega de turno, la función HTTP recibe `data` con la operación
-(`status`, `read`, `read-batch`, `save` o `disconnect`), `deviceId`, `proof` y
+(`status`, `read`, `read-batch`, `save-batch`, `save` o `disconnect`), `deviceId`, `proof` y
 `professionalRun`. La función toma el autor del registro del equipo y concede
 acceso a la nota únicamente si la llave y el RUN coinciden y la cuenta sigue
 habilitada. Las operaciones de guardado vuelven a verificar el equipo y la cuenta
@@ -99,6 +99,8 @@ de paciente, episodio, turno y versión. El campo compatible `patientRun` conser
 documento original de Eloísa. El único episodio coincidente del censo determina
 el tipo, y debe coincidir el documento completo, incluidas las letras del pasaporte. Desconectar revoca el registro del equipo.
 El token de Rayen permanece en el navegador.
+
+`save-batch` comprueba hasta diez episodios distintos del mismo turno, reúne las notas válidas en un parche transaccional y confirma cada texto mediante la lectura posterior. Un conflicto de una nota conserva su borrador.
 
 `read-batch` lee una sola vez el censo vigente y acepta hasta 50 pares de episodio
 y documento. Devuelve el turno activo y un resultado por paciente en el orden de
