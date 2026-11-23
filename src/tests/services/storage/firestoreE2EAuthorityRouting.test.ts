@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   extractE2EForcedMovementAuthorityPatch,
   isE2EForcedMovementAuthorityPatch,
-} from '@/services/storage/firestore/firestoreE2EAuthorityRouting';
+} from '@/services/storage/firestore/firestoreRecordWrites';
 
 describe('firestore E2E authority routing', () => {
   beforeEach(() => localStorage.clear());

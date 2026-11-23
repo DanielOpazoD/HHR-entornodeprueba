@@ -1,4 +1,4 @@
-import { getDoc, Timestamp, type DocumentData } from 'firebase/firestore';
+import { deleteDoc, getDoc, setDoc, Timestamp, type DocumentData } from 'firebase/firestore';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { withRetry } from '@/services/utils/networkUtils';
@@ -16,6 +16,7 @@ import {
 import {
   asFirestoreUpdatePayload,
   ConcurrencyError,
+  createDeletedRecordRef,
   saveHistorySnapshot,
   updateRecordPartiallyAtomically,
 } from '@/services/storage/firestore/firestoreWriteSupport';
@@ -57,20 +58,58 @@ import {
   type DirectFirestoreWriteReceipt,
 } from './firestoreDirectWriteReceipt';
 import { stripInheritedAuthorityRepair } from '@/services/storage/firestore/firestoreInheritedRepairSeparation';
-import {
-  extractE2EForcedMovementAuthorityPatch,
-  isE2EForcedMovementAuthorityPatch,
-} from '@/services/storage/firestore/firestoreE2EAuthorityRouting';
+import { isE2EDailyRecordAuthorityCallableForced } from '@/shared/runtime/e2eRuntime';
 import {
   buildAuthorityPatchSyncContract,
   prepareFirestorePartialData,
 } from '@/services/storage/firestore/firestoreRecordWritePatchPolicy';
 
 export { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
-export {
-  deleteRecordFromFirestore,
-  moveRecordToTrash,
-} from '@/services/storage/firestore/firestoreRecordLifecycleWrites';
+
+const E2E_FORCED_MOVEMENT_PATHS = new Set(['discharges', 'transfers', 'cma']);
+
+export const isE2EForcedMovementAuthorityPatch = (patch: Record<string, unknown>): boolean => {
+  const paths = Object.keys(patch).filter(path => path !== 'dateTimestamp');
+  return (
+    isE2EDailyRecordAuthorityCallableForced() &&
+    paths.length > 0 &&
+    paths.every(path => E2E_FORCED_MOVEMENT_PATHS.has(path))
+  );
+};
+
+export const extractE2EForcedMovementAuthorityPatch = (
+  patch: Record<string, unknown>
+): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(patch).filter(([path]) => path !== 'dateTimestamp'));
+
+export const deleteRecordFromFirestore = async (date: string): Promise<void> => {
+  try {
+    const docRef = getRecordDocRef(date);
+    await withRetry(() => deleteDoc(docRef), {
+      onRetry: (err: unknown, attempt: number) =>
+        logFirestoreWriteRetry('delete', date, attempt, err),
+    });
+  } catch (error) {
+    logFirestoreWriteError('delete', date, error);
+    throw error;
+  }
+};
+
+export const moveRecordToTrash = async (record: DailyRecord): Promise<void> => {
+  try {
+    const trashRef = createDeletedRecordRef(record.date);
+    await withRetry(() =>
+      setDoc(trashRef, {
+        ...(sanitizeForFirestore(record) as Record<string, unknown>),
+        deletedAt: Timestamp.now(),
+        originalDate: record.date,
+      })
+    );
+  } catch (error) {
+    logFirestoreWriteError('moveToTrash', record.date, error);
+    throw error;
+  }
+};
 
 // Waiting ~7 s never fixed these (measured); the SDK's `unknown` and other codes do recover.
 const PERMANENT_WRITE_ERROR_CODES = new Set(['not-found', 'invalid-argument', 'permission-denied']);
