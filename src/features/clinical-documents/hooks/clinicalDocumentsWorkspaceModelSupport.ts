@@ -10,7 +10,7 @@ import {
   canDeleteClinicalDocuments,
   canEditClinicalDocuments,
   canReadClinicalDocuments,
-} from '@/features/clinical-documents/controllers/clinicalDocumentPermissionController';
+} from '@/shared/access/clinicalDocumentAccessPolicy';
 import type { UserRole } from '@/types/authRoleTypes';
 
 export interface ClinicalDocumentsWorkspaceAccessState {
