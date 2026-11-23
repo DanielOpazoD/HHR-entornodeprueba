@@ -5,6 +5,8 @@ import type { PatientHistoryResult } from '@/services/patient/patientHistoryServ
 
 const mockGetPatientMovementHistory = vi.fn();
 const mockListClinicalDocumentsByEpisode = vi.fn();
+const mockGetClinicalDocument = vi.fn();
+const mockGenerateClinicalDocumentPdfBlob = vi.fn();
 
 vi.mock('@/services/patient/patientHistoryService', () => ({
   getPatientMovementHistoryDetailed: (...args: unknown[]) => mockGetPatientMovementHistory(...args),
@@ -13,11 +15,17 @@ vi.mock('@/services/patient/patientHistoryService', () => ({
 vi.mock('@/application/ports/clinicalDocumentPort', () => ({
   defaultClinicalDocumentPort: {
     listByEpisode: (...args: unknown[]) => mockListClinicalDocumentsByEpisode(...args),
-    get: vi.fn(),
+    get: (...args: unknown[]) => mockGetClinicalDocument(...args),
   },
 }));
 
+vi.mock('@/features/clinical-documents', () => ({
+  generateClinicalDocumentPdfBlob: (...args: unknown[]) =>
+    mockGenerateClinicalDocumentPdfBlob(...args),
+}));
+
 import { usePatientSelection } from '@/features/census/components/global-search/usePatientSelection';
+import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 
 const basePatient: MasterPatient = {
   rut: '1.000.122-6',
@@ -237,5 +245,45 @@ describe('usePatientSelection', () => {
     });
     expect(mockGetPatientMovementHistory).toHaveBeenCalledTimes(2);
     expect(result.current.selectedPatient?.historyWarning).toBeNull();
+  });
+
+  it('revokes generated PDF object URLs immediately if popup is blocked and after delay when opened', async () => {
+    vi.useFakeTimers();
+    const createUrlSpy = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockReturnValueOnce('blob:pdf-blocked')
+      .mockReturnValueOnce('blob:pdf-opened');
+    const revokeUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const openSpy = vi
+      .spyOn(defaultBrowserWindowRuntime, 'open')
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce({} as Window);
+
+    mockGetClinicalDocument.mockResolvedValue({ id: 'doc-1' });
+    mockGenerateClinicalDocumentPdfBlob.mockResolvedValue(
+      new Blob(['%PDF'], { type: 'application/pdf' })
+    );
+
+    try {
+      const { result } = renderHook(() => usePatientSelection());
+
+      await act(async () => {
+        await result.current.downloadDocumentPdf('doc-1', 'epicrisis');
+      });
+      expect(revokeUrlSpy).toHaveBeenCalledWith('blob:pdf-blocked');
+
+      await act(async () => {
+        await result.current.downloadDocumentPdf('doc-1', 'epicrisis');
+      });
+      expect(revokeUrlSpy).not.toHaveBeenCalledWith('blob:pdf-opened');
+
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(revokeUrlSpy).toHaveBeenCalledWith('blob:pdf-opened');
+    } finally {
+      vi.useRealTimers();
+      createUrlSpy.mockRestore();
+      revokeUrlSpy.mockRestore();
+      openSpy.mockRestore();
+    }
   });
 });

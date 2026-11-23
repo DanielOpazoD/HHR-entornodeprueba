@@ -42,6 +42,8 @@ const loadClinicalDocPdf = createCachedRuntimeLoader(() => import('@/features/cl
 // Helpers
 // ---------------------------------------------------------------------------
 
+const PDF_PREVIEW_REVOKE_DELAY_MS = 60_000;
+
 const buildPatientHistoryCacheKey = (patient: MasterPatient): string =>
   `${patient.rut}::${patient.updatedAt ?? 0}`;
 
@@ -242,7 +244,14 @@ export function usePatientSelection(): UsePatientSelectionReturn {
 
       const blob = await pdfMod.generateClinicalDocumentPdfBlob(record);
       const url = URL.createObjectURL(blob);
-      defaultBrowserWindowRuntime.open(url, '_blank');
+      const openedWindow = defaultBrowserWindowRuntime.open(url, '_blank');
+      if (!openedWindow) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      globalThis.setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, PDF_PREVIEW_REVOKE_DELAY_MS);
     } catch (err) {
       globalPatientSearchLogger.error(`PDF preview failed for document ${docId}`, err);
       throw err;

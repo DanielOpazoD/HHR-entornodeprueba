@@ -28,11 +28,35 @@ export const UserAvatarModal: React.FC<UserAvatarModalProps> = ({
   onRemove,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const isMountedRef = useRef(true);
+  const preparationRequestIdRef = useRef(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
+  const [wasOpen, setWasOpen] = useState(isOpen);
+
+  if (wasOpen !== isOpen) {
+    setWasOpen(isOpen);
+    if (!isOpen && isPreparing) {
+      setIsPreparing(false);
+    }
+  }
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      preparationRequestIdRef.current += 1;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      preparationRequestIdRef.current += 1;
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     return () => {
@@ -43,16 +67,23 @@ export const UserAvatarModal: React.FC<UserAvatarModalProps> = ({
   }, [previewUrl]);
 
   const clearSelection = () => {
+    preparationRequestIdRef.current += 1;
+    setIsPreparing(false);
     setPreviewUrl(null);
     setSelectedFile(null);
     setSelectedPresetId(null);
     setError(null);
+    if (inputRef.current) {
+      inputRef.current.value = '';
+    }
   };
 
   const handleSelectFile = async (file: File | null) => {
+    const requestId = ++preparationRequestIdRef.current;
     setError(null);
     setSelectedPresetId(null);
     if (!file) {
+      setIsPreparing(false);
       setSelectedFile(null);
       setPreviewUrl(null);
       return;
@@ -61,9 +92,15 @@ export const UserAvatarModal: React.FC<UserAvatarModalProps> = ({
     setIsPreparing(true);
     try {
       const avatarFile = await createCenteredAvatarFile(file);
+      if (!isMountedRef.current || preparationRequestIdRef.current !== requestId) {
+        return;
+      }
       setSelectedFile(avatarFile);
       setPreviewUrl(URL.createObjectURL(avatarFile));
     } catch (preparationError) {
+      if (!isMountedRef.current || preparationRequestIdRef.current !== requestId) {
+        return;
+      }
       setSelectedFile(file);
       setPreviewUrl(URL.createObjectURL(file));
       setError(
@@ -72,7 +109,9 @@ export const UserAvatarModal: React.FC<UserAvatarModalProps> = ({
           : 'No se pudo recortar la imagen seleccionada.'
       );
     } finally {
-      setIsPreparing(false);
+      if (isMountedRef.current && preparationRequestIdRef.current === requestId) {
+        setIsPreparing(false);
+      }
     }
   };
 
@@ -88,6 +127,8 @@ export const UserAvatarModal: React.FC<UserAvatarModalProps> = ({
   );
 
   const handleSelectPreset = (presetId: string) => {
+    preparationRequestIdRef.current += 1;
+    setIsPreparing(false);
     setPreviewUrl(null);
     setSelectedFile(null);
     setError(null);
