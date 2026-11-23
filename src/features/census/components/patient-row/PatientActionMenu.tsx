@@ -1,6 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { FileText, MoreHorizontal, User } from 'lucide-react';
-import { MedicalButton } from '@/components/ui/base/MedicalButton';
+import { Button } from '@/components/ui/base/Button';
 import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import { PatientRowMenuPortal } from '@/features/census/components/patient-row/PatientRowMenuPortal';
 import type {
@@ -114,7 +114,7 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
     <div className="flex flex-col items-center gap-0.5 relative py-0.5" ref={menuRef}>
       {binding.availability.showDemographicsAction && (
         <div className="flex items-center gap-0.5">
-          <MedicalButton
+          <Button
             onClick={handleViewDemographics}
             variant="ghost"
             size="xs"
@@ -125,7 +125,7 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
         </div>
       )}
       {binding.availability.showMenuTrigger && (
-        <MedicalButton
+        <Button
           onClick={toggle}
           variant="secondary"
           size="xs"

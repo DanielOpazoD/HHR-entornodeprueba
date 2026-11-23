@@ -49,7 +49,6 @@ const LoadedReminderProvider: React.FC<{ children: React.ReactNode }> = ({ child
 const mockUseAppContentRuntime = vi.fn();
 const mockUseAppContentShellEffects = vi.fn();
 const mockBuildOpenCensusDateHandler = vi.fn();
-const mockResolveModuleTheme = vi.fn();
 const mockAppContentOverlays = vi.fn();
 const mockAppContentChrome = vi.fn();
 
@@ -79,10 +78,6 @@ vi.mock('@/components/layout/app-content/useAppContentShellEffects', () => ({
 
 vi.mock('@/components/layout/app-content/appContentCensusDateController', () => ({
   buildOpenCensusDateHandler: (...args: unknown[]) => mockBuildOpenCensusDateHandler(...args),
-}));
-
-vi.mock('@/components/layout/app-content/moduleThemeController', () => ({
-  resolveModuleTheme: (...args: unknown[]) => mockResolveModuleTheme(...args),
 }));
 
 vi.mock('@/components/layout/app-content/AppContentChrome', () => ({
@@ -147,7 +142,15 @@ describe('AppContent entrypoint wiring', () => {
       dailyRecordHook: {},
       dateNav,
     });
-    mockResolveModuleTheme.mockReturnValue('census');
+  });
+
+  it('applies the nursing-handoff data-module theme for handoff and CUDYR modules', () => {
+    const { container, rerender } = render(<AppContent ui={ui as never} />);
+    expect(container.firstElementChild).toHaveAttribute('data-module', 'census');
+    rerender(<AppContent ui={{ ...ui, currentModule: 'NURSING_HANDOFF' } as never} />);
+    expect(container.firstElementChild).toHaveAttribute('data-module', 'nursing-handoff');
+    rerender(<AppContent ui={{ ...ui, currentModule: 'CUDYR' } as never} />);
+    expect(container.firstElementChild).toHaveAttribute('data-module', 'nursing-handoff');
   });
 
   it('preserves the mounted chrome and draft when deferred reminders become available', async () => {

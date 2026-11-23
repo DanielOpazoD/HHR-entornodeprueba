@@ -1,7 +1,7 @@
 export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline' | 'success';
 export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'icon';
 
-/** The same visual contract for buttons, links and legacy MedicalButton callers. */
+/** Shared visual contract for buttons and button-styled links. */
 export const buttonClassName = (
   variant: ButtonVariant = 'primary',
   size: ButtonSize = 'md',

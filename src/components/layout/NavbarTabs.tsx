@@ -9,7 +9,18 @@ import clsx from 'clsx';
 import { ModuleType, NavItemConfig } from '@/constants/navigationConfig';
 import { useNavbarNavigation } from '@/hooks/useNavbarNavigation';
 import { useNavbarDisclosure } from './navbar/useNavbarDisclosure';
-import { resolveIsNavbarItemActive } from '@/components/layout/navbar/navbarTabsController';
+
+const resolveIsNavbarItemActive = (
+  currentModule: ModuleType,
+  itemModule: ModuleType | undefined,
+  censusViewMode: 'REGISTER' | 'ANALYTICS',
+  itemCensusMode: 'REGISTER' | 'ANALYTICS' | undefined
+): boolean =>
+  Boolean(
+    itemModule &&
+    (currentModule === itemModule || (itemModule === 'CENSUS' && currentModule === 'CUDYR')) &&
+    (!itemCensusMode || censusViewMode === itemCensusMode)
+  );
 
 const controlInteractionClass =
   'transition-colors focus-visible:outline focus-visible:outline-2 motion-reduce:transition-none';
@@ -132,12 +143,12 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
             key={item.id}
             label={item.label}
             icon={item.icon}
-            isActive={resolveIsNavbarItemActive({
+            isActive={resolveIsNavbarItemActive(
               currentModule,
-              itemModule: item.module,
+              item.module,
               censusViewMode,
-              itemCensusMode: item.censusMode,
-            })}
+              item.censusMode
+            )}
             onClick={() => handleItemClick(item)}
             testId={`nav-tab-${item.id}`}
           />
@@ -190,12 +201,12 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
                     key={item.id}
                     label={item.label}
                     icon={item.icon}
-                    isActive={resolveIsNavbarItemActive({
+                    isActive={resolveIsNavbarItemActive(
                       currentModule,
-                      itemModule: item.module,
+                      item.module,
                       censusViewMode,
-                      itemCensusMode: item.censusMode,
-                    })}
+                      item.censusMode
+                    )}
                     onClick={() => {
                       handleItemClick(item);
                       closeAndRestoreFocus();
