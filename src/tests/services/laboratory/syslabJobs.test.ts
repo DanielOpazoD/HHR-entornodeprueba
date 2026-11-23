@@ -168,4 +168,72 @@ describe('remote Syslab durable details', () => {
     await rejection;
     expect(fetch).toHaveBeenCalledTimes(2);
   });
+
+  it('rejects non-JSON gateway responses with a clear error instead of raw SyntaxError', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response('<html><body>502 Bad Gateway</body></html>', {
+            status: 502,
+            headers: { 'Content-Type': 'text/html' },
+          })
+      )
+    );
+
+    await expect(requestSyslabJob('job-status', undefined, jobId)).rejects.toThrow(
+      'No se pudo consultar la cola del Mac mini.'
+    );
+  });
+
+  it('honors Retry-After on a plain-text 429 response and cancels waits immediately on session change', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response('Too Many Requests', {
+          status: 429,
+          headers: { 'Retry-After': '10' },
+        })
+      )
+      .mockResolvedValueOnce(json({ job: job(16, 'running') }));
+    vi.stubGlobal('fetch', fetch);
+
+    const pending = requestSyslabJob('job-status', undefined, jobId);
+    await vi.advanceTimersByTimeAsync(10_000);
+    await expect(pending).resolves.toMatchObject({ job: { status: 'running' } });
+    expect(fetch).toHaveBeenCalledTimes(2);
+
+    fetch.mockResolvedValueOnce(json({ job: job(0, 'queued') }));
+    const waiting = readRemoteSyslabDetailsJob(links, {});
+    const rejection = expect(waiting).rejects.toThrow('cancelada');
+    await vi.advanceTimersByTimeAsync(0);
+    setSessionGeneration('switched-while-polling');
+    await rejection;
+    await vi.advanceTimersByTimeAsync(0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('aborts an in-flight Syslab fetch signal immediately when the session changes', async () => {
+    let capturedSignal: AbortSignal | undefined;
+    const fetch = vi.fn(
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          capturedSignal = init?.signal ?? undefined;
+          capturedSignal?.addEventListener('abort', () =>
+            reject(new DOMException('Aborted', 'AbortError'))
+          );
+        })
+    );
+    vi.stubGlobal('fetch', fetch);
+
+    const pending = requestSyslabJob('job-status', undefined, jobId);
+    const rejection = expect(pending).rejects.toThrow('cancelada');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(capturedSignal?.aborted).toBe(false);
+    setSessionGeneration('switched-mid-fetch');
+    expect(capturedSignal?.aborted).toBe(true);
+    await rejection;
+    await vi.advanceTimersByTimeAsync(0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });
