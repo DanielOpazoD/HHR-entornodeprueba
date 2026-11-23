@@ -119,7 +119,7 @@ describe('ai-provider', () => {
     expect(config).toBeNull();
   });
 
-  it('generates text with Gemini', async () => {
+  it('generates text with Gemini and forwards temperature and maxOutputTokens', async () => {
     generateContentMock.mockResolvedValue({ text: 'respuesta gemini' });
 
     const result = await generateClinicalAIText({
@@ -130,10 +130,19 @@ describe('ai-provider', () => {
       },
       systemPrompt: 'Sistema',
       userPrompt: 'Usuario',
+      temperature: 0.1,
+      maxTokens: 512,
     });
 
     expect(result).toBe('respuesta gemini');
-    expect(generateContentMock).toHaveBeenCalledTimes(1);
+    expect(generateContentMock).toHaveBeenCalledWith({
+      model: 'gemini-3-flash-preview',
+      contents: 'Sistema\n\nUsuario',
+      config: {
+        temperature: 0.1,
+        maxOutputTokens: 512,
+      },
+    });
   });
 
   it('generates text with OpenAI', async () => {
@@ -194,6 +203,18 @@ describe('ai-provider', () => {
     );
   });
 
+  it('uses a current default Anthropic model when ANTHROPIC_MODEL is not set', () => {
+    const config = resolveClinicalAIProviderConfig({
+      AI_PROVIDER: 'anthropic',
+      ANTHROPIC_API_KEY: 'anthropic-key',
+    } as NodeJS.ProcessEnv);
+
+    expect(config).toMatchObject({
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-6',
+    });
+  });
+
   it('generates text with Anthropic', async () => {
     vi.mocked(global.fetch).mockResolvedValue({
       ok: true,
@@ -206,7 +227,7 @@ describe('ai-provider', () => {
       config: {
         provider: 'anthropic',
         apiKey: 'anthropic-key',
-        model: 'claude-3-5-sonnet-latest',
+        model: 'claude-sonnet-4-6',
       },
       systemPrompt: 'Sistema',
       userPrompt: 'Usuario',

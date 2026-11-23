@@ -48,6 +48,14 @@ const hashPin = async (pin, salt, params = PIN_SCRYPT_PARAMS) => {
 const hashPinLegacySha256 = (pin, salt) =>
   crypto.createHash('sha256').update(`${pin}:${salt}`).digest('hex');
 
+const hashesMatchTimingSafe = (candidateHex, storedHex) => {
+  if (typeof candidateHex !== 'string' || typeof storedHex !== 'string') return false;
+  const candidateBuffer = Buffer.from(candidateHex, 'utf8');
+  const storedBuffer = Buffer.from(storedHex, 'utf8');
+  if (candidateBuffer.length !== storedBuffer.length) return false;
+  return crypto.timingSafeEqual(candidateBuffer, storedBuffer);
+};
+
 const generatePinSalt = () => crypto.randomBytes(16).toString('hex');
 
 const requireAuthentication = context => {
@@ -123,7 +131,7 @@ const validatePinAgainstConfig = async (firestore, providedPin) => {
         : hashPinLegacySha256(trimmed, data.pinSalt);
     // Failed attempts are committed and reported after the transaction;
     // throwing here would roll the counter update back.
-    if (candidate !== data.pinHash) {
+    if (!hashesMatchTimingSafe(candidate, data.pinHash)) {
       const failedAttempts = Number(data.failedAttempts || 0) + 1;
       const update = { failedAttempts };
       if (failedAttempts >= MAX_PIN_FAILED_ATTEMPTS) {
@@ -210,6 +218,7 @@ module.exports = {
   PIN_SCRYPT_PARAMS,
   hashPin,
   hashPinLegacySha256,
+  hashesMatchTimingSafe,
   generatePinSalt,
   requireAuthentication,
   resolveCallerRole,
