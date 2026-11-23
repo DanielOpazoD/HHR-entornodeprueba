@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { readResponseWithinLimit } from './lib/bounded-response';
 import { getFirebaseServer } from './lib/firebase-server';
 import { authorizeRoleRequest } from './lib/firebase-auth';
 import {
@@ -137,25 +138,8 @@ export const createExalabProxyHandler =
         redirect: 'error',
         signal: AbortSignal.timeout(45_000),
       });
-      const chunks: Uint8Array[] = [];
-      let length = 0;
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('empty');
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          length += value.length;
-          if (length > 4 * 1024 * 1024) {
-            await reader.cancel();
-            throw new Error('size');
-          }
-          chunks.push(value);
-        }
-      } finally {
-        reader.releaseLock();
-      }
-      const bytes = Buffer.concat(chunks);
+      const bytes = await readResponseWithinLimit(response, 4 * 1024 * 1024);
+      if (!bytes) throw new Error('size');
       if (action === 'pdf' && response.ok) {
         if (
           !bytes.subarray(0, 5).equals(Buffer.from('%PDF-')) ||

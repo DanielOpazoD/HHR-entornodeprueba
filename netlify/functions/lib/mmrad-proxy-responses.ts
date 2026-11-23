@@ -1,5 +1,8 @@
+import { readResponseWithinLimit } from './bounded-response';
 import { buildCorsHeaders, buildJsonResponse } from './http';
 import { MMRAD_BASE_URL, decodeResponseHtml, fetchWithHeaders } from './mmrad-session';
+
+const MAX_MMRAD_PDF_BYTES = 15 * 1024 * 1024;
 
 export const resolveMmradAuthorizationErrorMessage = (message: string): string => {
   if (message.includes("Access denied for role 'unauthorized'")) {
@@ -39,8 +42,15 @@ export const buildPdfProxyResponse = async (
     );
   }
 
-  const buffer = await response.arrayBuffer();
-  const base64 = Buffer.from(buffer).toString('base64');
+  const buffer = await readResponseWithinLimit(response, MAX_MMRAD_PDF_BYTES);
+  if (!buffer) {
+    return buildJsonResponse(
+      502,
+      { error: 'El PDF de MMRAD supera el tamaño máximo permitido' },
+      { requestOrigin }
+    );
+  }
+  const base64 = buffer.toString('base64');
 
   return {
     statusCode: 200,

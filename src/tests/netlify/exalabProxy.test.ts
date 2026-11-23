@@ -137,5 +137,10 @@ describe('Exalab gateway', () => {
     const failed = await handler(event);
     expect(failed.statusCode).toBe(502);
     expect(failed.body).not.toContain('secret-upstream');
+    fetchMock.mockResolvedValueOnce(
+      new Response('x', { headers: { 'content-length': String(5 * 1024 * 1024) } })
+    );
+    const oversized = await handler(event);
+    expect(oversized.statusCode).toBe(502);
   });
 });
