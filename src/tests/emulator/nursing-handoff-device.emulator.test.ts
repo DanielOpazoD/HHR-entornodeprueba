@@ -183,6 +183,22 @@ it.skipIf(!enabled).each(['nurse_hospital', 'admin'])(
           patients: Array.from({ length: 51 }, () => patients[0]),
         })
       ).rejects.toMatchObject({ code: 'invalid-argument' });
+      const block = [
+        { ...patients[0], version: batch.results[0].version, text: 'Bloque uno' },
+        { ...patients[1], version: batch.results[1].version, text: 'Bloque dos' },
+        { ...patients[3], version: batch.results[0].version, text: 'Ausente' },
+      ];
+      const saveBlock = { ...request, action: 'save-batch', date, shift, patients: block };
+      const revisionBefore = (await day.get()).get('meta.revision') ?? 0;
+      const receipts = await handler(saveBlock);
+      expect(receipts.results).toMatchObject([
+        { episode, confirmed: true },
+        { episode: passportEpisode, confirmed: true },
+        { code: 'NOT_FOUND' },
+      ]);
+      expect((await day.get()).get('meta.revision')).toBe(revisionBefore + 1);
+      expect((await handler(saveBlock)).results).toEqual(receipts.results);
+      expect((await day.get()).get('meta.revision')).toBe(revisionBefore + 1);
       const view = await handler({ ...request, action: 'read' });
       expect(view).toMatchObject({ date, shift });
       const saved = await handler({

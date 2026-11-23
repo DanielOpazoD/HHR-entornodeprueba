@@ -72,9 +72,6 @@ function findHandoff(snapshot, record, episode, code, slot, census) {
     night: item[NIGHT] ?? item.handoffNote ?? '',
     dayValue: item[DAY],
     nightValue: item[NIGHT],
-    lastUpdated: record.lastUpdated?.toDate?.().toISOString() ?? record.lastUpdated,
-    revision: record.meta?.revision,
-    snapshotVersion: snapshot.updateTime,
   };
 }
 
@@ -213,7 +210,12 @@ function createHandler({
 
   return async data => {
     const action = data?.action;
-    if (action !== 'read' && action !== 'save' && action !== 'read-batch') {
+    if (
+      action !== 'read' &&
+      action !== 'save' &&
+      action !== 'read-batch' &&
+      action !== 'save-batch'
+    ) {
       fail('invalid-argument', 'La operación de entrega de turno no es válida.');
     }
     const actor = await authorize(data);
@@ -231,8 +233,6 @@ function createHandler({
       }
       return { slot, results: batchViews(snapshot, patients, slot, census) };
     }
-    const { episode } = data;
-    const code = documentForVisit(data);
     // Keep each open editor pinned, including after a shift or census-day rollover.
     const date = data.date ?? slot.date;
     const shift = data.shift ?? slot.shift;
@@ -240,10 +240,11 @@ function createHandler({
       fail('failed-precondition', 'Cambió el turno o la fecha censal. Abre otra entrega.');
     }
     const ref = records.doc(date);
-    const select = snapshot => findHandoff(snapshot, snapshot.data(), episode, code, slot, census);
-    const current = select(await ref.get());
-
     if (action === 'read') {
+      const code = documentForVisit(data);
+      const select = snapshot =>
+        findHandoff(snapshot, snapshot.data(), data.episode, code, slot, census);
+      const current = select(await ref.get());
       const entry = data.since
         ? await waitForNote(ref, current, select, data.since, shift)
         : current;
@@ -256,49 +257,101 @@ function createHandler({
         : viewOf(entry, date, shift);
     }
 
+    if (data.date !== date || data.shift !== shift) {
+      fail('invalid-argument', 'La edición debe indicar su fecha y turno.');
+    }
+    const batch = action === 'save-batch';
+    const visits = batch ? data.patients : [data];
     if (
-      data.date !== date ||
-      data.shift !== shift ||
-      typeof data.text !== 'string' ||
-      data.text.length > 16_000 ||
-      !/^[a-f0-9]{64}$/.test(data.version ?? '')
+      !Array.isArray(visits) ||
+      !visits.length ||
+      visits.length > 10 ||
+      new Set(visits.map(visit => visit?.episode)).size !== visits.length
     ) {
-      fail('invalid-argument', 'La edición debe indicar la fecha, el turno y la versión leída.');
+      fail('invalid-argument', 'Cada bloque admite de 1 a 10 episodios distintos.');
     }
-    const { text } = data;
-    const alreadySaved =
-      current.nightValue === text && (shift === 'night' || current.dayValue === text);
-    if (alreadySaved) return { ...viewOf(current, date, shift), confirmed: true };
-    if (data.version !== versionOf(current, shift)) {
-      fail(
-        'aborted',
-        'La entrega cambió en HHR. Revisa la nota actual antes de guardar tu edición.'
-      );
-    }
-    const patch = { [`${current.path}.${NIGHT}`]: text };
-    if (shift === 'day') patch[`${current.path}.${DAY}`] = text;
-    const response = await write(
-      {
-        date,
-        shift,
-        patch,
-        snapshotVersion: current.snapshotVersion,
-        expectedLastUpdated: current.lastUpdated,
-        syncContract: {
-          clientId: actor.auth.uid,
-          changedPaths: Object.keys(patch),
-          ...(Number.isInteger(current.revision) ? { baseRevision: current.revision } : {}),
+    const snapshot = await ref.get();
+    const record = snapshot.data();
+    const patch = {};
+    const selectVisit = (snap, value, visit) =>
+      findHandoff(snap, value, visit.episode, documentForVisit(visit), slot, census);
+    const matchesText = (entry, text) =>
+      entry.nightValue === text && (shift === 'night' || entry.dayValue === text);
+    const rejected = error => {
+      if (!batch || !(error instanceof functions.https.HttpsError)) throw error;
+      return { error: error.message, code: error.toJSON().status };
+    };
+    const results = visits.map(visit => {
+      try {
+        if (
+          typeof visit?.text !== 'string' ||
+          visit.text.length > 16000 ||
+          !/^[a-f0-9]{64}$/.test(visit.version ?? '')
+        ) {
+          fail('invalid-argument', 'La edición debe indicar la versión leída y el texto.');
+        }
+        const entry = selectVisit(snapshot, record, visit);
+        if (!matchesText(entry, visit.text)) {
+          if (visit.version !== versionOf(entry, shift)) {
+            fail(
+              'aborted',
+              'La entrega cambió en HHR. Revisa la nota actual antes de guardar tu edición.'
+            );
+          }
+          patch[entry.path + '.' + NIGHT] = visit.text;
+          if (shift === 'day') patch[entry.path + '.' + DAY] = visit.text;
+        }
+        return null;
+      } catch (error) {
+        return rejected(error);
+      }
+    });
+    let confirmed = snapshot;
+    const paths = Object.keys(patch);
+    if (paths.length) {
+      const response = await write(
+        {
+          date,
+          shift,
+          patch,
+          snapshotVersion: snapshot.updateTime,
+          expectedLastUpdated: record.lastUpdated?.toDate?.().toISOString() ?? record.lastUpdated,
+          syncContract: {
+            clientId: actor.auth.uid,
+            changedPaths: paths,
+            ...(Number.isInteger(record.meta?.revision)
+              ? { baseRevision: record.meta.revision }
+              : {}),
+          },
+          origin,
         },
-        origin,
-      },
-      actor
-    );
-    if (!response.success) fail('failed-precondition', 'HHR rechazó el guardado.');
-    const saved = select(await ref.get());
-    if (saved.nightValue !== text || (shift === 'day' && saved.dayValue !== text)) {
-      fail('aborted', 'El guardado no coincide con la versión actual de HHR.');
+        actor
+      );
+      if (!response.success) fail('failed-precondition', 'HHR rechazó el guardado.');
+      confirmed = await ref.get();
     }
-    return { ...viewOf(saved, date, shift), confirmed: true };
+    const savedRecord = confirmed.data();
+    const receipts = results.map((result, index) => {
+      if (result) return result;
+      try {
+        const visit = visits[index];
+        const saved = selectVisit(confirmed, savedRecord, visit);
+        if (!matchesText(saved, visit.text)) {
+          fail('aborted', 'El guardado no coincide con la versión actual de HHR.');
+        }
+        return { ...viewOf(saved, date, shift), confirmed: true };
+      } catch (error) {
+        return rejected(error);
+      }
+    });
+    return batch
+      ? {
+          results: receipts.map((receipt, index) => ({
+            ...receipt,
+            episode: visits[index]?.episode ?? null,
+          })),
+        }
+      : receipts[0];
   };
 }
 
