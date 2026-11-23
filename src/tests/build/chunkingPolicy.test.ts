@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { chunkForModule } from '../../../scripts/config/chunkingPolicy';
+import { ONLINE_ONLY_PRECACHE_PATTERNS } from '../../../scripts/config/onlineOnlyAssets.mjs';
 
 const readSource = (relativePath: string): string =>
   fs.readFileSync(path.resolve(process.cwd(), relativePath), 'utf8');
@@ -43,19 +44,6 @@ const collectProductionSourceFiles = (directory: string): string[] => {
 };
 
 describe('chunkingPolicy', () => {
-  it('does not force manual chunks for application source modules', () => {
-    expect(chunkForModule('/repo/src/services/backup/censusStorageService.ts')).toBeUndefined();
-    expect(
-      chunkForModule('/repo/src/features/census/components/patient-row/PatientRow.tsx')
-    ).toBeUndefined();
-    expect(
-      chunkForModule('/repo/src/features/census/controllers/patientMovementController.ts')
-    ).toBeUndefined();
-    expect(
-      chunkForModule('/repo/src/features/clinical-documents/components/ClinicalDocumentsModal.tsx')
-    ).toBeUndefined();
-  });
-
   it('never assigns app-level source modules to manual chunks', () => {
     // App source must NOT be forced into named chunks — this caused circular
     // vendor↔feature dependencies that crashed production (createContext undefined).
@@ -496,5 +484,45 @@ describe('chunkingPolicy', () => {
     expect(chunkForModule('/repo/node_modules/.vite/deps/commonjsHelpers.js')).toBe(
       'vendor-cjs-helpers'
     );
+  });
+
+  it('keeps the error-boundary context with the shared React runtime', () => {
+    expect(
+      chunkForModule('/repo/node_modules/react-error-boundary/dist/react-error-boundary.js')
+    ).toBe('vendor-react');
+  });
+
+  it('isolates the clinical documents workspace without capturing census-facing document contracts', () => {
+    for (const file of [
+      'components/ClinicalDocumentRichTextEditor.tsx',
+      'services/clinicalDocumentPdfRenderService.ts',
+      'styles/clinicalDocumentSheet.css',
+      'styles/clinicalDocumentSheet.css?raw',
+    ]) {
+      expect(chunkForModule(`/repo/src/features/clinical-documents/${file}`)).toBe(
+        'clinical-documents-workspace'
+      );
+    }
+    expect(chunkForModule('/repo/src/domain/clinical-documents/schema.ts')).toBe('census-view');
+    expect(chunkForModule('/repo/src/domain/clinical-documents/definitions.ts')).toBe(
+      'census-view'
+    );
+    expect(chunkForModule('/repo/src/utils/htmlEscape.ts')).toBe('htmlEscape');
+    for (const file of [
+      'public.ts',
+      'index.ts',
+      'contracts/clinicalDocumentsPatientContract.ts',
+      'components/ClinicalDocumentsModal.tsx',
+    ]) {
+      expect(chunkForModule(`/repo/src/features/clinical-documents/${file}`)).toBeUndefined();
+    }
+
+    const patterns = ONLINE_ONLY_PRECACHE_PATTERNS.map(pattern => new RegExp(pattern));
+    expect(
+      patterns.some(pattern => pattern.test('assets/clinical-documents-workspace-test.js'))
+    ).toBe(true);
+    expect(
+      patterns.some(pattern => pattern.test('assets/clinical-documents-workspace-test.css'))
+    ).toBe(false);
   });
 });

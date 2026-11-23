@@ -1,4 +1,8 @@
 // @vitest-environment node
+import {
+  classifyBuildAssetBudget,
+  resolveBuildAssetBudget,
+} from '../../../scripts/bundleBudgetSupport.mjs';
 import { ONLINE_ONLY_PRECACHE_PATTERNS } from '../../../scripts/config/onlineOnlyAssets.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -30,19 +34,6 @@ const findBudget = (config: BundleBudgetConfig, pattern: string) =>
   config.chunkPatternBudgets.find(budget => budget.pattern === pattern);
 
 describe('bundle budget config', () => {
-  it('reserves the recovered Eloisa review headroom without raising the old ceiling', () => {
-    const budget = findBudget(readBundleBudgetConfig(), '^RayenImportButton-.*\\.js$');
-    expect(budget?.maxBytes).toBeLessThanOrEqual(264096 - 20 * 1024 + 12288);
-  });
-
-  it('preserves recovered history headroom and bounds optional metrics', () => {
-    const config = readBundleBudgetConfig();
-    expect(findBudget(config, '^RayenSyncHistoryModal-.*\\.js$')?.maxBytes).toBeLessThanOrEqual(
-      29990 - 3000 + 2000
-    );
-    expect(findBudget(config, '^RayenSyncTechnicalMetricsPanel-.*\\.js$')?.maxBytes).toBe(4737);
-  });
-
   it('bounds the core monthly export and optional Eloisa source separately', () => {
     const config = readBundleBudgetConfig();
     expect(findBudget(config, '^cudyrEssentialWorkbook-.*\\.js$')).toMatchObject({
@@ -84,6 +75,9 @@ describe('bundle budget config', () => {
     });
     expect(findBudget(config, '^RayenSyncHistoryModal-.*\\.js$')).toMatchObject({
       maxBytes: 28148,
+    });
+    expect(findBudget(config, '^RayenSyncTechnicalMetricsPanel-.*\\.js$')).toMatchObject({
+      maxBytes: 4737,
     });
     expect(findBudget(config, '^perfAuditReport-.*\\.js$')).toMatchObject({ maxBytes: 4000 });
     expect(findBudget(config, '^RayenImportButton-.*\\.js$')).toMatchObject({ maxBytes: 250430 });
@@ -169,5 +163,121 @@ describe('bundle budget config', () => {
     expect(config.forbiddenAssetPatterns).toEqual(
       expect.arrayContaining(['^assets/exceljs\\.min-.*\\.js$'])
     );
+  });
+});
+
+describe('bundleBudgetSupport', () => {
+  const budgetConfig = {
+    chunkMaxBytes: 1_250_000,
+    startupChunkBudgets: [
+      {
+        label: 'app-authenticated-shell',
+        pattern: '^app-authenticated-shell-.*\\.js$',
+        maxBytes: 600_000,
+        severity: 'error',
+      },
+    ],
+    chunkPatternBudgets: [
+      {
+        label: 'vendor-heic2any',
+        pattern: '^vendor-heic2any-.*\\.js$',
+        maxBytes: 1_450_000,
+      },
+      {
+        label: 'vendor-pdfjs',
+        pattern: '^vendor-pdfjs-.*\\.js$',
+        maxBytes: 520_000,
+      },
+      {
+        label: 'vendor-pdf-lib',
+        pattern: '^vendor-pdf-.*\\.js$',
+        maxBytes: 430_000,
+      },
+    ],
+  };
+
+  it('uses dedicated chunk pattern budgets before the generic chunk ceiling', () => {
+    expect(
+      resolveBuildAssetBudget({
+        file: 'dist/assets/vendor-heic2any-ClJ2fQYX.js',
+        budgetConfig,
+      })
+    ).toMatchObject({
+      maxBytes: 1_450_000,
+      budgetLabel: 'vendor-heic2any',
+      budgetSource: 'chunkPatternBudget',
+    });
+  });
+
+  it('keeps unregistered chunks on the generic ceiling', () => {
+    expect(
+      classifyBuildAssetBudget({
+        file: 'dist/assets/vendor-untracked-large.js',
+        sizeBytes: 1_350_000,
+        budgetConfig,
+      })
+    ).toMatchObject({
+      maxBytes: 1_250_000,
+      budgetLabel: 'chunkMaxBytes',
+      budgetSource: 'chunkMaxBytes',
+      status: 'blocking',
+    });
+  });
+
+  it('surfaces HEIC as near-limit, not blocking, while it is inside its dedicated ledger budget', () => {
+    expect(
+      classifyBuildAssetBudget({
+        file: 'dist/assets/vendor-heic2any-ClJ2fQYX.js',
+        sizeBytes: 1_350_000,
+        budgetConfig,
+      })
+    ).toMatchObject({
+      maxBytes: 1_450_000,
+      budgetLabel: 'vendor-heic2any',
+      budgetSource: 'chunkPatternBudget',
+      budgetUtilizationPct: 93.1,
+      status: 'near-limit',
+    });
+  });
+
+  it('classifies PDF and app shell surfaces against their dedicated budgets', () => {
+    expect(
+      classifyBuildAssetBudget({
+        file: 'dist/assets/vendor-pdfjs-C4G2Lk1-.js',
+        sizeBytes: 400_000,
+        budgetConfig,
+      })
+    ).toMatchObject({
+      maxBytes: 520_000,
+      budgetLabel: 'vendor-pdfjs',
+      budgetSource: 'chunkPatternBudget',
+      status: 'ok',
+    });
+
+    expect(
+      classifyBuildAssetBudget({
+        file: 'dist/assets/vendor-pdf-lib-BrVFzLGn.js',
+        sizeBytes: 440_000,
+        budgetConfig,
+      })
+    ).toMatchObject({
+      maxBytes: 430_000,
+      budgetLabel: 'vendor-pdf-lib',
+      budgetSource: 'chunkPatternBudget',
+      status: 'blocking',
+    });
+
+    expect(
+      classifyBuildAssetBudget({
+        file: 'dist/assets/app-authenticated-shell-B_IbeW9R.js',
+        sizeBytes: 550_000,
+        budgetConfig,
+      })
+    ).toMatchObject({
+      maxBytes: 600_000,
+      budgetLabel: 'app-authenticated-shell',
+      budgetSource: 'startupChunkBudget',
+      status: 'near-limit',
+    });
   });
 });
