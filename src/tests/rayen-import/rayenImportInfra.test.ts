@@ -299,6 +299,13 @@ describe('patient-flow report bridge', () => {
     expect(postMessage).not.toHaveBeenCalled();
     postMessage.mockRestore();
   });
+
+  it('aborts an in-flight patient-flow request immediately when its signal fires', async () => {
+    const controller = new AbortController();
+    const pending = requestPatientFlowReport('142040', 15_000, controller.signal);
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+  });
 });
 
 describe('bounded clinical-history bridge', () => {

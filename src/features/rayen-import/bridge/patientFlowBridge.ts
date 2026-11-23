@@ -14,7 +14,8 @@ export interface PatientFlowBridgeResult {
 /** Fetch the official patient-flow PDF for one exact encounter. Used only to resolve a bed conflict. */
 export const requestPatientFlowReport = (
   encId: string,
-  timeoutMs = 30000
+  timeoutMs = 30000,
+  signal?: AbortSignal
 ): Promise<PatientFlowBridgeResult> => {
   if (typeof window === 'undefined' || !/^\d+$/.test(encId)) {
     return Promise.resolve({ base64: '', error: 'El episodio clínico no es válido.' });
@@ -25,6 +26,7 @@ export const requestPatientFlowReport = (
     resultType: RAYEN_PATIENT_FLOW_RESULT_TYPE,
     payload: { encId },
     timeoutMs,
+    signal,
     onTimeout: () => ({
       base64: '',
       error: 'Tiempo de espera agotado consultando la trazabilidad.',

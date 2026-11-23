@@ -25,6 +25,7 @@ export const persistCudyrSyncCapture = async (input: {
   recoverPlacements?: (
     episode: string
   ) => Promise<import('@/types/domain/cudyrPlacement').CudyrSourcePlacement[]>;
+  onPlacementsArchived?: (episode: string) => void;
   measure?: ClinicalFillStageTimer;
 }): Promise<ClinicalFillError[]> => {
   const gate = createConcurrencyGate(3);
@@ -38,7 +39,9 @@ export const persistCudyrSyncCapture = async (input: {
         const recoveryErrors: ClinicalFillError[] = [];
         try {
           input.signal?.throwIfAborted();
-          let recoveredPlacements;
+          let recoveredPlacements:
+            | import('@/types/domain/cudyrPlacement').CudyrSourcePlacement[]
+            | undefined;
           if (input.recoverPlacements) {
             try {
               const recovered = await measure('cudyrArchivePlacementReads', () =>
@@ -65,9 +68,11 @@ export const persistCudyrSyncCapture = async (input: {
             clinicalEpisodeId,
             recoveredPlacements,
           });
+          let allPartsPersisted = parts.length > 0;
           for (const part of parts) {
             input.signal?.throwIfAborted();
             const result = await measure('cudyrArchiveWrites', () => input.write(part));
+            if (result !== 'persisted') allPartsPersisted = false;
             if (result === 'queued' && !failed) {
               reason = 'historical_archive_failed';
               detail =
@@ -79,6 +84,9 @@ export const persistCudyrSyncCapture = async (input: {
               detail =
                 'No se pudo conservar la captura CUDYR; requiere reintentar la sincronización.';
             }
+          }
+          if (allPartsPersisted && recoveredPlacements?.length) {
+            input.onPlacementsArchived?.(clinicalEpisodeId);
           }
         } catch {
           // The coordinator owns cancellation; no archive failure occurred for skipped work.

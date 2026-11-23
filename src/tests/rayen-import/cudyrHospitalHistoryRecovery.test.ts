@@ -3,6 +3,7 @@ import { cudyrPlacementsFromPatientFlow } from '@/features/rayen-import/mapping/
 import { resolveCudyrHospitalAdmission } from '@/domain/cudyr/cudyrHospitalAdmission';
 import { persistCudyrSyncCapture } from '@/features/rayen-import/domain/persistCudyrSyncCapture';
 import {
+  markCudyrFlowArchived,
   recoverCudyrHospitalHistory,
   resetArchivedFlowEpisodesForTests,
 } from '@/features/rayen-import/bridge/cudyrHospitalHistoryRecovery';
@@ -338,6 +339,94 @@ describe('historical hospital admission from the official flow report', () => {
     await expect(
       recoverCudyrHospitalHistory(episode, '111111111', controller.signal, observedAt)
     ).rejects.toThrow();
+  });
+
+  it('reuses server-confirmed archived flow episodes across tab reloads without paging captures again', async () => {
+    vi.mocked(readCudyrEpisodeCaptures).mockResolvedValue({
+      captures: [{ capture: { clinicalEpisodeId: episode, sourcePlacements: placements() } }],
+      nextCursor: null,
+    } as never);
+
+    expect(
+      await recoverCudyrHospitalHistory(
+        episode,
+        '111111111',
+        new AbortController().signal,
+        observedAt
+      )
+    ).toEqual([]);
+    expect(readCudyrEpisodeCaptures).toHaveBeenCalledOnce();
+
+    // Simulate a full tab reload: clear only the in-memory map, keeping localStorage.
+    resetArchivedFlowEpisodesForTests({ keepStorage: true });
+
+    expect(
+      await recoverCudyrHospitalHistory(
+        episode,
+        '111111111',
+        new AbortController().signal,
+        observedAt
+      )
+    ).toEqual([]);
+    expect(readCudyrEpisodeCaptures).toHaveBeenCalledOnce();
+    expect(requestPatientFlowReport).not.toHaveBeenCalled();
+  });
+
+  it('marks recovered placements archived only when every archive write is confirmed persisted', async () => {
+    const onArchived = vi.fn((id: string) => markCudyrFlowArchived(id));
+    for (const outcome of ['queued', 'failed'] as const) {
+      await persistCudyrSyncCapture({
+        censusDate: '2026-10-03',
+        runId: 'run',
+        captureId: `capture-${outcome}`,
+        observedAt,
+        episodes: [episode],
+        source: { map: new Map(), historyAvailable: true },
+        recoverPlacements: async () => placements(),
+        onPlacementsArchived: onArchived,
+        write: vi.fn().mockResolvedValue(outcome),
+      });
+    }
+    expect(onArchived).not.toHaveBeenCalled();
+
+    await persistCudyrSyncCapture({
+      censusDate: '2026-10-03',
+      runId: 'run',
+      captureId: 'capture-persisted',
+      observedAt,
+      episodes: [episode],
+      source: { map: new Map(), historyAvailable: true },
+      recoverPlacements: async () => placements(),
+      onPlacementsArchived: onArchived,
+      write: vi.fn().mockResolvedValue('persisted'),
+    });
+    expect(onArchived).toHaveBeenCalledExactlyOnceWith(episode);
+
+    // Subsequent syncs skip server capture paging immediately.
+    expect(
+      await recoverCudyrHospitalHistory(
+        episode,
+        '111111111',
+        new AbortController().signal,
+        observedAt
+      )
+    ).toEqual([]);
+    expect(readCudyrEpisodeCaptures).not.toHaveBeenCalled();
+  });
+
+  it('propagates the abort signal to the patient-flow extension bridge request', async () => {
+    const controller = new AbortController();
+    vi.mocked(readCudyrEpisodeCaptures).mockResolvedValue({ captures: [], nextCursor: null });
+    vi.mocked(requestPatientFlowReport).mockResolvedValue({ base64: btoa('pdf') });
+    vi.mocked(extractPdfTextFromBuffer).mockResolvedValue(text);
+    vi.useFakeTimers();
+    vi.setSystemTime(observedAt);
+    try {
+      await recoverCudyrHospitalHistory(episode, '111111111', controller.signal, observedAt);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(requestPatientFlowReport).toHaveBeenCalledWith(episode, 15_000, controller.signal);
   });
 });
 

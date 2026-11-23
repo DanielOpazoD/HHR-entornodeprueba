@@ -91,6 +91,8 @@ export interface ClinicalFillDeps {
     identityKind?: 'patient' | 'maternal',
     maternalRut?: string
   ) => Promise<import('@/types/domain/cudyrPlacement').CudyrSourcePlacement[]>;
+  /** Invoked only after the server confirms a receipt containing recovered bed history. */
+  onCudyrPlacementsArchived?: (episode: string) => void;
   archiveCudyrCapture?: (
     request: import('@/types/domain/cudyrHistory').ArchiveCudyrHistoryRequest
   ) => Promise<'persisted' | 'queued' | 'failed'>;
