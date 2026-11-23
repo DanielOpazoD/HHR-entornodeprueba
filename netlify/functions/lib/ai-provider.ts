@@ -256,6 +256,8 @@ const generateGeminiText = async ({
   return response.text?.trim() || '';
 };
 
+const AI_PROVIDER_FETCH_TIMEOUT_MS = 25_000;
+
 const generateOpenAICompatibleText = async ({
   config,
   systemPrompt,
@@ -265,6 +267,7 @@ const generateOpenAICompatibleText = async ({
 }: GenerateClinicalAITextParams): Promise<string> => {
   const response = await fetch(config.endpoint || 'https://api.openai.com/v1/chat/completions', {
     method: 'POST',
+    signal: AbortSignal.timeout(AI_PROVIDER_FETCH_TIMEOUT_MS),
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${config.apiKey}`,
@@ -301,6 +304,7 @@ const generateAnthropicText = async ({
 }: GenerateClinicalAITextParams): Promise<string> => {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
+    signal: AbortSignal.timeout(AI_PROVIDER_FETCH_TIMEOUT_MS),
     headers: {
       'Content-Type': 'application/json',
       'x-api-key': config.apiKey,

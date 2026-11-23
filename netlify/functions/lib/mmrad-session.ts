@@ -69,6 +69,8 @@ const extractSearchActionUrl = (html: string): string | null => {
   return match?.[1] ?? null;
 };
 
+const MMRAD_FETCH_TIMEOUT_MS = 15_000;
+
 export const fetchWithHeaders = async (
   url: string,
   options: RequestInit = {},
@@ -80,6 +82,7 @@ export const fetchWithHeaders = async (
   const response = await fetch(safeUrl, {
     ...options,
     redirect: 'manual',
+    signal: options.signal ?? AbortSignal.timeout(MMRAD_FETCH_TIMEOUT_MS),
     headers: { 'User-Agent': USER_AGENT, ...(options.headers as Record<string, string>) },
   });
   if (options.redirect === 'manual' || ![301, 302, 303, 307, 308].includes(response.status)) {

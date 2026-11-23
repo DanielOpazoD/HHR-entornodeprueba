@@ -168,6 +168,7 @@ describe('ai-provider', () => {
       'https://api.openai.com/v1/chat/completions',
       expect.objectContaining({
         method: 'POST',
+        signal: expect.any(AbortSignal),
       })
     );
   });
@@ -196,6 +197,7 @@ describe('ai-provider', () => {
       'https://api.deepseek.com/chat/completions',
       expect.objectContaining({
         method: 'POST',
+        signal: expect.any(AbortSignal),
         headers: expect.objectContaining({
           Authorization: 'Bearer deepseek-key',
         }),
@@ -238,6 +240,7 @@ describe('ai-provider', () => {
       'https://api.anthropic.com/v1/messages',
       expect.objectContaining({
         method: 'POST',
+        signal: expect.any(AbortSignal),
       })
     );
   });
