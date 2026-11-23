@@ -16,10 +16,10 @@ El puente de lectura de Firebase antiguo y el alias de rol heredado `viewer_cens
    - El alias heredado `viewer_census` y su write-back de canonización fueron retirados de reglas, Functions, Netlify auth y `roleService`.
    - `legacyRoleAliasStatic.test.ts` y `compatibility-governance.json` (`entries: []`) mantienen el bloqueo en cero entradas.
 
-2. legacy clinical document and legacy episode hydration
-   - Mantener la hidratación legacy de documentos clínicos y legacy episode keys encapsulada en controllers dedicados.
+2. legacy clinical document (retirado) and legacy episode hydration
+   - Los valores por defecto de actores de auditoría v1 en legacy clinical document (`LEGACY_AUDIT_ACTOR_DEFAULTS` / `normalizeLegacyAuditActors`) fueron retirados de `src/domain/clinical-documents/compatibility.ts` con presupuesto `0/0`.
+   - Mantener la hidratación de legacy episode keys (`rut__admissionDate`) encapsulada en `src/domain/clinical-episode/clinicalEpisode.ts` mientras existan ingresos manuales sin `clinicalEpisodeId` de Eloísa.
    - No propagar shape legacy hacia UI, repositories nuevos ni casos de uso.
-   - Migrar documentos/episodios antiguos solo con evidencia de compatibilidad y rollback.
 
 ## Non-goals
 
