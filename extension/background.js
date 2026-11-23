@@ -5,7 +5,7 @@
 importScripts(
   'message-contract.js', 'build-identity.js', 'hhr-origin-policy.js', 'exalab-background.js', 'exalab-session-transport.js', 'exalab-auto-runtime.js', 'eloisa-patient-code-contract.js', 'fichamedico-manual-patient-code-runtime.js',
   'encounter-navigation.js', 'worklist-patient-editor.js', 'nursing-handoff-connection.js', 'nursing-handoff-pilot.js', 'rapa-nui-weather.js', 'hhr-daily-births.js',
-  'hhr-request-forms.js',
+  'hhr-request-forms.js', 'hhr-imaging-print.js',
   'health-check.js', 'clinical-day-runtime.js', 'clinical-history-coverage.js', 'census-sync-horizon-runtime.js', 'capture-read-recovery.js', 'rayen-sync-bundle-runtime.js', 'sync-bundle-cancellation-runtime.js',
   'connection-relay-recovery.js', 'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-device-evidence-runtime.js', 'clinical-read-error-contract.js', 'fichamedico-clinical-client.js', 'tab-encounter-authorization.js', 'fichamedico-patient-flow-runtime.js',
   'fichamedico-patient-context.js',
@@ -456,53 +456,34 @@ const handleScalesReportRequest = async ({ encId, sender }) => {
 // with the patient header, the requesting physician and the user's interactive marks, then open
 // the standard print tab. Ported from HHR's imagingRequestPdfService (pdf-lib, Helvetica 10,
 // uppercase, % marks converted to bottom-left PDF coordinates).
-const handleImagingFormPrintRequest = async ({ encId, doc, physician, marks, sender, preview = false }) => {
+const handleImagingFormPrintRequest = async ({ encId, localOrder, doc, physician, marks, sender, preview = false }) => {
   const template = self.HhrRequestForms && self.HhrRequestForms.IMAGING_DOCUMENTS[String(doc || '')];
-  if (!template) return { error: 'Documento de imagenología desconocido.' };
-  const context = await getClinicalReportContext(encId, null, null, sender);
-  if (context.error) return context;
-  const patient = context.patient || {};
-  const formattedRun = self.HhrPrescriptionPrint.formatRun(patient.run) || String(patient.run || '');
+  if (!Object.hasOwn(self.HhrRequestForms.IMAGING_DOCUMENTS, doc)) return { error: 'Documento de imagenología desconocido.' };
+  let patient = {};
+  let formattedRun;
+  if (localOrder) {
+    if (sender?.id !== chrome.runtime.id || sender.frameId !== 0 ||
+        !sender.url?.startsWith('https://fichamedico.rayensalud.cl/') ||
+        !['blank', 'manual'].includes(localOrder.source)) return { error: 'Origen de orden no válido.' };
+    if (localOrder.source === 'manual') {
+      for (const [key, limit] of Object.entries({ name: 160, run: 16, birthDate: 10, diagnosis: 180 })) {
+        const value = localOrder.patient?.[key];
+        if (value != null && (typeof value !== 'string' || value.length > limit)) return { error: 'Datos personalizados no válidos.' };
+        patient[key] = value?.trim() || '';
+      }
+      if (!Object.values(patient).some(Boolean)) return { error: 'Completa un dato o elige Sin identificación.' };
+    }
+  } else {
+    const context = await getClinicalReportContext(encId, null, null, sender);
+    if (context.error) return context;
+    patient = context.patient || {};
+    formattedRun = self.HhrPrescriptionPrint.formatRun(patient.run) || String(patient.run || '');
+  }
   const view = self.HhrRequestForms.buildPatientView(patient, formattedRun);
-  const physicianName = String(physician || '').replace(/\s+/g, ' ').trim().slice(0, 120);
-  const safeMarks = (Array.isArray(marks) ? marks : [])
-    .slice(0, 80)
-    .map(mark => ({
-      x: Number(mark && mark.x),
-      y: Number(mark && mark.y),
-      text: mark && mark.text ? String(mark.text).slice(0, 80) : '',
-    }))
-    .filter(mark =>
-      Number.isFinite(mark.x) && Number.isFinite(mark.y) &&
-      mark.x >= 0 && mark.x <= 100 && mark.y >= 0 && mark.y <= 100
-    );
-  const library = self.PDFLib;
-  if (!library || !library.PDFDocument) return { error: 'pdf-lib no está disponible en la extensión.' };
   try {
     const templateResponse = await fetchWithTimeout(chrome.runtime.getURL(template.pdf));
     if (!templateResponse.ok) return { error: 'No se pudo leer la plantilla del formulario.' };
-    const pdfDoc = await library.PDFDocument.load(await templateResponse.arrayBuffer());
-    const font = await pdfDoc.embedFont(library.StandardFonts.Helvetica);
-    const page = pdfDoc.getPage(0);
-    const drawField = ({ coord, text }) => {
-      const value = String(text || '').toUpperCase();
-      if (!value || !coord) return;
-      let size = 10;
-      if (coord.maxWidth) {
-        while (size > 5 && font.widthOfTextAtSize(value, size) > coord.maxWidth) size -= 0.5;
-      }
-      page.drawText(value, { x: coord.x, y: coord.y, size, font });
-    };
-    template.pdfFields(view, physicianName).forEach(drawField);
-    const pageWidth = page.getWidth();
-    const pageHeight = page.getHeight();
-    for (const mark of safeMarks) {
-      const xPos = pageWidth * (mark.x / 100);
-      const yPos = pageHeight * (1 - mark.y / 100);
-      if (mark.text) page.drawText(mark.text.toUpperCase(), { x: xPos, y: yPos - 3, size: 10, font });
-      else page.drawText('X', { x: xPos - 4, y: yPos - 4, size: 14, font });
-    }
-    const bytes = await pdfDoc.save();
+    const bytes = await self.HhrImagingPrint.fill(template, await templateResponse.arrayBuffer(), view, physician, marks);
     return openPdfPrintDialog({
       buffer: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
       preview, sender,
@@ -1303,6 +1284,12 @@ const runtimeMessageRoutes = Object.freeze({
   [RUNTIME_MESSAGES.DOCUMENT_PREVIEW_REQUEST]: runtimeRoute(
     (message, sender) => documentPreviewJobs.handle(message, sender),
     'No se pudo abrir el documento preparado.'
+  ),
+  [RUNTIME_MESSAGES.LOCAL_IMAGING_FORM_PRINT_REQUEST]: runtimeRoute(
+    (message, sender) => handleImagingFormPrintRequest({
+      localOrder: { source: message.source, patient: message.patient },
+      doc: message.doc, physician: message.physician, marks: message.marks, sender,
+    }), 'No se pudo imprimir el formulario de imagenología.'
   ),
   [RUNTIME_MESSAGES.IMAGING_FORM_PRINT_REQUEST]: runtimeRoute(
     (message, sender) =>

@@ -241,6 +241,10 @@
       updateButtons();
     }
     showComparison();
+    scheduleFollow(generation);
+  }
+
+  function scheduleFollow(generation) {
     if (!inline || document.activeElement === note) void follow(generation, true);
     else refresh = setTimeout(() => void follow(generation), 30000 + Math.random() * 10000);
   }
@@ -385,7 +389,8 @@
     if (available) {
       if (inline && tableView && slot &&
           (tableView.slot.date !== slot.date || tableView.slot.shift !== slot.shift)) loadCurrentShift();
-      else void follow(++polling, Boolean(result.confirmed));
+      else if (result.confirmed) scheduleFollow(++polling);
+      else void follow(++polling);
     }
     if (result.confirmed === true) return 'saved';
     return ['UNAVAILABLE', 'DEADLINE_EXCEEDED', 'RESOURCE_EXHAUSTED'].includes(result.code)

@@ -462,7 +462,7 @@
   }
 
   document.addEventListener('click', async event => {
-    if (!event.isTrusted || !sourcePath.test(location.pathname)) return;
+    if (!event.isTrusted || globalThis.HhrNursingHandoffPreference?.get() === false || !sourcePath.test(location.pathname)) return;
     const toggle = event.target.closest?.('[data-hhr-handoff-toggle]');
     const panel = toggle?.closest('.hhr-hospitalized-panel');
     if (panel && 'IntersectionObserver' in window && toggle.ariaExpanded !== 'true') {

@@ -7,7 +7,6 @@
     bar.hidden = false;
     root.dataset.hhrContextEncounter = bulk ? '' : String(encId || '');
     bar.querySelector('.hhr-patientbar-tag').textContent = bulk ? 'Ámbito' : 'Paciente';
-    bar.querySelector('.hhr-patientbar-episode').textContent = !bulk && encId ? 'Episodio ' + encId : '';
     bar.querySelector('.hhr-patientbar-name').textContent = bulk ? 'Hospitalizados' :
       patient?.name || (encId ? 'Identificando paciente…' : 'Sin paciente seleccionado');
     bar.querySelector('.hhr-patientbar-meta').textContent = bulk ? 'Impresión por lote' :

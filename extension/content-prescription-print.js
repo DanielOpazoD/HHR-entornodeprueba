@@ -547,9 +547,7 @@
     `;
     main.querySelectorAll('.hhr-home-card[data-module]').forEach(card => {
       card.addEventListener('click', () => {
-        runClinicalTransition(root, () =>
-          switchCenterModule(root, card.dataset.module, encId, root.__hhrFocusReturnTarget)
-        );
+        centerShellRuntime.openCenterModule(card.dataset.module, encId, root.__hhrFocusReturnTarget);
       });
     });
 
