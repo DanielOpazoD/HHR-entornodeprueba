@@ -7,10 +7,7 @@ import {
   createPharmacyLine,
 } from '@/features/clinical-library/domain/pharmacy/pharmacyDraft';
 import type { PharmacyActDraft } from '@/features/clinical-library/domain/pharmacy/pharmacyTypes';
-import {
-  createPharmacyActPdf,
-  generatePharmacyActPdf,
-} from '@/features/clinical-library/services/pharmacyActPdf';
+import { createPharmacyActPdf } from '@/features/clinical-library/services/pharmacyActPdf';
 
 const logo = new Uint8Array(readFileSync('public/images/logos/logo_HHR.png'));
 const draft = (
@@ -170,13 +167,26 @@ describe('pharmacy act PDF', () => {
     await expect(createPharmacyActPdf(values, logo)).rejects.toThrow('caracteres');
   });
 
-  it('uses the public logo and surfaces a failed asset request', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(logo));
+  it('caches the public logo across prints and surfaces a failed asset request before caching', async () => {
+    vi.resetModules();
+    const { generatePharmacyActPdf: freshGenerate } =
+      await import('@/features/clinical-library/services/pharmacyActPdf');
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('', { status: 404 }))
+      .mockResolvedValueOnce(new Response(logo));
     vi.stubGlobal('fetch', fetchMock);
-    const bytes = await generatePharmacyActPdf(draft());
-    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1);
-    expect(fetchMock).toHaveBeenCalledWith('/images/logos/logo_HHR.png');
-    fetchMock.mockResolvedValue(new Response('', { status: 404 }));
-    await expect(generatePharmacyActPdf(draft())).rejects.toThrow('logo institucional');
+
+    await expect(freshGenerate(draft())).rejects.toThrow('logo institucional');
+
+    const firstBytes = await freshGenerate(draft());
+    expect((await PDFDocument.load(firstBytes)).getPageCount()).toBe(1);
+    const secondBytes = await freshGenerate(draft());
+    expect((await PDFDocument.load(secondBytes)).getPageCount()).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/images/logos/logo_HHR.png',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
   });
 });

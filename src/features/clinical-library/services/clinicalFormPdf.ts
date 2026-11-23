@@ -1,4 +1,5 @@
 import { loadPdfLibGenerationRuntime } from '@/services/pdf/pdfLibRuntime';
+import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { validateClinicalFormValues } from '../domain/forms/clinicalFormDraft';
 import { formatFormDate, parseFormDate } from '../domain/forms/clinicalFormDates';
 import type {
@@ -101,12 +102,18 @@ export const createClinicalFormPdf = async (
   return pdf.save();
 };
 
+const TEMPLATE_FETCH_TIMEOUT_MS = 15_000;
+
 // Public blank templates only. Patient data and generated PDFs are never cached here.
 const templates = new Map<string, Promise<Uint8Array>>();
 export const loadClinicalFormTemplate = (form: ClinicalFormDefinition): Promise<Uint8Array> => {
   const cached = templates.get(form.templateUrl);
   if (cached) return cached;
-  const request = fetch(form.templateUrl)
+  const request = fetchWithTimeout(form.templateUrl, {
+    timeoutMs: TEMPLATE_FETCH_TIMEOUT_MS,
+    timeoutMessage:
+      'La carga de la plantilla tardó demasiado. Revisa la conexión y vuelve a intentar.',
+  })
     .then(async response => {
       if (!response.ok)
         throw new Error('No se pudo cargar la plantilla. Revisa la conexión y vuelve a intentar.');

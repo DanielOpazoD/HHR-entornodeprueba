@@ -33,6 +33,7 @@ import type { PatientData } from '@/types/domain/patient';
 import type { PDFFont } from 'pdf-lib';
 
 import { openPdfPrintDialog } from '@/services/pdf/pdfBase';
+import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { FIELD_COORDS, mapInsurance, mapSex, mapProcedencia } from './ieehPdfCoordinates';
 import { loadPdfLibGenerationRuntime } from '@/services/pdf/pdfLibRuntime';
 import type { DischargeFormData } from './ieehPdfContracts';
@@ -52,6 +53,29 @@ export type { DischargeFormData } from './ieehPdfContracts';
 
 // ── Template PDF path (loaded as asset via fetch) ──
 const TEMPLATE_PATH = '/docs/estadistico-egreso.pdf';
+const TEMPLATE_FETCH_TIMEOUT_MS = 15_000;
+
+// Cache only the public blank MINSAL template; never store patient data or generated PDFs.
+let ieehTemplatePromise: Promise<Uint8Array> | undefined;
+const loadIEEHTemplate = (): Promise<Uint8Array> => {
+  ieehTemplatePromise ??= fetchWithTimeout(TEMPLATE_PATH, {
+    timeoutMs: TEMPLATE_FETCH_TIMEOUT_MS,
+    timeoutMessage: `La carga de la plantilla IEEH tardó demasiado. Verifique la conexión y que el archivo ${TEMPLATE_PATH} exista.`,
+  })
+    .then(async response => {
+      if (!response.ok) {
+        throw new Error(
+          `No se pudo cargar la plantilla IEEH (${response.status}). Verifique que el archivo ${TEMPLATE_PATH} exista.`
+        );
+      }
+      return new Uint8Array(await response.arrayBuffer());
+    })
+    .catch((error: unknown) => {
+      ieehTemplatePromise = undefined;
+      throw error;
+    });
+  return ieehTemplatePromise;
+};
 
 // --- Constants ---
 const FONT_SIZE = 12; // Uniform size for all fields (20% larger than original 10pt)
@@ -70,14 +94,8 @@ export const fillIEEHForm = async (
 ): Promise<Uint8Array> => {
   const { PDFDocument, StandardFonts, rgb } = await loadPdfLibGenerationRuntime();
 
-  // 1. Load the template PDF
-  const templateResponse = await fetch(TEMPLATE_PATH);
-  if (!templateResponse.ok) {
-    throw new Error(
-      `No se pudo cargar la plantilla IEEH (${templateResponse.status}). Verifique que el archivo ${TEMPLATE_PATH} exista.`
-    );
-  }
-  const templateBytes = await templateResponse.arrayBuffer();
+  // 1. Load the template PDF (cached public blank asset with bounded timeout)
+  const templateBytes = await loadIEEHTemplate();
   const pdfDoc = await PDFDocument.load(templateBytes);
   const textColor = rgb(0, 0, 0);
 

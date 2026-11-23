@@ -1,5 +1,6 @@
 import type { PDFPage } from 'pdf-lib';
 import { loadPdfLibGenerationRuntime } from '@/services/pdf/pdfLibRuntime';
+import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { formatFormDate } from '../domain/forms/clinicalFormDates';
 import { validatePharmacyDraft } from '../domain/pharmacy/pharmacyDraft';
 import type {
@@ -337,9 +338,29 @@ export const createPharmacyActPdf = async (
   return pdf.save();
 };
 
+const LOGO_URL = '/images/logos/logo_HHR.png';
+const LOGO_FETCH_TIMEOUT_MS = 15_000;
+
+// Cache only the public institutional logo asset; never store draft values or generated PDFs.
+let logoPromise: Promise<Uint8Array> | undefined;
+const loadInstitutionalLogo = (): Promise<Uint8Array> => {
+  logoPromise ??= fetchWithTimeout(LOGO_URL, {
+    timeoutMs: LOGO_FETCH_TIMEOUT_MS,
+    timeoutMessage: 'La carga del logo institucional tardó demasiado. Vuelve a intentar.',
+  })
+    .then(async response => {
+      if (!response.ok)
+        throw new Error('No se pudo cargar el logo institucional. Vuelve a intentar.');
+      return new Uint8Array(await response.arrayBuffer());
+    })
+    .catch((error: unknown) => {
+      logoPromise = undefined;
+      throw error;
+    });
+  return logoPromise;
+};
+
 export const generatePharmacyActPdf = async (draft: PharmacyActDraft): Promise<Uint8Array> => {
   assertDraft(draft);
-  const response = await fetch('/images/logos/logo_HHR.png');
-  if (!response.ok) throw new Error('No se pudo cargar el logo institucional. Vuelve a intentar.');
-  return createPharmacyActPdf(draft, new Uint8Array(await response.arrayBuffer()));
+  return createPharmacyActPdf(draft, await loadInstitutionalLogo());
 };
