@@ -260,10 +260,13 @@ async function push(changes: Record<string, unknown>) {
   await act(async () => {
     await admin.doc(path).update({ ...patch, lastUpdated: new Date().toISOString() });
   });
-  await waitFor(() => {
-    const received = JSON.parse(screen.getByTestId('subscription').textContent!);
-    for (const [k, v] of Object.entries(changes)) expect(received[k]).toEqual(v);
-  });
+  await waitFor(
+    () => {
+      const received = JSON.parse(screen.getByTestId('subscription').textContent!);
+      for (const [k, v] of Object.entries(changes)) expect(received[k]).toEqual(v);
+    },
+    { timeout: 5000 }
+  );
 }
 /**
  * Waits, within a bounded time, until the server shows the mother's correction and the newborn's

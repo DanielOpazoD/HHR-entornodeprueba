@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DISCHARGE_TYPE_OTHER } from '@/constants/clinicalMovementConstants';
+import { DischargeStatusRadioGroup } from '@/features/census/components/movements/discharge/DischargeStatusRadioGroup';
 import { DischargeTargetSelector } from '@/features/census/components/movements/discharge/DischargeTargetSelector';
 import { DischargeTypeSelector } from '@/features/census/components/movements/discharge/DischargeTypeSelector';
 
@@ -35,5 +36,26 @@ describe('discharge selectors', () => {
 
     await userEvent.click(babyButton);
     expect(onChange).toHaveBeenCalledWith('baby');
+  });
+
+  it('groups discharge status radios under an accessible name', async () => {
+    const onChange = vi.fn();
+    render(
+      <DischargeStatusRadioGroup
+        inputName="patientStatus"
+        label="Estado del paciente"
+        status="Vivo"
+        onChange={onChange}
+      />
+    );
+
+    const group = screen.getByRole('group', { name: 'Estado del paciente' });
+    const deceasedRadio = screen.getByRole('radio', { name: 'Fallecido' });
+
+    expect(group).toContainElement(screen.getByRole('radio', { name: 'Vivo' }));
+    expect(group).toContainElement(deceasedRadio);
+
+    await userEvent.click(deceasedRadio);
+    expect(onChange).toHaveBeenCalledWith('Fallecido');
   });
 });
