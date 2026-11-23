@@ -6,12 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DailyRecordProvider } from '@/context/DailyRecordContext';
 import type { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
 import { useCensusTableBindingsModel } from '@/features/census/hooks/useCensusTableBindingsModel';
-import { useCensusTableViewModel } from '@/features/census/hooks/useCensusTableViewModel';
+import { useCensusTableRuntime } from '@/features/census/hooks/useCensusTableRuntime';
 import { useClinicalDocumentPresenceByBed } from '@/features/census/hooks/useClinicalDocumentPresenceByBed';
 import { buildCensusTableLayoutBindings } from '@/features/census/controllers/censusTableLayoutController';
 
-vi.mock('@/features/census/hooks/useCensusTableViewModel', () => ({
-  useCensusTableViewModel: vi.fn(),
+vi.mock('@/features/census/hooks/useCensusTableRuntime', () => ({
+  useCensusTableRuntime: vi.fn(),
 }));
 
 vi.mock('@/features/census/hooks/useClinicalDocumentPresenceByBed', () => ({
@@ -98,8 +98,8 @@ describe('useCensusTableBindingsModel', () => {
   });
 
   it('returns not-ready when the base table model has no beds payload yet', () => {
-    vi.mocked(useCensusTableViewModel).mockReturnValue(
-      asHookValue<ReturnType<typeof useCensusTableViewModel>>({
+    vi.mocked(useCensusTableRuntime).mockReturnValue(
+      asHookValue<ReturnType<typeof useCensusTableRuntime>>({
         beds: null,
         unifiedRows: [],
         role: 'viewer',
@@ -130,8 +130,8 @@ describe('useCensusTableBindingsModel', () => {
       tableStyle: { width: '1200px', minWidth: '100%' },
     };
 
-    vi.mocked(useCensusTableViewModel).mockReturnValue(
-      asHookValue<ReturnType<typeof useCensusTableViewModel>>({
+    vi.mocked(useCensusTableRuntime).mockReturnValue(
+      asHookValue<ReturnType<typeof useCensusTableRuntime>>({
         beds: {},
         columns: {} as never,
         isEditMode: false,
@@ -182,8 +182,8 @@ describe('useCensusTableBindingsModel', () => {
       tableStyle: { width: '1200px', minWidth: '100%' },
     };
 
-    vi.mocked(useCensusTableViewModel).mockReturnValue(
-      asHookValue<ReturnType<typeof useCensusTableViewModel>>({
+    vi.mocked(useCensusTableRuntime).mockReturnValue(
+      asHookValue<ReturnType<typeof useCensusTableRuntime>>({
         beds: {},
         columns: {} as never,
         isEditMode: false,
@@ -251,8 +251,8 @@ describe('useCensusTableBindingsModel', () => {
 
   it('disables remote clinical document presence lookup outside ready sync', () => {
     mockUseAuth.mockReturnValue({ remoteSyncStatus: 'local_only' });
-    vi.mocked(useCensusTableViewModel).mockReturnValue(
-      asHookValue<ReturnType<typeof useCensusTableViewModel>>({
+    vi.mocked(useCensusTableRuntime).mockReturnValue(
+      asHookValue<ReturnType<typeof useCensusTableRuntime>>({
         beds: {},
         columns: {} as never,
         isEditMode: false,

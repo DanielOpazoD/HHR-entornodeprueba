@@ -1,9 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import {
-  formatClockTimeHHMM,
-  getCurrentClockTimeHHMM,
-} from '@/features/census/controllers/censusClockController';
+import { getCurrentClockTimeHHMM } from '@/features/census/hooks/useCensusActionsProviderModel';
 import { getTimeRoundedToStep } from '@/utils/dateRangeUtils';
 import {
   buildSystemHealthIncidentRows,
@@ -33,7 +30,6 @@ const user = baseStatus({
 
 describe('hospital calendar consumers', () => {
   it('shows the census clock at 23:30 when the device reads 01:30', () => {
-    expect(formatClockTimeHHMM(evening)).toBe('23:30');
     expect(getCurrentClockTimeHHMM(() => evening)).toBe('23:30');
   });
   it('rounds movement proposals on the hospital clock across midnight', () => {

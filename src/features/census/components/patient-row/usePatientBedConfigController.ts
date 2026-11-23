@@ -2,8 +2,16 @@ import { MouseEvent, useCallback } from 'react';
 import { useDropdownMenu } from '@/hooks/useDropdownMenu';
 import type { PatientBedConfigCallbacks } from './patientRowBedConfigContracts';
 import type { MaybePromiseVoid } from './patientRowUiContracts';
-import { runPatientRowAsyncActionSafely } from '@/features/census/controllers/patientRowAsyncActionController';
 import { buildPatientBedConfigCardState } from '@/features/census/controllers/patientBedConfigCardController';
+import { createScopedLogger } from '@/services/utils/loggerScope';
+
+const patientRowActionLogger = createScopedLogger('PatientRowAsyncAction');
+
+const runPatientRowAsyncActionSafely = (action: () => MaybePromiseVoid): void => {
+  void Promise.resolve(action()).catch((error: unknown) => {
+    patientRowActionLogger.error('Async patient row action failed silently', error);
+  });
+};
 
 interface UsePatientBedConfigControllerParams extends Omit<
   PatientBedConfigCallbacks,

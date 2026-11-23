@@ -1,6 +1,5 @@
 import React from 'react';
 import { PatientInputCells } from './PatientInputCells';
-import { shouldShowSubRowDemographicsButton } from '@/features/census/controllers/patientRowSubViewController';
 import type { PatientSubRowViewProps } from '@/features/census/components/patient-row/patientRowContracts';
 import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import { PatientActionMenu } from '@/features/census/components/patient-row/PatientActionMenu';
@@ -21,10 +20,7 @@ export const PatientSubRowView: React.FC<PatientSubRowViewProps> = ({
   onChange,
   isPendingClear = false,
 }) => {
-  const showDemographicsButton = shouldShowSubRowDemographicsButton({
-    readOnly,
-    specialistAccess: isSpecialistCensusAccessProfile(accessProfile),
-  });
+  const showDemographicsButton = !readOnly && !isSpecialistCensusAccessProfile(accessProfile);
 
   return (
     <tr
