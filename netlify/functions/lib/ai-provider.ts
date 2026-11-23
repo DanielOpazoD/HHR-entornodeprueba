@@ -41,7 +41,7 @@ export interface GenerateClinicalAITextParams {
 const DEFAULT_PROVIDER_MODELS: Record<ClinicalAIProvider, string> = {
   gemini: 'gemini-3-flash-preview',
   openai: 'gpt-4o-mini',
-  anthropic: 'claude-3-5-sonnet-latest',
+  anthropic: 'claude-sonnet-4-6',
   deepseek: 'deepseek-chat',
 };
 
@@ -240,11 +240,17 @@ const generateGeminiText = async ({
   config,
   systemPrompt,
   userPrompt,
+  temperature = 0.2,
+  maxTokens = 1200,
 }: GenerateClinicalAITextParams): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey: config.apiKey });
   const response = await ai.models.generateContent({
     model: config.model,
     contents: `${systemPrompt}\n\n${userPrompt}`,
+    config: {
+      temperature,
+      maxOutputTokens: maxTokens,
+    },
   });
 
   return response.text?.trim() || '';

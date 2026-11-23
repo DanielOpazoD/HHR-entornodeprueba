@@ -69,6 +69,20 @@ describe('validatePrescriptionAccessPin', () => {
     });
   });
 
+  it('rejects cleanly via timing-safe comparison when stored pinHash length differs', async () => {
+    const { admin, accessConfig } = buildAdminHarness();
+    await seedPin(accessConfig, '7351');
+    accessConfig.data = {
+      ...accessConfig.data,
+      pinHash: 'short-corrupted-hash',
+    };
+
+    const handler = createValidatePinHandler({ firestore: admin.firestore() });
+    await expect(handler({ pin: '7351' }, undefined)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+  });
+
   it('rejects when no PIN is configured yet', async () => {
     const { admin } = buildAdminHarness();
     const handler = createValidatePinHandler({ firestore: admin.firestore() });

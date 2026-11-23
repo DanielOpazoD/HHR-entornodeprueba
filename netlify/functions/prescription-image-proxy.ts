@@ -1,3 +1,4 @@
+import { readResponseWithinLimit } from './lib/bounded-response';
 import { safeErrorLog } from './lib/safe-error-message';
 import {
   buildCorsHeaders,
@@ -15,12 +16,16 @@ interface TransformOptions {
 interface PrescriptionImageProxyDependencies {
   fetch: typeof fetch;
   transformImage: (input: Uint8Array, options: TransformOptions) => Promise<Uint8Array | Buffer>;
+  timeoutMs?: number;
+  maxImageBytes?: number;
 }
 
 const MIN_WIDTH = 360;
 const MAX_WIDTH = 1200;
 const MIN_QUALITY = 40;
 const MAX_QUALITY = 80;
+const DEFAULT_FETCH_TIMEOUT_MS = 10_000;
+const DEFAULT_MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
 const parseBoundedNumber = (
   value: string | null,
@@ -153,9 +158,13 @@ export const createPrescriptionImageProxyHandler =
 
     const width = parseBoundedNumber(params.get('w'), 760, MIN_WIDTH, MAX_WIDTH);
     const quality = parseBoundedNumber(params.get('q'), 58, MIN_QUALITY, MAX_QUALITY);
+    const timeoutMs = dependencies.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+    const maxImageBytes = dependencies.maxImageBytes ?? DEFAULT_MAX_IMAGE_BYTES;
+    const controller = new AbortController();
+    const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const upstream = await dependencies.fetch(sourceUrl);
+      const upstream = await dependencies.fetch(sourceUrl, { signal: controller.signal });
       if (!upstream.ok) {
         return buildJsonResponse(
           502,
@@ -164,7 +173,20 @@ export const createPrescriptionImageProxyHandler =
         );
       }
 
-      const bytes = new Uint8Array(await upstream.arrayBuffer());
+      const boundedBytes = await readResponseWithinLimit(upstream, maxImageBytes);
+      if (!boundedBytes) {
+        return buildJsonResponse(
+          413,
+          { error: 'La imagen de receta supera el tamaño máximo permitido.' },
+          { requestOrigin }
+        );
+      }
+
+      const bytes = new Uint8Array(
+        boundedBytes.buffer,
+        boundedBytes.byteOffset,
+        boundedBytes.byteLength
+      );
       const upstreamContentType = upstream.headers.get('content-type') || 'image/jpeg';
       let transformed: Uint8Array | Buffer = bytes;
       let contentType = upstreamContentType;
@@ -175,7 +197,7 @@ export const createPrescriptionImageProxyHandler =
         contentType = 'image/jpeg';
         optimizationStatus = 'optimized';
       } catch (transformError) {
-        console.warn('Prescription image optimization fallback', transformError);
+        console.warn('Prescription image optimization fallback', safeErrorLog(transformError));
         if (!PASSTHROUGH_IMAGE_TYPES.has(mediaTypeOf(upstreamContentType))) {
           return buildJsonResponse(
             415,
@@ -198,12 +220,21 @@ export const createPrescriptionImageProxyHandler =
         isBase64Encoded: true,
       };
     } catch (error) {
+      if (controller.signal.aborted) {
+        return buildJsonResponse(
+          504,
+          { error: 'Tiempo de espera agotado al descargar la imagen de receta.' },
+          { requestOrigin }
+        );
+      }
       console.warn('Prescription image proxy failed', safeErrorLog(error));
       return buildJsonResponse(
         502,
         { error: 'No se pudo optimizar la imagen de receta.' },
         { requestOrigin }
       );
+    } finally {
+      clearTimeout(timeoutHandle);
     }
   };
 

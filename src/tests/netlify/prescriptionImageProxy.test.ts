@@ -6,12 +6,13 @@ describe('prescription-image-proxy', () => {
   const fetchMock = vi.fn();
   const transformImageMock = vi.fn();
 
-  const loadHandler = async () => {
+  const loadHandler = async (overrides?: { timeoutMs?: number; maxImageBytes?: number }) => {
     const { createPrescriptionImageProxyHandler } =
       await import('../../../netlify/functions/prescription-image-proxy');
     return createPrescriptionImageProxyHandler({
       fetch: fetchMock as typeof fetchMock,
       transformImage: transformImageMock,
+      ...overrides,
     });
   };
 
@@ -66,7 +67,10 @@ describe('prescription-image-proxy', () => {
     expect(response.headers?.['X-Content-Type-Options']).toBe('nosniff');
     expect(response.headers?.['Content-Security-Policy']).toBe("default-src 'none'; sandbox");
     expect(response.headers?.['Access-Control-Allow-Origin']).toBe('http://localhost:3021');
-    expect(fetchMock).toHaveBeenCalledWith(sourceUrl);
+    expect(fetchMock).toHaveBeenCalledWith(
+      sourceUrl,
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
     expect(transformImageMock).toHaveBeenCalledWith(expect.any(Uint8Array), {
       width: 760,
       quality: 58,
@@ -183,7 +187,7 @@ describe('prescription-image-proxy', () => {
     expect(response.body).toBe(Buffer.from([1, 2, 3]).toString('base64'));
     expect(warnSpy).toHaveBeenCalledWith(
       'Prescription image optimization fallback',
-      expect.any(Error)
+      expect.stringContaining('sharp native runtime unavailable')
     );
     warnSpy.mockRestore();
   });
@@ -204,7 +208,48 @@ describe('prescription-image-proxy', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:39391/prescription-fixture.jpg');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:39391/prescription-fixture.jpg',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+  });
+
+  it('rejects images exceeding the maximum allowed byte size with 413', async () => {
+    const handler = await loadHandler({ maxImageBytes: 2 });
+    const sourceUrl =
+      'https://firebasestorage.googleapis.com/v0/b/hhr-pruebas.firebasestorage.app/o/prescriptions%2Fhhr%2Frx-1%2Foversized.jpg?alt=media';
+
+    const response = await handler({
+      httpMethod: 'GET',
+      headers: { origin: 'http://localhost:3021' },
+      body: null,
+      rawQuery: new URLSearchParams({ url: sourceUrl }).toString(),
+    });
+
+    expect(response.statusCode).toBe(413);
+    expect(transformImageMock).not.toHaveBeenCalled();
+  });
+
+  it('aborts slow upstream fetches with 504 after timeoutMs', async () => {
+    fetchMock.mockImplementationOnce(
+      (_url: string, init?: { signal?: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+        })
+    );
+    const handler = await loadHandler({ timeoutMs: 25 });
+    const sourceUrl =
+      'https://firebasestorage.googleapis.com/v0/b/hhr-pruebas.firebasestorage.app/o/prescriptions%2Fhhr%2Frx-1%2Fslow.jpg?alt=media';
+
+    const response = await handler({
+      httpMethod: 'GET',
+      headers: { origin: 'http://localhost:3021' },
+      body: null,
+      rawQuery: new URLSearchParams({ url: sourceUrl }).toString(),
+    });
+
+    expect(response.statusCode).toBe(504);
+    expect(transformImageMock).not.toHaveBeenCalled();
   });
 
   it('rejects local fixture images without the smoke-test flag', async () => {
