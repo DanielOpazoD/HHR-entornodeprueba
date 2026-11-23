@@ -43,4 +43,20 @@ describe('usePatientBedConfigController', () => {
     expect(params.onToggleClinicalCrib).toHaveBeenCalledTimes(1);
     expect(params.onUpdateClinicalCrib).toHaveBeenCalledWith('remove');
   });
+
+  it('swallows rejected async companion toggles safely', async () => {
+    const params = {
+      ...buildBaseParams(),
+      onToggleCompanion: vi.fn().mockRejectedValue(new Error('boom')),
+    };
+    const { result } = renderHook(() => usePatientBedConfigController(params));
+
+    expect(() =>
+      act(() => {
+        result.current.handleToggleCompanion();
+      })
+    ).not.toThrow();
+    await Promise.resolve();
+    expect(params.onToggleCompanion).toHaveBeenCalledTimes(1);
+  });
 });

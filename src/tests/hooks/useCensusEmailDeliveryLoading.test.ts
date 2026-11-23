@@ -44,3 +44,34 @@ it('loads delivery only on request and reports a failed load without confirming 
   expect(setStatus).not.toHaveBeenCalledWith('success');
   expect(confirm).not.toHaveBeenCalled();
 });
+
+it.each(['loading', 'success'] as const)(
+  'skips email delivery when status is already %s',
+  async blockedStatus => {
+    loadDelivery.mockClear();
+    const { result } = renderHook(() =>
+      useCensusEmailDeliveryActions({
+        record: null,
+        currentDateString: '2026-07-04',
+        nurseSignature: 'Enfermera sintética',
+        selectedYear: 2026,
+        selectedMonth: 6,
+        selectedDay: 4,
+        user: { uid: 'synthetic-user' },
+        role: 'admin',
+        recipients: ['synthetic@example.com'],
+        message: 'Censo sintético',
+        status: blockedStatus,
+        testModeEnabled: false,
+        testRecipient: '',
+        isAdminUser: true,
+        setStatus: vi.fn(),
+        setError: vi.fn(),
+        confirm: vi.fn(),
+        alert: vi.fn(),
+      })
+    );
+    await act(async () => result.current.sendEmail());
+    expect(loadDelivery).not.toHaveBeenCalled();
+  }
+);

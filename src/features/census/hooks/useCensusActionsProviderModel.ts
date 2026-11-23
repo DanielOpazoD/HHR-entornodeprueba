@@ -1,4 +1,4 @@
-import { getCurrentClockTimeHHMM } from '@/features/census/controllers/censusClockController';
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import { buildCensusActionRuntimeRefsParams } from '@/features/census/controllers/censusActionRuntimeRefsController';
 import { useCensusActionCommandsController } from '@/features/census/hooks/useCensusActionCommandsController';
 import { useCensusActionContextValues } from '@/features/census/hooks/useCensusActionContextValues';
@@ -9,6 +9,9 @@ import type {
   CensusActionCommandsContextType,
   CensusActionStateContextType,
 } from '@/features/census/types/censusActionContextTypes';
+
+export const getCurrentClockTimeHHMM = (dateProvider: () => Date = () => new Date()): string =>
+  calendarStampInClinicalTimeZone(dateProvider()).hhmm;
 
 interface UseCensusActionsProviderModelParams {
   getCurrentTime?: () => string;
