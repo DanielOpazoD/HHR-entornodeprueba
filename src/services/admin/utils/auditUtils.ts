@@ -14,8 +14,39 @@ const USER_EMAIL_CACHE_KEY = 'hhr_audit_user_email_cache';
 
 const resolveCurrentUser = () => defaultAuthRuntime.getCurrentUser();
 
-const getLocalStorage = (): Storage | undefined =>
-  typeof localStorage === 'undefined' ? undefined : localStorage;
+const getLocalStorage = (): Storage | undefined => {
+  try {
+    return typeof localStorage === 'undefined' ? undefined : localStorage;
+  } catch {
+    return undefined;
+  }
+};
+
+const getSessionStorage = (): Storage | undefined => {
+  try {
+    return typeof sessionStorage === 'undefined' ? undefined : sessionStorage;
+  } catch {
+    return undefined;
+  }
+};
+
+const safeStorageGet = (storage: Storage | undefined, key: string): string | null => {
+  if (!storage) return null;
+  try {
+    return storage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const safeStorageSet = (storage: Storage | undefined, key: string, value: string): void => {
+  if (!storage) return;
+  try {
+    storage.setItem(key, value);
+  } catch {
+    // Storage may be unavailable or full in hardened/private browsers.
+  }
+};
 
 /**
  * Get current user email with robust fallbacks
@@ -27,11 +58,11 @@ export const getCurrentUserEmail = (): string => {
     const browserStorage = getLocalStorage();
 
     if (user?.email) {
-      browserStorage?.setItem(USER_EMAIL_CACHE_KEY, user.email);
+      safeStorageSet(browserStorage, USER_EMAIL_CACHE_KEY, user.email);
       return user.email;
     }
 
-    const cached = browserStorage?.getItem(USER_EMAIL_CACHE_KEY);
+    const cached = safeStorageGet(browserStorage, USER_EMAIL_CACHE_KEY);
     if (cached) return cached;
 
     if (user?.displayName) return user.displayName;
@@ -89,6 +120,7 @@ export const getCurrentUserUid = (): string | undefined => {
 // ============================================================================
 
 const IP_CACHE_KEY = 'hhr_audit_user_ip';
+const IP_FETCH_TIMEOUT_MS = 5_000;
 let ipFetchInProgress = false;
 
 /**
@@ -96,7 +128,7 @@ let ipFetchInProgress = false;
  * Non-blocking - returns cached value or undefined
  */
 export const getCachedIpAddress = (): string | undefined => {
-  return sessionStorage.getItem(IP_CACHE_KEY) || undefined;
+  return safeStorageGet(getSessionStorage(), IP_CACHE_KEY) || undefined;
 };
 
 /**
@@ -109,16 +141,26 @@ export const fetchAndCacheIpAddress = async (): Promise<string | undefined> => {
   if (cached) return cached;
 
   ipFetchInProgress = true;
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timeoutId = controller ? setTimeout(() => controller.abort(), IP_FETCH_TIMEOUT_MS) : null;
   try {
-    const response = await fetch('https://api.ipify.org?format=json');
-    const data = await response.json();
-    if (data.ip) {
-      sessionStorage.setItem(IP_CACHE_KEY, data.ip);
-      return data.ip;
+    const response = await fetch(
+      'https://api.ipify.org?format=json',
+      controller ? { signal: controller.signal } : undefined
+    );
+    if (response.ok === false) {
+      return undefined;
+    }
+    const data = (await response.json()) as { ip?: unknown } | null;
+    if (typeof data?.ip === 'string' && data.ip.trim().length > 0) {
+      const resolvedIp = data.ip.trim();
+      safeStorageSet(getSessionStorage(), IP_CACHE_KEY, resolvedIp);
+      return resolvedIp;
     }
   } catch (e) {
     auditUtilsLogger.warn('Failed to fetch IP address', e);
   } finally {
+    if (timeoutId !== null) clearTimeout(timeoutId);
     ipFetchInProgress = false;
   }
   return undefined;

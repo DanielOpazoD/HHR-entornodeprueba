@@ -80,6 +80,21 @@ describe('auditUtils', () => {
       expect(loggerMocks.warn).not.toHaveBeenCalled();
     });
 
+    it('should still return user email when localStorage throws QuotaExceededError', () => {
+      vi.stubGlobal('localStorage', {
+        getItem: vi.fn(() => {
+          throw new DOMException('Blocked', 'SecurityError');
+        }),
+        setItem: vi.fn(() => {
+          throw new DOMException('Quota exceeded', 'QuotaExceededError');
+        }),
+      });
+      setCurrentUser({ email: 'nurse@hospital.cl' });
+
+      expect(getCurrentUserEmail()).toBe('nurse@hospital.cl');
+      expect(loggerMocks.warn).not.toHaveBeenCalled();
+    });
+
     it('should return uid as last resort', () => {
       setCurrentUser({ email: null, displayName: null, uid: 'user123' });
 
@@ -130,11 +145,24 @@ describe('auditUtils', () => {
     it('should return undefined if not cached', () => {
       expect(getCachedIpAddress()).toBeUndefined();
     });
+
+    it('should return undefined when sessionStorage is unavailable or throws', () => {
+      vi.stubGlobal('sessionStorage', {
+        getItem: vi.fn(() => {
+          throw new DOMException('Blocked', 'SecurityError');
+        }),
+      });
+      expect(getCachedIpAddress()).toBeUndefined();
+
+      vi.stubGlobal('sessionStorage', undefined);
+      expect(getCachedIpAddress()).toBeUndefined();
+    });
   });
 
   describe('fetchAndCacheIpAddress', () => {
     it('should fetch and cache IP', async () => {
       vi.mocked(fetch).mockResolvedValue({
+        ok: true,
         json: () => Promise.resolve({ ip: '1.2.3.4' }),
       } as unknown as Response);
 
@@ -149,6 +177,63 @@ describe('auditUtils', () => {
       const ip = await fetchAndCacheIpAddress();
       expect(ip).toBe('5.6.7.8');
       expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should ignore non-OK responses without attempting to parse JSON', async () => {
+      const jsonSpy = vi.fn();
+      vi.mocked(fetch).mockResolvedValue({
+        ok: false,
+        status: 503,
+        json: jsonSpy,
+      } as unknown as Response);
+
+      const ip = await fetchAndCacheIpAddress();
+      expect(ip).toBeUndefined();
+      expect(jsonSpy).not.toHaveBeenCalled();
+    });
+
+    it('should still return IP when sessionStorage throws on write', async () => {
+      vi.stubGlobal('sessionStorage', {
+        getItem: vi.fn(() => null),
+        setItem: vi.fn(() => {
+          throw new DOMException('Quota exceeded', 'QuotaExceededError');
+        }),
+      });
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ ip: '10.20.30.40' }),
+      } as unknown as Response);
+
+      const ip = await fetchAndCacheIpAddress();
+      expect(ip).toBe('10.20.30.40');
+      expect(loggerMocks.warn).not.toHaveBeenCalled();
+    });
+
+    it('should abort stalled IP lookup after timeout and release the in-flight guard', async () => {
+      vi.useFakeTimers();
+      try {
+        let capturedSignal: AbortSignal | undefined;
+        vi.mocked(fetch).mockImplementationOnce(
+          (_url, init) =>
+            new Promise((_resolve, reject) => {
+              capturedSignal = init?.signal ?? undefined;
+              capturedSignal?.addEventListener('abort', () =>
+                reject(new DOMException('Aborted', 'AbortError'))
+              );
+            })
+        );
+
+        const pending = fetchAndCacheIpAddress();
+        await vi.advanceTimersByTimeAsync(5_000);
+        await expect(pending).resolves.toBeUndefined();
+        expect(capturedSignal?.aborted).toBe(true);
+        expect(loggerMocks.warn).toHaveBeenCalledWith(
+          'Failed to fetch IP address',
+          expect.anything()
+        );
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('should handle fetch errors gracefully', async () => {
