@@ -4,9 +4,32 @@
  * No React dependency — can be used in any context (hooks, services, tests).
  */
 
-import { ANALYSIS_NAME_REPLACEMENTS } from '../constants/labNormalizationConstants';
 import type { LabResultRow } from '@/types/domain/labExamTypes';
 import { parseLabMeasurement } from './labNumericParser';
+
+const ANALYSIS_NAME_REPLACEMENTS: [RegExp, string][] = [
+  [/HCO3\s*ACTUAL/i, 'HCO3'],
+  [/Hb\.\s*Corp\.\s*Media\s*-\s*HCM/i, 'HCM'],
+  [/Vol\.\s*Corp\.\s*Medio\s*VCM/i, 'VCM'],
+  [/^\s*Leucocitos(?:\s+totales)?\s*$/i, 'Recuento Leucocitos'],
+  [/^\s*Rcto\.?\s*Leucocitos\s*$/i, 'Recuento Leucocitos'],
+  [/^\s*Plaquetas\s*$/i, 'Recuento de Plaquetas'],
+  [/^\s*Neutr[oó]filos(?:\s+segmentados)?\s*$/i, 'Segmentados'],
+  [/^\s*Creatinina(?:\s+s[eé]rica)?\s*$/i, 'Creatinina'],
+  [/^\s*PCR\s*$/i, 'Proteina C Reactiva'],
+  [/^\s*Prot\.?\s*C\.?\s*Reactiva\s*$/i, 'Proteina C Reactiva'],
+  [/^\s*(?:CK|CPK|Creatin(?:a\s+)?(?:fosfo)?(?:quinasa|kinasa))(?:\s+Total)?\s*$/i, 'CK Total'],
+  [/^\s*Hemoglobina\s+Glicosilada(?:\s*#?\d*)?\s*$/i, 'Hb glicosilada'],
+  [/^\s*Triglic(?:#|e|é)ridos\s*$/i, 'Trigliceridos'],
+  [/^\s*(?:Rel(?:aci[oó]n|ac\.?|\.?)\s*)?Proteinuria\s*\/\s*Creatininuria\s*[:=]?\s*$/i, 'RPC'],
+  [
+    /^\s*(?:Rel(?:aci[oó]n|ac\.?|\.?)\s*)?Albumina\s*\/\s*Creatin(?:in)?uri[a]?\s*[:=]?\s*$/i,
+    'RAC',
+  ],
+  [/^\s*Bilirrubina\s+T\.?\s*$/i, 'Bilirrubina Total'],
+  [/^\s*Bilirrubina\s+D\.?\s*$/i, 'Bilirrubina Directa'],
+  [/^\s*Bilirrubina\s+I\.?\s*$/i, 'Bilirrubina Indirecta'],
+];
 
 /**
  * Parse a localized number string (using comma as decimal separator) to a float.

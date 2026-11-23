@@ -6,7 +6,7 @@ import {
   canDeleteClinicalDocuments,
   canEditClinicalDocuments,
   canReadClinicalDocuments,
-} from '@/features/clinical-documents/controllers/clinicalDocumentPermissionController';
+} from '@/shared/access/clinicalDocumentAccessPolicy';
 
 describe('clinicalDocumentPermissionController', () => {
   it('allows read access for admin, doctor and nurse hospital', () => {

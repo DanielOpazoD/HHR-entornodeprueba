@@ -1,7 +1,17 @@
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import { normalizeClinicalDocumentContentForStorage } from '@/features/clinical-documents/controllers/clinicalDocumentRichTextController';
-import { normalizeClinicalDocumentSectionTitle } from '@/features/clinical-documents/controllers/clinicalDocumentSectionTitleController';
 import { restoreClinicalDocumentDraftTemplate } from '@/features/clinical-documents/domain/factories';
+
+const normalizeClinicalDocumentSectionTitle = (title: string, fallback: string): string => {
+  const normalizedTitle = title.trim();
+  const normalizedFallback = fallback.trim();
+
+  if (normalizedTitle.length > 0) {
+    return normalizedTitle;
+  }
+
+  return normalizedFallback.length > 0 ? normalizedFallback : 'Sección sin título';
+};
 import { createClinicalUpdateSection } from '@/features/clinical-documents/controllers/clinicalDocumentUpdateController';
 import {
   insertClinicalDocumentSection,
