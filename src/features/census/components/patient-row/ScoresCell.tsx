@@ -59,7 +59,10 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
   isEmpty = false,
   currentDateString,
 }) => {
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [detailModal, setDetailModal] = useState<{
+    open: boolean;
+    tab?: 'CUDYR' | 'BRADEN' | 'DOWNTON';
+  }>({ open: false });
   const nursingScalesVisible = useNursingScalesVisible();
 
   if (isEmpty && !isSubRow) {
@@ -111,7 +114,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
               type="button"
               onClick={e => {
                 e.stopPropagation();
-                setIsDetailOpen(true);
+                setDetailModal({ open: true });
               }}
               className="flex w-full cursor-pointer flex-col items-stretch gap-0.5 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700"
               aria-label={accessibleName}
@@ -186,15 +189,20 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
             </button>
           )}
           {cudyrPending && (
-            <div
-              className="flex flex-wrap items-center justify-between gap-x-1 rounded border border-transparent px-1.5 py-0.5 text-[9px] text-slate-500"
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                setDetailModal({ open: true, tab: 'CUDYR' });
+              }}
+              className="flex w-full cursor-pointer flex-wrap items-center justify-between gap-x-1 rounded border border-transparent px-1.5 py-0.5 text-left text-[9px] text-slate-500 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700"
               data-testid="cudyr-pending-status"
               title={cudyrPending.detail}
-              aria-label={`CUDYR ${cudyrPending.label}. ${cudyrPending.detail}`}
+              aria-label={`CUDYR ${cudyrPending.label}. ${cudyrPending.detail}. Abrir detalle`}
             >
               <span className="font-semibold">CUDYR</span>
               <span>{cudyrPending.label}</span>
-            </div>
+            </button>
           )}
         </div>
       ) : (
@@ -206,18 +214,22 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
         </div>
       )}
 
-      {isDetailOpen && (
+      {detailModal.open && (
         <ClinicalDetailLoadBoundary
           title={`Escalas de enfermería — ${data.patientName}`}
-          onClose={() => setIsDetailOpen(false)}
+          onClose={() => setDetailModal({ open: false })}
           size="3xl"
         >
           <ScoresDetailModal
             patientName={data.patientName}
             admissionDate={data.admissionDate}
+            censusDate={currentDateString}
+            clinicalEpisodeId={data.clinicalEpisodeId}
+            cudyrPending={cudyrPending}
             importedCudyr={data.evaluationScores?.cudyr}
+            initialTab={detailModal.tab}
             model={model}
-            onClose={() => setIsDetailOpen(false)}
+            onClose={() => setDetailModal({ open: false })}
           />
         </ClinicalDetailLoadBoundary>
       )}

@@ -168,4 +168,36 @@ describe('ScoresCell', () => {
     expect(screen.getByText('Faltan 2 días para repetir la escala')).toBeInTheDocument();
     expect(screen.getByText(/Cada 3 días/)).toBeInTheDocument();
   });
+
+  it('opens the CUDYR detail tab when clicking the pending night-shift indicator', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-17T07:00:00.000Z')); // 01:00 Rapa Nui
+
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <ScoresCell
+              data={DataFactory.createMockPatient('H2C1', {
+                admissionDate: '2026-07-15',
+                clinicalEpisodeId: '800101',
+                evaluationScores: undefined,
+                cudyr: undefined,
+              })}
+              currentDateString="2026-07-16"
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('cudyr-pending-status'));
+      await import('@/features/census/components/patient-row/ScoresDetailModal');
+    });
+
+    expect(screen.getByRole('tab', { name: 'CUDYR' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('Sin resultado vigente de CUDYR para este día.')).toBeInTheDocument();
+    expect(screen.getByText(/Turno noche en curso/)).toBeInTheDocument();
+  });
 });

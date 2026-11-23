@@ -46,6 +46,10 @@ export const useRepositories = (): IRepositoryContainer => {
   return context;
 };
 
+/** Optional variant for read-only detail dialogs that also mount in isolated unit tests. */
+export const useOptionalRepositories = (): IRepositoryContainer | undefined =>
+  useContext(RepositoryContext);
+
 export const RepositoryProvider = RepositoryContext.Provider;
 
 export const DefaultRepositoryProvider = ({ children }: { children: ReactNode }) => {

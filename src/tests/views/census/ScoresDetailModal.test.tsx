@@ -4,6 +4,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { ScoresDetailModal } from '@/features/census/components/patient-row/ScoresDetailModal';
 import { buildScoresCellModel } from '@/features/census/controllers/evaluationScoresCellController';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import { buildMockDailyRecordRepository } from '@/tests/factories/dailyRecordRepositoryMock';
+import { RepositoryProvider, createRepositoryContainer } from '@/context/RepositoryContext';
+import {
+  createDailyRecordReadResult,
+  createUnavailableDailyRecordReadResult,
+} from '@/services/repositories/contracts/dailyRecordQueries';
 import type { EvaluationScoreEntry } from '@/types/domain/evaluationScores';
 
 const entry = (code: 'BRADEN' | 'DOWNTON'): EvaluationScoreEntry => ({
@@ -195,6 +201,98 @@ describe('ScoresDetailModal', () => {
     expect(screen.getByText('Sin resultado vigente de Braden para este día.')).toBeInTheDocument();
     expect(
       screen.getByText('Sin aplicaciones registradas durante la hospitalización.')
+    ).toBeInTheDocument();
+  });
+
+  it('loads and explains the latest prior-night CUDYR when the selected census day has none yet', async () => {
+    const priorRecord = DataFactory.createMockDailyRecord('2026-10-14', {
+      beds: {
+        H2C1: DataFactory.createMockPatient('H2C1', {
+          clinicalEpisodeId: '901001',
+          evaluationScores: {
+            cudyr: {
+              category: 'C2',
+              recordedDate: '2026-10-14',
+              recordedAt: '2026-10-15T02:15:00-05:00',
+              author: 'Profesional sintético',
+              source: 'Eloísa · Gestión de Camas',
+              history: [
+                {
+                  category: 'C2',
+                  recordedDate: '2026-10-15',
+                  recordedAt: '2026-10-15T02:15:00-05:00',
+                  author: 'Profesional sintético',
+                },
+              ],
+            },
+          },
+        }),
+      },
+    });
+    const dailyRecord = {
+      ...buildMockDailyRecordRepository(),
+      getForDateWithMeta: vi.fn(async (date: string) =>
+        createDailyRecordReadResult(
+          date,
+          date === '2026-10-14' ? priorRecord : null,
+          date === '2026-10-14' ? 'indexeddb' : 'not_found'
+        )
+      ),
+    };
+    const repositories = createRepositoryContainer({ dailyRecord });
+    const empty = { ...model(), braden: null, downton: null, cudyr: null, history: [] };
+
+    render(
+      <RepositoryProvider value={repositories}>
+        <ScoresDetailModal
+          patientName="Paciente sintético"
+          censusDate="2026-10-15"
+          clinicalEpisodeId="901001"
+          cudyrPending={{
+            phase: 'application_window',
+            label: 'Programado · turno noche',
+            detail:
+              'Turno noche en curso. Se sincronizará cuando el CUDYR sea registrado en Eloísa durante la madrugada del 16-10-2026.',
+          }}
+          initialTab="CUDYR"
+          model={empty}
+          onClose={vi.fn()}
+        />
+      </RepositoryProvider>
+    );
+
+    expect(await screen.findByText(/Último CUDYR registrado en Eloísa:/)).toHaveTextContent(
+      /C2.*corresponde al turno noche del 14-10-2026/
+    );
+    expect(screen.getByText('Turno noche 14-10-2026')).toBeInTheDocument();
+    expect(screen.getByText('Profesional sintético')).toBeInTheDocument();
+  });
+
+  it('reports when prior-day CUDYR history cannot be read instead of claiming absence', async () => {
+    const dailyRecord = {
+      ...buildMockDailyRecordRepository(),
+      getForDateWithMeta: vi.fn(async (date: string) =>
+        createUnavailableDailyRecordReadResult(date)
+      ),
+    };
+    const repositories = createRepositoryContainer({ dailyRecord });
+    const empty = { ...model(), braden: null, downton: null, cudyr: null, history: [] };
+
+    render(
+      <RepositoryProvider value={repositories}>
+        <ScoresDetailModal
+          patientName="Paciente sintético"
+          censusDate="2026-10-15"
+          clinicalEpisodeId="901002"
+          initialTab="CUDYR"
+          model={empty}
+          onClose={vi.fn()}
+        />
+      </RepositoryProvider>
+    );
+
+    expect(
+      await screen.findByText('No se pudo consultar el historial CUDYR de días anteriores.')
     ).toBeInTheDocument();
   });
 });
