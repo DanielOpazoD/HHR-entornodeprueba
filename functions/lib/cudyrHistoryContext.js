@@ -1,4 +1,4 @@
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { movementContext, epicrisisContext } = require('./cudyrMovementContext');
 
 /** Capture context is server-owned. It is not evidence of the bed at the time of evaluation. */
@@ -66,7 +66,7 @@ const episodeContext = (record, clinicalEpisodeId) => {
     }
   }
   if (!candidates.length)
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'CUDYR episode is absent from the authoritative census and movements.'
     );

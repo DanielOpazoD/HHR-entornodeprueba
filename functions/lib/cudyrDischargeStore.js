@@ -1,4 +1,4 @@
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { isDeepStrictEqual } = require('node:util');
 const { episodeContext } = require('./cudyrHistoryContext');
 const {
@@ -32,7 +32,7 @@ const hospitalStamp = () => {
 const assertChronology = (payload, contexts) => {
   const dates = new Set(contexts.map(item => item.admissionDate).filter(Boolean));
   if (dates.size !== 1)
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'Episode admission date is missing or conflicting.'
     );
@@ -45,22 +45,13 @@ const assertChronology = (payload, contexts) => {
     actual.date > now.date ||
     (actual.date === now.date && actual.time && actual.time > now.time)
   )
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      'Actual discharge must be between admission and now.'
-    );
+    throw new HttpsError('invalid-argument', 'Actual discharge must be between admission and now.');
   if (actual.date === admissionDate && actual.time) {
     const times = new Set(contexts.map(item => item.admissionTime).filter(Boolean));
     if (times.size > 1)
-      throw new functions.https.HttpsError(
-        'failed-precondition',
-        'Episode admission time is conflicting.'
-      );
+      throw new HttpsError('failed-precondition', 'Episode admission time is conflicting.');
     if (times.size === 1 && actual.time < timeOnly([...times][0]))
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'Actual discharge precedes admission.'
-      );
+      throw new HttpsError('invalid-argument', 'Actual discharge precedes admission.');
   }
   return admissionDate;
 };
@@ -89,20 +80,16 @@ const saveDischargeCorrection = async ({
     if (previousOperation.exists) {
       const previous = previousOperation.data();
       if (previous.updatedBy.uid !== actor.uid || !isDeepStrictEqual(previous.request, payload))
-        throw new functions.https.HttpsError(
-          'already-exists',
-          'Correction operation has different content.'
-        );
+        throw new HttpsError('already-exists', 'Correction operation has different content.');
       return { success: true, persisted: true, correction: previous.correction };
     }
-    if (!record.exists)
-      throw new functions.https.HttpsError('failed-precondition', 'Authority census is missing.');
+    if (!record.exists) throw new HttpsError('failed-precondition', 'Authority census is missing.');
     const contexts = episodeContext(record.data(), payload.clinicalEpisodeId);
     const admissionDate = assertChronology(payload, contexts);
     const previous = current.exists ? current.data() : null;
     const revision = previous?.revision ?? 0;
     if (revision !== payload.expectedRevision)
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'aborted',
         'Another user changed the actual discharge. Reload before correcting it.'
       );
@@ -135,10 +122,7 @@ const saveDischargeCorrection = async ({
       updatedBy: actor,
     };
     if (Buffer.byteLength(JSON.stringify(correction), 'utf8') > 16_000)
-      throw new functions.https.HttpsError(
-        'resource-exhausted',
-        'Discharge correction context exceeds its limit.'
-      );
+      throw new HttpsError('resource-exhausted', 'Discharge correction context exceeds its limit.');
     transaction.set(currentRef, correction);
     // Only official reports containing this episode must be checked again.
     transaction.set(hospital.collection('cudyrArchiveVersions').doc('discharge-' + currentRef.id), {

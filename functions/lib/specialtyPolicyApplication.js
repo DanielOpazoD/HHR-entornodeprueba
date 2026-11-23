@@ -1,4 +1,4 @@
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { applyPendingSpecialtyRules, isCurrentRapaNuiDay } = require('./specialtyRules');
 const { wholeRecordFieldWrites } = require('./dailyRecordFieldWrites');
 const {
@@ -17,7 +17,7 @@ const prepareSpecialtyPolicyApplication = async ({
 }) => {
   if (date === undefined) return { status: 'not_requested', decisions: [] };
   if (!isCurrentRapaNuiDay(date)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'Automatic specialties can only be applied to the current census.'
     );
@@ -28,7 +28,7 @@ const prepareSpecialtyPolicyApplication = async ({
   if (!snapshot.exists) return { status: 'record_missing', decisions: [] };
   const remote = snapshot.data();
   if (remote.date !== date) {
-    throw new functions.https.HttpsError('failed-precondition', 'Invalid census date.');
+    throw new HttpsError('failed-precondition', 'Invalid census date.');
   }
   await assertTrustedSpecialtyAssignments({
     transaction,
@@ -115,7 +115,7 @@ const normalizePublishedSpecialtyRules = rules => {
         existing.specialty !== rule.specialty ||
         existing.scope !== rule.scope)
     ) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         'Conflicting duplicate diagnosis rules require review.'
       );

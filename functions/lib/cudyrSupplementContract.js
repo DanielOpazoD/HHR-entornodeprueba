@@ -1,9 +1,9 @@
 const { isDeepStrictEqual } = require('node:util');
 const { parseCudyrSupplementBinary } = require('./generated/cudyrSourceParser.cjs');
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { createHash } = require('node:crypto');
 const invalid = () => {
-  throw new functions.https.HttpsError('invalid-argument', 'Invalid monthly CUDYR supplement.');
+  throw new HttpsError('invalid-argument', 'Invalid monthly CUDYR supplement.');
 };
 const digest = value =>
   createHash('sha256')

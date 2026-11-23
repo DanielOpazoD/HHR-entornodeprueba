@@ -1,7 +1,7 @@
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { FieldPath } = require('firebase-admin/firestore');
 const invalid = () => {
-  throw new functions.https.HttpsError('invalid-argument', 'Invalid CUDYR placement evidence.');
+  throw new HttpsError('invalid-argument', 'Invalid CUDYR placement evidence.');
 };
 
 /** Preserve source strings, including unknown/sentinel dates; projection validates their meaning. */

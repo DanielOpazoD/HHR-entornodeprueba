@@ -2,12 +2,12 @@ const {
   resolveClinicalDayForDateTime,
   calendarStampInClinicalTimeZone,
 } = require('./generated/cudyrSourceParser.cjs');
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { digest, monthValue, verifySupplementBytes } = require('./cudyrSupplementContract');
 const { addCalendarDays } = require('./hospitalCalendarDay');
 const fail = (message = 'Invalid verified CUDYR context.', code = 'invalid-argument') => {
-  throw new functions.https.HttpsError(
-    /** @type {functions.https.FunctionsErrorCode} */ (code),
+  throw new HttpsError(
+    /** @type {import('firebase-functions/v2/https').FunctionsErrorCode} */ (code),
     message
   );
 };

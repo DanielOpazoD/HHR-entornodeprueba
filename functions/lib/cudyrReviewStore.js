@@ -1,9 +1,9 @@
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { FieldPath } = require('firebase-admin/firestore');
 const { digest, monthValue } = require('./cudyrSupplementContract');
 const fail = (code = 'invalid-argument', message = 'Invalid CUDYR review.') => {
-  throw new functions.https.HttpsError(
-    /** @type {functions.https.FunctionsErrorCode} */ (code),
+  throw new HttpsError(
+    /** @type {import('firebase-functions/v2/https').FunctionsErrorCode} */ (code),
     message
   );
 };

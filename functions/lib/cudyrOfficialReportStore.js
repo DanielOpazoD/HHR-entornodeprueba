@@ -1,11 +1,11 @@
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { createHash } = require('node:crypto');
 const { gzipSync } = require('node:zlib');
 const { monthValue } = require('./cudyrSupplementContract');
 const POLICY = 2;
 const fail = (message, code = 'failed-precondition') => {
-  throw new functions.https.HttpsError(
-    /** @type {functions.https.FunctionsErrorCode} */ (code),
+  throw new HttpsError(
+    /** @type {import('firebase-functions/v2/https').FunctionsErrorCode} */ (code),
     message
   );
 };

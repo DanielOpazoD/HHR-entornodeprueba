@@ -1,4 +1,4 @@
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { hospitalCalendarDay } = require('./hospitalCalendarDay');
 
@@ -15,7 +15,7 @@ const optionalString = (value, maxLength = 512) =>
 const resolveIsoDate = value => {
   if (value === undefined || value === null || value === '') return hospitalCalendarDay();
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw new functions.https.HttpsError('invalid-argument', 'Fecha de censo inválida.');
+    throw new HttpsError('invalid-argument', 'Fecha de censo inválida.');
   }
   return value;
 };
@@ -160,7 +160,7 @@ const assertReadonlyUploadDateAllowed = date => {
   const today = hospitalCalendarDay();
   const yesterday = previousIsoDay(today);
   if (date !== today && date !== yesterday) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'permission-denied',
       'El visor de carga solo permite revisar recetas de hoy y ayer.'
     );
@@ -179,21 +179,18 @@ const resolveUploadPatientOptionForExactDate = async (
   assertReadonlyUploadDateAllowed(resolvedRequestDate);
   const canonicalOptions = await resolveUploadPatientOptionsForDate(firestore, resolvedRequestDate);
   if (canonicalOptions.sourceDate !== resolvedSourceDate) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'El censo disponible cambió. Actualiza el selector antes de subir.'
     );
   }
   const key = optionalString(patientOptionKey, 96);
   if (!key) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      'La selección de cama/paciente es obligatoria.'
-    );
+    throw new HttpsError('invalid-argument', 'La selección de cama/paciente es obligatoria.');
   }
   const selected = canonicalOptions.patientOptions.find(option => option.key === key);
   if (!selected) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'La cama o el paciente ya no están disponibles en el censo seleccionado.'
     );
@@ -201,7 +198,7 @@ const resolveUploadPatientOptionForExactDate = async (
   const expectedRut = patientDocumentIdentityKey(expectedPatientRut);
   const currentRut = patientDocumentIdentityKey(selected.patientRut);
   if (!expectedRut || !currentRut || expectedRut !== currentRut) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'El paciente asociado a la cama cambió. Actualiza el selector antes de subir.'
     );

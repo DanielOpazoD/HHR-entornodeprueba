@@ -1,5 +1,5 @@
 // An intentional bed or crib clear: the occupant the user confirmed and the canonical empty bed.
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { toMillis } = require('./dailyRecordWriteVersionGuards');
 const { isPlainObject, normalizeShortString } = require('./dailyRecordWriteRequest');
 const { STRUCTURAL_DAILY_RECORD_PATCH_ROLES } = require('./dailyRecordWritePolicy');
@@ -113,7 +113,7 @@ const EMPTY_BED_ALLOWED_FIELDS = new Set([
 
 const buildCanonicalEmptyBed = ({ bedId, requestedBed, remoteBed }) => {
   if (!isPlainObject(remoteBed)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'Intentional bed clear requires an existing remote bed.'
     );
@@ -153,7 +153,7 @@ const buildCanonicalEmptyBed = ({ bedId, requestedBed, remoteBed }) => {
     requestedBed.documentType !== 'RUT' ||
     requestedBed.biologicalSex !== 'Indeterminado'
   ) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'Intentional bed clear must use the canonical empty-bed shape.'
     );
@@ -221,19 +221,19 @@ const assertIntentionalBedClearRequest = ({
 }) => {
   if (!intentionalBedClear) return null;
   if (!STRUCTURAL_DAILY_RECORD_PATCH_ROLES.has(role)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'permission-denied',
       'Only an administrator or hospital nurse can clear an occupied bed.'
     );
   }
   if (!normalizeShortString(expectedLastUpdated)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'Intentional bed clear requires an exact census version.'
     );
   }
   if (toMillis(intentionalBedClear.confirmedLastUpdated) !== toMillis(expectedLastUpdated)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'aborted',
       'Intentional bed clear no longer matches the census version confirmed by the user.'
     );
@@ -245,7 +245,7 @@ const assertIntentionalBedClearRequest = ({
     intentionalBedClear.confirmedOccupant &&
     !sameConfirmedBedEpisode(intentionalBedClear.confirmedOccupant, remoteOccupant)
   ) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'aborted',
       'Intentional bed clear no longer targets the occupant confirmed by the user.'
     );
@@ -254,7 +254,7 @@ const assertIntentionalBedClearRequest = ({
     const remoteAssociatedCrib = remoteBed?.clinicalCrib;
     const confirmedAssociatedCrib = intentionalBedClear.confirmedAssociatedCrib;
     if (confirmedAssociatedCrib === undefined && isPlainObject(remoteAssociatedCrib)) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'failed-precondition',
         'Intentional bed clear requires confirming the associated clinical crib.'
       );
@@ -263,7 +263,7 @@ const assertIntentionalBedClearRequest = ({
       confirmedAssociatedCrib?.presenceOnly === true &&
       toMillis(remoteData?.lastUpdated) !== toMillis(intentionalBedClear.confirmedLastUpdated)
     ) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'aborted',
         'Presence-only clinical crib confirmation requires the exact census version.'
       );
@@ -273,7 +273,7 @@ const assertIntentionalBedClearRequest = ({
       (isPlainObject(confirmedAssociatedCrib) &&
         !sameConfirmedBedEpisode(confirmedAssociatedCrib, remoteAssociatedCrib))
     ) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'aborted',
         'The associated clinical crib changed after the bed clear was confirmed.'
       );
@@ -291,7 +291,7 @@ const assertIntentionalBedClearRequest = ({
       ? requestedTarget !== null && requestedTarget !== undefined
       : !isPlainObject(requestedTarget))
   ) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       intentionalBedClear.target === 'clinicalCrib'
         ? 'Intentional crib clear must remove exactly one matching clinical crib.'
@@ -300,7 +300,7 @@ const assertIntentionalBedClearRequest = ({
   }
   if (intentionalBedClear.target === 'clinicalCrib') {
     if (!isPlainObject(remoteOccupant)) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'failed-precondition',
         'Intentional crib clear requires an existing remote clinical crib.'
       );

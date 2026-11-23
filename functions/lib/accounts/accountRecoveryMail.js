@@ -1,4 +1,4 @@
-const { https } = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { normalizeRecoveryEmail } = require('./accountPolicy');
 
 const assertRecoveryMailConfigured = () => {
@@ -7,7 +7,7 @@ const assertRecoveryMailConfigured = () => {
     !process.env.GMAIL_CLIENT_SECRET ||
     !process.env.GMAIL_REFRESH_TOKEN
   ) {
-    throw new https.HttpsError(
+    throw new HttpsError(
       'unavailable',
       'La recuperación por correo aún no está disponible. Contacta al administrador.'
     );

@@ -1,4 +1,4 @@
-const { https } = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { digest, genericFailure } = require('./accountPolicy');
 
 const nextLimitCounter = (data, limit, now) => {
@@ -8,7 +8,7 @@ const nextLimitCounter = (data, limit, now) => {
 };
 
 const limitFailure = () =>
-  new https.HttpsError('resource-exhausted', 'Espera unos minutos antes de volver a intentar.');
+  new HttpsError('resource-exhausted', 'Espera unos minutos antes de volver a intentar.');
 
 const rateLimit = async (firestore, context, key, readRef) => {
   // Express supplies the platform-normalized address; never trust a body/header address.

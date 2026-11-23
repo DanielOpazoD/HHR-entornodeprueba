@@ -1,10 +1,10 @@
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { createHash } = require('node:crypto');
 const { gzipSync } = require('node:zlib');
 const { isCalendarDay } = require('./hospitalCalendarDay');
 const POLICY = 1;
 const fail = () => {
-  throw new functions.https.HttpsError('invalid-argument', 'Invalid CUDYR read view.');
+  throw new HttpsError('invalid-argument', 'Invalid CUDYR read view.');
 };
 const viewRef = (hospital, data, uid) => {
   if (data.hospitalId !== undefined || data.uid !== undefined || !uid) fail();

@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const {
   requireMatchingSubmissionPayload,
@@ -37,7 +37,7 @@ const reserveDocumentUpload = async ({ firestore, ref, baseRecord, id }) => {
       existing?.state === 'uploading' &&
       new Date(existing.uploadLeaseExpiresAt || 0).getTime() > nowMs
     ) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'aborted',
         'Este documento todavía se está subiendo. Espera un momento antes de reintentar.'
       );
@@ -67,13 +67,13 @@ const reserveDocumentUpload = async ({ firestore, ref, baseRecord, id }) => {
     const windowSubmissionCount = sameWindow ? Number(quota.windowSubmissionCount || 0) : 0;
     const activeCount = Number(quota.activeCount || 0);
     if (windowSubmissionCount >= MAX_SUBMISSIONS_PER_HOUR) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'resource-exhausted',
         'Se alcanzó el límite temporal de escaneos. Intenta nuevamente más tarde.'
       );
     }
     if (activeCount >= MAX_ACTIVE_DOCUMENTS) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'resource-exhausted',
         'La bandeja temporal está llena. Un usuario de HHR debe revisar los documentos pendientes.'
       );
@@ -130,7 +130,7 @@ const finalizeOwnedReservation = async ({ firestore, ref, uploadLeaseToken, byte
     const snapshot = await transaction.get(ref);
     const record = snapshot.exists ? snapshot.data() || {} : null;
     if (!record || record.uploadLeaseToken !== uploadLeaseToken) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'aborted',
         'La reserva del documento cambió durante la carga. Reintenta.'
       );
@@ -211,17 +211,14 @@ const markDocumentForConfirmedPurge = async ({ firestore, ref, actor }) =>
     const snapshot = await transaction.get(ref);
     const record = snapshot.exists ? snapshot.data() || {} : null;
     if (!record) {
-      throw new functions.https.HttpsError('not-found', 'El documento ya no está en la bandeja.');
+      throw new HttpsError('not-found', 'El documento ya no está en la bandeja.');
     }
     if (record.state === 'completed') return { completed: true, record };
     if (record.state === 'purge_pending' && record.storagePath) {
       return { completed: false, record };
     }
     if (record.state !== 'pending_eloisa' || !record.storagePath) {
-      throw new functions.https.HttpsError(
-        'failed-precondition',
-        'El documento no puede purgarse.'
-      );
+      throw new HttpsError('failed-precondition', 'El documento no puede purgarse.');
     }
     const purgeRecord = {
       id: record.id,

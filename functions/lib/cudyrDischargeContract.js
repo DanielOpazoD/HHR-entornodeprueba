@@ -1,10 +1,7 @@
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { createHash } = require('node:crypto');
 const invalid = message => {
-  throw new functions.https.HttpsError(
-    'invalid-argument',
-    message || 'Invalid CUDYR discharge correction.'
-  );
+  throw new HttpsError('invalid-argument', message || 'Invalid CUDYR discharge correction.');
 };
 const dateOnly = value => {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value < '1900-01-01')

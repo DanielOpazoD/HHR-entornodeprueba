@@ -1,4 +1,4 @@
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { createHash } = require('node:crypto');
 const { FieldPath } = require('firebase-admin/firestore');
 const { dateOnly, text, invalid } = require('./cudyrDischargeContract');
@@ -73,28 +73,19 @@ const saveCudyrExclusion = async ({ hospital, data, actor, runTransaction }) => 
     ]);
     if (receipt.exists) {
       if (receipt.data().requestHash !== requestHash)
-        throw new functions.https.HttpsError(
-          'already-exists',
-          'La operación tiene otro contenido.'
-        );
+        throw new HttpsError('already-exists', 'La operación tiene otro contenido.');
       return { persisted: true, exclusion: receipt.data().exclusion };
     }
     if (!record.exists)
-      throw new functions.https.HttpsError(
-        'failed-precondition',
-        'Falta el censo guardado de este día.'
-      );
+      throw new HttpsError('failed-precondition', 'Falta el censo guardado de este día.');
     if (!input.dischargeId) episodeContext(record.data(), input.clinicalEpisodeId);
     else if (!hasEpisodelessDischarge(record.data(), input.dischargeId))
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'failed-precondition',
         'El egreso sin episodio no está en el censo guardado de este día.'
       );
     if ((current.exists ? current.data().revision : 0) !== input.expectedRevision)
-      throw new functions.https.HttpsError(
-        'aborted',
-        'La exclusión cambió. Actualice la vista antes de guardar.'
-      );
+      throw new HttpsError('aborted', 'La exclusión cambió. Actualice la vista antes de guardar.');
     const exclusion = {
       id,
       date: input.date,

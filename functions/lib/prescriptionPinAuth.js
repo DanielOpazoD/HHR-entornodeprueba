@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const { promisify } = require('util');
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { getAccessConfigRef } = require('./prescriptionUploadReadSupport');
 
 const MIN_PIN_LENGTH = 4;
@@ -60,7 +60,7 @@ const generatePinSalt = () => crypto.randomBytes(16).toString('hex');
 
 const requireAuthentication = context => {
   if (!context?.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated.');
+    throw new HttpsError('unauthenticated', 'User must be authenticated.');
   }
 };
 
@@ -84,11 +84,11 @@ const resolveCallerRoleBeforePin = async (context, payload, resolveRoleForEmail)
 
 const requirePinString = pin => {
   if (typeof pin !== 'string' || !pin.trim()) {
-    throw new functions.https.HttpsError('invalid-argument', 'PIN ausente o inválido.');
+    throw new HttpsError('invalid-argument', 'PIN ausente o inválido.');
   }
   const trimmed = pin.trim();
   if (trimmed.length < MIN_PIN_LENGTH || trimmed.length > MAX_PIN_LENGTH) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `PIN debe tener entre ${MIN_PIN_LENGTH} y ${MAX_PIN_LENGTH} caracteres.`
     );
@@ -104,17 +104,14 @@ const validatePinAgainstConfig = async (firestore, providedPin) => {
   const outcome = await firestore.runTransaction(async tx => {
     const snap = await tx.get(ref);
     if (!snap.exists) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'failed-precondition',
         'Acceso de recetas no configurado. Pide al administrador que defina un PIN.'
       );
     }
     const data = snap.data() || {};
     if (!data.pinHash || !data.pinSalt) {
-      throw new functions.https.HttpsError(
-        'failed-precondition',
-        'Acceso de recetas no configurado.'
-      );
+      throw new HttpsError('failed-precondition', 'Acceso de recetas no configurado.');
     }
 
     // Brute-force lockout: if too many recent failures landed us in the
@@ -150,19 +147,19 @@ const validatePinAgainstConfig = async (firestore, providedPin) => {
   });
 
   if (outcome.kind === 'locked') {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'permission-denied',
       `Demasiados intentos fallidos. Reintenta en ${outcome.minutesLeft} minuto(s).`
     );
   }
   if (outcome.kind === 'lockedNow') {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'permission-denied',
       `Demasiados intentos fallidos. Acceso bloqueado por ${PIN_LOCKOUT_MINUTES} minutos.`
     );
   }
   if (outcome.kind === 'invalid') {
-    throw new functions.https.HttpsError('permission-denied', 'PIN inválido.');
+    throw new HttpsError('permission-denied', 'PIN inválido.');
   }
 };
 
@@ -174,7 +171,7 @@ const resolveUploadPickerAccess = async ({ firestore, context, payload, resolveR
       await validatePinAgainstConfig(firestore, payload.pin);
       return;
     }
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'permission-denied',
       'No tienes permiso para ver el selector de pacientes. Usa el QR + PIN.'
     );
@@ -202,7 +199,7 @@ const resolveUploaderIdentity = async ({ firestore, context, payload, resolveRol
       await validatePinAgainstConfig(firestore, payload.pin);
       return { source: 'qr_pin' };
     }
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'permission-denied',
       'No tienes permiso para subir recetas. Usa el QR + PIN.'
     );
