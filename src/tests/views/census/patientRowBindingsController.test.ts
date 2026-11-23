@@ -6,6 +6,7 @@ import {
   buildPatientRowBindings,
   buildPatientRowModalsBindings,
   buildPatientSubRowBindings,
+  resolvePatientRowViewContext,
 } from '@/features/census/controllers/patientRowBindingsController';
 import type { PatientRowRuntime } from '@/features/census/components/patient-row/patientRowRuntimeContracts';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -230,5 +231,32 @@ describe('patientRowBindingsController', () => {
     expect(modals.canOpenExamRequest).toBe(false);
     expect(modals.canOpenImagingRequest).toBe(false);
     expect(modals.canOpenHistory).toBe(false);
+  });
+
+  it('resolves row capabilities and indicators from runtime state and defaults empty indicators', () => {
+    const runtime = createRuntime();
+    const doctorContext = resolvePatientRowViewContext({
+      role: 'doctor_urgency',
+      data: DataFactory.createMockPatient('R1'),
+      runtime,
+      indicators: { hasClinicalDocument: true, isNewAdmission: true },
+    });
+    expect(doctorContext.capabilities.canOpenClinicalDocuments).toBe(true);
+    expect(doctorContext.indicators).toEqual({
+      hasClinicalDocument: true,
+      isNewAdmission: true,
+    });
+
+    const viewerContext = resolvePatientRowViewContext({
+      role: 'viewer',
+      data: DataFactory.createMockPatient('R1'),
+      runtime,
+      indicators: undefined,
+    });
+    expect(viewerContext.capabilities.canOpenClinicalDocuments).toBe(false);
+    expect(viewerContext.indicators).toEqual({
+      hasClinicalDocument: false,
+      isNewAdmission: false,
+    });
   });
 });

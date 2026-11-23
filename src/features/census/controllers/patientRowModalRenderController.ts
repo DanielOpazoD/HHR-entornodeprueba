@@ -1,6 +1,69 @@
-import { resolvePatientRowDemographicsBinding } from '@/features/census/controllers/patientRowModalController';
-import { resolvePatientRowModalVisibilityState } from '@/features/census/controllers/patientRowModalVisibilityController';
+import type { PatientData } from '@/types/domain/patient';
 import type { PatientRowModalsProps } from '@/features/census/components/patient-row/patientRowContracts';
+
+interface ResolvePatientRowDemographicsBindingParams {
+  bedId: string;
+  isSubRow: boolean;
+  data: PatientData;
+  onSaveDemographics: (fields: Partial<PatientData>) => void;
+  onSaveCribDemographics: (fields: Partial<PatientData>) => void;
+}
+
+export interface PatientRowDemographicsBinding {
+  targetBedId: string;
+  isRnIdentityContext: boolean;
+  onSave: (fields: Partial<PatientData>) => void;
+}
+
+export const resolvePatientRowDemographicsBinding = ({
+  bedId,
+  isSubRow,
+  data,
+  onSaveDemographics,
+  onSaveCribDemographics,
+}: ResolvePatientRowDemographicsBindingParams): PatientRowDemographicsBinding => ({
+  targetBedId: isSubRow ? `${bedId}-cuna` : bedId,
+  isRnIdentityContext: isSubRow || data.bedMode === 'Cuna',
+  onSave: isSubRow ? onSaveCribDemographics : onSaveDemographics,
+});
+
+interface ResolvePatientRowModalVisibilityParams {
+  showDemographics: boolean;
+  showClinicalDocuments: boolean;
+  canOpenClinicalDocuments: boolean;
+  showExamRequest: boolean;
+  canOpenExamRequest: boolean;
+  showImagingRequest: boolean;
+  canOpenImagingRequest: boolean;
+  showHistory: boolean;
+  canOpenHistory: boolean;
+}
+
+export interface PatientRowModalVisibilityState {
+  shouldRenderDemographics: boolean;
+  shouldRenderClinicalDocuments: boolean;
+  shouldRenderExamRequest: boolean;
+  shouldRenderImagingRequest: boolean;
+  shouldRenderHistory: boolean;
+}
+
+export const resolvePatientRowModalVisibilityState = ({
+  showDemographics,
+  showClinicalDocuments,
+  canOpenClinicalDocuments,
+  showExamRequest,
+  canOpenExamRequest,
+  showImagingRequest,
+  canOpenImagingRequest,
+  showHistory,
+  canOpenHistory,
+}: ResolvePatientRowModalVisibilityParams): PatientRowModalVisibilityState => ({
+  shouldRenderDemographics: showDemographics,
+  shouldRenderClinicalDocuments: showClinicalDocuments && canOpenClinicalDocuments,
+  shouldRenderExamRequest: showExamRequest && canOpenExamRequest,
+  shouldRenderImagingRequest: showImagingRequest && canOpenImagingRequest,
+  shouldRenderHistory: showHistory && canOpenHistory,
+});
 
 export interface PatientRowModalRenderModel {
   demographicsBinding: ReturnType<typeof resolvePatientRowDemographicsBinding>;

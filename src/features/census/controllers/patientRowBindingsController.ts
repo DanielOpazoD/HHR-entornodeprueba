@@ -21,9 +21,44 @@ import {
   buildPatientSubSectionBindings,
   type PatientRowViewContext,
 } from '@/features/census/controllers/patientRowBindingSectionsController';
-import type { PatientRowResolvedIndicators } from '@/features/census/controllers/patientRowIndicatorsController';
-import { resolvePatientRowViewContext } from '@/features/census/controllers/patientRowViewContextController';
+import { resolvePatientRowCapabilities } from '@/features/census/controllers/patientRowCapabilitiesController';
+import {
+  resolvePatientRowIndicators,
+  type PatientRowResolvedIndicators,
+} from '@/features/census/controllers/patientRowIndicatorsController';
 import { canSetArbitraryAdmissionDate } from '@/shared/access/operationalAccessPolicy';
+
+interface PatientRowViewContextInput {
+  role?: UserRole;
+  data: PatientData;
+  runtime: PatientRowRuntime;
+  indicators?: PatientActionMenuIndicators;
+  accessProfile?: CensusAccessProfile;
+}
+
+export const resolvePatientRowViewContext = ({
+  role,
+  data,
+  runtime,
+  indicators,
+  accessProfile = 'default',
+}: PatientRowViewContextInput): PatientRowViewContext => {
+  const capabilities = resolvePatientRowCapabilities({
+    role,
+    patient: data,
+    isBlocked: runtime.rowState.isBlocked,
+    isEmpty: runtime.rowState.isEmpty,
+    accessProfile,
+  });
+
+  return {
+    capabilities,
+    indicators: resolvePatientRowIndicators({
+      indicators,
+      canShowClinicalDocumentIndicator: capabilities.canShowClinicalDocumentIndicator,
+    }),
+  };
+};
 
 export interface BuildPatientRowBindingsParams {
   bed: BedDefinition;

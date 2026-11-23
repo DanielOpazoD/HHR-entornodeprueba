@@ -14,19 +14,16 @@ import {
   buildPatientRowSaveScopeKey,
   resolveNextDocumentType,
 } from '@/features/census/controllers/patientRowInputController';
-import {
-  buildPatientFieldUpdater,
-  buildPatientMultipleUpdater,
-} from '@/features/census/controllers/patientRowInputUpdateController';
-import {
-  hasPatientRowPatchFields,
-  isClinicalInitialBlockField,
-} from '@/features/census/controllers/clinicalInitialBlockCoalescingController';
 import { harmonizeEpisodeDemographicsHistorySafely } from '@/features/census/controllers/patientDemographicsEpisodeSyncController';
 import { isFeatureEnabled } from '@/services/utils/featureFlags';
 import { usePatientRowCommandHandlers } from '@/features/census/components/patient-row/usePatientRowCommandHandlers';
 
 const CLINICAL_INITIAL_BLOCK_COALESCE_MS = 400;
+const CLINICAL_INITIAL_BLOCK_FIELDS = new Set<PatientRowPatientField>(['pathology']);
+const isClinicalInitialBlockField = (field: PatientRowPatientField): boolean =>
+  CLINICAL_INITIAL_BLOCK_FIELDS.has(field);
+const hasPatientRowPatchFields = (fields: PatientRowPatientPatch): boolean =>
+  Object.keys(fields).length > 0;
 const CLINICAL_SUBMISSION_FIELDS = new Set([
   'specialty',
   'pathology',
@@ -134,7 +131,6 @@ const usePatientRowUpdateAdapter = ({
   }, [scopeKey]);
 
   const updateField = useMemo(() => {
-    const immediateUpdateField = buildPatientFieldUpdater({ bedId, updateSingle });
     return (field: PatientRowPatientField, value: PatientFieldValue) => {
       if (currentScopeRef.current !== scopeKey) return;
       if (field === 'specialty') {
@@ -142,7 +138,7 @@ const usePatientRowUpdateAdapter = ({
         return;
       }
       if (!coalesceClinicalInitialBlock || !isClinicalInitialBlockField(field)) {
-        immediateUpdateField(field, value);
+        updateSingle(bedId, field, value);
         return;
       }
       queueClinicalFields({ [field]: value });
@@ -157,7 +153,6 @@ const usePatientRowUpdateAdapter = ({
   ]);
 
   const updateMultiple = useMemo(() => {
-    const immediateUpdateMultiple = buildPatientMultipleUpdater({ bedId, updateMany });
     return (fields: PatientRowPatientPatch): PatientRowSaveResult => {
       if (currentScopeRef.current !== scopeKey) return false;
       // A submitted diagnosis supersedes any older inline draft still waiting for its timer.
@@ -172,7 +167,7 @@ const usePatientRowUpdateAdapter = ({
         typeof fields.specialty !== 'string' ||
         Object.keys(fields).some(field => !CLINICAL_SUBMISSION_FIELDS.has(field))
       ) {
-        return immediateUpdateMultiple(fields);
+        return updateMany(bedId, fields);
       }
       const { specialty, ...remainingFields } = fields;
       if (isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT')) {
@@ -188,10 +183,10 @@ const usePatientRowUpdateAdapter = ({
         }
       }
       return (async () => {
-        const saved = await immediateUpdateMultiple({ specialty });
+        const saved = await updateMany(bedId, { specialty });
         if (saved !== true || currentScopeRef.current !== scopeKey) return false;
         if (!hasPatientRowPatchFields(remainingFields)) return true;
-        return (await immediateUpdateMultiple(remainingFields)) === true;
+        return (await updateMany(bedId, remainingFields)) === true;
       })();
     };
   }, [bedId, scopeKey, updateMany]);

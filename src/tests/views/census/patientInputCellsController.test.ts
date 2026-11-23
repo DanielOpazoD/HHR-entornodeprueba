@@ -1,6 +1,8 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
+  buildSyntheticTextChangeEvent,
+  dispatchTextChangeValue,
   resolvePatientInputCellsLock,
   resolvePatientRutValidationError,
 } from '@/features/census/controllers/patientInputCellsController';
@@ -66,5 +68,20 @@ describe('patientInputCellsController', () => {
         rut: '-',
       })
     ).toBe(false);
+  });
+
+  it('builds synthetic change events and dispatches text values', () => {
+    expect(buildSyntheticTextChangeEvent('abc').target.value).toBe('abc');
+
+    const fieldHandler = vi.fn();
+    const textChange = vi.fn().mockReturnValue(fieldHandler);
+    dispatchTextChangeValue(textChange, 'specialty', 'Medicina');
+
+    expect(textChange).toHaveBeenCalledWith('specialty');
+    expect(fieldHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        target: expect.objectContaining({ value: 'Medicina' }),
+      })
+    );
   });
 });

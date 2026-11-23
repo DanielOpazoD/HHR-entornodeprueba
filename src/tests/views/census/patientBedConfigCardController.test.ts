@@ -1,6 +1,9 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { buildPatientBedConfigCardState } from '@/features/census/controllers/patientBedConfigCardController';
+import {
+  buildPatientBedConfigCardState,
+  resolvePatientBedIndicators,
+} from '@/features/census/controllers/patientBedConfigCardController';
 
 describe('patientBedConfigCardController', () => {
   it('builds derived view state for active non-blocked patient', () => {
@@ -42,5 +45,16 @@ describe('patientBedConfigCardController', () => {
     expect(blocked.showClinicalCribToggle).toBe(false);
     expect(blocked.showClinicalCribActions).toBe(true);
     expect(blocked.showLegacyCompanionCleanup).toBe(false);
+  });
+
+  it('builds CUNA indicator badge when bed is in cuna mode', () => {
+    const indicators = resolvePatientBedIndicators({
+      isCunaMode: true,
+      hasCompanion: true,
+      hasClinicalCrib: true,
+    });
+
+    expect(indicators.map(item => item.key)).toEqual(['cuna']);
+    expect(indicators.map(item => item.label)).toEqual(['CUNA']);
   });
 });
