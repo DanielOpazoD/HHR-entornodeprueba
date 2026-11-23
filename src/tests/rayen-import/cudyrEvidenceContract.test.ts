@@ -168,5 +168,21 @@ describe('CUDYR evidence contract', () => {
       },
       'http://localhost:3000'
     );
+
+    onMessage?.({
+      source: windowObject,
+      origin: windowObject.location.origin,
+      data: {
+        type: 'HHR_RAYEN_CUDYR_CATEGORIES_REQUEST',
+        reqId: 'cudyr-contract-2',
+        expectedEncounterIds: ['901', 'invalid', '902'],
+      },
+    });
+    await vi.waitFor(() =>
+      expect(sendMessage).toHaveBeenCalledWith({
+        type: 'RAYEN_CUDYR_CATEGORIES_REQUEST',
+        expectedEncounterIds: ['901', '902'],
+      })
+    );
   });
 });

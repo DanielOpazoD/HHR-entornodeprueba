@@ -103,17 +103,27 @@
     };
   };
 
-  const buildSnapshot = ({ beds, practitioners, definitions, includeObservations = false }) => {
+  const appendUnexpectedFormWarning = (warnings, unexpectedFormIds) => {
+    if (!Array.isArray(warnings) || !unexpectedFormIds.size) return;
+    warnings.push(
+      `Gestión de Camas informó registros CUDYR con formId no reconocido (${[...unexpectedFormIds].sort().join(', ')}).`
+    );
+  };
+
+  const buildSnapshot = ({ beds, practitioners, definitions, includeObservations = false, warnings }) => {
     const definitionById = definitionMap(definitions);
     const practitionerById = practitionerMap(practitioners);
     const placements = includeObservations ? root.HhrCudyrPlacementSupport.buildPlacements(beds) : [];
+    const unexpectedFormIds = new Set();
     const items = [];
     for (const encounter of root.HhrCudyrCaptureSupport.encountersFromBeds(beds)) {
       const encId = String(encounter && encounter.id || '');
       if (!encId) continue;
-      const { history, observations, metadataComplete } = root.HhrCudyrCaptureSupport.prepareHistory(
+      const prepared = root.HhrCudyrCaptureSupport.prepareHistory(
         encounter, summary => normalizeHistoryEntry(summary, definitionById, practitionerById)
       );
+      (prepared.unexpectedFormIds || []).forEach(formId => unexpectedFormIds.add(formId));
+      const { history, observations, metadataComplete } = prepared;
       const latest = history[0];
       if (!latest && !includeObservations) continue;
       items.push({
@@ -128,6 +138,7 @@
           sourcePlacements: placements.filter(value => value.clinicalEpisodeId === encId) } : {}),
       });
     }
+    appendUnexpectedFormWarning(warnings, unexpectedFormIds);
     return items;
   };
 

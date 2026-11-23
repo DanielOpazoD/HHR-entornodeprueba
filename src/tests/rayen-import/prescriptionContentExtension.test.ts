@@ -278,18 +278,15 @@ describe('extension prescription print content flow', () => {
     expect(completePreview.match(/Mometasona Furoato/g)).toHaveLength(1);
     const printRequests = () =>
       messages.filter(message => message.type === 'RAYEN_PRESCRIPTION_PRINT_REQUEST');
-    // Printing opens the in-panel preview; Volver returns to the same list for the next one.
-    const previewAndReturn = async (expectedRequests: number) => {
+    // Printing opens the native print tab directly and keeps the panel ready for consecutive prints.
+    const printAndVerifyReady = async (expectedRequests: number) => {
       firstPrint.click();
       await vi.waitFor(() => {
-        expect(document.querySelector('.hhr-preview-status')?.textContent).toContain(
-          'Documento listo para revisar e imprimir'
+        expect(document.querySelector('.hhr-rx-print-feedback')?.textContent).toContain(
+          'La receta se abrió en una pestaña nueva con el diálogo de impresión'
         );
         expect(printRequests()).toHaveLength(expectedRequests);
       });
-      expect(printRequests().at(-1)).toMatchObject({ preview: true });
-      document.querySelector<HTMLButtonElement>('[data-preview="back"]')?.click();
-      expect(document.querySelector('.hhr-document-preview')).toBeNull();
       expect(firstPrint.isConnected).toBe(true);
       expect(firstPrint.disabled).toBe(false);
       expect(
@@ -298,8 +295,8 @@ describe('extension prescription print content flow', () => {
           ?.shadowRoot?.querySelector('.hhr-ops-recipes')
       ).toBe(recipesButton);
     };
-    await previewAndReturn(1);
-    await previewAndReturn(2);
+    await printAndVerifyReady(1);
+    await printAndVerifyReady(2);
 
     const centerRoot = document.getElementById('hhr-prescription-print-modal');
     document.querySelector<HTMLButtonElement>('[data-rx-module="indications"]')?.click();

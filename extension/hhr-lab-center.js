@@ -605,7 +605,7 @@
           </div>
           <div class="hhr-center-toolbar-actions">
             <span class="hhr-labreq-count">0 exámenes seleccionados</span>
-            <button class="hhr-center-action hhr-center-action-primary hhr-labreq-print" type="button" disabled>Vista previa de solicitud</button>
+            <button class="hhr-center-action hhr-center-action-primary hhr-labreq-print" type="button" disabled>Imprimir solicitud</button>
           </div>
         </div>
         <div class="hhr-center-content hhr-labreq-content">
@@ -734,16 +734,12 @@
           medico: main.querySelector('.hhr-labreq-medico').value.trim(),
           logoUrl,
         });
-        if (globalThis.HhrDocumentPreviewRuntime) {
-          globalThis.HhrDocumentPreviewRuntime.open({ root, title: 'Solicitud de laboratorio',
-            load: async () => ({ html }), sendMessage, runtimeMessages });
-          return;
-        }
         const printWindow = window.open('', '_blank');
         if (!printWindow) {
           setLiveRegion(feedback, 'El navegador bloqueó la pestaña de impresión. Permite ventanas emergentes.', 'error');
           return;
         }
+        printWindow.opener = null;
         let printStarted = false;
         const openPrintDialog = () => {
           if (printStarted || printWindow.closed) return;

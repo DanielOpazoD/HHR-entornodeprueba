@@ -69,7 +69,7 @@
         </button>
       `;
       return items.map(navButton).join('') + navButton({
-        key: 'settings', label: 'Ajustes', title: 'Ajustes y favoritos',
+        key: 'settings', label: 'Ajustes', title: 'Ajustes',
         icon: '<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="18" r="2"/>',
       }) + navButton({
         key: 'connection', label: 'Sesión', title: 'Conexiones y sesión', session: true,

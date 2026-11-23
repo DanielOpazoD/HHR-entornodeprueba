@@ -241,16 +241,20 @@ export const requestHistoryScales = (
 // Keep the page deadline above that chain; the clinical-stage watchdog remains the ceiling.
 export const requestCudyrCategories = (
   timeoutMs = CUDYR_READ_TIMEOUT_MS,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  expectedEncounterIds?: readonly string[]
 ): Promise<RayenCudyrCategoriesResponse> => {
   if (typeof window === 'undefined') {
     return Promise.resolve({ items: [] });
   }
+  const normalizedExpectedIds = Array.isArray(expectedEncounterIds)
+    ? [...new Set(expectedEncounterIds.map(id => id.trim()).filter(id => /^\d+$/.test(id)))]
+    : [];
   return requestViaBridgeChannel<RayenCudyrCategoriesResponse>({
     prefix: 'cudyr',
     requestType: RAYEN_CUDYR_CATEGORIES_REQUEST_TYPE,
     resultType: RAYEN_CUDYR_CATEGORIES_RESULT_TYPE,
-    payload: {},
+    payload: normalizedExpectedIds.length ? { expectedEncounterIds: normalizedExpectedIds } : {},
     timeoutMs,
     signal,
     onTimeout: () => ({ items: [], error: 'Tiempo de espera agotado leyendo CUDYR.' }),

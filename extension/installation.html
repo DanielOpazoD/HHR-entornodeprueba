@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Instalar el puente Eloísa → HHR</title>
+  <link rel="stylesheet" href="extension-status.css">
+  <style>
+    header { display:flex; align-items:center; gap:8px; }
+    .back { font-size:20px; text-decoration:none; color:#17665b; padding:0 6px; }
+    ol { padding-left:23px; margin:14px 0; }
+    li { margin-bottom:9px; }
+    li::marker { color:#50746a; font-variant-numeric:tabular-nums; }
+    li a, p a { color:#11675b; }
+    li img { display:block; max-width:100%; }
+    .figure { display:block; margin-top:6px; border:1px solid #e0e7e3; border-radius:5px; overflow:hidden; }
+    .control img { width:760px; max-width:none; }
+    .mode, .load { height:45px; position:relative; }
+    .mode { width:210px; }
+    .load { width:168px; }
+    .mode img { position:absolute; right:0; top:0; }
+    .load img { position:absolute; left:0; bottom:0; }
+    details { border-top:1px solid #e4eae7; padding-top:10px; }
+    summary { font-weight:600; cursor:pointer; }
+    details p { margin-top:6px; }
+  </style>
+</head>
+<body>
+  <main>
+    <header><a class="back" href="extension-status.html" aria-label="Volver al menú">←</a><h1>Guía de instalación</h1></header>
+    <ol>
+      <li><a data-download href="https://github.com/DanielOpazoD/extensioneloisahhr/releases/latest/download/eloisa-hhr.zip" target="_blank" rel="noreferrer">Descarga el ZIP.</a></li>
+      <li>Extrae la carpeta. En Windows, elige <strong>Extraer todo</strong>. En Mac, haz doble clic.
+        <a class="figure" href="installation/carpeta-extraida.png" target="_blank" aria-label="Ampliar imagen de la carpeta extraída"><img src="installation/carpeta-extraida.png" alt="El ZIP se extrae en una carpeta que contiene manifest.json."></a>
+      </li>
+      <li>Abre <code>chrome://extensions</code> en Chrome.</li>
+      <li>Activa <strong>Modo Desarrollador</strong>.
+        <div class="figure control mode"><img src="installation/chrome-extensions.png" alt="Interruptor de modo desarrollador en la esquina superior derecha."></div>
+      </li>
+      <li>Pulsa <strong>Cargar descomprimida</strong>.
+        <div class="figure control load"><img src="installation/chrome-extensions.png" alt="Botón Cargar descomprimida bajo el título Extensiones."></div>
+      </li>
+      <li>Selecciona la carpeta que contiene <code>manifest.json</code>.</li>
+    </ol>
+    <p id="download-feedback" role="status" hidden></p>
+    <details><summary>Actualizar una instalación</summary>
+      <p>Extrae el ZIP nuevo y reemplaza el contenido de la carpeta original. En <code>chrome://extensions</code>, pulsa <strong>Recargar</strong> en Rayen → HHR. Guarda tu trabajo antes de recargar las pestañas de Eloísa.</p>
+    </details>
+  </main>
+  <script src="extension-download.js"></script>
+</body>
+</html>

@@ -1,135 +1,44 @@
 <!doctype html>
 <html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Versión del puente Eloísa → HHR</title>
-    <style>
-      :root {
-        color-scheme: light;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        color: #1e293b;
-        background: #f8fafc;
-      }
-
-      body {
-        width: 300px;
-        margin: 0;
-      }
-
-      main {
-        padding: 18px;
-      }
-
-      header {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      header img {
-        width: 34px;
-        height: 34px;
-      }
-
-      h1,
-      p {
-        margin: 0;
-      }
-
-      h1 {
-        font-size: 14px;
-        line-height: 1.25;
-      }
-
-      .subtitle {
-        margin-top: 2px;
-        color: #64748b;
-        font-size: 11px;
-      }
-
-      .version {
-        margin-top: 16px;
-        padding: 14px 15px;
-        border-left: 4px solid #0f766e;
-        background: #ecfdf5;
-      }
-
-      .version-label {
-        color: #475569;
-        font-size: 11px;
-      }
-
-      #extension-version {
-        display: block;
-        margin-top: 2px;
-        color: #115e59;
-        font-size: 28px;
-        font-weight: 750;
-        letter-spacing: -0.03em;
-      }
-
-      .capability {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-top: 14px;
-        font-size: 12px;
-      }
-
-      .capability::before {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: #0f766e;
-        content: "";
-      }
-
-      .worker-status {
-        margin-top: 14px;
-        font-size: 12px;
-        line-height: 1.5;
-      }
-
-      .worker-status[data-state="error"] {
-        color: #9a3412;
-      }
-
-      footer {
-        margin-top: 14px;
-        border-top: 1px solid #e2e8f0;
-        padding-top: 11px;
-        color: #64748b;
-        font-size: 10px;
-        line-height: 1.45;
-      }
-    </style>
-  </head>
-  <body>
-    <main>
-      <header>
-        <img src="hhr-logo.svg" alt="" />
-        <div>
-          <h1>Puente Eloísa → HHR</h1>
-          <p class="subtitle">Extensión clínica local</p>
-        </div>
-      </header>
-
-      <section class="version" aria-labelledby="version-label">
-        <p id="version-label" class="version-label">Versión que Chrome está usando</p>
-        <strong id="extension-version" aria-live="polite">Cargando…</strong>
-        <p id="extension-build" class="subtitle" aria-live="polite"></p>
-      </section>
-
-      <p class="capability">Gestor documental incluido</p>
-      <p id="worker-status" class="worker-status" role="status" aria-live="polite">Comprobando conexión interna…</p>
-
-      <footer>
-        Pulsa este icono cuando necesites confirmar rápidamente la versión cargada.
-      </footer>
-    </main>
-    <script src="build-identity.js"></script>
-    <script src="extension-status.js"></script>
-    <script src="extension-worker-status.js"></script>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Puente Eloísa → HHR</title>
+  <link rel="stylesheet" href="extension-status.css">
+</head>
+<body>
+  <main>
+    <header class="brand">
+      <img src="icons/hanga-roa-48.png" width="32" height="32" alt="">
+      <h1>Eloísa <span>→</span> HHR</h1>
+      <details class="version">
+        <summary title="Detalles del paquete"><span id="extension-version">…</span></summary>
+        <small id="extension-build"></small>
+      </details>
+    </header>
+    <section class="release" aria-label="Actualización">
+      <p id="release-status" role="status" aria-live="polite">Comprobando versión…</p>
+      <a id="update-download" data-download class="action" hidden>Descargar</a>
+      <button id="retry-release" class="action" type="button" hidden>Reintentar</button>
+    </section>
+    <nav aria-label="Opciones">
+      <a class="row" href="installation.html">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1Zm0 0v14"/></svg>
+        Guía de instalación <span class="arrow" aria-hidden="true">›</span>
+      </a>
+      <button class="row" type="button" id="manage-extension">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8M7 6a8 8 0 1 0 10 0"/></svg>
+        Deshabilitar en Chrome <span class="arrow" aria-hidden="true">↗</span>
+      </button>
+    </nav>
+    <p id="download-feedback" role="status" hidden></p>
+    <p id="manage-error" role="status" hidden></p>
+    <p id="worker-status" role="status"></p>
+  </main>
+  <script src="extension-download.js"></script>
+  <script src="build-identity.js"></script>
+  <script src="extension-status.js"></script>
+  <script src="extension-release-status.js"></script>
+  <script src="extension-worker-status.js"></script>
+</body>
 </html>

@@ -62,7 +62,8 @@
   const enrichSnapshotRequest = async (
     snapshotRequest,
     gestionCamasRuntime,
-    fetchWithTimeout
+    fetchWithTimeout,
+    onBedsCaptured
   ) => {
     const response = await snapshotRequest;
     if (!response || !response.snapshot) return response;
@@ -70,7 +71,8 @@
       gestionCamasRuntime,
       fetchWithTimeout,
       buildAssignments,
-      record => Boolean(parentBedIdFromRecord(record))
+      record => Boolean(parentBedIdFromRecord(record)),
+      onBedsCaptured
     );
     const enriched = enrichSnapshot(response.snapshot, evidence.cribAssignments);
     return {

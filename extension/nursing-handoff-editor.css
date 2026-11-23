@@ -1,0 +1,79 @@
+:root { font: 15px/1.45 system-ui, sans-serif; color: #213734; background: #fff; }
+body { margin: 0; }
+main { box-sizing: border-box; margin: 0 auto; padding: 1.25rem; }
+header, footer, .actions { display: flex; align-items: center; gap: .65rem; }
+header, footer { justify-content: space-between; }
+h1 { font-size: 1.25rem; margin: 0; }
+header span, .detail { color: #48675f; font-size: .86rem; }
+p { margin: 0; }
+.patient {
+  display: flex; flex-wrap: wrap; column-gap: 1rem; align-items: baseline; justify-content: space-between;
+  margin-block: .8rem 1rem; padding: .5rem .65rem; border-radius: .5rem; background: #edf6f2;
+}
+.patient:has(#patient:empty):has(#slot:empty), .notes:has(form[hidden]):has(#conflict[hidden]) { display: none; }
+#patient { font-weight: 650; }
+.notes { display: grid; gap: .85rem; }
+label { display: block; font-size: .87rem; font-weight: 600; margin-block-end: .3rem; }
+textarea, button { font: inherit; }
+textarea {
+  display: block; width: 100%; box-sizing: border-box; resize: vertical; min-height: 7rem;
+  padding: .55rem .65rem; border: 1px solid #b3c7bf; border-radius: .5rem; color: inherit; background: white;
+}
+#remote { background: #f4f7f6; }
+button { border: 0; border-radius: .5rem; padding: .5rem .85rem; background: #126559; color: white; cursor: pointer; }
+button:disabled { opacity: .55; cursor: default; }
+:where(button, textarea):focus-visible { outline: 2px solid #147766; outline-offset: 2px; }
+.quiet { background: transparent; color: #126559; }
+.conflict-actions { flex-wrap: wrap; margin-block-start: .25rem; }
+.conflict-actions button { padding-inline: .35rem; font-size: .86rem; text-align: left; }
+#close { font-size: 1.35rem; padding: 0 .45rem; line-height: 1.5; }
+#disconnect { font-size: .8rem; padding: .25rem .35rem; }
+#discard { margin-block-start: .8rem; padding: .65rem .75rem; border: 1px solid #cfad7b; border-radius: .5rem; }
+#discard .actions { flex-wrap: wrap; margin-block-start: .45rem; }
+footer { margin-block-start: .75rem; }
+#status { font-size: .87rem; }
+#status[data-tone="ok"] { color: #126559; }
+#status[data-tone="draft"] { color:#75491c; }
+#status[data-tone="pending"] { color:#4a615b; }
+#slot:not(:empty) {
+  background:#e5eeea; color:#2f594e; border-radius:5px; padding:1px 5px; font-weight:650;
+}
+#recovery { margin-block-start:.5rem; color:#3e5e56; font-size:.85rem; }
+#recovery summary { cursor:pointer; padding-block:3px; }
+#recovery-versions {
+  margin-block:0 5px; max-width:100%; border:1px solid #b3c7bf; border-radius:5px;
+  padding:3px 6px; background:#fff; color:#33574e; font:inherit;
+}
+#recovery-text { min-height:60px; background:#f5f8f6; }
+#status[data-tone="error"] { color: #9b2929; }
+#save { margin-inline-start: auto; }
+
+@media (min-width: 550px) {
+  .notes:has(#conflict:not([hidden])) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.hhr-handoff-row { background:transparent; font-size:13px; line-height:1.25; }
+.hhr-handoff-row main { padding:3px 5px; }
+.hhr-handoff-row header, .hhr-handoff-row .patient, .hhr-handoff-row #save { display:none; }
+.hhr-handoff-row label[for="comparison-note"],
+.hhr-handoff-row main:not(:has(#conflict:not([hidden]))) label[for="note"] {
+  position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%);
+}
+.hhr-handoff-row .notes { gap:4px; }
+.hhr-handoff-row .notes textarea { min-height:37px; height:37px; padding:4px 7px; border-radius:5px; }
+.hhr-handoff-row .notes #comparison-note { background:#f4f7f6; border-color:#d1ded9; }
+.hhr-handoff-row .notes:has(#conflict:not([hidden])) textarea { height:86px; }
+.hhr-handoff-row #status { font-size:.75rem; }
+.hhr-handoff-row #status[data-tone="ok"] { font-weight:600; }
+.hhr-handoff-row footer { min-height:0; margin-block-start:2px; gap:4px; }
+.hhr-handoff-row footer:has(#status:empty):not(:has(#current-shift:not([hidden]))) { display:none; }
+.hhr-handoff-row footer button { font-size:.75rem; padding:2px 7px; }
+.hhr-handoff-row[data-comparing] :is(#edit, #conflict, #recovery) { display:none; }
+.hhr-handoff-row[data-comparing] .notes { display:block; }
+.hhr-handoff-row[data-comparing] #status:is([data-tone="draft"], [data-tone="ok"]) { display:none; }
+.hhr-handoff-row[data-comparing] footer:not(:has(#current-shift:not([hidden]))):not(:has([data-tone="error"])) { display:none; }
+
+.hhr-handoff-row main:has(#edit[hidden]):has(#status[data-tone="pending"])::before {
+  content:''; display:block; height:36px; border-radius:5px;
+  background:linear-gradient(90deg,#edf4f1 60%,#f5f9f7 60%);
+}

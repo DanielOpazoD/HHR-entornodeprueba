@@ -316,8 +316,17 @@
     }
     if (data.type === 'HHR_RAYEN_CUDYR_CATEGORIES_REQUEST') {
       const reqId = data.reqId;
+      const expectedEncounterIds = Array.isArray(data.expectedEncounterIds)
+        ? data.expectedEncounterIds
+            .map(value => String(value == null ? '' : value).trim())
+            .filter(value => /^\d+$/.test(value))
+            .slice(0, 200)
+        : null;
+      const message = expectedEncounterIds && expectedEncounterIds.length
+        ? { type: runtimeMessages.CUDYR_CATEGORIES_REQUEST, expectedEncounterIds }
+        : { type: runtimeMessages.CUDYR_CATEGORIES_REQUEST };
       chrome.runtime
-        .sendMessage({ type: runtimeMessages.CUDYR_CATEGORIES_REQUEST })
+        .sendMessage(message)
         .then(response => {
           const { source, historyAvailable, captureContract, observedEpisodeIds, metadataStatus, warning, error } = response || {};
           post({

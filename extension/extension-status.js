@@ -11,5 +11,14 @@
   };
   render('extension-version', version ? `v${version}` : 'Abrir desde Chrome');
   render('extension-build', buildId ? `Paquete ${buildId.slice(0, 12)}` : 'Paquete sin identificador verificable', buildId);
+  document.getElementById('manage-extension')?.addEventListener('click', async () => {
+    try {
+      await chrome.tabs.create({ url: 'chrome://extensions/?id=' + chrome.runtime.id });
+    } catch {
+      const message = document.getElementById('manage-error');
+      message.textContent = 'Abre chrome://extensions y apaga el interruptor de Rayen → HHR.';
+      message.hidden = false;
+    }
+  });
   if (version) document.title = `Puente Eloísa → HHR · v${version}`;
 })();
