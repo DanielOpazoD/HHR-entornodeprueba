@@ -54,6 +54,17 @@ describe('SummaryCard Components', () => {
       const zeros = screen.getAllByText('0');
       expect(zeros.length).toBeGreaterThanOrEqual(4);
     });
+
+    it('excludes nested discharges from statistical discharge and death totals', () => {
+      const discharges = [
+        asDischarge({ status: 'Vivo' }),
+        asDischarge({ status: 'Fallecido' }),
+        asDischarge({ status: 'Vivo', isNested: true }),
+      ];
+      render(<CombinedSummaryCard stats={mockStats} discharges={discharges} />);
+      expect(screen.getByText('Altas').nextElementSibling).toHaveTextContent('2');
+      expect(screen.getByText('Fall.').nextElementSibling).toHaveTextContent('1');
+    });
   });
 
   it('Legacy SummaryCard wrapper renders CombinedSummaryCard', () => {
