@@ -8,7 +8,7 @@ import { featureBoundaryRule } from './scripts/lib/eslint/featureBoundaryRule.mj
 import { remoteAdmissionRule } from './scripts/lib/eslint/remoteAdmissionRule.mjs';
 import { QUEUE_REMOVAL_HOMES, queueRemovalRule } from './scripts/lib/eslint/queueRemovalRule.mjs';
 import { sessionRawReadRule } from './scripts/lib/eslint/sessionRawReadRule.mjs';
-import { unknownCastRule } from './scripts/lib/eslint/unknownCastRule.mjs';
+import { neverCastRule, unknownCastRule } from './scripts/lib/eslint/unknownCastRule.mjs';
 import {
   ADMIN_TABS_FRAME_RESTRICTION,
   AUDIT_CONTRACT_RESTRICTION,
@@ -385,13 +385,37 @@ export default tseslint.config(
     files: ['src/**/*.{ts,tsx}'],
     ignores: ['**/*.d.ts', '**/tests/**', '**/*.test.*', '**/*.spec.*'],
     plugins: {
-      types: { rules: { 'unknown-cast-ceiling': unknownCastRule } },
+      types: {
+        rules: {
+          'unknown-cast-ceiling': unknownCastRule,
+          'no-never-cast': neverCastRule,
+        },
+      },
       session: { rules: { 'raw-read': sessionRawReadRule } },
     },
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
       'types/unknown-cast-ceiling': 'error',
+      'types/no-never-cast': 'error',
       'session/raw-read': 'error',
+    },
+  },
+  {
+    // Serverless Netlify functions reached zero `as unknown as` and zero `as never` casts.
+    files: ['netlify/functions/**/*.{ts,tsx}'],
+    ignores: ['**/*.d.ts', '**/*.test.*', '**/*.spec.*'],
+    plugins: {
+      types: {
+        rules: {
+          'unknown-cast-ceiling': unknownCastRule,
+          'no-never-cast': neverCastRule,
+        },
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      'types/unknown-cast-ceiling': 'error',
+      'types/no-never-cast': 'error',
     },
   },
   {

@@ -46,3 +46,27 @@ export const unknownCastRule = {
     };
   },
 };
+
+// `x as never` bypasses assignability checks just like `any`. Production source reached zero
+// `as never` casts and stays at zero.
+export const neverCastRule = {
+  meta: {
+    type: 'problem',
+    schema: [],
+    messages: {
+      forbidden:
+        '«as never» evita la comprobación de tipos igual que `any`. Modela el tipo real: usa una guarda de tipo, un tipo estrecho con nombre propio o el tipo que espera el contrato.',
+    },
+  },
+  create(context) {
+    const check = node => {
+      if (node.typeAnnotation?.type === 'TSNeverKeyword') {
+        context.report({ node, messageId: 'forbidden' });
+      }
+    };
+    return {
+      TSAsExpression: check,
+      TSTypeAssertion: check,
+    };
+  },
+};

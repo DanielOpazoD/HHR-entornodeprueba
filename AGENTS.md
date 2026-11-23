@@ -71,7 +71,7 @@ lea este archivo.
 ### Código y dependencias
 
 - El código de producción de `src/` no usa `any` explícito. — _Lo impone:_ ESLint `@typescript-eslint/no-explicit-any` (error)
-- Ningún archivo de producción de `src/` suma un `as unknown as`, y su techo por archivo solo baja. — _Lo impone:_ ESLint `types/unknown-cast-ceiling` con `scripts/config/unknown-cast-ceilings.json`
+- Ningún archivo de producción de `src/` ni `netlify/functions/` suma un `as unknown as` (su techo por archivo solo baja) ni usa `as never`. — _Lo impone:_ ESLint `types/unknown-cast-ceiling` con `scripts/config/unknown-cast-ceilings.json` y `types/no-never-cast`
 - Todo paquete importado está declarado en `package.json`. — _Lo impone:_ `npm run check:declared-dependencies`
 - No hay ciclos de imports en tiempo de ejecución. — _Lo impone:_ `npm run check:import-cycles`
 - Todo módulo de la app se alcanza desde un punto de entrada, y lo que se conserva sin uso figura con su motivo en `scripts/config/unreachable-modules.json`. — _Lo impone:_ `npm run check:unreachable-modules`
