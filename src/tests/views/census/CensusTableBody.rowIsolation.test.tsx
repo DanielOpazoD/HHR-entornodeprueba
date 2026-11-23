@@ -5,12 +5,15 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import { BedType } from '@/types/domain/beds';
 import type { PatientRowProps } from '@/features/census/components/patient-row/patientRowContracts';
 
-const { patientRowRender, updateClinicalCrib, confirm, alert } = vi.hoisted(() => ({
-  patientRowRender: vi.fn(),
-  updateClinicalCrib: vi.fn(),
-  confirm: vi.fn(async () => true),
-  alert: vi.fn(),
-}));
+const { patientRowRender, emptyBedRowRender, updateClinicalCrib, confirm, alert } = vi.hoisted(
+  () => ({
+    patientRowRender: vi.fn(),
+    emptyBedRowRender: vi.fn(),
+    updateClinicalCrib: vi.fn(),
+    confirm: vi.fn(async () => true),
+    alert: vi.fn(),
+  })
+);
 const pendingClearTargets = { bedIds: new Set<string>(), clinicalCribBedIds: new Set<string>() };
 const pendingCribCreates = new Map();
 
@@ -18,6 +21,26 @@ vi.mock('@/features/census/hooks/usePendingBedClearIds', () => ({
   usePendingIntentionalClearTargets: () => pendingClearTargets,
   usePendingClinicalCribCreates: () => pendingCribCreates,
 }));
+
+vi.mock('@/features/census/components/EmptyBedRow', async () => {
+  const { createElement, memo } = await import('react');
+  return {
+    EmptyBedRow: memo(
+      ({ bed, onActivate }: { bed: { id: string }; onActivate: (bedId: string) => void }) => {
+        emptyBedRowRender(bed.id);
+        return createElement(
+          'tr',
+          { 'data-testid': `empty-${bed.id}` },
+          createElement(
+            'td',
+            {},
+            createElement('button', { onClick: () => onActivate(bed.id) }, bed.id)
+          )
+        );
+      }
+    ),
+  };
+});
 
 vi.mock('@/features/census/components/PatientRow', async () => {
   const { createElement, memo } = await import('react');
@@ -71,7 +94,8 @@ const onActivateEmptyBed = vi.fn();
 
 it('isolates edits and server confirmations while crib removal uses the latest revision', async () => {
   patientRowRender.mockClear();
-  const fullRows = Array.from({ length: 20 }, (_, index) => {
+  emptyBedRowRender.mockClear();
+  const occupiedRows = Array.from({ length: 20 }, (_, index) => {
     const bed = { ...occupiedBed, id: `BED${index}`, name: `BED${index}` };
     return {
       kind: 'occupied' as const,
@@ -81,7 +105,16 @@ it('isolates edits and server confirmations while crib removal uses the latest r
       isSubRow: false,
     };
   });
-  fullRows[1].data.clinicalCrib = DataFactory.createMockPatient('BED1-C');
+  const emptyRows = Array.from({ length: 10 }, (_, index) => {
+    const bed = { ...occupiedBed, id: `EMPTY${index}`, name: `EMPTY${index}` };
+    return {
+      kind: 'empty' as const,
+      id: bed.id,
+      bed,
+    };
+  });
+  occupiedRows[1].data.clinicalCrib = DataFactory.createMockPatient('BED1-C');
+  const fullRows = [...occupiedRows, ...emptyRows];
   const props = {
     unifiedRows: fullRows,
     currentDateString: '2026-02-20',
@@ -105,18 +138,27 @@ it('isolates edits and server confirmations while crib removal uses the latest r
   );
   const { rerender } = render(table({}));
   expect(patientRowRender).toHaveBeenCalledTimes(20);
+  expect(emptyBedRowRender).toHaveBeenCalledTimes(10);
   rerender(table({ BED0: true }));
   expect(patientRowRender).toHaveBeenCalledTimes(21);
   expect(patientRowRender).toHaveBeenLastCalledWith('BED0');
+  expect(emptyBedRowRender).toHaveBeenCalledTimes(10);
   rerender(table({ BED0: true }));
   expect(patientRowRender).toHaveBeenCalledTimes(21);
-  fullRows[0] = { ...fullRows[0], data: { ...fullRows[0].data, patientName: 'Edited Patient' } };
-  props.unifiedRows = [...fullRows];
+  expect(emptyBedRowRender).toHaveBeenCalledTimes(10);
+  occupiedRows[0] = {
+    ...occupiedRows[0],
+    data: { ...occupiedRows[0].data, patientName: 'Edited Patient' },
+  };
+  props.unifiedRows = [...occupiedRows, ...emptyRows];
   rerender(table({ BED0: true }, '2026-02-20T12:00:00Z'));
   expect(patientRowRender).toHaveBeenCalledTimes(22);
   expect(patientRowRender).toHaveBeenLastCalledWith('BED0');
+  // Editing an occupied bed must not invalidate React.memo on any empty bed row.
+  expect(emptyBedRowRender).toHaveBeenCalledTimes(10);
   rerender(table({ BED0: true }, '2026-02-20T12:00:01Z'));
   expect(patientRowRender).toHaveBeenCalledTimes(22);
+  expect(emptyBedRowRender).toHaveBeenCalledTimes(10);
   confirm.mockImplementationOnce(async () => {
     rerender(table({ BED0: true }, '2026-02-20T12:00:02Z'));
     return true;
@@ -128,7 +170,7 @@ it('isolates edits and server confirmations while crib removal uses the latest r
       'remove',
       undefined,
       '2026-02-20T12:00:01Z',
-      expect.objectContaining({ patientName: fullRows[1].data.clinicalCrib?.patientName })
+      expect.objectContaining({ patientName: occupiedRows[1].data.clinicalCrib?.patientName })
     )
   );
 });
