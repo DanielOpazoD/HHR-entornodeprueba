@@ -21,6 +21,7 @@ import type { DailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordB
 interface UseDailyRecordFragmentedValuesResult {
   syncValue: {
     syncStatus: SyncStatus;
+    hasSaveException?: boolean;
     lastSyncTime: Date | null;
     bootstrapPhase: DailyRecordBootstrapPhase;
   };
@@ -75,10 +76,11 @@ export const useDailyRecordFragmentedValues = (
   const syncValue = useMemo(
     () => ({
       syncStatus: value?.syncStatus || 'idle',
+      hasSaveException: value?.hasSaveException,
       lastSyncTime: value?.lastSyncTime || null,
       bootstrapPhase: value?.bootstrapPhase || 'local_only',
     }),
-    [value?.bootstrapPhase, value?.syncStatus, value?.lastSyncTime]
+    [value?.bootstrapPhase, value?.hasSaveException, value?.syncStatus, value?.lastSyncTime]
   );
 
   const bedsValue = useMemo(() => value?.record?.beds || null, [value?.record?.beds]);

@@ -2,6 +2,7 @@ import { renderHook, act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCensusContext } from '@/context/CensusContext';
 import { useAuth } from '@/context/AuthContext';
+import { useDailyRecordData, useDailyRecordSync } from '@/context/DailyRecordContext';
 import { useExportManager } from '@/hooks/useExportManager';
 import { useAppContentRuntime } from '@/components/layout/app-content/useAppContentRuntime';
 
@@ -16,6 +17,11 @@ vi.mock('@/services/exporters/censusMasterExport', () => ({
 
 vi.mock('@/context/CensusContext', () => ({
   useCensusContext: vi.fn(),
+}));
+
+vi.mock('@/context/DailyRecordContext', () => ({
+  useDailyRecordData: vi.fn(),
+  useDailyRecordSync: vi.fn(),
 }));
 
 vi.mock('@/context/AuthContext', () => ({
@@ -126,15 +132,24 @@ describe('useAppContentRuntime', () => {
       byteLength: 1024,
     });
 
+    vi.mocked(useDailyRecordData).mockImplementation(
+      () =>
+        ({
+          record: recordAvailable ? { date: selectedDate } : null,
+        }) as unknown as ReturnType<typeof useDailyRecordData>
+    );
+    vi.mocked(useDailyRecordSync).mockImplementation(
+      () =>
+        ({
+          syncStatus: syncStatusValue,
+          hasSaveException,
+          lastSyncTime: 'now',
+        }) as unknown as ReturnType<typeof useDailyRecordSync>
+    );
+
     vi.mocked(useCensusContext).mockImplementation(
       () =>
         ({
-          dailyRecord: {
-            record: recordAvailable ? { date: selectedDate } : null,
-            syncStatus: syncStatusValue,
-            hasSaveException,
-            lastSyncTime: 'now',
-          },
           dateNav: {
             currentDateString: selectedDate,
             selectedYear: 2026,

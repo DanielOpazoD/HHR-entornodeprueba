@@ -190,11 +190,7 @@ describe('useAuthenticatedAppRuntime', () => {
     expect(resolveExistingDaysInMonth([2, 5])).toEqual([2, 5]);
   });
 
-  it('buildAuthenticatedCensusContextValue wires the census context without hook execution', () => {
-    const dailyRecordHook = {
-      record: { date: '2026-03-27', beds: {} },
-      refresh: vi.fn(),
-    } as unknown as ReturnType<typeof mockUseDailyRecord>;
+  it('buildAuthenticatedCensusContextValue wires the census context without dailyRecord coupling', () => {
     const dateNav = createDateNavigation();
     const fileOps = { handleExportJSON: vi.fn() } as ReturnType<typeof mockUseFileOperations>;
     const censusEmail = { sendEmail: vi.fn(), status: 'idle' } as ReturnType<
@@ -203,7 +199,6 @@ describe('useAuthenticatedAppRuntime', () => {
 
     const goToClinicalToday = vi.fn();
     const result = buildAuthenticatedCensusContextValue({
-      dailyRecordHook,
       dateNav,
       existingDaysInMonth: [1, 4, 8],
       clinicalToday: '2026-03-27',
@@ -213,13 +208,43 @@ describe('useAuthenticatedAppRuntime', () => {
       nurseSignature: 'Night Nurse',
     });
 
-    expect(result.dailyRecord).toBe(dailyRecordHook);
+    expect('dailyRecord' in result).toBe(false);
     expect(result.dateNav.existingDaysInMonth).toEqual([1, 4, 8]);
     expect(result.dateNav.clinicalToday).toBe('2026-03-27');
     expect(result.dateNav.goToClinicalToday).toBe(goToClinicalToday);
     expect(result.fileOps).toBe(fileOps);
     expect(result.censusEmail).toBe(censusEmail);
     expect(result.nurseSignature).toBe('Night Nurse');
+  });
+
+  it('keeps censusContextValue reference-stable across bed edits in useDailyRecord', () => {
+    const auth = createAuthState();
+    const dateNav = createDateNavigation();
+    const stableFileOps = { handleExportJSON: vi.fn() };
+    const stableCensusEmail = { sendEmail: vi.fn(), status: 'idle' };
+    const stableUi = { currentModule: 'CENSUS' };
+    const stableExistingDays = { data: [1, 4, 8] };
+    mockUseFileOperations.mockReturnValue(stableFileOps);
+    mockUseCensusEmail.mockReturnValue(stableCensusEmail);
+    mockUseAppState.mockReturnValue(stableUi);
+    mockUseExistingDaysQuery.mockReturnValue(stableExistingDays);
+
+    mockUseDailyRecord.mockReturnValue({
+      record: { date: '2026-03-27', beds: { R1: { patientName: 'Paciente A' } } },
+      refresh: vi.fn(),
+    });
+
+    const { result, rerender } = renderHook(() => useAuthenticatedAppRuntime({ auth, dateNav }));
+    const initialContextValue = result.current.censusContextValue;
+
+    // Simulate a bed edit emitting a fresh dailyRecord object with unchanged shell metadata.
+    mockUseDailyRecord.mockReturnValue({
+      record: { date: '2026-03-27', beds: { R1: { patientName: 'Paciente A Editado' } } },
+      refresh: vi.fn(),
+    });
+    rerender();
+
+    expect(result.current.censusContextValue).toBe(initialContextValue);
   });
 
   it('buildAuthenticatedAppRuntime keeps the runtime payload aligned with the context payload', () => {
