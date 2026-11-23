@@ -10,7 +10,6 @@ import { ModuleType, NavItemConfig } from '@/constants/navigationConfig';
 import { useNavbarNavigation } from '@/hooks/useNavbarNavigation';
 import { useDropdownMenu } from '@/hooks/useDropdownMenu';
 import { useAuth } from '@/context/AuthContext';
-import { resolveNavbarMenuAction } from '@/components/layout/navbar/navbarMenuController';
 import {
   canConfigurePrescriptions,
   canViewPrescriptions,
@@ -74,10 +73,8 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
   const hasMenuItems = systemItems.length > 0 || hasPrescriptionLinks;
 
   const handleItemClick = (item: NavItemConfig) => {
-    const actionResolution = resolveNavbarMenuAction({ item });
-
-    if (actionResolution.moduleToChange) {
-      setModule(actionResolution.moduleToChange);
+    if (item.actionType === 'MODULE_CHANGE' && item.module) {
+      setModule(item.module);
     }
 
     close();

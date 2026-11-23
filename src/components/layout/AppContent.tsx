@@ -4,11 +4,14 @@ import { AppContentChrome } from '@/components/layout/app-content/AppContentChro
 import { useAppContentRuntime } from '@/components/layout/app-content/useAppContentRuntime';
 import { useAppContentShellEffects } from '@/components/layout/app-content/useAppContentShellEffects';
 import { buildOpenCensusDateHandler } from '@/components/layout/app-content/appContentCensusDateController';
-import { resolveModuleTheme } from '@/components/layout/app-content/moduleThemeController';
+import type { ModuleType } from '@/constants/navigationConfig';
 import {
   loadReminderCenterProvider,
   type ReminderCenterProviderComponent,
 } from '@/components/layout/app-content/reminderCenterProviderLoader';
+
+const resolveModuleTheme = (mod: ModuleType): 'census' | 'nursing-handoff' =>
+  mod === 'NURSING_HANDOFF' || mod === 'CUDYR' ? 'nursing-handoff' : 'census';
 import type { CensusQuickActionPatient } from '@/shared/contracts/censusQuickActionPatient';
 import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/dateStripRadiologyViewer';
 import type { AppRouterShellState } from '@/app-shell/routing/appRouterController';
