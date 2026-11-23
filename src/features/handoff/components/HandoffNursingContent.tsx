@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { BedDefinition } from '@/types/domain/beds';
 import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import { HandoffPatientTable } from './HandoffPatientTable';
@@ -34,12 +34,27 @@ export const HandoffNursingContent: React.FC<HandoffNursingContentProps> = ({
   selectedShift,
   updateHandoffNovedades,
 }) => {
-  const handoffNovedadesBindings = buildHandoffNovedadesBindings({
-    selectedShift,
-    record,
-    readOnly,
-    onUpdateHandoffNovedades: updateHandoffNovedades,
-  });
+  const handoffNovedadesDayShift = record.handoffNovedadesDayShift;
+  const handoffNovedadesNightShift = record.handoffNovedadesNightShift;
+  const handoffNovedadesBindings = useMemo(
+    () =>
+      buildHandoffNovedadesBindings({
+        selectedShift,
+        record: {
+          handoffNovedadesDayShift,
+          handoffNovedadesNightShift,
+        },
+        readOnly,
+        onUpdateHandoffNovedades: updateHandoffNovedades,
+      }),
+    [
+      selectedShift,
+      handoffNovedadesDayShift,
+      handoffNovedadesNightShift,
+      readOnly,
+      updateHandoffNovedades,
+    ]
+  );
 
   return (
     <>

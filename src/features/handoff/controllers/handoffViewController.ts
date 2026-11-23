@@ -106,7 +106,7 @@ interface BedDescriptor {
 
 /** Fixed beds always; an extra bed only while the day has it active. */
 export const getVisibleHandoffBeds = <TBed extends BedDescriptor>(
-  record: DailyRecordBedLayoutState | null,
+  record: Pick<DailyRecordBedLayoutState, 'activeExtraBeds'> | null,
   beds: TBed[]
 ): TBed[] => {
   if (!record) return [];
@@ -117,7 +117,7 @@ export const getVisibleHandoffBeds = <TBed extends BedDescriptor>(
 
 /** A blocked bed always shows; an occupied bed shows when its patient was there during the shift. */
 export const shouldShowHandoffPatient = (
-  record: (DailyRecordDateRef & DailyRecordBedLayoutState) | null,
+  record: (DailyRecordDateRef & Pick<DailyRecordBedLayoutState, 'beds'>) | null,
   bedId: string,
   selectedShift: ShiftType
 ): boolean => {

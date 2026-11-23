@@ -5,7 +5,7 @@
  * staffing of the day, so a staff change in the census shows here at once. Do not add
  * handoff-only staff lists.
  */
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 
 import { BEDS } from '@/constants/beds';
 import { useAuditContext } from '@/context/AuditContext';
@@ -30,6 +30,7 @@ import {
 import { getAttributedAuthors } from '@/services/admin/attributionService';
 import { resolveHandoffShiftStaff } from '@/services/staff/dailyRecordStaffing';
 import { resolveHandoffDocumentTitleLabel } from '@/shared/handoff/handoffPresentation';
+import type { BedDefinition } from '@/types/domain/beds';
 import type { ClinicalEvent } from '@/types/domain/clinicalEvents';
 import { DEFAULT_SHIFT_SCHEDULE, getShiftSchedule } from '@/utils/clinicalDayUtils';
 import {
@@ -42,6 +43,13 @@ import {
   shouldShowHandoffPatient,
 } from '@/features/handoff/controllers/handoffViewController';
 import type { HandoffClinicalEventActions } from '../components/handoffRowContracts';
+
+const EMPTY_BEDS: BedDefinition[] = [];
+const EMPTY_STRING_ARRAY: string[] = [];
+const EMPTY_SHIFT_STAFF = {
+  delivers: EMPTY_STRING_ARRAY,
+  receives: EMPTY_STRING_ARRAY,
+};
 
 interface UseHandoffViewScreenModelParams {
   readOnly?: boolean;
@@ -64,33 +72,70 @@ export const useHandoffViewScreenModel = ({
   const logViewEventRef = useRef(logViewEvent);
   const recordRef = useRef(record);
 
-  useEffect(() => void (logViewEventRef.current = logViewEvent), [logViewEvent]);
-  useEffect(() => void (recordRef.current = record), [record]);
+  useLayoutEffect(() => {
+    logViewEventRef.current = logViewEvent;
+    recordRef.current = record;
+  }, [logViewEvent, record]);
 
+  const hasRecord = Boolean(record);
   const recordDate = record?.date;
+  const recordBeds = record?.beds;
+  const activeExtraBeds = record?.activeExtraBeds;
+  const recordNurses = record?.nurses;
+  const recordNurseName = record?.nurseName;
+  const nursesDayShift = record?.nursesDayShift;
+  const nursesNightShift = record?.nursesNightShift;
+  const handoffNightReceives = record?.handoffNightReceives;
+  const rawTensList = selectedShift === 'day' ? record?.tensDayShift : record?.tensNightShift;
 
   // ========== READ ==========
   const schedule = useMemo(
     () => (recordDate ? getShiftSchedule(recordDate) : DEFAULT_SHIFT_SCHEDULE),
     [recordDate]
   );
-  const visibleBeds = useMemo(() => getVisibleHandoffBeds(record, BEDS), [record]);
+  const visibleBeds = useMemo(
+    () =>
+      hasRecord
+        ? getVisibleHandoffBeds({ activeExtraBeds: activeExtraBeds ?? EMPTY_STRING_ARRAY }, BEDS)
+        : EMPTY_BEDS,
+    [hasRecord, activeExtraBeds]
+  );
   const shouldShowPatient = useCallback(
-    (bedId: string): boolean => shouldShowHandoffPatient(record, bedId, selectedShift),
-    [record, selectedShift]
+    (bedId: string): boolean =>
+      recordDate && recordBeds
+        ? shouldShowHandoffPatient({ date: recordDate, beds: recordBeds }, bedId, selectedShift)
+        : false,
+    [recordDate, recordBeds, selectedShift]
   );
   const hasAnyPatients = useMemo(
     () => visibleBeds.some(bed => shouldShowPatient(bed.id)),
     [visibleBeds, shouldShowPatient]
   );
   const { delivers: deliversList, receives: receivesList } = useMemo(
-    () => resolveHandoffShiftStaff(record, selectedShift),
-    [record, selectedShift]
+    () =>
+      hasRecord
+        ? resolveHandoffShiftStaff(
+            {
+              nurses: recordNurses,
+              nurseName: recordNurseName,
+              nursesDayShift,
+              nursesNightShift,
+              handoffNightReceives,
+            },
+            selectedShift
+          )
+        : EMPTY_SHIFT_STAFF,
+    [
+      hasRecord,
+      recordNurses,
+      recordNurseName,
+      nursesDayShift,
+      nursesNightShift,
+      handoffNightReceives,
+      selectedShift,
+    ]
   );
-  const tensList = useMemo(
-    () => (selectedShift === 'day' ? record?.tensDayShift : record?.tensNightShift) || [],
-    [record, selectedShift]
-  );
+  const tensList = useMemo(() => rawTensList || EMPTY_STRING_ARRAY, [rawTensList]);
   const auditDescriptor = useMemo(
     () => resolveHandoffAuditDescriptor(selectedShift),
     [selectedShift]
@@ -133,9 +178,10 @@ export const useHandoffViewScreenModel = ({
   // ========== NURSING NOTE ==========
   const handleNursingNoteChange = useCallback(
     (bedId: string, value: string, isNested: boolean = false) => {
-      if (!record) return;
+      const currentRecord = recordRef.current;
+      if (!currentRecord) return;
 
-      const bed = record.beds[bedId];
+      const bed = currentRecord.beds[bedId];
       const patient = isNested ? bed?.clinicalCrib : bed;
       const { noteKey, fields, oldNote } = buildNursingNoteChange({
         selectedShift,
@@ -158,19 +204,20 @@ export const useHandoffViewScreenModel = ({
           changes: { [noteKey]: { old: oldNote, new: value } },
         },
         patient.rut,
-        record.date,
+        currentRecord.date,
         undefined,
         30000
       );
     },
-    [logDebouncedEvent, record, selectedShift, updateClinicalCribMultiple, updatePatientMultiple]
+    [logDebouncedEvent, selectedShift, updateClinicalCribMultiple, updatePatientMultiple]
   );
 
   // ========== CLINICAL EVENTS ==========
   const handleClinicalEventAdd = useCallback(
     (bedId: string, event: Omit<ClinicalEvent, 'id' | 'createdAt'>) => {
-      if (!record) return;
-      const patient = record.beds[bedId];
+      const currentRecord = recordRef.current;
+      if (!currentRecord) return;
+      const patient = currentRecord.beds[bedId];
       if (!patient) return;
 
       const newEvent = buildAddedClinicalEvent(
@@ -182,7 +229,7 @@ export const useHandoffViewScreenModel = ({
         'CLINICAL_EVENT_ADDED',
         bedId,
         event.name,
-        record.date
+        currentRecord.date
       );
       const successFeedback = buildClinicalEventSuccessFeedback(event.name);
 
@@ -201,24 +248,26 @@ export const useHandoffViewScreenModel = ({
 
       success(successFeedback.title, successFeedback.description);
     },
-    [logDebouncedEvent, record, success, updatePatient]
+    [logDebouncedEvent, success, updatePatient]
   );
 
   const handleClinicalEventUpdate = useCallback(
     (bedId: string, eventId: string, data: Partial<ClinicalEvent>) => {
-      if (!record) return;
-      const patient = record.beds[bedId];
+      const currentRecord = recordRef.current;
+      if (!currentRecord) return;
+      const patient = currentRecord.beds[bedId];
       if (!patient || !patient.clinicalEvents) return;
 
       updatePatient(bedId, 'clinicalEvents', updateClinicalEventList(patient, eventId, data));
     },
-    [record, updatePatient]
+    [updatePatient]
   );
 
   const handleClinicalEventDelete = useCallback(
     (bedId: string, eventId: string) => {
-      if (!record) return;
-      const patient = record.beds[bedId];
+      const currentRecord = recordRef.current;
+      if (!currentRecord) return;
+      const patient = currentRecord.beds[bedId];
       if (!patient || !patient.clinicalEvents) return;
 
       const { nextEvents, deletedEvent } = removeClinicalEventFromList(patient, eventId);
@@ -229,7 +278,7 @@ export const useHandoffViewScreenModel = ({
           'CLINICAL_EVENT_DELETED',
           bedId,
           deletedEvent.name,
-          record.date
+          currentRecord.date
         );
         logDebouncedEvent(
           auditPayload.action,
@@ -243,7 +292,7 @@ export const useHandoffViewScreenModel = ({
         );
       }
     },
-    [logDebouncedEvent, record, updatePatient]
+    [logDebouncedEvent, updatePatient]
   );
 
   // Who may open this screen and edit it is decided once, by the router's access predicate

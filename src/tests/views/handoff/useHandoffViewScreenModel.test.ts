@@ -285,4 +285,71 @@ describe('useHandoffViewScreenModel', () => {
     );
     expect(document.title).toBe('TN 02-01-2025');
   });
+
+  it('keeps derived lists and mutation handlers stable across bed note updates while reading the latest record', () => {
+    const initialRecord = buildRecord();
+    setRecord(initialRecord);
+    const ui = { selectedShift: 'day' as ShiftType, setSelectedShift: vi.fn() };
+    const { result, rerender } = renderHook(() =>
+      useHandoffViewScreenModel({
+        readOnly: false,
+        ui: ui as unknown as UseUIStateReturn,
+      })
+    );
+
+    const firstVisibleBeds = result.current.visibleBeds;
+    const firstDeliversList = result.current.deliversList;
+    const firstReceivesList = result.current.receivesList;
+    const firstTensList = result.current.tensList;
+    const firstHandleNoteChange = result.current.handleNursingNoteChange;
+    const firstClinicalEventActions = result.current.clinicalEventActions;
+
+    // Simulate editing bed R1's note (new record & beds reference, same staffing/layout slices).
+    const updatedBedRecord: DailyRecord = {
+      ...initialRecord,
+      beds: {
+        ...initialRecord.beds,
+        R1: {
+          ...initialRecord.beds.R1,
+          handoffNoteDayShift: 'Nota actualizada',
+        },
+      },
+    };
+    setRecord(updatedBedRecord);
+    rerender();
+
+    expect(result.current.visibleBeds).toBe(firstVisibleBeds);
+    expect(result.current.deliversList).toBe(firstDeliversList);
+    expect(result.current.receivesList).toBe(firstReceivesList);
+    expect(result.current.tensList).toBe(firstTensList);
+    expect(result.current.handleNursingNoteChange).toBe(firstHandleNoteChange);
+    expect(result.current.clinicalEventActions).toBe(firstClinicalEventActions);
+
+    // Invoking the stable callback immediately after rerender reads the newest note as oldNote.
+    act(() => result.current.handleNursingNoteChange('R1', 'Tercera nota', false));
+    expect(mockLogDebouncedEvent).toHaveBeenLastCalledWith(
+      'NURSE_HANDOFF_MODIFIED',
+      'patient',
+      'R1',
+      expect.objectContaining({
+        changes: {
+          handoffNoteDayShift: { old: 'Nota actualizada', new: 'Tercera nota' },
+        },
+      }),
+      '12.345.678-5',
+      '2025-01-02',
+      undefined,
+      30000
+    );
+
+    // Updating a non-bed slice also keeps shouldShowPatient stable.
+    const shouldShowBeforeNovedades = result.current.shouldShowPatient;
+    setRecord({
+      ...updatedBedRecord,
+      handoffNovedadesDayShift: 'Sin incidencias',
+    });
+    rerender();
+
+    expect(result.current.shouldShowPatient).toBe(shouldShowBeforeNovedades);
+  });
 });
