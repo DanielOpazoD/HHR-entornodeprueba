@@ -89,6 +89,8 @@ describe('one hour without use on a shared computer', () => {
     expect(accountName()).toHaveTextContent('Enfermera Sintética');
 
     await idleFor(MINUTE_MS + 2000);
+    // Allow createHandleLogout's bounded audit preload window (2000 ms) to settle before signOut.
+    await idleFor(2500);
 
     expect(accountName()).not.toBeInTheDocument();
     expect(screen.getByTestId('login-google-button')).toBeVisible();

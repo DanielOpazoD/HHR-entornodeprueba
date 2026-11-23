@@ -139,6 +139,7 @@ export const rebuildClinicalEnrichmentOperations = ({
 
     const prefix = `beds.${current.bedId}${current.clinicalCrib ? '.clinicalCrib' : ''}`;
     const patch: ClinicalFillPatchOperation['patch'] = {};
+    const patchFields: Record<string, unknown> = patch;
     for (const [path, desired] of Object.entries(operation.patch)) {
       const field = fieldFromPatchPath(path);
       if (!field) {
@@ -173,7 +174,7 @@ export const rebuildClinicalEnrichmentOperations = ({
         conflicts.push({ operation, error });
         return [];
       }
-      patch[`${prefix}.${field}`] = desiredValue as never;
+      patchFields[`${prefix}.${field}`] = desiredValue;
     }
 
     const checkpointPath = `${prefix}.clinicalSyncCheckpoint`;

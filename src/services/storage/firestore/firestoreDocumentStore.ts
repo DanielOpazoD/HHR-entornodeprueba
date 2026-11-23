@@ -2,11 +2,13 @@ import {
   getDoc,
   onSnapshot,
   setDoc,
+  type DocumentData,
   type DocumentReference,
   type Firestore,
   type SetOptions,
   type SnapshotListenOptions,
   type DocumentSnapshot,
+  type WithFieldValue,
 } from 'firebase/firestore';
 import { ensureFirestoreRuntimeReady } from '@/services/storage/firestore/firestoreRuntimeSupport';
 
@@ -32,7 +34,7 @@ export const readFirestoreDocument = async <
 };
 
 export const saveFirestoreDocument = async <
-  TDocument,
+  TDocument extends WithFieldValue<DocumentData>,
   TRuntime extends FirestoreDocumentRuntimePort,
 >(
   runtime: TRuntime,
@@ -42,10 +44,10 @@ export const saveFirestoreDocument = async <
 ): Promise<void> => {
   await ensureFirestoreRuntimeReady(runtime);
   if (options) {
-    await setDoc(resolveRef(runtime), value as never, options);
+    await setDoc(resolveRef(runtime), value, options);
     return;
   }
-  await setDoc(resolveRef(runtime), value as never);
+  await setDoc(resolveRef(runtime), value);
 };
 
 interface SubscribeToFirestoreDocumentInput<

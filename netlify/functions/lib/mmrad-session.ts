@@ -22,17 +22,20 @@ const getCredentials = () => {
   return { username, password };
 };
 
+const hasRawHeaders = (
+  headers: Headers
+): headers is Headers & { raw: () => Record<string, string[]> } =>
+  'raw' in headers && typeof (headers as { raw?: unknown }).raw === 'function';
+
 /** Collect all Set-Cookie headers from a fetch Response. */
 const collectSetCookies = (response: Response): string[] => {
-  const dynamicHeaders = response.headers as unknown as {
-    getSetCookie?: () => string[];
-    raw?: () => Record<string, string[]>;
-  };
-  if ('getSetCookie' in response.headers && typeof dynamicHeaders.getSetCookie === 'function') {
-    return dynamicHeaders.getSetCookie();
+  if (typeof response.headers.getSetCookie === 'function') {
+    return response.headers.getSetCookie();
   }
-  const raw = dynamicHeaders.raw?.();
-  if (raw?.['set-cookie']) return raw['set-cookie'];
+  if (hasRawHeaders(response.headers)) {
+    const raw = response.headers.raw();
+    if (raw['set-cookie']) return raw['set-cookie'];
+  }
   const single = response.headers.get('set-cookie');
   return single ? [single] : [];
 };
@@ -106,17 +109,12 @@ export const decodeResponseHtml = async (
   response: Response,
   encoding: string = 'utf-8'
 ): Promise<string> => {
-  const dynamicResponse = response as unknown as {
-    arrayBuffer?: () => Promise<ArrayBuffer>;
-    text: () => Promise<string>;
-  };
-
-  if (typeof dynamicResponse.arrayBuffer === 'function') {
-    const buffer = await dynamicResponse.arrayBuffer();
+  if (typeof response.arrayBuffer === 'function') {
+    const buffer = await response.arrayBuffer();
     return new TextDecoder(encoding).decode(buffer);
   }
 
-  return dynamicResponse.text();
+  return response.text();
 };
 
 export const normalizeMmradUrl = (rawUrl: string | null | undefined): string | null => {
