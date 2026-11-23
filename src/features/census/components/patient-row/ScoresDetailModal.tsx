@@ -8,15 +8,22 @@ import { Gauge } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { ScoresCellModel } from '@/features/census/controllers/evaluationScoresCellController';
 import { BradenCard, DowntonCard } from './ScoresDetailCards';
-import { CudyrHistoryPanel } from './CudyrHistoryPanel';
+import { CudyrHistoryPanel, formatCudyrDateTime } from './CudyrHistoryPanel';
 import { ScoresHistoryTable } from './ScoresHistoryTable';
+import { useLatestPriorCudyr } from '@/features/census/hooks/useLatestPriorCudyr';
+import { resolveCudyrOwningCensusDay } from '@/domain/evaluationScales/importedCudyr';
+import type { CudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 
 interface ScoresDetailModalProps {
   patientName: string;
   admissionDate?: string;
+  censusDate?: string;
+  clinicalEpisodeId?: string;
+  cudyrPending?: CudyrPendingStatus | null;
   importedCudyr?: ImportedCudyr;
+  initialTab?: 'CUDYR' | 'BRADEN' | 'DOWNTON';
   model: ScoresCellModel;
   onClose: () => void;
 }
@@ -24,14 +31,23 @@ interface ScoresDetailModalProps {
 export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
   patientName,
   admissionDate,
+  censusDate,
+  clinicalEpisodeId,
+  cudyrPending,
   importedCudyr,
+  initialTab,
   model,
   onClose,
 }) => {
   const [active, setActive] = useState<'CUDYR' | 'BRADEN' | 'DOWNTON'>(
-    model.braden ? 'BRADEN' : model.downton ? 'DOWNTON' : 'CUDYR'
+    initialTab ?? (model.braden ? 'BRADEN' : model.downton ? 'DOWNTON' : 'CUDYR')
   );
   const id = useId();
+  const priorCudyr = useLatestPriorCudyr({
+    enabled: active === 'CUDYR' && !model.cudyr && !importedCudyr,
+    censusDate,
+    clinicalEpisodeId,
+  });
   const selected =
     active === 'BRADEN' ? model.braden : active === 'DOWNTON' ? model.downton : model.cudyr;
   const reapplication =
@@ -41,7 +57,12 @@ export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
         ? model.downton?.reapplication
         : undefined;
   const history = model.history.filter(entry => entry.code === active);
-  const cudyrHistory = importedCudyr ?? model.cudyr?.entry;
+  const cudyrHistory = importedCudyr ?? model.cudyr?.entry ?? priorCudyr.cudyr ?? undefined;
+  const priorOwningDay =
+    !model.cudyr && cudyrHistory
+      ? ((cudyrHistory.recordedAt ? resolveCudyrOwningCensusDay(cudyrHistory.recordedAt) : null) ??
+        cudyrHistory.recordedDate)
+      : null;
   return (
     <BaseModal
       isOpen
@@ -110,6 +131,39 @@ export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
           tabIndex={0}
           className="space-y-2 focus-visible:outline-teal-700"
         >
+          {!selected && (
+            <div className="space-y-1.5 py-2">
+              <p className="text-sm text-slate-500">
+                Sin resultado vigente de{' '}
+                {active === 'BRADEN' ? 'Braden' : active === 'DOWNTON' ? 'Downton' : 'CUDYR'} para
+                este día.
+              </p>
+              {active === 'CUDYR' && cudyrPending && (
+                <p className="text-xs text-slate-500">{cudyrPending.detail}</p>
+              )}
+              {active === 'CUDYR' && cudyrHistory && (
+                <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                  Último CUDYR registrado en Eloísa:{' '}
+                  <strong className="font-semibold">{cudyrHistory.category}</strong> (
+                  <span className="tabular-nums">
+                    {formatCudyrDateTime(cudyrHistory.recordedAt, cudyrHistory.recordedDate)}
+                  </span>
+                  {priorOwningDay
+                    ? ` — corresponde al turno noche del ${formatClinicalDayMonthYear(priorOwningDay)}`
+                    : ''}
+                  ).
+                </p>
+              )}
+              {active === 'CUDYR' && !cudyrHistory && priorCudyr.status === 'loading' && (
+                <p className="text-xs text-slate-500">Consultando categorización previa…</p>
+              )}
+              {active === 'CUDYR' && !cudyrHistory && priorCudyr.status === 'unavailable' && (
+                <p className="text-xs text-slate-500">
+                  No se pudo consultar el historial CUDYR de días anteriores.
+                </p>
+              )}
+            </div>
+          )}
           {active === 'CUDYR' && cudyrHistory && (
             <CudyrHistoryPanel cudyr={model.cudyr} entry={cudyrHistory} />
           )}
@@ -121,13 +175,6 @@ export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
                 ? `${model.braden.assessment.conducta.aplicacion} · `
                 : ''}
               Próxima aplicación: {formatClinicalDayMonthYear(reapplication.dueDate)}
-            </p>
-          )}
-          {!selected && (
-            <p className="py-4 text-sm text-slate-500">
-              Sin resultado vigente de{' '}
-              {active === 'BRADEN' ? 'Braden' : active === 'DOWNTON' ? 'Downton' : 'CUDYR'} para
-              este día.
             </p>
           )}
           {active !== 'CUDYR' && <ScoresHistoryTable history={history} />}

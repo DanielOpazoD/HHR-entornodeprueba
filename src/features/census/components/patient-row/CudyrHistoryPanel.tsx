@@ -4,10 +4,11 @@ import { useEloisaStaff } from '@/hooks/useEloisaStaff';
 import { formatStaffDisplayName } from '@/services/staff/staffDisplayName';
 import { nursingRole } from '@/services/staff/eloisaStaffIdentity';
 import { CudyrCard } from './ScoresDetailCards';
+import { resolveCudyrOwningCensusDay } from '@/domain/evaluationScales/importedCudyr';
 import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
-import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
+import { CLINICAL_TIME_ZONE, getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 
-const dateTime = (value: string | undefined, day: string) => {
+export const formatCudyrDateTime = (value: string | undefined, day: string): string => {
   if (!value || !/(?:[zZ]|[+-]\d{2}:?\d{2})$/.test(value)) {
     const clock = value?.match(/[T ](\d{2}:\d{2})/)?.[1];
     return `${formatClinicalDayMonthYear(day)}${clock ? ` · ${clock}` : ''}`;
@@ -24,6 +25,16 @@ const dateTime = (value: string | undefined, day: string) => {
         minute: '2-digit',
         hour12: false,
       }).format(new Date(epoch));
+};
+
+const owningNightNote = (recordedAt: string | undefined): string | null => {
+  if (!recordedAt || !/(?:[zZ]|[+-]\d{2}:?\d{2})$/.test(recordedAt)) return null;
+  const epoch = Date.parse(recordedAt);
+  if (Number.isNaN(epoch)) return null;
+  const owningDay = resolveCudyrOwningCensusDay(recordedAt);
+  const calendarDay = getClinicalCalendarDateISO(new Date(epoch));
+  if (!owningDay || owningDay === calendarDay) return null;
+  return `Turno noche ${formatClinicalDayMonthYear(owningDay)}`;
 };
 
 export const CudyrHistoryPanel = ({
@@ -78,7 +89,13 @@ export const CudyrHistoryPanel = ({
                   )}
                 </td>
                 <td className="px-3 py-1.5 align-top tabular-nums">
-                  {dateTime(entry.recordedAt, entry.recordedDate)}
+                  <div>{formatCudyrDateTime(entry.recordedAt, entry.recordedDate)}</div>
+                  {(() => {
+                    const nightNote = owningNightNote(entry.recordedAt);
+                    return nightNote ? (
+                      <div className="text-[11px] text-slate-400">{nightNote}</div>
+                    ) : null;
+                  })()}
                 </td>
                 <td className="px-3 py-1.5 align-top" title={entry.author}>
                   {entry.author
