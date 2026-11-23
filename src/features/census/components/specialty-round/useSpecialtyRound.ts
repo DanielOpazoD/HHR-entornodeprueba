@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useDailyRecordBeds, useDailyRecordData } from '@/context/DailyRecordContext';
+import { useDailyRecordBeds, useDailyRecordMeta } from '@/context/DailyRecordContext';
 import { useDailyRecordWriteStatus } from '@/features/census/hooks/useDailyRecordWriteStatus';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { getDailyRecordWriteState } from '@/services/repositories/dailyRecordWriteCoordinator';
@@ -27,7 +27,7 @@ const hasActiveSyncCommit = (date: string) => {
 
 export const useSpecialtyRound = (date: string, disabled: boolean) => {
   const beds = useDailyRecordBeds();
-  const { record } = useDailyRecordData();
+  const { date: recordDate } = useDailyRecordMeta();
   const { isSyncCommit } = useDailyRecordWriteStatus(date);
   const [candidates] = useState(() => buildSpecialtyRoundCandidates(beds, date));
   const [setup, setSetup] = useState<SpecialtyRoundSetup | null>(null);
@@ -37,7 +37,7 @@ export const useSpecialtyRound = (date: string, disabled: boolean) => {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState('');
   const bedsRef = useLatestRef(beds);
-  const recordDateRef = useLatestRef(record?.date);
+  const recordDateRef = useLatestRef(recordDate);
   const disabledRef = useLatestRef(disabled);
   const activeRef = useRef(true);
   // Only setResult writes the results, and it updates this ref first.

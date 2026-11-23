@@ -13,7 +13,11 @@ const service = vi.hoisted(() => ({
 }));
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordBeds: () => state.beds,
-  useDailyRecordData: () => ({ record: { date: '2026-09-24' } }),
+  useDailyRecordMeta: () => ({
+    date: '2026-09-24',
+    rayenCoverageCompletedAt: '',
+    activeExtraBeds: [],
+  }),
 }));
 vi.mock('@/features/census/services/specialtyJevClient', () => ({
   loadSpecialtyRoundSetup: service.load,

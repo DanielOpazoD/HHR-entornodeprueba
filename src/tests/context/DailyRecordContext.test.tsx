@@ -5,6 +5,7 @@ import {
   DailyRecordProvider,
   useDailyRecordData,
   useDailyRecordBeds,
+  useDailyRecordMeta,
   useDailyRecordMovements,
   useDailyRecordOverrides,
   useDailyRecordStability,
@@ -334,10 +335,131 @@ describe('DailyRecordContext', () => {
     expect(stabilityRenders).toBe(1);
   });
 
+  it('isolates useDailyRecordMeta consumers from bed edits, sync ticks, staff and movement updates', () => {
+    let metaRenders = 0;
+    let bedsAndMetaRenders = 0;
+    let lastMeta: ReturnType<typeof useDailyRecordMeta> | undefined;
+
+    const MetaProbe = React.memo(function MetaProbe() {
+      metaRenders += 1;
+      lastMeta = useDailyRecordMeta();
+      return null;
+    });
+    const BedsAndMetaProbe = React.memo(function BedsAndMetaProbe() {
+      bedsAndMetaRenders += 1;
+      useDailyRecordBeds();
+      useDailyRecordMeta();
+      return null;
+    });
+
+    const stableChildren = (
+      <>
+        <MetaProbe />
+        <BedsAndMetaProbe />
+      </>
+    );
+
+    const baseRecord = {
+      ...mockValue.record!,
+      date: '2026-10-10',
+      activeExtraBeds: [],
+    };
+    const baseValue = { ...mockValue, record: baseRecord } as DailyRecordContextType;
+
+    const { rerender } = render(
+      <DailyRecordProvider value={baseValue}>{stableChildren}</DailyRecordProvider>
+    );
+    expect(metaRenders).toBe(1);
+    expect(bedsAndMetaRenders).toBe(1);
+    expect(lastMeta).toEqual({
+      date: '2026-10-10',
+      rayenCoverageCompletedAt: '',
+      activeExtraBeds: [],
+    });
+
+    // Unrelated sync tick, staff edit, and movement edit must not re-render either narrow consumer.
+    rerender(
+      <DailyRecordProvider
+        value={{
+          ...baseValue,
+          syncStatus: 'saving',
+          lastSyncTime: new Date('2026-10-10T01:00:00.000Z'),
+          record: {
+            ...baseRecord,
+            nursesDayShift: ['Nurse Updated'],
+            discharges: [
+              {
+                id: 'd-1',
+                patientName: 'Alta',
+              } as unknown as DailyRecordContextType['record'] extends {
+                discharges: (infer D)[];
+              }
+                ? D
+                : never,
+            ],
+            activeExtraBeds: [],
+          },
+        }}
+      >
+        {stableChildren}
+      </DailyRecordProvider>
+    );
+    expect(metaRenders).toBe(1);
+    expect(bedsAndMetaRenders).toBe(1);
+
+    // Bed edit must re-render the beds consumer, but NOT the meta-only consumer.
+    rerender(
+      <DailyRecordProvider
+        value={{
+          ...baseValue,
+          record: {
+            ...baseRecord,
+            beds: { ...baseRecord.beds },
+            activeExtraBeds: [],
+          },
+        }}
+      >
+        {stableChildren}
+      </DailyRecordProvider>
+    );
+    expect(metaRenders).toBe(1);
+    expect(bedsAndMetaRenders).toBe(2);
+
+    // Completing Rayen coverage updates the meta consumer exactly once.
+    rerender(
+      <DailyRecordProvider
+        value={{
+          ...baseValue,
+          record: {
+            ...baseRecord,
+            beds: { ...baseRecord.beds },
+            rayenSync: {
+              at: '2026-10-10T10:00:00Z',
+              by: 'Test',
+              status: 'complete',
+              coverage: {
+                total: 1,
+                completed: 1,
+                errors: 0,
+                sourceErrors: 0,
+                completedAt: '2026-10-10T10:00:00Z',
+              },
+            },
+          },
+        }}
+      >
+        {stableChildren}
+      </DailyRecordProvider>
+    );
+    expect(metaRenders).toBe(2);
+    expect(lastMeta?.rayenCoverageCompletedAt).toBe('2026-10-10T10:00:00Z');
+  });
+
   it('should throw error when hooks are used outside provider', () => {
     const hooks = [
       { name: 'useDailyRecordData', hook: useDailyRecordData },
       { name: 'useDailyRecordBeds', hook: useDailyRecordBeds },
+      { name: 'useDailyRecordMeta', hook: useDailyRecordMeta },
       { name: 'useDailyRecordMovements', hook: useDailyRecordMovements },
       { name: 'useDailyRecordSync', hook: useDailyRecordSync },
       { name: 'useDailyRecordStaff', hook: useDailyRecordStaff },

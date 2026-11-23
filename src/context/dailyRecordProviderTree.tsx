@@ -55,6 +55,14 @@ export const DailyRecordStaffContext = createContext<
   | undefined
 >(undefined);
 
+export interface DailyRecordMetaValue {
+  date?: string;
+  rayenCoverageCompletedAt: string;
+  activeExtraBeds: string[];
+}
+
+export const DailyRecordMetaContext = createContext<DailyRecordMetaValue | undefined>(undefined);
+
 export const DailyRecordOverridesContext = createContext<Record<string, string> | undefined>(
   undefined
 );
@@ -66,6 +74,7 @@ interface DailyRecordProviderTreeProps {
   staffValue: React.ComponentProps<typeof DailyRecordStaffContext.Provider>['value'];
   movementsValue: React.ComponentProps<typeof DailyRecordMovementsContext.Provider>['value'];
   bedsValue: React.ComponentProps<typeof DailyRecordBedsContext.Provider>['value'];
+  metaValue: React.ComponentProps<typeof DailyRecordMetaContext.Provider>['value'];
   dataValue: React.ComponentProps<typeof DailyRecordDataContext.Provider>['value'];
   overridesValue: React.ComponentProps<typeof DailyRecordOverridesContext.Provider>['value'];
   children: React.ReactNode;
@@ -78,6 +87,7 @@ export const DailyRecordProviderTree: React.FC<DailyRecordProviderTreeProps> = (
   staffValue,
   movementsValue,
   bedsValue,
+  metaValue,
   dataValue,
   overridesValue,
   children,
@@ -88,11 +98,13 @@ export const DailyRecordProviderTree: React.FC<DailyRecordProviderTreeProps> = (
         <DailyRecordStaffContext.Provider value={staffValue}>
           <DailyRecordMovementsContext.Provider value={movementsValue}>
             <DailyRecordBedsContext.Provider value={bedsValue}>
-              <DailyRecordDataContext.Provider value={dataValue}>
-                <DailyRecordOverridesContext.Provider value={overridesValue}>
-                  {children}
-                </DailyRecordOverridesContext.Provider>
-              </DailyRecordDataContext.Provider>
+              <DailyRecordMetaContext.Provider value={metaValue}>
+                <DailyRecordDataContext.Provider value={dataValue}>
+                  <DailyRecordOverridesContext.Provider value={overridesValue}>
+                    {children}
+                  </DailyRecordOverridesContext.Provider>
+                </DailyRecordDataContext.Provider>
+              </DailyRecordMetaContext.Provider>
             </DailyRecordBedsContext.Provider>
           </DailyRecordMovementsContext.Provider>
         </DailyRecordStaffContext.Provider>

@@ -3,6 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClinicalLibraryDrawer } from '@/features/clinical-library/components/ClinicalLibraryDrawer';
 
 vi.mock('@/context/DailyRecordContext', () => ({
+  useDailyRecordBeds: () => null,
+  useDailyRecordMeta: () => ({
+    date: undefined,
+    rayenCoverageCompletedAt: '',
+    activeExtraBeds: [],
+  }),
   useDailyRecordData: () => ({ record: null }),
 }));
 

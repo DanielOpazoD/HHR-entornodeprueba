@@ -23,7 +23,15 @@ vi.mock('@/context/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('@/features/clinical-library/services/pharmacyActPdf', () => ({
   generatePharmacyActPdf: generate,
 }));
-vi.mock('@/context/DailyRecordContext', () => ({ useDailyRecordData: () => ({ record: null }) }));
+vi.mock('@/context/DailyRecordContext', () => ({
+  useDailyRecordBeds: () => null,
+  useDailyRecordMeta: () => ({
+    date: undefined,
+    rayenCoverageCompletedAt: '',
+    activeExtraBeds: [],
+  }),
+  useDailyRecordData: () => ({ record: null }),
+}));
 vi.mock('@/services/user-profile/sessionProfessionalIdentity', () => ({
   readSessionProfessionalIdentity: readIdentity,
 }));

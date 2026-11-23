@@ -15,6 +15,7 @@ import { useDailyRecordFragmentedValues } from '@/context/useDailyRecordFragment
 import {
   DailyRecordBedsContext,
   DailyRecordDataContext,
+  DailyRecordMetaContext,
   DailyRecordMovementsContext,
   DailyRecordOverridesContext,
   DailyRecordStaffContext,
@@ -46,6 +47,7 @@ export const DailyRecordProvider: React.FC<{
   const {
     syncValue,
     bedsValue,
+    metaValue,
     movementsValue,
     stabilityValue,
     staffValue,
@@ -62,6 +64,7 @@ export const DailyRecordProvider: React.FC<{
       staffValue={staffValue}
       movementsValue={movementsValue}
       bedsValue={bedsValue}
+      metaValue={metaValue}
       dataValue={dataValue}
       overridesValue={overridesValue}
     >
@@ -86,6 +89,14 @@ export const useDailyRecordData = () => {
  */
 export const useDailyRecordBeds = () => {
   return useRequiredContextValue(DailyRecordBedsContext, 'useDailyRecordBeds');
+};
+
+/**
+ * Access stable day metadata (date, Rayen coverage completion timestamp, active extra beds).
+ * Avoids re-rendering on bed edits, sync status ticks, staff edits, or movement updates.
+ */
+export const useDailyRecordMeta = () => {
+  return useRequiredContextValue(DailyRecordMetaContext, 'useDailyRecordMeta');
 };
 
 /**
