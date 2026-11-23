@@ -1,5 +1,3 @@
-import { readAuthorizationHeader } from './lib/authorization-header';
-import { safeErrorMessage } from './lib/safe-error-message';
 /**
  * mmrad-search Netlify Function
  *
@@ -15,12 +13,13 @@ import { safeErrorMessage } from './lib/safe-error-message';
  *   5. POST patient RUT to the search form → HTML with exam results
  */
 
+import { readAuthorizationHeader } from './lib/authorization-header';
+import { safeErrorMessage } from './lib/safe-error-message';
 import { getFirebaseServer } from './lib/firebase-server';
 import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
 import { invokeWithTelemetry } from './lib/observability';
-import { searchMistypedCheckDigitExams, type RisExamRow } from './lib/mmrad-check-digit-search';
+import { searchMistypedCheckDigitExams } from './lib/mmrad-check-digit-search';
 import {
-  buildCorsHeaders,
   buildJsonResponse,
   buildTooManyRequestsResponse,
   getClientIp,
@@ -29,364 +28,24 @@ import {
   isRateLimited,
   type NetlifyEventLike,
 } from './lib/http';
-import { parseMMRADReportSections } from '../../src/domain/radiology/mmradReportSupport';
-import { getClinicalCalendarDateISO } from '../../src/utils/clinicalTimeZone';
-
 import {
-  MMRAD_BASE_URL,
   MMRAD_ALLOWED_ROLES,
-  fetchWithHeaders,
-  normalizeMmradUrl,
-  decodeResponseHtml,
-  isLoggedInRisPage,
   loginToMMRAD,
+  normalizeMmradUrl,
   withMMRADSession,
 } from './lib/mmrad-session';
-
-const resolveMmradAuthorizationErrorMessage = (message: string): string => {
-  if (message.includes("Access denied for role 'unauthorized'")) {
-    return 'Acceso denegado para MMRAD. Tu correo no tiene un rol autorizado en config/roles o la sesión local no corresponde al entorno actual.';
-  }
-
-  const deniedRoleMatch = message.match(/Access denied for role '([^']+)'/);
-  if (deniedRoleMatch) {
-    return `Acceso denegado para MMRAD. El rol '${deniedRoleMatch[1]}' no tiene permiso para consultar radiología.`;
-  }
-
-  return message;
-};
+import {
+  buildPdfProxyResponse,
+  buildPortalReceiptProxyResponse,
+  resolveMmradAuthorizationErrorMessage,
+} from './lib/mmrad-proxy-responses';
+import { examKey, hydrateStructuredCtReports, searchExamRows } from './lib/mmrad-search-html';
 
 interface MMRADSearchDependencies {
   getFirebaseServer: typeof getFirebaseServer;
   authorizeRoleRequest: typeof authorizeRoleRequest;
   extractBearerToken: typeof extractBearerToken;
 }
-
-interface MMRADExam {
-  nombre_examen: string;
-  fecha_examen: string;
-  fecha_asignacion: string;
-  mod: string;
-  estado: string;
-  pdf_url: string | null;
-  dicom_url: string | null;
-  informe_html_url: string | null;
-  portal_web_receipt_url: string | null;
-  report: ReturnType<typeof parseMMRADReportSections>;
-  /** Present only on exams MMRAD registered under this RUT number with another check digit. */
-  registered_patient_id?: string;
-  registered_patient_name?: string;
-}
-
-const buildPdfProxyResponse = async (pdfUrl: string, cookies: string, requestOrigin?: string) => {
-  const response = await fetchWithHeaders(pdfUrl, {
-    headers: {
-      Cookie: cookies,
-      Referer: `${MMRAD_BASE_URL}/group/hhangaroa`,
-    },
-  });
-
-  const isSuccessful =
-    typeof response.ok === 'boolean'
-      ? response.ok
-      : response.status >= 200 && response.status < 400;
-
-  if (!isSuccessful) {
-    return buildJsonResponse(
-      502,
-      { error: 'Error al obtener el PDF desde MMRAD' },
-      { requestOrigin }
-    );
-  }
-
-  const buffer = await response.arrayBuffer();
-  const base64 = Buffer.from(buffer).toString('base64');
-
-  return {
-    statusCode: 200,
-    headers: {
-      ...buildCorsHeaders(requestOrigin, {
-        allowedHeaders: 'Content-Type, Authorization, Accept',
-        allowedMethods: 'GET,OPTIONS',
-      }),
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': 'inline; filename="mmrad-report.pdf"',
-      'Cache-Control': 'private, max-age=300',
-    },
-    body: base64,
-    isBase64Encoded: true,
-  };
-};
-
-const buildPortalReceiptProxyResponse = async (
-  receiptUrl: string,
-  cookies: string,
-  requestOrigin?: string
-) => {
-  const response = await fetchWithHeaders(receiptUrl, {
-    headers: {
-      Cookie: cookies,
-      Referer: `${MMRAD_BASE_URL}/group/hhangaroa`,
-    },
-  });
-
-  const isSuccessful =
-    typeof response.ok === 'boolean'
-      ? response.ok
-      : response.status >= 200 && response.status < 400;
-
-  if (!isSuccessful) {
-    return buildJsonResponse(
-      502,
-      { error: 'Error al obtener el comprobante portal desde MMRAD' },
-      { requestOrigin }
-    );
-  }
-
-  const html = await decodeResponseHtml(response, 'latin1');
-
-  return {
-    statusCode: 200,
-    headers: {
-      ...buildCorsHeaders(requestOrigin, {
-        allowedHeaders: 'Content-Type, Authorization, Accept',
-        allowedMethods: 'GET,OPTIONS',
-      }),
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'private, max-age=300',
-    },
-    body: html,
-  };
-};
-
-/** Convert ISO date (YYYY-MM-DD) to RIS format (DD/MM/YYYY). */
-const isoToRisDate = (isoDate: string): string => {
-  const [y, m, d] = isoDate.split('-');
-  return `${d}/${m}/${y}`;
-};
-
-/** Validate ISO date format. */
-const isValidIsoDate = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value);
-
-/** Decode common HTML entities in Liferay-generated markup. */
-const decodeHtmlEntities = (text: string): string =>
-  text
-    .replace(/&#039;/g, "'")
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"');
-
-const extractActionUrlFromFragment = (fragment: string): string | null => {
-  const windowOpenMatch = fragment.match(/window\.open\(['"]([^'"]+)['"]/i);
-  if (windowOpenMatch?.[1]) {
-    return normalizeMmradUrl(windowOpenMatch[1]);
-  }
-
-  const hrefMatch = fragment.match(/href=["']([^"']+)["']/i);
-  if (hrefMatch?.[1]) {
-    return normalizeMmradUrl(hrefMatch[1]);
-  }
-
-  return null;
-};
-
-const extractActionUrlByLabel = (rowHtml: string, label: string): string | null => {
-  const decoded = decodeHtmlEntities(rowHtml);
-  const labelIndex = decoded.toLocaleLowerCase('es-CL').indexOf(label.toLocaleLowerCase('es-CL'));
-  if (labelIndex < 0) {
-    return null;
-  }
-
-  const anchorStart = decoded.lastIndexOf('<a', labelIndex);
-  const anchorEnd = decoded.indexOf('</a>', labelIndex);
-  if (anchorStart >= 0 && anchorEnd > labelIndex) {
-    const anchorUrl = extractActionUrlFromFragment(decoded.slice(anchorStart, anchorEnd + 4));
-    if (anchorUrl) {
-      return anchorUrl;
-    }
-  }
-
-  const nearbyFragment = decoded.slice(Math.max(0, labelIndex - 700), labelIndex + 700);
-  return extractActionUrlFromFragment(nearbyFragment);
-};
-
-const searchExamRows = async (
-  rut: string,
-  cookies: string,
-  searchActionUrl: string,
-  dateFrom?: string,
-  dateTo?: string
-): Promise<RisExamRow<MMRADExam>[]> => {
-  // Omitted bounds let RIS apply its own narrower window. Always send both calendar days.
-  const params = {
-    idpaciente: rut,
-    fechaexamendesde: isoToRisDate(dateFrom && isValidIsoDate(dateFrom) ? dateFrom : '1900-01-01'),
-    fechaexamenhasta: isoToRisDate(
-      dateTo && isValidIsoDate(dateTo) ? dateTo : getClinicalCalendarDateISO()
-    ),
-  };
-
-  const response = await fetchWithHeaders(searchActionUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Cookie: cookies,
-      Referer: `${MMRAD_BASE_URL}/group/hhangaroa`,
-    },
-    body: new URLSearchParams(params).toString(),
-  });
-
-  if (response.status < 200 || response.status >= 300) {
-    throw new Error('Error al consultar exámenes desde MMRAD.');
-  }
-
-  const html = await response.text();
-  // A logged-out page lists no rows; reading it as «sin exámenes» would hide them (SAVE-01).
-  if (!isLoggedInRisPage(html)) throw new Error('La sesión MMRAD no está activa.');
-  return parseExamRowsFromHTML(html);
-};
-
-const examKey = (exam: MMRADExam): string =>
-  JSON.stringify([exam.fecha_examen, exam.nombre_examen, exam.dicom_url, exam.pdf_url]);
-
-const fetchReportSections = async (
-  reportUrl: string,
-  cookies: string
-): Promise<ReturnType<typeof parseMMRADReportSections>> => {
-  const response = await fetchWithHeaders(reportUrl, {
-    headers: {
-      Cookie: cookies,
-      Referer: `${MMRAD_BASE_URL}/group/hhangaroa`,
-    },
-  });
-
-  const isSuccessful =
-    typeof response.ok === 'boolean'
-      ? response.ok
-      : response.status >= 200 && response.status < 400;
-
-  if (!isSuccessful) {
-    return null;
-  }
-
-  const html = await decodeResponseHtml(response, 'latin1');
-  return parseMMRADReportSections(html);
-};
-
-const hydrateStructuredCtReports = async (
-  exams: MMRADExam[],
-  cookies: string
-): Promise<MMRADExam[]> => {
-  const hydrated = await Promise.all(
-    exams.map(async exam => {
-      const modality = (exam.mod || '').trim().toUpperCase();
-      if (modality !== 'CT' || !exam.informe_html_url) {
-        return exam;
-      }
-
-      try {
-        const report = await fetchReportSections(exam.informe_html_url, cookies);
-        return { ...exam, report };
-      } catch {
-        return exam;
-      }
-    })
-  );
-
-  return hydrated;
-};
-
-const parseExamRowsFromHTML = (html: string): RisExamRow<MMRADExam>[] => {
-  // Decode HTML entities first so regex can match quotes properly
-  const decoded = decodeHtmlEntities(html);
-  const exams: RisExamRow<MMRADExam>[] = [];
-  const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  let rowMatch;
-
-  while ((rowMatch = rowRegex.exec(decoded)) !== null) {
-    const rowHtml = rowMatch[1];
-    if (!rowHtml) continue;
-
-    const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-    const tds: string[] = [];
-    let tdMatch;
-    while ((tdMatch = tdRegex.exec(rowHtml)) !== null) {
-      tds.push(
-        tdMatch[1]
-          .replace(/<[^>]+>/g, '')
-          .replace(/\s+/g, ' ')
-          .trim()
-      );
-    }
-
-    // Current RIS rows have an icon-only action cell; its visible label is not a row marker.
-    if (tds.length < 14 || !tds[8] || !tds[10]) continue;
-
-    // PDF download link (direct download)
-    const pdfMatch = rowHtml.match(/href="([^"]*informePDF[^"]*)"/i);
-    let pdfUrl: string | null = pdfMatch?.[1] ?? null;
-    pdfUrl = normalizeMmradUrl(pdfUrl);
-
-    // DICOM HTML5 viewer link — uses UtilServlet?a=3 (image viewer)
-    // Pattern: window.open('/ingrad-ris-informehtml/UtilServlet?a=3&u=...&idexamen=...&idprestacion=...')
-    let dicomUrl: string | null = null;
-    const dicomMatch = rowHtml.match(
-      /window\.open\('(\/ingrad-ris-informehtml\/UtilServlet\?a=3[^']+)'/
-    );
-    if (dicomMatch?.[1]) {
-      dicomUrl = `${MMRAD_BASE_URL}${dicomMatch[1]}`;
-    }
-    // «Visualizador Universitas» replaced the legacy viewer (2026-11). Prefer its RIS page when
-    // the row offers it; the DICOM function recognises both kinds of link.
-    const universitasMatch = rowHtml.match(
-      /window\.open\('(https:\/\/ris\.mmrad\.cl\/group\/[^']*abrirestudio[^']*)'/
-    );
-    const universitasUrl = normalizeMmradUrl(universitasMatch?.[1]?.replace(/&amp;/g, '&'));
-    if (universitasUrl) dicomUrl = universitasUrl;
-
-    let informeHtmlUrl: string | null = null;
-    const reportUrlPatterns = [
-      /href="([^"]*(?:informehtml|UtilServlet\?a=1)[^"]*)"/i,
-      /window\.open\('([^']*(?:informehtml|UtilServlet\?a=1)[^']*)'/i,
-    ];
-
-    for (const pattern of reportUrlPatterns) {
-      const match = rowHtml.match(pattern);
-      if (match?.[1]) {
-        informeHtmlUrl = normalizeMmradUrl(match[1]);
-        break;
-      }
-    }
-
-    if (!informeHtmlUrl) {
-      const javascriptMatch = rowHtml.match(
-        /javascript:window\.open\('([^']*(?:informehtml|UtilServlet\?a=1)[^']*)'\);?/i
-      );
-      if (javascriptMatch?.[1]) {
-        informeHtmlUrl = normalizeMmradUrl(javascriptMatch[1]);
-      }
-    }
-
-    const portalWebReceiptUrl = extractActionUrlByLabel(rowHtml, 'Comprobante Portal Web paciente');
-
-    const exam: MMRADExam = {
-      nombre_examen: tds[10] || '',
-      fecha_examen: tds[7] || '',
-      fecha_asignacion: tds[6] || '',
-      mod: tds[11] || '',
-      estado: tds[13] || '',
-      pdf_url: pdfUrl,
-      dicom_url: dicomUrl,
-      informe_html_url: informeHtmlUrl,
-      portal_web_receipt_url: portalWebReceiptUrl,
-      report: null,
-    };
-    exams.push({ exam, patientId: tds[8] || '', patientName: tds[9] || '' });
-  }
-
-  return exams;
-};
 
 export const createMMRADSearchHandler = (
   dependencies: MMRADSearchDependencies = {

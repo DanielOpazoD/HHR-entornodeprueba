@@ -26,6 +26,7 @@ const readProjectFile = (relativePath: string): string => {
 };
 
 const accessFunctionsSource = readProjectFile('functions/lib/prescriptionAccessFunctions.js');
+const pinAuthSource = readProjectFile('functions/lib/prescriptionPinAuth.js');
 
 describe('Prescription constants TS↔JS drift guard', () => {
   it('lists the same prescription types on both sides', () => {
@@ -46,8 +47,8 @@ describe('Prescription constants TS↔JS drift guard', () => {
   });
 
   it('keeps the same PIN length bounds (4–12) on the Cloud Function', () => {
-    expect(accessFunctionsSource).toMatch(/MIN_PIN_LENGTH\s*=\s*4\b/);
-    expect(accessFunctionsSource).toMatch(/MAX_PIN_LENGTH\s*=\s*12\b/);
+    expect(pinAuthSource).toMatch(/MIN_PIN_LENGTH\s*=\s*4\b/);
+    expect(pinAuthSource).toMatch(/MAX_PIN_LENGTH\s*=\s*12\b/);
   });
 
   it('caps each base64 image blob at 4 MB on the Cloud Function', () => {
@@ -55,7 +56,7 @@ describe('Prescription constants TS↔JS drift guard', () => {
   });
 
   it('uses the same brute-force lockout policy (5 attempts → 15 min)', () => {
-    expect(accessFunctionsSource).toMatch(/MAX_PIN_FAILED_ATTEMPTS\s*=\s*5\b/);
-    expect(accessFunctionsSource).toMatch(/PIN_LOCKOUT_MINUTES\s*=\s*15\b/);
+    expect(pinAuthSource).toMatch(/MAX_PIN_FAILED_ATTEMPTS\s*=\s*5\b/);
+    expect(pinAuthSource).toMatch(/PIN_LOCKOUT_MINUTES\s*=\s*15\b/);
   });
 });
