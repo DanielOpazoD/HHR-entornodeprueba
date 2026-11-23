@@ -52,22 +52,7 @@
       allow read: if isAdmin() || isCurrentUser(userId);
       allow write: if isAdmin() || isCurrentUser(userId);
     }
-    
-    match /whatsapp/{docId} {
-      allow read: if canReadClinicalData();
-      allow write: if isAdmin();
-    }
-    
-    match /whatsappLogs/{logId} {
-      allow read: if canReadAppendOnlyOperationalLog();
-      allow create: if canCreateAppendOnlyOperationalLogEntry();
-      allow update, delete: if false;
-    }
-    
-    match /whatsappMessages/{messageId} {
-      allow read, write: if isAdmin();
-    }
-    
+
     match /shifts/{path=**} {
       allow read: if canReadClinicalData();
       allow write: if isAdmin();
