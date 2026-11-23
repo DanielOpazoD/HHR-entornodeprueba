@@ -2,7 +2,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildPatientRowModalRenderModel,
+  resolvePatientRowDemographicsBinding,
   resolvePatientRowModalMountState,
+  resolvePatientRowModalVisibilityState,
 } from '@/features/census/controllers/patientRowModalRenderController';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
@@ -103,5 +105,75 @@ describe('patientRowModalRenderController', () => {
       shouldRenderHistory: false,
     });
     expect(result.shouldRenderAnyModal).toBe(false);
+  });
+
+  it('targets main vs crib demographics bindings according to row context', () => {
+    const onSaveDemographics = vi.fn();
+    const onSaveCribDemographics = vi.fn();
+    const patient = DataFactory.createMockPatient('R1', { bedMode: 'Cama' });
+
+    const parent = resolvePatientRowDemographicsBinding({
+      bedId: 'R1',
+      isSubRow: false,
+      data: patient,
+      onSaveDemographics,
+      onSaveCribDemographics,
+    });
+    expect(parent.targetBedId).toBe('R1');
+    expect(parent.isRnIdentityContext).toBe(false);
+    expect(parent.onSave).toBe(onSaveDemographics);
+
+    const crib = resolvePatientRowDemographicsBinding({
+      bedId: 'R1',
+      isSubRow: true,
+      data: patient,
+      onSaveDemographics,
+      onSaveCribDemographics,
+    });
+    expect(crib.targetBedId).toBe('R1-cuna');
+    expect(crib.isRnIdentityContext).toBe(true);
+    expect(crib.onSave).toBe(onSaveCribDemographics);
+  });
+
+  it('gates each clinical modal on both request flag and authorization capability', () => {
+    expect(
+      resolvePatientRowModalVisibilityState({
+        showDemographics: true,
+        showClinicalDocuments: true,
+        canOpenClinicalDocuments: true,
+        showExamRequest: true,
+        canOpenExamRequest: true,
+        showImagingRequest: true,
+        canOpenImagingRequest: true,
+        showHistory: true,
+        canOpenHistory: true,
+      })
+    ).toEqual({
+      shouldRenderDemographics: true,
+      shouldRenderClinicalDocuments: true,
+      shouldRenderExamRequest: true,
+      shouldRenderImagingRequest: true,
+      shouldRenderHistory: true,
+    });
+
+    expect(
+      resolvePatientRowModalVisibilityState({
+        showDemographics: false,
+        showClinicalDocuments: false,
+        canOpenClinicalDocuments: true,
+        showExamRequest: false,
+        canOpenExamRequest: true,
+        showImagingRequest: false,
+        canOpenImagingRequest: true,
+        showHistory: false,
+        canOpenHistory: true,
+      })
+    ).toEqual({
+      shouldRenderDemographics: false,
+      shouldRenderClinicalDocuments: false,
+      shouldRenderExamRequest: false,
+      shouldRenderImagingRequest: false,
+      shouldRenderHistory: false,
+    });
   });
 });

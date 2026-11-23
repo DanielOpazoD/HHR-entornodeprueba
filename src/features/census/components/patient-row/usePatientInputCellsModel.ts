@@ -8,10 +8,10 @@ import type {
   EventTextHandler,
 } from '@/features/census/components/patient-row/inputCellTypes';
 import {
+  dispatchTextChangeValue,
   resolvePatientInputCellsLock,
   resolvePatientRutValidationError,
 } from '@/features/census/controllers/patientInputCellsController';
-import { dispatchTextChangeValue } from '@/features/census/controllers/textChangeAdapterController';
 
 interface UsePatientInputCellsModelParams {
   data: PatientData;

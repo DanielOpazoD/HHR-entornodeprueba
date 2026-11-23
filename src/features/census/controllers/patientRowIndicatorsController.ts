@@ -1,5 +1,36 @@
+import { classifyPatientMovementForRecord } from '@/domain/clinical-episode/clinicalEpisode';
 import type { PatientActionMenuIndicators } from '@/features/census/components/patient-row/patientRowActionContracts';
-import { resolveIsNewAdmissionForRecord } from '@/features/census/controllers/patientRowNewAdmissionIndicatorController';
+import { normalizeDateOnly } from '@/utils/clinicalDayUtils';
+
+interface ResolveIsNewAdmissionForRecordParams {
+  recordDate: string;
+  firstSeenDate?: string;
+  admissionDate?: string;
+  admissionTime?: string;
+}
+
+export const resolveIsNewAdmissionForRecord = ({
+  recordDate,
+  firstSeenDate,
+  admissionDate,
+  admissionTime,
+}: ResolveIsNewAdmissionForRecordParams): boolean => {
+  const isNewAdmission = classifyPatientMovementForRecord(recordDate, {
+    firstSeenDate,
+    admissionDate,
+    admissionTime,
+  }).isNewAdmission;
+
+  if (isNewAdmission) {
+    return true;
+  }
+
+  // A madrugada admission belongs to the previous clinical day, where it already shows as new;
+  // nurses also expect it marked on the calendar day it happened.
+  const normalizedRecordDate = normalizeDateOnly(recordDate);
+  const normalizedAdmissionDate = normalizeDateOnly(admissionDate);
+  return Boolean(normalizedRecordDate) && normalizedAdmissionDate === normalizedRecordDate;
+};
 
 export interface PatientRowResolvedIndicators {
   hasClinicalDocument: boolean;

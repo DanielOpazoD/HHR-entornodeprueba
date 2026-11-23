@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildOccupiedPatientRowIndicators,
   EMPTY_PATIENT_ROW_INDICATORS,
+  resolveIsNewAdmissionForRecord,
   resolvePatientRowIndicators,
 } from '@/features/census/controllers/patientRowIndicatorsController';
 
@@ -94,5 +95,56 @@ describe('patientRowIndicatorsController', () => {
       hasClinicalDocument: false,
       isNewAdmission: true,
     });
+  });
+
+  it('applies clinical day boundaries when evaluating new admissions directly', () => {
+    const recordDate = '2026-03-05';
+    expect(
+      resolveIsNewAdmissionForRecord({
+        recordDate,
+        admissionDate: '2026-03-05',
+        admissionTime: '21:10',
+      })
+    ).toBe(true);
+    expect(
+      resolveIsNewAdmissionForRecord({
+        recordDate,
+        admissionDate: '2026-03-06',
+        admissionTime: '07:15',
+      })
+    ).toBe(true);
+    expect(resolveIsNewAdmissionForRecord({ recordDate, admissionDate: '2026-03-06' })).toBe(false);
+    expect(
+      resolveIsNewAdmissionForRecord({ recordDate: '2026-03-06', admissionDate: '2026-03-06' })
+    ).toBe(true);
+    expect(
+      resolveIsNewAdmissionForRecord({
+        recordDate,
+        admissionDate: '2026-03-06',
+        admissionTime: '08:00',
+      })
+    ).toBe(false);
+    expect(
+      resolveIsNewAdmissionForRecord({
+        recordDate,
+        admissionDate: '2026-03-04',
+        admissionTime: '23:00',
+      })
+    ).toBe(false);
+    expect(
+      resolveIsNewAdmissionForRecord({
+        recordDate,
+        admissionDate: '2026-03-07',
+        admissionTime: '01:00',
+      })
+    ).toBe(false);
+    expect(
+      resolveIsNewAdmissionForRecord({
+        recordDate,
+        firstSeenDate: '2026-03-04',
+        admissionDate: '2026-03-05',
+        admissionTime: '10:15',
+      })
+    ).toBe(true);
   });
 });

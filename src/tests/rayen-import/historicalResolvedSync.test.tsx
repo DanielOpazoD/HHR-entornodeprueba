@@ -9,7 +9,7 @@ import {
   hasSkippedPreviousDayCorrections,
 } from '@/features/rayen-import/hooks/confirmRayenImport';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
-import { resolveIsNewAdmissionForRecord } from '@/features/census/controllers/patientRowNewAdmissionIndicatorController';
+import { resolveIsNewAdmissionForRecord } from '@/features/census/controllers/patientRowIndicatorsController';
 import type { ApplyResult } from '@/features/rayen-import/domain/applyCensusImportDiff';
 import type { RayenSyncRun } from '@/features/rayen-import/domain/rayenSyncHistory';
 import { RayenImportPreviewModal } from '@/features/rayen-import/components/RayenImportPreviewModal';
