@@ -287,6 +287,10 @@ if (existsSync(vendorLockPath)) {
 }
 
 const allowedHosts = new Set([
+  // Public 72-hour weather for fixed coordinates in Rapa Nui.
+  'https://api.open-meteo.com/*',
+  // Public Chilean calendar month, fetched only from the daily-history dialog.
+  'https://www.efemerides.cl/*',
   'https://fichamedico.rayensalud.cl/*',
   // User-requested official DAU: native authenticated GETs, without copying credentials.
   'https://urgencia.saludenred.cl/*',

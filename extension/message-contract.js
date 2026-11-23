@@ -46,6 +46,11 @@
     HOSPITALIZED_PRESCRIPTION_OPTIONS_REQUEST: 'RAYEN_HOSPITALIZED_PRESCRIPTION_OPTIONS_REQUEST',
     HOSPITALIZED_PRESCRIPTION_PRINT_REQUEST:
       'RAYEN_HOSPITALIZED_PRESCRIPTION_PRINT_REQUEST',
+    NURSING_HANDOFF_TABLE: 'RAYEN_NURSING_HANDOFF_TABLE',
+    NURSING_HANDOFF_OPEN: 'RAYEN_NURSING_HANDOFF_OPEN',
+    RAPA_NUI_WEATHER: 'RAYEN_RAPA_NUI_WEATHER',
+    DAILY_BIRTHS: 'RAYEN_DAILY_BIRTHS',
+    NURSING_HANDOFF_EDITOR: 'RAYEN_NURSING_HANDOFF_EDITOR',
     WORKLIST_PATIENT_EDIT: 'RAYEN_WORKLIST_PATIENT_EDIT',
     WORKLIST_EDITOR_READY: 'RAYEN_WORKLIST_EDITOR_READY',
     WORKLIST_DOCUMENT_PRINT_REQUEST: 'RAYEN_WORKLIST_DOCUMENT_PRINT_REQUEST',
@@ -131,6 +136,9 @@
       encIds: 'array',
       printFormat: 'string?', preview: 'boolean?',
     },
+    [types.NURSING_HANDOFF_TABLE]: { action: 'string' },
+    [types.NURSING_HANDOFF_OPEN]: { encId: 'id', inline: 'boolean?' },
+    [types.NURSING_HANDOFF_EDITOR]: { id: 'string', action: 'string', date: 'string?', shift: 'string?', since: 'string?', version: 'string?', text: 'string?', expiresAt: 'number?' },
     [types.WORKLIST_PATIENT_EDIT]: { encId: 'id' },
     [types.WORKLIST_DOCUMENT_PRINT_REQUEST]: { encId: 'id', documentKind: 'string', expectedPatientId: 'id?' },
     [types.INDICATIONS_PRINT_REQUEST]: { encId: 'id' },
@@ -166,6 +174,20 @@
       phase: 'string',
       recoveryToken: 'string?',
     },
+  });
+  // Mirrors the extension-owned editor, the source list, and the HHR portal relay.
+  // Sender, session and episode checks belong to the worker's handoff handler.
+  const handoffTableActions = Object.freeze({
+    status: {}, connect: {},
+    'open-rows': { episodes: 'array' },
+    'prepare-save': { ids: 'array' },
+  });
+  const handoffEditorActions = Object.freeze({
+    context: {}, close: {}, connect: {}, disconnect: {},
+    'hosted-result': { expiresAt: 'number?' },
+    read: { date: 'string?', shift: 'string?', since: 'string?' },
+    draft: { date: 'string', shift: 'string', version: 'string', text: 'string?' },
+    save: { date: 'string', shift: 'string', version: 'string', text: 'string', ticket: 'string?' },
   });
   const knownTypes = new Set(Object.values(types));
   const cleanMessage = value => String(value || '').replace(/\s+/g, ' ').trim();
@@ -225,7 +247,18 @@
         response: responses.error('El tipo de mensaje no está registrado.', 'UNKNOWN_MESSAGE'),
       };
     }
-    const rules = fieldRules[type] || {};
+    let rules = fieldRules[type] || {};
+    const handoffActions = type === types.NURSING_HANDOFF_TABLE ? handoffTableActions :
+      type === types.NURSING_HANDOFF_EDITOR ? handoffEditorActions : null;
+    if (handoffActions) {
+      if (typeof message.action !== 'string' || !Object.hasOwn(handoffActions, message.action)) {
+        return {
+          ok: false, known: true, type,
+          response: responses.error('La acción de entrega de turno no es válida.', 'INVALID_MESSAGE'),
+        };
+      }
+      rules = { ...rules, ...handoffActions[message.action] };
+    }
     for (const [field, descriptor] of Object.entries(rules)) {
       if (!fieldMatches(message[field], descriptor)) {
         return {
@@ -247,17 +280,11 @@
       .then(response =>
         sendResponse(response == null ? responses.error(fallbackMessage) : response)
       )
-      .catch(error => {
+      .catch(() => {
         if (typeof logError === 'function') {
-          logError('[HHR] Falló una operación asíncrona de la extensión:', error);
+          logError('[HHR] Falló una operación asíncrona de la extensión.', fallbackMessage);
         }
-        sendResponse(
-          responses.error(
-            cleanMessage(fallbackMessage) +
-              ' ' +
-              cleanMessage(error && error.message ? error.message : error)
-          )
-        );
+        sendResponse(responses.error(fallbackMessage, 'OPERATION_FAILED'));
       });
     return true;
   };

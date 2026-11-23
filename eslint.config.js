@@ -82,6 +82,7 @@ export default tseslint.config(
         ...globals.es2021,
         ...globals.serviceworker,
         ...globals.webextensions,
+        HhrRayenMessageContract: 'readonly',
         module: 'readonly',
       },
       sourceType: 'script',

@@ -5,7 +5,6 @@
   const nurse = /^https:\/\/fichamedico\.rayensalud\.cl\/dashboard\/encounter-list-nurse\/?(?:[?#].*)?$/;
   const key = id => 'hhr-worklist-editor-' + id;
   const numeric = value => /^[1-9]\d*$/.test(String(value || ''));
-  const running = new Set();
 
   // Executed only in the targeted GC document. Its legacy React 15 components own the
   // beds grouped by status, the admission orders and the menu generated for each row.
@@ -60,7 +59,11 @@
     const cells = view.typeViewResult(type, bed);
     const allowed = cells.some(cell => cell.bed === bed && cell.action?.flat().some(option => option.value === 'requestModified' && !option.disabled));
     if (!allowed) return { error: 'La opción «Modificar paciente» no está disponible para este episodio.' };
-    view.props.onAction({ option: 'requestModified', bed });
+    try {
+      view.props.onAction({ option: 'requestModified', bed });
+    } catch {
+      return { error: 'Gestión de Camas no pudo abrir «Modificación del paciente».' };
+    }
     for (let attempt = 0; attempt < 20; attempt++) {
       const headers = document.querySelectorAll('.pt-dialog-header, dialog[open], [role="dialog"] [role="heading"]');
       if ([...headers].some(el => el.getClientRects().length && el.textContent.includes('Modificación del paciente'))) return { opened: true };
@@ -96,6 +99,17 @@
   function create({ chrome, getContext, getInfo, checkAccess }) {
     const store = chrome.storage.session;
     let selecting = Promise.resolve();
+    const operations = new Map();
+    // Serialize execution and reservation so cleanup from an older request cannot remove a newer one.
+    function inTab(tabId, action) {
+      const operation = (operations.get(tabId) || Promise.resolve()).then(action);
+      const settled = operation.catch(() => {});
+      operations.set(tabId, settled);
+      void settled.then(() => {
+        if (operations.get(tabId) === settled) operations.delete(tabId);
+      });
+      return operation;
+    }
     async function start({ encId }, sender) {
       if (sender?.frameId !== 0 || !Number.isInteger(sender.tab?.id) || !nurse.test(sender.url) || !nurse.test(sender.tab.url) || !numeric(encId)) {
         return { error: 'Selecciona una fila de Gestión de cuidados.' };
@@ -116,7 +130,7 @@
     async function openDestination(request, windowId) {
       const candidates = await chrome.tabs.query({ url: origin + '/*' });
       const states = await Promise.all(candidates.map(async tab => {
-        if (tab.discarded) return null;
+        if (tab.discarded) return { tab, score: 1 };
         try {
           const [probe] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: 'MAIN',
             func: inspectSession, args: [request.professional, request.facility] });
@@ -129,67 +143,75 @@
         Number(b.tab.windowId === windowId) - Number(a.tab.windowId === windowId));
       const existing = ranked[0]?.tab;
       const dest = existing || await chrome.tabs.create({ url: 'about:blank', windowId });
-      const storageKey = key(dest.id);
-      const prior = (await store.get(storageKey))[storageKey];
-      if (prior?.expires > Date.now() || running.has(dest.id)) return { error: 'Hay una apertura de paciente en curso en Gestión de Camas.' };
-      try {
-        await store.set({ [storageKey]: { ...request, expires: Date.now() + 5 * 60_000 } });
-        await chrome.tabs.update(dest.id, existing ? { active: true } : { active: true, url: origin + '/#/bed' });
-        if (dest.windowId !== windowId) await chrome.windows.update(dest.windowId, { focused: true });
-        if (existing) {
-          // The tab may predate installation. Install the idempotent listener without reloading Camas.
-          await chrome.tabs.sendMessage(dest.id, { type: 'HHR_WAKE_BED_EDITOR' }).catch(() =>
-            chrome.scripting.executeScript({ target: { tabId: dest.id }, files: ['content-worklist-editor-destination.js'] }));
+      return inTab(dest.id, async () => {
+        const storageKey = key(dest.id);
+        try {
+          await store.set({ [storageKey]: { ...request, expires: Date.now() + 5 * 60_000 } });
+          await chrome.tabs.update(dest.id, existing ? { active: true } : { active: true, url: origin + '/#/bed' });
+          if (dest.windowId !== windowId) await chrome.windows.update(dest.windowId, { focused: true });
+          if (existing && !existing.discarded) {
+            try {
+              // Refresh listeners in tabs that predate the current extension version.
+              await chrome.scripting.executeScript({ target: { tabId: dest.id }, files: ['content-worklist-editor-destination.js'] });
+            } catch (error) {
+              const tab = await chrome.tabs.get(dest.id);
+              if (tab.status === 'complete' || !(tab.pendingUrl || tab.url)?.startsWith(origin + '/')) throw error;
+              // The manifest listener handles the new document if navigation is in progress.
+            }
+          }
+          return { ok: true };
+        } catch (error) {
+          await store.remove(storageKey);
+          throw error;
         }
-        return { ok: true };
-      } catch (error) {
-        await store.remove(storageKey);
-        throw error;
-      }
+      });
     }
     async function resume(_, sender) {
       if (sender?.frameId !== 0 || !sender.documentId || !Number.isInteger(sender.tab?.id) || !sender.url?.startsWith(origin + '/')) return {};
-      const tabId = sender.tab.id;
-      const storageKey = key(tabId);
-      const pending = (await store.get(storageKey))[storageKey];
-      if (!pending) return {};
-      if (Date.now() >= pending.expires) {
-        await store.remove(storageKey);
-        return { error: 'Vuelve a pulsar el lápiz desde Gestión de cuidados.' };
-      }
-      const page = new URL(sender.tab.url);
-      if (page.origin !== origin) return {};
-      if (page.hash.startsWith('#/authenticate/login')) {
-        if (pending.searchStarted) { delete pending.searchStarted; await store.set({ [storageKey]: pending }); }
-        return { login: true };
-      }
-      if (!/^#\/bed\/?(?:\?|$)/.test(page.hash)) {
-        const [modal] = await chrome.scripting.executeScript({ target: { tabId, documentIds: [sender.documentId] },
-          func: () => Boolean(document.querySelector('dialog[open],.pt-dialog:not([hidden]),[role="dialog"][aria-modal="true"]')) });
-        if (!modal?.result) return { navigate: true };
-        await store.remove(storageKey);
-        return { error: 'Cierra el cuadro abierto en Gestión de Camas y vuelve a pulsar el lápiz.' };
-      }
-      if (running.has(tabId)) return { wait: true };
-      running.add(tabId);
-      try {
+      const { id: tabId, url } = sender.tab;
+      if (!url?.startsWith(origin + '/')) return {};
+      return inTab(tabId, async () => {
+        const storageKey = key(tabId);
+        const pending = (await store.get(storageKey))[storageKey];
+        if (!pending) return {};
+        if (Date.now() >= pending.expires) {
+          await store.remove(storageKey);
+          return { error: 'Vuelve a pulsar el lápiz desde Gestión de cuidados.' };
+        }
+        const page = new URL(url);
+        if (page.origin !== origin) return {};
+        if (/^#\/authenticate(?:\/|$)/.test(page.hash)) {
+          if (pending.searchStarted) { delete pending.searchStarted; await store.set({ [storageKey]: pending }); }
+          return { login: true };
+        }
+        const target = { tabId, documentIds: [sender.documentId] };
         if (!pending.searchStarted) {
           pending.searchStarted = Date.now();
           await store.set({ [storageKey]: pending });
         }
-        const [execution] = await chrome.scripting.executeScript({ target: { tabId, documentIds: [sender.documentId] },
-          world: 'MAIN', func: openNativeEditor, args: [pending] });
-        const result = execution?.result;
-        if (!result) throw new Error('No se pudo abrir el editor nativo.');
+        let result = { wait: true };
+        try {
+          if (/^#\/bed\/?(?:\?|$)/.test(page.hash)) {
+            const [execution] = await chrome.scripting.executeScript({ target, world: 'MAIN', func: openNativeEditor, args: [pending] });
+            if (execution?.result) result = execution.result;
+          } else {
+            const [modal] = await chrome.scripting.executeScript({ target,
+              func: () => Boolean(document.querySelector('dialog[open],.pt-dialog:not([hidden]),[role="dialog"][aria-modal="true"]')) });
+            if (modal?.result === false) return { navigate: true };
+            if (modal?.result) result = { error: 'Cierra el cuadro abierto en Gestión de Camas y vuelve a pulsar el lápiz.' };
+          }
+        } catch {
+          // A new document can replace the sender while login is being completed.
+          // Retry with the current listener and the same verified request.
+        }
         if (result.wait && Date.now() - pending.searchStarted > 20000) {
-          await store.remove(storageKey);
-          return { error: 'Gestión de Camas no encontró el episodio entre sus hospitalizaciones editables. Actualiza la lista antes de volver a intentarlo.' };
+          result = { error: 'Gestión de Camas no encontró el episodio entre sus hospitalizaciones editables. Actualiza la lista antes de volver a intentarlo.' };
         }
         if (!result.wait) await store.remove(storageKey);
         return result;
-      } finally { running.delete(tabId); }
+      });
     }
-    chrome.tabs.onRemoved.addListener(id => { void store.remove(key(id)); });
+    chrome.tabs.onRemoved.addListener(id => { void inTab(id, () => store.remove(key(id))); });
     return { start, resume };
   }
   self.HhrWorklistPatientEditor = { create, authorizeChart, openNativeEditor };

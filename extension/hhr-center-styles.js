@@ -255,24 +255,6 @@
       }
       #hhr-prescription-print-modal .hhr-home-card-icon svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
       #hhr-prescription-print-modal .hhr-home-card-desc { color: #6b7876; font-size: 11px; line-height: 1.4; }
-      #hhr-prescription-print-modal .hhr-fav-list { display: grid; gap: 6px; margin-bottom: 4px; }
-      #hhr-prescription-print-modal .hhr-fav-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 6px; align-items: center; }
-      #hhr-prescription-print-modal .hhr-fav-open {
-        display: grid; gap: 1px; min-width: 0; padding: 8px 11px; border: 1px solid #e0e7e5;
-        border-radius: 9px; background: #fff; color: var(--hhr-ink-900); cursor: pointer; text-align: left; font: inherit;
-        transition: border-color .15s ease, background-color .15s ease;
-      }
-      #hhr-prescription-print-modal .hhr-fav-open:hover { border-color: #9fd0ca; background: #f7fbfa; }
-      #hhr-prescription-print-modal .hhr-fav-open strong { font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      #hhr-prescription-print-modal .hhr-fav-open span { color: #74807e; font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      #hhr-prescription-print-modal .hhr-fav-remove {
-        width: 30px; height: 30px; border: 1px solid #e0e7e5; border-radius: 8px; background: #fff;
-        color: #8a3d38; cursor: pointer; font-size: 16px; line-height: 1;
-      }
-      #hhr-prescription-print-modal .hhr-fav-remove:hover { border-color: #e0b3ae; background: #fdf3f2; }
-      #hhr-prescription-print-modal .hhr-fav-form { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.4fr) auto; gap: 6px; }
-      #hhr-prescription-print-modal .hhr-fav-form .hhr-rx-search { height: 34px; }
-      #hhr-prescription-print-modal .hhr-fav-form .hhr-rx-action { min-height: 34px; padding: 5px 13px; }
       #hhr-prescription-print-modal .hhr-route-change-state { margin-left: 12px; padding-right: 26px; color: #8a6714; font-size: 11px; font-weight: 600; }
       #hhr-prescription-print-modal .hhr-route-change-state.is-synced { color: #11766d; }
       #hhr-prescription-print-modal .hhr-route-change-state.is-error,

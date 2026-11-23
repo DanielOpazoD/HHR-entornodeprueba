@@ -59,13 +59,13 @@
               <button class="hhr-center-action hhr-imaging-tool" type="button" data-tool="text" aria-pressed="false">T Texto</button>
               <button class="hhr-center-action hhr-imaging-undo" type="button">Deshacer</button>
             </div>
-            <button class="hhr-center-action hhr-center-action-primary hhr-imaging-print" type="button" disabled>Vista previa</button>
+            <button class="hhr-center-action hhr-center-action-primary hhr-imaging-print" type="button" disabled>Imprimir</button>
           </div>
           <p class="hhr-imaging-hint" id="hhr-imaging-keyboard-hint">Los datos del paciente se completan solos. Haz clic sobre el formulario o usa las flechas para mover el cursor y Enter para marcar; lo que agregues se imprime en el PDF oficial.</p>
           <div class="hhr-imaging-stage">
             <div class="hhr-imaging-canvas" role="group" tabindex="0"
               aria-describedby="hhr-imaging-keyboard-hint"
-              aria-label="Vista previa del formulario. Usa las flechas para mover el cursor y Enter para marcar.">
+              aria-label="Formulario de imágenes. Usa las flechas para mover el cursor y Enter para marcar.">
               <img class="hhr-imaging-image" alt="" draggable="false">
               <div class="hhr-imaging-overlays"></div>
             </div>
@@ -290,14 +290,6 @@
       });
 
       printButton.addEventListener('click', async () => {
-        if (globalThis.HhrDocumentPreviewRuntime) {
-          const message = { type: runtimeMessages.IMAGING_FORM_PRINT_REQUEST,
-            encId, doc: selectedDoc, physician: physicianInput.value.trim(),
-            marks: structuredClone(marksByDoc[selectedDoc]), preview: true };
-          globalThis.HhrDocumentPreviewRuntime.open({ root, title: documents[selectedDoc].title,
-            load: () => sendMessage(message), printDirect: () => sendMessage({ ...message, preview: false }), sendMessage, runtimeMessages });
-          return;
-        }
         printButton.disabled = true;
         printButton.textContent = 'Generando PDF…';
         setFeedback('Rellenando la plantilla oficial…');
@@ -308,11 +300,14 @@
           physician: physicianInput.value.trim(),
           marks: marksByDoc[selectedDoc],
         });
-        if (!root.isConnected) return;
+        if (!printButton.isConnected) return;
         printButton.disabled = false;
         printButton.textContent = 'Imprimir';
         if (!result || result.error) {
-          setFeedback((result && result.error) || 'No se pudo generar el formulario.', true);
+          setFeedback(result?.error || 'No se pudo generar el formulario.', true);
+          globalThis.HhrReadRecovery?.attach({ root, host: feedback, response: result,
+            isCurrent: () => printButton.isConnected && root.dataset.selectedEncounterId === String(encId),
+            retry: loadPatient, sendMessage, runtimeMessages });
           return;
         }
         setFeedback('Se abrió el PDF con el diálogo de impresión. Puedes seguir marcando e imprimir de nuevo.');

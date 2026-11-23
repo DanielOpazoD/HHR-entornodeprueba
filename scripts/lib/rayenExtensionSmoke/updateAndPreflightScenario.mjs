@@ -186,6 +186,7 @@ export const verifyGestionCamasPreflight = async ({
       [HhrGestionCamasSession.SESSION_STORAGE_KEY]: {
         ...record,
         sourceTabId: sourceTab.id,
+        fichaScope: '1:2:3',
         lastVerifiedAt: Date.now(),
       },
     });

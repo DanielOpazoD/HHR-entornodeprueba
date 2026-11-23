@@ -43,6 +43,8 @@ const createCheck = (sendMessage: ReturnType<typeof vi.fn>) => {
     clearUnusableSession: vi.fn(),
     requestLiveSession: vi.fn(),
     verifySession: vi.fn(),
+    readFichaScope: vi.fn(async () => '1342:3:5'),
+    pairWithFicha: vi.fn(async (record: unknown) => ({ record })),
   });
   return { check, recoverMissingReceiver, readSession };
 };

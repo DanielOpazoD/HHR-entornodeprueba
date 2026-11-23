@@ -48,11 +48,13 @@
     #hhr-prescription-print-modal .hhr-rx-subtitle,
     #hhr-prescription-print-modal .hhr-rx-meta { color: #526762; }
     #hhr-prescription-print-modal .hhr-center-action { font-size: 12px; min-height: 34px; }
-    #hhr-prescription-print-modal .hhr-labreq-selection { display: grid; gap: 10px; margin-bottom: 16px; }
-    #hhr-prescription-print-modal .hhr-labreq-search { width: 100%; box-sizing: border-box; min-height: 38px; }
-    #hhr-prescription-print-modal .hhr-labreq-selection-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    #hhr-prescription-print-modal .hhr-labreq-selection { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 7px; }
+    #hhr-prescription-print-modal .hhr-labreq-search { flex: 1 1 180px; min-width: 0; box-sizing: border-box; min-height: 32px; }
+    #hhr-prescription-print-modal .hhr-labreq-selection-tools { display: flex; flex: 1 1 340px; align-items: center; flex-wrap: wrap; gap: 4px; }
     #hhr-prescription-print-modal .hhr-labreq-selection-tools select { flex: 1; min-width: 130px; max-width: 100%; }
     #hhr-prescription-print-modal .hhr-labreq-selected { display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow-y: auto; }
+    #hhr-prescription-print-modal .hhr-labreq-selection > :is(.hhr-labreq-selected,.hhr-labreq-search-summary,.hhr-labreq-group-editor) { flex-basis: 100%; }
+    #hhr-prescription-print-modal .hhr-labreq-selection > div:empty { display: none; }
     #hhr-prescription-print-modal .hhr-labreq-selected button {
       display: flex; align-items: center; gap: 8px; padding: 6px 9px; border: 1px solid #b9d9d1;
       border-radius: 18px; background: #edf7f4; color: #0b6e66; font: 12px var(--hhr-font); cursor: pointer;

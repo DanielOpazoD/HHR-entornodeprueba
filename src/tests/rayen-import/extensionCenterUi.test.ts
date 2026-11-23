@@ -16,10 +16,7 @@ const contentSource = [
 ]
   .map(file => readFileSync(path.resolve('extension', file), 'utf8'))
   .join('\n');
-const medicationActionsSource = readFileSync(
-  path.resolve('extension/hhr-medication-actions-runtime.js'),
-  'utf8'
-);
+const favoriteLinksSource = readFileSync(path.resolve('extension/hhr-favorite-links.js'), 'utf8');
 const stylesSource = readFileSync(path.resolve('extension/hhr-center-styles.js'), 'utf8');
 const labRequestStylesSource = readFileSync(
   path.resolve('extension/hhr-lab-request-styles.js'),
@@ -119,7 +116,7 @@ describe('Centro HHR remaining tools and navigation', () => {
     );
     // La solicitud de exámenes mantiene su hoja propia desde la extracción.
     expect(labRequestStylesSource).toContain(
-      '#hhr-prescription-print-modal .hhr-labreq-content { padding: 18px clamp(32px,3vw,44px) 32px; }'
+      '#hhr-prescription-print-modal .hhr-labreq-content { padding: 10px clamp(12px,2vw,26px) 22px; }'
     );
     expect(contentSource).toContain("selectVisible.textContent = 'Seleccionar todos'");
     expect(contentSource).toMatch(
@@ -136,12 +133,10 @@ describe('Centro HHR remaining tools and navigation', () => {
     expect(contentSource).not.toContain('Quitar visibles');
   });
 
-  it('keeps the route-independent favorites dialog open during route reconciliation', () => {
-    const favoritesDialog = medicationActionsSource.slice(
-      medicationActionsSource.indexOf('const createFavoritesDialog'),
-      medicationActionsSource.indexOf('return Object.freeze')
-    );
-    expect(favoritesDialog).toContain("root.dataset.routeIndependent = 'true'");
+  it('exposes fixed favorite links and preserves route-independent modals during route reconciliation', () => {
+    expect(favoriteLinksSource).toContain("label: 'SysLab'");
+    expect(favoriteLinksSource).toContain("label: 'MMRAD'");
+    expect(favoriteLinksSource).toContain("label: 'Gmail'");
     expect(contentSource).toContain("modal && modal.dataset.routeIndependent !== 'true' &&");
   });
 });

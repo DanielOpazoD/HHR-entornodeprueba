@@ -1433,7 +1433,8 @@
         ].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
         return {
           encounterId: String(encounter.encounterId),
-          name: name || 'Paciente sin nombre',
+          name: ((encounter.firstFamilyName || encounter.secondFamilyName) && name) ||
+            encounter.patientName || name || 'Paciente sin nombre',
           run: String(encounter.run || '').trim(),
           service: String(encounter.service || '').trim(),
           room: String(encounter.room || '').trim(),

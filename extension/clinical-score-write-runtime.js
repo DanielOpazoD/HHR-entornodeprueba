@@ -90,6 +90,7 @@
       hasNewClinicalTimestamp,
       prescriptionPrint,
       wait,
+      onCudyrWriteAttempt,
     } = dependencies || {};
 
     const requiredFunctions = [
@@ -170,6 +171,7 @@
       let uncertainPostError = '';
       const begun = await writeGuard.beginWrite();
       if (begun.error) return begun;
+      if (typeof onCudyrWriteAttempt === 'function') onCudyrWriteAttempt();
       try {
         const response = await fetchWithTimeout(`${info.apiOrigin}/api/categorizationForm/save`, {
           method: 'POST',

@@ -93,6 +93,14 @@
     Number(record.lastVerifiedAt) > now - VERIFICATION_FRESHNESS_MS
   );
 
+  // The Ficha access a Camas session is paired with: facility, professional and role verified by
+  // Ficha's own session, as every compatible MAIN reader returns them in RAYEN_FM_FETCHINFO_RESULT.
+  const fichaScopeOf = info => {
+    const parts = [info?.facId, info?.practitionerId, info?.practitionerRoleId];
+    return info?.identityVerified === true && parts.every(value => /^\d+$/.test(String(value || '')))
+      ? parts.join(':') : '';
+  };
+
   const publicStatus = (record, now = Date.now()) => {
     if (!record) {
       return {
@@ -160,6 +168,7 @@
     SESSION_STORAGE_KEY,
     PENDING_WINDOW_STORAGE_KEY,
     buildSessionRecord,
+    fichaScopeOf,
     isVerificationFresh,
     isUsable,
     normalizeApiBase,

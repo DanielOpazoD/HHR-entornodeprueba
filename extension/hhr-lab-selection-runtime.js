@@ -18,9 +18,9 @@
     host.className = 'hhr-labreq-selection';
     host.setAttribute('aria-label', 'Buscar y organizar exámenes');
     host.innerHTML = `
-      <input class="hhr-center-search hhr-labreq-search" type="search" placeholder="Buscar examen o abreviatura: hemograma, PCR, ELP…" aria-label="Buscar exámenes para solicitar">
+      <input class="hhr-center-search hhr-labreq-search" type="search" placeholder="Buscar examen o abreviatura" aria-label="Buscar exámenes para solicitar">
       <div class="hhr-labreq-selection-tools">
-        <select class="hhr-center-select" aria-label="Grupos de exámenes guardados"><option value="">Tus grupos de exámenes</option></select>
+        <select class="hhr-center-select" aria-label="Grupos de exámenes guardados"><option value="">Mis grupos</option></select>
         <button class="hhr-center-action" type="button" data-group="apply" disabled>Añadir grupo</button>
         <button class="hhr-center-action" type="button" data-group="save" aria-label="Guardar selección">Guardar grupo</button>
         <button class="hhr-center-action" type="button" data-group="remove" aria-label="Eliminar grupo" title="Eliminar grupo" disabled>×</button>
@@ -53,7 +53,7 @@
       const signature = JSON.stringify(groups.map(group => group.name));
       if (signature !== groupSignature) {
         groupSignature = signature;
-        select.replaceChildren(new Option('Tus grupos de exámenes', ''));
+        select.replaceChildren(new Option('Mis grupos', ''));
         groups.forEach(group => select.append(new Option(group.name, preferences.groupId(group.name))));
         if (Array.from(select.options).some(option => option.value === previous)) select.value = previous;
       }
@@ -80,7 +80,7 @@
       }));
       host.querySelector('[data-group="save"]').disabled = !selected().length;
       status.textContent = query.length ? (visible ? visible + (visible === 1 ? ' examen coincide' : ' exámenes coinciden') : 'No hay coincidencias. Prueba otro nombre o abreviatura.') :
-        selected().length ? selected().length + (selected().length === 1 ? ' seleccionado' : ' seleccionados') : 'Busca un examen o selecciónalo en la lista.';
+        '';
     };
     search.addEventListener('input', render);
     grid.addEventListener('change', render);

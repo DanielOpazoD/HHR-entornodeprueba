@@ -232,7 +232,7 @@
     "@firebase/rules-unit-testing": "^5.0.0",
     "@firebase/util": "^1.15.1",
     "@google-cloud/firestore": "^9.3.1",
-    "@hhr/eloisa-extension": "git+https://github.com/DanielOpazoD/extensioneloisahhr.git#1928f59524c2aa441f796dd1ac0af63bfaa50d53",
+    "@hhr/eloisa-extension": "git+https://github.com/DanielOpazoD/extensioneloisahhr.git#f10e9d1089ba7f45830b117420caa1d7414a9371",
     "@netlify/config": "^25.2.3",
     "@playwright/test": "^1.65.1",
     "@tailwindcss/vite": "^4.1.18",

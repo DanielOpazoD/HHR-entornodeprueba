@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrega de turno · HHR pruebas</title>
+  <link rel="stylesheet" href="nursing-handoff-editor.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Entrega de turno</h1>
+      <div class="actions">
+        <span id="environment">HHR</span>
+        <button type="button" id="disconnect" class="quiet" aria-label="Desconectar la cuenta de HHR" hidden>Desconectar</button>
+        <button type="button" id="close" class="quiet" aria-label="Cerrar">×</button>
+      </div>
+    </header>
+    <div class="patient">
+      <p id="patient"></p>
+      <p id="slot" class="detail"></p>
+    </div>
+    <div class="notes">
+      <form id="edit" hidden>
+        <label for="note">Nota del turno</label>
+        <textarea id="note" rows="7" maxlength="16000" placeholder="Escribe la entrega de turno"></textarea>
+      </form>
+      <div id="comparison" hidden>
+        <label for="comparison-note">Nota del otro turno</label>
+        <textarea id="comparison-note" rows="2" readonly></textarea>
+      </div>
+      <div id="conflict" hidden>
+        <label for="remote">Nota actual de HHR</label>
+        <textarea id="remote" rows="7" readonly></textarea>
+        <div class="actions conflict-actions">
+          <button type="button" id="keep" class="quiet">Conservar mi edición</button>
+          <button type="button" id="use-remote" class="quiet">Usar nota de HHR</button>
+        </div>
+      </div>
+    </div>
+    <details id="recovery" hidden>
+      <summary id="recovery-label">Texto conservado</summary>
+      <select id="recovery-versions" aria-label="Versión conservada" hidden></select>
+      <textarea id="recovery-text" aria-label="Texto conservado" rows="3" readonly></textarea>
+      <button type="button" class="quiet" id="restore-draft" hidden>Recuperar como borrador</button>
+    </details>
+    <footer>
+      <div class="handoff-receipt"><p id="status" role="status"></p></div>
+      <button type="button" id="connect" hidden>Conectar HHR</button>
+      <button type="button" id="current-shift" hidden>Ver turno vigente</button>
+      <button type="submit" form="edit" id="save" aria-keyshortcuts="Control+Enter Meta+Enter" hidden>Guardar</button>
+    </footer>
+    <div id="discard" hidden>
+      <p>Hay cambios sin guardar.</p>
+      <div class="actions">
+        <button type="button" id="continue" class="quiet">Seguir editando</button>
+        <button type="button" id="confirm-close">Cerrar sin guardar</button>
+      </div>
+    </div>
+  </main>
+  <script src="message-contract.js"></script>
+  <script src="nursing-handoff-editor.js"></script>
+</body>
+</html>

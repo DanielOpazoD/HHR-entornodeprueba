@@ -28,11 +28,50 @@
     }))
     .filter(item => /^\d+$/.test(item.encounterId) && item.encounterId !== '0' && item.bedId);
 
+  const bedsSessionKey = record => {
+    if (!record || typeof record !== 'object') return '';
+    return JSON.stringify([
+      String(record.apiBase || ''),
+      String(record.facId || ''),
+      String(record.token || ''),
+      Number(record.sourceTabId),
+      String(record.connectionAttemptId || ''),
+      String(record.verificationEpoch || ''),
+    ]);
+  };
+
+  /** Single-use short-lived handoff so snapshot enrichment and CUDYR capture share one fresh /beds read. */
+  const createRecentBedsSlot = ({ ttlMs = 10_000, now = () => Date.now() } = {}) => {
+    let slot = null;
+    const store = (record, payload) => {
+      const key = bedsSessionKey(record);
+      if (!key || !Array.isArray(payload)) return;
+      slot = { key, capturedAt: now(), payload };
+    };
+    const consume = record => {
+      if (!slot) return null;
+      const current = slot;
+      const age = now() - current.capturedAt;
+      if (age < 0 || age > ttlMs) {
+        slot = null;
+        return null;
+      }
+      if (current.key !== bedsSessionKey(record)) return null;
+      slot = null;
+      return current.payload;
+    };
+    const clear = () => {
+      slot = null;
+    };
+    return Object.freeze({ store, consume, clear });
+  };
+
   const fetchEvidence = async (
     gestionCamasRuntime,
     fetchWithTimeout,
     buildCribAssignments,
-    isClinicalCrib
+    isClinicalCrib,
+    onBedsCaptured
   ) => {
     try {
       const session = await gestionCamasRuntime.resolveSession();
@@ -51,6 +90,9 @@
       }
       const payload = await response.json();
       const verified = await gestionCamasRuntime.markSessionVerified(record);
+      if (verified && Array.isArray(payload) && typeof onBedsCaptured === 'function') {
+        onBedsCaptured(record, payload);
+      }
       return verified
         ? {
             cribAssignments: buildCribAssignments(payload),
@@ -62,5 +104,10 @@
     }
   };
 
-  root.HhrGestionCamasActiveBeds = Object.freeze({ bedIdFromLabel, buildAssignments, fetchEvidence });
+  root.HhrGestionCamasActiveBeds = Object.freeze({
+    bedIdFromLabel,
+    buildAssignments,
+    createRecentBedsSlot,
+    fetchEvidence,
+  });
 })(typeof self !== 'undefined' ? self : globalThis);

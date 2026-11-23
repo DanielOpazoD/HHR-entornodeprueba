@@ -1,4 +1,4 @@
-/** Live-tab readiness and session health gate for Gestión de Camas. */
+/** Bridge and background session health for Gestión de Camas. */
 (function (root) {
   'use strict';
 
@@ -14,11 +14,17 @@
       timeoutMessage: 'La pestaña de Gestión de Camas no respondió a la comprobación.',
     });
 
-    return async (runtimeGeneration, targetTabIds, { verifySessions = false } = {}) => {
+    return async (runtimeGeneration, targetTabIds, { verifySessions = false, bindScope = true } = {}) => {
       const readyTabIds = [];
       const matchingTabs = extensionHealth.orderTabs(
         await extensionHealth.resolveTabs(chromeApi.tabs, matchPattern, targetTabIds)
       );
+      const readBackground = async () => {
+        if (Array.isArray(targetTabIds) || !bindScope) return null;
+        const status = await readSessionHealth({ matchingTabs, verifySessions, background: true });
+        return status && { ...status, usingBackgroundSession: true };
+      };
+      if (bindScope && !Array.isArray(targetTabIds) && !matchingTabs.length) return readBackground();
       const tabHealth = await extensionHealth.probeTabs({
         tabs: matchingTabs,
         sendMessage: async (tabId, message) => {
@@ -30,15 +36,20 @@
         staleMessage: 'Abre una pestaña nueva de Gestión de Camas para activar la extensión vigente.',
         healthMessage: { type: 'RAYEN_EXTENSION_HEALTH_PING', runtimeGeneration },
       });
-      if (tabHealth.status !== 'ready') return tabHealth;
+      if (tabHealth.status !== 'ready') return await readBackground() || tabHealth;
       const status = await readSessionHealth({
         matchingTabs,
         verifySessions,
+        bindScope,
         liveOptions: {
           verificationTimeoutMs: healthProbeTimeoutMs, tabTimeoutMs: healthProbeTimeoutMs,
           targetTabIds, confirmedTabIds: readyTabIds,
         },
       });
+      if (status.status !== 'ready') {
+        const background = await readBackground();
+        if (background) return background;
+      }
       return {
         ...status,
         bridgeVersion: tabHealth.bridgeVersion,

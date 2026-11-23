@@ -46,9 +46,9 @@
       firstGivenName: firstTruthy(
         patient.firstGivenName,
         patient.givenName,
-        fallback.firstGivenName,
-        row.patientName
+        fallback.firstGivenName
       ),
+      patientName: firstTruthy(row.patientName, fallback.patientName),
       nextGivenNames: firstTruthy(patient.nextGivenNames, fallback.nextGivenNames),
       firstFamilyName: firstTruthy(
         patient.firstFamilyName,
@@ -318,7 +318,7 @@
         ok: true,
         patients: (result.patients || []).map(patient => ({
           encounterId: String(patient.encounterId),
-          name: [patient.firstGivenName, patient.nextGivenNames, patient.firstFamilyName, patient.secondFamilyName].filter(Boolean).join(' ').trim(),
+          name: patient.name,
           run: formatRun(patient.run) || String(patient.run || ''),
           bed: patient.bed || patient.room || '',
           service: patient.service || '',
@@ -336,7 +336,7 @@
         const report = await fetchScalesReportWithInfo(patient.encounterId, infoResult.info);
         return {
           encounterId: String(patient.encounterId),
-          name: [patient.firstGivenName, patient.nextGivenNames, patient.firstFamilyName, patient.secondFamilyName].filter(Boolean).join(' ').trim(),
+          name: patient.name,
           run: formatRun(patient.run) || String(patient.run || ''),
           bed: patient.bed || patient.room || '',
           service: patient.service || '',

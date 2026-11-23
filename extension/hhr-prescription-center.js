@@ -115,19 +115,27 @@
         submit.disabled = true;
       };
       const renderFormats = name => globalThis.HhrDocumentPreviewRuntime.renderFormats({ host: formatBar, name });
-      const showSuccess = (message, restoreSubmitState) => {
+      const showPrintFeedback = (message, restoreSubmitState, state = '') => {
         let status = body.querySelector('.hhr-rx-print-feedback');
         if (!status) {
           status = document.createElement('div');
           status.className = 'hhr-rx-status hhr-rx-print-feedback';
           body.prepend(status);
         }
-        setLiveRegion(status, message);
+        setLiveRegion(status, message, state);
         cancel.disabled = false;
         cancel.textContent = 'Cerrar';
         submit.disabled = false;
         if (typeof restoreSubmitState === 'function') restoreSubmitState();
         else submit.textContent = 'Imprimir nuevamente';
+        return status;
+      };
+      const showPrintError = (response, fallback, generation, restore) => {
+        const status = showPrintFeedback(response?.error || fallback, restore, 'error');
+        globalThis.HhrReadRecovery?.attach({ root, host: status, response,
+          isCurrent: () => body.isConnected && generation === viewGeneration,
+          retry: async () => { status.textContent = 'Conexión restablecida. Puedes imprimir.'; },
+          sendMessage, runtimeMessages });
       };
       const renderCurrentPatient = async generation => {
         await preferencesReady;
@@ -313,10 +321,6 @@
           const selectedFormat = formats.querySelector('input:checked');
           const group = selectableGroups.find(item => item.key === selected?.value);
           const compact = selectedFormat?.value === 'compact';
-          if (globalThis.HhrDocumentPreviewRuntime) {
-            submit.textContent = compact ? 'Vista previa compacta' : 'Vista previa';
-            return;
-          }
           submit.textContent = group
             ? group.external
               ? 'Imprimir receta externa' + (compact ? ' compacta' : '')
@@ -331,14 +335,6 @@
           const selected = list.querySelector('input:checked');
           const selectedFormat = formats.querySelector('input:checked');
           if (!selected || !selectedFormat) return;
-          if (globalThis.HhrDocumentPreviewRuntime) {
-            globalThis.HhrDocumentPreviewRuntime.prescription({
-              root, title: 'Receta médica', sendMessage, runtimeMessages,
-              formatRadios: formats, onFormat: updateSubmitText,
-              request: { type: runtimeMessages.PRESCRIPTION_PRINT_REQUEST, encId, selectionKey: selected.value },
-            });
-            return;
-          }
           submit.disabled = true;
           cancel.disabled = true;
           submit.textContent = 'Generando receta…';
@@ -348,15 +344,12 @@
             selectionKey: selected.value,
             printFormat: selectedFormat.value,
           });
-          if (!body.isConnected) return;
+          if (!body.isConnected || generation !== viewGeneration) return;
           if (!result || result.error) {
-            cancel.disabled = false;
-            submit.textContent = 'Reintentar impresión';
-            renderError((result && result.error) || 'No se pudo abrir la receta para imprimir.');
-            submit.disabled = false;
+            showPrintError(result, 'No se pudo imprimir la receta.', generation, updateSubmitText);
             return;
           }
-          showSuccess(
+          showPrintFeedback(
             'La receta se abrió en una pestaña nueva con el diálogo de impresión. Puedes imprimir otra sin cerrar este panel.',
             updateSubmitText
           );
@@ -544,8 +537,7 @@
           selectedText.textContent =
             count === 1 ? '1 paciente seleccionado' : count + ' pacientes seleccionados';
           submit.disabled = count === 0;
-          submit.textContent = globalThis.HhrDocumentPreviewRuntime ? 'Vista previa de recetas' :
-            count === 1 ? 'Imprimir 1 receta' : 'Imprimir ' + count + ' recetas';
+          submit.textContent = count === 1 ? 'Imprimir 1 receta' : 'Imprimir ' + count + ' recetas';
         };
         attachPatientListFilter({
           toolbar,
@@ -572,14 +564,6 @@
           const selected = selectedCheckboxes();
           const selectedFormat = formats.querySelector('input:checked');
           if (!selected.length || !selectedFormat) return;
-          if (globalThis.HhrDocumentPreviewRuntime) {
-            globalThis.HhrDocumentPreviewRuntime.prescription({
-              root, title: 'Recetas de hospitalizados', sendMessage, runtimeMessages, formatRadios: formats,
-              request: { type: runtimeMessages.HOSPITALIZED_PRESCRIPTION_PRINT_REQUEST,
-                batchId: hospitalizedResponse.batchId, encIds: selected.map(input => input.value) },
-            });
-            return;
-          }
           submit.disabled = true;
           cancel.disabled = true;
           submit.textContent =
@@ -590,21 +574,16 @@
             encIds: selected.map(input => input.value),
             printFormat: selectedFormat.value,
           });
-          if (!body.isConnected) return;
+          if (!body.isConnected || generation !== viewGeneration) return;
           if (!result || result.error) {
-            cancel.disabled = false;
-            renderError(
-              (result && result.error) || 'No se pudieron preparar las recetas seleccionadas.'
-            );
-            submit.textContent = 'Reintentar impresión';
-            submit.disabled = false;
+            showPrintError(result, 'No se pudieron imprimir las recetas.', generation, updateSelection);
             return;
           }
           const skipped = Array.isArray(result.skipped) ? result.skipped.length : 0;
           const compactFallbackCount = Array.isArray(result.compactFallbacks)
             ? result.compactFallbacks.length
             : 0;
-          showSuccess(
+          showPrintFeedback(
             'Se abrió un PDF con ' +
               result.count +
               (result.count === 1 ? ' receta' : ' recetas') +
@@ -630,6 +609,7 @@
         const requestedTab = tabs.find(tab => tab.dataset.tab === tabName);
         if (!requestedTab || requestedTab.disabled) return;
         activeTab = tabName;
+        cancel.disabled = false;
         globalThis.HhrCenterPatientContext?.set(root, { encId, bulk: tabName === 'hospitalized' });
         viewGeneration += 1;
         const generation = viewGeneration;

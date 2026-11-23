@@ -11,6 +11,49 @@
   const CUDYR_MENTAL_DEPARTMENT_IDS = new Set(['45', '46', '47', '49', '50', '51']);
   const resolveCudyrFormId = departmentId =>
     CUDYR_MENTAL_DEPARTMENT_IDS.has(String(departmentId || '')) ? '2' : '1';
+  const isTransientCudyrStatus = status => status === 408 || status === 429 || status >= 500;
+  const isTransientCudyrError = error =>
+    error instanceof TypeError || /fetch|network|tiempo de espera|timeout/i.test(String(error && error.message || error));
+  const defaultCudyrRetryDelay = () => 500 + Math.floor(Math.random() * 500);
+  const resolveCudyrRetryDelay = retryDelayMs =>
+    typeof retryDelayMs === 'function' ? retryDelayMs : defaultCudyrRetryDelay;
+  const isRenewedGestionCamasRecord = (freshRecord, previousInfo) => Boolean(
+    freshRecord &&
+    freshRecord.token &&
+    freshRecord.token !== previousInfo.token &&
+    /^\d+$/.test(String(freshRecord.facId || ''))
+  );
+  const resolveCudyrSleep = wait =>
+    typeof wait === 'function'
+      ? wait
+      : typeof setTimeout === 'function'
+        ? delay => new Promise(resolve => setTimeout(resolve, delay))
+        : () => Promise.resolve();
+  const normalizeExpectedEncounterIds = ids =>
+    Array.isArray(ids)
+      ? [...new Set(ids.map(value => String(value == null ? '' : value).trim()).filter(value => /^\d+$/.test(value)))]
+      : [];
+  const formatGestionCamasRejection = (rejection, status) => {
+    if (rejection === 'changed') {
+      return 'La sesión de Gestión de Camas cambió durante la consulta. Reintenta la operación.';
+    }
+    if (rejection === 'expired') {
+      return 'La sesión de Gestión de Camas venció. Vuelve a conectarla.';
+    }
+    if (rejection === 'forbidden') {
+      return 'Gestión de Camas rechazó la consulta CUDYR por permisos.';
+    }
+    return 'Gestión de Camas respondió HTTP ' + status + ' al consultar CUDYR.';
+  };
+  const scopeKeyOf = info => `${String(info && info.apiBase || '')}|${String(info && info.facId || '')}`;
+  const hasMissingExpectedEncounter = (official, expectedIds) => {
+    if (!expectedIds.length) return true;
+    const observedIds = Array.isArray(official.observedEpisodeIds)
+      ? official.observedEpisodeIds
+      : (Array.isArray(official.items) ? official.items.map(item => item && item.encId) : []);
+    const observed = new Set(observedIds.map(id => String(id || '')).filter(Boolean));
+    return expectedIds.some(id => !observed.has(id));
+  };
 
   const create = dependencies => {
     const {
@@ -20,6 +63,10 @@
       getFichaFetchInfo,
       resolveGestionCamasSession,
       classifyGestionCamasRejection,
+      markGestionCamasSessionVerified,
+      wait,
+      retryDelayMs,
+      consumeRecentBeds,
       nursingWorklists,
       resolveSessionHandoffKind,
       fetchFichaClaims,
@@ -105,19 +152,134 @@
       return { items: [...byEnc.values()] };
     };
 
-    // Retry one transient read only. Authorization and schema errors stay actionable.
+    const sleep = resolveCudyrSleep(wait);
+    const retryDelay = resolveCudyrRetryDelay(retryDelayMs);
+    const metadataCache = root.HhrCudyrCaptureSupport.createMetadataCache({ now });
+
+    // Retry one transient read only with a short backoff. Authorization and schema errors stay actionable.
     // This reads source history; an empty history before tomorrow's shift is valid.
     const readOfficialCudyr = async (url, options) => {
       try {
         const response = await fetchWithTimeout(url, options);
-        if (response.status !== 408 && response.status !== 429 && response.status < 500) return response;
+        if (!isTransientCudyrStatus(response.status)) return response;
       } catch (error) {
-        if (!(error instanceof TypeError) && !/fetch|network|tiempo de espera|timeout/i.test(String(error && error.message || error))) throw error;
+        if (!isTransientCudyrError(error)) throw error;
       }
+      const delay = Number(retryDelay());
+      if (Number.isFinite(delay) && delay > 0) await sleep(delay);
       return fetchWithTimeout(url, options);
     };
 
-    const fetchGestionCamasCudyrCategories = async () => {
+    const resolveMetadataChannel = async (result, kind, label, scopeKey, metadataWarnings) => {
+      if (result.status === 'fulfilled' && result.value && Array.isArray(result.value.cachedRows)) {
+        return { rows: result.value.cachedRows, fromCache: true };
+      }
+      const attemptWarnings = [];
+      const rows = await root.HhrCudyrCaptureSupport.readMetadata(result, label, attemptWarnings);
+      if (!attemptWarnings.length) {
+        metadataCache.remember(scopeKey, kind, rows);
+        return { rows, fromCache: false };
+      }
+      const fallbackRows = metadataCache.getFallback(scopeKey, kind);
+      if (fallbackRows) return { rows: fallbackRows, fromCache: true };
+      metadataWarnings.push(...attemptWarnings);
+      return { rows: [], fromCache: false };
+    };
+
+    const refreshMissingPractitioners = async (beds, outcome, info, options, scopeKey) => {
+      if (!outcome.fromCache || !root.HhrCudyrCaptureSupport.hasMissingPractitioner(beds, outcome.rows)) {
+        return outcome.rows;
+      }
+      try {
+        const url = `${info.apiBase}/facility/${encodeURIComponent(info.facId)}/healthCarePractitioners?tid=${now()}`;
+        const response = await readOfficialCudyr(url, options);
+        if (!response.ok) return outcome.rows;
+        const rows = await response.json();
+        if (Array.isArray(rows) && rows.length) {
+          metadataCache.remember(scopeKey, 'practitioners', rows);
+          return rows;
+        }
+      } catch (_error) {
+        // Keep the verified cached practitioner catalog when the opportunistic refresh fails.
+      }
+      return outcome.rows;
+    };
+
+    const fetchOfficialCudyrAttempt = async (info, allowBedsCache) => {
+      const options = {
+        headers: { Authorization: info.token, Accept: 'application/json' },
+        credentials: 'omit',
+        cache: 'no-store',
+      };
+      const scopeKey = scopeKeyOf(info);
+      const cachedBeds = allowBedsCache && typeof consumeRecentBeds === 'function'
+        ? consumeRecentBeds(info)
+        : null;
+      const freshPractitioners = metadataCache.getFresh(scopeKey, 'practitioners');
+      const freshDefinitions = metadataCache.getFresh(scopeKey, 'definitions');
+      const bedsPromise = Array.isArray(cachedBeds)
+        ? Promise.resolve({ cachedBeds })
+        : readOfficialCudyr(`${info.apiBase}/facility/${encodeURIComponent(info.facId)}/beds`, options);
+      const practitionersPromise = freshPractitioners
+        ? Promise.resolve({ cachedRows: freshPractitioners })
+        : readOfficialCudyr(`${info.apiBase}/facility/${encodeURIComponent(info.facId)}/healthCarePractitioners?tid=${now()}`, options);
+      const definitionsPromise = freshDefinitions
+        ? Promise.resolve({ cachedRows: freshDefinitions })
+        : readOfficialCudyr(`${info.apiBase}/formCategorizationOfRisk?tid=${now()}`, options);
+
+      const [bedsResult, practitionersResult, definitionsResult] = await Promise.allSettled([
+        bedsPromise,
+        practitionersPromise,
+        definitionsPromise,
+      ]);
+      if (bedsResult.status === 'rejected') throw bedsResult.reason;
+      if (!bedsResult.value.cachedBeds && !bedsResult.value.ok) {
+        const rejection = await classifyGestionCamasRejection(bedsResult.value, info);
+        return { rejected: true, rejection, status: bedsResult.value.status };
+      }
+      const beds = bedsResult.value.cachedBeds || await bedsResult.value.json();
+      if (!Array.isArray(beds)) throw new Error('Respuesta de camas inválida.');
+      const metadataWarnings = [];
+      const [practitionersOutcome, definitionsOutcome] = await Promise.all([
+        resolveMetadataChannel(practitionersResult, 'practitioners', 'los autores CUDYR', scopeKey, metadataWarnings),
+        resolveMetadataChannel(definitionsResult, 'definitions', 'las definiciones CUDYR', scopeKey, metadataWarnings),
+      ]);
+      const practitioners = await refreshMissingPractitioners(beds, practitionersOutcome, info, options, scopeKey);
+      if (typeof markGestionCamasSessionVerified === 'function') {
+        const verified = await markGestionCamasSessionVerified(info);
+        if (!verified) {
+          return { error: 'La sesión de Gestión de Camas cambió durante la consulta. Reintenta la operación.' };
+        }
+      }
+      const snapshotWarnings = [];
+      const items = gestionCamasCudyr.buildSnapshot({
+        beds,
+        practitioners,
+        definitions: definitionsOutcome.rows,
+        includeObservations: true,
+        warnings: snapshotWarnings,
+      });
+      return {
+        items,
+        source: 'gestion_camas',
+        historyAvailable: true,
+        captureContract: 1,
+        observedEpisodeIds: items.map(item => item.encId),
+        metadataStatus: metadataWarnings.length ? 'partial' : 'complete',
+        warning: [...metadataWarnings, ...snapshotWarnings].join(' '),
+      };
+    };
+
+    const retryWithRenewedSession = async (info, attempt) => {
+      if (!attempt.rejected || attempt.rejection !== 'expired') return attempt;
+      const renewed = await resolveGestionCamasSession();
+      const freshRecord = renewed && renewed.record;
+      return isRenewedGestionCamasRecord(freshRecord, info)
+        ? fetchOfficialCudyrAttempt(freshRecord, false)
+        : attempt;
+    };
+
+    const fetchGestionCamasCudyrCategories = async ({ allowBedsCache = false } = {}) => {
       const session = await resolveGestionCamasSession();
       if (!session.record) {
         return { error: session.error || 'Conecta Gestión de Camas para consultar el historial CUDYR.' };
@@ -126,63 +288,27 @@
       if (!/^\d+$/.test(String(info.facId || ''))) {
         return { error: 'Gestión de Camas no informó el establecimiento para consultar CUDYR.' };
       }
-      const requestUrls = [
-        `${info.apiBase}/facility/${encodeURIComponent(info.facId)}/beds`,
-        `${info.apiBase}/facility/${encodeURIComponent(info.facId)}/healthCarePractitioners?tid=${now()}`,
-        `${info.apiBase}/formCategorizationOfRisk?tid=${now()}`,
-      ];
-      const requests = requestUrls.map(url => readOfficialCudyr(url, {
-        headers: { Authorization: info.token, Accept: 'application/json' },
-        credentials: 'omit',
-        cache: 'no-store',
-      }));
       try {
-        const [bedsResult, practitionersResult, definitionsResult] = await Promise.allSettled(requests);
-        if (bedsResult.status === 'rejected') {
-          throw bedsResult.reason;
+        const initial = await fetchOfficialCudyrAttempt(info, allowBedsCache);
+        const attempt = await retryWithRenewedSession(info, initial);
+        if (attempt.rejected) {
+          return { error: formatGestionCamasRejection(attempt.rejection, attempt.status) };
         }
-        if (!bedsResult.value.ok) {
-          const rejection = await classifyGestionCamasRejection(bedsResult.value, info);
-          return {
-            error: rejection === 'changed'
-              ? 'La sesión de Gestión de Camas cambió durante la consulta. Reintenta la operación.'
-              : rejection === 'expired'
-                ? 'La sesión de Gestión de Camas venció. Vuelve a conectarla.'
-                : rejection === 'forbidden'
-                  ? 'Gestión de Camas rechazó la consulta CUDYR por permisos.'
-                  : 'Gestión de Camas respondió HTTP ' + bedsResult.value.status + ' al consultar CUDYR.',
-          };
-        }
-        const beds = await bedsResult.value.json();
-        if (!Array.isArray(beds)) throw new Error('Respuesta de camas inválida.');
-        const warnings = [];
-        const [practitioners, definitions] = await Promise.all([
-          root.HhrCudyrCaptureSupport.readMetadata(practitionersResult, 'los autores CUDYR', warnings),
-          root.HhrCudyrCaptureSupport.readMetadata(definitionsResult, 'las definiciones CUDYR', warnings),
-        ]);
-        const items = gestionCamasCudyr.buildSnapshot({ beds, practitioners, definitions, includeObservations: true });
-        return {
-          items,
-          source: 'gestion_camas',
-          historyAvailable: true,
-          captureContract: 1,
-          observedEpisodeIds: items.map(item => item.encId),
-          metadataStatus: warnings.length ? 'partial' : 'complete',
-          warning: warnings.join(' '),
-        };
+        return attempt;
       } catch (error) {
-        return { error: 'No se pudo leer el historial CUDYR de Gestión de Camas: ' +
-          String((error && error.message) || error) };
+        return {
+          error: 'No se pudo leer el historial CUDYR de Gestión de Camas: ' +
+            String((error && error.message) || error),
+        };
       }
     };
 
-    const resolveCudyrCategories = async info => {
-      const [official, fallback] = await Promise.all([
-        fetchGestionCamasCudyrCategories(),
-        info ? fetchCudyrCategories(info) : Promise.resolve({ error: '' }),
-      ]);
+    const resolveCudyrCategories = async (info, { expectedEncounterIds, allowBedsCache = false } = {}) => {
+      const official = await fetchGestionCamasCudyrCategories({ allowBedsCache });
       if (official.error) {
-        if (!info || fallback.error) {
+        if (!info) return { error: official.error };
+        const fallback = await fetchCudyrCategories(info);
+        if (fallback.error) {
           return { error: [official.error, fallback.error].filter(Boolean).join(' ') };
         }
         return {
@@ -192,7 +318,12 @@
           warning: official.error,
         };
       }
-      if (!info || fallback.error) {
+      const expectedIds = normalizeExpectedEncounterIds(expectedEncounterIds);
+      if (!info || !hasMissingExpectedEncounter(official, expectedIds)) {
+        return official;
+      }
+      const fallback = await fetchCudyrCategories(info);
+      if (fallback.error) {
         return {
           ...official,
           warning: [official.warning, fallback.error].filter(Boolean).join(' '),
@@ -402,7 +533,10 @@
       }
       const patientResult = await fetchActiveHospitalizedPatients(info);
       if (patientResult.error) return patientResult;
-      const cudyrResult = await resolveCudyrCategories(info);
+      const cudyrResult = await resolveCudyrCategories(info, {
+        expectedEncounterIds: patientResult.patients.map(patient => patient && patient.encounterId),
+        allowBedsCache: false,
+      });
       const cudyrByEncounter = new Map((cudyrResult.error ? [] : cudyrResult.items)
         .map(item => [String(item.encId), item]));
       const patients = await mapWithConcurrency(patientResult.patients, 3, async patient => {
@@ -541,10 +675,11 @@
       return scale.error ? scale : { ok: true, definition: scale.definition };
     };
 
-    const handleCudyrCategoriesRequest = async () => {
+    const handleCudyrCategoriesRequest = async request => {
+      const expectedEncounterIds = normalizeExpectedEncounterIds(request && request.expectedEncounterIds);
       const infoResult = await getFichaFetchInfo();
       if (infoResult.error) {
-        const official = await fetchGestionCamasCudyrCategories();
+        const official = await fetchGestionCamasCudyrCategories({ allowBedsCache: true });
         return official.error
           ? { error: official.error + ' ' + infoResult.error }
           : {
@@ -553,7 +688,10 @@
               warning: [official.warning, infoResult.error].filter(Boolean).join(' '),
             };
       }
-      const result = await resolveCudyrCategories(infoResult.info);
+      const result = await resolveCudyrCategories(infoResult.info, {
+        expectedEncounterIds,
+        allowBedsCache: true,
+      });
       return result.error ? result : { ok: true, ...result };
     };
 

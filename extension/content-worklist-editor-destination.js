@@ -19,9 +19,13 @@
     const current = ++revision;
     let result;
     try { result = await chrome.runtime.sendMessage({ type: 'RAYEN_WORKLIST_EDITOR_READY' }); }
-    catch { return; }
+    catch { if (active && current === revision) show(''); return; }
     if (!active || current !== revision) return;
-    if (result?.navigate) { location.hash = '/bed'; return; }
+    if (result?.navigate) {
+      if (location.hash !== '#/bed') location.hash = '/bed';
+      else timer = setTimeout(resume, 800);
+      return;
+    }
     if (result?.wait) {
       show('Buscando el episodio en Gestión de Camas…');
       timer = setTimeout(resume, 800);
@@ -32,16 +36,11 @@
       if (result?.error) timer = setTimeout(() => show(''), 10000);
     }
   }
-  function wake(message, sender, respond) {
-    if (message.type === 'HHR_WAKE_BED_EDITOR') { respond({ received: true }); void resume(); }
-  }
-  chrome.runtime.onMessage.addListener(wake);
   window.addEventListener('hashchange', resume);
   globalThis.hhrWorklistEditorDestination = () => {
     active = false;
     clearTimeout(timer);
     show('');
-    chrome.runtime.onMessage.removeListener(wake);
     window.removeEventListener('hashchange', resume);
   };
   void resume();

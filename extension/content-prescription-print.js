@@ -55,9 +55,14 @@
   uiLifecycle.claim();
   globalThis.__hhrPrescriptionPrintInjected = true;
   let active = true;
-  const historyNavigation = globalThis.HhrHistoryDateNavigation?.create();
+  const historyNavigation = globalThis.HhrHistoryDateNavigation?.create({
+    onNoveltyUnavailable: () => showPageNotice('No se encontró una publicación médica en el historial cargado.', { title: 'Historial' }),
+  });
   const nativePresentation = globalThis.HhrNativeFichaPresentation?.create();
-  const worklistPresentation = globalThis.HhrNativeWorklistPresentation?.create();
+  const worklistPresentation = globalThis.HhrNativeWorklistPresentation?.create({
+    fetchWeather: () => chrome.runtime.sendMessage({ type: runtimeMessages.RAPA_NUI_WEATHER }),
+    fetchDailyBirths: () => chrome.runtime.sendMessage({ type: runtimeMessages.DAILY_BIRTHS }),
+  });
 
   const BUTTON_ID = 'hhr-prescription-print-button';
   const INDICATIONS_BUTTON_ID = 'hhr-indications-print-button';
@@ -180,6 +185,21 @@
     } finally { button.disabled = false; }
   };
   document.addEventListener('click', onWorklistEdit, true);
+  const onWorklistCopyRun = async event => {
+    const button = event.target.closest?.('button[data-hhr-copy-run]');
+    const run = button?.dataset.hhrCopyRun;
+    if (!event.isTrusted || !uiLifecycle.owns() ||
+        !/^\/dashboard\/encounter-list(?:-nurse)?\/?$/.test(location.pathname) ||
+        !/^\d{1,9}-[\dK]$/.test(run) || !button.closest('table[data-hhr-compact-worklist]')) return;
+    event.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(run);
+      if (active) showPageNotice('RUN copiado.', { title: 'Portapapeles', duration: 1600 });
+    } catch {
+      if (active) showPageNotice('No se pudo copiar el RUN.', { title: 'Portapapeles', error: true });
+    }
+  };
+  document.addEventListener('click', onWorklistCopyRun, true);
   const pendingWorklistPrints = new Set();
   const onWorklistPrint = async event => {
     const button = event.target.closest?.('button[data-hhr-print-document]');
@@ -343,26 +363,14 @@
     ensureNursingMedicalEpicrisisPrintItem,
   } = dischargeActionsRuntime;
 
-  const medicationActionsRuntime = medicationActionsOwner.create({
+  const { hasVisibleNursingRole } = medicationActionsOwner.create({
     documentRef: document,
-    windowRef: window,
-    chromeApi: chrome,
-    modalId: MODAL_ID,
     normalizedText,
     currentRouteEncounterId,
     createFeedbackModal,
     sendMessage,
     runtimeMessages,
-    closeModal,
-    ensureStyles,
-    modalDismissWithFocusRestore,
-    trapModalFocus,
-    setLiveRegion,
   });
-  const {
-    hasVisibleNursingRole,
-    createFavoritesDialog,
-  } = medicationActionsRuntime;
 
   const centerShellRuntime = centerShellOwner.create({
     modalId: MODAL_ID,
@@ -441,7 +449,28 @@
     refreshOperationsConnectionBadge,
     invalidateConnectionState,
   } = connectionCenterRuntime;
+  let handoffReceipt = 0;
   const onRuntimeMessage = (message, _sender, sendResponse) => {
+    if (message?.type === 'RAYEN_NURSING_HANDOFF_CONFIRMED' && _sender.id === chrome.runtime.id &&
+        /^[1-9]\d*$/.test(message.episode) && /^\d{4}-\d{2}-\d{2}$/.test(message.date) &&
+        ['day', 'night'].includes(message.shift)) {
+      const button = document.querySelector(`button[data-hhr-handoff-episode="${message.episode}"]`);
+      if (button) {
+        const label = 'Guardado en HHR · ' + (message.shift === 'day' ? 'Día' : 'Noche') +
+          ' · ' + message.date.split('-').reverse().join('-');
+        const receipt = String(++handoffReceipt);
+        button.dataset.hhrHandoffConfirmed = receipt;
+        button.title = label;
+        button.setAttribute('aria-label', label + '. Abrir entrega de turno');
+        setTimeout(() => {
+          if (button.dataset.hhrHandoffConfirmed !== receipt) return;
+          delete button.dataset.hhrHandoffConfirmed;
+          button.title = 'Abrir entrega de turno';
+          button.setAttribute('aria-label', button.title);
+        }, 8000);
+      }
+      return;
+    }
     if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') {
       sendMessage({ type: runtimeMessages.EXTENSION_RUNTIME_CONTEXT_REQUEST })
         .then(context => sendResponse({ uiReady: Boolean(context?.runtimeGeneration), uiBuildVersion: uiLifecycle.version }))
@@ -562,8 +591,7 @@
         imagingCenterRuntime.renderImagingCenter(root, targetEncId);
       }
       else if (activeModule === 'settings') globalThis.HhrCenterSettings.render({ root,
-        operationsBar: document.getElementById(OPERATIONS_BAR_ID),
-        openFavorites: panel => createFavoritesDialog(panel, () => createOperationsCenterModal('settings', targetEncId, null, panel)) });
+        operationsBar: document.getElementById(OPERATIONS_BAR_ID) });
       else if (activeModule === 'home') renderHomeCenter(root, targetEncId);
       else renderConnectionCenter(root, targetEncId);
     };
@@ -572,7 +600,21 @@
   };
 
   const updateOperationsBarPosition = bar => {
-    if (!bar || window.matchMedia('(max-width: 560px)').matches) return;
+    if (!bar) return;
+    const worklistLayout = document.querySelector('[data-hhr-worklist-layout]');
+    const waitingForWorklist = !worklistLayout && worklistPresentation?.isWorklist(window.location.pathname);
+    bar.toggleAttribute('data-hhr-ops-awaiting-layout', Boolean(waitingForWorklist));
+    if (waitingForWorklist) {
+      if (bar.parentElement !== document.body) document.body.append(bar);
+      return;
+    }
+    if (worklistLayout) {
+      bar.style.removeProperty('--hhr-ops-top');
+      if (bar.parentElement !== worklistLayout) worklistLayout.append(bar);
+      return;
+    }
+    if (bar.parentElement !== document.body) document.body.append(bar);
+    if (window.matchMedia('(max-width: 560px)').matches) return;
     const sampledElements = typeof document.elementsFromPoint === 'function'
       ? document.elementsFromPoint(Math.max(1, Math.round(window.innerWidth / 2)), 2)
       : [];
@@ -689,7 +731,6 @@
         onOpenBrand: () => centerShellRuntime.openCenterModule(undefined, bar.dataset.encounterId, brandButton),
         onExamSelect: (module, trigger, flow) => centerShellRuntime.openCenterModule(module, bar.dataset.encounterId, trigger, flow),
       });
-      document.body.appendChild(bar);
     }
     bar.dataset.encounterId = encId || '';
     [barPart(bar, '.hhr-exams-lab'), barPart(bar, '.hhr-exams-results')].filter(Boolean).forEach(labButton => {
@@ -708,6 +749,7 @@
     });
   };
 
+  let resized = false;
   const ensureButton = () => {
     if (!document.body) return;
     const encId = helper.resolveEncounterId(window.location.href);
@@ -744,7 +786,8 @@
     if (modal?.isConnected) globalThis.HhrCenterPatientContext?.refreshRoute(modal, encId);
     nativePresentation?.refresh(encId);
     historyNavigation?.refresh(encId);
-    worklistPresentation?.refresh(window.location.pathname);
+    worklistPresentation?.refresh(window.location.pathname, resized ? undefined : []);
+    resized = false;
     ensureOperationsBar(encId);
     ensureCorrectedDischargePrintItems();
     ensureNursingMedicalEpicrisisPrintItem(nursingContext);
@@ -771,8 +814,18 @@
   // controls still use the debounced operations UI refresh.
   const observer = new MutationObserver(records => {
     if (!active || !uiLifecycle.owns()) return;
-    worklistPresentation?.refresh(window.location.pathname);
-    if (records.some(record => record.type !== 'characterData')) scheduleEnsureButton();
+    const pathname = window.location.pathname;
+    worklistPresentation?.refresh(pathname, records);
+    const bar = document.getElementById(OPERATIONS_BAR_ID);
+    if (bar && (worklistPresentation?.isWorklist(pathname) || bar.hasAttribute('data-hhr-ops-awaiting-layout'))) {
+      updateOperationsBarPosition(bar);
+    }
+    if (records.some(record => {
+      if (record.type !== 'characterData') return true;
+      const label = record.target.parentElement;
+      return label?.matches('.MuiChip-root > .MuiChip-label') &&
+        (label.textContent.trim() === 'Nuevo' || label.parentElement.hasAttribute('data-hhr-history-new'));
+    })) scheduleEnsureButton();
   });
   observer.observe(document.documentElement, {
     childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['aria-selected', 'hidden'],
@@ -780,7 +833,11 @@
   window.addEventListener('popstate', scheduleEnsureButton);
   window.addEventListener('hashchange', scheduleEnsureButton);
   window.addEventListener('hhr:fichamedico-locationchange', scheduleEnsureButton);
-  window.addEventListener('resize', scheduleEnsureButton);
+  const onResize = () => {
+    resized = true;
+    scheduleEnsureButton();
+  };
+  window.addEventListener('resize', onResize);
   window.addEventListener('focus', scheduleEnsureButton);
   window.addEventListener('pageshow', scheduleEnsureButton);
   const onVisibilityChange = () => {
@@ -797,11 +854,12 @@
       active = false;
       document.removeEventListener('click', onWorklistPrint, true);
       document.removeEventListener('click', onWorklistEdit, true);
+      document.removeEventListener('click', onWorklistCopyRun, true);
       observer.disconnect();
       window.removeEventListener('popstate', scheduleEnsureButton);
       window.removeEventListener('hashchange', scheduleEnsureButton);
       window.removeEventListener('hhr:fichamedico-locationchange', scheduleEnsureButton);
-      window.removeEventListener('resize', scheduleEnsureButton);
+      window.removeEventListener('resize', onResize);
       window.removeEventListener('focus', scheduleEnsureButton);
       window.removeEventListener('pageshow', scheduleEnsureButton);
       document.removeEventListener('visibilitychange', onVisibilityChange);

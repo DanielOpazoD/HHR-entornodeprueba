@@ -22,10 +22,14 @@
     }
   }
 
-  const withWorklistRows = (jsx, route) => (type, props, ...rest) => {
+  const withWorklistRows = (jsx, route, nurse) => (type, props, ...rest) => {
+    if (nurse && type === 'div' && props?.children === 'Error al cargar los datos') {
+      return jsx(nurse.failure, { type, props }, rest[0]);
+    }
     if (typeof type === 'function' && props && location.pathname.replace(/\/$/, '') === route.path) {
       if (Array.isArray(props.columns)) {
-        props = globalThis.HhrWorklistPrintColumn.adapt(jsx, props, route.path);
+        if (nurse && props.isLoading === true) return jsx(nurse.loading, { type, props }, rest[0]);
+        if (type !== nurse?.table.A) props = globalThis.HhrWorklistPrintColumn.adapt(jsx, props, route.path);
       } else if (route.id === 25587 && Array.isArray(props.encounterList)) {
         const list = props.encounterList;
         // Interconsultas groups its patients by service and paginates each group.
@@ -37,7 +41,12 @@
       } else if (route.id === 61188) {
         const key = ['incomeEncounterList', 'noveltyEncounterList', 'uneventfulEncounterList', 'recoveredEncounterList']
           .find(name => Array.isArray(props[name]));
-        if (key) props = { ...props, [key]: WorklistRows.from(props[key]) };
+        if (key) {
+          props = { ...props, [key]: WorklistRows.from(props[key]) };
+          if (key === 'noveltyEncounterList' && nurse) {
+            return jsx(nurse.novelty.Provider, { value: props[key], children: jsx(type, props, ...rest) }, rest[0]);
+          }
+        }
       }
     }
     return jsx(type, props, ...rest);
@@ -46,26 +55,40 @@
   function bindRoute(factory, route) {
     return function(module, exports, require) {
       let nurse;
-      const nursing = () => nurse ||= globalThis.HhrNursingWorklist.create(require, () => exports.default);
+      const nursing = () => {
+        if (nurse !== undefined) return nurse;
+        try {
+          nurse = globalThis.HhrNursingWorklist?.create(require, () => exports.default) || null;
+        } catch {
+          // Private modules can move between Rayen builds. Leave native imports intact.
+          nurse = null;
+        }
+        return nurse;
+      };
       const localRequire = new Proxy(require, {
         apply(target, receiver, args) {
           const result = Reflect.apply(target, receiver, args);
-          if (route.id === 61188 && globalThis.HhrNursingWorklist) {
+          const id = args[0];
+          if (route.id === 61188 && (id !== jsxModule || typeof result?.jsxs === 'function')) {
+            if (![40767, 20063, 65672, jsxModule].includes(id)) return result;
+            const adapter = nursing();
+            if (!adapter) return result;
             // The native loaders turn an API error into an empty array. Let SWR
             // surface an unavailable source alongside the other nursing rows.
-            if (args[0] === 40767) return { ...result, A: async (path, ...options) => {
+            if (id === 40767) return { ...result, A: async (path, ...options) => {
               const response = await result.A(path, ...options);
               if (/^\/encounter\/(?:novelty|uneventful)NurseList\//.test(path) && !Array.isArray(response?.data)) {
                 throw new Error('Lista de cuidados no disponible.');
               }
               return response;
             } };
-            if (args[0] === 20063) return nursing().navigation;
-            if (args[0] === 65672) return nursing().table;
-            if (args[0] === jsxModule && result.jsxs) return { ...result, jsx: withWorklistRows(result.jsx, route),
-              jsxs: (...args) => nursing().layout(result.jsxs, ...args) };
+            if (id === 20063) return adapter.navigation;
+            if (id === 65672) return adapter.table;
+            return { ...result, jsx: withWorklistRows(result.jsx, route, adapter),
+              jsxs: (...args) => adapter.layout(result.jsxs, ...args) };
           }
-          if (args[0] !== jsxModule || typeof result?.jsx !== 'function') return result;
+          if (id !== jsxModule || typeof result?.jsx !== 'function' ||
+              typeof globalThis.HhrWorklistPrintColumn?.adapt !== 'function') return result;
           return { ...result, jsx: withWorklistRows(result.jsx, route) };
         },
       });

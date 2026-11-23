@@ -25,6 +25,7 @@ const captureWithHealthAfter = (after: Record<string, unknown>) => {
     dateStart: '2026-07-24',
     dateEnd: '2026-07-25',
     readHealth: vi.fn().mockResolvedValueOnce(ready).mockResolvedValueOnce(after),
+    readFichaScope: vi.fn().mockResolvedValue('1342:3:5'),
     readSnapshot: vi.fn().mockResolvedValue({
       snapshot: {
         capturedAt: '2026-07-24T10:00:00.000Z',

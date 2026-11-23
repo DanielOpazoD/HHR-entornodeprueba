@@ -1,0 +1,78 @@
+.hhr-nursing-handoff-dialog {
+  box-sizing: border-box;
+  width: min(600px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  margin: auto;
+  padding: 0;
+  color: #213734;
+  background: #fff;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 18px 54px #162c2752;
+}
+
+.hhr-nursing-handoff-dialog::backdrop { background: #152c2952; }
+.hhr-nursing-handoff-dialog p { margin: 20px; }
+.hhr-nursing-handoff-dialog > button { margin: 0 20px 20px; }
+.hhr-nursing-handoff-dialog iframe {
+  display: block;
+  width: 100%;
+  height: min(500px, calc(100dvh - 32px));
+  border: 0;
+}
+
+.hhr-handoff-toolbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:6px 10px; padding-block:0 7px; }
+.hhr-handoff-connection:not([hidden]) {
+  display:flex; flex:1 1 auto; flex-wrap:wrap; align-items:center; gap:4px 10px;
+  padding:4px 8px; border-radius:6px; background:#edf5f2; color:#365950;
+  font:12px/1.35 system-ui,sans-serif;
+}
+.hhr-handoff-toolbar [data-hhr-handoff-pending]:not(:empty):not([hidden]) {
+  color:#774718; background:#fff5e7; border-radius:5px; padding:2px 7px; font-size:.83em;
+}
+.hhr-handoff-toolbar button {
+  border:1px solid #d4e4df; border-radius:5px; background:#f5f9f7; color:#14594f;
+  font:600 12px/1.2 system-ui,sans-serif; min-height:25px; padding:3px 8px; cursor:pointer;
+}
+.hhr-handoff-toolbar button[aria-expanded="true"] { background:#155e54; border-color:#155e54; color:white; }
+.hhr-handoff-toolbar .hhr-handoff-connection button { background:#155e54; border-color:#155e54; color:white; }
+.hhr-handoff-toolbar button:focus-visible { outline:2px solid #147766; outline-offset:2px; }
+.hhr-handoff-toolbar button:disabled { opacity:.55; cursor:default; }
+[data-hhr-handoff-inline]:is([hidden],[data-hhr-handoff-load-failed]),
+.hhr-hospitalized-panel:not([data-hhr-handoff-state="ready"]) [data-hhr-handoff-inline] { display:none !important; }
+.hhr-worklist-handoff[hidden] { display:none !important; }
+[data-hhr-handoff-inline] {
+  min-height:43px; min-width:220px; margin-block:1px; text-align:start;
+  background:#f1f7f5; border-inline-start:3px solid #a6cbc1;
+}
+[data-hhr-handoff-inline] > iframe { display:block; width:100%; height:45px; border:0; }
+[data-hhr-handoff-inline]:focus-within { border-inline-start-color:#177867; }
+[data-hhr-handoff-inline] > p { margin:0; padding:6px 8px; color:#31544d; font-size:.8rem; }
+
+.hhr-handoff-controls:not([hidden]) {
+  display:flex; flex:1 1 auto; flex-wrap:wrap; align-items:center; gap:4px 9px; min-width:0;
+  color:#344f49; font-size:.79rem;
+}
+.hhr-handoff-date { color:#45625a; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.hhr-handoff-shifts:not([hidden]) { display:flex; padding:2px; gap:2px; border-radius:6px; background:#eaf2ee; }
+.hhr-handoff-toolbar .hhr-handoff-shifts button {
+  min-width:42px; padding:2px 7px; background:transparent; border-color:transparent;
+}
+.hhr-handoff-toolbar .hhr-handoff-shifts button[aria-selected="true"] {
+  background:white; border-color:#c6dfd7; color:#12584c; box-shadow:0 1px 2px #1b42361a;
+}
+.hhr-handoff-shifts button[data-vigente]::after {
+  content:''; display:inline-block; width:4px; height:4px; margin-left:5px;
+  border-radius:50%; background:#248675; vertical-align:2px;
+}
+.hhr-handoff-controls > [role="status"] { flex:1 1 auto; }
+.hhr-handoff-toolbar .hhr-handoff-save-all:not(:disabled) {
+  background:#155e54; border-color:#155e54; color:white;
+}
+.hhr-hospitalized-panel[data-hhr-handoff-state="ready"] [data-hhr-handoff-inline]:not([hidden]):empty::before {
+  content:''; display:block; height:36px; border:1px solid #e3ede9; border-radius:5px;
+  background:linear-gradient(90deg,#edf4f1 62%, #f6f9f7 62%);
+}
+.hhr-handoff-timings { color:#45625a; font-variant-numeric:tabular-nums; }
+.hhr-handoff-timings summary { cursor:pointer; }
+.hhr-handoff-timings span:not(:empty) { display:block; margin-top:2px; }

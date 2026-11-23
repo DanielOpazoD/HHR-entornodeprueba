@@ -39,6 +39,7 @@ export const createFixture = (
     buildSessionRecord: (info: Record<string, unknown>) =>
       info?.accessValue && info?.apiBase && info?.facId
         ? {
+            token: String(info.token ?? info.accessValue),
             accessValue: info.accessValue,
             apiBase: info.apiBase,
             facId: info.facId,
@@ -56,6 +57,7 @@ export const createFixture = (
       status: record ? 'ready' : 'missing',
       connected: Boolean(record),
     }),
+    fichaScopeOf: () => '',
   };
   const chromeApi = {
     storage: { session: storage },
@@ -140,6 +142,7 @@ export const createFixture = (
       backendRequestTimeoutMs: 45_000,
       tabMessageTimeoutMs: 50_000,
       healthProbeTimeoutMs: 5_000,
+      readFichaFetchInfo: vi.fn(async () => ({ info: null })),
     });
 
   const runtime = restartRuntime();

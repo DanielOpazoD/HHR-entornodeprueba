@@ -152,11 +152,18 @@ try {
   const archivePath = path.join(temp, 'previous.tar');
   await writeFile(archivePath, archive);
   execFileSync('tar', ['-xf', archivePath, '-C', temp]);
-  const previousManifest = JSON.parse(
-    await readFile(path.join(extensionPath, 'manifest.json'), 'utf8')
-  );
+  const previousManifestPath = path.join(extensionPath, 'manifest.json');
+  const previousManifest = JSON.parse(await readFile(previousManifestPath, 'utf8'));
   assert.equal(previousManifest.version, '0.48.56', 'The pinned previous tree changed');
   assert.notEqual(previousManifest.version, currentManifest.version);
+  // 0.48.148+ pins a fixed Chrome manifest key; carry it onto the temporary 0.48.56 copy
+  // so Chrome's in-place reload keeps one extension ID while still exercising the full upgrade.
+  if (currentManifest.key && !previousManifest.key) {
+    await writeFile(
+      previousManifestPath,
+      JSON.stringify({ ...previousManifest, key: currentManifest.key }, null, 2) + '\n'
+    );
+  }
 
   context = await chromium.launchPersistentContext('', {
     channel: 'chromium',

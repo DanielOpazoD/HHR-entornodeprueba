@@ -3,11 +3,19 @@
   'use strict';
   const HOST_ID = 'hhr-history-date-navigation';
   const STYLE_ID = HOST_ID + '-styles';
+  const NOVELTY_HASH = '#hhr-ultima-publicacion';
+  const medicalRole = /^m[eé]dic[oa](?:\s+(?:cirujan[oa]|especialista|tratante))?$/i;
   const railCss = `
     [data-hhr-history-rail] { display:flex; }
     [data-hhr-history-rail] > [role="tab"] { flex-shrink:0; }
     [data-hhr-history-rail] > [data-hhr-history-tab] ~ [role="tab"] { order:2; }
     [data-hhr-history-scroll] { overflow-x:auto !important; scrollbar-width:none; }
+    .MuiChip-root[data-hhr-history-new] {
+      background:#e8f3ee; color:#225a45; border-radius:4px; height:16px;
+      font-size:10px; font-weight:600; vertical-align:middle;
+    }
+    [data-hhr-history-new] > .MuiChip-label { padding-inline:5px; }
+    .MuiCard-root[data-hhr-history-novelty-target] { outline:2px solid #a36b23; outline-offset:-2px; }
   `;
   const dateLabel = label => {
     if (/^(Hoy|Ayer)$/i.test(label)) {
@@ -23,7 +31,7 @@
     }
     return /^\d{2}[-/]\d{2}[-/]\d{4}$/.test(label) ? label : '';
   };
-  const create = () => {
+  const create = ({ onNoveltyUnavailable = () => {} } = {}) => {
     let host = null;
     let groups = [];
     let encounterId = '';
@@ -31,12 +39,31 @@
     let rail = null;
     let horizontalScroll = null;
     let timelineRoot = null;
+    let newBadges = new Set();
     let selected = -1;
     let frame = 0;
+    let novelty;
+    let noveltyTimeout;
+    let highlighted;
     let scroller = window;
     let disposed = false;
+    const cancelNovelty = () => {
+      clearTimeout(noveltyTimeout);
+      novelty = undefined;
+    };
+    const clearHighlight = () => {
+      if (!highlighted) return;
+      const { card, tabIndex } = highlighted;
+      card.removeAttribute('data-hhr-history-novelty-target');
+      if (tabIndex === null) card.removeAttribute('tabindex');
+      else card.setAttribute('tabindex', tabIndex);
+      highlighted = undefined;
+    };
     const clear = () => {
       host?.remove();
+      clearHighlight();
+      newBadges.forEach(chip => chip.removeAttribute('data-hhr-history-new'));
+      newBadges.clear();
       rail?.removeAttribute('data-hhr-history-rail');
       tab?.removeAttribute('data-hhr-history-tab');
       horizontalScroll?.removeAttribute('data-hhr-history-scroll');
@@ -76,11 +103,10 @@
     const scheduleUpdate = () => {
       if (!disposed && !frame) frame = window.requestAnimationFrame(update);
     };
-    const jump = index => {
-      const group = groups[index];
-      if (!host?.isConnected || !group?.element.isConnected) return;
+    const jumpTo = element => {
+      if (!host?.isConnected || !element?.isConnected) return;
       const align = () => scroller.scrollBy({
-        top: group.element.getBoundingClientRect().top - visibleTop() - 12,
+        top: element.getBoundingClientRect().top - visibleTop() - 12,
         behavior: 'instant',
       });
       align();
@@ -90,6 +116,7 @@
       align();
       scheduleUpdate();
     };
+    const jump = index => jumpTo(groups[index]?.element);
     const revealDates = () => {
       if (!host?.isConnected) return;
       const bounds = horizontalScroll.getBoundingClientRect();
@@ -151,12 +178,35 @@
     };
     const refresh = nextEncounterId => {
       if (disposed) return;
-      if (encounterId !== nextEncounterId) clear();
+      if (encounterId !== nextEncounterId) { cancelNovelty(); clear(); }
       encounterId = nextEncounterId;
-      const nextTab = Array.from(document.querySelectorAll('[role="tab"][aria-selected="true"]'))
+      const targetMinute = location.hash.startsWith(NOVELTY_HASH + '=')
+        ? location.hash.slice(NOVELTY_HASH.length + 1) : '';
+      if (nextEncounterId && (location.hash === NOVELTY_HASH || /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(targetMinute)) &&
+          location.pathname.replace(/\/$/, '') === '/dashboard/encounter-list-nurse/' + nextEncounterId) {
+        cancelNovelty();
+        clearHighlight();
+        history.replaceState(history.state, '', location.pathname + location.search);
+        novelty = { tab: null, opened: false, minute: targetMinute };
+        noveltyTimeout = setTimeout(() => {
+          cancelNovelty();
+          onNoveltyUnavailable();
+        }, 15_000);
+      }
+      const nextTab = Array.from(document.querySelectorAll('[role="tab"]'))
         .find(element => element.textContent.trim() === 'Historial' && element.getClientRects().length);
       const tabList = nextTab?.parentElement;
       if (!nextEncounterId || !tabList?.matches('[role="tablist"]')) { clear(); return; }
+      if (nextTab.getAttribute('aria-selected') !== 'true') {
+        if (novelty?.opened) cancelNovelty();
+        if (novelty && novelty.tab !== nextTab && !nextTab.matches(':disabled,[aria-disabled="true"]')) {
+          novelty.tab = nextTab;
+          nextTab.click();
+        }
+        clear();
+        return;
+      }
+      if (novelty) novelty.opened = true;
       // Native groups: a date Chip in its own Stack, followed by event Cards.
       // Ignore dates inside cards (birth dates, orders, notes) and hidden tab panels.
       const candidates = Array.from(document.querySelectorAll('.MuiChip-label')).flatMap(chip => {
@@ -177,6 +227,16 @@
       const changed = groups.length !== nextGroups.length || nextGroups.some((group, index) =>
         group.element !== groups[index]?.element || group.label !== groups[index]?.label);
       groups = nextGroups;
+      const nextBadges = new Set(groups.flatMap(({ element }) =>
+        [...element.querySelectorAll(':scope > .MuiCard-root .MuiChip-root > .MuiChip-label')]
+          .filter(label => label.textContent.trim() === 'Nuevo').map(label => label.parentElement)));
+      newBadges.forEach(chip => {
+        if (!nextBadges.has(chip)) chip.removeAttribute('data-hhr-history-new');
+      });
+      nextBadges.forEach(chip => {
+        if (!newBadges.has(chip)) chip.setAttribute('data-hhr-history-new', '');
+      });
+      newBadges = nextBadges;
       const mounted = !host;
       if (mounted) mount(timeline, tabList);
       if (changed) {
@@ -190,6 +250,34 @@
         selected = -1;
       }
       if (mounted) revealDates();
+      if (novelty) {
+        // Historial renders the newest groups and publications first. Match
+        // the role in the native header, independently of the event category.
+        const minute = novelty.minute;
+        const candidateGroups = minute ? groups.filter(group => {
+          const [year, month, day] = minute.slice(0, 10).split('-');
+          return group.label.replaceAll('/', '-').endsWith(day + '-' + month + '-' + year);
+        }) : groups;
+        const matches = candidateGroups.flatMap(group => [...group.element.querySelectorAll(':scope > .MuiCard-root')])
+          .filter(element => {
+            const header = element.querySelector(':scope > .MuiCardHeader-root');
+            if (!element.getClientRects().length || !medicalRole.test(
+              header?.querySelector('.MuiCardHeader-subheader')?.textContent.trim() || '')) return false;
+            if (!minute) return true;
+            const action = header.querySelector('.MuiCardHeader-action');
+            // clinical-clock-allow raw-offset-clock: novelty.minute is already converted to Pacific/Easter wall time (YYYY-MM-DDTHH:MM) by hhr-nursing-novelty.js.
+            return /^\s*(\d{2}:\d{2})(?:\s*(?:hrs?|h))?\.?\s*$/i.exec(action?.textContent || '')?.[1] === minute.slice(11);
+          });
+        const card = minute && matches.length !== 1 ? undefined : matches[0];
+        if (card) {
+          cancelNovelty();
+          highlighted = { card, tabIndex: card.getAttribute('tabindex') };
+          card.setAttribute('data-hhr-history-novelty-target', '');
+          card.tabIndex = -1;
+          card.focus({ preventScroll: true });
+          jumpTo(card);
+        }
+      }
       scheduleUpdate();
     };
     window.addEventListener('scroll', scheduleUpdate, true);
@@ -198,6 +286,7 @@
       refresh,
       dispose: () => {
         disposed = true;
+        cancelNovelty();
         clear();
         window.cancelAnimationFrame(frame);
         window.removeEventListener('scroll', scheduleUpdate, true);

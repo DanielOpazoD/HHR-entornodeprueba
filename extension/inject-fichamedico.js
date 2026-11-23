@@ -11,7 +11,7 @@
  */
 (() => {
   'use strict';
-  const INJECT_VERSION = '0.48.109';
+  const INJECT_VERSION = '0.48.153';
   // Install the bridge probe separately so an older, compatible MAIN reader can keep its
   // captured session when this script is re-injected after an extension update.
   const bridgeRuntime = globalThis.HhrBridgeGeneration.createMain({ version: INJECT_VERSION });
@@ -385,6 +385,7 @@
         practitionerRoleId,
         role,
         isNursing: resolveNursingContext({ facilityId, practitionerId, practitionerRoleId, role }),
+        professionalRun: typeof session.user === 'string' ? session.user : '',
         fullName: String(session.fullName || '').replace(/\s+/g, ' ').trim(),
         expiresAt,
         tokenMatchesCapturedAuth,
@@ -626,6 +627,7 @@
                 role: safeIdentity.role,
                 isNursing: safeIdentity.isNursing,
                 fullName: safeIdentity.fullName,
+                professionalRun: safeIdentity.professionalRun,
                 expiresAt: safeIdentity.expiresAt,
                 identityVerified: true,
               }

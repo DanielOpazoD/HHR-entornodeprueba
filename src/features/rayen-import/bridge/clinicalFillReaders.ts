@@ -24,6 +24,9 @@ export const createClinicalFillReaders = (
       ? { refreshSnapshot: () => requestClinicalAuthorizationSnapshot(signal) }
       : {}),
   });
+  const expectedEncounterIds = candidates
+    .map(candidate => candidate.patient.clinicalEpisodeId)
+    .filter((id): id is string => typeof id === 'string' && /^\d+$/.test(id.trim()));
   return {
     fetchDeviceReport: (encId, date) => requestDeviceReport(encId, date, undefined, signal),
     fetchHistoryScales: (encId, date, options) =>
@@ -37,7 +40,7 @@ export const createClinicalFillReaders = (
     recoverCudyrPlacements: (episode, rut, observedAt, identityKind, maternalRut) =>
       recoverCudyrHospitalHistory(episode, rut, signal, observedAt, identityKind, maternalRut),
     onCudyrPlacementsArchived: markCudyrFlowArchived,
-    fetchCudyrCategories: () => requestCudyrCategories(undefined, signal),
+    fetchCudyrCategories: () => requestCudyrCategories(undefined, signal, expectedEncounterIds),
   } satisfies Pick<
     ClinicalFillDeps,
     | 'fetchDeviceReport'

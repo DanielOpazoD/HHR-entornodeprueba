@@ -230,8 +230,8 @@ describe('Gestión de Camas connection runtime', () => {
     const { runtime } = createFixture({ 'gc-session': record }, { tabs: [] });
 
     await expect(runtime.health()).resolves.toMatchObject({
-      status: 'missing',
-      message: 'Abre Gestión de Camas.',
+      status: 'stale',
+      message: 'Vuelve a conectar Gestión de Camas con el acceso actual de Ficha Médico.',
     });
 
     // Con una pestaña de reemplazo abierta, el health intenta adoptar su sesión

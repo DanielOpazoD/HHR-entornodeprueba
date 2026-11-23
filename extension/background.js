@@ -4,7 +4,7 @@
 // MV3 requires initial imports. Excel/PDF stay here until their separate offscreen migrations.
 importScripts(
   'message-contract.js', 'build-identity.js', 'hhr-origin-policy.js', 'exalab-background.js', 'exalab-session-transport.js', 'exalab-auto-runtime.js', 'eloisa-patient-code-contract.js', 'fichamedico-manual-patient-code-runtime.js',
-  'encounter-navigation.js', 'worklist-patient-editor.js',
+  'encounter-navigation.js', 'worklist-patient-editor.js', 'nursing-handoff-connection.js', 'nursing-handoff-pilot.js', 'rapa-nui-weather.js', 'hhr-daily-births.js',
   'hhr-request-forms.js',
   'health-check.js', 'clinical-day-runtime.js', 'clinical-history-coverage.js', 'census-sync-horizon-runtime.js', 'capture-read-recovery.js', 'rayen-sync-bundle-runtime.js', 'sync-bundle-cancellation-runtime.js',
   'connection-relay-recovery.js', 'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-device-evidence-runtime.js', 'clinical-read-error-contract.js', 'fichamedico-clinical-client.js', 'tab-encounter-authorization.js', 'fichamedico-patient-flow-runtime.js',
@@ -244,6 +244,7 @@ const handleManualPatientCodeRequest = self.HhrFichaMedicoManualPatientCodeRunti
 const gestionCamasRuntime = self.HhrGestionCamasRuntime.create({
   chrome,
   session: self.HhrGestionCamasSession,
+  readFichaFetchInfo: () => getFichaFetchInfo(),
   extensionHealth: self.HhrExtensionHealth,
   withTimeout,
   fetchWithTimeout,
@@ -281,10 +282,12 @@ const readExtensionHealthUncached = async (targets = {}) => {
   const runtimeContext = await getRuntimeContext();
   const [fichaMedico, gestionCamas, hhr] = await Promise.all([
     handleFichaMedicoHealth(runtimeContext.runtimeGeneration, targets.fichaMedicoTabIds),
-    handleGestionCamasHealth(runtimeContext.runtimeGeneration, targets.gestionCamasTabIds, { verifySessions: targets.verifySessions === true }),
+    handleGestionCamasHealth(runtimeContext.runtimeGeneration, targets.gestionCamasTabIds, {
+      verifySessions: targets.verifySessions === true,
+      bindScope: !Array.isArray(targets.fichaMedicoTabIds) && !Array.isArray(targets.gestionCamasTabIds),
+    }),
     handleHhrHealth(runtimeContext),
   ]);
-
   const report = {
     ...self.HhrExtensionBuildIdentity.withIdentity(chrome.runtime.getManifest(), runtimeContext),
     protocolVersion: EXTENSION_PROTOCOL_VERSION,
@@ -336,12 +339,10 @@ const bufferToBase64 = buffer => {
 };
 const patientFlowRuntime = self.HhrFichaMedicoPatientFlowRuntime.create({ clinicalClient: fichaMedicoClinicalClient, bufferToBase64 });
 
+const waitMs = delay => new Promise(resolve => setTimeout(resolve, delay));
+const recentBedsSlot = self.HhrGestionCamasActiveBeds.createRecentBedsSlot({ ttlMs: 10_000, now: () => Date.now() });
 const readSnapshotWithClinicalCribs = () =>
-  self.HhrGestionCamasClinicalCribs.enrichSnapshotRequest(
-    handleSnapshotRequest(),
-    gestionCamasRuntime,
-    fetchWithTimeout
-  );
+  self.HhrGestionCamasClinicalCribs.enrichSnapshotRequest(handleSnapshotRequest(), gestionCamasRuntime, fetchWithTimeout, recentBedsSlot.store);
 
 const readAuthorizedSnapshot = sender =>
   patientFlowRuntime.authorizeSnapshotResponse(
@@ -361,7 +362,7 @@ const base64ToArrayBuffer = value => {
 const egresoReportRuntime = self.HhrGestionCamasEgresoReportRuntime.create({
   downloads: chrome.downloads,
   reportFile: REPORT_FILE,
-  resolveSession: resolveGestionCamasSession,
+  resolveSession: () => resolveGestionCamasSession({ requireFichaScope: true }),
   classifyRejection: classifyGestionCamasRejection,
   markSessionVerified: markGestionCamasSessionVerified,
   fetchWithTimeout,
@@ -373,7 +374,7 @@ const egresoReportRuntime = self.HhrGestionCamasEgresoReportRuntime.create({
 const { request: handleReportRequest, save: handleReportSave } = egresoReportRuntime;
 
 const monthlyCudyrReports = self.HhrGestionCamasMonthlyCudyrRuntime.create({
-  resolveSession: resolveGestionCamasSession, fetchWithTimeout, markSessionVerified: markGestionCamasSessionVerified, bufferToBase64,
+  resolveSession: resolveGestionCamasSession, fetchWithTimeout, markSessionVerified: markGestionCamasSessionVerified, bufferToBase64, wait: waitMs,
 });
 
 const syncBundleCancellation = self.HhrSyncBundleCancellationRuntime.create();
@@ -385,6 +386,7 @@ const handleSyncBundleRequest = (message, sender) =>
         dateStart: message.dateStart,
         dateEnd: message.dateEnd, isCancelled: () => syncBundleCancellation.isCancelled(message.requestId),
         readHealth: options => healthReportCache.read(options),
+        readFichaScope: gestionCamasRuntime.readFichaScope,
         // The bundle wrapper authorizes the union of live and report-backed episodes atomically.
         readSnapshot: readSnapshotWithClinicalCribs,
         readReport: handleReportRequest,
@@ -974,8 +976,7 @@ const clinicalScoreRuntime = self.HhrClinicalScoreRuntime.create({
   crypto,
   fetchWithTimeout,
   getFichaFetchInfo,
-  resolveGestionCamasSession,
-  classifyGestionCamasRejection,
+  resolveGestionCamasSession, classifyGestionCamasRejection, markGestionCamasSessionVerified, wait: waitMs, consumeRecentBeds: recentBedsSlot.consume,
   nursingWorklists: fichaMedicoNursingWorklists,
   resolveSessionHandoffKind,
   fetchFichaClaims,
@@ -1018,8 +1019,7 @@ const clinicalScoreWriteRuntime = self.HhrClinicalScoreWriteRuntime.create({
   clinicalRecordKey,
   collectClinicalTimestampBaseline,
   hasNewClinicalTimestamp,
-  prescriptionPrint: self.HhrPrescriptionPrint,
-  wait: delay => new Promise(resolve => setTimeout(resolve, delay)),
+  prescriptionPrint: self.HhrPrescriptionPrint, wait: waitMs, onCudyrWriteAttempt: recentBedsSlot.clear,
 });
 const handleScoreSaveRequest = clinicalScoreWriteRuntime.handleSaveRequest;
 
@@ -1177,17 +1177,24 @@ const clinicalAntecedentsRuntime = self.HhrClinicalAntecedents.create({
   downloadDau: urgencyDauRuntime.download, prepareDauLogin: urgencyDauRuntime.prepareLogin, getAuthorizationKey: clinicalAuthorizationKey,
 });
 const runtimeRoute = (handle, fallback) => Object.freeze({ handle, fallback });
-
 const handlePatientClinicalBundleRequest = self.HhrPatientClinicalBundleRuntime.create({
   readDevices: handleDeviceReportRequest, readHistory: handleHistoryScalesRequest, readForms: handleScalesReportRequest,
   readAlerts: self.HhrFichaMedicoAlertEntryRuntime.create({ authorize: async (sender, encId) => { await patientFlowRuntime.authorizationReady; return patientFlowRuntime.canRequestClinicalEpisode(sender, encId); }, resolveSession: resolveFichaClinicalSession, readJson: options => fichaMedicoClinicalClient.readJson(options), clinicalDayAt: self.HhrClinicalDayRuntime.clinicalDayAt, classify: self.HhrClinicalReadErrors.classify }).fetchAlertEntries,
   readFluidBalance: self.HhrFichaMedicoFluidBalanceRuntime.create({ authorize: async (sender, encId) => { await patientFlowRuntime.authorizationReady; return patientFlowRuntime.canRequestClinicalEpisode(sender, encId); }, resolveSession: resolveFichaClinicalSession, readJson: options => fichaMedicoClinicalClient.readJson(options), clinicalDayAt: self.HhrClinicalDayRuntime.clinicalDayAt, classify: self.HhrClinicalReadErrors.classify }).fetchFluidBalance,
 });
-
 const worklistPatientEditor = self.HhrWorklistPatientEditor.create({
   chrome, getContext: getClinicalReportContext, getInfo: getFichaFetchInfo, checkAccess: checkWorklistChartAccess,
 });
+const nursingHandoffPilot = self.HhrNursingHandoffPilot.create({
+  chrome, getContext: getClinicalReportContext, getInfo: getFichaFetchInfo, checkAccess: checkWorklistChartAccess,
+  getSessionKey: fichaSessionCacheKey,
+});
 const runtimeMessageRoutes = Object.freeze({
+  [RUNTIME_MESSAGES.RAPA_NUI_WEATHER]: runtimeRoute(self.HhrRapaNuiWeather.fetchForecast, 'Pronóstico no disponible.'),
+  [RUNTIME_MESSAGES.DAILY_BIRTHS]: runtimeRoute(() => self.HhrDailyBirths.read(), 'Nacimientos no disponibles.'),
+  [RUNTIME_MESSAGES.NURSING_HANDOFF_TABLE]: runtimeRoute(nursingHandoffPilot.table, 'No se pudo comprobar la conexión a HHR.'),
+  [RUNTIME_MESSAGES.NURSING_HANDOFF_OPEN]: runtimeRoute(nursingHandoffPilot.start, 'No se pudo abrir la entrega.'),
+  [RUNTIME_MESSAGES.NURSING_HANDOFF_EDITOR]: runtimeRoute(nursingHandoffPilot.operate, 'No se pudo acceder a la entrega.'),
   [RUNTIME_MESSAGES.EXTENSION_HEALTH_REQUEST]: runtimeRoute(
     message => handleExtensionHealth(message),
     'No se pudo verificar el estado de la extensión.'
@@ -1219,7 +1226,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo abrir Gestión de Camas.'
   ),
   [RUNTIME_MESSAGES.GC_DISCONNECT_REQUEST]: runtimeRoute(
-    healthHeartbeat.pushAfter(() => handleDisconnectGestionCamas(), 'gc-disconnected'),
+    healthHeartbeat.pushAfter(() => { recentBedsSlot.clear(); return handleDisconnectGestionCamas(); }, 'gc-disconnected'),
     'No se pudo olvidar la conexión de Gestión de Camas.'
   ),
     // instead of leaving HHR's button enabled until the next heartbeat.
@@ -1512,7 +1519,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo revisar el estado del guardado clínico.'
   ),
   [RUNTIME_MESSAGES.CUDYR_CATEGORIES_REQUEST]: runtimeRoute(
-    () => handleCudyrCategoriesRequest(),
+    message => handleCudyrCategoriesRequest({ expectedEncounterIds: message?.expectedEncounterIds }),
     'No se pudo consultar CUDYR.'
   ),
 });
