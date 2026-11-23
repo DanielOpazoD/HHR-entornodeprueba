@@ -1,4 +1,4 @@
-import type { Workbook } from 'exceljs';
+import type { Workbook, Worksheet } from 'exceljs';
 
 import type { CensusExportRecord } from '@/services/contracts/censusExportServiceContracts';
 import { calculateStats } from '@/services/calculations/statsCalculator';
@@ -11,12 +11,19 @@ import {
   DISCHARGES_TABLE,
   TRANSFERS_TABLE,
 } from '@/services/exporters/excel/sections/movementTables';
-import { applyCensusDaySheetColumnLayout } from '@/services/exporters/excel/censusWorkbookColumnLayout';
 import {
   getActiveCma,
   getActiveDischarges,
   getActiveTransfers,
 } from '@/domain/movements/movementTombstonePolicy';
+
+const CENSUS_DAY_SHEET_WIDTHS = [4, 10, 9, 24, 16, 8, 28, 16, 12, 12, 7, 7, 7, 7, 18];
+
+export const applyCensusDaySheetColumnLayout = (worksheet: Worksheet): void => {
+  CENSUS_DAY_SHEET_WIDTHS.forEach((width, idx) => {
+    worksheet.getColumn(idx + 1).width = width;
+  });
+};
 
 export const createCensusWorkbookDaySheet = (
   workbook: Workbook,

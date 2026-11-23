@@ -2,11 +2,39 @@ import type { Workbook } from 'exceljs';
 import type { CensusExportRecord } from '@/services/contracts/censusExportServiceContracts';
 import { createWorkbook } from '../excelUtils';
 import type { CensusMasterWorkbookOptions } from './censusWorkbookContracts';
-import { applyCensusWorkbookMetadata } from './censusWorkbookMetadataController';
 import { buildCensusWorkbookSheetDescriptors } from './censusWorkbookSheetDescriptorController';
-import { reserveUniqueCensusSheetName } from './censusWorkbookSheetNameController';
 import { createCensusWorkbookDaySheet } from './censusWorkbookDaySheetBuilder';
 import { addCensusHiddenSheets } from './censusHiddenSheetsBuilder';
+import { EXCEL_SHEET_NAME_MAX_LENGTH } from './styles';
+
+export const applyCensusWorkbookMetadata = (workbook: Workbook): void => {
+  workbook.creator = 'Hospital Hanga Roa';
+  workbook.created = new Date();
+};
+
+export const reserveUniqueCensusSheetName = (baseName: string, usedNames: Set<string>): string => {
+  const sanitizedBase = baseName
+    .replace(/[\\/?*:[\]]/g, '-')
+    .trim()
+    .slice(0, EXCEL_SHEET_NAME_MAX_LENGTH);
+
+  if (!usedNames.has(sanitizedBase)) {
+    usedNames.add(sanitizedBase);
+    return sanitizedBase;
+  }
+
+  let suffix = 2;
+  while (suffix < 1000) {
+    const candidate = `${sanitizedBase} (${suffix})`.slice(0, EXCEL_SHEET_NAME_MAX_LENGTH);
+    if (!usedNames.has(candidate)) {
+      usedNames.add(candidate);
+      return candidate;
+    }
+    suffix++;
+  }
+
+  return sanitizedBase;
+};
 
 export const buildCensusMasterWorkbook = async (
   records: CensusExportRecord[],

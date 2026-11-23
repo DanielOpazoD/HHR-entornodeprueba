@@ -1,3 +1,4 @@
+import { CENSUS_DEFAULT_RECIPIENTS } from '@/constants/email';
 import type { CensusExportRecord } from '@/services/contracts/censusExportServiceContracts';
 import type { CensusWorkbookSheetDescriptor } from '@/services/exporters/censusMasterWorkbook';
 import {
@@ -6,10 +7,22 @@ import {
 } from '@/services/integrations/censusEmailRuntimePolicy';
 import { sendCensusEmailRequest } from '@/services/integrations/censusEmailNetworkClient';
 import { buildCensusEmailRequestBody } from '@/services/integrations/censusEmailRequestPayload';
-import { saveCensusEmailExportPassword } from '@/services/integrations/censusEmailAudit';
-import { resolveCensusEmailRecipients } from '@/services/integrations/censusEmailRecipients';
 import { assertCensusEmailSendingAllowed } from '@/services/integrations/censusEmailSendPolicy';
+import { savePasswordToFirestore } from '@/services/security/exportPasswordService';
 import { CensusEmailResponseSchema, type CensusEmailResponse } from '@/shared/contracts/serverless';
+
+export const resolveCensusEmailRecipients = (recipients?: string[]): string[] => {
+  const finalRecipients =
+    recipients && recipients.length > 0 ? recipients : CENSUS_DEFAULT_RECIPIENTS;
+
+  if (finalRecipients.length === 0) {
+    throw new Error(
+      'No se especificaron destinatarios para el correo. Configure los destinatarios antes de enviar.'
+    );
+  }
+
+  return finalRecipients;
+};
 
 interface TriggerEmailParams {
   date: string;
@@ -71,10 +84,11 @@ export const triggerCensusEmail = async (
   const result = CensusEmailResponseSchema.parse(await response.json());
 
   if (result.exportPassword && result.censusDate) {
-    await saveCensusEmailExportPassword(
+    await savePasswordToFirestore(
       result.censusDate,
       result.exportPassword,
-      userEmail || undefined
+      userEmail || undefined,
+      'email'
     );
   }
 
