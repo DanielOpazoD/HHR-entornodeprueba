@@ -1,10 +1,29 @@
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
 import type { ShiftSchedule } from '@/utils/clinicalDayUtils';
-import {
-  resolvePrintableShiftLabel,
-  resolvePrintableStaffList,
-} from '@/features/handoff/controllers/handoffPrintHeaderController';
+
+export const resolvePrintableShiftLabel = (
+  selectedShift: 'day' | 'night' | undefined,
+  schedule: Pick<ShiftSchedule, 'dayStart' | 'dayEnd' | 'nightStart' | 'nightEnd'> | undefined
+): string | null => {
+  if (!schedule) {
+    return null;
+  }
+
+  return selectedShift === 'day'
+    ? `Turno Largo (${schedule.dayStart} - ${schedule.dayEnd})`
+    : `Turno Noche (${schedule.nightStart} - ${schedule.nightEnd})`;
+};
+
+export const resolvePrintableStaffList = (
+  values: string[] | undefined,
+  fallback: string
+): { text: string; isFallback: boolean } => {
+  const normalized = (values || []).filter(Boolean).join(', ');
+  return normalized
+    ? { text: normalized, isFallback: false }
+    : { text: fallback, isFallback: true };
+};
 
 interface HandoffPrintHeaderProps {
   title: string;

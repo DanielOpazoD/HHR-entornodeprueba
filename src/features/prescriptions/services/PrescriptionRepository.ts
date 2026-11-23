@@ -10,8 +10,10 @@
 
 import { firestoreDb } from '@/services/storage/firestore';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
-import { getPrescriptionsCollectionPath } from '@/features/prescriptions/constants/prescriptionPaths';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
+
+const getPrescriptionsCollectionPath = (hospitalId: string = getActiveHospitalId()): string =>
+  `hospitals/${hospitalId}/prescriptions`;
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { safeParsePrescriptionRecord } from '@/features/prescriptions/schemas/prescriptionSchemas';
 import type {

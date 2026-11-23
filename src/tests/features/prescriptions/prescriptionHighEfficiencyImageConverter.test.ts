@@ -16,7 +16,7 @@ describe('prescriptionHighEfficiencyImageConverter', () => {
     });
 
     const { convertHighEfficiencyImageToJpeg } =
-      await import('@/features/prescriptions/services/prescriptionHighEfficiencyImageConverter');
+      await import('@/services/images/highEfficiencyImageConverter');
 
     await expect(convertHighEfficiencyImageToJpeg(createHeicFile())).rejects.toMatchObject({
       message: expect.stringContaining('No se pudo cargar el conversor HEIC/HEIF'),
@@ -36,7 +36,7 @@ describe('prescriptionHighEfficiencyImageConverter', () => {
     }));
 
     const { convertHighEfficiencyImageToJpeg } =
-      await import('@/features/prescriptions/services/prescriptionHighEfficiencyImageConverter');
+      await import('@/services/images/highEfficiencyImageConverter');
 
     await expect(convertHighEfficiencyImageToJpeg(createHeicFile())).rejects.toMatchObject({
       message: expect.stringContaining('este navegador no pudo convertirla'),
