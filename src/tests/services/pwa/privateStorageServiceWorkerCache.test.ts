@@ -143,4 +143,32 @@ describe('service worker and owner-only Storage objects', () => {
 
     expect(cacheStorage.cachedUrls()).toEqual([EXPORT_URL]);
   });
+
+  it('deletes runtime caches from previous versions on activate while keeping current and precache entries', async () => {
+    await (
+      await cacheStorage.open('images-v2.3.0')
+    ).put('https://example.test/old.png', new Response('old'));
+    await (
+      await cacheStorage.open('firebase-v2.0.0')
+    ).put('https://example.test/old-fb', new Response('old'));
+    await (
+      await cacheStorage.open('pages-v1.0.0')
+    ).put('https://example.test/old-page', new Response('old'));
+    await (await cacheStorage.open('offline-v2.3.0')).put('/offline.html', new Response('old'));
+    await (
+      await cacheStorage.open('images-v2.4.0')
+    ).put('https://example.test/current.png', new Response('cur'));
+    await (
+      await cacheStorage.open('workbox-precache-v2')
+    ).put('https://example.test/app.js', new Response('js'));
+
+    const pending: Promise<unknown>[] = [];
+    const activate = Object.assign(new Event('activate'), {
+      waitUntil: (promise: Promise<unknown>) => pending.push(promise),
+    });
+    self.dispatchEvent(activate);
+    await Promise.all(pending);
+
+    expect((await cacheStorage.keys()).sort()).toEqual(['images-v2.4.0', 'workbox-precache-v2']);
+  });
 });

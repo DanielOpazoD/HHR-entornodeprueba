@@ -272,6 +272,7 @@
     "postcss": "^8.5.26",
     "prettier": "^3.8.1",
     "tailwindcss": "^4.1.18",
+    "terser": "^5.51.2",
     "typedoc": "^0.28.15",
     "typescript": "~5.8.2",
     "typescript-eslint": "^8.72.2",
