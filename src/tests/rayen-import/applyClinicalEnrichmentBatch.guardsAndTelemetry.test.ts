@@ -1,11 +1,17 @@
-import { describe, expect, it, vi } from 'vitest';
-import { applyClinicalEnrichmentBatch } from '@/features/rayen-import/hooks/applyClinicalEnrichmentBatch';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  applyClinicalEnrichmentBatch,
+  applyClinicalFillBatch,
+} from '@/features/rayen-import/hooks/applyClinicalEnrichmentBatch';
 import { rebuildClinicalEnrichmentOperations } from '@/features/rayen-import/domain/rebuildClinicalEnrichmentOperations';
+import type { RayenClinicalEnrichmentBatchPayload } from '@/features/rayen-import/bridge/rayenClinicalEnrichmentBatchClient';
 import {
   getDailyRecordWriteState,
   runExclusiveDailyRecordWrite,
   runWithDailyRecordWriteLock,
 } from '@/services/repositories/dailyRecordWriteCoordinator';
+import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
+import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { createDependencies, operations, record } from './applyClinicalEnrichmentBatch.fixtures';
@@ -17,16 +23,73 @@ const deferred = () => {
   });
   return { promise, resolve };
 };
-const baseRecord = (): DailyRecord =>
-  ({
-    ...record,
-    beds: {
-      H2C1: DataFactory.createMockPatient('H2C1', { clinicalEpisodeId: 'episode-1' }),
-      H2C2: DataFactory.createMockPatient('H2C2', { clinicalEpisodeId: 'episode-2' }),
-    },
-  }) as DailyRecord;
+
+describe('applyClinicalEnrichmentBatch rolling compatibility', () => {
+  const preParityResponse = (
+    payload: RayenClinicalEnrichmentBatchPayload,
+    targetCount: number,
+    fieldCount: number
+  ) => ({
+    success: true as const,
+    authorityStatus: 'ok' as const,
+    date: payload.date,
+    mode: payload.mode,
+    targetCount,
+    fieldCount,
+    patientWrites: payload.mode === 'enforced' ? 1 : 0,
+    historySnapshots: payload.mode === 'enforced' ? 1 : 0,
+  });
+
+  it('rejects an exact committed response from the retired pre-parity backend', async () => {
+    const deps = createDependencies();
+    const invoke = vi.fn(async (payload: RayenClinicalEnrichmentBatchPayload) =>
+      preParityResponse(payload, 2, 3)
+    );
+
+    await expect(
+      applyClinicalEnrichmentBatch({
+        record,
+        runId: 'run-old-enforced-response',
+        operations,
+        ...deps,
+        invoke,
+      })
+    ).rejects.toThrow('no confirmó paridad');
+
+    expect(deps.applyPatch).not.toHaveBeenCalled();
+    expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a pre-parity response with incomplete counts', async () => {
+    const deps = createDependencies();
+    const invoke = vi.fn(async (payload: RayenClinicalEnrichmentBatchPayload) =>
+      preParityResponse(payload, 1, 2)
+    );
+
+    await expect(
+      applyClinicalEnrichmentBatch({
+        record,
+        runId: 'run-old-enforced-incomplete-response',
+        operations,
+        ...deps,
+        invoke,
+      })
+    ).rejects.toThrow('no confirmó paridad');
+    expect(deps.applyPatch).not.toHaveBeenCalled();
+    expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('clinical batches share the census write turn', () => {
+  const baseRecord = (): DailyRecord =>
+    ({
+      ...record,
+      beds: {
+        H2C1: DataFactory.createMockPatient('H2C1', { clinicalEpisodeId: 'episode-1' }),
+        H2C2: DataFactory.createMockPatient('H2C2', { clinicalEpisodeId: 'episode-2' }),
+      },
+    }) as DailyRecord;
+
   it('refreshes a committed batch with its own reader; the write-turn read stays the rebuild input', async () => {
     const deps = createDependencies();
     const refreshCommittedRecord = vi.fn().mockResolvedValue(undefined);
@@ -227,5 +290,153 @@ describe('clinical batches share the census write turn', () => {
     const [result] = await Promise.all([batch, manual]);
     expect(result).toMatchObject({ patientWrites: 0, historySnapshots: 0, retries: 1 });
     expect(manualWrite).toHaveBeenCalledOnce();
+  });
+});
+
+describe('clinical session ownership across waits', () => {
+  beforeEach(() => {
+    localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-a');
+    setSessionGeneration('synthetic-generation-a');
+  });
+
+  afterEach(() => {
+    localStorage.removeItem(SESSION_OWNER_KEY);
+    setSessionGeneration(null);
+  });
+
+  const replaceSession = () => {
+    localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-b');
+    setSessionGeneration('synthetic-generation-b');
+  };
+  const input = () => ({ record, runId: 'synthetic-run-a', operations });
+
+  it('checks the original session after waiting for another writer', async () => {
+    let release!: () => void;
+    const blocker = runExclusiveDailyRecordWrite(
+      record.date,
+      () =>
+        new Promise<void>(resolve => {
+          release = resolve;
+        })
+    );
+    await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+    const deps = createDependencies();
+    const batch = applyClinicalEnrichmentBatch({ ...input(), ...deps });
+    replaceSession();
+    release();
+    await blocker;
+    await expect(batch).rejects.toThrow('La sesión cambió.');
+    expect(deps.refreshRecord).not.toHaveBeenCalled();
+    expect(deps.invoke).not.toHaveBeenCalled();
+  });
+
+  it('detects a new generation even when A returns with the same owner key', async () => {
+    const deps = createDependencies();
+    deps.refreshRecord.mockImplementation(async () => {
+      setSessionGeneration('synthetic-generation-a-returned');
+      return record;
+    });
+    await expect(applyClinicalEnrichmentBatch({ ...input(), ...deps })).rejects.toThrow(
+      'La sesión cambió.'
+    );
+    expect(deps.invoke).not.toHaveBeenCalled();
+  });
+
+  it.each(['functions/unavailable', 'functions/aborted'])(
+    'does not retry %s after a session replacement',
+    async code => {
+      const deps = createDependencies();
+      deps.invoke.mockImplementation(async () => {
+        replaceSession();
+        throw { code, message: 'revision_mismatch' };
+      });
+      await expect(applyClinicalEnrichmentBatch({ ...input(), ...deps })).rejects.toThrow(
+        'La sesión cambió.'
+      );
+      expect(deps.invoke).toHaveBeenCalledOnce();
+      expect(deps.refreshRecord).toHaveBeenCalledOnce();
+    }
+  );
+
+  it('keeps an already committed remote result without adopting it into B', async () => {
+    const deps = createDependencies();
+    const refreshCommittedRecord = vi.fn();
+    const invoke = vi.fn(async (...args: Parameters<typeof deps.invoke>) => {
+      const committed = await deps.invoke(...args);
+      replaceSession();
+      return committed;
+    });
+    await expect(
+      applyClinicalEnrichmentBatch({ ...input(), ...deps, invoke, refreshCommittedRecord })
+    ).rejects.toThrow('La sesión cambió.');
+    expect(invoke).toHaveBeenCalledOnce();
+    expect(refreshCommittedRecord).not.toHaveBeenCalled();
+  });
+
+  it('honors the phase session captured before persistence is requested', async () => {
+    const deps = createDependencies();
+    const checkSession = () => {
+      if (localStorage.getItem(SESSION_OWNER_KEY) !== 'user:synthetic-a')
+        throw new Error('La sesión cambió.');
+    };
+    replaceSession();
+    await expect(applyClinicalFillBatch({ ...input(), ...deps, checkSession })).rejects.toThrow(
+      'La sesión cambió.'
+    );
+    expect(deps.invoke).not.toHaveBeenCalled();
+  });
+});
+
+describe('applyClinicalEnrichmentBatch telemetry compatibility', () => {
+  it('labels a previous-day authority call as historical', async () => {
+    const deps = createDependencies();
+    const result = await applyClinicalEnrichmentBatch({
+      record,
+      authorityDate: '2026-07-29',
+      runId: 'run-historical',
+      operations,
+      ...deps,
+    });
+
+    expect(result.persistence).toEqual({
+      scope: 'historical',
+      callableAttempts: 1,
+      clientRetries: 0,
+      transactionRetries: 0,
+    });
+  });
+
+  it('keeps aggregate retries after an older callable succeeds without transaction telemetry', async () => {
+    const deps = createDependencies();
+    deps.invoke
+      .mockRejectedValueOnce({ code: 'functions/unavailable' })
+      .mockImplementationOnce(async (payload: RayenClinicalEnrichmentBatchPayload) => ({
+        success: true,
+        authorityStatus: 'ok' as const,
+        date: payload.date,
+        mode: payload.mode,
+        targetCount: new Set(
+          [...payload.patches, ...(payload.checkpoints ?? [])].map(
+            target => `${target.bedId}|${target.clinicalCrib ? 'crib' : 'patient'}`
+          )
+        ).size,
+        fieldCount:
+          payload.patches.reduce((total, patch) => total + Object.keys(patch.fields).length, 0) +
+          (payload.checkpoints?.length ?? 0),
+        resultParity: 'matched' as const,
+        patientWrites: 1,
+        historySnapshots: 1,
+      }));
+
+    const result = await applyClinicalEnrichmentBatch({
+      record,
+      runId: 'run-old-callable-retry',
+      operations,
+      ...deps,
+    });
+
+    expect(result).toMatchObject({ retries: 1, patientWrites: 1 });
+    expect(result).not.toHaveProperty('persistence');
+    expect(deps.invoke).toHaveBeenCalledTimes(2);
   });
 });
