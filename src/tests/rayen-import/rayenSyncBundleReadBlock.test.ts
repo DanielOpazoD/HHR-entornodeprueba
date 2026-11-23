@@ -52,6 +52,7 @@ const capture = (healths: Health[], readSnapshot: () => Promise<unknown>) => {
     dateStart: '2026-07-24',
     dateEnd: '2026-07-25',
     readHealth,
+    readFichaScope: vi.fn().mockResolvedValue('1342:3:5'),
     readSnapshot,
     readReport: vi.fn().mockResolvedValue({
       ok: true,

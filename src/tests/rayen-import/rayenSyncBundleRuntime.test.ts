@@ -46,6 +46,7 @@ const capture = (overrides: Record<string, unknown> = {}) => {
     dateStart: '2026-07-24',
     dateEnd: '2026-07-25',
     readHealth: vi.fn().mockResolvedValue(readyHealth),
+    readFichaScope: vi.fn().mockResolvedValue('1342:3:5'),
     readSnapshot: vi.fn().mockResolvedValue({ snapshot }),
     readReport: vi.fn().mockResolvedValue(report),
     now: () => times.shift() ?? new Date('2026-07-24T10:00:21.000Z'),

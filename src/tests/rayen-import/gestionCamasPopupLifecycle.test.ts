@@ -99,10 +99,11 @@ describe('Gestión de Camas new-popup lifecycle', () => {
     });
     fixture.tabs.splice(0); // The user can still close the source intentionally.
     await expect(fixture.runtime.health()).resolves.toMatchObject({
-      status: 'missing',
-      reason: 'tab_missing',
+      status: 'stale',
+      reason: 'session_unverified',
+      message: 'Vuelve a conectar Gestión de Camas con el acceso actual de Ficha Médico.',
     });
-    expect(fixture.values['gc-session']).toBeDefined(); // Stored credentials cannot bypass either gate.
+    expect(fixture.values['gc-session']).toBeDefined(); // Unpaired stored credentials cannot bypass either gate.
   });
 
   it('blocks silent recapture after intentional disconnect even though the popup stays open', async () => {
@@ -177,8 +178,9 @@ describe('Gestión de Camas new-popup lifecycle', () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(fixture.chromeApi.windows.remove).toHaveBeenCalledWith(12);
     await expect(fixture.runtime.health()).resolves.toMatchObject({
-      status: 'missing',
-      reason: 'tab_missing',
+      status: 'stale',
+      reason: 'session_unverified',
+      message: 'Vuelve a conectar Gestión de Camas con el acceso actual de Ficha Médico.',
     });
   });
 });
