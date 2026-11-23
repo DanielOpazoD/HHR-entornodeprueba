@@ -1,5 +1,5 @@
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
-import { sessionEpochGuard } from '@/services/session/sessionStorageTransition';
+import { onSessionChange, sessionEpochGuard } from '@/services/session/sessionStorageTransition';
 import type {
   LabResultRow,
   SyslabDetailsResponse,
@@ -55,6 +55,39 @@ export interface CensusLabState {
   nextOffset: number | null;
 }
 
+const waitWhileSessionCurrent = (ms: number, isCurrent: () => boolean): Promise<void> =>
+  new Promise(resolve => {
+    if (!isCurrent()) {
+      resolve();
+      return;
+    }
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      unsubscribe();
+      resolve();
+    };
+    const unsubscribe = onSessionChange(finish);
+    const timer = setTimeout(finish, ms);
+  });
+
+const parseSyslabJobJson = async <T>(
+  response: Response
+): Promise<T & { success?: boolean; error?: string }> => {
+  let raw: unknown;
+  try {
+    raw = await response.json();
+  } catch {
+    throw new Error('No se pudo consultar la cola del Mac mini.');
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error('La cola del Mac mini devolvió una respuesta no válida.');
+  }
+  return raw as T & { success?: boolean; error?: string };
+};
+
 /** Short authenticated requests only. The Mac mini owns long-running work, not a Netlify invocation. */
 export const requestSyslabJob = async <T>(
   action: string,
@@ -65,14 +98,16 @@ export const requestSyslabJob = async <T>(
   rateLimitAttempt = 0
 ): Promise<T> => {
   const isSessionShown = sessionEpochGuard();
+  const isRequestCurrent = () => isCurrent() && isSessionShown();
   const assertCurrent = () => {
-    if (!isCurrent() || !isSessionShown()) throw new Error('Consulta cancelada.');
+    if (!isRequestCurrent()) throw new Error('Consulta cancelada.');
   };
   assertCurrent();
   const headers = await resolveCurrentUserAuthHeaders();
   assertCurrent();
   if (!headers.Authorization) throw new Error('Inicia sesión en HHR para consultar el Mac mini.');
   const controller = new AbortController();
+  const unsubscribeSession = onSessionChange(() => controller.abort());
   const timeout = setTimeout(() => controller.abort(), 15_000);
   try {
     const query = new URLSearchParams({
@@ -88,34 +123,33 @@ export const requestSyslabJob = async <T>(
       cache: 'no-store',
       redirect: 'error',
     });
-    const value = (await response.json()) as T & { success?: boolean; error?: string };
     assertCurrent();
     const progressRead =
       action === 'job-status' || action === 'job-result' || action === 'census-state';
     if (response.status === 429 && progressRead && rateLimitAttempt < 3) {
       clearTimeout(timeout);
+      unsubscribeSession();
       const requestedSeconds = Number(response.headers.get('Retry-After'));
       const seconds =
         Number.isFinite(requestedSeconds) && requestedSeconds > 0
           ? Math.min(requestedSeconds, 300)
           : 60;
-      await new Promise(resolve => setTimeout(resolve, seconds * 1000));
+      await waitWhileSessionCurrent(seconds * 1000, isRequestCurrent);
       assertCurrent();
-      return requestSyslabJob<T>(
-        action,
-        body,
-        id,
-        () => isSessionShown() && isCurrent(),
-        offset,
-        rateLimitAttempt + 1
-      );
+      return requestSyslabJob<T>(action, body, id, isRequestCurrent, offset, rateLimitAttempt + 1);
     }
+    const value = await parseSyslabJobJson<T>(response);
+    assertCurrent();
     if (!response.ok || value.success !== true) {
       throw new Error(value.error || 'No se pudo consultar la cola del Mac mini.');
     }
     return value;
+  } catch (error) {
+    assertCurrent();
+    throw error;
   } finally {
     clearTimeout(timeout);
+    unsubscribeSession();
   }
 };
 
@@ -222,7 +256,8 @@ export const readRemoteSyslabDetailsJob = async (
         'No se completó la lectura de informes. Vuelve a intentar; el Mac mini conserva lo leído.'
       );
     }
-    await new Promise(resolve => setTimeout(resolve, 5_000));
+    await waitWhileSessionCurrent(5_000, isCurrent);
+    if (!isCurrent()) break;
     const response = await requestSyslabJob<{ job: LaboratoryJob }>(
       'job-status',
       undefined,
