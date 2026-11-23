@@ -24,6 +24,11 @@ const fixture = vi.hoisted(() => ({
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordBeds: () => fixture.beds,
   useDailyRecordData: () => ({ record: { date: fixture.date, beds: fixture.beds } }),
+  useDailyRecordMeta: () => ({
+    date: fixture.date,
+    rayenCoverageCompletedAt: '',
+    activeExtraBeds: [],
+  }),
 }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ role: 'admin' }) }));
 vi.mock('@/hooks/useFeatureFlag', () => ({
