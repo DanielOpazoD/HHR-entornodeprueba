@@ -73,7 +73,7 @@ Estos puntos no deben romperse:
 2. `config/roles` sigue siendo la fuente de verdad.
 3. Netlify Functions sensibles no deben usar una ruta de resolución con semántica distinta al shell.
 4. Claims pueden sincronizarse por performance o ergonomía, pero no deben volver a ser la fuente primaria de autorización de `LAB/MMRAD`.
-5. El alias legacy `viewer_census` solo se recanoniza a `viewer`; no debe crecer con nuevos consumidores.
+5. Los aliases legacy de rol (como `viewer_census`) fueron retirados; solo se aceptan roles canónicos.
 
 ## Implementación actual
 

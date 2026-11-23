@@ -213,17 +213,21 @@ describe('firebase-auth netlify helper', () => {
     );
   });
 
-  it('normalizes legacy role aliases without mutating config/roles during authorization', async () => {
+  it('resolves canonical viewer role without normalizing retired legacy aliases', async () => {
     getDocMock.mockResolvedValue({
       exists: () => true,
       data: () => ({
-        'doctor@hospital.cl': 'viewer_census',
+        'viewer@hospital.cl': 'viewer',
+        'legacy@hospital.cl': 'viewer_census',
       }),
     });
 
     await expect(
-      resolveRoleForEmail({ kind: 'firestore' } as never, 'doctor@hospital.cl')
+      resolveRoleForEmail({ kind: 'firestore' } as never, 'viewer@hospital.cl')
     ).resolves.toBe('viewer');
+    await expect(
+      resolveRoleForEmail({ kind: 'firestore' } as never, 'legacy@hospital.cl')
+    ).resolves.toBe('viewer_census');
   });
 
   it('rejects authenticated users with roles outside the allowed set', async () => {

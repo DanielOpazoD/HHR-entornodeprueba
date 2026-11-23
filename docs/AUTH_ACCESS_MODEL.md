@@ -322,9 +322,9 @@ Documento específico:
 
 ## 4. Política de compatibilidad legacy
 
-La compatibilidad con alias legacy como `viewer_census` se mantiene mientras esta aplicación aún no sea la versión oficial. Esa compatibilidad es una protección de migración, no una superficie para construir features nuevas.
+El alias legacy `viewer_census` fue retirado de Firestore Rules, Storage Rules, Firebase Functions, Netlify Functions y `roleService`. La autorización acepta únicamente roles canónicos (`admin`, `nurse_hospital`, `doctor_urgency`, `doctor_specialist`, `viewer`, `editor`).
 
-No debe crecer con consumidores nuevos. Su retiro queda diferido hasta que el sistema sea oficial y exista una auditoría de producción que confirme ausencia de claims, `config/roles`, sesiones o flujos activos dependientes de aliases legacy.
+No se admiten nuevos aliases de rol ni normalizaciones implícitas; el guardia estático `src/tests/security/legacyRoleAliasStatic.test.ts` bloquea cualquier reintroducción.
 
 ## 5. Shared Census
 

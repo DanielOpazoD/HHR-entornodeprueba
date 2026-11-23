@@ -16,10 +16,6 @@ const createAuthHelpers = ({ auth, firestore }) => {
       if (roleDoc.exists) {
         const rolesMap = roleDoc.data() || {};
         const resolvedRole = rolesMap[cleanEmail];
-        if (resolvedRole === 'viewer_census') {
-          return 'viewer';
-        }
-
         if (typeof resolvedRole === 'string' && resolvedRole.trim()) {
           return resolvedRole;
         }

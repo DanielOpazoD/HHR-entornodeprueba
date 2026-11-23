@@ -7,6 +7,7 @@ const ROOT = path.resolve(__dirname, '../../../');
 const NEEDLE = 'viewer_census';
 
 const SEARCH_ROOTS = [
+  'rules',
   'firestore.rules',
   'storage.rules',
   'functions',
@@ -36,14 +37,7 @@ const SCANNABLE_EXTENSIONS = new Set([
   '.html',
 ]);
 
-const ALLOWED_COMPATIBILITY_REFERENCES = [
-  'firestore.rules',
-  'storage.rules',
-  'functions/lib/auth/authHelpersFactory.js',
-  'netlify/functions/lib/firebase-auth.ts',
-  'scripts/config/compatibility-governance.json',
-  'src/features/admin/services/roleService.ts',
-];
+const ALLOWED_COMPATIBILITY_REFERENCES: string[] = [];
 
 const toPosix = (value: string): string => value.split(path.sep).join('/');
 
@@ -74,7 +68,7 @@ const collectFiles = (relativeRoot: string, accumulator: string[]): void => {
 };
 
 describe('legacy role alias governance', () => {
-  it('limits viewer_census references to the approved migration surfaces', () => {
+  it('forbids viewer_census references across production, rules, and config surfaces', () => {
     const candidateFiles: string[] = [];
     for (const root of SEARCH_ROOTS) collectFiles(root, candidateFiles);
 

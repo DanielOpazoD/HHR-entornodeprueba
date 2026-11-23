@@ -37,7 +37,7 @@ const createFirebaseServicesStub = (options: {
 describe('functions authHelpersFactory', () => {
   it('resolves dynamic roles from config/roles without mutating the source document', async () => {
     const services = createFirebaseServicesStub({
-      dynamicRoles: { 'custom@example.com': 'viewer_census' },
+      dynamicRoles: { 'custom@example.com': 'viewer' },
     });
     const helpers = createAuthHelpers(services);
 
@@ -61,12 +61,13 @@ describe('functions authHelpersFactory', () => {
     ).resolves.toBe(true);
   });
 
-  it('normalizes viewer_census to viewer for callable helpers', async () => {
+  it('does not normalize retired viewer_census alias or grant callable clinical access', async () => {
     const services = createFirebaseServicesStub({
       dynamicRoles: { 'shared@example.com': 'viewer_census' },
     });
     const helpers = createAuthHelpers(services);
 
+    await expect(helpers.resolveRoleForEmail('shared@example.com')).resolves.toBe('viewer_census');
     await expect(
       helpers.hasCallableClinicalAccess({
         auth: {
@@ -75,7 +76,7 @@ describe('functions authHelpersFactory', () => {
           },
         },
       })
-    ).resolves.toBe(true);
+    ).resolves.toBe(false);
   });
 
   describe('when config/roles cannot be read', () => {
