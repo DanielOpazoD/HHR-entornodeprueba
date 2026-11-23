@@ -87,11 +87,11 @@ function createDeviceHandoffHandlers({ firestore, auth, Timestamp, FieldValue, n
     return runHash;
   }
 
-  function assertNurse(account, version) {
+  function assertManagedHandoffAccount(account, version) {
     if (
       account?.status !== 'active' ||
       account.credentialOperation ||
-      account.role !== 'nurse_hospital' ||
+      (account.role !== 'nurse_hospital' && account.role !== 'admin') ||
       account.hospitalId !== HOSPITAL_ID
     )
       throw denied();
@@ -115,7 +115,7 @@ function createDeviceHandoffHandlers({ firestore, auth, Timestamp, FieldValue, n
       return;
     }
     const account = (await get(accounts.doc(uid))).data();
-    assertNurse(account, grant.version);
+    assertManagedHandoffAccount(account, grant.version);
   }
 
   async function register(data, context) {
@@ -147,7 +147,7 @@ function createDeviceHandoffHandlers({ firestore, auth, Timestamp, FieldValue, n
     return firestore.runTransaction(async tx => {
       const ref = devices.doc(deviceId);
       const registration = managed
-        ? await nursingRegistration(uid, context, tx)
+        ? await managedRegistration(uid, context, tx)
         : await administratorRegistration(uid, user, tx);
       const grant = (await tx.get(ref)).data();
       if (grant) {
@@ -173,14 +173,14 @@ function createDeviceHandoffHandlers({ firestore, auth, Timestamp, FieldValue, n
     });
   }
 
-  async function nursingRegistration(uid, context, tx) {
+  async function managedRegistration(uid, context, tx) {
     const [access, identity] = await Promise.all([
       tx.get(accounts.doc(uid)),
       tx.get(firestore.collection(PRIVATE).doc(uid)),
     ]);
     const account = access.data();
     if (!hasCurrentAccountSession(account, context, now())) throw denied();
-    assertNurse(account, account.version);
+    assertManagedHandoffAccount(account, account.version);
     return { version: account.version, runHash: normalizedRunHash(identity.data()?.rut) };
   }
 

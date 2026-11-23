@@ -19,9 +19,9 @@ const enabled = Boolean(
   process.env.FIRESTORE_EMULATOR_HOST && process.env.FIREBASE_AUTH_EMULATOR_HOST
 );
 
-it.skipIf(!enabled)(
-  'guarda con HHR cerrado y conserva el autor de la llave individual',
-  async () => {
+it.skipIf(!enabled).each(['nurse_hospital', 'admin'])(
+  'guarda con HHR cerrado y conserva el autor de la cuenta individual %s',
+  async role => {
     for (const address of [
       process.env.FIRESTORE_EMULATOR_HOST,
       process.env.FIREBASE_AUTH_EMULATOR_HOST,
@@ -111,7 +111,7 @@ it.skipIf(!enabled)(
       await create(identity, { rut: run });
       await create(account, {
         status: 'active',
-        role: 'nurse_hospital',
+        role,
         hospitalId: 'hanga_roa',
         version: 1,
       });
