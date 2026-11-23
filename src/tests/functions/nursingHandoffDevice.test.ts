@@ -36,6 +36,7 @@ function fixture() {
   ]);
   const getRead = vi.fn((path: string) => ({ data: () => documents.get(path) }));
   const firestore = {
+    doc: (path: string) => ({ path, get: async () => getRead(path) }),
     collection: (name: string) => ({
       doc: (id: string) => ({
         path: name + '/' + id,
@@ -52,6 +53,8 @@ function fixture() {
   };
   const getUser = vi.fn(async () => ({
     email: 'nurse@example.invalid',
+    emailVerified: true,
+    providerData: [{ providerId: 'password', email: 'nurse@example.invalid' }],
     disabled: false,
     tokensValidAfterTime: new Date(instant - 1000).toISOString(),
   }));
@@ -93,6 +96,11 @@ describe('llave individual de enfermería', () => {
     await expect(operate({ ...status, professionalRun: '11.111.111-1' })).resolves.toEqual({
       authorized: true,
     });
+    const grantRef = 'hhr_nursing_handoff_devices/' + deviceId;
+    const grant = documents.get(grantRef) as { authenticatedAt: number };
+    documents.set(grantRef, { ...grant, authenticatedAt: undefined });
+    await expect(operate(status)).rejects.toMatchObject({ code: 'unauthenticated' });
+    documents.set(grantRef, grant);
     for (const attempt of [{ proof: 'b'.repeat(64) }, { professionalRun: '22222222-2' }]) {
       await expect(operate({ ...status, ...attempt })).rejects.toMatchObject({
         code: 'unauthenticated',
@@ -105,6 +113,70 @@ describe('llave individual de enfermería', () => {
       disconnected: true,
     });
     await expect(operate(status)).rejects.toMatchObject({ code: 'unauthenticated' });
+  });
+
+  it('registra al administrador individual con Google y revoca el acceso si pierde el rol', async () => {
+    const { documents, deps } = fixture();
+    const { register, operate } = createDeviceHandoffHandlers(deps);
+    documents.set(PRIVATE + '/nursingHandoffAdministrator', { runHash: digest(professionalRun) });
+    const email = 'daniel.opazo@hospitalhangaroa.cl';
+    documents.set('config/roles', { [email]: 'admin' });
+    const googleUser = {
+      email,
+      emailVerified: true,
+      providerData: [{ providerId: 'google.com', email }],
+      disabled: false,
+      tokensValidAfterTime: new Date(instant - 3000).toISOString(),
+    };
+    deps.auth.getUser.mockResolvedValue(googleUser);
+    const admin = {
+      auth: {
+        uid: 'synthetic-google-admin',
+        token: {
+          email,
+          email_verified: true,
+          auth_time: instant / 1000 - 2,
+          firebase: { sign_in_provider: 'google.com' },
+        },
+      },
+    };
+    for (const token of [
+      { ...admin.auth.token, email_verified: false },
+      { ...admin.auth.token, firebase: { sign_in_provider: 'password' } },
+    ]) {
+      await expect(register(enrollment, { auth: { ...admin.auth, token } })).rejects.toMatchObject({
+        code: 'permission-denied',
+      });
+    }
+    await expect(register(enrollment, admin)).resolves.toEqual({ registered: true });
+    await expect(operate(status)).resolves.toEqual({ authorized: true });
+    deps.auth.getUser.mockResolvedValue({
+      ...googleUser,
+      tokensValidAfterTime: new Date(instant - 2000).toISOString(),
+    });
+    await expect(operate(status)).rejects.toMatchObject({ code: 'unauthenticated' });
+    await expect(
+      register(enrollment, {
+        auth: { ...admin.auth, token: { ...admin.auth.token, auth_time: instant / 1000 } },
+      })
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    deps.auth.getUser.mockResolvedValue(googleUser);
+    await expect(operate({ ...status, professionalRun: '22222222-2' })).rejects.toMatchObject({
+      code: 'unauthenticated',
+    });
+    documents.set('config/individualAccounts', {
+      enabled: true,
+      protectedGoogle: { [email]: 'another-synthetic-uid' },
+    });
+    await expect(operate(status)).rejects.toMatchObject({ code: 'permission-denied' });
+    documents.set('config/individualAccounts', {
+      enabled: true,
+      protectedGoogle: { [email]: admin.auth.uid },
+    });
+    await expect(operate(status)).resolves.toEqual({ authorized: true });
+    documents.delete('config/individualAccounts');
+    documents.set('config/roles', { [email]: 'viewer' });
+    await expect(operate(status)).rejects.toMatchObject({ code: 'permission-denied' });
   });
 
   it('expone ambos puntos de entrada solo en hhr-pruebas y restringe el origen HTTP', async () => {

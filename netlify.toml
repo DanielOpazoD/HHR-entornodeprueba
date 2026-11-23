@@ -52,6 +52,12 @@
   force = true
 
 [[redirects]]
+  from = "/api/entrega-turno-equipo"
+  to = "https://southamerica-east1-hhr-pruebas.cloudfunctions.net/nursingHandoffDevice"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

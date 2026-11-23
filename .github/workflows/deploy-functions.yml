@@ -129,6 +129,8 @@ jobs:
         run: node scripts/checkDeployRuntime.js
 
       - name: Configure hhr-pruebas rollout switches
+        env:
+          HHR_NURSING_HANDOFF_DEVICE_ORIGIN: ${{ vars.HHR_NURSING_HANDOFF_DEVICE_ORIGIN }}
         run: |
           # These are non-secret rollout switches; the provider credential stays
           # in Firebase Secret Manager and is never written by this workflow.
@@ -139,6 +141,12 @@ jobs:
             'HHR_JEV_CLINICAL_APPROVED=enabled' \
             'HHR_CLINICAL_DERIVED_SPLIT_FROM=2026-10-24' \
             > functions/.env.hhr-pruebas
+          if [[ ! "$HHR_NURSING_HANDOFF_DEVICE_ORIGIN" =~ ^chrome-extension://[a-p]{32}$ ]]; then
+            echo "::error::Configura el origen de la extensión de Entrega de turno."
+            exit 1
+          fi
+          printf 'HHR_NURSING_HANDOFF_DEVICE_ORIGIN=%s\n' "$HHR_NURSING_HANDOFF_DEVICE_ORIGIN" \
+            >> functions/.env.hhr-pruebas
 
       - name: Write service account credentials to disk
         env:
@@ -228,6 +236,8 @@ jobs:
       - name: Deploy functions
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase/service-account.json
+          # The local target inventory needs the origin before Firebase reads the dotenv file.
+          HHR_NURSING_HANDOFF_DEVICE_ORIGIN: ${{ vars.HHR_NURSING_HANDOFF_DEVICE_ORIGIN }}
         run: |
           FUNCTION_TARGETS="$(node scripts/list-firebase-function-targets.mjs)"
           echo "Deploying Firebase function targets: ${FUNCTION_TARGETS}"
@@ -259,6 +269,8 @@ jobs:
           node scripts/check-firebase-function-regions.mjs \
             "$RUNNER_TEMP/firebase/functions-list.json" \
             pruneDailyRecordHistory@southamerica-east1 \
+            registerNursingHandoffDevice@southamerica-east1 \
+            nursingHandoffDevice@southamerica-east1 \
             applyRayenClinicalEnrichmentBatch@southamerica-east1 \
             applyRayenClinicalEnrichmentBatch@us-central1 \
             saveDailyRecordWithClinicalAuthority@southamerica-east1 \

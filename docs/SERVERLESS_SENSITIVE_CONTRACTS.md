@@ -68,13 +68,22 @@ de Apps Script configurada en el backend. El secreto compartido nunca se expone 
 ### Entrega de turno con un equipo registrado
 
 `registerNursingHandoffDevice` y `nursingHandoffDevice` se exportan en
-`southamerica-east1` solo para `hhr-pruebas` con
-`HHR_NURSING_HANDOFF_DEVICE_ORIGIN` igual al origen de la extensión de pruebas.
+`southamerica-east1` en el proyecto Firebase `hhr-pruebas`, autoridad del sitio `hhr-hospitalizados.app`.
+La variable del repositorio `HHR_NURSING_HANDOFF_DEVICE_ORIGIN` fija el origen
+de la extensión. El documento de acceso exclusivo del servidor
+`hhr_account_private/nursingHandoffAdministrator` guarda en `runHash` el SHA-256
+del RUN normalizado del administrador (cuerpo, guion y dígito verificador
+en mayúscula). El registro no acepta un RUN ingresado por el cliente.
 
 El callable de registro recibe `deviceId` y el SHA-256 de una llave aleatoria de
-256 bits que conserva la extensión. Exige una sesión vigente de HHR, una cuenta
-individual activa de enfermería y un RUN registrado en HHR. Firebase conserva el
-hash de la llave y el identificador y versión de la cuenta. La extensión valida
+256 bits que conserva la extensión. Exige una sesión vigente de HHR y una cuenta de enfermería individual activa
+o la cuenta Google institucional y verificada del administrador protegido de HHR.
+La autorización del administrador se revalida contra el UID protegido cuando se
+activa la política individual, y durante la transición contra el mapa vigente de
+roles. La llave solo concede acceso a Entrega de turno. Firebase conserva el
+hash de la llave, el instante de autenticación y el identificador y versión de
+la cuenta. Los registros piloto sin instante de autenticación se renuevan una
+vez. La extensión valida
 que el RUN de Eloísa coincide con el registro antes de conservar la llave en el
 almacenamiento privado del equipo.
 
@@ -89,8 +98,10 @@ documento original de Eloísa. El único episodio coincidente del censo determin
 el tipo, y debe coincidir el documento completo, incluidas las letras del pasaporte. Desconectar revoca el registro del equipo.
 El token de Rayen permanece en el navegador.
 
-Para el piloto se necesita el ZIP «Equipo de enfermería (pruebas)» de la extensión,
-el deploy preview de HHR y los dos endpoints en el Firebase de pruebas. Un
+El ZIP vigente se registra en `hhr-hospitalizados.app` y opera a través de
+`/api/entrega-turno-equipo` en el mismo sitio. El consentimiento
+inicial se confirma una vez y los usos siguientes requieren la sesión activa de
+Eloísa del mismo profesional. Un
 administrador debe habilitar su invocación HTTP según el flujo descrito en
 `.github/workflows/deploy-functions.yml`; registrar y usar el equipo exige sus
 credenciales de aplicación respectivas. El test `nursing-handoff-device.emulator.test.ts`
