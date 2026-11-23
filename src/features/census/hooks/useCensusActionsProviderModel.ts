@@ -1,14 +1,53 @@
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
-import { buildCensusActionRuntimeRefsParams } from '@/features/census/controllers/censusActionRuntimeRefsController';
 import { useCensusActionCommandsController } from '@/features/census/hooks/useCensusActionCommandsController';
 import { useCensusActionContextValues } from '@/features/census/hooks/useCensusActionContextValues';
-import { useCensusActionDependencies } from '@/features/census/hooks/useCensusActionDependencies';
-import { useCensusActionRuntimeRefs } from '@/features/census/hooks/useCensusActionRuntimeRefs';
-import { useCensusActionStateStore } from '@/features/census/hooks/useCensusActionStateStore';
+import {
+  useCensusActionDependencies,
+  type CensusActionDependencies,
+} from '@/features/census/hooks/useCensusActionDependencies';
+import {
+  useCensusActionRuntimeRefs,
+  type UseCensusActionRuntimeRefsParams,
+} from '@/features/census/hooks/useCensusActionRuntimeRefs';
+import {
+  useCensusActionStateStore,
+  type CensusActionStateStore,
+} from '@/features/census/hooks/useCensusActionStateStore';
 import type {
   CensusActionCommandsContextType,
   CensusActionStateContextType,
 } from '@/features/census/types/censusActionContextTypes';
+
+type CensusActionRuntimeRefState = Pick<
+  CensusActionStateStore,
+  'actionState' | 'dischargeState' | 'transferState'
+>;
+
+interface BuildCensusActionRuntimeRefsParams {
+  state: CensusActionRuntimeRefState;
+  dependencies: CensusActionDependencies;
+}
+
+export const buildCensusActionRuntimeRefsParams = ({
+  state,
+  dependencies,
+}: BuildCensusActionRuntimeRefsParams): UseCensusActionRuntimeRefsParams => ({
+  actionState: state.actionState,
+  dischargeState: state.dischargeState,
+  transferState: state.transferState,
+  record: dependencies.record,
+  stabilityRules: dependencies.stabilityRules,
+  clearPatient: dependencies.clearPatient,
+  moveOrCopyPatient: dependencies.moveOrCopyPatient,
+  addDischarge: dependencies.addDischarge,
+  updateDischarge: dependencies.updateDischarge,
+  addTransfer: dependencies.addTransfer,
+  updateTransfer: dependencies.updateTransfer,
+  addCma: dependencies.addCMA,
+  copyPatientToDate: dependencies.copyPatientToDate,
+  confirm: dependencies.confirm,
+  notifyError: dependencies.notifyError,
+});
 
 export const getCurrentClockTimeHHMM = (dateProvider: () => Date = () => new Date()): string =>
   calendarStampInClinicalTimeZone(dateProvider()).hhmm;

@@ -1,6 +1,11 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from 'react';
 import type { DischargeData, TransferData } from '@/types/domain/movements';
 import {
+  DEFAULT_TRANSFER_ESCORT,
+  normalizeEvacuationMethod,
+  normalizeReceivingCenter,
+} from '@/constants/clinicalMovementConstants';
+import {
   type ActionState,
   createInitialActionState,
   createInitialDischargeState,
@@ -8,10 +13,32 @@ import {
   type DischargeState,
   type TransferState,
 } from '@/domain/censusActionContracts';
-import {
-  buildDischargeEditState,
-  buildTransferEditState,
-} from '@/features/census/controllers/censusEditStateController';
+
+export const buildDischargeEditState = (discharge: DischargeData): DischargeState => ({
+  bedId: null,
+  recordId: discharge.id,
+  isOpen: true,
+  status: discharge.status,
+  type: discharge.dischargeType,
+  typeOther: discharge.dischargeTypeOther,
+  time: discharge.time,
+  movementDate: discharge.movementDate,
+  diagnosis: discharge.diagnosis,
+});
+
+export const buildTransferEditState = (transfer: TransferData): TransferState => ({
+  bedId: null,
+  recordId: transfer.id,
+  isOpen: true,
+  evacuationMethod: normalizeEvacuationMethod(transfer.evacuationMethod),
+  evacuationMethodOther: '',
+  receivingCenter: normalizeReceivingCenter(transfer.receivingCenter),
+  receivingCenterOther: transfer.receivingCenterOther || '',
+  transferEscort: transfer.transferEscort || DEFAULT_TRANSFER_ESCORT,
+  time: transfer.time,
+  movementDate: transfer.movementDate,
+  diagnosis: transfer.diagnosis,
+});
 
 export interface CensusActionStateStore {
   actionState: ActionState;

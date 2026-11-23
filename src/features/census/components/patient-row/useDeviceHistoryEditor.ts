@@ -5,10 +5,36 @@ import {
   buildInitialDeviceHistory,
   type DeviceHistoryOwner,
 } from '@/features/census/controllers/deviceHistoryController';
-import {
-  removeDeviceHistoryRecord,
-  updateDeviceHistoryRecord,
-} from '@/features/census/controllers/deviceHistoryModalController';
+
+export const removeDeviceHistoryRecord = (
+  history: DeviceInstance[],
+  id: string
+): DeviceInstance[] => history.filter(item => item.id !== id);
+
+export const updateDeviceHistoryRecord = ({
+  history,
+  id,
+  updates,
+  updatedAt = Date.now(),
+}: {
+  history: DeviceInstance[];
+  id: string;
+  updates: Partial<DeviceInstance>;
+  updatedAt?: number;
+}): DeviceInstance[] =>
+  history.map(item =>
+    item.id === id
+      ? {
+          ...item,
+          ...updates,
+          source: 'manual',
+          ...(updates.status === 'Removed' || updates.removalDate || updates.removalTime
+            ? { removalSource: 'manual' as const }
+            : {}),
+          updatedAt,
+        }
+      : item
+  );
 
 interface UseDeviceHistoryEditorParams {
   history: DeviceInstance[];

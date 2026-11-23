@@ -6,20 +6,52 @@ import { resolveDischargeCommand } from '@/features/census/controllers/censusDis
 import { resolveMoveOrCopyCommand } from '@/features/census/controllers/censusMoveOrCopyCommandController';
 import { resolveTransferCommand } from '@/features/census/controllers/censusTransferCommandController';
 import { failWithCode, ok } from '@/shared/contracts/controllerResult';
-import {
-  executeDischargeRuntimeCommand,
-  executeTransferRuntimeCommand,
-} from '@/features/census/controllers/patientMovementCommandRuntimeController';
 import type {
+  DischargeCommand,
   DischargeRuntimeActions,
   DischargeExecutionInput,
   DischargeRuntimeResult,
   MoveOrCopyRuntimeActions,
   MoveOrCopyRuntimeResult,
+  TransferCommand,
   TransferRuntimeActions,
   TransferExecutionInput,
   TransferRuntimeResult,
 } from '@/features/census/domain/movements/contracts';
+
+export const executeDischargeRuntimeCommand = (
+  command: DischargeCommand,
+  actions: DischargeRuntimeActions
+): void => {
+  if (command.kind === 'addDischarge') {
+    actions.addDischarge(command.bedId, command.payload);
+    return;
+  }
+
+  const { status, type, typeOther, time, movementDate, diagnosis } = command.payload;
+  actions.updateDischarge(
+    command.id,
+    status,
+    type,
+    typeOther,
+    time,
+    movementDate,
+    undefined,
+    diagnosis
+  );
+};
+
+export const executeTransferRuntimeCommand = (
+  command: TransferCommand,
+  actions: TransferRuntimeActions
+): void => {
+  if (command.kind === 'addTransfer') {
+    actions.addTransfer(command.bedId, command.payload);
+    return;
+  }
+
+  actions.updateTransfer(command.id, command.payload);
+};
 
 interface ExecuteMoveOrCopyParams {
   actionState: ActionState;
