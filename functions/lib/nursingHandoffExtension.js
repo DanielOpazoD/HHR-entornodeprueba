@@ -7,6 +7,7 @@ const { createPatchHandler } = require('./dailyRecordPatchCallable');
 const DEMO_PROJECT = 'demo-hhr-handoff';
 const DAY = 'handoffNoteDayShift';
 const NIGHT = 'handoffNoteNightShift';
+const MAX_BATCH = 50;
 const clock = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Pacific/Easter',
   year: 'numeric',
@@ -38,9 +39,8 @@ const normalizeDocumentCode = value =>
     .replace(/[.\s-]/g, '')
     .toUpperCase();
 
-function findHandoff(snapshot, episode, code, slot, census) {
+function findHandoff(snapshot, record, episode, code, slot, census) {
   if (!snapshot.exists) fail('not-found', 'Falta este día en el ' + census + '.', slot);
-  const record = snapshot.data();
   const matches = [];
   for (const [bed, patient] of Object.entries(record.beds ?? {})) {
     for (const [path, item] of [
@@ -86,6 +86,42 @@ const viewOf = (entry, date, shift) => ({
   text: entry[shift],
   version: versionOf(entry, shift),
 });
+
+function documentForVisit(visit) {
+  const { episode, patientRun } = visit ?? {};
+  // The existing wire field carries the original identifier for both RUN and passport.
+  const code = normalizeDocumentCode(patientRun);
+  if (!positiveId(episode) || !/^[\p{L}0-9]{2,64}$/u.test(code)) {
+    fail('invalid-argument', 'Se necesita el RUN o pasaporte propio y un episodio verificado.');
+  }
+  return code;
+}
+
+function viewWithComparison(entry, date, shift) {
+  const comparisonShift = shift === 'day' ? 'night' : 'day';
+  return {
+    ...viewOf(entry, date, shift),
+    comparison: { shift: comparisonShift, text: entry[comparisonShift] },
+  };
+}
+
+function batchViews(snapshot, visits, slot, census) {
+  const record = snapshot.data();
+  return visits.map(visit => {
+    try {
+      const code = documentForVisit(visit);
+      const entry = findHandoff(snapshot, record, visit.episode, code, slot, census);
+      return viewWithComparison(entry, slot.date, slot.shift);
+    } catch (error) {
+      if (!(error instanceof functions.https.HttpsError)) throw error;
+      return {
+        error: error.message,
+        code: error.toJSON().status,
+        ...(error.details && { slot: error.details }),
+      };
+    }
+  });
+}
 
 function waitForNote(ref, initial, select, version, shift) {
   if (versionOf(initial, shift) !== version) return Promise.resolve(initial);
@@ -177,18 +213,26 @@ function createHandler({
 
   return async data => {
     const action = data?.action;
-    if (action !== 'read' && action !== 'save') {
+    if (action !== 'read' && action !== 'save' && action !== 'read-batch') {
       fail('invalid-argument', 'La operación de entrega de turno no es válida.');
     }
     const actor = await authorize(data);
-
-    const { episode } = data;
-    // Older extension builds already send the original document in patientRun.
-    const code = normalizeDocumentCode(data.patientRun);
-    if (!positiveId(episode) || !/^[\p{L}0-9]{2,64}$/u.test(code)) {
-      fail('invalid-argument', 'Se necesita el RUN o pasaporte propio y un episodio verificado.');
-    }
     const slot = clinicalSlot(clinicalNow());
+    if (action === 'read-batch') {
+      const { patients } = data;
+      if (!Array.isArray(patients) || patients.length === 0 || patients.length > MAX_BATCH) {
+        fail('invalid-argument', 'La consulta requiere entre 1 y 50 episodios.');
+      }
+      const snapshot = await records.doc(slot.date).get();
+      if (!snapshot.exists) fail('not-found', 'Falta este día en el ' + census + '.', slot);
+      const active = clinicalSlot(clinicalNow());
+      if (active.date !== slot.date || active.shift !== slot.shift) {
+        fail('failed-precondition', 'Cambió el turno o la fecha censal. Abre otra entrega.');
+      }
+      return { slot, results: batchViews(snapshot, patients, slot, census) };
+    }
+    const { episode } = data;
+    const code = documentForVisit(data);
     // Keep each open editor pinned, including after a shift or census-day rollover.
     const date = data.date ?? slot.date;
     const shift = data.shift ?? slot.shift;
@@ -196,7 +240,7 @@ function createHandler({
       fail('failed-precondition', 'Cambió el turno o la fecha censal. Abre otra entrega.');
     }
     const ref = records.doc(date);
-    const select = snapshot => findHandoff(snapshot, episode, code, slot, census);
+    const select = snapshot => findHandoff(snapshot, snapshot.data(), episode, code, slot, census);
     const current = select(await ref.get());
 
     if (action === 'read') {
@@ -207,7 +251,9 @@ function createHandler({
       if (active.date !== date || active.shift !== shift)
         fail('failed-precondition', 'Cambió el turno o la fecha censal. Abre otra entrega.');
       if (data.since) await authorize(data);
-      return viewOf(entry, date, shift);
+      return data.comparison === true
+        ? viewWithComparison(entry, date, shift)
+        : viewOf(entry, date, shift);
     }
 
     if (

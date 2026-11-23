@@ -84,6 +84,8 @@ it.skipIf(!enabled).each(['nurse_hospital', 'admin'])(
             rut: passport,
             patientName: 'Paciente sintético con pasaporte',
             documentType: 'Pasaporte',
+            handoffNoteDayShift: 'Día sintético',
+            handoffNoteNightShift: 'Noche sintética',
           },
           R3: {
             clinicalEpisodeId: '901003',
@@ -138,6 +140,49 @@ it.skipIf(!enabled).each(['nurse_hospital', 'admin'])(
       ).rejects.toMatchObject({
         code: 'unauthenticated',
       });
+      const patients = [
+        { episode, patientRun },
+        { episode: passportEpisode, patientRun: passport },
+        { episode: passportEpisode, patientRun },
+        { episode: '999999', patientRun },
+      ];
+      const batch = await handler({ ...request, action: 'read-batch', patients });
+      expect(batch.slot).toEqual({ date, shift });
+      expect(batch.results).toEqual([
+        expect.objectContaining({
+          date,
+          shift,
+          text: '',
+          comparison: { shift: shift === 'day' ? 'night' : 'day', text: '' },
+        }),
+        expect.objectContaining({
+          date,
+          shift,
+          text: shift === 'day' ? 'Día sintético' : 'Noche sintética',
+          comparison:
+            shift === 'day'
+              ? { shift: 'night', text: 'Noche sintética' }
+              : { shift: 'day', text: 'Día sintético' },
+        }),
+        expect.objectContaining({ code: 'FAILED_PRECONDITION' }),
+        expect.objectContaining({ code: 'NOT_FOUND' }),
+      ]);
+      expect(batch.results[2]).not.toHaveProperty('text');
+      await expect(
+        handler({
+          ...request,
+          action: 'read-batch',
+          patients,
+          proof: '0'.repeat(64),
+        })
+      ).rejects.toMatchObject({ code: 'unauthenticated' });
+      await expect(
+        handler({
+          ...request,
+          action: 'read-batch',
+          patients: Array.from({ length: 51 }, () => patients[0]),
+        })
+      ).rejects.toMatchObject({ code: 'invalid-argument' });
       const view = await handler({ ...request, action: 'read' });
       expect(view).toMatchObject({ date, shift });
       const saved = await handler({
