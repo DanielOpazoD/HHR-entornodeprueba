@@ -1,5 +1,6 @@
 const { HttpsError } = require('firebase-functions/v2/https');
 const { digest, monthValue } = require('./cudyrSupplementContract');
+const { hospitalDateTimeParts } = require('./hospitalCalendarDay');
 const fail = (message, code = 'invalid-argument') => {
   throw new HttpsError(
     /** @type {import('firebase-functions/v2/https').FunctionsErrorCode} */ (code),
@@ -11,15 +12,8 @@ const parseCensusApproval = data => {
   const last = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5)), 0));
   // Noon on the following day has elapsed in Pacific/Easter, including DST.
   const next = new Date(last.getTime() + 86400000).toISOString().slice(0, 10);
-  const local = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'Pacific/Easter',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).format(new Date());
+  const now = hospitalDateTimeParts();
+  const local = `${now.date} ${now.time}`;
   if (
     data.hospitalId !== undefined ||
     data.schemaVersion !== 1 ||

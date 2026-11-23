@@ -1,6 +1,7 @@
 const { HttpsError } = require('firebase-functions/v2/https');
 const { createHash } = require('node:crypto');
 const { parseCapture } = require('./cudyrCaptureContract');
+const { addCalendarDays, hospitalDateTimeParts, isCalendarDay } = require('./hospitalCalendarDay');
 
 const fail = message => {
   throw new HttpsError('invalid-argument', message);
@@ -12,11 +13,7 @@ const text = (value, field, max, optional = false) => {
 };
 const isoDate = value => {
   const date = text(value, 'date', 10);
-  if (
-    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-    !Number.isFinite(Date.parse(date)) ||
-    new Date(date).toISOString().slice(0, 10) !== date
-  ) {
+  if (!isCalendarDay(date)) {
     fail('Invalid calendar date.');
   }
   return date;
@@ -130,24 +127,9 @@ const parseHistoryQuery = value => {
 
 /** Same owning-night convention as importedCudyr.ts; original source time remains untouched. */
 const owningCensusDate = recordedAt => {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Pacific/Easter',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hourCycle: 'h23',
-    })
-      .formatToParts(new Date(recordedAt))
-      .map(part => [part.type, part.value])
-  );
-  const day = `${parts.year}-${parts.month}-${parts.day}`;
-  const seconds = Number(parts.hour) * 3600 + Number(parts.minute) * 60 + Number(parts.second);
-  if (seconds >= 43_200) return day;
-  return new Date(Date.parse(`${day}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+  const { date, hour, minute, second } = hospitalDateTimeParts(new Date(recordedAt));
+  const seconds = hour * 3600 + minute * 60 + second;
+  return seconds >= 43_200 ? date : addCalendarDays(date, -1);
 };
 
 module.exports = {

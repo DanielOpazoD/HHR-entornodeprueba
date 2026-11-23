@@ -3,20 +3,12 @@ const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { resolveClinicalDayForDateTime } = require('./generated/cudyrSourceParser.cjs');
 const { createPatchHandler } = require('./dailyRecordPatchCallable');
+const { hospitalDateTimeParts } = require('./hospitalCalendarDay');
 
 const DEMO_PROJECT = 'demo-hhr-handoff';
 const DAY = 'handoffNoteDayShift';
 const NIGHT = 'handoffNoteNightShift';
 const MAX_BATCH = 50;
-const clock = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Pacific/Easter',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  hourCycle: 'h23',
-});
 const digest = value => createHash('sha256').update(value).digest('hex');
 const validLocalKey = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 const loopbackEmulator = host => /^127\.0\.0\.1:\d+$/.test(host ?? '');
@@ -26,12 +18,9 @@ const fail = (code, message, details) => {
 };
 
 function clinicalSlot(now) {
-  const parts = Object.fromEntries(
-    clock.formatToParts(now).map(({ type, value }) => [type, value])
-  );
-  const calendarDate = `${parts.year}-${parts.month}-${parts.day}`;
-  const date = resolveClinicalDayForDateTime(calendarDate, `${parts.hour}:${parts.minute}`);
-  return { date, shift: date === calendarDate && Number(parts.hour) < 20 ? 'day' : 'night' };
+  const { date: calendarDate, time, hour } = hospitalDateTimeParts(now);
+  const date = resolveClinicalDayForDateTime(calendarDate, time);
+  return { date, shift: date === calendarDate && hour < 20 ? 'day' : 'night' };
 }
 
 const normalizeDocumentCode = value =>

@@ -12,6 +12,7 @@ const {
   addCalendarDays,
   calendarDayAtUtcNoon,
   hospitalCalendarDay,
+  hospitalDateTimeParts,
   hospitalDayStart,
   isCalendarDay,
 } = require('../../../functions/lib/hospitalCalendarDay.js');
@@ -85,6 +86,33 @@ describe('hospital calendar day', () => {
 
   it.each(['2026-02-30', '2026-13-01', '13-05-2026', ''])('has no start for %j', day => {
     expect(hospitalDayStart(day)).toBeNaN();
+  });
+
+  it('formats hospital date and 24-hour clock parts across summer and winter DST offsets', () => {
+    const svFormatter = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Pacific/Easter',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    });
+    for (const [iso, expectedDate, expectedTime] of [
+      ['2026-10-25T04:59:59.000Z', '2026-10-24', '23:59'],
+      ['2026-10-25T05:00:00.000Z', '2026-10-25', '00:00'],
+      ['2026-07-02T05:30:45.000Z', '2026-07-01', '23:30'],
+      ['2026-07-02T06:00:00.000Z', '2026-07-02', '00:00'],
+    ]) {
+      const instant = new Date(iso);
+      const parts = hospitalDateTimeParts(instant);
+      expect(parts.date).toBe(expectedDate);
+      expect(parts.time).toBe(expectedTime);
+      expect(`${parts.date} ${parts.time}`).toBe(svFormatter.format(instant));
+      expect(parts.hour).toBe(Number(expectedTime.slice(0, 2)));
+      expect(parts.minute).toBe(Number(expectedTime.slice(3, 5)));
+    }
+    expect(hospitalDateTimeParts(new Date('2026-07-02T05:30:45.000Z')).second).toBe(45);
   });
 });
 

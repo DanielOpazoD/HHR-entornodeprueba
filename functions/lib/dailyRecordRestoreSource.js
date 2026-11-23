@@ -1,4 +1,5 @@
 const { HttpsError } = require('firebase-functions/v2/https');
+const { isCalendarDay } = require('./hospitalCalendarDay');
 const {
   readClinicalDerivedLayout,
   findStaleClinicalDerivedEpisodeIds,
@@ -16,12 +17,7 @@ const iso = value => {
 
 const parseRestoreSource = (data, now) => {
   const date = data?.date;
-  if (
-    typeof date !== 'string' ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-    !Number.isFinite(Date.parse(`${date}T00:00:00Z`)) ||
-    new Date(`${date}T00:00:00Z`).getUTCDate() !== Number(date.substring(8))
-  )
+  if (!isCalendarDay(date))
     fail('invalid-argument', 'La fecha del censo debe ser una fecha válida AAAA-MM-DD.');
   if (data.backupId !== undefined) {
     if (

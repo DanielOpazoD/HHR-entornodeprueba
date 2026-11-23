@@ -2,6 +2,7 @@ const { HttpsError } = require('firebase-functions/v2/https');
 const { createHash } = require('node:crypto');
 const { gzipSync } = require('node:zlib');
 const { monthValue } = require('./cudyrSupplementContract');
+const { hospitalDateTimeParts } = require('./hospitalCalendarDay');
 const POLICY = 2;
 const fail = (message, code = 'failed-precondition') => {
   throw new HttpsError(
@@ -172,15 +173,8 @@ const validateReport = (report, approval, month) => {
     approval?.policyVersion !== 2
   )
     fail('Se requiere un informe mensual oficial completo.');
-  const local = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'Pacific/Easter',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).format(new Date());
+  const now = hospitalDateTimeParts();
+  const local = `${now.date} ${now.time}`;
   if (local < b.next + ' 12:00') fail('La ventana de aplicación del mes sigue abierta.');
   for (let i = 1; i <= Number(b.to.slice(-2)); i++) {
     const date = month + '-' + String(i).padStart(2, '0');
