@@ -36,17 +36,20 @@ export const usePatientRowUiState = (): PatientRowUiState => {
 
   const visibility = useMemo(() => buildPatientRowUiStateVisibility(activeModal), [activeModal]);
 
-  return {
-    ...visibility,
-    openDemographics: () => openModal('demographics'),
-    closeDemographics: () => closeModal('demographics'),
-    openClinicalDocuments: () => openModal('clinicalDocuments'),
-    closeClinicalDocuments: () => closeModal('clinicalDocuments'),
-    openExamRequest: () => openModal('examRequest'),
-    closeExamRequest: () => closeModal('examRequest'),
-    openImagingRequest: () => openModal('imagingRequest'),
-    closeImagingRequest: () => closeModal('imagingRequest'),
-    openHistory: () => openModal('history'),
-    closeHistory: () => closeModal('history'),
-  };
+  return useMemo(
+    () => ({
+      ...visibility,
+      openDemographics: () => openModal('demographics'),
+      closeDemographics: () => closeModal('demographics'),
+      openClinicalDocuments: () => openModal('clinicalDocuments'),
+      closeClinicalDocuments: () => closeModal('clinicalDocuments'),
+      openExamRequest: () => openModal('examRequest'),
+      closeExamRequest: () => closeModal('examRequest'),
+      openImagingRequest: () => openModal('imagingRequest'),
+      closeImagingRequest: () => closeModal('imagingRequest'),
+      openHistory: () => openModal('history'),
+      closeHistory: () => closeModal('history'),
+    }),
+    [closeModal, openModal, visibility]
+  );
 };

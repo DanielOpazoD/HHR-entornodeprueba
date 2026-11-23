@@ -44,4 +44,14 @@ describe('usePatientRowUiState', () => {
     expect(result.current.showExamRequest).toBe(false);
     expect(result.current.showHistory).toBe(false);
   });
+
+  it('preserves object and callback references across rerenders when modal state is unchanged', () => {
+    const { result, rerender } = renderHook(() => usePatientRowUiState());
+    const initial = result.current;
+
+    rerender();
+
+    expect(result.current).toBe(initial);
+    expect(result.current.openDemographics).toBe(initial.openDemographics);
+  });
 });

@@ -1,6 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   executeToggleBedModeController,
   executeToggleClinicalCribController,
@@ -104,10 +104,13 @@ export const usePatientRowBedConfigActions = ({
     }
   }, [bedId, clinicalCrib, confirm, getRecordLastUpdated, showAlert, updateClinicalCrib]);
 
-  return {
-    toggleBedMode,
-    toggleCompanionCrib,
-    toggleClinicalCrib,
-    removeClinicalCrib,
-  };
+  return useMemo(
+    () => ({
+      toggleBedMode,
+      toggleCompanionCrib,
+      toggleClinicalCrib,
+      removeClinicalCrib,
+    }),
+    [removeClinicalCrib, toggleBedMode, toggleClinicalCrib, toggleCompanionCrib]
+  );
 };
