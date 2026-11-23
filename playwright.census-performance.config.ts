@@ -3,7 +3,8 @@ import { CLINICAL_TIME_ZONE } from './src/utils/clinicalTimeZone';
 
 const environment = process.env.CENSUS_PERF_ENV ?? 'production';
 const includeInteractions = process.env.CENSUS_PERF_INCLUDE_INTERACTIONS === '1';
-if (includeInteractions && environment !== 'production')
+const interactionsOnly = process.env.CENSUS_PERF_INTERACTIONS_ONLY === '1';
+if ((includeInteractions || interactionsOnly) && environment !== 'production')
   throw new Error('Combined census measurements require production');
 // Observation waits, NOT performance budgets. A bench must be able to record a slow
 // startup; failing by timeout would hide the very slowness it exists to quantify.
@@ -45,21 +46,30 @@ export default defineConfig({
     video: 'off',
   },
   // One fresh build/server for both projects; dependencies preserve startup first.
-  projects: [
-    { name: 'census-performance-chromium', testMatch: 'census-startup.measurement.ts' },
-    ...(includeInteractions
-      ? [
-          {
-            name: 'census-interactions-chromium',
-            testMatch: 'census-interaction.measurement.ts',
-            dependencies: ['census-performance-chromium'],
-            timeout: 180_000,
-            expect: { timeout: 5000 },
-            outputDir: 'test-results/census-interactions',
-          },
-        ]
-      : []),
-  ],
+  projects: interactionsOnly
+    ? [
+        {
+          name: 'census-interactions-chromium',
+          testMatch: 'census-interaction.measurement.ts',
+          timeout: 180_000,
+          outputDir: 'test-results/census-interactions',
+        },
+      ]
+    : [
+        { name: 'census-performance-chromium', testMatch: 'census-startup.measurement.ts' },
+        ...(includeInteractions
+          ? [
+              {
+                name: 'census-interactions-chromium',
+                testMatch: 'census-interaction.measurement.ts',
+                dependencies: ['census-performance-chromium'],
+                timeout: 180_000,
+                expect: { timeout: 5000 },
+                outputDir: 'test-results/census-interactions',
+              },
+            ]
+          : []),
+      ],
   webServer: {
     command: `node scripts/census-startup-performance-server.mjs ${environment}`,
     url: 'http://127.0.0.1:4318',
