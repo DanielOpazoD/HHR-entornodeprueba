@@ -210,7 +210,6 @@
     "exceljs": "^4.4.0",
     "firebase": "12.14.0",
     "googleapis": "^172.0.0",
-    "hash.js": "^1.1.7",
     "heic2any": "^0.0.4",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
@@ -236,6 +235,7 @@
     "@firebase/rules-unit-testing": "^5.0.0",
     "@firebase/util": "^1.15.1",
     "@google-cloud/firestore": "^9.3.1",
+    "@hhr/eloisa-extension": "git+https://github.com/DanielOpazoD/extensioneloisahhr.git#1928f59524c2aa441f796dd1ac0af63bfaa50d53",
     "@netlify/config": "^25.2.3",
     "@playwright/test": "^1.65.1",
     "@tailwindcss/vite": "^4.1.18",
@@ -272,7 +272,6 @@
     "postcss": "^8.5.26",
     "prettier": "^3.8.1",
     "tailwindcss": "^4.1.18",
-    "ts-node": "^1.7.1",
     "typedoc": "^0.28.15",
     "typescript": "~5.8.2",
     "typescript-eslint": "^8.72.2",
@@ -285,8 +284,7 @@
     "workbox-precaching": "^7.4.0",
     "workbox-routing": "^7.4.0",
     "workbox-strategies": "^7.4.0",
-    "yaml": "2.8.3",
-    "@hhr/eloisa-extension": "git+https://github.com/DanielOpazoD/extensioneloisahhr.git#1928f59524c2aa441f796dd1ac0af63bfaa50d53"
+    "yaml": "2.8.3"
   },
   "overrides": {
     "@xmldom/xmldom": "0.9.10",

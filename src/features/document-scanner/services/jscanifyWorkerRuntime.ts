@@ -1,5 +1,5 @@
-import hashJs from 'hash.js';
 import { convertHighEfficiencyImageToJpeg } from '@/services/images/highEfficiencyImageConverter';
+import { sha384Bytes } from '@/utils/sha384';
 import type { DocumentScanCorners, JscanifyDocumentPage } from './documentScannerTypes';
 import type { DocumentScanFilterMode } from './documentFilterProfiles';
 
@@ -62,7 +62,7 @@ export const computeSha384Integrity = async (
 ): Promise<string> => {
   const digest = subtle
     ? new Uint8Array(await subtle.digest('SHA-384', bytes))
-    : Uint8Array.from(hashJs.sha384().update(new Uint8Array(bytes)).digest());
+    : sha384Bytes(new Uint8Array(bytes));
   let binary = '';
   for (const byte of digest) binary += String.fromCharCode(byte);
   return `sha384-${btoa(binary)}`;

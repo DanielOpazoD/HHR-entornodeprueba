@@ -1,9 +1,9 @@
-import hashJs from 'hash.js';
 import type { BedDefinition } from '@/types/domain/beds';
 import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import type { HandoffPatientContract } from '@/domain/handoff/patientContracts';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import { resolveVisibleTreatingPhysicianName } from '@/services/staff/treatingPhysicianCatalog';
+import { sha384Hex } from '@/utils/sha384';
 
 export interface MedicalHandoffSpreadsheetRow {
   stableKey: string;
@@ -32,13 +32,7 @@ const formatAdmissionDate = (value: string): string => {
   return isoMatch ? `${isoMatch[3]}-${isoMatch[2]}-${isoMatch[1]}` : normalized;
 };
 
-const hashStableKeyPart = (value: string): string =>
-  hashJs
-    .sha384()
-    .update(new TextEncoder().encode(value))
-    .digest()
-    .map(byte => byte.toString(16).padStart(2, '0'))
-    .join('');
+const hashStableKeyPart = (value: string): string => sha384Hex(value);
 
 const normalizeKeyPart = (value: string): string =>
   value
