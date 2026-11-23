@@ -86,4 +86,24 @@ describe('useAppContentShellEffects', () => {
       { allowSuccess: true }
     );
   });
+
+  it('falls back to viewer role in telemetry when auth role is undefined', () => {
+    renderHook(() =>
+      useAppContentShellEffects({
+        ...createBaseParams(),
+        role: undefined as never,
+      })
+    );
+
+    expect(mockRecordOperationalTelemetry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'app_shell_ready',
+        context: expect.objectContaining({
+          module: 'CENSUS',
+          role: 'viewer',
+        }),
+      }),
+      { allowSuccess: true }
+    );
+  });
 });
