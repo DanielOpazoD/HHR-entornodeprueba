@@ -400,16 +400,16 @@
       }
       #hhr-prescription-print-modal .hhr-connection-feedback { min-height: 18px; margin-top: 10px; color: #64716f; font-size: 11.5px; }
       #hhr-prescription-print-modal .hhr-connection-feedback.is-error { color: var(--hhr-red-ink); }
-      #hhr-prescription-print-modal .hhr-imaging-tabs { flex: 0 1 430px; min-width: 300px; margin: 0 0 0 auto; }
+      #hhr-prescription-print-modal .hhr-imaging-tabs { width: fit-content; max-width: 100%; flex-wrap: wrap; margin: 0; }
       #hhr-prescription-print-modal .hhr-imaging-controls {
-        position: sticky; top: 0; z-index: 4; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-        margin: 8px 0 4px; padding: 7px 0; border-bottom: 1px solid #e8eeec; background: rgba(255,255,255,.97);
+        position: sticky; top: 0; z-index: 4; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px;
+        margin: 4px 0; padding: 3px 0; border-bottom: 1px solid #e8eeec; background: rgba(255,255,255,.97);
         box-shadow: 0 5px 10px rgba(255,255,255,.92);
       }
-      #hhr-prescription-print-modal .hhr-imaging-physician { flex: 1 1 240px; min-width: 200px; }
+      #hhr-prescription-print-modal .hhr-imaging-physician { flex: 1 1 180px; min-width: min(160px, 100%); }
       #hhr-prescription-print-modal .hhr-imaging-tools { display: flex; align-items: center; gap: 5px; }
       #hhr-prescription-print-modal .hhr-imaging-tool.is-active { border-color: var(--hhr-teal-500); background: #e8f4f1; color: var(--hhr-teal-ink); }
-      #hhr-prescription-print-modal .hhr-imaging-hint { margin: 2px 0 10px; color: #74807e; font-size: 11px; line-height: 1.4; }
+      #hhr-prescription-print-modal .hhr-imaging-hint { margin: 3px 0; color: #526762; font-size: 11px; line-height: 1.4; }
       #hhr-prescription-print-modal .hhr-imaging-stage { display: flex; justify-content: center; padding: 4px 0 10px; }
       #hhr-prescription-print-modal .hhr-imaging-canvas {
         position: relative; width: min(720px, 100%); border: 1px solid #dde5e3; border-radius: 8px;

@@ -203,12 +203,22 @@
         set(i, value) { tables = tables.slice(); tables[i] = value; listeners.forEach(fn => fn()); },
       };
     }
+    const handoffEnabled = () => document.documentElement.hasAttribute('data-hhr-handoff-enabled');
+    const observeHandoff = notify => {
+      const observer = new MutationObserver(notify);
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-hhr-handoff-enabled'] });
+      return () => observer.disconnect();
+    };
     function Combined({ registry, onIncompatible }) {
       const tables = React.useSyncExternalStore(registry.subscribe, registry.get, registry.get).slice(0, 3);
       const loading = !tables.every(Boolean);
       const incompatible = tables.includes(unsupportedTable);
       const [expanded, setExpanded] = React.useState(false);
       const [visited, setVisited] = React.useState(false);
+      const enabled = React.useSyncExternalStore(observeHandoff, handoffEnabled, handoffEnabled);
+      React.useLayoutEffect(() => {
+        if (!enabled) { setExpanded(false); setVisited(false); }
+      }, [enabled]);
       const lastSettled = React.useRef(null);
       React.useLayoutEffect(() => {
         if (incompatible) onIncompatible(true);
@@ -217,12 +227,12 @@
       if (incompatible) return null;
       // Keep open editors mounted during refresh, while exposing only the loading table.
       const settled = loading ? lastSettled.current : tables;
-      const result = joinTables(jsx, settled || [], true);
-      const columns = expanded ? result.columns.filter(column => handoffColumns.has(column.id)).map(column =>
+      const result = joinTables(jsx, settled || [], enabled);
+      const columns = !enabled ? result.columns : expanded ? result.columns.filter(column => handoffColumns.has(column.id)).map(column =>
         column.id === 'activity' ? { ...column, style: { ...column.style, width: '52%' } } : column
       ) : (result.columns.length ? result.columns : loadingColumns).map(column =>
         column.id === 'activity' ? { ...column, style: { ...column.style, display: 'none' } } : column);
-      const rows = result.children.map(row => React.cloneElement(row, { children:
+      const rows = !enabled ? result.children : result.children.map(row => React.cloneElement(row, { children:
         result.columns.flatMap(({ id }, index) => {
           if (expanded && !handoffColumns.has(id)) return [];
           const cell = row.props.children[index];
@@ -234,7 +244,7 @@
         }),
       }));
       return jsx(React.Fragment, { children: [
-        jsx('div', { className: 'hhr-handoff-toolbar', children: [
+        enabled && jsx('div', { className: 'hhr-handoff-toolbar', children: [
           jsx('span', { 'data-hhr-handoff-pending': '', role: 'status', hidden: !expanded }, 'pending'),
           jsx('button', {
             type: 'button', 'data-hhr-handoff-toggle': '', 'aria-expanded': expanded,

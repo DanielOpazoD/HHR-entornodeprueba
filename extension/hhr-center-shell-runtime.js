@@ -86,7 +86,6 @@
           <a class="hhr-center-app-link" href="https://hhr-hospitalizados.app/" target="_blank" rel="noopener noreferrer">Abrir HHR <span aria-hidden="true">↗</span></a>
         </header>
         <div class="hhr-center-patientbar" hidden>
-          <span class="hhr-patientbar-episode"></span>
           <span class="hhr-patientbar-tag">Paciente</span>
           <strong class="hhr-patientbar-name">—</strong>
           <span class="hhr-patientbar-meta"></span>
@@ -213,8 +212,6 @@
       const picker = bar.querySelector('.hhr-patientbar-picker');
       const search = bar.querySelector('.hhr-patientbar-search');
       const list = bar.querySelector('.hhr-patientbar-list');
-      const episode = bar.querySelector('.hhr-patientbar-episode');
-      if (episode) episode.textContent = initialEncId ? 'Episodio ' + initialEncId : '';
       if (module === 'connection' || module === 'home' || module === 'settings') return;
       bar.hidden = false;
       if (!PATIENT_BOUND_MODULES.has(module)) {
@@ -231,7 +228,6 @@
 
       const refreshIdentity = async () => {
         const requestedEncId = selected;
-        if (episode) episode.textContent = requestedEncId ? 'Episodio ' + requestedEncId : '';
         const routeEncId = currentRouteEncounterId();
         routeBadge.hidden = !requestedEncId || !routeEncId || requestedEncId === routeEncId;
         if (!requestedEncId) {
@@ -246,7 +242,7 @@
           encId: requestedEncId,
         });
         if (!root.isConnected || root.dataset.selectedEncounterId !== requestedEncId) return;
-        if (module === 'lab' && root.querySelector('[name="hhr-labreq-patient-source"]:checked')?.value === 'manual') return;
+        if (['manual', 'blank'].includes(root.querySelector('[name="hhr-labreq-patient-source"]:checked')?.value)) return;
         if (!response || response.error) {
           nameEl.textContent = 'Paciente no identificado';
           metaEl.textContent = String((response && response.error) || '');

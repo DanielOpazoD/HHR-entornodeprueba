@@ -222,6 +222,17 @@
       }
     }
 
+    // Initial row editors from the same document may overlap. Share only a pending
+    // source check; subsequent reads, patient checks and writes verify afresh.
+    const openingChecks = new Map();
+    function verifyOpening(context) {
+      const key = JSON.stringify([context.tabId, context.sourceDocument, context.owner, context.accountOwner, context.sessionKey]);
+      if (!openingChecks.has(key)) {
+        openingChecks.set(key, verifySource(context).finally(() => openingChecks.delete(key)));
+      }
+      return openingChecks.get(key);
+    }
+
     async function verifySource(context, checkPatient = false) {
       const tab = await chrome.tabs.get(context.tabId).catch(() => null);
       if (!source.test(tab?.url)) return error('Vuelve a la lista de Gestión de cuidados.', 'SOURCE_SESSION_CHANGED');
@@ -345,7 +356,9 @@
       const prepared = action === 'read' && !message.since && initialNotes.get(id);
       if (prepared) initialNotes.delete(id);
       const initial = prepared?.expires > Date.now() ? prepared.result : null;
-      const verified = await verifySource(context, action === 'save' || (action === 'read' && !initial));
+      const verified = context.inline && (action === 'context' || initial)
+        ? await verifyOpening(context)
+        : await verifySource(context, action === 'save' || (action === 'read' && !initial));
       if (verified.error) return verified;
       if (action === 'context') {
         await store.set({ [key]: { ...context, editorDocument: sender.documentId } });
