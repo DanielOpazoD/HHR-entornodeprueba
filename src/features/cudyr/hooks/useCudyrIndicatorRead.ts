@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useCudyrReport } from './useCudyrReport';
-import { useDailyRecordData } from '@/context/DailyRecordContext';
+import { useDailyRecordMeta } from '@/context/DailyRecordContext';
 import { buildCudyrMonthlyIndicator } from '@/features/cudyr/indicator/cudyrMonthlyIndicator';
 import { cudyrIndicatorFirstSync } from '@/features/cudyr/indicator/cudyrIndicatorRefresh';
 import type { CudyrIndicatorRead } from '@/features/cudyr/indicator/cudyrIndicatorHistory';
@@ -15,13 +15,13 @@ export const useCudyrIndicatorRead = (
   now: Date,
   onRead: (month: string, read: CudyrIndicatorRead) => void
 ) => {
-  const { record } = useDailyRecordData();
+  const { date: recordDate, rayenCoverageCompletedAt } = useDailyRecordMeta();
   const day = getClinicalCalendarDateISO(now);
   const scope = authoringSessionScope();
   // Structural application precedes clinical persistence; only use its completed pass.
   const completedAt =
-    record && (record.date.slice(0, 7) === month || record.date === getNextDay(through))
-      ? record.rayenSync?.coverage?.completedAt || ''
+    recordDate && (recordDate.slice(0, 7) === month || recordDate === getNextDay(through))
+      ? rayenCoverageCompletedAt
       : '';
   const firstSyncAt = useMemo(
     () => cudyrIndicatorFirstSync(scope, month, day, completedAt),

@@ -17,6 +17,7 @@ import {
 
 import type { StabilityRules } from '@/hooks/useStabilityRules';
 import type { DailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordBootstrapController';
+import type { DailyRecordMetaValue } from './dailyRecordProviderTree';
 
 interface UseDailyRecordFragmentedValuesResult {
   syncValue: {
@@ -26,6 +27,7 @@ interface UseDailyRecordFragmentedValuesResult {
     bootstrapPhase: DailyRecordBootstrapPhase;
   };
   bedsValue: Record<string, PatientData> | null;
+  metaValue: DailyRecordMetaValue;
   movementsValue: {
     discharges: DischargeData[];
     transfers: TransferData[];
@@ -98,7 +100,19 @@ export const useDailyRecordFragmentedValues = (
     tensNightShift,
     staffingDetailsV1,
     activeExtraBeds,
+    rayenSync,
   } = record || {};
+  const rayenCoverageCompletedAt = rayenSync?.coverage?.completedAt || '';
+  const normalizedActiveExtraBeds =
+    activeExtraBeds && activeExtraBeds.length > 0 ? activeExtraBeds : EMPTY_EXTRA_BEDS;
+  const metaValue = useMemo<DailyRecordMetaValue>(
+    () => ({
+      date,
+      rayenCoverageCompletedAt,
+      activeExtraBeds: normalizedActiveExtraBeds,
+    }),
+    [date, rayenCoverageCompletedAt, normalizedActiveExtraBeds]
+  );
   const movementsValue = useMemo(() => {
     if (!hasRecord) return null;
     return {
@@ -243,6 +257,7 @@ export const useDailyRecordFragmentedValues = (
   return {
     syncValue,
     bedsValue,
+    metaValue,
     movementsValue,
     stabilityValue,
     staffValue,

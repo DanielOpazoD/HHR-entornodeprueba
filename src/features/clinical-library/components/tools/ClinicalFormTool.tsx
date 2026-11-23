@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useDailyRecordData } from '@/context/DailyRecordContext';
+import { useDailyRecordBeds, useDailyRecordMeta } from '@/context/DailyRecordContext';
 import { buildClinicalFormPatientOptions } from '../../domain/forms/clinicalFormPatient';
 import type { ClinicalFormId } from '../../domain/forms/clinicalFormTypes';
 import { generateClinicalFormPdf } from '../../services/clinicalFormPdf';
@@ -11,8 +11,12 @@ export { LibraryExitConfirmation } from '../LibraryExitConfirmation';
 export const ClinicalFormTool: React.FC<
   ToolComponentProps & { formId: ClinicalFormId; onFormChange: (id: ClinicalFormId) => void }
 > = ({ formId, onFormChange, onBack, onClose, onDirtyChange }) => {
-  const { record } = useDailyRecordData();
-  const patients = useMemo(() => buildClinicalFormPatientOptions(record), [record]);
+  const beds = useDailyRecordBeds();
+  const { date, activeExtraBeds } = useDailyRecordMeta();
+  const patients = useMemo(
+    () => (date && beds ? buildClinicalFormPatientOptions({ date, beds, activeExtraBeds }) : []),
+    [activeExtraBeds, beds, date]
+  );
   return (
     <ClinicalFormEditor
       formId={formId}

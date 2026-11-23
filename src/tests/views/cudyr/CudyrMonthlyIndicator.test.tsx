@@ -12,6 +12,11 @@ const context = vi.hoisted(() => ({
 let generation = 'a';
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordData: () => ({ record: context.record, bootstrapPhase: 'confirmed_empty' }),
+  useDailyRecordMeta: () => ({
+    date: context.record?.date,
+    rayenCoverageCompletedAt: context.record?.rayenSync?.coverage?.completedAt || '',
+    activeExtraBeds: [],
+  }),
 }));
 vi.mock('@/services/cudyr/cudyrReportLoader', () => ({ loadCudyrReport: vi.fn() }));
 const dataset = (from: string, to: string, count: number, categorized: number) => {
