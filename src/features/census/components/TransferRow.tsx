@@ -2,10 +2,46 @@ import type { UpdateTransferAction } from '@/types/movements';
 import React, { useState } from 'react';
 
 import type { TransferData } from '@/types/domain/movements';
-import { resolveTransferRowViewModel } from '@/features/census/controllers/transferRowViewController';
+import {
+  buildTransferRowActions,
+  getTransferCenterLabel,
+  getTransferEscortLabel,
+} from '@/features/census/controllers/censusTransfersTableController';
+import type { TransferRowViewModel } from '@/features/census/types/censusMovementRowViewModelTypes';
 import { TransferRowView } from '@/features/census/components/TransferRowView';
+import { normalizeCribDisplayText } from '@/services/terminology/cribTerminology';
 import { DeferredHospitalizationReportsDialog } from './DeferredHospitalizationReportsDialog';
 import { resolveMovementHistoricalAdmissionDate } from '@/types/domain/movements';
+
+interface TransferRowActionHandlers {
+  undoTransfer: (id: string) => void | Promise<void>;
+  editTransfer: (transfer: TransferData) => void | Promise<void>;
+  deleteTransfer: (id: string) => void | Promise<void>;
+  convertTransferToHomeDischarge?: (id: string) => void | Promise<void>;
+  convertTransferToCma?: (id: string) => void | Promise<void>;
+}
+
+export const resolveTransferRowViewModel = (
+  item: TransferData,
+  handlers: TransferRowActionHandlers
+): TransferRowViewModel => ({
+  kind: 'transfer',
+  id: item.id,
+  bedName: normalizeCribDisplayText(item.bedName),
+  bedType: item.bedType,
+  patientName: item.patientName,
+  rut: item.rut,
+  admissionDate: resolveMovementHistoricalAdmissionDate(item),
+  diagnosis: item.diagnosis,
+  movementDate: item.movementDate,
+  movementTime: item.time,
+  movementProvenance: item.movementProvenance,
+  evacuationMethodLabel:
+    item.evacuationMethod === 'Otro' ? item.evacuationMethodOther || '' : item.evacuationMethod,
+  receivingCenterLabel: getTransferCenterLabel(item),
+  transferEscortLabel: getTransferEscortLabel(item),
+  actions: buildTransferRowActions(item, handlers),
+});
 
 interface TransferRowProps {
   item: TransferData;

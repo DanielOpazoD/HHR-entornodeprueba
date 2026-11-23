@@ -4,7 +4,10 @@ import { useCallback } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 
 import { executeRowActionController } from '@/features/census/controllers/censusRowActionRuntimeController';
-import { buildRowActionRuntimeActions } from '@/features/census/controllers/censusRowActionRuntimeAdapterController';
+import {
+  applyDischargePatch,
+  applyTransferPatch,
+} from '@/features/census/controllers/censusModalStateController';
 import {
   PREVIOUS_DAY_UNCHECKED_MESSAGE,
   buildPreviousDayPendingNotification,
@@ -14,7 +17,40 @@ import {
 } from '@/features/census/controllers/censusActionNotificationController';
 import type { CensusActionRuntimeRefs } from '@/features/census/hooks/useCensusActionRuntimeRefs';
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
+import type { RowActionRuntimeActions } from '@/features/census/types/censusRowActionRuntimeTypes';
 import type { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
+
+interface BuildRowActionRuntimeActionsParams {
+  clearPatient: RowActionRuntimeActions['clearPatient'];
+  addCMA: RowActionRuntimeActions['addCMA'];
+  markInvalidEpisode: RowActionRuntimeActions['markInvalidEpisode'];
+  cleanInvalidEpisodePreviousDay: RowActionRuntimeActions['cleanInvalidEpisodePreviousDay'];
+  setActionState: Dispatch<SetStateAction<ActionState>>;
+  setDischargeState: Dispatch<SetStateAction<DischargeState>>;
+  setTransferState: Dispatch<SetStateAction<TransferState>>;
+}
+
+export const buildRowActionRuntimeActions = ({
+  clearPatient,
+  addCMA,
+  markInvalidEpisode,
+  cleanInvalidEpisodePreviousDay,
+  setActionState,
+  setDischargeState,
+  setTransferState,
+}: BuildRowActionRuntimeActionsParams): RowActionRuntimeActions => ({
+  clearPatient,
+  addCMA,
+  markInvalidEpisode,
+  cleanInvalidEpisodePreviousDay,
+  setMovement: setActionState,
+  openDischarge: dischargePatch => {
+    setDischargeState(previousState => applyDischargePatch(previousState, dischargePatch));
+  },
+  openTransfer: transferPatch => {
+    setTransferState(previousState => applyTransferPatch(previousState, transferPatch));
+  },
+});
 
 interface UseCensusRowActionCommandParams extends Pick<
   CensusActionRuntimeRefs,

@@ -9,7 +9,7 @@ import {
   buildModalSaveResult,
   buildDeviceBundleChangeResult,
 } from '@/features/census/controllers/devicesCellController';
-import { updateDeviceHistoryRecord } from '@/features/census/controllers/deviceHistoryModalController';
+import { updateDeviceHistoryRecord } from '@/features/census/components/patient-row/useDeviceHistoryEditor';
 import type { RayenInvasiveDeviceEntry } from '@/features/rayen-import/mapping/mapDeviceToInstance';
 import type { PatientData } from '@/types/domain/patient';
 import type { DeviceRead } from '@/features/rayen-import/domain/clinicalPatientReaders';
