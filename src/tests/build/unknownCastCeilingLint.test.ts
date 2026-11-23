@@ -66,6 +66,41 @@ describe('production files never add an `as unknown as`', () => {
   });
 });
 
+describe('production files never use `as never`', () => {
+  const NEVER_RULE = 'types/no-never-cast';
+  const neverMessages = async (code: string, filePath: string) =>
+    (await eslint.lintText(code, { filePath }))[0].messages.filter(
+      message => message.ruleId === NEVER_RULE
+    );
+
+  it.each(['export const value = ({} as never);', 'export const value = <never>{};'])(
+    'rejects %s in production source and names the fix',
+    async code => {
+      const [srcMessage] = await neverMessages(code, 'src/services/storage/newProbe.ts');
+      expect(srcMessage?.message).toContain('«as never» evita la comprobación de tipos');
+      expect(srcMessage?.message).toContain('Modela el tipo real');
+
+      const [netlifyMessage] = await neverMessages(code, 'netlify/functions/newProbe.ts');
+      expect(netlifyMessage?.message).toContain('«as never» evita la comprobación de tipos');
+    }
+  );
+
+  it('allows normal types and `never` annotations that are not casts', async () => {
+    expect(
+      await neverMessages(
+        'export const fail = (): never => { throw new Error("boom"); };',
+        'src/services/storage/newProbe.ts'
+      )
+    ).toEqual([]);
+  });
+
+  it('applies to production source only', async () => {
+    const cast = 'export const value = ({} as never);';
+    expect(await neverMessages(cast, 'src/tests/probe.test.ts')).toEqual([]);
+    expect(await neverMessages(cast, 'src/services/storage/probe.test.ts')).toEqual([]);
+  });
+});
+
 describe('tests never build a day through `as unknown as`', () => {
   const restricted = async (code: string) =>
     (
