@@ -121,7 +121,7 @@ import { useDailyRecord } from '@/hooks/useDailyRecord';
 
 - [Índice operativo de runbooks](docs/RUNBOOK_INDEX.md)
 - [Mapa global de documentación](docs/DOCUMENTATION_MAP.md)
-- [Auditoría técnica de la aplicación](docs/TECHNICAL_APPLICATION_AUDIT.md)
+- [Auditoría técnica histórica (abril 2026)](docs/archive/TECHNICAL_APPLICATION_AUDIT_2026-04.md)
 - [Modelo de acceso y login](docs/AUTH_ACCESS_MODEL.md)
 - [Runbook de incidentes de acceso](docs/RUNBOOK_AUTH_ACCESS_INCIDENTS.md)
 - [Arquitectura global](docs/architecture.md)

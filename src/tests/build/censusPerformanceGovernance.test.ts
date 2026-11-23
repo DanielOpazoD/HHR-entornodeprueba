@@ -129,6 +129,21 @@ describe('combined census measurement configuration', () => {
     expect(workflow).not.toContain('run: npm run test:e2e:census-interactions');
   });
 
+  it('runs standalone production interactions via CENSUS_PERF_INTERACTIONS_ONLY', async () => {
+    vi.stubEnv('CENSUS_PERF_ENV', 'production');
+    vi.stubEnv('CENSUS_PERF_INTERACTIONS_ONLY', '1');
+    vi.resetModules();
+    const { default: config } = await import('../../../playwright.census-performance.config');
+    expect(config.projects).toHaveLength(1);
+    expect(config.projects?.[0]).toMatchObject({
+      name: 'census-interactions-chromium',
+      testMatch: 'census-interaction.measurement.ts',
+      timeout: 180_000,
+      outputDir: 'test-results/census-interactions',
+    });
+    expect(config.projects?.[0]?.dependencies).toBeUndefined();
+  });
+
   it('rejects combined development measurements', async () => {
     vi.stubEnv('CENSUS_PERF_ENV', 'development');
     vi.stubEnv('CENSUS_PERF_INCLUDE_INTERACTIONS', '1');
