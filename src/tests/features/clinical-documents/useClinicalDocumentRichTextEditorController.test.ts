@@ -17,6 +17,33 @@ vi.mock('@/features/clinical-documents/controllers/clinicalDocumentRichTextContr
 }));
 
 describe('useClinicalDocumentRichTextEditorController', () => {
+  const createKeyDownEvent = (overrides: {
+    key: string;
+    ctrlKey?: boolean;
+    metaKey?: boolean;
+    shiftKey?: boolean;
+    preventDefault?: () => void;
+  }): KeyboardEvent<HTMLDivElement> =>
+    ({
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+      preventDefault: vi.fn(),
+      ...overrides,
+    }) as unknown as KeyboardEvent<HTMLDivElement>;
+
+  const createPasteEvent = (
+    files: File[],
+    preventDefault: () => void = vi.fn()
+  ): ClipboardEvent<HTMLDivElement> =>
+    ({
+      preventDefault,
+      clipboardData: {
+        files,
+        getData: () => '',
+      },
+    }) as unknown as ClipboardEvent<HTMLDivElement>;
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -84,20 +111,8 @@ describe('useClinicalDocumentRichTextEditorController', () => {
     );
 
     act(() => {
-      result.current.handleKeyDown({
-        key: 'b',
-        ctrlKey: true,
-        metaKey: false,
-        shiftKey: false,
-        preventDefault: vi.fn(),
-      } as unknown as KeyboardEvent<HTMLDivElement>);
-      result.current.handleKeyDown({
-        key: 'Tab',
-        ctrlKey: false,
-        metaKey: false,
-        shiftKey: true,
-        preventDefault: vi.fn(),
-      } as unknown as KeyboardEvent<HTMLDivElement>);
+      result.current.handleKeyDown(createKeyDownEvent({ key: 'b', ctrlKey: true }));
+      result.current.handleKeyDown(createKeyDownEvent({ key: 'Tab', shiftKey: true }));
     });
 
     expect(applyEditorCommandMock).toHaveBeenCalledWith('bold', undefined);
@@ -105,13 +120,7 @@ describe('useClinicalDocumentRichTextEditorController', () => {
 
     rerender({ disabled: true });
     act(() => {
-      result.current.handleKeyDown({
-        key: 'i',
-        ctrlKey: true,
-        metaKey: false,
-        shiftKey: false,
-        preventDefault: vi.fn(),
-      } as unknown as KeyboardEvent<HTMLDivElement>);
+      result.current.handleKeyDown(createKeyDownEvent({ key: 'i', ctrlKey: true }));
     });
 
     expect(applyEditorCommandMock).toHaveBeenCalledTimes(2);
@@ -294,13 +303,7 @@ describe('useClinicalDocumentRichTextEditorController', () => {
     );
 
     await act(async () => {
-      result.current.handlePaste({
-        preventDefault,
-        clipboardData: {
-          files: [file],
-          getData: () => '',
-        },
-      } as unknown as ClipboardEvent<HTMLDivElement>);
+      result.current.handlePaste(createPasteEvent([file], preventDefault));
     });
 
     expect(preventDefault).toHaveBeenCalled();
@@ -336,13 +339,7 @@ describe('useClinicalDocumentRichTextEditorController', () => {
     );
 
     await act(async () => {
-      result.current.handlePaste({
-        preventDefault: vi.fn(),
-        clipboardData: {
-          files: [file],
-          getData: () => '',
-        },
-      } as unknown as ClipboardEvent<HTMLDivElement>);
+      result.current.handlePaste(createPasteEvent([file]));
     });
 
     expect(onImagePasteRejected).toHaveBeenCalledWith(expect.stringContaining('No se pudo subir'));

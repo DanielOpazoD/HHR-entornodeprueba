@@ -18,6 +18,9 @@ const ORIGIN = 'https://testinghhr.netlify.app';
 const NOW = Date.parse('2026-11-09T04:30:00.000Z');
 
 type CounterStore = Parameters<typeof createDailyTelemetryCounter>[0];
+const asCounterStore = (
+  store: Pick<ReturnType<typeof createEtagStore>, 'getWithMetadata' | 'setJSON'>
+): CounterStore => store as unknown as CounterStore;
 
 /** Memory blob store with etags, like Netlify Blobs' conditional writes. */
 const createEtagStore = () => {
@@ -108,7 +111,7 @@ describe('daily operational telemetry counts', () => {
 
   it('keeps every count when two events race on the same day', async () => {
     const store = createEtagStore();
-    const count = createDailyTelemetryCounter(store as unknown as CounterStore);
+    const count = createDailyTelemetryCounter(asCounterStore(store));
     const entry = {
       operation: 'app_shell_ready',
       status: 'success',
@@ -127,7 +130,7 @@ describe('daily operational telemetry counts', () => {
   it('reports a lost race instead of overwriting the day', async () => {
     const store = createEtagStore();
     const losing = { ...store, setJSON: vi.fn(async () => ({ modified: false })) };
-    const count = createDailyTelemetryCounter(losing as unknown as CounterStore);
+    const count = createDailyTelemetryCounter(asCounterStore(losing));
     await expect(
       count({
         operation: 'app_shell_ready',
@@ -140,7 +143,7 @@ describe('daily operational telemetry counts', () => {
   });
 
   it('never lets the Blobs SDK retry: a failing store costs one request, not five sleeps', async () => {
-    const real = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
+    const real = vi.fn<typeof fetch>(async (_input, init) =>
       (init?.method ?? 'GET').toUpperCase() === 'GET'
         ? new Response(null, { status: 404 })
         : new Response('down', { status: 503 })
@@ -151,7 +154,7 @@ describe('daily operational telemetry counts', () => {
       token: 'synthetic-token',
       edgeURL: 'https://edge.invalid',
       uncachedEdgeURL: 'https://uncached-edge.invalid',
-      fetch: createCountBlobFetch(real as unknown as typeof fetch),
+      fetch: createCountBlobFetch(real),
     });
     const count = createDailyTelemetryCounter(store);
     await expect(
@@ -180,7 +183,7 @@ describe('daily operational telemetry counts', () => {
 
   it('never reports a rejected write as counted', async () => {
     for (const status of [400, 401, 403]) {
-      const real = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
+      const real = vi.fn<typeof fetch>(async (_input, init) =>
         (init?.method ?? 'GET').toUpperCase() === 'GET'
           ? new Response(null, { status: 404 })
           : new Response('denied', { status })
@@ -191,7 +194,7 @@ describe('daily operational telemetry counts', () => {
         token: 'synthetic-token',
         edgeURL: 'https://edge.invalid',
         uncachedEdgeURL: 'https://uncached-edge.invalid',
-        fetch: createCountBlobFetch(real as unknown as typeof fetch),
+        fetch: createCountBlobFetch(real),
       });
       await expect(
         createDailyTelemetryCounter(store)({
@@ -269,7 +272,7 @@ describe('operational telemetry handler counting', () => {
       queue: silentQueue,
       now: () => clock.shift() ?? arrival + 10_000,
       log: vi.fn(),
-      count: createDailyTelemetryCounter(store as unknown as CounterStore),
+      count: createDailyTelemetryCounter(asCounterStore(store)),
     });
     expect((await handler(request(resumeFailure))).statusCode).toBe(202);
     expect([...store.data.keys()]).toEqual(['daily/2026-11-08']);

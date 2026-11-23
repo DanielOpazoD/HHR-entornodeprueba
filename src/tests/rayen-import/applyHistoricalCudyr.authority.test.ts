@@ -5,6 +5,7 @@ import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyReco
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import { buildMockDailyRecordRepository } from '@/tests/factories/dailyRecordRepositoryMock';
 import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 vi.mock('@/hooks/controllers/dailyRecordMutationFreshnessController', () => ({
@@ -37,12 +38,13 @@ describe('historical CUDYR remote authority', () => {
   it('stops before dispatch when the historical authoritative read crosses the session boundary', async () => {
     let changed = false;
     const applyBatch = vi.fn();
-    const dailyRecord = {
+    const dailyRecord: DailyRecordRepositoryPort = {
+      ...buildMockDailyRecordRepository(),
       getAuthoritativeForDate: vi.fn(async () => {
         changed = true;
         return record('revision-1');
       }),
-    } as unknown as DailyRecordRepositoryPort;
+    };
     await expect(
       applyHistoricalCudyrBatchAuthoritatively({
         dailyRecord,
@@ -63,10 +65,11 @@ describe('historical CUDYR remote authority', () => {
   it.each(['admin', 'nurse_hospital'] as const)(
     'never consults a local fallback when Firestore authority is unavailable (%s)',
     async role => {
-      const repository = {
+      const repository: DailyRecordRepositoryPort = {
+        ...buildMockDailyRecordRepository(),
         getAuthoritativeForDate: vi.fn().mockRejectedValue(new Error('Firestore unavailable')),
         getForDateWithMeta: vi.fn().mockResolvedValue({ record: record('local-stale') }),
-      } as unknown as DailyRecordRepositoryPort;
+      };
 
       await expect(
         applyHistoricalCudyrBatchAuthoritatively({
@@ -97,9 +100,10 @@ describe('historical CUDYR remote authority', () => {
           source: 'HHR · ajuste administrativo',
         },
       } as never;
-      const repository = {
+      const repository: DailyRecordRepositoryPort = {
+        ...buildMockDailyRecordRepository(),
         getAuthoritativeForDate: vi.fn().mockResolvedValue(historicalRecord),
-      } as unknown as DailyRecordRepositoryPort;
+      };
       const applyBatch = vi.fn();
 
       await expect(
@@ -143,9 +147,10 @@ describe('historical CUDYR remote authority', () => {
           source: 'HHR · ajuste administrativo',
         },
       } as never;
-      const repository = {
+      const repository: DailyRecordRepositoryPort = {
+        ...buildMockDailyRecordRepository(),
         getAuthoritativeForDate: vi.fn().mockResolvedValue(record('revision-1')),
-      } as unknown as DailyRecordRepositoryPort;
+      };
       const applyBatch = vi
         .fn()
         .mockImplementation(
@@ -182,10 +187,11 @@ describe('historical CUDYR remote authority', () => {
   it.each(['admin', 'nurse_hospital'] as const)(
     'keeps enforced work pending when the authoritative remote read fails (%s)',
     async role => {
-      const repository = {
+      const repository: DailyRecordRepositoryPort = {
+        ...buildMockDailyRecordRepository(),
         getAuthoritativeForDate: vi.fn().mockRejectedValue(new Error('remote read failed')),
         getForDateWithMeta: vi.fn().mockResolvedValue({ record: record('local-stale') }),
-      } as unknown as DailyRecordRepositoryPort;
+      };
       const applyBatch = vi.fn();
 
       await expect(

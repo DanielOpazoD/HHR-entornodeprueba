@@ -17,8 +17,19 @@ import {
 } from '@/features/rayen-import/hooks/rayenSyncExecutionState';
 
 const bridge = vi.hoisted(() => ({
-  subscribeSnapshots: vi.fn(() => vi.fn()),
-  subscribeErrors: vi.fn(() => vi.fn()),
+  subscribeSnapshots: vi.fn(
+    (_cb: (snapshot: unknown, bundle: unknown, requestId: string) => void) => vi.fn()
+  ),
+  subscribeErrors: vi.fn(
+    (
+      _cb: (
+        error: string,
+        requestId: string,
+        timeoutStage?: string,
+        captureRetries?: number
+      ) => void
+    ) => vi.fn()
+  ),
 }));
 
 vi.mock('@/features/rayen-import/bridge/rayenSnapshotBridge', () => ({
@@ -143,9 +154,7 @@ describe('useRayenImportCapture lifecycle guards', () => {
         previewSnapshot: vi.fn(),
       })
     );
-    const [onError] = bridge.subscribeErrors.mock.calls[0] as unknown as [
-      (error: string, requestId: string, timeoutStage?: string) => void,
-    ];
+    const [onError] = bridge.subscribeErrors.mock.calls[0];
     act(() => onError('capture failed', 'request-1', 'ficha_main_relay'));
     act(() => onError('capture failed', 'request-1', 'ficha_main_relay'));
     expect(clearSyncTimeout).toHaveBeenCalledOnce();
@@ -193,9 +202,7 @@ describe('useRayenImportCapture lifecycle guards', () => {
         previewSnapshot: vi.fn(),
       })
     );
-    const [onError] = bridge.subscribeErrors.mock.calls[0] as unknown as [
-      (error: string, requestId: string, timeoutStage?: string, captureRetries?: number) => void,
-    ];
+    const [onError] = bridge.subscribeErrors.mock.calls[0];
     // Mensaje real de la extensión el 02-09: la salud decía «lista» y la
     // lectura fallaba en 1 s; antes se archivaba como snapshot_error genérico.
     act(() =>
@@ -257,12 +264,8 @@ describe('useRayenImportCapture lifecycle guards', () => {
         previewSnapshot,
       })
     );
-    const [onSnapshot] = bridge.subscribeSnapshots.mock.calls[0] as unknown as [
-      (snapshot: unknown, bundle: unknown, requestId: string) => void,
-    ];
-    const [onError] = bridge.subscribeErrors.mock.calls[0] as unknown as [
-      (error: string, requestId: string) => void,
-    ];
+    const [onSnapshot] = bridge.subscribeSnapshots.mock.calls[0];
+    const [onError] = bridge.subscribeErrors.mock.calls[0];
     act(() => {
       onSnapshot('late-snapshot', 'late-bundle', 'old-request');
       onError('late-error', 'old-request');
@@ -412,7 +415,7 @@ describe('useRayenImportCapture lifecycle guards', () => {
       execution.dispatchExecution({ type: 'transition', runId: 'run-1', stage: { type } });
       if (type === target) break;
     }
-    const onTimeout = start.mock.calls[0]?.[3] as unknown as () => void;
+    const onTimeout = start.mock.calls[0]?.[3];
     setState.mockClear();
     act(() => onTimeout());
     expect(execution.executionRef.current.stage).toEqual({ type: target });

@@ -2,11 +2,20 @@
 
 import { describe, it, expect } from 'vitest';
 import { calculateDensity, checkRegression } from '@/utils/integrityGuard';
+import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { PatientStatus } from '@/types/domain/patientClassification';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 describe('IntegrityGuard', () => {
   type BedValue = DailyRecord['beds'][string];
+  type LegacyStoredBed = Partial<BedValue> & { handoffNote?: string };
+
+  const createBed = (bedId: string, overrides: LegacyStoredBed = {}): BedValue =>
+    asStoredDailyRecordShape<BedValue>({
+      ...createEmptyPatient(bedId),
+      ...overrides,
+    });
 
   const createEmptyRecord = (date: string): DailyRecord => ({
     date,
@@ -23,8 +32,7 @@ describe('IntegrityGuard', () => {
     asStoredDailyRecordShape({
       date,
       beds: {
-        BED_01: {
-          bedId: 'BED_01',
+        BED_01: createBed('BED_01', {
           patientName: 'John Doe',
           handoffNote: 'Stable patient',
           isBlocked: false,
@@ -32,26 +40,25 @@ describe('IntegrityGuard', () => {
           hasCompanionCrib: false,
           rut: '123-4',
           age: '40',
-          status: 'Estable',
+          status: PatientStatus.ESTABLE,
           admissionDate: '2024-01-01',
           admissionTime: '10:00',
           hasWristband: true,
           devices: [],
-        } as unknown as BedValue,
-        BED_02: {
-          bedId: 'BED_02',
+        }),
+        BED_02: createBed('BED_02', {
           patientName: 'Jane Smith',
           isBlocked: false,
           bedMode: 'Cama',
           hasCompanionCrib: false,
           rut: '567-8',
           age: '30',
-          status: 'Grave',
+          status: PatientStatus.GRAVE,
           admissionDate: '2024-01-01',
           admissionTime: '11:00',
           hasWristband: true,
           devices: [],
-        } as unknown as BedValue,
+        }),
       },
       discharges: [],
       transfers: [],
@@ -97,9 +104,16 @@ describe('IntegrityGuard', () => {
 
     it('should NOT flag regression when drop is minimal', () => {
       const oldRecord = createDenseRecord('2024-01-01');
-      const newRecord = { ...oldRecord, beds: { ...oldRecord.beds } };
-      // Remove one minor field
-      delete (newRecord.beds['BED_01'] as unknown as Record<string, unknown>).handoffNote;
+      const { handoffNote: _removed, ...bedWithoutNote } = oldRecord.beds[
+        'BED_01'
+      ] as LegacyStoredBed;
+      const newRecord: DailyRecord = {
+        ...oldRecord,
+        beds: {
+          ...oldRecord.beds,
+          BED_01: asStoredDailyRecordShape<BedValue>(bedWithoutNote),
+        },
+      };
 
       const result = checkRegression(oldRecord, newRecord);
       expect(result.isSuspicious).toBe(false);
@@ -109,13 +123,13 @@ describe('IntegrityGuard', () => {
       // Create a very dense record with 10 patients
       const oldRecord = createEmptyRecord('2024-01-01');
       for (let i = 0; i < 10; i++) {
-        oldRecord.beds[`BED_${i}`] = { patientName: `Patient ${i}` } as unknown as BedValue;
+        oldRecord.beds[`BED_${i}`] = createBed(`BED_${i}`, { patientName: `Patient ${i}` });
       }
 
       // New record only has 2 patients
       const newRecord = createEmptyRecord('2024-01-01');
-      newRecord.beds['BED_0'] = { patientName: 'Patient 0' } as unknown as BedValue;
-      newRecord.beds['BED_1'] = { patientName: 'Patient 1' } as unknown as BedValue;
+      newRecord.beds['BED_0'] = createBed('BED_0', { patientName: 'Patient 0' });
+      newRecord.beds['BED_1'] = createBed('BED_1', { patientName: 'Patient 1' });
 
       const result = checkRegression(oldRecord, newRecord);
       expect(result.isSuspicious).toBe(true);
@@ -124,14 +138,13 @@ describe('IntegrityGuard', () => {
 
     it('accepts several discharges when each vacated patient is preserved in its movement', () => {
       const patient = (index: number): BedValue =>
-        ({
-          bedId: `BED_${index}`,
+        createBed(`BED_${index}`, {
           patientName: `Patient ${index}`,
           rut: `${index + 1}`,
           handoffNote: 'Evolución vigente',
           handoffNoteDayShift: 'Turno día',
           handoffNoteNightShift: 'Turno noche',
-        }) as unknown as BedValue;
+        });
       const oldRecord = createEmptyRecord('2024-01-01');
       for (let index = 0; index < 10; index += 1) {
         oldRecord.beds[`BED_${index}`] = patient(index);
@@ -157,12 +170,12 @@ describe('IntegrityGuard', () => {
       const oldRecord = createEmptyRecord('2024-01-01');
       const newRecord = createEmptyRecord('2024-01-01');
       for (let index = 0; index < 10; index += 1) {
-        const bed = {
+        const bed = createBed(`BED_${index}`, {
           patientName: `Patient ${index}`,
           handoffNote: 'Evolución vigente',
           handoffNoteDayShift: 'Turno día',
           handoffNoteNightShift: 'Turno noche',
-        } as unknown as BedValue;
+        });
         oldRecord.beds[`BED_${index}`] = bed;
         if (index < 6) newRecord.beds[`BED_${index}`] = bed;
       }
@@ -197,14 +210,13 @@ describe('IntegrityGuard', () => {
       const oldRecord = createEmptyRecord('2024-01-01');
       const newRecord = createEmptyRecord('2024-01-01');
       for (let index = 0; index < 10; index += 1) {
-        const bed = {
-          bedId: `BED_${index}`,
+        const bed = createBed(`BED_${index}`, {
           patientName: `Patient ${index}`,
           rut: `${index + 1}`,
           handoffNote: 'Evolución vigente',
           handoffNoteDayShift: 'Turno día',
           handoffNoteNightShift: 'Turno noche',
-        } as unknown as BedValue;
+        });
         oldRecord.beds[`BED_${index}`] = bed;
         if (index < 6) newRecord.beds[`BED_${index}`] = bed;
       }
@@ -230,10 +242,10 @@ describe('IntegrityGuard', () => {
       const oldRecord = createEmptyRecord('2024-01-01');
       const newRecord = createEmptyRecord('2024-01-01');
       for (let index = 0; index < 10; index += 1) {
-        const bed = {
+        const bed = createBed(`BED_${index}`, {
           patientName: `Patient ${index}`,
           handoffNote: 'Evolución vigente',
-        } as unknown as BedValue;
+        });
         oldRecord.beds[`BED_${index}`] = bed;
         if (index < 2) newRecord.beds[`BED_${index}`] = bed;
       }
@@ -255,7 +267,7 @@ describe('IntegrityGuard', () => {
       const oldRecord = createEmptyRecord('2024-01-01');
       const newRecord = createEmptyRecord('2024-01-01');
       for (let index = 0; index < 10; index += 1) {
-        const bed = { patientName: `Patient ${index}` } as unknown as BedValue;
+        const bed = createBed(`BED_${index}`, { patientName: `Patient ${index}` });
         oldRecord.beds[`BED_${index}`] = bed;
         if (index < 2) newRecord.beds[`BED_${index}`] = bed;
       }

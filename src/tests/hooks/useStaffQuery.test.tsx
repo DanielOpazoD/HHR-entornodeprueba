@@ -1,4 +1,5 @@
 import { CatalogRemoteSyncError } from '@/services/repositories/contracts/catalogContracts';
+import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import {
@@ -42,8 +43,6 @@ describe('useStaffQuery Hooks', () => {
   type SubscribeNursesFn = typeof CatalogRepository.subscribeNurses;
   type SubscribeTensFn = typeof CatalogRepository.subscribeTens;
   type SubscribeProfessionalsFn = typeof CatalogRepository.subscribeProfessionals;
-  type ProfessionalList = Awaited<ReturnType<typeof CatalogRepository.getProfessionals>>;
-  type SaveProfessionalsInput = Parameters<typeof CatalogRepository.saveProfessionals>[0];
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -95,11 +94,9 @@ describe('useStaffQuery Hooks', () => {
 
     it('useNursesQuery should fetch nurses and subscribe', async () => {
       const mockNurses = ['Nurse 1', 'Nurse 2'];
-      const subscribeMock = vi.fn(() => vi.fn());
+      const subscribeMock = vi.fn<SubscribeNursesFn>(() => vi.fn());
       vi.mocked(CatalogRepository.getNurses).mockResolvedValue(mockNurses);
-      vi.mocked(CatalogRepository.subscribeNurses).mockImplementation(
-        subscribeMock as unknown as SubscribeNursesFn
-      );
+      vi.mocked(CatalogRepository.subscribeNurses).mockImplementation(subscribeMock);
 
       const { result } = renderHook(() => useNursesQuery(), { wrapper: createWrapper() });
 
@@ -110,11 +107,9 @@ describe('useStaffQuery Hooks', () => {
 
     it('useTensQuery should fetch tens and subscribe', async () => {
       const mockTens = ['TENS 1', 'TENS 2'];
-      const subscribeMock = vi.fn(() => vi.fn());
+      const subscribeMock = vi.fn<SubscribeTensFn>(() => vi.fn());
       vi.mocked(CatalogRepository.getTens).mockResolvedValue(mockTens);
-      vi.mocked(CatalogRepository.subscribeTens).mockImplementation(
-        subscribeMock as unknown as SubscribeTensFn
-      );
+      vi.mocked(CatalogRepository.subscribeTens).mockImplementation(subscribeMock);
 
       const { result } = renderHook(() => useTensQuery(), { wrapper: createWrapper() });
 
@@ -124,14 +119,12 @@ describe('useStaffQuery Hooks', () => {
     });
 
     it('useProfessionalsQuery should fetch professionals and subscribe', async () => {
-      const mockProfs = [{ name: 'Dr. Smith', phone: '123', specialty: 'Medicina Interna' }];
-      const subscribeMock = vi.fn(() => vi.fn());
-      vi.mocked(CatalogRepository.getProfessionals).mockResolvedValue(
-        mockProfs as unknown as ProfessionalList
-      );
-      vi.mocked(CatalogRepository.subscribeProfessionals).mockImplementation(
-        subscribeMock as unknown as SubscribeProfessionalsFn
-      );
+      const mockProfs: ProfessionalCatalogItem[] = [
+        { name: 'Dr. Smith', phone: '123', specialty: 'Medicina Interna' },
+      ];
+      const subscribeMock = vi.fn<SubscribeProfessionalsFn>(() => vi.fn());
+      vi.mocked(CatalogRepository.getProfessionals).mockResolvedValue(mockProfs);
+      vi.mocked(CatalogRepository.subscribeProfessionals).mockImplementation(subscribeMock);
 
       const { result } = renderHook(() => useProfessionalsQuery(), { wrapper: createWrapper() });
 
@@ -144,10 +137,8 @@ describe('useStaffQuery Hooks', () => {
       vi.mocked(useAuth).mockReturnValue({
         remoteSyncStatus: 'local_only',
       } as AuthContextValue);
-      const subscribeMock = vi.fn();
-      vi.mocked(CatalogRepository.subscribeNurses).mockImplementation(
-        subscribeMock as unknown as SubscribeNursesFn
-      );
+      const subscribeMock = vi.fn<SubscribeNursesFn>(() => vi.fn());
+      vi.mocked(CatalogRepository.subscribeNurses).mockImplementation(subscribeMock);
 
       renderHook(() => useNursesQuery(), { wrapper: createWrapper() });
 
@@ -162,10 +153,8 @@ describe('useStaffQuery Hooks', () => {
       vi.mocked(useAuth).mockReturnValue({
         remoteSyncStatus: 'bootstrapping',
       } as AuthContextValue);
-      const subscribeMock = vi.fn();
-      vi.mocked(CatalogRepository.subscribeNurses).mockImplementation(
-        subscribeMock as unknown as SubscribeNursesFn
-      );
+      const subscribeMock = vi.fn<SubscribeNursesFn>(() => vi.fn());
+      vi.mocked(CatalogRepository.subscribeNurses).mockImplementation(subscribeMock);
 
       renderHook(() => useNursesQuery(), { wrapper: createWrapper() });
 
@@ -179,7 +168,7 @@ describe('useStaffQuery Hooks', () => {
         .mockResolvedValueOnce(['Nurse 1']);
 
       vi.mocked(CatalogRepository.subscribeNurses).mockImplementation(
-        vi.fn(() => vi.fn()) as unknown as SubscribeNursesFn
+        vi.fn<SubscribeNursesFn>(() => vi.fn())
       );
 
       const { result, rerender } = renderHook(
@@ -234,13 +223,15 @@ describe('useStaffQuery Hooks', () => {
     });
 
     it('useSaveProfessionalsMutation should call repository', async () => {
-      const mockProfs = [{ name: 'New Prof', phone: '456', specialty: 'Cirugía' }];
+      const mockProfs: ProfessionalCatalogItem[] = [
+        { name: 'New Prof', phone: '456', specialty: 'Cirugía' },
+      ];
       const saveMock = vi.mocked(CatalogRepository.saveProfessionals).mockResolvedValue(undefined);
       const { result } = renderHook(() => useSaveProfessionalsMutation(), {
         wrapper: createLoadedWrapper('professionals'),
       });
 
-      await result.current.mutateAsync(mockProfs as unknown as SaveProfessionalsInput);
+      await result.current.mutateAsync(mockProfs);
 
       expect(saveMock).toHaveBeenCalledWith(mockProfs, []);
     });

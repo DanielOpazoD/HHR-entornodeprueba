@@ -6,6 +6,7 @@ import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyReco
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
+import { buildMockDailyRecordRepository } from '@/tests/factories/dailyRecordRepositoryMock';
 import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 vi.mock('@/hooks/controllers/dailyRecordMutationFreshnessController', () => ({
@@ -75,9 +76,10 @@ describe('applyHistoricalCudyr', () => {
     'persists historical CUDYR for %s through the source run',
     async role => {
       const historicalRecord = recordWithTwoEpisodes('revision-1');
-      const repository = {
+      const repository: DailyRecordRepositoryPort = {
+        ...buildMockDailyRecordRepository(),
         getAuthoritativeForDate: vi.fn().mockResolvedValue(historicalRecord),
-      } as unknown as DailyRecordRepositoryPort;
+      };
       const applyBatch = vi.fn().mockResolvedValue({
         patientWrites: 2,
         historySnapshots: 1,
@@ -161,9 +163,10 @@ describe('applyHistoricalCudyr', () => {
   );
 
   it('treats a missing historical census as not applicable without invoking authority', async () => {
-    const repository = {
+    const repository: DailyRecordRepositoryPort = {
+      ...buildMockDailyRecordRepository(),
       getAuthoritativeForDate: vi.fn().mockResolvedValue(null),
-    } as unknown as DailyRecordRepositoryPort;
+    };
     const applyBatch = vi.fn();
     const sourceRecord = asStoredDailyRecordShape({
       ...record('revision-source'),
@@ -232,9 +235,10 @@ describe('applyHistoricalCudyr', () => {
     },
     { censusDay: '2026-07-29', role: 'doctor_urgency', label: 'a non-CUDYR writer' },
   ] as const)('does not invoke authority for $label', async ({ censusDay, role }) => {
-    const repository = {
+    const repository: DailyRecordRepositoryPort = {
+      ...buildMockDailyRecordRepository(),
       getAuthoritativeForDate: vi.fn().mockResolvedValue(record('revision-1')),
-    } as unknown as DailyRecordRepositoryPort;
+    };
     const applyBatch = vi.fn();
     const sourceRecord = asStoredDailyRecordShape({
       ...record('revision-source'),
@@ -278,9 +282,10 @@ describe('applyHistoricalCudyr', () => {
         },
       },
     });
-    const repository = {
+    const repository: DailyRecordRepositoryPort = {
+      ...buildMockDailyRecordRepository(),
       getAuthoritativeForDate: vi.fn().mockResolvedValue(initialRecord),
-    } as unknown as DailyRecordRepositoryPort;
+    };
     const applyBatch = vi.fn().mockResolvedValue({ patientWrites: 1, historySnapshots: 1 });
     const secondCudyr: ImportedCudyr = { ...cudyr, category: 'B2', author: 'Otra enfermera' };
     const sourceRecord = asStoredDailyRecordShape({

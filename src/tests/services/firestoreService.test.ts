@@ -71,7 +71,33 @@ vi.mock('firebase/firestore', async () => {
 });
 
 describe('firestoreService', () => {
-  type PartialUpdatePatch = Parameters<typeof updateRecordPartial>[1];
+  const createDocSnapshot = (
+    data?: Record<string, unknown>,
+    options: {
+      exists?: boolean;
+      id?: string;
+      metadata?: { hasPendingWrites?: boolean; fromCache?: boolean };
+    } = {}
+  ): DocumentSnapshot<DocumentData> =>
+    ({
+      exists: () => options.exists ?? data !== undefined,
+      id: options.id ?? 'mock-id',
+      data: () => data,
+      metadata: {
+        hasPendingWrites: false,
+        fromCache: false,
+        ...options.metadata,
+      },
+    }) as unknown as DocumentSnapshot<DocumentData>;
+
+  const createQuerySnapshot = (
+    docs: Array<{ id: string; data: () => Record<string, unknown> }>
+  ): QuerySnapshot<DocumentData> =>
+    ({
+      docs,
+      metadata: { fromCache: false, hasPendingWrites: false },
+    }) as unknown as QuerySnapshot<DocumentData>;
+
   const flushAsyncSubscription = async () => {
     await Promise.resolve();
   };
@@ -96,9 +122,7 @@ describe('firestoreService', () => {
 
   it('should return null if record does not exist', async () => {
     const getDocMock = vi.mocked(firestore.getDoc);
-    getDocMock.mockResolvedValueOnce({
-      exists: () => false,
-    } as unknown as DocumentSnapshot);
+    getDocMock.mockResolvedValueOnce(createDocSnapshot(undefined, { exists: false }));
 
     const result = await getRecordFromFirestore(mockDate);
     expect(result).toBeNull();
@@ -108,11 +132,7 @@ describe('firestoreService', () => {
     const updateDocMock = vi.mocked(firestore.updateDoc);
     const getDocMock = vi.mocked(firestore.getDoc);
 
-    const stored = {
-      exists: () => true,
-      id: 'mock-id',
-      data: () => ({}),
-    } as unknown as DocumentSnapshot<DocumentData>;
+    const stored = createDocSnapshot({});
     // The reachability read, the history copy and the write's transaction each read the day.
     getDocMock
       .mockResolvedValueOnce(stored)
@@ -121,7 +141,7 @@ describe('firestoreService', () => {
 
     await updateRecordPartial(mockDate, {
       handoffNovedadesDayShift: 'Novedad sintética',
-    } as unknown as PartialUpdatePatch);
+    });
 
     expect(updateDocMock).toHaveBeenCalled();
   });
@@ -129,13 +149,7 @@ describe('firestoreService', () => {
   it('should reject partial update when remote record is newer than local base', async () => {
     const getDocMock = vi.mocked(firestore.getDoc);
 
-    const newer = {
-      exists: () => true,
-      id: 'mock-id',
-      data: () => ({
-        lastUpdated: Timestamp.now(),
-      }),
-    } as unknown as DocumentSnapshot<DocumentData>;
+    const newer = createDocSnapshot({ lastUpdated: Timestamp.now() });
     getDocMock
       .mockResolvedValueOnce(newer)
       .mockResolvedValueOnce(newer)
@@ -146,7 +160,7 @@ describe('firestoreService', () => {
         mockDate,
         {
           handoffNovedadesDayShift: 'Novedad sintética',
-        } as unknown as PartialUpdatePatch,
+        },
         '2026-02-19T00:00:00.000Z'
       )
     ).rejects.toBeInstanceOf(ConcurrencyError);
@@ -162,10 +176,7 @@ describe('firestoreService', () => {
       lastUpdated: Timestamp.now(),
     };
 
-    getDocMock.mockResolvedValueOnce({
-      exists: () => true,
-      data: () => corruptedData,
-    } as unknown as DocumentSnapshot);
+    getDocMock.mockResolvedValueOnce(createDocSnapshot(corruptedData));
 
     const record = await getRecordFromFirestore(mockDate);
 
@@ -187,12 +198,7 @@ describe('firestoreService', () => {
             ? (maybeOnNext as (snapshot: unknown) => void)
             : undefined;
       if (typeof actualOnNext === 'function') {
-        actualOnNext({
-          exists: () => true,
-          data: () => ({ beds: {} }),
-          id: 'mock-id',
-          metadata: { hasPendingWrites: false },
-        } as unknown as DocumentSnapshot<DocumentData>);
+        actualOnNext(createDocSnapshot({ beds: {} }));
       }
       return vi.fn(); // Return unsubscribe
     });
@@ -205,7 +211,7 @@ describe('firestoreService', () => {
 
   it('should check if firestore is available', async () => {
     const getDocMock = vi.mocked(firestore.getDoc);
-    getDocMock.mockResolvedValueOnce({ exists: () => true } as unknown as DocumentSnapshot);
+    getDocMock.mockResolvedValueOnce(createDocSnapshot({}, { exists: true }));
 
     const available = await isFirestoreAvailable();
     expect(available).toBe(true);
@@ -213,10 +219,7 @@ describe('firestoreService', () => {
 
   it('should fetch nurse catalog from firestore', async () => {
     const getDocMock = vi.mocked(firestore.getDoc);
-    getDocMock.mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({ list: ['Nurse 1', 'Nurse 2'] }),
-    } as unknown as DocumentSnapshot);
+    getDocMock.mockResolvedValueOnce(createDocSnapshot({ list: ['Nurse 1', 'Nurse 2'] }));
 
     const list = await getNurseCatalogFromFirestore();
     expect(list).toEqual(['Nurse 1', 'Nurse 2']);
@@ -224,10 +227,7 @@ describe('firestoreService', () => {
 
   it('should fetch nurse catalog from legacy nurses field', async () => {
     const getDocMock = vi.mocked(firestore.getDoc);
-    getDocMock.mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({ nurses: ['Nurse Legacy'] }),
-    } as unknown as DocumentSnapshot);
+    getDocMock.mockResolvedValueOnce(createDocSnapshot({ nurses: ['Nurse Legacy'] }));
 
     const list = await getNurseCatalogFromFirestore();
     expect(list).toEqual(['Nurse Legacy']);
@@ -236,7 +236,7 @@ describe('firestoreService', () => {
   it('should save nurse catalog to firestore', async () => {
     const setDocMock = vi.mocked(firestore.setDoc);
     // The save reads the list and the shared Eloísa people in one transaction; neither exists.
-    const absent = { exists: () => false, data: () => undefined } as never;
+    const absent = createDocSnapshot(undefined, { exists: false });
     vi.mocked(firestore.getDoc).mockResolvedValueOnce(absent).mockResolvedValueOnce(absent);
     await saveNurseCatalogToFirestore(['Nurse A'], []);
     expect(setDocMock).toHaveBeenCalled();
@@ -252,12 +252,7 @@ describe('firestoreService', () => {
       // Catalogs listen with options, so the snapshot handler is the first function argument.
       const onNext = args.find(arg => typeof arg === 'function');
       if (typeof onNext === 'function') {
-        (onNext as (snapshot: unknown) => void)({
-          exists: () => true,
-          id: 'mock-id',
-          data: () => ({ list: ['Staff 1'] }),
-          metadata: { hasPendingWrites: false, fromCache: false },
-        } as unknown as DocumentSnapshot<DocumentData>);
+        (onNext as (snapshot: unknown) => void)(createDocSnapshot({ list: ['Staff 1'] }));
       }
       return vi.fn();
     });
@@ -277,12 +272,7 @@ describe('firestoreService', () => {
       // Catalogs listen with options, so the snapshot handler is the first function argument.
       const onNext = args.find(arg => typeof arg === 'function');
       if (typeof onNext === 'function') {
-        (onNext as (snapshot: unknown) => void)({
-          exists: () => true,
-          id: 'mock-id',
-          data: () => ({ nurses: ['Legacy Nurse'] }),
-          metadata: { hasPendingWrites: false, fromCache: false },
-        } as unknown as DocumentSnapshot<DocumentData>);
+        (onNext as (snapshot: unknown) => void)(createDocSnapshot({ nurses: ['Legacy Nurse'] }));
       }
       return vi.fn();
     });
@@ -295,7 +285,7 @@ describe('firestoreService', () => {
   it('should save TENS catalog to firestore', async () => {
     const setDocMock = vi.mocked(firestore.setDoc);
     // The save reads the list and the shared Eloísa people in one transaction; neither exists.
-    const absent = { exists: () => false, data: () => undefined } as never;
+    const absent = createDocSnapshot(undefined, { exists: false });
     vi.mocked(firestore.getDoc).mockResolvedValueOnce(absent).mockResolvedValueOnce(absent);
     await saveTensCatalogToFirestore(['TENS A'], []);
     expect(setDocMock).toHaveBeenCalled();
@@ -303,10 +293,7 @@ describe('firestoreService', () => {
 
   it('should fetch TENS catalog from firestore', async () => {
     const getDocMock = vi.mocked(firestore.getDoc);
-    getDocMock.mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({ list: ['TENS 1'] }),
-    } as unknown as DocumentSnapshot);
+    getDocMock.mockResolvedValueOnce(createDocSnapshot({ list: ['TENS 1'] }));
 
     const list = await getTensCatalogFromFirestore();
     expect(list).toEqual(['TENS 1']);
@@ -321,7 +308,7 @@ describe('firestoreService', () => {
 
   it('should return empty array if catalog does not exist', async () => {
     const getDocMock = vi.mocked(firestore.getDoc);
-    getDocMock.mockResolvedValueOnce({ exists: () => false } as unknown as DocumentSnapshot);
+    getDocMock.mockResolvedValueOnce(createDocSnapshot(undefined, { exists: false }));
 
     await expect(getNurseCatalogFromFirestore()).resolves.toEqual([]);
   });
@@ -334,10 +321,9 @@ describe('firestoreService', () => {
 
   it('should fetch records for a specific month', async () => {
     const getDocsMock = vi.mocked(firestore.getDocsFromServer);
-    getDocsMock.mockResolvedValueOnce({
-      docs: [{ id: '2024-12-01', data: () => ({ date: '2024-12-01' }) }],
-      metadata: { fromCache: false, hasPendingWrites: false },
-    } as unknown as QuerySnapshot);
+    getDocsMock.mockResolvedValueOnce(
+      createQuerySnapshot([{ id: '2024-12-01', data: () => ({ date: '2024-12-01' }) }])
+    );
 
     const records = await getMonthRecordsFromFirestore(2024, 11); // December (0-indexed)
     expect(records).toHaveLength(1);
@@ -365,12 +351,7 @@ describe('firestoreService', () => {
       // Catalogs listen with options, so the snapshot handler is the first function argument.
       const onNext = args.find(arg => typeof arg === 'function');
       if (typeof onNext === 'function') {
-        (onNext as (snapshot: unknown) => void)({
-          exists: () => true,
-          id: 'mock-id',
-          data: () => ({ list: ['TENS A'] }),
-          metadata: { hasPendingWrites: false, fromCache: false },
-        } as unknown as DocumentSnapshot<DocumentData>);
+        (onNext as (snapshot: unknown) => void)(createDocSnapshot({ list: ['TENS A'] }));
       }
       return vi.fn();
     });

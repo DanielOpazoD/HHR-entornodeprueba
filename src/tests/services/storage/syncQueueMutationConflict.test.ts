@@ -114,7 +114,7 @@ describe('sync queue mutation conflicts', () => {
 
     vi.mocked(getDoc).mockResolvedValue({
       exists: () => true,
-      data: () => remote as unknown as Record<string, unknown>,
+      data: () => ({ ...remote }),
     } as Awaited<ReturnType<typeof getDoc>>);
 
     await queueSyncTask('UPDATE_DAILY_RECORD', local, {
@@ -167,7 +167,7 @@ describe('sync queue mutation conflicts', () => {
 
     vi.mocked(getDoc).mockResolvedValue({
       exists: () => true,
-      data: () => remote as unknown as Record<string, unknown>,
+      data: () => ({ ...remote }),
     } as Awaited<ReturnType<typeof getDoc>>);
     await queueSyncTask('UPDATE_DAILY_RECORD', local, {
       contexts: ['movements', 'clinical'],
@@ -220,7 +220,7 @@ describe('sync queue mutation conflicts', () => {
 
     vi.mocked(getDoc).mockResolvedValue({
       exists: () => true,
-      data: () => remote as unknown as Record<string, unknown>,
+      data: () => ({ ...remote }),
     } as Awaited<ReturnType<typeof getDoc>>);
     await queueSyncTask('UPDATE_DAILY_RECORD', local, {
       contexts: ['handoff'],
@@ -273,7 +273,7 @@ describe('sync queue mutation conflicts', () => {
 
     vi.mocked(getDoc).mockResolvedValue({
       exists: () => true,
-      data: () => remote as unknown as Record<string, unknown>,
+      data: () => ({ ...remote }),
     } as Awaited<ReturnType<typeof getDoc>>);
     await queueSyncTask('UPDATE_DAILY_RECORD', local, {
       contexts: ['handoff'],
@@ -326,7 +326,7 @@ describe('sync queue mutation conflicts', () => {
 
     vi.mocked(getDoc).mockResolvedValue({
       exists: () => true,
-      data: () => remote as unknown as Record<string, unknown>,
+      data: () => ({ ...remote }),
     } as Awaited<ReturnType<typeof getDoc>>);
     await queueSyncTask('UPDATE_DAILY_RECORD', local, {
       contexts: ['handoff'],
@@ -422,7 +422,7 @@ describe('sync queue mutation conflicts', () => {
 
     vi.mocked(getDoc).mockResolvedValue({
       exists: () => true,
-      data: () => remote as unknown as Record<string, unknown>,
+      data: () => ({ ...remote }),
     } as Awaited<ReturnType<typeof getDoc>>);
     await queueSyncTask('UPDATE_DAILY_RECORD', local, {
       contexts: ['clinical', 'movements', 'handoff'],

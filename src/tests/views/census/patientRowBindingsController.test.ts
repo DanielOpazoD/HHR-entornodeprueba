@@ -11,60 +11,81 @@ import type { PatientRowRuntime } from '@/features/census/components/patient-row
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { BedType } from '@/types/domain/beds';
 
-const asRuntime = (value: Partial<PatientRowRuntime>): PatientRowRuntime =>
-  value as unknown as PatientRowRuntime;
+const createInputHandlers = (): PatientRowRuntime['handlers'] => ({
+  mainInputChangeHandlers: {
+    text: vi.fn(() => vi.fn()),
+    check: vi.fn(() => vi.fn()),
+    devices: vi.fn(),
+    deviceDetails: vi.fn(),
+    deviceHistory: vi.fn(),
+    toggleDocType: vi.fn(),
+    deliveryRoute: vi.fn(),
+    multiple: vi.fn(),
+  },
+  cribInputChangeHandlers: {
+    text: vi.fn(() => vi.fn()),
+    check: vi.fn(() => vi.fn()),
+    devices: vi.fn(),
+    deviceDetails: vi.fn(),
+    deviceHistory: vi.fn(),
+    multiple: vi.fn(),
+  },
+});
+
+const createRuntime = (overrides: Partial<PatientRowRuntime> = {}): PatientRowRuntime => ({
+  bedTypeToggles: {
+    onToggleBedType: vi.fn(),
+    onUpdateClinicalCrib: vi.fn(),
+  },
+  rowState: {
+    isBlocked: false,
+    isEmpty: false,
+    hasCompanion: false,
+    hasClinicalCrib: false,
+    isCunaMode: false,
+  },
+  uiState: {
+    showDemographics: false,
+    showClinicalDocuments: false,
+    showExamRequest: false,
+    showImagingRequest: false,
+    showHistory: false,
+    openDemographics: vi.fn(),
+    closeDemographics: vi.fn(),
+    openClinicalDocuments: vi.fn(),
+    closeClinicalDocuments: vi.fn(),
+    openExamRequest: vi.fn(),
+    closeExamRequest: vi.fn(),
+    openImagingRequest: vi.fn(),
+    closeImagingRequest: vi.fn(),
+    openHistory: vi.fn(),
+    closeHistory: vi.fn(),
+  },
+  handlers: createInputHandlers(),
+  modalSavers: {
+    onSaveDemographics: vi.fn(),
+    onSaveCribDemographics: vi.fn(),
+    onRevertEmptyDemographics: vi.fn(),
+  },
+  bedConfigActions: {
+    toggleBedMode: vi.fn(),
+    toggleCompanionCrib: vi.fn(),
+    toggleClinicalCrib: vi.fn(),
+    removeClinicalCrib: vi.fn(),
+  },
+  handleAction: vi.fn(),
+  ...overrides,
+});
 
 describe('patientRowBindingsController', () => {
   it('builds main/sub/modal bindings from runtime contract', () => {
     const bed = { id: 'R1', name: 'R1', type: BedType.MEDIA, isCuna: false };
     const data = DataFactory.createMockPatient('R1');
-    const runtime = asRuntime({
-      bedTypeToggles: {
-        onToggleBedType: vi.fn(),
-        onUpdateClinicalCrib: vi.fn(),
-      },
-      rowState: {
-        isBlocked: false,
-        isEmpty: false,
-        hasCompanion: false,
-        hasClinicalCrib: false,
-        isCunaMode: false,
-      },
+    const runtime = createRuntime({
       uiState: {
-        showDemographics: false,
-        showClinicalDocuments: false,
+        ...createRuntime().uiState,
         showExamRequest: true,
-        showHistory: false,
-        openDemographics: vi.fn(),
-        openClinicalDocuments: vi.fn(),
-        closeDemographics: vi.fn(),
-        closeClinicalDocuments: vi.fn(),
-        openExamRequest: vi.fn(),
-        closeExamRequest: vi.fn(),
-        showImagingRequest: false,
-        openImagingRequest: vi.fn(),
-        closeImagingRequest: vi.fn(),
-        openHistory: vi.fn(),
-        closeHistory: vi.fn(),
       },
-      handlers: {
-        mainInputChangeHandlers:
-          {} as unknown as PatientRowRuntime['handlers']['mainInputChangeHandlers'],
-        cribInputChangeHandlers:
-          {} as unknown as PatientRowRuntime['handlers']['cribInputChangeHandlers'],
-      },
-      modalSavers: {
-        onSaveDemographics: vi.fn(),
-        onSaveCribDemographics: vi.fn(),
-        onRevertEmptyDemographics: vi.fn(),
-      },
-      bedConfigActions: {
-        toggleBedMode: vi.fn(),
-        toggleCompanionCrib: vi.fn(),
-        toggleClinicalCrib: vi.fn(),
-        removeClinicalCrib: vi.fn(),
-      },
-      handleAction: vi.fn(),
     });
 
     const result = buildPatientRowBindings({
@@ -103,11 +124,7 @@ describe('patientRowBindingsController', () => {
   it('builds split bindings with consistent runtime wiring', () => {
     const bed = { id: 'R1', name: 'R1', type: BedType.MEDIA, isCuna: false };
     const data = DataFactory.createMockPatient('R1');
-    const runtime = asRuntime({
-      bedTypeToggles: {
-        onToggleBedType: vi.fn(),
-        onUpdateClinicalCrib: vi.fn(),
-      },
+    const runtime = createRuntime({
       rowState: {
         isBlocked: true,
         isEmpty: false,
@@ -116,40 +133,11 @@ describe('patientRowBindingsController', () => {
         isCunaMode: false,
       },
       uiState: {
+        ...createRuntime().uiState,
         showDemographics: true,
         showClinicalDocuments: true,
-        showExamRequest: false,
         showHistory: true,
-        openDemographics: vi.fn(),
-        openClinicalDocuments: vi.fn(),
-        closeDemographics: vi.fn(),
-        closeClinicalDocuments: vi.fn(),
-        openExamRequest: vi.fn(),
-        closeExamRequest: vi.fn(),
-        showImagingRequest: false,
-        openImagingRequest: vi.fn(),
-        closeImagingRequest: vi.fn(),
-        openHistory: vi.fn(),
-        closeHistory: vi.fn(),
       },
-      handlers: {
-        mainInputChangeHandlers:
-          {} as unknown as PatientRowRuntime['handlers']['mainInputChangeHandlers'],
-        cribInputChangeHandlers:
-          {} as unknown as PatientRowRuntime['handlers']['cribInputChangeHandlers'],
-      },
-      modalSavers: {
-        onSaveDemographics: vi.fn(),
-        onSaveCribDemographics: vi.fn(),
-        onRevertEmptyDemographics: vi.fn(),
-      },
-      bedConfigActions: {
-        toggleBedMode: vi.fn(),
-        toggleCompanionCrib: vi.fn(),
-        toggleClinicalCrib: vi.fn(),
-        removeClinicalCrib: vi.fn(),
-      },
-      handleAction: vi.fn(),
     });
 
     const main = buildPatientMainRowBindings({
@@ -208,49 +196,14 @@ describe('patientRowBindingsController', () => {
   it('builds modal bindings from section builder when capabilities are overridden', () => {
     const bed = { id: 'R2', name: 'R2', type: BedType.MEDIA, isCuna: false };
     const data = DataFactory.createMockPatient('R2');
-    const runtime = asRuntime({
-      rowState: {
-        isBlocked: false,
-        isEmpty: false,
-        hasCompanion: false,
-        hasClinicalCrib: false,
-        isCunaMode: false,
-      },
+    const runtime = createRuntime({
       uiState: {
-        showDemographics: false,
+        ...createRuntime().uiState,
         showClinicalDocuments: true,
         showExamRequest: true,
-        showHistory: true,
-        openDemographics: vi.fn(),
-        closeDemographics: vi.fn(),
-        openClinicalDocuments: vi.fn(),
-        closeClinicalDocuments: vi.fn(),
-        openExamRequest: vi.fn(),
-        closeExamRequest: vi.fn(),
         showImagingRequest: true,
-        openImagingRequest: vi.fn(),
-        closeImagingRequest: vi.fn(),
-        openHistory: vi.fn(),
-        closeHistory: vi.fn(),
+        showHistory: true,
       },
-      handlers: {
-        mainInputChangeHandlers:
-          {} as unknown as PatientRowRuntime['handlers']['mainInputChangeHandlers'],
-        cribInputChangeHandlers:
-          {} as unknown as PatientRowRuntime['handlers']['cribInputChangeHandlers'],
-      },
-      modalSavers: {
-        onSaveDemographics: vi.fn(),
-        onSaveCribDemographics: vi.fn(),
-        onRevertEmptyDemographics: vi.fn(),
-      },
-      bedConfigActions: {
-        toggleBedMode: vi.fn(),
-        toggleCompanionCrib: vi.fn(),
-        toggleClinicalCrib: vi.fn(),
-        removeClinicalCrib: vi.fn(),
-      },
-      handleAction: vi.fn(),
     });
 
     const modals = buildPatientRowModalsBindings({

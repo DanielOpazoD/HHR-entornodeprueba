@@ -41,7 +41,20 @@ vi.mock('@/hooks/useExportManager', () => ({
 describe('useAppContentRuntime', () => {
   type CensusValue = ReturnType<typeof useCensusContext>;
   type AuthValue = ReturnType<typeof useAuth>;
-  type ExportManagerValue = ReturnType<typeof useExportManager>;
+  const createAuthStub = (
+    overrides: Partial<{
+      email: string;
+      role: AuthValue['role'];
+      remoteSyncStatus: AuthValue['remoteSyncStatus'];
+    }> = {}
+  ): AuthValue =>
+    ({
+      currentUser: { email: overrides.email ?? 'admin@hospital.cl' },
+      role: overrides.role ?? 'admin',
+      signOut: vi.fn(),
+      isFirebaseConnected: true,
+      remoteSyncStatus: overrides.remoteSyncStatus ?? 'ready',
+    }) as unknown as AuthValue;
   let syncStatusValue: 'saved' | 'saving' | 'error';
 
   let hasSaveException: boolean | undefined;
@@ -165,21 +178,16 @@ describe('useAppContentRuntime', () => {
         }) as unknown as CensusValue
     );
 
-    vi.mocked(useAuth).mockReturnValue({
-      currentUser: { email: 'admin@hospital.cl' },
-      role: 'admin',
-      signOut: vi.fn(),
-      isFirebaseConnected: true,
-      remoteSyncStatus: 'ready',
-    } as unknown as AuthValue);
+    vi.mocked(useAuth).mockReturnValue(createAuthStub());
 
     vi.mocked(useExportManager).mockReturnValue({
       isArchived: false,
       isBackingUp: false,
       handleExportPDF: vi.fn(),
+      handlePrintWithBrowserOptions: vi.fn(),
       handleBackupExcel: vi.fn(),
       handleBackupHandoff: vi.fn(),
-    } as unknown as ExportManagerValue);
+    });
   });
 
   afterEach(() => {
@@ -219,13 +227,7 @@ describe('useAppContentRuntime', () => {
   });
 
   it('disables passive archive verification while the authenticated runtime is local-only', () => {
-    vi.mocked(useAuth).mockReturnValue({
-      currentUser: { email: 'admin@hospital.cl' },
-      role: 'admin',
-      signOut: vi.fn(),
-      isFirebaseConnected: true,
-      remoteSyncStatus: 'local_only',
-    } as unknown as AuthValue);
+    vi.mocked(useAuth).mockReturnValue(createAuthStub({ remoteSyncStatus: 'local_only' }));
 
     const { result } = renderHook(() => useAppContentRuntime({ ui: ui as never }));
 
@@ -238,13 +240,9 @@ describe('useAppContentRuntime', () => {
   });
 
   it('disables census exports for restricted specialist roles', () => {
-    vi.mocked(useAuth).mockReturnValue({
-      currentUser: { email: 'doctor@hospital.cl' },
-      role: 'doctor_urgency',
-      signOut: vi.fn(),
-      isFirebaseConnected: true,
-      remoteSyncStatus: 'ready',
-    } as unknown as AuthValue);
+    vi.mocked(useAuth).mockReturnValue(
+      createAuthStub({ email: 'doctor@hospital.cl', role: 'doctor_urgency' })
+    );
 
     const { result } = renderHook(() => useAppContentRuntime({ ui: ui as never }));
 

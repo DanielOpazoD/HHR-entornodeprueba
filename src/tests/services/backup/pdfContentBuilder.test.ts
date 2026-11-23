@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { buildHandoffPdfContent } from '@/services/backup/pdfContentBuilder';
+import { DataFactory } from '@/tests/factories/DataFactory';
 import type { ShiftType } from '@/types/domain/shift';
+import { PatientStatus } from '@/types/domain/patientClassification';
 
 describe('pdfContentBuilder', () => {
   type HandoffRecord = Parameters<typeof buildHandoffPdfContent>[1];
@@ -8,22 +10,35 @@ describe('pdfContentBuilder', () => {
   type JsPdfDoc = Parameters<typeof buildHandoffPdfContent>[0];
 
   let mockDoc: JsPdfDoc;
-  let mockAutoTable: ReturnType<typeof vi.fn>;
-  const mockRecord = {
-    date: '2025-01-01',
+  let mockAutoTable: ReturnType<typeof vi.fn<AutoTableFn>>;
+  const mockRecord: HandoffRecord = DataFactory.createMockDailyRecord('2025-01-01', {
     beds: {
-      R1: {
+      R1: DataFactory.createMockPatient('R1', {
         patientName: 'John Doe',
         rut: '12.345.678-9',
         admissionDate: '2025-01-01',
-        status: 'Estable',
+        status: PatientStatus.ESTABLE,
         pathology: 'Diagnosis',
         devices: ['VVP#1'],
         handoffNoteDayShift: 'Day note',
-      },
+      }),
     },
     nursesDayShift: ['Nurse A'],
     handoffDayChecklist: { escalaBraden: true },
+  });
+
+  const stubGlobalImage = (mode: 'load' | 'error') => {
+    global.Image = class {
+      onload?: () => void;
+      onerror?: (error?: unknown) => void;
+      src: string = '';
+      constructor() {
+        queueMicrotask(() => {
+          if (mode === 'load') this.onload?.();
+          else this.onerror?.(new Error('Fail'));
+        });
+      }
+    } as unknown as typeof Image;
   };
 
   beforeEach(() => {
@@ -44,19 +59,10 @@ describe('pdfContentBuilder', () => {
       lastAutoTable: { finalY: 100 },
       getNumberOfPages: vi.fn(() => 1),
     } as unknown as JsPdfDoc;
-    mockAutoTable = vi.fn();
+    mockAutoTable = vi.fn<AutoTableFn>();
 
     // Mock global Image for getBase64ImageFromURL
-    global.Image = class {
-      onload?: () => void;
-      onerror?: (error?: unknown) => void;
-      src: string = '';
-      constructor() {
-        queueMicrotask(() => {
-          this.onload?.();
-        });
-      }
-    } as unknown as typeof Image;
+    stubGlobalImage('load');
     Object.defineProperty(global.document, 'createElement', {
       value: vi.fn().mockReturnValue({
         getContext: () => ({ drawImage: vi.fn() }),
@@ -70,10 +76,10 @@ describe('pdfContentBuilder', () => {
   it('should build PDF content without crashing', async () => {
     await buildHandoffPdfContent(
       mockDoc,
-      mockRecord as unknown as HandoffRecord,
+      mockRecord,
       'day' as ShiftType,
       { dayStart: '08:00', dayEnd: '20:00' },
-      mockAutoTable as unknown as AutoTableFn
+      mockAutoTable
     );
 
     expect(mockDoc.text).toHaveBeenCalled();
@@ -83,33 +89,16 @@ describe('pdfContentBuilder', () => {
       expect.any(Number),
       expect.any(Number)
     );
-    const tableBody = mockAutoTable.mock.calls[0][1].body;
-    expect(
-      tableBody.some((row: Array<{ content?: string }>) => row[1]?.content?.includes('John Doe'))
-    ).toBe(true);
+    const tableBody = mockAutoTable.mock.calls[0]?.[1]?.body as Array<Array<{ content?: string }>>;
+    expect(tableBody.some(row => row[1]?.content?.includes('John Doe'))).toBe(true);
   });
 
   it('should handle missing logo gracefully', async () => {
-    global.Image = class {
-      onload?: () => void;
-      onerror?: (error?: unknown) => void;
-      src: string = '';
-      constructor() {
-        queueMicrotask(() => {
-          this.onerror?.(new Error('Fail'));
-        });
-      }
-    } as unknown as typeof Image;
+    stubGlobalImage('error');
 
     const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    await buildHandoffPdfContent(
-      mockDoc,
-      mockRecord as unknown as HandoffRecord,
-      'day',
-      {},
-      mockAutoTable as unknown as AutoTableFn
-    );
+    await buildHandoffPdfContent(mockDoc, mockRecord, 'day', {}, mockAutoTable);
 
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining('[PdfContentBuilder] Could not load logo for backup PDF'),
@@ -119,20 +108,14 @@ describe('pdfContentBuilder', () => {
   });
 
   it('should handle nursing handoff night shift', async () => {
-    const nightRecord = {
+    const nightRecord: HandoffRecord = {
       ...mockRecord,
       nursesNightShift: ['Nurse B'],
       handoffNightChecklist: { estadistica: true },
       handoffNovedadesNightShift: 'Night news',
     };
 
-    await buildHandoffPdfContent(
-      mockDoc,
-      nightRecord as unknown as HandoffRecord,
-      'night',
-      {},
-      mockAutoTable as unknown as AutoTableFn
-    );
+    await buildHandoffPdfContent(mockDoc, nightRecord, 'night', {}, mockAutoTable);
 
     // More flexible assertion for text
     expect(mockDoc.text).toHaveBeenCalledWith(
@@ -143,16 +126,10 @@ describe('pdfContentBuilder', () => {
   });
 
   it('should handle empty patient list', async () => {
-    const emptyRecord = { ...mockRecord, beds: {} };
-    await buildHandoffPdfContent(
-      mockDoc,
-      emptyRecord as unknown as HandoffRecord,
-      'day',
-      {},
-      mockAutoTable as unknown as AutoTableFn
-    );
-    const tableBody = mockAutoTable.mock.calls[0][1].body;
-    expect(tableBody[0][0].content).toBe('No hay pacientes registrados.');
+    const emptyRecord: HandoffRecord = { ...mockRecord, beds: {} };
+    await buildHandoffPdfContent(mockDoc, emptyRecord, 'day', {}, mockAutoTable);
+    const tableBody = mockAutoTable.mock.calls[0]?.[1]?.body as Array<Array<{ content?: string }>>;
+    expect(tableBody[0]?.[0]?.content).toBe('No hay pacientes registrados.');
   });
 
   it('renders night novedades even when the table already reached the bottom of the page', async () => {
@@ -164,10 +141,10 @@ describe('pdfContentBuilder', () => {
       {
         ...mockRecord,
         handoffNovedadesNightShift: 'Novedades noche importantes',
-      } as unknown as HandoffRecord,
+      },
       'night',
       {},
-      mockAutoTable as unknown as AutoTableFn
+      mockAutoTable
     );
 
     expect(mockDoc.addPage).toHaveBeenCalled();
@@ -189,10 +166,10 @@ describe('pdfContentBuilder', () => {
         ...mockRecord,
         handoffNovedadesDayShift: 'Texto visible por defecto en noche',
         handoffNovedadesNightShift: '',
-      } as unknown as HandoffRecord,
+      },
       'night',
       {},
-      mockAutoTable as unknown as AutoTableFn
+      mockAutoTable
     );
 
     expect(mockDoc.splitTextToSize).toHaveBeenCalledWith(

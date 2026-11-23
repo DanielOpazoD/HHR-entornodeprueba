@@ -1,29 +1,62 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { StackViewport } from '@cornerstonejs/core';
 import { createProgressiveStack } from '@/features/radiology/services/dicomProgressiveStack';
-import type { ProgressiveDicomSeries } from '@/features/radiology/services/dicomSeriesLoader';
+import type {
+  LoadedDicomSeries,
+  ProgressiveDicomSeries,
+} from '@/features/radiology/services/dicomSeriesLoader';
 
-it('keeps the latest requested cut when downloads arrive out of order and cancels detached views', async () => {
-  const waiting = new Map<number, (id: string) => void>();
-  const source = {
-    initialIndex: 0,
-    request: vi.fn((index: number) =>
-      index === 0
-        ? Promise.resolve('first')
-        : new Promise<string>(resolve => waiting.set(index, resolve))
-    ),
-  } as unknown as ProgressiveDicomSeries;
-  const target = {
+const createMockSeries = (
+  request: (index: number) => Promise<string>,
+  initialIndex = 0
+): ProgressiveDicomSeries => ({
+  initialIndex,
+  request,
+  hasOrientation: () => false,
+  completion: new Promise<LoadedDicomSeries>(() => undefined),
+  settled: Promise.resolve(),
+  cancel: vi.fn(),
+  loading: {
+    request,
+    prefetch: vi.fn(),
+    focus: vi.fn(),
+    timing: vi.fn(),
+    transferred: vi.fn(),
+    pause: vi.fn(),
+    resume: vi.fn(),
+    snapshot: vi.fn(),
+    settled: Promise.resolve(),
+  } as unknown as ProgressiveDicomSeries['loading'],
+});
+
+const createMockViewport = (overrides: Record<string, unknown> = {}): StackViewport =>
+  ({
     element: document.createElement('div'),
     setStack: vi.fn().mockResolvedValue(undefined),
-    getProperties: () => ({ invert: true }),
+    getProperties: () => ({}),
     setProperties: vi.fn(),
-    getPan: () => [2, 3],
-    getZoom: () => 2,
+    getPan: () => [0, 0],
+    getZoom: () => 1,
     setPan: vi.fn(),
     setZoom: vi.fn(),
     render: vi.fn(),
-  } as unknown as StackViewport;
+    ...overrides,
+  }) as unknown as StackViewport;
+
+it('keeps the latest requested cut when downloads arrive out of order and cancels detached views', async () => {
+  const waiting = new Map<number, (id: string) => void>();
+  const source = createMockSeries(
+    vi.fn((index: number) =>
+      index === 0
+        ? Promise.resolve('first')
+        : new Promise<string>(resolve => waiting.set(index, resolve))
+    )
+  );
+  const target = createMockViewport({
+    getProperties: () => ({ invert: true }),
+    getPan: () => [2, 3],
+    getZoom: () => 2,
+  });
   const stack = createProgressiveStack(source, 10);
   await stack.show(target);
   stack.select(1);
@@ -45,10 +78,7 @@ it('keeps the latest requested cut when downloads arrive out of order and cancel
 
 describe('pending cut boundaries', () => {
   it('bounds wheel requests at the actual series positions', async () => {
-    const source = {
-      initialIndex: 0,
-      request: vi.fn().mockResolvedValue('image'),
-    } as unknown as ProgressiveDicomSeries;
+    const source = createMockSeries(vi.fn().mockResolvedValue('image'));
     const stack = createProgressiveStack(source, 3);
     stack.step(-1);
     expect(source.request).toHaveBeenLastCalledWith(0);
@@ -61,20 +91,15 @@ describe('pending cut boundaries', () => {
 
 it('drains an in-flight presentation before allowing viewport teardown', async () => {
   let finish!: () => void;
-  const source = {
-    initialIndex: 0,
-    request: vi.fn().mockResolvedValue('image'),
-  } as unknown as ProgressiveDicomSeries;
-  const target = {
-    element: document.createElement('div'),
+  const source = createMockSeries(vi.fn().mockResolvedValue('image'));
+  const target = createMockViewport({
     setStack: vi.fn(
       () =>
         new Promise<void>(resolve => {
           finish = resolve;
         })
     ),
-    render: vi.fn(),
-  } as unknown as StackViewport;
+  });
   const stack = createProgressiveStack(source, 3);
   const showing = stack.show(target);
   await vi.waitFor(() => expect(target.setStack).toHaveBeenCalledTimes(1));
@@ -94,24 +119,17 @@ it('drains an in-flight presentation before allowing viewport teardown', async (
 it('restores presentation before a newer cut snapshots an interrupted render', async () => {
   let zoom = 3;
   let finish!: () => void;
-  const source = {
-    initialIndex: 0,
-    request: vi.fn().mockResolvedValue('image'),
-  } as unknown as ProgressiveDicomSeries;
+  const source = createMockSeries(vi.fn().mockResolvedValue('image'));
   const setStack = vi.fn().mockResolvedValue(undefined);
-  const target = {
-    element: document.createElement('div'),
+  const target = createMockViewport({
     setStack,
     getProperties: () => ({ invert: true }),
-    setProperties: vi.fn(),
     getPan: () => [2, 3],
-    setPan: vi.fn(),
     getZoom: () => zoom,
     setZoom: (value: number) => {
       zoom = value;
     },
-    render: vi.fn(),
-  } as unknown as StackViewport;
+  });
   const stack = createProgressiveStack(source, 3);
   await stack.show(target);
   setStack.mockImplementationOnce(
@@ -131,27 +149,16 @@ it('restores presentation before a newer cut snapshots an interrupted render', a
 
 it('locks interactive requests during cine and aborts a missing cut before it can replace the current cut', async () => {
   let release!: (id: string) => void;
-  const source = {
-    initialIndex: 0,
-    request: vi.fn((index: number) =>
+  const source = createMockSeries(
+    vi.fn((index: number) =>
       index === 0
         ? Promise.resolve('first')
         : new Promise<string>(resolve => {
             release = resolve;
           })
-    ),
-  } as unknown as ProgressiveDicomSeries;
-  const target = {
-    element: document.createElement('div'),
-    setStack: vi.fn().mockResolvedValue(undefined),
-    getProperties: () => ({}),
-    setProperties: vi.fn(),
-    getPan: () => [0, 0],
-    getZoom: () => 1,
-    setPan: vi.fn(),
-    setZoom: vi.fn(),
-    render: vi.fn(),
-  } as unknown as StackViewport;
+    )
+  );
+  const target = createMockViewport();
   const stack = createProgressiveStack(source, 3);
   await stack.show(target);
   stack.lock(true);
