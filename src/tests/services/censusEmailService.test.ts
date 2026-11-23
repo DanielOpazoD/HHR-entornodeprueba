@@ -12,12 +12,8 @@ vi.mock('@/services/integrations/censusEmailNetworkClient', () => ({
   sendCensusEmailRequest: vi.fn(),
 }));
 
-vi.mock('@/services/integrations/censusEmailAudit', () => ({
-  saveCensusEmailExportPassword: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock('@/services/integrations/censusEmailRecipients', () => ({
-  resolveCensusEmailRecipients: vi.fn((recipients?: string[]) => recipients ?? []),
+vi.mock('@/services/security/exportPasswordService', () => ({
+  savePasswordToFirestore: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/services/integrations/censusEmailSendPolicy', () => ({
@@ -29,14 +25,18 @@ vi.mock('@/services/integrations/censusEmailRequestPayload', () => ({
 }));
 
 import { sendCensusEmailRequest } from '@/services/integrations/censusEmailNetworkClient';
-import { triggerCensusEmail } from '@/services/integrations/censusEmailService';
+import { savePasswordToFirestore } from '@/services/security/exportPasswordService';
+import {
+  resolveCensusEmailRecipients,
+  triggerCensusEmail,
+} from '@/services/integrations/censusEmailService';
 
 describe('censusEmailService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('returns a validated email response payload', async () => {
+  it('returns a validated email response payload and persists the email export password', async () => {
     vi.mocked(sendCensusEmailRequest).mockResolvedValue({
       json: async () => ({
         success: true,
@@ -62,6 +62,16 @@ describe('censusEmailService', () => {
         gmailId: 'gmail-123',
       })
     );
+    expect(savePasswordToFirestore).toHaveBeenCalledWith(
+      '2026-03-14',
+      'secret',
+      'admin@hospital.cl',
+      'email'
+    );
+  });
+
+  it('returns explicit recipients when provided and falls back to defaults otherwise', () => {
+    expect(resolveCensusEmailRecipients(['a@hospital.cl'])).toEqual(['a@hospital.cl']);
   });
 
   it('rejects malformed success payloads', async () => {
