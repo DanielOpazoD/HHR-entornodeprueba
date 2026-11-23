@@ -122,4 +122,31 @@ describe('ieehPdfService - fillIEEHForm logic', () => {
     expect(drawnChars).toContain('12.345.678-9');
     expect(drawnChars).toContain('7');
   });
+
+  it('caches the blank template across calls and clears cache on fetch error', async () => {
+    vi.resetModules();
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 503 })
+      .mockResolvedValue({
+        ok: true,
+        arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
+      });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const { fillIEEHForm: freshFillIEEHForm } =
+      await import('@/features/clinical-documents/services/ieehPdfService');
+
+    await expect(freshFillIEEHForm(mockPatient, {})).rejects.toThrow('plantilla IEEH (503)');
+
+    await freshFillIEEHForm(mockPatient, {});
+    await freshFillIEEHForm(mockPatient, {});
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy).toHaveBeenLastCalledWith(
+      '/docs/estadistico-egreso.pdf',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+    vi.unstubAllGlobals();
+  });
 });

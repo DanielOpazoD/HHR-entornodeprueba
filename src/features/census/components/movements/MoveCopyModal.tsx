@@ -14,6 +14,8 @@ import { useMoveCopyTargetRecord } from '@/features/census/components/movements/
 import { useMoveCopyModalState } from '@/features/census/components/movements/useMoveCopyModalState';
 import type { MoveCopyModalProps } from '@/features/census/types/censusActionModalContracts';
 
+const EMPTY_BED_OPTIONS: ReturnType<typeof resolveMoveCopyBedOptions> = [];
+
 export const MoveCopyModal: React.FC<MoveCopyModalProps> = ({
   isOpen,
   type,
@@ -61,7 +63,7 @@ export const MoveCopyModal: React.FC<MoveCopyModalProps> = ({
     });
   const bedOptions = useMemo(
     () =>
-      currentRecord
+      isOpen && currentRecord
         ? resolveMoveCopyBedOptions({
             allBeds: BEDS,
             currentRecord,
@@ -70,8 +72,8 @@ export const MoveCopyModal: React.FC<MoveCopyModalProps> = ({
             sourceBedId,
             targetBedId,
           })
-        : [],
-    [currentRecord, selectedDate, sourceBedId, targetBedId, resolvedTargetRecord]
+        : EMPTY_BED_OPTIONS,
+    [isOpen, currentRecord, selectedDate, sourceBedId, targetBedId, resolvedTargetRecord]
   );
   const canConfirm =
     canConfirmSelection &&

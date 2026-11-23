@@ -75,4 +75,75 @@ describe('MEDIF download cancellation', () => {
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(saveAs).toHaveBeenCalledOnce();
   });
+
+  it('rejects a cancelled export immediately while the shared template fetch is still pending', async () => {
+    let resolveFetch: (response: {
+      ok: boolean;
+      arrayBuffer: () => Promise<ArrayBuffer>;
+    }) => void = () => {};
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise<{ ok: boolean; arrayBuffer: () => Promise<ArrayBuffer> }>(resolve => {
+            resolveFetch = resolve;
+          })
+      )
+    );
+
+    const { downloadMedifPdf } = await import('@/features/clinical-library/services/medifDownload');
+    const controller = new AbortController();
+    const cancelled = downloadMedifPdf(
+      emptyMedifValues(),
+      emptyMedifPreferences(),
+      'print',
+      controller.signal
+    );
+    const active = downloadMedifPdf(emptyMedifValues(), emptyMedifPreferences(), 'editable');
+
+    // Aborting rejects the cancelled caller right away without resolving fetch first.
+    controller.abort();
+    await expect(cancelled).rejects.toMatchObject({ name: 'AbortError' });
+
+    resolveFetch({ ok: true, arrayBuffer: async () => new ArrayBuffer(4) });
+    await active;
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(saveAs).toHaveBeenCalledExactlyOnceWith(expect.any(Blob), 'MEDIF-editable.pdf');
+  });
+
+  it('aborts a stalled template fetch on timeout and allows a subsequent retry', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((_input: unknown, init?: RequestInit) => {
+          return new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => {
+              reject(new DOMException('The operation was aborted.', 'AbortError'));
+            });
+          });
+        })
+      );
+
+      const { downloadMedifPdf } =
+        await import('@/features/clinical-library/services/medifDownload');
+      const stalled = downloadMedifPdf(emptyMedifValues(), emptyMedifPreferences(), 'print');
+      const rejection = expect(stalled).rejects.toThrow('tardó demasiado');
+
+      await vi.advanceTimersByTimeAsync(15_000);
+      await rejection;
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          arrayBuffer: async () => new ArrayBuffer(4),
+        })
+      );
+      await downloadMedifPdf(emptyMedifValues(), emptyMedifPreferences(), 'editable');
+      expect(saveAs).toHaveBeenCalledExactlyOnceWith(expect.any(Blob), 'MEDIF-editable.pdf');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

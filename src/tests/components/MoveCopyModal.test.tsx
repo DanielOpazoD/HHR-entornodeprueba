@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MoveCopyModal } from '@/features/census/components/movements/MoveCopyModal';
+import * as moveCopyModalController from '@/features/census/components/movements/moveCopyModalController';
 
 const mockedUseDailyRecordData = vi.fn();
 const mockedGetForDate = vi.fn();
@@ -255,5 +256,36 @@ describe('MoveCopyModal', () => {
     expect(screen.getByRole('button', { name: /R2.*Libre/i })).toBeEnabled();
     expect(confirm).toBeEnabled();
     expect(mockedGetForDate).not.toHaveBeenCalled();
+  });
+
+  it('skips computing bed options on record updates while the modal is closed', () => {
+    const resolveOptionsSpy = vi.spyOn(moveCopyModalController, 'resolveMoveCopyBedOptions');
+    const baseProps = {
+      isOpen: false,
+      type: 'move' as const,
+      sourceBedId: 'R1',
+      targetBedId: null,
+      onClose: vi.fn(),
+      onSetTarget: vi.fn(),
+      onConfirm: vi.fn(),
+    };
+
+    const view = render(<MoveCopyModal {...baseProps} />);
+
+    mockedUseDailyRecordData.mockReturnValue({
+      record: {
+        date: '2026-02-13',
+        activeExtraBeds: [],
+        beds: { R2: { patientName: 'Paciente sintético' } },
+      },
+    });
+    view.rerender(<MoveCopyModal {...baseProps} />);
+
+    expect(resolveOptionsSpy).not.toHaveBeenCalled();
+
+    view.rerender(<MoveCopyModal {...baseProps} isOpen={true} />);
+
+    expect(resolveOptionsSpy).toHaveBeenCalledTimes(1);
+    resolveOptionsSpy.mockRestore();
   });
 });

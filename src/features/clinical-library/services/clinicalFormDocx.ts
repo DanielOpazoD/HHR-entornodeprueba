@@ -4,6 +4,7 @@ import type { ClinicalFormDefinition, ClinicalFormValues } from '../domain/forms
 import { clinicalFormTemplateHash } from './clinicalFormPdf';
 import { CLINICAL_FORM_TEXT_SIZE } from './clinicalFormTypography';
 import type { DicomCapture } from '@/domain/radiology/dicomTypes';
+import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { appendClinicalFormAnnexes, validateClinicalFormAnnexes } from './clinicalFormAnnexes';
 
 const WORD_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
@@ -124,6 +125,8 @@ export const createClinicalFormDocx = async (
   return zip.generate({ type: 'uint8array', compression: 'DEFLATE' });
 };
 
+const TEMPLATE_FETCH_TIMEOUT_MS = 15_000;
+
 // Cache only the public original template; never store completed documents or patient values.
 let templateRequest: Promise<Uint8Array> | undefined;
 export const generateClinicalFormDocx = async (
@@ -133,7 +136,10 @@ export const generateClinicalFormDocx = async (
   annexes: ReadonlyArray<DicomCapture> = []
 ): Promise<Uint8Array> => {
   if (form.id !== TRANSFER_FORM) throw new Error('Este formulario no dispone de salida Word.');
-  templateRequest ??= fetch(form.sourceUrl)
+  templateRequest ??= fetchWithTimeout(form.sourceUrl, {
+    timeoutMs: TEMPLATE_FETCH_TIMEOUT_MS,
+    timeoutMessage: 'La carga de la plantilla Word tardó demasiado. Vuelve a intentar.',
+  })
     .then(async response => {
       if (!response.ok) throw new Error('No se pudo cargar la plantilla Word. Vuelve a intentar.');
       return new Uint8Array(await response.arrayBuffer());
