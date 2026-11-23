@@ -87,10 +87,10 @@ lea este archivo.
 ### Producción y pull requests
 
 - Las reglas se editan en `rules/`; `firestore.rules` y `storage.rules` se generan y se sobrescriben al correr las pruebas. — _Lo impone:_ `check-rules-generated` en `check:security`
-- Publicar, desplegar Functions o reglas, o cambiar la configuración de Netlify, solo si el responsable lo pide. — _Lo impone:_ **[docs]**; desfase: `rules-drift.yml`
+- Desplegar Functions o reglas manualmente, o cambiar la configuración de Netlify, solo si el responsable lo pide. — _Lo impone:_ **[docs]**; desfase: `rules-drift.yml`
 - `ci-summary` es el único check requerido y `main` exige ramas al día; no se salta ni se relaja. En `main`, solo acredita sin repetir lo que una corrida de PR completa y verde ya probó con el mismo árbol. — _Lo impone:_ Ruleset de `main`; `ciEvidenceReuse.test.ts`
 - Antes del push, `npm run check:changed`; CI del SHA final acredita sus controles, sin duplicar la matriz local (alcance de `npm run test:changed` en [CONTRIBUTING.md](CONTRIBUTING.md), cierre en `docs/SAFE_CHANGE_CHECKLIST.md`). — _Lo impone:_ `.husky/pre-push`; `ci-summary`; **[docs]** para no duplicar
-- Un agente mergea solo sus propias PRs, en verde y de a una, y no toca las PRs de otros hilos. — _Lo impone:_ Ruleset en parte; **[docs]**
+- Un agente mergea directo y sin preguntar sus propias PRs en cuanto están en verde y listas para mergear con `main`, de a una, y no toca las PRs de otros hilos. — _Lo impone:_ Ruleset en parte; **[docs]**
 - Antes de decir «listo», comprobar con `gh pr view --json mergeStateStatus` que la PR se puede mergear con `main`, y decir con qué evidencia se probó. — _Lo impone:_ **[docs]**
 - Una PR resuelve una sola cosa, sin corregir de paso lo que no se pidió. — _Lo impone:_ **[docs]**
 - Commits en inglés (Conventional Commits); títulos y descripciones de PR en español. — _Lo impone:_ **[docs]**
