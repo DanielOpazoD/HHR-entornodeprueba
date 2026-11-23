@@ -1,5 +1,5 @@
 const crypto = require('node:crypto');
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { DOCUMENTARY_FIELD_CONTRACT_VERSION } = require('./rayenDocumentaryCudyrPolicy');
 const { RAYEN_CLINICAL_FIELDS } = require('./dailyRecordAuthorityContract');
 const { addCalendarDays } = require('./hospitalCalendarDay');
@@ -80,7 +80,7 @@ const establishedPatchValueMatches = (current, requested, fieldContractVersion) 
 
 const assertString = (value, fieldName, maxLength) => {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > maxLength) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `${fieldName} must be a non-empty string of at most ${maxLength} characters.`
     );
@@ -90,7 +90,7 @@ const assertString = (value, fieldName, maxLength) => {
 
 const assertJsonValue = (value, path = 'value') => {
   if (value === undefined || typeof value === 'function' || typeof value === 'symbol') {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `Clinical enrichment contains an unsupported value at ${path}.`
     );
@@ -102,7 +102,7 @@ const assertJsonValue = (value, path = 'value') => {
   if (!isPlainObject(value)) return;
   Object.entries(value).forEach(([key, nested]) => {
     if (FORBIDDEN_KEYS.has(key)) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         'Clinical enrichment contains a forbidden object key.'
       );
@@ -113,7 +113,7 @@ const assertJsonValue = (value, path = 'value') => {
 
 const assertPersistedDocumentSize = value => {
   if (Buffer.byteLength(JSON.stringify(value), 'utf8') > MAX_PERSISTED_DOCUMENT_BYTES) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'resource-exhausted',
       'Clinical enrichment would exceed the safe Firestore document size.'
     );
@@ -122,7 +122,7 @@ const assertPersistedDocumentSize = value => {
 
 const parseTarget = (target, index) => {
   if (!isPlainObject(target) || !isPlainObject(target.fields)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `Clinical enrichment target ${index} must include a fields object.`
     );
@@ -136,14 +136,14 @@ const parseTarget = (target, index) => {
   );
   const fieldEntries = Object.entries(target.fields);
   if (fieldEntries.length === 0 || fieldEntries.length > ALLOWED_FIELDS.size) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `Clinical enrichment target ${index} has an invalid field count.`
     );
   }
   fieldEntries.forEach(([field, value]) => {
     if (!ALLOWED_FIELDS.has(field)) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         `Clinical enrichment field is not allowed: ${field.slice(0, 80)}`
       );
@@ -163,7 +163,7 @@ const targetKey = target => `${target.bedId}|${target.clinicalCrib ? 'crib' : 'p
 
 const parseCheckpointTarget = (target, index) => {
   if (!isPlainObject(target) || !Object.prototype.hasOwnProperty.call(target, 'checkpoint')) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `Clinical checkpoint target ${index} must include a checkpoint.`
     );
@@ -180,14 +180,11 @@ const parseCheckpointTarget = (target, index) => {
 const assertIsoCalendarDate = (value, field) => {
   const date = assertString(value, field, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    throw new functions.https.HttpsError('invalid-argument', `${field} must use YYYY-MM-DD.`);
+    throw new HttpsError('invalid-argument', `${field} must use YYYY-MM-DD.`);
   }
   const parsed = new Date(`${date}T00:00:00.000Z`);
   if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      `${field} must be a valid calendar date.`
-    );
+    throw new HttpsError('invalid-argument', `${field} must be a valid calendar date.`);
   }
   return date;
 };
@@ -202,7 +199,7 @@ const parseClinicalEnrichmentPayload = data => {
     : date;
   const allowedHistoricalDate = addCalendarDays(authorityDate, -1);
   if (date !== authorityDate && date !== allowedHistoricalDate) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'Clinical enrichment may target only the run day or its immediately preceding census day.'
     );
@@ -210,10 +207,7 @@ const parseClinicalEnrichmentPayload = data => {
   const runId = assertString(data?.runId, 'runId', 120);
   const mutationId = assertString(data?.mutationId, 'mutationId', 160);
   if (data?.mode !== 'enforced') {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      'Clinical enrichment mode must be enforced.'
-    );
+    throw new HttpsError('invalid-argument', 'Clinical enrichment mode must be enforced.');
   }
   const mode = data.mode;
   if (
@@ -222,7 +216,7 @@ const parseClinicalEnrichmentPayload = data => {
     data.fieldContractVersion !== CANONICAL_FIELD_CONTRACT_VERSION &&
     data.fieldContractVersion !== DOCUMENTARY_FIELD_CONTRACT_VERSION
   ) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'Clinical enrichment fieldContractVersion is not supported.'
     );
@@ -230,14 +224,14 @@ const parseClinicalEnrichmentPayload = data => {
   const fieldContractVersion =
     data?.fieldContractVersion >= CANONICAL_FIELD_CONTRACT_VERSION ? data.fieldContractVersion : 1;
   if (!authorityDateProvided && fieldContractVersion !== CANONICAL_FIELD_CONTRACT_VERSION) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'Legacy authority inference requires the canonical field contract.'
     );
   }
   const expectedLastUpdated = assertString(data?.expectedLastUpdated, 'expectedLastUpdated', 80);
   if (!Number.isFinite(Date.parse(expectedLastUpdated))) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'expectedLastUpdated must be a valid date-time value.'
     );
@@ -251,7 +245,7 @@ const parseClinicalEnrichmentPayload = data => {
     rawPatches.length > MAX_BATCH_TARGETS ||
     rawCheckpoints.length > MAX_BATCH_TARGETS
   ) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `Clinical enrichment requires between 1 and ${MAX_BATCH_TARGETS} targets per section.`
     );
@@ -269,7 +263,7 @@ const parseClinicalEnrichmentPayload = data => {
     if (Object.prototype.hasOwnProperty.call(target.fields, CHECKPOINT_FIELD)) {
       const key = targetKey(target);
       if (checkpointsByTarget.has(key)) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           'invalid-argument',
           'Clinical enrichment contains a duplicate checkpoint target.'
         );
@@ -283,7 +277,7 @@ const parseClinicalEnrichmentPayload = data => {
   rawCheckpoints.forEach(target => {
     const key = targetKey(target);
     if (checkpointsByTarget.has(key)) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         'Clinical enrichment contains a duplicate checkpoint target.'
       );
@@ -294,7 +288,7 @@ const parseClinicalEnrichmentPayload = data => {
   clinicalPatches.forEach(target => {
     const key = targetKey(target);
     if (clinicalKeys.has(key)) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         'Clinical enrichment contains a duplicate clinical target.'
       );
@@ -306,7 +300,7 @@ const parseClinicalEnrichmentPayload = data => {
     const key = targetKey(target);
     const previous = targetsByKey.get(key);
     if (previous && previous.clinicalEpisodeId !== target.clinicalEpisodeId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         'Clinical enrichment target sections must reference the same clinical episode.'
       );
@@ -317,7 +311,7 @@ const parseClinicalEnrichmentPayload = data => {
     });
   });
   if (targetsByKey.size > MAX_BATCH_TARGETS) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `Clinical enrichment exceeds ${MAX_BATCH_TARGETS} unique targets.`
     );
@@ -330,7 +324,7 @@ const parseClinicalEnrichmentPayload = data => {
     ...(rawCheckpoints.length > 0 ? { checkpoints: data.checkpoints } : {}),
   };
   if (Buffer.byteLength(JSON.stringify(receivedSections), 'utf8') > MAX_BATCH_BYTES) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'Clinical enrichment batch exceeds the allowed payload size.'
     );

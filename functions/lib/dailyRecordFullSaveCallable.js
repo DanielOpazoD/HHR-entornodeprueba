@@ -1,5 +1,5 @@
 // saveDailyRecordWithClinicalAuthority: one transaction that writes a whole daily record.
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const {
   resolveCurrentRevision,
   assertExpectedRevision,
@@ -95,7 +95,7 @@ const createFullSaveHandler =
         errorMessage: 'Daily record clinical authority blocked write.',
         startedAt,
       });
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'failed-precondition',
         authority.violations.map(violation => violation.message).join(' ')
       );
@@ -269,7 +269,7 @@ const createFullSaveHandler =
         responseAuthority = assertClinicalAuthority(recordForPersistence);
         responseCoverage = collectClinicalEpisodeCoverage(recordForPersistence);
         if (responseAuthority.status !== 'ok') {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             'failed-precondition',
             responseAuthority.violations.map(violation => violation.message).join(' ')
           );
@@ -364,7 +364,7 @@ const createFullSaveHandler =
       });
     } catch (error) {
       const handledError = asSpecialtyHttpsError(error);
-      if (handledError instanceof functions.https.HttpsError) {
+      if (handledError instanceof HttpsError) {
         await recordAuthorityTelemetry({
           firestore,
           date,
@@ -388,10 +388,7 @@ const createFullSaveHandler =
         'Error saving daily record with clinical authority',
         sanitizeLogValue({ email, date, error: handledError })
       );
-      throw new functions.https.HttpsError(
-        'internal',
-        'Failed to save daily record with clinical authority.'
-      );
+      throw new HttpsError('internal', 'Failed to save daily record with clinical authority.');
     }
   };
 

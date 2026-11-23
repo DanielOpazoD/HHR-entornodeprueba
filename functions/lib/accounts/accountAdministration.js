@@ -1,6 +1,6 @@
 const { accountProfile, manageAccountProfile, resumableStatus } = require('./accountManagement');
 const { HOSPITAL_ID } = require('../runtime/runtimeConfig');
-const { https } = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const {
   credentialLock,
   completeCredentialOperation,
@@ -26,19 +26,13 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
   const assertAdmin = async context => {
     const email = context?.auth?.token?.email;
     if (!context?.auth || (await helpers.resolveRoleForEmail(email, context)) !== 'admin') {
-      throw new https.HttpsError(
-        'permission-denied',
-        'Se requiere una sesión administradora vigente.'
-      );
+      throw new HttpsError('permission-denied', 'Se requiere una sesión administradora vigente.');
     }
     if (
       !Number.isFinite(context.auth.token.auth_time) ||
       now() / 1000 - context.auth.token.auth_time > 900
     ) {
-      throw new https.HttpsError(
-        'failed-precondition',
-        'Vuelve a ingresar para administrar accesos.'
-      );
+      throw new HttpsError('failed-precondition', 'Vuelve a ingresar para administrar accesos.');
     }
   };
 
@@ -87,7 +81,7 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
     const rut = normalizeRut(data?.rut);
     const { name, role } = accountProfile(data);
     if (name.length < 3 || name.length > 120 || data?.identityVerified !== true) {
-      throw new https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         'Verifica el RUT y nombre con el funcionario antes de habilitarlo.'
       );
@@ -98,10 +92,7 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
     const operationId = randomUUID();
     await firestore.runTransaction(async tx => {
       if ((await tx.get(index)).exists)
-        throw new https.HttpsError(
-          'already-exists',
-          'El RUT ya tiene una cuenta; revisa su estado.'
-        );
+        throw new HttpsError('already-exists', 'El RUT ya tiene una cuenta; revisa su estado.');
       tx.create(index, { uid });
       tx.create(firestore.collection(ACCESS).doc(uid), {
         name,
@@ -157,7 +148,7 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
     await assertAdmin(context);
     const snapshot = await firestore.collection(ACCESS).limit(501).get();
     if (snapshot.size > 500)
-      throw new https.HttpsError(
+      throw new HttpsError(
         'resource-exhausted',
         'El padrón requiere paginación antes de ampliarse.'
       );
@@ -272,7 +263,7 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
         !user.emailVerified ||
         !user.providerData.some(provider => provider.providerId === 'google.com')
       ) {
-        throw new https.HttpsError(
+        throw new HttpsError(
           'failed-precondition',
           'Verifica ambos accesos Google antes de retirar los accesos antiguos.'
         );

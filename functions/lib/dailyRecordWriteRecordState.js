@@ -1,5 +1,5 @@
 // The record an authority write persists and returns: patch application, meta, history snapshot.
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { resolveCurrentRevision, toIsoTimestamp } = require('./dailyRecordWriteVersionGuards');
 const { CLINICAL_DERIVED_MOVED_FIELDS } = require('./clinicalDerivedContract');
 const { isStillWrittenBy, nextFieldWrites } = require('./dailyRecordFieldWrites');
@@ -34,13 +34,13 @@ const setValueAtPath = (target, path, value) => {
     .filter(Boolean);
 
   if (parts.length === 0) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'Daily record patch paths must be non-empty dot paths.'
     );
   }
   if (parts.some(part => FORBIDDEN_PATCH_PATH_SEGMENTS.has(part))) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'Daily record patch path contains a forbidden segment.'
     );

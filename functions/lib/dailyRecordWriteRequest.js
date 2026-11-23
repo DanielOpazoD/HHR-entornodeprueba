@@ -1,15 +1,12 @@
 // Validates and normalizes the input of the daily-record authority callables.
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { parseSpecialtyIntent } = require('./specialtyDecisionContract');
 
 const FORBIDDEN_PATCH_PATH_SEGMENTS = new Set(['__proto__', 'prototype', 'constructor']);
 
 const assertStringField = (value, fieldName) => {
   if (typeof value !== 'string' || !value.trim()) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      `Missing required field: ${fieldName}`
-    );
+    throw new HttpsError('invalid-argument', `Missing required field: ${fieldName}`);
   }
 
   return value.trim();
@@ -31,14 +28,14 @@ const parseConfirmedBedOccupantIdentity = (
   { allowPresenceOnly = false } = {}
 ) => {
   if (!isPlainObject(value)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `Intentional bed clear requires ${fieldName} to be an occupant identity.`
     );
   }
   const presenceOnly = value.presenceOnly === true;
   if (presenceOnly && !allowPresenceOnly) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `Intentional bed clear does not allow presence-only confirmation for ${fieldName}.`
     );
@@ -58,7 +55,7 @@ const parseConfirmedBedOccupantIdentity = (
     !confirmedOccupant.patientName &&
     !presenceOnly
   ) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `Intentional bed clear requires ${fieldName} to be non-empty.`
     );
@@ -69,18 +66,12 @@ const parseConfirmedBedOccupantIdentity = (
 const parseIntentionalBedClear = value => {
   if (value === undefined || value === null) return null;
   if (!isPlainObject(value)) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      'Intentional bed clear metadata must be an object.'
-    );
+    throw new HttpsError('invalid-argument', 'Intentional bed clear metadata must be an object.');
   }
   const bedId = assertStringField(value.bedId, 'intentionalBedClear.bedId');
   const target = value.target === 'clinicalCrib' ? 'clinicalCrib' : 'bed';
   if (value.target !== undefined && value.target !== 'bed' && value.target !== 'clinicalCrib') {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      'Intentional bed clear contains an invalid target.'
-    );
+    throw new HttpsError('invalid-argument', 'Intentional bed clear contains an invalid target.');
   }
   const confirmedLastUpdated = assertStringField(
     value.confirmedLastUpdated,
@@ -105,10 +96,7 @@ const parseIntentionalBedClear = value => {
           );
   }
   if (bedId.includes('.') || FORBIDDEN_PATCH_PATH_SEGMENTS.has(bedId)) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      'Intentional bed clear contains an invalid bed id.'
-    );
+    throw new HttpsError('invalid-argument', 'Intentional bed clear contains an invalid bed id.');
   }
   return {
     bedId,
@@ -123,14 +111,11 @@ const parsePayload = data => {
   const date = assertStringField(data?.date, 'date');
   const record = data?.record;
   if (!isPlainObject(record)) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      'Daily record payload must be an object.'
-    );
+    throw new HttpsError('invalid-argument', 'Daily record payload must be an object.');
   }
 
   if (record.date !== date) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'Daily record payload date does not match request date.'
     );
@@ -150,7 +135,7 @@ const parsePayload = data => {
 
 const parsePatchPayload = data => {
   if (data && Object.hasOwn(data, 'rayenClinicalWriteGuard'))
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'Legacy Rayen clinical write guards are no longer supported.'
     );
@@ -158,7 +143,7 @@ const parsePatchPayload = data => {
   const patch = data?.patch;
   const syncContract = isPlainObject(data?.syncContract) ? data.syncContract : undefined;
   if (!isPlainObject(patch) || Object.keys(patch).length === 0) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'Daily record patch payload must be a non-empty object.'
     );

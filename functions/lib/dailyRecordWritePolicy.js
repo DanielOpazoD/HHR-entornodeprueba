@@ -1,5 +1,5 @@
 // Who may write a daily record, which paths a patch may touch and what a write may never erase.
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { hospitalDayStart } = require('./hospitalCalendarDay');
 const { requireAuthenticatedEmail } = require('./auth/authPolicies');
 const { evaluateDailyRecordClinicalAuthority } = require('./dailyRecordClinicalAuthorityPolicy');
@@ -98,7 +98,7 @@ const parseAuthorizedPatchPath = (path, role, intentionalBedClear = null) => {
     };
   }
 
-  throw new functions.https.HttpsError(
+  throw new HttpsError(
     'invalid-argument',
     `Daily record patch path is not allowed: ${String(path).slice(0, 120)}`
   );
@@ -110,7 +110,7 @@ const assertAuthorizedPatchValue = ({ path, value, parsedPath, patchPaths }) => 
   }
 
   if (!ALLOWED_DAILY_RECORD_BED_TYPE_OVERRIDE_VALUES.has(value)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `Daily record bed type override value is not allowed: ${String(path).slice(0, 120)}`
     );
@@ -120,7 +120,7 @@ const assertAuthorizedPatchValue = ({ path, value, parsedPath, patchPaths }) => 
     !patchPaths.has(`beds.${parsedPath.bedId}.upcChecklist`) &&
     !patchPaths.has(`beds.${parsedPath.bedId}.isUPC`)
   ) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `Daily record bed type override must accompany a UPC patch: ${String(path).slice(0, 120)}`
     );
@@ -135,13 +135,13 @@ const inspectAuthorizedPatch = ({ remoteData, patch, role, intentionalBedClear =
     if (parsedPath.kind === 'structuralField') {
       const patient = remoteData?.beds?.[parsedPath.bedId];
       if (!isPlainObject(patient)) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           'failed-precondition',
           `Daily record patch target bed is not present: ${parsedPath.bedId}`
         );
       }
       if (patient.isBlocked === true) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           'failed-precondition',
           `Daily record patch target bed is blocked: ${parsedPath.bedId}`
         );
@@ -153,13 +153,13 @@ const inspectAuthorizedPatch = ({ remoteData, patch, role, intentionalBedClear =
     const { bedId } = parsedPath;
     const patient = remoteData?.beds?.[bedId];
     if (!isPlainObject(patient)) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'failed-precondition',
         `Daily record patch target bed is not present: ${bedId}`
       );
     }
     if (patient.isBlocked === true) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'failed-precondition',
         `Daily record patch target bed is blocked: ${bedId}`
       );
@@ -170,7 +170,7 @@ const inspectAuthorizedPatch = ({ remoteData, patch, role, intentionalBedClear =
       !patient.patientName &&
       !patient.admissionDate
     ) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'failed-precondition',
         `Daily record patch target bed has no active clinical episode identity: ${bedId}`
       );
@@ -198,7 +198,7 @@ const isRayenClinicalOwnedPatchPath = path => {
 
 const assertNoRayenClinicalOwnedPatch = patch => {
   if (!Object.keys(patch).some(isRayenClinicalOwnedPatchPath)) return;
-  throw new functions.https.HttpsError(
+  throw new HttpsError(
     'failed-precondition',
     'Rayen clinical fields must be written through the authoritative clinical batch.'
   );
@@ -217,7 +217,7 @@ const isWithinNurseEditingWindow = date => {
 // direct nurse update. The administrator has no window.
 const assertNursePatchWindow = ({ date, role }) => {
   if (role !== 'nurse_hospital' || isWithinNurseEditingWindow(date)) return;
-  throw new functions.https.HttpsError(
+  throw new HttpsError(
     'permission-denied',
     'The nurse editing window for this daily record has closed.'
   );
@@ -225,7 +225,7 @@ const assertNursePatchWindow = ({ date, role }) => {
 
 const assertStructuralPatchPolicy = ({ policySnapshot }) => {
   if (!isRayenClinicalWriteFenceActive(policySnapshot)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'Structural daily record patches require the schema-v2 server clinical authority fence.'
     );
@@ -235,7 +235,7 @@ const assertStructuralPatchPolicy = ({ policySnapshot }) => {
 const assertFullRecordWritePolicy = ({ date, snapshot, record, role }) => {
   if (!snapshot.exists) {
     if (role === 'admin' || role === 'nurse_hospital') return;
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'permission-denied',
       'Only administrators and hospital nurses can create daily records.'
     );
@@ -250,7 +250,7 @@ const assertFullRecordWritePolicy = ({ date, snapshot, record, role }) => {
     return;
   }
 
-  throw new functions.https.HttpsError(
+  throw new HttpsError(
     'permission-denied',
     role === 'nurse_hospital'
       ? 'The nurse editing window for this daily record has closed.'
@@ -272,13 +272,13 @@ const assertAuthorizedDailyRecordWriter = async ({
   const resolvedRole = await resolveRoleForEmail(email, context);
 
   if (requiredRole && resolvedRole !== requiredRole) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'permission-denied',
       'This daily-record operation requires an administrator.'
     );
   }
   if (!ALLOWED_DAILY_RECORD_WRITE_ROLES.has(resolvedRole)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'permission-denied',
       'Only authorized clinical users can save daily records.'
     );
@@ -307,7 +307,7 @@ const assertNoPatientErasures = ({ snapshot, record, intentionalBedClear = null 
   const detail = erasures
     .map(erasure => `${erasure.bedId} (${erasure.remotePatientName})`)
     .join(', ');
-  throw new functions.https.HttpsError(
+  throw new HttpsError(
     'failed-precondition',
     `La cama ${detail} tiene un paciente en la nube pero está vacía en la copia entrante. ` +
       'El guardado fue bloqueado para evitar pérdida de datos.'
@@ -319,7 +319,7 @@ const assertNoPersistedEpisodeDowngrades = ({ snapshot, record }) => {
   const downgrades = findPersistedEpisodeDowngrades(snapshot.data() || {}, record);
   if (!downgrades.length) return;
   const detail = downgrades.map(item => item.bedId).join(', ');
-  throw new functions.https.HttpsError(
+  throw new HttpsError(
     'failed-precondition',
     `El guardado se bloqueó porque esta copia perdió la referencia del episodio en ${detail}. ` +
       'Recarga el censo y revisa el paciente y su ingreso antes de volver a guardar.'

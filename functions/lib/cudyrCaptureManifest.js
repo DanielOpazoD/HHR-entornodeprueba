@@ -1,4 +1,4 @@
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { isDeepStrictEqual } = require('node:util');
 const { captureKey } = require('./cudyrCaptureContract');
 
@@ -12,20 +12,17 @@ const prepareCaptureManifest = async (transaction, hospital, hospitalId, payload
   const snapshot = await transaction.get(ref);
   const existing = snapshot.exists ? snapshot.data() : null;
   if (existing && !isDeepStrictEqual(existing.manifest, manifest))
-    throw new functions.https.HttpsError('already-exists', 'Conflicting CUDYR capture manifest.');
+    throw new HttpsError('already-exists', 'Conflicting CUDYR capture manifest.');
   const parts = existing?.parts || {};
   if (parts[part] && !isDeepStrictEqual(parts[part], ids))
-    throw new functions.https.HttpsError('already-exists', 'Conflicting CUDYR capture part.');
+    throw new HttpsError('already-exists', 'Conflicting CUDYR capture part.');
   const otherIds = new Set(
     Object.entries(parts)
       .filter(([index]) => Number(index) !== part)
       .flatMap(([, values]) => values)
   );
   if (ids.some(id => otherIds.has(id)))
-    throw new functions.https.HttpsError(
-      'already-exists',
-      'Observation already belongs to another capture part.'
-    );
+    throw new HttpsError('already-exists', 'Observation already belongs to another capture part.');
   return () => {
     if (parts[part]) return;
     const value = { manifest, censusDate: payload.authorityDate, parts: { ...parts, [part]: ids } };

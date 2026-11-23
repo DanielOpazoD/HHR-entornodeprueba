@@ -1,4 +1,4 @@
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const {
   parseSupplementImport,
   verifySupplementBytes,
@@ -20,10 +20,7 @@ const saveCudyrSupplement = async ({ hospital, data, actor, runTransaction }) =>
     const receipt = await transaction.get(receiptRef);
     if (receipt.exists) {
       if (receipt.data().requestHash !== input.requestHash)
-        throw new functions.https.HttpsError(
-          'already-exists',
-          'Import operation has different content.'
-        );
+        throw new HttpsError('already-exists', 'Import operation has different content.');
       return receipt.data().result;
     }
     const version = await transaction.get(versionRef);
@@ -88,8 +85,7 @@ const readCudyrSupplementFile = async (hospital, data) => {
   )
     invalid();
   const report = await hospital.collection('cudyrMonthlySupplements').doc(data.id).get();
-  if (!report.exists)
-    throw new functions.https.HttpsError('not-found', 'Monthly source not found.');
+  if (!report.exists) throw new HttpsError('not-found', 'Monthly source not found.');
   return verifiedSupplementFile(hospital, report.data());
 };
 

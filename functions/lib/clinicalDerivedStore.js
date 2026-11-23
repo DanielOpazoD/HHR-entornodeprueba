@@ -18,7 +18,7 @@
 'use strict';
 
 const crypto = require('node:crypto');
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { movementRestoreRecord } = require('./movementRestoreSources');
 const {
   clonePlainValue,
@@ -82,7 +82,7 @@ const isClinicalDerivedSplitDate = date => {
 const isClinicalDerivedSplitDay = record => readClinicalDerivedLayout(record).status !== 'unmarked';
 
 const failedPrecondition = (reason, message) => {
-  const error = new functions.https.HttpsError('failed-precondition', `${reason}: ${message}`);
+  const error = new HttpsError('failed-precondition', `${reason}: ${message}`);
   // Closed enum for functionsTelemetry (e.g. `client_outdated`); the message never goes there.
   Object.assign(error, { clinicalDerivedRejection: reason.replace(/^clinical_derived_/, '') });
   return error;

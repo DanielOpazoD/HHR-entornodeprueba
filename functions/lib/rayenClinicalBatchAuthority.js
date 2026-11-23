@@ -1,11 +1,11 @@
 const { hospitalCalendarDay } = require('./hospitalCalendarDay');
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 
 const POLICY_SCHEMA_VERSION = 2;
 const LEGACY_POLICY_SCHEMA_VERSION = 1;
 
 const failPolicyAuthority = () => {
-  throw new functions.https.HttpsError(
+  throw new HttpsError(
     'failed-precondition',
     'Clinical enrichment is not authorized by the current global policy.'
   );

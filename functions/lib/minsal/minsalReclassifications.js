@@ -1,4 +1,4 @@
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { assertSupportedHospitalId } = require('../runtime/hospitalPolicy');
 const { normalizeSpecialty } = require('./minsalSpecialty');
 const { normalizeMovementReportingSnapshot } = require('./sharedMovementCompatibility');
@@ -58,7 +58,7 @@ const assertAdminRole = async (context, resolveRoleForEmail) => {
       : actor.tokenRole;
 
   if (role !== 'admin') {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'permission-denied',
       'Only admins can reclassify statistical specialties.'
     );
@@ -76,7 +76,7 @@ const parseReclassificationRequest = data => {
     typeof data?.reportingSpecialty === 'string' ? data.reportingSpecialty.trim() : '';
 
   if (!hospitalId || !date || !movementKind || !movementId) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'Missing required parameters: hospitalId, date, movementKind, movementId.'
     );
@@ -85,15 +85,15 @@ const parseReclassificationRequest = data => {
   try {
     assertSupportedHospitalId(hospitalId);
   } catch (error) {
-    throw new functions.https.HttpsError('permission-denied', error.message);
+    throw new HttpsError('permission-denied', error.message);
   }
 
   if (!isIsoDate(date)) {
-    throw new functions.https.HttpsError('invalid-argument', 'date must use YYYY-MM-DD format.');
+    throw new HttpsError('invalid-argument', 'date must use YYYY-MM-DD format.');
   }
 
   if (!MOVEMENT_KINDS.has(movementKind)) {
-    throw new functions.https.HttpsError('invalid-argument', 'Unsupported movementKind.');
+    throw new HttpsError('invalid-argument', 'Unsupported movementKind.');
   }
 
   return { hospitalId, date, movementKind, movementId, reportingSpecialty };
@@ -121,14 +121,14 @@ const loadMovementForReclassification = async ({
     .doc(date)
     .get();
   if (!recordDoc.exists) {
-    throw new functions.https.HttpsError('not-found', 'Daily census record was not found.');
+    throw new HttpsError('not-found', 'Daily census record was not found.');
   }
 
   const record = recordDoc.data() || {};
   const collectionName = MOVEMENT_COLLECTION_BY_KIND[movementKind];
   const movement = getActiveMovements(record[collectionName]).find(item => item.id === movementId);
   if (!movement) {
-    throw new functions.https.HttpsError('not-found', 'Movement was not found for this date.');
+    throw new HttpsError('not-found', 'Movement was not found for this date.');
   }
 
   return {

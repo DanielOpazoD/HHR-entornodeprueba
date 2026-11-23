@@ -1,4 +1,4 @@
-const { https } = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { MANAGED_ASSIGNABLE_ROLES } = require('../auth/authConfig');
 const { ACCESS, genericFailure, randomUUID, newSecret } = require('./accountPolicy');
 const {
@@ -17,7 +17,7 @@ const accountProfile = data => {
     !MANAGED_ASSIGNABLE_ROLES.has(role) ||
     role === 'unauthorized'
   )
-    throw new https.HttpsError('invalid-argument', 'Revisa el nombre y selecciona un rol válido.');
+    throw new HttpsError('invalid-argument', 'Revisa el nombre y selecciona un rol válido.');
   return { name, role };
 };
 

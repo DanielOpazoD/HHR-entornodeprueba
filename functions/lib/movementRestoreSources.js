@@ -2,7 +2,7 @@ const { isDeepStrictEqual } = require('node:util');
 const { RAYEN_CLINICAL_FIELDS } = require('./dailyRecordAuthorityContract');
 const text = value => (typeof value === 'string' ? value.trim() : '');
 
-const { https } = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const immutableMovement = movement =>
   Object.fromEntries(
     Object.entries(movement || {}).filter(
@@ -17,7 +17,7 @@ const document = value =>
     .replace(/[^A-Z0-9]/g, '');
 const assertRestoredParent = (remote, candidate, movement, source, parent, list) => {
   if (!isDeepStrictEqual(source, parent?.clinicalCrib)) {
-    throw new https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'La cuna restaurada debe conservar los datos originales del egreso.'
     );
@@ -54,7 +54,7 @@ const assertRestoredParent = (remote, candidate, movement, source, parent, list)
     ? text(previousParent.clinicalEpisodeId) === text(parent?.clinicalEpisodeId)
     : !text(previousParent?.patientName) && consumedParent;
   if (!sameParent || !previousMatches) {
-    throw new https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'No se pudo confirmar la madre original de la cuna al restaurar el egreso.'
     );
@@ -101,7 +101,7 @@ const movementRestoreRecord = (remote, candidate) => {
             !isDeepStrictEqual(source[key], patient[key])
         )
       ) {
-        throw new https.HttpsError(
+        throw new HttpsError(
           'failed-precondition',
           'El paciente restaurado debe conservar los datos originales del egreso.'
         );

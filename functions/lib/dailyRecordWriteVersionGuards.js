@@ -1,4 +1,4 @@
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 
 const resolveCurrentRevision = record => {
   const revision = Number(record?.meta?.revision);
@@ -21,7 +21,7 @@ const assertExpectedRevision = ({ snapshot, syncContract }) => {
 
   const currentRevision = resolveCurrentRevision(snapshot.data());
   if (currentRevision !== baseRevision) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'aborted',
       `revision_mismatch: Daily record base revision ${baseRevision} does not match remote revision ${currentRevision}.`
     );
@@ -60,7 +60,7 @@ const assertExpectedVersion = ({ snapshot, expectedLastUpdated }) => {
   const remoteMillis = toMillis(remoteLastUpdated);
   const expectedMillis = toMillis(expectedLastUpdated);
   if (remoteMillis > expectedMillis) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'aborted',
       'Daily record changed remotely before the authorized write transaction.'
     );
@@ -82,13 +82,13 @@ const assertVerifiableWriteBase = ({
   const remoteVersion = toIsoTimestamp(snapshot.data()?.lastUpdated);
   const expectedVersion = toIsoTimestamp(expectedLastUpdated);
   if (!remoteVersion || !expectedVersion) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'base_required: An existing daily record requires a verifiable base version.'
     );
   }
   if (remoteVersion !== expectedVersion) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'aborted',
       'version_mismatch: Daily record changed from the supplied base version.'
     );
@@ -97,13 +97,13 @@ const assertVerifiableWriteBase = ({
 
 const assertExactExpectedVersion = ({ snapshot, expectedLastUpdated }) => {
   if (!snapshot.exists || !expectedLastUpdated) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'aborted',
       'Rayen clinical guarded writes require an exact remote version.'
     );
   }
   if (toMillis(snapshot.data()?.lastUpdated) !== toMillis(expectedLastUpdated)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'aborted',
       'Daily record changed before the guarded Rayen clinical write.'
     );

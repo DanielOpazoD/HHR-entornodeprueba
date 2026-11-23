@@ -1,5 +1,5 @@
 // What an authority write reports: the callable response and its telemetry row.
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { sanitizeLogValue } = require('./logging/redaction');
 const { SpecialtyDecisionError } = require('./specialtyDecisionContract');
@@ -8,7 +8,7 @@ const { collectChangedPaths } = require('./dailyRecordWriteRecordState');
 
 const asSpecialtyHttpsError = error => {
   if (error instanceof SpecialtyDecisionError) {
-    return new functions.https.HttpsError(error.code, error.message, error.details);
+    return new HttpsError(error.code, error.message, error.details);
   }
   return error;
 };

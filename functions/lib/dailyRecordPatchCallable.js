@@ -1,5 +1,5 @@
 // patchDailyRecordWithClinicalAuthority: one transaction that writes only the patched paths.
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const {
   resolveCurrentRevision,
   assertExpectedRevision,
@@ -114,7 +114,7 @@ const createPatchHandler =
             aiRequestRef ? transaction.get(aiRequestRef) : Promise.resolve(null),
           ]);
         if (!snapshot.exists) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             'failed-precondition',
             'Daily record partial patch requires an existing record.'
           );
@@ -154,7 +154,7 @@ const createPatchHandler =
           records: [remoteData],
         });
         if (specialtyIntent && specialtyEpisodeEnabled() && !specialtyPolicySnapshot?.exists) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             'failed-precondition',
             'Specialty policy must be published before clinical decisions.'
           );
@@ -196,10 +196,7 @@ const createPatchHandler =
             request.result?.specialty !== specialtyIntent.value ||
             request.result?.choice === 'review_required'
           ) {
-            throw new functions.https.HttpsError(
-              'aborted',
-              'Jev suggestion is stale or unavailable.'
-            );
+            throw new HttpsError('aborted', 'Jev suggestion is stale or unavailable.');
           }
           aiDecision = {
             requestId: specialtyIntent.requestId,
@@ -267,10 +264,7 @@ const createPatchHandler =
           guardScalarChanges: specialtyEpisodeEnabled(),
         });
         if (!specialtyEpisodeEnabled() && specialtyIntent) {
-          throw new functions.https.HttpsError(
-            'failed-precondition',
-            'Specialty episode mode is disabled.'
-          );
+          throw new HttpsError('failed-precondition', 'Specialty episode mode is disabled.');
         }
         const automaticSpecialtyDecisions =
           specialtyEpisodeEnabled() && !specialtyIntent
@@ -337,7 +331,7 @@ const createPatchHandler =
         });
 
         if (authority.status !== 'ok') {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             'failed-precondition',
             authority.violations.map(violation => violation.message).join(' ')
           );
@@ -417,7 +411,7 @@ const createPatchHandler =
       });
     } catch (error) {
       const handledError = asSpecialtyHttpsError(error);
-      if (handledError instanceof functions.https.HttpsError) {
+      if (handledError instanceof HttpsError) {
         await recordAuthorityTelemetry({
           firestore,
           date,
@@ -442,10 +436,7 @@ const createPatchHandler =
         'Error patching daily record with clinical authority',
         sanitizeLogValue({ email, date, error: handledError })
       );
-      throw new functions.https.HttpsError(
-        'internal',
-        'Failed to patch daily record with clinical authority.'
-      );
+      throw new HttpsError('internal', 'Failed to patch daily record with clinical authority.');
     }
   };
 

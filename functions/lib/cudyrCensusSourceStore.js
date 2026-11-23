@@ -5,9 +5,9 @@ const {
 } = require('./generated/cudyrSourceParser.cjs');
 const { createHash } = require('node:crypto');
 const { isCalendarDay } = require('./hospitalCalendarDay');
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const invalid = () => {
-  throw new functions.https.HttpsError('invalid-argument', 'Invalid historical census source.');
+  throw new HttpsError('invalid-argument', 'Invalid historical census source.');
 };
 const validDate = value => isCalendarDay(value) && value.startsWith('20');
 const parseCensusSource = data => {

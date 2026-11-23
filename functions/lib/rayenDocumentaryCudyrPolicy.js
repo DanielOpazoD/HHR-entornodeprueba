@@ -1,4 +1,4 @@
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const SOURCE = 'Eloísa · informe mensual';
 const DOCUMENTARY_FIELD_CONTRACT_VERSION = 3;
 const documentKey = value =>
@@ -89,7 +89,7 @@ const assertDocumentaryCudyrAuthority = async ({
       !(requested?.cudyr && valuesEqual(patient.evaluationScores.cudyr, requested.cudyr)) &&
       !legacyPreservesOmission
     )
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'failed-precondition',
         'An accepted documentary CUDYR cannot be replaced or removed by synchronization.'
       );
@@ -105,7 +105,7 @@ const assertDocumentaryCudyrAuthority = async ({
   });
   if (!targets.length) return;
   const reject = () => {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'Documentary CUDYR requires an unambiguous, missing result across the owning night and source day.'
     );

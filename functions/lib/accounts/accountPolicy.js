@@ -1,5 +1,5 @@
 const { createHash, randomBytes, randomUUID } = require('node:crypto');
-const { https } = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 
 const ACCESS = 'hhr_account_access';
 const PRIVATE = 'hhr_account_private';
@@ -13,7 +13,7 @@ const PROTECTED = Object.freeze({
 const SESSION_SECONDS = 12 * 60 * 60;
 const INVITE_MS = 60 * 60 * 1000;
 const genericFailure = () =>
-  new https.HttpsError(
+  new HttpsError(
     'permission-denied',
     'No se pudo validar el acceso. Revisa tus datos o solicita una nueva activación.'
   );
@@ -43,7 +43,7 @@ const assertPassword = password => {
     !/[A-ZÁÉÍÓÚÜÑ]/.test(password) ||
     !/[0-9]/.test(password)
   ) {
-    throw new https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'La clave debe tener de 6 a 128 caracteres, al menos una mayúscula y un número.'
     );
@@ -57,7 +57,7 @@ const normalizeRecoveryEmail = value => {
     !/^[^\s<>@,;\r\n]+@[^\s<>@,;\r\n]+\.[^\s<>@,;\r\n]+$/.test(email) ||
     email.endsWith('@accounts.hhr.invalid')
   ) {
-    throw new https.HttpsError('invalid-argument', 'Ingresa un correo de recuperación válido.');
+    throw new HttpsError('invalid-argument', 'Ingresa un correo de recuperación válido.');
   }
   return email;
 };

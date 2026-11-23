@@ -1,4 +1,4 @@
-const { https } = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const {
   readClinicalDerivedLayout,
   findStaleClinicalDerivedEpisodeIds,
@@ -7,7 +7,7 @@ const {
 
 const TTL_MS = 48 * 60 * 60 * 1000;
 const fail = (code, message) => {
-  throw new https.HttpsError(code, message);
+  throw new HttpsError(code, message);
 };
 const iso = value => {
   const date = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);

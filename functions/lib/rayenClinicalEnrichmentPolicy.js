@@ -1,4 +1,4 @@
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const {
   ALLOWED_FIELDS,
   CANONICAL_FIELD_CONTRACT_VERSION,
@@ -46,13 +46,13 @@ const toMillis = value => {
 const assertRecordRevision = (record, payload) => {
   const currentRevision = resolveRecordRevision(record);
   if (payload.baseRevision !== undefined && currentRevision !== payload.baseRevision) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'aborted',
       `revision_mismatch: expected ${payload.baseRevision}, received ${currentRevision}.`
     );
   }
   if (toMillis(record?.lastUpdated) !== toMillis(payload.expectedLastUpdated)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'aborted',
       'version_mismatch: the daily record changed before clinical enrichment.'
     );
@@ -64,13 +64,10 @@ const assertTargetMatchesEpisode = (record, target) => {
   const bed = record?.beds?.[target.bedId];
   const patient = target.clinicalCrib ? bed?.clinicalCrib : bed;
   if (!isPlainObject(patient) || patient.isBlocked === true) {
-    throw new functions.https.HttpsError(
-      'failed-precondition',
-      'Clinical enrichment target is no longer active.'
-    );
+    throw new HttpsError('failed-precondition', 'Clinical enrichment target is no longer active.');
   }
   if (String(patient.clinicalEpisodeId || '').trim() !== target.clinicalEpisodeId) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'Clinical enrichment target episode no longer matches the census.'
     );
@@ -81,7 +78,7 @@ const assertTargetMatchesEpisode = (record, target) => {
 const assertHistoricalCudyrPayload = (record, payload) => {
   if (payload.date === payload.authorityDate) return;
   if (payload.checkpoints.length > 0 || payload.patches.length === 0) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'Historical clinical enrichment accepts only CUDYR corrections.'
     );
@@ -97,7 +94,7 @@ const assertHistoricalCudyrPayload = (record, payload) => {
       !Object.prototype.hasOwnProperty.call(requestedScores, 'cudyr') ||
       !isPlainObject(requestedScores.cudyr)
     ) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         'Historical clinical enrichment accepts only canonical CUDYR score values.'
       );
@@ -113,7 +110,7 @@ const assertHistoricalCudyrPayload = (record, payload) => {
       delete currentScores.cudyr;
       delete requestedWithoutCudyr.cudyr;
       if (canonicalize(currentScores) !== canonicalize(requestedWithoutCudyr)) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           'invalid-argument',
           'Historical CUDYR enrichment cannot modify other evaluation scores.'
         );
@@ -147,7 +144,7 @@ const assertAdministrativeCudyrAuthority = (record, payload) => {
       !hasRequestedCudyr &&
       payload.fieldContractVersion < CANONICAL_FIELD_CONTRACT_VERSION;
     if (preservesAdministrativeCudyr || legacyPatchCannotRemoveCudyr) return;
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'An administrative CUDYR adjustment cannot be replaced by synchronization.'
     );
@@ -270,7 +267,7 @@ const classifyIdempotency = (record, payload, batchDigest, compatibleDigests = [
     if (sameMutation.runId === payload.runId && classification !== 'mismatch') {
       return { status: classification, receipt: sameMutation };
     }
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'mutationId was already used with a different clinical enrichment payload.'
     );

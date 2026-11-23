@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 
 const MAX_PDF_BYTES = 6 * 1024 * 1024;
 const MAX_SOURCE_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -14,7 +14,7 @@ const optionalString = (value, maxLength) =>
 const requireString = (value, fieldName, maxLength) => {
   const normalized = optionalString(value, maxLength);
   if (!normalized) {
-    throw new functions.https.HttpsError('invalid-argument', `${fieldName} es obligatorio.`);
+    throw new HttpsError('invalid-argument', `${fieldName} es obligatorio.`);
   }
   return normalized;
 };
@@ -48,7 +48,7 @@ const readJpegDimensions = buffer => {
 
 const decodeJpegPages = (values, expectedPageCount) => {
   if (!Array.isArray(values) || values.length !== expectedPageCount) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'Las páginas procesadas no coinciden con la cantidad declarada.'
     );
@@ -58,7 +58,7 @@ const decodeJpegPages = (values, expectedPageCount) => {
   const pages = values.map(value => {
     const encoded = typeof value === 'string' ? value.trim() : '';
     if (!encoded || encoded.length % 4 !== 0 || !/^[a-zA-Z0-9+/]+={0,2}$/.test(encoded)) {
-      throw new functions.https.HttpsError('invalid-argument', 'Una página no es JPEG válida.');
+      throw new HttpsError('invalid-argument', 'Una página no es JPEG válida.');
     }
     const buffer = Buffer.from(encoded, 'base64');
     totalBytes += buffer.length;
@@ -69,7 +69,7 @@ const decodeJpegPages = (values, expectedPageCount) => {
       buffer[buffer.length - 2] !== 0xff ||
       buffer[buffer.length - 1] !== 0xd9
     ) {
-      throw new functions.https.HttpsError('invalid-argument', 'Una página no es JPEG válida.');
+      throw new HttpsError('invalid-argument', 'Una página no es JPEG válida.');
     }
     try {
       const { width, height } = readJpegDimensions(buffer);
@@ -78,13 +78,13 @@ const decodeJpegPages = (values, expectedPageCount) => {
         throw new Error('JPEG dimensions exceed scanner limits');
       }
     } catch (_error) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         `Cada página JPEG debe medir como máximo ${MAX_IMAGE_DIMENSION} px por lado.`
       );
     }
     if (totalPixels > MAX_TOTAL_IMAGE_PIXELS) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         'El documento supera el límite total de resolución permitido.'
       );
@@ -92,7 +92,7 @@ const decodeJpegPages = (values, expectedPageCount) => {
     return buffer;
   });
   if (!totalBytes || totalBytes > MAX_SOURCE_IMAGE_BYTES) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `Las páginas deben pesar como máximo ${MAX_SOURCE_IMAGE_BYTES / 1024 / 1024} MB.`
     );
@@ -131,7 +131,7 @@ const buildImageOnlyPdf = async pageBuffers => {
     }
     return result;
   } catch (_error) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'No se pudo construir un PDF seguro con las páginas recibidas.'
     );
@@ -141,7 +141,7 @@ const buildImageOnlyPdf = async pageBuffers => {
 const resolveSubmissionIdentity = value => {
   const key = requireString(value, 'La clave de envío', 128);
   if (!/^[a-zA-Z0-9_-]{16,128}$/.test(key)) {
-    throw new functions.https.HttpsError('invalid-argument', 'La clave de envío no es válida.');
+    throw new HttpsError('invalid-argument', 'La clave de envío no es válida.');
   }
   const hash = crypto.createHash('sha256').update(key).digest('hex');
   return { id: `scan_${hash.slice(0, 32)}`, hash };
@@ -180,7 +180,7 @@ const createSubmissionPayloadHash = ({
 
 const requireMatchingSubmissionPayload = (record, submissionPayloadHash) => {
   if (record?.submissionPayloadHash === submissionPayloadHash) return;
-  throw new functions.https.HttpsError(
+  throw new HttpsError(
     'already-exists',
     'La clave de envío ya corresponde a otro documento o paciente. Inicia un nuevo escaneo.'
   );
