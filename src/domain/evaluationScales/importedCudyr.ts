@@ -78,6 +78,7 @@ export const isAdministrativeCudyrAdjustment = (
 ): boolean => cudyr?.source === CUDYR_ADMIN_ADJUSTMENT_SOURCE;
 
 export interface CudyrHistoryInput {
+  id?: string;
   category: string;
   recordedAt: string;
   author?: string;
@@ -86,6 +87,47 @@ export interface CudyrHistoryInput {
   riskScore?: number | null;
   items?: Array<{ fieldId: string; label: string; typeId: number; value: string }>;
 }
+
+const compareNumericOrLexDesc = (a?: string, b?: string): number => {
+  const left = (a ?? '').trim();
+  const right = (b ?? '').trim();
+  if (left === right) return 0;
+  if (!left) return 1;
+  if (!right) return -1;
+  if (/^\d+$/.test(left) && /^\d+$/.test(right)) {
+    const normLeft = left.replace(/^0+/, '') || '0';
+    const normRight = right.replace(/^0+/, '') || '0';
+    if (normLeft.length !== normRight.length) return normRight.length - normLeft.length;
+    if (normLeft !== normRight) return normRight > normLeft ? 1 : -1;
+  }
+  return right > left ? 1 : -1;
+};
+
+const compareStringsAsc = (a?: string, b?: string): number => {
+  const left = a ?? '';
+  const right = b ?? '';
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
+};
+
+const compareNullableNumbersDesc = (a?: number | null, b?: number | null): number => {
+  const left = a ?? -Infinity;
+  const right = b ?? -Infinity;
+  if (left === right) return 0;
+  return right > left ? 1 : -1;
+};
+
+const compareCudyrCandidates = (
+  a: CudyrHistoryInput & { epoch: number },
+  b: CudyrHistoryInput & { epoch: number }
+): number =>
+  b.epoch - a.epoch ||
+  compareNumericOrLexDesc(a.id, b.id) ||
+  compareStringsAsc(a.recordedAt, b.recordedAt) ||
+  compareStringsAsc(a.category, b.category) ||
+  compareStringsAsc(a.author, b.author) ||
+  compareNullableNumbersDesc(a.dependencyScore, b.dependencyScore) ||
+  compareNullableNumbersDesc(a.riskScore, b.riskScore);
 
 export interface CudyrCategoryInput {
   /** Composite category as reported by Ficha Médico, e.g. "D3" (or "S/C" when not categorized). */
@@ -127,7 +169,7 @@ export const buildImportedCudyr = (
       };
     })
     .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
-    .sort((a, b) => b.epoch - a.epoch);
+    .sort(compareCudyrCandidates);
   const selected = candidates.find(entry => entry.owningCensusDate === censusIsoDay);
   if (!selected) return null;
   const history = candidates

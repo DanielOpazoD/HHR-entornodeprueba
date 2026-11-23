@@ -351,4 +351,110 @@ describe('useRayenSyncAudit', () => {
       ])
     );
   });
+
+  it('targets the run census date when completing after switching to another day', async () => {
+    const patchDailyRecord = vi.fn().mockResolvedValue(undefined);
+    const runDay = record();
+    const otherDay: DailyRecord = {
+      ...record(),
+      date: '2026-07-13',
+      rayenSync: {
+        at: '2026-07-13T10:00:00.000Z',
+        by: 'Operador sintético',
+        runId: 'prior-day-run',
+        status: 'complete',
+      },
+      rayenSyncHistory: [
+        {
+          id: 'prior-day-run',
+          sourceDate: '2026-07-13',
+          startedAt: '2026-07-13T09:59:00.000Z',
+          completedAt: '2026-07-13T10:00:00.000Z',
+          by: 'Operador sintético',
+          status: 'complete',
+        },
+      ],
+    };
+    const currentRecordRef = { current: runDay };
+    const { result } = renderHook(() =>
+      useRayenSyncAudit({
+        currentRecordRef,
+        patchDailyRecord,
+        actor: 'Operador sintético',
+        now: () => new Date('2026-07-14T10:05:00.000Z'),
+        createId: () => 'run-day-switch',
+      })
+    );
+
+    act(() => {
+      result.current.startRun();
+    });
+    const applied = result.current.applyRunToRecord(runDay, diff()).record;
+    // Operator navigates to the previous day before clinical fill completes.
+    currentRecordRef.current = otherDay;
+
+    await act(async () => {
+      await result.current.completeRun(applied, { total: 1, patched: 1, errors: [] });
+    });
+
+    expect(patchDailyRecord).toHaveBeenCalledTimes(1);
+    expect(patchDailyRecord.mock.calls[0]?.[0]).toMatchObject({
+      date: '2026-07-14',
+      options: { baseRecord: expect.objectContaining({ date: '2026-07-14' }) },
+      partial: {
+        rayenSync: expect.objectContaining({ runId: 'run-day-switch', status: 'complete' }),
+        rayenSyncHistory: [
+          expect.objectContaining({
+            id: 'run-day-switch',
+            sourceDate: '2026-07-14',
+            status: 'complete',
+          }),
+        ],
+      },
+    });
+  });
+
+  it('reloads and patches the run date when failing after switching to another day', async () => {
+    const patchDailyRecord = vi.fn().mockResolvedValue(undefined);
+    const runDay = record();
+    const otherDay: DailyRecord = { ...record(), date: '2026-07-13' };
+    const loadDailyRecord = vi.fn().mockResolvedValue(runDay);
+    const currentRecordRef = { current: runDay };
+    const { result } = renderHook(() =>
+      useRayenSyncAudit({
+        currentRecordRef,
+        patchDailyRecord,
+        loadDailyRecord,
+        actor: 'Operador sintético',
+        now: () => new Date('2026-07-14T10:05:00.000Z'),
+        createId: () => 'failed-after-switch',
+      })
+    );
+
+    act(() => {
+      result.current.startRun();
+    });
+    currentRecordRef.current = otherDay;
+
+    await act(async () => {
+      await result.current.failRun('apply_failed', 'failed-after-switch');
+    });
+
+    expect(loadDailyRecord).toHaveBeenCalledWith('2026-07-14');
+    expect(patchDailyRecord).toHaveBeenCalledTimes(1);
+    expect(patchDailyRecord.mock.calls[0]?.[0]).toMatchObject({
+      date: '2026-07-14',
+      options: { baseRecord: expect.objectContaining({ date: '2026-07-14' }) },
+      partial: {
+        rayenSyncHistory: [
+          expect.objectContaining({
+            id: 'failed-after-switch',
+            sourceDate: '2026-07-14',
+            status: 'failed',
+            failureReason: 'apply_failed',
+          }),
+        ],
+      },
+    });
+  });
 });

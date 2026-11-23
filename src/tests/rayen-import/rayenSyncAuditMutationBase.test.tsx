@@ -321,4 +321,120 @@ describe('Rayen audit through the query mutation and durable outbox', () => {
       ]),
     });
   });
+
+  it('writes completion to the original run day when the visible census date switches mid-sync', async () => {
+    const previousDate = '2026-10-24';
+    const previousDayEvent: RayenSyncEvent = {
+      id: 'R-PREV',
+      sourceDate: previousDate,
+      startedAt: `${previousDate}T11:00:00.000Z`,
+      completedAt: `${previousDate}T11:01:00.000Z`,
+      by: 'OPERADOR SINTETICO',
+      status: 'complete',
+    };
+    const previousDayRecord: DailyRecord = {
+      ...record([previousDayEvent]),
+      date: previousDate,
+      lastUpdated: `${previousDate}T11:01:00.000Z`,
+      rayenSync: {
+        at: `${previousDate}T11:01:00.000Z`,
+        by: 'OPERADOR SINTETICO',
+        runId: 'R-PREV',
+        status: 'complete',
+      },
+    };
+    const runDayRecord: DailyRecord = {
+      ...record([event('R-CURRENT', 'applied')]),
+      rayenSync: {
+        at: `${date}T11:00:00.000Z`,
+        by: 'OPERADOR SINTETICO',
+        runId: 'R-CURRENT',
+        status: 'applied',
+      },
+    };
+    await hospitalDB.dailyRecords.put(previousDayRecord);
+    await hospitalDB.dailyRecords.put(runDayRecord);
+
+    const dailyRecord = {
+      ...buildMockDailyRecordRepository(),
+      updatePartialDetailed: vi.fn<DailyRecordRepositoryPort['updatePartialDetailed']>(
+        (targetDate, patch, options) =>
+          updatePartialDetailed(targetDate, patch, authoredOptions(options ?? {}))
+      ),
+      getForDateWithMeta: vi.fn(async (targetDate: string) =>
+        createDailyRecordReadResult(
+          targetDate,
+          (await hospitalDB.dailyRecords.get(targetDate)) ?? null,
+          'indexeddb'
+        )
+      ),
+    };
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(getDailyRecordQueryKey(date), queryResult(runDayRecord));
+    queryClient.setQueryData(
+      getDailyRecordQueryKey(previousDate),
+      createDailyRecordQueryResult(previousDayRecord, {
+        serverConfirmed: false,
+        date: previousDate,
+        availabilityState: 'resolved',
+        consistencyState: 'local_only',
+        sourceOfTruth: 'local',
+        retryability: 'not_applicable',
+        recoveryAction: 'none',
+        conflictSummary: null,
+        observabilityTags: [],
+        repairApplied: false,
+      })
+    );
+    const repositories = createRepositoryContainer({ dailyRecord });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>
+        <RepositoryProvider value={repositories}>{children}</RepositoryProvider>
+      </QueryClientProvider>
+    );
+    const currentRecordRef = { current: runDayRecord };
+    const hook = renderHook(
+      ({ activeDate }: { activeDate: string }) => {
+        const mutation = usePatchDailyRecordMutation(activeDate);
+        const { loadFreshClinicalRecord } = useRayenSyncRecordAccess(dailyRecord);
+        const audit = useRayenSyncAudit({
+          currentRecordRef,
+          patchDailyRecord: mutation.mutateAsync,
+          loadDailyRecord: loadFreshClinicalRecord,
+          actor: 'OPERADOR SINTETICO',
+          createId: () => 'R-CURRENT',
+          now: () => new Date(`${date}T12:00:00.000Z`),
+        });
+        return { audit };
+      },
+      { initialProps: { activeDate: date }, wrapper }
+    );
+
+    act(() => hook.result.current.audit.startRun());
+    // User navigates to the previous day while clinical fill and CUDYR sync finish.
+    currentRecordRef.current = previousDayRecord;
+    hook.rerender({ activeDate: previousDate });
+
+    await act(async () => {
+      await hook.result.current.audit.completeRun(
+        runDayRecord,
+        { total: 2, patched: 2, errors: [] },
+        null,
+        'R-CURRENT'
+      );
+    });
+
+    const storedRunDay = await hospitalDB.dailyRecords.get(date);
+    const storedPreviousDay = await hospitalDB.dailyRecords.get(previousDate);
+    const tasks = await hospitalDB.syncQueue.toArray();
+
+    expect(storedRunDay?.rayenSync).toMatchObject({ runId: 'R-CURRENT', status: 'complete' });
+    expect(storedRunDay?.rayenSyncHistory).toEqual([
+      expect.objectContaining({ id: 'R-CURRENT', sourceDate: date, status: 'complete' }),
+    ]);
+    expect(storedPreviousDay?.rayenSync).toEqual(previousDayRecord.rayenSync);
+    expect(storedPreviousDay?.rayenSyncHistory).toEqual([previousDayEvent]);
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]?.key).toBe(`daily:${date}`);
+  });
 });

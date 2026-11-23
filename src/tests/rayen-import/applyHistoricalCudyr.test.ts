@@ -324,4 +324,64 @@ describe('applyHistoricalCudyr', () => {
       }),
     ]);
   });
+
+  it('isolates a concurrently removed historical episode during rebuild without aborting other patients', async () => {
+    const initialRecord = recordWithTwoEpisodes('revision-1');
+    const repository: DailyRecordRepositoryPort = {
+      ...buildMockDailyRecordRepository(),
+      getAuthoritativeForDate: vi.fn().mockResolvedValue(initialRecord),
+    };
+    const secondCudyr: ImportedCudyr = { ...cudyr, category: 'B2', author: 'Otra enfermera' };
+    const concurrentRecord = DataFactory.createMockDailyRecord('2026-01-01', {
+      ...initialRecord,
+      beds: {
+        H2C2: initialRecord.beds.H2C2,
+      },
+      lastUpdated: 'revision-2',
+    });
+    const applyBatch = vi
+      .fn()
+      .mockImplementation(
+        async (input: {
+          rebuildOperations: (record: DailyRecord) => unknown[];
+          refreshCommittedRecord?: () => Promise<unknown>;
+        }) => {
+          expect(input.rebuildOperations(concurrentRecord)).toEqual([
+            expect.objectContaining({
+              patch: { 'beds.H2C2.evaluationScores': { cudyr: secondCudyr } },
+            }),
+          ]);
+          expect(input.refreshCommittedRecord).toEqual(expect.any(Function));
+          await input.refreshCommittedRecord?.();
+          return { patientWrites: 1, historySnapshots: 1, retries: 1 };
+        }
+      );
+    const sourceRecord = asStoredDailyRecordShape({
+      ...record('revision-source'),
+      date: '2026-07-30',
+    });
+
+    await expect(
+      applyHistoricalCudyrBatchAuthoritatively({
+        dailyRecord: repository,
+        sourceRecord,
+        censusDay: '2026-07-29',
+        items: [
+          { clinicalEpisodeId: '142000', cudyr },
+          { clinicalEpisodeId: '142001', cudyr: secondCudyr },
+        ],
+        role: 'admin',
+        runId: 'run-partial-rebuild',
+        applyBatch,
+      })
+    ).resolves.toEqual({
+      results: [
+        { clinicalEpisodeId: '142000', persisted: false, changed: false, applicable: false },
+        { clinicalEpisodeId: '142001', persisted: true, changed: true },
+      ],
+      retries: 1,
+    });
+    // One initial read + one post-commit day-only refresh via refreshCommittedRecord.
+    expect(repository.getAuthoritativeForDate).toHaveBeenCalledTimes(2);
+  });
 });

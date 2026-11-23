@@ -113,9 +113,7 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
       clinicalEpisodeId,
       ...resolveHistoricalCudyrBatchOperation(record, clinicalEpisodeId, cudyr),
     }));
-    if (rebuilt.some(resolution => !resolution.matched)) {
-      throw new Error('El episodio histórico cambió durante la actualización de CUDYR.');
-    }
+    // Isolate any episode that left or changed concurrently instead of aborting the other patients.
     rebuilt.forEach(resolution =>
       effectiveResolutions.set(resolution.clinicalEpisodeId, resolution)
     );
@@ -136,6 +134,7 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
       operations,
       rebuildOperations,
       refreshRecord: loadHistoricalRecord,
+      refreshCommittedRecord: () => dailyRecord.getAuthoritativeForDate(censusDay),
     });
     check();
     persistence = batchResult.persistence;
