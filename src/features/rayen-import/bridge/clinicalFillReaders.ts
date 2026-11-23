@@ -1,4 +1,4 @@
-import { recoverCudyrHospitalHistory } from './cudyrHospitalHistoryRecovery';
+import { markCudyrFlowArchived, recoverCudyrHospitalHistory } from './cudyrHospitalHistoryRecovery';
 import { createClinicalFormsAuthorizationRecovery } from '../domain/clinicalFormsAuthorizationRecovery';
 import type { ClinicalFillCandidate } from '../domain/clinicalFillCandidates';
 import { requestClinicalAuthorizationSnapshot } from './clinicalAuthorizationSnapshot';
@@ -36,6 +36,7 @@ export const createClinicalFillReaders = (
     },
     recoverCudyrPlacements: (episode, rut, observedAt, identityKind, maternalRut) =>
       recoverCudyrHospitalHistory(episode, rut, signal, observedAt, identityKind, maternalRut),
+    onCudyrPlacementsArchived: markCudyrFlowArchived,
     fetchCudyrCategories: () => requestCudyrCategories(undefined, signal),
   } satisfies Pick<
     ClinicalFillDeps,
@@ -45,5 +46,6 @@ export const createClinicalFillReaders = (
     | 'fetchPatientClinicalBundle'
     | 'fetchCudyrCategories'
     | 'recoverCudyrPlacements'
+    | 'onCudyrPlacementsArchived'
   >;
 };

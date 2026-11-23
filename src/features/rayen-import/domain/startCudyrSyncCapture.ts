@@ -45,6 +45,9 @@ export const startCudyrSyncCapture = (input: {
               write: deps.archiveCudyrCapture!,
               signal: deps.signal,
               measure,
+              ...(deps.onCudyrPlacementsArchived
+                ? { onPlacementsArchived: deps.onCudyrPlacementsArchived }
+                : {}),
               ...(deps.recoverCudyrPlacements
                 ? {
                     recoverPlacements: (episode: string) => {
