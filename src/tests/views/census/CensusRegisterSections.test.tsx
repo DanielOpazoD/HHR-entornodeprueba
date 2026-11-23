@@ -71,6 +71,12 @@ describe('CensusRegisterSections', () => {
     expect(movementSectionTexts()).toEqual(['Traslados', 'Hospitalización Diurna', 'Altas']);
   });
 
+  it('keeps the default section order when every movement section is empty', () => {
+    renderSections();
+
+    expect(movementSectionTexts()).toEqual(['Altas', 'Traslados', 'Hospitalización Diurna']);
+  });
+
   it('does not render movement sections for specialist access', () => {
     render(
       <CensusRegisterSections

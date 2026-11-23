@@ -3,14 +3,35 @@ import { SectionErrorBoundary } from '@/components/shared/SectionErrorBoundary';
 import { CMASection } from '@/features/census/components/CMASection';
 import { DischargesSection } from '@/features/census/components/DischargesSection';
 import { TransfersSection } from '@/features/census/components/TransfersSection';
-import {
-  resolveCensusRegisterMovementSectionOrder,
-  type CensusRegisterMovementSectionId,
-} from '@/features/census/controllers/censusRegisterSectionsOrderController';
 import { useCensusMovementData } from '@/features/census/hooks/useCensusMovementData';
 import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
+
+type CensusRegisterMovementSectionId = 'discharges' | 'transfers' | 'cma';
+
+const DEFAULT_MOVEMENT_SECTION_ORDER: readonly CensusRegisterMovementSectionId[] = [
+  'discharges',
+  'transfers',
+  'cma',
+];
+
+const resolveCensusRegisterMovementSectionOrder = (counts: {
+  dischargesCount: number;
+  transfersCount: number;
+  cmaCount: number;
+}): CensusRegisterMovementSectionId[] => {
+  const hasMovementData = (sectionId: CensusRegisterMovementSectionId): boolean =>
+    sectionId === 'discharges'
+      ? counts.dischargesCount > 0
+      : sectionId === 'transfers'
+        ? counts.transfersCount > 0
+        : counts.cmaCount > 0;
+  return [
+    ...DEFAULT_MOVEMENT_SECTION_ORDER.filter(hasMovementData),
+    ...DEFAULT_MOVEMENT_SECTION_ORDER.filter(sectionId => !hasMovementData(sectionId)),
+  ];
+};
 
 const LazyCensusModals = lazyWithRetry(() =>
   import('@/features/census/components/CensusModals').then(module => ({

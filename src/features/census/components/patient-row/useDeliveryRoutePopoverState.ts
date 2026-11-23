@@ -7,7 +7,7 @@ import {
   canSaveDeliveryRouteDraft,
   normalizeDeliveryCesareanLabor,
   normalizeDeliveryRouteDate,
-} from '@/features/census/controllers/deliveryRoutePopoverStateController';
+} from '@/features/census/controllers/deliveryRoutePopoverController';
 
 interface UseDeliveryRoutePopoverStateParams {
   deliveryRoute?: DeliveryRoute;

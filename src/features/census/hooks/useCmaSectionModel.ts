@@ -2,7 +2,7 @@ import type { PatientData } from '@/types/domain/patient';
 
 import type { CMAData } from '@/types/domain/movements';
 
-import { resolveCmaSectionState } from '@/features/census/controllers/censusCmaSectionController';
+import { resolveMovementSectionState } from '@/features/census/controllers/censusMovementSectionController';
 import type { ControllerConfirmDescriptor } from '@/shared/contracts/controllers/confirmDescriptor';
 import { useCmaSectionActions } from '@/features/census/hooks/useCmaSectionActions';
 import type { CensusMovementSectionModel } from '@/features/census/types/censusMovementSectionModelTypes';
@@ -38,7 +38,7 @@ export const useCmaSectionModel = ({
   convertCmaToHomeDischarge,
   convertCmaToTransfer,
 }: UseCmaSectionModelParams): UseCmaSectionModelResult => {
-  const sectionState = resolveCmaSectionState(cma);
+  const sectionState = resolveMovementSectionState(cma);
   const {
     handleUpdate,
     handleUndo,
@@ -59,7 +59,7 @@ export const useCmaSectionModel = ({
   return {
     isRenderable: sectionState.isRenderable,
     isEmpty: sectionState.isEmpty,
-    items: sectionState.cma,
+    items: sectionState.items,
     handleUpdate,
     handleUndo,
     handleDelete,

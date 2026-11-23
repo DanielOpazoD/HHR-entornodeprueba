@@ -2,7 +2,23 @@ import React from 'react';
 import type { Statistics } from '@/types/domain/statistics';
 import { DischargeData, TransferData } from '@/types/domain/movements';
 import { Activity, Bed } from 'lucide-react';
-import { buildMovementSummaryModel } from '@/features/census/components/movementSummaryController';
+import { getStatisticalDischarges } from '@/domain/movements/movementTombstonePolicy';
+
+const buildMovementSummaryModel = (
+  discharges: DischargeData[] = [],
+  transfers: TransferData[] = [],
+  cmaCount: number = 0,
+  newAdmissions: number = 0
+) => {
+  const statisticalDischarges = getStatisticalDischarges(discharges);
+  return {
+    totalDeaths: statisticalDischarges.filter(discharge => discharge.status === 'Fallecido').length,
+    totalDischarges: statisticalDischarges.length,
+    totalTransfers: transfers.length,
+    cmaCount,
+    newAdmissions,
+  };
+};
 
 interface SummaryCardProps {
   stats: Statistics;
