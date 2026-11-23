@@ -1,32 +1,19 @@
-/**
- * hhr-lab-request-patient.js
- *
- * Origen del paciente en la solicitud de exámenes: el episodio abierto en Eloísa o un
- * paciente nuevo escrito a mano (consultas y pacientes sin episodio hospitalario).
- *
- * Vive aparte del Centro de Laboratorio porque es la única parte de esa pantalla que
- * decide QUÉ paciente se imprime. Mantenerla separada evita que el marcado y la regla de
- * habilitación del botón queden comprimidos dentro del controlador para caber en su
- * presupuesto de tamaño, que fue justo lo que ocurrió antes.
- *
- * No normaliza ni valida el RUT: la solicitud es un formulario que se imprime y firma en
- * papel, no una escritura clínica en Rayen.
- */
+/** Patient source and optional identity fields shared by laboratory and imaging orders. */
 (function (root) {
   'use strict';
 
   const SOURCE_FIELD = 'hhr-labreq-patient-source';
   const MANUAL_FIELDS = [
-    { key: 'name', label: 'Nombre y apellidos *', type: 'text', maxLength: 160, wide: true },
-    { key: 'run', label: 'RUT', type: 'text', maxLength: 16 },
+    { key: 'name', label: 'Nombre y apellidos', type: 'text', maxLength: 160, wide: true },
+    { key: 'run', label: 'RUT o pasaporte', type: 'text', maxLength: 16 },
     { key: 'birthDate', label: 'Fecha de nacimiento', type: 'date' },
     { key: 'ficha', label: 'Ficha', type: 'text', maxLength: 40 },
     { key: 'diagnosis', label: 'Diagnóstico', type: 'text', maxLength: 180, wide: true },
   ];
 
-  const MANUAL_HINT = 'Ingresa al menos el nombre. Puedes imprimir la orden sin marcar exámenes.';
+  const MANUAL_HINT = 'Completa solo los datos que quieras imprimir.';
   const LOADING_HINT = 'Cargando datos desde el episodio…';
-  const NEW_PATIENT_HINT = 'Ingresa los datos del paciente nuevo.';
+  const NEW_PATIENT_HINT = 'Completa solo los datos que quieras imprimir.';
 
   const hasEpisode = encId => /^\d+$/.test(String(encId || ''));
 
@@ -41,22 +28,25 @@
   };
 
   /** Marcado de la sección; el episodio decide qué origen viene marcado y si hay campos. */
-  const sectionHtml = encId => {
+  const sectionHtml = (encId, imaging = false) => {
     const episode = hasEpisode(encId);
     return `
           <section class="hhr-labreq-patient" aria-labelledby="hhr-labreq-patient-title">
             <div class="hhr-labreq-patient-source">
-              <strong id="hhr-labreq-patient-title">Datos del paciente</strong>
+              <strong id="hhr-labreq-patient-title">Paciente</strong>
               <label class="hhr-labreq-chip">
-                <input type="radio" name="${SOURCE_FIELD}" value="current" ${episode ? 'checked' : 'disabled'}>Paciente de Eloísa
+                <input type="radio" name="${SOURCE_FIELD}" value="current" ${episode ? 'checked' : 'disabled'}>De Eloísa
               </label>
               <label class="hhr-labreq-chip">
-                <input type="radio" name="${SOURCE_FIELD}" value="manual" ${episode ? '' : 'checked'}>Paciente nuevo
+                <input type="radio" name="${SOURCE_FIELD}" value="manual" ${episode ? '' : 'checked'}>Personalizados
+              </label>
+              <label class="hhr-labreq-chip">
+                <input type="radio" name="${SOURCE_FIELD}" value="blank">Sin identificación
               </label>
             </div>
             <div class="hhr-labreq-patient-summary">${episode ? LOADING_HINT : NEW_PATIENT_HINT}</div>
             <div class="hhr-labreq-manual-fields" ${episode ? 'hidden' : ''}>
-              ${MANUAL_FIELDS.map(manualFieldHtml).join('\n              ')}
+              ${MANUAL_FIELDS.filter(field => !imaging || field.key !== 'ficha').map(manualFieldHtml).join('\n              ')}
             </div>
           </section>`;
   };
@@ -76,19 +66,20 @@
       return field ? String(field.value || '').trim() : '';
     };
 
-    const usesManualPatient = () =>
-      main.querySelector(`input[name="${SOURCE_FIELD}"]:checked`)?.value === 'manual';
+    const source = () => main.querySelector(`input[name="${SOURCE_FIELD}"]:checked`)?.value;
+    const usesManualPatient = () => source() === 'manual';
+    const usesLocalPatient = () => usesManualPatient() || source() === 'blank';
+    const localLabel = () => usesManualPatient() ? 'Datos personalizados' : 'Sin identificación';
 
     const manualPatient = () => {
-      const name = manualValue('name');
-      if (!name) return null;
-      return {
-        name,
+      const patient = {
+        name: manualValue('name'),
         run: manualValue('run'),
         birthDate: manualValue('birthDate'),
         diagnosis: manualValue('diagnosis'),
         ficha: manualValue('ficha'),
       };
+      return Object.values(patient).some(Boolean) ? patient : null;
     };
 
     const episodePatient = () => {
@@ -105,18 +96,24 @@
     };
 
     /** Paciente que se imprimiría ahora mismo, o null si aún no hay datos suficientes. */
-    const printablePatient = () => (usesManualPatient() ? manualPatient() : episodePatient());
+    const printablePatient = () => {
+      if (source() === 'blank') return {};
+      if (usesManualPatient()) return manualPatient();
+      return source() === 'current' ? episodePatient() : null;
+    };
 
     const summaryText = () => {
+      if (source() === 'blank') return '';
       if (usesManualPatient()) return MANUAL_HINT;
-      const patient = episodePatient();
-      if (!patient) return LOADING_HINT;
-      return `${patient.name || 'Paciente'} · ${patient.run || 'RUT no informado'}`;
+      return episodePatient() ? '' : LOADING_HINT;
     };
 
     const refresh = () => {
       if (manualFields) manualFields.hidden = !usesManualPatient();
-      if (summary) summary.textContent = summaryText();
+      if (summary) {
+        summary.textContent = summaryText();
+        summary.hidden = !summary.textContent;
+      }
     };
 
     main.querySelectorAll(`input[name="${SOURCE_FIELD}"]`).forEach(input => {
@@ -126,7 +123,7 @@
       });
     });
 
-    return { printablePatient, usesManualPatient, refresh, summaryText };
+    return { source, printablePatient, usesManualPatient, usesLocalPatient, localLabel, refresh, summaryText };
   };
 
   root.HhrLabRequestPatient = Object.freeze({ sectionHtml, createController, hasEpisode });

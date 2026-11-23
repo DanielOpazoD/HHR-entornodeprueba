@@ -665,10 +665,10 @@
       });
       const printablePatient = () => patientSection.printablePatient();
       const updateCount = () => {
-        const manual = patientSection.usesManualPatient();
+        const manual = patientSection.usesLocalPatient();
         globalThis.HhrCenterPatientContext?.set(root, {
           encId: manual ? '' : encId,
-          patient: manual ? { ...printablePatient(), name: printablePatient()?.name || 'Paciente nuevo' } : episodePatient?.patient,
+          patient: manual ? { ...printablePatient(), name: printablePatient()?.name || patientSection.localLabel() } : episodePatient?.patient,
         });
         globalThis.HhrCenterPatientContext?.refreshRoute(root,
           globalThis.HhrPrescriptionPrint?.resolveEncounterId(window.location.href) || '');
@@ -678,7 +678,7 @@
       };
       const manualKeys = ['name', 'run', 'birthDate', 'ficha', 'diagnosis'];
       const draft = globalThis.HhrRequestDrafts?.attach({ root, main, kind: 'lab', encId,
-        isManual: state => state.source === 'manual',
+        isManual: state => ['manual', 'blank'].includes(state.source),
         fieldForEvent: event => {
           const input = event.target;
           if (input.matches('.hhr-labreq-exam input')) return ['selected', input.dataset.key];
@@ -709,7 +709,7 @@
         changedKeys?.forEach(key => draft?.markEdited(['selected', key])); updateCount();
       });
       main.querySelectorAll('[name="hhr-labreq-patient-source"]').forEach(input => input.addEventListener('change', () => {
-        if (patientSection.usesManualPatient()) draft?.confirmManual();
+        if (patientSection.usesLocalPatient()) draft?.confirmManual();
         else if (episodePatient) draft?.confirm(episodePatient.patient.patientId, episodePatient.actorId);
         else if (/^\d+$/.test(String(encId || ''))) void loadPatient();
       }));
@@ -758,7 +758,6 @@
       });
       if (!/^\d+$/.test(String(encId || ''))) {
         draft?.confirmManual(); updateCount();
-        setLiveRegion(feedback, 'Paciente nuevo: completa el nombre y registra sólo los datos disponibles.');
         return;
       }
       const loadPatient = async () => {
@@ -766,7 +765,7 @@
         const result = await fetchPatientHeaderView(encId);
         if (!printButton.isConnected || root.dataset.selectedEncounterId !== String(encId)) return;
         if (result.error) {
-          if (patientSection.usesManualPatient()) { draft?.confirmManual(); updateCount(); return; }
+          if (patientSection.usesLocalPatient()) { draft?.confirmManual(); updateCount(); return; }
           setLiveRegion(feedback, result.error, 'error');
           globalThis.HhrReadRecovery?.attach({ root, host: feedback, response: result,
             isCurrent: () => printButton.isConnected && root.dataset.selectedEncounterId === String(encId),
@@ -775,7 +774,7 @@
         }
         episodePatient = { patient: result.patient, view: result.view, actorId: result.actorId };
         patientSection.refresh();
-        if (patientSection.usesManualPatient()) draft?.confirmManual();
+        if (patientSection.usesLocalPatient()) draft?.confirmManual();
         else draft?.confirm(result.patient.patientId, result.actorId);
         updateCount();
       };

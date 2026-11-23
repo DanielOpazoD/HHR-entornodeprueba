@@ -26,10 +26,10 @@
       "hotspots": {}
     },
     "background.js": {
-      "maxLines": 1528,
+      "maxLines": 1515,
       "hotspots": {
         "variable:handleExamRequestCombinePrint": 25,
-        "variable:handleImagingFormPrintRequest": 19,
+        "variable:handleImagingFormPrintRequest": 29,
         "variable:handlePrescriptionPrintRequest": 30,
         "variable:parseClinicalTimestamp": 18
       }
@@ -245,7 +245,7 @@
       }
     },
     "content-prescription-print.js": {
-      "maxLines": 882,
+      "maxLines": 880,
       "hotspots": {
         "iife": 16,
         "iife>variable:initialize>variable:ensureButton": 22,
@@ -528,9 +528,9 @@
       "hotspots": {}
     },
     "hhr-center-patient-context.js": {
-      "maxLines": 42,
+      "maxLines": 41,
       "hotspots": {
-        "iife>variable:set": 23
+        "iife>variable:set": 21
       }
     },
     "hhr-center-preferences.js": {
@@ -538,14 +538,13 @@
       "hotspots": {}
     },
     "hhr-center-settings.js": {
-      "maxLines": 29,
+      "maxLines": 50,
       "hotspots": {}
     },
     "hhr-center-shell-runtime.js": {
-      "maxLines": 367,
+      "maxLines": 363,
       "hotspots": {
-        "iife>variable:create>variable:prepareCenterModalRoot": 18,
-        "iife>variable:create>variable:setupCenterPatientContext>variable:refreshIdentity": 18
+        "iife>variable:create>variable:prepareCenterModalRoot": 18
       }
     },
     "hhr-center-styles.js": {
@@ -553,7 +552,7 @@
       "hotspots": {}
     },
     "hhr-center-workspace-styles.js": {
-      "maxLines": 127,
+      "maxLines": 138,
       "hotspots": {}
     },
     "hhr-clinical-write-client-runtime.js": {
@@ -617,18 +616,26 @@
       "hotspots": {}
     },
     "hhr-imaging-center.js": {
-      "maxLines": 341,
+      "maxLines": 338,
+      "hotspots": {}
+    },
+    "hhr-imaging-print.js": {
+      "maxLines": 43,
+      "hotspots": {}
+    },
+    "hhr-imaging-request-view.js": {
+      "maxLines": 43,
       "hotspots": {}
     },
     "hhr-lab-center.js": {
-      "maxLines": 789,
+      "maxLines": 788,
       "hotspots": {
         "iife>variable:create>variable:renderLabCenter>callback:syslabAccessForm.addEventListener:1": 16,
         "iife>variable:create>variable:renderLabCenter>variable:load": 26
       }
     },
     "hhr-lab-request-patient.js": {
-      "maxLines": 134,
+      "maxLines": 131,
       "hotspots": {}
     },
     "hhr-lab-request-styles.js": {
@@ -664,7 +671,7 @@
       "hotspots": {}
     },
     "hhr-nursing-worklist.js": {
-      "maxLines": 381,
+      "maxLines": 391,
       "hotspots": {
         "iife>function:create>function:Layout": 19,
         "iife>function:create>function:NoveltyLink": 16,
@@ -761,7 +768,7 @@
       "hotspots": {}
     },
     "message-contract.js": {
-      "maxLines": 324,
+      "maxLines": 326,
       "hotspots": {}
     },
     "nursing-handoff-connection.js": {
@@ -773,7 +780,7 @@
     "nursing-handoff-dialog.js": {
       "maxLines": 528,
       "hotspots": {
-        "iife>callback:document.addEventListener:1": 20,
+        "iife>callback:document.addEventListener:1": 22,
         "iife>function:watchTable>function:drain": 22,
         "iife>function:watchTable>function:saveRows": 17,
         "iife>function:watchTable>variable:receiveRow": 26,
@@ -781,11 +788,11 @@
       }
     },
     "nursing-handoff-editor.js": {
-      "maxLines": 418,
+      "maxLines": 423,
       "hotspots": {
         "iife>callback:window.addEventListener:1": 29,
-        "iife>function:follow": 26,
-        "iife>function:submitNote": 16
+        "iife>function:follow": 24,
+        "iife>function:submitNote": 17
       }
     },
     "nursing-handoff-hhr-relay.js": {
@@ -793,13 +800,17 @@
       "hotspots": {}
     },
     "nursing-handoff-pilot.js": {
-      "maxLines": 431,
+      "maxLines": 444,
       "hotspots": {
-        "iife>function:create>function:operate": 68,
+        "iife>function:create>function:operate": 71,
         "iife>function:create>function:table": 17,
         "iife>function:create>function:verifySource": 16,
         "iife>function:create>function:writeBlock": 26
       }
+    },
+    "nursing-handoff-preference.js": {
+      "maxLines": 28,
+      "hotspots": {}
     },
     "offscreen-contract.js": {
       "maxLines": 15,
