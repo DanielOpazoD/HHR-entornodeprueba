@@ -46,10 +46,6 @@ import type { HandoffClinicalEventActions } from '../components/handoffRowContra
 
 const EMPTY_BEDS: BedDefinition[] = [];
 const EMPTY_STRING_ARRAY: string[] = [];
-const EMPTY_SHIFT_STAFF = {
-  delivers: EMPTY_STRING_ARRAY,
-  receives: EMPTY_STRING_ARRAY,
-};
 
 interface UseHandoffViewScreenModelParams {
   readOnly?: boolean;
@@ -81,11 +77,6 @@ export const useHandoffViewScreenModel = ({
   const recordDate = record?.date;
   const recordBeds = record?.beds;
   const activeExtraBeds = record?.activeExtraBeds;
-  const recordNurses = record?.nurses;
-  const recordNurseName = record?.nurseName;
-  const nursesDayShift = record?.nursesDayShift;
-  const nursesNightShift = record?.nursesNightShift;
-  const handoffNightReceives = record?.handoffNightReceives;
   const rawTensList = selectedShift === 'day' ? record?.tensDayShift : record?.tensNightShift;
 
   // ========== READ ==========
@@ -111,29 +102,16 @@ export const useHandoffViewScreenModel = ({
     () => visibleBeds.some(bed => shouldShowPatient(bed.id)),
     [visibleBeds, shouldShowPatient]
   );
-  const { delivers: deliversList, receives: receivesList } = useMemo(
-    () =>
-      hasRecord
-        ? resolveHandoffShiftStaff(
-            {
-              nurses: recordNurses,
-              nurseName: recordNurseName,
-              nursesDayShift,
-              nursesNightShift,
-              handoffNightReceives,
-            },
-            selectedShift
-          )
-        : EMPTY_SHIFT_STAFF,
-    [
-      hasRecord,
-      recordNurses,
-      recordNurseName,
-      nursesDayShift,
-      nursesNightShift,
-      handoffNightReceives,
-      selectedShift,
-    ]
+  const resolvedShiftStaff = resolveHandoffShiftStaff(record, selectedShift);
+  const deliversKey = resolvedShiftStaff.delivers.join('\0');
+  const receivesKey = resolvedShiftStaff.receives.join('\0');
+  const deliversList = useMemo(
+    () => (deliversKey ? deliversKey.split('\0') : EMPTY_STRING_ARRAY),
+    [deliversKey]
+  );
+  const receivesList = useMemo(
+    () => (receivesKey ? receivesKey.split('\0') : EMPTY_STRING_ARRAY),
+    [receivesKey]
   );
   const tensList = useMemo(() => rawTensList || EMPTY_STRING_ARRAY, [rawTensList]);
   const auditDescriptor = useMemo(
