@@ -7,7 +7,12 @@ import {
   reconcileAuthorizedSessionOwner,
 } from '@/services/session/sessionScopedStorageService';
 import { getSessionOwner } from '@/services/session/sessionStorageTransition';
-import { isSessionCleanupPending } from '@/services/session/sessionOwnerKey';
+import {
+  isSessionCleanupPending,
+  SESSION_CLEANUP_PENDING_KEY,
+  SESSION_OWNER_KEY,
+} from '@/services/session/sessionOwnerKey';
+import { requeueQuarantinedTask } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 import {
   captureAuthoringSession,
   guardAuthoringSession,
@@ -271,5 +276,19 @@ describe('every queue exit acts only for the person this tab admitted', () => {
     vi.restoreAllMocks();
     expect(port.sent).not.toHaveBeenCalled();
     expect(await hospitalDB.syncQueue.get(id)).toEqual(before);
+  });
+
+  it('requeue: refuses revival in another person’s name or while logout cleanup is pending', async () => {
+    const foreignId = await hospitalDB.syncQueue.add(archiveTask(B, 'FAILED'));
+    localStorage.setItem(SESSION_OWNER_KEY, A);
+    expect(await requeueQuarantinedTask(foreignId, B)).toBe(false);
+    expect((await hospitalDB.syncQueue.get(foreignId))?.status).toBe('FAILED');
+
+    const ownId = await hospitalDB.syncQueue.add(archiveTask(A, 'FAILED'));
+    localStorage.setItem(SESSION_CLEANUP_PENDING_KEY, '1');
+    expect(await requeueQuarantinedTask(ownId, A)).toBe(false);
+    localStorage.removeItem(SESSION_CLEANUP_PENDING_KEY);
+    expect(await requeueQuarantinedTask(ownId, A)).toBe(true);
+    expect((await hospitalDB.syncQueue.get(ownId))?.status).toBe('PENDING');
   });
 });

@@ -62,8 +62,6 @@ export const OPERATIONAL_TELEMETRY_OPERATIONS = [
   'create_clinical_document',
   'create_reminder',
   'cudyrExists',
-  'cudyr_archive_recovery_failed',
-  'cudyr_archive_recovery_unavailable',
   'cudyr_exists_detailed',
   'cudyr_exists_timeout',
   'cudyr_monthly_recovery',

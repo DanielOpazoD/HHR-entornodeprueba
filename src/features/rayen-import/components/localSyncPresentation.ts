@@ -1,4 +1,3 @@
-import { isPolicyBlockedCudyrArchive } from '@/services/storage/sync/cudyrPolicyBlockedRecovery';
 import {
   isClosedNurseWindowRefusal,
   requiresDailyRecordBaseReview,
@@ -124,9 +123,7 @@ export const listQuarantinedOperations = (
         categoryLabel:
           recovery === 'review_base'
             ? 'Revisar antes de reenviar'
-            : isPolicyBlockedCudyrArchive(operation)
-              ? 'Autorización anterior'
-              : (CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ?? 'Envío detenido'),
+            : (CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ?? 'Envío detenido'),
         canRetire:
           operation.type === 'UPDATE_DAILY_RECORD' && DAILY_RECORD_KEY.test(operation.key ?? ''),
       };

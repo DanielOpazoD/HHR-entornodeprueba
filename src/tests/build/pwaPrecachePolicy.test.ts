@@ -247,23 +247,13 @@ describe('PWA precache policy', () => {
       );
     }
   });
-  it('keeps server-verified archive recovery and shared online report facts on demand', () => {
-    for (const chunk of [
-      'publicCudyrPolicyRecovery',
-      'cudyrReportFacts',
-      'cudyrEssentialWorkbook',
-      'cudyrSourceWorkbook',
-    ]) {
+  it('keeps shared online report facts on demand', () => {
+    for (const chunk of ['cudyrReportFacts', 'cudyrEssentialWorkbook', 'cudyrSourceWorkbook']) {
       expect(readViteConfig()).toContain(`**/assets/${chunk}-*.js`);
       expect(readBundleBudgetConfig().precacheIgnoredAssetPatterns).toContain(
         `^assets/${chunk}-.*\\.js$`
       );
     }
-    const source = fs.readFileSync(
-      'src/features/rayen-import/hooks/recoverCudyrArchivesAfterClinicalSync.ts',
-      'utf8'
-    );
-    expect(source).toContain("import('@/services/storage/sync/publicCudyrPolicyRecovery')");
   });
   it('keeps heavyweight optional references and runtimes out of the install-time precache', () => {
     const viteConfig = readViteConfig();

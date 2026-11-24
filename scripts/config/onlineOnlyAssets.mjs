@@ -185,7 +185,6 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
     glob: '**/assets/cudyrArchiveQueue-*.js',
     reason: 'Online CUDYR archive queueing helper imported exclusively by RayenImportButton.',
   },
-  { glob: '**/assets/publicCudyrPolicyRecovery-*.js', reason: 'Same policy as the entry above.' },
   {
     glob: '**/assets/applyClinicalEnrichmentBatch-*.js',
     reason:

@@ -4,7 +4,6 @@ import type {
   SyncQueueStats,
 } from '@/features/rayen-import/hooks/useSyncQueueMonitor';
 import { discardQuarantinedSyncTask, retryQuarantinedSyncTask } from '@/services/storage/sync';
-import { isPolicyBlockedCudyrArchive } from '@/services/storage/sync/cudyrPolicyBlockedRecovery';
 import { listQuarantinedOperations, targetLabelFromKey } from './localSyncPresentation';
 import { SYNC_TONE, SYNC_TONE_ICON } from './syncTone';
 
@@ -27,11 +26,7 @@ export const RayenSyncQueueDetails: React.FC<{
   const [busy, setBusy] = React.useState(false);
   const [actionFailed, setActionFailed] = React.useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = React.useState<number | null>(null);
-  const policyBlocked = operations.some(isPolicyBlockedCudyrArchive);
-  const blocked = listQuarantinedOperations(
-    operations.filter(op => !isPolicyBlockedCudyrArchive(op)),
-    { isAdmin }
-  );
+  const blocked = listQuarantinedOperations(operations, { isAdmin });
   // Their edits left the stored day: they cannot be resent, only reviewed and entered again. A
   // closed editing window, which also releases them, gives its own reason.
   const releasedIds = new Set(
@@ -78,11 +73,6 @@ export const RayenSyncQueueDetails: React.FC<{
           {unavailable && (
             <p className={`mt-1 ${SYNC_TONE.review.text}`}>
               Envíos por comprobar. Vuelve a abrir este panel.
-            </p>
-          )}
-          {policyBlocked && (
-            <p className="mt-1 text-slate-500">
-              CUDYR · autorización anterior. Se recupera al sincronizar.
             </p>
           )}
           {stats.pending > 0 && <p className="mt-1 text-slate-500">{stats.pending} en cola.</p>}

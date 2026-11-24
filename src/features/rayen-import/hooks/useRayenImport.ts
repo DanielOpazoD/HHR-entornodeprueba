@@ -1,13 +1,4 @@
-import {
-  captureAuthoringSession,
-  guardAuthoringSession,
-} from '@/services/session/authoringSession';
-import {
-  recoverCudyrArchivesAfterClinicalSync,
-  isCurrentRayenClinicalRun,
-  clinicalFillRequestRunId,
-  useCurrentRayenRecoveryPolicy,
-} from './recoverCudyrArchivesAfterClinicalSync';
+import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
@@ -47,10 +38,12 @@ import { useRayenImportConfirmation } from './useRayenImportConfirmation';
 import type { RayenStructuralReplan } from './rayenStructuralConvergence';
 import { useRayenStaffingProposalReview } from './useRayenStaffingProposalReview';
 import {
+  isClinicalRetryToken,
   type ClinicalFillRequest,
   type ClinicalRetryToken,
   type ClinicalStageResult,
 } from '../contracts/clinicalStageResult';
+import { isConfirmedRayenCensusHandoff } from './rayenCensusPersistenceGuard';
 import type { DailyRecordWriteLease } from '@/services/repositories/dailyRecordWriteCoordinator';
 import { createRayenSyncRequestController } from './rayenSyncRequestLifecycle';
 
@@ -81,7 +74,6 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     [tens.manualData, tens.identities]
   );
   const { policy, mode, status: policyStatus } = useRayenImportMode();
-  const recoveryPolicyRef = useCurrentRayenRecoveryPolicy(policy, policyStatus);
   const dailyRecordData = useDailyRecordData();
   const { currentUser, role } = useAuth();
   const { mutateAsync: saveDailyRecordMutation } = dailyRecordQuery.useSaveDailyRecordMutation();
@@ -233,26 +225,19 @@ export const useRayenImport = (selectedCensusDate?: string) => {
   });
   const runClinicalStage = useCallback(
     async (request: ClinicalFillRequest): Promise<ClinicalStageResult> => {
-      const session = guardAuthoringSession();
       const result = await fillClinicalData(request);
-      const runId = clinicalFillRequestRunId(request);
-      const isCurrentRun = () => isCurrentRayenClinicalRun(executionRef.current, runId);
-      if (!isCurrentRun()) return result;
-      await recoverCudyrArchivesAfterClinicalSync(
-        result,
-        () => recoveryPolicyRef.current,
-        policy.revision,
-        session,
-        isCurrentRun
-      );
-      if (isCurrentRun()) {
-        clinicalRetryTokenRef.current =
-          result.status === 'complete' ? null : (result.retry ?? null);
-      }
+      const source = isClinicalRetryToken(request) ? request.source : request;
+      const runId = isConfirmedRayenCensusHandoff(source) ? source.runId : source.rayenSync?.runId;
+      const isCurrentRun =
+        Boolean(runId) &&
+        executionRef.current.stage?.type === 'syncing_clinical' &&
+        (executionRef.current.context?.runId ?? executionRef.current.pending?.runId) === runId;
+      if (!isCurrentRun) return result;
+      clinicalRetryTokenRef.current = result.status === 'complete' ? null : (result.retry ?? null);
       finishClinicalSync(result, runId);
       return result;
     },
-    [executionRef, fillClinicalData, finishClinicalSync, policy.revision, recoveryPolicyRef]
+    [executionRef, fillClinicalData, finishClinicalSync]
   );
   const previewSnapshot = useRayenSnapshotPreview({
     dailyRecord,
