@@ -170,7 +170,9 @@ describe('check-clinical-clock', () => {
   it.each([
     'const day = new Date().getDate();',
     'const created = new Date(createdAt);\nconst year = created.getFullYear();',
-  ])('rejects device calendar getters on now or an instant in the app: %s', source => {
+    'const today = new Date();\ntoday.setHours(0, 0, 0, 0);',
+    'new Date().setHours(0, 0, 0, 0);',
+  ])('rejects device calendar getters or setHours on now or an instant in the app: %s', source => {
     const { status, output } = runGuard({
       'src/features/a.ts': source,
       'src/tests/a.test.ts': 'const day = new Date().getDate();\n',
