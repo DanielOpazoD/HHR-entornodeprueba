@@ -25,7 +25,6 @@ import {
   setSessionGeneration,
 } from '@/services/session/sessionStorageTransition';
 import { createBrowserSyncRuntime } from '@/services/storage/sync/browserSyncRuntime';
-import { reviewBlockedDailyRecordTask } from '@/services/storage/sync/dailyRecordTaskRetirement';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
 import { toSyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueOperationSnapshot';
@@ -198,7 +197,7 @@ describe('the queue after a session closes with unsent day work', () => {
     expect(listQuarantinedOperations([toSyncQueueOperationSnapshot(kept!)])).toMatchObject([
       { id, recovery: 'review_base', canRetire: true },
     ]);
-    expect(await reviewBlockedDailyRecordTask(id)).toMatchObject({ task: { payload: unsentDay } });
+    expect(kept).toMatchObject({ payload: unsentDay });
   });
 
   it.each(['FAILED', 'CONFLICT'] as const)(

@@ -74,16 +74,16 @@ it.each(['UPDATE_DAILY_RECORD'] as const)(
     );
     fireEvent.click(screen.getByText('Guardado local · 1 por revisar'));
     expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Descartar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar envío' }));
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(discardQuarantinedSyncTask).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Descartar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar envío' }));
     fireEvent.click(screen.getByRole('button', { name: 'Sí, descartar envío' }));
     expect(discardQuarantinedSyncTask).toHaveBeenCalledExactlyOnceWith(43);
   }
 );
 
-it('offers a confirmed retirement for a census blocked by permissions', async () => {
+it('offers one-step confirmed discard for a census blocked by permissions', () => {
   render(
     <RayenSyncQueueDetails
       stats={{ pending: 0, failed: 1, conflict: 0, retrying: 0, acked: 0, oldestPendingAgeMs: 0 }}
@@ -104,7 +104,12 @@ it('offers a confirmed retirement for a census blocked by permissions', async ()
     />
   );
   fireEvent.click(screen.getByText('Guardado local · 1 por revisar'));
-  expect(await screen.findByRole('button', { name: 'Descartar envío' })).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Descartar envío' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+  expect(discardQuarantinedSyncTask).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Descartar envío' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Sí, descartar envío' }));
+  expect(discardQuarantinedSyncTask).toHaveBeenCalledExactlyOnceWith(51);
 });
 
 it.each([
@@ -115,8 +120,8 @@ it.each([
     'El servidor todavía no validó la sesión de este envío.',
   ],
 ])(
-  'requires review before manually retrying %s, while retaining discard',
-  async (code, category, guidance) => {
+  'shows a direct retry button alongside guidance for %s, while retaining discard',
+  (code, category, guidance) => {
     insideWindowOf20261022();
     render(
       <RayenSyncQueueDetails
@@ -141,10 +146,9 @@ it.each([
     expect(screen.getByText(category)).toBeVisible();
     expect(screen.getByText(guidance, { exact: false })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Descartar envío' })).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText('Revisar reintento'));
-    expect(retryQuarantinedSyncTask).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Ya revisé, reintentar' }));
+    expect(screen.queryByText('Revisar reintento')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ya revisé, reintentar' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
     expect(retryQuarantinedSyncTask).toHaveBeenCalledExactlyOnceWith(61);
   }
 );
@@ -283,12 +287,12 @@ it('keeps «Sin permisos» one minute before the window closes', () => {
   renderStopped(closedWindowSend);
   fireEvent.click(screen.getByText('Guardado local · 1 por revisar'));
   expect(screen.getByText('Sin permisos')).toBeVisible();
-  expect(screen.getByRole('button', { name: 'Ya revisé, reintentar' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
 });
 
 // Reviewer probe (W14-H1A review): only a real day whose window already passed proves a closure.
 it.each(['daily:2026-11-20', 'daily:2026-02-30', 'daily:invalid', undefined])(
-  'keeps «Sin permisos» and «Ya revisé, reintentar» for %s, which proves no closure',
+  'keeps «Sin permisos» and «Reintentar» for %s, which proves no closure',
   key => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-11-17T15:00:00Z'));
@@ -296,7 +300,7 @@ it.each(['daily:2026-11-20', 'daily:2026-02-30', 'daily:invalid', undefined])(
     fireEvent.click(screen.getByText('Guardado local · 1 por revisar'));
     expect(screen.queryByText('Plazo de edición cerrado')).not.toBeInTheDocument();
     expect(screen.getByText('Sin permisos')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Ya revisé, reintentar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
   }
 );
 

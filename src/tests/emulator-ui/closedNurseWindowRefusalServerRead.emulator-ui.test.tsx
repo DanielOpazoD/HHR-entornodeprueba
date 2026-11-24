@@ -26,13 +26,12 @@ import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/i
 import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
-import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
+import {
+  discardQuarantinedSyncTask,
+  queueDailyRecordSyncTaskWithLocalRecord,
+} from '@/services/storage/sync';
 import { saveDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import * as rebase from '@/services/repositories/dailyRecordPendingWriteRebase';
-import {
-  retireReviewedDailyRecordTask,
-  reviewBlockedDailyRecordTask,
-} from '@/services/storage/sync/dailyRecordTaskRetirement';
 import { applyPatches } from '@/utils/patchUtils';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
@@ -673,8 +672,7 @@ it.each([
       expect(initial.record?.handoffNovedadesDayShift).toBe('EDICION PENDIENTE B');
     }
     if (kind === 'discard' || kind === 'later-correction') {
-      const review = await reviewBlockedDailyRecordTask(a.id!);
-      expect(await retireReviewedDailyRecordTask(review!)).toBe(true);
+      expect(await discardQuarantinedSyncTask(a.id!)).toBe(true);
     }
     if (kind === 'later-correction') {
       await admin

@@ -136,7 +136,7 @@ export const listQuarantinedOperations = (
           recovery,
           categoryLabel: 'Plazo de edición cerrado',
           guidance:
-            'El plazo de 48 h para editar este día cerró antes de que el cambio llegara al servidor. Quedó solo en este equipo y no se enviará: en «Descartar envío» descarga su copia para que un administrador lo ingrese.',
+            'El plazo de 48 h para editar este día cerró antes de que el cambio llegara al servidor. Quedó solo en este equipo y no se enviará; si hace falta ingresarlo, solicítalo a un administrador y descarta este envío.',
         };
       }
       if (recovery === 'review_authorization') {

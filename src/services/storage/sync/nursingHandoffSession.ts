@@ -4,7 +4,10 @@ import { SESSION_GENERATION_KEY } from '@/services/session/sessionStorageTransit
 import { clearSyncTaskRuntimeState } from './syncQueueTaskFactory';
 import { hasPendingNursingHandoff } from './nursingHandoffTasks';
 import { downloadBlob } from '@/services/exporters/exportDownload';
-import { serializeDailyRecordTaskBackup } from './dailyRecordTaskRetirement';
+import type { SyncTask } from '@/services/storage/syncQueueTypes';
+
+const serializeDailyRecordTaskBackup = (task: SyncTask): string =>
+  JSON.stringify({ schemaVersion: 1, remotelyConfirmed: false, task }, null, 2);
 
 const captureSession = (owner: string) => {
   const guard = guardAuthoringSession({ message: 'La sesión cambió.' });

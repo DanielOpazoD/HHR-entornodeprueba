@@ -27,7 +27,7 @@ describe('PWA precache policy', () => {
     const patterns = readBundleBudgetConfig().precacheIgnoredAssetPatterns.map(
       pattern => new RegExp(pattern)
     );
-    for (const tool of ['RayenSyncQueueDetails', 'DailyRecordTaskRecovery']) {
+    for (const tool of ['RayenSyncQueueDetails']) {
       expect(viteConfig).toContain(`**/assets/${tool}-*.js`);
       expect(patterns.some(pattern => pattern.test(`assets/${tool}-fixture.js`))).toBe(true);
     }

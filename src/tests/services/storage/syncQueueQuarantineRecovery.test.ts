@@ -175,8 +175,11 @@ describe('storage/sync cuarentena y recuperación', () => {
     expect((await hospitalDB.syncQueue.toArray())[0].status).toBe('PENDING');
   });
 
-  it('discardQuarantinedSyncTask elimina solo tareas en cuarentena', async () => {
-    await queueSyncTask('UPDATE_DAILY_RECORD', makeRecord('2025-02-05', 'v1'));
+  it('discardQuarantinedSyncTask elimina solo tareas en cuarentena y libera su proyección para adoptar el servidor', async () => {
+    const date = '2025-02-05';
+    const local = makeRecord(date, 'v1');
+    await hospitalDB.dailyRecords.put(local);
+    await queueSyncTask('UPDATE_DAILY_RECORD', local);
     const [pendingTask] = await hospitalDB.syncQueue.toArray();
 
     await expect(discardQuarantinedSyncTask(pendingTask.id!)).resolves.toBe(false);
@@ -186,6 +189,43 @@ describe('storage/sync cuarentena y recuperación', () => {
     await processSyncQueue();
     await expect(discardQuarantinedSyncTask(pendingTask.id!)).resolves.toBe(true);
     expect(await hospitalDB.syncQueue.count()).toBe(0);
+
+    // Tras descartar, el día queda libre para adoptar una lectura confirmada y recibir ediciones nuevas.
+    const { listDailyRecordProjectionHolders } =
+      await import('@/services/storage/sync/dexieSyncQueueQuarantine');
+    const { getPendingDailyRecordProjection } =
+      await import('@/services/storage/sync/dailyRecordSyncQueueReadService');
+    const { createDexieSyncQueueStore } =
+      await import('@/services/storage/sync/dexieSyncQueueStore');
+    expect(await listDailyRecordProjectionHolders(date)).toEqual([]);
+    expect(await getPendingDailyRecordProjection(date)).toBeNull();
+    const confirmed = makeRecord(date, 'v2-confirmed');
+    const reconcile = vi.fn();
+    expect(
+      await createDexieSyncQueueStore().adoptAuthoritativeDailyRecord?.(confirmed, null, reconcile)
+    ).toMatchObject({ status: 'adopted' });
+    expect(reconcile).not.toHaveBeenCalled();
+    expect(await hospitalDB.dailyRecords.get(date)).toEqual(confirmed);
+  });
+
+  it('discardQuarantinedSyncTask conserva la tarea si falla el borrado en IndexedDB y no toca PROCESSING ni RETIRED', async () => {
+    await quarantineDailyRecordTask('2025-02-07', {
+      code: 'permission-denied',
+      message: 'denied',
+    });
+    const [failedTask] = await hospitalDB.syncQueue.toArray();
+
+    vi.spyOn(hospitalDB.syncQueue, 'delete').mockRejectedValueOnce(
+      new Error('synthetic storage failure')
+    );
+    await expect(discardQuarantinedSyncTask(failedTask.id!)).resolves.toBe(false);
+    expect(await hospitalDB.syncQueue.get(failedTask.id!)).toMatchObject({ status: 'FAILED' });
+
+    for (const status of ['PROCESSING', 'RETIRED'] as const) {
+      await hospitalDB.syncQueue.update(failedTask.id!, { status });
+      await expect(discardQuarantinedSyncTask(failedTask.id!)).resolves.toBe(false);
+      expect((await hospitalDB.syncQueue.get(failedTask.id!))?.status).toBe(status);
+    }
   });
 
   it('un no-retryable queda registrado como fallo permanente desde el primer intento', async () => {

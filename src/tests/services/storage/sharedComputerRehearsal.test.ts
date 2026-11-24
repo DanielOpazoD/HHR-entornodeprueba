@@ -10,11 +10,10 @@ import { setSessionGeneration } from '@/services/session/sessionStorageTransitio
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { createBrowserSyncRuntime } from '@/services/storage/sync/browserSyncRuntime';
 import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
-import { requeueQuarantinedTask } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 import {
-  getDailyRecordReviewBackup,
-  reviewBlockedDailyRecordTask,
-} from '@/services/storage/sync/dailyRecordTaskRetirement';
+  discardQuarantinedTask,
+  requeueQuarantinedTask,
+} from '@/services/storage/sync/dexieSyncQueueQuarantine';
 import { persistOperationalTelemetryEvents } from '@/services/observability/operationalTelemetryStore';
 import { listQuarantinedOperations } from '@/features/rayen-import/components/localSyncPresentation';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -82,7 +81,7 @@ afterEach(async () => {
 });
 
 describe('same Chrome, sequential individual HHR accounts (synthetic)', () => {
-  it('hides A pending work from B but gives returning A an actionable review and exact backup', async () => {
+  it('hides A pending work from B but lets returning A review and discard the retained send', async () => {
     await hospitalDB.dailyRecords.put(day);
     const id = Number(await hospitalDB.syncQueue.add(task()));
     await clearSessionScopedClientState('manual');
@@ -92,22 +91,27 @@ describe('same Chrome, sequential individual HHR accounts (synthetic)', () => {
     expect(await hospitalDB.dailyRecords.count()).toBe(0);
     expect(await worker.getTelemetry()).toMatchObject({ pending: 0, failed: 0, conflict: 0 });
     expect(await worker.listRecentOperations(20)).toEqual([]);
-    expect(await reviewBlockedDailyRecordTask(id)).toBeNull();
+    expect(await discardQuarantinedTask(id, ownerB)).toBe(false);
 
     await clearSessionScopedClientState('manual');
     await reconcileAuthorizedSessionOwner(ownerA);
     expect(await worker.getTelemetry()).toMatchObject({ pending: 0, failed: 1 });
     expect(listQuarantinedOperations(await worker.listRecentOperations(20))).toEqual([
-      expect.objectContaining({ id, recovery: 'review_base', code: 'session_owner_logged_out' }),
+      expect.objectContaining({
+        id,
+        recovery: 'review_base',
+        code: 'session_owner_logged_out',
+        canRetire: true,
+      }),
     ]);
     expect(await requeueQuarantinedTask(id, ownerA)).toBe(false);
-    const review = await reviewBlockedDailyRecordTask(id);
-    if (!review) throw new Error('Expected A to recover the retained send');
-    const backup = await getDailyRecordReviewBackup(review);
-    expect(backup && JSON.parse(backup)).toMatchObject({
-      remotelyConfirmed: false,
-      task: { payload: day, ownerKey: ownerA, projectionReleased: true },
+    expect(await hospitalDB.syncQueue.get(id)).toMatchObject({
+      payload: day,
+      ownerKey: ownerA,
+      projectionReleased: true,
     });
+    expect(await discardQuarantinedTask(id, ownerA)).toBe(true);
+    expect(await hospitalDB.syncQueue.get(id)).toBeUndefined();
   });
 
   it('does not adopt an old in-flight ACK into B even if the remote request commits after logout', async () => {

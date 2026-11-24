@@ -362,7 +362,7 @@ it('(e) a refusal inside the window keeps the edit on screen and offers the retr
   expect(shown(today)?.[night]).toBe(NOTE);
   expect(await panel()).toMatchObject({
     text: expect.stringContaining('Sin permisos'),
-    buttons: ['Descartar envío', 'Ya revisé, reintentar'],
+    buttons: ['Descartar envío', 'Reintentar'],
   });
   census.hook.unmount();
 }, 60_000);

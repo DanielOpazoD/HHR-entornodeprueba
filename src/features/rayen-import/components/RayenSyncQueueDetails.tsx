@@ -6,10 +6,7 @@ import type {
 import { discardQuarantinedSyncTask, retryQuarantinedSyncTask } from '@/services/storage/sync';
 import { isPolicyBlockedCudyrArchive } from '@/services/storage/sync/cudyrPolicyBlockedRecovery';
 import { listQuarantinedOperations, targetLabelFromKey } from './localSyncPresentation';
-import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { SYNC_TONE, SYNC_TONE_ICON } from './syncTone';
-
-const DailyRecordTaskRecovery = lazyWithRetry(() => import('./DailyRecordTaskRecovery'));
 
 // A stopped send does not resume alone (SAVE-01): its guidance and discard decisions take the action
 // level, distinguished by weight and wording rather than an alarm color.
@@ -30,7 +27,6 @@ export const RayenSyncQueueDetails: React.FC<{
   const [busy, setBusy] = React.useState(false);
   const [actionFailed, setActionFailed] = React.useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = React.useState<number | null>(null);
-  const [reviewingCensus, setReviewingCensus] = React.useState<number | null>(null);
   const policyBlocked = operations.some(isPolicyBlockedCudyrArchive);
   const blocked = listQuarantinedOperations(
     operations.filter(op => !isPolicyBlockedCudyrArchive(op)),
@@ -102,125 +98,105 @@ export const RayenSyncQueueDetails: React.FC<{
                   {op.status === 'PROCESSING' ? 'Enviando' : 'Pendiente de confirmación'}
                 </li>
               ))}
-            {blocked.map(operation => (
-              <li key={operation.id} className="flex items-center justify-between gap-2">
-                <span className={`min-w-0 flex-1 ${stoppedSendText}`}>
-                  <StoppedSendIcon
-                    size={11}
-                    className="mr-1 inline align-[-1px]"
-                    aria-hidden="true"
-                  />
-                  {operation.targetLabel}
-                  <span className="block text-[10px] text-slate-500">
-                    {!releasedIds.has(operation.id)
-                      ? operation.categoryLabel
-                      : operation.code === 'session_owner_logged_out'
-                        ? 'Sesión cerrada'
-                        : 'Sin copia local'}
-                  </span>
-                  {releasedIds.has(operation.id) ? (
-                    <span className={`block text-[10px] ${stoppedSendText}`}>
-                      {operation.code === 'session_owner_logged_out'
-                        ? 'Este envío quedó pendiente al cerrar sesión. '
-                        : 'Este envío perdió su copia local. '}
-                      No se puede reenviar: descarga su copia, compárala con el censo y vuelve a
-                      ingresar a mano lo que falte.
+            {blocked.map(operation => {
+              const canDiscard = operation.canRetire || operation.recovery === 'discard_detached';
+              const canRetry =
+                operation.recovery === 'retry' || operation.recovery === 'review_authorization';
+              return (
+                <li key={operation.id} className="flex items-center justify-between gap-2">
+                  <span className={`min-w-0 flex-1 ${stoppedSendText}`}>
+                    <StoppedSendIcon
+                      size={11}
+                      className="mr-1 inline align-[-1px]"
+                      aria-hidden="true"
+                    />
+                    {operation.targetLabel}
+                    <span className="block text-[10px] text-slate-500">
+                      {!releasedIds.has(operation.id)
+                        ? operation.categoryLabel
+                        : operation.code === 'session_owner_logged_out'
+                          ? 'Sesión cerrada'
+                          : 'Sin copia local'}
                     </span>
-                  ) : (
-                    operation.recovery === 'review_base' && (
+                    {releasedIds.has(operation.id) ? (
                       <span className={`block text-[10px] ${stoppedSendText}`}>
-                        Los cambios siguen guardados en este equipo. Solicita su revisión antes de
-                        reenviarlos.
+                        {operation.code === 'session_owner_logged_out'
+                          ? 'Este envío quedó pendiente al cerrar sesión. '
+                          : 'Este envío perdió su copia local. '}
+                        No se puede reenviar: revisa el censo compartido y vuelve a ingresar a mano
+                        lo que falte antes de descartarlo.
                       </span>
-                    )
-                  )}
-                  {operation.recovery === 'review_authorization' && (
-                    <span className={`block text-[10px] ${stoppedSendText}`}>
-                      {operation.retryGuidance}
-                    </span>
-                  )}
-                  {operation.recovery === 'editing_window_closed' && (
-                    <span className={`block text-[10px] ${stoppedSendText}`}>
-                      {operation.guidance}
-                    </span>
-                  )}
-                  {isAdmin && (operation.code || operation.detail) && (
-                    <details className="text-[10px] text-slate-400">
-                      <summary>Detalle técnico</summary>
-                      {operation.code && <span>{operation.code}</span>}
-                      {operation.detail && <p>{operation.detail}</p>}
-                    </details>
-                  )}
-                </span>
+                    ) : (
+                      operation.recovery === 'review_base' && (
+                        <span className={`block text-[10px] ${stoppedSendText}`}>
+                          Los cambios siguen guardados en este equipo. Solicita su revisión antes de
+                          reenviarlos.
+                        </span>
+                      )
+                    )}
+                    {operation.recovery === 'review_authorization' && (
+                      <span className={`block text-[10px] ${stoppedSendText}`}>
+                        {operation.retryGuidance}
+                      </span>
+                    )}
+                    {operation.recovery === 'editing_window_closed' && (
+                      <span className={`block text-[10px] ${stoppedSendText}`}>
+                        {operation.guidance}
+                      </span>
+                    )}
+                    {isAdmin && (operation.code || operation.detail) && (
+                      <details className="text-[10px] text-slate-400">
+                        <summary>Detalle técnico</summary>
+                        {operation.code && <span>{operation.code}</span>}
+                        {operation.detail && <p>{operation.detail}</p>}
+                      </details>
+                    )}
+                  </span>
 
-                <span className="flex flex-col items-end gap-1">
-                  {operation.canRetire && (
-                    <button
-                      type="button"
-                      onClick={() => setReviewingCensus(operation.id)}
-                      disabled={working || busy}
-                      className={discardButton}
-                    >
-                      Descartar envío
-                    </button>
-                  )}
-                  {operation.recovery === 'review_base' ||
-                  operation.recovery === 'editing_window_closed' ? null : operation.recovery ===
-                    'review_authorization' ? (
-                    <details
-                      className="text-right"
-                      style={{ maxWidth: 'calc(var(--spacing) * 32)' }}
-                    >
-                      <summary className="cursor-pointer text-teal-700">Revisar reintento</summary>
-                      <span className="block text-[10px] text-slate-500">
-                        Reintenta solo si resolviste el bloqueo.
+                  <span className="flex flex-col items-end gap-1">
+                    {confirmingDiscard === operation.id ? (
+                      <span className="text-right">
+                        Estos cambios no se enviarán.{' '}
+                        <button
+                          type="button"
+                          onClick={() => void run(operation.id, discardQuarantinedSyncTask)}
+                          disabled={working || busy}
+                          className={discardButton}
+                        >
+                          Sí, descartar envío
+                        </button>{' '}
+                        <button type="button" onClick={() => setConfirmingDiscard(null)}>
+                          Cancelar
+                        </button>
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => void run(operation.id, retryQuarantinedSyncTask)}
-                        disabled={working || busy}
-                        className="text-teal-700 disabled:opacity-50"
-                      >
-                        Ya revisé, reintentar
-                      </button>
-                    </details>
-                  ) : operation.recovery === 'retry' ? (
-                    <button
-                      type="button"
-                      onClick={() => void run(operation.id, retryQuarantinedSyncTask)}
-                      disabled={working || busy}
-                      className="text-teal-700 disabled:opacity-50"
-                    >
-                      Reintentar
-                    </button>
-                  ) : confirmingDiscard === operation.id ? (
-                    <span className="text-right">
-                      Estos cambios no se enviarán.{' '}
-                      <button
-                        type="button"
-                        onClick={() => void run(operation.id, discardQuarantinedSyncTask)}
-                        disabled={working || busy}
-                        className={discardButton}
-                      >
-                        Sí, descartar envío
-                      </button>{' '}
-                      <button type="button" onClick={() => setConfirmingDiscard(null)}>
-                        Cancelar
-                      </button>
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmingDiscard(operation.id)}
-                      disabled={working || busy}
-                      className={discardButton}
-                    >
-                      Descartar
-                    </button>
-                  )}
-                </span>
-              </li>
-            ))}
+                    ) : (
+                      <>
+                        {canDiscard && (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmingDiscard(operation.id)}
+                            disabled={working || busy}
+                            className={discardButton}
+                          >
+                            Descartar envío
+                          </button>
+                        )}
+                        {canRetry && (
+                          <button
+                            type="button"
+                            onClick={() => void run(operation.id, retryQuarantinedSyncTask)}
+                            disabled={working || busy}
+                            className="text-teal-700 disabled:opacity-50"
+                          >
+                            Reintentar
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
           {pagination?.hasMore && (
             <button
@@ -238,19 +214,6 @@ export const RayenSyncQueueDetails: React.FC<{
             </p>
           )}
         </details>
-      )}
-      {reviewingCensus !== null && (
-        <React.Suspense fallback={<p role="status">Leyendo el envío…</p>}>
-          <DailyRecordTaskRecovery
-            key={reviewingCensus}
-            taskId={reviewingCensus}
-            onClose={() => setReviewingCensus(null)}
-            onRetired={async () => {
-              await refresh();
-              setReviewingCensus(null);
-            }}
-          />
-        </React.Suspense>
       )}
     </>
   );
