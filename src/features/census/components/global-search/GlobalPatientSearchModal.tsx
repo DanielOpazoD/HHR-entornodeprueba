@@ -107,20 +107,30 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
     return () => cancelAnimationFrame(raf);
   }, [isOpen]);
 
+  // Handle Escape at document level so clicking non-focusable areas inside the dialog
+  // (which moves focus to document.body) never breaks closing or stepping back.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const handleDocumentKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.key !== 'Escape' || activeClinicalDocumentsViewer) return;
+      event.preventDefault();
+      if (search.selectedPatient) {
+        setActiveClinicalDocumentsViewer(null);
+        search.clearSelection();
+      } else {
+        handleClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleDocumentKeyDown);
+    return () => document.removeEventListener('keydown', handleDocumentKeyDown);
+  }, [isOpen, activeClinicalDocumentsViewer, search, handleClose]);
+
   // ---- Keyboard navigation ----
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (activeClinicalDocumentsViewer) return;
-
-      if (e.key === 'Escape') {
-        if (search.selectedPatient) {
-          setActiveClinicalDocumentsViewer(null);
-          search.clearSelection();
-        } else {
-          handleClose();
-        }
-        return;
-      }
 
       // Only navigate results when no patient is selected
       if (search.selectedPatient) return;
@@ -137,17 +147,18 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
         if (patient) search.selectPatient(patient);
       }
     },
-    [activeClinicalDocumentsViewer, search, handleClose]
+    [activeClinicalDocumentsViewer, search]
   );
 
   // ---- Backdrop click ----
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
+      if (activeClinicalDocumentsViewer) return;
       if (e.target === e.currentTarget) {
         handleClose();
       }
     },
-    [handleClose]
+    [activeClinicalDocumentsViewer, handleClose]
   );
 
   if (!isOpen) return null;
@@ -162,7 +173,12 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
       aria-label="Buscar paciente"
     >
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" />
+      <div
+        aria-hidden="true"
+        data-testid="global-search-backdrop"
+        onClick={handleBackdropClick}
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm animate-fade-in"
+      />
 
       {/* Modal panel */}
       <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-scale-in flex flex-col max-h-[94vh]">
