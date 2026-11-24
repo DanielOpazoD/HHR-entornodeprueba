@@ -27,7 +27,7 @@ describe('InitialLoadingScreen', () => {
     expect(resolveInitialLoadingScreenVariant('/diagnostics')).toBe('default');
   });
 
-  it('renders the shared access progress panel for the root route', () => {
+  it('renders the calm startup preparation panel on cold boot for the root route', () => {
     window.localStorage.setItem('hhr_login_background_mode', 'day');
 
     render(<InitialLoadingScreen pathname="/" />);
@@ -37,9 +37,19 @@ describe('InitialLoadingScreen', () => {
       'data-background-mode',
       'day'
     );
-    expect(screen.getByRole('status')).toHaveTextContent('Validando tu acceso');
+    expect(screen.getByRole('status')).toHaveTextContent('Preparando pantalla de acceso');
+    expect(screen.queryByText(/Validando tu acceso/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Usuario')).not.toBeInTheDocument();
     expect(screen.queryByTestId('initial-loading-spinner')).not.toBeInTheDocument();
+  });
+
+  it('renders the active validation panel when explicitly validating access', () => {
+    window.localStorage.setItem('hhr_login_background_mode', 'day');
+
+    render(<InitialLoadingScreen pathname="/" phase="validating" />);
+
+    expect(screen.getByTestId('login-loading-shell')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Validando tu acceso');
   });
 
   it('preserves the night login background during startup refresh', () => {

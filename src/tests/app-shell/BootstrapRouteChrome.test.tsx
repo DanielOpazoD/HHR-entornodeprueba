@@ -204,4 +204,53 @@ describe('BootstrapRouteChrome', () => {
       });
     }
   });
+
+  it('preserves the confirmed tab role from sessionStorage instead of flashing admin controls', () => {
+    window.history.replaceState({}, '', '/census');
+    const now = Date.now();
+    window.sessionStorage.setItem(
+      'firebase:authUser:demo-key',
+      JSON.stringify({ uid: 'nurse-1', email: 'nurse@hospital.cl', displayName: 'Enfermería' })
+    );
+    window.sessionStorage.setItem(
+      'hhr_confirmed_auth_role_v1',
+      JSON.stringify({
+        uid: 'nurse-1',
+        email: 'nurse@hospital.cl',
+        role: 'nurse_hospital',
+        confirmedAt: now - 1_000,
+        expiresAt: now + 60_000,
+      })
+    );
+
+    render(<BootstrapRouteChrome day={resolveOpeningCensusDay()} />);
+
+    expect(mockNavbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userEmail: 'nurse@hospital.cl',
+      })
+    );
+    expect(mockDateStrip).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: 'nurse_hospital',
+      })
+    );
+  });
+
+  it('defaults conservatively to viewer with no synthetic email when no confirmed role is stored', () => {
+    window.history.replaceState({}, '', '/census');
+
+    render(<BootstrapRouteChrome day={resolveOpeningCensusDay()} />);
+
+    expect(mockNavbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userEmail: null,
+      })
+    );
+    expect(mockDateStrip).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: 'viewer',
+      })
+    );
+  });
 });

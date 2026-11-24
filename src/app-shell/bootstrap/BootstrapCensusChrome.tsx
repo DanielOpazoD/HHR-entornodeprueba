@@ -19,14 +19,16 @@ import { broadcastLogout } from '@/services/auth/authBroadcastChannel';
 import { recordAuditConnectionEndLocally } from '@/services/admin/auditSession/auditConnectionTracker';
 import { markRecentManualLogout } from '@/services/auth/authLogoutState';
 import { signOut as firebaseSessionSignOut } from '@/services/auth/authSession';
+import { getConfirmedAuthRole } from '@/services/auth/authRoleLookup';
 import {
   clearPersistedFirebaseAuthState,
   clearRecentAuthenticatedSessionHint,
 } from '@/services/auth/authStorageHints';
 import { clearSessionScopedClientState } from '@/services/session/sessionScopedStorageService';
+import { canEditAnyAppModule } from '@/shared/access/operationalAccessPolicy';
 
 const FIREBASE_AUTH_STORAGE_PREFIX = 'firebase:authUser:';
-const DEFAULT_BOOTSTRAP_ROLE: UserRole = 'admin';
+const FALLBACK_BOOTSTRAP_ROLE: UserRole = 'viewer';
 
 const noop = () => {};
 const noopAsync = async () => {};
@@ -163,26 +165,38 @@ const resolveBootstrapModule = (): ModuleType => {
   return resolveModuleFromPathname(window.location.pathname) ?? 'CENSUS';
 };
 
+const resolveBootstrapRole = (
+  persistedUser: ReturnType<typeof readPersistedFirebaseAuthUser>
+): UserRole => {
+  if (!persistedUser) {
+    return FALLBACK_BOOTSTRAP_ROLE;
+  }
+
+  return getConfirmedAuthRole(persistedUser) ?? FALLBACK_BOOTSTRAP_ROLE;
+};
+
 const buildBootstrapAuthContextValue = (
   persistedUser: ReturnType<typeof readPersistedFirebaseAuthUser>,
   signOut: AuthContextType['signOut'] = runBootstrapManualLogout
 ): AuthContextType => {
-  const currentUser =
-    persistedUser ??
-    ({
-      uid: BOOTSTRAP_PLACEHOLDER_UID,
-      email: 'bootstrap@hospital.cl',
-      displayName: 'Bootstrap User',
-      role: DEFAULT_BOOTSTRAP_ROLE,
-    } satisfies NonNullable<AuthContextType['currentUser']>);
+  const bootstrapRole = resolveBootstrapRole(persistedUser);
+  const isEditor = canEditAnyAppModule(bootstrapRole);
+  const currentUser = persistedUser
+    ? {
+        ...persistedUser,
+        role: bootstrapRole,
+      }
+    : ({
+        uid: BOOTSTRAP_PLACEHOLDER_UID,
+        email: null,
+        displayName: null,
+        role: bootstrapRole,
+      } satisfies NonNullable<AuthContextType['currentUser']>);
 
   return {
     sessionState: {
       status: 'authorized',
-      user: {
-        ...currentUser,
-        role: DEFAULT_BOOTSTRAP_ROLE,
-      },
+      user: currentUser,
     },
     authRuntime: {
       sessionStatus: 'authorized',
@@ -196,22 +210,16 @@ const buildBootstrapAuthContextValue = (
       runtimeState: 'recoverable',
       issues: [],
     },
-    currentUser: {
-      ...currentUser,
-      role: DEFAULT_BOOTSTRAP_ROLE,
-    },
-    authorizedUser: {
-      ...currentUser,
-      role: DEFAULT_BOOTSTRAP_ROLE,
-    },
-    role: DEFAULT_BOOTSTRAP_ROLE,
+    currentUser,
+    authorizedUser: currentUser,
+    role: bootstrapRole,
     isLoading: true,
     isAuthenticated: true,
     isAuthorizedSession: true,
     isAnonymousSignature: false,
     isUnauthorized: false,
-    isEditor: true,
-    isViewer: false,
+    isEditor,
+    isViewer: !isEditor,
     isFirebaseConnected: true,
     remoteSyncStatus: 'ready',
     remoteSyncState: {
@@ -304,7 +312,7 @@ export const BootstrapRouteChrome: React.FC<{ day: string }> = ({ day }) => {
               onOpenPatientSearch={noop}
               onToggleBookmarks={bootstrapModule === 'CENSUS' ? noop : undefined}
               showBookmarks={false}
-              role={DEFAULT_BOOTSTRAP_ROLE}
+              role={authValue.role}
             />
           )}
           <main className="max-w-screen-2xl mx-auto px-4 pt-4 pb-20 flex-1 w-full print:p-0 print:pb-0 print:max-w-none">

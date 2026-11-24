@@ -27,6 +27,7 @@ export const LoginScreenLayout: React.FC<LoginScreenLayoutProps> = ({
   authState,
 }) => {
   const image = resolveLoginBackgroundImage(mode);
+  const backdropClass = mode === 'day' ? 'bg-[#10282c]' : 'bg-[#09171c]';
   const ModeIcon = mode === 'day' ? SunMedium : MoonStar;
   return (
     <div
@@ -38,7 +39,7 @@ export const LoginScreenLayout: React.FC<LoginScreenLayoutProps> = ({
     >
       <div
         data-testid="login-background-image"
-        className="absolute inset-x-0 top-0 h-36 bg-cover bg-[58%_center] bg-no-repeat lg:hidden"
+        className={`absolute inset-x-0 top-0 h-36 ${backdropClass} bg-cover bg-[58%_center] bg-no-repeat lg:hidden`}
         style={{ backgroundImage: `url('${image}')` }}
         aria-hidden="true"
       />
@@ -124,7 +125,7 @@ export const LoginScreenLayout: React.FC<LoginScreenLayoutProps> = ({
         </section>
 
         <aside
-          className="relative hidden min-h-dvh overflow-hidden lg:block"
+          className={`relative hidden min-h-dvh overflow-hidden ${backdropClass} lg:block`}
           aria-label="Hospital Hanga Roa"
         >
           <div
@@ -171,11 +172,46 @@ export const LoginAccessPending = ({
   </div>
 );
 
-/** Startup and the accepted-login transition share the active progress panel. */
-export const LoginAccessLoadingPlaceholder = () => (
+export type LoginShellLoadingPhase = 'preparing' | 'validating';
+
+const LoginStartupPreparingPanel = () => (
+  <div
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
+    className="flex h-full flex-col items-center justify-center gap-3.5 rounded-xl border border-stone-300/80 bg-white/80 px-5 text-center shadow-[0_8px_24px_-18px_rgba(23,62,58,0.35)]"
+  >
+    <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-stone-200/90 bg-[#f3efe6] p-2">
+      <img
+        src="/images/logos/logo_HHR.svg"
+        alt=""
+        className="h-full w-full object-contain opacity-90"
+        width="28"
+        height="28"
+      />
+    </span>
+    <div>
+      <p className="text-sm font-semibold text-slate-900">Preparando pantalla de acceso…</p>
+      <p className="mt-1 text-xs leading-5 text-stone-600">
+        Un momento, cargando el ingreso seguro de HHR.
+      </p>
+    </div>
+  </div>
+);
+
+/**
+ * Startup preparation and post-submit validation share the exact `h-64` form slot
+ * geometry, while using calm preparation copy on cold boot and active validation
+ * copy only when credentials or a session are actually being verified.
+ */
+export const LoginAccessLoadingPlaceholder = ({
+  phase = 'preparing',
+}: {
+  phase?: LoginShellLoadingPhase;
+}) => (
   <div className="space-y-4" aria-busy="true">
     <div className="h-64">
-      <LoginAccessPending />
+      {phase === 'validating' ? <LoginAccessPending /> : <LoginStartupPreparingPanel />}
     </div>
     <div
       className="flex items-start gap-4 border-t border-stone-200 pt-3 text-xs text-stone-600"

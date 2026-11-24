@@ -154,6 +154,7 @@ function App({ openingDay }: { openingDay: string }) {
       <InitialLoadingScreen
         pathname={pathname}
         preferLoginShell={loadingScreenMode === 'login-shell'}
+        phase={bootstrapState.phase === 'rehydrating' ? 'validating' : 'preparing'}
       />
     );
   }
@@ -161,7 +162,7 @@ function App({ openingDay }: { openingDay: string }) {
   if (bootstrapState.status === 'unauthenticated') {
     const initialAuthError = resolveLoginInitialAuthError(bootstrapState.auth);
     if (loginCompletionPending && !initialAuthError) {
-      return <LoginShellLoadingScreen />;
+      return <LoginShellLoadingScreen phase="validating" />;
     }
     return (
       <LoginPage
