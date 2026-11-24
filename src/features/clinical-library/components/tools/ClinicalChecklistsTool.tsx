@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ClipboardCheck } from 'lucide-react';
+import { ClipboardCheck, RefreshCw } from 'lucide-react';
 import {
   clinicalChecklist,
   type ChecklistRecord,
@@ -14,26 +14,37 @@ export function ClinicalChecklistsTool({ onBack, onClose, onDirtyChange }: ToolC
   const [record, setRecord] = useState<ChecklistRecord | null>(null);
   const [manage, setManage] = useState(false);
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [reloadNonce, setReloadNonce] = useState(0);
   const [editor, setEditor] = useState<ChecklistTemplate | 'new' | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const request = useRef(0);
+
   useEffect(() => {
     let active = true;
     void clinicalChecklist({ action: 'templates' })
       .then(result => {
-        if (active) {
-          setTemplates(result.templates);
-          setManage(result.manage);
-        }
+        if (!active) return;
+        setTemplates(result.templates);
+        setManage(result.manage);
+        setError('');
       })
       .catch(() => {
         if (active) setError('No se pudieron cargar las plantillas de HHR.');
+      })
+      .finally(() => {
+        if (active) setLoadingTemplates(false);
       });
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadNonce]);
+
+  const reloadTemplates = () => {
+    setLoadingTemplates(true);
+    setReloadNonce(count => count + 1);
+  };
   useEffect(() => {
     onDirtyChange?.(Boolean(editor));
     return () => onDirtyChange?.(false);
@@ -131,24 +142,68 @@ export function ClinicalChecklistsTool({ onBack, onClose, onDirtyChange }: ToolC
                   {record.template.version}
                 </p>
                 <p className="whitespace-pre-wrap break-words">{record.evolution}</p>
-                <button type="button" onClick={print}>
+                <button
+                  type="button"
+                  className="rounded border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50"
+                  onClick={print}
+                >
                   Imprimir / guardar PDF
                 </button>
               </section>
             )}
+            <section className="space-y-2 rounded border border-slate-200 bg-slate-50/70 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="font-semibold text-slate-800">
+                  Plantillas disponibles ({templates.length})
+                </h4>
+                <button
+                  type="button"
+                  disabled={loadingTemplates}
+                  onClick={reloadTemplates}
+                  className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                >
+                  <RefreshCw size={12} className={loadingTemplates ? 'animate-spin' : ''} />
+                  {loadingTemplates ? 'Sincronizando…' : 'Sincronizar'}
+                </button>
+              </div>
+              <p className="text-xs text-slate-600">
+                Se sincronizan con la extensión Eloísa para insertarlas en Evolución con el botón
+                «Aplicar pauta».
+              </p>
+              {templates.length > 0 && (
+                <ul className="space-y-1 text-xs text-slate-700">
+                  {templates.map(t => (
+                    <li key={t.id} className="flex items-center justify-between gap-2">
+                      <span>{t.title}</span>
+                      <span className="shrink-0 text-slate-500">v{t.version}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
             {manage && (
-              <details>
-                <summary className="cursor-pointer">Configurar plantillas</summary>
-                <ul>
+              <details className="rounded border border-slate-200 p-3">
+                <summary className="cursor-pointer font-medium text-slate-800">
+                  Configurar plantillas
+                </summary>
+                <ul className="mt-2 divide-y divide-slate-100">
                   {templates.map(t => (
                     <li key={t.id}>
-                      <button type="button" className="py-2 text-left" onClick={() => setEditor(t)}>
+                      <button
+                        type="button"
+                        className="w-full py-2 text-left text-medical-800 hover:underline"
+                        onClick={() => setEditor(t)}
+                      >
                         {t.title} · v{t.version}
                       </button>
                     </li>
                   ))}
                 </ul>
-                <button type="button" onClick={() => setEditor('new')}>
+                <button
+                  type="button"
+                  className="mt-2 rounded bg-medical-700 px-3 py-1.5 text-white hover:bg-medical-800"
+                  onClick={() => setEditor('new')}
+                >
                   Crear plantilla
                 </button>
               </details>

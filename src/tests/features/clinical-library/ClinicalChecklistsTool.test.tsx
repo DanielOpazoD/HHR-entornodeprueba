@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { ClinicalChecklistsTool } from '@/features/clinical-library/components/tools/ClinicalChecklistsTool';
 const api = vi.hoisted(() => vi.fn());
@@ -39,4 +39,8 @@ it('imprime la versión recuperada por código y retira el documento al cambiar 
   fireEvent.change(input, { target: { value: 'PT-' } });
   expect(screen.queryByRole('button', { name: /Imprimir/ })).toBeNull();
   expect(screen.queryByText('Configurar plantillas')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: /Sincronizar/ }));
+  await waitFor(() =>
+    expect(api.mock.calls.filter(([req]) => req.action === 'templates')).toHaveLength(2)
+  );
 });
