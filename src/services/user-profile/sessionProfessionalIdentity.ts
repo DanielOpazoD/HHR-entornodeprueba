@@ -1,22 +1,22 @@
-import * as z from 'zod';
+import * as z from 'zod/mini';
 import { formatRut, isValidRut } from '@/utils/rutUtils';
 
-const professionalIdentitySchema = z
-  .object({
-    uid: z
-      .string()
-      .min(1)
-      .max(128)
-      .refine(value => value.trim().length > 0),
-    name: z.string().trim().max(160),
-    rut: z
-      .string()
-      .trim()
-      .max(16)
-      .refine(value => /^[\d.]+-?[\dkK]$/.test(value) && isValidRut(value))
-      .transform(formatRut),
-  })
-  .strict();
+const professionalIdentitySchema = z.strictObject({
+  uid: z.string().check(
+    z.minLength(1),
+    z.maxLength(128),
+    z.refine(value => value.trim().length > 0)
+  ),
+  name: z.string().check(z.trim(), z.maxLength(160)),
+  rut: z.pipe(
+    z.string().check(
+      z.trim(),
+      z.maxLength(16),
+      z.refine(value => /^[\d.]+-?[\dkK]$/.test(value) && isValidRut(value))
+    ),
+    z.transform(formatRut)
+  ),
+});
 
 export type SessionProfessionalIdentity = z.infer<typeof professionalIdentitySchema>;
 

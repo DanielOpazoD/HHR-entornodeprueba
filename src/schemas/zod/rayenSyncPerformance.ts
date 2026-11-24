@@ -1,7 +1,7 @@
-import * as z from 'zod';
+import * as z from 'zod/mini';
 import { nullableOptional } from './helpers';
 
-const NonNegativeIntegerSchema = z.number().int().nonnegative();
+const NonNegativeIntegerSchema = z.int().check(z.nonnegative());
 const OptionalNonNegativeIntegerSchema = nullableOptional(NonNegativeIntegerSchema);
 
 const PersistenceTraceSchema = z.object({

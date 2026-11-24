@@ -1,4 +1,4 @@
-import * as z from 'zod';
+import * as z from 'zod/mini';
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 
 const clinicalDocumentTypeSchema = z.enum([
@@ -20,49 +20,49 @@ const patientFieldSchema = z.object({
   label: z.string(),
   value: z.string(),
   type: z.enum(['text', 'date', 'number', 'time']),
-  placeholder: z.string().optional(),
-  readonly: z.boolean().optional(),
-  visible: z.boolean().optional(),
+  placeholder: z.optional(z.string()),
+  readonly: z.optional(z.boolean()),
+  visible: z.optional(z.boolean()),
 });
 export const clinicalDocumentSectionSchema = z.object({
   id: z.string(),
   title: z.string(),
   content: z.string(),
-  kind: z.enum(['standard', 'clinical-update']).optional(),
-  layout: z.enum(['structured', 'unified']).optional(),
-  updateDate: z.string().optional(),
-  updateTime: z.string().optional(),
+  kind: z.optional(z.enum(['standard', 'clinical-update'])),
+  layout: z.optional(z.enum(['structured', 'unified'])),
+  updateDate: z.optional(z.string()),
+  updateTime: z.optional(z.string()),
   order: z.number(),
-  required: z.boolean().optional(),
-  visible: z.boolean().optional(),
+  required: z.optional(z.boolean()),
+  visible: z.optional(z.boolean()),
 });
 const versionSectionSnapshotSchema = z.object({
   sectionId: z.string(),
   title: z.string(),
   content: z.string(),
   order: z.number(),
-  kind: z.enum(['standard', 'clinical-update']).optional(),
+  kind: z.optional(z.enum(['standard', 'clinical-update'])),
 });
 const versionHistorySchema = z.object({
   version: z.number(),
   savedAt: z.string(),
   savedBy: auditActorSchema,
   reason: z.enum(['autosave', 'manual', 'signature', 'unsign', 'admin_fix', 'ai_import']),
-  changedSectionIds: z.array(z.string()).optional(),
-  sectionSnapshots: z.array(versionSectionSnapshotSchema).optional(),
+  changedSectionIds: z.optional(z.array(z.string())),
+  sectionSnapshots: z.optional(z.array(versionSectionSnapshotSchema)),
 });
 const pdfMetaSchema = z.object({
-  fileId: z.string().optional(),
-  webViewLink: z.string().optional(),
-  folderPath: z.string().optional(),
-  exportedAt: z.string().optional(),
-  exportStatus: z.enum(['pending', 'exported', 'failed']).optional(),
-  exportError: z.string().optional(),
+  fileId: z.optional(z.string()),
+  webViewLink: z.optional(z.string()),
+  folderPath: z.optional(z.string()),
+  exportedAt: z.optional(z.string()),
+  exportStatus: z.optional(z.enum(['pending', 'exported', 'failed'])),
+  exportError: z.optional(z.string()),
 });
 
 export const clinicalDocumentRecordSchema = z.object({
   id: z.string(),
-  schemaVersion: z.number().optional(),
+  schemaVersion: z.optional(z.number()),
   hospitalId: z.string(),
   documentType: clinicalDocumentTypeSchema,
   templateId: z.string(),
@@ -74,17 +74,17 @@ export const clinicalDocumentRecordSchema = z.object({
   patientRut: z.string(),
   patientName: z.string(),
   episodeKey: z.string(),
-  admissionDate: z.string().optional(),
-  sourceDailyRecordDate: z.string().optional(),
-  sourceBedId: z.string().optional(),
+  admissionDate: z.optional(z.string()),
+  sourceDailyRecordDate: z.optional(z.string()),
+  sourceBedId: z.optional(z.string()),
   patientFields: z.array(patientFieldSchema),
   sections: z.array(clinicalDocumentSectionSchema),
   medico: z.string(),
   especialidad: z.string(),
   status: clinicalDocumentStatusSchema,
   isLocked: z.boolean(),
-  lockedReason: z.literal('episode_closed').optional(),
-  lockedAt: z.string().optional(),
+  lockedReason: z.optional(z.literal('episode_closed')),
+  lockedAt: z.optional(z.string()),
   isActiveEpisodeDocument: z.boolean(),
   currentVersion: z.number(),
   versionHistory: z.array(versionHistorySchema),
@@ -93,46 +93,46 @@ export const clinicalDocumentRecordSchema = z.object({
     createdBy: auditActorSchema,
     updatedAt: z.string(),
     updatedBy: auditActorSchema,
-    signedAt: z.string().optional(),
-    signedBy: auditActorSchema.optional(),
-    unsignedAt: z.string().optional(),
-    unsignedBy: auditActorSchema.optional(),
-    signatureRevocations: z
-      .array(
+    signedAt: z.optional(z.string()),
+    signedBy: z.optional(auditActorSchema),
+    unsignedAt: z.optional(z.string()),
+    unsignedBy: z.optional(auditActorSchema),
+    signatureRevocations: z.optional(
+      z.array(
         z.object({
           revokedAt: z.string(),
           revokedBy: auditActorSchema,
-          previousSignedAt: z.string().optional(),
+          previousSignedAt: z.optional(z.string()),
           reason: z.string(),
         })
       )
-      .optional(),
-    archivedAt: z.string().optional(),
-    archivedBy: auditActorSchema.optional(),
+    ),
+    archivedAt: z.optional(z.string()),
+    archivedBy: z.optional(auditActorSchema),
   }),
-  pdf: pdfMetaSchema.optional(),
-  renderedText: z.string().optional(),
-  integrityHash: z.string().optional(),
-  annexContent: z.string().optional(),
-  annexIncludedInPrint: z.boolean().optional(),
-  includePatientSignature: z.boolean().optional(),
-  ieehDraft: z
-    .object({
+  pdf: z.optional(pdfMetaSchema),
+  renderedText: z.optional(z.string()),
+  integrityHash: z.optional(z.string()),
+  annexContent: z.optional(z.string()),
+  annexIncludedInPrint: z.optional(z.boolean()),
+  includePatientSignature: z.optional(z.boolean()),
+  ieehDraft: z.optional(
+    z.object({
       cie10Code: z.string(),
       cie10Description: z.string(),
       diagnosticoPrincipal: z.string(),
       condicionEgreso: z.enum(['1', '2', '3', '4', '5', '6', '7']),
       intervencionQuirurgica: z.enum(['1', '2']),
-      intervencionQuirurgDescrip: z.string().optional(),
-      intervencionCodigo: z.string().optional(),
+      intervencionQuirurgDescrip: z.optional(z.string()),
+      intervencionCodigo: z.optional(z.string()),
       procedimiento: z.enum(['1', '2']),
-      procedimientoDescrip: z.string().optional(),
-      procedimientoCodigo: z.string().optional(),
-      tratanteRut: z.string().optional(),
-      tratanteNombreCompleto: z.string().optional(),
-      tratanteEspecialidad: z.string().optional(),
+      procedimientoDescrip: z.optional(z.string()),
+      procedimientoCodigo: z.optional(z.string()),
+      tratanteRut: z.optional(z.string()),
+      tratanteNombreCompleto: z.optional(z.string()),
+      tratanteEspecialidad: z.optional(z.string()),
     })
-    .optional(),
+  ),
 });
 
 export const parseClinicalDocumentRecord = (record: unknown): ClinicalDocumentRecord =>

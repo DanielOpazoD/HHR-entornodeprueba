@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod/mini';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 
 const identity = z.object({
@@ -20,7 +20,7 @@ const summary = z.object({
   episodeDocuments: z.array(
     z.object({
       clinicalEpisodeId: z.string(),
-      lastUpdated: z.string().nullable(),
+      lastUpdated: z.nullable(z.string()),
       currentGeneration: z.boolean(),
     })
   ),

@@ -1,4 +1,4 @@
-import * as z from 'zod';
+import * as z from 'zod/mini';
 
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { FunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
@@ -10,11 +10,11 @@ interface OpenMedicalHandoffSpreadsheetRequest {
 }
 
 const responseSchema = z.object({
-  spreadsheetUrl: z.string().url(),
+  spreadsheetUrl: z.url(),
   created: z.boolean(),
-  rowCount: z.number().int().nonnegative(),
+  rowCount: z.int().check(z.nonnegative()),
   date: z.string(),
-  storageStatus: z.enum(['configured', 'created', 'recovered', 'unknown']).default('unknown'),
+  storageStatus: z._default(z.enum(['configured', 'created', 'recovered', 'unknown']), 'unknown'),
 });
 
 export type OpenMedicalHandoffSpreadsheetResult = z.infer<typeof responseSchema>;

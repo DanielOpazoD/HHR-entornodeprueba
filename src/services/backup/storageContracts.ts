@@ -1,8 +1,8 @@
-import * as z from 'zod';
+import * as z from 'zod/mini';
 
 const BackupDateSchema = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido. Use YYYY-MM-DD.');
+  .check(z.regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido. Use YYYY-MM-DD.'));
 
 const isValidCalendarDate = (year: number, month: number, day: number): boolean => {
   const date = new Date(Date.UTC(year, month - 1, day));

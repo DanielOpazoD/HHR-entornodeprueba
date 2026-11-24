@@ -1,4 +1,4 @@
-import * as z from 'zod';
+import * as z from 'zod/mini';
 import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 import {
@@ -29,17 +29,17 @@ const VitalSignsHistorySchema = z.array(z.custom<PatientVitalSigns>(isVitalSigns
  * Server-written episode document. Moved fields are nullable without turning null into undefined:
  * a null field still wins over the embedded copy.
  */
-export const ClinicalDerivedEpisodeDocSchema: z.ZodType<ClinicalDerivedEpisodeDoc, unknown> =
+export const ClinicalDerivedEpisodeDocSchema: z.ZodMiniType<ClinicalDerivedEpisodeDoc, unknown> =
   z.object({
     schemaVersion: z.literal(CLINICAL_DERIVED_DOC_SCHEMA_VERSION),
-    date: StringSchema.regex(DATE_REGEX),
-    clinicalEpisodeId: StringSchema.min(1),
-    layoutGeneration: StringSchema.min(1),
-    target: z.enum(CLINICAL_DERIVED_TARGETS).optional(),
-    bedId: StringSchema.optional(),
-    dayRevision: z.number().int().nonnegative(),
-    updatedAt: z.unknown().optional(),
-    lastMutationId: StringSchema.nullable().optional(),
-    clinicalSyncCheckpoint: ClinicalSyncCheckpointSchema.nullable().optional(),
-    vitalSignsHistory: VitalSignsHistorySchema.nullable().optional(),
+    date: StringSchema.check(z.regex(DATE_REGEX)),
+    clinicalEpisodeId: StringSchema.check(z.minLength(1)),
+    layoutGeneration: StringSchema.check(z.minLength(1)),
+    target: z.optional(z.enum(CLINICAL_DERIVED_TARGETS)),
+    bedId: z.optional(StringSchema),
+    dayRevision: z.int().check(z.nonnegative()),
+    updatedAt: z.optional(z.unknown()),
+    lastMutationId: z.optional(z.nullable(StringSchema)),
+    clinicalSyncCheckpoint: z.optional(z.nullable(ClinicalSyncCheckpointSchema)),
+    vitalSignsHistory: z.optional(z.nullable(VitalSignsHistorySchema)),
   });

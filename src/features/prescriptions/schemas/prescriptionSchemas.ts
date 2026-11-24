@@ -6,7 +6,7 @@
  * documents instead of letting them flow into the visor unparsed.
  */
 
-import * as z from 'zod';
+import * as z from 'zod/mini';
 
 import {
   PRESCRIPTION_ASSIGNMENT_SCOPES,
@@ -31,53 +31,53 @@ const prescriptionAssignmentScopeSchema = z.enum(
 );
 
 const prescriptionImageMetaSchema = z.object({
-  storagePath: z.string().min(1),
-  thumbnailStoragePath: z.string().min(1),
-  byteSize: z.number().int().nonnegative(),
-  width: z.number().int().positive(),
-  height: z.number().int().positive(),
+  storagePath: z.string().check(z.minLength(1)),
+  thumbnailStoragePath: z.string().check(z.minLength(1)),
+  byteSize: z.int().check(z.nonnegative()),
+  width: z.int().check(z.positive()),
+  height: z.int().check(z.positive()),
   contentType: z.literal('image/jpeg'),
 });
 
 const prescriptionUploaderRefSchema = z.object({
-  uid: z.string().optional(),
-  email: z.string().optional(),
+  uid: z.optional(z.string()),
+  email: z.optional(z.string()),
   source: z.enum(['authenticated', 'qr_pin']),
-  displayName: z.string().optional(),
+  displayName: z.optional(z.string()),
 });
 
-const optionalFirestoreStringSchema = z.preprocess(
-  value => (value === null ? undefined : value),
-  z.string().optional()
+const optionalFirestoreStringSchema = z.pipe(
+  z.transform(value => (value === null ? undefined : value)),
+  z.optional(z.string())
 );
 
 export const prescriptionRecordSchema = z.object({
-  id: z.string().min(1),
-  hospitalId: z.string().min(1),
+  id: z.string().check(z.minLength(1)),
+  hospitalId: z.string().check(z.minLength(1)),
   prescriptionType: prescriptionTypeSchema,
-  assignmentScope: prescriptionAssignmentScopeSchema.optional(),
+  assignmentScope: z.optional(prescriptionAssignmentScopeSchema),
   bedId: optionalFirestoreStringSchema,
   patientName: optionalFirestoreStringSchema,
   patientRut: optionalFirestoreStringSchema,
   notes: optionalFirestoreStringSchema,
   image: prescriptionImageMetaSchema,
   uploader: prescriptionUploaderRefSchema,
-  createdAt: z.string().min(1),
-  expiresAt: z.string().min(1),
-  patientReassignedAt: z.string().optional(),
-  patientReassignedBy: z.string().optional(),
-  typeUpdatedAt: z.string().optional(),
-  typeUpdatedBy: z.string().optional(),
+  createdAt: z.string().check(z.minLength(1)),
+  expiresAt: z.string().check(z.minLength(1)),
+  patientReassignedAt: z.optional(z.string()),
+  patientReassignedBy: z.optional(z.string()),
+  typeUpdatedAt: z.optional(z.string()),
+  typeUpdatedBy: z.optional(z.string()),
 });
 
-const legacyCompatiblePrescriptionRecordSchema = prescriptionRecordSchema.extend({
-  image: prescriptionImageMetaSchema.extend({
+const legacyCompatiblePrescriptionRecordSchema = z.extend(prescriptionRecordSchema, {
+  image: z.extend(prescriptionImageMetaSchema, {
     // Legacy uploads may still point to PNG/WebP assets created before JPEG normalization.
-    contentType: z.string().min(1),
+    contentType: z.string().check(z.minLength(1)),
   }),
-  uploader: prescriptionUploaderRefSchema.extend({
+  uploader: z.extend(prescriptionUploaderRefSchema, {
     // Legacy records persisted before `source` rollout.
-    source: z.enum(['authenticated', 'qr_pin']).optional(),
+    source: z.optional(z.enum(['authenticated', 'qr_pin'])),
   }),
 });
 

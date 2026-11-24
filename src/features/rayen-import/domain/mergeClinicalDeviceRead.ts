@@ -1,6 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import { z } from 'zod';
+import * as z from 'zod/mini';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import type { DeviceInstance } from '@/types/domain/devices';
 
