@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 const require = createRequire(import.meta.url);
 const {
   applicationFrom,
+  evolutionText,
   patientForEncounter,
   templateFrom,
 } = require('../../../functions/lib/checklists/model.js');
@@ -55,6 +56,45 @@ describe('pautas clínicas', () => {
       })
     ).toThrow();
   });
+  it.each([
+    { id: 'hhr-lpp-braden-adulto', min: 6, max: 23, high: 12, moderate: 15 },
+    { id: 'hhr-lpp-braden-q', min: 7, max: 28, high: 16, moderate: 21 },
+  ])(
+    'clasifica todos los totales válidos de $id y exige cada subfactor',
+    ({ id, min, max, high, moderate }) => {
+      const template = templates.find((item: { id: string }) => item.id === id);
+      expect(templateFrom(template).fields).toEqual(template.fields);
+      const fields = template.fields.filter((field: { type: string }) => field.type === 'choice');
+      expect(fields.length).toBe(min);
+      for (let total = min; total <= max; total++) {
+        const answers: Record<string, string> = {
+          fecha: '2026-11-24',
+          hora: '08:15',
+          piel: 'Valoración sintética',
+        };
+        let remaining = total - min;
+        for (const field of fields) {
+          const index = Math.min(remaining, field.options.length - 1);
+          answers[field.id] = field.options[index].label;
+          remaining -= index;
+        }
+        const result = applicationFrom(template, answers);
+        const risk = total <= high ? 'alto' : total <= moderate ? 'moderado' : 'bajo';
+        const reassess = total <= high ? '24 horas' : total <= moderate ? '72 horas' : '7 días';
+        expect(result.score).toEqual({ points: total, maximum: max, risk, reassess });
+        const note = evolutionText({ ...result, template, savedAt: '2026-11-24T15:00:00Z' });
+        expect(note).toContain('Riesgo de LPP según escala: ' + risk);
+        expect(note).toContain('Reevaluar en ' + reassess);
+        for (const field of fields) {
+          expect(note).toContain(answers[field.id]);
+          expect(() => applicationFrom(template, { ...answers, [field.id]: '' })).toThrow(
+            'Completa'
+          );
+        }
+      }
+    }
+  );
+
   it('contrasta documento y episodio de forma independiente, incluidas cunas y pasaportes', () => {
     const person = {
       clinicalEpisodeId: '601',
@@ -131,6 +171,8 @@ describe('pautas clínicas', () => {
     expect(catalog.templates.map((t: { title: string }) => t.title)).toEqual([
       'IAAS · Seguimiento de cirugías trazadoras',
       'IAAS · Supervisión de la indicación de tacto vaginal',
+      'LPP · Braden adulto (desde 15 años)',
+      'LPP · Braden Q pediátrica (desde 30 días hasta antes de los 15 años)',
     ]);
     const code = 'PT-00000000-0000-4000-8000-000000000009';
     const applied = await call(
@@ -157,5 +199,43 @@ describe('pautas clínicas', () => {
       document: '12.345.678-5',
       episode: '66009',
     });
+
+    const adult = catalog.templates.find((t: { id: string }) => t.id === 'hhr-lpp-braden-adulto');
+    await expect(
+      call({ action: 'configure', template: adult, version: 1 }, context)
+    ).rejects.toThrow('Norma Técnica');
+    const choices = [3, 2, 3, 2, 3, 2];
+    const scoredFields = adult.fields.filter((f: { type: string }) => f.type === 'choice');
+    const answers = Object.fromEntries(
+      scoredFields.map((f: { id: string; options: { label: string }[] }, i: number) => [
+        f.id,
+        f.options[choices[i] - 1].label,
+      ])
+    );
+    const application = {
+      action: 'apply',
+      uid: 'u-1',
+      code: 'PT-00000000-0000-4000-8000-000000000010',
+      episode: '66009',
+      document: '12345678-5',
+      templateId: adult.id,
+      version: adult.version,
+      answers: {
+        ...answers,
+        fecha: '2026-11-19',
+        hora: '08:15',
+        piel: 'Piel indemne en caso sintético',
+      },
+    };
+    const receipt = await call(application, context);
+    expect(receipt.record.score).toEqual({
+      points: 15,
+      maximum: 23,
+      risk: 'moderado',
+      reassess: '72 horas',
+    });
+    expect(receipt.record.evolution).toContain('Riesgo de LPP según escala: moderado');
+    expect(await call(application, context)).toEqual(receipt);
+    expect(await call({ action: 'get', code: application.code }, context)).toEqual(receipt);
   });
 });

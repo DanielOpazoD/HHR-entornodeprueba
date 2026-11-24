@@ -14,6 +14,7 @@ export interface ChecklistTemplate {
   title: string;
   version: number;
   fields: ChecklistField[];
+  riskBands?: { highMax: number; moderateMax: number };
 }
 export interface ChecklistRecord {
   code: string;

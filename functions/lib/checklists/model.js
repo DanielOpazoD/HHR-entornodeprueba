@@ -118,7 +118,14 @@ function applicationFrom(template, answers) {
     rows.push({ field: field.id, label: field.label, value });
   }
   if (!rows.length) invalid('Completa al menos un campo.');
-  return { rows, score: scored ? { points, maximum } : null };
+  const score = scored ? { points, maximum } : null;
+  if (template.riskBands && score) {
+    const { highMax, moderateMax } = template.riskBands;
+    const band = points <= highMax ? 'alto' : points <= moderateMax ? 'moderado' : 'bajo';
+    score.risk = band;
+    score.reassess = { alto: '24 horas', moderado: '72 horas', bajo: '7 días' }[band];
+  }
+  return { rows, score };
 }
 
 function patientForEncounter(record, episode, identifier) {
@@ -168,6 +175,12 @@ function evolutionText(record) {
     when + ' · ' + record.authorName,
     ...record.rows.map(row => row.label + ': ' + row.value),
     ...(record.score ? ['Puntaje: ' + record.score.points + ' / ' + record.score.maximum] : []),
+    ...(record.score?.risk
+      ? [
+          'Riesgo de LPP según escala: ' + record.score.risk,
+          'Reevaluar en ' + record.score.reassess + ' o antes si cambia la condición clínica.',
+        ]
+      : []),
     'Código de verificación: ' + record.code,
   ].join('\n');
 }

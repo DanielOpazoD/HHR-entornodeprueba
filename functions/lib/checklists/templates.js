@@ -1,4 +1,4 @@
-// Only blank headings and response choices from the 2026 Hospital Hanga Roa worksheets.
+const { pressureInjuryTemplates } = require('./pressureInjury');
 const yesNo = ['Sí', 'No'];
 const field = (id, label, type, options, required = true) => ({
   id,
@@ -47,5 +47,6 @@ const templates = [
       field('cumple', 'Cumple criterio', 'choice', yesNo),
     ],
   },
+  ...pressureInjuryTemplates,
 ];
 module.exports = { templates };
