@@ -50,10 +50,10 @@ const sample = (form: ClinicalFormDefinition): ClinicalFormValues =>
 describe('original clinical form print contracts', () => {
   it('covers every requested template and uses common variables consistently', () => {
     expect(CLINICAL_FORMS.map(form => form.id).sort()).toEqual([...CLINICAL_FORM_IDS].sort());
-    expect(CLINICAL_FORMS.flatMap(form => form.fields).length).toBe(360);
+    expect(CLINICAL_FORMS.flatMap(form => form.fields).length).toBe(532);
     const common = new Set(CLINICAL_VARIABLE_CATALOG.variables.map(variable => variable.id));
     const prefixes =
-      /^(imagen|contraste|consentimiento|laboratorio|transfusion|vdrl|serologia|tbc|traslado|vmi)_/;
+      /^(imagen|contraste|consentimiento|laboratorio|transfusion|vdrl|serologia|tbc|traslado|vmi|braden)_/;
     for (const form of CLINICAL_FORMS) {
       expect(new Set(form.fields.map(field => field.id)).size).toBe(form.fields.length);
       expect(form.catalogVersion).toBe(CLINICAL_VARIABLE_CATALOG.version);
@@ -326,5 +326,33 @@ describe('original clinical form print contracts', () => {
     expect((page1.match(/<58> Tj/g) ?? []).length).toBe(4);
     expect(printed.getPageCount()).toBe(2);
     expect(streams(printed, 1)).toEqual(streams(source, 1));
+  });
+
+  it('prints Braden NT 234 patient header, evaluation scores and risk checkboxes cleanly', async () => {
+    const form = getClinicalForm('pauta-braden-lpp');
+    const printed = await PDFDocument.load(
+      await createClinicalFormPdf(template(form), form, {
+        paciente_nombre_completo: 'PACIENTE BRADEN PRUEBA',
+        paciente_documento_tipo: 'RUT',
+        paciente_documento_numero: '11.111.111-1',
+        paciente_edad_texto: '68 años',
+        diagnostico_texto: 'Neumonía adquirida en la comunidad',
+        braden_reg_1_fecha: '2026-11-24',
+        braden_reg_1_hora: '08:30',
+        braden_reg_1_ps: '3',
+        braden_reg_1_h: '2',
+        braden_reg_1_a: '3',
+        braden_reg_1_m: '2',
+        braden_reg_1_n: '3',
+        braden_reg_1_f: '2',
+        braden_reg_1_total: '15',
+        braden_reg_1_riesgo: 'M',
+        braden_reg_1_evaluador: 'EU Prueba Sintética',
+      })
+    );
+    const page1 = streams(printed, 0).join('\n');
+    expect(page1).toContain(Buffer.from('PACIENTE BRADEN PRUEBA').toString('hex').toUpperCase());
+    expect((page1.match(/<58> Tj/g) ?? []).length).toBe(1);
+    expect(printed.getPageCount()).toBe(1);
   });
 });

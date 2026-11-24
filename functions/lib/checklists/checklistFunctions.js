@@ -60,6 +60,32 @@ function createChecklistHandler({ firestore, resolveRoleForEmail, now = () => ne
         return { template };
       });
     }
+    if (action === 'history') {
+      if (typeof data?.episode !== 'string' || !/^[1-9]\d{0,15}$/.test(data.episode))
+        fail('invalid-argument', 'El episodio indicado no es válido.');
+      const scaleFilter =
+        typeof data.scaleGroup === 'string' && data.scaleGroup.trim()
+          ? data.scaleGroup.trim()
+          : null;
+      const snap = await records.where('episode', '==', data.episode).get();
+      const found = [];
+      snap.forEach(doc => {
+        const payload = doc.data();
+        const rec = payload?.record;
+        if (!rec) return;
+        if (scaleFilter) {
+          const matchesScale =
+            payload.scaleGroup === scaleFilter ||
+            rec.template?.scaleGroup === scaleFilter ||
+            (scaleFilter === 'braden' &&
+              String(rec.template?.id || '').startsWith('hhr-lpp-braden'));
+          if (!matchesScale) return;
+        }
+        found.push(rec);
+      });
+      found.sort((a, b) => String(a.savedAt || '').localeCompare(String(b.savedAt || '')));
+      return { records: found.slice(-14) };
+    }
     if (!codePattern.test(data?.code || ''))
       fail('invalid-argument', 'El código de verificación no es válido.');
     const code = data.code.toUpperCase();
@@ -144,7 +170,14 @@ function createChecklistHandler({ firestore, resolveRoleForEmail, now = () => ne
         ...applicationFrom(template, data.answers),
       };
       const result = { ...record, evolution: evolutionText(record) };
-      tx.create(ref, { record: result, fingerprint });
+      tx.create(ref, {
+        record: result,
+        fingerprint,
+        episode: data.episode,
+        templateId: data.templateId,
+        scaleGroup: template.scaleGroup || null,
+        savedAt: instant.toISOString(),
+      });
       return { record: result };
     });
   };

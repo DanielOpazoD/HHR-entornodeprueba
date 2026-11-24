@@ -7,6 +7,7 @@ export const CLINICAL_FORM_IDS = [
   'solicitud-tuberculosis',
   'solicitud-vdrl-mha-tp',
   'solicitud-serologia-hepatitis-chagas',
+  'pauta-braden-lpp',
   'planilla-monitorizacion-ventilatoria',
   'informe-traslado-hospital-salvador',
 ] as const;

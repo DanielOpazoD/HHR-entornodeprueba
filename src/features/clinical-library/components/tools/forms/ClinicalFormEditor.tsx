@@ -26,6 +26,7 @@ import {
 } from './useClinicalFormPdf';
 import { useClinicalFormAnnexes } from './useClinicalFormAnnexes';
 import { ClinicalFormAnnexPanel } from './ClinicalFormAnnexPanel';
+import { mapBradenRecordsToClinicalFormValues } from '../../../domain/forms/clinicalFormBradenHistory';
 import { normalizeDicomPatientId } from '@/domain/radiology/dicomTypes';
 import './clinicalForms.css';
 
@@ -66,6 +67,8 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
   }, [draft.dirty, annexes.images.length, onDirtyChange]);
   const [query, setQuery] = useState('');
   const [settings, setSettings] = useState(false);
+  const [loadingBradenEpisode, setLoadingBradenEpisode] = useState<string | null>(null);
+  const bradenHistoryRequest = useRef(0);
   const [overrides, setOverrides] = useState<Record<string, ClinicalFormPreferences>>({});
   const loadedPreferences = useMemo(() => loadClinicalFormPreferences(form), [form]);
   const preferences = overrides[formId] ?? loadedPreferences;
@@ -86,6 +89,48 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
     annexes.images
   );
   const blocked = Boolean(draft.replacement) || draft.sourceMissing || draft.sourceChanged;
+  const bradenEpisodeId =
+    formId === 'pauta-braden-lpp' && draft.source?.context.episodeId
+      ? draft.source.context.episodeId
+      : '';
+  const loadingBradenHistory = Boolean(bradenEpisodeId && loadingBradenEpisode === bradenEpisodeId);
+  useEffect(() => {
+    bradenHistoryRequest.current += 1;
+  }, [bradenEpisodeId]);
+  const loadSavedBradenHistory = async () => {
+    if (!bradenEpisodeId || loadingBradenHistory) return;
+    const seq = ++bradenHistoryRequest.current;
+    setLoadingBradenEpisode(bradenEpisodeId);
+    draft.setNotice('Consultando evaluaciones Braden guardadas en HHR…');
+    try {
+      const { clinicalChecklist } = await import('@/services/clinical-checklists/checklistService');
+      const result = await clinicalChecklist({
+        action: 'history',
+        episode: bradenEpisodeId,
+        scaleGroup: 'braden',
+      });
+      if (bradenHistoryRequest.current !== seq) return;
+      if (!result.records.length) {
+        draft.setNotice('No hay evaluaciones Braden guardadas en HHR para este episodio.');
+        return;
+      }
+      const proposed = mapBradenRecordsToClinicalFormValues(result.records);
+      draft.mergeValues(
+        proposed,
+        `Se cargaron ${result.records.length} ${result.records.length === 1 ? 'evaluación Braden' : 'evaluaciones Braden'} desde HHR en las filas vacías.`
+      );
+    } catch (error) {
+      if (bradenHistoryRequest.current === seq) {
+        draft.setNotice(
+          error instanceof Error
+            ? error.message
+            : 'No se pudieron consultar las evaluaciones Braden guardadas en HHR.'
+        );
+      }
+    } finally {
+      if (bradenHistoryRequest.current === seq) setLoadingBradenEpisode(null);
+    }
+  };
   const changePreferences = (next: ClinicalFormPreferences) => {
     setOverrides(current => ({ ...current, [formId]: next }));
     draft.setNotice(
@@ -312,6 +357,17 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
         )}
         <div className="clinical-form-export">
           <div className="clinical-form-actions">
+            {bradenEpisodeId && (
+              <button
+                type="button"
+                className="clinical-form-button"
+                disabled={pdf.busy || blocked || loadingBradenHistory}
+                onClick={() => void loadSavedBradenHistory()}
+              >
+                <RefreshCw size={15} className={loadingBradenHistory ? 'animate-spin' : ''} />
+                {loadingBradenHistory ? 'Cargando Braden…' : 'Cargar Braden de HHR'}
+              </button>
+            )}
             <button
               type="button"
               className="clinical-form-button"

@@ -30,10 +30,11 @@ export const matchesClinicalFormField = (field: ClinicalFormField, query: string
     );
 
 const Matrix: React.FC<{
+  section: string;
   fields: ClinicalFormField[];
   values: ClinicalFormValues;
   onChange: Props['onChange'];
-}> = ({ fields, values, onChange }) => {
+}> = ({ section, fields, values, onChange }) => {
   const rows = [...new Set(fields.map(field => field.row))];
   const columns = [...new Map(fields.map(field => [field.column, field])).values()];
   const lookup = new Map(fields.map(field => [`${field.row}:${field.column}`, field]));
@@ -42,7 +43,7 @@ const Matrix: React.FC<{
       className="clinical-form-matrix-scroll"
       tabIndex={0}
       role="region"
-      aria-label="Registros ventilatorios: tabla desplazable"
+      aria-label={`${section}: tabla desplazable`}
     >
       <table className="clinical-form-matrix">
         <thead>
@@ -109,7 +110,7 @@ export const ClinicalFormFields: React.FC<Props> = ({ form, values, hidden, quer
           <fieldset key={section} className="clinical-form-section">
             <legend>{section}</legend>
             {items[0]?.row ? (
-              <Matrix fields={items} values={values} onChange={onChange} />
+              <Matrix section={section} fields={items} values={values} onChange={onChange} />
             ) : (
               <div
                 className={`clinical-form-fields${items.filter(field => field.kind === 'check').length >= 2 ? ' clinical-form-fields--checks' : ''}`}

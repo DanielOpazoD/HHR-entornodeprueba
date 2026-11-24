@@ -6,6 +6,7 @@ import transfusion from './solicitud-transfusion-hemocomponentes.json';
 import vdrl from './solicitud-vdrl-mha-tp.json';
 import serology from './solicitud-serologia-hepatitis-chagas.json';
 import tuberculosis from './solicitud-tuberculosis.json';
+import braden from './pauta-braden-lpp.json';
 import transfer from './informe-traslado-hospital-salvador.json';
 import ventilation from './planilla-monitorizacion-ventilatoria.json';
 import variables from './clinicalVariables.json';
@@ -21,6 +22,7 @@ export const CLINICAL_FORMS: ReadonlyArray<ClinicalFormDefinition> = [
   tuberculosis,
   vdrl,
   serology,
+  braden,
   ventilation,
   transfer,
 ] as ClinicalFormDefinition[];

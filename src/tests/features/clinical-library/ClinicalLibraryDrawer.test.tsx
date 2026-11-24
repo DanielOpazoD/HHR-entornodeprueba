@@ -47,6 +47,15 @@ describe('ClinicalLibraryDrawer', () => {
       screen.getByTestId('library-document-solicitud-transfusion-hemocomponentes')
     ).toBeInTheDocument();
 
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'braden' } });
+    const bradenCard = within(screen.getByTestId('library-document-pauta-braden-lpp'));
+    expect(bradenCard.getByRole('button', { name: /^Completar/ })).toBeInTheDocument();
+    expect(bradenCard.getByRole('link', { name: /^Descargar/ })).toHaveAttribute(
+      'href',
+      '/docs/biblioteca/pauta-braden-adulto-pediatrico-nt234.pdf'
+    );
+    expect(bradenCard.getByRole('button', { name: /^Imprimir/ })).toBeInTheDocument();
+
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'zzz' } });
     expect(screen.getByText('Sin resultados para «zzz»')).toBeInTheDocument();
 

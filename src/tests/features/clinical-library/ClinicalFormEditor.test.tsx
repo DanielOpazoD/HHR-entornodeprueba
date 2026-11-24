@@ -10,6 +10,10 @@ import type {
 } from '@/features/clinical-library/domain/forms/clinicalFormTypes';
 
 vi.mock('@/utils/downloadBlob', () => ({ downloadBlob: vi.fn() }));
+const checklistApi = vi.hoisted(() => vi.fn());
+vi.mock('@/services/clinical-checklists/checklistService', () => ({
+  clinicalChecklist: checklistApi,
+}));
 
 const source = (name: string, key = name): ClinicalFormPatientOption => ({
   key,
@@ -333,5 +337,57 @@ describe('clinical forms editor', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Reemplazar datos' }));
     expect(screen.getByLabelText('Servicio de procedencia')).toHaveValue('hospitalizado');
+  });
+
+  it('loads saved Braden assessments from HHR into empty PDF rows while preserving manual edits', async () => {
+    checklistApi.mockReset();
+    checklistApi.mockResolvedValueOnce({
+      records: [
+        {
+          code: 'PT-00000000-0000-4000-8000-000000000099',
+          savedAt: '2026-11-24T15:30:00Z',
+          authorName: 'EU Prueba',
+          patient: { name: 'ALFA', document: '11.111.111-1', episode: '66099' },
+          template: {
+            id: 'hhr-lpp-braden-adulto',
+            title: 'LPP · Braden adulto (≥15 años)',
+            version: 2,
+            scaleGroup: 'braden',
+            fields: [],
+          },
+          rows: [
+            { field: 'fecha', label: 'Fecha', value: '2026-11-24' },
+            { field: 'hora', label: 'Hora', value: '10:30' },
+          ],
+          score: {
+            points: 15,
+            maximum: 23,
+            risk: 'moderado',
+            reassess: 'Cada 72 h',
+            subscores: { PS: 3, H: 2, A: 3, M: 2, N: 3, F: 2 },
+          },
+          evolution: 'Valoración sintética',
+        },
+      ],
+    });
+    const patient = source('ALFA', '66099');
+    mount('pauta-braden-lpp', [patient]);
+
+    fireEvent.change(screen.getByLabelText('Origen de los datos'), { target: { value: '66099' } });
+    fireEvent.change(screen.getByLabelText('Registro 1 · PS'), { target: { value: '4' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cargar Braden de HHR' }));
+
+    await waitFor(() =>
+      expect(checklistApi).toHaveBeenCalledWith({
+        action: 'history',
+        episode: '66099',
+        scaleGroup: 'braden',
+      })
+    );
+    await waitFor(() => expect(screen.getByLabelText('Registro 1 · Total')).toHaveValue('15'));
+    expect(screen.getByLabelText('Registro 1 · PS')).toHaveValue('4');
+    expect(screen.getByLabelText('Registro 1 · H')).toHaveValue('2');
+    expect(screen.getByLabelText('Registro 1 · Riesgo')).toHaveValue('M');
+    expect(screen.getByLabelText('Registro 1 · Evaluador')).toHaveValue('EU Prueba');
   });
 });

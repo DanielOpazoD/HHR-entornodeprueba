@@ -1,0 +1,3119 @@
+{
+  "id": "pauta-braden-lpp",
+  "title": "Valoración de riesgo LPP · Braden adulto / Braden Q",
+  "revision": 1,
+  "catalogVersion": "1.1.0",
+  "templateUrl": "/docs/biblioteca/pauta-braden-adulto-pediatrico-nt234.pdf",
+  "sourceUrl": "/docs/biblioteca/pauta-braden-adulto-pediatrico-nt234.pdf",
+  "pages": [
+    {
+      "width": 595.2756,
+      "height": 841.8898
+    }
+  ],
+  "fields": [
+    {
+      "id": "paciente_nombre_completo",
+      "label": "Nombre y apellidos",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [60, 67, 274, 15]
+        }
+      ]
+    },
+    {
+      "id": "paciente_documento_numero",
+      "label": "RUT o pasaporte",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [373, 67, 114, 15]
+        }
+      ]
+    },
+    {
+      "id": "paciente_edad_texto",
+      "label": "Edad",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [528, 67, 41, 15],
+          "fontSize": 6.5
+        }
+      ]
+    },
+    {
+      "id": "diagnostico_texto",
+      "label": "Diagnóstico",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [75, 82, 493, 15]
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_1_fecha",
+      "label": "Fecha",
+      "section": "Registro de evaluaciones",
+      "kind": "date",
+      "row": 1,
+      "column": "fecha",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [26.5, 416.2, 55.15, 14],
+          "format": "date_dmy",
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_1_hora",
+      "label": "Hora",
+      "section": "Registro de evaluaciones",
+      "kind": "time",
+      "row": 1,
+      "column": "hora",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [83.65, 416.2, 30.66, 14],
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_1_ps",
+      "label": "PS",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 1,
+      "column": "ps",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [116.31, 416.2, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_1_h",
+      "label": "H",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 1,
+      "column": "h",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [141.34, 416.2, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_1_a",
+      "label": "A",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 1,
+      "column": "a",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [166.38, 416.2, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_1_m",
+      "label": "M",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 1,
+      "column": "m",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [191.42, 416.2, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_1_n",
+      "label": "N",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 1,
+      "column": "n",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [216.45, 416.2, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_1_f",
+      "label": "F",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 1,
+      "column": "f",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [241.49, 416.2, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_1_po",
+      "label": "PO",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 1,
+      "column": "po",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [266.53, 416.2, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_1_total",
+      "label": "Total",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 1,
+      "column": "total",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [291.56, 416.2, 37.19, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_1_riesgo",
+      "label": "Riesgo",
+      "section": "Registro de evaluaciones",
+      "kind": "choice",
+      "row": 1,
+      "column": "riesgo",
+      "options": [
+        {
+          "value": "A",
+          "label": "Alto (A)"
+        },
+        {
+          "value": "M",
+          "label": "Moderado (M)"
+        },
+        {
+          "value": "B",
+          "label": "Bajo (B)"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [333.77, 417.7, 11, 11],
+          "equals": "A",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [352.82, 417.7, 11, 11],
+          "equals": "M",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [371.87, 417.7, 11, 11],
+          "equals": "B",
+          "fontSize": 8
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_1_evaluador",
+      "label": "Evaluador",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 1,
+      "column": "evaluador",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [388.9, 416.2, 178.88, 14],
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_2_fecha",
+      "label": "Fecha",
+      "section": "Registro de evaluaciones",
+      "kind": "date",
+      "row": 2,
+      "column": "fecha",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [26.5, 434.6, 55.15, 14],
+          "format": "date_dmy",
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_2_hora",
+      "label": "Hora",
+      "section": "Registro de evaluaciones",
+      "kind": "time",
+      "row": 2,
+      "column": "hora",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [83.65, 434.6, 30.66, 14],
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_2_ps",
+      "label": "PS",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 2,
+      "column": "ps",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [116.31, 434.6, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_2_h",
+      "label": "H",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 2,
+      "column": "h",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [141.34, 434.6, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_2_a",
+      "label": "A",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 2,
+      "column": "a",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [166.38, 434.6, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_2_m",
+      "label": "M",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 2,
+      "column": "m",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [191.42, 434.6, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_2_n",
+      "label": "N",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 2,
+      "column": "n",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [216.45, 434.6, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_2_f",
+      "label": "F",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 2,
+      "column": "f",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [241.49, 434.6, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_2_po",
+      "label": "PO",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 2,
+      "column": "po",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [266.53, 434.6, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_2_total",
+      "label": "Total",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 2,
+      "column": "total",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [291.56, 434.6, 37.19, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_2_riesgo",
+      "label": "Riesgo",
+      "section": "Registro de evaluaciones",
+      "kind": "choice",
+      "row": 2,
+      "column": "riesgo",
+      "options": [
+        {
+          "value": "A",
+          "label": "Alto (A)"
+        },
+        {
+          "value": "M",
+          "label": "Moderado (M)"
+        },
+        {
+          "value": "B",
+          "label": "Bajo (B)"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [333.77, 436.1, 11, 11],
+          "equals": "A",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [352.82, 436.1, 11, 11],
+          "equals": "M",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [371.87, 436.1, 11, 11],
+          "equals": "B",
+          "fontSize": 8
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_2_evaluador",
+      "label": "Evaluador",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 2,
+      "column": "evaluador",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [388.9, 434.6, 178.88, 14],
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_3_fecha",
+      "label": "Fecha",
+      "section": "Registro de evaluaciones",
+      "kind": "date",
+      "row": 3,
+      "column": "fecha",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [26.5, 453, 55.15, 14],
+          "format": "date_dmy",
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_3_hora",
+      "label": "Hora",
+      "section": "Registro de evaluaciones",
+      "kind": "time",
+      "row": 3,
+      "column": "hora",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [83.65, 453, 30.66, 14],
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_3_ps",
+      "label": "PS",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 3,
+      "column": "ps",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [116.31, 453, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_3_h",
+      "label": "H",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 3,
+      "column": "h",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [141.34, 453, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_3_a",
+      "label": "A",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 3,
+      "column": "a",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [166.38, 453, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_3_m",
+      "label": "M",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 3,
+      "column": "m",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [191.42, 453, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_3_n",
+      "label": "N",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 3,
+      "column": "n",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [216.45, 453, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_3_f",
+      "label": "F",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 3,
+      "column": "f",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [241.49, 453, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_3_po",
+      "label": "PO",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 3,
+      "column": "po",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [266.53, 453, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_3_total",
+      "label": "Total",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 3,
+      "column": "total",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [291.56, 453, 37.19, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_3_riesgo",
+      "label": "Riesgo",
+      "section": "Registro de evaluaciones",
+      "kind": "choice",
+      "row": 3,
+      "column": "riesgo",
+      "options": [
+        {
+          "value": "A",
+          "label": "Alto (A)"
+        },
+        {
+          "value": "M",
+          "label": "Moderado (M)"
+        },
+        {
+          "value": "B",
+          "label": "Bajo (B)"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [333.77, 454.5, 11, 11],
+          "equals": "A",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [352.82, 454.5, 11, 11],
+          "equals": "M",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [371.87, 454.5, 11, 11],
+          "equals": "B",
+          "fontSize": 8
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_3_evaluador",
+      "label": "Evaluador",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 3,
+      "column": "evaluador",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [388.9, 453, 178.88, 14],
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_4_fecha",
+      "label": "Fecha",
+      "section": "Registro de evaluaciones",
+      "kind": "date",
+      "row": 4,
+      "column": "fecha",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [26.5, 471.4, 55.15, 14],
+          "format": "date_dmy",
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_4_hora",
+      "label": "Hora",
+      "section": "Registro de evaluaciones",
+      "kind": "time",
+      "row": 4,
+      "column": "hora",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [83.65, 471.4, 30.66, 14],
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_4_ps",
+      "label": "PS",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 4,
+      "column": "ps",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [116.31, 471.4, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_4_h",
+      "label": "H",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 4,
+      "column": "h",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [141.34, 471.4, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_4_a",
+      "label": "A",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 4,
+      "column": "a",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [166.38, 471.4, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_4_m",
+      "label": "M",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 4,
+      "column": "m",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [191.42, 471.4, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_4_n",
+      "label": "N",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 4,
+      "column": "n",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [216.45, 471.4, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_4_f",
+      "label": "F",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 4,
+      "column": "f",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [241.49, 471.4, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_4_po",
+      "label": "PO",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 4,
+      "column": "po",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [266.53, 471.4, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_4_total",
+      "label": "Total",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 4,
+      "column": "total",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [291.56, 471.4, 37.19, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_4_riesgo",
+      "label": "Riesgo",
+      "section": "Registro de evaluaciones",
+      "kind": "choice",
+      "row": 4,
+      "column": "riesgo",
+      "options": [
+        {
+          "value": "A",
+          "label": "Alto (A)"
+        },
+        {
+          "value": "M",
+          "label": "Moderado (M)"
+        },
+        {
+          "value": "B",
+          "label": "Bajo (B)"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [333.77, 472.9, 11, 11],
+          "equals": "A",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [352.82, 472.9, 11, 11],
+          "equals": "M",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [371.87, 472.9, 11, 11],
+          "equals": "B",
+          "fontSize": 8
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_4_evaluador",
+      "label": "Evaluador",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 4,
+      "column": "evaluador",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [388.9, 471.4, 178.88, 14],
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_5_fecha",
+      "label": "Fecha",
+      "section": "Registro de evaluaciones",
+      "kind": "date",
+      "row": 5,
+      "column": "fecha",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [26.5, 489.8, 55.15, 14],
+          "format": "date_dmy",
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_5_hora",
+      "label": "Hora",
+      "section": "Registro de evaluaciones",
+      "kind": "time",
+      "row": 5,
+      "column": "hora",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [83.65, 489.8, 30.66, 14],
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_5_ps",
+      "label": "PS",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 5,
+      "column": "ps",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [116.31, 489.8, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_5_h",
+      "label": "H",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 5,
+      "column": "h",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [141.34, 489.8, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_5_a",
+      "label": "A",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 5,
+      "column": "a",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [166.38, 489.8, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_5_m",
+      "label": "M",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 5,
+      "column": "m",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [191.42, 489.8, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_5_n",
+      "label": "N",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 5,
+      "column": "n",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [216.45, 489.8, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_5_f",
+      "label": "F",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 5,
+      "column": "f",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [241.49, 489.8, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_5_po",
+      "label": "PO",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 5,
+      "column": "po",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [266.53, 489.8, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_5_total",
+      "label": "Total",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 5,
+      "column": "total",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [291.56, 489.8, 37.19, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_5_riesgo",
+      "label": "Riesgo",
+      "section": "Registro de evaluaciones",
+      "kind": "choice",
+      "row": 5,
+      "column": "riesgo",
+      "options": [
+        {
+          "value": "A",
+          "label": "Alto (A)"
+        },
+        {
+          "value": "M",
+          "label": "Moderado (M)"
+        },
+        {
+          "value": "B",
+          "label": "Bajo (B)"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [333.77, 491.3, 11, 11],
+          "equals": "A",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [352.82, 491.3, 11, 11],
+          "equals": "M",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [371.87, 491.3, 11, 11],
+          "equals": "B",
+          "fontSize": 8
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_5_evaluador",
+      "label": "Evaluador",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 5,
+      "column": "evaluador",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [388.9, 489.8, 178.88, 14],
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_6_fecha",
+      "label": "Fecha",
+      "section": "Registro de evaluaciones",
+      "kind": "date",
+      "row": 6,
+      "column": "fecha",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [26.5, 508.2, 55.15, 14],
+          "format": "date_dmy",
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_6_hora",
+      "label": "Hora",
+      "section": "Registro de evaluaciones",
+      "kind": "time",
+      "row": 6,
+      "column": "hora",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [83.65, 508.2, 30.66, 14],
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_6_ps",
+      "label": "PS",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 6,
+      "column": "ps",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [116.31, 508.2, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_6_h",
+      "label": "H",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 6,
+      "column": "h",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [141.34, 508.2, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_6_a",
+      "label": "A",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 6,
+      "column": "a",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [166.38, 508.2, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_6_m",
+      "label": "M",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 6,
+      "column": "m",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [191.42, 508.2, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_6_n",
+      "label": "N",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 6,
+      "column": "n",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [216.45, 508.2, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_6_f",
+      "label": "F",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 6,
+      "column": "f",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [241.49, 508.2, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_6_po",
+      "label": "PO",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 6,
+      "column": "po",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [266.53, 508.2, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_6_total",
+      "label": "Total",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 6,
+      "column": "total",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [291.56, 508.2, 37.19, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_6_riesgo",
+      "label": "Riesgo",
+      "section": "Registro de evaluaciones",
+      "kind": "choice",
+      "row": 6,
+      "column": "riesgo",
+      "options": [
+        {
+          "value": "A",
+          "label": "Alto (A)"
+        },
+        {
+          "value": "M",
+          "label": "Moderado (M)"
+        },
+        {
+          "value": "B",
+          "label": "Bajo (B)"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [333.77, 509.7, 11, 11],
+          "equals": "A",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [352.82, 509.7, 11, 11],
+          "equals": "M",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [371.87, 509.7, 11, 11],
+          "equals": "B",
+          "fontSize": 8
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_6_evaluador",
+      "label": "Evaluador",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 6,
+      "column": "evaluador",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [388.9, 508.2, 178.88, 14],
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_7_fecha",
+      "label": "Fecha",
+      "section": "Registro de evaluaciones",
+      "kind": "date",
+      "row": 7,
+      "column": "fecha",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [26.5, 526.6, 55.15, 14],
+          "format": "date_dmy",
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_7_hora",
+      "label": "Hora",
+      "section": "Registro de evaluaciones",
+      "kind": "time",
+      "row": 7,
+      "column": "hora",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [83.65, 526.6, 30.66, 14],
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_7_ps",
+      "label": "PS",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 7,
+      "column": "ps",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [116.31, 526.6, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_7_h",
+      "label": "H",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 7,
+      "column": "h",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [141.34, 526.6, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_7_a",
+      "label": "A",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 7,
+      "column": "a",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [166.38, 526.6, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_7_m",
+      "label": "M",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 7,
+      "column": "m",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [191.42, 526.6, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_7_n",
+      "label": "N",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 7,
+      "column": "n",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [216.45, 526.6, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_7_f",
+      "label": "F",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 7,
+      "column": "f",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [241.49, 526.6, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_7_po",
+      "label": "PO",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 7,
+      "column": "po",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [266.53, 526.6, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_7_total",
+      "label": "Total",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 7,
+      "column": "total",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [291.56, 526.6, 37.19, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_7_riesgo",
+      "label": "Riesgo",
+      "section": "Registro de evaluaciones",
+      "kind": "choice",
+      "row": 7,
+      "column": "riesgo",
+      "options": [
+        {
+          "value": "A",
+          "label": "Alto (A)"
+        },
+        {
+          "value": "M",
+          "label": "Moderado (M)"
+        },
+        {
+          "value": "B",
+          "label": "Bajo (B)"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [333.77, 528.1, 11, 11],
+          "equals": "A",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [352.82, 528.1, 11, 11],
+          "equals": "M",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [371.87, 528.1, 11, 11],
+          "equals": "B",
+          "fontSize": 8
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_7_evaluador",
+      "label": "Evaluador",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 7,
+      "column": "evaluador",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [388.9, 526.6, 178.88, 14],
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_8_fecha",
+      "label": "Fecha",
+      "section": "Registro de evaluaciones",
+      "kind": "date",
+      "row": 8,
+      "column": "fecha",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [26.5, 545, 55.15, 14],
+          "format": "date_dmy",
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_8_hora",
+      "label": "Hora",
+      "section": "Registro de evaluaciones",
+      "kind": "time",
+      "row": 8,
+      "column": "hora",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [83.65, 545, 30.66, 14],
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_8_ps",
+      "label": "PS",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 8,
+      "column": "ps",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [116.31, 545, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_8_h",
+      "label": "H",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 8,
+      "column": "h",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [141.34, 545, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_8_a",
+      "label": "A",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 8,
+      "column": "a",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [166.38, 545, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_8_m",
+      "label": "M",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 8,
+      "column": "m",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [191.42, 545, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_8_n",
+      "label": "N",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 8,
+      "column": "n",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [216.45, 545, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_8_f",
+      "label": "F",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 8,
+      "column": "f",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [241.49, 545, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_8_po",
+      "label": "PO",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 8,
+      "column": "po",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [266.53, 545, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_8_total",
+      "label": "Total",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 8,
+      "column": "total",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [291.56, 545, 37.19, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_8_riesgo",
+      "label": "Riesgo",
+      "section": "Registro de evaluaciones",
+      "kind": "choice",
+      "row": 8,
+      "column": "riesgo",
+      "options": [
+        {
+          "value": "A",
+          "label": "Alto (A)"
+        },
+        {
+          "value": "M",
+          "label": "Moderado (M)"
+        },
+        {
+          "value": "B",
+          "label": "Bajo (B)"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [333.77, 546.5, 11, 11],
+          "equals": "A",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [352.82, 546.5, 11, 11],
+          "equals": "M",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [371.87, 546.5, 11, 11],
+          "equals": "B",
+          "fontSize": 8
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_8_evaluador",
+      "label": "Evaluador",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 8,
+      "column": "evaluador",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [388.9, 545, 178.88, 14],
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_9_fecha",
+      "label": "Fecha",
+      "section": "Registro de evaluaciones",
+      "kind": "date",
+      "row": 9,
+      "column": "fecha",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [26.5, 563.4, 55.15, 14],
+          "format": "date_dmy",
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_9_hora",
+      "label": "Hora",
+      "section": "Registro de evaluaciones",
+      "kind": "time",
+      "row": 9,
+      "column": "hora",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [83.65, 563.4, 30.66, 14],
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_9_ps",
+      "label": "PS",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 9,
+      "column": "ps",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [116.31, 563.4, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_9_h",
+      "label": "H",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 9,
+      "column": "h",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [141.34, 563.4, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_9_a",
+      "label": "A",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 9,
+      "column": "a",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [166.38, 563.4, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_9_m",
+      "label": "M",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 9,
+      "column": "m",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [191.42, 563.4, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_9_n",
+      "label": "N",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 9,
+      "column": "n",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [216.45, 563.4, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_9_f",
+      "label": "F",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 9,
+      "column": "f",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [241.49, 563.4, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_9_po",
+      "label": "PO",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 9,
+      "column": "po",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [266.53, 563.4, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_9_total",
+      "label": "Total",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 9,
+      "column": "total",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [291.56, 563.4, 37.19, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_9_riesgo",
+      "label": "Riesgo",
+      "section": "Registro de evaluaciones",
+      "kind": "choice",
+      "row": 9,
+      "column": "riesgo",
+      "options": [
+        {
+          "value": "A",
+          "label": "Alto (A)"
+        },
+        {
+          "value": "M",
+          "label": "Moderado (M)"
+        },
+        {
+          "value": "B",
+          "label": "Bajo (B)"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [333.77, 564.9, 11, 11],
+          "equals": "A",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [352.82, 564.9, 11, 11],
+          "equals": "M",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [371.87, 564.9, 11, 11],
+          "equals": "B",
+          "fontSize": 8
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_9_evaluador",
+      "label": "Evaluador",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 9,
+      "column": "evaluador",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [388.9, 563.4, 178.88, 14],
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_10_fecha",
+      "label": "Fecha",
+      "section": "Registro de evaluaciones",
+      "kind": "date",
+      "row": 10,
+      "column": "fecha",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [26.5, 581.8, 55.15, 14],
+          "format": "date_dmy",
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_10_hora",
+      "label": "Hora",
+      "section": "Registro de evaluaciones",
+      "kind": "time",
+      "row": 10,
+      "column": "hora",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [83.65, 581.8, 30.66, 14],
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_10_ps",
+      "label": "PS",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 10,
+      "column": "ps",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [116.31, 581.8, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_10_h",
+      "label": "H",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 10,
+      "column": "h",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [141.34, 581.8, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_10_a",
+      "label": "A",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 10,
+      "column": "a",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [166.38, 581.8, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_10_m",
+      "label": "M",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 10,
+      "column": "m",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [191.42, 581.8, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_10_n",
+      "label": "N",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 10,
+      "column": "n",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [216.45, 581.8, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_10_f",
+      "label": "F",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 10,
+      "column": "f",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [241.49, 581.8, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_10_po",
+      "label": "PO",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 10,
+      "column": "po",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [266.53, 581.8, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_10_total",
+      "label": "Total",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 10,
+      "column": "total",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [291.56, 581.8, 37.19, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_10_riesgo",
+      "label": "Riesgo",
+      "section": "Registro de evaluaciones",
+      "kind": "choice",
+      "row": 10,
+      "column": "riesgo",
+      "options": [
+        {
+          "value": "A",
+          "label": "Alto (A)"
+        },
+        {
+          "value": "M",
+          "label": "Moderado (M)"
+        },
+        {
+          "value": "B",
+          "label": "Bajo (B)"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [333.77, 583.3, 11, 11],
+          "equals": "A",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [352.82, 583.3, 11, 11],
+          "equals": "M",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [371.87, 583.3, 11, 11],
+          "equals": "B",
+          "fontSize": 8
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_10_evaluador",
+      "label": "Evaluador",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 10,
+      "column": "evaluador",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [388.9, 581.8, 178.88, 14],
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_11_fecha",
+      "label": "Fecha",
+      "section": "Registro de evaluaciones",
+      "kind": "date",
+      "row": 11,
+      "column": "fecha",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [26.5, 600.2, 55.15, 14],
+          "format": "date_dmy",
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_11_hora",
+      "label": "Hora",
+      "section": "Registro de evaluaciones",
+      "kind": "time",
+      "row": 11,
+      "column": "hora",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [83.65, 600.2, 30.66, 14],
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_11_ps",
+      "label": "PS",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 11,
+      "column": "ps",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [116.31, 600.2, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_11_h",
+      "label": "H",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 11,
+      "column": "h",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [141.34, 600.2, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_11_a",
+      "label": "A",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 11,
+      "column": "a",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [166.38, 600.2, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_11_m",
+      "label": "M",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 11,
+      "column": "m",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [191.42, 600.2, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_11_n",
+      "label": "N",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 11,
+      "column": "n",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [216.45, 600.2, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_11_f",
+      "label": "F",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 11,
+      "column": "f",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [241.49, 600.2, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_11_po",
+      "label": "PO",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 11,
+      "column": "po",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [266.53, 600.2, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_11_total",
+      "label": "Total",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 11,
+      "column": "total",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [291.56, 600.2, 37.19, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_11_riesgo",
+      "label": "Riesgo",
+      "section": "Registro de evaluaciones",
+      "kind": "choice",
+      "row": 11,
+      "column": "riesgo",
+      "options": [
+        {
+          "value": "A",
+          "label": "Alto (A)"
+        },
+        {
+          "value": "M",
+          "label": "Moderado (M)"
+        },
+        {
+          "value": "B",
+          "label": "Bajo (B)"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [333.77, 601.7, 11, 11],
+          "equals": "A",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [352.82, 601.7, 11, 11],
+          "equals": "M",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [371.87, 601.7, 11, 11],
+          "equals": "B",
+          "fontSize": 8
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_11_evaluador",
+      "label": "Evaluador",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 11,
+      "column": "evaluador",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [388.9, 600.2, 178.88, 14],
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_12_fecha",
+      "label": "Fecha",
+      "section": "Registro de evaluaciones",
+      "kind": "date",
+      "row": 12,
+      "column": "fecha",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [26.5, 618.6, 55.15, 14],
+          "format": "date_dmy",
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_12_hora",
+      "label": "Hora",
+      "section": "Registro de evaluaciones",
+      "kind": "time",
+      "row": 12,
+      "column": "hora",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [83.65, 618.6, 30.66, 14],
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_12_ps",
+      "label": "PS",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 12,
+      "column": "ps",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [116.31, 618.6, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_12_h",
+      "label": "H",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 12,
+      "column": "h",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [141.34, 618.6, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_12_a",
+      "label": "A",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 12,
+      "column": "a",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [166.38, 618.6, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_12_m",
+      "label": "M",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 12,
+      "column": "m",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [191.42, 618.6, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_12_n",
+      "label": "N",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 12,
+      "column": "n",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [216.45, 618.6, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_12_f",
+      "label": "F",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 12,
+      "column": "f",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [241.49, 618.6, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_12_po",
+      "label": "PO",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 12,
+      "column": "po",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [266.53, 618.6, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_12_total",
+      "label": "Total",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 12,
+      "column": "total",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [291.56, 618.6, 37.19, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_12_riesgo",
+      "label": "Riesgo",
+      "section": "Registro de evaluaciones",
+      "kind": "choice",
+      "row": 12,
+      "column": "riesgo",
+      "options": [
+        {
+          "value": "A",
+          "label": "Alto (A)"
+        },
+        {
+          "value": "M",
+          "label": "Moderado (M)"
+        },
+        {
+          "value": "B",
+          "label": "Bajo (B)"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [333.77, 620.1, 11, 11],
+          "equals": "A",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [352.82, 620.1, 11, 11],
+          "equals": "M",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [371.87, 620.1, 11, 11],
+          "equals": "B",
+          "fontSize": 8
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_12_evaluador",
+      "label": "Evaluador",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 12,
+      "column": "evaluador",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [388.9, 618.6, 178.88, 14],
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_13_fecha",
+      "label": "Fecha",
+      "section": "Registro de evaluaciones",
+      "kind": "date",
+      "row": 13,
+      "column": "fecha",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [26.5, 637, 55.15, 14],
+          "format": "date_dmy",
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_13_hora",
+      "label": "Hora",
+      "section": "Registro de evaluaciones",
+      "kind": "time",
+      "row": 13,
+      "column": "hora",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [83.65, 637, 30.66, 14],
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_13_ps",
+      "label": "PS",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 13,
+      "column": "ps",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [116.31, 637, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_13_h",
+      "label": "H",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 13,
+      "column": "h",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [141.34, 637, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_13_a",
+      "label": "A",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 13,
+      "column": "a",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [166.38, 637, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_13_m",
+      "label": "M",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 13,
+      "column": "m",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [191.42, 637, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_13_n",
+      "label": "N",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 13,
+      "column": "n",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [216.45, 637, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_13_f",
+      "label": "F",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 13,
+      "column": "f",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [241.49, 637, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_13_po",
+      "label": "PO",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 13,
+      "column": "po",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [266.53, 637, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_13_total",
+      "label": "Total",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 13,
+      "column": "total",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [291.56, 637, 37.19, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_13_riesgo",
+      "label": "Riesgo",
+      "section": "Registro de evaluaciones",
+      "kind": "choice",
+      "row": 13,
+      "column": "riesgo",
+      "options": [
+        {
+          "value": "A",
+          "label": "Alto (A)"
+        },
+        {
+          "value": "M",
+          "label": "Moderado (M)"
+        },
+        {
+          "value": "B",
+          "label": "Bajo (B)"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [333.77, 638.5, 11, 11],
+          "equals": "A",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [352.82, 638.5, 11, 11],
+          "equals": "M",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [371.87, 638.5, 11, 11],
+          "equals": "B",
+          "fontSize": 8
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_13_evaluador",
+      "label": "Evaluador",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 13,
+      "column": "evaluador",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [388.9, 637, 178.88, 14],
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_14_fecha",
+      "label": "Fecha",
+      "section": "Registro de evaluaciones",
+      "kind": "date",
+      "row": 14,
+      "column": "fecha",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [26.5, 655.4, 55.15, 14],
+          "format": "date_dmy",
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_14_hora",
+      "label": "Hora",
+      "section": "Registro de evaluaciones",
+      "kind": "time",
+      "row": 14,
+      "column": "hora",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [83.65, 655.4, 30.66, 14],
+          "align": "center",
+          "fontSize": 5.5
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_14_ps",
+      "label": "PS",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 14,
+      "column": "ps",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [116.31, 655.4, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_14_h",
+      "label": "H",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 14,
+      "column": "h",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [141.34, 655.4, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_14_a",
+      "label": "A",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 14,
+      "column": "a",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [166.38, 655.4, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_14_m",
+      "label": "M",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 14,
+      "column": "m",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [191.42, 655.4, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_14_n",
+      "label": "N",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 14,
+      "column": "n",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [216.45, 655.4, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_14_f",
+      "label": "F",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 14,
+      "column": "f",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [241.49, 655.4, 23.04, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_14_po",
+      "label": "PO",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 14,
+      "column": "po",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [266.53, 655.4, 23.03, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_14_total",
+      "label": "Total",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 14,
+      "column": "total",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [291.56, 655.4, 37.19, 14],
+          "align": "center",
+          "fontSize": 6
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_14_riesgo",
+      "label": "Riesgo",
+      "section": "Registro de evaluaciones",
+      "kind": "choice",
+      "row": 14,
+      "column": "riesgo",
+      "options": [
+        {
+          "value": "A",
+          "label": "Alto (A)"
+        },
+        {
+          "value": "M",
+          "label": "Moderado (M)"
+        },
+        {
+          "value": "B",
+          "label": "Bajo (B)"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [333.77, 656.9, 11, 11],
+          "equals": "A",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [352.82, 656.9, 11, 11],
+          "equals": "M",
+          "fontSize": 8
+        },
+        {
+          "page": 0,
+          "rect": [371.87, 656.9, 11, 11],
+          "equals": "B",
+          "fontSize": 8
+        }
+      ]
+    },
+    {
+      "id": "braden_reg_14_evaluador",
+      "label": "Evaluador",
+      "section": "Registro de evaluaciones",
+      "kind": "text",
+      "row": 14,
+      "column": "evaluador",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [388.9, 655.4, 178.88, 14],
+          "fontSize": 5.5
+        }
+      ]
+    }
+  ],
+  "templateSha256": "759b83e024d6e2349ae7037bc0e6caa13ed5502d43133c386d163c8617cfee03",
+  "sourceSha256": "759b83e024d6e2349ae7037bc0e6caa13ed5502d43133c386d163c8617cfee03"
+}

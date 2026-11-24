@@ -70,7 +70,6 @@ describe('pautas clínicas', () => {
         const answers: Record<string, string> = {
           fecha: '2026-11-24',
           hora: '08:15',
-          piel: 'Valoración sintética',
         };
         let remaining = total - min;
         for (const field of fields) {
@@ -80,11 +79,16 @@ describe('pautas clínicas', () => {
         }
         const result = applicationFrom(template, answers);
         const risk = total <= high ? 'alto' : total <= moderate ? 'moderado' : 'bajo';
-        const reassess = total <= high ? '24 horas' : total <= moderate ? '72 horas' : '7 días';
-        expect(result.score).toEqual({ points: total, maximum: max, risk, reassess });
+        const reassess =
+          total <= high ? 'Cada 24 h' : total <= moderate ? 'Cada 72 h' : 'Cada 7 días';
+        expect(result.score).toMatchObject({ points: total, maximum: max, risk, reassess });
+        expect(result.score.carePlan).toEqual(template.carePlans[risk]);
+        expect(Object.keys(result.score.subscores).length).toBe(min);
         const note = evolutionText({ ...result, template, savedAt: '2026-11-24T15:00:00Z' });
-        expect(note).toContain('Riesgo de LPP según escala: ' + risk);
-        expect(note).toContain('Reevaluar en ' + reassess);
+        expect(note).toContain('Riesgo de LPP según escala:');
+        expect(note).toContain('(' + risk + ')');
+        expect(note).toContain('Reevaluar: ' + reassess);
+        expect(note).toContain('Cuidados planeados según riesgo:');
         for (const field of fields) {
           expect(note).toContain(answers[field.id]);
           expect(() => applicationFrom(template, { ...answers, [field.id]: '' })).toThrow(
@@ -141,6 +145,16 @@ describe('pautas clínicas', () => {
     });
     const makeCollection = (name: string) => ({
       doc: (id: string) => makeDocRef(`${name}/${id}`),
+      where: (field: string, _op: string, target: unknown) => ({
+        get: async () => ({
+          forEach: (cb: (doc: { id: string; data: () => Record<string, unknown> }) => void) => {
+            for (const [k, v] of docs.entries()) {
+              if (k.startsWith(`${name}/`) && v[field] === target)
+                cb({ id: k.slice(name.length + 1), data: () => v });
+            }
+          },
+        }),
+      }),
       get: async () => ({
         forEach: (cb: (doc: { id: string; data: () => Record<string, unknown> }) => void) => {
           for (const [k, v] of docs.entries()) {
@@ -171,8 +185,8 @@ describe('pautas clínicas', () => {
     expect(catalog.templates.map((t: { title: string }) => t.title)).toEqual([
       'IAAS · Seguimiento de cirugías trazadoras',
       'IAAS · Supervisión de la indicación de tacto vaginal',
-      'LPP · Braden adulto (desde 15 años)',
-      'LPP · Braden Q pediátrica (desde 30 días hasta antes de los 15 años)',
+      'LPP · Braden adulto (≥15 años)',
+      'LPP · Braden Q pediátrico (30 días a <15 años)',
     ]);
     const code = 'PT-00000000-0000-4000-8000-000000000009';
     const applied = await call(
@@ -232,10 +246,21 @@ describe('pautas clínicas', () => {
       points: 15,
       maximum: 23,
       risk: 'moderado',
-      reassess: '72 horas',
+      reassess: 'Cada 72 h',
+      subscores: { PS: 3, H: 2, A: 3, M: 2, N: 3, F: 2 },
+      carePlan: [
+        'Posición: cada 4 h con SEMP adecuada; sin ella, cada 2 h.',
+        'Proteger prominencias óseas; mantener piel seca e hidratada.',
+      ],
     });
-    expect(receipt.record.evolution).toContain('Riesgo de LPP según escala: moderado');
+    expect(receipt.record.evolution).toContain('Subpuntajes: PS 3 · H 2 · A 3 · M 2 · N 3 · F 2');
+    expect(receipt.record.evolution).toContain('Riesgo de LPP según escala: Moderado (moderado)');
     expect(await call(application, context)).toEqual(receipt);
     expect(await call({ action: 'get', code: application.code }, context)).toEqual(receipt);
+    const history = await call(
+      { action: 'history', episode: '66009', scaleGroup: 'braden' },
+      context
+    );
+    expect(history.records).toEqual([receipt.record]);
   });
 });
