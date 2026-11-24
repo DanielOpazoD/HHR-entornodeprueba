@@ -108,6 +108,28 @@ describe('check-empty-on-failure-reads', () => {
     });
   });
 
+  it.each([
+    'src/features/radiology/services/mmradService.ts',
+    'src/features/census/services/patientUpcHistoryService.ts',
+    'src/services/laboratory/syslabService.ts',
+    'src/services/patient/patientHistoryService.ts',
+    'src/services/cudyr/cudyrStorageQuery.ts',
+    'src/services/backup/censusStorageService.ts',
+    'src/services/backup/cudyrStorageService.ts',
+    'src/services/email/emailRecipientListService.ts',
+    'src/services/user-profile/userSignatureService.ts',
+    'src/services/user-profile/userAvatarProfileService.ts',
+    'src/services/admin/healthService.ts',
+  ])('rejects empty-on-failure reads across expanded clinical service area: %s', filePath => {
+    const root = createRepository({
+      [filePath]: READ_WITH_EMPTY_FALLBACK,
+    });
+    expect(runGuard(root)).toEqual({
+      status: 1,
+      output: expect.stringContaining(`new: ${filePath}::getMonth`),
+    });
+  });
+
   it('fails a new data-layer read that turns a failure into an empty result', () => {
     const root = createRepository({
       'src/services/storage/firestore/reads.ts': READ_WITH_EMPTY_FALLBACK,
