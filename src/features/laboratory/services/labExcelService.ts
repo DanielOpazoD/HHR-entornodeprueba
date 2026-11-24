@@ -7,8 +7,11 @@
 import type { LabPatient } from '@/types/domain/labExamTypes';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 import type { ExportConfig } from '../types/labViewerTypes';
-import { formatLabExamColumnLabel } from '../controllers/labDateDisplayController';
-import { parseLocalizedNumber, parseScientificValue } from '../controllers/labFormattingController';
+import {
+  formatLabExamColumnLabel,
+  parseLocalizedNumber,
+  parseScientificValue,
+} from '../controllers/labFormattingController';
 import { createWorkbook } from '@/services/exporters/excelUtils';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import { getTodayISO } from '@/utils/dateCoreUtils';

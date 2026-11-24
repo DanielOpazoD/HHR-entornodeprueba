@@ -6,7 +6,7 @@ import {
   resolveAllSelectableExamsSelected,
   resolveLabExamDateRange,
   resolveSelectableLabExams,
-} from '../controllers/labExamListController';
+} from '../controllers/labViewerController';
 import { LabViewerExamCard } from './LabViewerExamCard';
 import { LabViewerExamFilters } from './LabViewerExamFilters';
 import { LabViewerPdfDownloadStatus as PdfDownloadStatusView } from './LabViewerPdfDownloadStatus';

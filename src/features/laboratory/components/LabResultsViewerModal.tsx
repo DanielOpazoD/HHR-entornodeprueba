@@ -16,9 +16,40 @@ import { LabViewerAnalyzeBar } from './LabViewerAnalyzeBar';
 import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { LabViewerEmptyState } from './LabViewerEmptyState';
 import { SyslabAccessPrompt } from './SyslabAccessPrompt';
-import { useSyslabAccess } from '../hooks/useSyslabAccess';
-import { useInitialLabViewerAutoSearch } from '../hooks/useInitialLabViewerAutoSearch';
+import { useSyslabAccess, type SyslabAccessModel } from '../hooks/useSyslabAccess';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
+
+interface InitialLabViewerAutoSearchOptions {
+  isOpen: boolean;
+  enabled: boolean;
+  initialPatientRut?: string;
+  accessState: SyslabAccessModel['state'];
+  search: () => Promise<void>;
+}
+
+export const useInitialLabViewerAutoSearch = ({
+  isOpen,
+  enabled,
+  initialPatientRut,
+  accessState,
+  search,
+}: InitialLabViewerAutoSearchOptions): void => {
+  const searchStartedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      searchStartedRef.current = false;
+      return;
+    }
+
+    if (!enabled || !initialPatientRut || accessState !== 'connected' || searchStartedRef.current) {
+      return;
+    }
+
+    searchStartedRef.current = true;
+    void search();
+  }, [accessState, enabled, initialPatientRut, isOpen, search]);
+};
 
 const LaboratorySourceSelector = ({
   source,

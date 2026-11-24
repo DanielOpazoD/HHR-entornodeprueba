@@ -4,7 +4,7 @@ import {
   buildMaskedPatientIdentity,
   maskPatientName,
   maskPatientRut,
-} from '@/features/wound-care/controllers/mobileIdentityMaskController';
+} from '@/features/wound-care/components/WoundCareMobileUploadView';
 
 describe('maskPatientName', () => {
   it('reduces a multi-token name to its initials', () => {

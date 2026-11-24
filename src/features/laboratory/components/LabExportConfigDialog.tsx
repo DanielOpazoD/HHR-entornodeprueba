@@ -6,7 +6,7 @@
 import React from 'react';
 import clsx from 'clsx';
 import type { ExportConfig } from '../types/labViewerTypes';
-import { formatLabExamColumnLabel } from '../controllers/labDateDisplayController';
+import { formatLabExamColumnLabel } from '../controllers/labFormattingController';
 
 interface LabExportConfigDialogProps {
   dates: string[];
