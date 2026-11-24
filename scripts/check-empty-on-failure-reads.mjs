@@ -13,15 +13,26 @@ import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
 const AREAS = [
+  'src/features/census/services/patientUpcHistoryService.ts',
   'src/features/clinical-documents/services/ClinicalAttachmentRepository.ts',
   'src/features/laboratory/services/labFirestoreService.ts',
   'src/features/prescriptions/services/PrescriptionRepository.ts',
+  'src/features/radiology/services/mmradService.ts',
   'src/features/wound-care/services',
-  'src/services/repositories',
+  'src/services/admin/healthService.ts',
+  'src/services/backup/censusStorageService.ts',
+  'src/services/backup/cudyrStorageService.ts',
+  'src/services/cudyr',
+  'src/services/email/emailRecipientListService.ts',
+  'src/services/laboratory',
+  'src/services/patient',
   'src/services/reminders',
+  'src/services/repositories',
   'src/services/storage/firestore',
   'src/services/storage/indexeddb',
   'src/services/storage/sync',
+  'src/services/user-profile/userAvatarProfileService.ts',
+  'src/services/user-profile/userSignatureService.ts',
 ];
 const EMPTY_RETURN = /\breturn\s+(?:\[\]|null|\{\}|new (?:Map|Set)\(\))\s*;/;
 const DECLARATION = [
