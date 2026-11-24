@@ -187,17 +187,19 @@ export function ClinicalChecklistsTool({ onBack, onClose, onDirtyChange }: ToolC
                   Configurar plantillas
                 </summary>
                 <ul className="mt-2 divide-y divide-slate-100">
-                  {templates.map(t => (
-                    <li key={t.id}>
-                      <button
-                        type="button"
-                        className="w-full py-2 text-left text-medical-800 hover:underline"
-                        onClick={() => setEditor(t)}
-                      >
-                        {t.title} · v{t.version}
-                      </button>
-                    </li>
-                  ))}
+                  {templates
+                    .filter(template => !template.riskBands)
+                    .map(t => (
+                      <li key={t.id}>
+                        <button
+                          type="button"
+                          className="w-full py-2 text-left text-medical-800 hover:underline"
+                          onClick={() => setEditor(t)}
+                        >
+                          {t.title} · v{t.version}
+                        </button>
+                      </li>
+                    ))}
                 </ul>
                 <button
                   type="button"

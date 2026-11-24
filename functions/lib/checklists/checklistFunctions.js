@@ -44,6 +44,11 @@ function createChecklistHandler({ firestore, resolveRoleForEmail, now = () => ne
     if (action === 'configure') {
       if (role !== 'admin')
         fail('permission-denied', 'Se requiere administración para modificar las plantillas.');
+      if (builtins.get(data.template?.id)?.riskBands)
+        fail(
+          'failed-precondition',
+          'Esta escala utiliza los criterios de la Norma Técnica N.º 234.'
+        );
       const updated = templateFrom(data.template);
       const ref = catalog.doc(updated.id);
       return firestore.runTransaction(async tx => {
