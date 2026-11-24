@@ -7,9 +7,11 @@
 import { useCallback } from 'react';
 import { AuditAction } from '@/types/auditActionTypes';
 import { AuditLogEntry } from '@/types/auditLogTypes';
-import { reportAuditOutcome } from '@/hooks/controllers/auditEventRejectionLogger';
 import { logger } from '@/services/utils/loggerService';
-import { buildMeaningfulAuditDetails } from '@/hooks/controllers/auditLogPolicyController';
+import {
+  buildMeaningfulAuditDetails,
+  reportAuditOutcome,
+} from '@/hooks/controllers/auditLogPolicyController';
 import { useCoalescedAuditLogger } from '@/hooks/controllers/useCoalescedAuditLogger';
 import {
   VIEW_THROTTLE_KEY,

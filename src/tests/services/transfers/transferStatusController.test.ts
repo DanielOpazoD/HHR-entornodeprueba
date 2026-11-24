@@ -7,7 +7,7 @@ import {
   normalizeHistoryStatusFrom,
   normalizeLegacyTransferStatus,
   pickLatestOpenTransferRequest,
-} from '@/services/transfers/transferStatusController';
+} from '@/services/transfers/transferSerializationController';
 import type { TransferRequest } from '@/types/transferRequestTypes';
 
 const request = (overrides: Partial<TransferRequest>): TransferRequest =>

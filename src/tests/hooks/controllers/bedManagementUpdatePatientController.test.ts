@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { buildUpdatePatientActionPatch } from '@/hooks/controllers/bedManagementUpdatePatientController';
+import { buildUpdatePatientActionPatch } from '@/hooks/useBedManagementReducer';
 
 describe('bedManagementUpdatePatientController', () => {
   it('clears cie10 fields when pathology changes through a single-field update', () => {

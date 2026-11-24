@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildTransferOperationError,
   resolveTransferOperationErrorKind,
-} from '@/services/transfers/transferErrorPolicy';
+} from '@/services/transfers/transferMutationsService';
 
 describe('transferErrorPolicy', () => {
   it.each([

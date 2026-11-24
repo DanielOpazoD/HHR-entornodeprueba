@@ -2,9 +2,29 @@ import { useCallback, useRef } from 'react';
 
 import { useUI } from '@/context/UIContext';
 import { useAuditContext } from '@/context/AuditContext';
-import { resolveStaleDayEditDecision } from '@/hooks/controllers/staleDayEditController';
 import { getPreviousDay } from '@/utils/clinicalDayUtils';
 import { formatDateForDisplay } from '@/utils/dateDisplayUtils';
+
+/**
+ * Pure decision for the stale-day edit guard: should an edit to the currently
+ * viewed clinical day flow straight through, or does it require an explicit
+ * confirmation first?
+ */
+export type StaleDayEditDecision = 'allowed' | 'requires-confirmation';
+
+export const resolveStaleDayEditDecision = ({
+  currentDateString,
+  clinicalToday,
+  alreadyConfirmed,
+}: {
+  currentDateString: string;
+  clinicalToday: string;
+  alreadyConfirmed: boolean;
+}): StaleDayEditDecision => {
+  if (currentDateString === clinicalToday) return 'allowed';
+  if (alreadyConfirmed) return 'allowed';
+  return 'requires-confirmation';
+};
 
 /** Gate the bed-management dispatcher calls before editing a record's day. */
 export type StaleDayEditGuard = (recordDate: string) => Promise<boolean>;

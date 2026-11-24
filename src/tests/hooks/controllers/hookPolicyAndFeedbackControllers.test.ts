@@ -21,7 +21,7 @@ import {
   buildImportFileErrorNotification,
 } from '@/hooks/controllers/fileOperationsFeedbackController';
 import { hasCriticalLegacyRepairSignal } from '@/hooks/controllers/legacyRepairWarningController';
-import { resolveStaleDayEditDecision } from '@/hooks/controllers/staleDayEditController';
+import { resolveStaleDayEditDecision } from '@/hooks/useStaleDayEditGuard';
 
 describe('auditLogPolicyController', () => {
   it('builds a deterministic debounce key', () => {
