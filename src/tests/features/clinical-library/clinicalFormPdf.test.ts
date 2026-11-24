@@ -50,10 +50,10 @@ const sample = (form: ClinicalFormDefinition): ClinicalFormValues =>
 describe('original clinical form print contracts', () => {
   it('covers every requested template and uses common variables consistently', () => {
     expect(CLINICAL_FORMS.map(form => form.id).sort()).toEqual([...CLINICAL_FORM_IDS].sort());
-    expect(CLINICAL_FORMS.flatMap(form => form.fields).length).toBe(328);
+    expect(CLINICAL_FORMS.flatMap(form => form.fields).length).toBe(360);
     const common = new Set(CLINICAL_VARIABLE_CATALOG.variables.map(variable => variable.id));
     const prefixes =
-      /^(imagen|contraste|consentimiento|laboratorio|vdrl|serologia|tbc|traslado|vmi)_/;
+      /^(imagen|contraste|consentimiento|laboratorio|transfusion|vdrl|serologia|tbc|traslado|vmi)_/;
     for (const form of CLINICAL_FORMS) {
       expect(new Set(form.fields.map(field => field.id)).size).toBe(form.fields.length);
       expect(form.catalogVersion).toBe(CLINICAL_VARIABLE_CATALOG.version);
@@ -271,6 +271,12 @@ describe('original clinical form print contracts', () => {
   it.each([
     ['solicitud-laboratorio-policlinico', 'laboratorio_otros', 671.02, 12.24],
     ['encuesta-contraste', 'diagnostico_texto', 310, 13.5],
+    [
+      'solicitud-transfusion-hemocomponentes',
+      'transfusion_justificacion_relativa_texto',
+      608.6,
+      13.15,
+    ],
   ] as const)(
     'aligns %s multiline text to the original writing rules',
     async (formId, id, firstBaseline, lineHeight) => {
@@ -298,4 +304,27 @@ describe('original clinical form print contracts', () => {
       );
     }
   );
+
+  it('prints transfusion request values on page 1 and keeps UMT exclusive page 2 untouched', async () => {
+    const form = getClinicalForm('solicitud-transfusion-hemocomponentes');
+    const source = await PDFDocument.load(template(form));
+    const printed = await PDFDocument.load(
+      await createClinicalFormPdf(template(form), form, {
+        paciente_nombre_completo: 'PACIENTE TRANSFUSION PRUEBA',
+        paciente_rut: '11.111.111-1',
+        transfusion_caracter: 'urgente',
+        transfusion_procedencia: 'upc',
+        transfusion_hemocomponente_gr: true,
+        transfusion_gr_unidades: '2',
+        transfusion_cardiopata_renal: false,
+      })
+    );
+    const page1 = streams(printed, 0).join('\n');
+    expect(page1).toContain(
+      Buffer.from('PACIENTE TRANSFUSION PRUEBA').toString('hex').toUpperCase()
+    );
+    expect((page1.match(/<58> Tj/g) ?? []).length).toBe(4);
+    expect(printed.getPageCount()).toBe(2);
+    expect(streams(printed, 1)).toEqual(streams(source, 1));
+  });
 });

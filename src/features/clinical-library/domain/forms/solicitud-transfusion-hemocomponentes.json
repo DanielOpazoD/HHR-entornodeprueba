@@ -1,0 +1,549 @@
+{
+  "id": "solicitud-transfusion-hemocomponentes",
+  "title": "Solicitud de transfusión de hemocomponentes (UMT)",
+  "revision": 1,
+  "catalogVersion": "1.1.0",
+  "templateUrl": "/docs/biblioteca/solicitud-transfusion-hemocomponentes.pdf",
+  "sourceUrl": "/docs/biblioteca/solicitud-transfusion-hemocomponentes.pdf",
+  "pages": [
+    {
+      "width": 595.32,
+      "height": 841.92
+    },
+    {
+      "width": 595.32,
+      "height": 841.92
+    }
+  ],
+  "fields": [
+    {
+      "id": "paciente_nombre_completo",
+      "label": "Nombre y apellidos",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [173, 184, 255, 15]
+        }
+      ]
+    },
+    {
+      "id": "paciente_rut",
+      "label": "RUT",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [462.5, 184, 88, 15]
+        }
+      ]
+    },
+    {
+      "id": "paciente_fecha_nacimiento",
+      "label": "Fecha de nacimiento",
+      "section": "Paciente",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [173, 206.5, 138, 15.2],
+          "format": "date_dmy"
+        }
+      ]
+    },
+    {
+      "id": "paciente_edad_texto",
+      "label": "Edad (con unidad)",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [350, 206.5, 73, 15.2]
+        }
+      ]
+    },
+    {
+      "id": "paciente_sexo_biologico",
+      "label": "Sexo biológico",
+      "section": "Paciente",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [468.9, 206.73, 17.5, 11],
+          "equals": "Femenino"
+        },
+        {
+          "page": 0,
+          "rect": [513.4, 206.73, 17.5, 11],
+          "equals": "Masculino"
+        }
+      ],
+      "options": [
+        {
+          "value": "Femenino",
+          "label": "Femenino"
+        },
+        {
+          "value": "Masculino",
+          "label": "Masculino"
+        },
+        {
+          "value": "Indeterminado",
+          "label": "Indeterminado (sin casillero en esta plantilla)"
+        }
+      ]
+    },
+    {
+      "id": "transfusion_caracter",
+      "label": "Carácter transfusional",
+      "section": "Solicitud",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [187, 125.1, 17.5, 11],
+          "equals": "inmediata"
+        },
+        {
+          "page": 0,
+          "rect": [288, 125.1, 17.5, 11],
+          "equals": "urgente"
+        },
+        {
+          "page": 0,
+          "rect": [370, 125.1, 17.5, 11],
+          "equals": "no_urgente"
+        },
+        {
+          "page": 0,
+          "rect": [471, 125.1, 17.5, 11],
+          "equals": "programada"
+        }
+      ],
+      "options": [
+        {
+          "value": "inmediata",
+          "label": "Inmediata (sin pruebas de compatibilidad)"
+        },
+        {
+          "value": "urgente",
+          "label": "Urgente (dentro de 4 horas)"
+        },
+        {
+          "value": "no_urgente",
+          "label": "No urgente (durante el día)"
+        },
+        {
+          "value": "programada",
+          "label": "Programada (máximo 4 días)"
+        }
+      ]
+    },
+    {
+      "id": "formulario_fecha_emision",
+      "label": "Fecha de solicitud",
+      "section": "Solicitud",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [331, 156, 97, 20.5],
+          "format": "date_dmy"
+        }
+      ]
+    },
+    {
+      "id": "transfusion_hora_solicitud",
+      "label": "Hora de solicitud",
+      "section": "Solicitud",
+      "kind": "time",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [462.5, 156, 87.5, 20.5]
+        }
+      ]
+    },
+    {
+      "id": "transfusion_procedencia",
+      "label": "Servicio de procedencia",
+      "section": "Solicitud",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [184.25, 230.73, 17.5, 11],
+          "equals": "urgencia"
+        },
+        {
+          "page": 0,
+          "rect": [258.75, 230.73, 17.5, 11],
+          "equals": "hospitalizado"
+        },
+        {
+          "page": 0,
+          "rect": [352.75, 230.73, 17.5, 11],
+          "equals": "upc"
+        },
+        {
+          "page": 0,
+          "rect": [414.25, 230.73, 17.5, 11],
+          "equals": "pabellon"
+        },
+        {
+          "page": 0,
+          "rect": [491.25, 230.73, 17.5, 11],
+          "equals": "dialisis"
+        }
+      ],
+      "options": [
+        {
+          "value": "urgencia",
+          "label": "Urgencia"
+        },
+        {
+          "value": "hospitalizado",
+          "label": "Hospitalizado"
+        },
+        {
+          "value": "upc",
+          "label": "UPC"
+        },
+        {
+          "value": "pabellon",
+          "label": "Pabellón"
+        },
+        {
+          "value": "dialisis",
+          "label": "Diálisis"
+        }
+      ]
+    },
+    {
+      "id": "diagnostico_texto",
+      "label": "Diagnóstico",
+      "section": "Solicitud",
+      "kind": "text",
+      "multiline": true,
+      "targets": [
+        {
+          "page": 0,
+          "rect": [173, 254, 377, 21]
+        }
+      ]
+    },
+    {
+      "id": "transfusion_hemocomponente_gr",
+      "label": "Glóbulos rojos (GR)",
+      "section": "Hemocomponentes",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [75.5, 326.65, 15.5, 15.5],
+          "equals": true,
+          "fontSize": 10
+        }
+      ]
+    },
+    {
+      "id": "transfusion_hemocomponente_pfc",
+      "label": "Plasma fresco (PFC)",
+      "section": "Hemocomponentes",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [75.2, 369.11, 15.5, 15.5],
+          "equals": true,
+          "fontSize": 10
+        }
+      ]
+    },
+    {
+      "id": "transfusion_hemocomponente_cpp",
+      "label": "Crioprecipitado (CPP)",
+      "section": "Hemocomponentes",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [75.2, 410.87, 15.5, 15.5],
+          "equals": true,
+          "fontSize": 10
+        }
+      ]
+    },
+    {
+      "id": "transfusion_gr_unidades",
+      "label": "Unidades de glóbulos rojos (GR)",
+      "section": "Hemocomponentes",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [197, 329.5, 40, 12.5],
+          "align": "center"
+        }
+      ]
+    },
+    {
+      "id": "transfusion_pfc_unidades",
+      "label": "Unidades de plasma fresco (PFC)",
+      "section": "Hemocomponentes",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [197, 371.6, 40, 12.5],
+          "align": "center"
+        }
+      ]
+    },
+    {
+      "id": "transfusion_cpp_unidades",
+      "label": "Unidades de crioprecipitado (CPP)",
+      "section": "Hemocomponentes",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [197, 414.3, 40, 12.5],
+          "align": "center"
+        }
+      ]
+    },
+    {
+      "id": "transfusion_lab_hematocrito",
+      "label": "Hematocrito (%)",
+      "section": "Parámetros de laboratorio",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [393, 322.2, 87, 12.6]
+        }
+      ]
+    },
+    {
+      "id": "transfusion_lab_hemoglobina",
+      "label": "Hemoglobina (g/dL)",
+      "section": "Parámetros de laboratorio",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [393, 337.2, 79, 11.8]
+        }
+      ]
+    },
+    {
+      "id": "transfusion_lab_tp",
+      "label": "TP (seg)",
+      "section": "Parámetros de laboratorio",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [393, 364.2, 81, 13.2]
+        }
+      ]
+    },
+    {
+      "id": "transfusion_lab_ttpa",
+      "label": "TTPa (seg)",
+      "section": "Parámetros de laboratorio",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [393, 379.8, 81, 11.8]
+        }
+      ]
+    },
+    {
+      "id": "transfusion_lab_fibrinogeno",
+      "label": "Fibrinógeno (mg/dL)",
+      "section": "Parámetros de laboratorio",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [393, 407, 72, 19.5]
+        }
+      ]
+    },
+    {
+      "id": "transfusion_cardiopata_renal",
+      "label": "Cardiópata / Renal",
+      "section": "Antecedentes clínicos",
+      "kind": "boolean",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [214, 464.8, 20, 11.2],
+          "equals": true
+        },
+        {
+          "page": 0,
+          "rect": [257, 464.8, 20, 11.2],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "transfusion_previas",
+      "label": "Transfusiones previas",
+      "section": "Antecedentes clínicos",
+      "kind": "boolean",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [214, 477.5, 20, 11.2],
+          "equals": true
+        },
+        {
+          "page": 0,
+          "rect": [257, 477.5, 20, 11.2],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "transfusion_reacciones_previas",
+      "label": "Reacciones adversas previas",
+      "section": "Antecedentes clínicos",
+      "kind": "boolean",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [214, 490.5, 20, 11.5],
+          "equals": true
+        },
+        {
+          "page": 0,
+          "rect": [257, 490.5, 20, 11.5],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "transfusion_observaciones",
+      "label": "Observaciones clínicas de relevancia",
+      "section": "Antecedentes clínicos",
+      "kind": "text",
+      "multiline": true,
+      "targets": [
+        {
+          "page": 0,
+          "rect": [289, 463, 243, 49],
+          "fontSize": 7
+        }
+      ]
+    },
+    {
+      "id": "transfusion_justificacion_absoluta",
+      "label": "Indicación absoluta: Hb < 7 g/dL o Hto < 21%",
+      "section": "Justificación de glóbulos rojos",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [75.25, 563.4, 15.5, 15.5],
+          "equals": true,
+          "fontSize": 10
+        }
+      ]
+    },
+    {
+      "id": "transfusion_justificacion_anemia_sintomatica",
+      "label": "Anemia sintomática o signos de hipoxia tisular",
+      "section": "Justificación de glóbulos rojos",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [74.9, 608.42, 15.5, 15.5],
+          "equals": true,
+          "fontSize": 10
+        }
+      ]
+    },
+    {
+      "id": "transfusion_justificacion_pabellon",
+      "label": "Transfusión en pabellón",
+      "section": "Justificación de glóbulos rojos",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [74.9, 648.8, 15.5, 15.5],
+          "equals": true,
+          "fontSize": 10
+        }
+      ]
+    },
+    {
+      "id": "transfusion_justificacion_relativa",
+      "label": "Indicación relativa: Hb entre 7 y 8 g/dL o Hto entre 21 y 30%",
+      "section": "Justificación de glóbulos rojos",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [277.85, 563.65, 15.5, 15.5],
+          "equals": true,
+          "fontSize": 10
+        }
+      ]
+    },
+    {
+      "id": "transfusion_justificacion_relativa_texto",
+      "label": "Justificación (indicación relativa)",
+      "section": "Justificación de glóbulos rojos",
+      "kind": "text",
+      "multiline": true,
+      "targets": [
+        {
+          "page": 0,
+          "rect": [291, 599, 250, 67],
+          "firstBaseline": 608.6,
+          "lineHeight": 13.15,
+          "fontSize": 6.5
+        }
+      ]
+    },
+    {
+      "id": "medico_tratante_nombre",
+      "label": "Nombre del médico solicitante",
+      "section": "Profesional",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [151.5, 713.3, 221, 11.4],
+          "fontSize": 6.5
+        }
+      ]
+    },
+    {
+      "id": "medico_tratante_rut",
+      "label": "RUT del médico solicitante",
+      "section": "Profesional",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [151.5, 724.7, 221, 11.2],
+          "fontSize": 6.5
+        }
+      ]
+    }
+  ],
+  "templateSha256": "1428717b990ebeb8f7eb76d60e624d773e003ee2359c67f6437973ec274563ee",
+  "sourceSha256": "1428717b990ebeb8f7eb76d60e624d773e003ee2359c67f6437973ec274563ee"
+}

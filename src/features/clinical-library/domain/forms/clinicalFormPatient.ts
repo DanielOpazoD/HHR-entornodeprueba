@@ -2,6 +2,7 @@ import type { DailyRecordRawExportState } from '@/types/domain/dailyRecordSlices
 import type { PatientData } from '@/types/domain/patient';
 
 import { BEDS } from '@/constants/beds';
+import { resolveEffectiveUpcState } from '@/shared/census/upcBedPolicy';
 import { isClinicalFormRut } from './clinicalFormIdentity';
 
 import { formAgeAt, parseFormDate } from './clinicalFormDates';
@@ -108,6 +109,11 @@ export const buildClinicalFormPatientOptions = (
         episodeId,
         identity,
         sourceLastUpdated: record.lastUpdated ?? '',
+        isUpc: resolveEffectiveUpcState({
+          bedId,
+          isUPC: patient.isUPC,
+          checklist: patient.upcChecklist,
+        }).isUpc,
       },
     });
   };

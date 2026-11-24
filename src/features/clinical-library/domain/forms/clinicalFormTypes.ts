@@ -3,6 +3,7 @@ export const CLINICAL_FORM_IDS = [
   'solicitud-imagenologia',
   'encuesta-contraste',
   'consentimiento-informado',
+  'solicitud-transfusion-hemocomponentes',
   'solicitud-tuberculosis',
   'solicitud-vdrl-mha-tp',
   'solicitud-serologia-hepatitis-chagas',
@@ -74,5 +75,6 @@ export interface ClinicalFormPatientOption {
     episodeId: string;
     identity: string;
     sourceLastUpdated: string;
+    isUpc?: boolean;
   };
 }

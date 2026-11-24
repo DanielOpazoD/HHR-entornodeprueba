@@ -165,4 +165,19 @@ describe('shared form census projection', () => {
     expect(option.values).not.toHaveProperty('formulario_fecha_emision');
     expect(option.values).not.toHaveProperty('serologia_fecha_muestra');
   });
+
+  it('derives UPC status in context only for eligible UPC beds', () => {
+    const upcRecord: ClinicalFormSourceRecord = {
+      date: '2026-10-16',
+      lastUpdated: '2026-10-16T12:00:00Z',
+      beds: {
+        R1: patient({ isUPC: true }),
+        H1C1: patient({ bedId: 'H1C1', patientName: 'PACIENTE SALA', isUPC: true }),
+      },
+      activeExtraBeds: [],
+    };
+    const options = buildClinicalFormPatientOptions(upcRecord);
+    expect(options.find(item => item.context.bedId === 'R1')?.context.isUpc).toBe(true);
+    expect(options.find(item => item.context.bedId === 'H1C1')?.context.isUpc).toBe(false);
+  });
 });
