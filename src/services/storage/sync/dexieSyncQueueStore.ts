@@ -219,7 +219,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
                     rebase: undefined,
                     wholeRecordBase,
                     patchWrite,
-                  }).task
+                  })
                 : task,
               authoringSession
             )
@@ -371,7 +371,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   async delete(taskId) {
     await hospitalDB.syncQueue.delete(taskId);
   },
-  async deleteClaimed(taskId, claim, authoritativeRecord, detachedConflicts, heldTask) {
+  async deleteClaimed(taskId, claim, authoritativeRecord, heldTask) {
     const { completeClaimedSyncTask } = await loadAuthorityAck();
     const result = await completeClaimedSyncTask(
       {
@@ -382,7 +382,6 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
       taskId,
       claim,
       authoritativeRecord,
-      detachedConflicts,
       heldTask
     );
     if (result.adopted && authoritativeRecord)

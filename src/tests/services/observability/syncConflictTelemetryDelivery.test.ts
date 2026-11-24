@@ -74,28 +74,11 @@ describe('sync conflicts and notices reach the production log as countable value
     expect(wire).not.toContain('daily:');
   });
 
-  it('counts an edit held as a conflict because its bed changed patient', async () => {
-    recordSyncQueueConflictTelemetry(
-      conflictTask({
-        origin: 'direct_queue',
-        key: 'daily:2026-11-15:detached:7:["R1","nursingNote","rut","12.345.678-5","Ana","e1"]',
-      }),
-      'held'
-    );
-
-    await vi.waitFor(() => expect(beacons).toHaveLength(1));
-    const [event] = await ingestedEvents();
-    expect(event.context).toEqual({ origin: 'direct_queue', reason: 'occupant_changed' });
-    expect(JSON.stringify(event)).not.toContain('12.345.678');
-  });
-
-  it('counts each held edit once the ACK stored it, and none when the ACK was refused', async () => {
-    const held = conflictTask({
-      id: undefined,
-      origin: 'direct_queue',
-      key: 'daily:2026-11-15:detached:7:["R1","nursingNote","rut","12.345.678-5","Ana","e1"]',
-      error: 'Ana Pérez ya no ocupa la cama R1',
-    });
+  it('counts a held conflict once the ACK stored it, and none when the ACK was refused', async () => {
+    const held = {
+      status: 'CONFLICT' as const,
+      error: 'El campo cambió en otro equipo',
+    };
     const run = async (acked: boolean) => {
       let first = true;
       const engine = createSyncQueueEngine({
@@ -105,6 +88,7 @@ describe('sync conflicts and notices reach the production log as countable value
               ? ((first = false),
                 [
                   conflictTask({
+                    origin: 'direct_queue',
                     status: 'PROCESSING',
                     leaseOwner: 'worker',
                     leaseUntil: Date.now() + 30_000,
@@ -116,7 +100,7 @@ describe('sync conflicts and notices reach the production log as countable value
           deleteClaimed: async () => acked,
         },
         runtime: { isOnline: () => true, onOnline: () => {}, getOwnerKey: () => null },
-        transport: { run: async () => ({ detachedConflicts: [held] }) },
+        transport: { run: async () => ({ heldTask: held }) },
         batchSize: 25,
         maxPendingTasks: 100,
         maxRetries: 3,
@@ -132,7 +116,6 @@ describe('sync conflicts and notices reach the production log as countable value
     expect(events.filter(event => event.operation === 'sync_queue_task_conflict')).toHaveLength(1);
     expect(events.find(event => event.operation === 'sync_queue_task_conflict')?.context).toEqual({
       origin: 'direct_queue',
-      reason: 'occupant_changed',
     });
 
     beacons.length = 0;

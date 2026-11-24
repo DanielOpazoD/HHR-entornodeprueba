@@ -25,48 +25,46 @@ describe('ordinary clinical patch identity', () => {
     ['bed', 'episode'],
     ['crib', 'patient'],
     ['crib', 'episode'],
-  ] as const)('retains an unchanged field for a different %s %s', async (slot, change) => {
-    const before = E();
-    const after = E(
-      change === 'patient'
-        ? {
-            patientName: 'Otra persona sintética',
-            rut: '55.555.555-5',
-          }
-        : { clinicalEpisodeId: 'ep-readmission' }
-    );
-    const path = slot === 'bed' ? 'beds.R6.pathology' : 'beds.R4.clinicalCrib.pathology';
-    await readStored(
-      slot === 'bed' ? { R4: A(), R6: before } : { R4: A('R4', { clinicalCrib: before }) },
-      undefined,
-      { revision: 1 }
-    );
-    await writeDay({ [path]: 'EDICION SOLO PARA EL EPISODIO ORIGINAL' });
-    const [pending] = await queue();
-    expect(pending.patchBaseValues?.[path]).toBe('Dx E');
-    remoteWrite(
-      slot === 'bed' ? { R4: A(), R6: after } : { R4: A('R4', { clinicalCrib: after }) },
-      '2026-10-24T10:15:00.000Z',
-      { revision: 2, lastChangedPaths: [path] }
-    );
+  ] as const)(
+    'drops a stale field without writing it to a different %s %s',
+    async (slot, change) => {
+      const before = E();
+      const after = E(
+        change === 'patient'
+          ? {
+              patientName: 'Otra persona sintética',
+              rut: '55.555.555-5',
+            }
+          : { clinicalEpisodeId: 'ep-readmission' }
+      );
+      const path = slot === 'bed' ? 'beds.R6.pathology' : 'beds.R4.clinicalCrib.pathology';
+      await readStored(
+        slot === 'bed' ? { R4: A(), R6: before } : { R4: A('R4', { clinicalCrib: before }) },
+        undefined,
+        { revision: 1 }
+      );
+      await writeDay({ [path]: 'EDICION SOLO PARA EL EPISODIO ORIGINAL' });
+      const [pending] = await queue();
+      expect(pending.patchBaseValues?.[path]).toBe('Dx E');
+      remoteWrite(
+        slot === 'bed' ? { R4: A(), R6: after } : { R4: A('R4', { clinicalCrib: after }) },
+        '2026-10-24T10:15:00.000Z',
+        { revision: 2, lastChangedPaths: [path] }
+      );
 
-    await reconnect();
+      await reconnect();
 
-    expect(getValueAtPath(remote(), path)).toBe('Dx E');
-    expect(getValueAtPath(remote(), path.replace('pathology', 'clinicalEpisodeId'))).toBe(
-      after.clinicalEpisodeId
-    );
-    const retained = await queue();
-    expect(retained).toHaveLength(1);
-    expect(retained[0]).toMatchObject({
-      status: 'CONFLICT',
-      payload: pending.payload,
-      syncContract: { changedPaths: [path] },
-    });
-    await reconnect();
-    expect(await queue()).toEqual(retained);
-    expect(getValueAtPath(remote(), path)).toBe('Dx E');
-  });
+      expect(getValueAtPath(remote(), path)).toBe('Dx E');
+      expect(getValueAtPath(remote(), path.replace('pathology', 'clinicalEpisodeId'))).toBe(
+        after.clinicalEpisodeId
+      );
+      expect(await queue()).toEqual([]);
+      expect(getValueAtPath(await local(), path)).toBe('Dx E');
+      await reconnect();
+      expect(await queue()).toEqual([]);
+      expect(getValueAtPath(remote(), path)).toBe('Dx E');
+    }
+  );
 
   it('publishes an ordinary edit with the original identities after another bed changes', async () => {
     await readStored({ R4: A(), R6: E() }, undefined, { revision: 1 });

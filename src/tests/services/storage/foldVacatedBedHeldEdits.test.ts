@@ -9,9 +9,9 @@ import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
 /**
- * W12-CW10. A write folded into the day's task that empties a bed (a discharge or transfer) keeps
- * the unsent diagnosis written for the patient who leaves as a held edit for that patient; a write
- * that keeps the patient in the bed, such as a RUT correction, keeps it in the day's task.
+ * A write folded into the day's task that empties a bed (a discharge or transfer) strips any
+ * unsent diagnosis written for the patient who leaves (ID-05) without fabricating `:detached:`
+ * conflicts while preserving the original base version; a RUT correction keeps it in the day task.
  */
 const date = '2026-11-16';
 const stored = (): DailyRecord =>
@@ -63,23 +63,14 @@ const fold = (patch: DailyRecordPatch) => {
 };
 
 describe('a write folded into the day task holding an unsent diagnosis', () => {
-  it('that empties the bed holds the diagnosis for the patient who leaves', () => {
+  it('that empties the bed strips the stale diagnosis and keeps the pre-edit base', () => {
     const empty = DataFactory.createMockPatient('R4', {
       patientName: '',
       rut: '',
       clinicalEpisodeId: '',
     });
-    const { task, heldConflicts } = fold({ 'beds.R4': empty, discharges: [] } as DailyRecordPatch);
+    const task = fold({ 'beds.R4': empty, discharges: [] } as DailyRecordPatch);
 
-    expect(heldConflicts).toHaveLength(1);
-    const held = heldConflicts[0];
-    expect(held.status).toBe('CONFLICT');
-    expect(held.syncContract?.changedPaths).toEqual(['beds.R4.pathology']);
-    expect((held.payload as DailyRecord).beds.R4).toMatchObject({
-      rut: '11111111-1',
-      clinicalEpisodeId: 'episode-a',
-      pathology: 'B4',
-    });
     expect(task.syncContract?.changedPaths).not.toContain('beds.R4.pathology');
     // Its version stays the held write's; its base for the bed is not the unsent text.
     expect(task.syncContract?.expectedVersion).toBe('2026-11-16T11:00:00.000Z');
@@ -87,9 +78,8 @@ describe('a write folded into the day task holding an unsent diagnosis', () => {
   });
 
   it('that corrects the RUT of the same patient keeps the diagnosis in the day task', () => {
-    const { task, heldConflicts } = fold({ 'beds.R4.rut': '12345678-5' } as DailyRecordPatch);
+    const task = fold({ 'beds.R4.rut': '12345678-5' } as DailyRecordPatch);
 
-    expect(heldConflicts).toEqual([]);
     expect(task.syncContract?.changedPaths).toEqual(
       expect.arrayContaining(['beds.R4.pathology', 'beds.R4.rut'])
     );

@@ -223,7 +223,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   });
 
   it.each(['patient', 'episode'] as const)(
-    'retains an equal original field after the bed changes %s',
+    'drops a stale field without writing it after the bed changes %s',
     async change => {
       await fenced();
       const base = baseRecord();
@@ -236,7 +236,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
           { authoringSession: captureAuthoringSession(), baseRecord: base }
         )
       );
-      const [pending] = await hospitalDB.syncQueue.toArray();
+      expect(await hospitalDB.syncQueue.count()).toBe(1);
       await admin.doc(dayPath).update({
         'beds.R1': {
           ...base.beds.R1,
@@ -256,9 +256,8 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       expect(stored.beds.R1.clinicalEpisodeId).toBe(
         change === 'patient' ? base.beds.R1.clinicalEpisodeId : 'another-synthetic-episode'
       );
-      expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
-        { status: 'CONFLICT', payload: pending.payload },
-      ]);
+      expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
+      expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.pathology).toBe('BASE');
     }
   );
 

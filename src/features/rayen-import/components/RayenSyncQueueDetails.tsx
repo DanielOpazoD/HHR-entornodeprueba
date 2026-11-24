@@ -89,7 +89,7 @@ export const RayenSyncQueueDetails: React.FC<{
                 </li>
               ))}
             {blocked.map(operation => {
-              const canDiscard = operation.canRetire || operation.recovery === 'discard_detached';
+              const canDiscard = operation.canRetire;
               const canRetry =
                 operation.recovery === 'retry' || operation.recovery === 'review_authorization';
               return (

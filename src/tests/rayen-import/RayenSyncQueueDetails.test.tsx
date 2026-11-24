@@ -52,36 +52,32 @@ it('keeps a baseless write for review while other failed writes can still retry'
   expect(retryQuarantinedSyncTask).toHaveBeenCalledExactlyOnceWith(42);
 });
 
-it.each(['UPDATE_DAILY_RECORD'] as const)(
-  'still requires confirmation to discard a refused occupant-bound write: %s',
-  type => {
-    render(
-      <RayenSyncQueueDetails
-        stats={{ pending: 0, failed: 0, conflict: 1, retrying: 0, acked: 0, oldestPendingAgeMs: 0 }}
-        operations={[
-          {
-            id: 43,
-            type,
-            status: 'CONFLICT',
-            retryCount: 0,
-            timestamp: 1,
-            key: 'daily:2026-10-24:detached:43:[]',
-          },
-        ]}
-        working={false}
-        refresh={vi.fn().mockResolvedValue(undefined)}
-      />
-    );
-    fireEvent.click(screen.getByText('Guardado local · 1 por revisar'));
-    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Descartar envío' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
-    expect(discardQuarantinedSyncTask).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Descartar envío' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Sí, descartar envío' }));
-    expect(discardQuarantinedSyncTask).toHaveBeenCalledExactlyOnceWith(43);
-  }
-);
+it('requires one-step confirmation to discard a conflicted census write', () => {
+  render(
+    <RayenSyncQueueDetails
+      stats={{ pending: 0, failed: 0, conflict: 1, retrying: 0, acked: 0, oldestPendingAgeMs: 0 }}
+      operations={[
+        {
+          id: 43,
+          type: 'UPDATE_DAILY_RECORD',
+          status: 'CONFLICT',
+          retryCount: 0,
+          timestamp: 1,
+          key: 'daily:2026-10-24',
+        },
+      ]}
+      working={false}
+      refresh={vi.fn().mockResolvedValue(undefined)}
+    />
+  );
+  fireEvent.click(screen.getByText('Guardado local · 1 por revisar'));
+  fireEvent.click(screen.getByRole('button', { name: 'Descartar envío' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+  expect(discardQuarantinedSyncTask).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Descartar envío' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Sí, descartar envío' }));
+  expect(discardQuarantinedSyncTask).toHaveBeenCalledExactlyOnceWith(43);
+});
 
 it('offers one-step confirmed discard for a census blocked by permissions', () => {
   render(

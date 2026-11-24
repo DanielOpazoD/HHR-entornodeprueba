@@ -1316,13 +1316,12 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       const stored = await readServer();
       expect(stored.beds.R1).toMatchObject({ rut: BETO.rut, pathology: BASE });
       expect((await admin.doc(dayPath).get()).data()?.meta?.revision).toBe(3);
-      // The correction stays kept for the patient it was written for (ID-01).
-      const kept = (await hospitalDB.syncQueue.toArray()).map(task => [
-        task.status,
-        (task.payload as DailyRecord).beds.R1.rut,
-        (task.payload as DailyRecord).beds.R1.pathology,
-      ]);
-      expect(kept).toContainEqual(['CONFLICT', '12.345.678-5', CORRECTED]);
+      // The stale correction is dropped instead of lingering as a detached conflict (ID-01).
+      expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
+      expect((await hospitalDB.dailyRecords.get(date))?.beds.R1).toMatchObject({
+        rut: BETO.rut,
+        pathology: BASE,
+      });
       expectDelivered([DIAGNOSIS]);
     });
 

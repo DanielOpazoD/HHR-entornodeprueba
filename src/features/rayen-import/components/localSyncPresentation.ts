@@ -56,7 +56,7 @@ export type QuarantinedOperationView = QuarantinedOperationTarget &
   (
     | { recovery: 'review_authorization'; retryGuidance: string }
     | { recovery: 'editing_window_closed'; guidance: string }
-    | { recovery: 'retry' | 'review_base' | 'discard_detached' }
+    | { recovery: 'retry' | 'review_base' }
   );
 
 export const targetLabelFromKey = (
@@ -65,18 +65,6 @@ export const targetLabelFromKey = (
 ): string => {
   if (type === 'ARCHIVE_CUDYR') return 'Archivo CUDYR';
   if (type === 'UPDATE_PATIENT') return 'Datos del paciente';
-  // daily:<date>:detached:<task>:[bed, target, documentType, rut, patientName, episode]
-  const named = key?.match(/^daily:([^:]*):detached:[^:]*:(.*)$/);
-  if (named) {
-    const [, rawDay = '', rawPayload = ''] = named;
-    let name = 'paciente';
-    try {
-      name = (JSON.parse(rawPayload) as string[])[4] ?? '';
-    } catch {
-      // Keep the generic label for a malformed key.
-    }
-    return `Cambios de ${name} · ${rawDay.split('-').reverse().join('-')}`;
-  }
   const date = key?.startsWith('daily:') ? key.slice('daily:'.length) : null;
   if (!date) return 'Registro del censo';
   return `Censo del ${formatClinicalDayMonthYear(date)}`;
@@ -84,10 +72,6 @@ export const targetLabelFromKey = (
 
 const DAILY_RECORD_KEY = /^daily:(\d{4}-\d{2}-\d{2})$/;
 
-/**
- * Edits detached from a patient who left the bed can never be sent as they are: a retry always
- * fails, so the panel offers a confirmed discard instead.
- */
 const resolveQuarantineRecovery = (
   operation: SyncQueueOperation,
   isAdmin: boolean,
@@ -96,13 +80,12 @@ const resolveQuarantineRecovery = (
   // The closed window explains the stop first: its edits left the stored day for the same reason.
   if (!isAdmin && isClosedNurseWindowRefusal(operation, now)) return 'editing_window_closed';
   // A closed session cleared the day these edits were made on: like a write without a known base,
-  // they cannot be resent as they are, only reviewed and retired with a backup.
+  // they cannot be resent as they are, only reviewed and discarded.
   if (operation.projectionReleased || requiresDailyRecordBaseReview(operation))
     return 'review_base';
   if (operation.status === 'FAILED' && operation.lastErrorCategory === 'authorization')
     return 'review_authorization';
-  if (operation.status !== 'CONFLICT') return 'retry';
-  return operation.key?.includes(':detached:') ? 'discard_detached' : 'retry';
+  return 'retry';
 };
 
 /** The stopped sends of the panel; `now` and the viewer's role decide a closed editing window. */
