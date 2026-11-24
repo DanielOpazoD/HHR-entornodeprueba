@@ -95,24 +95,24 @@
       }
     },
     "clinical-checklist-broker.js": {
-      "maxLines": 68,
+      "maxLines": 214,
       "hotspots": {
-        "iife>function:create>function:handle": 33
+        "iife>function:create>function:assertActiveChartAndIdentity": 17,
+        "iife>function:create>function:handle": 16
       }
     },
     "clinical-checklist-dialog.js": {
-      "maxLines": 210,
+      "maxLines": 473,
       "hotspots": {
-        "iife>function:open": 22,
         "iife>function:refresh": 23
       }
     },
     "clinical-checklist-evolution.js": {
-      "maxLines": 68,
+      "maxLines": 301,
       "hotspots": {}
     },
     "clinical-checklist-hhr.js": {
-      "maxLines": 25,
+      "maxLines": 37,
       "hotspots": {}
     },
     "clinical-day-runtime.js": {
@@ -902,7 +902,7 @@
       "hotspots": {}
     },
     "relay-reinjection-manifest.js": {
-      "maxLines": 96,
+      "maxLines": 97,
       "hotspots": {}
     },
     "relay-reinjection-operations.js": {

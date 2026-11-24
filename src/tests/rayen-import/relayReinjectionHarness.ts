@@ -107,6 +107,7 @@ export const MANIFEST = {
         'content-hhr-statistical-discharge.js',
         'content-hhr-statistical-evidence.js',
         'content-hhr-syslab.js',
+        'clinical-checklist-hhr.js',
       ],
     },
     {

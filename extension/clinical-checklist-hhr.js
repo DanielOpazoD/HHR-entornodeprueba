@@ -1,14 +1,26 @@
 (() => {
   'use strict';
-  if (location.origin !== 'https://hhr-hospitalizados.app' || top !== window || globalThis.hhrClinicalChecklistRelayInstalled) return;
+  const allowedOrigin =
+    typeof globalThis.HhrAppOrigins?.has === 'function'
+      ? globalThis.HhrAppOrigins.has(location.origin)
+      : location.origin === 'https://hhr-hospitalizados.app';
+  if (!allowedOrigin || top !== window || globalThis.hhrClinicalChecklistRelayInstalled) return;
   globalThis.hhrClinicalChecklistRelayInstalled = true;
   chrome.runtime.onConnect.addListener(port => {
     if (port.name !== 'hhr-clinical-checklists' || port.sender?.id !== chrome.runtime.id) return;
-    if (!document.documentElement?.hasAttribute('data-hhr-checklists-ready')) { port.postMessage({ unavailable: true }); return; }
+    if (!document.documentElement?.hasAttribute('data-hhr-checklists-ready')) {
+      port.postMessage({ unavailable: true, reason: 'not_ready' });
+      return;
+    }
     let pending = false;
     const requestId = crypto.randomUUID();
     const receive = event => {
-      if (event.source === window && event.origin === location.origin && event.data?.type === 'HHR_CHECKLIST_RESPONSE' && event.data.requestId === requestId) {
+      if (
+        event.source === window &&
+        event.origin === location.origin &&
+        event.data?.type === 'HHR_CHECKLIST_RESPONSE' &&
+        event.data.requestId === requestId
+      ) {
         port.postMessage(event.data.error ? { error: event.data.error } : { data: event.data.data });
       }
     };
