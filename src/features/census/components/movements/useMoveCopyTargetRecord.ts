@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
@@ -8,12 +8,13 @@ interface UseMoveCopyTargetRecordParams {
   selectedDate: string;
   currentRecord: DailyRecord | null;
   getRecordForDate: (date: string) => Promise<DailyRecord | null>;
-  onError?: (error: unknown) => void;
 }
 
 interface UseMoveCopyTargetRecordResult {
   targetRecord: DailyRecord | null;
   isLoading: boolean;
+  loadFailed: boolean;
+  retry: () => void;
 }
 
 export const useMoveCopyTargetRecord = ({
@@ -21,22 +22,31 @@ export const useMoveCopyTargetRecord = ({
   selectedDate,
   currentRecord,
   getRecordForDate,
-  onError,
 }: UseMoveCopyTargetRecordParams): UseMoveCopyTargetRecordResult => {
   const [targetRecord, setTargetRecord] = useState<DailyRecord | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const requestIdRef = useRef(0);
   const getRecordForDateRef = useLatestRef(getRecordForDate);
-  const onErrorRef = useLatestRef(onError);
   const currentRecordDate = currentRecord?.date ?? '';
   const useCurrentRecord = !selectedDate || selectedDate === currentRecordDate;
 
   const loadsTarget = isOpen && !useCurrentRecord;
   if (useChangedOnRender([currentRecordDate, isOpen, selectedDate, useCurrentRecord])) {
-    // Prevent stale availability from previous date while loading a new target day.
+    // Prevent stale availability or errors from a previous date while loading a new target day.
     setTargetRecord(null);
+    setLoadFailed(false);
     setIsLoading(loadsTarget);
   }
+
+  const retry = useCallback(() => {
+    if (!isOpen || useCurrentRecord) return;
+    setTargetRecord(null);
+    setLoadFailed(false);
+    setIsLoading(true);
+    setRetryCount(count => count + 1);
+  }, [isOpen, useCurrentRecord]);
 
   useEffect(() => {
     if (!isOpen || useCurrentRecord) return;
@@ -49,11 +59,12 @@ export const useMoveCopyTargetRecord = ({
         const fetchedRecord = await getRecordForDateRef.current(selectedDate);
         if (!disposed && requestId === requestIdRef.current) {
           setTargetRecord(fetchedRecord);
+          setLoadFailed(false);
         }
-      } catch (error) {
+      } catch {
         if (!disposed && requestId === requestIdRef.current) {
           setTargetRecord(null);
-          onErrorRef.current?.(error);
+          setLoadFailed(true);
         }
       } finally {
         if (!disposed && requestId === requestIdRef.current) {
@@ -67,10 +78,12 @@ export const useMoveCopyTargetRecord = ({
     return () => {
       disposed = true;
     };
-  }, [currentRecordDate, getRecordForDateRef, isOpen, onErrorRef, selectedDate, useCurrentRecord]);
+  }, [currentRecordDate, getRecordForDateRef, isOpen, retryCount, selectedDate, useCurrentRecord]);
 
   return {
     targetRecord: !isOpen ? null : useCurrentRecord ? currentRecord : targetRecord,
     isLoading: isOpen && !useCurrentRecord && isLoading,
+    loadFailed: isOpen && !useCurrentRecord && loadFailed,
+    retry,
   };
 };
