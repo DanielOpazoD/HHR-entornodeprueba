@@ -26,6 +26,7 @@ const censusContextValues = (source: ClinicalFormPatientOption): ClinicalFormVal
   imagen_procedencia: 'hospitalizado',
   contraste_procedencia: 'hospitalizado',
   laboratorio_procedencia: 'hospitalizado',
+  transfusion_procedencia: source.context.isUpc ? 'upc' : 'hospitalizado',
   vdrl_procedencia: 'Hospital Hanga Roa · Hospitalizados',
   serologia_procedencia: 'Hospital Hanga Roa · Hospitalizados',
   establecimiento_nombre: 'Hospital Hanga Roa',

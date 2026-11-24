@@ -307,4 +307,31 @@ describe('clinical forms editor', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Vista previa' })).toBeEnabled();
   });
+
+  it('autocompletes transfusion procedencia from UPC vs hospitalized census beds while allowing manual override', () => {
+    const upcPatient: ClinicalFormPatientOption = {
+      ...source('PACIENTE UPC', 'upc-ep'),
+      context: { ...source('PACIENTE UPC', 'upc-ep').context, bedId: 'R1', isUpc: true },
+    };
+    const wardPatient: ClinicalFormPatientOption = {
+      ...source('PACIENTE SALA', 'ward-ep'),
+      context: { ...source('PACIENTE SALA', 'ward-ep').context, bedId: 'H1C1', isUpc: false },
+    };
+    mount('solicitud-transfusion-hemocomponentes', [upcPatient, wardPatient]);
+
+    expect(screen.getByLabelText('Servicio de procedencia')).toHaveValue('');
+    fireEvent.change(screen.getByLabelText('Origen de los datos'), { target: { value: 'upc-ep' } });
+    expect(screen.getByLabelText('Servicio de procedencia')).toHaveValue('upc');
+
+    fireEvent.change(screen.getByLabelText('Servicio de procedencia'), {
+      target: { value: 'pabellon' },
+    });
+    expect(screen.getByLabelText('Servicio de procedencia')).toHaveValue('pabellon');
+
+    fireEvent.change(screen.getByLabelText('Origen de los datos'), {
+      target: { value: 'ward-ep' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Reemplazar datos' }));
+    expect(screen.getByLabelText('Servicio de procedencia')).toHaveValue('hospitalizado');
+  });
 });

@@ -2,6 +2,7 @@ import imaging from './solicitud-imagenologia.json';
 import contrast from './encuesta-contraste.json';
 import consent from './consentimiento-informado.json';
 import laboratory from './solicitud-laboratorio-policlinico.json';
+import transfusion from './solicitud-transfusion-hemocomponentes.json';
 import vdrl from './solicitud-vdrl-mha-tp.json';
 import serology from './solicitud-serologia-hepatitis-chagas.json';
 import tuberculosis from './solicitud-tuberculosis.json';
@@ -16,6 +17,7 @@ export const CLINICAL_FORMS: ReadonlyArray<ClinicalFormDefinition> = [
   imaging,
   contrast,
   consent,
+  transfusion,
   tuberculosis,
   vdrl,
   serology,

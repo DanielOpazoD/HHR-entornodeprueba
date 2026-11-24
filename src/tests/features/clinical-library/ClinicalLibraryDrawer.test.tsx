@@ -42,6 +42,11 @@ describe('ClinicalLibraryDrawer', () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText('Aún no hay protocolos publicados')).not.toBeInTheDocument();
 
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'transfusion' } });
+    expect(
+      screen.getByTestId('library-document-solicitud-transfusion-hemocomponentes')
+    ).toBeInTheDocument();
+
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'zzz' } });
     expect(screen.getByText('Sin resultados para «zzz»')).toBeInTheDocument();
 
