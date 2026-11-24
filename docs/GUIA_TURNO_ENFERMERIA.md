@@ -32,8 +32,8 @@ su propia cuenta.
 3. Si aparece **Entrega de turno sin enviar**:
    - **Reintentar:** prueba otra vez. Es lo primero que debes hacer.
    - **Cancelar:** sigues en tu sesión, con tu trabajo intacto.
-   - **Descargar copia y salir:** solo si debes irte. La entrega queda en este equipo y se enviará
-     cuando vuelvas a entrar. Avisa al responsable de HHR.
+   - **Salir igual (queda guardado en este equipo):** solo si debes irte. La entrega queda en este
+     equipo y se enviará cuando vuelvas a entrar. Avisa al responsable de HHR.
 
 Sin uso durante **1 hora**, la sesión se cierra sola. Vuelve a entrar con tu cuenta. Lo pendiente no
 se borra.

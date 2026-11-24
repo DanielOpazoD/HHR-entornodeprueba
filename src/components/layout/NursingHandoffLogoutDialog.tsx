@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import type { NursingLogoutPrompt } from '@/hooks/useNursingHandoffLogout';
 
-export default function NursingHandoffLogoutDialog({ choose, error }: NursingLogoutPrompt) {
+export default function NursingHandoffLogoutDialog({ choose }: NursingLogoutPrompt) {
   const dialog = useRef<HTMLDialogElement>(null);
   useLayoutEffect(() => {
     dialog.current?.showModal();
@@ -26,18 +26,13 @@ export default function NursingHandoffLogoutDialog({ choose, error }: NursingLog
         <button type="button" onClick={() => choose('retry')}>
           Reintentar
         </button>
-        <button type="button" onClick={() => choose('download')}>
-          Descargar copia y salir
+        <button type="button" onClick={() => choose('leave')}>
+          Salir igual (queda guardado en este equipo)
         </button>
         <button type="button" onClick={() => choose('cancel')} autoFocus>
           Cancelar
         </button>
       </div>
-      {error && (
-        <p role="status" className="mt-3 text-sm">
-          {error}
-        </p>
-      )}
     </dialog>
   );
 }

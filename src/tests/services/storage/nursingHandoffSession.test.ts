@@ -18,13 +18,10 @@ import {
 import {
   attemptNursingHandoffLogout,
   resumeOwnedNursingHandoff,
-  downloadPendingNursingHandoff,
 } from '@/services/storage/sync/nursingHandoffSession';
-import { downloadBlob } from '@/services/exporters/exportDownload';
 
 const { processQueue } = vi.hoisted(() => ({ processQueue: vi.fn() }));
 vi.mock('@/services/storage/sync/publicSyncQueue', () => ({ processSyncQueue: processQueue }));
-vi.mock('@/services/exporters/exportDownload', () => ({ downloadBlob: vi.fn() }));
 
 const owner = 'user:synthetic-A';
 const date = '2026-11-01';
@@ -265,43 +262,19 @@ it('B receives only A staff identity, cannot adopt or send the held note, and se
   expect(await hospitalDB.syncQueue.toArray()).toEqual(before);
 });
 
-it('downloads the existing unconfirmed backup envelope without deleting or retiring the send', async () => {
-  const id = await hospitalDB.syncQueue.add(task());
-  await downloadPendingNursingHandoff(owner);
-  const [blob, name] = vi.mocked(downloadBlob).mock.calls[0];
-  expect(name).toBe(`hhr-envio-local-${id}.json`);
-  const reader = new FileReader();
-  const content = await new Promise<string>(resolve => {
-    reader.onload = () => resolve(String(reader.result));
-    reader.readAsText(blob);
-  });
-  expect(JSON.parse(content)).toMatchObject({
-    schemaVersion: 1,
-    remotelyConfirmed: false,
-    task: { id, payload: record() },
-  });
-  expect(await hospitalDB.syncQueue.get(id)).toMatchObject({
-    status: 'PENDING',
-    payload: record(),
-  });
-});
-
-it('refuses recovery and backup reads under the wrong admitted identity', async () => {
+it('refuses recovery reads under the wrong admitted identity', async () => {
   await hospitalDB.syncQueue.add(task());
   admit('user:synthetic-B');
   await expect(resumeOwnedNursingHandoff(owner)).rejects.toThrow('La sesión cambió');
-  await expect(downloadPendingNursingHandoff(owner)).rejects.toThrow('La sesión cambió');
-  expect(downloadBlob).not.toHaveBeenCalled();
 });
 
 it.each(['manual', 'automatic'] as const)(
   'preserves an unconfirmed nursing handoff through %s cleanup',
-  async reason => {
+  async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     const original = task();
     const id = await hospitalDB.syncQueue.add(original);
     expect(await attemptNursingHandoffLogout(owner, 'Enfermera A')).toBe(false);
-    if (reason === 'manual') await downloadPendingNursingHandoff(owner);
     await clearSessionDailyRecords(owner);
     expect(await hospitalDB.syncQueue.get(id)).toMatchObject({
       payload: original.payload,

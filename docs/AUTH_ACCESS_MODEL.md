@@ -93,9 +93,9 @@ edición de enfermería: queda retenido como antes, sin inferirla del texto guar
 Antes del cierre manual se intenta `processSyncQueue` durante un máximo de diez
 segundos, seleccionando sólo tareas propias con esas rutas. El botón permanece
 en «Guardando…». Sin conexión, la decisión es inmediata. Si no hay confirmación,
-se ofrecen Reintentar, Descargar copia y salir o Cancelar. La descarga reutiliza
-el respaldo JSON existente, marcado `remotelyConfirmed: false`; no elimina ni
-retira la tarea. Cancelar conserva sesión y trabajo. El cierre automático hace
+se ofrecen Reintentar, Salir igual (queda guardado en este equipo) o Cancelar.
+Salir igual conserva la entrega retenida en el equipo sin descargar copia JSON;
+no elimina ni retira la tarea. Cancelar conserva sesión y trabajo. El cierre automático hace
 el mismo intento y después continúa la limpieza existente, sin diálogo. Los
 plazos de una hora de inactividad y doce de sesión individual no cambian.
 
