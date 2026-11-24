@@ -2,16 +2,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-vi.mock('@/features/laboratory/controllers/labFormattingController', () => ({
-  isOutOfRange: (result: string, ref: string) => {
-    const m = ref.match(/([\d.]+)-([\d.]+)/);
-    if (!m) return null;
-    const v = parseFloat(result);
-    if (isNaN(v)) return null;
-    return v < parseFloat(m[1]) || v > parseFloat(m[2]);
-  },
-  formatLabResult: (result: string, unit: string) => ({ display: result, displayUnit: unit }),
-}));
+vi.mock('@/features/laboratory/controllers/labFormattingController', async importOriginal => {
+  const actual =
+    await importOriginal<
+      typeof import('@/features/laboratory/controllers/labFormattingController')
+    >();
+  return {
+    ...actual,
+    isOutOfRange: (result: string, ref: string) => {
+      const m = ref.match(/([\d.]+)-([\d.]+)/);
+      if (!m) return null;
+      const v = parseFloat(result);
+      if (isNaN(v)) return null;
+      return v < parseFloat(m[1]) || v > parseFloat(m[2]);
+    },
+    formatLabResult: (result: string, unit: string) => ({ display: result, displayUnit: unit }),
+  };
+});
 
 vi.mock('@/features/laboratory/services/labExcelService', () => ({
   exportComparisonToExcel: vi.fn(),
