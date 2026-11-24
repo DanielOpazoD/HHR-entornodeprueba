@@ -1,4 +1,5 @@
 import { render } from '@testing-library/react';
+import { ErrorBoundary } from 'react-error-boundary';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/services/storage/indexeddb/indexedDbErrorLogService', () => ({
@@ -10,7 +11,9 @@ vi.mock('@/services/observability/operationalTelemetryExternalAdapter', () => ({
 }));
 
 import { GlobalErrorBoundary } from '@/components/shared/GlobalErrorBoundary';
+import { SectionErrorBoundary } from '@/components/shared/SectionErrorBoundary';
 import { dispatchOperationalTelemetryExternally } from '@/services/observability/operationalTelemetryExternalAdapter';
+import { reportCaughtRenderError } from '@/services/observability/renderCrashReporter';
 import {
   buildOperationalTelemetryAlert,
   shouldAlertOperationalTelemetry,
@@ -79,7 +82,7 @@ describe('an error-service alert says what failed without the message', () => {
     expect(body).not.toContain('Juan');
   });
 
-  it('names a screen that broke while rendering', async () => {
+  it('names a screen that broke while rendering in GlobalErrorBoundary without duplicating alerts', async () => {
     const Broken = (): never => {
       throw new RangeError(PATIENT_TEXT);
     };
@@ -88,16 +91,90 @@ describe('an error-service alert says what failed without the message', () => {
       render(
         <GlobalErrorBoundary>
           <Broken />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
+        { onCaughtError: reportCaughtRenderError }
       );
     } finally {
       restoreConsole(consoleSpies);
     }
 
     const body = await mailForLastError();
+    expect(dispatchOperationalTelemetryExternally).toHaveBeenCalledTimes(1);
     expect(body).toContain('- errorSource: render_crash');
     expect(body).toContain('- errorName: RangeError');
     expect(body).not.toContain('Juan');
+  });
+
+  it('reports crashes caught by SectionErrorBoundary and react-error-boundary via onCaughtError', async () => {
+    const BrokenSection = (): never => {
+      throw new TypeError(PATIENT_TEXT);
+    };
+    const BrokenPanel = (): never => {
+      throw new ReferenceError(PATIENT_TEXT);
+    };
+    const consoleSpies = suppressConsole(['error']);
+    try {
+      render(
+        <GlobalErrorBoundary>
+          <SectionErrorBoundary sectionName="Censo">
+            <BrokenSection />
+          </SectionErrorBoundary>
+        </GlobalErrorBoundary>,
+        { onCaughtError: reportCaughtRenderError }
+      );
+    } finally {
+      restoreConsole(consoleSpies);
+    }
+
+    const sectionBody = await mailForLastError();
+    expect(dispatchOperationalTelemetryExternally).toHaveBeenCalledTimes(1);
+    expect(sectionBody).toContain('- errorSource: render_crash');
+    expect(sectionBody).toContain('- errorName: TypeError');
+    expect(sectionBody).not.toContain('Juan');
+
+    vi.clearAllMocks();
+    const panelConsoleSpies = suppressConsole(['error']);
+    try {
+      render(
+        <ErrorBoundary fallback={<div>fallback</div>}>
+          <BrokenPanel />
+        </ErrorBoundary>,
+        { onCaughtError: reportCaughtRenderError }
+      );
+    } finally {
+      restoreConsole(panelConsoleSpies);
+    }
+
+    const panelBody = await mailForLastError();
+    expect(dispatchOperationalTelemetryExternally).toHaveBeenCalledTimes(1);
+    expect(panelBody).toContain('- errorSource: render_crash');
+    expect(panelBody).toContain('- errorName: ReferenceError');
+    expect(panelBody).not.toContain('Juan');
+  });
+
+  it('ignores ChunkLoadError caught by an error boundary so stale deploys do not trigger alerts', async () => {
+    const BrokenChunk = (): never => {
+      const error = new Error('Failed to fetch dynamically imported module');
+      error.name = 'ChunkLoadError';
+      throw error;
+    };
+    const logErrorSpy = vi.spyOn(errorService, 'logError');
+    const consoleSpies = suppressConsole(['error']);
+    try {
+      render(
+        <SectionErrorBoundary sectionName="Ruta">
+          <BrokenChunk />
+        </SectionErrorBoundary>,
+        { onCaughtError: reportCaughtRenderError }
+      );
+      await new Promise(resolve => setTimeout(resolve, 0));
+    } finally {
+      restoreConsole(consoleSpies);
+    }
+
+    expect(logErrorSpy).not.toHaveBeenCalled();
+    expect(dispatchOperationalTelemetryExternally).not.toHaveBeenCalled();
+    logErrorSpy.mockRestore();
   });
 
   it('reports an unknown error class without echoing its name', async () => {

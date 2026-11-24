@@ -24,6 +24,7 @@ import {
   shouldPreloadAuthenticatedShellForPathname,
 } from '@/app-shell/bootstrap/authenticatedRoutePreloadController';
 import { mountFirebaseConfigWarning } from '@/services/firebase-runtime/firebaseStartupDiagnostics';
+import { reportCaughtRenderError } from '@/services/observability/renderCrashReporter';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import { markPerf } from '@/shared/runtime/perfAudit';
 
@@ -38,7 +39,9 @@ markPerf('bootstrap:start');
 // after it both start here, so a shift change while the app loads moves neither of them.
 const openingDay = resolveOpeningCensusDay();
 
-const root = ReactDOM.createRoot(rootElement);
+const root = ReactDOM.createRoot(rootElement, {
+  onCaughtError: reportCaughtRenderError,
+});
 const bootLogger = createScopedLogger('Bootstrap');
 const detachBootstrapRuntimeErrorListeners =
   typeof window !== 'undefined' ? installBootstrapRuntimeErrorListeners() : () => {};

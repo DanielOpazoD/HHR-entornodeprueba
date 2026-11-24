@@ -1,9 +1,6 @@
 import React, { Component, ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import {
-  reportRenderCrash,
-  type RenderCrashReporter,
-} from '@/services/observability/renderCrashReporter';
+import type { RenderCrashReporter } from '@/services/observability/renderCrashReporter';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import {
   getNavigatorUserAgent,
@@ -44,11 +41,7 @@ export class GlobalErrorBoundary extends Component<Props, State> {
   }
 
   override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    if (this.props.onError) {
-      this.props.onError(error, errorInfo);
-    } else {
-      reportRenderCrash(error, errorInfo);
-    }
+    this.props.onError?.(error, errorInfo);
 
     this.setState({
       error,
