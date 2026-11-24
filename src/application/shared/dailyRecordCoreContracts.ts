@@ -18,6 +18,8 @@ export type ApplyDailyRecordPatchOptions = {
   consistency?: 'eventual' | 'remote_confirmed';
   /** Reject concurrent journal writes instead of merging a stale signed evaluation. */
   requireAtomicCas?: boolean;
+  /** Exact census revision on which the signed round was prepared. */
+  baseRecord?: DailyRecord;
   /**
    * Reflect a remote-confirmed mutation immediately in the census while retaining rollback on
    * rejection. Reserved for narrow, reversible UI transitions such as clinical-crib lifecycle.

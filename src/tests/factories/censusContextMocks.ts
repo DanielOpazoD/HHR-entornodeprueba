@@ -52,6 +52,7 @@ export const buildMockBedActions = (
   overrides: Partial<DailyRecordBedActions> = {}
 ): DailyRecordBedActions => ({
   updatePatient: vi.fn(),
+  confirmUpcRound: vi.fn().mockResolvedValue(true),
   updatePatientMultiple: vi.fn(),
   updateClinicalCrib: vi.fn(),
   updateClinicalCribMultiple: vi.fn(),

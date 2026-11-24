@@ -76,6 +76,9 @@ describe('contrato único de autoridad · alineación entre capas', () => {
       // sobre clínico
       { ruta: 'beds.R1.pathology', escalarClinico: true, override: false },
       { ruta: 'beds.R1.diagnosisManualOverride', escalarClinico: true, override: false },
+      { ruta: 'beds.R1.clinicalCrib.upcChecklist', escalarClinico: true, override: false },
+      { ruta: 'beds.R1.clinicalCrib.isUPC', escalarClinico: true, override: false },
+      { ruta: 'beds.R1.clinicalCrib.upcChecklist.history', escalarClinico: false, override: false },
       { ruta: 'beds.R1.upcChecklist', escalarClinico: true, override: false },
       { ruta: 'beds.R1.isUPC', escalarClinico: true, override: false },
       { ruta: 'bedTypeOverrides.R1', escalarClinico: false, override: true },

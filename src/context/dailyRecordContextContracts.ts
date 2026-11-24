@@ -1,3 +1,4 @@
+import type { UpcRoundEvaluation } from '@/domain/upc/upcContracts';
 import type { PatientData } from '@/types/domain/patient';
 
 import type {
@@ -63,6 +64,7 @@ export interface DailyRecordDayActions {
 }
 
 export interface DailyRecordBedActions {
+  confirmUpcRound: (evaluations: readonly UpcRoundEvaluation[]) => Promise<boolean>;
   updatePatient: (bedId: string, field: keyof PatientData, value: PatientFieldValue) => void;
   updatePatientMultiple: (
     bedId: string,

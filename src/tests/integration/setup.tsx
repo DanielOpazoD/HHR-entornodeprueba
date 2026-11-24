@@ -196,6 +196,7 @@ export const createMockDailyRecordContext = (
 
   // Bed Management
   updatePatient: vi.fn().mockResolvedValue(undefined),
+  confirmUpcRound: vi.fn().mockResolvedValue(true),
   updatePatientMultiple: vi.fn().mockResolvedValue(undefined),
   updateClinicalCrib: vi.fn(),
   updateClinicalCribMultiple: vi.fn(),

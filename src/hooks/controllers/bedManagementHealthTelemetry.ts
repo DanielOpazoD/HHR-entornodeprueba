@@ -132,6 +132,12 @@ const getPatchFieldMetadata = (action: BedAction): BedPatchFieldMetadata => {
         fieldLabel: `Copia desde ${action.sourceBedId}`,
         actionLabel: 'Copiar paciente',
       };
+    case 'CONFIRM_UPC_ROUND':
+      return {
+        fieldKey: 'upcChecklist',
+        fieldLabel: 'Evaluaciones UPC',
+        actionLabel: 'Confirmar ronda UPC',
+      };
     case 'CLEAR_ALL_BEDS':
       return {
         fieldKey: 'allBeds',

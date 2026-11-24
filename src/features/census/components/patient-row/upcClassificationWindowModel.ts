@@ -5,11 +5,14 @@ import {
 } from '@/domain/upc/upcClassification';
 import { isUciEligibleBedId, resolveEffectiveUpcState } from '@/shared/census/upcBedPolicy';
 import { resolveUpcReviewReason } from '@/shared/census/upcEvaluationPolicy';
-import {
-  buildUpcCriteriaEvaluation,
-  buildUpcNoCriteriaEvaluation,
-} from '@/domain/upc/upcNoCriteriaEvaluation';
-import type { UpcChecklistAuditActor, UpcChecklistRecord } from '@/domain/upc/upcContracts';
+import { buildUpcCriteriaEvaluation } from '@/domain/upc/upcCriteriaEvaluation';
+import { resolveUpcEpisodeIdentity } from '@/domain/upc/upcRoundSubject';
+import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
+import type {
+  UpcChecklistAuditActor,
+  UpcChecklistRecord,
+  UpcRoundEvaluation,
+} from '@/domain/upc/upcContracts';
 import {
   isValidUciCriterionId,
   isValidUtiCriterionId,
@@ -27,6 +30,9 @@ export interface UpcWindowSubject {
   patientName?: string;
   rut?: string;
   clinicalEpisodeId?: string;
+  firstSeenDate?: string;
+  admissionDate?: string;
+  admissionTime?: string;
   isUPC?: boolean;
   upcChecklist?: UpcChecklistRecord;
   clinicalCrib?: UpcWindowSubject;
@@ -111,22 +117,13 @@ const buildRow = ({
     bedName,
     patientName: subject?.patientName?.trim() ?? '',
     rut: subject?.rut?.trim() ?? '',
-    episodeIdentity: resolveUpcEpisodeIdentity(subject, bedId) ?? bedId,
+    episodeIdentity: resolveUpcEpisodeIdentity(subject)!,
     hasPatient: true,
     classification,
     classificationLabel: resolveUpcClassificationLabel(classification),
     pendingReason: resolveUpcReviewReason(subject?.upcChecklist, bedId, date),
     uciAllowed: isUciEligibleBedId(bedId),
   };
-};
-
-/** Identidad clínica preferida para impedir que un borrador cambie de paciente. */
-export const resolveUpcEpisodeIdentity = (
-  subject: UpcWindowSubject | null | undefined,
-  bedId: string
-): string | null => {
-  if (!subject?.patientName?.trim()) return null;
-  return subject.clinicalEpisodeId?.trim() || subject.rut?.trim() || bedId;
 };
 
 export const sanitizeUpcCriteriaDraft = (
@@ -142,104 +139,65 @@ export const sanitizeUpcCriteriaDraft = (
   };
 };
 
-export interface UpcQuickEvaluationAvailability {
-  /** True when the evaluator may be recorded with the current shift data. */
-  allowed: boolean;
-  /** Short reason shown next to a disabled quick action. */
-  reason: string | null;
+export interface UpcRowDraft {
+  row: UpcClassificationRow;
+  previousChecklist?: UpcChecklistRecord;
+  uci: string[];
+  uti: string[];
+  noCriteria: boolean;
 }
 
-export const resolveUpcQuickEvaluationAvailability = ({
-  hasPatient,
-  readOnly,
-  hasActor,
-  nurseName,
-  assignedNurses,
-}: {
-  hasPatient: boolean;
-  readOnly: boolean;
-  hasActor: boolean;
-  nurseName: string;
-  assignedNurses: readonly string[];
-}): UpcQuickEvaluationAvailability => {
-  if (readOnly) return { allowed: false, reason: 'Sin permisos de edición clínica.' };
-  if (!hasActor) return { allowed: false, reason: 'Inicia sesión para registrar la evaluación.' };
-  if (!hasPatient) return { allowed: false, reason: 'Cama sin paciente.' };
-  const trimmed = nurseName.trim();
-  if (!trimmed) {
-    return {
-      allowed: false,
-      reason: assignedNurses.length
-        ? 'Elige el enfermero/a responsable para marcar.'
-        : 'Escribe el nombre del enfermero/a responsable para marcar.',
-    };
-  }
-  if (assignedNurses.length && !assignedNurses.includes(trimmed)) {
-    return { allowed: false, reason: 'El responsable debe ser uno de los asignados al turno.' };
-  }
-  return { allowed: true, reason: null };
+export const createUpcRowDraft = (
+  row: UpcClassificationRow,
+  previousChecklist?: UpcChecklistRecord
+): UpcRowDraft => ({
+  row,
+  previousChecklist,
+  ...sanitizeUpcCriteriaDraft(row, {
+    uci: previousChecklist?.uciCriteria,
+    uti: previousChecklist?.utiCriteria,
+  }),
+  noCriteria: false,
+});
+
+export const hasUpcDraftChanges = (draft: UpcRowDraft): boolean => {
+  if (draft.noCriteria) return true;
+  const initial = createUpcRowDraft(draft.row, draft.previousChecklist);
+  const sameIds = (a: string[], b: string[]) =>
+    a.length === b.length && a.every(id => b.includes(id));
+  return !sameIds(draft.uci, initial.uci) || !sameIds(draft.uti, initial.uti);
 };
 
-export interface UpcDraftRecordsInput {
-  rows: readonly UpcClassificationRow[];
-  checklistOf: (row: UpcClassificationRow) => UpcChecklistRecord | undefined;
-  criteriaOf: (row: UpcClassificationRow) => { uci: string[]; uti: string[] };
-  noCriteriaSelection: Record<string, boolean>;
-  actor: UpcChecklistAuditActor;
-  date: string;
-  nurseName: string;
-  nurseFromShift: boolean;
-  episodeIdentityOf: (row: UpcClassificationRow) => string;
-  evaluationIdFactory?: () => string;
-  now?: () => string;
-}
-
-export interface PendingUpcDraftRecord {
-  record: UpcChecklistRecord;
-  episodeIdentity: string;
-}
-
-/** Registros a firmar para las camas con cambios; el mismo borrador reintenta la misma evaluación. */
-export const buildUpcDraftRecords = ({
-  rows,
-  checklistOf,
-  criteriaOf,
-  noCriteriaSelection,
-  actor,
-  date,
-  nurseName,
-  nurseFromShift,
-  episodeIdentityOf,
-  evaluationIdFactory = () => crypto.randomUUID(),
-  now = () => new Date().toISOString(),
-}: UpcDraftRecordsInput): Record<string, PendingUpcDraftRecord> => {
-  const evaluatedAt = now();
-  return Object.fromEntries(
-    rows.map(row => {
-      const shared = {
-        checklist: checklistOf(row),
-        actor,
-        date,
-        bedId: row.bedId,
-        nurseName,
-        nurseFromShift,
-        evaluationId: evaluationIdFactory(),
-        evaluatedAt,
-      };
-      const draft = sanitizeUpcCriteriaDraft(row, criteriaOf(row));
-      return [
-        row.key,
-        {
-          episodeIdentity: episodeIdentityOf(row),
-          record: noCriteriaSelection[row.key]
-            ? buildUpcNoCriteriaEvaluation(shared)
-            : buildUpcCriteriaEvaluation({
-                ...shared,
-                uciCriteria: draft.uci,
-                utiCriteria: draft.uti,
-              }),
-        },
-      ];
-    })
-  );
+export const buildUpcRoundEvaluation = (
+  draft: UpcRowDraft,
+  actor: UpcChecklistAuditActor,
+  date: string,
+  evaluatedAt: string
+): UpcRoundEvaluation => {
+  const { uci, uti } = sanitizeUpcCriteriaDraft(draft.row, draft);
+  return {
+    bedId: draft.row.bedId,
+    isCrib: draft.row.isCrib,
+    previousChecklist: draft.previousChecklist,
+    episodeIdentity: draft.row.episodeIdentity,
+    record: buildUpcCriteriaEvaluation({
+      checklist: draft.previousChecklist,
+      actor,
+      date,
+      bedId: draft.row.bedId,
+      evaluatedAt,
+      evaluationId: crypto.randomUUID(),
+      uciCriteria: draft.noCriteria ? [] : uci,
+      utiCriteria: draft.noCriteria ? [] : uti,
+    }),
+  };
 };
+
+export const upcDraftStillMatches = (
+  draft: UpcRowDraft,
+  subject: UpcWindowSubject | undefined,
+  submitted?: UpcRoundEvaluation
+): boolean =>
+  resolveUpcEpisodeIdentity(subject) === draft.row.episodeIdentity &&
+  (arePatchValuesDeepEqual(subject?.upcChecklist, draft.previousChecklist) ||
+    Boolean(submitted && arePatchValuesDeepEqual(subject?.upcChecklist, submitted.record)));

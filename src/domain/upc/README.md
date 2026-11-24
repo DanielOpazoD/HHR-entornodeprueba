@@ -6,7 +6,7 @@ Pure business logic for classifying hospitalized patients as **UPC-UTI** or **UP
 
 - **UCI** = at least 1 of: VMI, vasoactivos, inotrópicos (soporte vital avanzado).
 - **UTI** = at least 1 of 6 criteria (monitoring/support) without meeting UCI.
-- **No UPC** = implicit default for all patients; not stored explicitly.
+- **No UPC** = no selected criteria. A confirmed evaluation records this explicitly for its census day.
 
 ## Bed eligibility
 
@@ -27,12 +27,10 @@ Pure business logic for classifying hospitalized patients as **UPC-UTI** or **UP
 ## Data flow
 
 ```
-UI (UpcChecklistPanel)
- → useUpcChecklistState (draft toggles, memoized classification)
- → useUpcChecklistController (portal positioning, open/close)
- → UpcChecklistPopover (renders portal to document.body)
- → onSave → updatePatientMultiple({ upcChecklist, isUPC })
- → Redux → Firestore
+UpcClassificationWindow (one draft per patient or clinical crib)
+ → Confirm changes → confirmUpcRound
+ → one version-checked census patch for all signed evaluations and their bed type changes
+ → the server confirms the round, then HHR reports the result
 ```
 
 ## Adding a criterion

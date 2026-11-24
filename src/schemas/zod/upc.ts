@@ -9,6 +9,7 @@ const UpcEvaluationSnapshotSchema = z.looseObject({
   classification: z.prefault(z.nullable(z.enum(['UPC_UCI', 'UPC_UTI'])), null),
   evaluatedAt: z.prefault(z.string(), ''),
   evaluatedBy: z.optional(z.object({ uid: z.string(), displayName: z.string() })),
+  signatureSource: z.optional(z.literal('session')),
   evaluatedForDate: z.optional(z.string()),
   evaluatedBedId: z.optional(z.string()),
   responsibleNurse: z.optional(

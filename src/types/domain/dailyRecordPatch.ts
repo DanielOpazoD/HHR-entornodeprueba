@@ -1,3 +1,4 @@
+import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
 import type { BedType } from './base';
 import type { Specialty, PatientStatus } from './patientClassification';
 import type { PatientData } from './patient';
@@ -124,6 +125,7 @@ export type DailyRecordPatch = {
                   | boolean
                   | string[]
                   | PatientData
+                  | UpcChecklistRecord
                   | CudyrScore
                   | DeviceDetails
                   | PatientEvaluationScores

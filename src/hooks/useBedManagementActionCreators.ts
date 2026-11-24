@@ -1,3 +1,4 @@
+import type { UpcRoundEvaluation } from '@/domain/upc/upcContracts';
 import type { PatientData } from '@/types/domain/patient';
 
 import { useCallback, useMemo } from 'react';
@@ -13,6 +14,11 @@ export const useBedManagementActionCreators = (
   dispatch: BedManagementDispatch,
   dispatchAndWait?: BedManagementAsyncDispatch
 ) => {
+  const confirmUpcRound = useCallback(
+    (evaluations: readonly UpcRoundEvaluation[]) =>
+      dispatchAndWait?.({ type: 'CONFIRM_UPC_ROUND', evaluations }) ?? Promise.resolve(false),
+    [dispatchAndWait]
+  );
   const updatePatient = useCallback(
     (bedId: string, field: keyof PatientData, value: PatientFieldValue) => {
       dispatch({ type: 'UPDATE_PATIENT', bedId, field, value });
@@ -162,6 +168,7 @@ export const useBedManagementActionCreators = (
   return useMemo(
     () => ({
       updatePatient,
+      confirmUpcRound,
       updatePatientMultiple,
       updateClinicalCrib,
       updateClinicalCribMultiple,
@@ -174,6 +181,7 @@ export const useBedManagementActionCreators = (
       toggleBedType,
     }),
     [
+      confirmUpcRound,
       clearAllBeds,
       clearPatient,
       moveOrCopyPatient,

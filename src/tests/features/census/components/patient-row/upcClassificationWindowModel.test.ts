@@ -1,13 +1,16 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
-  buildUpcDraftRecords,
+  buildUpcRoundEvaluation,
+  createUpcRowDraft,
+  hasUpcDraftChanges,
+  upcDraftStillMatches,
   buildUpcClassificationRows,
-  resolveUpcEpisodeIdentity,
-  resolveUpcQuickEvaluationAvailability,
   sanitizeUpcCriteriaDraft,
   UPC_CLASSIFIABLE_BED_IDS,
 } from '@/features/census/components/patient-row/upcClassificationWindowModel';
+
+import { resolveUpcEpisodeIdentity } from '@/domain/upc/upcRoundSubject';
 
 const DATE = '2026-09-15';
 
@@ -62,16 +65,17 @@ describe('upcClassificationWindowModel', () => {
     });
   });
 
-  it('prefers the clinical episode over RUT and bed for the occupant identity', () => {
-    expect(
-      resolveUpcEpisodeIdentity(
-        { patientName: 'Paciente', clinicalEpisodeId: ' episode-1 ', rut: '1-9' },
-        'R1'
-      )
-    ).toBe('episode-1');
-    expect(resolveUpcEpisodeIdentity({ patientName: 'Paciente', rut: '1-9' }, 'R1')).toBe('1-9');
-    expect(resolveUpcEpisodeIdentity({ patientName: 'Paciente' }, 'R1')).toBe('R1');
-    expect(resolveUpcEpisodeIdentity({ patientName: ' ' }, 'R1')).toBeNull();
+  it('distinguishes an episode, a legacy readmission and an occupant without a document', () => {
+    const first = { patientName: 'Paciente A', clinicalEpisodeId: ' episode-1 ', rut: '1-9' };
+    expect(resolveUpcEpisodeIdentity(first)).toBe('episode-1');
+    const legacy = { ...first, clinicalEpisodeId: 'legacy_ep_1', admissionDate: '2026-09-03' };
+    expect(resolveUpcEpisodeIdentity(legacy)).not.toBe(
+      resolveUpcEpisodeIdentity({ ...legacy, admissionDate: DATE })
+    );
+    expect(resolveUpcEpisodeIdentity({ patientName: 'Paciente A' })).not.toBe(
+      resolveUpcEpisodeIdentity({ patientName: 'Paciente B' })
+    );
+    expect(resolveUpcEpisodeIdentity({ patientName: ' ' })).toBeNull();
   });
 
   it('sanitizes legacy criteria and never hydrates UCI criteria for Neo', () => {
@@ -101,39 +105,57 @@ describe('upcClassificationWindowModel', () => {
       DATE
     );
 
-    const records = buildUpcDraftRecords({
-      rows,
-      checklistOf: () => undefined,
-      criteriaOf: row =>
-        row.bedId === 'R1'
-          ? { uci: ['uci_vmi'], uti: [] }
-          : { uci: ['uci_vmi'], uti: ['uti_mon_respiratoria'] },
-      noCriteriaSelection: { R1: true },
-      actor: { uid: 'uid-1', displayName: 'Enfermera A' },
-      date: DATE,
-      nurseName: 'Enfermera A',
-      nurseFromShift: true,
-      episodeIdentityOf: row => row.episodeIdentity,
-      evaluationIdFactory: () => 'evaluation-id',
-      now: () => '2026-09-15T12:00:00.000Z',
+    const actor = { uid: 'uid-1', displayName: 'Enfermera A' };
+    const at = '2026-09-15T12:00:00.000Z';
+    const first = buildUpcRoundEvaluation(
+      { ...createUpcRowDraft(rows[0]), noCriteria: true },
+      actor,
+      DATE,
+      at
+    );
+    const second = buildUpcRoundEvaluation(
+      { ...createUpcRowDraft(rows[1]), uti: ['uti_mon_respiratoria'] },
+      actor,
+      DATE,
+      at
+    );
+    expect(first.record).toMatchObject({
+      classification: null,
+      evaluatedForDate: DATE,
+      evaluatedBy: actor,
     });
-
-    expect(records.R1).toMatchObject({
-      episodeIdentity: '1-9',
-      record: {
-        evaluationId: 'evaluation-id',
-        classification: null,
-        evaluatedForDate: DATE,
-      },
-    });
-    expect(records.NEO1).toMatchObject({
+    expect(second).toMatchObject({
       episodeIdentity: 'neo-episode',
-      record: {
-        classification: 'UPC_UTI',
-        uciCriteria: [],
-        utiCriteria: ['uti_mon_respiratoria'],
-      },
+      record: { classification: 'UPC_UTI', uciCriteria: [] },
     });
+    expect(first.record.evaluationId).not.toBe(second.record.evaluationId);
+  });
+  it('keeps a stable draft through a retry and recognizes another signed evaluation', () => {
+    const subject = { patientName: 'Paciente sintético', clinicalEpisodeId: 'ep_round' };
+    const [row] = buildUpcClassificationRows({ R1: subject }, DATE);
+    const draft = createUpcRowDraft(row);
+    expect(hasUpcDraftChanges(draft)).toBe(false);
+    expect(hasUpcDraftChanges({ ...draft, noCriteria: true })).toBe(true);
+    expect(hasUpcDraftChanges({ ...draft, uci: ['uci_vmi'] })).toBe(true);
+    expect(hasUpcDraftChanges({ ...draft, uti: ['uti_mon_respiratoria'] })).toBe(true);
+    const pending = buildUpcRoundEvaluation(
+      draft,
+      { uid: 'test', displayName: 'Profesional' },
+      DATE,
+      '2026-09-15T12:00:00Z'
+    );
+    expect(upcDraftStillMatches(draft, subject)).toBe(true);
+    expect(upcDraftStillMatches(draft, { ...subject, upcChecklist: pending.record }, pending)).toBe(
+      true
+    );
+    expect(
+      upcDraftStillMatches(
+        draft,
+        { ...subject, upcChecklist: { ...pending.record, evaluationId: 'other' } },
+        pending
+      )
+    ).toBe(false);
+    expect(upcDraftStillMatches(draft, undefined, pending)).toBe(false);
   });
 
   it('reports the day status of an occupied bed', () => {
@@ -165,34 +187,5 @@ describe('upcClassificationWindowModel', () => {
     const row = rows.find(candidate => candidate.bedId === 'R3');
     expect(row?.pendingReason).toBeNull();
     expect(row?.classification).toBeNull();
-  });
-});
-
-describe('resolveUpcQuickEvaluationAvailability', () => {
-  const base = {
-    hasPatient: true,
-    readOnly: false,
-    hasActor: true,
-    nurseName: 'Enfermera A',
-    assignedNurses: ['Enfermera A', 'Enfermero B'],
-  };
-
-  it('allows the quick mark with a responsible from the shift', () => {
-    expect(resolveUpcQuickEvaluationAvailability(base)).toEqual({ allowed: true, reason: null });
-  });
-
-  it('blocks the quick mark without a responsible or with one outside the shift', () => {
-    expect(resolveUpcQuickEvaluationAvailability({ ...base, nurseName: '' }).allowed).toBe(false);
-    expect(
-      resolveUpcQuickEvaluationAvailability({ ...base, nurseName: 'Otra Persona' }).reason
-    ).toBe('El responsable debe ser uno de los asignados al turno.');
-  });
-
-  it('blocks read-only viewers, sessions without user and empty beds', () => {
-    expect(resolveUpcQuickEvaluationAvailability({ ...base, readOnly: true }).allowed).toBe(false);
-    expect(resolveUpcQuickEvaluationAvailability({ ...base, hasActor: false }).allowed).toBe(false);
-    expect(resolveUpcQuickEvaluationAvailability({ ...base, hasPatient: false }).reason).toBe(
-      'Cama sin paciente.'
-    );
   });
 });

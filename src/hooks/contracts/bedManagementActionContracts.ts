@@ -1,3 +1,4 @@
+import type { UpcRoundEvaluation } from '@/domain/upc/upcContracts';
 import type { PatientData } from '@/types/domain/patient';
 
 import type { PatientFieldValue } from '@/types/valueTypes';
@@ -5,6 +6,7 @@ import type { PatientFieldValue } from '@/types/valueTypes';
 import type { ConfirmedBedOccupantIdentity } from '@/types/domain/intentionalBedClear';
 
 export type BedAction =
+  | { type: 'CONFIRM_UPC_ROUND'; evaluations: readonly UpcRoundEvaluation[] }
   | { type: 'UPDATE_PATIENT'; bedId: string; field: keyof PatientData; value: PatientFieldValue }
   | {
       type: 'UPDATE_PATIENT_MULTIPLE';

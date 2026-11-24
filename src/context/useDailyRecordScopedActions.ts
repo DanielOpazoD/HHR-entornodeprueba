@@ -30,6 +30,7 @@ export const useDailyRecordBedActions = (): DailyRecordBedActions => {
   return useMemo(
     () => ({
       updatePatient: actions.updatePatient,
+      confirmUpcRound: actions.confirmUpcRound,
       updatePatientMultiple: actions.updatePatientMultiple,
       updateClinicalCrib: actions.updateClinicalCrib,
       updateClinicalCribMultiple: actions.updateClinicalCribMultiple,
@@ -54,6 +55,7 @@ export const useDailyRecordBedActions = (): DailyRecordBedActions => {
       actions.updateClinicalCrib,
       actions.updateClinicalCribMultiple,
       actions.updatePatient,
+      actions.confirmUpcRound,
       actions.updatePatientMultiple,
     ]
   );
