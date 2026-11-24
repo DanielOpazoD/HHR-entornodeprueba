@@ -3,7 +3,7 @@
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAncImmu0x2QiJOf+QNSte1Dw62bPfcnduiqRrlNmwKfJmFJSltSKi/pkDr05/YcfyabnVsN0qLXTAg22kUYTmoz7ohm6Ki4/zHVVQ9/IBB7SUEZsYQ3VHzMulnXMoxy+dv9ePTpbKPBBP6ieUGGa8vrnCsVcsbvHIYv5WfyiDyMwkJNjlp6PEeuljl8JmWD5WeB0eahSvs5PhMHW7/AYFH7riHsrccfk6JZ3fDvwTI0jDcZkRZ4f4xVcoBxx2k6VPPWcNqUnkgmgmemkjaUJi7VVZ++HN5x74X+HEyrcvqyqJ6nOa0kdMYoIZT5OCKXgPYTKdxur/Tu2mVvHNlLr4zQIDAQAB",
   "minimum_chrome_version": "118",
   "name": "Rayen → HHR · Puente de censo",
-  "version": "0.48.163",
+  "version": "0.48.164",
   "description": "Conecta Eloísa con HHR y ofrece herramientas de recetas y exámenes.",
   "permissions": [
     "tabs",
@@ -389,7 +389,8 @@
         "content-hhr-statistical-evidence.js",
         "content-hhr-syslab.js",
         "content-hhr-exalab.js",
-        "content-hhr-exalab-auto.js"
+        "content-hhr-exalab-auto.js",
+        "clinical-checklist-hhr.js"
       ],
       "run_at": "document_idle"
     },
@@ -398,8 +399,7 @@
         "https://hhr-hospitalizados.app/*"
       ],
       "js": [
-        "nursing-handoff-hhr-relay.js",
-        "clinical-checklist-hhr.js"
+        "nursing-handoff-hhr-relay.js"
       ],
       "run_at": "document_start"
     }
