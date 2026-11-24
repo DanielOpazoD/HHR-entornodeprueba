@@ -10,7 +10,7 @@ export const NeonatalSourceChanges: React.FC<{
 }> = ({ changes, acceptedEpisodes, onChange }) =>
   !changes?.length ? null : (
     <section
-      className={`mt-3 rounded-lg p-3 ${SYNC_TONE.action.surface}`}
+      className={`mt-3 shrink-0 rounded-lg p-3 ${SYNC_TONE.action.surface}`}
       aria-label="Cambio de ubicación del RN"
     >
       <h4 className="flex items-center gap-1.5 text-sm font-semibold">

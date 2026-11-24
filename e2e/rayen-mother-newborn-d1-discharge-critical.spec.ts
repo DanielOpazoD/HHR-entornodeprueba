@@ -272,6 +272,76 @@ test.describe('Eloísa · egreso madre y RN en D−1', () => {
 
         const preview = page.getByTestId('rayen-import-preview');
         await expect(preview).toBeVisible({ timeout: 30_000 });
+        if (!alreadyFiled) {
+          const originalViewport = page.viewportSize();
+          const reviewScroll = preview.getByTestId('rayen-import-review-scroll');
+          const confirmBtn = preview.getByRole('button', {
+            name: 'Confirmar solo censo seleccionado',
+          });
+
+          try {
+            // At desktop height (900px), the modal body stays compact below its 70vh (630px) cap.
+            await page.setViewportSize({ width: 1280, height: 900 });
+            const compactBodyHeight = await reviewScroll.evaluate(
+              el => el.parentElement?.getBoundingClientRect().height ?? 0
+            );
+            const compactList = await reviewScroll.evaluate(el => ({
+              height: el.clientHeight,
+              scrolls: el.scrollHeight > el.clientHeight + 1,
+            }));
+            expect(compactBodyHeight).toBeGreaterThan(0);
+            expect(compactBodyHeight).toBeLessThan(900 * 0.7);
+            expect(compactList.height).toBeGreaterThan(0);
+            expect(compactList.scrolls).toBe(false);
+
+            await reviewScroll.evaluate(el => {
+              const firstChild = el.firstElementChild as HTMLElement | null;
+              if (firstChild) firstChild.style.minHeight = '2000px';
+            });
+
+            for (const viewport of [
+              { width: 1280, height: 640 },
+              { width: 375, height: 667 },
+            ]) {
+              await page.setViewportSize(viewport);
+              await expect(confirmBtn).toBeInViewport();
+              const metrics = await preview.evaluate(dialog => {
+                const list = dialog.querySelector('[data-testid="rayen-import-review-scroll"]');
+                const body = list?.parentElement;
+                const button = Array.from(dialog.querySelectorAll('button')).find(candidate =>
+                  candidate.textContent?.includes('Confirmar solo censo seleccionado')
+                );
+                if (!list || !body || !button) return null;
+                const dialogRect = dialog.getBoundingClientRect();
+                const buttonRect = button.getBoundingClientRect();
+                return {
+                  listHasRoom: list.clientHeight >= 80,
+                  listScrolls: list.scrollHeight > list.clientHeight,
+                  bodyOverflows: body.scrollHeight > body.clientHeight + 1,
+                  buttonInsideBottom: buttonRect.bottom <= dialogRect.bottom + 1,
+                  buttonInsideRight: buttonRect.right <= dialogRect.right + 1,
+                };
+              });
+              expect(metrics).toEqual({
+                listHasRoom: true,
+                listScrolls: true,
+                bodyOverflows: false,
+                buttonInsideBottom: true,
+                buttonInsideRight: true,
+              });
+            }
+          } finally {
+            await reviewScroll
+              .evaluate(el => {
+                const firstChild = el.firstElementChild as HTMLElement | null;
+                if (firstChild) firstChild.style.minHeight = '';
+              })
+              .catch(() => undefined);
+            if (originalViewport) {
+              await page.setViewportSize(originalViewport).catch(() => undefined);
+            }
+          }
+        }
         if (alreadyFiled) await expect(preview.getByText(/ya registrado el/)).toBeVisible();
         await expect(preview).toContainText('Modificar días previos (1)');
         await expect(preview).toContainText('Paciente Materna Sintética');
