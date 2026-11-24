@@ -66,7 +66,7 @@ const seedPersistedSessionAndRecord = async (
       record,
       runtimeConfig,
     }: {
-      bootstrapUser: unknown;
+      bootstrapUser: { uid: string; email: string; displayName: string; role: string };
       date: string;
       record: unknown;
       runtimeConfig: FirebasePreviewConfig;
@@ -77,10 +77,25 @@ const seedPersistedSessionAndRecord = async (
         [date]: record,
       };
 
+      const now = Date.now();
       localStorage.setItem('hhr_e2e_bootstrap_user', JSON.stringify(bootstrapUser));
       sessionStorage.setItem(
         'firebase:authUser:test:[DEFAULT]',
-        JSON.stringify({ uid: 'preview' })
+        JSON.stringify({
+          uid: bootstrapUser.uid,
+          email: bootstrapUser.email,
+          displayName: bootstrapUser.displayName,
+        })
+      );
+      sessionStorage.setItem(
+        'hhr_confirmed_auth_role_v1',
+        JSON.stringify({
+          uid: bootstrapUser.uid,
+          email: bootstrapUser.email.toLowerCase(),
+          role: bootstrapUser.role,
+          confirmedAt: now,
+          expiresAt: now + 60 * 60 * 1000,
+        })
       );
       localStorage.setItem('hhr_firebase_config', JSON.stringify(runtimeConfig));
 
