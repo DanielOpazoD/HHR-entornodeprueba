@@ -11,7 +11,7 @@ vi.mock('@/services/utils/loggerScope', () => ({
   }),
 }));
 
-import { reportAuditOutcome } from '@/hooks/controllers/auditEventRejectionLogger';
+import { reportAuditOutcome } from '@/hooks/controllers/auditLogPolicyController';
 import {
   createApplicationFailed,
   createApplicationSuccess,

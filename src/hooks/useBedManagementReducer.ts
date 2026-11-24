@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import type { PatientFieldValue } from '@/types/valueTypes';
 import type { BedAction } from '@/hooks/contracts/bedManagementActionContracts';
 import {
   buildClearAllBedsPatches,
@@ -15,10 +17,35 @@ import {
   buildUpdateBlockedReasonPatches,
   buildUpdateClinicalCribPatches,
   buildUpdatePatientPatches,
+  filterUnchangedBedFieldPatches,
 } from '@/hooks/controllers/bedManagementPatchController';
-import { buildUpdatePatientActionPatch } from '@/hooks/controllers/bedManagementUpdatePatientController';
 
 export type { BedAction } from '@/hooks/contracts/bedManagementActionContracts';
+
+interface UpdatePatientActionInput {
+  bedId: string;
+  field: keyof PatientData;
+  value: PatientFieldValue;
+}
+
+export const buildUpdatePatientActionPatch = (
+  state: DailyRecord,
+  { bedId, field, value }: UpdatePatientActionInput
+): DailyRecordPatch => {
+  const patches = buildUpdatePatientPatches(state, bedId, {
+    [field]: value,
+  } as Partial<PatientData>);
+
+  if (field === 'pathology' && value !== state.beds[bedId]?.pathology) {
+    patches[`beds.${bedId}.cie10Code`] = undefined;
+    patches[`beds.${bedId}.cie10Description`] = undefined;
+  }
+
+  // Segundo diff: los clears de CIE-10 recién agregados también se emiten solo
+  // si borran algo; el guard de acompañamiento del filtro re-ancla isUPC si el
+  // override sigue presente.
+  return filterUnchangedBedFieldPatches(state, bedId, patches) as DailyRecordPatch;
+};
 
 export const bedManagementReducer = (
   state: DailyRecord | null,
