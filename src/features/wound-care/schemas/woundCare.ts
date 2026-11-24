@@ -2,7 +2,7 @@
  * Zod Validation Schemas for Wound Care Photo Documentation
  */
 
-import * as z from 'zod';
+import * as z from 'zod/mini';
 import {
   nullableOptional,
   StringSchema,
@@ -28,77 +28,71 @@ const OptionalWoundCareAuditActorSchema = nullableOptional(WoundCareAuditActorSc
 
 export const ConsentStatusSchema = z.enum(['pending', 'signed', 'revoked']);
 
-export const WoundCareConsentSchema = z
-  .object({
-    id: StringSchema,
-    patientRut: StringSchema,
-    patientName: StringSchema,
-    episodeKey: StringSchema,
-    status: ConsentStatusSchema,
-    consentFileStoragePath: StringSchema,
-    consentFileDownloadUrl: StringSchema,
-    consentFileMimeType: StringSchema,
-    consentFileSize: z.number(),
-    signedAt: StringSchema,
-    uploadedAt: StringSchema,
-    uploadedBy: WoundCareAuditActorSchema,
-    revokedAt: NullableOptionalStringSchema,
-    revokedBy: OptionalWoundCareAuditActorSchema,
-    revocationReason: NullableOptionalStringSchema,
-  })
-  .passthrough();
+export const WoundCareConsentSchema = z.looseObject({
+  id: StringSchema,
+  patientRut: StringSchema,
+  patientName: StringSchema,
+  episodeKey: StringSchema,
+  status: ConsentStatusSchema,
+  consentFileStoragePath: StringSchema,
+  consentFileDownloadUrl: StringSchema,
+  consentFileMimeType: StringSchema,
+  consentFileSize: z.number(),
+  signedAt: StringSchema,
+  uploadedAt: StringSchema,
+  uploadedBy: WoundCareAuditActorSchema,
+  revokedAt: NullableOptionalStringSchema,
+  revokedBy: OptionalWoundCareAuditActorSchema,
+  revocationReason: NullableOptionalStringSchema,
+});
 
 // ============================================================================
 // Photo
 // ============================================================================
 
-export const WoundCarePhotoSchema = z
-  .object({
-    id: StringSchema,
-    patientRut: StringSchema,
-    patientName: StringSchema,
-    episodeKey: StringSchema,
-    consentId: NullableOptionalStringSchema,
-    storagePath: StringSchema,
-    thumbnailStoragePath: StringSchema,
-    downloadUrl: StringSchema,
-    thumbnailDownloadUrl: StringSchema,
-    mimeType: StringSchema,
-    originalFileSize: z.number(),
-    compressedFileSize: z.number(),
-    width: z.number(),
-    height: z.number(),
-    description: NullableOptionalStringSchema,
-    bodyLocation: NullableOptionalStringSchema,
-    takenAt: StringSchema,
-    uploadedAt: StringSchema,
-    uploadedBy: WoundCareAuditActorSchema,
-    uploadedViaSessionId: NullableOptionalStringSchema,
-    deletedAt: NullableOptionalStringSchema,
-    deletedBy: OptionalWoundCareAuditActorSchema,
-    isDeleted: z.boolean().prefault(false),
-  })
-  .passthrough();
+export const WoundCarePhotoSchema = z.looseObject({
+  id: StringSchema,
+  patientRut: StringSchema,
+  patientName: StringSchema,
+  episodeKey: StringSchema,
+  consentId: NullableOptionalStringSchema,
+  storagePath: StringSchema,
+  thumbnailStoragePath: StringSchema,
+  downloadUrl: StringSchema,
+  thumbnailDownloadUrl: StringSchema,
+  mimeType: StringSchema,
+  originalFileSize: z.number(),
+  compressedFileSize: z.number(),
+  width: z.number(),
+  height: z.number(),
+  description: NullableOptionalStringSchema,
+  bodyLocation: NullableOptionalStringSchema,
+  takenAt: StringSchema,
+  uploadedAt: StringSchema,
+  uploadedBy: WoundCareAuditActorSchema,
+  uploadedViaSessionId: NullableOptionalStringSchema,
+  deletedAt: NullableOptionalStringSchema,
+  deletedBy: OptionalWoundCareAuditActorSchema,
+  isDeleted: z.prefault(z.boolean(), false),
+});
 
 // ============================================================================
 // Mobile QR Upload Session
 // ============================================================================
 
-export const WoundCareMobileUploadSessionSchema = z
-  .object({
-    sessionId: StringSchema,
-    hospitalId: StringSchema,
-    episodeKey: StringSchema,
-    patientRut: StringSchema,
-    patientName: StringSchema,
-    createdBy: WoundCareAuditActorSchema,
-    createdAt: StringSchema,
-    expiresAt: StringSchema,
-    scope: z.literal('wound_care_upload_only'),
-    revokedAt: NullableOptionalStringSchema,
-    revokedBy: OptionalWoundCareAuditActorSchema,
-  })
-  .passthrough();
+export const WoundCareMobileUploadSessionSchema = z.looseObject({
+  sessionId: StringSchema,
+  hospitalId: StringSchema,
+  episodeKey: StringSchema,
+  patientRut: StringSchema,
+  patientName: StringSchema,
+  createdBy: WoundCareAuditActorSchema,
+  createdAt: StringSchema,
+  expiresAt: StringSchema,
+  scope: z.literal('wound_care_upload_only'),
+  revokedAt: NullableOptionalStringSchema,
+  revokedBy: OptionalWoundCareAuditActorSchema,
+});
 
 // ============================================================================
 // Parse helpers

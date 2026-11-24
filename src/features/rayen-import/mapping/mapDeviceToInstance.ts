@@ -5,7 +5,7 @@
  * "cambiar dispositivo" awareness). Multiple VVPs are numbered #1/#2/#3 in order.
  */
 
-import { z } from 'zod';
+import * as z from 'zod/mini';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import type { InvasiveDeviceRow } from './parseInvasiveDevices';
 import { isNasogastricDevice } from '@/constants/clinicalDeviceConstants';
@@ -40,14 +40,14 @@ export interface RayenInvasiveDeviceEntry {
 // A malformed/partial row cannot certify the absence of any installation.
 export const DeviceEntriesSchema = z.array(
   z.object({
-    name: z.string().trim().min(1),
-    location: z.string().nullish(),
-    measuredNumber: z.union([z.number(), z.string()]).nullish(),
-    installationDatetime: z.string().nullish(),
-    expirationDatetime: z.string().nullish(),
-    removedDatetime: z.string().nullish(),
-    archived: z.boolean().optional(),
-    deleted: z.boolean().optional(),
+    name: z.string().check(z.trim(), z.minLength(1)),
+    location: z.nullish(z.string()),
+    measuredNumber: z.nullish(z.union([z.number(), z.string()])),
+    installationDatetime: z.nullish(z.string()),
+    expirationDatetime: z.nullish(z.string()),
+    removedDatetime: z.nullish(z.string()),
+    archived: z.optional(z.boolean()),
+    deleted: z.optional(z.boolean()),
   })
 );
 

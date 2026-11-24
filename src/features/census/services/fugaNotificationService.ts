@@ -1,7 +1,7 @@
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
-import * as z from 'zod';
+import * as z from 'zod/mini';
 
 const fugaNotificationResponseSchema = z.object({
   success: z.boolean(),

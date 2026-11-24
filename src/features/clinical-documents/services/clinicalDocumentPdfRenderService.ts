@@ -1,4 +1,4 @@
-import * as z from 'zod';
+import * as z from 'zod/mini';
 
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import { buildClinicalDocumentPrintHtml } from '@/features/clinical-documents/services/clinicalDocumentPrintHtmlBuilder';
@@ -30,8 +30,8 @@ interface RenderClinicalDocumentPdfResult {
 }
 
 const renderClinicalDocumentPdfResultSchema = z.object({
-  contentBase64: z.string().min(1),
-  mimeType: z.string().min(1),
+  contentBase64: z.string().check(z.minLength(1)),
+  mimeType: z.string().check(z.minLength(1)),
 });
 
 export const createClinicalDocumentPdfRenderService = (

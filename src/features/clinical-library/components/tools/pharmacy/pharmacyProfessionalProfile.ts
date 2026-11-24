@@ -1,27 +1,23 @@
-import * as z from 'zod';
+import * as z from 'zod/mini';
 import { isValidRut } from '@/utils/rutUtils';
 import type { PharmacyProfessional } from '../../../domain/pharmacy/pharmacyTypes';
 
-const professionalSchema = z
-  .object({
-    name: z.string().trim().min(1).max(160),
-    rut: z
-      .string()
-      .trim()
-      .max(16)
-      .refine(value => !value || (/^[\d.]+-?[\dkK]$/.test(value) && isValidRut(value))),
-    role: z.string().trim().min(1).max(160),
-    unit: z.string().trim().min(1).max(160),
-  })
-  .strict();
+const professionalSchema = z.strictObject({
+  name: z.string().check(z.trim(), z.minLength(1), z.maxLength(160)),
+  rut: z.string().check(
+    z.trim(),
+    z.maxLength(16),
+    z.refine(value => !value || (/^[\d.]+-?[\dkK]$/.test(value) && isValidRut(value)))
+  ),
+  role: z.string().check(z.trim(), z.minLength(1), z.maxLength(160)),
+  unit: z.string().check(z.trim(), z.minLength(1), z.maxLength(160)),
+});
 
-const storedProfileSchema = z
-  .object({
-    version: z.literal(1),
-    uid: z.string().min(1).max(256),
-    professional: professionalSchema,
-  })
-  .strict();
+const storedProfileSchema = z.strictObject({
+  version: z.literal(1),
+  uid: z.string().check(z.minLength(1), z.maxLength(256)),
+  professional: professionalSchema,
+});
 
 export const pharmacyProfileStorageKey = (uid: string): string =>
   `hhr_pharmacy_professional_v1_${encodeURIComponent(uid)}`;

@@ -12,7 +12,7 @@
  * literal or the generic bucket.
  */
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
-import * as z from 'zod';
+import * as z from 'zod/mini';
 
 import {
   OPERATIONAL_TELEMETRY_CATEGORIES,
@@ -32,18 +32,16 @@ const MAX_STRING = 200;
 const eventSchema = z.object({
   category: z.enum(OPERATIONAL_TELEMETRY_CATEGORIES),
   status: z.enum(OPERATIONAL_TELEMETRY_STATUSES),
-  operation: z.string().min(1).max(80),
-  timestamp: z.string().datetime({ offset: true }),
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-  runtimeState: z.string().max(40).optional(),
-  issues: z
-    .array(z.string().max(MAX_STRING * 2))
-    .max(OPERATIONAL_TELEMETRY_MAX_ISSUES)
-    .optional(),
-  context: z.record(z.string(), z.unknown()).optional(),
+  operation: z.string().check(z.minLength(1), z.maxLength(80)),
+  timestamp: z.iso.datetime({ offset: true }),
+  date: z.optional(z.string().check(z.regex(/^\d{4}-\d{2}-\d{2}$/))),
+  runtimeState: z.optional(z.string().check(z.maxLength(40))),
+  issues: z.optional(
+    z
+      .array(z.string().check(z.maxLength(MAX_STRING * 2)))
+      .check(z.maxLength(OPERATIONAL_TELEMETRY_MAX_ISSUES))
+  ),
+  context: z.optional(z.record(z.string(), z.unknown())),
 });
 
 const envelopeSchema = z.object({

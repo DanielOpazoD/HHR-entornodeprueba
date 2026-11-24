@@ -1,5 +1,5 @@
 import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
-import * as z from 'zod';
+import * as z from 'zod/mini';
 
 export const ELOISA_PATIENT_CODE_PREFIX = 'HHR-PACIENTE-2';
 export const ELOISA_PATIENT_CODE_FORMAT_VERSION = 2 as const;
@@ -18,40 +18,38 @@ const isRealIsoDate = (value: string): boolean => {
   );
 };
 
-const IsoDateSchema = z.string().refine(isRealIsoDate, 'Fecha calendario no válida.');
+const IsoDateSchema = z.string().check(z.refine(isRealIsoDate, 'Fecha calendario no válida.'));
 
-const EloisaManualDeviceEntrySchema = z
-  .object({
-    name: z.string().trim().min(1).max(160),
-    location: z.string().trim().max(160).optional(),
-    measuredNumber: z.string().trim().max(40).optional(),
-    installationDatetime: z.string().trim().max(80).optional(),
-    expirationDatetime: z.string().trim().max(80).optional(),
-  })
-  .strict();
+const EloisaManualDeviceEntrySchema = z.strictObject({
+  name: z.string().check(z.trim(), z.minLength(1), z.maxLength(160)),
+  location: z.optional(z.string().check(z.trim(), z.maxLength(160))),
+  measuredNumber: z.optional(z.string().check(z.trim(), z.maxLength(40))),
+  installationDatetime: z.optional(z.string().check(z.trim(), z.maxLength(80))),
+  expirationDatetime: z.optional(z.string().check(z.trim(), z.maxLength(80))),
+});
 
 const EloisaManualPatientBaseShape = {
-  capturedAt: z.string().datetime({ offset: true }),
-  encounterId: z.string().trim().regex(/^\d+$/),
-  firstName: z.string().trim().min(1),
-  middleNames: z.string().trim().optional(),
-  lastName: z.string().trim().min(1),
-  secondLastName: z.string().trim().optional(),
-  rut: z.string().trim().min(2),
-  birthDate: IsoDateSchema.optional(),
-  biologicalSex: z.enum(['Masculino', 'Femenino', 'Indeterminado']).optional(),
+  capturedAt: z.iso.datetime({ offset: true }),
+  encounterId: z.string().check(z.trim(), z.regex(/^\d+$/)),
+  firstName: z.string().check(z.trim(), z.minLength(1)),
+  middleNames: z.optional(z.string().check(z.trim())),
+  lastName: z.string().check(z.trim(), z.minLength(1)),
+  secondLastName: z.optional(z.string().check(z.trim())),
+  rut: z.string().check(z.trim(), z.minLength(2)),
+  birthDate: z.optional(IsoDateSchema),
+  biologicalSex: z.optional(z.enum(['Masculino', 'Femenino', 'Indeterminado'])),
   admissionDate: IsoDateSchema,
-  admissionTime: z
-    .string()
-    .regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
-    .optional(),
-  diagnosis: z.string().trim().optional(),
-  devices: z.array(z.string().trim().min(1)).max(30).default([]),
+  admissionTime: z.optional(z.string().check(z.regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/))),
+  diagnosis: z.optional(z.string().check(z.trim())),
+  devices: z._default(
+    z.array(z.string().check(z.trim(), z.minLength(1))).check(z.maxLength(30)),
+    []
+  ),
 };
 
 const validateClinicalDates = (
   payload: { birthDate?: string; admissionDate: string; capturedAt: string },
-  context: z.RefinementCtx
+  context: z.core.$RefinementCtx
 ) => {
   if (payload.birthDate && payload.birthDate > payload.admissionDate) {
     context.addIssue({
@@ -70,24 +68,24 @@ const validateClinicalDates = (
   }
 };
 
-const LegacyEloisaManualPatientSchema = z
-  .object({
-    version: z.literal(1),
-    ...EloisaManualPatientBaseShape,
-  })
-  .strict()
-  .superRefine(validateClinicalDates)
-  .transform(payload => ({ ...payload, deviceEntries: [], encounterRoute: undefined }));
+const LegacyEloisaManualPatientSchema = z.pipe(
+  z
+    .strictObject({
+      version: z.literal(1),
+      ...EloisaManualPatientBaseShape,
+    })
+    .check(z.superRefine(validateClinicalDates)),
+  z.transform(payload => ({ ...payload, deviceEntries: [], encounterRoute: undefined }))
+);
 
 const CurrentEloisaManualPatientSchema = z
-  .object({
+  .strictObject({
     version: z.literal(ELOISA_PATIENT_CODE_FORMAT_VERSION),
     ...EloisaManualPatientBaseShape,
-    deviceEntries: z.array(EloisaManualDeviceEntrySchema).max(30).default([]),
-    encounterRoute: z.enum(['medical', 'nurse']).optional(),
+    deviceEntries: z._default(z.array(EloisaManualDeviceEntrySchema).check(z.maxLength(30)), []),
+    encounterRoute: z.optional(z.enum(['medical', 'nurse'])),
   })
-  .strict()
-  .superRefine(validateClinicalDates);
+  .check(z.superRefine(validateClinicalDates));
 
 const EloisaManualPatientSchema = z.union([
   LegacyEloisaManualPatientSchema,

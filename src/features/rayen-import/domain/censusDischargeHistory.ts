@@ -1,6 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import * as z from 'zod';
+import * as z from 'zod/mini';
 import { BEDS } from '@/constants/beds';
 import { PatientDataSchema } from '@/schemas/zod/patient';
 import { getActiveDischarges } from '@/domain/movements/movementTombstonePolicy';
@@ -194,7 +194,7 @@ const hasOnlyReportSnapshotData = (snapshot: PatientData | undefined): boolean =
       (defaults.has(key) && JSON.stringify(value) === JSON.stringify(defaults.get(key)))
   );
 };
-const importClassificationTimestampSchema = z.string().datetime({ offset: true });
+const importClassificationTimestampSchema = z.iso.datetime({ offset: true });
 const isSameImportBatch = (left: DischargeData, right: DischargeData): boolean => {
   const a = left.movementProvenance;
   const b = right.movementProvenance;

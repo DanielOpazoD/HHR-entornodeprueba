@@ -4,15 +4,15 @@
  * Firebase vars are required in DEV (loaded from .env) but optional in PROD
  * (fetched at runtime from the Netlify `firebase-config` function).
  */
-import * as z from 'zod';
+import * as z from 'zod/mini';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 
 const envValidatorLogger = createScopedLogger('EnvValidator');
 
 /* ── Helpers ────────────────────────────────────────────────────────── */
 
-const nonEmpty = z.string().min(1);
-const optionalStr = z.string().optional().default('');
+const nonEmpty = z.string().check(z.minLength(1));
+const optionalStr = z._default(z.optional(z.string()), '');
 
 // In DEV, Firebase vars come from .env; in PROD they come from Netlify Function at runtime
 const isDevMode = typeof import.meta !== 'undefined' && import.meta.env?.DEV === true;
@@ -33,7 +33,7 @@ const clientEnvSchema = z.object({
   VITE_LOCAL_GEMINI_API_KEY: optionalStr,
   VITE_LOCAL_OPENAI_API_KEY: optionalStr,
   VITE_LOCAL_ANTHROPIC_API_KEY: optionalStr,
-  VITE_LOCAL_AI_PROVIDER: z.enum(['gemini', 'openai', 'anthropic']).optional(),
+  VITE_LOCAL_AI_PROVIDER: z.optional(z.enum(['gemini', 'openai', 'anthropic'])),
 
   /* ── Email / endpoints ──────────────────────────────────────────── */
   VITE_ALLOW_DEV_EMAIL_SEND: optionalStr,

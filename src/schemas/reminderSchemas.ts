@@ -1,4 +1,4 @@
-import * as z from 'zod';
+import * as z from 'zod/mini';
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -14,28 +14,28 @@ export const ReminderUserRoleSchema = z.enum([
 ]);
 
 export const ReminderSchema = z.object({
-  id: z.string().min(1),
-  title: z.string().trim().min(1).max(100),
-  message: z.string().trim().min(1).max(2000),
-  imageUrl: z.string().url().optional(),
-  imagePath: z.string().optional(),
+  id: z.string().check(z.minLength(1)),
+  title: z.string().check(z.trim(), z.minLength(1), z.maxLength(100)),
+  message: z.string().check(z.trim(), z.minLength(1), z.maxLength(2000)),
+  imageUrl: z.optional(z.url()),
+  imagePath: z.optional(z.string()),
   type: ReminderTypeSchema,
-  targetRoles: z.array(ReminderUserRoleSchema).min(1),
-  targetShifts: z.array(ReminderShiftSchema).min(1),
-  startDate: z.string().regex(ISO_DATE_REGEX),
-  endDate: z.string().regex(ISO_DATE_REGEX),
-  priority: z.number().int().min(1).max(3),
+  targetRoles: z.array(ReminderUserRoleSchema).check(z.minLength(1)),
+  targetShifts: z.array(ReminderShiftSchema).check(z.minLength(1)),
+  startDate: z.string().check(z.regex(ISO_DATE_REGEX)),
+  endDate: z.string().check(z.regex(ISO_DATE_REGEX)),
+  priority: z.int().check(z.minimum(1), z.maximum(3)),
   isActive: z.boolean(),
-  createdBy: z.string().min(1),
-  createdByName: z.string().min(1),
-  createdAt: z.string().min(1),
-  updatedAt: z.string().min(1),
+  createdBy: z.string().check(z.minLength(1)),
+  createdByName: z.string().check(z.minLength(1)),
+  createdAt: z.string().check(z.minLength(1)),
+  updatedAt: z.string().check(z.minLength(1)),
 });
 
 export const ReminderReadReceiptSchema = z.object({
-  userId: z.string().min(1),
-  userName: z.string().min(1),
-  readAt: z.string().min(1),
+  userId: z.string().check(z.minLength(1)),
+  userName: z.string().check(z.minLength(1)),
+  readAt: z.string().check(z.minLength(1)),
   shift: ReminderShiftSchema,
-  dateKey: z.string().regex(ISO_DATE_REGEX).optional(),
+  dateKey: z.optional(z.string().check(z.regex(ISO_DATE_REGEX))),
 });

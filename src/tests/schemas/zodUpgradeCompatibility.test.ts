@@ -1,12 +1,13 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import { z } from 'zod';
+import * as z from 'zod/mini';
 import { DailyRecordSchema } from '@/schemas/zod/dailyRecord';
+import { preprocess } from '@/schemas/zod/helpers';
 
 describe('Zod security upgrade', () => {
   it('rejects an oversized constrained array before validating its elements', () => {
     const inspectElement = vi.fn((value: unknown) => value);
-    const schema = z.array(z.preprocess(inspectElement, z.string())).max(2);
+    const schema = z.array(preprocess(inspectElement, z.string())).check(z.maxLength(2));
     const result = schema.safeParse(Array.from({ length: 5_000 }, () => 0));
 
     expect(result.success).toBe(false);
@@ -17,7 +18,7 @@ describe('Zod security upgrade', () => {
 
   it('rejects an oversized constrained set before validating its elements', () => {
     const inspectElement = vi.fn((value: unknown) => value);
-    const schema = z.set(z.preprocess(inspectElement, z.string())).max(2);
+    const schema = z.set(preprocess(inspectElement, z.string())).check(z.maxSize(2));
     const result = schema.safeParse(new Set(Array.from({ length: 5_000 }, (_, index) => index)));
 
     expect(result.success).toBe(false);

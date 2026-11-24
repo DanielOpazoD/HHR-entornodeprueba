@@ -1,28 +1,26 @@
-import * as z from 'zod';
+import * as z from 'zod/mini';
 
 /** Restore No UPC after legacy null normalization; retain optional legacy audit data. */
-const UpcEvaluationSnapshotSchema = z
-  .object({
-    evaluationId: z.string().optional(),
-    criterionLabels: z.array(z.string()).optional(),
-    uciCriteria: z.array(z.string()).prefault([]),
-    utiCriteria: z.array(z.string()).prefault([]),
-    classification: z.enum(['UPC_UCI', 'UPC_UTI']).nullable().prefault(null),
-    evaluatedAt: z.string().prefault(''),
-    evaluatedBy: z.object({ uid: z.string(), displayName: z.string() }).optional(),
-    evaluatedForDate: z.string().optional(),
-    evaluatedBedId: z.string().optional(),
-    responsibleNurse: z
-      .object({
-        name: z.string(),
-        shift: z.enum(['day', 'night']).optional(),
-        source: z.enum(['assigned', 'manual']),
-      })
-      .optional(),
-  })
-  .passthrough();
+const UpcEvaluationSnapshotSchema = z.looseObject({
+  evaluationId: z.optional(z.string()),
+  criterionLabels: z.optional(z.array(z.string())),
+  uciCriteria: z.prefault(z.array(z.string()), []),
+  utiCriteria: z.prefault(z.array(z.string()), []),
+  classification: z.prefault(z.nullable(z.enum(['UPC_UCI', 'UPC_UTI'])), null),
+  evaluatedAt: z.prefault(z.string(), ''),
+  evaluatedBy: z.optional(z.object({ uid: z.string(), displayName: z.string() })),
+  evaluatedForDate: z.optional(z.string()),
+  evaluatedBedId: z.optional(z.string()),
+  responsibleNurse: z.optional(
+    z.object({
+      name: z.string(),
+      shift: z.optional(z.enum(['day', 'night'])),
+      source: z.enum(['assigned', 'manual']),
+    })
+  ),
+});
 
-export const UpcChecklistSchema = UpcEvaluationSnapshotSchema.extend({
-  reviewRequired: z.boolean().optional(),
-  history: z.array(UpcEvaluationSnapshotSchema).optional(),
+export const UpcChecklistSchema = z.extend(UpcEvaluationSnapshotSchema, {
+  reviewRequired: z.optional(z.boolean()),
+  history: z.optional(z.array(UpcEvaluationSnapshotSchema)),
 });

@@ -12,7 +12,7 @@ const ZONES = [
 ];
 
 const accepts = (birthDate: string) =>
-  PatientInputSchema.pick({ birthDate: true }).safeParse({ birthDate }).success;
+  PatientInputSchema.shape.birthDate.safeParse(birthDate).success;
 
 describe.each(ZONES)('birth date on a %s computer', zone => {
   const deviceZone = process.env.TZ;

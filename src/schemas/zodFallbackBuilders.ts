@@ -1,4 +1,4 @@
-import type { ZodIssue } from 'zod';
+import type { core } from 'zod/mini';
 import type { PatientData } from '@/types/domain/patient';
 import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { CudyrScoreSchema, PatientDataSchema } from '@/schemas/zod/patient';
@@ -98,7 +98,7 @@ export const buildFallbackPatientDataReport = (
   const parsed = PatientDataSchema.safeParse(candidate);
   if (!parsed.success) {
     const defaults: Record<string, unknown> = { ...createEmptyPatient(bedId) };
-    const issuesByField = new Map<string, ZodIssue[]>();
+    const issuesByField = new Map<string, core.$ZodIssue[]>();
     for (const issue of parsed.error.issues) {
       const field = issue.path[0];
       if (typeof field === 'string') {
