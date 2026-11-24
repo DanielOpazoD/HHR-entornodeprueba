@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
 }));
-import { releaseClosedWindowRefusals } from '@/services/storage/sync/closedWindowDayRelease';
+import { releaseClosedWindowRefusals } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 import { isClosedNurseWindowRefusal } from '@/services/storage/sync/dailyRecordBaseReview';
 import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLocalCachePersistence';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';

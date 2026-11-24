@@ -3,7 +3,7 @@ import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { SyncQueueStorePort } from '@/services/storage/sync/syncQueuePorts';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { getSyncTaskKey } from '@/services/storage/sync/syncQueueTaskFactory';
-import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/pendingDailyRecordSyncTask';
+import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/syncQueuePorts';
 import type { DailyRecordAuthorityAdoptionResult } from '@/services/storage/sync/syncQueuePorts';
 import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
 

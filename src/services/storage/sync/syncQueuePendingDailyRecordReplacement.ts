@@ -1,7 +1,10 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import type { SyncQueueStorePort, SyncRuntimePort } from '@/services/storage/sync/syncQueuePorts';
-import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/pendingDailyRecordSyncTask';
+import type {
+  PendingDailyRecordSyncTaskIdentity,
+  SyncQueueStorePort,
+  SyncRuntimePort,
+} from '@/services/storage/sync/syncQueuePorts';
 import { buildSyncQueueTaskContextMeta } from '@/services/storage/sync/syncQueueFailurePolicy';
 import {
   buildSyncTaskContract,

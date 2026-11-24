@@ -1,9 +1,48 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import type { SyncQueueTelemetryRow } from '@/services/storage/sync/syncQueueTelemetryContracts';
+import type {
+  SyncQueueBudgetState,
+  SyncQueueRuntimeState,
+} from '@/services/storage/sync/syncQueueOperationalBudgets';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/pendingDailyRecordSyncTask';
 import type { AuthoringSession } from '@/services/session/authoringSession';
+
+export interface PendingDailyRecordSyncTaskSnapshot {
+  taskId: number;
+  record: DailyRecord;
+  recordRevision: string;
+  changedPaths: string[];
+  mutationId?: string;
+}
+
+export type PendingDailyRecordSyncTaskIdentity = Pick<
+  PendingDailyRecordSyncTaskSnapshot,
+  'taskId' | 'recordRevision' | 'mutationId'
+>;
+
+export type SyncQueueTelemetryRow = Pick<
+  SyncTask,
+  'status' | 'timestamp' | 'origin' | 'retryCount'
+>;
+
+export interface SyncQueueTelemetry {
+  pending: number;
+  failed: number;
+  conflict: number;
+  retrying: number;
+  orphanedTasks?: number;
+  oldestPendingAgeMs: number;
+  oldestDirectQueueAgeMs?: number;
+  batchSize: number;
+  pendingBudgetState?: SyncQueueBudgetState;
+  oldestPendingBudgetState: SyncQueueBudgetState;
+  directQueueBudgetState?: SyncQueueBudgetState;
+  retryingBudgetState: SyncQueueBudgetState;
+  runtimeState: SyncQueueRuntimeState;
+  readState?: 'ok' | 'unavailable';
+  issues?: string[];
+  ownerKey?: string | null;
+}
 
 /** `retained_for_owner`: the session changed first, so the task waits for its author, off the day. */
 export type SyncQueueTaskWriteMode = 'created' | 'reused' | 'retained_for_owner';
@@ -165,4 +204,22 @@ export interface SyncTransportPort {
 
 export interface SyncTransportResult {
   authoritativeRecord: DailyRecord;
+}
+
+export interface CreateSyncQueueEngineOptions {
+  store: SyncQueueStorePort;
+  runtime: SyncRuntimePort;
+  transport: SyncTransportPort;
+  batchSize: number;
+  maxPendingTasks: number;
+  maxRetries: number;
+  baseRetryDelayMs: number;
+  maxRetryDelayMs: number;
+}
+
+export interface SyncQueueEnqueueResult {
+  accepted: boolean;
+  mode: 'created' | 'reused' | 'retained_for_owner' | 'rejected_backpressure' | 'enqueue_failed';
+  pendingTasks: number;
+  maxPendingTasks: number;
 }

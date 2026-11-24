@@ -1,6 +1,6 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import type { PendingDailyRecordSyncTaskSnapshot } from '@/services/storage/sync/pendingDailyRecordSyncTask';
+import type { PendingDailyRecordSyncTaskSnapshot } from '@/services/storage/sync/syncQueuePorts';
 import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields';

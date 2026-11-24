@@ -2,7 +2,7 @@ import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type {
   SyncQueueTelemetry,
   SyncQueueTelemetryRow,
-} from '@/services/storage/sync/syncQueueTelemetryContracts';
+} from '@/services/storage/sync/syncQueuePorts';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import type { OperationalRuntimeState } from '@/services/observability/operationalRuntimeState';
 import type { OperationalTelemetryStatus } from '@/services/observability/operationalTelemetryTypes';

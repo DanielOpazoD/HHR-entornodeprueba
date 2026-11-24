@@ -27,7 +27,7 @@ import {
 import { createBrowserSyncRuntime } from '@/services/storage/sync/browserSyncRuntime';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
-import { toSyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueOperationSnapshot';
+import { toSyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueTaskFactory';
 import type { SyncRuntimePort } from '@/services/storage/sync/syncQueuePorts';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
