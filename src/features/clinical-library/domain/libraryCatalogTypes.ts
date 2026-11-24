@@ -38,6 +38,8 @@ export interface LibraryDocumentEntry {
   source?: string;
   /** Keep the original download/print action alongside its interactive editor. */
   editorId?: ClinicalFormId | 'medif' | 'pharmacy-return' | 'pharmacy-disposal';
+  /** Expose a direct PDF download button in addition to print and interactive autofill. */
+  downloadable?: boolean;
 }
 
 export const LIBRARY_TOOL_IDS = [

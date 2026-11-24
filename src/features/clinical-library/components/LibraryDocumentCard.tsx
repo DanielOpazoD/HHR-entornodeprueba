@@ -67,16 +67,29 @@ export const LibraryDocumentCard: React.FC<LibraryDocumentCardProps> = ({
         {!entry.editorId && <span>Descargar</span>}
       </a>
     ) : (
-      <button
-        type="button"
-        onClick={() => onPrint(entry)}
-        aria-label={`Imprimir ${entry.title}`}
-        title="Imprimir"
-        className={ACTION_CLASS}
-      >
-        <Printer size={16} aria-hidden="true" />
-        {!entry.editorId && <span>Imprimir</span>}
-      </button>
+      <>
+        {entry.downloadable && (
+          <a
+            href={toLibraryDocumentHref(entry.url)}
+            download
+            aria-label={`Descargar ${entry.title}`}
+            title="Descargar PDF"
+            className={ACTION_CLASS}
+          >
+            <Download size={16} aria-hidden="true" />
+          </a>
+        )}
+        <button
+          type="button"
+          onClick={() => onPrint(entry)}
+          aria-label={`Imprimir ${entry.title}`}
+          title="Imprimir"
+          className={ACTION_CLASS}
+        >
+          <Printer size={16} aria-hidden="true" />
+          {!entry.editorId && <span>Imprimir</span>}
+        </button>
+      </>
     )}
   </li>
 );

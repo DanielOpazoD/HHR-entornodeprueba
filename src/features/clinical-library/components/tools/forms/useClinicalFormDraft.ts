@@ -119,6 +119,10 @@ export const useClinicalFormDraft = (
     setSource(currentSource);
     setNotice('Se completaron los campos vacíos. Se conservaron las respuestas existentes.');
   };
+  const mergeValues = (proposed: ClinicalFormValues, message?: string) => {
+    updateValues(mergeEmptyFormValues(valuesRef.current, proposed));
+    if (message) setNotice(message);
+  };
   const keepReviewedSource = () => {
     if (currentSource) setSource(currentSource);
   };
@@ -151,6 +155,7 @@ export const useClinicalFormDraft = (
     selectPatient,
     change,
     refresh,
+    mergeValues,
     keepReviewedSource,
     importFile,
     changeForm: (id: ClinicalFormId) => {

@@ -33,6 +33,9 @@ function templateFrom(input) {
     )
       invalid('Cada campo necesita un identificador único, un título y un tipo.');
     const item = { id: raw.id, label: raw.label.trim(), type: raw.type, required: raw.required };
+    if (typeof raw.shortCode === 'string' && /^[A-Z]{1,4}$/.test(raw.shortCode)) {
+      item.shortCode = raw.shortCode;
+    }
     if (raw.type === 'choice') {
       if (!Array.isArray(raw.options) || raw.options.length < 2 || raw.options.length > 30)
         invalid('Escribe entre 2 y 30 opciones.');
@@ -78,6 +81,7 @@ function applicationFrom(template, answers) {
   )
     invalid('Las respuestas no corresponden a esta versión.');
   const rows = [];
+  const subscores = {};
   let points = 0,
     maximum = 0,
     scored = false;
@@ -100,13 +104,16 @@ function applicationFrom(template, answers) {
       if (required) invalid('Completa el campo «' + field.label + '».');
       continue;
     }
+    let selectedPoints;
     if (field.type === 'choice') {
       const selected = field.options.find(option => option.label === value);
       if (!selected) invalid('Opción inválida en «' + field.label + '».');
       if (selected.points !== undefined) {
         scored = true;
+        selectedPoints = selected.points;
         points += selected.points;
         maximum += Math.max(...field.options.map(option => option.points));
+        if (field.shortCode) subscores[field.shortCode] = selected.points;
       }
     }
     if (field.type === 'date' && !isCalendarDay(value))
@@ -115,15 +122,24 @@ function applicationFrom(template, answers) {
       invalid('Hora inválida.');
     if (field.type === 'positive-integer' && !/^[1-9]\d{0,5}$/.test(value))
       invalid('Se necesita un número entero positivo.');
-    rows.push({ field: field.id, label: field.label, value });
+    rows.push({
+      field: field.id,
+      ...(field.shortCode ? { shortCode: field.shortCode } : {}),
+      label: field.label,
+      value,
+      ...(selectedPoints !== undefined ? { points: selectedPoints } : {}),
+    });
   }
   if (!rows.length) invalid('Completa al menos un campo.');
   const score = scored ? { points, maximum } : null;
+  if (score && Object.keys(subscores).length) score.subscores = subscores;
   if (template.riskBands && score) {
     const { highMax, moderateMax } = template.riskBands;
     const band = points <= highMax ? 'alto' : points <= moderateMax ? 'moderado' : 'bajo';
     score.risk = band;
-    score.reassess = { alto: '24 horas', moderado: '72 horas', bajo: '7 días' }[band];
+    score.reassess = { alto: 'Cada 24 h', moderado: 'Cada 72 h', bajo: 'Cada 7 días' }[band];
+    const carePlan = template.carePlans?.[band];
+    if (Array.isArray(carePlan) && carePlan.length) score.carePlan = [...carePlan];
   }
   return { rows, score };
 }
@@ -170,16 +186,34 @@ function evolutionText(record) {
     timeStyle: 'short',
     timeZone: 'Pacific/Easter',
   }).format(new Date(record.savedAt));
+  const subscoreLine =
+    record.score?.subscores && Object.keys(record.score.subscores).length
+      ? 'Subpuntajes: ' +
+        Object.entries(record.score.subscores)
+          .map(([shortCode, pts]) => shortCode + ' ' + pts)
+          .join(' · ')
+      : null;
+  const riskLabel = record.score?.risk
+    ? record.score.risk.charAt(0).toUpperCase() + record.score.risk.slice(1)
+    : null;
   return [
-    'Aplicación pauta ' + record.template.title,
+    (record.template?.scaleGroup === 'braden'
+      ? 'Valoración de riesgo de lesiones por presión · '
+      : 'Aplicación pauta ') + record.template.title,
     when + ' · ' + record.authorName,
+    ...(subscoreLine ? [subscoreLine] : []),
     ...record.rows.map(row => row.label + ': ' + row.value),
     ...(record.score ? ['Puntaje: ' + record.score.points + ' / ' + record.score.maximum] : []),
     ...(record.score?.risk
       ? [
-          'Riesgo de LPP según escala: ' + record.score.risk,
-          'Reevaluar en ' + record.score.reassess + ' o antes si cambia la condición clínica.',
+          'Riesgo de LPP según escala: ' + riskLabel + ' (' + record.score.risk + ')',
+          'Reevaluar: ' +
+            record.score.reassess +
+            ' (o antes ante cambios en la condición clínica).',
         ]
+      : []),
+    ...(Array.isArray(record.score?.carePlan) && record.score.carePlan.length
+      ? ['Cuidados planeados según riesgo:', ...record.score.carePlan.map(item => '• ' + item)]
       : []),
     'Código de verificación: ' + record.code,
   ].join('\n');
