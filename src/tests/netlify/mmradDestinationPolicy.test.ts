@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMMRADSearchHandler } from '../../../netlify/functions/mmrad-search';
+import { forgetMMRADSession } from '../../../netlify/functions/lib/mmrad-session';
 import { suppressProcessStdout, type RestorableSpy } from '@/tests/utils/consoleTestUtils';
 
 describe('MMRAD destination policy', () => {
@@ -41,6 +42,7 @@ describe('MMRAD destination policy', () => {
   };
 
   beforeEach(() => {
+    forgetMMRADSession();
     fetchMock.mockReset();
     process.env = {
       ...originalEnv,
@@ -79,7 +81,8 @@ describe('MMRAD destination policy', () => {
       'preserves a valid institutional link: %s',
       async link => {
         mockLogin();
-        fetchMock.mockResolvedValueOnce(new Response('synthetic content'));
+        const body = action === 'pdf' ? '%PDF-1.4\nsynthetic content' : 'synthetic content';
+        fetchMock.mockResolvedValueOnce(new Response(body));
         const response = await request(action, link);
         expect(response.statusCode).toBe(200);
         expect(fetchMock).toHaveBeenLastCalledWith(
@@ -108,9 +111,10 @@ describe('MMRAD destination policy', () => {
 
     it('follows relative redirects within MMRAD', async () => {
       mockLogin();
+      const body = action === 'pdf' ? '%PDF-1.4\nsynthetic content' : 'synthetic content';
       fetchMock
         .mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: 'final' } }))
-        .mockResolvedValueOnce(new Response('synthetic content'));
+        .mockResolvedValueOnce(new Response(body));
       const response = await request(action, '/folder/report');
       expect(response.statusCode).toBe(200);
       expect(fetchMock).toHaveBeenLastCalledWith(

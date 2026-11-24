@@ -405,10 +405,15 @@ describe('mmrad-search', () => {
       headers: new Headers(),
       text: vi.fn().mockResolvedValue('<html><body>dashboard</body></html>'),
     });
+    const pdfBytes = Buffer.from('%PDF-1.4\nsynthetic');
     fetchMock.mockResolvedValueOnce({
       status: 200,
       headers: new Headers({ 'Content-Type': 'application/pdf' }),
-      arrayBuffer: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4]).buffer),
+      arrayBuffer: vi
+        .fn()
+        .mockResolvedValue(
+          pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength)
+        ),
     });
 
     const response = await handler({
@@ -428,7 +433,7 @@ describe('mmrad-search', () => {
       'inline'
     );
     expect(pdfResponse.isBase64Encoded).toBe(true);
-    expect(pdfResponse.body).toBe(Buffer.from([1, 2, 3, 4]).toString('base64'));
+    expect(pdfResponse.body).toBe(pdfBytes.toString('base64'));
   });
 
   it('returns 500 on fetch error', async () => {

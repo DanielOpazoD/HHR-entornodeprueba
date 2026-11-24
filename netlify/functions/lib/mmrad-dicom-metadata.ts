@@ -1,5 +1,5 @@
 import { randomInt, randomBytes } from 'node:crypto';
-import { fetchWithHeaders, loginToMMRAD, MMRAD_BASE_URL } from './mmrad-session';
+import { fetchWithHeaders, MMRAD_BASE_URL, withMMRADSession } from './mmrad-session';
 import {
   MMRAD_VIEWER,
   viewerStudyFromHtml,
@@ -45,15 +45,18 @@ export const loadVendorStudyMetadata = async (
   link: string,
   signal: AbortSignal
 ): Promise<{ uid: string; metadata: unknown }> => {
-  const { cookies, searchActionUrl } = await loginToMMRAD(signal);
-  if (!searchActionUrl) throw new Error('No se pudo iniciar sesión en MMRAD.');
-  const page = await fetchWithHeaders(link, {
-    signal,
-    headers: { Cookie: cookies, Referer: `${MMRAD_BASE_URL}/group/hhangaroa` },
-  });
-  const uid = viewerStudyFromHtml(
-    new TextDecoder('latin1').decode(await readBoundedResponse(page, 1_000_000))
-  );
+  // Reuse the warm RIS session only to resolve the viewer study UID; keep the separate SockJS
+  // viewer handshake outside so viewer transport failures never trigger redundant RIS logins.
+  const uid = await withMMRADSession(async ({ cookies, searchActionUrl }) => {
+    if (!searchActionUrl) throw new Error('No se pudo iniciar sesión en MMRAD.');
+    const page = await fetchWithHeaders(link, {
+      signal,
+      headers: { Cookie: cookies, Referer: `${MMRAD_BASE_URL}/group/hhangaroa` },
+    });
+    return viewerStudyFromHtml(
+      new TextDecoder('latin1').decode(await readBoundedResponse(page, 1_000_000))
+    );
+  }, signal);
   const transport = `${MMRAD_VIEWER}/sockjs/${String(randomInt(1000)).padStart(3, '0')}/${randomBytes(8).toString('hex')}`;
   const request = async (url: string, body?: string): Promise<string> => {
     const response = await fetch(url, {

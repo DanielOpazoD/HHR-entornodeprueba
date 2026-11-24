@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMMRADDicomHandler } from '../../../netlify/functions/mmrad-dicom';
+import { forgetMMRADSession } from '../../../netlify/functions/lib/mmrad-session';
 import {
   loadVendorStudyMetadata,
   normalizeVendorStudy,
@@ -51,6 +52,7 @@ const ticket = () =>
 
 describe('protected MMRAD DICOM bridge', () => {
   beforeEach(() => {
+    forgetMMRADSession();
     vi.stubEnv('MMRAD_PASSWORD', 'synthetic-test-secret');
     vi.stubEnv('URL', 'https://app.example.com');
     vi.stubEnv('SITE_NAME', '');
@@ -397,5 +399,86 @@ describe('protected MMRAD DICOM bridge', () => {
       expect(options.headers.Cookie).toBeUndefined();
       expect(options.redirect).toBe('error');
     }
+  });
+
+  it('reuses a warm RIS session across metadata loads, retries once on expired page, respects abort, and keeps SockJS failures outside login retry', async () => {
+    vi.stubEnv('MMRAD_USERNAME', 'synthetic');
+    const frame = (messages: object[]) =>
+      `a${JSON.stringify(messages.map(message => JSON.stringify(message)))}`;
+    const queueLogin = (mock: ReturnType<typeof vi.fn>, sessionCookie: string) => {
+      mock
+        .mockResolvedValueOnce(
+          new Response('<form action="https://ris.mmrad.cl/login%2Flogin"></form>', {
+            headers: { 'set-cookie': `JSESSIONID=${sessionCookie}; Path=/` },
+          })
+        )
+        .mockResolvedValueOnce(
+          new Response('', { status: 302, headers: { location: '/group/hhangaroa' } })
+        )
+        .mockResolvedValueOnce(
+          new Response('<form action="https://ris.mmrad.cl/examenportlet/search"></form>')
+        );
+    };
+    const queueSockJsSuccess = (mock: ReturnType<typeof vi.fn>) => {
+      mock
+        .mockResolvedValueOnce(new Response('{}'))
+        .mockResolvedValueOnce(new Response('o'))
+        .mockResolvedValueOnce(new Response(null, { status: 204 }))
+        .mockResolvedValueOnce(new Response(frame([{ msg: 'connected' }])))
+        .mockResolvedValueOnce(new Response(null, { status: 204 }))
+        .mockResolvedValueOnce(
+          new Response(frame([{ msg: 'result', id: '1', result: syntheticVendorStudy(1) }]))
+        );
+    };
+    const viewerPage = () =>
+      new Response(
+        `<iframe src="https://hhangaroavisor.mmrad.cl:4446/viewer/${SYNTHETIC_STUDY_UID}"></iframe>`
+      );
+    const loginCallCount = (mock: ReturnType<typeof vi.fn>) =>
+      mock.mock.calls.filter(([url]) => String(url).includes('/web/guest/home')).length;
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    // 1. Cold load logs in once and warms the RIS session.
+    queueLogin(fetchMock, 's1');
+    fetchMock.mockResolvedValueOnce(viewerPage());
+    queueSockJsSuccess(fetchMock);
+    await loadVendorStudyMetadata('https://ris.mmrad.cl/exam/1', AbortSignal.timeout(1000));
+    expect(loginCallCount(fetchMock)).toBe(1);
+
+    // 2. Warm second load skips RIS login completely.
+    fetchMock.mockResolvedValueOnce(viewerPage());
+    queueSockJsSuccess(fetchMock);
+    await loadVendorStudyMetadata('https://ris.mmrad.cl/exam/2', AbortSignal.timeout(1000));
+    expect(loginCallCount(fetchMock)).toBe(1);
+
+    // 3. Expired session returning login HTML (no viewer iframe) triggers a single fresh login.
+    fetchMock.mockResolvedValueOnce(new Response('<form><input name="_58_login" /></form>'));
+    queueLogin(fetchMock, 's2');
+    fetchMock.mockResolvedValueOnce(viewerPage());
+    queueSockJsSuccess(fetchMock);
+    await loadVendorStudyMetadata('https://ris.mmrad.cl/exam/3', AbortSignal.timeout(1000));
+    expect(loginCallCount(fetchMock)).toBe(2);
+
+    // 4. SockJS viewer failure happens outside withMMRADSession: zero RIS relogins.
+    fetchMock.mockResolvedValueOnce(viewerPage());
+    fetchMock.mockResolvedValueOnce(new Response('{}'));
+    fetchMock.mockResolvedValueOnce(new Response('o'));
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    fetchMock.mockResolvedValueOnce(new Response('c[3000,"closed"]'));
+    await expect(
+      loadVendorStudyMetadata('https://ris.mmrad.cl/exam/4', AbortSignal.timeout(1000))
+    ).rejects.toThrow('cerró');
+    expect(loginCallCount(fetchMock)).toBe(2);
+
+    // 5. Aborted signal never triggers a RIS login retry.
+    const aborted = new AbortController();
+    aborted.abort(new Error('cancelled'));
+    fetchMock.mockRejectedValueOnce(new Error('aborted'));
+    await expect(
+      loadVendorStudyMetadata('https://ris.mmrad.cl/exam/5', aborted.signal)
+    ).rejects.toThrow('aborted');
+    expect(loginCallCount(fetchMock)).toBe(2);
   });
 });

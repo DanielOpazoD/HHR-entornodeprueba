@@ -258,8 +258,11 @@ su sesión de la cuenta de servicio hasta 10 minutos (`withMMRADSession`).
   exámenes»: se inicia sesión de nuevo y la consulta se repite una vez.
 - En Universitas, si la sesión venció, la página `abrirestudio` no trae el enlace corto, y la
   consulta también se repite.
-- El PDF y el comprobante siguen iniciando sesión cada vez, porque no comprueban qué les responde
-  MMRAD.
+- Los informes PDF, el comprobante portal y el visor heredado (`loadVendorStudyMetadata`) también
+  reutilizan la sesión RIS mediante `withMMRADSession`: cuentan como sesión viva si el PDF trae
+  `%PDF-` en los primeros 1024 bytes, si el comprobante HTML no trae `_58_login` y si la página del
+  visor trae el `iframe` autorizado (el handshake SockJS queda fuera del reintento de sesión). Un
+  PDF que supera el tamaño máximo devuelve 502 sin descartar la sesión.
 - Medido con la cuenta de servicio: la segunda búsqueda bajó de 3,2 s a 1,5 s, y la segunda apertura
   de estudio, de 1,6 s a 0,65 s.
 
