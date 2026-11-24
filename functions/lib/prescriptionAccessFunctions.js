@@ -12,10 +12,12 @@
 const crypto = require('crypto');
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
+const { redactError } = require('./logging/redaction');
 const {
   assertReadonlyUploadDateAllowed,
   getAccessConfigRef,
   getPrescriptionsRef,
+  getUploadQuotaRef,
   listPrescriptionRecordsForDate,
   omitUndefined,
   optionalString,
@@ -46,7 +48,11 @@ const MONTHLY_BACKUP_DAYS_BY_TYPE = {
   benzodiazepinas: 30,
 };
 const DAY_MS = 24 * 60 * 60 * 1000;
+const UPLOAD_QUOTA_WINDOW_MS = 60 * 60 * 1000;
+const MAX_PRESCRIPTION_UPLOADS_PER_HOUR = 120;
 const MAX_BASE64_BYTES = 4 * 1024 * 1024; // 4 MB per blob (full or thumb)
+const MAX_BASE64_CHARS = Math.ceil(MAX_BASE64_BYTES / 3) * 4;
+const STRICT_BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
 const MIN_DIMENSION = 32;
 const MAX_DIMENSION = 4096;
 
@@ -74,6 +80,15 @@ const positiveInteger = (value, fieldName) => {
   return parsed;
 };
 
+const assertJpegMagicBytes = (buffer, fieldName) => {
+  if (buffer.length < 3 || buffer[0] !== 0xff || buffer[1] !== 0xd8 || buffer[2] !== 0xff) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      `${fieldName} must be a valid JPEG image.`
+    );
+  }
+};
+
 const decodeBase64 = (value, fieldName) => {
   if (typeof value !== 'string' || !value.trim()) {
     throw new functions.https.HttpsError(
@@ -81,14 +96,84 @@ const decodeBase64 = (value, fieldName) => {
       `Missing required field: ${fieldName}`
     );
   }
-  const buffer = Buffer.from(value, 'base64');
+  const trimmed = value.trim();
+  if (
+    trimmed.length > MAX_BASE64_CHARS ||
+    trimmed.length % 4 !== 0 ||
+    !STRICT_BASE64_PATTERN.test(trimmed)
+  ) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      `${fieldName} must be valid base64 within the allowed size limit.`
+    );
+  }
+  const buffer = Buffer.from(trimmed, 'base64');
   if (!buffer.length || buffer.length > MAX_BASE64_BYTES) {
     throw new functions.https.HttpsError(
       'invalid-argument',
       `${fieldName} size is invalid (must be 1–${MAX_BASE64_BYTES} bytes after decoding).`
     );
   }
+  assertJpegMagicBytes(buffer, fieldName);
   return buffer;
+};
+
+const reservePrescriptionUploadSlot = async (firestore, nowMs = Date.now()) => {
+  const quotaRef = getUploadQuotaRef(firestore);
+  const slotId = `${nowMs}_${crypto.randomBytes(4).toString('hex')}`;
+  const cutoff = nowMs - UPLOAD_QUOTA_WINDOW_MS;
+
+  await firestore.runTransaction(async tx => {
+    const snap = await tx.get(quotaRef);
+    const data = snap.exists ? snap.data() || {} : {};
+    const existingSlots = Array.isArray(data.recentSlots) ? data.recentSlots : [];
+    const activeSlots = existingSlots.filter(
+      slot => slot && typeof slot.id === 'string' && typeof slot.at === 'number' && slot.at > cutoff
+    );
+
+    if (activeSlots.length >= MAX_PRESCRIPTION_UPLOADS_PER_HOUR) {
+      throw new functions.https.HttpsError(
+        'resource-exhausted',
+        'Se alcanzó el límite temporal de carga de recetas. Reintenta en unos minutos.'
+      );
+    }
+
+    tx.set(
+      quotaRef,
+      {
+        recentSlots: [...activeSlots, { id: slotId, at: nowMs }],
+        updatedAt: new Date(nowMs).toISOString(),
+      },
+      { merge: true }
+    );
+  });
+
+  return slotId;
+};
+
+const releasePrescriptionUploadSlot = async (firestore, slotId) => {
+  if (!slotId) return;
+  const quotaRef = getUploadQuotaRef(firestore);
+  try {
+    await firestore.runTransaction(async tx => {
+      const snap = await tx.get(quotaRef);
+      if (!snap.exists) return;
+      const data = snap.data() || {};
+      const existingSlots = Array.isArray(data.recentSlots) ? data.recentSlots : [];
+      const nextSlots = existingSlots.filter(slot => slot?.id !== slotId);
+      if (nextSlots.length === existingSlots.length) return;
+      tx.set(
+        quotaRef,
+        {
+          recentSlots: nextSlots,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+    });
+  } catch (error) {
+    console.error('[prescriptions/upload] failed to release quota slot:', redactError(error));
+  }
 };
 
 const saveImageBufferToStorage = async ({ storage, path, buffer, contentType }) => {
@@ -110,7 +195,7 @@ const deleteImageBlobIfPresent = async ({ storage, path }) => {
   try {
     await storage.bucket().file(path).delete({ ignoreNotFound: true });
   } catch (error) {
-    console.error(`[prescriptions/upload] failed to clean blob ${path}:`, error.message);
+    console.error('[prescriptions/upload] failed to clean blob:', redactError(error));
   }
 };
 
@@ -135,6 +220,7 @@ const createListUploadPatientOptionsHandler =
     await resolveUploadPickerAccess({ firestore, context, payload, resolveRoleForEmail });
 
     const date = resolveIsoDate(payload.date);
+    assertReadonlyUploadDateAllowed(date);
     const optionsResult = await resolveUploadPatientOptionsForDate(firestore, date);
     return {
       date,
@@ -233,6 +319,7 @@ const createSubmitHandler =
       resolveRoleForEmail,
     });
     const { fullBuffer, thumbBuffer, width, height } = decodeAndValidateImagePayload(payload);
+    const uploadSlotId = await reservePrescriptionUploadSlot(firestore);
 
     const prescriptionId = generatePrescriptionId();
     const storagePrefix = `prescriptions/${HOSPITAL_ID}/${prescriptionId}`;
@@ -268,7 +355,10 @@ const createSubmitHandler =
       await getPrescriptionsRef(firestore).doc(prescriptionId).set(record);
       return { id: prescriptionId, expiresAt: record.expiresAt };
     } catch (error) {
-      await cleanupUploadedPrescriptionBlobs({ storage, fullPath, thumbPath });
+      await Promise.all([
+        cleanupUploadedPrescriptionBlobs({ storage, fullPath, thumbPath }),
+        releasePrescriptionUploadSlot(firestore, uploadSlotId),
+      ]);
       throw error;
     }
   };

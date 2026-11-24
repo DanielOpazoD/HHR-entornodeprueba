@@ -277,7 +277,7 @@ describe('listPrescriptionUploadPatientOptions', () => {
 
   it('returns active bed-patient options for a valid QR PIN', async () => {
     const { admin, accessConfig } = buildAdminHarness({
-      dailyRecords: { '2026-05-05': dailyRecord },
+      dailyRecords: { '2026-05-04': dailyRecord },
     });
     await seedPin(accessConfig, '7351');
 
@@ -287,9 +287,9 @@ describe('listPrescriptionUploadPatientOptions', () => {
       resolveRoleForEmail: vi.fn(),
     });
 
-    await expect(handler({ pin: '7351', date: '2026-05-05' }, undefined)).resolves.toEqual({
-      date: '2026-05-05',
-      sourceDate: '2026-05-05',
+    await expect(handler({ pin: '7351', date: '2026-05-04' }, undefined)).resolves.toEqual({
+      date: '2026-05-04',
+      sourceDate: '2026-05-04',
       isFallbackFromPreviousDay: false,
       patientOptions: [
         {
@@ -310,11 +310,12 @@ describe('listPrescriptionUploadPatientOptions', () => {
     });
   });
 
-  it('falls back to previous-day patients when the requested census has no active patients', async () => {
+  it('rejects historical and future census dates via QR PIN to prevent census PHI scraping', async () => {
     const { admin, accessConfig } = buildAdminHarness({
       dailyRecords: {
-        '2026-05-04': dailyRecord,
-        '2026-05-05': { date: '2026-05-05', beds: {} },
+        '2026-04-01': dailyRecord,
+        '2026-05-02': dailyRecord,
+        '2026-05-05': dailyRecord,
       },
     });
     await seedPin(accessConfig, '7351');
@@ -325,9 +326,35 @@ describe('listPrescriptionUploadPatientOptions', () => {
       resolveRoleForEmail: vi.fn(),
     });
 
-    await expect(handler({ pin: '7351', date: '2026-05-05' }, undefined)).resolves.toEqual({
-      date: '2026-05-05',
-      sourceDate: '2026-05-04',
+    await expect(handler({ pin: '7351', date: '2026-04-01' }, undefined)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    await expect(handler({ pin: '7351', date: '2026-05-02' }, undefined)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    await expect(handler({ pin: '7351', date: '2026-05-05' }, undefined)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+  });
+
+  it('falls back to previous-day patients when the requested census has no active patients', async () => {
+    const { admin, accessConfig } = buildAdminHarness({
+      dailyRecords: {
+        '2026-05-03': dailyRecord,
+        '2026-05-04': { date: '2026-05-04', beds: {} },
+      },
+    });
+    await seedPin(accessConfig, '7351');
+
+    const handler = createListUploadPatientOptionsHandler({
+      firestore: admin.firestore(),
+      storage: admin.storage(),
+      resolveRoleForEmail: vi.fn(),
+    });
+
+    await expect(handler({ pin: '7351', date: '2026-05-04' }, undefined)).resolves.toEqual({
+      date: '2026-05-04',
+      sourceDate: '2026-05-03',
       isFallbackFromPreviousDay: true,
       patientOptions: [
         {
@@ -351,7 +378,7 @@ describe('listPrescriptionUploadPatientOptions', () => {
   it('keeps same-day discharged and transferred patients in the upload selector', async () => {
     const { admin, accessConfig } = buildAdminHarness({
       dailyRecords: {
-        '2026-05-05': {
+        '2026-05-04': {
           ...dailyRecord,
           discharges: [
             {
@@ -384,9 +411,9 @@ describe('listPrescriptionUploadPatientOptions', () => {
       resolveRoleForEmail: vi.fn(),
     });
 
-    await expect(handler({ pin: '7351', date: '2026-05-05' }, undefined)).resolves.toMatchObject({
-      date: '2026-05-05',
-      sourceDate: '2026-05-05',
+    await expect(handler({ pin: '7351', date: '2026-05-04' }, undefined)).resolves.toMatchObject({
+      date: '2026-05-04',
+      sourceDate: '2026-05-04',
       isFallbackFromPreviousDay: false,
       patientOptions: expect.arrayContaining([
         {
@@ -409,7 +436,7 @@ describe('listPrescriptionUploadPatientOptions', () => {
 
   it('allows authenticated nursing callers without a PIN', async () => {
     const { admin } = buildAdminHarness({
-      dailyRecords: { '2026-05-05': dailyRecord },
+      dailyRecords: { '2026-05-04': dailyRecord },
     });
     const resolveRoleForEmail = vi.fn().mockResolvedValue('nurse_hospital');
     const handler = createListUploadPatientOptionsHandler({
@@ -418,7 +445,7 @@ describe('listPrescriptionUploadPatientOptions', () => {
     });
 
     const result = await handler(
-      { date: '2026-05-05' },
+      { date: '2026-05-04' },
       { auth: { uid: 'n-1', token: { email: 'enf@h.cl' } } }
     );
 
@@ -436,15 +463,15 @@ describe('listPrescriptionUploadPatientOptions', () => {
       resolveRoleForEmail: vi.fn(),
     });
 
-    await expect(handler({ date: '2026-05-05' }, undefined)).rejects.toMatchObject({
+    await expect(handler({ date: '2026-05-04' }, undefined)).rejects.toMatchObject({
       code: 'invalid-argument',
     });
   });
 });
 
 describe('listPrescriptionUploadReadonlyRecords', () => {
-  it('returns today prescription records with download URLs for a valid QR PIN', async () => {
-    const { admin, accessConfig } = buildAdminHarness({
+  it('returns today prescription records with download URLs for a valid QR PIN using a bounded day query', async () => {
+    const { admin, accessConfig, recordedPrescriptionQueries } = buildAdminHarness({
       prescriptionRecords: {
         'rx-today': buildPrescriptionRecord('rx-today', '2026-05-04T10:00:00.000Z'),
         'rx-yesterday': buildPrescriptionRecord('rx-yesterday', '2026-05-03T10:00:00.000Z'),
@@ -462,6 +489,10 @@ describe('listPrescriptionUploadReadonlyRecords', () => {
 
     expect(result.date).toBe('2026-05-04');
     expect(result.records.map((record: { id: string }) => record.id)).toEqual(['rx-today']);
+    expect(recordedPrescriptionQueries).toEqual([
+      { field: 'createdAt', op: '>=', value: '2026-05-04T06:00:00.000Z' },
+      { field: 'createdAt', op: '<', value: '2026-05-05T06:00:00.000Z' },
+    ]);
     expect(result.records[0].image.fullDownloadUrl).toMatch(
       /^https:\/\/firebasestorage\.googleapis\.com\/v0\/b\/hhr-test\.appspot\.com\/o\//
     );
