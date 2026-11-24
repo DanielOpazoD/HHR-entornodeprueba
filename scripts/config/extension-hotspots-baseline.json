@@ -94,17 +94,24 @@
         "iife>variable:create>variable:handleHospitalizedPrescriptionPrintRequest": 17
       }
     },
-    "clinical-checklist-broker.js": {
-      "maxLines": 214,
+    "clinical-checklist-braden.js": {
+      "maxLines": 368,
       "hotspots": {
-        "iife>function:create>function:assertActiveChartAndIdentity": 17,
+        "iife>function:renderMatrix": 19
+      }
+    },
+    "clinical-checklist-broker.js": {
+      "maxLines": 231,
+      "hotspots": {
+        "iife>function:create>function:assertActiveChartAndIdentity": 19,
         "iife>function:create>function:handle": 16
       }
     },
     "clinical-checklist-dialog.js": {
-      "maxLines": 473,
+      "maxLines": 586,
       "hotspots": {
-        "iife>function:refresh": 23
+        "iife>function:open": 19,
+        "iife>function:refresh": 26
       }
     },
     "clinical-checklist-evolution.js": {

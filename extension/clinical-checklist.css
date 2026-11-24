@@ -1,20 +1,53 @@
-.hhr-checklist-trigger,.hhr-checklist-dialog button,.hhr-checklist-dialog a{font:600 13px/1.3 system-ui;color:#17665e;background:#f0f7f5;border:1px solid #bed5cf;border-radius:6px;padding:6px 10px;cursor:pointer;text-decoration:none}
-.hhr-checklist-trigger{display:inline-flex;align-items:center;gap:6px;margin:4px 8px;position:relative;z-index:2;white-space:nowrap;flex-shrink:0;vertical-align:middle}
-.hhr-checklist-trigger:hover,.hhr-checklist-dialog button:hover,.hhr-checklist-dialog a:hover{background:#e3f1ed}
-.hhr-checklist-dialog{box-sizing:border-box;width:min(540px,94vw);max-height:85vh;overflow:auto;margin:auto;border:0;border-radius:12px;padding:18px;color:#193a35;background:white;box-shadow:0 16px 60px #123c3540;font:14px/1.4 system-ui}
+.hhr-checklist-trigger,.hhr-checklist-braden-trigger,.hhr-checklist-dialog button,.hhr-checklist-dialog a{font:600 13px/1.3 system-ui;color:#17665e;background:#f0f7f5;border:1px solid #bed5cf;border-radius:6px;padding:6px 10px;cursor:pointer;text-decoration:none}
+.hhr-checklist-trigger,.hhr-checklist-braden-trigger{display:inline-flex;align-items:center;gap:6px;margin:4px 6px;position:relative;z-index:2;white-space:nowrap;flex-shrink:0;vertical-align:middle}
+.hhr-checklist-braden-trigger{background:#fff;border-color:#9fc5bc;color:#14564f}
+.hhr-checklist-trigger:hover,.hhr-checklist-braden-trigger:hover,.hhr-checklist-dialog button:hover,.hhr-checklist-dialog a:hover{background:#e3f1ed}
+.hhr-checklist-dialog{box-sizing:border-box;width:min(540px,94vw);max-height:88vh;overflow:auto;margin:auto;border:0;border-radius:12px;padding:18px;color:#193a35;background:white;box-shadow:0 16px 60px #123c3540;font:14px/1.4 system-ui}
+.hhr-checklist-dialog.is-matrix{width:min(860px,96vw)}
 .hhr-checklist-dialog::backdrop{background:#102f2b66}
-.hhr-checklist-dialog header,.hhr-checklist-dialog footer,.hhr-checklist-template-row,.hhr-checklist-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.hhr-checklist-actions{justify-content:flex-start}
+.hhr-checklist-dialog header,.hhr-checklist-dialog footer,.hhr-checklist-template-row,.hhr-checklist-actions,.hhr-braden-switcher,.hhr-braden-summary-head,.hhr-braden-preview-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.hhr-checklist-actions,.hhr-braden-switcher,.hhr-braden-summary-head{justify-content:flex-start}
 .hhr-checklist-dialog h2{font-size:18px;margin:0}
-.hhr-checklist-dialog form,.hhr-checklist-dialog .fields{display:grid;gap:8px}
-.hhr-checklist-dialog label{display:grid;gap:3px;color:#37574f;font-weight:600}
+.hhr-checklist-dialog form,.hhr-checklist-dialog .fields{display:grid;gap:10px}
+.hhr-checklist-dialog label{display:grid;gap:3px;color:#37574f;font-weight:600;font-size:13px}
 .hhr-checklist-dialog select,.hhr-checklist-dialog input,.hhr-checklist-dialog textarea{box-sizing:border-box;width:100%;min-height:34px;font:inherit;color:#193a35;border:1px solid #b6cbc5;border-radius:5px;padding:5px 7px;background:#fff}
 .hhr-checklist-dialog textarea{resize:vertical}
 .hhr-checklist-dialog button[type=submit],.hhr-checklist-dialog button.is-primary{background:#17665e;border-color:#17665e;color:white}
 .hhr-checklist-dialog button[type=submit]:hover,.hhr-checklist-dialog button.is-primary:hover{background:#12524b}
 .hhr-checklist-version{font-size:12px;color:#4a6b64}
 .hhr-checklist-code{margin:0;font:600 12px/1.4 ui-monospace,monospace;color:#37574f}
-.hhr-checklist-preview{margin:0;padding:10px;border-radius:8px;border:1px solid #d5e4e0;background:#f7fbfa;font:12.5px/1.45 system-ui;white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow:auto}
-.hhr-checklist-dialog [role=status]{color:#3c5b55;white-space:pre-wrap}
-.hhr-checklist-dialog :focus-visible,.hhr-checklist-trigger:focus-visible{outline:2px solid #00776b;outline-offset:2px}
+.hhr-checklist-preview{margin:0;padding:10px;border-radius:8px;border:1px solid #d5e4e0;background:#f7fbfa;font:12.5px/1.45 system-ui;white-space:pre-wrap;overflow-wrap:anywhere;max-height:200px;overflow:auto}
+.hhr-checklist-dialog [role=status]{color:#3c5b55;white-space:pre-wrap;margin:6px 0 0;font-size:13px}
+.hhr-checklist-dialog :focus-visible,.hhr-checklist-trigger:focus-visible,.hhr-checklist-braden-trigger:focus-visible{outline:2px solid #00776b;outline-offset:2px}
 .hhr-checklist-dialog [hidden]{display:none!important}
+.hhr-braden-tab{font-size:12.5px;padding:5px 10px}
+.hhr-braden-tab.is-active{background:#17665e;border-color:#17665e;color:#fff}
+.hhr-braden-age-hint{font-size:12px;color:#4a6b64;font-weight:500}
+.hhr-braden-table-wrap{overflow-x:auto;border:1px solid #cfe0db;border-radius:8px}
+.hhr-braden-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+.hhr-braden-table th,.hhr-braden-table td{border-bottom:1px solid #dfece8;border-right:1px solid #dfece8;padding:4px;vertical-align:stretch}
+.hhr-braden-table tr:last-child th,.hhr-braden-table tr:last-child td{border-bottom:0}
+.hhr-braden-table th:last-child,.hhr-braden-table td:last-child{border-right:0}
+.hhr-braden-table thead th{background:#eff6f4;color:#1d4741;font-weight:700;text-align:center;padding:6px 4px}
+.hhr-braden-table thead th:first-child{text-align:left;width:20%;padding-left:8px}
+.hhr-braden-dim{background:#f8fbfa;color:#1d4741;font-weight:600;text-align:left;padding:6px 8px!important;line-height:1.3}
+.hhr-braden-cell{width:100%;height:100%;min-height:42px;text-align:left;font:500 11.5px/1.3 system-ui!important;padding:6px 7px!important;background:#fff!important;border:1px solid transparent!important;border-radius:5px!important;color:#193a35!important;transition:background .12s,border-color .12s}
+.hhr-braden-cell:hover{background:#edf7f4!important;border-color:#9fc5bc!important}
+.hhr-braden-cell.is-selected{background:#17665e!important;border-color:#12524b!important;color:#fff!important;font-weight:600!important}
+.hhr-braden-na{display:flex;align-items:center;justify-content:center;min-height:42px;color:#8aa29c;font-size:11.5px;font-style:italic}
+.hhr-braden-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.hhr-braden-meta label.is-wide{grid-column:1 / -1}
+.hhr-braden-summary{padding:10px 12px;border-radius:8px;border:1px solid #cfe0db;background:#f5faf8;display:grid;gap:6px}
+.hhr-braden-summary.is-alto{border-color:#d8b4a6;background:#fdf6f3}
+.hhr-braden-summary.is-moderado{border-color:#dfcfa1;background:#fdfaf0}
+.hhr-braden-pending{margin:0;font-size:12.5px;color:#4a6b64}
+.hhr-braden-total{font-weight:700;font-size:14px;color:#193a35}
+.hhr-braden-risk-pill{padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;background:#e0f2ee;color:#155851}
+.hhr-braden-risk-pill.is-moderado{background:#f7ecc6;color:#725514}
+.hhr-braden-risk-pill.is-alto{background:#f6ddd6;color:#8b2c1d}
+.hhr-braden-reassess{font-size:12.5px;font-weight:600;color:#35564f}
+.hhr-braden-subscores{margin:0;font:600 12px/1.3 ui-monospace,monospace;color:#37574f}
+.hhr-braden-care-list{margin:0;padding-left:18px;font-size:12px;color:#274740;display:grid;gap:2px}
+.hhr-braden-preview-wrap{display:grid;gap:5px;margin-top:8px}
+.hhr-braden-preview-title{font-size:12px;font-weight:600;color:#37574f}
+.hhr-braden-copy-inline{padding:3px 9px!important;font-size:12px!important}

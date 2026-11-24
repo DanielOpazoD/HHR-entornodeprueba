@@ -7,8 +7,10 @@
   const key = 'hhr-clinical-checklists-enabled';
   const route = () => globalThis.HhrPrescriptionPrint.resolveEncounterId(location.href);
   const evo = globalThis.HhrChecklistEvolution;
+  const braden = globalThis.HhrChecklistBraden;
   let enabled = false,
     trigger,
+    bradenTrigger,
     dialog,
     session,
     insertedReceipt,
@@ -99,6 +101,7 @@
   }
 
   async function copyEvolutionText(text) {
+    if (!text) return false;
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(text);
       return true;
@@ -106,8 +109,9 @@
     return false;
   }
 
-  async function showReceipt(state) {
+  async function showReceipt(state, options = {}) {
     if (!dialog || !current(state)) return;
+    dialog.classList.remove('is-matrix');
     const content = dialog.querySelector('form');
     content.replaceChildren();
     const code = make('p', state.record.code);
@@ -145,6 +149,21 @@
     });
     actions.append(insert, copy);
     content.append(code, preview, actions);
+
+    if (options.copyOnly) {
+      try {
+        const copied = await copyEvolutionText(state.record.evolution);
+        status(
+          copied
+            ? 'Guardada en HHR y texto copiado. Pégalo en la evolución de Eloísa o pulsa «Insertar en evolución».'
+            : 'Guardada en HHR. Selecciona el texto de arriba para copiarlo o pulsa «Insertar en evolución».'
+        );
+      } catch {
+        status('Guardada en HHR. Selecciona el texto de arriba para copiarlo o pulsa «Insertar en evolución».');
+      }
+      return;
+    }
+
     status('Guardada en HHR. Insertando en la evolución de este episodio…');
     insert.disabled = true;
     try {
@@ -232,7 +251,7 @@
       insertedReceipt = null;
       close();
       refresh();
-      await open();
+      await open(state.preferredMode);
       return false;
     }
     if (state.templateId && previous) {
@@ -245,6 +264,57 @@
     state.catalog = catalog;
     render(state);
     return true;
+  }
+
+  function missingRequiredDimension(template, answers) {
+    if (!braden?.isBradenTemplate(template)) return null;
+    for (const field of template.fields || []) {
+      if (field.required && !String(answers[field.id] || '').trim()) return field.label;
+    }
+    return null;
+  }
+
+  function initialTemplateId(state) {
+    const list = state.catalog.templates;
+    if (state.templateId && list.some(t => t.id === state.templateId)) return state.templateId;
+    if (state.preferredMode === 'braden' && braden) {
+      const suggested = braden.suggestBradenTemplate(list, state.catalog);
+      if (suggested.templateId) return suggested.templateId;
+    }
+    return list[0].id;
+  }
+
+  async function submitApplication(state, group, form, { copyOnly }) {
+    const template = state.catalog.templates.find(item => item.id === state.templateId);
+    const missing = missingRequiredDimension(template, state.answers);
+    if (missing) {
+      status('Completa primero: ' + missing + '.');
+      return;
+    }
+    if (!form.reportValidity()) return;
+    state.busy = true;
+    group.disabled = true;
+    status('Guardando en HHR…');
+    try {
+      const { record } = await call(state, {
+        action: 'apply',
+        code: state.code,
+        uid: state.catalog.uid,
+        templateId: template.id,
+        version: template.version,
+        answers: state.answers,
+      });
+      if (record?.code !== state.code || record.patient?.episode !== state.episode || record.authorUid !== state.catalog.uid || !record.evolution) {
+        throw new Error('No se pudo comprobar el recibo de HHR.');
+      }
+      state.record = record;
+      await showReceipt(state, { copyOnly });
+    } catch (error) {
+      if (current(state)) status(error.message + '\nCódigo de esta aplicación: ' + state.code);
+    } finally {
+      state.busy = false;
+      group.disabled = false;
+    }
   }
 
   function render(state) {
@@ -262,9 +332,8 @@
       status('HHR no tiene plantillas disponibles.');
       return;
     }
-    select.value = state.templateId && state.catalog.templates.some(t => t.id === state.templateId)
-      ? state.templateId
-      : select.options[0].value;
+    select.value = initialTemplateId(state);
+
     const templateRow = make('div');
     templateRow.className = 'hhr-checklist-template-row';
     const versionBadge = make('span');
@@ -282,14 +351,38 @@
       }
     });
     templateRow.append(versionBadge, syncBtn);
+
     const fields = make('div');
     fields.className = 'fields';
+    const actions = make('div');
+    actions.className = 'hhr-checklist-actions';
     const save = make('button', 'Guardar e insertar');
     save.type = 'submit';
+    const saveAndCopy = button('Guardar en HHR y copiar texto', async event => {
+      if (!event.isTrusted || !navigator.userActivation.isActive || state.busy || !current(state)) return;
+      await submitApplication(state, group, form, { copyOnly: true });
+    });
+    actions.append(save, saveAndCopy);
+
     const group = make('fieldset');
-    group.style.cssText = 'margin:0;padding:0;border:0;display:grid;gap:8px';
-    group.append(label, templateRow, fields, save);
+    group.style.cssText = 'margin:0;padding:0;border:0;display:grid;gap:10px';
+    group.append(label, templateRow, fields, actions);
     form.replaceChildren(group);
+
+    const bradenList = braden ? state.catalog.templates.filter(braden.isBradenTemplate) : [];
+    const suggestion = braden ? braden.suggestBradenTemplate(state.catalog.templates, state.catalog) : { templateId: null, reason: '' };
+
+    const handleInlineCopy = async text => {
+      try {
+        if (await copyEvolutionText(text)) {
+          status('Texto copiado para pegar en la evolución. Usa «Guardar en HHR y copiar texto» o «Guardar e insertar» para respaldar en HHR.');
+        } else {
+          status('Selecciona el texto de la vista previa para copiarlo.');
+        }
+      } catch {
+        status('Selecciona el texto de la vista previa para copiarlo.');
+      }
+    };
 
     const selectTemplate = () => {
       if (state.templateId !== select.value) {
@@ -297,50 +390,51 @@
         state.answers = {};
       }
       const chosen = state.catalog.templates.find(t => t.id === state.templateId);
-      versionBadge.textContent = chosen ? 'Plantilla v' + chosen.version + ' · sincronizada con HHR' : '';
-      fieldsFor(state, chosen, fields);
+      const isMatrix = Boolean(braden?.isBradenTemplate(chosen));
+      dialog?.classList.toggle('is-matrix', isMatrix);
+      versionBadge.textContent = chosen
+        ? (chosen.ageRangeLabel ? chosen.ageRangeLabel + ' · ' : '') + 'Plantilla v' + chosen.version + ' · sincronizada con HHR'
+        : '';
+      if (isMatrix) {
+        braden.renderMatrix({
+          container: fields,
+          template: chosen,
+          bradenTemplates: bradenList,
+          suggestedId: suggestion.templateId,
+          suggestedReason: suggestion.reason,
+          answers: state.answers,
+          authorName: state.catalog.authorName,
+          onSwitchTemplate: nextId => {
+            select.value = nextId;
+            selectTemplate();
+          },
+          onAnswerChange: () => status(''),
+          onCopyText: handleInlineCopy,
+        });
+      } else {
+        fieldsFor(state, chosen, fields);
+      }
     };
     select.addEventListener('change', () => {
-      if (Object.values(state.answers).some(Boolean) && !window.confirm('¿Descartar las respuestas de esta plantilla?')) {
+      const answered = Object.entries(state.answers).some(
+        ([fieldId, val]) => Boolean(val) && fieldId !== 'fecha' && fieldId !== 'hora'
+      );
+      if (answered && !window.confirm('¿Descartar las respuestas de esta plantilla?')) {
         select.value = state.templateId;
         return;
       }
       selectTemplate();
     });
     selectTemplate();
+    const ageLabel = state.catalog.patientAge ? ' · ' + state.catalog.patientAge : '';
     dialog.querySelector('.identity').textContent =
-      state.catalog.patientName + ' · ' + state.catalog.document + ' · Registra en HHR: ' + state.catalog.authorName;
+      state.catalog.patientName + ' · ' + state.catalog.document + ageLabel + ' · Registra en HHR: ' + state.catalog.authorName;
     status('');
     form.onsubmit = event => event.preventDefault();
     save.addEventListener('click', async event => {
       event.preventDefault();
-      if (!event.isTrusted || !navigator.userActivation.isActive || state.busy || !current(state) || !form.reportValidity()) {
-        return;
-      }
-      state.busy = true;
-      group.disabled = true;
-      status('Guardando en HHR…');
-      try {
-        const template = state.catalog.templates.find(item => item.id === state.templateId);
-        const { record } = await call(state, {
-          action: 'apply',
-          code: state.code,
-          uid: state.catalog.uid,
-          templateId: template.id,
-          version: template.version,
-          answers: state.answers,
-        });
-        if (record?.code !== state.code || record.patient?.episode !== state.episode || record.authorUid !== state.catalog.uid || !record.evolution) {
-          throw new Error('No se pudo comprobar el recibo de HHR.');
-        }
-        state.record = record;
-        await showReceipt(state);
-      } catch (error) {
-        if (current(state)) status(error.message + '\nCódigo de esta aplicación: ' + state.code);
-      } finally {
-        state.busy = false;
-        group.disabled = false;
-      }
+      if (!event.isTrusted || !navigator.userActivation.isActive || state.busy || !current(state)) return;
+      await submitApplication(state, group, form, { copyOnly: false });
     });
   }
 
@@ -355,18 +449,22 @@
     actions.append(
       link,
       button('Reintentar', () => {
+        const mode = session?.preferredMode;
         close();
-        void open();
+        void open(mode);
       })
     );
     form.replaceChildren(actions);
   }
 
-  async function open() {
+  async function open(preferredMode = null) {
     const episode = route();
     if (!enabled || !episode || dialog?.open) return;
     if (!session || session.episode !== episode) {
-      session = { episode, code: 'PT-' + crypto.randomUUID().toUpperCase(), answers: {} };
+      session = { episode, code: 'PT-' + crypto.randomUUID().toUpperCase(), answers: {}, preferredMode };
+    } else if (!session.record && preferredMode) {
+      session.preferredMode = preferredMode;
+      if (preferredMode === 'braden' && stateHasNoAnswers(session)) session.templateId = null;
     }
     const state = session;
     dialog = make('dialog');
@@ -406,6 +504,16 @@
     }
   }
 
+  const stateHasNoAnswers = state =>
+    !Object.entries(state.answers || {}).some(([id, value]) => Boolean(value) && id !== 'fecha' && id !== 'hora');
+
+  function removeTriggers() {
+    trigger?.remove();
+    trigger = null;
+    bradenTrigger?.remove();
+    bradenTrigger = null;
+  }
+
   function refresh() {
     const episode = route();
     if (!enabled || (session && session.episode !== episode)) {
@@ -416,15 +524,20 @@
     const nativeDialog = evo.dialogs().find(evo.evolutionDialog) || null;
     const host = enabled && episode ? evo.resolveTriggerHost(nativeDialog) : null;
     if (!host) {
-      trigger?.remove();
-      trigger = null;
+      removeTriggers();
       return;
     }
     if (!trigger) {
-      trigger = button('Aplicar pauta', open, 'hhr-checklist-trigger');
+      trigger = button('Aplicar pauta', () => void open(null), 'hhr-checklist-trigger');
       trigger.dataset.hhrChecklist = chrome.runtime.id;
     }
     if (trigger.parentElement !== host) host.append(trigger);
+    if (!bradenTrigger && braden) {
+      bradenTrigger = button('Pauta Braden', () => void open('braden'), 'hhr-checklist-braden-trigger');
+      bradenTrigger.dataset.hhrChecklist = chrome.runtime.id;
+      bradenTrigger.title = 'Valoración rápida Braden adulto / Braden Q (NT 234)';
+    }
+    if (bradenTrigger && bradenTrigger.parentElement !== host) host.append(bradenTrigger);
     const activeEditor = insertedReceipt && evo.editor();
     const inserted = Boolean(activeEditor && String(activeEditor.value ?? activeEditor.innerText ?? '').includes(insertedReceipt.code));
     const text = session?.record ? 'Insertar pauta guardada' : inserted ? 'Pauta insertada · guardar en Eloísa' : 'Aplicar pauta';
