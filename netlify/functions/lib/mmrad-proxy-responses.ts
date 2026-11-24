@@ -3,6 +3,17 @@ import { buildCorsHeaders, buildJsonResponse } from './http';
 import { MMRAD_BASE_URL, decodeResponseHtml, fetchWithHeaders } from './mmrad-session';
 
 const MAX_MMRAD_PDF_BYTES = 15 * 1024 * 1024;
+const PDF_HEADER_PROBE_BYTES = 1024;
+
+export class MmradDocumentUnavailable extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'MmradDocumentUnavailable';
+  }
+}
+
+const hasPdfHeader = (buffer: Buffer): boolean =>
+  buffer.subarray(0, PDF_HEADER_PROBE_BYTES).includes('%PDF-');
 
 export const resolveMmradAuthorizationErrorMessage = (message: string): string => {
   if (message.includes("Access denied for role 'unauthorized'")) {
@@ -35,11 +46,7 @@ export const buildPdfProxyResponse = async (
       : response.status >= 200 && response.status < 400;
 
   if (!isSuccessful) {
-    return buildJsonResponse(
-      502,
-      { error: 'Error al obtener el PDF desde MMRAD' },
-      { requestOrigin }
-    );
+    throw new MmradDocumentUnavailable('Error al obtener el PDF desde MMRAD');
   }
 
   const buffer = await readResponseWithinLimit(response, MAX_MMRAD_PDF_BYTES);
@@ -49,6 +56,9 @@ export const buildPdfProxyResponse = async (
       { error: 'El PDF de MMRAD supera el tamaño máximo permitido' },
       { requestOrigin }
     );
+  }
+  if (!hasPdfHeader(buffer)) {
+    throw new MmradDocumentUnavailable('Error al obtener el PDF desde MMRAD');
   }
   const base64 = buffer.toString('base64');
 
@@ -86,14 +96,13 @@ export const buildPortalReceiptProxyResponse = async (
       : response.status >= 200 && response.status < 400;
 
   if (!isSuccessful) {
-    return buildJsonResponse(
-      502,
-      { error: 'Error al obtener el comprobante portal desde MMRAD' },
-      { requestOrigin }
-    );
+    throw new MmradDocumentUnavailable('Error al obtener el comprobante portal desde MMRAD');
   }
 
   const html = await decodeResponseHtml(response, 'latin1');
+  if (html.includes('_58_login')) {
+    throw new MmradDocumentUnavailable('Error al obtener el comprobante portal desde MMRAD');
+  }
 
   return {
     statusCode: 200,

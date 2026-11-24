@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMMRADSearchHandler } from '../../../netlify/functions/mmrad-search';
+import { forgetMMRADSession } from '../../../netlify/functions/lib/mmrad-session';
 
 describe('MMRAD document telemetry', () => {
   const fetchMock = vi.fn<typeof fetch>();
@@ -12,6 +13,7 @@ describe('MMRAD document telemetry', () => {
     });
 
   beforeEach(() => {
+    forgetMMRADSession();
     vi.stubEnv('URL', 'https://app.example.com');
     vi.stubEnv('MMRAD_USERNAME', 'synthetic-user');
     vi.stubEnv('MMRAD_PASSWORD', 'synthetic-password');
@@ -38,10 +40,12 @@ describe('MMRAD document telemetry', () => {
       async status => {
         const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
         const output = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
+        const body =
+          action === 'pdf' ? '%PDF-1.4\nsynthetic document body' : 'synthetic document body';
         // An already authenticated portal page, followed by the document response.
         fetchMock
           .mockResolvedValueOnce(new Response('<html>synthetic dashboard</html>'))
-          .mockResolvedValueOnce(new Response('synthetic document body', { status }));
+          .mockResolvedValueOnce(new Response(body, { status }));
         const response = await securedHandler()({
           httpMethod: 'GET',
           headers: { origin: 'https://app.example.com', authorization: 'Bearer synthetic-token' },
@@ -57,8 +61,8 @@ describe('MMRAD document telemetry', () => {
           status !== 200
             ? JSON.stringify({ error })
             : action === 'pdf'
-              ? Buffer.from('synthetic document body').toString('base64')
-              : 'synthetic document body'
+              ? Buffer.from(body).toString('base64')
+              : body
         );
         expect(response.headers).toMatchObject({
           'Access-Control-Allow-Origin': 'https://app.example.com',

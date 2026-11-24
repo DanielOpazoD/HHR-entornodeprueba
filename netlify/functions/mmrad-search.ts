@@ -28,13 +28,9 @@ import {
   isRateLimited,
   type NetlifyEventLike,
 } from './lib/http';
+import { MMRAD_ALLOWED_ROLES, normalizeMmradUrl, withMMRADSession } from './lib/mmrad-session';
 import {
-  MMRAD_ALLOWED_ROLES,
-  loginToMMRAD,
-  normalizeMmradUrl,
-  withMMRADSession,
-} from './lib/mmrad-session';
-import {
+  MmradDocumentUnavailable,
   buildPdfProxyResponse,
   buildPortalReceiptProxyResponse,
   resolveMmradAuthorizationErrorMessage,
@@ -125,8 +121,16 @@ export const createMMRADSearchHandler = (
           hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
           context: { action: 'pdf' },
           fn: async () => {
-            const { cookies } = await loginToMMRAD();
-            return buildPdfProxyResponse(pdfUrl, cookies, requestOrigin);
+            try {
+              return await withMMRADSession(({ cookies }) =>
+                buildPdfProxyResponse(pdfUrl, cookies, requestOrigin)
+              );
+            } catch (error) {
+              if (error instanceof MmradDocumentUnavailable) {
+                return buildJsonResponse(502, { error: error.message }, { requestOrigin });
+              }
+              throw error;
+            }
           },
         });
       } catch (error) {
@@ -156,8 +160,16 @@ export const createMMRADSearchHandler = (
           hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
           context: { action: 'portalReceipt' },
           fn: async () => {
-            const { cookies } = await loginToMMRAD();
-            return buildPortalReceiptProxyResponse(receiptUrl, cookies, requestOrigin);
+            try {
+              return await withMMRADSession(({ cookies }) =>
+                buildPortalReceiptProxyResponse(receiptUrl, cookies, requestOrigin)
+              );
+            } catch (error) {
+              if (error instanceof MmradDocumentUnavailable) {
+                return buildJsonResponse(502, { error: error.message }, { requestOrigin });
+              }
+              throw error;
+            }
           },
         });
       } catch (error) {
