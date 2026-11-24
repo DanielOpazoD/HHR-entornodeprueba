@@ -2,7 +2,9 @@ import { createHash } from 'node:crypto';
 import { readResponseWithinLimit } from './lib/bounded-response';
 import { getFirebaseServer } from './lib/firebase-server';
 import { authorizeRoleRequest } from './lib/firebase-auth';
+import { safeErrorLog } from './lib/safe-error-message';
 import {
+  buildCorsHeaders,
   buildJsonResponse,
   getHeader,
   getClientIp,
@@ -47,11 +49,16 @@ export const createExalabProxyHandler =
     const requestOrigin = extensionConnect ? undefined : origin;
     const json = (
       status: number,
-      data: unknown
+      data: unknown,
+      extraHeaders?: Record<string, string>
     ): { statusCode: number; headers: Record<string, string>; body: string } =>
       buildJsonResponse(status, data, {
         requestOrigin,
-        headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' },
+        headers: {
+          'Cache-Control': 'no-store',
+          'Referrer-Policy': 'no-referrer',
+          ...(extraHeaders ?? {}),
+        },
       });
     if (!extensionConnect && !isOriginAllowed(origin))
       return json(403, { success: false, error: 'Origen no autorizado.' });
@@ -64,7 +71,11 @@ export const createExalabProxyHandler =
         windowMs: 60_000,
       })
     ) {
-      return json(429, { success: false, error: 'Demasiadas consultas. Espera un minuto.' });
+      return json(
+        429,
+        { success: false, error: 'Demasiadas consultas. Espera un minuto.' },
+        { 'Retry-After': '60' }
+      );
     }
     if (event.isBase64Encoded || (event.body?.length || 0) > 65_536)
       return json(400, { success: false, error: 'Solicitud no válida.' });
@@ -149,9 +160,11 @@ export const createExalabProxyHandler =
         return {
           statusCode: 200,
           headers: {
+            ...buildCorsHeaders(requestOrigin),
             'Content-Type': 'application/pdf',
             'Cache-Control': 'no-store',
             'Referrer-Policy': 'no-referrer',
+            'X-Content-Type-Options': 'nosniff',
           },
           body: bytes.toString('base64'),
           isBase64Encoded: true,
@@ -169,10 +182,18 @@ export const createExalabProxyHandler =
         [200, 400, 401, 409, 429, 503].includes(response.status) ? response.status : 502,
         data
       );
-    } catch {
-      return json(502, {
+    } catch (error) {
+      const isTimeout =
+        error instanceof Error &&
+        (error.name === 'AbortError' ||
+          error.name === 'TimeoutError' ||
+          (error as { code?: unknown }).code === 'ETIMEDOUT');
+      console.warn('[exalab-proxy] upstream request failed', safeErrorLog(error));
+      return json(isTimeout ? 504 : 502, {
         success: false,
-        error: 'No se pudo conectar con Exalab a través del Mac mini. Vuelve a intentar.',
+        error: isTimeout
+          ? 'Tiempo de espera agotado al consultar Exalab. Vuelve a intentar.'
+          : 'No se pudo conectar con Exalab a través del Mac mini. Vuelve a intentar.',
       });
     }
   };

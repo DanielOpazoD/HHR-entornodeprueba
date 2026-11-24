@@ -208,9 +208,45 @@ describe('firebase-auth netlify helper', () => {
       })
     );
     expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(global.fetch).mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
     expect(vi.mocked(global.fetch).mock.calls[1]?.[0]).toBe(
       'https://us-central1-hhr-pruebas.cloudfunctions.net/checkUserRole'
     );
+    expect(vi.mocked(global.fetch).mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+  });
+
+  it('forwards custom fetchImpl to both signing-key lookup and canonical role lookup', async () => {
+    const customFetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          'test-kid': publicKey.export({ type: 'pkcs1', format: 'pem' }).toString(),
+        }),
+        headers: new Headers({ 'cache-control': 'public, max-age=3600' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ result: { role: 'admin' } }),
+        headers: new Headers(),
+      }) as unknown as typeof fetch;
+
+    const result = await authorizeRoleRequest(
+      { kind: 'firestore' } as never,
+      `Bearer ${createToken()}`,
+      new Set(['admin']),
+      { fetchImpl: customFetch }
+    );
+
+    expect(result.role).toBe('admin');
+    expect(customFetch).toHaveBeenCalledTimes(2);
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it('resolves canonical viewer role without normalizing retired legacy aliases', async () => {

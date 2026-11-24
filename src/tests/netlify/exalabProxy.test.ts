@@ -133,6 +133,9 @@ describe('Exalab gateway', () => {
     const result = await handler(event);
     expect(result.statusCode).toBe(200);
     expect(result).toHaveProperty('isBase64Encoded', true);
+    const pdfHeaders = result.headers as Record<string, string>;
+    expect(pdfHeaders['X-Content-Type-Options']).toBe('nosniff');
+    expect(pdfHeaders['Access-Control-Allow-Origin']).toBe('https://hhr.test');
     fetchMock.mockResolvedValueOnce(new Response('<html>secret-upstream</html>'));
     const failed = await handler(event);
     expect(failed.statusCode).toBe(502);
@@ -142,5 +145,24 @@ describe('Exalab gateway', () => {
     );
     const oversized = await handler(event);
     expect(oversized.statusCode).toBe(502);
+  });
+
+  it('returns 504 on upstream timeout and logs redacted warning', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const timeoutError = Object.assign(new Error('The operation timed out'), {
+      name: 'TimeoutError',
+    });
+    fetchMock.mockRejectedValueOnce(timeoutError);
+
+    try {
+      const response = await request('status', 'GET');
+      expect(response.statusCode).toBe(504);
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[exalab-proxy] upstream request failed',
+        expect.any(String)
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });

@@ -427,4 +427,46 @@ describe('syslab-proxy', () => {
     expect(response.statusCode).toBe(200);
     expect(fetchMock).toHaveBeenCalled();
   });
+
+  it('returns 504 on telemetry timeout errors carrying ETIMEDOUT code', async () => {
+    const consoleSpies = suppressConsole(['error']);
+    const handler = await loadHandler();
+    const timeoutError = Object.assign(new Error('Operation timed out'), { code: 'ETIMEDOUT' });
+    fetchMock.mockRejectedValue(timeoutError);
+
+    try {
+      const response = await handler({
+        httpMethod: 'GET',
+        headers: { authorization: 'Bearer token-123', 'x-forwarded-for': '10.0.0.33' },
+        body: null,
+        rawQuery: 'action=search&rut=12345678-9',
+      });
+
+      expect(response.statusCode).toBe(504);
+      expect((response.headers as Record<string, string>)['Cache-Control']).toBe('no-store');
+    } finally {
+      restoreConsole(consoleSpies);
+    }
+  });
+
+  it('rejects disallowed lab link schemes and wrong HTTP methods on classic actions', async () => {
+    const handler = await loadHandler();
+
+    const badMethod = await handler({
+      httpMethod: 'POST',
+      headers: { authorization: 'Bearer token-123', 'x-forwarded-for': '10.0.0.34' },
+      body: null,
+      rawQuery: 'action=search&rut=12345678-9',
+    });
+    expect(badMethod.statusCode).toBe(405);
+
+    const badPdfLink = await handler({
+      httpMethod: 'GET',
+      headers: { authorization: 'Bearer token-123', 'x-forwarded-for': '10.0.0.35' },
+      body: null,
+      rawQuery: 'action=pdf&link=file%3A%2F%2F%2Fetc%2Fpasswd',
+    });
+    expect(badPdfLink.statusCode).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

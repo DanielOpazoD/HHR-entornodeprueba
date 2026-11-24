@@ -8,6 +8,7 @@ import authEmailUtilsModule from '../../../functions/lib/auth/authEmailUtils.js'
 const FIREBASE_CERTS_URL =
   'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com';
 const TOKEN_CLOCK_SKEW_SECONDS = 300;
+const OUTBOUND_AUTH_TIMEOUT_MS = 10_000;
 
 type AuthEmailUtilsModule = {
   normalizeEmail?: (value: string) => string;
@@ -143,6 +144,7 @@ const resolveRoleViaCanonicalCallable = async (
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ data: {} }),
+    signal: AbortSignal.timeout(OUTBOUND_AUTH_TIMEOUT_MS),
   });
 
   let payload: CallableEnvelope | null = null;
@@ -165,7 +167,9 @@ const fetchFirebaseSigningKeys = async (fetchImpl: FetchLike): Promise<Record<st
     return cachedFirebaseSigningKeys.certificates;
   }
 
-  const response = await fetchImpl(FIREBASE_CERTS_URL);
+  const response = await fetchImpl(FIREBASE_CERTS_URL, {
+    signal: AbortSignal.timeout(OUTBOUND_AUTH_TIMEOUT_MS),
+  });
   if (!response.ok) {
     throw new Error(`Unable to fetch Firebase signing certificates (${response.status}).`);
   }
@@ -326,7 +330,7 @@ export const authorizeRoleRequest = async (
   options?: Pick<RoleResolutionOptions, 'fetchImpl'>
 ): Promise<AuthorizedRoleRequest> => {
   const token = extractBearerToken(authorizationHeader);
-  const decodedToken = await verifyFirebaseIdToken(token);
+  const decodedToken = await verifyFirebaseIdToken(token, { fetchImpl: options?.fetchImpl });
   const email = normalizeEmail(typeof decodedToken.email === 'string' ? decodedToken.email : '');
   if (!email) {
     throw new Error('Authenticated user has no email claim.');
