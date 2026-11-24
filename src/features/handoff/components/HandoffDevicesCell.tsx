@@ -2,7 +2,7 @@ import type { PatientData } from '@/types/domain/patient';
 
 import React from 'react';
 
-import { calculateDeviceDays } from '@/components/device-selector/DeviceDateConfigModal';
+import { calculateDeviceDays } from '@/utils/clinicalStayDayUtils';
 import { MedicalBadge } from '@/components/ui/base/MedicalBadge';
 
 interface HandoffDevicesCellProps {

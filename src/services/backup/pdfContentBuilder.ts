@@ -14,6 +14,7 @@ import type { ShiftType } from '@/types/domain/shift';
 import type { DeviceDetails } from '@/types/domain/devices';
 import { BEDS } from '@/constants/beds';
 import { DEFAULT_SHIFT_SCHEDULE } from '@/utils/clinicalDayUtils';
+import { diffCalendarDays } from '@/utils/clinicalDateUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import type { DailyRecordHandoffPdfState as HandoffPdfRecord } from '@/types/domain/dailyRecordSlices';
 import { pdfContentBuilderLogger } from '@/services/backup/backupLoggers';
@@ -227,14 +228,9 @@ export const buildHandoffPdfContent = async (
         const detail = p.deviceDetails?.[d as keyof DeviceDetails];
         let daysStr = '';
         if (detail?.installationDate) {
-          const installDate = new Date(detail.installationDate);
-          const today = new Date(record.date);
-          installDate.setHours(0, 0, 0, 0);
-          today.setHours(0, 0, 0, 0);
-          const diffTime = today.getTime() - installDate.getTime();
-          const diffDays = Math.floor(diffTime / (1000 * 3600 * 24)) + 1;
-          if (diffDays > 0) {
-            daysStr = ` (${diffDays}d)`;
+          const calendarDiff = diffCalendarDays(detail.installationDate, record.date);
+          if (calendarDiff !== null && calendarDiff >= 0) {
+            daysStr = ` (${calendarDiff + 1}d)`;
           }
         }
         return `${d}${daysStr}`;

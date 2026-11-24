@@ -30,7 +30,8 @@ vi.mock('@/features/wound-care/public', () => ({
   useWoundCarePhotoCount: vi.fn(() => ({ status: 'ready', count: 2 })),
 }));
 
-vi.mock('@/components/device-selector/DeviceDateConfigModal', () => ({
+vi.mock('@/utils/clinicalStayDayUtils', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/utils/clinicalStayDayUtils')>()),
   calculateDeviceDays: vi.fn(() => 4),
 }));
 

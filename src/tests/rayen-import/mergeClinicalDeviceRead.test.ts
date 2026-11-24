@@ -4,7 +4,7 @@ import { mergeClinicalDeviceRead } from '@/features/rayen-import/domain/mergeCli
 import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { seedClinicalCarryover } from '@/services/repositories/clinicalCarryoverSeed';
 import { parsePatientDataWithDefaults } from '@/schemas/zodSchemas';
-import { calculateDeviceDays } from '@/components/device-selector/DeviceDateConfigModal';
+import { calculateDeviceDays } from '@/utils/clinicalStayDayUtils';
 import {
   buildModalSaveResult,
   buildDeviceBundleChangeResult,

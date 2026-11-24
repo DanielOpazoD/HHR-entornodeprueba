@@ -4,6 +4,7 @@ import type { DeviceInfo } from '@/types/domain/devices';
 import { DEVICE_OPTIONS } from '@/constants/clinicalDeviceConstants';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { isAnyVvpDevice } from '@/components/device-selector/deviceSelectorController';
+import { calculateDeviceDays } from '@/utils/clinicalStayDayUtils';
 
 // Labels for known devices
 export const DEVICE_LABELS: Record<string, string> = {
@@ -39,23 +40,6 @@ export const DEVICE_LABELS: Record<string, string> = {
  */
 const getDeviceLabel = (device: string): string => {
   return DEVICE_LABELS[device] || device;
-};
-
-/**
- * Calculate days since installation
- * Inclusion: The installation day counts as Day 1.
- */
-export const calculateDeviceDays = (installDate?: string, currentDate?: string): number | null => {
-  if (!installDate || !currentDate) return null;
-  const start = new Date(installDate);
-  const end = new Date(currentDate);
-  start.setHours(0, 0, 0, 0);
-  end.setHours(0, 0, 0, 0);
-  const diff = end.getTime() - start.getTime();
-  const days = Math.floor(diff / (1000 * 3600 * 24));
-  // The first day (installation) counts as Day 1
-  const totalDays = days + 1;
-  return totalDays >= 1 ? totalDays : 1;
 };
 
 interface DeviceDateConfigModalProps {
@@ -175,7 +159,7 @@ export const DeviceDateConfigModal: React.FC<DeviceDateConfigModalProps> = ({
             <span className="text-sm text-slate-600 font-medium">
               Días con dispositivo:{' '}
               <span className="text-medical-700 font-bold">
-                {calculateDeviceDays(tempDetails.installationDate, currentDate)}
+                {calculateDeviceDays(tempDetails.installationDate, currentDate) ?? '—'}
               </span>
             </span>
           </div>
