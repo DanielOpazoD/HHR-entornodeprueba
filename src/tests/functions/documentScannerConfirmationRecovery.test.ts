@@ -59,9 +59,12 @@ describe('document scanner confirmation recovery', () => {
     });
     const context = { auth: { uid: 'admin-1', token: { email: 'admin@hhr.cl' } } };
 
-    await expect(handler({ id: submitted.id, confirmedInEloisa: true }, context)).rejects.toThrow(
-      'forced Storage delete failure'
-    );
+    await expect(
+      handler({ id: submitted.id, confirmedInEloisa: true }, context)
+    ).rejects.toMatchObject({
+      code: 'unavailable',
+      message: 'La eliminación quedó pendiente y se reintentará de forma segura.',
+    });
     expect(records[submitted.id]).toMatchObject({ state: 'purge_pending', storagePath });
     expect(records[submitted.id]).not.toHaveProperty('patientName');
     expect(records.__quota__.activeCount).toBe(1);

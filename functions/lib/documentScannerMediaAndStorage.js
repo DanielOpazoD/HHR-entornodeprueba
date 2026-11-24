@@ -3,6 +3,7 @@ const { HttpsError } = require('firebase-functions/v2/https');
 
 const MAX_PDF_BYTES = 6 * 1024 * 1024;
 const MAX_SOURCE_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_SOURCE_IMAGE_BASE64_CHARS = Math.ceil(MAX_SOURCE_IMAGE_BYTES / 3) * 4;
 const MAX_IMAGE_DIMENSION = 2200;
 const MAX_TOTAL_IMAGE_PIXELS = 42 * 1024 * 1024;
 const SUBMIT_TIMEOUT_SECONDS = 120;
@@ -57,11 +58,23 @@ const decodeJpegPages = (values, expectedPageCount) => {
   let totalPixels = 0;
   const pages = values.map(value => {
     const encoded = typeof value === 'string' ? value.trim() : '';
+    if (encoded.length > MAX_SOURCE_IMAGE_BASE64_CHARS) {
+      throw new HttpsError(
+        'invalid-argument',
+        `Las páginas deben pesar como máximo ${MAX_SOURCE_IMAGE_BYTES / 1024 / 1024} MB.`
+      );
+    }
     if (!encoded || encoded.length % 4 !== 0 || !/^[a-zA-Z0-9+/]+={0,2}$/.test(encoded)) {
       throw new HttpsError('invalid-argument', 'Una página no es JPEG válida.');
     }
     const buffer = Buffer.from(encoded, 'base64');
     totalBytes += buffer.length;
+    if (totalBytes > MAX_SOURCE_IMAGE_BYTES) {
+      throw new HttpsError(
+        'invalid-argument',
+        `Las páginas deben pesar como máximo ${MAX_SOURCE_IMAGE_BYTES / 1024 / 1024} MB.`
+      );
+    }
     if (
       buffer.length < 4 ||
       buffer[0] !== 0xff ||
