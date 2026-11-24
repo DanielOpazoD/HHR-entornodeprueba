@@ -7,20 +7,21 @@ import { createBrowserSyncRuntime } from '@/services/storage/sync/browserSyncRun
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
 import { createDailyRecordSyncQueueActions } from '@/services/storage/sync/publicDailyRecordSyncQueueActions';
-import { createQuarantinedSyncTaskActions } from '@/services/storage/sync/publicQuarantinedSyncTaskActions';
 import {
   createSyncQueueEngine,
   type ProcessSyncQueueOptions,
 } from '@/services/storage/sync/syncQueueEngine';
-import type { SyncQueueEnqueueResult } from '@/services/storage/sync/syncQueueEngineContracts';
+import type {
+  SyncQueueEnqueueResult,
+  SyncQueueTelemetry,
+} from '@/services/storage/sync/syncQueuePorts';
 import type { SyncQueueEnqueueOptions } from '@/services/storage/sync/syncQueueEnqueuePolicy';
 import { authoredOptions, type PublicWriteOptions } from '@/services/session/authoringSession';
-import type { SyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueOperationSnapshot';
+import type { SyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueTaskFactory';
 import {
   buildSyncQueueDomainMetrics,
   type SyncQueueDomainMetrics,
 } from '@/services/storage/sync/syncDomainPolicy';
-import type { SyncQueueTelemetry } from '@/services/storage/sync/syncQueueTelemetryContracts';
 import { classifySyncError, ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { createDomainObservability } from '@/services/observability/domainObservability';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
@@ -357,15 +358,42 @@ export const queueDailyRecordSyncTaskWithLocalRecord = async (
   }
 };
 
-export const { retryQuarantinedSyncTask, discardQuarantinedSyncTask } =
-  createQuarantinedSyncTaskActions({
-    ensureReady: ensureDbReady,
-    store: syncQueueStore,
-    getOwnerKey: getSyncOwnerKey,
-    logger: syncObservability.logger,
-    recordReadFailure: recordSyncRuntimeReadFailure,
-    triggerProcessing: syncQueueEngine.triggerProcessing,
-  });
+const runQuarantinedSyncTaskAction = async (
+  operation: 'sync_queue_quarantine_retry' | 'sync_queue_quarantine_discard',
+  taskId: number,
+  action: () => Promise<boolean> | undefined
+): Promise<boolean> => {
+  try {
+    await ensureDbReady();
+    const applied = (await action()) === true;
+    recordOperationalTelemetry({
+      category: 'sync',
+      operation,
+      status: applied ? 'success' : 'degraded',
+      runtimeState: applied ? undefined : 'recoverable',
+      issues: applied ? [] : ['La tarea no admite esta acción o ya no está disponible.'],
+      context: { taskId },
+    });
+    return applied;
+  } catch (error) {
+    syncObservability.logger.warn('Failed to run quarantined task action', error);
+    recordSyncRuntimeReadFailure(`${operation}_failure`, error, { taskId });
+    return false;
+  }
+};
+
+export const retryQuarantinedSyncTask = async (taskId: number): Promise<boolean> => {
+  const applied = await runQuarantinedSyncTaskAction('sync_queue_quarantine_retry', taskId, () =>
+    syncQueueStore.requeueQuarantinedTask?.(taskId, getSyncOwnerKey())
+  );
+  if (applied) syncQueueEngine.triggerProcessing();
+  return applied;
+};
+
+export const discardQuarantinedSyncTask = (taskId: number): Promise<boolean> =>
+  runQuarantinedSyncTaskAction('sync_queue_quarantine_discard', taskId, () =>
+    syncQueueStore.discardQuarantinedTask?.(taskId, getSyncOwnerKey())
+  );
 
 export const processSyncQueue = async (options?: ProcessSyncQueueOptions): Promise<void> => {
   try {

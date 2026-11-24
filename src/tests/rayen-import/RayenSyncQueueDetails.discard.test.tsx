@@ -6,7 +6,7 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { reconcileAuthorizedSessionOwner } from '@/services/session/sessionScopedStorageService';
 import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { buildSyncQueueTelemetryFromRows } from '@/services/storage/sync/syncQueueTelemetryController';
-import { toSyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueOperationSnapshot';
+import { toSyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueTaskFactory';
 import { buildSyncQueueStats } from '@/features/rayen-import/hooks/syncQueueMonitorController';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 

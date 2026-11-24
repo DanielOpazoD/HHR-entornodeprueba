@@ -4,6 +4,7 @@ import { isFunctionsReloadRequired } from '@/services/firebase-runtime/functions
 import type {
   SyncQueueLeaseClaim,
   SyncQueueStorePort,
+  SyncQueueTelemetryRow,
 } from '@/services/storage/sync/syncQueuePorts';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { dispatchDailyRecordStoreChanged } from '@/services/storage/indexeddb/indexedDbRecordEvents';
@@ -11,7 +12,6 @@ import { localPersistence } from '@/services/storage/localpersistence/localPersi
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import type { SyncQueueTelemetryRow } from '@/services/storage/sync/syncQueueTelemetryContracts';
 import {
   matchesTaskClaim,
   sessionClosedTaskState,
@@ -26,9 +26,9 @@ import {
   findReusableSyncTask,
   listDailyRecordProjectionHolders,
   matchesOwner,
+  releaseClosedWindowRefusals,
   requeueQuarantinedTask,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
-import { releaseClosedWindowRefusals } from '@/services/storage/sync/closedWindowDayRelease';
 
 export const loadDailyRecordOutbox = createRecoverableRuntimeLoader(
   'save-outbox',

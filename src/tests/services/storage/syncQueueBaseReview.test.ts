@@ -7,7 +7,7 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
-import { toSyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueOperationSnapshot';
+import { toSyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueTaskFactory';
 import { buildSyncQueueTelemetryFromRows } from '@/services/storage/sync/syncQueueTelemetryController';
 import { buildSyncQueueStats } from '@/features/rayen-import/hooks/syncQueueMonitorController';
 import { listQuarantinedOperations } from '@/features/rayen-import/components/localSyncPresentation';

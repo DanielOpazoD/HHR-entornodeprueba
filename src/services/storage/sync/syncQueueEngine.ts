@@ -3,18 +3,20 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ErrorSeverity } from '@/services/logging/errorLogTypes';
 import { logError } from '@/services/utils/errorService';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import type { SyncTransportResult } from '@/services/storage/sync/syncQueuePorts';
-import type { SyncErrorCategory } from '@/services/storage/syncErrorCatalog';
 import type {
   CreateSyncQueueEngineOptions,
+  PendingDailyRecordSyncTaskIdentity,
   SyncQueueEnqueueResult,
-} from '@/services/storage/sync/syncQueueEngineContracts';
+  SyncQueueTelemetry,
+  SyncTransportResult,
+} from '@/services/storage/sync/syncQueuePorts';
+import type { SyncErrorCategory } from '@/services/storage/syncErrorCatalog';
 import { measureRepositoryOperation } from '@/services/repositories/repositoryPerformance';
-import type { SyncQueueTelemetry } from '@/services/storage/sync/syncQueueTelemetryContracts';
 import {
+  buildSyncQueueFailureContext,
+  buildSyncQueueTaskContextMeta,
   resolveHeldConflictState,
   resolveSyncQueueFailureDecision,
-  buildSyncQueueTaskContextMeta,
 } from '@/services/storage/sync/syncQueueFailurePolicy';
 import {
   buildSyncQueueTelemetryFromRows,
@@ -29,11 +31,9 @@ import {
   createSyncQueueAttemptId,
   createSyncQueueWorkerId,
   getSyncTaskKey,
-} from '@/services/storage/sync/syncQueueTaskFactory';
-import {
   toSyncQueueOperationSnapshot,
   type SyncQueueOperationSnapshot,
-} from '@/services/storage/sync/syncQueueOperationSnapshot';
+} from '@/services/storage/sync/syncQueueTaskFactory';
 import {
   countActiveSyncTasks,
   resolvePreOutboxHoldState,
@@ -41,9 +41,7 @@ import {
   type SyncQueueEnqueueOptions,
 } from '@/services/storage/sync/syncQueueEnqueuePolicy';
 import { replacePendingDailyRecordTask } from '@/services/storage/sync/syncQueuePendingDailyRecordReplacement';
-import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/pendingDailyRecordSyncTask';
 import { hasPendingNursingHandoff } from './nursingHandoffTasks';
-import { buildSyncQueueFailureContext } from './syncQueueFailureContext';
 import { canReleaseClosedWindowRefusals } from '@/shared/access/censusDayWriteAccessPolicy';
 
 export interface ProcessSyncQueueOptions {

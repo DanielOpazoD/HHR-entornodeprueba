@@ -15,21 +15,11 @@ vi.mock('@/services/session/sessionStorageTransition', () => ({
   getSessionOwner: () => state.admitted,
   getSessionEpoch: () => state.epoch,
 }));
-const h = vi.hoisted(() => ({
-  wake: undefined as (() => void) | undefined,
-  allowed: undefined as (() => boolean) | undefined,
-  start: vi.fn(),
-}));
-vi.mock('@/services/storage/sync/browserSyncWakeup', () => ({
-  startBrowserSyncWakeup: (wake: () => void, allowed: () => boolean) => {
-    h.wake = wake;
-    h.allowed = allowed;
-    h.start();
-    return () => {};
-  },
-}));
 import { createBrowserSyncRuntime } from '@/services/storage/sync/browserSyncRuntime';
+
 afterEach(() => {
+  vi.clearAllTimers();
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.clearAllMocks();
   state.owner = 'user';
@@ -37,38 +27,56 @@ afterEach(() => {
   state.admitted = null;
   state.epoch = 0;
 });
+
 it('does not dispatch during bootstrap even if storage remembers the owner', () => {
+  vi.useFakeTimers();
   vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
   const runtime = createBrowserSyncRuntime();
-  runtime.onOnline(vi.fn());
-  runtime.onOnline(vi.fn());
-  expect(h.start).toHaveBeenCalledTimes(1);
-  expect(h.allowed!()).toBe(false);
+  const first = vi.fn();
+  const second = vi.fn();
+  runtime.onOnline(first);
+  runtime.onOnline(second);
+  window.dispatchEvent(new Event('online'));
+  expect(first).not.toHaveBeenCalled();
+  expect(second).not.toHaveBeenCalled();
   state.generation = 'admitted';
-  expect(h.allowed!()).toBe(true);
+  window.dispatchEvent(new Event('online'));
+  expect(first).toHaveBeenCalledTimes(1);
+  expect(second).not.toHaveBeenCalled();
   state.generation = null;
-  expect(h.allowed!()).toBe(false);
+  window.dispatchEvent(new Event('online'));
+  expect(first).toHaveBeenCalledTimes(1);
 });
+
 it('does not dispatch while offline or without an owner', () => {
+  vi.useFakeTimers();
   const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
   state.generation = 'admitted';
-  createBrowserSyncRuntime().onOnline(vi.fn());
-  expect(h.allowed!()).toBe(false);
+  const wake = vi.fn();
+  createBrowserSyncRuntime().onOnline(wake);
+  window.dispatchEvent(new Event('online'));
+  expect(wake).not.toHaveBeenCalled();
   online.mockReturnValue(true);
   state.owner = '';
-  expect(h.allowed!()).toBe(false);
+  window.dispatchEvent(new Event('online'));
+  expect(wake).not.toHaveBeenCalled();
 });
+
 it('does not wake nor act for anyone once another tab admitted someone else', () => {
+  vi.useFakeTimers();
   vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
   const runtime = createBrowserSyncRuntime();
-  runtime.onOnline(vi.fn());
+  const wake = vi.fn();
+  runtime.onOnline(wake);
   state.generation = 'admitted';
   state.admitted = 'user';
-  expect(h.allowed!()).toBe(true);
+  window.dispatchEvent(new Event('online'));
+  expect(wake).toHaveBeenCalledTimes(1);
   expect(runtime.getOwnerKey()).toBe('user');
   // Another tab admits a different person on the shared key; this tab still holds `user`.
   state.owner = 'other';
-  expect(h.allowed!()).toBe(false);
+  window.dispatchEvent(new Event('online'));
+  expect(wake).toHaveBeenCalledTimes(1);
   expect(runtime.getOwnerKey()).toBeNull();
 });
 it('acts for nobody in a document that logged out, while another tab holds the browser', () => {

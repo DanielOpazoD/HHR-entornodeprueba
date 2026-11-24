@@ -1,8 +1,5 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import type {
-  CreateSyncQueueEngineOptions,
-  SyncQueueEnqueueResult,
-} from './syncQueueEngineContracts';
+import type { CreateSyncQueueEngineOptions, SyncQueueEnqueueResult } from './syncQueuePorts';
 import { buildSyncQueueTaskContextMeta } from './syncQueueFailurePolicy';
 import { buildSyncTaskContract, mergeSyncTaskContracts } from './syncTaskContractPolicy';
 import { getSyncTaskKey, clearSyncTaskRuntimeState } from './syncQueueTaskFactory';

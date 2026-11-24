@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { foldWriteIntoOutbox } from '@/services/storage/sync/dexieDailyRecordOutbox';
-import { buildPatchRebase } from '@/services/storage/sync/pendingProjectionRebase';
+import { buildPatchRebase } from '@/services/storage/sync/dexieDailyRecordOutbox';
 import { applyPatches } from '@/utils/patchUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';

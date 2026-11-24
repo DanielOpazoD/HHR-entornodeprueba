@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import {
   startBrowserSyncWakeup,
   SYNC_QUEUE_WAKE_INTERVAL_MS,
-} from '@/services/storage/sync/browserSyncWakeup';
+} from '@/services/storage/sync/browserSyncRuntime';
 let stop: (() => void) | undefined;
 afterEach(() => {
   stop?.();

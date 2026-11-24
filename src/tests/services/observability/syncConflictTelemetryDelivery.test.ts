@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { recordSyncQueueConflictTelemetry } from '@/services/storage/sync/syncQueueTelemetryController';
 import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
-import type { CreateSyncQueueEngineOptions } from '@/services/storage/sync/syncQueueEngineContracts';
+import type { CreateSyncQueueEngineOptions } from '@/services/storage/sync/syncQueuePorts';
 import { createFieldChangedElsewhereError } from '@/services/storage/syncErrorCatalog';
 import { presentSyncOutcomeFeedback } from '@/hooks/controllers/dailyRecordSyncNotificationController';
 import { parseOperationalTelemetryBody } from '@/shared/observability/operationalTelemetryIngestPolicy';

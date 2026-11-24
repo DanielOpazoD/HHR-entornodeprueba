@@ -28,9 +28,8 @@ export {
 export type {
   PendingDailyRecordSyncTaskIdentity,
   PendingDailyRecordSyncTaskSnapshot,
-} from '@/services/storage/sync/pendingDailyRecordSyncTask';
-
-export type { SyncQueueEnqueueResult } from '@/services/storage/sync/syncQueueEngineContracts';
+  SyncQueueEnqueueResult,
+} from '@/services/storage/sync/syncQueuePorts';
 
 export type {
   SyncQueueDomainMetrics,

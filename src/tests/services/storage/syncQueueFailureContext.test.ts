@@ -4,7 +4,7 @@ import { errorService } from '@/services/utils/errorService';
 import { dispatchOperationalTelemetryExternally } from '@/services/observability/operationalTelemetryExternalAdapter';
 import { buildRecentUserHealthEvents } from '@/hooks/controllers/systemHealthReporterController';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import type { CreateSyncQueueEngineOptions } from '@/services/storage/sync/syncQueueEngineContracts';
+import type { CreateSyncQueueEngineOptions } from '@/services/storage/sync/syncQueuePorts';
 vi.mock('@/services/storage/indexeddb/indexedDbErrorLogService', () => ({ saveErrorLog: vi.fn() }));
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
