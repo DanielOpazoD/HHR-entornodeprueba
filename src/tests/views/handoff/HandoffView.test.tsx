@@ -59,17 +59,54 @@ describe('HandoffView Component', () => {
     );
   });
 
-  it('renders empty message when no record is selected', () => {
+  it('explains that the day has no census when the server confirms it is empty', () => {
     const { mockContext } = render(<HandoffView />, {
-      contextValue: createMockDailyRecordContext(
-        null as unknown as ReturnType<typeof createMockRecord>
-      ),
+      contextValue: createMockDailyRecordContext(null),
     });
 
+    expect(screen.getByText('Este día no tiene censo.')).toBeInTheDocument();
     expect(
-      screen.getByText(/Seleccione una fecha para ver la Entrega de Turno/i)
+      screen.getByText('La entrega de turno aparece cuando existe el censo del día.')
     ).toBeInTheDocument();
+    expect(screen.queryByText(/Seleccione una fecha/i)).not.toBeInTheDocument();
     expect(mockContext).toBeDefined();
+  });
+
+  it('shows a read-failure alert instead of an empty state on remote_record_timeout', () => {
+    const contextValue = {
+      ...createMockDailyRecordContext(null),
+      bootstrapPhase: 'remote_record_timeout' as const,
+    };
+
+    render(<HandoffView />, { contextValue });
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('No se pudo leer la entrega de turno de este día.');
+    expect(alert).toHaveTextContent(
+      'Revisa tu conexión. Se volverá a intentar al recuperarla o al volver a esta ventana.'
+    );
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Este día no tiene censo.')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Seleccione una fecha/i)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    'remote_runtime_bootstrapping',
+    'remote_record_bootstrapping',
+    'local_only',
+    'record_ready',
+  ] as const)('shows the loading state when record is null during %s', bootstrapPhase => {
+    render(<HandoffView />, {
+      contextValue: {
+        ...createMockDailyRecordContext(null),
+        bootstrapPhase,
+      },
+    });
+
+    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByText('Cargando')).toBeInTheDocument();
+    expect(screen.queryByText('Este día no tiene censo.')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Seleccione una fecha/i)).not.toBeInTheDocument();
   });
 
   it('renders nursing handoff with correct title', () => {
