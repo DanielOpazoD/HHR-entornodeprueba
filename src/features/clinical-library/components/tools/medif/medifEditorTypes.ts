@@ -1,4 +1,5 @@
 import { buttonClassName } from '@/components/ui/base/buttonStyles';
+import { downloadBlob } from '@/utils/downloadBlob';
 import type { MedifValues } from '../../../domain/medifDraft';
 import type { MedifPreferences } from '../../../domain/medifPreferences';
 
@@ -25,12 +26,5 @@ export interface MedifEditorProps {
 export const MEDIF_SECONDARY_BUTTON = buttonClassName('outline', 'sm');
 
 export const downloadMedifJson = (content: string, name: string): void => {
-  const url = URL.createObjectURL(new Blob([content], { type: 'application/json' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = name;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  downloadBlob(new Blob([content], { type: 'application/json' }), name);
 };

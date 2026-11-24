@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { resolveDisplayedMinsalStats } from '@/features/analytics/controllers/minsalStatsPresentationController';
+import { resolveDisplayedMinsalStats } from '@/features/analytics/controllers/minsalAnalyticsPresentationController';
 import type { MinsalStatistics } from '@/features/analytics/types/minsalTypes';
 
 const buildStats = (overrides: Partial<MinsalStatistics> = {}): MinsalStatistics => ({

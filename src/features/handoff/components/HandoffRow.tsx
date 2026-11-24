@@ -12,7 +12,7 @@ import { HandoffPatientCell } from './HandoffPatientCell';
 import { HandoffDiagnosisCell } from './HandoffDiagnosisCell';
 import { HandoffDevicesCell } from './HandoffDevicesCell';
 import { HandoffObservationsCell } from './HandoffObservationsCell';
-import { resolveHandoffRowReadOnly } from '@/features/handoff/controllers/handoffRowController';
+import { resolveHandoffRowReadOnly } from '@/features/handoff/controllers/handoffViewController';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 // ============================================================================

@@ -14,7 +14,7 @@ import {
 } from '../../integration/setup';
 import { PatientStatus } from '@/types/domain/patientClassification';
 import { BedType, type BedDefinition } from '@/types/domain/beds';
-import * as handoffRowController from '@/features/handoff/controllers/handoffRowController';
+import * as handoffViewController from '@/features/handoff/controllers/handoffViewController';
 
 describe('HandoffRow', () => {
   const mockPatient = createMockPatient({
@@ -142,7 +142,7 @@ describe('HandoffRow', () => {
   });
 
   it('skips re-rendering unchanged HandoffRows through HandoffPatientTable on sync, staff, or sibling bed updates', () => {
-    const spy = vi.spyOn(handoffRowController, 'resolveHandoffRowReadOnly');
+    const spy = vi.spyOn(handoffViewController, 'resolveHandoffRowReadOnly');
     const beds: BedDefinition[] = [
       { id: 'R1', name: 'R1', type: BedType.UTI, isCuna: false },
       { id: 'R2', name: 'R2', type: BedType.UTI, isCuna: false },

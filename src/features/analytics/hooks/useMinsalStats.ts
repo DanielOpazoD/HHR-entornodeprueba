@@ -18,7 +18,7 @@ import {
   generateDailyTrend,
   getDateRangeFromPreset,
 } from '@/features/analytics/services/minsalStatsCalculator';
-import { resolveDisplayedMinsalStats } from '@/features/analytics/controllers/minsalStatsPresentationController';
+import { resolveDisplayedMinsalStats } from '@/features/analytics/controllers/minsalAnalyticsPresentationController';
 import {
   buildAnalyticsDataQualityIssues,
   buildMinsalComparisonSummary,

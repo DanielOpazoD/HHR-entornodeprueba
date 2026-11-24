@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { resolveHandoffRowReadOnly } from '@/features/handoff/controllers/handoffRowController';
+import { resolveHandoffRowReadOnly } from '@/features/handoff/controllers/handoffViewController';
 
 describe('handoffRowController', () => {
   it('locks the nursing note when the day is read-only or stability rules block the field', () => {
