@@ -125,4 +125,27 @@ describe('census startup payload', () => {
     );
     expect(ONLINE_ONLY_ASSET_GLOBS).toContain('**/assets/DiagnosisCie10Cell-*.js');
   });
+
+  it('keeps extension handoff linking, table config JSON transfer, and manual Eloisa import lazy', () => {
+    const shell = read('src/app-shell/runtime/AuthenticatedAppShell.tsx');
+    expect(shell).not.toMatch(/import\s+\{\s*HandoffExtensionConnection\s*\}/);
+    expect(shell).toContain("import('./HandoffExtensionConnection')");
+    expect(shell).toContain('/conectar-entrega-turno');
+
+    const tableConfigContext = read('src/context/TableConfigContext.tsx');
+    expect(tableConfigContext).not.toMatch(
+      /import\s*\{[^}]*(?:exportTableConfig|importTableConfig)[^}]*\}\s*from\s*['"]@\/services\/storage\/tableConfigService['"]/
+    );
+    expect(tableConfigContext).toContain("import('@/services/storage/tableConfigTransfer')");
+
+    const table = read('src/features/census/components/CensusTable.tsx');
+    expect(table).not.toMatch(
+      /import\s+\{[^}]*\}\s+from\s+['"]@\/features\/rayen-manual-import['"]/
+    );
+    expect(table).not.toMatch(
+      /import\s+\{[^}]*\}\s+from\s+['"]@\/features\/census\/components\/eloisaAdmissionInput['"]/
+    );
+    expect(table).toContain("import('@/features/rayen-manual-import')");
+    expect(table).toContain("import('@/features/census/components/eloisaAdmissionInput')");
+  });
 });

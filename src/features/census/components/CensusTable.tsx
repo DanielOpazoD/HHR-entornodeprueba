@@ -31,11 +31,7 @@ import {
   getCensusAttentionFilterLabel,
   type CensusAttentionFilter,
 } from '@/features/census/controllers/rowAcuityController';
-import {
-  findManualPatientDuplicate,
-  type EloisaManualPatientPayload,
-} from '@/features/rayen-manual-import';
-import { buildEloisaAdmissionInput } from '@/features/census/components/eloisaAdmissionInput';
+import type { EloisaManualPatientPayload } from '@/features/rayen-manual-import';
 import { useCensusBedDeepLinkFocus } from '@/features/census/hooks/useCensusBedDeepLinkFocus';
 import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 const censusTableAdmitLogger = createScopedLogger('CensusTableAdmit');
@@ -157,6 +153,10 @@ export const CensusTable: React.FC<CensusTableProps> = ({
       if (!target || target.patientName?.trim() || target.isBlocked) {
         return 'La cama seleccionada ya no está disponible. Actualiza la selección.';
       }
+      const [{ findManualPatientDuplicate }, { buildEloisaAdmissionInput }] = await Promise.all([
+        import('@/features/rayen-manual-import'),
+        import('@/features/census/components/eloisaAdmissionInput'),
+      ]);
       const duplicate = findManualPatientDuplicate(record, payload);
       if (duplicate) {
         return duplicate.kind === 'rut'
