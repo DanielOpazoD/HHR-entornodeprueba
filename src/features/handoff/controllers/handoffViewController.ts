@@ -3,11 +3,13 @@ import type {
   DailyRecordBedLayoutState,
   DailyRecordDateRef,
 } from '@/types/domain/dailyRecordSlices';
+import type { ClinicalEvent } from '@/types/domain/clinicalEvents';
 import type { PatientData } from '@/types/domain/patient';
 import type { ShiftType } from '@/types/domain/shift';
 import { resolveNursingHandoffNovedadesText } from '@/shared/handoff/handoffNovedades';
 import { isAdmittedDuringShift } from '@/utils/clinicalDayUtils';
 import type { AuditAction } from '@/types/auditActionTypes';
+import type { AuditLogEntry } from '@/types/auditLogTypes';
 
 export const resolveHandoffTitle = (selectedShift: ShiftType): string =>
   `Entrega Turno Enfermería - ${selectedShift === 'day' ? 'Día' : 'Noche'} `;
@@ -164,3 +166,88 @@ export const buildNursingNoteChange = ({
     oldNote: patient?.[noteKey] || '',
   };
 };
+
+export const resolveHandoffRowReadOnly = ({
+  readOnly,
+  noteField,
+  canEditField,
+}: {
+  readOnly: boolean;
+  noteField: keyof PatientData;
+  canEditField: (field: string) => boolean;
+}): boolean => readOnly || !canEditField(noteField as string);
+
+export const buildAddedClinicalEvent = (
+  event: Omit<ClinicalEvent, 'id' | 'createdAt'>,
+  createId: () => string,
+  nowIso: () => string
+): ClinicalEvent => ({
+  ...event,
+  id: createId(),
+  createdAt: nowIso(),
+});
+
+export const appendClinicalEvent = (
+  patient: Pick<PatientData, 'clinicalEvents'>,
+  event: ClinicalEvent
+): ClinicalEvent[] => [...(patient.clinicalEvents || []), event];
+
+export const updateClinicalEventList = (
+  patient: Pick<PatientData, 'clinicalEvents'>,
+  eventId: string,
+  data: Partial<ClinicalEvent>
+): ClinicalEvent[] =>
+  (patient.clinicalEvents || []).map(event =>
+    event.id === eventId ? { ...event, ...data } : event
+  );
+
+export const removeClinicalEventFromList = (
+  patient: Pick<PatientData, 'clinicalEvents'>,
+  eventId: string
+): { nextEvents: ClinicalEvent[]; deletedEvent: ClinicalEvent | null } => {
+  const deletedEvent = (patient.clinicalEvents || []).find(event => event.id === eventId) || null;
+
+  return {
+    nextEvents: (patient.clinicalEvents || []).filter(event => event.id !== eventId),
+    deletedEvent,
+  };
+};
+
+export interface ClinicalEventAuditPayload {
+  action: AuditAction;
+  entityType: AuditLogEntry['entityType'];
+  entityId: string;
+  details: Record<string, unknown>;
+  patientRut?: string;
+  recordDate?: string;
+  authors?: string;
+  waitMs: number;
+}
+
+export interface ClinicalEventSuccessFeedback {
+  title: string;
+  description: string;
+}
+
+export const buildClinicalEventAuditPayload = (
+  action: 'CLINICAL_EVENT_ADDED' | 'CLINICAL_EVENT_DELETED',
+  bedId: string,
+  eventName: string,
+  recordDate?: string
+): ClinicalEventAuditPayload => ({
+  action,
+  entityType: 'patient',
+  entityId: bedId,
+  details: { event: eventName },
+  patientRut: bedId,
+  recordDate,
+  authors: undefined,
+  waitMs: 10000,
+});
+
+export const buildClinicalEventSuccessFeedback = (
+  eventName: string
+): ClinicalEventSuccessFeedback => ({
+  title: 'Evento agregado',
+  description: `Se ha registrado el evento: ${eventName}`,
+});

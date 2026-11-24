@@ -1,11 +1,5 @@
-export const downloadBlob = (blob: Blob, filename: string): void => {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
+import { downloadBlob as triggerBlobDownload } from '@/utils/downloadBlob';
 
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
-  URL.revokeObjectURL(url);
+export const downloadBlob = (blob: Blob, filename: string): void => {
+  triggerBlobDownload(blob, filename);
 };

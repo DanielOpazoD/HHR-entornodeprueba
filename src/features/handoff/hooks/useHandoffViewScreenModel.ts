@@ -17,16 +17,6 @@ import {
 import { useStaffContext } from '@/context/StaffContext';
 import { useNotification } from '@/context/UIContext';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
-import {
-  buildClinicalEventAuditPayload,
-  buildClinicalEventSuccessFeedback,
-} from '@/features/handoff/controllers/clinicalEventFeedbackController';
-import {
-  appendClinicalEvent,
-  buildAddedClinicalEvent,
-  removeClinicalEventFromList,
-  updateClinicalEventList,
-} from '@/features/handoff/controllers/clinicalEventMutationController';
 import { getAttributedAuthors } from '@/services/admin/attributionService';
 import { resolveHandoffShiftStaff } from '@/services/staff/dailyRecordStaffing';
 import { resolveHandoffDocumentTitleLabel } from '@/shared/handoff/handoffPresentation';
@@ -34,13 +24,19 @@ import type { BedDefinition } from '@/types/domain/beds';
 import type { ClinicalEvent } from '@/types/domain/clinicalEvents';
 import { DEFAULT_SHIFT_SCHEDULE, getShiftSchedule } from '@/utils/clinicalDayUtils';
 import {
+  appendClinicalEvent,
+  buildAddedClinicalEvent,
+  buildClinicalEventAuditPayload,
+  buildClinicalEventSuccessFeedback,
   buildNursingNoteChange,
   getVisibleHandoffBeds,
+  removeClinicalEventFromList,
   resolveHandoffAuditDescriptor,
   resolveHandoffTableHeaderClass,
   resolveHandoffTitle,
   resolveNursingNoteField,
   shouldShowHandoffPatient,
+  updateClinicalEventList,
 } from '@/features/handoff/controllers/handoffViewController';
 import type { HandoffClinicalEventActions } from '../components/handoffRowContracts';
 

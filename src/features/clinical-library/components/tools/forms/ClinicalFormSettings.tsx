@@ -9,14 +9,10 @@ import {
 import type { ClinicalFormDefinition } from '../../../domain/forms/clinicalFormTypes';
 import { matchesClinicalFormField } from './ClinicalFormFields';
 import { isSuppressedClinicalFormField } from '../../../domain/forms/clinicalFormFieldPolicy';
+import { downloadBlob } from '@/utils/downloadBlob';
 
 export const downloadClinicalFormJson = (text: string, name: string) => {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = name;
-  anchor.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1_000);
+  downloadBlob(new Blob([text], { type: 'application/json' }), name);
 };
 
 interface Props {

@@ -6,7 +6,7 @@ import {
   buildAddedClinicalEvent,
   removeClinicalEventFromList,
   updateClinicalEventList,
-} from '@/features/handoff/controllers/clinicalEventMutationController';
+} from '@/features/handoff/controllers/handoffViewController';
 
 describe('clinicalEventMutationController', () => {
   const existingEvent: ClinicalEvent = {
