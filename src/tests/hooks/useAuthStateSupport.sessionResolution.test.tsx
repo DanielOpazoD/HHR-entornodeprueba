@@ -197,7 +197,7 @@ describe('useResolvedAuthBootstrap session resolution', () => {
   });
 
   it('ignores a transient unauthenticated auth event while a persisted Firebase session still exists', async () => {
-    window.localStorage.setItem('firebase:authUser:test:[DEFAULT]', '{"uid":"abc"}');
+    window.sessionStorage.setItem('firebase:authUser:test:[DEFAULT]', '{"uid":"abc"}');
 
     const onAuthSessionStateChange = vi.fn(
       (callback: (sessionState: AuthSessionState) => void | Promise<void>) => {

@@ -39,7 +39,10 @@ const seedPersistedSession = async (
       if (window !== window.top || !/^https?:$/.test(location.protocol)) return;
       Object.assign(window, { __HHR_E2E_OVERRIDE__: { [date]: seededRecord } });
       localStorage.setItem('hhr_e2e_bootstrap_user', JSON.stringify(bootstrapUser));
-      localStorage.setItem('firebase:authUser:test:[DEFAULT]', JSON.stringify({ uid: 'preview' }));
+      sessionStorage.setItem(
+        'firebase:authUser:test:[DEFAULT]',
+        JSON.stringify({ uid: 'preview' })
+      );
       localStorage.setItem('hhr_firebase_config', JSON.stringify(runtimeConfig));
       localStorage.setItem('hanga_roa_hospital_data', JSON.stringify({ [date]: seededRecord }));
     },

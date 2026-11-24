@@ -308,6 +308,8 @@ describe('auth runtime injection', () => {
 
   it('uses the injected runtime for redirect auth start and result handling', async () => {
     const authRuntime = createAuthRuntime();
+    const authBootstrapState = await import('@/services/auth/authBootstrapState');
+    vi.mocked(authBootstrapState.isAuthBootstrapPending).mockReturnValueOnce(true);
     vi.mocked(firebaseAuth.getRedirectResult).mockResolvedValue({
       user: { uid: 'redirect-1', email: 'admin@hospital.cl' },
     } as unknown as firebaseAuth.UserCredential);
@@ -320,6 +322,15 @@ describe('auth runtime injection', () => {
       expect.anything()
     );
     expect(firebaseAuth.getRedirectResult).toHaveBeenCalledWith(authRuntime.auth);
+  });
+
+  it('skips getRedirectResult on startup when no redirect or Google login attempt is pending', async () => {
+    const authRuntime = createAuthRuntime();
+
+    const result = await handleSignInRedirectResult({ authRuntime });
+
+    expect(result).toBeNull();
+    expect(firebaseAuth.getRedirectResult).not.toHaveBeenCalled();
   });
 
   it('reads the current user from the injected runtime for session helpers', async () => {

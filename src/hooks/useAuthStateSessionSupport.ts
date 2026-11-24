@@ -16,6 +16,7 @@ import { clearQueryCache } from '@/config/queryClient';
 import { broadcastLogout } from '@/services/auth/authBroadcastChannel';
 import { clearCachedUserAvatarProfiles } from '@/services/user-profile/userAvatarProfileCache';
 import { flushPendingAuditEvents } from '@/services/admin/auditPendingEvents';
+import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 
 export const getE2EBootstrapUser = (): AuthUser | null => {
   if (typeof window === 'undefined' || !window.__HHR_E2E_OVERRIDE__) {
@@ -50,21 +51,38 @@ export const useFirebaseConnectionStatus = (
   isOnline: boolean,
   hasActiveFirebaseSession: () => boolean
 ): boolean => {
-  const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
+  const [isFirebaseConnected, setIsFirebaseConnected] = useState(
+    () => isOnline && (Boolean(user) || hasActiveFirebaseSession())
+  );
 
   useEffect(() => {
-    const checkConnection = () => {
+    let active = true;
+    const syncConnection = () => {
+      if (!active) {
+        return;
+      }
       const hasSession = hasActiveFirebaseSession();
-      setIsFirebaseConnected(isOnline && (hasSession || !!user));
+      setIsFirebaseConnected(isOnline && (hasSession || Boolean(user)));
     };
 
-    checkConnection();
-    const interval = setInterval(checkConnection, 1000);
-    const timeout = setTimeout(() => clearInterval(interval), 10000);
+    syncConnection();
+    if (!isOnline || user || hasActiveFirebaseSession()) {
+      return () => {
+        active = false;
+      };
+    }
+
+    // Re-check once Firebase Auth finishes initializing instead of polling every second.
+    void defaultAuthRuntime.ready
+      .then(() => {
+        syncConnection();
+      })
+      .catch(() => {
+        // Keep disconnected state when auth runtime initialization fails.
+      });
 
     return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
+      active = false;
     };
   }, [user, isOnline, hasActiveFirebaseSession]);
 

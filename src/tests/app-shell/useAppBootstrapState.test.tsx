@@ -11,14 +11,22 @@ const {
   mockUseVersionCheck,
   mockSetFirestoreSyncState,
   mockGetOptionalDb,
-} = vi.hoisted(() => ({
-  mockUseAuth: vi.fn(),
-  mockUseDateNavigation: vi.fn(),
-  mockUseStorageMigration: vi.fn(),
-  mockUseVersionCheck: vi.fn(),
-  mockSetFirestoreSyncState: vi.fn(),
-  mockGetOptionalDb: vi.fn(() => null),
-}));
+  mockRuntimeAdapter,
+} = vi.hoisted(() => {
+  const mockGetOptionalDb = vi.fn(() => null);
+  return {
+    mockUseAuth: vi.fn(),
+    mockUseDateNavigation: vi.fn(),
+    mockUseStorageMigration: vi.fn(),
+    mockUseVersionCheck: vi.fn(),
+    mockSetFirestoreSyncState: vi.fn(),
+    mockGetOptionalDb,
+    mockRuntimeAdapter: {
+      getOptionalDb: () => mockGetOptionalDb(),
+      readyFirestore: undefined as Promise<unknown> | undefined,
+    },
+  };
+});
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => mockUseAuth(),
@@ -41,9 +49,7 @@ vi.mock('@/services/repositories/repositoryConfig', () => ({
 }));
 
 vi.mock('@/services/firebase-runtime/firebaseConfigRuntimeAdapter', () => ({
-  defaultFirebaseConfigRuntimeAdapter: {
-    getOptionalDb: () => mockGetOptionalDb(),
-  },
+  defaultFirebaseConfigRuntimeAdapter: mockRuntimeAdapter,
 }));
 
 import {
@@ -126,6 +132,7 @@ describe('useAppBootstrapState', () => {
     window.sessionStorage.clear();
     window.localStorage.clear();
     mockGetOptionalDb.mockReturnValue(null);
+    mockRuntimeAdapter.readyFirestore = undefined;
     mockUseAuth.mockReturnValue(createAuthState());
     mockUseDateNavigation.mockReturnValue(createDateNavigation());
   });
@@ -331,6 +338,61 @@ describe('useAppBootstrapState', () => {
         reason: 'ready',
       })
     );
+  });
+
+  it('reacts immediately to readyFirestore without polling intervals', async () => {
+    let resolveFirestore!: () => void;
+    mockRuntimeAdapter.readyFirestore = new Promise<void>(resolve => {
+      resolveFirestore = resolve;
+    });
+    const setIntervalSpy = vi.spyOn(window, 'setInterval');
+    const currentUser: AuthUser = {
+      uid: 'user-1',
+      email: 'admin@hospital.cl',
+      displayName: 'Admin',
+      role: 'admin',
+    };
+    mockUseAuth.mockReturnValue(
+      createAuthState({
+        currentUser,
+        authorizedUser: currentUser,
+        role: 'admin',
+        isAuthenticated: true,
+        isAuthorizedSession: true,
+        isEditor: true,
+        isViewer: false,
+        isFirebaseConnected: true,
+        remoteSyncStatus: 'ready',
+      })
+    );
+
+    renderHook(() => useAppBootstrapState('2026-03-27'));
+
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    expect(mockSetFirestoreSyncState).toHaveBeenCalledWith({
+      mode: 'bootstrapping',
+      reason: 'auth_connecting',
+    });
+
+    mockGetOptionalDb.mockReturnValue({ name: 'db' } as never);
+    resolveFirestore();
+
+    await waitFor(() =>
+      expect(mockSetFirestoreSyncState).toHaveBeenCalledWith({
+        mode: 'enabled',
+        reason: 'ready',
+      })
+    );
+    setIntervalSpy.mockRestore();
+  });
+
+  it('does not poll Firestore while unauthenticated in local_only mode', () => {
+    const setIntervalSpy = vi.spyOn(window, 'setInterval');
+
+    renderHook(() => useAppBootstrapState('2026-03-27'));
+
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    setIntervalSpy.mockRestore();
   });
 
   it('buildAppBootstrapState returns authenticated navigation wiring when access is ready', () => {

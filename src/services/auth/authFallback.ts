@@ -7,6 +7,7 @@ import {
 } from '@/services/auth/authE2ERedirectRuntime';
 import {
   clearGoogleLoginAttemptHint,
+  hasFirebaseRedirectUserHint,
   hasRecentGoogleLoginAttemptHint,
 } from '@/services/auth/authStorageHints';
 import {
@@ -130,11 +131,16 @@ export const handleSignInRedirectResult = async (
     }
 
     // Both the pending-redirect flag and the login-attempt hint are per-tab
-    // (sessionStorage) and survive the same-tab OAuth round trip. Surfacing
-    // the empty-result error still requires the login-attempt hint, so an
-    // orphaned pending flag alone never produces a scary error.
+    // (sessionStorage) and survive the same-tab OAuth round trip. Skip calling
+    // Firebase's getRedirectResult on cold boots and normal F5 refreshes when
+    // no redirect flow or Google login attempt is pending in this tab.
     const hadPendingRedirect = isAuthBootstrapPending();
     const hadRecentGoogleLoginAttempt = hasRecentGoogleLoginAttemptHint();
+    const hasFirebaseRedirectUser = hasFirebaseRedirectUserHint();
+    if (!hadPendingRedirect && !hadRecentGoogleLoginAttempt && !hasFirebaseRedirectUser) {
+      return null;
+    }
+
     const result = await getRedirectResult(authRuntime.auth);
     if (!result) {
       if (!hadRecentGoogleLoginAttempt && hadPendingRedirect) {

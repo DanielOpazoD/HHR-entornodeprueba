@@ -78,7 +78,10 @@ const seedPersistedSessionAndRecord = async (
       };
 
       localStorage.setItem('hhr_e2e_bootstrap_user', JSON.stringify(bootstrapUser));
-      localStorage.setItem('firebase:authUser:test:[DEFAULT]', JSON.stringify({ uid: 'preview' }));
+      sessionStorage.setItem(
+        'firebase:authUser:test:[DEFAULT]',
+        JSON.stringify({ uid: 'preview' })
+      );
       localStorage.setItem('hhr_firebase_config', JSON.stringify(runtimeConfig));
 
       const existing = JSON.parse(localStorage.getItem('hanga_roa_hospital_data') || '{}');
@@ -108,7 +111,7 @@ const collectPreviewDiagnostics = async (page: Page, date: string) =>
       persistedRecordDates: Object.keys(persistedRecords),
       persistedRecord: persistedRecords[targetDate] || null,
       hasBootstrapUser: Boolean(localStorage.getItem('hhr_e2e_bootstrap_user')),
-      hasFirebaseHint: Boolean(localStorage.getItem('firebase:authUser:test:[DEFAULT]')),
+      hasFirebaseHint: Boolean(sessionStorage.getItem('firebase:authUser:test:[DEFAULT]')),
       telemetry: telemetry
         .filter(
           (event: { category?: string }) =>

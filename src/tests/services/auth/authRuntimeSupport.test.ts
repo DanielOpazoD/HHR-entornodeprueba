@@ -204,13 +204,12 @@ describe('authRuntimeSupport', () => {
     expect(mockLoggerWarn).toHaveBeenCalledTimes(2);
   });
 
-  it('detects persisted Firebase auth hints in localStorage and sessionStorage', () => {
+  it('detects persisted Firebase auth hints only in sessionStorage (ignores legacy localStorage)', () => {
     expect(hasPersistedFirebaseAuthHint()).toBe(false);
 
     window.localStorage.setItem('firebase:authUser:test:[DEFAULT]', '{"uid":"abc"}');
-    expect(hasPersistedFirebaseAuthHint()).toBe(true);
+    expect(hasPersistedFirebaseAuthHint()).toBe(false);
 
-    window.localStorage.removeItem('firebase:authUser:test:[DEFAULT]');
     window.sessionStorage.setItem('firebase:authUser:test:[DEFAULT]', '{"uid":"abc"}');
     expect(hasPersistedFirebaseAuthHint()).toBe(true);
   });

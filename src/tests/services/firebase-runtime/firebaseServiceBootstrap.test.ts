@@ -5,6 +5,7 @@ import type { FirebaseOptions } from 'firebase/app';
 
 const {
   initializeAppMock,
+  initializeAuthMock,
   getAuthMock,
   connectAuthEmulatorMock,
   setPersistenceMock,
@@ -17,6 +18,7 @@ const {
   shouldUseSingleTabFirestoreCacheMock,
 } = vi.hoisted(() => ({
   initializeAppMock: vi.fn(() => ({ name: 'test-app' })),
+  initializeAuthMock: vi.fn(() => ({ name: 'test-auth' })),
   getAuthMock: vi.fn(() => ({ name: 'test-auth' })),
   connectAuthEmulatorMock: vi.fn(),
   setPersistenceMock: vi.fn().mockResolvedValue(undefined),
@@ -34,10 +36,11 @@ vi.mock('firebase/app', () => ({
 }));
 
 vi.mock('firebase/auth', () => ({
+  initializeAuth: initializeAuthMock,
   getAuth: getAuthMock,
   connectAuthEmulator: connectAuthEmulatorMock,
   setPersistence: setPersistenceMock,
-  browserLocalPersistence: { type: 'LOCAL' },
+  browserPopupRedirectResolver: { type: 'POPUP_REDIRECT_RESOLVER' },
   browserSessionPersistence: { type: 'SESSION' },
   inMemoryPersistence: { type: 'MEMORY' },
 }));
@@ -125,9 +128,18 @@ describe('firebaseServiceBootstrap', () => {
       expect(initializeAppMock).toHaveBeenCalledWith(TEST_CONFIG);
     });
 
-    it('calls getAuth with the app instance', async () => {
+    it('initializes Auth directly with tab-scoped session persistence and memory fallback', async () => {
       await initializeFirebaseServices(TEST_CONFIG);
-      expect(getAuthMock).toHaveBeenCalledWith({ name: 'test-app' });
+
+      expect(initializeAuthMock).toHaveBeenCalledWith(
+        { name: 'test-app' },
+        {
+          persistence: [{ type: 'SESSION' }, { type: 'MEMORY' }],
+          popupRedirectResolver: { type: 'POPUP_REDIRECT_RESOLVER' },
+        }
+      );
+      expect(getAuthMock).not.toHaveBeenCalled();
+      expect(setPersistenceMock).not.toHaveBeenCalled();
     });
 
     it('initializes Firestore with multi-tab manager by default', async () => {
@@ -164,24 +176,26 @@ describe('firebaseServiceBootstrap', () => {
       expect(result.db).toEqual({ name: 'test-db-fallback' });
     });
 
-    it('starts auth persistence configuration (calls setPersistence)', async () => {
+    it('falls back to getAuth + awaited session persistence when initializeAuth throws', async () => {
+      initializeAuthMock.mockImplementationOnce(() => {
+        throw new Error('auth/already-initialized');
+      });
+
       await initializeFirebaseServices(TEST_CONFIG);
 
-      // setPersistence is called asynchronously inside startAuthPersistenceConfiguration
-      // Wait for the microtask queue to flush
-      await vi.waitFor(() => {
-        expect(setPersistenceMock).toHaveBeenCalled();
-      });
-      // First attempt should be with browserLocalPersistence
-      expect(setPersistenceMock).toHaveBeenCalledWith({ name: 'test-auth' }, { type: 'LOCAL' });
+      expect(getAuthMock).toHaveBeenCalledWith({ name: 'test-app' });
+      expect(setPersistenceMock).toHaveBeenCalledWith({ name: 'test-auth' }, { type: 'SESSION' });
     });
 
-    it('does not block bootstrap when local persistence stalls', async () => {
+    it('unblocks fallback bootstrap after timeout when session persistence stalls', async () => {
+      initializeAuthMock.mockImplementationOnce(() => {
+        throw new Error('auth/already-initialized');
+      });
       setPersistenceMock.mockImplementationOnce(() => new Promise(() => {}));
 
-      const services = await initializeFirebaseServices(TEST_CONFIG);
-
-      await vi.advanceTimersByTimeAsync(2_500);
+      const servicesPromise = initializeFirebaseServices(TEST_CONFIG);
+      await vi.advanceTimersByTimeAsync(1_500);
+      const services = await servicesPromise;
 
       expect(services).toEqual({
         app: { name: 'test-app' },
@@ -189,12 +203,15 @@ describe('firebaseServiceBootstrap', () => {
         db: { name: 'test-db' },
       });
       expect(setPersistenceMock).toHaveBeenCalledTimes(1);
-      expect(setPersistenceMock.mock.calls[0]?.[1]).toEqual({ type: 'LOCAL' });
+      expect(setPersistenceMock.mock.calls[0]?.[1]).toEqual({ type: 'SESSION' });
     });
 
-    it('falls back to session persistence when local persistence rejects', async () => {
+    it('falls back to memory persistence when session persistence rejects', async () => {
+      initializeAuthMock.mockImplementationOnce(() => {
+        throw new Error('auth/already-initialized');
+      });
       setPersistenceMock
-        .mockRejectedValueOnce(new Error('local broken'))
+        .mockRejectedValueOnce(new Error('session storage blocked'))
         .mockResolvedValueOnce(undefined);
 
       const services = await initializeFirebaseServices(TEST_CONFIG);
@@ -204,42 +221,42 @@ describe('firebaseServiceBootstrap', () => {
         auth: { name: 'test-auth' },
         db: { name: 'test-db' },
       });
-      await vi.runAllTicks();
-      await Promise.resolve();
-
       expect(setPersistenceMock).toHaveBeenCalledTimes(2);
-      expect(setPersistenceMock.mock.calls[0]?.[1]).toEqual({ type: 'LOCAL' });
-      expect(setPersistenceMock.mock.calls[1]?.[1]).toEqual({ type: 'SESSION' });
+      expect(setPersistenceMock.mock.calls[0]?.[1]).toEqual({ type: 'SESSION' });
+      expect(setPersistenceMock.mock.calls[1]?.[1]).toEqual({ type: 'MEMORY' });
     });
 
-    it('does not start fallback candidates on timeout before the previous attempt settles', async () => {
-      let rejectLocal: ((error: Error) => void) | undefined;
+    it('does not start memory fallback on timeout before the stalled session attempt settles', async () => {
+      initializeAuthMock.mockImplementationOnce(() => {
+        throw new Error('auth/already-initialized');
+      });
+      let rejectSession: ((error: Error) => void) | undefined;
       setPersistenceMock
         .mockImplementationOnce(
           () =>
             new Promise((_, reject: (error: Error) => void) => {
-              rejectLocal = reject;
+              rejectSession = reject;
             })
         )
         .mockResolvedValueOnce(undefined);
 
-      const services = await initializeFirebaseServices(TEST_CONFIG);
+      const servicesPromise = initializeFirebaseServices(TEST_CONFIG);
+      await vi.advanceTimersByTimeAsync(1_500);
+      const services = await servicesPromise;
 
       expect(services).toEqual({
         app: { name: 'test-app' },
         auth: { name: 'test-auth' },
         db: { name: 'test-db' },
       });
-
-      await vi.advanceTimersByTimeAsync(2_500);
       expect(setPersistenceMock).toHaveBeenCalledTimes(1);
 
-      rejectLocal?.(new Error('late local failure'));
+      rejectSession?.(new Error('late session failure'));
       await vi.runAllTicks();
       await Promise.resolve();
 
       expect(setPersistenceMock).toHaveBeenCalledTimes(2);
-      expect(setPersistenceMock.mock.calls[1]?.[1]).toEqual({ type: 'SESSION' });
+      expect(setPersistenceMock.mock.calls[1]?.[1]).toEqual({ type: 'MEMORY' });
     });
   });
 
