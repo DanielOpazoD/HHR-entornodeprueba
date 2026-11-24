@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { resolveInheritedDailyRecordStaffing } from '@/services/repositories/dailyRecordStaffingDomainService';
+import { resolveInheritedDailyRecordStaffing } from '@/services/repositories/dailyRecordInitializationSupport';
 import { applyDailyRecordStaffingCompatibility } from '@/services/staff/dailyRecordStaffing';
 
 const buildRecord = (date: string): DailyRecord =>

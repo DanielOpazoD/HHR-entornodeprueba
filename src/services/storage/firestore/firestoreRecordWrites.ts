@@ -53,10 +53,6 @@ import {
   type DailyRecordPartialWriteOptions,
   type DailyRecordSaveWriteOptions,
 } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
-import {
-  createDirectFirestoreWriteReceipt,
-  type DirectFirestoreWriteReceipt,
-} from './firestoreDirectWriteReceipt';
 import { stripInheritedAuthorityRepair } from '@/services/storage/firestore/firestoreInheritedRepairSeparation';
 import { isE2EDailyRecordAuthorityCallableForced } from '@/shared/runtime/e2eRuntime';
 import {
@@ -65,6 +61,25 @@ import {
 } from '@/services/storage/firestore/firestoreRecordWritePatchPolicy';
 
 export { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
+
+export interface DirectFirestoreWriteReceipt {
+  recordState: NonNullable<DailyRecordAuthorityCallableResponse['recordState']>;
+}
+
+/** Builds a receipt for the exact record submitted by a completed direct Firestore transaction. */
+export const createDirectFirestoreWriteReceipt = (
+  record: DailyRecord,
+  committedAt: Date
+): DirectFirestoreWriteReceipt => {
+  const lastUpdated = committedAt.toISOString();
+  return {
+    recordState: {
+      lastUpdated,
+      meta: {},
+      record: { ...record, lastUpdated },
+    },
+  };
+};
 
 const E2E_FORCED_MOVEMENT_PATHS = new Set(['discharges', 'transfers', 'cma']);
 

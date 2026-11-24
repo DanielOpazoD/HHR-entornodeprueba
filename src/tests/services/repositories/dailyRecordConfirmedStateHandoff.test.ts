@@ -2,7 +2,7 @@
 import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { createDirectFirestoreWriteReceipt } from '@/services/storage/firestore/firestoreDirectWriteReceipt';
+import { createDirectFirestoreWriteReceipt } from '@/services/storage/firestore/firestoreRecordWrites';
 
 const { saveToIndexedDBMock, isFirestoreEnabledMock } = vi.hoisted(() => ({
   saveToIndexedDBMock: vi.fn(),
