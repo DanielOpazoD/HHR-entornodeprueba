@@ -114,11 +114,13 @@ describe('useMoveCopyTargetRecord', () => {
     });
   });
 
-  it('calls onError when target record fetch fails', async () => {
+  it('reports loadFailed when target record fetch fails and recovers on retry', async () => {
     const currentRecord = DataFactory.createMockDailyRecord('2026-02-14');
-    const onError = vi.fn();
-    const failure = new Error('network down');
-    const getRecordForDate = vi.fn().mockRejectedValue(failure);
+    const recoveredRecord = DataFactory.createMockDailyRecord('2026-02-15');
+    const getRecordForDate = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('network down'))
+      .mockResolvedValueOnce(recoveredRecord);
 
     const { result } = renderHook(() =>
       useMoveCopyTargetRecord({
@@ -126,21 +128,31 @@ describe('useMoveCopyTargetRecord', () => {
         selectedDate: '2026-02-15',
         currentRecord,
         getRecordForDate,
-        onError,
       })
     );
 
     await waitFor(() => {
-      expect(onError).toHaveBeenCalledWith(failure);
+      expect(result.current.loadFailed).toBe(true);
+      expect(result.current.targetRecord).toBeNull();
       expect(result.current.isLoading).toBe(false);
     });
+
+    act(() => {
+      result.current.retry();
+    });
+
+    await waitFor(() => {
+      expect(result.current.loadFailed).toBe(false);
+      expect(result.current.targetRecord?.date).toBe('2026-02-15');
+      expect(result.current.isLoading).toBe(false);
+    });
+    expect(getRecordForDate).toHaveBeenCalledTimes(2);
   });
 
-  it('clears stale target record while loading a new date and keeps null after error', async () => {
+  it('clears stale target record while loading a new date and sets loadFailed after error', async () => {
     const currentRecord = DataFactory.createMockDailyRecord('2026-02-14');
     const loadedRecord = DataFactory.createMockDailyRecord('2026-02-13');
     const pendingRequest = createDeferred<DailyRecord | null>();
-    const onError = vi.fn();
     const getRecordForDate = vi
       .fn()
       .mockResolvedValueOnce(loadedRecord)
@@ -153,7 +165,6 @@ describe('useMoveCopyTargetRecord', () => {
           selectedDate,
           currentRecord,
           getRecordForDate,
-          onError,
         }),
       { initialProps: { selectedDate: '2026-02-13' } }
     );
@@ -161,6 +172,7 @@ describe('useMoveCopyTargetRecord', () => {
     await waitFor(() => {
       expect(result.current.targetRecord?.date).toBe('2026-02-13');
       expect(result.current.isLoading).toBe(false);
+      expect(result.current.loadFailed).toBe(false);
     });
 
     rerender({ selectedDate: '2026-02-15' });
@@ -168,26 +180,30 @@ describe('useMoveCopyTargetRecord', () => {
     await waitFor(() => {
       expect(result.current.targetRecord).toBeNull();
       expect(result.current.isLoading).toBe(true);
+      expect(result.current.loadFailed).toBe(false);
     });
 
-    const failure = new Error('target fetch failed');
     await act(async () => {
-      pendingRequest.reject(failure);
+      pendingRequest.reject(new Error('target fetch failed'));
       await Promise.resolve();
     });
 
     await waitFor(() => {
-      expect(onError).toHaveBeenCalledWith(failure);
+      expect(result.current.loadFailed).toBe(true);
       expect(result.current.targetRecord).toBeNull();
       expect(result.current.isLoading).toBe(false);
     });
+
+    // Switching back to the current day clears the failed state immediately.
+    rerender({ selectedDate: '2026-02-14' });
+    expect(result.current.loadFailed).toBe(false);
+    expect(result.current.targetRecord).toEqual(currentRecord);
   });
 
   it('ignores stale request errors after newer selection succeeds', async () => {
     const currentRecord = DataFactory.createMockDailyRecord('2026-02-14');
     const staleRequest = createDeferred<DailyRecord | null>();
     const latestRecord = DataFactory.createMockDailyRecord('2026-02-15');
-    const onError = vi.fn();
     const getRecordForDate = vi
       .fn()
       .mockImplementationOnce(() => staleRequest.promise)
@@ -200,7 +216,6 @@ describe('useMoveCopyTargetRecord', () => {
           selectedDate,
           currentRecord,
           getRecordForDate,
-          onError,
         }),
       { initialProps: { selectedDate: '2026-02-13' } }
     );
@@ -209,6 +224,7 @@ describe('useMoveCopyTargetRecord', () => {
 
     await waitFor(() => {
       expect(result.current.targetRecord?.date).toBe('2026-02-15');
+      expect(result.current.loadFailed).toBe(false);
     });
 
     await act(async () => {
@@ -216,7 +232,8 @@ describe('useMoveCopyTargetRecord', () => {
       await Promise.resolve();
     });
 
-    expect(onError).not.toHaveBeenCalled();
+    expect(result.current.loadFailed).toBe(false);
+    expect(result.current.targetRecord?.date).toBe('2026-02-15');
   });
 
   it('does not refetch when current record object changes but date stays the same', async () => {

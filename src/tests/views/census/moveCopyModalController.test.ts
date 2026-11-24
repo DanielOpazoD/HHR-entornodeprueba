@@ -81,14 +81,39 @@ describe('moveCopyModalController', () => {
 
     expect(options.find(option => option.id === 'R3')).toMatchObject({
       isOccupied: true,
+      isUnverified: false,
       isDisabled: true,
       statusLabel: 'Ocupada',
     });
     expect(options.find(option => option.id === 'R2')).toMatchObject({
       isOccupied: false,
+      isUnverified: false,
       isDisabled: false,
       statusLabel: 'Libre',
     });
+  });
+
+  it('marks beds as Sin verificar instead of Libre when availability is unverified and targetRecord is null', () => {
+    const currentRecord = DataFactory.createMockDailyRecord('2026-02-13');
+
+    const options = resolveMoveCopyBedOptions({
+      allBeds: BEDS,
+      currentRecord,
+      targetRecord: null,
+      selectedDate: '2026-02-14',
+      sourceBedId: 'R1',
+      targetBedId: 'R2',
+      availabilityUnverified: true,
+    });
+
+    expect(options.find(option => option.id === 'R2')).toMatchObject({
+      isOccupied: false,
+      isUnverified: true,
+      isDisabled: false,
+      isSelected: true,
+      statusLabel: 'Sin verificar',
+    });
+    expect(options.every(option => option.statusLabel === 'Sin verificar')).toBe(true);
   });
 
   it('allows selecting source bed only when copying to a different date', () => {

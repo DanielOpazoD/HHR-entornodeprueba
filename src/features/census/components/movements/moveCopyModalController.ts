@@ -16,9 +16,10 @@ export interface MoveCopyBedOptionModel {
   id: string;
   name: string;
   isOccupied: boolean;
+  isUnverified: boolean;
   isDisabled: boolean;
   isSelected: boolean;
-  statusLabel: 'Ocupada' | 'Libre';
+  statusLabel: 'Ocupada' | 'Libre' | 'Sin verificar';
 }
 
 const MOVE_COPY_DATE_OPTIONS: readonly MoveCopyDateOption[] = [
@@ -101,6 +102,7 @@ interface ResolveMoveCopyBedOptionsParams {
   selectedDate?: string;
   sourceBedId: string | null;
   targetBedId: string | null;
+  availabilityUnverified?: boolean;
 }
 
 export const resolveMoveCopySourceBedName = (
@@ -115,6 +117,7 @@ export const resolveMoveCopyBedOptions = ({
   selectedDate,
   sourceBedId,
   targetBedId,
+  availabilityUnverified = false,
 }: ResolveMoveCopyBedOptionsParams): MoveCopyBedOptionModel[] => {
   const activeExtraBeds = targetRecord?.activeExtraBeds || currentRecord.activeExtraBeds || [];
   const visibleBeds = allBeds.filter(bed => !bed.isExtra || activeExtraBeds.includes(bed.id));
@@ -126,6 +129,7 @@ export const resolveMoveCopyBedOptions = ({
     .map(bed => {
       const isSameSourceBed = bed.id === sourceBedId;
       const hasPatientName = Boolean(targetRecord?.beds?.[bed.id]?.patientName);
+      const isUnverified = availabilityUnverified && !targetRecord;
       const isSelected = targetBedId === bed.id;
       const isDisabled = hasPatientName || (isSameSourceBed && !isCopyingToAnotherDate);
 
@@ -133,9 +137,10 @@ export const resolveMoveCopyBedOptions = ({
         id: bed.id,
         name: bed.name,
         isOccupied: hasPatientName,
+        isUnverified,
         isDisabled,
         isSelected,
-        statusLabel: hasPatientName ? 'Ocupada' : 'Libre',
+        statusLabel: hasPatientName ? 'Ocupada' : isUnverified ? 'Sin verificar' : 'Libre',
       };
     });
 };
