@@ -35,6 +35,11 @@ const normalizeScryptParams = params => ({
   keyLength: Number(params?.keyLength || PIN_SCRYPT_PARAMS.keyLength),
 });
 
+/**
+ * @param {string} pin
+ * @param {string} salt
+ * @param {{ N?: number; r?: number; p?: number; keyLength?: number }} [params]
+ */
 const hashPin = async (pin, salt, params = PIN_SCRYPT_PARAMS) => {
   const normalized = normalizeScryptParams(params);
   const derivedKey = await scryptAsync(String(pin), String(salt), normalized.keyLength, {
@@ -99,8 +104,12 @@ const requirePinString = pin => {
 const validatePinAgainstConfig = async (firestore, providedPin) => {
   const trimmed = requirePinString(providedPin);
   const ref = getAccessConfigRef(firestore);
+  /** @type {Map<string, string>} */
+  const scryptCache = new Map();
   // The lock check, the hash comparison and the counter update share one
   // transaction so every failed attempt counts against fresh state.
+  // Memoize scrypt per (salt, params) across transaction retries so contention
+  // does not recompute the KDF.
   const outcome = await firestore.runTransaction(async tx => {
     const snap = await tx.get(ref);
     if (!snap.exists) {
@@ -122,10 +131,18 @@ const validatePinAgainstConfig = async (firestore, providedPin) => {
       return { kind: 'locked', minutesLeft };
     }
 
-    const candidate =
-      data.pinHashAlgorithm === PIN_HASH_ALGORITHM
-        ? await hashPin(trimmed, data.pinSalt, data.pinHashParams)
-        : hashPinLegacySha256(trimmed, data.pinSalt);
+    let candidate;
+    if (data.pinHashAlgorithm === PIN_HASH_ALGORITHM) {
+      const params = normalizeScryptParams(data.pinHashParams);
+      const cacheKey = `${data.pinSalt}:${params.N}:${params.r}:${params.p}:${params.keyLength}`;
+      candidate = scryptCache.get(cacheKey);
+      if (!candidate) {
+        candidate = await hashPin(trimmed, data.pinSalt, params);
+        scryptCache.set(cacheKey, candidate);
+      }
+    } else {
+      candidate = hashPinLegacySha256(trimmed, data.pinSalt);
+    }
     // Failed attempts are committed and reported after the transaction;
     // throwing here would roll the counter update back.
     if (!hashesMatchTimingSafe(candidate, data.pinHash)) {

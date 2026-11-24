@@ -10,14 +10,18 @@ import {
 } from './prescriptionAccessFunctions.testSupport';
 
 describe('submitPrescriptionPhoto', () => {
+  const validJpegBase64 = Buffer.from([
+    0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0xff, 0xd9,
+  ]).toString('base64');
+
   const validPayload = (overrides: Record<string, unknown> = {}) => ({
     pin: '7351',
     prescriptionType: 'comun',
     bedId: 'H5C1',
     patientName: 'Paciente Test',
     patientRut: '11.111.111-1',
-    fullImageBase64: Buffer.from('full-image-bytes').toString('base64'),
-    thumbnailBase64: Buffer.from('thumb-image-bytes').toString('base64'),
+    fullImageBase64: validJpegBase64,
+    thumbnailBase64: validJpegBase64,
     fullImageWidth: 1200,
     fullImageHeight: 900,
     uploaderDisplayName: 'Estación QR sala',
@@ -61,8 +65,10 @@ describe('submitPrescriptionPhoto', () => {
     });
   });
 
-  it('removes uploaded blobs if the Firestore prescription write fails', async () => {
-    const { admin, accessConfig, storedBlobs } = buildAdminHarness({ failPrescriptionWrite: true });
+  it('removes uploaded blobs and releases quota slot if the Firestore prescription write fails', async () => {
+    const { admin, accessConfig, uploadQuota, storedBlobs } = buildAdminHarness({
+      failPrescriptionWrite: true,
+    });
     await seedPin(accessConfig, '7351');
 
     const handler = createSubmitHandler({
@@ -75,6 +81,7 @@ describe('submitPrescriptionPhoto', () => {
       'forced Firestore write failure'
     );
     expect(Object.keys(storedBlobs)).toHaveLength(0);
+    expect(uploadQuota.data?.recentSlots).toEqual([]);
   });
 
   it('accepts an authenticated nurse_hospital caller without PIN', async () => {
@@ -237,6 +244,74 @@ describe('submitPrescriptionPhoto', () => {
     await expect(
       handler(validPayload({ fullImageBase64: tooBig }), undefined)
     ).rejects.toMatchObject({ code: 'invalid-argument' });
+  });
+
+  it('rejects non-JPEG bytes (HTML, SVG, PNG, text) and malformed base64 without storing blobs or consuming quota', async () => {
+    const { admin, accessConfig, uploadQuota, storedBlobs } = buildAdminHarness();
+    await seedPin(accessConfig, '7351');
+    const handler = createSubmitHandler({
+      firestore: admin.firestore(),
+      storage: admin.storage(),
+      resolveRoleForEmail: vi.fn(),
+    });
+
+    const invalidInputs = [
+      Buffer.from('<html><script>alert(1)</script></html>').toString('base64'),
+      Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>').toString('base64'),
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).toString('base64'),
+      'not-valid-base64!!!',
+    ];
+
+    for (const badPayload of invalidInputs) {
+      await expect(
+        handler(validPayload({ fullImageBase64: badPayload }), undefined)
+      ).rejects.toMatchObject({ code: 'invalid-argument' });
+      await expect(
+        handler(validPayload({ thumbnailBase64: badPayload }), undefined)
+      ).rejects.toMatchObject({ code: 'invalid-argument' });
+    }
+
+    expect(storedBlobs).toEqual({});
+    expect(uploadQuota.data).toBeNull();
+  });
+
+  it('enforces the hourly upload quota and prunes expired slots', async () => {
+    const { admin, accessConfig, uploadQuota, storedBlobs } = buildAdminHarness();
+    await seedPin(accessConfig, '7351');
+    const nowMs = Date.now();
+    uploadQuota.data = {
+      recentSlots: Array.from({ length: 120 }, (_, index) => ({
+        id: `slot-${index}`,
+        at: nowMs - 10_000,
+      })),
+    };
+
+    const handler = createSubmitHandler({
+      firestore: admin.firestore(),
+      storage: admin.storage(),
+      resolveRoleForEmail: vi.fn(),
+    });
+
+    await expect(handler(validPayload(), undefined)).rejects.toMatchObject({
+      code: 'resource-exhausted',
+    });
+    expect(storedBlobs).toEqual({});
+
+    // Replace one slot with an expired entry (> 1h old) so the upload succeeds and prunes it.
+    uploadQuota.data = {
+      recentSlots: [
+        { id: 'expired-slot', at: nowMs - 61 * 60 * 1000 },
+        ...Array.from({ length: 119 }, (_, index) => ({
+          id: `slot-${index}`,
+          at: nowMs - 10_000,
+        })),
+      ],
+    };
+
+    await expect(handler(validPayload(), undefined)).resolves.toMatchObject({
+      id: expect.stringMatching(/^rx_/),
+    });
+    expect(uploadQuota.data?.recentSlots).toHaveLength(120);
   });
 });
 

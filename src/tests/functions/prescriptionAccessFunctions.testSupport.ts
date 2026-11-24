@@ -43,26 +43,40 @@ export const buildAdminHarness = (
   } = {}
 ) => {
   const accessConfig: FakeFirestoreDoc = { data: null };
+  const uploadQuota: FakeFirestoreDoc = { data: null };
   const writtenPrescriptions: Record<string, Record<string, unknown>> = {
     ...(harnessOptions.prescriptionRecords || {}),
   };
+  const recordedPrescriptionQueries: Array<{ field: string; op: string; value: unknown }> = [];
   const storedBlobs: Record<string, Buffer> = {};
   const dailyRecords = harnessOptions.dailyRecords || {};
 
+  const docStoreForPath = (path: string): FakeFirestoreDoc | null => {
+    if (path === 'config/prescriptionsAccess') return accessConfig;
+    if (path === 'config/prescriptionsUploadQuota') return uploadQuota;
+    return null;
+  };
+
   const docHandle = (path: string) => ({
     path,
-    get: async () =>
-      path.endsWith('config/prescriptionsAccess')
-        ? { exists: accessConfig.data !== null, data: () => structuredClone(accessConfig.data) }
-        : path.startsWith('dailyRecords/')
-          ? {
-              exists: dailyRecords[path.replace('dailyRecords/', '')] !== undefined,
-              data: () => dailyRecords[path.replace('dailyRecords/', '')] || null,
-            }
-          : { exists: false, data: () => null },
+    get: async () => {
+      const configDoc = docStoreForPath(path);
+      if (configDoc) {
+        return { exists: configDoc.data !== null, data: () => structuredClone(configDoc.data) };
+      }
+      if (path.startsWith('dailyRecords/')) {
+        const dateKey = path.replace('dailyRecords/', '');
+        return {
+          exists: dailyRecords[dateKey] !== undefined,
+          data: () => dailyRecords[dateKey] || null,
+        };
+      }
+      return { exists: false, data: () => null };
+    },
     set: async (data: Record<string, unknown>, options?: { merge?: boolean }) => {
-      if (path.endsWith('config/prescriptionsAccess')) {
-        accessConfig.data = options?.merge ? { ...(accessConfig.data || {}), ...data } : data;
+      const configDoc = docStoreForPath(path);
+      if (configDoc) {
+        configDoc.data = options?.merge ? { ...(configDoc.data || {}), ...data } : data;
       } else if (path.startsWith('prescriptions/')) {
         if (harnessOptions.failPrescriptionWrite) {
           throw new Error('forced Firestore write failure');
@@ -73,10 +87,37 @@ export const buildAdminHarness = (
     },
   });
 
+  const buildPrescriptionsQuery = (
+    filters: Array<{ field: string; op: string; value: unknown }>
+  ) => ({
+    where: (field: string, op: string, value: unknown) => {
+      const nextFilters = [...filters, { field, op, value }];
+      recordedPrescriptionQueries.push({ field, op, value });
+      return buildPrescriptionsQuery(nextFilters);
+    },
+    get: async () => ({
+      forEach: (callback: (doc: { data: () => Record<string, unknown> }) => void) => {
+        Object.values(writtenPrescriptions)
+          .filter(record =>
+            filters.every(({ field, op, value }) => {
+              const actual = record[field];
+              if (typeof actual !== 'string' || typeof value !== 'string') return false;
+              if (op === '>=') return actual >= value;
+              if (op === '<') return actual < value;
+              return actual === value;
+            })
+          )
+          .forEach(record => {
+            callback({ data: () => record });
+          });
+      },
+    }),
+  });
+
   const collection = (collectionName: string) => ({
     doc: (docId: string) => {
-      if (collectionName === 'config' && docId === 'prescriptionsAccess') {
-        return docHandle('config/prescriptionsAccess');
+      if (collectionName === 'config') {
+        return docHandle(`config/${docId}`);
       }
       if (collectionName === 'prescriptions') {
         return docHandle(`prescriptions/${docId}`);
@@ -86,56 +127,63 @@ export const buildAdminHarness = (
       }
       return docHandle(`${collectionName}/${docId}`);
     },
-    get: async () => ({
-      forEach: (callback: (doc: { data: () => Record<string, unknown> }) => void) => {
-        if (collectionName !== 'prescriptions') return;
-        Object.values(writtenPrescriptions).forEach(record => {
-          callback({ data: () => record });
-        });
-      },
-    }),
+    ...(collectionName === 'prescriptions'
+      ? buildPrescriptionsQuery([])
+      : {
+          get: async () => ({
+            forEach: () => undefined,
+          }),
+        }),
   });
 
   const hospitalDoc = {
     collection,
   };
 
-  type AccessConfigRef = ReturnType<typeof docHandle>;
-  const assertAccessConfigRef = (ref: AccessConfigRef) => {
-    if (ref.path !== 'config/prescriptionsAccess') {
+  type TxDocRef = ReturnType<typeof docHandle>;
+  const resolveTxStore = (ref: TxDocRef) => {
+    const store = docStoreForPath(ref.path);
+    if (!store) {
       throw new Error(`fake transaction does not support ${ref.path}`);
     }
+    return store;
   };
 
   // Optimistic concurrency like Firestore: a transaction whose read document
   // changed before commit is retried from a fresh read.
   const runTransaction = async <T>(
     updateFunction: (tx: {
-      get: (ref: AccessConfigRef) => ReturnType<AccessConfigRef['get']>;
-      set: (
-        ref: AccessConfigRef,
-        data: Record<string, unknown>,
-        options?: { merge?: boolean }
-      ) => void;
+      get: (ref: TxDocRef) => ReturnType<TxDocRef['get']>;
+      set: (ref: TxDocRef, data: Record<string, unknown>, options?: { merge?: boolean }) => void;
     }) => Promise<T>
   ): Promise<T> => {
     for (let attempt = 0; attempt < 50; attempt += 1) {
-      const readVersion = accessConfig.data;
-      const writes: Array<{ data: Record<string, unknown>; merge: boolean }> = [];
+      const readVersions = new Map<FakeFirestoreDoc, Record<string, unknown> | null>();
+      const writes: Array<{
+        store: FakeFirestoreDoc;
+        data: Record<string, unknown>;
+        merge: boolean;
+      }> = [];
       const result = await updateFunction({
         get: async ref => {
-          assertAccessConfigRef(ref);
+          const store = resolveTxStore(ref);
+          if (!readVersions.has(store)) {
+            readVersions.set(store, store.data);
+          }
           return ref.get();
         },
         set: (ref, data, options) => {
-          assertAccessConfigRef(ref);
-          writes.push({ data, merge: options?.merge === true });
+          const store = resolveTxStore(ref);
+          writes.push({ store, data, merge: options?.merge === true });
         },
       });
-      if (accessConfig.data !== readVersion) continue;
+      const conflict = Array.from(readVersions.entries()).some(
+        ([store, version]) => store.data !== version
+      );
+      if (conflict) continue;
       for (const write of writes) {
-        accessConfig.data = write.merge
-          ? { ...(accessConfig.data || {}), ...write.data }
+        write.store.data = write.merge
+          ? { ...(write.store.data || {}), ...write.data }
           : write.data;
       }
       return result;
@@ -177,7 +225,14 @@ export const buildAdminHarness = (
     }),
   };
 
-  return { admin, accessConfig, writtenPrescriptions, storedBlobs };
+  return {
+    admin,
+    accessConfig,
+    uploadQuota,
+    writtenPrescriptions,
+    recordedPrescriptionQueries,
+    storedBlobs,
+  };
 };
 
 export const seedPin = async (accessConfig: FakeFirestoreDoc, pin: string) => {

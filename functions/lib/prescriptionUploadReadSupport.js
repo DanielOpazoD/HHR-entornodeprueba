@@ -1,11 +1,19 @@
 const { HttpsError } = require('firebase-functions/v2/https');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
-const { addCalendarDays, hospitalCalendarDay, isCalendarDay } = require('./hospitalCalendarDay');
+const {
+  addCalendarDays,
+  hospitalCalendarDay,
+  hospitalDayStart,
+  isCalendarDay,
+} = require('./hospitalCalendarDay');
+const { redactError } = require('./logging/redaction');
 
 const getHospitalRef = firestore => firestore.collection('hospitals').doc(HOSPITAL_ID);
 const getPrescriptionsRef = firestore => getHospitalRef(firestore).collection('prescriptions');
 const getAccessConfigRef = firestore =>
   getHospitalRef(firestore).collection('config').doc('prescriptionsAccess');
+const getUploadQuotaRef = firestore =>
+  getHospitalRef(firestore).collection('config').doc('prescriptionsUploadQuota');
 const getDailyRecordRef = (firestore, date) =>
   getHospitalRef(firestore).collection('dailyRecords').doc(date);
 
@@ -177,7 +185,7 @@ const resolveUploadPatientOptionForExactDate = async (
       'El censo disponible cambió. Actualiza el selector antes de subir.'
     );
   }
-  const key = optionalString(patientOptionKey, 96);
+  const key = optionalString(patientOptionKey, 128);
   if (!key) {
     throw new HttpsError('invalid-argument', 'La selección de cama/paciente es obligatoria.');
   }
@@ -226,10 +234,7 @@ const resolveDownloadUrlForStoragePath = async (storage, storagePath) => {
       return buildFirebaseStorageDownloadUrl(bucketName, storagePath, token);
     }
   } catch (error) {
-    console.error(
-      `[prescriptions/readonly] failed to resolve metadata for ${storagePath}:`,
-      error.message
-    );
+    console.error('[prescriptions/readonly] failed to resolve metadata:', redactError(error));
   }
 
   if (typeof file.getSignedUrl === 'function') {
@@ -240,10 +245,7 @@ const resolveDownloadUrlForStoragePath = async (storage, storagePath) => {
       });
       return signedUrl;
     } catch (error) {
-      console.error(
-        `[prescriptions/readonly] failed to sign URL for ${storagePath}:`,
-        error.message
-      );
+      console.error('[prescriptions/readonly] failed to sign URL:', redactError(error));
     }
   }
 
@@ -271,7 +273,16 @@ const attachReadonlyImageUrls = async (storage, record) => {
 };
 
 const listPrescriptionRecordsForDate = async (firestore, storage, date) => {
-  const snapshot = await getPrescriptionsRef(firestore).get();
+  const collectionRef = getPrescriptionsRef(firestore);
+  const startMs = hospitalDayStart(date);
+  const endMs = hospitalDayStart(addCalendarDays(date, 1));
+  const query =
+    typeof collectionRef.where === 'function' && Number.isFinite(startMs) && Number.isFinite(endMs)
+      ? collectionRef
+          .where('createdAt', '>=', new Date(startMs).toISOString())
+          .where('createdAt', '<', new Date(endMs).toISOString())
+      : collectionRef;
+  const snapshot = await query.get();
   const records = [];
   snapshot.forEach(doc => {
     const record = doc.data() || {};
@@ -289,6 +300,7 @@ module.exports = {
   assertReadonlyUploadDateAllowed,
   getAccessConfigRef,
   getPrescriptionsRef,
+  getUploadQuotaRef,
   listPrescriptionRecordsForDate,
   omitUndefined,
   optionalString,
