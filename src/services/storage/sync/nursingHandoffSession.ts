@@ -3,11 +3,6 @@ import { guardAuthoringSession } from '@/services/session/authoringSession';
 import { SESSION_GENERATION_KEY } from '@/services/session/sessionStorageTransition';
 import { clearSyncTaskRuntimeState } from './syncQueueTaskFactory';
 import { hasPendingNursingHandoff } from './nursingHandoffTasks';
-import { downloadBlob } from '@/services/exporters/exportDownload';
-import type { SyncTask } from '@/services/storage/syncQueueTypes';
-
-const serializeDailyRecordTaskBackup = (task: SyncTask): string =>
-  JSON.stringify({ schemaVersion: 1, remotelyConfirmed: false, task }, null, 2);
 
 const captureSession = (owner: string) => {
   const guard = guardAuthoringSession({ message: 'La sesión cambió.' });
@@ -158,18 +153,4 @@ export const resumeOwnedNursingHandoff = async (owner: string): Promise<string[]
     if (navigator.onLine) void processSyncQueue({ nursingHandoffOnly: true });
   }
   return labels;
-};
-
-/** Same backup envelope and download mechanism as the existing review, without retiring work. */
-export const downloadPendingNursingHandoff = async (owner: string): Promise<void> => {
-  const assertSession = captureSession(owner);
-  await requireQueue();
-  const tasks = await ownedPending(owner);
-  assertSession();
-  for (const task of tasks) {
-    downloadBlob(
-      new Blob([serializeDailyRecordTaskBackup(task)], { type: 'application/json' }),
-      `hhr-envio-local-${task.id}.json`
-    );
-  }
 };

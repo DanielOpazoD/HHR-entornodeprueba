@@ -11,7 +11,6 @@ import type { AuthUser } from '@/types/authRoleTypes';
 vi.unmock('@/context/AuthContext');
 const mocks = vi.hoisted(() => ({
   attempt: vi.fn(),
-  backup: vi.fn(),
   resume: vi.fn(),
   close: vi.fn(),
   uid: 'synthetic-A',
@@ -19,7 +18,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/hooks/useAuthClaimRefreshScheduler', () => ({ useAuthClaimRefreshScheduler: vi.fn() }));
 vi.mock('@/services/storage/sync/nursingHandoffSession', () => ({
   attemptNursingHandoffLogout: mocks.attempt,
-  downloadPendingNursingHandoff: mocks.backup,
   resumeOwnedNursingHandoff: mocks.resume,
 }));
 vi.mock('@/hooks/useAuthState', () => ({
@@ -85,7 +83,6 @@ it.each(['censo', 'login', 'firma médica', 'carga pública', 'recetas', 'escán
     expect(await screen.findByRole('dialog')).toHaveAccessibleName('Entrega de turno sin enviar');
     fireEvent.click(screen.getByText('Cancelar'));
     expect(mocks.close).not.toHaveBeenCalled();
-    expect(mocks.backup).not.toHaveBeenCalled();
   }
 );
 

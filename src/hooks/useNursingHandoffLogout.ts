@@ -3,10 +3,9 @@ import type { AuthUser } from '@/types/authRoleTypes';
 import { getTabOwnerKey, guardAuthoringSession } from '@/services/session/authoringSession';
 import { isSessionCleanupPending } from '@/services/session/sessionOwnerKey';
 
-type Choice = 'retry' | 'download' | 'cancel' | 'automatic';
+type Choice = 'retry' | 'leave' | 'cancel' | 'automatic';
 export interface NursingLogoutPrompt {
   choose: (choice: Choice) => void;
-  error?: string;
 }
 
 export const useRetainedNursingHandoffOwners = (uid: string): string[] => {
@@ -97,28 +96,16 @@ export const useNursingHandoffLogout = (
             await logout(automatic.current ? 'automatic' : 'manual');
             return;
           }
-          let error: string | undefined;
-          while (isCurrent()) {
-            const selected = await new Promise<Choice>(resolve => {
-              choice.current = resolve;
-              setPrompt({ choose: resolve, error });
-            });
-            choice.current = null;
-            setPrompt(null);
-            if (!isCurrent() || selected === 'cancel') return;
-            if (selected === 'retry') break;
-            if (selected === 'automatic') {
-              await logout('automatic');
-              return;
-            }
-            try {
-              await (await load()).downloadPendingNursingHandoff(owner);
-              if (isCurrent()) await logout('manual');
-              return;
-            } catch {
-              error = 'No se pudo descargar la copia. La sesión y la entrega siguen aquí.';
-            }
-          }
+          const selected = await new Promise<Choice>(resolve => {
+            choice.current = resolve;
+            setPrompt({ choose: resolve });
+          });
+          choice.current = null;
+          setPrompt(null);
+          if (!isCurrent() || selected === 'cancel') return;
+          if (selected === 'retry') continue;
+          await logout(selected === 'automatic' ? 'automatic' : 'manual');
+          return;
         }
       };
       inFlight.current = run().finally(() => {

@@ -9,14 +9,12 @@ import { setSessionGeneration } from '@/services/session/sessionStorageTransitio
 import { admitSyntheticSession, replaceStoredSessionOwner } from '@/tests/utils/syntheticSession';
 import type { AuthUser } from '@/types/authRoleTypes';
 
-const { attempt, backup, resume } = vi.hoisted(() => ({
+const { attempt, resume } = vi.hoisted(() => ({
   attempt: vi.fn(),
-  backup: vi.fn(),
   resume: vi.fn(),
 }));
 vi.mock('@/services/storage/sync/nursingHandoffSession', () => ({
   attemptNursingHandoffLogout: attempt,
-  downloadPendingNursingHandoff: backup,
   resumeOwnedNursingHandoff: resume,
 }));
 const user: AuthUser = {
@@ -50,7 +48,6 @@ beforeEach(() => {
   localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-A');
   setSessionGeneration('synthetic-generation');
   attempt.mockResolvedValue(false);
-  backup.mockResolvedValue(undefined);
   resume.mockResolvedValue([]);
   // JSDOM has no modal top layer; simulate only the native visibility change.
   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
@@ -91,47 +88,28 @@ it('shows exactly three choices after failure; Cancel keeps the current session 
   const dialog = await screen.findByRole('dialog', { name: 'Entrega de turno sin enviar' });
   expect(dialog.querySelectorAll('button')).toHaveLength(3);
   expect(screen.getByText('Reintentar')).toBeVisible();
-  expect(screen.getByText('Descargar copia y salir')).toBeVisible();
+  expect(screen.getByText('Salir igual (queda guardado en este equipo)')).toBeVisible();
   fireEvent.click(screen.getByText('Cancelar'));
   await screen.findByText('Cerrar sesión');
   expect(close).not.toHaveBeenCalled();
-  expect(backup).not.toHaveBeenCalled();
   expect(localStorage.getItem(SESSION_OWNER_KEY)).toBe('user:synthetic-A');
 });
 
-it('retries the existing send, closes on confirmation and never downloads a backup', async () => {
+it('retries the existing send and closes on confirmation', async () => {
   attempt.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
   render(<Surface />);
   fireEvent.click(screen.getByText('Cerrar sesión'));
   fireEvent.click(await screen.findByText('Reintentar'));
   await vi.waitFor(() => expect(close).toHaveBeenCalledWith('manual'));
   expect(attempt).toHaveBeenCalledTimes(2);
-  expect(backup).not.toHaveBeenCalled();
 });
 
-it('downloads before closing, without claiming that the retained work was confirmed', async () => {
-  const order: string[] = [];
-  backup.mockImplementation(async () => {
-    order.push('download');
-  });
-  close.mockImplementation(async () => {
-    order.push('logout');
-  });
+it('closes immediately when leaving with pending work kept locally', async () => {
   render(<Surface />);
   fireEvent.click(screen.getByText('Cerrar sesión'));
-  fireEvent.click(await screen.findByText('Descargar copia y salir'));
-  await vi.waitFor(() => expect(order).toEqual(['download', 'logout']));
-  expect(backup).toHaveBeenCalledWith('user:synthetic-A');
-});
-
-it('keeps the session and offers the three choices again if downloading fails', async () => {
-  backup.mockRejectedValueOnce(new Error('synthetic unavailable disk'));
-  render(<Surface />);
-  fireEvent.click(screen.getByText('Cerrar sesión'));
-  fireEvent.click(await screen.findByText('Descargar copia y salir'));
-  expect(await screen.findByRole('status')).toHaveTextContent('No se pudo descargar la copia');
-  expect(close).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByText('Cancelar'));
+  fireEvent.click(await screen.findByText('Salir igual (queda guardado en este equipo)'));
+  await vi.waitFor(() => expect(close).toHaveBeenCalledWith('manual'));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
 
 it('closes without a dialog when there is no nursing handoff, as reported by the queue inspection', async () => {
@@ -250,7 +228,6 @@ it('B sees one dismissible staff-only notice containing no handoff content', asy
   );
   expect(screen.getAllByRole('status')).toHaveLength(1);
   expect(attempt).not.toHaveBeenCalled();
-  expect(backup).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Cerrar aviso de entrega pendiente' }));
   expect(screen.queryByRole('status')).not.toBeInTheDocument();
 });
