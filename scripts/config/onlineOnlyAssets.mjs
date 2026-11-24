@@ -294,9 +294,8 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
   {
     glob: '**/assets/RayenSyncQueueDetails-*.js',
     reason:
-      'Optional send review and backup tools belong to that same on-demand panel. They never participate in clinical capture, persistence or queue processing.',
+      'Optional send review tools belong to that same on-demand panel. They never participate in clinical capture, persistence or queue processing.',
   },
-  { glob: '**/assets/DailyRecordTaskRecovery-*.js', reason: 'Same policy as the entry above.' },
   {
     glob: '**/assets/PatientDocumentManagerDialog-*.js',
     reason:

@@ -138,31 +138,3 @@ export const discardQuarantinedTask = (
     await hospitalDB.syncQueue.delete(taskId);
     return true;
   });
-
-/**
- * Elimina un envío bloqueado de censo ya revisado dentro de la transacción de descarte confirmado.
- * Solo borra si la fila coincide exactamente con lo revisado y la sesión del titular no cambió.
- */
-export const deleteReviewedDailyRecordTask = (
-  taskId: number,
-  expectedTaskJson: string,
-  ownerKey: string,
-  isWholeDayTask: (task: SyncTask) => boolean,
-  isSessionCurrent: () => boolean
-): Promise<boolean> =>
-  hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {
-    if (!isSessionCurrent()) return false;
-    const task = await hospitalDB.syncQueue.get(taskId);
-    if (
-      !task ||
-      !matchesOwner(ownerKey, task.ownerKey) ||
-      !isWholeDayTask(task) ||
-      !QUARANTINED_TASK_STATES.has(task.status) ||
-      JSON.stringify(task) !== expectedTaskJson
-    ) {
-      return false;
-    }
-    await hospitalDB.syncQueue.delete(taskId);
-    if (!isSessionCurrent()) throw new Error('La sesión cambió.');
-    return true;
-  });

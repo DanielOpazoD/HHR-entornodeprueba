@@ -126,7 +126,7 @@ for (const rejection of [
   });
 }
 
-test('withdraws an unnecessary permission-blocked send after optional pre-discard copy download and stays cleared after reload', async ({
+test('withdraws an unnecessary permission-blocked send via one-step confirmation and stays cleared after reload', async ({
   page,
 }) => {
   await openSeededCensus(page);
@@ -149,35 +149,19 @@ test('withdraws an unnecessary permission-blocked send after optional pre-discar
   const details = page.getByTestId('rayen-local-sync-details');
   await details.locator('summary').first().click();
   // A nurse's send for a day whose 48 h already passed: the window, not the account, refused it,
-  // and a retry can never succeed, so only the reviewed discard is offered.
+  // and a retry can never succeed, so only the confirmed discard is offered.
   await expect(details.getByText('Guardado local · 1 por revisar')).toBeVisible();
   await expect(details.getByText('Plazo de edición cerrado')).toBeVisible();
   await expect(details.getByText(/plazo de 48 h para editar este día cerró/)).toBeVisible();
   await expect(details.getByText('Sin permisos')).toHaveCount(0);
-  await expect(details.getByText('Revisar reintento', { exact: true })).toHaveCount(0);
   await expect(details.getByRole('button', { name: /reintentar/i })).toHaveCount(0);
   expect(await readSyncTask(page, id)).toEqual({ ...task, id });
   await details.getByRole('button', { name: 'Descartar envío', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Descartar envío del censo' });
-  await expect(dialog.getByText('Censo del 22-10-2026')).toBeVisible();
-  await expect(dialog.getByRole('list', { name: 'Contenido del envío' })).toContainText(
-    'Dotación y turnos'
-  );
-  await expect(dialog.getByText(/no compara con el servidor/)).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'Sí, descartar envío' })).toBeDisabled();
-  await dialog.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(details.getByText(/Estos cambios no se enviarán/)).toBeVisible();
+  await details.getByRole('button', { name: 'Cancelar', exact: true }).click();
   expect(await readSyncTask(page, id)).toEqual({ ...task, id });
   await details.getByRole('button', { name: 'Descartar envío', exact: true }).click();
-  const downloaded = page.waitForEvent('download');
-  await dialog.getByRole('button', { name: 'Descargar copia para revisar' }).click();
-  const download = await downloaded;
-  const stream = await download.createReadStream();
-  let contents = '';
-  for await (const chunk of stream) contents += chunk.toString();
-  expect(JSON.parse(contents)).toMatchObject({ remotelyConfirmed: false, task: { ...task, id } });
-  await dialog.getByRole('checkbox').check();
-  await dialog.getByRole('button', { name: 'Sí, descartar envío' }).click();
-  await expect(dialog).toHaveCount(0);
+  await details.getByRole('button', { name: 'Sí, descartar envío', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' })).toHaveCount(
     0
   );
@@ -237,10 +221,8 @@ test('reaches an older blocked send beyond two pages and deletes only that send 
   await expect(oldSend).toBeVisible();
   await expect(details.getByRole('button', { name: 'Ver más envíos' })).toHaveCount(0);
   await details.getByRole('button', { name: 'Descartar envío', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Descartar envío del censo' });
-  await dialog.getByRole('checkbox').check();
-  await dialog.getByRole('button', { name: 'Sí, descartar envío' }).click();
-  await expect(dialog).toHaveCount(0);
+  await details.getByRole('button', { name: 'Sí, descartar envío', exact: true }).click();
+  await expect(oldSend).toHaveCount(0);
   await expect(page.getByText('Envíos descartados')).toHaveCount(0);
   expect(await readSyncTask(page, blockedId)).toBeUndefined();
   expect(await readSyncTask(page, pendingIds[0])).toMatchObject({

@@ -43,7 +43,6 @@ import {
 import { resumeOwnedNursingHandoff } from '@/services/storage/sync/nursingHandoffSession';
 import { holdsDailyRecordProjection } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
-import * as exporter from '@/services/exporters/exportDownload';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { HangaRoaDatabase } from '@/services/storage/indexeddb/indexedDbDatabase';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
@@ -602,14 +601,13 @@ it('commits the release whole or not at all, as another connection sees it', asy
   }
 }, 60_000);
 
-it('downloads the refused note from «Descartar envío» and keeps the send', async () => {
+it('discards the refused note via one-step confirmation and keeps it on cancel', async () => {
   const c = await census();
   offline();
   await c.edit('note');
   c.live();
   await sendLater();
   await settled();
-  const download = vi.spyOn(exporter, 'downloadBlob').mockImplementation(() => {});
   const view = render(
     <RayenSyncQueueDetails
       stats={buildSyncQueueStats(await getSyncQueueTelemetry())}
@@ -621,21 +619,14 @@ it('downloads the refused note from «Descartar envío» and keeps the send', as
   try {
     fireEvent.click(screen.getByText('Guardado local · 1 por revisar'));
     fireEvent.click(screen.getByRole('button', { name: 'Descartar envío' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Descargar copia para revisar' }));
-    await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
-    const [blob] = download.mock.calls[0];
-    const text = await new Promise<string>(resolve => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.readAsText(blob as Blob);
-    });
-    const exported = JSON.parse(text);
-    expect(exported.task.payload[night]).toBe(NOTE);
-    expect(exported.remotelyConfirmed).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect((await tasks())[0].status).toBe('FAILED');
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar envío' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sí, descartar envío' }));
+    await waitFor(async () => expect(await tasks()).toEqual([]));
+    expect((await server())[night]).toBe('NOCHE BASE');
     expect(view.container.querySelectorAll('[role="alert"]')).toHaveLength(0);
   } finally {
-    download.mockRestore();
     view.unmount();
   }
 }, 60_000);

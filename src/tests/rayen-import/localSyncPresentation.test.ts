@@ -151,7 +151,7 @@ describe('a census send refused after its editing window closed', () => {
         categoryLabel: 'Plazo de edición cerrado',
         recovery: 'editing_window_closed',
         guidance:
-          'El plazo de 48 h para editar este día cerró antes de que el cambio llegara al servidor. Quedó solo en este equipo y no se enviará: en «Descartar envío» descarga su copia para que un administrador lo ingrese.',
+          'El plazo de 48 h para editar este día cerró antes de que el cambio llegara al servidor. Quedó solo en este equipo y no se enviará; si hace falta ingresarlo, solicítalo a un administrador y descarta este envío.',
         canRetire: true,
       });
     }
