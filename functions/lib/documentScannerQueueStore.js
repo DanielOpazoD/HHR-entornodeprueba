@@ -235,7 +235,11 @@ const markDocumentForConfirmedPurge = async ({ firestore, ref, actor }) =>
   });
 
 const completeConfirmedPurge = async ({ firestore, storage, ref, record }) => {
-  await storage.bucket().file(record.storagePath).delete({ ignoreNotFound: true });
+  try {
+    await storage.bucket().file(record.storagePath).delete({ ignoreNotFound: true });
+  } catch (_error) {
+    return false;
+  }
   return firestore.runTransaction(async transaction => {
     const snapshot = await transaction.get(ref);
     const current = snapshot.exists ? snapshot.data() || {} : null;
