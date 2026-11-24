@@ -19,6 +19,19 @@ export const calculateHospitalizedDays = (
   }
 };
 
+/**
+ * Inclusive days since a clinical device was installed.
+ * The installation calendar day counts as Day 1, independent of local DST transitions.
+ */
+export const calculateDeviceDays = (installDate?: string, currentDate?: string): number | null => {
+  const calendarDiff = diffCalendarDays(installDate, currentDate);
+  if (calendarDiff === null) {
+    return null;
+  }
+
+  return Math.max(1, calendarDiff + 1);
+};
+
 export const calculateOperationalHospitalizedDays = (
   admissionDate?: string,
   currentDate?: string

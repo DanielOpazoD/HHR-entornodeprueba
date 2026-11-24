@@ -177,4 +177,38 @@ describe('pdfContentBuilder', () => {
       expect.any(Number)
     );
   });
+
+  it('formats device days without losing a day across September DST and omits future or invalid install dates', async () => {
+    const previousTz = process.env.TZ;
+    process.env.TZ = 'America/Santiago';
+    try {
+      const dstRecord: HandoffRecord = DataFactory.createMockDailyRecord('2026-09-20', {
+        beds: {
+          R1: DataFactory.createMockPatient('R1', {
+            patientName: 'Paciente DST',
+            rut: '12.345.678-9',
+            admissionDate: '2026-08-20',
+            status: PatientStatus.ESTABLE,
+            pathology: 'Diagnóstico',
+            devices: ['VVP#1', 'CVC', 'CUP'],
+            deviceDetails: {
+              'VVP#1': { installationDate: '2026-08-20' },
+              CVC: { installationDate: '2026-09-25' },
+              CUP: { installationDate: 'invalid-date' },
+            },
+            handoffNoteDayShift: 'Nota',
+          }),
+        },
+        nursesDayShift: ['Nurse A'],
+      });
+
+      await buildHandoffPdfContent(mockDoc, dstRecord, 'day', {}, mockAutoTable);
+
+      const tableBody = mockAutoTable.mock.calls[0]?.[1]?.body as Array<Array<string>>;
+      expect(tableBody[0]?.[4]).toBe('VVP#1 (32d), CVC, CUP');
+    } finally {
+      if (previousTz === undefined) delete process.env.TZ;
+      else process.env.TZ = previousTz;
+    }
+  });
 });

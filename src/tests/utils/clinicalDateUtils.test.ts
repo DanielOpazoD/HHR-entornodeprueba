@@ -12,6 +12,7 @@ import {
   parseCalendarDateUtcNoon,
   resolveLandingCalendarDay,
 } from '@/utils/clinicalDateUtils';
+import { calculateDeviceDays } from '@/utils/clinicalStayDayUtils';
 
 describe('clinicalDateUtils', () => {
   it('normalizes ISO datetime and Chilean calendar formats', () => {
@@ -169,5 +170,36 @@ describe('calendar-day helpers equal the hand-written anchors they replaced', ()
     );
     for (const search of ['', '?date=', '?date=2026-02-30', '?date=0050-01-01', '?day=2026-01-01'])
       expect(resolveLandingCalendarDay(search, '2026-11-19')).toBe('2026-11-19');
+  });
+});
+
+describe('calculateDeviceDays', () => {
+  const deviceZone = process.env.TZ;
+  afterEach(() => {
+    if (deviceZone === undefined) delete process.env.TZ;
+    else process.env.TZ = deviceZone;
+  });
+
+  it.each(['America/Santiago', 'Pacific/Easter', 'UTC', 'Pacific/Auckland'])(
+    'counts inclusive calendar days without losing a day across DST transitions in %s',
+    zone => {
+      process.env.TZ = zone;
+      // September spring-forward DST in Chile / Rapa Nui (23-hour day): must not lose 1 day.
+      expect(calculateDeviceDays('2026-08-20', '2026-09-20')).toBe(32);
+      // April fall-back DST in Chile / Rapa Nui (25-hour day).
+      expect(calculateDeviceDays('2026-03-25', '2026-04-10')).toBe(17);
+      expect(calculateDeviceDays('2026-09-05', '2026-09-05')).toBe(1);
+    }
+  );
+
+  it('handles date strings with time component, DD-MM-YYYY, future install dates, and rejects invalid or empty dates', () => {
+    expect(calculateDeviceDays('2026-08-20T14:30', '2026-09-20T09:00')).toBe(32);
+    expect(calculateDeviceDays('20-08-2026', '20-09-2026')).toBe(32);
+    expect(calculateDeviceDays('2026-09-25', '2026-09-20')).toBe(1);
+    expect(calculateDeviceDays(undefined, '2026-09-20')).toBeNull();
+    expect(calculateDeviceDays('2026-08-20', undefined)).toBeNull();
+    expect(calculateDeviceDays('', '2026-09-20')).toBeNull();
+    expect(calculateDeviceDays('not-a-date', '2026-09-20')).toBeNull();
+    expect(calculateDeviceDays('2026-08-20', 'not-a-date')).toBeNull();
   });
 });
