@@ -1,6 +1,7 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { localPersistence } from '@/services/storage/localpersistence/localPersistenceService';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
+import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dexieSyncQueueQuarantine';
@@ -11,7 +12,21 @@ import {
 import { guardAuthoringSession } from '@/services/session/authoringSession';
 import { ensureDbReady, hospitalDB as db, isDatabaseInFallbackMode } from './indexedDbCore';
 import { dispatchDailyRecordStoreChanged } from './indexedDbRecordEvents';
-import { publishAdmissionEffects } from './remoteAdmissionEffects';
+
+const publishAdmissionEffects = (occurrences: number): void => {
+  // One event per admission with the number of days: a range of hundreds must not flood the
+  // receiver, whose rate limit would drop most of them and undercount.
+  if (occurrences > 0)
+    recordOperationalTelemetry({
+      category: 'indexeddb',
+      operation: 'indexeddb_save_records',
+      status: 'degraded',
+      context: {
+        reason: 'unheld_newer_local_replaced',
+        count: occurrences,
+      },
+    });
+};
 
 export type LocalRecordBase = { kind: 'stored'; record: DailyRecord | null } | { kind: 'unknown' };
 

@@ -1,6 +1,7 @@
 import { BedType } from '@/types/domain/beds';
 import { OCCUPANCY_ONLY_EXTRA_BED_IDS } from '@/constants/beds';
 import { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordStaffingState } from '@/types/domain/dailyRecordSlices';
 import {
   buildClinicalBedsFromPreviousRecord,
   buildEmptyClinicalBeds,
@@ -8,10 +9,38 @@ import {
 } from '@/services/repositories/dailyRecordClinicalDomainService';
 import { resolveInitialDayHandoff } from '@/services/repositories/dailyRecordHandoffDomainService';
 import { createRecordDateTimestamp } from '@/services/repositories/dailyRecordMetadataDomainService';
-import { resolveInheritedDailyRecordStaffing } from '@/services/repositories/dailyRecordStaffingDomainService';
 import { normalizeMovementBedConsistency } from '@/services/repositories/clinicalMovementBedConsistencyPolicy';
 
 export { preparePatientForCarryover };
+
+export interface InheritedDailyRecordStaffing {
+  nursesDay: string[];
+  nursesNight: string[];
+  tensDay: string[];
+  tensNight: string[];
+}
+
+export const resolveInheritedDailyRecordStaffing = (
+  prevRecord: DailyRecordStaffingState | null
+): InheritedDailyRecordStaffing => {
+  if (!prevRecord) {
+    return {
+      nursesDay: ['', ''],
+      nursesNight: ['', ''],
+      tensDay: ['', '', ''],
+      tensNight: ['', '', ''],
+    };
+  }
+
+  return {
+    nursesDay: ['', ''],
+    nursesNight: ['', ''],
+    // Staff rosters belong to a specific clinical shift. Copying last night's TENS into the new
+    // long shift creates false assignments and prevents Eloísa evidence from filling vacancies.
+    tensDay: ['', '', ''],
+    tensNight: ['', '', ''],
+  };
+};
 
 export const buildInitializedDayRecord = (
   date: string,

@@ -29,17 +29,16 @@ import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRe
 import { runRemoteSaveIntegrityCheck } from '@/services/repositories/dailyRecordRemoteWriteController';
 import { attemptConflictAutoMergeRecovery } from '@/services/repositories/dailyRecordConflictAutoMergeController';
 import { syncPatientsToMasterInBackground } from '@/services/repositories/dailyRecordBackgroundMasterSyncController';
-import { resolveBlockingFieldShrinkages } from '@/services/repositories/dailyRecordFieldShrinkageGuard';
+import {
+  resolveBlockingFieldShrinkages,
+  type FieldShrinkage,
+} from '@/services/repositories/dailyRecordFieldShrinkageGuard';
 import {
   buildBlockedWriteResult,
   settleWriteResult,
   startWriteResult,
 } from '@/services/repositories/dailyRecordWriteState';
 import type { DailyRecordWriteResult } from '@/services/repositories/contracts/dailyRecordResults';
-import {
-  buildFieldShrinkageBlockedPartialUpdateResult,
-  buildMissingBasePartialUpdateResult,
-} from '@/services/repositories/dailyRecordPartialUpdateBlockingController';
 import { persistLocalAndAttemptRemoteSync } from '@/services/repositories/dailyRecordRemotePersistenceController';
 import { buildGranularPatchStaleVersionRetryHooks } from '@/services/repositories/dailyRecordStaleVersionRebase';
 import { buildPreOutboxRemoteAckOptions } from '@/services/repositories/dailyRecordPreOutboxRemoteAckPolicy';
@@ -61,6 +60,28 @@ import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { resolveUnsentDayBase } from '@/services/storage/sync/plainDayFieldReplay';
 import { isValidRemoteAuthorityRecord } from '@/services/repositories/dailyRecordRemotePersistenceState';
 import { assertAuthoringSessionCurrent } from '@/services/session/authoringSession';
+
+export const buildMissingBasePartialUpdateResult = (date: string) =>
+  buildBlockedWriteResult(date, 'No se encontró un registro local válido para aplicar el cambio.');
+
+export const buildFieldShrinkageBlockedPartialUpdateResult = (
+  date: string,
+  shrinkages: FieldShrinkage[]
+) => {
+  const firstShrinkage = shrinkages[0];
+  if (!firstShrinkage) {
+    return buildBlockedWriteResult(
+      date,
+      'Se bloqueó una reducción sospechosa de texto clínico. Recarga antes de reintentar para evitar pérdida de información.'
+    );
+  }
+  const error = new DataRegressionError(
+    `Se bloqueó una reducción sospechosa de texto clínico (${firstShrinkage.prevLength} -> ${firstShrinkage.nextLength} caracteres). Recarga antes de reintentar para evitar pérdida de información.`,
+    firstShrinkage.nextLength,
+    firstShrinkage.prevLength
+  );
+  return buildBlockedWriteResult(date, error.message, error);
+};
 
 /** Stored here with its queue task, which sends it by itself. */
 const queuedHereResult = (

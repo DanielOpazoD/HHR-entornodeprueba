@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { softDeleteDailyRecordRemote } from '@/services/repositories/dailyRecordRepositoryLifecycleSupport';
+import { softDeleteDailyRecordRemote } from '@/services/repositories/dailyRecordDeletionService';
 
 const buildRecord = (date: string): DailyRecord =>
   ({

@@ -67,7 +67,7 @@ import {
 import { prepareFirestorePartialData } from '@/services/storage/firestore/firestoreRecordWritePatchPolicy';
 import { updateRecordPartiallyAtomically } from '@/services/storage/firestore/firestoreWriteSupport';
 import { projectFirestoreUpdate } from '@/services/storage/firestore/firestoreUpdateProjection';
-import type { DirectFirestoreWriteReceipt } from '@/services/storage/firestore/firestoreDirectWriteReceipt';
+import type { DirectFirestoreWriteReceipt } from '@/services/storage/firestore/firestoreRecordWrites';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 

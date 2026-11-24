@@ -9,7 +9,7 @@ import { resolveDailyRecordReadConsistency } from '@/services/repositories/daily
 import {
   DAILY_RECORD_DELETE_OUTBOX_POLICY,
   shouldQueueDailyRecordDeleteOutbox,
-} from '@/services/repositories/dailyRecordDeleteOutboxPolicy';
+} from '@/services/repositories/dailyRecordDeletionService';
 import {
   createCopyPatientToDateCommand,
   createDeleteDayCommand,
@@ -18,7 +18,7 @@ import {
 import {
   buildFieldShrinkageBlockedPartialUpdateResult,
   buildMissingBasePartialUpdateResult,
-} from '@/services/repositories/dailyRecordPartialUpdateBlockingController';
+} from '@/services/repositories/dailyRecordRepositoryWriteService';
 import {
   PATIENT_SYNC_OWNERSHIP_FIELDS,
   resolveDailyRecordSyncOwnership,

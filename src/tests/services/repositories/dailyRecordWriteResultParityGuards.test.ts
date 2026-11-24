@@ -3,7 +3,7 @@ import { cleanup } from '@testing-library/react';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { buildMissingBasePartialUpdateResult } from '@/services/repositories/dailyRecordPartialUpdateBlockingController';
+import { buildMissingBasePartialUpdateResult } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import {
   PARITY_DATE,
