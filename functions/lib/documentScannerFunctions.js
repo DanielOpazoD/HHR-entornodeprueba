@@ -8,6 +8,7 @@
 
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
+const { redactError } = require('./logging/redaction');
 const {
   SUBMIT_TIMEOUT_SECONDS,
   buildImageOnlyPdf,
@@ -148,6 +149,15 @@ const createSubmitScannedDocumentHandler =
         record: reservation.record,
       });
       if (!cleaned) {
+        const stillWaiting =
+          new Date(reservation.record.cleanupNotBefore || 0).getTime() > Date.now();
+        if (!stillWaiting) {
+          const refreshed = await ref.get();
+          const refreshedState = refreshed.exists ? refreshed.data()?.state : null;
+          if (!refreshed.exists || refreshedState !== 'cleanup_pending') {
+            continue;
+          }
+        }
         throw new functions.https.HttpsError(
           'unavailable',
           'Hay una carga anterior pendiente de limpieza. Reintenta más tarde.'
@@ -232,13 +242,20 @@ const createListScannedDocumentsHandler =
     });
     await Promise.all(
       cleanupCandidates.map(async record => {
-        const ref = getQueueRef(firestore).doc(record.id);
-        const cleanupRecord = await markExpiredReservationForCleanup({
-          firestore,
-          ref,
-        });
-        if (cleanupRecord)
-          await purgeCleanupRecord({ firestore, storage, ref, record: cleanupRecord });
+        try {
+          const ref = getQueueRef(firestore).doc(record.id);
+          const cleanupRecord = await markExpiredReservationForCleanup({
+            firestore,
+            ref,
+          });
+          if (cleanupRecord)
+            await purgeCleanupRecord({ firestore, storage, ref, record: cleanupRecord });
+        } catch (error) {
+          console.warn(
+            '[document-scanner] background cleanup skipped for stale upload:',
+            redactError(error)
+          );
+        }
       })
     );
     await Promise.all(
@@ -253,16 +270,23 @@ const createListScannedDocumentsHandler =
     );
     await Promise.all(
       expiredTombstones.map(record =>
-        firestore.runTransaction(async transaction => {
-          const ref = getQueueRef(firestore).doc(record.id);
-          const current = await transaction.get(ref);
-          const value = current.exists ? current.data() || {} : null;
-          if (
-            value?.state === 'completed' &&
-            new Date(value.tombstoneExpiresAt || 0).getTime() <= Date.now()
-          )
-            transaction.delete(ref);
-        })
+        firestore
+          .runTransaction(async transaction => {
+            const ref = getQueueRef(firestore).doc(record.id);
+            const current = await transaction.get(ref);
+            const value = current.exists ? current.data() || {} : null;
+            if (
+              value?.state === 'completed' &&
+              new Date(value.tombstoneExpiresAt || 0).getTime() <= Date.now()
+            )
+              transaction.delete(ref);
+          })
+          .catch(error => {
+            console.warn(
+              '[document-scanner] expired tombstone cleanup skipped:',
+              redactError(error)
+            );
+          })
       )
     );
     records.sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)));

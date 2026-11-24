@@ -474,4 +474,95 @@ describe('document scanner temporary queue', () => {
     expect(records.scan_1).not.toHaveProperty('storagePath');
     expect(blobs[storagePath]).toBeUndefined();
   });
+
+  it('returns HttpsError unavailable when confirmed purge Storage deletion fails transiently', async () => {
+    const { firestore, storage, records, blobs, controls } = buildHarness();
+    const storagePath = 'scanned-documents/hhr/scan_retry_purge/document.pdf';
+    records.scan_retry_purge = {
+      id: 'scan_retry_purge',
+      state: 'pending_eloisa',
+      storagePath,
+      submissionKeyHash: 'hash-retry-purge',
+      patientName: 'Paciente Prueba',
+      patientRut: '11.111.111-1',
+    };
+    blobs[storagePath] = Buffer.from('temporary');
+    controls.failBlobDelete = true;
+
+    const handler = createConfirmScannedDocumentUploadedHandler({
+      firestore,
+      storage,
+      resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+    });
+
+    await expect(
+      handler(
+        { id: 'scan_retry_purge', confirmedInEloisa: true },
+        { auth: { uid: 'admin-1', token: { email: 'admin@hhr.cl' } } }
+      )
+    ).rejects.toMatchObject({ code: 'unavailable' });
+    expect(records.scan_retry_purge).toMatchObject({ state: 'purge_pending', storagePath });
+    expect(blobs[storagePath]).toBeTruthy();
+  });
+
+  it('still lists pending documents when background cleanup or tombstone maintenance fails', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { firestore, storage, records, blobs } = buildHarness();
+    const pendingPath = 'scanned-documents/hhr/scan_ok/document.pdf';
+    records.scan_ok = {
+      id: 'scan_ok',
+      state: 'pending_eloisa',
+      storagePath: pendingPath,
+      bedId: 'H1C2',
+      patientName: 'Paciente Activo',
+      patientRut: '11.111.111-1',
+      pageCount: 1,
+      byteSize: 1024,
+      createdAt: '2026-07-22T11:55:00.000Z',
+    };
+    records.scan_expired_tombstone = {
+      id: 'scan_expired_tombstone',
+      state: 'completed',
+      tombstoneExpiresAt: '2026-07-21T00:00:00.000Z',
+    };
+    records.scan_stale_uploading = {
+      id: 'scan_stale_uploading',
+      state: 'uploading',
+      uploadLeaseExpiresAt: '2026-07-22T11:00:00.000Z',
+    };
+    blobs[pendingPath] = Buffer.from('%PDF-1.4\nok');
+
+    const flakyFirestore = {
+      ...firestore,
+      runTransaction: vi.fn().mockRejectedValue(new Error('transient contention')),
+    };
+
+    try {
+      const handler = createListScannedDocumentsHandler({
+        firestore: flakyFirestore,
+        storage,
+        resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+      });
+
+      const result = await handler(
+        {},
+        { auth: { uid: 'admin-1', token: { email: 'admin@hhr.cl' } } }
+      );
+      expect(result.documents).toHaveLength(1);
+      expect(result.documents[0]).toMatchObject({
+        id: 'scan_ok',
+        patientName: 'Paciente Activo',
+      });
+      expect(warnSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it('rejects oversized base64 pages immediately without decoding past the 5 MB limit', () => {
+    const oversizedBase64 = 'A'.repeat(Math.ceil((5 * 1024 * 1024) / 3) * 4 + 4);
+    expect(() => scannerFunctions.decodeJpegPages([oversizedBase64], 1)).toThrow(
+      'Las páginas deben pesar como máximo 5 MB.'
+    );
+  });
 });
