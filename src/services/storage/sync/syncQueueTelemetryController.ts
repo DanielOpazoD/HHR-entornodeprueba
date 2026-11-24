@@ -117,14 +117,12 @@ export const recordSyncQueueFailureTelemetry = (
 
 /**
  * A queue task that ended in CONFLICT. Only `origin` and `reason` are closed values, so they are
- * what the production log can count; the task's identifiers stay in the local panel. An edit held
- * because its bed changed patient lives under a `:detached:` key (`dayTaskOccupantDetach`).
+ * what the production log can count; the task's identifiers stay in the local panel.
  */
 export const recordSyncQueueConflictTelemetry = (
   task: Pick<SyncTask, 'id' | 'type' | 'key' | 'contexts' | 'origin'>,
   errorMessage: string
 ): void => {
-  const heldForOccupant = task.key?.includes(':detached:') ?? false;
   recordOperationalTelemetry({
     category: 'sync',
     status: 'degraded',
@@ -137,7 +135,6 @@ export const recordSyncQueueConflictTelemetry = (
       key: task.key,
       contexts: task.contexts,
       origin: task.origin,
-      ...(heldForOccupant ? { reason: 'occupant_changed' } : {}),
     },
   });
 };

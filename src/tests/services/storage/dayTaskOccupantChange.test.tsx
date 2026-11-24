@@ -23,15 +23,10 @@ import {
   saveWholeDay,
   writeDay,
 } from './dayRecordDaySupport';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import { listRecentSyncQueueOperations, retryQuarantinedSyncTask } from '@/services/storage/sync';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
-import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
-import { RayenSyncQueueDetails } from '@/features/rayen-import/components/RayenSyncQueueDetails';
-import type { SyncQueueStats } from '@/features/rayen-import/hooks/useSyncQueueMonitor';
 import type { DailyRecord, DailyRecordPatch } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 
@@ -48,14 +43,6 @@ const writeDayNow = async (record: DailyRecord, patch: Record<string, unknown>) 
     });
   } finally {
     h.offline = false;
-  }
-};
-/** A retry also starts a background run; reconnect until no task is waiting or in flight. */
-const settleQueue = async () => {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    await reconnect();
-    const tasks = await queue();
-    if (!tasks.some(task => task.status === 'PENDING' || task.status === 'PROCESSING')) return;
   }
 };
 
@@ -95,51 +82,7 @@ afterEach(() => {
 });
 
 describe('a day task never writes a patient edits to the next occupant', () => {
-  it('rebuilds the held edits when the authority already published the task and its ACK rolled back', async () => {
-    const base = day(DATE, { R4: A('R4', { pathology: 'Dx A' }), R6: E() });
-    await hospitalDB.dailyRecords.put(base);
-    h.remote = clone(base);
-    await writeDayNow(base, {
-      'beds.R4.pathology': 'Dx A pendiente',
-      'beds.R6.pathology': 'Dx E corregido',
-    });
-    // Same version on the server, another patient in R4: the authority accepts the base.
-    h.remote = day(DATE, { R4: B(), R6: E() }, base.lastUpdated);
-    const store = createDexieSyncQueueStore();
-    const transport = createFirestoreSyncTransport();
-    const now = Date.now() + 60 * 60 * 1000;
-    const claim = { leaseOwner: 'synthetic-lease', leaseUntil: now + 60_000, attemptId: 'try-1' };
-    const [task] = await store.claimReadyPending(now, 25, OWNER, claim);
-    const first = await transport.run(task);
-    expect(first?.detachedConflicts).toHaveLength(1);
-    vi.spyOn(hospitalDB.syncQueue, 'delete').mockRejectedValueOnce(
-      new DOMException('Synthetic failure after the conflict insert', 'QuotaExceededError')
-    );
-    await expect(
-      store.deleteClaimed(task.id!, claim, first?.authoritativeRecord, first?.detachedConflicts)
-    ).rejects.toThrow();
-    expect(await queue()).toEqual([expect.objectContaining({ id: task.id })]);
-
-    const replay = await transport.run(task);
-    await store.deleteClaimed(
-      task.id!,
-      claim,
-      replay?.authoritativeRecord,
-      replay?.detachedConflicts
-    );
-
-    expect(remote().beds.R6.pathology).toBe('Dx E corregido');
-    expect(remote().beds.R4).toMatchObject({ patientName: 'Paciente B Sintético' });
-    const [held, ...rest] = await queue();
-    expect(rest).toEqual([]);
-    expect(held).toMatchObject({ status: 'CONFLICT', lastErrorCode: 'occupant_changed' });
-    expect((held.payload as DailyRecord).beds.R4).toMatchObject({
-      clinicalEpisodeId: 'ep-A',
-      pathology: 'Dx A pendiente',
-    });
-  });
-
-  it('detaches the edits written for A as one conflict, while another bed syncs', async () => {
+  it('drops stale edits written for A without creating detached tasks, while another bed syncs', async () => {
     const base = day(DATE, { R4: A('R4', { pathology: 'Dx A' }), R6: E() });
     await hospitalDB.dailyRecords.put(base);
     h.remote = clone(base);
@@ -157,76 +100,31 @@ describe('a day task never writes a patient edits to the next occupant', () => {
     });
     expect(JSON.stringify(remote().beds.R4)).not.toContain('Comentario de A');
     expect(remote().beds.R6.pathology).toBe('Dx E corregido');
-    const [conflict, ...rest] = await queue();
-    expect(rest).toEqual([]);
-    expect(conflict).toMatchObject({ status: 'CONFLICT', type: 'UPDATE_DAILY_RECORD' });
-    expect(conflict.key).toContain(':detached:');
-    expect(conflict.syncContract?.changedPaths).toEqual(
-      expect.arrayContaining(['beds.R4.pathology', 'beds.R4.diagnosisComments'])
-    );
-    expect((conflict.payload as DailyRecord).beds.R4).toMatchObject({
-      clinicalEpisodeId: 'ep-A',
-      pathology: 'Dx A corregido',
-      diagnosisComments: 'Comentario de A',
+    expect(await queue()).toEqual([]);
+    expect((await local()).beds.R4).toMatchObject({
+      patientName: 'Paciente B Sintético',
+      pathology: 'Dx B',
     });
-    expect((await local()).beds.R4.patientName).toBe('Paciente B Sintético');
-
-    const operations = await listRecentSyncQueueOperations(10);
-    const stats = {
-      pending: 0,
-      failed: 0,
-      conflict: 1,
-      retrying: 0,
-      readState: 'ok',
-    } as SyncQueueStats;
-    render(
-      <RayenSyncQueueDetails
-        stats={stats}
-        operations={operations}
-        refresh={vi.fn(async () => {})}
-        working={false}
-      />
-    );
-    expect(screen.getByText('Cambios de Paciente A Sintético · 24-10-2026')).toBeInTheDocument();
-    expect(screen.queryByText('Reintentar')).not.toBeInTheDocument();
   });
 
-  it('keeps a retried held conflict while A is gone, and publishes it once A and the episode are back', async () => {
+  it('drains cleanly without writing onto the new occupant when only the departed bed was edited', async () => {
     const base = day(DATE, { R4: A('R4', { pathology: 'Dx A' }), R6: E() });
     await hospitalDB.dailyRecords.put(base);
     h.remote = clone(base);
     await writeDayNow(base, { 'beds.R4.pathology': 'Dx A corregido' });
-    await writeDayNow(await local(), { 'beds.R6.pathology': 'Dx E corregido' });
-    // Same version on the server, another patient in R4: the authority accepts the base.
     h.remote = day(DATE, { R4: { ...B(), pathology: 'Dx B' }, R6: E() }, base.lastUpdated);
-    await reconnect();
-    const [held] = await queue();
 
-    expect(await retryQuarantinedSyncTask(held.id!)).toBe(true);
-    await settleQueue();
-    expect(await queue()).toEqual([
-      expect.objectContaining({ id: held.id, key: held.key, status: 'CONFLICT' }),
-    ]);
+    await reconnect();
+
     expect(remote().beds.R4).toMatchObject({
       patientName: 'Paciente B Sintético',
       pathology: 'Dx B',
     });
-
-    // Another device undoes the move: A is back in R4 with the same episode.
-    h.remote = day(
-      DATE,
-      { R4: A('R4', { pathology: 'Dx A' }), R6: E({ pathology: 'Dx E corregido' }) },
-      '2026-10-24T12:00:00.000Z'
-    );
-    expect(await retryQuarantinedSyncTask(held.id!)).toBe(true);
-    await settleQueue();
-    expect(remote().beds.R4).toMatchObject({
-      clinicalEpisodeId: 'ep-A',
-      pathology: 'Dx A corregido',
-    });
-    expect(remote().beds.R6.pathology).toBe('Dx E corregido');
     expect(await queue()).toEqual([]);
-    expect((await local()).beds.R4.pathology).toBe('Dx A corregido');
+    expect((await local()).beds.R4).toMatchObject({
+      patientName: 'Paciente B Sintético',
+      pathology: 'Dx B',
+    });
   });
 });
 
@@ -247,7 +145,7 @@ describe('a census edit queued while another session replaces a patient', () => 
     await expectDayEditsKept({ 'beds.R6.pathology': 'Dx E corregido' });
   });
 
-  it('keeps an edit of the departed patient, not written on B, when it edits the same bed', async () => {
+  it('never writes an edit of the departed patient onto B while keeping edits of another bed', async () => {
     await readStored({ R4: A('R4', { pathology: 'Dx A' }), R6: E() });
     await writeDay({
       'beds.R4.pathology': 'Dx A corregido',
@@ -259,13 +157,8 @@ describe('a census edit queued while another session replaces a patient', () => 
 
     expectBInR4();
     expect(remote().beds.R4.pathology).not.toBe('Dx A corregido');
-    // The direct route holds the departed patient's edit as its own conflict and publishes the rest;
-    // The authority keeps the whole day write queued.
     await expectDayEditsKept({ 'beds.R6.pathology': 'Dx E corregido' });
-    const kept = (await queue()).filter(task => task.type === 'UPDATE_DAILY_RECORD');
-    expect(kept.map(task => (task.payload as DailyRecord).beds.R4.pathology)).toEqual([
-      'Dx A corregido',
-    ]);
+    expect((await queue()).filter(task => task.key?.includes(':detached:'))).toEqual([]);
   });
 
   it('publishes several census edits of other beds', async () => {

@@ -388,17 +388,12 @@ export const createSyncQueueEngine = ({
                     task.id,
                     claim,
                     result.authoritativeRecord,
-                    result.detachedConflicts,
                     result.heldTask
                   );
                   if (!deleted) {
                     recordSyncQueueStaleClaimTelemetry(task, 'delete');
-                  } else {
-                    // Edits held because their bed changed patient were stored as conflicts.
-                    for (const conflict of result.detachedConflicts ?? [])
-                      recordSyncQueueConflictTelemetry(conflict, conflict.error ?? '');
-                    if (result.heldTask)
-                      recordSyncQueueConflictTelemetry(task, result.heldTask.error ?? '');
+                  } else if (result.heldTask) {
+                    recordSyncQueueConflictTelemetry(task, result.heldTask.error ?? '');
                   }
                 }
               } catch (error) {

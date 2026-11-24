@@ -313,8 +313,8 @@ it.each(['live', 'refetch'] as const)(
 
 // W12-CW10. «Limpiar» on the census row (a bed clear, not a discharge). The day kept here with this
 // person's unsent texts carries this computer's time, never a version of the server. The hook binds
-// the clear to the server's day, so the bed is cleared while a diagnosis waits after the notice,
-// and that diagnosis stays held for the patient it was written for (ID-01), never on the empty bed.
+// the clear to the server's day, so the bed is cleared while a diagnosis waits after the notice:
+// the obsolete diagnosis for the cleared patient is stripped (ID-05) while the night note stays.
 it('clears the bed («Limpiar») of a patient whose diagnosis waits after the notice', async () => {
   const { mutate, hook } = await conflictOnNight();
   await admin.doc(dayPath).update({ 'beds.R4.pathology': 'A4', lastUpdated: Timestamp.now() });
@@ -339,9 +339,7 @@ it('clears the bed («Limpiar») of a patient whose diagnosis waits after the no
   const held = (await hospitalDB.syncQueue.toArray()).filter(
     task => (task.payload as DailyRecord | undefined)?.beds?.R4?.pathology === 'B4'
   );
-  expect(held.map(task => [task.status, (task.payload as DailyRecord).beds.R4.rut])).toEqual([
-    ['CONFLICT', '11111111-1'],
-  ]);
+  expect(held).toEqual([]);
   await expectUnsentNightKept('B3');
   hook.unmount();
 }, 60_000);
@@ -434,14 +432,10 @@ const heldTasks = async () =>
     };
   });
 
-// W12-CW10. «Dar de alta» and «Traslado» are not a bed clear: the census's movement executor saves
-// the movement list and the freed bed in one write that the day's queue task publishes. Folded
-// into the day's task, that write replaced the bed and with it the diagnosis written here for the
-// patient who leaves, which was then neither on the server nor in the queue (SAVE-03). It now stays
-// held for that patient and episode (ID-01), as when a confirmed command empties the bed (W12-CW8),
-// and the movement still reaches the server on its own.
+// «Dar de alta» / «Traslado» empties the bed and publishes cleanly; any prior offline field edit
+// for the departed patient is stripped (ID-05) without leaving a `:detached:` conflict behind.
 it.each(['discharge', 'transfer'] as const)(
-  '«%s» publishes the movement and keeps for its patient a diagnosis written here offline',
+  '«%s» publishes the movement and strips an obsolete offline diagnosis for the departed patient',
   async kind => {
     const { mutate, hook } = await censusHere();
     setFirestoreEnabled(false);
@@ -455,27 +449,17 @@ it.each(['discharge', 'transfer'] as const)(
     const remote = await server();
     expect(remote.beds.R4).toMatchObject({ rut: '', pathology: '' });
     expect(movedOut(remote, kind)).toEqual(['PACIENTE SINTETICO A']);
-    expect(await heldTasks()).toEqual([
-      {
-        status: 'CONFLICT',
-        patient: ['11111111-1', 'episode-a'],
-        pathology: 'B4',
-        paths: ['beds.R4.pathology'],
-      },
-    ]);
-    expect((await hospitalDB.syncQueue.toArray())[0].error).toMatch(/ya no tiene a PACIENTE/);
+    expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
     hook.unmount();
   },
   60_000
 );
 
-// W12-CW10. The diagnosis waits after «El campo cambió en otro equipo»: another computer wrote one
-// for this patient, and the screen keeps this person's. Moving the patient out keeps this person's
-// diagnosis held for them (it used to be replaced by the empty bed and lost), and the movement does
-// not clear the other computer's diagnosis unseen (SAVE-02, as with no diagnosis waiting here): it
-// waits for review, and the sync status counts it.
+// After a «El campo cambió en otro equipo» conflict on R4, moving the patient out still does not
+// clear the other computer's diagnosis unseen (SAVE-02): the movement waits as a single CONFLICT
+// without fabricating a second `:detached:` sub-task.
 it.each(['discharge', 'transfer'] as const)(
-  '«%s» of a patient whose diagnosis waits after the notice keeps that diagnosis for them',
+  '«%s» after a diagnosis conflict keeps the movement held without overwriting the other computer',
   async kind => {
     const { mutate, hook } = await censusHere();
     await admin.doc(dayPath).update({ 'beds.R4.pathology': 'A4', lastUpdated: Timestamp.now() });
@@ -492,19 +476,10 @@ it.each(['discharge', 'transfer'] as const)(
 
     expect((await server()).beds.R4).toMatchObject({ rut: '11111111-1', pathology: 'A4' });
     const tasks = await heldTasks();
-    expect(tasks.filter(task => task.pathology === 'B4')).toEqual([
-      {
-        status: 'CONFLICT',
-        patient: ['11111111-1', 'episode-a'],
-        pathology: 'B4',
-        paths: ['beds.R4.pathology'],
-      },
-    ]);
-    // The movement itself, on its empty bed, waits for review.
     expect(
       tasks.filter(task => task.paths?.includes(listOf(kind))).map(task => task.status)
     ).toEqual(['CONFLICT']);
-    expect((await getSyncQueueTelemetry()).conflict).toBe(2);
+    expect((await getSyncQueueTelemetry()).conflict).toBe(1);
     hook.unmount();
   },
   60_000

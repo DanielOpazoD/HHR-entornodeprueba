@@ -159,17 +159,13 @@ latest mutation marker does not by itself acknowledge the other mutations.
 1. **Already applied** — the remote `meta.lastMutationId` equals the task's `mutationId`: no write
    for a single mutation. A compacted task additionally requires all its granular changed values
    to be present remotely; otherwise the remaining work is merged and published;
-   the remote record is returned as the authoritative result. A task still queued after its
-   write landed (its ACK rolled back) rebuilds its held conflicts (step 2) on this path too, so
-   completing it never drops them.
+   the remote record is returned as the authoritative result.
 2. **Departed occupant** — a bed or crib whose field edits were written for a patient or episode
    it no longer holds: none of those edits are written to the new occupant, whatever the server
-   stamped. They leave the task as one `CONFLICT` bound to the original patient
-   (`dayTaskOccupantDetach.ts`), the other beds go on to step 3 (always merged against the remote),
-   and step 6 writes that conflict in the same transaction that completes the task. A task that
-   itself changed the occupant (admission, discharge, identity correction) is not detached. The
-   held conflict has its own mutation id; retried while its patient is still gone it stays that
-   conflict, and once the same patient and episode are back it publishes and completes.
+   stamped (`stripStaleOccupantPaths` in `dayTaskReplayGuard.ts`). They are stripped without
+   creating `:detached:` sub-tasks; the other beds go on to step 3 (always merged against the
+   remote), or if no paths remain the task drains as already applied. A task that itself changed
+   the occupant (admission, discharge, identity correction) is not stripped.
 3. **Stale task** (remote `lastUpdated` newer than the task's `expectedVersion`) —
    `assertNoSamePathRemoteMutation` blocks when the remote `meta.lastChangedPaths` overlaps the
    task's `changedPaths` (movement arrays and disjoint medical-handoff entries/specialties may
@@ -190,7 +186,7 @@ latest mutation marker does not by itself acknowledge the other mutations.
    task still sends its own base, so the callable refuses it while the stored day is newer and the
    task stays queued (a known limit: it is held, not lost). The client no longer sends shadow
    dry-run validations.
-6. **Acknowledge** — `completeClaimedSyncTask` writes any detached conflict, deletes the task and,
+6. **Acknowledge** — `completeClaimedSyncTask` deletes the task (or updates any held part) and,
    when no other task for that date is unresolved, adopts the authoritative record into IndexedDB,
    all in the same Dexie transaction.
 

@@ -193,59 +193,46 @@ describe('bed swap with a mother and her newborn across write guards', () => {
   });
 
   // The stale edit was written for A, who left R1. It reaches neither the mother now in R1 nor
-  // A in R2: the transport detaches it as a conflict bound to A, and the queue store writes that
-  // conflict in the same transaction that completes the task (`completeClaimedSyncTask`).
-  const expectStaleEditHeldForA = async () => {
+  // A in R2: the transport strips the stale occupant path and adopts the remote record cleanly
+  // without creating a `:detached:` sub-task.
+  const expectStaleEditDroppedWithoutTouchingNewOccupant = async () => {
     const outcome = await replay(staleDiagnosisTask());
 
     expect(mocks.set).not.toHaveBeenCalled();
-    expect(outcome).toMatchObject({
-      authoritativeRecord: {
-        beds: {
-          R1: { patientName: 'Madre Sintetica', pathology: 'Diagnostico madre' },
-          R2: { patientName: 'Paciente Sintetico A', pathology: 'Diagnostico A' },
-        },
-      },
-      detachedConflicts: [
-        {
-          status: 'CONFLICT',
-          lastErrorCode: 'occupant_changed',
-          error: expect.stringContaining('La cama R1 ya no tiene a Paciente Sintetico A'),
-          syncContract: { changedPaths: ['beds.R1.pathology'] },
-          payload: {
-            beds: {
-              R1: {
-                patientName: 'Paciente Sintetico A',
-                clinicalEpisodeId: 'episode-swap-a',
-                pathology: 'Diagnostico A editado antes del cambio',
-              },
-            },
-          },
-        },
-      ],
+    expect(outcome).toEqual({
+      authoritativeRecord: expect.objectContaining({
+        beds: expect.objectContaining({
+          R1: expect.objectContaining({
+            patientName: 'Madre Sintetica',
+            pathology: 'Diagnostico madre',
+          }),
+          R2: expect.objectContaining({
+            patientName: 'Paciente Sintetico A',
+            pathology: 'Diagnostico A',
+          }),
+        }),
+      }),
     });
   };
 
-  it('holds a stale queued edit as a conflict for A when the authority stamped the swap', async () => {
+  it('drops a stale queued edit without writing to the new occupant when authority stamped the swap', async () => {
     serveRemote({
       ...afterSwap(),
       meta: { lastMutationId: 'swap-mutation', lastChangedPaths: SWAPPED_BEDS },
     });
 
-    await expectStaleEditHeldForA();
+    await expectStaleEditDroppedWithoutTouchingNewOccupant();
   });
 
-  it('holds the stale edit as a conflict for A after a direct publish', async () => {
-    // Client direct writes leave no `meta.lastChangedPaths`; the edit used to be dropped here.
+  it('drops the stale edit without writing to the new occupant after a direct publish', async () => {
     serveRemote(afterSwap());
 
-    await expectStaleEditHeldForA();
+    await expectStaleEditDroppedWithoutTouchingNewOccupant();
   });
 
-  it('holds the stale edit as a conflict for A after a full-save stamp', async () => {
-    // Full saves declare `changedPaths: ['*']`; the edit used to be dropped here too.
+  it('drops the stale edit without writing to the new occupant after a full-save stamp', async () => {
     serveRemote({ ...afterSwap(), meta: { lastMutationId: 'full-save', lastChangedPaths: ['*'] } });
 
-    await expectStaleEditHeldForA();
+    await expectStaleEditDroppedWithoutTouchingNewOccupant();
   });
 });

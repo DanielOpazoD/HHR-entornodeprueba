@@ -111,3 +111,96 @@ export const keepStoredNoteFields = (
   }
   return Object.keys(stored).length ? applyPatches(local, stored as DailyRecordPatch) : local;
 };
+
+const IDENTITY_FIELDS = new Set(['patientName', 'rut', 'documentType', 'clinicalEpisodeId']);
+const BED_SLOT_FIELDS = new Set(['isBlocked', 'blockedReason']);
+type SlotTarget = { bedId: string; target: 'bed' | 'clinicalCrib' };
+
+const bedFieldTarget = (path: string): (SlotTarget & { field: string }) | null => {
+  const [root, bedId, field, nested] = path.split('.');
+  if (root !== 'beds' || !bedId || !field || BED_SLOT_FIELDS.has(field)) return null;
+  if (field !== 'clinicalCrib') return { bedId, target: 'bed', field };
+  return nested ? { bedId, target: 'clinicalCrib', field: nested } : null;
+};
+
+const slotOccupant = (
+  record: DailyRecord,
+  { bedId, target }: SlotTarget
+): PatientData | undefined =>
+  target === 'clinicalCrib' ? record.beds?.[bedId]?.clinicalCrib : record.beds?.[bedId];
+
+export interface StrippedOccupantWork {
+  /** The day task without the stale occupant paths, and its payload restored from remote there. */
+  task: SyncTask;
+  record: DailyRecord;
+}
+
+/**
+ * Field edits belong to the occupant they were written for (ID-01, ID-05). When the stored bed or
+ * crib now holds another patient or episode, those stale field paths are stripped and restored
+ * from remote so they never land on the new occupant, without creating `:detached:` sub-tasks.
+ * A task that itself changed occupant identity (admission, discharge, correction) keeps normal
+ * merge/conflict handling.
+ */
+export const stripStaleOccupantPaths = (
+  task: SyncTask,
+  record: DailyRecord,
+  remote: DailyRecord
+): StrippedOccupantWork | null => {
+  const changedPaths = task.syncContract?.changedPaths ?? [];
+  const groups = new Map<string, SlotTarget & { paths: string[]; changesOccupant: boolean }>();
+  for (const path of changedPaths) {
+    const target = bedFieldTarget(path);
+    if (!target) continue;
+    const id = `${target.bedId}.${target.target}`;
+    const group = groups.get(id) ?? { ...target, paths: [], changesOccupant: false };
+    group.paths.push(path);
+    group.changesOccupant ||= IDENTITY_FIELDS.has(target.field);
+    groups.set(id, group);
+  }
+  const stale = [...groups.values()].filter(
+    group =>
+      !group.changesOccupant &&
+      !hasSameBedOccupant(slotOccupant(record, group), slotOccupant(remote, group))
+  );
+  if (!stale.length) return null;
+  const stripped = stale.flatMap(group => group.paths);
+  const remoteValues = Object.fromEntries(
+    stripped.map(path => [path, getValueAtPath(remote, path)])
+  );
+  return {
+    task: {
+      ...task,
+      syncContract: {
+        ...task.syncContract,
+        changedPaths: changedPaths.filter(path => !stripped.includes(path)),
+      },
+    },
+    record: applyPatches(record, remoteValues as DailyRecordPatch),
+  };
+};
+
+const isEmptySlot = (slot: PatientData | undefined) => hasSameBedOccupant(slot, undefined);
+
+/**
+ * The stored day with only the beds and cribs that `next` empties taken from it: what a discharge
+ * or transfer leaves, without counting an identity correction as another patient.
+ */
+export const withVacatedSlots = (stored: DailyRecord, next: DailyRecord): DailyRecord => ({
+  ...stored,
+  beds: Object.fromEntries(
+    Object.entries(stored.beds ?? {}).map(([bedId, bed]) => {
+      const nextBed = next.beds?.[bedId];
+      const kept = isEmptySlot(nextBed) ? nextBed : bed;
+      return [
+        bedId,
+        {
+          ...kept,
+          clinicalCrib: isEmptySlot(nextBed?.clinicalCrib)
+            ? nextBed?.clinicalCrib
+            : bed?.clinicalCrib,
+        } as PatientData,
+      ];
+    })
+  ),
+});

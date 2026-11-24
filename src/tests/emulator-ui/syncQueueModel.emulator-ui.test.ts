@@ -204,9 +204,10 @@ const replacedBy = (m: Model, edit: Edit): unknown[] => {
     base = previous.base;
   }
 };
-/** Confirmed by the server, or replaced by a later edit of the same person on the same field. */
+/** Confirmed by the server, replaced by its author, or discarded when its bed changed occupant (ID-05). */
 const settled = (m: Model, edit: Edit) =>
   m.everOnServer.has(edit.value) ||
+  (edit.path === BED_PATH && edit.occupant !== m.occupant) ||
   m.edits.some(
     later =>
       m.edits.indexOf(later) > m.edits.indexOf(edit) &&
@@ -1104,10 +1105,9 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
   }, 60_000);
 
-  // ID-01 (fixed in W12-CW6): this computer still shows a patient without a diagnosis
-  // when another computer discharges them and admits another, also without one. A diagnosis
-  // written here meets the newer version; its retry once checked only that the diagnosis still
-  // held its base value, which the new patient's empty one does, and wrote it on the new patient.
+  // ID-01 / ID-05: this computer still shows a patient without a diagnosis when another computer
+  // discharges them and admits another, also without one. A diagnosis written here is stripped on
+  // replay without writing on the new patient or fabricating a `:detached:` conflict row.
   it('never writes a diagnosis meant for the patient shown here on the patient admitted meanwhile', async () => {
     const m = await resetWorld();
     for (const patch of patchOf(await readServer(), BED_PATH, '')) await onA(patch);
@@ -1117,45 +1117,25 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
 
     expect(await editIn(m, BED_PATH)).toBe('editar B1 en cama');
     expect((await readServer()).beds[BED].pathology).toBe('');
-    // Kept for the patient it was written for, and still never published on the new one.
     await replayIn(m);
-    expect((await readServer()).beds[BED].pathology).toBe('');
-    const held = (await hospitalDB.syncQueue.toArray()).filter(
-      task => getValueAtPath(task.payload, BED_PATH) === 'B1'
-    );
-    expect(held.map(task => [task.status, (task.payload as DailyRecord).beds[BED]?.rut])).toEqual([
-      ['CONFLICT', '12345678-5'],
-    ]);
+    expect((await readServer()).beds[BED]).toMatchObject({ rut: '11111111-1', pathology: '' });
+    expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
   }, 60_000);
 
-  // SAVE-03 (W12-CW8; CI seed -467918566, path "20:4:5:4:4"). The diagnosis written here meets
-  // the other computer's and waits in the queue with the «changed elsewhere» notice. «Limpiar»
-  // here empties the bed, and the confirmed clear was taken as covering that
-  // diagnosis, which left the queue: the text was neither on the server nor in the queue. It stays
-  // now, held for the patient it was written for (ID-01), and never lands on the empty bed.
-  it('keeps a diagnosis waiting for its patient when this computer then clears the bed («Limpiar»)', async () => {
+  // ID-05: clearing a bed («Limpiar») drops any stale diagnosis still waiting for the patient who
+  // left, without writing on the empty bed or leaving a `:detached:` conflict behind.
+  it('drops a waiting diagnosis when this computer clears the bed («Limpiar»)', async () => {
     const m = await resetWorld();
     await writeOnA(BED_PATH).run(m, {});
     expect(await editIn(m, BED_PATH)).toBe('editar B2 en cama');
     await clearBedOnB.run(m, {});
     expect(m.log.at(-1)).toBe('limpiar la cama (limpiada)');
 
-    const held = (await hospitalDB.syncQueue.toArray()).filter(
-      task => getValueAtPath(task.payload, BED_PATH) === 'B2'
-    );
-    expect(
-      held.map(task => [task.status, task.lastErrorCode, (task.payload as DailyRecord).beds[BED]])
-    ).toEqual([['CONFLICT', 'occupant_changed', expect.objectContaining({ rut: '12345678-5' })]]);
     await replayIn(m);
     expect((await readServer()).beds[BED]).toMatchObject({ rut: '', pathology: '' });
+    expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
   }, 60_000);
 
-  // W12-CW10, the KNOWN_DEFECT 9 of W12-CW9, for «Limpiar»: an error of this model. A day kept
-  // here with an unsent edit carries this computer's time, not a version of the server. The
-  // model's clear sent that time as the version the person saw, and the server refused it
-  // («HHR detectó una versión más reciente de este censo»), also after the day arrived again. The
-  // census hook reads the server's day before a clear, and so does the model now. «Dar de alta» and
-  // «Traslado» take another path, which lost that diagnosis; see fieldChangedElsewhereNextEdit.
   it('clears the bed («Limpiar») of a patient whose diagnosis edit waits after a «changed elsewhere» notice', async () => {
     const m = await resetWorld();
     await writeOnA(BED_PATH).run(m, {});
@@ -1166,12 +1146,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
 
     await replayIn(m);
     expect((await readServer()).beds[BED]).toMatchObject({ rut: '', pathology: '' });
-    const held = (await hospitalDB.syncQueue.toArray()).filter(
-      task => getValueAtPath(task.payload, BED_PATH) === 'B2'
-    );
-    expect(held.map(task => [task.status, (task.payload as DailyRecord).beds[BED]?.rut])).toEqual([
-      ['CONFLICT', '12345678-5'],
-    ]);
+    expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
   }, 60_000);
 
   // W12-CW9, CI seed -435688032, path "16:6:5": an error of this model, not of the app. It moved

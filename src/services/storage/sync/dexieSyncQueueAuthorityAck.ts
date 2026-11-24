@@ -11,7 +11,7 @@ import type {
 import { hasSameComparableValue } from '@/services/repositories/conflictResolutionUtils';
 import { isNursingHandoffPath } from './nursingHandoffTasks';
 import { clearSyncTaskRuntimeState } from './syncQueueTaskFactory';
-import { detachStaleOccupantPaths, keepDetachedConflicts } from './dayTaskOccupantDetach';
+import { stripStaleOccupantPaths } from './dayTaskReplayGuard';
 
 import {
   REUSABLE_TASK_STATES,
@@ -111,7 +111,6 @@ export const completeClaimedSyncTask = (
   taskId: number,
   claim: SyncQueueLeaseClaim,
   authoritativeRecord?: DailyRecord,
-  detachedConflicts: SyncTask[] = [],
   heldTask?: Partial<SyncTask>
 ): Promise<{ deleted: boolean; adopted: boolean }> =>
   db.transaction('rw', db.syncQueue, db.dailyRecords, async () => {
@@ -123,8 +122,7 @@ export const completeClaimedSyncTask = (
       const dayKey = `daily:${authoritativeRecord.date}`;
       if (
         task.type !== 'UPDATE_DAILY_RECORD' ||
-        // A held conflict published once its patient is back completes like its day task.
-        (task.key !== dayKey && !task.key?.startsWith(`${dayKey}:detached:`)) ||
+        task.key !== dayKey ||
         payload?.date !== authoritativeRecord.date
       )
         throw new SyncQueueAckError('sync_ack_invalid_record', 'Invalid ACK record.');
@@ -148,8 +146,6 @@ export const completeClaimedSyncTask = (
         adopted = true;
       }
     }
-    // Edits detached from this task stay durable, as conflicts, before the task leaves the queue.
-    await keepDetachedConflicts(db, detachedConflicts, task.ownerKey);
     const remaining = task.nursingHandoffRecovery
       ? (task.syncContract?.changedPaths?.filter(path => !isNursingHandoffPath(path)) ?? [])
       : [];
@@ -197,17 +193,16 @@ export const adoptAuthoritativeDailyRecordInOutbox: NonNullable<
     ) {
       return blocked;
     }
-    // The confirmed command emptied a bed or put another patient in it (ID-01): edits written for
-    // the patient who left are never rebased onto it nor dropped as covered by it (SAVE-03). They
-    // stay for that patient as a conflict, as a replay keeps them (`detachStaleOccupantPaths`).
-    const detached = detachStaleOccupantPaths(
+    // The confirmed command emptied a bed or put another patient in it (ID-01, ID-05): edits
+    // written for the patient who left are stripped and never rebased onto the new occupant.
+    const stripped = stripStaleOccupantPaths(
       heldTask,
       pendingPayload as DailyRecord,
       authoritativeRecord
     );
-    const pendingTask = detached?.task ?? heldTask;
+    const pendingTask = stripped?.task ?? heldTask;
     const replacement =
-      detached && !pendingTask.syncContract?.changedPaths?.length
+      stripped && !pendingTask.syncContract?.changedPaths?.length
         ? { record: authoritativeRecord, task: null }
         : buildReplacement(localRecord, pendingTask);
     // A confirmed command may fully supersede quarantine. Residual edits must
@@ -219,7 +214,6 @@ export const adoptAuthoritativeDailyRecordInOutbox: NonNullable<
     )
       return blocked;
     await hospitalDB.dailyRecords.put(replacement.record);
-    await keepDetachedConflicts(hospitalDB, detached?.conflicts ?? [], pendingTask.ownerKey);
     if (replacement.task === null) {
       // Supersesión total: el comando confirmado ya cubre todo lo pendiente.
       // Reemplazarla re-declararía paths ya aplicados y mantendría viva la
