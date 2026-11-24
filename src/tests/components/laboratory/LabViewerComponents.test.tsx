@@ -24,16 +24,23 @@ vi.mock('@/services/laboratory/syslabExtensionBridge', () => ({
   openSyslabPdfThroughExtension: mockOpenSyslabPdfThroughExtension,
 }));
 
-vi.mock('@/features/laboratory/controllers/labFormattingController', () => ({
-  isOutOfRange: (result: string, ref: string) => {
-    const m = ref.match(/([\d.]+)-([\d.]+)/);
-    if (!m) return null;
-    const v = parseFloat(result);
-    if (isNaN(v)) return null;
-    return v < parseFloat(m[1]) || v > parseFloat(m[2]);
-  },
-  formatLabResult: (result: string, unit: string) => ({ display: result, displayUnit: unit }),
-}));
+vi.mock('@/features/laboratory/controllers/labFormattingController', async importOriginal => {
+  const actual =
+    await importOriginal<
+      typeof import('@/features/laboratory/controllers/labFormattingController')
+    >();
+  return {
+    ...actual,
+    isOutOfRange: (result: string, ref: string) => {
+      const m = ref.match(/([\d.]+)-([\d.]+)/);
+      if (!m) return null;
+      const v = parseFloat(result);
+      if (isNaN(v)) return null;
+      return v < parseFloat(m[1]) || v > parseFloat(m[2]);
+    },
+    formatLabResult: (result: string, unit: string) => ({ display: result, displayUnit: unit }),
+  };
+});
 
 vi.mock('@/features/laboratory/controllers/labSummaryController', () => ({
   buildLabSummaryText: vi.fn(() => 'mock summary'),

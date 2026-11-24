@@ -6,7 +6,7 @@ import {
   resolveAllSelectableExamsSelected,
   resolveLabExamDateRange,
   resolveSelectableLabExams,
-} from '@/features/laboratory/controllers/labExamListController';
+} from '@/features/laboratory/controllers/labViewerController';
 
 const buildExam = (overrides: Partial<SyslabExamItem> = {}): SyslabExamItem => ({
   id: '100',

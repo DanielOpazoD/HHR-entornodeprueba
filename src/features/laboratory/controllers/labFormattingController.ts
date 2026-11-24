@@ -245,3 +245,12 @@ export const bedSortKey = (bedId: string): number => {
 /** Remove PDF column separators, preserving the clinical unit and its scale. */
 export const normalizeLabUnit = (unit: string): string =>
   unit.replace(/^[\s|]+|[\s|]+$/g, '').trim();
+
+export const formatLabExamColumnLabel = (examDate: string, includeTimeInColumns = true): string => {
+  if (includeTimeInColumns) {
+    return examDate;
+  }
+
+  const dateOnlyMatch = examDate.match(/^(\d{2}\/\d{2}\/\d{4})(?:\s+\d{2}:\d{2})?$/);
+  return dateOnlyMatch?.[1] ?? examDate;
+};

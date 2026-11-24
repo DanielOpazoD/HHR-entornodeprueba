@@ -1,12 +1,29 @@
 import React from 'react';
 import { ShieldCheck, ShieldAlert, ShieldOff } from 'lucide-react';
-import {
-  deriveConsentDisplayState,
-  consentStatusLabel,
-  consentStatusColor,
-  type ConsentDisplayState,
-} from '../controllers/consentStatusController';
 import type { WoundCareConsent } from '@/types/domain/woundCare';
+
+export type ConsentDisplayState = 'none' | 'signed' | 'revoked';
+
+export const deriveConsentDisplayState = (
+  consent: WoundCareConsent | null | undefined
+): ConsentDisplayState => {
+  if (!consent) return 'none';
+  if (consent.status === 'signed') return 'signed';
+  if (consent.status === 'revoked') return 'revoked';
+  return 'none';
+};
+
+export const consentStatusLabel: Record<ConsentDisplayState, string> = {
+  none: 'Sin consentimiento',
+  signed: 'Consentimiento firmado',
+  revoked: 'Consentimiento revocado',
+};
+
+export const consentStatusColor: Record<ConsentDisplayState, string> = {
+  none: 'text-amber-600 bg-amber-50 border-amber-200',
+  signed: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+  revoked: 'text-red-600 bg-red-50 border-red-200',
+};
 
 interface ConsentStatusProps {
   consent: WoundCareConsent | null;

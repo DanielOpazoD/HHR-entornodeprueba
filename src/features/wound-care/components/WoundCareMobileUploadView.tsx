@@ -6,13 +6,47 @@ import {
   type WoundCareMobileUploadSessionPayload,
 } from '@/features/wound-care/services/woundCareMobileUploadService';
 import { compressImage, generateThumbnail } from '@/utils/imageCompression';
+import { normalizeRut } from '@/utils/rutUtils';
 import {
   formatReadonlyUploadDateTime,
   toClinicalDatetimeLocalValue,
   toClinicalEventIso,
   validatePhotoForUpload,
 } from '../controllers/photoUploadController';
-import { buildMaskedPatientIdentity } from '../controllers/mobileIdentityMaskController';
+
+const collapseSpaces = (value: string): string => value.replace(/\s+/g, ' ').trim();
+
+const tokeniseName = (name: string): string[] =>
+  collapseSpaces(name)
+    .split(' ')
+    .filter(token => token.length > 0);
+
+export const maskPatientName = (fullName: string): string => {
+  const tokens = tokeniseName(fullName);
+  if (tokens.length === 0) return '—';
+  return tokens.map(token => `${token.charAt(0).toUpperCase()}.`).join(' ');
+};
+
+export const maskPatientRut = (rut: string): string => {
+  const compact = normalizeRut(rut);
+  if (compact.length === 0) return '—';
+  if (compact.length <= 4) return `••••-${compact}`;
+  const tail = compact.slice(-4);
+  return `••••-${tail}`;
+};
+
+export interface MaskedPatientIdentity {
+  maskedName: string;
+  maskedRut: string;
+}
+
+export const buildMaskedPatientIdentity = (input: {
+  patientName: string;
+  patientRut: string;
+}): MaskedPatientIdentity => ({
+  maskedName: maskPatientName(input.patientName),
+  maskedRut: maskPatientRut(input.patientRut),
+});
 
 const blobToBase64 = (blob: Blob): Promise<string> =>
   new Promise((resolve, reject) => {

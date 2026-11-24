@@ -15,7 +15,7 @@ import {
   filterComparisonVariableNames,
   resolveInitialPinnedVariables,
 } from '../controllers/labComparisonTableController';
-import { formatLabExamColumnLabel } from '../controllers/labDateDisplayController';
+import { formatLabExamColumnLabel } from '../controllers/labFormattingController';
 import { LabExportConfigDialog } from './LabExportConfigDialog';
 import { LabViewerComparisonTableBody } from './LabViewerComparisonTableBody';
 import { LabViewerComparisonToolbar } from './LabViewerComparisonToolbar';

@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   deriveConsentDisplayState,
   consentStatusLabel,
-} from '@/features/wound-care/controllers/consentStatusController';
+} from '@/features/wound-care/components/ConsentStatus';
 import { groupPhotosByDate } from '@/features/wound-care/use-cases/woundCarePhotoTime';
 import {
   formatSessionDate,

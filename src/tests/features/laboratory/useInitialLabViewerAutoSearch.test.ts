@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { useInitialLabViewerAutoSearch } from '@/features/laboratory/hooks/useInitialLabViewerAutoSearch';
+import { useInitialLabViewerAutoSearch } from '@/features/laboratory/components/LabResultsViewerModal';
 import type { SyslabAccessModel } from '@/features/laboratory/hooks/useSyslabAccess';
 
 describe('useInitialLabViewerAutoSearch', () => {

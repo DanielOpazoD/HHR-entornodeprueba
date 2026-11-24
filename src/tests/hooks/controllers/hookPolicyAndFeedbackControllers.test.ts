@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { summarizeBackupImportOutcome } from '@/features/admin/hooks/backupImportFeedbackController';
+import { summarizeBackupImportOutcome } from '@/features/admin/services/dataMaintenanceService';
 import {
   buildExamRequestOpenState,
   resolveExamRequestPrevision,
