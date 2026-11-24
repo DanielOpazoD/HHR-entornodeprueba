@@ -5,10 +5,6 @@ import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import { getSyncQueueTelemetry } from '@/services/storage/sync/publicSyncQueue';
-import {
-  getDiscardedDailyRecordBackup,
-  listDiscardedDailyRecordTasks,
-} from '@/services/storage/sync/dailyRecordTaskRetirement';
 import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import {
   SESSION_GENERATION_KEY,
@@ -197,7 +193,7 @@ it('observes actual values below Dexie caches and distinguishes key-only counts'
   }
 });
 
-it('keeps polling work bounded while retired backups grow, survive reopening and remain downloadable', async () => {
+it('keeps polling work bounded while retired tasks grow and survive reopening', async () => {
   const measure = observeValues(asDexieDatabase(hospitalDB));
   const states: SyncTask['status'][] = [
     'PENDING',
@@ -242,27 +238,6 @@ it('keeps polling work bounded while retired backups grow, survive reopening and
     expect(await fingerprint()).toBe(before);
     hospitalDB.close();
     await hospitalDB.open();
-    expect(await fingerprint()).toBe(before);
-    for (const owner of ['user:synthetic-owner-a', 'user:synthetic-owner-b']) {
-      enter(owner);
-      const backups = await listDiscardedDailyRecordTasks();
-      expect(backups).toHaveLength(count / 4);
-      for (const backup of backups) {
-        if (backup.id === undefined) throw new Error('Backup must retain its primary key');
-        expect(backup).toEqual(retiredTask(backup.id - 1001));
-      }
-      const first = backups[0];
-      if (first?.id) {
-        const download = await getDiscardedDailyRecordBackup(first.id);
-        if (download === null) throw new Error('Backup must remain downloadable');
-        expect(JSON.parse(download)).toEqual({
-          schemaVersion: 1,
-          remotelyConfirmed: false,
-          task: first,
-        });
-        expect(await getDiscardedDailyRecordBackup(owner === OWNERS[0] ? 1002 : 1001)).toBeNull();
-      }
-    }
     expect(await fingerprint()).toBe(before);
   }
 });

@@ -126,7 +126,7 @@ for (const rejection of [
   });
 }
 
-test('withdraws an unnecessary permission-blocked send with a downloadable backup that survives reload', async ({
+test('withdraws an unnecessary permission-blocked send after optional pre-discard copy download and stays cleared after reload', async ({
   page,
 }) => {
   await openSeededCensus(page);
@@ -145,6 +145,7 @@ test('withdraws an unnecessary permission-blocked send with a downloadable backu
   };
   const id = await insertSyncTask(page, task);
   await page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }).click();
+  await expect(page.getByText('Envíos descartados')).toHaveCount(0);
   const details = page.getByTestId('rayen-local-sync-details');
   await details.locator('summary').first().click();
   // A nurse's send for a day whose 48 h already passed: the window, not the account, refused it,
@@ -167,29 +168,24 @@ test('withdraws an unnecessary permission-blocked send with a downloadable backu
   await dialog.getByRole('button', { name: 'Cancelar' }).click();
   expect(await readSyncTask(page, id)).toEqual({ ...task, id });
   await details.getByRole('button', { name: 'Descartar envío', exact: true }).click();
-  await dialog.getByRole('checkbox').check();
-  await dialog.getByRole('button', { name: 'Sí, descartar envío' }).click();
-  await expect(page.getByRole('button', { name: 'Descargar respaldo' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' })).toHaveCount(
-    0
-  );
-  const stored = await readSyncTask(page, id);
-  expect(stored).toMatchObject({
-    ...task,
-    id,
-    status: 'RETIRED',
-    retirement: { reason: 'manual_discard' },
-  });
   const downloaded = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Descargar respaldo' }).click();
+  await dialog.getByRole('button', { name: 'Descargar copia para revisar' }).click();
   const download = await downloaded;
   const stream = await download.createReadStream();
   let contents = '';
   for await (const chunk of stream) contents += chunk.toString();
-  expect(JSON.parse(contents)).toMatchObject({ remotelyConfirmed: false, task: stored });
+  expect(JSON.parse(contents)).toMatchObject({ remotelyConfirmed: false, task: { ...task, id } });
+  await dialog.getByRole('checkbox').check();
+  await dialog.getByRole('button', { name: 'Sí, descartar envío' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' })).toHaveCount(
+    0
+  );
+  await expect(page.getByText('Envíos descartados')).toHaveCount(0);
+  expect(await readSyncTask(page, id)).toBeUndefined();
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('census-table')).toBeVisible();
-  expect(await readSyncTask(page, id)).toEqual(stored);
+  expect(await readSyncTask(page, id)).toBeUndefined();
   await expect(page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' })).toHaveCount(
     0
   );
@@ -198,7 +194,7 @@ test('withdraws an unnecessary permission-blocked send with a downloadable backu
 const getRow = (page: Page, bedId: string) =>
   page.locator(`[data-testid="patient-row"][data-bed-id="${bedId}"]`).first();
 
-test('reaches an older blocked send beyond two pages and withdraws only that send with its backup', async ({
+test('reaches an older blocked send beyond two pages and deletes only that send on confirmation', async ({
   page,
 }) => {
   await openSeededCensus(page);
@@ -244,12 +240,9 @@ test('reaches an older blocked send beyond two pages and withdraws only that sen
   const dialog = page.getByRole('dialog', { name: 'Descartar envío del censo' });
   await dialog.getByRole('checkbox').check();
   await dialog.getByRole('button', { name: 'Sí, descartar envío' }).click();
-  await expect(page.getByRole('button', { name: 'Descargar respaldo' })).toBeVisible();
-  expect(await readSyncTask(page, blockedId)).toMatchObject({
-    ...blocked,
-    status: 'RETIRED',
-    retirement: { reason: 'manual_discard' },
-  });
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText('Envíos descartados')).toHaveCount(0);
+  expect(await readSyncTask(page, blockedId)).toBeUndefined();
   expect(await readSyncTask(page, pendingIds[0])).toMatchObject({
     status: 'PENDING',
     retryCount: 1,

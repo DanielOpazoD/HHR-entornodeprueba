@@ -12,7 +12,6 @@ import {
 } from '@/services/session/sessionStorageTransition';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { requeueQuarantinedTask } from '@/services/storage/sync/dexieSyncQueueQuarantine';
-import { getDiscardedDailyRecordBackup } from '@/services/storage/sync/dailyRecordTaskRetirement';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
@@ -154,13 +153,6 @@ it.each(['manual', 'automatic'] as const)(
     await reconcileAuthorizedSessionOwner(owner);
     const refused = original('refused');
     expect(await requeueQuarantinedTask(refused.id, owner)).toBe(false);
-    const backup = original('backup');
-    const serialized = await getDiscardedDailyRecordBackup(backup.id);
-    if (!serialized) throw new Error('Expected the preserved downloadable backup');
-    expect(JSON.parse(serialized)).toMatchObject({
-      remotelyConfirmed: false,
-      task: backup,
-    });
   }
 );
 
