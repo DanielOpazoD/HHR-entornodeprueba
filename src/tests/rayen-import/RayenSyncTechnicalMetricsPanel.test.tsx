@@ -136,4 +136,49 @@ describe('RayenSyncTechnicalMetricsPanel', () => {
     expect(screen.queryByText(/Contexto actual/)).not.toBeInTheDocument();
     expect(screen.getByText(/1 reintento clínico/)).toBeVisible();
   });
+
+  it('renders singular and plural inflections and embedded mode without summary disclosure', () => {
+    render(
+      <RayenSyncTechnicalMetricsPanel
+        embedded
+        performance={{
+          stagesMs: {
+            closeWait: 95,
+            staffRegistration: 40,
+            cudyrArchive: 1_200,
+            cudyrArchivePlacementReads: 300,
+            cudyrArchiveWrites: 400,
+          },
+          counters: { requests: 1, cacheHits: 1, patches: 1, retries: 2, timeouts: 1 },
+          coordination: {
+            target: 'current',
+            structuralReplans: 1,
+            confirmedEpisodes: 4,
+            omittedEpisodes: 0,
+            clinicalRetries: 2,
+          },
+          persistenceTrace: {
+            historical: { callableAttempts: 1, clientRetries: 2, transactionRetries: 2 },
+          },
+        }}
+      />
+    );
+
+    const panel = screen.getByTestId('rayen-sync-technical-metrics');
+    expect(panel.tagName).toBe('DIV');
+    expect(screen.queryByText('Detalle técnico')).not.toBeInTheDocument();
+    expect(panel).toHaveTextContent('Espera del cierre tras el guardado');
+    expect(panel).toHaveTextContent('Registro del personal incluido');
+    expect(panel).toHaveTextContent('Archivo CUDYR: ubicaciones sumadas');
+    expect(panel).toHaveTextContent('Archivo CUDYR: escrituras sumadas');
+    expect(panel).toHaveTextContent(
+      '1 solicitud Eloísa · 1 acierto de caché · 1 parche · 2 reintentos · 1 timeout'
+    );
+    expect(panel).toHaveTextContent(
+      'Persistencia autoritativa: 0 actuales · 1 histórica · 2 reintentos cliente · 2 reintentos Firestore'
+    );
+    expect(panel).toHaveTextContent(
+      'Contexto actual · 1 replanteamiento estructural · 4 episodios confirmados · 0 omitidos · 2 reintentos clínicos'
+    );
+  });
 });
