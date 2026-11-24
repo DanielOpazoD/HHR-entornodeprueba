@@ -124,6 +124,16 @@ function applicationFrom(template, answers) {
 function patientForEncounter(record, episode, identifier) {
   const entries = Object.values(record?.beds ?? {}).flatMap(bed => [bed, bed?.clinicalCrib]);
   const matches = entries.filter(person => person && String(person.clinicalEpisodeId) === episode);
+  if (matches.length === 0)
+    fail(
+      'failed-precondition',
+      'Este episodio no figura en el censo vigente de HHR. Sincroniza el censo en HHR y vuelve a intentar.'
+    );
+  if (matches.length > 1)
+    fail(
+      'failed-precondition',
+      'El censo vigente tiene más de un registro con ese episodio. Revisa el censo en HHR antes de aplicar la pauta.'
+    );
   const person = matches[0];
   const normalize = value => {
     const text = String(value ?? '')
@@ -132,7 +142,6 @@ function patientForEncounter(record, episode, identifier) {
     return person?.documentType === 'Pasaporte' ? text : text.replace(/[.\s-]/g, '');
   };
   if (
-    matches.length !== 1 ||
     person.isBlocked ||
     !person.patientName?.trim() ||
     !['RUT', 'Pasaporte'].includes(person.documentType || 'RUT') ||

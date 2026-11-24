@@ -29,6 +29,7 @@ export function useClinicalChecklistBridge(auth: AuthContextType) {
         );
       const sameUser = () => active && defaultAuthRuntime.getCurrentUser()?.uid === uid;
       try {
+        await defaultAuthRuntime.ready;
         if (!sameUser() || (request.action === 'apply' && request.uid !== uid))
           throw new Error('Cambió la sesión de HHR.');
         const { clinicalChecklist } =

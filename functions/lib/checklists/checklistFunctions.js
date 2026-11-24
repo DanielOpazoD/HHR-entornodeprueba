@@ -1,7 +1,7 @@
 const { createHash } = require('node:crypto');
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('../runtime/runtimeConfig');
-const { hospitalDateTimeParts } = require('../hospitalCalendarDay');
+const { addCalendarDays, hospitalDateTimeParts } = require('../hospitalCalendarDay');
 const { resolveClinicalDayForDateTime } = require('../generated/cudyrSourceParser.cjs');
 const { templates } = require('./templates');
 const {
@@ -31,8 +31,11 @@ function createChecklistHandler({ firestore, resolveRoleForEmail, now = () => ne
     if (action === 'templates') {
       const all = new Map(builtins);
       (await catalog.get()).forEach(doc => all.set(doc.id, doc.data()));
+      const sorted = [...all.values()].sort((a, b) =>
+        String(a?.title || '').localeCompare(String(b?.title || ''), 'es-CL')
+      );
       return {
-        templates: [...all.values()],
+        templates: sorted,
         uid,
         authorName,
         manage: role === 'admin',
@@ -107,6 +110,15 @@ function createChecklistHandler({ firestore, resolveRoleForEmail, now = () => ne
         tx.get(hospital.collection('dailyRecords').doc(censusDate)),
         tx.get(hospital.collection('invalidClinicalEpisodes').doc(data.episode)),
       ]);
+      // Before morning bootstrap creates today's census record, fall back to the immediately
+      // preceding clinical day while still enforcing exact episode + document verification.
+      const previousCensusDate = addCalendarDays(censusDate, -1);
+      const effectiveDaily = daily.exists
+        ? { snap: daily, date: censusDate }
+        : {
+            snap: await tx.get(hospital.collection('dailyRecords').doc(previousCensusDate)),
+            date: previousCensusDate,
+          };
       const template = current.data() || builtins.get(data.templateId);
       if (!template || template.version !== data.version)
         fail(
@@ -115,11 +127,11 @@ function createChecklistHandler({ firestore, resolveRoleForEmail, now = () => ne
         );
       if (invalidEpisode.exists)
         fail('failed-precondition', 'El episodio está marcado como no válido en HHR.');
-      const patient = patientForEncounter(daily.data(), data.episode, data.document);
+      const patient = patientForEncounter(effectiveDaily.snap.data(), data.episode, data.document);
       const record = {
         code,
         savedAt: instant.toISOString(),
-        censusDate,
+        censusDate: effectiveDaily.date,
         authorUid: uid,
         authorName,
         patient,
