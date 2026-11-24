@@ -100,6 +100,13 @@ const configureAuthPersistence = async (
   await attemptCandidate(0);
 };
 
+const connectAuthEmulatorSync = (auth: Auth, authRuntime: FirebaseAuthRuntimeModule): void => {
+  const authEmulatorHost = import.meta.env.VITE_AUTH_EMULATOR_HOST;
+  if (import.meta.env.DEV && authEmulatorHost && !auth.emulatorConfig) {
+    authRuntime.connectAuthEmulator(auth, authEmulatorHost);
+  }
+};
+
 export const initializeFirebaseCore = async (
   config: FirebaseOptions
 ): Promise<FirebaseCoreBootstrapResult> => {
@@ -123,6 +130,10 @@ export const initializeFirebaseCore = async (
           ? { popupRedirectResolver: authRuntime.browserPopupRedirectResolver }
           : {}),
       });
+      // Wire the Auth emulator synchronously before yielding a microtask:
+      // browserSessionPersistence reads sessionStorage immediately and can
+      // trigger token refresh (locking _canInitEmulator) on the very next tick.
+      connectAuthEmulatorSync(auth, authRuntime);
       firebaseBootstrapLogger.info('Auth persistence configured', {
         persistenceMode: 'session',
       });
@@ -136,6 +147,7 @@ export const initializeFirebaseCore = async (
   }
 
   const auth = authRuntime.getAuth(app);
+  connectAuthEmulatorSync(auth, authRuntime);
   await configureAuthPersistence(auth, authRuntime);
   firebaseBootstrapLogger.info('Firebase core ready');
   return { app, auth };
@@ -177,6 +189,10 @@ export const initializeFirestoreService = async (
 };
 
 export const connectAuthEmulator = async ({ auth }: Pick<FirebaseBootstrapResult, 'auth'>) => {
+  if (auth.emulatorConfig) {
+    return;
+  }
+
   const authEmulatorHost = import.meta.env.VITE_AUTH_EMULATOR_HOST;
   const authRuntime = await import('firebase/auth');
 

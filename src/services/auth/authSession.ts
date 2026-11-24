@@ -237,6 +237,15 @@ export const resolveCurrentAuthSessionState = async (
   const closureRevision = getLogoutRevision();
   markPerf('auth-current:runtime-ready-wait-start');
   await authRuntime.ready;
+  let authInstance: AuthRuntime['auth'] | null = null;
+  try {
+    authInstance = authRuntime.auth;
+  } catch {
+    authInstance = null;
+  }
+  if (typeof authInstance?.authStateReady === 'function') {
+    await authInstance.authStateReady();
+  }
   markPerf('auth-current:runtime-ready-done');
   const firebaseUser = authRuntime.getCurrentUser();
   if (generation !== logoutGeneration || closureRevision !== getLogoutRevision()) return null;

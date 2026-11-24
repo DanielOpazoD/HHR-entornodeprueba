@@ -142,6 +142,23 @@ describe('firebaseServiceBootstrap', () => {
       expect(setPersistenceMock).not.toHaveBeenCalled();
     });
 
+    it('connects the Auth emulator synchronously inside initializeFirebaseCore before any microtask yield', async () => {
+      setDevMode(true);
+      (import.meta.env as Record<string, string>).VITE_AUTH_EMULATOR_HOST = 'http://127.0.0.1:9099';
+      connectAuthEmulatorMock.mockImplementationOnce((authInstance: Record<string, unknown>) => {
+        authInstance.emulatorConfig = { host: '127.0.0.1', port: 9099 };
+      });
+      try {
+        const core = await initializeFirebaseCore(TEST_CONFIG);
+        await connectAuthEmulator({ auth: core.auth });
+
+        expect(connectAuthEmulatorMock).toHaveBeenCalledTimes(1);
+        expect(connectAuthEmulatorMock).toHaveBeenCalledWith(core.auth, 'http://127.0.0.1:9099');
+      } finally {
+        delete (import.meta.env as Record<string, string | undefined>).VITE_AUTH_EMULATOR_HOST;
+      }
+    });
+
     it('initializes Firestore with multi-tab manager by default', async () => {
       shouldUseSingleTabFirestoreCacheMock.mockReturnValue(false);
 

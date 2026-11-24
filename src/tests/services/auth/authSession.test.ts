@@ -324,4 +324,37 @@ describe('authSession', () => {
     expect(mockResolveFirebaseUserRoleForBootstrap).toHaveBeenCalledTimes(1);
     expect(mockResolveFirebaseUserRole).not.toHaveBeenCalled();
   });
+
+  it('waits for auth.authStateReady before reading the restored user on same-tab reload', async () => {
+    mockResolveFirebaseUserRoleForBootstrap.mockResolvedValueOnce('admin');
+    const restoredUser = createFirebaseUserMock({
+      uid: 'restored-1',
+      email: 'restored@hospital.cl',
+      displayName: 'Restored User',
+    });
+    let hydratedUser: ReturnType<typeof createFirebaseUserMock> | null = null;
+    const authStateReady = vi.fn(async () => {
+      await Promise.resolve();
+      hydratedUser = restoredUser;
+    });
+
+    const sessionState = await resolveCurrentAuthSessionState({
+      authRuntime: {
+        ready: Promise.resolve(),
+        auth: { ...mockAuth, authStateReady } as never,
+        getCurrentUser: () => hydratedUser as never,
+      },
+    });
+
+    expect(authStateReady).toHaveBeenCalledTimes(1);
+    expect(sessionState).toEqual(
+      expect.objectContaining({
+        status: 'authorized',
+        user: expect.objectContaining({
+          uid: 'restored-1',
+          role: 'admin',
+        }),
+      })
+    );
+  });
 });

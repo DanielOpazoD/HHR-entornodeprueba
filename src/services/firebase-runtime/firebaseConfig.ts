@@ -87,6 +87,12 @@ const firebaseCoreBootstrapPromise = (async () => {
   app = services.app;
   auth = services.auth;
   await connectAuthEmulator(services);
+  // Wait for Firebase Auth to finish reading tab sessionStorage before
+  // resolving firebaseReady so same-tab reloads (F5) observe auth.currentUser
+  // immediately instead of treating the restoring session as signed out.
+  if (typeof services.auth.authStateReady === 'function') {
+    await services.auth.authStateReady();
+  }
   return { config, ...services };
 })();
 
