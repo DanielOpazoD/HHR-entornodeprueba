@@ -394,9 +394,11 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   async readTelemetryInputs(ownerKey) {
     const rows: SyncQueueTelemetryRow[] = [];
     let foreignCount = 0;
+    const firstLiveStatus = LIVE_STATUSES[0] ?? 'CONFLICT';
+    const lastLiveStatus = LIVE_STATUSES[LIVE_STATUSES.length - 1] ?? 'PROCESSING';
     const tasks = await hospitalDB.syncQueue
       .where('status')
-      .between(LIVE_STATUSES[0], LIVE_STATUSES[LIVE_STATUSES.length - 1], true, true)
+      .between(firstLiveStatus, lastLiveStatus, true, true)
       .toArray();
     for (const task of tasks) {
       if (matchesOwner(ownerKey, task.ownerKey)) {

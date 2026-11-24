@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
@@ -37,7 +38,7 @@ describe('bounded sync queue reads', () => {
       makeTask(1002, { status: 'RETIRED' }),
     ]);
     const read = vi.fn((task: SyncTask) => task);
-    hospitalDB.syncQueue.hook('reading', read);
+    asDexieDatabase(hospitalDB).syncQueue.hook('reading', read);
     try {
       const rows = await store.listRecent(13, OWNER);
       expect(rows.map(task => task.timestamp)).toEqual(
@@ -45,7 +46,7 @@ describe('bounded sync queue reads', () => {
       );
       expect(read).toHaveBeenCalledTimes(13);
     } finally {
-      hospitalDB.syncQueue.hook('reading').unsubscribe(read);
+      asDexieDatabase(hospitalDB).syncQueue.hook('reading').unsubscribe(read);
     }
     expect(await hospitalDB.syncQueue.count()).toBe(1002);
   });
@@ -69,7 +70,7 @@ describe('bounded sync queue reads', () => {
       Array.from({ length: 1000 }, (_, index) => makeTask(index + 1))
     );
     const read = vi.fn((task: SyncTask) => task);
-    hospitalDB.syncQueue.hook('reading', read);
+    asDexieDatabase(hospitalDB).syncQueue.hook('reading', read);
     try {
       const rows = await store.claimReadyPending(NOW, 3, OWNER, claim);
       expect(rows.map(task => task.timestamp)).toEqual([1, 2, 3]);
@@ -78,7 +79,7 @@ describe('bounded sync queue reads', () => {
       ).toBe(true);
       expect(read).toHaveBeenCalledTimes(3);
     } finally {
-      hospitalDB.syncQueue.hook('reading').unsubscribe(read);
+      asDexieDatabase(hospitalDB).syncQueue.hook('reading').unsubscribe(read);
     }
     expect(await hospitalDB.syncQueue.where('status').equals('PENDING').count()).toBe(997);
     expect(await store.claimReadyPending(NOW, 0, OWNER, claim)).toEqual([]);

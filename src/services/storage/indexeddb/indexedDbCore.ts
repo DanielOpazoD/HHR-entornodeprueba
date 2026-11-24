@@ -1,4 +1,5 @@
 import { createIndexedDbBackgroundRecoveryScheduler } from './indexedDbBackgroundRecoveryScheduler';
+import type { IndexedDbDatabaseLike } from './indexedDbContracts';
 import { HangaRoaDatabase } from './indexedDbDatabase';
 import { attachIndexedDbWarningBindings } from './indexedDbWarningBindings';
 import { recordIndexedDbRecoveryNotice } from './indexedDbRecoveryController';
@@ -17,7 +18,7 @@ import {
   runOpeningWaitFlow,
 } from './indexedDbCoreFlows';
 
-let db: HangaRoaDatabase;
+let db: IndexedDbDatabaseLike;
 let isUsingMock = false;
 let isOpening = false;
 let stickyFallbackMode = false;
@@ -30,7 +31,7 @@ const backgroundRecoveryScheduler = createIndexedDbBackgroundRecoveryScheduler({
   },
 });
 
-const attachDatabaseEvents = (database: HangaRoaDatabase) =>
+const attachDatabaseEvents = (database: IndexedDbDatabaseLike) =>
   attachIndexedDbWarningBindings(
     database,
     () => ({ isUsingMock, stickyFallbackMode }),

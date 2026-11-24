@@ -29,13 +29,14 @@ const eloisa = vi.hoisted(() => ({
 }));
 vi.mock('@/hooks/useEloisaStaff', () => ({ useEloisaStaff: () => eloisa.staff }));
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import * as remote from '@/services/storage/firestore';
 import { useNursesQuery, useTensQuery } from '@/hooks/useStaffQuery';
 import { StaffManagerModal } from '@/features/census/components/staff-catalog/StaffManagerModal';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 
-const catalogs: Table<CatalogRecord> = hospitalDB.table('catalogs');
+const catalogs: Table<CatalogRecord> = asDexieDatabase(hospitalDB).table('catalogs');
 const cacheWrites = vi.fn();
 catalogs.hook('creating', () => {
   cacheWrites();

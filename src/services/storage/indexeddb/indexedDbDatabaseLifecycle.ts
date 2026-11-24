@@ -13,9 +13,12 @@ export interface IndexedDbDatabaseCreationOutcome<TDatabase> {
   fallbackMode: boolean;
 }
 
-export interface CreateIndexedDbDatabaseOrFallbackOptions<TDatabase extends IndexedDbTableMap> {
+export interface CreateIndexedDbDatabaseOrFallbackOptions<
+  TDatabase extends IndexedDbTableMap,
+  TFallback extends IndexedDbTableMap = IndexedDbDatabaseLike,
+> {
   createDatabase: () => TDatabase;
-  createMockDatabase: () => IndexedDbDatabaseLike;
+  createMockDatabase: () => TFallback;
   attachDatabaseEvents: (database: TDatabase) => void;
   recordRecoveryFailure?: typeof recordIndexedDbRecoveryFailure;
   recordFallbackMode?: typeof recordIndexedDbFallbackMode;
@@ -36,14 +39,20 @@ export const assignIndexedDbMockTables = <TDatabase extends IndexedDbTableMap>(
   return database;
 };
 
-export const createIndexedDbDatabaseOrFallback = <TDatabase extends IndexedDbTableMap>({
+export const createIndexedDbDatabaseOrFallback = <
+  TDatabase extends IndexedDbTableMap,
+  TFallback extends IndexedDbTableMap = IndexedDbDatabaseLike,
+>({
   createDatabase,
   createMockDatabase,
   attachDatabaseEvents,
   recordRecoveryFailure = recordIndexedDbRecoveryFailure,
   recordFallbackMode = recordIndexedDbFallbackMode,
   getBudgetSnapshot = getIndexedDbRecoveryBudgetSnapshot,
-}: CreateIndexedDbDatabaseOrFallbackOptions<TDatabase>): IndexedDbDatabaseCreationOutcome<TDatabase> => {
+}: CreateIndexedDbDatabaseOrFallbackOptions<
+  TDatabase,
+  TFallback
+>): IndexedDbDatabaseCreationOutcome<TDatabase | TFallback> => {
   try {
     const database = createDatabase();
     attachDatabaseEvents(database);
@@ -59,8 +68,7 @@ export const createIndexedDbDatabaseOrFallback = <TDatabase extends IndexedDbTab
     });
 
     return {
-      // In-memory stand-in when IndexedDB cannot open; it implements only the tables' methods used.
-      database: createMockDatabase() as unknown as TDatabase,
+      database: createMockDatabase(),
       fallbackMode: true,
     };
   }

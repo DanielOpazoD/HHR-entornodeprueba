@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import {
@@ -49,13 +50,13 @@ const duringRead = async <T>(change: () => void, read: () => Promise<T>): Promis
     }
     return task;
   };
-  hospitalDB.syncQueue.hook('reading', hook);
+  asDexieDatabase(hospitalDB).syncQueue.hook('reading', hook);
   try {
     const result = await read();
     expect(changed).toBe(true);
     return result;
   } finally {
-    hospitalDB.syncQueue.hook('reading').unsubscribe(hook);
+    asDexieDatabase(hospitalDB).syncQueue.hook('reading').unsubscribe(hook);
   }
 };
 

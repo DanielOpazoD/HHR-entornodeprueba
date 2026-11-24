@@ -10,7 +10,8 @@ const UNKNOWN_CAST_CEILINGS = JSON.parse(
   readFileSync(new URL('../../config/unknown-cast-ceilings.json', import.meta.url), 'utf8')
 ).files;
 
-export const unknownCastRule = {
+/** @returns {import('eslint').Rule.RuleModule} */
+export const createUnknownCastRule = (ceilings = UNKNOWN_CAST_CEILINGS) => ({
   meta: {
     type: 'problem',
     schema: [],
@@ -27,7 +28,7 @@ export const unknownCastRule = {
   },
   create(context) {
     const file = path.relative(ROOT, context.filename).split(path.sep).join('/');
-    const ceiling = UNKNOWN_CAST_CEILINGS[file] ?? 0;
+    const ceiling = ceilings[file] ?? 0;
     const isUnknownCast = node =>
       ['TSAsExpression', 'TSTypeAssertion'].includes(node.type) &&
       node.typeAnnotation.type === 'TSUnknownKeyword';
@@ -45,7 +46,9 @@ export const unknownCastRule = {
       },
     };
   },
-};
+});
+
+export const unknownCastRule = createUnknownCastRule();
 
 // `x as never` bypasses assignability checks just like `any`. Production source reached zero
 // `as never` casts and stays at zero.

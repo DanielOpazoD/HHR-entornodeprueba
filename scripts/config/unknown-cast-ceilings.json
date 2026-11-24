@@ -1,6 +1,3 @@
 {
-  "files": {
-    "src/services/storage/indexeddb/indexedDbDatabaseLifecycle.ts": 1,
-    "src/services/storage/indexeddb/indexedDbMockFactory.ts": 1
-  }
+  "files": {}
 }

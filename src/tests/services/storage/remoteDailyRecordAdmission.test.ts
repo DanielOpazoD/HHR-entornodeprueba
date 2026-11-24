@@ -2,6 +2,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { syncRecordsRange } from '@/services/records/recordQueryService';
 import { hydrateRangeRecords } from '@/features/admin/services/dataMaintenanceSupport';
@@ -42,12 +43,12 @@ describe.each([syncRecordsRange, hydrateRangeRecords])('batch reader %s', read =
     const failSecond = (_key: unknown, record: { date: string }) => {
       if (record.date === records[1].date) throw new Error('synthetic second row failure');
     };
-    hospitalDB.dailyRecords.hook('creating', failSecond);
+    asDexieDatabase(hospitalDB).dailyRecords.hook('creating', failSecond);
     try {
       await expect(read(records[0].date, records[1].date)).rejects.toThrow();
       expect(await hospitalDB.dailyRecords.count()).toBe(0);
     } finally {
-      hospitalDB.dailyRecords.hook('creating').unsubscribe(failSecond);
+      asDexieDatabase(hospitalDB).dailyRecords.hook('creating').unsubscribe(failSecond);
     }
   });
 

@@ -30,6 +30,7 @@ const eloisa = vi.hoisted(() => ({
 }));
 vi.mock('@/hooks/useEloisaStaff', () => ({ useEloisaStaff: () => eloisa.staff }));
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import * as local from '@/services/storage/indexeddb/indexedDbCatalogService';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import * as remote from '@/services/storage/firestore';
@@ -38,7 +39,7 @@ import { StaffManagerModal } from '@/features/census/components/staff-catalog/St
 import { TreatingPhysiciansSettings } from '@/features/admin/components/TreatingPhysiciansSettings';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 
-const catalogs: Table<CatalogRecord> = hospitalDB.table('catalogs');
+const catalogs: Table<CatalogRecord> = asDexieDatabase(hospitalDB).table('catalogs');
 const failure = new Error('synthetic unavailable');
 const cases = [
   {

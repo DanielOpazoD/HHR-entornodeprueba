@@ -28,6 +28,7 @@ vi.mock('@/services/storage/firestore', () => ({
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ remoteSyncStatus: 'disabled' }) }));
 vi.mock('@/hooks/useEloisaStaff', () => ({ useEloisaStaff: () => [] }));
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import { getCatalogValues } from '@/services/storage/indexeddb/indexedDbCatalogService';
 import { CatalogRepository } from '@/services/repositories/CatalogRepository';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
@@ -43,7 +44,7 @@ import {
 import { useTreatingPhysicianCatalogSync } from '@/features/rayen-import/hooks/useTreatingPhysicianCatalogSync';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 
-const catalogs: Table<CatalogRecord> = hospitalDB.table('catalogs');
+const catalogs: Table<CatalogRecord> = asDexieDatabase(hospitalDB).table('catalogs');
 const failure = new Error('synthetic catalog unavailable');
 const snapshot: RayenCensusSnapshot = {
   capturedAt: '2026-07-31T12:00:00.000Z',

@@ -22,6 +22,7 @@ import { RepositoryProvider, createRepositoryContainer } from '@/context/Reposit
 import { buildMockDailyRecordRepository } from '@/tests/factories/dailyRecordRepositoryMock';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import {
   resolvePatchOutcomeFeedback,
@@ -161,7 +162,7 @@ afterEach(async () => {
   cleanup();
   clients.forEach(client => client.clear());
   clients = [];
-  hospitalDB.syncQueue.hook('creating').unsubscribe(abortHook);
+  asDexieDatabase(hospitalDB).syncQueue.hook('creating').unsubscribe(abortHook);
   vi.restoreAllMocks();
   onlineManager.setOnline(true);
   pending.clearPendingDailyRecordPatchesForTests();
@@ -292,7 +293,7 @@ it('the same session still receives a failed persistence notice', async () => {
   const setup = setupHook();
   const h = renderHook(() => useDailyRecordSyncQuery(date), { wrapper: setup.wrapper });
   notices.error.mockClear();
-  hospitalDB.syncQueue.hook('creating', abortHook);
+  asDexieDatabase(hospitalDB).syncQueue.hook('creating', abortHook);
   abortWrite = true;
   await act(async () => {
     await h.result.current.patchRecord(patch).catch(() => undefined);
