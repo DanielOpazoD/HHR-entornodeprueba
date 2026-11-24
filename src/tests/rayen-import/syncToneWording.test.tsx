@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { RAYEN_SYNC_FAILURE_REASONS, type RayenSyncFailureReason } from '@/types/domain/rayenSync';
 import { classifyRayenSnapshotError } from '@/features/rayen-import/domain/rayenSnapshotErrorClassification';
 import {
@@ -10,6 +10,13 @@ import {
   visibleErrorTechnicalDetail,
 } from '@/features/rayen-import/hooks/rayenImportState';
 import { RayenImportFlowStatus } from '@/features/rayen-import/components/RayenImportFlowStatus';
+import { RayenImportPreviewModal } from '@/features/rayen-import/components/RayenImportPreviewModal';
+import { RayenNursingShiftProposalModal } from '@/features/rayen-import/components/RayenNursingShiftProposalModal';
+import { RayenSyncHistoryModal } from '@/features/rayen-import/components/RayenSyncHistoryModal';
+import { RayenSyncQueueDetails } from '@/features/rayen-import/components/RayenSyncQueueDetails';
+import { presentRayenSyncRecovery } from '@/features/rayen-import/components/rayenSyncRecoveryPresentation';
+import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
+import type { NursingStaffingProposal } from '@/features/rayen-import/contracts/nursingShiftInference';
 import type { RayenFillProgress } from '@/features/rayen-import/hooks/useRayenFillStatus';
 import { STRUCTURAL_PERSIST_TIMEOUT_MESSAGE } from '@/features/rayen-import/hooks/rayenSnapshotPersistenceExecution';
 
@@ -229,6 +236,7 @@ const DIALOGS = [
   'RayenDayBootstrapButton.tsx',
   'RayenImportDiffReviewParts.tsx',
   'RayenImportPreviewModal.tsx',
+  'RayenImportSummaryChips.tsx',
   'RayenNursingShiftProposalModal.tsx',
   'RayenPreviousDayReview.tsx',
   'RayenReportEgresoStamp.tsx',
@@ -236,10 +244,30 @@ const DIALOGS = [
   'RayenSyncCaseDetail.tsx',
   'RayenSyncHistoryModal.tsx',
   'RayenSyncHistorySections.tsx',
+  'RayenSyncIssueActions.tsx',
+  'RayenSyncQueueDetails.tsx',
+  'RayenSyncRecoveryNotice.tsx',
   'RayenSyncSessionReportButton.tsx',
   'RayenSyncStructuralReviewDetail.tsx',
   'StaffingBoundaryExclusions.tsx',
+  'localSyncPresentation.ts',
   'rayenSyncPresentation.ts',
+  'rayenSyncRecoveryPresentation.ts',
+];
+
+/**
+ * Only local-sync stopped sends (SAVE-01) and explicit clinician-decision sections inside preview
+ * confirmation may escalate to `SYNC_TONE.action` / `SYNC_TONE_ICON.action`. Informational dialogs,
+ * history views, and recoverable notices must stay at `info` or `review`.
+ */
+const ACTION_TONE_FILES = [
+  'EquivalentBedCollisionReview.tsx',
+  'NeonatalPlacementReview.tsx',
+  'NeonatalSourceChanges.tsx',
+  'RayenAdmissionReview.tsx',
+  'RayenPreviousDayReview.tsx',
+  'RayenSyncQueueDetails.tsx',
+  'RayenSyncStatusLine.tsx',
 ];
 const DIALOG_FAILURE = new RegExp(
   `${PERSON_FACING_FAILURE.source}|\\berror\\b|\\bfallas?\\b|\\bfallidas?\\b`,
@@ -361,5 +389,260 @@ describe('sync box source wording', () => {
         exception.reason
       ).toBe(true);
     }
+  });
+
+  it('restricts SYNC_TONE.action to stopped local sends and explicit preview decision prompts', () => {
+    const actionToken = /\bSYNC_TONE(?:_ICON)?\.action\b/;
+    const filesUsingAction = boxComponentFiles([])
+      .filter(file => actionToken.test(readFileSync(file, 'utf8')))
+      .map(file => path.basename(file))
+      .sort();
+    expect(filesUsingAction).toEqual([...ACTION_TONE_FILES].sort());
+  });
+});
+
+const ALARM_CLASS = /\b[a-z:-]*(?:red|rose|amber|orange|yellow)-\d{2,3}\b/g;
+
+const renderedAlarmClasses = (
+  root: ParentNode,
+  isAllowedClinicalNode: (element: Element) => boolean = () => false
+): string[] =>
+  Array.from(root.querySelectorAll('*')).flatMap(element => {
+    if (isAllowedClinicalNode(element)) return [];
+    const className =
+      typeof element.className === 'string'
+        ? element.className
+        : (element.getAttribute('class') ?? '');
+    const matches = className.match(ALARM_CLASS);
+    return matches ? [`${element.tagName.toLowerCase()}: ${matches.join(' ')}`] : [];
+  });
+
+describe('sync dialogs rendered calm tone', () => {
+  it('renders RayenSyncHistoryModal with review recovery notice and calm wording/classes', () => {
+    const partialEvent = {
+      id: 'sync-calm-partial',
+      startedAt: '2026-11-13T14:00:00Z',
+      by: 'Operador de prueba',
+      status: 'partial' as const,
+      failureReason: 'ficha_medico_stale' as const,
+      coverage: {
+        total: 3,
+        completed: 2,
+        errors: 1,
+        sourceErrors: 1,
+        completedAt: '2026-11-13T14:00:25Z',
+        issues: [
+          { bedId: 'R1', source: 'devices' as const, reason: 'source_unavailable' as const },
+        ],
+      },
+    };
+    const recovery = presentRayenSyncRecovery(partialEvent, 'ready', false, false);
+    const view = render(
+      <RayenSyncHistoryModal
+        isOpen
+        onClose={vi.fn()}
+        recovery={recovery}
+        recoveryBusy={false}
+        onRecoveryAction={vi.fn()}
+        history={[partialEvent]}
+      />
+    );
+    fireEvent.click(screen.getByText('Qué quedó pendiente en la información clínica'));
+    const dialog = screen.getByRole('dialog');
+    expect(screen.getByTestId('rayen-sync-recovery-notice')).toHaveAttribute('data-tone', 'review');
+    expect(renderedAlarmClasses(dialog)).toEqual([]);
+    expect(dialog.textContent ?? '').not.toMatch(DIALOG_FAILURE);
+    view.unmount();
+  });
+
+  it('renders RayenImportPreviewModal without alarm colors or breakdown wording', () => {
+    const previewDiff: CensusImportDiff = {
+      admissions: [],
+      updates: [],
+      moves: [],
+      discharges: [
+        {
+          bedId: 'H2C1',
+          rut: '10.000.134-9',
+          patientName: 'Paciente Egresado',
+          kind: 'alta',
+          status: 'Vivo',
+          reason: 'administrative-discharge',
+          verification: {
+            medicalEpicrisis: 'confirmed',
+            nursingEpicrisis: 'confirmed',
+            hospitalDischarge: 'confirmed',
+          },
+        },
+      ],
+      pendingAdministrativeDischarges: [
+        {
+          bedId: 'H5C1',
+          rut: '10.000.108-K',
+          patientName: 'Paciente Pendiente',
+          signal: 'clinical-closure',
+          verification: {
+            medicalEpicrisis: 'confirmed',
+            nursingEpicrisis: 'not-detected',
+            hospitalDischarge: 'not-detected',
+          },
+        },
+      ],
+      conflicts: [
+        {
+          code: 'occupied-local-bed',
+          bedId: 'R2',
+          rut: '12.345.678-5',
+          patientName: 'Paciente Conflicto',
+          reason: 'El paciente figura en otra cama en Eloísa.',
+        },
+      ],
+      unchangedCount: 4,
+      summary: {
+        admissions: 0,
+        updates: 0,
+        moves: 0,
+        discharges: 1,
+        pendingAdministrativeDischarges: 1,
+        conflicts: 1,
+        unchanged: 4,
+      },
+    };
+    const calmError = classifyRayenSnapshotError(`${WRAP}Failed to fetch`).message;
+    const view = render(
+      <RayenImportPreviewModal
+        isOpen
+        diff={previewDiff}
+        error={calmError}
+        targetDate="2026-11-13"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+    const dialog = screen.getByRole('dialog');
+    expect(renderedAlarmClasses(dialog)).toEqual([]);
+    expect(dialog.textContent ?? '').not.toMatch(DIALOG_FAILURE);
+    view.unmount();
+  });
+
+  it('renders RayenNursingShiftProposalModal with calm tone (only the day-shift sun icon uses amber)', () => {
+    const proposal: NursingStaffingProposal = {
+      censusDate: '2026-11-13',
+      day: {
+        names: ['Ana Pérez'],
+        candidates: [
+          {
+            name: 'Ana Pérez',
+            records: 3,
+            patients: 2,
+            activeHours: 3,
+            score: 20,
+            hasShiftChange: true,
+            catalogMatched: true,
+          },
+        ],
+        ignoredBoundaryRecords: 1,
+        ignoredBoundaryEvidence: [
+          {
+            name: 'Claudia Saliente',
+            role: 'Enfermera(o)',
+            recordedAt: '2026-11-13T08:35:00',
+            source: 'vital-signs',
+            boundary: 'day_start',
+          },
+        ],
+        ambiguous: false,
+      },
+      night: {
+        names: ['Berta Soto'],
+        candidates: [
+          {
+            name: 'Berta Soto',
+            records: 2,
+            patients: 2,
+            activeHours: 2,
+            score: 16,
+            hasShiftChange: false,
+            catalogMatched: false,
+          },
+        ],
+        ignoredBoundaryRecords: 0,
+        ambiguous: false,
+      },
+    };
+    const view = render(
+      <>
+        <div id="rayen-nursing-shift-slot" />
+        <RayenNursingShiftProposalModal
+          proposal={proposal}
+          isBusy={false}
+          error={null}
+          onConfirm={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      </>
+    );
+    const dialog = screen.getByRole('dialog');
+    expect(
+      renderedAlarmClasses(
+        dialog,
+        element =>
+          element.tagName.toLowerCase() === 'svg' && element.classList.contains('text-amber-500')
+      )
+    ).toEqual([]);
+    expect(dialog.textContent ?? '').not.toMatch(DIALOG_FAILURE);
+    view.unmount();
+  });
+
+  it('renders RayenSyncQueueDetails with non-alarm action weight for stopped sends and calm wording', () => {
+    const view = render(
+      <RayenSyncQueueDetails
+        stats={{
+          pending: 1,
+          failed: 1,
+          conflict: 1,
+          retrying: 1,
+          acked: 0,
+          oldestPendingAgeMs: 15_000,
+          readState: 'unavailable',
+        }}
+        operations={[
+          {
+            id: 101,
+            type: 'UPDATE_DAILY_RECORD',
+            status: 'PENDING',
+            retryCount: 0,
+            timestamp: 1,
+            key: 'daily:2026-11-13',
+          },
+          {
+            id: 102,
+            type: 'UPDATE_DAILY_RECORD',
+            status: 'FAILED',
+            retryCount: 1,
+            timestamp: 2,
+            key: 'daily:2026-11-13',
+            lastErrorCategory: 'authorization',
+            lastErrorCode: 'functions/permission-denied',
+          },
+          {
+            id: 103,
+            type: 'UPDATE_DAILY_RECORD',
+            status: 'CONFLICT',
+            retryCount: 0,
+            timestamp: 3,
+            key: 'daily:2026-11-12',
+            lastErrorCategory: 'conflict',
+          },
+        ]}
+        working={false}
+        refresh={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+    const details = screen.getByTestId('rayen-local-sync-details');
+    fireEvent.click(details.querySelector('summary')!);
+    expect(renderedAlarmClasses(details)).toEqual([]);
+    expect(details.textContent ?? '').not.toMatch(DIALOG_FAILURE);
+    view.unmount();
   });
 });
