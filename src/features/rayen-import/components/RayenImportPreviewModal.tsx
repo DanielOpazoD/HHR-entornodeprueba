@@ -186,10 +186,11 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
       size="2xl"
       variant="white"
       headerIconColor="text-teal-600"
+      bodyClassName="flex min-h-0 flex-col gap-3 !overflow-hidden p-6"
       dataModule="rayen-import"
       dataTestId="rayen-import-preview"
     >
-      <div className="max-h-[60vh] overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1" data-testid="rayen-import-review-scroll">
         {targetDate && (
           <p
             className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500"
@@ -391,7 +392,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
         acceptedEpisodes={neonatalSourceAcknowledgements}
         onChange={setNeonatalSourceAcknowledgements}
       />
-      <div className="mt-3 flex justify-end gap-2 border-t pt-3">
+      <div className="mt-3 flex shrink-0 flex-wrap justify-end gap-2 border-t pt-3">
         <button
           type="button"
           onClick={onCancel}
