@@ -125,4 +125,24 @@ describe('census date index that was read', () => {
 
     await expect(getAvailableDates()).resolves.toEqual(['2026-10-03', '2026-10-02', '2026-10-01']);
   });
+
+  it('starts local and remote date-index reads concurrently when Firestore is enabled', async () => {
+    remote.enabled = true;
+    let releaseLocal!: (dates: string[]) => void;
+    vi.spyOn(hospitalDB.dailyRecords, 'orderBy').mockReturnValue({
+      reverse: () => ({
+        keys: () =>
+          new Promise<string[]>(resolve => {
+            releaseLocal = resolve;
+          }),
+      }),
+    } as never);
+    remote.dates.mockResolvedValue(['2026-10-02']);
+
+    const pending = getAvailableDates();
+    await vi.waitFor(() => expect(remote.dates).toHaveBeenCalledTimes(1));
+
+    releaseLocal(['2026-10-03']);
+    await expect(pending).resolves.toEqual(['2026-10-03', '2026-10-02']);
+  });
 });

@@ -145,9 +145,15 @@ export const getForDateWithMeta = async (
     'dailyRecord.getForDate',
     async () => {
       const query = createGetDailyRecordQuery(date, syncFromRemote);
-      const base = await captureLocalRecordBase(query.date);
-      const indexedDbLocalRecord = base.kind === 'stored' ? base.record : null;
       const e2eOverride = getE2EOverrideRecord(query.date);
+      const shouldLoadRemote = !e2eOverride && query.syncFromRemote && isFirestoreEnabled();
+      // Overlap dynamic remote-loader import with IndexedDB local base capture so
+      // remote hydration does not wait serially for both before issuing the read.
+      const [base, remoteLoader] = await Promise.all([
+        captureLocalRecordBase(query.date),
+        shouldLoadRemote ? loadDailyRecordRemoteLoader() : Promise.resolve(null),
+      ]);
+      const indexedDbLocalRecord = base.kind === 'stored' ? base.record : null;
       const localRecord = e2eOverride
         ? getE2ELocalStorageRecord(query.date) || indexedDbLocalRecord
         : indexedDbLocalRecord;
@@ -170,8 +176,8 @@ export const getForDateWithMeta = async (
         });
       }
 
-      if (query.syncFromRemote && isFirestoreEnabled()) {
-        const { loadRemoteRecordWithFallback } = await loadDailyRecordRemoteLoader();
+      if (remoteLoader) {
+        const { loadRemoteRecordWithFallback } = remoteLoader;
         return attemptRemoteGoldenPathRead({
           date: query.date,
           localCandidate,
@@ -224,22 +230,24 @@ class DailyRecordDateIndexIncompleteError extends Error {
 const sortNewestFirst = (dates: Iterable<string>): string[] => [...new Set(dates)].sort().reverse();
 
 const readDateIndex = async (): Promise<DateIndexRead> => {
-  const local = await getAllDatesFromIndexedDB().then(
+  const localPromise = getAllDatesFromIndexedDB().then(
     dates => ({ ok: true as const, dates }),
     (cause: unknown) => ({ ok: false as const, cause })
   );
   if (!isFirestoreEnabled()) {
+    const local = await localPromise;
     return local.ok
       ? { status: 'complete', dates: sortNewestFirst(local.dates) }
       : { status: 'unavailable', failed: 'local', cause: local.cause };
   }
 
-  const remote = await loadFirestoreRecordQueries()
+  const remotePromise = loadFirestoreRecordQueries()
     .then(module => module.getAvailableDatesFromFirestore())
     .then(
       dates => ({ ok: true as const, dates }),
       (cause: unknown) => ({ ok: false as const, cause })
     );
+  const [local, remote] = await Promise.all([localPromise, remotePromise]);
   if (local.ok) {
     return remote.ok
       ? { status: 'complete', dates: sortNewestFirst([...local.dates, ...remote.dates]) }

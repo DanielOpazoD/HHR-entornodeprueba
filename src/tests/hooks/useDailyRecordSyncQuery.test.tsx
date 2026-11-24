@@ -232,6 +232,52 @@ describe('useDailyRecordSyncQuery', () => {
     ).toHaveLength(1);
   });
 
+  it('cancels deferred idle hydration without a duplicate remote read once the live listener confirms the day', async () => {
+    const cancelIdle = vi.fn();
+    const idle = vi.fn(() => 42);
+    vi.stubGlobal('requestIdleCallback', idle);
+    vi.stubGlobal('cancelIdleCallback', cancelIdle);
+    let emitSnapshot:
+      | ((
+          result: import('@/services/repositories/contracts/dailyRecordQueries').DailyRecordReadResult
+        ) => void)
+      | undefined;
+    vi.mocked(defaultDailyRecordRepositoryPort.subscribeDetailed).mockImplementation(
+      (_date, cb) => {
+        emitSnapshot = cb;
+        return vi.fn();
+      }
+    );
+    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
+      buildReadResult(mockRecord)
+    );
+
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.record).toEqual(mockRecord));
+    expect(idle).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      emitSnapshot?.({
+        ...buildReadResult(mockRecord),
+        source: 'firestore',
+        serverConfirmed: true,
+        consistencyState: 'remote_authoritative',
+        sourceOfTruth: 'remote',
+      });
+    });
+
+    await waitFor(() => expect(cancelIdle).toHaveBeenCalledWith(42));
+    // Server already confirmed via live subscription: no redundant point read needed.
+    expect(
+      vi
+        .mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta)
+        .mock.calls.filter(([, fromRemote]) => fromRemote)
+    ).toHaveLength(0);
+  });
+
   it('should handle updates via saveAndUpdate', async () => {
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
       buildReadResult(mockRecord)
