@@ -146,11 +146,20 @@
       if (context.error || !context.patient?.run || !context.patient?.name) {
         throw new Error('Eloísa no pudo confirmar al paciente.');
       }
-      return { encId, request, actor, document: context.patient.run, patientName: context.patient.name };
+      return {
+        encId,
+        request,
+        actor,
+        document: context.patient.run,
+        patientName: context.patient.name,
+        patientAge: context.patient.age || '',
+        patientBirthDate: context.patient.birthDate || '',
+      };
     }
 
     async function handle(message, sender) {
-      const { encId, request, actor, document, patientName } = await assertActiveChartAndIdentity(message, sender);
+      const { encId, request, actor, document, patientName, patientAge, patientBirthDate } =
+        await assertActiveChartAndIdentity(message, sender);
       if (request.action === 'verify') {
         if (!sameChart(await chrome.tabs.get(sender.tab.id), encId)) throw new Error('Cambió la ficha.');
         return { episode: encId, actor, document };
@@ -195,7 +204,15 @@
           reply.error || 'Inicia sesión en tu pestaña de HHR Hospitalizados (o recárgala) y pulsa «Reintentar».'
         );
       }
-      return { ...reply.data, document, actor, patientName, hhrTabId: tab.id };
+      return {
+        ...reply.data,
+        document,
+        actor,
+        patientName,
+        patientAge,
+        patientBirthDate,
+        hhrTabId: tab.id,
+      };
     }
 
     return {
