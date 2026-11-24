@@ -40,8 +40,9 @@ export interface SyslabHospitalizationReports {
   /** Links of those pending reports, to tell which days they belong to. */
   pendingLinks: string[];
   /**
-   * A cached list or report set is being renewed: what is shown may lack the newest reports. The
-   * explorer card keeps showing it; a download waits for the renewed read.
+   * A cached list or report set is being renewed, or Syslab access is still being re-verified
+   * before reuse: what is shown may lack the newest reports or require a fresh login. The explorer
+   * card keeps showing it; a download waits for the verified, renewed read.
    */
   refreshing: boolean;
   retry: () => void;
@@ -121,7 +122,8 @@ export const useSyslabHospitalizationReports = ({
   });
 
   // Search links expire (see syslabLinkPolicy). A stale list is renewed before any report is asked.
-  const listFresh = list.isSuccess && !list.isStale;
+  // While disabled (`!connected`), TanStack Query reports `isStale: false` even for expired lists.
+  const listFresh = connected && list.isSuccess && !list.isStale;
   useEffect(() => {
     if (connected && list.isSuccess && list.isStale && !list.isFetching) void list.refetch();
   }, [connected, list]);
@@ -165,8 +167,14 @@ export const useSyslabHospitalizationReports = ({
     },
   });
 
+  // A hospitalization already read in this Eloísa session can show immediately while Syslab access
+  // is re-checked on remount; `refreshing` stays true so downloads still wait for session + freshness.
+  const cachedAnswer =
+    list.isSuccess && (exams.length === 0 || (analysis.isSuccess && Boolean(analysis.data)));
+  const servingCache = enabled && rutBody.length > 0 && access.state === 'checking' && cachedAnswer;
+
   const phase: SyslabHospitalizationPhase =
-    access.state === 'checking'
+    access.state === 'checking' && !servingCache
       ? 'checking'
       : access.state === 'login-required'
         ? 'login-required'
@@ -210,7 +218,8 @@ export const useSyslabHospitalizationReports = ({
     analysis: analysis.data?.analysis ?? null,
     pending: analysis.data?.pending ?? 0,
     pendingLinks: analysis.data?.pendingLinks ?? NO_PENDING_LINKS,
-    refreshing: list.isFetching || analysis.isFetching || (list.isSuccess && list.isStale),
+    refreshing:
+      servingCache || list.isFetching || analysis.isFetching || (list.isSuccess && list.isStale),
     retry,
   };
 };
