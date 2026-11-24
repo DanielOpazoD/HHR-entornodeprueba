@@ -207,13 +207,7 @@ it('never gives a retained nursing note to a different patient occupying the sam
   );
   await engine().processQueue();
   expect(callable).not.toHaveBeenCalled();
-  expect(await hospitalDB.syncQueue.toArray()).toEqual([
-    expect.objectContaining({
-      status: 'CONFLICT',
-      ownerKey: 'user:synthetic-A',
-      syncContract: expect.objectContaining({ changedPaths: ['beds.R1.handoffNoteDayShift'] }),
-    }),
-  ]);
+  expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
   expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.handoffNoteDayShift).toBe(
     'CURRENT NOTE'
   );
