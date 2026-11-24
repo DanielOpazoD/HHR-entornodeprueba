@@ -21,6 +21,22 @@ const {
   createWoundCareMobileUploadFunctions,
 } = require('../../../functions/lib/woundCareMobileUploadFunctions.js');
 
+const SYNTHETIC_WEBP_BASE64 = Buffer.from([
+  0x52, 0x49, 0x46, 0x46, 0x10, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x20,
+]).toString('base64');
+
+const SYNTHETIC_JPEG_BASE64 = Buffer.from([
+  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46,
+]).toString('base64');
+
+const SYNTHETIC_PNG_BASE64 = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+]).toString('base64');
+
+const SYNTHETIC_SVG_BASE64 = Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>'
+).toString('base64');
+
 const buildValidSession = () => ({
   sessionId: 'session-1',
   hospitalId: 'H1',
@@ -43,29 +59,88 @@ interface FirebaseServicesMockResult {
   setAudit: ReturnType<typeof vi.fn>;
   saveFile: ReturnType<typeof vi.fn>;
   updateSession: ReturnType<typeof vi.fn>;
+  getSessionState: () => Record<string, unknown> | null;
 }
+
+const applySessionUpdate = (
+  current: Record<string, unknown> | null,
+  patch: Record<string, unknown>
+): Record<string, unknown> | null => {
+  if (!current) return null;
+  const next = { ...current };
+  for (const [key, value] of Object.entries(patch)) {
+    if (
+      value &&
+      typeof value === 'object' &&
+      '__op' in value &&
+      (value as { __op?: unknown }).__op === 'increment'
+    ) {
+      const prev = typeof next[key] === 'number' ? (next[key] as number) : 0;
+      next[key] = prev + Number((value as { amount?: number }).amount || 0);
+    } else {
+      next[key] = value;
+    }
+  }
+  return next;
+};
 
 const createFirebaseServicesMock = (
   session: Record<string, unknown> | null = buildValidSession()
 ): FirebaseServicesMockResult => {
+  let sessionState: Record<string, unknown> | null = session ? { ...session } : null;
+  let txChain: Promise<unknown> = Promise.resolve();
   const setPhoto = vi.fn().mockResolvedValue(undefined);
   const setAudit = vi.fn().mockResolvedValue(undefined);
   const saveFile = vi.fn().mockResolvedValue(undefined);
-  const updateSession = vi.fn().mockResolvedValue(undefined);
+  const updateSession = vi.fn().mockImplementation(async (patch: Record<string, unknown>) => {
+    sessionState = applySessionUpdate(sessionState, patch);
+  });
+
+  const getSessionSnapshot = () => ({
+    exists: Boolean(sessionState),
+    data: () => (sessionState ? { ...sessionState } : undefined),
+  });
+
+  const sessionDocRef = {
+    get: vi.fn().mockImplementation(async () => getSessionSnapshot()),
+    update: updateSession,
+  };
 
   const firestore = {
+    runTransaction: vi.fn(
+      <T>(
+        fn: (tx: {
+          get: (ref: unknown) => Promise<ReturnType<typeof getSessionSnapshot>>;
+          update: (ref: unknown, patch: Record<string, unknown>) => void;
+        }) => Promise<T>
+      ): Promise<T> => {
+        const result = txChain.then(async () => {
+          const pendingPatches: Array<Record<string, unknown>> = [];
+          const tx = {
+            get: async () => getSessionSnapshot(),
+            update: (_ref: unknown, patch: Record<string, unknown>) => {
+              pendingPatches.push(patch);
+            },
+          };
+          const out = await fn(tx);
+          for (const patch of pendingPatches) {
+            await updateSession(patch);
+          }
+          return out;
+        });
+        txChain = result.then(
+          () => undefined,
+          () => undefined
+        );
+        return result;
+      }
+    ),
     collection: () => ({
       doc: () => ({
         collection: (name: string) => ({
           doc: () => {
             if (name === 'woundCareMobileUploadSessions') {
-              return {
-                get: vi.fn().mockResolvedValue({
-                  exists: Boolean(session),
-                  data: () => session,
-                }),
-                update: updateSession,
-              };
+              return sessionDocRef;
             }
 
             if (name === 'woundCarePhotos') {
@@ -86,14 +161,21 @@ const createFirebaseServicesMock = (
     storage: {
       bucket: () => ({
         name: 'test-bucket',
-        file: () => ({
-          save: saveFile,
+        file: (filePath: string) => ({
+          save: (buffer: Buffer, options: unknown) => saveFile(buffer, options, filePath),
         }),
       }),
     },
   };
 
-  return { firebaseServices, setPhoto, setAudit, saveFile, updateSession };
+  return {
+    firebaseServices,
+    setPhoto,
+    setAudit,
+    saveFile,
+    updateSession,
+    getSessionState: () => sessionState,
+  };
 };
 
 describe('functions woundCareMobileUploadFunctions', () => {
@@ -143,8 +225,8 @@ describe('functions woundCareMobileUploadFunctions', () => {
       await functionsApi.uploadWoundCareMobilePhoto.run(
         {
           sessionId: 'session-1',
-          imageBase64: Buffer.from('synthetic-image').toString('base64'),
-          thumbnailBase64: Buffer.from('synthetic-thumb').toString('base64'),
+          imageBase64: SYNTHETIC_WEBP_BASE64,
+          thumbnailBase64: SYNTHETIC_WEBP_BASE64,
         },
         {}
       );
@@ -207,16 +289,16 @@ describe('functions woundCareMobileUploadFunctions', () => {
     );
   });
 
-  it('uploads photo metadata, storage objects, audit entry, and increments the per-session counter', async () => {
-    const { firebaseServices, setPhoto, setAudit, saveFile, updateSession } =
+  it('uploads photo metadata, storage objects, audit entry, and reserves the per-session counter', async () => {
+    const { firebaseServices, setPhoto, setAudit, saveFile, updateSession, getSessionState } =
       createFirebaseServicesMock();
     const functionsApi = createWoundCareMobileUploadFunctions(firebaseServices);
 
     const result = await functionsApi.uploadWoundCareMobilePhoto.run(
       {
         sessionId: 'session-1',
-        imageBase64: Buffer.from('image').toString('base64'),
-        thumbnailBase64: Buffer.from('thumb').toString('base64'),
+        imageBase64: SYNTHETIC_WEBP_BASE64,
+        thumbnailBase64: SYNTHETIC_WEBP_BASE64,
         mimeType: 'image/webp',
         originalFileSize: 1024,
         compressedFileSize: 512,
@@ -235,6 +317,7 @@ describe('functions woundCareMobileUploadFunctions', () => {
       expect.objectContaining({
         patientName: 'Paciente Test',
         episodeKey: '12345678-9__2026-05-02',
+        mimeType: 'image/webp',
         uploadedViaSessionId: 'session-1',
         uploadedBy: expect.objectContaining({ displayName: 'Carga móvil por QR' }),
       })
@@ -248,9 +331,8 @@ describe('functions woundCareMobileUploadFunctions', () => {
         }),
       })
     );
-    expect(updateSession).toHaveBeenCalledWith({
-      uploadCount: { __op: 'increment', amount: 1 },
-    });
+    expect(updateSession).toHaveBeenCalledWith({ uploadCount: 1 });
+    expect(getSessionState()?.uploadCount).toBe(1);
   });
 
   it('rejects uploads when the session has reached its maxUploads cap', async () => {
@@ -267,8 +349,8 @@ describe('functions woundCareMobileUploadFunctions', () => {
       functionsApi.uploadWoundCareMobilePhoto.run(
         {
           sessionId: 'session-1',
-          imageBase64: Buffer.from('image').toString('base64'),
-          thumbnailBase64: Buffer.from('thumb').toString('base64'),
+          imageBase64: SYNTHETIC_WEBP_BASE64,
+          thumbnailBase64: SYNTHETIC_WEBP_BASE64,
         },
         {}
       )
@@ -276,6 +358,163 @@ describe('functions woundCareMobileUploadFunctions', () => {
 
     expect(setPhoto).not.toHaveBeenCalled();
     expect(updateSession).not.toHaveBeenCalled();
+  });
+
+  it('allows only one concurrent upload when one slot remains before maxUploads', async () => {
+    const nearlyFullSession = {
+      ...buildValidSession(),
+      maxUploads: 3,
+      uploadCount: 2,
+    };
+    const { firebaseServices, setPhoto, getSessionState } =
+      createFirebaseServicesMock(nearlyFullSession);
+    const functionsApi = createWoundCareMobileUploadFunctions(firebaseServices);
+
+    const outcomes = await Promise.allSettled(
+      Array.from({ length: 5 }, () =>
+        functionsApi.uploadWoundCareMobilePhoto.run(
+          {
+            sessionId: 'session-1',
+            imageBase64: SYNTHETIC_WEBP_BASE64,
+            thumbnailBase64: SYNTHETIC_WEBP_BASE64,
+          },
+          {}
+        )
+      )
+    );
+
+    const fulfilled = outcomes.filter(outcome => outcome.status === 'fulfilled');
+    const rejected = outcomes.filter(outcome => outcome.status === 'rejected');
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(4);
+    for (const item of rejected) {
+      expect(item.reason).toMatchObject({ code: 'resource-exhausted' });
+    }
+    expect(setPhoto).toHaveBeenCalledTimes(1);
+    expect(getSessionState()?.uploadCount).toBe(3);
+  });
+
+  it('rejects SVG or non-image payloads by magic bytes without consuming quota', async () => {
+    const { firebaseServices, saveFile, setPhoto, updateSession, getSessionState } =
+      createFirebaseServicesMock();
+    const functionsApi = createWoundCareMobileUploadFunctions(firebaseServices);
+
+    await expect(
+      functionsApi.uploadWoundCareMobilePhoto.run(
+        {
+          sessionId: 'session-1',
+          imageBase64: SYNTHETIC_SVG_BASE64,
+          thumbnailBase64: SYNTHETIC_WEBP_BASE64,
+          mimeType: 'image/svg+xml',
+        },
+        {}
+      )
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+
+    await expect(
+      functionsApi.uploadWoundCareMobilePhoto.run(
+        {
+          sessionId: 'session-1',
+          imageBase64: SYNTHETIC_WEBP_BASE64,
+          thumbnailBase64: SYNTHETIC_SVG_BASE64,
+          mimeType: 'image/webp',
+        },
+        {}
+      )
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+
+    expect(saveFile).not.toHaveBeenCalled();
+    expect(setPhoto).not.toHaveBeenCalled();
+    expect(updateSession).not.toHaveBeenCalled();
+    expect(getSessionState()?.uploadCount).toBe(0);
+  });
+
+  it('ignores untrusted client mimeType and stores valid JPEG bytes (iOS fallback) as image/jpeg', async () => {
+    const { firebaseServices, saveFile, setPhoto } = createFirebaseServicesMock();
+    const functionsApi = createWoundCareMobileUploadFunctions(firebaseServices);
+
+    await functionsApi.uploadWoundCareMobilePhoto.run(
+      {
+        sessionId: 'session-1',
+        imageBase64: SYNTHETIC_JPEG_BASE64,
+        thumbnailBase64: SYNTHETIC_JPEG_BASE64,
+        mimeType: 'image/svg+xml',
+      },
+      {}
+    );
+
+    expect(saveFile).toHaveBeenCalledTimes(2);
+    expect(saveFile).toHaveBeenNthCalledWith(
+      1,
+      expect.any(Buffer),
+      expect.objectContaining({
+        metadata: expect.objectContaining({ contentType: 'image/jpeg' }),
+      }),
+      expect.stringMatching(/\.jpg$/)
+    );
+    expect(saveFile).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Buffer),
+      expect.objectContaining({
+        metadata: expect.objectContaining({ contentType: 'image/jpeg' }),
+      }),
+      expect.stringMatching(/_thumb\.jpg$/)
+    );
+    expect(setPhoto).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mimeType: 'image/jpeg',
+        storagePath: expect.stringMatching(/\.jpg$/),
+        thumbnailStoragePath: expect.stringMatching(/_thumb\.jpg$/),
+      })
+    );
+
+    await functionsApi.uploadWoundCareMobilePhoto.run(
+      {
+        sessionId: 'session-1',
+        imageBase64: SYNTHETIC_PNG_BASE64,
+        thumbnailBase64: SYNTHETIC_PNG_BASE64,
+        mimeType: 'text/html',
+      },
+      {}
+    );
+    expect(setPhoto).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        mimeType: 'image/png',
+        storagePath: expect.stringMatching(/\.png$/),
+        thumbnailStoragePath: expect.stringMatching(/_thumb\.png$/),
+      })
+    );
+  });
+
+  it('releases the reserved quota slot when Storage or photo metadata write fails', async () => {
+    const { firebaseServices, saveFile, setPhoto, getSessionState } = createFirebaseServicesMock();
+    const functionsApi = createWoundCareMobileUploadFunctions(firebaseServices);
+
+    saveFile.mockRejectedValueOnce(new Error('storage offline'));
+    await expect(
+      functionsApi.uploadWoundCareMobilePhoto.run(
+        {
+          sessionId: 'session-1',
+          imageBase64: SYNTHETIC_WEBP_BASE64,
+          thumbnailBase64: SYNTHETIC_WEBP_BASE64,
+        },
+        {}
+      )
+    ).rejects.toThrow('storage offline');
+    expect(getSessionState()?.uploadCount).toBe(0);
+
+    setPhoto.mockRejectedValueOnce(new Error('firestore write failed'));
+    await expect(
+      functionsApi.uploadWoundCareMobilePhoto.run(
+        {
+          sessionId: 'session-1',
+          imageBase64: SYNTHETIC_WEBP_BASE64,
+          thumbnailBase64: SYNTHETIC_WEBP_BASE64,
+        },
+        {}
+      )
+    ).rejects.toThrow('firestore write failed');
+    expect(getSessionState()?.uploadCount).toBe(0);
   });
 
   it('falls back to the default cap when the session lacks maxUploads (legacy session)', async () => {
@@ -288,8 +527,8 @@ describe('functions woundCareMobileUploadFunctions', () => {
     const result = await functionsApi.uploadWoundCareMobilePhoto.run(
       {
         sessionId: 'session-1',
-        imageBase64: Buffer.from('image').toString('base64'),
-        thumbnailBase64: Buffer.from('thumb').toString('base64'),
+        imageBase64: SYNTHETIC_WEBP_BASE64,
+        thumbnailBase64: SYNTHETIC_WEBP_BASE64,
       },
       {}
     );
@@ -315,8 +554,8 @@ describe('functions woundCareMobileUploadFunctions', () => {
       functionsApi.uploadWoundCareMobilePhoto.run(
         {
           sessionId: 'session-1',
-          imageBase64: Buffer.from('image').toString('base64'),
-          thumbnailBase64: Buffer.from('thumb').toString('base64'),
+          imageBase64: SYNTHETIC_WEBP_BASE64,
+          thumbnailBase64: SYNTHETIC_WEBP_BASE64,
         },
         {}
       )

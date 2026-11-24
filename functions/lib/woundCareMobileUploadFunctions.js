@@ -52,6 +52,50 @@ const decodeBase64 = (value, fieldName) => {
   return buffer;
 };
 
+/**
+ * Detects the actual image format from magic bytes so untrusted client `mimeType` values
+ * (such as `image/svg+xml` or `text/html`) can never be stored or served from Storage.
+ * Accepts WebP (`RIFF....WEBP`), JPEG (`FF D8 FF`, iOS/Safari fallback), and PNG (`89 50 4E 47 0D 0A 1A 0A`, HTML canvas fallback).
+ */
+const detectImageFormat = (buffer, fieldName) => {
+  if (
+    buffer.length >= 12 &&
+    buffer[0] === 0x52 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x46 &&
+    buffer[8] === 0x57 &&
+    buffer[9] === 0x45 &&
+    buffer[10] === 0x42 &&
+    buffer[11] === 0x50
+  ) {
+    return { mimeType: 'image/webp', extension: 'webp' };
+  }
+
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return { mimeType: 'image/jpeg', extension: 'jpg' };
+  }
+
+  if (
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  ) {
+    return { mimeType: 'image/png', extension: 'png' };
+  }
+
+  throw new functions.https.HttpsError(
+    'invalid-argument',
+    `${fieldName} must be a valid WebP, JPEG, or PNG image.`
+  );
+};
+
 const getHospitalRef = firestore => firestore.collection('hospitals').doc(HOSPITAL_ID);
 const getSessionsRef = firestore =>
   getHospitalRef(firestore).collection('woundCareMobileUploadSessions');
@@ -60,9 +104,17 @@ const getAuditLogsRef = firestore => getHospitalRef(firestore).collection('audit
 
 const generateId = prefix => `${prefix}_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
 
-const buildStoragePath = ({ hospitalId, patientRut, episodeKey, photoId, suffix }) => {
+const buildStoragePath = ({
+  hospitalId,
+  patientRut,
+  episodeKey,
+  photoId,
+  suffix,
+  extension = 'webp',
+}) => {
   const date = hospitalCalendarDay();
-  const fileName = suffix === 'thumbnails' ? `${photoId}_thumb.webp` : `${photoId}.webp`;
+  const fileName =
+    suffix === 'thumbnails' ? `${photoId}_thumb.${extension}` : `${photoId}.${extension}`;
   return `wound-care/${suffix}/${hospitalId}/${patientRut}/${episodeKey}/${date}/${fileName}`;
 };
 
@@ -179,6 +231,36 @@ const assertUploadCapacity = session => {
   return { max, used };
 };
 
+const reserveUploadSlot = async (firestore, sessionId) => {
+  const sessionRef = getSessionsRef(firestore).doc(sessionId);
+  return firestore.runTransaction(async transaction => {
+    const snapshot = await transaction.get(sessionRef);
+    const session = normalizeSession(snapshot);
+    const { used } = assertUploadCapacity(session);
+    transaction.update(sessionRef, { uploadCount: used + 1 });
+    return session;
+  });
+};
+
+const releaseUploadSlot = async (firestore, sessionId, FieldValue) => {
+  try {
+    const sessionRef = getSessionsRef(firestore).doc(sessionId);
+    if (FieldValue && typeof FieldValue.increment === 'function') {
+      await sessionRef.update({ uploadCount: FieldValue.increment(-1) });
+      return;
+    }
+    await firestore.runTransaction(async transaction => {
+      const snapshot = await transaction.get(sessionRef);
+      if (!snapshot.exists) return;
+      const session = snapshot.data();
+      const used = typeof session?.uploadCount === 'number' ? session.uploadCount : 0;
+      transaction.update(sessionRef, { uploadCount: Math.max(0, used - 1) });
+    });
+  } catch (releaseError) {
+    console.warn('[wound-care] uploadCount release failed', releaseError);
+  }
+};
+
 const createWoundCareMobileUploadFunctions = ({ firestore, storage, FieldValue }) => ({
   validateWoundCareMobileUploadSession: functions.https.onCall(async (data, context) => {
     requireAppCheckToken(context, 'validateWoundCareMobileUploadSession');
@@ -216,15 +298,13 @@ const createWoundCareMobileUploadFunctions = ({ firestore, storage, FieldValue }
   uploadWoundCareMobilePhoto: functions.https.onCall(async (data, context) => {
     requireAppCheckToken(context, 'uploadWoundCareMobilePhoto');
     const sessionId = assertStringField(data?.sessionId, 'sessionId');
-    const session = await loadValidSession(firestore, sessionId);
-    assertUploadCapacity(session);
     const imageBuffer = decodeBase64(data?.imageBase64, 'imageBase64');
     const thumbnailBuffer = decodeBase64(data?.thumbnailBase64, 'thumbnailBase64');
+    // Derive MIME type and extension strictly from magic bytes; ignore client `mimeType`.
+    const imageFormat = detectImageFormat(imageBuffer, 'imageBase64');
+    const thumbnailFormat = detectImageFormat(thumbnailBuffer, 'thumbnailBase64');
 
-    const mimeType = optionalStringField(data?.mimeType, 80) || 'image/webp';
-    if (!mimeType.startsWith('image/')) {
-      throw new functions.https.HttpsError('invalid-argument', 'Only image uploads are accepted.');
-    }
+    const session = await reserveUploadSlot(firestore, sessionId);
 
     const photoId = generateId('wound_photo');
     const uploadedAt = new Date().toISOString();
@@ -235,6 +315,7 @@ const createWoundCareMobileUploadFunctions = ({ firestore, storage, FieldValue }
       episodeKey: session.episodeKey,
       photoId,
       suffix: 'photos',
+      extension: imageFormat.extension,
     });
     const thumbPath = buildStoragePath({
       hospitalId,
@@ -242,75 +323,66 @@ const createWoundCareMobileUploadFunctions = ({ firestore, storage, FieldValue }
       episodeKey: session.episodeKey,
       photoId,
       suffix: 'thumbnails',
+      extension: thumbnailFormat.extension,
     });
 
-    const [downloadUrl, thumbnailDownloadUrl] = await Promise.all([
-      saveBufferToStorage({
-        storage,
-        path: photoPath,
-        buffer: imageBuffer,
-        contentType: mimeType,
-        metadata: {
-          episodeKey: session.episodeKey,
-          patientRut: session.patientRut,
-          uploadedViaSessionId: sessionId,
-        },
-      }),
-      saveBufferToStorage({
-        storage,
-        path: thumbPath,
-        buffer: thumbnailBuffer,
-        contentType: 'image/webp',
-        metadata: {
-          episodeKey: session.episodeKey,
-          patientRut: session.patientRut,
-          uploadedViaSessionId: sessionId,
-        },
-      }),
-    ]);
+    try {
+      const [downloadUrl, thumbnailDownloadUrl] = await Promise.all([
+        saveBufferToStorage({
+          storage,
+          path: photoPath,
+          buffer: imageBuffer,
+          contentType: imageFormat.mimeType,
+          metadata: {
+            episodeKey: session.episodeKey,
+            patientRut: session.patientRut,
+            uploadedViaSessionId: sessionId,
+          },
+        }),
+        saveBufferToStorage({
+          storage,
+          path: thumbPath,
+          buffer: thumbnailBuffer,
+          contentType: thumbnailFormat.mimeType,
+          metadata: {
+            episodeKey: session.episodeKey,
+            patientRut: session.patientRut,
+            uploadedViaSessionId: sessionId,
+          },
+        }),
+      ]);
 
-    const photo = {
-      id: photoId,
-      patientRut: session.patientRut,
-      patientName: session.patientName,
-      episodeKey: session.episodeKey,
-      storagePath: photoPath,
-      thumbnailStoragePath: thumbPath,
-      downloadUrl,
-      thumbnailDownloadUrl,
-      mimeType,
-      originalFileSize: Number(data?.originalFileSize) || imageBuffer.length,
-      compressedFileSize: Number(data?.compressedFileSize) || imageBuffer.length,
-      width: Number(data?.width) || 0,
-      height: Number(data?.height) || 0,
-      description: optionalStringField(data?.description, 500),
-      bodyLocation: optionalStringField(data?.bodyLocation, 120),
-      takenAt: optionalStringField(data?.takenAt, 80) || uploadedAt,
-      uploadedAt,
-      uploadedBy: createMobileActor(data),
-      uploadedViaSessionId: sessionId,
-      isDeleted: false,
-    };
+      const photo = {
+        id: photoId,
+        patientRut: session.patientRut,
+        patientName: session.patientName,
+        episodeKey: session.episodeKey,
+        storagePath: photoPath,
+        thumbnailStoragePath: thumbPath,
+        downloadUrl,
+        thumbnailDownloadUrl,
+        mimeType: imageFormat.mimeType,
+        originalFileSize: Number(data?.originalFileSize) || imageBuffer.length,
+        compressedFileSize: Number(data?.compressedFileSize) || imageBuffer.length,
+        width: Number(data?.width) || 0,
+        height: Number(data?.height) || 0,
+        description: optionalStringField(data?.description, 500),
+        bodyLocation: optionalStringField(data?.bodyLocation, 120),
+        takenAt: optionalStringField(data?.takenAt, 80) || uploadedAt,
+        uploadedAt,
+        uploadedBy: createMobileActor(data),
+        uploadedViaSessionId: sessionId,
+        isDeleted: false,
+      };
 
-    await getPhotosRef(firestore).doc(photoId).set(photo);
+      await getPhotosRef(firestore).doc(photoId).set(photo);
+    } catch (uploadError) {
+      await releaseUploadSlot(firestore, sessionId, FieldValue);
+      throw uploadError;
+    }
+
     const auditEntry = createAuditEntry({ session, photoId, requestData: data });
     await getAuditLogsRef(firestore).doc(auditEntry.id).set(auditEntry);
-
-    // Increment the per-session upload counter so the next call hits
-    // the cap. Best-effort: a failure to update the counter is logged
-    // but does not roll back the photo write — losing one increment is
-    // strictly safer than failing an already-persisted upload.
-    try {
-      const updatePayload =
-        FieldValue && typeof FieldValue.increment === 'function'
-          ? { uploadCount: FieldValue.increment(1) }
-          : {
-              uploadCount: (typeof session.uploadCount === 'number' ? session.uploadCount : 0) + 1,
-            };
-      await getSessionsRef(firestore).doc(sessionId).update(updatePayload);
-    } catch (counterError) {
-      console.warn('[wound-care] uploadCount increment failed', counterError);
-    }
 
     return { photoId, uploadedAt };
   }),
