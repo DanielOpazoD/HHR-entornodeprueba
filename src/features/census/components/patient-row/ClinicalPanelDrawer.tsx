@@ -10,6 +10,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { ChevronLeft, ChevronRight, Compass, FileDown, RefreshCw } from 'lucide-react';
@@ -50,13 +51,13 @@ const ClinicalPanelLoadingContent: React.FC = () => (
   </div>
 );
 
-const PatientDocumentManagerDialog = React.lazy(() =>
+const PatientDocumentManagerDialog = lazyWithRetry(() =>
   import('./PatientDocumentManagerDialog').then(module => ({
     default: module.PatientDocumentManagerDialog,
   }))
 );
 
-const ClinicalPanelAntecedents = React.lazy(() =>
+const ClinicalPanelAntecedents = lazyWithRetry(() =>
   import('./ClinicalPanelAntecedents').then(module => ({
     default: module.ClinicalPanelAntecedents,
   }))

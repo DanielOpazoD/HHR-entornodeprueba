@@ -26,33 +26,34 @@ import { MONTH_NAMES } from '@/constants/export';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import type { ModuleType } from '@/constants/navigationConfig';
 import { canUseDayActions } from '@/shared/access/operationalAccessPolicy';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 
-const HandoffSaveDropdown = React.lazy(() =>
+const HandoffSaveDropdown = lazyWithRetry(() =>
   import('./date-strip/actions/HandoffSaveDropdown').then(module => ({
     default: module.HandoffSaveDropdown,
   }))
 );
-const EmailDropdown = React.lazy(() =>
+const EmailDropdown = lazyWithRetry(() =>
   import('./date-strip/actions/EmailDropdown').then(module => ({
     default: module.EmailDropdown,
   }))
 );
-const PdfButtons = React.lazy(() =>
+const PdfButtons = lazyWithRetry(() =>
   import('./date-strip/actions/PdfButtons').then(module => ({
     default: module.PdfButtons,
   }))
 );
-const DateStripQuickActions = React.lazy(() =>
+const DateStripQuickActions = lazyWithRetry(() =>
   import('@/components/layout/date-strip/DateStripQuickActions').then(module => ({
     default: module.DateStripQuickActions,
   }))
 );
-const DateStripYearNavigator = React.lazy(() =>
+const DateStripYearNavigator = lazyWithRetry(() =>
   import('@/components/layout/date-strip/DateStripYearNavigator').then(module => ({
     default: module.DateStripYearNavigator,
   }))
 );
-const DateStripMonthNavigator = React.lazy(() =>
+const DateStripMonthNavigator = lazyWithRetry(() =>
   import('@/components/layout/date-strip/DateStripMonthNavigator').then(module => ({
     default: module.DateStripMonthNavigator,
   }))

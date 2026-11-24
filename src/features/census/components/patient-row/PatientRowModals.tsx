@@ -1,4 +1,5 @@
-import React, { lazy, Suspense, useContext, useEffect, useRef } from 'react';
+import React, { Suspense, useContext, useEffect, useRef } from 'react';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { buildPatientRowModalRenderModel } from '@/features/census/controllers/patientRowModalRenderController';
 import type { PatientRowModalsProps } from '@/features/census/components/patient-row/patientRowContracts';
 import { hasMeaningfulDemographicSubset } from '@/features/census/components/demographics/utils';
@@ -9,31 +10,31 @@ import {
 } from '../exam-orders/examOrderContext';
 import { openExamOrderRequest } from '../exam-orders/examOrderSelectionStore';
 
-const LazyDemographicsModal = lazy(() =>
+const LazyDemographicsModal = lazyWithRetry(() =>
   import('@/features/census/components/demographics/DemographicsModal').then(module => ({
     default: module.DemographicsModal,
   }))
 );
 
-const LazyExamRequestModal = lazy(() =>
+const LazyExamRequestModal = lazyWithRetry(() =>
   import('@/features/census/components/exam-request/ExamRequestModal').then(module => ({
     default: module.ExamRequestModal,
   }))
 );
 
-const LazyImagingRequestDialog = lazy(() =>
+const LazyImagingRequestDialog = lazyWithRetry(() =>
   import('@/features/census/components/imaging-request/ImagingRequestDialog').then(module => ({
     default: module.ImagingRequestDialog,
   }))
 );
 
-const LazyPatientHistoryModal = lazy(() =>
+const LazyPatientHistoryModal = lazyWithRetry(() =>
   import('@/features/census/components/PatientHistoryModal').then(module => ({
     default: module.PatientHistoryModal,
   }))
 );
 
-const LazyClinicalDocumentsModal = lazy(() =>
+const LazyClinicalDocumentsModal = lazyWithRetry(() =>
   import('@/features/clinical-documents').then(module => ({
     default: module.ClinicalDocumentsModal,
   }))

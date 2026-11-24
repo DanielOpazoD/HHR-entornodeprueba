@@ -1,4 +1,5 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense } from 'react';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { FileText, MoreHorizontal, User } from 'lucide-react';
 import { Button } from '@/components/ui/base/Button';
 import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
@@ -16,7 +17,7 @@ import { resolvePatientActionMenuDemographicsInteraction } from '@/features/cens
 // pointer type instead of the shared button minimum (28 px with a mouse, 44 px on touch).
 const COMPACT_ROW_BUTTON = '!min-h-5 !border-0 !py-0.5';
 
-const LazyPatientActionMenuPanel = lazy(() =>
+const LazyPatientActionMenuPanel = lazyWithRetry(() =>
   import('@/features/census/components/patient-row/PatientActionMenuPanel').then(module => ({
     default: module.PatientActionMenuPanel,
   }))
