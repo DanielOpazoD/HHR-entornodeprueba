@@ -1,56 +1,62 @@
 import React from 'react';
 import type { RayenSyncPerformance } from '@/types/domain/rayenSync';
 
-const STAGE_LABELS: Array<[keyof RayenSyncPerformance['stagesMs'], string]> = [
-  ['preflight', 'Preflight'],
-  ['dualCapture', 'Captura dual'],
-  ['captureHealthBefore', 'Conexión previa incluida'],
-  ['captureFichaMedico', 'Ficha Médico incluida'],
-  ['fichaContext', 'Ficha: contexto'],
-  ['fichaListsAndCatalog', 'Ficha: listas y catálogo'],
-  ['fichaPatientReads', 'Ficha: lecturas por paciente'],
-  ['fichaDiagnosisCoding', 'Ficha: codificación'],
-  ['captureGestionCamas', 'Gestión de Camas incluida'],
-  ['captureHealthAfter', 'Conexión posterior incluida'],
-  ['reconciliation', 'Reconciliación total'],
-  ['historicalEvidence', 'Evidencia histórica incluida'],
-  ['reviewWait', 'Revisión humana'],
-  ['structuralPersistence', 'Guardado estructural'],
-  ['clinicalReads', 'Lecturas clínicas'],
-  ['writeQueueWait', 'Espera interna sumada'],
-  ['persistence', 'Persistencia sumada'],
-  ['currentClinicalPersistence', 'Persistencia clínica actual'],
-  ['historicalCudyrPersistence', 'Persistencia CUDYR histórica'],
-  ['closeWait', 'Espera del cierre tras el guardado'],
-  ['staffRegistration', 'Registro del personal incluido'],
-  ['cudyrArchive', 'Archivo CUDYR'],
-  ['cudyrArchivePlacementReads', 'Archivo CUDYR: ubicaciones sumadas'],
-  ['cudyrArchiveWrites', 'Archivo CUDYR: escrituras sumadas'],
-];
+type StageKey = keyof RayenSyncPerformance['stagesMs'];
+
+const SEP = ' · ';
+const ROW_CLASS = 'tabular-nums text-slate-500';
+const NOTE_CLASS = 'text-[10px] text-slate-400';
+
+const STAGE_LABELS: Record<StageKey, string> = {
+  preflight: 'Preflight',
+  dualCapture: 'Captura dual',
+  captureHealthBefore: 'Conexión previa incluida',
+  captureFichaMedico: 'Ficha Médico incluida',
+  fichaContext: 'Ficha: contexto',
+  fichaListsAndCatalog: 'Ficha: listas y catálogo',
+  fichaPatientReads: 'Ficha: lecturas por paciente',
+  fichaDiagnosisCoding: 'Ficha: codificación',
+  captureGestionCamas: 'Gestión de Camas incluida',
+  captureHealthAfter: 'Conexión posterior incluida',
+  reconciliation: 'Reconciliación total',
+  historicalEvidence: 'Evidencia histórica incluida',
+  reviewWait: 'Revisión humana',
+  structuralPersistence: 'Guardado estructural',
+  clinicalReads: 'Lecturas clínicas',
+  writeQueueWait: 'Espera interna sumada',
+  persistence: 'Persistencia sumada',
+  currentClinicalPersistence: 'Persistencia clínica actual',
+  historicalCudyrPersistence: 'Persistencia CUDYR histórica',
+  closeWait: 'Espera del cierre tras el guardado',
+  staffRegistration: 'Registro del personal incluido',
+  cudyrArchive: 'Archivo CUDYR',
+  cudyrArchivePlacementReads: 'Archivo CUDYR: ubicaciones sumadas',
+  cudyrArchiveWrites: 'Archivo CUDYR: escrituras sumadas',
+};
 
 const formatDuration = (durationMs: number): string =>
   durationMs < 1_000
     ? `${durationMs} ms`
     : `${(durationMs / 1_000).toLocaleString('es-CL', { maximumFractionDigits: 1 })} s`;
 
-const countLabel = (value: number, singular: string, plural: string): string =>
-  `${value} ${value === 1 ? singular : plural}`;
+const inflect = (value: number, singular: string, suffix = 's'): string =>
+  `${singular}${value === 1 ? '' : suffix}`;
+
+const qty = (value: number, singular: string, suffix = 's', tail = ''): string =>
+  `${value} ${inflect(value, singular, suffix)}${tail}`;
+
+const retryQty = (value: number, tail = ''): string => qty(value, 'reintento', 's', tail);
 
 export const RayenSyncTechnicalMetricsPanel: React.FC<{
   performance?: RayenSyncPerformance;
   embedded?: boolean;
 }> = ({ performance, embedded = false }) => {
   if (!performance) return null;
-  const stages = STAGE_LABELS.flatMap(([key, label]) => {
-    const value = performance.stagesMs[key];
-    return value == null ? [] : [{ key, label, value }];
-  });
-  const { counters } = performance;
-  const physicianQuality = performance.sourceQuality?.treatingPhysicians;
-  const coordination = performance.coordination;
-  const persistenceTrace = performance.persistenceTrace;
-  const currentPersistence = persistenceTrace?.current;
-  const historicalPersistence = persistenceTrace?.historical;
+  const { stagesMs, counters, coordination, persistenceTrace, sourceQuality } = performance;
+  const stageKeys = (Object.keys(STAGE_LABELS) as StageKey[]).filter(key => stagesMs[key] != null);
+  const physicianQuality = sourceQuality?.treatingPhysicians;
+  const current = persistenceTrace?.current;
+  const historical = persistenceTrace?.historical;
   const Container = embedded ? 'div' : 'details';
 
   return (
@@ -62,91 +68,86 @@ export const RayenSyncTechnicalMetricsPanel: React.FC<{
         <summary className="cursor-pointer font-bold text-slate-700">Detalle técnico</summary>
       )}
       <div className="mt-2 space-y-2" role="group" aria-label="Telemetría técnica agregada">
-        {(performance.stagesMs.captureFichaMedico != null ||
-          performance.stagesMs.captureGestionCamas != null) && (
+        {(stagesMs.captureFichaMedico != null || stagesMs.captureGestionCamas != null) && (
           <p>
             Las fuentes se leen en paralelo; sus tiempos están incluidos en la captura dual y no se
             suman.
           </p>
         )}
-        {stages.length > 0 && (
+        {stageKeys.length > 0 && (
           <dl className="grid grid-cols-2 gap-x-3 gap-y-1 sm:grid-cols-3">
-            {stages.map(stage => (
-              <div key={stage.key} className="flex items-baseline justify-between gap-2">
-                <dt className="text-slate-500">{stage.label}</dt>
-                <dd className="font-semibold tabular-nums">{formatDuration(stage.value)}</dd>
+            {stageKeys.map(key => (
+              <div key={key} className="flex items-baseline justify-between gap-2">
+                <dt className="text-slate-500">{STAGE_LABELS[key]}</dt>
+                <dd className="font-semibold tabular-nums">{formatDuration(stagesMs[key] ?? 0)}</dd>
               </div>
             ))}
           </dl>
         )}
         <p className="font-medium tabular-nums text-slate-600">
-          {countLabel(counters.requests, 'solicitud Eloísa', 'solicitudes Eloísa')} ·{' '}
-          {countLabel(counters.cacheHits, 'acierto de caché', 'aciertos de caché')} ·{' '}
-          {countLabel(counters.patches, 'parche', 'parches')} ·{' '}
-          {countLabel(counters.retries, 'reintento', 'reintentos')} ·{' '}
-          {countLabel(counters.timeouts, 'timeout', 'timeouts')}
+          {[
+            qty(counters.requests, 'solicitud', 'es', ' Eloísa'),
+            qty(counters.cacheHits, 'acierto', 's', ' de caché'),
+            qty(counters.patches, 'parche'),
+            retryQty(counters.retries),
+            qty(counters.timeouts, 'timeout'),
+          ].join(SEP)}
         </p>
-        {(currentPersistence || historicalPersistence) && (
-          <p className="tabular-nums text-slate-500">
-            Persistencia autoritativa:{' '}
-            {currentPersistence
-              ? `${currentPersistence.callableAttempts} actual${
-                  currentPersistence.callableAttempts === 1 ? '' : 'es'
-                }`
-              : '0 actuales'}{' '}
-            ·{' '}
-            {historicalPersistence
-              ? `${historicalPersistence.callableAttempts} histórica${
-                  historicalPersistence.callableAttempts === 1 ? '' : 's'
-                }`
-              : '0 históricas'}{' '}
-            ·{' '}
-            {countLabel(
-              (currentPersistence?.clientRetries ?? 0) +
-                (historicalPersistence?.clientRetries ?? 0),
-              'reintento cliente',
-              'reintentos cliente'
-            )}{' '}
-            ·{' '}
-            {countLabel(
-              (currentPersistence?.transactionRetries ?? 0) +
-                (historicalPersistence?.transactionRetries ?? 0),
-              'reintento Firestore',
-              'reintentos Firestore'
-            )}
+        {(current || historical) && (
+          <p className={ROW_CLASS}>
+            {`Persistencia autoritativa: ${[
+              qty(current?.callableAttempts ?? 0, 'actual', 'es'),
+              qty(historical?.callableAttempts ?? 0, 'histórica'),
+              retryQty(
+                (current?.clientRetries ?? 0) + (historical?.clientRetries ?? 0),
+                ' cliente'
+              ),
+              retryQty(
+                (current?.transactionRetries ?? 0) + (historical?.transactionRetries ?? 0),
+                ' Firestore'
+              ),
+            ].join(SEP)}`}
           </p>
         )}
         {coordination && (
-          <p className="tabular-nums text-slate-500">
-            {coordination.target
-              ? `Contexto ${coordination.target === 'historical' ? 'histórico' : 'actual'} · `
-              : ''}
-            {countLabel(
-              coordination.structuralReplans,
-              'replanteamiento estructural',
-              'replanteamientos estructurales'
-            )}{' '}
-            · {coordination.confirmedEpisodes} episodios confirmados ·{' '}
-            {coordination.omittedEpisodes} omitidos ·{' '}
-            {countLabel(coordination.clinicalRetries, 'reintento clínico', 'reintentos clínicos')}
+          <p className={ROW_CLASS}>
+            {[
+              ...(coordination.target
+                ? [`Contexto ${coordination.target === 'historical' ? 'histórico' : 'actual'}`]
+                : []),
+              qty(
+                coordination.structuralReplans,
+                'replanteamiento',
+                's',
+                ` ${inflect(coordination.structuralReplans, 'estructural', 'es')}`
+              ),
+              `${coordination.confirmedEpisodes} episodios confirmados`,
+              `${coordination.omittedEpisodes} omitidos`,
+              retryQty(
+                coordination.clinicalRetries,
+                ` ${inflect(coordination.clinicalRetries, 'clínico')}`
+              ),
+            ].join(SEP)}
           </p>
         )}
         {physicianQuality && (
-          <p className="tabular-nums text-slate-500">
-            Médicos tratantes: {physicianQuality.assignedEncounters} asignados ·{' '}
-            {physicianQuality.sourceResolvedNames} nombres desde Eloísa ·{' '}
-            {physicianQuality.plannedResolvedNames} disponibles para sincronizar ·{' '}
-            {physicianQuality.catalogEntries} en catálogo · {physicianQuality.encounters} encuentros
+          <p className={ROW_CLASS}>
+            {`Médicos tratantes: ${[
+              `${physicianQuality.assignedEncounters} asignados`,
+              `${physicianQuality.sourceResolvedNames} nombres desde Eloísa`,
+              `${physicianQuality.plannedResolvedNames} disponibles para sincronizar`,
+              `${physicianQuality.catalogEntries} en catálogo`,
+              `${physicianQuality.encounters} encuentros`,
+            ].join(SEP)}`}
           </p>
         )}
-        {(performance.stagesMs.writeQueueWait != null ||
-          performance.stagesMs.persistence != null) && (
-          <p className="text-[10px] text-slate-400">
+        {(stagesMs.writeQueueWait != null || stagesMs.persistence != null) && (
+          <p className={NOTE_CLASS}>
             Las esperas y persistencias se suman entre pacientes; pueden superar la duración total
             de la sincronización.
           </p>
         )}
-        <p className="text-[10px] text-slate-400">
+        <p className={NOTE_CLASS}>
           Sólo agregados técnicos; no contiene pacientes, camas, episodios, nombres profesionales ni
           valores clínicos.
         </p>
