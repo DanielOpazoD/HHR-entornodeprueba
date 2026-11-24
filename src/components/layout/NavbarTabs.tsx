@@ -174,7 +174,7 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
             className={clsx(
               controlInteractionClass,
               'hhr-nav-tab flex items-center justify-center gap-1.5 min-w-8 h-8 px-2 rounded-lg duration-200 focus-visible:outline-offset-2 focus-visible:outline-white',
-              isUtilityActive || currentModule === 'CUDYR'
+              isUtilityActive
                 ? 'bg-white/[0.16] text-white ring-1 ring-white/20 shadow-sm shadow-black/10'
                 : 'text-white/85 hover:bg-white/[0.08] hover:text-white'
             )}

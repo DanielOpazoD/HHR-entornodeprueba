@@ -215,6 +215,27 @@ export const DateStrip: React.FC<DateStripProps> = ({
   const isHandoffModule = currentModule === 'NURSING_HANDOFF';
   const canShowRoleRestrictedActions = !isGuest && !specialistCensusAccess;
 
+  const showBookmarkAction = !isGuest && Boolean(onToggleBookmarks);
+  const showHandoffPdfButton = isHandoffModule && !isGuest && Boolean(onExportPDF);
+  const showHandoffSaveDropdown = isHandoffModule && !isGuest;
+  const showCensusExcelAction =
+    currentModule === 'CENSUS' && canShowRoleRestrictedActions && Boolean(onExportExcel);
+  const showEmailAction = canShowRoleRestrictedActions && Boolean(onSendEmail);
+  const showCensusPdfAction = currentModule === 'CENSUS' && Boolean(onExportPDF);
+  const hasLeadingActions =
+    showBookmarkAction ||
+    showHandoffPdfButton ||
+    showHandoffSaveDropdown ||
+    showCensusExcelAction ||
+    showEmailAction ||
+    showCensusPdfAction;
+
+  const showPatientSearch = !isHandoffModule && Boolean(onOpenPatientSearch);
+  const showClinicalQuickActions = currentModule === 'CENSUS';
+  const bedManagerAction = specialistCensusAccess ? undefined : onOpenBedManager;
+  const mountQuickActions = showClinicalQuickActions || Boolean(bedManagerAction);
+  const showQuickActionsSection = !hideQuickActions && (showPatientSearch || mountQuickActions);
+
   // Keep the census shortcut visible, including on today, so the toolbar
   // retains its layout across day changes and refresh bootstrap.
   const isViewingClinicalToday = !clinicalToday || currentDateString === clinicalToday;
@@ -232,67 +253,76 @@ export const DateStrip: React.FC<DateStripProps> = ({
     >
       <div className="hhr-date-strip-inner mx-auto px-3 sm:px-5 py-0.5 w-full flex items-center">
         <div className="hhr-date-navigation flex min-w-0 flex-1 items-center gap-2 max-md:overflow-x-auto">
-          <div className="flex items-center gap-1 shrink-0 min-w-0">
-            {!isGuest && onToggleBookmarks && (
-              <BookmarkButton onToggleBookmarks={onToggleBookmarks} showBookmarks={showBookmarks} />
-            )}
+          {hasLeadingActions && (
+            <>
+              <div className="flex items-center gap-1 shrink-0 min-w-0">
+                {showBookmarkAction && onToggleBookmarks && (
+                  <BookmarkButton
+                    onToggleBookmarks={onToggleBookmarks}
+                    showBookmarks={showBookmarks}
+                  />
+                )}
 
-            {currentModule === 'NURSING_HANDOFF' && !isGuest && onExportPDF && (
-              <PdfButton onExportPDF={onExportPDF} />
-            )}
+                {showHandoffPdfButton && onExportPDF && <PdfButton onExportPDF={onExportPDF} />}
 
-            {currentModule === 'NURSING_HANDOFF' && !isGuest && (
-              <React.Suspense fallback={<DateStripActionFallback widthClassName="min-w-[40px]" />}>
-                <HandoffSaveDropdown
-                  onExportPDF={onExportPDF}
-                  onPrintWithBrowserOptions={onPrintWithBrowserOptions}
-                  onBackupPDF={onBackupPDF}
-                  isArchived={isArchived}
-                  isBackingUp={isBackingUp}
-                  showFirebaseBackupOption={false}
-                />
-              </React.Suspense>
-            )}
+                {showHandoffSaveDropdown && (
+                  <React.Suspense
+                    fallback={<DateStripActionFallback widthClassName="min-w-[40px]" />}
+                  >
+                    <HandoffSaveDropdown
+                      onExportPDF={onExportPDF}
+                      onPrintWithBrowserOptions={onPrintWithBrowserOptions}
+                      onBackupPDF={onBackupPDF}
+                      isArchived={isArchived}
+                      isBackingUp={isBackingUp}
+                      showFirebaseBackupOption={false}
+                    />
+                  </React.Suspense>
+                )}
 
-            {currentModule === 'CENSUS' && canShowRoleRestrictedActions && onExportExcel && (
-              <SaveButton
-                onClick={onExportExcel}
-                isArchived={isArchived}
-                isBackingUp={isBackingUp}
-              />
-            )}
+                {showCensusExcelAction && onExportExcel && (
+                  <SaveButton
+                    onClick={onExportExcel}
+                    isArchived={isArchived}
+                    isBackingUp={isBackingUp}
+                  />
+                )}
 
-            {canShowRoleRestrictedActions && (
-              <React.Suspense
-                fallback={
-                  onSendEmail ? (
-                    <EmailButton
-                      disabled
+                {showEmailAction && (
+                  <React.Suspense
+                    fallback={
+                      <EmailButton
+                        disabled
+                        emailStatus={emailStatus}
+                        emailErrorMessage={emailErrorMessage}
+                      />
+                    }
+                  >
+                    <EmailDropdown
+                      onSendEmail={onSendEmail}
+                      onCopyShareLink={onCopyShareLink}
+                      onConfigureEmail={onConfigureEmail}
                       emailStatus={emailStatus}
                       emailErrorMessage={emailErrorMessage}
+                      emailBlockedReason={emailBlockedReason}
                     />
-                  ) : null
-                }
-              >
-                <EmailDropdown
-                  onSendEmail={onSendEmail}
-                  onCopyShareLink={onCopyShareLink}
-                  onConfigureEmail={onConfigureEmail}
-                  emailStatus={emailStatus}
-                  emailErrorMessage={emailErrorMessage}
-                  emailBlockedReason={emailBlockedReason}
-                />
-              </React.Suspense>
-            )}
+                  </React.Suspense>
+                )}
 
-            {currentModule === 'CENSUS' && (
-              <React.Suspense fallback={onExportPDF ? <PdfButton disabled /> : null}>
-                <PdfButtons onExportPDF={onExportPDF} />
-              </React.Suspense>
-            )}
-          </div>
+                {showCensusPdfAction && (
+                  <React.Suspense fallback={<PdfButton disabled />}>
+                    <PdfButtons onExportPDF={onExportPDF} />
+                  </React.Suspense>
+                )}
+              </div>
 
-          <div className="h-4 w-px bg-slate-200/70" />
+              <div
+                className="h-4 w-px bg-slate-200/70"
+                data-testid="date-strip-leading-divider"
+                aria-hidden="true"
+              />
+            </>
+          )}
 
           <React.Suspense
             fallback={<DateStripPeriodControl disabled kind="year" label={selectedYear} />}
@@ -353,40 +383,48 @@ export const DateStrip: React.FC<DateStripProps> = ({
             </button>
           )}
 
-          {!hideQuickActions && <div className="h-4 w-px bg-slate-200/70" />}
+          {showQuickActionsSection && (
+            <>
+              <div
+                className="h-4 w-px bg-slate-200/70"
+                data-testid="date-strip-quick-actions-divider"
+                aria-hidden="true"
+              />
 
-          {!hideQuickActions && (
-            <div className="flex min-w-0 shrink-0 items-center justify-end gap-1 overflow-x-auto">
-              {!isHandoffModule && onOpenPatientSearch && (
-                <button
-                  onClick={onOpenPatientSearch}
-                  className="hhr-toolbar-control flex items-center justify-center gap-1 px-3 py-0 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 rounded-lg border border-slate-200 transition-colors font-semibold min-w-[96px]"
-                  title="Buscar paciente (Ctrl+K)"
-                >
-                  <Search size={13} />
-                  <span className="hidden sm:inline">Buscar</span>
-                </button>
-              )}
+              <div className="flex min-w-0 shrink-0 items-center justify-end gap-1 overflow-x-auto">
+                {showPatientSearch && onOpenPatientSearch && (
+                  <button
+                    onClick={onOpenPatientSearch}
+                    className="hhr-toolbar-control flex items-center justify-center gap-1 px-3 py-0 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 rounded-lg border border-slate-200 transition-colors font-semibold min-w-[96px]"
+                    title="Buscar paciente (Ctrl+K)"
+                  >
+                    <Search size={13} />
+                    <span className="hidden sm:inline">Buscar</span>
+                  </button>
+                )}
 
-              <React.Suspense
-                fallback={
-                  <div
-                    className="hhr-toolbar-control w-[168px] shrink-0 rounded-lg border border-slate-100 bg-slate-50/70"
-                    aria-hidden="true"
-                  />
-                }
-              >
-                <DateStripQuickActions
-                  onOpenBedManager={specialistCensusAccess ? undefined : onOpenBedManager}
-                  renderFeatureQuickActions={renderFeatureQuickActions}
-                  radiologyViewer={radiologyViewer}
-                  hideClinicalQuickActions={isHandoffModule}
-                  censusQuickActionPatients={
-                    currentModule === 'CENSUS' ? censusQuickActionPatients : []
-                  }
-                />
-              </React.Suspense>
-            </div>
+                {mountQuickActions && (
+                  <React.Suspense
+                    fallback={
+                      <div
+                        className="hhr-toolbar-control w-[168px] shrink-0 rounded-lg border border-slate-100 bg-slate-50/70"
+                        aria-hidden="true"
+                      />
+                    }
+                  >
+                    <DateStripQuickActions
+                      onOpenBedManager={bedManagerAction}
+                      renderFeatureQuickActions={renderFeatureQuickActions}
+                      radiologyViewer={radiologyViewer}
+                      hideClinicalQuickActions={!showClinicalQuickActions}
+                      censusQuickActionPatients={
+                        showClinicalQuickActions ? censusQuickActionPatients : []
+                      }
+                    />
+                  </React.Suspense>
+                )}
+              </div>
+            </>
           )}
         </div>
         {trailingActions && (

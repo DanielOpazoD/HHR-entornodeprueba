@@ -263,4 +263,59 @@ describe('DateStrip', () => {
     const nextYearUpdate = defaultProps.setSelectedYear.mock.lastCall?.[0];
     expect(nextYearUpdate(2024)).toBe(2025);
   });
+
+  it('omits dead clinical quick actions and orphan leading divider in CUDYR while keeping patient search', async () => {
+    render(
+      <DateStrip
+        {...defaultProps}
+        currentModule="CUDYR"
+        onToggleBookmarks={undefined}
+        onSendEmail={undefined}
+        onOpenBedManager={undefined}
+        onOpenPatientSearch={vi.fn()}
+        renderFeatureQuickActions={() => <button data-testid="lab-quick-action">Lab</button>}
+      />
+    );
+
+    await screen.findByText('Febrero');
+    expect(screen.getByTitle('Buscar paciente (Ctrl+K)')).toBeInTheDocument();
+    expect(screen.queryByTitle('MMRAD (cargando...)')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Lab (cargando...)')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('lab-quick-action')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('date-strip-leading-divider')).not.toBeInTheDocument();
+    expect(screen.getByTestId('date-strip-quick-actions-divider')).toBeInTheDocument();
+  });
+
+  it('omits orphan dividers and quick-action container in nursing handoff and for viewer role', async () => {
+    const { rerender } = render(
+      <DateStrip
+        {...defaultProps}
+        currentModule="NURSING_HANDOFF"
+        onToggleBookmarks={undefined}
+        onSendEmail={undefined}
+        onOpenBedManager={undefined}
+        onOpenPatientSearch={vi.fn()}
+        role="nurse_hospital"
+      />
+    );
+
+    await screen.findByText('Febrero');
+    expect(screen.getByTestId('date-strip-leading-divider')).toBeInTheDocument();
+    expect(screen.queryByTestId('date-strip-quick-actions-divider')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('MMRAD (cargando...)')).not.toBeInTheDocument();
+
+    rerender(
+      <DateStrip
+        {...defaultProps}
+        currentModule="NURSING_HANDOFF"
+        onToggleBookmarks={undefined}
+        onSendEmail={undefined}
+        onOpenBedManager={undefined}
+        onOpenPatientSearch={vi.fn()}
+        role="viewer"
+      />
+    );
+    expect(screen.queryByTestId('date-strip-leading-divider')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('date-strip-quick-actions-divider')).not.toBeInTheDocument();
+  });
 });

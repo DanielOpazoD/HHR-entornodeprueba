@@ -106,11 +106,14 @@ describe('NavbarTabs', () => {
     const censusButton = screen.getByText('Censo Diario').closest('button');
     expect(censusButton?.className).toContain('bg-white/[0.16]');
 
-    // CUDYR now belongs to Census.
+    // CUDYR belongs to Census and must not simultaneously highlight the "Más" utility menu.
     rerender(<NavbarTabs {...defaultProps} currentModule="CUDYR" />);
     const nursingButton = screen.getByText('Entrega Turno Enfermería').closest('button');
     expect(nursingButton?.className).not.toContain('bg-white/[0.16]');
     expect(screen.getByText('Censo Diario').closest('button')?.className).toContain(
+      'bg-white/[0.16]'
+    );
+    expect(screen.getByTestId('navbar-utility-menu-button').className).not.toContain(
       'bg-white/[0.16]'
     );
   });
