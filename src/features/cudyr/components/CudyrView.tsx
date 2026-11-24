@@ -1,7 +1,8 @@
 import { monthlyRecoveryWindow } from '@/features/cudyr/recovery/cudyrMonthlyRecoveryPlan';
 import { CudyrNightStaff } from './CudyrNightStaff';
 import { CudyrExclusionSummary } from './CudyrExclusionSummary';
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import {
   ArrowLeft,
   Download,
@@ -25,7 +26,7 @@ import { CudyrArchiveStatus } from './CudyrArchiveStatus';
 import { CudyrMonthlyRecovery } from './CudyrMonthlyRecovery';
 import { CudyrDailyTable } from './CudyrDailyTable';
 import { CudyrExclusionDialog } from './CudyrExclusionDialog';
-const CudyrReportExplorer = lazy(() => import('./CudyrReportExplorer'));
+const CudyrReportExplorer = lazyWithRetry(() => import('./CudyrReportExplorer'));
 
 export const CudyrView = ({
   readOnly = false,

@@ -1,4 +1,5 @@
-import React, { Suspense, lazy, useRef, useState } from 'react';
+import React, { Suspense, useRef, useState } from 'react';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { CensusLoadingState } from '@/components/ui/CensusLoadingState';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import { useCensusViewScreenModel } from '@/features/census/hooks/useCensusViewScreenModel';
@@ -7,7 +8,7 @@ import { CensusRegisterContent } from './CensusRegisterContent';
 import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 
-const LazyEmptyDayPrompt = lazy(() =>
+const LazyEmptyDayPrompt = lazyWithRetry(() =>
   import('./EmptyDayPrompt').then(module => ({
     default: module.EmptyDayPrompt,
   }))

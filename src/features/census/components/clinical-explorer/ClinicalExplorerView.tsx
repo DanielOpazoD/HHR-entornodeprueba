@@ -1,4 +1,5 @@
-import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import clsx from 'clsx';
 import {
   clinicalExplorerPatientIdentity,
@@ -15,7 +16,7 @@ import { ClinicalExplorerNotes } from './ClinicalExplorerNotes';
 import { ClinicalExplorerPatientPanel } from './ClinicalExplorerPatientPanel';
 import { EXPLORER_TABS, type ClinicalExplorerTab } from './clinicalExplorerUi';
 
-const LazyExamRequestModal = lazy(() =>
+const LazyExamRequestModal = lazyWithRetry(() =>
   import('@/features/census/components/exam-request/ExamRequestModal').then(module => ({
     default: module.ExamRequestModal,
   }))

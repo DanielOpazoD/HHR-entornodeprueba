@@ -35,8 +35,9 @@ import {
 import { readRememberedMMRADExams } from '../controllers/radiologyExamListMemory';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 
-const DicomViewerDialog = React.lazy(() =>
+const DicomViewerDialog = lazyWithRetry(() =>
   import('../dicom-viewer/DicomViewerDialog').then(module => ({
     default: module.DicomViewerDialog,
   }))

@@ -1,4 +1,5 @@
-import React, { Suspense, lazy, useMemo, useState } from 'react';
+import React, { Suspense, useMemo, useState } from 'react';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { createPortal } from 'react-dom';
 
 import type { DischargeData } from '@/types/domain/movements';
@@ -63,7 +64,7 @@ export const resolveDischargeRowViewModel = (
   actions: buildDischargeRowActions(item, handlers),
 });
 
-const LazyClinicalDocumentsModal = lazy(() =>
+const LazyClinicalDocumentsModal = lazyWithRetry(() =>
   import('@/features/clinical-documents').then(module => ({
     default: module.ClinicalDocumentsModal,
   }))

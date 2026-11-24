@@ -1,4 +1,5 @@
-import React, { lazy, Suspense, useEffect } from 'react';
+import React, { Suspense, useEffect } from 'react';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { FlaskConical, X } from 'lucide-react';
 import type { ExamRequestCandidate } from '@/features/census/components/exam-request/useExamRequestOrders';
 import {
@@ -10,7 +11,7 @@ import {
   useExamOrderSelection,
 } from './examOrderSelectionStore';
 
-const LazyExamRequestModal = lazy(() =>
+const LazyExamRequestModal = lazyWithRetry(() =>
   import('@/features/census/components/exam-request/ExamRequestModal').then(module => ({
     default: module.ExamRequestModal,
   }))

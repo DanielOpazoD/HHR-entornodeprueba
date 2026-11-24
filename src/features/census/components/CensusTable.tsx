@@ -1,7 +1,8 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import { observeCensusTable } from '@/features/census/hooks/observeCensusTable';
-import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { useTableConfig } from '@/context/TableConfigContext';
 import { NursingScalesVisibleContext } from '@/features/census/hooks/useNursingScalesVisible';
 import { CensusTableViewport } from './CensusTableViewport';
@@ -41,12 +42,12 @@ const censusTableAdmitLogger = createScopedLogger('CensusTableAdmit');
 const EMPTY_BED_OPTIONS: Array<{ id: string; label: string }> = [];
 const EMPTY_UNIFIED_ROWS: UnifiedBedRow[] = [];
 export type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
-const LazyDemographicsModal = lazy(() =>
+const LazyDemographicsModal = lazyWithRetry(() =>
   import('@/features/census/components/demographics/DemographicsModal').then(module => ({
     default: module.DemographicsModal,
   }))
 );
-const LazyEloisaPatientCodeImportModal = lazy(() =>
+const LazyEloisaPatientCodeImportModal = lazyWithRetry(() =>
   import('@/features/rayen-manual-import').then(module => ({
     default: module.EloisaPatientCodeImportModal,
   }))
