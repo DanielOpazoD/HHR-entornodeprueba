@@ -93,19 +93,31 @@ describe('RayenImportButton feedback', () => {
     });
   });
 
-  it('consolidates old CUDYR archive failures in the Eloísa panel without a floating queue chip', async () => {
+  it('shows failed CUDYR archive sends in the Eloísa panel without a floating queue chip', async () => {
     mocks.useSyncQueueMonitor.mockReturnValue({
-      stats: { pending: 0, failed: 17, conflict: 0, retrying: 0, oldestPendingAgeMs: 0 },
-      operations: Array.from({ length: 12 }, (_, i) => ({
-        id: i,
-        type: 'ARCHIVE_CUDYR',
-        status: 'FAILED',
-        retryCount: 0,
-        timestamp: 1,
-        lastErrorCode: 'functions/failed-precondition',
-        error:
-          '[validation/functions/failed-precondition] Clinical enrichment is not authorized by the current global policy.',
-      })),
+      stats: { pending: 0, failed: 2, conflict: 0, retrying: 0, oldestPendingAgeMs: 0 },
+      operations: [
+        {
+          id: 1,
+          type: 'ARCHIVE_CUDYR',
+          status: 'FAILED',
+          retryCount: 0,
+          timestamp: 1,
+          lastErrorCategory: 'validation',
+          lastErrorCode: 'functions/failed-precondition',
+          error: '[validation/functions/failed-precondition] CUDYR archive failed',
+        },
+        {
+          id: 2,
+          type: 'ARCHIVE_CUDYR',
+          status: 'FAILED',
+          retryCount: 0,
+          timestamp: 2,
+          lastErrorCategory: 'validation',
+          lastErrorCode: 'functions/failed-precondition',
+          error: '[validation/functions/failed-precondition] CUDYR archive failed',
+        },
+      ],
       refresh: vi.fn(),
     });
     render(<RayenImportButton />);
@@ -118,8 +130,8 @@ describe('RayenImportButton feedback', () => {
     await clickLazyControl(
       screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' })
     );
-    expect(await screen.findByText('Guardado local · 17 por revisar')).toBeInTheDocument();
-    expect(screen.getAllByText(/CUDYR · autorización anterior/)).toHaveLength(1);
+    expect(await screen.findByText('Guardado local · 2 por revisar')).toBeInTheDocument();
+    expect(screen.getAllByText('Archivo CUDYR')).toHaveLength(2);
     expect(screen.queryByText('Registro del censo')).not.toBeInTheDocument();
     expect(mocks.triggerImport).not.toHaveBeenCalled();
   });
