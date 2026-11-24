@@ -155,7 +155,7 @@ describe('tableConfigService', () => {
         }
       );
 
-      const { importTableConfig } = await import('@/services/storage/tableConfigService');
+      const { importTableConfig } = await import('@/services/storage/tableConfigTransfer');
       const result = await importTableConfig(file);
 
       expect(result.columns).toEqual(mockConfig.columns);
@@ -179,7 +179,7 @@ describe('tableConfigService', () => {
         }
       );
 
-      const { importTableConfig } = await import('@/services/storage/tableConfigService');
+      const { importTableConfig } = await import('@/services/storage/tableConfigTransfer');
       await expect(importTableConfig(file)).rejects.toThrow('Invalid JSON file');
     });
   });

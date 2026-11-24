@@ -11,7 +11,6 @@ import { CensusProvider } from '@/context/CensusContext';
 import type { AuthContextType } from '@/context/AuthContext';
 import type { UseDateNavigationReturn } from '@/hooks/useDateNavigation';
 import { DeferredSystemHealthReporter } from '@/app-shell/runtime/DeferredSystemHealthReporter';
-import { HandoffExtensionConnection } from './HandoffExtensionConnection';
 import { useClinicalChecklistBridge } from './useClinicalChecklistBridge';
 import { useAuthenticatedAppRuntime } from '@/app-shell/runtime/useAuthenticatedAppRuntime';
 import type { CensusQuickActionPatient } from '@/shared/contracts/censusQuickActionPatient';
@@ -36,6 +35,12 @@ const ClinicalLibraryQuickAction = lazyWithRetry(() =>
 const RadiologyViewerModal: DateStripRadiologyViewer = lazyWithRetry(() =>
   import('@/features/radiology/components/RadiologyViewerModal').then(module => ({
     default: module.RadiologyViewerModal,
+  }))
+);
+
+const LazyHandoffExtensionConnection = lazyWithRetry(() =>
+  import('./HandoffExtensionConnection').then(module => ({
+    default: module.HandoffExtensionConnection,
   }))
 );
 
@@ -95,11 +100,18 @@ export const AuthenticatedAppShell = ({ auth, dateNav }: AuthenticatedAppShellPr
     []
   );
 
+  const shouldMountHandoffExtensionConnection =
+    typeof window !== 'undefined' && window.location.pathname === '/conectar-entrega-turno';
+
   return (
     <AppProviders dailyRecordHook={dailyRecordHook}>
       <CensusProvider value={censusContextValue}>
         <DeferredSystemHealthReporter />
-        <HandoffExtensionConnection auth={auth} />
+        {shouldMountHandoffExtensionConnection ? (
+          <React.Suspense fallback={null}>
+            <LazyHandoffExtensionConnection auth={auth} />
+          </React.Suspense>
+        ) : null}
         <AppContent
           ui={ui}
           renderModuleRouter={renderAuthenticatedModuleRouter}

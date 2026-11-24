@@ -31,6 +31,8 @@ const OPTIONAL_TARGETS: Record<string, string> = {
   'firebase/functions':
     'Firebase Functions SDK loads only for explicit online census actions with their own error fallback.',
   jspdf: 'PDF generator loads only when exporting an antecedent prescription on request.',
+  'src/app-shell/runtime/HandoffExtensionConnection':
+    'Extension handoff linking dialog mounts only on /conectar-entrega-turno.',
   'src/application/clinical-documents/clinicalDocumentUseCases':
     'Document presence lookup has its own loading/error state.',
   'src/application/ports/clinicalDocumentPort':
@@ -46,6 +48,8 @@ const OPTIONAL_TARGETS: Record<string, string> = {
     'Handoff toolbar belongs to another route.',
   'src/features/census/components/demographics/DemographicsModal':
     'Demographics dialog opens on request.',
+  'src/features/census/components/eloisaAdmissionInput':
+    'Manual Eloisa code admission builder loads only when confirming a manual code import.',
   'src/features/census/components/exam-request/ExamRequestModal': 'Exam form opens on request.',
   'src/features/census/components/imaging-request/ImagingRequestDialog':
     'Imaging form opens on request.',
@@ -141,6 +145,8 @@ const OPTIONAL_TARGETS: Record<string, string> = {
     'Staff recovery loads only when the button is pressed and shows its own retry message.',
   'src/services/storage/firestore/firestoreRecordQueries':
     'Online specialty rule reads have their own error state.',
+  'src/services/storage/tableConfigTransfer':
+    'Table config JSON import/export loads only on explicit admin action.',
 };
 
 export interface FirstPaintSource {

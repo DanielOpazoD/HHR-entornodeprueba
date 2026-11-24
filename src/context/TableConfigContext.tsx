@@ -21,8 +21,6 @@ import {
   saveTableConfig,
   setFirestoreEnabled as setTableConfigFirestoreEnabled,
   subscribeToTableConfig,
-  exportTableConfig,
-  importTableConfig,
 } from '@/services/storage/tableConfigService';
 import { useAuth } from './AuthContext';
 import { tableConfigLogger } from '@/services/storage/storageLoggers';
@@ -162,12 +160,17 @@ export const TableConfigProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Export current config
   const exportConfig = useCallback(() => {
-    exportTableConfig(config);
+    void import('@/services/storage/tableConfigTransfer')
+      .then(({ exportTableConfig }) => exportTableConfig(config))
+      .catch(error => {
+        tableConfigLogger.error('Failed to export config', error);
+      });
   }, [config]);
 
   // Import config from file
   const handleImportConfig = useCallback(async (file: File) => {
     try {
+      const { importTableConfig } = await import('@/services/storage/tableConfigTransfer');
       const importedConfig = await importTableConfig(file);
       setConfig(importedConfig);
       await saveTableConfig(importedConfig);
