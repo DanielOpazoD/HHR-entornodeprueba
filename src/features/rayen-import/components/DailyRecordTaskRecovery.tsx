@@ -1,8 +1,6 @@
 import React from 'react';
 import {
   getDailyRecordReviewBackup,
-  getDiscardedDailyRecordBackup,
-  listDiscardedDailyRecordTasks,
   retireReviewedDailyRecordTask,
   reviewBlockedDailyRecordTask,
   type DailyRecordTaskReview,
@@ -61,11 +59,13 @@ const saveBackup = (content: string | null, id: number) => {
   downloadBlob(new Blob([content], { type: 'application/json' }), `hhr-envio-local-${id}.json`);
 };
 
-const Review: React.FC<{
+interface Props {
   taskId: number;
   onClose: () => void;
   onRetired: () => Promise<void>;
-}> = ({ taskId, onClose, onRetired }) => {
+}
+
+export default function DailyRecordTaskRecovery({ taskId, onClose, onRetired }: Props) {
   const [review, setReview] = React.useState<DailyRecordTaskReview | null>(null);
   const [confirmed, setConfirmed] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
@@ -110,8 +110,8 @@ const Review: React.FC<{
           <p className="font-semibold">{targetLabelFromKey(review.task.key, review.task.type)}</p>
           <DeclaredScope task={review.task} />
           <p>
-            Este envío no se enviará. Lo guardado en el servidor no cambia. Se conservará una copia
-            local descargable.
+            Este envío se descartará y no se enviará. Lo guardado en el servidor no cambia. Si
+            necesitas guardar una copia, descárgala antes de confirmar.
           </p>
           <button type="button" disabled={busy} onClick={() => void act(false)}>
             Descargar copia para revisar
@@ -141,57 +141,4 @@ const Review: React.FC<{
       {error && <p role="status">{error}</p>}
     </div>
   );
-};
-
-const Backups: React.FC = () => {
-  const [tasks, setTasks] = React.useState<SyncTask[] | null>(null);
-  const [error, setError] = React.useState('');
-  React.useEffect(() => {
-    let active = true;
-    void listDiscardedDailyRecordTasks()
-      .then(rows => {
-        if (active) setTasks(rows);
-      })
-      .catch(() => {
-        if (active)
-          setError('Las copias locales todavía no se leyeron; vuelve a abrir esta sección.');
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-  const download = async (id: number) => {
-    try {
-      saveBackup(await getDiscardedDailyRecordBackup(id), id);
-    } catch {
-      setError('La copia todavía no se descargó. Revisa la sesión y vuelve a intentar.');
-    }
-  };
-  return (
-    <div className="mt-2 text-xs">
-      <p>Estos envíos se descartaron; no se reintentan ni cuentan como guardados en el servidor.</p>
-      {tasks?.length === 0 && <p>No hay envíos descartados en esta cuenta.</p>}
-      {tasks && (
-        <ul>
-          {tasks.map(task => (
-            <li key={task.id}>
-              {targetLabelFromKey(task.key, task.type)}{' '}
-              <button type="button" onClick={() => task.id !== undefined && void download(task.id)}>
-                Descargar respaldo
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      {error && <p role="status">{error}</p>}
-    </div>
-  );
-};
-
-type Props =
-  | { kind: 'review'; taskId: number; onClose: () => void; onRetired: () => Promise<void> }
-  | { kind: 'backups' };
-
-export default function DailyRecordTaskRecovery(props: Props) {
-  return props.kind === 'review' ? <Review {...props} /> : <Backups />;
 }

@@ -72,16 +72,10 @@ it('lets the user cancel without changing the blocked send', async () => {
   expect(await hospitalDB.syncQueue.get(id)).toEqual({ ...task, id });
 });
 
-it('removes the pending indicator only after confirmation and exposes the original backup', async () => {
+it('does not render a discarded-sends bin, downloads the review copy before confirming, and deletes the send on confirmation', async () => {
   await openPanel();
-  fireEvent.click(screen.getByRole('checkbox'));
-  fireEvent.click(screen.getByRole('button', { name: 'Sí, descartar envío' }));
-  await screen.findByRole('button', { name: 'Descargar respaldo' });
-  expect(screen.queryByText('Guardado local · 1 por revisar')).not.toBeInTheDocument();
-  expect(
-    screen.getByText(/no se reintentan ni cuentan como guardados en el servidor/)
-  ).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'Descargar respaldo' }));
+  expect(screen.queryByText('Envíos descartados')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Descargar copia para revisar' }));
   await waitFor(() => expect(downloadBlob).toHaveBeenCalledOnce());
   const [blob, filename] = vi.mocked(downloadBlob).mock.calls[0];
   const contents = await new Promise<string>((resolve, reject) => {
@@ -93,8 +87,15 @@ it('removes the pending indicator only after confirmation and exposes the origin
   expect(filename).toBe(`hhr-envio-local-${id}.json`);
   expect(JSON.parse(contents)).toMatchObject({
     remotelyConfirmed: false,
-    task: { payload: task.payload, retirement: { reason: 'manual_discard' } },
+    task: { payload: task.payload },
   });
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Sí, descartar envío' }));
+  await waitFor(() =>
+    expect(screen.queryByText('Guardado local · 1 por revisar')).not.toBeInTheDocument()
+  );
+  expect(screen.queryByText('Envíos descartados')).not.toBeInTheDocument();
+  expect(await hospitalDB.syncQueue.get(id)).toBeUndefined();
 });
 
 it('leaves the newer send pending when another tab changes it while the confirmation is open', async () => {
@@ -106,12 +107,11 @@ it('leaves the newer send pending when another tab changes it while the confirma
   await screen.findByText(/La acción no terminó/);
   expect(await hospitalDB.syncQueue.get(id)).toMatchObject({ status: 'FAILED', payload });
   expect(screen.getByText('Guardado local · 1 por revisar')).toBeVisible();
-  expect(screen.queryByRole('button', { name: 'Descargar respaldo' })).not.toBeInTheDocument();
 });
 
-it('keeps the failed send visible when its retirement cannot be persisted', async () => {
+it('keeps the failed send visible when its discard cannot be persisted', async () => {
   await openPanel();
-  vi.spyOn(hospitalDB.syncQueue, 'update').mockRejectedValueOnce(
+  vi.spyOn(hospitalDB.syncQueue, 'delete').mockRejectedValueOnce(
     new Error('synthetic storage failure')
   );
   fireEvent.click(screen.getByRole('checkbox'));

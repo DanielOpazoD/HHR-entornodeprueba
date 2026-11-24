@@ -31,7 +31,6 @@ export const RayenSyncQueueDetails: React.FC<{
   const [actionFailed, setActionFailed] = React.useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = React.useState<number | null>(null);
   const [reviewingCensus, setReviewingCensus] = React.useState<number | null>(null);
-  const [showBackups, setShowBackups] = React.useState(false);
   const policyBlocked = operations.some(isPolicyBlockedCudyrArchive);
   const blocked = listQuarantinedOperations(
     operations.filter(op => !isPolicyBlockedCudyrArchive(op)),
@@ -244,29 +243,15 @@ export const RayenSyncQueueDetails: React.FC<{
         <React.Suspense fallback={<p role="status">Leyendo el envío…</p>}>
           <DailyRecordTaskRecovery
             key={reviewingCensus}
-            kind="review"
             taskId={reviewingCensus}
             onClose={() => setReviewingCensus(null)}
             onRetired={async () => {
               await refresh();
               setReviewingCensus(null);
-              setShowBackups(true);
             }}
           />
         </React.Suspense>
       )}
-      <details
-        className="mt-2 text-[11px]"
-        onToggle={event => setShowBackups(event.currentTarget.open)}
-        open={showBackups}
-      >
-        <summary className="cursor-pointer text-slate-500">Envíos descartados</summary>
-        {showBackups && (
-          <React.Suspense fallback={<p role="status">Leyendo las copias locales…</p>}>
-            <DailyRecordTaskRecovery kind="backups" />
-          </React.Suspense>
-        )}
-      </details>
     </>
   );
 };

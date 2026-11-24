@@ -3,20 +3,16 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
-import { clearSessionDailyRecords } from '@/services/session/sessionSyncQueuePreservation';
 import {
   SESSION_GENERATION_KEY,
   setSessionGeneration,
 } from '@/services/session/sessionStorageTransition';
 import {
   getDailyRecordReviewBackup,
-  getDiscardedDailyRecordBackup,
-  listDiscardedDailyRecordTasks,
   retireReviewedDailyRecordTask,
   reviewBlockedDailyRecordTask,
 } from '@/services/storage/sync/dailyRecordTaskRetirement';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
-import { getSyncQueueTelemetry } from '@/services/storage/sync/publicSyncQueue';
 import { buildSyncQueueTelemetryFromRows } from '@/services/storage/sync/syncQueueTelemetryController';
 import { getPendingDailyRecordProjection } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dexieSyncQueueQuarantine';
@@ -86,7 +82,7 @@ it('captures a blocked send without retrying or changing its payload', async () 
   expect(await hospitalDB.syncQueue.get(taskId)).toEqual(review.task);
 });
 
-it('never claims a durable retirement or an empty backup list from an unbound memory table', async () => {
+it('never claims a durable discard from an unbound memory table', async () => {
   const review = await reviewTask();
   const queue = hospitalDB.syncQueue;
   const binding = Object.getOwnPropertyDescriptor(queue, 'db');
@@ -99,16 +95,13 @@ it('never claims a durable retirement or an empty backup list from an unbound me
     await expect(retireReviewedDailyRecordTask(review)).rejects.toThrow(
       'La base local no está disponible.'
     );
-    await expect(listDiscardedDailyRecordTasks()).rejects.toThrow(
-      'La base local no está disponible.'
-    );
   } finally {
     Object.defineProperty(queue, 'db', binding);
   }
   expect(await hospitalDB.syncQueue.get(taskId)).toEqual(review.task);
 });
 
-it('withdraws only the reviewed send, preserves its backup and lets the next remote read replace its projection', async () => {
+it('deletes only the reviewed send and lets the next remote read replace its projection', async () => {
   await hospitalDB.dailyRecords.put(record);
   const otherId = await hospitalDB.syncQueue.add({
     ...failed,
@@ -118,16 +111,7 @@ it('withdraws only the reviewed send, preserves its backup and lets the next rem
   });
   const before = await reviewTask();
   expect(await retireReviewedDailyRecordTask(before)).toBe(true);
-  const retired = await hospitalDB.syncQueue.get(taskId);
-  expect(retired).toEqual({
-    ...before.task,
-    status: 'RETIRED',
-    retirement: {
-      reason: 'manual_discard',
-      previousStatus: 'FAILED',
-      retiredAt: expect.any(String),
-    },
-  });
+  expect(await hospitalDB.syncQueue.get(taskId)).toBeUndefined();
   expect(await hospitalDB.dailyRecords.get(DATE)).toEqual(record);
   expect((await hospitalDB.syncQueue.get(otherId))?.status).toBe('PENDING');
   expect(await listDailyRecordProjectionHolders(DATE)).toEqual([]);
@@ -155,12 +139,12 @@ it('withdraws only the reviewed send, preserves its backup and lets the next rem
   });
   expect(reconcile).not.toHaveBeenCalled();
   expect(await hospitalDB.dailyRecords.get(DATE)).toEqual(confirmed);
-  expect(await hospitalDB.syncQueue.get(taskId)).toEqual(retired);
+  expect(await hospitalDB.syncQueue.get(taskId)).toBeUndefined();
 });
 
-it('keeps the payload intact when the IndexedDB write fails', async () => {
+it('keeps the payload intact when the IndexedDB delete fails', async () => {
   const review = await reviewTask();
-  vi.spyOn(hospitalDB.syncQueue, 'update').mockRejectedValueOnce(
+  vi.spyOn(hospitalDB.syncQueue, 'delete').mockRejectedValueOnce(
     new Error('synthetic write failure')
   );
   await expect(retireReviewedDailyRecordTask(review)).rejects.toThrow('synthetic write failure');
@@ -180,7 +164,7 @@ it('refuses a stale confirmation even when id, timestamp and operation id did no
 });
 
 it.each(['PENDING', 'PROCESSING', 'RETIRED'] as const)(
-  'never retires a task that became %s during confirmation',
+  'never deletes a task that became %s during confirmation',
   async status => {
     const review = await reviewTask();
     await hospitalDB.syncQueue.update(taskId, { status });
@@ -203,36 +187,17 @@ it.each(['owner', 'generation', 'shared-generation'] as const)(
   }
 );
 
-it('survives database reopening and session cleanup; another user cannot see or download the backup', async () => {
-  expect(await retireReviewedDailyRecordTask(await reviewTask())).toBe(true);
-  await clearSessionDailyRecords(OWNER);
-  hospitalDB.close();
-  await hospitalDB.open();
-  expect((await listDiscardedDailyRecordTasks()).map(task => task.id)).toEqual([taskId]);
-  const backup = await getDiscardedDailyRecordBackup(taskId);
-  expect(backup && JSON.parse(backup)).toMatchObject({
-    remotelyConfirmed: false,
-    task: { payload: record, error: failed.error, syncContract: failed.syncContract },
-  });
-  localStorage.setItem(SESSION_OWNER_KEY, 'user:other');
-  expect(await listDiscardedDailyRecordTasks()).toEqual([]);
-  expect(await getDiscardedDailyRecordBackup(taskId)).toBeNull();
-  expect(await getSyncQueueTelemetry()).toMatchObject({ readState: 'ok', orphanedTasks: 0 });
-  await hospitalDB.syncQueue.add({ ...failed, opId: 'synthetic-foreign-positive' });
-  expect(await getSyncQueueTelemetry()).toMatchObject({ readState: 'ok', orphanedTasks: 1 });
-});
-
-it('keeps legacy ownerless sends as a backup private to the person who confirmed their withdrawal', async () => {
+it('deletes legacy ownerless sends once the current user confirms their discard', async () => {
   await hospitalDB.syncQueue.update(taskId, { ownerKey: undefined });
   expect(await retireReviewedDailyRecordTask(await reviewTask())).toBe(true);
-  expect((await hospitalDB.syncQueue.get(taskId))?.ownerKey).toBe(OWNER);
+  expect(await hospitalDB.syncQueue.get(taskId)).toBeUndefined();
 });
 
-it('rolls back retirement if the shared session changes during the transaction', async () => {
+it('rolls back discard if the shared session changes during the transaction', async () => {
   const review = await reviewTask();
-  const update = hospitalDB.syncQueue.update.bind(hospitalDB.syncQueue);
-  vi.spyOn(hospitalDB.syncQueue, 'update').mockImplementationOnce((...args) =>
-    update(...args).then(result => {
+  const remove = hospitalDB.syncQueue.delete.bind(hospitalDB.syncQueue);
+  vi.spyOn(hospitalDB.syncQueue, 'delete').mockImplementationOnce((...args) =>
+    remove(...args).then(result => {
       localStorage.setItem(SESSION_GENERATION_KEY, 'replacement-session');
       return result;
     })
@@ -241,15 +206,10 @@ it('rolls back retirement if the shared session changes during the transaction',
   expect(await hospitalDB.syncQueue.get(taskId)).toEqual(review.task);
 });
 
-it('records a conflicted send as withdrawn without converting its rejection into an ACK', async () => {
+it('deletes a conflicted send once confirmed without converting its rejection into an ACK', async () => {
   await hospitalDB.syncQueue.update(taskId, { status: 'CONFLICT' });
   expect(await retireReviewedDailyRecordTask(await reviewTask())).toBe(true);
-  expect(await hospitalDB.syncQueue.get(taskId)).toMatchObject({
-    status: 'RETIRED',
-    retirement: { previousStatus: 'CONFLICT' },
-    error: failed.error,
-    syncContract: failed.syncContract,
-  });
+  expect(await hospitalDB.syncQueue.get(taskId)).toBeUndefined();
 });
 
 it('does not offer this whole-census action for a leftover retired-type task or detached occupant edits', async () => {
@@ -263,7 +223,7 @@ it('does not offer this whole-census action for a leftover retired-type task or 
   expect(await reviewBlockedDailyRecordTask(taskId)).toBeNull();
 });
 
-it('does not reuse a retired backup when a fresh edit is queued for that date', async () => {
+it('creates a fresh task cleanly for the same date after a blocked send was discarded', async () => {
   await hospitalDB.dailyRecords.put(record);
   expect(await retireReviewedDailyRecordTask(await reviewTask())).toBe(true);
   const fresh = { ...record, nurses: ['SYNTHETIC FRESH'], lastUpdated: '2026-10-23T20:00:00.000Z' };
@@ -281,6 +241,6 @@ it('does not reuse a retired backup when a fresh edit is queued for that date', 
       captureAuthoringSession()
     )
   ).toBe('created');
-  expect((await hospitalDB.syncQueue.get(taskId))?.payload).toEqual(record);
+  expect(await hospitalDB.syncQueue.get(taskId)).toBeUndefined();
   expect((await listDailyRecordProjectionHolders(DATE)).map(task => task.payload)).toEqual([fresh]);
 });

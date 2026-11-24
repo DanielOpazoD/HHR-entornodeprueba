@@ -5,7 +5,7 @@ import {
 } from '@/services/session/authoringSession';
 import { SESSION_GENERATION_KEY } from '@/services/session/sessionStorageTransition';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import { matchesOwner } from './dexieSyncQueueQuarantine';
+import { deleteReviewedDailyRecordTask, matchesOwner } from './dexieSyncQueueQuarantine';
 
 export interface DailyRecordTaskReview {
   task: SyncTask & { id: number };
@@ -57,58 +57,18 @@ export const reviewBlockedDailyRecordTask = async (
   return { task: { ...task, id: taskId }, owner, generation };
 };
 
-/** A confirmed withdrawal, never a remote ACK. The same row becomes the recoverable backup. */
+/** Confirmed discard: deletes the blocked send from the local queue (never a remote ACK). */
 export const retireReviewedDailyRecordTask = async (
   review: DailyRecordTaskReview
 ): Promise<boolean> => {
   await requireDurableDatabase();
-  return hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {
-    if (!sessionMatches(review.owner, review.generation)) return false;
-    const task = await hospitalDB.syncQueue.get(review.task.id);
-    if (
-      !task ||
-      !matchesOwner(review.owner, task.ownerKey) ||
-      !isWholeDayTask(task) ||
-      (task.status !== 'FAILED' && task.status !== 'CONFLICT') ||
-      JSON.stringify(task) !== JSON.stringify(review.task)
-    )
-      return false;
-    await hospitalDB.syncQueue.update(review.task.id, {
-      status: 'RETIRED',
-      ownerKey: review.owner,
-      retirement: {
-        reason: 'manual_discard',
-        retiredAt: new Date().toISOString(),
-        previousStatus: task.status,
-      },
-    });
-    if (!sessionMatches(review.owner, review.generation)) throw new Error('La sesión cambió.');
-    return true;
-  });
-};
-
-/** Backups are read only on demand, scoped to the current session, and never requeued. */
-export const listDiscardedDailyRecordTasks = async (): Promise<SyncTask[]> => {
-  const { ownerKey: owner, generation } = captureAuthoringSession();
-  if (!owner || !generation || !sessionMatches(owner, generation)) return [];
-  await requireDurableDatabase();
-  const rows = await hospitalDB.syncQueue
-    .where('status')
-    .equals('RETIRED')
-    .filter(
-      task =>
-        task.ownerKey === owner &&
-        task.retirement?.reason === 'manual_discard' &&
-        isWholeDayTask(task)
-    )
-    .toArray();
-  if (!sessionMatches(owner, generation)) throw new Error('La sesión cambió.');
-  return rows;
-};
-
-export const getDiscardedDailyRecordBackup = async (taskId: number): Promise<string | null> => {
-  const task = (await listDiscardedDailyRecordTasks()).find(row => row.id === taskId);
-  return task ? serializeDailyRecordTaskBackup(task) : null;
+  return deleteReviewedDailyRecordTask(
+    review.task.id,
+    JSON.stringify(review.task),
+    review.owner,
+    isWholeDayTask,
+    () => sessionMatches(review.owner, review.generation)
+  );
 };
 
 export const getDailyRecordReviewBackup = async (
