@@ -266,26 +266,20 @@ describe('useAuthState baseline', () => {
   });
 
   it('should handle network status switches', async () => {
-    vi.useFakeTimers();
+    vi.mocked(authFallback.hasActiveFirebaseSession).mockReturnValue(true);
     const { result } = renderHook(() => useAuthState());
 
-    vi.mocked(authFallback.hasActiveFirebaseSession).mockReturnValue(true);
-    act(() => {
-      vi.advanceTimersByTime(1100);
-    });
     expect(result.current.isFirebaseConnected).toBe(true);
 
     setOnlineStatus(false);
     await act(async () => {
       window.dispatchEvent(new Event('offline'));
-      vi.advanceTimersByTime(1100);
     });
     expect(result.current.isFirebaseConnected).toBe(false);
 
     setOnlineStatus(true);
     await act(async () => {
       window.dispatchEvent(new Event('online'));
-      vi.advanceTimersByTime(1100);
     });
     expect(result.current.isFirebaseConnected).toBe(true);
   });
@@ -453,7 +447,7 @@ describe('useAuthState baseline', () => {
 
   it('keeps bootstrap active when same-tab history is still present after direct checks are empty', async () => {
     window.sessionStorage.setItem('hhr_logged_this_session', 'true');
-    window.localStorage.setItem('firebase:authUser:test:[DEFAULT]', '{"uid":"stale-user"}');
+    window.sessionStorage.setItem('firebase:authUser:test:[DEFAULT]', '{"uid":"stale-user"}');
     vi.mocked(authFallback.hasActiveFirebaseSession).mockReturnValue(false);
     vi.mocked(authSession.onAuthSessionStateChange).mockImplementation(() => () => {});
 

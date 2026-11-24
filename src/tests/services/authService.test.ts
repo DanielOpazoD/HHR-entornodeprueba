@@ -233,13 +233,17 @@ describe('auth public entrypoints', () => {
   });
 
   describe('handleSignInRedirectResult', () => {
-    it('should return null if no result', async () => {
-      vi.mocked(firebaseAuth.getRedirectResult).mockResolvedValue(null);
+    it('skips getRedirectResult and returns null when no redirect or Google attempt is pending', async () => {
       const result = await handleSignInRedirectResult();
       expect(result).toBeNull();
+      expect(firebaseAuth.getRedirectResult).not.toHaveBeenCalled();
     });
 
     it('should return authorized session state when redirect succeeds', async () => {
+      sessionStorage.setItem(
+        AUTH_BOOTSTRAP_PENDING_KEY,
+        JSON.stringify({ startedAt: Date.now(), mode: 'redirect' })
+      );
       vi.mocked(firebaseAuth.getRedirectResult).mockResolvedValue({
         user: { uid: 'redirect-123', email: 'admin@test.com', displayName: 'Admin' },
       } as unknown as firebaseAuth.UserCredential);

@@ -67,7 +67,10 @@ const seedPersistedSession = async (page: Page) => {
         [date]: seededRecord,
       };
       localStorage.setItem('hhr_e2e_bootstrap_user', JSON.stringify(bootstrapUser));
-      localStorage.setItem('firebase:authUser:test:[DEFAULT]', JSON.stringify({ uid: 'preview' }));
+      sessionStorage.setItem(
+        'firebase:authUser:test:[DEFAULT]',
+        JSON.stringify({ uid: 'preview' })
+      );
       localStorage.setItem('hhr_firebase_config', JSON.stringify(runtimeConfig));
       const existing = JSON.parse(localStorage.getItem('hanga_roa_hospital_data') || '{}');
       existing[date] = seededRecord;

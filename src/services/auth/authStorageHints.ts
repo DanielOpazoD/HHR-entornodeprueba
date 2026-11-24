@@ -1,4 +1,5 @@
 const FIREBASE_AUTH_STORAGE_PREFIX = 'firebase:authUser:';
+const FIREBASE_REDIRECT_USER_STORAGE_PREFIX = 'firebase:redirectUser:';
 const AUTHENTICATED_SESSION_HINT_KEY = 'hhr_logged_this_session';
 const GOOGLE_LOGIN_ATTEMPT_HINT_KEY = 'hhr_google_login_attempt_pending';
 const GOOGLE_LOGIN_ATTEMPT_HINT_TTL_MS = 120_000;
@@ -35,15 +36,25 @@ const storageContainsPrefix = (storage: Storage, prefix: string): boolean => {
   return false;
 };
 
+/**
+ * Auth persistence is tab-scoped (`browserSessionPersistence`), so only
+ * `sessionStorage` represents a restorable session for this tab. Legacy
+ * `localStorage` entries from previous deployments are ignored here (and
+ * removed by `clearPersistedFirebaseAuthState` on sign-out).
+ */
 export const hasPersistedFirebaseAuthHint = (): boolean => {
-  const localStore = resolveStorage('local');
   const sessionStore = resolveStorage('session');
-
   return (
-    (hasWindowStorage(localStore) &&
-      storageContainsPrefix(localStore, FIREBASE_AUTH_STORAGE_PREFIX)) ||
-    (hasWindowStorage(sessionStore) &&
-      storageContainsPrefix(sessionStore, FIREBASE_AUTH_STORAGE_PREFIX))
+    hasWindowStorage(sessionStore) &&
+    storageContainsPrefix(sessionStore, FIREBASE_AUTH_STORAGE_PREFIX)
+  );
+};
+
+export const hasFirebaseRedirectUserHint = (): boolean => {
+  const sessionStore = resolveStorage('session');
+  return (
+    hasWindowStorage(sessionStore) &&
+    storageContainsPrefix(sessionStore, FIREBASE_REDIRECT_USER_STORAGE_PREFIX)
   );
 };
 

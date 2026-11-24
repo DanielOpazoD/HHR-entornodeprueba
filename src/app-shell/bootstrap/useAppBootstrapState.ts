@@ -93,7 +93,12 @@ const resolveSyncedFirestoreState = (
 
 const useSyncFirestoreStatus = (remoteSyncState: AuthContextType['remoteSyncState']) => {
   React.useEffect(() => {
+    let active = true;
     const syncState = () => {
+      if (!active) {
+        return true;
+      }
+
       try {
         const nextState = resolveSyncedFirestoreState(
           remoteSyncState,
@@ -114,6 +119,25 @@ const useSyncFirestoreStatus = (remoteSyncState: AuthContextType['remoteSyncStat
       return;
     }
 
+    // Only wait for Firestore initialization when remote sync is actually enabled.
+    if (remoteSyncState.mode !== 'enabled') {
+      return;
+    }
+
+    const readyFirestore = defaultFirebaseConfigRuntimeAdapter.readyFirestore;
+    if (readyFirestore && typeof readyFirestore.then === 'function') {
+      void readyFirestore
+        .then(() => {
+          syncState();
+        })
+        .catch(() => {
+          // Firestore initialization errors are already logged by firebaseConfig.
+        });
+      return () => {
+        active = false;
+      };
+    }
+
     const intervalId = window.setInterval(() => {
       if (syncState()) {
         window.clearInterval(intervalId);
@@ -121,6 +145,7 @@ const useSyncFirestoreStatus = (remoteSyncState: AuthContextType['remoteSyncStat
     }, FIRESTORE_RUNTIME_POLL_MS);
 
     return () => {
+      active = false;
       window.clearInterval(intervalId);
     };
   }, [remoteSyncState]);

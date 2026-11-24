@@ -251,6 +251,13 @@ en producción; debe medirse tras publicar.
 
 ### Un solo ciclo de sesión por pestaña
 
+La persistencia de Firebase Auth es **por pestaña para todos los accesos** (RUT, Google
+personal e institucional), configurada al inicializar Auth con `browserSessionPersistence`
+y respaldo `inMemoryPersistence`. Recargar la misma pestaña (`F5`) conserva la sesión y el
+rol confirmado en `sessionStorage` sin pedir nuevo ingreso ni perder permisos; cerrar la
+pestaña o abrir una nueva finaliza la sesión y solicita iniciar sesión nuevamente. El límite
+de una hora sin actividad (`SESSION_TIMEOUT_MS`) sigue vigente.
+
 El ciclo de sesión de React pertenece únicamente a `AuthProvider`. Los módulos,
 incluidos los consumidores de Eloísa, leen `useAuth()` y no montan otro `useAuthState()`.
 El bootstrap descarta resultados después de desmontar y limpia cualquier suscripción

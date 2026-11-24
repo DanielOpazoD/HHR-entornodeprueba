@@ -29,7 +29,7 @@ for (const viewport of [
         ),
         'synthetic',
       ].join('.');
-      localStorage.setItem(
+      sessionStorage.setItem(
         'firebase:authUser:demo-api-key:[DEFAULT]',
         JSON.stringify({
           uid: 'preview',

@@ -13,7 +13,7 @@ describe('useResolvedAuthBootstrap timeout handling', () => {
   installResolvedAuthBootstrapTestLifecycle();
 
   it('cancels the safety timeout once auth state resolves', async () => {
-    window.localStorage.setItem('firebase:authUser:test:[DEFAULT]', '{"uid":"persisted"}');
+    window.sessionStorage.setItem('firebase:authUser:test:[DEFAULT]', '{"uid":"persisted"}');
 
     const onAuthSessionStateChange = vi.fn(
       (callback: (sessionState: AuthSessionState) => void | Promise<void>) => {
@@ -71,7 +71,7 @@ describe('useResolvedAuthBootstrap timeout handling', () => {
   });
 
   it('forces auth loading completion on bootstrap timeout', async () => {
-    window.localStorage.setItem('firebase:authUser:test:[DEFAULT]', '{"uid":"persisted"}');
+    window.sessionStorage.setItem('firebase:authUser:test:[DEFAULT]', '{"uid":"persisted"}');
     authBootstrapTestMocks.mockHasActiveFirebaseSession.mockReturnValue(true);
 
     const onAuthSessionStateChange = vi.fn(() => () => {});
@@ -112,7 +112,7 @@ describe('useResolvedAuthBootstrap timeout handling', () => {
   });
 
   it('revalidates the current session on timeout before falling back to unauthenticated', async () => {
-    window.localStorage.setItem('firebase:authUser:test:[DEFAULT]', '{"uid":"persisted"}');
+    window.sessionStorage.setItem('firebase:authUser:test:[DEFAULT]', '{"uid":"persisted"}');
     authBootstrapTestMocks.mockHasActiveFirebaseSession.mockReturnValue(true);
 
     const onAuthSessionStateChange = vi.fn(() => () => {});

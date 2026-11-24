@@ -19,7 +19,6 @@ export interface FirebaseCoreBootstrapResult {
 }
 
 const AUTH_PERSISTENCE_TIMEOUTS_MS = {
-  local: 2_500,
   session: 1_500,
   memory: 500,
 } as const;
@@ -29,24 +28,24 @@ const getErrorMessage = (error: unknown): string =>
 
 type FirebaseAuthRuntimeModule = Pick<
   typeof import('firebase/auth'),
-  | 'browserLocalPersistence'
   | 'browserSessionPersistence'
   | 'connectAuthEmulator'
+  | 'getAuth'
   | 'inMemoryPersistence'
   | 'setPersistence'
->;
+> &
+  Partial<Pick<typeof import('firebase/auth'), 'browserPopupRedirectResolver' | 'initializeAuth'>>;
 
-const startAuthPersistenceConfiguration = (
+const configureAuthPersistence = async (
   auth: Auth,
   authRuntime: FirebaseAuthRuntimeModule
-): void => {
+): Promise<void> => {
   const persistenceCandidates = [
-    { mode: 'local' as const, persistence: authRuntime.browserLocalPersistence },
     { mode: 'session' as const, persistence: authRuntime.browserSessionPersistence },
     { mode: 'memory' as const, persistence: authRuntime.inMemoryPersistence },
   ];
 
-  const attemptCandidate = (index: number): void => {
+  const attemptCandidate = async (index: number): Promise<void> => {
     const candidate = persistenceCandidates[index];
     if (!candidate) {
       firebaseBootstrapLogger.warn('[FirebaseConfig] Auth persistence could not be configured', {
@@ -57,6 +56,10 @@ const startAuthPersistenceConfiguration = (
 
     const timeoutMs = AUTH_PERSISTENCE_TIMEOUTS_MS[candidate.mode];
     let didTimeout = false;
+    let resolveTimeout: (() => void) | undefined;
+    const timeoutPromise = new Promise<void>(resolve => {
+      resolveTimeout = resolve;
+    });
     const timeoutId = setTimeout(() => {
       didTimeout = true;
       firebaseBootstrapLogger.info(
@@ -66,9 +69,10 @@ const startAuthPersistenceConfiguration = (
           mode: candidate.mode,
         }
       );
+      resolveTimeout?.();
     }, timeoutMs);
 
-    void authRuntime
+    const persistencePromise = authRuntime
       .setPersistence(auth, candidate.persistence)
       .then(() => {
         clearTimeout(timeoutId);
@@ -87,11 +91,20 @@ const startAuthPersistenceConfiguration = (
             settledAfterTimeout: didTimeout,
           }
         );
-        attemptCandidate(index + 1);
+        return attemptCandidate(index + 1);
       });
+
+    await Promise.race([persistencePromise, timeoutPromise]);
   };
 
-  attemptCandidate(0);
+  await attemptCandidate(0);
+};
+
+const connectAuthEmulatorSync = (auth: Auth, authRuntime: FirebaseAuthRuntimeModule): void => {
+  const authEmulatorHost = import.meta.env.VITE_AUTH_EMULATOR_HOST;
+  if (import.meta.env.DEV && authEmulatorHost && !auth.emulatorConfig) {
+    authRuntime.connectAuthEmulator(auth, authEmulatorHost);
+  }
 };
 
 export const initializeFirebaseCore = async (
@@ -104,9 +117,38 @@ export const initializeFirebaseCore = async (
   ]);
 
   const app = initializeApp(config);
-  const auth = authRuntime.getAuth(app);
 
-  startAuthPersistenceConfiguration(auth, authRuntime);
+  // Initialize Auth directly with tab-scoped session persistence (falling back
+  // to in-memory if sessionStorage is blocked). This ensures closing the tab
+  // closes the session while F5 reloads preserve the session and permissions
+  // without racing against setPersistence or reading legacy localStorage/IDB.
+  if (typeof authRuntime.initializeAuth === 'function') {
+    try {
+      const auth = authRuntime.initializeAuth(app, {
+        persistence: [authRuntime.browserSessionPersistence, authRuntime.inMemoryPersistence],
+        ...(authRuntime.browserPopupRedirectResolver
+          ? { popupRedirectResolver: authRuntime.browserPopupRedirectResolver }
+          : {}),
+      });
+      // Wire the Auth emulator synchronously before yielding a microtask:
+      // browserSessionPersistence reads sessionStorage immediately and can
+      // trigger token refresh (locking _canInitEmulator) on the very next tick.
+      connectAuthEmulatorSync(auth, authRuntime);
+      firebaseBootstrapLogger.info('Auth persistence configured', {
+        persistenceMode: 'session',
+      });
+      firebaseBootstrapLogger.info('Firebase core ready');
+      return { app, auth };
+    } catch (error) {
+      firebaseBootstrapLogger.info('[FirebaseConfig] Falling back to getAuth persistence setup', {
+        message: getErrorMessage(error),
+      });
+    }
+  }
+
+  const auth = authRuntime.getAuth(app);
+  connectAuthEmulatorSync(auth, authRuntime);
+  await configureAuthPersistence(auth, authRuntime);
   firebaseBootstrapLogger.info('Firebase core ready');
   return { app, auth };
 };
@@ -147,6 +189,10 @@ export const initializeFirestoreService = async (
 };
 
 export const connectAuthEmulator = async ({ auth }: Pick<FirebaseBootstrapResult, 'auth'>) => {
+  if (auth.emulatorConfig) {
+    return;
+  }
+
   const authEmulatorHost = import.meta.env.VITE_AUTH_EMULATOR_HOST;
   const authRuntime = await import('firebase/auth');
 

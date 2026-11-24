@@ -122,7 +122,8 @@ const readPersistedFirebaseAuthUser = () => {
     return null;
   }
 
-  const storages = [window.localStorage, window.sessionStorage];
+  // Auth persistence is tab-scoped (sessionStorage); ignore legacy localStorage entries.
+  const storages = [window.sessionStorage];
 
   for (const storage of storages) {
     try {

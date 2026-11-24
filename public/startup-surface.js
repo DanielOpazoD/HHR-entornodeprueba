@@ -108,9 +108,11 @@
   var hasRecentAuthenticatedSessionHint = false;
 
   try {
-    hasPersistedFirebaseAuthHint =
-      storageContainsPrefix(window.localStorage, FIREBASE_AUTH_STORAGE_PREFIX) ||
-      storageContainsPrefix(window.sessionStorage, FIREBASE_AUTH_STORAGE_PREFIX);
+    // Auth persistence is tab-scoped (sessionStorage): ignore legacy localStorage keys.
+    hasPersistedFirebaseAuthHint = storageContainsPrefix(
+      window.sessionStorage,
+      FIREBASE_AUTH_STORAGE_PREFIX
+    );
     hasRecentAuthenticatedSessionHint =
       window.sessionStorage.getItem(AUTHENTICATED_SESSION_HINT_KEY) === 'true';
   } catch (error) {

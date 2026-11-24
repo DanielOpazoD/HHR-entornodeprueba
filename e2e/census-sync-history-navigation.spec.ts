@@ -140,7 +140,10 @@ const seedHistory = async (page: Page, runtime: RuntimeEvidence) => {
         records;
       localStorage.setItem('hhr_e2e_bootstrap_user', JSON.stringify(user));
       localStorage.setItem('hhr_e2e_force_local_only_sync', 'true');
-      localStorage.setItem('firebase:authUser:test:[DEFAULT]', JSON.stringify({ uid: 'preview' }));
+      sessionStorage.setItem(
+        'firebase:authUser:test:[DEFAULT]',
+        JSON.stringify({ uid: 'preview' })
+      );
       localStorage.setItem('hhr_firebase_config', JSON.stringify(config));
       localStorage.setItem('hanga_roa_hospital_data', JSON.stringify(records));
     },
