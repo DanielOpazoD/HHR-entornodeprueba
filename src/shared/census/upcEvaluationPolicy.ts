@@ -1,3 +1,4 @@
+import { hasSignedUpcEvaluation } from '@/domain/upc/upcEvaluationHistory';
 import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
 import { isUpcEligibleBedId } from './upcBedPolicy';
 
@@ -20,21 +21,14 @@ export const resolveUpcReviewReason = (
     return 'Reevaluar UPC por cambio de cama';
   }
   if (
-    !checklist?.evaluatedBedId ||
-    !checklist.responsibleNurse?.name.trim() ||
-    !checklist.evaluatedBy?.uid ||
+    !checklist ||
+    !hasSignedUpcEvaluation(checklist) ||
     !Number.isFinite(Date.parse(checklist.evaluatedAt))
   ) {
     return 'Evaluación UPC pendiente';
   }
   return checklist.evaluatedForDate === date ? null : 'Evaluación UPC diaria pendiente';
 };
-
-export const assignedUpcNurses = (names: readonly string[] = []): string[] => [
-  ...new Set(
-    names.map(name => name.trim()).filter(name => name && name.toLowerCase() !== 'vacante')
-  ),
-];
 
 /** Gate only the census day being sent, not previous sheets in the monthly workbook. */
 export const resolveUpcEmailBlockReason = (

@@ -1,5 +1,7 @@
+import { executeBedManagementAction } from '@/hooks/controllers/bedManagementDispatchController';
+import { buildUpcCriteriaEvaluation } from '@/domain/upc/upcCriteriaEvaluation';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, screen, waitFor } from '@testing-library/react';
 import { UIProvider } from '@/context/UIContext';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
@@ -155,5 +157,89 @@ describe('remote-confirmed UPC journal', () => {
     write.reject(new Error('UPC journal changed remotely'));
     await expect(saving).rejects.toThrow('UPC journal changed remotely');
     expect(result.current.record?.beds.R1.upcChecklist).toBeUndefined();
+  });
+  it('confirms four signed evaluations with one repository write and one final notice', async () => {
+    const bedIds = ['R1', 'R2', 'NEO1', 'NEO2'];
+    const beds = Object.fromEntries(
+      bedIds.map(bedId => [
+        bedId,
+        DataFactory.createMockPatient(bedId, {
+          patientName: `Paciente de prueba ${bedId}`,
+          clinicalEpisodeId: `ep_${bedId}`,
+        }),
+      ])
+    );
+    const occupied = DataFactory.createMockDailyRecord(mockDate, { ...mockRecord, beds });
+    const write = createDeferred<DailyRecordWriteResult>();
+    mockDailyRecordRepositoryPort.getForDateWithMeta.mockResolvedValue(buildReadResult(occupied));
+    mockDailyRecordRepositoryPort.updatePartialDetailed.mockReturnValue(write.promise);
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, 'ready'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.record?.beds.R1).toBeDefined());
+    const evaluations = bedIds.map(bedId => ({
+      bedId,
+      isCrib: false,
+      episodeIdentity: `ep_${bedId}`,
+      record: buildUpcCriteriaEvaluation({
+        actor: { uid: 'nurse-test', displayName: 'Profesional de prueba' },
+        date: mockDate,
+        bedId,
+        evaluationId: `evaluation-${bedId}`,
+        evaluatedAt: '2025-12-27T12:00:00Z',
+        uciCriteria: [],
+        utiCriteria: [],
+      }),
+    }));
+    const staleDayGuard = vi.fn().mockResolvedValue(true);
+    let saving!: Promise<boolean>;
+    act(() => {
+      saving = executeBedManagementAction({
+        action: { type: 'CONFIRM_UPC_ROUND', evaluations },
+        currentRecord: occupied,
+        patchRecord: result.current.patchRecord,
+        ensureStaleDayEditAllowed: staleDayGuard,
+        validation: { processFieldValue: vi.fn() },
+        bedAudit: {
+          auditPatientChange: vi.fn(),
+          auditPatientCleared: vi.fn(),
+          auditPatientModified: vi.fn(),
+          auditPatientMovement: vi.fn(),
+        },
+      });
+    });
+    await waitFor(() =>
+      expect(mockDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledTimes(1)
+    );
+    const [, patch, options] = mockDailyRecordRepositoryPort.updatePartialDetailed.mock.calls[0];
+    expect(Object.keys(patch).filter(key => key.endsWith('.upcChecklist'))).toHaveLength(4);
+    expect(options).toMatchObject({
+      baseRecord: occupied,
+      requireAtomicCas: true,
+      requireRemoteAuthorityFirst: true,
+    });
+    expect(staleDayGuard).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Cambio guardado')).toBeNull();
+    const confirmedRecord = {
+      ...occupied,
+      beds: Object.fromEntries(
+        evaluations.map(entry => [
+          entry.bedId,
+          { ...beds[entry.bedId], upcChecklist: entry.record },
+        ])
+      ),
+    };
+    await act(async () => {
+      write.resolve({
+        date: mockDate,
+        state: 'confirmed',
+        savedHere: true,
+        localCopy: 'current',
+        confirmedRecord,
+      });
+      expect(await saving).toBe(true);
+    });
+    expect(await screen.findAllByText('Cambio guardado')).toHaveLength(1);
+    expect(mockDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledTimes(1);
   });
 });

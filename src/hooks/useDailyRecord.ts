@@ -92,6 +92,7 @@ export const useDailyRecord = (
       resetDay,
       refresh,
       updatePatient: bedManagement.updatePatient,
+      confirmUpcRound: bedManagement.confirmUpcRound,
       updatePatientMultiple: bedManagement.updatePatientMultiple,
       updateClinicalCrib: bedManagement.updateClinicalCrib,
       updateClinicalCribMultiple: bedManagement.updateClinicalCribMultiple,

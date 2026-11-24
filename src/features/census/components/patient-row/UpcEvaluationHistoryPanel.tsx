@@ -1,3 +1,4 @@
+import { hasSignedUpcEvaluation } from '@/domain/upc/upcEvaluationHistory';
 import type { PatientData } from '@/types/domain/patient';
 
 import { useEffect, useState } from 'react';
@@ -109,12 +110,7 @@ export const UpcEvaluationHistoryPanel = ({
       <ol className="space-y-2">
         {entries.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map(entry => {
           const criteria = upcCriterionLabels(entry);
-          const signed = Boolean(
-            entry.evaluatedBy?.uid &&
-            entry.responsibleNurse?.name &&
-            entry.evaluatedForDate &&
-            entry.evaluatedBedId
-          );
+          const signed = hasSignedUpcEvaluation(entry);
           return (
             <li
               key={upcEvaluationKey(entry)}

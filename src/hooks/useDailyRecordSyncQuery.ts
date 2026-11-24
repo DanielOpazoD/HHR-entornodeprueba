@@ -224,6 +224,7 @@ export const useDailyRecordSyncQuery = (
             ? {
                 options: {
                   requireConfirmedRecord: true,
+                  ...(options.baseRecord ? { baseRecord: options.baseRecord } : {}),
                   requireRemoteAuthorityFirst: true,
                   ...(options.requireAtomicCas ||
                   (options.optimisticRemoteConfirmed && !options.intentionalBedClear)

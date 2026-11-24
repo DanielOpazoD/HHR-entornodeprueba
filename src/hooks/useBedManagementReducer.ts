@@ -1,3 +1,6 @@
+import { resolveUpcEpisodeIdentity } from '@/domain/upc/upcRoundSubject';
+import { isUpcEligibleBedId } from '@/shared/census/upcBedPolicy';
+import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 import type { PatientData } from '@/types/domain/patient';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
@@ -54,6 +57,35 @@ export const bedManagementReducer = (
   if (!state) return null;
 
   switch (action.type) {
+    case 'CONFIRM_UPC_ROUND': {
+      if (action.evaluations.length === 0) return null;
+      const patch: DailyRecordPatch = {};
+      for (const {
+        bedId,
+        isCrib,
+        episodeIdentity,
+        previousChecklist,
+        record,
+      } of action.evaluations) {
+        const subject = isCrib ? state.beds[bedId]?.clinicalCrib : state.beds[bedId];
+        if (
+          !subject ||
+          !isUpcEligibleBedId(bedId) ||
+          record.evaluatedForDate !== state.date ||
+          record.evaluatedBedId !== bedId ||
+          resolveUpcEpisodeIdentity(subject) !== episodeIdentity ||
+          (!arePatchValuesDeepEqual(subject.upcChecklist, previousChecklist) &&
+            !arePatchValuesDeepEqual(subject.upcChecklist, record))
+        )
+          return null;
+        const fields = { upcChecklist: record, isUPC: record.classification !== null };
+        const build = isCrib ? buildClinicalCribMultipleFieldPatches : buildUpdatePatientPatches;
+        Object.assign(patch, build(state, bedId, fields));
+        // A retry still needs a server receipt if the local census already shows this evaluation.
+        patch[`beds.${bedId}.${isCrib ? 'clinicalCrib.' : ''}upcChecklist`] = record;
+      }
+      return patch;
+    }
     case 'UPDATE_PATIENT':
       return buildUpdatePatientActionPatch(state, action);
     case 'UPDATE_PATIENT_MULTIPLE':

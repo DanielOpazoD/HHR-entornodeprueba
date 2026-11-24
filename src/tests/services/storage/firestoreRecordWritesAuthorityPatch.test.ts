@@ -252,16 +252,23 @@ describe('firestoreRecordWrites authority patch routing', () => {
     expect(saveHistorySnapshot).not.toHaveBeenCalled();
   });
 
-  it('routes UPC checklist patches with derived bed type overrides through the authority callable', async () => {
+  it('routes the bed and crib UPC journals and the bed override in a single authority call', async () => {
     mockGetCurrentUser.mockReturnValue({
       uid: 'nurse-1',
       email: 'nurse@example.com',
       isAnonymous: false,
     });
 
+    const crib = {
+      uciCriteria: [],
+      utiCriteria: [],
+      classification: null,
+      evaluatedAt: '2026-03-14T10:05:00.000Z',
+    };
     await updateRecordPartial(
       '2026-03-14',
       {
+        'beds.R1.clinicalCrib.upcChecklist': crib,
         'beds.R1.upcChecklist': {
           uciCriteria: ['uci_vmi'],
           utiCriteria: [],
@@ -275,7 +282,12 @@ describe('firestoreRecordWrites authority patch routing', () => {
       {
         syncContract: {
           expectedVersion: '2026-03-14T10:00:00.000Z',
-          changedPaths: ['beds.R1.upcChecklist', 'beds.R1.isUPC', 'bedTypeOverrides.R1'],
+          changedPaths: [
+            'beds.R1.upcChecklist',
+            'beds.R1.isUPC',
+            'bedTypeOverrides.R1',
+            'beds.R1.clinicalCrib.upcChecklist',
+          ],
           mutationId: 'mutation-upc-1',
           clientId: 'client-1',
           tabId: 'tab-1',
@@ -288,10 +300,12 @@ describe('firestoreRecordWrites authority patch routing', () => {
       'patchDailyRecordWithClinicalAuthority',
       { timeout: 45_000 }
     );
+    expect(mockAuthorityCallable).toHaveBeenCalledTimes(1);
     expect(mockAuthorityCallable).toHaveBeenCalledWith(
       expect.objectContaining({
         date: '2026-03-14',
         patch: expect.objectContaining({
+          'beds.R1.clinicalCrib.upcChecklist': crib,
           'beds.R1.upcChecklist': expect.objectContaining({
             classification: 'UPC_UCI',
           }),
@@ -299,7 +313,12 @@ describe('firestoreRecordWrites authority patch routing', () => {
           'bedTypeOverrides.R1': 'UCI',
         }),
         syncContract: expect.objectContaining({
-          changedPaths: ['beds.R1.upcChecklist', 'beds.R1.isUPC', 'bedTypeOverrides.R1'],
+          changedPaths: [
+            'beds.R1.upcChecklist',
+            'beds.R1.isUPC',
+            'bedTypeOverrides.R1',
+            'beds.R1.clinicalCrib.upcChecklist',
+          ],
           mutationId: 'mutation-upc-1',
         }),
       })

@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   resolveUpcReviewReason,
-  assignedUpcNurses,
   resolveUpcEmailBlockReason,
 } from '@/shared/census/upcEvaluationPolicy';
 import { normalizePatientUpcForBed, resolveEffectiveUpcState } from '@/shared/census/upcBedPolicy';
@@ -130,9 +129,15 @@ describe('UPC daily and movement review policy', () => {
       upcChecklist: { reviewRequired: true },
     });
   });
-  it('normalizes assigned nurse options without inventing staff', () => {
-    expect(assignedUpcNurses([' ', 'Vacante', ' Enfermera A ', 'Enfermera A'])).toEqual([
-      'Enfermera A',
-    ]);
+  it('accepts the signed-in professional for a session-signed evaluation', () => {
+    const signed = {
+      ...checklist,
+      signatureSource: 'session' as const,
+      responsibleNurse: undefined,
+    };
+    expect(resolveUpcReviewReason(signed, 'R1', '2026-09-04')).toBeNull();
+    expect(
+      resolveUpcReviewReason({ ...signed, evaluatedBy: undefined }, 'R1', '2026-09-04')
+    ).toMatch(/pendiente/);
   });
 });

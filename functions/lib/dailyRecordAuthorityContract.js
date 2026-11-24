@@ -84,14 +84,16 @@ const splitPatchPath = path =>
     .map(part => part.trim())
     .filter(Boolean);
 
-/** `beds.<bedId>.<campo clínico>` — exactamente 3 segmentos, escalar de cama. */
+/** Atomic clinical bed fields, including the two UPC fields of an attached crib. */
 const isClinicalAuthorityBedScalarPath = path => {
   const parts = splitPatchPath(path);
+  const [root, bedId, field, cribField] = parts;
+  if (root !== 'beds' || !bedId || !field) return false;
+  if (parts.length === 3) return CLINICAL_AUTHORITY_BED_FIELD_SET.has(field);
   return (
-    parts.length === 3 &&
-    parts[0] === 'beds' &&
-    Boolean(parts[1]) &&
-    CLINICAL_AUTHORITY_BED_FIELD_SET.has(parts[2])
+    parts.length === 4 &&
+    field === 'clinicalCrib' &&
+    (cribField === 'upcChecklist' || cribField === 'isUPC')
   );
 };
 

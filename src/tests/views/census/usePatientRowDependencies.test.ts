@@ -18,6 +18,7 @@ type DialogActions = ReturnType<typeof useConfirmDialog>;
 
 const bedActions = {
   updatePatient: vi.fn<BedActions['updatePatient']>(),
+  confirmUpcRound: vi.fn().mockResolvedValue(true),
   updatePatientMultiple: vi.fn<BedActions['updatePatientMultiple']>().mockResolvedValue(true),
   clearPatient: vi.fn<BedActions['clearPatient']>().mockResolvedValue(false),
   updateClinicalCrib: vi.fn<BedActions['updateClinicalCrib']>().mockResolvedValue(false),

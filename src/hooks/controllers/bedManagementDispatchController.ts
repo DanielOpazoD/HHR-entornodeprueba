@@ -1,3 +1,4 @@
+import { guardAuthoringSession } from '@/services/session/authoringSession';
 import type { PatientData } from '@/types/domain/patient';
 
 import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
@@ -245,6 +246,7 @@ export const executeBedManagementAction = async ({
   )
     return false;
 
+  const roundSession = action.type === 'CONFIRM_UPC_ROUND' ? guardAuthoringSession() : undefined;
   const validatedAction = validateAction(action, validation);
   if (!validatedAction) {
     return false;
@@ -294,7 +296,14 @@ export const executeBedManagementAction = async ({
     }
 
     try {
-      if (validatedAction.type === 'CLEAR_PATIENT') {
+      if (validatedAction.type === 'CONFIRM_UPC_ROUND') {
+        if (!roundSession?.isCurrent()) return false;
+        await patchRecord(patch, {
+          consistency: 'remote_confirmed',
+          requireAtomicCas: true,
+          baseRecord: currentRecord,
+        });
+      } else if (validatedAction.type === 'CLEAR_PATIENT') {
         const currentBed = currentRecord.beds[validatedAction.bedId]!;
         await patchRecord(patch, {
           consistency: 'remote_confirmed',

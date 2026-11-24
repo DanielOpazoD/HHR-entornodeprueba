@@ -25,6 +25,8 @@ export interface UpcEvaluationSnapshot {
   readonly evaluatedAt: string;
   /** User who performed the evaluation (audit trail). */
   readonly evaluatedBy?: UpcChecklistAuditActor;
+  /** Session-signed evaluations use evaluatedBy. Older rounds also recorded a chosen nurse. */
+  readonly signatureSource?: 'session';
   /** Census day reviewed, distinct from the actual timestamp of entry. */
   readonly evaluatedForDate?: string;
   readonly evaluatedBedId?: string;
@@ -41,4 +43,12 @@ export interface UpcChecklistRecord extends UpcEvaluationSnapshot {
   readonly reviewRequired?: boolean;
   /** Signed evaluations retained in this census day; previous days remain in their records. */
   readonly history?: UpcEvaluationSnapshot[];
+}
+
+export interface UpcRoundEvaluation {
+  bedId: string;
+  isCrib: boolean;
+  episodeIdentity: string;
+  previousChecklist?: UpcChecklistRecord;
+  record: UpcChecklistRecord;
 }

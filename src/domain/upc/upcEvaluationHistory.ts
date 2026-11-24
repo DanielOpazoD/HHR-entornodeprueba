@@ -9,6 +9,16 @@ export const upcCriterionLabels = (entry: UpcEvaluationSnapshot): string[] =>
     id => labels.get(normalizeUciCriterionId(id)) || id
   );
 
+export const hasSignedUpcEvaluation = (entry?: UpcEvaluationSnapshot): boolean =>
+  Boolean(
+    entry?.evaluatedBy?.uid &&
+    entry.evaluatedBedId &&
+    entry.evaluatedForDate &&
+    (entry.signatureSource === 'session'
+      ? entry.evaluatedBy.displayName.trim()
+      : entry.responsibleNurse?.name.trim())
+  );
+
 /** Strip mutable review state and nested history before archiving. */
 export const upcEvaluationSnapshot = (entry: UpcChecklistRecord): UpcEvaluationSnapshot => ({
   uciCriteria: [...entry.uciCriteria],
@@ -17,6 +27,7 @@ export const upcEvaluationSnapshot = (entry: UpcChecklistRecord): UpcEvaluationS
   evaluatedAt: entry.evaluatedAt,
   ...(entry.evaluationId ? { evaluationId: entry.evaluationId } : {}),
   ...(entry.criterionLabels ? { criterionLabels: [...entry.criterionLabels] } : {}),
+  ...(entry.signatureSource ? { signatureSource: entry.signatureSource } : {}),
   ...(entry.evaluatedBy ? { evaluatedBy: { ...entry.evaluatedBy } } : {}),
   ...(entry.evaluatedForDate ? { evaluatedForDate: entry.evaluatedForDate } : {}),
   ...(entry.evaluatedBedId ? { evaluatedBedId: entry.evaluatedBedId } : {}),

@@ -1,3 +1,4 @@
+import type { UpcRoundEvaluation } from '@/domain/upc/upcContracts';
 import type { PatientData } from '@/types/domain/patient';
 
 import { useCallback, useRef, useEffect } from 'react';
@@ -17,6 +18,7 @@ import type { ConfirmedBedOccupantIdentity } from '@/types/domain/intentionalBed
  * Interface defining the actions available for bed management.
  */
 export interface BedManagementActions {
+  confirmUpcRound: (evaluations: readonly UpcRoundEvaluation[]) => Promise<boolean>;
   /**
    * Updates a single field for a patient in a specific bed.
    * Includes validation and audit logging for admissions.

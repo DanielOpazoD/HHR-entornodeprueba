@@ -1,292 +1,169 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCheck, LoaderCircle, ShieldCheck } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { useDailyRecordBedActions } from '@/context/useDailyRecordScopedActions';
-import { useDailyRecordBeds, useDailyRecordStaff } from '@/context/DailyRecordContext';
+import { useDailyRecordBeds } from '@/context/DailyRecordContext';
 import { useAuth } from '@/context/AuthContext';
-import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
-import { assignedUpcNurses } from '@/shared/census/upcEvaluationPolicy';
+import { useSessionEpoch } from '@/hooks/useSessionEpoch';
+import type { UpcChecklistAuditActor, UpcRoundEvaluation } from '@/domain/upc/upcContracts';
+import { resolveUpcEpisodeIdentity } from '@/domain/upc/upcRoundSubject';
 import { UpcBedCriteriaDraftPanel } from './UpcBedCriteriaDraftPanel';
+import { UpcClassificationRowItem } from './UpcClassificationRowItem';
 import {
   buildUpcClassificationRows,
-  buildUpcDraftRecords,
-  resolveUpcEpisodeIdentity,
-  resolveUpcQuickEvaluationAvailability,
-  sanitizeUpcCriteriaDraft,
-  type PendingUpcDraftRecord,
+  buildUpcRoundEvaluation,
+  createUpcRowDraft,
+  hasUpcDraftChanges,
+  upcDraftStillMatches,
   type UpcClassificationRow,
+  type UpcRowDraft,
 } from './upcClassificationWindowModel';
-import { UpcClassificationRowItem } from './UpcClassificationRowItem';
-import { UpcRoundNurseControl } from './UpcRoundNurseControl';
-import { useLatestRef } from '@/hooks/useLatestRef';
+
 interface UpcClassificationWindowProps {
   currentDateString: string;
   readOnly?: boolean;
-  /** Bed the operator clicked in the UPC column; the window opens focused on it. */
   initialBedId?: string | null;
   onClose: () => void;
 }
-export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = ({
-  currentDateString,
-  readOnly = false,
-  initialBedId = null,
-  onClose,
-}) => {
-  const beds = useDailyRecordBeds();
-  const staff = useDailyRecordStaff();
-  const { updatePatientMultiple, updateClinicalCribMultiple } = useDailyRecordBedActions();
-  const { currentUser } = useAuth();
-  const [selectedRowKey, setSelectedRowKey] = useState<string | null>(initialBedId);
-  const [noCriteriaSelection, setNoCriteriaSelection] = useState<Record<string, boolean>>({});
-  const [criteriaDrafts, setCriteriaDrafts] = useState<
-    Record<string, { uci: string[]; uti: string[]; episodeIdentity: string }>
-  >({});
-  const [nurseName, setNurseName] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState('');
-  const pendingRecords = useRef<Record<string, PendingUpcDraftRecord> | null>(null);
-  const episodeSnapshots = useRef<Record<string, string>>({});
-  const bedsRef = useLatestRef(beds);
 
-  const actor = useMemo(
-    () =>
-      currentUser
-        ? { uid: currentUser.uid, displayName: currentUser.displayName || currentUser.email || '' }
-        : null,
-    [currentUser]
+export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = props => {
+  const { currentUser } = useAuth();
+  const epoch = useSessionEpoch();
+  const actor = currentUser?.uid
+    ? {
+        uid: currentUser.uid,
+        displayName:
+          currentUser.displayName?.trim() || currentUser.email?.trim() || currentUser.uid,
+      }
+    : null;
+  return (
+    <UpcRound key={`${props.currentDateString}:${actor?.uid}:${epoch}`} {...props} actor={actor} />
   );
-  const assignedNurses = useMemo(
-    () => assignedUpcNurses([...(staff?.nursesDayShift ?? []), ...(staff?.nursesNightShift ?? [])]),
-    [staff?.nursesDayShift, staff?.nursesNightShift]
-  );
+};
+
+const UpcRound: React.FC<
+  UpcClassificationWindowProps & { actor: UpcChecklistAuditActor | null }
+> = ({ currentDateString, readOnly = false, initialBedId = null, onClose, actor }) => {
+  const beds = useDailyRecordBeds();
+  const { confirmUpcRound } = useDailyRecordBedActions();
+  const [selectedRowKey, setSelectedRowKey] = useState<string | null>(initialBedId);
+  const [drafts, setDrafts] = useState<Record<string, UpcRowDraft>>({});
+  const [message, setMessage] = useState('');
+  const [retry, setRetry] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const inFlight = useRef(false);
+  const mounted = useRef(true);
+  const pending = useRef<Record<string, UpcRoundEvaluation>>({});
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const rows = useMemo(
     () => buildUpcClassificationRows(beds, currentDateString),
     [beds, currentDateString]
   );
-  const checklistOf = useCallback(
-    (row: { bedId: string; isCrib: boolean }): UpcChecklistRecord | undefined =>
-      (row.isCrib ? beds?.[row.bedId]?.clinicalCrib : beds?.[row.bedId])?.upcChecklist,
-    [beds]
-  );
+  const selectedRow = rows.find(row => row.key === selectedRowKey) ?? rows[0];
+  const subjectOf = (row: UpcClassificationRow) =>
+    row.isCrib ? beds?.[row.bedId]?.clinicalCrib : beds?.[row.bedId];
+  const selectedPatient = selectedRow && subjectOf(selectedRow);
+  const selectedCount = Object.keys(drafts).length;
+  const canEdit = Boolean(actor && !readOnly);
 
-  /** Criterios en borrador de una fila: lo ya marcado o lo que trae la evaluación vigente. */
-  const criteriaOf = useCallback(
-    (row: UpcClassificationRow): { uci: string[]; uti: string[] } =>
-      criteriaDrafts[row.key] ??
-      sanitizeUpcCriteriaDraft(row, {
-        uci: checklistOf(row)?.uciCriteria,
-        uti: checklistOf(row)?.utiCriteria,
-      }),
-    [checklistOf, criteriaDrafts]
-  );
+  const draftFor = (row: UpcClassificationRow) => {
+    const draft = drafts[row.key];
+    return draft?.row.episodeIdentity === row.episodeIdentity
+      ? draft
+      : createUpcRowDraft(row, subjectOf(row)?.upcChecklist);
+  };
 
-  const hasCriteriaChanges = useCallback(
-    (row: { key: string; bedId: string; isCrib: boolean }): boolean => {
-      const draft = criteriaDrafts[row.key];
-      if (!draft) return false;
-      const persisted = checklistOf(row);
-      const same = (left: string[], right: string[] = []) =>
-        [...left].sort().join('|') === [...right].sort().join('|');
-      return !same(draft.uci, persisted?.uciCriteria) || !same(draft.uti, persisted?.utiCriteria);
-    },
-    [checklistOf, criteriaDrafts]
-  );
-
-  const dirtyRows = useMemo(
-    () => rows.filter(row => Boolean(noCriteriaSelection[row.key]) || hasCriteriaChanges(row)),
-    [hasCriteriaChanges, noCriteriaSelection, rows]
-  );
-  const selectedCount = dirtyRows.length;
-
-  const quickAvailability = resolveUpcQuickEvaluationAvailability({
-    hasPatient: true,
-    readOnly,
-    hasActor: Boolean(actor?.uid),
-    nurseName,
-    assignedNurses,
-  });
-
-  const closeWithoutChanges = useCallback(() => {
-    setNoCriteriaSelection({});
-    setCriteriaDrafts({});
-    pendingRecords.current = null;
-    episodeSnapshots.current = {};
-    onClose();
-  }, [onClose]);
-
-  const invalidateRecords = useCallback(() => {
-    pendingRecords.current = null;
-  }, []);
-
-  const requestClose = useCallback(() => {
-    if (selectedCount > 0) {
-      setMessage(
-        'Tienes marcaciones sin confirmar: pulsa «Confirmar cambios» o «Cancelar» para cerrar.'
-      );
-      return;
-    }
-    closeWithoutChanges();
-  }, [closeWithoutChanges, selectedCount]);
-
-  const toggleDraftUci = useCallback(
-    (row: UpcClassificationRow) => (id: string) => {
-      const episodeIdentity = (episodeSnapshots.current[row.key] ??= row.episodeIdentity);
-      invalidateRecords();
-      setCriteriaDrafts(current => {
-        const draft = current[row.key] ?? criteriaOf(row);
-        const uci = draft.uci.includes(id)
-          ? draft.uci.filter(item => item !== id)
-          : [...draft.uci, id];
-        return {
-          ...current,
-          [row.key]: { uci, uti: draft.uti, episodeIdentity },
-        };
-      });
-    },
-    [criteriaOf, invalidateRecords]
-  );
-
-  const toggleDraftUti = useCallback(
-    (row: UpcClassificationRow) => (id: string) => {
-      const episodeIdentity = (episodeSnapshots.current[row.key] ??= row.episodeIdentity);
-      invalidateRecords();
-      setCriteriaDrafts(current => {
-        const draft = current[row.key] ?? criteriaOf(row);
-        const uti = draft.uti.includes(id)
-          ? draft.uti.filter(item => item !== id)
-          : [...draft.uti, id];
-        return {
-          ...current,
-          [row.key]: { uci: draft.uci, uti, episodeIdentity },
-        };
-      });
-    },
-    [criteriaOf, invalidateRecords]
-  );
-
-  const toggleNoCriteria = useCallback(
-    (row: UpcClassificationRow, nextMarked: boolean) => {
-      if (nextMarked) episodeSnapshots.current[row.key] ??= row.episodeIdentity;
-      else if (!criteriaDrafts[row.key]) delete episodeSnapshots.current[row.key];
-      invalidateRecords();
-      setNoCriteriaSelection(current => ({ ...current, [row.key]: nextMarked }));
-    },
-    [criteriaDrafts, invalidateRecords]
-  );
-
-  const saveForBed = useCallback(
-    async (
-      row: UpcClassificationRow,
-      pending: PendingUpcDraftRecord
-    ): Promise<'saved' | 'failed' | 'episode-changed'> => {
-      if (readOnly || !actor) return 'failed';
-      const liveSubject = row.isCrib
-        ? bedsRef.current?.[row.bedId]?.clinicalCrib
-        : bedsRef.current?.[row.bedId];
-      if (resolveUpcEpisodeIdentity(liveSubject, row.bedId) !== pending.episodeIdentity) {
-        return 'episode-changed';
-      }
-      const { record } = pending;
-      if (record.evaluatedForDate !== currentDateString || record.evaluatedBedId !== row.bedId) {
-        return 'failed';
-      }
-      const patch = { upcChecklist: record, isUPC: record.classification !== null };
-      try {
-        return (await (row.isCrib
-          ? updateClinicalCribMultiple(row.bedId, patch)
-          : updatePatientMultiple(row.bedId, patch))) === true
-          ? 'saved'
-          : 'failed';
-      } catch {
-        return 'failed';
-      }
-    },
-    [actor, bedsRef, currentDateString, readOnly, updateClinicalCribMultiple, updatePatientMultiple]
-  );
-
-  const confirmChanges = useCallback(async () => {
-    if (!actor || selectedCount === 0) return;
-    if (!quickAvailability.allowed) {
-      setMessage(quickAvailability.reason ?? 'Falta el responsable de la ronda.');
-      return;
-    }
-
-    // Los registros se arman una vez: reintentar la confirmación firma la misma evaluación.
-    if (!pendingRecords.current) {
-      pendingRecords.current = buildUpcDraftRecords({
-        rows: dirtyRows,
-        checklistOf,
-        criteriaOf,
-        noCriteriaSelection,
-        actor,
-        date: currentDateString,
-        nurseName,
-        nurseFromShift: assignedNurses.includes(nurseName.trim()),
-        episodeIdentityOf: row => episodeSnapshots.current[row.key] ?? row.episodeIdentity,
-      });
-    }
-
+  const editDraft = (row: UpcClassificationRow, change: (draft: UpcRowDraft) => UpcRowDraft) => {
+    if (!canEdit || inFlight.current) return;
+    const draft = change(draftFor(row));
+    setDrafts(current => {
+      const next = { ...current };
+      if (hasUpcDraftChanges(draft)) next[row.key] = draft;
+      else delete next[row.key];
+      return next;
+    });
+    delete pending.current[row.key];
     setMessage('');
-    setIsSaving(true);
-    const records = pendingRecords.current;
-    const failed: string[] = [];
-    const changedEpisode: string[] = [];
-    try {
-      for (const row of dirtyRows) {
-        const pending = records[row.key];
-        const result = pending ? await saveForBed(row, pending) : 'failed';
-        if (result === 'failed') failed.push(row.key);
-        if (result === 'episode-changed') changedEpisode.push(row.key);
-      }
-    } finally {
-      setIsSaving(false);
-    }
+    setRetry(false);
+  };
+  const toggleCriterion = (row: UpcClassificationRow, level: 'uci' | 'uti', id: string) =>
+    editDraft(row, draft => {
+      const criteria = draft.noCriteria ? { uci: [], uti: [] } : draft;
+      const previous: string[] = criteria[level];
+      return {
+        ...draft,
+        ...criteria,
+        noCriteria: false,
+        [level]: previous.includes(id) ? previous.filter(value => value !== id) : [...previous, id],
+      };
+    });
 
-    if (failed.length > 0 || changedEpisode.length > 0) {
-      setNoCriteriaSelection(current =>
-        Object.fromEntries(Object.entries(current).filter(([key]) => failed.includes(key)))
-      );
-      setCriteriaDrafts(current =>
-        Object.fromEntries(Object.entries(current).filter(([key]) => failed.includes(key)))
-      );
-      episodeSnapshots.current = Object.fromEntries(
-        Object.entries(episodeSnapshots.current).filter(([key]) => failed.includes(key))
-      );
-      pendingRecords.current = Object.fromEntries(
-        Object.entries(records).filter(([key]) => failed.includes(key))
-      );
+  const requestClose = () => {
+    if (inFlight.current) return;
+    if (selectedCount)
       setMessage(
-        changedEpisode.length
-          ? 'Cambió el paciente de una cama mientras la ventana estaba abierta. Se descartó esa marcación; revisa la lista antes de continuar.'
-          : `No se pudo confirmar ${failed.length === 1 ? 'una cama' : `${failed.length} camas`}. Revisa la conexión y reintenta: no se perdió ninguna marcación.`
+        'Tienes marcaciones sin confirmar. Pulsa «Confirmar cambios» o «Cancelar» para cerrar.'
+      );
+    else onClose();
+  };
+
+  const confirmChanges = async () => {
+    if (!actor || !canEdit || !selectedCount || inFlight.current) return;
+    const changes = Object.values(drafts);
+    const stale = changes.filter(
+      draft => !upcDraftStillMatches(draft, subjectOf(draft.row), pending.current[draft.row.key])
+    );
+    const firstStale = stale[0];
+    if (firstStale) {
+      const next = { ...drafts };
+      for (const draft of stale) {
+        const { row } = draft;
+        const subject = subjectOf(row);
+        delete pending.current[row.key];
+        if (resolveUpcEpisodeIdentity(subject) !== row.episodeIdentity) delete next[row.key];
+        else next[row.key] = { ...draft, previousChecklist: subject?.upcChecklist };
+      }
+      setDrafts(next);
+      setSelectedRowKey(firstStale.row.key);
+      setMessage(
+        `Cambió el paciente o la evaluación en ${stale.map(draft => draft.row.bedName).join(', ')}. Revisa la ronda antes de confirmar.`
       );
       return;
     }
+    const evaluatedAt = new Date().toISOString();
+    const evaluations = changes.map(
+      draft =>
+        (pending.current[draft.row.key] ??= buildUpcRoundEvaluation(
+          draft,
+          actor,
+          currentDateString,
+          evaluatedAt
+        ))
+    );
+    inFlight.current = true;
+    setIsSaving(true);
+    setMessage('');
+    setRetry(false);
+    try {
+      // The shared census writer presents the single server outcome for this round.
+      const confirmed = await confirmUpcRound(evaluations);
+      if (!mounted.current) return;
+      if (confirmed) onClose();
+      else setRetry(true);
+    } catch {
+      if (mounted.current) setRetry(true);
+    } finally {
+      inFlight.current = false;
+      if (mounted.current) setIsSaving(false);
+    }
+  };
 
-    closeWithoutChanges();
-  }, [
-    actor,
-    assignedNurses,
-    checklistOf,
-    closeWithoutChanges,
-    currentDateString,
-    noCriteriaSelection,
-    nurseName,
-    quickAvailability.allowed,
-    quickAvailability.reason,
-    saveForBed,
-    selectedCount,
-    criteriaOf,
-    dirtyRows,
-  ]);
-
-  const selectedRow = rows.find(row => row.key === selectedRowKey) ?? null;
-  const selectedPatient = selectedRow
-    ? selectedRow.isCrib
-      ? beds?.[selectedRow.bedId]?.clinicalCrib
-      : beds?.[selectedRow.bedId]
-    : undefined;
-
+  const selectedDraft = selectedRow && draftFor(selectedRow);
   return (
     <BaseModal
       isOpen
@@ -296,24 +173,6 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
       headerIconColor="text-medical-700"
       size="5xl"
       closeOnBackdrop
-      headerActions={
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-          <span>
-            {selectedCount > 0
-              ? `${selectedCount} ${selectedCount === 1 ? 'cama' : 'camas'} por confirmar`
-              : 'marca sin criterios o ajusta criterios y confirma al final'}
-          </span>
-          <UpcRoundNurseControl
-            assignedNurses={assignedNurses}
-            nurseName={nurseName}
-            disabled={isSaving}
-            onChange={name => {
-              invalidateRecords();
-              setNurseName(name);
-            }}
-          />
-        </div>
-      }
       bodyClassName="p-0"
     >
       {message && (
@@ -331,10 +190,12 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
             <UpcClassificationRowItem
               key={row.key}
               row={row}
-              isSelected={row.key === selectedRowKey}
-              isMarked={Boolean(noCriteriaSelection[row.key])}
-              readOnly={readOnly || isSaving}
-              onToggleMark={(_rowKey, nextMarked) => toggleNoCriteria(row, nextMarked)}
+              isSelected={row.key === selectedRow?.key}
+              isMarked={draftFor(row).noCriteria}
+              readOnly={!canEdit || isSaving}
+              onToggleMark={(_key, noCriteria) =>
+                editDraft(row, draft => ({ ...draft, noCriteria }))
+              }
               onSelect={setSelectedRowKey}
             />
           ))}
@@ -346,21 +207,20 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
         </ul>
 
         <div className="flex min-h-0 flex-col items-stretch overflow-y-auto p-3">
-          {selectedRow && selectedPatient && actor ? (
+          {selectedRow && selectedPatient && selectedDraft ? (
             <UpcBedCriteriaDraftPanel
               row={selectedRow}
-              criteria={criteriaOf(selectedRow)}
-              readOnly={readOnly}
+              criteria={selectedDraft.noCriteria ? { uci: [], uti: [] } : selectedDraft}
+              readOnly={!canEdit}
               saving={isSaving}
-              onToggleUci={toggleDraftUci(selectedRow)}
-              onToggleUti={toggleDraftUti(selectedRow)}
+              onToggleUci={id => toggleCriterion(selectedRow, 'uci', id)}
+              onToggleUti={id => toggleCriterion(selectedRow, 'uti', id)}
               patient={selectedPatient}
               date={currentDateString}
             />
           ) : (
             <p className="px-2 py-6 text-center text-xs text-slate-500">
-              Marca «Sin criterios UPC» en las camas que no requieren clasificación y confirma al
-              final. Usa «Ver detalle» cuando el paciente sí tenga criterios.
+              Selecciona una cama para ver su evaluación.
             </p>
           )}
         </div>
@@ -369,7 +229,7 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
       <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-4 py-3">
         <button
           type="button"
-          onClick={closeWithoutChanges}
+          onClick={onClose}
           disabled={isSaving}
           className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
         >
@@ -378,8 +238,7 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
         <button
           type="button"
           onClick={() => void confirmChanges()}
-          disabled={isSaving || selectedCount === 0 || !quickAvailability.allowed}
-          title={quickAvailability.reason ?? 'Confirmar las camas marcadas sin criterios UPC'}
+          disabled={isSaving || selectedCount === 0 || !canEdit}
           className="inline-flex items-center gap-1.5 rounded-md bg-teal-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-teal-50 disabled:text-teal-800 disabled:shadow-none disabled:ring-1 disabled:ring-inset disabled:ring-emerald-200"
         >
           {isSaving ? (
@@ -390,7 +249,7 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
           {isSaving
             ? 'Confirmando…'
             : selectedCount > 0
-              ? `Confirmar cambios (${selectedCount})`
+              ? `${retry ? 'Reintentar confirmación' : 'Confirmar cambios'} (${selectedCount})`
               : 'Confirmar cambios'}
         </button>
       </footer>
