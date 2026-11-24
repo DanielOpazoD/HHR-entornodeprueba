@@ -12,7 +12,13 @@ declare module '@sparticuz/chromium' {
 }
 
 declare module 'puppeteer-core' {
+  interface PuppeteerRequest {
+    url: () => string;
+    resourceType: () => string;
+  }
   interface PuppeteerPage {
+    on?: (event: 'request', listener: (request: PuppeteerRequest) => void) => void;
+    off?: (event: 'request', listener: (request: PuppeteerRequest) => void) => void;
     setJavaScriptEnabled: (enabled: boolean) => Promise<void>;
     setContent: (html: string, options?: Record<string, unknown>) => Promise<void>;
     pdf: (options?: Record<string, unknown>) => Promise<Uint8Array>;
