@@ -10,7 +10,7 @@
  *  4. zone-less-format: dates and times shown to people pass `timeZone`.
  *  5. device-clock-time: nobody reads hours or minutes with `getHours()`, `getMinutes()` or `toTimeString()`.
  *  6. instant-calendar-slice: cutting a stored instant to its UTC date bypasses the hospital calendar.
- *  7. server-clock-today (functions/) and device-calendar-today (src/): no local calendar getters on instants.
+ *  7. server-clock-today (functions/) and device-calendar-today (src/): no local calendar getters or setHours() on instants.
  *  8. raw-offset-clock (rayen-import/ and extension/): ISO regex prefixes and time slices convert offsets to Rapa Nui.
  *  9. hand-calendar-anchor: the `T12:00:00Z` noon anchor lives only in the two calendar modules.
  * 10. device-wall-clock-instant: a zone-less `…Thh:mm` cannot be used in instant arithmetic/comparisons.
@@ -87,7 +87,7 @@ const localCalendarGetterLines = rule => source => {
   const sourceLines = source.split('\n');
   const allowed = new RegExp(`^\\s*// clinical-clock-allow ${rule}:\\s*\\S.*$`);
   const constructors = /(?:\b(?:const|let|var)\s+(\w+)\s*=\s*)?new\s+Date\s*\(/g;
-  const localGetter = /^\s*\.\s*get(?:FullYear|Month|Date)\s*\(\s*\)/;
+  const localGetter = /^\s*\.\s*(?:get(?:FullYear|Month|Date)\s*\(\s*\)|setHours\s*\()/;
   for (const match of source.matchAll(constructors)) {
     const openIndex = match.index + match[0].length - 1;
     const args = argumentsAt(source, openIndex);
@@ -95,7 +95,9 @@ const localCalendarGetterLines = rule => source => {
     if (/^\s*\w+\s*,/.test(args)) continue;
     const afterConstructor = source.slice(openIndex + args.length + 2);
     const variableGetter = match[1]
-      ? new RegExp(`\\b${match[1]}\\s*\\.\\s*get(?:FullYear|Month|Date)\\s*\\(\\s*\\)`)
+      ? new RegExp(
+          `\\b${match[1]}\\s*\\.\\s*(?:get(?:FullYear|Month|Date)\\s*\\(\\s*\\)|setHours\\s*\\()`
+        )
       : null;
     const nextDeclaration = match[1]
       ? afterConstructor.search(new RegExp(`\\b(?:const|let|var)\\s+${match[1]}\\b`))

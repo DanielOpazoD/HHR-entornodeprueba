@@ -92,6 +92,12 @@ describe('dateUtils', () => {
     it('should return false for a past date', () => {
       expect(isFutureDate('2024-12-24')).toBe(false);
     });
+
+    it('should return false for empty, malformed, or impossible calendar dates', () => {
+      expect(isFutureDate('')).toBe(false);
+      expect(isFutureDate('not-a-date')).toBe(false);
+      expect(isFutureDate('2026-02-30')).toBe(false);
+    });
   });
 
   describe('isBusinessDay', () => {

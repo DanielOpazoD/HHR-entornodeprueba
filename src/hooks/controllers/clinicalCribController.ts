@@ -10,13 +10,7 @@ import {
   buildConfirmedBedOccupantIdentity,
   canRebaseIntentionalBedClear,
 } from '@/hooks/controllers/intentionalBedClearController';
-
-const isFutureDate = (value: string): boolean => {
-  const selectedDate = new Date(value);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return selectedDate > today;
-};
+import { isFutureDate } from '@/utils/dateCoreUtils';
 
 export const resolveMotherLabel = (patient: PatientData): string => {
   const fullNameFromParts = [patient.firstName, patient.lastName, patient.secondLastName]

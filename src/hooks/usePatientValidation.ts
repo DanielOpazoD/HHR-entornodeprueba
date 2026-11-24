@@ -9,6 +9,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { useCallback, useMemo } from 'react';
 
 import { PatientFieldValue } from '@/types/valueTypes';
+import { isFutureDate } from '@/utils/dateCoreUtils';
 import { capitalizeWords } from '@/utils/stringUtils';
 import { formatRut, hasNonRutLetter, isValidRut } from '@/utils/rutUtils';
 
@@ -92,11 +93,7 @@ export const usePatientValidation = (): PatientValidationActions => {
       return { valid: true, value: date };
     }
 
-    const selectedDate = new Date(date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (selectedDate > today) {
+    if (isFutureDate(date)) {
       return {
         valid: false,
         value: date,

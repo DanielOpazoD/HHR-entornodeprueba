@@ -1,6 +1,5 @@
 // @vitest-environment node
-/* @flake-safe: Date.now is used only to derive a future date boundary for admission validation. */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import type { PatientData } from '@/types/domain/patient';
 import {
@@ -13,6 +12,10 @@ import {
 } from '@/hooks/controllers/clinicalCribController';
 
 describe('clinicalCribController', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   const mother = {
     bedId: 'R1',
     patientName: 'Madre Base',
@@ -49,15 +52,38 @@ describe('clinicalCribController', () => {
     );
   });
 
-  it('builds remove patch and sanitizes future admission updates', () => {
-    const futureDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  it('builds remove patch and sanitizes future admission updates on the hospital clock', () => {
+    vi.useFakeTimers();
+    // Santiago 00:30 on Sept 10 is still Sept 9 22:30 in Rapa Nui.
+    vi.setSystemTime(new Date('2026-09-10T03:30:00.000Z'));
+
     expect(buildRemoveClinicalCribPatch('R1')).toEqual({
       'beds.R1.clinicalCrib': null,
     });
-    expect(isClinicalCribFieldUpdateAllowed('admissionDate', futureDate)).toBe(false);
-    expect(sanitizeClinicalCribUpdates({ admissionDate: futureDate, age: '2' })).toEqual({
-      age: '2',
-    });
+
+    const previousTz = process.env.TZ;
+    try {
+      for (const zone of ['Pacific/Easter', 'America/Santiago', 'UTC', 'Europe/Madrid']) {
+        process.env.TZ = zone;
+        expect(isClinicalCribFieldUpdateAllowed('admissionDate', '2026-09-10'), zone).toBe(false);
+        expect(isClinicalCribFieldUpdateAllowed('admissionDate', '2026-09-09'), zone).toBe(true);
+        expect(
+          sanitizeClinicalCribUpdates({ admissionDate: '2026-09-10', age: '2' }),
+          zone
+        ).toEqual({
+          age: '2',
+        });
+        expect(
+          sanitizeClinicalCribUpdates({ admissionDate: '2026-09-09', age: '2' }),
+          zone
+        ).toEqual({
+          admissionDate: '2026-09-09',
+          age: '2',
+        });
+      }
+    } finally {
+      process.env.TZ = previousTz;
+    }
   });
 
   it('builds atomic multiple-field patch for the crib', () => {

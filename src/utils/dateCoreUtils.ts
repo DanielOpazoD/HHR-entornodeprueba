@@ -1,3 +1,4 @@
+import { isCalendarDate, normalizeCalendarDate } from './clinicalDateUtils';
 import { getClinicalCalendarDateISO } from './clinicalTimeZone';
 
 /**
@@ -6,4 +7,15 @@ import { getClinicalCalendarDateISO } from './clinicalTimeZone';
  */
 export const getTodayISO = (now: Date = new Date()): string => getClinicalCalendarDateISO(now);
 
-export const isFutureDate = (dateString: string): boolean => dateString > getTodayISO();
+/**
+ * Returns true when `dateString` represents a valid calendar day strictly after the hospital's
+ * current calendar date (Rapa Nui wall clock). Empty or invalid values return false.
+ */
+export const isFutureDate = (dateString: string, now: Date = new Date()): boolean => {
+  const normalized = normalizeCalendarDate(dateString);
+  if (!normalized || !isCalendarDate(normalized)) {
+    return false;
+  }
+
+  return normalized > getTodayISO(now);
+};
