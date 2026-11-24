@@ -102,7 +102,7 @@ test.describe('Auth login resilience matrix', () => {
       const username = page.getByLabel('Usuario', { exact: true });
       const password = page.getByLabel('Contraseña', { exact: true });
       const submit = page.getByRole('button', { name: 'Ingresar', exact: true });
-      await expect(page.getByRole('status')).toContainText('Validando tu acceso');
+      await expect(page.getByRole('status')).toContainText('Preparando pantalla de acceso');
       await expect(username).toHaveCount(0);
       await expect(password).toHaveCount(0);
       await expect(submit).toHaveCount(0);
@@ -115,7 +115,9 @@ test.describe('Auth login resilience matrix', () => {
       await expect(username).toBeEnabled();
       await expect(password).toBeEnabled();
       await expect(submit).toBeEnabled();
-      await expect(page.getByText('Validando tu acceso…', { exact: true })).toHaveCount(0);
+      await expect(page.getByText('Preparando pantalla de acceso…', { exact: true })).toHaveCount(
+        0
+      );
       await expect(page.getByTestId('login-background-image')).toHaveAttribute(
         'style',
         wallpaper || ''

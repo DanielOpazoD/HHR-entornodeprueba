@@ -62,11 +62,16 @@ describe('Startup preboot contract', () => {
     expect(script).not.toContain('getHours()');
   });
 
-  it('uses the optimized login background asset in the preboot surface', () => {
+  it('uses the optimized login background asset and split-screen preboot surface without dark flash', () => {
     const script = readStartupSurface();
 
     expect(script).toContain("url('/images/login/hhr-login-day.webp')");
+    expect(script).toContain("url('/images/login/hhr-login-night.webp')");
     expect(script).not.toContain("url('/images/login/hhr-login-day.png')");
+    expect(script).toContain("color: '#f3efe6'");
+    expect(script).toContain("image: 'var(--hhr-login-preboot-background)'");
+    expect(script).toContain("preloadLink.rel = 'preload'");
+    expect(script).not.toContain('#020617');
   });
 
   it('keeps legacy PNG login backgrounds out of deployable public assets', () => {

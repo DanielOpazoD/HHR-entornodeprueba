@@ -6,6 +6,7 @@ import {
   LoginCardFrame,
   LoginAccessLoadingPlaceholder,
   LoginScreenLayout,
+  type LoginShellLoadingPhase,
 } from './LoginScreenLayout';
 
 export type InitialLoadingScreenVariant = 'default' | 'login-shell';
@@ -41,12 +42,16 @@ const LoadingIndicator = () => (
   </div>
 );
 
-export const LoginShellLoadingScreen = () => {
+export const LoginShellLoadingScreen = ({
+  phase = 'validating',
+}: {
+  phase?: LoginShellLoadingPhase;
+} = {}) => {
   const backgroundMode = resolveInitialLoginBackgroundMode();
   return (
     <LoginScreenLayout mode={backgroundMode} testId="login-loading-shell">
       <LoginCardFrame>
-        <LoginAccessLoadingPlaceholder />
+        <LoginAccessLoadingPlaceholder phase={phase} />
       </LoginCardFrame>
     </LoginScreenLayout>
   );
@@ -64,18 +69,20 @@ const DefaultLoadingScreen = () => (
 interface InitialLoadingScreenProps {
   pathname?: string;
   preferLoginShell?: boolean;
+  phase?: LoginShellLoadingPhase;
 }
 
 export const InitialLoadingScreen: React.FC<InitialLoadingScreenProps> = ({
   pathname,
   preferLoginShell,
+  phase = 'preparing',
 }) => {
   const variant = resolveInitialLoadingScreenVariant(pathname ?? resolveCurrentPathname(), {
     preferLoginShell,
   });
 
   if (variant === 'login-shell') {
-    return <LoginShellLoadingScreen />;
+    return <LoginShellLoadingScreen phase={phase} />;
   }
 
   return <DefaultLoadingScreen />;

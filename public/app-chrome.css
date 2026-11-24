@@ -11,6 +11,41 @@
   --hhr-preboot-size:
     100% var(--hhr-navbar-height), 100% var(--hhr-date-strip-height),
     100% calc(100vh - var(--hhr-chrome-height));
+
+  /* Login preboot geometry mirrors LoginScreenLayout.tsx: warm cream body with top
+     144px (9rem) photo banner on mobile, and 25rem cream left column + right cover
+     photo on desktop (>= 1024px). */
+  --hhr-login-preboot-image: none;
+  --hhr-login-preboot-backdrop: #10282c;
+  --hhr-login-preboot-background:
+    linear-gradient(#f3efe6, #f3efe6),
+    linear-gradient(
+      180deg,
+      rgba(6, 24, 27, 0.45) 0%,
+      rgba(6, 24, 27, 0.12) 46%,
+      rgba(243, 239, 230, 0.98) 100%
+    ),
+    var(--hhr-login-preboot-image),
+    linear-gradient(var(--hhr-login-preboot-backdrop), var(--hhr-login-preboot-backdrop));
+  --hhr-login-preboot-position: left 9rem, left top, 58% top, left top;
+  --hhr-login-preboot-size: 100% calc(100% - 9rem), 100% 9rem, cover, 100% 9rem;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --hhr-login-preboot-background:
+      linear-gradient(#f3efe6, #f3efe6),
+      linear-gradient(
+        180deg,
+        rgba(4, 20, 24, 0.08) 0%,
+        rgba(4, 20, 24, 0.12) 56%,
+        rgba(4, 20, 24, 0.72) 100%
+      ),
+      var(--hhr-login-preboot-image),
+      linear-gradient(var(--hhr-login-preboot-backdrop), var(--hhr-login-preboot-backdrop));
+    --hhr-login-preboot-position: left top, 25rem top, calc(50% + 12.5rem) center, 25rem top;
+    --hhr-login-preboot-size: 25rem 100%, calc(100% - 25rem) 100%, cover, calc(100% - 25rem) 100%;
+  }
 }
 
 .hhr-navbar {

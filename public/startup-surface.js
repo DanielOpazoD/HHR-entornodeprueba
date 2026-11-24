@@ -29,26 +29,27 @@
     );
     return hospitalHour >= 8 && hospitalHour < 20 ? 'day' : 'night';
   };
-  var LOGIN_SURFACE_GRADIENTS = {
-    day: 'linear-gradient(115deg, rgba(15, 23, 42, 0.82) 0%, rgba(15, 23, 42, 0.62) 36%, rgba(15, 23, 42, 0.28) 64%, rgba(255, 255, 255, 0.08) 100%)',
-    night:
-      'linear-gradient(115deg, rgba(2, 6, 23, 0.92) 0%, rgba(2, 6, 23, 0.78) 35%, rgba(2, 6, 23, 0.44) 66%, rgba(2, 6, 23, 0.22) 100%)',
+  var LOGIN_SURFACE_IMAGE_PATHS = {
+    day: '/images/login/hhr-login-day.webp',
+    night: '/images/login/hhr-login-night.webp',
   };
   var LOGIN_SURFACE_IMAGES = {
     day: "url('/images/login/hhr-login-day.webp')",
     night: "url('/images/login/hhr-login-night.webp')",
   };
+  var LOGIN_SURFACE_BACKDROPS = {
+    day: '#10282c',
+    night: '#09171c',
+  };
   var loginBackgroundMode = resolveLoginBackgroundMode();
   var LOGIN_SURFACE_BACKGROUND = {
-    color: '#020617',
-    image: [
-      LOGIN_SURFACE_GRADIENTS[loginBackgroundMode],
-      'radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 32%),radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.14), transparent 26%)',
-      LOGIN_SURFACE_IMAGES[loginBackgroundMode],
-    ].join(','),
-    position: 'center, center, center, center',
-    repeat: 'no-repeat, no-repeat, no-repeat, no-repeat',
-    size: 'cover, cover, cover, contain',
+    color: '#f3efe6',
+    // Responsive split-screen geometry comes from /app-chrome.css so preboot
+    // matches LoginScreenLayout.tsx without a dark flash or aspect jump.
+    image: 'var(--hhr-login-preboot-background)',
+    position: 'var(--hhr-login-preboot-position)',
+    repeat: 'no-repeat',
+    size: 'var(--hhr-login-preboot-size)',
   };
   var APP_SURFACE_BACKGROUND = {
     color: '#eef4f8',
@@ -128,6 +129,24 @@
   var shouldUseLoginSurface = isLoginSurfacePath && !hasAnySessionHint;
 
   document.documentElement.dataset.prebootSurface = shouldUseLoginSurface ? 'login' : 'app';
+  if (shouldUseLoginSurface) {
+    var rootStyle = document.documentElement.style;
+    rootStyle.setProperty('--hhr-login-preboot-image', LOGIN_SURFACE_IMAGES[loginBackgroundMode]);
+    rootStyle.setProperty(
+      '--hhr-login-preboot-backdrop',
+      LOGIN_SURFACE_BACKDROPS[loginBackgroundMode]
+    );
+    try {
+      var preloadLink = document.createElement('link');
+      preloadLink.rel = 'preload';
+      preloadLink.as = 'image';
+      preloadLink.href = LOGIN_SURFACE_IMAGE_PATHS[loginBackgroundMode];
+      preloadLink.setAttribute('fetchpriority', 'high');
+      document.head.appendChild(preloadLink);
+    } catch (error) {
+      // Preload hint is best-effort only.
+    }
+  }
   applyPrebootSurfaceBackground(
     shouldUseLoginSurface ? LOGIN_SURFACE_BACKGROUND : APP_SURFACE_BACKGROUND
   );
