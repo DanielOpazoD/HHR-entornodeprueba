@@ -52,7 +52,8 @@ describe('library search', () => {
   it('filters by category and query together', () => {
     const tools = filterLibraryEntries(CLINICAL_LIBRARY_ENTRIES, { query: '', category: 'tools' });
     expect(tools.every(entry => entry.kind === 'tool')).toBe(true);
-    expect(tools).toHaveLength(6);
+    expect(tools).toHaveLength(7);
+    expect(tools.map(tool => tool.id)).toContain('clinical-checklists');
 
     const noradrenaline = filterLibraryEntries(CLINICAL_LIBRARY_ENTRIES, {
       query: 'noradrenalina',

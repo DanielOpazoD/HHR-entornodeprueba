@@ -85,7 +85,13 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
   // Escape y clic fuera retroceden un paso. MEDIF confirma antes de descartar datos.
   const requestExit = useCallback(
     (target: 'back' | 'close') => {
-      if ((activeToolId === 'medif' || isPharmacyTool || activeFormId) && medifDirty) {
+      if (
+        (activeToolId === 'medif' ||
+          activeToolId === 'clinical-checklists' ||
+          isPharmacyTool ||
+          activeFormId) &&
+        medifDirty
+      ) {
         previousFocus.current = document.activeElement as HTMLElement | null;
         setPendingExit(target);
         return;
@@ -193,7 +199,18 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
             }
           >
             <ExitConfirmation
-              title={activeFormId ? '¿Salir del formulario?' : undefined}
+              title={
+                activeToolId === 'clinical-checklists'
+                  ? '¿Salir de la plantilla?'
+                  : activeFormId
+                    ? '¿Salir del formulario?'
+                    : undefined
+              }
+              message={
+                activeToolId === 'clinical-checklists'
+                  ? 'Se descartarán los cambios de la plantilla que aún no has guardado.'
+                  : undefined
+              }
               onCancel={cancelExit}
               onConfirm={() => {
                 const target = pendingExit;

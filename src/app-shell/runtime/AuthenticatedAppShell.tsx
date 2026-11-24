@@ -12,6 +12,7 @@ import type { AuthContextType } from '@/context/AuthContext';
 import type { UseDateNavigationReturn } from '@/hooks/useDateNavigation';
 import { DeferredSystemHealthReporter } from '@/app-shell/runtime/DeferredSystemHealthReporter';
 import { HandoffExtensionConnection } from './HandoffExtensionConnection';
+import { useClinicalChecklistBridge } from './useClinicalChecklistBridge';
 import { useAuthenticatedAppRuntime } from '@/app-shell/runtime/useAuthenticatedAppRuntime';
 import type { CensusQuickActionPatient } from '@/shared/contracts/censusQuickActionPatient';
 import type { DateStripRadiologyViewer } from '@/components/layout/date-strip/dateStripRadiologyViewer';
@@ -68,6 +69,7 @@ interface AuthenticatedAppShellProps {
 
 export const AuthenticatedAppShell = ({ auth, dateNav }: AuthenticatedAppShellProps) => {
   useWarmDailyRecordSavePath();
+  useClinicalChecklistBridge(auth);
   const { dailyRecordHook, censusContextValue, ui } = useAuthenticatedAppRuntime({ auth, dateNav });
   React.useEffect(() => {
     markPerf('auth-shell:mounted');

@@ -5,7 +5,8 @@ export const LibraryExitConfirmation: React.FC<{
   onCancel: () => void;
   onConfirm: () => void;
   title?: string;
-}> = ({ onCancel, onConfirm, title = '¿Salir del MEDIF?' }) => {
+  message?: string;
+}> = ({ onCancel, onConfirm, title = '¿Salir del MEDIF?', message }) => {
   const cancelRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     cancelRef.current?.focus();
@@ -22,8 +23,8 @@ export const LibraryExitConfirmation: React.FC<{
         {title}
       </h3>
       <p id="medif-exit-description" className="mt-2 text-sm text-slate-600">
-        Los datos del formulario están en esta sesión. Guarda un borrador JSON antes de salir si
-        quieres retomarlos.
+        {message ??
+          'Los datos del formulario están en esta sesión. Guarda un borrador JSON antes de salir si quieres retomarlos.'}
       </p>
       <div className="mt-4 flex flex-wrap justify-end gap-2">
         <button

@@ -26,6 +26,12 @@ interface ToolRegistration {
 
 /** Única tabla que conecta el id del catálogo con su icono y su componente. */
 export const TOOL_REGISTRY: Readonly<Record<LibraryToolId, ToolRegistration>> = {
+  'clinical-checklists': {
+    icon: <ListChecks size={16} aria-hidden="true" />,
+    Component: React.lazy(() =>
+      import('./tools/ClinicalChecklistsTool').then(m => ({ default: m.ClinicalChecklistsTool }))
+    ),
+  },
   medif: { icon: <PlaneTakeoff size={16} aria-hidden="true" />, Component: MedifTool },
   'transfer-cover': { icon: <Mail size={16} aria-hidden="true" />, Component: TransferCoverTool },
   'critical-medications': {

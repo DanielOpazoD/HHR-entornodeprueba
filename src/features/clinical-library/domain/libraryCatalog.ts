@@ -223,6 +223,14 @@ const DOCUMENTS: ReadonlyArray<LibraryDocumentEntry> = [
 const TOOLS: ReadonlyArray<LibraryToolEntry> = [
   {
     kind: 'tool',
+    id: 'clinical-checklists',
+    category: 'tools',
+    title: 'Pautas clínicas',
+    description: 'Verificar e imprimir una pauta aplicada en Eloísa.',
+    keywords: ['IAAS', 'supervisión', 'evolución', 'código'],
+  },
+  {
+    kind: 'tool',
     id: 'medif',
     category: 'tools',
     title: 'Completar MEDIF · LATAM',
