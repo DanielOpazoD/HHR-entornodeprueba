@@ -5,9 +5,47 @@ import { HandoffChecklistSection } from './HandoffChecklistSection';
 import { HandoffCudyrPrint } from './HandoffCudyrPrint';
 import { HandoffPrintHeader } from './HandoffPrintHeader';
 import { HandoffNursingContent } from './HandoffNursingContent';
+import { CensusLoadingState } from '@/components/ui/CensusLoadingState';
+import { useDailyRecordSync } from '@/context/DailyRecordContext';
 import { useUIState, UseUIStateReturn } from '@/hooks/useUIState';
 import { shouldShowNightCudyrActions } from '@/features/handoff/controllers/handoffViewController';
 import { useHandoffViewScreenModel } from '@/features/handoff/hooks/useHandoffViewScreenModel';
+
+/**
+ * Mounted only when `record` is null so subscribing to sync status never
+ * re-renders the active handoff table on routine saves.
+ */
+const HandoffNoRecordState: React.FC = () => {
+  const { bootstrapPhase } = useDailyRecordSync();
+
+  if (bootstrapPhase === 'confirmed_empty') {
+    return (
+      <div className="mx-auto mt-8 max-w-lg rounded-lg border border-slate-200 bg-white p-6 text-center font-sans text-slate-600">
+        <p className="font-medium text-slate-700">Este día no tiene censo.</p>
+        <p className="mt-1.5 text-sm text-slate-500">
+          La entrega de turno aparece cuando existe el censo del día.
+        </p>
+      </div>
+    );
+  }
+
+  if (bootstrapPhase === 'remote_record_timeout') {
+    return (
+      <div
+        className="mx-auto mt-8 max-w-lg rounded-lg border border-amber-200 bg-amber-50 p-5 text-center font-sans text-slate-800"
+        role="alert"
+      >
+        <p className="font-medium">No se pudo leer la entrega de turno de este día.</p>
+        <p className="mt-2 text-sm text-slate-700">
+          Revisa tu conexión. Se volverá a intentar al recuperarla o al volver a esta ventana.
+        </p>
+      </div>
+    );
+  }
+
+  return <CensusLoadingState />;
+};
+
 interface HandoffViewProps {
   readOnly?: boolean;
   ui?: UseUIStateReturn;
@@ -45,11 +83,7 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
     tableHeaderClass,
   } = useHandoffViewScreenModel({ readOnly, ui: handoffUi });
   if (!record) {
-    return (
-      <div className="p-8 text-center text-slate-500 font-sans">
-        Seleccione una fecha para ver la Entrega de Turno.
-      </div>
-    );
+    return <HandoffNoRecordState />;
   }
 
   return (
