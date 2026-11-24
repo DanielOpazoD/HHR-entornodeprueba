@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { recordSyncQueueConflictTelemetry } from '@/services/storage/sync/syncQueueTelemetryController';
 import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
 import type { CreateSyncQueueEngineOptions } from '@/services/storage/sync/syncQueueEngineContracts';
+import { createFieldChangedElsewhereError } from '@/services/storage/syncErrorCatalog';
 import { presentSyncOutcomeFeedback } from '@/hooks/controllers/dailyRecordSyncNotificationController';
 import { parseOperationalTelemetryBody } from '@/shared/observability/operationalTelemetryIngestPolicy';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
@@ -74,55 +75,46 @@ describe('sync conflicts and notices reach the production log as countable value
     expect(wire).not.toContain('daily:');
   });
 
-  it('counts a held conflict once the ACK stored it, and none when the ACK was refused', async () => {
-    const held = {
-      status: 'CONFLICT' as const,
-      error: 'El campo cambió en otro equipo',
-    };
-    const run = async (acked: boolean) => {
-      let first = true;
-      const engine = createSyncQueueEngine({
-        store: {
-          claimReadyPending: async () =>
-            first
-              ? ((first = false),
-                [
-                  conflictTask({
-                    origin: 'direct_queue',
-                    status: 'PROCESSING',
-                    leaseOwner: 'worker',
-                    leaseUntil: Date.now() + 30_000,
-                    attemptId: 'attempt',
-                  }),
-                ])
-              : [],
-          updateClaimed: async () => true,
-          deleteClaimed: async () => acked,
+  it('counts a queue task held in CONFLICT when transport reports a field changed elsewhere', async () => {
+    let first = true;
+    const engine = createSyncQueueEngine({
+      store: {
+        claimReadyPending: async () =>
+          first
+            ? ((first = false),
+              [
+                conflictTask({
+                  origin: 'direct_queue',
+                  status: 'PROCESSING',
+                  leaseOwner: 'worker',
+                  leaseUntil: Date.now() + 30_000,
+                  attemptId: 'attempt',
+                }),
+              ])
+            : [],
+        updateClaimed: async () => true,
+        deleteClaimed: async () => true,
+      },
+      runtime: { isOnline: () => true, onOnline: () => {}, getOwnerKey: () => null },
+      transport: {
+        run: async () => {
+          throw createFieldChangedElsewhereError();
         },
-        runtime: { isOnline: () => true, onOnline: () => {}, getOwnerKey: () => null },
-        transport: { run: async () => ({ heldTask: held }) },
-        batchSize: 25,
-        maxPendingTasks: 100,
-        maxRetries: 3,
-        baseRetryDelayMs: 1000,
-        maxRetryDelayMs: 30000,
-      } as unknown as CreateSyncQueueEngineOptions);
-      await engine.processQueue();
-      await new Promise(resolve => setTimeout(resolve, 20));
-    };
+      },
+      batchSize: 25,
+      maxPendingTasks: 100,
+      maxRetries: 3,
+      baseRetryDelayMs: 1000,
+      maxRetryDelayMs: 30000,
+    } as unknown as CreateSyncQueueEngineOptions);
 
-    await run(true);
+    await engine.processQueue();
+    await vi.waitFor(() => expect(beacons).toHaveLength(1));
     const events = await ingestedEvents();
     expect(events.filter(event => event.operation === 'sync_queue_task_conflict')).toHaveLength(1);
     expect(events.find(event => event.operation === 'sync_queue_task_conflict')?.context).toEqual({
       origin: 'direct_queue',
     });
-
-    beacons.length = 0;
-    await run(false);
-    expect(
-      (await ingestedEvents()).filter(event => event.operation === 'sync_queue_task_conflict')
-    ).toHaveLength(0);
   });
 
   it('counts the sync notice shown to the person by its kind, never by its text', async () => {

@@ -186,7 +186,7 @@ latest mutation marker does not by itself acknowledge the other mutations.
    task still sends its own base, so the callable refuses it while the stored day is newer and the
    task stays queued (a known limit: it is held, not lost). The client no longer sends shadow
    dry-run validations.
-6. **Acknowledge** — `completeClaimedSyncTask` deletes the task (or updates any held part) and,
+6. **Acknowledge** — `completeClaimedSyncTask` deletes the task and,
    when no other task for that date is unresolved, adopts the authoritative record into IndexedDB,
    all in the same Dexie transaction.
 

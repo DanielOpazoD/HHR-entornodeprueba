@@ -132,15 +132,11 @@ export interface SyncQueueStorePort {
     claim: SyncQueueLeaseClaim
   ): Promise<boolean>;
   delete(taskId: number): Promise<void>;
-  /**
-   * Complete the claim and optionally adopt its ACK without replacing unresolved projections.
-   * A held part (`heldTask`) stays in the task's place instead of it leaving the queue.
-   */
+  /** Complete the claim and optionally adopt its ACK without replacing unresolved projections. */
   deleteClaimed(
     taskId: number,
     claim: SyncQueueLeaseClaim,
-    authoritativeRecord?: DailyRecord,
-    heldTask?: Partial<SyncTask>
+    authoritativeRecord?: DailyRecord
   ): Promise<boolean>;
   readTelemetryInputs(ownerKey: string | null): Promise<{
     rows: SyncQueueTelemetryRow[];
@@ -169,6 +165,4 @@ export interface SyncTransportPort {
 
 export interface SyncTransportResult {
   authoritativeRecord: DailyRecord;
-  /** The part of this task not published, which stays queued as it: a conflict to review. */
-  heldTask?: Partial<SyncTask>;
 }

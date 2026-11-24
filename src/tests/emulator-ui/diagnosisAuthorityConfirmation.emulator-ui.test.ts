@@ -842,7 +842,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       ['another text', false],
       ['the first edit’s text put back', true],
     ])(
-      'holds the day text after a direct write left %s and another computer saved another field, and publishes the diagnosis',
+      'holds the whole write in CONFLICT after a direct write left %s and another computer saved another field',
       async (_label, restored) => {
         const day = baseRecord();
         day[night] = 'NOCHE BASE';
@@ -887,17 +887,16 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         await runQueue();
         const stored = await readServer();
         expect(stored[night]).toBe(restored ? 'NOCHE P1' : 'NOCHE AJENA');
-        // The diagnosis nobody else wrote is published; the disputed text alone waits for review,
-        // as any day text another computer changed (W12-CW12).
-        expect(stored.beds.R1.pathology).toBe(CORRECTED);
+        // The whole combined write stays held in CONFLICT without splitting or overwriting remote.
+        expect(stored.beds.R1.pathology).toBe(DIAGNOSIS);
         expect(
           (await hospitalDB.syncQueue.toArray()).map(task => [
             task.status,
-            task.syncContract?.changedPaths,
             (task.payload as DailyRecord)[night],
+            (task.payload as DailyRecord).beds.R1.pathology,
           ])
-        ).toEqual([['CONFLICT', [night], 'CORRECCION LOCAL']]);
-        expectDelivered([DIAGNOSIS, CORRECTED]);
+        ).toEqual([['CONFLICT', 'CORRECCION LOCAL', CORRECTED]]);
+        expectDelivered([DIAGNOSIS]);
       }
     );
 
@@ -1325,7 +1324,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       expectDelivered([DIAGNOSIS]);
     });
 
-    it('publishes the correction and a discharge, and holds a text another computer changed', async () => {
+    it('holds the whole write in CONFLICT when a correction and discharge are queued with a text changed elsewhere', async () => {
       // A second patient and the night handoff text on the day.
       const day = baseRecord();
       day.beds.R2 = DataFactory.createMockPatient('R2', {
@@ -1380,21 +1379,26 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         await patchHere({ [night]: 'NOCHE ESTE EQUIPO' } as DailyRecordPatch);
       });
       const stored = await readServer();
-      expect(stored.beds.R1.pathology).toBe(CORRECTED);
-      expect(stored.beds.R2).toMatchObject({ rut: '', patientName: '' });
-      expect(stored.discharges.map(item => item.patientName)).toEqual(['CARLA SINTETICA']);
+      expect(stored.beds.R1.pathology).toBe(DIAGNOSIS);
+      expect(stored.beds.R2).toMatchObject({
+        rut: '10.000.013-K',
+        patientName: 'CARLA SINTETICA',
+      });
+      expect(stored.discharges).toEqual([]);
       expect(stored[night]).toBe('NOCHE OTRO EQUIPO');
       expect(
         (await hospitalDB.syncQueue.toArray()).map(task => [
           task.status,
-          task.syncContract?.changedPaths,
+          (task.payload as DailyRecord).beds.R1.pathology,
+          (task.payload as DailyRecord).discharges.map(item => item.patientName),
           (task.payload as DailyRecord)[night],
           task.error,
         ])
       ).toEqual([
         [
           'CONFLICT',
-          [night],
+          CORRECTED,
+          ['CARLA SINTETICA'],
           'NOCHE ESTE EQUIPO',
           expect.stringContaining(FIELD_CHANGED_ELSEWHERE_MESSAGE),
         ],
