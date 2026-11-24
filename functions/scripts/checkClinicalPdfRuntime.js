@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const chromiumModule = require('@sparticuz/chromium');
 const chromium = chromiumModule.default || chromiumModule;
 const puppeteer = require('puppeteer-core');
+const { renderPdfFromHtml } = require('../lib/clinicalDocumentPdfRenderFunctions');
 
 const main = async () => {
   assert.equal(typeof chromium.executablePath, 'function');
@@ -12,22 +13,16 @@ const main = async () => {
   assert.equal(typeof puppeteer.defaultArgs, 'function');
 
   const executablePath = await chromium.executablePath();
+  assert.equal(typeof executablePath, 'string');
+  assert.ok(executablePath.length > 0);
   const launchArgs = await puppeteer.defaultArgs({ args: chromium.args, headless: 'shell' });
   assert.ok(Array.isArray(launchArgs) && launchArgs.length > 0);
 
-  const browser = await puppeteer.launch({
-    args: launchArgs,
-    executablePath,
-    headless: 'shell',
-  });
-  try {
-    const page = await browser.newPage();
-    await page.setContent('<!doctype html><html><body>HHR PDF runtime</body></html>');
-    const pdf = await page.pdf({ format: 'letter' });
-    assert.equal(Buffer.from(pdf).subarray(0, 4).toString('ascii'), '%PDF');
-  } finally {
-    await browser.close();
-  }
+  const pdf = await renderPdfFromHtml(
+    '<!doctype html><html><head><style>@page{size:letter;margin:10mm}body{font-family:Arial}</style></head>' +
+      '<body><img alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" onerror="document.title=1">HHR PDF runtime</body></html>'
+  );
+  assert.equal(Buffer.from(pdf).subarray(0, 4).toString('ascii'), '%PDF');
 
   console.log(
     `[clinical-pdf-runtime] OK (Chromium launched and rendered PDF on ${process.version})`

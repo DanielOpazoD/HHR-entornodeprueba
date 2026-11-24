@@ -69,8 +69,8 @@ const loadPuppeteerDependencies = () => {
   }
 };
 
-const renderPdfFromHtml = async html => {
-  const { chromium, puppeteer } = loadPuppeteerDependencies();
+const renderPdfFromHtml = async (html, loadDependencies = loadPuppeteerDependencies) => {
+  const { chromium, puppeteer } = loadDependencies();
   const executablePath = await chromium.executablePath();
   const headless = 'shell';
 
@@ -83,6 +83,9 @@ const renderPdfFromHtml = async html => {
 
   try {
     const page = await browser.newPage();
+    // Clinical document HTML is static print markup; disabling JS blocks event-handler execution
+    // (e.g. img onerror/svg onload) inside the headless Chromium instance.
+    await page.setJavaScriptEnabled(false);
     await page.setContent(html, {
       waitUntil: ['domcontentloaded', 'networkidle0'],
       timeout: 30_000,
@@ -130,5 +133,6 @@ const createClinicalDocumentPdfRenderFunctions = ({
 
 module.exports = {
   createClinicalDocumentPdfRenderFunctions,
+  renderPdfFromHtml,
   resolveChromiumDependency,
 };
