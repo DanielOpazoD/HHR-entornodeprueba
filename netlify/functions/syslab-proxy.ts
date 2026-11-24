@@ -42,6 +42,13 @@ import {
 const TIMEOUT_MS = 50_000; // Leave room for the gateway response within the platform budget.
 const DEFAULT_TELEMETRY_TIMEOUT_MS = 55_000;
 const DETAILS_TELEMETRY_TIMEOUT_MS = 55_000;
+const MAX_JSON_RESPONSE_BYTES = 4 * 1024 * 1024;
+const MAX_REQUEST_BODY_BYTES = 65_536;
+const MAX_LAB_LINK_LENGTH = 8192;
+const NO_STORE_HEADERS = { 'Cache-Control': 'no-store' };
+const ALLOWED_JOB_STATUSES = new Set([200, 202, 400, 401, 404, 409, 429, 503]);
+const ALLOWED_LAB_LINK_PROTOCOLS = new Set(['https:', 'http:', 'hhr-syslab-remote:']);
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 const SYSLAB_ALLOWED_ROLES = new Set([
   'admin',
   'nurse_hospital',
@@ -57,10 +64,56 @@ interface SyslabProxyDependencies {
   extractBearerToken: typeof extractBearerToken;
 }
 
-const getProxyUrl = (): string | null =>
-  process.env.SYSLAB_PROXY_URL?.replace(/\/+$/, '') ||
-  process.env.VITE_SYSLAB_API_URL?.replace(/\/+$/, '') ||
-  null;
+const getProxyUrl = (): string | null => {
+  const raw =
+    process.env.SYSLAB_PROXY_URL?.replace(/\/+$/, '') ||
+    process.env.VITE_SYSLAB_API_URL?.replace(/\/+$/, '') ||
+    null;
+  if (!raw) return null;
+
+  try {
+    const parsed = new URL(raw);
+    if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+      return null;
+    }
+    if (parsed.protocol === 'https:') {
+      return parsed.href.replace(/\/+$/, '');
+    }
+    if (parsed.protocol === 'http:' && LOOPBACK_HOSTS.has(parsed.hostname)) {
+      return parsed.href.replace(/\/+$/, '');
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const isAllowedLabLink = (value: string): boolean => {
+  if (!value || value.length > MAX_LAB_LINK_LENGTH) return false;
+  try {
+    const parsed = new URL(value);
+    return ALLOWED_LAB_LINK_PROTOCOLS.has(parsed.protocol);
+  } catch {
+    return false;
+  }
+};
+
+const readBoundedJson = async (response: Response): Promise<unknown> => {
+  if (response.body || typeof response.arrayBuffer === 'function') {
+    const bytes = await readResponseWithinLimit(response, MAX_JSON_RESPONSE_BYTES);
+    if (!bytes) {
+      throw new Error('Upstream laboratory response exceeded size limit.');
+    }
+    return JSON.parse(bytes.toString('utf8')) as unknown;
+  }
+  return (await response.json()) as unknown;
+};
+
+const isTimeoutError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) return false;
+  const code = (error as { code?: unknown }).code;
+  return error.name === 'AbortError' || error.name === 'TimeoutError' || code === 'ETIMEDOUT';
+};
 
 export const resolveSyslabTelemetryOptions = (
   action: 'search' | 'details' | 'pdf'
@@ -92,11 +145,11 @@ const handleHealth = async (proxyUrl: string, requestOrigin?: string) => {
       return buildJsonResponse(
         200,
         { success: false, connected: false, status: response.status },
-        { requestOrigin }
+        { requestOrigin, headers: NO_STORE_HEADERS }
       );
     }
 
-    const health: unknown = await response.json();
+    const health = await readBoundedJson(response);
     const connected =
       typeof health === 'object' &&
       health !== null &&
@@ -105,7 +158,7 @@ const handleHealth = async (proxyUrl: string, requestOrigin?: string) => {
     return buildJsonResponse(
       200,
       { success: connected, connected, status: response.status },
-      { requestOrigin }
+      { requestOrigin, headers: NO_STORE_HEADERS }
     );
   } catch {
     return buildJsonResponse(
@@ -115,7 +168,7 @@ const handleHealth = async (proxyUrl: string, requestOrigin?: string) => {
         connected: false,
         error: 'El servidor de laboratorio no está disponible. Comprueba el Mac mini.',
       },
-      { requestOrigin }
+      { requestOrigin, headers: NO_STORE_HEADERS }
     );
   }
 };
@@ -123,16 +176,23 @@ const handleHealth = async (proxyUrl: string, requestOrigin?: string) => {
 /* ── Search exams by RUT ─────────────────────────────────────────────── */
 
 const handleSearch = async (proxyUrl: string, params: URLSearchParams, requestOrigin?: string) => {
-  const rut = params.get('rut');
-  if (!rut) {
-    return buildJsonResponse(400, { error: 'RUT es requerido' }, { requestOrigin });
+  const rut = params.get('rut')?.trim();
+  if (!rut || rut.length > 32) {
+    return buildJsonResponse(
+      400,
+      { error: 'RUT es requerido' },
+      { requestOrigin, headers: NO_STORE_HEADERS }
+    );
   }
 
   const url = `${proxyUrl}/api/exams?rut=${encodeURIComponent(rut)}`;
   const response = await proxyFetch(url);
-  const data = await response.json();
+  const data = await readBoundedJson(response);
 
-  return buildJsonResponse(response.status === 200 ? 200 : 502, data, { requestOrigin });
+  return buildJsonResponse(response.status === 200 ? 200 : 502, data, {
+    requestOrigin,
+    headers: NO_STORE_HEADERS,
+  });
 };
 
 /* ── Fetch exam details (PDF parsing) ────────────────────────────────── */
@@ -142,9 +202,21 @@ const handleDetails = async (
   body: string | null | undefined,
   requestOrigin?: string
 ) => {
+  if ((body?.length || 0) > MAX_REQUEST_BODY_BYTES) {
+    return buildJsonResponse(
+      400,
+      { error: 'Solicitud inválida.' },
+      { requestOrigin, headers: NO_STORE_HEADERS }
+    );
+  }
+
   const parsed = parseJsonBody<{ links: string[] }>(body);
   if (!parsed.ok) {
-    return buildJsonResponse(400, { error: parsed.error }, { requestOrigin });
+    return buildJsonResponse(
+      400,
+      { error: parsed.error },
+      { requestOrigin, headers: NO_STORE_HEADERS }
+    );
   }
 
   const { links } = parsed.value;
@@ -152,9 +224,13 @@ const handleDetails = async (
     !Array.isArray(links) ||
     links.length === 0 ||
     links.length > 3 ||
-    links.some(link => typeof link !== 'string')
+    links.some(link => typeof link !== 'string' || !isAllowedLabLink(link))
   ) {
-    return buildJsonResponse(400, { error: 'Se requiere un array de links' }, { requestOrigin });
+    return buildJsonResponse(
+      400,
+      { error: 'Se requiere un array de links' },
+      { requestOrigin, headers: NO_STORE_HEADERS }
+    );
   }
 
   const url = `${proxyUrl}/api/exams/details`;
@@ -163,17 +239,24 @@ const handleDetails = async (
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ links }),
   });
-  const data = await response.json();
+  const data = await readBoundedJson(response);
 
-  return buildJsonResponse(response.status === 200 ? 200 : 502, data, { requestOrigin });
+  return buildJsonResponse(response.status === 200 ? 200 : 502, data, {
+    requestOrigin,
+    headers: NO_STORE_HEADERS,
+  });
 };
 
 /* ── Proxy PDF for inline viewing ────────────────────────────────────── */
 
 const handlePdf = async (proxyUrl: string, params: URLSearchParams, requestOrigin?: string) => {
   const link = params.get('link');
-  if (!link) {
-    return buildJsonResponse(400, { error: 'link es requerido' }, { requestOrigin });
+  if (!link || !isAllowedLabLink(link)) {
+    return buildJsonResponse(
+      400,
+      { error: 'link es requerido' },
+      { requestOrigin, headers: NO_STORE_HEADERS }
+    );
   }
 
   const url = `${proxyUrl}/api/exams/pdf?link=${encodeURIComponent(link)}`;
@@ -224,25 +307,56 @@ const handleJobAction = async (
 ) => {
   const read = action === 'job-status' || action === 'job-result';
   if (event.httpMethod !== (read ? 'GET' : 'POST')) {
-    return buildJsonResponse(405, { error: 'Método no permitido.' }, { requestOrigin });
+    return buildJsonResponse(
+      405,
+      { error: 'Método no permitido.' },
+      { requestOrigin, headers: NO_STORE_HEADERS }
+    );
+  }
+  if (!read && (event.isBase64Encoded || (event.body?.length || 0) > MAX_REQUEST_BODY_BYTES)) {
+    return buildJsonResponse(
+      400,
+      { error: 'Solicitud no válida.' },
+      { requestOrigin, headers: NO_STORE_HEADERS }
+    );
   }
   let path: string;
   let payload: unknown;
   if (read || action === 'job-cancel' || action === 'job-retry') {
     const id = params.get('id') || '';
     if (!/^[a-f0-9-]{36}$/i.test(id))
-      return buildJsonResponse(400, { error: 'Trabajo no válido.' }, { requestOrigin });
-    path = `/api/jobs/${id}${action === 'job-result' ? `/result?offset=${encodeURIComponent(params.get('offset') || '0')}` : read ? '' : action === 'job-cancel' ? '/cancel' : '/retry'}`;
+      return buildJsonResponse(
+        400,
+        { error: 'Trabajo no válido.' },
+        { requestOrigin, headers: NO_STORE_HEADERS }
+      );
+    const rawOffset = params.get('offset') ?? '0';
+    if (action === 'job-result' && !/^\d{1,6}$/.test(rawOffset)) {
+      return buildJsonResponse(
+        400,
+        { error: 'Desplazamiento no válido.' },
+        { requestOrigin, headers: NO_STORE_HEADERS }
+      );
+    }
+    path = `/api/jobs/${id}${action === 'job-result' ? `/result?offset=${encodeURIComponent(rawOffset)}` : read ? '' : action === 'job-cancel' ? '/cancel' : '/retry'}`;
   } else {
     const parsed = parseJsonBody<Record<string, unknown>>(event.body);
     if (!parsed.ok || !parsed.value || typeof parsed.value !== 'object') {
-      return buildJsonResponse(400, { error: 'Solicitud no válida.' }, { requestOrigin });
+      return buildJsonResponse(
+        400,
+        { error: 'Solicitud no válida.' },
+        { requestOrigin, headers: NO_STORE_HEADERS }
+      );
     }
     payload = parsed.value;
     if (action === 'job-create') {
       const kind = parsed.value.kind;
       if (kind !== 'details' && kind !== 'census')
-        return buildJsonResponse(400, { error: 'Tipo no válido.' }, { requestOrigin });
+        return buildJsonResponse(
+          400,
+          { error: 'Tipo no válido.' },
+          { requestOrigin, headers: NO_STORE_HEADERS }
+        );
       path = `/api/jobs/${kind}`;
     } else path = action === 'census-state' ? '/api/census/state' : '/api/census/review';
   }
@@ -251,8 +365,9 @@ const handleJobAction = async (
     headers: { 'Content-Type': 'application/json', 'X-HHR-Lab-Owner': owner },
     ...(!read ? { body: JSON.stringify(payload || {}) } : {}),
   });
-  const body: unknown = await response.json();
-  return buildJsonResponse(response.status, body, { requestOrigin });
+  const body = await readBoundedJson(response);
+  const status = ALLOWED_JOB_STATUSES.has(response.status) ? response.status : 502;
+  return buildJsonResponse(status, body, { requestOrigin, headers: NO_STORE_HEADERS });
 };
 
 /* ── Handler ─────────────────────────────────────────────────────────── */
@@ -340,11 +455,11 @@ export const createSyslabProxyHandler = (
 
     try {
       if (action && JOB_ACTIONS.has(action)) {
-        if (!actor.token?.sub)
+        if (!actor.token?.sub || !actor.token?.aud)
           return buildJsonResponse(
             401,
             { error: 'Sesión de operador requerida.' },
-            { requestOrigin }
+            { requestOrigin, headers: NO_STORE_HEADERS }
           );
         const owner = createHash('sha256')
           .update(
@@ -361,7 +476,16 @@ export const createSyslabProxyHandler = (
         return buildJsonResponse(
           400,
           { error: 'Acción no válida. Use: health, search, details, pdf' },
-          { requestOrigin }
+          { requestOrigin, headers: NO_STORE_HEADERS }
+        );
+      }
+
+      const expectedMethod = action === 'details' ? 'POST' : 'GET';
+      if (event.httpMethod !== expectedMethod) {
+        return buildJsonResponse(
+          405,
+          { error: 'Método no permitido.' },
+          { requestOrigin, headers: NO_STORE_HEADERS }
         );
       }
 
@@ -389,15 +513,14 @@ export const createSyslabProxyHandler = (
       });
     } catch (error) {
       const message = 'Error de conexión con el servidor de laboratorio. Comprueba el Mac mini.';
-      const isTimeout =
-        error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError');
+      const isTimeout = isTimeoutError(error);
       return buildJsonResponse(
         isTimeout ? 504 : 502,
         {
           success: false,
           error: isTimeout ? 'Timeout: el servidor de laboratorio no respondió a tiempo' : message,
         },
-        { requestOrigin }
+        { requestOrigin, headers: NO_STORE_HEADERS }
       );
     }
   };
