@@ -44,9 +44,14 @@ const { createNursingHandoffDemoFunctions } = require('./lib/nursingHandoffExten
 const { createHostedNursingHandoff } = require('./lib/nursingHandoffHosted');
 const { createNursingHandoffDeviceFunctions } = require('./lib/nursingHandoffDevice');
 
+const { createClinicalChecklistFunctions } = require('./lib/checklists/checklistFunctions');
 const authHelpers = createAuthHelpers({ auth, firestore });
 
 module.exports = {
+  ...createClinicalChecklistFunctions({
+    firestore,
+    resolveRoleForEmail: authHelpers.resolveRoleForEmail,
+  }),
   ...createNursingHandoffDemoFunctions({ firestore, Timestamp, FieldValue }),
   ...createNursingHandoffDeviceFunctions({ firestore, auth, Timestamp, FieldValue }),
   nursingHandoffHosted: createHostedNursingHandoff({

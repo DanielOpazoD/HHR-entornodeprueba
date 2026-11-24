@@ -22,7 +22,7 @@
       <div class="hhr-labreq-selection-tools">
         <select class="hhr-center-select" aria-label="Grupos de exámenes guardados"><option value="">Mis grupos</option></select>
         <button class="hhr-center-action" type="button" data-group="apply" disabled>Añadir grupo</button>
-        <button class="hhr-center-action" type="button" data-group="save" aria-label="Guardar selección">Guardar grupo</button>
+        <button class="hhr-center-action" type="button" data-group="save" aria-label="Guardar selección" disabled>Guardar grupo</button>
         <button class="hhr-center-action" type="button" data-group="remove" aria-label="Eliminar grupo" title="Eliminar grupo" disabled>×</button>
       </div>
       <div class="hhr-labreq-group-editor" hidden>
@@ -39,6 +39,8 @@
     const status = host.querySelector('[role="status"]');
     const editor = host.querySelector('.hhr-labreq-group-editor');
     const name = editor.querySelector('input');
+    const saveButton = host.querySelector('[data-group="save"]');
+    const catalogGroups = grid.querySelectorAll(':scope > *, .hhr-labreq-section');
     const rows = Array.from(grid.querySelectorAll('.hhr-labreq-exam')).map(row => ({
       row, input: row.querySelector('input'), label: row.textContent.trim(),
       text: normalize(row.textContent) + ' ' + (aliases[normalize(row.textContent)] || ''),
@@ -67,10 +69,9 @@
         item.row.hidden = !query.every(word => item.text.includes(word));
         if (!item.row.hidden) visible += 1;
       });
-      Array.from(grid.children).forEach(card => {
-        card.hidden = !Array.from(card.querySelectorAll('.hhr-labreq-exam')).some(row => !row.hidden);
-      });
-      chips.replaceChildren(...selected().map(item => {
+      catalogGroups.forEach(group => { group.hidden = !group.querySelector('.hhr-labreq-exam:not([hidden])'); });
+      const selection = selected();
+      chips.replaceChildren(...selection.map(item => {
         const button = document.createElement('button');
         button.type = 'button';
         button.textContent = item.label + ' ×';
@@ -78,7 +79,7 @@
         button.addEventListener('click', () => { item.input.checked = false; render(); onChange([item.input.dataset.key]); });
         return button;
       }));
-      host.querySelector('[data-group="save"]').disabled = !selected().length;
+      saveButton.disabled = !selection.length;
       status.textContent = query.length ? (visible ? visible + (visible === 1 ? ' examen coincide' : ' exámenes coinciden') : 'No hay coincidencias. Prueba otro nombre o abreviatura.') :
         '';
     };
@@ -86,6 +87,11 @@
     grid.addEventListener('change', render);
     select.addEventListener('change', renderGroups);
     select.addEventListener('focus', () => { preferences.reloadGroups().then(renderGroups); });
+    const closeEditor = () => {
+      const returnFocus = editor.contains(document.activeElement);
+      editor.hidden = true;
+      if (returnFocus) (saveButton.disabled ? search : saveButton).focus();
+    };
     host.addEventListener('click', async event => {
       const action = event.target.closest('[data-group]')?.dataset.group;
       if (['apply', 'confirm', 'remove'].includes(action)) await preferences.reloadGroups();
@@ -98,7 +104,7 @@
         render(); onChange(group.keys);
       } else if (action === 'save') {
         editor.hidden = false; name.value = ''; name.focus();
-      } else if (action === 'cancel') editor.hidden = true;
+      } else if (action === 'cancel') closeEditor();
       else if (action === 'confirm') {
         const title = name.value.trim();
         if (!title || !selected().length) { status.textContent = 'Escribe un nombre y selecciona al menos un examen.'; return; }
@@ -107,19 +113,25 @@
         const group = { name: title, keys: selected().map(item => item.input.dataset.key) };
         const saved = await preferences.saveGroup(group);
         if (!host.isConnected) return;
-        if (saved) editor.hidden = true;
+        if (saved) closeEditor();
         renderGroups();
         status.textContent = saved ? 'Grupo guardado en este navegador.' : 'No se pudo guardar el grupo. Conserva la selección y reintenta.';
       } else if (action === 'remove' && select.value) {
         const group = groups.find(item => preferences.groupId(item.name) === select.value);
         if (!group) return;
         const saved = await preferences.removeGroup(group.name);
-        if (host.isConnected) { if (saved) select.value = ''; renderGroups(); status.textContent = saved ? 'Grupo eliminado.' : 'No se pudo actualizar el grupo guardado en Chrome.'; }
+        if (!host.isConnected) return;
+        if (saved) {
+          if (document.activeElement?.dataset.group === 'remove') select.focus();
+          select.value = '';
+        }
+        renderGroups();
+        status.textContent = saved ? 'Grupo eliminado.' : 'No se pudo actualizar el grupo guardado en Chrome.';
       }
     });
     editor.addEventListener('keydown', event => {
-      if (event.key === 'Escape') { event.stopPropagation(); editor.hidden = true; }
-      if (event.key === 'Enter') { event.preventDefault(); host.querySelector('[data-group="confirm"]').click(); }
+      if (event.key === 'Escape') { event.stopPropagation(); closeEditor(); }
+      if (event.key === 'Enter' && event.target === name) { event.preventDefault(); host.querySelector('[data-group="confirm"]').click(); }
     });
     render(); renderGroups();
     preferences.load().then(renderGroups);

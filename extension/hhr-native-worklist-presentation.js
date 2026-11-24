@@ -53,6 +53,7 @@
         display:none;
       }
       table[${marked}] > tbody > tr:is(:hover,:focus-within) > :is(td,th) { background-color:#e7f4f1 !important; }
+      table[${marked}] tr[data-hhr-returned-row] > :first-child { box-shadow:inset 3px 0 #247c73; }
       .hhr-location-service,.hhr-location-bed { display:block; }
       .hhr-location-service { font-weight:400; color:#526561; }
       .hhr-location-bed { font-weight:750; color:#183a34; }
@@ -87,7 +88,8 @@
       }
       [data-hhr-patient-identifier] { display:block; }
       button[data-hhr-copy-run] {
-        display:block; border:0; padding:1px 0; border-radius:3px; background:transparent; color:#466761;
+        display:block; box-sizing:border-box; min-block-size:24px; min-inline-size:24px; border:0;
+        padding:1px 3px 1px 0; border-radius:3px; background:transparent; color:#466761;
         font:inherit; font-size:.94em; font-variant-numeric:tabular-nums; cursor:copy;
       }
       button[data-hhr-copy-run]:is(:hover,:focus-visible) { color:#116962; text-decoration:underline; text-underline-offset:2px; }
@@ -321,6 +323,7 @@
   const create = options => {
     let onWorklist = false;
     let currentPath;
+    const round = globalThis.HhrWorklistReturnNavigation?.create(options?.returnContext);
     const drawerTools = globalThis.HhrWorklistDrawer?.create(options);
     const renamedLabels = new Map();
     let layout;
@@ -461,12 +464,16 @@
         const full = pathname !== currentPath || !records;
         currentPath = pathname;
         if (full || affects(records, drawers + ', .MuiDrawer-anchorLeft')) refreshDrawer();
-        if (full || (onWorklist && affects(records, tableScope, overlay))) refreshTables(pathname);
+        if (full || (onWorklist && affects(records, tableScope, overlay))) {
+          refreshTables(pathname);
+          round?.refresh();
+        }
       },
       dispose() {
         clear();
         clearLayout();
         noveltyTooltip.dispose();
+        round?.dispose();
         drawerTools?.dispose();
         for (const [node, original] of renamedLabels) {
           if (node.isConnected && node.data === carePlanLabel) node.data = original;

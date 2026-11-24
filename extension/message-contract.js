@@ -1,6 +1,7 @@
 (function (root) {
   'use strict';
   const types = Object.freeze({
+    CLINICAL_CHECKLIST: 'RAYEN_CLINICAL_CHECKLIST',
     HHR_SESSION_CHANGED: 'RAYEN_HHR_SESSION_CHANGED', EXTENSION_HEALTH_REQUEST: 'RAYEN_EXTENSION_HEALTH_REQUEST',
     EXTENSION_RUNTIME_CONTEXT_REQUEST: 'RAYEN_EXTENSION_RUNTIME_CONTEXT_REQUEST',
     CONNECTION_REPAIR_REQUEST: 'RAYEN_CONNECTION_REPAIR_REQUEST',
@@ -52,6 +53,7 @@
     RAPA_NUI_WEATHER: 'RAYEN_RAPA_NUI_WEATHER',
     DAILY_BIRTHS: 'RAYEN_DAILY_BIRTHS',
     NURSING_HANDOFF_EDITOR: 'RAYEN_NURSING_HANDOFF_EDITOR',
+    WORKLIST_RETURN_CONTEXT: 'RAYEN_WORKLIST_RETURN_CONTEXT',
     WORKLIST_PATIENT_EDIT: 'RAYEN_WORKLIST_PATIENT_EDIT',
     WORKLIST_EDITOR_READY: 'RAYEN_WORKLIST_EDITOR_READY',
     WORKLIST_DOCUMENT_PRINT_REQUEST: 'RAYEN_WORKLIST_DOCUMENT_PRINT_REQUEST',
@@ -73,6 +75,7 @@
     CUDYR_CATEGORIES_REQUEST: 'RAYEN_CUDYR_CATEGORIES_REQUEST',
   });
   const fieldRules = Object.freeze({
+    [types.CLINICAL_CHECKLIST]: { encId: 'id', request: 'object', actor: 'string?', document: 'string?', hhrTabId: 'number?' },
     [types.GC_SESSION_CAPTURED]: { info: 'object' },
     [types.GC_CONNECT_REQUEST]: { renew: 'boolean?' },
     [types.SYNC_BUNDLE_REQUEST]: { requestId: 'string', dateStart: 'string', dateEnd: 'string' },
@@ -141,6 +144,7 @@
     [types.NURSING_HANDOFF_TABLE]: { action: 'string' },
     [types.NURSING_HANDOFF_OPEN]: { encId: 'id', inline: 'boolean?' },
     [types.NURSING_HANDOFF_EDITOR]: { id: 'string', action: 'string', date: 'string?', shift: 'string?', since: 'string?', version: 'string?', text: 'string?', expiresAt: 'number?' },
+    [types.WORKLIST_RETURN_CONTEXT]: { action: 'string', snapshot: 'object?', entryKeys: 'array?', fromEpisode: 'string?', receipt: 'string?' },
     [types.WORKLIST_PATIENT_EDIT]: { encId: 'id' },
     [types.WORKLIST_DOCUMENT_PRINT_REQUEST]: { encId: 'id', documentKind: 'string', expectedPatientId: 'id?' },
     [types.INDICATIONS_PRINT_REQUEST]: { encId: 'id' },

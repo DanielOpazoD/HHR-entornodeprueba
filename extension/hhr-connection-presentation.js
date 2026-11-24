@@ -82,9 +82,7 @@
         ? 'Gestión de Camas · ' + connectionTimeLabel(camas)
         : 'Gestión de Camas no conectada',
     ];
-    button.dataset.tip = name;
-    button.dataset.tipNote = capabilities(report).details.join(' ');
-    button.setAttribute('aria-label', [name, ...details].join(' · '));
+    button.setAttribute('aria-label', ['Abrir conexiones', name, ...details].join(' · '));
     return report;
   };
   const renderBadgeUnavailable = (bar, transportFailed) => {
@@ -93,9 +91,7 @@
     button.classList.remove('is-ready', 'is-degraded');
     button.classList.add('is-offline');
     const label = transportFailed ? 'Extensión sin respuesta' : 'Estado no disponible';
-    button.dataset.tip = label;
-    button.dataset.tipNote = 'Comprueba la extensión en Chrome y reintenta.';
-    button.setAttribute('aria-label', label + '. ' + button.dataset.tipNote);
+    button.setAttribute('aria-label', 'Abrir conexiones · ' + label);
     return null;
   };
   const renderIndicatorUnavailable = (host, part) => {
