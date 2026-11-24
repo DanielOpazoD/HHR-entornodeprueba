@@ -50,13 +50,18 @@ describe('simplified Centro HHR', () => {
     );
     expect(modules).toEqual(['home', 'recipes', 'lab', 'imaging', 'settings', 'connection']);
     expect(
-      Array.from(modal.querySelectorAll<HTMLElement>('.hhr-home-card')).map(
-        card => card.dataset.module
-      )
-    ).toEqual(['recipes', 'lab', 'imaging']);
+      Array.from(modal.querySelectorAll<HTMLElement>('.hhr-home-card')).map(card => [
+        card.textContent?.trim(),
+        card.dataset.module,
+        card.dataset.flow,
+      ])
+    ).toEqual([
+      ['Abrir recetas', 'recipes', undefined],
+      ['Ver resultados', 'lab', 'results'],
+      ['Solicitar laboratorio', 'lab', 'request'],
+      ['Solicitar imágenes', 'imaging', 'request'],
+    ]);
     expect(modal.textContent).not.toMatch(/Entrega de turno|Signos vitales|Scores|BRADEN/i);
-    const appLink = modal.querySelector<HTMLAnchorElement>('a.hhr-center-app-link');
-    expect(appLink?.href).toBe('https://hhr-hospitalizados.app/');
-    expect(appLink?.rel).toContain('noopener');
+    expect(modal.querySelector('.hhr-center-app-link')).toBeNull();
   });
 });

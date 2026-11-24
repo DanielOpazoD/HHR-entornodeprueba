@@ -2,9 +2,10 @@
 (() => {
   'use strict';
 
+  const mmradUrl = 'https://ris.mmrad.cl/web/guest';
   const links = [
     { label: 'SysLab', href: 'http://10.4.69.90/syslab/', icon: 'icons/shortcut-syslab.png' },
-    { label: 'MMRAD', href: 'https://ris.mmrad.cl/web/guest', icon: 'icons/shortcut-mmrad.png' },
+    { label: 'MMRAD', href: mmradUrl, icon: 'icons/shortcut-mmrad.png' },
     { label: 'Gmail', href: 'https://mail.google.com/', icon: 'icons/shortcut-gmail.png' },
   ];
 
@@ -31,5 +32,5 @@
     return nav;
   };
 
-  globalThis.HhrFavoriteLinks = Object.freeze({ create });
+  globalThis.HhrFavoriteLinks = Object.freeze({ create, mmradUrl });
 })();

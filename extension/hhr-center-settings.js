@@ -11,15 +11,37 @@
   const render = ({ root, operationsBar }) => {
     const preferences = globalThis.HhrCenterPreferences;
     const main = root.querySelector('.hhr-center-main');
-    main.innerHTML = `<div class="hhr-center-toolbar"><h2 class="hhr-center-heading">Ajustes</h2></div>
-      <div class="hhr-center-content"><section class="hhr-connection-card">
-        <div class="hhr-labreq-meta-group"><label>Presentación <select class="hhr-center-select" aria-label="Presentación" data-setting="mode"><option value="floating">Cuadro centrado</option><option value="docked">Panel lateral</option></select></label></div>
-        <div class="hhr-labreq-meta-group"><label>Densidad <select class="hhr-center-select" aria-label="Densidad" data-setting="density"><option value="normal">Normal</option><option value="compact">Compacta</option></select></label></div>
-        <div class="hhr-labreq-meta-group"><label><input type="checkbox" data-setting="collapsed"> Contraer barra a HHR</label></div>
-        <div class="hhr-labreq-meta-group"><label><input type="checkbox" data-setting="handoff" disabled> Entrega de turno en Gestión de cuidados</label><small role="status" data-handoff-status></small></div>
-        <a class="hhr-center-action" href="https://github.com/DanielOpazoD/extensioneloisahhr/releases/latest/download/eloisa-hhr.zip" target="_blank" rel="noopener noreferrer">Descargar extensión desde GitHub (.zip)</a>
-      </section></div>`;
-    main.querySelector('.hhr-connection-card').append(globalThis.HhrFavoriteLinks.create());
+    main.innerHTML = `<div class="hhr-center-toolbar hhr-settings-toolbar">
+        <h2 class="hhr-center-heading">Ajustes</h2>
+        <a class="hhr-center-action" href="https://github.com/DanielOpazoD/extensioneloisahhr/releases/latest/download/eloisa-hhr.zip" target="_blank" rel="noopener noreferrer">Descargar ZIP</a>
+      </div>
+      <div class="hhr-center-content"><div class="hhr-settings-list">
+        <div class="hhr-setting-row"><label for="hhr-setting-mode">Presentación</label><select id="hhr-setting-mode" class="hhr-center-select" data-setting="mode">
+          <option value="floating">Cuadro centrado</option><option value="docked">Panel lateral</option>
+        </select></div>
+        <div class="hhr-setting-row"><label for="hhr-setting-density">Densidad</label><select id="hhr-setting-density" class="hhr-center-select" data-setting="density">
+          <option value="normal">Normal</option><option value="compact">Compacta</option>
+        </select></div>
+        <label class="hhr-setting-row"><span>Contraer barra a HHR</span><input type="checkbox" data-setting="collapsed"></label>
+        <label class="hhr-setting-row"><span>Entrega de turno en Gestión de cuidados</span><input type="checkbox" data-setting="handoff" disabled></label>
+        <small role="status" data-handoff-status></small>
+        <label class="hhr-setting-row"><span>Pautas clínicas en Evolución</span><input type="checkbox" data-checklist-enabled disabled></label>
+        <small role="status" data-checklist-status></small>
+      </div></div>`;
+    main.querySelector('.hhr-settings-list').append(globalThis.HhrFavoriteLinks.create());
+    const checklist = main.querySelector('[data-checklist-enabled]');
+    const checklistStatus = main.querySelector('[data-checklist-status]');
+    const checklistKey = 'hhr-clinical-checklists-enabled';
+    chrome.storage.local.get(checklistKey).then(stored => {
+      checklist.checked = stored[checklistKey] === true;
+      checklist.disabled = false;
+    }).catch(() => { checklistStatus.textContent = 'No se pudo leer el ajuste de pautas.'; });
+    checklist.addEventListener('change', async () => {
+      checklist.disabled = true;
+      try { await chrome.storage.local.set({ [checklistKey]: checklist.checked }); checklistStatus.textContent = ''; }
+      catch { checklist.checked = !checklist.checked; checklistStatus.textContent = 'No se pudo guardar el ajuste de pautas.'; }
+      finally { checklist.disabled = false; }
+    });
     const handoff = globalThis.HhrNursingHandoffPreference;
     const checkbox = main.querySelector('[data-setting="handoff"]');
     const status = main.querySelector('[data-handoff-status]');

@@ -133,12 +133,14 @@ export const verifyInitialOperationsBarAndRouteIsolation = async ({
       .evaluateAll(buttons => buttons.map(button => button.dataset.module)),
     ['home', 'recipes', 'lab', 'imaging', 'settings', 'connection']
   );
-  assert.equal(await home.locator('.hhr-home-card').count(), 3);
+  assert.deepEqual(await home.locator('.hhr-home-card strong').allTextContents(), [
+    'Abrir recetas',
+    'Ver resultados',
+    'Solicitar laboratorio',
+    'Solicitar imágenes',
+  ]);
   assert.doesNotMatch(await home.innerText(), /Entrega de turno|Signos vitales|Scores|BRADEN/i);
-  assert.equal(
-    await home.locator('.hhr-center-app-link').getAttribute('href'),
-    'https://hhr-hospitalizados.app/'
-  );
+  assert.equal(await home.getByRole('link', { name: /Abrir HHR/ }).count(), 0);
   assert.equal(
     await home
       .locator('.hhr-center-content')
@@ -171,12 +173,12 @@ export const verifyInitialOperationsBarAndRouteIsolation = async ({
   const manualPatient = page.locator(
     '#hhr-prescription-print-modal input[name="hhr-labreq-patient-source"][value="manual"]'
   );
-  const currentPatient = page.locator(
-    '#hhr-prescription-print-modal input[name="hhr-labreq-patient-source"][value="current"]'
+  const blankOrder = page.locator(
+    '#hhr-prescription-print-modal input[name="hhr-labreq-patient-source"][value="blank"]'
   );
   for (let index = 0; index < 6; index += 1) {
     await manualPatient.check();
-    await currentPatient.check();
+    await blankOrder.check();
   }
   await manualPatient.check();
 
@@ -186,7 +188,7 @@ export const verifyInitialOperationsBarAndRouteIsolation = async ({
   assert.equal((await nameInput.inputValue()).length, 160, 'Manual name maxlength was bypassed');
   assert.equal(
     await page.locator('#hhr-prescription-print-modal .hhr-labreq-count').textContent(),
-    '0 exámenes seleccionados'
+    '0 exámenes'
   );
   assert.equal(
     await page.locator('#hhr-prescription-print-modal .hhr-labreq-print').isEnabled(),
