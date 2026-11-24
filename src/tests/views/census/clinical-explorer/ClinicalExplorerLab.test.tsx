@@ -298,4 +298,47 @@ describe('ClinicalExplorerLab', () => {
     ).toBeVisible();
     expect(mocks.details).not.toHaveBeenCalled();
   });
+
+  it('renders cached results immediately on remount while Syslab access is checking', async () => {
+    const { wrapper: Wrapper } = createQueryClientTestWrapper();
+    const first = render(
+      <Wrapper>
+        <ClinicalExplorerLab patient={patient!} censusDate={DATE} tab="all" onShowAll={vi.fn()} />
+      </Wrapper>
+    );
+    const card = await screen.findByRole('region', { name: 'Laboratorio' });
+    await within(card).findByRole('table');
+    first.unmount();
+
+    // Returning to the same patient remounts ClinicalExplorerLab while useSyslabAccess starts in checking.
+    mocks.access.mockReturnValue({
+      ...connected,
+      state: 'checking',
+      message: 'Comprobando la sesión de Syslab…',
+    });
+    const second = render(
+      <Wrapper>
+        <ClinicalExplorerLab patient={patient!} censusDate={DATE} tab="all" onShowAll={vi.fn()} />
+      </Wrapper>
+    );
+    const remountedCard = screen.getByRole('region', { name: 'Laboratorio' });
+    expect(within(remountedCard).queryByText(/Consultando Syslab/)).toBeNull();
+    expect(within(remountedCard).getByRole('table')).toHaveTextContent('Creatinina');
+
+    // If session verification fails afterward, the card immediately hides the cached results.
+    mocks.access.mockReturnValue({
+      ...connected,
+      state: 'login-required',
+      message: 'Syslab requiere iniciar sesión',
+    });
+    second.rerender(
+      <Wrapper>
+        <ClinicalExplorerLab patient={patient!} censusDate={DATE} tab="all" onShowAll={vi.fn()} />
+      </Wrapper>
+    );
+    expect(within(remountedCard).queryByRole('table')).toBeNull();
+    expect(
+      within(remountedCard).getByRole('button', { name: 'Iniciar sesión en Syslab' })
+    ).toBeVisible();
+  });
 });
