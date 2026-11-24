@@ -3,6 +3,7 @@ import Dexie, { type DBCore, type Middleware } from 'dexie';
 import { createHash } from 'node:crypto';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import { getSyncQueueTelemetry } from '@/services/storage/sync/publicSyncQueue';
 import {
   getDiscardedDailyRecordBackup,
@@ -197,7 +198,7 @@ it('observes actual values below Dexie caches and distinguishes key-only counts'
 });
 
 it('keeps polling work bounded while retired backups grow, survive reopening and remain downloadable', async () => {
-  const measure = observeValues(hospitalDB);
+  const measure = observeValues(asDexieDatabase(hospitalDB));
   const states: SyncTask['status'][] = [
     'PENDING',
     'PENDING',

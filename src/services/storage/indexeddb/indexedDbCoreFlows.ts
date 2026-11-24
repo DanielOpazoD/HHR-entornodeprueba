@@ -7,7 +7,7 @@
  * they remain pure / testable.
  */
 
-import type { HangaRoaDatabase } from './indexedDbDatabase';
+import type { IndexedDbDatabaseLike } from './indexedDbContracts';
 import {
   assignIndexedDbMockTables,
   createIndexedDbDatabaseOrFallback,
@@ -29,14 +29,14 @@ import {
 import { createMockDatabase } from './indexedDbMockFactory';
 
 export interface MockFallbackRecoveryInput {
-  currentDatabase: HangaRoaDatabase;
-  createDatabase: () => HangaRoaDatabase;
-  attachDatabaseEvents: (database: HangaRoaDatabase) => void;
+  currentDatabase: IndexedDbDatabaseLike;
+  createDatabase: () => IndexedDbDatabaseLike;
+  attachDatabaseEvents: (database: IndexedDbDatabaseLike) => void;
   resetRecoveryTracking: () => void;
 }
 
 export interface MockFallbackRecoveryResult {
-  database: HangaRoaDatabase;
+  database: IndexedDbDatabaseLike;
   fallbackMode: boolean;
 }
 
@@ -87,11 +87,11 @@ export const runOpeningWaitFlow = async (input: OpeningWaitInput): Promise<Openi
 };
 
 export interface FreshOpenAttemptInput {
-  database: HangaRoaDatabase;
+  database: IndexedDbDatabaseLike;
 }
 
 export interface FreshOpenAttemptResult {
-  database: HangaRoaDatabase;
+  database: IndexedDbDatabaseLike;
   fallbackMode: boolean;
   stickyFallbackMode: boolean;
   shouldResetRecoveryTracking: boolean;
@@ -142,12 +142,12 @@ export const runFreshOpenAttempt = async (
 };
 
 export interface InitialDatabaseInput {
-  createDatabase: () => HangaRoaDatabase;
-  attachDatabaseEvents: (database: HangaRoaDatabase) => void;
+  createDatabase: () => IndexedDbDatabaseLike;
+  attachDatabaseEvents: (database: IndexedDbDatabaseLike) => void;
 }
 
 export interface InitialDatabaseOutcome {
-  database: HangaRoaDatabase;
+  database: IndexedDbDatabaseLike;
   fallbackMode: boolean;
 }
 

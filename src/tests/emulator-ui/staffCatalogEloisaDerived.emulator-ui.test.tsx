@@ -47,6 +47,7 @@ import {
   terminate,
 } from 'firebase/firestore';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import * as remote from '@/services/storage/firestore';
 import { useNursesQuery, useTensQuery } from '@/hooks/useStaffQuery';
 import { StaffManagerModal } from '@/features/census/components/staff-catalog/StaffManagerModal';
@@ -57,7 +58,7 @@ import { SHARED_STAFF_DOC } from '@/services/staff/sharedEloisaStaffCatalog';
 // A real emulator transaction or shared-catalog delivery can exceed RTL's 1 s default wait.
 const REMOTE = { timeout: 10_000 };
 const CONFLICT = 'La lista cambió en otro equipo. Revise la lista actualizada y repita el cambio.';
-const catalogs: Table<CatalogRecord> = hospitalDB.table('catalogs');
+const catalogs: Table<CatalogRecord> = asDexieDatabase(hospitalDB).table('catalogs');
 
 // The shown list and the saved list behind it come from one source, as in the census.
 function Nurses() {

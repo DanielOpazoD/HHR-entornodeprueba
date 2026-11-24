@@ -21,6 +21,7 @@ import { RepositoryProvider, createRepositoryContainer } from '@/context/Reposit
 import { buildMockDailyRecordRepository } from '@/tests/factories/dailyRecordRepositoryMock';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { saveRecordStrict } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { resolveDailyRecordSyncStatus } from '@/hooks/controllers/dailyRecordSyncStatusController';
@@ -164,7 +165,7 @@ afterEach(async () => {
   cleanup();
   clients.forEach(client => client.clear());
   clients = [];
-  hospitalDB.syncQueue.hook('creating').unsubscribe(abortHook);
+  asDexieDatabase(hospitalDB).syncQueue.hook('creating').unsubscribe(abortHook);
   vi.restoreAllMocks();
   onlineManager.setOnline(true);
   pending.clearPendingDailyRecordPatchesForTests();
@@ -212,7 +213,7 @@ it('a: offline edit commits the row and authored task before reconnect', async (
   expect(await hospitalDB.syncQueue.count()).toBe(0);
 });
 it('b: actual transaction abort rolls back row/task; hook drops patch and error feedback exists', async () => {
-  hospitalDB.syncQueue.hook('creating', abortHook);
+  asDexieDatabase(hospitalDB).syncQueue.hook('creating', abortHook);
   abortWrite = true;
   const h = setupHook();
   let payload: Awaited<ReturnType<typeof h.result.current.mutateAsync>>;

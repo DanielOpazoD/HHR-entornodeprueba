@@ -1,7 +1,9 @@
 // @vitest-environment node
 import { existsSync, readFileSync } from 'node:fs';
 import { ESLint } from 'eslint';
+import tseslint from 'typescript-eslint';
 import { describe, expect, it } from 'vitest';
+import { createUnknownCastRule } from '../../../scripts/lib/eslint/unknownCastRule.mjs';
 
 const RULE = 'types/unknown-cast-ceiling';
 const CEILINGS: Record<string, number> = JSON.parse(
@@ -9,14 +11,16 @@ const CEILINGS: Record<string, number> = JSON.parse(
 ).files;
 
 const eslint = new ESLint({ cwd: process.cwd() });
-const messages = async (code: string, filePath: string) =>
-  (await eslint.lintText(code, { filePath }))[0].messages.filter(
+const messages = async (code: string, filePath: string, linter = eslint) =>
+  (await linter.lintText(code, { filePath }))[0].messages.filter(
     message => message.ruleId === RULE
   );
 
-const listedFile = Object.keys(CEILINGS).find(file => file.endsWith('.ts') && CEILINGS[file] === 1);
-
 describe('production files never add an `as unknown as`', () => {
+  it('keeps zero production files in scripts/config/unknown-cast-ceilings.json', () => {
+    expect(CEILINGS).toEqual({});
+  });
+
   it.each([
     'export const toNumber = (value: string) => value as unknown as number;',
     'export const toNumber = (value: string) => <number>(<unknown>value);',
@@ -36,19 +40,39 @@ describe('production files never add an `as unknown as`', () => {
   });
 
   it('keeps each listed file at its ceiling, and asks to lower a ceiling no longer reached', async () => {
-    expect(listedFile).toBeDefined();
-    const file = listedFile as string;
+    const file = 'src/services/storage/cappedProbe.ts';
+    const cappedEslint = new ESLint({
+      cwd: process.cwd(),
+      overrideConfigFile: true,
+      overrideConfig: [
+        {
+          files: ['**/*.ts'],
+          languageOptions: { parser: tseslint.parser },
+          plugins: {
+            types: {
+              rules: {
+                'unknown-cast-ceiling': createUnknownCastRule({ [file]: 1 }),
+              },
+            },
+          },
+          rules: {
+            'types/unknown-cast-ceiling': 'error',
+          },
+        },
+      ],
+    });
     const cast = 'export const a = (value: string) => value as unknown as number;';
-    expect(await messages(cast, file)).toEqual([]);
+    expect(await messages(cast, file, cappedEslint)).toEqual([]);
     const grown = await messages(
       `${cast}\nexport const b = (value: string) => value as unknown as number;`,
-      file
+      file,
+      cappedEslint
     );
     expect(grown.map(message => message.message)).toEqual([
       expect.stringContaining('Este archivo tiene 2 y su techo es 1'),
       expect.stringContaining('Este archivo tiene 2 y su techo es 1'),
     ]);
-    const [lower] = await messages('export const a = 1;', file);
+    const [lower] = await messages('export const a = 1;', file, cappedEslint);
     expect(lower?.message).toContain('Baja su techo en scripts/config/unknown-cast-ceilings.json');
   });
 

@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import { getSyncQueueStats, getSyncQueueTelemetry } from '@/services/storage/sync/publicSyncQueue';
 import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
@@ -51,7 +52,9 @@ const enter = (owner: string | null) => {
 };
 const putLegacyNullOwner = (record: SyncTask) =>
   new Promise<void>((resolve, reject) => {
-    const transaction = hospitalDB.backendDB().transaction('syncQueue', 'readwrite');
+    const transaction = asDexieDatabase(hospitalDB)
+      .backendDB()
+      .transaction('syncQueue', 'readwrite');
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error);
     transaction.onabort = () => reject(transaction.error);
@@ -159,7 +162,7 @@ it('never returns a partial success if reading a later row fails, then recovers'
     if (row.id === 2) throw new Error('Synthetic later-row read failure');
     return row;
   };
-  hospitalDB.syncQueue.hook('reading', failLater);
+  asDexieDatabase(hospitalDB).syncQueue.hook('reading', failLater);
   try {
     expect(await getSyncQueueTelemetry()).toMatchObject({
       pending: 0,
@@ -176,7 +179,7 @@ it('never returns a partial success if reading a later row fails, then recovers'
       })
     );
   } finally {
-    hospitalDB.syncQueue.hook('reading').unsubscribe(failLater);
+    asDexieDatabase(hospitalDB).syncQueue.hook('reading').unsubscribe(failLater);
   }
   expect(await getSyncQueueTelemetry()).toMatchObject({
     pending: 2,

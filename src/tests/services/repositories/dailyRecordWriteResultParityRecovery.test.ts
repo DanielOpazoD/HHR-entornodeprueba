@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
@@ -61,11 +62,12 @@ const refuseLocalWrites = () => {
   const refuse = () => {
     throw new DOMException('synthetic quota', 'QuotaExceededError');
   };
-  hospitalDB.dailyRecords.hook('creating', refuse);
-  hospitalDB.dailyRecords.hook('updating', refuse);
+  const dexieDailyRecords = asDexieDatabase(hospitalDB).dailyRecords;
+  dexieDailyRecords.hook('creating', refuse);
+  dexieDailyRecords.hook('updating', refuse);
   stopRefusing = () => {
-    hospitalDB.dailyRecords.hook('creating').unsubscribe(refuse);
-    hospitalDB.dailyRecords.hook('updating').unsubscribe(refuse);
+    dexieDailyRecords.hook('creating').unsubscribe(refuse);
+    dexieDailyRecords.hook('updating').unsubscribe(refuse);
   };
 };
 let stopRefusing = () => {};

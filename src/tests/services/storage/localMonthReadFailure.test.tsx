@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as core from '@/services/storage/indexeddb/indexedDbCore';
+import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import { getRecordsForMonth } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { fetchExistingDaysInMonth } from '@/services/records/recordQueryService';
 import { generateCensusMasterExcel } from '@/services/exporters/censusMasterExport';
@@ -29,7 +30,7 @@ describe('local monthly read failure reaches decisions', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('rejects a failed Dexie toArray instead of returning an empty month', async () => {
-    vi.spyOn(core.hospitalDB.Collection.prototype, 'toArray').mockRejectedValue(
+    vi.spyOn(asDexieDatabase(core.hospitalDB).Collection.prototype, 'toArray').mockRejectedValue(
       new Error('synthetic toArray failure')
     );
     await expect(getRecordsForMonth(2026, 4)).rejects.toThrow('synthetic toArray failure');

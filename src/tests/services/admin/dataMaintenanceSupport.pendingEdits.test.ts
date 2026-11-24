@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { hydrateRangeRecords } from '@/features/admin/services/dataMaintenanceSupport';
 import {
@@ -49,7 +50,7 @@ describe('maintenance range with real local storage', () => {
     'rejects %s backup when the local range cannot be read',
     async scope => {
       mocks.remote.mockResolvedValue([record('Remote only')]);
-      vi.spyOn(hospitalDB.Collection.prototype, 'toArray').mockRejectedValueOnce(
+      vi.spyOn(asDexieDatabase(hospitalDB).Collection.prototype, 'toArray').mockRejectedValueOnce(
         new Error('synthetic range failure')
       );
       const result = await (scope === 'month'

@@ -41,6 +41,7 @@ vi.mock('firebase/firestore', async importOriginal => ({
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { DailyRecordSchema } from '@/schemas/zod/dailyRecord';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { subscribeDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
@@ -235,7 +236,7 @@ describe('confirmed manual read A completing after confirmed realtime B', () => 
       tensDayShift: _tens,
       ...legacy
     } = censusVersion('2026-10-29T11:00:00.000Z', STAFF.C0);
-    await hospitalDB.table<unknown, string>('dailyRecords').put(legacy);
+    await asDexieDatabase(hospitalDB).table<unknown, string>('dailyRecords').put(legacy);
     const fresh = censusVersion('2026-10-29T12:00:00.000Z', STAFF.A);
     const read = startManualRead();
     await vi.waitFor(() => expect(sdk.pointReads).toHaveLength(1));

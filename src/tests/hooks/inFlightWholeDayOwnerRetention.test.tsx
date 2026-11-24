@@ -23,6 +23,7 @@ import { RepositoryProvider, createRepositoryContainer } from '@/context/Reposit
 import { buildMockDailyRecordRepository } from '@/tests/factories/dailyRecordRepositoryMock';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { setDailyRecordQueryData } from '@/hooks/controllers/dailyRecordQueryController';
 import { resetDailyRecordFreshnessGateForTests } from '@/hooks/controllers/dailyRecordFreshnessGateController';
@@ -136,7 +137,7 @@ afterEach(async () => {
   cleanup();
   clients.forEach(client => client.clear());
   clients = [];
-  hospitalDB.syncQueue.hook('creating').unsubscribe(abortHook);
+  asDexieDatabase(hospitalDB).syncQueue.hook('creating').unsubscribe(abortHook);
   vi.restoreAllMocks();
   onlineManager.setOnline(true);
   pending.clearPendingDailyRecordPatchesForTests();
@@ -287,7 +288,7 @@ it('same session still sees a real IndexedDB failure', async () => {
   const h = setupHook();
   const save = renderHook(() => useDailyRecordSyncQuery(date), { wrapper: h.wrapper });
   Object.values(notices).forEach(n => n.mockClear());
-  hospitalDB.syncQueue.hook('creating', abortHook);
+  asDexieDatabase(hospitalDB).syncQueue.hook('creating', abortHook);
   abortWrite = true;
   await act(async () => {
     await save.result.current

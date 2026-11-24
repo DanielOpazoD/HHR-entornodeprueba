@@ -16,6 +16,7 @@ import {
   resolvePatchOutcomeFeedback,
 } from '@/hooks/controllers/dailyRecordSyncNotificationController';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { processSyncQueue } from '@/services/storage/sync';
 import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
@@ -286,7 +287,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       A: nurse('synthetic-A', 'hospitalizados@hospitalhangaroa.cl'),
       B: nurse('synthetic-B', 'doctor@example.com'),
     };
-    hospitalDB.syncQueue.hook('creating', onCreateTask);
+    asDexieDatabase(hospitalDB).syncQueue.hook('creating', onCreateTask);
   });
   beforeEach(async () => {
     await env.clearFirestore();
@@ -332,7 +333,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     setFirestoreEnabled(true);
   });
   afterAll(async () => {
-    hospitalDB.syncQueue.hook('creating').unsubscribe(onCreateTask);
+    asDexieDatabase(hospitalDB).syncQueue.hook('creating').unsubscribe(onCreateTask);
     await env?.cleanup();
     await admin?.terminate();
     if (app) await deleteApp(app);

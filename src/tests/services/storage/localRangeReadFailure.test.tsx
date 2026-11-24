@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB, ensureDbReady } from '@/services/storage/indexeddb/indexedDbCore';
+import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import { getRecordsRange } from '@/services/storage/indexeddb/indexedDbRecordService';
 import {
   doStoredDaysHavePatientData,
@@ -17,7 +18,7 @@ vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled:
 const date = '2026-04-02';
 const failRead = () =>
   vi
-    .spyOn(hospitalDB.Collection.prototype, 'toArray')
+    .spyOn(asDexieDatabase(hospitalDB).Collection.prototype, 'toArray')
     .mockRejectedValue(new Error('synthetic range failure'));
 
 describe('failed real local range reads', () => {
