@@ -38,16 +38,21 @@ export const useDeferredRemoteHydration = (
   const cached = queryClient.getQueryData<DailyRecordQueryResult>(
     queryKeys.dailyRecord.byDate(currentDateString)
   );
-  // Idle scheduling only helps when there is local data to paint. A settled
-  // local miss needs its remote answer immediately, not another idle window.
-  const needsRemoteAnswer = cached?.record === null;
+  // Idle scheduling only helps while painting unconfirmed local data.
+  // Promote immediately on a settled local miss or once the live listener
+  // (or cache) already holds a server-confirmed record so freshness guards
+  // and post-confirmation hooks do not sit blocked behind an idle timer.
+  const shouldPromoteImmediately =
+    cached?.record === null || Boolean(cached?.record && cached.runtime?.serverConfirmed);
   const [remoteHydrationReadyDate, setRemoteHydrationReadyDate] = useState<string | null>(null);
   const readySignature = remoteSyncStatus === 'ready' ? currentDateString : null;
   const shouldDeferRemoteHydration =
-    readySignature !== null && !needsRemoteAnswer && remoteHydrationReadyDate !== currentDateString;
+    readySignature !== null &&
+    !shouldPromoteImmediately &&
+    remoteHydrationReadyDate !== currentDateString;
 
   useEffect(() => {
-    if (readySignature === null || needsRemoteAnswer) {
+    if (readySignature === null || shouldPromoteImmediately) {
       return;
     }
 
@@ -81,7 +86,7 @@ export const useDeferredRemoteHydration = (
         browserWindow.cancelIdleCallback(idleCallbackId);
       }
     };
-  }, [currentDateString, readySignature, needsRemoteAnswer]);
+  }, [currentDateString, readySignature, shouldPromoteImmediately]);
 
   return shouldDeferRemoteHydration ? 'local_only' : remoteSyncStatus;
 };
