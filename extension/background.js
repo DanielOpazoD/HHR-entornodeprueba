@@ -4,7 +4,7 @@
 // MV3 requires initial imports. Excel/PDF stay here until their separate offscreen migrations.
 importScripts(
   'message-contract.js', 'build-identity.js', 'hhr-origin-policy.js', 'exalab-background.js', 'exalab-session-transport.js', 'exalab-auto-runtime.js', 'eloisa-patient-code-contract.js', 'fichamedico-manual-patient-code-runtime.js',
-  'encounter-navigation.js', 'worklist-patient-editor.js', 'nursing-handoff-connection.js', 'nursing-handoff-pilot.js', 'rapa-nui-weather.js', 'hhr-daily-births.js',
+  'encounter-navigation.js', 'worklist-return-state.js', 'worklist-patient-editor.js', 'nursing-handoff-connection.js', 'nursing-handoff-pilot.js', 'rapa-nui-weather.js', 'hhr-daily-births.js',
   'hhr-request-forms.js', 'hhr-imaging-print.js',
   'health-check.js', 'clinical-day-runtime.js', 'clinical-history-coverage.js', 'census-sync-horizon-runtime.js', 'capture-read-recovery.js', 'rayen-sync-bundle-runtime.js', 'sync-bundle-cancellation-runtime.js',
   'connection-relay-recovery.js', 'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-device-evidence-runtime.js', 'clinical-read-error-contract.js', 'fichamedico-clinical-client.js', 'tab-encounter-authorization.js', 'fichamedico-patient-flow-runtime.js',
@@ -25,7 +25,7 @@ importScripts(
   'clinical-antecedents-attachment.js', 'clinical-antecedents-fields.js', 'clinical-antecedents-cache.js', 'clinical-antecedents-detail.js', 'clinical-antecedents-window.js',
   'clinical-antecedents-transport.js', 'clinical-antecedents-sources.js', 'clinical-antecedents-runtime.js', 'urgency-dau-page.js', 'urgency-dau-source.js', 'urgency-session-page.js', 'urgency-dau-runtime.js', 'urgency-api.js', 'urgency-auth-model.js', 'urgency-auth-state.js', 'urgency-dau-api.js', 'urgency-auth-runtime.js',
   'clinical-write-recovery-policy.js', 'clinical-write-runtime.js',
-  'clinical-handoff-runtime.js',
+  'clinical-handoff-runtime.js', 'clinical-checklist-broker.js',
   'clinical-score-runtime.js',
   'clinical-score-write-model.js',
   'clinical-score-write-runtime.js',
@@ -1170,7 +1170,10 @@ const nursingHandoffPilot = self.HhrNursingHandoffPilot.create({
   chrome, getContext: getClinicalReportContext, getInfo: getFichaFetchInfo, checkAccess: checkWorklistChartAccess,
   getSessionKey: fichaSessionCacheKey,
 });
+const clinicalChecklists = self.HhrClinicalChecklistBroker.create({ chrome, resolveSession: resolveFichaClinicalSession,
+  getContext: getClinicalReportContext, encounterFromUrl: self.HhrPrescriptionPrint.resolveEncounterId });
 const runtimeMessageRoutes = Object.freeze({
+  [RUNTIME_MESSAGES.CLINICAL_CHECKLIST]: runtimeRoute(clinicalChecklists.handle, 'No se pudo conectar la pauta con HHR.'),
   [RUNTIME_MESSAGES.RAPA_NUI_WEATHER]: runtimeRoute(self.HhrRapaNuiWeather.fetchForecast, 'Pronóstico no disponible.'),
   [RUNTIME_MESSAGES.DAILY_BIRTHS]: runtimeRoute(() => self.HhrDailyBirths.read(), 'Nacimientos no disponibles.'),
   [RUNTIME_MESSAGES.NURSING_HANDOFF_TABLE]: runtimeRoute(nursingHandoffPilot.table, 'No se pudo comprobar la conexión a HHR.'),
@@ -1413,6 +1416,7 @@ const runtimeMessageRoutes = Object.freeze({
       }),
     'No se pudo generar la impresión de pacientes hospitalizados.'
   ),
+  [RUNTIME_MESSAGES.WORKLIST_RETURN_CONTEXT]: runtimeRoute(self.HhrWorklistReturnState.handle, 'No se pudo recuperar la posición de la lista.'),
   [RUNTIME_MESSAGES.WORKLIST_PATIENT_EDIT]: runtimeRoute(worklistPatientEditor.start, 'No se pudo abrir Gestión de Camas.'),
   [RUNTIME_MESSAGES.WORKLIST_EDITOR_READY]: runtimeRoute(worklistPatientEditor.resume, 'No se pudo abrir el editor de Gestión de Camas.'),
   [RUNTIME_MESSAGES.WORKLIST_DOCUMENT_PRINT_REQUEST]: runtimeRoute(

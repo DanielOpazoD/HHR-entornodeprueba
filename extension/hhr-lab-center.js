@@ -284,8 +284,8 @@
         <div class="hhr-center-toolbar">
           <h2 class="hhr-center-heading">Laboratorio</h2>
           <div class="hhr-rx-tabs hhr-flow-tabs" role="tablist" aria-label="Flujo de laboratorio">
-            <button class="hhr-rx-tab" type="button" role="tab" data-flow="results" aria-selected="true">Ver resultados</button>
-            <button class="hhr-rx-tab" type="button" role="tab" data-flow="request" aria-selected="false">Solicitar exámenes</button>
+            <button class="hhr-rx-tab" type="button" role="tab" data-flow="results" aria-selected="true">Resultados</button>
+            <button class="hhr-rx-tab" type="button" role="tab" data-flow="request" aria-selected="false">Solicitar</button>
           </div>
           <input class="hhr-center-search hhr-lab-filter" type="search" placeholder="Filtrar por fecha o examen" aria-label="Filtrar informes">
           <button class="hhr-center-action hhr-lab-select-all" type="button" disabled>Seleccionar todos</button>
@@ -293,7 +293,11 @@
           <button class="hhr-center-action hhr-center-refresh" type="button">Actualizar</button>
         </div>
         <div class="hhr-center-content">
-          <div class="hhr-lab-patient"><strong>Verificación Syslab</strong><span>Cruzando identidad Eloísa ↔ Syslab…</span><span class="hhr-lab-status">Conectando a Syslab local</span></div>
+          <div class="hhr-lab-patient hhr-census-anchor">
+            ${labRequestPatient.pickerButtonHtml()}
+            <div class="hhr-lab-patient-identity"><strong>Verificación Syslab</strong><span>Cruzando identidad Eloísa ↔ Syslab…</span><span class="hhr-lab-status">Conectando a Syslab local</span></div>
+            ${labRequestPatient.routeNoticeHtml}
+          </div>
           <div class="hhr-syslab-access" role="region" aria-label="Acceso seguro a Syslab" hidden>
             <div>
               <strong>Inicio de sesión requerido</strong>
@@ -306,7 +310,8 @@
           <section class="hhr-lab-results" aria-label="Análisis de laboratorio"></section>
         </div>
       `;
-      const patientHost = main.querySelector('.hhr-lab-patient');
+      const patientHost = main.querySelector('.hhr-lab-patient-identity');
+      globalThis.HhrCenterPatientContext?.setOrderEpisode(root, encId);
       const status = main.querySelector('.hhr-lab-selection');
       const list = main.querySelector('.hhr-lab-exam-list');
       const results = main.querySelector('.hhr-lab-results');
@@ -473,7 +478,7 @@
         invalidateLabAnalysis();
         if (!/^\d+$/.test(String(encId || ''))) {
           patientHost.querySelector('span').textContent =
-            'Selecciona un paciente con «Cambiar paciente» en la franja superior.';
+            'Elige un paciente en «De Eloísa».';
           status.textContent = 'Sin paciente seleccionado';
           list.innerHTML = '';
           results.innerHTML = '';
@@ -523,6 +528,7 @@
         analysis = null;
         patientHost.innerHTML = '';
         const patientName = document.createElement('strong');
+        patientName.className = 'hhr-lab-result-name';
         patientName.textContent = response.patient && response.patient.name || 'Paciente actual';
         const patientMeta = document.createElement('span');
         patientMeta.textContent = [
@@ -597,16 +603,13 @@
       if (!requestForms) return;
       const categories = requestForms.EXAM_CATEGORIES;
       main.innerHTML = `
-        <div class="hhr-center-toolbar">
+        <div class="hhr-center-toolbar hhr-request-toolbar">
           <h2 class="hhr-center-heading">Laboratorio</h2>
           <div class="hhr-rx-tabs hhr-flow-tabs" role="tablist" aria-label="Flujo de laboratorio">
-            <button class="hhr-rx-tab" type="button" role="tab" data-flow="results" aria-selected="false">Ver resultados</button>
-            <button class="hhr-rx-tab" type="button" role="tab" data-flow="request" aria-selected="true">Solicitar exámenes</button>
+            <button class="hhr-rx-tab" type="button" role="tab" data-flow="results" aria-selected="false">Resultados</button>
+            <button class="hhr-rx-tab" type="button" role="tab" data-flow="request" aria-selected="true">Solicitar</button>
           </div>
-          <div class="hhr-center-toolbar-actions">
-            <span class="hhr-labreq-count">0 exámenes seleccionados</span>
-            <button class="hhr-center-action hhr-center-action-primary hhr-labreq-print" type="button" disabled>Imprimir solicitud</button>
-          </div>
+          ${labRequestPatient.printActionsHtml('lab', requestForms.LAB_MAX_COPIES)}
         </div>
         <div class="hhr-center-content hhr-labreq-content">
           ${labRequestPatient.sectionHtml(encId)}
@@ -649,6 +652,7 @@
         </div>
       `;
       const counter = main.querySelector('.hhr-labreq-count');
+      const copiesInput = main.querySelector('.hhr-labreq-copies input');
       const printButton = main.querySelector('.hhr-labreq-print');
       const feedback = main.querySelector('.hhr-labreq-feedback');
       const othersInput = main.querySelector('.hhr-labreq-otros');
@@ -665,15 +669,11 @@
       });
       const printablePatient = () => patientSection.printablePatient();
       const updateCount = () => {
-        const manual = patientSection.usesLocalPatient();
-        globalThis.HhrCenterPatientContext?.set(root, {
-          encId: manual ? '' : encId,
-          patient: manual ? { ...printablePatient(), name: printablePatient()?.name || patientSection.localLabel() } : episodePatient?.patient,
-        });
-        globalThis.HhrCenterPatientContext?.refreshRoute(root,
-          globalThis.HhrPrescriptionPrint?.resolveEncounterId(window.location.href) || '');
+        globalThis.HhrCenterPatientContext?.setOrderEpisode(root, patientSection.usesLocalPatient() ? '' : encId);
         const count = selectedKeys().length + (othersInput.value.trim() ? 1 : 0);
-        counter.textContent = count === 1 ? '1 examen seleccionado' : count + ' exámenes seleccionados';
+        const label = count === 1 ? '1 examen' : count + ' exámenes';
+        if (counter.textContent !== label) counter.textContent = label;
+        counter.hidden = count === 0;
         printButton.disabled = !printablePatient();
       };
       const manualKeys = ['name', 'run', 'birthDate', 'ficha', 'diagnosis'];
@@ -684,12 +684,13 @@
           if (input.matches('.hhr-labreq-exam input')) return ['selected', input.dataset.key];
           if (input.dataset.manual) return ['manual', input.dataset.manual];
           if (input === othersInput) return 'others';
+          if (input === copiesInput) return 'copies';
           if (input.matches('.hhr-labreq-medico')) return 'physician';
           if (input.matches('.hhr-labreq-prais')) return 'prais';
           return { 'hhr-labreq-patient-source': 'source', 'hhr-labreq-procedencia': 'procedencia', 'hhr-labreq-fonasa': 'fonasa' }[input.name] || null;
         },
         capture: () => ({ selected: Object.fromEntries(Array.from(main.querySelectorAll('.hhr-labreq-exam input')).map(input => [input.dataset.key, input.checked])), others: othersInput.value,
-          physician: main.querySelector('.hhr-labreq-medico').value,
+          copies: copiesInput.value, physician: main.querySelector('.hhr-labreq-medico').value,
           source: main.querySelector('[name="hhr-labreq-patient-source"]:checked')?.value,
           manual: Object.fromEntries(manualKeys.map(key => [key, main.querySelector('[data-manual="' + key + '"]').value])),
           procedencia: main.querySelector('[name="hhr-labreq-procedencia"]:checked')?.value,
@@ -698,6 +699,7 @@
         restore: state => {
           main.querySelectorAll('.hhr-labreq-exam input').forEach(input => { input.checked = Boolean(state.selected[input.dataset.key]); });
           othersInput.value = state.others; main.querySelector('.hhr-labreq-medico').value = state.physician;
+          copiesInput.value = state.copies ?? '1';
           manualKeys.forEach(key => { main.querySelector('[data-manual="' + key + '"]').value = state.manual[key] || ''; });
           [['hhr-labreq-patient-source', state.source], ['hhr-labreq-procedencia', state.procedencia], ['hhr-labreq-fonasa', state.fonasa]].forEach(([name, value]) => {
             main.querySelectorAll('[name="' + name + '"]').forEach(input => { input.checked = input.value === value; });
@@ -717,12 +719,13 @@
       main.querySelector('.hhr-center-content').addEventListener('input', updateCount);
       printButton.addEventListener('click', () => {
         const patient = printablePatient();
-        if (!patient) return;
+        if (!patient || !copiesInput.reportValidity()) return;
         const fonasa = main.querySelector('input[name="hhr-labreq-fonasa"]:checked');
         const procedencia = main.querySelector('input[name="hhr-labreq-procedencia"]:checked');
         let logoUrl = '';
         try { logoUrl = chrome.runtime.getURL('hhr-logo.svg'); } catch (_error) {}
         const html = requestForms.buildLabRequestPrintHtml({
+          copies: copiesInput.valueAsNumber,
           patient: { name: patient.name, run: patient.run, birthDate: patient.birthDate && requestForms.formatDateCL ? requestForms.formatDateCL(patient.birthDate) : patient.birthDate },
           diagnosis: patient.diagnosis,
           ficha: patient.ficha,
@@ -756,6 +759,7 @@
         window.setTimeout(openPrintDialog, 300);
         setLiveRegion(feedback, 'Se abrió la solicitud con el diálogo de impresión.');
       });
+      patientSection.refresh();
       if (!/^\d+$/.test(String(encId || ''))) {
         draft?.confirmManual(); updateCount();
         return;

@@ -60,6 +60,7 @@
   });
   const nativePresentation = globalThis.HhrNativeFichaPresentation?.create();
   const worklistPresentation = globalThis.HhrNativeWorklistPresentation?.create({
+    returnContext: message => chrome.runtime.sendMessage({ ...message, type: runtimeMessages.WORKLIST_RETURN_CONTEXT }),
     fetchWeather: () => chrome.runtime.sendMessage({ type: runtimeMessages.RAPA_NUI_WEATHER }),
     fetchDailyBirths: () => chrome.runtime.sendMessage({ type: runtimeMessages.DAILY_BIRTHS }),
   });
@@ -522,35 +523,31 @@
     : null;
 
   const HOME_SHORTCUTS = [
-    { module: 'recipes', icon: 'recipes', title: 'Recetas', desc: 'Recetas e indicaciones del paciente o de los hospitalizados.' },
-    { module: 'lab', icon: 'lab', title: 'Laboratorio', desc: 'Resultados Syslab y solicitud de exámenes de sangre.' },
-    { module: 'imaging', icon: 'imaging', title: 'Imágenes', desc: 'Solicitudes de imagenología con formularios oficiales.' },
+    { module: 'recipes', icon: 'recipes', label: 'Abrir recetas' },
+    { module: 'lab', flow: 'results', icon: 'results', label: 'Ver resultados' },
+    { module: 'lab', flow: 'request', icon: 'lab', label: 'Solicitar laboratorio' },
+    { module: 'imaging', flow: 'request', icon: 'imaging', label: 'Solicitar imágenes' },
   ];
 
   const renderHomeCenter = (root, encId) => {
     const main = root.querySelector('.hhr-center-main');
     main.innerHTML = `
-      <div class="hhr-center-toolbar"><h2 class="hhr-center-heading">Herramientas de Eloísa</h2></div>
+      <div class="hhr-center-toolbar"><h2 class="hhr-center-heading">Inicio</h2></div>
       <div class="hhr-center-content">
-        <p class="hhr-home-intro">Recetas y exámenes a mano. El censo y el registro clínico completo están en HHR.</p>
         <div class="hhr-home-grid">
           ${HOME_SHORTCUTS.map(item => `
-            <button class="hhr-home-card" type="button" data-module="${item.module}">
-              <span class="hhr-home-card-icon">${ui.icons[item.icon]}</span>
-              <strong>${item.title}</strong>
-              <span class="hhr-home-card-desc">${item.desc}</span>
+            <button class="hhr-home-card" type="button" data-module="${item.module}" ${item.flow ? 'data-flow="' + item.flow + '"' : ''}>
+              <span class="hhr-home-card-icon" aria-hidden="true">${ui.icons[item.icon]}</span>
+              <strong>${item.label}</strong>
             </button>
           `).join('')}
         </div>
-
-      </div>
-    `;
-    main.querySelectorAll('.hhr-home-card[data-module]').forEach(card => {
-      card.addEventListener('click', () => {
-        centerShellRuntime.openCenterModule(card.dataset.module, encId, root.__hhrFocusReturnTarget);
+      </div>`;
+    main.querySelectorAll('.hhr-home-card').forEach(button => {
+      button.addEventListener('click', () => {
+        centerShellRuntime.openCenterModule(button.dataset.module, encId, root.__hhrFocusReturnTarget, button.dataset.flow);
       });
     });
-
   };
 
   const barPart = (bar, selector) => {
@@ -574,7 +571,7 @@
     });
     if (!root) return;
     if (flow === 'results' || flow === 'request') root.dataset.labFlow = flow;
-    const renderModule = targetEncId => {
+    const renderModule = (targetEncId, selectedFlow) => {
       if (activeModule === 'lab') {
         if (root.dataset.labFlow === 'results') labCenterRuntime.renderLabCenter(root, targetEncId);
         else labCenterRuntime.renderLabRequestView(root, targetEncId);
@@ -586,7 +583,7 @@
             '<div class="hhr-center-content"><div class="hhr-rx-error">El Centro de Imágenes no quedó cargado. Recarga la extensión y la pestaña.</div></div>';
           return;
         }
-        imagingCenterRuntime.renderImagingCenter(root, targetEncId);
+        imagingCenterRuntime.renderImagingCenter(root, targetEncId, selectedFlow);
       }
       else if (activeModule === 'settings') globalThis.HhrCenterSettings.render({ root,
         operationsBar: document.getElementById(OPERATIONS_BAR_ID) });
@@ -696,9 +693,7 @@
           </div>
         </div>
         <span class="divider" aria-hidden="true"></span>
-        <button class="session hhr-ops-session is-degraded" type="button"
-          aria-label="Comprobar conexiones" data-tip="Conexiones"
-          data-tip-note="Estado de Ficha Médico y Gestión de Camas. Clic para administrar.">
+        <button class="session hhr-ops-session is-degraded" type="button" aria-label="Abrir conexiones">
           <span class="avatar-wrap" aria-hidden="true">
             <span class="avatar hhr-ops-avatar">HHR</span>
             <span class="dot hhr-ops-connection-dot"></span>

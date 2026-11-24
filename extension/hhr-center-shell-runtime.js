@@ -81,25 +81,18 @@
       <div class="hhr-rx-backdrop" aria-hidden="true"></div>
       <section class="hhr-rx-dialog hhr-center-dialog" role="dialog" aria-modal="true" aria-label="Centro HHR">
         <button class="hhr-rx-close" type="button" aria-label="Cerrar">&times;</button>
-        <header class="hhr-center-header">
-          <img alt="" aria-hidden="true"><strong>Centro HHR</strong>
-          <a class="hhr-center-app-link" href="https://hhr-hospitalizados.app/" target="_blank" rel="noopener noreferrer">Abrir HHR <span aria-hidden="true">↗</span></a>
-        </header>
-        <div class="hhr-center-patientbar" hidden>
-          <span class="hhr-patientbar-tag">Paciente</span>
-          <strong class="hhr-patientbar-name">—</strong>
-          <span class="hhr-patientbar-meta"></span>
-          <span class="hhr-patientbar-route" hidden>Distinto al episodio abierto en Eloísa</span>
-          <button class="hhr-center-action hhr-patientbar-change" type="button" aria-expanded="false">Cambiar paciente ▾</button>
-          <div class="hhr-patientbar-picker" hidden>
-            <input class="hhr-rx-search hhr-patientbar-search" type="search"
-              placeholder="Buscar por paciente, RUN o cama" aria-label="Buscar paciente en el censo">
-            <div class="hhr-patientbar-list" role="listbox" aria-label="Pacientes hospitalizados"></div>
+        <div class="hhr-center-layout">
+          <header class="hhr-center-header"><img alt="" aria-hidden="true"></header>
+          ${PATIENT_BOUND_MODULES.has(activeModule) || activeModule === 'settings' ? '' : `<div class="hhr-center-patientbar" hidden>
+            <span class="hhr-patientbar-tag">Paciente</span>
+            <strong class="hhr-patientbar-name">—</strong>
+            <span class="hhr-patientbar-meta"></span>
+            <span class="hhr-patientbar-route" hidden>Distinto al episodio abierto en Eloísa</span>
+          </div>`}
+          <div class="hhr-center-shell">
+            <nav class="hhr-center-nav" aria-label="Herramientas de Eloísa">${centerNavMarkup(activeModule)}</nav>
+            <main class="hhr-center-main"></main>
           </div>
-        </div>
-        <div class="hhr-center-shell">
-          <nav class="hhr-center-nav" aria-label="Herramientas de Eloísa">${centerNavMarkup(activeModule)}</nav>
-          <main class="hhr-center-main"></main>
         </div>
       </section>
     `;
@@ -203,152 +196,137 @@
     };
 
     const setupCenterPatientContext = (root, module, initialEncId, renderModule) => {
-      const bar = root.querySelector('.hhr-center-patientbar');
-      if (!bar) return;
-      const nameEl = bar.querySelector('.hhr-patientbar-name');
-      const metaEl = bar.querySelector('.hhr-patientbar-meta');
-      const routeBadge = bar.querySelector('.hhr-patientbar-route');
-      const changeButton = bar.querySelector('.hhr-patientbar-change');
-      const picker = bar.querySelector('.hhr-patientbar-picker');
-      const search = bar.querySelector('.hhr-patientbar-search');
-      const list = bar.querySelector('.hhr-patientbar-list');
-      if (module === 'connection' || module === 'home' || module === 'settings') return;
-      bar.hidden = false;
-      if (!PATIENT_BOUND_MODULES.has(module)) {
-        nameEl.textContent = 'Todos los hospitalizados';
-        metaEl.textContent = 'Este módulo trabaja sobre el censo completo.';
-        changeButton.hidden = true;
-        return;
-      }
+      if (!PATIENT_BOUND_MODULES.has(module)) return;
+      root.dataset.selectedEncounterId = initialEncId || '';
+      const dialog = root.querySelector('.hhr-center-dialog');
+      const picker = document.createElement('div');
+      picker.id = 'hhr-order-patient-picker';
+      picker.className = 'hhr-patientbar-picker';
+      picker.setAttribute('role', 'dialog');
+      picker.setAttribute('aria-label', 'Elegir paciente de Eloísa');
+      picker.innerHTML = `<input class="hhr-rx-search hhr-patientbar-search" type="search"
+        placeholder="Nombre, documento o cama" aria-label="Buscar paciente en el censo">
+        <div class="hhr-patientbar-list" role="listbox" aria-label="Pacientes hospitalizados"></div>
+        <button type="button" class="hhr-center-action hhr-census-current" hidden>Usar la ficha abierta</button>`;
+      const search = picker.querySelector('input');
+      const list = picker.querySelector('[role="listbox"]');
+      const currentChart = picker.querySelector('.hhr-census-current');
+      let trigger, census, pendingCensus, routeId;
 
-      let selected = /^\d+$/.test(String(initialEncId || '')) ? String(initialEncId) : '';
-      root.dataset.selectedEncounterId = selected;
-      let censusPatients = [];
-      let censusLoaded = false;
-
-      const refreshIdentity = async () => {
-        const requestedEncId = selected;
-        const routeEncId = currentRouteEncounterId();
-        routeBadge.hidden = !requestedEncId || !routeEncId || requestedEncId === routeEncId;
-        if (!requestedEncId) {
-          nameEl.textContent = 'Sin paciente seleccionado';
-          metaEl.textContent = 'Elige un paciente del censo para continuar.';
-          return;
-        }
-        nameEl.textContent = 'Identificando…';
-        metaEl.textContent = '';
-        const response = await sendMessage({
-          type: runtimeMessages.PATIENT_HEADER_REQUEST,
-          encId: requestedEncId,
-        });
-        if (!root.isConnected || root.dataset.selectedEncounterId !== requestedEncId) return;
-        if (['manual', 'blank'].includes(root.querySelector('[name="hhr-labreq-patient-source"]:checked')?.value)) return;
-        if (!response || response.error) {
-          nameEl.textContent = 'Paciente no identificado';
-          metaEl.textContent = String((response && response.error) || '');
-          return;
-        }
-        const patient = response.patient || {};
-        nameEl.textContent = patient.name || 'Paciente sin nombre';
-        metaEl.textContent = [
-          patient.formattedRun || patient.run,
-          [patient.bed, patient.service].filter(Boolean).join(' · '),
-          patient.age,
-          patient.diagnosis,
-        ].filter(Boolean).join('  ·  ');
-        metaEl.title = metaEl.textContent;
+      const close = () => {
+        trigger?.setAttribute('aria-expanded', 'false');
+        trigger?.removeAttribute('aria-controls');
+        trigger = null;
+        picker.remove();
       };
-
-      const closePicker = () => {
-        picker.hidden = true;
-        changeButton.setAttribute('aria-expanded', 'false');
+      const select = encId => {
+        runClinicalTransition(root, () => {
+          if (!dialog.isConnected) return;
+          close();
+          if (root.dataset.selectedEncounterId !== encId) {
+            const flow = dialog.querySelector('.hhr-flow-tabs [aria-selected="true"]')?.dataset.flow;
+            root.dataset.selectedEncounterId = encId;
+            renderModule(encId, flow);
+          }
+          // De Eloísa becomes the printable source only after an explicit choice.
+          const field = dialog.querySelector('input[name="hhr-labreq-patient-source"][value="current"]');
+          if (field && !field.disabled && !field.checked) {
+            field.checked = true;
+            field.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          dialog.querySelector('.hhr-census-trigger')?.focus();
+        });
+      };
+      const showNotice = message => {
+        const notice = document.createElement('div');
+        notice.className = 'hhr-patientbar-empty';
+        notice.setAttribute('role', 'status');
+        notice.textContent = message;
+        list.replaceChildren(notice);
       };
       const renderList = () => {
-        list.innerHTML = '';
         const query = normalizedText(search.value);
-        censusPatients
-          .filter(patient => !query ||
-            normalizedText([patient.name, patient.run, patient.bed, patient.service].join(' ')).includes(query))
-          .forEach(patient => {
-            const option = document.createElement('button');
-            option.type = 'button';
-            option.className = 'hhr-patientbar-option' + (patient.encounterId === selected ? ' is-selected' : '');
-            option.setAttribute('role', 'option');
-            option.setAttribute('aria-selected', String(patient.encounterId === selected));
-            const bed = document.createElement('span');
-            bed.className = 'hhr-rx-bed';
-            bed.textContent = patient.bed || '—';
-            const name = document.createElement('span');
-            name.className = 'hhr-patientbar-option-name';
-            name.textContent = patient.name || 'Paciente sin nombre';
-            const meta = document.createElement('span');
-            meta.className = 'hhr-patientbar-option-meta';
-            meta.textContent = [patient.run, patient.service, patient.isCurrent ? 'Episodio abierto' : '']
-              .filter(Boolean).join(' · ');
-            option.append(bed, name, meta);
-            option.addEventListener('click', () => {
-              if (patient.encounterId === selected) {
-                closePicker();
-                return;
-              }
-              runClinicalTransition(root, () => {
-                closePicker();
-                selected = patient.encounterId;
-                root.dataset.selectedEncounterId = selected;
-                void refreshIdentity();
-                renderModule(selected);
-              });
-            });
-            list.appendChild(option);
-          });
-        if (!list.children.length) {
-          const empty = document.createElement('div');
-          empty.className = 'hhr-patientbar-empty';
-          empty.textContent = 'Sin coincidencias en el censo.';
-          list.appendChild(empty);
+        const chartListed = census?.some(patient => String(patient.encounterId) === routeId);
+        currentChart.hidden = Boolean(query || !/^\d+$/.test(routeId) || chartListed);
+        if (!census) return;
+        list.replaceChildren();
+        const documentQuery = query.replace(/[.\s-]/g, '');
+        for (const patient of census) {
+          const encId = String(patient.encounterId || '');
+          if (!/^\d+$/.test(encId)) continue;
+          const identity = [patient.name, patient.run, patient.bed, patient.service].join(' ');
+          const documentMatch = documentQuery && normalizedText(patient.run).replace(/[.\s-]/g, '').includes(documentQuery);
+          if (query && !normalizedText(identity).includes(query) && !documentMatch) continue;
+          const option = document.createElement('button');
+          option.type = 'button';
+          option.className = 'hhr-patientbar-option';
+          option.setAttribute('role', 'option');
+          option.setAttribute('aria-selected', String(encId === root.dataset.selectedEncounterId && trigger?.getAttribute('aria-pressed') !== 'false'));
+          option.innerHTML = '<span class="hhr-rx-bed"></span><span class="hhr-patientbar-option-name"></span><span class="hhr-patientbar-option-meta"></span>';
+          const [bed, name, meta] = option.children;
+          bed.textContent = patient.bed || '—';
+          name.textContent = patient.name || 'Paciente sin nombre';
+          meta.textContent = [patient.run, patient.service, patient.isCurrent ? 'Episodio abierto' : ''].filter(Boolean).join(' · ');
+          option.addEventListener('click', () => select(encId));
+          list.append(option);
         }
+        if (!list.childElementCount) showNotice(query ? 'Sin coincidencias en el censo.' : 'No hay pacientes en el censo.');
       };
-      const openPicker = async () => {
-        picker.hidden = false;
-        changeButton.setAttribute('aria-expanded', 'true');
+      const open = async button => {
+        trigger = button;
+        routeId = String(currentRouteEncounterId() || '');
+        button.closest('.hhr-census-anchor').append(picker);
+        button.setAttribute('aria-expanded', 'true');
+        button.setAttribute('aria-controls', picker.id);
         search.value = '';
         search.focus();
-        if (!censusLoaded) {
-          list.innerHTML = '<div class="hhr-patientbar-empty">Cargando censo…</div>';
-          const response = await sendMessage({
-            type: runtimeMessages.CENSUS_LIST_REQUEST,
-            currentEncId: currentRouteEncounterId(),
-          });
-          if (!root.isConnected || picker.hidden) return;
-          if (!response || response.error) {
-            list.innerHTML = '';
-            const failure = document.createElement('div');
-            failure.className = 'hhr-patientbar-empty';
-            failure.textContent = (response && response.error) || 'No se pudo leer el censo.';
-            list.appendChild(failure);
+        if (!census) {
+          renderList();
+          showNotice('Cargando censo…');
+          pendingCensus ||= sendMessage({ type: runtimeMessages.CENSUS_LIST_REQUEST, currentEncId: routeId })
+            .then(response => {
+              if (!Array.isArray(response?.patients) || response.error) throw new Error(response?.error || 'No se pudo leer el censo.');
+              census = response.patients;
+            }).finally(() => { pendingCensus = null; });
+          try { await pendingCensus; } catch (error) {
+            if (picker.isConnected && trigger === button) showNotice(error.message || 'No se pudo leer el censo.');
             return;
           }
-          censusPatients = Array.isArray(response.patients) ? response.patients : [];
-          censusLoaded = true;
         }
-        renderList();
+        if (picker.isConnected && trigger === button) renderList();
       };
-      changeButton.addEventListener('click', () => {
-        if (picker.hidden) void openPicker();
-        else closePicker();
+      currentChart.addEventListener('click', () => {
+        if (/^\d+$/.test(routeId) && routeId === String(currentRouteEncounterId() || '')) select(routeId);
       });
       search.addEventListener('input', renderList);
-      root.addEventListener('click', event => {
-        if (!picker.hidden && !bar.contains(event.target)) closePicker();
+      dialog.addEventListener('click', event => {
+        const button = event.target.closest('.hhr-census-trigger');
+        if (button && (button !== trigger || !picker.isConnected)) { close(); void open(button); }
+        else if (!picker.contains(event.target)) close();
       });
-      bar.addEventListener('keydown', event => {
-        if (event.key === 'Escape' && !picker.hidden) {
-          event.stopPropagation();
-          closePicker();
-          changeButton.focus();
+      picker.addEventListener('focusout', event => {
+        if (event.relatedTarget !== trigger && !picker.contains(event.relatedTarget)) close();
+      });
+      picker.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+          event.preventDefault(); event.stopPropagation();
+          const button = trigger;
+          close(); button?.focus();
+          return;
+        }
+        const options = Array.from(list.querySelectorAll('[role="option"]'));
+        if (!options.length) return;
+        const index = options.indexOf(event.target);
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          event.preventDefault();
+          const next = event.key === 'ArrowDown' ? Math.min(index + 1, options.length - 1) : (index < 0 ? options.length - 1 : Math.max(0, index - 1));
+          options[next].focus();
+        } else if (event.key === 'Enter' && event.target === search) {
+          event.preventDefault();
+          if (options.length === 1) options[0].click();
+          else options[0].focus();
         }
       });
-      void refreshIdentity();
     };
 
     return Object.freeze({

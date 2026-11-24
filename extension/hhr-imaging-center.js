@@ -27,7 +27,7 @@
       throw new Error('No se pudo inicializar el Centro de Imágenes HHR.');
     }
 
-    const renderImagingCenter = (root, encId) => {
+    const renderImagingCenter = (root, encId, flow = 'request') => {
       globalThis.HhrRequestDrafts?.checkpoint(root);
       root.dataset.selectedEncounterId = String(encId || '');
       const main = root.querySelector('.hhr-center-main');
@@ -47,39 +47,32 @@
       const feedback = main.querySelector('.hhr-imaging-feedback');
       const docTabs = Array.from(main.querySelectorAll('.hhr-imaging-tabs .hhr-rx-tab'));
       const contentHost = main.querySelector('.hhr-center-content');
-      main.querySelector('.hhr-flow-tabs [data-flow="reports"]').addEventListener('click', event => {
+      const showReports = () => {
+        if (!printButton.isConnected) return;
+        globalThis.HhrRequestDrafts?.checkpoint(root);
+        printButton.closest('.hhr-request-actions').remove();
+        main.querySelector('.hhr-request-toolbar').classList.remove('hhr-request-toolbar');
         main.querySelectorAll('.hhr-flow-tabs .hhr-rx-tab').forEach(tab =>
-          tab.setAttribute('aria-selected', String(tab === event.currentTarget)));
-        contentHost.innerHTML = `
-          <div class="hhr-connection-grid" style="padding-top:12px">
-            <section class="hhr-connection-card">
-              <div class="hhr-connection-card-header">
-                <span class="hhr-connection-icon">IMG</span>
-                <div><h3>Visualizar informes</h3><span class="hhr-connection-status">En preparación</span></div>
-              </div>
-              <div class="hhr-connection-user">Resultados de imagenología
-                <span class="hhr-connection-detail">La visualización de informes radiológicos dentro de este panel está en preparación. Por ahora revísalos en el visor habitual del servicio; la solicitud sigue disponible en la pestaña «Solicitar».</span>
-              </div>
-            </section>
-          </div>`;
-      });
+          tab.setAttribute('aria-selected', String(tab.dataset.flow === 'reports')));
+        contentHost.innerHTML = globalThis.HhrImagingRequestView.reports();
+        globalThis.HhrCenterPatientContext?.setOrderEpisode(root, encId);
+      };
+      main.querySelector('.hhr-flow-tabs [data-flow="reports"]').addEventListener('click', showReports);
       main.querySelector('.hhr-flow-tabs [data-flow="request"]').addEventListener('click', () =>
         renderImagingCenter(root, encId)
       );
+      if (flow === 'reports') { showReports(); return; }
       let selectedDoc = 'solicitud';
       let toolMode = 'cross';
       let episodePatient;
       let printing = false;
       const patient = globalThis.HhrLabRequestPatient.createController({ main, readEpisodePatient: () => episodePatient });
+      const sheet = globalThis.HhrImagingRequestView.bindSheet(main, patient, field => draft?.markEdited(field));
       const refreshPatient = () => {
-        const local = patient.usesLocalPatient();
         const chosen = patient.printablePatient();
-        globalThis.HhrCenterPatientContext?.set(root, {
-          encId: local ? '' : encId,
-          patient: local ? { ...chosen, name: chosen?.name || patient.localLabel() } : episodePatient?.patient,
-        });
-        globalThis.HhrCenterPatientContext?.refreshRoute(root, globalThis.HhrPrescriptionPrint?.resolveEncounterId(location.href) || '');
+        globalThis.HhrCenterPatientContext?.setOrderEpisode(root, patient.usesLocalPatient() ? '' : encId);
         patient.refresh();
+        sheet.refresh();
         printButton.disabled = printing || !chosen;
         renderOverlays();
       };
@@ -130,19 +123,27 @@
 
       const renderDocument = () => {
         const doc = documents[selectedDoc];
-        canvas.style.aspectRatio = doc.aspectRatio.replace(/\s/g, '');
+        canvas.style.setProperty('--hhr-sheet-ratio', doc.aspectRatio);
         try {
           image.src = chrome.runtime.getURL(doc.image);
         } catch (_error) {}
         docTabs.forEach(tab => tab.setAttribute('aria-selected', String(tab.dataset.doc === selectedDoc)));
         renderOverlays();
       };
+      const revealKeyboardCursor = () => {
+        const cursor = overlaysHost.querySelector('.hhr-imaging-keyboard-cursor');
+        if (!cursor) return;
+        const stage = canvas.parentElement;
+        const viewport = stage.getBoundingClientRect(), point = cursor.getBoundingClientRect();
+        if (point.bottom > viewport.bottom) stage.scrollTop += point.bottom - viewport.bottom;
+        else if (point.top < viewport.top) stage.scrollTop -= viewport.top - point.top;
+      };
       const draft = globalThis.HhrRequestDrafts?.attach({ root, main, kind: 'imaging', encId,
         isManual: value => ['manual', 'blank'].includes(value.source),
         fieldForEvent: event => event.target.dataset.manual ? ['custom', event.target.dataset.manual] :
           event.target.name === 'hhr-labreq-patient-source' ? 'source' : event.target === physicianInput ? 'physician' :
           event.target.matches('.hhr-imaging-text-editor') ? ['marksByDoc', selectedDoc] : null,
-        capture: () => ({ selectedDoc, toolMode, physician: physicianInput.value, marksByDoc,
+        capture: () => ({ ...sheet.capture(), selectedDoc, toolMode, physician: physicianInput.value, marksByDoc,
           source: patient.source(), custom: Object.fromEntries(Array.from(main.querySelectorAll('[data-manual]'), input => [input.dataset.manual, input.value])) }),
         restore: state => {
           const sources = [...main.querySelectorAll('[name="hhr-labreq-patient-source"]')];
@@ -156,6 +157,7 @@
             const active = button.dataset.tool === toolMode; button.classList.toggle('is-active', active);
             button.setAttribute('aria-pressed', String(active));
           });
+          sheet.restore(state);
           refreshPatient(); renderDocument();
         } });
 
@@ -174,6 +176,7 @@
           if (text) {
             draft?.markEdited(['marksByDoc', selectedDoc]);
             marksByDoc[selectedDoc].push({ x, y, text });
+            sheet.marked();
           }
           if (!restoreCanvasFocus) keyboardActive = false;
           renderOverlays();
@@ -199,22 +202,25 @@
         editor.focus();
       };
 
+      const markAt = (x, y) => {
+        if (toolMode === 'text') { openTextEditor(x, y); return; }
+        draft?.markEdited(['marksByDoc', selectedDoc]);
+        marksByDoc[selectedDoc].push({ x, y });
+        sheet.marked();
+        renderOverlays();
+      };
       canvas.addEventListener('click', event => {
         if (!patient.printablePatient()) return;
         if (event.target.closest('.hhr-imaging-text-editor')) return;
-        draft?.markEdited(['marksByDoc', selectedDoc]);
         const rect = canvas.getBoundingClientRect();
         const x = Math.round(((event.clientX - rect.left) / rect.width) * 1000) / 10;
         const y = Math.round(((event.clientY - rect.top) / rect.height) * 1000) / 10;
-        if (toolMode === 'text') openTextEditor(x, y);
-        else {
-          marksByDoc[selectedDoc].push({ x, y });
-          renderOverlays();
-        }
+        markAt(x, y);
       });
       canvas.addEventListener('focus', () => {
         keyboardActive = true;
         renderOverlays();
+        if (canvas.matches(':focus-visible')) revealKeyboardCursor();
       });
       canvas.addEventListener('blur', event => {
         if (
@@ -233,17 +239,13 @@
         else if (event.key === 'ArrowDown') keyboardPoint.y = Math.min(100, keyboardPoint.y + step);
         else if ((event.key === 'Enter' || event.key === ' ') && patient.printablePatient()) {
           event.preventDefault();
-          draft?.markEdited(['marksByDoc', selectedDoc]);
-          if (toolMode === 'text') openTextEditor(keyboardPoint.x, keyboardPoint.y);
-          else {
-            marksByDoc[selectedDoc].push({ x: keyboardPoint.x, y: keyboardPoint.y });
-            renderOverlays();
-          }
+          markAt(keyboardPoint.x, keyboardPoint.y);
           return;
         } else return;
         event.preventDefault();
         keyboardActive = true;
         renderOverlays();
+        revealKeyboardCursor();
       });
       main.querySelectorAll('.hhr-imaging-tool').forEach(button => {
         button.addEventListener('click', () => {
@@ -318,7 +320,8 @@
       main.querySelector('.hhr-labreq-patient').addEventListener('input', event => {
         if (event.target.dataset.manual) refreshPatient();
       });
-      main.querySelector('.hhr-labreq-patient-source').addEventListener('change', () => {
+      main.querySelector('.hhr-labreq-patient-source').addEventListener('change', event => {
+        if (event.target.name !== 'hhr-labreq-patient-source') return;
         setFeedback('');
         if (patient.usesLocalPatient()) draft?.confirmManual();
         else if (episodePatient) draft?.confirm(episodePatient.patient.patientId, episodePatient.actorId);

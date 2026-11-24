@@ -118,6 +118,7 @@
     solicitud: {
       id: 'solicitud',
       title: 'Formulario Solicitud',
+      tabLabel: 'Solicitud',
       image: 'forms/solicitud_imagenologia.png',
       pdf: 'forms/solicitud-imagen.pdf',
       aspectRatio: '612 / 936',
@@ -148,6 +149,7 @@
     encuesta: {
       id: 'encuesta',
       title: 'Encuesta Medio Contraste',
+      tabLabel: 'Contraste',
       image: 'forms/encuesta_imagenologia.png',
       pdf: 'forms/encuesta-contraste.pdf',
       aspectRatio: '612 / 792',
@@ -176,9 +178,10 @@
     consentimiento: {
       id: 'consentimiento',
       title: 'Consentimiento Informado',
+      tabLabel: 'Consentimiento',
       image: 'forms/consentimiento.png',
       pdf: 'forms/consentimiento.pdf',
-      aspectRatio: '612 / 842',
+      aspectRatio: '4961 / 7017',
       coords: CONSENTIMIENTO_FIELD_COORDS,
       overlays: (view, physician) => [
         { text: view.nombres, left: '31.65%', top: '21.7%', small: true },
@@ -250,15 +253,21 @@
   const escapeHtml = value => String(value == null ? '' : value)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+  const LAB_MAX_COPIES = 99;
+
   /**
    * Printable HTML replica of the official laboratory request form, laid out to match the
    * PDF that the HHR app produces: cross checkmarks, TUBO VERDE nested inside
    * BIOQUIMICA, two-column HEMATOLOGIA, merged ORINA/PARÁSITOS and VIROLOGÍA/OTROS panels,
    * and the bottom INMUNOLOGIA + OTROS/MEDICO/FIRMA block. `state` carries
    * {patient:{name,run,birthDate}, diagnosis, ficha, procedencia, fonasaLevel, prais,
-   *  selected:Set|Array, otros, medico, logoUrl}.
+   *  selected:Set|Array, otros, medico, logoUrl, copies?:number}.
    */
   const buildLabRequestPrintHtml = state => {
+    const copies = state.copies ?? 1;
+    if (!Number.isInteger(copies) || copies < 1 || copies > LAB_MAX_COPIES) {
+      throw new RangeError('Elige entre 1 y ' + LAB_MAX_COPIES + ' copias.');
+    }
     const selected = new Set(Array.isArray(state.selected) ? state.selected : Array.from(state.selected || []));
     const byId = Object.fromEntries(EXAM_CATEGORIES.map(category => [category.id, category]));
     const box = isOn => `<span class="box${isOn ? ' on' : ''}">${isOn ? '&times;' : ''}</span>`;
@@ -315,10 +324,12 @@
       .map(level => `<span class="prev-item">${escapeHtml(level)} ${box(state.fonasaLevel === level)}</span>`)
       .join('');
 
-    return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Solicitud de Exámenes de Laboratorio</title>
+    const documentStart = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Solicitud de Exámenes de Laboratorio</title>
 <style>
   * { box-sizing: border-box; }
-  body { margin: 0; padding: 3mm 4mm; color: #111; font: 11px/1.3 Arial, Helvetica, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { margin: 0; color: #111; font: 11px/1.3 Arial, Helvetica, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .lab-order-copy { padding: 3mm 4mm; }
+  .lab-order-copy + .lab-order-copy { break-before: page; }
   .head { display: flex; align-items: center; gap: 12px; padding-bottom: 6px; }
   .head img { width: 50px; height: 46px; object-fit: contain; }
   .head .brand { font-weight: 700; font-size: 12.5px; line-height: 1.15; white-space: nowrap; }
@@ -355,7 +366,8 @@
   .bottom .line b { white-space: nowrap; font-size: 9.5px; }
   .bottom .line span { flex: 1; border-bottom: 1px solid #111; min-height: 12px; padding: 0 3px; font-weight: 700; text-transform: uppercase; } .bottom .line span.two-lines { border-bottom: 0; min-height: 30px; line-height: 15px; background: repeating-linear-gradient(transparent 0 14px, #111 14px 15px); } .bottom .line span.two-lines::before { content: '\\200b'; }
   @page { size: letter portrait; margin: 4mm; }
-</style></head><body>
+</style></head><body>`;
+    const page = `<section class="lab-order-copy">
   <div class="head">
     ${state.logoUrl ? `<img src="${escapeHtml(state.logoUrl)}" alt="">` : ''}
     <div class="brand">HOSPITAL HANGA ROA<small>UNIDAD DE LABORATORIO</small></div>
@@ -387,7 +399,8 @@
       <div class="line"><b>FIRMA:</b><span></span></div>
     </div>
   </div>
-</body></html>`;
+</section>`;
+    return documentStart + page.repeat(copies) + '</body></html>';
   };
 
   globalThis.HhrRequestForms = {
@@ -401,6 +414,7 @@
     PROCEDENCIA_OPTIONS,
     FONASA_LEVELS,
     LAB_FORM_COLUMNS,
+    LAB_MAX_COPIES,
     buildLabRequestPrintHtml,
   };
 })();

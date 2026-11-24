@@ -72,6 +72,7 @@
     indications: strokeIcon(
       '<path d="M14.5 2.5H6a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8L14.5 2.5Z"/><path d="M14 2.5V8h6"/><path d="M15.5 13h-7"/><path d="M15.5 17h-7"/>'
     ),
+    results: strokeIcon('<path d="M6 3h12v18H6z"/><path d="M8 13h2l2-4 2 6 1-2h1"/>'),
     lab: strokeIcon(
       '<path d="M9.5 2.5v6.6L4 18.9a1.9 1.9 0 0 0 1.7 2.8h12.6a1.9 1.9 0 0 0 1.7-2.8L14.5 9.1V2.5"/><path d="M8 2.5h8"/><path d="M6.6 15.5h10.8"/>'
     ),

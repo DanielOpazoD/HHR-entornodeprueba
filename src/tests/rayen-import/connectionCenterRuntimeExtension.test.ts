@@ -109,7 +109,7 @@ describe('Centro HHR connection runtime', () => {
 
     await expect(runtime.refreshOperationsConnectionBadge(bar, true)).resolves.toBeNull();
     expect(bar.shadowRoot?.querySelector('.hhr-ops-session')?.getAttribute('aria-label')).toBe(
-      'Extensión sin respuesta. Comprueba la extensión en Chrome y reintenta.'
+      'Abrir conexiones · Extensión sin respuesta'
     );
     expect(
       bar.shadowRoot?.querySelector('.hhr-ops-session')?.classList.contains('is-offline')
