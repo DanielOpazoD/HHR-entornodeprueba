@@ -120,6 +120,8 @@ const OPTIONAL_TARGETS: Record<string, string> = {
     'Authorization lookup for an explicit specialty action.',
   'src/services/census/invalidClinicalEpisodeService':
     'The «paciente no válido» mark starts on request; without the server nothing is removed.',
+  'src/services/clinical-checklists/checklistService':
+    'The online checklist request starts when the clinician opens or submits an Eloísa form and reports errors in that form.',
   'src/services/exporters/censusMasterExport': 'Export starts only on request.',
   'src/services/exporters/censusMasterWorkbook':
     'The backup workbook is built only after a census email is sent.',
