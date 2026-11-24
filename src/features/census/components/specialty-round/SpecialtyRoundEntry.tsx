@@ -1,5 +1,6 @@
 import { SPECIALTY_TRIGGER_CLASS, SpecialtyRoundTriggerLabel } from './SpecialtyRoundTrigger';
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { ListChecks, Sparkles, Settings2 } from 'lucide-react';
 import { useDailyRecordBeds } from '@/context/DailyRecordContext';
 import { useAuth } from '@/context/AuthContext';
@@ -9,12 +10,12 @@ import { buildSpecialtyRoundCandidates } from './specialtyRoundModel';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { canPublishSpecialtyDecision } from '@/shared/access/operationalAccessPolicy';
 
-const SpecialtyRoundWindow = lazy(() =>
+const SpecialtyRoundWindow = lazyWithRetry(() =>
   import('./SpecialtyRoundWindow').then(module => ({
     default: module.SpecialtyRoundWindow,
   }))
 );
-const SpecialtyRulesWindow = lazy(() =>
+const SpecialtyRulesWindow = lazyWithRetry(() =>
   import('./SpecialtyRulesWindow').then(module => ({
     default: module.SpecialtyRulesWindow,
   }))

@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { buttonClassName } from '@/components/ui/base/buttonStyles';
@@ -22,18 +23,18 @@ import { loadMedifTool, loadPharmacyTool, TOOL_REGISTRY } from './toolRegistry';
 import type { ClinicalFormId } from '../domain/forms/clinicalFormTypes';
 
 const loadClinicalFormTool = () => import('./tools/ClinicalFormTool');
-const ClinicalFormTool = React.lazy(() =>
+const ClinicalFormTool = lazyWithRetry(() =>
   loadClinicalFormTool().then(module => ({ default: module.ClinicalFormTool }))
 );
 
 // Both editors carry the shared guard, so closing an already open draft works offline.
-const LibraryExitConfirmation = React.lazy(() =>
+const LibraryExitConfirmation = lazyWithRetry(() =>
   loadMedifTool().then(module => ({ default: module.LibraryExitConfirmation }))
 );
-const ClinicalFormExitConfirmation = React.lazy(() =>
+const ClinicalFormExitConfirmation = lazyWithRetry(() =>
   loadClinicalFormTool().then(module => ({ default: module.LibraryExitConfirmation }))
 );
-const PharmacyExitConfirmation = React.lazy(() =>
+const PharmacyExitConfirmation = lazyWithRetry(() =>
   loadPharmacyTool().then(module => ({ default: module.PharmacyExitConfirmation }))
 );
 

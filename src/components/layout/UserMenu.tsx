@@ -4,9 +4,12 @@
  */
 
 import React, { lazy, Suspense, useState } from 'react';
-const NursingPasswordDialog = lazy(() => import('./NursingPasswordDialog'));
-const UserSignatureDialog = lazy(() => import('./UserSignatureDialog'));
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
+const NursingPasswordDialog = lazyWithRetry(() => import('./NursingPasswordDialog'));
+const UserSignatureDialog = lazyWithRetry(() => import('./UserSignatureDialog'));
 import { GlobalErrorBoundary } from '@/components/shared/GlobalErrorBoundary';
+// UserMenuPanel intentionally stays on raw lazy() behind GlobalErrorBoundary fallbackComponent={logoutFallback}
+// so nurses on shared workstations can always sign out even if the menu chunk fails.
 const UserMenuPanel = lazy(() => import('./UserMenuPanel'));
 import { UserRole } from '@/hooks/useAuthState';
 import type { AuthContextType } from '@/context/AuthContext';

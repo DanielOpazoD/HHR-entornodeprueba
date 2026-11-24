@@ -1,4 +1,5 @@
-import React, { Suspense, lazy, useState } from 'react';
+import React, { Suspense, useState } from 'react';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import clsx from 'clsx';
 import {
   CensusMovementPrimaryCells,
@@ -10,7 +11,7 @@ import type { DischargeData } from '@/types/domain/movements';
 import { MailWarning } from 'lucide-react';
 import { CensusMovementEpicrisisButton } from './CensusMovementEpicrisisButton';
 
-const LazyFugaNotificationModal = lazy(() =>
+const LazyFugaNotificationModal = lazyWithRetry(() =>
   import('@/features/census/components/FugaNotificationModal').then(module => ({
     default: module.FugaNotificationModal,
   }))

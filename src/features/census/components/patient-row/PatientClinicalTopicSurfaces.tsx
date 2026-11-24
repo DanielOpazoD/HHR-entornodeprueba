@@ -7,17 +7,18 @@ import type { PatientData } from '@/types/domain/patient';
  */
 
 import React from 'react';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 
 import { ClinicalPanelTrigger } from './ClinicalPanelTrigger';
 import { resolveNameInputState } from './nameInputController';
 
-const LabResultsViewerModal = React.lazy(() =>
+const LabResultsViewerModal = lazyWithRetry(() =>
   import('@/features/laboratory').then(module => ({
     default: module.LabResultsViewerModal,
   }))
 );
 
-const RadiologyViewerModal = React.lazy(() =>
+const RadiologyViewerModal = lazyWithRetry(() =>
   import('@/features/radiology/components/RadiologyViewerModal').then(module => ({
     default: module.RadiologyViewerModal,
   }))

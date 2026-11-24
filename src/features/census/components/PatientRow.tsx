@@ -1,4 +1,5 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense } from 'react';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { resolvePatientRowModalMountState } from '@/features/census/controllers/patientRowModalRenderController';
 
 // Sub-components
@@ -7,7 +8,7 @@ import { PatientMainRowView } from './patient-row/PatientMainRowView';
 import { usePatientRowBindingsModel } from './patient-row/usePatientRowBindingsModel';
 import type { PatientRowProps } from './patient-row/patientRowContracts';
 
-const LazyPatientRowModals = lazy(() =>
+const LazyPatientRowModals = lazyWithRetry(() =>
   import('./patient-row/PatientRowModals').then(module => ({
     default: module.PatientRowModals,
   }))

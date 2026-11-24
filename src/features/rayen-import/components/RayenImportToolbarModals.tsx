@@ -1,11 +1,11 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense } from 'react';
 import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import type { RayenImportPreviewModalProps } from './RayenImportPreviewModal';
 import type { RayenSyncRecoveryPresentation } from './rayenSyncRecoveryPresentation';
 
-const LazyRayenSyncHistoryModal = lazy(() =>
+const LazyRayenSyncHistoryModal = lazyWithRetry(() =>
   import('./RayenSyncHistoryModal').then(module => ({ default: module.RayenSyncHistoryModal }))
 );
 

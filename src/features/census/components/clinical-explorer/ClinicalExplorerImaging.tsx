@@ -1,4 +1,5 @@
-import React, { lazy, Suspense, useLayoutEffect, useRef, useState } from 'react';
+import React, { Suspense, useLayoutEffect, useRef, useState } from 'react';
+import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { FileText, Images } from 'lucide-react';
 import { XRayIcon } from '@/components/ui/XRayIcon';
 import { hasMMRADStructuredReport } from '@/features/radiology/controllers/radiologyViewerContentController';
@@ -36,7 +37,7 @@ import { ClinicalExplorerReportActions } from './ClinicalExplorerReportActions';
 import { ClinicalExplorerIdentityNotice } from './ClinicalExplorerIdentityNotice';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
-const DicomViewerDialog = lazy(() =>
+const DicomViewerDialog = lazyWithRetry(() =>
   import('@/features/radiology/dicom-viewer/DicomViewerDialog').then(module => ({
     default: module.DicomViewerDialog,
   }))
