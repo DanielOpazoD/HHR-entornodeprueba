@@ -15,6 +15,7 @@ import {
 import { PatientStatus } from '@/types/domain/patientClassification';
 import { BedType, type BedDefinition } from '@/types/domain/beds';
 import * as handoffViewController from '@/features/handoff/controllers/handoffViewController';
+import { WoundCarePhotoRepository } from '@/features/wound-care/services/WoundCarePhotoRepository';
 
 describe('HandoffRow', () => {
   const mockPatient = createMockPatient({
@@ -277,6 +278,73 @@ describe('HandoffRow', () => {
       expect(onNightNoteChange).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  it('batches wound-care photo counts across occupied handoff beds into a single repository read', async () => {
+    const countSpy = vi.spyOn(WoundCarePhotoRepository, 'countByEpisodeKeys').mockResolvedValue({});
+    const listSpy = vi.spyOn(WoundCarePhotoRepository, 'listByEpisode').mockResolvedValue([]);
+
+    try {
+      const beds: BedDefinition[] = [
+        { id: 'R1', name: 'R1', type: BedType.UTI, isCuna: false },
+        { id: 'R2', name: 'R2', type: BedType.UTI, isCuna: false },
+        { id: 'R3', name: 'R3', type: BedType.MEDIA, isCuna: false },
+      ];
+      const record = createMockRecord('2026-11-22');
+      record.beds = {
+        R1: createMockPatient({
+          bedId: 'R1',
+          patientName: 'Paciente Uno',
+          rut: '11.111.111-1',
+          admissionDate: '2026-11-20',
+        }),
+        R2: createMockPatient({
+          bedId: 'R2',
+          patientName: 'Paciente Dos',
+          rut: '22.222.222-2',
+          admissionDate: '2026-11-21',
+        }),
+        R3: createMockPatient({
+          bedId: 'R3',
+          patientName: 'Paciente Tres',
+          rut: '33.333.333-3',
+          admissionDate: '2026-11-22',
+        }),
+      };
+      const stableRules = buildStabilityRules(
+        { date: record.date },
+        { isAdmin: false, isEditor: true, todayISO: record.date }
+      );
+
+      render(
+        <DailyRecordProvider
+          value={{
+            ...createMockDailyRecordContext(record),
+            stabilityRules: stableRules,
+          }}
+        >
+          <HandoffPatientTable
+            visibleBeds={beds}
+            record={record}
+            noteField="handoffNoteDayShift"
+            onNoteChange={vi.fn()}
+            tableHeaderClass="bg-slate-50"
+            readOnly={false}
+            hasAnyPatients={true}
+            shouldShowPatient={() => true}
+          />
+        </DailyRecordProvider>
+      );
+
+      await act(async () => {});
+
+      expect(countSpy).toHaveBeenCalledTimes(1);
+      expect(countSpy.mock.calls[0][0]).toHaveLength(3);
+      expect(listSpy).not.toHaveBeenCalled();
+    } finally {
+      countSpy.mockRestore();
+      listSpy.mockRestore();
     }
   });
 });

@@ -1,36 +1,73 @@
 /**
  * Hook: Lightweight check if a patient episode has wound care photos.
- * Polls the active episode without overlapping reads.
  *
- * Every handoff row runs its own read, and each read lists all photos of the episode, so the
- * badge refreshes every 5 minutes instead of every 30 s. Returning to the tab refreshes a count
- * older than a minute, and the caller bumps `refreshToken` when the wound-care modal closes.
+ * Inside `WoundCarePhotoCountProvider` (used by `HandoffPatientTable`), this subscribes
+ * granularly to the shared batched store with zero per-row timers or listeners, and triggers a
+ * targeted single-episode read only when `refreshToken` increments (e.g., modal close).
+ * Outside a provider, it falls back to standalone per-episode polling.
  */
 
-import { useState, useEffect } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { WoundCarePhotoRepository } from '@/features/wound-care/services/WoundCarePhotoRepository';
 import { logger } from '@/services/utils/loggerService';
+import {
+  IDLE_PHOTO_COUNT_STATE,
+  WOUND_CARE_PHOTO_POLL_INTERVAL_MS,
+  WOUND_CARE_PHOTO_RETURN_REFRESH_AFTER_MS,
+  WoundCarePhotoCountContext,
+  type ActivePhotoCountState,
+  type WoundCarePhotoCountState,
+} from './WoundCarePhotoCountContext';
 
-const POLL_INTERVAL_MS = 5 * 60_000;
-const RETURN_REFRESH_AFTER_MS = 60_000;
+export type { WoundCarePhotoCountState };
 
-type ActivePhotoCountState =
-  | { status: 'ready'; count: number }
-  | { status: 'loading' | 'unavailable'; previousCount: number | null };
-
-export type WoundCarePhotoCountState = { status: 'idle' } | ActivePhotoCountState;
+const NOOP_UNSUBSCRIBE = () => {};
+const GET_IDLE_STATE = () => IDLE_PHOTO_COUNT_STATE;
 
 export const useWoundCarePhotoCount = (
   episodeKey: string | undefined,
   refreshToken = 0
 ): WoundCarePhotoCountState => {
+  const batchStore = useContext(WoundCarePhotoCountContext);
+
+  const subscribeBatched = useCallback(
+    (listener: () => void) =>
+      batchStore ? batchStore.subscribe(episodeKey, listener) : NOOP_UNSUBSCRIBE,
+    [batchStore, episodeKey]
+  );
+
+  const getBatchedSnapshot = useCallback(
+    () => (batchStore ? batchStore.getSnapshot(episodeKey) : IDLE_PHOTO_COUNT_STATE),
+    [batchStore, episodeKey]
+  );
+
+  const batchedState = useSyncExternalStore(subscribeBatched, getBatchedSnapshot, GET_IDLE_STATE);
+
+  const lastRefreshRef = useRef<{ episodeKey: string | undefined; token: number }>({
+    episodeKey,
+    token: refreshToken,
+  });
+
+  useEffect(() => {
+    const previous = lastRefreshRef.current;
+    lastRefreshRef.current = { episodeKey, token: refreshToken };
+    if (
+      batchStore &&
+      episodeKey &&
+      previous.episodeKey === episodeKey &&
+      previous.token !== refreshToken
+    ) {
+      batchStore.refreshEpisode(episodeKey);
+    }
+  }, [batchStore, episodeKey, refreshToken]);
+
   const [result, setResult] = useState<{
     episodeKey: string;
     state: ActivePhotoCountState;
   } | null>(null);
 
   useEffect(() => {
-    if (!episodeKey) return;
+    if (batchStore || !episodeKey) return;
 
     let cancelled = false;
     let pending = false;
@@ -71,13 +108,18 @@ export const useWoundCarePhotoCount = (
     };
 
     const refreshIfStale = () => {
-      if (lastReadAt === null || Date.now() - lastReadAt >= RETURN_REFRESH_AFTER_MS) fetch();
+      if (
+        lastReadAt === null ||
+        Date.now() - lastReadAt >= WOUND_CARE_PHOTO_RETURN_REFRESH_AFTER_MS
+      ) {
+        fetch();
+      }
     };
 
     fetch();
 
     // Hidden tabs skip the poll and catch up on return when the count is stale.
-    const interval = setInterval(fetch, POLL_INTERVAL_MS);
+    const interval = setInterval(fetch, WOUND_CARE_PHOTO_POLL_INTERVAL_MS);
     document.addEventListener('visibilitychange', refreshIfStale);
 
     return () => {
@@ -85,9 +127,10 @@ export const useWoundCarePhotoCount = (
       clearInterval(interval);
       document.removeEventListener('visibilitychange', refreshIfStale);
     };
-  }, [episodeKey, refreshToken]);
+  }, [batchStore, episodeKey, refreshToken]);
 
-  if (!episodeKey) return { status: 'idle' };
+  if (batchStore) return batchedState;
+  if (!episodeKey) return IDLE_PHOTO_COUNT_STATE;
   return result?.episodeKey === episodeKey
     ? result.state
     : { status: 'loading', previousCount: null };

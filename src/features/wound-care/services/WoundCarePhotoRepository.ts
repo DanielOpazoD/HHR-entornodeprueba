@@ -50,6 +50,8 @@ const validateReadPhoto = (record: WoundCarePhoto): WoundCarePhoto | null => {
   return parsed.data as WoundCarePhoto;
 };
 
+const EPISODE_KEY_QUERY_CHUNK_SIZE = 30;
+
 const sortByUploadedAtDesc = (photos: WoundCarePhoto[]): WoundCarePhoto[] =>
   [...photos].sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
 
@@ -90,6 +92,54 @@ export const WoundCarePhotoRepository = {
         .map(doc => validateReadPhoto(doc))
         .filter((doc): doc is WoundCarePhoto => Boolean(doc))
     );
+  },
+
+  /**
+   * Count non-deleted, schema-valid photos across multiple hospitalization episodes in batches.
+   *
+   * Uses Firestore `in` queries on the single-field `episodeKey` index (chunks of 30) and filters
+   * soft-deleted or malformed records client-side so a full handoff ward resolves in one read
+   * without requiring a new composite index. Read errors propagate to callers (SAVE-01).
+   */
+  async countByEpisodeKeys(
+    episodeKeys: readonly string[],
+    hospitalId: string = getActiveHospitalId()
+  ): Promise<Record<string, number>> {
+    const uniqueEpisodeKeys = Array.from(
+      new Set(episodeKeys.map(key => key.trim()).filter(Boolean))
+    );
+    if (uniqueEpisodeKeys.length === 0) {
+      return {};
+    }
+
+    const counts: Record<string, number> = Object.fromEntries(
+      uniqueEpisodeKeys.map(key => [key, 0])
+    );
+
+    const chunks: string[][] = [];
+    for (let index = 0; index < uniqueEpisodeKeys.length; index += EPISODE_KEY_QUERY_CHUNK_SIZE) {
+      chunks.push(uniqueEpisodeKeys.slice(index, index + EPISODE_KEY_QUERY_CHUNK_SIZE));
+    }
+
+    const chunkedResults = await Promise.all(
+      chunks.map(chunk =>
+        firestoreDb.getDocs<WoundCarePhoto>(getWoundCarePhotosPath(hospitalId), {
+          where: [{ field: 'episodeKey', operator: 'in', value: chunk }],
+        })
+      )
+    );
+
+    for (const photo of chunkedResults.flat()) {
+      if (photo.isDeleted) continue;
+      const valid = validateReadPhoto(photo);
+      if (!valid) continue;
+      const currentCount = counts[valid.episodeKey];
+      if (currentCount !== undefined) {
+        counts[valid.episodeKey] = currentCount + 1;
+      }
+    }
+
+    return counts;
   },
 
   /**
