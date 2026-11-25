@@ -283,4 +283,34 @@ describe('applyRayenClinicalEnrichmentBatch historical authority', () => {
       expect(admin.set).not.toHaveBeenCalled();
     }
   );
+
+  it('reads target and authority records in parallel inside the historical transaction', async () => {
+    const admin = createHistoricalAdmin();
+    const originalRecordGet = admin.recordGet.getMockImplementation()!;
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const releases: Array<() => void> = [];
+    admin.recordGet.mockImplementation(
+      reference =>
+        new Promise(resolve => {
+          inFlight += 1;
+          maxInFlight = Math.max(maxInFlight, inFlight);
+          releases.push(() => {
+            inFlight -= 1;
+            resolve(originalRecordGet(reference));
+          });
+        })
+    );
+
+    const pending = createApi(admin, 'nurse_hospital').applyRayenClinicalEnrichmentBatch.run(
+      makeHistoricalCudyrPayload(),
+      makeContext()
+    );
+
+    await vi.waitFor(() => expect(releases).toHaveLength(2));
+    expect(maxInFlight).toBe(2);
+    releases.forEach(release => release());
+
+    await expect(pending).resolves.toMatchObject({ success: true, authorityStatus: 'ok' });
+  });
 });

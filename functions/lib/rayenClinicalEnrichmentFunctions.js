@@ -109,7 +109,17 @@ const createRayenClinicalEnrichmentFunctions = ({
         const read = reference =>
           timing.measureTransactionOperation('documentReadMs', () => transaction.get(reference));
         try {
-          const snapshot = await read(docRef);
+          let snapshot;
+          let authoritySnapshot;
+          if (payload.authorityDate === payload.date) {
+            snapshot = await read(docRef);
+            authoritySnapshot = snapshot;
+          } else {
+            [snapshot, authoritySnapshot] = await timing.measureTransactionOperation(
+              'documentReadMs',
+              () => Promise.all([transaction.get(docRef), transaction.get(authorityRef)])
+            );
+          }
           if (!snapshot.exists) {
             throw new functions.https.HttpsError(
               'failed-precondition',
@@ -129,8 +139,6 @@ const createRayenClinicalEnrichmentFunctions = ({
             isClinicalDerivedSplitDay(remoteData) || derived
               ? PARITY_CONTRACT_VERSION
               : UNSPLIT_PARITY_CONTRACT_VERSION;
-          const authoritySnapshot =
-            payload.authorityDate === payload.date ? snapshot : await read(authorityRef);
           if (!authoritySnapshot.exists) {
             throw new functions.https.HttpsError(
               'failed-precondition',
@@ -163,11 +171,12 @@ const createRayenClinicalEnrichmentFunctions = ({
           derived?.assertSupported();
 
           assertHistoricalCudyrPayload(remoteData, payload);
-          const policySnapshot = await read(policyRef);
-          const specialtyPolicySnapshot =
+          const [policySnapshot, specialtyPolicySnapshot] =
             process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT === 'enabled'
-              ? await read(specialtyPolicyRef)
-              : null;
+              ? await timing.measureTransactionOperation('documentReadMs', () =>
+                  Promise.all([transaction.get(policyRef), transaction.get(specialtyPolicyRef)])
+                )
+              : [await read(policyRef), null];
           // A lost response may be retried after an administrator changes the policy. An exact
           // receipt proves that mutation already committed; only new/legacy-replay work must satisfy
           // the current authority fence.

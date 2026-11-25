@@ -334,6 +334,55 @@ describe('Rayen clinical fill on a split day (D10)', () => {
     expect(outcome).toMatchObject({ status: 'failed', retry: { type: 'clinical_retry' } });
   });
 
+  it('reuses the strict overlaid view at the write turn when server revision and layout did not change', async () => {
+    const loaded = splitDay(5);
+    const sameServerDay = splitDay(5);
+    const loadDailyRecord = vi
+      .fn<() => Promise<DailyRecord>>()
+      .mockResolvedValueOnce(loaded)
+      .mockResolvedValueOnce(sameServerDay);
+    const { fill } = renderFill(loadDailyRecord);
+    mocks.readDocs.mockResolvedValueOnce(docsAt(5));
+
+    await act(async () => {
+      await fill(loaded);
+    });
+    const current = (await (await batchInput()).refreshRecord()) as DailyRecord;
+
+    expect(loadDailyRecord).toHaveBeenCalledTimes(2);
+    expect(mocks.readDocs).toHaveBeenCalledTimes(1);
+    expect(metaOf(current)).toEqual(metaOf(loaded));
+    expect(motherHistory(current)).toEqual(reading('doc-mother'));
+  });
+
+  it('passes the committed un-overlaid day captured after batch commit to completeRun', async () => {
+    const loaded = splitDay(5);
+    const committed = splitDay(6);
+    const loadDailyRecord = vi
+      .fn<() => Promise<DailyRecord>>()
+      .mockResolvedValueOnce(loaded)
+      .mockResolvedValueOnce(committed);
+    const { fill, completeRun } = renderFill(loadDailyRecord);
+    mocks.readDocs.mockResolvedValueOnce(docsAt(5));
+    mocks.runClinicalFill.mockImplementationOnce(async (_view, _day, deps) => {
+      await deps.persistBatch([]);
+      return { total: 2, patched: 1, errors: [] };
+    });
+    mocks.applyFillBatch.mockImplementationOnce(async ({ refreshCommittedRecord }) => {
+      await refreshCommittedRecord?.();
+      return { patientWrites: 1, historySnapshots: 1 };
+    });
+
+    await act(async () => {
+      await fill(loaded);
+    });
+
+    expect(completeRun).toHaveBeenCalledTimes(1);
+    expect(completeRun.mock.calls[0][0]).toBe(committed);
+    expect(motherHistory(completeRun.mock.calls[0][0])).toEqual(reading('embedded-mother'));
+    expect(mocks.readDocs).toHaveBeenCalledTimes(1);
+  });
+
   it('refreshes the day after a committed batch without reading documents', async () => {
     const loaded = splitDay();
     const loadDailyRecord = vi.fn(async () => loaded);
