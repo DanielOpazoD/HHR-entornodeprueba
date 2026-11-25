@@ -90,6 +90,38 @@ const isStartupAppModule = (moduleId: string, graph: Rollup.ManualChunkMeta): bo
   !moduleId.includes('/node_modules/') &&
   collectStartupModules(graph).has(moduleId);
 
+// Dynamic barrel entries whose chunks are online-only. Naming them via chunkFileNames keeps
+// Rollup's natural split intact (avoiding manualChunks dependency capture) while letting Workbox
+// and the bundle budget identify them unambiguously instead of generic index/public hashes.
+const NAMED_ONLINE_BARREL_CHUNKS: ReadonlyArray<readonly [string, string]> = [
+  ['/src/features/admin/index.ts', 'admin-views'],
+  ['/src/features/admin/public.ts', 'admin-views'],
+  ['/src/features/analytics/public.ts', 'analytics-view'],
+  ['/src/features/backup/public.ts', 'backup-files-view'],
+  ['/src/features/reminders/public.ts', 'reminder-admin-view'],
+  ['/src/features/clinical-documents/index.ts', 'clinical-documents-entry'],
+  ['/src/features/clinical-documents/public.ts', 'clinical-documents-entry'],
+];
+
+export const chunkFileNameForChunk = (
+  chunkInfo: Pick<Rollup.PreRenderedChunk, 'facadeModuleId'> & {
+    moduleIds?: readonly string[];
+  }
+): string => {
+  const facadeId = chunkInfo.facadeModuleId?.replace(/\\/g, '/');
+  if (facadeId) {
+    const match = NAMED_ONLINE_BARREL_CHUNKS.find(([suffix]) => facadeId.endsWith(suffix));
+    if (match) return `assets/${match[1]}-[hash].js`;
+  }
+  // Rollup clears facadeModuleId on admin's dynamic chunk when auditWorkbook shares exports with it.
+  if (
+    chunkInfo.moduleIds?.some(id => id.replace(/\\/g, '/').endsWith('/src/features/admin/index.ts'))
+  ) {
+    return 'assets/admin-views-[hash].js';
+  }
+  return 'assets/[name]-[hash].js';
+};
+
 export const chunkForModule = (
   moduleId: string,
   graph?: Rollup.ManualChunkMeta
