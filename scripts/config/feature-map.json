@@ -940,6 +940,71 @@
       "rules": []
     },
     {
+      "id": "documents.clinical-checklists-braden",
+      "name": "Pautas clínicas y escala Braden / Braden Q (NT 234)",
+      "owner": "src/features/clinical-library",
+      "reach": {
+        "screen": "Documentos → Formularios («Pauta Braden adulto / Braden Q pediátrico (LPP · NT 234)») o Herramientas de pautas clínicas",
+        "controls": [{ "text": "Pauta Braden adulto / Braden Q pediátrico (LPP · NT 234)" }]
+      },
+      "gate": [
+        "src/features/clinical-library/domain/forms/clinicalFormBradenHistory.ts",
+        "src/features/clinical-library/components/tools/forms/ClinicalFormEditor.tsx",
+        "functions/lib/checklists/checklistFunctions.js"
+      ],
+      "tests": [
+        "src/tests/features/clinical-library/clinicalFormBradenHistory.test.ts",
+        "src/tests/features/clinical-library/ClinicalChecklistsTool.test.tsx",
+        "src/tests/features/clinical-library/ClinicalFormEditor.test.tsx",
+        "src/tests/functions/clinicalChecklists.test.ts"
+      ],
+      "rules": ["ID-01", "TIME-02"]
+    },
+    {
+      "id": "documents.transfusion-request-umt",
+      "name": "Solicitud de transfusión de hemocomponentes (UMT)",
+      "owner": "src/features/clinical-library",
+      "reach": {
+        "screen": "Documentos → Formularios → «Solicitud de transfusión de hemocomponentes (UMT)»",
+        "controls": [{ "text": "Solicitud de transfusión de hemocomponentes (UMT)" }]
+      },
+      "gate": [
+        "src/features/clinical-library/domain/forms/clinicalFormPatient.ts",
+        "src/features/clinical-library/domain/libraryCatalog.ts",
+        "src/features/clinical-library/components/tools/forms/ClinicalFormEditor.tsx"
+      ],
+      "tests": [
+        "src/tests/features/clinical-library/clinicalFormPatient.test.ts",
+        "src/tests/features/clinical-library/clinicalFormPdf.test.ts",
+        "src/tests/features/clinical-library/ClinicalFormEditor.test.tsx",
+        "src/tests/features/clinical-library/ClinicalLibraryDrawer.test.tsx"
+      ],
+      "rules": ["ID-01"]
+    },
+    {
+      "id": "census.upc-pending-round",
+      "name": "Navegar y confirmar evaluaciones UPC pendientes del día",
+      "owner": "src/features/census",
+      "reach": {
+        "screen": "Censo Diario, encabezado de la columna «UPC» o celda UPC del paciente",
+        "controls": [
+          { "text": "Abrir ronda de clasificación UPC" },
+          { "text": "Siguiente pendiente" }
+        ]
+      },
+      "gate": [
+        "src/features/census/components/patient-row/upcClassificationWindowModel.ts",
+        "src/features/census/components/patient-row/UpcClassificationWindow.tsx",
+        "src/features/census/components/CensusTableHeader.tsx"
+      ],
+      "tests": [
+        "src/tests/features/census/components/patient-row/UpcClassificationWindow.test.tsx",
+        "src/tests/views/census/CensusTableHeader.test.tsx",
+        "src/tests/features/census/components/patient-row/UpcChecklistPanel.test.tsx"
+      ],
+      "rules": ["SAVE-01", "TIME-02"]
+    },
+    {
       "id": "backup.excel-export",
       "name": "Descargar el censo en Excel",
       "owner": "src/hooks",
