@@ -3,7 +3,6 @@ import clsx from 'clsx';
 import { ResizableHeader } from '@/components/ui/ResizableHeader';
 import { CensusActionHeaderCell } from '@/features/census/components/CensusActionHeaderCell';
 import { CensusResetDayMenuEntry } from '@/features/census/components/CensusResetDayMenuEntry';
-import { CensusDiagnosisHeaderCell } from '@/features/census/components/CensusDiagnosisHeaderCell';
 import { buildCensusHeaderCellModels } from '@/features/census/controllers/censusTableHeaderController';
 import type { CensusTableHeaderProps } from '@/features/census/types/censusTableComponentContracts';
 import { AlertsViewToggle } from '@/features/census/components/CensusViewToggles';
@@ -23,9 +22,7 @@ const CensusTableHeaderComponent: React.FC<CensusTableHeaderProps> = ({
   canDeleteRecord,
   resetDayDeniedMessage,
   onClearAll,
-  diagnosisMode,
   accessProfile,
-  onToggleDiagnosisMode,
   onResizeColumn,
 }) => {
   const headerClassName =
@@ -78,18 +75,6 @@ const CensusTableHeaderComponent: React.FC<CensusTableHeaderProps> = ({
                 </span>
               </th>
             )
-          ) : cell.kind === 'diagnosis' ? (
-            <CensusDiagnosisHeaderCell
-              key={cell.key}
-              width={columns.diagnosis}
-              responsiveShare={responsiveShare(columns.diagnosis)}
-              isEditMode={isEditMode}
-              onResize={onResizeColumn('diagnosis')}
-              headerClassName={clsx(headerClassName, cell.className, `census-column-${cell.key}`)}
-              readOnly={readOnly}
-              diagnosisMode={diagnosisMode}
-              onToggleDiagnosisMode={onToggleDiagnosisMode}
-            />
           ) : (
             <ResizableHeader
               key={cell.key}

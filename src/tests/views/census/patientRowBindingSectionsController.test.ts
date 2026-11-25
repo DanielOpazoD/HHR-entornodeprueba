@@ -86,7 +86,6 @@ describe('patientRowBindingSectionsController', () => {
       currentDateString: '2026-03-05',
       readOnly: false,
       actionMenuAlign: 'top',
-      diagnosisMode: 'free',
       runtime,
       viewContext,
     });
@@ -94,7 +93,6 @@ describe('patientRowBindingSectionsController', () => {
       data,
       currentDateString: '2026-03-05',
       readOnly: false,
-      diagnosisMode: 'cie10',
       runtime,
     });
     const modals = buildPatientModalSectionBindings({

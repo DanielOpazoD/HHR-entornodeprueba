@@ -50,7 +50,6 @@ export const buildPatientMainRowSections = (
     onDemo: props.onOpenDemographics,
     readOnly: props.readOnly,
     clinicalEditingDisabled: props.clinicalEditingDisabled,
-    diagnosisMode: props.diagnosisMode,
     accessProfile: props.accessProfile,
     clinicalAccess: buildPatientClinicalAccessBinding(action),
   },

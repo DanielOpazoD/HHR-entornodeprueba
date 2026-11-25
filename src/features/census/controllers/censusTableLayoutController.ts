@@ -2,11 +2,7 @@ import type { PatientData } from '@/types/domain/patient';
 
 import type { CSSProperties } from 'react';
 import type { TableColumnConfig } from '@/context/TableConfigContext';
-import type {
-  DiagnosisMode,
-  UnifiedBedRow,
-  BedTypesById,
-} from '@/features/census/types/censusTableTypes';
+import type { UnifiedBedRow, BedTypesById } from '@/features/census/types/censusTableTypes';
 
 import type { UserRole } from '@/types/authRoleTypes';
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
@@ -30,9 +26,7 @@ export interface CensusTableLayoutParams {
   canDeleteRecord: boolean;
   resetDayDeniedMessage: string;
   onClearAll: () => Promise<void>;
-  diagnosisMode: DiagnosisMode;
   accessProfile?: CensusAccessProfile;
-  onToggleDiagnosisMode: () => void;
   onResizeColumn: (column: keyof TableColumnConfig) => (width: number) => void;
   unifiedRows: UnifiedBedRow[];
   bedTypes: BedTypesById;
@@ -86,9 +80,7 @@ export const buildCensusTableLayoutBindings = (
       canDeleteRecord: params.canDeleteRecord,
       resetDayDeniedMessage: params.resetDayDeniedMessage,
       onClearAll: params.onClearAll,
-      diagnosisMode: params.diagnosisMode,
       accessProfile: params.accessProfile,
-      onToggleDiagnosisMode: params.onToggleDiagnosisMode,
       onResizeColumn: params.onResizeColumn,
     },
     bodyProps: {
@@ -96,7 +88,6 @@ export const buildCensusTableLayoutBindings = (
       currentDateString: params.currentDateString,
       readOnly: params.readOnly,
       clinicalEditingDisabled: params.clinicalEditingDisabled,
-      diagnosisMode: params.diagnosisMode,
       columns: projectedColumns,
       visibleColumnCount,
       bedTypes: params.bedTypes,

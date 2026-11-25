@@ -5,7 +5,6 @@ import type { PatientInputSectionBindingsParams } from '@/features/census/compon
 export const usePatientInputSectionBindings = ({
   currentDateString,
   data,
-  diagnosisMode,
   handleDebouncedText,
   hasRutError,
   isEmpty,
@@ -21,7 +20,6 @@ export const usePatientInputSectionBindings = ({
       buildPatientInputSectionBindings({
         currentDateString,
         data,
-        diagnosisMode,
         handleDebouncedText,
         hasRutError,
         isEmpty,
@@ -35,7 +33,6 @@ export const usePatientInputSectionBindings = ({
     [
       currentDateString,
       data,
-      diagnosisMode,
       handleDebouncedText,
       hasRutError,
       isEmpty,

@@ -82,9 +82,7 @@ export const useCensusTableBindingsModel = ({
       canDeleteRecord: tableViewModel.canDeleteRecord,
       resetDayDeniedMessage: tableViewModel.resetDayDeniedMessage,
       onClearAll: tableViewModel.handleClearAll,
-      diagnosisMode: tableViewModel.diagnosisMode,
       accessProfile,
-      onToggleDiagnosisMode: tableViewModel.toggleDiagnosisMode,
       onResizeColumn: tableViewModel.handleColumnResize,
       unifiedRows: tableViewModel.unifiedRows,
       bedTypes: tableViewModel.bedTypes,
@@ -107,7 +105,6 @@ export const useCensusTableBindingsModel = ({
     tableViewModel.beds,
     tableViewModel.canDeleteRecord,
     tableViewModel.columns,
-    tableViewModel.diagnosisMode,
     tableViewModel.handleClearAll,
     tableViewModel.handleColumnResize,
     tableViewModel.handleRowAction,
@@ -115,7 +112,6 @@ export const useCensusTableBindingsModel = ({
     tableViewModel.unifiedRows,
     tableViewModel.resetDayDeniedMessage,
     tableViewModel.role,
-    tableViewModel.toggleDiagnosisMode,
     tableViewModel.totalWidth,
   ]);
 

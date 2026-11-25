@@ -42,8 +42,6 @@ const renderHeader = () =>
         canDeleteRecord={false}
         resetDayDeniedMessage=""
         onClearAll={vi.fn().mockResolvedValue(undefined)}
-        diagnosisMode="free"
-        onToggleDiagnosisMode={vi.fn()}
         onResizeColumn={() => vi.fn()}
       />
     </table>

@@ -1,6 +1,5 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 import type { BedDefinition } from '@/types/domain/beds';
 import type { BedType } from '@/types/domain/beds';
 
@@ -45,7 +44,6 @@ interface BuildMainSectionBindingsParams {
   readOnly: boolean;
   clinicalEditingDisabled?: boolean;
   actionMenuAlign: RowMenuAlign;
-  diagnosisMode: DiagnosisMode;
   accessProfile?: CensusAccessProfile;
   style?: React.CSSProperties;
   runtime: PatientRowRuntime;
@@ -60,7 +58,6 @@ export const buildPatientMainSectionBindings = ({
   readOnly,
   clinicalEditingDisabled = false,
   actionMenuAlign,
-  diagnosisMode,
   accessProfile,
   style,
   runtime,
@@ -85,7 +82,6 @@ export const buildPatientMainSectionBindings = ({
     readOnly,
     clinicalEditingDisabled,
     actionMenuAlign,
-    diagnosisMode,
     accessProfile,
     isBlocked: runtime.rowState.isBlocked,
     isEmpty: runtime.rowState.isEmpty,
@@ -110,7 +106,6 @@ interface BuildSubSectionBindingsParams {
   currentDateString: string;
   readOnly: boolean;
   clinicalEditingDisabled?: boolean;
-  diagnosisMode: DiagnosisMode;
   accessProfile?: CensusAccessProfile;
   style?: React.CSSProperties;
   runtime: PatientRowRuntime;
@@ -121,7 +116,6 @@ export const buildPatientSubSectionBindings = ({
   currentDateString,
   readOnly,
   clinicalEditingDisabled = false,
-  diagnosisMode,
   accessProfile,
   style,
   runtime,
@@ -130,7 +124,6 @@ export const buildPatientSubSectionBindings = ({
   currentDateString,
   readOnly,
   clinicalEditingDisabled,
-  diagnosisMode,
   accessProfile,
   style,
   onOpenDemographics: buildPatientRowModalOpenBindings(runtime).onOpenDemographics,

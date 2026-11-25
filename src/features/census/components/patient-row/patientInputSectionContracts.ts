@@ -1,6 +1,5 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 import type {
   DebouncedTextHandler,
   PatientInputChangeHandlers,
@@ -17,7 +16,6 @@ export interface PatientInputSectionSharedProps {
 }
 
 export interface PatientInputSectionBindingsParams extends PatientInputSectionSharedProps {
-  readonly diagnosisMode: DiagnosisMode;
   readonly hasRutError: boolean;
   readonly handleDebouncedText: DebouncedTextHandler;
   readonly onDemo: () => void;
@@ -34,7 +32,6 @@ export interface PatientInputIdentitySectionBindings {
 
 export interface PatientInputClinicalSectionBindings {
   readonly shared: PatientInputSectionSharedProps;
-  readonly diagnosisMode: DiagnosisMode;
   readonly handleDebouncedText: DebouncedTextHandler;
   readonly onChange: PatientInputChangeHandlers;
 }

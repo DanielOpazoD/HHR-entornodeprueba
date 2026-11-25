@@ -15,7 +15,6 @@ import { useCensusActionCommands } from '@/features/census/context/censusActionC
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { useAuth } from '@/context/AuthContext';
 import { useTableConfig } from '@/context/TableConfigContext';
-import { useDiagnosisMode } from '@/features/census/hooks/useDiagnosisMode';
 
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordBeds: vi.fn(),
@@ -43,10 +42,6 @@ vi.mock('@/context/AuthContext', () => ({
 
 vi.mock('@/context/TableConfigContext', () => ({
   useTableConfig: vi.fn(),
-}));
-
-vi.mock('@/features/census/hooks/useDiagnosisMode', () => ({
-  useDiagnosisMode: vi.fn(),
 }));
 
 const asHookValue = <T>(value: Partial<T>): T => value as T;
@@ -123,10 +118,6 @@ describe('useCensusTableDependencies', () => {
         updateColumnWidth: vi.fn(),
       })
     );
-    vi.mocked(useDiagnosisMode).mockReturnValue({
-      diagnosisMode: 'free',
-      toggleDiagnosisMode: vi.fn(),
-    });
   });
 
   it('returns dependencies from all context/hooks in one object', () => {
@@ -136,7 +127,6 @@ describe('useCensusTableDependencies', () => {
     expect(result.current.staff?.activeExtraBeds).toEqual(['E1']);
     expect(result.current.config.columns.bed).toBe(80);
     expect(result.current.tableConfigLoading).toBe(false);
-    expect(result.current.diagnosisMode).toBe('free');
     expect(typeof result.current.handleRowAction).toBe('function');
     expect(typeof result.current.confirm).toBe('function');
   });

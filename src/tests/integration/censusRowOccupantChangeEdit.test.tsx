@@ -128,7 +128,6 @@ const Census = () => {
           unifiedRows={unifiedRows}
           currentDateString={date}
           readOnly={false}
-          diagnosisMode="free"
           columns={columns}
           visibleColumnCount={12}
           bedTypes={{ [bed.id]: bed.type }}

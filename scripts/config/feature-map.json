@@ -115,7 +115,7 @@
       "tests": [
         "src/tests/views/census/PatientInputCells.test.tsx",
         "src/tests/views/census/PatientIdentityCell.test.tsx",
-        "src/tests/features/census/components/patient-row/DiagnosisInputOffline.test.tsx",
+        "src/tests/features/census/components/patient-row/DiagnosisInputClinicalInitialBlock.test.tsx",
         "e2e/census-persistence-reload.spec.ts › keeps patient edits after save and page reload",
         "e2e/admit-edit-discharge-smoke.spec.ts › persists a diagnosis edit through the canonical pipeline and surfaces a discharge action"
       ],

@@ -26,7 +26,6 @@ describe('patientInputSectionBindingsController', () => {
       isSubRow: false,
       isEmpty: false,
       isLocked: true,
-      diagnosisMode: 'free',
       hasRutError: true,
       handleDebouncedText,
       onDemo,
@@ -37,7 +36,6 @@ describe('patientInputSectionBindingsController', () => {
     expect(bindings.identity.shared).toBe(bindings.flow.shared);
     expect(bindings.identity.shared).toBe(bindings.flags.shared);
     expect(bindings.identity.hasRutError).toBe(true);
-    expect(bindings.clinical.diagnosisMode).toBe('free');
     expect(bindings.flow.onChange).toBe(onChange);
     expect(bindings.flags.onChange).toBe(onChange);
     expect(bindings.clinical.onChange).toBe(onChange);

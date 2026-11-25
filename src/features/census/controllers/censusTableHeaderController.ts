@@ -13,7 +13,6 @@ export interface CensusHeaderColumnDefinition {
 
 export interface CensusHeaderCellModel {
   key: CensusHeaderColumnKey;
-  kind: 'diagnosis' | 'standard';
   label: string;
   title?: string;
   className?: string;
@@ -60,7 +59,6 @@ const buildCensusHeaderCellModel = (
   column: CensusHeaderColumnDefinition
 ): CensusHeaderCellModel => ({
   key: column.key,
-  kind: column.key === 'diagnosis' ? 'diagnosis' : 'standard',
   label: column.label,
   title: column.title,
   className: column.className,

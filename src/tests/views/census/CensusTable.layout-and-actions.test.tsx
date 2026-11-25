@@ -366,17 +366,6 @@ describe('CensusTable layout and actions', () => {
     expect(mockResetDay).toHaveBeenCalled();
   });
 
-  it('should toggle diagnosis mode', () => {
-    render(<CensusTable currentDateString="2025-01-08" />);
-
-    fireEvent.click(screen.getByTitle(/Modo texto libre/));
-    expect(localStorage.getItem('hhr_diagnosis_mode')).toBe('cie10');
-    expect(screen.getByTitle(/Modo CIE-10/)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByTitle(/Modo CIE-10/));
-    expect(localStorage.getItem('hhr_diagnosis_mode')).toBe('free');
-  });
-
   it('applies the admin choice to hide Braden and Downton and their reapplication shortcut', () => {
     const tableConfig = createTableConfigMock();
     vi.mocked(useTableConfig).mockReturnValue({

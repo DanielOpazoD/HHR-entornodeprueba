@@ -30,7 +30,6 @@ export const PatientInputCells: React.FC<PatientInputCellsProps> = ({
   onDemo,
   readOnly = false,
   clinicalEditingDisabled = false,
-  diagnosisMode = 'free',
   accessProfile = 'default',
   clinicalAccess,
 }) => {
@@ -47,7 +46,6 @@ export const PatientInputCells: React.FC<PatientInputCellsProps> = ({
     isEmpty,
     isLocked,
     clinicalEditingDisabled,
-    diagnosisMode,
     hasRutError,
     handleDebouncedText,
     onDemo,

@@ -63,7 +63,7 @@ export const PatientInputStatusSection: React.FC<
 
 export const PatientInputClinicalSection: React.FC<
   PatientInputClinicalSectionBindings & { accessProfile?: CensusAccessProfile }
-> = ({ shared, diagnosisMode, handleDebouncedText, onChange }) => {
+> = ({ shared, handleDebouncedText, onChange }) => {
   const baseClinicalReadOnly = shared.isLocked || shared.clinicalEditingDisabled;
   const usesClinicalInitialBlockPanel =
     !shared.isSubRow && !shared.isEmpty && !!shared.data.patientName;
@@ -88,7 +88,6 @@ export const PatientInputClinicalSection: React.FC<
         isSubRow={shared.isSubRow}
         isEmpty={shared.isEmpty}
         readOnly={baseClinicalReadOnly}
-        diagnosisMode={diagnosisMode}
         onChange={handleDebouncedText}
         onMultipleUpdate={onChange.multiple}
         onDeliveryRouteChange={onChange.deliveryRoute}

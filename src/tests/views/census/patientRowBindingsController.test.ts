@@ -96,7 +96,6 @@ describe('patientRowBindingsController', () => {
       currentDateString: '2026-02-15',
       readOnly: false,
       actionMenuAlign: 'top',
-      diagnosisMode: 'free',
       isSubRow: false,
       role: 'doctor_urgency',
       indicators: {
@@ -148,7 +147,6 @@ describe('patientRowBindingsController', () => {
       currentDateString: '2026-02-15',
       readOnly: false,
       actionMenuAlign: 'top',
-      diagnosisMode: 'free',
       role: 'viewer',
       indicators: {
         hasClinicalDocument: false,
@@ -160,7 +158,6 @@ describe('patientRowBindingsController', () => {
       data,
       currentDateString: '2026-02-15',
       readOnly: false,
-      diagnosisMode: 'cie10',
       runtime,
     });
     const modals = buildPatientRowModalsBindings({
@@ -182,7 +179,6 @@ describe('patientRowBindingsController', () => {
 
     expect(main.isBlocked).toBe(true);
     expect(main.hasCompanion).toBe(true);
-    expect(sub.diagnosisMode).toBe('cie10');
     expect(sub.onOpenDemographics).toBe(runtime.uiState.openDemographics);
     expect(modals.showClinicalDocuments).toBe(true);
     expect(modals.canOpenClinicalDocuments).toBe(false);

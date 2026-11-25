@@ -81,11 +81,6 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
   { glob: '**/assets/vendor-excel-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/vendor-canvas-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/terminologyService-*.js', reason: 'Same policy as the entry above.' },
-  {
-    glob: '**/assets/DiagnosisCie10Cell-*.js',
-    reason:
-      'CIE-10 cell: its catalogue is already outside precache, so caching the wrapper alone would not make the search work offline.',
-  },
   { glob: '**/assets/fonasaDatabase-*.js', reason: 'Same policy as the entry above.' },
   {
     glob: '**/assets/clinical-documents-workspace-*.js',

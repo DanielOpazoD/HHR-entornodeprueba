@@ -39,7 +39,6 @@ export const buildPatientInputSectionBindings = ({
   isEmpty,
   isLocked,
   clinicalEditingDisabled,
-  diagnosisMode,
   hasRutError,
   handleDebouncedText,
   onDemo,
@@ -65,7 +64,6 @@ export const buildPatientInputSectionBindings = ({
     },
     clinical: {
       shared,
-      diagnosisMode,
       handleDebouncedText,
       onChange,
     },

@@ -1,7 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import type { CSSProperties } from 'react';
-import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
 import type { BedDefinition } from '@/types/domain/beds';
 import type { BedType } from '@/types/domain/beds';
@@ -45,7 +44,6 @@ export interface PatientRowProps {
   readOnly?: boolean;
   clinicalEditingDisabled?: boolean;
   actionMenuAlign?: RowMenuAlign;
-  diagnosisMode?: DiagnosisMode;
   isSubRow?: boolean;
   bedType: BedType;
   role?: UserRole;
