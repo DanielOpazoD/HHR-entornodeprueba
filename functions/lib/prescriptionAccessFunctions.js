@@ -12,6 +12,7 @@
 const crypto = require('crypto');
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
+const { isAdminRole } = require('./auth/rolePredicates');
 const { redactError } = require('./logging/redaction');
 const {
   assertReadonlyUploadDateAllowed,
@@ -26,7 +27,6 @@ const {
   resolveUploadPatientOptionsForDate,
 } = require('./prescriptionUploadReadSupport');
 const {
-  ADMIN_ALLOWED_ROLES,
   PIN_HASH_ALGORITHM,
   PIN_SCRYPT_PARAMS,
   generatePinSalt,
@@ -368,7 +368,7 @@ const createSetPinHandler =
   async (data, context) => {
     requireAuthentication(context);
     const role = await resolveCallerRole(context, resolveRoleForEmail);
-    if (!ADMIN_ALLOWED_ROLES.has(role)) {
+    if (!isAdminRole(role)) {
       throw new functions.https.HttpsError(
         'permission-denied',
         'Solo administradores pueden cambiar el PIN.'

@@ -1,4 +1,5 @@
 const { movementRestoreRecord } = require('./movementRestoreSources');
+const { isAdminRole } = require('./auth/rolePredicates');
 // Fuente de verdad: el CONTRATO ÚNICO de autoridad, compartido con el cliente.
 const {
   RAYEN_MANUALLY_MANAGED_DEVICE_FIELDS,
@@ -149,7 +150,7 @@ const BACKUP_RESTORE_ORIGIN = 'backup_restore';
  * keeps the fence so the Rayen batch remains the single clinical authority.
  */
 const isAdminBackupRestoreOfMissingDay = ({ snapshot, origin, role }) =>
-  snapshot?.exists !== true && origin === BACKUP_RESTORE_ORIGIN && role === 'admin';
+  snapshot?.exists !== true && origin === BACKUP_RESTORE_ORIGIN && isAdminRole(role);
 
 const shouldPreserveRayenClinicalFields = ({ policySnapshot, snapshot, origin, role }) =>
   isRayenClinicalWriteFenceActive(policySnapshot) &&

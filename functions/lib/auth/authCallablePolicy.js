@@ -1,10 +1,11 @@
 const { HttpsError } = require('firebase-functions/v2/https');
 const { MANAGED_ASSIGNABLE_ROLES } = require('./authConfig');
 const { normalizeEmail } = require('./authEmailUtils');
+const { isAdminRole } = require('./rolePredicates');
 
 const assertRoleMutationAccess = async ({ context, resolveRoleForEmail }) => {
   const email = normalizeEmail(context?.auth?.token?.email);
-  if (!context?.auth || !email || (await resolveRoleForEmail(email, context)) !== 'admin') {
+  if (!context?.auth || !email || !isAdminRole(await resolveRoleForEmail(email, context))) {
     throw new HttpsError('permission-denied', 'Only admins can set roles');
   }
 };

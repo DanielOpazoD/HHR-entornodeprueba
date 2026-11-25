@@ -1,4 +1,5 @@
 const { accountProfile, manageAccountProfile, resumableStatus } = require('./accountManagement');
+const { isAdminRole } = require('../auth/rolePredicates');
 const { HOSPITAL_ID } = require('../runtime/runtimeConfig');
 const { HttpsError } = require('firebase-functions/v2/https');
 const {
@@ -25,7 +26,7 @@ const {
 const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now }) => {
   const assertAdmin = async context => {
     const email = context?.auth?.token?.email;
-    if (!context?.auth || (await helpers.resolveRoleForEmail(email, context)) !== 'admin') {
+    if (!context?.auth || !isAdminRole(await helpers.resolveRoleForEmail(email, context))) {
       throw new HttpsError('permission-denied', 'Se requiere una sesión administradora vigente.');
     }
     if (

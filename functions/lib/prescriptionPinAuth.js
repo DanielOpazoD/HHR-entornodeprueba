@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const { promisify } = require('util');
 const { HttpsError } = require('firebase-functions/v2/https');
+const { isClinicalStaffRole } = require('./auth/rolePredicates');
 const { getAccessConfigRef } = require('./prescriptionUploadReadSupport');
 
 const MIN_PIN_LENGTH = 4;
@@ -19,14 +20,6 @@ const PIN_SCRYPT_PARAMS = Object.freeze({
 });
 /** @type {(password: string, salt: string, keylen: number, options: crypto.ScryptOptions) => Promise<Buffer>} */
 const scryptAsync = /** @type {any} */ (promisify(crypto.scrypt));
-
-const ADMIN_ALLOWED_ROLES = new Set(['admin']);
-const AUTHENTICATED_UPLOAD_ALLOWED_ROLES = new Set([
-  'admin',
-  'nurse_hospital',
-  'doctor_urgency',
-  'doctor_specialist',
-]);
 
 const normalizeScryptParams = params => ({
   N: Number(params?.N || PIN_SCRYPT_PARAMS.N),
@@ -183,7 +176,7 @@ const validatePinAgainstConfig = async (firestore, providedPin) => {
 const resolveUploadPickerAccess = async ({ firestore, context, payload, resolveRoleForEmail }) => {
   if (context?.auth) {
     const role = await resolveCallerRoleBeforePin(context, payload, resolveRoleForEmail);
-    if (AUTHENTICATED_UPLOAD_ALLOWED_ROLES.has(role)) return;
+    if (isClinicalStaffRole(role)) return;
     if (payload.pin) {
       await validatePinAgainstConfig(firestore, payload.pin);
       return;
@@ -205,7 +198,7 @@ const resolveUploadPickerAccess = async ({ firestore, context, payload, resolveR
 const resolveUploaderIdentity = async ({ firestore, context, payload, resolveRoleForEmail }) => {
   if (context?.auth) {
     const role = await resolveCallerRoleBeforePin(context, payload, resolveRoleForEmail);
-    if (AUTHENTICATED_UPLOAD_ALLOWED_ROLES.has(role)) {
+    if (isClinicalStaffRole(role)) {
       return {
         source: 'authenticated',
         uid: context.auth.uid,
@@ -227,7 +220,6 @@ const resolveUploaderIdentity = async ({ firestore, context, payload, resolveRol
 };
 
 module.exports = {
-  ADMIN_ALLOWED_ROLES,
   PIN_HASH_ALGORITHM,
   PIN_SCRYPT_PARAMS,
   hashPin,

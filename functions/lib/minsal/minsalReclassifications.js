@@ -1,4 +1,5 @@
 const { HttpsError } = require('firebase-functions/v2/https');
+const { isAdminRole } = require('../auth/rolePredicates');
 const { assertSupportedHospitalId } = require('../runtime/hospitalPolicy');
 const { normalizeSpecialty } = require('./minsalSpecialty');
 const { normalizeMovementReportingSnapshot } = require('./sharedMovementCompatibility');
@@ -57,7 +58,7 @@ const assertAdminRole = async (context, resolveRoleForEmail) => {
       ? await resolveRoleForEmail(actor.email, context)
       : actor.tokenRole;
 
-  if (role !== 'admin') {
+  if (!isAdminRole(role)) {
     throw new HttpsError(
       'permission-denied',
       'Only admins can reclassify statistical specialties.'

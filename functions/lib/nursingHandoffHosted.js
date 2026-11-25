@@ -1,12 +1,12 @@
 const { timingSafeEqual } = require('node:crypto');
 const functions = require('firebase-functions/v1');
 const { digest, SESSION_SECONDS } = require('./accounts/accountPolicy');
+const { isAdminOrHospitalNurseRole } = require('./auth/rolePredicates');
 const { createHandler } = require('./nursingHandoffExtension');
 
 const lifetime = 4 * 60 * 60 * 1000;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const proofFormat = /^[a-f0-9]{64}$/;
-const roles = new Set(['admin', 'nurse_hospital']);
 const disconnected = () =>
   new functions.https.HttpsError('unauthenticated', 'Conecta tu sesión de HHR.');
 
@@ -21,7 +21,7 @@ function createHostedHandler({
   const grants = firestore.collection('hhr_nursing_handoff_grants');
   const resolveRole = async (email, context) => {
     const role = await resolveRoleForEmail(email, context);
-    if (!roles.has(role)) {
+    if (!isAdminOrHospitalNurseRole(role)) {
       throw new functions.https.HttpsError(
         'permission-denied',
         'Tu cuenta HHR no tiene acceso a Entrega de turno.'

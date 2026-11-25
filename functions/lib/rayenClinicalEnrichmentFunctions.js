@@ -5,6 +5,7 @@ const clinicalFunctions = functions
   .runWith({ memory: '1GB' });
 const { performance } = require('node:perf_hooks');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
+const { isAdminOrHospitalNurseRole } = require('./auth/rolePredicates');
 const { sanitizeLogValue } = require('./logging/redaction');
 const { evaluateDailyRecordClinicalAuthority } = require('./dailyRecordClinicalAuthorityPolicy');
 const { assertAuthorizedDailyRecordWriter } = require('./dailyRecordWriteAuthorityFunctions');
@@ -150,7 +151,7 @@ const createRayenClinicalEnrichmentFunctions = ({
               record: authoritySnapshot.data() || {},
               payload,
             });
-            if (payload.date !== sourceDate && !['admin', 'nurse_hospital'].includes(writerRole)) {
+            if (payload.date !== sourceDate && !isAdminOrHospitalNurseRole(writerRole)) {
               throw new functions.https.HttpsError(
                 'permission-denied',
                 'Historical CUDYR synchronization requires an administrator or hospital nurse.'
@@ -188,7 +189,7 @@ const createRayenClinicalEnrichmentFunctions = ({
           policyRevision = batchAuthority.policyRevision;
           if (
             payload.date !== batchAuthority.sourceDate &&
-            !['admin', 'nurse_hospital'].includes(writerRole)
+            !isAdminOrHospitalNurseRole(writerRole)
           ) {
             throw new functions.https.HttpsError(
               'permission-denied',

@@ -1,4 +1,5 @@
 const { HttpsError } = require('firebase-functions/v2/https');
+const { isAdminOrHospitalNurseRole } = require('./auth/rolePredicates');
 const { digest, monthValue } = require('./cudyrSupplementContract');
 const { hospitalDateTimeParts } = require('./hospitalCalendarDay');
 const fail = (message, code = 'invalid-argument') => {
@@ -58,7 +59,7 @@ const parseCensusApproval = data => {
 const VERIFICATIONS = ['reviewed_documentary_context', 'census_approval_only'];
 // Authorized human attestation, not a claim of automatic source equality.
 const saveCudyrCensusApproval = async ({ hospital, data, actor, runTransaction }) => {
-  if (!['admin', 'nurse_hospital'].includes(actor.role))
+  if (!isAdminOrHospitalNurseRole(actor.role))
     fail('Review permission required.', 'permission-denied');
   const input = parseCensusApproval(data);
   const ref = hospital.collection('cudyrVerifiedContexts').doc(input.month);

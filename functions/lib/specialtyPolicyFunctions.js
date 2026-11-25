@@ -5,6 +5,7 @@ const {
   normalizePublishedSpecialtyRules,
 } = require('./specialtyPolicyApplication');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
+const { isAdminRole } = require('./auth/rolePredicates');
 const { assertAuthorizedDailyRecordWriter } = require('./dailyRecordWriteAuthorityFunctions');
 const { SPECIALTIES, getPatient } = require('./specialtyDecisionContract');
 const {
@@ -37,7 +38,7 @@ const readPolicy = snapshot =>
       };
 const assertAdmin = async (context, resolveRoleForEmail) => {
   const { role } = await assertAuthorizedDailyRecordWriter({ context, resolveRoleForEmail });
-  if (role !== 'admin')
+  if (!isAdminRole(role))
     fail('permission-denied', 'Only administrators may publish specialty rules.');
 };
 const assertExpectedRevision = (current, expectedRevision) => {

@@ -1,4 +1,5 @@
 const { HttpsError } = require('firebase-functions/v2/https');
+const { isAdminOrHospitalNurseRole } = require('./auth/rolePredicates');
 const { createHash } = require('node:crypto');
 const { gzipSync } = require('node:zlib');
 const { monthValue } = require('./cudyrSupplementContract');
@@ -188,7 +189,7 @@ const validateReport = (report, approval, month) => {
   }
 };
 const saveOfficialReport = async ({ hospital, data, actor }) => {
-  if (!['admin', 'nurse_hospital'].includes(actor.role))
+  if (!isAdminOrHospitalNurseRole(actor.role))
     fail('Review permission required.', 'permission-denied');
   if (data.hospitalId !== undefined || data.schemaVersion !== 1)
     fail('Invalid report request.', 'invalid-argument');
