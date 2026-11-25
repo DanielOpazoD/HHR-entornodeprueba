@@ -117,7 +117,6 @@ export const createMMRADSearchHandler = (
           timeoutMs: 20_000,
           maxAttempts: 2,
           isFailureResult: result => result.statusCode >= 500 && result.statusCode < 600,
-          db,
           hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
           context: { action: 'pdf' },
           fn: async () => {
@@ -156,7 +155,6 @@ export const createMMRADSearchHandler = (
           timeoutMs: 20_000,
           maxAttempts: 2,
           isFailureResult: result => result.statusCode >= 500 && result.statusCode < 600,
-          db,
           hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
           context: { action: 'portalReceipt' },
           fn: async () => {
@@ -200,7 +198,6 @@ export const createMMRADSearchHandler = (
         operation: 'search_exams',
         timeoutMs: 20_000,
         maxAttempts: 2,
-        db,
         hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
         context: {
           action: checkDigitOnly ? 'check-digit' : 'search',

@@ -210,7 +210,6 @@ export const handler = async (event: NetlifyEventLike) => {
       operation: 'send_census_email',
       timeoutMs: 15_000,
       maxAttempts: 3,
-      db,
       hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
       context: {
         date,

@@ -1,6 +1,7 @@
 /**
  * Functions Telemetry Service
- * Reads telemetry entries written by netlify/functions/lib/observability.ts.
+ * Reads append-only server telemetry entries recorded by Cloud Functions
+ * (dailyRecordWriteAuthority and rayenClinicalEnrichment).
  * Collection is append-only (Firestore rules enforce deny update/delete).
  */
 

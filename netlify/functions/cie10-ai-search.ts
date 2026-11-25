@@ -165,7 +165,6 @@ IMPORTANTE: Responde SOLO con el JSON, sin explicaciones ni markdown.
       operation: 'cie10_search',
       timeoutMs: 30_000,
       maxAttempts: 2,
-      db,
       hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
       context: {
         provider: providerConfig.provider,

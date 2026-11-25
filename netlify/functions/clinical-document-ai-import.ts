@@ -187,7 +187,6 @@ export const createClinicalDocumentAiImportHandler = (
         operation: 'clinical_document_import',
         timeoutMs: 45_000,
         maxAttempts: 2,
-        db,
         hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
         context: {
           provider: providerConfig.provider,
