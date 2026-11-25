@@ -4,9 +4,10 @@ import {
   mergeMMRADExamLists,
   openMMRADExamListMemory,
   readRememberedMMRADExams,
-} from '@/features/radiology/controllers/radiologyExamListMemory';
-import { searchMmradStudies } from '@/features/radiology/controllers/mmradStudySearch';
-import type { MMRADExam, MMRADSearchResult } from '@/features/radiology/services/mmradService';
+  searchMmradStudies,
+  type MMRADExam,
+  type MMRADSearchResult,
+} from '@/features/radiology/public';
 import { asMmradDateBound, sortStudiesNewestFirst } from './clinicalExplorerImagingModel';
 
 export type ClinicalExplorerImagingPhase = 'listing' | 'ready' | 'empty' | 'error';

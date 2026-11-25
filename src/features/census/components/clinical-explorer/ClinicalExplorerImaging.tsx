@@ -2,8 +2,13 @@ import React, { Suspense, useLayoutEffect, useRef, useState } from 'react';
 import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import { FileText, Images } from 'lucide-react';
 import { XRayIcon } from '@/components/ui/XRayIcon';
-import { hasMMRADStructuredReport } from '@/features/radiology/controllers/radiologyViewerContentController';
-import { useDicomReviewCache } from '@/features/radiology/dicom-viewer/useDicomReviewCache';
+import {
+  deliverMmradPdf,
+  describeMMRADRegisteredPatient,
+  hasMMRADStructuredReport,
+  useDicomReviewCache,
+  type MMRADExam,
+} from '@/features/radiology/public';
 import {
   clinicalExplorerPatientIdentity,
   type ClinicalExplorerPatient,
@@ -11,12 +16,7 @@ import {
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
-import {
-  describeMMRADRegisteredPatient,
-  type MMRADExam,
-} from '@/features/radiology/services/mmradService';
 import { onSessionChange, sessionEpochGuard } from '@/services/session/sessionStorageTransition';
-import { deliverMmradPdf } from '@/features/radiology/services/mmradPdfDelivery';
 import {
   asMmradDateBound,
   formatStudyStamp,

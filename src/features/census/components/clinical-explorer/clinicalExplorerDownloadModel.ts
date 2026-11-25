@@ -1,5 +1,4 @@
-import type { MMRADExam } from '@/features/radiology/services/mmradService';
-import { parseMmradStamp } from '@/features/radiology/services/mmradStamp';
+import { parseMmradStamp, type MMRADExam } from '@/features/radiology/public';
 import {
   DOWNLOAD_PARTS,
   type DownloadDocument,
