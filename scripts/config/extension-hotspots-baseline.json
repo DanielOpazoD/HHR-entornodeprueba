@@ -108,10 +108,10 @@
       }
     },
     "clinical-checklist-dialog.js": {
-      "maxLines": 586,
+      "maxLines": 600,
       "hotspots": {
-        "iife>function:open": 19,
-        "iife>function:refresh": 26
+        "iife>function:open": 21,
+        "iife>function:refresh": 37
       }
     },
     "clinical-checklist-evolution.js": {
@@ -215,7 +215,7 @@
       "hotspots": {}
     },
     "content-fichamedico.js": {
-      "maxLines": 245,
+      "maxLines": 259,
       "hotspots": {}
     },
     "content-gestioncamas.js": {
@@ -375,7 +375,7 @@
       "hotspots": {}
     },
     "fichamedico-census-runtime.js": {
-      "maxLines": 154,
+      "maxLines": 178,
       "hotspots": {}
     },
     "fichamedico-clinical-client.js": {
@@ -429,7 +429,7 @@
       "hotspots": {}
     },
     "fichamedico-transport-runtime.js": {
-      "maxLines": 207,
+      "maxLines": 228,
       "hotspots": {}
     },
     "fichamedico-treating-physician-dom.js": {
@@ -524,7 +524,7 @@
       "hotspots": {}
     },
     "health-check.js": {
-      "maxLines": 109,
+      "maxLines": 111,
       "hotspots": {}
     },
     "health-heartbeat-runtime.js": {
@@ -771,10 +771,10 @@
       "hotspots": {}
     },
     "inject-fichamedico.js": {
-      "maxLines": 701,
+      "maxLines": 736,
       "hotspots": {
         "iife>variable:getVerifiedClinicalContext": 21,
-        "iife>variable:onBridgeMessage": 32,
+        "iife>variable:onBridgeMessage": 30,
         "iife>variable:readSafeSessionIdentityUncached": 24,
         "iife>variable:resolveNursingContext": 16
       }

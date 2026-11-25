@@ -24,6 +24,7 @@
   } catch (_) {}
 
   const READ_TIMEOUT_MS = 45000;
+  const MAIN_CAPTURE_DEADLINE_MS = 43000;
 
   // El inject de mundo principal NO se reinyecta al recargar la extensión: una pestaña
   // ya abierta conserva el lector anterior. La compatibilidad se decide en un solo lugar,
@@ -83,9 +84,22 @@
     } catch (_) {}
   };
   const buildReadRequest = (reqId, runtimeGeneration, persistedDiagnosisCatalog) => {
-    const request = { type: 'RAYEN_EXT_READ_REQUEST', reqId, runtimeGeneration };
+    const request = {
+      type: 'RAYEN_EXT_READ_REQUEST',
+      reqId,
+      runtimeGeneration,
+      deadlineMs: MAIN_CAPTURE_DEADLINE_MS,
+    };
     if (persistedDiagnosisCatalog) request.persistedDiagnosisCatalog = persistedDiagnosisCatalog;
     return request;
+  };
+  const formatReadOutcome = d => {
+    if (d.error) {
+      return d.timeoutStage ? { error: d.error, timeoutStage: d.timeoutStage } : { error: d.error };
+    }
+    const { capturePhasesMs, ...snapshot } = d.snapshot || {};
+    if (d.diagnosisCatalogUpdate) savePersistedDiagnosisCatalog(d.diagnosisCatalogUpdate);
+    return { snapshot: d.snapshot ? snapshot : undefined, capturePhasesMs };
   };
 
   const readViaMainWorld = async () => {
@@ -96,6 +110,7 @@
     return new Promise(resolve => {
       const reqId = 'r' + Date.now() + '-' + Math.floor(Math.random() * 1e9);
       let settled = false;
+      let timer = null;
 
       const onMessage = event => {
         if (event.source !== window || event.origin !== window.location.origin) return;
@@ -103,13 +118,12 @@
         if (!d || d.type !== 'RAYEN_EXT_READ_RESULT' || d.reqId !== reqId) return;
         cleanup();
         if (staleReader(d, runtimeGeneration)) return resolve({ error: STALE_READER_MESSAGE });
-        const { capturePhasesMs, ...snapshot } = d.snapshot || {};
-        if (!d.error && d.diagnosisCatalogUpdate) savePersistedDiagnosisCatalog(d.diagnosisCatalogUpdate);
-        resolve(d.error ? { error: d.error } : { snapshot: d.snapshot ? snapshot : undefined, capturePhasesMs });
+        resolve(formatReadOutcome(d));
       };
       const cleanup = () => {
         if (settled) return;
         settled = true;
+        if (timer != null) clearTimeout(timer);
         window.removeEventListener('message', onMessage);
       };
 
@@ -119,7 +133,7 @@
         window.location.origin
       );
 
-      setTimeout(() => {
+      timer = setTimeout(() => {
         if (settled) return;
         cleanup();
         resolve({ error: 'Tiempo de espera agotado leyendo Rayen.', timeoutStage: 'ficha_main_relay' });

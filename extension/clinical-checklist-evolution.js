@@ -40,24 +40,23 @@
     return raw.filter(el => !raw.some(other => other !== el && other.contains(el)));
   };
 
-  const evolutionDialog = dialog => {
-    const headingText = Array.from(
-      dialog.querySelectorAll('h1,h2,h3,h4,h5,h6,.MuiDialogTitle-root,.MuiTypography-h5,.MuiTypography-h6,.MuiTypography-subtitle1,.MuiCardHeader-title')
-    )
-      .slice(0, 4)
-      .map(el => el.textContent)
-      .join(' ');
-    const label = [
-      dialog.getAttribute('aria-label'),
-      ...String(dialog.getAttribute('aria-labelledby') || '')
-        .split(/\s+/)
-        .map(id => document.getElementById(id)?.textContent),
-      headingText,
-    ]
+  const dialogTitle = dialog => {
+    const labelledBy = String(dialog.getAttribute('aria-labelledby') || '')
+      .split(/\s+/)
+      .map(id => document.getElementById(id)?.textContent)
       .filter(Boolean)
       .join(' ');
-    const folded = normalize(label);
-    return /\bevolucion(?:es)?\b/.test(folded) && !/\bhistorial\b/.test(folded);
+    const label = labelledBy || dialog.getAttribute('aria-label') || dialog.querySelector('.MuiDialogTitle-root')?.textContent;
+    if (label) return normalize(label);
+    return normalize(Array.from(dialog.querySelectorAll(
+      'h1,h2,h3,h4,h5,h6,.MuiTypography-h5,.MuiTypography-h6,.MuiTypography-subtitle1,.MuiCardHeader-title'
+    )).filter(el => !el.closest(EXTENSION_OVERLAY)).slice(0, 4).map(el => el.textContent).join(' '));
+  };
+  const isTemplateTitle = title => /^(?:(?:seleccionar|seleccion de|mis|catalogo de|biblioteca de|gestor de) )?plantillas?\b/.test(title);
+  const templateDialog = dialog => isTemplateTitle(dialogTitle(dialog));
+  const evolutionDialog = dialog => {
+    const title = dialogTitle(dialog);
+    return /\bevolucion(?:es)?\b/.test(title) && !/\bhistorial\b/.test(title) && !isTemplateTitle(title);
   };
 
   const evolutionSection = () => {
@@ -294,6 +293,7 @@
     openEditor,
     insert,
     evolutionDialog,
+    templateDialog,
     dialogs,
     resolveTriggerHost,
   };
