@@ -4,7 +4,6 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   admitLocalRecords,
-  clearAllRecords,
   deleteRecord,
   getAllDates,
   getAllRecords,
@@ -21,22 +20,17 @@ import {
   saveErrorLog,
 } from '@/services/storage/indexeddb/indexedDbErrorLogService';
 import {
-  clearAuditLogs,
   getAuditLogs,
   getAuditLogsForDate,
   saveAuditLog,
 } from '@/services/storage/indexeddb/indexedDbAuditLogService';
-import {
-  clearCatalog,
-  getCatalog,
-  saveCatalog,
-} from '@/services/storage/indexeddb/indexedDbCatalogService';
+import { getCatalog, saveCatalog } from '@/services/storage/indexeddb/indexedDbCatalogService';
 import { migrateFromLocalStorage } from '@/services/storage/indexeddb/indexedDbMigrationService';
+import { getSetting, saveSetting } from '@/services/storage/indexeddb/indexedDbSettingsService';
 import {
-  clearAllSettings,
-  getSetting,
-  saveSetting,
-} from '@/services/storage/indexeddb/indexedDbSettingsService';
+  clearAllRecordsForTests,
+  clearAuditLogsForTests,
+} from '@/tests/support/indexedDbTestReset';
 import * as indexedDbCore from '@/services/storage/indexeddb/indexedDbCore';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -59,10 +53,10 @@ describe('indexedDBService', () => {
 
   beforeEach(async () => {
     // Clear all stores before each test
-    await clearAllRecords();
+    await clearAllRecordsForTests();
     await indexedDbCore.hospitalDB.syncQueue.clear();
     await clearErrorLogs();
-    await clearAuditLogs();
+    await clearAuditLogsForTests();
     localStorage.clear();
     localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-diagnostics');
     setSessionGeneration('user:synthetic-diagnostics', 'user:synthetic-diagnostics');
@@ -441,22 +435,6 @@ describe('indexedDBService', () => {
       } as ErrorLog);
       const logs = await getErrorLogs(1);
       expect(logs).toHaveLength(1);
-    });
-  });
-
-  describe('Additional Clear Operations', () => {
-    it('should clear catalog', async () => {
-      await saveCatalog('nurses', ['Alice']);
-      await clearCatalog('nurses');
-      const list = await getCatalog('nurses');
-      expect(list).toEqual([]);
-    });
-
-    it('should clear all settings', async () => {
-      await saveSetting('s1', 'v1');
-      await clearAllSettings();
-      const val = await getSetting('s1', 'default');
-      expect(val).toBe('default');
     });
   });
 });

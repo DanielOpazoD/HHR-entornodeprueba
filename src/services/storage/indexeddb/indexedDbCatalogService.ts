@@ -58,21 +58,6 @@ export const cacheCatalogValues = async <T = string>(
   onlyIfChanged = false
 ): Promise<void> => saveCatalogValues<T>(catalogId, list, onlyIfChanged).catch(() => undefined);
 
-export const clearCatalog = async (catalogId: string): Promise<void> => {
-  try {
-    await ensureDbReady();
-    await db.catalogs.delete(catalogId);
-  } catch (error) {
-    recordOperationalErrorTelemetry('indexeddb', 'indexeddb_clear_catalog', error, {
-      code: 'indexeddb_clear_catalog_failed',
-      message: `No fue posible limpiar el catalogo ${catalogId}.`,
-      severity: 'warning',
-      userSafeMessage: 'No fue posible limpiar un catalogo local.',
-      context: { catalogId },
-    });
-  }
-};
-
 export const getCatalog = async (catalogId: string): Promise<string[]> => {
   return await getCatalogValues<string>(catalogId);
 };

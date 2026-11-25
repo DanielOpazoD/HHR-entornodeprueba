@@ -49,21 +49,3 @@ export const getSetting = async <T>(id: string, defaultValue: T): Promise<T> => 
     return defaultValue;
   }
 };
-
-export const clearAllSettings = async (): Promise<void> => {
-  try {
-    await ensureDbReady();
-    if (isDatabaseInFallbackMode()) {
-      localPersistence.settings.clearAll();
-      return;
-    }
-    await db.settings.clear();
-  } catch (error) {
-    recordOperationalErrorTelemetry('indexeddb', 'indexeddb_clear_all_settings', error, {
-      code: 'indexeddb_clear_all_settings_failed',
-      message: 'No fue posible limpiar las configuraciones locales.',
-      severity: 'warning',
-      userSafeMessage: 'No fue posible limpiar las configuraciones locales.',
-    });
-  }
-};

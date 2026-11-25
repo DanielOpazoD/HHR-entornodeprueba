@@ -44,7 +44,7 @@ import { restoreDailyRecordVersion } from '@/services/repositories/dailyRecordVe
 import { markHistorySnapshotTaken } from '@/services/storage/firestore/historySnapshotCadence';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
-import { clearAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { clearAllRecordsForTests } from '@/tests/support/indexedDbTestReset';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 
 const buildRecord = (date: string, lastUpdated: string): DailyRecord => ({
@@ -134,7 +134,7 @@ describeEmulator('Firestore emulator conflict version recovery', () => {
   beforeEach(async () => {
     await testEnv.clearFirestore();
     await authority.install();
-    await clearAllRecords();
+    await clearAllRecordsForTests();
     await hospitalDB.syncQueue.clear();
     setFirestoreEnabled(true);
     activeDb = nurseDb;

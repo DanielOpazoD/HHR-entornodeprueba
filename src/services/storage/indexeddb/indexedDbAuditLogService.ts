@@ -70,20 +70,6 @@ export const getAuditLogsInRange = async ({
   }
 };
 
-export const clearAuditLogs = async (): Promise<void> => {
-  try {
-    await ensureDbReady();
-    await db.auditLogs.clear();
-  } catch (error) {
-    recordOperationalErrorTelemetry('indexeddb', 'indexeddb_clear_audit_logs', error, {
-      code: 'indexeddb_clear_audit_logs_failed',
-      message: 'No fue posible limpiar logs de auditoria locales.',
-      severity: 'warning',
-      userSafeMessage: 'No fue posible limpiar logs de auditoria locales.',
-    });
-  }
-};
-
 export const getAuditLogsForDate = async (date: string): Promise<AuditLogEntry[]> => {
   try {
     await ensureDbReady();

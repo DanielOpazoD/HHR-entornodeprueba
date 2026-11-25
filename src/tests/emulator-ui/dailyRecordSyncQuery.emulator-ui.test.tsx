@@ -12,10 +12,10 @@ import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
-  clearAllRecords,
   getRecordForDateStrict,
   saveRecord,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { clearAllRecordsForTests } from '@/tests/support/indexedDbTestReset';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreRulesEmulatorConfig';
 import {
@@ -197,7 +197,7 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
       clinicalBatchMode: 'enforced',
     });
     bridgeAuthority();
-    await clearAllRecords();
+    await clearAllRecordsForTests();
     resetDailyRecordFreshnessGateForTests();
     clearPendingDailyRecordPatchesForTests();
     setFirestoreEnabled(true);

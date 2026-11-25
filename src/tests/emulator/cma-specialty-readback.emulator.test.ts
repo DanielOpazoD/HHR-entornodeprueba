@@ -29,7 +29,7 @@ vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
 
 import { saveRecordToFirestore } from '@/services/storage/firestore/firestoreRecordWrites';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
-import { clearAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { clearAllRecordsForTests } from '@/tests/support/indexedDbTestReset';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 
 const buildRecord = (date: string, lastUpdated: string): DailyRecord => ({
@@ -105,7 +105,7 @@ describeEmulator('Firestore emulator CMA specialty readback', () => {
   beforeEach(async () => {
     await testEnv.clearFirestore();
     await authority.install();
-    await clearAllRecords();
+    await clearAllRecordsForTests();
     setFirestoreEnabled(true);
     activeDb = nurseDb;
   });

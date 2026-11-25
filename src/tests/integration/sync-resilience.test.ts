@@ -56,10 +56,8 @@ vi.mock('@/services/storage/firestore/dailyRecordAuthorityCallableClient', () =>
 
 import { setDoc } from 'firebase/firestore';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import {
-  clearAllRecords,
-  saveRecord as saveRecordLocal,
-} from '@/services/storage/indexeddb/indexedDbRecordService';
+import { saveRecord as saveRecordLocal } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { clearAllRecordsForTests } from '@/tests/support/indexedDbTestReset';
 import { getSyncQueueTelemetry, processSyncQueue, queueSyncTask } from '@/services/storage/sync';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
@@ -115,7 +113,7 @@ describe('Sync resilience integration', () => {
         recordState: { record, lastUpdated: record.lastUpdated },
       })
     );
-    await clearAllRecords();
+    await clearAllRecordsForTests();
     await hospitalDB.syncQueue.clear();
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
   });

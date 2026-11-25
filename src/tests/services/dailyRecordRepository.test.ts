@@ -19,7 +19,7 @@ import {
 } from '@/services/repositories/CatalogRepository';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
-import { clearAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { clearAllRecordsForTests } from '@/tests/support/indexedDbTestReset';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 
 const createDeferred = () => {
@@ -161,7 +161,7 @@ describe('DailyRecordRepository (Expanded)', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     await hospitalDB.syncQueue.clear();
-    await clearAllRecords();
+    await clearAllRecordsForTests();
 
     setFirestoreEnabled(true);
     firestoreMock.getRecordFromFirestoreDetailed.mockImplementation(async (date: string) => {

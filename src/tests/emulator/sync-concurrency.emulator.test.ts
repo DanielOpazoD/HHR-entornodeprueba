@@ -42,10 +42,10 @@ import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositor
 import { updatePartial } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import {
-  clearAllRecords,
   getRecordForDateStrict,
   saveRecord,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { clearAllRecordsForTests } from '@/tests/support/indexedDbTestReset';
 import { processSyncQueue } from '@/services/storage/sync';
 import {
   buildDetailedStaffingPatch,
@@ -146,7 +146,7 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
   beforeEach(async () => {
     await testEnv.clearFirestore();
     await authority.install();
-    await clearAllRecords();
+    await clearAllRecordsForTests();
     await hospitalDB.syncQueue.clear();
     setFirestoreEnabled(true);
     activeDb = nurseDb;
