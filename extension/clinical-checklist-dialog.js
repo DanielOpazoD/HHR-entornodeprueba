@@ -460,6 +460,9 @@
   async function open(preferredMode = null) {
     const episode = route();
     if (!enabled || !episode || dialog?.open) return;
+    const nativeDialogs = evo.dialogs();
+    if (nativeDialogs.some(evo.templateDialog)) return;
+    const nativeEditor = nativeDialogs.find(evo.evolutionDialog);
     if (!session || session.episode !== episode) {
       session = { episode, code: 'PT-' + crypto.randomUUID().toUpperCase(), answers: {}, preferredMode };
     } else if (!session.record && preferredMode) {
@@ -469,6 +472,7 @@
     const state = session;
     dialog = make('dialog');
     dialog.className = 'hhr-checklist-dialog';
+    dialog.classList.toggle('is-matrix', preferredMode === 'braden');
     dialog.dataset.hhrChecklist = chrome.runtime.id;
     dialog.setAttribute('aria-labelledby', 'hhr-checklist-heading');
     const header = make('header');
@@ -481,7 +485,11 @@
     feedback.setAttribute('role', 'status');
     const form = make('form');
     dialog.append(header, who, form, feedback);
-    document.body.append(dialog);
+    // Keep keyboard focus inside the native editor's modal boundary.
+    (nativeEditor || document.body).append(dialog);
+    dialog.addEventListener('keydown', event => {
+      if (event.key === 'Escape') event.stopPropagation();
+    });
     dialog.addEventListener('cancel', e => {
       e.preventDefault();
       close();
@@ -521,9 +529,15 @@
       close();
     }
     if (!enabled || insertedReceipt?.episode !== episode) insertedReceipt = null;
-    const nativeDialog = evo.dialogs().find(evo.evolutionDialog) || null;
+    if (dialog && !dialog.isConnected) close();
+    if (dialog?.open) return;
+    const nativeDialogs = evo.dialogs();
+    // A portal such as Plantillas can temporarily hide Evolución with aria-hidden.
+    if (enabled && episode && nativeDialogs.some(evo.templateDialog)) return;
+    const nativeDialog = nativeDialogs.find(evo.evolutionDialog);
     const host = enabled && episode ? evo.resolveTriggerHost(nativeDialog) : null;
     if (!host) {
+      if (enabled && episode && trigger?.isConnected && trigger.closest('[inert],[aria-hidden="true"]')) return;
       removeTriggers();
       return;
     }

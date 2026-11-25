@@ -2,7 +2,7 @@
 .hhr-checklist-trigger,.hhr-checklist-braden-trigger{display:inline-flex;align-items:center;gap:6px;margin:4px 6px;position:relative;z-index:2;white-space:nowrap;flex-shrink:0;vertical-align:middle}
 .hhr-checklist-braden-trigger{background:#fff;border-color:#9fc5bc;color:#14564f}
 .hhr-checklist-trigger:hover,.hhr-checklist-braden-trigger:hover,.hhr-checklist-dialog button:hover,.hhr-checklist-dialog a:hover{background:#e3f1ed}
-.hhr-checklist-dialog{box-sizing:border-box;width:min(540px,94vw);max-height:88vh;overflow:auto;margin:auto;border:0;border-radius:12px;padding:18px;color:#193a35;background:white;box-shadow:0 16px 60px #123c3540;font:14px/1.4 system-ui}
+.hhr-checklist-dialog{--hhr-checklist-inset:clamp(8px,6dvh,48px);box-sizing:border-box;width:min(540px,94vw);max-height:calc(100dvh - 2 * var(--hhr-checklist-inset));overflow:auto;overscroll-behavior:contain;margin:var(--hhr-checklist-inset) auto auto;border:0;border-radius:12px;padding:18px;color:#193a35;background:white;box-shadow:0 16px 60px #123c3540;font:14px/1.4 system-ui}
 .hhr-checklist-dialog.is-matrix{width:min(860px,96vw)}
 .hhr-checklist-dialog::backdrop{background:#102f2b66}
 .hhr-checklist-dialog header,.hhr-checklist-dialog footer,.hhr-checklist-template-row,.hhr-checklist-actions,.hhr-braden-switcher,.hhr-braden-summary-head,.hhr-braden-preview-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}

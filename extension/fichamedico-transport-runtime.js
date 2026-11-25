@@ -15,9 +15,7 @@
   };
 
   const assertPositiveTimeout = (value, name) => {
-    if (!Number.isFinite(value) || value <= 0) {
-      throw new Error(`El timeout ${name} no es válido.`);
-    }
+    if (!Number.isFinite(value) || value <= 0) throw new Error(`El timeout ${name} no es válido.`);
     return value;
   };
 
@@ -41,10 +39,7 @@
     assertFunction(extensionHealth && extensionHealth.probeTabs, 'extensionHealth.probeTabs');
     assertFunction(encounterNavigation?.normalizeEncounterId, 'encounterNavigation.normalizeEncounterId');
     assertFunction(encounterNavigation?.orderEncounterTabs, 'encounterNavigation.orderEncounterTabs');
-    assertFunction(
-      encounterNavigation && encounterNavigation.buildEncounterUrl,
-      'encounterNavigation.buildEncounterUrl'
-    );
+    assertFunction(encounterNavigation?.buildEncounterUrl, 'encounterNavigation.buildEncounterUrl');
 
     const sendHealthProbe = root.HhrConnectionRelayRecovery.createHealthProbe({
       sendMessage: tabs.sendMessage.bind(tabs), withTimeout,
@@ -63,6 +58,21 @@
       return ready.length ? ready : candidates;
     };
 
+    const setAutoDiscardable = (tabId, autoDiscardable) => {
+      try { Promise.resolve(tabs.update(tabId, { autoDiscardable })).catch(() => {}); } catch (_e) {}
+    };
+
+    const maybeProtectSourceTab = (urlMatch, matchingTabs, activeTabId) => {
+      if (urlMatch !== FICHAMEDICO_MATCH) return;
+      for (const candidate of matchingTabs) {
+        if (candidate?.id == null) continue;
+        const protect = candidate.id === activeTabId;
+        if (protect ? candidate.autoDiscardable !== false : candidate.autoDiscardable === false) {
+          setAutoDiscardable(candidate.id, !protect);
+        }
+      }
+    };
+
     const sendToMatchingTab = async (urlMatch, message, noTabError, noAnswerError) => {
       const matchingTabs = await tabs.query({ url: urlMatch });
       if (!matchingTabs.length) return { error: noTabError };
@@ -75,7 +85,10 @@
             tabMessageTimeoutMs,
             'La pestaña de Ficha Médico no respondió dentro del tiempo esperado.'
           );
-          if (response && !response.error) return response;
+          if (response && !response.error) {
+            maybeProtectSourceTab(urlMatch, matchingTabs, tab.id);
+            return response;
+          }
           if (response && response.error) {
             lastError = String(response.error);
             lastTimeoutStage = response.timeoutStage === 'ficha_main_relay' ? 'ficha_main_relay' : undefined;
@@ -153,30 +166,27 @@
         : null;
     };
 
-    const getFetchInfo = async sender => {
-      const directTabId = senderTabId(sender);
-      if (directTabId != null) {
-        try {
-          const direct = await withTimeout(
-            tabs.sendMessage(directTabId, { type: 'RAYEN_FM_GET_FETCH_INFO' }),
-            tabMessageTimeoutMs,
-            'La pestaña de Ficha Médico no respondió dentro del tiempo esperado.'
-          );
-          if (direct && direct.info && direct.info.token && direct.info.apiOrigin) {
-            return { info: direct.info };
-          }
-          return {
-            error:
-              (direct && direct.error) ||
-              'La pestaña emisora no entregó una sesión clínica válida.',
-          };
-        } catch (_error) {}
-        return {
-          error:
-            'No se pudo verificar la sesión de la pestaña emisora. Recárgala e inicia sesión nuevamente.',
-        };
-      }
+    let inflightSharedFetchInfo = null;
+    const cloneFetchInfoResult = result =>
+      result && result.info ? { info: Object.freeze({ ...result.info }) } : result;
 
+    const readDirectFetchInfo = async directTabId => {
+      try {
+        const direct = await withTimeout(
+          tabs.sendMessage(directTabId, { type: 'RAYEN_FM_GET_FETCH_INFO' }),
+          tabMessageTimeoutMs,
+          'La pestaña de Ficha Médico no respondió dentro del tiempo esperado.'
+        );
+        if (direct && direct.info && direct.info.token && direct.info.apiOrigin) {
+          return { info: direct.info };
+        }
+        return { error: (direct && direct.error) || 'La pestaña emisora no entregó una sesión clínica válida.' };
+      } catch (_error) {
+        return { error: 'No se pudo verificar la sesión de la pestaña emisora. Recárgala e inicia sesión nuevamente.' };
+      }
+    };
+
+    const readSharedFetchInfo = async () => {
       const infoResponse = await sendToMatchingTab(
         FICHAMEDICO_MATCH,
         { type: 'RAYEN_FM_GET_FETCH_INFO' },
@@ -189,6 +199,17 @@
         return { error: 'Sin sesión de Ficha Médico. Recarga la página e inicia sesión.' };
       }
       return { info };
+    };
+
+    const getFetchInfo = async sender => {
+      const directTabId = senderTabId(sender);
+      if (directTabId != null) return readDirectFetchInfo(directTabId);
+      if (!inflightSharedFetchInfo) {
+        inflightSharedFetchInfo = readSharedFetchInfo().finally(() => {
+          inflightSharedFetchInfo = null;
+        });
+      }
+      return cloneFetchInfoResult(await inflightSharedFetchInfo);
     };
 
     return Object.freeze({

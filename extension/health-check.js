@@ -3,6 +3,8 @@
   'use strict';
   const orderTabs = tabs =>
     (Array.isArray(tabs) ? tabs.slice() : []).sort((a, b) => {
+      const discardedDelta = Number(Boolean(a && a.discarded)) - Number(Boolean(b && b.discarded));
+      if (discardedDelta !== 0) return discardedDelta;
       const activeDelta = Number(Boolean(b && b.active)) - Number(Boolean(a && a.active));
       if (activeDelta !== 0) return activeDelta;
       return Number((b && b.lastAccessed) || 0) - Number((a && a.lastAccessed) || 0);

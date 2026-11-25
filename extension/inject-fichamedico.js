@@ -11,7 +11,7 @@
  */
 (() => {
   'use strict';
-  const INJECT_VERSION = '0.48.167';
+  const INJECT_VERSION = '0.48.170';
   // Install the bridge probe separately so an older, compatible MAIN reader can keep its
   // captured session when this script is re-injected after an extension update.
   const bridgeRuntime = globalThis.HhrBridgeGeneration.createMain({ version: INJECT_VERSION });
@@ -310,14 +310,36 @@
         : 'La sesión clínica de Ficha Médico no está disponible.',
     }),
   };
-  const apiGet = async (url, auth) => {
+  const CAPTURE_ABORT_CODE = 'HHR_CAPTURE_ABORTED';
+  const DEFAULT_CAPTURE_DEADLINE_MS = 43000;
+  let activeCaptureSignal = null;
+  const createCaptureAbortError = () => {
+    const error = new Error('Tiempo de espera agotado leyendo Rayen.');
+    error.code = CAPTURE_ABORT_CODE;
+    error.timeoutStage = 'ficha_main_relay';
+    return error;
+  };
+  const isCaptureAbortError = (error, signal) =>
+    Boolean((signal && signal.aborted) || (error && (error.code === CAPTURE_ABORT_CODE || error.name === 'AbortError')));
+  const resolveCaptureDeadlineMs = deadlineMs =>
+    Number.isFinite(deadlineMs) && deadlineMs > 0
+      ? Math.min(Math.round(deadlineMs), DEFAULT_CAPTURE_DEADLINE_MS)
+      : DEFAULT_CAPTURE_DEADLINE_MS;
+  const apiGet = async (url, auth, signal) => {
+    if (signal && signal.aborted) throw createCaptureAbortError();
     let res;
     try {
       // Auth is 100% via the HSP header; credentials:'omit' avoids the CORS credential trap.
-      res = await origFetch(url, { headers: { Authorization: auth }, credentials: 'omit' });
+      res = await origFetch(url, {
+        headers: { Authorization: auth },
+        credentials: 'omit',
+        ...(signal ? { signal } : {}),
+      });
     } catch (error) {
+      if (isCaptureAbortError(error, signal)) throw createCaptureAbortError();
       throw resilience.isNetworkFailure(error) ? resilience.describeNetworkFailure(error, url) : error;
     }
+    if (signal && signal.aborted) throw createCaptureAbortError();
     if (!res.ok) throw new Error(res.status + ' en ' + url.replace(/\?.*/, ''));
     return res.json();
   };
@@ -512,15 +534,24 @@
     },
   });
   const readCensus = () => censusReader.read();
-  const runCensusRead = async persistedCatalog => {
-    const previous = activeCatalogSession;
+  const runCensusRead = async (persistedCatalog, deadlineMs) => {
+    const previousSession = activeCatalogSession;
+    const previousSignal = activeCaptureSignal;
     const session = { persisted: persistedCatalog || null, update: null };
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = controller
+      ? setTimeout(() => controller.abort(), resolveCaptureDeadlineMs(deadlineMs))
+      : null;
     activeCatalogSession = session;
+    activeCaptureSignal = controller ? controller.signal : null;
     try {
       const snapshot = await readCensus();
+      if (controller && controller.signal.aborted) throw createCaptureAbortError();
       return { snapshot, diagnosisCatalogUpdate: session.update };
     } finally {
-      activeCatalogSession = previous;
+      if (timer != null) clearTimeout(timer);
+      activeCatalogSession = previousSession;
+      activeCaptureSignal = previousSignal;
     }
   };
   const buildReadResultMessage = (reqId, bridge, result) => {
@@ -533,15 +564,27 @@
     if (result.diagnosisCatalogUpdate) message.diagnosisCatalogUpdate = result.diagnosisCatalogUpdate;
     return message;
   };
-
-  const readCensusOnce = () => globalThis.HhrFichaMedicoCensusRuntime.read({
-    getVerifiedClinicalContext, apiGet, getAuth: () => capturedAuth, readClinicalCached,
-    readDiagnosisCatalog, normalization, headerUrl, diagnosisUrl, isolationUrl,
-    diagnosisCatalogCacheTtlMs: DIAGNOSIS_CATALOG_CACHE_TTL_MS,
-    physicianNormalization: globalThis.HhrFichaMedicoTreatingPhysicianNormalization,
-    diagnosisCodingRuntime: globalThis.HhrFichaMedicoDiagnosisCoding,
-    documentRoot: document,
+  const buildReadErrorMessage = (reqId, bridge, error) => ({
+    type: 'RAYEN_EXT_READ_RESULT',
+    reqId,
+    ...bridgeRuntime.metadata(bridge),
+    error: String((error && error.message) || error),
+    ...(error && error.timeoutStage ? { timeoutStage: error.timeoutStage } : {}),
   });
+
+  const readCensusOnce = () => {
+    const signal = activeCaptureSignal;
+    const scopedApiGet = (url, auth) => apiGet(url, auth, signal);
+    return globalThis.HhrFichaMedicoCensusRuntime.read({
+      getVerifiedClinicalContext, apiGet: scopedApiGet, getAuth: () => capturedAuth, readClinicalCached,
+      readDiagnosisCatalog, normalization, headerUrl, diagnosisUrl, isolationUrl,
+      diagnosisCatalogCacheTtlMs: DIAGNOSIS_CATALOG_CACHE_TTL_MS,
+      physicianNormalization: globalThis.HhrFichaMedicoTreatingPhysicianNormalization,
+      diagnosisCodingRuntime: globalThis.HhrFichaMedicoDiagnosisCoding,
+      documentRoot: document,
+      signal,
+    });
+  };
   // Vigencia real de la sesión (Eloísa: `expirationDate`, sesiones de 24 h): HHR la muestra en
   // el monitor y bloquea el arranque si no alcanza a cubrir la corrida. Nunca se inventa.
   const describeSessionExpiry = (identity, sessionReady, now = Date.now()) => {
@@ -593,18 +636,10 @@
       });
       if (!bridge) return;
       try {
-        const result = await runCensusRead(data.persistedDiagnosisCatalog);
+        const result = await runCensusRead(data.persistedDiagnosisCatalog, data.deadlineMs);
         window.postMessage(buildReadResultMessage(reqId, bridge, result), window.location.origin);
       } catch (error) {
-        window.postMessage(
-          {
-            type: 'RAYEN_EXT_READ_RESULT',
-            reqId,
-            ...bridgeRuntime.metadata(bridge),
-            error: String((error && error.message) || error),
-          },
-          window.location.origin
-        );
+        window.postMessage(buildReadErrorMessage(reqId, bridge, error), window.location.origin);
       }
       return;
     }
