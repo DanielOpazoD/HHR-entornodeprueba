@@ -97,25 +97,28 @@ describe('functions clinicalDocumentPdfRenderFunctions', () => {
     });
   });
 
-  it('renders pdf for authorized doctor role', async () => {
-    const renderOverride = vi.fn().mockResolvedValue(Buffer.from('fake-pdf-content'));
-    const functionsApi = createClinicalDocumentPdfRenderFunctions({
-      resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_urgency'),
-      renderPdfFromHtmlOverride: renderOverride,
-    });
+  it.each(['doctor_urgency', 'doctor_specialist'])(
+    'renders pdf for authorized %s role',
+    async role => {
+      const renderOverride = vi.fn().mockResolvedValue(Buffer.from('fake-pdf-content'));
+      const functionsApi = createClinicalDocumentPdfRenderFunctions({
+        resolveRoleForEmail: vi.fn().mockResolvedValue(role),
+        renderPdfFromHtmlOverride: renderOverride,
+      });
 
-    const response = await functionsApi.renderClinicalDocumentPdfFromHtml.run(
-      {
-        html: '<!doctype html><html><body><div class="clinical-document-sheet">Epicrisis</div></body></html>',
-      },
-      { auth: { uid: 'u1', token: { email: 'doctor@hospitalhangaroa.cl' } } }
-    );
+      const response = await functionsApi.renderClinicalDocumentPdfFromHtml.run(
+        {
+          html: '<!doctype html><html><body><div class="clinical-document-sheet">Epicrisis</div></body></html>',
+        },
+        { auth: { uid: 'u1', token: { email: 'doctor@hospitalhangaroa.cl' } } }
+      );
 
-    expect(response.mimeType).toBe('application/pdf');
-    expect(typeof response.contentBase64).toBe('string');
-    expect(response.contentBase64.length).toBeGreaterThan(0);
-    expect(renderOverride).toHaveBeenCalled();
-  });
+      expect(response.mimeType).toBe('application/pdf');
+      expect(typeof response.contentBase64).toBe('string');
+      expect(response.contentBase64.length).toBeGreaterThan(0);
+      expect(renderOverride).toHaveBeenCalled();
+    }
+  );
 
   it('disables JavaScript on the Chromium page before calling setContent and always closes the browser', async () => {
     const events: string[] = [];

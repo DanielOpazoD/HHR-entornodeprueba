@@ -47,6 +47,7 @@ describe('functions/lib/auth/rolePredicates', () => {
       'admin',
       'nurse_hospital',
       'doctor_urgency',
+      'doctor_specialist',
       'editor',
     ]);
     expect(matchingRoles(canAccessMmradRole)).toEqual([
