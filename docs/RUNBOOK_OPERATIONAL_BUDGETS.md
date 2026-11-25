@@ -75,7 +75,7 @@ Cada contexto tiene acción asociada en `reports/operational-health.md`.
 
 ## Runtime Asset Margin
 
-La evidencia de margen de assets pesados vive en `reports/runtime-asset-margin.md`.
+La verificación de margen de assets pesados corre con `npm run check:runtime-asset-margin`.
 
 Superficies gobernadas:
 

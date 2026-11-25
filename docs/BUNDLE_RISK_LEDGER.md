@@ -24,7 +24,7 @@ Este ledger gobierna los chunks que hoy explican el warning de tamaño de Vite o
 - Treat a near-limit warning as release-visible debt, not a blocker, when the runtime is async or still below the startup ceiling.
 - Do not raise a threshold unless the ledger explains the owner, measured baseline and rollback path.
 - Keep optional HEIC/PDF runtimes and the PDF.js worker out of install-time precache so offline install size does not grow silently.
-- Regenerate `reports/runtime-asset-margin.md` after production build when a runtime asset crosses warning band.
+- Run `npm run check:runtime-asset-margin` after production build when a runtime asset approaches its warning band.
 
 ## Next recommended PR
 

@@ -16,11 +16,10 @@ cuestionarse en review.
 Mantener este estado se verifica con:
 
 ```bash
-npm run report:todos
+git grep -n -E '\b(TODO|FIXME|HACK|XXX)\b' -- src functions
 ```
 
-Que escribe `reports/source/todos-inventory.{json,md}`. El script no
-falla CI; es para feedback en code review y auditorías mensuales.
+El comando sirve para feedback en code review y auditorías puntuales.
 
 ## Cuando aparece un marker nuevo en un PR
 
@@ -45,8 +44,7 @@ Si por urgencia un marker se cuela:
    // TODO(2026-05-03, command-layer-discharge): wire promotion criteria
    ```
 
-2. Al cierre del próximo sprint, `npm run report:todos` lo lista; el
-   responsable lo trie según la tabla anterior.
+2. Al cierre del próximo sprint, revisarlo con `git grep` y triarlo según la tabla anterior.
 
 ## Por qué la regla es "cero" y no "pocos"
 
@@ -59,7 +57,7 @@ Si por urgencia un marker se cuela:
 
 ## Mantenimiento
 
-- Correr `npm run report:todos` antes de cualquier release planificado.
+- Revisar markers pendientes antes de cualquier release planificado.
 - Si el conteo crece, abrir un activo de cleanup. Si se mantiene en cero,
   no hay que hacer nada.
 - Este documento se actualiza solo cuando cambia el playbook, no por

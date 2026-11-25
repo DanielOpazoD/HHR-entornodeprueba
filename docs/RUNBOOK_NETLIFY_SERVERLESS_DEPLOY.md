@@ -9,7 +9,6 @@ Diagnosticar rápido fallos de build, bundling y runtime en `netlify/functions`.
 - `package.json`
 - `.nvmrc`
 - `netlify.toml`
-- `reports/serverless-runtime-governance.md`
 - `docs/SERVERLESS_SENSITIVE_CONTRACTS.md`
 
 ## Checklist de pre-deploy
@@ -24,7 +23,7 @@ Diagnosticar rápido fallos de build, bundling y runtime en `netlify/functions`.
 
 ### 1. Build local funciona y Netlify falla
 
-1. Revisar `reports/serverless-runtime-governance.md`.
+1. Ejecutar `npm run check:serverless-runtime-governance`.
 2. Confirmar versión de Node usada por Netlify.
 3. Revisar warnings `EBADENGINE` en el log de instalación.
 4. Repetir `npm run check:netlify-functions-bundle` localmente.

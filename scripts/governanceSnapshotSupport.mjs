@@ -3,12 +3,7 @@ import { getEvidenceNode } from './evidenceDependencyGraph.mjs';
 import { getGitReportState } from './gitReportState.mjs';
 import { getReleaseEvidenceRefreshSteps } from './releaseEvidenceContract.mjs';
 
-const SUPPORTING_GOVERNANCE_STEP_IDS = [
-  'runtime-contracts',
-  'serverless-runtime-governance',
-  'serverless-sensitive-coverage',
-  'sustainable-change-policy',
-];
+const SUPPORTING_GOVERNANCE_STEP_IDS = ['runtime-contracts'];
 
 const getGovernanceReleaseEvidenceSteps = () => {
   // The coverage shard creates this expensive report once and CI downloads it

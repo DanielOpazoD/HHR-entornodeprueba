@@ -55,7 +55,6 @@ const requiredDocs = [
   {
     file: 'docs/RUNBOOK_NETLIFY_SERVERLESS_DEPLOY.md',
     patterns: [
-      'reports/serverless-runtime-governance.md',
       'check:serverless-runtime-governance',
       'check:netlify-functions-bundle',
       'docs/SERVERLESS_SENSITIVE_CONTRACTS.md',
