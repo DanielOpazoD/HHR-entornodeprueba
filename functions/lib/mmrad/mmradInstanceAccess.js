@@ -44,14 +44,15 @@ const shareKey = () =>
 const verifyUniversitasTicket = (ticket, subject, now = Date.now()) => {
   if (typeof ticket !== 'string' || ticket.length > 1500) throw new InstanceAccessError();
   const parts = ticket.split('.');
-  if (parts.length !== 2) throw new InstanceAccessError();
-  const received = Buffer.from(parts[1], 'base64url');
-  const expected = signature(parts[0]);
+  const [payloadPart, signaturePart] = parts;
+  if (parts.length !== 2 || !payloadPart || !signaturePart) throw new InstanceAccessError();
+  const received = Buffer.from(signaturePart, 'base64url');
+  const expected = signature(payloadPart);
   if (received.length !== expected.length || !timingSafeEqual(received, expected))
     throw new InstanceAccessError();
   let value;
   try {
-    value = JSON.parse(Buffer.from(parts[0], 'base64url').toString());
+    value = JSON.parse(Buffer.from(payloadPart, 'base64url').toString());
   } catch {
     throw new InstanceAccessError();
   }

@@ -27,14 +27,25 @@ const snapshotInstant = value => {
   const iso = value.match(
     /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})$/
   );
-  if (!iso || !isValidCalendarDay(iso[1]) || +iso[2] > 23 || +iso[3] > 59 || +iso[4] > 59) {
+  const [, isoDay, isoHour, isoMinute, isoSecond, isoFraction] = iso || [];
+  if (
+    !iso ||
+    !isoDay ||
+    !isoHour ||
+    !isoMinute ||
+    !isoSecond ||
+    !isValidCalendarDay(isoDay) ||
+    +isoHour > 23 ||
+    +isoMinute > 59 ||
+    +isoSecond > 59
+  ) {
     return null;
   }
   const milliseconds = Date.parse(value);
   if (!Number.isFinite(milliseconds)) return null;
   return {
     seconds: Math.floor(milliseconds / 1000),
-    nanoseconds: Number((iso[5] || '').padEnd(9, '0')),
+    nanoseconds: Number((isoFraction || '').padEnd(9, '0')),
   };
 };
 

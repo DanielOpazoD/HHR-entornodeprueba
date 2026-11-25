@@ -289,7 +289,8 @@ const createPatchHandler =
                   ...new Set(
                     Object.keys(authorizedPatch)
                       .filter(path => path.startsWith('beds.'))
-                      .map(path => path.split('.')[1])
+                      .map(path => path.split('.')[1] || '')
+                      .filter(Boolean)
                   ),
                 ],
               })

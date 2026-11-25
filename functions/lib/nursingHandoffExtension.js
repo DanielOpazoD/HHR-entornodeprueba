@@ -39,8 +39,9 @@ function findHandoff(snapshot, record, episode, code, slot, census) {
       if (String(item?.clinicalEpisodeId ?? '') === episode) matches.push({ path, item });
     }
   }
-  if (!matches.length) fail('not-found', 'Este episodio aún no está en el ' + census + '.', slot);
-  const { path, item } = matches[0];
+  const match = matches[0];
+  if (!match) return fail('not-found', 'Este episodio aún no está en el ' + census + '.', slot);
+  const { path, item } = match;
   const type = item.documentType || 'RUT';
   // The confirmed census episode determines the kind, including numeric passports.
   const validDocument = type === 'Pasaporte' || (type === 'RUT' && /^\d{6,9}[\dK]$/.test(code));

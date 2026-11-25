@@ -1,6 +1,6 @@
 const normalizeIsoDate = value => {
   if (!value || typeof value !== 'string') return undefined;
-  const datePart = value.split('T')[0].trim();
+  const datePart = (value.split('T')[0] || '').trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
     return datePart;
   }
@@ -20,6 +20,16 @@ const calculateDischargeStayDays = (admissionDate, dischargeDate) => {
 
   const [aYear, aMonth, aDay] = admission.split('-').map(Number);
   const [dYear, dMonth, dDay] = discharge.split('-').map(Number);
+  if (
+    aYear === undefined ||
+    aMonth === undefined ||
+    aDay === undefined ||
+    dYear === undefined ||
+    dMonth === undefined ||
+    dDay === undefined
+  ) {
+    return null;
+  }
   const start = Date.UTC(aYear, aMonth - 1, aDay, 12, 0, 0);
   const end = Date.UTC(dYear, dMonth - 1, dDay, 12, 0, 0);
   const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24));

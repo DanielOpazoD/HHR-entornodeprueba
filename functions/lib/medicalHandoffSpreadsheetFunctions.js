@@ -126,6 +126,9 @@ const parseDate = value => {
   }
 
   const [year, month, day] = date.split('-').map(Number);
+  if (year === undefined || month === undefined || day === undefined) {
+    throw new functions.https.HttpsError('invalid-argument', 'La fecha del censo no es válida.');
+  }
   const parsed = new Date(Date.UTC(year, month - 1, day));
   if (
     parsed.getUTCFullYear() !== year ||

@@ -47,7 +47,9 @@ const timestamp = value => {
     Number(second) > 59
   )
     fail();
-  if (zone !== 'Z') {
+  if (!zone) {
+    fail();
+  } else if (zone !== 'Z') {
     const hours = Number(zone.slice(1, 3)),
       minutes = Number(zone.slice(4, 6));
     if (hours > 14 || minutes > 59 || (hours === 14 && minutes !== 0)) fail();

@@ -33,7 +33,7 @@ const extractClientIp = context => {
   const request = context && context.rawRequest;
   const forwardedFor = getHeader(request, 'x-forwarded-for');
   if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
-    return forwardedFor.split(',')[0].trim() || null;
+    return (forwardedFor.split(',')[0] || '').trim() || null;
   }
   return (request && request.ip) || null;
 };
