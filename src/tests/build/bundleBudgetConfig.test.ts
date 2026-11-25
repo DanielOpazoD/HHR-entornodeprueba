@@ -9,6 +9,8 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 interface BundleBudgetConfig {
+  entryMaxBytes: number;
+  chunkMaxBytes: number;
   precacheMaxBytes: number;
   forbiddenAssetPatterns: string[];
   assetPatternBudgets: Array<{
@@ -17,7 +19,10 @@ interface BundleBudgetConfig {
   }>;
   startupChunkBudgets: Array<{
     label: string;
+    pattern?: string;
+    source?: string;
     maxBytes: number;
+    severity?: string;
   }>;
   chunkPatternBudgets: Array<{
     pattern: string;
@@ -33,95 +38,93 @@ const readBundleBudgetConfig = (): BundleBudgetConfig =>
 const findBudget = (config: BundleBudgetConfig, pattern: string) =>
   config.chunkPatternBudgets.find(budget => budget.pattern === pattern);
 
+const expectPositiveByteCeiling = (value: number | undefined, label: string) => {
+  expect(Number.isInteger(value) && (value ?? 0) > 0, label).toBe(true);
+};
+
 describe('bundle budget config', () => {
+  it('declares valid, deduplicated regex patterns and positive ceilings across all budget groups', () => {
+    const config = readBundleBudgetConfig();
+
+    expectPositiveByteCeiling(config.entryMaxBytes, 'entryMaxBytes');
+    expectPositiveByteCeiling(config.chunkMaxBytes, 'chunkMaxBytes');
+    expectPositiveByteCeiling(config.precacheMaxBytes, 'precacheMaxBytes');
+
+    const chunkPatterns = config.chunkPatternBudgets.map(budget => budget.pattern);
+    expect(new Set(chunkPatterns).size).toBe(chunkPatterns.length);
+
+    for (const budget of [
+      ...config.assetPatternBudgets,
+      ...config.chunkPatternBudgets,
+      ...config.startupChunkBudgets,
+    ]) {
+      expectPositiveByteCeiling(budget.maxBytes, budget.pattern ?? 'startup');
+      const { pattern } = budget;
+      if (pattern) {
+        expect(() => new RegExp(pattern)).not.toThrow();
+      }
+    }
+
+    for (const pattern of config.forbiddenAssetPatterns) {
+      expect(() => new RegExp(pattern)).not.toThrow();
+    }
+  });
+
   it('bounds the core monthly export and optional Eloisa source separately', () => {
     const config = readBundleBudgetConfig();
-    expect(findBudget(config, '^cudyrEssentialWorkbook-.*\\.js$')).toMatchObject({
-      maxBytes: 12000,
-    });
-    expect(findBudget(config, '^cudyrSourceWorkbook-.*\\.js$')).toMatchObject({
-      maxBytes: 20000,
-    });
+    const essential = findBudget(config, '^cudyrEssentialWorkbook-.*\\.js$');
+    const source = findBudget(config, '^cudyrSourceWorkbook-.*\\.js$');
+
+    expectPositiveByteCeiling(essential?.maxBytes, 'cudyrEssentialWorkbook');
+    expectPositiveByteCeiling(source?.maxBytes, 'cudyrSourceWorkbook');
+    expect(essential!.maxBytes).toBeLessThan(config.chunkMaxBytes);
+    expect(source!.maxBytes).toBeLessThan(config.chunkMaxBytes);
   });
 
-  it('keeps explicit ceilings for the heavy Excel runtime asset and PDF async chunk', () => {
+  it('keeps explicit ceilings for heavy runtime assets and governed async chunks without duplicating numeric literals', () => {
     const config = readBundleBudgetConfig();
 
-    expect(
-      config.assetPatternBudgets.find(
-        budget => budget.pattern === '^vendor/exceljs\\.bare\\.min\\.js$'
-      )
-    ).toMatchObject({
-      maxBytes: 960000,
-    });
-    expect(findBudget(config, '^exceljs\\.min-.*\\.js$')).toBeUndefined();
-    expect(findBudget(config, '^pdf-.*\\.js$')).toMatchObject({
-      maxBytes: 560000,
-    });
-    expect(findBudget(config, '^vendor-pdf-.*\\.js$')).toMatchObject({
-      maxBytes: 430000,
-    });
-    expect(findBudget(config, '^pdf\\.worker-.*\\.mjs$')).toMatchObject({
-      maxBytes: 2500000,
-    });
-    expect(findBudget(config, '^vendor-heic2any-.*\\.js$')).toMatchObject({
-      maxBytes: 1450000,
-    });
-    expect(findBudget(config, '^PatientDocumentManagerDialog-.*\\.js$')).toMatchObject({
-      maxBytes: 20000,
-    });
-    expect(findBudget(config, '^ClinicalPanelDrawer-.*\\.js$')).toMatchObject({
-      maxBytes: 50000,
-    });
-    expect(findBudget(config, '^RayenSyncHistoryModal-.*\\.js$')).toMatchObject({
-      maxBytes: 28148,
-    });
-    expect(findBudget(config, '^RayenSyncTechnicalMetricsPanel-.*\\.js$')).toMatchObject({
-      maxBytes: 4737,
-    });
-    expect(findBudget(config, '^perfAuditReport-.*\\.js$')).toMatchObject({ maxBytes: 4000 });
-    expect(findBudget(config, '^RayenImportButton-.*\\.js$')).toMatchObject({ maxBytes: 250430 });
-    expect(findBudget(config, '^ClinicalLibraryDrawer-.*\\.js$')).toMatchObject({
-      maxBytes: 120000,
-    });
-  });
-
-  it('keeps authenticated shell budget above the measured critical-runtime baseline', () => {
-    const config = readBundleBudgetConfig();
-
-    expect(
-      config.startupChunkBudgets.find(budget => budget.label === 'app-authenticated-shell')
-    ).toMatchObject({
-      // Measured shell plus ~5% once startup modules left it (2026-11-19; BUNDLE_RISK_LEDGER.md).
-      maxBytes: 349000,
-      severity: 'error',
-    });
-  });
-
-  it('keeps the install-time precache budget focused on critical runtime files', () => {
-    const config = readBundleBudgetConfig();
-
-    // Preserve offline clinical validation with the measured security-upgrade allowance,
-    // plus note replay, the bounded 2 KiB shared crash-cart checklist allowance and the census
-    // program's measured uses.
-    expect(config.precacheMaxBytes).toBe(
-      4840192 +
-        2048 +
-        67840 +
-        31744 +
-        2048 +
-        8192 +
-        40960 +
-        38912 +
-        8192 +
-        4096 +
-        2048 +
-        512 +
-        1536 +
-        3072 +
-        5120
+    const excelAsset = config.assetPatternBudgets.find(
+      budget => budget.pattern === '^vendor/exceljs\\.bare\\.min\\.js$'
     );
-    expect(findBudget(config, '^vendor-zod-.*\\.js$')).toMatchObject({ maxBytes: 96000 });
+    expectPositiveByteCeiling(excelAsset?.maxBytes, 'exceljs.bare.min.js');
+    expect(findBudget(config, '^exceljs\\.min-.*\\.js$')).toBeUndefined();
+
+    for (const pattern of [
+      '^pdf-.*\\.js$',
+      '^vendor-pdf-.*\\.js$',
+      '^pdf\\.worker-.*\\.mjs$',
+      '^vendor-heic2any-.*\\.js$',
+      '^PatientDocumentManagerDialog-.*\\.js$',
+      '^ClinicalPanelDrawer-.*\\.js$',
+      '^RayenSyncHistoryModal-.*\\.js$',
+      '^RayenSyncTechnicalMetricsPanel-.*\\.js$',
+      '^perfAuditReport-.*\\.js$',
+      '^RayenImportButton-.*\\.js$',
+      '^ClinicalLibraryDrawer-.*\\.js$',
+      '^vendor-zod-.*\\.js$',
+    ]) {
+      const budget = findBudget(config, pattern);
+      expect(budget, pattern).toBeDefined();
+      expectPositiveByteCeiling(budget?.maxBytes, pattern);
+    }
+  });
+
+  it('keeps startup chunk budgets blocking and below the generic chunk ceiling', () => {
+    const config = readBundleBudgetConfig();
+
+    for (const label of ['entry-app', 'firebase-core', 'app-authenticated-shell']) {
+      const budget = config.startupChunkBudgets.find(entry => entry.label === label);
+      expect(budget, label).toMatchObject({ severity: 'error' });
+      expectPositiveByteCeiling(budget?.maxBytes, label);
+      expect(budget!.maxBytes).toBeLessThan(config.chunkMaxBytes);
+    }
+  });
+
+  it('keeps the install-time precache policy focused on critical runtime files', () => {
+    const config = readBundleBudgetConfig();
+
+    expectPositiveByteCeiling(config.precacheMaxBytes, 'precacheMaxBytes');
     expect(
       ONLINE_ONLY_PRECACHE_PATTERNS.some(pattern => /sessionActivity|auth/i.test(pattern))
     ).toBe(false);
