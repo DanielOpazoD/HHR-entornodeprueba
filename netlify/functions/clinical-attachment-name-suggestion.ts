@@ -9,6 +9,7 @@ import {
   ClinicalAttachmentNameSuggestionRequestSchema,
   ClinicalAttachmentNameSuggestionResponseSchema,
 } from '../../src/shared/contracts/serverless';
+import { SERVERLESS_CLINICAL_DOCUMENT_ROLES } from '../../src/shared/access/serverlessRoleAccess';
 import {
   buildJsonResponse,
   buildTooManyRequestsResponse,
@@ -20,13 +21,7 @@ import {
   type NetlifyEventLike,
 } from './lib/http';
 
-const CLINICAL_ATTACHMENT_NAME_ALLOWED_ROLES = new Set([
-  'admin',
-  'nurse_hospital',
-  'doctor_urgency',
-  'doctor_specialist',
-  'editor',
-]);
+const CLINICAL_ATTACHMENT_NAME_ALLOWED_ROLES = SERVERLESS_CLINICAL_DOCUMENT_ROLES;
 
 interface ClinicalAttachmentNameSuggestionHandlerDependencies {
   getFirebaseServer: typeof getFirebaseServer;

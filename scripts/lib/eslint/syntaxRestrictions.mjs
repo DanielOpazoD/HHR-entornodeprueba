@@ -110,6 +110,20 @@ export const FUNCTIONS_ROLE_RESTRICTIONS = [
   },
 ];
 
+const NETLIFY_ROLE_DECISION_MESSAGE =
+  'No compares ni listes roles a mano en Netlify Functions: usa los conjuntos o predicados de src/shared/access/serverlessRoleAccess.ts (p. ej. SERVERLESS_ALL_LOGIN_ROLES, SERVERLESS_CLINICAL_DOCUMENT_ROLES, SERVERLESS_ADMIN_AND_NURSE_ROLES, SERVERLESS_ADMIN_ONLY_ROLES, isServerlessAdminRole).';
+
+export const NETLIFY_ROLE_RESTRICTIONS = [
+  {
+    selector: `BinaryExpression[operator=/^[!=]==$/] > Literal[value=${ROLE_NAME}]`,
+    message: NETLIFY_ROLE_DECISION_MESSAGE,
+  },
+  {
+    selector: `ArrayExpression > Literal[value=${ROLE_NAME}]`,
+    message: NETLIFY_ROLE_DECISION_MESSAGE,
+  },
+];
+
 // «¿Puede escribir este día?» is one predicate per operation (W17-D1): the census and Rayen
 // corrections free the administrator, the invalid-episode cleanup binds every role. The window
 // itself is computed once, and only those predicates read it.

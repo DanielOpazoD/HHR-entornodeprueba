@@ -20,6 +20,7 @@ import {
   EPISODE_KEY_PARSE_RESTRICTION,
   FEATURES_WITHOUT_DIRECT_DATA_ACCESS,
   FUNCTIONS_ROLE_RESTRICTIONS,
+  NETLIFY_ROLE_RESTRICTIONS,
   REEXPORT_ONLY_RESTRICTION,
   ROLE_RESTRICTIONS,
   RUT_REGEX_RESTRICTION,
@@ -170,10 +171,10 @@ export default tseslint.config(
     },
   },
   {
-    // Role decisions are a rule of the app in src/; server functions and e2e check roles on
-    // their own side.
+    // Role decisions are enforced separately in src/, functions/lib/ and netlify/functions/;
+    // e2e and helper scripts keep role literals out of this rule.
     files: ['**/*.{ts,tsx}'],
-    ignores: ['src/**'],
+    ignores: ['src/**', 'netlify/functions/**'],
     rules: { 'no-restricted-syntax': syntaxRestrictions({ omit: ROLE_RESTRICTIONS }) },
   },
   {
@@ -434,6 +435,7 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'error',
       'types/unknown-cast-ceiling': 'error',
       'types/no-never-cast': 'error',
+      'no-restricted-syntax': ['error', ...NETLIFY_ROLE_RESTRICTIONS],
     },
   },
   {

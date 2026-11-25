@@ -9,6 +9,7 @@ import {
   Cie10SearchRequestSchema,
   Cie10SearchResponseSchema,
 } from '../../src/shared/contracts/serverless';
+import { SERVERLESS_ALL_LOGIN_ROLES } from '../../src/shared/access/serverlessRoleAccess';
 import {
   buildCorsHeaders,
   buildJsonResponse,
@@ -27,14 +28,7 @@ interface CIE10Entry {
   category?: string;
 }
 
-const CIE10_ALLOWED_ROLES = new Set([
-  'admin',
-  'nurse_hospital',
-  'doctor_urgency',
-  'doctor_specialist',
-  'viewer',
-  'editor',
-]);
+const CIE10_ALLOWED_ROLES = SERVERLESS_ALL_LOGIN_ROLES;
 
 const handler = async (event: NetlifyEventLike) => {
   const requestOrigin = getRequestOrigin(event);

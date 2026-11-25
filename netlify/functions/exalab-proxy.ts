@@ -15,14 +15,9 @@ import {
   type NetlifyEventLike,
 } from './lib/http';
 
-const ROLES = new Set([
-  'admin',
-  'nurse_hospital',
-  'doctor_urgency',
-  'doctor_specialist',
-  'editor',
-  'viewer',
-]);
+import { SERVERLESS_ALL_LOGIN_ROLES } from '../../src/shared/access/serverlessRoleAccess';
+
+const ROLES = SERVERLESS_ALL_LOGIN_ROLES;
 const ACTIONS: Record<string, { method: string; path: string }> = {
   status: { method: 'GET', path: '/session' },
   pair: { method: 'POST', path: '/pair' },
