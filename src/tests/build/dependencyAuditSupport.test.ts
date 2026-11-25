@@ -11,15 +11,14 @@ import {
   getAuditFailureGuidance,
   shouldRetryAuditWithSystemCa,
 } from '../../../scripts/lib/dependencyAuditSupport.mjs';
+import { parseWorkflow } from './workflowYamlTestSupport';
 
 describe('dependency audit support', () => {
-  it('audits production and development dependencies at the blocking threshold', () => {
-    const script = fs.readFileSync('scripts/check-dependency-vulnerabilities.mjs', 'utf8');
-    const workflow = fs.readFileSync('.github/workflows/security-audit.yml', 'utf8');
+  it('runs the dependency vulnerability gate from security-audit.yml', () => {
+    const { jobs } = parseWorkflow(fs.readFileSync('.github/workflows/security-audit.yml', 'utf8'));
+    const runs = Object.values(jobs).flatMap(job => job.steps.map(step => step.run ?? ''));
 
-    expect(script).toContain("const auditArgs = ['audit', '--audit-level=high', '--json'];");
-    expect(script).not.toContain('--omit=dev');
-    expect(workflow).toContain('Audit production and development dependencies');
+    expect(runs.some(run => run.includes('npm run check:dependency-vulnerabilities'))).toBe(true);
   });
 
   it('classifies npm audit certificate trust failures distinctly', () => {
@@ -115,10 +114,12 @@ describe('dependency audit support', () => {
     fs.writeFileSync(path.join(functionsDir, 'package-lock.json'), lockfile);
 
     const fakeNpmPath = path.join(fakeBinDir, 'npm');
+    const recordedArgsPath = path.join(fixtureDir, 'npm-args.log');
     fs.writeFileSync(
       fakeNpmPath,
       [
         '#!/bin/sh',
+        `printf '%s\\n' "$*" >> "${recordedArgsPath}"`,
         'if printf "%s" "$NODE_OPTIONS" | grep -q -- "--use-system-ca"; then',
         '  printf \'{"metadata":{"vulnerabilities":{"info":0,"low":0,"moderate":0,"high":0,"critical":0,"total":0}},"vulnerabilities":{}}\\n\'',
         '  exit 0',
@@ -140,6 +141,11 @@ describe('dependency audit support', () => {
       },
       encoding: 'utf8',
     });
+
+    // Verifies the real CLI invocation audits prod + dev dependencies at high+ without `--omit=dev`.
+    const recordedInvocations = fs.readFileSync(recordedArgsPath, 'utf8').trim().split('\n');
+    expect(recordedInvocations.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(recordedInvocations)).toEqual(new Set(['audit --audit-level=high --json']));
 
     const report = JSON.parse(
       fs.readFileSync(path.join(fixtureDir, 'reports/security/dependency-audit.json'), 'utf8')
