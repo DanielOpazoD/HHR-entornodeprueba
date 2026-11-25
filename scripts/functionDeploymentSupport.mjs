@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import { pathToFileURL } from 'node:url';
+
 export const FUNCTION_DEPLOYMENT_FILES = new Set([
   'firebase.json',
   'package.json',
@@ -160,3 +163,73 @@ export const verifyFunctionDeploymentCi = async ({ repository, sha, event, runId
   }
   return run.id;
 };
+
+const FUNCTION_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+const parseDeleteSpec = spec => {
+  if (typeof spec !== 'string' || !spec) return null;
+  if (!spec.includes('@')) {
+    return FUNCTION_ID_PATTERN.test(spec) ? { id: spec, region: null } : null;
+  }
+  const parts = spec.split('@');
+  if (parts.length !== 2) return null;
+  const [id, region] = parts;
+  if (!FUNCTION_ID_PATTERN.test(id) || !FUNCTION_ID_PATTERN.test(region)) return null;
+  return { id, region };
+};
+
+/**
+ * Selects only the retired or orphaned functions currently present in a
+ * verified `firebase functions:list --json` payload. Fails closed on malformed
+ * payloads or specs so a CLI schema drift never hides a lingering function.
+ */
+export const selectDeployedFunctionsToDelete = (payload, specs) => {
+  if (!payload || payload.status !== 'success' || !Array.isArray(payload.result)) {
+    throw new Error('Unexpected Firebase functions:list payload.');
+  }
+  const deployedIds = new Set();
+  const deployedLocations = new Set();
+  for (const endpoint of payload.result) {
+    if (
+      !endpoint ||
+      typeof endpoint !== 'object' ||
+      typeof endpoint.id !== 'string' ||
+      !endpoint.id ||
+      typeof endpoint.region !== 'string' ||
+      !endpoint.region
+    ) {
+      throw new Error('Unexpected Firebase functions:list endpoint entry.');
+    }
+    deployedIds.add(endpoint.id);
+    deployedLocations.add(`${endpoint.id}@${endpoint.region}`);
+  }
+  const selected = [];
+  const seen = new Set();
+  for (const rawSpec of specs) {
+    const parsed = parseDeleteSpec(rawSpec);
+    if (!parsed) throw new Error(`Invalid function delete spec: ${String(rawSpec)}`);
+    const key = parsed.region ? `${parsed.id}@${parsed.region}` : parsed.id;
+    if (seen.has(key)) continue;
+    const isPresent = parsed.region ? deployedLocations.has(key) : deployedIds.has(parsed.id);
+    if (isPresent) {
+      seen.add(key);
+      selected.push(key);
+    }
+  }
+  return selected;
+};
+
+const main = () => {
+  const [, , mode, listPath, ...specs] = process.argv;
+  if (mode !== '--select-deletes' || !listPath || specs.length === 0) {
+    console.error(
+      'Usage: functionDeploymentSupport.mjs --select-deletes <functions-list.json> <name | name@region ...>'
+    );
+    process.exit(2);
+  }
+  const payload = JSON.parse(fs.readFileSync(listPath, 'utf8'));
+  const targets = selectDeployedFunctionsToDelete(payload, specs);
+  if (targets.length > 0) process.stdout.write(`${targets.join('\n')}\n`);
+};
+
+if (import.meta.url === pathToFileURL(process.argv[1] || '').href) main();
