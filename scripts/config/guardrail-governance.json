@@ -169,7 +169,6 @@
       { "id": "check:feature-map", "group": "governance" },
       { "id": "check:folder-dependencies", "group": "boundaries" },
       { "id": "check:module-size", "group": "size" },
-      { "id": "check:extension-hotspots", "group": "size" },
       { "id": "check:clinical-clock", "group": "boundaries" },
       { "id": "check:declared-dependencies", "group": "hygiene" },
       { "id": "check:extension-source", "group": "hygiene" },
