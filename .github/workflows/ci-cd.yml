@@ -349,9 +349,6 @@ jobs:
           name: critical-coverage
           path: reports
 
-      - name: Generate architectural hotspots artifact
-        run: npm run report:architectural-hotspots
-
       - name: Generate governance and report snapshots
         run: npm run report:governance-snapshots
 
@@ -1622,36 +1619,6 @@ jobs:
             reports/postmerge-evidence.*
             reports/release-evidence-contract.*
           retention-days: 30
-
-  # ============================================
-  # JOB 6: DOCUMENTATION
-  # ============================================
-  docs:
-    name: API Documentation
-    runs-on: ubuntu-latest
-    needs: [ci-scope]
-    if: needs.ci-scope.outputs.scope == 'full'
-
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Setup CI dependencies
-        uses: ./.github/actions/setup-ci-dependencies
-
-      - name: Generate API Documentation
-        run: npm run docs:generate
-
-      - name: Upload documentation artifact
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-        uses: actions/upload-artifact@v7
-        with:
-          name: api-documentation
-          path: './docs/api'
-          retention-days: 7
 
   function-deploy-scope:
     name: function-deploy-scope

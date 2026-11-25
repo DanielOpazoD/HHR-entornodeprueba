@@ -87,12 +87,6 @@ describe('CI static group scheduling', () => {
     expect(setup).toBeGreaterThanOrEqual(0);
     expect(run).toBeGreaterThan(setup);
   });
-  it('generates API docs alongside the full test gates', () => {
-    const docs = parseWorkflow(source).jobs.docs;
-    expect(jobNeeds(docs)).toEqual(['ci-scope']);
-    expect(docs.if).toBe("needs.ci-scope.outputs.scope == 'full'");
-    expect(docs.steps.some(step => step.run === 'npm run docs:generate')).toBe(true);
-  });
   it('preserves governed groups and their aggregate check', () => {
     assertScheduling(source);
   });

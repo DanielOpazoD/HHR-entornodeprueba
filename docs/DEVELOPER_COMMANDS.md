@@ -139,7 +139,6 @@ Estos scripts siguen soportados, pero no forman parte de la superficie pública 
 - `npm run report:quality-metrics`
 - `npm run report:operational-health`
 - `npm run report:system-confidence`
-- `npm run report:architectural-hotspots`
 - `npm run report:unit-shard-runtime-profile`
 - `npm run profile:unit-shard-runtime`
 - `npm run report:ci-runtime-observed-profile`

@@ -148,7 +148,6 @@ updates:
         patterns:
           - '@types/node'
           - '@types/qrcode'
-          - typedoc
           - typescript
         update-types:
           - patch
