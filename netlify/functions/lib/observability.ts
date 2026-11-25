@@ -1,5 +1,4 @@
 import { safeErrorMessage } from './safe-error-message';
-import type { Firestore } from 'firebase/firestore';
 
 export type TelemetryStatus = 'success' | 'failure' | 'timeout';
 
@@ -26,14 +25,12 @@ export interface InvokeOptions<T> {
   /** Classifies a returned result for telemetry only; never retries or changes it. */
   isFailureResult?: (result: T) => boolean;
   hospitalId?: string;
-  db?: Firestore;
   context?: Record<string, string | number | boolean>;
   fn: () => Promise<T>;
 }
 
 const DEFAULT_MAX_ATTEMPTS = 3;
 const DEFAULT_BACKOFF_BASE_MS = 300;
-const TELEMETRY_COLLECTION = 'functionsTelemetry';
 
 const defaultIsTransient = (error: unknown): boolean => {
   if (!error || typeof error !== 'object') return false;
@@ -74,40 +71,6 @@ const withTimeout = async <T>(fn: () => Promise<T>, timeoutMs: number): Promise<
   }
 };
 
-const writeTelemetrySink = async (
-  db: Firestore,
-  hospitalId: string,
-  entry: TelemetryInvocation
-): Promise<void> => {
-  try {
-    if (typeof process !== 'undefined' && process.env.VITEST === 'true') {
-      return;
-    }
-
-    const firestore = await import('firebase/firestore');
-
-    // Some test environments partially mock Firestore without write helpers.
-    // Telemetry must degrade quietly there instead of polluting stderr.
-    if (typeof firestore.collection !== 'function' || typeof firestore.addDoc !== 'function') {
-      return;
-    }
-
-    const ref = firestore.collection(db, `hospitals/${hospitalId}/${TELEMETRY_COLLECTION}`);
-    await firestore.addDoc(ref, { ...entry, timestamp: new Date().toISOString() });
-  } catch (sinkError) {
-    // Sink failure must not mask the original operation outcome.
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        kind: 'telemetry_sink_failed',
-        service: entry.service,
-        operation: entry.operation,
-        message: safeErrorMessage(sinkError),
-      })
-    );
-  }
-};
-
 export const invokeWithTelemetry = async <T>(options: InvokeOptions<T>): Promise<T> => {
   const {
     service,
@@ -118,7 +81,6 @@ export const invokeWithTelemetry = async <T>(options: InvokeOptions<T>): Promise
     isTransientError = defaultIsTransient,
     isFailureResult,
     hospitalId,
-    db,
     context,
     fn,
   } = options;
@@ -157,7 +119,6 @@ export const invokeWithTelemetry = async <T>(options: InvokeOptions<T>): Promise
           `${JSON.stringify({ level: 'info', kind: 'function_invocation', ...entry })}\n`
         );
       }
-      if (db && hospitalId) void writeTelemetrySink(db, hospitalId, entry);
       return result;
     } catch (error) {
       lastError = error;
@@ -185,7 +146,6 @@ export const invokeWithTelemetry = async <T>(options: InvokeOptions<T>): Promise
           ...entry,
         })
       );
-      if (db && hospitalId) void writeTelemetrySink(db, hospitalId, entry);
 
       if (!willRetry) throw error;
 

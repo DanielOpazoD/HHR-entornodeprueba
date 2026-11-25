@@ -210,7 +210,6 @@ export const createClinicalAttachmentNameSuggestionHandler = (
         operation: 'clinical_attachment_name_suggestion',
         timeoutMs: 20_000,
         maxAttempts: 2,
-        db,
         hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
         context: {
           provider: providerConfig.provider,

@@ -149,7 +149,6 @@ export const handler = async (event: NetlifyEventLike) => {
       operation: 'send_fuga_notification',
       timeoutMs: 15_000,
       maxAttempts: 1, // no retry: duplicate fuga notification is worse than missed delivery
-      db,
       hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
       context: {
         recordDate: payload.recordDate,

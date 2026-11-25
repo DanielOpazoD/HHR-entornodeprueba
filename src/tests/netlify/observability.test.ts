@@ -3,66 +3,39 @@ import { createProviderError, credentialMarkers } from './providerErrorFixture';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 describe('invokeWithTelemetry', () => {
-  it('redacts provider errors in console, stdout and persisted telemetry', async () => {
+  it('redacts provider errors in structured stderr and stdout logs', async () => {
     const logs = vi.spyOn(console, 'error').mockImplementation(() => {});
     const stdout = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
-    const addDoc = vi.fn().mockResolvedValue(undefined);
-    vi.stubEnv('VITEST', 'false');
-    vi.doMock('firebase/firestore', () => ({ collection: vi.fn(), addDoc }));
-    try {
-      const { invokeWithTelemetry } = await import('../../../netlify/functions/lib/observability');
-      const original = createProviderError();
-      await expect(
-        invokeWithTelemetry({
-          service: 'synthetic',
-          operation: 'read',
-          timeoutMs: 1000,
-          maxAttempts: 1,
-          db: {} as never,
-          hospitalId: 'synthetic',
-          fn: async () => {
-            throw original;
-          },
-        })
-      ).rejects.toBe(original);
-      await vi.waitFor(() => expect(addDoc).toHaveBeenCalledTimes(1));
-      expect(addDoc.mock.calls[0]?.[1].errorMessage).toContain('HTTP 503');
-      const outputs = JSON.stringify([logs.mock.calls, stdout.mock.calls, addDoc.mock.calls]);
-      for (const marker of credentialMarkers) expect(outputs).not.toContain(marker);
-    } finally {
-      vi.unstubAllEnvs();
-    }
+    const { invokeWithTelemetry } = await import('../../../netlify/functions/lib/observability');
+    const original = createProviderError();
+    await expect(
+      invokeWithTelemetry({
+        service: 'synthetic',
+        operation: 'read',
+        timeoutMs: 1000,
+        maxAttempts: 1,
+        hospitalId: 'synthetic',
+        fn: async () => {
+          throw original;
+        },
+      })
+    ).rejects.toBe(original);
+    expect(logs).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(logs.mock.calls[0]?.[0]))).toMatchObject({
+      service: 'synthetic',
+      operation: 'read',
+      hospitalId: 'synthetic',
+      status: 'failure',
+      errorMessage: expect.stringContaining('HTTP 503'),
+    });
+    const outputs = JSON.stringify([logs.mock.calls, stdout.mock.calls]);
+    for (const marker of credentialMarkers) expect(outputs).not.toContain(marker);
   });
+
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
     vi.resetModules();
-    vi.doUnmock('firebase/firestore');
-  });
-
-  it('skips telemetry sink writes when firestore mocks omit addDoc', async () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const stdoutWrite = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
-
-    vi.doMock('firebase/firestore', () => ({
-      collection: vi.fn(() => ({ path: 'hospitals/test/functionsTelemetry' })),
-    }));
-
-    const { invokeWithTelemetry } = await import('../../../netlify/functions/lib/observability');
-
-    await expect(
-      invokeWithTelemetry({
-        service: 'syslab',
-        operation: 'search',
-        timeoutMs: 50,
-        db: {} as never,
-        hospitalId: 'test',
-        fn: async () => 'ok',
-      })
-    ).resolves.toBe('ok');
-
-    expect(stdoutWrite).toHaveBeenCalled();
-    expect(consoleError).not.toHaveBeenCalled();
   });
 
   it('retries transient exceptions and preserves their failure metadata', async () => {
