@@ -85,7 +85,6 @@ export const useCensusActionCommandsController = ({
     stabilityRulesRef,
     addDischargeRef,
     updateDischargeRef,
-    confirmRef,
     setDischargeState,
     getCurrentTime,
     notifyError,

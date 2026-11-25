@@ -63,13 +63,6 @@
       ]
     },
     {
-      "id": "transfers",
-      "owner": "transfers",
-      "primaryMetric": "critical transfer coverage and finalized transfer flow",
-      "gates": ["check:critical-coverage", "test:unit:critical"],
-      "runbooks": ["docs/RUNBOOK_SUPPORT_OPERATIONS.md", "docs/CI_GATES_AND_FAILURE_RUNBOOKS.md"]
-    },
-    {
       "id": "reminders-admin",
       "owner": "admin",
       "primaryMetric": "administrative reminder critical coverage",

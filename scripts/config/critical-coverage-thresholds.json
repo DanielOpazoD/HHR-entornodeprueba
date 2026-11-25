@@ -25,14 +25,6 @@
         "branches": 72.0
       }
     },
-    "src/services/transfers": {
-      "tests": "src/tests/services/transfers",
-      "coverageBaseline": {
-        "lines": 81.5,
-        "functions": 79.5,
-        "branches": 70.2
-      }
-    },
     "src/services/storage/firestore": {
       "tests": "src/tests/services/storage",
       "coverageBaseline": {

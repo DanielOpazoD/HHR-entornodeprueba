@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Share2 } from 'lucide-react';
 import { getTimeRoundedToStep } from '@/utils/dateUtils';
 import { BaseModal } from '@/components/shared/BaseModal';
-import { RECEIVING_CENTER_OTHER, isReceivingCenter } from '@/constants/clinicalMovementConstants';
 import { TransferClinicalCribNotice } from '@/features/census/components/movements/transfer/TransferClinicalCribNotice';
 import { TransferEvacuationSection } from '@/features/census/components/movements/transfer/TransferEvacuationSection';
 import { TransferReceivingSection } from '@/features/census/components/movements/transfer/TransferReceivingSection';
@@ -10,16 +9,11 @@ import { TransferTimeField } from '@/features/census/components/movements/transf
 import { MovementFinalStateNotice } from '@/features/census/components/movements/shared/MovementFinalStateNotice';
 import { useTransferModalForm } from '@/features/census/components/movements/useTransferModalForm';
 import type { TransferModalProps } from '@/features/census/types/censusActionModalContracts';
-import { getLatestOpenTransferRequestByBedId } from '@/services/transfers/transferService';
-import { createScopedLogger } from '@/services/utils/loggerScope';
 
 export type { TransferUpdateField } from '@/features/census/types/censusActionModalContracts';
 
-const transferModalLogger = createScopedLogger('TransferModal');
-
 export const TransferModal: React.FC<TransferModalProps> = ({
   isOpen,
-  bedId,
   isEditing,
   evacuationMethod,
   evacuationMethodOther,
@@ -36,62 +30,6 @@ export const TransferModal: React.FC<TransferModalProps> = ({
   diagnosis,
   recordDate = '',
 }) => {
-  const [linkedDestinationHospital, setLinkedDestinationHospital] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-
-    const syncDestinationFromTransferManagement = async () => {
-      if (!isOpen || isEditing || !bedId) {
-        if (active) {
-          setLinkedDestinationHospital(null);
-        }
-        return;
-      }
-
-      try {
-        const linkedTransfer = await getLatestOpenTransferRequestByBedId(bedId);
-        if (!active) {
-          return;
-        }
-        if (!linkedTransfer?.destinationHospital) {
-          setLinkedDestinationHospital(null);
-          return;
-        }
-
-        const destinationHospital = linkedTransfer.destinationHospital.trim();
-        if (!destinationHospital) {
-          setLinkedDestinationHospital(null);
-          return;
-        }
-
-        setLinkedDestinationHospital(destinationHospital);
-        if (isReceivingCenter(destinationHospital)) {
-          onUpdate('receivingCenter', destinationHospital);
-          onUpdate('receivingCenterOther', '');
-          return;
-        }
-
-        onUpdate('receivingCenter', RECEIVING_CENTER_OTHER);
-        onUpdate('receivingCenterOther', destinationHospital);
-      } catch (error) {
-        transferModalLogger.warn(
-          'Failed to resolve linked transfer destination from management',
-          error
-        );
-        if (active) {
-          setLinkedDestinationHospital(null);
-        }
-      }
-    };
-
-    void syncDestinationFromTransferManagement();
-
-    return () => {
-      active = false;
-    };
-  }, [bedId, isEditing, isOpen, onUpdate]);
-
   const {
     transferDate,
     transferTime,
@@ -161,8 +99,6 @@ export const TransferModal: React.FC<TransferModalProps> = ({
           <TransferReceivingSection
             receivingCenter={receivingCenter}
             receivingCenterOther={receivingCenterOther}
-            isCenterLocked={Boolean(linkedDestinationHospital)}
-            lockedCenterValue={linkedDestinationHospital || ''}
             otherCenterError={errors.otherCenter}
             onReceivingCenterChange={value => onUpdate('receivingCenter', value)}
             onReceivingCenterOtherChange={setReceivingCenterOther}

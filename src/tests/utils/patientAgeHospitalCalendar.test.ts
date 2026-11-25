@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { calculateFormattedAge } from '@/features/census/components/demographics/utils';
 import { calculateAge } from '@/utils/clinicalUtils';
-import { buildTransferPatientSnapshot } from '@/features/census/controllers/censusTransferSyncController';
+import { resolveAgeYears } from '@/features/census/controllers/evaluationScoresCellController';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 // A birth date is a calendar day and "today" is the hospital's calendar day (Rapa Nui, UTC-5 in
@@ -114,7 +114,7 @@ describe('patient age on the hospital calendar', () => {
   });
 });
 
-describe('a newborn age from the demographics form to the transfer request', () => {
+describe('a newborn age from the demographics form to completed years', () => {
   const deviceZone = process.env.TZ;
   afterEach(() => {
     vi.useRealTimers();
@@ -123,7 +123,7 @@ describe('a newborn age from the demographics form to the transfer request', () 
   });
 
   // Born 16 Oct 2026, saved 14 Nov at 22:30 Rapa Nui: 29 days old, zero completed years.
-  it.each(ZONES)('saves 29d and transfers zero years on a %s computer', zone => {
+  it.each(ZONES)('saves 29d and resolves zero completed years on a %s computer', zone => {
     process.env.TZ = zone;
     vi.useFakeTimers();
     vi.setSystemTime(new Date(LATE_NOV_14));
@@ -132,7 +132,7 @@ describe('a newborn age from the demographics form to the transfer request', () 
     expect(saved).toBe('29d');
     for (const birthDate of ['2026-10-16', '']) {
       const patient = DataFactory.createMockPatient('R1', { age: saved, birthDate });
-      expect(buildTransferPatientSnapshot(patient, '2026-11-14').age).toBe(0);
+      expect(resolveAgeYears(patient, '2026-11-14')).toBe(0);
     }
   });
 });
