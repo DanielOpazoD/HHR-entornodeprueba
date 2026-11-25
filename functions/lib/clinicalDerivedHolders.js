@@ -95,10 +95,11 @@ const parseMovedFieldPath = path => {
   if (parts[0] !== 'beds' || !parts[1]) return null;
   const target = parts[2] === 'clinicalCrib' ? 'clinicalCrib' : 'bed';
   const fieldIndex = target === 'bed' ? 2 : 3;
-  if (!MOVED_FIELDS.has(parts[fieldIndex])) return null;
+  const field = parts[fieldIndex];
+  if (!field || !MOVED_FIELDS.has(field)) return null;
   return {
     key: holderKey(parts[1], target),
-    field: parts[fieldIndex],
+    field,
     whole: parts.length === fieldIndex + 1,
   };
 };

@@ -61,16 +61,18 @@ const parseAuthorizedPatchPath = (path, role, intentionalBedClear = null) => {
     };
   }
 
+  const patientField = parts[2];
   if (
     parts.length === 3 &&
     parts[0] === 'beds' &&
+    typeof patientField === 'string' &&
     !parts.some(part => FORBIDDEN_PATCH_PATH_SEGMENTS.has(part)) &&
-    ALLOWED_DAILY_RECORD_PATCH_FIELDS.has(parts[2])
+    ALLOWED_DAILY_RECORD_PATCH_FIELDS.has(patientField)
   ) {
     return {
       kind: 'patientField',
       bedId: parts[1],
-      field: parts[2],
+      field: patientField,
     };
   }
 
@@ -197,8 +199,10 @@ const isRayenClinicalOwnedPatchPath = path => {
     .map(part => part.trim())
     .filter(Boolean);
   if (parts[0] !== 'beds' || !parts[1]) return false;
-  if (RAYEN_FENCED_PATCH_FIELDS.has(parts[2])) return true;
-  return parts[2] === 'clinicalCrib' && RAYEN_FENCED_PATCH_FIELDS.has(parts[3]);
+  const field = parts[2];
+  if (field && RAYEN_FENCED_PATCH_FIELDS.has(field)) return true;
+  const cribField = parts[3];
+  return field === 'clinicalCrib' && Boolean(cribField && RAYEN_FENCED_PATCH_FIELDS.has(cribField));
 };
 
 const assertNoRayenClinicalOwnedPatch = patch => {

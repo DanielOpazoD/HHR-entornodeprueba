@@ -82,7 +82,8 @@ const applyNamedDevicePath = (nextRecord, incomingRecord, path) => {
   if (parts[0] !== 'beds' || !parts[1]) return;
   if (parts.some(part => FORBIDDEN_PATCH_PATH_SEGMENTS.has(part))) return;
   const fieldIndex = parts[2] === 'clinicalCrib' ? 3 : 2;
-  if (!MANUAL_DEVICE_FIELDS.has(parts[fieldIndex])) return;
+  const field = parts[fieldIndex];
+  if (!field || !MANUAL_DEVICE_FIELDS.has(field)) return;
   if (!isPlainObject(ownValueAtPath(nextRecord, parts.slice(0, fieldIndex)))) return;
   setValueAtPath(nextRecord, parts.join('.'), ownValueAtPath(incomingRecord, parts));
 };

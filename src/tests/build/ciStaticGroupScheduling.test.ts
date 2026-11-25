@@ -54,15 +54,19 @@ describe('CI static group scheduling', () => {
     expect(jobNeeds(jobs['quality-static-governance-snapshots'])).toContain('quality-static-base');
     expect(jobNeeds(jobs.build)).toEqual(['quality-static-governance-snapshots']);
   });
-  it('enforces noUncheckedIndexedAccess natively on production src and Netlify functions in typecheck', () => {
+  it('enforces noUncheckedIndexedAccess natively on production src, Netlify functions, and Cloud Functions in typecheck', () => {
     const readJson = (file: string) =>
       JSON.parse(fs.readFileSync(path.join(process.cwd(), file), 'utf8'));
     expect(readJson('tsconfig.prod.json').compilerOptions?.noUncheckedIndexedAccess).toBe(true);
     expect(readJson('tsconfig.netlify.json').compilerOptions?.noUncheckedIndexedAccess).toBe(true);
+    expect(readJson('functions/tsconfig.json').compilerOptions?.noUncheckedIndexedAccess).toBe(
+      true
+    );
     const scripts = readJson('package.json').scripts as Record<string, string>;
     for (const key of ['typecheck', 'typecheck:local']) {
       expect(scripts[key]).toContain('-p tsconfig.prod.json');
       expect(scripts[key]).toContain('-p tsconfig.netlify.json');
+      expect(scripts[key]).toContain('-p functions/tsconfig.json');
     }
   });
   it('checks the installed extension source as a blocking step after dependency setup', () => {

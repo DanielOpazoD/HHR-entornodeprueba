@@ -54,7 +54,9 @@ const setValueAtPath = (target, path, value) => {
     cursor = cursor[part];
   }
 
-  cursor[parts[parts.length - 1]] = value === undefined ? null : clonePlainValue(value);
+  const lastPart = parts[parts.length - 1];
+  if (lastPart === undefined) return;
+  cursor[lastPart] = value === undefined ? null : clonePlainValue(value);
 };
 
 const applyPatchToRecord = ({ date, remoteData, patch }) => {
