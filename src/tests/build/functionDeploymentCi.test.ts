@@ -322,8 +322,9 @@ describe('validated Functions deployment', () => {
     const verifyStep = workflow.jobs.deploy.steps.find(
       (step: { name?: string }) => step.name === 'Verify deployed clinical fast path'
     );
-    expect(verifyStep.run).toContain(
-      'node scripts/capture-firebase-functions-list.mjs \\\n  --project hhr-pruebas'
+    const normalizedVerifyRun = String(verifyStep.run).replace(/\s*\\\n\s*/g, ' ');
+    expect(normalizedVerifyRun).toContain(
+      'node scripts/capture-firebase-functions-list.mjs --project hhr-pruebas'
     );
     expect(verifyStep.run).not.toContain('firebase functions:list');
     expect(verifyStep.run).toContain('pruneDailyRecordHistory');

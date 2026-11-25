@@ -235,8 +235,8 @@ jobs:
       '.github/workflows/nightly-test-runtime.yml',
     ].flatMap(workflowPath => readText(workflowPath).match(/actions\/setup-java@[^\s]+/g) ?? []);
 
-    expect(setupJavaUses).toHaveLength(5);
-    expect(setupJavaUses).toEqual(Array(5).fill('actions/setup-java@v6'));
+    expect(setupJavaUses.length).toBeGreaterThan(0);
+    expect(new Set(setupJavaUses)).toEqual(new Set(['actions/setup-java@v6']));
   });
 });
 

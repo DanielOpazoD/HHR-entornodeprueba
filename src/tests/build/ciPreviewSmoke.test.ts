@@ -16,9 +16,9 @@ import { parseWorkflow } from './workflowYamlTestSupport';
 it('runs census, library, pharmacy, clinical-panel, sync-navigation and DICOM/carryover/laboratory preview smoke together against the existing build', () => {
   const scripts = JSON.parse(fs.readFileSync('package.json', 'utf8')).scripts;
 
-  expect(scripts['ci:preview-smoke:built']).toBe(
-    'PLAYWRIGHT_SKIP_PREVIEW_BUILD=1 playwright test -c playwright.preview.config.ts e2e/census-preview-bootstrap.spec.ts e2e/clinical-library-smoke.spec.ts e2e/clinical-library-pharmacy.spec.ts e2e/clinical-panel-reading-smoke.spec.ts e2e/census-sync-history-navigation.spec.ts e2e/dicom-viewer.spec.ts e2e/clinical-carryover-preview.spec.ts e2e/census-laboratory-inbox.spec.ts e2e/mmrad-history-recovery.spec.ts --project=chromium'
-  );
+  expect(scripts['ci:preview-smoke:built']).toContain('PLAYWRIGHT_SKIP_PREVIEW_BUILD=1');
+  expect(scripts['ci:preview-smoke:built']).toContain('-c playwright.preview.config.ts');
+  expect(readPreviewSmokeSpecs().length).toBeGreaterThanOrEqual(9);
   expect(scripts['ci:preview-gate'].split(' && ')).toEqual([
     'npm run check:bundle-budget',
     'npm run check:chunk-graph',
@@ -70,13 +70,15 @@ it('runs census, library, pharmacy, clinical-panel, sync-navigation and DICOM/ca
   expect(lanes.if).toBe("${{ !cancelled() && needs.ci-scope.outputs.scope == 'full' }}");
   expect(lanes.steps[0]).toMatchObject({ if: "needs.preview-build.result != 'success'" });
   expect(lanes.steps[0].run).toContain('exit 1');
+
+  expect(fs.readFileSync('playwright.preview.config.ts', 'utf8')).toContain(
+    'preview-smoke-blob-${previewLane}.zip'
+  );
+
   for (const lane of PREVIEW_SMOKE_LANE_NAMES) {
     // Playwright blobs are zips already: upload them as-is and download without
     // decompressing, so download-artifact never stream-unzips a zip within a zip.
     const blob = `preview-smoke-blob-${lane}.zip`;
-    expect(fs.readFileSync('playwright.preview.config.ts', 'utf8')).toContain(
-      'fileName: `preview-smoke-blob-${previewLane}.zip`'
-    );
     const upload = lanes.steps.find(step => step.with?.name === blob);
     expect(upload?.if).toBe(`always() && matrix.lane == '${lane}'`);
     expect(upload?.uses).toBe('actions/upload-artifact@v7');

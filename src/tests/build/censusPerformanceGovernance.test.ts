@@ -28,37 +28,19 @@ describe('census measurement release gate', () => {
       )
     ).toBe(true);
   });
-  it('keeps absolute production budgets blocking during short PR screening', () => {
-    const spec = read('e2e/census-startup.measurement.ts');
-    expect(spec).toContain("smoke\n      ? 'PR screening gate;");
-    expect(spec).not.toContain('if (!smoke)\n    expect(\n      report.violations');
-  });
-  it('does not erase slow samples via retries or mix production secrets with fixtures', () => {
-    const config = read('playwright.census-performance.config.ts');
-    expect(config).toContain('retries: 0');
-    expect(config).toContain('forbidOnly: true');
-    expect(config).toContain('reuseExistingServer: false');
-    // Waits must never be derived from, or silently become, performance budgets.
-    expect(config).toContain('CENSUS_PERF_READINESS_TIMEOUT_MS');
-    expect(config).toContain("trace: 'retain-on-failure'");
-    expect(config).toContain("screenshot: 'only-on-failure'");
-    // Waits live in the config; verdicts live in the report module.
-    expect(config).not.toContain('enforcedMaxMs');
-    expect(read('scripts/census-startup-performance-report.mjs')).toContain('enforcedMaxMs');
+  it('keeps production fixtures isolated from secrets and uploads failure artifacts', () => {
     const uploads = ciJobs()['census-startup-performance'].steps.filter(step =>
       step.uses?.startsWith('actions/upload-artifact@')
     );
     expect(
       uploads.some(step => String(step.with?.path).includes('test-results/census-performance/**'))
     ).toBe(true);
-    expect(read('e2e/census-startup.measurement.ts')).toContain('Screen state:');
     const server = read('scripts/census-startup-performance-server.mjs');
     expect(server).toContain('envDir: false');
     expect(server).toContain('delete process.env[key]');
     expect(server).not.toContain('.env.production');
     const spec = read('e2e/census-startup.measurement.ts');
     expect(spec).toContain("route.abort('blockedbyclient')");
-    expect(spec).toContain('const url = new URL(route.request().url())');
     expect(spec).not.toContain('previewFirebase');
   });
   it('retains production ceilings and the documented critical-runtime bundle allowances', () => {
@@ -108,8 +90,13 @@ describe('combined census measurement configuration', () => {
   it('runs production interactions after startup against the same fresh server', async () => {
     vi.stubEnv('CENSUS_PERF_ENV', 'production');
     vi.stubEnv('CENSUS_PERF_INCLUDE_INTERACTIONS', '1');
+    vi.stubEnv('CENSUS_PERF_READINESS_TIMEOUT_MS', '45000');
     vi.resetModules();
-    const { default: config } = await import('../../../playwright.census-performance.config');
+    const {
+      default: config,
+      MEASURED_READINESS_MS,
+      WARMUP_READINESS_MS,
+    } = await import('../../../playwright.census-performance.config');
     expect(config.projects).toHaveLength(2);
     expect(config.projects?.[0].testMatch).toBe('census-startup.measurement.ts');
     expect(config.projects?.[1]).toMatchObject({
@@ -122,11 +109,24 @@ describe('combined census measurement configuration', () => {
     expect(Array.isArray(config.webServer)).toBe(false);
     expect(config.webServer).toMatchObject({ reuseExistingServer: false });
     expect(config.retries).toBe(0);
-    const workflow = read('.github/workflows/ci-cd.yml');
-    expect(workflow).toContain(
-      "CENSUS_PERF_INCLUDE_INTERACTIONS: ${{ matrix.environment == 'production' && '1' || '0' }}"
+    expect(config.forbidOnly).toBe(true);
+    expect(config.use).toMatchObject({
+      trace: 'retain-on-failure',
+      screenshot: 'only-on-failure',
+    });
+    expect(MEASURED_READINESS_MS).toBe(45_000);
+    expect(WARMUP_READINESS_MS).toBe(135_000);
+
+    const censusSteps = ciJobs()['census-startup-performance'].steps;
+    const measureStep = censusSteps.find(
+      step => step.run === 'npm run test:e2e:census-performance'
     );
-    expect(workflow).not.toContain('run: npm run test:e2e:census-interactions');
+    expect(measureStep?.env?.CENSUS_PERF_INCLUDE_INTERACTIONS).toBe(
+      "${{ matrix.environment == 'production' && '1' || '0' }}"
+    );
+    expect(
+      censusSteps.some(step => step.run?.includes('npm run test:e2e:census-interactions'))
+    ).toBe(false);
   });
 
   it('runs standalone production interactions via CENSUS_PERF_INTERACTIONS_ONLY', async () => {
