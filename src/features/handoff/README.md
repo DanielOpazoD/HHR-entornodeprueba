@@ -9,7 +9,7 @@ WhatsApp) se retiro; un enlace viejo a `/medical-handoff` abre el censo.
 ## Decision Guide
 
 - Superficies runtime y puntos de cambio seguros: [docs/ADR_HANDOFF_RUNTIME_SURFACES.md](../../../docs/ADR_HANDOFF_RUNTIME_SURFACES.md)
-- Checklist transversal de cambio seguro: [docs/SAFE_CHANGE_CHECKLIST.md](../../../docs/SAFE_CHANGE_CHECKLIST.md)
+- Checklist transversal de cambio seguro: [docs/CI_GATES_AND_FAILURE_RUNBOOKS.md](../../../docs/CI_GATES_AND_FAILURE_RUNBOOKS.md)
 
 ## Estructura
 

@@ -30,8 +30,8 @@ npm run check:report-freshness:strict
 
 `report:governance-snapshots` usa el grafo de dependencias existente; no mantener
 otra lista manual de generadores. Los controles pueden señalar evidencia runtime
-o de preview ausente: ejecutar el gate pertinente del
-[checklist](SAFE_CHANGE_CHECKLIST.md), no inventar métricas ni rebajar el control.
+o de preview ausente: ejecutar el gate pertinente de la
+[guía de gates y cierre](CI_GATES_AND_FAILURE_RUNBOOKS.md#cobertura-requerida-y-comandos-disponibles), no inventar métricas ni rebajar el control.
 Una ejecución local parcial no sustituye al CI completo del PR.
 
 Los informes versionados pueden ser antiguos. Verificar commit, worktree, huellas

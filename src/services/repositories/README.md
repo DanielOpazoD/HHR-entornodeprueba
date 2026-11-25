@@ -59,7 +59,7 @@ no añadir una suite sólo para comprobar que un wrapper delega. Los estados y
 fallos deben probarse como comportamiento observable del límite responsable.
 
 - [Cómo contribuir](../../../CONTRIBUTING.md)
-- [Checklist de cierre](../../../docs/SAFE_CHANGE_CHECKLIST.md)
+- [Checklist de cierre](../../../docs/CI_GATES_AND_FAILURE_RUNBOOKS.md)
 - [Runbook de sync](../../../docs/RUNBOOK_SYNC_RESILIENCE.md)
 - [docs/RUNBOOK_OPERATIONAL_BUDGETS.md](../../../docs/RUNBOOK_OPERATIONAL_BUDGETS.md)
 - [Storage y cola](../storage/README.md)

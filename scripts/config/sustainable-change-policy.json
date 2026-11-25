@@ -5,17 +5,14 @@
       "id": "safe_local_ui",
       "label": "UI local, copy o estilos sin impacto runtime",
       "requiredGates": ["ci:inner-loop"],
-      "requiredDocs": ["docs/SAFE_CHANGE_CHECKLIST.md"],
+      "requiredDocs": ["docs/CI_GATES_AND_FAILURE_RUNBOOKS.md"],
       "requiredArtifacts": []
     },
     {
       "id": "critical_runtime",
       "label": "Runtime critico: auth, storage, sync, bootstrap",
       "requiredGates": ["ci:merge-gate", "test:release-confidence"],
-      "requiredDocs": [
-        "docs/CI_GATES_AND_FAILURE_RUNBOOKS.md",
-        "docs/ENGINEERING_DEFINITION_OF_DONE.md"
-      ],
+      "requiredDocs": ["docs/CI_GATES_AND_FAILURE_RUNBOOKS.md"],
       "requiredArtifacts": ["reports/release-readiness-scorecard.md"]
     },
     {
@@ -29,11 +26,7 @@
       "id": "architecture_contracts",
       "label": "Arquitectura, boundaries, contratos o entrypoints publicos",
       "requiredGates": ["check:quality", "ci:merge-gate"],
-      "requiredDocs": [
-        "docs/architecture.md",
-        "docs/QUALITY_GUARDRAILS.md",
-        "docs/ENGINEERING_DEFINITION_OF_DONE.md"
-      ],
+      "requiredDocs": ["docs/architecture.md", "docs/CI_GATES_AND_FAILURE_RUNBOOKS.md"],
       "requiredArtifacts": []
     },
     {
@@ -43,7 +36,7 @@
       "requiredDocs": [
         "docs/FOUNDATION_TRACKER.md",
         "docs/FOUNDATION_MAINTENANCE_CADENCE.md",
-        "docs/QUALITY_GUARDRAILS.md"
+        "docs/CI_GATES_AND_FAILURE_RUNBOOKS.md"
       ],
       "requiredArtifacts": ["reports/quality-metrics.md"]
     },
@@ -51,7 +44,7 @@
       "id": "dependency_upgrade",
       "label": "Upgrade de dependencias o toolchain",
       "requiredGates": ["typecheck", "lint", "ci:merge-gate"],
-      "requiredDocs": ["docs/SAFE_CHANGE_CHECKLIST.md", "docs/QUALITY_GUARDRAILS.md"],
+      "requiredDocs": ["docs/CI_GATES_AND_FAILURE_RUNBOOKS.md"],
       "requiredArtifacts": ["reports/release-readiness-scorecard.md"]
     }
   ],
@@ -73,7 +66,7 @@
       {
         "id": "build_tooling",
         "requiredGates": ["typecheck", "lint", "ci:merge-gate"],
-        "requiredDocs": ["docs/QUALITY_GUARDRAILS.md"]
+        "requiredDocs": ["docs/CI_GATES_AND_FAILURE_RUNBOOKS.md"]
       },
       {
         "id": "clinical_pdf_export",
@@ -92,7 +85,7 @@
   },
   "definitionOfDone": {
     "requiredChecks": ["typecheck", "lint", "check:quality", "build"],
-    "requiredDocs": ["docs/ENGINEERING_DEFINITION_OF_DONE.md", "docs/SAFE_CHANGE_CHECKLIST.md"],
+    "requiredDocs": ["docs/CI_GATES_AND_FAILURE_RUNBOOKS.md"],
     "releaseScorecard": "reports/release-readiness-scorecard.md"
   }
 }

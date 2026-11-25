@@ -132,6 +132,5 @@ acortar la ventana a 7 días si no hay workaround disponible.
 ## Cómo usar esta política junto con otras guías
 
 - Esta política decide si una mejora merece hacerse.
-- [docs/QUALITY_GUARDRAILS.md](./QUALITY_GUARDRAILS.md) define qué límites estructurales y gates deben permanecer verdes.
+- [docs/CI_GATES_AND_FAILURE_RUNBOOKS.md](./CI_GATES_AND_FAILURE_RUNBOOKS.md) define los límites estructurales, los gates vigentes y la definición de terminado cuando un cambio sí se implementa.
 - [docs/TECHNICAL_DEBT_REGISTER.md](./TECHNICAL_DEBT_REGISTER.md) define qué deuda priorizada sigue abierta.
-- [docs/ENGINEERING_DEFINITION_OF_DONE.md](./ENGINEERING_DEFINITION_OF_DONE.md) define qué debe quedar verificado cuando un cambio sí se implementa.

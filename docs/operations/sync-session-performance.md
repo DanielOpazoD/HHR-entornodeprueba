@@ -154,7 +154,7 @@ Firebase web 12.14.0, sin elevar límites ni reparticionar chunks para ocultar e
 
 El audit detectó además GHSA-m9gg-hp2v-232j en el override existente de `grpc-js`
 1.14.4. Se priorizó el parche 1.14.5 en raíz y Functions, con evidencia y rollback
-en el [checklist de cambios](../SAFE_CHANGE_CHECKLIST.md#parche-transitivo-grpc-2026-10-01).
+en el [historial de runbooks](../archive/RUNBOOK_HISTORY_2026.md#parche-transitivo-grpc-2026-10-01).
 No se ha demostrado explotación en HHR. Esta decisión separa un parche de seguridad
 acotado de una actualización general del runtime cliente que no pasó sus controles.
 

@@ -93,11 +93,9 @@ mockeado no acredita recuperación de módulos en un navegador real.
 ## Cerrar y publicar
 
 Antes de subir, `npm run check:changed` corre los controles formales sobre lo cambiado
-(también lo hace el gancho `pre-push`). Documentos de consulta, no de lectura previa:
-[Safe Change Checklist](docs/SAFE_CHANGE_CHECKLIST.md) para un cambio crítico (guardado,
-reglas, despliegue), [Definition of Done](docs/ENGINEERING_DEFINITION_OF_DONE.md) ante una
-duda de cierre y [CI y recuperación](docs/CI_GATES_AND_FAILURE_RUNBOOKS.md) cuando un
-control falla.
+(también lo hace el gancho `pre-push`). Documento de consulta, no de lectura previa:
+[CI, cierre y recuperación](docs/CI_GATES_AND_FAILURE_RUNBOOKS.md) para cobertura de un cambio
+crítico (guardado, reglas, despliegue), definición de terminado o cuando un control falla.
 Clasificar el cambio y acreditar los controles correspondientes con CI del SHA final;
 no se exige repetirlos localmente. Comprobar el alcance ejecutado y conservar el enlace
 al run y sus artefactos. Ejecutar localmente las regresiones durante la edición y sólo
