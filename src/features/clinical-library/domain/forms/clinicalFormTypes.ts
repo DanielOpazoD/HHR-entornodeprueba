@@ -55,6 +55,8 @@ export interface ClinicalFormDefinition {
   sourceUrl: string;
   templateSha256: string;
   sourceSha256: string;
+  /** Whether the editor exposes Word (.docx) export alongside PDF. */
+  supportsDocxExport?: boolean;
   pages: Array<{ width: number; height: number }>;
   fields: ClinicalFormField[];
 }

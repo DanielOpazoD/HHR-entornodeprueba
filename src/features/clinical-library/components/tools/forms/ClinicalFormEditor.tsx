@@ -406,8 +406,7 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
               <Download size={15} />
               {pdf.busyFormat === 'pdf' ? 'Preparando…' : 'PDF imprimible'}
             </button>
-            {(formId === 'informe-traslado-hospital-salvador' ||
-              formId === 'solicitud-interconsulta-hhr') && (
+            {form.supportsDocxExport && (
               <button
                 type="button"
                 className="clinical-form-button"
