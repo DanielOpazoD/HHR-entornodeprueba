@@ -3,7 +3,7 @@ import { addCalendarDays } from '@/utils/clinicalDateUtils';
 import { Check, ClipboardCopy, Loader2, X } from 'lucide-react';
 import { XRayIcon } from '@/components/ui/XRayIcon';
 
-import { searchMMRADExams, type MMRADExam } from '@/features/radiology/services/mmradService';
+import { searchMMRADExams, type MMRADExam } from '@/features/radiology/public';
 import { buildMMRADReportClipboardText } from '@/domain/radiology/mmradReportSupport';
 import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { useTransientFlag } from '@/hooks/useTransientFlag';

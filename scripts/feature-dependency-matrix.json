@@ -50,14 +50,7 @@
     ],
     "radiology": [
       "@/features/radiology/components/RadiologyViewerModal",
-      "@/features/radiology/controllers/mmradStudySearch",
-      "@/features/radiology/controllers/radiologyExamListMemory",
-      "@/features/radiology/controllers/radiologyViewerContentController",
-      "@/features/radiology/dicom-viewer/DicomViewerDialog",
-      "@/features/radiology/dicom-viewer/useDicomReviewCache",
-      "@/features/radiology/services/mmradPdfDelivery",
-      "@/features/radiology/services/mmradService",
-      "@/features/radiology/services/mmradStamp"
+      "@/features/radiology/dicom-viewer/DicomViewerDialog"
     ],
     "rayen-import": [
       "@/features/rayen-import/RayenImportButton",

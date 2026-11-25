@@ -6,9 +6,8 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PizZip from 'pizzip';
-import type { MMRADExam } from '@/features/radiology/services/mmradService';
+import { formatMmradStamp, type MMRADExam } from '@/features/radiology/public';
 import { loadPdfLibGenerationRuntime } from '@/services/pdf/pdfLibRuntime';
-import { formatMmradStamp } from '@/features/radiology/services/mmradStamp';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import {
   describeRange,

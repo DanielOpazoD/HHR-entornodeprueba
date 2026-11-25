@@ -1,6 +1,9 @@
-import { hasMMRADStructuredReport } from '@/features/radiology/controllers/radiologyViewerContentController';
-import type { MMRADExam } from '@/features/radiology/services/mmradService';
-import { formatMmradStamp, mmradStampSortKey } from '@/features/radiology/services/mmradStamp';
+import {
+  formatMmradStamp,
+  hasMMRADStructuredReport,
+  mmradStampSortKey,
+  type MMRADExam,
+} from '@/features/radiology/public';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { isCtStudy } from './clinicalExplorerImagingModel';
 import {
