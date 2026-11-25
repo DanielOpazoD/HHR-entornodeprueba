@@ -60,11 +60,6 @@
       "estimatedDurationMs": 6900
     },
     {
-      "id": "ci-measured-5700ms",
-      "globs": ["src/tests/build/extensionHotspotBudget.test.ts"],
-      "estimatedDurationMs": 5700
-    },
-    {
       "id": "ci-measured-4500ms",
       "globs": ["src/tests/build/testGovernanceCli.test.ts"],
       "estimatedDurationMs": 4500

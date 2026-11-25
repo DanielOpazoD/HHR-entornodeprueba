@@ -50,7 +50,6 @@ npx vitest run src/tests/rayen-import/offscreenCoordinatorExtension.test.ts \
   src/tests/rayen-import/syslabRuntimeExtension.test.ts
 npm run test:e2e:shared-offscreen
 node scripts/check-rayen-extension-release.mjs
-npm run check:extension-hotspots
 npm run lint:extension
 ```
 
