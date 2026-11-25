@@ -39,7 +39,7 @@ No comparar tiempos de sesiones distintas como si fueran una prueba controlada.
   El segundo usa el build existente y verifica presupuesto, grafo y preview.
 - Medición sintética de flujos: `npm run test:e2e:flow-performance:gate`.
 - Cierre de un cambio de arranque: seguir el gate y las pruebas de login/F5 de
-  [SAFE_CHANGE_CHECKLIST.md](../SAFE_CHANGE_CHECKLIST.md), sin repetir sus etapas.
+  [CI_GATES_AND_FAILURE_RUNBOOKS.md](../CI_GATES_AND_FAILURE_RUNBOOKS.md), sin repetir sus etapas.
 
 No aumentar presupuestos, reintentos o timeouts para ocultar una regresión.
 El trozo de arranque mantiene holgura medida

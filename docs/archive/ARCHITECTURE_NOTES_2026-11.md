@@ -56,7 +56,7 @@ Las escrituras clínicas tienen controles propios que sí deben conservarse:
   No retirarla por antigüedad aparente ni confundirla con código muerto.
 
 Los límites verificables se ejecutan con `npm run check:quality:group -- boundaries`.
-La política completa vive en [Quality Guardrails](../QUALITY_GUARDRAILS.md).
+La política completa vive en [CI Gates, Guardrails y Checklist de Cierre](../CI_GATES_AND_FAILURE_RUNBOOKS.md).
 
 La [auditoría de ingresos médicos](../features/ADMISSION_MEDICAL_AUDIT.md) tiene un entrypoint
 lazy acotado `features/admin/admission-audit`, separado del barrel general del
@@ -192,8 +192,7 @@ o retirar un aviso no actualiza a quienes sólo necesitan invocar una acción.
 ## Validar y evolucionar
 
 [CONTRIBUTING.md](../../CONTRIBUTING.md) contiene instalación, selección de pruebas y
-publicación. [Safe Change Checklist](../SAFE_CHANGE_CHECKLIST.md) y la
-[Definition of Done](../ENGINEERING_DEFINITION_OF_DONE.md) gobiernan el cierre.
+publicación. [CI Gates, Guardrails y Checklist de Cierre](../CI_GATES_AND_FAILURE_RUNBOOKS.md) gobierna el cierre.
 
 Preferir pruebas de comportamiento del dueño y una integración que alcance el
 límite real. No añadir tests que sólo repitan delegaciones. No reducir umbrales,

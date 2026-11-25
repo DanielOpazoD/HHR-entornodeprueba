@@ -180,8 +180,7 @@ El IEEH ya no se completa desde el censo: se llena en el panel IEEH de la epicri
 
 ## Safe change links
 
-- [docs/QUALITY_GUARDRAILS.md](../../../docs/QUALITY_GUARDRAILS.md)
-- [docs/SAFE_CHANGE_CHECKLIST.md](../../../docs/SAFE_CHANGE_CHECKLIST.md)
+- [docs/CI_GATES_AND_FAILURE_RUNBOOKS.md](../../../docs/CI_GATES_AND_FAILURE_RUNBOOKS.md)
 
 Los enlaces de incidencias pueden abrir `/census?date=YYYY-MM-DD&focusBed=<cama>`.
 Una vez cargada la tabla del día solicitado, se enfoca y centra la fila (ocupada o vacía)

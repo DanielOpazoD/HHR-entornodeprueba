@@ -1,15 +1,16 @@
-# CI Gates and Failure Runbooks
+# CI Gates, Guardrails y Checklist de Cierre
 
-> Sólo guía vigente. El historial de incidentes y parches va en la descripción del PR que los resuelve; el anterior está en el [historial de runbooks](archive/RUNBOOK_HISTORY_2026.md). La guía de soporte de la aplicación está en el [runbook de soporte](RUNBOOK_SUPPORT_OPERATIONS.md).
+> Sólo guía vigente. Consolida los gates de CI, los guardrails de calidad, la cobertura por tipo de cambio, el checklist de cierre y la definición de terminado. El historial de incidentes y parches va en la descripción del PR que los resuelve; el anterior está en el [historial de runbooks](archive/RUNBOOK_HISTORY_2026.md). La guía de soporte de la aplicación está en el [runbook de soporte](RUNBOOK_SUPPORT_OPERATIONS.md).
 
 ## Objetivo
 
-Definir una ruta corta para desarrollo diario y una ruta blocking para merge/release sin duplicar checks caros.
+Definir una ruta corta para desarrollo diario, los criterios de cierre y calidad estructural, y una ruta blocking para merge/release sin duplicar checks caros.
 
 ## Punto de entrada recomendado
 
 - Para elegir runbook por incidente o tipo de cambio: [docs/RUNBOOK_INDEX.md](./RUNBOOK_INDEX.md)
 - Para comandos curados del repo: [docs/DEVELOPER_COMMANDS.md](./DEVELOPER_COMMANDS.md)
+- Para política de upgrades, excepciones y categorías de cambio: `scripts/config/sustainable-change-policy.json`
 
 Si la change toca reglas generadas o documentación operativa, verificar además los
 controles siguientes. CI del SHA final puede acreditarlos sin repetirlos localmente;
@@ -20,12 +21,85 @@ que falte en CI:
 - `npm run check:docs-drift`
 - `npm run check:operational-runbooks`
 
+## Cierre, cobertura y definición de terminado
+
+### Iterar sin repetir los gates completos
+
+Durante la edición, ejecutar las pruebas del módulo afectado (`npx vitest run <ruta>`)
+y el grupo pertinente de `npm run check:quality:group -- <grupo>`:
+`boundaries`, `governance`, `security`, `size`, `tests` o `reports`.
+Esto es feedback focalizado y **no reemplaza el gate previo al merge**.
+
+Para cambios en límites de imports:
+
+```sh
+npx vitest run src/tests/build/publicImportBoundaryLint.test.ts
+npm run check:quality:group -- boundaries
+```
+
+### Cobertura requerida y comandos disponibles
+
+`package.json` define las etapas ejecutadas; la política de
+`scripts/config/sustainable-change-policy.json` conserva los requisitos adicionales
+por tipo de cambio. Sus `requiredGates` describen la cobertura requerida, no una
+obligación de ejecutarla otra vez localmente. Esta tabla orienta la selección:
+
+| Alcance                                                            | Cobertura requerida; CI puede acreditarla                                                |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| Solo documentación operativa, sin scripts, código ni configuración | `check:docs-drift` y `check:operational-runbooks`; comprobar enlaces y comandos editados |
+| Código habitual                                                    | `ci:pre-merge`                                                                           |
+| Runtime clínico, auth, storage, bundle o contratos de arquitectura | `ci:merge-gate` y controles adicionales exigidos por la política                         |
+| Release o reglas persistentes                                      | `ci:release-gate` y controles adicionales exigidos por la política                       |
+
+Durante la edición bastan pruebas focalizadas para obtener feedback; `ci:inner-loop`
+sirve para iterar y para los cambios locales de UI que la política clasifica como
+`safe_local_ui`. No encadenar gates completos (`ci:release-gate` contiene
+`ci:merge-gate`, que contiene `ci:pre-merge`). La clasificación remota `docs-only`
+se decide en CI; no forzar ni omitir checks.
+
+### Checklist de cierre
+
+Antes de cerrar una modificación relevante:
+
+1. Clasificar el cambio según `scripts/config/sustainable-change-policy.json` y actualizar los tests unitarios o de integración afectados.
+2. Si es un upgrade de dependencias o una excepción, documentar owner, riesgo, rollback y criterio de cierre.
+3. Comprobar que el head de la PR coincide con el SHA del CI aprobado, que `ci-summary` está en verde, que el alcance cubre el cambio y que la rama está al día y se puede mergear. No repetir localmente controles ya acreditados por CI del SHA final; ejecutar sólo comprobaciones no cubiertas por CI o regresiones nuevas.
+4. Revisar si el cambio toca reglas clínicas de fecha/turno, sync o identidad del paciente ([docs/DOMAIN_RULES.md](./DOMAIN_RULES.md)), contratos runtime/serialización, `firestore.rules`, emulador o E2E críticos.
+5. Si toca startup, lazy loading o vistas críticas, verificar `npm run check:flow-performance-budget`. Si toca `index.html`, login o refresh autenticado, preservar [docs/system-behaviors.md](./system-behaviors.md) y mantener verdes `src/tests/security/startupPrebootContractStatic.test.ts`, `src/tests/app-shell/BootstrapRouteChrome.test.tsx` y `src/tests/components/AppLoadingBehavior.test.tsx`.
+6. Revisar el documento dueño si cambia una frontera o contrato estable: [AUTH_ACCESS_MODEL.md](./AUTH_ACCESS_MODEL.md) (login/roles), [ADR_DAILY_RECORD_RUNTIME_PATH.md](./ADR_DAILY_RECORD_RUNTIME_PATH.md) (`daily-record`/sync), [ADR_AUTH_RUNTIME_RECOVERY.md](./ADR_AUTH_RUNTIME_RECOVERY.md) (auth runtime), [ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md](./ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md) (documentos clínicos) o [ADR_HANDOFF_RUNTIME_SURFACES.md](./ADR_HANDOFF_RUNTIME_SURFACES.md) (entrega de turno).
+7. Si introduce un error operativo nuevo, mapearlo al contrato compartido y a telemetría sin incluir datos clínicos crudos.
+
+### Definición de terminado
+
+Una change queda lista solo si cumple todo lo siguiente (acreditable por CI del SHA final):
+
+1. `npm run typecheck`, `npm run lint`, `npm run check:quality` y `npm run build` pasan en verde.
+2. No introduce warnings en `src/`.
+3. Si toca flujos críticos, agrega o ajusta tests automatizados.
+4. Si cambia boundaries, wiring o contratos, actualiza documentación/ADR en la misma change.
+5. No agrega bypasses a `application`, `shared/access` ni providers obligatorios.
+6. No deja excepciones abiertas sin owner, motivo y criterio de cierre documentados.
+7. Si toca un subsistema crítico, mantiene actualizado `scripts/config/technical-ownership-map.json` con owner, gate y runbook vigentes.
+8. Si la change entra en una categoría gobernada, sigue `scripts/config/sustainable-change-policy.json` y deja evidencia del gate o artefacto requerido.
+9. Si incluye lógica de app, assets estáticos o snapshots, separa esos concerns en commits distintos cuando no dependan del mismo fix.
+
+### Guardrails de calidad, crecimiento y excepciones
+
+- **Cohesión antes que líneas:** se divide por responsabilidad, no por tamaño. No crear controllers, helpers ni archivos `*Support` sólo para bajar líneas; antes de dividir, eliminar código muerto o duplicado. Al extraer lógica, preferir funciones puras y conservar estables los contratos públicos y el JSX.
+- **Tope global de 600 líneas:** `npm run check:module-size` (`scripts/module-size-allowlist.json`) aplica a `src/` y `functions/lib/` como alarma de cohesión. Un módulo cohesivo que necesite superarlo entra a la allowlist con motivo, owner y estado; su techo no crece y baja cuando el archivo se achica.
+- **Dirección entre carpetas y boundaries:** ver «Capas y dirección» en [architecture.md](./architecture.md#capas-y-dirección). `npm run check:folder-dependencies` impide referencias hacia capas superiores y lecturas directas de datos desde `components/`.
+- **Infraestructura e inyección:** los providers obligatorios deben fallar rápido si falta wiring; los servicios críticos sobre Firebase Functions/Auth/Storage prefieren `create...Service(...)` inyectable (singleton sólo por compatibilidad); los chunks críticos de arranque se declaran en `scripts/config/bundle-budget.json`.
+- **Cuándo abrir una excepción:** sólo si partir el archivo o corregir en esa iteración rompe contratos o añade riesgo clínico/operativo **y** la excepción queda registrada en la allowlist/backlog con límite, motivo, owner y criterio de cierre. Si no se cumplen ambas condiciones, resolver en la misma change.
+- **Cómo agregar un guardrail nuevo:** preferir `scripts/check-*.mjs` o `scripts/report-*.mjs` antes que tooling externo; si es informativo, empezar como `report-only` y declararlo en `scripts/config/guardrail-governance.json` (ver también [ENGINEERING_CHANGE_DECISION_POLICY.md](./ENGINEERING_CHANGE_DECISION_POLICY.md)).
+- **Revisión local de deuda (sin confundir snapshots con estado actual):** los archivos de `reports/` no se versionan y corresponden al SHA en que se generaron. Para revisar deuda localmente, ejecutar en orden:
+  `npm run report:quality-metrics`, `npm run report:compatibility-governance`, `npm run report:legacy-retirement-debt` y `npm run report:maintenance-debt-scorecard`.
+
 ## Gates activos
 
 ### Evidencia de CI sin segunda ejecución local
 
 Para cerrar una PR, usar la ejecución aprobada de GitHub del SHA final, conforme a
-[Safe Change Checklist](SAFE_CHANGE_CHECKLIST.md). `ci-summary` y las protecciones
+[Cobertura requerida y comandos disponibles](#cobertura-requerida-y-comandos-disponibles). `ci-summary` y las protecciones
 de `main` se mantienen. Comprobar el alcance y los jobs realmente ejecutados; no
 equiparar un job omitido o un informe antiguo con una prueba aprobada.
 
@@ -300,7 +374,7 @@ Salida esperada:
 
 Comando disponible para validar localmente cambios habituales de código; los gates
 ampliados lo contienen. CI puede acreditar sus controles sin ejecutarlo localmente.
-Para elegir evidencia, ver [SAFE_CHANGE_CHECKLIST.md](./SAFE_CHANGE_CHECKLIST.md).
+Para elegir evidencia, ver [Cobertura requerida y comandos disponibles](#cobertura-requerida-y-comandos-disponibles).
 
 Incluye:
 
@@ -732,6 +806,16 @@ una aserción clínica o transacción fallida; no atribuir ambos automáticament
 5. confirmar que functions y `firestore.rules` publicadas correspondan al mismo modelo
 6. si el usuario fue removido, verificar que el login termine en `signOut` y no en shell vacío
 
+### Falla `check:extension-source`
+
+`check:extension-source` compara los archivos de `extension/` con el paquete
+`@hhr/eloisa-extension` fijado en el lockfile, salvo el README propio de HHR.
+Es un control bloqueante del grupo `security`. Ejecutar `npm ci` para descartar
+una instalación local antigua; si la diferencia persiste, actualizar el commit
+fuente cuando corresponda, ejecutar `npm run extension:sync`, revisar y publicar
+la copia sincronizada. El control no modifica archivos ni sincroniza automáticamente
+en CI.
+
 ### Falla `check:flow-performance-budget`
 
 1. correr `npm run test:e2e:flow-performance`
@@ -750,6 +834,29 @@ una aserción clínica o transacción fallida; no atribuir ambos automáticament
 - cambio funcional antes de abrir o actualizar PR: `ci:pre-merge`
 - cambio funcional o refactor con impacto real: `ci:merge-gate`
 - cambio de release, Firebase o UX crítica: `ci:release-gate`
+
+### Piloto local de entrega de turno desde Eloísa
+
+Usa los emuladores de Auth, Firestore y Functions con el proyecto desechable
+`demo-hhr-handoff`. La función `nursingHandoffExtension` sólo se registra con esos
+emuladores. Las pruebas usan su propio censo y aplican la política de escritura v2.
+
+Desde HHR, instala las dependencias raíz y de `functions`. Con Java 21 disponible, ejecuta:
+
+```bash
+HHR_HANDOFF_EXTENSION_CHECKOUT=/ruta/extension node functions/scripts/runNursingHandoffPilot.cjs
+```
+
+Abre Chromium con una sesión y un paciente ficticios. Comprueba el guardado en Firestore con HHR
+cerrado. Agrega `--interactive` para preparar una carpeta de extensión de uso local y un paciente
+ficticio para verificar el flujo en Chrome con una sesión habitual de Hospitalizados.
+La misma ejecución prepara la extensión y el emulador. Usa la carpeta indicada durante esa ejecución.
+
+Con `--interactive --censo-compartido`, HHR se abre en `http://127.0.0.1:3016`
+y utiliza el mismo Firestore local que la extensión. El lanzador muestra el acceso temporal de HHR.
+El censo empieza vacío. Usa el flujo habitual de sincronización de HHR para publicarlo en ese
+entorno y luego abre la entrega desde la fila correspondiente de Eloísa. El episodio y el RUN
+propio deben coincidir. Puedes cerrar la pestaña de HHR después de cargar el censo.
 
 ## Actualizaciones de dependencias
 

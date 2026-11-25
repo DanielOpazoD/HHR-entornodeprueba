@@ -40,8 +40,6 @@ Documentos que gobiernan decisiones activas y estructura actual del repo.
 - [docs/DOMAIN_RULES.md](DOMAIN_RULES.md) — intención, invariantes y políticas operativas; leer antes de modificar un flujo
 - [docs/GLOSSARY.md](GLOSSARY.md) — vocabulario canónico del dominio (paciente/cama/alta/traslado/CUDYR/CMA/MINSAL…)
 - [docs/TODO_TRIAGE_PROCESS.md](TODO_TRIAGE_PROCESS.md) — playbook para mantener cero markers `TODO`/`FIXME` en código
-- [docs/QUALITY_GUARDRAILS.md](QUALITY_GUARDRAILS.md)
-- [docs/SAFE_CHANGE_CHECKLIST.md](SAFE_CHANGE_CHECKLIST.md)
 - [docs/README_AUDIT.md](README_AUDIT.md) — auditoría v2: qué se registra, conexiones por equipo y pantalla Auditoría (agrupaciones, filtros, exportación)
 - [docs/CLINICAL_MUTATION_AUDIT_POLICY.md](CLINICAL_MUTATION_AUDIT_POLICY.md) — postura de auditoría declarada por `AuditAction` (gate `check:clinical-mutation-audit-policy`)
 - [docs/SYNC_CONCURRENCY_MODEL.md](SYNC_CONCURRENCY_MODEL.md) — rutas de escritura del censo diario, enrutamiento a la autoridad, guardas y límites conocidos
@@ -96,7 +94,7 @@ actualizar el `Estado` y apuntar al ADR reemplazante.
 - [RUNBOOK_PROFESSIONAL_RELEASE_CHECK](RUNBOOK_PROFESSIONAL_RELEASE_CHECK.md) — verificación profesional previa a release
 - [RUNBOOK_RAYEN_CLINICAL_ENRICHMENT_BATCH](RUNBOOK_RAYEN_CLINICAL_ENRICHMENT_BATCH.md) — enriquecimiento clínico Rayen
 - [RUNBOOK_RELEASE_EVIDENCE_CONTRACT](RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md) — evidencia vigente de release
-- [CI_GATES_AND_FAILURE_RUNBOOKS](CI_GATES_AND_FAILURE_RUNBOOKS.md) — gates de CI y recuperación
+- [CI_GATES_AND_FAILURE_RUNBOOKS](CI_GATES_AND_FAILURE_RUNBOOKS.md) — gates de CI, guardrails de calidad, checklist de cierre, Definition of Done y recuperación
 - [RUNBOOK_LOCAL_E2E_EMULATOR](RUNBOOK_LOCAL_E2E_EMULATOR.md) — correr E2E con emulador Firestore en local
 
 ### Operativa

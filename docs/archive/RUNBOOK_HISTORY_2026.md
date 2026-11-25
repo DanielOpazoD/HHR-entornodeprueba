@@ -1,10 +1,8 @@
 # Historial de runbooks (hasta el 22-10-2026)
 
 > Texto trasladado sin cambios desde los runbooks el 22-10-2026, cuando se acordó dejar en ellos
-> sólo la guía vigente. La guía activa está en [gates y fallas de CI](../CI_GATES_AND_FAILURE_RUNBOOKS.md),
-> el [checklist de cambio seguro](../SAFE_CHANGE_CHECKLIST.md), la
-> [definición de terminado](../ENGINEERING_DEFINITION_OF_DONE.md) y el
-> [runbook de soporte](../RUNBOOK_SUPPORT_OPERATIONS.md). Los incidentes y parches nuevos se
+> sólo la guía vigente. La guía activa está en [gates, cierre y fallas de CI](../CI_GATES_AND_FAILURE_RUNBOOKS.md)
+> y el [runbook de soporte](../RUNBOOK_SUPPORT_OPERATIONS.md). Los incidentes y parches nuevos se
 > documentan en la descripción del PR que los resuelve.
 
 ## Desde CI_GATES_AND_FAILURE_RUNBOOKS.md

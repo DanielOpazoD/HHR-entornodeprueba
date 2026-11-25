@@ -130,14 +130,11 @@ import { useDailyRecord } from '@/hooks/useDailyRecord';
 - [Checklist diario admin (1 pagina)](docs/RUNBOOK_DAILY_ADMIN_CHECKLIST.md)
 - [Runbook técnico de soporte](docs/RUNBOOK_SUPPORT_OPERATIONS.md)
 - [Runbook de rotación de secretos](docs/RUNBOOK_SECRET_ROTATION.md)
-- [Guardrails de calidad](docs/QUALITY_GUARDRAILS.md)
-- [Gates de CI y runbooks de falla](docs/CI_GATES_AND_FAILURE_RUNBOOKS.md)
+- [Gates de CI, guardrails, checklist de cierre y runbooks](docs/CI_GATES_AND_FAILURE_RUNBOOKS.md)
 - Scorecard de release readiness: generar con `npm run report:release-readiness-scorecard`
 - Gobernanza de guardrails: generar con `npm run report:guardrail-governance`
-- [Política de cambio sostenible](scripts/config/sustainable-change-policy.json) (reporte: `npm run report:sustainable-change-policy`)
-- [Checklist de cambio seguro](docs/SAFE_CHANGE_CHECKLIST.md)
+- [Política de cambio sostenible](scripts/config/sustainable-change-policy.json)
 - [Política de decisión para cambios de ingeniería](docs/ENGINEERING_CHANGE_DECISION_POLICY.md)
-- [Definition of Done técnico](docs/ENGINEERING_DEFINITION_OF_DONE.md)
 - [Registro de deuda técnica](docs/TECHNICAL_DEBT_REGISTER.md)
 - [ADR Repository Provider obligatorio](docs/ADR_REPOSITORY_PROVIDER_REQUIRED.md)
 - [ADR fachada de access policy](docs/ADR_ACCESS_POLICY_FACADE.md)
@@ -187,8 +184,7 @@ import { useDailyRecord } from '@/hooks/useDailyRecord';
 - [Contribuir](CONTRIBUTING.md): ciclo completo desde la instalación hasta el PR.
 - [Tests](src/tests/README.md): estructura y convenciones de las pruebas.
 - [Developer Commands](docs/DEVELOPER_COMMANDS.md): selección de comandos por escenario.
-- [Safe Change Checklist](docs/SAFE_CHANGE_CHECKLIST.md): controles exigidos por alcance.
-- [CI y recuperación](docs/CI_GATES_AND_FAILURE_RUNBOOKS.md): diagnóstico de fallos.
+- [CI, cierre y recuperación](docs/CI_GATES_AND_FAILURE_RUNBOOKS.md): controles exigidos por alcance, guardrails, Definition of Done y diagnóstico de fallos.
 
 Las pruebas focalizadas ayudan a iterar; no sustituyen los controles del SHA final.
 
