@@ -2,6 +2,7 @@ const functions = require('firebase-functions/v1');
 const { randomUUID } = require('node:crypto');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { requireAuthenticatedEmail } = require('./auth/authPolicies');
+const { isAdminRole } = require('./auth/rolePredicates');
 const {
   readClinicalDerivedLayout,
   buildClinicalDerivedLayout,
@@ -51,7 +52,7 @@ const createDailyRecordRestoreFunctions = ({
       .runWith({ memory: '1GB', timeoutSeconds: 540 })
       .https.onCall(async (data, context) => {
         const email = requireAuthenticatedEmail(context);
-        if ((await resolveRoleForEmail(email, context)) !== 'admin')
+        if (!isAdminRole(await resolveRoleForEmail(email, context)))
           fail('permission-denied', 'Solo un administrador puede restaurar un censo.');
         const source = parseRestoreSource(data, clock());
         const hospital = firestore.collection('hospitals').doc(HOSPITAL_ID);

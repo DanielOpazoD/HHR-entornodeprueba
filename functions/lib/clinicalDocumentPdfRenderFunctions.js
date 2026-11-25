@@ -1,6 +1,6 @@
 const functions = require('firebase-functions/v1');
+const { canRenderClinicalDocumentPdfRole } = require('./auth/rolePredicates');
 
-const RENDER_ALLOWED_ROLES = new Set(['admin', 'doctor_urgency', 'nurse_hospital', 'editor']);
 const MAX_HTML_LENGTH = 650_000;
 const IGNORED_OBSERVATION_PROTOCOLS = new Set(['data:', 'blob:', 'about:']);
 const MAX_OBSERVED_ORIGIN_ENTRIES = 25;
@@ -37,7 +37,7 @@ const assertRenderAccess = async (context, resolveRoleForEmail) => {
   }
 
   const role = await resolveCallerRole(context, resolveRoleForEmail);
-  if (!RENDER_ALLOWED_ROLES.has(role)) {
+  if (!canRenderClinicalDocumentPdfRole(role)) {
     throw new functions.https.HttpsError(
       'permission-denied',
       'Insufficient permissions to render clinical documents.'

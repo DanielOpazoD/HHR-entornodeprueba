@@ -11,6 +11,7 @@ const {
   hasCurrentAccountSession,
 } = require('./accounts/accountPolicy');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
+const { isAdminOrHospitalNurseRole, isAdminRole } = require('./auth/rolePredicates');
 const { createHandler } = require('./nursingHandoffExtension');
 
 const project = 'hhr-pruebas';
@@ -61,7 +62,7 @@ function createDeviceHandoffHandlers({ firestore, auth, Timestamp, FieldValue, n
   async function administratorRunHash(user, uid, get) {
     const email = user.email.toLowerCase();
     if (
-      PROTECTED[email] !== 'admin' ||
+      !isAdminRole(PROTECTED[email]) ||
       !user.emailVerified ||
       !user.providerData?.some(
         provider => provider.providerId === 'google.com' && provider.email?.toLowerCase() === email
@@ -83,7 +84,7 @@ function createDeviceHandoffHandlers({ firestore, auth, Timestamp, FieldValue, n
         })
       : (await get(legacyRoles)).data()?.[email];
     const runHash = identity.data()?.runHash;
-    if (role !== 'admin' || typeof runHash !== 'string' || !hex.test(runHash)) throw denied();
+    if (!isAdminRole(role) || typeof runHash !== 'string' || !hex.test(runHash)) throw denied();
     return runHash;
   }
 
@@ -91,7 +92,7 @@ function createDeviceHandoffHandlers({ firestore, auth, Timestamp, FieldValue, n
     if (
       account?.status !== 'active' ||
       account.credentialOperation ||
-      (account.role !== 'nurse_hospital' && account.role !== 'admin') ||
+      !isAdminOrHospitalNurseRole(account.role) ||
       account.hospitalId !== HOSPITAL_ID
     )
       throw denied();
@@ -109,7 +110,7 @@ function createDeviceHandoffHandlers({ firestore, auth, Timestamp, FieldValue, n
   }
 
   async function assertGrantAccess(uid, user, grant, get) {
-    if (grant.role === 'admin') {
+    if (isAdminRole(grant.role)) {
       const runHash = await administratorRunHash(user, uid, get);
       if (!compareHash(grant.runHash, runHash)) throw disconnected();
       return;

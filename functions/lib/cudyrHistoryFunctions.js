@@ -10,6 +10,7 @@ const functions = require('firebase-functions/v1');
 const { isDeepStrictEqual } = require('node:util');
 const { FieldPath } = require('firebase-admin/firestore');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
+const { isAdminOrHospitalNurseRole } = require('./auth/rolePredicates');
 const { assertAuthorizedDailyRecordWriter } = require('./dailyRecordWriteAuthorityFunctions');
 const { assertCudyrArchiveAuthority } = require('./rayenClinicalBatchAuthority');
 const {
@@ -81,7 +82,7 @@ const createCudyrHistoryFunctions = ({
           },
         });
       if (data?.kind === 'save-daily-exclusion') {
-        if (!['admin', 'nurse_hospital'].includes(role))
+        if (!isAdminOrHospitalNurseRole(role))
           throw new functions.https.HttpsError(
             'permission-denied',
             'Review permission is required.'
@@ -99,7 +100,7 @@ const createCudyrHistoryFunctions = ({
         });
       }
       if (data?.kind === 'save-monthly-review' || data?.kind === 'save-verified-context') {
-        if (!['admin', 'nurse_hospital'].includes(role))
+        if (!isAdminOrHospitalNurseRole(role))
           throw new functions.https.HttpsError(
             'permission-denied',
             'Review permission is required.'
@@ -122,7 +123,7 @@ const createCudyrHistoryFunctions = ({
         data?.kind === 'import-monthly-supplement' ||
         data?.kind === 'import-daily-census-source'
       ) {
-        if (!['admin', 'nurse_hospital'].includes(role))
+        if (!isAdminOrHospitalNurseRole(role))
           throw new functions.https.HttpsError(
             'permission-denied',
             'Monthly import permission is required.'
@@ -142,7 +143,7 @@ const createCudyrHistoryFunctions = ({
         });
       }
       if (data?.kind === 'correct-discharge') {
-        if (!['admin', 'nurse_hospital'].includes(role))
+        if (!isAdminOrHospitalNurseRole(role))
           throw new functions.https.HttpsError(
             'permission-denied',
             'Discharge editing permission is required.'

@@ -96,6 +96,20 @@ const ROLE_LIST_RESTRICTION = {
 
 export const ROLE_RESTRICTIONS = [ROLE_LITERAL_RESTRICTION, ROLE_LIST_RESTRICTION];
 
+const FUNCTIONS_ROLE_DECISION_MESSAGE =
+  'No compares ni listes roles a mano en Cloud Functions: usa un predicado de functions/lib/auth/rolePredicates.js (p. ej. isAdminRole, isAdminOrHospitalNurseRole, isClinicalStaffRole).';
+
+export const FUNCTIONS_ROLE_RESTRICTIONS = [
+  {
+    selector: `BinaryExpression[operator=/^[!=]==$/] > Literal[value=${ROLE_NAME}]`,
+    message: FUNCTIONS_ROLE_DECISION_MESSAGE,
+  },
+  {
+    selector: `ArrayExpression > Literal[value=${ROLE_NAME}]`,
+    message: FUNCTIONS_ROLE_DECISION_MESSAGE,
+  },
+];
+
 // «¿Puede escribir este día?» is one predicate per operation (W17-D1): the census and Rayen
 // corrections free the administrator, the invalid-episode cleanup binds every role. The window
 // itself is computed once, and only those predicates read it.

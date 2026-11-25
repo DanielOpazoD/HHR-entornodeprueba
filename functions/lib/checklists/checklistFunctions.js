@@ -1,6 +1,7 @@
 const { createHash } = require('node:crypto');
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('../runtime/runtimeConfig');
+const { isAdminRole, isClinicalStaffRole } = require('../auth/rolePredicates');
 const { addCalendarDays, hospitalDateTimeParts } = require('../hospitalCalendarDay');
 const { resolveClinicalDayForDateTime } = require('../generated/cudyrSourceParser.cjs');
 const { templates } = require('./templates');
@@ -25,7 +26,7 @@ function createChecklistHandler({ firestore, resolveRoleForEmail, now = () => ne
     if (!uid || !email) fail('unauthenticated', 'Inicia sesión en HHR.');
     const authorName = context.auth.token.name || email;
     const role = await resolveRoleForEmail(email, context);
-    if (!['admin', 'nurse_hospital', 'doctor_urgency', 'doctor_specialist'].includes(role))
+    if (!isClinicalStaffRole(role))
       fail('permission-denied', 'Tu cuenta no tiene acceso a las pautas clínicas.');
     const action = data?.action;
     if (action === 'templates') {
@@ -38,11 +39,11 @@ function createChecklistHandler({ firestore, resolveRoleForEmail, now = () => ne
         templates: sorted,
         uid,
         authorName,
-        manage: role === 'admin',
+        manage: isAdminRole(role),
       };
     }
     if (action === 'configure') {
-      if (role !== 'admin')
+      if (!isAdminRole(role))
         fail('permission-denied', 'Se requiere administración para modificar las plantillas.');
       if (builtins.get(data.template?.id)?.riskBands)
         fail(

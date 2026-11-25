@@ -1,6 +1,7 @@
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_CAPACITY, HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { requireAuthenticatedEmail } = require('./auth/authPolicies');
+const { isAdminRole } = require('./auth/rolePredicates');
 const { sanitizeLogValue } = require('./logging/redaction');
 const { wholeRecordFieldWrites } = require('./dailyRecordFieldWrites');
 
@@ -200,7 +201,7 @@ const createAdminCudyrResultFunctions = ({ firestore, Timestamp, resolveRoleForE
   setAdminCudyrResult: functions.https.onCall(async (data, context) => {
     const email = requireAuthenticatedEmail(context);
     const role = await resolveRoleForEmail(email, context);
-    if (role !== 'admin') {
+    if (!isAdminRole(role)) {
       throw new functions.https.HttpsError(
         'permission-denied',
         'Only an administrator can adjust an imported CUDYR result.'

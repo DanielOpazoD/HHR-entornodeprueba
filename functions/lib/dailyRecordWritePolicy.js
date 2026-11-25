@@ -2,6 +2,13 @@
 const { HttpsError } = require('firebase-functions/v2/https');
 const { hospitalDayStart } = require('./hospitalCalendarDay');
 const { requireAuthenticatedEmail } = require('./auth/authPolicies');
+const {
+  ADMIN_OR_HOSPITAL_NURSE_ROLES,
+  canWriteDailyRecordRole,
+  isAdminOrHospitalNurseRole,
+  isAdminRole,
+  isHospitalNurseRole,
+} = require('./auth/rolePredicates');
 const { evaluateDailyRecordClinicalAuthority } = require('./dailyRecordClinicalAuthorityPolicy');
 const {
   findPatientErasures,
@@ -12,14 +19,6 @@ const {
   isRayenClinicalWriteFenceActive,
 } = require('./dailyRecordClinicalFieldPreservation');
 const { FORBIDDEN_PATCH_PATH_SEGMENTS, isPlainObject } = require('./dailyRecordWriteRequest');
-
-const ALLOWED_DAILY_RECORD_WRITE_ROLES = new Set([
-  'admin',
-  'nurse_hospital',
-  'doctor_urgency',
-  'doctor_specialist',
-  'editor',
-]);
 
 // Fuente de verdad: contrato único de autoridad + campos exclusivos del server.
 const {
@@ -32,7 +31,7 @@ const ALLOWED_DAILY_RECORD_PATCH_FIELDS = new Set([
 ]);
 
 const ALLOWED_DAILY_RECORD_BED_TYPE_OVERRIDE_VALUES = new Set(['UTI', 'UCI', 'MEDIA', null]);
-const STRUCTURAL_DAILY_RECORD_PATCH_ROLES = new Set(['admin', 'nurse_hospital']);
+const STRUCTURAL_DAILY_RECORD_PATCH_ROLES = ADMIN_OR_HOSPITAL_NURSE_ROLES;
 
 const specialtyEpisodeEnabled = () => process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT === 'enabled';
 
@@ -216,7 +215,7 @@ const isWithinNurseEditingWindow = date => {
 // Every nurse patch keeps to the window, clinical fields included, as the rules require of any
 // direct nurse update. The administrator has no window.
 const assertNursePatchWindow = ({ date, role }) => {
-  if (role !== 'nurse_hospital' || isWithinNurseEditingWindow(date)) return;
+  if (!isHospitalNurseRole(role) || isWithinNurseEditingWindow(date)) return;
   throw new HttpsError(
     'permission-denied',
     'The nurse editing window for this daily record has closed.'
@@ -234,16 +233,16 @@ const assertStructuralPatchPolicy = ({ policySnapshot }) => {
 
 const assertFullRecordWritePolicy = ({ date, snapshot, record, role }) => {
   if (!snapshot.exists) {
-    if (role === 'admin' || role === 'nurse_hospital') return;
+    if (isAdminOrHospitalNurseRole(role)) return;
     throw new HttpsError(
       'permission-denied',
       'Only administrators and hospital nurses can create daily records.'
     );
   }
 
-  if (role === 'admin') return;
+  if (isAdminRole(role)) return;
   if (
-    role === 'nurse_hospital' &&
+    isHospitalNurseRole(role) &&
     Number.isFinite(Number(record?.dateTimestamp)) &&
     isWithinNurseEditingWindow(date)
   ) {
@@ -252,7 +251,7 @@ const assertFullRecordWritePolicy = ({ date, snapshot, record, role }) => {
 
   throw new HttpsError(
     'permission-denied',
-    role === 'nurse_hospital'
+    isHospitalNurseRole(role)
       ? 'The nurse editing window for this daily record has closed.'
       : 'This role must use its scoped daily-record write operation.'
   );
@@ -277,7 +276,7 @@ const assertAuthorizedDailyRecordWriter = async ({
       'This daily-record operation requires an administrator.'
     );
   }
-  if (!ALLOWED_DAILY_RECORD_WRITE_ROLES.has(resolvedRole)) {
+  if (!canWriteDailyRecordRole(resolvedRole)) {
     throw new HttpsError(
       'permission-denied',
       'Only authorized clinical users can save daily records.'

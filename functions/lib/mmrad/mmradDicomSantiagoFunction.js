@@ -1,6 +1,7 @@
 const { onRequest } = require('firebase-functions/v2/https');
 const { resolveFirebaseProjectId } = require('../runtime/runtimeConfig');
 const { normalizeEmail } = require('../auth/authEmailUtils');
+const { MMRAD_ALLOWED_ROLES, canAccessMmradRole } = require('../auth/rolePredicates');
 const {
   InstanceTicketExpiredError,
   UNIVERSITAS_ORIGIN,
@@ -18,15 +19,6 @@ const {
 const MAX_ORIGINAL_BYTES = 30_000_000;
 const UPSTREAM_TIMEOUT_MS = 60_000;
 const MAX_REQUEST_BYTES = 6000;
-// Same roles as Netlify's MMRAD_ALLOWED_ROLES (mmrad-session.ts); the parity test keeps them equal.
-const MMRAD_ALLOWED_ROLES = new Set([
-  'admin',
-  'nurse_hospital',
-  'doctor_urgency',
-  'doctor_specialist',
-  'editor',
-  'viewer',
-]);
 // HHR's published sites and their deploy previews, as the Chrome extension lists them.
 const ALLOWED_ORIGINS = new Set([
   'https://hhr-hospitalizados.app',
@@ -142,7 +134,7 @@ const createMmradDicomSantiagoHandler =
     } catch {
       return json(503, { error: 'No se pudo verificar el acceso a radiología. Reintenta.' });
     }
-    if (!MMRAD_ALLOWED_ROLES.has(role))
+    if (!canAccessMmradRole(role))
       return json(403, { error: 'Se requiere una sesión con acceso a radiología.' });
     const authMs = performance.now() - authStart;
 

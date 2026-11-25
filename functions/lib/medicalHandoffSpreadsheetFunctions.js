@@ -1,13 +1,7 @@
 const functions = require('firebase-functions/v1');
 const { requireAuthenticatedEmail } = require('./auth/authPolicies');
+const { canWriteDailyRecordRole } = require('./auth/rolePredicates');
 
-const HANDOFF_SPREADSHEET_ALLOWED_ROLES = new Set([
-  'admin',
-  'nurse_hospital',
-  'doctor_urgency',
-  'doctor_specialist',
-  'editor',
-]);
 const MAX_ROWS = 80;
 const APPS_SCRIPT_TIMEOUT_MS = 50_000;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -221,7 +215,7 @@ const createMedicalHandoffSpreadsheetFunctions = ({
     .https.onCall(async (data, context) => {
       const email = requireAuthenticatedEmail(context);
       const role = await resolveRoleForEmail(email, context);
-      if (!HANDOFF_SPREADSHEET_ALLOWED_ROLES.has(role)) {
+      if (!canWriteDailyRecordRole(role)) {
         throw new functions.https.HttpsError(
           'permission-denied',
           'Tu perfil no puede crear planillas de entrega médica.'

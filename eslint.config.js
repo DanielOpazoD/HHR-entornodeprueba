@@ -19,6 +19,7 @@ import {
   EPISODE_KEY_BUILD_RESTRICTION,
   EPISODE_KEY_PARSE_RESTRICTION,
   FEATURES_WITHOUT_DIRECT_DATA_ACCESS,
+  FUNCTIONS_ROLE_RESTRICTIONS,
   REEXPORT_ONLY_RESTRICTION,
   ROLE_RESTRICTIONS,
   RUT_REGEX_RESTRICTION,
@@ -366,6 +367,14 @@ export default tseslint.config(
     rules: {
       'no-console': 'off',
       'no-unused-vars': 'off',
+    },
+  },
+  {
+    // Role decisions in Cloud Functions live in functions/lib/auth/rolePredicates.js.
+    files: ['functions/lib/**/*.js'],
+    ignores: ['functions/lib/auth/rolePredicates.js', 'functions/lib/auth/authConfig.js'],
+    rules: {
+      'no-restricted-syntax': ['error', ...FUNCTIONS_ROLE_RESTRICTIONS],
     },
   },
   {

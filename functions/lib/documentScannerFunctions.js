@@ -8,6 +8,7 @@
 
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
+const { isClinicalStaffRole } = require('./auth/rolePredicates');
 const { redactError } = require('./logging/redaction');
 const {
   SUBMIT_TIMEOUT_SECONDS,
@@ -30,8 +31,6 @@ const {
   reserveDocumentUpload,
 } = require('./documentScannerQueueStore');
 
-const ALLOWED_ROLES = new Set(['admin', 'nurse_hospital', 'doctor_urgency', 'doctor_specialist']);
-
 const requireAllowedClinician = async (context, resolveRoleForEmail) => {
   if (!context?.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Debes iniciar sesión en HHR.');
@@ -40,7 +39,7 @@ const requireAllowedClinician = async (context, resolveRoleForEmail) => {
     .toLowerCase()
     .trim();
   const role = email ? await resolveRoleForEmail(email, context) : 'unauthorized';
-  if (!ALLOWED_ROLES.has(role)) {
+  if (!isClinicalStaffRole(role)) {
     throw new functions.https.HttpsError(
       'permission-denied',
       'No tienes permiso para gestionar documentos escaneados.'
