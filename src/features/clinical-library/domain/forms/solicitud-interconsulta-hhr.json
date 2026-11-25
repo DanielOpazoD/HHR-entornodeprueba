@@ -1,0 +1,405 @@
+{
+  "id": "solicitud-interconsulta-hhr",
+  "title": "Solicitud de interconsulta de derivación (SIC)",
+  "revision": 1,
+  "catalogVersion": "1.1.0",
+  "templateUrl": "/docs/biblioteca/solicitud-interconsulta-hhr.pdf",
+  "sourceUrl": "/docs/biblioteca/solicitud-interconsulta-hhr.docx",
+  "templateSha256": "75ea3d7c82403bb9afdc109c9f4f6a654da0b4c6da8cdd7babf506d668d541a5",
+  "sourceSha256": "0425fa71a5962ccb440831769385ed20cbb69fcf0a8db911e76e8ff373f272f5",
+  "pages": [
+    {
+      "width": 612,
+      "height": 792
+    }
+  ],
+  "fields": [
+    {
+      "id": "formulario_fecha_emision",
+      "label": "Fecha SIC",
+      "section": "Solicitud",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [124, 98, 25, 16],
+          "format": "date_day",
+          "align": "center"
+        },
+        {
+          "page": 0,
+          "rect": [153, 98, 25, 16],
+          "format": "date_month",
+          "align": "center"
+        },
+        {
+          "page": 0,
+          "rect": [182, 98, 50, 16],
+          "format": "date_year",
+          "align": "center"
+        }
+      ]
+    },
+    {
+      "id": "sic_prioridad",
+      "label": "Prioridad",
+      "section": "Solicitud",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [432, 98, 29, 16],
+          "equals": "Alta"
+        }
+      ],
+      "fixedValue": "Alta"
+    },
+    {
+      "id": "paciente_apellido_paterno",
+      "label": "Apellido paterno",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [23, 235, 190, 22]
+        }
+      ]
+    },
+    {
+      "id": "paciente_apellido_materno",
+      "label": "Apellido materno",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [218, 235, 178, 22]
+        }
+      ]
+    },
+    {
+      "id": "paciente_nombres",
+      "label": "Nombres",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [402, 235, 185, 22]
+        }
+      ]
+    },
+    {
+      "id": "paciente_nombre_completo",
+      "label": "Nombre completo (si no hay nombres separados)",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [23, 235, 564, 22]
+        }
+      ]
+    },
+    {
+      "id": "paciente_rut",
+      "label": "RUT del paciente",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [74, 276, 403, 17]
+        }
+      ]
+    },
+    {
+      "id": "paciente_edad_texto",
+      "label": "Edad",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [521, 276, 66, 17]
+        }
+      ]
+    },
+    {
+      "id": "paciente_sexo_biologico",
+      "label": "Sexo",
+      "section": "Paciente",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [131, 298, 26, 21],
+          "equals": "Femenino"
+        },
+        {
+          "page": 0,
+          "rect": [232, 298, 19, 21],
+          "equals": "Masculino"
+        }
+      ],
+      "options": [
+        {
+          "value": "Femenino",
+          "label": "Femenino"
+        },
+        {
+          "value": "Masculino",
+          "label": "Masculino"
+        },
+        {
+          "value": "Indeterminado",
+          "label": "Indeterminado"
+        }
+      ]
+    },
+    {
+      "id": "paciente_fecha_nacimiento",
+      "label": "Fecha de nacimiento",
+      "section": "Paciente",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [443, 297, 26, 13],
+          "format": "date_day",
+          "align": "center"
+        },
+        {
+          "page": 0,
+          "rect": [475, 297, 40, 13],
+          "format": "date_month",
+          "align": "center"
+        },
+        {
+          "page": 0,
+          "rect": [521, 297, 66, 13],
+          "format": "date_year",
+          "align": "center"
+        }
+      ]
+    },
+    {
+      "id": "sic_direccion",
+      "label": "Dirección",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [74, 331, 316, 32]
+        }
+      ],
+      "fixedValue": "Simón PAOA S/N"
+    },
+    {
+      "id": "sic_fono_fijo",
+      "label": "Fono fijo",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [466, 326, 121, 18]
+        }
+      ]
+    },
+    {
+      "id": "sic_fono_movil",
+      "label": "Fono móvil",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [466, 349, 121, 18]
+        }
+      ]
+    },
+    {
+      "id": "sic_especialidad",
+      "label": "Especialidad de destino",
+      "section": "Solicitud",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [234, 393, 129, 21]
+        }
+      ]
+    },
+    {
+      "id": "sic_establecimiento",
+      "label": "Establecimiento de destino",
+      "section": "Solicitud",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [452, 393, 135, 21]
+        }
+      ]
+    },
+    {
+      "id": "sic_tipo_consulta",
+      "label": "Tipo de consulta",
+      "section": "Solicitud",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [234, 418, 31, 20],
+          "equals": "Ambulatoria"
+        },
+        {
+          "page": 0,
+          "rect": [369, 418, 31, 20],
+          "equals": "Hospitalización"
+        }
+      ],
+      "options": [
+        {
+          "value": "Ambulatoria",
+          "label": "Ambulatoria"
+        },
+        {
+          "value": "Hospitalización",
+          "label": "Hospitalización"
+        }
+      ]
+    },
+    {
+      "id": "sic_confirmacion",
+      "label": "Confirmación diagnóstica",
+      "section": "Motivo de derivación",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [128, 468, 31, 21],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "sic_tratamiento",
+      "label": "Tratamiento",
+      "section": "Motivo de derivación",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [234, 468, 31, 21],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "sic_examenes",
+      "label": "Exámenes",
+      "section": "Motivo de derivación",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [331, 468, 31, 21],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "sic_ges",
+      "label": "GES",
+      "section": "Motivo de derivación",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [406, 468, 31, 21],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "sic_otro",
+      "label": "Otro",
+      "section": "Motivo de derivación",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [498, 468, 89, 21],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "diagnostico_texto",
+      "label": "Hipótesis diagnóstica",
+      "section": "Datos clínicos",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [137, 493, 450, 32]
+        }
+      ],
+      "multiline": true
+    },
+    {
+      "id": "sic_fundamento",
+      "label": "Fundamentos del diagnóstico",
+      "section": "Datos clínicos",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [137, 531, 450, 64]
+        }
+      ],
+      "multiline": true
+    },
+    {
+      "id": "sic_adjuntos",
+      "label": "Documentos adjuntos (descripción)",
+      "section": "Datos clínicos",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [137, 602, 450, 48]
+        }
+      ],
+      "multiline": true
+    },
+    {
+      "id": "sic_profesional_nombre",
+      "label": "Nombre del profesional que emite la SIC",
+      "section": "Profesional",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [74, 678, 234, 20]
+        }
+      ]
+    },
+    {
+      "id": "sic_profesional_rut",
+      "label": "RUT del profesional",
+      "section": "Profesional",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [355, 678, 96, 20]
+        }
+      ]
+    }
+  ]
+}
