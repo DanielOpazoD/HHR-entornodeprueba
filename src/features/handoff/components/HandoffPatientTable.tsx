@@ -5,11 +5,13 @@ import { BedDefinition } from '@/types/domain/beds';
 import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 
 import type { ClinicalEvent } from '@/types/domain/clinicalEvents';
+import { buildClinicalEpisodeKey } from '@/domain/clinical-episode/clinicalEpisode';
 import {
   buildSpecialistHandoffIdentity,
   specialistHandoffIdentityKey,
 } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import { resolveHandoffPatientRowPlan } from '@/features/handoff/controllers/handoffPatientTableController';
+import { WoundCarePhotoCountProvider } from '@/features/wound-care/public';
 import { HandoffRow } from './HandoffRow';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import type { HandoffClinicalEventActions } from './handoffRowContracts';
@@ -175,6 +177,28 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
   const hasEventUpdate = Boolean(clinicalEventActions?.onUpdate);
   const hasEventDelete = Boolean(clinicalEventActions?.onDelete);
 
+  const rowPlans = useMemo(
+    () =>
+      visibleBeds.map(bed => ({
+        bed,
+        rowPlan: resolveHandoffPatientRowPlan(bed, record.beds[bed.id], {
+          shouldShowPatient,
+        }),
+      })),
+    [visibleBeds, record.beds, shouldShowPatient]
+  );
+
+  const visibleEpisodeKeys = useMemo(() => {
+    const keys: string[] = [];
+    for (const { rowPlan } of rowPlans) {
+      if (!rowPlan.shouldRender || !rowPlan.shouldRenderMainRow) continue;
+      const { rut, admissionDate, admissionTime } = rowPlan.basePatient;
+      if (!rut?.trim() || !admissionDate?.trim()) continue;
+      keys.push(buildClinicalEpisodeKey(rut, admissionDate, admissionTime));
+    }
+    return keys;
+  }, [rowPlans]);
+
   const renderRow = (
     bed: BedDefinition,
     patient: PatientData,
@@ -202,111 +226,109 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
   );
 
   return (
-    <div className="handoff-patient-table bg-white rounded-2xl shadow-sm border border-slate-200/80 ring-1 ring-black/[0.02] overflow-hidden print:shadow-none print:border-none print:rounded-none print:overflow-visible">
-      <p id="nursing-handoff-scroll-hint" className="handoff-scroll-hint">
-        Desliza para ver diagnóstico, dispositivos y observaciones →
-      </p>
-      <div
-        className="handoff-patients overflow-x-auto"
-        role="region"
-        aria-label="Pacientes de entrega de enfermería"
-        aria-describedby="nursing-handoff-scroll-hint"
-        tabIndex={0}
-      >
-        <table className="w-full table-fixed text-left border-collapse print:[&_th]:p-1 print:[&_td]:p-1 print:[&_th]:text-[10px] print:[&_td]:text-[10px]">
-          <thead>
-            <tr className={tableHeaderClass}>
-              <th
-                scope="col"
-                className="p-2 border-r border-slate-200/60 w-16 print:w-[35px] print:text-[10px] print:p-1"
-              >
-                Cama
-              </th>
-              <th
-                scope="col"
-                className="p-2 border-r border-slate-200/60 w-44 print:w-[20%] print:text-[10px] print:p-1"
-                title="Nombre, RUT, Edad, Fecha de Ingreso"
-              >
-                Paciente
-              </th>
-              <th
-                scope="col"
-                className="p-2 border-r border-slate-200/60 w-[220px] print:w-[26%] print:text-[10px] print:p-1"
-              >
-                <div className="flex items-center justify-between">
-                  <span>Diagnóstico</span>
-                  {clinicalEventActions && (
-                    <button
-                      onClick={() => setAllEventsExpanded(!allEventsExpanded)}
-                      className="p-1 hover:bg-black/5 rounded transition-colors print:hidden flex items-center justify-center"
-                      title={
-                        allEventsExpanded
-                          ? 'Colapsar todos los eventos'
-                          : 'Expandir todos los eventos'
-                      }
-                    >
-                      {allEventsExpanded ? (
-                        <Minimize2 size={12} className="opacity-70" />
-                      ) : (
-                        <Maximize2 size={12} className="opacity-70" />
-                      )}
-                    </button>
-                  )}
-                </div>
-              </th>
-              <th
-                scope="col"
-                className="p-2 border-r border-slate-200/60 w-28 print:w-[50px] print:text-[10px] print:p-1"
-                title="Dispositivos médicos invasivos"
-              >
-                DMI
-              </th>
-              <th
-                scope="col"
-                className="p-2 print:w-[35%] print:min-w-0 print:text-[10px] print:p-1"
-              >
-                Observaciones
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleBeds.map(bed => {
-              const rowPlan = resolveHandoffPatientRowPlan(bed, record.beds[bed.id], {
-                shouldShowPatient,
-              });
-
-              if (!rowPlan.shouldRender) {
-                return null;
-              }
-
-              return (
-                <React.Fragment key={bed.id}>
-                  {rowPlan.shouldRenderMainRow
-                    ? renderRow(bed, rowPlan.basePatient, {
-                        isNested: false,
-                        forcedExpand: allEventsExpanded,
-                      })
-                    : null}
-                  {rowPlan.shouldRenderClinicalCrib && rowPlan.basePatient.clinicalCrib
-                    ? renderRow(bed, rowPlan.basePatient.clinicalCrib, {
-                        isNested: true,
-                        forcedExpand: allEventsExpanded,
-                      })
-                    : null}
-                </React.Fragment>
-              );
-            })}
-
-            {!hasAnyPatients && (
-              <tr>
-                <td colSpan={5} className="p-8 text-center text-slate-400 italic text-sm">
-                  No hay pacientes registrados en este turno.
-                </td>
+    <WoundCarePhotoCountProvider episodeKeys={visibleEpisodeKeys}>
+      <div className="handoff-patient-table bg-white rounded-2xl shadow-sm border border-slate-200/80 ring-1 ring-black/[0.02] overflow-hidden print:shadow-none print:border-none print:rounded-none print:overflow-visible">
+        <p id="nursing-handoff-scroll-hint" className="handoff-scroll-hint">
+          Desliza para ver diagnóstico, dispositivos y observaciones →
+        </p>
+        <div
+          className="handoff-patients overflow-x-auto"
+          role="region"
+          aria-label="Pacientes de entrega de enfermería"
+          aria-describedby="nursing-handoff-scroll-hint"
+          tabIndex={0}
+        >
+          <table className="w-full table-fixed text-left border-collapse print:[&_th]:p-1 print:[&_td]:p-1 print:[&_th]:text-[10px] print:[&_td]:text-[10px]">
+            <thead>
+              <tr className={tableHeaderClass}>
+                <th
+                  scope="col"
+                  className="p-2 border-r border-slate-200/60 w-16 print:w-[35px] print:text-[10px] print:p-1"
+                >
+                  Cama
+                </th>
+                <th
+                  scope="col"
+                  className="p-2 border-r border-slate-200/60 w-44 print:w-[20%] print:text-[10px] print:p-1"
+                  title="Nombre, RUT, Edad, Fecha de Ingreso"
+                >
+                  Paciente
+                </th>
+                <th
+                  scope="col"
+                  className="p-2 border-r border-slate-200/60 w-[220px] print:w-[26%] print:text-[10px] print:p-1"
+                >
+                  <div className="flex items-center justify-between">
+                    <span>Diagnóstico</span>
+                    {clinicalEventActions && (
+                      <button
+                        onClick={() => setAllEventsExpanded(!allEventsExpanded)}
+                        className="p-1 hover:bg-black/5 rounded transition-colors print:hidden flex items-center justify-center"
+                        title={
+                          allEventsExpanded
+                            ? 'Colapsar todos los eventos'
+                            : 'Expandir todos los eventos'
+                        }
+                      >
+                        {allEventsExpanded ? (
+                          <Minimize2 size={12} className="opacity-70" />
+                        ) : (
+                          <Maximize2 size={12} className="opacity-70" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </th>
+                <th
+                  scope="col"
+                  className="p-2 border-r border-slate-200/60 w-28 print:w-[50px] print:text-[10px] print:p-1"
+                  title="Dispositivos médicos invasivos"
+                >
+                  DMI
+                </th>
+                <th
+                  scope="col"
+                  className="p-2 print:w-[35%] print:min-w-0 print:text-[10px] print:p-1"
+                >
+                  Observaciones
+                </th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rowPlans.map(({ bed, rowPlan }) => {
+                if (!rowPlan.shouldRender) {
+                  return null;
+                }
+
+                return (
+                  <React.Fragment key={bed.id}>
+                    {rowPlan.shouldRenderMainRow
+                      ? renderRow(bed, rowPlan.basePatient, {
+                          isNested: false,
+                          forcedExpand: allEventsExpanded,
+                        })
+                      : null}
+                    {rowPlan.shouldRenderClinicalCrib && rowPlan.basePatient.clinicalCrib
+                      ? renderRow(bed, rowPlan.basePatient.clinicalCrib, {
+                          isNested: true,
+                          forcedExpand: allEventsExpanded,
+                        })
+                      : null}
+                  </React.Fragment>
+                );
+              })}
+
+              {!hasAnyPatients && (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-slate-400 italic text-sm">
+                    No hay pacientes registrados en este turno.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    </WoundCarePhotoCountProvider>
   );
 };

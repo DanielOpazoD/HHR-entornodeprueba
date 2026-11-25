@@ -64,4 +64,60 @@ describe('WoundCarePhotoRepository', () => {
     });
     expect(result.map(photo => photo.id)).toEqual(['newer', 'older']);
   });
+
+  it('counts active valid photos across multiple episodes in chunks of 30 without catching read failures', async () => {
+    const validEp1 = buildPhoto('p1', '2026-05-02T10:00:00.000Z');
+    const deletedEp1 = { ...buildPhoto('p2', '2026-05-02T10:05:00.000Z'), isDeleted: true };
+    const invalidEp2 = {
+      ...buildPhoto('p3', '2026-05-02T10:10:00.000Z'),
+      episodeKey: 'ep-2',
+      width: Number.NaN,
+    };
+    const validEp2 = { ...buildPhoto('p4', '2026-05-02T10:15:00.000Z'), episodeKey: 'ep-2' };
+
+    vi.mocked(firestoreDb.getDocs).mockResolvedValueOnce([
+      validEp1,
+      deletedEp1,
+      invalidEp2,
+      validEp2,
+    ]);
+
+    const counts = await WoundCarePhotoRepository.countByEpisodeKeys(
+      ['11111111-1__2026-05-02', 'ep-2', 'ep-empty', 'ep-2', '  '],
+      'H1'
+    );
+
+    expect(firestoreDb.getDocs).toHaveBeenCalledTimes(1);
+    expect(firestoreDb.getDocs).toHaveBeenCalledWith('hospitals/H1/woundCarePhotos', {
+      where: [
+        {
+          field: 'episodeKey',
+          operator: 'in',
+          value: ['11111111-1__2026-05-02', 'ep-2', 'ep-empty'],
+        },
+      ],
+    });
+    expect(counts).toEqual({
+      '11111111-1__2026-05-02': 1,
+      'ep-2': 1,
+      'ep-empty': 0,
+    });
+
+    // Empty input issues zero reads.
+    expect(await WoundCarePhotoRepository.countByEpisodeKeys([], 'H1')).toEqual({});
+    expect(firestoreDb.getDocs).toHaveBeenCalledTimes(1);
+
+    // >30 episodes split into 2 Firestore `in` chunks.
+    const thirtyTwoKeys = Array.from({ length: 32 }, (_, idx) => `ep-${idx}`);
+    vi.mocked(firestoreDb.getDocs).mockResolvedValue([]);
+    const chunkedCounts = await WoundCarePhotoRepository.countByEpisodeKeys(thirtyTwoKeys, 'H1');
+    expect(firestoreDb.getDocs).toHaveBeenCalledTimes(3);
+    expect(Object.keys(chunkedCounts)).toHaveLength(32);
+
+    // Failed Firestore read propagates (SAVE-01: never collapses to 0 photos).
+    vi.mocked(firestoreDb.getDocs).mockRejectedValueOnce(new Error('offline'));
+    await expect(WoundCarePhotoRepository.countByEpisodeKeys(['ep-err'], 'H1')).rejects.toThrow(
+      'offline'
+    );
+  });
 });
