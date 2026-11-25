@@ -504,7 +504,7 @@ const evaluationMarkdown = ({
       : shown(null)
   }`,
   `- AGENTS.md rules: ${shown(agentRules?.rules)}; naming **[docs]**: ${shown(agentRules?.withDocs)}; **[docs]** alone: ${shown(agentRules?.docsOnly)}; size: ${shown(agentRules?.bytes)} bytes`,
-  `- Exception books: unknown-cast ceilings ${shown(books.unknownCastCeilings)}, unchecked-index baseline ${shown(books.uncheckedIndexBaseline)}, pending raw session reads ${shown(books.sessionRawReadPending)}, unreachable modules retained ${shown(books.unreachableRetainedFiles)}`,
+  `- Exception books: unknown-cast ceilings ${shown(books.unknownCastCeilings)}, pending raw session reads ${shown(books.sessionRawReadPending)}, unreachable modules retained ${shown(books.unreachableRetainedFiles)}`,
   '',
 ];
 

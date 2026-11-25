@@ -93,7 +93,7 @@ export const parseExamRowsFromHTML = (html: string): RisExamRow<MMRADExam>[] => 
     let tdMatch;
     while ((tdMatch = tdRegex.exec(rowHtml)) !== null) {
       tds.push(
-        tdMatch[1]
+        (tdMatch[1] ?? '')
           .replace(/<[^>]+>/g, '')
           .replace(/\s+/g, ' ')
           .trim()

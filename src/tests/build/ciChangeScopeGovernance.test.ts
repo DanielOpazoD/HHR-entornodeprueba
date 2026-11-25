@@ -200,12 +200,10 @@ describe('tooling scope safety', () => {
     expect(commands.indexOf('npm run typecheck')).toBeLessThan(commands.indexOf('vitest run'));
     expect(commands).toContain('vitest run src/tests/scripts src/tests/build');
     expect(commands).not.toContain('--maxWorkers=1');
-    const aggregate = JSON.parse(readText('scripts/config/guardrail-governance.json'));
-    expect(
-      aggregate.qualityAggregate.checks.some(
-        (entry: { id: string }) => entry.id === 'check:unchecked-index'
-      )
-    ).toBe(true);
+    const prodTsconfig = JSON.parse(readText('tsconfig.prod.json'));
+    const netlifyTsconfig = JSON.parse(readText('tsconfig.netlify.json'));
+    expect(prodTsconfig.compilerOptions?.noUncheckedIndexedAccess).toBe(true);
+    expect(netlifyTsconfig.compilerOptions?.noUncheckedIndexedAccess).toBe(true);
   });
 });
 

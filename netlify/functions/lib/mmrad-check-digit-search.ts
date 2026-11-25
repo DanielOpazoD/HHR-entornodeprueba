@@ -37,7 +37,9 @@ const nameTokens = (value: string): Set<string> =>
  * longer one. The viewer also shows MMRAD's name so a person confirms it.
  */
 export const samePersonName = (a: string, b: string): boolean => {
-  const [shorter, longer] = [nameTokens(a), nameTokens(b)].sort((x, y) => x.size - y.size);
+  const left = nameTokens(a);
+  const right = nameTokens(b);
+  const [shorter, longer] = left.size <= right.size ? [left, right] : [right, left];
   return shorter.size >= 2 && [...shorter].every(token => longer.has(token));
 };
 
@@ -73,8 +75,10 @@ export const searchMistypedCheckDigitExams = async <T>({
   const worker = async () => {
     while (next < variants.length) {
       const index = next++;
+      const variant = variants[index];
+      if (variant === undefined) continue;
       try {
-        found[index] = await search(variants[index]);
+        found[index] = await search(variant);
       } catch {
         complete = false;
       }

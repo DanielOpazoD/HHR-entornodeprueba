@@ -66,7 +66,6 @@ test('includes committed, staged, unstaged, untracked and deleted changes', () =
     assert.ok(result.calls.includes(file), file);
   }
   assert.ok(!result.calls.includes('src/deleted.ts'));
-  assert.match(result.calls, /check:unchecked-index/);
   assert.match(result.calls, /check:module-size/);
   assert.match(result.calls, /check:architecture/);
   assert.match(result.calls, /check:folder-dependencies/);
@@ -80,10 +79,7 @@ test('docs run formatting without source checks', () => {
   const result = run();
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.calls, /prettier/);
-  assert.doesNotMatch(
-    result.calls,
-    /check:unchecked-index|check:test-governance|check:cudyr-source-parser|eslint/
-  );
+  assert.doesNotMatch(result.calls, /check:test-governance|check:cudyr-source-parser|eslint/);
 });
 
 test('test changes select governance and propagate a failed command with repair advice', () => {
@@ -130,5 +126,5 @@ test('a domain-rules or feature-map edit checks the feature map without source c
   const result = run();
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.calls, /check:feature-map/);
-  assert.doesNotMatch(result.calls, /check:unchecked-index|check:module-size/);
+  assert.doesNotMatch(result.calls, /check:module-size/);
 });

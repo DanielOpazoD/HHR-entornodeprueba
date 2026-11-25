@@ -35,7 +35,7 @@ interface ClinicalAttachmentNameSuggestionHandlerDependencies {
 const stripJsonFence = (value: string): string => {
   const trimmed = value.trim();
   const match = trimmed.match(/```(?:json|text)?\s*([\s\S]*?)```/);
-  return match ? match[1].trim() : trimmed;
+  return match?.[1]?.trim() ?? trimmed;
 };
 
 const removeUnsafeFileNameChars = (value: string): string =>
@@ -46,7 +46,7 @@ const removeUnsafeFileNameChars = (value: string): string =>
 
 const getFileExtension = (fileName: string): string => {
   const match = fileName.trim().match(/\.([A-Za-z0-9]{1,8})$/);
-  return match ? `.${match[1].toLowerCase()}` : '';
+  return match?.[1] ? `.${match[1].toLowerCase()}` : '';
 };
 
 export const sanitizeSuggestedAttachmentName = (

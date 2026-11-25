@@ -11,9 +11,11 @@ export const viewerStudyFromHtml = (html: string): string => {
   // but only accept the fixed viewer origin and one unambiguous study.
   const studies = new Set<string>();
   for (const match of html.matchAll(/<iframe\b[^>]*\ssrc\s*=\s*["']([^"']+)["']/gi)) {
+    const rawSrc = match[1];
+    if (!rawSrc) continue;
     let url: URL;
     try {
-      url = new URL(match[1].replace(/&amp;/g, '&'));
+      url = new URL(rawSrc.replace(/&amp;/g, '&'));
     } catch {
       continue;
     }
@@ -28,9 +30,10 @@ export const viewerStudyFromHtml = (html: string): string => {
     )
       studies.add(uid);
   }
-  if (studies.size !== 1)
+  const [onlyStudy] = studies;
+  if (studies.size !== 1 || !onlyStudy)
     throw new Error('MMRAD no entregó un enlace único y permitido al estudio DICOM.');
-  return [...studies][0];
+  return onlyStudy;
 };
 
 export const validatedWadoServer = (
@@ -120,12 +123,14 @@ export const verifyInstanceTicket = (ticket: unknown, subject: string): Instance
   if (typeof ticket !== 'string' || ticket.length > 1500)
     throw new Error('Acceso DICOM no válido.');
   const parts = ticket.split('.');
-  if (parts.length !== 2) throw new Error('Acceso DICOM no válido.');
-  const received = Buffer.from(parts[1], 'base64url');
-  const expected = signature(parts[0]);
+  const [payloadPart, signaturePart] = parts;
+  if (parts.length !== 2 || payloadPart === undefined || signaturePart === undefined)
+    throw new Error('Acceso DICOM no válido.');
+  const received = Buffer.from(signaturePart, 'base64url');
+  const expected = signature(payloadPart);
   if (received.length !== expected.length || !timingSafeEqual(received, expected))
     throw new Error('Acceso DICOM no válido.');
-  const value = JSON.parse(Buffer.from(parts[0], 'base64url').toString()) as InstanceTicket;
+  const value = JSON.parse(Buffer.from(payloadPart, 'base64url').toString()) as InstanceTicket;
   if (
     value.subject !== subject ||
     !Number.isFinite(value.expires) ||

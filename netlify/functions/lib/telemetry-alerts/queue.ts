@@ -134,7 +134,8 @@ export const createAlertQueue = (options: AlertQueueOptions): AlertQueue => {
         job.state = 'pending';
         job.code = outcome.code;
         job.updatedAt = time;
-        job.nextDueAt = time + policy.retryDelaysMs[job.attempts - 1];
+        const retryDelayMs = policy.retryDelaysMs[job.attempts - 1] ?? policy.retryDelaysMs[1];
+        job.nextDueAt = time + retryDelayMs;
         delete job.leaseToken;
         delete job.leaseUntil;
         // Expiration remains anchored to the original enqueue, including slow rejections.
