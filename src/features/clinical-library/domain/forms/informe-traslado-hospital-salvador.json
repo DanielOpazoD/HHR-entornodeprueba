@@ -5,6 +5,7 @@
   "catalogVersion": "1.1.0",
   "templateUrl": "/docs/biblioteca/informe-traslado-hospital-salvador.pdf",
   "sourceUrl": "/docs/biblioteca/informe-traslado-hospital-salvador.docx",
+  "supportsDocxExport": true,
   "pages": [
     {
       "width": 612,

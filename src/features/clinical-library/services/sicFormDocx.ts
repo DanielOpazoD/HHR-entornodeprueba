@@ -139,7 +139,7 @@ export const createSicFormDocx = async (
   const names = paragraph(cell(3, 0, 0));
   const parts = ['paciente_apellido_paterno', 'paciente_apellido_materno', 'paciente_nombres'];
   if (values.paciente_nombre_completo) {
-    const field = form.fields.find(field => field.id === 'paciente_nombre_completo')!;
+    const field = required(form.fields.find(item => item.id === 'paciente_nombre_completo'));
     const lines = layoutClinicalFormText(
       field,
       { ...required(field.targets[0]), fontSize: 6 },
@@ -150,7 +150,7 @@ export const createSicFormDocx = async (
     );
     write(names, String(values.paciente_nombre_completo), required(lines[0]).size);
   } else {
-    const tabs = names.firstElementChild!.appendChild(element('tabs'));
+    const tabs = required(names.firstElementChild).appendChild(element('tabs'));
     [3900, 7580].forEach(pos =>
       tabs.appendChild(element('tab', { val: 'left', pos: String(pos) }))
     );
@@ -158,7 +158,7 @@ export const createSicFormDocx = async (
       if (i) names.appendChild(element('r')).appendChild(element('tab'));
       const text = String(values[id] ?? '');
       if (!text) return;
-      const field = form.fields.find(field => field.id === id)!;
+      const field = required(form.fields.find(item => item.id === id));
       const lines = layoutClinicalFormText(
         field,
         { ...required(field.targets[0]), fontSize: 6 },

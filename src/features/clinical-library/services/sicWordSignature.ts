@@ -1,6 +1,15 @@
 import type PizZip from 'pizzip';
 import { loadPdfLibGenerationRuntime } from '@/services/pdf/pdfLibRuntime';
 
+const readZipXml = (zip: PizZip, entryPath: string): Document => {
+  const entry = zip.file(entryPath);
+  if (!entry) throw new Error('La estructura Word no coincide con la plantilla verificada.');
+  const parsed = new DOMParser().parseFromString(entry.asText(), 'application/xml');
+  if (parsed.getElementsByTagName('parsererror').length)
+    throw new Error('La estructura Word no coincide con la plantilla verificada.');
+  return parsed;
+};
+
 /** Embed bytes, never a remote image URL or credential, in the existing signature cell. */
 export const insertSicWordSignature = async (
   zip: PizZip,
@@ -16,10 +25,7 @@ export const insertSicWordSignature = async (
   const name = 'sic-signature.png',
     id = 'rIdSicSignature';
   zip.file(`word/media/${name}`, png);
-  const rels = new DOMParser().parseFromString(
-    zip.file('word/_rels/document.xml.rels')!.asText(),
-    'application/xml'
-  );
+  const rels = readZipXml(zip, 'word/_rels/document.xml.rels');
   const relation = rels.createElementNS(rels.documentElement.namespaceURI, 'Relationship');
   relation.setAttribute('Id', id);
   relation.setAttribute(
@@ -33,10 +39,7 @@ export const insertSicWordSignature = async (
     'application/xml'
   );
   paragraph.appendChild(document.importNode(drawing.documentElement, true));
-  const types = new DOMParser().parseFromString(
-    zip.file('[Content_Types].xml')!.asText(),
-    'application/xml'
-  );
+  const types = readZipXml(zip, '[Content_Types].xml');
   if (
     !Array.from(types.documentElement.children).some(
       type => type.getAttribute('Extension') === 'png'
