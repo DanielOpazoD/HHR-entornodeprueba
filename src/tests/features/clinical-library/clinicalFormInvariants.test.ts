@@ -84,7 +84,7 @@ describe('clinical form invariants across generated inputs', () => {
           const ids = form.fields.map(field => field.id);
           const values = Object.freeze(Object.fromEntries(ids.map(id => [id, value])));
           expect(validateClinicalFormValues(form, values, ids)).toEqual(
-            Object.fromEntries(ids.map(id => [id, null]))
+            Object.fromEntries(form.fields.map(field => [field.id, field.fixedValue ?? null]))
           );
           expect(Object.values(values).every(original => original === value)).toBe(true);
         }

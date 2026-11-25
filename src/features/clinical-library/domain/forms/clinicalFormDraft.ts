@@ -1,3 +1,5 @@
+import { projectSicNames, SIC_FORM_ID } from './sicFormData';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { isClinicalFormRut } from './clinicalFormIdentity';
 import {
   isSuppressedClinicalFormField,
@@ -46,7 +48,9 @@ export const projectedClinicalFormValues = (
   values: ClinicalFormValues
 ): ClinicalFormValues => ({
   ...Object.fromEntries(Object.entries(values).filter(([id]) => !id.includes('::'))),
-  [documentVariable]: values[`${formId}::${documentVariable}`] ?? null,
+  [documentVariable]:
+    values[`${formId}::${documentVariable}`] ??
+    (formId === SIC_FORM_ID ? getClinicalCalendarDateISO() : null),
 });
 export const storedClinicalFormVariableId = (formId: ClinicalFormId, id: string): string =>
   id === documentVariable ? `${formId}::${id}` : id;
@@ -198,12 +202,14 @@ export const validateClinicalFormValues = (
   hidden: ReadonlyArray<string>,
   validateIdentity = true
 ): ClinicalFormValues => {
+  if (form.id === SIC_FORM_ID) input = projectSicNames(input);
   const values: ClinicalFormValues = {};
   for (const field of form.fields) {
     const value =
-      isSuppressedClinicalFormField(field) || hidden.includes(field.id)
+      field.fixedValue ??
+      (isSuppressedClinicalFormField(field) || hidden.includes(field.id)
         ? null
-        : (input[field.id] ?? null);
+        : (input[field.id] ?? null));
     if (isEmptyFormValue(value)) {
       values[field.id] = null;
       continue;
@@ -221,6 +227,7 @@ export const validateClinicalFormValues = (
         validateIdentity &&
         (field.id === 'paciente_rut' ||
           field.id === 'medico_tratante_rut' ||
+          field.id === 'sic_profesional_rut' ||
           (field.id === 'paciente_documento_numero' && input.paciente_documento_tipo === 'RUT'))
       ) {
         if (!isClinicalFormRut(value))

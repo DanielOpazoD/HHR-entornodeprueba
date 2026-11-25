@@ -69,6 +69,20 @@
   opacity: 0.5;
   cursor: default;
 }
+.clinical-form-input[readonly] {
+  background: #f8fafc;
+  color: #475569;
+}
+.clinical-form-signature {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.clinical-form-signature-preview {
+  max-width: 240px;
+  max-height: 80px;
+  object-fit: contain;
+}
 .clinical-form-search {
   max-width: 360px;
   margin-bottom: 8px;

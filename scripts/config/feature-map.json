@@ -982,6 +982,28 @@
       "rules": ["ID-01"]
     },
     {
+      "id": "documents.sic-interconsulta",
+      "name": "Solicitud de interconsulta de derivación (SIC HHR)",
+      "owner": "src/features/clinical-library",
+      "reach": {
+        "screen": "Documentos → Formularios → «Solicitud de interconsulta de derivación (SIC)»",
+        "controls": [{ "text": "Solicitud de interconsulta de derivación (SIC)" }]
+      },
+      "gate": [
+        "src/features/clinical-library/components/tools/ClinicalFormTool.tsx",
+        "src/features/clinical-library/domain/forms/sicFormData.ts",
+        "src/features/clinical-library/services/sicFormDocx.ts"
+      ],
+      "tests": [
+        "src/tests/features/clinical-library/sicForm.test.ts",
+        "src/tests/features/clinical-library/SicSignatureField.test.tsx",
+        "src/tests/features/clinical-library/ClinicalFormTool.session.test.tsx",
+        "src/tests/features/clinical-library/ClinicalFormEditor.test.tsx",
+        "e2e/clinical-library-smoke.spec.ts"
+      ],
+      "rules": ["ID-01", "TIME-02"]
+    },
+    {
       "id": "census.upc-pending-round",
       "name": "Navegar y confirmar evaluaciones UPC pendientes del día",
       "owner": "src/features/census",
