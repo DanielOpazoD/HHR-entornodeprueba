@@ -128,7 +128,7 @@ const loadPuppeteerDependencies = () => {
     const chromium = resolveChromiumDependency(chromiumModule);
     const puppeteer = require('puppeteer-core');
     return { chromium, puppeteer };
-  } catch (error) {
+  } catch {
     throw new functions.https.HttpsError(
       'failed-precondition',
       'PDF render dependencies are not installed in functions runtime.'
