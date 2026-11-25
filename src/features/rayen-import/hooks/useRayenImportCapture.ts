@@ -84,6 +84,9 @@ interface UseRayenImportCaptureInput {
 /** Longer than the extension's 3 s health cache, so the second attempt probes the tab afresh. */
 export const GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS = 5000;
 
+/** Brief backoff before the silent retry of a transient network drop so Eloísa can recover. */
+export const SNAPSHOT_NETWORK_CAPTURE_RETRY_DELAY_MS = 3500;
+
 /** Gestión de Camas messages that ask a person to act; repeating the read would not help. */
 const GESTION_CAMAS_NEEDS_PERSON =
   /vencio|inicia sesion|pestana nueva|no esta abierta|completa el acceso|permiso|recarga/;
@@ -92,7 +95,7 @@ const GESTION_CAMAS_NEEDS_PERSON =
 const passingCaptureRetryDelayMs = (error: string, stage?: string): number | null => {
   if (stage === 'ficha_main_relay' || stage === 'ficha_tab_relay') return 0;
   const { reason } = classifyRayenSnapshotError(error, stage);
-  if (reason === 'snapshot_network_error') return 0;
+  if (reason === 'snapshot_network_error') return SNAPSHOT_NETWORK_CAPTURE_RETRY_DELAY_MS;
   const normalized = removeAccents(error).toLowerCase();
   return reason === 'gestion_camas_unavailable' && !GESTION_CAMAS_NEEDS_PERSON.test(normalized)
     ? GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS
