@@ -9,6 +9,8 @@ import { buildCudyrCaptureParts } from './cudyrCapturePlan';
 import { createConcurrencyGate } from './concurrencyGate';
 import type { ClinicalFillStageTimer } from './clinicalFillPerformance';
 
+export const CUDYR_ARCHIVE_CONCURRENCY = 6;
+
 export type CudyrCaptureWriter = (
   request: ArchiveCudyrHistoryRequest
 ) => Promise<'persisted' | 'queued' | 'failed'>;
@@ -28,7 +30,7 @@ export const persistCudyrSyncCapture = async (input: {
   onPlacementsArchived?: (episode: string) => void;
   measure?: ClinicalFillStageTimer;
 }): Promise<ClinicalFillError[]> => {
-  const gate = createConcurrencyGate(3);
+  const gate = createConcurrencyGate(CUDYR_ARCHIVE_CONCURRENCY);
   const measure: ClinicalFillStageTimer = input.measure ?? ((_stage, operation) => operation());
   const errors = await Promise.all(
     input.episodes.map(clinicalEpisodeId =>

@@ -2,7 +2,10 @@ import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalF
 import { captureClinicalCudyrSource } from '@/features/rayen-import/domain/clinicalCudyrPreflight';
 import { describe, expect, it, vi } from 'vitest';
 import { buildCudyrCaptureParts } from '@/features/rayen-import/domain/cudyrCapturePlan';
-import { persistCudyrSyncCapture } from '@/features/rayen-import/domain/persistCudyrSyncCapture';
+import {
+  CUDYR_ARCHIVE_CONCURRENCY,
+  persistCudyrSyncCapture,
+} from '@/features/rayen-import/domain/persistCudyrSyncCapture';
 import type { ClinicalCudyrSource } from '@/features/rayen-import/domain/clinicalCudyrPreflight';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
@@ -100,6 +103,47 @@ describe('ordinary sync permanent CUDYR archive', () => {
       { clinicalEpisodeId: 'episode-test', source: 'cudyr', reason: 'historical_archive_failed' },
     ]);
     expect(errors[0].message).toContain('pendiente de confirmación');
+  });
+
+  it('archives episodes with bounded concurrency of 6 to avoid serializing closeWait', async () => {
+    const episodes = Array.from({ length: 10 }, (_, index) => `episode-${index + 1}`);
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const releases: Array<() => void> = [];
+    const write = vi.fn(
+      () =>
+        new Promise<'persisted'>(resolve => {
+          inFlight += 1;
+          maxInFlight = Math.max(maxInFlight, inFlight);
+          releases.push(() => {
+            inFlight -= 1;
+            resolve('persisted');
+          });
+        })
+    );
+
+    const pending = persistCudyrSyncCapture({
+      ...input,
+      episodes,
+      source: { ...source, observedEpisodeIds: episodes },
+      write,
+    });
+
+    await vi.waitFor(() => expect(inFlight).toBe(CUDYR_ARCHIVE_CONCURRENCY));
+    expect(CUDYR_ARCHIVE_CONCURRENCY).toBe(6);
+    expect(maxInFlight).toBe(6);
+
+    let released = 0;
+    while (released < episodes.length) {
+      await vi.waitFor(() => expect(releases.length).toBeGreaterThan(0));
+      const batch = releases.splice(0, releases.length);
+      released += batch.length;
+      batch.forEach(release => release());
+    }
+
+    expect(await pending).toEqual([]);
+    expect(write).toHaveBeenCalledTimes(10);
+    expect(maxInFlight).toBe(6);
   });
 
   it('captures during sync even when only an egreso remains, with one shared source fetch', async () => {

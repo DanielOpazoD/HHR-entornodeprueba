@@ -352,7 +352,7 @@ describe('closing a sync run after its clinical save', () => {
     };
   };
 
-  it('registers staff after the save, closes only once the CUDYR archive settles and measures each part', async () => {
+  it('starts staff registration before the save, closes only once the CUDYR archive settles and measures each part', async () => {
     const { deps, events, finishArchive } = setup('persisted');
     let closed = false;
     const run = runClinicalFill(buildCloseRecord(), '2026-07-10', deps).then(summary => {
@@ -360,36 +360,73 @@ describe('closing a sync run after its clinical save', () => {
       return summary;
     });
 
-    await vi.waitFor(() => expect(events).toEqual(['save', 'staff']));
+    await vi.waitFor(() => expect(events).toEqual(['staff', 'save']));
     expect(deps.archiveCudyrCapture).toHaveBeenCalledOnce();
     expect(closed).toBe(false);
 
     finishArchive(2000);
     const summary = await run;
 
-    expect(events).toEqual(['save', 'staff', 'archive']);
+    expect(events).toEqual(['staff', 'save', 'archive']);
     expect(summary.errors).toEqual([]);
     expect(summary.patched).toBe(1);
     const stages = summary.performance!.stagesMs;
-    expect(stages.closeWait).toBe(2300);
+    expect(stages.closeWait).toBe(2000);
     expect(stages.staffRegistration).toBe(300);
     expect(stages.cudyrArchivePlacementReads).toBe(100);
-    expect(stages.cudyrArchiveWrites).toBeGreaterThanOrEqual(2300);
+    expect(stages.cudyrArchiveWrites).toBeGreaterThanOrEqual(2000);
     expect(stages.cudyrArchive).toBeGreaterThanOrEqual(stages.cudyrArchiveWrites! + 100);
     expect(JSON.stringify(summary.performance)).not.toMatch(/Sintético|E1|R1|12\.345/);
+  });
+
+  it('overlaps staff registration with the clinical batch save and still waits for a slower staff write', async () => {
+    const { deps } = setup('persisted');
+    let releaseSave!: () => void;
+    let releaseStaff!: () => void;
+    const started: string[] = [];
+    const run = runClinicalFill(buildCloseRecord(), '2026-07-10', {
+      ...deps,
+      archiveCudyrCapture: undefined,
+      applyPatch: vi.fn(
+        () =>
+          new Promise<void>(resolve => {
+            started.push('save');
+            releaseSave = resolve;
+          })
+      ),
+      registerStaff: observations =>
+        new Promise(resolve => {
+          started.push('staff');
+          releaseStaff = () => resolve(observations);
+        }),
+    });
+
+    await vi.waitFor(() => expect(started).toEqual(['staff', 'save']));
+    releaseSave();
+    let settled = false;
+    void run.then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    releaseStaff();
+    const summary = await run;
+    expect(summary.errors).toEqual([]);
+    expect(summary.staffingProposal).toBeDefined();
   });
 
   it('still reports a failed archive part as the same run error, with the wait measured', async () => {
     const { deps, events, finishArchive } = setup('failed');
     const run = runClinicalFill(buildCloseRecord(), '2026-07-10', deps);
-    await vi.waitFor(() => expect(events).toEqual(['save', 'staff']));
+    await vi.waitFor(() => expect(events).toEqual(['staff', 'save']));
     finishArchive(500);
     const summary = await run;
 
     expect(summary.errors).toMatchObject([
       { clinicalEpisodeId: 'E1', source: 'cudyr', reason: 'historical_archive_failed' },
     ]);
-    expect(summary.performance!.stagesMs.closeWait).toBe(800);
+    expect(summary.performance!.stagesMs.closeWait).toBe(500);
   });
 
   it('leaves the archive unmeasured, never zero, when the run archives nothing', async () => {
@@ -401,7 +438,7 @@ describe('closing a sync run after its clinical save', () => {
 
     const stages = summary.performance!.stagesMs;
     expect(stages.staffRegistration).toBe(300);
-    expect(stages.closeWait).toBe(300);
+    expect(stages.closeWait).toBe(0);
     expect(stages).not.toHaveProperty('cudyrArchive');
     expect(stages).not.toHaveProperty('cudyrArchivePlacementReads');
     expect(stages).not.toHaveProperty('cudyrArchiveWrites');
