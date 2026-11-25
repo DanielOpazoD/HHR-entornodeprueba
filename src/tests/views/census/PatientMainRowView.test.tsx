@@ -41,7 +41,6 @@ describe('PatientMainRowView', () => {
     currentDateString: '2026-02-15',
     readOnly: false,
     actionMenuAlign: 'top' as const,
-    diagnosisMode: 'free' as const,
     isBlocked: false,
     isEmpty: false,
     hasCompanion: false,

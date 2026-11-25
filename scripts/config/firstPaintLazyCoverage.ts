@@ -90,8 +90,6 @@ const OPTIONAL_TARGETS: Record<string, string> = {
     'Part of the online clinical drawer.',
   'src/features/census/components/patient-row/ClinicalPanelDrawer':
     'Online clinical drawer opens on request with a local boundary.',
-  'src/features/census/components/patient-row/DiagnosisCie10Cell':
-    'Opt-in CIE10 mode is tracked separately; free-text census is the offline baseline.',
   'src/features/census/components/patient-row/PatientActionMenuPanel': 'Row menu opens on request.',
   'src/features/census/components/patient-row/PatientDocumentManagerDialog':
     'Document manager opens from the clinical drawer.',

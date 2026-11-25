@@ -11,7 +11,6 @@ import { BedType } from '@/types/domain/beds';
 describe('censusTableLayoutController', () => {
   it('builds header/body bindings with consistent forwarding', () => {
     const onClearAll = vi.fn().mockResolvedValue(undefined);
-    const onToggleDiagnosisMode = vi.fn();
     const onResizeColumn = vi.fn(() => vi.fn());
     const onAction = vi.fn();
     const onActivateEmptyBed = vi.fn();
@@ -40,8 +39,6 @@ describe('censusTableLayoutController', () => {
       canDeleteRecord: true,
       resetDayDeniedMessage: '',
       onClearAll,
-      diagnosisMode: 'free',
-      onToggleDiagnosisMode,
       onResizeColumn,
       unifiedRows: [],
       bedTypes: {},
@@ -52,7 +49,6 @@ describe('censusTableLayoutController', () => {
     });
 
     expect(bindings.headerProps.onClearAll).toBe(onClearAll);
-    expect(bindings.headerProps.onToggleDiagnosisMode).toBe(onToggleDiagnosisMode);
     expect(bindings.headerProps.onResizeColumn).toBe(onResizeColumn);
     expect(bindings.bodyProps.currentDateString).toBe('2026-02-15');
     expect(bindings.bodyProps.onAction).toBe(onAction);
@@ -107,8 +103,6 @@ describe('censusTableLayoutController', () => {
       canDeleteRecord: false,
       resetDayDeniedMessage: 'No autorizado',
       onClearAll: vi.fn().mockResolvedValue(undefined),
-      diagnosisMode: 'cie10',
-      onToggleDiagnosisMode: vi.fn(),
       onResizeColumn: vi.fn(() => vi.fn()),
       unifiedRows,
       bedTypes,

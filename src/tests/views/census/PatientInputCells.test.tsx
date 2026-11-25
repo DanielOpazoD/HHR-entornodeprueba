@@ -54,7 +54,6 @@ describe('PatientInputCells', () => {
               onChange={onChange}
               onDemo={vi.fn()}
               readOnly={false}
-              diagnosisMode="free"
             />
           </tr>
         </tbody>
@@ -92,7 +91,6 @@ describe('PatientInputCells', () => {
               onChange={onChange}
               onDemo={vi.fn()}
               readOnly={true}
-              diagnosisMode="free"
               accessProfile="specialist"
             />
           </tr>
@@ -134,7 +132,6 @@ describe('PatientInputCells', () => {
               onChange={onChange}
               onDemo={vi.fn()}
               readOnly={false}
-              diagnosisMode="free"
             />
           </tr>
         </tbody>
@@ -195,7 +192,6 @@ describe('PatientInputCells', () => {
               onChange={onChange}
               onDemo={vi.fn()}
               readOnly={false}
-              diagnosisMode="free"
             />
           </tr>
         </tbody>
@@ -243,7 +239,6 @@ describe('PatientInputCells', () => {
               onChange={onChange}
               onDemo={vi.fn()}
               readOnly={false}
-              diagnosisMode="free"
             />
           </tr>
         </tbody>
@@ -297,7 +292,6 @@ describe('PatientInputCells', () => {
               onChange={onChange}
               onDemo={vi.fn()}
               readOnly={false}
-              diagnosisMode="free"
             />
           </tr>
         </tbody>
@@ -355,7 +349,6 @@ describe('PatientInputCells', () => {
               onChange={onChange}
               onDemo={vi.fn()}
               readOnly={false}
-              diagnosisMode="free"
             />
           </tr>
         </tbody>

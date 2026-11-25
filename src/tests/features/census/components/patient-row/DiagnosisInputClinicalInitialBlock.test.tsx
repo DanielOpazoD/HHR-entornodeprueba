@@ -18,7 +18,6 @@ describe('DiagnosisInput clinical initial block editor', () => {
                 specialty: Specialty.EMPTY,
                 status: PatientStatus.EMPTY,
               })}
-              diagnosisMode="free"
               onChange={() => vi.fn()}
               onMultipleUpdate={onMultipleUpdate}
             />
@@ -58,7 +57,6 @@ describe('DiagnosisInput clinical initial block editor', () => {
                 cie10Code: 'Z34.9',
                 cie10Description: 'Supervisión de embarazo normal',
               })}
-              diagnosisMode="free"
               onChange={() => vi.fn()}
               onMultipleUpdate={vi.fn()}
               onDeliveryRouteChange={vi.fn()}
@@ -69,5 +67,35 @@ describe('DiagnosisInput clinical initial block editor', () => {
     );
 
     expect(screen.getByPlaceholderText('Diagnóstico (texto libre)')).toHaveClass('pr-32');
+    expect(screen.getByText('Z34.9')).toBeInTheDocument();
+  });
+
+  it('edits free-text pathology directly and keeps Eloísa CIE-10 badge visible on sub-rows', () => {
+    const onPathologyChange = vi.fn();
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <DiagnosisInput
+              data={DataFactory.createMockPatient('R1', {
+                patientName: 'RN Sintético',
+                pathology: 'Diagnóstico inicial',
+                cie10Code: 'P07.3',
+                cie10Description: 'Prematuro sintético',
+              })}
+              isSubRow
+              onChange={field => (field === 'pathology' ? onPathologyChange : vi.fn())}
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+
+    const input = screen.getByPlaceholderText('Diagnóstico (texto libre)');
+    expect(screen.getByText('P07.3')).toBeInTheDocument();
+    fireEvent.change(input, { target: { value: 'Diagnóstico actualizado' } });
+    fireEvent.blur(input);
+
+    expect(onPathologyChange).toHaveBeenCalledWith('Diagnóstico actualizado');
   });
 });

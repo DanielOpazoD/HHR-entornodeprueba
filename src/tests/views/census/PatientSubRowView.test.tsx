@@ -4,18 +4,8 @@ import { PatientSubRowView } from '@/features/census/components/patient-row/Pati
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 vi.mock('@/features/census/components/patient-row/PatientInputCells', () => ({
-  PatientInputCells: ({
-    diagnosisMode,
-    parentBedId,
-  }: {
-    diagnosisMode?: string;
-    parentBedId?: string;
-  }) => (
-    <td
-      data-testid="sub-input-cells"
-      data-diagnosis-mode={diagnosisMode}
-      data-parent-bed-id={parentBedId}
-    />
+  PatientInputCells: ({ parentBedId }: { parentBedId?: string }) => (
+    <td data-testid="sub-input-cells" data-parent-bed-id={parentBedId} />
   ),
 }));
 
@@ -23,7 +13,6 @@ describe('PatientSubRowView', () => {
   const baseProps = {
     data: DataFactory.createMockPatient('R1'),
     currentDateString: '2026-02-15',
-    diagnosisMode: 'cie10' as const,
     style: undefined,
     onOpenDemographics: vi.fn(),
     onOpenHistory: vi.fn(),
@@ -50,7 +39,6 @@ describe('PatientSubRowView', () => {
     expect(screen.getByTitle('Datos del Paciente')).toBeInTheDocument();
     expect(screen.getByTitle('Acciones')).toBeInTheDocument();
     expect(screen.getByTestId('sub-input-cells')).toBeInTheDocument();
-    expect(screen.getByTestId('sub-input-cells')).toHaveAttribute('data-diagnosis-mode', 'cie10');
   });
 
   it.each(['R1', 'H2C2'])('shows the containing bed in the quiet crib label: %s', parentBedId => {

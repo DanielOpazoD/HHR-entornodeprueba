@@ -25,7 +25,6 @@ describe('usePatientInputSectionBindings', () => {
         isSubRow: false,
         isEmpty: false,
         isLocked: false,
-        diagnosisMode: 'free',
         hasRutError: false,
         handleDebouncedText: vi.fn(),
         onDemo,
@@ -35,7 +34,7 @@ describe('usePatientInputSectionBindings', () => {
 
     expect(result.current.identity.shared.data).toBe(data);
     expect(result.current.identity.onDemo).toBe(onDemo);
-    expect(result.current.clinical.diagnosisMode).toBe('free');
+    expect(result.current.clinical.shared).toBe(result.current.identity.shared);
   });
 
   it('memoizes output when dependencies do not change', () => {
@@ -60,7 +59,6 @@ describe('usePatientInputSectionBindings', () => {
         isSubRow: false,
         isEmpty: false,
         isLocked: false,
-        diagnosisMode: 'free' as const,
         hasRutError: false,
         handleDebouncedText,
         onDemo,
@@ -75,7 +73,6 @@ describe('usePatientInputSectionBindings', () => {
       isSubRow: false,
       isEmpty: false,
       isLocked: false,
-      diagnosisMode: 'free' as const,
       hasRutError: false,
       handleDebouncedText,
       onDemo,

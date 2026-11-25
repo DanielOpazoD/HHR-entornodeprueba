@@ -1,7 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import type { CSSProperties } from 'react';
-import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 import type { BedDefinition } from '@/types/domain/beds';
 import type { BedType } from '@/types/domain/beds';
 
@@ -55,7 +54,6 @@ export interface PatientMainRowViewProps
   readOnly: boolean;
   clinicalEditingDisabled?: boolean;
   actionMenuAlign: RowMenuAlign;
-  diagnosisMode: DiagnosisMode;
   isBlocked: boolean;
   isEmpty: boolean;
   hasCompanion: boolean;
@@ -81,7 +79,6 @@ export interface PatientSubRowViewProps {
   currentDateString: string;
   readOnly: boolean;
   clinicalEditingDisabled?: boolean;
-  diagnosisMode: DiagnosisMode;
   accessProfile?: CensusAccessProfile;
   style?: CSSProperties;
   isPendingClear?: boolean;

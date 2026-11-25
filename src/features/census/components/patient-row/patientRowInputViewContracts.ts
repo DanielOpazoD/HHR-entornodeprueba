@@ -1,6 +1,5 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 import type { BedDefinition } from '@/types/domain/beds';
 
 import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
@@ -34,7 +33,6 @@ export interface PatientInputCellsProps {
   onDemo: () => void;
   readOnly?: boolean;
   clinicalEditingDisabled?: boolean;
-  diagnosisMode?: DiagnosisMode;
   accessProfile?: CensusAccessProfile;
   /** Absent on a bed without a patient: the «Accesos» cell stays empty. */
   clinicalAccess?: PatientClinicalAccessProps;

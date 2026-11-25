@@ -119,7 +119,6 @@ it('isolates edits and server confirmations while crib removal uses the latest r
     unifiedRows: fullRows,
     currentDateString: '2026-02-20',
     readOnly: false,
-    diagnosisMode: 'free' as const,
     columns,
     visibleColumnCount: 9,
     bedTypes,

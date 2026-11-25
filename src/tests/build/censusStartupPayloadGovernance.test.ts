@@ -1,7 +1,4 @@
-import {
-  ONLINE_ONLY_ASSET_GLOBS,
-  ONLINE_ONLY_PRECACHE_PATTERNS,
-} from '../../../scripts/config/onlineOnlyAssets.mjs';
+import { ONLINE_ONLY_PRECACHE_PATTERNS } from '../../../scripts/config/onlineOnlyAssets.mjs';
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
@@ -21,15 +18,7 @@ describe('census startup payload', () => {
   it('keeps the CIE-10 catalogue out of the table cell that every row renders', () => {
     const cell = read(`${rowDir}/DiagnosisInput.tsx`);
     expect(cell).not.toContain('@/services/terminology/terminologyService');
-    expect(cell).not.toContain('@/features/census/components/TerminologySuggestor');
-    expect(cell).toContain("React.lazy(() => import('./DiagnosisCie10Cell'))");
-  });
-
-  it('still resolves the stored description and the catalogue fallback in CIE-10 mode', () => {
-    const lazyCell = read(`${rowDir}/DiagnosisCie10Cell.tsx`);
-    expect(lazyCell).toContain('data.cie10Description');
-    expect(lazyCell).toContain('getCIE10Description(data.cie10Code)');
-    expect(lazyCell).toContain('TerminologySuggestor');
+    expect(cell).not.toContain('TerminologySuggestor');
   });
 
   it('keeps the Rayen import machinery out of the census toolbar', () => {
@@ -119,11 +108,9 @@ describe('census startup payload', () => {
     expect(ONLINE_ONLY_PRECACHE_PATTERNS).toEqual(
       expect.arrayContaining([
         '^assets/terminologyService-.*\\.js$',
-        '^assets/DiagnosisCie10Cell-.*\\.js$',
         '^assets/RayenImportButton-.*\\.js$',
       ])
     );
-    expect(ONLINE_ONLY_ASSET_GLOBS).toContain('**/assets/DiagnosisCie10Cell-*.js');
   });
 
   it('keeps extension handoff linking, table config JSON transfer, and manual Eloisa import lazy', () => {

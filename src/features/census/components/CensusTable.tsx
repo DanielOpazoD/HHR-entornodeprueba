@@ -37,7 +37,6 @@ import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 const censusTableAdmitLogger = createScopedLogger('CensusTableAdmit');
 const EMPTY_BED_OPTIONS: Array<{ id: string; label: string }> = [];
 const EMPTY_UNIFIED_ROWS: UnifiedBedRow[] = [];
-export type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 const LazyDemographicsModal = lazyWithRetry(() =>
   import('@/features/census/components/demographics/DemographicsModal').then(module => ({
     default: module.DemographicsModal,

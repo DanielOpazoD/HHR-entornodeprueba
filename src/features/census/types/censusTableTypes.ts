@@ -3,8 +3,6 @@ import type { PatientData } from '@/types/domain/patient';
 import type { BedDefinition } from '@/types/domain/beds';
 import type { BedType } from '@/types/domain/beds';
 
-export type DiagnosisMode = 'free' | 'cie10';
-
 export type UnifiedBedRow =
   | {
       kind: 'occupied';

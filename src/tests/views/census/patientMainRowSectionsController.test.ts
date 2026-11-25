@@ -15,7 +15,6 @@ describe('patientMainRowSectionsController', () => {
       currentDateString: '2026-03-05',
       readOnly: false,
       actionMenuAlign: 'top' as const,
-      diagnosisMode: 'free' as const,
       isBlocked: false,
       isEmpty: false,
       hasCompanion: true,

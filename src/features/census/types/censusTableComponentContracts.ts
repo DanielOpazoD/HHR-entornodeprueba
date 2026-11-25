@@ -2,11 +2,7 @@ import type { PatientData } from '@/types/domain/patient';
 
 import type { TableColumnConfig } from '@/context/TableConfigContext';
 import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
-import type {
-  BedTypesById,
-  DiagnosisMode,
-  UnifiedBedRow,
-} from '@/features/census/types/censusTableTypes';
+import type { BedTypesById, UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
 import type { RowMenuAlign } from '@/features/census/components/patient-row/patientRowUiContracts';
 
@@ -21,9 +17,7 @@ export interface CensusTableHeaderProps {
   canDeleteRecord: boolean;
   resetDayDeniedMessage: string;
   onClearAll: () => Promise<void>;
-  diagnosisMode: DiagnosisMode;
   accessProfile?: CensusAccessProfile;
-  onToggleDiagnosisMode: () => void;
   onResizeColumn: (column: keyof TableColumnConfig) => (width: number) => void;
 }
 
@@ -33,7 +27,6 @@ export interface CensusTableBodyProps {
   recordLastUpdated?: string;
   readOnly: boolean;
   clinicalEditingDisabled?: boolean;
-  diagnosisMode: DiagnosisMode;
   columns: TableColumnConfig;
   visibleColumnCount: number;
   bedTypes: BedTypesById;

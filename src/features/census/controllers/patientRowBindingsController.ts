@@ -1,6 +1,5 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 import type { BedDefinition } from '@/types/domain/beds';
 import type { BedType } from '@/types/domain/beds';
 
@@ -68,7 +67,6 @@ export interface BuildPatientRowBindingsParams {
   readOnly: boolean;
   clinicalEditingDisabled?: boolean;
   actionMenuAlign: RowMenuAlign;
-  diagnosisMode: DiagnosisMode;
   isSubRow: boolean;
   role?: UserRole;
   accessProfile?: CensusAccessProfile;
@@ -118,7 +116,6 @@ export const buildPatientMainRowBindings = ({
   readOnly,
   clinicalEditingDisabled = false,
   actionMenuAlign,
-  diagnosisMode,
   role,
   indicators,
   accessProfile,
@@ -135,7 +132,6 @@ export const buildPatientMainRowBindings = ({
   | 'readOnly'
   | 'clinicalEditingDisabled'
   | 'actionMenuAlign'
-  | 'diagnosisMode'
   | 'role'
   | 'accessProfile'
   | 'indicators'
@@ -162,7 +158,6 @@ export const buildPatientMainRowBindings = ({
     readOnly,
     clinicalEditingDisabled,
     actionMenuAlign,
-    diagnosisMode,
     accessProfile,
     style,
     runtime,
@@ -175,7 +170,6 @@ export const buildPatientSubRowBindings = ({
   currentDateString,
   readOnly,
   clinicalEditingDisabled = false,
-  diagnosisMode,
   accessProfile,
   style,
   runtime,
@@ -185,7 +179,6 @@ export const buildPatientSubRowBindings = ({
   | 'currentDateString'
   | 'readOnly'
   | 'clinicalEditingDisabled'
-  | 'diagnosisMode'
   | 'accessProfile'
   | 'style'
   | 'runtime'
@@ -195,7 +188,6 @@ export const buildPatientSubRowBindings = ({
     currentDateString,
     readOnly,
     clinicalEditingDisabled,
-    diagnosisMode,
     accessProfile,
     style,
     runtime,
@@ -241,7 +233,6 @@ export const buildPatientRowBindings = ({
   readOnly,
   clinicalEditingDisabled = false,
   actionMenuAlign,
-  diagnosisMode,
   isSubRow,
   role,
   accessProfile,
@@ -266,7 +257,6 @@ export const buildPatientRowBindings = ({
       readOnly,
       clinicalEditingDisabled,
       actionMenuAlign,
-      diagnosisMode,
       role,
       accessProfile,
       indicators,
@@ -280,7 +270,6 @@ export const buildPatientRowBindings = ({
       currentDateString,
       readOnly,
       clinicalEditingDisabled,
-      diagnosisMode,
       accessProfile,
       style,
       runtime,

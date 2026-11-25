@@ -8,7 +8,6 @@ import { useCensusActionCommands } from '@/features/census/context/censusActionC
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { useAuth } from '@/context/AuthContext';
 import { useTableConfig } from '@/context/TableConfigContext';
-import { useDiagnosisMode } from '@/features/census/hooks/useDiagnosisMode';
 
 export interface CensusTableDependencies {
   beds: ReturnType<typeof useDailyRecordBeds>;
@@ -23,8 +22,6 @@ export interface CensusTableDependencies {
   tableConfigLoading: ReturnType<typeof useTableConfig>['isLoading'];
   isEditMode: ReturnType<typeof useTableConfig>['isEditMode'];
   updateColumnWidth: ReturnType<typeof useTableConfig>['updateColumnWidth'];
-  diagnosisMode: ReturnType<typeof useDiagnosisMode>['diagnosisMode'];
-  toggleDiagnosisMode: ReturnType<typeof useDiagnosisMode>['toggleDiagnosisMode'];
 }
 
 export const useCensusTableDependencies = (): CensusTableDependencies => {
@@ -37,7 +34,6 @@ export const useCensusTableDependencies = (): CensusTableDependencies => {
   const { warning } = useNotification();
   const { role } = useAuth();
   const { config, isLoading: tableConfigLoading, isEditMode, updateColumnWidth } = useTableConfig();
-  const { diagnosisMode, toggleDiagnosisMode } = useDiagnosisMode();
 
   return {
     beds,
@@ -52,7 +48,5 @@ export const useCensusTableDependencies = (): CensusTableDependencies => {
     tableConfigLoading,
     isEditMode,
     updateColumnWidth,
-    diagnosisMode,
-    toggleDiagnosisMode,
   };
 };

@@ -3,8 +3,8 @@
  *
  * FLUJO COMPLETO DEL SELECTOR DE DIAGNÓSTICOS:
  *
- * 1. Usuario abre el selector CIE-10 (TerminologySuggestor)
- *    → Se auto-rellena con el diagnóstico libre del paciente (freeTextValue)
+ * 1. Usuario abre el selector CIE-10 (ej. IEEH en ClinicalDocumentIeehPanel)
+ *    → Permite buscar por texto libre o código CIE-10
  *
  * 2. searchDiagnoses(query) — Búsqueda por defecto (instantánea)
  *    a. Busca en base local (~8,500 diagnósticos) con scoring multi-señal

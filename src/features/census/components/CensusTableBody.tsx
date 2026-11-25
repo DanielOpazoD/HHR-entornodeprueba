@@ -22,7 +22,6 @@ export const CensusTableBody: React.FC<CensusTableBodyProps & CensusTableBodyBad
   recordLastUpdated,
   readOnly,
   clinicalEditingDisabled = false,
-  diagnosisMode,
   columns,
   visibleColumnCount,
   bedTypes,
@@ -118,7 +117,6 @@ export const CensusTableBody: React.FC<CensusTableBodyProps & CensusTableBodyBad
             readOnly={readOnly || Boolean(row.isPendingCreate)}
             clinicalEditingDisabled={clinicalEditingDisabled}
             actionMenuAlign={resolved.actionMenuAlign}
-            diagnosisMode={diagnosisMode}
             isSubRow={row.isSubRow}
             bedType={bedTypes[row.bed.id] ?? row.bed.type}
             role={role}
