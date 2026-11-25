@@ -31,10 +31,10 @@ vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
 import { getPatientMovementHistoryDetailed } from '@/services/patient/patientHistoryService';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import {
-  clearAllRecords,
   getAllRecords,
   saveRecordStrict,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { clearAllRecordsForTests } from '@/tests/support/indexedDbTestReset';
 
 const runEmulatorTests =
   process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1' ||
@@ -94,7 +94,7 @@ describeEmulator('patient history range and authoritative reads', () => {
   });
   beforeEach(async () => {
     await environment.clearFirestore();
-    await clearAllRecords();
+    await clearAllRecordsForTests();
     activeDb = environment
       .authenticatedContext('history-nurse', {
         email: 'hospitalizados@hospitalhangaroa.cl',

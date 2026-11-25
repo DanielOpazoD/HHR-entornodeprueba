@@ -30,10 +30,10 @@ import * as recordWrites from '@/services/storage/firestore/firestoreRecordWrite
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import {
-  clearAllRecords,
   getRecordForDateStrict,
   saveRecord,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { clearAllRecordsForTests } from '@/tests/support/indexedDbTestReset';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { processSyncQueue, queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
 import { getTodayISO } from '@/utils/dateCoreUtils';
@@ -114,7 +114,7 @@ describeEmulator('the outbox publishes compacted offline work through Firestore'
   beforeEach(async () => {
     await testEnv.clearFirestore();
     await authority.install();
-    await clearAllRecords();
+    await clearAllRecordsForTests();
     await hospitalDB.syncQueue.clear();
     await seedRemote(baseRecord());
     await saveRecord(baseRecord());

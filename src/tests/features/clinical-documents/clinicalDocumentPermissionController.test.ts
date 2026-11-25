@@ -2,7 +2,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  canArchiveClinicalDocuments,
   canDeleteClinicalDocuments,
   canEditClinicalDocuments,
   canReadClinicalDocuments,
@@ -33,13 +32,5 @@ describe('clinicalDocumentPermissionController', () => {
     expect(canDeleteClinicalDocuments('editor')).toBe(false);
     expect(canDeleteClinicalDocuments('viewer')).toBe(false);
     expect(canDeleteClinicalDocuments(undefined)).toBe(false);
-  });
-
-  it('keeps archive permission restricted to admin only', () => {
-    expect(canArchiveClinicalDocuments('admin')).toBe(true);
-    expect(canArchiveClinicalDocuments('doctor_urgency')).toBe(false);
-    expect(canArchiveClinicalDocuments('doctor_specialist')).toBe(false);
-    expect(canArchiveClinicalDocuments('nurse_hospital')).toBe(false);
-    expect(canArchiveClinicalDocuments(undefined)).toBe(false);
   });
 });

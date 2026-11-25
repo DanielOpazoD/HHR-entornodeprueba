@@ -40,7 +40,8 @@ vi.mock('@/services/storage/firestore/dailyRecordAuthorityCallableClient', () =>
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
-import { clearAllRecords, saveRecord } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { saveRecord } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { clearAllRecordsForTests } from '@/tests/support/indexedDbTestReset';
 import {
   getSyncQueueStats,
   processSyncQueue,
@@ -128,7 +129,7 @@ describeEmulator('Firestore emulator mutation idempotency', () => {
         .doc('hospitals/hanga_roa/settings/rayenImportPolicy')
         .set({ schemaVersion: 2, clinicalBatchMode: 'enforced' })
     );
-    await clearAllRecords();
+    await clearAllRecordsForTests();
     await hospitalDB.syncQueue.clear();
     mockAuthorityCallable.mockReset();
     mockAuthorityCallable.mockImplementation(

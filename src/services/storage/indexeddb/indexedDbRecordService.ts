@@ -361,24 +361,3 @@ export const getPreviousDayRecord = async (currentDate: string): Promise<DailyRe
     throw error;
   }
 };
-
-export const clearAllRecords = async (options?: { throwOnError?: boolean }): Promise<void> => {
-  try {
-    await ensureDbReady();
-    if (isDatabaseInFallbackMode()) {
-      localPersistence.records.clear();
-      dispatchDailyRecordStoreChanged({ operation: 'clear' });
-      return;
-    }
-    await db.dailyRecords.clear();
-    dispatchDailyRecordStoreChanged({ operation: 'clear' });
-  } catch (error) {
-    recordOperationalErrorTelemetry('indexeddb', 'indexeddb_clear_all_records', error, {
-      code: 'indexeddb_clear_all_records_failed',
-      message: 'No fue posible limpiar los registros locales.',
-      severity: 'warning',
-      userSafeMessage: 'No fue posible limpiar los registros locales.',
-    });
-    if (options?.throwOnError) throw error;
-  }
-};
