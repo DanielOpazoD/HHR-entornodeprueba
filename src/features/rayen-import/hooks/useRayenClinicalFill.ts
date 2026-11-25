@@ -85,6 +85,37 @@ const withRevalidatedClinicalRecord = (
 ): DailyRecord | ConfirmedRayenCensusHandoff =>
   isConfirmedRayenCensusHandoff(source) ? { ...source, record } : source;
 
+const recordAuthorityRevision = (record: DailyRecord): unknown =>
+  (record as DailyRecord & { meta?: { revision?: unknown } }).meta?.revision;
+
+const readClinicalDerivedLayout = (
+  record: DailyRecord
+): { version?: unknown; generation?: unknown } | null => {
+  const layout = record.clinicalDerivedLayout;
+  return layout && typeof layout === 'object'
+    ? (layout as { version?: unknown; generation?: unknown })
+    : null;
+};
+
+const hasUnchangedDerivedDaySnapshot = (previous: DailyRecord, latest: DailyRecord): boolean => {
+  const previousRevision = recordAuthorityRevision(previous);
+  const previousLayout = readClinicalDerivedLayout(previous);
+  const latestLayout = readClinicalDerivedLayout(latest);
+  return (
+    previousLayout !== null &&
+    latestLayout !== null &&
+    previous.date === latest.date &&
+    previous.lastUpdated === latest.lastUpdated &&
+    typeof previousRevision === 'number' &&
+    previousRevision === recordAuthorityRevision(latest) &&
+    typeof previousLayout.version === 'number' &&
+    previousLayout.version === latestLayout.version &&
+    typeof previousLayout.generation === 'string' &&
+    previousLayout.generation.length > 0 &&
+    previousLayout.generation === latestLayout.generation
+  );
+};
+
 /** Runs the best-effort per-patient clinical enrichment and persists aggregate run evidence. */
 export const useRayenClinicalFill = ({
   nurseCatalog,
@@ -260,6 +291,10 @@ export const useRayenClinicalFill = ({
               pendingEpisodeIds: retryRequest?.pendingHistoricalCudyrEpisodeIds,
             });
 
+            // Capture the latest committed un-overlaid day from the post-batch readback so
+            // `completeRun` starts on the committed revision instead of colliding on the stale base.
+            let committedAuditRecord: DailyRecord | null = null;
+
             // One fill over a day read and its batch write. The field-conflict retry reruns it.
             const fillOnce = async (
               day: DailyRecord,
@@ -280,10 +315,18 @@ export const useRayenClinicalFill = ({
                   await import('@/services/staff/eloisaStaffRegistry');
                 check();
                 // The batch re-reads the day at its write turn: overlay that read too (D10).
+                // Per D2, episode documents only mutate in the same transaction that increments
+                // `meta.revision` (or layout generation), so an unchanged server day reuses `view`.
                 const refreshFillRecord = async (): Promise<DailyRecord> => {
                   check();
                   const latest = await loadDay();
                   check();
+                  if (
+                    day.clinicalDerivedLayout != null &&
+                    hasUnchangedDerivedDaySnapshot(day, latest)
+                  ) {
+                    return view;
+                  }
                   const latestView = await readClinicalFillDerivedView(latest, loadDay);
                   check();
                   return latestView.record;
@@ -312,8 +355,18 @@ export const useRayenClinicalFill = ({
                         refreshRecord: refreshFillRecord,
                         // After a committed batch the day's server read refreshes the Firestore
                         // SDK cache, not HHR's local table; nothing is rebuilt from it, so no
-                        // episode documents are read.
-                        refreshCommittedRecord: loadDay,
+                        // episode documents are read. Keep the returned un-overlaid day for audit.
+                        refreshCommittedRecord: async () => {
+                          const committed = await loadDay();
+                          if (
+                            committed.date === freshRecord.date &&
+                            (!auditRunId ||
+                              committed.rayenSyncHistory?.some(event => event.id === auditRunId))
+                          ) {
+                            committedAuditRecord = committed;
+                          }
+                          return committed;
+                        },
                       }),
                     applyHistoricalCudyrBatch: (censusDay, items) => {
                       check();
@@ -418,12 +471,18 @@ export const useRayenClinicalFill = ({
             ).size;
             let completionFailed = false;
             try {
-              await completeRun(freshRecord, summary, reviewProposal, requestedRunId, {
-                checkSession: check,
-                ...(retryRequest || structuralReview
-                  ? { retry: retryRequest !== null, structuralReview }
-                  : {}),
-              });
+              await completeRun(
+                committedAuditRecord ?? freshRecord,
+                summary,
+                reviewProposal,
+                requestedRunId,
+                {
+                  checkSession: check,
+                  ...(retryRequest || structuralReview
+                    ? { retry: retryRequest !== null, structuralReview }
+                    : {}),
+                }
+              );
             } catch {
               completionFailed = true;
             }
