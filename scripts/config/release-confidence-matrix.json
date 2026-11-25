@@ -73,14 +73,6 @@
       "validationSuites": ["test:repository-compat", "test:emulator:sync:ci"]
     },
     {
-      "id": "transfers",
-      "label": "Transfers y derivaciones",
-      "ownerAreaId": "transfers",
-      "criticalCoverageZones": ["src/services/transfers"],
-      "blockingSteps": ["critical_coverage"],
-      "validationSuites": ["test:unit:critical"]
-    },
-    {
       "id": "reminders_admin",
       "label": "Avisos administrativos",
       "ownerAreaId": "reminders-admin",

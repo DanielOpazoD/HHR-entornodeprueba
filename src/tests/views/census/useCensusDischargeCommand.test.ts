@@ -5,15 +5,8 @@ import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import type { CensusActionNotification } from '@/features/census/controllers/censusActionNotificationController';
 import { useCensusDischargeCommand } from '@/features/census/hooks/useCensusDischargeCommand';
 
-const { mockGetLatestOpenTransferRequestByBedId, mockRecordCriticalClinicalAction } = vi.hoisted(
-  () => ({
-    mockGetLatestOpenTransferRequestByBedId: vi.fn(),
-    mockRecordCriticalClinicalAction: vi.fn(),
-  })
-);
-
-vi.mock('@/services/transfers/transferService', () => ({
-  getLatestOpenTransferRequestByBedId: mockGetLatestOpenTransferRequestByBedId,
+const { mockRecordCriticalClinicalAction } = vi.hoisted(() => ({
+  mockRecordCriticalClinicalAction: vi.fn(),
 }));
 
 vi.mock('@/services/observability/criticalClinicalActionRecorder', () => ({
@@ -55,10 +48,9 @@ describe('useCensusDischargeCommand', () => {
     vi.clearAllMocks();
   });
 
-  const createHook = () => {
+  const createHook = (overrides?: { canPerformActions?: boolean; recordId?: string }) => {
     const addDischarge = vi.fn();
     const updateDischarge = vi.fn();
-    const confirm = vi.fn();
     const setDischargeState = vi.fn();
     const notifyError = vi.fn<(notification: CensusActionNotification) => void>();
 
@@ -69,6 +61,7 @@ describe('useCensusDischargeCommand', () => {
             bedId: 'R1',
             isOpen: true,
             status: 'Vivo',
+            recordId: overrides?.recordId,
           },
         },
         recordRef: {
@@ -76,7 +69,7 @@ describe('useCensusDischargeCommand', () => {
         },
         stabilityRulesRef: {
           current: {
-            canPerformActions: true,
+            canPerformActions: overrides?.canPerformActions ?? true,
             canEditField: () => true,
             isDateLocked: false,
             isDayShiftLocked: false,
@@ -86,7 +79,6 @@ describe('useCensusDischargeCommand', () => {
         },
         addDischargeRef: { current: addDischarge },
         updateDischargeRef: { current: updateDischarge },
-        confirmRef: { current: confirm },
         setDischargeState,
         getCurrentTime: () => '10:15',
         notifyError,
@@ -97,23 +89,20 @@ describe('useCensusDischargeCommand', () => {
       ...hook,
       addDischarge,
       updateDischarge,
-      confirm,
       setDischargeState,
       notifyError,
     };
   };
 
-  it('executes discharge without confirmation when there is no active transfer', async () => {
-    mockGetLatestOpenTransferRequestByBedId.mockResolvedValue(null);
-    const { result, addDischarge, confirm } = createHook();
+  it('executes discharge directly and records critical action telemetry', async () => {
+    const { result, addDischarge, setDischargeState } = createHook();
 
     await act(async () => {
       result.current();
     });
 
-    expect(mockGetLatestOpenTransferRequestByBedId).toHaveBeenCalledWith('R1');
-    expect(confirm).not.toHaveBeenCalled();
     expect(addDischarge).toHaveBeenCalledTimes(1);
+    expect(setDischargeState).toHaveBeenCalledTimes(1);
     expect(mockRecordCriticalClinicalAction).toHaveBeenCalledWith(
       expect.objectContaining({
         category: 'daily_record',
@@ -126,75 +115,31 @@ describe('useCensusDischargeCommand', () => {
     );
   });
 
-  it('asks for confirmation and executes discharge when active transfer is confirmed', async () => {
-    mockGetLatestOpenTransferRequestByBedId.mockResolvedValue({
-      id: 'TR-1',
-      status: 'REQUESTED',
-      patientSnapshot: {
-        rut: '12.345.678-9',
-        name: 'Paciente Traslado',
-        admissionDate: '2026-03-01',
-      },
-    });
-    const { result, addDischarge, confirm } = createHook();
-    confirm.mockResolvedValue(true);
+  it('updates an existing discharge record when recordId is present', async () => {
+    const { result, addDischarge, updateDischarge } = createHook({ recordId: 'DIS-1' });
 
     await act(async () => {
-      result.current();
+      result.current({ status: 'Vivo', time: '11:30' });
     });
 
-    expect(confirm).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: 'Traslado en curso',
-        confirmText: 'Dar de alta igualmente',
-        cancelText: 'Cancelar',
-      })
-    );
-    expect(confirm.mock.calls[0]?.[0]?.message).toContain('usar el botón "Trasladar"');
-    expect(addDischarge).toHaveBeenCalledTimes(1);
-  });
-
-  it('asks for confirmation and aborts discharge when user cancels', async () => {
-    mockGetLatestOpenTransferRequestByBedId.mockResolvedValue({
-      id: 'TR-1',
-      status: 'REQUESTED',
-      patientSnapshot: {
-        rut: '12.345.678-9',
-        name: 'Paciente Traslado',
-        admissionDate: '2026-03-01',
-      },
-    });
-    const { result, addDischarge, confirm } = createHook();
-    confirm.mockResolvedValue(false);
-
-    await act(async () => {
-      result.current();
-    });
-
-    expect(confirm).toHaveBeenCalledTimes(1);
     expect(addDischarge).not.toHaveBeenCalled();
+    expect(updateDischarge).toHaveBeenCalledTimes(1);
   });
 
-  it('falls back to normal discharge when transfer lookup fails', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    mockGetLatestOpenTransferRequestByBedId.mockRejectedValue(new Error('lookup failed'));
-    const { result, addDischarge, confirm } = createHook();
+  it('notifies error and records failed telemetry when actions are locked', async () => {
+    const { result, addDischarge, notifyError } = createHook({ canPerformActions: false });
 
     await act(async () => {
       result.current();
     });
 
-    expect(confirm).not.toHaveBeenCalled();
-    expect(addDischarge).toHaveBeenCalledTimes(1);
+    expect(addDischarge).not.toHaveBeenCalled();
+    expect(notifyError).toHaveBeenCalledTimes(1);
     expect(mockRecordCriticalClinicalAction).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'census_discharge_created',
-        outcome: 'success',
-        bedId: 'R1',
+        outcome: 'failed',
       })
     );
-    expect(warnSpy).toHaveBeenCalled();
-
-    warnSpy.mockRestore();
   });
 });

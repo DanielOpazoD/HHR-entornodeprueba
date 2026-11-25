@@ -8,26 +8,12 @@ import {
   DEFAULT_EVACUATION_METHOD,
   DEFAULT_RECEIVING_CENTER,
   DEFAULT_TRANSFER_ESCORT,
+  RECEIVING_CENTER_OTHER,
 } from '@/constants/clinicalMovementConstants';
 
-const {
-  mockGetLatestOpenTransferRequestByBedId,
-  mockCreateFinalizedTransferRequestWithResult,
-  mockCompleteTransferWithResult,
-  mockUseAuth,
-  mockRecordCriticalClinicalAction,
-} = vi.hoisted(() => ({
-  mockGetLatestOpenTransferRequestByBedId: vi.fn(),
-  mockCreateFinalizedTransferRequestWithResult: vi.fn(),
-  mockCompleteTransferWithResult: vi.fn(),
+const { mockUseAuth, mockRecordCriticalClinicalAction } = vi.hoisted(() => ({
   mockUseAuth: vi.fn(),
   mockRecordCriticalClinicalAction: vi.fn(),
-}));
-
-vi.mock('@/services/transfers/transferService', () => ({
-  getLatestOpenTransferRequestByBedId: mockGetLatestOpenTransferRequestByBedId,
-  createFinalizedTransferRequestWithResult: mockCreateFinalizedTransferRequestWithResult,
-  completeTransferWithResult: mockCompleteTransferWithResult,
 }));
 
 vi.mock('@/context/AuthContext', () => ({
@@ -120,13 +106,11 @@ describe('useCensusTransferCommand', () => {
     return { ...hook, addTransfer, updateTransfer, setTransferState, notifyError };
   };
 
-  it('executes transfer and syncs a finalized transfer request when there is no linked open request', async () => {
-    mockGetLatestOpenTransferRequestByBedId.mockResolvedValue(null);
-    mockCreateFinalizedTransferRequestWithResult.mockResolvedValue({
-      status: 'success',
-      data: { id: 'TR-1' },
+  it('executes transfer directly in census and records telemetry with destination hospital', async () => {
+    const { result, addTransfer, updateTransfer, setTransferState, notifyError } = createHook({
+      receivingCenter: RECEIVING_CENTER_OTHER,
+      receivingCenterOther: 'Hospital Clínico',
     });
-    const { result, addTransfer, updateTransfer, setTransferState } = createHook();
 
     await act(async () => {
       result.current({ time: '11:00' });
@@ -135,19 +119,7 @@ describe('useCensusTransferCommand', () => {
     expect(addTransfer).toHaveBeenCalledTimes(1);
     expect(updateTransfer).not.toHaveBeenCalled();
     expect(setTransferState).toHaveBeenCalledTimes(1);
-    expect(mockCreateFinalizedTransferRequestWithResult).toHaveBeenCalledWith(
-      expect.objectContaining({
-        bedId: 'R1',
-        createdBy: 'doctor@example.com',
-        requestDate: '2026-03-03',
-        status: 'TRANSFERRED',
-      }),
-      'doctor@example.com'
-    );
-    expect(mockGetLatestOpenTransferRequestByBedId).toHaveBeenCalledWith('R1', {
-      referenceDate: '2026-03-03',
-    });
-    expect(mockCompleteTransferWithResult).not.toHaveBeenCalled();
+    expect(notifyError).not.toHaveBeenCalled();
     expect(mockRecordCriticalClinicalAction).toHaveBeenCalledWith(
       expect.objectContaining({
         category: 'daily_record',
@@ -157,36 +129,12 @@ describe('useCensusTransferCommand', () => {
         bedId: 'R1',
         patientRut: '12.345.678-9',
         userId: 'doctor@example.com',
+        context: expect.objectContaining({ destinationHospital: 'Hospital Clínico' }),
       })
     );
   });
 
-  it('finalizes the linked transfer request when one already exists for the bed', async () => {
-    mockGetLatestOpenTransferRequestByBedId.mockResolvedValue({ id: 'TR-9' });
-    mockCompleteTransferWithResult.mockResolvedValue({ status: 'success', data: null });
-    const { result, addTransfer, setTransferState } = createHook();
-
-    await act(async () => {
-      result.current({ time: '11:00' });
-    });
-
-    expect(addTransfer).toHaveBeenCalledTimes(1);
-    expect(setTransferState).toHaveBeenCalledTimes(1);
-    expect(mockCreateFinalizedTransferRequestWithResult).not.toHaveBeenCalled();
-    expect(mockGetLatestOpenTransferRequestByBedId).toHaveBeenCalledWith('R1', {
-      referenceDate: '2026-03-03',
-    });
-    expect(mockCompleteTransferWithResult).toHaveBeenCalledWith('TR-9', 'doctor@example.com');
-    expect(mockRecordCriticalClinicalAction).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: 'census_transfer_linked_request_finalized',
-        outcome: 'success',
-        context: expect.objectContaining({ linkedTransferRequestId: 'TR-9' }),
-      })
-    );
-  });
-
-  it('does not sync transfer request when editing an existing transfer record', async () => {
+  it('updates an existing transfer record when editing', async () => {
     const { result, addTransfer, updateTransfer } = createHook({
       recordId: 'TR-EXISTING',
       diagnosis: 'Diagnóstico previo',
@@ -205,71 +153,22 @@ describe('useCensusTransferCommand', () => {
         diagnosis: 'Diagnóstico actualizado',
       })
     );
-    expect(mockGetLatestOpenTransferRequestByBedId).not.toHaveBeenCalled();
-    expect(mockCreateFinalizedTransferRequestWithResult).not.toHaveBeenCalled();
   });
 
-  it('notifies warning when transfer sync fails after registering the transfer', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    mockGetLatestOpenTransferRequestByBedId.mockRejectedValue(new Error('sync failed'));
-    const { result, addTransfer, notifyError } = createHook();
+  it('notifies error and records failed telemetry when transfer validation fails', async () => {
+    const { result, addTransfer, notifyError } = createHook({ bedId: null });
 
     await act(async () => {
       result.current({ time: '11:00' });
     });
 
-    expect(addTransfer).toHaveBeenCalledTimes(1);
+    expect(addTransfer).not.toHaveBeenCalled();
+    expect(notifyError).toHaveBeenCalledTimes(1);
     expect(mockRecordCriticalClinicalAction).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'census_transfer_created',
-        outcome: 'success',
-      })
-    );
-    expect(mockRecordCriticalClinicalAction).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: 'census_transfer_management_sync',
         outcome: 'failed',
-        issues: ['sync failed'],
       })
     );
-    expect(notifyError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: 'Traslado registrado con advertencia',
-      })
-    );
-
-    errorSpy.mockRestore();
-  });
-
-  it('notifies warning when linked transfer finalization is rejected by Firestore', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    mockGetLatestOpenTransferRequestByBedId.mockResolvedValue({ id: 'TR-9' });
-    mockCompleteTransferWithResult.mockResolvedValue({
-      status: 'permission_denied',
-      data: null,
-      userSafeMessage: 'No se pudo completar el traslado.',
-      error: new Error('Missing or insufficient permissions.'),
-    });
-    const { result, addTransfer, notifyError } = createHook();
-
-    await act(async () => {
-      result.current({ time: '11:00' });
-    });
-
-    expect(addTransfer).toHaveBeenCalledTimes(1);
-    expect(mockRecordCriticalClinicalAction).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: 'census_transfer_management_sync',
-        outcome: 'failed',
-        issues: ['No se pudo completar el traslado.'],
-      })
-    );
-    expect(notifyError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: 'Traslado registrado con advertencia',
-      })
-    );
-
-    errorSpy.mockRestore();
   });
 });
