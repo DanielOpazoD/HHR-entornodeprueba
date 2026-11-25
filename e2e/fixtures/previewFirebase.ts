@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import type { Page, Route } from '@playwright/test';
 
 export type FirebasePreviewConfig = {
@@ -11,66 +9,41 @@ export type FirebasePreviewConfig = {
   appId: string;
 };
 
-const parseDotEnvFile = (filePath: string): Record<string, string> => {
-  if (!fs.existsSync(filePath)) {
-    return {};
-  }
-
-  return fs
-    .readFileSync(filePath, 'utf-8')
-    .split(/\r?\n/)
-    .reduce<Record<string, string>>((acc, rawLine) => {
-      const line = rawLine.trim();
-      if (!line || line.startsWith('#')) {
-        return acc;
-      }
-
-      const separatorIndex = line.indexOf('=');
-      if (separatorIndex === -1) {
-        return acc;
-      }
-
-      const key = line.slice(0, separatorIndex).trim();
-      const value = line.slice(separatorIndex + 1).trim();
-      acc[key] = value;
-      return acc;
-    }, {});
+const SYNTHETIC_PREVIEW_FIREBASE_CONFIG: FirebasePreviewConfig = {
+  apiKey: 'demo-api-key',
+  authDomain: 'demo-hhr.firebaseapp.com',
+  projectId: 'demo-hhr-e2e',
+  storageBucket: 'demo-hhr-e2e.firebasestorage.app',
+  messagingSenderId: '1234567890',
+  appId: '1:1234567890:web:abcdef123456',
 };
 
-export const loadPreviewFirebaseConfig = (): FirebasePreviewConfig => {
-  const envFiles = ['.env.production', '.env', '.env.local'].map(file =>
-    path.resolve(process.cwd(), file)
-  );
-  const mergedEnv = envFiles.reduce<Record<string, string>>(
-    (acc, filePath) => ({ ...acc, ...parseDotEnvFile(filePath) }),
-    {}
-  );
+const isSyntheticProjectId = (projectId: string | undefined): projectId is string =>
+  typeof projectId === 'string' && projectId.startsWith('demo-');
 
-  const apiKey =
-    process.env.VITE_FIREBASE_API_KEY || mergedEnv.VITE_FIREBASE_API_KEY || 'demo-api-key';
-  const projectId =
-    process.env.VITE_FIREBASE_PROJECT_ID || mergedEnv.VITE_FIREBASE_PROJECT_ID || 'demo-hhr-e2e';
-  const appId =
-    process.env.VITE_FIREBASE_APP_ID ||
-    mergedEnv.VITE_FIREBASE_APP_ID ||
-    '1:1234567890:web:abcdef123456';
+/**
+ * Preview E2E runs strictly against synthetic `demo-*` Firebase coordinates.
+ * Local `.env*` files and non-demo `VITE_FIREBASE_*` variables are ignored so tests
+ * never point at production Firebase even when developer credentials exist on disk.
+ */
+export const loadPreviewFirebaseConfig = (
+  env: Record<string, string | undefined> = process.env
+): FirebasePreviewConfig => {
+  const configuredProjectId = env.VITE_FIREBASE_PROJECT_ID?.trim();
+  if (!isSyntheticProjectId(configuredProjectId)) {
+    return { ...SYNTHETIC_PREVIEW_FIREBASE_CONFIG };
+  }
 
   return {
-    apiKey,
-    authDomain:
-      process.env.VITE_FIREBASE_AUTH_DOMAIN ||
-      mergedEnv.VITE_FIREBASE_AUTH_DOMAIN ||
-      'demo-hhr.firebaseapp.com',
-    projectId,
+    apiKey: env.VITE_FIREBASE_API_KEY?.trim() || SYNTHETIC_PREVIEW_FIREBASE_CONFIG.apiKey,
+    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN?.trim() || `${configuredProjectId}.firebaseapp.com`,
+    projectId: configuredProjectId,
     storageBucket:
-      process.env.VITE_FIREBASE_STORAGE_BUCKET ||
-      mergedEnv.VITE_FIREBASE_STORAGE_BUCKET ||
-      'demo-hhr-e2e.firebasestorage.app',
+      env.VITE_FIREBASE_STORAGE_BUCKET?.trim() || `${configuredProjectId}.firebasestorage.app`,
     messagingSenderId:
-      process.env.VITE_FIREBASE_MESSAGING_SENDER_ID ||
-      mergedEnv.VITE_FIREBASE_MESSAGING_SENDER_ID ||
-      '1234567890',
-    appId,
+      env.VITE_FIREBASE_MESSAGING_SENDER_ID?.trim() ||
+      SYNTHETIC_PREVIEW_FIREBASE_CONFIG.messagingSenderId,
+    appId: env.VITE_FIREBASE_APP_ID?.trim() || SYNTHETIC_PREVIEW_FIREBASE_CONFIG.appId,
   };
 };
 
