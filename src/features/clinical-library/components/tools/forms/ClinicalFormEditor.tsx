@@ -27,6 +27,7 @@ import {
 import { useClinicalFormAnnexes } from './useClinicalFormAnnexes';
 import { ClinicalFormAnnexPanel } from './ClinicalFormAnnexPanel';
 import { mapBradenRecordsToClinicalFormValues } from '../../../domain/forms/clinicalFormBradenHistory';
+import { SIC_FORM_ID } from '../../../domain/forms/sicFormData';
 import { normalizeDicomPatientId } from '@/domain/radiology/dicomTypes';
 import './clinicalForms.css';
 
@@ -338,14 +339,16 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
             </div>
           ) : (
             <>
-              <input
-                type="search"
-                aria-label="Buscar campo o examen"
-                placeholder="Buscar campo o examen…"
-                value={query}
-                onChange={event => setQuery(event.target.value)}
-                className="clinical-form-input clinical-form-search"
-              />
+              {formId !== SIC_FORM_ID && (
+                <input
+                  type="search"
+                  aria-label="Buscar campo o examen"
+                  placeholder="Buscar campo o examen…"
+                  value={query}
+                  onChange={event => setQuery(event.target.value)}
+                  className="clinical-form-input clinical-form-search"
+                />
+              )}
               <ClinicalFormFields
                 form={form}
                 values={draft.values}

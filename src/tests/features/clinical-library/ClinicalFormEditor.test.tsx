@@ -166,12 +166,27 @@ describe('clinical forms editor', () => {
     }
   });
 
-  it('offers SIC manual/census editing, fixed constants, exclusive consultation and independent reasons', async () => {
-    mount('solicitud-interconsulta-hhr');
-    expect(screen.getByLabelText('Prioridad')).toHaveValue('Alta');
-    expect(screen.getByLabelText('Prioridad')).toHaveAttribute('readonly');
-    expect(screen.getByLabelText('Dirección')).toHaveValue('Simón PAOA S/N');
+  it('offers minimalist SIC editing without fixed readonly fields, search bar, or redundant name inputs', async () => {
+    const structuredPatient: ClinicalFormPatientOption = {
+      ...source('MARÍA PÉREZ SOTO', 'structured-ep'),
+      values: {
+        ...source('MARÍA PÉREZ SOTO', 'structured-ep').values,
+        paciente_nombres: 'MARÍA',
+        paciente_apellido_paterno: 'PÉREZ',
+        paciente_apellido_materno: 'SOTO',
+      },
+    };
+    mount('solicitud-interconsulta-hhr', [...patients, structuredPatient]);
+    expect(screen.queryByLabelText('Prioridad')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Dirección')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Buscar campo o examen')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Nombre completo')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Apellido paterno')).not.toBeInTheDocument();
+
     fireEvent.change(screen.getByLabelText('Origen de los datos'), { target: { value: 'ALFA' } });
+    expect(screen.getByLabelText('Nombre completo')).toHaveValue('ALFA');
+    expect(screen.queryByLabelText('Apellido paterno')).not.toBeInTheDocument();
+
     fireEvent.change(screen.getByLabelText('Tipo de consulta'), {
       target: { value: 'Ambulatoria' },
     });
@@ -191,6 +206,14 @@ describe('clinical forms editor', () => {
       sic_tratamiento: true,
       sic_examenes: true,
     });
+
+    fireEvent.change(screen.getByLabelText('Origen de los datos'), {
+      target: { value: 'structured-ep' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Reemplazar datos' }));
+    expect(screen.getByLabelText('Apellido paterno')).toHaveValue('PÉREZ');
+    expect(screen.getByLabelText('Nombres')).toHaveValue('MARÍA');
+    expect(screen.queryByLabelText('Nombre completo')).not.toBeInTheDocument();
   });
 
   it('does not allow clinical-record numbers to be re-enabled in preferences', () => {

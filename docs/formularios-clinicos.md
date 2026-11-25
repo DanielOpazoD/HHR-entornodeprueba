@@ -128,11 +128,15 @@ sin completar. El usuario puede descargar el original o editar y exportar PDF/Wo
 - Elige un paciente del censo (incluida cuna clínica) o ingreso manual. El vínculo
   usa identidad y episodio, no sólo cama; cambiar de paciente requiere revisión.
 - Fecha SIC parte del día clínico de Rapa Nui y puede corregirse. Prioridad **Alta**
-  y dirección **Simón PAOA S/N** son constantes no ocultables ni reemplazables por JSON.
+  y dirección **Simón PAOA S/N** se imprimen siempre de forma automática sin ocupar
+  campos editables en pantalla y no se pueden ocultar ni reemplazar por JSON.
 - Sexo y tipo de consulta son selecciones únicas; los motivos admiten varias cruces.
-  No se inventa una marca para sexo indeterminado: la plantilla sólo tiene F/M.
-- Completar destino, hipótesis, fundamento, nombre/RUT del profesional y al menos
-  un motivo antes de exportar. Datos faltantes y texto que no cabe bloquean la salida.
+  En el editor se muestra un único campo de nombre completo, o los tres campos separados
+  cuando el paciente del censo ya trae nombres estructurados. Sexo indeterminado deja
+  ambas casillas F/M sin marcar.
+- Ningún campo es obligatorio para previsualizar, imprimir o exportar PDF/Word: se imprime
+  únicamente lo completado. Sólo bloquean errores de formato en valores ingresados (como un
+  RUT inválido) o texto que no cabe en su casillero.
 - Se reutiliza la imagen de firma del usuario autenticado. Puede desmarcarse para
   firmar a mano o adjuntar PNG/JPG/WEBP de hasta 500 KB, sólo durante esta sesión.
   Adjuntar aquí no reemplaza la firma guardada. Debe corresponder al profesional emisor.

@@ -564,19 +564,16 @@ test.describe('SIC export and saved signature isolation', () => {
         .getAttribute('value');
       expect(key).toBeTruthy();
       await source.selectOption(key!);
-      await expect(editor.getByLabel('Prioridad')).toHaveValue('Alta');
-      await expect(editor.getByLabel('Dirección')).toHaveValue('Simón PAOA S/N');
-      await editor.getByLabel('Fecha de nacimiento').fill('1982-04-03');
+      await expect(editor.getByLabel('Prioridad')).toHaveCount(0);
+      await expect(editor.getByLabel('Dirección')).toHaveCount(0);
+      await expect(editor.getByLabel('Buscar campo o examen')).toHaveCount(0);
+      await expect(editor.getByLabel('Nombre completo')).toHaveValue(SEEDED_PATIENT_NAME);
       await editor.getByLabel('Especialidad').fill('MEDICINA INTERNA');
       await editor.getByLabel('Establecimiento').fill('HOSPITAL DEL SALVADOR');
       await editor.getByLabel('Tipo de consulta').selectOption('Hospitalización');
-      await editor.getByLabel('Confirmación diagnóstica').check();
-      await editor.getByLabel('Tratamiento', { exact: true }).check();
       await editor
         .getByLabel('Fundamentos del diagnóstico')
         .fill('Fundamento sintético para validar el formulario.');
-      await editor.getByLabel('Nombre del profesional').fill('PROFESIONAL DE PRUEBA');
-      await editor.getByLabel('RUT del profesional').fill('11.111.111-1');
       await expect(
         editor.getByRole('img', { name: 'Firma seleccionada para esta SIC' })
       ).toBeVisible();
@@ -642,13 +639,10 @@ test.describe('SIC export and saved signature isolation', () => {
           .getByRole('button', { name: /^Completar/ })
           .click();
         const nextEditor = nextPage.getByTestId('library-tool-clinical-form');
-        await expect(nextEditor.getByText(/No tienes una firma guardada/)).toBeVisible();
+        await expect(nextEditor.getByLabel('Nombre completo')).toHaveValue('');
         await expect(
           nextEditor.getByRole('img', { name: 'Firma seleccionada para esta SIC' })
         ).toHaveCount(0);
-        await expect(
-          nextEditor.getByLabel('Nombre completo (si no hay nombres separados)')
-        ).toHaveValue('');
         expect(nextReads.length).toBeGreaterThan(0);
         expect(nextReads.every(url => url.includes(`/user-signatures/${nextUid}/signature`))).toBe(
           true

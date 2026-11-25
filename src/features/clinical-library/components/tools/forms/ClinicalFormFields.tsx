@@ -7,6 +7,11 @@ import type {
 } from '../../../domain/forms/clinicalFormTypes';
 import { ClinicalFormInput } from './ClinicalFormInput';
 import { isSuppressedClinicalFormField } from '../../../domain/forms/clinicalFormFieldPolicy';
+import {
+  hasSicStructuredName,
+  SIC_FORM_ID,
+  SIC_STRUCTURED_NAME_IDS,
+} from '../../../domain/forms/sicFormData';
 
 interface Props {
   form: ClinicalFormDefinition;
@@ -84,12 +89,21 @@ const Matrix: React.FC<{
 };
 
 export const ClinicalFormFields: React.FC<Props> = ({ form, values, hidden, query, onChange }) => {
-  const fields = form.fields.filter(
-    field =>
-      !isSuppressedClinicalFormField(field) &&
-      (field.fixedValue !== undefined || !hidden.includes(field.id)) &&
-      matchesClinicalFormField(field, query)
-  );
+  const isSic = form.id === SIC_FORM_ID;
+  const structuredSicName = isSic && hasSicStructuredName(values);
+  const fields = form.fields.filter(field => {
+    if (field.fixedValue !== undefined || isSuppressedClinicalFormField(field)) return false;
+    if (hidden.includes(field.id) || !matchesClinicalFormField(field, query)) return false;
+    if (isSic) {
+      if (structuredSicName && field.id === 'paciente_nombre_completo') return false;
+      if (
+        !structuredSicName &&
+        (SIC_STRUCTURED_NAME_IDS as ReadonlyArray<string>).includes(field.id)
+      )
+        return false;
+    }
+    return true;
+  });
   const priority: Record<string, number> = {
     Paciente: 0,
     Solicitud: 1,
