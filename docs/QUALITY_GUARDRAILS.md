@@ -60,7 +60,6 @@ Su presentación debe comunicar la incertidumbre sin impedir abrir la galería.
 - `npm run ci:merge-gate`
 - `npm run ci:preview-gate`
 - `npm run ci:release-gate`
-- `npm run ci:quality-core`
 - `npm run check:quality`
 - `npm run check:release-evidence`
 - `npm run check:release-evidence-contract:strict`
@@ -103,8 +102,7 @@ modifica archivos ni sincroniza automáticamente durante CI.
 - El estado operativo por flujo distingue `ok`, `near-limit`, `target-miss` y `blocking`.
 - El ownership técnico crítico vive en `scripts/config/technical-ownership-map.json`.
 - `report:technical-ownership-map` conserva el snapshot de responsables, métricas, gates y runbooks para revisión técnica; no hay un validador de campos separado.
-- La política de cambio sostenible vive en `scripts/config/sustainable-change-policy.json`.
-- `report:sustainable-change-policy` conserva el snapshot de la política para revisión técnica; siguen vigentes upgrades, excepciones y DoD, sin un validador de campos separado.
+- La política de cambio sostenible vive en `scripts/config/sustainable-change-policy.json` (upgrades, excepciones y DoD, sin un validador de campos separado).
 - La política para decidir si una mejora técnica vale la pena antes de ejecutarla vive en [docs/ENGINEERING_CHANGE_DECISION_POLICY.md](./ENGINEERING_CHANGE_DECISION_POLICY.md).
 - La definición de terminado vive en [docs/ENGINEERING_DEFINITION_OF_DONE.md](./ENGINEERING_DEFINITION_OF_DONE.md).
 - La deuda priorizada vive en [docs/TECHNICAL_DEBT_REGISTER.md](./TECHNICAL_DEBT_REGISTER.md).

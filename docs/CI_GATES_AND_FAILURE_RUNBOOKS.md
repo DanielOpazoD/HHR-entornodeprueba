@@ -423,7 +423,7 @@ CI regenera los snapshots report-only obligatorios con `npm run report:governanc
 `release-readiness-scorecard` sigue siendo ejecutivo y obligatorio para release, pero ya no duplica bloqueo dentro de `check:quality` si las fuentes primarias siguen verdes.
 `release-confidence-matrix` también pasa a report-only dentro del aggregate: sigue exigiéndose para trazabilidad y revisión técnica, pero no como bloqueo duplicado si el release pack y la cobertura primaria siguen verdes.
 La fuente de verdad es `scripts/config/guardrail-governance.json`: `reportOnly` registra comandos que escriben snapshots y `qualityAggregate.checks` enumera lo que ejecuta el agregado, con su carácter bloqueante o advisory. Un productor registrado no implica que su checker se ejecute.
-`report:technical-ownership-map` y `report:sustainable-change-policy` conservan los snapshots para revisión técnica. Las políticas de ownership, upgrades, excepciones y definición de cambio seguro siguen vigentes, sin validadores de campos separados.
+`report:technical-ownership-map` conserva el snapshot para revisión técnica. Las políticas de ownership, upgrades, excepciones y definición de cambio seguro viven en `scripts/config/sustainable-change-policy.json`, sin validadores de campos separados.
 La validación de tiempos actuales corre en el job `ci-runtime-telemetry` de `.github/workflows/ci-cd.yml`, requerido por `ci-summary`: collect → report → check. `npm run check:ci-runtime-telemetry` sigue disponible localmente y valida el archivo presente; comprobar su fecha y corrida de origen antes de usarlo como evidencia.
 
 Salida esperada:
@@ -459,14 +459,13 @@ Salida esperada:
 
 ### Falla `check:serverless-sensitive-coverage`
 
-1. correr `npm run report:serverless-sensitive-coverage`
-2. revisar `reports/serverless-sensitive-coverage.md`
-3. confirmar para cada Function sensible que sigan presentes:
+1. correr `npm run check:serverless-sensitive-coverage`
+2. confirmar para cada Function sensible que sigan presentes:
    - archivo de Function
    - al menos un test de frontera dueño
    - documentación en `docs/SERVERLESS_SENSITIVE_CONTRACTS.md`
-4. si agregaste una Function sensible nueva, registrarla en `scripts/config/serverless-sensitive-coverage.json` en la misma change
-5. no aceptar endpoints sensibles sin test focalizado y contrato operativo documentado
+3. si agregaste una Function sensible nueva, registrarla en `scripts/config/serverless-sensitive-coverage.json` en la misma change
+4. no aceptar endpoints sensibles sin test focalizado y contrato operativo documentado
 
 ### Scorecard de release degradado
 
@@ -482,14 +481,13 @@ Salida esperada:
 
 ### Revisar la política de cambios
 
-1. correr `npm run report:sustainable-change-policy`
-2. revisar `reports/sustainable-change-policy.md`
-3. confirmar que sigan presentes:
+1. revisar `scripts/config/sustainable-change-policy.json`
+2. confirmar que sigan presentes:
    - los tipos de cambio canónicos
    - las reglas mínimas para upgrades
    - los campos obligatorios para excepciones
    - la relación con `Definition of Done`
-4. si agregaste un tipo de cambio nuevo o una excepción nueva, actualizar esta policy en la misma change
+3. si agregaste un tipo de cambio nuevo o una excepción nueva, actualizar esta policy en la misma change
 
 ### Falla `check:guardrail-governance`
 

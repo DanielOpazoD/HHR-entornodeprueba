@@ -159,24 +159,6 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
       'src/tests/build/ciRuntimeTelemetrySupport.test.ts',
     ],
   }),
-  'serverless-runtime-governance': reportNode({
-    command: 'report:serverless-runtime-governance',
-    artifacts: [
-      'reports/serverless-runtime-governance.json',
-      'reports/serverless-runtime-governance.md',
-    ],
-  }),
-  'serverless-sensitive-coverage': reportNode({
-    command: 'report:serverless-sensitive-coverage',
-    artifacts: [
-      'reports/serverless-sensitive-coverage.json',
-      'reports/serverless-sensitive-coverage.md',
-    ],
-  }),
-  'sustainable-change-policy': reportNode({
-    command: 'report:sustainable-change-policy',
-    artifacts: ['reports/sustainable-change-policy.json', 'reports/sustainable-change-policy.md'],
-  }),
   'maintenance-debt-scorecard': reportNode({
     command: 'report:maintenance-debt-scorecard',
     artifacts: ['reports/maintenance-debt-scorecard.json', 'reports/maintenance-debt-scorecard.md'],

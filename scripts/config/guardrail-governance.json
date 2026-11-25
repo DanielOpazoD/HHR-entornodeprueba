@@ -97,11 +97,6 @@
       "artifact": "reports/legacy-retirement-debt.md"
     },
     {
-      "id": "serverless_sensitive_coverage",
-      "script": "report:serverless-sensitive-coverage",
-      "artifact": "reports/serverless-sensitive-coverage.md"
-    },
-    {
       "id": "release_readiness",
       "script": "report:release-readiness-scorecard",
       "artifact": "reports/release-readiness-scorecard.md"
@@ -117,11 +112,6 @@
       "artifact": "reports/runtime-contracts.md"
     },
     {
-      "id": "serverless_runtime_governance",
-      "script": "report:serverless-runtime-governance",
-      "artifact": "reports/serverless-runtime-governance.md"
-    },
-    {
       "id": "guardrail_governance",
       "script": "report:guardrail-governance",
       "artifact": "reports/guardrail-governance.md"
@@ -130,11 +120,6 @@
       "id": "technical_ownership",
       "script": "report:technical-ownership-map",
       "artifact": "reports/technical-ownership-map.md"
-    },
-    {
-      "id": "sustainable_change_policy",
-      "script": "report:sustainable-change-policy",
-      "artifact": "reports/sustainable-change-policy.md"
     },
     {
       "id": "test_runtime_governance",
