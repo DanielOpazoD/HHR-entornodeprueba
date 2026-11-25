@@ -17,8 +17,9 @@ const DAILY_RECORD_WRITE_ROLES = new Set([
 
 const CLINICAL_DOCUMENT_PDF_RENDER_ROLES = new Set([
   'admin',
-  'doctor_urgency',
   'nurse_hospital',
+  'doctor_urgency',
+  'doctor_specialist',
   'editor',
 ]);
 
