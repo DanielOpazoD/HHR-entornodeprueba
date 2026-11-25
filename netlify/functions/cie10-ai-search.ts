@@ -179,7 +179,7 @@ IMPORTANTE: Responde SOLO con el JSON, sin explicaciones ni markdown.
     let jsonText = text;
     if (text.startsWith('```')) {
       const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-      jsonText = match ? match[1].trim() : text;
+      jsonText = match?.[1]?.trim() ?? text;
     }
 
     const parsed = JSON.parse(jsonText);

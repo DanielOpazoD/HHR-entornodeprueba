@@ -54,15 +54,16 @@ describe('CI static group scheduling', () => {
     expect(jobNeeds(jobs['quality-static-governance-snapshots'])).toContain('quality-static-base');
     expect(jobNeeds(jobs.build)).toEqual(['quality-static-governance-snapshots']);
   });
-  it('runs the unchecked-index gate through the quality aggregate, locally and in CI', () => {
-    // `npm run check:quality` must catch what CI rejects: the gate lives in the aggregate only.
-    const governance = JSON.parse(
-      fs.readFileSync(path.join(process.cwd(), 'scripts/config/guardrail-governance.json'), 'utf8')
-    ) as { qualityAggregate: { checks: Array<{ id: string; group: string }> } };
-    expect(governance.qualityAggregate.checks).toContainEqual({
-      id: 'check:unchecked-index',
-      group: 'type-safety',
-    });
+  it('enforces noUncheckedIndexedAccess natively on production src and Netlify functions in typecheck', () => {
+    const readJson = (file: string) =>
+      JSON.parse(fs.readFileSync(path.join(process.cwd(), file), 'utf8'));
+    expect(readJson('tsconfig.prod.json').compilerOptions?.noUncheckedIndexedAccess).toBe(true);
+    expect(readJson('tsconfig.netlify.json').compilerOptions?.noUncheckedIndexedAccess).toBe(true);
+    const scripts = readJson('package.json').scripts as Record<string, string>;
+    for (const key of ['typecheck', 'typecheck:local']) {
+      expect(scripts[key]).toContain('-p tsconfig.prod.json');
+      expect(scripts[key]).toContain('-p tsconfig.netlify.json');
+    }
   });
   it('checks the installed extension source as a blocking step after dependency setup', () => {
     const readJson = (file: string) =>

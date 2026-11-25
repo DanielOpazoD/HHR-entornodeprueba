@@ -310,8 +310,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # check:unchecked-index runs in the quality aggregate (group type-safety, CI lane
-        # security), so `npm run check:quality` locally runs the same gate CI does.
+        # typecheck natively enforces noUncheckedIndexedAccess on production src/ (tsconfig.prod.json)
+        # and netlify/functions/ (tsconfig.netlify.json).
         check: [lint, typecheck]
 
     steps:

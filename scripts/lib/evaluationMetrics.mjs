@@ -266,7 +266,6 @@ export const measureAgentRules = root => {
  */
 export const measureExceptionBooks = root => {
   const castCeilings = readJson(root, 'scripts/config/unknown-cast-ceilings.json')?.files;
-  const uncheckedIndex = readJson(root, 'scripts/config/unchecked-index-baseline.json')?.total;
   const sessionPending = readJson(root, 'scripts/config/session-raw-read-ledger.json')?.pending;
   const retained = readJson(root, 'scripts/config/unreachable-modules.json')?.retained;
   return {
@@ -277,7 +276,6 @@ export const measureExceptionBooks = root => {
             0
           )
         : null,
-    uncheckedIndexBaseline: typeof uncheckedIndex === 'number' ? uncheckedIndex : null,
     sessionRawReadPending:
       sessionPending && typeof sessionPending === 'object'
         ? Object.keys(sessionPending).length

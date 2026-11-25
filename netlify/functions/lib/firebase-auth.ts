@@ -76,11 +76,15 @@ const decodeBase64Url = (value: string): Buffer => {
 
 const parseJwt = (token: string) => {
   const parts = token.split('.');
-  if (parts.length !== 3) {
+  const [headerPart, payloadPart, signaturePart] = parts;
+  if (
+    parts.length !== 3 ||
+    headerPart === undefined ||
+    payloadPart === undefined ||
+    signaturePart === undefined
+  ) {
     throw new Error('Malformed Firebase ID token.');
   }
-
-  const [headerPart, payloadPart, signaturePart] = parts;
 
   const header = JSON.parse(decodeBase64Url(headerPart).toString('utf8')) as JwtHeader;
   const payload = JSON.parse(decodeBase64Url(payloadPart).toString('utf8')) as FirebaseJwtPayload;

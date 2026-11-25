@@ -23,13 +23,7 @@ try {
   const changed = getChangedFiles();
   console.log(`[changed] ${changed.size} archivos respecto de origin/main y cambios locales.`);
   const matches = pattern => [...changed].some(file => pattern.test(file));
-  const source = /^(src\/|tsconfig.*\.json$|package(?:-lock)?\.json$)/;
   const checks = [
-    [
-      'unchecked-index',
-      source,
-      'Protege las lecturas nuevas; si bajaron, usa npm run check:unchecked-index -- --write-baseline.',
-    ],
     ['test-governance', /^src\/tests\//, 'Retira only/skip prohibidos de las pruebas.'],
     [
       'module-size',

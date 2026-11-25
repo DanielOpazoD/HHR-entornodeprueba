@@ -42,7 +42,7 @@ const stripJsonFence = (value: string): string => {
   if (!trimmed.startsWith('```')) return trimmed;
 
   const match = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  return match ? match[1].trim() : trimmed;
+  return match?.[1]?.trim() ?? trimmed;
 };
 
 export const buildClinicalDocumentAiImportPrompt = (sourceText: string) => ({

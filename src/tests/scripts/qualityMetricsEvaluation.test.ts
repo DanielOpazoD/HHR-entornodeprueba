@@ -76,7 +76,6 @@ describe('report:quality-metrics evaluation figures', () => {
       'scripts/config/unknown-cast-ceilings.json': JSON.stringify({
         files: { 'a.ts': 2, 'b.ts': 1 },
       }),
-      'scripts/config/unchecked-index-baseline.json': JSON.stringify({ total: 7 }),
       'scripts/config/session-raw-read-ledger.json': JSON.stringify({
         owners: {},
         pending: { 'src/a.ts': 'why', 'src/b.ts': 'why' },
@@ -107,7 +106,6 @@ describe('report:quality-metrics evaluation figures', () => {
       agentRules: { rules: 4, withDocs: 3, docsOnly: 2, bytes: Buffer.byteLength(AGENTS) },
       exceptionBooks: {
         unknownCastCeilings: 3,
-        uncheckedIndexBaseline: 7,
         sessionRawReadPending: 2,
         unreachableRetainedFiles: 2,
       },
@@ -128,7 +126,6 @@ describe('report:quality-metrics evaluation figures', () => {
     expect(json.evaluation.agentRules).toBeNull();
     expect(json.evaluation.exceptionBooks).toEqual({
       unknownCastCeilings: null,
-      uncheckedIndexBaseline: null,
       sessionRawReadPending: null,
       unreachableRetainedFiles: null,
     });

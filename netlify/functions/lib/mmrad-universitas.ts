@@ -49,9 +49,12 @@ export const isUniversitasLink = (link: string): boolean => {
 
 /** The redirect page names one short link; none or two different ones is refused. */
 export const universitasShortLinkFromHtml = (html: string): string => {
-  const codes = new Set([...html.matchAll(SHORT_LINK)].map(match => match[1]));
-  if (codes.size !== 1) throw new Error('MMRAD no entregó un enlace único al visor.');
-  return [...codes][0];
+  const codes = new Set(
+    [...html.matchAll(SHORT_LINK)].map(match => match[1]).filter((code): code is string => !!code)
+  );
+  const [onlyCode] = codes;
+  if (codes.size !== 1 || !onlyCode) throw new Error('MMRAD no entregó un enlace único al visor.');
+  return onlyCode;
 };
 
 export const publicSessionFromRedirect = (location: string | null): string => {
@@ -80,8 +83,8 @@ export const shareCookieFrom = (
     .map(header =>
       /^(cc_public_share_[a-f0-9]{16,128})=([A-Za-z0-9._~%+/=-]{1,512})(?:;|$)/i.exec(header)
     )
-    .find(found => found && found[1].toLowerCase() === `cc_public_share_${session}`.toLowerCase());
-  if (!match) throw new Error('El visor MMRAD no entregó su cookie de acceso.');
+    .find(found => found?.[1]?.toLowerCase() === `cc_public_share_${session}`.toLowerCase());
+  if (!match?.[1] || !match[2]) throw new Error('El visor MMRAD no entregó su cookie de acceso.');
   const header = setCookies.find(value => value.startsWith(`${match[1]}=`)) ?? '';
   const maxAge = Number(/Max-Age=(\d{1,6})/i.exec(header)?.[1] ?? 600);
   return { cookie: `${match[1]}=${match[2]}`, ttlMs: Math.max(60_000, (maxAge - 30) * 1000) };
