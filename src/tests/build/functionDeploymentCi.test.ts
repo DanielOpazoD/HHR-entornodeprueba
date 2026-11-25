@@ -14,6 +14,7 @@ import {
   findDeploymentBaseline,
   FUNCTION_DEPLOY_JOB_NAME,
   resolveDeploymentScope,
+  selectDeployedFunctionsToDelete,
   verifyFunctionDeploymentCi,
 } from '../../../scripts/functionDeploymentSupport.mjs';
 
@@ -335,5 +336,118 @@ describe('validated Functions deployment', () => {
       FUNCTION_DEPLOY_JOB_NAME
     );
     expect(affectsFunctionDeployment('scripts/capture-firebase-functions-list.mjs')).toBe(true);
+  });
+
+  it('selects only deployed retired or region-orphaned functions and fails closed on bad payloads', () => {
+    const deployedPayload = {
+      status: 'success',
+      result: [
+        { id: 'saveDailyRecordWithClinicalAuthority', region: 'southamerica-east1' },
+        { id: 'patchDailyRecordWithClinicalAuthority', region: 'southamerica-east1' },
+        { id: 'checkUserRole', region: 'us-central1' },
+      ],
+    };
+
+    expect(
+      selectDeployedFunctionsToDelete(deployedPayload, [
+        'mirrorDailyRecords',
+        'saveDailyRecordWithClinicalAuthority@us-central1',
+        'patchDailyRecordWithClinicalAuthority@us-central1',
+      ])
+    ).toEqual([]);
+
+    const lingeringPayload = {
+      status: 'success',
+      result: [
+        ...deployedPayload.result,
+        { id: 'mirrorDailyRecords', region: 'us-central1' },
+        { id: 'mirrorDailyRecords', region: 'southamerica-east1' },
+        { id: 'patchDailyRecordWithClinicalAuthority', region: 'us-central1' },
+      ],
+    };
+
+    expect(
+      selectDeployedFunctionsToDelete(lingeringPayload, [
+        'mirrorDailyRecords',
+        'mirrorAuditLogs',
+        'saveDailyRecordWithClinicalAuthority@us-central1',
+        'patchDailyRecordWithClinicalAuthority@us-central1',
+        'mirrorDailyRecords',
+      ])
+    ).toEqual(['mirrorDailyRecords', 'patchDailyRecordWithClinicalAuthority@us-central1']);
+
+    for (const badPayload of [
+      null,
+      { status: 'error', result: [] },
+      { status: 'success' },
+      { status: 'success', result: [{ id: 'x' }] },
+      { status: 'success', result: [{ region: 'us-central1' }] },
+    ]) {
+      expect(() => selectDeployedFunctionsToDelete(badPayload, ['mirrorDailyRecords'])).toThrow();
+    }
+
+    for (const badSpec of ['', '@us-central1', 'fn@', 'a@b@c', 'bad name']) {
+      expect(() => selectDeployedFunctionsToDelete(deployedPayload, [badSpec])).toThrow();
+    }
+
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'hhr-fn-delete-select-'));
+    try {
+      const listPath = path.join(tempDir, 'list.json');
+      writeFileSync(listPath, JSON.stringify(lingeringPayload));
+      const cliOut = execFileSync(
+        process.execPath,
+        [
+          'scripts/functionDeploymentSupport.mjs',
+          '--select-deletes',
+          listPath,
+          'mirrorDailyRecords',
+          'mirrorAuditLogs',
+          'patchDailyRecordWithClinicalAuthority@us-central1',
+        ],
+        { cwd: process.cwd(), encoding: 'utf8' }
+      );
+      expect(cliOut).toBe(
+        'mirrorDailyRecords\npatchDailyRecordWithClinicalAuthority@us-central1\n'
+      );
+
+      writeFileSync(listPath, JSON.stringify(deployedPayload));
+      const emptyOut = execFileSync(
+        process.execPath,
+        [
+          'scripts/functionDeploymentSupport.mjs',
+          '--select-deletes',
+          listPath,
+          'mirrorDailyRecords',
+          'patchDailyRecordWithClinicalAuthority@us-central1',
+        ],
+        { cwd: process.cwd(), encoding: 'utf8' }
+      );
+      expect(emptyOut).toBe('');
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('lists deployed functions once with retries before running conditional deletes in deploy-functions.yml', () => {
+    const workflow = parse(readFileSync('.github/workflows/deploy-functions.yml', 'utf8'));
+    const deleteStep = workflow.jobs.deploy.steps.find(
+      (step: { name?: string }) => step.name === 'Delete retired and orphaned functions if present'
+    );
+    expect(deleteStep).toBeDefined();
+    const normalizedRun = String(deleteStep.run).replace(/\s*\\\n\s*/g, ' ');
+    expect(normalizedRun).toContain(
+      'node scripts/capture-firebase-functions-list.mjs --project hhr-pruebas'
+    );
+    expect(normalizedRun).toContain('node scripts/functionDeploymentSupport.mjs --select-deletes');
+    expect(normalizedRun).toContain('node scripts/check-firebase-function-delete-result.mjs');
+    // Pre-deploy capture must happen before any functions:delete invocation.
+    expect(normalizedRun.indexOf('capture-firebase-functions-list.mjs')).toBeLessThan(
+      normalizedRun.indexOf('firebase functions:delete')
+    );
+    // Ensure we did not keep separate unconditional delete steps.
+    const stepsWithDelete = workflow.jobs.deploy.steps.filter((step: { run?: string }) =>
+      String(step.run || '').includes('firebase functions:delete')
+    );
+    expect(stepsWithDelete).toHaveLength(1);
   });
 });
