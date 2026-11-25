@@ -4,6 +4,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PreparedRayenSyncContext } from '@/features/rayen-import/hooks/rayenSyncTemporalContext';
 import {
   GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS,
+  SNAPSHOT_NETWORK_CAPTURE_RETRY_DELAY_MS,
   useRayenImportCapture,
 } from '@/features/rayen-import/hooks/useRayenImportCapture';
 import { createActiveExecutionHarness } from './support/executionHarness';
@@ -120,25 +121,6 @@ describe('capture when Ficha Médico does not answer in time', () => {
     );
   });
 
-  it('retries a dropped connection once, without telling anyone', () => {
-    const { onError, start, failRun } = setup();
-
-    act(() => onError('Failed to fetch', 'request-1'));
-
-    expect(start).toHaveBeenCalledOnce();
-    expect(failRun).not.toHaveBeenCalled();
-  });
-
-  it('reports a connection that stays down after the second attempt', () => {
-    const { onError, start, failRun } = setup();
-
-    act(() => onError('Failed to fetch', 'request-1'));
-    act(() => onError('Failed to fetch', 'request-2'));
-
-    expect(start).toHaveBeenCalledOnce();
-    expect(failRun).toHaveBeenCalledWith('snapshot_network_error', 'run-1', undefined, 'other');
-  });
-
   it('does not retry a failure that needs a person, such as an expired session', () => {
     const { onError, start, failRun } = setup();
 
@@ -146,6 +128,56 @@ describe('capture when Ficha Médico does not answer in time', () => {
 
     expect(start).not.toHaveBeenCalled();
     expect(failRun).toHaveBeenCalledWith('ficha_medico_unavailable', 'run-1', undefined, 'other');
+  });
+});
+
+describe('capture when a transient network failure occurs', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('waits briefly and retries a dropped connection once, without telling anyone', () => {
+    const { onError, start, failRun, recordRunPerformance, harness } = setup();
+
+    act(() => onError('Failed to fetch', 'request-1'));
+
+    expect(start).not.toHaveBeenCalled();
+    expect(failRun).not.toHaveBeenCalled();
+    expect(harness.executionRef.current.stage).toEqual({ type: 'capturing' });
+    act(() => vi.advanceTimersByTime(SNAPSHOT_NETWORK_CAPTURE_RETRY_DELAY_MS));
+    expect(start).toHaveBeenCalledOnce();
+    expect(start.mock.calls[0].slice(0, 3)).toEqual(['2026-08-02', '2026-08-02', 'run-1']);
+    expect(harness.executionRef.current.context?.requestId).toBe('request-2');
+    expect(recordRunPerformance).toHaveBeenCalledWith({ counters: { retries: 1 } }, 'run-1');
+    expect(failRun).not.toHaveBeenCalled();
+  });
+
+  it('reports a connection that stays down after the delayed second attempt', () => {
+    const { onError, start, failRun } = setup();
+
+    act(() => onError('Failed to fetch', 'request-1'));
+    act(() => vi.advanceTimersByTime(SNAPSHOT_NETWORK_CAPTURE_RETRY_DELAY_MS));
+    act(() => onError('Failed to fetch', 'request-2'));
+
+    expect(start).toHaveBeenCalledOnce();
+    expect(failRun).toHaveBeenCalledWith('snapshot_network_error', 'run-1', undefined, 'other');
+  });
+
+  it('does not start the network retry if the run is cancelled or unmounted during the wait', () => {
+    const cancelled = setup();
+    act(() => cancelled.onError('Failed to fetch', 'request-1'));
+    act(() => cancelled.harness.dispatchExecution({ type: 'cancel', runId: 'run-1' }));
+    act(() => vi.advanceTimersByTime(SNAPSHOT_NETWORK_CAPTURE_RETRY_DELAY_MS));
+    expect(cancelled.start).not.toHaveBeenCalled();
+    expect(cancelled.failRun).not.toHaveBeenCalled();
+
+    const unmounted = setup();
+    act(() => unmounted.onError('Failed to fetch', 'request-1'));
+    unmounted.unmount();
+    act(() => vi.advanceTimersByTime(SNAPSHOT_NETWORK_CAPTURE_RETRY_DELAY_MS));
+    expect(unmounted.start).not.toHaveBeenCalled();
   });
 });
 
