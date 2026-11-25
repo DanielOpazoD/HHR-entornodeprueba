@@ -389,6 +389,15 @@ export const runClinicalFill = async (
     )
   );
 
+  // `nursingObservations` is complete once per-patient reads finish. Start staff catalog
+  // registration right away so it overlaps with historical CUDYR and the clinical batch save
+  // instead of adding its latency to `closeWait`.
+  const staffingPromise = readsStaffing
+    ? performance.timeStage('staffRegistration', () =>
+        collectClinicalFillStaffing(nursingObservations, fecha, deps)
+      )
+    : null;
+
   summary.patched += await (await cudyr).completeHistorical();
   if (historicalOnlyCount) {
     done += historicalOnlyCount;
@@ -411,13 +420,11 @@ export const runClinicalFill = async (
     summary.incremental.checkpointOnlyTargets = batchPersistence.batch.checkpointOnlyTargets;
   }
 
-  // After the save the run only waits for the staff registry and the CUDYR archive, which started
-  // with the reads; `closeWait` is that wait, the last stretch before the run closes.
+  // After the save the run only waits for any remaining staff registry or CUDYR archive work
+  // that already started earlier; `closeWait` is that trailing wait before the run closes.
   const cudyrSource = await performance.timeStage('closeWait', async () => {
-    if (readsStaffing) {
-      const staffing = await performance.timeStage('staffRegistration', () =>
-        collectClinicalFillStaffing(nursingObservations, fecha, deps)
-      );
+    if (staffingPromise) {
+      const staffing = await staffingPromise;
       summary.staffingProposal = staffing.proposal;
       if (staffing.error) summary.errors.push(staffing.error);
     }
