@@ -70,7 +70,7 @@ describe('Security hardening static guards', () => {
 
     // Regression guard for precedence bug: !context.auth.token.role === 'admin'
     expect(authCallablePolicy).not.toContain('!context.auth.token.role ===');
-    expect(authCallablePolicy).toContain("(await resolveRoleForEmail(email, context)) !== 'admin'");
+    expect(authCallablePolicy).toContain('!isAdminRole(await resolveRoleForEmail(email, context))');
     expect(authCallablePolicy).not.toContain("context.auth?.token?.role === 'admin'");
     expect(authFunctionsFactory).toContain('await assertRoleMutationAccess({');
     expect(authFunctionsFactory).toContain('resolveRoleForEmail: helpers.resolveRoleForEmail');
