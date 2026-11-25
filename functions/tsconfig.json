@@ -5,6 +5,7 @@
     "moduleResolution": "node",
     "allowJs": true,
     "checkJs": true,
+    "strictNullChecks": true,
     "noEmit": true,
     "resolveJsonModule": true,
     "skipLibCheck": true

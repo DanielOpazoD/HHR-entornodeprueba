@@ -358,7 +358,10 @@ const parseClinicalEnrichmentPayload = data => {
         Number(left.clinicalCrib) - Number(right.clinicalCrib)
     ),
     expectedLastUpdated,
-    baseRevision: Number.isInteger(baseRevision) && baseRevision >= 0 ? baseRevision : undefined,
+    baseRevision:
+      typeof baseRevision === 'number' && Number.isInteger(baseRevision) && baseRevision >= 0
+        ? baseRevision
+        : undefined,
   };
 };
 

@@ -16,6 +16,7 @@ const {
 } = require('./specialtyRules');
 const { assertTrustedSpecialtyPatient } = require('./specialtyAuditAuthority');
 
+/** @returns {never} */
 const fail = (code, message) => {
   throw new functions.https.HttpsError(code, message);
 };
@@ -40,6 +41,9 @@ const assertAdmin = async (context, resolveRoleForEmail) => {
   const { role } = await assertAuthorizedDailyRecordWriter({ context, resolveRoleForEmail });
   if (!isAdminRole(role))
     fail('permission-denied', 'Only administrators may publish specialty rules.');
+  const uid = context.auth?.uid;
+  if (!uid) fail('unauthenticated', 'Authentication required.');
+  return { uid };
 };
 const assertExpectedRevision = (current, expectedRevision) => {
   if (!Number.isInteger(expectedRevision) || expectedRevision !== current.revision) {
@@ -60,7 +64,7 @@ const createSpecialtyPolicyFunctions = ({
   publishSpecialtyMemory: functions
     .region('southamerica-east1')
     .https.onCall(async (data, context) => {
-      await assertAdmin(context, resolveRoleForEmail);
+      const { uid: actorUid } = await assertAdmin(context, resolveRoleForEmail);
       assertPilotEnabled();
       if (
         data?.confirmed !== true ||
@@ -130,7 +134,7 @@ const createSpecialtyPolicyFunctions = ({
               revision: 1,
             },
           ],
-          updatedByUid: context.auth.uid,
+          updatedByUid: actorUid,
           updatedAt: new Date().toISOString(),
         };
         assertPolicy(next);
@@ -141,7 +145,7 @@ const createSpecialtyPolicyFunctions = ({
   configureSpecialtyPolicy: functions
     .region('southamerica-east1')
     .https.onCall(async (data, context) => {
-      await assertAdmin(context, resolveRoleForEmail);
+      const { uid: actorUid } = await assertAdmin(context, resolveRoleForEmail);
       assertPilotEnabled();
       if (
         data?.confirmed !== true ||
@@ -180,7 +184,7 @@ const createSpecialtyPolicyFunctions = ({
           autoEnabled: data.autoEnabled,
           memoryEnabled: data.memoryEnabled,
           aiMode: data.aiMode,
-          updatedByUid: context.auth.uid,
+          updatedByUid: actorUid,
           ...(data.rules !== undefined
             ? { rules: normalizePublishedSpecialtyRules(data.rules) }
             : {}),
@@ -199,7 +203,7 @@ const createSpecialtyPolicyFunctions = ({
           policy: next,
           Timestamp,
           date: data.applyDate,
-          actorUid: context.auth.uid,
+          actorUid,
         });
         transaction.set(policyRef, next);
         if (application.record) {

@@ -1,9 +1,11 @@
 const functions = require('firebase-functions/v1');
 const { isCalendarDay } = require('../hospitalCalendarDay');
 
+/** @returns {never} */
 const fail = (code, message) => {
   throw new functions.https.HttpsError(code, message);
 };
+/** @returns {never} */
 const invalid = message => fail('invalid-argument', message);
 const keyPattern = /^[a-z][a-z0-9-]{0,59}$/;
 const codePattern = /^PT-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

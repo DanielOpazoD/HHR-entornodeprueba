@@ -56,26 +56,25 @@ const patientDocumentIdentityKey = value => {
 
 const buildMovementPatientOptions = (movements, scope) => {
   if (!Array.isArray(movements)) return [];
-  return movements
-    .map((movement, index) => {
-      if (!movement || typeof movement !== 'object') return null;
-      // A deleted movement is not a person to choose, as in the app's own selector.
-      if (String(movement.deletedAt || '').trim()) return null;
-      const bedId =
-        optionalString(movement.bedId, 32) || optionalString(movement.bedName, 32) || '';
-      const patientName = optionalString(movement.patientName, 256) || '';
-      const patientRut = optionalString(movement.rut, 32) || '';
-      if (!bedId || (!patientName && !patientRut)) return null;
-      const movementId = optionalString(movement.id, 64) || `${bedId}-${patientRut || index}`;
-      return {
+  return movements.flatMap((movement, index) => {
+    if (!movement || typeof movement !== 'object') return [];
+    // A deleted movement is not a person to choose, as in the app's own selector.
+    if (String(movement.deletedAt || '').trim()) return [];
+    const bedId = optionalString(movement.bedId, 32) || optionalString(movement.bedName, 32) || '';
+    const patientName = optionalString(movement.patientName, 256) || '';
+    const patientRut = optionalString(movement.rut, 32) || '';
+    if (!bedId || (!patientName && !patientRut)) return [];
+    const movementId = optionalString(movement.id, 64) || `${bedId}-${patientRut || index}`;
+    return [
+      {
         key: `${scope}:${movementId}`,
         bedId,
         patientName,
         patientRut,
         patientStatus: scope,
-      };
-    })
-    .filter(Boolean);
+      },
+    ];
+  });
 };
 
 const buildPatientOptionsFromDailyRecord = dailyRecord => {

@@ -75,6 +75,8 @@ const buildClinicalDerivedLayout = generation => {
 /**
  * `unmarked` (no marker), `marked` (a v1 marker) or `unsupported` (a marker this code does not
  * understand; callers must not treat that day as unmarked).
+ *
+ * @returns {{ status: 'unmarked' } | { status: 'unsupported' } | { status: 'marked', layout: { version: number, generation: string } }}
  */
 const readClinicalDerivedLayout = record => {
   const marker = isPlainObject(record) ? record[CLINICAL_DERIVED_LAYOUT_FIELD] : undefined;
@@ -175,7 +177,11 @@ const applyMovedFields = (holder, doc) => {
  */
 const overlayClinicalDerived = (record, docs) => {
   const current = currentDocsByEpisode(record, docs);
-  const result = { record, matchedEpisodeIds: [], skippedDuplicateEpisodeIds: [] };
+  const result = {
+    record,
+    matchedEpisodeIds: /** @type {string[]} */ ([]),
+    skippedDuplicateEpisodeIds: /** @type {string[]} */ ([]),
+  };
   if (current.size === 0) return result;
 
   const { episodes, duplicateEpisodeIds } = collectClinicalDerivedEpisodes(record);

@@ -52,8 +52,17 @@ const {
   recordAuthorityTelemetry,
 } = require('./dailyRecordAuthorityOutcome');
 
+/**
+ * @param {{
+ *   firestore: any,
+ *   Timestamp: any,
+ *   FieldValue: any,
+ *   resolveRoleForEmail: any,
+ *   assertPatchBase?: (snapshot: any, data: any, transaction: any, context: any) => Promise<void> | void,
+ * }} deps
+ */
 const createPatchHandler =
-  ({ firestore, Timestamp, FieldValue, resolveRoleForEmail, assertPatchBase = undefined }) =>
+  ({ firestore, Timestamp, FieldValue, resolveRoleForEmail, assertPatchBase }) =>
   async (data, context) => {
     const startedAt = Date.now();
     const { email, role } = await assertAuthorizedDailyRecordWriter({

@@ -68,18 +68,22 @@ const createCudyrHistoryFunctions = ({
         context,
         resolveRoleForEmail,
       });
-      if (data?.kind === 'save-read-view')
-        return saveReadView({ hospital, data, uid: context.auth.uid });
+      const auth = context.auth;
+      if (!auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Authentication required.');
+      }
+      const actor = {
+        uid: auth.uid,
+        email,
+        role,
+        name: String(auth.token?.name || email).slice(0, 200),
+      };
+      if (data?.kind === 'save-read-view') return saveReadView({ hospital, data, uid: auth.uid });
       if (data?.kind === 'save-official-report')
         return saveOfficialReport({
           hospital,
           data,
-          actor: {
-            uid: context.auth.uid,
-            email,
-            role,
-            name: String(context.auth.token.name || email).slice(0, 200),
-          },
+          actor,
         });
       if (data?.kind === 'save-daily-exclusion') {
         if (!isAdminOrHospitalNurseRole(role))
@@ -91,12 +95,7 @@ const createCudyrHistoryFunctions = ({
           hospital,
           data,
           runTransaction: runArchiveTransaction,
-          actor: {
-            uid: context.auth.uid,
-            email,
-            role,
-            name: String(context.auth.token.name || email).slice(0, 200),
-          },
+          actor,
         });
       }
       if (data?.kind === 'save-monthly-review' || data?.kind === 'save-verified-context') {
@@ -110,12 +109,7 @@ const createCudyrHistoryFunctions = ({
             hospital,
             data,
             runTransaction: runArchiveTransaction,
-            actor: {
-              uid: context.auth.uid,
-              email,
-              role,
-              name: String(context.auth.token.name || email).slice(0, 200),
-            },
+            actor,
           }
         );
       }
@@ -134,12 +128,7 @@ const createCudyrHistoryFunctions = ({
           hospital,
           data,
           runTransaction: runArchiveTransaction,
-          actor: {
-            uid: context.auth.uid,
-            email,
-            role,
-            name: String(context.auth.token.name || email).slice(0, 200),
-          },
+          actor,
         });
       }
       if (data?.kind === 'correct-discharge') {
@@ -153,12 +142,7 @@ const createCudyrHistoryFunctions = ({
           hospital,
           data,
           runTransaction: runArchiveTransaction,
-          actor: {
-            uid: context.auth.uid,
-            email,
-            role,
-            name: String(context.auth.token.name || email).slice(0, 200),
-          },
+          actor,
         });
       }
       const payload = parseArchiveRequest(data);

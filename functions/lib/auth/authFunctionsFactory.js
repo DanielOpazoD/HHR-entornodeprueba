@@ -54,15 +54,19 @@ const createAuthFunctions = ({ auth, helpers }) => ({
   }),
   syncCurrentUserRoleClaim: functions.https.onCall(async (_data, context) => {
     const email = requireAuthenticatedEmail(context);
+    const authContext = context.auth;
+    if (!authContext) {
+      throw new functions.https.HttpsError('unauthenticated', 'Authentication required.');
+    }
 
     try {
       const resolvedRole = await helpers.resolveRoleForEmail(email, context);
-      if (context.auth.uid.startsWith('hhrn_')) {
+      if (authContext.uid.startsWith('hhrn_')) {
         return { role: resolvedRole === 'unauthorized' ? null : resolvedRole, synced: false };
       }
       await applyRoleClaim(
         auth,
-        context.auth.uid,
+        authContext.uid,
         resolvedRole === 'unauthorized' ? null : resolvedRole
       );
       return {

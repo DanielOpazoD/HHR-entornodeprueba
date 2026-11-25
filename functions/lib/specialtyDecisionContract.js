@@ -122,17 +122,30 @@ const eachTarget = (record, fn) => {
 /**
  * Mutates a fresh candidate built inside the authoritative transaction.
  * No metadata supplied by a client is promoted to trusted provenance.
+ *
+ * @param {{
+ *   remoteRecord: any,
+ *   priorRecord?: any,
+ *   candidate: any,
+ *   intent?: any,
+ *   patch?: any,
+ *   actorUid?: any,
+ *   mutationId?: any,
+ *   now?: any,
+ *   aiDecision?: any,
+ *   guardScalarChanges?: boolean,
+ * }} params
  */
 const protectSpecialtyDecisions = ({
   remoteRecord,
-  priorRecord = undefined,
+  priorRecord,
   candidate,
-  intent = undefined,
-  patch = undefined,
-  actorUid = undefined,
-  mutationId = undefined,
-  now = undefined,
-  aiDecision = undefined,
+  intent,
+  patch,
+  actorUid,
+  mutationId,
+  now,
+  aiDecision,
   guardScalarChanges = true,
 }) => {
   const restoredRecord = movementRestoreRecord(remoteRecord, candidate);

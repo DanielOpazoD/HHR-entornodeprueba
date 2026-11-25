@@ -5,6 +5,7 @@ const {
 const { HttpsError } = require('firebase-functions/v2/https');
 const { digest, monthValue, verifySupplementBytes } = require('./cudyrSupplementContract');
 const { addCalendarDays } = require('./hospitalCalendarDay');
+/** @returns {never} */
 const fail = (message = 'Invalid verified CUDYR context.', code = 'invalid-argument') => {
   throw new HttpsError(
     /** @type {import('firebase-functions/v2/https').FunctionsErrorCode} */ (code),

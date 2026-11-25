@@ -49,13 +49,16 @@ const findManualReclassification = ({ movementKind, movementId, date, options })
   });
 };
 
-const resolveReportingSpecialty = ({
-  specialty,
-  movementKind = undefined,
-  movementId = undefined,
-  date = undefined,
-  options,
-}) => {
+/**
+ * @param {{
+ *   specialty: any,
+ *   movementKind?: string,
+ *   movementId?: string,
+ *   date?: string,
+ *   options?: any,
+ * }} params
+ */
+const resolveReportingSpecialty = ({ specialty, movementKind, movementId, date, options }) => {
   const originalSpecialty = normalizeSpecialty(specialty);
   const manual = findManualReclassification({ movementKind, movementId, date, options });
   if (manual) {

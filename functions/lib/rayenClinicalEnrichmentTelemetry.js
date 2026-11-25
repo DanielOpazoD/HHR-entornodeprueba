@@ -3,7 +3,26 @@ const { sanitizeLogValue } = require('./logging/redaction');
 
 const operation = 'applyRayenClinicalEnrichmentBatch';
 
-/** One metadata-only telemetry row per clinical batch call; a failed write is logged, never thrown. */
+/**
+ * One metadata-only telemetry row per clinical batch call; a failed write is logged, never thrown.
+ *
+ * @param {{
+ *   firestore: any,
+ *   requestSummary: any,
+ *   startedAt: number,
+ *   status: any,
+ *   authorityStatus: any,
+ *   resultParity: any,
+ *   parityContractVersion: any,
+ *   parityDiagnostics: any,
+ *   revision: any,
+ *   policyRevision: any,
+ *   transactionAttempts: number,
+ *   serverTimingsMs: any,
+ *   transactionTimingsMs: any,
+ *   error?: any,
+ * }} params
+ */
 const recordTelemetry = async ({
   firestore,
   requestSummary,
@@ -18,7 +37,7 @@ const recordTelemetry = async ({
   transactionAttempts,
   serverTimingsMs,
   transactionTimingsMs,
-  error = undefined,
+  error,
 }) => {
   try {
     await firestore

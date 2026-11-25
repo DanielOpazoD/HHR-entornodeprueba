@@ -95,10 +95,11 @@ const applyNamedDevicePath = (nextRecord, incomingRecord, path) => {
  * as the patch callable writes it online. The queue publishes an offline edit as a full save, so
  * without this the edit was replaced by the stored devices and acknowledged as saved (SAVE-01).
  */
+/** @param {{ remoteRecord: any, incomingRecord: any, fields?: readonly string[], editedPaths?: string[] }} params */
 const preserveRayenClinicalFields = ({
   remoteRecord,
   incomingRecord,
-  fields = undefined,
+  fields,
   editedPaths = [],
 }) => {
   const preservedFields = Array.isArray(fields) && fields.length ? fields : RAYEN_CLINICAL_FIELDS;
