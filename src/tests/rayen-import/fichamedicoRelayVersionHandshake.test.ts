@@ -24,7 +24,7 @@ type Listener = (event: {
   data: Record<string, unknown>;
 }) => void;
 
-const createRelay = (installedVersion: string) => {
+const createRelay = (installedVersion: string, storage?: Map<string, unknown>) => {
   const listeners: Listener[] = [];
   const requests: Array<Record<string, unknown>> = [];
   const onRuntimeMessages: Array<
@@ -43,26 +43,37 @@ const createRelay = (installedVersion: string) => {
       requests.push(data);
     },
   };
+  const chromeStub: Record<string, unknown> = {
+    runtime: {
+      getManifest: () => ({ version: installedVersion }),
+      onMessage: {
+        addListener: (fn: (typeof onRuntimeMessages)[number]) => {
+          onRuntimeMessages.push(fn);
+        },
+      },
+      sendMessage: vi.fn((_message, callback) =>
+        callback({
+          version: installedVersion,
+          runtimeGeneration: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+        })
+      ),
+      lastError: undefined,
+    },
+  };
+  if (storage) {
+    chromeStub.storage = {
+      local: {
+        get: async (key: string) => (storage.has(key) ? { [key]: storage.get(key) } : {}),
+        set: async (entries: Record<string, unknown>) => {
+          for (const [k, v] of Object.entries(entries)) storage.set(k, v);
+        },
+      },
+    };
+  }
   const context = vm.createContext({
     window: windowStub,
     document: { documentElement: { setAttribute: () => undefined } },
-    chrome: {
-      runtime: {
-        getManifest: () => ({ version: installedVersion }),
-        onMessage: {
-          addListener: (fn: (typeof onRuntimeMessages)[number]) => {
-            onRuntimeMessages.push(fn);
-          },
-        },
-        sendMessage: vi.fn((_message, callback) =>
-          callback({
-            version: installedVersion,
-            runtimeGeneration: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
-          })
-        ),
-        lastError: undefined,
-      },
-    },
+    chrome: chromeStub,
     setTimeout,
     clearTimeout,
     Date,
@@ -71,6 +82,7 @@ const createRelay = (installedVersion: string) => {
     Number,
     Boolean,
     Object,
+    Array,
     Promise,
   });
   vm.runInContext('var globalThis = window; ' + contractSource, context);
@@ -256,6 +268,36 @@ describe('relay de Ficha Médico · versión del inject', () => {
       snapshot: { encounters: [] },
       capturePhasesMs: { fichaPatientReads: 72 },
     });
+  });
+
+  it('persiste diagnosisCatalogUpdate en chrome.storage.local, lo reenvía en la siguiente lectura y nunca lo filtra al worker', async () => {
+    const storage = new Map<string, unknown>();
+    const relay = createRelay(manifest.version, storage);
+    const catalogRecord = {
+      version: 1,
+      origin: 'https://fichamedicoback.rayensalud.cl',
+      savedAt: 1_764_000_000_000,
+      expiresAt: 1_764_043_200_000,
+      entries: [[4405, 'J15']],
+    };
+
+    const firstRead = relay.send({ type: 'RAYEN_READ' });
+    await flush();
+    expect(relay.requests.at(-1)).not.toHaveProperty('persistedDiagnosisCatalog');
+    relay.answerFromInject({
+      injectVersion: manifest.version,
+      snapshot: { encounters: [] },
+      diagnosisCatalogUpdate: catalogRecord,
+    });
+    const firstResult = await firstRead;
+    expect(firstResult).toEqual({ snapshot: { encounters: [] } });
+    expect(storage.get('hhr:diagnosis-catalog:v1')).toEqual(catalogRecord);
+
+    const secondRead = relay.send({ type: 'RAYEN_READ' });
+    await flush();
+    expect(relay.requests.at(-1)?.persistedDiagnosisCatalog).toEqual(catalogRecord);
+    relay.answerFromInject({ injectVersion: manifest.version, snapshot: { encounters: [] } });
+    await expect(secondRead).resolves.toEqual({ snapshot: { encounters: [] } });
   });
 
   it('rechaza una respuesta de la misma versión que conserva una generación anterior', async () => {

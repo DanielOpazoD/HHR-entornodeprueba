@@ -56,6 +56,10 @@
     };
   };
 
+  const PERSISTED_CATALOG_VERSION = 1;
+  const MAX_PERSISTED_ENTRIES = 50000;
+  const MAX_TTL_DRIFT_MS = 60 * 1000;
+
   const cie10Code = value => {
     const code = text(value).toUpperCase();
     return /^[A-Z][0-9]{2}(?:\.[A-Z0-9]{1,4})?$/.test(code) ? code : '';
@@ -73,12 +77,61 @@
     return codes;
   };
 
-  const createEnricher = readCatalog => {
+  const serializeDiagnosisCatalog = (codes, origin, now, ttlMs) => {
+    if (!(codes instanceof Map) || !codes.size || typeof origin !== 'string' ||
+        !origin.startsWith('https://') || !Number.isFinite(now) || !Number.isFinite(ttlMs) || ttlMs <= 0) {
+      return null;
+    }
+    const entries = [];
+    for (const [rawId, rawCode] of codes) {
+      const id = classificationId(rawId);
+      const code = cie10Code(rawCode);
+      if (!id || !code) continue;
+      entries.push([id, code]);
+      if (entries.length >= MAX_PERSISTED_ENTRIES) break;
+    }
+    return entries.length
+      ? { version: PERSISTED_CATALOG_VERSION, origin, savedAt: now, expiresAt: now + ttlMs, entries }
+      : null;
+  };
+
+  const hasValidPersistedEnvelope = (raw, expectedOrigin, now, ttlMs) => Boolean(
+    raw && typeof raw === 'object' && raw.version === PERSISTED_CATALOG_VERSION &&
+    typeof raw.origin === 'string' && raw.origin === expectedOrigin &&
+    Number.isFinite(raw.savedAt) && Number.isFinite(raw.expiresAt) &&
+    raw.expiresAt > now && raw.savedAt <= now + MAX_TTL_DRIFT_MS &&
+    raw.expiresAt - raw.savedAt <= ttlMs + MAX_TTL_DRIFT_MS &&
+    Array.isArray(raw.entries) && raw.entries.length > 0 && raw.entries.length <= MAX_PERSISTED_ENTRIES
+  );
+
+  const parsePersistedDiagnosisCatalog = (raw, expectedOrigin, now, ttlMs) => {
+    if (!hasValidPersistedEnvelope(raw, expectedOrigin, now, ttlMs)) return null;
+    const codes = new Map();
+    for (const entry of raw.entries) {
+      if (!Array.isArray(entry) || entry.length !== 2) return null;
+      const id = classificationId(entry[0]);
+      const code = cie10Code(entry[1]);
+      if (!id || !code) return null;
+      codes.set(id, code);
+    }
+    return codes.size ? { codes, savedAt: raw.savedAt, expiresAt: raw.expiresAt } : null;
+  };
+
+  const unwrapCatalog = value => (value instanceof Map ? { codes: value, fromPersisted: false } : value);
+
+  const createEnricher = (readCatalog, refreshCatalog) => {
     const pending = [];
     let catalogPromise = null;
     const catalog = () => {
       if (!catalogPromise) catalogPromise = Promise.resolve().then(readCatalog).catch(() => null);
       return catalogPromise;
+    };
+    const maybeRefresh = async loaded => {
+      let codes = loaded && loaded.codes instanceof Map ? loaded.codes : null;
+      if (!codes || !loaded.fromPersisted || typeof refreshCatalog !== 'function') return codes;
+      if (!pending.some(({ diagnosis }) => !codes.has(diagnosis.classificationId))) return codes;
+      const refreshed = await Promise.resolve().then(refreshCatalog).catch(() => null);
+      return refreshed instanceof Map && refreshed.size > 0 ? refreshed : codes;
     };
     return {
       queue(index, diagnosis) {
@@ -88,7 +141,7 @@
       },
       async apply(encounters) {
         if (!pending.length) return;
-        const codes = await catalog();
+        const codes = await maybeRefresh(unwrapCatalog(await catalog()));
         if (!codes) return;
         for (const { index, diagnosis } of pending) {
           const code = codes.get(diagnosis.classificationId);
@@ -101,6 +154,7 @@
   };
 
   root.HhrFichaMedicoDiagnosisCoding = Object.freeze({
-    selectPrincipalDiagnosis, indexDiagnosisCatalog, createEnricher,
+    selectPrincipalDiagnosis, indexDiagnosisCatalog, serializeDiagnosisCatalog,
+    parsePersistedDiagnosisCatalog, createEnricher,
   });
 })(typeof globalThis !== 'undefined' ? globalThis : self);

@@ -3,9 +3,27 @@
   'use strict';
   const tick = () => root.performance?.now?.() ?? Date.now();
   const elapsed = (start, end) => Math.max(0, Math.round(end - start));
+  const createDiagnosisCodingEnricher = ({
+    diagnosisCodingRuntime, readDiagnosisCatalog, readDiagnosisCatalogCached,
+    apiOrigin, normalization, apiGet, getAuth, diagnosisCatalogCacheTtlMs,
+  }) => {
+    const fetchCatalog = async () =>
+      normalization.indexDiagnosisCatalog(
+        await apiGet(`${apiOrigin}/api/core/diagnosisClassify?tid=0`, getAuth())
+      );
+    if (typeof readDiagnosisCatalog === 'function') {
+      return diagnosisCodingRuntime.createEnricher(
+        () => readDiagnosisCatalog(apiOrigin, fetchCatalog, false),
+        () => readDiagnosisCatalog(apiOrigin, fetchCatalog, true).then(res => (res && res.codes) || res)
+      );
+    }
+    return diagnosisCodingRuntime.createEnricher(() =>
+      readDiagnosisCatalogCached(`${apiOrigin}:diagnosis-catalog`, fetchCatalog, Date.now(), diagnosisCatalogCacheTtlMs)
+    );
+  };
   const read = async ({
     getVerifiedClinicalContext, apiGet, getAuth, readClinicalCached: readDiagnosisCatalogCached,
-    normalization, headerUrl, diagnosisUrl, isolationUrl,
+    readDiagnosisCatalog, normalization, headerUrl, diagnosisUrl, isolationUrl,
     diagnosisCatalogCacheTtlMs, physicianNormalization, diagnosisCodingRuntime,
     documentRoot,
   }) => {
@@ -61,11 +79,10 @@
       diagnosisErrors: 0,
       isolationErrors: 0,
     };
-    const diagnosisCoding = diagnosisCodingRuntime.createEnricher(() =>
-      readDiagnosisCatalogCached(`${context.apiOrigin}:diagnosis-catalog`,
-        async () => normalization.indexDiagnosisCatalog(await apiGet(
-          `${context.apiOrigin}/api/core/diagnosisClassify?tid=0`, getAuth()
-        )), Date.now(), diagnosisCatalogCacheTtlMs));
+    const diagnosisCoding = createDiagnosisCodingEnricher({
+      diagnosisCodingRuntime, readDiagnosisCatalog, readDiagnosisCatalogCached,
+      apiOrigin: context.apiOrigin, normalization, apiGet, getAuth, diagnosisCatalogCacheTtlMs,
+    });
     let cursor = 0;
     const worker = async () => {
       while (cursor < rows.length) {

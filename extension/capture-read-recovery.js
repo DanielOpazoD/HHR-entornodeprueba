@@ -40,8 +40,10 @@
     (retryFicha || retryGestion) &&
     (retryFicha || snapshot?.snapshot?.isComplete === true) &&
     (retryGestion || (report?.ok === true && Array.isArray(report.rows)));
+  const wait = ms => (ms > 0 && typeof setTimeout === 'function'
+    ? new Promise(resolve => setTimeout(resolve, ms)) : Promise.resolve());
   const cancelled = () => ({ error: 'Sincronización cancelada desde HHR.', cancelled: true });
-  const read = async ({ readFicha, readGestion, readHealth, healthError, isCancelled, withinBudget }) => {
+  const read = async ({ readFicha, readGestion, readHealth, healthError, isCancelled, withinBudget, retryDelayMs = 0 }) => {
     let [snapshotResult, reportResult] = await Promise.all([
       readSafely(readFicha), readSafely(readGestion),
     ]);
@@ -53,6 +55,8 @@
       if (isCancelled()) return cancelled();
       const error = healthError(health);
       if (error) return { error };
+      await wait(retryDelayMs);
+      if (isCancelled()) return cancelled();
       if (withinBudget()) {
         captureRetries = Number(retryFicha) + Number(retryGestion);
         [snapshotResult, reportResult] = await Promise.all([

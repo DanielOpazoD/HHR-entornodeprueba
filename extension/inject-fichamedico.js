@@ -11,7 +11,7 @@
  */
 (() => {
   'use strict';
-  const INJECT_VERSION = '0.48.165';
+  const INJECT_VERSION = '0.48.167';
   // Install the bridge probe separately so an older, compatible MAIN reader can keep its
   // captured session when this script is re-injected after an extension update.
   const bridgeRuntime = globalThis.HhrBridgeGeneration.createMain({ version: INJECT_VERSION });
@@ -104,7 +104,45 @@
   const DIAGNOSIS_CATALOG_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
   const CLINICAL_READ_CACHE_MAX_ENTRIES = 300;
   const clinicalReadCache = new Map();
+  // Kept separate from clinicalReadCache: the CIE-10 lookup table is origin-static (no PHI)
+  // so session refreshes and the 300-entry clinical LRU must never evict it.
+  const diagnosisCatalogCache = new Map();
+  let activeCatalogSession = null;
   const clearClinicalReadCache = () => clinicalReadCache.clear();
+  const seedPersistedDiagnosisCatalog = (apiOrigin, now) => {
+    const coding = globalThis.HhrFichaMedicoDiagnosisCoding;
+    const raw = activeCatalogSession && activeCatalogSession.persisted;
+    if (!coding || typeof coding.parsePersistedDiagnosisCatalog !== 'function' || !raw) return null;
+    const parsed = coding.parsePersistedDiagnosisCatalog(raw, apiOrigin, now, DIAGNOSIS_CATALOG_CACHE_TTL_MS);
+    if (!parsed) return null;
+    const entry = { expiresAt: parsed.expiresAt, promise: Promise.resolve({ codes: parsed.codes, fromPersisted: true }) };
+    diagnosisCatalogCache.set(apiOrigin, entry);
+    return entry;
+  };
+  const readDiagnosisCatalog = (apiOrigin, fetchCatalog, forceRefresh = false) => {
+    const now = Date.now();
+    const cached = forceRefresh ? null : diagnosisCatalogCache.get(apiOrigin);
+    if (cached && cached.expiresAt > now) return cached.promise;
+    if (cached) diagnosisCatalogCache.delete(apiOrigin);
+    if (!forceRefresh) {
+      const seeded = seedPersistedDiagnosisCatalog(apiOrigin, now);
+      if (seeded) return seeded.promise;
+    }
+    const session = activeCatalogSession;
+    const coding = globalThis.HhrFichaMedicoDiagnosisCoding;
+    const promise = Promise.resolve().then(fetchCatalog).then(codes => {
+      if (session && coding && typeof coding.serializeDiagnosisCatalog === 'function') {
+        session.update = coding.serializeDiagnosisCatalog(codes, apiOrigin, now, DIAGNOSIS_CATALOG_CACHE_TTL_MS);
+      }
+      return { codes, fromPersisted: false };
+    });
+    const entry = { expiresAt: now + DIAGNOSIS_CATALOG_CACHE_TTL_MS, promise };
+    diagnosisCatalogCache.set(apiOrigin, entry);
+    promise.catch(() => {
+      if (diagnosisCatalogCache.get(apiOrigin) === entry) diagnosisCatalogCache.delete(apiOrigin);
+    });
+    return promise;
+  };
   const readClinicalCached = (key, reader, now = Date.now(), ttlMs = CLINICAL_READ_CACHE_TTL_MS) => {
     const cached = clinicalReadCache.get(key);
     if (cached && cached.expiresAt > now) return cached.promise;
@@ -474,10 +512,31 @@
     },
   });
   const readCensus = () => censusReader.read();
+  const runCensusRead = async persistedCatalog => {
+    const previous = activeCatalogSession;
+    const session = { persisted: persistedCatalog || null, update: null };
+    activeCatalogSession = session;
+    try {
+      const snapshot = await readCensus();
+      return { snapshot, diagnosisCatalogUpdate: session.update };
+    } finally {
+      activeCatalogSession = previous;
+    }
+  };
+  const buildReadResultMessage = (reqId, bridge, result) => {
+    const message = {
+      type: 'RAYEN_EXT_READ_RESULT',
+      reqId,
+      ...bridgeRuntime.metadata(bridge),
+      snapshot: result.snapshot,
+    };
+    if (result.diagnosisCatalogUpdate) message.diagnosisCatalogUpdate = result.diagnosisCatalogUpdate;
+    return message;
+  };
 
   const readCensusOnce = () => globalThis.HhrFichaMedicoCensusRuntime.read({
     getVerifiedClinicalContext, apiGet, getAuth: () => capturedAuth, readClinicalCached,
-    normalization, headerUrl, diagnosisUrl, isolationUrl,
+    readDiagnosisCatalog, normalization, headerUrl, diagnosisUrl, isolationUrl,
     diagnosisCatalogCacheTtlMs: DIAGNOSIS_CATALOG_CACHE_TTL_MS,
     physicianNormalization: globalThis.HhrFichaMedicoTreatingPhysicianNormalization,
     diagnosisCodingRuntime: globalThis.HhrFichaMedicoDiagnosisCoding,
@@ -534,11 +593,8 @@
       });
       if (!bridge) return;
       try {
-        const snapshot = await readCensus();
-        window.postMessage(
-          { type: 'RAYEN_EXT_READ_RESULT', reqId, ...bridgeRuntime.metadata(bridge), snapshot },
-          window.location.origin
-        );
+        const result = await runCensusRead(data.persistedDiagnosisCatalog);
+        window.postMessage(buildReadResultMessage(reqId, bridge, result), window.location.origin);
       } catch (error) {
         window.postMessage(
           {
