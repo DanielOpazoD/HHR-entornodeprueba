@@ -27,6 +27,7 @@ import { readResponseWithinLimit } from './lib/bounded-response';
 import { getFirebaseServer } from './lib/firebase-server';
 import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
 import { invokeWithTelemetry } from './lib/observability';
+import { SERVERLESS_ALL_LOGIN_ROLES } from '../../src/shared/access/serverlessRoleAccess';
 import {
   buildJsonResponse,
   buildTextResponse,
@@ -49,14 +50,7 @@ const NO_STORE_HEADERS = { 'Cache-Control': 'no-store' };
 const ALLOWED_JOB_STATUSES = new Set([200, 202, 400, 401, 404, 409, 429, 503]);
 const ALLOWED_LAB_LINK_PROTOCOLS = new Set(['https:', 'http:', 'hhr-syslab-remote:']);
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
-const SYSLAB_ALLOWED_ROLES = new Set([
-  'admin',
-  'nurse_hospital',
-  'doctor_urgency',
-  'doctor_specialist',
-  'editor',
-  'viewer',
-]);
+const SYSLAB_ALLOWED_ROLES = SERVERLESS_ALL_LOGIN_ROLES;
 
 interface SyslabProxyDependencies {
   getFirebaseServer: typeof getFirebaseServer;

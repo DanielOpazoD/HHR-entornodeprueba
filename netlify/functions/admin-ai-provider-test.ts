@@ -7,6 +7,7 @@ import {
   type ClinicalAIAction,
   type ClinicalAIProvider,
 } from './lib/ai-provider';
+import { SERVERLESS_ADMIN_ONLY_ROLES } from '../../src/shared/access/serverlessRoleAccess';
 import {
   buildCorsHeaders,
   buildJsonResponse,
@@ -16,7 +17,7 @@ import {
   type NetlifyEventLike,
 } from './lib/http';
 
-const ADMIN_AI_PROVIDER_TEST_ALLOWED_ROLES = new Set(['admin']);
+const ADMIN_AI_PROVIDER_TEST_ALLOWED_ROLES = SERVERLESS_ADMIN_ONLY_ROLES;
 const SUPPORTED_ACTIONS = new Set<ClinicalAIAction>([
   'clinical_document_import',
   'cie10_search',

@@ -24,8 +24,12 @@ import {
   resolveFugaRecipients,
   validateFugaNotificationRequest,
 } from '../../src/domain/census/fugaNotificationPolicy';
+import {
+  SERVERLESS_ADMIN_AND_NURSE_ROLES,
+  isServerlessAdminRole,
+} from '../../src/shared/access/serverlessRoleAccess';
 
-const ALLOWED_ROLES = new Set(['nurse_hospital', 'admin']);
+const ALLOWED_ROLES = SERVERLESS_ADMIN_AND_NURSE_ROLES;
 
 const FugaNotificationPayloadSchema = z.object({
   patientName: z.string().min(1),
@@ -114,7 +118,7 @@ export const handler = async (event: NetlifyEventLike) => {
 
     const payload = validatedBody.data;
 
-    if (payload.testMode && authContext.role !== 'admin') {
+    if (payload.testMode && !isServerlessAdminRole(authContext.role)) {
       return buildTextResponse(403, 'Solo un usuario admin puede usar modo prueba.', {
         requestOrigin,
       });

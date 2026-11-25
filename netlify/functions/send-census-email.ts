@@ -29,8 +29,9 @@ import {
   CensusEmailRequestPayloadSchema,
   CensusEmailResponseSchema,
 } from '../../src/shared/contracts/serverless';
+import { SERVERLESS_ADMIN_AND_NURSE_ROLES } from '../../src/shared/access/serverlessRoleAccess';
 
-const ALLOWED_ROLES = new Set(['nurse_hospital', 'admin']);
+const ALLOWED_ROLES = SERVERLESS_ADMIN_AND_NURSE_ROLES;
 
 export const handler = async (event: NetlifyEventLike) => {
   const requestOrigin = getRequestOrigin(event);

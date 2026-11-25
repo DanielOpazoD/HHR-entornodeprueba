@@ -2,6 +2,7 @@ import { readAuthorizationHeader } from './lib/authorization-header';
 import { safeErrorMessage } from './lib/safe-error-message';
 import { authorizeAdminAIRequest } from './lib/admin-ai-auth';
 import { listClinicalAIProviderAvailability } from './lib/ai-provider';
+import { SERVERLESS_ADMIN_ONLY_ROLES } from '../../src/shared/access/serverlessRoleAccess';
 import {
   buildCorsHeaders,
   buildJsonResponse,
@@ -10,7 +11,7 @@ import {
   type NetlifyEventLike,
 } from './lib/http';
 
-const ADMIN_AI_PROVIDER_STATUS_ALLOWED_ROLES = new Set(['admin']);
+const ADMIN_AI_PROVIDER_STATUS_ALLOWED_ROLES = SERVERLESS_ADMIN_ONLY_ROLES;
 
 export const handler = async (event: NetlifyEventLike) => {
   const requestOrigin = getRequestOrigin(event);

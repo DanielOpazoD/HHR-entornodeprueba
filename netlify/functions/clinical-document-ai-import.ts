@@ -14,6 +14,7 @@ import {
   sanitizeClinicalDocumentAiImportSourceText,
   validateClinicalDocumentAiImportSourceText,
 } from '../../src/shared/contracts/clinicalDocumentAiImportContract';
+import { SERVERLESS_CLINICAL_DOCUMENT_ROLES } from '../../src/shared/access/serverlessRoleAccess';
 import {
   buildJsonResponse,
   buildTooManyRequestsResponse,
@@ -25,13 +26,7 @@ import {
   type NetlifyEventLike,
 } from './lib/http';
 
-const CLINICAL_DOCUMENT_AI_IMPORT_ALLOWED_ROLES = new Set([
-  'admin',
-  'nurse_hospital',
-  'doctor_urgency',
-  'doctor_specialist',
-  'editor',
-]);
+const CLINICAL_DOCUMENT_AI_IMPORT_ALLOWED_ROLES = SERVERLESS_CLINICAL_DOCUMENT_ROLES;
 
 interface ClinicalDocumentAiImportHandlerDependencies {
   getFirebaseServer: typeof getFirebaseServer;

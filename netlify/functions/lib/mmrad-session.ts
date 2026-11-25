@@ -1,13 +1,8 @@
+import { SERVERLESS_ALL_LOGIN_ROLES } from '../../../src/shared/access/serverlessRoleAccess';
+
 export const MMRAD_BASE_URL = 'https://ris.mmrad.cl';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
-export const MMRAD_ALLOWED_ROLES = new Set([
-  'admin',
-  'nurse_hospital',
-  'doctor_urgency',
-  'doctor_specialist',
-  'editor',
-  'viewer',
-]);
+export const MMRAD_ALLOWED_ROLES = SERVERLESS_ALL_LOGIN_ROLES;
 
 const getCredentials = () => {
   const username = process.env.MMRAD_USERNAME?.trim();
