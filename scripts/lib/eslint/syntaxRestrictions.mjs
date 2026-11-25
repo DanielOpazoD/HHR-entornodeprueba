@@ -110,6 +110,39 @@ export const FUNCTIONS_ROLE_RESTRICTIONS = [
   },
 ];
 
+// Existing Gen 1 Cloud Functions trigger modules stay frozen until explicitly migrated/replaced
+// (Firebase CLI cannot overwrite a Gen 1 function in-place with Gen 2 under the same name).
+// This list only shrinks; new modules must use firebase-functions/v2.
+export const LEGACY_FUNCTIONS_V1_FILES = [
+  'functions/lib/accounts/accountFunctions.js',
+  'functions/lib/adminCudyrResultFunctions.js',
+  'functions/lib/auth/authFunctionsFactory.js',
+  'functions/lib/checklists/checklistFunctions.js',
+  'functions/lib/clinicalDocumentPdfRenderFunctions.js',
+  'functions/lib/cudyrHistoryFunctions.js',
+  'functions/lib/dailyRecordRestoreFunctions.js',
+  'functions/lib/dailyRecordWriteAuthorityFunctions.js',
+  'functions/lib/documentScannerFunctions.js',
+  'functions/lib/medicalHandoffSpreadsheetFunctions.js',
+  'functions/lib/minsalFunctions.js',
+  'functions/lib/nursingHandoffDevice.js',
+  'functions/lib/nursingHandoffExtension.js',
+  'functions/lib/nursingHandoffHosted.js',
+  'functions/lib/prescriptionAccessFunctions.js',
+  'functions/lib/pruneDailyRecordHistory.js',
+  'functions/lib/rayenClinicalEnrichmentFunctions.js',
+  'functions/lib/specialtyJevFunctions.js',
+  'functions/lib/specialtyPolicyFunctions.js',
+  'functions/lib/woundCareMobileUploadFunctions.js',
+];
+
+export const FUNCTIONS_V1_RESTRICTION = {
+  selector:
+    ":matches(CallExpression[callee.name='require'][arguments.0.value=/^firebase-functions\\/v1(?:\\/|$)/], ImportDeclaration[source.value=/^firebase-functions\\/v1(?:\\/|$)/])",
+  message:
+    'No agregues nuevos módulos con firebase-functions/v1: usa firebase-functions/v2 (p. ej. firebase-functions/v2/https). Los módulos Gen 1 existentes están congelados en LEGACY_FUNCTIONS_V1_FILES y solo pueden bajar.',
+};
+
 const NETLIFY_ROLE_DECISION_MESSAGE =
   'No compares ni listes roles a mano en Netlify Functions: usa los conjuntos o predicados de src/shared/access/serverlessRoleAccess.ts (p. ej. SERVERLESS_ALL_LOGIN_ROLES, SERVERLESS_CLINICAL_DOCUMENT_ROLES, SERVERLESS_ADMIN_AND_NURSE_ROLES, SERVERLESS_ADMIN_ONLY_ROLES, isServerlessAdminRole).';
 

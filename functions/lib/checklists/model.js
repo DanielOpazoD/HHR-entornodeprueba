@@ -1,9 +1,9 @@
-const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { isCalendarDay } = require('../hospitalCalendarDay');
 
 /** @returns {never} */
 const fail = (code, message) => {
-  throw new functions.https.HttpsError(code, message);
+  throw new HttpsError(code, message);
 };
 /** @returns {never} */
 const invalid = message => fail('invalid-argument', message);

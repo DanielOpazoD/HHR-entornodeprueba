@@ -20,6 +20,8 @@ import {
   EPISODE_KEY_PARSE_RESTRICTION,
   FEATURES_WITHOUT_DIRECT_DATA_ACCESS,
   FUNCTIONS_ROLE_RESTRICTIONS,
+  FUNCTIONS_V1_RESTRICTION,
+  LEGACY_FUNCTIONS_V1_FILES,
   NETLIFY_ROLE_RESTRICTIONS,
   REEXPORT_ONLY_RESTRICTION,
   ROLE_RESTRICTIONS,
@@ -379,9 +381,28 @@ export default tseslint.config(
     },
   },
   {
+    // New Cloud Functions modules must use firebase-functions/v2; existing Gen 1 trigger modules
+    // stay frozen in LEGACY_FUNCTIONS_V1_FILES and can only shrink.
+    files: ['functions/**/*.js'],
+    ignores: LEGACY_FUNCTIONS_V1_FILES,
+    rules: {
+      'no-restricted-syntax': ['error', FUNCTIONS_V1_RESTRICTION],
+    },
+  },
+  {
     // Role decisions in Cloud Functions live in functions/lib/auth/rolePredicates.js.
     files: ['functions/lib/**/*.js'],
-    ignores: ['functions/lib/auth/rolePredicates.js', 'functions/lib/auth/authConfig.js'],
+    ignores: [
+      'functions/lib/auth/rolePredicates.js',
+      'functions/lib/auth/authConfig.js',
+      ...LEGACY_FUNCTIONS_V1_FILES,
+    ],
+    rules: {
+      'no-restricted-syntax': ['error', ...FUNCTIONS_ROLE_RESTRICTIONS, FUNCTIONS_V1_RESTRICTION],
+    },
+  },
+  {
+    files: LEGACY_FUNCTIONS_V1_FILES,
     rules: {
       'no-restricted-syntax': ['error', ...FUNCTIONS_ROLE_RESTRICTIONS],
     },
