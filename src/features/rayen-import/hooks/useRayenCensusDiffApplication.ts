@@ -128,34 +128,58 @@ export const useRayenCensusDiffApplication = ({
             hasUnchangedRayenStructuralState(persistenceBase, result.record);
           let persistence: RayenCensusPersistencePayload;
           if (canUseMetadataCheckpoint) {
-            const authoritativeCheckpointBase = await loadAuthoritativeRecord(persistenceBase.date);
-            if (!hasUnchangedRayenStructuralState(persistenceBase, authoritativeCheckpointBase)) {
-              const stalePlan = new Error(
-                'El censo cambió mientras se preparaba el checkpoint de sincronización.'
+            const commitMetadataCheckpoint = async (base: DailyRecord) => {
+              const checkpointStamped = applyRunToRecord(base, diff).record;
+              session.check();
+              return checkpointRepository.updatePartialDetailed(
+                persistenceBase.date,
+                {
+                  rayenSync: checkpointStamped.rayenSync,
+                  rayenSyncHistory: checkpointStamped.rayenSyncHistory,
+                } satisfies DailyRecordPatch,
+                {
+                  baseRecord: base,
+                  historyPolicy: 'skip',
+                  requireAtomicCas: true,
+                  requireConfirmedRecord: true,
+                  requireRemoteAuthorityFirst: true,
+                  dailyRecordWriteLease: writeLease,
+                }
               );
-              stalePlan.name = 'ConcurrencyError';
-              throw stalePlan;
+            };
+            const isVersionConflict = (error: unknown): boolean =>
+              error instanceof Error && error.name === 'ConcurrencyError';
+            let checkpointResult: Awaited<ReturnType<typeof commitMetadataCheckpoint>> | null =
+              null;
+            let versionConflicted = false;
+            try {
+              // Fast path: attempt atomic CAS directly against the planned base (1 server read inside
+              // the transaction instead of 2). Only on a real version conflict do we reload and rebase.
+              checkpointResult = await commitMetadataCheckpoint(persistenceBase);
+              versionConflicted =
+                isDailyRecordWriteRejectedResult(checkpointResult) &&
+                (checkpointResult.concurrencyConflict === true ||
+                  isVersionConflict(checkpointResult.blockingError));
+            } catch (error) {
+              if (!isVersionConflict(error)) throw error;
+              versionConflicted = true;
             }
-            // The structural state is unchanged, but audit metadata may have advanced since planning
-            // (for example, when a previous failed run was recorded). Stamp the current run onto the
-            // fresh server base so the metadata patch cannot overwrite newer history or use stale CAS.
-            const checkpointStamped = applyRunToRecord(authoritativeCheckpointBase, diff).record;
-            session.check();
-            const checkpointResult = await checkpointRepository.updatePartialDetailed(
-              persistenceBase.date,
-              {
-                rayenSync: checkpointStamped.rayenSync,
-                rayenSyncHistory: checkpointStamped.rayenSyncHistory,
-              } satisfies DailyRecordPatch,
-              {
-                baseRecord: authoritativeCheckpointBase,
-                historyPolicy: 'skip',
-                requireAtomicCas: true,
-                requireConfirmedRecord: true,
-                requireRemoteAuthorityFirst: true,
-                dailyRecordWriteLease: writeLease,
+            if (versionConflicted || !checkpointResult) {
+              // The structural state may be unchanged while audit metadata advanced (for example,
+              // a failed run recorded after planning). Reload once, verify unchanged structure,
+              // and stamp onto the fresh server base so newer history is preserved.
+              const authoritativeCheckpointBase = await loadAuthoritativeRecord(
+                persistenceBase.date
+              );
+              if (!hasUnchangedRayenStructuralState(persistenceBase, authoritativeCheckpointBase)) {
+                const stalePlan = new Error(
+                  'El censo cambió mientras se preparaba el checkpoint de sincronización.'
+                );
+                stalePlan.name = 'ConcurrencyError';
+                throw stalePlan;
               }
-            );
+              checkpointResult = await commitMetadataCheckpoint(authoritativeCheckpointBase);
+            }
             let confirmedCheckpointRecord = checkpointResult.confirmedRecord ?? null;
             const checkpointCommitted = !isDailyRecordWriteRejectedResult(checkpointResult);
             if (checkpointCommitted && confirmedCheckpointRecord?.rayenSync?.runId !== run.id) {

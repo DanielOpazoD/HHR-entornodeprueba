@@ -161,6 +161,7 @@ describe('useRayenCensusDiffApplication', () => {
       Object.assign(confirmedRecord, patch);
       return makeConfirmedResult(confirmedRecord);
     });
+    const loadAuthoritativeRecord = vi.fn().mockResolvedValue(baseRecord);
     const { result } = renderHook(() =>
       useRayenCensusDiffApplication({
         ensureRun: () => run,
@@ -168,7 +169,7 @@ describe('useRayenCensusDiffApplication', () => {
         saveDailyRecord,
         checkpointRepository: { updatePartialDetailed: checkpointDailyRecord },
         queryClient,
-        loadAuthoritativeRecord: vi.fn().mockResolvedValue(baseRecord),
+        loadAuthoritativeRecord,
         loadLocalRecord: vi.fn().mockResolvedValue({
           record: null,
           hasPendingWrites: false,
@@ -189,6 +190,7 @@ describe('useRayenCensusDiffApplication', () => {
     expect(applied?.confirmedHandoff.record).toBe(applied?.record);
     expect(applied?.structuralStage.status).toBe('confirmed');
     expect(checkpointDailyRecord).toHaveBeenCalledTimes(1);
+    expect(loadAuthoritativeRecord).not.toHaveBeenCalled();
     expect(saveDailyRecord).not.toHaveBeenCalled();
   });
 
@@ -230,10 +232,7 @@ describe('useRayenCensusDiffApplication', () => {
       ...applyRunToRecord(baseRecord).record,
       lastUpdated: confirmedAt,
     } as DailyRecord;
-    const loadAuthoritativeRecord = vi
-      .fn()
-      .mockResolvedValueOnce(baseRecord)
-      .mockResolvedValueOnce(stampedAuthoritative);
+    const loadAuthoritativeRecord = vi.fn().mockResolvedValueOnce(stampedAuthoritative);
     const { result } = renderHook(() =>
       useRayenCensusDiffApplication({
         ensureRun: () => run,
@@ -257,13 +256,13 @@ describe('useRayenCensusDiffApplication', () => {
       applied = await result.current(baseRecord, diff, undefined, guardAuthoringSession());
     });
 
-    expect(loadAuthoritativeRecord).toHaveBeenCalledTimes(2);
+    expect(loadAuthoritativeRecord).toHaveBeenCalledTimes(1);
     expect(applied?.confirmedHandoff.acceptedRevision).toBe(confirmedAt);
     expect(applied?.record.rayenSync?.runId).toBe(run.id);
     expect(applied?.structuralStage.status).toBe('confirmed');
   });
 
-  it('rebases a metadata checkpoint on the latest server revision and preserves newer audit history', async () => {
+  it('rebases a metadata checkpoint on the latest server revision after CAS conflict and preserves newer audit history', async () => {
     const run: RayenSyncRun = {
       id: 'run-rebased-checkpoint',
       startedAt: '2026-08-08T01:00:00.000Z',
@@ -307,13 +306,18 @@ describe('useRayenCensusDiffApplication', () => {
         ],
       } as DailyRecord,
     }));
-    const checkpointDailyRecord = vi.fn<CheckpointDailyRecordFn>(async (_date, patch, options) =>
-      makeConfirmedResult({
+    const checkpointDailyRecord = vi.fn<CheckpointDailyRecordFn>(async (_date, patch, options) => {
+      if (options?.baseRecord?.lastUpdated !== authoritativeRecord.lastUpdated) {
+        const conflict = new Error('Versión desactualizada');
+        conflict.name = 'ConcurrencyError';
+        throw conflict;
+      }
+      return makeConfirmedResult({
         ...(options?.baseRecord ?? baseRecord),
         ...patch,
         lastUpdated: '2026-08-08T01:00:05.000Z',
-      } as DailyRecord)
-    );
+      } as DailyRecord);
+    });
     const loadAuthoritativeRecord = vi.fn().mockResolvedValue(authoritativeRecord);
     const { result } = renderHook(() =>
       useRayenCensusDiffApplication({
@@ -337,13 +341,14 @@ describe('useRayenCensusDiffApplication', () => {
       await result.current(baseRecord, diff, undefined, guardAuthoringSession());
     });
 
-    const [, patch, options] = checkpointDailyRecord.mock.calls[0];
+    expect(checkpointDailyRecord).toHaveBeenCalledTimes(2);
+    const [, patch, options] = checkpointDailyRecord.mock.calls[1];
     expect(options?.baseRecord).toBe(authoritativeRecord);
     expect((patch as { rayenSyncHistory: unknown[] }).rayenSyncHistory).toEqual([
       priorEvent,
       expect.objectContaining({ id: run.id, status: 'applied' }),
     ]);
-    // The committed record already carries the run stamp: only the base read, no defence reread.
+    // Reloads only once on conflict; committed receipt carries the run stamp so no defence reread.
     expect(loadAuthoritativeRecord).toHaveBeenCalledOnce();
   });
 
@@ -353,7 +358,11 @@ describe('useRayenCensusDiffApplication', () => {
       beds: { R1: { id: 'R1', name: 'R1', status: 'available' } },
       lastUpdated: '2026-08-08T00:59:00.000Z',
     });
-    const checkpointDailyRecord = vi.fn<CheckpointDailyRecordFn>();
+    const checkpointDailyRecord = vi.fn<CheckpointDailyRecordFn>(async () => {
+      const conflict = new Error('Versión desactualizada');
+      conflict.name = 'ConcurrencyError';
+      throw conflict;
+    });
     const { result } = renderHook(() =>
       useRayenCensusDiffApplication({
         ensureRun: (): RayenSyncRun => ({
@@ -387,7 +396,7 @@ describe('useRayenCensusDiffApplication', () => {
     });
 
     expect(rejection).toMatchObject({ name: 'ConcurrencyError' });
-    expect(checkpointDailyRecord).not.toHaveBeenCalled();
+    expect(checkpointDailyRecord).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the full structural save when a local write remains queued', async () => {
