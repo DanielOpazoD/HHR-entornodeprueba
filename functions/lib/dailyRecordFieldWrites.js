@@ -206,11 +206,12 @@ const scopeOf = path => /^beds\.[^.]+/.exec(path)?.[0] ?? path;
  * the path's bed (any field of it: the patient may have changed) or, outside the beds, the path
  * itself (a whole-day write leaves no other entry). No paths, or `*`, never tells.
  */
-const isStillWrittenBy = (
-  day,
-  values,
-  { mutationId = undefined, uid = undefined, clientId = undefined } = {}
-) => {
+/**
+ * @param {any} day
+ * @param {any} values
+ * @param {{ mutationId?: string | null, uid?: string | null, clientId?: string | null }} [options]
+ */
+const isStillWrittenBy = (day, values, { mutationId, uid, clientId } = {}) => {
   const paths = isPlainObject(values) ? Object.keys(values) : [];
   const meta = isPlainObject(day?.meta) ? day.meta : {};
   const map = isPlainObject(meta.fieldWrites) ? meta.fieldWrites : {};
@@ -260,12 +261,12 @@ const isStillWrittenBy = (
  * The map after a server write of the whole `record` whose meta names its revision: the fields it
  * changed from `previousDay`, `mutationId` (none: no edit of anyone's) and no computer.
  * `policySnapshot` is the Rayen import policy read in the same transaction.
+ *
+ * @param {any} record
+ * @param {any} previousDay
+ * @param {{ mutationId?: string | null, policySnapshot?: any }} [options]
  */
-const wholeRecordFieldWrites = (
-  record,
-  previousDay,
-  { mutationId = null, policySnapshot = undefined } = {}
-) =>
+const wholeRecordFieldWrites = (record, previousDay, { mutationId = null, policySnapshot } = {}) =>
   nextFieldWrites({
     previousDay,
     paths: changedFieldPaths(previousDay, record),
@@ -274,7 +275,9 @@ const wholeRecordFieldWrites = (
     mutationId,
     clientId: null,
     uid: null,
-    fenced: Boolean(policySnapshot?.exists) && policySnapshot.data()?.schemaVersion === 2,
+    fenced: Boolean(
+      policySnapshot && policySnapshot.exists && policySnapshot.data()?.schemaVersion === 2
+    ),
   });
 
 module.exports = {

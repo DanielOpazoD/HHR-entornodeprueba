@@ -103,7 +103,7 @@ function batchViews(snapshot, visits, slot, census) {
       return {
         error: error.message,
         code: error.toJSON().status,
-        ...(error.details && { slot: error.details }),
+        ...(error.details ? { slot: error.details } : {}),
       };
     }
   });

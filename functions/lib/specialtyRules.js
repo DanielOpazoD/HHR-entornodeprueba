@@ -70,11 +70,12 @@ const uniqueAssignment = matches => {
   return values.size === 1 ? { kind: 'assign', rule: matches[0] } : null;
 };
 
-const resolvePendingSpecialty = (
-  patient,
-  policy,
-  { target = undefined, catalogEnabled = true } = {}
-) => {
+/**
+ * @param {any} patient
+ * @param {any} policy
+ * @param {{ target?: string, catalogEnabled?: boolean }} [options]
+ */
+const resolvePendingSpecialty = (patient, policy, { target, catalogEnabled = true } = {}) => {
   const isCrib = target === 'clinicalCrib' || patient?.bedMode === 'Cuna';
   if (!isCrib && (!catalogEnabled || !policy?.autoEnabled || !validatePolicy(policy)))
     return { kind: 'keep' };
@@ -105,6 +106,18 @@ const resolvePendingSpecialty = (
 const makeDecisionId = (mutationId, bedId, target) =>
   crypto.createHash('sha256').update(`${mutationId}|${bedId}|${target}`).digest('hex').slice(0, 40);
 
+/**
+ * @param {{
+ *   remoteRecord: any,
+ *   candidate: any,
+ *   policy: any,
+ *   actorUid: any,
+ *   mutationId: any,
+ *   now: any,
+ *   eligibleBedIds?: string[],
+ *   catalogEnabled?: boolean,
+ * }} params
+ */
 const applyPendingSpecialtyRules = ({
   remoteRecord,
   candidate,
@@ -112,7 +125,7 @@ const applyPendingSpecialtyRules = ({
   actorUid,
   mutationId,
   now,
-  eligibleBedIds = undefined,
+  eligibleBedIds,
   catalogEnabled = true,
 }) => {
   if (!text(mutationId)) return [];

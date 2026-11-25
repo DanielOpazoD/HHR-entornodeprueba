@@ -75,7 +75,7 @@ const readClinicalDerivedSplitFrom = () => {
 /** Decided by the target date, never by the run's authority or source date. */
 const isClinicalDerivedSplitDate = date => {
   const from = readClinicalDerivedSplitFrom();
-  return from !== null && isIsoCalendarDay(date) && date >= from;
+  return typeof from === 'string' && isIsoCalendarDay(date) && date >= from;
 };
 
 /** Day carries a marker, supported or not: its writes follow the split layout, never the switch. */
@@ -134,7 +134,8 @@ const assertSplitWriteAccepted = ({ state, data, fieldContractVersion = undefine
   }
 };
 
-const createClinicalDerivedStore = ({ FieldValue = undefined } = {}) => {
+/** @param {{ FieldValue?: any }} [options] */
+const createClinicalDerivedStore = ({ FieldValue } = {}) => {
   const deleteField = () => {
     if (typeof FieldValue?.delete !== 'function') {
       throw new Error('clinicalDerived split writes require FieldValue from the factory.');
@@ -147,9 +148,10 @@ const createClinicalDerivedStore = ({ FieldValue = undefined } = {}) => {
    * a marked day or on a day it marks. Call after the idempotency check and before any write.
    */
   const preparePatchSplit = async ({ transaction, dayRef, date, remoteData, patch, data }) => {
-    const writes = Object.keys(patch)
-      .map(path => ({ path, moved: parseMovedFieldPath(path) }))
-      .filter(write => write.moved);
+    const writes = Object.keys(patch).flatMap(path => {
+      const moved = parseMovedFieldPath(path);
+      return moved ? [{ path, moved }] : [];
+    });
     if (writes.length === 0) return null;
     const state = resolveWriteLayout({ record: remoteData, date });
     if (!state) return null;

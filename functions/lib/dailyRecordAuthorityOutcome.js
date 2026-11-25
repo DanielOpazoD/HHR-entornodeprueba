@@ -65,6 +65,25 @@ const idempotentAuthority = {
   violations: [],
 };
 
+/**
+ * @param {{
+ *   firestore: any,
+ *   date: any,
+ *   mode: any,
+ *   origin: any,
+ *   dryRun: any,
+ *   authority: any,
+ *   coverage: any,
+ *   syncContract: any,
+ *   status: any,
+ *   operation?: string,
+ *   errorCode?: string | null,
+ *   errorMessage?: string | null,
+ *   startedAt: number,
+ *   timings?: any,
+ *   clinicalDerived?: any,
+ * }} params
+ */
 const recordAuthorityTelemetry = async ({
   firestore,
   date,
@@ -76,11 +95,11 @@ const recordAuthorityTelemetry = async ({
   syncContract,
   status,
   operation = 'saveDailyRecordWithClinicalAuthority',
-  errorCode = undefined,
-  errorMessage = undefined,
+  errorCode,
+  errorMessage,
   startedAt,
-  timings = undefined,
-  clinicalDerived = undefined,
+  timings,
+  clinicalDerived,
 }) => {
   try {
     const changedPaths = collectChangedPaths(syncContract);

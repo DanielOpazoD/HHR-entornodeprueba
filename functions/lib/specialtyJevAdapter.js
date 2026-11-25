@@ -121,7 +121,11 @@ const readBoundedResponse = async response => {
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 };
 
-const evaluateWithJev = async (request, { apiKey = undefined, fetchImpl = fetch } = {}) => {
+/**
+ * @param {any} request
+ * @param {{ apiKey?: string, fetchImpl?: typeof fetch }} [options]
+ */
+const evaluateWithJev = async (request, { apiKey, fetchImpl = fetch } = {}) => {
   if (!apiKey) throw new JevAdapterError('JEV_NOT_CONFIGURED');
   if (request?.model !== MODEL || !validRubrics(request?.questions?.specialty?.criteria)) {
     throw new JevAdapterError('JEV_INVALID_REQUEST');

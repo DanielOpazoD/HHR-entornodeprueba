@@ -35,6 +35,11 @@ const STRUCTURAL_DAILY_RECORD_PATCH_ROLES = ADMIN_OR_HOSPITAL_NURSE_ROLES;
 
 const specialtyEpisodeEnabled = () => process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT === 'enabled';
 
+/**
+ * @param {any} path
+ * @param {any} role
+ * @param {any} [intentionalBedClear]
+ */
 const parseAuthorizedPatchPath = (path, role, intentionalBedClear = null) => {
   const parts = String(path)
     .split('.')
@@ -126,6 +131,7 @@ const assertAuthorizedPatchValue = ({ path, value, parsedPath, patchPaths }) => 
   }
 };
 
+/** @param {{ remoteData: any, patch: any, role: any, intentionalBedClear?: any }} params */
 const inspectAuthorizedPatch = ({ remoteData, patch, role, intentionalBedClear = null }) => {
   const patchPaths = new Set(Object.keys(patch));
   let requiresStructuralAuthority = false;
@@ -286,6 +292,7 @@ const assertAuthorizedDailyRecordWriter = async ({
   return { email, role: resolvedRole };
 };
 
+/** @param {{ snapshot: any, record: any, intentionalBedClear?: any }} params */
 const assertNoPatientErasures = ({ snapshot, record, intentionalBedClear = null }) => {
   if (!snapshot.exists) {
     return;

@@ -109,6 +109,7 @@ const createEnrichmentTimingTracker = monotonicNow => {
   const serverTimingsMs = {};
   let transactionTimingsMs;
   let phaseStartedAt = handlerStartedAt;
+  /** @type {string | null} */
   let phase = 'authorizationMs';
 
   return {
