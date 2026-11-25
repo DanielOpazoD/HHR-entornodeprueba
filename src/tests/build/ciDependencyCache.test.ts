@@ -118,7 +118,6 @@ it('preserves docs-only conditions and parallel cold-miss fallbacks without a pr
   );
   expect(docsSetup?.if).toBe("needs.ci-scope.outputs.scope == 'docs-only'");
   const independent = [
-    'docs',
     'docs-scope-gate',
     'critical-coverage-shards',
     'quality-static-groups',
@@ -142,21 +141,7 @@ it('preserves docs-only conditions and parallel cold-miss fallbacks without a pr
   });
   expect(functions.some(step => step.run === 'npm ci')).toBe(true);
   expect(functions.some(step => step.run === 'npm ci --prefix functions')).toBe(true);
-  const apiDocs = jobs.docs;
   expect(steps.find(step => step.id === 'node')?.with?.['node-version']).toBe('22');
-  expect(apiDocs.name).toBe('API Documentation');
-  expect(apiDocs.if).toBe("needs.ci-scope.outputs.scope == 'full'");
-  expect(apiDocs.permissions).toEqual({ contents: 'read' });
-  expect(apiDocs.steps.find(step => step.name === 'Generate API Documentation')?.run).toBe(
-    'npm run docs:generate'
-  );
-  const upload = apiDocs.steps.find(step => step.name === 'Upload documentation artifact');
-  expect(upload?.if).toBe("github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'");
-  expect(upload?.with).toEqual({
-    name: 'api-documentation',
-    path: './docs/api',
-    'retention-days': 7,
-  });
 });
 
 it('restores npm downloads only when an exact installed dependency restore cannot be used', () => {

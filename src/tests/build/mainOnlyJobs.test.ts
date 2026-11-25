@@ -160,7 +160,7 @@ describe('check-main-only-jobs.mjs', () => {
 // main-only-jobs or listed here because it also runs on pull requests, where its absence
 // shows in the pull request itself. No condition is parsed: a new job is classified by
 // where it hangs, however its `if` is spelled.
-const OUTSIDE_CI_SUMMARY_ON_PULL_REQUESTS = ['docs', 'lighthouse-ci'];
+const OUTSIDE_CI_SUMMARY_ON_PULL_REQUESTS = ['lighthouse-ci'];
 
 const jobsOutsideCiSummary = (jobs: Record<string, WorkflowJob>): string[] => {
   const required = new Set(['ci-strict-summary']);

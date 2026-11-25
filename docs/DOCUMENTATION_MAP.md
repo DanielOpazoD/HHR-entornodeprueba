@@ -137,7 +137,6 @@ Documentos útiles para contexto, pero no fuente primaria de reglas activas.
 Artefactos producidos por tooling o reportes automáticos. Son útiles para consulta, pero no son la fuente primaria de diseño.
 
 - [Mapa arquitectónico C4](architecture/c4/README.md) — SVG generados y fuentes PlantUML; snapshot por SHA, no reemplaza la guía canónica
-- `docs/api/**` — no versionado: `npm run docs:generate` lo genera localmente y el CI publica el artefacto `api-documentation`
 - `reports/**/*.md`
 - `reports/**/*.json`
 
@@ -150,14 +149,6 @@ Artefactos producidos por tooling o reportes automáticos. Son útiles para cons
 - Si una decisión ya quedó resumida en un README de módulo, los planes, trackers y phase notes deben enlazarlo en vez de repetir la regla completa.
 - Las rutas internas de documentación deben ser relativas al repo. No agregar rutas absolutas locales ni URLs de archivo local.
 - Las compatibilidades legacy de roles/auth/rules se documentan como protección de migración hasta que la app sea oficial; no deben crecer con consumidores nuevos.
-
-## Decisión sobre `docs/api`
-
-- Es referencia generada por TypeDoc y no se versiona: la copia del repo quedó
-  desactualizada y sólo añadía 2.058 archivos (26 MB) a búsquedas y revisiones.
-- Para consultarla, ejecutar `npm run docs:generate` (escribe `docs/api/`, ignorado
-  por Git) o descargar el artefacto `api-documentation` del CI de `main`.
-- No debe editarse manualmente.
 
 ## Decisión sobre `reports`
 

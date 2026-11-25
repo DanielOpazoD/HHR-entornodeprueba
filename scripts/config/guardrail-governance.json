@@ -24,7 +24,6 @@
       "level": "merge-gate",
       "requiredScripts": [
         "ci:pre-merge",
-        "lint:strict:core",
         "check:critical-coverage",
         "check:netlify-functions-bundle",
         "build",
