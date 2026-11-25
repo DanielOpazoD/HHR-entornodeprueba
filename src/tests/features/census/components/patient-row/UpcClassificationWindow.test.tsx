@@ -42,18 +42,107 @@ beforeEach(() => {
 });
 
 const quickButtons = () => screen.getAllByRole('button', { name: /Sin criterios UPC/i });
+const date = '2026-09-15';
+const signedR1 = () =>
+  DataFactory.createMockPatient('R1', {
+    patientName: 'Paciente R1',
+    upcChecklist: {
+      uciCriteria: [],
+      utiCriteria: [],
+      classification: null,
+      signatureSource: 'session',
+      evaluatedBy: { uid: 'test-nurse', displayName: 'Profesional de prueba' },
+      evaluatedAt: '2026-09-15T14:42:00Z',
+      evaluatedForDate: date,
+      evaluatedBedId: 'R1',
+    },
+  });
 
 describe('UpcClassificationWindow', () => {
+  it('opens on the first pending subject, skips saved rows and drafts, and wraps without writing', async () => {
+    mocks.beds = {
+      ...mocks.beds,
+      R1: signedR1(),
+      R4: DataFactory.createMockPatient('R4', { patientName: 'Paciente R4' }),
+    };
+    render(<UpcClassificationWindow currentDateString={date} onClose={vi.fn()} />);
+    const next = screen.getByRole('button', { name: 'Siguiente pendiente' });
+    const selection = (id: string) =>
+      screen.getByRole('button', { name: new RegExp('^' + id + '.*Paciente') });
+    expect(screen.getByRole('dialog')).toHaveAccessibleName(
+      'Clasificación UPC · 1 de 3 confirmadas'
+    );
+    expect(selection('R1')).toHaveAccessibleDescription(/Confirmada.*Sin criterios.*09:42/);
+    expect(selection('R3')).toHaveAttribute('aria-current', 'true');
+    fireEvent.click(next);
+    expect(selection('R4')).toHaveAttribute('aria-current', 'true');
+    fireEvent.click(next);
+    expect(selection('R3')).toHaveAttribute('aria-current', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Marcar sin criterios UPC en R3' }));
+    expect(selection('R3')).toHaveAccessibleDescription(/Borrador · Sin criterios/);
+    fireEvent.click(next);
+    expect(selection('R4')).toHaveAttribute('aria-current', 'true');
+    expect(next).toBeDisabled();
+    fireEvent.click(screen.getByRole('checkbox', { name: UPC_UCI_CRITERIA[0].label }));
+    expect(selection('R4')).toHaveAccessibleDescription(/Borrador · UCI/);
+    expect(screen.getByRole('dialog')).toHaveAccessibleName(
+      'Clasificación UPC · 1 de 3 confirmadas'
+    );
+    expect(mocks.confirmUpcRound).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar cambios (2)' }));
+    await waitFor(() => expect(mocks.confirmUpcRound).toHaveBeenCalledTimes(1));
+  });
+
+  it('honors an explicit confirmed bed and keeps the attached crib independently pending', () => {
+    mocks.beds = {
+      R1: {
+        ...signedR1(),
+        clinicalCrib: DataFactory.createMockPatient('R1', { patientName: 'Recién nacido' }),
+      },
+    };
+    render(
+      <UpcClassificationWindow currentDateString={date} initialBedId="R1" onClose={vi.fn()} />
+    );
+    const mother = screen.getByRole('button', { name: /^R1.*Paciente R1/ });
+    expect(mother).toHaveAttribute('aria-current', 'true');
+    expect(screen.queryByText('Ver detalle')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Marcar sin criterios UPC en R1' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente pendiente' }));
+    expect(screen.getByRole('button', { name: /cuna clínica.*Recién nacido/ })).toHaveAttribute(
+      'aria-current',
+      'true'
+    );
+    expect(screen.getByRole('button', { name: 'Siguiente pendiente' })).toBeDisabled();
+  });
+
+  it('keeps completed and empty rounds available for consultation', () => {
+    mocks.beds = { R1: signedR1() };
+    const ui = () => (
+      <UpcClassificationWindow currentDateString={date} readOnly onClose={vi.fn()} />
+    );
+    const { rerender } = render(ui());
+    expect(screen.getByRole('dialog')).toHaveAccessibleName(
+      'Clasificación UPC · 1 de 1 confirmada'
+    );
+    expect(screen.getByRole('button', { name: /^R1.*Paciente/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Siguiente pendiente' })).toBeDisabled();
+    mocks.beds = {};
+    rerender(ui());
+    expect(screen.getByRole('dialog')).toHaveAccessibleName(
+      'Clasificación UPC · 0 de 0 confirmadas'
+    );
+    expect(screen.getByRole('button', { name: 'Siguiente pendiente' })).toBeDisabled();
+  });
   it('lists only the occupied classifiable beds', () => {
     render(<UpcClassificationWindow currentDateString="2026-09-15" onClose={vi.fn()} />);
 
     expect(
-      screen.getByRole('dialog', { name: /Clasificación UPC · 2 camas ocupadas/ })
+      screen.getByRole('dialog', { name: /Clasificación UPC · 0 de 2 confirmadas/ })
     ).toBeInTheDocument();
-    expect(screen.getByText(/Paciente R1/)).toBeInTheDocument();
-    expect(screen.getByText(/Paciente R3/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^R1.*Paciente R1/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^R3.*Paciente R3/ })).toBeInTheDocument();
     expect(screen.queryByText('Cama vacía')).toBeNull();
-    expect(screen.getByText(/2 camas ocupadas/)).toBeInTheDocument();
+    expect(screen.getByText(/0 de 2 confirmadas/)).toBeInTheDocument();
   });
 
   it('does not write until the round is confirmed', async () => {
@@ -117,7 +206,7 @@ describe('UpcClassificationWindow', () => {
   it('signs the criteria checked in the detail with the same confirm button', async () => {
     render(<UpcClassificationWindow currentDateString="2026-09-15" onClose={vi.fn()} />);
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Ver detalle' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: /^R1.*Paciente R1/ }));
     fireEvent.click(screen.getAllByLabelText(UPC_UCI_CRITERIA[0].label)[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar cambios (1)' }));
 
@@ -166,7 +255,7 @@ describe('UpcClassificationWindow', () => {
     render(<UpcClassificationWindow currentDateString="2026-09-15" onClose={vi.fn()} />);
 
     const cribRow = screen.getByText('R1 · cuna clínica').closest('li') as HTMLElement;
-    fireEvent.click(within(cribRow).getByRole('button', { name: 'Ver detalle' }));
+    fireEvent.click(within(cribRow).getByRole('button', { name: /cuna clínica.*Recién nacido/ }));
 
     expect(
       within(screen.getByRole('region', { name: 'Checklist de clasificación UPC' })).getByText(
@@ -223,7 +312,7 @@ describe('UpcClassificationWindow', () => {
     await screen.findByRole('button', { name: 'Reintentar confirmación (1)' });
 
     fireEvent.click(quickButtons()[0]);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Ver detalle' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: /^R1.*Paciente R1/ }));
     fireEvent.click(screen.getAllByLabelText(UPC_UCI_CRITERIA[0].label)[0]);
     fireEvent.click(quickButtons()[1]);
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar cambios (2)' }));
@@ -244,7 +333,7 @@ describe('UpcClassificationWindow', () => {
       () => new Promise<boolean>(resolve => (finishWrite = resolve))
     );
     render(<UpcClassificationWindow currentDateString="2026-09-15" onClose={vi.fn()} />);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Ver detalle' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: /^R1.*Paciente R1/ }));
     fireEvent.click(screen.getAllByLabelText(UPC_UCI_CRITERIA[0].label)[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar cambios (1)' }));
 
@@ -253,7 +342,7 @@ describe('UpcClassificationWindow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirmando…' }));
     expect(mocks.confirmUpcRound).toHaveBeenCalledTimes(1);
     expect(quickButtons().every(button => button.hasAttribute('disabled'))).toBe(true);
-    expect(screen.getAllByRole('button', { name: 'Ver detalle' })[0]).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^R1.*Paciente R1/ })).toBeDisabled();
     expect(screen.getAllByLabelText(UPC_UCI_CRITERIA[0].label)[0]).toBeDisabled();
 
     await act(async () => finishWrite?.(true));
@@ -272,7 +361,7 @@ describe('UpcClassificationWindow', () => {
       }),
     };
     render(<UpcClassificationWindow currentDateString="2026-09-15" onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }));
+    fireEvent.click(screen.getByRole('button', { name: /Paciente Neo/ }));
     fireEvent.click(screen.getAllByLabelText(UPC_UTI_CRITERIA[0].label)[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar cambios (1)' }));
 
@@ -292,7 +381,7 @@ describe('UpcClassificationWindow', () => {
     expect(screen.queryByLabelText(/Enfermero responsable/i)).toBeNull();
     expect(screen.queryByText(/marca sin criterios o ajusta/i)).toBeNull();
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Ver detalle' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: /^R1.*Paciente R1/ }));
     // A pane of the window, not a second dialog with its own close.
     const detail = screen.getByRole('region', { name: 'Checklist de clasificación UPC' });
     expect(within(detail).queryByRole('button', { name: 'Cerrar checklist UPC' })).toBeNull();
@@ -308,7 +397,7 @@ describe('UpcClassificationWindow', () => {
         onClose={vi.fn()}
       />
     );
-    quickButtons().forEach(button => expect(button).toBeDisabled());
+    expect(screen.queryByRole('button', { name: /marcar sin criterios UPC/i })).toBeNull();
     expect(screen.getByRole('button', { name: 'Confirmar cambios' })).toBeDisabled();
   });
 

@@ -1,109 +1,102 @@
-import React from 'react';
+import React, { useId } from 'react';
 import clsx from 'clsx';
-import { CheckCheck } from 'lucide-react';
-import type { UpcClassificationRow } from './upcClassificationWindowModel';
-import { resolveUpcBadgeColor } from './upcClassificationTone';
-
-export const isAlreadySignedWithoutCriteria = (row: UpcClassificationRow): boolean =>
-  row.pendingReason === null && row.classification === null;
-
-const chipClass = (row: UpcClassificationRow): string => {
-  if (row.pendingReason || !row.classification) return 'bg-slate-50 text-slate-600 ring-slate-200';
-  const { bg, text, ring } = resolveUpcBadgeColor(row.classification);
-  return `${bg} ${text} ${ring}`;
-};
-
-/** Null when the chip would repeat the pending marker, which already shows with its icon. */
-const chipLabel = (row: UpcClassificationRow): string | null => {
-  if (row.classification === 'UPC_UCI') return 'UPC-UCI';
-  if (row.classification === 'UPC_UTI') return 'UPC-UTI';
-  return row.pendingReason ? null : 'Sin criterios';
-};
+import { Check, Clock3, Pencil } from 'lucide-react';
+import {
+  resolveUpcClassification,
+  resolveUpcClassificationLabel,
+} from '@/domain/upc/upcClassification';
+import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
+import type { UpcClassificationRow, UpcRowDraft } from './upcClassificationWindowModel';
 
 interface UpcClassificationRowItemProps {
   row: UpcClassificationRow;
+  draft?: UpcRowDraft;
   isSelected: boolean;
-  isMarked: boolean;
-  readOnly: boolean;
-  onToggleMark: (rowKey: string, nextMarked: boolean) => void;
-  onSelect: (rowKey: string) => void;
+  canEdit: boolean;
+  saving: boolean;
+  onToggleMark: () => void;
+  onSelect: (key: string) => void;
 }
 
-/** One occupied classifiable bed inside the day window, with its quick "sin criterios" mark. */
 export const UpcClassificationRowItem: React.FC<UpcClassificationRowItemProps> = ({
   row,
+  draft,
   isSelected,
-  isMarked,
-  readOnly,
+  canEdit,
+  saving,
   onToggleMark,
   onSelect,
 }) => {
-  const alreadySigned = isAlreadySignedWithoutCriteria(row);
-
+  const statusId = useId();
+  const isPending = Boolean(row.pendingReason);
+  const marked = draft?.noCriteria === true;
+  const draftLevel =
+    draft && !marked
+      ? resolveUpcClassificationLabel(
+          resolveUpcClassification({ uciCriteria: draft.uci, utiCriteria: draft.uti })
+        )
+      : '';
+  const time =
+    !isPending && !draft && row.evaluatedAt ? readClinicalTimestamp(row.evaluatedAt)?.hhmm : null;
+  const Icon = draft ? Pencil : isPending ? Clock3 : Check;
+  const status = draft
+    ? `Borrador · ${draftLevel || 'Sin criterios'}`
+    : isPending
+      ? ['Pendiente', row.classificationLabel].filter(Boolean).join(' · ')
+      : row.classificationLabel || 'Sin criterios';
+  const showQuickMark = canEdit && (isPending || Boolean(row.classification));
   return (
     <li
       className={clsx(
-        'flex flex-col gap-1 border-b border-slate-100 px-3 py-2',
-        isSelected && 'bg-medical-50/60'
+        'flex items-center gap-2 border-b border-slate-100 px-3 py-1.5',
+        isSelected && 'bg-teal-50/70'
       )}
     >
-      <div className="flex items-center gap-2">
-        <span className="font-bold text-slate-800">{row.bedName}</span>
-        {chipLabel(row) && (
+      <button
+        type="button"
+        aria-current={isSelected ? 'true' : undefined}
+        aria-labelledby={`${statusId}-name`}
+        aria-describedby={statusId}
+        disabled={saving}
+        onClick={() => onSelect(row.key)}
+        className="min-w-0 flex-1 rounded py-1 text-left focus-visible:outline-teal-600"
+      >
+        <span id={`${statusId}-name`} className="block text-xs leading-snug text-slate-800">
+          <strong>{row.bedName}</strong>
+          <span aria-hidden="true"> · </span>
+          <span className="font-medium">{row.patientName}</span>
+        </span>
+        <span
+          id={statusId}
+          className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] leading-tight"
+        >
           <span
+            title={draft ? undefined : (row.pendingReason ?? undefined)}
             className={clsx(
-              'rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1',
-              chipClass(row)
+              'inline-flex items-center gap-1 font-medium',
+              draft ? 'text-slate-700' : isPending ? 'text-amber-800' : 'text-teal-800'
             )}
           >
-            {chipLabel(row)}
+            <Icon size={12} aria-hidden="true" />
+            {!draft && !isPending && <span className="sr-only">Confirmada</span>}
+            {status}
+            {time && <time dateTime={row.evaluatedAt}>· {time}</time>}
           </span>
-        )}
-        {row.pendingReason && (
-          <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-500">
-            Pendiente
-          </span>
-        )}
-      </div>
-      <span className="truncate text-xs text-slate-600">
-        {row.patientName}
-        {row.rut ? ` · ${row.rut}` : ''}
-      </span>
-      <div className="flex flex-wrap items-center gap-1.5">
+          {row.rut && <span className="text-slate-500">{row.rut}</span>}
+        </span>
+      </button>
+      {showQuickMark && (
         <button
           type="button"
-          aria-pressed={isMarked}
-          disabled={readOnly || alreadySigned}
-          title={
-            alreadySigned
-              ? 'Esta cama ya tiene la evaluación del día sin criterios'
-              : 'Marcar sin criterios UPC para confirmar al final'
-          }
-          onClick={() => onToggleMark(row.key, !isMarked)}
-          className={clsx(
-            'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed',
-            isMarked
-              ? 'border-emerald-500 bg-emerald-600 text-white'
-              : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100',
-            alreadySigned && 'border-slate-200 bg-slate-50 text-slate-400'
-          )}
+          aria-pressed={marked}
+          aria-label={`${marked ? 'Deshacer marca' : 'Marcar'} sin criterios UPC en ${row.bedName}`}
+          disabled={saving}
+          onClick={onToggleMark}
+          className="min-h-7 shrink-0 rounded px-1.5 text-[11px] font-semibold text-teal-800 hover:bg-teal-100 focus-visible:outline-teal-600 disabled:opacity-50"
         >
-          <CheckCheck size={11} aria-hidden="true" />
-          {alreadySigned
-            ? 'Sin criterios confirmado'
-            : isMarked
-              ? 'Sin criterios UPC ✓'
-              : 'Sin criterios UPC'}
+          {marked ? 'Deshacer' : 'Sin criterios'}
         </button>
-        <button
-          type="button"
-          disabled={readOnly}
-          onClick={() => onSelect(row.key)}
-          className="rounded-md border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
-        >
-          Ver detalle
-        </button>
-      </div>
+      )}
     </li>
   );
 };

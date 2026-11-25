@@ -2,8 +2,8 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { UpcClassificationWindow } from './UpcClassificationWindow';
 
 interface UpcClassificationWindowContextValue {
-  /** Opens the day panel focused on the bed —or its clinical crib— whose UPC cell was clicked. */
-  openUpcWindow: (bedId: string, options?: { crib?: boolean }) => void;
+  /** The census header opens the round; a patient cell selects its bed or clinical crib. */
+  openUpcWindow: (bedId?: string, options?: { crib?: boolean }) => void;
 }
 
 const UpcClassificationWindowContext =
@@ -37,8 +37,11 @@ export const UpcClassificationWindowProvider: React.FC<UpcClassificationWindowPr
   });
 
   const openUpcWindow = useCallback(
-    (bedId: string, options?: { crib?: boolean }) =>
-      setOpenState({ isOpen: true, bedId: options?.crib ? `${bedId}:crib` : bedId }),
+    (bedId?: string, options?: { crib?: boolean }) =>
+      setOpenState({
+        isOpen: true,
+        bedId: bedId && options?.crib ? `${bedId}:crib` : (bedId ?? null),
+      }),
     []
   );
   const closeUpcWindow = useCallback(

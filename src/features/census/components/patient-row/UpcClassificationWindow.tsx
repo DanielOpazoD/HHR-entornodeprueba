@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCheck, LoaderCircle, ShieldCheck } from 'lucide-react';
+import { CheckCheck, ChevronRight, LoaderCircle, ShieldCheck } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { useDailyRecordBedActions } from '@/context/useDailyRecordScopedActions';
 import { useDailyRecordBeds } from '@/context/DailyRecordContext';
@@ -46,7 +46,8 @@ const UpcRound: React.FC<
 > = ({ currentDateString, readOnly = false, initialBedId = null, onClose, actor }) => {
   const beds = useDailyRecordBeds();
   const { confirmUpcRound } = useDailyRecordBedActions();
-  const [selectedRowKey, setSelectedRowKey] = useState<string | null>(initialBedId);
+  const [selection, setSelection] = useState({ key: initialBedId, visit: 0 });
+  const selectRow = (key: string) => setSelection(current => ({ key, visit: current.visit + 1 }));
   const [drafts, setDrafts] = useState<Record<string, UpcRowDraft>>({});
   const [message, setMessage] = useState('');
   const [retry, setRetry] = useState(false);
@@ -64,7 +65,19 @@ const UpcRound: React.FC<
     () => buildUpcClassificationRows(beds, currentDateString),
     [beds, currentDateString]
   );
-  const selectedRow = rows.find(row => row.key === selectedRowKey) ?? rows[0];
+  const selectedRow =
+    rows.find(row => row.key === selection.key) ?? rows.find(row => row.pendingReason) ?? rows[0];
+  if (selectedRow && selection.key !== selectedRow.key)
+    setSelection({ ...selection, key: selectedRow.key });
+  const currentDraft = (row: UpcClassificationRow) => {
+    const draft = drafts[row.key];
+    return draft?.row.episodeIdentity === row.episodeIdentity ? draft : undefined;
+  };
+  const selectedIndex = selectedRow ? rows.indexOf(selectedRow) : -1;
+  const nextPending = [...rows.slice(selectedIndex + 1), ...rows.slice(0, selectedIndex)].find(
+    row => row.pendingReason && !currentDraft(row)
+  );
+  const confirmedCount = rows.filter(row => !row.pendingReason && !currentDraft(row)).length;
   const subjectOf = (row: UpcClassificationRow) =>
     row.isCrib ? beds?.[row.bedId]?.clinicalCrib : beds?.[row.bedId];
   const selectedPatient = selectedRow && subjectOf(selectedRow);
@@ -72,10 +85,7 @@ const UpcRound: React.FC<
   const canEdit = Boolean(actor && !readOnly);
 
   const draftFor = (row: UpcClassificationRow) => {
-    const draft = drafts[row.key];
-    return draft?.row.episodeIdentity === row.episodeIdentity
-      ? draft
-      : createUpcRowDraft(row, subjectOf(row)?.upcChecklist);
+    return currentDraft(row) ?? createUpcRowDraft(row, subjectOf(row)?.upcChecklist);
   };
 
   const editDraft = (row: UpcClassificationRow, change: (draft: UpcRowDraft) => UpcRowDraft) => {
@@ -129,7 +139,7 @@ const UpcRound: React.FC<
         else next[row.key] = { ...draft, previousChecklist: subject?.upcChecklist };
       }
       setDrafts(next);
-      setSelectedRowKey(firstStale.row.key);
+      selectRow(firstStale.row.key);
       setMessage(
         `Cambió el paciente o la evaluación en ${stale.map(draft => draft.row.bedName).join(', ')}. Revisa la ronda antes de confirmar.`
       );
@@ -168,7 +178,7 @@ const UpcRound: React.FC<
     <BaseModal
       isOpen
       onClose={requestClose}
-      title={`Clasificación UPC · ${rows.length} ${rows.length === 1 ? 'cama ocupada' : 'camas ocupadas'}`}
+      title={`Clasificación UPC · ${confirmedCount} de ${rows.length} ${rows.length === 1 ? 'confirmada' : 'confirmadas'}`}
       icon={<ShieldCheck aria-hidden="true" />}
       headerIconColor="text-medical-700"
       size="5xl"
@@ -191,12 +201,13 @@ const UpcRound: React.FC<
               key={row.key}
               row={row}
               isSelected={row.key === selectedRow?.key}
-              isMarked={draftFor(row).noCriteria}
-              readOnly={!canEdit || isSaving}
-              onToggleMark={(_key, noCriteria) =>
-                editDraft(row, draft => ({ ...draft, noCriteria }))
+              draft={currentDraft(row)}
+              canEdit={canEdit}
+              saving={isSaving}
+              onToggleMark={() =>
+                editDraft(row, draft => ({ ...draft, noCriteria: !draft.noCriteria }))
               }
-              onSelect={setSelectedRowKey}
+              onSelect={selectRow}
             />
           ))}
           {rows.length === 0 && (
@@ -209,6 +220,7 @@ const UpcRound: React.FC<
         <div className="flex min-h-0 flex-col items-stretch overflow-y-auto p-3">
           {selectedRow && selectedPatient && selectedDraft ? (
             <UpcBedCriteriaDraftPanel
+              key={`${selectedRow.key}:${selectedRow.episodeIdentity}:${selection.visit}`}
               row={selectedRow}
               criteria={selectedDraft.noCriteria ? { uci: [], uti: [] } : selectedDraft}
               readOnly={!canEdit}
@@ -227,6 +239,17 @@ const UpcRound: React.FC<
       </div>
 
       <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-4 py-3">
+        <button
+          type="button"
+          onClick={() => nextPending && selectRow(nextPending.key)}
+          disabled={!nextPending || isSaving}
+          className="mr-auto inline-flex min-h-8 items-center gap-1 rounded px-2 text-xs font-semibold text-teal-800 hover:bg-teal-50 focus-visible:outline-teal-600 disabled:text-slate-400"
+        >
+          Siguiente pendiente <ChevronRight size={14} aria-hidden="true" />
+        </button>
+        <span className="sr-only" role="status">
+          {selectedRow && `Cama seleccionada: ${selectedRow.bedName}, ${selectedRow.patientName}`}
+        </span>
         <button
           type="button"
           onClick={onClose}

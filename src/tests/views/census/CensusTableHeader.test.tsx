@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { CensusTableHeader } from '@/features/census/components/CensusTableHeader';
 import type { CensusTableHeaderProps } from '@/features/census/types/censusTableComponentContracts';
 import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
@@ -8,6 +8,10 @@ import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 const diagnosisHeaderSpy = vi.fn();
 const actionHeaderSpy = vi.fn();
 const resizableSpy = vi.fn();
+const openUpcWindow = vi.hoisted(() => vi.fn());
+vi.mock('@/features/census/components/patient-row/UpcClassificationWindowContext', () => ({
+  useUpcClassificationWindowOpener: () => ({ openUpcWindow }),
+}));
 
 type ActionHeaderProps = {
   width: number;
@@ -89,7 +93,8 @@ describe('CensusTableHeader', () => {
     expect(actionHeaderSpy).toHaveBeenCalledTimes(1);
     expect(resizableSpy).toHaveBeenCalled();
     expect(screen.getByText('Cama')).toBeInTheDocument();
-    expect(screen.getByText('UPC')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir ronda de clasificación UPC' }));
+    expect(openUpcWindow).toHaveBeenCalledWith();
     expect(screen.getByText('Paciente')).toBeInTheDocument();
     // Identidad unificada: RUT y Edad ya no tienen columnas propias; C.QX está oculta.
     expect(screen.queryByText('RUT')).not.toBeInTheDocument();
