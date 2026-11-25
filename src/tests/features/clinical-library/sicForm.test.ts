@@ -8,10 +8,12 @@ import {
   validateClinicalFormValues,
   exportClinicalFormDraft,
 } from '@/features/clinical-library/domain/forms/clinicalFormDraft';
-import { validateSicRequired } from '@/features/clinical-library/domain/forms/sicFormData';
 import { createSicFormDocx } from '@/features/clinical-library/services/sicFormDocx';
 import { createClinicalFormPdf } from '@/features/clinical-library/services/clinicalFormPdf';
-import { addSicSignatureToPdf } from '@/features/clinical-library/services/sicFormPdf';
+import {
+  addSicSignatureToPdf,
+  generateSicFormPdf,
+} from '@/features/clinical-library/services/sicFormPdf';
 
 const form = getClinicalForm('solicitud-interconsulta-hhr');
 const template = new Uint8Array(readFileSync(`public${form.sourceUrl}`));
@@ -58,23 +60,40 @@ describe('SIC HHR', () => {
     expect(result.sic_prioridad).toBe('Alta');
     expect(result.sic_direccion).toBe('Simón PAOA S/N');
     expect(result.paciente_nombre_completo).toBeNull();
-    expect(() => validateSicRequired(result)).not.toThrow();
     expect(
       exportClinicalFormDraft(form.id, { ...values, signature: 'NOT EXPORTED' })
     ).not.toContain('NOT EXPORTED');
   });
-  it('requires essential data and a reason, rejects contradictory choices and invalid RUT', () => {
-    expect(() => validateSicRequired({})).toThrow('Fecha SIC');
-    expect(() =>
-      validateSicRequired({
-        ...values,
-        sic_confirmacion: false,
-        sic_tratamiento: false,
-        sic_examenes: false,
-        sic_ges: false,
-        sic_otro: false,
-      })
-    ).toThrow('Al menos un motivo');
+  it('exports partial or blank SIC without requiring fields, while rejecting invalid typed values', async () => {
+    const emptyDocx = await createSicFormDocx(template, form, {});
+    const emptyDoc = parse(new PizZip(emptyDocx));
+    expect(emptyDoc.documentElement.textContent).toContain('Simón PAOA S/N');
+    expect(tags(emptyDoc, 't').filter(node => node.textContent === 'X')).toHaveLength(1);
+
+    const partialDocx = await createSicFormDocx(template, form, {
+      paciente_nombre_completo: 'PACIENTE PARCIAL',
+      paciente_sexo_biologico: 'Indeterminado',
+    });
+    const partialDoc = parse(new PizZip(partialDocx));
+    expect(partialDoc.documentElement.textContent).toContain('PACIENTE PARCIAL');
+    expect(tags(partialDoc, 't').filter(node => node.textContent === 'X')).toHaveLength(1);
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () => readFileSync(`public${form.templateUrl}`).buffer,
+    }) as unknown as typeof fetch;
+    try {
+      const partialPdf = await generateSicFormPdf(
+        form,
+        { paciente_nombre_completo: 'PARCIAL' },
+        []
+      );
+      expect((await PDFDocument.load(partialPdf)).getPageCount()).toBe(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
     expect(() =>
       validateClinicalFormValues(
         form,

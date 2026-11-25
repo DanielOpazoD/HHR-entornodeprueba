@@ -52,56 +52,56 @@ export const SicSignatureField: React.FC<{ signature: ReturnType<typeof useSicSi
   signature,
 }) => (
   <fieldset className="clinical-form-section clinical-form-signature">
-    <legend>Firma del profesional</legend>
-    <label className="clinical-form-check">
-      <input
-        type="checkbox"
-        checked={signature.include}
-        onChange={event => signature.setInclude(event.target.checked)}
-      />
-      <span>Adjuntar firma al documento</span>
-    </label>
-    {signature.url && (
-      <img
-        src={signature.url}
-        alt="Firma seleccionada para esta SIC"
-        className="clinical-form-signature-preview"
-      />
-    )}
-    {signature.busy && <p role="status">Cargando tu firma guardada…</p>}
-    {signature.failed && (
-      <p role="alert">
-        No se pudo cargar tu firma guardada. Adjunta una imagen o desmarca la firma para firmar a
-        mano.
-      </p>
-    )}
-    {signature.saved.status === 'none' && !signature.localUrl && (
-      <p className="clinical-form-muted">
-        No tienes una firma guardada. Puedes adjuntarla aquí o firmar el impreso.
-      </p>
-    )}
-    <label className="clinical-form-field">
-      <span>Adjuntar imagen de firma (PNG, JPG o WEBP; máximo 500 KB)</span>
-      <input
-        type="file"
-        accept="image/png,image/jpeg,image/webp"
-        onChange={event => {
-          signature.attach(event.target.files?.[0]);
-          event.target.value = '';
-        }}
-      />
-    </label>
-    {signature.localUrl && (
-      <div>
+    <legend>Firma</legend>
+    <div className="clinical-form-signature-row">
+      <label className="clinical-form-check">
+        <input
+          type="checkbox"
+          checked={signature.include}
+          onChange={event => signature.setInclude(event.target.checked)}
+        />
+        <span>Adjuntar firma al documento</span>
+      </label>
+      {signature.url && (
+        <img
+          src={signature.url}
+          alt="Firma seleccionada para esta SIC"
+          className="clinical-form-signature-preview"
+        />
+      )}
+      <label className="clinical-form-button clinical-form-signature-upload">
+        <span>{signature.url ? 'Cambiar firma' : 'Subir firma'}</span>
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          aria-label="Adjuntar imagen de firma"
+          className="sr-only"
+          onChange={event => {
+            signature.attach(event.target.files?.[0]);
+            event.target.value = '';
+          }}
+        />
+      </label>
+      {signature.localUrl && (
         <button type="button" className="clinical-form-button" onClick={signature.useSaved}>
-          {signature.saved.status === 'ready' ? 'Usar mi firma guardada' : 'Quitar firma adjunta'}
+          {signature.saved.status === 'ready' ? 'Usar mi firma guardada' : 'Quitar firma'}
         </button>
-      </div>
+      )}
+    </div>
+    {signature.busy && (
+      <p role="status" className="clinical-form-muted">
+        Cargando firma…
+      </p>
     )}
-    {signature.error && <p role="alert">{signature.error}</p>}
-    <p className="clinical-form-muted">
-      La imagen adjunta se usa sólo en este formulario. Revisa que corresponda al profesional que
-      emite la SIC.
-    </p>
+    {signature.failed && (
+      <p role="alert" className="clinical-form-notice">
+        No se pudo cargar tu firma guardada. Sube una imagen o desmarca la firma.
+      </p>
+    )}
+    {signature.error && (
+      <p role="alert" className="clinical-form-notice">
+        {signature.error}
+      </p>
+    )}
   </fieldset>
 );

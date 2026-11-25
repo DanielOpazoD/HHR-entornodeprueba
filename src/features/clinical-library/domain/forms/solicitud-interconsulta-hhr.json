@@ -93,7 +93,7 @@
     },
     {
       "id": "paciente_nombre_completo",
-      "label": "Nombre completo (si no hay nombres separados)",
+      "label": "Nombre completo",
       "section": "Paciente",
       "kind": "text",
       "targets": [
@@ -105,7 +105,7 @@
     },
     {
       "id": "paciente_rut",
-      "label": "RUT del paciente",
+      "label": "RUT",
       "section": "Paciente",
       "kind": "text",
       "targets": [
@@ -367,7 +367,7 @@
     },
     {
       "id": "sic_adjuntos",
-      "label": "Documentos adjuntos (descripción)",
+      "label": "Documentos adjuntos",
       "section": "Datos clínicos",
       "kind": "text",
       "targets": [
@@ -380,7 +380,7 @@
     },
     {
       "id": "sic_profesional_nombre",
-      "label": "Nombre del profesional que emite la SIC",
+      "label": "Nombre del profesional",
       "section": "Profesional",
       "kind": "text",
       "targets": [

@@ -1,7 +1,7 @@
 import { loadPdfLibGenerationRuntime } from '@/services/pdf/pdfLibRuntime';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { validateClinicalFormValues } from '../domain/forms/clinicalFormDraft';
-import { SIC_FORM_ID, validateSicRequired } from '../domain/forms/sicFormData';
+import { SIC_FORM_ID, SIC_STRUCTURED_NAME_IDS } from '../domain/forms/sicFormData';
 import type { ClinicalFormDefinition, ClinicalFormValues } from '../domain/forms/clinicalFormTypes';
 import { clinicalFormTemplateHash, targetText } from './clinicalFormPdf';
 import { layoutClinicalFormText } from './clinicalFormPdfLayout';
@@ -66,7 +66,6 @@ export const createSicFormDocx = async (
   if (form.id !== SIC_FORM_ID || (await clinicalFormTemplateHash(template)) !== form.sourceSha256)
     throw new Error('La plantilla Word cambió. Actualiza la aplicación antes de descargar.');
   const values = validateClinicalFormValues(form, input, hidden);
-  validateSicRequired(values);
   const [{ default: PizZip }, { PDFDocument, StandardFonts }] = await Promise.all([
     import('pizzip'),
     loadPdfLibGenerationRuntime(),
@@ -136,39 +135,43 @@ export const createSicFormDocx = async (
       write(p, lines.map(line => line.text).join('\n'), Math.min(9, required(lines[0]).size));
     });
   }
-  const names = paragraph(cell(3, 0, 0));
-  const parts = ['paciente_apellido_paterno', 'paciente_apellido_materno', 'paciente_nombres'];
-  if (values.paciente_nombre_completo) {
-    const field = required(form.fields.find(item => item.id === 'paciente_nombre_completo'));
-    const lines = layoutClinicalFormText(
-      field,
-      { ...required(field.targets[0]), fontSize: 6 },
-      String(values.paciente_nombre_completo),
-      font,
-      792,
-      false
-    );
-    write(names, String(values.paciente_nombre_completo), required(lines[0]).size);
-  } else {
-    const tabs = required(names.firstElementChild).appendChild(element('tabs'));
-    [3900, 7580].forEach(pos =>
-      tabs.appendChild(element('tab', { val: 'left', pos: String(pos) }))
-    );
-    parts.forEach((id, i) => {
-      if (i) names.appendChild(element('r')).appendChild(element('tab'));
-      const text = String(values[id] ?? '');
-      if (!text) return;
-      const field = required(form.fields.find(item => item.id === id));
+  const hasName =
+    Boolean(values.paciente_nombre_completo) ||
+    SIC_STRUCTURED_NAME_IDS.some(id => Boolean(values[id]));
+  if (hasName) {
+    const names = paragraph(cell(3, 0, 0));
+    if (values.paciente_nombre_completo) {
+      const field = required(form.fields.find(item => item.id === 'paciente_nombre_completo'));
       const lines = layoutClinicalFormText(
         field,
         { ...required(field.targets[0]), fontSize: 6 },
-        text,
+        String(values.paciente_nombre_completo),
         font,
         792,
         false
       );
-      write(names, text, required(lines[0]).size);
-    });
+      write(names, String(values.paciente_nombre_completo), required(lines[0]).size);
+    } else {
+      const tabs = required(names.firstElementChild).appendChild(element('tabs'));
+      [3900, 7580].forEach(pos =>
+        tabs.appendChild(element('tab', { val: 'left', pos: String(pos) }))
+      );
+      SIC_STRUCTURED_NAME_IDS.forEach((id, i) => {
+        if (i) names.appendChild(element('r')).appendChild(element('tab'));
+        const text = String(values[id] ?? '');
+        if (!text) return;
+        const field = required(form.fields.find(item => item.id === id));
+        const lines = layoutClinicalFormText(
+          field,
+          { ...required(field.targets[0]), fontSize: 6 },
+          text,
+          font,
+          792,
+          false
+        );
+        write(names, text, required(lines[0]).size);
+      });
+    }
   }
   if (png) await insertSicWordSignature(zip, document, paragraph(cell(5, 0, 5)), png);
   zip.file('word/document.xml', new XMLSerializer().serializeToString(document));

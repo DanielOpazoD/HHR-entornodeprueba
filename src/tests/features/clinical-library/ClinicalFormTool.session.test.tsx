@@ -54,16 +54,14 @@ describe('SIC session boundary', () => {
       await waitFor(() =>
         expect(screen.getByRole('button', { name: 'PDF imprimible' })).toBeEnabled()
       );
-      fireEvent.change(screen.getByLabelText('Nombre completo (si no hay nombres separados)'), {
+      fireEvent.change(screen.getByLabelText('Nombre completo'), {
         target: { value: 'PACIENTE SINTÉTICO' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'PDF imprimible' }));
       await waitFor(() => expect(mocks.pdf).toHaveBeenCalledOnce());
       if (change === 'uid') view.rerender(<Wrapper uid="second" />);
       else act(() => setSessionGeneration(`sic-test-${change}`));
-      expect(screen.getByLabelText('Nombre completo (si no hay nombres separados)')).toHaveValue(
-        ''
-      );
+      expect(screen.getByLabelText('Nombre completo')).toHaveValue('');
       await act(async () => finish(new Uint8Array([37, 80, 68, 70])));
       expect(downloadBlob).not.toHaveBeenCalled();
       expect(screen.queryByTitle(/PDF para imprimir/)).not.toBeInTheDocument();

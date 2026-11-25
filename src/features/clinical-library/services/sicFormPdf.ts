@@ -1,7 +1,5 @@
 import { loadPdfLibGenerationRuntime } from '@/services/pdf/pdfLibRuntime';
 import type { ClinicalFormDefinition, ClinicalFormValues } from '../domain/forms/clinicalFormTypes';
-import { validateClinicalFormValues } from '../domain/forms/clinicalFormDraft';
-import { validateSicRequired } from '../domain/forms/sicFormData';
 import { createClinicalFormPdf, loadClinicalFormTemplate } from './clinicalFormPdf';
 
 export const addSicSignatureToPdf = async (
@@ -27,10 +25,8 @@ export const generateSicFormPdf = async (
   values: ClinicalFormValues,
   hidden: ReadonlyArray<string>,
   png?: Uint8Array
-) => {
-  validateSicRequired(validateClinicalFormValues(form, values, hidden));
-  return addSicSignatureToPdf(
+) =>
+  addSicSignatureToPdf(
     await createClinicalFormPdf(await loadClinicalFormTemplate(form), form, values, hidden),
     png
   );
-};
