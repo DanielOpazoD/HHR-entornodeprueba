@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import '../../../extension/clinical-day-runtime.js';
 import '../../../extension/census-sync-horizon-runtime.js';
@@ -44,7 +44,11 @@ const snapshot = {
   },
 };
 
-const capture = (healths: Health[], readSnapshot: () => Promise<unknown>) => {
+const capture = (
+  healths: Health[],
+  readSnapshot: () => Promise<unknown>,
+  extra: Record<string, unknown> = {}
+) => {
   const times = [new Date('2026-07-24T18:00:00.000Z'), new Date('2026-07-24T18:00:21.000Z')];
   const readHealth = vi.fn();
   healths.forEach(health => readHealth.mockResolvedValueOnce(health));
@@ -62,10 +66,13 @@ const capture = (healths: Health[], readSnapshot: () => Promise<unknown>) => {
     }),
     now: () => times.shift() ?? new Date('2026-07-24T18:00:21.000Z'),
     idFactory: () => 'sync-bundle-read-block',
+    ...extra,
   });
 };
 
 describe('Rayen capture while Ficha Médico is in its read block', () => {
+  afterEach(() => vi.useRealTimers());
+
   it('reads anyway; once the network is back the read clears the block and the sync completes', async () => {
     const readSnapshot = vi.fn().mockResolvedValue(snapshot);
 
@@ -80,16 +87,42 @@ describe('Rayen capture while Ficha Médico is in its read block', () => {
     );
   });
 
-  it('still fails, with the block named, when the network is still down', async () => {
-    const readSnapshot = vi.fn().mockResolvedValue({
-      error:
-        'No se pudo leer Rayen. Detalle: Failed to fetch al consultar https://example.invalid/census',
-    });
+  it('retries once after a brief pause when attempt 1 leaves Ficha Médico read-blocked and recovers', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const readSnapshot = vi
+      .fn()
+      .mockResolvedValueOnce({
+        error:
+          'No se pudo leer Rayen. Detalle: Failed to fetch al consultar https://example.invalid/census',
+      })
+      .mockResolvedValueOnce(snapshot);
 
-    const result = await capture([readBlocked, readBlocked], readSnapshot);
+    const pending = capture([ready, readBlocked, ready], readSnapshot);
+    await vi.advanceTimersByTimeAsync(1199);
+    expect(readSnapshot).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    const result = await pending;
 
+    expect(readSnapshot).toHaveBeenCalledTimes(2);
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        bundle: expect.objectContaining({ id: 'sync-bundle-read-block', captureRetries: 1 }),
+      })
+    );
+  });
+
+  it('retries once while read-blocked and preserves the real endpoint failure when the network stays down', async () => {
+    const networkError =
+      'No se pudo leer Rayen. Detalle: Failed to fetch al consultar https://example.invalid/census';
+    const readSnapshot = vi.fn().mockResolvedValue({ error: networkError });
+
+    const result = await capture([readBlocked, readBlocked], readSnapshot, { retryDelayMs: 0 });
+
+    expect(readSnapshot).toHaveBeenCalledTimes(2);
     expect(result.ok).toBeUndefined();
-    expect(result.error).toBe(readBlocked.fichaMedico.message);
+    expect(result.error).toBe(networkError);
+    expect(result.captureRetries).toBe(1);
   });
 
   it('does not read when Ficha Médico is unavailable for any other reason', async () => {

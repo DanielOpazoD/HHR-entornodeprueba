@@ -15,9 +15,10 @@
    * and with numeric path segments anonymised: an encounter id in `/encounter/<id>/...` must
    * never cross out of the MAIN world inside an error string.
    */
+  const offlineTag = () => (typeof navigator !== 'undefined' && navigator?.onLine === false ? ' (offline)' : '');
   const describeNetworkFailure = (error, url) =>
     new Error(
-      errorMessage(error) +
+      errorMessage(error) + offlineTag() +
         ' al consultar ' +
         String(url)
           .replace(/\?.*/, '')

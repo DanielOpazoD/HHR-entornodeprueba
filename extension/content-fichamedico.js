@@ -55,10 +55,44 @@
     );
   };
 
+  const DIAGNOSIS_CATALOG_STORAGE_KEY = 'hhr:diagnosis-catalog:v1';
+  const MAX_PERSISTED_DIAGNOSIS_ENTRIES = 50000;
+  const isValidCatalogUpdate = record => Boolean(
+    record && typeof record === 'object' && record.version === 1 &&
+    typeof record.origin === 'string' && record.origin.startsWith('https://') &&
+    Number.isFinite(record.savedAt) && Number.isFinite(record.expiresAt) &&
+    Array.isArray(record.entries) && record.entries.length > 0 &&
+    record.entries.length <= MAX_PERSISTED_DIAGNOSIS_ENTRIES
+  );
+  const readPersistedDiagnosisCatalog = async () => {
+    try {
+      const local = chrome?.storage?.local;
+      if (!local || typeof local.get !== 'function') return null;
+      const stored = await local.get(DIAGNOSIS_CATALOG_STORAGE_KEY);
+      return stored ? stored[DIAGNOSIS_CATALOG_STORAGE_KEY] || null : null;
+    } catch (_) {
+      return null;
+    }
+  };
+  const savePersistedDiagnosisCatalog = record => {
+    if (!isValidCatalogUpdate(record)) return;
+    try {
+      const local = chrome?.storage?.local;
+      if (!local || typeof local.set !== 'function') return;
+      Promise.resolve(local.set({ [DIAGNOSIS_CATALOG_STORAGE_KEY]: record })).catch(() => {});
+    } catch (_) {}
+  };
+  const buildReadRequest = (reqId, runtimeGeneration, persistedDiagnosisCatalog) => {
+    const request = { type: 'RAYEN_EXT_READ_REQUEST', reqId, runtimeGeneration };
+    if (persistedDiagnosisCatalog) request.persistedDiagnosisCatalog = persistedDiagnosisCatalog;
+    return request;
+  };
+
   const readViaMainWorld = async () => {
     const runtimeContext = await getRuntimeContext();
     const runtimeGeneration = runtimeContext && runtimeContext.runtimeGeneration;
     if (!runtimeGeneration) return { error: 'El relé de Ficha Médico perdió conexión con la extensión.' };
+    const persistedDiagnosisCatalog = await readPersistedDiagnosisCatalog();
     return new Promise(resolve => {
       const reqId = 'r' + Date.now() + '-' + Math.floor(Math.random() * 1e9);
       let settled = false;
@@ -70,6 +104,7 @@
         cleanup();
         if (staleReader(d, runtimeGeneration)) return resolve({ error: STALE_READER_MESSAGE });
         const { capturePhasesMs, ...snapshot } = d.snapshot || {};
+        if (!d.error && d.diagnosisCatalogUpdate) savePersistedDiagnosisCatalog(d.diagnosisCatalogUpdate);
         resolve(d.error ? { error: d.error } : { snapshot: d.snapshot ? snapshot : undefined, capturePhasesMs });
       };
       const cleanup = () => {
@@ -80,7 +115,7 @@
 
       window.addEventListener('message', onMessage);
       window.postMessage(
-        { type: 'RAYEN_EXT_READ_REQUEST', reqId, runtimeGeneration },
+        buildReadRequest(reqId, runtimeGeneration, persistedDiagnosisCatalog),
         window.location.origin
       );
 

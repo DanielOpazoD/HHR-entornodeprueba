@@ -47,7 +47,7 @@
       "hotspots": {}
     },
     "capture-read-recovery.js": {
-      "maxLines": 68,
+      "maxLines": 72,
       "hotspots": {}
     },
     "census-sync-horizon-runtime.js": {
@@ -215,7 +215,7 @@
       "hotspots": {}
     },
     "content-fichamedico.js": {
-      "maxLines": 210,
+      "maxLines": 245,
       "hotspots": {}
     },
     "content-gestioncamas.js": {
@@ -375,7 +375,7 @@
       "hotspots": {}
     },
     "fichamedico-census-runtime.js": {
-      "maxLines": 137,
+      "maxLines": 154,
       "hotspots": {}
     },
     "fichamedico-clinical-client.js": {
@@ -389,7 +389,7 @@
       "hotspots": {}
     },
     "fichamedico-diagnosis-coding.js": {
-      "maxLines": 107,
+      "maxLines": 161,
       "hotspots": {}
     },
     "fichamedico-fluid-balance-runtime.js": {
@@ -425,7 +425,7 @@
       "hotspots": {}
     },
     "fichamedico-read-resilience.js": {
-      "maxLines": 110,
+      "maxLines": 111,
       "hotspots": {}
     },
     "fichamedico-transport-runtime.js": {
@@ -771,7 +771,7 @@
       "hotspots": {}
     },
     "inject-fichamedico.js": {
-      "maxLines": 645,
+      "maxLines": 701,
       "hotspots": {
         "iife>variable:getVerifiedClinicalContext": 21,
         "iife>variable:onBridgeMessage": 32,
@@ -899,7 +899,7 @@
       "hotspots": {}
     },
     "rayen-sync-bundle-runtime.js": {
-      "maxLines": 175,
+      "maxLines": 177,
       "hotspots": {
         "iife>variable:capture": 17
       }

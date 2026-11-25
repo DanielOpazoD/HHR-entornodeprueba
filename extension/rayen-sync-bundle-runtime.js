@@ -1,7 +1,8 @@
 /** Atomic read coordinator for one Rayen census synchronization (classic UMD for MV3). */
 (function (root) {
   'use strict';
-  const MAX_SOURCE_SKEW_MS = 2 * 60 * 1000;
+  const MAX_SOURCE_SKEW_MS = 2 * 60 * 1000, TRANSIENT_RETRY_DELAY_MS = 1200;
+  const resolveRetryDelayMs = v => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : TRANSIENT_RETRY_DELAY_MS);
   // HHR shows this as an inactive Ficha Médico session, not as a Gestión de Camas problem.
   const UNVERIFIED_FICHA_MESSAGE =
     'No se pudo verificar la sesión clínica de Ficha Médico. Inicia sesión en Ficha Médico y vuelve a sincronizar.';
@@ -120,6 +121,7 @@
     idFactory = () => crypto.randomUUID(),
     monotonicNow = () => root.performance.now(),
     isCancelled = () => false,
+    retryDelayMs,
   }) => {
     const started = now(), startedAt = started.toISOString();
     const inputError = captureInputError(dateStart, dateEnd, started, [readHealth, readSnapshot, readReport, readFichaScope]);
@@ -145,8 +147,8 @@
         readFicha: () => measuredRead('captureFichaMedico', readSnapshot),
         readGestion: () => measuredRead('captureGestionCamas', () => readReport({ dateStart, dateEnd })),
         readHealth: () => measuredRead('captureHealthBefore', () => readHealth({ force: true })),
-        healthError: health => bothSourcesReady(health) ? null : sourceFailureMessage(health),
-        isCancelled, withinBudget: () => monotonicNow() < deadline,
+        healthError: health => canStartReads(health) ? null : sourceFailureMessage(health),
+        isCancelled, withinBudget: () => monotonicNow() < deadline, retryDelayMs: resolveRetryDelayMs(retryDelayMs),
       });
       if (reads.error) return reads;
       const { snapshotResult, reportResult } = reads;
