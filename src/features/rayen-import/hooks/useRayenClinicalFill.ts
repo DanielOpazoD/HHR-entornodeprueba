@@ -1,11 +1,43 @@
 import { useCallback } from 'react';
 import { guardAuthoringSession } from '@/services/session/authoringSession';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import type { ClinicalFillSummary } from '../clinicalFillRunner';
 import type {
-  HistoricalCudyrBatchItem,
   HistoricalCudyrBatchExecutionResult,
+  HistoricalCudyrBatchItem,
 } from '../contracts/clinicalFillContracts';
+import type { ClinicalFillRequest, ClinicalStageResult } from '../contracts/clinicalStageResult';
+import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
+import { createClinicalFillReaders } from '../bridge/clinicalFillReaders';
+import { collectClinicalFillCandidates } from '../domain/clinicalFillCandidates';
+import {
+  buildClinicalRetryToken,
+  mergeClinicalRetrySummary,
+} from '../domain/clinicalStageResolution';
+import { enqueueLatestRayenClinicalFill } from '../domain/rayenClinicalFillQueue';
+import {
+  buildGlobalClinicalFillError,
+  classifyRayenSyncError,
+  reportRayenSyncWarning,
+} from '../observability/rayenSyncDiagnostics';
+import { readClinicalFillDerivedView } from './clinicalFillDerivedView';
+import {
+  finalizeClinicalFillRun,
+  resolveClinicalFillRequest,
+  revalidateClinicalFillDay,
+  withRevalidatedClinicalRecord,
+  type AuthoringSession,
+  type ClinicalFillRunnerModule,
+  type CompleteClinicalFillRun,
+  type ResolvedClinicalFillRequest,
+  type RevalidateClinicalFillOutcome,
+} from './clinicalFillStageSteps';
+import {
+  isConfirmedRayenCensusHandoff,
+  type ConfirmedRayenCensusHandoff,
+} from './rayenCensusPersistenceGuard';
+import { toIsoReportDate } from './reportDateHelpers';
 import {
   beginRayenFill,
   endRayenFill,
@@ -13,38 +45,6 @@ import {
   registerRayenFillAbort,
   reportRayenFillProgress,
 } from './useRayenFillStatus';
-import { toIsoReportDate } from './reportDateHelpers';
-import { createClinicalFillReaders } from '../bridge/clinicalFillReaders';
-import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
-import { reconcileNursingShiftProposal } from '../domain/applyNursingShiftProposal';
-import { enqueueLatestRayenClinicalFill } from '../domain/rayenClinicalFillQueue';
-import { resolveClinicalEnrichmentBatchPolicyForRun } from '../domain/clinicalEnrichmentBatchMode';
-import type {
-  RayenSyncPerformanceDelta,
-  RayenSyncStructuralReviewEvidence,
-} from '@/types/domain/rayenSync';
-import {
-  buildGlobalClinicalFillError,
-  classifyRayenSyncError,
-  reportRayenSyncWarning,
-} from '../observability/rayenSyncDiagnostics';
-import {
-  isConfirmedRayenCensusHandoff,
-  type ConfirmedRayenCensusHandoff,
-} from './rayenCensusPersistenceGuard';
-import {
-  isClinicalRetryToken,
-  type ClinicalFillRequest,
-  type ClinicalStageResult,
-} from '../contracts/clinicalStageResult';
-import { collectClinicalFillCandidates } from '../domain/clinicalFillCandidates';
-import {
-  buildClinicalRetryToken,
-  buildStructuralReviewEvidence,
-  mergeClinicalRetrySummary,
-  resolveClinicalStageResult,
-} from '../domain/clinicalStageResolution';
-import { readClinicalFillDerivedView } from './clinicalFillDerivedView';
 
 interface UseRayenClinicalFillInput {
   nurseCatalog: string[];
@@ -58,17 +58,7 @@ interface UseRayenClinicalFillInput {
     runId: string,
     checkSession?: () => void
   ) => Promise<HistoricalCudyrBatchExecutionResult>;
-  completeRun: (
-    record: DailyRecord,
-    summary: ClinicalFillSummary,
-    staffingProposal?: NursingStaffingProposal | null,
-    runId?: string,
-    options?: {
-      retry?: boolean;
-      checkSession?: () => void;
-      structuralReview?: RayenSyncStructuralReviewEvidence;
-    }
-  ) => Promise<void>;
+  completeRun: CompleteClinicalFillRun;
   onStaffingProposal: (proposal: NursingStaffingProposal, attemptId: number) => void;
   createId: () => string;
   recordRunPerformance?: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
@@ -78,12 +68,6 @@ export const resolveClinicalFillDay = (
   source: DailyRecord | ConfirmedRayenCensusHandoff,
   record: DailyRecord
 ): string => (isConfirmedRayenCensusHandoff(source) ? source.clinicalDay : toIsoReportDate(record));
-
-const withRevalidatedClinicalRecord = (
-  source: DailyRecord | ConfirmedRayenCensusHandoff,
-  record: DailyRecord
-): DailyRecord | ConfirmedRayenCensusHandoff =>
-  isConfirmedRayenCensusHandoff(source) ? { ...source, record } : source;
 
 const recordAuthorityRevision = (record: DailyRecord): unknown =>
   (record as DailyRecord & { meta?: { revision?: unknown } }).meta?.revision;
@@ -116,6 +100,197 @@ const hasUnchangedDerivedDaySnapshot = (previous: DailyRecord, latest: DailyReco
   );
 };
 
+/** Steps 2–3: read clinical sources, persist authoritative batches, and retry field conflicts. */
+const executeClinicalFillPass = async ({
+  input,
+  resolved,
+  revalidated,
+  runner,
+  session,
+  attemptId,
+}: {
+  input: UseRayenClinicalFillInput;
+  resolved: ResolvedClinicalFillRequest;
+  revalidated: Extract<RevalidateClinicalFillOutcome, { ok: true }>;
+  runner: ClinicalFillRunnerModule;
+  session: AuthoringSession;
+  attemptId: number;
+}): Promise<{
+  summary: ClinicalFillSummary;
+  committedAuditRecord: DailyRecord | null;
+  historicalCudyrEpisodeIds: string[];
+}> => {
+  const { check } = session;
+  const { retryRequest, source, confirmedHandoff, record, allowedClinicalEpisodeIds } = resolved;
+  const { freshRecord, fillRecord, runPolicy, auditRunId, eligibleCount, loadDay, isSuperseded } =
+    revalidated;
+
+  const clinicalCandidates = collectClinicalFillCandidates(fillRecord, allowedClinicalEpisodeIds);
+  const historicalCudyrEpisodeIds = runner.collectDailyCudyrRecoveryEpisodes({
+    acceptedRecord: record,
+    currentRecord: fillRecord,
+    conflicts: confirmedHandoff?.isolatedConflicts ?? [],
+    pendingEpisodeIds: retryRequest?.pendingHistoricalCudyrEpisodeIds,
+  });
+
+  // Capture the latest committed un-overlaid day from the post-batch readback so
+  // `completeRun` starts on the committed revision instead of colliding on the stale base.
+  let committedAuditRecord: DailyRecord | null = null;
+
+  // One fill over a day read and its batch write. The field-conflict retry reruns it.
+  const fillOnce = async (
+    day: DailyRecord,
+    view: DailyRecord,
+    episodeIds: readonly string[] | undefined,
+    candidates: typeof clinicalCandidates,
+    conflictRetry = false
+  ): Promise<ClinicalFillSummary> => {
+    const watchdog = runner.createClinicalFillWatchdog({
+      onTimeout: () => reportRayenSyncWarning('clinical_fill_stage_timeout', { runId: auditRunId }),
+    });
+    registerRayenFillAbort(watchdog.abort, attemptId);
+    try {
+      const { applyClinicalFillBatch } = await import('./applyClinicalEnrichmentBatch');
+      check();
+      const { registerEloisaStaff } = await import('@/services/staff/eloisaStaffRegistry');
+      check();
+      // The batch re-reads the day at its write turn: overlay that read too (D10).
+      // Per D2, episode documents only mutate in the same transaction that increments
+      // `meta.revision` (or layout generation), so an unchanged server day reuses `view`.
+      const refreshFillRecord = async (): Promise<DailyRecord> => {
+        check();
+        const latest = await loadDay();
+        check();
+        if (day.clinicalDerivedLayout != null && hasUnchangedDerivedDaySnapshot(day, latest)) {
+          return view;
+        }
+        const latestView = await readClinicalFillDerivedView(latest, loadDay);
+        check();
+        return latestView.record;
+      };
+      return await runner.runClinicalFill(
+        view,
+        resolveClinicalFillDay(source, day),
+        {
+          diagnosticRunId: auditRunId,
+          signal: watchdog.signal,
+          allowedClinicalEpisodeIds: episodeIds,
+          historicalCudyrEpisodeIds: conflictRetry ? [] : historicalCudyrEpisodeIds,
+          recoverMissingCudyr: runner.createDailyCudyrRecoveryReader({
+            signal: watchdog.signal,
+            loadDay: input.loadCudyrIdentityContext ?? input.loadDailyRecord,
+          }),
+          pendingReads: conflictRetry ? undefined : retryRequest?.pendingReads,
+          ...createClinicalFillReaders(watchdog.signal, candidates),
+          extractDeviceItems: runner.extractDeviceTextItems,
+          persistBatch: operations =>
+            applyClinicalFillBatch({
+              checkSession: check,
+              record: view,
+              runId: runPolicy.runId,
+              operations,
+              refreshRecord: refreshFillRecord,
+              // After a committed batch the day's server read refreshes the Firestore
+              // SDK cache, not HHR's local table; nothing is rebuilt from it, so no
+              // episode documents are read. Keep the returned un-overlaid day for audit.
+              refreshCommittedRecord: async () => {
+                const committed = await loadDay();
+                if (
+                  committed.date === freshRecord.date &&
+                  (!auditRunId ||
+                    committed.rayenSyncHistory?.some(event => event.id === auditRunId))
+                ) {
+                  committedAuditRecord = committed;
+                }
+                return committed;
+              },
+            }),
+          applyHistoricalCudyrBatch: (censusDay, items) => {
+            check();
+            if (!input.applyHistoricalCudyrEnforcedBatch) {
+              throw new Error('El lote histórico autoritativo no está disponible.');
+            }
+            return input.applyHistoricalCudyrEnforcedBatch(
+              day,
+              censusDay,
+              items,
+              runPolicy.runId,
+              check
+            );
+          },
+          // The attempt already archived the census capture; the retry only rewrites.
+          archiveCudyrCapture: conflictRetry
+            ? undefined
+            : request =>
+                import('@/services/cudyr/cudyrArchiveQueue').then(({ persistCudyrArchivePart }) => {
+                  check();
+                  return persistCudyrArchivePart(request, watchdog.signal, session);
+                }),
+          now: () => new Date(),
+          createId: input.createId,
+          nurseCatalog: input.nurseCatalog,
+          tensCatalog: input.tensCatalog,
+          registerStaff: observations => {
+            check();
+            return registerEloisaStaff(observations);
+          },
+        },
+        conflictRetry
+          ? undefined
+          : ({ done, total }) => reportRayenFillProgress(done, total, attemptId)
+      );
+    } finally {
+      watchdog.settle();
+      registerRayenFillAbort(null, attemptId);
+    }
+  };
+
+  let summary: ClinicalFillSummary;
+  try {
+    summary = await fillOnce(
+      freshRecord,
+      fillRecord,
+      allowedClinicalEpisodeIds,
+      clinicalCandidates
+    );
+  } catch (error) {
+    check();
+    reportRayenSyncWarning('clinical_fill_failed', {
+      runId: auditRunId,
+      errorKind: classifyRayenSyncError(error),
+      patientCount: eligibleCount,
+    });
+    summary = {
+      total: eligibleCount,
+      patched: 0,
+      errors: [buildGlobalClinicalFillError('unexpected_fill_failure')],
+    };
+  }
+
+  summary = await runner.retryFieldConflicts(
+    summary,
+    auditRunId,
+    loadDay,
+    isSuperseded,
+    check,
+    fillOnce,
+    input.recordRunPerformance
+  );
+
+  check();
+  summary = mergeClinicalRetrySummary(
+    retryRequest?.previousSummary,
+    summary,
+    new Set(clinicalCandidates.map(candidate => candidate.bedId)),
+    new Set([
+      ...clinicalCandidates.map(({ patient }) => patient.clinicalEpisodeId!),
+      ...historicalCudyrEpisodeIds,
+    ])
+  );
+
+  return { summary, committedAuditRecord, historicalCudyrEpisodeIds };
+};
+
 /** Runs the best-effort per-patient clinical enrichment and persists aggregate run evidence. */
 export const useRayenClinicalFill = ({
   nurseCatalog,
@@ -134,20 +309,9 @@ export const useRayenClinicalFill = ({
       const sessionChanged = () => !session.isCurrent();
       const { check } = session;
       let activeAttemptId: number | undefined;
-      const retryRequest = isClinicalRetryToken(request) ? request : null;
-      const source: DailyRecord | ConfirmedRayenCensusHandoff = isClinicalRetryToken(request)
-        ? request.source
-        : request;
-      const isConfirmedHandoff = isConfirmedRayenCensusHandoff(source);
-      const confirmedHandoff = isConfirmedHandoff ? source : null;
-      const structuralReview = buildStructuralReviewEvidence(confirmedHandoff);
-      const record: DailyRecord = isConfirmedHandoff ? source.record : source;
-      const allowedClinicalEpisodeIds =
-        retryRequest?.pendingClinicalEpisodeIds ?? confirmedHandoff?.safeClinicalEpisodeIds;
-      const requestedRunId = confirmedHandoff?.runId ?? record.rayenSync?.runId;
-      const queueKey = `${record.date}|${requestedRunId ?? 'untracked'}|${
-        retryRequest ? 'retry' : 'initial'
-      }`;
+      const resolved = resolveClinicalFillRequest(request);
+      const { source, record, allowedClinicalEpisodeIds, requestedRunId, queueKey } = resolved;
+
       const queued = await enqueueLatestRayenClinicalFill(
         record.date,
         queueKey,
@@ -156,112 +320,24 @@ export const useRayenClinicalFill = ({
             check();
             // The watchdog and the device text reader only exist while a fill runs, so they ship
             // with the on-demand runner chunk (outside the PWA precache), not the import button.
-            const {
-              countClinicalFillEligiblePatients,
-              createClinicalFillWatchdog,
-              extractDeviceTextItems,
-              runClinicalFill,
-              collectDailyCudyrRecoveryEpisodes,
-              createDailyCudyrRecoveryReader,
-              retryFieldConflicts,
-            } = await import('../clinicalFillRunner');
+            const runner = await import('../clinicalFillRunner');
             check();
-            const requestedEligibleCount = countClinicalFillEligiblePatients(
-              record,
-              allowedClinicalEpisodeIds
-            );
-            // Immediate fills use the accepted record; queued fills revalidate at dequeue time.
-            let freshRecord = record;
-            // D10: what the fill reads and rebuilds from. On a split day it carries the episode
-            // documents; `freshRecord` stays the un-overlaid day for write bases, audit and retries.
-            let fillRecord = record;
-            let runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
-            const hasConfirmedImmediateHandoff =
-              confirmedHandoff?.runId === requestedRunId && !startedAfterQueue;
-            // Every read in this run is of the requested day.
-            const loadDay = () => loadDailyRecord(record.date);
-            const isSuperseded = (day: DailyRecord): boolean => {
-              if (!requestedRunId || day.rayenSync?.runId === requestedRunId) return false;
-              reportRayenSyncWarning('clinical_fill_superseded', { runId: requestedRunId });
-              return true;
-            };
-            try {
-              if (!hasConfirmedImmediateHandoff || runPolicy === 'unavailable') {
-                freshRecord = await loadDay();
-                check();
-                if (isSuperseded(freshRecord)) return { status: 'failed' };
-                runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
-              }
-              // A run that waits for its policy reads no episode document.
-              if (runPolicy !== 'unavailable') {
-                const view = await readClinicalFillDerivedView(freshRecord, loadDay);
-                check();
-                if (view.day !== freshRecord) {
-                  // A document was ahead of the day, so the day was read again from the server.
-                  freshRecord = view.day;
-                  if (isSuperseded(freshRecord)) return { status: 'failed' };
-                  runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(
-                    freshRecord,
-                    requestedRunId
-                  );
-                }
-                fillRecord = view.record;
-              }
-            } catch (error) {
-              check();
-              const errorKind = classifyRayenSyncError(error);
-              reportRayenSyncWarning('clinical_record_load_failed', {
-                runId: requestedRunId,
-                errorKind,
-                issueReason: 'record_load_failed',
-              });
+
+            const revalidated = await revalidateClinicalFillDay({
+              resolved,
+              startedAfterQueue,
+              runner,
+              loadDailyRecord,
+              completeRun,
+              check,
+            });
+            if (!revalidated.ok) return revalidated.result;
+
+            if (!beginRayenFill(revalidated.eligibleCount)) {
               await completeRun(
-                record,
+                revalidated.freshRecord,
                 {
-                  total: requestedEligibleCount,
-                  patched: 0,
-                  errors: [buildGlobalClinicalFillError('clinical_record_load_failed')],
-                },
-                null,
-                requestedRunId,
-                { checkSession: check }
-              ).catch(() => undefined);
-              return {
-                status: 'failed',
-                retry: buildClinicalRetryToken(source, record, allowedClinicalEpisodeIds),
-              };
-            }
-            if (runPolicy === 'unavailable') {
-              const eligibleCount = countClinicalFillEligiblePatients(
-                freshRecord,
-                allowedClinicalEpisodeIds
-              );
-              reportRayenSyncWarning('clinical_fill_failed', {
-                runId: requestedRunId,
-                errorKind: 'policy_unavailable',
-                patientCount: eligibleCount,
-              });
-              // The structural save can become visible before its run event during propagation.
-              // Keep the run in its applied/pending state so the established retry path can resume it.
-              return {
-                status: 'failed',
-                retry: buildClinicalRetryToken(
-                  withRevalidatedClinicalRecord(source, freshRecord),
-                  freshRecord,
-                  allowedClinicalEpisodeIds
-                ),
-              };
-            }
-            const auditRunId = requestedRunId ?? freshRecord.rayenSync?.runId;
-            const eligibleCount = countClinicalFillEligiblePatients(
-              freshRecord,
-              allowedClinicalEpisodeIds
-            );
-            if (!beginRayenFill(eligibleCount)) {
-              await completeRun(
-                freshRecord,
-                {
-                  total: eligibleCount,
+                  total: revalidated.eligibleCount,
                   patched: 0,
                   errors: [buildGlobalClinicalFillError('clinical_fill_busy')],
                 },
@@ -272,235 +348,48 @@ export const useRayenClinicalFill = ({
               return {
                 status: 'failed',
                 retry: buildClinicalRetryToken(
-                  withRevalidatedClinicalRecord(source, freshRecord),
-                  freshRecord,
+                  withRevalidatedClinicalRecord(source, revalidated.freshRecord),
+                  revalidated.freshRecord,
                   allowedClinicalEpisodeIds
                 ),
               };
             }
+
             const attemptId = getRayenFillAttemptId();
             activeAttemptId = attemptId;
-            const clinicalCandidates = collectClinicalFillCandidates(
-              fillRecord,
-              allowedClinicalEpisodeIds
-            );
-            const historicalCudyrEpisodeIds = collectDailyCudyrRecoveryEpisodes({
-              acceptedRecord: record,
-              currentRecord: fillRecord,
-              conflicts: confirmedHandoff?.isolatedConflicts ?? [],
-              pendingEpisodeIds: retryRequest?.pendingHistoricalCudyrEpisodeIds,
-            });
 
-            // Capture the latest committed un-overlaid day from the post-batch readback so
-            // `completeRun` starts on the committed revision instead of colliding on the stale base.
-            let committedAuditRecord: DailyRecord | null = null;
-
-            // One fill over a day read and its batch write. The field-conflict retry reruns it.
-            const fillOnce = async (
-              day: DailyRecord,
-              view: DailyRecord,
-              episodeIds: readonly string[] | undefined,
-              candidates: typeof clinicalCandidates,
-              conflictRetry = false
-            ): Promise<ClinicalFillSummary> => {
-              const watchdog = createClinicalFillWatchdog({
-                onTimeout: () =>
-                  reportRayenSyncWarning('clinical_fill_stage_timeout', { runId: auditRunId }),
+            const { summary, committedAuditRecord, historicalCudyrEpisodeIds } =
+              await executeClinicalFillPass({
+                input: {
+                  nurseCatalog,
+                  tensCatalog,
+                  loadDailyRecord,
+                  loadCudyrIdentityContext,
+                  applyHistoricalCudyrEnforcedBatch,
+                  completeRun,
+                  onStaffingProposal,
+                  createId,
+                  recordRunPerformance,
+                },
+                resolved,
+                revalidated,
+                runner,
+                session,
+                attemptId,
               });
-              registerRayenFillAbort(watchdog.abort, attemptId);
-              try {
-                const { applyClinicalFillBatch } = await import('./applyClinicalEnrichmentBatch');
-                check();
-                const { registerEloisaStaff } =
-                  await import('@/services/staff/eloisaStaffRegistry');
-                check();
-                // The batch re-reads the day at its write turn: overlay that read too (D10).
-                // Per D2, episode documents only mutate in the same transaction that increments
-                // `meta.revision` (or layout generation), so an unchanged server day reuses `view`.
-                const refreshFillRecord = async (): Promise<DailyRecord> => {
-                  check();
-                  const latest = await loadDay();
-                  check();
-                  if (
-                    day.clinicalDerivedLayout != null &&
-                    hasUnchangedDerivedDaySnapshot(day, latest)
-                  ) {
-                    return view;
-                  }
-                  const latestView = await readClinicalFillDerivedView(latest, loadDay);
-                  check();
-                  return latestView.record;
-                };
-                return await runClinicalFill(
-                  view,
-                  resolveClinicalFillDay(source, day),
-                  {
-                    diagnosticRunId: auditRunId,
-                    signal: watchdog.signal,
-                    allowedClinicalEpisodeIds: episodeIds,
-                    historicalCudyrEpisodeIds: conflictRetry ? [] : historicalCudyrEpisodeIds,
-                    recoverMissingCudyr: createDailyCudyrRecoveryReader({
-                      signal: watchdog.signal,
-                      loadDay: loadCudyrIdentityContext ?? loadDailyRecord,
-                    }),
-                    pendingReads: conflictRetry ? undefined : retryRequest?.pendingReads,
-                    ...createClinicalFillReaders(watchdog.signal, candidates),
-                    extractDeviceItems: extractDeviceTextItems,
-                    persistBatch: operations =>
-                      applyClinicalFillBatch({
-                        checkSession: check,
-                        record: view,
-                        runId: runPolicy.runId,
-                        operations,
-                        refreshRecord: refreshFillRecord,
-                        // After a committed batch the day's server read refreshes the Firestore
-                        // SDK cache, not HHR's local table; nothing is rebuilt from it, so no
-                        // episode documents are read. Keep the returned un-overlaid day for audit.
-                        refreshCommittedRecord: async () => {
-                          const committed = await loadDay();
-                          if (
-                            committed.date === freshRecord.date &&
-                            (!auditRunId ||
-                              committed.rayenSyncHistory?.some(event => event.id === auditRunId))
-                          ) {
-                            committedAuditRecord = committed;
-                          }
-                          return committed;
-                        },
-                      }),
-                    applyHistoricalCudyrBatch: (censusDay, items) => {
-                      check();
-                      if (!applyHistoricalCudyrEnforcedBatch) {
-                        throw new Error('El lote histórico autoritativo no está disponible.');
-                      }
-                      return applyHistoricalCudyrEnforcedBatch(
-                        day,
-                        censusDay,
-                        items,
-                        runPolicy.runId,
-                        check
-                      );
-                    },
-                    // The attempt already archived the census capture; the retry only rewrites.
-                    archiveCudyrCapture: conflictRetry
-                      ? undefined
-                      : request =>
-                          import('@/services/cudyr/cudyrArchiveQueue').then(
-                            ({ persistCudyrArchivePart }) => {
-                              check();
-                              return persistCudyrArchivePart(request, watchdog.signal, session);
-                            }
-                          ),
-                    now: () => new Date(),
-                    createId,
-                    nurseCatalog,
-                    tensCatalog,
-                    registerStaff: observations => {
-                      check();
-                      return registerEloisaStaff(observations);
-                    },
-                  },
-                  conflictRetry
-                    ? undefined
-                    : ({ done, total }) => reportRayenFillProgress(done, total, attemptId)
-                );
-              } finally {
-                watchdog.settle();
-                registerRayenFillAbort(null, attemptId);
-              }
-            };
 
-            let summary: ClinicalFillSummary;
-            try {
-              summary = await fillOnce(
-                freshRecord,
-                fillRecord,
-                allowedClinicalEpisodeIds,
-                clinicalCandidates
-              );
-            } catch (error) {
-              check();
-              reportRayenSyncWarning('clinical_fill_failed', {
-                runId: auditRunId,
-                errorKind: classifyRayenSyncError(error),
-                patientCount: eligibleCount,
-              });
-              summary = {
-                total: eligibleCount,
-                patched: 0,
-                errors: [buildGlobalClinicalFillError('unexpected_fill_failure')],
-              };
-            }
-
-            summary = await retryFieldConflicts(
+            return await finalizeClinicalFillRun({
+              resolved,
+              freshRecord: revalidated.freshRecord,
+              auditRunId: revalidated.auditRunId,
               summary,
-              auditRunId,
-              loadDay,
-              isSuperseded,
+              committedAuditRecord,
+              historicalCudyrEpisodeIds,
+              attemptId,
+              completeRun,
+              onStaffingProposal,
               check,
-              fillOnce,
-              recordRunPerformance
-            );
-
-            check();
-            summary = mergeClinicalRetrySummary(
-              retryRequest?.previousSummary,
-              summary,
-              new Set(clinicalCandidates.map(candidate => candidate.bedId)),
-              new Set([
-                ...clinicalCandidates.map(({ patient }) => patient.clinicalEpisodeId!),
-                ...historicalCudyrEpisodeIds,
-              ])
-            );
-
-            if (summary.errors.length > 0) {
-              const affectedPatients = new Set(
-                summary.errors.map(item => item.bedId).filter(bedId => bedId !== '*')
-              ).size;
-              reportRayenSyncWarning('clinical_fill_partial', {
-                runId: auditRunId,
-                issueCount: summary.errors.length,
-                patientCount: affectedPatients,
-              });
-            }
-            const reviewProposal = summary.staffingProposal
-              ? reconcileNursingShiftProposal(freshRecord, summary.staffingProposal)
-              : null;
-            const failedPatients = new Set(
-              summary.errors.map(item => item.bedId).filter(bedId => bedId !== '*')
-            ).size;
-            let completionFailed = false;
-            try {
-              await completeRun(
-                committedAuditRecord ?? freshRecord,
-                summary,
-                reviewProposal,
-                requestedRunId,
-                {
-                  checkSession: check,
-                  ...(retryRequest || structuralReview
-                    ? { retry: retryRequest !== null, structuralReview }
-                    : {}),
-                }
-              );
-            } catch {
-              completionFailed = true;
-            }
-            check();
-            endRayenFill(failedPatients, summary.errors.length > 0 || completionFailed, attemptId);
-            if (reviewProposal) onStaffingProposal(reviewProposal, attemptId);
-            return resolveClinicalStageResult(
-              withRevalidatedClinicalRecord(source, freshRecord),
-              freshRecord,
-              allowedClinicalEpisodeIds,
-              summary,
-              completionFailed,
-              confirmedHandoff?.safeClinicalEpisodeIds ??
-                collectClinicalFillCandidates(record).map(
-                  candidate => candidate.patient.clinicalEpisodeId!
-                ),
-              historicalCudyrEpisodeIds
-            );
+            });
           } catch (error) {
             if (!sessionChanged()) throw error;
             if (activeAttemptId !== undefined) endRayenFill(0, true, activeAttemptId);
@@ -508,6 +397,7 @@ export const useRayenClinicalFill = ({
           }
         }
       );
+
       if (sessionChanged()) return { status: 'failed' };
       if (queued.result) return queued.result;
       return queued.outcome === 'superseded'
