@@ -7,6 +7,7 @@ import { CensusDiagnosisHeaderCell } from '@/features/census/components/CensusDi
 import { buildCensusHeaderCellModels } from '@/features/census/controllers/censusTableHeaderController';
 import type { CensusTableHeaderProps } from '@/features/census/types/censusTableComponentContracts';
 import { AlertsViewToggle } from '@/features/census/components/CensusViewToggles';
+import { useUpcClassificationWindowOpener } from './patient-row/UpcClassificationWindowContext';
 import { useNursingScalesVisible } from '@/features/census/hooks/useNursingScalesVisible';
 import { useCensusViewPreferences } from '@/features/census/hooks/useCensusViewPreferences';
 import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessProfile';
@@ -34,6 +35,7 @@ const CensusTableHeaderComponent: React.FC<CensusTableHeaderProps> = ({
     columns.actions + headerCells.reduce((sum, cell) => sum + columns[cell.key], 0);
   const responsiveShare = (width: number): string => `${(width / visibleWidth) * 100}%`;
   const view = useCensusViewPreferences();
+  const { openUpcWindow } = useUpcClassificationWindowOpener();
   const nursingScalesVisible = useNursingScalesVisible();
   const canSwitchView = !isSpecialistCensusAccessProfile(accessProfile ?? 'default');
   const alertsView = view.alertsView && canSwitchView;
@@ -107,6 +109,17 @@ const CensusTableHeaderComponent: React.FC<CensusTableHeaderProps> = ({
                   {nursingScalesVisible && scoresAction}
                   <AlertsViewToggle active={false} />
                 </span>
+              ) : cell.key === 'upc' ? (
+                <button
+                  type="button"
+                  aria-label="Abrir ronda de clasificación UPC"
+                  aria-haspopup="dialog"
+                  title="Abrir ronda de clasificación UPC"
+                  onClick={() => openUpcWindow()}
+                  className="min-h-6 rounded px-1 font-semibold text-teal-800 underline decoration-teal-300 underline-offset-2 hover:bg-teal-50 focus-visible:outline-teal-600 print:no-underline"
+                >
+                  {cell.label}
+                </button>
               ) : (
                 cell.label
               )}

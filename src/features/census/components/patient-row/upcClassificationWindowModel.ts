@@ -52,6 +52,7 @@ export interface UpcClassificationRow {
   hasPatient: boolean;
   classification: UpcClassification;
   classificationLabel: string;
+  evaluatedAt?: string;
   /** Why the daily evaluation is still pending, if it is. */
   pendingReason: string | null;
   /** Neo1/Neo2 never accept UCI criteria (protocol §3). */
@@ -121,6 +122,7 @@ const buildRow = ({
     hasPatient: true,
     classification,
     classificationLabel: resolveUpcClassificationLabel(classification),
+    evaluatedAt: subject?.upcChecklist?.evaluatedAt,
     pendingReason: resolveUpcReviewReason(subject?.upcChecklist, bedId, date),
     uciAllowed: isUciEligibleBedId(bedId),
   };
