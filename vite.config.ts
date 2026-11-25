@@ -7,7 +7,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import viteCompression from 'vite-plugin-compression';
 import { VitePWA } from 'vite-plugin-pwa';
-import { chunkForModule } from './scripts/config/chunkingPolicy';
+import { chunkFileNameForChunk, chunkForModule } from './scripts/config/chunkingPolicy';
 import { createPrecacheGraphGuard } from './scripts/config/pwaPrecacheGraph';
 import { ONLINE_ONLY_ASSET_GLOBS } from './scripts/config/onlineOnlyAssets.mjs';
 import { minsalSharedInteropPlugin } from './scripts/config/minsalSharedInteropPlugin';
@@ -271,6 +271,7 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks: chunkForModule,
+          chunkFileNames: chunkFileNameForChunk,
         },
       },
       // Keep warnings actionable: remaining heavy chunks are monolithic vendor libraries

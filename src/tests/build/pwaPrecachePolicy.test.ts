@@ -8,7 +8,7 @@ import {
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { chunkForModule } from '../../../scripts/config/chunkingPolicy';
+import { chunkFileNameForChunk, chunkForModule } from '../../../scripts/config/chunkingPolicy';
 
 // The single online-only list feeds Workbox (globs) and the budget check (patterns). The text
 // form keeps the older assertions readable: each glob quoted on its own line.
@@ -52,7 +52,6 @@ describe('PWA precache policy', () => {
       'app-authenticated-shell',
       'census-view',
       'CudyrView',
-      'ClinicalDocumentIeehPanel',
       'VitalsDetailModal',
       'hospitalizationReportsBridge',
     ]) {
@@ -439,6 +438,46 @@ describe('online-only assets, the single list behind globIgnores and the budget 
       'assets/ClinicalLibraryDrawer-fixture.js',
     ]) {
       expect(regexes.some(regex => regex.test(core))).toBe(false);
+    }
+  });
+
+  it('names and excludes online-only admin, analytics, clinical-documents and SIC chunks', () => {
+    expect(chunkFileNameForChunk({ facadeModuleId: '/repo/src/features/admin/index.ts' })).toBe(
+      'assets/admin-views-[hash].js'
+    );
+    expect(
+      chunkFileNameForChunk({
+        facadeModuleId: null,
+        moduleIds: ['/repo/src/features/admin/index.ts'],
+      })
+    ).toBe('assets/admin-views-[hash].js');
+    expect(
+      chunkFileNameForChunk({ facadeModuleId: '/repo/src/features/analytics/public.ts' })
+    ).toBe('assets/analytics-view-[hash].js');
+    expect(
+      chunkFileNameForChunk({ facadeModuleId: '/repo/src/features/clinical-documents/index.ts' })
+    ).toBe('assets/clinical-documents-entry-[hash].js');
+    expect(chunkFileNameForChunk({ facadeModuleId: '/repo/src/features/handoff/index.ts' })).toBe(
+      'assets/[name]-[hash].js'
+    );
+
+    const regexes = ONLINE_ONLY_PRECACHE_PATTERNS.map(pattern => new RegExp(pattern));
+    for (const chunk of [
+      'assets/admin-views-fixture.js',
+      'assets/auditWorkbook-fixture.js',
+      'assets/backup-files-view-fixture.js',
+      'assets/reminder-admin-view-fixture.js',
+      'assets/analytics-view-fixture.js',
+      'assets/clinical-documents-entry-fixture.js',
+      'assets/clinicalDocumentPrintOpenUseCase-fixture.js',
+      'assets/ClinicalDocumentIeehPanel-fixture.js',
+      'assets/sicFormDocx-fixture.js',
+      'assets/sicFormPdf-fixture.js',
+    ]) {
+      expect(
+        regexes.some(regex => regex.test(chunk)),
+        chunk
+      ).toBe(true);
     }
   });
 });

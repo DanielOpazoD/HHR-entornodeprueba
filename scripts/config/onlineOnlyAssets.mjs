@@ -57,6 +57,14 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
     glob: '**/assets/clinicalFormDocx-*.js',
     reason: "Word export needs the form's template under docs/, already on demand.",
   },
+  {
+    glob: '**/assets/sicFormDocx-*.js',
+    reason: 'SIC Word export fetches the original template under docs/ on demand.',
+  },
+  {
+    glob: '**/assets/sicFormPdf-*.js',
+    reason: 'SIC PDF export loads only from ClinicalFormTool and fetches its template under docs/.',
+  },
   { glob: '**/vendor/exceljs.bare.min.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/exceljs.min-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/pdf.worker-*.mjs', reason: 'Same policy as the entry above.' },
@@ -86,6 +94,42 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
     glob: '**/assets/clinical-documents-workspace-*.js',
     reason:
       'The clinical documents workspace opens on demand and needs the network for its documents. Its stylesheet remains in the install-time precache.',
+  },
+  {
+    glob: '**/assets/clinical-documents-entry-*.js',
+    reason:
+      'Dynamic clinical-documents modal/panel entrypoint statically imports the online-only workspace chunk.',
+  },
+  {
+    glob: '**/assets/clinicalDocumentPrintOpenUseCase-*.js',
+    reason: 'Print helper loaded exclusively by the online-only clinical documents entrypoint.',
+  },
+  {
+    glob: '**/assets/ClinicalDocumentIeehPanel-*.js',
+    reason: 'IEEH panel loaded exclusively inside the online-only clinical documents workspace.',
+  },
+  {
+    glob: '**/assets/analytics-view-*.js',
+    reason:
+      'Analytics dashboard is opened on demand and statically imports the online-only LineChart chunk.',
+  },
+  {
+    glob: '**/assets/admin-views-*.js',
+    reason:
+      'Administration screens are not required offline (owner decision); keep them out of install-time precache.',
+  },
+  {
+    glob: '**/assets/auditWorkbook-*.js',
+    reason: 'Audit trail Excel workbook loaded exclusively by the online-only admin AuditView.',
+  },
+  {
+    glob: '**/assets/backup-files-view-*.js',
+    reason: 'Backup files administration view requires online Firebase Storage/Firestore access.',
+  },
+  {
+    glob: '**/assets/reminder-admin-view-*.js',
+    reason:
+      'Reminder administration view is online-only; the census ReminderBadge stays precached.',
   },
   { glob: '**/assets/vendor-heic2any-*.js', reason: 'Same policy as the entry above.' },
   {
