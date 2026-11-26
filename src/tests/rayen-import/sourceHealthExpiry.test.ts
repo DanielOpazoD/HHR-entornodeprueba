@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect } from 'vitest';
 import { normalizeSourceExpiry } from '@/features/rayen-import/bridge/sourceHealthExpiry';
 import type { RayenSourceHealth } from '@/features/rayen-import/bridge/extensionHealthBridge';

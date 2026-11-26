@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { mergeScaleSources, evaluationScalesForCensusDay } from '@/features/rayen-import';
 import type { EvaluationScale } from '@/features/rayen-import';

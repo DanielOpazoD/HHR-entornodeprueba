@@ -1,3 +1,4 @@
+// @vitest-environment node
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { describe, expect, it } from 'vitest';
 import { neonatalMaternalLookupRut } from '@/features/rayen-import/domain/neonatalMaternalLookupIdentity';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 // Must unmock to test real implementation, as setup.ts mocks it globally
 vi.unmock('../../services/admin/auditService');
 

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { buildRayenSyncDiagnosticReport } from '@/features/rayen-import/domain/rayenSyncDiagnosticReport';
 import { buildRayenSyncCoverage } from '@/features/rayen-import/domain/rayenSyncHistory';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { describe, expect, it } from 'vitest';
 import { applyCensusImportDiff, applyEgresoReport, reconcileCensus } from '@/features/rayen-import';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { parseVitalSigns } from '@/features/rayen-import/mapping/parseVitalSigns';
 import { mergeReportVitals } from '@/features/rayen-import';

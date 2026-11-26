@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { createRequire } from 'node:module';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Firestore, Transaction } from 'firebase/firestore';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import { reconcileCensus, applyEgresoReport, applyCensusImportDiff } from '@/features/rayen-import';

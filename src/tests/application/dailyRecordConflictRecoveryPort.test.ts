@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { resolveLatestConflictSnapshotRecoveryFromAuditLogs } from '@/application/ports/dailyRecordConflictRecoveryPort';
 import type { AuditLogEntry } from '@/types/auditLogTypes';

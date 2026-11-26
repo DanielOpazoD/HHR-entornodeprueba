@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { Workbook } from 'exceljs';
 import { describe, expect, it, vi } from 'vitest';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';

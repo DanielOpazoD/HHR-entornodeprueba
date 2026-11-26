@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { describe, expect, it, vi } from 'vitest';
 import type {

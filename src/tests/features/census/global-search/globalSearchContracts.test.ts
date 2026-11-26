@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Tests for the global search contracts and shared helpers.
  * Validates episode key parsing used by the search hook.

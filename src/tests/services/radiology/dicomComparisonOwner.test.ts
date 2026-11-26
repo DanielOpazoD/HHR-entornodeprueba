@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { expect, it, vi } from 'vitest';
 import { createDicomComparisonOwner } from '@/features/radiology/services/dicomComparisonOwner';
 import type { DicomComparison } from '@/features/radiology/services/dicomComparison';

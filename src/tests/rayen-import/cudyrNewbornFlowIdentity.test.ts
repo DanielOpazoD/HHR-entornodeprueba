@@ -1,3 +1,4 @@
+// @vitest-environment node
 import type { ClinicalFillDeps } from '@/features/rayen-import/contracts/clinicalFillContracts';
 import { describe, expect, it, vi } from 'vitest';
 import { cudyrPlacementsFromPatientFlow } from '@/features/rayen-import/mapping/cudyrPatientFlowPlacements';

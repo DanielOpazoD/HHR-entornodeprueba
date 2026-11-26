@@ -1,3 +1,4 @@
+// @vitest-environment node
 import type ExcelJS from 'exceljs';
 import { describe, expect, it } from 'vitest';
 

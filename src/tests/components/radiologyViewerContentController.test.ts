@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { MMRADExam, MMRADSearchResult } from '@/features/radiology/services/mmradService';
 import {

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import { buildClinicalPatientPatch } from '@/features/rayen-import/domain/clinicalPatientPatch';

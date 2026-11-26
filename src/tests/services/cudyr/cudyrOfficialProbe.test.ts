@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, expect, it, vi } from 'vitest';
 import { loadCudyrReport, cudyrReportLoaderPorts } from '@/services/cudyr/cudyrReportLoader';
 const mocks = vi.hoisted(() => ({ probe: vi.fn(), save: vi.fn() }));

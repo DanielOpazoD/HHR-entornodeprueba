@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { applyEgresoReport, reconcileCensus, applyCensusImportDiff } from '@/features/rayen-import';
 import { selectEligibleEgresoRows } from '@/features/rayen-import/domain/egresoReportEligibility';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { executeSyncDailyRecord } from '@/application/daily-record/syncDailyRecordUseCase';
 import { DataFactory } from '@/tests/factories/DataFactory';

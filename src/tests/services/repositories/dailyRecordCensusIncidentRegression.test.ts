@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { buildMovePatientPatches } from '@/hooks/controllers/bedManagementPatchController';
 import { buildDischargeEntries } from '@/application/census/controllers/patientMovementDischargeMutationController';

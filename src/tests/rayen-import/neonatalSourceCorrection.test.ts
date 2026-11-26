@@ -1,3 +1,4 @@
+// @vitest-environment node
 import {
   REVIEWED_AT as at,
   INDEPENDENT_CARE_AT as effectiveAt,

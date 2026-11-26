@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beginPendingLogout } from '@/services/auth/authLogoutState';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { User } from 'firebase/auth';

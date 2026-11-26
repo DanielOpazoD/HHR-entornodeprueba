@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { captureClinicalCudyrSource } from '@/features/rayen-import/domain/clinicalCudyrPreflight';
 import { describe, expect, it, vi } from 'vitest';

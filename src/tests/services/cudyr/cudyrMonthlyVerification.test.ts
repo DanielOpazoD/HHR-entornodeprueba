@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { verifyCudyrMonthlySources } from '@/features/cudyr/recovery/cudyrMonthlyVerification';
 import { supplementRequest } from '@/tests/fixtures/cudyrSupplementFixture';

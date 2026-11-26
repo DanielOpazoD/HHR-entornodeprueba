@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MMRADExam, MMRADSearchResult } from '@/features/radiology/services/mmradService';
 import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';

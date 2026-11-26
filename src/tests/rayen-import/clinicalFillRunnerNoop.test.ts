@@ -1,3 +1,4 @@
+// @vitest-environment node
 import type { PatientData } from '@/types/domain/patient';
 
 import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';

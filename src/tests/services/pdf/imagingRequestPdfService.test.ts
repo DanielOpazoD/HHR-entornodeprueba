@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import {
   SOLICITUD_FIELD_COORDS,

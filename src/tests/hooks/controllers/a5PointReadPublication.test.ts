@@ -1,3 +1,4 @@
+// @vitest-environment node
 import 'fake-indexeddb/auto';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { afterEach, expect, it, vi } from 'vitest';

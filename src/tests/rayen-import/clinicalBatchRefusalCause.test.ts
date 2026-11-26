@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { classifyRayenWriteCause } from '@/features/rayen-import/observability/rayenSyncDiagnostics';
 import { RayenSyncEventSchema } from '@/schemas/zod/dailyRecord';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, expect, it, vi } from 'vitest';
 import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
 import { errorService } from '@/services/utils/errorService';

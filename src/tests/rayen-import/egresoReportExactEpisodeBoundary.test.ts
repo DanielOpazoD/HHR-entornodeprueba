@@ -1,3 +1,4 @@
+// @vitest-environment node
 // Synthetic regressions through the public structural planner.
 import { expect, it, vi } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CLIENT_RUNTIME_CONTRACT_VERSION } from '@/constants/runtimeContracts';

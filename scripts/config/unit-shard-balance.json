@@ -3,7 +3,8 @@
   "shardCount": 4,
   "tolerancePercent": 25,
   "maxShardMinutes": 13,
-  "perFileOverheadMs": 100,
+  "perFileOverheadMs": 350,
+  "nodePerFileOverheadMs": 150,
   "slowestFileCount": 20,
   "excludedFromUnitSuite": [
     "src/tests/security/firestore-rules.test.ts",
@@ -38,13 +39,6 @@
       "globs": [
         "src/tests/integration/sync*.test.ts*",
         "src/tests/integration/offline-persistence.test.ts"
-      ]
-    },
-    {
-      "id": "firestore-repository-contracts",
-      "globs": [
-        "src/tests/services/repositories/*.test.ts",
-        "src/tests/services/dailyRecordRepository.test.ts"
       ]
     }
   ],

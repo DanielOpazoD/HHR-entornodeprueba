@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Tests: Búsqueda IA CIE-10 (cie10AISearch)
  *

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateCudyrMonthlyExcelBlob } from '@/services/cudyr/cudyrExportService';
 import { loadCudyrReport } from '@/services/cudyr/cudyrReportLoader';

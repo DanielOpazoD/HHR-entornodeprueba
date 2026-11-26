@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   enqueueLatestRayenClinicalFill,
@@ -20,16 +21,8 @@ describe('rayen clinical fill queue', () => {
       () => new Promise<typeof complete>(resolve => (release = () => resolve(complete)))
     );
 
-    const first = enqueueLatestRayenClinicalFill(
-      '2026-07-27',
-      '2026-07-27|run-1',
-      task
-    );
-    const duplicate = enqueueLatestRayenClinicalFill(
-      '2026-07-27',
-      '2026-07-27|run-1',
-      task
-    );
+    const first = enqueueLatestRayenClinicalFill('2026-07-27', '2026-07-27|run-1', task);
+    const duplicate = enqueueLatestRayenClinicalFill('2026-07-27', '2026-07-27|run-1', task);
     expect(task).toHaveBeenCalledTimes(1);
     release();
 

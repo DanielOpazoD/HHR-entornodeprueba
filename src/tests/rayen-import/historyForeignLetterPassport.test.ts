@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { recoverHistoricalReportEpisodes } from '@/features/rayen-import/domain/historicalReportEpisodeRecovery';
 import { enrichReportOnlyDischarges } from '@/features/rayen-import/domain/enrichReportOnlyDischarges';

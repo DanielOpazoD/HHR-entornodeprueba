@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import ExcelJS from 'exceljs';
 import { buildCudyrWorkbook } from '@/services/cudyr/cudyrWorkbookBuilder';

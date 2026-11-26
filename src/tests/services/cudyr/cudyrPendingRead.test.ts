@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { readPendingCudyrEpisodes } from '@/services/storage/sync/cudyrPendingRead';
 const mocks = vi.hoisted(() => ({

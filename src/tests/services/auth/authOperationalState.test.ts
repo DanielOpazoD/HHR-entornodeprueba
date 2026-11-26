@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { resolveNormalizedAuthOperationalState } from '@/services/auth/authOperationalState';
 import type { AuthUser } from '@/types/authRoleTypes';

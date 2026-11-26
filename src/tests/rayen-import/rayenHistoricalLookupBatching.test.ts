@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { requestEgresoLookup } from '@/features/rayen-import/bridge/rayenImportBridge';
 import type { EgresoLookupTarget } from '@/features/rayen-import/contracts/egresoLookup';

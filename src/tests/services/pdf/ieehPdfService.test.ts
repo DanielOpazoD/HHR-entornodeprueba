@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fillIEEHForm } from '@/features/clinical-documents/services/ieehPdfService';
 import type { PatientData } from '../../../types/domain/patient';

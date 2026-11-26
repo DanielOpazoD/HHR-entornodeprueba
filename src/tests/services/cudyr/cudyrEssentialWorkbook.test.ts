@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { validateCudyrWorkbookTotals } from '@/features/cudyr/export/cudyrWorkbookValidation';
 import { confirmedReportInput } from './reportFixtures';
 import { describe, expect, it } from 'vitest';

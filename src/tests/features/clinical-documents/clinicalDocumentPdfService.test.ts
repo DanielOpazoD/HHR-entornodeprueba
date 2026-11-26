@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';

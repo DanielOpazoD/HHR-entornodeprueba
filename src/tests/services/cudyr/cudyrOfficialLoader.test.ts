@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { loadCudyrReport, cudyrReportLoaderPorts } from '@/services/cudyr/cudyrReportLoader';
 import { cudyrReportCache } from '@/services/cudyr/cudyrReportCache';

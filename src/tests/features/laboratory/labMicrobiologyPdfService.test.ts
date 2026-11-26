@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
 import { parseMicrobiologyFindingsFromPdfText } from '@/features/laboratory/services/labMicrobiologyPdfService';

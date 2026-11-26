@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Integration Tests for Census → Excel Export
  * Tests the complete flow from DailyRecord to Excel workbook generation.

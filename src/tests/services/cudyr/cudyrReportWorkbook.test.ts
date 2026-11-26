@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { confirmedReportInput } from './reportFixtures';
 import { Workbook } from 'exceljs';
 import { describe, expect, it, vi } from 'vitest';

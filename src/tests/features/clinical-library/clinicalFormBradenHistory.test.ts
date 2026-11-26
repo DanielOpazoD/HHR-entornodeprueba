@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { mapBradenRecordsToClinicalFormValues } from '@/features/clinical-library/domain/forms/clinicalFormBradenHistory';
 import type { ChecklistRecord } from '@/services/clinical-checklists/checklistService';
