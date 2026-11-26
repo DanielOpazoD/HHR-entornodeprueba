@@ -18,20 +18,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: 'npm'
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
 
       - name: Setup Java (Firestore emulator)
         uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '21'
-
-      - name: Install dependencies
-        run: npm ci
 
       - name: Install Playwright browser for nightly clinical flows
         uses: ./.github/actions/setup-ci-chromium
@@ -84,8 +78,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
+      # Reused-evidence main pushes skip rules-emulator, so this nightly main job publishes
+      # the ubuntu-24.04 installed-v1 cache for nightly consumers and PR ubuntu-24.04 lanes.
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
+        with:
+          save-cache: 'true'
 
       - name: Setup Java (Firestore emulator)
         uses: actions/setup-java@v6
