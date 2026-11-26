@@ -12,10 +12,11 @@ import {
   guardAuthoringSession,
   type AuthoringSessionGuard,
 } from '@/services/session/authoringSession';
+import { onSessionChange } from '@/services/session/sessionStorageTransition';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import type { WoundCareAuditActor, WoundCareMobileUploadSession } from '@/types/domain/woundCare';
 
-type MobileQrSessionStatus = 'idle' | 'active' | 'revoked' | 'error';
+type MobileQrSessionStatus = 'idle' | 'active' | 'revoked' | 'error' | 'session_ended';
 type MobileQrBusyAction = 'idle' | 'creating' | 'revoking';
 
 // Deduplicate in-flight QR creations across panel remounts (e.g. closing and reopening
@@ -34,21 +35,6 @@ const buildActor = (
   displayName: user.displayName || 'Sin nombre',
   role,
 });
-
-const mergeSessionsById = (
-  primary: readonly WoundCareMobileUploadSession[],
-  secondary: readonly WoundCareMobileUploadSession[]
-): WoundCareMobileUploadSession[] => {
-  const byId = new Map<string, WoundCareMobileUploadSession>();
-  for (const session of [...primary, ...secondary]) {
-    if (!byId.has(session.sessionId)) {
-      byId.set(session.sessionId, session);
-    }
-  }
-  return Array.from(byId.values()).sort((left, right) =>
-    right.createdAt.localeCompare(left.createdAt)
-  );
-};
 
 const filterScopeSessions = (
   sessions: readonly WoundCareMobileUploadSession[],
@@ -127,6 +113,19 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
     };
   }, []);
 
+  const hideOnSessionLoss = useCallback((targetScopeKey: string) => {
+    activeSessionsRef.current = [];
+    if (isMountedRef.current) {
+      setBusyState({ scopeKey: targetScopeKey, action: 'idle' });
+      setSessionState({
+        scopeKey: targetScopeKey,
+        session: null,
+        status: 'session_ended',
+        error: null,
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (previousScopeKeyRef.current !== scopeKey) {
       previousScopeKeyRef.current = scopeKey;
@@ -137,17 +136,50 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
     }
   }, [scopeKey]);
 
-  const isOperationCurrent = useCallback(
+  useEffect(() => {
+    const scopeGuard = guardAuthoringSession();
+    const checkSessionContinuity = () => {
+      if (!scopeGuard.isCurrent()) {
+        requestGenerationRef.current += 1;
+        inFlightActionRef.current = 'idle';
+        inFlightScopeKeyRef.current = null;
+        hideOnSessionLoss(scopeKey);
+      }
+    };
+
+    const unsubscribe = onSessionChange(checkSessionContinuity);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', checkSessionContinuity);
+    }
+
+    return () => {
+      unsubscribe();
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage', checkSessionContinuity);
+      }
+    };
+  }, [hideOnSessionLoss, scopeKey]);
+
+  const checkOperationContinuity = useCallback(
     (
       generation: number,
       authoringSession: AuthoringSessionGuard,
-      expectedActorUid: string
-    ): boolean =>
-      isMountedRef.current &&
-      requestGenerationRef.current === generation &&
-      latestRef.current.currentUser?.uid === expectedActorUid &&
-      authoringSession.isCurrent(),
-    []
+      expectedActorUid: string,
+      targetScopeKey: string
+    ): boolean => {
+      if (!authoringSession.isCurrent()) {
+        if (requestGenerationRef.current === generation) {
+          hideOnSessionLoss(targetScopeKey);
+        }
+        return false;
+      }
+      return (
+        isMountedRef.current &&
+        requestGenerationRef.current === generation &&
+        latestRef.current.currentUser?.uid === expectedActorUid
+      );
+    },
+    [hideOnSessionLoss]
   );
 
   const uploadUrl = useMemo(
@@ -209,6 +241,7 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
 
       const authoringSession = guardAuthoringSession();
       if (!authoringSession.isCurrent()) {
+        hideOnSessionLoss(scopeKey);
         return null;
       }
 
@@ -237,7 +270,7 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
           mode === 'initialize' ? inFlightCreatesByScope.get(inFlightKey) : undefined;
         if (pendingCreate) {
           const joinedResult = await pendingCreate;
-          if (!isOperationCurrent(generation, authoringSession, expectedActorUid)) {
+          if (!checkOperationContinuity(generation, authoringSession, expectedActorUid, scopeKey)) {
             return null;
           }
           if (joinedResult.status !== 'success' || !joinedResult.data) {
@@ -268,7 +301,7 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
           episodeKey,
           hospitalId,
         });
-        if (!isOperationCurrent(generation, authoringSession, expectedActorUid)) {
+        if (!checkOperationContinuity(generation, authoringSession, expectedActorUid, scopeKey)) {
           return null;
         }
 
@@ -293,14 +326,13 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
           return null;
         }
 
-        const discoveredActive = mergeSessionsById(
-          filterScopeSessions(listResult.data, episodeKey, patientRut),
-          rememberedForScope
-        );
+        // Server read is authoritative: do not re-inject locally remembered sessions that
+        // another station already revoked.
+        const discoveredActive = filterScopeSessions(listResult.data, episodeKey, patientRut);
+        activeSessionsRef.current = discoveredActive;
 
         if (mode === 'initialize' && discoveredActive.length > 0) {
           const primarySession = discoveredActive[0] ?? null;
-          activeSessionsRef.current = discoveredActive;
           setSessionState({
             scopeKey,
             session: primarySession,
@@ -315,7 +347,9 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
         if (discoveredActive.length > 0) {
           let remainingSessions = [...discoveredActive];
           for (const previousSession of discoveredActive) {
-            if (!isOperationCurrent(generation, authoringSession, expectedActorUid)) {
+            if (
+              !checkOperationContinuity(generation, authoringSession, expectedActorUid, scopeKey)
+            ) {
               return null;
             }
             const revokeResult = await executeRevokeWoundCareMobileUploadSession({
@@ -323,7 +357,9 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
               actor,
               hospitalId,
             });
-            if (!isOperationCurrent(generation, authoringSession, expectedActorUid)) {
+            if (
+              !checkOperationContinuity(generation, authoringSession, expectedActorUid, scopeKey)
+            ) {
               return null;
             }
             if (revokeResult.status !== 'success') {
@@ -354,12 +390,12 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
           });
         }
 
-        if (!isOperationCurrent(generation, authoringSession, expectedActorUid)) {
+        if (!checkOperationContinuity(generation, authoringSession, expectedActorUid, scopeKey)) {
           return null;
         }
 
         const result = await issueNewSession(hospitalId, actor, authoringSession);
-        if (!isOperationCurrent(generation, authoringSession, expectedActorUid)) {
+        if (!checkOperationContinuity(generation, authoringSession, expectedActorUid, scopeKey)) {
           return null;
         }
 
@@ -387,7 +423,7 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
         });
         return result.data;
       } catch (unknownError) {
-        if (!isOperationCurrent(generation, authoringSession, expectedActorUid)) {
+        if (!checkOperationContinuity(generation, authoringSession, expectedActorUid, scopeKey)) {
           return null;
         }
         const message =
@@ -415,7 +451,15 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
         }
       }
     },
-    [actorUid, episodeKey, isOperationCurrent, issueNewSession, patientRut, scopeKey]
+    [
+      actorUid,
+      checkOperationContinuity,
+      episodeKey,
+      hideOnSessionLoss,
+      issueNewSession,
+      patientRut,
+      scopeKey,
+    ]
   );
 
   const initializeSession = useCallback(
@@ -447,6 +491,7 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
 
     const authoringSession = guardAuthoringSession();
     if (!authoringSession.isCurrent()) {
+      hideOnSessionLoss(scopeKey);
       return false;
     }
 
@@ -472,7 +517,7 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
     try {
       let remainingSessions = [...sessionsToRevoke];
       for (const targetSession of sessionsToRevoke) {
-        if (!isOperationCurrent(generation, authoringSession, expectedActorUid)) {
+        if (!checkOperationContinuity(generation, authoringSession, expectedActorUid, scopeKey)) {
           return false;
         }
         const result = await executeRevokeWoundCareMobileUploadSession({
@@ -480,7 +525,7 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
           actor,
           hospitalId,
         });
-        if (!isOperationCurrent(generation, authoringSession, expectedActorUid)) {
+        if (!checkOperationContinuity(generation, authoringSession, expectedActorUid, scopeKey)) {
           return false;
         }
 
@@ -513,7 +558,7 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
       });
       return true;
     } catch (unknownError) {
-      if (!isOperationCurrent(generation, authoringSession, expectedActorUid)) {
+      if (!checkOperationContinuity(generation, authoringSession, expectedActorUid, scopeKey)) {
         return false;
       }
       const preservedSessions = filterScopeSessions(
@@ -533,12 +578,12 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
       if (requestGenerationRef.current === generation) {
         inFlightActionRef.current = 'idle';
         inFlightScopeKeyRef.current = null;
-        if (isMountedRef.current && authoringSession.isCurrent()) {
+        if (isMountedRef.current) {
           setBusyState({ scopeKey, action: 'idle' });
         }
       }
     }
-  }, [episodeKey, isOperationCurrent, patientRut, scopeKey]);
+  }, [checkOperationContinuity, episodeKey, hideOnSessionLoss, patientRut, scopeKey]);
 
   return {
     session,

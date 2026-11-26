@@ -96,6 +96,10 @@ export const WoundCareMobileQrPanel: React.FC<WoundCareMobileQrPanelProps> = ({
     }
   };
 
+  if (status === 'session_ended') {
+    return null;
+  }
+
   return (
     <div className="rounded-md border border-slate-200 bg-slate-50/60 p-3">
       <div className="flex items-start justify-between gap-3">

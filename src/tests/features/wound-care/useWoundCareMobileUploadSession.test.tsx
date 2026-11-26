@@ -325,7 +325,7 @@ describe('WoundCareMobileQrPanel & useWoundCareMobileUploadSession', () => {
     );
   });
 
-  it('halts Regenerar silently before issuing a replacement when another tab replaces the authoring session', async () => {
+  it('halts Regenerar silently and hides the revoked QR when another tab replaces the authoring session', async () => {
     const sessionA = makeSession('wcu_tab_a', episodeA, 'nurse-1');
     const deferredRevoke = createDeferred<{ status: 'success'; data: null; issues: [] }>();
 
@@ -335,7 +335,9 @@ describe('WoundCareMobileQrPanel & useWoundCareMobileUploadSession', () => {
     revokeSessionUseCaseMock.mockReturnValueOnce(deferredRevoke.promise);
 
     render(<WoundCareMobileQrPanel episodeContext={episodeA} />);
-    await screen.findByText(/wcu_tab_a/);
+    await screen.findByAltText('QR para subir fotos clínicas');
+    expect(screen.getByText(/válido hasta/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /copiar link/i })).toBeEnabled();
 
     fireEvent.click(screen.getByRole('button', { name: /regenerar/i }));
     await waitFor(() => {
@@ -351,6 +353,35 @@ describe('WoundCareMobileQrPanel & useWoundCareMobileUploadSession', () => {
 
     expect(createSessionUseCaseMock).not.toHaveBeenCalled();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByAltText('QR para subir fotos clínicas')).not.toBeInTheDocument();
+    expect(screen.queryByText(/válido hasta/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /copiar link/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/wcu_tab_a/)).not.toBeInTheDocument();
+  });
+
+  it('does not re-revoke a session already revoked by another station when Regenerar runs', async () => {
+    const session1 = makeSession('wcu_revoked_elsewhere');
+    const session2 = makeSession('wcu_replacement');
+    listActiveSessionsUseCaseMock
+      .mockResolvedValueOnce({ status: 'success', data: [session1], issues: [] })
+      // Station B revoked session1 before Station A clicked Regenerar.
+      .mockResolvedValueOnce({ status: 'success', data: [], issues: [] });
+    createSessionUseCaseMock.mockResolvedValueOnce({
+      status: 'success',
+      data: session2,
+      issues: [],
+    });
+
+    render(<WoundCareMobileQrPanel episodeContext={episodeA} />);
+    await screen.findByText(/wcu_revoked_elsewhere/);
+
+    fireEvent.click(screen.getByRole('button', { name: /regenerar/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/wcu_replacement/)).toBeInTheDocument();
+    });
+    expect(revokeSessionUseCaseMock).not.toHaveBeenCalled();
+    expect(createSessionUseCaseMock).toHaveBeenCalledTimes(1);
   });
 
   it('revokes the previous active session before issuing a replacement on Regenerar, and keeps the previous session if revoking fails', async () => {
