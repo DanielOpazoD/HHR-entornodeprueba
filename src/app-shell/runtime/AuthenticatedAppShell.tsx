@@ -75,7 +75,9 @@ interface AuthenticatedAppShellProps {
 export const AuthenticatedAppShell = ({ auth, dateNav }: AuthenticatedAppShellProps) => {
   useWarmDailyRecordSavePath();
   useClinicalChecklistBridge(auth);
-  const { dailyRecordHook, censusContextValue, ui } = useAuthenticatedAppRuntime({ auth, dateNav });
+  const { dailyRecordHook, censusContextValue, censusEmailBridge, ui } = useAuthenticatedAppRuntime(
+    { auth, dateNav }
+  );
   React.useEffect(() => {
     markPerf('auth-shell:mounted');
   }, []);
@@ -106,6 +108,7 @@ export const AuthenticatedAppShell = ({ auth, dateNav }: AuthenticatedAppShellPr
   return (
     <AppProviders dailyRecordHook={dailyRecordHook}>
       <CensusProvider value={censusContextValue}>
+        {censusEmailBridge}
         <DeferredSystemHealthReporter />
         {shouldMountHandoffExtensionConnection ? (
           <React.Suspense fallback={null}>

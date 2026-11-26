@@ -25,8 +25,11 @@ vi.mock('@/hooks/useAppState', () => ({
   useAppState: () => mockUseAppState(),
 }));
 
-vi.mock('@/features/census/email/hooks/useCensusEmail', () => ({
-  useCensusEmail: (...args: unknown[]) => mockUseCensusEmail(...args),
+vi.mock('@/app-shell/runtime/useDeferredCensusEmail', () => ({
+  useDeferredCensusEmail: (...args: unknown[]) => ({
+    censusEmail: mockUseCensusEmail(...args),
+    censusEmailBridge: null,
+  }),
 }));
 
 vi.mock('@/hooks/useDailyRecord', () => ({
