@@ -21,7 +21,6 @@ import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { resolveEmptyBedSaveAction } from '@/features/census/controllers/admitPatientGate';
 import { useAdmitPatient } from '@/hooks/useAdmitPatient';
 import { useNotification } from '@/context/UIContext';
-import { isFeatureEnabled } from '@/services/utils/featureFlags';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 
 import { useDailyRecordFreshnessUi } from '@/features/census/hooks/useDailyRecordFreshnessUi';
@@ -190,10 +189,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
         return;
       }
 
-      const action = resolveEmptyBedSaveAction({
-        updatedFields,
-        isAdmitCommandEnabled: isFeatureEnabled('USE_ADMIT_PATIENT_COMMAND'),
-      });
+      const action = resolveEmptyBedSaveAction(updatedFields);
 
       switch (action.kind) {
         case 'noop':
