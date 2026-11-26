@@ -1,4 +1,5 @@
 import type { PatientData } from '@/types/domain/patient';
+import { documentIdentityKey, hasNonRutLetter } from '@/utils/rutUtils';
 
 export interface LegacyCensusObservation {
   otherActiveNames: Set<string>;
@@ -280,6 +281,24 @@ const createEmptyLegacyCensusObservation = (): LegacyCensusObservation => ({
   pairedStartedUnnamed: false,
 });
 
+const resolveIdentifiableDocumentKey = (rawDocType?: string, rawValue?: string): string => {
+  const value = rawValue?.trim() ?? '';
+  if (!value) return '';
+  const trimmedType = rawDocType?.trim() || 'RUT';
+  const normalizedType = trimmedType.toLowerCase() === 'pasaporte' ? 'Pasaporte' : trimmedType;
+  if (normalizedType === 'Pasaporte') {
+    const key = documentIdentityKey(value);
+    if (!key) return '';
+    const core = key.startsWith('passport:') ? key.slice('passport:'.length) : key;
+    if (core.length < 2 || /^0+$/.test(core)) return '';
+    return `Pasaporte:${key}`;
+  }
+  if (hasNonRutLetter(value)) return '';
+  const key = documentIdentityKey(value);
+  if (key.length < 2 || /^0+$/.test(key)) return '';
+  return `${normalizedType}:${key}`;
+};
+
 const arePairedSubjectsDistinguishedByIdentity = (
   expectedTuple: LegacyUpcSubjectTuple,
   pairedSubject: Partial<PatientData> | undefined
@@ -289,13 +308,9 @@ const arePairedSubjectsDistinguishedByIdentity = (
   if (pairedIdentity && !isLegacyUpcSubjectIdentity(pairedIdentity)) {
     return true;
   }
-  const expectedDocType = expectedTuple[2];
-  const expectedRut = expectedTuple[3];
-  const pairedDocType = pairedSubject.documentType?.trim() || 'RUT';
-  const pairedRut = pairedSubject.rut?.trim() || '';
-  return Boolean(
-    expectedRut && pairedRut && (pairedRut !== expectedRut || pairedDocType !== expectedDocType)
-  );
+  const expectedKey = resolveIdentifiableDocumentKey(expectedTuple[2], expectedTuple[3]);
+  const pairedKey = resolveIdentifiableDocumentKey(pairedSubject.documentType, pairedSubject.rut);
+  return Boolean(expectedKey && pairedKey && expectedKey !== pairedKey);
 };
 
 /**

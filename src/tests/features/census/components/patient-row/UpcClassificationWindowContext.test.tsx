@@ -2505,6 +2505,158 @@ describe('UpcClassificationWindowProvider', () => {
     await runPreExistingSameName(false);
   });
 
+  it('normalizes RUTs, passports, and absent-document markers before treating paired mother and crib documents as distinct', async () => {
+    const runDocComparisonCase = async (params: {
+      motherDocType: 'RUT' | 'Pasaporte';
+      motherRut: string;
+      cribDocType: 'RUT' | 'Pasaporte';
+      cribRut: string;
+      shouldCancel: boolean;
+    }) => {
+      vi.resetModules();
+      let resolveChunk:
+        | ((value: { UpcClassificationWindow: React.FC<MockUpcWindowProps> }) => void)
+        | null = null;
+      const chunkPromise = new Promise<{
+        UpcClassificationWindow: React.FC<MockUpcWindowProps>;
+      }>(resolve => {
+        resolveChunk = resolve;
+      });
+      vi.doMock(UPC_WINDOW_MODULE_PATH, () => chunkPromise);
+
+      const {
+        DailyRecordBedsContext,
+        resolveUpcCellSubjectIdentity,
+        UpcClassificationWindowProvider,
+        useUpcClassificationWindowOpener,
+      } = await loadFreshContext();
+
+      const unnamedCrib = DataFactory.createMockPatient('R1', {
+        patientName: '',
+        documentType: params.cribDocType,
+        rut: params.cribRut,
+        clinicalEpisodeId: 'legacy_ep_doc_norm',
+        admissionDate: '2026-11-24',
+        admissionTime: '08:00',
+      });
+      const initialMother = DataFactory.createMockPatient('R1', {
+        patientName: '',
+        documentType: params.motherDocType,
+        rut: params.motherRut,
+        clinicalEpisodeId: 'legacy_ep_doc_norm',
+        admissionDate: '2026-11-24',
+        admissionTime: '08:00',
+        clinicalCrib: unnamedCrib,
+      });
+
+      const Trigger = ({ mother }: { mother: PatientData }) => {
+        const { openUpcWindow } = useUpcClassificationWindowOpener();
+        return (
+          <button
+            type="button"
+            onClick={event =>
+              openUpcWindow('R1', {
+                episodeIdentity: resolveUpcCellSubjectIdentity(mother),
+                triggerElement: event.currentTarget,
+              })
+            }
+          >
+            Abrir R1 doc
+          </button>
+        );
+      };
+
+      const view = render(
+        <DailyRecordBedsContext.Provider value={{ R1: initialMother }}>
+          <UpcClassificationWindowProvider currentDateString="2026-11-24">
+            <Trigger mother={initialMother} />
+          </UpcClassificationWindowProvider>
+        </DailyRecordBedsContext.Provider>
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir R1 doc' }));
+      expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+      const bothNamedSame: PatientData = {
+        ...initialMother,
+        patientName: 'Maria Lopez',
+        clinicalCrib: { ...unnamedCrib, patientName: 'Maria Lopez' },
+      };
+      view.rerender(
+        <DailyRecordBedsContext.Provider value={{ R1: bothNamedSame }}>
+          <UpcClassificationWindowProvider currentDateString="2026-11-24">
+            <Trigger mother={bothNamedSame} />
+          </UpcClassificationWindowProvider>
+        </DailyRecordBedsContext.Provider>
+      );
+
+      if (params.shouldCancel) {
+        expect(screen.queryByTestId('upc-window-module-loading')).toBeNull();
+      } else {
+        expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+      }
+
+      await act(async () => {
+        resolveChunk?.({
+          UpcClassificationWindow: ({ initialBedId }: MockUpcWindowProps) => (
+            <div role="dialog" aria-label="Clasificación UPC">
+              {initialBedId}
+            </div>
+          ),
+        });
+        await chunkPromise;
+      });
+
+      if (params.shouldCancel) {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      } else {
+        expect(screen.getByRole('dialog', { name: 'Clasificación UPC' })).toHaveTextContent('R1');
+      }
+      view.unmount();
+    };
+
+    // Same RUT formatted differently -> must cancel.
+    await runDocComparisonCase({
+      motherDocType: 'RUT',
+      motherRut: '11.111.111-1',
+      cribDocType: 'RUT',
+      cribRut: '111111111',
+      shouldCancel: true,
+    });
+    // Same passport in different case/separators -> must cancel.
+    await runDocComparisonCase({
+      motherDocType: 'Pasaporte',
+      motherRut: 'ab-12345',
+      cribDocType: 'Pasaporte',
+      cribRut: 'AB 12345',
+      shouldCancel: true,
+    });
+    // Two absent-document markers -> must cancel.
+    await runDocComparisonCase({
+      motherDocType: 'RUT',
+      motherRut: 'SIN RUT',
+      cribDocType: 'RUT',
+      cribRut: 'S/N',
+      shouldCancel: true,
+    });
+    // All-zero placeholder RUTs -> must cancel.
+    await runDocComparisonCase({
+      motherDocType: 'RUT',
+      motherRut: '0-0',
+      cribDocType: 'RUT',
+      cribRut: '00.000.000-0',
+      shouldCancel: true,
+    });
+    // Genuine distinct normalized RUTs -> keeps open.
+    await runDocComparisonCase({
+      motherDocType: 'RUT',
+      motherRut: '11.111.111-1',
+      cribDocType: 'RUT',
+      cribRut: '28.000.001-1',
+      shouldCancel: false,
+    });
+  });
+
   it('restores focus to the clicked trigger button on Escape even when activeElement stayed on an ancestor wrapper', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     let attempts = 0;
