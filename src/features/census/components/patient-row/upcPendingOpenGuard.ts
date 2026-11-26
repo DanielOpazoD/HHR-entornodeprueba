@@ -2,7 +2,7 @@ import type { PatientData } from '@/types/domain/patient';
 
 export interface LegacyCensusObservation {
   otherActiveNames: Set<string>;
-  siblingLegacySlots: Map<string, string | null>;
+  otherSlotIdentities: Map<string, string>;
 }
 
 const IGNORED_SLOT_AND_NAME_KEYS = new Set([
@@ -29,6 +29,27 @@ const normalizePatientNameKey = (name?: string): string =>
     .replace(/\s+/g, ' ')
     .toLocaleLowerCase();
 
+const hasContiguousTokenSequence = (haystackKey: string, needleKey: string): boolean => {
+  const haystackTokens = haystackKey.split(' ').filter(Boolean);
+  const needleTokens = needleKey.split(' ').filter(Boolean);
+  if (needleTokens.length === 0 || needleTokens.length > haystackTokens.length) {
+    return false;
+  }
+  for (let start = 0; start <= haystackTokens.length - needleTokens.length; start += 1) {
+    let matches = true;
+    for (let offset = 0; offset < needleTokens.length; offset += 1) {
+      if (haystackTokens[start + offset] !== needleTokens[offset]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) {
+      return true;
+    }
+  }
+  return false;
+};
+
 const stableSerializeValue = (value: unknown, seen = new WeakSet<object>()): string => {
   if (value === null || value === undefined) return 'null';
   if (typeof value === 'string') return JSON.stringify(value);
@@ -45,13 +66,17 @@ const stableSerializeValue = (value: unknown, seen = new WeakSet<object>()): str
   return `{${entries.map(([key, entryValue]) => `${JSON.stringify(key)}:${stableSerializeValue(entryValue, seen)}`).join(',')}}`;
 };
 
-const hasOccupiedLegacyPayload = (subject: Partial<PatientData>): boolean =>
-  Boolean(
+const hasOccupiedLegacyPayload = (subject: Partial<PatientData>): boolean => {
+  const normalizedSex = subject.biologicalSex?.trim() || '';
+  return Boolean(
     subject.clinicalEpisodeId?.trim() ||
     subject.patientName?.trim() ||
+    subject.firstName?.trim() ||
+    subject.lastName?.trim() ||
+    subject.secondLastName?.trim() ||
     subject.rut?.trim() ||
     subject.birthDate?.trim() ||
-    subject.biologicalSex?.trim() ||
+    (normalizedSex && normalizedSex !== 'Indeterminado') ||
     subject.firstSeenDate?.trim() ||
     subject.admissionDate?.trim() ||
     subject.admissionTime?.trim() ||
@@ -63,6 +88,7 @@ const hasOccupiedLegacyPayload = (subject: Partial<PatientData>): boolean =>
     subject.status ||
     subject.devices?.length
   );
+};
 
 const serializeLegacySubjectRest = (subject: Partial<PatientData>): string => {
   const normalized: Record<string, unknown> = {
@@ -136,6 +162,49 @@ const parseLegacyUpcSubjectTuple = (identity: string | null): LegacyUpcSubjectTu
   }
 };
 
+const areNamedPartsConsistentWithNaming = (
+  expectedNamePartsJson: string,
+  currentNamePartsJson: string,
+  currentPatientName: string
+): boolean => {
+  try {
+    const [expectedFirst, expectedLast, expectedSecondLast] = JSON.parse(expectedNamePartsJson) as [
+      string,
+      string,
+      string,
+      string,
+      string,
+    ];
+    const [currentFirst, currentLast, currentSecondLast] = JSON.parse(currentNamePartsJson) as [
+      string,
+      string,
+      string,
+      string,
+      string,
+    ];
+    const normalizedCurrentName = normalizePatientNameKey(currentPatientName);
+    const pairs: Array<[string, string]> = [
+      [expectedFirst, currentFirst],
+      [expectedLast, currentLast],
+      [expectedSecondLast, currentSecondLast],
+    ];
+    for (const [expectedPart, currentPart] of pairs) {
+      const expectedKey = normalizePatientNameKey(expectedPart);
+      if (!expectedKey) continue;
+      const currentKey = normalizePatientNameKey(currentPart);
+      if (currentKey && currentKey !== expectedKey) {
+        return false;
+      }
+      if (!hasContiguousTokenSequence(normalizedCurrentName, expectedKey)) {
+        return false;
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export const isSameUpcCellSubjectIdentity = (
   expected: string | null,
   current: string | null
@@ -146,9 +215,17 @@ export const isSameUpcCellSubjectIdentity = (
   if (!expectedTuple || !currentTuple) {
     return false;
   }
-  const [, expectedEpisode, expectedDocType, expectedRut, expectedName, , expectedRest] =
-    expectedTuple;
-  const [, currentEpisode, currentDocType, currentRut, currentName, , currentRest] = currentTuple;
+  const [
+    ,
+    expectedEpisode,
+    expectedDocType,
+    expectedRut,
+    expectedName,
+    expectedNameParts,
+    expectedRest,
+  ] = expectedTuple;
+  const [, currentEpisode, currentDocType, currentRut, currentName, currentNameParts, currentRest] =
+    currentTuple;
   return (
     expectedName === '' &&
     currentName !== '' &&
@@ -156,7 +233,8 @@ export const isSameUpcCellSubjectIdentity = (
     expectedEpisode === currentEpisode &&
     expectedDocType === currentDocType &&
     expectedRut === currentRut &&
-    expectedRest === currentRest
+    expectedRest === currentRest &&
+    areNamedPartsConsistentWithNaming(expectedNameParts, currentNameParts, currentName)
   );
 };
 
@@ -173,29 +251,30 @@ const getBedSlotSubject = (
 
 export const createEmptyLegacyCensusObservation = (): LegacyCensusObservation => ({
   otherActiveNames: new Set(),
-  siblingLegacySlots: new Map(),
+  otherSlotIdentities: new Map(),
 });
 
 /**
- * Accumulates active names and sibling legacy slots observed across the census while a legacy
- * open is pending, including occupants that arrive after the initial click (e.g. a second twin
- * admitted to Neo 1 before swapping into the clicked crib).
+ * Snapshots or updates observed census occupancy while a legacy (unaccredited) open is pending.
+ *
+ * When `isInitialCapture` is true, records every currently occupied other slot (excluding the
+ * clicked slot and its paired mother/crib slot, which is validated directly). On subsequent
+ * renders that already passed ambiguity validation, latches any unrelated slot's valid
+ * empty-to-named transition monotonically and records newly observed names.
  */
 export const recordLegacyCensusObservation = (
   observation: LegacyCensusObservation,
   beds: Record<string, PatientData> | null | undefined,
   rawBedId: string | null,
   isCrib: boolean,
-  expectedIdentity: string | null
+  expectedIdentity: string | null,
+  pairedSlotKey: string | null = null,
+  isInitialCapture = false
 ): void => {
   if (!beds || !rawBedId) {
     return;
   }
   const expectedTuple = parseLegacyUpcSubjectTuple(expectedIdentity);
-  const expectedEpisode = expectedTuple?.[1] ?? '';
-  const expectedDocType = expectedTuple?.[2] ?? 'RUT';
-  const expectedRut = expectedTuple?.[3] ?? '';
-  const expectedNameKey = normalizePatientNameKey(expectedTuple?.[4]);
   const clickedSlotKey = isCrib ? `${rawBedId}:crib` : rawBedId;
 
   for (const [bedId, bed] of Object.entries(beds)) {
@@ -209,20 +288,14 @@ export const recordLegacyCensusObservation = (
       if (normalizedName) {
         observation.otherActiveNames.add(normalizedName);
       }
-      if (!expectedTuple) continue;
-      const otherEpisode = subject.clinicalEpisodeId?.trim() || '';
-      const otherDocType = subject.documentType?.trim() || 'RUT';
-      const otherRut = subject.rut?.trim() || '';
-      const sharesLegacyEpisode = Boolean(expectedEpisode && otherEpisode === expectedEpisode);
-      const sharesDocument = Boolean(
-        expectedRut && otherRut === expectedRut && otherDocType === expectedDocType
-      );
-      const sharesProvisionalName = Boolean(expectedNameKey && normalizedName === expectedNameKey);
-      if (
-        (sharesLegacyEpisode || sharesDocument || sharesProvisionalName) &&
-        !observation.siblingLegacySlots.has(slotKey)
-      ) {
-        observation.siblingLegacySlots.set(slotKey, resolveUpcCellSubjectIdentity(subject));
+      if (!expectedTuple || slotKey === pairedSlotKey) continue;
+      const slotIdentity = resolveUpcCellSubjectIdentity(subject);
+      if (isInitialCapture) {
+        if (slotIdentity !== null) {
+          observation.otherSlotIdentities.set(slotKey, slotIdentity);
+        }
+      } else if (slotIdentity !== null && observation.otherSlotIdentities.has(slotKey)) {
+        observation.otherSlotIdentities.set(slotKey, slotIdentity);
       }
     }
   }
@@ -232,30 +305,87 @@ export const captureLegacyCensusObservation = (
   beds: Record<string, PatientData> | null | undefined,
   rawBedId: string | null,
   isCrib: boolean,
-  expectedIdentity: string | null
+  expectedIdentity: string | null,
+  pairedSlotKey: string | null = null
 ): LegacyCensusObservation => {
   const observation = createEmptyLegacyCensusObservation();
-  recordLegacyCensusObservation(observation, beds, rawBedId, isCrib, expectedIdentity);
+  recordLegacyCensusObservation(
+    observation,
+    beds,
+    rawBedId,
+    isCrib,
+    expectedIdentity,
+    pairedSlotKey,
+    true
+  );
   return observation;
 };
 
+/**
+ * Accredited episodes never trigger census-wide ambiguity checks. For legacy (unaccredited)
+ * subjects, any admission, vacating, swap, or occupant change in another census slot while the
+ * deferred open or retry is pending cancels the open rather than risking selecting a sibling or
+ * replacement patient.
+ */
 export const hasLegacyCensusAmbiguity = (
   beds: Record<string, PatientData> | null | undefined,
+  rawBedId: string | null,
+  isCrib: boolean,
+  pairedSlotKey: string | null,
+  expectedIdentity: string | null,
   currentSubject: Partial<PatientData> | undefined,
   observation: LegacyCensusObservation,
   isNamingTransition: boolean
 ): boolean => {
-  if (isNamingTransition) {
-    const newNameKey = normalizePatientNameKey(currentSubject?.patientName);
-    if (newNameKey && observation.otherActiveNames.has(newNameKey)) {
-      return true;
+  const currentNameKey = normalizePatientNameKey(currentSubject?.patientName);
+  if (isNamingTransition && currentNameKey && observation.otherActiveNames.has(currentNameKey)) {
+    return true;
+  }
+  const expectedTuple = parseLegacyUpcSubjectTuple(expectedIdentity);
+  if (!beds || !rawBedId || !expectedTuple) {
+    return false;
+  }
+  const expectedNameKey = normalizePatientNameKey(expectedTuple[4]);
+  const clickedSlotKey = isCrib ? `${rawBedId}:crib` : rawBedId;
+  const seenSlots = new Set<string>();
+
+  for (const [bedId, bed] of Object.entries(beds)) {
+    const entries: Array<[string, Partial<PatientData> | undefined]> = [
+      [bedId, bed],
+      [`${bedId}:crib`, bed?.clinicalCrib],
+    ];
+    for (const [slotKey, subject] of entries) {
+      if (slotKey === clickedSlotKey || slotKey === pairedSlotKey) continue;
+      seenSlots.add(slotKey);
+      const currentOtherIdentity = resolveUpcCellSubjectIdentity(subject);
+      const initialOtherIdentity = observation.otherSlotIdentities.get(slotKey) ?? null;
+
+      if (initialOtherIdentity === null && currentOtherIdentity === null) {
+        continue;
+      }
+      if (initialOtherIdentity === null || currentOtherIdentity === null) {
+        return true;
+      }
+      if (!isSameUpcCellSubjectIdentity(initialOtherIdentity, currentOtherIdentity)) {
+        return true;
+      }
+      if (currentOtherIdentity !== initialOtherIdentity) {
+        const otherNameKey = normalizePatientNameKey(subject?.patientName);
+        if (otherNameKey && (otherNameKey === expectedNameKey || otherNameKey === currentNameKey)) {
+          return true;
+        }
+      }
     }
   }
-  for (const [slotKey, initialIdentity] of observation.siblingLegacySlots.entries()) {
-    const currentSiblingIdentity = resolveUpcCellSubjectIdentity(getBedSlotSubject(beds, slotKey));
-    if (currentSiblingIdentity !== initialIdentity) {
-      return true;
+
+  for (const slotKey of observation.otherSlotIdentities.keys()) {
+    if (!seenSlots.has(slotKey)) {
+      const currentOtherIdentity = resolveUpcCellSubjectIdentity(getBedSlotSubject(beds, slotKey));
+      if (currentOtherIdentity === null) {
+        return true;
+      }
     }
   }
+
   return false;
 };

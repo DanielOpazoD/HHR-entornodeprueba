@@ -1474,29 +1474,14 @@ describe('UpcClassificationWindowProvider', () => {
         }
         expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
 
-        // Step 1: Second twin arrives in Neo1 after click (R1:crib still unnamed -> stays pending).
+        // Step 1: A new occupant arrives in previously empty Neo1 while the legacy crib open is
+        // pending -> cancels immediately rather than risking a late twin move/swap.
         view.rerender(
           <DailyRecordBedsContext.Provider
             value={{ R1: motherWith(unnamedCrib), Neo1: lateTwinNeo1 }}
           >
             <UpcClassificationWindowProvider currentDateString="2026-11-24">
               <Trigger crib={unnamedCrib} />
-            </UpcClassificationWindowProvider>
-          </DailyRecordBedsContext.Provider>
-        );
-        expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
-
-        // Step 2: Twins swap locations -> must cancel immediately.
-        const swappedCrib = { ...unnamedCrib, patientName: 'RN Gemelo Tardio' };
-        view.rerender(
-          <DailyRecordBedsContext.Provider
-            value={{
-              R1: motherWith(swappedCrib),
-              Neo1: { ...lateTwinNeo1, patientName: '' },
-            }}
-          >
-            <UpcClassificationWindowProvider currentDateString="2026-11-24">
-              <Trigger crib={swappedCrib} />
             </UpcClassificationWindowProvider>
           </DailyRecordBedsContext.Provider>
         );
@@ -1656,6 +1641,282 @@ describe('UpcClassificationWindowProvider', () => {
     await runFirstEvalSwap('initial');
     await runFirstEvalSwap('retry');
     await runFirstEvalSwap('control-no-swap');
+  });
+
+  it('cancels on a single-update move of twin Alfa into empty Neo1 with Beta arriving in R1:crib (with or without prior firstName) and keeps matching firstName completion alive', async () => {
+    const runSingleUpdateMove = async (
+      mode:
+        | 'atomic-with-firstname-initial'
+        | 'atomic-with-firstname-retry'
+        | 'atomic-blank-initial'
+        | 'atomic-blank-retry'
+        | 'control-matching-firstname'
+    ) => {
+      vi.resetModules();
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const isRetry = mode.endsWith('-retry');
+      let attempts = 0;
+      let resolveChunk:
+        | ((value: { UpcClassificationWindow: React.FC<MockUpcWindowProps> }) => void)
+        | null = null;
+      const chunkPromise = new Promise<{
+        UpcClassificationWindow: React.FC<MockUpcWindowProps>;
+      }>(resolve => {
+        resolveChunk = resolve;
+      });
+      vi.doMock(UPC_WINDOW_MODULE_PATH, () => {
+        attempts += 1;
+        if (isRetry && attempts === 1) {
+          throw new Error('503 Service Unavailable');
+        }
+        return chunkPromise;
+      });
+
+      const {
+        DailyRecordBedsContext,
+        resolveUpcCellSubjectIdentity,
+        UpcClassificationWindowProvider,
+        useUpcClassificationWindowOpener,
+      } = await loadFreshContext();
+
+      const hasPriorFirstName = mode.includes('firstname');
+      const initialCrib = DataFactory.createMockPatient('R1', {
+        patientName: '',
+        firstName: hasPriorFirstName ? 'Alfa' : '',
+        rut: '',
+        clinicalEpisodeId: 'legacy_ep_atomic_twins',
+        pathology: 'Prematurez',
+        status: PatientStatus.ESTABLE,
+        admissionDate: '2026-11-24',
+        admissionTime: '08:00',
+      });
+      const motherWith = (crib: PatientData) =>
+        DataFactory.createMockPatient('R1', {
+          patientName: 'Madre Gemelos Atomico',
+          clinicalEpisodeId: 'ep-mother-atomic',
+          clinicalCrib: crib,
+        });
+
+      const Trigger = ({ crib }: { crib: PatientData }) => {
+        const { openUpcWindow } = useUpcClassificationWindowOpener();
+        return (
+          <button
+            type="button"
+            onClick={event =>
+              openUpcWindow('R1', {
+                crib: true,
+                episodeIdentity: resolveUpcCellSubjectIdentity(crib),
+                triggerElement: event.currentTarget,
+              })
+            }
+          >
+            Abrir cuna atomica
+          </button>
+        );
+      };
+
+      // Neo1 is explicitly present as an empty bed (with default Indeterminado biologicalSex) at click time.
+      const emptyNeo1 = DataFactory.createMockPatient('Neo1', {
+        patientName: '',
+        rut: '',
+        clinicalEpisodeId: '',
+        pathology: '',
+        admissionDate: '',
+        admissionTime: '',
+        birthDate: '',
+        biologicalSex: 'Indeterminado',
+        status: PatientStatus.EMPTY,
+        isUPC: false,
+        upcChecklist: undefined,
+        devices: [],
+      });
+      expect(resolveUpcCellSubjectIdentity(emptyNeo1)).toBeNull();
+
+      const view = render(
+        <DailyRecordBedsContext.Provider value={{ R1: motherWith(initialCrib), Neo1: emptyNeo1 }}>
+          <UpcClassificationWindowProvider currentDateString="2026-11-24">
+            <Trigger crib={initialCrib} />
+          </UpcClassificationWindowProvider>
+        </DailyRecordBedsContext.Provider>
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir cuna atomica' }));
+      if (isRetry) {
+        expect(await screen.findByRole('alert')).toHaveTextContent(/No se pudo abrir este panel/);
+        fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+      }
+      expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+      if (mode === 'control-matching-firstname') {
+        const namedAlfa = { ...initialCrib, patientName: 'Alfa Soto', firstName: 'Alfa' };
+        view.rerender(
+          <DailyRecordBedsContext.Provider
+            value={{ R1: motherWith(namedAlfa), Neo1: { ...emptyNeo1 } }}
+          >
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger crib={namedAlfa} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+        expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+      } else {
+        // Single update moves Alfa to previously empty Neo1 and places Beta in R1:crib.
+        const betaInCrib = { ...initialCrib, patientName: 'RN Beta', firstName: 'Beta' };
+        const alfaInNeo1 = {
+          ...initialCrib,
+          bedId: 'Neo1',
+          patientName: 'RN Alfa',
+          firstName: 'Alfa',
+        };
+        view.rerender(
+          <DailyRecordBedsContext.Provider value={{ R1: motherWith(betaInCrib), Neo1: alfaInNeo1 }}>
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger crib={betaInCrib} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+        expect(screen.queryByTestId('upc-window-module-loading')).toBeNull();
+      }
+
+      await act(async () => {
+        resolveChunk?.({
+          UpcClassificationWindow: ({ initialBedId }: MockUpcWindowProps) => (
+            <div role="dialog" aria-label="Clasificación UPC">
+              {initialBedId}
+            </div>
+          ),
+        });
+        await chunkPromise;
+      });
+
+      if (mode === 'control-matching-firstname') {
+        expect(screen.getByRole('dialog', { name: 'Clasificación UPC' })).toHaveTextContent(
+          'R1:crib'
+        );
+      } else {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      }
+
+      view.unmount();
+      consoleErrorSpy.mockRestore();
+    };
+
+    await runSingleUpdateMove('atomic-with-firstname-initial');
+    await runSingleUpdateMove('atomic-with-firstname-retry');
+    await runSingleUpdateMove('atomic-blank-initial');
+    await runSingleUpdateMove('atomic-blank-retry');
+    await runSingleUpdateMove('control-matching-firstname');
+  });
+
+  it('rejects partial substring firstName matches and allows paired legacy mother/crib naming without false cancellation', async () => {
+    let resolveChunk:
+      | ((value: { UpcClassificationWindow: React.FC<MockUpcWindowProps> }) => void)
+      | null = null;
+    const chunkPromise = new Promise<{
+      UpcClassificationWindow: React.FC<MockUpcWindowProps>;
+    }>(resolve => {
+      resolveChunk = resolve;
+    });
+    vi.doMock(UPC_WINDOW_MODULE_PATH, () => chunkPromise);
+
+    const {
+      DailyRecordBedsContext,
+      resolveUpcCellSubjectIdentity,
+      UpcClassificationWindowProvider,
+      useUpcClassificationWindowOpener,
+    } = await loadFreshContext();
+
+    // 1) Token-boundary check: prior firstName "Ana" must not match "RN de Mariana".
+    const { isSameUpcCellSubjectIdentity } =
+      await import('@/features/census/components/patient-row/upcPendingOpenGuard');
+    const expectedAna = resolveUpcCellSubjectIdentity(
+      DataFactory.createMockPatient('R1', {
+        patientName: '',
+        firstName: 'Ana',
+        rut: '',
+        clinicalEpisodeId: 'legacy_ep_token',
+      })
+    );
+    const currentMariana = resolveUpcCellSubjectIdentity(
+      DataFactory.createMockPatient('R1', {
+        patientName: 'RN de Mariana',
+        firstName: '',
+        rut: '',
+        clinicalEpisodeId: 'legacy_ep_token',
+      })
+    );
+    expect(isSameUpcCellSubjectIdentity(expectedAna, currentMariana)).toBe(false);
+
+    // 2) Legacy mother + legacy crib sharing maternal RUT: completing crib patientName keeps open.
+    const unnamedCrib = DataFactory.createMockPatient('R1', {
+      patientName: '',
+      rut: '11.111.111-1',
+      clinicalEpisodeId: 'legacy_ep_shared_family',
+      admissionDate: '2026-11-24',
+      admissionTime: '08:00',
+    });
+    const namedCrib = { ...unnamedCrib, patientName: 'RN de Maria' };
+    const legacyMother = (crib: PatientData) =>
+      DataFactory.createMockPatient('R1', {
+        patientName: 'Maria Lopez',
+        rut: '11.111.111-1',
+        clinicalEpisodeId: 'legacy_ep_shared_family',
+        admissionDate: '2026-11-24',
+        admissionTime: '08:00',
+        clinicalCrib: crib,
+      });
+
+    const Trigger = ({ crib }: { crib: PatientData }) => {
+      const { openUpcWindow } = useUpcClassificationWindowOpener();
+      return (
+        <button
+          type="button"
+          onClick={event =>
+            openUpcWindow('R1', {
+              crib: true,
+              episodeIdentity: resolveUpcCellSubjectIdentity(crib),
+              triggerElement: event.currentTarget,
+            })
+          }
+        >
+          Abrir cuna madre legado
+        </button>
+      );
+    };
+
+    const view = render(
+      <DailyRecordBedsContext.Provider value={{ R1: legacyMother(unnamedCrib) }}>
+        <UpcClassificationWindowProvider currentDateString="2026-11-24">
+          <Trigger crib={unnamedCrib} />
+        </UpcClassificationWindowProvider>
+      </DailyRecordBedsContext.Provider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir cuna madre legado' }));
+    expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+    view.rerender(
+      <DailyRecordBedsContext.Provider value={{ R1: legacyMother(namedCrib) }}>
+        <UpcClassificationWindowProvider currentDateString="2026-11-24">
+          <Trigger crib={namedCrib} />
+        </UpcClassificationWindowProvider>
+      </DailyRecordBedsContext.Provider>
+    );
+    expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+    await act(async () => {
+      resolveChunk?.({
+        UpcClassificationWindow: ({ initialBedId }: MockUpcWindowProps) => (
+          <div role="dialog" aria-label="Clasificación UPC">
+            {initialBedId}
+          </div>
+        ),
+      });
+      await chunkPromise;
+    });
+
+    expect(screen.getByRole('dialog', { name: 'Clasificación UPC' })).toHaveTextContent('R1:crib');
+    view.unmount();
   });
 
   it('restores focus to the clicked trigger button on Escape even when activeElement stayed on an ancestor wrapper', async () => {
