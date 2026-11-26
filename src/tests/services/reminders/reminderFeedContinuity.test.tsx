@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   }) => {},
   fail: (_error: unknown) => {},
   recordEvent: vi.fn(),
+  shift: 'day' as 'day' | 'night',
 }));
 vi.mock('firebase/firestore', async importOriginal => ({
   ...(await importOriginal<typeof import('firebase/firestore')>()),
@@ -44,7 +45,7 @@ vi.mock('@/context/AuthContext', () => ({
 }));
 vi.mock('@/utils/clinicalDayUtils', async importOriginal => ({
   ...(await importOriginal<typeof import('@/utils/clinicalDayUtils')>()),
-  getCurrentShift: () => 'day',
+  getCurrentShift: () => mocks.shift,
 }));
 vi.mock('@/services/reminders/ReminderReadService', () => ({
   ReminderReadService: {
@@ -82,7 +83,10 @@ const emit = (reminders: Reminder[]) =>
   );
 
 describe('reminder feed continuity from Firestore listener to screen', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.shift = 'day';
+  });
 
   it.each([{ code: 'permission-denied' }, { code: 'unavailable' }])(
     'preserves the last reminder, read count and open center after $code',
@@ -165,5 +169,52 @@ describe('reminder feed continuity from Firestore listener to screen', () => {
     expect(
       screen.queryByText('No hay avisos activos para tu rol y turno.')
     ).not.toBeInTheDocument();
+  });
+
+  it('resolves read receipts across shift rollover and remount while Firestore delivers cached snapshots', async () => {
+    vi.useFakeTimers();
+    try {
+      const bothShiftsReminder: Reminder = {
+        ...reminder,
+        id: 'synthetic-both-shifts',
+        title: 'Aviso urgente ambos turnos',
+        type: 'urgent',
+        targetShifts: ['day', 'night'],
+      };
+
+      const { ReminderReadService } = await import('@/services/reminders/ReminderReadService');
+      vi.mocked(ReminderReadService.getUserShiftReadState).mockImplementation(
+        async (_reminderId, _userId, shift) => ({
+          status: shift === 'day' ? 'read' : 'unread',
+        })
+      );
+
+      // Remount during cached snapshot in the same shift must still recognize the cached read receipt (count 0).
+      const firstMount = mount();
+      act(() =>
+        mocks.next({
+          metadata: { fromCache: true, hasPendingWrites: false },
+          docs: [{ id: bothShiftsReminder.id, data: () => bothShiftsReminder }],
+        })
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(screen.getByTestId('reminder-badge-count')).toHaveTextContent('0');
+
+      // Shift rolls over to night while still on cached snapshot -> unread count must become 1.
+      mocks.shift = 'night';
+      await act(async () => {
+        vi.advanceTimersByTime(60_000);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(screen.getByTestId('reminder-badge-count')).toHaveTextContent('1');
+      firstMount.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
