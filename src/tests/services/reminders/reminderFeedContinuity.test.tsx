@@ -6,7 +6,10 @@ import { ReminderModal } from '@/components/reminders/ReminderModal';
 import type { Reminder } from '@/types/reminders';
 
 const mocks = vi.hoisted(() => ({
-  next: (_snapshot: { docs: { id: string; data: () => Reminder }[] }) => {},
+  next: (_snapshot: {
+    metadata?: { fromCache?: boolean; hasPendingWrites?: boolean };
+    docs: { id: string; data: () => Reminder }[];
+  }) => {},
   fail: (_error: unknown) => {},
   recordEvent: vi.fn(),
 }));
@@ -125,5 +128,42 @@ describe('reminder feed continuity from Firestore listener to screen', () => {
     );
     emit([reminder]);
     expect(screen.getByText(reminder.title)).toBeVisible();
+  });
+
+  it('preserves a confirmed urgent reminder in the bell when a partial cached snapshot omits it', async () => {
+    const urgentReminder: Reminder = {
+      ...reminder,
+      id: 'synthetic-urgent',
+      title: 'Aviso urgente confirmado',
+      type: 'urgent',
+    };
+    const otherRoleReminder: Reminder = {
+      ...reminder,
+      id: 'synthetic-other',
+      title: 'Aviso otro rol',
+      targetRoles: ['admin'],
+    };
+
+    const { ReminderReadService } = await import('@/services/reminders/ReminderReadService');
+    vi.mocked(ReminderReadService.getUserShiftReadState).mockResolvedValue({ status: 'unread' });
+
+    mount();
+    emit([urgentReminder, otherRoleReminder]);
+
+    await waitFor(() => expect(screen.getByTestId('reminder-badge-count')).toHaveTextContent('1'));
+
+    act(() =>
+      mocks.next({
+        metadata: { fromCache: true, hasPendingWrites: false },
+        docs: [{ id: otherRoleReminder.id, data: () => otherRoleReminder }],
+      })
+    );
+
+    expect(screen.getByTestId('reminder-badge-count')).toHaveTextContent('1');
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir avisos' }));
+    expect(screen.getByText(urgentReminder.title)).toBeVisible();
+    expect(
+      screen.queryByText('No hay avisos activos para tu rol y turno.')
+    ).not.toBeInTheDocument();
   });
 });

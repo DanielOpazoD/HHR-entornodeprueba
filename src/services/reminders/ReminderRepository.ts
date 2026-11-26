@@ -4,8 +4,6 @@ import {
   getDocs,
   getDocsFromServer,
   onSnapshot,
-  orderBy,
-  query,
   setDoc,
   updateDoc,
   waitForPendingWrites,
@@ -36,6 +34,7 @@ const sortReminders = (items: Reminder[]): Reminder[] =>
   });
 
 export type ReminderRepositoryErrorKind = ReminderOperationErrorKind;
+export type ReminderRepositoryListErrorKind = ReminderRepositoryErrorKind | 'invalid_record';
 export type ReminderRepositorySubscriptionErrorKind =
   | ReminderRepositoryErrorKind
   | 'unconfirmed_cache'
@@ -47,7 +46,7 @@ export type ReminderRepositoryMutationResult =
 
 export type ReminderRepositoryListResult =
   | { status: 'success'; reminders: Reminder[] }
-  | { status: ReminderRepositoryErrorKind; error: unknown; reminders: Reminder[] };
+  | { status: ReminderRepositoryListErrorKind; error: unknown; reminders: Reminder[] };
 
 export interface ReminderRepositorySubscriptionOptions {
   onError?: (error: unknown, kind: ReminderRepositorySubscriptionErrorKind) => void;
@@ -89,7 +88,9 @@ export const createReminderRepository = ({
     callback: (reminders: Reminder[]) => void,
     options: ReminderRepositorySubscriptionOptions = {}
   ): () => void {
-    const remindersQuery = query(getRemindersCollectionRef(runtime), orderBy('createdAt', 'desc'));
+    // Query the full collection without orderBy so malformed docs missing `createdAt`
+    // are not silently omitted by Firestore; valid reminders are sorted in memory.
+    const remindersCollection = getRemindersCollectionRef(runtime);
     let active = true;
     let snapshotSeq = 0;
     let lastConfirmedIds = new Set<string>();
@@ -114,7 +115,7 @@ export const createReminderRepository = ({
     };
 
     const unsubscribe = onSnapshot(
-      remindersQuery,
+      remindersCollection,
       { includeMetadataChanges: true },
       snapshot => {
         if (!active) return;
@@ -168,7 +169,7 @@ export const createReminderRepository = ({
               return;
             }
 
-            const verified = await getDocsFromServer(remindersQuery);
+            const verified = await getDocsFromServer(remindersCollection);
             if (!active || snapshotSeq !== seq) return;
             if (
               verified.metadata?.fromCache ||
@@ -230,12 +231,20 @@ export const createReminderRepository = ({
 
   async listWithResult(): Promise<ReminderRepositoryListResult> {
     try {
-      const snapshot = await getDocs(
-        query(getRemindersCollectionRef(runtime), orderBy('createdAt', 'desc'))
-      );
+      const snapshot = await getDocs(getRemindersCollectionRef(runtime));
       const { reminders, invalidCount } = parseReminderDocs(snapshot.docs);
       if (invalidCount > 0) {
-        throw new Error('Se encontraron avisos con formato inválido.');
+        const error = new Error('Se encontraron avisos con formato inválido.');
+        reminderRepositoryLogger.error('Error listing reminders: invalid record format', error);
+        reminderObservability.recordEvent('list_reminders', 'failed', {
+          issues: ['Se encontraron avisos con formato inválido.'],
+          context: { errorKind: 'invalid_record', invalidCount },
+        });
+        return {
+          status: 'invalid_record',
+          error,
+          reminders: [],
+        };
       }
       return {
         status: 'success',

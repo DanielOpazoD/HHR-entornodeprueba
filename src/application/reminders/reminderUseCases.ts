@@ -86,11 +86,11 @@ const mapReminderListOutcome = (
     return createApplicationSuccess(result.reminders);
   }
 
-  const issue = buildReminderIssue(
-    result.status,
-    result.error,
-    'No fue posible cargar los avisos.'
-  );
+  const fallbackMessage =
+    result.status === 'invalid_record'
+      ? 'No fue posible leer todos los avisos por un formato inválido.'
+      : 'No fue posible cargar los avisos.';
+  const issue = buildReminderIssue(result.status, result.error, fallbackMessage);
   return createApplicationDegraded(result.reminders, [issue], {
     reason: result.status,
     userSafeMessage: issue.userSafeMessage,
@@ -143,16 +143,21 @@ export const createReminderUseCases = ({
 }: ReminderUseCasesDependencies = {}) => ({
   subscribeToReminderFeed({ onOutcome }: SubscribeRemindersOptions): () => void {
     let lastKnownReminders: Reminder[] = [];
+    let hasConfirmedSnapshot = false;
     return reminderRepository.subscribe(
       reminders => {
+        hasConfirmedSnapshot = true;
         lastKnownReminders = reminders;
         onOutcome(createApplicationSuccess(reminders));
       },
       {
         onCachedSnapshot: cachedReminders => {
-          lastKnownReminders = cachedReminders;
+          const preserved = hasConfirmedSnapshot ? lastKnownReminders : cachedReminders;
+          if (!hasConfirmedSnapshot) {
+            lastKnownReminders = cachedReminders;
+          }
           onOutcome(
-            createApplicationDegraded(cachedReminders, [], {
+            createApplicationDegraded(preserved, [], {
               reason: 'cached_snapshot',
             })
           );

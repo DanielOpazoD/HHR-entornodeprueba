@@ -4,6 +4,7 @@ import type { Reminder } from '@/types/reminders';
 
 const mocks = vi.hoisted(() => ({
   onSnapshot: vi.fn(),
+  getDocs: vi.fn(),
   getDocsFromServer: vi.fn(),
   waitForPendingWrites: vi.fn(),
   recordEvent: vi.fn(),
@@ -12,10 +13,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock('firebase/firestore', async importOriginal => ({
   ...(await importOriginal<typeof import('firebase/firestore')>()),
   onSnapshot: mocks.onSnapshot,
+  getDocs: mocks.getDocs,
   getDocsFromServer: mocks.getDocsFromServer,
   waitForPendingWrites: mocks.waitForPendingWrites,
-  orderBy: vi.fn(),
-  query: vi.fn(),
 }));
 
 vi.mock('@/services/reminders/reminderShared', async importOriginal => ({
@@ -156,13 +156,10 @@ describe('ReminderRepository subscription cache, schema, and pending-write hones
     const onError = vi.fn();
     createReminderRepository({ runtime: createLiveRuntime() }).subscribe(callback, { onError });
 
-    // Simulates reconnect after a local deleteDoc before server rejection rolls it back:
-    // Firestore reports fromCache=false, hasPendingWrites=false, docs=[] while delete is in flight.
     capture.next?.({ metadata: { fromCache: false, hasPendingWrites: false }, docs: [] });
     await Promise.resolve();
     expect(callback).not.toHaveBeenCalled();
 
-    // Server rejects the pending deletion and Firestore restores the reminder.
     mocks.waitForPendingWrites.mockResolvedValue(undefined);
     capture.next?.({
       metadata: { fromCache: false, hasPendingWrites: false },
@@ -173,5 +170,46 @@ describe('ReminderRepository subscription cache, schema, and pending-write hones
 
     await vi.waitFor(() => expect(callback).toHaveBeenCalledTimes(1));
     expect(callback).toHaveBeenCalledWith([sampleReminder]);
+  });
+
+  it('queries the full reminders collection without orderBy and fails closed when createdAt is missing', () => {
+    const capture: { next: ((snapshot: unknown) => void) | null } = { next: null };
+    mocks.onSnapshot.mockImplementation((target, _options, next) => {
+      expect(target).toBe('reminders-col');
+      capture.next = next;
+      return vi.fn();
+    });
+
+    const callback = vi.fn();
+    const onError = vi.fn();
+    createReminderRepository({ runtime: createLiveRuntime() }).subscribe(callback, { onError });
+
+    const { createdAt: _omitted, ...withoutCreatedAt } = sampleReminder;
+    capture.next?.({
+      metadata: { fromCache: false, hasPendingWrites: false },
+      docs: [{ id: sampleReminder.id, data: () => withoutCreatedAt }],
+    });
+
+    expect(callback).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(expect.any(Error), 'invalid_record');
+  });
+
+  it('returns invalid_record from listWithResult when stored records are malformed', async () => {
+    mocks.getDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          id: sampleReminder.id,
+          data: () => ({ ...sampleReminder, title: 'T'.repeat(101) }),
+        },
+      ],
+    });
+
+    const result = await createReminderRepository({
+      runtime: createLiveRuntime(),
+    }).listWithResult();
+
+    expect(mocks.getDocs).toHaveBeenCalledWith('reminders-col');
+    expect(result.status).toBe('invalid_record');
+    expect(result.reminders).toEqual([]);
   });
 });

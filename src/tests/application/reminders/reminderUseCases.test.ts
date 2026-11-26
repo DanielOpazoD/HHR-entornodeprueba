@@ -42,4 +42,33 @@ describe('reminderUseCases module boundaries', () => {
 
     expect(imageServiceLoaded).toBe(false);
   });
+
+  it('propagates invalid_record from listReminders without collapsing it to unknown', async () => {
+    const { createReminderUseCases } = await import('@/application/reminders/reminderUseCases');
+    type ReminderUseCasesOptions = NonNullable<Parameters<typeof createReminderUseCases>[0]>;
+
+    const useCases = createReminderUseCases({
+      reminderRepository: {
+        subscribe: vi.fn(),
+        listWithResult: vi.fn().mockResolvedValue({
+          status: 'invalid_record',
+          error: new Error('formato inválido'),
+          reminders: [],
+        }),
+        createWithResult: vi.fn(),
+        updateWithResult: vi.fn(),
+        removeWithResult: vi.fn(),
+      } as unknown as ReminderUseCasesOptions['reminderRepository'],
+      reminderReadService: {
+        getUserShiftReadState: vi.fn(),
+        markAsReadWithResult: vi.fn(),
+        buildReceipt: vi.fn(),
+        getReadReceiptsWithResult: vi.fn(),
+      } as unknown as ReminderUseCasesOptions['reminderReadService'],
+    });
+
+    const outcome = await useCases.listReminders();
+    expect(outcome.status).toBe('degraded');
+    expect(outcome.reason).toBe('invalid_record');
+  });
 });
