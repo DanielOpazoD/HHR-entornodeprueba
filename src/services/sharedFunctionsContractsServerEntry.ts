@@ -35,3 +35,8 @@ export {
 } from './repositories/dailyRecordErasureGuard';
 
 export { seedClinicalCarryover } from './repositories/clinicalCarryoverSeed';
+
+export {
+  collectClinicalEpisodeCoverage,
+  evaluateDailyRecordClinicalAuthorityCore as evaluateDailyRecordClinicalAuthority,
+} from './repositories/dailyRecordClinicalAuthorityCore';
