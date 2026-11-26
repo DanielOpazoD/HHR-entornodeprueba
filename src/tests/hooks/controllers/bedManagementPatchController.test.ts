@@ -5,27 +5,27 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import { Specialty } from '@/types/domain/patientClassification';
 
 describe('bedManagementPatchController', () => {
-  it('clears specialty on identity replacement so the new episode starts pending', () => {
+  it('preserves specialty and clinical episode when manually correcting identity fields on an occupied bed', () => {
     const record = DataFactory.createMockDailyRecord('2026-05-14');
     record.beds.R1 = DataFactory.createMockPatient('R1', {
       patientName: 'Paciente Antiguo',
       rut: '11.111.111-1',
+      documentType: 'RUT',
       clinicalEpisodeId: 'old-episode',
       specialty: Specialty.MEDICINA,
+      pathology: 'Diagnóstico sincronizado',
     });
-    const updates = {
-      patientName: 'Paciente Nuevo',
+    const patch = buildUpdatePatientPatches(record, 'R1', {
+      patientName: 'Paciente Corregido',
       rut: '22.222.222-2',
-      specialty: Specialty.CIRUGIA,
-    };
-    expect(buildUpdatePatientPatches(record, 'R1', updates)['beds.R1.specialty']).toBe('');
-    expect(
-      buildUpdatePatientPatches(record, 'R1', {
-        patientName: 'Paciente Nuevo',
-        rut: '22.222.222-2',
-        specialty: Specialty.MEDICINA,
-      })['beds.R1.specialty']
-    ).toBe('');
+      documentType: 'Pasaporte',
+    });
+    expect(patch).toEqual({
+      'beds.R1.patientName': 'Paciente Corregido',
+      'beds.R1.rut': '22.222.222-2',
+      'beds.R1.documentType': 'Pasaporte',
+      'beds.R1.documentManualOverride': true,
+    });
   });
   it('persists a custom free-text specialty in the daily census bed patch', () => {
     const record = DataFactory.createMockDailyRecord('2026-05-11');
@@ -57,7 +57,7 @@ describe('bedManagementPatchController', () => {
     expect(patch).not.toHaveProperty('beds.R1.pathology');
   });
 
-  it('clears stale episode ownership when replacing the patient identity in an occupied bed', () => {
+  it('preserves episode ownership, diagnosis and clinical events when editing identity in an occupied bed', () => {
     const record = DataFactory.createMockDailyRecord('2026-05-14');
     record.beds.R1 = DataFactory.createMockPatient('R1', {
       patientName: 'Paciente Antiguo',
@@ -70,17 +70,14 @@ describe('bedManagementPatchController', () => {
     });
 
     const patch = buildUpdatePatientPatches(record, 'R1', {
-      patientName: 'Paciente Nuevo',
+      patientName: 'Paciente Corregido',
       rut: '22.222.222-2',
     });
 
-    expect(patch).toMatchObject({
-      'beds.R1.patientName': 'Paciente Nuevo',
+    expect(patch).toEqual({
+      'beds.R1.patientName': 'Paciente Corregido',
       'beds.R1.rut': '22.222.222-2',
-      'beds.R1.clinicalEpisodeId': undefined,
-      'beds.R1.firstSeenDate': '2026-05-14',
-      'beds.R1.pathology': '',
-      'beds.R1.clinicalEvents': [],
+      'beds.R1.documentManualOverride': true,
     });
   });
   it('keeps the protected specialty request scalar so the server clears obstetrics atomically', () => {

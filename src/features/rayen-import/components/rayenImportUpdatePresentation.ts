@@ -10,6 +10,7 @@ const INTERNAL_SYNC_FIELDS = new Set<FieldChange['field']>([
   'treatingPhysicianId',
   'treatingPhysicianName',
   'namePartsSource',
+  'documentManualOverride',
 ]);
 
 const FIELD_LABELS: Partial<Record<FieldChange['field'], string>> = {
@@ -18,6 +19,7 @@ const FIELD_LABELS: Partial<Record<FieldChange['field'], string>> = {
   lastName: 'identidad',
   secondLastName: 'identidad',
   rut: 'RUT',
+  documentType: 'tipo de documento',
   birthDate: 'fecha de nacimiento',
   age: 'edad',
   biologicalSex: 'sexo biológico',

@@ -167,7 +167,7 @@ describe('bedManagementReducer bed state controls', () => {
     });
   });
 
-  it('resets inherited UPC state and bed type override when a bed receives a new patient identity', () => {
+  it('preserves UPC state and bed type override when correcting identity on an occupied bed', () => {
     const record = DataFactory.createMockDailyRecord('2026-05-09');
     record.bedTypeOverrides = { R1: BedType.UCI };
     record.beds.R1 = DataFactory.createMockPatient('R1', {
@@ -186,18 +186,19 @@ describe('bedManagementReducer bed state controls', () => {
       type: 'UPDATE_PATIENT_MULTIPLE',
       bedId: 'R1',
       fields: {
-        patientName: 'Paciente nuevo',
+        patientName: 'Paciente corregido',
         rut: '22.222.222-2',
       },
     });
 
-    expect(patch).toMatchObject({
-      'beds.R1.patientName': 'Paciente nuevo',
+    expect(patch).toEqual({
+      'beds.R1.patientName': 'Paciente corregido',
       'beds.R1.rut': '22.222.222-2',
-      'beds.R1.isUPC': false,
-      'beds.R1.upcChecklist': undefined,
-      'bedTypeOverrides.R1': undefined,
+      'beds.R1.documentManualOverride': true,
     });
+    expect(patch).not.toHaveProperty('beds.R1.isUPC');
+    expect(patch).not.toHaveProperty('beds.R1.upcChecklist');
+    expect(patch).not.toHaveProperty('bedTypeOverrides.R1');
   });
 
   it('updates multiple clinical crib fields in a single patch', () => {

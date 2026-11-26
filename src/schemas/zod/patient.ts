@@ -225,6 +225,7 @@ export const PatientDataSchema: z.ZodMiniType<PatientData, unknown> = z.lazy(() 
       identityStatus: nullableOptional(z.enum(['provisional', 'official'])),
       rut: DefaultEmptyStringSchema,
       documentType: nullableOptional(emptyStringToUndefined(z.enum(['RUT', 'Pasaporte']))),
+      documentManualOverride: nullableOptional(z.boolean()),
       age: DefaultEmptyStringSchema,
       birthDate: NullableOptionalStringSchema,
       biologicalSex: nullableOptional(

@@ -43,8 +43,8 @@ const RECORD_DATE = '2026-04-20';
 /**
  * Campos sin acompañantes salvo pathology, que agrega su marca de edición manual.
  * Los demás cambios deben viajar solos. Quedan fuera a propósito `specialty`/`ginecobstetriciaType` (limpian
- * campos gineco), `upcChecklist` (arrastra `bedTypeOverrides`) y `rut`
- * (reemplazo de persona ⇒ limpieza clínica): esos acompañantes son contrato,
+ * campos gineco), `upcChecklist` (arrastra `bedTypeOverrides`) y `rut`/`documentType`
+ * (edición manual de documento ⇒ `documentManualOverride`): esos acompañantes son contrato,
  * no ruido.
  */
 const PLAIN_KEYS = [

@@ -66,6 +66,14 @@ export const diffSyncablePatientFields = (
 ): FieldChange[] => {
   const changes: FieldChange[] = [];
   const dismissedPhysician = isDismissedTreatingPhysician(current, incoming);
+  const sameEpisodeForManualOverride =
+    !current.clinicalEpisodeId ||
+    !incoming.clinicalEpisodeId ||
+    current.clinicalEpisodeId === incoming.clinicalEpisodeId;
+  // A deliberate manual document correction (RUT/Pasaporte) survives subsequent Eloísa
+  // synchronizations for this same episode without blocking clinical updates.
+  const preserveManualDocument =
+    current.documentManualOverride === true && sameEpisodeForManualOverride;
   // The legacy bridge does not send a document type. Its inferred RUT is not evidence
   // against an already-identified numeric passport for the same patient and episode.
   const preservePassport =
@@ -85,7 +93,10 @@ export const diffSyncablePatientFields = (
     matchesCensusEpisodeIdentity(current, incoming) &&
     normalizeRut(current.rut) === normalizeRut(incoming.rut);
   for (const field of SYNCABLE_FIELDS) {
-    if ((preservePassport || preserveStoredRut) && (field === 'rut' || field === 'documentType'))
+    if (
+      (preserveManualDocument || preservePassport || preserveStoredRut) &&
+      (field === 'rut' || field === 'documentType')
+    )
       continue;
     if (
       dismissedPhysician &&
@@ -94,9 +105,7 @@ export const diffSyncablePatientFields = (
       continue;
     if (
       current.diagnosisManualOverride &&
-      (!current.clinicalEpisodeId ||
-        !incoming.clinicalEpisodeId ||
-        current.clinicalEpisodeId === incoming.clinicalEpisodeId) &&
+      sameEpisodeForManualOverride &&
       ['pathology', 'cie10Code', 'cie10Description'].includes(field)
     )
       continue;
@@ -161,6 +170,7 @@ export const mergeSyncablePatient = (current: PatientData, incoming: PatientData
     current.clinicalEpisodeId !== incoming.clinicalEpisodeId
   ) {
     delete merged.diagnosisManualOverride;
+    delete merged.documentManualOverride;
   }
   for (const change of diffSyncablePatientFields(current, incoming)) {
     (merged as Record<string, unknown>)[change.field] = change.to;
@@ -198,6 +208,13 @@ const preserveClinicalCribSpecialty = (
               diagnosisManualOverride: true,
             }
           : {}),
+        ...(current.documentManualOverride
+          ? {
+              rut: current.rut,
+              documentType: current.documentType,
+              documentManualOverride: true,
+            }
+          : {}),
       }
     : incoming;
 };
@@ -219,11 +236,17 @@ export const applyReviewedPatientChanges = (
     )
   ) {
     delete merged.diagnosisManualOverride;
+    delete merged.documentManualOverride;
   }
   for (const change of changes) {
     if (
       merged.diagnosisManualOverride === true &&
       ['pathology', 'cie10Code', 'cie10Description'].includes(change.field)
+    )
+      continue;
+    if (
+      merged.documentManualOverride === true &&
+      (change.field === 'rut' || change.field === 'documentType')
     )
       continue;
     if (change.field === 'specialty' || change.field === 'specialtyAssignment') continue;

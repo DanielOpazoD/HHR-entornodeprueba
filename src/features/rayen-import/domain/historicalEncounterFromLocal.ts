@@ -23,6 +23,7 @@ export const historicalEncounterFromLocal = (
   return {
     encounterId: patient.clinicalEpisodeId?.trim() ?? '',
     run: patient.rut,
+    ...(patient.documentType === 'Pasaporte' ? { documentType: 'Pasaporte' as const } : {}),
     firstGivenName: patient.firstName?.trim() || patient.patientName,
     firstFamilyName: patient.lastName?.trim() || '',
     secondFamilyName: patient.secondLastName,

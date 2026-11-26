@@ -12,8 +12,10 @@
 export interface RayenEncounter {
   /** Rayen `encId` — stable episode id. Maps to `PatientData.clinicalEpisodeId`. */
   encounterId: string;
-  /** Patient RUN. May arrive raw ("100001314") or formatted ("10.000.131-4"). */
+  /** Patient RUN or passport. May arrive raw ("100001314") or formatted ("10.000.131-4"). */
   run: string;
+  /** Explicit identifier kind when the source reports it (e.g., Pasaporte vs RUT). */
+  documentType?: 'RUT' | 'Pasaporte';
   /** Given name(s) — Rayen `firstGivenName`. */
   firstGivenName: string;
   /** Additional given names — Rayen `nextGivenNames`. */
