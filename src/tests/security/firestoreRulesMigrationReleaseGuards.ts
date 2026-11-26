@@ -3,6 +3,10 @@ import { describe, it } from 'vitest';
 import type { FirestoreRulesHarness } from './firestoreRulesTestHarness';
 
 export function registerMigrationReleaseGuards({
+  unauth,
+  authed,
+  unauthorizedAuthed,
+  doctor,
   nurse,
   admin,
   NOW_MS,
@@ -71,6 +75,49 @@ export function registerMigrationReleaseGuards({
       await assertSucceeds(admin().doc(path).update({ storagePath: 'admin-repair' }));
       // Manual nurse removal is an existing supported photo-backup workflow.
       await assertSucceeds(nurse().doc(path).delete());
+    });
+
+    it('enforces prescriptions create/read/delete and PIN access config boundaries', async () => {
+      const path = 'hospitals/H1/prescriptions/rx-boundary';
+      const pinConfigPath = 'config/prescriptionsAccess';
+
+      // Direct client creates are forbidden (uploads go through Cloud Function).
+      await assertFails(
+        admin().doc(path).set({ storagePath: 'client-attempt', uploadedBy: 'admin' })
+      );
+      await assertFails(
+        nurse().doc(path).set({ storagePath: 'client-attempt', uploadedBy: 'nurse' })
+      );
+
+      await setupDocBypass(path, {
+        storagePath: 'prescriptions/hhr/rx-boundary/full.jpg',
+        uploadedBy: 'server',
+        prescriptionType: 'comun',
+        patientRut: null,
+        assignmentScope: 'unassigned',
+      });
+
+      // Clinical staff can read; unauthenticated and unauthorized users cannot.
+      await assertSucceeds(nurse().doc(path).get());
+      await assertSucceeds(doctor().doc(path).get());
+      await assertSucceeds(authed().doc(path).get());
+      await assertFails(unauth().doc(path).get());
+      await assertFails(unauthorizedAuthed().doc(path).get());
+
+      // Delete is restricted to clinical editors (admin/nursing), not doctors or viewers.
+      await assertFails(doctor().doc(path).delete());
+      await assertFails(authed().doc(path).delete());
+      await assertSucceeds(admin().doc(path).delete());
+
+      // PIN access config is admin-readable only and never client-writable.
+      await setupDocBypass(pinConfigPath, { pinHash: 'synthetic-hash' });
+      await assertSucceeds(admin().doc(pinConfigPath).get());
+      await assertFails(nurse().doc(pinConfigPath).get());
+      await assertFails(doctor().doc(pinConfigPath).get());
+      await assertFails(unauth().doc(pinConfigPath).get());
+      await assertFails(admin().doc(pinConfigPath).set({ pinHash: 'client-write' }));
+      await assertFails(admin().doc(pinConfigPath).update({ pinHash: 'client-write' }));
+      await assertFails(admin().doc(pinConfigPath).delete());
     });
   });
 }
