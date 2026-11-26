@@ -4,6 +4,7 @@ import { ClipboardList } from 'lucide-react';
 import { resolveUpcReviewReason } from '@/shared/census/upcEvaluationPolicy';
 import { resolveEffectiveUpcState, isUpcEligibleBedId } from '@/shared/census/upcBedPolicy';
 import { resolveUpcClassificationLabel } from '@/domain/upc/upcClassification';
+import { resolveUpcEpisodeIdentity } from '@/domain/upc/upcRoundSubject';
 import { resolveUpcBadgeColor } from './upcClassificationTone';
 import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
 import type { BaseCellProps } from './inputCellTypes';
@@ -60,8 +61,13 @@ export const UpcChecklistCell: React.FC<UpcChecklistCellProps> = ({
     <td className="p-0.5 text-center w-[26px] relative">
       <button
         type="button"
-        onClick={() => {
-          openUpcWindow(data.bedId, { crib: isSubRow });
+        onClick={event => {
+          event.currentTarget.focus();
+          openUpcWindow(data.bedId, {
+            crib: isSubRow,
+            episodeIdentity: resolveUpcEpisodeIdentity(data),
+            triggerElement: event.currentTarget,
+          });
         }}
         aria-label={
           readOnly ? 'Consultar clasificación UPC del día' : reviewReason || 'Editar evaluación UPC'

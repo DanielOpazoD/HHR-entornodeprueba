@@ -1,6 +1,8 @@
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
+import { useOptionalDailyRecordBeds } from '@/context/DailyRecordContext';
+import { resolveUpcEpisodeIdentity } from '@/domain/upc/upcRoundSubject';
 import { PanelModuleRetry, RecoverableClinicalPanelModule } from './RecoverableClinicalPanelModule';
 
 const loadUpcClassificationWindow = () =>
@@ -13,9 +15,17 @@ const resetUpcClassificationWindowModule = () => {
   UpcClassificationWindowModule = React.lazy(loadUpcClassificationWindow);
 };
 
+interface OpenUpcWindowOptions {
+  crib?: boolean;
+  /** Episode occupying the clicked bed/crib at trigger time; cancels pending open if it changes. */
+  episodeIdentity?: string | null;
+  /** Trigger button that opened the window so pointer clicks in WebKit also restore focus to it. */
+  triggerElement?: HTMLElement | null;
+}
+
 interface UpcClassificationWindowContextValue {
   /** The census header opens the round; a patient cell selects its bed or clinical crib. */
-  openUpcWindow: (bedId?: string, options?: { crib?: boolean }) => void;
+  openUpcWindow: (bedId?: string, options?: OpenUpcWindowOptions) => void;
 }
 
 const UpcClassificationWindowContext =
@@ -64,6 +74,94 @@ const UpcClassificationWindowErrorFallback: React.FC<{
   </BaseModal>
 );
 
+const UpcResolvedWindowBoundary: React.FC<{
+  onResolvedChange: (resolved: boolean) => void;
+  children: React.ReactNode;
+}> = ({ onResolvedChange, children }) => {
+  useLayoutEffect(() => {
+    onResolvedChange(true);
+    return () => onResolvedChange(false);
+  }, [onResolvedChange]);
+  return <>{children}</>;
+};
+
+interface UpcWindowHostProps {
+  currentDateString: string;
+  readOnly: boolean;
+  rawBedId: string | null;
+  isCrib: boolean;
+  initialBedId: string | null;
+  expectedEpisodeIdentity: string | null;
+  onClose: () => void;
+  onCancelStaleOpen: () => void;
+}
+
+/**
+ * Mounted only while a UPC window request is active so normal census editing does not subscribe
+ * to bed updates through the provider. Cancels any pending load or retry before the dialog mounts
+ * if the clicked bed or crib changed occupant on the same census day.
+ */
+const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
+  currentDateString,
+  readOnly,
+  rawBedId,
+  isCrib,
+  initialBedId,
+  expectedEpisodeIdentity,
+  onClose,
+  onCancelStaleOpen,
+}) => {
+  const beds = useOptionalDailyRecordBeds();
+  const [hasResolvedWindow, setHasResolvedWindow] = useState(false);
+
+  const currentSubject =
+    rawBedId && beds ? (isCrib ? beds[rawBedId]?.clinicalCrib : beds[rawBedId]) : undefined;
+  const currentEpisodeIdentity = resolveUpcEpisodeIdentity(currentSubject);
+  const [hasTrackableContextBed] = useState(
+    () =>
+      beds !== undefined &&
+      (currentEpisodeIdentity !== null || (beds !== null && Object.keys(beds).length > 0))
+  );
+  const isStalePendingEpisode =
+    !hasResolvedWindow &&
+    expectedEpisodeIdentity !== null &&
+    hasTrackableContextBed &&
+    currentEpisodeIdentity !== expectedEpisodeIdentity;
+
+  useLayoutEffect(() => {
+    if (isStalePendingEpisode) {
+      onCancelStaleOpen();
+    }
+  }, [isStalePendingEpisode, onCancelStaleOpen]);
+
+  if (isStalePendingEpisode) {
+    return null;
+  }
+
+  return (
+    <RecoverableClinicalPanelModule
+      resetModule={resetUpcClassificationWindowModule}
+      fallback={retry =>
+        retry ? (
+          <UpcClassificationWindowErrorFallback onClose={onClose} onRetry={retry} />
+        ) : (
+          <UpcClassificationWindowLoadingFallback onClose={onClose} />
+        )
+      }
+      render={() => (
+        <UpcResolvedWindowBoundary onResolvedChange={setHasResolvedWindow}>
+          <UpcClassificationWindowModule
+            currentDateString={currentDateString}
+            readOnly={readOnly}
+            initialBedId={initialBedId}
+            onClose={onClose}
+          />
+        </UpcResolvedWindowBoundary>
+      )}
+    />
+  );
+};
+
 interface UpcClassificationWindowProviderProps {
   currentDateString: string;
   readOnly?: boolean;
@@ -72,14 +170,20 @@ interface UpcClassificationWindowProviderProps {
 
 interface UpcWindowOpenState {
   isOpen: boolean;
+  rawBedId: string | null;
+  isCrib: boolean;
   bedId: string | null;
   openedForDate: string | null;
+  expectedEpisodeIdentity: string | null;
 }
 
 const CLOSED_UPC_WINDOW_STATE: UpcWindowOpenState = {
   isOpen: false,
+  rawBedId: null,
+  isCrib: false,
   bedId: null,
   openedForDate: null,
+  expectedEpisodeIdentity: null,
 };
 
 /**
@@ -88,7 +192,8 @@ const CLOSED_UPC_WINDOW_STATE: UpcWindowOpenState = {
  *
  * The dialog module loads only on open so initial census paint does not parse the checklist
  * panel until a clinician requests it. Pending or open requests are scoped to the census date
- * that opened them so changing days never opens another patient's episode.
+ * (and, when opened from a bed or crib cell, to that episode) so changing days or replacing a
+ * bed occupant during load never opens another patient's episode.
  */
 export const UpcClassificationWindowProvider: React.FC<UpcClassificationWindowProviderProps> = ({
   currentDateString,
@@ -97,6 +202,7 @@ export const UpcClassificationWindowProvider: React.FC<UpcClassificationWindowPr
 }) => {
   const [openState, setOpenState] = useState<UpcWindowOpenState>(CLOSED_UPC_WINDOW_STATE);
   const openerRef = useRef<HTMLElement | null>(null);
+  const priorActiveBeforeOpenRef = useRef<HTMLElement | null>(null);
   const restoreOpenerOnCloseRef = useRef<HTMLElement | null>(null);
 
   if (openState.isOpen && openState.openedForDate !== currentDateString) {
@@ -105,22 +211,32 @@ export const UpcClassificationWindowProvider: React.FC<UpcClassificationWindowPr
   const isWindowOpen = openState.isOpen && openState.openedForDate === currentDateString;
 
   const openUpcWindow = useCallback(
-    (bedId?: string, options?: { crib?: boolean }) => {
+    (bedId?: string, options?: OpenUpcWindowOptions) => {
       const activeElement =
-        typeof document !== 'undefined' &&
-        document.activeElement instanceof HTMLElement &&
-        document.activeElement !== document.body &&
-        !document.activeElement.closest('[role="dialog"]')
+        typeof document !== 'undefined' && document.activeElement instanceof HTMLElement
           ? document.activeElement
           : null;
-      if (activeElement) {
-        openerRef.current = activeElement;
+      const trigger =
+        options?.triggerElement instanceof HTMLElement
+          ? options.triggerElement
+          : activeElement &&
+              activeElement !== document.body &&
+              !activeElement.closest('[role="dialog"]')
+            ? activeElement
+            : null;
+      if (trigger) {
+        openerRef.current = trigger;
       }
+      priorActiveBeforeOpenRef.current = activeElement;
       restoreOpenerOnCloseRef.current = null;
+      const isCrib = Boolean(bedId && options?.crib);
       setOpenState({
         isOpen: true,
-        bedId: bedId && options?.crib ? `${bedId}:crib` : (bedId ?? null),
+        rawBedId: bedId ?? null,
+        isCrib,
+        bedId: bedId && isCrib ? `${bedId}:crib` : (bedId ?? null),
         openedForDate: currentDateString,
+        expectedEpisodeIdentity: options?.episodeIdentity ?? null,
       });
     },
     [currentDateString]
@@ -132,10 +248,19 @@ export const UpcClassificationWindowProvider: React.FC<UpcClassificationWindowPr
     setOpenState(CLOSED_UPC_WINDOW_STATE);
   }, []);
 
+  const cancelStaleOpen = useCallback(() => {
+    restoreOpenerOnCloseRef.current = null;
+    openerRef.current = null;
+    priorActiveBeforeOpenRef.current = null;
+    setOpenState(CLOSED_UPC_WINDOW_STATE);
+  }, []);
+
   useLayoutEffect(() => {
     if (isWindowOpen) return;
     const openerToRestore = restoreOpenerOnCloseRef.current;
+    const priorActive = priorActiveBeforeOpenRef.current;
     restoreOpenerOnCloseRef.current = null;
+    priorActiveBeforeOpenRef.current = null;
     if (!openerToRestore) {
       openerRef.current = null;
       return;
@@ -143,9 +268,11 @@ export const UpcClassificationWindowProvider: React.FC<UpcClassificationWindowPr
     if (
       openerToRestore.isConnected &&
       typeof document !== 'undefined' &&
+      !document.activeElement?.closest('[role="dialog"]') &&
       (!document.activeElement ||
         document.activeElement === document.body ||
-        !document.activeElement.isConnected)
+        !document.activeElement.isConnected ||
+        document.activeElement === priorActive)
     ) {
       openerToRestore.focus();
     }
@@ -157,23 +284,15 @@ export const UpcClassificationWindowProvider: React.FC<UpcClassificationWindowPr
     <UpcClassificationWindowContext.Provider value={value}>
       {children}
       {isWindowOpen && (
-        <RecoverableClinicalPanelModule
-          resetModule={resetUpcClassificationWindowModule}
-          fallback={retry =>
-            retry ? (
-              <UpcClassificationWindowErrorFallback onClose={closeUpcWindow} onRetry={retry} />
-            ) : (
-              <UpcClassificationWindowLoadingFallback onClose={closeUpcWindow} />
-            )
-          }
-          render={() => (
-            <UpcClassificationWindowModule
-              currentDateString={currentDateString}
-              readOnly={readOnly}
-              initialBedId={openState.bedId}
-              onClose={closeUpcWindow}
-            />
-          )}
+        <UpcWindowHost
+          currentDateString={currentDateString}
+          readOnly={readOnly}
+          rawBedId={openState.rawBedId}
+          isCrib={openState.isCrib}
+          initialBedId={openState.bedId}
+          expectedEpisodeIdentity={openState.expectedEpisodeIdentity}
+          onClose={closeUpcWindow}
+          onCancelStaleOpen={cancelStaleOpen}
         />
       )}
     </UpcClassificationWindowContext.Provider>

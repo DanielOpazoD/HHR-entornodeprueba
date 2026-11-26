@@ -194,4 +194,94 @@ describe('BaseModal focus lifecycle', () => {
     view.unmount();
     outsideSelect.remove();
   });
+
+  it('includes details summary in Tab order while skipping controls inside a closed details body', () => {
+    render(
+      <BaseModal isOpen onClose={vi.fn()} title="Historial UPC">
+        <details>
+          <summary>Ver criterios y registro</summary>
+          <button type="button">Acción interna</button>
+        </details>
+        <button type="button">Cerrar</button>
+      </BaseModal>
+    );
+
+    const closeModal = screen.getByRole('button', { name: 'Cerrar modal' });
+    const summary = screen.getByText('Ver criterios y registro');
+    const footerClose = screen.getByRole('button', { name: 'Cerrar' });
+
+    expect(closeModal).toHaveFocus();
+    fireEvent.keyDown(closeModal, { key: 'Tab' });
+    expect(summary).toHaveFocus();
+
+    // Details is closed: Tab must skip the hidden button inside it and go straight to Cerrar.
+    fireEvent.keyDown(summary, { key: 'Tab' });
+    expect(footerClose).toHaveFocus();
+
+    // Once expanded, Tab visits the inner control too.
+    const details = summary.closest('details') as HTMLDetailsElement;
+    details.open = true;
+    summary.focus();
+    fireEvent.keyDown(summary, { key: 'Tab' });
+    expect(screen.getByRole('button', { name: 'Acción interna' })).toHaveFocus();
+  });
+
+  it('leaves Tab native inside segmented date inputs and wraps only if focus leaves the modal', () => {
+    const outsideSelect = document.createElement('select');
+    document.body.appendChild(outsideSelect);
+
+    const view = render(
+      <BaseModal isOpen onClose={vi.fn()} title="Demográficos">
+        <input aria-label="Fecha de nacimiento" type="date" defaultValue="1980-06-15" />
+        <select aria-label="Previsión">
+          <option value="Fonasa">Fonasa</option>
+        </select>
+      </BaseModal>
+    );
+
+    const dateInput = screen.getByLabelText('Fecha de nacimiento');
+    const insuranceSelect = screen.getByLabelText('Previsión');
+    expect(dateInput).toHaveFocus();
+
+    // Native Tab must NOT be prevented so the browser can step dd -> mm -> yyyy.
+    expect(fireEvent.keyDown(dateInput, { key: 'Tab' })).toBe(true);
+    expect(dateInput).toHaveFocus();
+
+    // If native Tab walks out of the modal after the final segment, focusin wraps to next control.
+    outsideSelect.focus();
+    expect(insuranceSelect).toHaveFocus();
+
+    view.unmount();
+    outsideSelect.remove();
+  });
+
+  it('does not hijack Tab when a contentEditable editor handles Tab itself', () => {
+    const onTabHandled = vi.fn((event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === 'Tab') {
+        event.preventDefault();
+      }
+    });
+
+    render(
+      <BaseModal isOpen onClose={vi.fn()} title="Documentos Clínicos">
+        <button type="button">Formato</button>
+        <div
+          contentEditable
+          suppressContentEditableWarning
+          role="textbox"
+          aria-label="Antecedentes"
+          onKeyDown={onTabHandled}
+        >
+          Texto clínico
+        </div>
+      </BaseModal>
+    );
+
+    const editor = screen.getByRole('textbox', { name: 'Antecedentes' });
+    editor.focus();
+    fireEvent.keyDown(editor, { key: 'Tab' });
+
+    expect(onTabHandled).toHaveBeenCalledOnce();
+    expect(editor).toHaveFocus();
+  });
 });
