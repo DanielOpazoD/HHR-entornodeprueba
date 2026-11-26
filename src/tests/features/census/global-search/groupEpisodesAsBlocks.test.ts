@@ -13,7 +13,7 @@ import {
   reconcileGroupedEpisodesWithHistory,
   resolveEpisodeCensusTargetDate,
 } from '@/features/census/components/global-search/episodeGroupingController';
-import type { PatientHistoryResult } from '@/services/patient/patientHistoryService';
+import type { PatientHistoryResult } from '@/features/census/services/patientHistoryService';
 
 const createEvent = (
   overrides: Partial<HospitalizationEvent> & { type: HospitalizationEvent['type']; date: string }

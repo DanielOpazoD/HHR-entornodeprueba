@@ -9,7 +9,7 @@ import React from 'react';
 import { Clock, Loader2, MapPin, LogOut, Ambulance, ArrowRight, Home } from 'lucide-react';
 import clsx from 'clsx';
 import { BaseModal } from '@/components/shared/BaseModal';
-import type { MovementType } from '@/services/patient/patientHistoryService';
+import type { MovementType } from '@/features/census/services/patientHistoryService';
 import { formatHandoffVerboseDate } from '@/shared/handoff/handoffPresentation';
 import { usePatientMovementHistory } from '@/features/census/hooks/usePatientMovementHistory';
 

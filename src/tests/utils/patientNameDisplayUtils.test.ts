@@ -1,7 +1,10 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { PatientDataSchema } from '@/schemas/zod/patient';
-import { formatPatientDisplayName, limitGivenNames } from '@/utils/patientNameDisplayUtils';
+import {
+  formatPatientDisplayName,
+  limitGivenNames,
+} from '@/features/census/domain/patientNameDisplayUtils';
 
 describe('limitGivenNames', () => {
   it.each([

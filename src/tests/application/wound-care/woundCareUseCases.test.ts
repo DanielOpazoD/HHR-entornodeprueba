@@ -90,7 +90,7 @@ const createMockStoragePort = (
 });
 
 // Mock image compression
-vi.mock('@/utils/imageCompression', () => ({
+vi.mock('@/features/wound-care/utils/imageCompression', () => ({
   compressImage: vi.fn().mockResolvedValue({
     blob: new Blob(['compressed'], { type: 'image/webp' }),
     width: 800,

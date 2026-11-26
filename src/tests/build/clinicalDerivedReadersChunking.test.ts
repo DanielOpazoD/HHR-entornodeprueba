@@ -26,7 +26,7 @@ describe('clinicalDerived readers chunking', () => {
       "import('./dailyRecordClinicalDerivedReadService')",
     ],
     [
-      'src/services/staff/recoverCensusStaff.ts',
+      'src/features/census/services/recoverCensusStaff.ts',
       "import('@/services/repositories/dailyRecordClinicalDerivedReadService')",
     ],
     [

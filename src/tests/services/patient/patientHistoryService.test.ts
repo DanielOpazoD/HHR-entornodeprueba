@@ -38,7 +38,7 @@ vi.mock('@/services/repositories/repositoryConfig', () => ({
   isFirestoreEnabled,
 }));
 
-import { getPatientMovementHistoryDetailed } from '@/services/patient/patientHistoryService';
+import { getPatientMovementHistoryDetailed } from '@/features/census/services/patientHistoryService';
 
 const getPatientMovementHistory = async (
   ...args: Parameters<typeof getPatientMovementHistoryDetailed>

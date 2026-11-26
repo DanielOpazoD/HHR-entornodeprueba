@@ -13,7 +13,7 @@ import {
   type BradenAssessment,
   type ReapplicationStatus,
   type ReapplicationUrgency,
-} from '@/domain/evaluationScales/bradenRisk';
+} from '@/features/census/domain/bradenRisk';
 import type {
   BradenRiskLevel,
   EvaluationScaleApplicationEvidence,
@@ -22,12 +22,9 @@ import type {
   PatientEvaluationScores,
 } from '@/types/domain/evaluationScores';
 import { importedCudyrBelongsToCensus } from '@/domain/evaluationScales/importedCudyr';
-import {
-  parseSourceRiskLevel,
-  sourceRiskLabel,
-} from '@/domain/evaluationScales/sourceRiskSeverity';
+import { parseSourceRiskLevel, sourceRiskLabel } from '@/features/census/domain/sourceRiskSeverity';
 
-import { evaluationScaleStampInRapaNui } from '@/domain/evaluationScales/evaluationScaleClock';
+import { evaluationScaleStampInRapaNui } from '@/features/census/domain/evaluationScaleClock';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 
 export interface BradenCellModel {

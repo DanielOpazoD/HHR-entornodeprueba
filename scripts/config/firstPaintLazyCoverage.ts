@@ -134,7 +134,7 @@ const OPTIONAL_TARGETS: Record<string, string> = {
     'Authorization lookup for an explicit specialty action.',
   'src/services/handoff/nursingHandoffConnectionService':
     'HHR authorizes the extension only when the professional confirms the online connection.',
-  'src/services/patient/patientHistoryService': 'History reads start on patient selection.',
+  'src/features/census/services/patientHistoryService': 'History reads start on patient selection.',
   'src/features/census/services/patientUpcHistoryService':
     'UPC history has an independent loading/error state.',
   'src/features/census/services/antecedentPrescriptionPdf': 'PDF export starts only on request.',
@@ -142,7 +142,7 @@ const OPTIONAL_TARGETS: Record<string, string> = {
     'Vitals history has its own loading/error state.',
   'src/features/census/services/specialtyJevClient':
     'Online specialty dialog retains its manual assignment fallback.',
-  'src/services/staff/recoverCensusStaff':
+  'src/features/census/services/recoverCensusStaff':
     'Staff recovery loads only when the button is pressed and shows its own retry message.',
   'src/services/storage/firestore/firestoreRecordQueries':
     'Online specialty rule reads have their own error state.',

@@ -15,7 +15,7 @@ import {
   type NursingRole,
 } from '@/services/staff/eloisaStaffIdentity';
 import { countStaffUsage } from '@/services/staff/staffUsage';
-import { formatStaffDisplayName } from '@/services/staff/staffDisplayName';
+import { formatStaffDisplayName } from '@/features/census/services/staffDisplayName';
 import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
 import { DataFactory } from '@/tests/factories/DataFactory';
 

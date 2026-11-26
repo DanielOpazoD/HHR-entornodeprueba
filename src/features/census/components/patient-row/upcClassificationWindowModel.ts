@@ -5,7 +5,7 @@ import {
 } from '@/domain/upc/upcClassification';
 import { isUciEligibleBedId, resolveEffectiveUpcState } from '@/shared/census/upcBedPolicy';
 import { resolveUpcReviewReason } from '@/shared/census/upcEvaluationPolicy';
-import { buildUpcCriteriaEvaluation } from '@/domain/upc/upcCriteriaEvaluation';
+import { buildUpcCriteriaEvaluation } from '@/features/census/domain/upcCriteriaEvaluation';
 import { resolveUpcEpisodeIdentity } from '@/domain/upc/upcRoundSubject';
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 import type {

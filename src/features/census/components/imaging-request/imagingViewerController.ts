@@ -1,7 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 import type { DocumentOption } from './types';
 import { calculateAge, formatDateToCL as formatDate } from '@/utils/clinicalUtils';
-import { formatPatientDisplayName } from '@/utils/patientNameDisplayUtils';
+import { formatPatientDisplayName } from '@/features/census/domain/patientNameDisplayUtils';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import {

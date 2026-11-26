@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { LogIn, LogOut, ArrowRightLeft, BedDouble, CalendarDays } from 'lucide-react';
-import type { PatientMovement } from '@/services/patient/patientHistoryService';
+import type { PatientMovement } from '@/features/census/services/patientHistoryService';
 import { formatDateToCL } from '@/utils/clinicalUtils';
 
 interface MovementTimelineProps {

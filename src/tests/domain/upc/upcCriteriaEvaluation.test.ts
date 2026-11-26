@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it } from 'vitest';
-import { buildUpcCriteriaEvaluation } from '@/domain/upc/upcCriteriaEvaluation';
+import { buildUpcCriteriaEvaluation } from '@/features/census/domain/upcCriteriaEvaluation';
 import { hasSignedUpcEvaluation } from '@/domain/upc/upcEvaluationHistory';
 import { UpcChecklistSchema } from '@/schemas/zod/upc';
 import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';

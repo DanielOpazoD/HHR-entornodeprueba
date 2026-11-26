@@ -30,7 +30,7 @@ vi.mock('@/services/storage/firestore/clinicalDerivedEpisodeReader', () => ({
   readClinicalDerivedEpisodeDoc: mocks.readDoc,
 }));
 
-import { recoverCensusStaff } from '@/services/staff/recoverCensusStaff';
+import { recoverCensusStaff } from '@/features/census/services/recoverCensusStaff';
 
 const GENERATION = 'gen_synthetic_a';
 const SPLIT_DAY = '2026-11-02';

@@ -13,11 +13,13 @@ import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
 const AREAS = [
-  'src/features/census/services/patientUpcHistoryService.ts',
+  'src/features/census/services',
   'src/features/clinical-documents/services/ClinicalAttachmentRepository.ts',
+  'src/features/handoff/services',
   'src/features/laboratory/services/labFirestoreService.ts',
   'src/features/prescriptions/services/PrescriptionRepository.ts',
   'src/features/radiology/services/mmradService.ts',
+  'src/features/rayen-import/services',
   'src/features/wound-care/services',
   'src/services/admin/healthService.ts',
   'src/services/backup/censusStorageService.ts',

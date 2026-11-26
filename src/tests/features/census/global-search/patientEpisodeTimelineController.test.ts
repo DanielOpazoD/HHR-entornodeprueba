@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildPatientEpisodeTimelineState } from '@/features/census/components/global-search/patientEpisodeTimelineController';
 import type { MasterPatient } from '@/types/domain/patientMaster';
-import type { PatientHistoryResult } from '@/services/patient/patientHistoryService';
+import type { PatientHistoryResult } from '@/features/census/services/patientHistoryService';
 
 const basePatient: MasterPatient = {
   rut: '1.000.122-6',

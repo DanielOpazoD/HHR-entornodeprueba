@@ -109,8 +109,8 @@
     "src/services/patient-history": {
       "label": "src/services/patient-history",
       "sources": [
-        "src/services/patient/patientHistoryService.ts",
-        "src/services/patient/patientHistoryRecordLoader.ts",
+        "src/features/census/services/patientHistoryService.ts",
+        "src/features/census/services/patientHistoryRecordLoader.ts",
         "src/features/census/components/global-search/patientEpisodeTimelineController.ts"
       ],
       "tests": "src/tests/services/patient",

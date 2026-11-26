@@ -2,15 +2,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 
 import { PatientHistoryModal } from '@/features/census/components/PatientHistoryModal';
-import type { PatientHistoryResult } from '@/services/patient/patientHistoryService';
-import { getPatientMovementHistoryDetailed } from '@/services/patient/patientHistoryService';
+import type { PatientHistoryResult } from '@/features/census/services/patientHistoryService';
+import { getPatientMovementHistoryDetailed } from '@/features/census/services/patientHistoryService';
 
 vi.mock('@/components/shared/BaseModal', () => ({
   BaseModal: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) =>
     isOpen ? <div>{children}</div> : null,
 }));
 
-vi.mock('@/services/patient/patientHistoryService', () => ({
+vi.mock('@/features/census/services/patientHistoryService', () => ({
   getPatientMovementHistoryDetailed: vi.fn(),
 }));
 

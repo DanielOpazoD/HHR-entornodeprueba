@@ -11,7 +11,7 @@ import {
   resolveStaffSelectionValue,
 } from '@/services/staff/staffSelectionPresentation';
 import { buildStaffSelectionSelectClassName } from './staffSelectionSelectStyles';
-import { formatStaffDisplayName } from '@/services/staff/staffDisplayName';
+import { formatStaffDisplayName } from '@/features/census/services/staffDisplayName';
 import { partitionStaffOptions } from '@/services/staff/staffUsage';
 import { StaffMoreOptionsButton } from './StaffMoreOptionsButton';
 import { StaffSelectionNameHint } from './StaffSelectionNameHint';

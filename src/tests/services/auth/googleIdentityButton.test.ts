@@ -3,7 +3,7 @@ import { createCensusPerfModel } from '@/shared/runtime/censusPerfModel';
 import {
   mountGoogleIdentityButton,
   type GoogleIdentityApi,
-} from '@/services/auth/googleIdentityButton';
+} from '@/features/auth/services/googleIdentityButton';
 
 const { mockBeginAuthPerfAttempt, mockRecordAuthPerfEvent } = vi.hoisted(() => ({
   mockBeginAuthPerfAttempt: vi.fn(),

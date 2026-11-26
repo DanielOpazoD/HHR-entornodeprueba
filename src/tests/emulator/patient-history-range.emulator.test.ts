@@ -28,7 +28,7 @@ vi.mock('@/services/firebase-runtime/firebaseConfig', () => ({
   auth: null,
 }));
 
-import { getPatientMovementHistoryDetailed } from '@/services/patient/patientHistoryService';
+import { getPatientMovementHistoryDetailed } from '@/features/census/services/patientHistoryService';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import {
   getAllRecords,

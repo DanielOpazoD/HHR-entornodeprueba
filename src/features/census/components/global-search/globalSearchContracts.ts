@@ -6,7 +6,7 @@
  */
 
 import type { MasterPatient, HospitalizationEvent } from '@/types/domain/patientMaster';
-import type { PatientHistoryResult } from '@/services/patient/patientHistoryService';
+import type { PatientHistoryResult } from '@/features/census/services/patientHistoryService';
 
 // ---------------------------------------------------------------------------
 // Clinical document summary (lightweight projection for search results)

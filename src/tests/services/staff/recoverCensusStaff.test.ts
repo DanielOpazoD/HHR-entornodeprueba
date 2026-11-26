@@ -18,7 +18,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getAllRecords: mocks.local,
 }));
 vi.mock('@/services/staff/eloisaStaffRegistry', () => ({ saveDiscoveredStaff: mocks.save }));
-import { recoverCensusStaff } from '@/services/staff/recoverCensusStaff';
+import { recoverCensusStaff } from '@/features/census/services/recoverCensusStaff';
 const page = (size: number) => ({
   size,
   docs: Array.from({ length: size }, (_, index) => ({

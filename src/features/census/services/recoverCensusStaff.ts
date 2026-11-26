@@ -14,9 +14,9 @@ import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { getAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { collectCensusStaff, collectClinicalDerivedStaff } from './censusStaffDiscovery';
-import { mergeEloisaStaff } from './eloisaStaffDiscovery';
-import { saveDiscoveredStaff } from './eloisaStaffRegistry';
-import type { EloisaStaffIdentity } from './eloisaStaffIdentity';
+import { mergeEloisaStaff } from '@/services/staff/eloisaStaffDiscovery';
+import { saveDiscoveredStaff } from '@/services/staff/eloisaStaffRegistry';
+import type { EloisaStaffIdentity } from '@/services/staff/eloisaStaffIdentity';
 
 type ClinicalDerivedReadServiceModule =
   typeof import('@/services/repositories/dailyRecordClinicalDerivedReadService');

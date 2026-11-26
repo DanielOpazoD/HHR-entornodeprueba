@@ -10,7 +10,7 @@ import { Plus, X, Check, Settings } from 'lucide-react';
 import type { DeviceDetails } from '@/types/domain/devices';
 import { DEVICE_OPTIONS } from '@/constants/clinicalDeviceConstants';
 import type { DeviceMenuPosition } from '@/features/census/components/device-selector/deviceMenuPositionController';
-import { resolveCustomDeviceOptions } from '@/components/device-selector/deviceSelectorController';
+import { resolveCustomDeviceOptions } from '@/features/census/components/device-selector/deviceSelectorController';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 interface DeviceMenuProps {
   devices: string[];

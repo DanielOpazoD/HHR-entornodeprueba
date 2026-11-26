@@ -1,6 +1,6 @@
-import { appendUpcEvaluation, upcCriterionLabels } from './upcEvaluationHistory';
-import { resolveUpcClassification } from './upcClassification';
-import type { UpcChecklistAuditActor, UpcChecklistRecord } from './upcContracts';
+import { appendUpcEvaluation, upcCriterionLabels } from '@/domain/upc/upcEvaluationHistory';
+import { resolveUpcClassification } from '@/domain/upc/upcClassification';
+import type { UpcChecklistAuditActor, UpcChecklistRecord } from '@/domain/upc/upcContracts';
 
 interface UpcEvaluationInput {
   checklist?: UpcChecklistRecord;

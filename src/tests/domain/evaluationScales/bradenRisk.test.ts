@@ -6,7 +6,7 @@ import {
   bradenReapplicationStatus,
   assessBraden,
   BRADEN_CONDUCTA,
-} from '@/domain/evaluationScales/bradenRisk';
+} from '@/features/census/domain/bradenRisk';
 
 describe('classifyBradenRisk', () => {
   it('classifies the adult band (≥15a): ≤12 alto · 13–14 medio · ≥15 bajo', () => {

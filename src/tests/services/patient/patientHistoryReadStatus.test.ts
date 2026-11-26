@@ -30,7 +30,7 @@ vi.mock('@/services/storage/firestore', () => ({
   getRecordsRangeFromFirestore,
 }));
 vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled }));
-import { getPatientMovementHistoryDetailed } from '@/services/patient/patientHistoryService';
+import { getPatientMovementHistoryDetailed } from '@/features/census/services/patientHistoryService';
 const buildRecord = (date: string, overrides: Partial<DailyRecord> = {}): DailyRecord =>
   ({ date, beds: {}, discharges: [], transfers: [], cma: [], ...overrides }) as DailyRecord;
 

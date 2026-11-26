@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   loadGoogleIdentityButton,
   mountGoogleIdentityButton,
-} from '@/services/auth/googleIdentityButton';
+} from '@/features/auth/services/googleIdentityButton';
 
 import { LoginPageCard } from '@/features/auth/components/LoginPageCard';
 import { AUTH_UI_COPY } from '@/services/auth/authUiCopy';
@@ -16,7 +16,7 @@ vi.mock('@/services/auth/nursingAccountService', () => ({
   establishNursingSession: vi.fn(),
   accountErrorMessage: () => 'No se pudo ingresar.',
 }));
-vi.mock('@/services/auth/googleIdentityButton', () => ({
+vi.mock('@/features/auth/services/googleIdentityButton', () => ({
   loadGoogleIdentityButton: vi.fn(),
   mountGoogleIdentityButton: vi.fn(),
 }));

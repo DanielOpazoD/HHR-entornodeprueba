@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { MoreVertical } from 'lucide-react';
 import type { CensusMovementActionViewModel } from '@/features/census/hooks/useCensusMovementActionsCellModel';
 import type { CensusMovementRowBaseViewModel } from '@/features/census/types/censusMovementRowViewModelTypes';
-import { formatCensusPatientName } from '@/utils/patientNameDisplayUtils';
+import { formatCensusPatientName } from '@/features/census/domain/patientNameDisplayUtils';
 import {
   MOVEMENT_ACTION_BUTTON_CLASS,
   renderCensusMovementActionIcon,

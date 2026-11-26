@@ -1,4 +1,4 @@
-import { preferredStaffName, isSpellingOf } from './nurseIdentity';
+import { preferredStaffName, isSpellingOf } from '@/services/staff/nurseIdentity';
 import {
   identityStaffName,
   personDisplaySpellings,
@@ -6,7 +6,7 @@ import {
   staffNameMatches,
   type EloisaStaffIdentity,
   type NursingRole,
-} from './eloisaStaffIdentity';
+} from '@/services/staff/eloisaStaffIdentity';
 
 /** A short label is not an identity key: retain canonical names in stored selections. */
 export const formatStaffDisplayName = (

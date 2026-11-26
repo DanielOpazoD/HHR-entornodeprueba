@@ -16,7 +16,7 @@ import {
   defaultWoundCareStoragePort,
 } from '@/features/wound-care/use-cases/woundCarePort';
 import type { WoundCareAuditActor, WoundCarePhoto } from '@/types/domain/woundCare';
-import { compressImage, generateThumbnail } from '@/utils/imageCompression';
+import { compressImage, generateThumbnail } from '@/features/wound-care/utils/imageCompression';
 import {
   buildPhotoStoragePath,
   buildThumbnailStoragePath,

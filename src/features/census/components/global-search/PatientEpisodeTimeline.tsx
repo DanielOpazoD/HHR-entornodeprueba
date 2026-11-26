@@ -8,7 +8,7 @@
 import React from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import type { MasterPatient } from '@/types/domain/patientMaster';
-import type { PatientHistoryResult } from '@/services/patient/patientHistoryService';
+import type { PatientHistoryResult } from '@/features/census/services/patientHistoryService';
 import type {
   ClinicalDocSummary,
   EpisodeDocuments,

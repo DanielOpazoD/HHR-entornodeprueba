@@ -1,5 +1,5 @@
 import type { MasterPatient } from '@/types/domain/patientMaster';
-import type { PatientHistoryResult } from '@/services/patient/patientHistoryService';
+import type { PatientHistoryResult } from '@/features/census/services/patientHistoryService';
 import type { PatientEpisodeTimelineState } from '@/features/census/components/global-search/globalSearchContracts';
 import type { HospitalizationEvent } from '@/types/domain/patientMaster';
 import {

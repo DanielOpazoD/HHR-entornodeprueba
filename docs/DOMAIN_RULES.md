@@ -237,7 +237,7 @@ coincidencias por azar):
 Las escalas Braden y Downton guardan el reloj impreso de sus dos fuentes, en hora continental,
 porque su identidad persistida depende de ese reloj: el historial JSON sin desfase y el informe de
 escalas con su desfase. No se migran. El censo y la reaplicación las leen en hora de Rapa Nui con
-`src/domain/evaluationScales/evaluationScaleClock.ts` (medido el 2026-11-03: 127 y 265 de 392
+`src/features/census/domain/evaluationScaleClock.ts` (medido el 2026-11-03: 127 y 265 de 392
 aplicaciones guardadas). Pendiente: la detección de personal todavía lee esas horas sin convertir.
 
 ## Recién nacidos: identidad primero, ubicación después

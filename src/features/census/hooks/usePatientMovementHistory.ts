@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   getPatientMovementHistoryDetailed,
   type PatientHistoryResult,
-} from '@/services/patient/patientHistoryService';
+} from '@/features/census/services/patientHistoryService';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 

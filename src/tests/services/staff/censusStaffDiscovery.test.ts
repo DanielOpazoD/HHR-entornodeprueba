@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { collectCensusStaff } from '@/services/staff/censusStaffDiscovery';
+import { collectCensusStaff } from '@/features/census/services/censusStaffDiscovery';
 import { mergeEloisaStaff } from '@/services/staff/eloisaStaffDiscovery';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 describe('census staff discovery', () => {

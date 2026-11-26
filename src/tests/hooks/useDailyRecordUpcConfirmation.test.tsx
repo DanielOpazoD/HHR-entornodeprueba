@@ -1,5 +1,5 @@
 import { executeBedManagementAction } from '@/hooks/controllers/bedManagementDispatchController';
-import { buildUpcCriteriaEvaluation } from '@/domain/upc/upcCriteriaEvaluation';
+import { buildUpcCriteriaEvaluation } from '@/features/census/domain/upcCriteriaEvaluation';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, screen, waitFor } from '@testing-library/react';
 import { UIProvider } from '@/context/UIContext';

@@ -1,11 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { resolveAdmissionDateAudit } from '@/domain/clinical-episode/admissionDatePolicy';
-import { resolveAdmissionDateOptions } from '@/shared/date/admissionDateOptions';
+import { resolveAdmissionDateOptions } from '@/features/census/domain/admissionDateOptions';
 import {
   resolveAdmissionTimePickerModel,
   resolveAdmissionTimeValue,
-} from '@/shared/date/admissionTimeOptions';
+} from '@/features/census/domain/admissionTimeOptions';
 
 describe('admission date and time options', () => {
   it('suggests the current clinical day window for suspicious admissions', () => {
