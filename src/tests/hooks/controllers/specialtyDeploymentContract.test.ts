@@ -111,11 +111,12 @@ describe('published manual specialty deployment contract', () => {
     }
   );
 
-  it('keeps legacy deployments unchanged when neither build switch is enabled', async () => {
+  it('enables manual episode assignment by default without enabling AI switches', async () => {
     vi.stubEnv('VITE_HHR_SPECIALTY_EPISODE_ASSIGNMENT', '');
     const { featureFlags } = await import('@/services/utils/featureFlags');
-    expect(featureFlags.isEnabled('SPECIALTY_EPISODE_ASSIGNMENT')).toBe(false);
+    expect(featureFlags.isEnabled('SPECIALTY_EPISODE_ASSIGNMENT')).toBe(true);
     expect(featureFlags.isEnabled('SPECIALTY_JEV_CONSULTATION')).toBe(false);
+    expect(featureFlags.isEnabled('SPECIALTY_RULES_MEMORY')).toBe(false);
   });
 
   it('preserves the existing combined Jev pilot switch', async () => {

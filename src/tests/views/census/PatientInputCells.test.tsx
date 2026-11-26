@@ -263,7 +263,7 @@ describe('PatientInputCells', () => {
     expect(onChange.text).not.toHaveBeenCalledWith('specialty');
   });
 
-  it('shows a specialty description input when Otro is selected in the clinical block panel', () => {
+  it('submits Otro without a free-text specialty description input in the clinical block panel', () => {
     vi.mocked(useDailyRecordStability).mockReturnValue(buildMockStabilityRules());
 
     const data = DataFactory.createMockPatient('R1');
@@ -304,15 +304,12 @@ describe('PatientInputCells', () => {
       target: { value: Specialty.OTRO },
     });
 
-    const specialtyDescription = screen.getByLabelText('Describir especialidad');
-    fireEvent.change(specialtyDescription, {
-      target: { value: 'Unidad dolor' },
-    });
+    expect(screen.queryByLabelText('Describir especialidad')).not.toBeInTheDocument();
     fireEvent.click(screen.getByText('Guardar'));
 
     expect(onChange.multiple).toHaveBeenCalledWith({
       pathology: 'Dolor abdominal',
-      specialty: 'Unidad dolor',
+      specialty: Specialty.OTRO,
     });
   });
 
