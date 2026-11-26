@@ -189,11 +189,7 @@ El job `critical-coverage-report` genera el artefacto una sola vez y ejecuta des
 `check-critical-coverage.mjs`, bloqueando el PR si alguna zona queda bajo su baseline.
 El comando local `check:critical-coverage` usa esa misma secuencia: ejecuta la suite
 mediante `report:critical-coverage`, genera el informe y comprueba los umbrales.
-Así, un cierre posterior con `report:release-readiness-scorecard` puede reutilizar
-el informe vigente sin volver a ejecutar la suite. La reutilización sigue
-exigiendo el mismo SHA, estado del árbol y dependencias vigentes; un informe
-ausente, corrupto o desactualizado se vuelve a calcular. No regenerar informes
-desde cobertura antigua para hacerlos pasar por evidencia del código actual.
+No regenerar informes desde cobertura antigua para hacerlos pasar por evidencia del código actual.
 
 Los baselines son un ratchet del estado validado; no deben conservar valores ya
 incumplidos ni rebajarse para ocultar una regresión nueva.
@@ -350,7 +346,6 @@ Debe seguir cubriendo:
 
 El script extendido `test:release-confidence:full` agrega `test:unit:critical` cuando se quiere una corrida más profunda o diagnóstica.
 El ownership técnico por subsistema crítico vive en `scripts/config/technical-ownership-map.json`.
-El scorecard ejecutivo consolidado vive en `reports/release-readiness-scorecard.md` y se regenera con `npm run report:release-readiness-scorecard`.
 La clasificación compacta de guardrails de `check:quality` y reportes report-only vive en `scripts/config/guardrail-governance.json` y se valida con `npm run check:guardrail-governance`.
 La clasificación de runtime de tests vive en `scripts/config/test-runtime-governance.json` y se valida con `npm run check:test-runtime-governance`.
 El workflow `.github/workflows/nightly-test-runtime.yml` concentra suites largas en `workflow_dispatch`/`schedule`: `test:sync-load`, `test:release-confidence:full` y `test:e2e:clinical-stability:ci`, más la exploración del modelo de la cola en su propio job, `nightly-sync-model`.
@@ -373,11 +368,7 @@ El runtime observado de GitHub Actions se evidencia en el artefacto `ci-runtime-
 Este gate es advisory-first: no bloquea por falta de datos reales ni por una corrida aislada lenta; solo bloquea contratos rotos como JSON inválido, timestamps inválidos, shards duplicados/faltantes cuando el reporte declara datos observados o nombres imposibles de shard.
 Si el observado contradice repetidamente el balance estimado, ajustar primero `durationHints`, `perFileOverheadMs`, `affinityGroups` o `lockedAssignments`, y recién después considerar cambios de suite. No reducir cobertura clínica crítica para bajar minutos. Si el reporte queda en `no_observed_ci_data` dentro de GitHub Actions, revisar que el job `ci-runtime-telemetry` haya ejecutado el collector antes del reporter y que el token tenga permiso de lectura de Actions.
 El gate de rendimiento del censo usa 5 muestras por escenario en PR y conserva 30 en eventos que no son PR, incluidos los `push` a `main` y `develop`. Un `push` a `main` que reutiliza la evidencia de su PR no repite la medición; queda la de 5 muestras de esa PR. El muestreo corto detecta regresiones durante revisión; el muestreo largo de los eventos que no son PR mantiene la evidencia estable sin cobrar ese costo en cada iteración.
-El reporte de release readiness ya regenera también `guardrail-governance`; no debe depender de un artefacto previo manual.
-CI regenera los snapshots report-only obligatorios con `npm run report:governance-snapshots` antes de ejecutar `check:quality`.
-`release-readiness-scorecard` sigue siendo ejecutivo y obligatorio para release, pero ya no duplica bloqueo dentro de `check:quality` si las fuentes primarias siguen verdes.
-`release-confidence-matrix` también pasa a report-only dentro del aggregate: sigue exigiéndose para trazabilidad y revisión técnica, pero no como bloqueo duplicado si el release pack y la cobertura primaria siguen verdes.
-La fuente de verdad es `scripts/config/guardrail-governance.json`: `reportOnly` registra comandos que escriben snapshots y `qualityAggregate.checks` enumera lo que ejecuta el agregado, con su carácter bloqueante o advisory. Un productor registrado no implica que su checker se ejecute.
+La fuente de verdad de controles locales es `scripts/config/guardrail-governance.json`: `reportOnly` registra comandos que escriben snapshots bajo demanda y `qualityAggregate.checks` enumera los controles bloqueantes de `check:quality`, repartidos en cinco grupos paralelos en CI (`boundaries`, `governance`, `security`, `size`, `tests`).
 `report:technical-ownership-map` conserva el snapshot para revisión técnica.
 La validación de tiempos actuales corre en el job `ci-runtime-telemetry` de `.github/workflows/ci-cd.yml`, requerido por `ci-summary`: collect → report → check. `npm run check:ci-runtime-telemetry` sigue disponible localmente y valida el archivo presente; comprobar su fecha y corrida de origen antes de usarlo como evidencia.
 
@@ -386,19 +377,6 @@ Salida esperada:
 - ruta blocking compacta y repetible para release;
 - reglas, emulador sync y E2E críticos verdes en la misma corrida;
 - sin duplicar en la ruta por defecto checks que ya quedan cubiertos por smoke/E2E críticos.
-
-### Falla la prueba de matriz de confianza
-
-1. correr `npm run report:release-confidence-matrix`
-2. revisar `reports/release-confidence-matrix.md`
-3. confirmar que cada área crítica siga mapeada a:
-   - un `ownerAreaId` válido de `technical-ownership-map`
-   - una o más zonas de `critical coverage`, o evidencia equivalente de smoke/flow
-   - una o más `validationSuites` con scripts reales para el loop diario o la regresión específica
-   - al menos un paso blocking del release pack
-4. si agregaste una zona nueva de coverage, un smoke nuevo o un flow budget nuevo, actualizar la matriz en la misma change
-5. si agregaste un subsistema crítico nuevo, enlazarlo en la misma change con ownership y suites
-6. no aceptar perfiles compactos sin trazabilidad explícita de qué área protegen
 
 ### Revisar responsables técnicos
 
@@ -421,18 +399,6 @@ Salida esperada:
    - documentación en `docs/SERVERLESS_SENSITIVE_CONTRACTS.md`
 3. si agregaste una Function sensible nueva, registrarla en `scripts/config/serverless-sensitive-coverage.json` en la misma change
 4. no aceptar endpoints sensibles sin test focalizado y contrato operativo documentado
-
-### Scorecard de release degradado
-
-1. correr `npm run report:release-readiness-scorecard`
-2. revisar `reports/release-readiness-scorecard.md`
-3. confirmar que no falten reportes fuente ni haya indicadores degradados en:
-   - calidad estructural
-   - system confidence
-   - readiness operativa
-   - release confidence
-   - ownership
-4. si el scorecard se degrada por un reporte base, corregir ese reporte o su fuente; no maquillar el scorecard
 
 ### Falla `check:guardrail-governance`
 
@@ -839,7 +805,7 @@ acredita una ejecución limpia. Se conserva compatibilidad con reportes anterior
 que omiten `errors`; una lista vacía es evidencia válida. El gate resume el número de
 errores sin copiar sus mensajes o posibles datos sensibles al diagnóstico.
 
-El riesgo de pruebas inestables (`flakeRisk` en `system-confidence`) cuenta los archivos
+El riesgo de pruebas inestables (`flakeRisk` en `operational-health`) cuenta los archivos
 de prueba que fallaron o pasaron solo tras un reintento en el manifiesto de ejecución de la
 misma corrida, que `final-confidence-and-readiness` arma en el mismo job.
 El indicador queda degradado como «sin medir», nunca en cero, si falta el manifiesto del

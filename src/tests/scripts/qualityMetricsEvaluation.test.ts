@@ -10,7 +10,6 @@ import { measureAgentRules, measureModuleGraph } from '../../../scripts/lib/eval
 
 const REPORT = path.resolve('scripts/report-quality-metrics.mjs');
 const QUALITY_CONFIGS = [
-  'release-confidence-matrix',
   'release-confidence-pack',
   'critical-smoke-pack',
   'flow-performance-budgets',

@@ -8,14 +8,14 @@ Este documento detalla el enfoque técnico y clínico del sistema de auditoría 
 
 Los reportes versionados en `reports/` sirven como snapshots útiles, pero no reemplazan la verificación del estado actual del repo.
 
-Antes de usar `reports/system-confidence.md`, `reports/release-readiness-scorecard.md` o `reports/critical-coverage.md` como evidencia de una auditoría técnica, validar siempre:
+Antes de usar `reports/operational-health.md`, `reports/sync-convergence.md` o `reports/critical-coverage.md` como evidencia de una auditoría técnica, validar siempre:
 
 ```bash
 git status --short
 npm run check:report-freshness
 ```
 
-Si el árbol está sucio o `check:report-freshness` muestra drift, esos artefactos deben tratarse como contexto histórico y no como fotografía fiel del checkout en revisión. Para un veredicto de release, usa `npm run check:report-freshness:strict` o `npm run check:release-evidence`.
+Si el árbol está sucio o `check:report-freshness` muestra drift, esos artefactos deben tratarse como contexto histórico y no como fotografía fiel del checkout en revisión. Para un veredicto de release, usa `npm run check:report-freshness:strict` junto con la corrida verde de `ci-summary`.
 
 ### 1. Marco legal
 

@@ -37,18 +37,8 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
       'reports/e2e/flow-performance-budget-summary.json',
       'reports/e2e/preview-bootstrap/report.json',
       'reports/e2e/preview-bootstrap/ci-provenance.json',
+      'reports/test-execution-manifest.json',
     ],
-  }),
-  'system-confidence': reportNode({
-    command: 'report:system-confidence',
-    artifacts: ['reports/system-confidence.json', 'reports/system-confidence.md'],
-    dependencies: ['quality-metrics', 'critical-coverage', 'operational-health'],
-    fileDependencies: ['reports/test-execution-manifest.json'],
-  }),
-  'release-confidence-matrix': reportNode({
-    command: 'report:release-confidence-matrix',
-    artifacts: ['reports/release-confidence-matrix.json', 'reports/release-confidence-matrix.md'],
-    dependencies: ['critical-coverage'],
   }),
   'technical-ownership-map': reportNode({
     command: 'report:technical-ownership-map',
@@ -140,37 +130,6 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
       'scripts/report-ci-runtime-observed-profile.mjs',
       'src/tests/build/collectGithubActionsRuntime.test.ts',
       'src/tests/build/ciRuntimeTelemetrySupport.test.ts',
-    ],
-  }),
-  'release-readiness-scorecard': reportNode({
-    command: 'report:release-readiness-scorecard',
-    artifacts: [
-      'reports/release-readiness-scorecard.json',
-      'reports/release-readiness-scorecard.md',
-    ],
-    dependencies: [
-      'quality-metrics',
-      'bundle-risk-ledger',
-      'legacy-retirement-debt',
-      'critical-coverage',
-      'operational-health',
-      'system-confidence',
-      'release-confidence-matrix',
-      'technical-ownership-map',
-      'guardrail-governance',
-    ],
-  }),
-  'release-evidence-contract': reportNode({
-    command: 'report:release-evidence-contract',
-    artifacts: ['reports/release-evidence-contract.json', 'reports/release-evidence-contract.md'],
-    dependencies: [
-      'critical-coverage',
-      'quality-metrics',
-      'sync-convergence',
-      'operational-health',
-      'system-confidence',
-      'release-confidence-matrix',
-      'release-readiness-scorecard',
     ],
   }),
 };

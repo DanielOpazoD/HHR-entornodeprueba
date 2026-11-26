@@ -111,21 +111,20 @@ En dev server Vite transforma módulos bajo demanda y no minifica: métricas com
 
 Otros specs del mismo config (critical-emulator, auth resilience, etc.) siguen usando dev por default porque miden comportamiento funcional, no performance. El flag `PLAYWRIGHT_USE_PREVIEW=1` selecciona preview sólo para los specs que lo necesitan.
 
-## Regenerar el scorecard tras correr el flow
+## Regenerar salud operacional tras correr el flow
 
-Una vez exista `flow-performance-budget-summary.json` fresco, regenerar todos los reports y validar:
+Una vez exista `flow-performance-budget-summary.json` fresco, regenerar el resumen operacional y validar:
 
 ```bash
 node scripts/report-flow-performance-budget.mjs
-npm run report:governance-snapshots
+npm run report:operational-health
 npm run check:quality
 ```
 
-`system_confidence.operational_budgets.flow` pasa de `unknown` a:
+`operational-health.flowPerformance.status` pasa de `unknown` a:
 
-- `ok` si todas las métricas cumplen **target** (1500 ms para censo, etc.).
-- `target-violations` si el **enforced max** (2000 ms censo) pasa pero el target no.
-- `enforced-violations` si un flow supera el enforced max — **esto sí bloquea release**.
+- `passing` si todas las métricas cumplen el límite exigido.
+- `enforced-violations` si un flow supera el enforced max — **esto sí bloquea release** (`check:flow-performance-budget`).
 
 ## Targets vs. enforced — política corta
 

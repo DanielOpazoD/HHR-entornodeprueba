@@ -331,82 +331,6 @@ jobs:
         if: matrix.check == 'lint'
         run: npm run test:scripts
 
-  quality-static-governance-snapshots:
-    name: quality-static-governance-snapshots
-    runs-on: ubuntu-latest
-    needs: [quality-static-base, critical-coverage-report]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Setup CI dependencies
-        uses: ./.github/actions/setup-ci-dependencies
-
-      - name: Download critical coverage artifact
-        uses: actions/download-artifact@v7
-        with:
-          name: critical-coverage
-          path: reports
-
-      - name: Generate governance and report snapshots
-        run: npm run report:governance-snapshots
-
-      - name: Enforce canonical reports are fresh after regeneration
-        # If this fails after `report:governance-snapshots` succeeded, a
-        # report generator silently dropped a snapshot or recorded a
-        # stale gitSha. We want CI to surface that as a hard failure
-        # rather than the local advisory in check:quality, so
-        # `system-confidence` and friends only ever show "degraded" for
-        # substantive reasons (real indicator failures), never because
-        # the artifact itself was stale.
-        run: npm run check:report-freshness:strict
-
-      - name: Generate release evidence contract
-        run: npm run report:release-evidence-contract
-
-      - name: Enforce release evidence contract
-        run: npm run check:release-evidence-contract:strict
-
-      - name: Upload quality metrics artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: quality-metrics
-          path: reports/quality-metrics.*
-          retention-days: 30
-
-      - name: Upload operational health artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: operational-health
-          path: reports/operational-health.*
-          retention-days: 30
-
-      - name: Upload runtime contracts artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: runtime-contracts
-          path: reports/runtime-contracts.*
-          retention-days: 30
-
-      - name: Upload governance snapshot runtime profile
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: governance-snapshot-profile
-          path: reports/ci-governance-snapshot-profile.*
-          retention-days: 30
-
-      - name: Upload governance snapshots for grouped static checks
-        uses: actions/upload-artifact@v7
-        with:
-          name: quality-static-governance-snapshots
-          path: reports/**
-          retention-days: 7
-
   quality-static-groups:
     name: quality-static-${{ matrix.group }}
     runs-on: ubuntu-latest
@@ -415,7 +339,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [boundaries, security, size, tests]
+        group: [boundaries, governance, security, size, tests]
 
     steps:
       - name: Checkout code
@@ -441,49 +365,16 @@ jobs:
           path: reports/ci-quality-static-profile-${{ matrix.group }}.*
           retention-days: 30
 
-  quality-static-dependent-groups:
-    name: quality-static-${{ matrix.group }}
-    runs-on: ubuntu-latest
-    needs: [quality-static-governance-snapshots]
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [governance, reports]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Setup CI dependencies
-        uses: ./.github/actions/setup-ci-dependencies
-
-      - name: Download governance snapshots
-        uses: actions/download-artifact@v7
-        with:
-          name: quality-static-governance-snapshots
-          path: reports
-
-      - name: Run quality static group
-        run: npm run check:quality:group -- ${{ matrix.group }}
-
-      - name: Upload quality static profile
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: quality-static-profile-${{ matrix.group }}
-          path: reports/ci-quality-static-profile-${{ matrix.group }}.*
-          retention-days: 30
-
   quality-static:
     name: quality-static
     runs-on: ubuntu-latest
-    needs:
-      [quality-static-governance-snapshots, quality-static-groups, quality-static-dependent-groups]
+    needs: [quality-static-base, critical-coverage-report, quality-static-groups]
 
     steps:
       - name: Quality static gates passed
         run: |
-          echo "quality-static-governance-snapshots: passed"
+          echo "quality-static-base: passed"
+          echo "critical-coverage-report: passed"
           echo "quality-static groups: passed"
 
   clinical-sync-release-gate:
@@ -1012,7 +903,7 @@ jobs:
     needs:
       [
         ci-scope,
-        quality-static-governance-snapshots,
+        critical-coverage-report,
         build,
         unit-risk-shards,
         rules-emulator,
@@ -1180,16 +1071,16 @@ jobs:
           retention-days: 30
 
       # Flake risk counts the test files that failed or needed a retry in this manifest.
-      - name: Require the build and governance snapshots of this run
-        run: test "$BUILD_RESULT" = success && test "$SNAPSHOTS_RESULT" = success
+      - name: Require the build and critical coverage of this run
+        run: test "$BUILD_RESULT" = success && test "$CRITICAL_COVERAGE_RESULT" = success
         env:
           BUILD_RESULT: ${{ needs.build.result }}
-          SNAPSHOTS_RESULT: ${{ needs['quality-static-governance-snapshots'].result }}
+          CRITICAL_COVERAGE_RESULT: ${{ needs['critical-coverage-report'].result }}
 
-      - name: Download governance snapshots
+      - name: Download critical coverage artifact
         uses: actions/download-artifact@v7
         with:
-          name: quality-static-governance-snapshots
+          name: critical-coverage
           path: reports
 
       - name: Download production build
@@ -1203,23 +1094,17 @@ jobs:
           node scripts/check-playwright-report-clean.mjs reports/e2e/flow-performance-playwright-report.json --label flow-performance
           npm run check:flow-performance-budget
 
-      - name: Regenerate confidence from final runtime evidence
-        run: |
-          npm run report:operational-health
-          npm run report:system-confidence
-          npm run report:release-readiness-scorecard:from-current-inputs
+      - name: Regenerate operational health from final runtime evidence
+        run: npm run report:operational-health
 
-      - name: Enforce final confidence evidence freshness
-        run: npm run check:report-freshness:strict -- --only operational-health,system-confidence,release-readiness-scorecard
+      - name: Enforce final operational health freshness
+        run: npm run check:report-freshness:strict -- --only operational-health
 
-      - name: Upload final system confidence + release readiness artifacts
+      - name: Upload final operational health + flow evidence artifacts
         uses: actions/upload-artifact@v7
         with:
           name: confidence-and-readiness
           path: |
-            reports/system-confidence.*
-            reports/release-readiness-scorecard.*
-            reports/release-confidence-matrix.*
             reports/operational-health.*
             reports/e2e/preview-bootstrap/ci-provenance.json
             reports/e2e/flow-performance-budget.json
@@ -1553,7 +1438,7 @@ jobs:
           name: postmerge-release-evidence
           path: |
             reports/postmerge-evidence.*
-            reports/release-evidence-contract.*
+            reports/operational-health.*
           retention-days: 30
 
   function-deploy-scope:

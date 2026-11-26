@@ -5,10 +5,15 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { afterEach, describe, expect, it } from 'vitest';
+import {
+  TEST_EXECUTION_MANIFEST,
+  TEST_RUNS_OUTSIDE_MANIFEST,
+  formatFlakeRiskSummary,
+  readMeasuredFlakeRisk,
+} from '../../../scripts/measuredFlakeRiskSupport.mjs';
 
 const roots: string[] = [];
 const qualityConfigs = [
-  'release-confidence-matrix',
   'release-confidence-pack',
   'critical-smoke-pack',
   'flow-performance-budgets',
@@ -42,12 +47,10 @@ type ManifestOptions = {
 const git = (root: string, args: string[]) =>
   execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
 
-/** Runs a report script with the CI attempt this test chooses, never the one of the host CI. */
-const runScript = (root: string, script: string, runAttempt?: string) => {
+const runScript = (root: string, script: string) => {
   const env: NodeJS.ProcessEnv = { ...process.env };
   delete env.GITHUB_RUN_ATTEMPT;
   delete env.GITHUB_RUN_ID;
-  if (runAttempt) env.GITHUB_RUN_ATTEMPT = runAttempt;
   const result = spawnSync(process.execPath, [path.resolve(script)], {
     cwd: root,
     encoding: 'utf8',
@@ -99,7 +102,7 @@ const writeManifest = (
     storageAttempt = '1',
   }: ManifestOptions = {}
 ) =>
-  writeJson(root, 'reports/test-execution-manifest.json', {
+  writeJson(root, TEST_EXECUTION_MANIFEST, {
     identity: { gitSha },
     requiredCiSuites: requiredSuites.map(suiteId => ({ suiteId })),
     observations: suites.map(suiteId => ({
@@ -117,17 +120,10 @@ const writeManifest = (
     issues,
   });
 
-const systemConfidence = (root: string, runAttempt?: string) => {
-  runScript(root, 'scripts/report-quality-metrics.mjs');
-  runScript(root, 'scripts/report-system-confidence.mjs', runAttempt);
-  const report = JSON.parse(
-    fs.readFileSync(path.join(root, 'reports/system-confidence.json'), 'utf8')
-  );
-  const testGovernance = report.indicators.find(
-    (indicator: { name: string }) => indicator.name === 'test_governance'
-  );
-  const markdown = fs.readFileSync(path.join(root, 'reports/system-confidence.md'), 'utf8');
-  return { report, testGovernance, markdown };
+const measure = (root: string, runAttempt?: string) => {
+  const gitSha = git(root, ['rev-parse', '--short', 'HEAD']);
+  const flakeRisk = readMeasuredFlakeRisk(root, { gitSha, runAttempt });
+  return { flakeRisk, summary: formatFlakeRiskSummary(flakeRisk) };
 };
 
 const passed = (file: string): ManifestCase => ({
@@ -137,34 +133,31 @@ const passed = (file: string): ManifestCase => ({
   flaky: false,
 });
 
-const expectUnmeasured = (testGovernance: { status: string; summary: string }, reason: string) =>
-  expect(testGovernance).toMatchObject({
-    status: 'degraded',
-    summary: expect.stringContaining(`flakeRisk=unmeasured (${reason}`),
-  });
-
 afterEach(() => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
-describe('measured flake risk in system confidence', () => {
+describe('measured flake risk from execution manifest', () => {
   it('does not count a test file with setTimeout that passed on its first attempt', () => {
     const root = workspace();
     writeManifest(root, [passed(timerTest), passed(e2eSpec)]);
+    runScript(root, 'scripts/report-quality-metrics.mjs');
 
-    const { report, testGovernance, markdown } = systemConfidence(root, '1');
-
+    const { flakeRisk, summary } = measure(root, '1');
     const qualityMetrics = JSON.parse(
       fs.readFileSync(path.join(root, 'reports/quality-metrics.json'), 'utf8')
     );
+
     expect(qualityMetrics.tests.clockSignalFilePaths).toEqual([timerTest]);
-    expect(testGovernance).toMatchObject({
-      status: 'ok',
-      summary: expect.stringContaining('flakeRisk=0,'),
-    });
-    expect(report.flakeRisk).toMatchObject({ measured: true, fileCount: 0, files: [] });
-    expect(markdown).toContain(
-      '- Not measured by this count (outside the manifest): preview smoke lanes, census startup performance, critical coverage shards, clinical-sync-release-gate,'
+    expect(summary).toBe('0');
+    expect(flakeRisk).toMatchObject({ measured: true, fileCount: 0, files: [] });
+    expect(TEST_RUNS_OUTSIDE_MANIFEST).toEqual(
+      expect.arrayContaining([
+        'preview smoke lanes',
+        'census startup performance',
+        'critical coverage shards',
+        'clinical-sync-release-gate',
+      ])
     );
   });
 
@@ -172,14 +165,14 @@ describe('measured flake risk in system confidence', () => {
     const root = workspace();
     writeManifest(root, [passed(timerTest), { ...passed(e2eSpec), attempts: 2, flaky: true }]);
 
-    const { report, testGovernance, markdown } = systemConfidence(root);
+    const { flakeRisk, summary } = measure(root);
 
-    expect(testGovernance).toMatchObject({
-      status: 'degraded',
-      summary: expect.stringContaining('flakeRisk=1,'),
+    expect(summary).toBe('1');
+    expect(flakeRisk).toMatchObject({
+      measured: true,
+      fileCount: 1,
+      files: [{ file: e2eSpec, failed: 0, retried: 1 }],
     });
-    expect(report.flakeRisk.files).toEqual([{ file: e2eSpec, failed: 0, retried: 1 }]);
-    expect(markdown).toContain(`  - ${e2eSpec}: failed=0, retried=1`);
   });
 
   it('names a failed file but leaves the risk unmeasured while the manifest records issues', () => {
@@ -188,10 +181,10 @@ describe('measured flake risk in system confidence', () => {
       issues: ['reports/execution/unit-1.evidence.json: Required evidence has test errors'],
     });
 
-    const { report, testGovernance } = systemConfidence(root);
+    const { flakeRisk, summary } = measure(root);
 
-    expectUnmeasured(testGovernance, 'manifest records 1 issue(s)');
-    expect(report.flakeRisk).toMatchObject({
+    expect(summary).toContain('unmeasured (manifest records 1 issue(s)');
+    expect(flakeRisk).toMatchObject({
       measured: false,
       fileCount: null,
       files: [{ file: timerTest, failed: 1, retried: 0 }],
@@ -202,29 +195,27 @@ describe('measured flake risk in system confidence', () => {
     const root = workspace();
     writeManifest(root, [passed(timerTest)], { suites: ['unit-1'] });
 
-    expectUnmeasured(
-      systemConfidence(root).testGovernance,
-      'manifest lacks required suites: unit-2, unit-3, unit-4, storage, critical-1, critical-2, critical-3, cudyr, flow'
+    expect(measure(root).summary).toContain(
+      'unmeasured (manifest lacks required suites: unit-2, unit-3, unit-4, storage, critical-1, critical-2, critical-3, cudyr, flow'
     );
   });
 
   it('reports flake risk as unmeasured, not zero, without execution evidence for this commit', () => {
     const root = workspace();
 
-    const missing = systemConfidence(root);
-    expectUnmeasured(missing.testGovernance, 'missing reports/test-execution-manifest.json');
-    expect(missing.report.flakeRisk).toMatchObject({ measured: false, fileCount: null });
-    expect(missing.report.missingPrerequisites).toContain('reports/test-execution-manifest.json');
+    const missing = measure(root);
+    expect(missing.summary).toContain(`unmeasured (missing ${TEST_EXECUTION_MANIFEST}`);
+    expect(missing.flakeRisk).toMatchObject({ measured: false, fileCount: null });
 
     writeManifest(root, [passed(timerTest)], { gitSha: 'f'.repeat(40) });
-    expectUnmeasured(systemConfidence(root).testGovernance, `manifest is for ${'f'.repeat(40)}`);
+    expect(measure(root).summary).toContain(`unmeasured (manifest is for ${'f'.repeat(40)}`);
   });
 
   it('reports flake risk as unmeasured when a manifest job was re-run, because its failed attempt is gone', () => {
     const root = workspace();
     writeManifest(root, [passed(timerTest), passed(e2eSpec)], { storageAttempt: '2' });
 
-    expectUnmeasured(systemConfidence(root).testGovernance, 'storage ran again in attempt 2;');
+    expect(measure(root).summary).toContain('unmeasured (storage ran again in attempt 2;');
   });
 
   it('reports flake risk as unmeasured when the report job runs in attempt 2 over attempt-1 evidence', () => {
@@ -232,9 +223,9 @@ describe('measured flake risk in system confidence', () => {
     const root = workspace();
     writeManifest(root, [passed(timerTest), passed(e2eSpec)]);
 
-    const { report, testGovernance } = systemConfidence(root, '2');
+    const { flakeRisk, summary } = measure(root, '2');
 
-    expectUnmeasured(testGovernance, 'this report was built in run attempt 2;');
-    expect(report.flakeRisk).toMatchObject({ measured: false, fileCount: null });
+    expect(summary).toContain('unmeasured (this report was built in run attempt 2;');
+    expect(flakeRisk).toMatchObject({ measured: false, fileCount: null });
   });
 });

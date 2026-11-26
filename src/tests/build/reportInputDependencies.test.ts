@@ -110,11 +110,11 @@ it('declares every observed report input, even when the input is absent', () => 
     }
     expect(issues).toEqual([]);
     const commands = POST_MERGE_EVIDENCE_COMMANDS.map(step => step.name);
-    expect(commands.indexOf('operational-health')).toBeLessThan(
-      commands.indexOf('system-confidence')
+    expect(commands.indexOf('sync-convergence')).toBeLessThan(
+      commands.indexOf('report-freshness-strict')
     );
-    expect(commands.indexOf('system-confidence')).toBeLessThan(
-      commands.indexOf('release-readiness-scorecard')
+    expect(commands.indexOf('operational-health')).toBeLessThan(
+      commands.indexOf('report-freshness-strict')
     );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

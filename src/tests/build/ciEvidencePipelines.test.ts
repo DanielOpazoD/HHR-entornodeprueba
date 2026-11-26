@@ -46,14 +46,6 @@ export const EVIDENCE_PIPELINES: Record<string, Matcher[]> = {
     run('node scripts/check-critical-coverage.mjs'),
     upload('critical-coverage'),
   ],
-  'quality-static-governance-snapshots': [
-    download('critical-coverage'),
-    run('npm run report:governance-snapshots'),
-    run('npm run check:report-freshness:strict'),
-    run('npm run report:release-evidence-contract'),
-    run('npm run check:release-evidence-contract:strict'),
-    upload('quality-static-governance-snapshots'),
-  ],
   'clinical-sync-release-gate': [
     run('npm run test:clinical-sync-simulator'),
     run('npm run report:sync-convergence'),
@@ -62,7 +54,7 @@ export const EVIDENCE_PIPELINES: Record<string, Matcher[]> = {
     upload('sync-convergence'),
   ],
   build: [run('npm run build'), run('npm run check:bundle-budget'), upload('dist')],
-  // The single aggregator: preview lanes, critical lanes, execution manifest, then confidence.
+  // The single aggregator: preview lanes, critical lanes, execution manifest, then operational health.
   'final-confidence-and-readiness': [
     run('npx playwright merge-reports'),
     run('node scripts/check-preview-smoke-completeness.mjs'),
@@ -74,13 +66,11 @@ export const EVIDENCE_PIPELINES: Record<string, Matcher[]> = {
     upload('flow-performance-evidence'),
     run('npm run report:test-execution-manifest'),
     upload('test-execution-manifest'),
-    download('quality-static-governance-snapshots'),
+    download('critical-coverage'),
     download('dist'),
     run('node scripts/check-playwright-report-clean.mjs reports/e2e/flow-performance'),
     run('npm run check:flow-performance-budget'),
     run('npm run report:operational-health'),
-    run('npm run report:system-confidence'),
-    run('npm run report:release-readiness-scorecard:from-current-inputs'),
     run('npm run check:report-freshness:strict -- --only operational-health'),
     upload('confidence-and-readiness'),
   ],
@@ -216,18 +206,18 @@ describe('CI evidence pipelines', () => {
       [
         'ci-scope',
         'build',
+        'critical-coverage-report',
         'e2e-critical-lanes',
         'preview-smoke-lanes',
-        'quality-static-governance-snapshots',
         'rules-emulator',
         'unit-risk-shards',
       ].sort()
     );
-    // It runs when lanes fail, so it must refuse to build confidence from a failed build.
+    // It runs when lanes fail, so it must refuse to build operational health from a failed build.
     expect(final.if).toBe("${{ !cancelled() && needs.ci-scope.outputs.scope == 'full' }}");
     const requireUpstream = final.steps.findIndex(step =>
       (step.run ?? '').includes(
-        'test "$BUILD_RESULT" = success && test "$SNAPSHOTS_RESULT" = success'
+        'test "$BUILD_RESULT" = success && test "$CRITICAL_COVERAGE_RESULT" = success'
       )
     );
     expect(requireUpstream).toBeGreaterThan(-1);

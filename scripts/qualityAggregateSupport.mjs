@@ -7,7 +7,6 @@ export const QUALITY_GROUP_PLAN = Object.freeze({
   security: Object.freeze(['security', 'type-safety', 'hygiene']),
   size: Object.freeze(['size']),
   tests: Object.freeze(['tests']),
-  reports: Object.freeze(['reports']),
 });
 
 export const getQualityGroupPlan = () =>

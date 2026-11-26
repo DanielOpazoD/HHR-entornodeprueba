@@ -4,7 +4,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { countExplicitAny } from './explicitAnySupport.mjs';
 import { findTestModifiers } from './testGovernanceSupport.mjs';
-import { buildReleaseConfidenceMatrixReport } from './releaseConfidenceMatrixSupport.mjs';
 import { buildEvidenceProvenance } from './evidenceProvenanceSupport.mjs';
 import { getGitReportState } from './gitReportState.mjs';
 import { analyzeFolderDependencies } from './check-folder-dependencies.mjs';
@@ -223,7 +222,7 @@ const getTestMetrics = () => {
 
   let skipCount = 0;
   let onlyCount = 0;
-  // Informative only: flake risk is measured from test execution (system-confidence).
+  // Informative only: flake risk is measured from test execution (operational-health).
   const clockSignalFilePaths = [];
   let megatestFilesOver500 = 0;
 
@@ -441,7 +440,6 @@ const getConvergenceSignals = () => {
 };
 
 const generatedAt = new Date().toISOString();
-const releaseConfidenceMatrix = buildReleaseConfidenceMatrixReport(ROOT);
 const gitState = getGitReportState(ROOT);
 const gitSha = gitState.gitSha;
 const metrics = {
@@ -464,18 +462,6 @@ const metrics = {
     npmScripts: measureNpmScripts(ROOT),
     agentRules: measureAgentRules(ROOT),
     exceptionBooks: measureExceptionBooks(ROOT),
-  },
-  releaseConfidence: {
-    overall: releaseConfidenceMatrix.overall,
-    areaCount: releaseConfidenceMatrix.counts.areaCount,
-    mappedCoverageZones: releaseConfidenceMatrix.coverageZones.mapped,
-    totalCoverageZones: releaseConfidenceMatrix.counts.criticalCoverageZones,
-    mappedSmokeScenarios: releaseConfidenceMatrix.smokeScenarios.mapped,
-    totalSmokeScenarios: releaseConfidenceMatrix.counts.smokeScenarios,
-    mappedFlowBudgets: releaseConfidenceMatrix.flowBudgets.mapped,
-    totalFlowBudgets: releaseConfidenceMatrix.counts.flowBudgets,
-    mappedBlockingSteps: releaseConfidenceMatrix.blockingSteps.mapped,
-    totalBlockingSteps: releaseConfidenceMatrix.counts.blockingSteps,
   },
 };
 
@@ -560,15 +546,6 @@ const mdLines = [
   `- Raw console warn/error outside structured sink: ${metrics.convergence.rawConsoleOutsideStructuredSink}`,
   '',
   ...evaluationMarkdown(metrics.evaluation),
-  '## Release Confidence Governance',
-  '',
-  `- Overall: ${metrics.releaseConfidence.overall}`,
-  `- Areas: ${metrics.releaseConfidence.areaCount}`,
-  `- Coverage zones mapped: ${metrics.releaseConfidence.mappedCoverageZones}/${metrics.releaseConfidence.totalCoverageZones}`,
-  `- Blocking steps mapped: ${metrics.releaseConfidence.mappedBlockingSteps}/${metrics.releaseConfidence.totalBlockingSteps}`,
-  `- Smoke scenarios mapped: ${metrics.releaseConfidence.mappedSmokeScenarios}/${metrics.releaseConfidence.totalSmokeScenarios}`,
-  `- Flow budgets mapped: ${metrics.releaseConfidence.mappedFlowBudgets}/${metrics.releaseConfidence.totalFlowBudgets}`,
-  '',
 ];
 
 fs.writeFileSync(MD_OUTPUT, `${mdLines.join('\n')}`, 'utf8');

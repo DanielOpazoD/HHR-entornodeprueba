@@ -22,7 +22,6 @@ const run = (root: string) =>
   spawnSync(process.execPath, [script], { cwd: root, encoding: 'utf8' });
 
 const qualityConfigs = [
-  'release-confidence-matrix',
   'release-confidence-pack',
   'critical-smoke-pack',
   'flow-performance-budgets',

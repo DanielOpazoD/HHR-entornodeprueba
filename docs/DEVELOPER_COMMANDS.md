@@ -56,18 +56,17 @@ el CI del SHA final (`ci-summary`) debe aprobarse antes del merge.
 ### Antes de release o validación operativa fuerte
 
 1. `npm run test:release-confidence` (o `npm run test:firestore:release:ci` para reglas y emuladores)
-2. `npm run release:evidence:refresh` si necesitas regenerar localmente los snapshots de evidencia. Ver
+2. Consultar los artefactos primarios de CI del SHA evaluado (`critical-coverage`, `sync-convergence`, `confidence-and-readiness`). Ver
    [RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md](./RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md).
 
 ### Antes de auditoría técnica o revisión ejecutiva
 
-Seguir la sección [Evidencia vigente de la cadencia](./FOUNDATION_MAINTENANCE_CADENCE.md#evidencia-vigente):
-identifica los insumos necesarios y el comando para regenerar el paquete canónico.
+Seguir la sección [Evidencia vigente de la cadencia](./FOUNDATION_MAINTENANCE_CADENCE.md#evidencia-vigente).
 Preferir los artefactos del CI del SHA evaluado antes de repetir generación local.
 
-`check:report-freshness` es advisory para uso diario. Para aprobar evidencia de
+`check:report-freshness` es advisory para uso diario. Para aprobar evidencia primaria de
 release, aplicar los [contratos bloqueantes del runbook](./RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md#contratos-bloqueantes),
-que incluyen freshness estricta. Compartir SHA con `HEAD` no basta: también se
+que incluyen `check:report-freshness:strict`. Compartir SHA con `HEAD` no basta: también se
 comprueban las huellas de las entradas. La política y su recuperación se documentan
 allí, sin mantener otra copia de sus condiciones en este catálogo.
 
@@ -79,7 +78,6 @@ Después de un merge a `main`, usar `npm run postmerge:evidence` para generar `r
 2. `npm run check:security`
 3. `npm run check:docs-drift`
 4. `npm run check:operational-runbooks`
-5. Si necesitas refrescar snapshots report-only: `npm run report:governance-snapshots`
 
 ## Scripts especializados
 
@@ -119,22 +117,16 @@ Estos scripts siguen soportados, pero no forman parte de la superficie pública 
 
 - `npm run build:rules-assets`
 - `npm run check:report-freshness`
-- `npm run check:release-evidence`
-- `npm run check:release-evidence-contract`
-- `npm run check:release-evidence-contract:strict`
-- `npm run report:governance-snapshots`
-- `npm run release:evidence:refresh`
+- `npm run check:report-freshness:strict`
 
 ### Reportes y auditoría
 
 - `npm run report:quality-metrics`
 - `npm run report:operational-health`
-- `npm run report:system-confidence`
 - `npm run report:unit-shard-runtime-profile`
 - `npm run profile:unit-shard-runtime`
 - `npm run report:ci-runtime-observed-profile`
 - `npm run report:test-runtime-governance`
-- `npm run report:release-readiness-scorecard`
 - `npm run report:runtime-contracts`
 
 ## Convención operativa
