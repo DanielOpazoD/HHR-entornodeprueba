@@ -1054,5 +1054,130 @@ describe('useMinsalStats', () => {
       await waitFor(() => expect(mockCallable).toHaveBeenCalledTimes(2));
       expect(result.current.canExportExcel).toBe(false);
     });
+
+    it('still recalculates another range when returning to it while a manual refresh on a different range is in flight', async () => {
+      const deferred7dRefresh: { resolve?: (value: DailyRecord[]) => void } = {};
+      const stale30dStats = buildStats({
+        porEspecialidad: [
+          {
+            specialty: 'Oftalmología',
+            pacientesActuales: 0,
+            egresos: 1,
+            fallecidos: 0,
+            traslados: 0,
+            aerocardal: 0,
+            fach: 0,
+            diasOcupados: 1,
+            contribucionRelativa: 100,
+            tasaMortalidad: 0,
+            promedioDiasEstada: 1,
+          },
+        ],
+      });
+      const updated30dStats = buildStats({
+        porEspecialidad: [
+          {
+            specialty: 'Cirugía',
+            pacientesActuales: 0,
+            egresos: 1,
+            fallecidos: 0,
+            traslados: 0,
+            aerocardal: 0,
+            fach: 0,
+            diasOcupados: 1,
+            contribucionRelativa: 100,
+            tasaMortalidad: 0,
+            promedioDiasEstada: 1,
+          },
+        ],
+      });
+      const recoveredReclassification = {
+        date: '2026-03-31',
+        movementKind: 'discharge' as const,
+        movementId: 'd-1',
+        specialty: 'Cirugía',
+      };
+
+      mockGetDateRangeFromPreset.mockImplementation((preset: string) =>
+        preset === 'last7days'
+          ? { startDate: '2026-03-25', endDate: '2026-03-31' }
+          : { startDate: '2026-03-01', endDate: '2026-03-31' }
+      );
+      let reads7d = 0;
+      mockFetchRecordsRangeSorted.mockImplementation((start: string) => {
+        if (start === '2026-03-18') {
+          reads7d += 1;
+          if (reads7d === 2) {
+            return new Promise<DailyRecord[]>(resolve => {
+              deferred7dRefresh.resolve = resolve;
+            });
+          }
+        }
+        return Promise.resolve([]);
+      });
+      mockSyncRecordsRange.mockResolvedValue([]);
+      mockCalculateMinsalStats.mockReturnValue(null);
+
+      let reclass30dCalls = 0;
+      mockFetchReclassifications.mockImplementation((start: string) => {
+        if (start === '2026-01-29') {
+          reclass30dCalls += 1;
+          if (reclass30dCalls <= 2) {
+            return Promise.reject(new Error('30d reclassifications failed initially'));
+          }
+          return Promise.resolve([recoveredReclassification]);
+        }
+        return Promise.resolve([]);
+      });
+
+      let remote30dCalls = 0;
+      mockCallable.mockImplementation((payload: { startDate: string }) => {
+        if (payload.startDate === '2026-03-01') {
+          remote30dCalls += 1;
+          return Promise.resolve({ data: remote30dCalls === 1 ? stale30dStats : updated30dStats });
+        }
+        return Promise.resolve({ data: buildStats({ periodStart: '2026-03-25' }) });
+      });
+
+      const wrapper = createQueryClientTestWrapper({
+        config: {
+          defaultOptions: {
+            queries: {
+              retry: false,
+              retryDelay: 0,
+            },
+          },
+        },
+      }).wrapper;
+
+      const { result } = renderHook(() => useMinsalStats('lastMonth'), { wrapper });
+      await waitFor(() =>
+        expect(result.current.stats?.porEspecialidad[0]?.specialty).toBe('Oftalmología')
+      );
+      expect(result.current.canExportExcel).toBe(false);
+
+      act(() => {
+        result.current.setPreset('last7days');
+      });
+      await waitFor(() => expect(result.current.stats?.periodStart).toBe('2026-03-25'));
+
+      let pending7dRefresh: Promise<void> | undefined;
+      act(() => {
+        pending7dRefresh = result.current.refresh();
+      });
+
+      act(() => {
+        result.current.setPreset('lastMonth');
+      });
+
+      await waitFor(() => expect(result.current.canExportExcel).toBe(true));
+      expect(result.current.stats?.porEspecialidad[0]?.specialty).toBe('Cirugía');
+      expect(remote30dCalls).toBe(2);
+
+      await act(async () => {
+        deferred7dRefresh.resolve?.([]);
+        await pending7dRefresh;
+      });
+    });
   });
 });

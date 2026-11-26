@@ -1,5 +1,19 @@
-import type { SpecialtyReclassification } from '@/features/analytics/types/minsalTypes';
+import type {
+  MinsalStatistics,
+  SpecialtyReclassification,
+} from '@/features/analytics/types/minsalTypes';
 import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
+import { diffCalendarDays } from '@/utils/clinicalDateUtils';
+
+export interface RemoteStatsSnapshot {
+  stats: MinsalStatistics;
+  reclassificationsStamp: string | null;
+}
+
+export const REMOTE_RANGE_SYNC_INTERVAL_MS = 2 * 60 * 1000;
+
+export const getCalendarDaysInRange = (start: string, end: string): number =>
+  (diffCalendarDays(start, end) ?? 0) + 1;
 
 export const getMinsalErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
@@ -71,6 +85,34 @@ export const resolveRemoteStatsWarning = (params: {
   }
   if (params.isPaused) {
     return 'Sin conexión para actualizar las estadísticas remotas del período.';
+  }
+  return null;
+};
+
+export const resolveMinsalDisplayError = (params: {
+  recordsError: unknown;
+  remoteStatsIsError: boolean;
+  remoteStatsError: unknown;
+  hasLocalFallbackStats: boolean;
+  hasRemoteStats: boolean;
+  shouldUseRemoteStats: boolean;
+  remoteStatsIsPaused: boolean;
+  hasVisibleStats: boolean;
+  reclassificationsError: string | null;
+}): string | null => {
+  if (params.recordsError) {
+    return getMinsalErrorMessage(params.recordsError, 'Error loading records');
+  }
+  if (params.remoteStatsIsError && !params.hasLocalFallbackStats && !params.hasRemoteStats) {
+    return getMinsalErrorMessage(params.remoteStatsError, 'Error loading remote statistics');
+  }
+  if (
+    params.shouldUseRemoteStats &&
+    params.remoteStatsIsPaused &&
+    !params.hasVisibleStats &&
+    !params.reclassificationsError
+  ) {
+    return 'Sin conexión para cargar las estadísticas remotas.';
   }
   return null;
 };

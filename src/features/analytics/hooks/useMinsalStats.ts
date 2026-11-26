@@ -22,10 +22,13 @@ import { resolveDisplayedMinsalStats } from '@/features/analytics/controllers/mi
 import {
   buildVerifiedReclassificationsStamp,
   filterReclassificationsForRange,
-  getMinsalErrorMessage,
+  getCalendarDaysInRange,
   mergeRecordsByDateDesc,
+  REMOTE_RANGE_SYNC_INTERVAL_MS,
+  resolveMinsalDisplayError,
   resolveReclassificationsError,
   resolveRemoteStatsWarning,
+  type RemoteStatsSnapshot,
 } from '@/features/analytics/controllers/minsalStatsVerificationController';
 import {
   buildAnalyticsDataQualityIssues,
@@ -51,7 +54,6 @@ import {
   isDailyRecordStoreChangeRelevantToRange,
 } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 import { getTodayISO } from '@/utils/dateCoreUtils';
-import { diffCalendarDays } from '@/utils/clinicalDateUtils';
 
 interface UseMinsalStatsResult {
   stats: MinsalStatistics | null;
@@ -77,21 +79,6 @@ interface UseMinsalStatsResult {
   isSavingReclassification: boolean;
 }
 
-// Calendar days, counted at UTC noon: a local-midnight count gains a day across a daylight-saving
-// change and then the range never looks complete.
-const getDaysInRange = (start: string, end: string): number =>
-  (diffCalendarDays(start, end) ?? 0) + 1;
-
-// A range with days that have no census never looks complete locally, and each remote sync stores
-// records, which fires the store-change event that refetches this query. Without a pause that loop
-// re-downloads the whole range for as long as the view stays open (and between tabs).
-const REMOTE_RANGE_SYNC_INTERVAL_MS = 2 * 60 * 1000;
-
-interface RemoteStatsSnapshot {
-  stats: MinsalStatistics;
-  reclassificationsStamp: string | null;
-}
-
 export function useMinsalStats(
   initialPreset: DateRangePreset = 'lastMonth',
   calculationOptions: MinsalCalculationOptions = {}
@@ -99,7 +86,7 @@ export function useMinsalStats(
   const queryClient = useQueryClient();
   const hospitalId = getActiveHospitalId();
   const lastRemoteRangeSyncRef = useRef(new Map<string, number>());
-  const isManualRefreshRef = useRef(false);
+  const manualRefreshKeysRef = useRef(new Set<string>());
   const [dateRange, setDateRange] = useState<DateRangeConfig>({ preset: initialPreset });
   const safeRemoteOptions = useMemo(
     () => ({
@@ -166,7 +153,7 @@ export function useMinsalStats(
     queryKey: localRecordsQueryKey,
     queryFn: async (): Promise<DailyRecord[]> => {
       const localRecords = await fetchRecordsRangeSorted(previousPeriodStart, endDate);
-      const expectedDays = getDaysInRange(previousPeriodStart, endDate);
+      const expectedDays = getCalendarDaysInRange(previousPeriodStart, endDate);
 
       if (localRecords.length >= expectedDays) {
         return localRecords;
@@ -230,7 +217,7 @@ export function useMinsalStats(
         queryKeys.analytics.specialtyReclassificationsByHospital(hospitalId);
       const remoteStatsPrefix = queryKeys.analytics.remoteStatsByHospital(hospitalId);
 
-      isManualRefreshRef.current = true;
+      manualRefreshKeysRef.current.add('*');
       try {
         await Promise.all([
           queryClient.cancelQueries({ queryKey: reclassificationsPrefix }),
@@ -245,7 +232,7 @@ export function useMinsalStats(
           { cancelRefetch: true }
         );
       } finally {
-        isManualRefreshRef.current = false;
+        manualRefreshKeysRef.current.delete('*');
       }
     },
   });
@@ -416,31 +403,31 @@ export function useMinsalStats(
     });
   }, [localFallbackStats, localRangeStats, remoteStats]);
 
-  const error = useMemo(() => {
-    if (recordsQuery.error) {
-      return getMinsalErrorMessage(recordsQuery.error, 'Error loading records');
-    }
-
-    if (remoteStatsQuery.isError && !localFallbackStats && !remoteStats) {
-      return getMinsalErrorMessage(remoteStatsQuery.error, 'Error loading remote statistics');
-    }
-
-    if (shouldUseRemoteStats && remoteStatsQuery.isPaused && !stats && !reclassificationsError) {
-      return 'Sin conexión para cargar las estadísticas remotas.';
-    }
-
-    return null;
-  }, [
-    recordsQuery.error,
-    remoteStatsQuery.isError,
-    remoteStatsQuery.error,
-    remoteStatsQuery.isPaused,
-    localFallbackStats,
-    remoteStats,
-    shouldUseRemoteStats,
-    stats,
-    reclassificationsError,
-  ]);
+  const error = useMemo(
+    () =>
+      resolveMinsalDisplayError({
+        recordsError: recordsQuery.error,
+        remoteStatsIsError: remoteStatsQuery.isError,
+        remoteStatsError: remoteStatsQuery.error,
+        hasLocalFallbackStats: Boolean(localFallbackStats),
+        hasRemoteStats: Boolean(remoteStats),
+        shouldUseRemoteStats,
+        remoteStatsIsPaused: remoteStatsQuery.isPaused,
+        hasVisibleStats: Boolean(stats),
+        reclassificationsError,
+      }),
+    [
+      recordsQuery.error,
+      remoteStatsQuery.isError,
+      remoteStatsQuery.error,
+      remoteStatsQuery.isPaused,
+      localFallbackStats,
+      remoteStats,
+      shouldUseRemoteStats,
+      stats,
+      reclassificationsError,
+    ]
+  );
 
   const isUsingRemoteStats = !localRangeStats && shouldUseRemoteStats;
   const isRemoteStatsStampStale =
@@ -449,10 +436,16 @@ export function useMinsalStats(
     Boolean(remoteStatsQuery.data) &&
     remoteStatsQuery.data?.reclassificationsStamp !== currentVerifiedStamp;
 
+  const remoteStatsKeyHash = useMemo(
+    () => JSON.stringify(remoteStatsQueryKey),
+    [remoteStatsQueryKey]
+  );
+
   useEffect(() => {
     if (
       !isRemoteStatsStampStale ||
-      isManualRefreshRef.current ||
+      manualRefreshKeysRef.current.has('*') ||
+      manualRefreshKeysRef.current.has(remoteStatsKeyHash) ||
       remoteStatsQuery.isFetching ||
       remoteStatsQuery.isPaused ||
       remoteStatsQuery.error
@@ -467,6 +460,7 @@ export function useMinsalStats(
   }, [
     isRemoteStatsStampStale,
     queryClient,
+    remoteStatsKeyHash,
     remoteStatsQuery.error,
     remoteStatsQuery.isFetching,
     remoteStatsQuery.isPaused,
@@ -544,7 +538,7 @@ export function useMinsalStats(
   const refresh = useCallback(async () => {
     // A manual refresh always asks the server again.
     lastRemoteRangeSyncRef.current.delete(`${previousPeriodStart}:${endDate}`);
-    isManualRefreshRef.current = true;
+    manualRefreshKeysRef.current.add(remoteStatsKeyHash);
     try {
       await Promise.all([
         queryClient.invalidateQueries({
@@ -559,11 +553,12 @@ export function useMinsalStats(
         exact: true,
       });
     } finally {
-      isManualRefreshRef.current = false;
+      manualRefreshKeysRef.current.delete(remoteStatsKeyHash);
     }
   }, [
     queryClient,
     localRecordsQueryKey,
+    remoteStatsKeyHash,
     remoteStatsQueryKey,
     reclassificationsQueryKey,
     previousPeriodStart,
