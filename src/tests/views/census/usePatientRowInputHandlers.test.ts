@@ -6,7 +6,6 @@ import {
   usePatientRowMainInputHandlers,
 } from '@/features/census/components/patient-row/usePatientRowInputHandlers';
 import { harmonizeEpisodeDemographicsHistorySafely } from '@/features/census/controllers/patientDemographicsEpisodeSyncController';
-import { featureFlags } from '@/services/utils/featureFlags';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 vi.mock('@/features/census/controllers/patientDemographicsEpisodeSyncController', () => ({
@@ -16,7 +15,6 @@ vi.mock('@/features/census/controllers/patientDemographicsEpisodeSyncController'
 describe('usePatientRowInputHandlers', () => {
   afterEach(() => {
     vi.useRealTimers();
-    featureFlags.reset('SPECIALTY_EPISODE_ASSIGNMENT');
   });
 
   it('maps main row handlers to daily record actions', () => {
@@ -308,27 +306,22 @@ describe('usePatientRowInputHandlers', () => {
     ]);
   });
 
-  it.each([false, true])(
-    'keeps rejected specialty saves separate from diagnosis (pilot %s)',
-    async enabled => {
-      if (enabled) featureFlags.enable('SPECIALTY_EPISODE_ASSIGNMENT');
-      else featureFlags.disable('SPECIALTY_EPISODE_ASSIGNMENT');
-      const updatePatientMultiple = vi.fn().mockResolvedValue(false);
-      const { result } = renderHook(() =>
-        usePatientRowMainInputHandlers({
-          bedId: 'R1',
-          currentDateString: '2026-01-03',
-          data: DataFactory.createMockPatient('R1'),
-          updatePatient: vi.fn(),
-          updatePatientMultiple,
-        })
-      );
-      expect(
-        await result.current.handleDemographicsSave({ specialty: '', pathology: 'Diagnóstico' })
-      ).toBe(false);
-      expect(updatePatientMultiple).toHaveBeenCalledExactlyOnceWith('R1', { specialty: '' });
-    }
-  );
+  it('keeps rejected specialty saves separate from diagnosis', async () => {
+    const updatePatientMultiple = vi.fn().mockResolvedValue(false);
+    const { result } = renderHook(() =>
+      usePatientRowMainInputHandlers({
+        bedId: 'R1',
+        currentDateString: '2026-01-03',
+        data: DataFactory.createMockPatient('R1'),
+        updatePatient: vi.fn(),
+        updatePatientMultiple,
+      })
+    );
+    expect(
+      await result.current.handleDemographicsSave({ specialty: '', pathology: 'Diagnóstico' })
+    ).toBe(false);
+    expect(updatePatientMultiple).toHaveBeenCalledExactlyOnceWith('R1', { specialty: '' });
+  });
 
   it('stops the remaining clinical form if the episode or date changes during confirmation', async () => {
     let complete!: (saved: boolean) => void;

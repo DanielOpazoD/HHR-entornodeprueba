@@ -1,5 +1,4 @@
 import { createRequire } from 'node:module';
-import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -11,34 +10,21 @@ const {
   protectSpecialtyDecisions,
 } = require('../../../../functions/lib/specialtyDecisionContract.js');
 
-const deployedManualSwitch = (context: string): string => {
-  const configuration = readFileSync('netlify.toml', 'utf8');
-  const section = configuration.split(`[context.${context}.environment]`)[1]?.split('\n[')[0];
-  return section?.match(/^\s*VITE_HHR_SPECIALTY_EPISODE_ASSIGNMENT\s*=\s*"([^"]*)"/m)?.[1] ?? '';
-};
-
 describe('published manual specialty deployment contract', () => {
   beforeEach(() => {
     vi.resetModules();
     localStorage.clear();
     vi.stubEnv('MODE', 'production');
     vi.stubEnv('VITE_HHR_SPECIALTY_JEV_PILOT', '');
-    vi.stubEnv('VITE_HHR_SPECIALTY_EPISODE_ASSIGNMENT', 'enabled');
   });
   afterEach(() => {
     vi.unstubAllEnvs();
     localStorage.clear();
   });
 
-  it.each([
-    ['production', 'bed'],
-    ['production', 'clinicalCrib'],
-    ['deploy-preview', 'bed'],
-    ['deploy-preview', 'clinicalCrib'],
-  ] as const)(
-    'sends a server-accepted %s decision for %s without enabling AI',
-    async (context, target) => {
-      vi.stubEnv('VITE_HHR_SPECIALTY_EPISODE_ASSIGNMENT', deployedManualSwitch(context));
+  it.each(['bed', 'clinicalCrib'] as const)(
+    'always sends a server-accepted manual decision for %s without requiring client flags or enabling AI',
+    async target => {
       localStorage.setItem(
         'hhr_feature_flags',
         JSON.stringify({ SPECIALTY_EPISODE_ASSIGNMENT: false })
@@ -111,19 +97,16 @@ describe('published manual specialty deployment contract', () => {
     }
   );
 
-  it('enables manual episode assignment by default without enabling AI switches', async () => {
-    vi.stubEnv('VITE_HHR_SPECIALTY_EPISODE_ASSIGNMENT', '');
+  it('keeps AI and memory switches disabled by default', async () => {
     const { featureFlags } = await import('@/services/utils/featureFlags');
-    expect(featureFlags.isEnabled('SPECIALTY_EPISODE_ASSIGNMENT')).toBe(true);
     expect(featureFlags.isEnabled('SPECIALTY_JEV_CONSULTATION')).toBe(false);
     expect(featureFlags.isEnabled('SPECIALTY_RULES_MEMORY')).toBe(false);
   });
 
-  it('preserves the existing combined Jev pilot switch', async () => {
-    vi.stubEnv('VITE_HHR_SPECIALTY_EPISODE_ASSIGNMENT', '');
+  it('preserves the existing Jev pilot switch without enabling memory', async () => {
     vi.stubEnv('VITE_HHR_SPECIALTY_JEV_PILOT', 'enabled');
     const { featureFlags } = await import('@/services/utils/featureFlags');
-    expect(featureFlags.isEnabled('SPECIALTY_EPISODE_ASSIGNMENT')).toBe(true);
     expect(featureFlags.isEnabled('SPECIALTY_JEV_CONSULTATION')).toBe(true);
+    expect(featureFlags.isEnabled('SPECIALTY_RULES_MEMORY')).toBe(false);
   });
 });

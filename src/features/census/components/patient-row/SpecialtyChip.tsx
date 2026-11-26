@@ -65,7 +65,6 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
-  const episodeMode = useFeatureFlag('SPECIALTY_EPISODE_ASSIGNMENT');
   const memoryMode = useFeatureFlag('SPECIALTY_RULES_MEMORY');
   const [canPublish, setCanPublish] = useState(false);
   const [confirmMemory, setConfirmMemory] = useState(false);
@@ -157,7 +156,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
   const toolsDate = scope?.date || censusDate;
   const trimmed = specialty.trim();
   const assigned = trimmed.length > 0;
-  const canChoose = !episodeMode || Boolean(scope?.episodeId);
+  const canChoose = Boolean(scope?.episodeId);
 
   const select = async (value: string): Promise<void> => {
     if (!canChoose || readOnly) return;
@@ -208,9 +207,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
   // A brief census commit can make the row read-only while a round or rules draft is open.
   // Keep that window's owner mounted; its disabled prop pauses actions without erasing the draft.
   if (readOnly && !toolsOpen) {
-    return (
-      <SpecialtyBadge specialty={trimmed} decision={episodeMode ? decision : undefined} readOnly />
-    );
+    return <SpecialtyBadge specialty={trimmed} decision={decision} readOnly />;
   }
 
   return (
@@ -229,7 +226,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        <SpecialtyBadge specialty={trimmed} decision={episodeMode ? decision : undefined} />
+        <SpecialtyBadge specialty={trimmed} decision={decision} />
       </button>
       {manualSave.isSaving && (
         <span role="status" className="ml-1 text-[10px] text-slate-500">
@@ -315,18 +312,15 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
                   {option}
                 </button>
               ))}
-              {episodeMode && (
-                <button
-                  type="button"
-                  onClick={() => select('')}
-                  disabled={readOnly || busy || manualSave.isSaving || !canChoose}
-                  className="min-h-8 rounded-md px-2 py-1 text-left text-xs text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Dejar sin asignar
-                </button>
-              )}
-              {episodeMode &&
-                memoryMode &&
+              <button
+                type="button"
+                onClick={() => select('')}
+                disabled={readOnly || busy || manualSave.isSaving || !canChoose}
+                className="min-h-8 rounded-md px-2 py-1 text-left text-xs text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Dejar sin asignar
+              </button>
+              {memoryMode &&
                 canPublish &&
                 assigned &&
                 ['manual', 'manual_ai'].includes(decision?.source ?? '') &&

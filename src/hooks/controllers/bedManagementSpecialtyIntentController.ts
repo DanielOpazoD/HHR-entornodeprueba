@@ -3,7 +3,6 @@ import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { BedAction } from '@/hooks/contracts/bedManagementActionContracts';
 import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
 import type { PatientData } from '@/types/domain/patient';
-import { isFeatureEnabled } from '@/services/utils/featureFlags';
 
 const currentSpecialtyDecision = (patient: PatientData | undefined) => {
   const decision = patient?.specialtyAssignment;
@@ -23,7 +22,6 @@ export const resolveManualSpecialtyIntent = (
   record: DailyRecord,
   patch?: DailyRecordPatch
 ): SpecialtyManualIntent | null => {
-  if (!isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT')) return null;
   const isCrib =
     action.type === 'UPDATE_CLINICAL_CRIB' || action.type === 'UPDATE_CLINICAL_CRIB_MULTIPLE';
   const isBed = action.type === 'UPDATE_PATIENT' || action.type === 'UPDATE_PATIENT_MULTIPLE';
@@ -96,8 +94,7 @@ export const blocksUnanchoredSpecialtyEdit = (
   patch: DailyRecordPatch,
   intent: SpecialtyManualIntent | null
 ): boolean => {
-  if (!isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT') || !isSpecialtyEditAction(action))
-    return false;
+  if (!isSpecialtyEditAction(action)) return false;
   if (
     action.type !== 'UPDATE_PATIENT' &&
     action.type !== 'UPDATE_PATIENT_MULTIPLE' &&

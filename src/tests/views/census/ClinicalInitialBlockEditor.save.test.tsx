@@ -1,8 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ClinicalInitialBlockEditor } from '@/features/census/components/patient-row/ClinicalInitialBlockEditor';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { featureFlags } from '@/services/utils/featureFlags';
 
 vi.mock('@/context/StaffContext', () => ({
   useStaffContext: () => ({ professionalsCatalog: [] }),
@@ -15,8 +14,6 @@ const patient = DataFactory.createMockPatient('R1', {
 const props = { data: patient, currentDateString: '2026-01-03', onChange: () => vi.fn() };
 
 describe('clinical editor confirmed saves', () => {
-  afterEach(() => featureFlags.reset('SPECIALTY_EPISODE_ASSIGNMENT'));
-
   it('waits for confirmation without converting an untouched specialty into a manual decision', async () => {
     let confirm!: (saved: boolean) => void;
     const onMultipleUpdate = vi.fn(
@@ -90,23 +87,15 @@ describe('clinical editor confirmed saves', () => {
     expect(screen.getByLabelText('Diagnóstico')).toHaveValue('Nuevo diagnóstico');
   });
 
-  it.each([false, true])('uses Otro text only in legacy mode (episode pilot %s)', async enabled => {
-    if (enabled) featureFlags.enable('SPECIALTY_EPISODE_ASSIGNMENT');
-    else featureFlags.disable('SPECIALTY_EPISODE_ASSIGNMENT');
+  it('submits Otro without a free-text specialty description input', async () => {
     const onMultipleUpdate = vi.fn().mockResolvedValue(true);
     render(<ClinicalInitialBlockEditor {...props} onMultipleUpdate={onMultipleUpdate} />);
     fireEvent.click(screen.getByRole('button', { name: 'Editar bloque clínico' }));
     fireEvent.change(screen.getByLabelText('Especialidad'), { target: { value: 'Otro' } });
-    if (enabled) expect(screen.queryByLabelText('Describir especialidad')).toBeNull();
-    else
-      fireEvent.change(screen.getByLabelText('Describir especialidad'), {
-        target: { value: '  Unidad dolor  ' },
-      });
+    expect(screen.queryByLabelText('Describir especialidad')).toBeNull();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
     });
-    expect(onMultipleUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ specialty: enabled ? 'Otro' : 'Unidad dolor' })
-    );
+    expect(onMultipleUpdate).toHaveBeenCalledWith(expect.objectContaining({ specialty: 'Otro' }));
   });
 });

@@ -16,9 +16,6 @@ import { buildMockDailyRecordRepository } from '@/tests/factories/dailyRecordRep
 import { createTestQueryClient } from '@/tests/utils/queryClientTestUtils';
 import { Specialty } from '@/types/domain/patientClassification';
 
-vi.mock('@/services/utils/featureFlags', () => ({
-  isFeatureEnabled: (flag: string) => flag === 'SPECIALTY_EPISODE_ASSIGNMENT',
-}));
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
 }));

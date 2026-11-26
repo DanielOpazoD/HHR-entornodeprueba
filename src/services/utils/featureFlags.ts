@@ -19,8 +19,6 @@
  */
 export const FEATURE_FLAGS = {
   // Experimental Features
-  /** Episode-bound manual specialty decisions are enabled by default; server remains authoritative. */
-  SPECIALTY_EPISODE_ASSIGNMENT: true,
   SPECIALTY_RULES_MEMORY: false,
   SPECIALTY_JEV_CONSULTATION: false,
 } as const;
@@ -105,23 +103,13 @@ class FeatureFlagsService {
   }
 
   private applyEnvironmentOverrides(): void {
-    // Match the backend's episode authority without enabling the optional AI pilot.
-    if (
-      import.meta.env.MODE !== 'test' &&
-      import.meta.env.VITE_HHR_SPECIALTY_EPISODE_ASSIGNMENT === 'enabled'
-    ) {
-      this.envOverrides.SPECIALTY_EPISODE_ASSIGNMENT = true;
-      delete this.overrides.SPECIALTY_EPISODE_ASSIGNMENT;
-    }
     // This public build flag is set only for the hhr-pruebas pilot builds.
     // The Jev client independently verifies the Firebase project before consulting.
     if (
       import.meta.env.MODE !== 'test' &&
       import.meta.env.VITE_HHR_SPECIALTY_JEV_PILOT === 'enabled'
     ) {
-      this.envOverrides.SPECIALTY_EPISODE_ASSIGNMENT = true;
       this.envOverrides.SPECIALTY_JEV_CONSULTATION = true;
-      delete this.overrides.SPECIALTY_EPISODE_ASSIGNMENT;
       delete this.overrides.SPECIALTY_JEV_CONSULTATION;
     }
   }

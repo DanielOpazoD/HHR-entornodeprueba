@@ -11,8 +11,6 @@ import { getBedTypeForRecord } from '@/utils/bedTypeUtils';
 import { deepClone } from '@/utils/deepClone';
 import {
   clearDeliveryRouteFields,
-  clearGinecobstetriciaFields,
-  isGinecobstetriciaSpecialty,
   isObstetricGinecobstetricia,
 } from '@/shared/census/ginecobstetriciaClassification';
 import {
@@ -29,7 +27,6 @@ import {
 } from '@/hooks/controllers/bedManagementPatientIdentityPatchController';
 import { buildClinicalCribDraft } from '@/hooks/controllers/clinicalCribController';
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
-import { isFeatureEnabled } from '@/services/utils/featureFlags';
 import { editsEloisaNameParts } from '@/utils/patientNamePartsSource';
 
 /**
@@ -107,7 +104,6 @@ const buildPatientFieldPatches = ({
   const patches: Record<string, unknown> = {};
   const manualDiagnosisPatches: Record<string, unknown> = {};
   let hasIdentityChange = false;
-  const updatesSpecialty = Object.prototype.hasOwnProperty.call(updates, 'specialty');
   const updatesGinecobstetriciaType = Object.prototype.hasOwnProperty.call(
     updates,
     'ginecobstetriciaType'
@@ -149,14 +145,6 @@ const buildPatientFieldPatches = ({
   const hadPatientIdentity = Boolean(
     String(currentPatient.patientName || '').trim() || String(currentPatient.rut || '').trim()
   );
-  // A replacement form may resend the old specialty. Only a different value
-  // is evidence of a new explicit choice while the pilot is disabled.
-  const selectedSpecialty =
-    !isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT') &&
-    typeof updates.specialty === 'string' &&
-    updates.specialty !== currentPatient.specialty
-      ? updates.specialty
-      : null;
   const identityChange = {
     currentClinicalEpisodeId: currentPatient.clinicalEpisodeId,
     currentPatientName: currentPatient.patientName,
@@ -174,15 +162,13 @@ const buildPatientFieldPatches = ({
   const identityReplaced = hasIdentityChange && isDifferentPatientIdentity(identityChange);
   if (identityReplaced && hadPatientIdentity) {
     Object.assign(patches, getClearClinicalDataPatches(bedId));
-    if (selectedSpecialty !== null) patches[`beds.${bedId}.specialty`] = selectedSpecialty;
   }
 
   if (resetsClinicalEpisodeOwnership) {
     patches[`beds.${bedId}.clinicalEpisodeId`] = undefined;
-    // Keep the established combined-admission behavior while the episode
-    // pilot is off. When enabled, classification requires a later explicit
-    // decision on the confirmed new episode.
-    patches[`beds.${bedId}.specialty`] = selectedSpecialty ?? '';
+    // Episode classification starts pending until an explicit decision is confirmed
+    // on the new episode.
+    patches[`beds.${bedId}.specialty`] = '';
     patches[`beds.${bedId}.specialtyAssignment`] = undefined;
     patches[`beds.${bedId}.firstSeenDate`] =
       nextPatientName.trim() || nextRut.trim() ? recordDate : undefined;
@@ -198,7 +184,6 @@ const buildPatientFieldPatches = ({
     patches[`beds.${bedId}.firstSeenDate`] = recordDate;
   }
 
-  const nextSpecialty = String(updates.specialty ?? currentPatient.specialty ?? '');
   const nextGinecobstetriciaType =
     updates.ginecobstetriciaType ?? currentPatient.ginecobstetriciaType;
   const nextDeliveryRoute = updates.deliveryRoute ?? currentPatient.deliveryRoute;
@@ -206,18 +191,7 @@ const buildPatientFieldPatches = ({
     updates.upcChecklist ?? currentPatient.upcChecklist
   );
 
-  if (
-    updatesSpecialty &&
-    !isGinecobstetriciaSpecialty(nextSpecialty) &&
-    !isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT')
-  ) {
-    Object.entries(clearGinecobstetriciaFields()).forEach(([key, value]) => {
-      patches[`beds.${bedId}.${key}`] = value;
-    });
-  } else if (
-    updatesGinecobstetriciaType &&
-    !isObstetricGinecobstetricia(nextGinecobstetriciaType)
-  ) {
+  if (updatesGinecobstetriciaType && !isObstetricGinecobstetricia(nextGinecobstetriciaType)) {
     Object.entries(clearDeliveryRouteFields()).forEach(([key, value]) => {
       patches[`beds.${bedId}.${key}`] = value;
     });
