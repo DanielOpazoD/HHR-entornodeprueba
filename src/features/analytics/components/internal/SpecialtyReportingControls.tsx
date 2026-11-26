@@ -10,6 +10,8 @@ interface SpecialtyReportingControlsProps {
   rows: AnalyticsMovementReclassificationRow[];
   canEdit?: boolean;
   isSaving?: boolean;
+  reclassificationsError?: string | null;
+  isReclassificationsVerified?: boolean;
   onGroupingModeChange: (mode: SpecialtyGroupingMode) => void;
   onReclassificationChange: (
     row: AnalyticsMovementReclassificationRow,
@@ -34,6 +36,8 @@ export const SpecialtyReportingControls: React.FC<SpecialtyReportingControlsProp
   rows,
   canEdit = false,
   isSaving = false,
+  reclassificationsError = null,
+  isReclassificationsVerified = reclassificationsError === null,
   onGroupingModeChange,
   onReclassificationChange,
 }) => (
@@ -66,7 +70,22 @@ export const SpecialtyReportingControls: React.FC<SpecialtyReportingControlsProp
 
       <div className="w-full lg:max-w-3xl">
         <h4 className="text-sm font-bold text-slate-700 mb-2">Reclasificación estadística</h4>
-        {rows.length > 0 ? (
+        {reclassificationsError ? (
+          <div
+            role="status"
+            className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          >
+            No se pudieron leer las reclasificaciones actuales. La edición queda deshabilitada hasta
+            recuperar la lectura.
+          </div>
+        ) : !isReclassificationsVerified ? (
+          <div
+            role="status"
+            className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"
+          >
+            Verificando reclasificaciones actuales...
+          </div>
+        ) : rows.length > 0 ? (
           <div className="max-h-72 overflow-auto rounded-lg border border-slate-200">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 sticky top-0">

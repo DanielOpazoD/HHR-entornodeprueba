@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Loader2, Download, BarChart3, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Loader2, Download, BarChart3, RefreshCw } from 'lucide-react';
 import { useMinsalStats } from '@/features/analytics/hooks/useMinsalStats';
 import { useAuth } from '@/context/AuthContext';
 import { DateRangeSelector } from './internal/DateRangeSelector';
@@ -86,6 +86,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
     comparison,
     dataQualityIssues,
     reclassifications,
+    reclassificationsError = null,
+    remoteStatsWarning = null,
+    isReclassificationsVerified = !reclassificationsError,
+    canExportExcel = Boolean(stats) && isReclassificationsVerified,
     saveReclassification,
     isSavingReclassification,
   } = useMinsalStats('lastMonth', calculationOptions);
@@ -97,25 +101,33 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
 
   const handleReclassificationChange = React.useCallback(
     async (row: Parameters<typeof applySpecialtyReclassificationChange>[1], specialty: string) => {
-      if (!isAdmin) return;
+      if (!isAdmin || !isReclassificationsVerified) return;
       const next = applySpecialtyReclassificationChange(reclassifications, row, specialty).find(
         item =>
           item.date === row.date &&
           item.movementKind === row.movementKind &&
           item.movementId === row.movementId
       );
-      await saveReclassification({
-        date: row.date,
-        movementKind: row.movementKind,
-        movementId: row.movementId,
-        reportingSpecialty: next?.specialty ? String(next.specialty) : null,
-      });
+      try {
+        await saveReclassification({
+          date: row.date,
+          movementKind: row.movementKind,
+          movementId: row.movementId,
+          reportingSpecialty: next?.specialty ? String(next.specialty) : null,
+        });
+      } catch (err) {
+        analyticsViewLogger.error('Error saving specialty reclassification', err);
+        notifyError(
+          'No se pudo confirmar la reclasificación',
+          'Ocurrió un error al guardar el cambio. Verifica el estado vigente en pantalla antes de exportar.'
+        );
+      }
     },
-    [isAdmin, reclassifications, saveReclassification]
+    [isAdmin, isReclassificationsVerified, notifyError, reclassifications, saveReclassification]
   );
 
   const handleExportExcel = async () => {
-    if (!stats) return;
+    if (!stats || !canExportExcel) return;
     try {
       const { exportMinsalToExcel } =
         await import('@/features/analytics/services/minsalExcelExporter');
@@ -160,6 +172,32 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
 
   // No data state
   if (!stats) {
+    if (reclassificationsError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-64 gap-4 px-4 text-center">
+          <div
+            role="alert"
+            className="flex items-start gap-2.5 max-w-xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-950"
+          >
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">
+                No se pudieron verificar las reclasificaciones de especialidad.
+              </p>
+              <p className="text-amber-800 mt-0.5">{reclassificationsError}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={refresh}
+            className="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700"
+          >
+            Reintentar
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center h-64 text-slate-400">
         <BarChart3 className="w-12 h-12 mb-4 text-slate-300" />
@@ -192,14 +230,53 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
             <RefreshCw className="w-5 h-5" />
           </button>
           <button
+            type="button"
             onClick={handleExportExcel}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
+            disabled={!canExportExcel}
+            title={
+              !canExportExcel
+                ? reclassificationsError
+                  ? 'Exportación bloqueada: no se pudieron verificar las reclasificaciones de especialidad'
+                  : 'Exportación bloqueada mientras se verifican las estadísticas y reclasificaciones de especialidad'
+                : undefined
+            }
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download className="w-4 h-4" />
             Exportar Excel
           </button>
         </div>
       </header>
+
+      {(reclassificationsError || remoteStatsWarning) && (
+        <div
+          role="alert"
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+        >
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">
+                {reclassificationsError
+                  ? 'No se pudieron verificar las reclasificaciones de especialidad.'
+                  : 'No se pudieron actualizar las estadísticas remotas del período.'}
+              </p>
+              <p className="text-amber-800 mt-0.5">
+                {reclassificationsError
+                  ? 'La distribución por especialidad no está verificada y la exportación a Excel MINSAL permanece deshabilitada hasta recuperar la lectura.'
+                  : `${remoteStatsWarning} La exportación a Excel MINSAL permanece deshabilitada hasta recuperar la lectura.`}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={refresh}
+            className="shrink-0 self-start sm:self-center px-3 py-1.5 rounded-lg border border-amber-300 bg-white text-amber-900 font-semibold hover:bg-amber-100 transition-colors"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {/* Date Range Selector */}
       <DateRangeSelector
@@ -321,13 +398,31 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
           <SpecialtyReportingControls
             groupingMode={specialtyGroupingMode}
             rows={reclassificationRows}
-            canEdit={isAdmin}
+            canEdit={isAdmin && isReclassificationsVerified}
             isSaving={isSavingReclassification}
+            reclassificationsError={reclassificationsError}
+            isReclassificationsVerified={isReclassificationsVerified}
             onGroupingModeChange={setSpecialtyGroupingMode}
             onReclassificationChange={handleReclassificationChange}
           />
           <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
             <h3 className="font-bold text-slate-700 mb-4">Desglose por especialidad del período</h3>
+            {reclassificationsError ? (
+              <div
+                role="status"
+                className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900"
+              >
+                Distribución preliminar sin reclasificaciones verificadas. Reintenta antes de usar o
+                exportar estas cifras.
+              </div>
+            ) : !isReclassificationsVerified ? (
+              <div
+                role="status"
+                className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-600"
+              >
+                Actualizando la distribución por especialidad con las reclasificaciones vigentes...
+              </div>
+            ) : null}
             <SpecialtyBreakdownTable
               data={stats.porEspecialidad || []}
               records={allRecords}
@@ -342,6 +437,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
         <AnalyticsTraceabilityPanel
           dataQualityIssues={dataQualityIssues}
           reclassifications={reclassifications}
+          reclassificationsError={reclassificationsError}
+          isReclassificationsVerified={isReclassificationsVerified}
           onOpenCensusDate={onOpenCensusDate}
         />
       )}

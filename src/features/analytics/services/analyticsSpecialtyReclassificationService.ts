@@ -118,6 +118,7 @@ export const fetchAnalyticsSpecialtyReclassifications = async (
         { field: 'date', operator: '<=', value: endDate },
       ],
       orderBy: [{ field: 'date', direction: 'asc' }],
+      source: 'server',
     }
   );
 

@@ -19,6 +19,7 @@ const buildApi = () => {
   });
   const getDocMock = vi.fn();
   const getDocsMock = vi.fn();
+  const getDocsFromServerMock = vi.fn();
   const limitMock = vi.fn(value => `limit:${value}`);
   const onSnapshotMock = vi.fn((_target: unknown, callback: (value: unknown) => void) => {
     callback({
@@ -42,6 +43,7 @@ const buildApi = () => {
     doc: docMock,
     getDoc: getDocMock,
     getDocs: getDocsMock,
+    getDocsFromServer: getDocsFromServerMock,
     limit: limitMock,
     onSnapshot: onSnapshotMock,
     orderBy: orderByMock,
@@ -61,6 +63,7 @@ const buildApi = () => {
     docMock,
     getDocMock,
     getDocsMock,
+    getDocsFromServerMock,
     limitMock,
     onSnapshotMock,
     orderByMock,
@@ -161,5 +164,38 @@ describe('FirestoreProvider', () => {
 
     expect(collectionMock).toHaveBeenCalledWith(firestoreRef.current, 'reminders');
     expect(docMock).toHaveBeenCalledWith(firestoreRef.current, 'reminders', 'doc-1');
+  });
+
+  it('uses getDocsFromServer and rejects cached snapshots when source is server', async () => {
+    const { api, getDocsMock, getDocsFromServerMock } = buildApi();
+    const provider = new FirestoreProvider({
+      firestore: {} as never,
+      api,
+    });
+
+    getDocsFromServerMock.mockResolvedValueOnce({
+      metadata: { fromCache: false },
+      docs: [{ id: 'rec-1', data: () => ({ reportingSpecialty: 'Cirugía' }) }],
+    });
+
+    const verified = await provider.getDocs<{ id: string; reportingSpecialty: string }>(
+      'hospitals/hanga_roa/analyticsSpecialtyReclassifications',
+      { source: 'server' }
+    );
+
+    expect(verified).toEqual([{ id: 'rec-1', reportingSpecialty: 'Cirugía' }]);
+    expect(getDocsFromServerMock).toHaveBeenCalledTimes(1);
+    expect(getDocsMock).not.toHaveBeenCalled();
+
+    getDocsFromServerMock.mockResolvedValueOnce({
+      metadata: { fromCache: true },
+      docs: [],
+    });
+
+    await expect(
+      provider.getDocs('hospitals/hanga_roa/analyticsSpecialtyReclassifications', {
+        source: 'server',
+      })
+    ).rejects.toThrow(/cached results/i);
   });
 });
