@@ -1,9 +1,7 @@
 import { useMemo } from 'react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
-import {
-  useDailyRecordBedActions,
-  useDailyRecordMovementActions,
-} from '@/context/useDailyRecordScopedActions';
+import { useDailyRecordBedActions } from '@/context/useDailyRecordScopedActions';
+import { useCensusMovementActions } from '../context/CensusMovementActionsContext';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import {
   buildCensusActionDependencies,
@@ -64,7 +62,7 @@ export const useCensusActionDependencies = (): CensusActionDependencies => {
   const { record, stabilityRules } = useDailyRecordData();
   const { clearPatient, moveOrCopyPatient, copyPatientToDate } = useDailyRecordBedActions();
   const { addDischarge, updateDischarge, addTransfer, updateTransfer, addCMA } =
-    useDailyRecordMovementActions();
+    useCensusMovementActions();
   const { confirm } = useConfirmDialog();
   const { error: notifyError } = useNotification();
 

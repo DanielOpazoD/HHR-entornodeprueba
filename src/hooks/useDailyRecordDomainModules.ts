@@ -1,46 +1,27 @@
-import type {
-  ApplyDailyRecordPatch,
-  PersistDailyRecord,
-} from '@/application/shared/dailyRecordCoreContracts';
+import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useBedManagement } from '@/hooks/useBedManagement';
 import type { StaleDayEditGuard } from '@/hooks/useStaleDayEditGuard';
-import { usePatientDischarges } from '@/hooks/usePatientDischarges';
-import { usePatientTransfers } from '@/hooks/usePatientTransfers';
-import {
-  useDetailedStaffingManagement,
-  useShiftStaffManagement,
-} from '@/hooks/useShiftStaffManagement';
-import { useCMA } from '@/hooks/useCMA';
-import { useHandoffManagement } from '@/hooks/useHandoffManagement';
 import { useInventory } from '@/hooks/useInventory';
 import { useStabilityRules } from '@/hooks/useStabilityRules';
 
+/**
+ * Core daily-record hooks shared across authenticated routes (inventory, stability rules and
+ * bed mutations). Route-specific actions (nursing handoff, census movements and shift staffing)
+ * are composed inside their owning features so they stay out of `app-authenticated-shell`.
+ */
 export const useDailyRecordDomainModules = (
   record: DailyRecord | null,
-  saveAndUpdate: PersistDailyRecord,
   patchRecord: ApplyDailyRecordPatch,
   ensureStaleDayEditAllowed?: StaleDayEditGuard
 ) => {
   const inventory = useInventory(record);
   const stabilityRules = useStabilityRules(record);
   const bedManagement = useBedManagement(record, patchRecord, ensureStaleDayEditAllowed);
-  const dischargeManagement = usePatientDischarges(record, saveAndUpdate, undefined, patchRecord);
-  const transferManagement = usePatientTransfers(record, saveAndUpdate, undefined, patchRecord);
-  const shiftStaffManagement = useShiftStaffManagement(record, patchRecord);
-  const staffingManagement = useDetailedStaffingManagement(record, patchRecord);
-  const cmaManagement = useCMA(record, patchRecord);
-  const handoffManagement = useHandoffManagement(record, patchRecord);
 
   return {
     inventory,
     stabilityRules,
     bedManagement,
-    dischargeManagement,
-    transferManagement,
-    shiftStaffManagement,
-    staffingManagement,
-    cmaManagement,
-    handoffManagement,
   };
 };

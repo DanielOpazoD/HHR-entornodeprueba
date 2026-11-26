@@ -1,11 +1,9 @@
 import { useMemo } from 'react';
-import type { DailyRecordActionsContextType } from '@/context/dailyRecordContextContracts';
 import type {
+  DailyRecordActionsContextType,
   DailyRecordBedActions,
   DailyRecordDayActions,
-  DailyRecordHandoffActions,
-  DailyRecordMovementActions,
-  DailyRecordStaffActions,
+  DailyRecordPersistenceActions,
 } from '@/context/dailyRecordContextContracts';
 import { useRequiredDailyRecordActionsContext } from '@/context/dailyRecordActionsContext';
 
@@ -22,6 +20,17 @@ export const useDailyRecordDayActions = (): DailyRecordDayActions => {
       refresh: actions.refresh,
     }),
     [actions.createDay, actions.refresh, actions.resetDay]
+  );
+};
+
+export const useDailyRecordPersistenceActions = (): DailyRecordPersistenceActions => {
+  const actions = useResolvedActionsContext('useDailyRecordPersistenceActions');
+  return useMemo(
+    () => ({
+      saveAndUpdate: actions.saveAndUpdate,
+      patchRecord: actions.patchRecord,
+    }),
+    [actions.patchRecord, actions.saveAndUpdate]
   );
 };
 
@@ -58,74 +67,5 @@ export const useDailyRecordBedActions = (): DailyRecordBedActions => {
       actions.confirmUpcRound,
       actions.updatePatientMultiple,
     ]
-  );
-};
-
-export const useDailyRecordMovementActions = (): DailyRecordMovementActions => {
-  const actions = useResolvedActionsContext('useDailyRecordMovementActions');
-  return useMemo(
-    () => ({
-      addDischarge: actions.addDischarge,
-      updateDischarge: actions.updateDischarge,
-      deleteDischarge: actions.deleteDischarge,
-      undoDischarge: actions.undoDischarge,
-      convertDischargeToCma: actions.convertDischargeToCma,
-      convertDischargeToTransfer: actions.convertDischargeToTransfer,
-      addTransfer: actions.addTransfer,
-      updateTransfer: actions.updateTransfer,
-      deleteTransfer: actions.deleteTransfer,
-      undoTransfer: actions.undoTransfer,
-      convertTransferToHomeDischarge: actions.convertTransferToHomeDischarge,
-      convertTransferToCma: actions.convertTransferToCma,
-      addCMA: actions.addCMA,
-      deleteCMA: actions.deleteCMA,
-      updateCMA: actions.updateCMA,
-      undoCMA: actions.undoCMA,
-      convertCmaToHomeDischarge: actions.convertCmaToHomeDischarge,
-      convertCmaToTransfer: actions.convertCmaToTransfer,
-    }),
-    [
-      actions.addCMA,
-      actions.addDischarge,
-      actions.addTransfer,
-      actions.convertCmaToHomeDischarge,
-      actions.convertCmaToTransfer,
-      actions.convertDischargeToCma,
-      actions.convertDischargeToTransfer,
-      actions.convertTransferToCma,
-      actions.convertTransferToHomeDischarge,
-      actions.deleteCMA,
-      actions.deleteDischarge,
-      actions.deleteTransfer,
-      actions.undoCMA,
-      actions.undoDischarge,
-      actions.undoTransfer,
-      actions.updateCMA,
-      actions.updateDischarge,
-      actions.updateTransfer,
-    ]
-  );
-};
-
-export const useDailyRecordStaffActions = (): DailyRecordStaffActions => {
-  const actions = useResolvedActionsContext('useDailyRecordStaffActions');
-  return useMemo(
-    () => ({
-      updateShiftStaff: actions.updateShiftStaff,
-      updateDetailedStaffing: actions.updateDetailedStaffing,
-    }),
-    [actions.updateDetailedStaffing, actions.updateShiftStaff]
-  );
-};
-
-export const useDailyRecordHandoffActions = (): DailyRecordHandoffActions => {
-  const actions = useResolvedActionsContext('useDailyRecordHandoffActions');
-  return useMemo(
-    () => ({
-      updateHandoffChecklist: actions.updateHandoffChecklist,
-      updateHandoffNovedades: actions.updateHandoffNovedades,
-      updateHandoffReceives: actions.updateHandoffReceives,
-    }),
-    [actions.updateHandoffChecklist, actions.updateHandoffNovedades, actions.updateHandoffReceives]
   );
 };

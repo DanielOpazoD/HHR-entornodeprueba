@@ -63,6 +63,11 @@ export interface DailyRecordDayActions {
   refresh: () => void;
 }
 
+export interface DailyRecordPersistenceActions {
+  saveAndUpdate: PersistDailyRecord;
+  patchRecord: ApplyDailyRecordPatch;
+}
+
 export interface DailyRecordBedActions {
   confirmUpcRound: (evaluations: readonly UpcRoundEvaluation[]) => Promise<boolean>;
   updatePatient: (bedId: string, field: keyof PatientData, value: PatientFieldValue) => void;
@@ -115,22 +120,7 @@ export interface DailyRecordMovementActions extends PatientMovementActions {
   convertCmaToTransfer: (id: string) => void;
 }
 
-export interface DailyRecordHandoffActions {
-  updateHandoffChecklist: (
-    shift: 'day' | 'night' | 'shared',
-    field: string,
-    value: boolean | string
-  ) => void;
-  updateHandoffNovedades: (shift: 'day' | 'night', value: string) => void;
-  updateHandoffReceives: (shift: 'day' | 'night', staffList: string[]) => void;
-}
-
 export interface DailyRecordActionsContextType
-  extends
-    DailyRecordDayActions,
-    DailyRecordBedActions,
-    DailyRecordStaffActions,
-    DailyRecordMovementActions,
-    DailyRecordHandoffActions {}
+  extends DailyRecordDayActions, DailyRecordPersistenceActions, DailyRecordBedActions {}
 
 export type DailyRecordContextType = DailyRecordDataContextType & DailyRecordActionsContextType;

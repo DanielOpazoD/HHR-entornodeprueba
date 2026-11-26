@@ -2,10 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { CMASection } from '@/features/census/components/CMASection';
 import { useDailyRecordStaff, useDailyRecordMovements } from '@/context/DailyRecordContext';
-import {
-  useDailyRecordBedActions,
-  useDailyRecordMovementActions,
-} from '@/context/useDailyRecordScopedActions';
+import { useDailyRecordBedActions } from '@/context/useDailyRecordScopedActions';
+import { useCensusMovementActions } from '@/features/census/context/CensusMovementActionsContext';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 import {
@@ -23,7 +21,10 @@ vi.mock('@/context/DailyRecordContext', () => ({
 
 vi.mock('@/context/useDailyRecordScopedActions', () => ({
   useDailyRecordBedActions: vi.fn(),
-  useDailyRecordMovementActions: vi.fn(),
+}));
+
+vi.mock('@/features/census/context/CensusMovementActionsContext', () => ({
+  useCensusMovementActions: vi.fn(),
 }));
 
 vi.mock('@/context/UIContext', () => ({
@@ -55,7 +56,7 @@ describe('CMASection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    vi.mocked(useDailyRecordMovementActions).mockReturnValue(
+    vi.mocked(useCensusMovementActions).mockReturnValue(
       buildMockMovementActions({
         deleteCMA,
         undoCMA,

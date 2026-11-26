@@ -13,7 +13,7 @@ import {
   useDailyRecordStaff,
   useDailyRecordMovements,
 } from '@/context/DailyRecordContext';
-import { useDailyRecordStaffActions } from '@/context/useDailyRecordScopedActions';
+import { useCensusStaffActions } from '../hooks/useCensusStaffActions';
 import { useStaffContext } from '@/context/StaffContext';
 import { buildCensusStaffHeaderReadModel } from '@/features/census/controllers/censusStaffHeaderReadModel';
 import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
@@ -60,7 +60,7 @@ export const CensusStaffHeader = React.memo(function CensusStaffHeader({
   const staffData = useDailyRecordStaff();
   const movementsData = useDailyRecordMovements();
 
-  const { updateShiftStaff, updateDetailedStaffing } = useDailyRecordStaffActions();
+  const { updateShiftStaff, updateDetailedStaffing } = useCensusStaffActions();
   const { nursesList, tensList, professionalsCatalog = [] } = useStaffContext();
   const [activeDetail, setActiveDetail] = React.useState<{
     role: DetailedStaffingRole;

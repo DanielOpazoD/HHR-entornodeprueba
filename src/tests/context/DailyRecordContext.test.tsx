@@ -14,9 +14,7 @@ import {
   useDailyRecordStaff,
   useDailyRecordBedActions,
   useDailyRecordDayActions,
-  useDailyRecordHandoffActions,
-  useDailyRecordMovementActions,
-  useDailyRecordStaffActions,
+  useDailyRecordPersistenceActions,
 } from '@/context/DailyRecordContext';
 import { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
 
@@ -55,6 +53,8 @@ describe('DailyRecordContext', () => {
     refresh: vi.fn(),
     createDay: vi.fn(),
     resetDay: vi.fn(),
+    saveAndUpdate: vi.fn(),
+    patchRecord: vi.fn(),
     updatePatient: vi.fn(),
     updatePatientMultiple: vi.fn(),
     updateClinicalCrib: vi.fn(),
@@ -67,25 +67,6 @@ describe('DailyRecordContext', () => {
     toggleExtraBed: vi.fn(),
     toggleBedType: vi.fn(),
     copyPatientToDate: vi.fn(),
-    addDischarge: vi.fn(),
-    updateDischarge: vi.fn(),
-    deleteDischarge: vi.fn(),
-    undoDischarge: vi.fn(),
-    convertDischargeToCma: vi.fn(),
-    addTransfer: vi.fn(),
-    updateTransfer: vi.fn(),
-    deleteTransfer: vi.fn(),
-    undoTransfer: vi.fn(),
-    addCMA: vi.fn(),
-    deleteCMA: vi.fn(),
-    updateCMA: vi.fn(),
-    undoCMA: vi.fn(),
-    convertCmaToHomeDischarge: vi.fn(),
-    updateShiftStaff: vi.fn(),
-    updateDetailedStaffing: vi.fn(),
-    updateHandoffChecklist: vi.fn(),
-    updateHandoffNovedades: vi.fn(),
-    updateHandoffReceives: vi.fn(),
   } as unknown as DailyRecordContextType;
 
   const TestComponent = ({ hook }: { hook: () => unknown }) => {
@@ -93,11 +74,11 @@ describe('DailyRecordContext', () => {
     return <div data-testid="hook-data">{JSON.stringify(data)}</div>;
   };
 
-  const MovementConversionActionsProbe = () => {
-    const actions = useDailyRecordMovementActions();
+  const PersistenceActionsProbe = () => {
+    const actions = useDailyRecordPersistenceActions();
     return (
-      <div data-testid="movement-conversion-actions">
-        {typeof actions.convertDischargeToCma}:{typeof actions.convertCmaToHomeDischarge}
+      <div data-testid="persistence-actions">
+        {typeof actions.saveAndUpdate}:{typeof actions.patchRecord}
       </div>
     );
   };
@@ -226,41 +207,23 @@ describe('DailyRecordContext', () => {
     expect(bedRender.getByTestId('hook-data')).toBeInTheDocument();
     bedRender.unmount();
 
-    const movementRender = render(
+    const persistenceRender = render(
       <DailyRecordProvider value={mockValue}>
-        <TestComponent hook={useDailyRecordMovementActions} />
+        <TestComponent hook={useDailyRecordPersistenceActions} />
       </DailyRecordProvider>
     );
-    expect(movementRender.getByTestId('hook-data')).toBeInTheDocument();
-    movementRender.unmount();
-
-    const staffRender = render(
-      <DailyRecordProvider value={mockValue}>
-        <TestComponent hook={useDailyRecordStaffActions} />
-      </DailyRecordProvider>
-    );
-    expect(staffRender.getByTestId('hook-data')).toBeInTheDocument();
-    staffRender.unmount();
-
-    const handoffRender = render(
-      <DailyRecordProvider value={mockValue}>
-        <TestComponent hook={useDailyRecordHandoffActions} />
-      </DailyRecordProvider>
-    );
-    expect(handoffRender.getByTestId('hook-data')).toBeInTheDocument();
-    handoffRender.unmount();
+    expect(persistenceRender.getByTestId('hook-data')).toBeInTheDocument();
+    persistenceRender.unmount();
   });
 
-  it('exposes movement conversion actions through the fragmented actions context', () => {
+  it('exposes persistence primitives through the fragmented actions context', () => {
     render(
       <DailyRecordProvider value={mockValue}>
-        <MovementConversionActionsProbe />
+        <PersistenceActionsProbe />
       </DailyRecordProvider>
     );
 
-    expect(screen.getByTestId('movement-conversion-actions')).toHaveTextContent(
-      'function:function'
-    );
+    expect(screen.getByTestId('persistence-actions')).toHaveTextContent('function:function');
   });
 
   it('preserves referential stability for status and empty overrides across unrelated provider updates', () => {
@@ -464,10 +427,8 @@ describe('DailyRecordContext', () => {
       { name: 'useDailyRecordSync', hook: useDailyRecordSync },
       { name: 'useDailyRecordStaff', hook: useDailyRecordStaff },
       { name: 'useDailyRecordDayActions', hook: useDailyRecordDayActions },
+      { name: 'useDailyRecordPersistenceActions', hook: useDailyRecordPersistenceActions },
       { name: 'useDailyRecordBedActions', hook: useDailyRecordBedActions },
-      { name: 'useDailyRecordMovementActions', hook: useDailyRecordMovementActions },
-      { name: 'useDailyRecordStaffActions', hook: useDailyRecordStaffActions },
-      { name: 'useDailyRecordHandoffActions', hook: useDailyRecordHandoffActions },
     ];
 
     // Silence console.error for expected errors

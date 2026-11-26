@@ -13,6 +13,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useDailyRecord } from '@/hooks/useDailyRecord';
+import { usePatientDischarges } from '@/hooks/usePatientDischarges';
 import { AuthProvider } from '@/context/AuthContext';
 import { UIProvider } from '@/context/UIContext';
 import { AuditProvider } from '@/context/AuditContext';
@@ -218,9 +219,21 @@ describe('Critical Integration Paths', () => {
   });
 
   it('FLOW 2: Patient Discharge (Alta)', async () => {
-    const { result } = renderHook(() => useDailyRecord(mockDate), {
-      wrapper: createIntegrationWrapper(),
-    });
+    const { result } = renderHook(
+      () => {
+        const dailyRecord = useDailyRecord(mockDate);
+        const discharges = usePatientDischarges(
+          dailyRecord.record,
+          dailyRecord.saveAndUpdate,
+          undefined,
+          dailyRecord.patchRecord
+        );
+        return { ...dailyRecord, ...discharges };
+      },
+      {
+        wrapper: createIntegrationWrapper(),
+      }
+    );
 
     await act(async () => {
       await result.current.createDay('2025-01-03');

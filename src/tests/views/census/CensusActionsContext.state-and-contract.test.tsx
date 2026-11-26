@@ -21,7 +21,10 @@ vi.mock('@/context/DailyRecordContext', () => ({
 
 vi.mock('@/context/useDailyRecordScopedActions', () => ({
   useDailyRecordBedActions: () => mockedUseDailyRecordBedActions(),
-  useDailyRecordMovementActions: () => mockedUseDailyRecordMovementActions(),
+}));
+
+vi.mock('@/features/census/context/CensusMovementActionsContext', () => ({
+  useCensusMovementActions: () => mockedUseDailyRecordMovementActions(),
 }));
 
 vi.mock('@/context/UIContext', () => ({

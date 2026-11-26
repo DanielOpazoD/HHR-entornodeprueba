@@ -165,7 +165,5 @@ export const useDailyRecordOverrides = () => {
 export {
   useDailyRecordBedActions,
   useDailyRecordDayActions,
-  useDailyRecordHandoffActions,
-  useDailyRecordMovementActions,
-  useDailyRecordStaffActions,
+  useDailyRecordPersistenceActions,
 } from '@/context/useDailyRecordScopedActions';

@@ -160,6 +160,14 @@ describe('chunkingPolicy', () => {
     expect(deferredSource).toContain("import('@/app-shell/runtime/CensusEmailRuntimeBridge')");
   });
 
+  it('keeps route-specific handoff, movement and staffing hooks out of useDailyRecordDomainModules', () => {
+    const domainModulesSource = readSource('src/hooks/useDailyRecordDomainModules.ts');
+
+    expect(domainModulesSource).not.toMatch(
+      /from ['"]@\/hooks\/(?:useHandoffManagement|usePatientDischarges|usePatientTransfers|useCMA|useShiftStaffManagement)['"]/
+    );
+  });
+
   it('keeps user avatar editing modal out of the static authenticated shell import graph', () => {
     const navbarSource = readSource('src/components/layout/Navbar.tsx');
 

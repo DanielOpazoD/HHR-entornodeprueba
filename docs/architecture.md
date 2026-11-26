@@ -173,9 +173,10 @@ Dos casos se solapan; manda esta precedencia:
 - **Estado React del registro diario o acciones de un área.** El día, su escritura y sus
   guardas tienen una sola fuente: `useDailyRecord*` y `DailyRecordContext`. Censo, entrega y
   CUDYR leen el mismo día. Una acción propia de un área se compone en el proveedor de esa
-  área, no en el registro diario global. **Hoy:** `hooks/useDailyRecordDomainModules.ts`
-  todavía arma acciones de camas, altas, traslados, CMA, personal y entrega. **Objetivo:**
-  que cada área componga las suyas.
+  área, no en el registro diario global. **Hoy:** `hooks/useDailyRecordDomainModules.ts` arma solo
+  inventario, reglas de estabilidad y acciones de camas compartidas; las acciones de entrega viven
+  en `features/handoff` y las de movimientos (altas, traslados, CMA) y dotación en
+  `features/census`, usando `useDailyRecordPersistenceActions` (`patchRecord` y `saveAndUpdate`).
 
 ## Áreas
 
@@ -238,8 +239,9 @@ pasos.
 
 **En React.** Un componente lee el fragmento más estrecho que le sirve:
 `useDailyRecordBeds`, `useDailyRecordStaff`, `useDailyRecordMovements`,
-`useDailyRecordStability` o `useDailyRecordStatus`, y dispara acciones con
-`useDailyRecord{Bed,Movement,Staff,Day,Cudyr,Handoff}Actions`, que no cambian de identidad.
+`useDailyRecordStability` o `useDailyRecordStatus`, y dispara acciones compartidas con
+`useDailyRecord{Bed,Day,Persistence}Actions`, que no cambian de identidad (las acciones propias de
+movimientos, dotación y entrega se componen en sus áreas).
 `useDailyRecordData` se vuelve a pintar con cada cambio del día: solo para quien necesita el
 registro completo. `applyPatches` (`utils/patchUtils.ts`) conserva la identidad de las camas
 que no cambiaron, por eso `React.memo` en las filas evita trabajo.

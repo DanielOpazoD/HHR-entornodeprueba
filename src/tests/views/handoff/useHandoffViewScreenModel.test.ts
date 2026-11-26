@@ -5,7 +5,7 @@ import { useHandoffViewScreenModel } from '@/features/handoff/hooks/useHandoffVi
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import {
   useDailyRecordBedActions,
-  useDailyRecordHandoffActions,
+  useDailyRecordPersistenceActions,
 } from '@/context/useDailyRecordScopedActions';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -14,18 +14,21 @@ import type { ShiftType } from '@/types/domain/shift';
 
 const mockLogDebouncedEvent = vi.fn();
 const mockLogViewEvent = vi.fn();
+const mockLogHandoffNovedadesModified = vi.fn();
 const mockSuccess = vi.fn();
+const mockError = vi.fn();
 
 vi.mock('@/context/AuditContext', () => ({
   useAuditContext: () => ({
     logDebouncedEvent: mockLogDebouncedEvent,
     logViewEvent: mockLogViewEvent,
+    logHandoffNovedadesModified: mockLogHandoffNovedadesModified,
     userId: 'test-user',
   }),
 }));
 
 vi.mock('@/context/UIContext', () => ({
-  useNotification: () => ({ success: mockSuccess }),
+  useNotification: () => ({ success: mockSuccess, error: mockError }),
 }));
 
 vi.mock('@/context/StaffContext', () => ({
@@ -38,7 +41,7 @@ vi.mock('@/context/DailyRecordContext', () => ({
 
 vi.mock('@/context/useDailyRecordScopedActions', () => ({
   useDailyRecordBedActions: vi.fn(),
-  useDailyRecordHandoffActions: vi.fn(),
+  useDailyRecordPersistenceActions: vi.fn(),
 }));
 
 type BedActions = ReturnType<typeof useDailyRecordBedActions>;
@@ -106,9 +109,10 @@ describe('useHandoffViewScreenModel', () => {
     vi.clearAllMocks();
     setRecord(buildRecord());
     vi.mocked(useDailyRecordBedActions).mockReturnValue(bedActions as unknown as BedActions);
-    vi.mocked(useDailyRecordHandoffActions).mockReturnValue(
-      {} as ReturnType<typeof useDailyRecordHandoffActions>
-    );
+    vi.mocked(useDailyRecordPersistenceActions).mockReturnValue({
+      saveAndUpdate: vi.fn().mockResolvedValue(undefined),
+      patchRecord: vi.fn().mockResolvedValue(undefined),
+    });
   });
 
   afterEach(() => {

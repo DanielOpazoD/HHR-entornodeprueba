@@ -4,6 +4,7 @@ import type { BedDefinition } from '@/types/domain/beds';
 import type { Statistics } from '@/types/domain/statistics';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { CensusActionsProvider } from './CensusActionsContext';
+import { CensusMovementActionsProvider } from '../context/CensusMovementActionsContext';
 import { CensusPrintHeader } from './CensusPrintHeader';
 import { CensusAttentionBar } from './CensusAttentionBar';
 import { CensusStaffHeader } from './CensusStaffHeader';
@@ -127,111 +128,119 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
   });
 
   return (
-    <CensusActionsProvider>
-      <CensusPrintHeader currentDateString={currentDateString} />
-      <ClinicalExplorerMenuEntry censusDate={currentDateString} patients={explorerPatients} />
-      <CensusLaboratoryMenuEntry {...laboratoryCohort} censusDate={currentDateString} />
+    <CensusMovementActionsProvider>
+      <CensusActionsProvider>
+        <CensusPrintHeader currentDateString={currentDateString} />
+        <ClinicalExplorerMenuEntry censusDate={currentDateString} patients={explorerPatients} />
+        <CensusLaboratoryMenuEntry {...laboratoryCohort} censusDate={currentDateString} />
 
-      {/* The census stays mounted behind the explorer so returning keeps its state and edits. */}
-      <ClinicalExplorerLaunchContext.Provider value={launchExplorer}>
-        <CensusExamRequestCandidatesContext.Provider value={examRequestCandidates}>
-          <CensusExamOrderDateContext.Provider value={examOrderDate}>
-            <div
-              className="census-register space-y-4"
-              style={marginStyle}
-              hidden={explorer !== null}
-            >
-              <CensusOperationalStateBanner state={operationalState} />
-              <CensusStaffHeader
-                selectedDate={currentDateString}
-                readOnly={readOnly}
-                stats={stats}
-                accessProfile={accessProfile}
-                visibleBeds={visibleBeds}
-                renderMedicalHandoffAction={renderMedicalHandoffAction}
-                rayenBootstrapRequestId={rayenBootstrapRequestId}
-                onRayenBootstrapHandled={onRayenBootstrapHandled}
-              />
+        {/* The census stays mounted behind the explorer so returning keeps its state and edits. */}
+        <ClinicalExplorerLaunchContext.Provider value={launchExplorer}>
+          <CensusExamRequestCandidatesContext.Provider value={examRequestCandidates}>
+            <CensusExamOrderDateContext.Provider value={examOrderDate}>
+              <div
+                className="census-register space-y-4"
+                style={marginStyle}
+                hidden={explorer !== null}
+              >
+                <CensusOperationalStateBanner state={operationalState} />
+                <CensusStaffHeader
+                  selectedDate={currentDateString}
+                  readOnly={readOnly}
+                  stats={stats}
+                  accessProfile={accessProfile}
+                  visibleBeds={visibleBeds}
+                  renderMedicalHandoffAction={renderMedicalHandoffAction}
+                  rayenBootstrapRequestId={rayenBootstrapRequestId}
+                  onRayenBootstrapHandled={onRayenBootstrapHandled}
+                />
 
-              <CensusRegisterMainContent
-                currentDateString={currentDateString}
-                readOnly={editingReadOnly}
-                visibleBeds={visibleBeds}
-                beds={beds}
-                accessProfile={accessProfile}
-                attentionFilter={attentionFilter}
-                onClearAttentionFilter={() => setAttentionFilter('all')}
-                scoresAction={
-                  <CensusAttentionBar
-                    compact
-                    beds={beds}
-                    censusIsoDay={currentDateString}
-                    activeFilter={attentionFilter}
-                    onFilterChange={setAttentionFilter}
-                  />
-                }
-              />
-
-              {shouldRenderDeferredSections ? (
-                <Suspense
-                  fallback={
-                    <div
-                      className="h-20 animate-pulse rounded-xl bg-slate-100"
-                      data-testid="census-register-sections-loading"
+                <CensusRegisterMainContent
+                  currentDateString={currentDateString}
+                  readOnly={editingReadOnly}
+                  visibleBeds={visibleBeds}
+                  beds={beds}
+                  accessProfile={accessProfile}
+                  attentionFilter={attentionFilter}
+                  onClearAttentionFilter={() => setAttentionFilter('all')}
+                  scoresAction={
+                    <CensusAttentionBar
+                      compact
+                      beds={beds}
+                      censusIsoDay={currentDateString}
+                      activeFilter={attentionFilter}
+                      onFilterChange={setAttentionFilter}
                     />
                   }
-                >
-                  <LazyCensusRegisterSections
-                    readOnly={readOnly}
-                    showBedManagerModal={showBedManagerModal}
-                    onCloseBedManagerModal={onCloseBedManagerModal}
-                    accessProfile={accessProfile}
-                  />
-                </Suspense>
-              ) : null}
-            </div>
-          </CensusExamOrderDateContext.Provider>
-        </CensusExamRequestCandidatesContext.Provider>
-        {examOrderDate && explorer === null && (
-          <CensusExamOrderLauncher censusDate={examOrderDate} candidates={examRequestCandidates} />
-        )}
-      </ClinicalExplorerLaunchContext.Provider>
-      {explorer ? (
-        <section
-          data-clinical-explorer-open=""
-          aria-label="Explorador clínico"
-          className="flex flex-col gap-3 lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start"
-          style={marginStyle}
-        >
-          {/* The way back never depends on the online-only chunk: it stays here while the body
-              loads, if it cannot load, and once it is open. */}
-          <ClinicalExplorerBar bedId={explorer.bedId} />
-          <ErrorBoundary
-            resetKeys={[explorer.bedId]}
-            fallbackRender={() => (
-              <p role="alert" className="text-[12px] text-slate-600 lg:col-start-2 lg:row-start-1">
-                No se pudo abrir el explorador. Revisa la conexión y vuelve a intentarlo.
-              </p>
-            )}
+                />
+
+                {shouldRenderDeferredSections ? (
+                  <Suspense
+                    fallback={
+                      <div
+                        className="h-20 animate-pulse rounded-xl bg-slate-100"
+                        data-testid="census-register-sections-loading"
+                      />
+                    }
+                  >
+                    <LazyCensusRegisterSections
+                      readOnly={readOnly}
+                      showBedManagerModal={showBedManagerModal}
+                      onCloseBedManagerModal={onCloseBedManagerModal}
+                      accessProfile={accessProfile}
+                    />
+                  </Suspense>
+                ) : null}
+              </div>
+            </CensusExamOrderDateContext.Provider>
+          </CensusExamRequestCandidatesContext.Provider>
+          {examOrderDate && explorer === null && (
+            <CensusExamOrderLauncher
+              censusDate={examOrderDate}
+              candidates={examRequestCandidates}
+            />
+          )}
+        </ClinicalExplorerLaunchContext.Provider>
+        {explorer ? (
+          <section
+            data-clinical-explorer-open=""
+            aria-label="Explorador clínico"
+            className="flex flex-col gap-3 lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start"
+            style={marginStyle}
           >
-            <Suspense fallback={explorerLoading}>
-              {loadedExplorerView === undefined ? (
-                explorerLoading
-              ) : (
-                <ClinicalDerivedDayProvider value={clinicalDerivedDay}>
-                  {/* Loaded: the module's own component, stable for the page. Failed: the lazy copy
-                      with its chunk recovery. */}
-                  {React.createElement(loadedExplorerView ?? LazyClinicalExplorerView, {
-                    censusDate: currentDateString,
-                    bedId: explorer.bedId,
-                    patients: explorerPatients,
-                  })}
-                </ClinicalDerivedDayProvider>
+            {/* The way back never depends on the online-only chunk: it stays here while the body
+              loads, if it cannot load, and once it is open. */}
+            <ClinicalExplorerBar bedId={explorer.bedId} />
+            <ErrorBoundary
+              resetKeys={[explorer.bedId]}
+              fallbackRender={() => (
+                <p
+                  role="alert"
+                  className="text-[12px] text-slate-600 lg:col-start-2 lg:row-start-1"
+                >
+                  No se pudo abrir el explorador. Revisa la conexión y vuelve a intentarlo.
+                </p>
               )}
-            </Suspense>
-          </ErrorBoundary>
-        </section>
-      ) : null}
-    </CensusActionsProvider>
+            >
+              <Suspense fallback={explorerLoading}>
+                {loadedExplorerView === undefined ? (
+                  explorerLoading
+                ) : (
+                  <ClinicalDerivedDayProvider value={clinicalDerivedDay}>
+                    {/* Loaded: the module's own component, stable for the page. Failed: the lazy copy
+                      with its chunk recovery. */}
+                    {React.createElement(loadedExplorerView ?? LazyClinicalExplorerView, {
+                      censusDate: currentDateString,
+                      bedId: explorer.bedId,
+                      patients: explorerPatients,
+                    })}
+                  </ClinicalDerivedDayProvider>
+                )}
+              </Suspense>
+            </ErrorBoundary>
+          </section>
+        ) : null}
+      </CensusActionsProvider>
+    </CensusMovementActionsProvider>
   );
 };
