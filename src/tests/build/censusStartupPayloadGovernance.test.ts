@@ -135,5 +135,9 @@ describe('census startup payload', () => {
     );
     expect(table).toContain("import('@/features/rayen-manual-import')");
     expect(table).toContain("import('@/features/census/components/eloisaAdmissionInput')");
+
+    const upcContext = read(`${rowDir}/UpcClassificationWindowContext.tsx`);
+    expect(upcContext).not.toMatch(/import\s+\{[^}]*UpcClassificationWindow[^}]*\}\s+from/);
+    expect(upcContext).toContain("import('./UpcClassificationWindow')");
   });
 });

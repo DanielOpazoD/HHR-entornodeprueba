@@ -100,7 +100,10 @@ const CensusTableHeaderComponent: React.FC<CensusTableHeaderProps> = ({
                   aria-label="Abrir ronda de clasificación UPC"
                   aria-haspopup="dialog"
                   title="Abrir ronda de clasificación UPC"
-                  onClick={() => openUpcWindow()}
+                  onClick={event => {
+                    event.currentTarget.focus();
+                    openUpcWindow();
+                  }}
                   className="min-h-6 rounded px-1 font-semibold text-teal-800 underline decoration-teal-300 underline-offset-2 hover:bg-teal-50 focus-visible:outline-teal-600 print:no-underline"
                 >
                   {cell.label}

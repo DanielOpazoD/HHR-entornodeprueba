@@ -92,6 +92,14 @@ export const useDailyRecordBeds = () => {
 };
 
 /**
+ * Optional beds reader for host boundaries that may be rendered outside DailyRecordProvider in
+ * isolated tests. Returns `undefined` when no provider is mounted.
+ */
+export const useOptionalDailyRecordBeds = () => {
+  return useContext(DailyRecordBedsContext);
+};
+
+/**
  * Access stable day metadata (date, Rayen coverage completion timestamp, active extra beds).
  * Avoids re-rendering on bed edits, sync status ticks, staff edits, or movement updates.
  */

@@ -63,6 +63,8 @@ export const OFFLINE_BOOT_CHUNKS = [
   // Closing a session with a pending nursing handoff must work offline.
   'NursingHandoffLogoutDialog',
   'NursingHandoffSessionNotice',
+  // UPC classification round opens on demand from the census and must stay available offline.
+  'UpcClassificationWindow',
 ];
 
 type Chunk = Pick<Rollup.OutputChunk, 'fileName' | 'imports' | 'isEntry'>;

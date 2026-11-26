@@ -9,6 +9,7 @@ import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
 import { useUpcClassificationWindowOpener } from './UpcClassificationWindowContext';
+import { resolveUpcCellSubjectIdentity } from './upcPendingOpenGuard';
 
 interface UpcChecklistCellProps extends BaseCellProps {
   currentDateString: string;
@@ -60,8 +61,13 @@ export const UpcChecklistCell: React.FC<UpcChecklistCellProps> = ({
     <td className="p-0.5 text-center w-[26px] relative">
       <button
         type="button"
-        onClick={() => {
-          openUpcWindow(data.bedId, { crib: isSubRow });
+        onClick={event => {
+          event.currentTarget.focus();
+          openUpcWindow(data.bedId, {
+            crib: isSubRow,
+            episodeIdentity: resolveUpcCellSubjectIdentity(data),
+            triggerElement: event.currentTarget,
+          });
         }}
         aria-label={
           readOnly ? 'Consultar clasificación UPC del día' : reviewReason || 'Editar evaluación UPC'
