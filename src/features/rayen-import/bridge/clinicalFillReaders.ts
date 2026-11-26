@@ -37,8 +37,16 @@ export const createClinicalFillReaders = (
       if (result) authorization.observe(encId, result.forms);
       return result;
     },
-    recoverCudyrPlacements: (episode, rut, observedAt, identityKind, maternalRut) =>
-      recoverCudyrHospitalHistory(episode, rut, signal, observedAt, identityKind, maternalRut),
+    recoverCudyrPlacements: (episode, rut, observedAt, identityKind, maternalRut, options) =>
+      recoverCudyrHospitalHistory(
+        episode,
+        rut,
+        signal,
+        observedAt,
+        identityKind,
+        maternalRut,
+        options
+      ),
     onCudyrPlacementsArchived: markCudyrFlowArchived,
     fetchCudyrCategories: () => requestCudyrCategories(undefined, signal, expectedEncounterIds),
   } satisfies Pick<

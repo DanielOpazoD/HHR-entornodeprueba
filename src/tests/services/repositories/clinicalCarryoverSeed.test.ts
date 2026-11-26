@@ -148,6 +148,41 @@ describe('clinical carryover seed', () => {
     expect(seed(source).devices).toEqual([]);
     expect(seed(source).deviceInstanceHistory).toEqual([]);
   });
+  it('carries over episode devices after a manual document edit on both client and server', () => {
+    const source: PatientData = {
+      ...patient(),
+      documentType: 'Pasaporte',
+      rut: 'AB987654',
+      documentManualOverride: true,
+    };
+    source.deviceInstanceHistory!.push(
+      {
+        ...source.deviceInstanceHistory![0],
+        id: 'foreign-episode',
+        type: 'CUP',
+        clinicalEpisodeId: 'other-episode',
+      },
+      {
+        ...source.deviceInstanceHistory![0],
+        id: 'unowned-foreign-rut',
+        type: 'SNG',
+        clinicalEpisodeId: undefined,
+        patientRut: '99999992-2',
+      }
+    );
+    const result = seed(source);
+    expect(result.devices).toEqual(['CVC']);
+    expect(result.deviceInstanceHistory?.map(item => item.id)).toEqual(['synthetic-device']);
+    expect(seedPatient(source, destination(source), '2026-10-18', '2026-10-19')).toEqual(result);
+
+    // Without documentManualOverride, a conflicting patientRut is still excluded.
+    const withoutOverride: PatientData = { ...source, documentManualOverride: false };
+    expect(seed(withoutOverride).devices).toEqual([]);
+    expect(seed(withoutOverride).deviceInstanceHistory).toEqual([]);
+    expect(
+      seedPatient(withoutOverride, destination(withoutOverride), '2026-10-18', '2026-10-19')
+    ).toEqual(seed(withoutOverride));
+  });
   it('preserves pending provenance through the persisted patient schema', () => {
     expect(parsePatientDataWithDefaults(seed(patient()), 'R2').clinicalCarryover).toEqual(
       seed(patient()).clinicalCarryover

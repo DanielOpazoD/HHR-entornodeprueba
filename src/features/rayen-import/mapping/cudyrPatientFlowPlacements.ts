@@ -24,6 +24,10 @@ const flowInstant = (local: string): string => {
   return resolved;
 };
 
+export interface CudyrPatientFlowIdentityOptions {
+  allowManualDocumentOverride?: boolean;
+}
+
 /** Preserve complete episode evidence, never confuse Urgencias/CMA with a hospital entry. */
 export const cudyrPlacementsFromPatientFlow = (
   text: string,
@@ -31,7 +35,8 @@ export const cudyrPlacementsFromPatientFlow = (
   rut: string,
   observedAt: string,
   identityKind: 'patient' | 'maternal' = 'patient',
-  maternalRut?: string
+  maternalRut?: string,
+  options?: CudyrPatientFlowIdentityOptions
 ): CudyrSourcePlacement[] => {
   // A printed personal identifier must match; never override it with a parental identifier.
   const usesMaternalHeader =
@@ -45,8 +50,18 @@ export const cudyrPlacementsFromPatientFlow = (
     : rut.replace(/[\s.-]/g, '').toUpperCase();
   // The report is read by exact episode. A newborn known only by its delivery-receipt folio has no
   // RUN to compare, so the episode itself is the identity; any printed RUN still has to match.
+  // When HHR explicitly overrides the episode's personal document (ID-01/SRC-02), the report must
+  // still carry one unambiguous personal identifier for that exact episode.
   const birthReceiptOnly = identityKind === 'maternal' && hasBirthReceiptOnlyIdentity(text);
-  if (!/^\d+$/.test(episode) || (!birthReceiptOnly && (!expectedRun || reportRun !== expectedRun)))
+  const manualPersonalOverride =
+    options?.allowManualDocumentOverride === true &&
+    !usesMaternalHeader &&
+    Boolean(expectedRun) &&
+    Boolean(reportRun);
+  if (
+    !/^\d+$/.test(episode) ||
+    (!birthReceiptOnly && !manualPersonalOverride && (!expectedRun || reportRun !== expectedRun))
+  )
     throw new Error('El informe no corresponde al paciente del episodio solicitado.');
   const rows = parsePatientFlowTimeline(text);
   if (!rows.length) throw new Error('Historial de camas incompleto.');

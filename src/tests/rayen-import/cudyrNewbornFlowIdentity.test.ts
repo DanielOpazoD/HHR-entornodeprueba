@@ -363,4 +363,66 @@ Sexo: Mujer Edad: 0 año(s)
     expect(errors).toMatchObject([{ source: 'bed_history', reason: 'source_unavailable' }]);
     expect(presentRayenCoverageIssue(errors[0])).toContain('Movimientos de camas');
   });
+
+  it('recovers CUDYR bed history for a patient with a manual document override', async () => {
+    const adultFlow = `Paciente: Persona Sintética RUN: 55.123.456-7
+09/10/2026 16:23:14 Área Médico Quirúrgica Servicio Hospitalizados HHR Habitacion 1 Básica H1C1`;
+    const recover = vi.fn(async (episode, rut, at, identityKind, maternalRut, options) =>
+      cudyrPlacementsFromPatientFlow(
+        adultFlow,
+        episode,
+        rut,
+        at,
+        identityKind,
+        maternalRut,
+        options
+      )
+    );
+    const write = vi.fn().mockResolvedValue('persisted');
+    const { archive } = startCudyrSyncCapture({
+      record: asStoredDailyRecordShape({
+        date: '2026-10-09',
+        beds: {
+          H1C1: {
+            clinicalEpisodeId: '1001',
+            patientName: 'Persona Sintética',
+            documentType: 'Pasaporte',
+            rut: 'AB987654',
+            documentManualOverride: true,
+            bedMode: 'Cama',
+          },
+        },
+      }),
+      censusDate: '2026-10-09',
+      captureEpisodes: ['1001'],
+      needsRead: true,
+      deps: {
+        fetchCudyrCategories: async () => ({
+          items: [],
+          source: 'gestion_camas',
+          historyAvailable: true,
+          observedEpisodeIds: [],
+        }),
+        archiveCudyrCapture: write,
+        recoverCudyrPlacements: recover,
+        now: () => new Date(observedAt),
+        createId: () => 'capture',
+      } as unknown as ClinicalFillDeps,
+      trackRequest: operation => operation(),
+      recordTimeout: vi.fn(),
+    });
+
+    expect(await archive).toEqual([]);
+    expect(recover).toHaveBeenCalledWith('1001', 'AB987654', observedAt, 'patient', undefined, {
+      allowManualDocumentOverride: true,
+    });
+    expect(write.mock.calls[0][0].capture.sourcePlacements).toMatchObject([
+      {
+        clinicalEpisodeId: '1001',
+        bedId: 'H1C1',
+        modality: 'hospitalizacion',
+        sourceStartAt: '2026-10-09T16:23:14-05:00',
+      },
+    ]);
+  });
 });

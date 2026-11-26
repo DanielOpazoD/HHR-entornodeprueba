@@ -241,4 +241,27 @@ describe('mergeReportDevices', () => {
     expect(Object.keys(before.deviceDetails ?? {})).toEqual(['VVP#1', 'VVP#2']);
     expect(before.deviceInstanceHistory?.map(item => item.type)).toEqual(['VVP#1', 'VVP#2']);
   });
+
+  it('keeps manual retirements closed and avoids duplicating devices after a manual document edit', () => {
+    const synced = mergeReportDevices(patient({ rut: '55.123.456-7' }), [cup], ctx);
+    const retiredByNurse: PatientData = {
+      ...synced,
+      documentType: 'Pasaporte',
+      rut: 'AB987654',
+      documentManualOverride: true,
+      devices: [],
+      deviceDetails: { CUP: { removalDate: '2026-07-09' } },
+      deviceInstanceHistory: synced.deviceInstanceHistory?.map(item => ({
+        ...item,
+        status: 'Removed' as const,
+        removalSource: 'manual' as const,
+        removalDate: '2026-07-09',
+      })),
+    };
+
+    const resynced = mergeReportDevices(retiredByNurse, [cup], ctx);
+    expect(resynced.devices).toEqual([]);
+    expect(resynced.deviceInstanceHistory).toHaveLength(1);
+    expect(resynced.deviceInstanceHistory?.[0]?.status).toBe('Removed');
+  });
 });

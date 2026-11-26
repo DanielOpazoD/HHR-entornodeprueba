@@ -95,12 +95,22 @@ export const startCudyrSyncCapture = (input: {
                       if (identities.size > 1 || (!identities.size && !(facts.length && maternal)))
                         return Promise.reject(new Error('Identidad de episodio ambigua.'));
                       const parents = new Set(facts.map(f => key(maternalFor(f))).filter(Boolean));
+                      const allowManualDocumentOverride =
+                        facts.length > 0 &&
+                        facts.every(
+                          f =>
+                            f.patient.documentManualOverride === true &&
+                            Boolean(key(newbornOwnRut(f.patient)))
+                        );
                       return deps.recoverCudyrPlacements!(
                         episode,
                         [...identities][0] ?? '',
                         observedAt,
                         maternal ? 'maternal' : 'patient',
-                        maternal && parents.size === 1 ? [...parents][0] : undefined
+                        maternal && parents.size === 1 ? [...parents][0] : undefined,
+                        ...(allowManualDocumentOverride
+                          ? [{ allowManualDocumentOverride: true }]
+                          : [])
                       );
                     },
                   }
