@@ -4,13 +4,13 @@ import { BaseModal } from '@/components/shared/BaseModal';
 import { useOptionalDailyRecordBeds } from '@/context/DailyRecordContext';
 import { PanelModuleRetry, RecoverableClinicalPanelModule } from './RecoverableClinicalPanelModule';
 import {
-  captureUnnamedLegacyCensusSnapshot,
-  createEmptyUnnamedLegacySnapshot,
-  hasUnnamedLegacyNamingAmbiguity,
+  captureLegacyCensusObservation,
+  createEmptyLegacyCensusObservation,
+  hasLegacyCensusAmbiguity,
   isSameUpcCellSubjectIdentity,
-  recordUnnamedLegacyCensusObservation,
+  recordLegacyCensusObservation,
   resolveUpcCellSubjectIdentity,
-  type UnnamedLegacyCensusSnapshot,
+  type LegacyCensusObservation,
 } from './upcPendingOpenGuard';
 
 const loadUpcClassificationWindow = () =>
@@ -140,26 +140,29 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
   const [latchedParentIdentity, setLatchedParentIdentity] = useState<string | null>(
     () => currentParentIdentity
   );
-  const [unnamedLegacySnapshot] = useState<UnnamedLegacyCensusSnapshot>(() =>
-    captureUnnamedLegacyCensusSnapshot(beds, rawBedId, isCrib, expectedEpisodeIdentity)
+  const [legacyObservation] = useState<LegacyCensusObservation>(() =>
+    captureLegacyCensusObservation(beds, rawBedId, isCrib, expectedEpisodeIdentity)
   );
-  const [unnamedParentSnapshot] = useState<UnnamedLegacyCensusSnapshot>(() =>
+  const [parentLegacyObservation] = useState<LegacyCensusObservation>(() =>
     isCrib
-      ? captureUnnamedLegacyCensusSnapshot(beds, rawBedId, false, currentParentIdentity)
-      : createEmptyUnnamedLegacySnapshot()
+      ? captureLegacyCensusObservation(beds, rawBedId, false, currentParentIdentity)
+      : createEmptyLegacyCensusObservation()
   );
 
   const isSubjectNamingTransition = currentEpisodeIdentity !== latchedEpisodeIdentity;
   const subjectStillMatches =
     isSameUpcCellSubjectIdentity(latchedEpisodeIdentity, currentEpisodeIdentity) &&
-    (!isSubjectNamingTransition ||
-      !hasUnnamedLegacyNamingAmbiguity(beds, currentSubject, unnamedLegacySnapshot));
+    !hasLegacyCensusAmbiguity(beds, currentSubject, legacyObservation, isSubjectNamingTransition);
   const isParentNamingTransition = isCrib && currentParentIdentity !== latchedParentIdentity;
   const parentStillMatches =
     !isCrib ||
     (isSameUpcCellSubjectIdentity(latchedParentIdentity, currentParentIdentity) &&
-      (!isParentNamingTransition ||
-        !hasUnnamedLegacyNamingAmbiguity(beds, currentParentSubject, unnamedParentSnapshot)));
+      !hasLegacyCensusAmbiguity(
+        beds,
+        currentParentSubject,
+        parentLegacyObservation,
+        isParentNamingTransition
+      ));
   const isStalePendingEpisode =
     !hasResolvedWindow &&
     hasExpectedEpisode &&
@@ -183,23 +186,23 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
   }
 
   // Accumulate newly occupied beds/cribs observed while the load or retry stays pending so a
-  // second twin admitted after the click cannot later swap into the clicked unnamed crib.
+  // second twin admitted after the click cannot later swap into the clicked crib.
   useLayoutEffect(() => {
     if (isStalePendingEpisode) {
       onCancelStaleOpen();
       return;
     }
     if (!hasResolvedWindow && hasExpectedEpisode && hasTrackableContextBed) {
-      recordUnnamedLegacyCensusObservation(
-        unnamedLegacySnapshot,
+      recordLegacyCensusObservation(
+        legacyObservation,
         beds,
         rawBedId,
         isCrib,
         latchedEpisodeIdentity
       );
       if (isCrib) {
-        recordUnnamedLegacyCensusObservation(
-          unnamedParentSnapshot,
+        recordLegacyCensusObservation(
+          parentLegacyObservation,
           beds,
           rawBedId,
           false,
@@ -216,10 +219,10 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
     isStalePendingEpisode,
     latchedEpisodeIdentity,
     latchedParentIdentity,
+    legacyObservation,
     onCancelStaleOpen,
+    parentLegacyObservation,
     rawBedId,
-    unnamedLegacySnapshot,
-    unnamedParentSnapshot,
   ]);
 
   if (isStalePendingEpisode) {
