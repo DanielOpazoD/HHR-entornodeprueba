@@ -127,8 +127,8 @@ Documentos útiles para contexto, pero no fuente primaria de reglas activas.
 - `docs/superpowers/specs/*.md`
 - `docs/archive/FOUNDATION_IMPROVEMENT_PLAN.md`
 - [docs/FOUNDATION_TRACKER.md](FOUNDATION_TRACKER.md) — cierre histórico B01–B26
-- [docs/FOUNDATION_CONTINUATION_TRACKER.md](FOUNDATION_CONTINUATION_TRACKER.md) — ciclos cerrados
-- `docs/MAINTENANCE_ITERATION_LOG.md`
+- [docs/archive/FOUNDATION_CONTINUATION_TRACKER.md](archive/FOUNDATION_CONTINUATION_TRACKER.md) — ciclos cerrados
+- [docs/archive/MAINTENANCE_ITERATION_LOG.md](archive/MAINTENANCE_ITERATION_LOG.md)
 
 ### Generada
 

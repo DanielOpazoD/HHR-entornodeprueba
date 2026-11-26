@@ -120,7 +120,7 @@ Si una propuesta solo agrega capas, nombres o archivos sin bajar branching, acop
 ## Relación con otras guías del repo
 
 - Para reglas operativas concretas: `docs/OPERATIVE_RULES_REFERENCE.md`
-- Para trazabilidad de iteraciones: `docs/MAINTENANCE_ITERATION_LOG.md`
+- Para trazabilidad de iteraciones: `docs/archive/MAINTENANCE_ITERATION_LOG.md`
 - Para deuda viva y watchlist: el informe que genera `npm run report:maintenance-debt-scorecard` (no está versionado: se genera en `reports/`)
 
 Este documento responde una pregunta simple:

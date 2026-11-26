@@ -33,5 +33,5 @@ snapshots. No atribuir sus cifras al código actual sin verificar su procedencia
 ## Historia
 
 Los cierres [B01–B26](docs/FOUNDATION_TRACKER.md) y
-[R00–R06](docs/FOUNDATION_CONTINUATION_TRACKER.md) describen sus propias etapas.
+[R00–R06](docs/archive/FOUNDATION_CONTINUATION_TRACKER.md) describen sus propias etapas.
 Sus porcentajes, resultados y próximos pasos no son el estado de la versión actual.

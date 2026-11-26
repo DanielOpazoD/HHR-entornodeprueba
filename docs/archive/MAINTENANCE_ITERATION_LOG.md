@@ -13,8 +13,8 @@ Registro interno recurrente para mejoras de alto valor y bajo riesgo. Cada itera
 
 ## Histórico archivado
 
-- Iteraciones de marzo a mayo de 2026: [MAINTENANCE_ITERATION_LOG_2026_H1.md](./archive/MAINTENANCE_ITERATION_LOG_2026_H1.md)
-- Instantánea de auditoría de abril de 2026: [TECHNICAL_APPLICATION_AUDIT_2026-04.md](./archive/TECHNICAL_APPLICATION_AUDIT_2026-04.md)
+- Iteraciones de marzo a mayo de 2026: [MAINTENANCE_ITERATION_LOG_2026_H1.md](./MAINTENANCE_ITERATION_LOG_2026_H1.md)
+- Instantánea de auditoría de abril de 2026: [TECHNICAL_APPLICATION_AUDIT_2026-04.md](./TECHNICAL_APPLICATION_AUDIT_2026-04.md)
 
 ## Iteraciones recientes
 
