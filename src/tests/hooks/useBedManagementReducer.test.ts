@@ -155,11 +155,13 @@ describe('bedManagementReducer firstSeenDate anchoring', () => {
     expect(patch).not.toHaveProperty('bedTypeOverrides.R1');
   });
 
-  it('un RUT distinto sí es reemplazo de persona y limpia los datos clínicos de la cama', () => {
+  it('corregir el documento o tipo de documento en una cama ocupada conserva diagnóstico, notas y episodio', () => {
     const record = DataFactory.createMockDailyRecord('2026-04-12');
     record.beds.R1 = DataFactory.createMockPatient('R1', {
       patientName: 'Paciente Inicial',
       rut: '11.111.111-1',
+      documentType: 'RUT',
+      clinicalEpisodeId: 'ep_ocupante',
       pathology: 'Neumonia',
       handoffNoteDayShift: 'Entregado',
       medicalHandoffNote: 'Nota medica',
@@ -172,12 +174,15 @@ describe('bedManagementReducer firstSeenDate anchoring', () => {
       value: '22.222.222-2',
     });
 
-    expect(patch).toMatchObject({
+    expect(patch).toEqual({
       'beds.R1.rut': '22.222.222-2',
-      'beds.R1.pathology': '',
-      'beds.R1.handoffNoteDayShift': '',
-      'beds.R1.medicalHandoffNote': '',
+      'beds.R1.documentManualOverride': true,
     });
+    expect(patch).not.toHaveProperty('beds.R1.pathology');
+    expect(patch).not.toHaveProperty('beds.R1.clinicalEpisodeId');
+    expect(patch).not.toHaveProperty('beds.R1.handoffNoteDayShift');
+    expect(patch).not.toHaveProperty('beds.R1.medicalHandoffNote');
+    expect(patch).not.toHaveProperty('bedTypeOverrides.R1');
   });
 
   it('keeps specialty updates exclusive so the server clears gineco-obstetric fields atomically', () => {

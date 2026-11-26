@@ -84,11 +84,21 @@ Los registros anteriores no contienen este marcador: no es posible atribuir retr
 edición manual sólo a partir del texto. Las pruebas acreditan la protección de las ediciones realizadas
 con esta versión; no acreditan una migración de autoría de diagnósticos históricos.
 
-### Documentos con letras (ID-01)
+### Documentos con letras y edición manual de identidad (ID-01, SRC-02)
 
-Un pasaporte nunca se convierte en RUT ni se compara como RUT. Un documento de Eloísa con una
-letra que no sea la K final es un pasaporte y se guarda como tal en los casos nuevos; un paciente
-ya guardado conserva su documento.
+Un pasaporte nunca se convierte en RUT ni se compara como RUT (tampoco si sus dígitos coinciden con
+un dígito verificador válido al guardar como «Pasaporte»). Un documento de Eloísa con una letra que
+no sea la K final —o informado explícitamente como pasaporte— es un pasaporte y se guarda como tal
+en los casos nuevos; un paciente ya guardado conserva su documento.
+
+Corregir a mano la identidad de una cama o cuna ocupada (cambiar entre RUT y Pasaporte, corregir el
+número de documento o el nombre) nunca borra el diagnóstico, la especialidad ni los demás datos
+clínicos, ni borra la referencia del episodio (`clinicalEpisodeId`): para reemplazar al ocupante de
+una cama se egresa, traslada o limpia la cama de forma explícita. Una edición manual del documento o
+de su tipo queda marcada con `documentManualOverride` (junto con el parche estructural y armonizada
+a días previos del mismo episodio), prevalece en sincronizaciones posteriores de Eloísa para ese
+mismo episodio —manteniendo la sincronización del resto de los datos clínicos— y se limpia al
+cambiar de episodio.
 
 ### Corrección demográfica de días anteriores (ID-01, ID-05)
 

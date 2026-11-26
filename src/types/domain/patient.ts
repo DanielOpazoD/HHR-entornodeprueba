@@ -81,6 +81,8 @@ export interface PatientData {
   identityStatus?: PatientIdentityStatus;
   rut: string;
   documentType?: 'RUT' | 'Pasaporte'; // Switcher
+  /** A deliberate local document edit (RUT/Pasaporte) survives subsequent Eloísa imports for this episode. */
+  documentManualOverride?: boolean;
   age: string;
   birthDate?: string;
   biologicalSex?: 'Masculino' | 'Femenino' | 'Indeterminado';

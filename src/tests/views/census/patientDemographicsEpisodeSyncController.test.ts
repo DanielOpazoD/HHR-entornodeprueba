@@ -481,6 +481,51 @@ describe('patientDemographicsEpisodeSyncController', () => {
     expect(updatePartial).toHaveBeenCalledExactlyOnceWith('2026-04-09', { 'beds.R4.age': '2d' });
   });
 
+  it('harmonizes manual Pasaporte and document number edits with documentManualOverride across earlier days of the same accredited episode', async () => {
+    const sourcePatient = DataFactory.createMockPatient('R1', {
+      patientName: 'Turista Sintética',
+      documentType: 'RUT',
+      rut: '55.667.788-4',
+      clinicalEpisodeId: 'ep_tourist',
+      firstSeenDate: '2026-04-09',
+      admissionDate: '2026-04-09',
+    });
+    const updatePartial = vi.fn().mockResolvedValue(undefined);
+
+    await harmonizeEpisodeDemographicsHistory({
+      currentDate: '2026-04-10',
+      sourcePatient,
+      updatedFields: {
+        documentType: 'Pasaporte',
+        rut: 'US556677884',
+      },
+      dailyRecordReadRepository: {
+        getAvailableDates: vi.fn().mockResolvedValue(['2026-04-09']),
+        getForDate: vi.fn().mockResolvedValue(
+          DataFactory.createMockDailyRecord('2026-04-09', {
+            beds: {
+              R1: DataFactory.createMockPatient('R1', {
+                patientName: 'Turista Sintética',
+                documentType: 'RUT',
+                rut: '55.667.788-4',
+                clinicalEpisodeId: 'ep_tourist',
+                firstSeenDate: '2026-04-09',
+                pathology: 'Diagnóstico sincronizado',
+              }),
+            },
+          })
+        ),
+      },
+      dailyRecordWriteRepository: { updatePartial },
+    });
+
+    expect(updatePartial).toHaveBeenCalledExactlyOnceWith('2026-04-09', {
+      'beds.R1.rut': 'US556677884',
+      'beds.R1.documentType': 'Pasaporte',
+      'beds.R1.documentManualOverride': true,
+    });
+  });
+
   it('does not correct the same RUT in an earlier day of another accredited episode', async () => {
     const updatePartial = await harmonizeOnDay(
       { ...adultWith('R1', 'RUT', '12.345.678-5'), clinicalEpisodeId: 'ep_A' },

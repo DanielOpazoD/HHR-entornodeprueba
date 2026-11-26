@@ -10,6 +10,7 @@ import {
 import type { PatientRowPatientPatch } from '@/features/census/components/patient-row/patientRowContracts';
 import { createScopedLogger, type ScopedLogger } from '@/services/utils/loggerScope';
 import { parseCalendarDateUtcNoon } from '@/utils/clinicalDateUtils';
+import { editsPatientDocumentIdentity } from '@/utils/patientDocumentIdentity';
 import { editsEloisaNameParts } from '@/utils/patientNamePartsSource';
 import { isValidRut, normalizeRut } from '@/utils/rutUtils';
 import { resolveAccreditedClinicalEpisodeId as accreditedEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
@@ -220,6 +221,12 @@ const buildDemographicsPatch = ({
   }
   if (editsEloisaNameParts(patient, updatedFields)) {
     patch[`${basePath}.namePartsSource`] = undefined;
+  }
+  if (
+    editsPatientDocumentIdentity(patient, updatedFields) &&
+    patient.documentManualOverride !== true
+  ) {
+    patch[`${basePath}.documentManualOverride`] = true;
   }
 
   return patch;

@@ -19,14 +19,10 @@ import {
   resolveNormalizedUpcFlag,
   resolveUpcClassificationFromChecklist,
 } from '@/shared/census/upcBedPolicy';
-import {
-  getClearClinicalDataPatches,
-  isDifferentPatientIdentity,
-  shouldAnchorFirstSeenDate,
-  shouldResetClinicalEpisodeOwnership,
-} from '@/hooks/controllers/bedManagementPatientIdentityPatchController';
+import { shouldAnchorFirstSeenDate } from '@/hooks/controllers/bedManagementPatientIdentityPatchController';
 import { buildClinicalCribDraft } from '@/hooks/controllers/clinicalCribController';
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
+import { editsPatientDocumentIdentity } from '@/utils/patientDocumentIdentity';
 import { editsEloisaNameParts } from '@/utils/patientNamePartsSource';
 
 /**
@@ -103,7 +99,7 @@ const buildPatientFieldPatches = ({
 }): Record<string, unknown> => {
   const patches: Record<string, unknown> = {};
   const manualDiagnosisPatches: Record<string, unknown> = {};
-  let hasIdentityChange = false;
+  const manualDocumentPatches: Record<string, unknown> = {};
   const updatesGinecobstetriciaType = Object.prototype.hasOwnProperty.call(
     updates,
     'ginecobstetriciaType'
@@ -118,16 +114,13 @@ const buildPatientFieldPatches = ({
     if (value !== currentPatient[key as keyof PatientData]) {
       markManualDiagnosis(manualDiagnosisPatches, `beds.${bedId}`, key);
     }
-
-    if (
-      (key === 'rut' || key === 'patientName') &&
-      value !== currentPatient[key as keyof PatientData]
-    ) {
-      hasIdentityChange = true;
-    }
   });
 
-  Object.assign(patches, manualDiagnosisPatches);
+  if (editsPatientDocumentIdentity(currentPatient, updates)) {
+    manualDocumentPatches[`beds.${bedId}.documentManualOverride`] = true;
+  }
+
+  Object.assign(patches, manualDiagnosisPatches, manualDocumentPatches);
   if (editsEloisaNameParts(currentPatient, updates)) {
     patches[`beds.${bedId}.namePartsSource`] = undefined;
   }
@@ -138,41 +131,15 @@ const buildPatientFieldPatches = ({
     currentPatient.clinicalEpisodeId !== updates.clinicalEpisodeId
   ) {
     patches[`beds.${bedId}.diagnosisManualOverride`] = undefined;
+    patches[`beds.${bedId}.documentManualOverride`] = undefined;
   }
 
+  // Corregir identidad (nombre, RUT o tipo de documento) en una cama ocupada
+  // nunca borra el diagnóstico ni suelta el clinicalEpisodeId: un reemplazo de
+  // paciente pasa siempre por egreso/traslado/limpieza explícita de la cama.
   const nextPatientName = String(updates.patientName ?? currentPatient.patientName ?? '');
   const nextRut = String(updates.rut ?? currentPatient.rut ?? '');
-  const hadPatientIdentity = Boolean(
-    String(currentPatient.patientName || '').trim() || String(currentPatient.rut || '').trim()
-  );
-  const identityChange = {
-    currentClinicalEpisodeId: currentPatient.clinicalEpisodeId,
-    currentPatientName: currentPatient.patientName,
-    currentRut: currentPatient.rut,
-    nextPatientName,
-    nextRut,
-    currentDocumentType: currentPatient.documentType,
-    nextDocumentType: updates.documentType ?? currentPatient.documentType,
-  };
-  const resetsClinicalEpisodeOwnership = shouldResetClinicalEpisodeOwnership(identityChange);
-
-  // La limpieza clínica de la cama es para un REEMPLAZO de persona, no para
-  // corregir el nombre del mismo paciente (mismo RUT): el heurístico anterior
-  // borraba el diagnóstico y volvía mixto el guardado demográfico.
-  const identityReplaced = hasIdentityChange && isDifferentPatientIdentity(identityChange);
-  if (identityReplaced && hadPatientIdentity) {
-    Object.assign(patches, getClearClinicalDataPatches(bedId));
-  }
-
-  if (resetsClinicalEpisodeOwnership) {
-    patches[`beds.${bedId}.clinicalEpisodeId`] = undefined;
-    // Episode classification starts pending until an explicit decision is confirmed
-    // on the new episode.
-    patches[`beds.${bedId}.specialty`] = '';
-    patches[`beds.${bedId}.specialtyAssignment`] = undefined;
-    patches[`beds.${bedId}.firstSeenDate`] =
-      nextPatientName.trim() || nextRut.trim() ? recordDate : undefined;
-  } else if (
+  if (
     shouldAnchorFirstSeenDate({
       currentPatientName: currentPatient.patientName,
       currentRut: currentPatient.rut,
@@ -307,18 +274,37 @@ export const buildClinicalCribMultipleFieldPatches = (
   // Mismo modal demográfico que la cama (reenvía el objeto completo): solo
   // viaja lo que realmente cambia respecto de la cuna vigente. Sin cuna aún,
   // todo es cambio.
-  const currentCrib = state.beds[bedId]?.clinicalCrib as Record<string, unknown> | undefined;
+  const currentCrib = state.beds[bedId]?.clinicalCrib;
+  const currentCribFields = currentCrib
+    ? new Map<string, unknown>(Object.entries(currentCrib))
+    : undefined;
   const patches: Record<string, unknown> = {};
   const manualDiagnosisPatches: Record<string, unknown> = {};
+  const manualDocumentPatches: Record<string, unknown> = {};
   Object.entries(fields).forEach(([key, value]) => {
-    if (currentCrib && arePatchValuesDeepEqual(value, currentCrib[key])) return;
+    if (currentCribFields && arePatchValuesDeepEqual(value, currentCribFields.get(key))) return;
     patches[`beds.${bedId}.clinicalCrib.${key}`] = value;
     markManualDiagnosis(manualDiagnosisPatches, `beds.${bedId}.clinicalCrib`, key);
   });
-  if (editsEloisaNameParts(currentCrib as Partial<PatientData> | undefined, fields)) {
+  if (
+    editsPatientDocumentIdentity(currentCrib, fields) &&
+    (currentCrib?.documentManualOverride !== true || fields.documentManualOverride === false)
+  ) {
+    manualDocumentPatches[`beds.${bedId}.clinicalCrib.documentManualOverride`] = true;
+  }
+  Object.assign(patches, manualDiagnosisPatches, manualDocumentPatches);
+  if (editsEloisaNameParts(currentCrib, fields)) {
     patches[`beds.${bedId}.clinicalCrib.namePartsSource`] = undefined;
   }
-  return Object.assign(patches, manualDiagnosisPatches) as DailyRecordPatch;
+  if (
+    currentCrib?.clinicalEpisodeId &&
+    fields.clinicalEpisodeId &&
+    currentCrib.clinicalEpisodeId !== fields.clinicalEpisodeId
+  ) {
+    patches[`beds.${bedId}.clinicalCrib.diagnosisManualOverride`] = undefined;
+    patches[`beds.${bedId}.clinicalCrib.documentManualOverride`] = undefined;
+  }
+  return patches as DailyRecordPatch;
 };
 
 export const buildUpdatePatientPatches = (
@@ -425,15 +411,19 @@ export const buildUpdateClinicalCribPatches = (
   field: keyof PatientData,
   value: PatientFieldValue
 ): DailyRecordPatch => {
+  const currentCrib = state.beds[bedId]?.clinicalCrib;
+  const update = { [field]: value } as Partial<PatientData>;
   const patches: Record<string, unknown> = {
     [`beds.${bedId}.clinicalCrib.${field}`]: value,
   };
   markManualDiagnosis(patches, `beds.${bedId}.clinicalCrib`, field);
   if (
-    editsEloisaNameParts(state.beds[bedId]?.clinicalCrib, {
-      [field]: value,
-    } as Partial<PatientData>)
+    editsPatientDocumentIdentity(currentCrib, update) &&
+    currentCrib?.documentManualOverride !== true
   ) {
+    patches[`beds.${bedId}.clinicalCrib.documentManualOverride`] = true;
+  }
+  if (editsEloisaNameParts(currentCrib, update)) {
     patches[`beds.${bedId}.clinicalCrib.namePartsSource`] = undefined;
   }
   return patches as DailyRecordPatch;

@@ -45,6 +45,9 @@ const isEncounter = (value: unknown): value is RayenEncounter => {
       'treatingPhysicianId',
       'treatingPhysicianName',
     ].every(field => candidate[field] === undefined || typeof candidate[field] === 'string') &&
+    (candidate.documentType === undefined ||
+      candidate.documentType === 'RUT' ||
+      candidate.documentType === 'Pasaporte') &&
     ['hasMedicalDischarge', 'hasNurseDischarge', 'isDead', 'isIsolated', 'isGes'].every(
       field => candidate[field] === undefined || typeof candidate[field] === 'boolean'
     ) &&
