@@ -78,7 +78,7 @@ const createScorecardRoot = () => {
   });
   writeJson(root, 'reports/guardrail-governance.json', {
     generatedAt: '2026-04-10T00:00:00.000Z',
-    blockingTierCount: 4,
+    qualityCheckCount: 30,
     reportOnlyCount: 13,
   });
   writeJson(root, 'reports/legacy-retirement-debt.json', {

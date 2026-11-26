@@ -19,12 +19,6 @@ it('runs census, library, pharmacy, clinical-panel, sync-navigation and DICOM/ca
   expect(scripts['ci:preview-smoke:built']).toContain('PLAYWRIGHT_SKIP_PREVIEW_BUILD=1');
   expect(scripts['ci:preview-smoke:built']).toContain('-c playwright.preview.config.ts');
   expect(readPreviewSmokeSpecs().length).toBeGreaterThanOrEqual(9);
-  expect(scripts['ci:preview-gate'].split(' && ')).toEqual([
-    'npm run check:bundle-budget',
-    'npm run check:chunk-graph',
-    'npm run check:runtime-asset-margin',
-    'npm run ci:preview-smoke:built',
-  ]);
   // CI runs the same pack in parallel lanes and merges one canonical report.
   expect(fs.existsSync('.github/workflows/preview.yml')).toBe(false);
   const ownership = JSON.parse(fs.readFileSync('scripts/config/e2e-test-ownership.json', 'utf8'));

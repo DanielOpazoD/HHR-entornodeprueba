@@ -133,7 +133,6 @@ import { useDailyRecord } from '@/hooks/useDailyRecord';
 - [Gates de CI, guardrails, checklist de cierre y runbooks](docs/CI_GATES_AND_FAILURE_RUNBOOKS.md)
 - Scorecard de release readiness: generar con `npm run report:release-readiness-scorecard`
 - Gobernanza de guardrails: generar con `npm run report:guardrail-governance`
-- [Política de cambio sostenible](scripts/config/sustainable-change-policy.json)
 - [Política de decisión para cambios de ingeniería](docs/ENGINEERING_CHANGE_DECISION_POLICY.md)
 - [Registro de deuda técnica](docs/TECHNICAL_DEBT_REGISTER.md)
 - [ADR Repository Provider obligatorio](docs/ADR_REPOSITORY_PROVIDER_REQUIRED.md)

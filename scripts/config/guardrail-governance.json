@@ -1,58 +1,6 @@
 {
   "version": 1,
-  "blockingTiers": [
-    {
-      "id": "inner_loop",
-      "label": "Inner Loop",
-      "script": "ci:inner-loop",
-      "level": "inner-loop",
-      "requiredScripts": ["typecheck", "lint", "check:quality", "test:unit:critical"],
-      "purpose": "Feedback local rapido sobre tipado, lint, boundaries y riesgos unitarios criticos."
-    },
-    {
-      "id": "merge_gate",
-      "label": "Pre Merge",
-      "script": "ci:pre-merge",
-      "level": "merge-gate",
-      "requiredScripts": ["typecheck", "lint", "check:quality", "test:ci:unit"],
-      "purpose": "Verificacion compacta obligatoria antes de merge para tipado, lint, guardrails y suite unitaria/integracion."
-    },
-    {
-      "id": "merge_gate_extended",
-      "label": "Merge Gate",
-      "script": "ci:merge-gate",
-      "level": "merge-gate",
-      "requiredScripts": [
-        "ci:pre-merge",
-        "check:critical-coverage",
-        "check:netlify-functions-bundle",
-        "build",
-        "ci:preview-gate"
-      ],
-      "purpose": "Proteccion blocking previa a merge para codigo clinico, auth, storage y bundle, incluyendo chunk graph y smoke de preview del bundle real."
-    },
-    {
-      "id": "preview_gate",
-      "label": "Preview Gate",
-      "script": "ci:preview-gate",
-      "level": "merge-gate",
-      "requiredScripts": [
-        "check:bundle-budget",
-        "check:chunk-graph",
-        "check:runtime-asset-margin",
-        "ci:preview-smoke:built"
-      ],
-      "purpose": "Valida budgets, chunk graph aciclico, bootstrap del censo y biblioteca clinica sobre el bundle productivo en preview local."
-    },
-    {
-      "id": "release_gate",
-      "label": "Release Gate",
-      "script": "ci:release-gate",
-      "level": "release-gate",
-      "requiredScripts": ["ci:merge-gate", "check:release-evidence", "test:firestore:release:ci"],
-      "purpose": "Validacion final con emuladores, reglas Firestore y E2E criticos."
-    }
-  ],
+  "blockingTiers": [],
   "releaseConfidence": {
     "script": "test:release-confidence",
     "requiredScripts": [
@@ -169,7 +117,7 @@
         "id": "check:report-freshness",
         "group": "reports",
         "reportOnly": true,
-        "rationale": "Surfaces stale report artifacts as advisory in the inner loop; ci:release-gate already regenerates and enforces them blocking. Avoids forcing a 30s+ regeneration on every check:quality run."
+        "rationale": "Surfaces stale report artifacts as advisory locally; CI already regenerates and enforces them blocking. Avoids forcing a 30s+ regeneration on every check:quality run."
       },
       { "id": "check:repo-hygiene", "group": "hygiene" },
       { "id": "check:clinical-mutation-audit-policy", "group": "security" },

@@ -87,7 +87,6 @@ export const collectFirestoreEmulatorGovernanceIssues = (root = process.cwd()) =
     'scripts/run-firestore-cma-specialty-ci.sh',
     issues
   );
-  requireScript(scripts, 'ci:release-gate', 'npm run test:firestore:release:ci', issues);
 
   const releasePack = readJson(root, 'scripts/config/release-confidence-pack.json', issues);
   const blockingProfile = Array.isArray(releasePack?.profiles?.blocking)

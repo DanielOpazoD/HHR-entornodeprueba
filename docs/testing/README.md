@@ -40,11 +40,9 @@ Superficie pública mínima recomendada para trabajo diario: [docs/DEVELOPER_COM
 | `npm run check:ci-runtime-telemetry`         | Valida el contrato estructural del runtime observado; los desbalances aislados son advisory-first                         |
 | `npm run check:test-runtime-governance`      | Verifica el contrato PR vs nightly, shards, budgets y watchlist de fixtures duplicadas                                    |
 | `npm run report:test-runtime-governance`     | Genera `reports/test-runtime-governance.*` con señales de runtime lento y duplicación de fixtures                         |
-| `npm run ci:inner-loop`                      | Ruta rápida para desarrollo diario                                                                                        |
-| `npm run ci:pre-merge`                       | Verificación compacta obligatoria antes de merge                                                                          |
-| `npm run ci:preview-gate`                    | Gate productivo del bundle real: budgets, grafo de chunks y smoke preview local                                           |
-| `npm run ci:merge-gate`                      | Ruta blocking ampliada previa a merge                                                                                     |
-| `npm run ci:release-gate`                    | Ruta completa con Firestore + E2E                                                                                         |
+| `npm run check:changed`                      | Controles formales sobre lo cambiado antes de subir (`pre-push`)                                                          |
+| `npm run test:changed`                       | Pruebas unitarias que alcanzan lo cambiado                                                                                |
+| `npm run test:release-confidence`            | Pack blocking compacto con reglas, emulador sync, cobertura crítica y E2E críticos                                        |
 
 `npm run test:clinical-replay` recorre el puente correlacionado, la reconciliación,
 el enriquecimiento y la auditoría persistida con datos sintéticos. Incluye CUDYR
@@ -58,7 +56,7 @@ comprobación real de la extensión en Chrome.
 | -------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------- |
 | Solo documentación permitida                                   | `npm run check:docs-drift && npm run check:operational-runbooks` | `docs-only`            |
 | Solo fuente de Firebase Functions                              | secuencia completa de Functions indicada abajo                   | `functions-only`       |
-| Aplicación, dependencias, configuración, reglas o cambio mixto | `npm run ci:pre-merge` y el gate adicional según riesgo          | `full`                 |
+| Aplicación, dependencias, configuración, reglas o cambio mixto | `npm run check:changed` y pruebas focalizadas del área tocada    | `full`                 |
 
 Para reproducir localmente el gate `functions-only`, usar Node.js 22 y ejecutar:
 
@@ -123,12 +121,10 @@ El budget diferencia entre:
 
 ## 5. Criterio práctico
 
-1. Si la change es local o todavía exploratoria, correr `npm run ci:inner-loop`.
-2. Antes de merge, correr al menos `npm run ci:pre-merge`.
-3. Si toca código clínico, runtime, bundle o cobertura, cerrar con `npm run ci:merge-gate`.
-4. Si toca Firestore, reglas, emulador o UX crítica, cerrar con `npm run ci:release-gate`.
-
-`ci:merge-gate` ya incorpora `ci:preview-gate`, que hoy es la fuente de verdad para validar que el bundle productivo realmente monta en preview local sin blank page silenciosa.
+1. Durante la edición, ejecutar pruebas focalizadas del módulo tocado o `npm run test:changed`.
+2. Antes de subir, ejecutar `npm run check:changed` (también corre en `pre-push`).
+3. Si el cambio toca reglas Firestore/Storage o emulador, correr el archivo puntual con `npm run test:emulator:file -- <ruta>` o `npm run test:rules:ci`.
+4. Dejar que CI del SHA final (`ci-summary`) acredite la matriz completa (`quality-static`, `unit-risk`, `build-budget`, `preview-smoke-lanes`, emuladores y `e2e-critical`) sin repetirla localmente.
 
 Los demás scripts de este documento deben tratarse como validaciones especializadas, no como superficie pública mínima.
 
