@@ -52,7 +52,7 @@ describe('CI static group scheduling', () => {
       )
     ).toBe(true);
     expect(jobNeeds(jobs['quality-static-governance-snapshots'])).toContain('quality-static-base');
-    expect(jobNeeds(jobs.build)).toEqual(['quality-static-governance-snapshots']);
+    expect(jobNeeds(jobs.build)).toEqual(['ci-scope']);
   });
   it('enforces noUncheckedIndexedAccess natively on production src, Netlify functions, and Cloud Functions in typecheck', () => {
     const readJson = (file: string) =>

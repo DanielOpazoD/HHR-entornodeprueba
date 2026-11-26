@@ -905,10 +905,11 @@ la acción por `setup-node` + `npm ci` en esos cuatro jobs y retirar su acción 
 
 ### Una sola validación de vista previa
 
-El pack `ci:preview-smoke:built` se valida una vez por run, ahora en carriles
-paralelos. `preview-build` arranca junto con los demás gates (necesita sólo
-`ci-scope`), compila el commit una vez y sube `dist/` como artefacto `preview-dist`.
-Cada carril de `preview-smoke-lanes` lo descarga y ejecuta un tramo del pack:
+El pack `ci:preview-smoke:built` se valida una vez por run, en carriles
+paralelos. `build-budget` arranca junto con los demás gates (necesita sólo
+`ci-scope`), compila el commit una vez, verifica presupuestos y sube `dist/` como
+artefacto `dist`. Cada carril de `preview-smoke-lanes` descarga ese mismo bundle y
+ejecuta un tramo del pack:
 `app` (censo, biblioteca, panel clínico, historial y arrastre clínico),
 `dicom-graphics-stress` (la prueba etiquetada `@graphics-stress`: el ciclo de estrés
 de WebGL por software) y los tres tercios `dicom-1`/`dicom-2`/`dicom-3` del resto del
@@ -921,8 +922,7 @@ carriles terminaran bien y compara el informe fusionado con
 `playwright test --list` del pack completo: cada prueba canónica debe ejecutarse
 exactamente una vez (`check-preview-smoke-completeness.mjs`). Después registra la
 procedencia (productor `final-confidence-and-readiness`) y publica `preview-bootstrap-artifacts`
-para la comprobación final y posterior al merge. `build-budget` conserva el build con
-la evidencia de release, budgets, grafo de chunks y `dist`, sin el smoke.
+para la comprobación final y posterior al merge.
 
 Cada carril sube su blob, que ya es un zip, con `archive: false`; `final-confidence-and-readiness`
 lo baja con `download-artifact@v8` y `skip-decompress: true`. Al comprimirlo de
@@ -932,11 +932,9 @@ artefactos intactos ("Artifact download failed after 5 retries"). Así ocurrió 
 dos runs de `main` el 2026-10-22 UTC; un reintento no lo resuelve porque depende
 del contenido del blob.
 
-Los carriles sirven el bundle de `preview-build`. Sólo difiere de `build-budget`
-en `release-evidence.json`, que no entra en el precache, y Netlify vuelve a compilar
-al desplegar, así que el smoke nunca validó el artefacto desplegado. Si `preview-build`
+Los carriles sirven el bundle único de `build-budget`. Si `build-budget`
 falla, los carriles igual arrancan y fallan en su primer paso (`Require the shared
-preview bundle`): un carril saltado se vería verde en la lista de checks, y
+production bundle`): un carril saltado se vería verde en la lista de checks, y
 `ci-summary` exige que `preview-smoke-lanes` termine en `success`. Localmente,
 `ci:preview-gate` sigue ejecutando el pack completo en serie. `ci-summary` exige
 `build-budget`, `preview-smoke-lanes` y `final-confidence-and-readiness`; los cambios `docs-only` y `functions-only` conservan
@@ -949,10 +947,9 @@ así que el camino crítico del PR era de unos 24 min. Comparar el tiempo total 
 y el carril más lento en revisiones equivalentes; si un carril pasa de ~5 min,
 reequilibrar en `previewSmokeLaneSupport.mjs`.
 
-Un solo build de vista previa: antes cada carril compilaba su propio bundle (5 builds
-de 70–112 s por run completo; 393–430 s de runner en los runs 44409822035,
-44419234480 y 44465097007). `preview-build` compila una vez y los carriles sólo
-descargan `preview-dist`.
+Un solo build de vista previa: `build-budget` compila una vez desde `ci-scope` sin
+esperar snapshots de gobernanza y los carriles de vista previa, Lighthouse y
+`postmerge-evidence` reutilizan el mismo artefacto `dist`.
 
 Owner: CI HHR. Reversión: devolver el paso `npm run ci:preview-smoke:built` y la
 subida de `preview-bootstrap-artifacts` a `build-budget`, con productor `build`.

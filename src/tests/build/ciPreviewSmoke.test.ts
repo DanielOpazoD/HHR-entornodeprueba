@@ -41,24 +41,25 @@ it('runs census, library, pharmacy, clinical-panel, sync-navigation and DICOM/ca
     )
   ).toEqual([]);
   const { jobs } = parseWorkflow(fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8'));
-  // One job builds the preview bundle; every lane serves that same artifact.
-  const previewBuild = jobs['preview-build'];
-  expect(previewBuild.needs).toEqual(['ci-scope']);
-  const buildRuns = previewBuild.steps.map(step => step.run ?? '');
-  const bundleUpload = previewBuild.steps.findIndex(step => step.with?.name === 'preview-dist');
+  // One job builds the production bundle; every preview lane serves that same dist artifact.
+  expect(jobs['preview-build']).toBeUndefined();
+  const buildJob = jobs.build;
+  expect(buildJob.needs).toEqual(['ci-scope']);
+  const buildRuns = buildJob.steps.map(step => step.run ?? '');
+  const bundleUpload = buildJob.steps.findIndex(step => step.with?.name === 'dist');
   expect(buildRuns.indexOf('npm run build')).toBeGreaterThanOrEqual(0);
   expect(buildRuns.indexOf('npm run build')).toBeLessThan(bundleUpload);
-  expect(previewBuild.steps[bundleUpload]).toMatchObject({
+  expect(buildJob.steps[bundleUpload]).toMatchObject({
     uses: 'actions/upload-artifact@v7',
     with: { path: 'dist/', 'if-no-files-found': 'error' },
   });
   const lanes = jobs['preview-smoke-lanes'];
-  expect(lanes.needs).toEqual(['ci-scope', 'preview-build']);
+  expect(lanes.needs).toEqual(['ci-scope', 'build']);
   expect(lanes.strategy?.['fail-fast']).toBe(false);
   expect(lanes.strategy?.matrix.lane).toEqual(PREVIEW_SMOKE_LANE_NAMES);
   const laneRuns = lanes.steps.map(step => step.run ?? '');
   expect(laneRuns).not.toContain('npm run build');
-  const bundleDownload = lanes.steps.findIndex(step => step.with?.name === 'preview-dist');
+  const bundleDownload = lanes.steps.findIndex(step => step.with?.name === 'dist');
   expect(lanes.steps[bundleDownload]).toMatchObject({
     uses: 'actions/download-artifact@v7',
     with: { path: 'dist' },
@@ -68,7 +69,7 @@ it('runs census, library, pharmacy, clinical-panel, sync-navigation and DICOM/ca
   );
   // A failed bundle fails every lane instead of skipping them, which would look green.
   expect(lanes.if).toBe("${{ !cancelled() && needs.ci-scope.outputs.scope == 'full' }}");
-  expect(lanes.steps[0]).toMatchObject({ if: "needs.preview-build.result != 'success'" });
+  expect(lanes.steps[0]).toMatchObject({ if: "needs.build.result != 'success'" });
   expect(lanes.steps[0].run).toContain('exit 1');
 
   expect(fs.readFileSync('playwright.preview.config.ts', 'utf8')).toContain(

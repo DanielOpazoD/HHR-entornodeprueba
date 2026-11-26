@@ -93,7 +93,6 @@
     "check:release-evidence": "npm run check:report-freshness:strict && npm run check:release-evidence-contract:strict && node scripts/check-release-evidence.mjs",
     "check:release-evidence-contract": "node scripts/check-release-evidence-contract.mjs",
     "check:release-evidence-contract:strict": "node scripts/check-release-evidence-contract.mjs --strict",
-    "check:release-evidence-contract:built": "node scripts/check-release-evidence-contract.mjs --strict --built-asset",
     "check:clinical-release-signoff": "node scripts/check-clinical-release-signoff.mjs",
     "check:guardrail-governance": "node scripts/check-guardrail-governance.mjs",
     "check:report-freshness": "node scripts/check-report-freshness.mjs",

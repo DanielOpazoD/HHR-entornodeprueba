@@ -4,9 +4,6 @@ import {
   PREVIEW_BOOTSTRAP_PRODUCER_JOB,
 } from './previewBootstrapEvidenceSupport.mjs';
 
-export const RELEASE_EVIDENCE_RUNTIME_ARTIFACT = 'release-evidence-runtime';
-export const RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB = 'quality-static-governance-snapshots';
-export const RELEASE_EVIDENCE_RUNTIME_PATH = 'reports/release-evidence-runtime';
 export const CRITICAL_COVERAGE_ARTIFACT = 'critical-coverage';
 export const CRITICAL_COVERAGE_PRODUCER_JOB = 'critical-coverage-report';
 
@@ -132,12 +129,6 @@ const isBefore = (left, right) =>
 
 const normalizePath = artifactPath => String(artifactPath || '').replace(/\/+$/, '');
 
-const isPathWithin = (candidatePath, rootPath) => {
-  const candidate = normalizePath(candidatePath);
-  const root = normalizePath(rootPath);
-  return candidate === root || candidate.startsWith(`${root}/`);
-};
-
 export const collectCiArtifactContractIssues = workflowText => {
   const jobs = parseWorkflowJobs(workflowText);
   const uploads = collectArtifactUploads(jobs);
@@ -202,16 +193,6 @@ export const collectCiArtifactContractIssues = workflowText => {
   }
 
   const postmergeJob = jobs.get('postmerge-evidence');
-  const releaseEvidenceProducerJob = jobs.get(RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB);
-  const releaseEvidenceContractIsReferenced = workflowText.includes(
-    RELEASE_EVIDENCE_RUNTIME_ARTIFACT
-  );
-  if (releaseEvidenceContractIsReferenced && !releaseEvidenceProducerJob) {
-    issues.push(
-      `Missing required producer job "${RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB}" for ` +
-        `artifact "${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}".`
-    );
-  }
   if (postmergeJob) {
     if (!runPosition(postmergeJob, 'npm run check:ci-artifact-contracts')) {
       issues.push(
@@ -244,10 +225,6 @@ export const collectCiArtifactContractIssues = workflowText => {
     const downloadPreview = downloadPosition(postmergeJob, PREVIEW_BOOTSTRAP_ARTIFACT);
     const validatePreview = runPosition(postmergeJob, 'npm run check:preview-bootstrap-evidence');
     const generateEvidence = runPosition(postmergeJob, 'npm run postmerge:evidence');
-    const builtContract = runPosition(
-      postmergeJob,
-      'npm run check:release-evidence-contract:built'
-    );
 
     if (!verifyPreview) {
       issues.push(
@@ -268,7 +245,7 @@ export const collectCiArtifactContractIssues = workflowText => {
       }
     }
 
-    if (releaseEvidenceProducerJob) {
+    if (jobs.get(CRITICAL_COVERAGE_PRODUCER_JOB)) {
       const criticalCoverageDownload = downloads.find(
         download =>
           download.jobName === 'postmerge-evidence' && download.name === CRITICAL_COVERAGE_ARTIFACT
@@ -295,123 +272,6 @@ export const collectCiArtifactContractIssues = workflowText => {
       if (isBefore(generateEvidence, downloadCriticalCoverage)) {
         issues.push(
           'postmerge-evidence: must download critical coverage before generating evidence.'
-        );
-      }
-      if (!builtContract) {
-        issues.push('postmerge-evidence: must validate the release evidence embedded in dist.');
-      } else if (isBefore(generateEvidence, builtContract)) {
-        issues.push(
-          'postmerge-evidence: must validate built release evidence before regenerating reports.'
-        );
-      }
-    }
-  }
-
-  if (releaseEvidenceProducerJob) {
-    const runtimeUploads = uploads.filter(
-      upload => upload.name === RELEASE_EVIDENCE_RUNTIME_ARTIFACT
-    );
-    if (runtimeUploads.length !== 1) {
-      issues.push(
-        `${RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB}: must upload exactly one ` +
-          `"${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}" artifact.`
-      );
-    }
-    for (const upload of runtimeUploads) {
-      if (upload.jobName !== RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB) {
-        issues.push(
-          `${upload.jobName}: uploads "${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}"; expected producer ` +
-            `"${RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB}".`
-        );
-      }
-      if (normalizePath(upload.path) !== RELEASE_EVIDENCE_RUNTIME_PATH) {
-        issues.push(
-          `${upload.jobName}: release evidence runtime artifact must upload from ` +
-            `"${RELEASE_EVIDENCE_RUNTIME_PATH}".`
-        );
-      }
-      if (!upload.beforeActionBody.includes('npm run report:release-evidence-contract')) {
-        issues.push(`${upload.jobName}: uploads release evidence without generating its contract.`);
-      }
-      if (!upload.beforeActionBody.includes('npm run check:release-evidence-contract:strict')) {
-        issues.push(`${upload.jobName}: uploads release evidence without strict validation.`);
-      }
-    }
-
-    const buildJob = jobs.get('build');
-    if (buildJob) {
-      const runtimeDownload = downloads.find(
-        download =>
-          download.jobName === 'build' && download.name === RELEASE_EVIDENCE_RUNTIME_ARTIFACT
-      );
-      if (!runtimeDownload) {
-        issues.push(`build: must download artifact "${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}".`);
-      } else {
-        if (normalizePath(runtimeDownload.path) !== RELEASE_EVIDENCE_RUNTIME_PATH) {
-          issues.push(
-            `build: release evidence runtime must download to "${RELEASE_EVIDENCE_RUNTIME_PATH}".`
-          );
-        }
-        const runtimeDownloadPosition = downloadPosition(
-          buildJob,
-          RELEASE_EVIDENCE_RUNTIME_ARTIFACT
-        );
-        const productionBuild = runPosition(buildJob, 'npm run build');
-        if (!productionBuild) {
-          issues.push('build: must run npm run build after downloading release evidence.');
-        } else if (isBefore(productionBuild, runtimeDownloadPosition)) {
-          issues.push('build: must download release evidence before building production assets.');
-        }
-      }
-    }
-
-    if (postmergeJob) {
-      const postmergeRuntimeUploads = uploads.filter(
-        upload =>
-          upload.jobName === 'postmerge-evidence' &&
-          isPathWithin(upload.path, RELEASE_EVIDENCE_RUNTIME_PATH)
-      );
-      if (postmergeRuntimeUploads.length > 0) {
-        issues.push(
-          'postmerge-evidence: must not republish regenerated release evidence as the build runtime contract.'
-        );
-      }
-      const runtimeDownload = downloads.find(
-        download =>
-          download.jobName === 'postmerge-evidence' &&
-          download.name === RELEASE_EVIDENCE_RUNTIME_ARTIFACT
-      );
-      const verifyRuntimeCommand =
-        `scripts/verify-github-run-artifact.mjs --artifact ${RELEASE_EVIDENCE_RUNTIME_ARTIFACT} ` +
-        `--producer ${RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB}`;
-      const verifyRuntime = runPosition(postmergeJob, verifyRuntimeCommand);
-      const downloadRuntime = downloadPosition(postmergeJob, RELEASE_EVIDENCE_RUNTIME_ARTIFACT);
-      const builtContract = runPosition(
-        postmergeJob,
-        'npm run check:release-evidence-contract:built'
-      );
-
-      if (!runtimeDownload) {
-        issues.push(
-          `postmerge-evidence: must download artifact "${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}".`
-        );
-      } else if (normalizePath(runtimeDownload.path) !== RELEASE_EVIDENCE_RUNTIME_PATH) {
-        issues.push(
-          `postmerge-evidence: release evidence runtime must download to ` +
-            `"${RELEASE_EVIDENCE_RUNTIME_PATH}".`
-        );
-      }
-      if (!verifyRuntime) {
-        issues.push(
-          `postmerge-evidence: must verify "${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}" from producer ` +
-            `"${RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB}".`
-        );
-      } else if (isBefore(downloadRuntime, verifyRuntime)) {
-        issues.push('postmerge-evidence: must verify release evidence before downloading it.');
-      }
-      if (isBefore(builtContract, downloadRuntime)) {
-        issues.push(
-          'postmerge-evidence: validates built release evidence before downloading its source.'
         );
       }
     }

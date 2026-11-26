@@ -185,12 +185,7 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
   }),
   'release-evidence-contract': reportNode({
     command: 'report:release-evidence-contract',
-    artifacts: [
-      'reports/release-evidence-contract.json',
-      'reports/release-evidence-contract.md',
-      'reports/release-evidence-runtime/release-evidence-contract.json',
-      'reports/release-evidence-runtime/release-evidence.json',
-    ],
+    artifacts: ['reports/release-evidence-contract.json', 'reports/release-evidence-contract.md'],
     dependencies: [
       'critical-coverage',
       'quality-metrics',
