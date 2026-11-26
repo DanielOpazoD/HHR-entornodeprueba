@@ -223,10 +223,17 @@ const createMmradDicomSantiagoHandler =
     } catch (error) {
       if (error instanceof BoundedResponseTooLargeError) return tooLarge();
       if (departed.signal.aborted) return undefined;
+      const errorName =
+        typeof error === 'object' &&
+        error !== null &&
+        'name' in error &&
+        typeof error.name === 'string'
+          ? error.name
+          : '';
       const transient =
         !receivedHeaders ||
         error instanceof TypeError ||
-        ['AbortError', 'TimeoutError'].includes(error?.name);
+        ['AbortError', 'TimeoutError'].includes(errorName);
       return json(transient ? 502 : 422, {
         error: 'No se pudo descargar el original DICOM desde MMRAD.',
       });

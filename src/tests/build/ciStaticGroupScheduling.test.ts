@@ -62,6 +62,9 @@ describe('CI static group scheduling', () => {
     expect(readJson('functions/tsconfig.json').compilerOptions?.noUncheckedIndexedAccess).toBe(
       true
     );
+    expect(readJson('functions/tsconfig.json').compilerOptions?.useUnknownInCatchVariables).toBe(
+      true
+    );
     const scripts = readJson('package.json').scripts as Record<string, string>;
     for (const key of ['typecheck', 'typecheck:local']) {
       expect(scripts[key]).toContain('-p tsconfig.prod.json');

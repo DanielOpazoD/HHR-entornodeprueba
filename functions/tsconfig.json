@@ -7,6 +7,7 @@
     "checkJs": true,
     "strictNullChecks": true,
     "noUncheckedIndexedAccess": true,
+    "useUnknownInCatchVariables": true,
     "noEmit": true,
     "resolveJsonModule": true,
     "skipLibCheck": true

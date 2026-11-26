@@ -298,7 +298,16 @@ const createMedicalHandoffSpreadsheetFunctions = ({
       try {
         result = parseGatewayResponse(gatewayResponse);
       } catch (error) {
-        auditFailure(error?.details?.reason || 'invalid_response');
+        const errorDetails =
+          typeof error === 'object' && error !== null && 'details' in error ? error.details : null;
+        const failureReason =
+          typeof errorDetails === 'object' &&
+          errorDetails !== null &&
+          'reason' in errorDetails &&
+          errorDetails.reason
+            ? errorDetails.reason
+            : 'invalid_response';
+        auditFailure(failureReason);
         throw error;
       }
       auditLogger({

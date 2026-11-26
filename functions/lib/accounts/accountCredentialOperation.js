@@ -1,4 +1,4 @@
-const { ACCESS, genericFailure, randomUUID } = require('./accountPolicy');
+const { ACCESS, genericFailure, isAuthUserNotFound, randomUUID } = require('./accountPolicy');
 
 // Longer than the callable's 60-second lifetime. Recovery never overlaps its prior worker.
 const RECOVERY_DELAY_MS = 5 * 60 * 1000;
@@ -37,7 +37,7 @@ const repairCredentialOperation = async ({ auth, firestore, now }, uid) => {
   try {
     await auth.getUser(uid);
   } catch (error) {
-    if (error.code !== 'auth/user-not-found') throw error;
+    if (!isAuthUserNotFound(error)) throw error;
     const { newSecret } = require('./accountPolicy');
     await auth.createUser({
       uid,

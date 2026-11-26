@@ -1,6 +1,12 @@
 const { HttpsError } = require('firebase-functions/v2/https');
 const { MANAGED_ASSIGNABLE_ROLES } = require('../auth/authConfig');
-const { ACCESS, genericFailure, randomUUID, newSecret } = require('./accountPolicy');
+const {
+  ACCESS,
+  genericFailure,
+  isAuthUserNotFound,
+  randomUUID,
+  newSecret,
+} = require('./accountPolicy');
 const {
   credentialLock,
   completeCredentialOperation,
@@ -106,7 +112,7 @@ const manageAccountProfile = async ({ auth, firestore, now }, data, context) => 
     try {
       await auth.deleteUser(uid);
     } catch (error) {
-      if (error.code !== 'auth/user-not-found') throw error;
+      if (!isAuthUserNotFound(error)) throw error;
     }
     await completeCredentialOperation(firestore, uid, operationId);
     return { success: true };
