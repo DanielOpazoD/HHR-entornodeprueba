@@ -87,6 +87,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
     dataQualityIssues,
     reclassifications,
     reclassificationsError = null,
+    remoteStatsWarning = null,
     isReclassificationsVerified = !reclassificationsError,
     canExportExcel = Boolean(stats) && isReclassificationsVerified,
     saveReclassification,
@@ -118,7 +119,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
         analyticsViewLogger.error('Error saving specialty reclassification', err);
         notifyError(
           'No se pudo confirmar la reclasificación',
-          'Ocurrió un error al guardar el cambio. Se recargó el estado actual desde el servidor.'
+          'Ocurrió un error al guardar el cambio. Verifica el estado vigente en pantalla antes de exportar.'
         );
       }
     },
@@ -247,7 +248,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
         </div>
       </header>
 
-      {reclassificationsError && (
+      {(reclassificationsError || remoteStatsWarning) && (
         <div
           role="alert"
           className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
@@ -256,11 +257,14 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
             <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold">
-                No se pudieron verificar las reclasificaciones de especialidad.
+                {reclassificationsError
+                  ? 'No se pudieron verificar las reclasificaciones de especialidad.'
+                  : 'No se pudieron actualizar las estadísticas remotas del período.'}
               </p>
               <p className="text-amber-800 mt-0.5">
-                La distribución por especialidad no está verificada y la exportación a Excel MINSAL
-                permanece deshabilitada hasta recuperar la lectura.
+                {reclassificationsError
+                  ? 'La distribución por especialidad no está verificada y la exportación a Excel MINSAL permanece deshabilitada hasta recuperar la lectura.'
+                  : `${remoteStatsWarning} La exportación a Excel MINSAL permanece deshabilitada hasta recuperar la lectura.`}
               </p>
             </div>
           </div>

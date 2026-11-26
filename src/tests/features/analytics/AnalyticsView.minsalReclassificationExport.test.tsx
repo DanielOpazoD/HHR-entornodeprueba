@@ -369,6 +369,92 @@ describe('AnalyticsView MINSAL specialty reclassification export verification', 
     await expect(readSpecialtyDischargeRows(blob)).resolves.toEqual([['Cirugía', 1]]);
   });
 
+  it('does not claim a successful server reload when both save and post-save reread fail', async () => {
+    mockSaveReclassification.mockRejectedValue(new Error('synthetic audit unavailable'));
+    mockFetchReclassifications
+      .mockResolvedValueOnce([])
+      .mockRejectedValue(new Error('reclassifications unavailable'));
+
+    renderAnalyticsView();
+
+    await screen.findByRole('button', { name: /Exportar Excel/i });
+    fireEvent.click(screen.getByRole('tab', { name: 'Especialidades' }));
+    fireEvent.change(screen.getByLabelText('Reclasificar Paciente Sintético'), {
+      target: { value: 'Cirugía' },
+    });
+
+    await waitFor(() => expect(mockNotifyError).toHaveBeenCalledTimes(1));
+    expect(String(mockNotifyError.mock.calls[0]?.[1] ?? '')).not.toMatch(
+      /Se recargó el estado actual desde el servidor/i
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Exportar Excel/i })).toBeDisabled()
+    );
+  });
+
+  it('retains last visible remote figures and blocks export when connectivity drops after reclassifications succeed but before the refreshed aggregate arrives', async () => {
+    mockFetchRecordsRangeSorted.mockResolvedValue([]);
+    mockSyncRecordsRange.mockResolvedValue([]);
+    mockFetchReclassifications.mockResolvedValueOnce([]).mockImplementationOnce(async () => {
+      onlineManager.setOnline(false);
+      return [];
+    });
+    mockCallable.mockResolvedValue({
+      data: {
+        periodStart: recordDate,
+        periodEnd: recordDate,
+        totalDays: 1,
+        calendarDays: 1,
+        diasCamaDisponibles: 18,
+        diasCamaOcupados: 10,
+        tasaOcupacion: 55.6,
+        promedioDiasEstada: 2,
+        egresosTotal: 1,
+        egresosVivos: 1,
+        egresosFallecidos: 0,
+        egresosTraslados: 0,
+        mortalidadHospitalaria: 0,
+        indiceRotacion: 0.1,
+        pacientesActuales: 10,
+        camasOcupadas: 10,
+        camasBloqueadas: 0,
+        camasDisponibles: 18,
+        camasLibres: 8,
+        tasaOcupacionActual: 55.6,
+        porEspecialidad: [],
+      },
+    });
+
+    try {
+      const warmClient = new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: false,
+            retryDelay: 0,
+            gcTime: 60_000,
+            staleTime: 60_000,
+          },
+        },
+      });
+      renderAnalyticsView(warmClient);
+
+      const exportButton = await screen.findByRole('button', { name: /Exportar Excel/i });
+      expect(exportButton).toBeEnabled();
+      expect(screen.getByText('55.6%')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTitle('Actualizar datos'));
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /Exportar Excel/i })).toBeDisabled()
+      );
+      expect(screen.getByText('55.6%')).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
   it('shows the verification alert and retry button instead of empty-census guidance when offline with no local records, and retains warm remote stats on offline refresh', async () => {
     mockFetchRecordsRangeSorted.mockResolvedValue([]);
     mockSyncRecordsRange.mockResolvedValue([]);

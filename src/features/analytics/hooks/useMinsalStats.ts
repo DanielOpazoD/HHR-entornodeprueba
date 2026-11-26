@@ -60,6 +60,7 @@ interface UseMinsalStatsResult {
   dataQualityIssues: AnalyticsDataQualityIssue[];
   reclassifications: SpecialtyReclassification[];
   reclassificationsError: string | null;
+  remoteStatsWarning: string | null;
   isReclassificationsVerified: boolean;
   canExportExcel: boolean;
   saveReclassification: (
@@ -238,11 +239,11 @@ export function useMinsalStats(
       const reclassificationsPrefix =
         queryKeys.analytics.specialtyReclassificationsByHospital(hospitalId);
       const remoteStatsPrefix = queryKeys.analytics.remoteStatsByHospital(hospitalId);
-      const previousUpdatedAtByHash = new Map(
+      const previousUpdateCountByHash = new Map(
         queryClient
           .getQueryCache()
           .findAll({ queryKey: reclassificationsPrefix })
-          .map(query => [query.queryHash, query.state.dataUpdatedAt])
+          .map(query => [query.queryHash, query.state.dataUpdateCount])
       );
 
       await Promise.all([
@@ -258,7 +259,8 @@ export function useMinsalStats(
         .getQueryCache()
         .findAll({ queryKey: reclassificationsPrefix, type: 'active' })
         .some(
-          query => query.state.dataUpdatedAt !== (previousUpdatedAtByHash.get(query.queryHash) ?? 0)
+          query =>
+            query.state.dataUpdateCount !== (previousUpdateCountByHash.get(query.queryHash) ?? 0)
         );
 
       await queryClient.invalidateQueries(
@@ -273,8 +275,9 @@ export function useMinsalStats(
 
   const isSavingReclassification =
     saveReclassificationMutation.isPending || pendingReclassificationSaves > 0;
-  const isReclassificationsInvalidated =
-    queryClient.getQueryState(reclassificationsQueryKey)?.isInvalidated ?? false;
+  const reclassificationsQueryState = queryClient.getQueryState(reclassificationsQueryKey);
+  const isReclassificationsInvalidated = reclassificationsQueryState?.isInvalidated ?? false;
+  const reclassificationsUpdateCount = reclassificationsQueryState?.dataUpdateCount ?? 0;
 
   const previousRangeRecords = useMemo(
     () => filterRecordsByDateRange(rangeRecords, previousPeriodStart, previousPeriodEnd),
@@ -316,15 +319,19 @@ export function useMinsalStats(
     reclassificationsQuery.failureCount === 0 &&
     !isSavingReclassification;
 
-  const hasVerifiedReclassificationsSnapshot =
-    reclassificationsQuery.status === 'success' && reclassificationsQuery.dataUpdatedAt > 0;
+  const hasVerifiedReclassificationsSnapshot = reclassificationsUpdateCount > 0;
 
   const remoteReclassificationsKey = useMemo(
     () =>
       hasVerifiedReclassificationsSnapshot
-        ? `verified:${reclassificationsQuery.dataUpdatedAt}:${buildReclassificationsSignature(reclassifications)}`
+        ? `verified:${reclassificationsUpdateCount}:${reclassificationsQuery.dataUpdatedAt}:${buildReclassificationsSignature(reclassifications)}`
         : 'unverified',
-    [hasVerifiedReclassificationsSnapshot, reclassifications, reclassificationsQuery.dataUpdatedAt]
+    [
+      hasVerifiedReclassificationsSnapshot,
+      reclassifications,
+      reclassificationsQuery.dataUpdatedAt,
+      reclassificationsUpdateCount,
+    ]
   );
 
   const remoteStatsQueryKey = useMemo(
@@ -339,10 +346,10 @@ export function useMinsalStats(
 
   const shouldUseRemoteStats =
     recordsQuery.isError || (recordsQuery.isSuccess && currentRangeRecords.length === 0);
-  const isReclassificationsSettled =
-    !reclassificationsQuery.isFetching &&
-    !isSavingReclassification &&
-    (isReclassificationsVerified || Boolean(reclassificationsError));
+  const hasReclassificationsSettled =
+    reclassificationsQuery.status === 'success' ||
+    reclassificationsQuery.status === 'error' ||
+    reclassificationsQuery.isPaused;
 
   const remoteStatsQuery = useQuery({
     queryKey: remoteStatsQueryKey,
@@ -351,7 +358,21 @@ export function useMinsalStats(
     // range, only runs when it is the one shown: no local records, or the local read failed.
     // Waiting for the reclassification read to settle ensures a recovered read never reuses an
     // older cached server aggregate from before the reclassification change.
-    enabled: shouldUseRemoteStats && isReclassificationsSettled,
+    enabled: shouldUseRemoteStats && hasReclassificationsSettled,
+    placeholderData: (previousData, previousQuery) => {
+      if (!previousData || !previousQuery) {
+        return undefined;
+      }
+      const prevKey = previousQuery.queryKey;
+      const sameRangeAndOptions =
+        prevKey[0] === remoteStatsQueryKey[0] &&
+        prevKey[1] === remoteStatsQueryKey[1] &&
+        prevKey[2] === remoteStatsQueryKey[2] &&
+        prevKey[3] === remoteStatsQueryKey[3] &&
+        prevKey[4] === remoteStatsQueryKey[4] &&
+        prevKey[5] === remoteStatsQueryKey[5];
+      return sameRangeAndOptions ? previousData : undefined;
+    },
     queryFn: async (): Promise<MinsalStatistics> => {
       const functions = await defaultFunctionsRuntime.getFunctions();
       const { httpsCallable } = await import('firebase/functions');
@@ -449,10 +470,15 @@ export function useMinsalStats(
   const isRemoteStatsVerified =
     !isUsingRemoteStats ||
     (remoteStatsQuery.status === 'success' &&
+      !remoteStatsQuery.isPlaceholderData &&
       !remoteStatsQuery.error &&
       !remoteStatsQuery.isFetching &&
       !remoteStatsQuery.isPaused &&
       remoteStatsQuery.failureCount === 0);
+  const remoteStatsWarning =
+    isUsingRemoteStats && remoteStatsQuery.isPaused && Boolean(stats)
+      ? 'Sin conexión para actualizar las estadísticas remotas del período.'
+      : null;
   const canExportExcel = Boolean(stats) && isReclassificationsVerified && isRemoteStatsVerified;
 
   const comparison = useMemo<MinsalComparisonSummary | null>(() => {
@@ -506,8 +532,8 @@ export function useMinsalStats(
   const refresh = useCallback(async () => {
     // A manual refresh always asks the server again.
     lastRemoteRangeSyncRef.current.delete(`${previousPeriodStart}:${endDate}`);
-    const previousUpdatedAt =
-      queryClient.getQueryState(reclassificationsQueryKey)?.dataUpdatedAt ?? 0;
+    const previousUpdateCount =
+      queryClient.getQueryState(reclassificationsQueryKey)?.dataUpdateCount ?? 0;
     await Promise.all([
       queryClient.invalidateQueries({
         queryKey: localRecordsQueryKey,
@@ -518,7 +544,7 @@ export function useMinsalStats(
     ]);
     const nextState = queryClient.getQueryState(reclassificationsQueryKey);
     const reclassificationsAdvanced =
-      nextState !== undefined && nextState.dataUpdatedAt !== previousUpdatedAt;
+      nextState !== undefined && nextState.dataUpdateCount !== previousUpdateCount;
     await queryClient.invalidateQueries({
       queryKey: queryKeys.analytics.remoteStats(hospitalId, startDate, endDate),
       refetchType: reclassificationsAdvanced ? 'none' : 'active',
@@ -551,6 +577,7 @@ export function useMinsalStats(
     dataQualityIssues,
     reclassifications,
     reclassificationsError,
+    remoteStatsWarning,
     isReclassificationsVerified,
     canExportExcel,
     saveReclassification: saveReclassificationMutation.mutateAsync,
