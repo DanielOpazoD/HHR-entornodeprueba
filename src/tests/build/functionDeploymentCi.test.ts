@@ -111,6 +111,8 @@ describe('validated Functions deployment', () => {
       'firebase.json',
       'package-lock.json',
       'src/services/cudyr/cudyrCensusParser.ts',
+      'src/services/storage/dailyRecordAuthorityContract.ts',
+      'scripts/build-shared-functions-contracts.mjs',
       'scripts/check-function-deployment-ci.mjs',
     ])
       expect(affectsFunctionDeployment(file), file).toBe(true);

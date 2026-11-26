@@ -76,6 +76,11 @@ try {
       /^(src\/|functions\/)/,
       'El analizador CUDYR del servidor quedó distinto de su fuente: ejecuta node scripts/build-cudyr-source-parser.mjs y agrega functions/lib/generated/cudyrSourceParser.cjs al commit.',
     ],
+    [
+      'shared-functions-contracts',
+      /^(src\/|functions\/)/,
+      'Los contratos compartidos del servidor quedaron distintos de su fuente: ejecuta node scripts/build-shared-functions-contracts.mjs y agrega functions/lib/generated/sharedDailyRecordContracts.cjs al commit.',
+    ],
   ];
   const tasks = [];
   for (const [name, pattern, repair] of checks) {

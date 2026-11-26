@@ -120,6 +120,9 @@ jobs:
       - name: Verify shared CUDYR parser
         run: node scripts/build-cudyr-source-parser.mjs --check
 
+      - name: Verify shared daily record contracts
+        run: node scripts/build-shared-functions-contracts.mjs --check
+
       - name: Install function dependencies
         working-directory: functions
         run: npm ci --no-audit --no-fund

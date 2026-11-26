@@ -13,6 +13,7 @@ export const canCarryClinicalEvidence = (
   sourceDate: string,
   destinationDate: string
 ): boolean => {
+  if (!source || !destination) return false;
   const episode = source.clinicalEpisodeId?.trim();
   const admissionDate = source.admissionDate;
   return Boolean(

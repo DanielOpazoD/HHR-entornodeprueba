@@ -107,8 +107,13 @@ Qué impone hoy un control y qué queda como objetivo:
 6. **Los tipos del dominio viven en `src/types/domain/*`**, se importan desde ahí y las formas
    estrechas llevan nombre propio, sin alias ni reexportaciones. **Hoy:**
    `npm run check:repo-hygiene`.
-7. **Una copia cliente/servidor es deliberada solo si una prueba de paridad la ata.**
-   **Hoy:** criterio.
+7. **Contratos compartidos cliente/servidor: fuente única compilada o prueba de paridad.** Lo
+   compartido entre `src/` y Cloud Functions se compila desde TypeScript a
+   `functions/lib/generated/*.cjs` (`scripts/build-shared-functions-contracts.mjs` y
+   `scripts/build-cudyr-source-parser.mjs`, verificados con `--check` en `check:changed` y antes de
+   desplegar Functions). Una copia manual cliente/servidor es deliberada solo si una prueba de
+   paridad la ata. **Hoy:** automático para los contratos del registro diario y CUDYR; criterio en
+   el resto.
 8. **Simplificar antes de añadir.** Una capa, wrapper o módulo nuevo necesita una
    responsabilidad, un efecto o un contrato propio; no hace falta controlador, caso de uso,
    puerto y repositorio para cada función. Se borra el código sin consumidores comprobados,

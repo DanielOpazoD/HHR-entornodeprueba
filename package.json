@@ -83,6 +83,7 @@
     "check:module-size": "node scripts/check-module-size.mjs",
     "check:clinical-clock": "node scripts/check-clinical-clock.mjs",
     "check:cudyr-source-parser": "node scripts/build-cudyr-source-parser.mjs --check",
+    "check:shared-functions-contracts": "node scripts/build-shared-functions-contracts.mjs --check",
     "check:declared-dependencies": "node scripts/check-declared-dependencies.mjs",
     "check:empty-on-failure-reads": "node scripts/check-empty-on-failure-reads.mjs",
     "check:import-cycles": "node scripts/check-import-cycles.mjs",
