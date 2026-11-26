@@ -1,4 +1,6 @@
+import { doc, runTransaction } from 'firebase/firestore';
 import { firestoreDb } from '@/services/storage/firestore';
+import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import {
   getActiveHospitalId,
   getWoundCareMobileUploadSessionsPath,
@@ -37,6 +39,39 @@ export const WoundCareMobileUploadSessionRepository = {
     return parsed.success ? (parsed.data as WoundCareMobileUploadSession) : null;
   },
 
+  async listByEpisode(
+    episodeKey: string,
+    hospitalId: string = getActiveHospitalId()
+  ): Promise<WoundCareMobileUploadSession[]> {
+    const rawSessions = await firestoreDb.getDocs<Record<string, unknown>>(
+      getWoundCareMobileUploadSessionsPath(hospitalId),
+      {
+        where: [{ field: 'episodeKey', operator: '==', value: episodeKey }],
+        source: 'server',
+      }
+    );
+
+    const sessions: WoundCareMobileUploadSession[] = [];
+    let invalidActiveCount = 0;
+
+    for (const raw of rawSessions) {
+      const parsed = safeParseWoundCareMobileUploadSession(raw);
+      if (parsed.success) {
+        sessions.push(parsed.data as WoundCareMobileUploadSession);
+      } else if (!raw.revokedAt) {
+        invalidActiveCount += 1;
+      }
+    }
+
+    if (invalidActiveCount > 0) {
+      throw new Error(
+        `No se pudieron validar ${invalidActiveCount} sesiones móviles activas del episodio.`
+      );
+    }
+
+    return sessions;
+  },
+
   async create(
     session: WoundCareMobileUploadSession,
     hospitalId: string = getActiveHospitalId()
@@ -55,9 +90,28 @@ export const WoundCareMobileUploadSessionRepository = {
     patch: { revokedAt: string; revokedBy: WoundCareAuditActor },
     hospitalId: string = getActiveHospitalId()
   ): Promise<void> {
-    await firestoreDb.updateDoc(getWoundCareMobileUploadSessionsPath(hospitalId), sessionId, {
-      revokedAt: patch.revokedAt,
-      revokedBy: sanitizeForFirestore(patch.revokedBy),
+    const db = defaultFirestoreServiceRuntime.getDb();
+    if (!db) {
+      throw new Error('Firestore instance is not available yet.');
+    }
+
+    const sessionRef = doc(db, getWoundCareMobileUploadSessionsPath(hospitalId), sessionId);
+    await runTransaction(db, async transaction => {
+      const snapshot = await transaction.get(sessionRef);
+      if (!snapshot.exists()) {
+        throw new Error('El acceso móvil no existe.');
+      }
+
+      const existing = snapshot.data() as Record<string, unknown> | undefined;
+      if (existing?.revokedAt != null && existing.revokedAt !== '') {
+        // Preserve the first confirmed revocation author and timestamp atomically.
+        return;
+      }
+
+      transaction.update(sessionRef, {
+        revokedAt: patch.revokedAt,
+        revokedBy: sanitizeForFirestore(patch.revokedBy),
+      });
     });
   },
 };

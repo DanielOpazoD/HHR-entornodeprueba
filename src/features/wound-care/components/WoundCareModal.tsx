@@ -206,9 +206,13 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
   } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const scopeReset = useChangedOnRender([patientRut, isOpen]);
-  if (scopeReset && (!isOpen || showConsentModal || showPhotoModal || selectedPhotoDraft)) {
+  if (
+    scopeReset &&
+    (!isOpen || showConsentModal || showPhotoModal || showMobileQr || selectedPhotoDraft)
+  ) {
     setShowConsentModal(false);
     setShowPhotoModal(false);
+    setShowMobileQr(false);
     setSelectedPhotoDraft(null);
   }
   const activeScopeRef = useRef({

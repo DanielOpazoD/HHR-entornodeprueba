@@ -46,6 +46,43 @@ export interface WoundCareMobileUploadSessionDeps {
   generateSessionId?: () => string;
 }
 
+export const isActiveWoundCareMobileUploadSession = (
+  session: WoundCareMobileUploadSession,
+  nowMs: number = Date.now()
+): boolean =>
+  !session.revokedAt &&
+  session.scope === 'wound_care_upload_only' &&
+  new Date(session.expiresAt).getTime() > nowMs;
+
+export const executeListActiveWoundCareMobileUploadSessions = async (
+  input: { episodeKey: string; hospitalId: string },
+  deps: Pick<WoundCareMobileUploadSessionDeps, 'sessionPort'> = {}
+): Promise<ApplicationOutcome<WoundCareMobileUploadSession[]>> => {
+  const sessionPort = deps.sessionPort ?? defaultWoundCareMobileUploadSessionPort;
+
+  try {
+    const sessions = await sessionPort.listByEpisode(input.episodeKey, input.hospitalId);
+    const nowMs = Date.now();
+    const activeSessions = sessions
+      .filter(session => isActiveWoundCareMobileUploadSession(session, nowMs))
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+    return createApplicationSuccess(activeSessions);
+  } catch (error) {
+    return createApplicationFailed(
+      [],
+      [
+        {
+          kind: 'unknown',
+          message:
+            error instanceof Error
+              ? error.message
+              : 'No se pudo verificar si existe un QR móvil activo.',
+        },
+      ]
+    );
+  }
+};
+
 export const executeCreateWoundCareMobileUploadSession = async (
   input: {
     hospitalId: string;

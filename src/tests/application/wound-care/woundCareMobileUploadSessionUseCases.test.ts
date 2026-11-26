@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   executeCreateWoundCareMobileUploadSession,
+  executeListActiveWoundCareMobileUploadSessions,
   executeRevokeWoundCareMobileUploadSession,
   executeValidateWoundCareMobileUploadSession,
 } from '@/features/wound-care/use-cases/woundCareMobileUploadSessionUseCases';
@@ -31,6 +32,7 @@ describe('woundCareMobileUploadSessionUseCases', () => {
   const sessionPort = {
     create: vi.fn(),
     getById: vi.fn(),
+    listByEpisode: vi.fn(),
     revoke: vi.fn(),
   };
 
@@ -141,5 +143,53 @@ describe('woundCareMobileUploadSessionUseCases', () => {
       }),
       'hanga_roa'
     );
+  });
+
+  it('lists only active non-revoked non-expired sessions for the episode sorted newest first', async () => {
+    const olderActive = {
+      ...session,
+      sessionId: 'session-older',
+      createdAt: '2026-05-02T09:50:00.000Z',
+      expiresAt: '2026-05-02T10:20:00.000Z',
+    };
+    const newerActive = {
+      ...session,
+      sessionId: 'session-newer',
+      createdAt: '2026-05-02T09:58:00.000Z',
+      expiresAt: '2026-05-02T10:28:00.000Z',
+    };
+    const revoked = {
+      ...session,
+      sessionId: 'session-revoked',
+      revokedAt: '2026-05-02T09:59:00.000Z',
+    };
+    const expired = {
+      ...session,
+      sessionId: 'session-expired',
+      expiresAt: '2026-05-02T09:59:00.000Z',
+    };
+
+    sessionPort.listByEpisode.mockResolvedValueOnce([olderActive, revoked, expired, newerActive]);
+
+    const result = await executeListActiveWoundCareMobileUploadSessions(
+      { episodeKey: session.episodeKey, hospitalId: 'hanga_roa' },
+      { sessionPort }
+    );
+
+    expect(result.status).toBe('success');
+    expect(result.data.map(item => item.sessionId)).toEqual(['session-newer', 'session-older']);
+  });
+
+  it('fails closed when listing active sessions throws', async () => {
+    sessionPort.listByEpisode.mockRejectedValueOnce(new Error('offline server read'));
+
+    const result = await executeListActiveWoundCareMobileUploadSessions(
+      { episodeKey: session.episodeKey, hospitalId: 'hanga_roa' },
+      { sessionPort }
+    );
+
+    expect(result.status).toBe('failed');
+    expect(result.data).toEqual([]);
+    expect(result.issues[0]?.message).toBe('offline server read');
   });
 });

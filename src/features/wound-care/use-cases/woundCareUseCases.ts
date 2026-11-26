@@ -22,6 +22,7 @@ export {
 } from './woundCarePhotoUseCases';
 
 export {
+  executeListActiveWoundCareMobileUploadSessions,
   executeCreateWoundCareMobileUploadSession,
   executeRevokeWoundCareMobileUploadSession,
   executeValidateWoundCareMobileUploadSession,
