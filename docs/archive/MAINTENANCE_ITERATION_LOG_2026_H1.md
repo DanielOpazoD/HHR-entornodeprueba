@@ -2,7 +2,7 @@
 
 
 
-Histórico rotado desde `docs/MAINTENANCE_ITERATION_LOG.md` para evitar tablas anchas rellenas con espacios (~518 KB). El registro activo continúa en [MAINTENANCE_ITERATION_LOG.md](../MAINTENANCE_ITERATION_LOG.md).
+Histórico rotado desde `docs/archive/MAINTENANCE_ITERATION_LOG.md` para evitar tablas anchas rellenas con espacios (~518 KB). El registro continúa en [MAINTENANCE_ITERATION_LOG.md](./MAINTENANCE_ITERATION_LOG.md).
 
 
 

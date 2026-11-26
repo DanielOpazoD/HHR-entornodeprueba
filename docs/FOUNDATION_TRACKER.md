@@ -74,7 +74,7 @@
 - El roadmap de cimientos `B01-B26` quedó ejecutado al `100%`.
 - La continuidad ya no depende de abrir un plan nuevo grande, sino de sostener la cadencia mensual y resolver deuda remanente puntual.
 - `typecheck` global volvió a verde después de la convergencia de `census`.
-- La continuidad post-`B26` se registra en `docs/FOUNDATION_CONTINUATION_TRACKER.md`.
+- La continuidad post-`B26` se registra en `docs/archive/FOUNDATION_CONTINUATION_TRACKER.md`.
 
 ## Regla de mantenimiento
 
