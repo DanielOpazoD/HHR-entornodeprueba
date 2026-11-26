@@ -250,7 +250,6 @@ const matrixCases: CensusActionMatrixCase[] = [
         patientName: 'Paciente Nuevo',
         rut: '17.752.753-K',
         pathology: 'Ingreso',
-        specialty: Specialty.MEDICINA,
         status: PatientStatus.ESTABLE,
         admissionDate: date,
       }),

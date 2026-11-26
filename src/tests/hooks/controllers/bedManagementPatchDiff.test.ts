@@ -70,11 +70,15 @@ describe('parches por diff del guardado de paciente', () => {
     expect(patch).toEqual({});
   });
 
-  it('los clears sí fluyen cuando reparan deriva real (campo gineco huérfano)', () => {
-    const record = makeRecordWithPatient({ deliveryRoute: 'Cesárea' });
+  it('los clears sí fluyen cuando reparan deriva real (campo obstétrico huérfano)', () => {
+    const record = makeRecordWithPatient({
+      specialty: Specialty.GINECOBSTETRICIA,
+      ginecobstetriciaType: 'Ginecológica',
+      deliveryRoute: 'Cesárea',
+    });
 
     const patch = buildUpdatePatientPatches(record, 'R1', {
-      specialty: record.beds.R1.specialty,
+      ginecobstetriciaType: 'Ginecológica',
     });
 
     expect(patch).toMatchObject({ 'beds.R1.deliveryRoute': undefined });

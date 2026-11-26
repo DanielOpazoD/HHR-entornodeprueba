@@ -19,8 +19,8 @@
  */
 export const FEATURE_FLAGS = {
   // Experimental Features
-  /** Server-controlled episode assignment is opt-in; this only exposes its client intent. */
-  SPECIALTY_EPISODE_ASSIGNMENT: false,
+  /** Episode-bound manual specialty decisions are enabled by default; server remains authoritative. */
+  SPECIALTY_EPISODE_ASSIGNMENT: true,
   SPECIALTY_RULES_MEMORY: false,
   SPECIALTY_JEV_CONSULTATION: false,
 } as const;

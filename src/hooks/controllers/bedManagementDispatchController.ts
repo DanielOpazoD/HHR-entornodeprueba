@@ -17,6 +17,7 @@ import { recordOperationalTelemetry } from '@/services/observability/operational
 import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
 import { isClinicalAuthorityCallablePatchPath } from '@/services/storage/dailyRecordAuthorityContract';
 import { isFeatureEnabled } from '@/services/utils/featureFlags';
+import * as specialtyIntentControls from '@/hooks/controllers/bedManagementSpecialtyIntentController';
 export interface BedManagementValidationPort {
   processFieldValue: (
     field: keyof PatientData,
@@ -253,7 +254,7 @@ export const executeBedManagementAction = async ({
   }
 
   const specialtyControls = isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT')
-    ? await import('@/hooks/controllers/bedManagementSpecialtyIntentController')
+    ? specialtyIntentControls
     : null;
   try {
     const originalPatch = bedManagementReducer(currentRecord, validatedAction);

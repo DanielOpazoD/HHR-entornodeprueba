@@ -173,6 +173,12 @@ describe('Critical Integration Paths', () => {
   });
 
   it('FLOW 1: Patient Admission (Ingreso)', async () => {
+    currentRecord!.beds['bed-1'] = DataFactory.createMockPatient('bed-1', {
+      patientName: '',
+      rut: '',
+      pathology: '',
+      specialty: Specialty.EMPTY,
+    });
     const { result } = renderHook(() => useDailyRecord(mockDate), {
       wrapper: createIntegrationWrapper(),
     });
@@ -183,7 +189,8 @@ describe('Critical Integration Paths', () => {
 
     await waitFor(() => expect(result.current.record).not.toBeNull());
 
-    // 1. Simulate Input: Admit Patient to Bed 1
+    // 1. Simulate Input: Admit Patient to Bed 1 (episode-bound specialty is assigned
+    // as a separate decision once the server anchors clinicalEpisodeId).
     let admissionAccepted = false;
     await act(async () => {
       admissionAccepted =
@@ -191,7 +198,6 @@ describe('Critical Integration Paths', () => {
           patientName: 'Juan Perez',
           rut: '12.345.678-9',
           age: '45',
-          specialty: Specialty.CIRUGIA,
           status: PatientStatus.GRAVE,
           pathology: 'Apendicitis',
           admissionDate: '2025-01-04',
@@ -203,9 +209,7 @@ describe('Critical Integration Paths', () => {
     await waitFor(() => {
       const bed = result.current.record?.beds['bed-1'];
       expect(bed?.patientName).toBe('Juan Perez');
-      // With the pilot disabled, the established combined-admission flow
-      // keeps the specialty explicitly selected for the incoming patient.
-      expect(bed?.specialty).toBe(Specialty.CIRUGIA);
+      expect(bed?.specialty).toBe(Specialty.EMPTY);
       expect(bed?.status).toBe(PatientStatus.GRAVE);
     });
 

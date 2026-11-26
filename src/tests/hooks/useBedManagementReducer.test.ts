@@ -180,7 +180,7 @@ describe('bedManagementReducer firstSeenDate anchoring', () => {
     });
   });
 
-  it('clears gineco-obstetric fields on multi-field specialty updates away from ginecobstetricia', () => {
+  it('keeps specialty updates exclusive so the server clears gineco-obstetric fields atomically', () => {
     const record = DataFactory.createMockDailyRecord('2026-04-12');
     record.beds.R1 = DataFactory.createMockPatient('R1', {
       specialty: Specialty.GINECOBSTETRICIA,
@@ -197,9 +197,30 @@ describe('bedManagementReducer firstSeenDate anchoring', () => {
       },
     });
 
-    expect(patch).toMatchObject({
+    expect(patch).toEqual({
       'beds.R1.specialty': Specialty.CIRUGIA,
-      'beds.R1.ginecobstetriciaType': undefined,
+    });
+  });
+
+  it('clears delivery route fields when gineco-obstetric subtype changes away from Obstétrica', () => {
+    const record = DataFactory.createMockDailyRecord('2026-04-12');
+    record.beds.R1 = DataFactory.createMockPatient('R1', {
+      specialty: Specialty.GINECOBSTETRICIA,
+      ginecobstetriciaType: 'Obstétrica',
+      deliveryRoute: 'Cesárea',
+      deliveryCesareanLabor: 'Con TdP',
+    });
+
+    const patch = bedManagementReducer(record, {
+      type: 'UPDATE_PATIENT_MULTIPLE',
+      bedId: 'R1',
+      fields: {
+        ginecobstetriciaType: 'Ginecológica',
+      },
+    });
+
+    expect(patch).toMatchObject({
+      'beds.R1.ginecobstetriciaType': 'Ginecológica',
       'beds.R1.deliveryRoute': undefined,
       'beds.R1.deliveryCesareanLabor': undefined,
     });

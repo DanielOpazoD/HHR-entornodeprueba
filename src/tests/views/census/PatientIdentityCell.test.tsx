@@ -340,10 +340,16 @@ describe('PatientIdentityCell', () => {
     const data = DataFactory.createMockPatient('R1', {
       patientName: 'Juana Rapu',
       rut: '12.345.678-5',
+      clinicalEpisodeId: 'ep-1',
       specialty: '',
     });
 
-    renderCell({ data, onNameChange, onMultipleUpdate: assign });
+    renderCell({
+      data,
+      currentDateString: '2026-04-20',
+      onNameChange,
+      onMultipleUpdate: assign,
+    });
 
     const trigger = screen.getByTitle('Asignar especialidad');
     expect(trigger).toHaveTextContent('Pendiente asignar');
