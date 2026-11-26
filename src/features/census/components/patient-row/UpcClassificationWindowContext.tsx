@@ -3,238 +3,15 @@ import { ShieldCheck } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { useOptionalDailyRecordBeds } from '@/context/DailyRecordContext';
 import { PanelModuleRetry, RecoverableClinicalPanelModule } from './RecoverableClinicalPanelModule';
-
-interface UpcCellSubjectLike {
-  patientName?: string;
-  clinicalEpisodeId?: string;
-  documentType?: 'RUT' | 'Pasaporte' | string;
-  rut?: string;
-  birthDate?: string;
-  biologicalSex?: string;
-  neonatalMaternalRut?: string;
-  firstSeenDate?: string;
-  admissionDate?: string;
-  admissionTime?: string;
-}
-
-const isAccreditedEpisodeId = (episode: string): boolean =>
-  Boolean(episode) && !episode.startsWith('legacy_ep_');
-
-const normalizePatientNameKey = (name?: string): string =>
-  (name ?? '')
-    .trim()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, ' ')
-    .toLocaleLowerCase();
-
-/**
- * Fingerprints the patient occupying a clicked UPC cell even when the name is still empty
- * (e.g. a bed or crib with only RUT/document and clinicalEpisodeId) so turnover during a
- * deferred load or retry never opens the round on a replacement patient, while completing the
- * name of the same accredited or legacy episode preserves the pending open.
- */
-export const resolveUpcCellSubjectIdentity = (
-  subject?: UpcCellSubjectLike | null
-): string | null => {
-  if (!subject) return null;
-  const episode = subject.clinicalEpisodeId?.trim() || '';
-  if (isAccreditedEpisodeId(episode)) {
-    return episode;
-  }
-  const docType = subject.documentType?.trim() || 'RUT';
-  const name = subject.patientName?.trim() || '';
-  const rut = subject.rut?.trim() || '';
-  const birthDate = subject.birthDate?.trim() || '';
-  const biologicalSex = subject.biologicalSex?.trim() || '';
-  const firstSeenDate = subject.firstSeenDate?.trim() || '';
-  const admissionDate = subject.admissionDate?.trim() || '';
-  const admissionTime = subject.admissionTime?.trim() || '';
-  const maternalRut = subject.neonatalMaternalRut?.trim() || '';
-  if (
-    !episode &&
-    !name &&
-    !rut &&
-    !birthDate &&
-    !biologicalSex &&
-    !firstSeenDate &&
-    !admissionDate &&
-    !admissionTime &&
-    !maternalRut
-  ) {
-    return null;
-  }
-  return JSON.stringify([
-    'legacy',
-    episode,
-    docType,
-    rut,
-    name,
-    birthDate,
-    biologicalSex,
-    firstSeenDate,
-    admissionDate,
-    admissionTime,
-    maternalRut,
-  ]);
-};
-
-type LegacyUpcSubjectTuple = [
-  tag: 'legacy',
-  episode: string,
-  docType: string,
-  rut: string,
-  name: string,
-  birthDate: string,
-  biologicalSex: string,
-  firstSeenDate: string,
-  admissionDate: string,
-  admissionTime: string,
-  maternalRut: string,
-];
-
-const parseLegacyUpcSubjectTuple = (identity: string | null): LegacyUpcSubjectTuple | null => {
-  if (!identity || !identity.startsWith('["legacy",')) {
-    return null;
-  }
-  try {
-    return JSON.parse(identity) as LegacyUpcSubjectTuple;
-  } catch {
-    return null;
-  }
-};
-
-const isSameUpcCellSubjectIdentity = (expected: string | null, current: string | null): boolean => {
-  if (expected === current) return true;
-  const expectedTuple = parseLegacyUpcSubjectTuple(expected);
-  const currentTuple = parseLegacyUpcSubjectTuple(current);
-  if (!expectedTuple || !currentTuple) {
-    return false;
-  }
-  const [
-    ,
-    expectedEpisode,
-    expectedDocType,
-    expectedRut,
-    expectedName,
-    expectedBirthDate,
-    expectedBiologicalSex,
-    expectedFirstSeenDate,
-    expectedAdmissionDate,
-    expectedTime,
-    expectedMaternalRut,
-  ] = expectedTuple;
-  const [
-    ,
-    currentEpisode,
-    currentDocType,
-    currentRut,
-    currentName,
-    currentBirthDate,
-    currentBiologicalSex,
-    currentFirstSeenDate,
-    currentAdmissionDate,
-    currentTime,
-    currentMaternalRut,
-  ] = currentTuple;
-  return (
-    expectedName === '' &&
-    currentName !== '' &&
-    (expectedEpisode !== '' || expectedRut !== '') &&
-    expectedEpisode === currentEpisode &&
-    expectedDocType === currentDocType &&
-    expectedRut === currentRut &&
-    expectedBirthDate === currentBirthDate &&
-    expectedBiologicalSex === currentBiologicalSex &&
-    expectedFirstSeenDate === currentFirstSeenDate &&
-    expectedAdmissionDate === currentAdmissionDate &&
-    expectedTime === currentTime &&
-    expectedMaternalRut === currentMaternalRut
-  );
-};
-
-interface BedWithOptionalCrib extends UpcCellSubjectLike {
-  clinicalCrib?: UpcCellSubjectLike;
-}
-
-interface UnnamedLegacyCensusSnapshot {
-  otherActiveNames: Set<string>;
-  siblingLegacySlots: Map<string, string | null>;
-}
-
-const getBedSlotSubject = (
-  beds: Record<string, BedWithOptionalCrib> | null | undefined,
-  slotKey: string
-): UpcCellSubjectLike | undefined => {
-  if (!beds) return undefined;
-  if (slotKey.endsWith(':crib')) {
-    return beds[slotKey.slice(0, -':crib'.length)]?.clinicalCrib;
-  }
-  return beds[slotKey];
-};
-
-const captureUnnamedLegacyCensusSnapshot = (
-  beds: Record<string, BedWithOptionalCrib> | null | undefined,
-  rawBedId: string | null,
-  isCrib: boolean,
-  expectedIdentity: string | null
-): UnnamedLegacyCensusSnapshot => {
-  const otherActiveNames = new Set<string>();
-  const siblingLegacySlots = new Map<string, string | null>();
-  if (!beds || !rawBedId) {
-    return { otherActiveNames, siblingLegacySlots };
-  }
-  const expectedTuple = parseLegacyUpcSubjectTuple(expectedIdentity);
-  const expectedEpisode = expectedTuple?.[1] ?? '';
-  const expectedDocType = expectedTuple?.[2] ?? 'RUT';
-  const expectedRut = expectedTuple?.[3] ?? '';
-  const clickedSlotKey = isCrib ? `${rawBedId}:crib` : rawBedId;
-
-  for (const [bedId, bed] of Object.entries(beds)) {
-    const entries: Array<[string, UpcCellSubjectLike | undefined]> = [
-      [bedId, bed],
-      [`${bedId}:crib`, bed?.clinicalCrib],
-    ];
-    for (const [slotKey, subject] of entries) {
-      if (slotKey === clickedSlotKey || !subject) continue;
-      const normalizedName = normalizePatientNameKey(subject.patientName);
-      if (normalizedName) {
-        otherActiveNames.add(normalizedName);
-      }
-      if (!expectedTuple) continue;
-      const otherEpisode = subject.clinicalEpisodeId?.trim() || '';
-      const otherDocType = subject.documentType?.trim() || 'RUT';
-      const otherRut = subject.rut?.trim() || '';
-      const sharesLegacyEpisode = Boolean(expectedEpisode && otherEpisode === expectedEpisode);
-      const sharesDocument = Boolean(
-        expectedRut && otherRut === expectedRut && otherDocType === expectedDocType
-      );
-      if (sharesLegacyEpisode || sharesDocument) {
-        siblingLegacySlots.set(slotKey, resolveUpcCellSubjectIdentity(subject));
-      }
-    }
-  }
-
-  return { otherActiveNames, siblingLegacySlots };
-};
-
-const hasUnnamedLegacyNamingAmbiguity = (
-  beds: Record<string, BedWithOptionalCrib> | null | undefined,
-  currentSubject: UpcCellSubjectLike | undefined,
-  snapshot: UnnamedLegacyCensusSnapshot
-): boolean => {
-  const newNameKey = normalizePatientNameKey(currentSubject?.patientName);
-  if (newNameKey && snapshot.otherActiveNames.has(newNameKey)) {
-    return true;
-  }
-  for (const [slotKey, initialIdentity] of snapshot.siblingLegacySlots.entries()) {
-    const currentSiblingIdentity = resolveUpcCellSubjectIdentity(getBedSlotSubject(beds, slotKey));
-    if (currentSiblingIdentity !== initialIdentity) {
-      return true;
-    }
-  }
-  return false;
-};
+import {
+  captureUnnamedLegacyCensusSnapshot,
+  createEmptyUnnamedLegacySnapshot,
+  hasUnnamedLegacyNamingAmbiguity,
+  isSameUpcCellSubjectIdentity,
+  recordUnnamedLegacyCensusObservation,
+  resolveUpcCellSubjectIdentity,
+  type UnnamedLegacyCensusSnapshot,
+} from './upcPendingOpenGuard';
 
 const loadUpcClassificationWindow = () =>
   import('./UpcClassificationWindow').then(module => ({
@@ -369,7 +146,7 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
   const [unnamedParentSnapshot] = useState<UnnamedLegacyCensusSnapshot>(() =>
     isCrib
       ? captureUnnamedLegacyCensusSnapshot(beds, rawBedId, false, currentParentIdentity)
-      : { otherActiveNames: new Set(), siblingLegacySlots: new Map() }
+      : createEmptyUnnamedLegacySnapshot()
   );
 
   const isSubjectNamingTransition = currentEpisodeIdentity !== latchedEpisodeIdentity;
@@ -397,19 +174,53 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
     hasTrackableContextBed &&
     !isStalePendingEpisode
   ) {
-    if (currentEpisodeIdentity !== latchedEpisodeIdentity) {
+    if (isSubjectNamingTransition) {
       setLatchedEpisodeIdentity(currentEpisodeIdentity);
     }
-    if (isCrib && currentParentIdentity !== latchedParentIdentity) {
+    if (isParentNamingTransition) {
       setLatchedParentIdentity(currentParentIdentity);
     }
   }
 
+  // Accumulate newly occupied beds/cribs observed while the load or retry stays pending so a
+  // second twin admitted after the click cannot later swap into the clicked unnamed crib.
   useLayoutEffect(() => {
     if (isStalePendingEpisode) {
       onCancelStaleOpen();
+      return;
     }
-  }, [isStalePendingEpisode, onCancelStaleOpen]);
+    if (!hasResolvedWindow && hasExpectedEpisode && hasTrackableContextBed) {
+      recordUnnamedLegacyCensusObservation(
+        unnamedLegacySnapshot,
+        beds,
+        rawBedId,
+        isCrib,
+        latchedEpisodeIdentity
+      );
+      if (isCrib) {
+        recordUnnamedLegacyCensusObservation(
+          unnamedParentSnapshot,
+          beds,
+          rawBedId,
+          false,
+          latchedParentIdentity
+        );
+      }
+    }
+  }, [
+    beds,
+    hasExpectedEpisode,
+    hasResolvedWindow,
+    hasTrackableContextBed,
+    isCrib,
+    isStalePendingEpisode,
+    latchedEpisodeIdentity,
+    latchedParentIdentity,
+    onCancelStaleOpen,
+    rawBedId,
+    unnamedLegacySnapshot,
+    unnamedParentSnapshot,
+  ]);
 
   if (isStalePendingEpisode) {
     return null;

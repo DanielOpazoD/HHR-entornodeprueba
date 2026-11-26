@@ -17,13 +17,14 @@ const UPC_CONTEXT_MODULE_PATH =
   '@/features/census/components/patient-row/UpcClassificationWindowContext';
 
 const loadFreshContext = async () => {
-  const [mod, providerTree] = await Promise.all([
+  const [mod, guardMod, providerTree] = await Promise.all([
     import(UPC_CONTEXT_MODULE_PATH),
+    import('@/features/census/components/patient-row/upcPendingOpenGuard'),
     import('@/context/dailyRecordProviderTree'),
   ]);
   return {
     DailyRecordBedsContext: providerTree.DailyRecordBedsContext,
-    resolveUpcCellSubjectIdentity: mod.resolveUpcCellSubjectIdentity as (
+    resolveUpcCellSubjectIdentity: guardMod.resolveUpcCellSubjectIdentity as (
       subject?: Partial<PatientData> | null
     ) => string | null,
     UpcClassificationWindowProvider: mod.UpcClassificationWindowProvider as React.FC<{
@@ -1328,6 +1329,198 @@ describe('UpcClassificationWindowProvider', () => {
     await runTwinScenario('swap-initial');
     await runTwinScenario('swap-retry');
     await runTwinScenario('control-no-swap');
+  });
+
+  it('cancels when twins with identical provisional names swap or when a second twin arrives in Neo1 after click and then swaps', async () => {
+    const runVariant = async (
+      variant:
+        | 'same-provisional-initial'
+        | 'same-provisional-retry'
+        | 'late-neo1-initial'
+        | 'late-neo1-retry'
+    ) => {
+      vi.resetModules();
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const isRetry = variant.endsWith('-retry');
+      let attempts = 0;
+      let resolveChunk:
+        | ((value: { UpcClassificationWindow: React.FC<MockUpcWindowProps> }) => void)
+        | null = null;
+      const chunkPromise = new Promise<{
+        UpcClassificationWindow: React.FC<MockUpcWindowProps>;
+      }>(resolve => {
+        resolveChunk = resolve;
+      });
+      vi.doMock(UPC_WINDOW_MODULE_PATH, () => {
+        attempts += 1;
+        if (isRetry && attempts === 1) {
+          throw new Error('503 Service Unavailable');
+        }
+        return chunkPromise;
+      });
+
+      const {
+        DailyRecordBedsContext,
+        resolveUpcCellSubjectIdentity,
+        UpcClassificationWindowProvider,
+        useUpcClassificationWindowOpener,
+      } = await loadFreshContext();
+
+      const motherWith = (crib: PatientData) =>
+        DataFactory.createMockPatient('R1', {
+          patientName: 'Madre Gemelos',
+          clinicalEpisodeId: 'ep-mother-twins',
+          clinicalCrib: crib,
+        });
+
+      const Trigger = ({ crib }: { crib: PatientData }) => {
+        const { openUpcWindow } = useUpcClassificationWindowOpener();
+        return (
+          <button
+            type="button"
+            onClick={event =>
+              openUpcWindow('R1', {
+                crib: true,
+                episodeIdentity: resolveUpcCellSubjectIdentity(crib),
+                triggerElement: event.currentTarget,
+              })
+            }
+          >
+            Abrir cuna variante
+          </button>
+        );
+      };
+
+      if (variant.startsWith('same-provisional')) {
+        const cribA = DataFactory.createMockPatient('R1', {
+          patientName: 'RN de Madre Gemelos',
+          rut: '',
+          clinicalEpisodeId: 'legacy_ep_twins',
+          admissionDate: '2026-11-24',
+          admissionTime: '08:00',
+          isUPC: false,
+          upcChecklist: undefined,
+        });
+        const neoB = DataFactory.createMockPatient('Neo1', {
+          patientName: 'RN de Madre Gemelos',
+          rut: '',
+          clinicalEpisodeId: 'legacy_ep_twins',
+          admissionDate: '2026-11-24',
+          admissionTime: '08:00',
+          isUPC: true,
+          upcChecklist: {
+            uciCriteria: [],
+            utiCriteria: ['uti_mon_cardio'],
+            classification: 'UPC_UTI',
+            evaluatedAt: '2026-11-24T09:00:00Z',
+            evaluatedBedId: 'Neo1',
+          },
+        });
+
+        const view = render(
+          <DailyRecordBedsContext.Provider value={{ R1: motherWith(cribA), Neo1: neoB }}>
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger crib={cribA} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Abrir cuna variante' }));
+        if (isRetry) {
+          expect(await screen.findByRole('alert')).toHaveTextContent(/No se pudo abrir este panel/);
+          fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+        }
+        expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+        view.rerender(
+          <DailyRecordBedsContext.Provider value={{ R1: motherWith(neoB), Neo1: cribA }}>
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger crib={neoB} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+        expect(screen.queryByTestId('upc-window-module-loading')).toBeNull();
+        view.unmount();
+      } else {
+        const unnamedCrib = DataFactory.createMockPatient('R1', {
+          patientName: '',
+          rut: '',
+          clinicalEpisodeId: 'legacy_ep_twins',
+          admissionDate: '2026-11-24',
+          admissionTime: '08:00',
+        });
+        const lateTwinNeo1 = DataFactory.createMockPatient('Neo1', {
+          patientName: 'RN Gemelo Tardio',
+          rut: '',
+          clinicalEpisodeId: 'legacy_ep_twins',
+          admissionDate: '2026-11-24',
+          admissionTime: '08:00',
+        });
+
+        // At click time Neo1 is still empty.
+        const view = render(
+          <DailyRecordBedsContext.Provider value={{ R1: motherWith(unnamedCrib) }}>
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger crib={unnamedCrib} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Abrir cuna variante' }));
+        if (isRetry) {
+          expect(await screen.findByRole('alert')).toHaveTextContent(/No se pudo abrir este panel/);
+          fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+        }
+        expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+        // Step 1: Second twin arrives in Neo1 after click (R1:crib still unnamed -> stays pending).
+        view.rerender(
+          <DailyRecordBedsContext.Provider
+            value={{ R1: motherWith(unnamedCrib), Neo1: lateTwinNeo1 }}
+          >
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger crib={unnamedCrib} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+        expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+        // Step 2: Twins swap locations -> must cancel immediately.
+        const swappedCrib = { ...unnamedCrib, patientName: 'RN Gemelo Tardio' };
+        view.rerender(
+          <DailyRecordBedsContext.Provider
+            value={{
+              R1: motherWith(swappedCrib),
+              Neo1: { ...lateTwinNeo1, patientName: '' },
+            }}
+          >
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger crib={swappedCrib} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+        expect(screen.queryByTestId('upc-window-module-loading')).toBeNull();
+        view.unmount();
+      }
+
+      await act(async () => {
+        resolveChunk?.({
+          UpcClassificationWindow: ({ initialBedId }: MockUpcWindowProps) => (
+            <div role="dialog" aria-label="Clasificación UPC">
+              {initialBedId}
+            </div>
+          ),
+        });
+        await chunkPromise;
+      });
+      expect(screen.queryByRole('dialog')).toBeNull();
+      consoleErrorSpy.mockRestore();
+    };
+
+    await runVariant('same-provisional-initial');
+    await runVariant('same-provisional-retry');
+    await runVariant('late-neo1-initial');
+    await runVariant('late-neo1-retry');
   });
 
   it('restores focus to the clicked trigger button on Escape even when activeElement stayed on an ancestor wrapper', async () => {

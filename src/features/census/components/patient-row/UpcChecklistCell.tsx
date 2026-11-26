@@ -8,10 +8,8 @@ import { resolveUpcBadgeColor } from './upcClassificationTone';
 import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
-import {
-  resolveUpcCellSubjectIdentity,
-  useUpcClassificationWindowOpener,
-} from './UpcClassificationWindowContext';
+import { useUpcClassificationWindowOpener } from './UpcClassificationWindowContext';
+import { resolveUpcCellSubjectIdentity } from './upcPendingOpenGuard';
 
 interface UpcChecklistCellProps extends BaseCellProps {
   currentDateString: string;
