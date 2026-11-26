@@ -148,6 +148,18 @@ describe('chunkingPolicy', () => {
     expect(navbarSource).toContain("import('@/components/reminders/ReminderBadge')");
   });
 
+  it('keeps the census email hook tree out of the static authenticated shell import graph', () => {
+    const runtimeSource = readSource('src/app-shell/runtime/useAuthenticatedAppRuntime.ts');
+    const deferredSource = readSource('src/app-shell/runtime/useDeferredCensusEmail.ts');
+
+    expect(runtimeSource).not.toMatch(/from ['"]@\/features\/census\/email\//);
+    expect(runtimeSource).toContain("from '@/app-shell/runtime/useDeferredCensusEmail'");
+    expect(deferredSource).not.toMatch(
+      /import\s+(?!type\b)[^;]+from ['"]@\/features\/census\/email\//
+    );
+    expect(deferredSource).toContain("import('@/app-shell/runtime/CensusEmailRuntimeBridge')");
+  });
+
   it('keeps user avatar editing modal out of the static authenticated shell import graph', () => {
     const navbarSource = readSource('src/components/layout/Navbar.tsx');
 

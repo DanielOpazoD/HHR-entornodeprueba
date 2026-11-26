@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAppState } from '@/hooks/useAppState';
-import { useCensusEmail } from '@/features/census/email/hooks/useCensusEmail';
+import { useDeferredCensusEmail } from '@/app-shell/runtime/useDeferredCensusEmail';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { useStaleDayEditGuard } from '@/hooks/useStaleDayEditGuard';
 import { useDailyRecord } from '@/hooks/useDailyRecord';
@@ -22,6 +22,7 @@ export interface AuthenticatedAppRuntime {
   existingDaysInMonth: number[];
   nurseSignature: string;
   censusEmail: UseCensusEmailReturn;
+  censusEmailBridge?: React.ReactNode;
   fileOps: UseFileOperationsReturn;
   ui: UseAppStateReturn;
   censusContextValue: CensusContextType;
@@ -46,6 +47,7 @@ interface BuildAuthenticatedAppRuntimeParams extends BuildCensusContextValuePara
   dailyRecordHook: DailyRecordContextType;
   ui: UseAppStateReturn;
   censusContextValue?: CensusContextType;
+  censusEmailBridge?: React.ReactNode;
 }
 
 export const resolveExistingDaysInMonth = (data: number[] | undefined): number[] => data ?? [];
@@ -78,6 +80,7 @@ export const buildAuthenticatedAppRuntime = ({
   goToClinicalToday,
   fileOps,
   censusEmail,
+  censusEmailBridge,
   nurseSignature,
   ui,
   censusContextValue,
@@ -86,6 +89,7 @@ export const buildAuthenticatedAppRuntime = ({
   existingDaysInMonth,
   nurseSignature,
   censusEmail,
+  ...(censusEmailBridge !== undefined ? { censusEmailBridge } : {}),
   fileOps,
   ui,
   censusContextValue:
@@ -142,7 +146,7 @@ export const useAuthenticatedAppRuntime = ({
 
   const nurseSignature = React.useMemo(() => resolveShiftNurseSignature(record, 'night'), [record]);
 
-  const censusEmail = useCensusEmail({
+  const { censusEmail, censusEmailBridge } = useDeferredCensusEmail({
     record,
     currentDateString: dateNav.currentDateString,
     nurseSignature,
@@ -190,6 +194,7 @@ export const useAuthenticatedAppRuntime = ({
         goToClinicalToday,
         fileOps,
         censusEmail,
+        censusEmailBridge,
         nurseSignature,
         ui,
         censusContextValue,
@@ -197,6 +202,7 @@ export const useAuthenticatedAppRuntime = ({
     [
       censusContextValue,
       censusEmail,
+      censusEmailBridge,
       clinicalToday,
       dailyRecordHook,
       dateNav,

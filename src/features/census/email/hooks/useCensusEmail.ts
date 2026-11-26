@@ -13,7 +13,7 @@ import { useCensusEmailMessageState } from '@/features/census/email/hooks/useCen
 import { useCensusEmailSendState } from '@/features/census/email/hooks/useCensusEmailSendState';
 import { resolveUpcEmailBlockReason } from '@/shared/census/upcEvaluationPolicy';
 
-interface UseCensusEmailParams {
+export interface UseCensusEmailParams {
   record: DailyRecord | null;
   currentDateString: string;
   nurseSignature: string;

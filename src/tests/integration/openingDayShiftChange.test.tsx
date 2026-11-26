@@ -51,7 +51,9 @@ vi.mock('@/components/layout/AppContent', () => ({
 }));
 vi.mock('@/hooks/useStaleDayEditGuard', () => ({ useStaleDayEditGuard: () => async () => true }));
 vi.mock('@/hooks/useExistingDaysQuery', () => ({ useExistingDaysQuery: () => ({ data: [] }) }));
-vi.mock('@/features/census/email/hooks/useCensusEmail', () => ({ useCensusEmail: () => ({}) }));
+vi.mock('@/app-shell/runtime/useDeferredCensusEmail', () => ({
+  useDeferredCensusEmail: () => ({ censusEmail: {}, censusEmailBridge: null }),
+}));
 vi.mock('@/hooks/useFileOperations', () => ({ useFileOperations: () => ({}) }));
 vi.mock('@/hooks/useDailyRecord', () => ({
   useDailyRecord: (date: string) => {
