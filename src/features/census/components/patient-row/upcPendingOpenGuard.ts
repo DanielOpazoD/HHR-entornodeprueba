@@ -1,5 +1,5 @@
 import type { PatientData } from '@/types/domain/patient';
-import { documentIdentityKey, hasNonRutLetter } from '@/utils/rutUtils';
+import { documentIdentityKey, isValidRut } from '@/utils/rutUtils';
 
 export interface LegacyCensusObservation {
   otherActiveNames: Set<string>;
@@ -289,14 +289,15 @@ const resolveIdentifiableDocumentKey = (rawDocType?: string, rawValue?: string):
   if (normalizedType === 'Pasaporte') {
     const key = documentIdentityKey(value);
     if (!key) return '';
-    const core = key.startsWith('passport:') ? key.slice('passport:'.length) : key;
-    if (core.length < 2 || /^0+$/.test(core)) return '';
-    return `Pasaporte:${key}`;
+    const rawCore = key.startsWith('passport:') ? key.slice('passport:'.length) : key;
+    const core = rawCore.replace(/[/_\s.-]/g, '');
+    if (core.length < 2 || !/[1-9]/.test(core)) return '';
+    return `Pasaporte:${core}`;
   }
-  if (hasNonRutLetter(value)) return '';
-  const key = documentIdentityKey(value);
-  if (key.length < 2 || /^0+$/.test(key)) return '';
-  return `${normalizedType}:${key}`;
+  if (!isValidRut(value)) return '';
+  const canonicalRut = documentIdentityKey(value).replace(/^0+/, '');
+  if (canonicalRut.length < 2) return '';
+  return `${normalizedType}:${canonicalRut}`;
 };
 
 const arePairedSubjectsDistinguishedByIdentity = (

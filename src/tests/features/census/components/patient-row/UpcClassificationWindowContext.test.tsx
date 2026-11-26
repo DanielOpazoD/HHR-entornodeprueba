@@ -2623,6 +2623,22 @@ describe('UpcClassificationWindowProvider', () => {
       cribRut: '111111111',
       shouldCancel: true,
     });
+    // Same RUN with and without leading zero -> must cancel.
+    await runDocComparisonCase({
+      motherDocType: 'RUT',
+      motherRut: '1.234.567-4',
+      cribDocType: 'RUT',
+      cribRut: '01.234.567-4',
+      shouldCancel: true,
+    });
+    // Same RUN body with invalid check digit on crib -> must cancel.
+    await runDocComparisonCase({
+      motherDocType: 'RUT',
+      motherRut: '1.234.567-4',
+      cribDocType: 'RUT',
+      cribRut: '1.234.567-9',
+      shouldCancel: true,
+    });
     // Same passport in different case/separators -> must cancel.
     await runDocComparisonCase({
       motherDocType: 'Pasaporte',
@@ -2647,12 +2663,12 @@ describe('UpcClassificationWindowProvider', () => {
       cribRut: '00.000.000-0',
       shouldCancel: true,
     });
-    // Genuine distinct normalized RUTs -> keeps open.
+    // Genuine distinct valid normalized RUTs -> keeps open.
     await runDocComparisonCase({
       motherDocType: 'RUT',
       motherRut: '11.111.111-1',
       cribDocType: 'RUT',
-      cribRut: '28.000.001-1',
+      cribRut: '28.000.001-9',
       shouldCancel: false,
     });
   });
