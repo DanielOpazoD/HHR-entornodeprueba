@@ -88,7 +88,7 @@ Una change queda lista solo si cumple todo lo siguiente (acreditable por CI del 
 - **Cuándo abrir una excepción:** sólo si partir el archivo o corregir en esa iteración rompe contratos o añade riesgo clínico/operativo **y** la excepción queda registrada en la allowlist/backlog con límite, motivo, owner y criterio de cierre. Si no se cumplen ambas condiciones, resolver en la misma change.
 - **Cómo agregar un guardrail nuevo:** preferir `scripts/check-*.mjs` o `scripts/report-*.mjs` antes que tooling externo; si es informativo, empezar como `report-only` y declararlo en `scripts/config/guardrail-governance.json` (ver también [ENGINEERING_CHANGE_DECISION_POLICY.md](./ENGINEERING_CHANGE_DECISION_POLICY.md)).
 - **Revisión local de deuda (sin confundir snapshots con estado actual):** los archivos de `reports/` no se versionan y corresponden al SHA en que se generaron. Para revisar deuda localmente, ejecutar:
-  `npm run report:quality-metrics` y `npm run report:legacy-retirement-debt`.
+  `npm run report:quality-metrics` y `npm run check:legacy-retirement-debt`.
 
 ## Gates activos
 
@@ -369,10 +369,9 @@ Este gate es advisory-first: no bloquea por falta de datos reales ni por una cor
 Si el observado contradice repetidamente el balance estimado, ajustar primero `durationHints`, `perFileOverheadMs`, `affinityGroups` o `lockedAssignments`, y recién después considerar cambios de suite. No reducir cobertura clínica crítica para bajar minutos. Si el reporte queda en `no_observed_ci_data` dentro de GitHub Actions, revisar que el job `ci-runtime-telemetry` haya ejecutado el collector antes del reporter y que el token tenga permiso de lectura de Actions.
 El gate de rendimiento del censo usa 5 muestras por escenario en PR y conserva 30 en eventos que no son PR, incluidos los `push` a `main` y `develop`. Un `push` a `main` que reutiliza la evidencia de su PR no repite la medición; queda la de 5 muestras de esa PR. El muestreo corto detecta regresiones durante revisión; el muestreo largo de los eventos que no son PR mantiene la evidencia estable sin cobrar ese costo en cada iteración.
 La fuente de verdad de controles locales es `scripts/config/guardrail-governance.json`: `reportOnly` registra comandos que escriben snapshots bajo demanda y `qualityAggregate.checks` enumera los controles bloqueantes de `check:quality`, repartidos en cinco grupos paralelos en CI (`boundaries`, `governance`, `security`, `size`, `tests`).
-`report:technical-ownership-map` conserva el snapshot para revisión técnica.
 La validación de tiempos actuales corre en el job `ci-runtime-telemetry` de `.github/workflows/ci-cd.yml`, requerido por `ci-summary`: collect → report → check. `npm run check:ci-runtime-telemetry` sigue disponible localmente y valida el archivo presente; comprobar su fecha y corrida de origen antes de usarlo como evidencia.
 
-Salida esperada:
+Salidas esperadas:
 
 - ruta blocking compacta y repetible para release;
 - reglas, emulador sync y E2E críticos verdes en la misma corrida;
@@ -380,15 +379,14 @@ Salida esperada:
 
 ### Revisar responsables técnicos
 
-1. correr `npm run report:technical-ownership-map`
-2. revisar `reports/technical-ownership-map.md`
-3. confirmar que cada subsistema crítico siga teniendo:
+1. revisar `scripts/config/technical-ownership-map.json`
+2. confirmar que cada subsistema crítico siga teniendo:
    - `owner` técnico
    - `primaryMetric`
    - al menos un `gate`
    - al menos un `runbook`
-4. si agregaste un subsistema crítico nuevo o cambió el runbook operativo, actualizar el mapa en la misma change
-5. no aceptar deuda crítica sin owner operativo explícito
+3. si agregaste un subsistema crítico nuevo o cambió el runbook operativo, actualizar el mapa en la misma change
+4. no aceptar deuda crítica sin owner operativo explícito
 
 ### Falla `check:serverless-sensitive-coverage`
 
@@ -402,14 +400,13 @@ Salida esperada:
 
 ### Falla `check:guardrail-governance`
 
-1. correr `npm run report:guardrail-governance`
-2. revisar `reports/guardrail-governance.md`
-3. confirmar que:
+1. correr `npm run check:guardrail-governance` y revisar `scripts/config/guardrail-governance.json`
+2. confirmar que:
    - `qualityAggregate.checks` apunte a scripts válidos en `package.json`
    - `test:release-confidence` siga cubriendo el pack blocking compacto
    - los reportes report-only sigan apuntando a artefactos reales
-4. si agregaste un guardrail nuevo, decidir en la misma change si nace como blocking o report-only
-5. no duplicar un mismo riesgo en varios gates sin justificación explícita
+3. si agregaste un guardrail nuevo, decidir en la misma change si nace como blocking o report-only
+4. no duplicar un mismo riesgo en varios gates sin justificación explícita
 
 ### Falla `check:dependency-vulnerabilities`
 

@@ -25,31 +25,6 @@
       "artifact": "reports/operational-health.md"
     },
     {
-      "id": "bundle_risk_ledger",
-      "script": "report:bundle-risk-ledger",
-      "artifact": "reports/bundle-risk-ledger.md"
-    },
-    {
-      "id": "legacy_retirement_debt",
-      "script": "report:legacy-retirement-debt",
-      "artifact": "reports/legacy-retirement-debt.md"
-    },
-    {
-      "id": "runtime_contracts",
-      "script": "report:runtime-contracts",
-      "artifact": "reports/runtime-contracts.md"
-    },
-    {
-      "id": "guardrail_governance",
-      "script": "report:guardrail-governance",
-      "artifact": "reports/guardrail-governance.md"
-    },
-    {
-      "id": "technical_ownership",
-      "script": "report:technical-ownership-map",
-      "artifact": "reports/technical-ownership-map.md"
-    },
-    {
       "id": "test_runtime_governance",
       "script": "report:test-runtime-governance",
       "artifact": "reports/test-runtime-governance.md"

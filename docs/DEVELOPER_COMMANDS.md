@@ -127,7 +127,6 @@ Estos scripts siguen soportados, pero no forman parte de la superficie pública 
 - `npm run profile:unit-shard-runtime`
 - `npm run report:ci-runtime-observed-profile`
 - `npm run report:test-runtime-governance`
-- `npm run report:runtime-contracts`
 
 ## Convención operativa
 

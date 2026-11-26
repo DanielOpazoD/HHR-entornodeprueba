@@ -10,14 +10,6 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
     command: 'report:quality-metrics',
     artifacts: ['reports/quality-metrics.json', 'reports/quality-metrics.md'],
   }),
-  'bundle-risk-ledger': reportNode({
-    command: 'report:bundle-risk-ledger',
-    artifacts: ['reports/bundle-risk-ledger.json', 'reports/bundle-risk-ledger.md'],
-  }),
-  'legacy-retirement-debt': reportNode({
-    command: 'report:legacy-retirement-debt',
-    artifacts: ['reports/legacy-retirement-debt.json', 'reports/legacy-retirement-debt.md'],
-  }),
   'critical-coverage': reportNode({
     command: 'report:critical-coverage',
     artifacts: ['reports/critical-coverage.json', 'reports/critical-coverage.md'],
@@ -39,18 +31,6 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
       'reports/e2e/preview-bootstrap/ci-provenance.json',
       'reports/test-execution-manifest.json',
     ],
-  }),
-  'technical-ownership-map': reportNode({
-    command: 'report:technical-ownership-map',
-    artifacts: ['reports/technical-ownership-map.json', 'reports/technical-ownership-map.md'],
-  }),
-  'guardrail-governance': reportNode({
-    command: 'report:guardrail-governance',
-    artifacts: ['reports/guardrail-governance.json', 'reports/guardrail-governance.md'],
-  }),
-  'runtime-contracts': reportNode({
-    command: 'report:runtime-contracts',
-    artifacts: ['reports/runtime-contracts.json', 'reports/runtime-contracts.md'],
   }),
   'sync-convergence': reportNode({
     command: 'report:sync-convergence',
