@@ -310,7 +310,19 @@ export const recordLegacyCensusObservation = (
       if (normalizedName) {
         observation.otherActiveNames.add(normalizedName);
       }
-      if (!expectedTuple || slotKey === pairedSlotKey) continue;
+      if (!expectedTuple) continue;
+      if (slotKey === pairedSlotKey) {
+        if (isCrib) continue;
+        const slotIdentity = resolveUpcCellSubjectIdentity(subject);
+        if (isInitialCapture) {
+          if (slotIdentity !== null) {
+            observation.otherSlotIdentities.set(slotKey, slotIdentity);
+          }
+        } else if (slotIdentity !== null && observation.otherSlotIdentities.has(slotKey)) {
+          observation.otherSlotIdentities.set(slotKey, slotIdentity);
+        }
+        continue;
+      }
       if (isInitialCapture) {
         const slotIdentity = resolveUpcCellSubjectIdentity(subject);
         if (slotIdentity !== null) {
@@ -376,7 +388,23 @@ export const hasLegacyCensusAmbiguity = (
       [`${bedId}:crib`, bed?.clinicalCrib],
     ];
     for (const [slotKey, subject] of entries) {
-      if (slotKey === clickedSlotKey || slotKey === pairedSlotKey) continue;
+      if (slotKey === clickedSlotKey) continue;
+      if (slotKey === pairedSlotKey) {
+        if (isCrib) continue;
+        seenSlots.add(slotKey);
+        const currentPairedIdentity = resolveUpcCellSubjectIdentity(subject);
+        const initialPairedIdentity = observation.otherSlotIdentities.get(slotKey) ?? null;
+        if (currentPairedIdentity !== initialPairedIdentity) {
+          if (!isSameUpcCellSubjectIdentity(initialPairedIdentity, currentPairedIdentity)) {
+            return true;
+          }
+          const pairedNameKey = normalizePatientNameKey(subject?.patientName);
+          if (isNamingTransition && currentNameKey && pairedNameKey === currentNameKey) {
+            return true;
+          }
+        }
+        continue;
+      }
       seenSlots.add(slotKey);
       const currentOtherIdentity = resolveUpcCellSubjectIdentity(subject);
       const initialOtherIdentity = observation.otherSlotIdentities.get(slotKey) ?? null;

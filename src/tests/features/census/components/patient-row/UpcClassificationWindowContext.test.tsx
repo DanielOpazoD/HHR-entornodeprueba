@@ -2150,6 +2150,119 @@ describe('UpcClassificationWindowProvider', () => {
     await runCase('no-id-no-rut-consistent-firstname');
   });
 
+  it('keeps a pending legacy mother bed open when her own paired crib completes patientName (alone or together with the mother)', async () => {
+    const runMotherNamingCase = async (mode: 'crib-only' | 'both-names' | 'both-names-retry') => {
+      vi.resetModules();
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const isRetry = mode === 'both-names-retry';
+      let attempts = 0;
+      let resolveChunk:
+        | ((value: { UpcClassificationWindow: React.FC<MockUpcWindowProps> }) => void)
+        | null = null;
+      const chunkPromise = new Promise<{
+        UpcClassificationWindow: React.FC<MockUpcWindowProps>;
+      }>(resolve => {
+        resolveChunk = resolve;
+      });
+      vi.doMock(UPC_WINDOW_MODULE_PATH, () => {
+        attempts += 1;
+        if (isRetry && attempts === 1) {
+          throw new Error('503 Service Unavailable');
+        }
+        return chunkPromise;
+      });
+
+      const {
+        DailyRecordBedsContext,
+        resolveUpcCellSubjectIdentity,
+        UpcClassificationWindowProvider,
+        useUpcClassificationWindowOpener,
+      } = await loadFreshContext();
+
+      const unnamedCrib = DataFactory.createMockPatient('R1', {
+        patientName: '',
+        rut: '11.111.111-1',
+        clinicalEpisodeId: 'legacy_ep_shared_maternal',
+        admissionDate: '2026-11-24',
+        admissionTime: '08:00',
+      });
+      const initialMother = DataFactory.createMockPatient('R1', {
+        patientName: mode === 'crib-only' ? 'Maria Lopez' : '',
+        rut: '11.111.111-1',
+        clinicalEpisodeId: 'legacy_ep_shared_maternal',
+        admissionDate: '2026-11-24',
+        admissionTime: '08:00',
+        clinicalCrib: unnamedCrib,
+      });
+
+      const Trigger = ({ mother }: { mother: PatientData }) => {
+        const { openUpcWindow } = useUpcClassificationWindowOpener();
+        return (
+          <button
+            type="button"
+            onClick={event =>
+              openUpcWindow('R1', {
+                episodeIdentity: resolveUpcCellSubjectIdentity(mother),
+                triggerElement: event.currentTarget,
+              })
+            }
+          >
+            Abrir cama materna
+          </button>
+        );
+      };
+
+      const view = render(
+        <DailyRecordBedsContext.Provider value={{ R1: initialMother }}>
+          <UpcClassificationWindowProvider currentDateString="2026-11-24">
+            <Trigger mother={initialMother} />
+          </UpcClassificationWindowProvider>
+        </DailyRecordBedsContext.Provider>
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir cama materna' }));
+      if (isRetry) {
+        expect(await screen.findByRole('alert')).toHaveTextContent(/No se pudo abrir este panel/);
+        fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+      }
+      expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+      const updatedMother: PatientData = {
+        ...initialMother,
+        patientName: 'Maria Lopez',
+        clinicalCrib: { ...unnamedCrib, patientName: 'RN de Maria' },
+      };
+
+      view.rerender(
+        <DailyRecordBedsContext.Provider value={{ R1: updatedMother }}>
+          <UpcClassificationWindowProvider currentDateString="2026-11-24">
+            <Trigger mother={updatedMother} />
+          </UpcClassificationWindowProvider>
+        </DailyRecordBedsContext.Provider>
+      );
+      expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+      await act(async () => {
+        resolveChunk?.({
+          UpcClassificationWindow: ({ initialBedId }: MockUpcWindowProps) => (
+            <div role="dialog" aria-label="Clasificación UPC">
+              {initialBedId}
+            </div>
+          ),
+        });
+        await chunkPromise;
+      });
+
+      expect(screen.getByRole('dialog', { name: 'Clasificación UPC' })).toHaveTextContent('R1');
+      view.unmount();
+      consoleErrorSpy.mockRestore();
+    };
+
+    await runMotherNamingCase('crib-only');
+    await runMotherNamingCase('both-names');
+    await runMotherNamingCase('both-names-retry');
+  });
+
   it('restores focus to the clicked trigger button on Escape even when activeElement stayed on an ancestor wrapper', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     let attempts = 0;

@@ -141,7 +141,7 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
     () => currentParentIdentity
   );
   const isLegacySubject = isLegacyUpcSubjectIdentity(latchedEpisodeIdentity);
-  const subjectPairedSlotKey = isCrib ? rawBedId : null;
+  const subjectPairedSlotKey = rawBedId ? (isCrib ? rawBedId : `${rawBedId}:crib`) : null;
   const [legacyObservation] = useState<LegacyCensusObservation>(() =>
     captureLegacyCensusObservation(
       beds,
