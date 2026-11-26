@@ -35,10 +35,10 @@ import {
   searchDiagnoses,
   getCIE10Description,
   forceAISearch,
-} from '@/services/terminology/terminologyService';
+} from '@/features/clinical-documents/services/terminologyService';
 import * as db from '@/services/terminology/cie10SpanishDatabase';
-import * as ai from '@/services/terminology/cie10AISearch';
-import * as cache from '@/services/terminology/aiResultsCache';
+import * as ai from '@/features/clinical-documents/services/cie10AISearch';
+import * as cache from '@/features/clinical-documents/services/aiResultsCache';
 
 vi.mock('@/services/terminology/cie10SpanishDatabase', () => ({
   searchCIE10: vi.fn(),
@@ -49,11 +49,11 @@ vi.mock('@/services/terminology/cie10SpanishDatabase', () => ({
   ]),
 }));
 
-vi.mock('@/services/terminology/cie10AISearch', () => ({
+vi.mock('@/features/clinical-documents/services/cie10AISearch', () => ({
   searchCIE10WithAI: vi.fn(),
 }));
 
-vi.mock('@/services/terminology/aiResultsCache', () => ({
+vi.mock('@/features/clinical-documents/services/aiResultsCache', () => ({
   getCachedAIResults: vi.fn(),
   cacheAIResults: vi.fn(),
 }));

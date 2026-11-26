@@ -222,10 +222,12 @@ const executeClinicalFillPass = async ({
           archiveCudyrCapture: conflictRetry
             ? undefined
             : request =>
-                import('@/services/cudyr/cudyrArchiveQueue').then(({ persistCudyrArchivePart }) => {
-                  check();
-                  return persistCudyrArchivePart(request, watchdog.signal, session);
-                }),
+                import('@/features/rayen-import/services/cudyrArchiveQueue').then(
+                  ({ persistCudyrArchivePart }) => {
+                    check();
+                    return persistCudyrArchivePart(request, watchdog.signal, session);
+                  }
+                ),
           now: () => new Date(),
           createId: input.createId,
           nurseCatalog: input.nurseCatalog,

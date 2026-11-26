@@ -3,8 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { createClinicalCudyrCoordinator } from '@/features/rayen-import/domain/clinicalCudyrCoordinator';
 import { resolveHistoricalCudyrBatchOperation } from '@/features/rayen-import/domain/historicalCudyrPatch';
 import { collectDailyCudyrRecoveryEpisodes } from '@/features/rayen-import/hooks/dailyCudyrRecoveryReader';
-import { assertDocumentaryCudyrTarget } from '@/domain/evaluationScales/documentaryCudyr';
-import { recoverDailyCudyrGap, planDailyCudyrGaps } from '@/services/cudyr/dailyCudyrRecoveryPlan';
+import { assertDocumentaryCudyrTarget } from '@/features/rayen-import/domain/documentaryCudyr';
+import {
+  recoverDailyCudyrGap,
+  planDailyCudyrGaps,
+} from '@/features/rayen-import/services/dailyCudyrRecoveryPlan';
 import { DailyRecordSchema } from '@/schemas/zodSchemas';
 import {
   historicalDay,

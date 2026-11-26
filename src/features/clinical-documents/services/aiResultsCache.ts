@@ -5,7 +5,7 @@
  * and save tokens. Results are stored in localStorage with TTL.
  */
 
-import { CIE10Entry } from './cie10SpanishDatabase';
+import { CIE10Entry } from '@/services/terminology/cie10SpanishDatabase';
 import { safeJsonParse } from '@/utils/jsonUtils';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 

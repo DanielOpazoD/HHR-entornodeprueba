@@ -1,6 +1,6 @@
 import type { ArchiveCudyrHistoryRequest } from '@/types/domain/cudyrHistory';
-import { assertCudyrArchiveAcknowledged } from './cudyrArchiveAcknowledgement';
-import { archiveCudyrHistory } from './cudyrHistoryService';
+import { assertCudyrArchiveAcknowledged } from '@/services/cudyr/cudyrArchiveAcknowledgement';
+import { archiveCudyrHistory } from '@/services/cudyr/cudyrHistoryService';
 import {
   ensureDbReady,
   isDatabaseInFallbackMode,

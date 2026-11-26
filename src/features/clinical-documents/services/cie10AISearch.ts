@@ -6,9 +6,9 @@
  * - Local development: optional direct Gemini fallback using local-only env var
  */
 
-import { CIE10Entry } from './cie10SpanishDatabase';
-import { aiRequestManager } from '../ai/aiRequestManager';
-import { callLocalAI, getLocalDevProviderConfig } from '../ai/aiProviderConfig';
+import { CIE10Entry } from '@/services/terminology/cie10SpanishDatabase';
+import { aiRequestManager } from './aiRequestManager';
+import { callLocalAI, getLocalDevProviderConfig } from './aiProviderConfig';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import {

@@ -1,6 +1,6 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
-import type { CapturedCudyrMonthlyReport } from './cudyrMonthlyReportCapture';
+import type { CapturedCudyrMonthlyReport } from '@/services/cudyr/cudyrMonthlyReportCapture';
 import {
   cudyrDocumentKey,
   cudyrFullNameKey,
@@ -13,7 +13,7 @@ import {
   hasUniqueDocumentaryCudyrIdentity,
   isProtectedCudyrDay,
   type DocumentaryCudyr,
-} from '@/domain/evaluationScales/documentaryCudyr';
+} from '@/features/rayen-import/domain/documentaryCudyr';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { cudyrModality } from '@/domain/cudyr/cudyrModality';
 import { isCudyrPatientEligible } from '@/domain/cudyr/cudyrEligibility';

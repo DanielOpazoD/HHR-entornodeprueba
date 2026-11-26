@@ -159,7 +159,7 @@ export interface HistoricalCudyrBatchItem {
 }
 
 export interface DailyCudyrRecoveryResult {
-  current: Map<string, import('@/domain/evaluationScales/documentaryCudyr').DocumentaryCudyr>;
+  current: Map<string, import('@/features/rayen-import/domain/documentaryCudyr').DocumentaryCudyr>;
   previous: HistoricalCudyrBatchItem[];
   errors: ClinicalFillError[];
 }

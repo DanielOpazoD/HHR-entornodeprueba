@@ -39,7 +39,7 @@ vi.mock('@/features/rayen-import/bridge/clinicalFillReaders', () => ({
     }),
   }),
 }));
-vi.mock('@/services/cudyr/cudyrArchiveQueue', () => ({
+vi.mock('@/features/rayen-import/services/cudyrArchiveQueue', () => ({
   persistCudyrArchivePart: async () => 'persisted',
 }));
 

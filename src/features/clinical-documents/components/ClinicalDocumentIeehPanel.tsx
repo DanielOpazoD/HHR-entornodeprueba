@@ -24,8 +24,11 @@ import {
   buildIeehPatientFromEpicrisis,
   buildIeehDischargeFromEpicrisis,
 } from '@/features/clinical-documents/controllers/clinicalDocumentIeehPrintController';
-import type { TerminologyConcept } from '@/services/terminology/terminologyService';
-import { searchDiagnoses, forceAISearch } from '@/services/terminology/terminologyService';
+import type { TerminologyConcept } from '@/features/clinical-documents/services/terminologyService';
+import {
+  searchDiagnoses,
+  forceAISearch,
+} from '@/features/clinical-documents/services/terminologyService';
 import { logger } from '@/services/utils/loggerService';
 import { ClinicalDocumentIeehFormBody } from '@/features/clinical-documents/components/ClinicalDocumentIeehFormBody';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';

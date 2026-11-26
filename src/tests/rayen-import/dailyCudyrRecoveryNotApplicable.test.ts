@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { createDailyCudyrRecoveryReader } from '@/features/rayen-import/hooks/dailyCudyrRecoveryReader';
-import { recoverDailyCudyrGap } from '@/services/cudyr/dailyCudyrRecoveryPlan';
+import { recoverDailyCudyrGap } from '@/features/rayen-import/services/dailyCudyrRecoveryPlan';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   currentDay,

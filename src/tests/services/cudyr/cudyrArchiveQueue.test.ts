@@ -30,7 +30,7 @@ vi.mock('@/services/storage/sync/publicSyncQueue', () => ({
   processSyncQueue: h.process,
 }));
 
-import { persistCudyrArchivePart } from '@/services/cudyr/cudyrArchiveQueue';
+import { persistCudyrArchivePart } from '@/features/rayen-import/services/cudyrArchiveQueue';
 import type { ArchiveCudyrHistoryRequest } from '@/types/domain/cudyrHistory';
 import { guardAuthoringSession } from '@/services/session/authoringSession';
 

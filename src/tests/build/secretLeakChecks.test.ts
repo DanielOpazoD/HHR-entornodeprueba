@@ -97,10 +97,10 @@ describe('secretLeakChecks', () => {
     const ids = (file: string) =>
       findSecretLeakFailuresForFile({ file, content: read }).map(failure => failure.check.id);
 
-    expect(ids('src/services/terminology/cie10AISearch.ts')).toContain(
+    expect(ids('src/features/clinical-documents/services/cie10AISearch.ts')).toContain(
       'client-dev-only-env-outside-guarded-files'
     );
-    expect(ids('src/services/ai/aiProviderConfig.ts')).not.toContain(
+    expect(ids('src/features/clinical-documents/services/aiProviderConfig.ts')).not.toContain(
       'client-dev-only-env-outside-guarded-files'
     );
   });

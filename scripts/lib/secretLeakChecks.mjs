@@ -59,7 +59,7 @@ export const textChecks = [
       ![
         'src/env.d.ts',
         'src/config/envValidator.ts',
-        'src/services/ai/aiProviderConfig.ts',
+        'src/features/clinical-documents/services/aiProviderConfig.ts',
         'src/features/document-scanner/components/DocumentScannerLocalQueueView.tsx',
       ].includes(file),
     matches: content =>

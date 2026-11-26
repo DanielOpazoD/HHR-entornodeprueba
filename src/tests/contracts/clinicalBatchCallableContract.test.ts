@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 import type { ClinicalFillPatchOperation } from '@/features/rayen-import';
 import type { RayenClinicalEnrichmentBatchPayload } from '@/features/rayen-import/bridge/rayenClinicalEnrichmentBatchClient';
 import { prepareClinicalEnrichmentBatchPayload } from '@/features/rayen-import/hooks/clinicalEnrichmentBatchPayload';
-import { CUDYR_DOCUMENTARY_SOURCE } from '@/domain/evaluationScales/documentaryCudyr';
+import { CUDYR_DOCUMENTARY_SOURCE } from '@/features/rayen-import/domain/documentaryCudyr';
 import { asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 
 const require = createRequire(import.meta.url);

@@ -29,7 +29,7 @@ vi.mock('@/services/storage/firestore/firestoreShared', async importOriginal => 
   ...(await importOriginal<typeof import('@/services/storage/firestore/firestoreShared')>()),
   getRecordDocRef: () => ({ id: 'synthetic-doc' }),
 }));
-import { persistCudyrArchivePart } from '@/services/cudyr/cudyrArchiveQueue';
+import { persistCudyrArchivePart } from '@/features/rayen-import/services/cudyrArchiveQueue';
 import { processSyncQueue } from '@/services/storage/sync/publicSyncQueue';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { enqueueStandaloneSyncTask } from '@/services/storage/sync/enqueueStandaloneSyncTask';

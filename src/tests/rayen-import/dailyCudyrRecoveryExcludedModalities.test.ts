@@ -4,7 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PatientData } from '@/types/domain/patient';
 import { resolveClinicalStageResult } from '@/features/rayen-import/domain/clinicalStageResolution';
 import { createDailyCudyrRecoveryReader } from '@/features/rayen-import/hooks/dailyCudyrRecoveryReader';
-import { planDailyCudyrGaps, recoverDailyCudyrGap } from '@/services/cudyr/dailyCudyrRecoveryPlan';
+import {
+  planDailyCudyrGaps,
+  recoverDailyCudyrGap,
+} from '@/features/rayen-import/services/dailyCudyrRecoveryPlan';
 import { applyPatches } from '@/utils/patchUtils';
 import {
   currentDay,

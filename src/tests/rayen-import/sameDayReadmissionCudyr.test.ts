@@ -1,9 +1,9 @@
 // @vitest-environment node
 import { createRequire } from 'node:module';
 import { describe, expect, it, vi } from 'vitest';
-import { assertDocumentaryCudyrTarget } from '@/domain/evaluationScales/documentaryCudyr';
+import { assertDocumentaryCudyrTarget } from '@/features/rayen-import/domain/documentaryCudyr';
 import { createDailyCudyrRecoveryReader } from '@/features/rayen-import/hooks/dailyCudyrRecoveryReader';
-import { recoverDailyCudyrGap } from '@/services/cudyr/dailyCudyrRecoveryPlan';
+import { recoverDailyCudyrGap } from '@/features/rayen-import/services/dailyCudyrRecoveryPlan';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   currentDay,

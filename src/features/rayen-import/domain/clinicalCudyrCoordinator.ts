@@ -22,7 +22,7 @@ import { clinicalValuesEqual } from './clinicalIncrementalSync';
 import {
   CUDYR_DOCUMENTARY_SOURCE,
   hasAcceptedCudyr,
-} from '@/domain/evaluationScales/documentaryCudyr';
+} from '@/features/rayen-import/domain/documentaryCudyr';
 
 interface ClinicalCudyrCoordinatorInput {
   censusDate: string;

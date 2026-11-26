@@ -17,7 +17,10 @@
  * The JSON database is lazy-loaded on first search.
  */
 
-import { callLocalAI, isLocalAIAvailable } from '@/services/ai/aiProviderConfig';
+import {
+  callLocalAI,
+  isLocalAIAvailable,
+} from '@/features/clinical-documents/services/aiProviderConfig';
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { removeAccents } from '@/utils/stringUtils';

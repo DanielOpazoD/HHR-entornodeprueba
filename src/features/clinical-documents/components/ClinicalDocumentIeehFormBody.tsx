@@ -7,7 +7,7 @@ import type {
 } from '@/features/clinical-documents/contracts/ieehContracts';
 import { IEEH_DISCHARGE_CONDITIONS } from '@/features/clinical-documents/controllers/clinicalDocumentIeehController';
 import { FonasaSearchInput } from '@/features/clinical-documents/components/FonasaSearchInput';
-import type { TerminologyConcept } from '@/services/terminology/terminologyService';
+import type { TerminologyConcept } from '@/features/clinical-documents/services/terminologyService';
 
 interface ClinicalDocumentIeehFormBodyProps {
   localDraft: ClinicalDocumentIeehDraft;
