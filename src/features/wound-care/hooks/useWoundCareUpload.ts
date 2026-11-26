@@ -188,7 +188,10 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
           return { success: true };
         }
 
-        const errorMsg = result.issues[0]?.message || 'Error al subir el consentimiento.';
+        const errorMsg =
+          result.issues[0]?.userSafeMessage ||
+          result.issues[0]?.message ||
+          'Error al subir el consentimiento.';
         setProgress({ stage: 'error', message: errorMsg });
         return { success: false, error: errorMsg };
       } catch (error) {
@@ -224,7 +227,13 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
           return { success: true };
         }
 
-        return { success: false, error: result.issues[0]?.message || 'Error al eliminar.' };
+        return {
+          success: false,
+          error:
+            result.issues[0]?.userSafeMessage ||
+            result.issues[0]?.message ||
+            'Error al eliminar la fotografía.',
+        };
       } catch (error) {
         return {
           success: false,

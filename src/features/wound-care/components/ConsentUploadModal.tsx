@@ -9,6 +9,7 @@ import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 interface ConsentUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onUploaded?: () => void;
   episodeContext: EpisodeContext;
   existingConsent: WoundCareConsent | null;
 }
@@ -16,11 +17,14 @@ interface ConsentUploadModalProps {
 export const ConsentUploadModal: React.FC<ConsentUploadModalProps> = ({
   isOpen,
   onClose,
+  onUploaded,
   episodeContext,
   existingConsent,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isMountedRef = useRef(true);
+  const isSubmittingRef = useRef(false);
+  const activeEpisodeKeyRef = useRef(episodeContext.episodeKey);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +36,10 @@ export const ConsentUploadModal: React.FC<ConsentUploadModalProps> = ({
       isMountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    activeEpisodeKeyRef.current = episodeContext.episodeKey;
+  }, [episodeContext.episodeKey]);
 
   useEffect(() => {
     return () => {
@@ -57,14 +65,27 @@ export const ConsentUploadModal: React.FC<ConsentUploadModalProps> = ({
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || isSubmittingRef.current) return;
 
-    const result = await uploadConsent(selectedFile, episodeContext);
-    if (!isMountedRef.current) return;
-    if (result.success) {
-      handleClose();
-    } else {
-      setError(result.error || 'Error al subir el consentimiento.');
+    const requestEpisodeKey = episodeContext.episodeKey;
+    isSubmittingRef.current = true;
+    setError(null);
+    try {
+      const result = await uploadConsent(selectedFile, episodeContext);
+      if (!isMountedRef.current || activeEpisodeKeyRef.current !== requestEpisodeKey) return;
+      if (result.success) {
+        onUploaded?.();
+        handleClose();
+      } else {
+        setError(result.error || 'Error al subir el consentimiento.');
+      }
+    } catch (unknownError) {
+      if (!isMountedRef.current || activeEpisodeKeyRef.current !== requestEpisodeKey) return;
+      setError(
+        unknownError instanceof Error ? unknownError.message : 'Error al subir el consentimiento.'
+      );
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 
@@ -186,7 +207,10 @@ export const ConsentUploadModal: React.FC<ConsentUploadModalProps> = ({
         )}
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+          <div
+            role="alert"
+            className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700"
+          >
             {error}
           </div>
         )}

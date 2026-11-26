@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { WoundCarePhoto } from '@/types/domain/woundCare';
 
 interface PhotoDeleteConfirmProps {
   photo: WoundCarePhoto;
-  onConfirm: () => Promise<void>;
+  onConfirm: () => Promise<{ success: boolean; error?: string }>;
   onCancel: () => void;
 }
 
@@ -14,12 +14,40 @@ export const PhotoDeleteConfirm: React.FC<PhotoDeleteConfirmProps> = ({
   onConfirm,
   onCancel,
 }) => {
+  const isMountedRef = useRef(true);
+  const isSubmittingRef = useRef(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const handleConfirm = async () => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setError(null);
     setIsDeleting(true);
-    await onConfirm();
-    setIsDeleting(false);
+    try {
+      const result = await onConfirm();
+      if (!isMountedRef.current) return;
+      if (!result.success) {
+        setError(result.error || 'No se pudo eliminar la fotografía.');
+      }
+    } catch (unknownError) {
+      if (!isMountedRef.current) return;
+      setError(
+        unknownError instanceof Error ? unknownError.message : 'No se pudo eliminar la fotografía.'
+      );
+    } finally {
+      isSubmittingRef.current = false;
+      if (isMountedRef.current) {
+        setIsDeleting(false);
+      }
+    }
   };
 
   return (
@@ -47,6 +75,15 @@ export const PhotoDeleteConfirm: React.FC<PhotoDeleteConfirmProps> = ({
             )}
           </div>
         </div>
+
+        {error && (
+          <div
+            role="alert"
+            className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700"
+          >
+            {error}
+          </div>
+        )}
 
         <div className="flex justify-end gap-2">
           <button

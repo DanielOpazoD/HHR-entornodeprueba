@@ -28,7 +28,10 @@ interface PhotoLightboxProps {
   currentIndex: number;
   onClose: () => void;
   onNavigate: (index: number) => void;
-  onEditDescription?: (photoId: string, description: string) => Promise<void>;
+  onEditDescription?: (
+    photoId: string,
+    description: string
+  ) => Promise<{ success: boolean; error?: string }>;
 }
 
 const formatTakenDate = (photo: WoundCarePhoto): string => {
@@ -52,17 +55,36 @@ export const PhotoLightbox: React.FC<PhotoLightboxProps> = ({
   const hasNext = currentIndex < photos.length - 1;
 
   const dialogRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(true);
+  const editSessionRef = useRef(0);
+  const isSavingDescRef = useRef(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [editDesc, setEditDesc] = useState('');
+  const [isSavingDesc, setIsSavingDesc] = useState(false);
+  const [descError, setDescError] = useState<string | null>(null);
   const zoom = usePhotoLightboxZoom();
   const { reset: resetZoom, zoomIn, zoomOut } = zoom;
 
-  // Reset state on navigation
-  if (useChangedOnRender([currentIndex])) setImageLoaded(false);
   useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Reset state on navigation or active photo replacement
+  if (useChangedOnRender([currentIndex, photo?.id])) {
+    setImageLoaded(false);
+    setIsEditingDesc(false);
+    setIsSavingDesc(false);
+    setDescError(null);
+  }
+  useEffect(() => {
+    editSessionRef.current += 1;
+    isSavingDescRef.current = false;
     resetZoom();
-  }, [currentIndex, resetZoom]);
+  }, [currentIndex, photo?.id, resetZoom]);
 
   const goNext = useCallback(() => {
     if (hasNext && !zoom.isZoomed) onNavigate(currentIndex + 1);
@@ -77,36 +99,57 @@ export const PhotoLightbox: React.FC<PhotoLightboxProps> = ({
     dialogRef.current?.focus();
   }, []);
 
+  const handleCancelEditDesc = useCallback(() => {
+    if (isSavingDescRef.current) return;
+    editSessionRef.current += 1;
+    setDescError(null);
+    setIsEditingDesc(false);
+  }, []);
+
   // Keyboard + focus trap
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case 'Escape':
-          onClose();
+      const target = e.target;
+      const isTextField =
+        target instanceof HTMLElement &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA');
+
+      if (isEditingDesc) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          handleCancelEditDesc();
           return;
-        case 'ArrowRight':
-          goNext();
-          return;
-        case 'ArrowLeft':
-          goPrev();
-          return;
-        case '+':
-        case '=':
-          zoomIn();
-          return;
-        case '-':
-          zoomOut();
-          return;
-        case '0':
-          resetZoom();
-          return;
+        }
+      } else if (!isTextField) {
+        switch (e.key) {
+          case 'Escape':
+            onClose();
+            return;
+          case 'ArrowRight':
+            goNext();
+            return;
+          case 'ArrowLeft':
+            goPrev();
+            return;
+          case '+':
+          case '=':
+            zoomIn();
+            return;
+          case '-':
+            zoomOut();
+            return;
+          case '0':
+            resetZoom();
+            return;
+        }
       }
       if (e.key !== 'Tab') return;
       const focusable = dialog.querySelectorAll<HTMLElement>(
-        'button, a, [tabindex]:not([tabindex="-1"])'
+        'button, a, input, [tabindex]:not([tabindex="-1"])'
       );
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -121,7 +164,7 @@ export const PhotoLightbox: React.FC<PhotoLightboxProps> = ({
     };
     dialog.addEventListener('keydown', handleKeyDown);
     return () => dialog.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, goNext, goPrev, zoomIn, zoomOut, resetZoom]);
+  }, [onClose, goNext, goPrev, zoomIn, zoomOut, resetZoom, isEditingDesc, handleCancelEditDesc]);
 
   // Lock body scroll
   useEffect(() => {
@@ -132,6 +175,41 @@ export const PhotoLightbox: React.FC<PhotoLightboxProps> = ({
   }, []);
 
   if (!photo) return null;
+
+  const handleSubmitEditDesc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onEditDescription || isSavingDescRef.current) return;
+
+    const sessionId = ++editSessionRef.current;
+    isSavingDescRef.current = true;
+    setIsSavingDesc(true);
+    setDescError(null);
+
+    try {
+      const result = await onEditDescription(photo.id, editDesc);
+      if (!isMountedRef.current || editSessionRef.current !== sessionId) return;
+      if (result.success) {
+        setIsEditingDesc(false);
+        setDescError(null);
+      } else {
+        setDescError(result.error || 'No se pudo actualizar la descripción.');
+      }
+    } catch (unknownError) {
+      if (!isMountedRef.current || editSessionRef.current !== sessionId) return;
+      setDescError(
+        unknownError instanceof Error
+          ? unknownError.message
+          : 'No se pudo actualizar la descripción.'
+      );
+    } finally {
+      if (editSessionRef.current === sessionId) {
+        isSavingDescRef.current = false;
+        if (isMountedRef.current) {
+          setIsSavingDesc(false);
+        }
+      }
+    }
+  };
 
   const photoAlt = [
     photo.description || 'Foto de curación',
@@ -272,37 +350,54 @@ export const PhotoLightbox: React.FC<PhotoLightboxProps> = ({
         onClick={e => e.stopPropagation()}
       >
         {/* Editable description */}
-        <div className="flex items-start gap-1.5 mb-0.5 min-h-[20px]">
+        <div className="mb-0.5 min-h-[20px]">
           {isEditingDesc ? (
-            <form
-              className="flex-1 flex items-center gap-1.5"
-              onSubmit={async e => {
-                e.preventDefault();
-                await onEditDescription?.(photo.id, editDesc);
-                setIsEditingDesc(false);
-              }}
-            >
-              <input
-                type="text"
-                value={editDesc}
-                onChange={e => setEditDesc(e.target.value)}
-                autoFocus
-                placeholder="Agregar descripción..."
-                className="flex-1 bg-white/10 text-white text-sm px-2 py-1 rounded border border-white/20 outline-none focus:border-white/50"
-                onKeyDown={e => {
-                  if (e.key === 'Escape') setIsEditingDesc(false);
-                }}
-              />
-              <button
-                type="submit"
-                className="p-1.5 text-emerald-400 hover:text-emerald-300 transition-colors"
-                aria-label="Guardar descripción"
-              >
-                <Check className="w-4 h-4" />
-              </button>
-            </form>
-          ) : (
             <>
+              <form className="flex items-center gap-1.5" onSubmit={handleSubmitEditDesc}>
+                <input
+                  type="text"
+                  value={editDesc}
+                  onChange={e => {
+                    setEditDesc(e.target.value);
+                    if (descError) setDescError(null);
+                  }}
+                  autoFocus
+                  disabled={isSavingDesc}
+                  placeholder="Agregar descripción..."
+                  className="flex-1 bg-white/10 text-white text-sm px-2 py-1 rounded border border-white/20 outline-none focus:border-white/50 disabled:opacity-60"
+                  onKeyDown={e => {
+                    if (e.key === 'Escape') {
+                      e.stopPropagation();
+                      handleCancelEditDesc();
+                    }
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={isSavingDesc}
+                  className="p-1.5 text-emerald-400 hover:text-emerald-300 disabled:opacity-40 transition-colors"
+                  aria-label="Guardar descripción"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  disabled={isSavingDesc}
+                  onClick={handleCancelEditDesc}
+                  className="p-1.5 text-white/50 hover:text-white disabled:opacity-40 transition-colors"
+                  aria-label="Cancelar edición de descripción"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </form>
+              {descError && (
+                <p role="alert" className="mt-1 text-xs text-rose-300">
+                  {descError}
+                </p>
+              )}
+            </>
+          ) : (
+            <div className="flex items-start gap-1.5">
               <p className="text-sm font-medium flex-1">
                 {photo.description || <span className="text-white/30 italic">Sin descripción</span>}
               </p>
@@ -311,6 +406,7 @@ export const PhotoLightbox: React.FC<PhotoLightboxProps> = ({
                   type="button"
                   onClick={() => {
                     setEditDesc(photo.description || '');
+                    setDescError(null);
                     setIsEditingDesc(true);
                   }}
                   className="p-1.5 text-white/40 hover:text-white/70 transition-colors shrink-0"
@@ -319,7 +415,7 @@ export const PhotoLightbox: React.FC<PhotoLightboxProps> = ({
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
               )}
-            </>
+            </div>
           )}
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-white/50">

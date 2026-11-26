@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Camera, Upload, Calendar } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { EpisodeContext } from '@/features/wound-care/use-cases/woundCareUseCases';
@@ -14,6 +14,7 @@ import {
 interface PhotoUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onUploaded?: () => void;
   file: File | null;
   episodeContext: EpisodeContext;
 }
@@ -21,15 +22,30 @@ interface PhotoUploadModalProps {
 export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   isOpen,
   onClose,
+  onUploaded,
   file,
   episodeContext,
 }) => {
+  const isMountedRef = useRef(true);
+  const isSubmittingRef = useRef(false);
+  const activeEpisodeKeyRef = useRef(episodeContext.episodeKey);
   const [description, setDescription] = useState('');
   const [bodyLocation, setBodyLocation] = useState('');
   const [eventDateTime, setEventDateTime] = useState(() => toClinicalDatetimeLocalValue());
   const [error, setError] = useState<string | null>(null);
   const { uploadPhoto, isUploading, progress } = useWoundCareUpload();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    activeEpisodeKeyRef.current = episodeContext.episodeKey;
+  }, [episodeContext.episodeKey]);
 
   const updatePreview = useCallback((f: File | null) => {
     setPreviewUrl(prev => {
@@ -49,19 +65,32 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   }, [file, updatePreview]);
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (!file || isSubmittingRef.current) return;
 
+    const requestEpisodeKey = episodeContext.episodeKey;
+    isSubmittingRef.current = true;
     setError(null);
-    const result = await uploadPhoto(file, episodeContext, {
-      description: description.trim() || undefined,
-      bodyLocation: bodyLocation || undefined,
-      takenAt: toClinicalEventIso(eventDateTime),
-    });
+    try {
+      const result = await uploadPhoto(file, episodeContext, {
+        description: description.trim() || undefined,
+        bodyLocation: bodyLocation || undefined,
+        takenAt: toClinicalEventIso(eventDateTime),
+      });
 
-    if (result.success) {
-      handleClose();
-    } else {
-      setError(result.error || 'Error al subir la fotografía.');
+      if (!isMountedRef.current || activeEpisodeKeyRef.current !== requestEpisodeKey) return;
+      if (result.success) {
+        onUploaded?.();
+        handleClose();
+      } else {
+        setError(result.error || 'Error al subir la fotografía.');
+      }
+    } catch (unknownError) {
+      if (!isMountedRef.current || activeEpisodeKeyRef.current !== requestEpisodeKey) return;
+      setError(
+        unknownError instanceof Error ? unknownError.message : 'Error al subir la fotografía.'
+      );
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 
@@ -170,7 +199,10 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
         )}
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+          <div
+            role="alert"
+            className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700"
+          >
             {error}
           </div>
         )}

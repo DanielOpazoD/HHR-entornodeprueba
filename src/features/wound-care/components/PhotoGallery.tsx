@@ -14,7 +14,10 @@ interface PhotoGalleryProps {
   photos: WoundCarePhoto[];
   readOnly?: boolean;
   onDelete?: (photo: WoundCarePhoto) => Promise<{ success: boolean; error?: string }>;
-  onEditDescription?: (photoId: string, description: string) => Promise<void>;
+  onEditDescription?: (
+    photoId: string,
+    description: string
+  ) => Promise<{ success: boolean; error?: string }>;
 }
 
 export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
@@ -115,8 +118,12 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
         <PhotoDeleteConfirm
           photo={deletePhoto}
           onConfirm={async () => {
-            await onDelete(deletePhoto);
-            setDeletePhoto(null);
+            const targetPhoto = deletePhoto;
+            const result = await onDelete(targetPhoto);
+            if (result.success) {
+              setDeletePhoto(current => (current?.id === targetPhoto.id ? null : current));
+            }
+            return result;
           }}
           onCancel={() => setDeletePhoto(null)}
         />
