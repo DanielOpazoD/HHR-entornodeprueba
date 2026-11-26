@@ -34,6 +34,8 @@ export const REQUIRED_PR_JOBS = [
   'preview-smoke-lane (dicom-1)',
   'preview-smoke-lane (dicom-2)',
   'preview-smoke-lane (dicom-3)',
+  'preview-smoke-lane (dicom-4)',
+  'preview-smoke-lane (dicom-5)',
   'final-confidence-and-readiness',
   'ci-runtime-telemetry',
   'census-startup-performance (development)',

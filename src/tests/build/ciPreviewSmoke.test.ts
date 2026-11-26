@@ -119,7 +119,7 @@ it('splits the canonical preview pack into lanes that cover every spec', () => {
     '--grep',
     GRAPHICS_STRESS_TAG,
   ]);
-  for (const shard of ['1/3', '2/3', '3/3']) {
+  for (const shard of ['1/5', '2/5', '3/5', '4/5', '5/5']) {
     expect(lanes[`dicom-${shard[0]}`]).toEqual([
       DICOM_PREVIEW_SPEC,
       '--fully-parallel',

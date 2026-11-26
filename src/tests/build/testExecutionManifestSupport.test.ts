@@ -294,7 +294,15 @@ describe('test execution manifest evidence', () => {
         },
       })
     );
-    const lanes = ['app', 'dicom-graphics-stress', 'dicom-1', 'dicom-2', 'dicom-3'];
+    const lanes = [
+      'app',
+      'dicom-graphics-stress',
+      'dicom-1',
+      'dicom-2',
+      'dicom-3',
+      'dicom-4',
+      'dicom-5',
+    ];
     const run = 'node scripts/run-preview-smoke-lane.mjs --lane=${{ matrix.lane }}';
     const writeWorkflow = (selected: string[], command: string) =>
       fs.writeFileSync(
