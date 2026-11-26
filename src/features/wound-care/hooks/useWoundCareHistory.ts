@@ -49,7 +49,7 @@ interface UseWoundCareHistoryReturn {
   isRefreshingConsents: boolean;
   photosError: string | null;
   consentsError: string | null;
-  reload: () => void;
+  reload: (options?: { preserveInFlightConsents?: boolean }) => void;
   reloadPhotos: () => void;
   reloadConsents: () => void;
   applyPhotoDescription: (photoId: string, description: string) => void;
@@ -101,6 +101,7 @@ export const useWoundCareHistory = ({
   // never stalls or aborts the other, while still discarding stale responses synchronously.
   const photosFetchGenerationRef = useRef(0);
   const consentsFetchGenerationRef = useRef(0);
+  const consentsInFlightRef = useRef(false);
   const [result, setResult] = useState<{
     scope: typeof scope;
     photosLoadKey: number | null;
@@ -141,14 +142,18 @@ export const useWoundCareHistory = ({
 
   const reloadConsents = useCallback(() => {
     consentsFetchGenerationRef.current += 1;
+    consentsInFlightRef.current = true;
     setConsentsRequestKey(k => k + 1);
   }, []);
 
-  const reload = useCallback(() => {
+  const reload = useCallback((options?: { preserveInFlightConsents?: boolean }) => {
     photosFetchGenerationRef.current += 1;
-    consentsFetchGenerationRef.current += 1;
     setPhotosRequestKey(k => k + 1);
-    setConsentsRequestKey(k => k + 1);
+    if (!options?.preserveInFlightConsents || !consentsInFlightRef.current) {
+      consentsFetchGenerationRef.current += 1;
+      consentsInFlightRef.current = true;
+      setConsentsRequestKey(k => k + 1);
+    }
   }, []);
 
   useEffect(() => {
@@ -225,6 +230,7 @@ export const useWoundCareHistory = ({
   const applyUploadedConsent = useCallback(
     (consent: WoundCareConsent) => {
       consentsFetchGenerationRef.current += 1;
+      consentsInFlightRef.current = false;
       const settledConsentsKey = consentsRequestKeyRef.current;
       setResult(previous => {
         if (!previous || previous.scope !== scope) {
@@ -300,14 +306,19 @@ export const useWoundCareHistory = ({
 
   useEffect(() => {
     const activePatientRut = scope.patientRut;
-    if (!activePatientRut) return;
+    if (!activePatientRut) {
+      consentsInFlightRef.current = false;
+      return;
+    }
 
     let cancelled = false;
     const generation = ++consentsFetchGenerationRef.current;
+    consentsInFlightRef.current = true;
 
     void invokePortRead(() => scope.consentPort.listByPatientRut(activePatientRut)).then(
       consents => {
         if (cancelled || consentsFetchGenerationRef.current !== generation) return;
+        consentsInFlightRef.current = false;
         setResult(previous => {
           const sameScope = previous?.scope === scope;
           return {
@@ -323,6 +334,7 @@ export const useWoundCareHistory = ({
       },
       reason => {
         if (cancelled || consentsFetchGenerationRef.current !== generation) return;
+        consentsInFlightRef.current = false;
         woundCareHistoryLogger.error('Error loading wound care history', reason);
         setResult(previous => {
           const sameScope = previous?.scope === scope;
@@ -342,6 +354,9 @@ export const useWoundCareHistory = ({
 
     return () => {
       cancelled = true;
+      if (consentsFetchGenerationRef.current === generation) {
+        consentsInFlightRef.current = false;
+      }
     };
   }, [scope, consentsRequestKey]);
 

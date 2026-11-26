@@ -242,7 +242,6 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
     photosError,
     consentsError,
     reload,
-    reloadPhotos,
     reloadConsents,
     applyPhotoDescription,
     applyDeletedPhoto,
@@ -295,7 +294,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
     const result = await requestPromise;
     if (result.success && isSameActivePatient(requestPatientRut)) {
       applyDeletedPhoto(photo.id);
-      reload();
+      reload({ preserveInFlightConsents: true });
       showToast('Foto eliminada');
     }
     return result;
@@ -311,7 +310,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
       if (outcome.status === 'success') {
         if (isSameActivePatient(requestPatientRut)) {
           applyPhotoDescription(photoId, description);
-          reload();
+          reload({ preserveInFlightConsents: true });
           showToast('Descripción actualizada');
         }
         return { success: true };
@@ -348,14 +347,14 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
       if (event.photo) {
         applyUploadedPhoto(event.photo);
       }
-      reloadPhotos();
+      reload({ preserveInFlightConsents: true });
       showToast('Foto subida exitosamente');
     });
     return () => {
       unsubscribeConsentCompletions();
       unsubscribePhotoCompletions();
     };
-  }, [applyUploadedConsent, applyUploadedPhoto, reloadConsents, reloadPhotos]);
+  }, [applyUploadedConsent, applyUploadedPhoto, reload, reloadConsents]);
 
   const currentConsent = episodes.find(e => e.isCurrent)?.consent ?? null;
   const isConsentUploadInFlight = useSyncExternalStore(
@@ -438,7 +437,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
                     </span>
                     <button
                       type="button"
-                      onClick={reload}
+                      onClick={() => reload({ preserveInFlightConsents: true })}
                       disabled={isRefreshingPhotos}
                       className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-60 transition-colors"
                     >
@@ -553,7 +552,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
             if (photo) {
               applyUploadedPhoto(photo);
             }
-            reloadPhotos();
+            reload({ preserveInFlightConsents: true });
             showToast('Foto subida exitosamente');
             return true;
           }}

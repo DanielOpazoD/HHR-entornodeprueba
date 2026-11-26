@@ -698,7 +698,7 @@ describe('WoundCareModal partial history read preservation', () => {
       listConsentsByPatientRutMock
         .mockResolvedValueOnce([])
         .mockReturnValueOnce(reopenedInitialConsents.promise)
-        .mockRejectedValueOnce(new Error('post-consent reload failed'));
+        .mockRejectedValue(new Error('post-consent reload failed'));
 
       const firstModal = render(
         <WoundCareModal
@@ -759,5 +759,97 @@ describe('WoundCareModal partial history read preservation', () => {
       createObjectUrlSpy.mockRestore();
       revokeObjectUrlSpy.mockRestore();
     }
+  });
+
+  it('refreshes consents after a photo upload so a signed consent saved by another nurse blocks duplicate upload', async () => {
+    const createObjectUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:photo-a');
+    const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+    try {
+      uploadPhotoUseCaseMock.mockResolvedValueOnce({
+        status: 'success',
+        data: samplePhoto,
+        issues: [],
+      });
+      listPhotosByPatientRutMock.mockResolvedValueOnce([]).mockResolvedValueOnce([samplePhoto]);
+      // Initially no consent; while nurse A uploads a photo, nurse B saves a signed consent.
+      listConsentsByPatientRutMock.mockResolvedValueOnce([]).mockResolvedValueOnce([signedConsent]);
+
+      render(
+        <WoundCareModal
+          isOpen
+          onClose={vi.fn()}
+          patientName={episodeContext.patientName}
+          patientRut={episodeContext.patientRut}
+          episodeContext={episodeContext}
+        />
+      );
+
+      await screen.findByText(/no hay fotografías en esta sesión/i);
+
+      const photoInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      fireEvent.change(photoInput, {
+        target: { files: [new File(['img'], 'herida.jpg', { type: 'image/jpeg' })] },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /subir fotografía/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Consentimiento firmado')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /subir ci/i }));
+      expect(screen.getByText('Ver documento PDF')).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /subir consentimiento/i })
+      ).not.toBeInTheDocument();
+    } finally {
+      createObjectUrlSpy.mockRestore();
+      revokeObjectUrlSpy.mockRestore();
+    }
+  });
+
+  it('does not invalidate an in-flight consents verification when the photos retry button is clicked', async () => {
+    const consentsRetry = createDeferred<WoundCareConsent[]>();
+    const photosRetry = createDeferred<WoundCarePhoto[]>();
+
+    listPhotosByPatientRutMock
+      .mockRejectedValueOnce(new Error('photos down'))
+      .mockReturnValueOnce(photosRetry.promise);
+    listConsentsByPatientRutMock
+      .mockRejectedValueOnce(new Error('consents down'))
+      .mockReturnValueOnce(consentsRetry.promise)
+      .mockRejectedValueOnce(new Error('should not issue a third consent read'));
+
+    render(
+      <WoundCareModal
+        isOpen
+        onClose={vi.fn()}
+        patientName={episodeContext.patientName}
+        patientRut={episodeContext.patientRut}
+        episodeContext={episodeContext}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('alert')).toHaveLength(2);
+    });
+
+    // Click consents retry first (index 0: consents banner is rendered above photos banner),
+    // then immediately click photos retry while consents retry is still in flight.
+    const retryButtons = screen.getAllByRole('button', { name: /^reintentar$/i });
+    fireEvent.click(retryButtons[0]);
+    fireEvent.click(retryButtons[1]);
+
+    // Must NOT have launched a third consent request.
+    expect(listConsentsByPatientRutMock).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      consentsRetry.resolve([signedConsent]);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Consentimiento firmado')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /subir ci/i })).not.toBeDisabled();
   });
 });

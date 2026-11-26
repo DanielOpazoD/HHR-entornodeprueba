@@ -667,11 +667,13 @@ describe('WoundCareModal write confirmations & concurrency resilience', () => {
     // Remount on another bed while a delete for photo-a is still in flight: joining instance must reconcile.
     const sharedDelete = createDeferred<{ status: 'success'; data: null; issues: [] }>();
     deletePhotoUseCaseMock.mockReturnValueOnce(sharedDelete.promise);
-    listPhotosByPatientRutMock.mockResolvedValue([
-      makePhoto('photo-a', episodeAt10.episodeKey, 'Curación A'),
-      makePhoto('photo-b', episodeAt10.episodeKey, 'Curación B'),
-    ]);
-    listConsentsByPatientRutMock.mockResolvedValue([]);
+    listPhotosByPatientRutMock
+      .mockReset()
+      .mockResolvedValue([
+        makePhoto('photo-a', episodeAt10.episodeKey, 'Curación A'),
+        makePhoto('photo-b', episodeAt10.episodeKey, 'Curación B'),
+      ]);
+    listConsentsByPatientRutMock.mockReset().mockResolvedValue([]);
 
     const firstBed = render(
       <WoundCareModal
