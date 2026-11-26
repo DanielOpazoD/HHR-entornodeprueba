@@ -1398,8 +1398,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
+      # Reused-evidence main pushes skip quality-static-base (lint), so postmerge-evidence
+      # publishes main's ubuntu-latest installed-v1 cache without racing lint on PRs or full runs.
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
+        with:
+          save-cache: 'true'
 
       - name: Validate CI artifact contract
         run: npm run check:ci-artifact-contracts
