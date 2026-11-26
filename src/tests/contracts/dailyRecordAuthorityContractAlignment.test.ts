@@ -9,6 +9,7 @@
  * si alguien agrega un campo clínico o cambia una regla de rutas en una sola
  * capa, esto falla antes de llegar a producción.
  */
+import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 import {
@@ -30,6 +31,14 @@ const serverPreservation = require('../../../functions/lib/dailyRecordClinicalFi
 const serverEnrichmentPolicy = require('../../../functions/lib/rayenClinicalEnrichmentPolicy.js');
 
 describe('contrato único de autoridad · alineación entre capas', () => {
+  it('el artefacto CJS compartido del servidor coincide exactamente con sus fuentes TypeScript', () => {
+    expect(() =>
+      execFileSync(process.execPath, ['scripts/build-shared-functions-contracts.mjs', '--check'], {
+        stdio: 'pipe',
+      })
+    ).not.toThrow();
+  });
+
   it('cliente y servidor cargan EXACTAMENTE el mismo módulo de contrato', () => {
     expect([...CLINICAL_AUTHORITY_BED_FIELDS]).toEqual([
       ...serverContract.CLINICAL_AUTHORITY_BED_FIELDS,

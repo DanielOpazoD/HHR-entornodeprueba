@@ -7,6 +7,10 @@
     {
       "file": "src/services/cudyr/cudyrSourceServerEntry.ts",
       "declaredIn": "scripts/build-cudyr-source-parser.mjs (esbuild entryPoints)"
+    },
+    {
+      "file": "src/services/sharedFunctionsContractsServerEntry.ts",
+      "declaredIn": "scripts/build-shared-functions-contracts.mjs (esbuild entryPoints)"
     }
   ],
   "retained": [

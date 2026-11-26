@@ -1,26 +1,21 @@
 /**
- * CONTRATO ÚNICO de autoridad clínico/estructural del registro diario — lado
- * cliente.
+ * CONTRATO ÚNICO de autoridad clínico/estructural del registro diario.
  *
  * Cada bug de la semana del 31-08 (#282–#290) fue un desacuerdo entre capas
  * clasificando la misma ruta de forma distinta (lista del censo, splitter del
  * dispatch, clasificador de rutas, aplanador, functions, reglas). Este módulo
- * es la definición que consumen TODAS las capas del cliente.
- *
- * El servidor tiene su gemelo CJS en
- * `functions/lib/dailyRecordAuthorityContract.js` (las Cloud Functions se
- * despliegan solas con su carpeta y el bundler no procesa CJS de primera
- * parte fuera de src). El test
- * `dailyRecordAuthorityContractAlignment` compara AMBOS artefactos — listas y
- * matriz de predicados — y rompe CI ante cualquier divergencia: cambia uno,
- * cambia el otro.
+ * es la única fuente de verdad: el cliente lo importa directo y Cloud Functions
+ * consume la compilación CJS generada por
+ * `scripts/build-shared-functions-contracts.mjs` en
+ * `functions/lib/generated/sharedDailyRecordContracts.cjs` (reexportada por
+ * `functions/lib/dailyRecordAuthorityContract.js`).
  */
 
 /**
  * Campos clínicos de cama editables en el censo (autoridad clínica): viajan
  * SIEMPRE por el canal clínico (callable) y nunca mezclados con estructura.
  */
-export const CLINICAL_AUTHORITY_BED_FIELDS = [
+export const CLINICAL_AUTHORITY_BED_FIELDS = Object.freeze([
   'pathology',
   'diagnosisComments',
   'diagnosisManualOverride',
@@ -38,29 +33,29 @@ export const CLINICAL_AUTHORITY_BED_FIELDS = [
   'isUPC',
   'upcChecklist',
   'surgicalComplication',
-] as const;
+] as const);
 
 /**
  * Campos que el servidor acepta además de los clínicos del censo en el canal
  * clínico (poblados por flujos propios, no por la edición manual del censo).
  */
-export const SERVER_ONLY_CLINICAL_PATCH_FIELDS = [
+export const SERVER_ONLY_CLINICAL_PATCH_FIELDS = Object.freeze([
   'treatingPhysicianId',
   'treatingPhysicianName',
-] as const;
+] as const);
 
 /**
  * Campos que el lote clínico Rayen escribe. Los dispositivos son datos
  * operacionales que enfermería TAMBIÉN gestiona a mano entre corridas; las
  * mediciones y el checkpoint son exclusivos del lote (valla schema-v2).
  */
-export const RAYEN_MANUALLY_MANAGED_DEVICE_FIELDS = [
+export const RAYEN_MANUALLY_MANAGED_DEVICE_FIELDS = Object.freeze([
   'devices',
   'deviceDetails',
   'deviceInstanceHistory',
-] as const;
+] as const);
 
-export const RAYEN_BATCH_ONLY_CLINICAL_FIELDS = [
+export const RAYEN_BATCH_ONLY_CLINICAL_FIELDS = Object.freeze([
   'evaluationScores',
   'vitalSigns',
   'vitalSignsHistory',
@@ -68,16 +63,16 @@ export const RAYEN_BATCH_ONLY_CLINICAL_FIELDS = [
   'clinicalCarryover',
   'clinicalAlerts',
   'fluidBalance',
-] as const;
+] as const);
 
-export const RAYEN_CLINICAL_FIELDS = [
+export const RAYEN_CLINICAL_FIELDS = Object.freeze([
   ...RAYEN_MANUALLY_MANAGED_DEVICE_FIELDS,
   ...RAYEN_BATCH_ONLY_CLINICAL_FIELDS,
-] as const;
+] as const);
 
 const CLINICAL_AUTHORITY_BED_FIELD_SET = new Set<string>(CLINICAL_AUTHORITY_BED_FIELDS);
 
-const splitPatchPath = (path: string): string[] =>
+export const splitPatchPath = (path: string): string[] =>
   String(path)
     .split('.')
     .map(part => part.trim())

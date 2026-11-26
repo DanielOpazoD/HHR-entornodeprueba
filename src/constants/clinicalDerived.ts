@@ -7,12 +7,12 @@
 export const CLINICAL_DERIVED_COLLECTION = 'clinicalDerived';
 
 /** Per-episode fields that leave the day on a marked day, in a stable order. */
-export const CLINICAL_DERIVED_MOVED_FIELDS = [
+export const CLINICAL_DERIVED_MOVED_FIELDS = Object.freeze([
   'clinicalSyncCheckpoint',
   'vitalSignsHistory',
-] as const;
+] as const);
 
-export const CLINICAL_DERIVED_TARGETS = ['bed', 'clinicalCrib'] as const;
+export const CLINICAL_DERIVED_TARGETS = Object.freeze(['bed', 'clinicalCrib'] as const);
 
 /** Root field of the day marker `{ version, generation }`; only the server sets it. */
 export const CLINICAL_DERIVED_LAYOUT_FIELD = 'clinicalDerivedLayout';

@@ -1,199 +1,23 @@
 'use strict';
 
 /**
- * Server-side mirror of the client `findPatientErasures` guard
- * (src/services/repositories/dailyRecordRemoteWriteController.ts). Pure and framework-free so it
- * can be unit-tested without firebase. See docs/SYNC_CONCURRENCY_MODEL.md.
+ * Server entry for `findPatientErasures`, `movementAccountsForBed`, and
+ * `findPersistedEpisodeDowngrades`.
  *
- * A movement only accounts for an emptied bed when it concerns the SAME patient AND the SAME bed
- * (`bedId` for discharges/transfers, `originalBedId` for CMA). Matching on name alone would let a
- * same-name movement on another bed — or a different patient who reused the bed — mask a real
- * erasure, so bed identity is required.
+ * Single source compiled from `src/services/repositories/dailyRecordErasureGuard.ts` by
+ * `scripts/build-shared-functions-contracts.mjs` into `generated/sharedDailyRecordContracts.cjs`.
+ * See `docs/SYNC_CONCURRENCY_MODEL.md`.
  */
-const movementAccountsForBed = (movements, bedId, patientName) =>
-  movements.some(movement => {
-    if (
-      String(movement && movement.patientName ? movement.patientName : '').trim() !== patientName
-    ) {
-      return false;
-    }
-    if (typeof (movement && movement.bedId) === 'string') {
-      return movement.bedId === bedId;
-    }
-    if (typeof (movement && movement.originalBedId) === 'string') {
-      return movement.originalBedId === bedId;
-    }
-    return false;
-  });
-
-const trimmedName = patient =>
-  String(patient && patient.patientName ? patient.patientName : '').trim();
-
-const scalar = value => String(value ?? '').trim();
-
-const documentIdentity = patient =>
-  scalar(patient.rut)
-    .replace(/[.\s-]/g, '')
-    .toUpperCase();
-
-const patientNameIdentity = patient =>
-  scalar(patient.patientName)
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, ' ')
-    .toUpperCase();
 
 /**
- * Persisted episode ids identify an admission, not just a person. Legacy ids are derived from
- * document/admission data and may collide for mother and newborn, so they need the tuple too.
- * Without two stable ids, accept hydration only with concordant person and admission evidence.
+ * @typedef {{
+ *   findPatientErasures: (remote: Record<string, unknown>, local: Record<string, unknown>) => { bedId: string, remotePatientName: string }[],
+ *   movementAccountsForBed: (movements: Record<string, unknown>[], bedId: string, patientName: string) => boolean,
+ *   findPersistedEpisodeDowngrades: (remote: Record<string, unknown>, local: Record<string, unknown>) => { bedId: string, remotePatientName: string, remoteEpisodeId: string, localEpisodeId: string }[],
+ * }} ErasureGuardBundle
  */
-const sameRelocatedEpisode = (left, right) => {
-  const leftEpisode = scalar(left.clinicalEpisodeId);
-  const rightEpisode = scalar(right.clinicalEpisodeId);
-  if (
-    leftEpisode &&
-    rightEpisode &&
-    !leftEpisode.startsWith('legacy_ep_') &&
-    !rightEpisode.startsWith('legacy_ep_')
-  )
-    return leftEpisode === rightEpisode;
 
-  if (left.documentType && right.documentType && left.documentType !== right.documentType)
-    return false;
-  return (
-    documentIdentity(left) === documentIdentity(right) &&
-    patientNameIdentity(left) === patientNameIdentity(right) &&
-    scalar(left.firstSeenDate || left.admissionDate) ===
-      scalar(right.firstSeenDate || right.admissionDate) &&
-    scalar(left.admissionTime) === scalar(right.admissionTime)
-  );
-};
-
-/**
- * Include main occupants and nested cribs so a verified episode may move between either slot.
- */
-const collectPatients = record =>
-  Object.values(record.beds || {})
-    .flatMap(bed => [bed, bed?.clinicalCrib])
-    .filter(patient => Boolean(scalar(patient?.patientName)));
-
-/**
- * Returns the beds where the cloud copy holds a patient the incoming record dropped without a
- * movement accounting for it. Checks both the main bed occupant and the nested clinical-crib
- * occupant (cuna RN anidada).
- *
- * @param {Record<string, unknown>} remote The current remote record (e.g. snapshot.data()).
- * @param {Record<string, unknown>} local The incoming record about to be written.
- * @returns {{ bedId: string, remotePatientName: string }[]}
- */
-const findPatientErasures = (remote, local) => {
-  const asArray = value => (Array.isArray(value) ? value : []);
-  const movements = [
-    ...asArray(local && local.discharges),
-    ...asArray(local && local.transfers),
-    ...asArray(local && local.cma),
-  ];
-
-  const remoteBeds = (remote && remote.beds) || {};
-  const localBeds = (local && local.beds) || {};
-  const erasures = [];
-  const localPatients = collectPatients(local);
-  const remotePatients = collectPatients(remote);
-  const stillPresentLocally = patient => {
-    if (!patient) return false;
-    const matches = localPatients.filter(candidate => sameRelocatedEpisode(patient, candidate));
-    // One surviving occupant must not account for two remote people with ambiguous legacy data.
-    return (
-      matches.length === 1 &&
-      remotePatients.filter(candidate => sameRelocatedEpisode(candidate, matches[0])).length === 1
-    );
-  };
-
-  for (const [bedId, remoteBed] of Object.entries(remoteBeds)) {
-    const localBed = localBeds[bedId];
-
-    // Main bed occupant. Exception: the patient still occupies another bed here (an internal
-    // relocation carries no movement record), so the emptied bed is accounted for — not an erasure.
-    const remotePatientName = trimmedName(remoteBed);
-    if (
-      remotePatientName &&
-      !trimmedName(localBed) &&
-      !movementAccountsForBed(movements, bedId, remotePatientName) &&
-      !stillPresentLocally(remoteBed)
-    ) {
-      erasures.push({ bedId, remotePatientName });
-    }
-
-    // Nested clinical-crib occupant.
-    const remoteCribName = trimmedName(remoteBed && remoteBed.clinicalCrib);
-    if (
-      remoteCribName &&
-      !trimmedName(localBed && localBed.clinicalCrib) &&
-      !movementAccountsForBed(movements, bedId, remoteCribName) &&
-      !stillPresentLocally(remoteBed && remoteBed.clinicalCrib)
-    ) {
-      erasures.push({ bedId: `${bedId} (cuna RN)`, remotePatientName: remoteCribName });
-    }
-  }
-
-  return erasures;
-};
-
-/**
- * Reject loss of a stored strong id only with concordant person/admission evidence.
- * A different strong id may be a legitimate source adoption. Beds only locate diagnostics.
- */
-const findPersistedEpisodeDowngrades = (remote, local) => {
-  const localPatients = collectPatients(local).filter(patient => !patient.isBlocked);
-  const survivingIds = new Set(localPatients.map(patient => scalar(patient.clinicalEpisodeId)));
-  for (const movement of [
-    ...(local.discharges || []),
-    ...(local.transfers || []),
-    ...(local.cma || []),
-  ]) {
-    if (scalar(movement.deletedAt)) continue;
-    survivingIds.add(scalar(movement.clinicalEpisodeId));
-    survivingIds.add(scalar(movement.originalData?.clinicalEpisodeId));
-  }
-  const weakPatients = localPatients.filter(patient => {
-    const id = scalar(patient.clinicalEpisodeId);
-    return !id || id.startsWith('legacy_ep_');
-  });
-  const downgrades = [];
-  for (const [bedId, bed] of Object.entries(remote.beds || {})) {
-    for (const [location, patient] of [
-      [bedId, bed],
-      [`${bedId} (cuna RN)`, bed?.clinicalCrib],
-    ]) {
-      const remoteEpisodeId = scalar(patient?.clinicalEpisodeId);
-      if (
-        !trimmedName(patient) ||
-        patient.isBlocked ||
-        !remoteEpisodeId ||
-        remoteEpisodeId.startsWith('legacy_ep_') ||
-        survivingIds.has(remoteEpisodeId) ||
-        !scalar(patient.firstSeenDate || patient.admissionDate)
-      )
-        continue;
-      const replacement = weakPatients.find(candidate => {
-        if (
-          (patient.documentType === 'Pasaporte' || candidate.documentType === 'Pasaporte') &&
-          scalar(patient.rut) !== scalar(candidate.rut)
-        )
-          return false;
-        return sameRelocatedEpisode(patient, candidate);
-      });
-      if (replacement)
-        downgrades.push({
-          bedId: location,
-          remotePatientName: trimmedName(patient),
-          remoteEpisodeId,
-          localEpisodeId: scalar(replacement.clinicalEpisodeId),
-        });
-    }
-  }
-  return downgrades;
-};
+const { findPatientErasures, movementAccountsForBed, findPersistedEpisodeDowngrades } =
+  /** @type {ErasureGuardBundle} */ (require('./generated/sharedDailyRecordContracts.cjs'));
 
 module.exports = { findPatientErasures, movementAccountsForBed, findPersistedEpisodeDowngrades };
