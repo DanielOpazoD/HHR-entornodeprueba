@@ -156,4 +156,39 @@ describe('PhotoGallery', () => {
     // Confirmation dialog should appear
     expect(screen.getByTestId('delete-confirm')).toBeInTheDocument();
   });
+
+  it('renders an alert with retry instead of empty state when loadError is set and photos are empty', () => {
+    const onRetry = vi.fn();
+
+    render(
+      <PhotoGallery
+        photos={[]}
+        loadError="No fue posible cargar las fotografías."
+        onRetry={onRetry}
+      />
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No fue posible cargar las fotografías.');
+    expect(screen.queryByText(/no hay fotografías/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /reintentar/i }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps previously loaded thumbnails visible alongside the alert when a reload fails', () => {
+    const onRetry = vi.fn();
+    const photos: WoundCarePhoto[] = [makePhoto('p1', '2026-03-10T10:00:00Z')];
+
+    render(
+      <PhotoGallery
+        photos={photos}
+        loadError="No fue posible cargar las fotografías."
+        isRetrying={false}
+        onRetry={onRetry}
+      />
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No fue posible cargar las fotografías.');
+    expect(screen.getAllByRole('img')).toHaveLength(1);
+  });
 });

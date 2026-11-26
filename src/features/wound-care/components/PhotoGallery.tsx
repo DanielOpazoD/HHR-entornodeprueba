@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trash2, ImageOff } from 'lucide-react';
+import { Trash2, ImageOff, AlertTriangle, RefreshCw } from 'lucide-react';
 import type { WoundCarePhoto } from '@/types/domain/woundCare';
 import { groupPhotosByDate } from '@/features/wound-care/use-cases/woundCarePhotoTime';
 import {
@@ -13,6 +13,10 @@ import { PhotoDeleteConfirm } from './PhotoDeleteConfirm';
 interface PhotoGalleryProps {
   photos: WoundCarePhoto[];
   readOnly?: boolean;
+  loadError?: string | null;
+  hideTopBanner?: boolean;
+  isRetrying?: boolean;
+  onRetry?: () => void;
   onDelete?: (photo: WoundCarePhoto) => Promise<{ success: boolean; error?: string }>;
   onEditDescription?: (
     photoId: string,
@@ -23,6 +27,10 @@ interface PhotoGalleryProps {
 export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
   photos,
   readOnly = false,
+  loadError = null,
+  hideTopBanner = false,
+  isRetrying = false,
+  onRetry,
   onDelete,
   onEditDescription,
 }) => {
@@ -32,6 +40,40 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
   const sessions = groupPhotosByDate(photos);
 
   if (photos.length === 0) {
+    if (loadError) {
+      if (hideTopBanner) {
+        return (
+          <div className="flex flex-col items-center gap-1.5 rounded-lg border border-amber-200/80 bg-amber-50/40 px-4 py-4 text-center">
+            <AlertTriangle className="w-5 h-5 text-amber-600" />
+            <p className="text-xs text-amber-900">
+              No se pudieron verificar las fotografías de esta hospitalización.
+            </p>
+          </div>
+        );
+      }
+
+      return (
+        <div
+          role="alert"
+          className="flex flex-col items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/70 px-4 py-5 text-center"
+        >
+          <AlertTriangle className="w-6 h-6 text-amber-600" />
+          <p className="text-xs font-medium text-amber-900">{loadError}</p>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              disabled={isRetrying}
+              className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-60 transition-colors"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRetrying ? 'animate-spin' : ''}`} />
+              {isRetrying ? 'Reintentando...' : 'Reintentar'}
+            </button>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center py-6 text-center">
         <ImageOff className="w-10 h-10 text-slate-200 mb-2" />
@@ -52,6 +94,28 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
   return (
     <>
       <div className="space-y-3">
+        {loadError && !hideTopBanner && (
+          <div
+            role="alert"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs text-amber-900"
+          >
+            <span className="inline-flex items-center gap-1.5 font-medium">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              {loadError}
+            </span>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                disabled={isRetrying}
+                className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-60 transition-colors"
+              >
+                <RefreshCw className={`w-3 h-3 ${isRetrying ? 'animate-spin' : ''}`} />
+                {isRetrying ? 'Reintentando...' : 'Reintentar'}
+              </button>
+            )}
+          </div>
+        )}
         {sessions.map(session => (
           <div key={session.date}>
             <div className="flex items-center gap-2 mb-1.5">

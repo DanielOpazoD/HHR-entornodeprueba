@@ -531,8 +531,12 @@ describe('WoundCareModal write confirmations & concurrency resilience', () => {
     await screen.findByAltText('Curación A');
 
     // Keep subsequent reloads pending so we assert accredited local reconciliation during slow reload.
+    // Let the post-description consent verification resolve so Step 2 can upload, then hold
+    // post-consent reloads pending to verify immediate read-only reconciliation.
     listPhotosByPatientRutMock.mockReturnValue(slowReloadPhotos.promise);
-    listConsentsByPatientRutMock.mockReturnValue(slowReloadConsents.promise);
+    listConsentsByPatientRutMock
+      .mockResolvedValueOnce([])
+      .mockReturnValue(slowReloadConsents.promise);
 
     // 1. Confirmed description must appear immediately and pre-fill subsequent edits during slow reload.
     fireEvent.click(screen.getByAltText('Curación A').closest('button')!);
@@ -663,11 +667,13 @@ describe('WoundCareModal write confirmations & concurrency resilience', () => {
     // Remount on another bed while a delete for photo-a is still in flight: joining instance must reconcile.
     const sharedDelete = createDeferred<{ status: 'success'; data: null; issues: [] }>();
     deletePhotoUseCaseMock.mockReturnValueOnce(sharedDelete.promise);
-    listPhotosByPatientRutMock.mockResolvedValue([
-      makePhoto('photo-a', episodeAt10.episodeKey, 'Curación A'),
-      makePhoto('photo-b', episodeAt10.episodeKey, 'Curación B'),
-    ]);
-    listConsentsByPatientRutMock.mockResolvedValue([]);
+    listPhotosByPatientRutMock
+      .mockReset()
+      .mockResolvedValue([
+        makePhoto('photo-a', episodeAt10.episodeKey, 'Curación A'),
+        makePhoto('photo-b', episodeAt10.episodeKey, 'Curación B'),
+      ]);
+    listConsentsByPatientRutMock.mockReset().mockResolvedValue([]);
 
     const firstBed = render(
       <WoundCareModal

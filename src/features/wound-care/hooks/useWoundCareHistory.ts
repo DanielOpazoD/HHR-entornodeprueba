@@ -44,7 +44,14 @@ interface UseWoundCareHistoryReturn {
   allPhotos: WoundCarePhoto[];
   allConsents: WoundCareConsent[];
   isLoading: boolean;
-  reload: () => void;
+  isRefreshing: boolean;
+  isRefreshingPhotos: boolean;
+  isRefreshingConsents: boolean;
+  photosError: string | null;
+  consentsError: string | null;
+  reload: (options?: { preserveInFlightConsents?: boolean }) => void;
+  reloadPhotos: () => void;
+  reloadConsents: () => void;
   applyPhotoDescription: (photoId: string, description: string) => void;
   applyDeletedPhoto: (photoId: string) => void;
   applyUploadedPhoto: (photo: WoundCarePhoto) => void;
@@ -68,6 +75,14 @@ const woundCareHistoryLogger = createScopedLogger('WoundCareHistory');
  * @param options.consentPort       - Injectable port for testing.
  * @returns episodes, allPhotos, allConsents, isLoading, reload.
  */
+const invokePortRead = <T>(read: () => Promise<T>): Promise<T> => {
+  try {
+    return Promise.resolve(read());
+  } catch (error) {
+    return Promise.reject(error);
+  }
+};
+
 export const useWoundCareHistory = ({
   patientRut,
   currentEpisodeKey,
@@ -78,33 +93,86 @@ export const useWoundCareHistory = ({
     () => ({ patientRut, photoPort, consentPort }),
     [patientRut, photoPort, consentPort]
   );
-  const [loadKey, setLoadKey] = useState(0);
-  // Monotonic generation bumped synchronously on reload() and accredited local updates so an
-  // already-in-flight fetch settling in a microtask before React commits cannot overwrite newer writes.
-  const fetchGenerationRef = useRef(0);
+  const [photosRequestKey, setPhotosRequestKey] = useState(0);
+  const [consentsRequestKey, setConsentsRequestKey] = useState(0);
+  const photosRequestKeyRef = useRef(0);
+  const consentsRequestKeyRef = useRef(0);
+  // Independent monotonic generations per branch so retrying or reconciling one branch
+  // never stalls or aborts the other, while still discarding stale responses synchronously.
+  const photosFetchGenerationRef = useRef(0);
+  const consentsFetchGenerationRef = useRef(0);
+  const consentsInFlightRef = useRef(false);
   const [result, setResult] = useState<{
     scope: typeof scope;
-    loadKey: number;
+    photosLoadKey: number | null;
+    consentsLoadKey: number | null;
     photos: WoundCarePhoto[];
     consents: WoundCareConsent[];
+    photosError: string | null;
+    consentsError: string | null;
   } | null>(null);
-  const allPhotos = result?.scope === scope ? result.photos : [];
-  const allConsents = result?.scope === scope ? result.consents : [];
-  // Keep loaded episodes mounted during background reloads so active modals/editors are preserved.
-  const isLoading = Boolean(patientRut) && result?.scope !== scope;
+  const scopedResult = result?.scope === scope ? result : null;
+  const allPhotos = scopedResult?.photos ?? [];
+  const allConsents = scopedResult?.consents ?? [];
+  const photosError = scopedResult?.photosError ?? null;
+  const consentsError = scopedResult?.consentsError ?? null;
+  // Initial load waits for both branches so the first paint has a complete baseline;
+  // subsequent reloads keep loaded episodes mounted and publish each branch as soon as it settles.
+  const isLoading =
+    Boolean(patientRut) &&
+    (scopedResult === null ||
+      scopedResult.photosLoadKey === null ||
+      scopedResult.consentsLoadKey === null);
+  const isRefreshingPhotos =
+    Boolean(patientRut) &&
+    scopedResult !== null &&
+    scopedResult.photosLoadKey !== null &&
+    scopedResult.photosLoadKey !== photosRequestKey;
+  const isRefreshingConsents =
+    Boolean(patientRut) &&
+    scopedResult !== null &&
+    scopedResult.consentsLoadKey !== null &&
+    scopedResult.consentsLoadKey !== consentsRequestKey;
+  const isRefreshing = isRefreshingPhotos || isRefreshingConsents;
 
-  const reload = useCallback(() => {
-    fetchGenerationRef.current += 1;
-    setLoadKey(k => k + 1);
+  const reloadPhotos = useCallback(() => {
+    photosFetchGenerationRef.current += 1;
+    setPhotosRequestKey(k => k + 1);
   }, []);
+
+  const reloadConsents = useCallback(() => {
+    consentsFetchGenerationRef.current += 1;
+    consentsInFlightRef.current = true;
+    setConsentsRequestKey(k => k + 1);
+  }, []);
+
+  const reload = useCallback((options?: { preserveInFlightConsents?: boolean }) => {
+    photosFetchGenerationRef.current += 1;
+    setPhotosRequestKey(k => k + 1);
+    if (!options?.preserveInFlightConsents || !consentsInFlightRef.current) {
+      consentsFetchGenerationRef.current += 1;
+      consentsInFlightRef.current = true;
+      setConsentsRequestKey(k => k + 1);
+    }
+  }, []);
+
+  useEffect(() => {
+    photosRequestKeyRef.current = photosRequestKey;
+  }, [photosRequestKey]);
+
+  useEffect(() => {
+    consentsRequestKeyRef.current = consentsRequestKey;
+  }, [consentsRequestKey]);
 
   const applyPhotoDescription = useCallback(
     (photoId: string, description: string) => {
-      fetchGenerationRef.current += 1;
+      photosFetchGenerationRef.current += 1;
+      const settledPhotosKey = photosRequestKeyRef.current;
       setResult(previous => {
         if (!previous || previous.scope !== scope) return previous;
         return {
           ...previous,
+          photosLoadKey: previous.photosLoadKey === null ? null : settledPhotosKey,
           photos: previous.photos.map(photo =>
             photo.id === photoId ? { ...photo, description } : photo
           ),
@@ -116,11 +184,13 @@ export const useWoundCareHistory = ({
 
   const applyDeletedPhoto = useCallback(
     (photoId: string) => {
-      fetchGenerationRef.current += 1;
+      photosFetchGenerationRef.current += 1;
+      const settledPhotosKey = photosRequestKeyRef.current;
       setResult(previous => {
         if (!previous || previous.scope !== scope) return previous;
         return {
           ...previous,
+          photosLoadKey: previous.photosLoadKey === null ? null : settledPhotosKey,
           photos: previous.photos.filter(photo => photo.id !== photoId),
         };
       });
@@ -130,12 +200,26 @@ export const useWoundCareHistory = ({
 
   const applyUploadedPhoto = useCallback(
     (photo: WoundCarePhoto) => {
-      fetchGenerationRef.current += 1;
+      photosFetchGenerationRef.current += 1;
+      const settledPhotosKey = photosRequestKeyRef.current;
       setResult(previous => {
-        if (!previous || previous.scope !== scope) return previous;
+        if (!previous || previous.scope !== scope) {
+          // Seed the new scope even if the initial fetch has not settled yet so a subsequent
+          // failed re-read still preserves the accredited upload.
+          return {
+            scope,
+            photosLoadKey: null,
+            consentsLoadKey: null,
+            photos: [photo],
+            consents: [],
+            photosError: null,
+            consentsError: null,
+          };
+        }
         const remaining = previous.photos.filter(existing => existing.id !== photo.id);
         return {
           ...previous,
+          photosLoadKey: previous.photosLoadKey === null ? null : settledPhotosKey,
           photos: [photo, ...remaining],
         };
       });
@@ -145,12 +229,27 @@ export const useWoundCareHistory = ({
 
   const applyUploadedConsent = useCallback(
     (consent: WoundCareConsent) => {
-      fetchGenerationRef.current += 1;
+      consentsFetchGenerationRef.current += 1;
+      consentsInFlightRef.current = false;
+      const settledConsentsKey = consentsRequestKeyRef.current;
       setResult(previous => {
-        if (!previous || previous.scope !== scope) return previous;
+        if (!previous || previous.scope !== scope) {
+          // Seed the new scope even if the initial fetch has not settled yet so a subsequent
+          // failed re-read still preserves the accredited signed consent.
+          return {
+            scope,
+            photosLoadKey: null,
+            consentsLoadKey: null,
+            photos: [],
+            consents: [consent],
+            photosError: null,
+            consentsError: null,
+          };
+        }
         const remaining = previous.consents.filter(existing => existing.id !== consent.id);
         return {
           ...previous,
+          consentsLoadKey: previous.consentsLoadKey === null ? null : settledConsentsKey,
           consents: [consent, ...remaining],
         };
       });
@@ -159,34 +258,107 @@ export const useWoundCareHistory = ({
   );
 
   useEffect(() => {
-    if (!scope.patientRut) return;
+    const activePatientRut = scope.patientRut;
+    if (!activePatientRut) return;
 
     let cancelled = false;
-    const generation = ++fetchGenerationRef.current;
+    const generation = ++photosFetchGenerationRef.current;
 
-    Promise.all([
-      scope.photoPort.listByPatientRut(scope.patientRut),
-      scope.consentPort.listByPatientRut(scope.patientRut),
-    ])
-      .then(([photos, consents]) => {
-        if (cancelled || fetchGenerationRef.current !== generation) return;
-        setResult({ scope, loadKey, photos, consents });
-      })
-      .catch(error => {
-        if (cancelled || fetchGenerationRef.current !== generation) return;
-        woundCareHistoryLogger.error('Error loading wound care history', error);
-        setResult(previous => ({
-          scope,
-          loadKey,
-          photos: previous?.scope === scope ? previous.photos : [],
-          consents: previous?.scope === scope ? previous.consents : [],
-        }));
-      });
+    void invokePortRead(() => scope.photoPort.listByPatientRut(activePatientRut)).then(
+      photos => {
+        if (cancelled || photosFetchGenerationRef.current !== generation) return;
+        setResult(previous => {
+          const sameScope = previous?.scope === scope;
+          return {
+            scope,
+            photosLoadKey: photosRequestKey,
+            consentsLoadKey: sameScope ? previous.consentsLoadKey : null,
+            photos,
+            consents: sameScope ? previous.consents : [],
+            photosError: null,
+            consentsError: sameScope ? previous.consentsError : null,
+          };
+        });
+      },
+      reason => {
+        if (cancelled || photosFetchGenerationRef.current !== generation) return;
+        woundCareHistoryLogger.error('Error loading wound care history', reason);
+        setResult(previous => {
+          const sameScope = previous?.scope === scope;
+          return {
+            scope,
+            photosLoadKey: photosRequestKey,
+            consentsLoadKey: sameScope ? previous.consentsLoadKey : null,
+            photos: sameScope ? previous.photos : [],
+            consents: sameScope ? previous.consents : [],
+            photosError:
+              'No fue posible cargar las fotografías. Reintente para verificar el historial.',
+            consentsError: sameScope ? previous.consentsError : null,
+          };
+        });
+      }
+    );
 
     return () => {
       cancelled = true;
     };
-  }, [scope, loadKey]);
+  }, [scope, photosRequestKey]);
+
+  useEffect(() => {
+    const activePatientRut = scope.patientRut;
+    if (!activePatientRut) {
+      consentsInFlightRef.current = false;
+      return;
+    }
+
+    let cancelled = false;
+    const generation = ++consentsFetchGenerationRef.current;
+    consentsInFlightRef.current = true;
+
+    void invokePortRead(() => scope.consentPort.listByPatientRut(activePatientRut)).then(
+      consents => {
+        if (cancelled || consentsFetchGenerationRef.current !== generation) return;
+        consentsInFlightRef.current = false;
+        setResult(previous => {
+          const sameScope = previous?.scope === scope;
+          return {
+            scope,
+            photosLoadKey: sameScope ? previous.photosLoadKey : null,
+            consentsLoadKey: consentsRequestKey,
+            photos: sameScope ? previous.photos : [],
+            consents,
+            photosError: sameScope ? previous.photosError : null,
+            consentsError: null,
+          };
+        });
+      },
+      reason => {
+        if (cancelled || consentsFetchGenerationRef.current !== generation) return;
+        consentsInFlightRef.current = false;
+        woundCareHistoryLogger.error('Error loading wound care history', reason);
+        setResult(previous => {
+          const sameScope = previous?.scope === scope;
+          return {
+            scope,
+            photosLoadKey: sameScope ? previous.photosLoadKey : null,
+            consentsLoadKey: consentsRequestKey,
+            photos: sameScope ? previous.photos : [],
+            consents: sameScope ? previous.consents : [],
+            photosError: sameScope ? previous.photosError : null,
+            consentsError:
+              'No fue posible verificar el consentimiento informado. Reintente para confirmar su estado.',
+          };
+        });
+      }
+    );
+
+    return () => {
+      cancelled = true;
+      if (consentsFetchGenerationRef.current === generation) {
+        consentsInFlightRef.current = false;
+      }
+    };
+  }, [scope, consentsRequestKey]);
 
   // Group by episode
   const episodes: EpisodePhotoGroup[] = (() => {
@@ -237,7 +409,14 @@ export const useWoundCareHistory = ({
     allPhotos,
     allConsents,
     isLoading,
+    isRefreshing,
+    isRefreshingPhotos,
+    isRefreshingConsents,
+    photosError,
+    consentsError,
     reload,
+    reloadPhotos,
+    reloadConsents,
     applyPhotoDescription,
     applyDeletedPhoto,
     applyUploadedPhoto,

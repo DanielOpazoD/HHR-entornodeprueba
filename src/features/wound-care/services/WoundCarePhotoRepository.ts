@@ -145,8 +145,9 @@ export const WoundCarePhotoRepository = {
   /**
    * List all non-deleted photos across every hospitalization episode for a patient.
    *
-   * Used by the multi-episode history view. Results are sorted by upload
-   * date descending and validated through Zod.
+   * Reads directly from the Firestore server (`source: 'server'`) so an offline cold cache
+   * never disguises missing data as an empty gallery, and fails closed if any active record
+   * fails Zod validation (SAVE-01).
    *
    * @param patientRut - Chilean RUT of the patient.
    * @param hospitalId - Defaults to the active hospital.
@@ -159,20 +160,29 @@ export const WoundCarePhotoRepository = {
     const documents = await firestoreDb.getDocs<WoundCarePhoto>(
       getWoundCarePhotosPath(hospitalId),
       {
-        where: [
-          { field: 'patientRut', operator: '==', value: patientRut },
-          { field: 'isDeleted', operator: '==', value: false },
-        ],
+        // Query by patientRut only so legacy/valid docs omitting `isDeleted` (which schema defaults
+        // to `false`) are not excluded by Firestore before validation; filter soft deletes client-side.
+        where: [{ field: 'patientRut', operator: '==', value: patientRut }],
+        source: 'server',
       }
     );
 
-    // Client-side filter as safety net while index builds
-    return sortByUploadedAtDesc(
-      documents
-        .filter(doc => !doc.isDeleted)
-        .map(doc => validateReadPhoto(doc))
-        .filter((doc): doc is WoundCarePhoto => Boolean(doc))
-    );
+    const validPhotos: WoundCarePhoto[] = [];
+    let invalidCount = 0;
+    for (const doc of documents) {
+      if (doc.isDeleted === true) continue;
+      const valid = validateReadPhoto(doc);
+      if (valid) validPhotos.push(valid);
+      else invalidCount += 1;
+    }
+
+    if (invalidCount > 0) {
+      throw new Error(
+        `No se pudieron validar ${invalidCount} fotografía(s) del historial clínico.`
+      );
+    }
+
+    return sortByUploadedAtDesc(validPhotos);
   },
 
   /**

@@ -113,8 +113,9 @@ export const WoundCareConsentRepository = {
   /**
    * Return all consent records across every hospitalization episode for a patient.
    *
-   * Used by the history view to display consent status per episode.
-   * Invalid records are silently filtered out after Zod validation.
+   * Reads directly from the Firestore server (`source: 'server'`) and fails closed if any
+   * consent record fails Zod validation so an unreadable signed consent is never treated
+   * as absence (SAVE-01).
    *
    * @param patientRut - Chilean RUT of the patient.
    * @param hospitalId - Defaults to the active hospital.
@@ -127,12 +128,25 @@ export const WoundCareConsentRepository = {
       getWoundCareConsentsPath(hospitalId),
       {
         where: [{ field: 'patientRut', operator: '==', value: patientRut }],
+        source: 'server',
       }
     );
 
-    return documents
-      .map(doc => validateReadConsent(doc))
-      .filter((doc): doc is WoundCareConsent => Boolean(doc));
+    const validConsents: WoundCareConsent[] = [];
+    let invalidCount = 0;
+    for (const doc of documents) {
+      const valid = validateReadConsent(doc);
+      if (valid) validConsents.push(valid);
+      else invalidCount += 1;
+    }
+
+    if (invalidCount > 0) {
+      throw new Error(
+        `No se pudieron validar ${invalidCount} consentimiento(s) informado(s) del historial.`
+      );
+    }
+
+    return validConsents;
   },
 
   /**
