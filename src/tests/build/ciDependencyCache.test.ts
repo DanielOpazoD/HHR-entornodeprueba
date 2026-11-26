@@ -199,8 +199,13 @@ const runsNpmCi = (script?: string): boolean => {
       const token = words[j];
       if (token === '--') break;
       if (token.startsWith('-')) {
-        if (token.includes('=') || NPM_BOOLEAN_FLAGS.has(token) || token.startsWith('--no-')) {
+        if (token.includes('=')) {
           j += 1;
+          continue;
+        }
+        if (NPM_BOOLEAN_FLAGS.has(token) || token.startsWith('--no-')) {
+          const next = words[j + 1]?.toLowerCase();
+          j += next === 'true' || next === 'false' ? 2 : 1;
           continue;
         }
         if (NPM_VALUE_FLAGS.has(token)) {
@@ -251,7 +256,10 @@ it('only skips a clean install after an exact, successful dependency restore', (
   const image = steps.find(step => step.id === 'image')!;
   expect(image.run).toContain('${ImageOS:?}');
   expect(image.run).toContain('${ImageVersion:?}');
+  expect(image.if).toBeUndefined();
+  expect(isContinueOnErrorDisabled(image['continue-on-error'])).toBe(true);
   expect(steps.indexOf(image)).toBeLessThan(steps.indexOf(restore));
+  expect(restore.if).toBeUndefined();
   expect(restore.uses).toMatch(/^actions\/cache\/restore@/);
   expect(restore.with?.path).toBe('node_modules');
   expect(restore.with).not.toHaveProperty('restore-keys');
@@ -344,6 +352,7 @@ it('reuses exact dependencies across compatible jobs with one PR-phase writer pe
     'quality-static-base'
   );
   for (const [jobName, job] of reusable) {
+    expect(isContinueOnErrorDisabled(Reflect.get(job, 'continue-on-error')), jobName).toBe(true);
     expect(setupDependencySteps(job), jobName).toHaveLength(1);
     const setupIndex = job.steps.findIndex(step => step.uses === setupActionRef);
     expect(isContinueOnErrorDisabled(job.steps[setupIndex]['continue-on-error']), jobName).toBe(
@@ -475,6 +484,7 @@ it('restores npm downloads only when an exact installed dependency restore canno
     step => step.name === 'Restore npm downloads for a clean installation'
   )!;
   const install = steps.find(step => step.run === 'npm ci')!;
+  expect(activate.if).toBeUndefined();
   expect(activate.with).not.toHaveProperty('cache');
   expect(isContinueOnErrorDisabled(activate['continue-on-error'])).toBe(true);
   expect(downloads.if).toBe(install.if);
@@ -501,6 +511,8 @@ it('detects shell variants and aliases of npm ci without rejecting npm run scrip
     'npm install-clean',
     'npm cleanInstall',
     'npm install-ci-test',
+    'npm --ignore-scripts true ci',
+    'npm --dry-run false --no-audit false ci',
     'CI=true npm --no-audit --no-fund ci',
   ]) {
     expect(runsNpmCi(script), script).toBe(true);
@@ -508,6 +520,7 @@ it('detects shell variants and aliases of npm ci without rejecting npm run scrip
 
   for (const script of [
     'npm --silent run ci:preview-smoke:built',
+    'npm --ignore-scripts true run build',
     'npm run ci:verify',
     'npm run test:e2e:census-visual:ci',
     'echo "npm ci"',
