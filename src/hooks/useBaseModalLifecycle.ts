@@ -36,10 +36,36 @@ const isSequentiallyFocusable = (element: HTMLElement): boolean => {
   return style.display !== 'none' && style.visibility !== 'hidden';
 };
 
-const sequentialControls = (modal: HTMLElement): HTMLElement[] =>
-  Array.from(modal.querySelectorAll<HTMLElement>(SEQUENTIAL_CONTROLS)).filter(
+const sequentialControls = (modal: HTMLElement): HTMLElement[] => {
+  const candidates = Array.from(modal.querySelectorAll<HTMLElement>(SEQUENTIAL_CONTROLS)).filter(
     isSequentiallyFocusable
   );
+  const checkedRadioGroups = new Set<string>();
+  for (const element of candidates) {
+    if (
+      element instanceof HTMLInputElement &&
+      element.type === 'radio' &&
+      element.name &&
+      element.checked
+    ) {
+      checkedRadioGroups.add(element.name);
+    }
+  }
+  const seenUncheckedRadioGroups = new Set<string>();
+  return candidates.filter(element => {
+    if (!(element instanceof HTMLInputElement) || element.type !== 'radio' || !element.name) {
+      return true;
+    }
+    if (checkedRadioGroups.has(element.name)) {
+      return element.checked;
+    }
+    if (seenUncheckedRadioGroups.has(element.name)) {
+      return false;
+    }
+    seenUncheckedRadioGroups.add(element.name);
+    return true;
+  });
+};
 
 /** Stops at the first match, so a long form does not compute the style of every control. */
 const firstSequentialControl = (modal: HTMLElement, selector: string): HTMLElement | undefined =>
@@ -92,16 +118,21 @@ const trapModalTabNavigation = (
     return;
   }
 
-  if (event.shiftKey && runtimeDocument.activeElement === firstElement) {
-    lastElement.focus();
-    event.preventDefault();
+  const activeElement = runtimeDocument.activeElement as HTMLElement | null;
+  const currentIndex = activeElement ? focusableElements.indexOf(activeElement) : -1;
+
+  // Step explicitly through every sequential control so browsers where native Tab skips buttons
+  // (e.g. WebKit/Safari default keyboard mode) cannot escape a button-only dialog into the page.
+  event.preventDefault();
+  if (currentIndex === -1) {
+    (event.shiftKey ? lastElement : firstElement).focus();
     return;
   }
 
-  if (!event.shiftKey && runtimeDocument.activeElement === lastElement) {
-    firstElement.focus();
-    event.preventDefault();
-  }
+  const nextIndex = event.shiftKey
+    ? (currentIndex - 1 + focusableElements.length) % focusableElements.length
+    : (currentIndex + 1) % focusableElements.length;
+  focusableElements[nextIndex]?.focus();
 };
 
 /**

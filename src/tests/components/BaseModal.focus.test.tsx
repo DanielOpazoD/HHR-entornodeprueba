@@ -162,4 +162,36 @@ describe('BaseModal focus lifecycle', () => {
     expect(opener).toHaveFocus();
     opener.remove();
   });
+
+  it('explicitly cycles Tab across button-only dialogs so browsers that skip buttons cannot escape', () => {
+    const outsideSelect = document.createElement('select');
+    document.body.appendChild(outsideSelect);
+
+    const view = render(
+      <BaseModal isOpen onClose={vi.fn()} title="Error">
+        <button type="button">Reintentar</button>
+      </BaseModal>
+    );
+
+    const closeButton = screen.getByRole('button', { name: 'Cerrar modal' });
+    const retryButton = screen.getByRole('button', { name: 'Reintentar' });
+    expect(closeButton).toHaveFocus();
+
+    expect(fireEvent.keyDown(closeButton, { key: 'Tab' })).toBe(false);
+    expect(retryButton).toHaveFocus();
+
+    expect(fireEvent.keyDown(retryButton, { key: 'Tab' })).toBe(false);
+    expect(closeButton).toHaveFocus();
+
+    expect(fireEvent.keyDown(closeButton, { key: 'Tab', shiftKey: true })).toBe(false);
+    expect(retryButton).toHaveFocus();
+
+    // If focus somehow falls to body while the modal is open, Tab brings it back inside.
+    document.body.focus();
+    expect(fireEvent.keyDown(document.body, { key: 'Tab' })).toBe(false);
+    expect(closeButton).toHaveFocus();
+
+    view.unmount();
+    outsideSelect.remove();
+  });
 });

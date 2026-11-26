@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 interface MockUpcWindowProps {
   currentDateString: string;
@@ -270,5 +270,169 @@ describe('UpcClassificationWindowProvider', () => {
     expect(() =>
       fireEvent.click(screen.getByRole('button', { name: 'Sin proveedor' }))
     ).not.toThrow();
+  });
+
+  it('cancels a pending open when the census date changes so another day episode is never opened', async () => {
+    let resolveChunk:
+      | ((value: { UpcClassificationWindow: React.FC<MockUpcWindowProps> }) => void)
+      | null = null;
+    const chunkPromise = new Promise<{
+      UpcClassificationWindow: React.FC<MockUpcWindowProps>;
+    }>(resolve => {
+      resolveChunk = resolve;
+    });
+
+    vi.doMock(UPC_WINDOW_MODULE_PATH, () => chunkPromise);
+
+    const { UpcClassificationWindowProvider, useUpcClassificationWindowOpener } =
+      await loadFreshContext();
+
+    const Trigger = () => {
+      const { openUpcWindow } = useUpcClassificationWindowOpener();
+      return (
+        <button type="button" onClick={() => openUpcWindow('R1', { crib: true })}>
+          Abrir cuna R1
+        </button>
+      );
+    };
+
+    const { rerender } = render(
+      <UpcClassificationWindowProvider currentDateString="2026-11-24">
+        <Trigger />
+      </UpcClassificationWindowProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir cuna R1' }));
+    expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+    rerender(
+      <UpcClassificationWindowProvider currentDateString="2026-11-23">
+        <Trigger />
+      </UpcClassificationWindowProvider>
+    );
+    expect(screen.queryByTestId('upc-window-module-loading')).toBeNull();
+
+    await act(async () => {
+      resolveChunk?.({
+        UpcClassificationWindow: ({ currentDateString, initialBedId }: MockUpcWindowProps) => (
+          <div role="dialog" aria-label="Clasificación UPC">
+            {`${currentDateString}|${initialBedId}`}
+          </div>
+        ),
+      });
+      await chunkPromise;
+    });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    // Returning to the original day must not resurrect the cancelled request either.
+    rerender(
+      <UpcClassificationWindowProvider currentDateString="2026-11-24">
+        <Trigger />
+      </UpcClassificationWindowProvider>
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('cancels a pending open on Escape and restores focus to the keyboard opener', async () => {
+    let resolveChunk:
+      | ((value: { UpcClassificationWindow: React.FC<MockUpcWindowProps> }) => void)
+      | null = null;
+    const chunkPromise = new Promise<{
+      UpcClassificationWindow: React.FC<MockUpcWindowProps>;
+    }>(resolve => {
+      resolveChunk = resolve;
+    });
+
+    vi.doMock(UPC_WINDOW_MODULE_PATH, () => chunkPromise);
+
+    const { UpcClassificationWindowProvider, useUpcClassificationWindowOpener } =
+      await loadFreshContext();
+
+    const Trigger = () => {
+      const { openUpcWindow } = useUpcClassificationWindowOpener();
+      return (
+        <button type="button" onClick={() => openUpcWindow('R1')}>
+          Abrir UPC R1
+        </button>
+      );
+    };
+
+    render(
+      <UpcClassificationWindowProvider currentDateString="2026-11-24">
+        <Trigger />
+      </UpcClassificationWindowProvider>
+    );
+
+    const openerButton = screen.getByRole('button', { name: 'Abrir UPC R1' });
+    openerButton.focus();
+    fireEvent.click(openerButton);
+
+    const loadingModal = screen.getByTestId('upc-window-module-loading');
+    expect(loadingModal).toBeInTheDocument();
+
+    fireEvent.keyDown(loadingModal, { key: 'Escape' });
+    expect(screen.queryByTestId('upc-window-module-loading')).toBeNull();
+    expect(openerButton).toHaveFocus();
+
+    await act(async () => {
+      resolveChunk?.({
+        UpcClassificationWindow: () => <div role="dialog" aria-label="Clasificación UPC" />,
+      });
+      await chunkPromise;
+    });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('traps Tab inside the error modal and restores focus to the keyboard opener on Escape', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    vi.doMock(UPC_WINDOW_MODULE_PATH, () => {
+      throw new Error('503 Service Unavailable');
+    });
+
+    const { UpcClassificationWindowProvider, useUpcClassificationWindowOpener } =
+      await loadFreshContext();
+
+    const Trigger = () => {
+      const { openUpcWindow } = useUpcClassificationWindowOpener();
+      return (
+        <div>
+          <select aria-label="Enfermería externa">
+            <option value="a">A</option>
+          </select>
+          <button type="button" onClick={() => openUpcWindow('R1')}>
+            Evaluación UPC R1
+          </button>
+        </div>
+      );
+    };
+
+    render(
+      <UpcClassificationWindowProvider currentDateString="2026-11-24">
+        <Trigger />
+      </UpcClassificationWindowProvider>
+    );
+
+    const openerButton = screen.getByRole('button', { name: 'Evaluación UPC R1' });
+    openerButton.focus();
+    fireEvent.click(openerButton);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/No se pudo abrir este panel/);
+
+    const closeButton = screen.getByRole('button', { name: 'Cerrar modal' });
+    const retryButton = screen.getByRole('button', { name: 'Reintentar' });
+    expect(closeButton).toHaveFocus();
+
+    expect(fireEvent.keyDown(closeButton, { key: 'Tab' })).toBe(false);
+    expect(retryButton).toHaveFocus();
+    expect(fireEvent.keyDown(retryButton, { key: 'Tab' })).toBe(false);
+    expect(closeButton).toHaveFocus();
+
+    fireEvent.keyDown(closeButton, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+    expect(openerButton).toHaveFocus();
+    consoleErrorSpy.mockRestore();
   });
 });
