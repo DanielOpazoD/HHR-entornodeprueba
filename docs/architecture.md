@@ -223,13 +223,13 @@ límites están en [SYNC_CONCURRENCY_MODEL.md](SYNC_CONCURRENCY_MODEL.md); la pr
 [Daily Record Runtime Path](ADR_DAILY_RECORD_RUNTIME_PATH.md) y
 [Daily Census Truth Contract](ADR_DAILY_CENSUS_TRUTH_CONTRACT.md).
 
-**Paso a paso.** Abrir el día (`census.open-day-flow`), guardar una celda
-(`census.cell-save-flow`), sincronizar con Eloísa (`eloisa.sync-flow`) y la fecha y hora de un
-egreso desde Eloísa (`eloisa.discharge-time-flow`) están en
-[`feature-map.json`](../scripts/config/feature-map.json) como
-pasos «archivo › símbolo» en orden, con lo que se decide en cada uno y las pruebas que los
-acreditan. **Hoy:** `npm run check:feature-map` comprueba que cada archivo nombre su símbolo;
-esta página no repite los pasos.
+**Paso a paso.** Diez flujos clave (`census.open-day-flow`, `census.edit-patient`,
+`census.cell-save-flow`, `census.discharge`, `eloisa.copy-and-sync`, `eloisa.sync-flow`,
+`eloisa.chart-fields`, `eloisa.discharge-time-flow`, `handoff.nursing` y `cudyr.daily`) están en
+[`feature-map.json`](../scripts/config/feature-map.json) como pasos «archivo › símbolo» en orden,
+con lo que se decide en cada uno y las pruebas que los acreditan. **Hoy:**
+`npm run check:feature-map` comprueba que cada archivo nombre su símbolo; esta página no repite los
+pasos.
 
 **En React.** Un componente lee el fragmento más estrecho que le sirve:
 `useDailyRecordBeds`, `useDailyRecordStaff`, `useDailyRecordMovements`,

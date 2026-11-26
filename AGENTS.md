@@ -13,9 +13,10 @@ el resto de `docs/` es de consulta, no lectura previa.
 
 - **Una función que ve el usuario** (un botón, un flujo): su fila en
   [feature-map.json](scripts/config/feature-map.json) dice cómo se llega, la carpeta dueña, la
-  puerta de código (la primera es donde vive la decisión) y qué pruebas la acreditan. Abrir el
-  día, guardar una celda, sincronizar con Eloísa y la hora de un egreso desde Eloísa tienen
-  además `flow`: cada paso en orden, archivo y símbolo.
+  puerta de código (la primera es donde vive la decisión) y qué pruebas la acreditan. Diez
+  flujos clave (abrir día, editar paciente, guardar celda, alta, copiar y sincronizar, sincronizar
+  Eloísa, ficha clínica, hora de egreso, entrega de enfermería y CUDYR diario) tienen además
+  `flow`: cada paso en orden, archivo y símbolo.
 - **Un texto, un estilo o una constante:** nada más. Si la constante figura en una regla de
   este archivo, actualiza esa regla.
 - **Datos clínicos, identidad, hora, guardado, sincronización, sesión o permisos:** la regla,
