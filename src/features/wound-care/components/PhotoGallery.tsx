@@ -14,6 +14,7 @@ interface PhotoGalleryProps {
   photos: WoundCarePhoto[];
   readOnly?: boolean;
   loadError?: string | null;
+  hideTopBanner?: boolean;
   isRetrying?: boolean;
   onRetry?: () => void;
   onDelete?: (photo: WoundCarePhoto) => Promise<{ success: boolean; error?: string }>;
@@ -27,6 +28,7 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
   photos,
   readOnly = false,
   loadError = null,
+  hideTopBanner = false,
   isRetrying = false,
   onRetry,
   onDelete,
@@ -39,6 +41,17 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
 
   if (photos.length === 0) {
     if (loadError) {
+      if (hideTopBanner) {
+        return (
+          <div className="flex flex-col items-center gap-1.5 rounded-lg border border-amber-200/80 bg-amber-50/40 px-4 py-4 text-center">
+            <AlertTriangle className="w-5 h-5 text-amber-600" />
+            <p className="text-xs text-amber-900">
+              No se pudieron verificar las fotografías de esta hospitalización.
+            </p>
+          </div>
+        );
+      }
+
       return (
         <div
           role="alert"
@@ -81,7 +94,7 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
   return (
     <>
       <div className="space-y-3">
-        {loadError && (
+        {loadError && !hideTopBanner && (
           <div
             role="alert"
             className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs text-amber-900"

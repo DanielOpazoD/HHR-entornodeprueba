@@ -96,19 +96,31 @@ export const useWoundCareHistory = ({
   const fetchGenerationRef = useRef(0);
   const [result, setResult] = useState<{
     scope: typeof scope;
-    loadKey: number;
+    photosLoadKey: number | null;
+    consentsLoadKey: number | null;
     photos: WoundCarePhoto[];
     consents: WoundCareConsent[];
     photosError: string | null;
     consentsError: string | null;
   } | null>(null);
-  const allPhotos = result?.scope === scope ? result.photos : [];
-  const allConsents = result?.scope === scope ? result.consents : [];
-  const photosError = result?.scope === scope ? result.photosError : null;
-  const consentsError = result?.scope === scope ? result.consentsError : null;
-  // Keep loaded episodes mounted during background reloads so active modals/editors are preserved.
-  const isLoading = Boolean(patientRut) && result?.scope !== scope;
-  const isRefreshing = Boolean(patientRut) && result?.scope === scope && result.loadKey !== loadKey;
+  const scopedResult = result?.scope === scope ? result : null;
+  const allPhotos = scopedResult?.photos ?? [];
+  const allConsents = scopedResult?.consents ?? [];
+  const photosError = scopedResult?.photosError ?? null;
+  const consentsError = scopedResult?.consentsError ?? null;
+  // Initial load waits for both branches so the first paint has a complete baseline;
+  // subsequent reloads keep loaded episodes mounted and publish each branch as soon as it settles.
+  const isLoading =
+    Boolean(patientRut) &&
+    (scopedResult === null ||
+      scopedResult.photosLoadKey === null ||
+      scopedResult.consentsLoadKey === null);
+  const isRefreshing =
+    Boolean(patientRut) &&
+    scopedResult !== null &&
+    scopedResult.photosLoadKey !== null &&
+    scopedResult.consentsLoadKey !== null &&
+    (scopedResult.photosLoadKey !== loadKey || scopedResult.consentsLoadKey !== loadKey);
 
   const reload = useCallback(() => {
     fetchGenerationRef.current += 1;
@@ -127,7 +139,8 @@ export const useWoundCareHistory = ({
         if (!previous || previous.scope !== scope) return previous;
         return {
           ...previous,
-          loadKey: settledLoadKey,
+          photosLoadKey: previous.photosLoadKey === null ? null : settledLoadKey,
+          consentsLoadKey: previous.consentsLoadKey === null ? null : settledLoadKey,
           photos: previous.photos.map(photo =>
             photo.id === photoId ? { ...photo, description } : photo
           ),
@@ -145,7 +158,8 @@ export const useWoundCareHistory = ({
         if (!previous || previous.scope !== scope) return previous;
         return {
           ...previous,
-          loadKey: settledLoadKey,
+          photosLoadKey: previous.photosLoadKey === null ? null : settledLoadKey,
+          consentsLoadKey: previous.consentsLoadKey === null ? null : settledLoadKey,
           photos: previous.photos.filter(photo => photo.id !== photoId),
         };
       });
@@ -162,7 +176,8 @@ export const useWoundCareHistory = ({
         const remaining = previous.photos.filter(existing => existing.id !== photo.id);
         return {
           ...previous,
-          loadKey: settledLoadKey,
+          photosLoadKey: previous.photosLoadKey === null ? null : settledLoadKey,
+          consentsLoadKey: previous.consentsLoadKey === null ? null : settledLoadKey,
           photos: [photo, ...remaining],
         };
       });
@@ -179,7 +194,8 @@ export const useWoundCareHistory = ({
         const remaining = previous.consents.filter(existing => existing.id !== consent.id);
         return {
           ...previous,
-          loadKey: settledLoadKey,
+          photosLoadKey: previous.photosLoadKey === null ? null : settledLoadKey,
+          consentsLoadKey: previous.consentsLoadKey === null ? null : settledLoadKey,
           consents: [consent, ...remaining],
         };
       });
@@ -194,50 +210,80 @@ export const useWoundCareHistory = ({
     let cancelled = false;
     const generation = ++fetchGenerationRef.current;
 
-    void Promise.allSettled([
-      invokePortRead(() => scope.photoPort.listByPatientRut(activePatientRut)),
-      invokePortRead(() => scope.consentPort.listByPatientRut(activePatientRut)),
-    ]).then(([photosOutcome, consentsOutcome]) => {
-      if (cancelled || fetchGenerationRef.current !== generation) return;
+    const photosPromise = invokePortRead(() => scope.photoPort.listByPatientRut(activePatientRut));
+    const consentsPromise = invokePortRead(() =>
+      scope.consentPort.listByPatientRut(activePatientRut)
+    );
 
-      if (photosOutcome.status === 'rejected') {
-        woundCareHistoryLogger.error('Error loading wound care history', photosOutcome.reason);
+    void photosPromise.then(
+      photos => {
+        if (cancelled || fetchGenerationRef.current !== generation) return;
+        setResult(previous => {
+          const sameScope = previous?.scope === scope;
+          return {
+            scope,
+            photosLoadKey: loadKey,
+            consentsLoadKey: sameScope ? previous.consentsLoadKey : null,
+            photos,
+            consents: sameScope ? previous.consents : [],
+            photosError: null,
+            consentsError: sameScope ? previous.consentsError : null,
+          };
+        });
+      },
+      reason => {
+        if (cancelled || fetchGenerationRef.current !== generation) return;
+        woundCareHistoryLogger.error('Error loading wound care history', reason);
+        setResult(previous => {
+          const sameScope = previous?.scope === scope;
+          return {
+            scope,
+            photosLoadKey: loadKey,
+            consentsLoadKey: sameScope ? previous.consentsLoadKey : null,
+            photos: sameScope ? previous.photos : [],
+            consents: sameScope ? previous.consents : [],
+            photosError:
+              'No fue posible cargar las fotografías. Reintente para verificar el historial.',
+            consentsError: sameScope ? previous.consentsError : null,
+          };
+        });
       }
-      if (consentsOutcome.status === 'rejected') {
-        woundCareHistoryLogger.error('Error loading wound care history', consentsOutcome.reason);
+    );
+
+    void consentsPromise.then(
+      consents => {
+        if (cancelled || fetchGenerationRef.current !== generation) return;
+        setResult(previous => {
+          const sameScope = previous?.scope === scope;
+          return {
+            scope,
+            photosLoadKey: sameScope ? previous.photosLoadKey : null,
+            consentsLoadKey: loadKey,
+            photos: sameScope ? previous.photos : [],
+            consents,
+            photosError: sameScope ? previous.photosError : null,
+            consentsError: null,
+          };
+        });
+      },
+      reason => {
+        if (cancelled || fetchGenerationRef.current !== generation) return;
+        woundCareHistoryLogger.error('Error loading wound care history', reason);
+        setResult(previous => {
+          const sameScope = previous?.scope === scope;
+          return {
+            scope,
+            photosLoadKey: sameScope ? previous.photosLoadKey : null,
+            consentsLoadKey: loadKey,
+            photos: sameScope ? previous.photos : [],
+            consents: sameScope ? previous.consents : [],
+            photosError: sameScope ? previous.photosError : null,
+            consentsError:
+              'No fue posible verificar el consentimiento informado. Reintente para confirmar su estado.',
+          };
+        });
       }
-
-      const nextPhotosError =
-        photosOutcome.status === 'rejected'
-          ? 'No fue posible cargar las fotografías. Reintente para verificar el historial.'
-          : null;
-      const nextConsentsError =
-        consentsOutcome.status === 'rejected'
-          ? 'No fue posible verificar el consentimiento informado. Reintente para confirmar su estado.'
-          : null;
-
-      setResult(previous => {
-        const sameScope = previous?.scope === scope;
-        return {
-          scope,
-          loadKey,
-          photos:
-            photosOutcome.status === 'fulfilled'
-              ? photosOutcome.value
-              : sameScope
-                ? previous.photos
-                : [],
-          consents:
-            consentsOutcome.status === 'fulfilled'
-              ? consentsOutcome.value
-              : sameScope
-                ? previous.consents
-                : [],
-          photosError: nextPhotosError,
-          consentsError: nextConsentsError,
-        };
-      });
-    });
+    );
 
     return () => {
       cancelled = true;

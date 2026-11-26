@@ -90,13 +90,14 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
         takenAt: toClinicalEventIso(eventDateTime),
       });
 
-      if (!isMountedRef.current) return;
       if (result.success) {
         if (activePatientRutRef.current === requestPatientRut) {
           onUploaded?.(result.data ?? undefined);
         }
-        handleClose();
-      } else if (activePatientRutRef.current === requestPatientRut) {
+        if (isMountedRef.current) {
+          handleClose();
+        }
+      } else if (isMountedRef.current && activePatientRutRef.current === requestPatientRut) {
         setError(result.error || 'Error al subir la fotografía.');
       }
     } catch (unknownError) {

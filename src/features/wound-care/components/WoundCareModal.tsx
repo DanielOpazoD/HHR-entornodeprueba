@@ -17,7 +17,12 @@ import {
 import { useWoundCareHistory, type EpisodePhotoGroup } from '../hooks/useWoundCareHistory';
 import { useWoundCareUpload } from '../hooks/useWoundCareUpload';
 import { ConsentStatus } from './ConsentStatus';
-import { ConsentUploadModal } from './ConsentUploadModal';
+import {
+  ConsentUploadModal,
+  hasInFlightConsentUpload,
+  subscribeConsentUploadCompletions,
+  subscribeConsentUploadState,
+} from './ConsentUploadModal';
 import { PhotoUploadButton } from './PhotoUploadButton';
 import { PhotoUploadModal } from './PhotoUploadModal';
 import { generateConsentPdf } from '../services/consentPdfGenerator';
@@ -39,8 +44,7 @@ interface EpisodeSectionProps {
   readOnly: boolean;
   photosError: string | null;
   consentUploadBlocked: boolean;
-  isRetrying: boolean;
-  onRetry: () => void;
+  consentUploadBlockedReason: string | null;
   onFileSelected: (file: File) => void;
   onDelete: (photo: {
     id: string;
@@ -61,8 +65,7 @@ const EpisodeSection: React.FC<EpisodeSectionProps> = ({
   readOnly,
   photosError,
   consentUploadBlocked,
-  isRetrying,
-  onRetry,
+  consentUploadBlockedReason,
   onFileSelected,
   onDelete,
   onEditDescription,
@@ -128,7 +131,8 @@ const EpisodeSection: React.FC<EpisodeSectionProps> = ({
                 className="inline-flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors touch-manipulation"
                 title={
                   consentUploadBlocked
-                    ? 'Reintente la carga para verificar el consentimiento antes de subir uno nuevo'
+                    ? consentUploadBlockedReason ||
+                      'Reintente la carga para verificar el consentimiento antes de subir uno nuevo'
                     : 'Subir consentimiento firmado'
                 }
               >
@@ -159,8 +163,7 @@ const EpisodeSection: React.FC<EpisodeSectionProps> = ({
             photos={group.photos}
             readOnly={readOnly || !group.isCurrent}
             loadError={photosError}
-            isRetrying={isRetrying}
-            onRetry={onRetry}
+            hideTopBanner
             onDelete={!readOnly && group.isCurrent ? onDelete : undefined}
             onEditDescription={!readOnly && group.isCurrent ? onEditDescription : undefined}
           />
@@ -199,6 +202,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
   const [showMobileQr, setShowMobileQr] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [inFlightConsentEpisodeKey, setInFlightConsentEpisodeKey] = useState<string | null>(null);
   if (useChangedOnRender([patientRut])) {
     setShowConsentModal(false);
     setShowPhotoModal(false);
@@ -324,9 +328,37 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
     }
   };
 
+  useEffect(() => {
+    const unsubscribeCompletions = subscribeConsentUploadCompletions(event => {
+      if (!isSameActivePatient(event.patientRut)) return;
+      if (event.consent) {
+        applyUploadedConsent(event.consent);
+      }
+      reload();
+      showToast('Consentimiento guardado');
+    });
+    const unsubscribeState = subscribeConsentUploadState(({ episodeKey, inFlight }) => {
+      if (!activeScopeRef.current.mounted) return;
+      setInFlightConsentEpisodeKey(current =>
+        inFlight ? episodeKey : current === episodeKey ? null : current
+      );
+    });
+    return () => {
+      unsubscribeCompletions();
+      unsubscribeState();
+    };
+  }, [applyUploadedConsent, reload]);
+
   const currentConsent = episodes.find(e => e.isCurrent)?.consent ?? null;
-  const consentUploadBlocked = Boolean(consentsError && currentConsent?.status !== 'signed');
-  const hasCurrentEpisode = episodes.some(e => e.isCurrent);
+  const isConsentUploadInFlight =
+    inFlightConsentEpisodeKey === episodeContext.episodeKey ||
+    hasInFlightConsentUpload(episodeContext.episodeKey);
+  const consentUploadBlocked = Boolean(
+    (consentsError || isConsentUploadInFlight) && currentConsent?.status !== 'signed'
+  );
+  const consentUploadBlockedReason = isConsentUploadInFlight
+    ? 'Hay un consentimiento subiéndose para esta hospitalización.'
+    : consentsError;
 
   const handlePrintConsent = async () => {
     const admissionDate = resolveAdmissionDateFromClinicalEpisodeKey(episodeContext.episodeKey);
@@ -380,7 +412,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
                   </div>
                 )}
 
-                {photosError && episodes.length > 0 && !hasCurrentEpisode && (
+                {photosError && (
                   <div
                     role="alert"
                     className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs text-amber-900"
@@ -402,26 +434,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
                 )}
 
                 {episodes.length === 0 ? (
-                  photosError ? (
-                    <div
-                      role="alert"
-                      className="flex flex-col items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/70 px-4 py-6 text-center"
-                    >
-                      <AlertTriangle className="w-6 h-6 text-amber-600" />
-                      <p className="text-xs font-medium text-amber-900">{photosError}</p>
-                      <button
-                        type="button"
-                        onClick={reload}
-                        disabled={isRefreshing}
-                        className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-60 transition-colors"
-                      >
-                        <RefreshCw
-                          className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`}
-                        />
-                        {isRefreshing ? 'Reintentando...' : 'Reintentar'}
-                      </button>
-                    </div>
-                  ) : (
+                  !photosError && (
                     <div className="text-center py-10">
                       <div className="w-12 h-12 mx-auto mb-2.5 rounded-full bg-slate-50 flex items-center justify-center">
                         <Camera className="w-6 h-6 text-slate-300" />
@@ -462,8 +475,9 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
                         readOnly={readOnly}
                         photosError={photosError}
                         consentUploadBlocked={group.isCurrent ? consentUploadBlocked : false}
-                        isRetrying={isRefreshing}
-                        onRetry={reload}
+                        consentUploadBlockedReason={
+                          group.isCurrent ? consentUploadBlockedReason : null
+                        }
                         onFileSelected={handleFileSelected}
                         onDelete={handleDeletePhoto}
                         onEditDescription={handleEditDescription}
@@ -487,13 +501,18 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
           isOpen
           onClose={() => setShowConsentModal(false)}
           onUploaded={consent => {
-            if (!isSameActivePatient(patientRut)) return;
+            if (!isSameActivePatient(patientRut)) return false;
             if (consent) {
               applyUploadedConsent(consent);
             }
             reload();
             showToast('Consentimiento guardado');
+            return true;
           }}
+          uploadBlocked={Boolean(consentsError && currentConsent?.status !== 'signed')}
+          uploadBlockedReason={consentsError}
+          isRetryingVerification={isRefreshing}
+          onRetryVerification={reload}
           episodeContext={episodeContext}
           existingConsent={currentConsent}
         />

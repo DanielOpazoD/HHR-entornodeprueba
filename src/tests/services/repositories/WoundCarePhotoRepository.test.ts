@@ -16,7 +16,10 @@ vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
 }));
 
 import { firestoreDb } from '@/services/storage/firestore';
+import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { WoundCarePhotoRepository } from '@/features/wound-care/services/WoundCarePhotoRepository';
+import { WoundCareConsentRepository } from '@/features/wound-care/services/WoundCareConsentRepository';
+import type { WoundCareConsent } from '@/types/domain/woundCare';
 
 const buildPhoto = (id: string, uploadedAt: string): WoundCarePhoto => ({
   id,
@@ -48,7 +51,7 @@ describe('WoundCarePhotoRepository', () => {
     vi.clearAllMocks();
   });
 
-  it('lists patient history without requiring a composite uploadedAt index', async () => {
+  it('lists patient history from server without requiring a composite uploadedAt index', async () => {
     vi.mocked(firestoreDb.getDocs).mockResolvedValue([
       buildPhoto('older', '2026-05-02T10:00:00.000Z'),
       buildPhoto('newer', '2026-05-02T11:00:00.000Z'),
@@ -61,8 +64,71 @@ describe('WoundCarePhotoRepository', () => {
         { field: 'patientRut', operator: '==', value: '11.111.111-1' },
         { field: 'isDeleted', operator: '==', value: false },
       ],
+      source: 'server',
     });
     expect(result.map(photo => photo.id)).toEqual(['newer', 'older']);
+  });
+
+  it('fails closed in listByPatientRut when an active photo record fails schema validation', async () => {
+    const malformedPhoto = {
+      ...buildPhoto('broken', '2026-05-02T10:00:00.000Z'),
+      width: undefined,
+    } as unknown as WoundCarePhoto;
+    vi.mocked(firestoreDb.getDocs).mockResolvedValueOnce([malformedPhoto]);
+
+    await expect(WoundCarePhotoRepository.listByPatientRut('11.111.111-1', 'H1')).rejects.toThrow(
+      /no se pudieron validar 1 fotografía/i
+    );
+    expect(recordOperationalTelemetry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'photo_repository_invalid_read_record',
+      })
+    );
+  });
+
+  it('reads consents from server and fails closed when a consent record fails schema validation', async () => {
+    const validConsent: WoundCareConsent = {
+      id: 'c-1',
+      patientRut: '11.111.111-1',
+      patientName: 'Paciente Test',
+      episodeKey: '11111111-1__2026-05-02',
+      status: 'signed',
+      consentFileStoragePath: 'consents/c-1.pdf',
+      consentFileDownloadUrl: 'https://example.test/c-1.pdf',
+      consentFileMimeType: 'application/pdf',
+      consentFileSize: 2048,
+      signedAt: '2026-05-02T09:00:00.000Z',
+      uploadedAt: '2026-05-02T09:05:00.000Z',
+      uploadedBy: {
+        uid: 'u1',
+        email: 'test@hospital.cl',
+        displayName: 'Usuario Test',
+        role: 'admin',
+      },
+    };
+
+    vi.mocked(firestoreDb.getDocs).mockResolvedValueOnce([validConsent]);
+    const consents = await WoundCareConsentRepository.listByPatientRut('11.111.111-1', 'H1');
+    expect(firestoreDb.getDocs).toHaveBeenCalledWith('hospitals/H1/woundCareConsents', {
+      where: [{ field: 'patientRut', operator: '==', value: '11.111.111-1' }],
+      source: 'server',
+    });
+    expect(consents).toEqual([validConsent]);
+
+    const malformedConsent = {
+      ...validConsent,
+      consentFileSize: undefined,
+    } as unknown as WoundCareConsent;
+    vi.mocked(firestoreDb.getDocs).mockResolvedValueOnce([malformedConsent]);
+
+    await expect(WoundCareConsentRepository.listByPatientRut('11.111.111-1', 'H1')).rejects.toThrow(
+      /no se pudieron validar 1 consentimiento/i
+    );
+    expect(recordOperationalTelemetry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'consent_repository_invalid_read_record',
+      })
+    );
   });
 
   it('counts active valid photos across multiple episodes in chunks of 30 without catching read failures', async () => {
