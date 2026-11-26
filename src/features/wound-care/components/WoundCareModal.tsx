@@ -294,7 +294,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
     const result = await requestPromise;
     if (result.success && isSameActivePatient(requestPatientRut)) {
       applyDeletedPhoto(photo.id);
-      reload({ preserveInFlightConsents: true });
+      reload();
       showToast('Foto eliminada');
     }
     return result;
@@ -310,7 +310,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
       if (outcome.status === 'success') {
         if (isSameActivePatient(requestPatientRut)) {
           applyPhotoDescription(photoId, description);
-          reload({ preserveInFlightConsents: true });
+          reload();
           showToast('Descripción actualizada');
         }
         return { success: true };
@@ -347,7 +347,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
       if (event.photo) {
         applyUploadedPhoto(event.photo);
       }
-      reload({ preserveInFlightConsents: true });
+      reload();
       showToast('Foto subida exitosamente');
     });
     return () => {
@@ -552,7 +552,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
             if (photo) {
               applyUploadedPhoto(photo);
             }
-            reload({ preserveInFlightConsents: true });
+            reload();
             showToast('Foto subida exitosamente');
             return true;
           }}

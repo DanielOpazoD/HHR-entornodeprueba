@@ -852,4 +852,163 @@ describe('WoundCareModal partial history read preservation', () => {
     });
     expect(screen.getByRole('button', { name: /subir ci/i })).not.toBeDisabled();
   });
+
+  it('supersedes a delayed empty consents reload when a second photo description edit confirms after another nurse saved a signed consent', async () => {
+    const delayedEmptyConsents = createDeferred<WoundCareConsent[]>();
+    const freshSignedConsents = createDeferred<WoundCareConsent[]>();
+
+    listPhotosByPatientRutMock
+      .mockResolvedValueOnce([samplePhoto])
+      .mockResolvedValueOnce([{ ...samplePhoto, description: 'Edición 1' }])
+      .mockResolvedValueOnce([{ ...samplePhoto, description: 'Edición 2' }]);
+    listConsentsByPatientRutMock
+      .mockResolvedValueOnce([])
+      .mockReturnValueOnce(delayedEmptyConsents.promise)
+      .mockReturnValueOnce(freshSignedConsents.promise);
+    updatePhotoDescriptionMock
+      .mockResolvedValueOnce({ status: 'success', data: null, issues: [] })
+      .mockResolvedValueOnce({ status: 'success', data: null, issues: [] });
+
+    render(
+      <WoundCareModal
+        isOpen
+        onClose={vi.fn()}
+        patientName={episodeContext.patientName}
+        patientRut={episodeContext.patientRut}
+        episodeContext={episodeContext}
+      />
+    );
+
+    await screen.findByAltText('Curación de prueba');
+
+    // First description edit starts a consents reload whose empty snapshot is delayed.
+    fireEvent.click(screen.getByAltText('Curación de prueba'));
+    fireEvent.click(screen.getByRole('button', { name: /editar descripción/i }));
+    fireEvent.change(screen.getByPlaceholderText(/agregar descripción/i), {
+      target: { value: 'Edición 1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /guardar descripción/i }));
+
+    await waitFor(() => {
+      expect(listConsentsByPatientRutMock).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.getByRole('button', { name: /subir ci/i })).toBeDisabled();
+
+    // Nurse B saves a signed consent while Nurse A confirms a second description edit.
+    fireEvent.click(screen.getByRole('button', { name: /editar descripción/i }));
+    fireEvent.change(screen.getByPlaceholderText(/agregar descripción/i), {
+      target: { value: 'Edición 2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /guardar descripción/i }));
+
+    await waitFor(() => {
+      expect(listConsentsByPatientRutMock).toHaveBeenCalledTimes(3);
+    });
+
+    // The delayed empty response from edit #1 arrives first and must NOT unlock duplicate upload.
+    await act(async () => {
+      delayedEmptyConsents.resolve([]);
+    });
+    expect(screen.getByRole('button', { name: /subir ci/i })).toBeDisabled();
+
+    // The fresh response from edit #2 reveals Nurse B's signed consent.
+    await act(async () => {
+      freshSignedConsents.resolve([signedConsent]);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Consentimiento firmado')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /subir ci/i })).not.toBeDisabled();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(screen.getByRole('button', { name: /subir ci/i }));
+    expect(screen.getByText('Ver documento PDF')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /subir consentimiento/i })).not.toBeInTheDocument();
+  });
+
+  it('supersedes a delayed empty consents reload when a photo upload confirms after another nurse saved a signed consent', async () => {
+    const createObjectUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:photo-b');
+    const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+    try {
+      const delayedEmptyConsents = createDeferred<WoundCareConsent[]>();
+      const freshSignedConsents = createDeferred<WoundCareConsent[]>();
+
+      listPhotosByPatientRutMock
+        .mockResolvedValueOnce([samplePhoto])
+        .mockResolvedValueOnce([{ ...samplePhoto, description: 'Edición previa' }])
+        .mockResolvedValueOnce([{ ...samplePhoto, id: 'photo-2' }, samplePhoto]);
+      listConsentsByPatientRutMock
+        .mockResolvedValueOnce([])
+        .mockReturnValueOnce(delayedEmptyConsents.promise)
+        .mockReturnValueOnce(freshSignedConsents.promise);
+      updatePhotoDescriptionMock.mockResolvedValueOnce({
+        status: 'success',
+        data: null,
+        issues: [],
+      });
+      uploadPhotoUseCaseMock.mockResolvedValueOnce({
+        status: 'success',
+        data: { ...samplePhoto, id: 'photo-2', description: 'Nueva foto' },
+        issues: [],
+      });
+
+      render(
+        <WoundCareModal
+          isOpen
+          onClose={vi.fn()}
+          patientName={episodeContext.patientName}
+          patientRut={episodeContext.patientRut}
+          episodeContext={episodeContext}
+        />
+      );
+
+      await screen.findByAltText('Curación de prueba');
+
+      // Trigger a delayed empty consents reload via a description edit, then close the lightbox.
+      fireEvent.click(screen.getByAltText('Curación de prueba'));
+      fireEvent.click(screen.getByRole('button', { name: /editar descripción/i }));
+      fireEvent.change(screen.getByPlaceholderText(/agregar descripción/i), {
+        target: { value: 'Edición previa' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /guardar descripción/i }));
+      await waitFor(() => {
+        expect(listConsentsByPatientRutMock).toHaveBeenCalledTimes(2);
+      });
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      // Confirm a photo upload while that empty consents reload is still pending.
+      const photoInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      fireEvent.change(photoInput, {
+        target: { files: [new File(['img'], 'herida-2.jpg', { type: 'image/jpeg' })] },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /subir fotografía/i }));
+
+      await waitFor(() => {
+        expect(listConsentsByPatientRutMock).toHaveBeenCalledTimes(3);
+      });
+
+      // Stale empty response must be discarded; fresh response must expose Nurse B's signed PDF.
+      await act(async () => {
+        delayedEmptyConsents.resolve([]);
+      });
+      expect(screen.getByRole('button', { name: /subir ci/i })).toBeDisabled();
+
+      await act(async () => {
+        freshSignedConsents.resolve([signedConsent]);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Consentimiento firmado')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole('button', { name: /subir ci/i }));
+      expect(screen.getByText('Ver documento PDF')).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /subir consentimiento/i })
+      ).not.toBeInTheDocument();
+    } finally {
+      createObjectUrlSpy.mockRestore();
+      revokeObjectUrlSpy.mockRestore();
+    }
+  });
 });
