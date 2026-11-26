@@ -92,6 +92,8 @@ export const queryKeys = {
       ['analytics', 'remoteStats', hospitalId, startDate, endDate] as const,
     specialtyReclassificationsByHospital: (hospitalId: string) =>
       ['analytics', 'specialtyReclassifications', hospitalId] as const,
+    saveSpecialtyReclassification: (hospitalId: string) =>
+      ['analytics', 'saveSpecialtyReclassification', hospitalId] as const,
     specialtyReclassifications: (hospitalId: string, startDate: string, endDate: string) =>
       ['analytics', 'specialtyReclassifications', hospitalId, startDate, endDate] as const,
   },

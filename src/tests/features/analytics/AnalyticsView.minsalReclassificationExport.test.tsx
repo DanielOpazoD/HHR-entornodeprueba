@@ -12,17 +12,23 @@ const mockSyncRecordsRange = vi.fn();
 const mockFetchReclassifications = vi.fn();
 const mockSaveReclassification = vi.fn();
 const mockDownloadBlob = vi.fn();
+const mockNotifyError = vi.fn();
+const mockCallable = vi.fn();
 
 vi.mock('@/context/UIContext', () => ({
   useNotification: () => ({
     notify: vi.fn(),
     success: vi.fn(),
-    error: vi.fn(),
+    error: mockNotifyError,
     warning: vi.fn(),
     info: vi.fn(),
     dismiss: vi.fn(),
     dismissAll: vi.fn(),
   }),
+}));
+
+vi.mock('firebase/functions', () => ({
+  httpsCallable: () => mockCallable,
 }));
 
 vi.mock('@/context/AuthContext', () => ({
@@ -80,23 +86,28 @@ const readSpecialtyDischargeRows = async (blob: Blob): Promise<Array<[string, nu
   return rows;
 };
 
-const renderAnalyticsView = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-        retryDelay: 0,
-        gcTime: 0,
-        staleTime: 0,
+const renderAnalyticsView = (sharedQueryClient?: QueryClient) => {
+  const queryClient =
+    sharedQueryClient ??
+    new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          retryDelay: 0,
+          gcTime: 0,
+          staleTime: 0,
+        },
       },
-    },
-  });
+    });
 
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <AnalyticsView />
-    </QueryClientProvider>
-  );
+  return {
+    queryClient,
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <AnalyticsView />
+      </QueryClientProvider>
+    ),
+  };
 };
 
 describe('AnalyticsView MINSAL specialty reclassification export verification', () => {
@@ -263,6 +274,170 @@ describe('AnalyticsView MINSAL specialty reclassification export verification', 
       expect(
         screen.getByText(/No se pudieron verificar las reclasificaciones vigentes/i)
       ).toBeInTheDocument();
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
+  it('keeps Excel export disabled after remounting while a reclassification save is still in flight in the shared QueryClient', async () => {
+    const sharedQueryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          retryDelay: 0,
+          gcTime: 60_000,
+          staleTime: 60_000,
+        },
+      },
+    });
+    const deferredSave: { resolve?: () => void } = {};
+    let serverSaved = false;
+
+    mockSaveReclassification.mockImplementation(
+      () =>
+        new Promise<void>(resolve => {
+          deferredSave.resolve = () => {
+            serverSaved = true;
+            resolve();
+          };
+        })
+    );
+    mockFetchReclassifications.mockImplementation(async () =>
+      serverSaved ? [syntheticReclassification] : []
+    );
+
+    const firstMount = renderAnalyticsView(sharedQueryClient);
+    const firstExport = await screen.findByRole('button', { name: /Exportar Excel/i });
+    expect(firstExport).toBeEnabled();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Especialidades' }));
+    fireEvent.change(screen.getByLabelText('Reclasificar Paciente Sintético'), {
+      target: { value: 'Cirugía' },
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Exportar Excel/i })).toBeDisabled()
+    );
+
+    firstMount.unmount();
+
+    renderAnalyticsView(sharedQueryClient);
+    const remountedExport = await screen.findByRole('button', { name: /Exportar Excel/i });
+    expect(remountedExport).toBeDisabled();
+
+    fireEvent.click(remountedExport);
+    expect(mockDownloadBlob).not.toHaveBeenCalled();
+
+    deferredSave.resolve?.();
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Exportar Excel/i })).toBeEnabled()
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Exportar Excel/i }));
+
+    await waitFor(() => expect(mockDownloadBlob).toHaveBeenCalledTimes(1));
+    const blob = mockDownloadBlob.mock.calls[0]?.[0] as Blob;
+    await expect(readSpecialtyDischargeRows(blob)).resolves.toEqual([['Cirugía', 1]]);
+  });
+
+  it('reloads server state and exports Cirugía without unhandled rejection when save fails after server persistence', async () => {
+    let serverPersisted = false;
+    mockSaveReclassification.mockImplementation(async () => {
+      serverPersisted = true;
+      throw new Error('synthetic audit write failed');
+    });
+    mockFetchReclassifications.mockImplementation(async () =>
+      serverPersisted ? [syntheticReclassification] : []
+    );
+
+    renderAnalyticsView();
+
+    await screen.findByRole('button', { name: /Exportar Excel/i });
+    fireEvent.click(screen.getByRole('tab', { name: 'Especialidades' }));
+    fireEvent.change(screen.getByLabelText('Reclasificar Paciente Sintético'), {
+      target: { value: 'Cirugía' },
+    });
+
+    await waitFor(() => expect(mockNotifyError).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Exportar Excel/i })).toBeEnabled()
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Exportar Excel/i }));
+    await waitFor(() => expect(mockDownloadBlob).toHaveBeenCalledTimes(1));
+    const blob = mockDownloadBlob.mock.calls[0]?.[0] as Blob;
+    await expect(readSpecialtyDischargeRows(blob)).resolves.toEqual([['Cirugía', 1]]);
+  });
+
+  it('shows the verification alert and retry button instead of empty-census guidance when offline with no local records, and retains warm remote stats on offline refresh', async () => {
+    mockFetchRecordsRangeSorted.mockResolvedValue([]);
+    mockSyncRecordsRange.mockResolvedValue([]);
+    mockFetchReclassifications.mockResolvedValue([]);
+    mockCallable.mockResolvedValue({
+      data: {
+        periodStart: recordDate,
+        periodEnd: recordDate,
+        totalDays: 1,
+        calendarDays: 1,
+        diasCamaDisponibles: 18,
+        diasCamaOcupados: 10,
+        tasaOcupacion: 55.6,
+        promedioDiasEstada: 2,
+        egresosTotal: 1,
+        egresosVivos: 1,
+        egresosFallecidos: 0,
+        egresosTraslados: 0,
+        mortalidadHospitalaria: 0,
+        indiceRotacion: 0.1,
+        pacientesActuales: 10,
+        camasOcupadas: 10,
+        camasBloqueadas: 0,
+        camasDisponibles: 18,
+        camasLibres: 8,
+        tasaOcupacionActual: 55.6,
+        porEspecialidad: [],
+      },
+    });
+
+    try {
+      onlineManager.setOnline(false);
+      const offlineMount = renderAnalyticsView();
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent(/No se pudieron verificar las reclasificaciones/i);
+      expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+      expect(
+        screen.queryByText(/Comienza a registrar datos en el censo diario/i)
+      ).not.toBeInTheDocument();
+
+      offlineMount.unmount();
+      onlineManager.setOnline(true);
+
+      const warmClient = new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: false,
+            retryDelay: 0,
+            gcTime: 60_000,
+            staleTime: 60_000,
+          },
+        },
+      });
+      renderAnalyticsView(warmClient);
+
+      const exportButton = await screen.findByRole('button', { name: /Exportar Excel/i });
+      expect(exportButton).toBeEnabled();
+      expect(screen.getByText('55.6%')).toBeInTheDocument();
+
+      onlineManager.setOnline(false);
+      fireEvent.click(screen.getByTitle('Actualizar datos'));
+
+      await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+      expect(screen.getByRole('button', { name: /Exportar Excel/i })).toBeDisabled();
+      expect(screen.getByText('55.6%')).toBeInTheDocument();
+      expect(
+        screen.queryByText(/Comienza a registrar datos en el censo diario/i)
+      ).not.toBeInTheDocument();
     } finally {
       onlineManager.setOnline(true);
     }

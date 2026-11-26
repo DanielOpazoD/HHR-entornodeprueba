@@ -107,14 +107,22 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
           item.movementKind === row.movementKind &&
           item.movementId === row.movementId
       );
-      await saveReclassification({
-        date: row.date,
-        movementKind: row.movementKind,
-        movementId: row.movementId,
-        reportingSpecialty: next?.specialty ? String(next.specialty) : null,
-      });
+      try {
+        await saveReclassification({
+          date: row.date,
+          movementKind: row.movementKind,
+          movementId: row.movementId,
+          reportingSpecialty: next?.specialty ? String(next.specialty) : null,
+        });
+      } catch (err) {
+        analyticsViewLogger.error('Error saving specialty reclassification', err);
+        notifyError(
+          'No se pudo confirmar la reclasificación',
+          'Ocurrió un error al guardar el cambio. Se recargó el estado actual desde el servidor.'
+        );
+      }
     },
-    [isAdmin, isReclassificationsVerified, reclassifications, saveReclassification]
+    [isAdmin, isReclassificationsVerified, notifyError, reclassifications, saveReclassification]
   );
 
   const handleExportExcel = async () => {
@@ -163,6 +171,32 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
 
   // No data state
   if (!stats) {
+    if (reclassificationsError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-64 gap-4 px-4 text-center">
+          <div
+            role="alert"
+            className="flex items-start gap-2.5 max-w-xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-950"
+          >
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">
+                No se pudieron verificar las reclasificaciones de especialidad.
+              </p>
+              <p className="text-amber-800 mt-0.5">{reclassificationsError}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={refresh}
+            className="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700"
+          >
+            Reintentar
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center h-64 text-slate-400">
         <BarChart3 className="w-12 h-12 mb-4 text-slate-300" />

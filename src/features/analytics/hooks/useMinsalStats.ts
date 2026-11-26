@@ -4,7 +4,7 @@
  */
 
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryClient';
 import { fetchRecordsRangeSorted, syncRecordsRange } from '@/services/records/recordQueryService';
 import {
@@ -222,20 +222,59 @@ export function useMinsalStats(
     retry: 1,
   });
 
+  const saveReclassificationMutationKey = useMemo(
+    () => queryKeys.analytics.saveSpecialtyReclassification(hospitalId),
+    [hospitalId]
+  );
+  const pendingReclassificationSaves = useIsMutating({
+    mutationKey: saveReclassificationMutationKey,
+  });
+
   const saveReclassificationMutation = useMutation({
+    mutationKey: saveReclassificationMutationKey,
     mutationFn: (request: Omit<SaveAnalyticsSpecialtyReclassificationRequest, 'hospitalId'>) =>
       saveAnalyticsSpecialtyReclassification({ ...request, hospitalId }),
-    onSuccess: async () => {
+    onSettled: async () => {
+      const reclassificationsPrefix =
+        queryKeys.analytics.specialtyReclassificationsByHospital(hospitalId);
+      const remoteStatsPrefix = queryKeys.analytics.remoteStatsByHospital(hospitalId);
+      const previousUpdatedAtByHash = new Map(
+        queryClient
+          .getQueryCache()
+          .findAll({ queryKey: reclassificationsPrefix })
+          .map(query => [query.queryHash, query.state.dataUpdatedAt])
+      );
+
       await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.analytics.specialtyReclassificationsByHospital(hospitalId),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.analytics.remoteStatsByHospital(hospitalId),
-        }),
+        queryClient.cancelQueries({ queryKey: reclassificationsPrefix }),
+        queryClient.cancelQueries({ queryKey: remoteStatsPrefix }),
       ]);
+      await queryClient.invalidateQueries(
+        { queryKey: reclassificationsPrefix },
+        { cancelRefetch: true }
+      );
+
+      const activeAdvanced = queryClient
+        .getQueryCache()
+        .findAll({ queryKey: reclassificationsPrefix, type: 'active' })
+        .some(
+          query => query.state.dataUpdatedAt !== (previousUpdatedAtByHash.get(query.queryHash) ?? 0)
+        );
+
+      await queryClient.invalidateQueries(
+        {
+          queryKey: remoteStatsPrefix,
+          refetchType: activeAdvanced ? 'none' : 'active',
+        },
+        { cancelRefetch: true }
+      );
     },
   });
+
+  const isSavingReclassification =
+    saveReclassificationMutation.isPending || pendingReclassificationSaves > 0;
+  const isReclassificationsInvalidated =
+    queryClient.getQueryState(reclassificationsQueryKey)?.isInvalidated ?? false;
 
   const previousRangeRecords = useMemo(
     () => filterRecordsByDateRange(rangeRecords, previousPeriodStart, previousPeriodEnd),
@@ -273,14 +312,12 @@ export function useMinsalStats(
     !reclassificationsQuery.error &&
     !reclassificationsQuery.isFetching &&
     !reclassificationsQuery.isPaused &&
+    !isReclassificationsInvalidated &&
     reclassificationsQuery.failureCount === 0 &&
-    !saveReclassificationMutation.isPending;
+    !isSavingReclassification;
 
   const hasVerifiedReclassificationsSnapshot =
-    reclassificationsQuery.status === 'success' &&
-    !reclassificationsQuery.error &&
-    !reclassificationsQuery.isPaused &&
-    reclassificationsQuery.dataUpdatedAt > 0;
+    reclassificationsQuery.status === 'success' && reclassificationsQuery.dataUpdatedAt > 0;
 
   const remoteReclassificationsKey = useMemo(
     () =>
@@ -304,7 +341,7 @@ export function useMinsalStats(
     recordsQuery.isError || (recordsQuery.isSuccess && currentRangeRecords.length === 0);
   const isReclassificationsSettled =
     !reclassificationsQuery.isFetching &&
-    !saveReclassificationMutation.isPending &&
+    !isSavingReclassification &&
     (isReclassificationsVerified || Boolean(reclassificationsError));
 
   const remoteStatsQuery = useQuery({
@@ -392,8 +429,21 @@ export function useMinsalStats(
       return getErrorMessage(remoteStatsQuery.error, 'Error loading remote statistics');
     }
 
+    if (shouldUseRemoteStats && remoteStatsQuery.isPaused && !stats && !reclassificationsError) {
+      return 'Sin conexión para cargar las estadísticas remotas.';
+    }
+
     return null;
-  }, [recordsQuery.error, remoteStatsQuery.isError, remoteStatsQuery.error, localFallbackStats]);
+  }, [
+    recordsQuery.error,
+    remoteStatsQuery.isError,
+    remoteStatsQuery.error,
+    remoteStatsQuery.isPaused,
+    localFallbackStats,
+    shouldUseRemoteStats,
+    stats,
+    reclassificationsError,
+  ]);
 
   const isUsingRemoteStats = !localRangeStats && shouldUseRemoteStats;
   const isRemoteStatsVerified =
@@ -456,17 +506,23 @@ export function useMinsalStats(
   const refresh = useCallback(async () => {
     // A manual refresh always asks the server again.
     lastRemoteRangeSyncRef.current.delete(`${previousPeriodStart}:${endDate}`);
+    const previousUpdatedAt =
+      queryClient.getQueryState(reclassificationsQueryKey)?.dataUpdatedAt ?? 0;
     await Promise.all([
       queryClient.invalidateQueries({
         queryKey: localRecordsQueryKey,
       }),
       queryClient.invalidateQueries({
-        queryKey: queryKeys.analytics.remoteStats(hospitalId, startDate, endDate),
-      }),
-      queryClient.invalidateQueries({
         queryKey: reclassificationsQueryKey,
       }),
     ]);
+    const nextState = queryClient.getQueryState(reclassificationsQueryKey);
+    const reclassificationsAdvanced =
+      nextState !== undefined && nextState.dataUpdatedAt !== previousUpdatedAt;
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.analytics.remoteStats(hospitalId, startDate, endDate),
+      refetchType: reclassificationsAdvanced ? 'none' : 'active',
+    });
   }, [
     queryClient,
     localRecordsQueryKey,
@@ -498,7 +554,7 @@ export function useMinsalStats(
     isReclassificationsVerified,
     canExportExcel,
     saveReclassification: saveReclassificationMutation.mutateAsync,
-    isSavingReclassification: saveReclassificationMutation.isPending,
+    isSavingReclassification,
   };
 }
 

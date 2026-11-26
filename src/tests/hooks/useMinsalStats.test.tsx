@@ -819,5 +819,160 @@ describe('useMinsalStats', () => {
         });
       }
     });
+
+    it('cancels pre-save reads on an uncached overlapping range and re-reads after save settles', async () => {
+      const local = [{ date: '2026-03-31' } as DailyRecord];
+      const updatedReclassification = {
+        date: '2026-03-31',
+        movementKind: 'discharge' as const,
+        movementId: 'd-1',
+        specialty: 'Cirugía',
+      };
+      const deferredSave: { resolve?: () => void } = {};
+      const deferredPreSaveRangeRead: { resolve?: (value: unknown) => void } = {};
+      let serverHasCirugia = false;
+      let range7Reads = 0;
+
+      mockGetDateRangeFromPreset.mockImplementation((preset: string) =>
+        preset === 'last7days'
+          ? { startDate: '2026-03-25', endDate: '2026-03-31' }
+          : { startDate: '2026-03-01', endDate: '2026-03-31' }
+      );
+      mockFetchRecordsRangeSorted.mockResolvedValue(local);
+      mockSyncRecordsRange.mockResolvedValue([]);
+      mockCalculateMinsalStats.mockReturnValue(buildStats());
+      mockSaveReclassification.mockImplementation(
+        () =>
+          new Promise<void>(resolve => {
+            deferredSave.resolve = () => {
+              serverHasCirugia = true;
+              resolve();
+            };
+          })
+      );
+      mockFetchReclassifications.mockImplementation((start: string, end: string) => {
+        if (start === '2026-03-18' && end === '2026-03-31') {
+          range7Reads += 1;
+          if (range7Reads === 1) {
+            return new Promise(resolve => {
+              deferredPreSaveRangeRead.resolve = resolve;
+            });
+          }
+          return Promise.resolve(serverHasCirugia ? [updatedReclassification] : []);
+        }
+        return Promise.resolve(serverHasCirugia ? [updatedReclassification] : []);
+      });
+
+      const wrapper = createQueryClientTestWrapper({
+        config: {
+          defaultOptions: {
+            queries: {
+              retry: false,
+              retryDelay: 0,
+            },
+          },
+        },
+      }).wrapper;
+
+      const { result } = renderHook(() => useMinsalStats('lastMonth'), { wrapper });
+      await waitFor(() => expect(result.current.canExportExcel).toBe(true));
+
+      let savePromise: Promise<void> | undefined;
+      act(() => {
+        savePromise = result.current.saveReclassification({
+          date: '2026-03-31',
+          movementKind: 'discharge',
+          movementId: 'd-1',
+          reportingSpecialty: 'Cirugía',
+        });
+      });
+
+      act(() => {
+        result.current.setPreset('last7days');
+      });
+      await waitFor(() => expect(range7Reads).toBe(1));
+      expect(result.current.canExportExcel).toBe(false);
+
+      await act(async () => {
+        deferredSave.resolve?.();
+        await savePromise;
+      });
+      // Resolve the cancelled pre-save read late to confirm it cannot overwrite post-save data.
+      await act(async () => {
+        deferredPreSaveRangeRead.resolve?.([]);
+      });
+
+      await waitFor(() => expect(result.current.canExportExcel).toBe(true));
+      expect(range7Reads).toBe(2);
+      expect(result.current.reclassifications).toEqual([updatedReclassification]);
+    });
+
+    it('re-reads reclassifications from the server even when save rejects after persisting', async () => {
+      const local = [{ date: '2026-03-31' } as DailyRecord];
+      const persistedReclassification = {
+        date: '2026-03-31',
+        movementKind: 'discharge' as const,
+        movementId: 'd-1',
+        specialty: 'Cirugía',
+      };
+      let serverPersisted = false;
+
+      mockFetchRecordsRangeSorted.mockResolvedValue(local);
+      mockSyncRecordsRange.mockResolvedValue([]);
+      mockCalculateMinsalStats.mockReturnValue(buildStats());
+      mockSaveReclassification.mockImplementation(async () => {
+        serverPersisted = true;
+        throw new Error('synthetic audit write failed');
+      });
+      mockFetchReclassifications.mockImplementation(async () =>
+        serverPersisted ? [persistedReclassification] : []
+      );
+
+      const { result } = renderHook(() => useMinsalStats('lastMonth'), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.canExportExcel).toBe(true));
+
+      await act(async () => {
+        await expect(
+          result.current.saveReclassification({
+            date: '2026-03-31',
+            movementKind: 'discharge',
+            movementId: 'd-1',
+            reportingSpecialty: 'Cirugía',
+          })
+        ).rejects.toThrow('synthetic audit write failed');
+      });
+
+      await waitFor(() =>
+        expect(result.current.reclassifications).toEqual([persistedReclassification])
+      );
+      expect(mockFetchReclassifications).toHaveBeenCalledTimes(2);
+    });
+
+    it('invokes calculateMinsalStats only once per manual refresh in remote-only mode', async () => {
+      mockFetchRecordsRangeSorted.mockResolvedValue([]);
+      mockSyncRecordsRange.mockResolvedValue([]);
+      mockCalculateMinsalStats.mockReturnValue(null);
+      mockFetchReclassifications.mockImplementation(
+        () => new Promise(resolve => setTimeout(() => resolve([]), 5))
+      );
+      mockCallable.mockResolvedValue({ data: buildStats({ tasaOcupacion: 55.5 }) });
+
+      const { result } = renderHook(() => useMinsalStats('lastMonth'), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.canExportExcel).toBe(true));
+      expect(mockCallable).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await result.current.refresh();
+      });
+
+      await waitFor(() => expect(result.current.canExportExcel).toBe(true));
+      expect(mockCallable).toHaveBeenCalledTimes(2);
+    });
   });
 });
