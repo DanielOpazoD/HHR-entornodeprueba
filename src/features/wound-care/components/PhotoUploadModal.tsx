@@ -12,11 +12,25 @@ import {
   toClinicalEventIso,
 } from '../controllers/photoUploadController';
 
+const photoUploadCompletionListeners = new Set<
+  (event: { patientRut: string; episodeKey: string; photo?: WoundCarePhoto }) => void
+>();
+
+export const subscribePhotoUploadCompletions = (
+  listener: (event: { patientRut: string; episodeKey: string; photo?: WoundCarePhoto }) => void
+): (() => void) => {
+  photoUploadCompletionListeners.add(listener);
+  return () => {
+    photoUploadCompletionListeners.delete(listener);
+  };
+};
+
 interface PhotoUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUploaded?: (photo?: WoundCarePhoto) => void;
+  onUploaded?: (photo?: WoundCarePhoto) => boolean | void;
   file: File | null;
+  draftEpisodeKey?: string;
   episodeContext: EpisodeContext;
 }
 
@@ -25,6 +39,7 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   onClose,
   onUploaded,
   file,
+  draftEpisodeKey,
   episodeContext,
 }) => {
   const isMountedRef = useRef(true);
@@ -37,6 +52,9 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const { uploadPhoto, cancelPendingRetries, isUploading, progress } = useWoundCareUpload();
   const isBusy = isUploading || isSubmitting;
+  const isEpisodeMismatch = Boolean(
+    draftEpisodeKey && draftEpisodeKey !== episodeContext.episodeKey
+  );
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -67,32 +85,49 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
       });
   }, [file, updatePreview]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     cancelPendingRetries?.();
     setDescription('');
     setBodyLocation('');
     setEventDateTime(toClinicalDatetimeLocalValue());
     setError(null);
     onClose();
-  };
+  }, [cancelPendingRetries, onClose]);
+
+  useEffect(() => {
+    if (isEpisodeMismatch && !isSubmittingRef.current) {
+      handleClose();
+    }
+  }, [isEpisodeMismatch, handleClose]);
 
   const handleUpload = async () => {
-    if (!file || isSubmittingRef.current) return;
+    if (!file || isSubmittingRef.current || isEpisodeMismatch) return;
 
-    const requestPatientRut = episodeContext.patientRut;
+    const requestEpisodeContext = episodeContext;
+    const requestPatientRut = requestEpisodeContext.patientRut;
+    const requestEpisodeKey = requestEpisodeContext.episodeKey;
     isSubmittingRef.current = true;
     setIsSubmitting(true);
     setError(null);
     try {
-      const result = await uploadPhoto(file, episodeContext, {
+      const result = await uploadPhoto(file, requestEpisodeContext, {
         description: description.trim() || undefined,
         bodyLocation: bodyLocation || undefined,
         takenAt: toClinicalEventIso(eventDateTime),
       });
 
       if (result.success) {
-        if (activePatientRutRef.current === requestPatientRut) {
-          onUploaded?.(result.data ?? undefined);
+        const handledByParent =
+          activePatientRutRef.current === requestPatientRut &&
+          onUploaded?.(result.data ?? undefined) === true;
+        if (!handledByParent) {
+          for (const listener of photoUploadCompletionListeners) {
+            listener({
+              patientRut: requestPatientRut,
+              episodeKey: requestEpisodeKey,
+              photo: result.data ?? undefined,
+            });
+          }
         }
         if (isMountedRef.current) {
           handleClose();
@@ -233,7 +268,7 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
           <button
             type="button"
             onClick={handleUpload}
-            disabled={!file || isBusy}
+            disabled={!file || isBusy || isEpisodeMismatch}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 disabled:text-white/50 disabled:cursor-not-allowed rounded-lg transition-colors"
           >
             <Upload className="w-4 h-4" />

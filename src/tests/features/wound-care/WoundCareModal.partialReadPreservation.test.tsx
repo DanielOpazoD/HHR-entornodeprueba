@@ -9,6 +9,7 @@ import type {
 
 const listPhotosByPatientRutMock = vi.fn();
 const listConsentsByPatientRutMock = vi.fn();
+const uploadPhotoUseCaseMock = vi.fn();
 const uploadConsentUseCaseMock = vi.fn();
 const updatePhotoDescriptionMock = vi.fn();
 
@@ -37,7 +38,7 @@ vi.mock('@/features/wound-care/use-cases/woundCarePort', () => ({
 }));
 
 vi.mock('@/features/wound-care/use-cases/woundCareUseCases', () => ({
-  executeUploadWoundCarePhoto: vi.fn(),
+  executeUploadWoundCarePhoto: (...args: unknown[]) => uploadPhotoUseCaseMock(...args),
   executeUploadWoundCareConsent: (...args: unknown[]) => uploadConsentUseCaseMock(...args),
   executeDeleteWoundCarePhoto: vi.fn(),
   executeUpdatePhotoDescription: (...args: unknown[]) => updatePhotoDescriptionMock(...args),
@@ -112,6 +113,7 @@ describe('WoundCareModal partial history read preservation', () => {
   beforeEach(() => {
     listPhotosByPatientRutMock.mockReset();
     listConsentsByPatientRutMock.mockReset();
+    uploadPhotoUseCaseMock.mockReset();
     uploadConsentUseCaseMock.mockReset();
     updatePhotoDescriptionMock.mockReset();
   });
@@ -501,5 +503,261 @@ describe('WoundCareModal partial history read preservation', () => {
     expect(screen.getByText('Ver documento PDF')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /subir consentimiento/i })).not.toBeInTheDocument();
     expect(uploadConsentUseCaseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks consent upload while consents verification is pending and lets consents retry independently of slow photos', async () => {
+    const slowPhotosRetry = createDeferred<WoundCarePhoto[]>();
+    const pendingConsentsRetry = createDeferred<WoundCareConsent[]>();
+    const secondConsentsRetry = createDeferred<WoundCareConsent[]>();
+
+    listPhotosByPatientRutMock
+      .mockRejectedValueOnce(new Error('photos outage'))
+      .mockReturnValueOnce(slowPhotosRetry.promise);
+    listConsentsByPatientRutMock
+      .mockResolvedValueOnce([])
+      .mockReturnValueOnce(pendingConsentsRetry.promise)
+      .mockReturnValueOnce(secondConsentsRetry.promise);
+
+    render(
+      <WoundCareModal
+        isOpen
+        onClose={vi.fn()}
+        patientName={episodeContext.patientName}
+        patientRut={episodeContext.patientRut}
+        episodeContext={episodeContext}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/no fue posible cargar las fotografías/i);
+    });
+
+    // Clicking retry starts both branches: while consents verification is pending, "Subir CI" is blocked.
+    fireEvent.click(screen.getByRole('button', { name: /reintentar/i }));
+    expect(screen.getByRole('button', { name: /subir ci/i })).toBeDisabled();
+
+    // Consents fails while photos are STILL pending: consents alert retry button must be immediately clickable.
+    await act(async () => {
+      pendingConsentsRetry.reject(new Error('consents failed while photos pending'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('alert')).toHaveLength(2);
+    });
+    const consentsRetryButton = screen.getByRole('button', { name: /^reintentar$/i });
+    expect(consentsRetryButton).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /subir ci/i })).toBeDisabled();
+
+    // Retrying consents succeeds while photos remain pending -> signed consent immediately unlocks view-only mode.
+    fireEvent.click(consentsRetryButton);
+    await act(async () => {
+      secondConsentsRetry.resolve([signedConsent]);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Consentimiento firmado')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /subir ci/i })).not.toBeDisabled();
+  });
+
+  it('discards an unsent photo draft when the active hospitalization episode changes', async () => {
+    const createObjectUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:photo-draft');
+    const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+    try {
+      listPhotosByPatientRutMock.mockResolvedValue([samplePhoto]);
+      listConsentsByPatientRutMock.mockResolvedValue([]);
+
+      const { rerender } = render(
+        <WoundCareModal
+          isOpen
+          onClose={vi.fn()}
+          patientName={episodeContext.patientName}
+          patientRut={episodeContext.patientRut}
+          episodeContext={episodeContext}
+        />
+      );
+
+      await screen.findByAltText('Curación de prueba');
+      const photoInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      fireEvent.change(photoInput, {
+        target: { files: [new File(['img'], 'herida-a.jpg', { type: 'image/jpeg' })] },
+      });
+
+      expect(screen.getByText('Subir Foto de Curación')).toBeInTheDocument();
+      fireEvent.change(screen.getByPlaceholderText(/Curación de herida operatoria/i), {
+        target: { value: 'Nota episodio A' },
+      });
+
+      // Active episode switches to B before submitting: draft must close and never upload into B.
+      rerender(
+        <WoundCareModal
+          isOpen
+          onClose={vi.fn()}
+          patientName={secondEpisodeContext.patientName}
+          patientRut={secondEpisodeContext.patientRut}
+          episodeContext={secondEpisodeContext}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.queryByText('Subir Foto de Curación')).not.toBeInTheDocument();
+      });
+      expect(uploadPhotoUseCaseMock).not.toHaveBeenCalled();
+    } finally {
+      createObjectUrlSpy.mockRestore();
+      revokeObjectUrlSpy.mockRestore();
+    }
+  });
+
+  it('re-enables consent upload immediately in a remounted modal after an in-flight upload fails', async () => {
+    const deferredFailedConsent = createDeferred<{
+      status: 'failed';
+      data: null;
+      issues: [{ kind: 'validation'; message: string }];
+    }>();
+    uploadConsentUseCaseMock.mockReturnValueOnce(deferredFailedConsent.promise);
+    listPhotosByPatientRutMock.mockResolvedValue([samplePhoto]);
+    listConsentsByPatientRutMock.mockResolvedValue([]);
+
+    const firstRender = render(
+      <WoundCareModal
+        isOpen
+        onClose={vi.fn()}
+        patientName={episodeContext.patientName}
+        patientRut={episodeContext.patientRut}
+        episodeContext={episodeContext}
+      />
+    );
+
+    await screen.findByAltText('Curación de prueba');
+    fireEvent.click(screen.getByRole('button', { name: /subir ci/i }));
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    fireEvent.change(fileInputs[fileInputs.length - 1] as HTMLInputElement, {
+      target: { files: [new File(['%PDF'], 'ci.pdf', { type: 'application/pdf' })] },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /subir consentimiento/i }));
+
+    // Close/unmount and reopen a fresh modal instance while upload is still in flight.
+    firstRender.unmount();
+
+    render(
+      <WoundCareModal
+        isOpen
+        onClose={vi.fn()}
+        patientName={episodeContext.patientName}
+        patientRut={episodeContext.patientRut}
+        episodeContext={episodeContext}
+      />
+    );
+
+    await screen.findByAltText('Curación de prueba');
+    expect(screen.getByRole('button', { name: /subir ci/i })).toBeDisabled();
+
+    // When the in-flight upload fails, the remounted modal must re-render and unlock "Subir CI".
+    await act(async () => {
+      deferredFailedConsent.resolve({
+        status: 'failed',
+        data: null,
+        issues: [{ kind: 'validation', message: 'Archivo inválido' }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /subir ci/i })).not.toBeDisabled();
+    });
+  });
+
+  it('reconciles a photo upload and a pre-settlement consent upload into a reopened modal even if follow-up consent read fails', async () => {
+    const createObjectUrlSpy = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockReturnValue('blob:photo-preview');
+    const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+    try {
+      const deferredPhoto = createDeferred<{
+        status: 'success';
+        data: WoundCarePhoto;
+        issues: [];
+      }>();
+      const deferredConsent = createDeferred<{
+        status: 'success';
+        data: WoundCareConsent;
+        issues: [];
+      }>();
+      const reopenedInitialPhotos = createDeferred<WoundCarePhoto[]>();
+      const reopenedInitialConsents = createDeferred<WoundCareConsent[]>();
+
+      uploadPhotoUseCaseMock.mockReturnValueOnce(deferredPhoto.promise);
+      uploadConsentUseCaseMock.mockReturnValueOnce(deferredConsent.promise);
+
+      listPhotosByPatientRutMock
+        .mockResolvedValueOnce([])
+        .mockReturnValueOnce(reopenedInitialPhotos.promise)
+        .mockResolvedValue([samplePhoto]);
+      listConsentsByPatientRutMock
+        .mockResolvedValueOnce([])
+        .mockReturnValueOnce(reopenedInitialConsents.promise)
+        .mockRejectedValueOnce(new Error('post-consent reload failed'));
+
+      const firstModal = render(
+        <WoundCareModal
+          isOpen
+          onClose={vi.fn()}
+          patientName={episodeContext.patientName}
+          patientRut={episodeContext.patientRut}
+          episodeContext={episodeContext}
+        />
+      );
+
+      await screen.findByText(/no hay fotografías en esta sesión/i);
+
+      // Start a photo upload, then close modal.
+      const photoInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      fireEvent.change(photoInput, {
+        target: { files: [new File(['img'], 'herida.jpg', { type: 'image/jpeg' })] },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /subir fotografía/i }));
+
+      // Also start a consent upload from the same modal before unmounting.
+      fireEvent.click(screen.getByRole('button', { name: /subir ci/i }));
+      const fileInputs = document.querySelectorAll('input[type="file"]');
+      fireEvent.change(fileInputs[fileInputs.length - 1] as HTMLInputElement, {
+        target: { files: [new File(['%PDF'], 'ci.pdf', { type: 'application/pdf' })] },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /subir consentimiento/i }));
+
+      firstModal.unmount();
+
+      // Reopen history while both initial reads are still pending.
+      render(
+        <WoundCareModal
+          isOpen
+          onClose={vi.fn()}
+          patientName={episodeContext.patientName}
+          patientRut={episodeContext.patientRut}
+          episodeContext={episodeContext}
+        />
+      );
+
+      // Consent confirms BEFORE initial reads settle, and its follow-up server re-read fails!
+      await act(async () => {
+        deferredConsent.resolve({ status: 'success', data: signedConsent, issues: [] });
+      });
+
+      // Photo also confirms while reopened modal is mounted.
+      await act(async () => {
+        deferredPhoto.resolve({ status: 'success', data: samplePhoto, issues: [] });
+      });
+
+      await screen.findByAltText('Curación de prueba');
+      expect(screen.getByText('Consentimiento firmado')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /subir ci/i })).not.toBeDisabled();
+      fireEvent.click(screen.getByRole('button', { name: /subir ci/i }));
+      expect(screen.getByText('Ver documento PDF')).toBeInTheDocument();
+    } finally {
+      createObjectUrlSpy.mockRestore();
+      revokeObjectUrlSpy.mockRestore();
+    }
   });
 });

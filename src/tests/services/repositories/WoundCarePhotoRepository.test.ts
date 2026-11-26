@@ -51,22 +51,27 @@ describe('WoundCarePhotoRepository', () => {
     vi.clearAllMocks();
   });
 
-  it('lists patient history from server without requiring a composite uploadedAt index', async () => {
+  it('lists patient history from server without requiring isDeleted in the Firestore query filter', async () => {
+    const legacyWithoutIsDeleted = {
+      ...buildPhoto('legacy-no-flag', '2026-05-02T10:30:00.000Z'),
+    } as Record<string, unknown>;
+    delete legacyWithoutIsDeleted.isDeleted;
+
     vi.mocked(firestoreDb.getDocs).mockResolvedValue([
       buildPhoto('older', '2026-05-02T10:00:00.000Z'),
+      legacyWithoutIsDeleted as unknown as WoundCarePhoto,
+      { ...buildPhoto('deleted', '2026-05-02T10:45:00.000Z'), isDeleted: true },
       buildPhoto('newer', '2026-05-02T11:00:00.000Z'),
     ]);
 
     const result = await WoundCarePhotoRepository.listByPatientRut('11.111.111-1', 'H1');
 
     expect(firestoreDb.getDocs).toHaveBeenCalledWith('hospitals/H1/woundCarePhotos', {
-      where: [
-        { field: 'patientRut', operator: '==', value: '11.111.111-1' },
-        { field: 'isDeleted', operator: '==', value: false },
-      ],
+      where: [{ field: 'patientRut', operator: '==', value: '11.111.111-1' }],
       source: 'server',
     });
-    expect(result.map(photo => photo.id)).toEqual(['newer', 'older']);
+    expect(result.map(photo => photo.id)).toEqual(['newer', 'legacy-no-flag', 'older']);
+    expect(result.find(photo => photo.id === 'legacy-no-flag')?.isDeleted).toBe(false);
   });
 
   it('fails closed in listByPatientRut when an active photo record fails schema validation', async () => {

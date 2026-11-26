@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   AlertTriangle,
   Camera,
@@ -24,7 +24,7 @@ import {
   subscribeConsentUploadState,
 } from './ConsentUploadModal';
 import { PhotoUploadButton } from './PhotoUploadButton';
-import { PhotoUploadModal } from './PhotoUploadModal';
+import { PhotoUploadModal, subscribePhotoUploadCompletions } from './PhotoUploadModal';
 import { generateConsentPdf } from '../services/consentPdfGenerator';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import { WoundCareToast } from './WoundCareToast';
@@ -200,13 +200,16 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
   const [showConsentModal, setShowConsentModal] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [showMobileQr, setShowMobileQr] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedPhotoDraft, setSelectedPhotoDraft] = useState<{
+    file: File;
+    episodeKey: string;
+  } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [inFlightConsentEpisodeKey, setInFlightConsentEpisodeKey] = useState<string | null>(null);
-  if (useChangedOnRender([patientRut])) {
+  const scopeReset = useChangedOnRender([patientRut, isOpen]);
+  if (scopeReset && (!isOpen || showConsentModal || showPhotoModal || selectedPhotoDraft)) {
     setShowConsentModal(false);
     setShowPhotoModal(false);
-    setSelectedFile(null);
+    setSelectedPhotoDraft(null);
   }
   const activeScopeRef = useRef({
     mounted: true,
@@ -234,10 +237,13 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
   const {
     episodes,
     isLoading,
-    isRefreshing,
+    isRefreshingPhotos,
+    isRefreshingConsents,
     photosError,
     consentsError,
     reload,
+    reloadPhotos,
+    reloadConsents,
     applyPhotoDescription,
     applyDeletedPhoto,
     applyUploadedPhoto,
@@ -249,7 +255,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
   const { deletePhoto } = useWoundCareUpload();
 
   const handleFileSelected = (file: File) => {
-    setSelectedFile(file);
+    setSelectedPhotoDraft({ file, episodeKey: episodeContext.episodeKey });
     setShowPhotoModal(true);
   };
 
@@ -329,36 +335,43 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
   };
 
   useEffect(() => {
-    const unsubscribeCompletions = subscribeConsentUploadCompletions(event => {
+    const unsubscribeConsentCompletions = subscribeConsentUploadCompletions(event => {
       if (!isSameActivePatient(event.patientRut)) return;
       if (event.consent) {
         applyUploadedConsent(event.consent);
       }
-      reload();
+      reloadConsents();
       showToast('Consentimiento guardado');
     });
-    const unsubscribeState = subscribeConsentUploadState(({ episodeKey, inFlight }) => {
-      if (!activeScopeRef.current.mounted) return;
-      setInFlightConsentEpisodeKey(current =>
-        inFlight ? episodeKey : current === episodeKey ? null : current
-      );
+    const unsubscribePhotoCompletions = subscribePhotoUploadCompletions(event => {
+      if (!isSameActivePatient(event.patientRut)) return;
+      if (event.photo) {
+        applyUploadedPhoto(event.photo);
+      }
+      reloadPhotos();
+      showToast('Foto subida exitosamente');
     });
     return () => {
-      unsubscribeCompletions();
-      unsubscribeState();
+      unsubscribeConsentCompletions();
+      unsubscribePhotoCompletions();
     };
-  }, [applyUploadedConsent, reload]);
+  }, [applyUploadedConsent, applyUploadedPhoto, reloadConsents, reloadPhotos]);
 
   const currentConsent = episodes.find(e => e.isCurrent)?.consent ?? null;
-  const isConsentUploadInFlight =
-    inFlightConsentEpisodeKey === episodeContext.episodeKey ||
-    hasInFlightConsentUpload(episodeContext.episodeKey);
+  const isConsentUploadInFlight = useSyncExternalStore(
+    subscribeConsentUploadState,
+    () => hasInFlightConsentUpload(episodeContext.episodeKey),
+    () => false
+  );
   const consentUploadBlocked = Boolean(
-    (consentsError || isConsentUploadInFlight) && currentConsent?.status !== 'signed'
+    (consentsError || isRefreshingConsents || isConsentUploadInFlight) &&
+    currentConsent?.status !== 'signed'
   );
   const consentUploadBlockedReason = isConsentUploadInFlight
     ? 'Hay un consentimiento subiéndose para esta hospitalización.'
-    : consentsError;
+    : isRefreshingConsents
+      ? 'Verificando el estado del consentimiento informado...'
+      : consentsError;
 
   const handlePrintConsent = async () => {
     const admissionDate = resolveAdmissionDateFromClinicalEpisodeKey(episodeContext.episodeKey);
@@ -402,12 +415,14 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
                     </span>
                     <button
                       type="button"
-                      onClick={reload}
-                      disabled={isRefreshing}
+                      onClick={reloadConsents}
+                      disabled={isRefreshingConsents}
                       className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-60 transition-colors"
                     >
-                      <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-                      {isRefreshing ? 'Reintentando...' : 'Reintentar'}
+                      <RefreshCw
+                        className={`w-3 h-3 ${isRefreshingConsents ? 'animate-spin' : ''}`}
+                      />
+                      {isRefreshingConsents ? 'Reintentando...' : 'Reintentar'}
                     </button>
                   </div>
                 )}
@@ -424,11 +439,13 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
                     <button
                       type="button"
                       onClick={reload}
-                      disabled={isRefreshing}
+                      disabled={isRefreshingPhotos}
                       className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-60 transition-colors"
                     >
-                      <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-                      {isRefreshing ? 'Reintentando...' : 'Reintentar'}
+                      <RefreshCw
+                        className={`w-3 h-3 ${isRefreshingPhotos ? 'animate-spin' : ''}`}
+                      />
+                      {isRefreshingPhotos ? 'Reintentando...' : 'Reintentar'}
                     </button>
                   </div>
                 )}
@@ -505,14 +522,20 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
             if (consent) {
               applyUploadedConsent(consent);
             }
-            reload();
+            reloadConsents();
             showToast('Consentimiento guardado');
             return true;
           }}
-          uploadBlocked={Boolean(consentsError && currentConsent?.status !== 'signed')}
-          uploadBlockedReason={consentsError}
-          isRetryingVerification={isRefreshing}
-          onRetryVerification={reload}
+          uploadBlocked={Boolean(
+            (consentsError || isRefreshingConsents) && currentConsent?.status !== 'signed'
+          )}
+          uploadBlockedReason={
+            isRefreshingConsents
+              ? 'Verificando el estado del consentimiento informado...'
+              : consentsError
+          }
+          isRetryingVerification={isRefreshingConsents}
+          onRetryVerification={reloadConsents}
           episodeContext={episodeContext}
           existingConsent={currentConsent}
         />
@@ -523,17 +546,19 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
           isOpen
           onClose={() => {
             setShowPhotoModal(false);
-            setSelectedFile(null);
+            setSelectedPhotoDraft(null);
           }}
           onUploaded={photo => {
-            if (!isSameActivePatient(patientRut)) return;
+            if (!isSameActivePatient(patientRut)) return false;
             if (photo) {
               applyUploadedPhoto(photo);
             }
-            reload();
+            reloadPhotos();
             showToast('Foto subida exitosamente');
+            return true;
           }}
-          file={selectedFile}
+          file={selectedPhotoDraft?.file ?? null}
+          draftEpisodeKey={selectedPhotoDraft?.episodeKey}
           episodeContext={episodeContext}
         />
       )}

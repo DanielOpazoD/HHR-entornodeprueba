@@ -160,19 +160,17 @@ export const WoundCarePhotoRepository = {
     const documents = await firestoreDb.getDocs<WoundCarePhoto>(
       getWoundCarePhotosPath(hospitalId),
       {
-        where: [
-          { field: 'patientRut', operator: '==', value: patientRut },
-          { field: 'isDeleted', operator: '==', value: false },
-        ],
+        // Query by patientRut only so legacy/valid docs omitting `isDeleted` (which schema defaults
+        // to `false`) are not excluded by Firestore before validation; filter soft deletes client-side.
+        where: [{ field: 'patientRut', operator: '==', value: patientRut }],
         source: 'server',
       }
     );
 
-    // Client-side filter as safety net while index builds; fail closed on invalid records (SAVE-01).
     const validPhotos: WoundCarePhoto[] = [];
     let invalidCount = 0;
     for (const doc of documents) {
-      if (doc.isDeleted) continue;
+      if (doc.isDeleted === true) continue;
       const valid = validateReadPhoto(doc);
       if (valid) validPhotos.push(valid);
       else invalidCount += 1;

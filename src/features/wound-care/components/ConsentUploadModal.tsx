@@ -17,9 +17,7 @@ import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 // Guard against concurrent duplicate consent uploads for the same hospitalization episode,
 // even if the modal is closed and reopened or remounted on another bed while a write is in flight.
 const inFlightConsentEpisodeKeys = new Set<string>();
-const consentUploadStateListeners = new Set<
-  (event: { episodeKey: string; inFlight: boolean }) => void
->();
+const consentUploadStateListeners = new Set<() => void>();
 const consentUploadCompletionListeners = new Set<
   (event: { patientRut: string; episodeKey: string; consent?: WoundCareConsent }) => void
 >();
@@ -33,9 +31,7 @@ export const subscribeConsentUploadCompletions = (
   };
 };
 
-export const subscribeConsentUploadState = (
-  listener: (event: { episodeKey: string; inFlight: boolean }) => void
-): (() => void) => {
+export const subscribeConsentUploadState = (listener: () => void): (() => void) => {
   consentUploadStateListeners.add(listener);
   return () => {
     consentUploadStateListeners.delete(listener);
@@ -45,9 +41,9 @@ export const subscribeConsentUploadState = (
 export const hasInFlightConsentUpload = (episodeKey: string): boolean =>
   inFlightConsentEpisodeKeys.has(episodeKey);
 
-const emitConsentUploadState = (episodeKey: string, inFlight: boolean) => {
+const emitConsentUploadState = () => {
   for (const listener of consentUploadStateListeners) {
-    listener({ episodeKey, inFlight });
+    listener();
   }
 };
 
@@ -174,7 +170,7 @@ export const ConsentUploadModal: React.FC<ConsentUploadModalProps> = ({
     }
 
     inFlightConsentEpisodeKeys.add(requestEpisodeKey);
-    emitConsentUploadState(requestEpisodeKey, true);
+    emitConsentUploadState();
     onUploadStateChange?.(requestEpisodeKey, true);
     isSubmittingRef.current = true;
     setIsSubmitting(true);
@@ -207,7 +203,7 @@ export const ConsentUploadModal: React.FC<ConsentUploadModalProps> = ({
       );
     } finally {
       inFlightConsentEpisodeKeys.delete(requestEpisodeKey);
-      emitConsentUploadState(requestEpisodeKey, false);
+      emitConsentUploadState();
       onUploadStateChange?.(requestEpisodeKey, false);
       isSubmittingRef.current = false;
       if (isMountedRef.current) {
@@ -279,8 +275,8 @@ export const ConsentUploadModal: React.FC<ConsentUploadModalProps> = ({
           </div>
         )}
 
-        {/* Verification failure banner when modal is already open */}
-        {!isViewingExisting && uploadBlocked && (
+        {/* Verification failure or in-progress verification banner when modal is already open */}
+        {!isViewingExisting && !isBusy && uploadBlocked && (
           <div
             role="alert"
             className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"
