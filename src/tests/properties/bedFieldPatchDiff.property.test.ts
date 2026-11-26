@@ -302,7 +302,14 @@ describe('buildUpdatePatientPatches · reenvío del paciente', () => {
         const path = `beds.${state.bedId}.${key}`;
 
         const manualPath = `beds.${state.bedId}.diagnosisManualOverride`;
-        expect(Object.keys(patch)).toStrictEqual(key === 'pathology' ? [path, manualPath] : [path]);
+        const manualBasePath = `beds.${state.bedId}.diagnosisManualOverrideBase`;
+        const expectedKeys =
+          key === 'pathology'
+            ? current.diagnosisManualOverride === true
+              ? [path, manualPath]
+              : [path, manualPath, manualBasePath]
+            : [path];
+        expect(Object.keys(patch)).toStrictEqual(expectedKeys);
         if (key === 'pathology') expect(patch[manualPath]).toBe(true);
         expect(arePatchValuesDeepEqual((patch as Record<string, unknown>)[path], fresh[key])).toBe(
           true

@@ -98,4 +98,32 @@ describe('DiagnosisInput clinical initial block editor', () => {
 
     expect(onPathologyChange).toHaveBeenCalledWith('Diagnóstico actualizado');
   });
+
+  it('lets a clinical crib sub-row clear a manual diagnosis lock to resume Eloísa sync', () => {
+    const onMultipleUpdate = vi.fn();
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <DiagnosisInput
+              data={DataFactory.createMockPatient('R1', {
+                patientName: 'RN Sintético',
+                pathology: 'Diagnóstico manual RN',
+                diagnosisManualOverride: true,
+              })}
+              isSubRow
+              onChange={() => vi.fn()}
+              onMultipleUpdate={onMultipleUpdate}
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+
+    fireEvent.click(screen.getByTestId('diagnosis-restore-eloisa-R1'));
+    expect(onMultipleUpdate).toHaveBeenCalledWith({
+      diagnosisManualOverride: undefined,
+      diagnosisManualOverrideBase: undefined,
+    });
+  });
 });

@@ -55,6 +55,12 @@ export type GinecobstetriciaType = 'Obstétrica' | 'Ginecológica';
 export type DeliveryRoute = 'Vaginal' | 'Cesárea';
 export type CesareanLabor = 'Sin TdP' | 'Con TdP';
 
+/** Eloísa diagnosis present when a manual override started, used to detect newer Eloísa updates. */
+export interface DiagnosisManualOverrideBase {
+  pathology: string;
+  cie10Code?: string;
+}
+
 export interface PatientData {
   bedId: string;
   isBlocked: boolean;
@@ -95,8 +101,10 @@ export interface PatientData {
 
   isRapanui?: boolean;
   pathology: string;
-  /** A deliberate local diagnosis edit survives subsequent Eloísa imports for this episode. */
+  /** A deliberate local diagnosis edit survives subsequent Eloísa imports until Eloísa records a newer diagnosis or it is unlocked. */
   diagnosisManualOverride?: boolean;
+  /** Eloísa diagnosis present when the manual edit started; a different Eloísa diagnosis re-enables sync review. */
+  diagnosisManualOverrideBase?: DiagnosisManualOverrideBase;
   snomedCode?: string; // Standardized SNOMED CT code
   cie10Code?: string; // Standardized CIE-10 code
   cie10Description?: string; // Official CIE-10 description recorded at selection

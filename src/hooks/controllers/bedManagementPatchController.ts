@@ -24,6 +24,7 @@ import { buildClinicalCribDraft } from '@/hooks/controllers/clinicalCribControll
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 import { editsPatientDocumentIdentity } from '@/utils/patientDocumentIdentity';
 import { editsEloisaNameParts } from '@/utils/patientNamePartsSource';
+import { buildDiagnosisManualOverrideBase } from '@/shared/census/diagnosisManualOverridePolicy';
 
 /**
  * Un gesto = un parche MÍNIMO: los guardados del censo reenvían el paciente
@@ -79,10 +80,17 @@ export const filterUnchangedBedFieldPatches = (
 const markManualDiagnosis = (
   patches: Record<string, unknown>,
   prefix: string,
-  field: string
+  field: string,
+  currentPatient?: PatientData
 ): void => {
   if (['pathology', 'cie10Code', 'cie10Description'].includes(field)) {
     patches[`${prefix}.diagnosisManualOverride`] = true;
+    if (currentPatient?.diagnosisManualOverride !== true) {
+      patches[`${prefix}.diagnosisManualOverrideBase`] =
+        buildDiagnosisManualOverrideBase(currentPatient);
+    } else if (currentPatient.diagnosisManualOverrideBase) {
+      patches[`${prefix}.diagnosisManualOverrideBase`] = currentPatient.diagnosisManualOverrideBase;
+    }
   }
 };
 
@@ -112,7 +120,7 @@ const buildPatientFieldPatches = ({
       key === 'isUPC' ? resolveNormalizedUpcFlag(bedId, Boolean(value)) : value;
 
     if (value !== currentPatient[key as keyof PatientData]) {
-      markManualDiagnosis(manualDiagnosisPatches, `beds.${bedId}`, key);
+      markManualDiagnosis(manualDiagnosisPatches, `beds.${bedId}`, key, currentPatient);
     }
   });
 
@@ -131,6 +139,7 @@ const buildPatientFieldPatches = ({
     currentPatient.clinicalEpisodeId !== updates.clinicalEpisodeId
   ) {
     patches[`beds.${bedId}.diagnosisManualOverride`] = undefined;
+    patches[`beds.${bedId}.diagnosisManualOverrideBase`] = undefined;
     patches[`beds.${bedId}.documentManualOverride`] = undefined;
   }
 
@@ -284,8 +293,26 @@ export const buildClinicalCribMultipleFieldPatches = (
   Object.entries(fields).forEach(([key, value]) => {
     if (currentCribFields && arePatchValuesDeepEqual(value, currentCribFields.get(key))) return;
     patches[`beds.${bedId}.clinicalCrib.${key}`] = value;
-    markManualDiagnosis(manualDiagnosisPatches, `beds.${bedId}.clinicalCrib`, key);
+    markManualDiagnosis(manualDiagnosisPatches, `beds.${bedId}.clinicalCrib`, key, currentCrib);
   });
+  if (
+    currentCrib?.diagnosisManualOverride === true &&
+    arePatchValuesDeepEqual(
+      manualDiagnosisPatches[`beds.${bedId}.clinicalCrib.diagnosisManualOverrideBase`],
+      currentCrib.diagnosisManualOverrideBase
+    )
+  ) {
+    delete manualDiagnosisPatches[`beds.${bedId}.clinicalCrib.diagnosisManualOverrideBase`];
+    if (
+      Object.prototype.hasOwnProperty.call(
+        patches,
+        `beds.${bedId}.clinicalCrib.diagnosisManualOverrideBase`
+      ) &&
+      manualDiagnosisPatches[`beds.${bedId}.clinicalCrib.diagnosisManualOverride`] === true
+    ) {
+      delete patches[`beds.${bedId}.clinicalCrib.diagnosisManualOverrideBase`];
+    }
+  }
   if (
     editsPatientDocumentIdentity(currentCrib, fields) &&
     (currentCrib?.documentManualOverride !== true || fields.documentManualOverride === false)
@@ -302,6 +329,7 @@ export const buildClinicalCribMultipleFieldPatches = (
     currentCrib.clinicalEpisodeId !== fields.clinicalEpisodeId
   ) {
     patches[`beds.${bedId}.clinicalCrib.diagnosisManualOverride`] = undefined;
+    patches[`beds.${bedId}.clinicalCrib.diagnosisManualOverrideBase`] = undefined;
     patches[`beds.${bedId}.clinicalCrib.documentManualOverride`] = undefined;
   }
   return patches as DailyRecordPatch;
@@ -416,7 +444,16 @@ export const buildUpdateClinicalCribPatches = (
   const patches: Record<string, unknown> = {
     [`beds.${bedId}.clinicalCrib.${field}`]: value,
   };
-  markManualDiagnosis(patches, `beds.${bedId}.clinicalCrib`, field);
+  markManualDiagnosis(patches, `beds.${bedId}.clinicalCrib`, field, currentCrib);
+  if (
+    currentCrib?.diagnosisManualOverride === true &&
+    arePatchValuesDeepEqual(
+      patches[`beds.${bedId}.clinicalCrib.diagnosisManualOverrideBase`],
+      currentCrib.diagnosisManualOverrideBase
+    )
+  ) {
+    delete patches[`beds.${bedId}.clinicalCrib.diagnosisManualOverrideBase`];
+  }
   if (
     editsPatientDocumentIdentity(currentCrib, update) &&
     currentCrib?.documentManualOverride !== true

@@ -85,6 +85,7 @@ describe('bedManagementDispatchController · split de patches mezclados', () => 
     expect(clinicalPatch).toEqual({
       'beds.R1.pathology': 'Neumonía adquirida en la comunidad',
       'beds.R1.diagnosisManualOverride': true,
+      'beds.R1.diagnosisManualOverrideBase': { pathology: 'Patologia' },
     });
   });
 
@@ -205,6 +206,7 @@ describe('bedManagementDispatchController · split de patches mezclados', () => 
     expect(patchRecord).toHaveBeenCalledWith({
       'beds.R1.pathology': 'Bronquitis aguda',
       'beds.R1.diagnosisManualOverride': true,
+      'beds.R1.diagnosisManualOverrideBase': { pathology: 'Patologia' },
     });
   });
 });

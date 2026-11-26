@@ -24,6 +24,7 @@ export const CLINICAL_AUTHORITY_BED_FIELDS = [
   'pathology',
   'diagnosisComments',
   'diagnosisManualOverride',
+  'diagnosisManualOverrideBase',
   'snomedCode',
   'cie10Code',
   'cie10Description',
