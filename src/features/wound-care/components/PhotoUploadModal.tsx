@@ -28,12 +28,14 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
 }) => {
   const isMountedRef = useRef(true);
   const isSubmittingRef = useRef(false);
-  const activeEpisodeKeyRef = useRef(episodeContext.episodeKey);
+  const activePatientRutRef = useRef(episodeContext.patientRut);
   const [description, setDescription] = useState('');
   const [bodyLocation, setBodyLocation] = useState('');
   const [eventDateTime, setEventDateTime] = useState(() => toClinicalDatetimeLocalValue());
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { uploadPhoto, isUploading, progress } = useWoundCareUpload();
+  const { uploadPhoto, cancelPendingRetries, isUploading, progress } = useWoundCareUpload();
+  const isBusy = isUploading || isSubmitting;
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,8 +46,8 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   }, []);
 
   useEffect(() => {
-    activeEpisodeKeyRef.current = episodeContext.episodeKey;
-  }, [episodeContext.episodeKey]);
+    activePatientRutRef.current = episodeContext.patientRut;
+  }, [episodeContext.patientRut]);
 
   const updatePreview = useCallback((f: File | null) => {
     setPreviewUrl(prev => {
@@ -64,11 +66,21 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
       });
   }, [file, updatePreview]);
 
+  const handleClose = () => {
+    cancelPendingRetries?.();
+    setDescription('');
+    setBodyLocation('');
+    setEventDateTime(toClinicalDatetimeLocalValue());
+    setError(null);
+    onClose();
+  };
+
   const handleUpload = async () => {
     if (!file || isSubmittingRef.current) return;
 
-    const requestEpisodeKey = episodeContext.episodeKey;
+    const requestPatientRut = episodeContext.patientRut;
     isSubmittingRef.current = true;
+    setIsSubmitting(true);
     setError(null);
     try {
       const result = await uploadPhoto(file, episodeContext, {
@@ -77,29 +89,26 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
         takenAt: toClinicalEventIso(eventDateTime),
       });
 
-      if (!isMountedRef.current || activeEpisodeKeyRef.current !== requestEpisodeKey) return;
+      if (!isMountedRef.current) return;
       if (result.success) {
-        onUploaded?.();
+        if (activePatientRutRef.current === requestPatientRut) {
+          onUploaded?.();
+        }
         handleClose();
-      } else {
+      } else if (activePatientRutRef.current === requestPatientRut) {
         setError(result.error || 'Error al subir la fotografía.');
       }
     } catch (unknownError) {
-      if (!isMountedRef.current || activeEpisodeKeyRef.current !== requestEpisodeKey) return;
+      if (!isMountedRef.current || activePatientRutRef.current !== requestPatientRut) return;
       setError(
         unknownError instanceof Error ? unknownError.message : 'Error al subir la fotografía.'
       );
     } finally {
       isSubmittingRef.current = false;
+      if (isMountedRef.current) {
+        setIsSubmitting(false);
+      }
     }
-  };
-
-  const handleClose = () => {
-    setDescription('');
-    setBodyLocation('');
-    setEventDateTime(toClinicalDatetimeLocalValue());
-    setError(null);
-    onClose();
   };
 
   return (
@@ -141,9 +150,10 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
           <input
             type="datetime-local"
             value={eventDateTime}
+            disabled={isBusy}
             onChange={e => setEventDateTime(e.target.value)}
             max={toClinicalDatetimeLocalValue()}
-            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 disabled:bg-slate-100 disabled:text-slate-400"
           />
           <p className="mt-1 text-xs text-slate-400">
             Use esta fecha si la curación fue realizada antes de subir la foto.
@@ -157,8 +167,9 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
           </label>
           <select
             value={bodyLocation}
+            disabled={isBusy}
             onChange={e => setBodyLocation(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 disabled:bg-slate-100 disabled:text-slate-400"
           >
             <option value="">Seleccionar...</option>
             {BODY_LOCATION_OPTIONS.map(option => (
@@ -176,10 +187,11 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
           </label>
           <textarea
             value={description}
+            disabled={isBusy}
             onChange={e => setDescription(e.target.value)}
             placeholder="Ej: Curación de herida operatoria, día 3 post-op..."
             rows={2}
-            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 resize-none"
+            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 resize-none disabled:bg-slate-100 disabled:text-slate-400"
           />
         </div>
 
@@ -219,11 +231,11 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
           <button
             type="button"
             onClick={handleUpload}
-            disabled={!file || isUploading}
+            disabled={!file || isBusy}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 disabled:text-white/50 disabled:cursor-not-allowed rounded-lg transition-colors"
           >
             <Upload className="w-4 h-4" />
-            {isUploading ? 'Subiendo...' : 'Subir fotografía'}
+            {isBusy ? 'Subiendo...' : 'Subir fotografía'}
           </button>
         </div>
       </div>

@@ -24,11 +24,13 @@ export const ConsentUploadModal: React.FC<ConsentUploadModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isMountedRef = useRef(true);
   const isSubmittingRef = useRef(false);
-  const activeEpisodeKeyRef = useRef(episodeContext.episodeKey);
+  const activePatientRutRef = useRef(episodeContext.patientRut);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { uploadConsent, isUploading } = useWoundCareUpload();
+  const { uploadConsent, cancelPendingRetries, isUploading } = useWoundCareUpload();
+  const isBusy = isUploading || isSubmitting;
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -38,8 +40,8 @@ export const ConsentUploadModal: React.FC<ConsentUploadModalProps> = ({
   }, []);
 
   useEffect(() => {
-    activeEpisodeKeyRef.current = episodeContext.episodeKey;
-  }, [episodeContext.episodeKey]);
+    activePatientRutRef.current = episodeContext.patientRut;
+  }, [episodeContext.patientRut]);
 
   useEffect(() => {
     return () => {
@@ -50,6 +52,7 @@ export const ConsentUploadModal: React.FC<ConsentUploadModalProps> = ({
   }, [previewUrl]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isBusy) return;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -64,37 +67,44 @@ export const ConsentUploadModal: React.FC<ConsentUploadModalProps> = ({
     }
   };
 
-  const handleUpload = async () => {
-    if (!selectedFile || isSubmittingRef.current) return;
-
-    const requestEpisodeKey = episodeContext.episodeKey;
-    isSubmittingRef.current = true;
-    setError(null);
-    try {
-      const result = await uploadConsent(selectedFile, episodeContext);
-      if (!isMountedRef.current || activeEpisodeKeyRef.current !== requestEpisodeKey) return;
-      if (result.success) {
-        onUploaded?.();
-        handleClose();
-      } else {
-        setError(result.error || 'Error al subir el consentimiento.');
-      }
-    } catch (unknownError) {
-      if (!isMountedRef.current || activeEpisodeKeyRef.current !== requestEpisodeKey) return;
-      setError(
-        unknownError instanceof Error ? unknownError.message : 'Error al subir el consentimiento.'
-      );
-    } finally {
-      isSubmittingRef.current = false;
-    }
-  };
-
   const handleClose = () => {
+    cancelPendingRetries?.();
     setSelectedFile(null);
     setPreviewUrl(null);
     setError(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
     onClose();
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile || isSubmittingRef.current) return;
+
+    const requestPatientRut = episodeContext.patientRut;
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const result = await uploadConsent(selectedFile, episodeContext);
+      if (!isMountedRef.current) return;
+      if (result.success) {
+        if (activePatientRutRef.current === requestPatientRut) {
+          onUploaded?.();
+        }
+        handleClose();
+      } else if (activePatientRutRef.current === requestPatientRut) {
+        setError(result.error || 'Error al subir el consentimiento.');
+      }
+    } catch (unknownError) {
+      if (!isMountedRef.current || activePatientRutRef.current !== requestPatientRut) return;
+      setError(
+        unknownError instanceof Error ? unknownError.message : 'Error al subir el consentimiento.'
+      );
+    } finally {
+      isSubmittingRef.current = false;
+      if (isMountedRef.current) {
+        setIsSubmitting(false);
+      }
+    }
   };
 
   const isViewingExisting = existingConsent?.status === 'signed' && !selectedFile;
@@ -163,8 +173,15 @@ export const ConsentUploadModal: React.FC<ConsentUploadModalProps> = ({
         {!isViewingExisting && (
           <>
             <div
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:border-sky-400 hover:bg-sky-50/30 transition-colors"
+              onClick={() => {
+                if (!isBusy) fileInputRef.current?.click();
+              }}
+              aria-disabled={isBusy}
+              className={`border-2 border-dashed border-slate-300 rounded-lg p-6 text-center transition-colors ${
+                isBusy
+                  ? 'opacity-60 cursor-not-allowed'
+                  : 'cursor-pointer hover:border-sky-400 hover:bg-sky-50/30'
+              }`}
             >
               {selectedFile ? (
                 <div className="space-y-2">
@@ -200,6 +217,7 @@ export const ConsentUploadModal: React.FC<ConsentUploadModalProps> = ({
               ref={fileInputRef}
               type="file"
               accept="image/*,application/pdf"
+              disabled={isBusy}
               onChange={handleFileChange}
               className="hidden"
             />
@@ -228,11 +246,11 @@ export const ConsentUploadModal: React.FC<ConsentUploadModalProps> = ({
             <button
               type="button"
               onClick={handleUpload}
-              disabled={!selectedFile || isUploading}
+              disabled={!selectedFile || isBusy}
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 disabled:cursor-not-allowed rounded-lg transition-colors"
             >
               <Upload className="w-4 h-4" />
-              {isUploading ? 'Subiendo...' : 'Subir consentimiento'}
+              {isBusy ? 'Subiendo...' : 'Subir consentimiento'}
             </button>
           </div>
         )}

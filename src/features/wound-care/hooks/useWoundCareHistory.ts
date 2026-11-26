@@ -83,7 +83,8 @@ export const useWoundCareHistory = ({
   } | null>(null);
   const allPhotos = result?.scope === scope ? result.photos : [];
   const allConsents = result?.scope === scope ? result.consents : [];
-  const isLoading = Boolean(patientRut) && (result?.scope !== scope || result.loadKey !== loadKey);
+  // Keep loaded episodes mounted during background reloads so active modals/editors are preserved.
+  const isLoading = Boolean(patientRut) && result?.scope !== scope;
 
   const reload = useCallback(() => setLoadKey(k => k + 1), []);
 

@@ -53,7 +53,9 @@ export const PhotoDeleteConfirm: React.FC<PhotoDeleteConfirmProps> = ({
   return (
     <BaseModal
       isOpen={true}
-      onClose={onCancel}
+      onClose={() => {
+        if (!isDeleting) onCancel();
+      }}
       title="Eliminar fotografía"
       icon={<Trash2 className="w-5 h-5" />}
       size="sm"
@@ -89,7 +91,8 @@ export const PhotoDeleteConfirm: React.FC<PhotoDeleteConfirmProps> = ({
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            disabled={isDeleting}
+            className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
           >
             Cancelar
           </button>

@@ -6,7 +6,7 @@
  * tracking, and error reporting.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
 import type { WoundCareAuditActor } from '@/types/domain/woundCare';
@@ -38,6 +38,7 @@ interface UseWoundCareUploadReturn {
     storagePath: string,
     thumbnailStoragePath: string
   ) => Promise<{ success: boolean; error?: string }>;
+  cancelPendingRetries: () => void;
   progress: UploadProgress | null;
   isUploading: boolean;
 }
@@ -69,6 +70,49 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
   const { currentUser, role } = useAuth();
   const [progress, setProgress] = useState<UploadProgress | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const isMountedRef = useRef(true);
+  const retryGenerationRef = useRef(0);
+  const pendingRetryCleanupRef = useRef<(() => void) | null>(null);
+
+  const cancelPendingRetries = useCallback(() => {
+    retryGenerationRef.current += 1;
+    pendingRetryCleanupRef.current?.();
+    pendingRetryCleanupRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      cancelPendingRetries();
+    };
+  }, [cancelPendingRetries]);
+
+  const waitForRetryDelay = useCallback(
+    (delayMs: number, generation: number): Promise<boolean> =>
+      new Promise(resolve => {
+        if (!isMountedRef.current || retryGenerationRef.current !== generation) {
+          resolve(false);
+          return;
+        }
+        let settled = false;
+        const finish = (shouldContinue: boolean) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          if (pendingRetryCleanupRef.current === abort) {
+            pendingRetryCleanupRef.current = null;
+          }
+          resolve(shouldContinue);
+        };
+        const abort = () => finish(false);
+        const timer = setTimeout(() => {
+          finish(isMountedRef.current && retryGenerationRef.current === generation);
+        }, delayMs);
+        pendingRetryCleanupRef.current = abort;
+      }),
+    []
+  );
 
   /**
    * Retry wrapper for upload operations.
@@ -80,10 +124,12 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
       fn: () => Promise<ApplicationOutcome<T>>,
       maxRetries: number = 1
     ): Promise<ApplicationOutcome<T>> => {
+      const generation = retryGenerationRef.current;
       let lastResult = await fn();
       let attempts = 0;
 
       while (lastResult.status === 'failed' && attempts < maxRetries) {
+        if (!isMountedRef.current || retryGenerationRef.current !== generation) break;
         const isRetryable = lastResult.issues.some(i => i.kind !== 'validation');
         if (!isRetryable) break;
 
@@ -93,14 +139,17 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
           message: `Reintentando... (${attempts}/${maxRetries})`,
         });
 
-        // Small delay before retry
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Small delay before retry — aborted if the caller cancels or unmounts.
+        const shouldContinue = await waitForRetryDelay(1500, generation);
+        if (!shouldContinue || !isMountedRef.current || retryGenerationRef.current !== generation) {
+          break;
+        }
         lastResult = await fn();
       }
 
       return lastResult;
     },
-    []
+    [waitForRetryDelay]
   );
 
   const uploadPhoto = useCallback(
@@ -244,5 +293,12 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
     [currentUser, role]
   );
 
-  return { uploadPhoto, uploadConsent, deletePhoto, progress, isUploading };
+  return {
+    uploadPhoto,
+    uploadConsent,
+    deletePhoto,
+    cancelPendingRetries,
+    progress,
+    isUploading,
+  };
 };

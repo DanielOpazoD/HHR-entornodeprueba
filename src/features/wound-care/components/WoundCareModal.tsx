@@ -19,6 +19,7 @@ import { WoundCareErrorBoundary } from './WoundCareErrorBoundary';
 import { formatSessionDate } from '../controllers/photoGalleryController';
 import { WoundCareMobileQrPanel } from './WoundCareMobileQrPanel';
 import { resolveAdmissionDateFromClinicalEpisodeKey } from '@/domain/clinical-episode/clinicalEpisode';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 // ============================================================================
 // Episode Section (collapsible per hospitalization)
@@ -170,19 +171,27 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
   const [showMobileQr, setShowMobileQr] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  if (useChangedOnRender([patientRut])) {
+    setShowConsentModal(false);
+    setShowPhotoModal(false);
+    setSelectedFile(null);
+  }
   const activeScopeRef = useRef({
     mounted: true,
     isOpen,
-    episodeKey: episodeContext.episodeKey,
+    patientRut,
   });
+  const inFlightDeletesRef = useRef<Map<string, Promise<{ success: boolean; error?: string }>>>(
+    new Map()
+  );
 
   useEffect(() => {
     activeScopeRef.current = {
       mounted: true,
       isOpen,
-      episodeKey: episodeContext.episodeKey,
+      patientRut,
     };
-  }, [isOpen, episodeContext.episodeKey]);
+  }, [isOpen, patientRut]);
 
   useEffect(() => {
     return () => {
@@ -206,44 +215,56 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
 
   const showToast = (msg: string) => setToastMessage(msg);
 
-  const isSameActiveScope = (episodeKey: string) =>
+  const isSameActivePatient = (targetPatientRut: string) =>
     activeScopeRef.current.mounted &&
     activeScopeRef.current.isOpen &&
-    activeScopeRef.current.episodeKey === episodeKey;
+    activeScopeRef.current.patientRut === targetPatientRut;
 
   const handleDeletePhoto = async (photo: {
     id: string;
     storagePath: string;
     thumbnailStoragePath: string;
   }): Promise<{ success: boolean; error?: string }> => {
-    const requestEpisodeKey = episodeContext.episodeKey;
-    try {
-      const result = await deletePhoto(photo.id, photo.storagePath, photo.thumbnailStoragePath);
-      if (result.success && isSameActiveScope(requestEpisodeKey)) {
-        reload();
-        showToast('Foto eliminada');
-      }
-      return result;
-    } catch (unknownError) {
-      return {
-        success: false,
-        error:
-          unknownError instanceof Error
-            ? unknownError.message
-            : 'No se pudo eliminar la fotografía.',
-      };
+    const existingRequest = inFlightDeletesRef.current.get(photo.id);
+    if (existingRequest) {
+      return existingRequest;
     }
+
+    const requestPatientRut = patientRut;
+    const requestPromise = (async () => {
+      try {
+        const result = await deletePhoto(photo.id, photo.storagePath, photo.thumbnailStoragePath);
+        if (result.success && isSameActivePatient(requestPatientRut)) {
+          reload();
+          showToast('Foto eliminada');
+        }
+        return result;
+      } catch (unknownError) {
+        return {
+          success: false,
+          error:
+            unknownError instanceof Error
+              ? unknownError.message
+              : 'No se pudo eliminar la fotografía.',
+        };
+      } finally {
+        inFlightDeletesRef.current.delete(photo.id);
+      }
+    })();
+
+    inFlightDeletesRef.current.set(photo.id, requestPromise);
+    return requestPromise;
   };
 
   const handleEditDescription = async (
     photoId: string,
     description: string
   ): Promise<{ success: boolean; error?: string }> => {
-    const requestEpisodeKey = episodeContext.episodeKey;
+    const requestPatientRut = patientRut;
     try {
       const outcome = await executeUpdatePhotoDescription(photoId, description);
       if (outcome.status === 'success') {
-        if (isSameActiveScope(requestEpisodeKey)) {
+        if (isSameActivePatient(requestPatientRut)) {
           reload();
           showToast('Descripción actualizada');
         }
@@ -355,7 +376,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
           isOpen
           onClose={() => setShowConsentModal(false)}
           onUploaded={() => {
-            if (!isSameActiveScope(episodeContext.episodeKey)) return;
+            if (!isSameActivePatient(patientRut)) return;
             reload();
             showToast('Consentimiento guardado');
           }}
@@ -372,7 +393,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
             setSelectedFile(null);
           }}
           onUploaded={() => {
-            if (!isSameActiveScope(episodeContext.episodeKey)) return;
+            if (!isSameActivePatient(patientRut)) return;
             reload();
             showToast('Foto subida exitosamente');
           }}

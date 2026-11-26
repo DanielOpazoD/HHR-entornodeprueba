@@ -26,7 +26,7 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
   onDelete,
   onEditDescription,
 }) => {
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [lightboxPhotoId, setLightboxPhotoId] = useState<string | null>(null);
   const [deletePhoto, setDeletePhoto] = useState<WoundCarePhoto | null>(null);
 
   const sessions = groupPhotosByDate(photos);
@@ -42,10 +42,11 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
 
   // Build flat list for lightbox navigation (matches display order)
   const allPhotosFlat = sessions.flatMap(s => s.photos);
+  const lightboxIndex =
+    lightboxPhotoId === null ? -1 : allPhotosFlat.findIndex(p => p.id === lightboxPhotoId);
 
   const openLightbox = (photo: WoundCarePhoto) => {
-    const idx = allPhotosFlat.findIndex(p => p.id === photo.id);
-    setLightboxIndex(idx >= 0 ? idx : 0);
+    setLightboxPhotoId(photo.id);
   };
 
   return (
@@ -104,12 +105,15 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
         ))}
       </div>
 
-      {lightboxIndex !== null && (
+      {lightboxIndex >= 0 && (
         <PhotoLightbox
           photos={allPhotosFlat}
           currentIndex={lightboxIndex}
-          onClose={() => setLightboxIndex(null)}
-          onNavigate={setLightboxIndex}
+          onClose={() => setLightboxPhotoId(null)}
+          onNavigate={index => {
+            const nextPhoto = allPhotosFlat[index];
+            if (nextPhoto) setLightboxPhotoId(nextPhoto.id);
+          }}
           onEditDescription={!readOnly ? onEditDescription : undefined}
         />
       )}
