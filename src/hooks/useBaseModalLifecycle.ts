@@ -32,7 +32,9 @@ const isContentEditableControl = (element: HTMLElement): boolean => {
   return attr !== null && attr.toLowerCase() !== 'false';
 };
 
-const isSegmentedNativeInput = (element: HTMLElement | null): element is HTMLInputElement =>
+const isSegmentedNativeInput = (
+  element: HTMLElement | null | undefined
+): element is HTMLInputElement =>
   element instanceof HTMLInputElement && SEGMENTED_INPUT_TYPES.has(element.type);
 
 const isInsideClosedDetailsBody = (element: HTMLElement): boolean => {
@@ -159,19 +161,31 @@ const trapModalTabNavigation = (
   }
 
   const currentIndex = activeElement ? focusableElements.indexOf(activeElement) : -1;
+  const isWrapping =
+    currentIndex === -1 ||
+    (event.shiftKey && currentIndex === 0) ||
+    (!event.shiftKey && currentIndex === focusableElements.length - 1);
+  const nextIndex =
+    currentIndex === -1
+      ? event.shiftKey
+        ? focusableElements.length - 1
+        : 0
+      : event.shiftKey
+        ? (currentIndex - 1 + focusableElements.length) % focusableElements.length
+        : (currentIndex + 1) % focusableElements.length;
+  const nextElement = focusableElements[nextIndex];
 
-  // Step explicitly through every sequential control so browsers where native Tab skips buttons
-  // (e.g. WebKit/Safari default keyboard mode) cannot escape a button-only dialog into the page.
-  event.preventDefault();
-  if (currentIndex === -1) {
-    (event.shiftKey ? lastElement : firstElement).focus();
+  // Let non-wrapping Tab / Shift+Tab enter segmented date/time inputs natively so Shift+Tab lands
+  // on the final date segment (yyyy) rather than forcing focus onto the first segment (dd).
+  if (!isWrapping && activeElement && isSegmentedNativeInput(nextElement)) {
+    onSegmentedNativeTab?.(event.shiftKey ? 'backward' : 'forward', activeElement);
     return;
   }
 
-  const nextIndex = event.shiftKey
-    ? (currentIndex - 1 + focusableElements.length) % focusableElements.length
-    : (currentIndex + 1) % focusableElements.length;
-  focusableElements[nextIndex]?.focus();
+  // Step explicitly through every other sequential control so browsers where native Tab skips
+  // buttons (e.g. WebKit/Safari default keyboard mode) cannot escape a button-only dialog.
+  event.preventDefault();
+  nextElement?.focus();
 };
 
 /**

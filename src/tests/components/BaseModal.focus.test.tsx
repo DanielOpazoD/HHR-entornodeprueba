@@ -226,12 +226,13 @@ describe('BaseModal focus lifecycle', () => {
     expect(screen.getByRole('button', { name: 'Acción interna' })).toHaveFocus();
   });
 
-  it('leaves Tab native inside segmented date inputs and wraps only if focus leaves the modal', () => {
+  it('leaves Tab and Shift+Tab native inside and entering segmented date inputs while still wrapping at modal bounds', () => {
     const outsideSelect = document.createElement('select');
     document.body.appendChild(outsideSelect);
 
     const view = render(
       <BaseModal isOpen onClose={vi.fn()} title="Demográficos">
+        <input aria-label="RUT" type="text" defaultValue="11.111.111-1" />
         <input aria-label="Fecha de nacimiento" type="date" defaultValue="1980-06-15" />
         <select aria-label="Previsión">
           <option value="Fonasa">Fonasa</option>
@@ -239,16 +240,30 @@ describe('BaseModal focus lifecycle', () => {
       </BaseModal>
     );
 
+    const closeButton = screen.getByRole('button', { name: 'Cerrar modal' });
+    const rutInput = screen.getByLabelText('RUT');
     const dateInput = screen.getByLabelText('Fecha de nacimiento');
     const insuranceSelect = screen.getByLabelText('Previsión');
-    expect(dateInput).toHaveFocus();
+    expect(rutInput).toHaveFocus();
 
-    // Native Tab must NOT be prevented so the browser can step dd -> mm -> yyyy.
+    // Entering date input forward (Tab) and backward (Shift+Tab) stays native so Shift+Tab lands
+    // on the final date segment (yyyy) instead of forcing focus onto the first segment (dd).
+    expect(fireEvent.keyDown(rutInput, { key: 'Tab' })).toBe(true);
+    insuranceSelect.focus();
+    expect(fireEvent.keyDown(insuranceSelect, { key: 'Tab', shiftKey: true })).toBe(true);
+
+    // Stepping inside the date input stays native so the browser walks dd -> mm -> yyyy.
+    dateInput.focus();
     expect(fireEvent.keyDown(dateInput, { key: 'Tab' })).toBe(true);
     expect(dateInput).toHaveFocus();
 
     // If native Tab walks out of the modal after the final segment, focusin wraps to next control.
     outsideSelect.focus();
+    expect(insuranceSelect).toHaveFocus();
+
+    // Wrapping at modal bounds still stays trapped inside the dialog.
+    closeButton.focus();
+    expect(fireEvent.keyDown(closeButton, { key: 'Tab', shiftKey: true })).toBe(false);
     expect(insuranceSelect).toHaveFocus();
 
     view.unmount();

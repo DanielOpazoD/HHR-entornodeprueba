@@ -4,12 +4,14 @@ import { ClipboardList } from 'lucide-react';
 import { resolveUpcReviewReason } from '@/shared/census/upcEvaluationPolicy';
 import { resolveEffectiveUpcState, isUpcEligibleBedId } from '@/shared/census/upcBedPolicy';
 import { resolveUpcClassificationLabel } from '@/domain/upc/upcClassification';
-import { resolveUpcEpisodeIdentity } from '@/domain/upc/upcRoundSubject';
 import { resolveUpcBadgeColor } from './upcClassificationTone';
 import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
-import { useUpcClassificationWindowOpener } from './UpcClassificationWindowContext';
+import {
+  resolveUpcCellSubjectIdentity,
+  useUpcClassificationWindowOpener,
+} from './UpcClassificationWindowContext';
 
 interface UpcChecklistCellProps extends BaseCellProps {
   currentDateString: string;
@@ -65,7 +67,7 @@ export const UpcChecklistCell: React.FC<UpcChecklistCellProps> = ({
           event.currentTarget.focus();
           openUpcWindow(data.bedId, {
             crib: isSubRow,
-            episodeIdentity: resolveUpcEpisodeIdentity(data),
+            episodeIdentity: resolveUpcCellSubjectIdentity(data),
             triggerElement: event.currentTarget,
           });
         }}

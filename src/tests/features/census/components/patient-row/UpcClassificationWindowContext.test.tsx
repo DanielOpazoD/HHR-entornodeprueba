@@ -23,6 +23,9 @@ const loadFreshContext = async () => {
   ]);
   return {
     DailyRecordBedsContext: providerTree.DailyRecordBedsContext,
+    resolveUpcCellSubjectIdentity: mod.resolveUpcCellSubjectIdentity as (
+      subject?: Partial<PatientData> | null
+    ) => string | null,
     UpcClassificationWindowProvider: mod.UpcClassificationWindowProvider as React.FC<{
       currentDateString: string;
       readOnly?: boolean;
@@ -529,6 +532,192 @@ describe('UpcClassificationWindowProvider', () => {
     });
 
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('cancels a pending open for an unnamed bed with document and episode ID when replaced during load', async () => {
+    let resolveChunk:
+      | ((value: { UpcClassificationWindow: React.FC<MockUpcWindowProps> }) => void)
+      | null = null;
+    const chunkPromise = new Promise<{
+      UpcClassificationWindow: React.FC<MockUpcWindowProps>;
+    }>(resolve => {
+      resolveChunk = resolve;
+    });
+
+    vi.doMock(UPC_WINDOW_MODULE_PATH, () => chunkPromise);
+
+    const {
+      DailyRecordBedsContext,
+      resolveUpcCellSubjectIdentity,
+      UpcClassificationWindowProvider,
+      useUpcClassificationWindowOpener,
+    } = await loadFreshContext();
+
+    const unnamedOriginal = DataFactory.createMockPatient('R2', {
+      patientName: '',
+      rut: '11.111.111-1',
+      clinicalEpisodeId: 'ep-unnamed-1',
+    });
+    const replacement = DataFactory.createMockPatient('R2', {
+      patientName: 'Paciente Reemplazo',
+      rut: '22.222.222-2',
+      clinicalEpisodeId: 'ep-replacement-2',
+    });
+
+    expect(resolveUpcEpisodeIdentity(unnamedOriginal)).toBeNull();
+    expect(resolveUpcCellSubjectIdentity(unnamedOriginal)).not.toBeNull();
+
+    const Trigger = ({ patient }: { patient: PatientData }) => {
+      const { openUpcWindow } = useUpcClassificationWindowOpener();
+      return (
+        <button
+          type="button"
+          onClick={event =>
+            openUpcWindow('R2', {
+              episodeIdentity: resolveUpcCellSubjectIdentity(patient),
+              triggerElement: event.currentTarget,
+            })
+          }
+        >
+          Abrir UPC R2 sin nombre
+        </button>
+      );
+    };
+
+    const { rerender } = render(
+      <DailyRecordBedsContext.Provider value={{ R2: unnamedOriginal }}>
+        <UpcClassificationWindowProvider currentDateString="2026-11-24">
+          <Trigger patient={unnamedOriginal} />
+        </UpcClassificationWindowProvider>
+      </DailyRecordBedsContext.Provider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir UPC R2 sin nombre' }));
+    expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+    rerender(
+      <DailyRecordBedsContext.Provider value={{ R2: replacement }}>
+        <UpcClassificationWindowProvider currentDateString="2026-11-24">
+          <Trigger patient={replacement} />
+        </UpcClassificationWindowProvider>
+      </DailyRecordBedsContext.Provider>
+    );
+    expect(screen.queryByTestId('upc-window-module-loading')).toBeNull();
+
+    await act(async () => {
+      resolveChunk?.({
+        UpcClassificationWindow: ({ initialBedId }: MockUpcWindowProps) => (
+          <div role="dialog" aria-label="Clasificación UPC">
+            {initialBedId}
+          </div>
+        ),
+      });
+      await chunkPromise;
+    });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('cancels a pending open for an unnamed crib when replaced during a 503 retry', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    let attempts = 0;
+    let resolveRetry:
+      | ((value: { UpcClassificationWindow: React.FC<MockUpcWindowProps> }) => void)
+      | null = null;
+    const retryPromise = new Promise<{
+      UpcClassificationWindow: React.FC<MockUpcWindowProps>;
+    }>(resolve => {
+      resolveRetry = resolve;
+    });
+
+    vi.doMock(UPC_WINDOW_MODULE_PATH, () => {
+      attempts += 1;
+      if (attempts === 1) {
+        throw new Error('503 Service Unavailable');
+      }
+      return retryPromise;
+    });
+
+    const {
+      DailyRecordBedsContext,
+      resolveUpcCellSubjectIdentity,
+      UpcClassificationWindowProvider,
+      useUpcClassificationWindowOpener,
+    } = await loadFreshContext();
+
+    const unnamedCrib = DataFactory.createMockPatient('R1', {
+      patientName: '',
+      rut: '33.333.333-3',
+      clinicalEpisodeId: 'ep-crib-unnamed-1',
+    });
+    const replacementCrib = DataFactory.createMockPatient('R1', {
+      patientName: 'RN Reemplazo',
+      rut: '44.444.444-4',
+      clinicalEpisodeId: 'ep-crib-replacement-2',
+    });
+    const motherWithUnnamedCrib = DataFactory.createMockPatient('R1', {
+      patientName: 'Madre R1',
+      clinicalCrib: unnamedCrib,
+    });
+    const motherWithReplacementCrib = DataFactory.createMockPatient('R1', {
+      patientName: 'Madre R1',
+      clinicalCrib: replacementCrib,
+    });
+
+    const Trigger = ({ crib }: { crib: PatientData }) => {
+      const { openUpcWindow } = useUpcClassificationWindowOpener();
+      return (
+        <button
+          type="button"
+          onClick={event =>
+            openUpcWindow('R1', {
+              crib: true,
+              episodeIdentity: resolveUpcCellSubjectIdentity(crib),
+              triggerElement: event.currentTarget,
+            })
+          }
+        >
+          Abrir cuna R1 sin nombre
+        </button>
+      );
+    };
+
+    const { rerender } = render(
+      <DailyRecordBedsContext.Provider value={{ R1: motherWithUnnamedCrib }}>
+        <UpcClassificationWindowProvider currentDateString="2026-11-24">
+          <Trigger crib={unnamedCrib} />
+        </UpcClassificationWindowProvider>
+      </DailyRecordBedsContext.Provider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir cuna R1 sin nombre' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/No se pudo abrir este panel/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+    rerender(
+      <DailyRecordBedsContext.Provider value={{ R1: motherWithReplacementCrib }}>
+        <UpcClassificationWindowProvider currentDateString="2026-11-24">
+          <Trigger crib={replacementCrib} />
+        </UpcClassificationWindowProvider>
+      </DailyRecordBedsContext.Provider>
+    );
+    expect(screen.queryByTestId('upc-window-module-loading')).toBeNull();
+
+    await act(async () => {
+      resolveRetry?.({
+        UpcClassificationWindow: ({ initialBedId }: MockUpcWindowProps) => (
+          <div role="dialog" aria-label="Clasificación UPC">
+            {initialBedId}
+          </div>
+        ),
+      });
+      await retryPromise;
+    });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    consoleErrorSpy.mockRestore();
   });
 
   it('restores focus to the clicked trigger button on Escape even when activeElement stayed on an ancestor wrapper', async () => {

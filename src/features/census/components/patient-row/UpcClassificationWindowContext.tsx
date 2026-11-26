@@ -5,6 +5,36 @@ import { useOptionalDailyRecordBeds } from '@/context/DailyRecordContext';
 import { resolveUpcEpisodeIdentity } from '@/domain/upc/upcRoundSubject';
 import { PanelModuleRetry, RecoverableClinicalPanelModule } from './RecoverableClinicalPanelModule';
 
+interface UpcCellSubjectLike {
+  patientName?: string;
+  clinicalEpisodeId?: string;
+  rut?: string;
+  firstSeenDate?: string;
+  admissionDate?: string;
+  admissionTime?: string;
+}
+
+/**
+ * Fingerprints the patient occupying a clicked UPC cell even when the name is still empty
+ * (e.g. a bed or crib with only RUT/document and clinicalEpisodeId) so turnover during a
+ * deferred load or retry never opens the round on a replacement patient.
+ */
+export const resolveUpcCellSubjectIdentity = (
+  subject?: UpcCellSubjectLike | null
+): string | null => {
+  const upcIdentity = resolveUpcEpisodeIdentity(subject);
+  if (upcIdentity) return upcIdentity;
+  if (!subject) return null;
+  const episode = subject.clinicalEpisodeId?.trim() || '';
+  const rut = subject.rut?.trim() || '';
+  const admissionDate = (subject.firstSeenDate || subject.admissionDate || '').trim();
+  const admissionTime = subject.admissionTime?.trim() || '';
+  if (!episode && !rut && !admissionDate && !admissionTime) {
+    return null;
+  }
+  return JSON.stringify(['unnamed', episode, rut, admissionDate, admissionTime]);
+};
+
 const loadUpcClassificationWindow = () =>
   import('./UpcClassificationWindow').then(module => ({
     default: module.UpcClassificationWindow,
@@ -91,6 +121,7 @@ interface UpcWindowHostProps {
   rawBedId: string | null;
   isCrib: boolean;
   initialBedId: string | null;
+  hasExpectedEpisode: boolean;
   expectedEpisodeIdentity: string | null;
   onClose: () => void;
   onCancelStaleOpen: () => void;
@@ -107,6 +138,7 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
   rawBedId,
   isCrib,
   initialBedId,
+  hasExpectedEpisode,
   expectedEpisodeIdentity,
   onClose,
   onCancelStaleOpen,
@@ -116,7 +148,7 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
 
   const currentSubject =
     rawBedId && beds ? (isCrib ? beds[rawBedId]?.clinicalCrib : beds[rawBedId]) : undefined;
-  const currentEpisodeIdentity = resolveUpcEpisodeIdentity(currentSubject);
+  const currentEpisodeIdentity = resolveUpcCellSubjectIdentity(currentSubject);
   const [hasTrackableContextBed] = useState(
     () =>
       beds !== undefined &&
@@ -124,7 +156,7 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
   );
   const isStalePendingEpisode =
     !hasResolvedWindow &&
-    expectedEpisodeIdentity !== null &&
+    hasExpectedEpisode &&
     hasTrackableContextBed &&
     currentEpisodeIdentity !== expectedEpisodeIdentity;
 
@@ -174,6 +206,7 @@ interface UpcWindowOpenState {
   isCrib: boolean;
   bedId: string | null;
   openedForDate: string | null;
+  hasExpectedEpisode: boolean;
   expectedEpisodeIdentity: string | null;
 }
 
@@ -183,6 +216,7 @@ const CLOSED_UPC_WINDOW_STATE: UpcWindowOpenState = {
   isCrib: false,
   bedId: null,
   openedForDate: null,
+  hasExpectedEpisode: false,
   expectedEpisodeIdentity: null,
 };
 
@@ -230,12 +264,14 @@ export const UpcClassificationWindowProvider: React.FC<UpcClassificationWindowPr
       priorActiveBeforeOpenRef.current = activeElement;
       restoreOpenerOnCloseRef.current = null;
       const isCrib = Boolean(bedId && options?.crib);
+      const hasExpectedEpisode = Boolean(options && 'episodeIdentity' in options);
       setOpenState({
         isOpen: true,
         rawBedId: bedId ?? null,
         isCrib,
         bedId: bedId && isCrib ? `${bedId}:crib` : (bedId ?? null),
         openedForDate: currentDateString,
+        hasExpectedEpisode,
         expectedEpisodeIdentity: options?.episodeIdentity ?? null,
       });
     },
@@ -290,6 +326,7 @@ export const UpcClassificationWindowProvider: React.FC<UpcClassificationWindowPr
           rawBedId={openState.rawBedId}
           isCrib={openState.isCrib}
           initialBedId={openState.bedId}
+          hasExpectedEpisode={openState.hasExpectedEpisode}
           expectedEpisodeIdentity={openState.expectedEpisodeIdentity}
           onClose={closeUpcWindow}
           onCancelStaleOpen={cancelStaleOpen}
