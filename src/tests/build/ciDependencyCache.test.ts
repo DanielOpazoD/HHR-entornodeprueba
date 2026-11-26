@@ -6,15 +6,25 @@ import {
   collectTransitiveNeeds,
   parseWorkflowJobs,
 } from '../../../scripts/ciArtifactContractSupport.mjs';
-import { jobNeeds, parseWorkflow } from './workflowYamlTestSupport';
+import { jobNeeds, parseWorkflow, type WorkflowJob } from './workflowYamlTestSupport';
 
 const workflow = fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8');
 const nightlyWorkflowFiles = [
   '.github/workflows/nightly-test-runtime.yml',
   '.github/workflows/nightly-census-visual.yml',
 ];
+const setupActionRef = './.github/actions/setup-ci-dependencies';
 const actionPath = '.github/actions/setup-ci-dependencies/action.yml';
 const action = parse(fs.readFileSync(actionPath, 'utf8'));
+
+const isExplicitlyDisabledSaveCache = (value: unknown): boolean =>
+  value === undefined || value === false || value === 'false';
+
+const setupDependencySteps = (job: WorkflowJob) =>
+  job.steps.filter(step => step.uses === setupActionRef);
+
+const mayWriteCache = (job: WorkflowJob): boolean =>
+  setupDependencySteps(job).some(step => !isExplicitlyDisabledSaveCache(step.with?.['save-cache']));
 
 type Step = {
   name?: string;
@@ -74,26 +84,19 @@ it('publishes only the pristine installation, before the calling job runs checks
 
 it('reuses exact dependencies across compatible jobs with one PR-phase writer per image and post-merge main publication', () => {
   const { jobs } = parseWorkflow(workflow);
-  const reusable = Object.entries(jobs).filter(([, job]) =>
-    job.steps.some(step => step.uses === './.github/actions/setup-ci-dependencies')
-  );
+  const reusable = Object.entries(jobs).filter(([, job]) => setupDependencySteps(job).length > 0);
   expect(reusable.length).toBeGreaterThan(0);
-  const isWriter = (job: (typeof reusable)[number][1]) =>
-    job.steps.some(step => {
-      const saveCache = String(step.with?.['save-cache'] ?? '');
-      return saveCache === 'true' || saveCache.includes("'true'");
-    });
-  const isMainPushOnly = (job: (typeof reusable)[number][1]) =>
+  const isMainPushOnly = (job: WorkflowJob) =>
     Boolean(
       job.if?.includes("github.event_name == 'push'") &&
       job.if?.includes("github.ref == 'refs/heads/main'")
     );
-  const writers = reusable.filter(([, job]) => isWriter(job));
+  const writers = reusable.filter(([, job]) => mayWriteCache(job));
   const prPhaseWriters = writers.filter(([, job]) => !isMainPushOnly(job));
   const mainOnlyWriters = writers.filter(([, job]) => isMainPushOnly(job));
   // The restore key includes the runner image: every image used by a consumer
   // needs exactly one PR-phase writer so parallel jobs never race on cache saves.
-  const imageOf = (job: (typeof reusable)[number][1]) => String(job['runs-on']);
+  const imageOf = (job: WorkflowJob) => String(job['runs-on']);
   const consumerImages = new Set(reusable.map(([, job]) => imageOf(job)));
   expect([...consumerImages].sort()).toEqual(['ubuntu-24.04', 'ubuntu-latest']);
   for (const image of consumerImages) {
@@ -106,44 +109,62 @@ it('reuses exact dependencies across compatible jobs with one PR-phase writer pe
     'quality-static-base',
     'rules-emulator',
   ]);
-  expect(jobs['quality-static-base'].steps.find(step => step.with?.['save-cache'])?.with).toEqual({
+  const qualityBaseSetup = setupDependencySteps(jobs['quality-static-base'])[0];
+  expect(qualityBaseSetup?.if).toBeUndefined();
+  expect(qualityBaseSetup?.with).toEqual({
     'save-cache': "${{ matrix.check == 'lint' && 'true' || 'false' }}",
   });
-  expect(jobs['rules-emulator'].steps.find(step => step.with?.['save-cache'])?.with).toEqual({
+  const rulesEmulatorSetup = setupDependencySteps(jobs['rules-emulator'])[0];
+  expect(rulesEmulatorSetup?.if).toBeUndefined();
+  expect(rulesEmulatorSetup?.with).toEqual({
     'save-cache': 'true',
   });
   // Reused-evidence main pushes skip quality-static-base (lint), so postmerge-evidence
-  // publishes main's ubuntu-latest cache strictly after ci-strict-summary (never racing lint).
+  // publishes main's ubuntu-latest cache unconditionally after ci-strict-summary (never racing lint).
   expect(mainOnlyWriters.map(([name]) => name)).toEqual(['postmerge-evidence']);
-  expect(imageOf(jobs['postmerge-evidence'])).toBe('ubuntu-latest');
-  expect(jobs['postmerge-evidence'].steps.find(step => step.with?.['save-cache'])?.with).toEqual({
+  const postmerge = jobs['postmerge-evidence'];
+  expect(imageOf(postmerge)).toBe('ubuntu-latest');
+  expect(postmerge.if).toBe(
+    "${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.ci-strict-summary.result == 'success' }}"
+  );
+  const postmergeSetup = setupDependencySteps(postmerge)[0];
+  expect(postmergeSetup?.if).toBeUndefined();
+  expect(postmergeSetup?.with).toEqual({
     'save-cache': 'true',
   });
   expect(collectTransitiveNeeds(parseWorkflowJobs(workflow), 'postmerge-evidence')).toContain(
     'quality-static-base'
   );
-  for (const [, job] of reusable) {
-    const setupIndex = job.steps.findIndex(
-      step => step.uses === './.github/actions/setup-ci-dependencies'
-    );
+  for (const [jobName, job] of reusable) {
+    expect(setupDependencySteps(job), jobName).toHaveLength(1);
+    const setupIndex = job.steps.findIndex(step => step.uses === setupActionRef);
     const checkoutIndex = job.steps.findIndex(step => step.uses?.startsWith('actions/checkout@'));
     const firstCommandIndex = job.steps.findIndex(
       step =>
         /\b(?:npm|npx|node)\b/.test(step.run ?? '') ||
         step.uses?.startsWith('treosh/lighthouse-ci-action@')
     );
-    expect(checkoutIndex).toBeGreaterThanOrEqual(0);
-    expect(setupIndex).toBeGreaterThan(checkoutIndex);
-    expect(firstCommandIndex).toBeGreaterThan(setupIndex);
-    expect(job.steps.some(step => step.run === 'npm ci')).toBe(false);
+    expect(checkoutIndex, jobName).toBeGreaterThanOrEqual(0);
+    expect(setupIndex, jobName).toBeGreaterThan(checkoutIndex);
+    expect(firstCommandIndex, jobName).toBeGreaterThan(setupIndex);
+    expect(
+      job.steps.some(step => step.run === 'npm ci'),
+      jobName
+    ).toBe(false);
   }
 });
 
 it('publishes and reuses the exact ubuntu-24.04 dependency cache across nightly main workflows', () => {
   const nightlyJobs = nightlyWorkflowFiles.flatMap(file => {
     const text = fs.readFileSync(file, 'utf8');
-    const raw = parse(text);
-    expect(raw.on?.schedule, `${file} schedule trigger`).toBeTruthy();
+    const raw = parse(text) as { on?: { schedule?: Array<{ cron?: string }> } };
+    const schedule = raw.on?.schedule;
+    expect(Array.isArray(schedule) && schedule.length > 0, `${file} schedule trigger`).toBe(true);
+    for (const entry of schedule ?? []) {
+      expect(typeof entry.cron === 'string' && entry.cron.trim().length > 0, `${file} cron`).toBe(
+        true
+      );
+    }
     return Object.entries(parseWorkflow(text).jobs).map(([jobName, job]) => ({
       file,
       jobName,
@@ -157,27 +178,29 @@ it('publishes and reuses the exact ubuntu-24.04 dependency cache across nightly 
     'nightly-sync-model',
   ]);
 
-  const writers = nightlyJobs.filter(({ job }) =>
-    job.steps.some(step => {
-      const saveCache = String(step.with?.['save-cache'] ?? '');
-      return saveCache === 'true' || saveCache.includes("'true'");
-    })
-  );
+  const writers = nightlyJobs.filter(({ job }) => mayWriteCache(job));
   expect(writers.map(entry => entry.jobName)).toEqual(['nightly-sync-model']);
-  expect(
-    writers[0].job.steps.find(step => step.uses === './.github/actions/setup-ci-dependencies')?.with
-  ).toEqual({
+  const nightlyPublisherSetup = setupDependencySteps(writers[0].job)[0];
+  expect(nightlyPublisherSetup?.if).toBeUndefined();
+  expect(nightlyPublisherSetup?.with).toEqual({
     'save-cache': 'true',
   });
 
   for (const { file, jobName, job } of nightlyJobs) {
     const label = `${file}#${jobName}`;
     expect(String(job['runs-on']), label).toBe('ubuntu-24.04');
-    const setupIndex = job.steps.findIndex(
-      step => step.uses === './.github/actions/setup-ci-dependencies'
-    );
+    // Every nightly job must stay active on scheduled runs, never gated off to workflow_dispatch.
+    expect(job.if, label).toBeUndefined();
+    expect(setupDependencySteps(job), label).toHaveLength(1);
+    const setupIndex = job.steps.findIndex(step => step.uses === setupActionRef);
     expect(setupIndex, label).toBeGreaterThanOrEqual(0);
     expect(job.steps[setupIndex].if, label).toBeUndefined();
+    if (jobName !== 'nightly-sync-model') {
+      expect(
+        isExplicitlyDisabledSaveCache(job.steps[setupIndex].with?.['save-cache']),
+        `${label} must not save cache`
+      ).toBe(true);
+    }
     const checkoutIndex = job.steps.findIndex(step => step.uses?.startsWith('actions/checkout@'));
     expect(checkoutIndex, label).toBeGreaterThanOrEqual(0);
     expect(setupIndex, label).toBeGreaterThan(checkoutIndex);
