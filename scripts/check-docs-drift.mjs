@@ -15,7 +15,6 @@ const checks = [
     patterns: [
       'schemaEvolutionPolicy.ts',
       'migrationLedger.ts',
-      'reports/runtime-contracts.md',
       'dailyRecordAggregate.ts',
       'docs/RUNBOOK_OPERATIONAL_BUDGETS.md',
       'reports/operational-health.md',

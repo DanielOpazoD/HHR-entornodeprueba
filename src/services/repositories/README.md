@@ -42,7 +42,7 @@ primitives Firestore; no sustituirlas por nuevos singletons internos.
 - `dailyRecordAggregate.ts` concentra las operaciones del agregado.
 
 Los informes generados son evidencia, no otra implementación de la política:
-`reports/runtime-contracts.md` y `reports/operational-health.md`.
+`reports/operational-health.md`.
 No retirar lectores históricos, aliases o grace paths sin demostrar que sus
 consumidores operativos desaparecieron.
 

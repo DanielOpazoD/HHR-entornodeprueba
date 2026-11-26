@@ -104,7 +104,7 @@ Para regenerar un snapshot local de hotspots de tamaño, cobertura y deuda de re
 
 ```bash
 npm run report:quality-metrics
-npm run report:legacy-retirement-debt
+npm run check:legacy-retirement-debt
 ```
 
 ## Firestore rules governance

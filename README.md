@@ -131,7 +131,7 @@ import { useDailyRecord } from '@/hooks/useDailyRecord';
 - [Runbook técnico de soporte](docs/RUNBOOK_SUPPORT_OPERATIONS.md)
 - [Runbook de rotación de secretos](docs/RUNBOOK_SECRET_ROTATION.md)
 - [Gates de CI, guardrails, checklist de cierre y runbooks](docs/CI_GATES_AND_FAILURE_RUNBOOKS.md)
-- Gobernanza de guardrails: generar con `npm run report:guardrail-governance`
+- Gobernanza de guardrails: `scripts/config/guardrail-governance.json` (validado con `npm run check:guardrail-governance`)
 - [Política de decisión para cambios de ingeniería](docs/ENGINEERING_CHANGE_DECISION_POLICY.md)
 - [Registro de deuda técnica](docs/TECHNICAL_DEBT_REGISTER.md)
 - [ADR Repository Provider obligatorio](docs/ADR_REPOSITORY_PROVIDER_REQUIRED.md)
@@ -209,7 +209,7 @@ canónico está en el [runbook de evidencia](docs/RUNBOOK_RELEASE_EVIDENCE_CONTR
 Ejemplos de snapshots generados localmente bajo demanda:
 
 - `reports/quality-metrics.md`: generar con `npm run report:quality-metrics`
-- `reports/runtime-contracts.md`: generar con `npm run report:runtime-contracts`
+- `reports/operational-health.md`: generar con `npm run report:operational-health`
 
 Para regenerar evidencia, seguir el
 [runbook de release](docs/RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md). Para una evaluación
