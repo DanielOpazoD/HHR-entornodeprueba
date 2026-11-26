@@ -119,7 +119,7 @@ Si una propuesta solo agrega capas, nombres o archivos sin bajar branching, acop
 
 ## Relación con otras guías del repo
 
-- Para reglas operativas concretas: `docs/OPERATIVE_RULES_REFERENCE.md`
+- Para reglas operativas concretas: `docs/DOMAIN_RULES.md` (antes `docs/archive/OPERATIVE_RULES_REFERENCE.md`)
 - Para trazabilidad de iteraciones: `docs/archive/MAINTENANCE_ITERATION_LOG.md`
 - Para deuda viva: `npm run report:quality-metrics` y `npm run check:legacy-retirement-debt`
 

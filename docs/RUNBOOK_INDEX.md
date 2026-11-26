@@ -139,7 +139,7 @@ Abrir en este orden:
 - Para orientarte en el repo completo: [DOCUMENTATION_MAP.md](./DOCUMENTATION_MAP.md)
 - Para comandos curados: [DEVELOPER_COMMANDS.md](./DEVELOPER_COMMANDS.md)
 - Para decidir dónde va cada cosa: [architecture.md](./architecture.md)
-- Para el plan activo de mejoras por bloques: [superpowers/plans/2026-04-20-audit-block-roadmap.md](./superpowers/plans/2026-04-20-audit-block-roadmap.md)
+- Para el estado actual y cadencia de mantenimiento: [PROJECT_STATUS.md](../PROJECT_STATUS.md) y [FOUNDATION_MAINTENANCE_CADENCE.md](./FOUNDATION_MAINTENANCE_CADENCE.md)
 
 ## Regla de mantenimiento
 
