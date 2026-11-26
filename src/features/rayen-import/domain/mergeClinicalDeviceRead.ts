@@ -13,7 +13,11 @@ import {
   mapRayenInvasiveDeviceEntries,
   type RayenInvasiveDeviceEntry,
 } from '../mapping/mapDeviceToInstance';
-import { mergeReportDevices, sameDeviceInstallation } from './mergeReportDevices';
+import {
+  deviceInstanceBelongsToEpisode,
+  mergeReportDevices,
+  sameDeviceInstallation,
+} from './mergeReportDevices';
 
 const datedStamp = (raw?: string | null): { date: string; time: string } | undefined => {
   const match = raw?.match(
@@ -60,8 +64,7 @@ const reconcileDeviceRetirements = (
       `${installed.date}T${installed.time}` > `${current.iso}T${current.hhmm}` ||
       item.status !== 'Active' ||
       !cameFromEloisa(item) ||
-      item.clinicalEpisodeId !== patient.clinicalEpisodeId ||
-      (item.patientRut && item.patientRut !== patient.rut) ||
+      !deviceInstanceBelongsToEpisode(item, patient) ||
       !item.installationDate ||
       !item.installationTime
     )

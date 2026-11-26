@@ -20,7 +20,9 @@ export const seedClinicalCarryover = (
   const history = (source.deviceInstanceHistory ?? []).filter(
     item =>
       (!item.clinicalEpisodeId || item.clinicalEpisodeId === source.clinicalEpisodeId) &&
-      (!item.patientRut || documentKey(item.patientRut) === documentKey(source.rut))
+      (!item.patientRut ||
+        documentKey(item.patientRut) === documentKey(source.rut) ||
+        (Boolean(item.clinicalEpisodeId) && source.documentManualOverride === true))
   );
   result.deviceInstanceHistory = deepClone(history);
   result.devices = [

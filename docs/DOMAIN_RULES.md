@@ -103,7 +103,12 @@ una cama se egresa, traslada o limpia la cama de forma explícita. Una edición 
 de su tipo queda marcada con `documentManualOverride` (junto con el parche estructural y armonizada
 a días previos del mismo episodio), prevalece en sincronizaciones posteriores de Eloísa para ese
 mismo episodio —manteniendo la sincronización del resto de los datos clínicos— y se limpia al
-cambiar de episodio.
+cambiar de episodio. Mientras `documentManualOverride` está activo para ese episodio acreditado, la
+conciliación y el arrastre diario de dispositivos invasivos, la renovación de autorización de signos
+vitales y escalas frente a una captura viva del mismo episodio y la recuperación de historial de
+camas CUDYR por flujo oficial del episodio siguen reconociendo al episodio aunque el documento
+corregido en HHR difiera del que imprime Eloísa; sin esa marca explícita o ante encabezados vacíos,
+ambiguos o de otro episodio, las validaciones estrictas de identidad se mantienen intactas.
 
 ### Corrección demográfica de días anteriores (ID-01, ID-05)
 
