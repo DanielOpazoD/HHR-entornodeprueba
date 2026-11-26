@@ -131,7 +131,6 @@ import { useDailyRecord } from '@/hooks/useDailyRecord';
 - [Runbook técnico de soporte](docs/RUNBOOK_SUPPORT_OPERATIONS.md)
 - [Runbook de rotación de secretos](docs/RUNBOOK_SECRET_ROTATION.md)
 - [Gates de CI, guardrails, checklist de cierre y runbooks](docs/CI_GATES_AND_FAILURE_RUNBOOKS.md)
-- Scorecard de release readiness: generar con `npm run report:release-readiness-scorecard`
 - Gobernanza de guardrails: generar con `npm run report:guardrail-governance`
 - [Política de decisión para cambios de ingeniería](docs/ENGINEERING_CHANGE_DECISION_POLICY.md)
 - [Registro de deuda técnica](docs/TECHNICAL_DEBT_REGISTER.md)
@@ -195,21 +194,21 @@ no demuestran el estado actual. Revisar su fecha, `generatedFor`/`gitSha` y las 
 que declara antes de usarla como evidencia. La regla del repo es regenerar los reportes
 desde el código en cada validación:
 
-- En CI, `critical-coverage-report` genera `reports/critical-coverage.*` como artifact explícito. Luego `quality-static-governance-snapshots` lo descarga, corre `npm run report:governance-snapshots`, valida `npm run check:report-freshness:strict` y publica `reports/ci-governance-snapshot-profile.*`.
+- En CI, `critical-coverage-report` genera `reports/critical-coverage.*`, `clinical-sync-release-gate` genera `reports/sync-convergence.*` y `final-confidence-and-readiness` genera `reports/operational-health.*` y valida `npm run check:report-freshness:strict` sobre cada evidencia primaria.
 - Tras un merge a `main`, el job `postmerge-evidence` corre `npm run postmerge:evidence` y publica `reports/postmerge-evidence.*` como artifact formal del merge commit. Esta evidencia no reemplaza los gates del PR: deja trazabilidad del estado ya integrado en `main`.
 - En local hay que regenerarlos antes de tratarlos como evidencia.
 
 Para evaluar un PR o un merge, usar los artefactos de la ejecución de CI que corresponde
 al SHA evaluado. `critical-coverage` contiene la cobertura medida; `confidence-and-readiness`
-incorpora la evidencia final del preview; `ci-runtime-observed-profile` conserva tiempos
+incorpora la evidencia final de salud operacional, preview y tiempos de flujo; `ci-runtime-observed-profile` conserva tiempos
 observados.
 Una ejecución pendiente o fallida no es una validación aprobada, y CI aprobado por sí
 solo no confirma el despliegue ni una sincronización real con Eloísa. El procedimiento
 canónico está en el [runbook de evidencia](docs/RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md).
 
-Ejemplos de snapshots generados localmente o disponibles en el artefacto de CI `quality-static-governance-snapshots`:
+Ejemplos de snapshots generados localmente bajo demanda:
 
-- `reports/architectural-hotspots.md`: generar con `npm run report:architectural-hotspots`
+- `reports/quality-metrics.md`: generar con `npm run report:quality-metrics`
 - `reports/runtime-contracts.md`: generar con `npm run report:runtime-contracts`
 
 Para regenerar evidencia, seguir el

@@ -9,19 +9,14 @@ import { getEvidenceReportDependencyFiles } from '../../../scripts/evidenceDepen
 import { buildDependencyFingerprint } from '../../../scripts/evidenceProvenanceSupport.mjs';
 
 import { buildCriticalCoverageReport } from '../../../scripts/criticalCoverageSupport.mjs';
-import { buildReleaseConfidenceMatrixReport } from '../../../scripts/releaseConfidenceMatrixSupport.mjs';
 
 const scriptPath = path.join(process.cwd(), 'scripts/check-report-freshness.mjs');
 const tempRoots: string[] = [];
 
 const trackedReports = [
   { id: 'critical-coverage', file: 'reports/critical-coverage.json' },
-  { id: 'quality-metrics', file: 'reports/quality-metrics.json' },
   { id: 'sync-convergence', file: 'reports/sync-convergence.json' },
-  { id: 'system-confidence', file: 'reports/system-confidence.json' },
   { id: 'operational-health', file: 'reports/operational-health.json' },
-  { id: 'release-confidence-matrix', file: 'reports/release-confidence-matrix.json' },
-  { id: 'release-readiness-scorecard', file: 'reports/release-readiness-scorecard.json' },
 ];
 
 const run = (root: string, command: string, args: string[] = []) =>
@@ -133,23 +128,23 @@ afterEach(() => {
 });
 
 describe('report freshness guardrail', () => {
-  it.each([
-    ['critical-coverage', buildCriticalCoverageReport],
-    ['release-confidence-matrix', buildReleaseConfidenceMatrixReport],
-  ] as const)('receives verifiable provenance from the %s producer', (reportId, buildReport) => {
-    const root = process.cwd();
-    const report = buildReport(root);
-    expect(report.generatedFor).toMatchObject({
-      reportId,
-      gitSha: report.gitSha,
-      gitDirty: report.gitDirty,
-      dependencyFingerprint: buildDependencyFingerprint({
-        root,
-        dependencyFiles: getEvidenceReportDependencyFiles(reportId),
-      }),
-    });
-    expect(report.generatedFor.treeHash).toMatch(/^[a-f0-9]{40}$/);
-  });
+  it.each([['critical-coverage', buildCriticalCoverageReport]] as const)(
+    'receives verifiable provenance from the %s producer',
+    (reportId, buildReport) => {
+      const root = process.cwd();
+      const report = buildReport(root);
+      expect(report.generatedFor).toMatchObject({
+        reportId,
+        gitSha: report.gitSha,
+        gitDirty: report.gitDirty,
+        dependencyFingerprint: buildDependencyFingerprint({
+          root,
+          dependencyFiles: getEvidenceReportDependencyFiles(reportId),
+        }),
+      });
+      expect(report.generatedFor.treeHash).toMatch(/^[a-f0-9]{40}$/);
+    }
+  );
 
   it('accepts reports of a reused pull request run only while its tree is HEAD tree', () => {
     const { root } = makeGitRepoWithLinearCommit();
@@ -189,36 +184,36 @@ describe('report freshness guardrail', () => {
       const head = run(root, 'git', ['rev-parse', '--short', 'HEAD']);
       writeReports(root, head, {
         includeGeneratedFor: true,
-        generatedForOverrides: { 'system-confidence': { dependencyFingerprint } },
+        generatedForOverrides: { 'operational-health': { dependencyFingerprint } },
       });
       expect(() =>
-        run(root, 'node', [scriptPath, '--strict', '--only', 'system-confidence'])
+        run(root, 'node', [scriptPath, '--strict', '--only', 'operational-health'])
       ).toThrow(
-        /system-confidence\.json was generated for commit .* without dependency fingerprint/
+        /operational-health\.json was generated for commit .* without dependency fingerprint/
       );
     }
   );
 
   it.each(['replace', 'remove'] as const)(
-    'rejects a current-commit confidence report after input %s, independent of mtime',
+    'rejects a current-commit operational health report after input %s, independent of mtime',
     change => {
       const { root } = makeGitRepoWithLinearCommit();
       const head = run(root, 'git', ['rev-parse', '--short', 'HEAD']);
       writeReports(root, head, { includeGeneratedFor: true });
-      const input = path.join(root, 'reports/quality-metrics.json');
+      const input = path.join(root, 'reports/critical-coverage.json');
       const before = fs.statSync(input);
       if (change === 'remove') {
         fs.unlinkSync(input);
       } else {
         const value = JSON.parse(fs.readFileSync(input, 'utf8'));
-        value.tests = { flakeRiskFiles: 7 };
+        value.status = 'failing';
         fs.writeFileSync(input, JSON.stringify(value));
         fs.utimesSync(input, before.atime, before.mtime);
       }
 
-      const args = [scriptPath, '--only', 'system-confidence'];
+      const args = [scriptPath, '--only', 'operational-health'];
       expect(() => run(root, 'node', [...args, '--strict'])).toThrow(
-        /system-confidence\.json is stale by real dependency fingerprint/
+        /operational-health\.json is stale by real dependency fingerprint/
       );
       // Local advisory still succeeds, but never silently labels stale inputs OK.
       const advisory = spawnSync(process.execPath, args, { cwd: root, encoding: 'utf8' });
@@ -240,7 +235,7 @@ describe('report freshness guardrail', () => {
     writeReports(root, featureSha);
 
     expect(() => run(root, 'node', [scriptPath, '--strict'])).toThrow(
-      /reports\/quality-metrics\.json was generated for direct merge parent .* without dependency fingerprint/
+      /reports\/critical-coverage\.json was generated for direct merge parent .* without dependency fingerprint/
     );
   });
 
@@ -256,7 +251,7 @@ describe('report freshness guardrail', () => {
     writeReports(root, featureSha, {
       includeGeneratedFor: true,
       generatedForOverrides: {
-        'quality-metrics': {
+        'critical-coverage': {
           reportId: 'operational-health',
           gitSha: 'wrongsha',
         },
@@ -264,7 +259,7 @@ describe('report freshness guardrail', () => {
     });
 
     expect(() => run(root, 'node', [scriptPath, '--strict'])).toThrow(
-      /reports\/quality-metrics\.json has malformed provenance/
+      /reports\/critical-coverage\.json has malformed provenance/
     );
   });
 
@@ -282,7 +277,7 @@ describe('report freshness guardrail', () => {
     writeReports(root, staleSha);
 
     expect(() => run(root, 'node', [scriptPath, '--strict'])).toThrow(
-      /reports\/quality-metrics\.json is stale by commit ancestry/
+      /reports\/critical-coverage\.json is stale by commit ancestry/
     );
   });
 
@@ -291,7 +286,7 @@ describe('report freshness guardrail', () => {
     writeReports(root, previousSha);
 
     expect(() => run(root, 'node', [scriptPath, '--strict'])).toThrow(
-      /reports\/quality-metrics\.json is stale by commit ancestry/
+      /reports\/critical-coverage\.json is stale by commit ancestry/
     );
   });
 
@@ -307,7 +302,7 @@ describe('report freshness guardrail', () => {
     );
     write(
       root,
-      'reports/quality-metrics.json',
+      'reports/critical-coverage.json',
       `${JSON.stringify({ gitSha: currentSha, gitDirty: false }, null, 2)}\n`
     );
 

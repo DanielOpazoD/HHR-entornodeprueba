@@ -12,6 +12,11 @@ import {
 import { classifyBuildAssetBudget, classifyBudgetStatus } from './bundleBudgetSupport.mjs';
 import { buildEvidenceProvenance } from './evidenceProvenanceSupport.mjs';
 import { getGitReportState } from './gitReportState.mjs';
+import {
+  TEST_RUNS_OUTSIDE_MANIFEST,
+  formatFlakeRiskSummary,
+  readMeasuredFlakeRisk,
+} from './measuredFlakeRiskSupport.mjs';
 
 const workspaceRoot = process.cwd();
 const read = relativePath => fs.readFileSync(path.join(workspaceRoot, relativePath), 'utf8');
@@ -258,6 +263,13 @@ const frontendStartup = summarizeFrontendStartupHealth({
   bootstrapTelemetrySignals,
 });
 const gitState = getGitReportState(workspaceRoot);
+const flakeRisk = {
+  ...readMeasuredFlakeRisk(workspaceRoot, {
+    gitSha: gitState.gitSha,
+    runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+  }),
+  notMeasured: TEST_RUNS_OUTSIDE_MANIFEST,
+};
 
 const summary = {
   generatedAt: new Date().toISOString(),
@@ -323,6 +335,7 @@ const summary = {
     largestAssets: buildAssets,
   },
   frontendStartup,
+  flakeRisk,
   repositoryPerformance: {
     monitoredOperations: thresholds.length,
     maxThresholdMs: thresholds.reduce((max, item) => Math.max(max, item.thresholdMs), 0),
@@ -562,6 +575,19 @@ ${
 ${summary.repositoryPerformance.thresholds
   .map(item => `| \`${item.file}\` | ${item.thresholdMs} | ${item.context ?? '-'} |`)
   .join('\n')}
+
+## Flake Risk
+
+- Summary: ${formatFlakeRiskSummary(summary.flakeRisk)}
+${
+  summary.flakeRisk.measured
+    ? `- Test files that failed or needed a retry in this run: ${summary.flakeRisk.fileCount} (suites: ${summary.flakeRisk.suites.join(', ')})`
+    : `- Unmeasured: ${summary.flakeRisk.reason}`
+}
+${summary.flakeRisk.files
+  .map(entry => `  - ${entry.file}: failed=${entry.failed}, retried=${entry.retried}`)
+  .join('\n')}
+- Not measured by this count (outside the manifest): ${summary.flakeRisk.notMeasured.join(', ')}
 
 ## Runbooks
 

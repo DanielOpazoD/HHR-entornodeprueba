@@ -30,24 +30,9 @@
       "artifact": "reports/bundle-risk-ledger.md"
     },
     {
-      "id": "system_confidence",
-      "script": "report:system-confidence",
-      "artifact": "reports/system-confidence.md"
-    },
-    {
       "id": "legacy_retirement_debt",
       "script": "report:legacy-retirement-debt",
       "artifact": "reports/legacy-retirement-debt.md"
-    },
-    {
-      "id": "release_readiness",
-      "script": "report:release-readiness-scorecard",
-      "artifact": "reports/release-readiness-scorecard.md"
-    },
-    {
-      "id": "release_confidence_matrix",
-      "script": "report:release-confidence-matrix",
-      "artifact": "reports/release-confidence-matrix.md"
     },
     {
       "id": "runtime_contracts",
@@ -106,13 +91,6 @@
       { "id": "check:test-governance", "group": "tests" },
       { "id": "check:test-runtime-governance", "group": "tests" },
       { "id": "check:guardrail-governance", "group": "governance" },
-      { "id": "check:release-evidence-contract", "group": "governance" },
-      {
-        "id": "check:report-freshness",
-        "group": "reports",
-        "reportOnly": true,
-        "rationale": "Surfaces stale report artifacts as advisory locally; CI already regenerates and enforces them blocking. Avoids forcing a 30s+ regeneration on every check:quality run."
-      },
       { "id": "check:repo-hygiene", "group": "hygiene" },
       { "id": "check:clinical-mutation-audit-policy", "group": "security" },
       { "id": "check:security", "group": "security" },

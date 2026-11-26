@@ -9,31 +9,20 @@ import {
   POST_MERGE_EVIDENCE_COMMANDS,
   REQUIRED_POST_MERGE_EVIDENCE_RESULTS,
 } from '../../../scripts/postMergeEvidenceSupport.mjs';
-import { getReleaseEvidenceRefreshSteps } from '../../../scripts/releaseEvidenceContract.mjs';
 
 describe('postMergeEvidenceSupport', () => {
-  it('defines the release evidence commands that must be refreshed after merge', () => {
-    const expectedReportCommands = getReleaseEvidenceRefreshSteps({
-      skipReportIds: ['critical-coverage'],
-    }).map(step => step.id);
-
+  it('defines the primary evidence commands that must be verified after merge', () => {
     expect(POST_MERGE_EVIDENCE_COMMANDS.map(command => command.name)).toEqual([
       'preview-bootstrap-evidence',
       'critical-coverage-freshness',
-      ...expectedReportCommands,
+      'sync-convergence',
+      'operational-health',
       'report-freshness-strict',
-      'release-evidence-contract',
-      'release-evidence-contract-strict',
     ]);
   });
 
   it('requires post-merge evidence to regenerate every strictly fresh report', () => {
     expect(collectPostMergeEvidenceContractIssues()).toEqual([]);
-
-    expect(
-      POST_MERGE_EVIDENCE_COMMANDS.find(command => command.name === 'release-readiness-scorecard')
-        ?.command
-    ).toBe('npm run report:release-readiness-scorecard:from-current-inputs');
 
     expect(
       collectPostMergeEvidenceContractIssues(

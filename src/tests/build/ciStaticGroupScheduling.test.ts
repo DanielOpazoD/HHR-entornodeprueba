@@ -9,37 +9,29 @@ import { jobNeeds, parseWorkflow } from './workflowYamlTestSupport';
 const source = fs.readFileSync(path.join(process.cwd(), '.github/workflows/ci-cd.yml'), 'utf8');
 const assertScheduling = (workflow: string) => {
   const { jobs } = parseWorkflow(workflow);
-  const independent = jobs['quality-static-groups'];
-  const dependent = jobs['quality-static-dependent-groups'];
-  expect(jobNeeds(independent)).toEqual(['ci-scope']);
-  expect(independent.if).toBe("needs.ci-scope.outputs.scope == 'full'");
-  expect(independent.strategy?.matrix.group).toEqual(['boundaries', 'security', 'size', 'tests']);
-  expect(jobNeeds(dependent)).toEqual(['quality-static-governance-snapshots']);
-  expect(dependent.strategy?.matrix.group).toEqual(['governance', 'reports']);
+  const groups = jobs['quality-static-groups'];
+  expect(jobs['quality-static-governance-snapshots']).toBeUndefined();
+  expect(jobs['quality-static-dependent-groups']).toBeUndefined();
+  expect(jobNeeds(groups)).toEqual(['ci-scope']);
+  expect(groups.if).toBe("needs.ci-scope.outputs.scope == 'full'");
+  expect(groups.strategy?.matrix.group).toEqual([
+    'boundaries',
+    'governance',
+    'security',
+    'size',
+    'tests',
+  ]);
   expect(jobNeeds(jobs['quality-static']).sort()).toEqual(
-    [
-      'quality-static-governance-snapshots',
-      'quality-static-groups',
-      'quality-static-dependent-groups',
-    ].sort()
+    ['critical-coverage-report', 'quality-static-base', 'quality-static-groups'].sort()
   );
-  for (const job of [independent, dependent]) {
-    expect(job.name).toBe('quality-static-${{ matrix.group }}');
-    expect(
-      job.steps.some(step => step.run === 'npm run check:quality:group -- ${{ matrix.group }}')
-    ).toBe(true);
-  }
-  const download = dependent.steps.findIndex(step => step.name === 'Download governance snapshots');
-  const check = dependent.steps.findIndex(
-    step => step.run === 'npm run check:quality:group -- ${{ matrix.group }}'
-  );
-  expect(download).toBeGreaterThanOrEqual(0);
-  expect(download).toBeLessThan(check);
-  expect(dependent.steps[download].if).toBeUndefined();
+  expect(groups.name).toBe('quality-static-${{ matrix.group }}');
+  expect(
+    groups.steps.some(step => step.run === 'npm run check:quality:group -- ${{ matrix.group }}')
+  ).toBe(true);
 };
 
 describe('CI static group scheduling', () => {
-  it('runs lint and typecheck independently and waits for both before producing evidence', () => {
+  it('runs lint, typecheck and build independently while keeping lint/typecheck blocking quality-static', () => {
     const { jobs } = parseWorkflow(source);
     const base = jobs['quality-static-base'];
     expect(base.strategy?.matrix.check).toEqual(['lint', 'typecheck']);
@@ -51,7 +43,8 @@ describe('CI static group scheduling', () => {
           "npm run ${{ matrix.check }} ${{ matrix.check == 'lint' && '-- --max-warnings 0 --concurrency 2' || '' }}"
       )
     ).toBe(true);
-    expect(jobNeeds(jobs['quality-static-governance-snapshots'])).toContain('quality-static-base');
+    expect(jobNeeds(jobs['quality-static'])).toContain('quality-static-base');
+    expect(jobNeeds(jobs['quality-static'])).toContain('critical-coverage-report');
     expect(jobNeeds(jobs.build)).toEqual(['ci-scope']);
   });
   it('enforces noUncheckedIndexedAccess natively on production src, Netlify functions, and Cloud Functions in typecheck', () => {

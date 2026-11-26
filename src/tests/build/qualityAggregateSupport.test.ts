@@ -20,8 +20,7 @@ const checks = [
   { id: 'check:repo-hygiene', group: 'hygiene' },
   { id: 'check:security', group: 'security' },
   { id: 'check:module-size', group: 'size' },
-  { id: 'check:test-governance', group: 'tests' },
-  { id: 'check:report-freshness', group: 'reports', reportOnly: true },
+  { id: 'check:test-governance', group: 'tests', reportOnly: true },
 ];
 
 describe('quality aggregate support', () => {
@@ -43,7 +42,6 @@ describe('quality aggregate support', () => {
       security: ['security', 'type-safety', 'hygiene'],
       size: ['size'],
       tests: ['tests'],
-      reports: ['reports'],
     });
   });
 
@@ -54,8 +52,8 @@ describe('quality aggregate support', () => {
       { id: 'check:security', group: 'security' },
     ]);
 
-    expect(selectQualitySteps(checks, { group: 'reports' })).toEqual([
-      { id: 'check:report-freshness', group: 'reports', reportOnly: true },
+    expect(selectQualitySteps(checks, { group: 'tests' })).toEqual([
+      { id: 'check:test-governance', group: 'tests', reportOnly: true },
     ]);
   });
 

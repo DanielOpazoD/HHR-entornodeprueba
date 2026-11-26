@@ -4,12 +4,12 @@ Runbook corto para validar ramas que buscan subir estabilidad percibida, calidad
 
 ## Gates obligatorios
 
-1. `npm run ci:pre-merge`
+1. `npm run check:quality` y `npm run test:release-confidence`
 2. `npm run build`
 3. `npm run check:bundle-budget`
 4. `npm run check:dependency-vulnerabilities`
 5. `npm run test:e2e:clinical-visual-release`
-6. `npm run check:release-evidence` si se usaran reportes como evidencia de release
+6. `npm run check:report-freshness:strict` si se usaran reportes primarios como evidencia de release
 
 ## Auditoria de dependencias
 
@@ -33,7 +33,7 @@ Runbook corto para validar ramas que buscan subir estabilidad percibida, calidad
 - Entrega medica renderizada y editable.
 - Descargas Excel capturadas para Censo Diario y CUDYR.
 
-Los attachments esperados quedan validados por `npm run check:release-evidence`.
+Los attachments capturados quedan en `reports/e2e/clinical-visual-release-report.json`.
 
 ## Excel clinico-operativo
 

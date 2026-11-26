@@ -249,26 +249,6 @@ Regla de diseño:
 
 Objetivo: dejar una ruta blocking más compacta para release, sin perder una variante extendida cuando se necesite profundidad adicional.
 
-## 5.4 Release Confidence Matrix
-
-La matriz versionada vive en `scripts/config/release-confidence-matrix.json`.
-
-Gobierna la trazabilidad entre:
-
-- zonas de `critical coverage`
-- escenarios del `critical smoke pack`
-- `flow budgets`
-- pasos blocking de `test:release-confidence`
-- `ownerAreaId` hacia `technical-ownership-map`
-- `validationSuites` que sirven de entrada rápida o regresión focalizada por subsistema
-
-Artefactos:
-
-- `reports/release-confidence-matrix.md`
-- `reports/release-confidence-matrix.json`
-
-Objetivo: que el pack blocking siga siendo chico, pero con cobertura explícita por área crítica y sin huecos no intencionales entre runtime, coverage y release gates.
-
 ## 6. Buenas prácticas
 
 1. Usar mocks compartidos de `src/tests/setup.ts` cuando exista una variante oficial.

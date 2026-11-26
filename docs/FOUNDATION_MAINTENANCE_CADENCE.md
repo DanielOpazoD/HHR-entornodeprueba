@@ -19,17 +19,16 @@ no impone una cuota de shims retirados, tests divididos ni PR creados.
 
 ## Evidencia vigente
 
-Preferir los artefactos de CI del commit evaluado. Para regenerar localmente el
-paquete canónico de gobernanza, primero producir la cobertura que ese paquete consume:
+Preferir los artefactos de CI del commit evaluado (`critical-coverage`, `sync-convergence` y `confidence-and-readiness`). Para regenerar localmente la evidencia primaria:
 
 ```sh
 npm run check:critical-coverage
-npm run report:governance-snapshots
+npm run report:sync-convergence
+npm run report:operational-health
 npm run check:report-freshness:strict
 ```
 
-`report:governance-snapshots` usa el grafo de dependencias existente; no mantener
-otra lista manual de generadores. Los controles pueden señalar evidencia runtime
+Los controles pueden señalar evidencia runtime
 o de preview ausente: ejecutar el gate pertinente de la
 [guía de gates y cierre](CI_GATES_AND_FAILURE_RUNBOOKS.md#cobertura-requerida-y-comandos-disponibles), no inventar métricas ni rebajar el control.
 Una ejecución local parcial no sustituye al CI completo del PR.
