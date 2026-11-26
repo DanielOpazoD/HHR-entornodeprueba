@@ -210,6 +210,7 @@ describe('useBedManagement patient updates', () => {
       expect(mockPatchRecord).toHaveBeenNthCalledWith(2, {
         'beds.R1.pathology': 'New Diagnosis',
         'beds.R1.diagnosisManualOverride': true,
+        'beds.R1.diagnosisManualOverrideBase': { pathology: patient.pathology },
       });
     });
 

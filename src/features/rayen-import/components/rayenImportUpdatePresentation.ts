@@ -11,6 +11,8 @@ const INTERNAL_SYNC_FIELDS = new Set<FieldChange['field']>([
   'treatingPhysicianName',
   'namePartsSource',
   'documentManualOverride',
+  'diagnosisManualOverride',
+  'diagnosisManualOverrideBase',
 ]);
 
 const FIELD_LABELS: Partial<Record<FieldChange['field'], string>> = {
