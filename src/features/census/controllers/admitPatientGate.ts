@@ -21,8 +21,7 @@ import type { PatientData } from '@/types/domain/patient';
  * This gate keeps the canonical command path narrow and predictable: the
  * command runs only when the save is exactly an admission, with no
  * additional fields. Mixed edits fall back to the legacy dispatch
- * untouched. The rollout is gated by the USE_ADMIT_PATIENT_COMMAND
- * feature flag (off by default).
+ * untouched.
  */
 
 import { hasMeaningfulPatientIdentity } from '@/features/census/controllers/patientIdentityController';
@@ -91,33 +90,27 @@ export const resolvePureAdmissionInput = (
  *
  *  - `noop`           → the modal collected nothing meaningful; just close
  *                       it without writing.
- *  - `admit-command`  → flag enabled AND the input is exactly an admission;
- *                       caller awaits `useAdmitPatient` and surfaces the
- *                       typed outcome.
- *  - `legacy-dispatch` → flag disabled OR the input mixes non-admission
- *                       fields; caller delegates to `updatePatientMultiple`.
+ *  - `admit-command`  → the input is exactly an admission; caller awaits
+ *                       `useAdmitPatient` and surfaces the typed outcome.
+ *  - `legacy-dispatch` → the input mixes non-admission fields or omits a
+ *                       required admission field; caller delegates to
+ *                       `updatePatientMultiple`.
  */
 export type EmptyBedSaveAction =
   | { kind: 'noop' }
   | { kind: 'admit-command'; input: PureAdmissionInput }
   | { kind: 'legacy-dispatch'; input: Partial<PatientData> };
 
-export const resolveEmptyBedSaveAction = ({
-  updatedFields,
-  isAdmitCommandEnabled,
-}: {
-  updatedFields: Partial<PatientData>;
-  isAdmitCommandEnabled: boolean;
-}): EmptyBedSaveAction => {
+export const resolveEmptyBedSaveAction = (
+  updatedFields: Partial<PatientData>
+): EmptyBedSaveAction => {
   if (!hasMeaningfulPatientIdentity(updatedFields)) {
     return { kind: 'noop' };
   }
 
-  if (isAdmitCommandEnabled) {
-    const pureAdmission = resolvePureAdmissionInput(updatedFields);
-    if (pureAdmission) {
-      return { kind: 'admit-command', input: pureAdmission };
-    }
+  const pureAdmission = resolvePureAdmissionInput(updatedFields);
+  if (pureAdmission) {
+    return { kind: 'admit-command', input: pureAdmission };
   }
 
   return { kind: 'legacy-dispatch', input: updatedFields };

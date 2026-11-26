@@ -23,16 +23,6 @@ export const FEATURE_FLAGS = {
   SPECIALTY_EPISODE_ASSIGNMENT: false,
   SPECIALTY_RULES_MEMORY: false,
   SPECIALTY_JEV_CONSULTATION: false,
-  // Routes empty-bed admission saves through the canonical
-  // useAdmitPatient command (validated → audited → typed outcome) when
-  // the input qualifies as a "pure admission" (only patientName + rut +
-  // admissionDate, optional pathology). Mixed edits stay on the legacy
-  // updatePatientMultiple dispatch via `resolveEmptyBedSaveAction`.
-  // ON by default since the routing controller is exhaustively unit
-  // tested and the integration test exercises the full hook → port →
-  // repository chain. The flag remains user-toggleable for emergency
-  // rollback. See TECHNICAL_DEBT_REGISTER `command-layer-adoption`.
-  USE_ADMIT_PATIENT_COMMAND: true,
 } as const;
 
 export type FeatureFlag = keyof typeof FEATURE_FLAGS;

@@ -20,8 +20,8 @@ describe('FeatureFlags', () => {
     const { featureFlags, isFeatureEnabled } = await import('@/services/utils/featureFlags');
 
     // Check that defaults are respected
-    expect(featureFlags.isEnabled('USE_ADMIT_PATIENT_COMMAND')).toBe(
-      isFeatureEnabled('USE_ADMIT_PATIENT_COMMAND')
+    expect(featureFlags.isEnabled('SPECIALTY_JEV_CONSULTATION')).toBe(
+      isFeatureEnabled('SPECIALTY_JEV_CONSULTATION')
     );
     expect(featureFlags.isEnabled('SPECIALTY_RULES_MEMORY')).toBe(
       isFeatureEnabled('SPECIALTY_RULES_MEMORY')
@@ -53,8 +53,8 @@ describe('FeatureFlags', () => {
 
     const allFlags = featureFlags.getAll();
     expect(allFlags.SPECIALTY_RULES_MEMORY).toBe(featureFlags.isEnabled('SPECIALTY_RULES_MEMORY'));
-    expect(allFlags.USE_ADMIT_PATIENT_COMMAND).toBe(
-      featureFlags.isEnabled('USE_ADMIT_PATIENT_COMMAND')
+    expect(allFlags.SPECIALTY_JEV_CONSULTATION).toBe(
+      featureFlags.isEnabled('SPECIALTY_JEV_CONSULTATION')
     );
   });
 
@@ -89,7 +89,7 @@ describe('FeatureFlags', () => {
     const { featureFlags, FEATURE_FLAGS } = await import('@/services/utils/featureFlags');
 
     featureFlags.enable('SPECIALTY_RULES_MEMORY');
-    featureFlags.disable('USE_ADMIT_PATIENT_COMMAND');
+    featureFlags.enable('SPECIALTY_JEV_CONSULTATION');
     featureFlags.resetAll();
 
     expect(featureFlags.getAll()).toEqual(FEATURE_FLAGS);
@@ -99,14 +99,14 @@ describe('FeatureFlags', () => {
     localStorage.setItem(
       'hhr_feature_flags',
       JSON.stringify({
-        USE_ADMIT_PATIENT_COMMAND: false,
+        SPECIALTY_JEV_CONSULTATION: false,
         SPECIALTY_RULES_MEMORY: true,
       })
     );
 
     const { featureFlags } = await import('@/services/utils/featureFlags');
 
-    expect(featureFlags.isEnabled('USE_ADMIT_PATIENT_COMMAND')).toBe(false);
+    expect(featureFlags.isEnabled('SPECIALTY_JEV_CONSULTATION')).toBe(false);
     expect(featureFlags.isEnabled('SPECIALTY_RULES_MEMORY')).toBe(true);
   });
 

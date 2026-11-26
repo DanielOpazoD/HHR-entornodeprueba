@@ -98,25 +98,14 @@ describe('resolveEmptyBedSaveAction', () => {
 
   it('returns noop when no patientName / rut were entered', () => {
     expect(
-      resolveEmptyBedSaveAction({
-        updatedFields: { admissionDate: '2026-05-03' } as Partial<PatientData>,
-        isAdmitCommandEnabled: true,
-      })
+      resolveEmptyBedSaveAction({ admissionDate: '2026-05-03' } as Partial<PatientData>)
     ).toEqual({ kind: 'noop' });
 
-    expect(
-      resolveEmptyBedSaveAction({
-        updatedFields: {} as Partial<PatientData>,
-        isAdmitCommandEnabled: false,
-      })
-    ).toEqual({ kind: 'noop' });
+    expect(resolveEmptyBedSaveAction({} as Partial<PatientData>)).toEqual({ kind: 'noop' });
   });
 
-  it('routes to admit-command when flag is ON and input is a pure admission', () => {
-    const result = resolveEmptyBedSaveAction({
-      updatedFields: pureAdmissionFields,
-      isAdmitCommandEnabled: true,
-    });
+  it('routes to admit-command when input is a pure admission', () => {
+    const result = resolveEmptyBedSaveAction(pureAdmissionFields);
 
     expect(result).toEqual({
       kind: 'admit-command',
@@ -129,39 +118,24 @@ describe('resolveEmptyBedSaveAction', () => {
     });
   });
 
-  it('routes to legacy-dispatch when flag is OFF even on pure admission', () => {
-    const result = resolveEmptyBedSaveAction({
-      updatedFields: pureAdmissionFields,
-      isAdmitCommandEnabled: false,
-    });
-
-    expect(result).toEqual({ kind: 'legacy-dispatch', input: pureAdmissionFields });
-  });
-
-  it('routes to legacy-dispatch when flag is ON but input mixes non-admission fields', () => {
+  it('routes to legacy-dispatch when input mixes non-admission fields', () => {
     const mixedFields = {
       ...pureAdmissionFields,
       bedMode: 'Cama',
     } as unknown as Partial<PatientData>;
 
-    const result = resolveEmptyBedSaveAction({
-      updatedFields: mixedFields,
-      isAdmitCommandEnabled: true,
-    });
+    const result = resolveEmptyBedSaveAction(mixedFields);
 
     expect(result).toEqual({ kind: 'legacy-dispatch', input: mixedFields });
   });
 
-  it('routes to legacy-dispatch when flag is ON but admission is incomplete (missing rut)', () => {
+  it('routes to legacy-dispatch when admission is incomplete (missing rut)', () => {
     const incompleteAdmission = {
       patientName: 'Paciente Demo',
       admissionDate: '2026-05-03',
     } as Partial<PatientData>;
 
-    const result = resolveEmptyBedSaveAction({
-      updatedFields: incompleteAdmission,
-      isAdmitCommandEnabled: true,
-    });
+    const result = resolveEmptyBedSaveAction(incompleteAdmission);
 
     expect(result).toEqual({ kind: 'legacy-dispatch', input: incompleteAdmission });
   });

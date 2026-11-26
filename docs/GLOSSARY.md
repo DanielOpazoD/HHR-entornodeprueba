@@ -156,7 +156,7 @@ Las tablas siguientes conservan las convenciones de nombres de código y UI.
   `WOUND_CARE_PHOTO_UPLOADED`).
 - **Eventos de telemetría**: snake_case (`census_discharge_created`).
 - **Ids de paths Firestore**: kebab-case (`wound-care-mobile-upload-sessions`).
-- **Branches de feature flag**: SCREAMING_SNAKE (`USE_ADMIT_PATIENT_COMMAND`).
+- **Branches de feature flag**: SCREAMING_SNAKE (`SPECIALTY_JEV_CONSULTATION`).
 
 ## Reglas de mantenimiento
 
