@@ -590,4 +590,123 @@ describe('WoundCareModal write confirmations & concurrency resilience', () => {
     expect(screen.queryByAltText('Texto confirmado')).not.toBeInTheDocument();
     expect(screen.getAllByTitle('Eliminar foto')).toHaveLength(1);
   });
+
+  it('discards an older reload settling right after a second accredited write and reconciles remounted delete joins', async () => {
+    const staleReload1Photos = createDeferred<WoundCarePhoto[]>();
+    const staleReload1Consents = createDeferred<WoundCareConsent[]>();
+    const freshReload2Photos = createDeferred<WoundCarePhoto[]>();
+    const freshReload2Consents = createDeferred<WoundCareConsent[]>();
+
+    executeUpdatePhotoDescriptionMock.mockResolvedValue({
+      status: 'success',
+      data: null,
+      issues: [],
+    });
+
+    const { unmount } = render(
+      <WoundCareModal
+        isOpen
+        onClose={vi.fn()}
+        patientName={episodeAt10.patientName}
+        patientRut={episodeAt10.patientRut}
+        episodeContext={episodeAt10}
+      />
+    );
+
+    await screen.findByAltText('Curación A');
+
+    // Reload #1 stays pending while we confirm a second write on photo B.
+    listPhotosByPatientRutMock
+      .mockReturnValueOnce(staleReload1Photos.promise)
+      .mockReturnValueOnce(freshReload2Photos.promise);
+    listConsentsByPatientRutMock
+      .mockReturnValueOnce(staleReload1Consents.promise)
+      .mockReturnValueOnce(freshReload2Consents.promise);
+
+    fireEvent.click(screen.getByAltText('Curación A').closest('button')!);
+    fireEvent.click(screen.getByRole('button', { name: 'Editar descripción' }));
+    fireEvent.change(screen.getByPlaceholderText('Agregar descripción...'), {
+      target: { value: 'Descripción A confirmada' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar descripción' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Descripción actualizada')).toBeInTheDocument();
+    });
+
+    // Navigate to B and confirm B while reload #1 (still holding old B) settles in the same turn.
+    fireEvent.click(screen.getByRole('button', { name: 'Foto siguiente' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Editar descripción' }));
+    fireEvent.change(screen.getByPlaceholderText('Agregar descripción...'), {
+      target: { value: 'Descripción B confirmada' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar descripción' }));
+
+    await act(async () => {
+      staleReload1Photos.resolve([
+        makePhoto('photo-a', episodeAt10.episodeKey, 'Descripción A confirmada'),
+        makePhoto('photo-b', episodeAt10.episodeKey, 'Curación B'),
+      ]);
+      staleReload1Consents.resolve([]);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Descripción B confirmada')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Editar descripción' }));
+    expect(screen.getByPlaceholderText('Agregar descripción...')).toHaveValue(
+      'Descripción B confirmada'
+    );
+
+    unmount();
+
+    // Remount on another bed while a delete for photo-a is still in flight: joining instance must reconcile.
+    const sharedDelete = createDeferred<{ status: 'success'; data: null; issues: [] }>();
+    deletePhotoUseCaseMock.mockReturnValueOnce(sharedDelete.promise);
+    listPhotosByPatientRutMock.mockResolvedValue([
+      makePhoto('photo-a', episodeAt10.episodeKey, 'Curación A'),
+      makePhoto('photo-b', episodeAt10.episodeKey, 'Curación B'),
+    ]);
+    listConsentsByPatientRutMock.mockResolvedValue([]);
+
+    const firstBed = render(
+      <WoundCareModal
+        isOpen
+        onClose={vi.fn()}
+        patientName={episodeAt10.patientName}
+        patientRut={episodeAt10.patientRut}
+        episodeContext={episodeAt10}
+      />
+    );
+    await screen.findByAltText('Curación A');
+    fireEvent.click(screen.getAllByTitle('Eliminar foto')[0]);
+    fireEvent.click(screen.getByRole('button', { name: /^eliminar$/i }));
+    firstBed.unmount();
+
+    render(
+      <WoundCareModal
+        isOpen
+        onClose={vi.fn()}
+        patientName={episodeAt10.patientName}
+        patientRut={episodeAt10.patientRut}
+        episodeContext={episodeAt10}
+      />
+    );
+    await screen.findByAltText('Curación A');
+    fireEvent.click(screen.getAllByTitle('Eliminar foto')[0]);
+    fireEvent.click(screen.getByRole('button', { name: /^eliminar$/i }));
+
+    await act(async () => {
+      listPhotosByPatientRutMock.mockResolvedValueOnce([
+        makePhoto('photo-b', episodeAt10.episodeKey, 'Curación B'),
+      ]);
+      sharedDelete.resolve({ status: 'success', data: null, issues: [] });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Foto eliminada')).toBeInTheDocument();
+    });
+    expect(deletePhotoUseCaseMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByAltText('Curación A')).not.toBeInTheDocument();
+  });
 });

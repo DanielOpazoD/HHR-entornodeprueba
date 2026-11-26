@@ -233,36 +233,34 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
     storagePath: string;
     thumbnailStoragePath: string;
   }): Promise<{ success: boolean; error?: string }> => {
-    const existingRequest = inFlightPhotoDeletes.get(photo.id);
-    if (existingRequest) {
-      return existingRequest;
+    const requestPatientRut = patientRut;
+    let requestPromise = inFlightPhotoDeletes.get(photo.id);
+    if (!requestPromise) {
+      requestPromise = (async () => {
+        try {
+          return await deletePhoto(photo.id, photo.storagePath, photo.thumbnailStoragePath);
+        } catch (unknownError) {
+          return {
+            success: false,
+            error:
+              unknownError instanceof Error
+                ? unknownError.message
+                : 'No se pudo eliminar la fotografía.',
+          };
+        } finally {
+          inFlightPhotoDeletes.delete(photo.id);
+        }
+      })();
+      inFlightPhotoDeletes.set(photo.id, requestPromise);
     }
 
-    const requestPatientRut = patientRut;
-    const requestPromise = (async () => {
-      try {
-        const result = await deletePhoto(photo.id, photo.storagePath, photo.thumbnailStoragePath);
-        if (result.success && isSameActivePatient(requestPatientRut)) {
-          applyDeletedPhoto(photo.id);
-          reload();
-          showToast('Foto eliminada');
-        }
-        return result;
-      } catch (unknownError) {
-        return {
-          success: false,
-          error:
-            unknownError instanceof Error
-              ? unknownError.message
-              : 'No se pudo eliminar la fotografía.',
-        };
-      } finally {
-        inFlightPhotoDeletes.delete(photo.id);
-      }
-    })();
-
-    inFlightPhotoDeletes.set(photo.id, requestPromise);
-    return requestPromise;
+    const result = await requestPromise;
+    if (result.success && isSameActivePatient(requestPatientRut)) {
+      applyDeletedPhoto(photo.id);
+      reload();
+      showToast('Foto eliminada');
+    }
+    return result;
   };
 
   const handleEditDescription = async (
