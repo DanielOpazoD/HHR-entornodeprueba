@@ -1919,6 +1919,237 @@ describe('UpcClassificationWindowProvider', () => {
     view.unmount();
   });
 
+  it('cancels when two unnamed legacy twins in R1:crib and Neo1 swap and get named simultaneously, keeps an accredited crib open on unrelated Neo1 admission despite a legacy mother, and opens a no-ID/no-RUT crib when consistent firstName completes', async () => {
+    const runCase = async (
+      mode:
+        | 'dual-unnamed-swap-initial'
+        | 'dual-unnamed-swap-retry'
+        | 'accredited-crib-legacy-mother-neo1-admission'
+        | 'no-id-no-rut-consistent-firstname'
+    ) => {
+      vi.resetModules();
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const isRetry = mode === 'dual-unnamed-swap-retry';
+      let attempts = 0;
+      let resolveChunk:
+        | ((value: { UpcClassificationWindow: React.FC<MockUpcWindowProps> }) => void)
+        | null = null;
+      const chunkPromise = new Promise<{
+        UpcClassificationWindow: React.FC<MockUpcWindowProps>;
+      }>(resolve => {
+        resolveChunk = resolve;
+      });
+      vi.doMock(UPC_WINDOW_MODULE_PATH, () => {
+        attempts += 1;
+        if (isRetry && attempts === 1) {
+          throw new Error('503 Service Unavailable');
+        }
+        return chunkPromise;
+      });
+
+      const {
+        DailyRecordBedsContext,
+        resolveUpcCellSubjectIdentity,
+        UpcClassificationWindowProvider,
+        useUpcClassificationWindowOpener,
+      } = await loadFreshContext();
+
+      const Trigger = ({ crib }: { crib: PatientData }) => {
+        const { openUpcWindow } = useUpcClassificationWindowOpener();
+        return (
+          <button
+            type="button"
+            onClick={event =>
+              openUpcWindow('R1', {
+                crib: true,
+                episodeIdentity: resolveUpcCellSubjectIdentity(crib),
+                triggerElement: event.currentTarget,
+              })
+            }
+          >
+            Abrir cuna caso
+          </button>
+        );
+      };
+
+      if (mode.startsWith('dual-unnamed-swap')) {
+        const twinAlfa = DataFactory.createMockPatient('R1', {
+          patientName: '',
+          rut: '11.111.111-1',
+          clinicalEpisodeId: 'legacy_ep_dual_unnamed',
+          admissionDate: '2026-11-24',
+          admissionTime: '08:00',
+        });
+        const twinBeta = DataFactory.createMockPatient('Neo1', {
+          patientName: '',
+          rut: '11.111.111-1',
+          clinicalEpisodeId: 'legacy_ep_dual_unnamed',
+          admissionDate: '2026-11-24',
+          admissionTime: '08:00',
+        });
+        const motherWith = (crib: PatientData) =>
+          DataFactory.createMockPatient('R1', {
+            patientName: 'Madre Gemelos',
+            clinicalEpisodeId: 'ep-mother-dual',
+            clinicalCrib: crib,
+          });
+
+        const view = render(
+          <DailyRecordBedsContext.Provider value={{ R1: motherWith(twinAlfa), Neo1: twinBeta }}>
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger crib={twinAlfa} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Abrir cuna caso' }));
+        if (isRetry) {
+          expect(await screen.findByRole('alert')).toHaveTextContent(/No se pudo abrir este panel/);
+          fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+        }
+        expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+        // Single update swaps both unnamed twins and assigns their names simultaneously.
+        const betaNamedInCrib = { ...twinBeta, bedId: 'R1', patientName: 'RN Beta' };
+        const alfaNamedInNeo1 = { ...twinAlfa, bedId: 'Neo1', patientName: 'RN Alfa' };
+        view.rerender(
+          <DailyRecordBedsContext.Provider
+            value={{ R1: motherWith(betaNamedInCrib), Neo1: alfaNamedInNeo1 }}
+          >
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger crib={betaNamedInCrib} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+        expect(screen.queryByTestId('upc-window-module-loading')).toBeNull();
+
+        await act(async () => {
+          resolveChunk?.({
+            UpcClassificationWindow: ({ initialBedId }: MockUpcWindowProps) => (
+              <div role="dialog" aria-label="Clasificación UPC">
+                {initialBedId}
+              </div>
+            ),
+          });
+          await chunkPromise;
+        });
+        expect(screen.queryByRole('dialog')).toBeNull();
+        view.unmount();
+      } else if (mode === 'accredited-crib-legacy-mother-neo1-admission') {
+        const accreditedCrib = DataFactory.createMockPatient('R1', {
+          patientName: 'RN Acreditado',
+          rut: '28.000.001-1',
+          clinicalEpisodeId: 'ep-rn-accredited-1',
+        });
+        const legacyMother = DataFactory.createMockPatient('R1', {
+          patientName: 'Madre Legada',
+          rut: '11.111.111-1',
+          clinicalEpisodeId: 'legacy_ep_mother_only',
+          clinicalCrib: accreditedCrib,
+        });
+        const unrelatedNeo1 = DataFactory.createMockPatient('Neo1', {
+          patientName: 'RN Ajeno',
+          rut: '28.000.009-7',
+          clinicalEpisodeId: 'ep-rn-unrelated-9',
+        });
+
+        const view = render(
+          <DailyRecordBedsContext.Provider value={{ R1: legacyMother }}>
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger crib={accreditedCrib} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Abrir cuna caso' }));
+        expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+        // Unrelated admission to Neo1 must not cancel an accredited newborn open.
+        view.rerender(
+          <DailyRecordBedsContext.Provider value={{ R1: legacyMother, Neo1: unrelatedNeo1 }}>
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger crib={accreditedCrib} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+        expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+        await act(async () => {
+          resolveChunk?.({
+            UpcClassificationWindow: ({ initialBedId }: MockUpcWindowProps) => (
+              <div role="dialog" aria-label="Clasificación UPC">
+                {initialBedId}
+              </div>
+            ),
+          });
+          await chunkPromise;
+        });
+        expect(screen.getByRole('dialog', { name: 'Clasificación UPC' })).toHaveTextContent(
+          'R1:crib'
+        );
+        view.unmount();
+      } else {
+        const cribNoIdNoRut = DataFactory.createMockPatient('R1', {
+          patientName: '',
+          firstName: 'Alfa',
+          rut: '',
+          clinicalEpisodeId: '',
+          admissionDate: '2026-11-24',
+          admissionTime: '08:00',
+        });
+        const cribNamedAlfa = { ...cribNoIdNoRut, patientName: 'Alfa Soto', firstName: 'Alfa' };
+        const motherWith = (crib: PatientData) =>
+          DataFactory.createMockPatient('R1', {
+            patientName: 'Madre Sin Doc',
+            clinicalEpisodeId: 'ep-mother-nodoc',
+            clinicalCrib: crib,
+          });
+
+        const view = render(
+          <DailyRecordBedsContext.Provider value={{ R1: motherWith(cribNoIdNoRut) }}>
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger crib={cribNoIdNoRut} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Abrir cuna caso' }));
+        expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+        view.rerender(
+          <DailyRecordBedsContext.Provider value={{ R1: motherWith(cribNamedAlfa) }}>
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger crib={cribNamedAlfa} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+        expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+        await act(async () => {
+          resolveChunk?.({
+            UpcClassificationWindow: ({ initialBedId }: MockUpcWindowProps) => (
+              <div role="dialog" aria-label="Clasificación UPC">
+                {initialBedId}
+              </div>
+            ),
+          });
+          await chunkPromise;
+        });
+        expect(screen.getByRole('dialog', { name: 'Clasificación UPC' })).toHaveTextContent(
+          'R1:crib'
+        );
+        view.unmount();
+      }
+
+      consoleErrorSpy.mockRestore();
+    };
+
+    await runCase('dual-unnamed-swap-initial');
+    await runCase('dual-unnamed-swap-retry');
+    await runCase('accredited-crib-legacy-mother-neo1-admission');
+    await runCase('no-id-no-rut-consistent-firstname');
+  });
+
   it('restores focus to the clicked trigger button on Escape even when activeElement stayed on an ancestor wrapper', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     let attempts = 0;

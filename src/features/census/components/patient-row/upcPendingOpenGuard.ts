@@ -162,6 +162,28 @@ const parseLegacyUpcSubjectTuple = (identity: string | null): LegacyUpcSubjectTu
   }
 };
 
+export const isLegacyUpcSubjectIdentity = (identity: string | null): boolean =>
+  parseLegacyUpcSubjectTuple(identity) !== null;
+
+const hasAnyNamedPart = (namePartsJson: string): boolean => {
+  try {
+    const [first, last, secondLast] = JSON.parse(namePartsJson) as [
+      string,
+      string,
+      string,
+      string,
+      string,
+    ];
+    return Boolean(
+      normalizePatientNameKey(first) ||
+      normalizePatientNameKey(last) ||
+      normalizePatientNameKey(secondLast)
+    );
+  } catch {
+    return false;
+  }
+};
+
 const areNamedPartsConsistentWithNaming = (
   expectedNamePartsJson: string,
   currentNamePartsJson: string,
@@ -229,7 +251,7 @@ export const isSameUpcCellSubjectIdentity = (
   return (
     expectedName === '' &&
     currentName !== '' &&
-    (expectedEpisode !== '' || expectedRut !== '') &&
+    (expectedEpisode !== '' || expectedRut !== '' || hasAnyNamedPart(expectedNameParts)) &&
     expectedEpisode === currentEpisode &&
     expectedDocType === currentDocType &&
     expectedRut === currentRut &&
@@ -249,7 +271,7 @@ const getBedSlotSubject = (
   return beds[slotKey];
 };
 
-export const createEmptyLegacyCensusObservation = (): LegacyCensusObservation => ({
+const createEmptyLegacyCensusObservation = (): LegacyCensusObservation => ({
   otherActiveNames: new Set(),
   otherSlotIdentities: new Map(),
 });
@@ -289,13 +311,11 @@ export const recordLegacyCensusObservation = (
         observation.otherActiveNames.add(normalizedName);
       }
       if (!expectedTuple || slotKey === pairedSlotKey) continue;
-      const slotIdentity = resolveUpcCellSubjectIdentity(subject);
       if (isInitialCapture) {
+        const slotIdentity = resolveUpcCellSubjectIdentity(subject);
         if (slotIdentity !== null) {
           observation.otherSlotIdentities.set(slotKey, slotIdentity);
         }
-      } else if (slotIdentity !== null && observation.otherSlotIdentities.has(slotKey)) {
-        observation.otherSlotIdentities.set(slotKey, slotIdentity);
       }
     }
   }
@@ -323,9 +343,11 @@ export const captureLegacyCensusObservation = (
 
 /**
  * Accredited episodes never trigger census-wide ambiguity checks. For legacy (unaccredited)
- * subjects, any admission, vacating, swap, or occupant change in another census slot while the
- * deferred open or retry is pending cancels the open rather than risking selecting a sibling or
- * replacement patient.
+ * subjects, any admission, vacating, swap, or legacy identity mutation (including simultaneous
+ * naming of an unnamed sibling) in another census slot while the deferred open or retry is
+ * pending cancels the open rather than risking selecting a sibling or replacement patient.
+ * Routine clinical edits on other already-accredited beds keep the same accredited episode ID
+ * and therefore do not cancel.
  */
 export const hasLegacyCensusAmbiguity = (
   beds: Record<string, PatientData> | null | undefined,
@@ -345,7 +367,6 @@ export const hasLegacyCensusAmbiguity = (
   if (!beds || !rawBedId || !expectedTuple) {
     return false;
   }
-  const expectedNameKey = normalizePatientNameKey(expectedTuple[4]);
   const clickedSlotKey = isCrib ? `${rawBedId}:crib` : rawBedId;
   const seenSlots = new Set<string>();
 
@@ -359,21 +380,8 @@ export const hasLegacyCensusAmbiguity = (
       seenSlots.add(slotKey);
       const currentOtherIdentity = resolveUpcCellSubjectIdentity(subject);
       const initialOtherIdentity = observation.otherSlotIdentities.get(slotKey) ?? null;
-
-      if (initialOtherIdentity === null && currentOtherIdentity === null) {
-        continue;
-      }
-      if (initialOtherIdentity === null || currentOtherIdentity === null) {
-        return true;
-      }
-      if (!isSameUpcCellSubjectIdentity(initialOtherIdentity, currentOtherIdentity)) {
-        return true;
-      }
       if (currentOtherIdentity !== initialOtherIdentity) {
-        const otherNameKey = normalizePatientNameKey(subject?.patientName);
-        if (otherNameKey && (otherNameKey === expectedNameKey || otherNameKey === currentNameKey)) {
-          return true;
-        }
+        return true;
       }
     }
   }

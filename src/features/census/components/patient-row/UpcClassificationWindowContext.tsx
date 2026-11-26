@@ -5,8 +5,8 @@ import { useOptionalDailyRecordBeds } from '@/context/DailyRecordContext';
 import { PanelModuleRetry, RecoverableClinicalPanelModule } from './RecoverableClinicalPanelModule';
 import {
   captureLegacyCensusObservation,
-  createEmptyLegacyCensusObservation,
   hasLegacyCensusAmbiguity,
+  isLegacyUpcSubjectIdentity,
   isSameUpcCellSubjectIdentity,
   recordLegacyCensusObservation,
   resolveUpcCellSubjectIdentity,
@@ -140,8 +140,8 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
   const [latchedParentIdentity, setLatchedParentIdentity] = useState<string | null>(
     () => currentParentIdentity
   );
+  const isLegacySubject = isLegacyUpcSubjectIdentity(latchedEpisodeIdentity);
   const subjectPairedSlotKey = isCrib ? rawBedId : null;
-  const parentPairedSlotKey = isCrib && rawBedId ? `${rawBedId}:crib` : null;
   const [legacyObservation] = useState<LegacyCensusObservation>(() =>
     captureLegacyCensusObservation(
       beds,
@@ -150,17 +150,6 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
       expectedEpisodeIdentity,
       subjectPairedSlotKey
     )
-  );
-  const [parentLegacyObservation] = useState<LegacyCensusObservation>(() =>
-    isCrib
-      ? captureLegacyCensusObservation(
-          beds,
-          rawBedId,
-          false,
-          currentParentIdentity,
-          parentPairedSlotKey
-        )
-      : createEmptyLegacyCensusObservation()
   );
 
   const isSubjectNamingTransition = currentEpisodeIdentity !== latchedEpisodeIdentity;
@@ -176,20 +165,16 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
       legacyObservation,
       isSubjectNamingTransition
     );
-  const isParentNamingTransition = isCrib && currentParentIdentity !== latchedParentIdentity;
+  // Accredited newborns are already uniquely identified by their own clinicalEpisodeId (ID-01),
+  // so an unrelated census admission or legacy maternal record never cancels their pending open.
+  // For legacy cribs, also verify the mother occupying the parent bed stays the same episode
+  // (other census slots are already guarded by legacyObservation above).
+  const isParentNamingTransition =
+    isCrib && isLegacySubject && currentParentIdentity !== latchedParentIdentity;
   const parentStillMatches =
     !isCrib ||
-    (isSameUpcCellSubjectIdentity(latchedParentIdentity, currentParentIdentity) &&
-      !hasLegacyCensusAmbiguity(
-        beds,
-        rawBedId,
-        false,
-        parentPairedSlotKey,
-        latchedParentIdentity,
-        currentParentSubject,
-        parentLegacyObservation,
-        isParentNamingTransition
-      ));
+    !isLegacySubject ||
+    isSameUpcCellSubjectIdentity(latchedParentIdentity, currentParentIdentity);
   const isStalePendingEpisode =
     !hasResolvedWindow &&
     hasExpectedEpisode &&
@@ -212,8 +197,7 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
     }
   }
 
-  // Latch valid unrelated-slot naming transitions and observed names while the load or retry
-  // remains pending.
+  // Record observed names from other beds while the load or retry remains pending.
   useLayoutEffect(() => {
     if (isStalePendingEpisode) {
       onCancelStaleOpen();
@@ -228,16 +212,6 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
         latchedEpisodeIdentity,
         subjectPairedSlotKey
       );
-      if (isCrib) {
-        recordLegacyCensusObservation(
-          parentLegacyObservation,
-          beds,
-          rawBedId,
-          false,
-          latchedParentIdentity,
-          parentPairedSlotKey
-        );
-      }
     }
   }, [
     beds,
@@ -247,11 +221,8 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
     isCrib,
     isStalePendingEpisode,
     latchedEpisodeIdentity,
-    latchedParentIdentity,
     legacyObservation,
     onCancelStaleOpen,
-    parentLegacyObservation,
-    parentPairedSlotKey,
     rawBedId,
     subjectPairedSlotKey,
   ]);
