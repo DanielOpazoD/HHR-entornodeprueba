@@ -7,7 +7,9 @@ import { PanelModuleRetry, RecoverableClinicalPanelModule } from './RecoverableC
 interface UpcCellSubjectLike {
   patientName?: string;
   clinicalEpisodeId?: string;
+  documentType?: 'RUT' | 'Pasaporte' | string;
   rut?: string;
+  neonatalMaternalRut?: string;
   firstSeenDate?: string;
   admissionDate?: string;
   admissionTime?: string;
@@ -30,15 +32,48 @@ export const resolveUpcCellSubjectIdentity = (
   if (isAccreditedEpisodeId(episode)) {
     return episode;
   }
+  const docType = subject.documentType?.trim() || 'RUT';
   const name = subject.patientName?.trim() || '';
   const rut = subject.rut?.trim() || '';
-  const admissionDate = (subject.firstSeenDate || subject.admissionDate || '').trim();
+  const firstSeenDate = subject.firstSeenDate?.trim() || '';
+  const admissionDate = subject.admissionDate?.trim() || '';
   const admissionTime = subject.admissionTime?.trim() || '';
-  if (!episode && !name && !rut && !admissionDate && !admissionTime) {
+  const maternalRut = subject.neonatalMaternalRut?.trim() || '';
+  if (
+    !episode &&
+    !name &&
+    !rut &&
+    !firstSeenDate &&
+    !admissionDate &&
+    !admissionTime &&
+    !maternalRut
+  ) {
     return null;
   }
-  return JSON.stringify(['legacy', episode, rut, name, admissionDate, admissionTime]);
+  return JSON.stringify([
+    'legacy',
+    episode,
+    docType,
+    rut,
+    name,
+    firstSeenDate,
+    admissionDate,
+    admissionTime,
+    maternalRut,
+  ]);
 };
+
+type LegacyUpcSubjectTuple = [
+  tag: 'legacy',
+  episode: string,
+  docType: string,
+  rut: string,
+  name: string,
+  firstSeenDate: string,
+  admissionDate: string,
+  admissionTime: string,
+  maternalRut: string,
+];
 
 const isSameUpcCellSubjectIdentity = (expected: string | null, current: string | null): boolean => {
   if (expected === current) return true;
@@ -47,20 +82,39 @@ const isSameUpcCellSubjectIdentity = (expected: string | null, current: string |
     return false;
   }
   try {
-    const [, expectedEpisode, expectedRut, expectedName, expectedDate, expectedTime] = JSON.parse(
-      expected
-    ) as [string, string, string, string, string, string];
-    const [, currentEpisode, currentRut, currentName, currentDate, currentTime] = JSON.parse(
-      current
-    ) as [string, string, string, string, string, string];
+    const [
+      ,
+      expectedEpisode,
+      expectedDocType,
+      expectedRut,
+      expectedName,
+      expectedFirstSeenDate,
+      expectedAdmissionDate,
+      expectedTime,
+      expectedMaternalRut,
+    ] = JSON.parse(expected) as LegacyUpcSubjectTuple;
+    const [
+      ,
+      currentEpisode,
+      currentDocType,
+      currentRut,
+      currentName,
+      currentFirstSeenDate,
+      currentAdmissionDate,
+      currentTime,
+      currentMaternalRut,
+    ] = JSON.parse(current) as LegacyUpcSubjectTuple;
     return (
       expectedName === '' &&
       currentName !== '' &&
       (expectedEpisode !== '' || expectedRut !== '') &&
       expectedEpisode === currentEpisode &&
+      expectedDocType === currentDocType &&
       expectedRut === currentRut &&
-      expectedDate === currentDate &&
-      expectedTime === currentTime
+      expectedFirstSeenDate === currentFirstSeenDate &&
+      expectedAdmissionDate === currentAdmissionDate &&
+      expectedTime === currentTime &&
+      expectedMaternalRut === currentMaternalRut
     );
   } catch {
     return false;
@@ -181,16 +235,47 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
   const currentSubject =
     rawBedId && beds ? (isCrib ? beds[rawBedId]?.clinicalCrib : beds[rawBedId]) : undefined;
   const currentEpisodeIdentity = resolveUpcCellSubjectIdentity(currentSubject);
+  const currentParentSubject = rawBedId && beds && isCrib ? beds[rawBedId] : undefined;
+  const currentParentIdentity = isCrib ? resolveUpcCellSubjectIdentity(currentParentSubject) : null;
   const [hasTrackableContextBed] = useState(
     () =>
       beds !== undefined &&
       (currentEpisodeIdentity !== null || (beds !== null && Object.keys(beds).length > 0))
   );
+  const [latchedEpisodeIdentity, setLatchedEpisodeIdentity] = useState<string | null>(
+    () => expectedEpisodeIdentity
+  );
+  const [latchedParentIdentity, setLatchedParentIdentity] = useState<string | null>(
+    () => currentParentIdentity
+  );
+
+  const subjectStillMatches = isSameUpcCellSubjectIdentity(
+    latchedEpisodeIdentity,
+    currentEpisodeIdentity
+  );
+  const parentStillMatches =
+    !isCrib || isSameUpcCellSubjectIdentity(latchedParentIdentity, currentParentIdentity);
   const isStalePendingEpisode =
     !hasResolvedWindow &&
     hasExpectedEpisode &&
     hasTrackableContextBed &&
-    !isSameUpcCellSubjectIdentity(expectedEpisodeIdentity, currentEpisodeIdentity);
+    (!subjectStillMatches || !parentStillMatches);
+
+  // Once an unnamed legacy occupant receives its name, latch it monotonically so a second
+  // replacement (unnamed -> A -> B) cannot pass through the initial empty-name allowance.
+  if (
+    !hasResolvedWindow &&
+    hasExpectedEpisode &&
+    hasTrackableContextBed &&
+    !isStalePendingEpisode
+  ) {
+    if (currentEpisodeIdentity !== latchedEpisodeIdentity) {
+      setLatchedEpisodeIdentity(currentEpisodeIdentity);
+    }
+    if (isCrib && currentParentIdentity !== latchedParentIdentity) {
+      setLatchedParentIdentity(currentParentIdentity);
+    }
+  }
 
   useLayoutEffect(() => {
     if (isStalePendingEpisode) {
@@ -233,6 +318,7 @@ interface UpcClassificationWindowProviderProps {
 }
 
 interface UpcWindowOpenState {
+  openSeq: number;
   isOpen: boolean;
   rawBedId: string | null;
   isCrib: boolean;
@@ -243,6 +329,7 @@ interface UpcWindowOpenState {
 }
 
 const CLOSED_UPC_WINDOW_STATE: UpcWindowOpenState = {
+  openSeq: 0,
   isOpen: false,
   rawBedId: null,
   isCrib: false,
@@ -267,6 +354,7 @@ export const UpcClassificationWindowProvider: React.FC<UpcClassificationWindowPr
   children,
 }) => {
   const [openState, setOpenState] = useState<UpcWindowOpenState>(CLOSED_UPC_WINDOW_STATE);
+  const openSeqRef = useRef(0);
   const openerRef = useRef<HTMLElement | null>(null);
   const priorActiveBeforeOpenRef = useRef<HTMLElement | null>(null);
   const restoreOpenerOnCloseRef = useRef<HTMLElement | null>(null);
@@ -297,7 +385,9 @@ export const UpcClassificationWindowProvider: React.FC<UpcClassificationWindowPr
       restoreOpenerOnCloseRef.current = null;
       const isCrib = Boolean(bedId && options?.crib);
       const hasExpectedEpisode = Boolean(options && 'episodeIdentity' in options);
+      openSeqRef.current += 1;
       setOpenState({
+        openSeq: openSeqRef.current,
         isOpen: true,
         rawBedId: bedId ?? null,
         isCrib,
@@ -353,6 +443,7 @@ export const UpcClassificationWindowProvider: React.FC<UpcClassificationWindowPr
       {children}
       {isWindowOpen && (
         <UpcWindowHost
+          key={openState.openSeq}
           currentDateString={currentDateString}
           readOnly={readOnly}
           rawBedId={openState.rawBedId}

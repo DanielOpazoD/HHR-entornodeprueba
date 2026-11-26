@@ -895,6 +895,300 @@ describe('UpcClassificationWindowProvider', () => {
     consoleErrorSpy.mockRestore();
   });
 
+  it('cancels a pending crib open when the mother episode changes even if both newborns share a legacy ID', async () => {
+    let resolveChunk:
+      | ((value: { UpcClassificationWindow: React.FC<MockUpcWindowProps> }) => void)
+      | null = null;
+    const chunkPromise = new Promise<{
+      UpcClassificationWindow: React.FC<MockUpcWindowProps>;
+    }>(resolve => {
+      resolveChunk = resolve;
+    });
+
+    vi.doMock(UPC_WINDOW_MODULE_PATH, () => chunkPromise);
+
+    const {
+      DailyRecordBedsContext,
+      resolveUpcCellSubjectIdentity,
+      UpcClassificationWindowProvider,
+      useUpcClassificationWindowOpener,
+    } = await loadFreshContext();
+
+    const cribA = DataFactory.createMockPatient('R1', {
+      patientName: '',
+      rut: '',
+      clinicalEpisodeId: 'legacy_ep_shared_crib',
+      admissionDate: '2026-11-24',
+      admissionTime: '08:00',
+    });
+    const cribB = DataFactory.createMockPatient('R1', {
+      patientName: 'RN Familia B',
+      rut: '',
+      clinicalEpisodeId: 'legacy_ep_shared_crib',
+      admissionDate: '2026-11-24',
+      admissionTime: '08:00',
+    });
+    const motherA = DataFactory.createMockPatient('R1', {
+      patientName: 'Madre Familia A',
+      rut: '11.111.111-1',
+      clinicalEpisodeId: 'ep-mother-A',
+      clinicalCrib: cribA,
+    });
+    const motherB = DataFactory.createMockPatient('R1', {
+      patientName: 'Madre Familia B',
+      rut: '22.222.222-2',
+      clinicalEpisodeId: 'ep-mother-B',
+      clinicalCrib: cribB,
+    });
+
+    const Trigger = ({ crib }: { crib: PatientData }) => {
+      const { openUpcWindow } = useUpcClassificationWindowOpener();
+      return (
+        <button
+          type="button"
+          onClick={event =>
+            openUpcWindow('R1', {
+              crib: true,
+              episodeIdentity: resolveUpcCellSubjectIdentity(crib),
+              triggerElement: event.currentTarget,
+            })
+          }
+        >
+          Abrir cuna familia A
+        </button>
+      );
+    };
+
+    const { rerender } = render(
+      <DailyRecordBedsContext.Provider value={{ R1: motherA }}>
+        <UpcClassificationWindowProvider currentDateString="2026-11-24">
+          <Trigger crib={cribA} />
+        </UpcClassificationWindowProvider>
+      </DailyRecordBedsContext.Provider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir cuna familia A' }));
+    expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+    rerender(
+      <DailyRecordBedsContext.Provider value={{ R1: motherB }}>
+        <UpcClassificationWindowProvider currentDateString="2026-11-24">
+          <Trigger crib={cribB} />
+        </UpcClassificationWindowProvider>
+      </DailyRecordBedsContext.Provider>
+    );
+    expect(screen.queryByTestId('upc-window-module-loading')).toBeNull();
+
+    await act(async () => {
+      resolveChunk?.({
+        UpcClassificationWindow: ({ initialBedId }: MockUpcWindowProps) => (
+          <div role="dialog" aria-label="Clasificación UPC">
+            {initialBedId}
+          </div>
+        ),
+      });
+      await chunkPromise;
+    });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('latches the first completed name on an unnamed legacy crib so a second replacement cancels', async () => {
+    let resolveChunk:
+      | ((value: { UpcClassificationWindow: React.FC<MockUpcWindowProps> }) => void)
+      | null = null;
+    const chunkPromise = new Promise<{
+      UpcClassificationWindow: React.FC<MockUpcWindowProps>;
+    }>(resolve => {
+      resolveChunk = resolve;
+    });
+
+    vi.doMock(UPC_WINDOW_MODULE_PATH, () => chunkPromise);
+
+    const {
+      DailyRecordBedsContext,
+      resolveUpcCellSubjectIdentity,
+      UpcClassificationWindowProvider,
+      useUpcClassificationWindowOpener,
+    } = await loadFreshContext();
+
+    const unnamedCrib = DataFactory.createMockPatient('R1', {
+      patientName: '',
+      rut: '',
+      clinicalEpisodeId: 'legacy_ep_shared_crib',
+      admissionDate: '2026-11-24',
+      admissionTime: '08:00',
+    });
+    const cribNamedA = { ...unnamedCrib, patientName: 'RN A' };
+    const cribReplacedByB = { ...unnamedCrib, patientName: 'RN B' };
+    const motherWith = (crib: PatientData) =>
+      DataFactory.createMockPatient('R1', {
+        patientName: 'Madre Misma',
+        clinicalEpisodeId: 'ep-mother-same',
+        clinicalCrib: crib,
+      });
+
+    const Trigger = ({ crib }: { crib: PatientData }) => {
+      const { openUpcWindow } = useUpcClassificationWindowOpener();
+      return (
+        <button
+          type="button"
+          onClick={event =>
+            openUpcWindow('R1', {
+              crib: true,
+              episodeIdentity: resolveUpcCellSubjectIdentity(crib),
+              triggerElement: event.currentTarget,
+            })
+          }
+        >
+          Abrir cuna R1
+        </button>
+      );
+    };
+
+    const { rerender } = render(
+      <DailyRecordBedsContext.Provider value={{ R1: motherWith(unnamedCrib) }}>
+        <UpcClassificationWindowProvider currentDateString="2026-11-24">
+          <Trigger crib={unnamedCrib} />
+        </UpcClassificationWindowProvider>
+      </DailyRecordBedsContext.Provider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir cuna R1' }));
+    expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+    // First naming (unnamed -> RN A) keeps pending open alive and latches RN A.
+    rerender(
+      <DailyRecordBedsContext.Provider value={{ R1: motherWith(cribNamedA) }}>
+        <UpcClassificationWindowProvider currentDateString="2026-11-24">
+          <Trigger crib={cribNamedA} />
+        </UpcClassificationWindowProvider>
+      </DailyRecordBedsContext.Provider>
+    );
+    expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+    // Second change (RN A -> RN B) must cancel instead of passing through the empty-name allowance.
+    rerender(
+      <DailyRecordBedsContext.Provider value={{ R1: motherWith(cribReplacedByB) }}>
+        <UpcClassificationWindowProvider currentDateString="2026-11-24">
+          <Trigger crib={cribReplacedByB} />
+        </UpcClassificationWindowProvider>
+      </DailyRecordBedsContext.Provider>
+    );
+    expect(screen.queryByTestId('upc-window-module-loading')).toBeNull();
+
+    await act(async () => {
+      resolveChunk?.({
+        UpcClassificationWindow: ({ initialBedId }: MockUpcWindowProps) => (
+          <div role="dialog" aria-label="Clasificación UPC">
+            {initialBedId}
+          </div>
+        ),
+      });
+      await chunkPromise;
+    });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('cancels a pending legacy open when documentType switches between RUT and Pasaporte or admissionDate changes despite firstSeenDate', async () => {
+    const runScenario = async (mutate: (base: PatientData) => PatientData) => {
+      vi.resetModules();
+      let resolveChunk:
+        | ((value: { UpcClassificationWindow: React.FC<MockUpcWindowProps> }) => void)
+        | null = null;
+      const chunkPromise = new Promise<{
+        UpcClassificationWindow: React.FC<MockUpcWindowProps>;
+      }>(resolve => {
+        resolveChunk = resolve;
+      });
+      vi.doMock(UPC_WINDOW_MODULE_PATH, () => chunkPromise);
+
+      const {
+        DailyRecordBedsContext,
+        resolveUpcCellSubjectIdentity,
+        UpcClassificationWindowProvider,
+        useUpcClassificationWindowOpener,
+      } = await loadFreshContext();
+
+      const base = DataFactory.createMockPatient('R2', {
+        patientName: '',
+        documentType: 'RUT',
+        rut: '12345678',
+        clinicalEpisodeId: '',
+        firstSeenDate: '2026-11-23',
+        admissionDate: '2026-11-23',
+        admissionTime: '08:00',
+      });
+      const updated = mutate(base);
+
+      const Trigger = ({ patient }: { patient: PatientData }) => {
+        const { openUpcWindow } = useUpcClassificationWindowOpener();
+        return (
+          <button
+            type="button"
+            onClick={event =>
+              openUpcWindow('R2', {
+                episodeIdentity: resolveUpcCellSubjectIdentity(patient),
+                triggerElement: event.currentTarget,
+              })
+            }
+          >
+            Abrir R2 legado
+          </button>
+        );
+      };
+
+      const view = render(
+        <DailyRecordBedsContext.Provider value={{ R2: base }}>
+          <UpcClassificationWindowProvider currentDateString="2026-11-24">
+            <Trigger patient={base} />
+          </UpcClassificationWindowProvider>
+        </DailyRecordBedsContext.Provider>
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir R2 legado' }));
+      expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+      view.rerender(
+        <DailyRecordBedsContext.Provider value={{ R2: updated }}>
+          <UpcClassificationWindowProvider currentDateString="2026-11-24">
+            <Trigger patient={updated} />
+          </UpcClassificationWindowProvider>
+        </DailyRecordBedsContext.Provider>
+      );
+      expect(screen.queryByTestId('upc-window-module-loading')).toBeNull();
+
+      await act(async () => {
+        resolveChunk?.({
+          UpcClassificationWindow: ({ initialBedId }: MockUpcWindowProps) => (
+            <div role="dialog" aria-label="Clasificación UPC">
+              {initialBedId}
+            </div>
+          ),
+        });
+        await chunkPromise;
+      });
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+      view.unmount();
+    };
+
+    // 1) Switching RUT -> Pasaporte with the same document number cancels even when naming.
+    await runScenario(base => ({
+      ...base,
+      patientName: 'Visitante Extranjero',
+      documentType: 'Pasaporte',
+    }));
+
+    // 2) Changing admissionDate cancels even when firstSeenDate stays unchanged.
+    await runScenario(base => ({
+      ...base,
+      patientName: 'Paciente Nuevo Ingreso',
+      admissionDate: '2026-11-24',
+    }));
+  });
+
   it('restores focus to the clicked trigger button on Escape even when activeElement stayed on an ancestor wrapper', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     let attempts = 0;
