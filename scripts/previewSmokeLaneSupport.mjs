@@ -26,8 +26,9 @@ export const readPreviewSmokeSpecs = (root = process.cwd()) => {
 
 /**
  * Lanes are balanced by observed duration, not test count. The stress lane runs
- * only the tagged software-WebGL stress loop (about 170 s in CI); the rest of
- * the DICOM spec, about 500 s, is split in three thirds of similar duration.
+ * only the tagged software-WebGL stress loop (about 120 s in CI); the rest of
+ * the DICOM spec (~630 s in CI) is split in five shards of similar duration so
+ * preview-smoke-lanes no longer dominates the post-build critical path.
  * The merge job proves the union of all lanes is exactly the canonical pack, so
  * a lane change cannot drop a test.
  *
@@ -36,19 +37,21 @@ export const readPreviewSmokeSpecs = (root = process.cwd()) => {
  */
 export const buildPreviewSmokeLanes = specs => {
   const appSpecs = specs.filter(spec => spec !== DICOM_PREVIEW_SPEC);
-  const dicomThird = shard => [
+  const dicomShard = shard => [
     DICOM_PREVIEW_SPEC,
     '--fully-parallel',
     '--grep-invert',
     GRAPHICS_STRESS_TAG,
-    `--shard=${shard}/3`,
+    `--shard=${shard}/5`,
   ];
   return {
     app: appSpecs,
     'dicom-graphics-stress': [DICOM_PREVIEW_SPEC, '--grep', GRAPHICS_STRESS_TAG],
-    'dicom-1': dicomThird(1),
-    'dicom-2': dicomThird(2),
-    'dicom-3': dicomThird(3),
+    'dicom-1': dicomShard(1),
+    'dicom-2': dicomShard(2),
+    'dicom-3': dicomShard(3),
+    'dicom-4': dicomShard(4),
+    'dicom-5': dicomShard(5),
   };
 };
 
