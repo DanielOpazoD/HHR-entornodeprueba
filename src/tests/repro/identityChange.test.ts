@@ -21,7 +21,7 @@ vi.mock('../../hooks/usePatientValidation', () => ({
   }),
 }));
 
-describe('Identity-based Diagnosis Clearing', () => {
+describe('Manual identity edits preserve clinical data', () => {
   let mockRecord: DailyRecord;
   let patchRecord: ApplyDailyRecordPatch;
 
@@ -31,6 +31,8 @@ describe('Identity-based Diagnosis Clearing', () => {
         R1: DataFactory.createMockPatient('R1', {
           patientName: 'Patient A',
           rut: '11.111.111-1',
+          documentType: 'RUT',
+          clinicalEpisodeId: 'ep_synthetic_1',
           age: '30',
           pathology: 'Old Pathology',
           cie10Code: 'A00',
@@ -54,51 +56,43 @@ describe('Identity-based Diagnosis Clearing', () => {
     patchRecord = vi.fn().mockResolvedValue(undefined) as ApplyDailyRecordPatch;
   });
 
-  it('should clear diagnosis fields when RUT changes', async () => {
+  it('keeps diagnosis, specialty, devices and clinicalEpisodeId when correcting RUT or switching to Pasaporte', async () => {
     const { result } = renderHook(() => useBedManagement(mockRecord, patchRecord));
 
-    // Update RUT to a different one
     await act(async () => {
-      result.current.updatePatient('R1', 'rut', '22.222.222-2');
+      result.current.updatePatientMultiple('R1', {
+        documentType: 'Pasaporte',
+        rut: 'P22222222',
+      });
     });
 
-    // El cambio de identidad mezcla campos estructurales con la limpieza del
-    // envelope clínico; el despacho lo divide en dos comandos secuenciales
-    // (la separación enforced rechaza el patch mezclado).
-    expect(patchRecord).toHaveBeenCalledWith(
-      expect.objectContaining({
-        [`beds.R1.rut`]: '22.222.222-2',
-        [`beds.R1.devices`]: [],
-      })
-    );
-    expect(patchRecord).toHaveBeenCalledWith(
-      expect.objectContaining({
-        [`beds.R1.cie10Code`]: undefined,
-        [`beds.R1.cie10Description`]: undefined,
-        [`beds.R1.pathology`]: '',
-      })
-    );
-    // Contrato de diff (Fase 2): los clears de campos que YA están vacíos en la
-    // cama (clinicalEvents [], cudyr ausente) no se re-emiten.
-    for (const call of vi.mocked(patchRecord).mock.calls) {
-      expect(call[0]).not.toHaveProperty(`beds.R1.clinicalEvents`);
-      expect(call[0]).not.toHaveProperty(`beds.R1.cudyr`);
-    }
+    expect(patchRecord).toHaveBeenCalledTimes(1);
+    expect(patchRecord).toHaveBeenCalledWith({
+      'beds.R1.documentType': 'Pasaporte',
+      'beds.R1.rut': 'P22222222',
+      'beds.R1.documentManualOverride': true,
+    });
+    const [writtenPatch] = vi.mocked(patchRecord).mock.calls[0];
+    expect(writtenPatch).not.toHaveProperty('beds.R1.pathology');
+    expect(writtenPatch).not.toHaveProperty('beds.R1.cie10Code');
+    expect(writtenPatch).not.toHaveProperty('beds.R1.cie10Description');
+    expect(writtenPatch).not.toHaveProperty('beds.R1.specialty');
+    expect(writtenPatch).not.toHaveProperty('beds.R1.devices');
+    expect(writtenPatch).not.toHaveProperty('beds.R1.clinicalEpisodeId');
+    expect(writtenPatch).not.toHaveProperty('bedTypeOverrides.R1');
   });
 
   it('cambiar solo el nombre con el MISMO RUT no limpia el diagnóstico (misma persona)', async () => {
-    // Contrato corregido (31-08): el heurístico anterior trataba cualquier
-    // cambio de nombre como paciente nuevo y borraba el diagnóstico al editar
-    // Datos Demográficos; con RUT presente en ambos lados, manda el RUT.
     const { result } = renderHook(() => useBedManagement(mockRecord, patchRecord));
 
     await act(async () => {
       result.current.updatePatient('R1', 'patientName', 'Different Patient');
     });
 
-    expect(patchRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ [`beds.R1.patientName`]: 'Different Patient' })
-    );
+    expect(patchRecord).toHaveBeenCalledTimes(1);
+    expect(patchRecord).toHaveBeenCalledWith({
+      'beds.R1.patientName': 'Different Patient',
+    });
     for (const call of vi.mocked(patchRecord).mock.calls) {
       expect(call[0]).not.toHaveProperty(`beds.R1.pathology`);
       expect(call[0]).not.toHaveProperty(`beds.R1.clinicalEvents`);

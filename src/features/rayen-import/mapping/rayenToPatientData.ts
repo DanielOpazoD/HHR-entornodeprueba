@@ -18,15 +18,18 @@ import { encounterWallClockInRapaNui } from './encounterWallClock';
 import { hasNonRutLetter, hasPassportShapeBeforeLetterRule, normalizeRut } from '@/utils/rutUtils';
 
 /**
- * Any letter other than a final K check digit makes the source document a passport. A lone K keeps
- * its earlier passport shape: Laboratorio, Eloísa form recovery and CUDYR recovery read that type.
+ * Any letter other than a final K check digit (or an explicit source Pasaporte type) makes the
+ * source document a passport. A lone K keeps its earlier passport shape: Laboratorio, Eloísa form
+ * recovery and CUDYR recovery read that type.
  */
-const isSourcePassport = (raw?: string): boolean =>
-  hasNonRutLetter(raw ?? '') || hasPassportShapeBeforeLetterRule(raw ?? '');
+const isSourcePassport = (raw?: string, documentType?: 'RUT' | 'Pasaporte'): boolean =>
+  documentType === 'Pasaporte' ||
+  hasNonRutLetter(raw ?? '') ||
+  hasPassportShapeBeforeLetterRule(raw ?? '');
 
 /** Format a RUN as "10.000.131-4" from raw ("100001314") or already-formatted input. */
-export const formatRun = (raw?: string): string => {
-  if (isSourcePassport(raw)) return (raw ?? '').trim().toUpperCase();
+export const formatRun = (raw?: string, documentType?: 'RUT' | 'Pasaporte'): string => {
+  if (isSourcePassport(raw, documentType)) return (raw ?? '').trim().toUpperCase();
   const cleaned = normalizeRut(raw);
   if (cleaned.length < 2) return (raw ?? '').trim();
   const dv = cleaned.slice(-1).toUpperCase();
@@ -198,8 +201,8 @@ export const rayenToPatientData = (
     ...EMPTY_PATIENT,
     bedId: bedId ?? '',
     clinicalEpisodeId: encounter.encounterId,
-    rut: formatRun(encounter.run),
-    documentType: isSourcePassport(encounter.run) ? 'Pasaporte' : 'RUT',
+    rut: formatRun(encounter.run, encounter.documentType),
+    documentType: isSourcePassport(encounter.run, encounter.documentType) ? 'Pasaporte' : 'RUT',
     patientName: fullName,
     firstName: givenNames,
     lastName: firstFamily,

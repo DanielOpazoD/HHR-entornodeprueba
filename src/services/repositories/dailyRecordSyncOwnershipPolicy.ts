@@ -23,6 +23,7 @@ const PATIENT_FIELD_OWNERSHIP = {
   patientName: 'remoteCanonical',
   rut: 'remoteCanonical',
   documentType: 'remoteCanonical',
+  documentManualOverride: 'remoteCanonical',
   age: 'remoteCanonical',
   birthDate: 'remoteCanonical',
   biologicalSex: 'remoteCanonical',

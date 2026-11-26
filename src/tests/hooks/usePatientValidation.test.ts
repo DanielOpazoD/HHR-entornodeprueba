@@ -31,6 +31,20 @@ describe('usePatientValidation', () => {
       expect(validation.value).toBe('P123456');
     });
 
+    it('never formats a numeric passport as a Chilean RUT even when digits pass mod-11 (ID-01)', () => {
+      const { result } = renderHook(() => usePatientValidation());
+      expect(result.current.validateRut(' 123456785 ', 'Pasaporte')).toEqual({
+        valid: true,
+        value: '123456785',
+      });
+      expect(
+        result.current.processFieldValue('rut', '14636523K', { documentType: 'Pasaporte' })
+      ).toEqual({
+        valid: true,
+        value: '14636523K',
+      });
+    });
+
     it('should return trimmed invalid RUT as-is but valid', () => {
       const { result } = renderHook(() => usePatientValidation());
       const validation = result.current.validateRut('  abcd  ');

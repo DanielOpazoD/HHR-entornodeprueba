@@ -28,7 +28,11 @@ export interface PatientValidationActions {
    * Process and validate a patient field value.
    * Applies formatting (capitalize names, format RUT) and validation rules.
    */
-  processFieldValue: (field: keyof PatientData, value: PatientFieldValue) => ValidationResult;
+  processFieldValue: (
+    field: keyof PatientData,
+    value: PatientFieldValue,
+    context?: Pick<PatientData, 'documentType'>
+  ) => ValidationResult;
 
   /**
    * Validate admission date is not in the future.
@@ -38,7 +42,7 @@ export interface PatientValidationActions {
   /**
    * Format and validate a RUT or Passport.
    */
-  validateRut: (rut: string) => ValidationResult;
+  validateRut: (rut: string, documentType?: PatientData['documentType']) => ValidationResult;
 
   /**
    * Capitalize patient name.
@@ -62,28 +66,31 @@ export const usePatientValidation = (): PatientValidationActions => {
   /**
    * Validate and format RUT or Passport
    */
-  const validateRut = useCallback((rut: string): ValidationResult => {
-    if (!rut || !rut.trim()) {
-      return { valid: true, value: rut };
-    }
+  const validateRut = useCallback(
+    (rut: string, documentType?: PatientData['documentType']): ValidationResult => {
+      if (!rut || !rut.trim()) {
+        return { valid: true, value: rut };
+      }
 
-    const trimmedRut = rut.trim();
+      const trimmedRut = rut.trim();
 
-    // If it looks like a passport, don't format
-    if (hasNonRutLetter(trimmedRut)) {
+      // ID-01: A passport is never converted to a Chilean RUT (even when its digits pass mod-11).
+      if (documentType === 'Pasaporte' || hasNonRutLetter(trimmedRut)) {
+        return { valid: true, value: trimmedRut };
+      }
+
+      // Try to format as RUT
+      const formatted = formatRut(trimmedRut);
+
+      if (isValidRut(formatted)) {
+        return { valid: true, value: formatted };
+      }
+
+      // Return as-is if not a valid RUT format
       return { valid: true, value: trimmedRut };
-    }
-
-    // Try to format as RUT
-    const formatted = formatRut(trimmedRut);
-
-    if (isValidRut(formatted)) {
-      return { valid: true, value: formatted };
-    }
-
-    // Return as-is if not a valid RUT format
-    return { valid: true, value: trimmedRut };
-  }, []);
+    },
+    []
+  );
 
   /**
    * Validate admission date is not in the future
@@ -108,7 +115,11 @@ export const usePatientValidation = (): PatientValidationActions => {
    * Process and validate any patient field value
    */
   const processFieldValue = useCallback(
-    (field: keyof PatientData, value: PatientFieldValue): ValidationResult => {
+    (
+      field: keyof PatientData,
+      value: PatientFieldValue,
+      context?: Pick<PatientData, 'documentType'>
+    ): ValidationResult => {
       // Normalize patient name (legacy + split fields)
       if (
         (field === 'patientName' ||
@@ -122,7 +133,7 @@ export const usePatientValidation = (): PatientValidationActions => {
 
       // Format and validate RUT
       if (field === 'rut' && typeof value === 'string') {
-        return validateRut(value);
+        return validateRut(value, context?.documentType);
       }
 
       // Validate admission date

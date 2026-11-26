@@ -20,7 +20,8 @@ import * as specialtyIntentControls from '@/hooks/controllers/bedManagementSpeci
 export interface BedManagementValidationPort {
   processFieldValue: (
     field: keyof PatientData,
-    value: PatientFieldValue
+    value: PatientFieldValue,
+    context?: Pick<PatientData, 'documentType'>
   ) => { valid: boolean; value: PatientFieldValue; error?: string };
 }
 
@@ -98,10 +99,17 @@ const getOrderedPatientAuditFields = (
 
 const validateAction = (
   action: BedAction,
+  currentRecord: DailyRecord,
   validation: BedManagementValidationPort
 ): BedAction | null => {
   if (action.type === 'UPDATE_PATIENT') {
-    const result = validation.processFieldValue(action.field, action.value);
+    const currentDocumentType = currentRecord.beds[action.bedId]?.documentType;
+    const result =
+      action.field === 'rut' && currentDocumentType
+        ? validation.processFieldValue(action.field, action.value, {
+            documentType: currentDocumentType,
+          })
+        : validation.processFieldValue(action.field, action.value);
     if (!result.valid) {
       bedManagementDispatchLogger.warn(`Validation failed for ${action.field}`, result.error);
       return null;
@@ -114,12 +122,16 @@ const validateAction = (
   }
 
   if (action.type === 'UPDATE_PATIENT_MULTIPLE') {
+    const effectiveDocumentType =
+      action.fields.documentType ?? currentRecord.beds[action.bedId]?.documentType;
     const validatedFields: Partial<PatientData> = {};
     for (const [key, value] of Object.entries(action.fields)) {
-      const result = validation.processFieldValue(
-        key as keyof PatientData,
-        value as PatientFieldValue
-      );
+      const result =
+        key === 'rut' && effectiveDocumentType
+          ? validation.processFieldValue(key as keyof PatientData, value as PatientFieldValue, {
+              documentType: effectiveDocumentType,
+            })
+          : validation.processFieldValue(key as keyof PatientData, value as PatientFieldValue);
       if (result.valid) {
         (validatedFields as Record<string, unknown>)[key] = result.value;
       }
@@ -247,7 +259,7 @@ export const executeBedManagementAction = async ({
     return false;
 
   const roundSession = action.type === 'CONFIRM_UPC_ROUND' ? guardAuthoringSession() : undefined;
-  const validatedAction = validateAction(action, validation);
+  const validatedAction = validateAction(action, currentRecord, validation);
   if (!validatedAction) {
     return false;
   }

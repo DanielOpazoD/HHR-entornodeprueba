@@ -473,4 +473,40 @@ describe('bedManagementDispatchController', () => {
     await expect(pending).resolves.toBe(true);
     expect(patchRecord).toHaveBeenCalledTimes(1);
   });
+
+  it('passes effective Pasaporte documentType to rut validation so numeric passports are not converted to RUT', async () => {
+    const patchRecord = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const processFieldValue = vi.fn((_field, value) => ({ valid: true, value }));
+    const bedAudit: BedManagementAuditPort = {
+      auditPatientChange: vi.fn(),
+      auditPatientCleared: vi.fn(),
+      auditPatientModified: vi.fn(),
+      auditPatientMovement: vi.fn(),
+    };
+
+    await executeBedManagementAction({
+      currentRecord: buildRecord(),
+      action: {
+        type: 'UPDATE_PATIENT_MULTIPLE',
+        bedId: 'R1',
+        fields: {
+          documentType: 'Pasaporte',
+          rut: '123456785',
+        },
+      },
+      validation: { processFieldValue },
+      bedAudit,
+      patchRecord,
+    });
+
+    expect(processFieldValue).toHaveBeenCalledWith('rut', '123456785', {
+      documentType: 'Pasaporte',
+    });
+    expect(patchRecord).toHaveBeenCalledTimes(1);
+    expect(patchRecord).toHaveBeenCalledWith({
+      'beds.R1.documentType': 'Pasaporte',
+      'beds.R1.rut': '123456785',
+      'beds.R1.documentManualOverride': true,
+    });
+  });
 });
