@@ -45,6 +45,7 @@ describe('reminder admin ui', () => {
     reminders: [],
     loading: false,
     loadError: null,
+    retryLoadReminders: vi.fn(),
     processing: false,
     isFormOpen: false,
     formReminder: null,
@@ -322,16 +323,21 @@ describe('reminder admin ui', () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
-  it('does not show the empty reminders message when the feed failed to load', () => {
+  it('does not show the empty reminders message when the feed failed to load and wires retry', () => {
+    const retryLoadReminders = vi.fn();
     mockUseReminderAdmin.mockReturnValue({
       ...buildAdminState(),
       reminders: [],
       loadError: 'No fue posible suscribirse a los avisos.',
+      retryLoadReminders,
     });
 
     render(<ReminderAdminView />);
 
     expect(screen.getByRole('alert')).toHaveTextContent('No fue posible suscribirse a los avisos.');
     expect(screen.queryByText(/No hay avisos creados/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(retryLoadReminders).toHaveBeenCalledTimes(1);
   });
 });

@@ -16,11 +16,9 @@ import {
   ReminderRepository,
   type ReminderRepositoryListResult,
   type ReminderRepositoryMutationResult,
+  type ReminderRepositorySubscriptionErrorKind,
 } from '@/services/reminders/ReminderRepository';
-import {
-  resolveReminderAdminErrorMessage,
-  type ReminderOperationErrorKind,
-} from '@/services/reminders/reminderErrorPolicy';
+import { resolveReminderAdminErrorMessage } from '@/services/reminders/reminderErrorPolicy';
 import type { Reminder, ReminderReadReceipt, ReminderShift } from '@/types/reminders';
 
 interface ReminderUseCasesDependencies {
@@ -57,7 +55,7 @@ interface UploadReminderImageInput {
 }
 
 const mapReminderErrorKindToIssueKind = (
-  kind: ReminderOperationErrorKind
+  kind: ReminderRepositorySubscriptionErrorKind
 ): ApplicationIssue['kind'] => {
   switch (kind) {
     case 'permission_denied':
@@ -68,13 +66,15 @@ const mapReminderErrorKindToIssueKind = (
 };
 
 const buildReminderIssue = (
-  kind: ReminderOperationErrorKind,
+  kind: ReminderRepositorySubscriptionErrorKind,
   error: unknown,
   fallbackMessage: string
 ): ApplicationIssue => ({
   kind: mapReminderErrorKindToIssueKind(kind),
   message:
-    resolveReminderAdminErrorMessage(error, { operation: 'firestore_read' }) || fallbackMessage,
+    kind === 'unconfirmed_cache'
+      ? fallbackMessage
+      : resolveReminderAdminErrorMessage(error, { operation: 'firestore_read' }) || fallbackMessage,
   userSafeMessage: fallbackMessage,
   technicalContext: error instanceof Error ? { name: error.name } : undefined,
 });
@@ -150,7 +150,11 @@ export const createReminderUseCases = ({
       },
       {
         onError: (error, kind) => {
-          const issue = buildReminderIssue(kind, error, 'No fue posible suscribirse a los avisos.');
+          const fallbackMessage =
+            kind === 'unconfirmed_cache'
+              ? 'No fue posible confirmar los avisos desde el servidor.'
+              : 'No fue posible suscribirse a los avisos.';
+          const issue = buildReminderIssue(kind, error, fallbackMessage);
           onOutcome(
             createApplicationDegraded(lastKnownReminders, [issue], {
               reason: kind,

@@ -13,6 +13,7 @@ export const ReminderAdminView: React.FC = () => {
     reminders,
     loading,
     loadError,
+    retryLoadReminders,
     processing,
     isFormOpen,
     formReminder,
@@ -77,9 +78,16 @@ export const ReminderAdminView: React.FC = () => {
       {loadError && (
         <div
           role="alert"
-          className="mb-5 rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800"
+          className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800"
         >
-          {loadError}
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={retryLoadReminders}
+            className="inline-flex items-center justify-center rounded-xl border border-amber-300 bg-white px-3.5 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-amber-900 transition hover:bg-amber-100"
+          >
+            Reintentar
+          </button>
         </div>
       )}
 

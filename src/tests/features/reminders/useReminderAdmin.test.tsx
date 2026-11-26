@@ -16,12 +16,13 @@ const mocks = vi.hoisted(() => ({
   deleteReminder: vi.fn(),
   deleteReminderImage: vi.fn(),
   feedCallback: null as ((outcome: ApplicationOutcome<Reminder[]>) => void) | null,
+  subscribeCount: 0,
   sessionListeners: new Set<() => void>(),
   sessionIsCurrent: true,
 }));
 
 vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({ currentUser: mocks.currentUser }),
+  useAuth: () => ({ currentUser: mocks.currentUser, role: 'admin' }),
 }));
 
 vi.mock('@/context/UIContext', () => ({
@@ -36,6 +37,7 @@ vi.mock('@/application/reminders/reminderUseCases', () => ({
     }: {
       onOutcome: (outcome: ApplicationOutcome<Reminder[]>) => void;
     }) => {
+      mocks.subscribeCount += 1;
       mocks.feedCallback = onOutcome;
       return vi.fn();
     },
@@ -127,6 +129,7 @@ describe('useReminderAdmin read status race, error and session safety', () => {
     mocks.sessionIsCurrent = true;
     mocks.sessionListeners.clear();
     mocks.feedCallback = null;
+    mocks.subscribeCount = 0;
   });
 
   afterEach(() => {
@@ -361,6 +364,7 @@ describe('useReminderAdmin read status race, error and session safety', () => {
       mocks.feedCallback?.({
         status: 'degraded',
         data: [],
+        reason: 'unconfirmed_cache',
         issues: [{ kind: 'unknown', message: 'offline', userSafeMessage: 'Sin conexión.' }],
         userSafeMessage: 'Sin conexión.',
       });
@@ -376,5 +380,112 @@ describe('useReminderAdmin read status race, error and session safety', () => {
     });
     expect(result.current.loadError).toBeNull();
     expect(result.current.reminders).toEqual([reminderA]);
+  });
+
+  it('closes the open read modal and discards late receipts when the reminder is deleted remotely', async () => {
+    const reminderA = buildReminder('rem-a', 'Aviso A');
+    const reminderB = buildReminder('rem-b', 'Aviso B');
+    const deferredA = createDeferred<ApplicationOutcome<ReminderReadReceipt[]>>();
+    mocks.getReminderReadReceipts.mockReturnValue(deferredA.promise);
+
+    const { result } = renderHook(() => useReminderAdmin());
+
+    act(() => {
+      mocks.feedCallback?.({ status: 'success', data: [reminderA, reminderB], issues: [] });
+    });
+
+    act(() => {
+      void result.current.openReadStatus(reminderA);
+    });
+    expect(result.current.receiptsReminder?.id).toBe('rem-a');
+
+    act(() => {
+      mocks.feedCallback?.({ status: 'success', data: [reminderB], issues: [] });
+    });
+
+    expect(result.current.receiptsReminder).toBeNull();
+    expect(result.current.readReceipts).toEqual([]);
+    expect(result.current.receiptsLoading).toBe(false);
+
+    await act(async () => {
+      deferredA.resolve(successOutcome([buildReceipt('u-a', 'Enfermera Tardía')]));
+      await deferredA.promise;
+    });
+
+    expect(result.current.receiptsReminder).toBeNull();
+    expect(result.current.readReceipts).toEqual([]);
+    expect(mocks.notifyError).not.toHaveBeenCalled();
+  });
+
+  it('preserves reminders across permission-denied and recovers automatically and via retryLoadReminders', () => {
+    vi.useFakeTimers();
+    try {
+      const reminderV1 = buildReminder('rem-a', 'Título inicial');
+      const reminderV2 = buildReminder('rem-a', 'Título actualizado');
+      const { result } = renderHook(() => useReminderAdmin());
+
+      expect(mocks.subscribeCount).toBe(1);
+
+      act(() => {
+        mocks.feedCallback?.({ status: 'success', data: [reminderV1], issues: [] });
+      });
+      expect(result.current.reminders[0]?.title).toBe('Título inicial');
+
+      act(() => {
+        mocks.feedCallback?.({
+          status: 'degraded',
+          data: [reminderV1],
+          reason: 'permission_denied',
+          issues: [
+            {
+              kind: 'permission',
+              message: 'permission-denied',
+              userSafeMessage: 'No fue posible suscribirse a los avisos.',
+            },
+          ],
+          userSafeMessage: 'No fue posible suscribirse a los avisos.',
+        });
+      });
+
+      expect(result.current.reminders[0]?.title).toBe('Título inicial');
+      expect(result.current.loadError).toBe('No fue posible suscribirse a los avisos.');
+
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(mocks.subscribeCount).toBe(2);
+
+      // Even if a retry also fails with empty data, preserved reminders stay intact.
+      act(() => {
+        mocks.feedCallback?.({
+          status: 'degraded',
+          data: [],
+          reason: 'permission_denied',
+          issues: [
+            {
+              kind: 'permission',
+              message: 'permission-denied',
+              userSafeMessage: 'No fue posible suscribirse a los avisos.',
+            },
+          ],
+          userSafeMessage: 'No fue posible suscribirse a los avisos.',
+        });
+      });
+      expect(result.current.reminders[0]?.title).toBe('Título inicial');
+
+      act(() => {
+        result.current.retryLoadReminders();
+      });
+      expect(mocks.subscribeCount).toBe(3);
+
+      act(() => {
+        mocks.feedCallback?.({ status: 'success', data: [reminderV2], issues: [] });
+      });
+
+      expect(result.current.loadError).toBeNull();
+      expect(result.current.reminders[0]?.title).toBe('Título actualizado');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -33,6 +33,9 @@ const sortReminders = (items: Reminder[]): Reminder[] =>
   });
 
 export type ReminderRepositoryErrorKind = ReminderOperationErrorKind;
+export type ReminderRepositorySubscriptionErrorKind =
+  | ReminderRepositoryErrorKind
+  | 'unconfirmed_cache';
 
 export type ReminderRepositoryMutationResult =
   | { status: 'success' }
@@ -43,7 +46,7 @@ export type ReminderRepositoryListResult =
   | { status: ReminderRepositoryErrorKind; error: unknown; reminders: Reminder[] };
 
 export interface ReminderRepositorySubscriptionOptions {
-  onError?: (error: unknown, kind: ReminderRepositoryErrorKind) => void;
+  onError?: (error: unknown, kind: ReminderRepositorySubscriptionErrorKind) => void;
 }
 
 export interface ReminderRepositoryDependencies {
@@ -61,7 +64,20 @@ export const createReminderRepository = ({
 
     return onSnapshot(
       remindersQuery,
+      { includeMetadataChanges: true },
       snapshot => {
+        if (snapshot.metadata?.fromCache && snapshot.docs.length === 0) {
+          reminderObservability.recordEvent('subscribe_reminders', 'degraded', {
+            issues: ['No fue posible confirmar los avisos desde el servidor.'],
+            context: { errorKind: 'unconfirmed_cache' },
+          });
+          options.onError?.(
+            new Error('No fue posible confirmar los avisos desde el servidor.'),
+            'unconfirmed_cache'
+          );
+          return;
+        }
+
         const reminders = snapshot.docs
           .map(docSnap =>
             normalizeReminderRecord({ id: docSnap.id, ...docSnap.data() }, docSnap.id)

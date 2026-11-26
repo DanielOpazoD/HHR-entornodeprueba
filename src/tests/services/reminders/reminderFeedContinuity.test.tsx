@@ -14,9 +14,10 @@ vi.mock('firebase/firestore', async importOriginal => ({
   ...(await importOriginal<typeof import('firebase/firestore')>()),
   query: vi.fn(),
   orderBy: vi.fn(),
-  onSnapshot: vi.fn((_query, next, fail) => {
-    mocks.next = next;
-    mocks.fail = fail;
+  onSnapshot: vi.fn((_query, optionsOrNext, nextOrFail, maybeFail) => {
+    const hasOptions = typeof optionsOrNext !== 'function';
+    mocks.next = hasOptions ? nextOrFail : optionsOrNext;
+    mocks.fail = hasOptions ? maybeFail : nextOrFail;
     return vi.fn();
   }),
 }));

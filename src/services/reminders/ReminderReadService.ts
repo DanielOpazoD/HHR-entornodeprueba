@@ -119,7 +119,11 @@ export const createReminderReadService = ({
       const snapshot = await getDocsFromServer(
         getReminderReadReceiptsCollectionRef(reminderId, runtime)
       );
-      if (snapshot.metadata?.fromCache) {
+      if (
+        snapshot.metadata?.fromCache ||
+        snapshot.metadata?.hasPendingWrites ||
+        snapshot.docs.some(docSnap => docSnap.metadata?.hasPendingWrites)
+      ) {
         throw new Error('No fue posible confirmar las lecturas desde el servidor.');
       }
 
