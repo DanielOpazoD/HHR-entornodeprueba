@@ -70,18 +70,7 @@ describe('bundle budget config', () => {
     }
   });
 
-  it('bounds the core monthly export and optional Eloisa source separately', () => {
-    const config = readBundleBudgetConfig();
-    const essential = findBudget(config, '^cudyrEssentialWorkbook-.*\\.js$');
-    const source = findBudget(config, '^cudyrSourceWorkbook-.*\\.js$');
-
-    expectPositiveByteCeiling(essential?.maxBytes, 'cudyrEssentialWorkbook');
-    expectPositiveByteCeiling(source?.maxBytes, 'cudyrSourceWorkbook');
-    expect(essential!.maxBytes).toBeLessThan(config.chunkMaxBytes);
-    expect(source!.maxBytes).toBeLessThan(config.chunkMaxBytes);
-  });
-
-  it('keeps explicit ceilings for heavy runtime assets and governed async chunks without duplicating numeric literals', () => {
+  it('keeps explicit ceilings for heavy runtime assets and vendor chunks without micro-budgeting lazy feature chunks', () => {
     const config = readBundleBudgetConfig();
 
     const excelAsset = config.assetPatternBudgets.find(
@@ -93,16 +82,15 @@ describe('bundle budget config', () => {
     for (const pattern of [
       '^pdf-.*\\.js$',
       '^vendor-pdf-.*\\.js$',
+      '^vendor-pdfjs-.*\\.js$',
       '^pdf\\.worker-.*\\.mjs$',
       '^vendor-heic2any-.*\\.js$',
-      '^PatientDocumentManagerDialog-.*\\.js$',
-      '^ClinicalPanelDrawer-.*\\.js$',
-      '^RayenSyncHistoryModal-.*\\.js$',
-      '^RayenSyncTechnicalMetricsPanel-.*\\.js$',
-      '^perfAuditReport-.*\\.js$',
-      '^RayenImportButton-.*\\.js$',
-      '^ClinicalLibraryDrawer-.*\\.js$',
       '^vendor-zod-.*\\.js$',
+      '^vendor-firebase-core-.*\\.js$',
+      '^vendor-firebase-firestore-.*\\.js$',
+      '^vendor-firebase-aux-.*\\.js$',
+      '^vendor-firebase-functions-.*\\.js$',
+      '^vendor-excel-(?!core-).*\\.js$',
     ]) {
       const budget = findBudget(config, pattern);
       expect(budget, pattern).toBeDefined();

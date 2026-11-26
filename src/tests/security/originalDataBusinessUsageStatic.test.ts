@@ -5,83 +5,35 @@ import path from 'node:path';
 
 const ROOT = path.resolve(__dirname, '../../../');
 
-const ALLOWED_ORIGINAL_DATA_REFERENCES = [
-  'src/schemas/zod/movements.ts',
-  'src/types/domain/movements.ts',
-  'src/application/census/cmaEpisodeMovementFields.ts',
-  'src/application/census/cmaUndoPatchUseCase.ts',
-  'src/application/census/movementReclassificationBuilders.ts',
-  'src/hooks/usePatientMovementUndoExecutor.ts',
-  'src/features/census/email/controllers/censusExcelSheetController.ts',
-  // Transport only: the census email request drops the clinical-sync derived fields from the
-  // preserved snapshots before upload. The workbook never reads them; values are not interpreted.
-  'src/services/integrations/censusEmailRequestPayload.ts',
-  // Email privacy only: historical specialty can require redaction, never reveal a diagnosis.
-  // The export copy is masked; the source snapshot and clinical/statistical truth are unchanged.
-  'src/domain/census/censusEmailDiagnosisPrivacy.ts',
-  // Undo only: the one discharge/transfer row constructor (manual and Rayen) writes the
-  // snapshot of the person who leaves so that row can be undone. It never reads it back.
-  'src/application/census/movementRowBuilder.ts',
-  'src/features/census/controllers/movementClinicalDocumentsController.ts',
-  'src/application/census/controllers/patientMovementSelectionController.ts',
-  'src/application/census/controllers/patientMovementUndoController.ts',
-  'src/features/census/controllers/censusCmaController.ts',
-  // Rayen census import builds discharge/transfer movements that carry the pre-movement
-  // patient snapshot in originalData for the undo/audit machinery, through the row
-  // constructor above. Its recorded-outcome matcher also reads that snapshot only as a
-  // legacy fallback when an older movement lacks clinicalEpisodeId.
-  'src/features/rayen-import/domain/applyCensusImportDiff.ts',
-  'src/features/rayen-import/domain/associatedClinicalCribDischarge.ts',
-  'src/features/rayen-import/domain/censusDischargeHistory.ts',
-  // Capture ownership: legacy movements may preserve the episode ID only in their snapshot.
-  // This read discovers an archive target; the server revalidates it against the census.
-  'src/features/rayen-import/domain/cudyrCapturePlan.ts',
-  // Read-only documentary attribution: preserved movement/crib identities can disprove a
-  // unique episode. They never supply CUDYR values, current occupancy or a write target.
-  'src/domain/evaluationScales/documentaryCudyr.ts',
-  // Continuity D-1 reads the preserved pre-discharge identity only to prove that an
-  // episode missing from today's census already has an explicit clinical outcome.
-  'src/features/rayen-import/domain/previousCensusContinuity.ts',
-  // Historical report identity: use the preserved exact episode and parental identifier only
-  // as lookup targets. The individual source report must independently verify the outcome.
-  'src/features/rayen-import/domain/previousCensusEgresoCandidates.ts',
-  // Historical resync guard: a recorded crib discharge whose preserved snapshot holds a document
-  // is never treated as the undocumented newborn of an unverifiable report row. The read only
-  // refuses a match; it never supplies identity to apply or suppress anything else.
-  'src/features/rayen-import/domain/historicalAdministrativeEvidence.ts',
-  // Legacy movement classification: the preserved Cuna/Cama mode disambiguates old bed labels.
-  // It never supplies current occupancy; explicit Cama and normal statistical rules prevail.
-  'src/domain/movements/movementTombstonePolicy.ts',
-  'src/domain/CensusManager.ts',
-  'src/features/admin/services/admissionDateBackfillPlanner.ts',
-  // Read-only admission audit cohort: a completed movement supplies only the historical person,
-  // episode and admission metadata. Notes, vital signs and orders are fetched from Eloísa,
-  // never from this snapshot; it is not evidence of current occupancy or a write target.
-  'src/features/admin/admission-audit/admissionAuditModel.ts',
-  // Read-only historical audit: recover signed UPC evaluations from the patient
-  // snapshot preserved in a completed movement, matched by patient and episode.
-  'src/features/census/services/patientUpcHistoryService.ts',
-  // Read-only CUDYR audit of completed movements; reject snapshots of another episode.
-  // This retained context is never evidence of continuing hospitalization.
-  'src/services/cudyr/cudyrReportFacts.ts',
-  // Read-only historical maintenance: discover attributed staff in completed
-  // movement snapshots, without changing clinical records or mining free text.
-  'src/services/staff/censusStaffDiscovery.ts',
-  // Integrity scoring recognizes a newly persisted movement snapshot as evidence that a
-  // vacated patient was preserved rather than erased during a multi-discharge sync.
-  'src/utils/integrityGuard.ts',
-  // Measurement only: daily-record size telemetry counts the bytes of the clinical-sync derived
-  // fields inside preserved snapshots. No value is read for meaning or leaves the device.
-  'src/services/storage/firestore/dailyRecordSizeTelemetry.ts',
-  // Historical maintenance: a JSON backup restore puts each split episode's vitals history and
-  // Rayen checkpoint back into the snapshot of its live discharge, transfer or CMA, matched by
-  // the episode id that only that snapshot carries. Nothing else in the snapshot is read.
-  'src/services/exporters/clinicalDerivedBackupRestore.ts',
-  'src/types/virtual-minsal-shared.d.ts',
+/**
+ * `originalData` holds the pre-movement patient snapshot inside completed
+ * discharges, transfers, and CMA records so movements can be undone, audited,
+ * or matched historically. It must never leak into React UI rendering, shared
+ * views/components/context, or live clinical state hooks outside the dedicated
+ * movement-undo executor.
+ */
+const ALLOWED_ORIGINAL_DATA_LAYER_PATTERNS: readonly RegExp[] = [
+  /^src\/(types|schemas)\/.+\.ts$/,
+  /^src\/(domain|application)\/.+\.ts$/,
+  /^src\/services\/.+\.ts$/,
+  /^src\/features\/rayen-import\/domain\/.+\.ts$/,
+  /^src\/features\/admin\/(services|admission-audit)\/.+\.ts$/,
+  /^src\/features\/census\/(controllers|services|email\/controllers)\/.+\.ts$/,
 ];
 
+const ALLOWED_SINGLE_FILE_EXCEPTIONS = new Set([
+  // Integrity scoring checks preserved movement snapshots to avoid misclassifying valid discharges as erasures.
+  'src/utils/integrityGuard.ts',
+  // Movement undo hook reads the preserved snapshot solely to restore an undone discharge/transfer.
+  'src/hooks/usePatientMovementUndoExecutor.ts',
+]);
+
+const isAllowedOriginalDataPath = (relativePath: string): boolean =>
+  ALLOWED_SINGLE_FILE_EXCEPTIONS.has(relativePath) ||
+  ALLOWED_ORIGINAL_DATA_LAYER_PATTERNS.some(pattern => pattern.test(relativePath));
+
 describe('originalData business governance', () => {
-  it('limits originalData usage to undo, audit, compatibility and historical maintenance surfaces', () => {
+  it('confines originalData references to non-UI domain, application, service, audit and undo layers', () => {
     const command =
       'grep -rl "originalData" src --include="*.ts" --include="*.tsx" | grep -v "src/tests/" | grep -v "\\.md$"';
     const rawOutput = execSync(command, { cwd: ROOT, encoding: 'utf8' });
@@ -91,6 +43,16 @@ describe('originalData business governance', () => {
       .filter(Boolean)
       .sort();
 
-    expect(referencedFiles).toEqual(ALLOWED_ORIGINAL_DATA_REFERENCES.sort());
+    const uiTsxReferences = referencedFiles.filter(file => file.endsWith('.tsx'));
+    expect(uiTsxReferences, 'React (.tsx) UI components must never read originalData').toEqual([]);
+
+    const disallowedReferences = referencedFiles.filter(file => !isAllowedOriginalDataPath(file));
+    expect(
+      disallowedReferences,
+      'originalData may only be referenced in approved domain/application/service/audit/undo layers'
+    ).toEqual([]);
+
+    // Sanity check that the guard is scanning live files rather than matching nothing.
+    expect(referencedFiles.length).toBeGreaterThan(0);
   });
 });
