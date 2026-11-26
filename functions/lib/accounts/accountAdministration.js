@@ -20,6 +20,7 @@ const {
   newSecret,
   digest,
   randomUUID,
+  isAuthUserNotFound,
   audit,
 } = require('./accountPolicy');
 
@@ -162,7 +163,7 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
           try {
             suspendedAuth = await auth.getUser(doc.id);
           } catch (error) {
-            if (error.code !== 'auth/user-not-found') throw error;
+            if (!isAuthUserNotFound(error)) throw error;
           }
         }
         return {

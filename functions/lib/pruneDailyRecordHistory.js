@@ -83,10 +83,12 @@ const createDailyRecordHistoryFunctions = ({ firestore }) => ({
         const counts = await runDailyRecordHistoryPrune({ firestore, apply: true });
         functions.logger.info('daily_record_history_prune', counts);
       } catch (error) {
+        const errorCode =
+          typeof error === 'object' && error !== null && 'code' in error ? error.code : null;
         // Only the numeric status: no raw SDK errors, paths or snapshot contents in telemetry.
         functions.logger.error('daily_record_history_prune_failed', {
           failed: true,
-          code: Number.isInteger(error?.code) ? error.code : null,
+          code: Number.isInteger(errorCode) ? errorCode : null,
         });
         throw new Error('Daily record history pruning failed');
       }

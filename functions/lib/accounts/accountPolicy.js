@@ -86,6 +86,12 @@ const protectedRole = (policy, context) => {
     : null;
 };
 
+const isAuthUserNotFound = error =>
+  typeof error === 'object' &&
+  error !== null &&
+  'code' in error &&
+  error.code === 'auth/user-not-found';
+
 const audit = (firestore, transaction, actorUid, targetUid, action, now) => {
   transaction.create(firestore.collection('hhr_account_audit').doc(), {
     actorUid,
@@ -112,6 +118,7 @@ module.exports = {
   normalizeRecoveryEmail,
   hasCurrentAccountSession,
   protectedRole,
+  isAuthUserNotFound,
   audit,
   randomUUID,
 };

@@ -12,6 +12,16 @@ const assertAuthenticatedClinicalRequest = async (context, hasCallableClinicalAc
   }
 };
 
+const getErrorMessage = error => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    return String(error.message);
+  }
+  return String(error);
+};
+
 const parseMinsalRangeRequest = data => {
   const hospitalId = typeof data?.hospitalId === 'string' ? data.hospitalId : '';
   const startDate = typeof data?.startDate === 'string' ? data.startDate : '';
@@ -27,7 +37,7 @@ const parseMinsalRangeRequest = data => {
   try {
     assertSupportedHospitalId(hospitalId);
   } catch (error) {
-    throw new HttpsError('permission-denied', error.message);
+    throw new HttpsError('permission-denied', getErrorMessage(error));
   }
 
   return { hospitalId, startDate, endDate };
@@ -49,6 +59,7 @@ const loadMinsalRecords = async (firestore, hospitalId, startDate, endDate) => {
 
 module.exports = {
   assertAuthenticatedClinicalRequest,
+  getErrorMessage,
   loadMinsalRecords,
   parseMinsalRangeRequest,
 };

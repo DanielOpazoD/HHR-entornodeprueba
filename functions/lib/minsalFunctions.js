@@ -2,6 +2,7 @@ const functions = require('firebase-functions/v1');
 const { calculateMinsalStatistics } = require('./minsal/minsalStatsCalculator');
 const {
   assertAuthenticatedClinicalRequest,
+  getErrorMessage,
   loadMinsalRecords,
   parseMinsalRangeRequest,
 } = require('./minsal/minsalRequestPolicy');
@@ -40,7 +41,7 @@ const createMinsalFunctions = ({
       console.error('Error calculating statistics:', error);
       throw new functions.https.HttpsError(
         'internal',
-        `Error calculating statistics: ${error.message}`
+        `Error calculating statistics: ${getErrorMessage(error)}`
       );
     }
   }),
@@ -61,7 +62,7 @@ const createMinsalFunctions = ({
       console.error('Error saving statistical specialty reclassification:', error);
       throw new functions.https.HttpsError(
         'internal',
-        `Error saving statistical specialty reclassification: ${error.message}`
+        `Error saving statistical specialty reclassification: ${getErrorMessage(error)}`
       );
     }
   }),

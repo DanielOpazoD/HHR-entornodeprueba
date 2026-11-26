@@ -86,7 +86,8 @@ const parseReclassificationRequest = data => {
   try {
     assertSupportedHospitalId(hospitalId);
   } catch (error) {
-    throw new HttpsError('permission-denied', error.message);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new HttpsError('permission-denied', message);
   }
 
   if (!isIsoDate(date)) {
