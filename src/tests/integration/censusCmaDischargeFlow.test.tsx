@@ -7,9 +7,9 @@ import {
   CensusActionsProvider,
   useCensusActionCommands,
 } from '@/features/census/components/CensusActionsContext';
+import { CensusMovementActionsProvider } from '@/features/census/context/CensusMovementActionsContext';
 import { DailyRecordProvider } from '@/context/DailyRecordContext';
 import { BEDS } from '@/constants/beds';
-import { useCMA } from '@/hooks/useCMA';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { applyPatches } from '@/utils/patchUtils';
@@ -41,14 +41,15 @@ const CensusWithCma = ({ initial }: { initial: DailyRecord }) => {
   const patchRecord = useCallback(async (patch: DailyRecordPatch) => {
     setRecord(current => applyPatches(current, patch));
   }, []);
-  const cmaActions = useCMA(record, patchRecord);
-  const value = { ...createMockDailyRecordContext(record), ...cmaActions };
+  const value = { ...createMockDailyRecordContext(record), patchRecord };
   return (
     <DailyRecordProvider value={value}>
-      <CensusActionsProvider>
-        <CensusRowR1 record={record} />
-        <CMASection />
-      </CensusActionsProvider>
+      <CensusMovementActionsProvider>
+        <CensusActionsProvider>
+          <CensusRowR1 record={record} />
+          <CMASection />
+        </CensusActionsProvider>
+      </CensusMovementActionsProvider>
     </DailyRecordProvider>
   );
 };

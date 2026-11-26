@@ -17,6 +17,10 @@ vi.mock('@/features/census/components/CensusActionsContext', () => ({
   ),
 }));
 
+vi.mock('@/features/census/context/CensusMovementActionsContext', () => ({
+  CensusMovementActionsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordStatus: () => mockUseDailyRecordStatus(),
   useDailyRecordData: () => ({ record: null }),

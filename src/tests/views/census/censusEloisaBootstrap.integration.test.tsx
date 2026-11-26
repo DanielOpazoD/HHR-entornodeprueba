@@ -62,11 +62,15 @@ vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordMovements: () => ({ discharges: [], transfers: [], cma: [] }),
 }));
 
-vi.mock('@/context/useDailyRecordScopedActions', () => ({
-  useDailyRecordStaffActions: () => ({
+vi.mock('@/features/census/hooks/useCensusStaffActions', () => ({
+  useCensusStaffActions: () => ({
     updateShiftStaff: vi.fn(),
     updateDetailedStaffing: vi.fn(),
   }),
+}));
+
+vi.mock('@/features/census/context/CensusMovementActionsContext', () => ({
+  CensusMovementActionsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 vi.mock('@/context/StaffContext', () => ({
