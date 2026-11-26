@@ -72,7 +72,7 @@ const buildReminderIssue = (
 ): ApplicationIssue => ({
   kind: mapReminderErrorKindToIssueKind(kind),
   message:
-    kind === 'unconfirmed_cache'
+    kind === 'unconfirmed_cache' || kind === 'invalid_record'
       ? fallbackMessage
       : resolveReminderAdminErrorMessage(error, { operation: 'firestore_read' }) || fallbackMessage,
   userSafeMessage: fallbackMessage,
@@ -149,11 +149,21 @@ export const createReminderUseCases = ({
         onOutcome(createApplicationSuccess(reminders));
       },
       {
+        onCachedSnapshot: cachedReminders => {
+          lastKnownReminders = cachedReminders;
+          onOutcome(
+            createApplicationDegraded(cachedReminders, [], {
+              reason: 'cached_snapshot',
+            })
+          );
+        },
         onError: (error, kind) => {
           const fallbackMessage =
             kind === 'unconfirmed_cache'
               ? 'No fue posible confirmar los avisos desde el servidor.'
-              : 'No fue posible suscribirse a los avisos.';
+              : kind === 'invalid_record'
+                ? 'No fue posible leer todos los avisos por un formato inválido.'
+                : 'No fue posible suscribirse a los avisos.';
           const issue = buildReminderIssue(kind, error, fallbackMessage);
           onOutcome(
             createApplicationDegraded(lastKnownReminders, [issue], {

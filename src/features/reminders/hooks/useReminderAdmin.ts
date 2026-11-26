@@ -145,35 +145,30 @@ export const useReminderAdmin = () => {
   }, [clearScheduledReconnect]);
 
   React.useEffect(() => {
-    const handleSessionBoundaryChange = () => {
+    const handleStorageBoundaryChange = () => {
       const activeSession = activeReadStatusSessionRef.current;
       if (activeSession && !activeSession.isCurrent()) {
         closeReadStatus();
       }
+    };
+    const handleSessionTransition = (generation: string | null) => {
+      handleStorageBoundaryChange();
+      if (generation !== null && feedTerminatedRef.current && guardAuthoringSession().isCurrent()) {
+        triggerFeedReconnect({ manual: true });
+      }
+    };
+    const handleOnlineRecovery = () => {
       if (feedTerminatedRef.current && guardAuthoringSession().isCurrent()) {
         triggerFeedReconnect({ manual: true });
       }
     };
-    const handleRecoverySignal = () => {
-      if (
-        feedTerminatedRef.current &&
-        (typeof document === 'undefined' || document.visibilityState !== 'hidden') &&
-        guardAuthoringSession().isCurrent()
-      ) {
-        triggerFeedReconnect({ manual: true });
-      }
-    };
-    const unsubscribeSession = onSessionChange(handleSessionBoundaryChange);
-    window.addEventListener('storage', handleSessionBoundaryChange);
-    window.addEventListener('online', handleRecoverySignal);
-    window.addEventListener('focus', handleRecoverySignal);
-    document.addEventListener('visibilitychange', handleRecoverySignal);
+    const unsubscribeSession = onSessionChange(handleSessionTransition);
+    window.addEventListener('storage', handleStorageBoundaryChange);
+    window.addEventListener('online', handleOnlineRecovery);
     return () => {
       unsubscribeSession();
-      window.removeEventListener('storage', handleSessionBoundaryChange);
-      window.removeEventListener('online', handleRecoverySignal);
-      window.removeEventListener('focus', handleRecoverySignal);
-      document.removeEventListener('visibilitychange', handleRecoverySignal);
+      window.removeEventListener('storage', handleStorageBoundaryChange);
+      window.removeEventListener('online', handleOnlineRecovery);
     };
   }, [closeReadStatus, triggerFeedReconnect]);
 
@@ -190,6 +185,13 @@ export const useReminderAdmin = () => {
         const nextReminders = outcome.data;
         setLoading(false);
 
+        if (outcome.status === 'degraded' && outcome.reason === 'cached_snapshot') {
+          if (nextReminders.length > 0) {
+            setReminders(nextReminders);
+          }
+          return;
+        }
+
         if (outcome.status === 'degraded' || outcome.status === 'failed') {
           if (nextReminders.length > 0) {
             setReminders(nextReminders);
@@ -202,7 +204,9 @@ export const useReminderAdmin = () => {
               })
           );
 
-          if (outcome.reason !== 'unconfirmed_cache') {
+          const isNonTerminalSnapshotWarning =
+            outcome.reason === 'unconfirmed_cache' || outcome.reason === 'invalid_record';
+          if (!isNonTerminalSnapshotWarning) {
             feedTerminatedRef.current = true;
             const retryIndex = autoReconnectCountRef.current;
             if (

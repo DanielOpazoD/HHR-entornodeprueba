@@ -105,6 +105,12 @@ export const ReminderCenterProvider: React.FC<{ children: React.ReactNode }> = (
           return;
         }
 
+        if (outcome.status === 'degraded' && outcome.reason === 'cached_snapshot') {
+          setReminders(nextReminders);
+          setLoading(false);
+          return;
+        }
+
         if (outcome.status === 'degraded' || outcome.status === 'failed') {
           setLoading(false);
           setIsAvailable(false);

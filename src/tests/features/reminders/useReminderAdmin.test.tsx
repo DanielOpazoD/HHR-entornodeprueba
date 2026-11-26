@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
   deleteReminderImage: vi.fn(),
   feedCallback: null as ((outcome: ApplicationOutcome<Reminder[]>) => void) | null,
   subscribeCount: 0,
-  sessionListeners: new Set<() => void>(),
+  sessionListeners: new Set<(generation: string | null) => void>(),
   sessionIsCurrent: true,
 }));
 
@@ -58,7 +58,7 @@ vi.mock('@/services/session/authoringSession', () => ({
 }));
 
 vi.mock('@/services/session/sessionStorageTransition', () => ({
-  onSessionChange: (listener: () => void) => {
+  onSessionChange: (listener: (generation: string | null) => void) => {
     mocks.sessionListeners.add(listener);
     return () => {
       mocks.sessionListeners.delete(listener);
@@ -315,7 +315,7 @@ describe('useReminderAdmin read status race, error and session safety', () => {
 
     act(() => {
       mocks.sessionIsCurrent = false;
-      mocks.sessionListeners.forEach(listener => listener());
+      mocks.sessionListeners.forEach(listener => listener(null));
     });
 
     expect(result.current.receiptsReminder).toBeNull();
@@ -487,5 +487,116 @@ describe('useReminderAdmin read status race, error and session safety', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('caps automatic permission-denied retries at five even with populated cache and ignores unrelated storage events', () => {
+    vi.useFakeTimers();
+    try {
+      const cachedReminder = buildReminder('rem-cached', 'Aviso en caché');
+      renderHook(() => useReminderAdmin());
+      expect(mocks.subscribeCount).toBe(1);
+
+      const failWithCachedReplay = () => {
+        act(() => {
+          mocks.feedCallback?.({
+            status: 'degraded',
+            data: [cachedReminder],
+            reason: 'cached_snapshot',
+            issues: [],
+          });
+          mocks.feedCallback?.({
+            status: 'degraded',
+            data: [cachedReminder],
+            reason: 'permission_denied',
+            issues: [
+              {
+                kind: 'permission',
+                message: 'permission-denied',
+                userSafeMessage: 'No fue posible suscribirse a los avisos.',
+              },
+            ],
+            userSafeMessage: 'No fue posible suscribirse a los avisos.',
+          });
+        });
+      };
+
+      failWithCachedReplay();
+
+      // Ordinary cross-tab storage activity must not trigger an early retry before 1000ms.
+      act(() => {
+        window.dispatchEvent(new StorageEvent('storage', { key: 'hhr_last_activity' }));
+      });
+      expect(mocks.subscribeCount).toBe(1);
+
+      // Step through all 5 backoff delays (1s, 2.5s, 5s, 10s, 20s) + extra time.
+      for (const delay of [1000, 2500, 5000, 10000, 20000]) {
+        act(() => {
+          vi.advanceTimersByTime(delay);
+        });
+        failWithCachedReplay();
+      }
+
+      // 1 initial + 5 automatic retries = 6 subscriptions max.
+      expect(mocks.subscribeCount).toBe(6);
+
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      expect(mocks.subscribeCount).toBe(6);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps the open read modal open on partial cached snapshots and invalid_record warnings', async () => {
+    const reminderA = buildReminder('rem-a', 'Aviso A');
+    const reminderB = buildReminder('rem-b', 'Aviso B');
+    mocks.getReminderReadReceipts.mockResolvedValue(
+      successOutcome([buildReceipt('u-a', 'Enfermera A')])
+    );
+
+    const { result } = renderHook(() => useReminderAdmin());
+
+    act(() => {
+      mocks.feedCallback?.({ status: 'success', data: [reminderA, reminderB], issues: [] });
+    });
+
+    await act(async () => {
+      await result.current.openReadStatus(reminderA);
+    });
+    expect(result.current.receiptsReminder?.id).toBe('rem-a');
+
+    // Partial cached snapshot omitting reminderA must not close reminderA's detail.
+    act(() => {
+      mocks.feedCallback?.({
+        status: 'degraded',
+        data: [reminderB],
+        reason: 'cached_snapshot',
+        issues: [],
+      });
+    });
+    expect(result.current.receiptsReminder?.id).toBe('rem-a');
+    expect(result.current.readReceipts.map(item => item.userName)).toEqual(['Enfermera A']);
+
+    // Malformed document warning must not close reminderA's detail or claim empty state.
+    act(() => {
+      mocks.feedCallback?.({
+        status: 'degraded',
+        data: [reminderA, reminderB],
+        reason: 'invalid_record',
+        issues: [
+          {
+            kind: 'unknown',
+            message: 'formato inválido',
+            userSafeMessage: 'No fue posible leer todos los avisos por un formato inválido.',
+          },
+        ],
+        userSafeMessage: 'No fue posible leer todos los avisos por un formato inválido.',
+      });
+    });
+    expect(result.current.receiptsReminder?.id).toBe('rem-a');
+    expect(result.current.loadError).toBe(
+      'No fue posible leer todos los avisos por un formato inválido.'
+    );
   });
 });
