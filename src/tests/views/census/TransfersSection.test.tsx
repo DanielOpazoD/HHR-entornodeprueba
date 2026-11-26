@@ -6,7 +6,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { TransfersSection } from '@/features/census/components/TransfersSection';
 import { useCensusActionCommands } from '@/features/census/context/censusActionContexts';
 import { useDailyRecordStaff, useDailyRecordMovements } from '@/context/DailyRecordContext';
-import { useDailyRecordMovementActions } from '@/context/useDailyRecordScopedActions';
+import { useCensusMovementActions } from '@/features/census/context/CensusMovementActionsContext';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { DataFactory, asStoredDailyRecordShape } from '../../factories/DataFactory';
 import {
@@ -26,8 +26,8 @@ vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordMovements: vi.fn(),
 }));
 
-vi.mock('@/context/useDailyRecordScopedActions', () => ({
-  useDailyRecordMovementActions: vi.fn(),
+vi.mock('@/features/census/context/CensusMovementActionsContext', () => ({
+  useCensusMovementActions: vi.fn(),
 }));
 
 vi.mock('@/context/UIContext', () => ({
@@ -73,7 +73,7 @@ describe('TransfersSection', () => {
     vi.mocked(useDailyRecordStaff).mockReturnValue(
       buildMockDailyRecordStaff({ date: '2024-12-11' })
     );
-    vi.mocked(useDailyRecordMovementActions).mockReturnValue(
+    vi.mocked(useCensusMovementActions).mockReturnValue(
       buildMockMovementActions({
         undoTransfer: mockOnUndo,
         deleteTransfer: mockOnDelete,

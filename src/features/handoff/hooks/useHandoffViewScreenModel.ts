@@ -12,10 +12,11 @@ import { useAuditContext } from '@/context/AuditContext';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import {
   useDailyRecordBedActions,
-  useDailyRecordHandoffActions,
+  useDailyRecordPersistenceActions,
 } from '@/context/useDailyRecordScopedActions';
 import { useStaffContext } from '@/context/StaffContext';
 import { useNotification } from '@/context/UIContext';
+import { useHandoffManagement } from '@/hooks/useHandoffManagement';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
 import { getAttributedAuthors } from '@/services/admin/attributionService';
 import { resolveHandoffShiftStaff } from '@/services/staff/dailyRecordStaffing';
@@ -56,8 +57,9 @@ export const useHandoffViewScreenModel = ({
   const { record } = useDailyRecordData();
   const { updatePatient, updatePatientMultiple, updateClinicalCribMultiple } =
     useDailyRecordBedActions();
+  const { patchRecord } = useDailyRecordPersistenceActions();
   const { updateHandoffChecklist, updateHandoffNovedades, updateHandoffReceives } =
-    useDailyRecordHandoffActions();
+    useHandoffManagement(record, patchRecord);
   const { nursesList } = useStaffContext();
   const { success } = useNotification();
   const { logViewEvent, logDebouncedEvent, userId } = useAuditContext();

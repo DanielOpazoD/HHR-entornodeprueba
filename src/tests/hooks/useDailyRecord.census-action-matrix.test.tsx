@@ -1,6 +1,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { useDailyRecord } from '@/hooks/useDailyRecord';
+import { usePatientDischarges } from '@/hooks/usePatientDischarges';
+import { usePatientTransfers } from '@/hooks/usePatientTransfers';
+import { useCMA } from '@/hooks/useCMA';
 import { defaultDailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { UIProvider } from '@/context/UIContext';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -69,7 +72,25 @@ type CensusActionFailureClass =
   | 'optimistic_update_no_reconcilia'
   | 'ui_error_post_guardado';
 
-type DailyRecordActions = ReturnType<typeof useDailyRecord>;
+const useCensusActionMatrixHarness = (targetDate: string) => {
+  const dailyRecord = useDailyRecord(targetDate, 'ready');
+  const discharges = usePatientDischarges(
+    dailyRecord.record,
+    dailyRecord.saveAndUpdate,
+    undefined,
+    dailyRecord.patchRecord
+  );
+  const transfers = usePatientTransfers(
+    dailyRecord.record,
+    dailyRecord.saveAndUpdate,
+    undefined,
+    dailyRecord.patchRecord
+  );
+  const cma = useCMA(dailyRecord.record, dailyRecord.patchRecord);
+  return { ...dailyRecord, ...discharges, ...transfers, ...cma };
+};
+
+type DailyRecordActions = ReturnType<typeof useCensusActionMatrixHarness>;
 
 interface CensusActionMatrixCase {
   name: string;
@@ -464,7 +485,7 @@ describe('useDailyRecord census action matrix', () => {
       remoteLastUpdated: initialRecord.lastUpdated,
     });
 
-    const { result } = renderHook(() => useDailyRecord(date, 'ready'), {
+    const { result } = renderHook(() => useCensusActionMatrixHarness(date), {
       wrapper: createWrapper(),
     });
     await waitFor(() => expect(result.current.record).not.toBeNull());

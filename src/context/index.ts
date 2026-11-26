@@ -20,10 +20,8 @@ export {
   DailyRecordProvider,
   useDailyRecordData,
   useDailyRecordDayActions,
+  useDailyRecordPersistenceActions,
   useDailyRecordBedActions,
-  useDailyRecordMovementActions,
-  useDailyRecordStaffActions,
-  useDailyRecordHandoffActions,
 } from './DailyRecordContext';
 
 // Authentication & Roles

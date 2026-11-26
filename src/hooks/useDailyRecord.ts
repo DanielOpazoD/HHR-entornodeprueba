@@ -54,17 +54,11 @@ export const useDailyRecord = (
     setRecord,
   });
 
-  const {
-    inventory,
-    stabilityRules,
-    bedManagement,
-    dischargeManagement,
-    transferManagement,
-    shiftStaffManagement,
-    staffingManagement,
-    cmaManagement,
-    handoffManagement,
-  } = useDailyRecordDomainModules(record, saveAndUpdate, patchRecord, ensureStaleDayEditAllowed);
+  const { inventory, stabilityRules, bedManagement } = useDailyRecordDomainModules(
+    record,
+    patchRecord,
+    ensureStaleDayEditAllowed
+  );
 
   // ========================================================================
   // Cross-date Copy
@@ -91,6 +85,8 @@ export const useDailyRecord = (
       createDay,
       resetDay,
       refresh,
+      saveAndUpdate,
+      patchRecord,
       updatePatient: bedManagement.updatePatient,
       confirmUpcRound: bedManagement.confirmUpcRound,
       updatePatientMultiple: bedManagement.updatePatientMultiple,
@@ -103,30 +99,7 @@ export const useDailyRecord = (
       updateBlockedReason: bedManagement.updateBlockedReason,
       toggleExtraBed: bedManagement.toggleExtraBed,
       toggleBedType: bedManagement.toggleBedType,
-      updateShiftStaff: shiftStaffManagement.updateShiftStaff,
-      updateDetailedStaffing: staffingManagement.updateDetailedStaffing,
-      addDischarge: dischargeManagement.addDischarge,
-      updateDischarge: dischargeManagement.updateDischarge,
-      deleteDischarge: dischargeManagement.deleteDischarge,
-      undoDischarge: dischargeManagement.undoDischarge,
-      convertDischargeToCma: dischargeManagement.convertDischargeToCma,
-      convertDischargeToTransfer: dischargeManagement.convertDischargeToTransfer,
-      addTransfer: transferManagement.addTransfer,
-      updateTransfer: transferManagement.updateTransfer,
-      deleteTransfer: transferManagement.deleteTransfer,
-      undoTransfer: transferManagement.undoTransfer,
-      convertTransferToHomeDischarge: transferManagement.convertTransferToHomeDischarge,
-      convertTransferToCma: transferManagement.convertTransferToCma,
-      addCMA: cmaManagement.addCMA,
-      deleteCMA: cmaManagement.deleteCMA,
-      updateCMA: cmaManagement.updateCMA,
-      undoCMA: cmaManagement.undoCMA,
-      convertCmaToHomeDischarge: cmaManagement.convertCmaToHomeDischarge,
-      convertCmaToTransfer: cmaManagement.convertCmaToTransfer,
       copyPatientToDate,
-      updateHandoffChecklist: handoffManagement.updateHandoffChecklist,
-      updateHandoffNovedades: handoffManagement.updateHandoffNovedades,
-      updateHandoffReceives: handoffManagement.updateHandoffReceives,
     }),
     [
       record,
@@ -139,13 +112,9 @@ export const useDailyRecord = (
       createDay,
       resetDay,
       refresh,
+      saveAndUpdate,
+      patchRecord,
       bedManagement,
-      shiftStaffManagement,
-      staffingManagement,
-      dischargeManagement,
-      transferManagement,
-      cmaManagement,
-      handoffManagement,
       copyPatientToDate,
     ]
   );

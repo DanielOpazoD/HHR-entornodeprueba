@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useDailyRecord } from '@/hooks/useDailyRecord';
+import { usePatientDischarges } from '@/hooks/usePatientDischarges';
+import { usePatientTransfers } from '@/hooks/usePatientTransfers';
 import { UIProvider } from '@/context/UIContext';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import React from 'react';
@@ -118,9 +120,21 @@ describe('Master Integration Suite', () => {
 
   describe('Scenario 1: Full Patient Lifecycle', () => {
     it('should handle admission, categorization, and discharge', async () => {
-      const { result } = renderHook(() => useDailyRecord('2025-01-25'), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => {
+          const dailyRecord = useDailyRecord('2025-01-25');
+          const discharges = usePatientDischarges(
+            dailyRecord.record,
+            dailyRecord.saveAndUpdate,
+            undefined,
+            dailyRecord.patchRecord
+          );
+          return { ...dailyRecord, ...discharges };
+        },
+        {
+          wrapper: createWrapper(),
+        }
+      );
       await act(async () => {
         await result.current.createDay(SOURCE_DAY);
       });
@@ -155,9 +169,21 @@ describe('Master Integration Suite', () => {
 
   describe('Scenario 2: Transfers and System Consistency', () => {
     it('should handle patient transfer and undo', async () => {
-      const { result } = renderHook(() => useDailyRecord('2025-01-26'), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => {
+          const dailyRecord = useDailyRecord('2025-01-26');
+          const transfers = usePatientTransfers(
+            dailyRecord.record,
+            dailyRecord.saveAndUpdate,
+            undefined,
+            dailyRecord.patchRecord
+          );
+          return { ...dailyRecord, ...transfers };
+        },
+        {
+          wrapper: createWrapper(),
+        }
+      );
       await act(async () => {
         await result.current.createDay(SOURCE_DAY);
       });

@@ -4,7 +4,7 @@ import { UIProvider } from '@/context/UIContext';
 import { DischargesSection } from '@/features/census/components/DischargesSection';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { useDailyRecordStaff, useDailyRecordMovements } from '@/context/DailyRecordContext';
-import { useDailyRecordMovementActions } from '@/context/useDailyRecordScopedActions';
+import { useCensusMovementActions } from '@/features/census/context/CensusMovementActionsContext';
 import { useCensusActionCommands } from '@/features/census/context/censusActionContexts';
 
 vi.mock('@/context/DailyRecordContext', () => ({
@@ -12,8 +12,8 @@ vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordMovements: vi.fn(),
 }));
 
-vi.mock('@/context/useDailyRecordScopedActions', () => ({
-  useDailyRecordMovementActions: vi.fn(),
+vi.mock('@/features/census/context/CensusMovementActionsContext', () => ({
+  useCensusMovementActions: vi.fn(),
 }));
 
 vi.mock('@/features/census/context/censusActionContexts', () => ({
@@ -60,8 +60,8 @@ describe('DischargesSection integration', () => {
         date: '2026-02-14',
       })
     );
-    vi.mocked(useDailyRecordMovementActions).mockReturnValue(
-      asHookValue<ReturnType<typeof useDailyRecordMovementActions>>({
+    vi.mocked(useCensusMovementActions).mockReturnValue(
+      asHookValue<ReturnType<typeof useCensusMovementActions>>({
         undoDischarge,
         deleteDischarge,
       })

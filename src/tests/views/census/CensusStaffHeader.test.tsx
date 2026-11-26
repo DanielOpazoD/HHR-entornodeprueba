@@ -45,8 +45,8 @@ vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordMovements: () => mockedUseDailyRecordMovements(),
 }));
 
-vi.mock('@/context/useDailyRecordScopedActions', () => ({
-  useDailyRecordStaffActions: () => mockedUseDailyRecordStaffActions(),
+vi.mock('@/features/census/hooks/useCensusStaffActions', () => ({
+  useCensusStaffActions: () => mockedUseDailyRecordStaffActions(),
 }));
 
 vi.mock('@/context/StaffContext', () => ({

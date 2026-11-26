@@ -1,5 +1,5 @@
 import { useStabilityRules } from '@/hooks/useStabilityRules';
-import { useDailyRecordMovementActions } from '@/context/useDailyRecordScopedActions';
+import { useCensusMovementActions } from '../context/CensusMovementActionsContext';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { useCensusActionCommands } from '../context/censusActionContexts';
 import { useCensusMovementData } from './useCensusMovementData';
@@ -18,7 +18,7 @@ export const useTransfersSectionModel = () => {
     deleteTransfer,
     convertTransferToHomeDischarge,
     convertTransferToCma,
-  } = useDailyRecordMovementActions();
+  } = useCensusMovementActions();
   const { canPerformActions } = useStabilityRules(recordDate ? { date: recordDate } : null);
   const { handleEditTransfer } = useCensusActionCommands();
   const { confirm } = useConfirmDialog();

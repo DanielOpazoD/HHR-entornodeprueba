@@ -219,7 +219,9 @@ describe('HandoffView Component', () => {
     fireEvent.change(selects[0], { target: { value: 'Test Nurse' } });
 
     await waitFor(() => {
-      expect(mockContext.updateHandoffReceives).toHaveBeenCalledWith('night', ['Test Nurse', '']);
+      expect(mockContext.patchRecord).toHaveBeenCalledWith({
+        handoffNightReceives: ['Test Nurse', ''],
+      });
     });
   });
 
@@ -238,7 +240,9 @@ describe('HandoffView Component', () => {
     fireEvent.blur(textarea);
 
     await waitFor(() => {
-      expect(mockContext.updateHandoffNovedades).toHaveBeenCalledWith('day', 'Updated novedades');
+      expect(mockContext.patchRecord).toHaveBeenCalledWith({
+        handoffNovedadesDayShift: 'Updated novedades',
+      });
     });
   });
 });

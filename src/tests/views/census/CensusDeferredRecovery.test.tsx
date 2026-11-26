@@ -47,8 +47,8 @@ vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordStaff: () => ({ date: '2026-10-15' }),
   useDailyRecordMovements: () => null,
 }));
-vi.mock('@/context/useDailyRecordScopedActions', () => ({
-  useDailyRecordStaffActions: () => ({}),
+vi.mock('@/features/census/hooks/useCensusStaffActions', () => ({
+  useCensusStaffActions: () => ({}),
 }));
 vi.mock('@/features/census/components/StaffSelector', () => ({ StaffSelector: () => null }));
 const online = (value: boolean) =>

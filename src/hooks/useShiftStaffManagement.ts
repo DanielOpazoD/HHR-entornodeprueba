@@ -1,6 +1,5 @@
 import { useMemo, useCallback } from 'react';
 import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import type {
   DailyRecordStaffingDetailsV1,
@@ -13,6 +12,15 @@ import {
   updateDetailedStaffingStandardSlot,
 } from '@/services/staff/dailyRecordDetailedStaffing';
 
+export interface ShiftStaffingRecordSlice {
+  date?: string;
+  nursesDayShift?: string[] | null;
+  nursesNightShift?: string[] | null;
+  tensDayShift?: string[] | null;
+  tensNightShift?: string[] | null;
+  staffingDetailsV1?: DailyRecordStaffingDetailsV1;
+}
+
 /**
  * A select has nobody to answer to. patchRecord already told the user and logged a refused write,
  * and the select shows the stored name again, ready to retry.
@@ -22,7 +30,7 @@ const settleStaffSelection = (write: Promise<void>): void => {
 };
 
 export const useShiftStaffManagement = (
-  record: DailyRecord | null,
+  record: ShiftStaffingRecordSlice | null,
   patchRecord: ApplyDailyRecordPatch
 ) => {
   const recordRef = useLatestRef(record);
@@ -30,7 +38,7 @@ export const useShiftStaffManagement = (
   const updateShiftStaff = useCallback(
     (role: DetailedStaffingRole, shift: DetailedStaffingShift, index: number, name: string) => {
       const currentRecord = recordRef.current;
-      if (!currentRecord) return;
+      if (!currentRecord || !currentRecord.date) return;
 
       const detail = resolveDetailedStaffingState(currentRecord, currentRecord.date);
       const updatedDetail = updateDetailedStaffingStandardSlot(detail, shift, role, index, name);
@@ -48,7 +56,7 @@ export const useShiftStaffManagement = (
 };
 
 export const useDetailedStaffingManagement = (
-  record: DailyRecord | null,
+  record: ShiftStaffingRecordSlice | null,
   patchRecord: ApplyDailyRecordPatch
 ) => {
   const recordRef = useLatestRef(record);

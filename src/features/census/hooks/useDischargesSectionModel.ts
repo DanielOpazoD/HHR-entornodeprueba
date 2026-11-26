@@ -1,4 +1,4 @@
-import { useDailyRecordMovementActions } from '@/context/useDailyRecordScopedActions';
+import { useCensusMovementActions } from '../context/CensusMovementActionsContext';
 import { useAuth } from '@/context/AuthContext';
 import { useStabilityRules } from '@/hooks/useStabilityRules';
 import { canEditAppModule } from '@/shared/access/operationalAccessPolicy';
@@ -25,7 +25,7 @@ export const useDischargesSectionModel = () => {
     updateDischarge,
     convertDischargeToCma,
     convertDischargeToTransfer,
-  } = useDailyRecordMovementActions();
+  } = useCensusMovementActions();
   const { handleEditDischarge } = useCensusActionCommands();
   const { role } = useAuth();
   const { canPerformActions } = useStabilityRules(recordDate ? { date: recordDate } : null);

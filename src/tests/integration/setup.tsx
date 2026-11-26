@@ -193,6 +193,8 @@ export const createMockDailyRecordContext = (
   createDay: vi.fn(),
   resetDay: vi.fn().mockResolvedValue(undefined),
   refresh: vi.fn(),
+  saveAndUpdate: vi.fn().mockResolvedValue(undefined),
+  patchRecord: vi.fn().mockResolvedValue(undefined),
 
   // Bed Management
   updatePatient: vi.fn().mockResolvedValue(undefined),
@@ -208,39 +210,6 @@ export const createMockDailyRecordContext = (
   toggleExtraBed: vi.fn(),
   toggleBedType: vi.fn(),
   copyPatientToDate: vi.fn().mockResolvedValue(undefined),
-
-  // Shift staff (nurse and TENS)
-  updateShiftStaff: vi.fn(),
-  updateDetailedStaffing: vi.fn(),
-
-  // Discharges
-  addDischarge: vi.fn(),
-  updateDischarge: vi.fn(),
-  deleteDischarge: vi.fn(),
-  undoDischarge: vi.fn(),
-  convertDischargeToCma: vi.fn(),
-  convertDischargeToTransfer: vi.fn(),
-
-  // Transfers
-  addTransfer: vi.fn(),
-  updateTransfer: vi.fn(),
-  deleteTransfer: vi.fn(),
-  undoTransfer: vi.fn(),
-  convertTransferToHomeDischarge: vi.fn(),
-  convertTransferToCma: vi.fn(),
-
-  // CMA (Day Hospitalization)
-  addCMA: vi.fn(),
-  deleteCMA: vi.fn(),
-  updateCMA: vi.fn(),
-  undoCMA: vi.fn(),
-  convertCmaToHomeDischarge: vi.fn(),
-  convertCmaToTransfer: vi.fn(),
-
-  // Handoff Management
-  updateHandoffChecklist: vi.fn(),
-  updateHandoffNovedades: vi.fn(),
-  updateHandoffReceives: vi.fn(),
 });
 
 export const createMockModal = <T = void,>(
