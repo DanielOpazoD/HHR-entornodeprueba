@@ -112,14 +112,50 @@
         "src/features/census/components/patient-row/PatientIdentityCell.tsx",
         "src/features/census/components/patient-row/DiagnosisInput.tsx"
       ],
+      "flow": [
+        {
+          "at": "src/features/census/components/patient-row/PatientInputCells.tsx › PatientInputCells",
+          "decides": "Conecta las celdas de identidad, diagnóstico, especialidad y dispositivos de la fila con las acciones acotadas de la cama."
+        },
+        {
+          "at": "src/features/census/components/patient-row/PatientIdentityCell.tsx › PatientIdentityCell",
+          "decides": "Edita nombre, RUT o Pasaporte y tipo de documento de la cama o cuna sin soltar el episodio acreditado."
+        },
+        {
+          "at": "src/features/census/components/patient-row/DiagnosisInput.tsx › DiagnosisInput",
+          "decides": "Edita el diagnóstico y código CIE-10 y ofrece el desbloqueo explícito («Sincronizar con Eloísa») en cunas cuando existe bloqueo manual."
+        },
+        {
+          "at": "src/features/census/components/patient-row/ClinicalInitialBlockEditor.tsx › ClinicalInitialBlockEditor",
+          "decides": "Agrupa el bloque clínico inicial en un solo envío y permite quitar el bloqueo manual de diagnóstico para reanudar Eloísa."
+        },
+        {
+          "at": "src/hooks/controllers/bedManagementPatchController.ts › buildPatientFieldPatches",
+          "decides": "Marca documentManualOverride al editar documento/tipo y diagnosisManualOverride + diagnosisManualOverrideBase al editar diagnóstico, sin borrar diagnóstico ni clinicalEpisodeId."
+        },
+        {
+          "at": "src/shared/census/diagnosisManualOverridePolicy.ts › hasNewerSourceDiagnosisThanOverrideBase",
+          "decides": "Determina si Eloísa registró un diagnóstico distinto al que existía al iniciar la edición manual para volver a proponerlo."
+        },
+        {
+          "at": "src/features/census/controllers/patientDemographicsEpisodeSyncController.ts › harmonizeEpisodeDemographicsHistory",
+          "decides": "Copia las correcciones demográficas y documentManualOverride a los días previos del mismo episodio acreditado."
+        },
+        {
+          "at": "src/features/rayen-import/domain/patientSyncPolicy.ts › diffSyncablePatientFields",
+          "decides": "Preserva documento y diagnóstico manuales del mismo episodio en sincronizaciones futuras y vuelve a proponer diagnósticos más nuevos de Eloísa."
+        }
+      ],
       "tests": [
         "src/tests/views/census/PatientInputCells.test.tsx",
         "src/tests/views/census/PatientIdentityCell.test.tsx",
         "src/tests/features/census/components/patient-row/DiagnosisInputClinicalInitialBlock.test.tsx",
+        "src/tests/rayen-import/manualIdentityPreservation.test.ts",
+        "src/tests/rayen-import/manualDiagnosisPreservation.test.ts",
         "e2e/census-persistence-reload.spec.ts › keeps patient edits after save and page reload",
         "e2e/admit-edit-discharge-smoke.spec.ts › persists a diagnosis edit through the canonical pipeline and surfaces a discharge action"
       ],
-      "rules": ["ID-01", "SAVE-01", "SAVE-02"]
+      "rules": ["ID-01", "SRC-02", "SAVE-01", "SAVE-02"]
     },
     {
       "id": "census.save-status",
@@ -235,6 +271,24 @@
         "src/features/census/controllers/censusDischargeCommandController.ts",
         "src/hooks/usePatientDischarges.ts",
         "src/features/census/components/movements/DischargeModal.tsx"
+      ],
+      "flow": [
+        {
+          "at": "src/features/census/components/movements/DischargeModal.tsx › DischargeModal",
+          "decides": "Recoge tipo de alta, fecha, hora y objetivo (madre, cuna o ambos) respetando el reloj del hospital."
+        },
+        {
+          "at": "src/features/census/controllers/censusDischargeCommandController.ts › resolveDischargeCommand",
+          "decides": "Valida los datos del alta y construye el comando normalizado con diagnóstico, hora y objetivo."
+        },
+        {
+          "at": "src/hooks/usePatientDischarges.ts › usePatientDischarges",
+          "decides": "Ejecuta el alta, registra el movimiento con el episodio exacto, libera la cama/cuna y permite deshacer manteniendo consistencia."
+        },
+        {
+          "at": "src/services/repositories/dailyRecordRepositoryWriteService.ts › updatePartialDetailedWithinLock",
+          "decides": "Persiste el egreso y la liberación de cama bajo bloqueo del día y validación de concurrencia."
+        }
       ],
       "tests": [
         "src/tests/components/DischargeModal.test.tsx",
@@ -439,6 +493,28 @@
       "gate": [
         "src/features/rayen-import/components/RayenDayBootstrapButton.tsx",
         "src/features/census/components/EmptyDayPrompt.tsx"
+      ],
+      "flow": [
+        {
+          "at": "src/features/census/components/EmptyDayPrompt.tsx › EmptyDayPrompt",
+          "decides": "Muestra la pantalla de día vacío solo tras confirmar que no existe censo remoto ni local para esa fecha."
+        },
+        {
+          "at": "src/features/rayen-import/components/RayenDayBootstrapButton.tsx › RayenDayBootstrapButton",
+          "decides": "Copia el día anterior como base y encadena la sincronización con Eloísa como único camino de creación."
+        },
+        {
+          "at": "src/services/repositories/clinicalDayCarryover.ts › applyClinicalDayCarryover",
+          "decides": "Solo para hoy, empareja cada cama y cuna con su episodio único del día previo antes de sembrar evidencia clínica."
+        },
+        {
+          "at": "src/services/repositories/clinicalCarryoverSeed.ts › seedClinicalCarryover",
+          "decides": "Arrastra signos vitales y dispositivos del mismo episodio (también con documentManualOverride) marcando clinicalCarryover pendiente de verificación."
+        },
+        {
+          "at": "functions/lib/clinicalCarryoverSeed.js › applyTrustedClinicalCarryover",
+          "decides": "En la transacción del servidor, vuelve a leer el día previo como fuente confiable e ignora valores clínicos inventados por el cliente."
+        }
       ],
       "tests": [
         "src/tests/views/census/EmptyDayPrompt.test.tsx",
@@ -670,6 +746,44 @@
         "src/features/rayen-import/domain/clinicalPatientPatch.ts",
         "src/types/domain/rayenClinicalFields.ts"
       ],
+      "flow": [
+        {
+          "at": "src/features/rayen-import/clinicalFillRunner.ts › runClinicalFill",
+          "decides": "Orquesta la etapa clínica por episodio confirmado: lecturas de ficha, dispositivos, signos vitales, escalas y CUDYR en una sola escritura en lote."
+        },
+        {
+          "at": "src/features/rayen-import/domain/clinicalPatientReaders.ts › readClinicalPatientSources",
+          "decides": "Usa el paquete combinado de la extensión o los canales individuales con reintento acotado sin confundir fallos con ausencia."
+        },
+        {
+          "at": "src/features/rayen-import/domain/clinicalFormsAuthorizationRecovery.ts › createClinicalFormsAuthorizationRecovery",
+          "decides": "Renueva autorizaciones MV3 vencidas de escalas/signos vitales con captura viva del episodio único (respetando documentManualOverride)."
+        },
+        {
+          "at": "src/features/rayen-import/domain/mergeClinicalDeviceRead.ts › mergeClinicalDeviceRead",
+          "decides": "Reconcilia dispositivos desde JSON oficial del día (retira ausentes solo con lectura completa de hoy) y verifica carryover."
+        },
+        {
+          "at": "src/features/rayen-import/domain/mergeReportDevices.ts › deviceInstanceBelongsToEpisode",
+          "decides": "Vincula las instancias de dispositivos al episodio actual (incluyendo documentManualOverride) sin duplicar ni reabrir retiros manuales."
+        },
+        {
+          "at": "src/features/rayen-import/domain/mergeReportVitals.ts › mergeReportVitals",
+          "decides": "Fusiona historial de signos vitales por identidad de evento y reloj del hospital sin duplicar mediciones."
+        },
+        {
+          "at": "src/types/domain/rayenClinicalFields.ts › RAYEN_OWNED_CLINICAL_FIELDS",
+          "decides": "Define la lista cerrada de campos clínicos propiedad de la sincronización con Eloísa."
+        },
+        {
+          "at": "src/features/rayen-import/domain/clinicalPatientPatch.ts › buildClinicalPatientPatch",
+          "decides": "Calcula solo los campos clínicos cambiados y el checkpoint incremental de cada cama o cuna."
+        },
+        {
+          "at": "functions/lib/rayenClinicalEnrichmentFunctions.js › createRayenClinicalEnrichmentFunctions",
+          "decides": "Valida en el servidor que cada parche corresponda al episodio en cama y persiste el lote clínico y clinicalDerived de forma atómica."
+        }
+      ],
       "tests": [
         "src/tests/rayen-import/clinicalFillRunner.test.ts",
         "src/tests/rayen-import/clinicalFillRunner.alerts.test.ts",
@@ -717,6 +831,28 @@
         "src/features/handoff/components/HandoffView.tsx",
         "src/features/handoff/components/HandoffNursingContent.tsx"
       ],
+      "flow": [
+        {
+          "at": "src/features/handoff/hooks/useHandoffViewScreenModel.ts › useHandoffViewScreenModel",
+          "decides": "Selecciona turno (día/noche), deriva permisos de edición de entrega y prepara pacientes, dotación y novedades."
+        },
+        {
+          "at": "src/features/handoff/components/HandoffView.tsx › HandoffView",
+          "decides": "Coordina el encabezado, selección de turno, exportación PDF y la vista activa de enfermería o médica."
+        },
+        {
+          "at": "src/features/handoff/components/HandoffNursingContent.tsx › HandoffNursingContent",
+          "decides": "Presenta la tabla de pacientes, novedades de día y noche, listas de chequeo y controles de firma de turno."
+        },
+        {
+          "at": "src/hooks/useHandoffManagement.ts › useHandoffManagement",
+          "decides": "Aplica parches de novedades, checklist y firmas sobre el registro diario del día activo."
+        },
+        {
+          "at": "src/services/storage/sync/nursingHandoffSession.ts › attemptNursingHandoffLogout",
+          "decides": "Intenta despachar cambios pendientes de entrega de enfermería antes del cierre de sesión sin borrar nunca la cola durable."
+        }
+      ],
       "tests": [
         "src/tests/views/handoff/HandoffView.test.tsx",
         "src/tests/views/handoff/useHandoffViewScreenModel.test.ts",
@@ -755,6 +891,36 @@
       "gate": [
         "src/features/cudyr/components/CudyrView.tsx",
         "src/features/census/components/patient-row/ScoresCell.tsx"
+      ],
+      "flow": [
+        {
+          "at": "src/features/rayen-import/domain/clinicalCudyrPreflight.ts › captureClinicalCudyrSource",
+          "decides": "Captura una sola vez las categorías CUDYR desde Gestión de Camas y exige metadatos completos antes de archivar."
+        },
+        {
+          "at": "src/features/rayen-import/domain/startCudyrSyncCapture.ts › startCudyrSyncCapture",
+          "decides": "Alimenta el registro diario y el archivo permanente, solicitando recuperación de movimientos por episodio (con soporte para documentManualOverride)."
+        },
+        {
+          "at": "src/features/rayen-import/bridge/cudyrHospitalHistoryRecovery.ts › recoverCudyrHospitalHistory",
+          "decides": "Comprueba si el episodio ya tiene flujo archivado antes de solicitar el PDF oficial de movimientos a la extensión."
+        },
+        {
+          "at": "src/features/rayen-import/mapping/cudyrPatientFlowPlacements.ts › cudyrPlacementsFromPatientFlow",
+          "decides": "Verifica la identidad del encabezado del PDF y extrae los ingresos reales a hospitalización (excluyendo Urgencias, CMA y cunas)."
+        },
+        {
+          "at": "src/services/cudyr/dailyCudyrRecoveryPlan.ts › recoverDailyCudyrGap",
+          "decides": "Para noches vencidas sin categoría en vivo, resuelve evidencia documental del reporte mensual o clasifica no aplicable / sin registro."
+        },
+        {
+          "at": "src/features/cudyr/components/CudyrView.tsx › CudyrView",
+          "decides": "Muestra el control diario de categorización CUDYR, sincronización, impresión y acceso al explorador estadístico."
+        },
+        {
+          "at": "src/features/census/components/patient-row/ScoresCell.tsx › ScoresCell",
+          "decides": "Muestra la categoría CUDYR y escalas clínicas de cada paciente directamente en la fila del censo."
+        }
       ],
       "tests": [
         "src/tests/views/cudyr/CudyrView.test.tsx",

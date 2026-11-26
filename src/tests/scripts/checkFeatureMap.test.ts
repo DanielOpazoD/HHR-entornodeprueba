@@ -215,11 +215,20 @@ describe('check-feature-map', () => {
     const withFlow = map.features.filter((entry: { flow?: unknown[] }) => entry.flow);
     expect(withFlow.map((entry: { id: string }) => entry.id)).toEqual([
       'census.open-day-flow',
+      'census.edit-patient',
       'census.cell-save-flow',
+      'census.discharge',
+      'eloisa.copy-and-sync',
       'eloisa.sync-flow',
       'eloisa.discharge-time-flow',
+      'eloisa.chart-fields',
+      'handoff.nursing',
+      'cudyr.daily',
     ]);
-    const renamed = withFlow[1].flow[1];
+    const cellSaveFlow = withFlow.find(
+      (entry: { id: string }) => entry.id === 'census.cell-save-flow'
+    );
+    const renamed = cellSaveFlow.flow[1];
     renamed.at = `${renamed.at}Renamed`;
     const copyRoot = mkdtempSync(path.join(tmpdir(), 'hhr-feature-map-copy-'));
     roots.push(copyRoot);
