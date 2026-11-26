@@ -23,8 +23,17 @@ const formatExpiry = (expiresAt?: string): string => {
 export const WoundCareMobileQrPanel: React.FC<WoundCareMobileQrPanelProps> = ({
   episodeContext,
 }) => {
-  const { session, uploadUrl, status, busyAction, isBusy, error, createSession, revokeSession } =
-    useWoundCareMobileUploadSession(episodeContext);
+  const {
+    session,
+    uploadUrl,
+    status,
+    busyAction,
+    isBusy,
+    error,
+    initializeSession,
+    createSession,
+    revokeSession,
+  } = useWoundCareMobileUploadSession(episodeContext);
   const [qrState, setQrState] = useState<{
     url: string;
     dataUrl: string | null;
@@ -35,8 +44,8 @@ export const WoundCareMobileQrPanel: React.FC<WoundCareMobileQrPanelProps> = ({
   >('idle', 1800);
 
   useEffect(() => {
-    void createSession();
-  }, [createSession]);
+    void initializeSession();
+  }, [initializeSession]);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,12 +110,14 @@ export const WoundCareMobileQrPanel: React.FC<WoundCareMobileQrPanelProps> = ({
         </div>
         <button
           type="button"
-          onClick={() => void createSession()}
+          onClick={() =>
+            void (!session && status === 'error' ? initializeSession() : createSession())
+          }
           disabled={isBusy}
           className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-60"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${busyAction === 'creating' ? 'animate-spin' : ''}`} />
-          Regenerar
+          {!session && status === 'error' ? 'Reintentar' : 'Regenerar'}
         </button>
       </div>
 

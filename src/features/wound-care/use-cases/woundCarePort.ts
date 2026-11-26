@@ -97,6 +97,10 @@ export const defaultWoundCarePhotoPort: WoundCarePhotoPort = {
 
 export interface WoundCareMobileUploadSessionPort {
   getById: (sessionId: string, hospitalId?: string) => Promise<WoundCareMobileUploadSession | null>;
+  listByEpisode: (
+    episodeKey: string,
+    hospitalId?: string
+  ) => Promise<WoundCareMobileUploadSession[]>;
   create: (
     session: WoundCareMobileUploadSession,
     hospitalId?: string
@@ -111,6 +115,8 @@ export interface WoundCareMobileUploadSessionPort {
 export const defaultWoundCareMobileUploadSessionPort: WoundCareMobileUploadSessionPort = {
   getById: (sessionId, hospitalId) =>
     WoundCareMobileUploadSessionRepository.getById(sessionId, hospitalId),
+  listByEpisode: (episodeKey, hospitalId) =>
+    WoundCareMobileUploadSessionRepository.listByEpisode(episodeKey, hospitalId),
   create: (session, hospitalId) =>
     WoundCareMobileUploadSessionRepository.create(session, hospitalId),
   revoke: (sessionId, patch, hospitalId) =>

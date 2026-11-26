@@ -37,6 +37,39 @@ export const WoundCareMobileUploadSessionRepository = {
     return parsed.success ? (parsed.data as WoundCareMobileUploadSession) : null;
   },
 
+  async listByEpisode(
+    episodeKey: string,
+    hospitalId: string = getActiveHospitalId()
+  ): Promise<WoundCareMobileUploadSession[]> {
+    const rawSessions = await firestoreDb.getDocs<Record<string, unknown>>(
+      getWoundCareMobileUploadSessionsPath(hospitalId),
+      {
+        where: [{ field: 'episodeKey', operator: '==', value: episodeKey }],
+        source: 'server',
+      }
+    );
+
+    const sessions: WoundCareMobileUploadSession[] = [];
+    let invalidActiveCount = 0;
+
+    for (const raw of rawSessions) {
+      const parsed = safeParseWoundCareMobileUploadSession(raw);
+      if (parsed.success) {
+        sessions.push(parsed.data as WoundCareMobileUploadSession);
+      } else if (!raw.revokedAt) {
+        invalidActiveCount += 1;
+      }
+    }
+
+    if (invalidActiveCount > 0) {
+      throw new Error(
+        `No se pudieron validar ${invalidActiveCount} sesiones móviles activas del episodio.`
+      );
+    }
+
+    return sessions;
+  },
+
   async create(
     session: WoundCareMobileUploadSession,
     hospitalId: string = getActiveHospitalId()
