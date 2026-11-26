@@ -124,7 +124,7 @@ const mapReminderReadReceiptsOutcome = (
     result.error,
     'No fue posible cargar el detalle de lecturas del aviso.'
   );
-  return createApplicationDegraded(result.receipts, [issue], {
+  return createApplicationFailed([], [issue], {
     reason: result.status,
     userSafeMessage: issue.userSafeMessage,
   });

@@ -5,11 +5,18 @@ import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { type ReminderDraftInput } from '@/features/reminders/domain/reminderValidation';
 import { resolveReminderAdminErrorMessage } from '@/services/reminders/reminderErrorPolicy';
 import {
+  guardAuthoringSession,
+  type AuthoringSessionGuard,
+} from '@/services/session/authoringSession';
+import { onSessionChange } from '@/services/session/sessionStorageTransition';
+import {
   executeReminderAdminSave,
   type ReminderImageOutcome,
 } from '@/features/reminders/controllers/reminderAdminSaveController';
 import type { Reminder, ReminderReadReceipt } from '@/types/reminders';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
+
+const DEFAULT_READ_RECEIPTS_ERROR = 'No fue posible cargar el detalle de lecturas del aviso.';
 
 const buildReminderId = (): string => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -41,8 +48,76 @@ export const useReminderAdmin = () => {
   const [receiptsReminder, setReceiptsReminder] = React.useState<Reminder | null>(null);
   const [readReceipts, setReadReceipts] = React.useState<ReminderReadReceipt[]>([]);
   const [receiptsLoading, setReceiptsLoading] = React.useState(false);
+  const [receiptsError, setReceiptsError] = React.useState<string | null>(null);
+
+  const isMountedRef = React.useRef(true);
+  const readStatusRequestIdRef = React.useRef(0);
+  const receiptsReminderRef = React.useRef<Reminder | null>(null);
+  const activeReadStatusSessionRef = React.useRef<AuthoringSessionGuard | null>(null);
+  const currentUserUid = currentUser?.uid ?? null;
+  const currentUserUidRef = React.useRef<string | null>(currentUserUid);
+
+  const activeReceiptsReminder = React.useMemo(() => {
+    if (!receiptsReminder) return null;
+    return reminders.find(item => item.id === receiptsReminder.id) ?? receiptsReminder;
+  }, [receiptsReminder, reminders]);
+
+  const closeReadStatus = React.useCallback(() => {
+    readStatusRequestIdRef.current += 1;
+    activeReadStatusSessionRef.current = null;
+    receiptsReminderRef.current = null;
+    setReceiptsReminder(null);
+    setReadReceipts([]);
+    setReceiptsError(null);
+    setReceiptsLoading(false);
+  }, []);
 
   if (useChangedOnRender([reminderUseCases])) setLoadError(null);
+  if (useChangedOnRender([currentUserUid])) {
+    setReceiptsReminder(null);
+    setReadReceipts([]);
+    setReceiptsError(null);
+    setReceiptsLoading(false);
+  }
+
+  React.useLayoutEffect(() => {
+    const previousUid = currentUserUidRef.current;
+    currentUserUidRef.current = currentUserUid;
+    if (previousUid !== currentUserUid) {
+      readStatusRequestIdRef.current += 1;
+      activeReadStatusSessionRef.current = null;
+      receiptsReminderRef.current = null;
+    }
+  }, [currentUserUid]);
+
+  React.useEffect(() => {
+    receiptsReminderRef.current = activeReceiptsReminder;
+  }, [activeReceiptsReminder]);
+
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      readStatusRequestIdRef.current += 1;
+      activeReadStatusSessionRef.current = null;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    const handleSessionBoundaryChange = () => {
+      const activeSession = activeReadStatusSessionRef.current;
+      if (activeSession && !activeSession.isCurrent()) {
+        closeReadStatus();
+      }
+    };
+    const unsubscribeSession = onSessionChange(handleSessionBoundaryChange);
+    window.addEventListener('storage', handleSessionBoundaryChange);
+    return () => {
+      unsubscribeSession();
+      window.removeEventListener('storage', handleSessionBoundaryChange);
+    };
+  }, [closeReadStatus]);
+
   React.useEffect(() => {
     const unsubscribe = reminderUseCases.subscribeToReminderFeed({
       onOutcome: outcome => {
@@ -50,7 +125,6 @@ export const useReminderAdmin = () => {
         setReminders(nextReminders);
         setLoading(false);
         if (outcome.status === 'degraded' || outcome.status === 'failed') {
-          setLoading(false);
           setLoadError(
             outcome.userSafeMessage ||
               outcome.issues[0]?.userSafeMessage ||
@@ -58,7 +132,9 @@ export const useReminderAdmin = () => {
                 operation: 'firestore_read',
               })
           );
+          return;
         }
+        setLoadError(null);
       },
     });
     return unsubscribe;
@@ -144,6 +220,9 @@ export const useReminderAdmin = () => {
           throw new Error(removeResult.userSafeMessage || 'No se pudo eliminar el aviso.');
         }
         await reminderUseCases.deleteReminderImage(reminder.imagePath);
+        if (receiptsReminderRef.current?.id === reminder.id) {
+          closeReadStatus();
+        }
         success('Avisos al personal', 'El aviso fue eliminado.');
       } catch (error) {
         notifyError(
@@ -154,34 +233,79 @@ export const useReminderAdmin = () => {
         setProcessing(false);
       }
     },
-    [confirm, notifyError, reminderUseCases, success]
+    [closeReadStatus, confirm, notifyError, reminderUseCases, success]
   );
 
   const openReadStatus = React.useCallback(
     async (reminder: Reminder) => {
+      const authoringSession = guardAuthoringSession();
+      if (!authoringSession.isCurrent()) {
+        closeReadStatus();
+        return;
+      }
+
+      const startedUserUid = currentUserUidRef.current;
+      const requestId = ++readStatusRequestIdRef.current;
+      activeReadStatusSessionRef.current = authoringSession;
+      receiptsReminderRef.current = reminder;
       setReceiptsReminder(reminder);
+      setReadReceipts([]);
+      setReceiptsError(null);
       setReceiptsLoading(true);
+
+      const isActiveRequest = (): boolean =>
+        isMountedRef.current && readStatusRequestIdRef.current === requestId;
+
+      const isSessionStillValid = (): boolean =>
+        currentUserUidRef.current === startedUserUid && authoringSession.isCurrent();
+
       try {
         const result = await reminderUseCases.getReminderReadReceipts(reminder.id);
-        setReadReceipts(result.data);
-        if (result.status !== 'success') {
-          notifyError(
-            'Avisos al personal',
-            result.userSafeMessage || 'No se pudo cargar el detalle de lecturas.'
-          );
+        if (!isActiveRequest()) return;
+        if (!isSessionStillValid()) {
+          closeReadStatus();
+          return;
         }
+
+        if (result.status !== 'success') {
+          const message =
+            result.userSafeMessage ||
+            result.issues[0]?.userSafeMessage ||
+            DEFAULT_READ_RECEIPTS_ERROR;
+          setReadReceipts([]);
+          setReceiptsError(message);
+          notifyError('Avisos al personal', message);
+          return;
+        }
+
+        setReadReceipts(result.data);
+        setReceiptsError(null);
+      } catch (error) {
+        if (!isActiveRequest()) return;
+        if (!isSessionStillValid()) {
+          closeReadStatus();
+          return;
+        }
+        const message =
+          resolveReminderAdminErrorMessage(error, { operation: 'firestore_read' }) ||
+          DEFAULT_READ_RECEIPTS_ERROR;
+        setReadReceipts([]);
+        setReceiptsError(message);
+        notifyError('Avisos al personal', message);
       } finally {
-        setReceiptsLoading(false);
+        if (isActiveRequest() && isSessionStillValid()) {
+          setReceiptsLoading(false);
+        }
       }
     },
-    [notifyError, reminderUseCases]
+    [closeReadStatus, notifyError, reminderUseCases]
   );
 
-  const closeReadStatus = React.useCallback(() => {
-    setReceiptsReminder(null);
-    setReadReceipts([]);
-    setReceiptsLoading(false);
-  }, []);
+  const retryReadStatus = React.useCallback(() => {
+    const activeReminder = receiptsReminderRef.current;
+    if (!activeReminder) return;
+    void openReadStatus(activeReminder);
+  }, [openReadStatus]);
 
   return {
     reminders,
@@ -195,10 +319,12 @@ export const useReminderAdmin = () => {
     closeForm,
     saveReminder,
     deleteReminder,
-    receiptsReminder,
+    receiptsReminder: activeReceiptsReminder,
     readReceipts,
     receiptsLoading,
+    receiptsError,
     openReadStatus,
+    retryReadStatus,
     closeReadStatus,
   };
 };

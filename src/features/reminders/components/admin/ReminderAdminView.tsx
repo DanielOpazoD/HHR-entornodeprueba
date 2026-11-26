@@ -24,7 +24,9 @@ export const ReminderAdminView: React.FC = () => {
     receiptsReminder,
     readReceipts,
     receiptsLoading,
+    receiptsError,
     openReadStatus,
+    retryReadStatus,
     closeReadStatus,
   } = useReminderAdmin();
 
@@ -73,7 +75,10 @@ export const ReminderAdminView: React.FC = () => {
       </header>
 
       {loadError && (
-        <div className="mb-5 rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+        <div
+          role="alert"
+          className="mb-5 rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800"
+        >
           {loadError}
         </div>
       )}
@@ -83,9 +88,11 @@ export const ReminderAdminView: React.FC = () => {
           Cargando avisos...
         </div>
       ) : reminders.length === 0 ? (
-        <div className="rounded-[1.75rem] border border-dashed border-slate-200 bg-slate-50 p-10 text-center text-sm font-semibold text-slate-500">
-          No hay avisos creados. Usa &quot;Nuevo aviso&quot; para publicar el primero.
-        </div>
+        loadError ? null : (
+          <div className="rounded-[1.75rem] border border-dashed border-slate-200 bg-slate-50 p-10 text-center text-sm font-semibold text-slate-500">
+            No hay avisos creados. Usa &quot;Nuevo aviso&quot; para publicar el primero.
+          </div>
+        )
       ) : (
         <div className="space-y-4">
           {reminders.map(reminder => (
@@ -135,6 +142,8 @@ export const ReminderAdminView: React.FC = () => {
         reminder={receiptsReminder}
         receipts={readReceipts}
         loading={receiptsLoading}
+        error={receiptsError}
+        onRetry={retryReadStatus}
         onClose={closeReadStatus}
       />
     </div>

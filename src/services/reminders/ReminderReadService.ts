@@ -1,5 +1,5 @@
 import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
-import { getDoc, getDocs, setDoc } from 'firebase/firestore';
+import { getDoc, getDocsFromServer, setDoc } from 'firebase/firestore';
 import { defaultReminderFirestoreRuntime } from '@/services/firebase-runtime/reminderRuntime';
 import type { ReminderReadReceipt, ReminderShift } from '@/types/reminders';
 import {
@@ -108,18 +108,42 @@ export const createReminderReadService = ({
 
   async getReadReceipts(reminderId: string): Promise<ReminderReadReceipt[]> {
     const result = await this.getReadReceiptsWithResult(reminderId);
+    if (result.status !== 'success') {
+      throw result.error;
+    }
     return result.receipts;
   },
 
   async getReadReceiptsWithResult(reminderId: string): Promise<ReminderReadReceiptsResult> {
     try {
-      const snapshot = await getDocs(getReminderReadReceiptsCollectionRef(reminderId, runtime));
+      const snapshot = await getDocsFromServer(
+        getReminderReadReceiptsCollectionRef(reminderId, runtime)
+      );
+      if (snapshot.metadata?.fromCache) {
+        throw new Error('No fue posible confirmar las lecturas desde el servidor.');
+      }
+
+      const receipts: ReminderReadReceipt[] = [];
+      for (const docSnap of snapshot.docs) {
+        const normalized = normalizeReminderReadReceipt(docSnap.data());
+        if (!normalized) {
+          throw new Error('Se encontraron registros de lectura con formato inválido.');
+        }
+        receipts.push(normalized);
+      }
+
+      receipts.sort((left, right) => {
+        const leftMs = Date.parse(left.readAt);
+        const rightMs = Date.parse(right.readAt);
+        if (Number.isFinite(leftMs) && Number.isFinite(rightMs) && leftMs !== rightMs) {
+          return rightMs - leftMs;
+        }
+        return right.readAt.localeCompare(left.readAt);
+      });
+
       return {
         status: 'success',
-        receipts: snapshot.docs
-          .map(docSnap => normalizeReminderReadReceipt(docSnap.data()))
-          .filter((item): item is ReminderReadReceipt => Boolean(item))
-          .sort((left, right) => right.readAt.localeCompare(left.readAt)),
+        receipts,
       };
     } catch (error) {
       reminderReadLogger.error('Error loading reminder receipts', error);
