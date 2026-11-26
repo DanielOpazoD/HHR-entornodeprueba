@@ -20,11 +20,22 @@ const action = parse(fs.readFileSync(actionPath, 'utf8'));
 const isExplicitlyDisabledSaveCache = (value: unknown): boolean =>
   value === undefined || value === false || value === 'false';
 
+const saveCacheEntries = (stepWith?: Record<string, unknown>) =>
+  Object.entries(stepWith ?? {}).filter(([key]) => key.toLowerCase() === 'save-cache');
+
+const hasOnlyDisabledSaveCache = (stepWith?: Record<string, unknown>): boolean =>
+  saveCacheEntries(stepWith).every(([, value]) => isExplicitlyDisabledSaveCache(value));
+
+const runsNpmCi = (script?: string): boolean =>
+  /\bnpm(?:\s+--?\S+(?:=\S+|\s+\S+)?)*\s+(?:ci|clean-install|ic|install-clean)\b/m.test(
+    script ?? ''
+  );
+
 const setupDependencySteps = (job: WorkflowJob) =>
   job.steps.filter(step => step.uses === setupActionRef);
 
 const mayWriteCache = (job: WorkflowJob): boolean =>
-  setupDependencySteps(job).some(step => !isExplicitlyDisabledSaveCache(step.with?.['save-cache']));
+  setupDependencySteps(job).some(step => !hasOnlyDisabledSaveCache(step.with));
 
 type Step = {
   name?: string;
@@ -138,17 +149,18 @@ it('reuses exact dependencies across compatible jobs with one PR-phase writer pe
   for (const [jobName, job] of reusable) {
     expect(setupDependencySteps(job), jobName).toHaveLength(1);
     const setupIndex = job.steps.findIndex(step => step.uses === setupActionRef);
-    const checkoutIndex = job.steps.findIndex(step => step.uses?.startsWith('actions/checkout@'));
+    expect(job.steps[setupIndex]['continue-on-error'], jobName).not.toBe(true);
+    const checkoutIndex = job.steps.findIndex(step => /^actions\/checkout@/i.test(step.uses ?? ''));
     const firstCommandIndex = job.steps.findIndex(
       step =>
         /\b(?:npm|npx|node)\b/.test(step.run ?? '') ||
-        step.uses?.startsWith('treosh/lighthouse-ci-action@')
+        /^treosh\/lighthouse-ci-action@/i.test(step.uses ?? '')
     );
     expect(checkoutIndex, jobName).toBeGreaterThanOrEqual(0);
     expect(setupIndex, jobName).toBeGreaterThan(checkoutIndex);
     expect(firstCommandIndex, jobName).toBeGreaterThan(setupIndex);
     expect(
-      job.steps.some(step => step.run === 'npm ci'),
+      job.steps.some(step => runsNpmCi(step.run)),
       jobName
     ).toBe(false);
   }
@@ -195,13 +207,14 @@ it('publishes and reuses the exact ubuntu-24.04 dependency cache across nightly 
     const setupIndex = job.steps.findIndex(step => step.uses === setupActionRef);
     expect(setupIndex, label).toBeGreaterThanOrEqual(0);
     expect(job.steps[setupIndex].if, label).toBeUndefined();
+    expect(job.steps[setupIndex]['continue-on-error'], label).not.toBe(true);
     if (jobName !== 'nightly-sync-model') {
       expect(
-        isExplicitlyDisabledSaveCache(job.steps[setupIndex].with?.['save-cache']),
+        hasOnlyDisabledSaveCache(job.steps[setupIndex].with),
         `${label} must not save cache`
       ).toBe(true);
     }
-    const checkoutIndex = job.steps.findIndex(step => step.uses?.startsWith('actions/checkout@'));
+    const checkoutIndex = job.steps.findIndex(step => /^actions\/checkout@/i.test(step.uses ?? ''));
     expect(checkoutIndex, label).toBeGreaterThanOrEqual(0);
     expect(setupIndex, label).toBeGreaterThan(checkoutIndex);
     const firstDependentIndex = job.steps.findIndex(
@@ -212,11 +225,11 @@ it('publishes and reuses the exact ubuntu-24.04 dependency cache across nightly 
     );
     expect(firstDependentIndex, label).toBeGreaterThan(setupIndex);
     expect(
-      job.steps.some(step => step.run === 'npm ci'),
+      job.steps.some(step => runsNpmCi(step.run)),
       label
     ).toBe(false);
     expect(
-      job.steps.some(step => step.uses?.startsWith('actions/setup-node@')),
+      job.steps.some(step => /^actions\/setup-node@/i.test(step.uses ?? '')),
       label
     ).toBe(false);
   }
