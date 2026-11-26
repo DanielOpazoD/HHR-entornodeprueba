@@ -48,7 +48,9 @@ export const capturePatchBaseContext = (record: DailyRecord): Record<string, unk
  * marks every diagnosis edit as manual (`diagnosisManualOverride`), so that flag travels with it.
  */
 const isOrdinaryClinicalPatchPath = (path: string): boolean =>
-  /^beds\.[^.]+\.(?:clinicalCrib\.)?(?:pathology|status|diagnosisManualOverride)$/.test(path);
+  /^beds\.[^.]+\.(?:clinicalCrib\.)?(?:pathology|status|diagnosisManualOverride|diagnosisManualOverrideBase)$/.test(
+    path
+  );
 
 const hasOriginalPatchContext = (
   context: Record<string, unknown> | undefined,

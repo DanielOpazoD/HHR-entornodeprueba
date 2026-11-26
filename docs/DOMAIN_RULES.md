@@ -75,14 +75,19 @@ vigentes no se sustituyen por un documento.
 
 La sincronización toma el último diagnóstico activo de Eloísa por orden de evento, aunque no esté
 marcado como principal. Una edición manual del diagnóstico en HHR (texto o código, incluyendo
-vaciarlo) queda marcada con `diagnosisManualOverride` y prevalece en el mismo episodio; un cambio
-hecho después de abrir la revisión también debe conservarse. El marcador se guarda con el parche
-clínico y se limpia al reemplazar paciente o episodio. No se modifica el diagnóstico de otro paciente
-ni el de la cuna acompañante.
+vaciarlo) queda marcada con `diagnosisManualOverride` y guarda en `diagnosisManualOverrideBase` el
+diagnóstico de Eloísa que existía al iniciar la edición manual: mientras Eloísa siga informando ese
+mismo diagnóstico (o no tenga diagnóstico), prevalece la edición manual; si posteriormente Eloísa
+registra un diagnóstico distinto, la sincronización vuelve a proponer la actualización en la
+revisión y, al confirmarla, limpia la marca manual. Un cambio manual hecho después de abrir la
+revisión también debe conservarse. Para marcas manuales previas sin base guardada —o para reactivar
+antes la sincronización—, el editor clínico ofrece la acción explícita «Sincronizar con Eloísa» sin
+borrar el texto visible. Los marcadores se guardan con el parche clínico y se limpian al reemplazar
+paciente o episodio. No se modifica el diagnóstico de otro paciente ni el de la cuna acompañante.
 
-Los registros anteriores no contienen este marcador: no es posible atribuir retrospectivamente una
-edición manual sólo a partir del texto. Las pruebas acreditan la protección de las ediciones realizadas
-con esta versión; no acreditan una migración de autoría de diagnósticos históricos.
+Los registros anteriores sin `diagnosisManualOverrideBase` conservan su protección manual hasta que
+se use «Sincronizar con Eloísa» o cambie el episodio. Las pruebas acreditan la protección de las
+ediciones realizadas con esta versión y la reanudación al registrarse un diagnóstico nuevo en Eloísa.
 
 ### Documentos con letras y edición manual de identidad (ID-01, SRC-02)
 

@@ -35,6 +35,7 @@ const PATIENT_FIELD_OWNERSHIP = {
   vitalSignsHistory: 'remoteCanonical',
   pathology: 'remoteCanonical',
   diagnosisManualOverride: 'remoteCanonical',
+  diagnosisManualOverrideBase: 'remoteCanonical',
   snomedCode: 'remoteCanonical',
   cie10Code: 'remoteCanonical',
   cie10Description: 'remoteCanonical',

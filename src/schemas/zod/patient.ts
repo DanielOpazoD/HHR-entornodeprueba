@@ -243,6 +243,12 @@ export const PatientDataSchema: z.ZodMiniType<PatientData, unknown> = z.lazy(() 
       ),
       isRapanui: nullableOptional(z.boolean()),
       diagnosisManualOverride: nullableOptional(z.boolean()),
+      diagnosisManualOverrideBase: nullableOptional(
+        z.object({
+          pathology: DefaultEmptyStringSchema,
+          cie10Code: NullableOptionalStringSchema,
+        })
+      ),
       pathology: DefaultEmptyStringSchema,
       snomedCode: NullableOptionalStringSchema,
       cie10Code: NullableOptionalStringSchema,

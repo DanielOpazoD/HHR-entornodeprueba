@@ -10,6 +10,7 @@ import {
   normalizeRut,
 } from '@/utils/rutUtils';
 import { isDismissedTreatingPhysician } from '@/shared/census/treatingPhysicianDismissal';
+import { hasNewerSourceDiagnosisThanOverrideBase } from '@/shared/census/diagnosisManualOverridePolicy';
 import { normalizePatientUpcForBed } from '@/shared/census/upcBedPolicy';
 import { rayenToPatientData } from '../mapping/rayenToPatientData';
 import { matchesCensusEpisodeIdentity, normalizePatientRut } from './censusPatientIdentityIndex';
@@ -70,6 +71,12 @@ export const diffSyncablePatientFields = (
     !current.clinicalEpisodeId ||
     !incoming.clinicalEpisodeId ||
     current.clinicalEpisodeId === incoming.clinicalEpisodeId;
+  const supersededManualDiagnosis =
+    sameEpisodeForManualOverride && hasNewerSourceDiagnosisThanOverrideBase(current, incoming);
+  const preserveManualDiagnosis =
+    current.diagnosisManualOverride === true &&
+    sameEpisodeForManualOverride &&
+    !supersededManualDiagnosis;
   // A deliberate manual document correction (RUT/Pasaporte) survives subsequent Eloísa
   // synchronizations for this same episode without blocking clinical updates.
   const preserveManualDocument =
@@ -103,11 +110,7 @@ export const diffSyncablePatientFields = (
       (field === 'treatingPhysicianId' || field === 'treatingPhysicianName')
     )
       continue;
-    if (
-      current.diagnosisManualOverride &&
-      sameEpisodeForManualOverride &&
-      ['pathology', 'cie10Code', 'cie10Description'].includes(field)
-    )
+    if (preserveManualDiagnosis && ['pathology', 'cie10Code', 'cie10Description'].includes(field))
       continue;
     const from = current[field];
     const to = incoming[field];
@@ -135,6 +138,19 @@ export const diffSyncablePatientFields = (
     )
       continue;
     if (String(from ?? '') !== String(to ?? '')) changes.push({ field, from, to });
+  }
+  if (
+    supersededManualDiagnosis &&
+    changes.some(change => ['pathology', 'cie10Code', 'cie10Description'].includes(change.field))
+  ) {
+    changes.push({ field: 'diagnosisManualOverride', from: true, to: undefined });
+    if (current.diagnosisManualOverrideBase !== undefined) {
+      changes.push({
+        field: 'diagnosisManualOverrideBase',
+        from: current.diagnosisManualOverrideBase,
+        to: undefined,
+      });
+    }
   }
   if (
     incoming.neonatalMaternalRut &&
@@ -170,9 +186,18 @@ export const mergeSyncablePatient = (current: PatientData, incoming: PatientData
     current.clinicalEpisodeId !== incoming.clinicalEpisodeId
   ) {
     delete merged.diagnosisManualOverride;
+    delete merged.diagnosisManualOverrideBase;
     delete merged.documentManualOverride;
   }
   for (const change of diffSyncablePatientFields(current, incoming)) {
+    if (
+      (change.field === 'diagnosisManualOverride' ||
+        change.field === 'diagnosisManualOverrideBase') &&
+      change.to === undefined
+    ) {
+      delete merged[change.field];
+      continue;
+    }
     (merged as Record<string, unknown>)[change.field] = change.to;
   }
   return merged;
@@ -195,17 +220,25 @@ const preserveClinicalCribSpecialty = (
           current.admissionDate === incoming.admissionDate &&
           (current.admissionTime ?? '') === (incoming.admissionTime ?? '')
         ));
+  const cribPreservesManualDiagnosis = Boolean(
+    sameCrib &&
+    current.diagnosisManualOverride === true &&
+    !hasNewerSourceDiagnosisThanOverrideBase(current, incoming)
+  );
   return sameCrib
     ? {
         ...incoming,
         specialty: current.specialty,
         specialtyAssignment: current.specialtyAssignment,
-        ...(current.diagnosisManualOverride
+        ...(cribPreservesManualDiagnosis
           ? {
               pathology: current.pathology,
               cie10Code: current.cie10Code,
               cie10Description: current.cie10Description,
               diagnosisManualOverride: true,
+              ...(current.diagnosisManualOverrideBase
+                ? { diagnosisManualOverrideBase: current.diagnosisManualOverrideBase }
+                : {}),
             }
           : {}),
         ...(current.documentManualOverride
@@ -236,14 +269,44 @@ export const applyReviewedPatientChanges = (
     )
   ) {
     delete merged.diagnosisManualOverride;
+    delete merged.diagnosisManualOverrideBase;
     delete merged.documentManualOverride;
   }
+  const plannedDiagnosisOverrideClear = changes.some(
+    change => change.field === 'diagnosisManualOverride' && change.to === undefined
+  );
+  const pathologyChange = changes.find(change => change.field === 'pathology');
+  const cie10CodeChange = changes.find(change => change.field === 'cie10Code');
+  const cie10DescriptionChange = changes.find(change => change.field === 'cie10Description');
+  const postPreviewManualDiagnosisEdit =
+    merged.diagnosisManualOverride === true &&
+    (!plannedDiagnosisOverrideClear ||
+      (pathologyChange !== undefined &&
+        String(current.pathology ?? '') !== String(pathologyChange.from ?? '')) ||
+      (cie10CodeChange !== undefined &&
+        String(current.cie10Code ?? '') !== String(cie10CodeChange.from ?? '')) ||
+      (cie10DescriptionChange !== undefined &&
+        String(current.cie10Description ?? '') !== String(cie10DescriptionChange.from ?? '')));
   for (const change of changes) {
     if (
-      merged.diagnosisManualOverride === true &&
-      ['pathology', 'cie10Code', 'cie10Description'].includes(change.field)
+      postPreviewManualDiagnosisEdit &&
+      [
+        'pathology',
+        'cie10Code',
+        'cie10Description',
+        'diagnosisManualOverride',
+        'diagnosisManualOverrideBase',
+      ].includes(change.field)
     )
       continue;
+    if (
+      (change.field === 'diagnosisManualOverride' ||
+        change.field === 'diagnosisManualOverrideBase') &&
+      change.to === undefined
+    ) {
+      delete merged[change.field];
+      continue;
+    }
     if (
       merged.documentManualOverride === true &&
       (change.field === 'rut' || change.field === 'documentType')

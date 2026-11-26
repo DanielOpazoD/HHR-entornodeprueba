@@ -217,6 +217,7 @@ describe('bedManagementReducer bed state controls', () => {
       'beds.R1.clinicalCrib.patientName': 'RN Temporal',
       'beds.R1.clinicalCrib.pathology': 'Observación',
       'beds.R1.clinicalCrib.diagnosisManualOverride': true,
+      'beds.R1.clinicalCrib.diagnosisManualOverrideBase': { pathology: '' },
     });
   });
 
@@ -239,6 +240,7 @@ describe('bedManagementReducer bed state controls', () => {
     expect(patch).toEqual({
       'beds.R1.clinicalCrib.pathology': 'Ictericia',
       'beds.R1.clinicalCrib.diagnosisManualOverride': true,
+      'beds.R1.clinicalCrib.diagnosisManualOverrideBase': { pathology: 'Observación' },
     });
 
     // Todo idéntico → diff vacío (el dispatch lo corta sin escribir ni auditar).

@@ -6,8 +6,10 @@ import type { CesareanLabor, DeliveryRoute, PatientData } from '@/types/domain/p
 
 import React from 'react';
 import clsx from 'clsx';
+import { RotateCcw } from 'lucide-react';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
 import { DeliveryRoutePopover } from './DeliveryRoutePopover';
+import { buildRestoreEloisaDiagnosisPatch } from '@/shared/census/diagnosisManualOverridePolicy';
 import {
   isGinecobstetriciaSpecialty,
   isObstetricGinecobstetricia,
@@ -44,12 +46,21 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
     isGinecobstetricia && isObstetricGinecobstetricia(data.ginecobstetriciaType);
   const canShowClinicalInitialBlockEditor =
     !readOnly && !isSubRow && !isEmpty && Boolean(data.patientName);
+  const canShowRestoreEloisaDiagnosis =
+    !readOnly &&
+    isSubRow &&
+    !isEmpty &&
+    Boolean(data.diagnosisManualOverride) &&
+    Boolean(onMultipleUpdate);
   const freeTextRightPadding =
     data.cie10Code && canShowDeliveryRoute
       ? canShowClinicalInitialBlockEditor
         ? 'pr-32'
         : 'pr-24'
-      : canShowDeliveryRoute || canShowClinicalInitialBlockEditor || data.cie10Code
+      : canShowDeliveryRoute ||
+          canShowClinicalInitialBlockEditor ||
+          data.cie10Code ||
+          canShowRestoreEloisaDiagnosis
         ? 'pr-16'
         : undefined;
   const hasPathologyError =
@@ -101,6 +112,18 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
         )}
 
         <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          {canShowRestoreEloisaDiagnosis && (
+            <button
+              type="button"
+              data-testid={`diagnosis-restore-eloisa-${data.bedId}`}
+              className="rounded border border-slate-200 bg-white p-0.5 text-teal-700 hover:border-teal-300 hover:bg-teal-50 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+              title="Diagnóstico editado a mano · volver a sincronizar desde Eloísa"
+              aria-label="Sincronizar diagnóstico con Eloísa"
+              onClick={() => onMultipleUpdate?.(buildRestoreEloisaDiagnosisPatch())}
+            >
+              <RotateCcw size={11} />
+            </button>
+          )}
           <DiagnosisCodeBadge
             code={data.cie10Code}
             description={data.cie10Description || data.pathology}

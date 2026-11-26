@@ -26,6 +26,8 @@ const hasPatientRowPatchFields = (fields: PatientRowPatientPatch): boolean =>
 const CLINICAL_SUBMISSION_FIELDS = new Set([
   'specialty',
   'pathology',
+  'diagnosisManualOverride',
+  'diagnosisManualOverrideBase',
   'cie10Code',
   'cie10Description',
   'treatingPhysicianId',

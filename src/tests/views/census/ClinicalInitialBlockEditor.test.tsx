@@ -352,4 +352,31 @@ describe('ClinicalInitialBlockEditor treating physician', () => {
     );
     expect(setProfessionalsCatalog).not.toHaveBeenCalled();
   });
+
+  it('shows the manual diagnosis notice and restores Eloísa sync without clearing pathology', () => {
+    const onMultipleUpdate = renderEditor([], {
+      pathology: 'Diagnóstico editado a mano',
+      diagnosisManualOverride: true,
+    });
+
+    expect(screen.getByTestId('clinical-block-manual-diagnosis-notice-H1C1')).toHaveTextContent(
+      'no se actualiza desde Eloísa'
+    );
+    fireEvent.click(screen.getByTestId('clinical-block-restore-eloisa-diagnosis-H1C1'));
+    expect(onMultipleUpdate).toHaveBeenCalledWith({
+      diagnosisManualOverride: undefined,
+      diagnosisManualOverrideBase: undefined,
+    });
+  });
+
+  it('hides the manual diagnosis unlock control when the diagnosis is not manually locked', () => {
+    renderEditor([], {
+      pathology: 'Diagnóstico sincronizado',
+      diagnosisManualOverride: undefined,
+    });
+
+    expect(
+      screen.queryByTestId('clinical-block-manual-diagnosis-notice-H1C1')
+    ).not.toBeInTheDocument();
+  });
 });

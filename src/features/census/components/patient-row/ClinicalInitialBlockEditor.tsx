@@ -4,8 +4,9 @@ import { buildPatientRowSaveScopeKey } from '@/features/census/controllers/patie
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
-import { Check, SquarePen, X } from 'lucide-react';
+import { Check, RotateCcw, SquarePen, X } from 'lucide-react';
 import { SPECIALTY_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
+import { buildRestoreEloisaDiagnosisPatch } from '@/shared/census/diagnosisManualOverridePolicy';
 import { useStaffContext } from '@/context/StaffContext';
 import { professionalSpecialtyToPatientSpecialty } from '@/services/staff/treatingPhysicianCatalog';
 import { TreatingPhysicianSelect } from './TreatingPhysicianSelect';
@@ -115,6 +116,13 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
       patch.specialty = 'Otro' as PatientData['specialty'];
     }
     if (await saveState.save(() => onMultipleUpdate?.(patch))) setIsOpen(false);
+  };
+
+  const restoreEloisaDiagnosisSync = async () => {
+    if (disabled) return;
+    if (await saveState.save(() => onMultipleUpdate?.(buildRestoreEloisaDiagnosisPatch()))) {
+      setIsOpen(false);
+    }
   };
 
   return (
@@ -231,6 +239,29 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
                     }
                   />
                 </label>
+
+                {data.diagnosisManualOverride && (
+                  <div
+                    className="flex items-center justify-between gap-2 rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-[11px] text-slate-600"
+                    data-testid={`clinical-block-manual-diagnosis-notice-${data.bedId}`}
+                  >
+                    <span>
+                      {data.diagnosisManualOverrideBase
+                        ? 'Editado a mano · volverá a actualizarse si cambia en Eloísa.'
+                        : 'Editado a mano · no se actualiza desde Eloísa.'}
+                    </span>
+                    <button
+                      type="button"
+                      data-testid={`clinical-block-restore-eloisa-diagnosis-${data.bedId}`}
+                      className="inline-flex shrink-0 items-center gap-1 font-semibold text-teal-700 hover:text-teal-800 hover:underline disabled:opacity-50"
+                      disabled={saveState.isSaving}
+                      onClick={() => void restoreEloisaDiagnosisSync()}
+                    >
+                      <RotateCcw size={11} />
+                      Sincronizar con Eloísa
+                    </button>
+                  </div>
+                )}
 
                 <label className="block">
                   <span className="mb-1 block text-[11px] font-semibold text-slate-600">

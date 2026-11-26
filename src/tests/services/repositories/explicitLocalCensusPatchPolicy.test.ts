@@ -25,6 +25,7 @@ describe('explicitLocalCensusPatchPolicy', () => {
     const expectedClinicalFields = [
       'pathology',
       'diagnosisManualOverride',
+      'diagnosisManualOverrideBase',
       'diagnosisComments',
       'snomedCode',
       'cie10Code',
