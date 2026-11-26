@@ -79,6 +79,7 @@ describe('useMinsalStats', () => {
         defaultOptions: {
           queries: {
             retry: false,
+            retryDelay: 0,
             gcTime: 0,
             staleTime: 0,
           },
@@ -528,4 +529,88 @@ describe('useMinsalStats', () => {
       }
     }
   );
+
+  describe('specialty reclassification read verification', () => {
+    it('blocks Excel export and reports reclassificationsError when initial reclassification read fails, then recovers on refresh', async () => {
+      const local = [{ date: '2026-03-31' } as DailyRecord];
+      const reclassification = {
+        date: '2026-03-31',
+        movementKind: 'discharge' as const,
+        movementId: 'd-1',
+        specialty: 'Cirugía',
+      };
+      mockFetchRecordsRangeSorted.mockResolvedValue(local);
+      mockSyncRecordsRange.mockResolvedValue([]);
+      mockCalculateMinsalStats.mockReturnValue(buildStats());
+      mockFetchReclassifications
+        .mockRejectedValueOnce(new Error('synthetic reclassification read failure'))
+        .mockRejectedValueOnce(new Error('synthetic reclassification read failure'))
+        .mockResolvedValueOnce([reclassification]);
+
+      const { result } = renderHook(() => useMinsalStats('lastMonth'), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() =>
+        expect(result.current.reclassificationsError).toBe(
+          'synthetic reclassification read failure'
+        )
+      );
+      expect(result.current.isReclassificationsVerified).toBe(false);
+      expect(result.current.canExportExcel).toBe(false);
+      expect(result.current.error).toBeNull();
+
+      await act(async () => {
+        await result.current.refresh();
+      });
+
+      await waitFor(() => expect(result.current.isReclassificationsVerified).toBe(true));
+      expect(result.current.reclassificationsError).toBeNull();
+      expect(result.current.canExportExcel).toBe(true);
+      expect(result.current.reclassifications).toEqual([reclassification]);
+    });
+
+    it('enables Excel export when reclassification absence is confirmed as empty', async () => {
+      const local = [{ date: '2026-03-31' } as DailyRecord];
+      mockFetchRecordsRangeSorted.mockResolvedValue(local);
+      mockSyncRecordsRange.mockResolvedValue([]);
+      mockCalculateMinsalStats.mockReturnValue(buildStats());
+      mockFetchReclassifications.mockResolvedValue([]);
+
+      const { result } = renderHook(() => useMinsalStats('lastMonth'), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.canExportExcel).toBe(true));
+      expect(result.current.reclassificationsError).toBeNull();
+      expect(result.current.isReclassificationsVerified).toBe(true);
+      expect(result.current.reclassifications).toEqual([]);
+    });
+
+    it('blocks Excel export if a subsequent manual refresh fails to read reclassifications', async () => {
+      const local = [{ date: '2026-03-31' } as DailyRecord];
+      mockFetchRecordsRangeSorted.mockResolvedValue(local);
+      mockSyncRecordsRange.mockResolvedValue([]);
+      mockCalculateMinsalStats.mockReturnValue(buildStats());
+      mockFetchReclassifications
+        .mockResolvedValueOnce([])
+        .mockRejectedValue(new Error('synthetic refresh read failure'));
+
+      const { result } = renderHook(() => useMinsalStats('lastMonth'), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.canExportExcel).toBe(true));
+
+      await act(async () => {
+        await result.current.refresh();
+      });
+
+      await waitFor(() =>
+        expect(result.current.reclassificationsError).toBe('synthetic refresh read failure')
+      );
+      expect(result.current.isReclassificationsVerified).toBe(false);
+      expect(result.current.canExportExcel).toBe(false);
+    });
+  });
 });

@@ -47,8 +47,14 @@ export const AnalyticsComparisonPanel: React.FC<{
 export const AnalyticsTraceabilityPanel: React.FC<{
   dataQualityIssues: AnalyticsDataQualityIssue[];
   reclassifications: SpecialtyReclassification[];
+  reclassificationsError?: string | null;
   onOpenCensusDate?: (date: string) => void;
-}> = ({ dataQualityIssues, reclassifications, onOpenCensusDate }) => (
+}> = ({
+  dataQualityIssues,
+  reclassifications,
+  reclassificationsError = null,
+  onOpenCensusDate,
+}) => (
   <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
       <h3 className="font-bold text-slate-700 mb-3">Calidad de datos</h3>
@@ -78,7 +84,14 @@ export const AnalyticsTraceabilityPanel: React.FC<{
 
     <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
       <h3 className="font-bold text-slate-700 mb-3">Reclasificaciones vigentes</h3>
-      {reclassifications.length > 0 ? (
+      {reclassificationsError ? (
+        <div
+          role="status"
+          className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          No se pudieron verificar las reclasificaciones vigentes del período.
+        </div>
+      ) : reclassifications.length > 0 ? (
         <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
           {reclassifications.map(item => (
             <div

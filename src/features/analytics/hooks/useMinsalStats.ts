@@ -59,6 +59,9 @@ interface UseMinsalStatsResult {
   comparison: MinsalComparisonSummary | null;
   dataQualityIssues: AnalyticsDataQualityIssue[];
   reclassifications: SpecialtyReclassification[];
+  reclassificationsError: string | null;
+  isReclassificationsVerified: boolean;
+  canExportExcel: boolean;
   saveReclassification: (
     request: Omit<SaveAnalyticsSpecialtyReclassificationRequest, 'hospitalId'>
   ) => Promise<void>;
@@ -325,6 +328,21 @@ export function useMinsalStats(
     return null;
   }, [recordsQuery.error, remoteStatsQuery.isError, remoteStatsQuery.error, localFallbackStats]);
 
+  const reclassificationsError = useMemo(() => {
+    if (!reclassificationsQuery.error) {
+      return null;
+    }
+
+    return getErrorMessage(
+      reclassificationsQuery.error,
+      'No se pudieron cargar las reclasificaciones estadísticas de especialidad.'
+    );
+  }, [reclassificationsQuery.error]);
+
+  const isReclassificationsVerified =
+    reclassificationsQuery.status === 'success' && !reclassificationsQuery.error;
+  const canExportExcel = Boolean(stats) && isReclassificationsVerified;
+
   const comparison = useMemo<MinsalComparisonSummary | null>(() => {
     if (!stats) {
       return null;
@@ -413,6 +431,9 @@ export function useMinsalStats(
     comparison,
     dataQualityIssues,
     reclassifications,
+    reclassificationsError,
+    isReclassificationsVerified,
+    canExportExcel,
     saveReclassification: saveReclassificationMutation.mutateAsync,
     isSavingReclassification: saveReclassificationMutation.isPending,
   };
