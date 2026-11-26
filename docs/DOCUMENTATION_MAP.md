@@ -121,9 +121,12 @@ Documentos útiles para contexto, pero no fuente primaria de reglas activas.
 - `docs/*EXECUTION*.md`
 - `docs/*TRACKER*.md`
 - `docs/MODULE_EVALUATION_*.md`
-- `docs/superpowers/plans/*.md`
-- `docs/superpowers/specs/*.md`
+- `docs/archive/superpowers/plans/*.md`
+- `docs/archive/superpowers/specs/*.md`
 - `docs/archive/FOUNDATION_IMPROVEMENT_PLAN.md`
+- `docs/archive/MODULE_INVENTORY.md` — inventario inicial (reemplazado por `docs/architecture.md` y `scripts/config/feature-map.json`)
+- `docs/archive/REPO_PRINCIPLES.md` — guía histórica de principios (reemplazada por `docs/architecture.md` y `AGENTS.md`)
+- `docs/archive/OPERATIVE_RULES_REFERENCE.md` — resumen histórico (reemplazado por `docs/DOMAIN_RULES.md`)
 - [docs/archive/ADR_CANONICAL_WRITE_ADOPTION_FACADES.md](archive/ADR_CANONICAL_WRITE_ADOPTION_FACADES.md) — ADR histórico (retirado 2026-11-17)
 - [docs/archive/ADR_PATIENT_CENTERED_OBSERVABILITY.md](archive/ADR_PATIENT_CENTERED_OBSERVABILITY.md) — ADR reemplazado por auditoría v2
 - [docs/archive/FOUNDATION_TRACKER.md](archive/FOUNDATION_TRACKER.md) — cierre histórico B01–B26
