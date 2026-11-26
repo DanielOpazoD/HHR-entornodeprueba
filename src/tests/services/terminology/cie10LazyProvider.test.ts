@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/services/ai/aiRequestManager', () => ({
+vi.mock('@/features/clinical-documents/services/aiRequestManager', () => ({
   aiRequestManager: { enqueue: vi.fn((_id, recipe, signal) => recipe(signal)) },
 }));
 vi.mock('@/services/auth/authRequestHeaders', () => ({
@@ -44,7 +44,8 @@ describe('CIE-10 local provider loading', () => {
   });
 
   it('loads Gemini only when the development fallback is actually needed', async () => {
-    const { searchCIE10WithAI } = await import('@/services/terminology/cie10AISearch');
+    const { searchCIE10WithAI } =
+      await import('@/features/clinical-documents/services/cie10AISearch');
     expect(loadSDK).not.toHaveBeenCalled();
     fetchMock.mockResolvedValueOnce(serverlessResponse(true));
     await searchCIE10WithAI('synthetic');
@@ -53,7 +54,7 @@ describe('CIE-10 local provider loading', () => {
     vi.stubEnv('DEV', false);
     fetchMock.mockResolvedValueOnce(serverlessResponse(false));
     await expect(searchCIE10WithAI('synthetic')).resolves.toEqual([]);
-    const { callLocalAI } = await import('@/services/ai/aiProviderConfig');
+    const { callLocalAI } = await import('@/features/clinical-documents/services/aiProviderConfig');
     await expect(callLocalAI('synthetic')).resolves.toBe('');
     expect(loadSDK).not.toHaveBeenCalled();
 
@@ -83,7 +84,8 @@ describe('CIE-10 local provider loading', () => {
       await blocked;
       return provider();
     });
-    const { searchCIE10WithAI } = await import('@/services/terminology/cie10AISearch');
+    const { searchCIE10WithAI } =
+      await import('@/features/clinical-documents/services/cie10AISearch');
     fetchMock.mockResolvedValueOnce(serverlessResponse(false));
     const controller = new AbortController();
     const request = expect(searchCIE10WithAI('synthetic', controller.signal)).rejects.toMatchObject(
@@ -113,7 +115,8 @@ describe('CIE-10 local provider loading', () => {
       }),
     } as Response);
 
-    const { searchCIE10WithAI } = await import('@/services/terminology/cie10AISearch');
+    const { searchCIE10WithAI } =
+      await import('@/features/clinical-documents/services/cie10AISearch');
     const controller = new AbortController();
     const results = await searchCIE10WithAI('neumonia', controller.signal);
 

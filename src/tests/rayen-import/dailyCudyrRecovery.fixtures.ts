@@ -1,5 +1,5 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { DocumentaryCudyr } from '@/domain/evaluationScales/documentaryCudyr';
+import type { DocumentaryCudyr } from '@/features/rayen-import/domain/documentaryCudyr';
 import type { CapturedCudyrMonthlyReport } from '@/services/cudyr/cudyrMonthlyReportCapture';
 import { utils, write } from 'xlsx';
 import { parseCudyrSupplementBinary } from '@/services/cudyr/cudyrSupplementBinary';

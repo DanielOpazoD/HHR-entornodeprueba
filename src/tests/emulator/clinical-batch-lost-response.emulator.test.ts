@@ -17,7 +17,7 @@ import { rebuildClinicalEnrichmentOperations } from '@/features/rayen-import/dom
 import { applyHistoricalCudyrBatchAuthoritatively } from '@/features/rayen-import/hooks/applyHistoricalCudyr';
 import { buildMockDailyRecordRepository } from '@/tests/factories/dailyRecordRepositoryMock';
 import { DailyRecordSchema } from '@/schemas/zodSchemas';
-import type { DocumentaryCudyr } from '@/domain/evaluationScales/documentaryCudyr';
+import type { DocumentaryCudyr } from '@/features/rayen-import/domain/documentaryCudyr';
 
 // The browser bootstrap is outside this in-process transport test. Fail closed if
 // an uninjected path tries to use a configured client instead of the local admin SDK.

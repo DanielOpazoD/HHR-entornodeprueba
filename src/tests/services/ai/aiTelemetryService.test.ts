@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, beforeEach } from 'vitest';
-import { aiTelemetryService } from '@/services/ai/aiTelemetryService';
+import { aiTelemetryService } from '@/features/clinical-documents/services/aiTelemetryService';
 
 describe('AITelemetryService', () => {
   beforeEach(() => {

@@ -613,7 +613,7 @@
           "decides": "Una sola lectura de CUDYR alimenta el registro del día y el archivo permanente."
         },
         {
-          "at": "src/services/cudyr/cudyrArchiveQueue.ts › persistCudyrArchivePart",
+          "at": "src/features/rayen-import/services/cudyrArchiveQueue.ts › persistCudyrArchivePart",
           "decides": "Guarda cada parte del archivo CUDYR en la cola local antes de enviarla; una respuesta dudosa la deja en la cola para reenviarla."
         },
         {
@@ -910,7 +910,7 @@
           "decides": "Verifica la identidad del encabezado del PDF y extrae los ingresos reales a hospitalización (excluyendo Urgencias, CMA y cunas)."
         },
         {
-          "at": "src/services/cudyr/dailyCudyrRecoveryPlan.ts › recoverDailyCudyrGap",
+          "at": "src/features/rayen-import/services/dailyCudyrRecoveryPlan.ts › recoverDailyCudyrGap",
           "decides": "Para noches vencidas sin categoría en vivo, resuelve evidencia documental del reporte mensual o clasifica no aplicable / sin registro."
         },
         {

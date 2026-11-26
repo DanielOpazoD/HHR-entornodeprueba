@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getCachedAIResults, cacheAIResults } from '@/services/terminology/aiResultsCache';
+import {
+  getCachedAIResults,
+  cacheAIResults,
+} from '@/features/clinical-documents/services/aiResultsCache';
 
 const CACHE_KEY = 'cie10_ai_cache';
 

@@ -27,11 +27,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-let aiRequestManager: typeof import('@/services/ai/aiRequestManager').aiRequestManager;
-let cie10Module: typeof import('@/services/terminology/cie10AISearch');
+let aiRequestManager: typeof import('@/features/clinical-documents/services/aiRequestManager').aiRequestManager;
+let cie10Module: typeof import('@/features/clinical-documents/services/cie10AISearch');
 
 // Mock AI Request Manager — simula el rate limiter
-vi.mock('@/services/ai/aiRequestManager', () => ({
+vi.mock('@/features/clinical-documents/services/aiRequestManager', () => ({
   aiRequestManager: {
     enqueue: vi.fn((_id, fn, signal) => fn(signal)),
   },
@@ -66,8 +66,9 @@ describe('Búsqueda IA CIE-10 (cie10AISearch)', () => {
     vi.clearAllMocks();
     mockFetch.mockReset();
     vi.stubGlobal('fetch', mockFetch);
-    ({ aiRequestManager } = await import('@/services/ai/aiRequestManager'));
-    cie10Module = await import('@/services/terminology/cie10AISearch');
+    ({ aiRequestManager } =
+      await import('@/features/clinical-documents/services/aiRequestManager'));
+    cie10Module = await import('@/features/clinical-documents/services/cie10AISearch');
   });
 
   afterEach(() => {

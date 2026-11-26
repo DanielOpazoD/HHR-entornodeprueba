@@ -8,7 +8,7 @@ import {
   assertDocumentaryCudyrTarget,
   CUDYR_DOCUMENTARY_SOURCE,
   hasAcceptedCudyr,
-} from '@/domain/evaluationScales/documentaryCudyr';
+} from '@/features/rayen-import/domain/documentaryCudyr';
 
 interface LocatedHistoricalCudyrTarget {
   bedId: string;

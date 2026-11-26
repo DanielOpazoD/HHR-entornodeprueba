@@ -2,13 +2,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('AIRequestManager', () => {
-  let manager: typeof import('@/services/ai/aiRequestManager').aiRequestManager;
+  let manager: typeof import('@/features/clinical-documents/services/aiRequestManager').aiRequestManager;
 
   beforeEach(async () => {
     vi.resetModules();
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
-    manager = (await import('@/services/ai/aiRequestManager')).aiRequestManager;
+    manager = (await import('@/features/clinical-documents/services/aiRequestManager'))
+      .aiRequestManager;
   });
 
   afterEach(async () => {
@@ -104,7 +105,8 @@ describe('AIRequestManager', () => {
     const next = manager.enqueue('next', async () => 'next');
     controller.abort();
     await result;
-    const { aiTelemetryService } = await import('@/services/ai/aiTelemetryService');
+    const { aiTelemetryService } =
+      await import('@/features/clinical-documents/services/aiTelemetryService');
     expect(aiTelemetryService.getMetrics()).toMatchObject({
       queuedRequests: 1,
       canceledCount: 1,

@@ -16,7 +16,10 @@ import type {
   CudyrRecoveryDetail,
   RayenSyncIssueReason,
 } from '@/types/domain/rayenSync';
-import { planDailyCudyrGaps, recoverDailyCudyrGap } from '@/services/cudyr/dailyCudyrRecoveryPlan';
+import {
+  planDailyCudyrGaps,
+  recoverDailyCudyrGap,
+} from '@/features/rayen-import/services/dailyCudyrRecoveryPlan';
 import { guardAuthoringSession } from '@/services/session/authoringSession';
 import { readClinicalFillDerivedView } from './clinicalFillDerivedView';
 import { buildClinicalFillError } from '../observability/rayenSyncDiagnostics';

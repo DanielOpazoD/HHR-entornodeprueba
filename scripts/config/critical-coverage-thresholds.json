@@ -16,7 +16,13 @@
         "src/tests/services/pdf/ieehPdfService.test.ts",
         "src/tests/services/pdf/ieehPdfSupport.test.ts",
         "src/tests/services/repositories/ClinicalAttachmentRepository.test.ts",
+        "src/tests/services/ai/aiRequestManager.test.ts",
+        "src/tests/services/ai/aiTelemetryService.test.ts",
+        "src/tests/services/terminology/aiResultsCache.test.ts",
+        "src/tests/services/terminology/cie10AISearch.test.ts",
+        "src/tests/services/terminology/cie10LazyProvider.test.ts",
         "src/tests/services/terminology/fonasaService.test.ts",
+        "src/tests/services/terminology/terminologyService.test.ts",
         "src/tests/shared/clinical-documents/clinicalDocumentPresentation.test.ts"
       ],
       "coverageBaseline": {

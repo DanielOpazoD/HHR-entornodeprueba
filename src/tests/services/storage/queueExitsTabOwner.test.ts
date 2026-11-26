@@ -24,7 +24,7 @@ import {
   queueDailyRecordSyncTaskWithLocalRecord,
   retryQuarantinedSyncTask,
 } from '@/services/storage/sync/publicSyncQueue';
-import { persistCudyrArchivePart } from '@/services/cudyr/cudyrArchiveQueue';
+import { persistCudyrArchivePart } from '@/features/rayen-import/services/cudyrArchiveQueue';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { replaceStoredSessionOwner } from '@/tests/utils/syntheticSession';
 import { DataFactory } from '@/tests/factories/DataFactory';

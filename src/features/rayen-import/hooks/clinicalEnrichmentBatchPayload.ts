@@ -14,7 +14,7 @@ import {
   type RayenClinicalEnrichmentTarget,
 } from '../bridge/rayenClinicalEnrichmentBatchClient';
 import type { PatientEvaluationScores } from '@/types/domain/evaluationScores';
-import { CUDYR_DOCUMENTARY_SOURCE } from '@/domain/evaluationScales/documentaryCudyr';
+import { CUDYR_DOCUMENTARY_SOURCE } from '@/features/rayen-import/domain/documentaryCudyr';
 
 const CHECKPOINT_FIELD = 'clinicalSyncCheckpoint';
 const allowedFields = new Set<string>(RAYEN_CLINICAL_ENRICHMENT_FIELDS);

@@ -5,7 +5,10 @@ import { createDailyCudyrRecoveryReader } from '@/features/rayen-import/hooks/da
 import { captureCudyrMonthlyReport } from '@/services/cudyr/cudyrMonthlyReportCapture';
 import { CudyrReportUnreadableError } from '@/services/cudyr/cudyrSupplementFile';
 import { parseCudyrSupplementBinary } from '@/services/cudyr/cudyrSupplementBinary';
-import { recoverDailyCudyrGap, planDailyCudyrGaps } from '@/services/cudyr/dailyCudyrRecoveryPlan';
+import {
+  recoverDailyCudyrGap,
+  planDailyCudyrGaps,
+} from '@/features/rayen-import/services/dailyCudyrRecoveryPlan';
 import { resolveHistoricalCudyrBatchOperation } from '@/features/rayen-import/domain/historicalCudyrPatch';
 import { rebuildClinicalEnrichmentOperations } from '@/features/rayen-import/domain/rebuildClinicalEnrichmentOperations';
 import { applyPatches } from '@/utils/patchUtils';

@@ -27,7 +27,11 @@
  *  - getCIE10Description(code) → string | null
  */
 
-import { searchCIE10, CIE10Entry, getCIE10DatabaseSync } from './cie10SpanishDatabase';
+import {
+  searchCIE10,
+  CIE10Entry,
+  getCIE10DatabaseSync,
+} from '@/services/terminology/cie10SpanishDatabase';
 import { searchCIE10WithAI } from './cie10AISearch';
 import { getCachedAIResults, cacheAIResults } from './aiResultsCache';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
