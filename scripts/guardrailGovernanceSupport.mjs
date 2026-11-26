@@ -12,9 +12,13 @@ export const readGuardrailGovernanceSummary = root => {
   const config = readJson(path.join(root, CONFIG_PATH));
   const blockingTiers = Array.isArray(config.blockingTiers) ? config.blockingTiers : [];
   const reportOnly = Array.isArray(config.reportOnly) ? config.reportOnly : [];
+  const qualityChecks = Array.isArray(config.qualityAggregate?.checks)
+    ? config.qualityAggregate.checks
+    : [];
 
   return {
     blockingTierCount: blockingTiers.length,
+    qualityCheckCount: qualityChecks.length,
     reportOnlyCount: reportOnly.length,
   };
 };

@@ -21,20 +21,16 @@ Estos son los entrypoints recomendados para trabajo normal.
 | `npm run test:scripts`                 | pruebas de los scripts de `scripts/tests/`                 |
 | `npm run check:changed`                | controles formales sobre lo cambiado (lo corre `pre-push`) |
 | `npm run check:quality`                | guardrails estructurales y de gobernanza                   |
-| `npm run ci:inner-loop`                | verificación local rápida antes de seguir iterando         |
-| `npm run ci:pre-merge`                 | gate compacto antes de merge                               |
-| `npm run ci:preview-gate`              | gate del bundle real en preview local                      |
-| `npm run ci:merge-gate`                | gate blocking ampliado para cambios sensibles              |
-| `npm run ci:release-gate`              | validación final con Firestore/emuladores/E2E críticos     |
+| `npm run test:release-confidence`      | pack blocking compacto con reglas, emulador y E2E críticos |
 
 ## Comandos oficiales por escenario
 
 ### Desarrollo diario
 
-1. `npm run dev` y pruebas focalizadas mientras editas.
-2. `npm run ci:inner-loop` al cerrar la iteración: ya incluye tipos, lint, calidad y pruebas críticas.
+1. `npm run dev` y pruebas focalizadas mientras editas (`npm run test:changed` o `npx vitest run <ruta>`).
+2. `npm run check:changed` antes de subir (también lo corre el hook `pre-push`).
 
-Ejecuta `typecheck` o `lint` por separado sólo para diagnosticar esa etapa; no repitas
+Ejecuta `typecheck:local`, `lint` o `check:quality` por separado sólo para diagnosticar esa etapa; no repitas
 los mismos controles sobre código sin cambios antes del gate que ya los contiene.
 
 ### Antes de merge
@@ -49,22 +45,19 @@ conservan su configuración; no extrapolar el resultado a toda la suite.
 
 Consulta la [cobertura requerida en CI_GATES_AND_FAILURE_RUNBOOKS.md](./CI_GATES_AND_FAILURE_RUNBOOKS.md#cobertura-requerida-y-comandos-disponibles).
 CI del SHA final acredita los controles que ejecutó; no se exige repetirlos localmente.
-Esa referencia distingue documentación, cambios habituales, runtime y releases,
-y conserva los requisitos adicionales de la política. Las etapas efectivas se
-definen en `package.json`.
+Esa referencia distingue documentación, cambios habituales, runtime y releases.
+Las etapas efectivas se definen en `package.json` y `.github/workflows/ci-cd.yml`.
 
-No encadenes gates completos. Para diagnosticar sólo el bundle productivo ya
-construido, usa `npm run ci:preview-gate`. Tras cambiar código, repite los controles
-afectados; el CI del SHA final debe aprobarse antes del merge.
+Para diagnosticar sólo el bundle productivo ya construido, usa `npm run build` seguido de
+`npm run check:bundle-budget && npm run check:chunk-graph && npm run check:runtime-asset-margin`
+y `npm run ci:preview-smoke:built`. Tras cambiar código, repite los controles afectados;
+el CI del SHA final (`ci-summary`) debe aprobarse antes del merge.
 
 ### Antes de release o validación operativa fuerte
 
-1. `npm run ci:release-gate`
-
-El gate invoca internamente `release:evidence:refresh`, la única orden local que
-reconstruye el paquete completo en orden determinista y deja el manifiesto embebido
-en `dist/`. Puede ejecutarse por separado para diagnosticar sólo esa etapa. Ver
-[RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md](./RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md).
+1. `npm run test:release-confidence` (o `npm run test:firestore:release:ci` para reglas y emuladores)
+2. `npm run release:evidence:refresh` si necesitas regenerar localmente los snapshots de evidencia. Ver
+   [RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md](./RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md).
 
 ### Antes de auditoría técnica o revisión ejecutiva
 
@@ -146,7 +139,7 @@ Estos scripts siguen soportados, pero no forman parte de la superficie pública 
 
 ## Convención operativa
 
-- `dev`, `typecheck`, `lint`, `test:ci:unit`, `check:quality` y `ci:*` son la superficie pública recomendada.
+- `dev`, `typecheck:local`, `lint`, `test:changed`, `test:ci:unit`, `check:changed`, `check:quality` y `test:release-confidence` son la superficie pública recomendada.
 - `check:*`, `report:*` y `test:*` más específicos deben tratarse como herramientas de diagnóstico o validación focalizada.
 - Si aparece un script nuevo que debería usar casi todo el equipo, debe entrar a esta lista oficial o no vale la pena publicitarlo.
 - `npm run test:e2e` corre Chromium por defecto para mantener el ciclo local rápido. Para una revisión cross-browser puntual usa `E2E_BROWSERS=chromium,firefox,webkit npm run test:e2e`; no lo promuevas a gate diario sin una señal real de compatibilidad.

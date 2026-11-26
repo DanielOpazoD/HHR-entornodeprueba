@@ -35,11 +35,6 @@ const isPreviewDownload = (step: YAMLMap) =>
   String(step.get('uses')).startsWith('actions/download-artifact@') &&
   step.getIn(['with', 'name']) === 'preview-bootstrap-artifacts';
 
-const readPackageScripts = () => {
-  const manifest = JSON.parse(readText('package.json'));
-  return manifest.scripts as Record<string, string>;
-};
-
 describe('CI workflow governance', () => {
   it('includes readiness, sign-off and debt reports in the release evidence', () => {
     expect(RELEASE_EVIDENCE_REPORT_IDS).toEqual(
@@ -58,17 +53,6 @@ describe('CI workflow governance', () => {
     expect(releaseReadinessStep?.command).toBe(
       'report:release-readiness-scorecard:from-current-inputs'
     );
-  });
-
-  it('regenerates the complete evidence package before the release gate validates it', () => {
-    const scripts = readPackageScripts();
-    const releaseGate = scripts['ci:release-gate'];
-    const refreshIndex = releaseGate.indexOf('npm run release:evidence:refresh');
-    const validationIndex = releaseGate.indexOf('npm run check:release-evidence');
-
-    expect(refreshIndex).toBeGreaterThanOrEqual(0);
-    expect(validationIndex).toBeGreaterThan(refreshIndex);
-    expect(releaseGate).not.toContain('npm run report:release-evidence &&');
   });
 
   it('rejects a missing preview bootstrap download or incorrect producer contract', () => {

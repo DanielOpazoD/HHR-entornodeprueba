@@ -239,14 +239,14 @@ export const buildReleaseReadinessScorecard = root => {
   const guardrailGovernance = sources.guardrailGovernance;
   if (guardrailGovernance) {
     const guardrailOk =
-      Number(guardrailGovernance.blockingTierCount || 0) >= 3 &&
+      Number(guardrailGovernance.qualityCheckCount || 0) >= 1 &&
       Number(guardrailGovernance.reportOnlyCount || 0) >= 1;
     indicators.push({
       name: 'guardrail_governance',
       ...statusFrom(
         guardrailOk,
-        `blockingTiers=${guardrailGovernance.blockingTierCount ?? 'n/a'}, reportOnly=${guardrailGovernance.reportOnlyCount ?? 'n/a'}`,
-        `blockingTiers=${guardrailGovernance.blockingTierCount ?? 'n/a'}, reportOnly=${guardrailGovernance.reportOnlyCount ?? 'n/a'}`
+        `qualityChecks=${guardrailGovernance.qualityCheckCount ?? 'n/a'}, reportOnly=${guardrailGovernance.reportOnlyCount ?? 'n/a'}`,
+        `qualityChecks=${guardrailGovernance.qualityCheckCount ?? 'n/a'}, reportOnly=${guardrailGovernance.reportOnlyCount ?? 'n/a'}`
       ),
     });
   }

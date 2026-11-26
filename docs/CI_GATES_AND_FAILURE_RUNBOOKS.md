@@ -10,7 +10,7 @@ Definir una ruta corta para desarrollo diario, los criterios de cierre y calidad
 
 - Para elegir runbook por incidente o tipo de cambio: [docs/RUNBOOK_INDEX.md](./RUNBOOK_INDEX.md)
 - Para comandos curados del repo: [docs/DEVELOPER_COMMANDS.md](./DEVELOPER_COMMANDS.md)
-- Para política de upgrades, excepciones y categorías de cambio: `scripts/config/sustainable-change-policy.json`
+- Para política de decisiones de ingeniería: [docs/ENGINEERING_CHANGE_DECISION_POLICY.md](./ENGINEERING_CHANGE_DECISION_POLICY.md)
 
 Si la change toca reglas generadas o documentación operativa, verificar además los
 controles siguientes. CI del SHA final puede acreditarlos sin repetirlos localmente;
@@ -39,29 +39,26 @@ npm run check:quality:group -- boundaries
 
 ### Cobertura requerida y comandos disponibles
 
-`package.json` define las etapas ejecutadas; la política de
-`scripts/config/sustainable-change-policy.json` conserva los requisitos adicionales
-por tipo de cambio. Sus `requiredGates` describen la cobertura requerida, no una
-obligación de ejecutarla otra vez localmente. Esta tabla orienta la selección:
+`.github/workflows/ci-cd.yml` define las etapas remotas acreditadas por `ci-summary`, y
+`package.json` expone los controles individuales para diagnóstico local. Esta tabla
+orienta la cobertura requerida (acreditable por CI del SHA final sin repetirla localmente):
 
 | Alcance                                                            | Cobertura requerida; CI puede acreditarla                                                |
 | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
 | Solo documentación operativa, sin scripts, código ni configuración | `check:docs-drift` y `check:operational-runbooks`; comprobar enlaces y comandos editados |
-| Código habitual                                                    | `ci:pre-merge`                                                                           |
-| Runtime clínico, auth, storage, bundle o contratos de arquitectura | `ci:merge-gate` y controles adicionales exigidos por la política                         |
-| Release o reglas persistentes                                      | `ci:release-gate` y controles adicionales exigidos por la política                       |
+| Código habitual                                                    | `typecheck`, `lint`, `check:quality` y `test:ci:unit` (`check:changed` antes del push)   |
+| Runtime clínico, auth, storage, bundle o contratos de arquitectura | lo anterior más `check:critical-coverage`, `build`, `check:bundle-budget` y preview      |
+| Release o reglas persistentes                                      | lo anterior más `test:rules:ci`, `test:storage-rules:ci`, `test:emulator:sync:ci` y E2E  |
 
-Durante la edición bastan pruebas focalizadas para obtener feedback; `ci:inner-loop`
-sirve para iterar y para los cambios locales de UI que la política clasifica como
-`safe_local_ui`. No encadenar gates completos (`ci:release-gate` contiene
-`ci:merge-gate`, que contiene `ci:pre-merge`). La clasificación remota `docs-only`
-se decide en CI; no forzar ni omitir checks.
+Durante la edición bastan pruebas focalizadas (`npm run test:changed` o `npx vitest run <ruta>`)
+y `npm run check:changed` antes de subir. La clasificación remota `docs-only` / `functions-only` /
+`tooling-only` / `full` se decide en CI; no forzar ni omitir checks.
 
 ### Checklist de cierre
 
 Antes de cerrar una modificación relevante:
 
-1. Clasificar el cambio según `scripts/config/sustainable-change-policy.json` y actualizar los tests unitarios o de integración afectados.
+1. Actualizar los tests unitarios o de integración afectados.
 2. Si es un upgrade de dependencias o una excepción, documentar owner, riesgo, rollback y criterio de cierre.
 3. Comprobar que el head de la PR coincide con el SHA del CI aprobado, que `ci-summary` está en verde, que el alcance cubre el cambio y que la rama está al día y se puede mergear. No repetir localmente controles ya acreditados por CI del SHA final; ejecutar sólo comprobaciones no cubiertas por CI o regresiones nuevas.
 4. Revisar si el cambio toca reglas clínicas de fecha/turno, sync o identidad del paciente ([docs/DOMAIN_RULES.md](./DOMAIN_RULES.md)), contratos runtime/serialización, `firestore.rules`, emulador o E2E críticos.
@@ -80,8 +77,7 @@ Una change queda lista solo si cumple todo lo siguiente (acreditable por CI del 
 5. No agrega bypasses a `application`, `shared/access` ni providers obligatorios.
 6. No deja excepciones abiertas sin owner, motivo y criterio de cierre documentados.
 7. Si toca un subsistema crítico, mantiene actualizado `scripts/config/technical-ownership-map.json` con owner, gate y runbook vigentes.
-8. Si la change entra en una categoría gobernada, sigue `scripts/config/sustainable-change-policy.json` y deja evidencia del gate o artefacto requerido.
-9. Si incluye lógica de app, assets estáticos o snapshots, separa esos concerns en commits distintos cuando no dependan del mismo fix.
+8. Si incluye lógica de app, assets estáticos o snapshots, separa esos concerns en commits distintos cuando no dependan del mismo fix.
 
 ### Guardrails de calidad, crecimiento y excepciones
 
@@ -104,8 +100,8 @@ de `main` se mantienen. Comprobar el alcance y los jobs realmente ejecutados; no
 equiparar un job omitido o un informe antiguo con una prueba aprobada.
 
 En la ruta `full`, los jobs de calidad, los cuatro shards unitarios y de cobertura,
-`build-budget` y los carriles de vista previa acreditan los controles equivalentes de
-`ci:merge-gate`. `rules-emulator` (reglas, Storage, suite sync del emulador y cuentas),
+`build-budget` y los carriles de vista previa acreditan tipado, lint, guardrails,
+suite unitaria, cobertura crítica, build, budgets y preview. `rules-emulator` (reglas, Storage, suite sync del emulador y cuentas),
 `emulator-ui` (suite UI del emulador, en paralelo y con su propio emulador), los carriles E2E
 críticos y `final-confidence-and-readiness` aportan reglas, sincronización, E2E y evidencia de
 rendimiento. Los packs unitarios
@@ -120,7 +116,7 @@ duplicar un run verde. Conservar los fallos previos y su diagnóstico; una ejecu
 local interrumpida no se convierte en aprobada, y un defecto reproducible bloquea
 el cierre aunque CI pase. Registrar el run y SHA utilizados como evidencia de merge.
 
-### Packs pequeños y cierre conjunto
+### Packs pequeños
 
 `test:smoke:critical-runtime` ejecuta sus archivos en una sola invocación de Vitest.
 `test:unit:critical` toma la unión de archivos de los scripts `test:risk:auth`,
@@ -128,23 +124,6 @@ el cierre aunque CI pase. Registrar el run y SHA utilizados como evidencia de me
 individuales siguen disponibles. Ambos packs conservan aislamiento por archivo y
 usan cuatro workers como máximo por defecto; `VITEST_MAX_WORKERS` permite indicar
 otro entero positivo. Un archivo ausente, fallo o interrupción produce error.
-
-Cuando sea necesaria una validación local completa de `ci:merge-gate` y el perfil
-blocking de `test:release-confidence`, se puede usar `npm run ci:close`. No es una
-segunda validación obligatoria después de CI. El plan se obtiene de los scripts y del perfil vigente,
-mantiene su orden y ejecuta una sola vez los comandos idénticos. Las cadenas con
-entorno propio, scripts de shell y hooks npm conservan su ejecución original.
-Las compilaciones internas de E2E mantienen su configuración; no se equiparan al
-build normal. El plan no se guarda ni acepta marcas externas de pasos aprobados.
-
-La corrida termina ante el primer fallo o interrupción, y comprueba que no cambien
-HEAD, código, configuración, archivos locales de entorno o el manifiesto instalado
-de dependencias. `reports/` contiene salidas regeneradas durante los gates. Si cambian
-las entradas, esa corrida no acredita el árbol nuevo; reiniciarla sólo si aún hace
-falta esa validación local. Los gates independientes
-conservan su comportamiento. Owner: test infrastructure; rollback: volver a ejecutar
-los dos gates independientes y los packs individuales. Este comando no reemplaza
-el release de Firestore ni el perfil completo de confianza.
 
 ### Conexión previa y diagnóstico de Eloísa
 
@@ -156,7 +135,7 @@ la capacidad correspondiente. Un verde pasivo no acredita el inicio de una sincr
 Para especialidad, `specialtyDeploymentContract.test.ts` usa los contextos de `netlify.toml`
 y comprueba la intención manual para cama y cuna sin activar Jev o memoria. Mantener los
 rechazos autoritativos para clientes sin intención y servidores con modo apagado.
-El cierre exige `ci:merge-gate`, `test:release-confidence` y revisión independiente del
+El cierre exige CI completo (`ci-summary`), `test:release-confidence` cuando aplique y revisión independiente del
 head final. Los smokes sintéticos no acreditan la disponibilidad de las fuentes reales.
 
 ### Functions: preview rechazado por origen
@@ -355,103 +334,6 @@ El rechazo, retry acotado y rollback de cama/cuna ya se cubren en
 `bed-crib-lifecycle-critical.spec.ts`; la recuperación de cola tras recarga, en
 `night-admission-sync-recovery-critical.spec.ts`.
 
-### `ci:inner-loop`
-
-Usar cuando el cambio todavía está en iteración local.
-
-Incluye:
-
-- `npm run typecheck`
-- `npm run lint -- --max-warnings 0`
-- `npm run check:quality`
-- `npm run test:unit:critical`
-
-Salida esperada:
-
-- feedback rápido sobre tipado, lint, guardrails estructurales y riesgos unitarios críticos.
-
-### `ci:pre-merge`
-
-Comando disponible para validar localmente cambios habituales de código; los gates
-ampliados lo contienen. CI puede acreditar sus controles sin ejecutarlo localmente.
-Para elegir evidencia, ver [Cobertura requerida y comandos disponibles](#cobertura-requerida-y-comandos-disponibles).
-
-Incluye:
-
-- `npm run typecheck`
-- `npm run lint -- --max-warnings 0`
-- `npm run check:quality`
-- `npm run test:ci:unit`
-
-Salida esperada:
-
-- contrato base de tipado, lint, guardrails y suite unitaria/integración en verde;
-  puede acreditarse en GitHub antes del merge, sin exigirlo localmente antes del push.
-
-### `ci:merge-gate`
-
-Cobertura para código clínico, almacenamiento, auth, bundle o lazy loading. Ejecutar
-este comando local sólo cuando sea necesario; CI equivalente acredita el mismo cierre.
-
-Incluye:
-
-- `npm run ci:pre-merge`
-- `npm run check:critical-coverage`
-- `npm run check:netlify-functions-bundle`
-  valida también presupuestos de correo, carga en procesos nuevos y smoke de los
-  artefactos completos. Evidencia de CI: `netlify-mail-runtime`; interpretación y
-  límites en [Runbook Netlify Serverless Deploy](RUNBOOK_NETLIFY_SERVERLESS_DEPLOY.md).
-- `npm run build`
-- `npm run ci:preview-gate`
-
-### `ci:preview-gate`
-
-Usar cuando se quiere validar específicamente el bundle productivo ya construido antes de merge o como diagnóstico de blank page.
-
-Incluye:
-
-- `npm run check:bundle-budget`
-- `npm run check:chunk-graph`
-- `npm run check:runtime-asset-margin`
-- `npm run ci:preview-smoke:built` (censo, biblioteca clínica, lectura del panel
-  e historial de sincronización sobre el build existente; en CI se reparte en
-  carriles paralelos, ver «Una sola validación de vista previa»)
-
-Salida esperada:
-
-- grafo y margen de assets dentro de sus controles;
-- build productivo válido;
-- budgets de bundle dentro de los límites vigentes;
-- preview local del bundle montando `root` sin blank page silenciosa.
-
-Artefactos esperados cuando falla en CI:
-
-- `reports/e2e/preview-bootstrap/`
-- `reports/e2e/clinical-visual-release-report.json`
-- `playwright-report/`
-- `test-results/`
-
-### `ci:release-gate`
-
-Usar antes de release o para validar cambios con impacto en Firestore, emuladores, reglas o E2E críticos.
-
-Incluye:
-
-- `npm run ci:merge-gate`
-- `npm run release:evidence:refresh`
-- `npm run check:release-evidence`
-- `npm run test:firestore:release:ci`
-
-El gate regenera primero el paquete completo, incluido el smoke visual clínico y el
-bundle que incorpora el manifiesto. Después `check:release-evidence` bloquea evidencia
-formal generada desde un worktree sucio, reportes stale, signoff clínico incompleto,
-smoke visual clínico faltante y un riesgo de pruebas inestables (`flakeRisk` de
-`system-confidence`) mayor que cero o sin medir. Ese riesgo cuenta los archivos de prueba que
-fallaron o necesitaron un reintento en `reports/test-execution-manifest.json` del mismo commit;
-sin ese manifiesto completo (todas sus suites requeridas y sin problemas registrados) queda «sin
-medir», nunca en cero. Si falla por flake-risk, corregir el test nombrado antes de repetir
-`ci:release-gate`.
-
 ### `test:release-confidence`
 
 Pack versionado compacto para release confidence, definido en `scripts/config/release-confidence-pack.json`.
@@ -469,8 +351,7 @@ Debe seguir cubriendo:
 El script extendido `test:release-confidence:full` agrega `test:unit:critical` cuando se quiere una corrida más profunda o diagnóstica.
 El ownership técnico por subsistema crítico vive en `scripts/config/technical-ownership-map.json`.
 El scorecard ejecutivo consolidado vive en `reports/release-readiness-scorecard.md` y se regenera con `npm run report:release-readiness-scorecard`.
-La política formal de upgrades, excepciones y tipos de cambio vive en `scripts/config/sustainable-change-policy.json`.
-La clasificación compacta de guardrails blocking vs report-only vive en `scripts/config/guardrail-governance.json` y se valida con `npm run check:guardrail-governance`.
+La clasificación compacta de guardrails de `check:quality` y reportes report-only vive en `scripts/config/guardrail-governance.json` y se valida con `npm run check:guardrail-governance`.
 La clasificación de runtime de tests vive en `scripts/config/test-runtime-governance.json` y se valida con `npm run check:test-runtime-governance`.
 El workflow `.github/workflows/nightly-test-runtime.yml` concentra suites largas en `workflow_dispatch`/`schedule`: `test:sync-load`, `test:release-confidence:full` y `test:e2e:clinical-stability:ci`, más la exploración del modelo de la cola en su propio job, `nightly-sync-model`.
 El job principal usa `ubuntu-24.04` y el instalador compartido `setup-ci-chromium`, igual que
@@ -497,7 +378,7 @@ CI regenera los snapshots report-only obligatorios con `npm run report:governanc
 `release-readiness-scorecard` sigue siendo ejecutivo y obligatorio para release, pero ya no duplica bloqueo dentro de `check:quality` si las fuentes primarias siguen verdes.
 `release-confidence-matrix` también pasa a report-only dentro del aggregate: sigue exigiéndose para trazabilidad y revisión técnica, pero no como bloqueo duplicado si el release pack y la cobertura primaria siguen verdes.
 La fuente de verdad es `scripts/config/guardrail-governance.json`: `reportOnly` registra comandos que escriben snapshots y `qualityAggregate.checks` enumera lo que ejecuta el agregado, con su carácter bloqueante o advisory. Un productor registrado no implica que su checker se ejecute.
-`report:technical-ownership-map` conserva el snapshot para revisión técnica. Las políticas de ownership, upgrades, excepciones y definición de cambio seguro viven en `scripts/config/sustainable-change-policy.json`, sin validadores de campos separados.
+`report:technical-ownership-map` conserva el snapshot para revisión técnica.
 La validación de tiempos actuales corre en el job `ci-runtime-telemetry` de `.github/workflows/ci-cd.yml`, requerido por `ci-summary`: collect → report → check. `npm run check:ci-runtime-telemetry` sigue disponible localmente y valida el archivo presente; comprobar su fecha y corrida de origen antes de usarlo como evidencia.
 
 Salida esperada:
@@ -553,22 +434,12 @@ Salida esperada:
    - ownership
 4. si el scorecard se degrada por un reporte base, corregir ese reporte o su fuente; no maquillar el scorecard
 
-### Revisar la política de cambios
-
-1. revisar `scripts/config/sustainable-change-policy.json`
-2. confirmar que sigan presentes:
-   - los tipos de cambio canónicos
-   - las reglas mínimas para upgrades
-   - los campos obligatorios para excepciones
-   - la relación con `Definition of Done`
-3. si agregaste un tipo de cambio nuevo o una excepción nueva, actualizar esta policy en la misma change
-
 ### Falla `check:guardrail-governance`
 
 1. correr `npm run report:guardrail-governance`
 2. revisar `reports/guardrail-governance.md`
 3. confirmar que:
-   - `ci:inner-loop`, `ci:pre-merge`, `ci:merge-gate` y `ci:release-gate` sigan declarando exactamente los scripts protegidos
+   - `qualityAggregate.checks` apunte a scripts válidos en `package.json`
    - `test:release-confidence` siga cubriendo el pack blocking compacto
    - los reportes report-only sigan apuntando a artefactos reales
 4. si agregaste un guardrail nuevo, decidir en la misma change si nace como blocking o report-only
@@ -830,10 +701,9 @@ en CI.
 
 - cambio solo documental: `npm run check:docs-drift && npm run check:operational-runbooks`
 - cambio solo en fuente de Functions: ejecutar los tests de `src/tests/functions` y los contratos serverless afectados
-- cambio local chico: `ci:inner-loop`
-- cambio funcional antes de abrir o actualizar PR: `ci:pre-merge`
-- cambio funcional o refactor con impacto real: `ci:merge-gate`
-- cambio de release, Firebase o UX crítica: `ci:release-gate`
+- cambio local / antes del push: pruebas focalizadas (`npm run test:changed`) y `npm run check:changed`
+- cambio en reglas Firestore/Storage o emulador: `npm run test:rules:ci`, `npm run test:storage-rules:ci` o `npm run test:emulator:file -- <ruta>`
+- validación completa previa al merge: `ci-summary` en CI sobre el SHA final
 
 ### Piloto local de entrega de turno desde Eloísa
 
@@ -936,7 +806,7 @@ Los carriles sirven el bundle único de `build-budget`. Si `build-budget`
 falla, los carriles igual arrancan y fallan en su primer paso (`Require the shared
 production bundle`): un carril saltado se vería verde en la lista de checks, y
 `ci-summary` exige que `preview-smoke-lanes` termine en `success`. Localmente,
-`ci:preview-gate` sigue ejecutando el pack completo en serie. `ci-summary` exige
+`npm run ci:preview-smoke:built` sigue ejecutando el pack completo en serie. `ci-summary` exige
 `build-budget`, `preview-smoke-lanes` y `final-confidence-and-readiness`; los cambios `docs-only` y `functions-only` conservan
 sus controles propios.
 
@@ -1087,7 +957,7 @@ Referencia de cola: [concurrencia de GitHub Actions](https://docs.github.com/en/
 El gate de dependencias debe aprobar root y Functions sin nuevas excepciones.
 Probar defaults y opcionales de días/pacientes, reparación legacy, respaldos,
 contratos serverless y lecturas de documentos por episodio. El pack de confianza
-y `ci:release-gate` ejercitan el CLI actualizado con emuladores y entradas sintéticas.
+(`test:release-confidence`) y `test:firestore:release:ci` ejercitan el CLI actualizado con emuladores y entradas sintéticas.
 Conservar scorecard y auditoría del commit final; una prueba focalizada no reemplaza
 los controles pendientes ni acredita un despliegue.
 

@@ -23,5 +23,5 @@ if (issues.length > 0) {
 
 const summary = readGuardrailGovernanceSummary(ROOT);
 console.log(
-  `[guardrail-governance] OK (${summary.blockingTierCount} blocking tiers, ${summary.reportOnlyCount} report-only guards)`
+  `[guardrail-governance] OK (${summary.qualityCheckCount} quality checks, ${summary.reportOnlyCount} report-only guards)`
 );

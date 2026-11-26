@@ -100,8 +100,8 @@ Clasificar el cambio y acreditar los controles correspondientes con CI del SHA f
 no se exige repetirlos localmente. Comprobar el alcance ejecutado y conservar el enlace
 al run y sus artefactos. Ejecutar localmente las regresiones durante la edición y sólo
 las comprobaciones adicionales que CI no cubra. Las pruebas focalizadas solas no
-sustituyen CI. `ci:pre-merge` contiene tipos, lint, calidad y unitarios;
-`ci:merge-gate` añade cobertura crítica, funciones, build y preview. No repetir
+sustituyen CI; `ci-summary` en GitHub acredita tipos, lint, calidad, unitarios,
+cobertura crítica, funciones, build, preview, emuladores y E2E críticos. No repetir
 sus componentes sobre el mismo diff salvo fallo o nueva incertidumbre.
 
 El hook de commit formatea y ejecuta ESLint sobre los archivos de código preparados

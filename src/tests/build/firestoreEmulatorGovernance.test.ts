@@ -36,8 +36,6 @@ const createGovernanceRoot = () => {
       'test:emulator:sync:ci': 'bash scripts/run-firestore-sync-emulator-ci.sh',
       'test:firestore:release:ci': 'bash scripts/run-firestore-release-gate-ci.sh',
       'test:firestore:cma:ci': 'bash scripts/run-firestore-cma-specialty-ci.sh',
-      'ci:release-gate':
-        'npm run ci:merge-gate && npm run report:release-evidence && npm run check:release-evidence && npm run test:firestore:release:ci',
     },
   });
   writeJson(root, 'scripts/config/release-confidence-pack.json', {
