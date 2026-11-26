@@ -12,9 +12,6 @@ try {
   console.error(
     `[legacy-retirement-debt] ${error instanceof Error ? error.message : String(error)}`
   );
-  console.error(
-    '[legacy-retirement-debt] Run npm run report:compatibility-governance before this check.'
-  );
   process.exit(1);
 }
 

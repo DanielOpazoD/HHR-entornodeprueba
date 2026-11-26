@@ -9,7 +9,7 @@ que el commit actual esté validado o libre de deuda.
 1. Identificar el commit y el árbol de trabajo (`git rev-parse HEAD`, `git status`).
 2. Consultar la ejecución de [CI](.github/workflows/ci-cd.yml) correspondiente a ese
    commit. Comprobar los resultados y los artefactos, no solo el título del PR.
-3. Leer `quality-metrics`, `maintenance-debt-scorecard` y
+3. Leer `quality-metrics`, `legacy-retirement-debt` y
    `release-readiness-scorecard` de esa ejecución. Revisar commit, procedencia,
    entradas y controles pendientes. Una fecha de generación reciente no basta.
 4. Para una medición local, seguir los comandos de

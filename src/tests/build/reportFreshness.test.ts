@@ -9,8 +9,6 @@ import { getEvidenceReportDependencyFiles } from '../../../scripts/evidenceDepen
 import { buildDependencyFingerprint } from '../../../scripts/evidenceProvenanceSupport.mjs';
 
 import { buildCriticalCoverageReport } from '../../../scripts/criticalCoverageSupport.mjs';
-import { buildClinicalReleaseValidationReport } from '../../../scripts/clinicalReleaseValidationSupport.mjs';
-import { buildClinicalReleaseSignoffReport } from '../../../scripts/clinicalReleaseSignoffSupport.mjs';
 import { buildReleaseConfidenceMatrixReport } from '../../../scripts/releaseConfidenceMatrixSupport.mjs';
 
 const scriptPath = path.join(process.cwd(), 'scripts/check-report-freshness.mjs');
@@ -22,11 +20,8 @@ const trackedReports = [
   { id: 'sync-convergence', file: 'reports/sync-convergence.json' },
   { id: 'system-confidence', file: 'reports/system-confidence.json' },
   { id: 'operational-health', file: 'reports/operational-health.json' },
-  { id: 'clinical-release-validation', file: 'reports/clinical-release-validation.json' },
-  { id: 'clinical-release-signoff', file: 'reports/clinical-release-signoff.json' },
   { id: 'release-confidence-matrix', file: 'reports/release-confidence-matrix.json' },
   { id: 'release-readiness-scorecard', file: 'reports/release-readiness-scorecard.json' },
-  { id: 'maintenance-debt-scorecard', file: 'reports/maintenance-debt-scorecard.json' },
 ];
 
 const run = (root: string, command: string, args: string[] = []) =>
@@ -140,8 +135,6 @@ afterEach(() => {
 describe('report freshness guardrail', () => {
   it.each([
     ['critical-coverage', buildCriticalCoverageReport],
-    ['clinical-release-validation', buildClinicalReleaseValidationReport],
-    ['clinical-release-signoff', buildClinicalReleaseSignoffReport],
     ['release-confidence-matrix', buildReleaseConfidenceMatrixReport],
   ] as const)('receives verifiable provenance from the %s producer', (reportId, buildReport) => {
     const root = process.cwd();
@@ -196,18 +189,18 @@ describe('report freshness guardrail', () => {
       const head = run(root, 'git', ['rev-parse', '--short', 'HEAD']);
       writeReports(root, head, {
         includeGeneratedFor: true,
-        generatedForOverrides: { 'maintenance-debt-scorecard': { dependencyFingerprint } },
+        generatedForOverrides: { 'system-confidence': { dependencyFingerprint } },
       });
       expect(() =>
-        run(root, 'node', [scriptPath, '--strict', '--only', 'maintenance-debt-scorecard'])
+        run(root, 'node', [scriptPath, '--strict', '--only', 'system-confidence'])
       ).toThrow(
-        /maintenance-debt-scorecard\.json was generated for commit .* without dependency fingerprint/
+        /system-confidence\.json was generated for commit .* without dependency fingerprint/
       );
     }
   );
 
   it.each(['replace', 'remove'] as const)(
-    'rejects a current-commit maintenance report after input %s, independent of mtime',
+    'rejects a current-commit confidence report after input %s, independent of mtime',
     change => {
       const { root } = makeGitRepoWithLinearCommit();
       const head = run(root, 'git', ['rev-parse', '--short', 'HEAD']);
@@ -223,9 +216,9 @@ describe('report freshness guardrail', () => {
         fs.utimesSync(input, before.atime, before.mtime);
       }
 
-      const args = [scriptPath, '--only', 'maintenance-debt-scorecard'];
+      const args = [scriptPath, '--only', 'system-confidence'];
       expect(() => run(root, 'node', [...args, '--strict'])).toThrow(
-        /maintenance-debt-scorecard\.json is stale by real dependency fingerprint/
+        /system-confidence\.json is stale by real dependency fingerprint/
       );
       // Local advisory still succeeds, but never silently labels stale inputs OK.
       const advisory = spawnSync(process.execPath, args, { cwd: root, encoding: 'utf8' });

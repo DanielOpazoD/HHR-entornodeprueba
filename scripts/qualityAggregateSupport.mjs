@@ -3,7 +3,7 @@ import path from 'node:path';
 
 export const QUALITY_GROUP_PLAN = Object.freeze({
   boundaries: Object.freeze(['boundaries']),
-  governance: Object.freeze(['governance', 'governance-inputs']),
+  governance: Object.freeze(['governance']),
   security: Object.freeze(['security', 'type-safety', 'hygiene']),
   size: Object.freeze(['size']),
   tests: Object.freeze(['tests']),

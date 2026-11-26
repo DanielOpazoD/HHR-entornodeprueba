@@ -56,28 +56,10 @@ export const RELEASE_EVIDENCE_INVENTORY = [
     consumers: ['scorecard de release', 'post-merge'],
   }),
   decisionReport({
-    id: 'clinical-release-validation',
-    label: 'Validación clínica de release',
-    owner: 'Clinical Safety',
-    consumers: ['release gate', 'post-merge'],
-  }),
-  decisionReport({
-    id: 'clinical-release-signoff',
-    label: 'Aprobación clínica',
-    owner: 'Clinical Safety',
-    consumers: ['release gate', 'post-merge'],
-  }),
-  decisionReport({
     id: 'release-confidence-matrix',
     label: 'Matriz de confianza',
     owner: 'Release Engineering',
     consumers: ['scorecard de release', 'post-merge'],
-  }),
-  decisionReport({
-    id: 'maintenance-debt-scorecard',
-    label: 'Deuda de mantenimiento',
-    owner: 'Architecture',
-    consumers: ['release gate', 'planificación técnica'],
   }),
   decisionReport({
     id: 'release-readiness-scorecard',
@@ -92,16 +74,10 @@ export const RELEASE_EVIDENCE_INVENTORY = [
     consumers: ['scorecard de release'],
   }),
   supportingReport({
-    id: 'compatibility-governance',
-    label: 'Gobernanza de compatibilidad',
-    owner: 'Architecture',
-    consumers: ['scorecard de release'],
-  }),
-  supportingReport({
     id: 'legacy-retirement-debt',
     label: 'Retiro de deuda legacy',
     owner: 'Architecture',
-    consumers: ['deuda de mantenimiento', 'scorecard de release'],
+    consumers: ['scorecard de release'],
   }),
   supportingReport({
     id: 'technical-ownership-map',

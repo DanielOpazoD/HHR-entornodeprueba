@@ -87,8 +87,8 @@ Una change queda lista solo si cumple todo lo siguiente (acreditable por CI del 
 - **Infraestructura e inyección:** los providers obligatorios deben fallar rápido si falta wiring; los servicios críticos sobre Firebase Functions/Auth/Storage prefieren `create...Service(...)` inyectable (singleton sólo por compatibilidad); los chunks críticos de arranque se declaran en `scripts/config/bundle-budget.json`.
 - **Cuándo abrir una excepción:** sólo si partir el archivo o corregir en esa iteración rompe contratos o añade riesgo clínico/operativo **y** la excepción queda registrada en la allowlist/backlog con límite, motivo, owner y criterio de cierre. Si no se cumplen ambas condiciones, resolver en la misma change.
 - **Cómo agregar un guardrail nuevo:** preferir `scripts/check-*.mjs` o `scripts/report-*.mjs` antes que tooling externo; si es informativo, empezar como `report-only` y declararlo en `scripts/config/guardrail-governance.json` (ver también [ENGINEERING_CHANGE_DECISION_POLICY.md](./ENGINEERING_CHANGE_DECISION_POLICY.md)).
-- **Revisión local de deuda (sin confundir snapshots con estado actual):** los archivos de `reports/` no se versionan y corresponden al SHA en que se generaron. Para revisar deuda localmente, ejecutar en orden:
-  `npm run report:quality-metrics`, `npm run report:compatibility-governance`, `npm run report:legacy-retirement-debt` y `npm run report:maintenance-debt-scorecard`.
+- **Revisión local de deuda (sin confundir snapshots con estado actual):** los archivos de `reports/` no se versionan y corresponden al SHA en que se generaron. Para revisar deuda localmente, ejecutar:
+  `npm run report:quality-metrics` y `npm run report:legacy-retirement-debt`.
 
 ## Gates activos
 

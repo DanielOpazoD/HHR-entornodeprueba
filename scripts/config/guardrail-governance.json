@@ -35,11 +35,6 @@
       "artifact": "reports/system-confidence.md"
     },
     {
-      "id": "compatibility_governance",
-      "script": "report:compatibility-governance",
-      "artifact": "reports/compatibility-governance.md"
-    },
-    {
       "id": "legacy_retirement_debt",
       "script": "report:legacy-retirement-debt",
       "artifact": "reports/legacy-retirement-debt.md"
@@ -90,7 +85,6 @@
     "checks": [
       { "id": "check:architecture", "group": "boundaries" },
       { "id": "check:source-patterns", "group": "boundaries" },
-      { "id": "report:compatibility-governance", "group": "governance-inputs" },
       { "id": "check:legacy-retirement-debt", "group": "governance" },
       { "id": "check:runtime-contracts", "group": "governance" },
       { "id": "check:sync-invariants", "group": "governance" },

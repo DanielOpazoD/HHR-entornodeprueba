@@ -7,17 +7,10 @@
       "label": "Role aliases",
       "owner": "auth/security",
       "phase": "retired",
-      "maxGovernedEntries": 0,
-      "guardrails": [
-        "src/tests/security/legacyRoleAliasStatic.test.ts",
-        "report:compatibility-governance"
-      ],
-      "evidenceReports": [
-        "reports/compatibility-governance.md",
-        "reports/legacy-retirement-debt.md"
-      ],
+      "guardrails": ["src/tests/security/legacyRoleAliasStatic.test.ts"],
+      "evidenceReports": ["reports/legacy-retirement-debt.md"],
       "retirementCriteria": "Two consecutive release snapshots show zero legacy viewer role aliases in production claims and config/roles, then write-back canonicalization can be removed.",
-      "nextAction": "Retired: legacy viewer role alias removed from rules, Cloud Functions, Netlify auth, and admin role management; keep zero governed entries enforced."
+      "nextAction": "Retired: legacy viewer role alias removed from rules, Cloud Functions, Netlify auth, and admin role management; keep legacyRoleAliasStatic.test.ts enforcing zero entries."
     },
     {
       "id": "legacy-clinical-document-hydration",

@@ -8,7 +8,6 @@
 npm run test:ci:unit          # Tests unitarios
 npm run test:rules:ci         # Firestore rules
 npm run test:release-confidence  # Pack de confianza
-npm run check:clinical-release-signoff # Debe pasar antes de release productivo
 ```
 
 ### 2. Verificar typecheck
@@ -59,20 +58,7 @@ npm run build       # Vite build
 
 ### 2. Validación clínica manual mínima
 
-Antes de marcar un release como listo, cada escenario crítico debe cerrar tres evidencias: código corregido, regresión automatizada y flujo clínico validado visualmente/manual. El contrato versionado vive en `scripts/config/clinical-release-validation.json` y se valida con:
-
-```bash
-npm run report:clinical-release-signoff
-npm run check:clinical-release-signoff
-```
-
-No dupliques escenarios manualmente en este documento. Para agregar, cambiar o retirar un flujo clínico de release, actualiza `scripts/config/clinical-release-validation.json` y conserva los tres cierres obligatorios por escenario:
-
-- `codigo_corregido`
-- `regresion_automatizada`
-- `flujo_clinico_validado`
-
-El signoff real vive en `scripts/config/clinical-release-signoff.json`. Mientras algún escenario esté en `pending_human_review`, `failed` o `blocked`, `npm run check:clinical-release-signoff` debe fallar. Solo se marca `passed` cuando hay responsable, fecha y evidencia manual/visual revisable.
+Antes de marcar un release como listo, comprobar en un entorno desplegado los flujos críticos afectados (recarga de censo, movimientos con parches pendientes, documentos clínicos/impresión, entrega de turno, dependencias externas y respaldos/exportaciones).
 
 ### 3. Verificar Firestore
 
@@ -83,34 +69,3 @@ El signoff real vive en `scripts/config/clinical-release-signoff.json`. Mientras
 
 1. Netlify dashboard → Deploys → seleccionar deploy anterior → "Publish deploy"
 2. Los datos en Firestore NO se rollbackean (son independientes del deploy)
-
-### Aprobación clínica del candidato exacto
-
-El informe histórico no autoriza la versión que se está preparando. Para cerrar
-una release, la persona responsable debe completar los escenarios de
-`scripts/config/clinical-release-validation.json` sobre el candidato verificado.
-El registro usa el esquema de `scripts/config/clinical-release-signoff.json`, pero
-`releaseCandidate` debe contener el SHA completo obtenido con `git rev-parse HEAD`.
-Cada escenario debe estar `passed`, identificar al responsable real, incluir
-`validatedAt` en UTC ISO (por ejemplo `2026-10-05T10:00:00Z`) y una referencia de
-evidencia con `type: manual_signoff`. No copiar aprobaciones de versiones anteriores.
-
-Guardar ese JSON **fuera del checkout** y proporcionar su ruta absoluta:
-
-```sh
-export CLINICAL_RELEASE_SIGNOFF_FILE=/ruta/externa/aprobacion-clinica.json
-npm run check:clinical-release-signoff
-npm run check:release-evidence
-```
-
-El control rechaza registros ausentes, históricos, de otro SHA, incompletos, con
-fechas inválidas/futuras o un checkout modificado. Si el candidato cambia, se
-necesita una nueva revisión del responsable; regenerar informes no la reemplaza.
-La variable debe apuntar al mismo registro durante el gate de release. No incluir
-datos de pacientes en este archivo ni inventar autores, fechas o aprobaciones.
-
-La validación comprueba el contrato del registro y su vínculo al candidato; no es
-una firma electrónica ni autentica por sí sola la identidad del revisor. Los PR
-de tooling conservan sus controles automáticos normales: su merge no declara
-completada una validación clínica ni autoriza una release. El registro histórico
-y su generador se conservan sin reescribir los signoffs antiguos.

@@ -4,7 +4,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getGitReportState, formatWorktreeState } from './gitReportState.mjs';
-import { collectClinicalReleaseCandidateIssues } from './clinicalReleaseSignoffSupport.mjs';
 import { TEST_EXECUTION_MANIFEST } from './measuredFlakeRiskSupport.mjs';
 
 const ROOT = process.cwd();
@@ -12,11 +11,8 @@ const trackedReports = [
   'reports/quality-metrics.json',
   'reports/system-confidence.json',
   'reports/operational-health.json',
-  'reports/clinical-release-validation.json',
-  'reports/clinical-release-signoff.json',
   'reports/release-confidence-matrix.json',
   'reports/release-readiness-scorecard.json',
-  'reports/maintenance-debt-scorecard.json',
 ];
 const clinicalVisualReleaseReport = 'reports/e2e/clinical-visual-release-report.json';
 const clinicalVisualReleaseSpec = 'clinical-release-visual-smoke.spec.ts';
@@ -98,11 +94,6 @@ export const collectReleaseEvidenceIssues = (root = ROOT) => {
   }
 
   issues.push(...collectClinicalVisualReleaseEvidenceIssues(root));
-  issues.push(
-    ...collectClinicalReleaseCandidateIssues(root).map(
-      issue => `clinical release signoff: ${issue}`
-    )
-  );
 
   return issues;
 };

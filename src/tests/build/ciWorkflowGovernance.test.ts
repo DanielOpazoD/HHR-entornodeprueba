@@ -36,12 +36,12 @@ const isPreviewDownload = (step: YAMLMap) =>
   step.getIn(['with', 'name']) === 'preview-bootstrap-artifacts';
 
 describe('CI workflow governance', () => {
-  it('includes readiness, sign-off and debt reports in the release evidence', () => {
+  it('includes readiness and confidence reports in the release evidence', () => {
     expect(RELEASE_EVIDENCE_REPORT_IDS).toEqual(
       expect.arrayContaining([
         'release-readiness-scorecard',
-        'clinical-release-signoff',
-        'maintenance-debt-scorecard',
+        'system-confidence',
+        'operational-health',
       ])
     );
   });

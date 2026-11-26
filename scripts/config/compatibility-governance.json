@@ -1,7 +1,0 @@
-{
-  "policyVersion": "2026-04-v1",
-  "expansionRule": "Ninguna feature nueva puede depender de compatibilidad legacy salvo excepcion documentada y gobernada.",
-  "documentationRule": "Todo bridge debe tener owner, motivo, retirementCriteria y remainingConsumers.",
-  "exceptionProcess": "Las excepciones deben agregarse a este inventario antes de merge y deben quedar cubiertas por guardrail o test de regresion.",
-  "entries": []
-}

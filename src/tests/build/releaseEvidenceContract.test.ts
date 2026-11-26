@@ -17,7 +17,7 @@ describe('release evidence contract', () => {
     expect(new Set(RELEASE_EVIDENCE_INVENTORY.map(report => report.id)).size).toBe(
       RELEASE_EVIDENCE_INVENTORY.length
     );
-    expect(RELEASE_DECISION_REPORT_IDS).toHaveLength(10);
+    expect(RELEASE_DECISION_REPORT_IDS).toHaveLength(7);
   });
 
   it('orders every report producer after its report dependencies', () => {
@@ -85,7 +85,7 @@ describe('release evidence contract', () => {
       gitSha: '11111111',
       gitDirty: true,
       status: 'stale',
-      summary: { decisionReports: 10, currentReports: 8, staleReports: 2 },
+      summary: { decisionReports: 7, currentReports: 5, staleReports: 2 },
     };
 
     expect(
@@ -98,7 +98,7 @@ describe('release evidence contract', () => {
         expect.stringContaining('current HEAD'),
         expect.stringContaining('worktree state'),
         expect.stringContaining('every decision report exactly once'),
-        expect.stringContaining('10 stale reports'),
+        expect.stringContaining('7 stale reports'),
       ])
     );
   });
@@ -112,7 +112,7 @@ describe('release evidence contract', () => {
         gitSha: '22222222',
         gitDirty: false,
         status: 'current',
-        summary: { decisionReports: 10, currentReports: 10, staleReports: 0 },
+        summary: { decisionReports: 7, currentReports: 7, staleReports: 0 },
       },
       currentGitState: { gitSha: '22222222', gitDirty: false },
     });
@@ -135,7 +135,7 @@ describe('release evidence contract', () => {
       gitSha: '22222222',
       gitDirty: true,
       status: 'stale',
-      summary: { decisionReports: 10, currentReports: 10, staleReports: 0 },
+      summary: { decisionReports: 7, currentReports: 7, staleReports: 0 },
       reports: RELEASE_DECISION_REPORT_IDS.map(id => {
         const inventory = RELEASE_EVIDENCE_INVENTORY.find(entry => entry.id === id);
         return {

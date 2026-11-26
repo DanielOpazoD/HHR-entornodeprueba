@@ -14,7 +14,7 @@ import {
   runCommandsWithConcurrency,
 } from './lib/parallelCommandRunner.mjs';
 
-const SEQUENTIAL_QUALITY_GROUPS = new Set(['governance-inputs', 'governance']);
+const SEQUENTIAL_QUALITY_GROUPS = new Set(['governance']);
 
 const ROOT = process.cwd();
 const GOVERNANCE_CONFIG_PATH = path.join(ROOT, 'scripts/config/guardrail-governance.json');

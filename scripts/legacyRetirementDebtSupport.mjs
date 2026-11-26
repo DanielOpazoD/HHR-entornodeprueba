@@ -80,9 +80,6 @@ export const collectObservedLegacyConsumers = ({
   return observed;
 };
 
-const countCompatibilityEntries = compatibilityGovernanceReport =>
-  asArray(compatibilityGovernanceReport?.entries).length;
-
 const createSurfaceResult = ({ surface, status, signal, issues }) => ({
   id: surface.id,
   label: surface.label || surface.id,
@@ -96,30 +93,6 @@ const createSurfaceResult = ({ surface, status, signal, issues }) => ({
   nextAction: surface.nextAction || '',
   issues,
 });
-
-const buildRoleAliasSurface = ({ surface, compatibilityGovernanceReport }) => {
-  const governedEntries = countCompatibilityEntries(compatibilityGovernanceReport);
-  const maxGovernedEntries = asNumber(surface.maxGovernedEntries);
-  const hasGovernedEntryBudget = hasNumericBudget(surface.maxGovernedEntries);
-  const missingEntries = asArray(compatibilityGovernanceReport?.missingEntries);
-  const issues = [];
-
-  if (hasGovernedEntryBudget && governedEntries > maxGovernedEntries) {
-    issues.push(
-      `${surface.id} governed entries ${governedEntries} exceed budget ${maxGovernedEntries}`
-    );
-  }
-  if (missingEntries.length > 0) {
-    issues.push(`${surface.id} has missing governed entries: ${missingEntries.join(', ')}`);
-  }
-
-  return createSurfaceResult({
-    surface,
-    status: issues.length === 0 ? 'ok' : 'degraded',
-    signal: `governedEntries=${governedEntries}/${hasGovernedEntryBudget ? maxGovernedEntries : 'n/a'}, missing=${missingEntries.length}`,
-    issues,
-  });
-};
 
 const buildConsumerBudgetSurface = ({ surface, observedConsumersBySurface }) => {
   const approvedConsumers = asArray(surface.approvedConsumers);
@@ -161,10 +134,7 @@ const buildGenericSurface = surface =>
     issues: [],
   });
 
-const buildSurface = ({ surface, compatibilityGovernanceReport, observedConsumersBySurface }) => {
-  if (surface.id === 'role-aliases') {
-    return buildRoleAliasSurface({ surface, compatibilityGovernanceReport });
-  }
+const buildSurface = ({ surface, observedConsumersBySurface }) => {
   if (surface.maxAuthorizedConsumers != null) {
     return buildConsumerBudgetSurface({ surface, observedConsumersBySurface });
   }
@@ -172,15 +142,10 @@ const buildSurface = ({ surface, compatibilityGovernanceReport, observedConsumer
   return buildGenericSurface(surface);
 };
 
-export const buildLegacyRetirementDebtReport = ({
-  config,
-  compatibilityGovernanceReport = {},
-  observedConsumersBySurface = {},
-}) => {
+export const buildLegacyRetirementDebtReport = ({ config, observedConsumersBySurface = {} }) => {
   const surfaces = asArray(config?.surfaces).map(surface =>
     buildSurface({
       surface,
-      compatibilityGovernanceReport,
       observedConsumersBySurface,
     })
   );
@@ -217,7 +182,6 @@ export const loadLegacyRetirementDebtReport = (root = process.cwd()) => {
 
   return buildLegacyRetirementDebtReport({
     config,
-    compatibilityGovernanceReport: readRequiredJson(root, 'reports/compatibility-governance.json'),
     observedConsumersBySurface,
   });
 };
