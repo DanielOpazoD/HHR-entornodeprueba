@@ -212,16 +212,17 @@ describeStorageRules('Storage Security Rules - clinical attachments', () => {
     await assertFails(deleteObject(ref(testEnv.unauthenticatedContext().storage(), target)));
   });
 
-  it('allows only the owner to delete an avatar', async () => {
+  it('allows only the owner to read and delete an avatar', async () => {
     const owner = testEnv.authenticatedContext('avatar_owner').storage();
+    const otherAdmin = testEnv.authenticatedContext('other_user', { role: 'admin' }).storage();
+    const unauth = testEnv.unauthenticatedContext().storage();
     const target = 'user-avatars/avatar_owner/photo.png';
     await assertSucceeds(uploadClinicalAttachment(owner, target, new Uint8Array(64), 'image/png'));
-    await assertFails(
-      deleteObject(
-        ref(testEnv.authenticatedContext('other_user', { role: 'admin' }).storage(), target)
-      )
-    );
-    await assertFails(deleteObject(ref(testEnv.unauthenticatedContext().storage(), target)));
+    await assertSucceeds(getBytes(ref(owner, target)));
+    await assertFails(getBytes(ref(otherAdmin, target)));
+    await assertFails(getBytes(ref(unauth, target)));
+    await assertFails(deleteObject(ref(otherAdmin, target)));
+    await assertFails(deleteObject(ref(unauth, target)));
     await assertSucceeds(deleteObject(ref(owner, target)));
   });
 
@@ -324,5 +325,61 @@ describeStorageRules('Storage Security Rules - clinical attachments', () => {
       )
     );
     await assertSucceeds(deleteObject(ref(nurse, target)));
+  });
+
+  it('denies unauthenticated Storage reads for censo-diario while allowing clinical readers', async () => {
+    const target = 'censo-diario/hhr/2026-05-01.xlsx';
+    const nurse = testEnv.authenticatedContext('censo_nurse', { role: 'nurse_hospital' }).storage();
+    const doctor = testEnv
+      .authenticatedContext('censo_doctor', { role: 'doctor_urgency' })
+      .storage();
+    const unauth = testEnv.unauthenticatedContext().storage();
+
+    await assertSucceeds(
+      uploadClinicalAttachment(nurse, target, new Uint8Array(64), 'application/octet-stream')
+    );
+    await assertSucceeds(getBytes(ref(doctor, target)));
+    await assertFails(getBytes(ref(unauth, target)));
+  });
+
+  it('restricts reminders storage writes to clinical write roles', async () => {
+    const target = 'reminders/hhr/banner.png';
+    const nurse = testEnv
+      .authenticatedContext('reminder_nurse', { role: 'nurse_hospital' })
+      .storage();
+    const doctor = testEnv
+      .authenticatedContext('reminder_doctor', { role: 'doctor_urgency' })
+      .storage();
+    const viewer = testEnv.authenticatedContext('reminder_viewer', { role: 'viewer' }).storage();
+    const unauth = testEnv.unauthenticatedContext().storage();
+
+    await assertSucceeds(uploadClinicalAttachment(nurse, target, new Uint8Array(64), 'image/png'));
+    await assertSucceeds(getBytes(ref(doctor, target)));
+    await assertFails(uploadClinicalAttachment(doctor, target, new Uint8Array(64), 'image/png'));
+    await assertFails(uploadClinicalAttachment(viewer, target, new Uint8Array(64), 'image/png'));
+    await assertFails(uploadClinicalAttachment(unauth, target, new Uint8Array(64), 'image/png'));
+  });
+
+  it('keeps prescription Storage blobs readable by clinical staff and never client-writable', async () => {
+    const target = 'prescriptions/hhr/rx-1/full.jpg';
+    const admin = testEnv.authenticatedContext('rx_admin', { role: 'admin' }).storage();
+    const nurse = testEnv.authenticatedContext('rx_nurse', { role: 'nurse_hospital' }).storage();
+    const doctor = testEnv.authenticatedContext('rx_doctor', { role: 'doctor_urgency' }).storage();
+    const unauth = testEnv.unauthenticatedContext().storage();
+
+    await testEnv.withSecurityRulesDisabled(async bypass => {
+      await uploadBytes(
+        ref(bypass.storage(), target),
+        new Blob([new Uint8Array(64)], { type: 'image/jpeg' }),
+        { contentType: 'image/jpeg' }
+      );
+    });
+
+    await assertSucceeds(getBytes(ref(nurse, target)));
+    await assertSucceeds(getBytes(ref(doctor, target)));
+    await assertFails(getBytes(ref(unauth, target)));
+    await assertFails(uploadClinicalAttachment(admin, target, new Uint8Array(64), 'image/jpeg'));
+    await assertFails(uploadClinicalAttachment(nurse, target, new Uint8Array(64), 'image/jpeg'));
+    await assertFails(deleteObject(ref(admin, target)));
   });
 });
