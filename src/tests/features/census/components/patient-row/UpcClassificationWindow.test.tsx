@@ -452,4 +452,28 @@ describe('UpcClassificationWindow', () => {
       expect.objectContaining({ evaluationId: 'previous-evaluation' })
     );
   });
+
+  it('closes without rendering another bed when opened for an unclassifiable initialBedId', () => {
+    mocks.beds = {
+      R1: DataFactory.createMockPatient('R1', {
+        patientName: '',
+        firstName: 'Maria',
+        rut: '11.111.111-1',
+        clinicalCrib: DataFactory.createMockPatient('R1', {
+          patientName: 'RN de Maria',
+          rut: '11.111.111-1',
+        }),
+      }),
+      R2: DataFactory.createMockPatient('R2', { patientName: 'Paciente R2', rut: '2-7' }),
+    };
+    const onClose = vi.fn();
+    render(
+      <UpcClassificationWindow currentDateString={date} initialBedId="R1" onClose={onClose} />
+    );
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByText('Paciente R2')).toBeNull();
+    expect(mocks.loadPatientUpcHistory).not.toHaveBeenCalled();
+  });
 });

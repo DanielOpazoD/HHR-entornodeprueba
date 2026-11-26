@@ -2263,6 +2263,178 @@ describe('UpcClassificationWindowProvider', () => {
     await runMotherNamingCase('both-names-retry');
   });
 
+  it('cancels on resolve if the clicked bed still has no patientName, and rejects same-name collision between mother and crib regardless of update order', async () => {
+    const runEdge = async (
+      mode:
+        | 'unnamed-mother-crib-named-only'
+        | 'same-name-single-update'
+        | 'same-name-mother-then-crib'
+        | 'same-name-crib-then-mother'
+    ) => {
+      vi.resetModules();
+      let resolveChunk:
+        | ((value: { UpcClassificationWindow: React.FC<MockUpcWindowProps> }) => void)
+        | null = null;
+      const chunkPromise = new Promise<{
+        UpcClassificationWindow: React.FC<MockUpcWindowProps>;
+      }>(resolve => {
+        resolveChunk = resolve;
+      });
+      vi.doMock(UPC_WINDOW_MODULE_PATH, () => chunkPromise);
+
+      const {
+        DailyRecordBedsContext,
+        resolveUpcCellSubjectIdentity,
+        UpcClassificationWindowProvider,
+        useUpcClassificationWindowOpener,
+      } = await loadFreshContext();
+
+      const unnamedCrib = DataFactory.createMockPatient('R1', {
+        patientName: '',
+        rut: '11.111.111-1',
+        clinicalEpisodeId: 'legacy_ep_order_check',
+        admissionDate: '2026-11-24',
+        admissionTime: '08:00',
+      });
+      const initialMother = DataFactory.createMockPatient('R1', {
+        patientName: '',
+        firstName: mode === 'unnamed-mother-crib-named-only' ? 'Maria' : '',
+        rut: '11.111.111-1',
+        clinicalEpisodeId: 'legacy_ep_order_check',
+        admissionDate: '2026-11-24',
+        admissionTime: '08:00',
+        clinicalCrib: unnamedCrib,
+      });
+      const bedR2 = DataFactory.createMockPatient('R2', {
+        patientName: 'Paciente R2',
+        rut: '22.222.222-2',
+        clinicalEpisodeId: 'ep-r2-other',
+      });
+
+      const Trigger = ({ mother }: { mother: PatientData }) => {
+        const { openUpcWindow } = useUpcClassificationWindowOpener();
+        return (
+          <button
+            type="button"
+            onClick={event =>
+              openUpcWindow('R1', {
+                episodeIdentity: resolveUpcCellSubjectIdentity(mother),
+                triggerElement: event.currentTarget,
+              })
+            }
+          >
+            Abrir R1 borde
+          </button>
+        );
+      };
+
+      const view = render(
+        <DailyRecordBedsContext.Provider value={{ R1: initialMother, R2: bedR2 }}>
+          <UpcClassificationWindowProvider currentDateString="2026-11-24">
+            <Trigger mother={initialMother} />
+          </UpcClassificationWindowProvider>
+        </DailyRecordBedsContext.Provider>
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir R1 borde' }));
+      expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+      if (mode === 'unnamed-mother-crib-named-only') {
+        const motherStillUnnamed: PatientData = {
+          ...initialMother,
+          clinicalCrib: { ...unnamedCrib, patientName: 'RN de Maria' },
+        };
+        view.rerender(
+          <DailyRecordBedsContext.Provider value={{ R1: motherStillUnnamed, R2: bedR2 }}>
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger mother={motherStillUnnamed} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+        expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+      } else if (mode === 'same-name-single-update') {
+        const colliding: PatientData = {
+          ...initialMother,
+          patientName: 'Maria Lopez',
+          clinicalCrib: { ...unnamedCrib, patientName: 'Maria Lopez' },
+        };
+        view.rerender(
+          <DailyRecordBedsContext.Provider value={{ R1: colliding, R2: bedR2 }}>
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger mother={colliding} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+        expect(screen.queryByTestId('upc-window-module-loading')).toBeNull();
+      } else if (mode === 'same-name-mother-then-crib') {
+        const motherFirst: PatientData = { ...initialMother, patientName: 'Maria Lopez' };
+        view.rerender(
+          <DailyRecordBedsContext.Provider value={{ R1: motherFirst, R2: bedR2 }}>
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger mother={motherFirst} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+        expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+        const cribSameName: PatientData = {
+          ...motherFirst,
+          clinicalCrib: { ...unnamedCrib, patientName: 'Maria Lopez' },
+        };
+        view.rerender(
+          <DailyRecordBedsContext.Provider value={{ R1: cribSameName, R2: bedR2 }}>
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger mother={cribSameName} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+        expect(screen.queryByTestId('upc-window-module-loading')).toBeNull();
+      } else {
+        const cribFirst: PatientData = {
+          ...initialMother,
+          clinicalCrib: { ...unnamedCrib, patientName: 'Maria Lopez' },
+        };
+        view.rerender(
+          <DailyRecordBedsContext.Provider value={{ R1: cribFirst, R2: bedR2 }}>
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger mother={cribFirst} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+        expect(screen.getByTestId('upc-window-module-loading')).toBeInTheDocument();
+
+        const motherSameName: PatientData = { ...cribFirst, patientName: 'Maria Lopez' };
+        view.rerender(
+          <DailyRecordBedsContext.Provider value={{ R1: motherSameName, R2: bedR2 }}>
+            <UpcClassificationWindowProvider currentDateString="2026-11-24">
+              <Trigger mother={motherSameName} />
+            </UpcClassificationWindowProvider>
+          </DailyRecordBedsContext.Provider>
+        );
+        expect(screen.queryByTestId('upc-window-module-loading')).toBeNull();
+      }
+
+      await act(async () => {
+        resolveChunk?.({
+          UpcClassificationWindow: ({ initialBedId }: MockUpcWindowProps) => (
+            <div role="dialog" aria-label="Clasificación UPC">
+              {initialBedId}
+            </div>
+          ),
+        });
+        await chunkPromise;
+      });
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+      view.unmount();
+    };
+
+    await runEdge('unnamed-mother-crib-named-only');
+    await runEdge('same-name-single-update');
+    await runEdge('same-name-mother-then-crib');
+    await runEdge('same-name-crib-then-mother');
+  });
+
   it('restores focus to the clicked trigger button on Escape even when activeElement stayed on an ancestor wrapper', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     let attempts = 0;

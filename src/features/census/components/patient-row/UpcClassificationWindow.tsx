@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CheckCheck, ChevronRight, LoaderCircle, ShieldCheck } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { useDailyRecordBedActions } from '@/context/useDailyRecordScopedActions';
@@ -65,9 +65,23 @@ const UpcRound: React.FC<
     () => buildUpcClassificationRows(beds, currentDateString),
     [beds, currentDateString]
   );
-  const selectedRow =
-    rows.find(row => row.key === selection.key) ?? rows.find(row => row.pendingReason) ?? rows[0];
-  if (selectedRow && selection.key !== selectedRow.key)
+  const [hasVerifiedInitialBed, setHasVerifiedInitialBed] = useState(!initialBedId);
+  const initialRowPresent = !initialBedId || rows.some(row => row.key === initialBedId);
+  if (!hasVerifiedInitialBed && initialRowPresent) {
+    setHasVerifiedInitialBed(true);
+  }
+  const missingRequestedInitialRow = !hasVerifiedInitialBed && !initialRowPresent;
+  useLayoutEffect(() => {
+    if (missingRequestedInitialRow) {
+      onClose();
+    }
+  }, [missingRequestedInitialRow, onClose]);
+  const selectedRow = missingRequestedInitialRow
+    ? undefined
+    : (rows.find(row => row.key === selection.key) ??
+      rows.find(row => row.pendingReason) ??
+      rows[0]);
+  if (!missingRequestedInitialRow && selectedRow && selection.key !== selectedRow.key)
     setSelection({ ...selection, key: selectedRow.key });
   const currentDraft = (row: UpcClassificationRow) => {
     const draft = drafts[row.key];
@@ -174,6 +188,10 @@ const UpcRound: React.FC<
   };
 
   const selectedDraft = selectedRow && draftFor(selectedRow);
+  if (missingRequestedInitialRow) {
+    return null;
+  }
+
   return (
     <BaseModal
       isOpen

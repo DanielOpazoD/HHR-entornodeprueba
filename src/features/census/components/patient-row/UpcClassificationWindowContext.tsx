@@ -83,13 +83,23 @@ const UpcClassificationWindowErrorFallback: React.FC<{
 );
 
 const UpcResolvedWindowBoundary: React.FC<{
+  canOpenResolvedTarget: boolean;
+  onMissingTarget: () => void;
   onResolvedChange: (resolved: boolean) => void;
   children: React.ReactNode;
-}> = ({ onResolvedChange, children }) => {
+}> = ({ canOpenResolvedTarget, onMissingTarget, onResolvedChange, children }) => {
+  const hasMountedResolvedRef = useRef(false);
+
   useLayoutEffect(() => {
+    if (!canOpenResolvedTarget && !hasMountedResolvedRef.current) {
+      onMissingTarget();
+      return;
+    }
+    hasMountedResolvedRef.current = true;
     onResolvedChange(true);
     return () => onResolvedChange(false);
-  }, [onResolvedChange]);
+  }, [canOpenResolvedTarget, onMissingTarget, onResolvedChange]);
+
   return <>{children}</>;
 };
 
@@ -227,6 +237,15 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
     subjectPairedSlotKey,
   ]);
 
+  const hasClassifiableTargetRow =
+    !hasExpectedEpisode ||
+    !hasTrackableContextBed ||
+    !rawBedId ||
+    !beds ||
+    (isCrib
+      ? Boolean(currentParentSubject?.patientName?.trim() && currentSubject?.patientName?.trim())
+      : Boolean(currentSubject?.patientName?.trim()));
+
   if (isStalePendingEpisode) {
     return null;
   }
@@ -242,7 +261,11 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
         )
       }
       render={() => (
-        <UpcResolvedWindowBoundary onResolvedChange={setHasResolvedWindow}>
+        <UpcResolvedWindowBoundary
+          canOpenResolvedTarget={hasClassifiableTargetRow}
+          onMissingTarget={onCancelStaleOpen}
+          onResolvedChange={setHasResolvedWindow}
+        >
           <UpcClassificationWindowModule
             currentDateString={currentDateString}
             readOnly={readOnly}

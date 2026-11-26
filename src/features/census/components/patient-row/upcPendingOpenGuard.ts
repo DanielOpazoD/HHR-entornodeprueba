@@ -390,18 +390,19 @@ export const hasLegacyCensusAmbiguity = (
     for (const [slotKey, subject] of entries) {
       if (slotKey === clickedSlotKey) continue;
       if (slotKey === pairedSlotKey) {
+        const pairedNameKey = normalizePatientNameKey(subject?.patientName);
+        if (currentNameKey && pairedNameKey && pairedNameKey === currentNameKey) {
+          return true;
+        }
         if (isCrib) continue;
         seenSlots.add(slotKey);
         const currentPairedIdentity = resolveUpcCellSubjectIdentity(subject);
         const initialPairedIdentity = observation.otherSlotIdentities.get(slotKey) ?? null;
-        if (currentPairedIdentity !== initialPairedIdentity) {
-          if (!isSameUpcCellSubjectIdentity(initialPairedIdentity, currentPairedIdentity)) {
-            return true;
-          }
-          const pairedNameKey = normalizePatientNameKey(subject?.patientName);
-          if (isNamingTransition && currentNameKey && pairedNameKey === currentNameKey) {
-            return true;
-          }
+        if (
+          currentPairedIdentity !== initialPairedIdentity &&
+          !isSameUpcCellSubjectIdentity(initialPairedIdentity, currentPairedIdentity)
+        ) {
+          return true;
         }
         continue;
       }
