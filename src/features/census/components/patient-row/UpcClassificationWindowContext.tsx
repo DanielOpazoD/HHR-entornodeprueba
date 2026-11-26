@@ -1,5 +1,17 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { UpcClassificationWindow } from './UpcClassificationWindow';
+import { ShieldCheck } from 'lucide-react';
+import { BaseModal } from '@/components/shared/BaseModal';
+import { PanelModuleRetry, RecoverableClinicalPanelModule } from './RecoverableClinicalPanelModule';
+
+const loadUpcClassificationWindow = () =>
+  import('./UpcClassificationWindow').then(module => ({
+    default: module.UpcClassificationWindow,
+  }));
+
+let UpcClassificationWindowModule = React.lazy(loadUpcClassificationWindow);
+const resetUpcClassificationWindowModule = () => {
+  UpcClassificationWindowModule = React.lazy(loadUpcClassificationWindow);
+};
 
 interface UpcClassificationWindowContextValue {
   /** The census header opens the round; a patient cell selects its bed or clinical crib. */
@@ -16,6 +28,23 @@ export const useUpcClassificationWindowOpener = (): UpcClassificationWindowConte
   return context ?? { openUpcWindow: () => undefined };
 };
 
+const UpcClassificationWindowErrorFallback: React.FC<{
+  onClose: () => void;
+  onRetry: () => void;
+}> = ({ onClose, onRetry }) => (
+  <BaseModal
+    isOpen
+    onClose={onClose}
+    title="Clasificación UPC"
+    icon={<ShieldCheck aria-hidden="true" />}
+    headerIconColor="text-medical-700"
+    size="md"
+    closeOnBackdrop
+  >
+    <PanelModuleRetry onRetry={onRetry} />
+  </BaseModal>
+);
+
 interface UpcClassificationWindowProviderProps {
   currentDateString: string;
   readOnly?: boolean;
@@ -25,6 +54,9 @@ interface UpcClassificationWindowProviderProps {
 /**
  * Holds the single day-level UPC window so every UPC cell in the census opens the same panel
  * instead of rendering its own anchored popover.
+ *
+ * The dialog module loads only on open so initial census paint does not parse the checklist
+ * panel until a clinician requests it.
  */
 export const UpcClassificationWindowProvider: React.FC<UpcClassificationWindowProviderProps> = ({
   currentDateString,
@@ -54,11 +86,21 @@ export const UpcClassificationWindowProvider: React.FC<UpcClassificationWindowPr
     <UpcClassificationWindowContext.Provider value={value}>
       {children}
       {openState.isOpen && (
-        <UpcClassificationWindow
-          currentDateString={currentDateString}
-          readOnly={readOnly}
-          initialBedId={openState.bedId}
-          onClose={closeUpcWindow}
+        <RecoverableClinicalPanelModule
+          resetModule={resetUpcClassificationWindowModule}
+          fallback={retry =>
+            retry ? (
+              <UpcClassificationWindowErrorFallback onClose={closeUpcWindow} onRetry={retry} />
+            ) : null
+          }
+          render={() => (
+            <UpcClassificationWindowModule
+              currentDateString={currentDateString}
+              readOnly={readOnly}
+              initialBedId={openState.bedId}
+              onClose={closeUpcWindow}
+            />
+          )}
         />
       )}
     </UpcClassificationWindowContext.Provider>

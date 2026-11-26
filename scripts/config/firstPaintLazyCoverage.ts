@@ -22,6 +22,7 @@ const GUARDED_TARGETS: Record<string, string> = {
   'src/features/census/components/CensusRegisterContent': 'census-view',
   'src/features/census/components/CensusRegisterSections': 'CensusRegisterSections',
   'src/features/census/components/EmptyDayPrompt': 'EmptyDayPrompt',
+  'src/features/census/components/patient-row/UpcClassificationWindow': 'UpcClassificationWindow',
   'src/features/clinical-library/quick-action': 'quick-action',
   'src/features/laboratory/quick-action': 'quick-action',
 };
