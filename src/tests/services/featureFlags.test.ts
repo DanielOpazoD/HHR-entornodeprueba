@@ -113,26 +113,26 @@ describe('FeatureFlags', () => {
   it('keeps environment overrides separate from localStorage, overrides stale storage on boot, and preserves them on reset', async () => {
     localStorage.setItem(
       'hhr_feature_flags',
-      JSON.stringify({ SPECIALTY_EPISODE_ASSIGNMENT: false })
+      JSON.stringify({ SPECIALTY_JEV_CONSULTATION: false })
     );
     vi.stubEnv('MODE', 'production');
-    vi.stubEnv('VITE_HHR_SPECIALTY_EPISODE_ASSIGNMENT', 'enabled');
+    vi.stubEnv('VITE_HHR_SPECIALTY_JEV_PILOT', 'enabled');
 
     const { featureFlags } = await import('@/services/utils/featureFlags');
 
-    expect(featureFlags.isEnabled('SPECIALTY_EPISODE_ASSIGNMENT')).toBe(true);
+    expect(featureFlags.isEnabled('SPECIALTY_JEV_CONSULTATION')).toBe(true);
 
     featureFlags.enable('SPECIALTY_RULES_MEMORY');
     const persisted = JSON.parse(localStorage.getItem('hhr_feature_flags') ?? '{}');
     expect(persisted).toEqual({ SPECIALTY_RULES_MEMORY: true });
 
-    featureFlags.disable('SPECIALTY_EPISODE_ASSIGNMENT');
-    expect(featureFlags.isEnabled('SPECIALTY_EPISODE_ASSIGNMENT')).toBe(false);
+    featureFlags.disable('SPECIALTY_JEV_CONSULTATION');
+    expect(featureFlags.isEnabled('SPECIALTY_JEV_CONSULTATION')).toBe(false);
 
-    featureFlags.reset('SPECIALTY_EPISODE_ASSIGNMENT');
-    expect(featureFlags.isEnabled('SPECIALTY_EPISODE_ASSIGNMENT')).toBe(true);
+    featureFlags.reset('SPECIALTY_JEV_CONSULTATION');
+    expect(featureFlags.isEnabled('SPECIALTY_JEV_CONSULTATION')).toBe(true);
 
     featureFlags.resetAll();
-    expect(featureFlags.isEnabled('SPECIALTY_EPISODE_ASSIGNMENT')).toBe(true);
+    expect(featureFlags.isEnabled('SPECIALTY_JEV_CONSULTATION')).toBe(true);
   });
 });

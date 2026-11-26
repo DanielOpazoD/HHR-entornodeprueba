@@ -15,7 +15,6 @@ import {
   resolveNextDocumentType,
 } from '@/features/census/controllers/patientRowInputController';
 import { harmonizeEpisodeDemographicsHistorySafely } from '@/features/census/controllers/patientDemographicsEpisodeSyncController';
-import { isFeatureEnabled } from '@/services/utils/featureFlags';
 import { usePatientRowCommandHandlers } from '@/features/census/components/patient-row/usePatientRowCommandHandlers';
 
 const CLINICAL_INITIAL_BLOCK_COALESCE_MS = 400;
@@ -170,17 +169,15 @@ const usePatientRowUpdateAdapter = ({
         return updateMany(bedId, fields);
       }
       const { specialty, ...remainingFields } = fields;
-      if (isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT')) {
-        // The authority applies these derived clears atomically with the scalar decision.
-        for (const key of [
-          'secondarySpecialty',
-          'ginecobstetriciaType',
-          'deliveryRoute',
-          'deliveryDate',
-          'deliveryCesareanLabor',
-        ] as const) {
-          if (remainingFields[key] === undefined) delete remainingFields[key];
-        }
+      // The authority applies these derived clears atomically with the scalar decision.
+      for (const key of [
+        'secondarySpecialty',
+        'ginecobstetriciaType',
+        'deliveryRoute',
+        'deliveryDate',
+        'deliveryCesareanLabor',
+      ] as const) {
+        if (remainingFields[key] === undefined) delete remainingFields[key];
       }
       return (async () => {
         const saved = await updateMany(bedId, { specialty });

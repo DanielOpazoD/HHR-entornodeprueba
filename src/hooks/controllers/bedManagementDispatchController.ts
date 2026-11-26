@@ -16,7 +16,6 @@ import { buildBedMovementAuditDetails } from '@/services/admin/auditClinicalEven
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
 import { isClinicalAuthorityCallablePatchPath } from '@/services/storage/dailyRecordAuthorityContract';
-import { isFeatureEnabled } from '@/services/utils/featureFlags';
 import * as specialtyIntentControls from '@/hooks/controllers/bedManagementSpecialtyIntentController';
 export interface BedManagementValidationPort {
   processFieldValue: (
@@ -253,34 +252,30 @@ export const executeBedManagementAction = async ({
     return false;
   }
 
-  const specialtyControls = isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT')
-    ? specialtyIntentControls
-    : null;
   try {
     const originalPatch = bedManagementReducer(currentRecord, validatedAction);
     if (!originalPatch) {
       return false;
     }
-    const specialtyIntent =
-      specialtyControls?.resolveManualSpecialtyIntent(
-        validatedAction,
-        currentRecord,
-        originalPatch
-      ) ?? null;
-    const patch = specialtyControls
-      ? specialtyControls.preserveExplicitEmptySpecialtyChoice(
-          originalPatch,
-          specialtyIntent,
-          currentRecord
-        )
-      : originalPatch;
-    if (specialtyControls?.blocksUnanchoredSpecialtyEdit(validatedAction, patch, specialtyIntent))
+    const specialtyIntent = specialtyIntentControls.resolveManualSpecialtyIntent(
+      validatedAction,
+      currentRecord,
+      originalPatch
+    );
+    const patch = specialtyIntentControls.preserveExplicitEmptySpecialtyChoice(
+      originalPatch,
+      specialtyIntent,
+      currentRecord
+    );
+    if (
+      specialtyIntentControls.blocksUnanchoredSpecialtyEdit(validatedAction, patch, specialtyIntent)
+    )
       return false;
     // One accepted decision is one scalar write. The server enforces this too,
     // including for direct callers and Jev acceptance.
     if (
       specialtyIntent &&
-      !specialtyControls?.isExclusiveSpecialtyIntentPatch(patch, specialtyIntent)
+      !specialtyIntentControls.isExclusiveSpecialtyIntentPatch(patch, specialtyIntent)
     )
       return false;
     if (Object.keys(patch).length === 0) {

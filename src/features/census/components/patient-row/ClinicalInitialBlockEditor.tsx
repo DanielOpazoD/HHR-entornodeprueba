@@ -11,7 +11,6 @@ import { professionalSpecialtyToPatientSpecialty } from '@/services/staff/treati
 import { TreatingPhysicianSelect } from './TreatingPhysicianSelect';
 import type { PatientRowPatientPatch } from '@/features/census/components/patient-row/patientRowContracts';
 import { usePatientRowSaveState } from './usePatientRowSaveState';
-import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import type {
   DebouncedTextHandler,
   PatientRowSaveResult,
@@ -53,7 +52,6 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
   triggerTitle = 'Abrir bloque clínico',
   onMultipleUpdate,
 }) => {
-  const episodeMode = useFeatureFlag('SPECIALTY_EPISODE_ASSIGNMENT');
   const scopeKey = buildPatientRowSaveScopeKey(currentDateString, data);
   const saveState = usePatientRowSaveState(scopeKey);
   const staffContext = useStaffContext();
@@ -113,7 +111,7 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
   const saveDraft = async () => {
     if (disabled) return;
     const patch = buildClinicalInitialBlockPatch(draft, professionalsCatalog, data);
-    if (episodeMode && draft.specialtyTouched && draft.specialtySelection === 'Otro') {
+    if (draft.specialtyTouched && draft.specialtySelection === 'Otro') {
       patch.specialty = 'Otro' as PatientData['specialty'];
     }
     if (await saveState.save(() => onMultipleUpdate?.(patch))) setIsOpen(false);
@@ -261,24 +259,6 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
                     ))}
                   </select>
                 </label>
-
-                {!episodeMode && draft.specialtySelection === 'Otro' && (
-                  <label className="block">
-                    <span className="mb-1 block text-[11px] font-semibold text-slate-600">
-                      Describir especialidad
-                    </span>
-                    <input
-                      id={`clinical-block-specialty-other-${data.bedId}`}
-                      name={`clinical-block-specialty-other-${data.bedId}`}
-                      data-testid={`clinical-block-specialty-other-${data.bedId}`}
-                      className="h-8 w-full rounded border border-slate-200 px-2 text-[13px] focus:border-medical-500 focus:outline-none focus:ring-2 focus:ring-medical-500/20"
-                      value={draft.specialtyOther}
-                      onChange={event =>
-                        setDraft(current => ({ ...current, specialtyOther: event.target.value }))
-                      }
-                    />
-                  </label>
-                )}
 
                 {saveState.isSaving && (
                   <p role="status" className="text-[11px] text-slate-500">

@@ -59,14 +59,6 @@ const openCensus = async (page: Page) => {
   await server.authorizeBrowser(page);
   await server.seed(record);
   const authority = await installDailyRecordAuthorityRoute(page, record, server.commit);
-  // Exercise the protected, episode-bound route without changing deployment flags
-  // or contacting a real Firebase project. The fixture only releases UI requests.
-  await page.addInitScript(() => {
-    localStorage.setItem(
-      'hhr_feature_flags',
-      JSON.stringify({ SPECIALTY_EPISODE_ASSIGNMENT: true })
-    );
-  });
   await bootstrapSeededRecord(page, {
     role: 'admin',
     date: E2E_DATE,

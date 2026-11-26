@@ -1,14 +1,11 @@
 // @vitest-environment node
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { buildUpdatePatientPatches } from '@/hooks/controllers/bedManagementPatchController';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { Specialty } from '@/types/domain/patientClassification';
-import { featureFlags } from '@/services/utils/featureFlags';
 
 describe('bedManagementPatchController', () => {
-  afterEach(() => featureFlags.reset('SPECIALTY_EPISODE_ASSIGNMENT'));
-
-  it('keeps an explicit specialty on admission only while the episode pilot is off', () => {
+  it('clears specialty on identity replacement so the new episode starts pending', () => {
     const record = DataFactory.createMockDailyRecord('2026-05-14');
     record.beds.R1 = DataFactory.createMockPatient('R1', {
       patientName: 'Paciente Antiguo',
@@ -21,10 +18,7 @@ describe('bedManagementPatchController', () => {
       rut: '22.222.222-2',
       specialty: Specialty.CIRUGIA,
     };
-    featureFlags.disable('SPECIALTY_EPISODE_ASSIGNMENT');
-    expect(buildUpdatePatientPatches(record, 'R1', updates)['beds.R1.specialty']).toBe(
-      Specialty.CIRUGIA
-    );
+    expect(buildUpdatePatientPatches(record, 'R1', updates)['beds.R1.specialty']).toBe('');
     expect(
       buildUpdatePatientPatches(record, 'R1', {
         patientName: 'Paciente Nuevo',
@@ -32,8 +26,6 @@ describe('bedManagementPatchController', () => {
         specialty: Specialty.MEDICINA,
       })['beds.R1.specialty']
     ).toBe('');
-    featureFlags.enable('SPECIALTY_EPISODE_ASSIGNMENT');
-    expect(buildUpdatePatientPatches(record, 'R1', updates)['beds.R1.specialty']).toBe('');
   });
   it('persists a custom free-text specialty in the daily census bed patch', () => {
     const record = DataFactory.createMockDailyRecord('2026-05-11');
@@ -91,30 +83,17 @@ describe('bedManagementPatchController', () => {
       'beds.R1.clinicalEvents': [],
     });
   });
-  it.each([false, true])(
-    'keeps the protected specialty request scalar; legacy still clears obstetrics (pilot %s)',
-    enabled => {
-      if (enabled) featureFlags.enable('SPECIALTY_EPISODE_ASSIGNMENT');
-      else featureFlags.disable('SPECIALTY_EPISODE_ASSIGNMENT');
-      const record = DataFactory.createMockDailyRecord('2026-05-14');
-      record.beds.R1 = DataFactory.createMockPatient('R1', {
-        clinicalEpisodeId: 'synthetic-episode',
-        specialty: Specialty.GINECOBSTETRICIA,
-        ginecobstetriciaType: 'Obstétrica',
-        deliveryRoute: 'Cesárea',
-        deliveryDate: '2026-05-13',
-        deliveryCesareanLabor: 'Con TdP',
-      });
-      const patch = buildUpdatePatientPatches(record, 'R1', { specialty: Specialty.MEDICINA });
-      if (enabled) expect(patch).toEqual({ 'beds.R1.specialty': Specialty.MEDICINA });
-      else
-        expect(patch).toEqual({
-          'beds.R1.specialty': Specialty.MEDICINA,
-          'beds.R1.ginecobstetriciaType': undefined,
-          'beds.R1.deliveryRoute': undefined,
-          'beds.R1.deliveryDate': undefined,
-          'beds.R1.deliveryCesareanLabor': undefined,
-        });
-    }
-  );
+  it('keeps the protected specialty request scalar so the server clears obstetrics atomically', () => {
+    const record = DataFactory.createMockDailyRecord('2026-05-14');
+    record.beds.R1 = DataFactory.createMockPatient('R1', {
+      clinicalEpisodeId: 'synthetic-episode',
+      specialty: Specialty.GINECOBSTETRICIA,
+      ginecobstetriciaType: 'Obstétrica',
+      deliveryRoute: 'Cesárea',
+      deliveryDate: '2026-05-13',
+      deliveryCesareanLabor: 'Con TdP',
+    });
+    const patch = buildUpdatePatientPatches(record, 'R1', { specialty: Specialty.MEDICINA });
+    expect(patch).toEqual({ 'beds.R1.specialty': Specialty.MEDICINA });
+  });
 });

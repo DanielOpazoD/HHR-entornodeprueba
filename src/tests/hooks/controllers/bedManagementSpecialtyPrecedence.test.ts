@@ -1,14 +1,11 @@
 // @vitest-environment node
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { executeBedManagementAction } from '@/hooks/controllers/bedManagementDispatchController';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
-import { featureFlags } from '@/services/utils/featureFlags';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { createEmptyPatient } from '@/domain/patient/patientFactory';
 
 describe('manual specialty precedence across structural edits', () => {
-  afterEach(() => featureFlags.reset('SPECIALTY_EPISODE_ASSIGNMENT'));
-
   const makeRecord = () =>
     DataFactory.createMockDailyRecord('2026-09-23', {
       lastUpdated: '2026-09-23T10:00:00.000Z',
@@ -31,7 +28,6 @@ describe('manual specialty precedence across structural edits', () => {
     });
 
   it('does not write structure before a simultaneous manual choice', async () => {
-    featureFlags.enable('SPECIALTY_EPISODE_ASSIGNMENT');
     const record = makeRecord();
     const patchRecord = vi.fn().mockResolvedValue(undefined);
     const result = await executeBedManagementAction({
@@ -55,7 +51,6 @@ describe('manual specialty precedence across structural edits', () => {
   });
 
   it('saves an ordinary field when a form repeats the unchanged specialty', async () => {
-    featureFlags.enable('SPECIALTY_EPISODE_ASSIGNMENT');
     const patchRecord = vi.fn().mockResolvedValue(undefined);
     const result = await executeBedManagementAction({
       currentRecord: makeRecord(),
