@@ -2,7 +2,6 @@ import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from '
 import { ShieldCheck } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { useOptionalDailyRecordBeds } from '@/context/DailyRecordContext';
-import { resolveUpcEpisodeIdentity } from '@/domain/upc/upcRoundSubject';
 import { PanelModuleRetry, RecoverableClinicalPanelModule } from './RecoverableClinicalPanelModule';
 
 interface UpcCellSubjectLike {
@@ -14,25 +13,58 @@ interface UpcCellSubjectLike {
   admissionTime?: string;
 }
 
+const isAccreditedEpisodeId = (episode: string): boolean =>
+  Boolean(episode) && !episode.startsWith('legacy_ep_');
+
 /**
  * Fingerprints the patient occupying a clicked UPC cell even when the name is still empty
  * (e.g. a bed or crib with only RUT/document and clinicalEpisodeId) so turnover during a
- * deferred load or retry never opens the round on a replacement patient.
+ * deferred load or retry never opens the round on a replacement patient, while completing the
+ * name of the same accredited or legacy episode preserves the pending open.
  */
 export const resolveUpcCellSubjectIdentity = (
   subject?: UpcCellSubjectLike | null
 ): string | null => {
-  const upcIdentity = resolveUpcEpisodeIdentity(subject);
-  if (upcIdentity) return upcIdentity;
   if (!subject) return null;
   const episode = subject.clinicalEpisodeId?.trim() || '';
+  if (isAccreditedEpisodeId(episode)) {
+    return episode;
+  }
+  const name = subject.patientName?.trim() || '';
   const rut = subject.rut?.trim() || '';
   const admissionDate = (subject.firstSeenDate || subject.admissionDate || '').trim();
   const admissionTime = subject.admissionTime?.trim() || '';
-  if (!episode && !rut && !admissionDate && !admissionTime) {
+  if (!episode && !name && !rut && !admissionDate && !admissionTime) {
     return null;
   }
-  return JSON.stringify(['unnamed', episode, rut, admissionDate, admissionTime]);
+  return JSON.stringify(['legacy', episode, rut, name, admissionDate, admissionTime]);
+};
+
+const isSameUpcCellSubjectIdentity = (expected: string | null, current: string | null): boolean => {
+  if (expected === current) return true;
+  if (!expected || !current) return false;
+  if (!expected.startsWith('["legacy",') || !current.startsWith('["legacy",')) {
+    return false;
+  }
+  try {
+    const [, expectedEpisode, expectedRut, expectedName, expectedDate, expectedTime] = JSON.parse(
+      expected
+    ) as [string, string, string, string, string, string];
+    const [, currentEpisode, currentRut, currentName, currentDate, currentTime] = JSON.parse(
+      current
+    ) as [string, string, string, string, string, string];
+    return (
+      expectedName === '' &&
+      currentName !== '' &&
+      (expectedEpisode !== '' || expectedRut !== '') &&
+      expectedEpisode === currentEpisode &&
+      expectedRut === currentRut &&
+      expectedDate === currentDate &&
+      expectedTime === currentTime
+    );
+  } catch {
+    return false;
+  }
 };
 
 const loadUpcClassificationWindow = () =>
@@ -158,7 +190,7 @@ const UpcWindowHost: React.FC<UpcWindowHostProps> = ({
     !hasResolvedWindow &&
     hasExpectedEpisode &&
     hasTrackableContextBed &&
-    currentEpisodeIdentity !== expectedEpisodeIdentity;
+    !isSameUpcCellSubjectIdentity(expectedEpisodeIdentity, currentEpisodeIdentity);
 
   useLayoutEffect(() => {
     if (isStalePendingEpisode) {
