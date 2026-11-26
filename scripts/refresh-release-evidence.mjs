@@ -7,8 +7,7 @@ const reportsOnly = process.argv.includes('--reports-only');
 const steps = [
   ...(!reportsOnly
     ? [
-        // Preview and visual evidence need a production bundle. A final build
-        // below embeds the manifest generated from every resulting report.
+        // Preview and visual evidence need a production bundle.
         { id: 'evidence-input-build', command: 'build' },
         { id: 'preview-bootstrap', command: 'test:e2e:preview:census-bootstrap:built' },
         { id: 'preview-provenance', command: 'write:preview-bootstrap-provenance' },
@@ -20,7 +19,6 @@ const steps = [
   { id: 'freshness', command: 'check:report-freshness:strict' },
   { id: 'manifest', command: 'report:release-evidence-contract' },
   { id: 'contract', command: 'check:release-evidence-contract:strict' },
-  ...(!reportsOnly ? [{ id: 'release-build', command: 'build' }] : []),
 ];
 
 for (const step of steps) {

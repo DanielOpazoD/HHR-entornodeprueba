@@ -203,7 +203,7 @@ desde el código en cada validación:
 Para evaluar un PR o un merge, usar los artefactos de la ejecución de CI que corresponde
 al SHA evaluado. `critical-coverage` contiene la cobertura medida; `confidence-and-readiness`
 incorpora la evidencia final del preview; `ci-runtime-observed-profile` conserva tiempos
-observados. El manifiesto `release-evidence-runtime` vincula la evidencia al build.
+observados.
 Una ejecución pendiente o fallida no es una validación aprobada, y CI aprobado por sí
 solo no confirma el despliegue ni una sincronización real con Eloísa. El procedimiento
 canónico está en el [runbook de evidencia](docs/RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md).

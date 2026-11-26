@@ -52,7 +52,6 @@ export const EVIDENCE_PIPELINES: Record<string, Matcher[]> = {
     run('npm run check:report-freshness:strict'),
     run('npm run report:release-evidence-contract'),
     run('npm run check:release-evidence-contract:strict'),
-    upload('release-evidence-runtime'),
     upload('quality-static-governance-snapshots'),
   ],
   'clinical-sync-release-gate': [
@@ -62,12 +61,7 @@ export const EVIDENCE_PIPELINES: Record<string, Matcher[]> = {
     run('npm run check:report-freshness:strict -- --only sync-convergence'),
     upload('sync-convergence'),
   ],
-  build: [
-    download('release-evidence-runtime'),
-    run('npm run build'),
-    run('npm run check:bundle-budget'),
-    upload('dist'),
-  ],
+  build: [run('npm run build'), run('npm run check:bundle-budget'), upload('dist')],
   // The single aggregator: preview lanes, critical lanes, execution manifest, then confidence.
   'final-confidence-and-readiness': [
     run('npx playwright merge-reports'),
@@ -104,9 +98,7 @@ export const EVIDENCE_PIPELINES: Record<string, Matcher[]> = {
     ),
     download('dist'),
     download('preview-bootstrap-artifacts'),
-    download('release-evidence-runtime'),
     run('npm run check:preview-bootstrap-evidence'),
-    run('npm run check:release-evidence-contract:built'),
     download('flow-performance-evidence'),
     run('npm run check:flow-performance-budget'),
     run('npm run postmerge:evidence'),

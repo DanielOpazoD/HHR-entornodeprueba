@@ -1,7 +1,6 @@
 import { extensionDownloadPlugin } from './scripts/config/extensionDownloadPlugin';
 import fs from 'node:fs';
 import path from 'path';
-import { execFileSync } from 'node:child_process';
 import { defineConfig, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -12,95 +11,8 @@ import { createPrecacheGraphGuard } from './scripts/config/pwaPrecacheGraph';
 import { ONLINE_ONLY_ASSET_GLOBS } from './scripts/config/onlineOnlyAssets.mjs';
 import { minsalSharedInteropPlugin } from './scripts/config/minsalSharedInteropPlugin';
 import { netlifyFunctionDevServerPlugin } from './scripts/config/netlifyFunctionDevServer';
-import { bindReleaseEvidenceToBuild } from './scripts/config/releaseEvidenceRuntimeAsset';
 import { versionRuntimePlugin } from './scripts/config/versionRuntimePlugin';
 import { startupPublicAssetsPlugin } from './scripts/config/startupPublicAssetsPlugin';
-
-const RELEASE_EVIDENCE_ASSET = 'release-evidence.json';
-const RELEASE_EVIDENCE_SOURCE = path.resolve(
-  __dirname,
-  'reports',
-  'release-evidence-runtime',
-  RELEASE_EVIDENCE_ASSET
-);
-
-const unavailableReleaseEvidence = () =>
-  JSON.stringify(
-    {
-      schemaVersion: 1,
-      contractVersion: 1,
-      generatedAt: null,
-      gitSha: null,
-      status: 'unavailable',
-      summary: { decisionReports: 0, currentReports: 0, staleReports: 0 },
-    },
-    null,
-    2
-  );
-
-const resolveBuildGitSha = () => {
-  const environmentSha = process.env.COMMIT_REF || process.env.GITHUB_SHA;
-  if (environmentSha) return environmentSha;
-  try {
-    return execFileSync('git', ['rev-parse', 'HEAD'], {
-      cwd: __dirname,
-      encoding: 'utf8',
-    }).trim();
-  } catch {
-    return '';
-  }
-};
-
-const BUILD_GIT_SHA = resolveBuildGitSha();
-
-const readReleaseEvidenceAsset = () =>
-  fs.existsSync(RELEASE_EVIDENCE_SOURCE)
-    ? bindReleaseEvidenceToBuild(
-        fs.readFileSync(RELEASE_EVIDENCE_SOURCE, 'utf8'),
-        BUILD_GIT_SHA,
-        gitSha => {
-          try {
-            return execFileSync('git', ['rev-parse', `${gitSha}^{commit}`], {
-              cwd: __dirname,
-              encoding: 'utf8',
-            }).trim();
-          } catch {
-            return '';
-          }
-        }
-      )
-    : unavailableReleaseEvidence();
-
-/** Serve the same release contract in dev and in the production bundle. */
-function releaseEvidenceRuntimePlugin(): Plugin {
-  const route = `/${RELEASE_EVIDENCE_ASSET}`;
-  return {
-    name: 'release-evidence-runtime',
-    configureServer(server) {
-      server.middlewares.use(route, (req, res, next) => {
-        if (req.url && req.url !== '/' && !req.url.startsWith('/?')) {
-          next();
-          return;
-        }
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.setHeader('Cache-Control', 'no-store');
-        try {
-          res.end(readReleaseEvidenceAsset());
-        } catch {
-          res.statusCode = 503;
-          res.end(unavailableReleaseEvidence());
-        }
-      });
-    },
-    generateBundle() {
-      this.emitFile({
-        type: 'asset',
-        fileName: RELEASE_EVIDENCE_ASSET,
-        source: readReleaseEvidenceAsset(),
-      });
-    },
-  };
-}
 
 function excelJsRuntimeAssetPlugin(): Plugin {
   const runtimeAssetPath = path.resolve(
@@ -183,7 +95,6 @@ export default defineConfig(({ mode }) => {
       startupPublicAssetsPlugin(),
       extensionDownloadPlugin(__dirname),
       versionRuntimePlugin(buildVersionInfo),
-      releaseEvidenceRuntimePlugin(),
       excelJsRuntimeAssetPlugin(),
       netlifyFunctionDevServerPlugin(),
       minsalSharedInteropPlugin(__dirname),

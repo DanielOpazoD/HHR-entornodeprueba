@@ -45,7 +45,6 @@ export const REUSED_EVIDENCE_ARTIFACTS = [
   'dist',
   'preview-bootstrap-artifacts',
   'critical-coverage',
-  'release-evidence-runtime',
   'flow-performance-evidence',
 ];
 

@@ -368,13 +368,6 @@ jobs:
       - name: Enforce release evidence contract
         run: npm run check:release-evidence-contract:strict
 
-      - name: Upload release evidence runtime contract
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-evidence-runtime
-          path: reports/release-evidence-runtime/
-          retention-days: 30
-
       - name: Upload quality metrics artifact
         if: always()
         uses: actions/upload-artifact@v7
@@ -862,11 +855,10 @@ jobs:
   build:
     name: build-budget
     runs-on: ubuntu-24.04
-    # The build consumes the release-evidence runtime contract from this job.
-    # Other release gates still block ci-summary, but can run alongside the build.
-    # The preview smoke runs in preview-smoke-lanes, on preview-build's bundle, so it
-    # no longer waits here.
-    needs: [quality-static-governance-snapshots]
+    # Runs immediately after ci-scope alongside the other release gates; every
+    # downstream consumer (smoke lanes, Lighthouse, post-merge) reuses this dist.
+    needs: [ci-scope]
+    if: needs.ci-scope.outputs.scope == 'full'
 
     steps:
       - name: Checkout code
@@ -874,12 +866,6 @@ jobs:
 
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
-
-      - name: Download release evidence runtime contract
-        uses: actions/download-artifact@v7
-        with:
-          name: release-evidence-runtime
-          path: reports/release-evidence-runtime
 
       - name: Build production bundle
         run: npm run build
@@ -919,45 +905,13 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  preview-build:
-    # The preview pack starts with the other gates instead of after build-budget,
-    # so it does not wait for the release-evidence runtime. Deployments rebuild on
-    # Netlify, and this bundle differs from build-budget only in release-evidence.json.
-    # It is built once here and every preview lane serves the same artifact.
-    name: preview-build
-    runs-on: ubuntu-24.04
-    needs: [ci-scope]
-    if: needs.ci-scope.outputs.scope == 'full'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Setup CI dependencies
-        uses: ./.github/actions/setup-ci-dependencies
-
-      - name: Build preview bundle
-        run: npm run build
-        env:
-          CI: true
-
-      - name: Upload preview bundle
-        uses: actions/upload-artifact@v7
-        with:
-          name: preview-dist
-          path: dist/
-          # Kept as long as the production dist, so a lane re-run days later still finds it.
-          retention-days: 7
-          if-no-files-found: error
-          overwrite: true
-
   preview-smoke-lanes:
     # Lanes are split by observed duration; see scripts/previewSmokeLaneSupport.mjs.
-    # They run even when preview-build fails, only to fail visibly: a lane skipped
+    # They run even when build fails, only to fail visibly: a lane skipped
     # for a missing bundle would look green in the checks list.
     name: preview-smoke-lane (${{ matrix.lane }})
     runs-on: ubuntu-24.04
-    needs: [ci-scope, preview-build]
+    needs: [ci-scope, build]
     if: ${{ !cancelled() && needs.ci-scope.outputs.scope == 'full' }}
     strategy:
       fail-fast: false
@@ -965,10 +919,10 @@ jobs:
         lane: [app, dicom-graphics-stress, dicom-1, dicom-2, dicom-3]
 
     steps:
-      - name: Require the shared preview bundle
-        if: needs.preview-build.result != 'success'
+      - name: Require the shared production bundle
+        if: needs.build.result != 'success'
         run: |
-          echo "::error::preview-build ended as '${{ needs.preview-build.result }}'; this lane has no bundle to test."
+          echo "::error::build-budget ended as '${{ needs.build.result }}'; this lane has no bundle to test."
           exit 1
 
       - name: Checkout code
@@ -977,10 +931,10 @@ jobs:
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
 
-      - name: Download preview bundle
+      - name: Download production bundle
         uses: actions/download-artifact@v7
         with:
-          name: preview-dist
+          name: dist
           path: dist
 
       - name: Install Playwright browsers for preview bootstrap smoke
@@ -1548,11 +1502,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
-      - name: Verify release evidence runtime artifact availability
-        run: node scripts/verify-github-run-artifact.mjs --artifact release-evidence-runtime --producer quality-static-governance-snapshots
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-
       - name: Download build artifacts
         uses: actions/download-artifact@v7
         with:
@@ -1577,19 +1526,8 @@ jobs:
           name: critical-coverage
           path: reports
 
-      - name: Download release evidence runtime contract
-        uses: actions/download-artifact@v7
-        with:
-          run-id: ${{ env.EVIDENCE_RUN_ID }}
-          github-token: ${{ github.token }}
-          name: release-evidence-runtime
-          path: reports/release-evidence-runtime
-
       - name: Validate downloaded preview bootstrap evidence
         run: npm run check:preview-bootstrap-evidence
-
-      - name: Verify built release evidence contract
-        run: npm run check:release-evidence-contract:built
 
       - name: Download flow performance evidence
         uses: actions/download-artifact@v7

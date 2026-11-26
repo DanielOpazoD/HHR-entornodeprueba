@@ -9,11 +9,7 @@ import {
   RELEASE_EVIDENCE_INVENTORY,
 } from '../../../scripts/releaseEvidenceContract.mjs';
 import { EVIDENCE_DEPENDENCY_GRAPH } from '../../../scripts/evidenceDependencyGraph.mjs';
-import {
-  collectBuiltReleaseEvidenceIssues,
-  buildRuntimeReleaseEvidenceManifest,
-  collectReleaseEvidenceManifestIssues,
-} from '../../../scripts/releaseEvidenceManifestSupport.mjs';
+import { collectReleaseEvidenceManifestIssues } from '../../../scripts/releaseEvidenceManifestSupport.mjs';
 
 describe('release evidence contract', () => {
   it('keeps a complete and unique inventory backed by real producers', () => {
@@ -169,65 +165,6 @@ describe('release evidence contract', () => {
         expect.stringContaining('cannot authorize a release'),
       ])
     );
-  });
-
-  it('publishes only the non-sensitive runtime summary', () => {
-    const runtimeManifest = buildRuntimeReleaseEvidenceManifest({
-      schemaVersion: 1,
-      contractVersion: 1,
-      generatedAt: '2026-08-11T12:30:00.000Z',
-      gitSha: '1234567890abcdef',
-      gitDirty: false,
-      status: 'current',
-      summary: { decisionReports: 10, currentReports: 10, staleReports: 0 },
-      reports: [{ id: 'critical-coverage' }],
-      inventory: [{ id: 'critical-coverage', owner: 'Quality Engineering' }],
-    });
-
-    expect(runtimeManifest).toEqual({
-      schemaVersion: 1,
-      contractVersion: 1,
-      generatedAt: '2026-08-11T12:30:00.000Z',
-      gitSha: '1234567890abcdef',
-      status: 'current',
-      summary: { decisionReports: 10, currentReports: 10, staleReports: 0 },
-    });
-    expect(runtimeManifest).not.toHaveProperty('reports');
-    expect(runtimeManifest).not.toHaveProperty('inventory');
-  });
-
-  it('compares every field in the built runtime contract', () => {
-    const manifest = {
-      schemaVersion: 1,
-      contractVersion: 1,
-      generatedAt: '2026-08-11T12:30:00.000Z',
-      gitSha: '1234567890abcdef',
-      status: 'current',
-      summary: { decisionReports: 10, currentReports: 10, staleReports: 0 },
-    };
-    const runtimeManifest = buildRuntimeReleaseEvidenceManifest(manifest);
-
-    expect(
-      collectBuiltReleaseEvidenceIssues({
-        runtimeManifest,
-        manifest,
-        expectedRuntimeManifest: runtimeManifest,
-      })
-    ).toEqual([]);
-    expect(
-      collectBuiltReleaseEvidenceIssues({
-        runtimeManifest: { ...runtimeManifest, generatedAt: '2026-08-11T12:31:00.000Z' },
-        manifest,
-        expectedRuntimeManifest: runtimeManifest,
-      })
-    ).toEqual([expect.stringContaining('complete verified runtime contract')]);
-    expect(
-      collectBuiltReleaseEvidenceIssues({
-        runtimeManifest,
-        manifest,
-        expectedRuntimeManifest: { ...runtimeManifest, status: 'stale' },
-      })
-    ).toEqual([expect.stringContaining('runtime source')]);
   });
 
   it.each(['a', 'not-a-commit'])(

@@ -112,15 +112,6 @@ export const formatReleaseEvidenceManifestMarkdown = manifest => {
   return `${lines.join('\n')}\n`;
 };
 
-export const buildRuntimeReleaseEvidenceManifest = manifest => ({
-  schemaVersion: manifest.schemaVersion,
-  contractVersion: manifest.contractVersion,
-  generatedAt: manifest.generatedAt,
-  gitSha: manifest.gitSha,
-  status: manifest.status,
-  summary: manifest.summary,
-});
-
 export const collectReleaseEvidenceManifestIssues = ({
   manifest,
   currentGitState,
@@ -235,31 +226,6 @@ export const collectReleaseEvidenceManifestIssues = ({
   }
   if (staleReports !== 0) {
     issues.push(`Release evidence contains ${staleReports} stale reports.`);
-  }
-  return issues;
-};
-
-export const collectBuiltReleaseEvidenceIssues = ({
-  runtimeManifest,
-  manifest,
-  expectedRuntimeManifest,
-}) => {
-  const issues = [];
-  const derivedRuntimeManifest = manifest
-    ? buildRuntimeReleaseEvidenceManifest(manifest)
-    : undefined;
-
-  if (!derivedRuntimeManifest) {
-    return ['Built release evidence cannot be verified without its complete manifest.'];
-  }
-  if (
-    expectedRuntimeManifest &&
-    !isDeepStrictEqual(expectedRuntimeManifest, derivedRuntimeManifest)
-  ) {
-    issues.push('Release evidence runtime source was not derived from the verified manifest.');
-  }
-  if (!isDeepStrictEqual(runtimeManifest, derivedRuntimeManifest)) {
-    issues.push('Built release evidence does not match the complete verified runtime contract.');
   }
   return issues;
 };
